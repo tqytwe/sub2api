@@ -1,18 +1,16 @@
 <template>
   <span class="stat-value" aria-hidden="true">
-    <template v-for="col in columns" :key="col.key">
-      <span v-if="col.type === 'static'" class="od-static">{{ col.ch }}</span>
-      <span v-else class="od-col">
-        <span
-          class="od-strip"
-          :class="{ 'is-animating': col.animating }"
-          :style="stripStyle(col)"
-          @transitionend="onStripEnd(col.key, $event)"
-        >
-          <span v-for="n in stripLen" :key="n" class="od-d">{{ (n - 1) % 10 }}</span>
-        </span>
+    <span v-if="stable" class="od-stable">{{ stable }}</span>
+    <span v-for="col in tails" :key="col.key" class="od-col">
+      <span
+        class="od-strip"
+        :class="{ 'is-animating': col.animating }"
+        :style="stripStyle(col)"
+        @transitionend="onStripEnd(col.key, $event)"
+      >
+        <span v-for="n in stripLen" :key="n" class="od-d">{{ (n - 1) % 10 }}</span>
       </span>
-    </template>
+    </span>
     <span class="stat-unit">{{ unit }}</span>
   </span>
 </template>
@@ -23,9 +21,8 @@ import {
   ODOMETER_DEFAULT_SPIN_TAIL,
   ODOMETER_STRIP_LEN,
   landOffset,
-  type OdometerColumnState,
-  type OdometerDigitState,
-  syncColumnsFromValue,
+  type TailDigitState,
+  syncTailDigits,
 } from '@/utils/odometerColumns'
 
 const props = withDefaults(
@@ -42,12 +39,13 @@ const props = withDefaults(
 )
 
 const stripLen = ODOMETER_STRIP_LEN
-const columns = ref<OdometerColumnState[]>([])
+const stable = ref('')
+const tails = ref<TailDigitState[]>([])
 let entered = false
 
-function stripStyle(col: OdometerDigitState) {
+function stripStyle(col: TailDigitState) {
   return {
-    transform: `translate3d(0, calc(-1 * ${col.offset} * var(--od-cell)), 0)`,
+    transform: `translate3d(0, calc(${-col.offset} * 1em), 0)`,
     transitionDuration: col.animating ? `${col.durationMs}ms` : '0ms',
     transitionDelay: col.animating ? `${col.delayMs}ms` : '0ms',
   }
@@ -55,8 +53,8 @@ function stripStyle(col: OdometerDigitState) {
 
 function onStripEnd(key: string, ev: TransitionEvent) {
   if (ev.propertyName !== 'transform') return
-  columns.value = columns.value.map((col) => {
-    if (col.type !== 'digit' || col.key !== key) return col
+  tails.value = tails.value.map((col) => {
+    if (col.key !== key) return col
     return {
       ...col,
       offset: landOffset(col.targetDigit),
@@ -68,26 +66,30 @@ function onStripEnd(key: string, ev: TransitionEvent) {
 }
 
 function applyValue(entrance: boolean) {
-  columns.value = syncColumnsFromValue(columns.value, props.value, props.spinTail, {
-    animateTail: props.active,
+  const next = syncTailDigits(tails.value, props.value, props.spinTail, {
+    animate: props.active,
     entrance,
   })
+  stable.value = next.stable
+  tails.value = next.tails
 }
 
 async function runEntrance() {
-  columns.value = syncColumnsFromValue([], props.value, props.spinTail, {
-    animateTail: false,
+  const next = syncTailDigits([], props.value, props.spinTail, {
+    animate: false,
     entrance: false,
   })
-  columns.value = columns.value.map((col) =>
-    col.type === 'digit' ? { ...col, offset: 0, animating: false, durationMs: 0, delayMs: 0 } : col,
-  )
+  stable.value = next.stable
+  tails.value = next.tails.map((col) => ({ ...col, offset: 0, animating: false }))
+
   await nextTick()
   requestAnimationFrame(() => {
-    columns.value = syncColumnsFromValue(columns.value, props.value, props.spinTail, {
-      animateTail: true,
+    const rolled = syncTailDigits(tails.value, props.value, props.spinTail, {
+      animate: true,
       entrance: true,
     })
+    stable.value = rolled.stable
+    tails.value = rolled.tails
   })
 }
 
@@ -112,31 +114,30 @@ watch(
 
 <style scoped>
 .stat-value {
-  --od-cell: 1.12em;
   display: inline-flex;
   align-items: baseline;
   flex-wrap: nowrap;
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
+  line-height: 1;
 }
 
-.od-static {
+.od-stable {
   flex-shrink: 0;
-  line-height: var(--od-cell);
 }
 
 .od-col {
   display: block;
   flex-shrink: 0;
   width: 0.62em;
-  height: var(--od-cell);
+  height: 1em;
   overflow: hidden;
 }
 
 .od-d {
   display: block;
-  height: var(--od-cell);
-  line-height: var(--od-cell);
+  height: 1em;
+  line-height: 1em;
   text-align: center;
 }
 

@@ -1,19 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
   landOffset,
-  parseValueColumns,
+  splitStableTail,
   spinOffset,
-  syncColumnsFromValue,
+  syncTailDigits,
   visibleDigit,
 } from '@/utils/odometerColumns'
 
 describe('odometerColumns', () => {
-  it('marks last three numeric columns as tail', () => {
-    const cols = parseValueColumns('12,847,360', 3)
-    const digits = cols.filter((c) => c.type === 'digit')
-    expect(digits).toHaveLength(8)
-    expect(digits.slice(-3).every((d) => d.type === 'digit' && d.isTail)).toBe(true)
-    expect(digits[0]?.type === 'digit' && digits[0].isTail).toBe(false)
+  it('keeps all but last three digits in stable text', () => {
+    const { stable, tails } = splitStableTail('12,847,360', 3)
+    expect(stable).toBe('12,847,')
+    expect(tails.map((t) => t.digit)).toEqual([3, 6, 0])
   })
 
   it('lands on exact digit without half-step offset', () => {
@@ -22,13 +20,17 @@ describe('odometerColumns', () => {
   })
 
   it('supports long formatted values', () => {
-    const cols = parseValueColumns('1,234,567,890,123', 3)
-    expect(cols.filter((c) => c.type === 'digit')).toHaveLength(13)
+    const { stable, tails } = splitStableTail('1,234,567,890,123', 3)
+    expect(stable).toBe('1,234,567,890,')
+    expect(tails.map((t) => t.digit)).toEqual([1, 2, 3])
   })
 
-  it('snaps stable digits immediately when not animating tail', () => {
-    const next = syncColumnsFromValue([], '12,847,360', 3, { animateTail: false, entrance: false })
-    const stable = next.find((c) => c.type === 'digit' && c.key === 'd-0')
-    expect(stable?.type === 'digit' && stable.offset).toBe(landOffset(1))
+  it('snaps stable text immediately when not animating', () => {
+    const { stable, tails } = syncTailDigits([], '12,847,360', 3, {
+      animate: false,
+      entrance: false,
+    })
+    expect(stable).toBe('12,847,')
+    expect(tails.every((t) => t.offset === landOffset(t.targetDigit))).toBe(true)
   })
 })
