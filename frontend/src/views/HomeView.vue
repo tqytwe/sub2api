@@ -165,7 +165,7 @@
               <template v-for="(ch, ci) in stat.chars" :key="ci">
                 <span v-if="ch.digit !== null" class="od-col" :style="{ '--n': 10 + ch.digit, '--d': `${ch.roll * 60}ms` }">
                   <span class="od-strip">
-                    <span v-for="d in 10" :key="d" class="od-d">{{ d - 1 }}</span>
+                    <span v-for="d in 20" :key="d" class="od-d">{{ (d - 1) % 10 }}</span>
                   </span>
                 </span>
                 <span v-else class="od-static">{{ ch.ch }}</span>
