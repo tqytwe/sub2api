@@ -116,7 +116,7 @@ watch(
   display: inline-flex;
   align-items: baseline;
   flex-wrap: nowrap;
-  max-width: 100%;
+  white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 

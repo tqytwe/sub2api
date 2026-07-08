@@ -159,7 +159,7 @@
     <section id="stats" class="stats-section" :class="{ 'in-view': inView.stats }">
       <div class="page-container">
         <div class="stats-strip">
-          <div v-for="stat in statItems" :key="stat.key" class="stat">
+          <div v-for="stat in statItems" :key="stat.key" class="stat" :class="`stat--${stat.key}`">
             <span class="sr-only">{{ stat.value }}{{ stat.unit }} {{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
             <HomeStatOdometer :value="stat.value" :unit="stat.unit" :active="inView.stats" />
             <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
