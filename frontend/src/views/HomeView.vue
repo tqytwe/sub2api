@@ -1,0 +1,646 @@
+<template>
+  <!-- 管理员自定义首页内容优先 -->
+  <div v-if="homeContent" class="min-h-screen">
+    <iframe
+      v-if="isHomeContentUrl"
+      :src="homeContent.trim()"
+      class="h-screen w-full border-0"
+      allowfullscreen
+    />
+    <div v-else v-html="safeHomeContent" />
+  </div>
+
+  <div v-else class="home-page" :class="{ 'is-intro': isIntro }">
+    <header class="page-header" :class="{ scrolled: headerScrolled }">
+      <div class="page-container header-row">
+        <div class="header-left">
+          <router-link to="/" class="brand">
+            <span v-if="siteLogo" class="brand-mark" aria-hidden="true">
+              <img :src="siteLogo" :alt="siteName" />
+            </span>
+            <span class="brand-name">{{ siteName }}</span>
+          </router-link>
+          <nav class="header-nav">
+            <router-link to="/models" class="nav-link">{{ t('home.jisudeng.nav.models') }}</router-link>
+            <router-link to="/docs" class="nav-link">{{ t('home.jisudeng.nav.docs') }}</router-link>
+            <router-link to="/about" class="nav-link">{{ t('home.jisudeng.nav.about') }}</router-link>
+            <router-link to="/contact" class="nav-link">{{ t('home.jisudeng.nav.contact') }}</router-link>
+          </nav>
+        </div>
+        <nav class="page-nav">
+          <PublicPageToolbar />
+          <template v-if="isAuthenticated">
+            <router-link v-if="isAdmin" to="/admin" class="nav-link">{{ t('home.jisudeng.nav.admin') }}</router-link>
+            <router-link :to="dashboardPath" class="nav-cta">{{ t('home.jisudeng.nav.console') }}</router-link>
+          </template>
+          <template v-else>
+            <router-link to="/login" class="nav-link">{{ t('home.jisudeng.nav.signIn') }}</router-link>
+            <router-link to="/register" class="nav-cta">{{ t('home.jisudeng.nav.signUp') }}</router-link>
+          </template>
+        </nav>
+      </div>
+    </header>
+
+    <section class="hero-section">
+      <HeroSphere @reveal="onReveal" />
+      <div class="page-container hero-block">
+        <p class="hero-eyebrow">
+          <template v-for="(bit, idx) in eyebrowBits" :key="idx">
+            <span v-if="idx > 0" class="eb-dot" :style="{ '--ebi': idx }" aria-hidden="true">·</span>
+            <span class="eb-bit" :style="{ '--ebi': idx }">
+              <template v-if="bit.pre">
+                <span class="eb-no">{{ bit.pre }}</span>
+                <span class="eb-strike">{{ bit.obj }}</span>
+              </template>
+              <span v-else class="eb-em">{{ bit.text }}</span>
+            </span>
+          </template>
+        </p>
+        <h1 class="hero-title">
+          <span class="hero-zh">
+            <span class="hz-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
+            <span class="hz-mid">{{ t('home.jisudeng.hero.titleParts.mid') }}</span>
+            <span class="hz-tail">{{ t('home.jisudeng.hero.titleParts.tail') }}</span>
+          </span>
+          <span class="hero-en">{{ siteSubtitle }}</span>
+        </h1>
+        <p class="hero-slogan">{{ t('home.jisudeng.hero.tagline') }}</p>
+        <div class="hero-ctas">
+          <button type="button" class="cta-primary" @click="goStart">
+            {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
+            <span class="arrow">→</span>
+          </button>
+          <button v-if="docUrl" type="button" class="cta-text" @click="openDocs">
+            {{ t('home.jisudeng.cta.docs') }}
+            <span class="arrow-tiny">↗</span>
+          </button>
+        </div>
+        <ul class="active-on">
+          <li class="active-on-label">{{ t('home.jisudeng.hero.activeOn') }}</li>
+          <li>Claude Code</li>
+          <li class="dot">·</li>
+          <li>Codex CLI</li>
+          <li class="dot">·</li>
+          <li>Cline</li>
+          <li class="dot">·</li>
+          <li>Gemini CLI</li>
+          <li class="dot">·</li>
+          <li>Cursor</li>
+          <li class="dot">·</li>
+          <li>Continue</li>
+        </ul>
+      </div>
+      <a class="hero-scroll-cue" href="#manifesto" aria-label="向下浏览">
+        <span class="scroll-track"><span class="scroll-dot" /></span>
+      </a>
+    </section>
+
+    <section id="manifesto" class="manifesto-section" :class="{ 'in-view': inView.manifesto }">
+      <div class="page-container manifesto-block">
+        <p class="manifesto-tag">{{ t('home.jisudeng.manifesto.tag') }}</p>
+        <h2 class="manifesto-title has-token-play">
+          <span class="manifesto-sweep" aria-hidden="true" />
+          <template v-if="manifestoParts.keyword">
+            <span>{{ manifestoParts.before }}</span>
+            <span class="title-token">{{ manifestoParts.keyword }}</span>
+            <span>{{ manifestoParts.after }}</span>
+          </template>
+          <template v-else>{{ t('home.jisudeng.manifesto.title') }}</template>
+        </h2>
+        <div v-if="manifestoParts.keyword" class="integrity-check" aria-hidden="true">
+          <span class="ic-hash">
+            <span class="ic-hash-label">sha256</span>
+            <span class="ic-hash-val">{{ integrityHash }}</span>
+          </span>
+          <span class="ic-verified">
+            <svg class="ic-check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 12.5l5 5L20 6.5" />
+            </svg>
+            <span class="ic-verified-label">{{ t('home.jisudeng.manifesto.integrity') }}</span>
+          </span>
+        </div>
+        <div class="manifesto-body">
+          <p>{{ t('home.jisudeng.manifesto.body1') }}</p>
+          <p>{{ t('home.jisudeng.manifesto.body2') }}</p>
+        </div>
+        <ul class="manifesto-pledges">
+          <li v-for="n in 4" :key="n" class="pledge" tabindex="0">
+            <span class="pledge-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <template v-if="n === 1">
+                  <rect x="5" y="11" width="14" height="9" rx="1.5" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  <path d="M12 14v3" />
+                </template>
+                <template v-else-if="n === 2">
+                  <path d="M4 9h13l-3-3" />
+                  <path d="M20 15H7l3 3" />
+                </template>
+                <template v-else-if="n === 3">
+                  <path d="M12 3v18" />
+                  <path d="M5 21h14" />
+                  <path d="M4 7h16" />
+                  <path d="M4 7l-2.5 6h5L4 7z" />
+                  <path d="M20 7l-2.5 6h5L20 7z" />
+                </template>
+                <path v-else d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+              </svg>
+            </span>
+            <span class="pledge-label">{{ t(`home.jisudeng.manifesto.pledges.p${n}`) }}</span>
+            <div class="pledge-card" role="tooltip">
+              <p class="pledge-card-title">{{ t(`home.jisudeng.manifesto.pledges.p${n}`) }}</p>
+              <p class="pledge-card-desc">{{ t(`home.jisudeng.manifesto.pledges.d${n}`) }}</p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <section id="stats" class="stats-section" :class="{ 'in-view': inView.stats }">
+      <div class="page-container">
+        <div class="stats-strip">
+          <div v-for="stat in statItems" :key="stat.key" class="stat">
+            <span class="sr-only">{{ stat.value }}{{ stat.unit }} {{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
+            <span class="stat-value" aria-hidden="true">
+              <template v-for="(ch, ci) in stat.chars" :key="ci">
+                <span v-if="ch.digit !== null" class="od-col" :style="{ '--n': 10 + ch.digit, '--d': `${ch.roll * 60}ms` }">
+                  <span class="od-strip">
+                    <span v-for="d in odometerDigits" :key="d" class="od-d">{{ d }}</span>
+                  </span>
+                </span>
+                <span v-else class="od-static">{{ ch.ch }}</span>
+              </template>
+              <span class="stat-unit">{{ stat.unit }}</span>
+            </span>
+            <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="image" class="image-section" :class="{ 'in-view': inView.image }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.imageTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.imageTitle') }}</h2>
+          <p class="section-lede">{{ t('home.jisudeng.sections.imageLede') }}</p>
+        </div>
+        <div class="image-showcase">
+          <div class="img-info">
+            <span class="chc-rule" aria-hidden="true" />
+            <div class="img-model-line">
+              <span class="img-model">{{ t('home.jisudeng.image.model') }}</span>
+              <span class="img-badge">{{ t('home.jisudeng.image.badge') }}</span>
+              <span class="img-vendor">· OpenAI</span>
+            </div>
+            <p class="img-desc">{{ t('home.jisudeng.image.desc') }}</p>
+            <div class="img-endpoints">
+              <div v-for="ep in imageEndpoints" :key="ep.path" class="img-endpoint">
+                <span class="img-ep-method">{{ ep.method }}</span>
+                <span class="img-ep-path">{{ ep.path }}</span>
+              </div>
+            </div>
+            <ul class="img-caps">
+              <li v-for="(cap, i) in imageCaps" :key="i" class="img-cap">{{ cap }}</li>
+            </ul>
+            <router-link to="/docs" class="img-doclink">
+              {{ t('home.jisudeng.image.docLink') }}
+              <span class="img-doclink-arrow">→</span>
+            </router-link>
+          </div>
+          <div class="img-demo" aria-hidden="true">
+            <div class="demo-prompt">
+              <span class="demo-prompt-label">{{ t('home.jisudeng.image.promptLabel') }}</span>
+              <span class="demo-prompt-body">
+                <span class="demo-prompt-text">{{ t('home.jisudeng.image.promptText') }}</span>
+                <span class="demo-prompt-caret" />
+              </span>
+            </div>
+            <div class="demo-canvas">
+              <div class="demo-canvas-loading" />
+              <div class="demo-canvas-photo" />
+              <div class="demo-canvas-noise" />
+              <div class="demo-canvas-sheen" />
+            </div>
+            <div class="demo-foot">
+              <div class="demo-progress">
+                <div class="demo-progress-fill"><div class="demo-progress-shimmer" /></div>
+              </div>
+              <div class="demo-status">
+                <span class="demo-status-gen">
+                  <span class="demo-dot" />
+                  {{ t('home.jisudeng.image.statusGen') }}
+                  <span class="demo-status-meta"> · {{ t('home.jisudeng.image.statusMeta') }}</span>
+                </span>
+                <span class="demo-status-done">{{ t('home.jisudeng.image.statusDone') }}</span>
+              </div>
+            </div>
+            <div class="demo-badge">
+              <span class="demo-badge-dot" />
+              {{ t('home.jisudeng.image.demoBadge') }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="channels" class="channels-section" :class="{ 'in-view': inView.channels }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.channels.tag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.channels.title') }}</h2>
+        </div>
+        <div class="channels-layout">
+          <div class="channels-copy">
+            <span class="chc-rule" aria-hidden="true" />
+            <p class="chc-title">{{ t('home.jisudeng.channels.copyTitle') }}</p>
+            <p class="chc-body">{{ t('home.jisudeng.channels.copyBody') }}</p>
+          </div>
+          <div class="channels-tv"><ChannelTV /></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features-section" :class="{ 'in-view': inView.features }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.featuresTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.featuresTitle') }}</h2>
+        </div>
+        <ul class="why-ledger" @mousemove="onWhyMove" @mouseleave="onWhyLeave">
+          <li
+            v-for="(row, idx) in featureRows"
+            :key="row.en"
+            class="why-row"
+            :style="{ '--d': `${idx * 90}ms` }"
+            @mouseenter="onWhyEnter(idx, $event)"
+          >
+            <span class="why-idx">{{ row.idx }}</span>
+            <div class="why-head">
+              <h3 class="why-title">{{ row.title }}</h3>
+              <span class="why-en">{{ row.en }}</span>
+            </div>
+            <p class="why-desc">{{ row.desc }}</p>
+          </li>
+        </ul>
+        <WhyHoverCard :active="whyActive" :x="whyX" :y="whyY" />
+      </div>
+    </section>
+
+    <section id="onboard" class="code-section" :class="{ 'in-view': inView.onboard }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.codeTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.codeTitle') }}</h2>
+          <p class="section-lede">{{ t('home.jisudeng.sections.codeLede') }}</p>
+        </div>
+        <div class="onboard-grid">
+          <ol class="onboard-steps">
+            <li
+              v-for="(step, idx) in onboardSteps"
+              :key="idx"
+              class="onboard-step"
+              :class="{ 'is-done': onboardPhase > idx + 1, 'is-now': onboardPhase === idx + 1 }"
+            >
+              <span class="onboard-no">{{ idx + 1 }}</span>
+              <div class="onboard-step-body">
+                <h3 class="onboard-step-title">{{ step.t }}</h3>
+                <p class="onboard-step-desc">{{ step.d }}</p>
+              </div>
+            </li>
+          </ol>
+          <TerminalDemo @phase="(p) => (onboardPhase = p)" />
+        </div>
+        <p class="onboard-foot">
+          {{ t('home.jisudeng.onboard.docLink') }}
+          <router-link to="/docs?cat=deploy&page=sdk-quick" class="onboard-foot-link">
+            {{ t('home.jisudeng.onboard.docLinkCta') }}
+          </router-link>
+        </p>
+      </div>
+    </section>
+
+    <section id="pricing" class="pricing-section" :class="{ 'in-view': inView.pricing }">
+      <div class="page-container section-block">
+        <span class="section-tag">{{ t('home.jisudeng.sections.pricingTag') }}</span>
+        <h2 class="pricing-headline">
+          <span>{{ t('home.jisudeng.pricing.lineA') }}</span>
+          <span class="pricing-line2">{{ t('home.jisudeng.pricing.lineB') }}</span>
+          <span>{{ t('home.jisudeng.pricing.lineC') }}</span>
+        </h2>
+        <p class="pricing-blurb">{{ t('home.jisudeng.pricing.blurb') }}</p>
+        <ul class="pricing-tags">
+          <li v-for="tag in pricingTags" :key="tag">— {{ tag }}</li>
+        </ul>
+        <button type="button" class="cta-text-large" @click="goStart">
+          {{ t('home.jisudeng.cta.viewPrice') }}
+          <span class="arrow">→</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="closer" class="closer-section" :class="{ 'in-view': inView.closer }">
+      <div class="closer-stage">
+        <svg viewBox="0 0 1200 500" class="closer-map" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+          <g class="closer-dots">
+            <circle v-for="(d, i) in closerDots" :key="`d-${i}`" :cx="d.cx" :cy="d.cy" :r="d.r" :opacity="d.opacity" fill="#0a0a0a" />
+          </g>
+          <g class="closer-lines">
+            <path
+              v-for="(line, i) in closerLines"
+              :key="`l-${i}`"
+              :d="line.d"
+              stroke="#0a0a0a"
+              stroke-width="0.8"
+              fill="none"
+              stroke-dasharray="3 5"
+              stroke-opacity="0.45"
+              :class="`flyline flyline-${i}`"
+            />
+            <circle v-for="(line, i) in closerLines" :key="`s-${i}`" :cx="line.sx" :cy="line.sy" r="2.5" fill="#0a0a0a" opacity="0.55" />
+            <circle v-for="(line, i) in closerLines" :key="`e-${i}`" :cx="line.ex" :cy="line.ey" r="3" fill="#0a0a0a" opacity="0.85" />
+          </g>
+        </svg>
+        <div class="closer-overlay">
+          <div class="closer-logo">
+            <img :src="siteLogo || '/logo.png'" :alt="siteName" />
+          </div>
+          <h2 class="closer-title">{{ t('home.jisudeng.closer.title') }}</h2>
+          <p class="closer-sub">{{ t('home.jisudeng.closer.sub') }}</p>
+          <button type="button" class="cta-primary" @click="goStart">
+            {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <div class="page-container footer-row">
+        <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
+        <span class="f-links">
+          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
+          <span class="f-copy">© {{ year }} {{ siteName }}</span>
+        </span>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<script setup lang="ts">
+import '@/styles/home-view.css'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
+import DOMPurify from 'dompurify'
+import { useRouter } from 'vue-router'
+import { useAuthStore, useAppStore } from '@/stores'
+import HeroSphere from '@/components/home/HeroSphere.vue'
+import ChannelTV from '@/components/home/ChannelTV.vue'
+import TerminalDemo from '@/components/home/TerminalDemo.vue'
+import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
+import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+
+const { t } = useI18n()
+const router = useRouter()
+const authStore = useAuthStore()
+const appStore = useAppStore()
+
+const isIntro = ref(true)
+const headerScrolled = ref(false)
+const whyActive = ref<number | null>(null)
+const whyX = ref(0)
+const whyY = ref(0)
+const onboardPhase = ref(1)
+const year = new Date().getFullYear()
+const integrityHash = 'a3f9e2c7…d41b7c'
+const odometerDigits = Array.from({ length: 10 }, (_, i) => i)
+
+const inView = ref<Record<string, boolean>>({})
+
+let observer: IntersectionObserver | null = null
+let scrollHandler: (() => void) | null = null
+let whyRaf = 0
+let whyTargetX = 0
+let whyTargetY = 0
+let fontEl: HTMLLinkElement | null = null
+
+const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
+const siteLogo = computed(() => appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '')
+const siteSubtitle = computed(
+  () => appStore.cachedPublicSettings?.site_subtitle || '最安全的大模型中转平台'
+)
+const docUrl = computed(() => appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
+const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+const isAdmin = computed(() => authStore.isAdmin)
+const dashboardPath = computed(() => (isAdmin.value ? '/admin' : '/dashboard'))
+const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
+const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
+
+const eyebrowBits = computed(() =>
+  t('home.jisudeng.hero.eyebrow')
+    .split(/\s*·\s*/)
+    .filter(Boolean)
+    .map((part) => {
+      const m = part.match(/^(拒绝|NO\s|REFUSE\s)(.+)$/i)
+      return m ? { pre: m[1], obj: m[2] } : { text: part }
+    })
+)
+
+const manifestoParts = computed(() => {
+  const title = t('home.jisudeng.manifesto.title')
+  const m = title.match(/Tokens?/i)
+  if (!m || m.index === undefined) return { before: title, keyword: '', after: '' }
+  return {
+    before: title.slice(0, m.index),
+    keyword: m[0],
+    after: title.slice(m.index + m[0].length)
+  }
+})
+
+const statItems = (() => {
+  let roll = 0
+  const defs = [
+    { key: 'requests', value: '12,847,360', unit: '+' },
+    { key: 'uptime', value: '99.97', unit: '%' },
+    { key: 'latency', value: '386', unit: 'ms' }
+  ] as const
+  return defs.map((d) => ({
+    ...d,
+    chars: d.value.split('').map((ch) => ({
+      ch,
+      digit: /\d/.test(ch) ? Number(ch) : null,
+      roll: /\d/.test(ch) ? roll++ : 0
+    }))
+  }))
+})()
+
+const imageEndpoints = [
+  { method: 'POST', path: '/v1/images/generations' },
+  { method: 'POST', path: '/v1/images/edits' }
+]
+
+const imageCaps = computed(() => [
+  t('home.jisudeng.image.caps.0'),
+  t('home.jisudeng.image.caps.1'),
+  t('home.jisudeng.image.caps.2'),
+  t('home.jisudeng.image.caps.3')
+])
+
+const featureRows = computed(() => [
+  { idx: '01', en: 'Multi-Model', title: t('home.jisudeng.features.multiModel.title'), desc: t('home.jisudeng.features.multiModel.desc') },
+  { idx: '02', en: 'Reliability', title: t('home.jisudeng.features.stable.title'), desc: t('home.jisudeng.features.stable.desc') },
+  { idx: '03', en: 'Privacy', title: t('home.jisudeng.features.privacy.title'), desc: t('home.jisudeng.features.privacy.desc') },
+  { idx: '04', en: 'Instant Access', title: t('home.jisudeng.features.instant.title'), desc: t('home.jisudeng.features.instant.desc') },
+  { idx: '05', en: 'Fair Billing', title: t('home.jisudeng.features.transparent.title'), desc: t('home.jisudeng.features.transparent.desc') },
+  { idx: '06', en: 'Self-Service', title: t('home.jisudeng.features.selfService.title'), desc: t('home.jisudeng.features.selfService.desc') }
+])
+
+const onboardSteps = computed(() => [
+  { t: t('home.jisudeng.onboard.s1t'), d: t('home.jisudeng.onboard.s1d') },
+  { t: t('home.jisudeng.onboard.s2t'), d: t('home.jisudeng.onboard.s2d') },
+  { t: t('home.jisudeng.onboard.s3t'), d: t('home.jisudeng.onboard.s3d') }
+])
+
+const pricingTags = computed(() => [
+  t('home.jisudeng.pricing.tags.0'),
+  t('home.jisudeng.pricing.tags.1'),
+  t('home.jisudeng.pricing.tags.2')
+])
+
+const closerLines = [
+  { d: 'M 160,360 C 320,180 460,160 580,240', sx: 160, sy: 360, ex: 580, ey: 240 },
+  { d: 'M 1040,380 C 880,260 760,200 620,240', sx: 1040, sy: 380, ex: 620, ey: 240 },
+  { d: 'M 240,140 C 380,200 480,230 580,250', sx: 240, sy: 140, ex: 580, ey: 250 },
+  { d: 'M 970,130 C 830,190 720,220 620,260', sx: 970, sy: 130, ex: 620, ey: 260 }
+]
+
+const closerDots = (() => {
+  const dots: Array<{ cx: number; cy: number; r: number; opacity: number }> = []
+  for (let x = 0; x <= 1200; x += 14) {
+    for (let y = 0; y <= 500; y += 14) {
+      const nx = (x - 600) / 540
+      const ny = (y - 250) / 220
+      const n = nx * nx + ny * ny
+      if (n > 1) continue
+      const d = (x - 600) / 280
+      const u = (y - 250) / 110
+      if (d * d + u * u < 1) continue
+      const p = Math.max(0, 1 - n * 0.95)
+      if (Math.random() > 0.42 + p * 0.45) continue
+      dots.push({ cx: x, cy: y, r: 0.7 + Math.random() * 0.5, opacity: 0.16 + p * 0.55 })
+    }
+  }
+  return dots
+})()
+
+function onReveal() {
+  isIntro.value = false
+}
+
+function goStart() {
+  router.push(isAuthenticated.value ? dashboardPath.value : '/login')
+}
+
+function openDocs() {
+  if (docUrl.value) window.open(docUrl.value, '_blank', 'noopener')
+}
+
+function cardPos(ev: MouseEvent) {
+  return {
+    x: Math.min(ev.clientX + 30, window.innerWidth - 400),
+    y: Math.min(Math.max(ev.clientY - 124, 12), window.innerHeight - 296)
+  }
+}
+
+function whyLoop() {
+  whyX.value += (whyTargetX - whyX.value) * 0.16
+  whyY.value += (whyTargetY - whyY.value) * 0.16
+  if (whyActive.value !== null) whyRaf = requestAnimationFrame(whyLoop)
+}
+
+function onWhyEnter(idx: number, ev: MouseEvent) {
+  if (!window.matchMedia('(hover: hover)').matches || window.innerWidth < 1024) return
+  const pos = cardPos(ev)
+  whyTargetX = pos.x
+  whyTargetY = pos.y
+  if (whyActive.value === null) {
+    whyX.value = pos.x
+    whyY.value = pos.y
+    whyRaf = requestAnimationFrame(whyLoop)
+  }
+  whyActive.value = idx
+}
+
+function onWhyMove(ev: MouseEvent) {
+  if (whyActive.value === null) return
+  const pos = cardPos(ev)
+  whyTargetX = pos.x
+  whyTargetY = pos.y
+}
+
+function onWhyLeave() {
+  whyActive.value = null
+  cancelAnimationFrame(whyRaf)
+}
+
+function ensureFonts() {
+  if (document.querySelector('link[data-jisudeng-fonts]')) return
+  fontEl = document.createElement('link')
+  fontEl.rel = 'stylesheet'
+  fontEl.setAttribute('data-jisudeng-fonts', 'true')
+  fontEl.href =
+    'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@600;700;800&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap'
+  document.head.appendChild(fontEl)
+}
+
+onMounted(() => {
+  window.scrollTo(0, 0)
+  ensureFonts()
+
+  if (!appStore.publicSettingsLoaded) {
+    void appStore.fetchPublicSettings()
+  }
+
+  scrollHandler = () => {
+    headerScrolled.value = window.scrollY > 12
+  }
+  window.addEventListener('scroll', scrollHandler, { passive: true })
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).id
+        if (!id) continue
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view')
+          inView.value = { ...inView.value, [id]: true }
+          observer?.unobserve(entry.target)
+        }
+      }
+    },
+    { rootMargin: '0px 0px -80px 0px', threshold: 0.08 }
+  )
+  document.querySelectorAll('.home-page section:not(.hero-section)').forEach((el) => observer?.observe(el))
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  if (scrollHandler) window.removeEventListener('scroll', scrollHandler)
+  cancelAnimationFrame(whyRaf)
+})
+</script>
+
+<style scoped>
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+</style>
