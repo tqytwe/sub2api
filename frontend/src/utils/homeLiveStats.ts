@@ -78,7 +78,6 @@ export function markOnline(state: HomeLiveStatsPersisted, now = Date.now()): Hom
 export function advanceOnline(
   state: HomeLiveStatsPersisted,
   deltaMs: number,
-  now = Date.now(),
 ): HomeLiveStatsPersisted {
   if (deltaMs <= 0 || state.offlineSinceMs != null) return state
   return {

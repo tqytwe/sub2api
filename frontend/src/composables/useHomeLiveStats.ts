@@ -51,7 +51,7 @@ export function useHomeLiveStats() {
     const now = Date.now()
     const delta = now - lastTickMs
     lastTickMs = now
-    persisted.value = advanceOnline(persisted.value, delta, now)
+    persisted.value = advanceOnline(persisted.value, delta)
     save()
     tick.value++
   }

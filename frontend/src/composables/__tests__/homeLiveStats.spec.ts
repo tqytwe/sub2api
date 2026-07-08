@@ -11,17 +11,17 @@ import {
 describe('homeLiveStats', () => {
   it('advances requests while online', () => {
     let state = defaultPersisted(0)
-    state = advanceOnline(state, 1000, 1000)
+    state = advanceOnline(state, 1000)
     expect(syntheticRequests(state.creditedMs)).toBeGreaterThan(12_847_360)
   })
 
   it('pauses while offline and catch-up on reconnect', () => {
     let state = defaultPersisted(0)
-    state = advanceOnline(state, 5000, 5000)
+    state = advanceOnline(state, 5000)
     const mid = state.creditedMs
 
     state = markOffline(state, 10_000)
-    state = advanceOnline(state, 3000, 13_000)
+    state = advanceOnline(state, 3000)
     expect(state.creditedMs).toBe(mid)
 
     state = markOnline(state, 25_000)
