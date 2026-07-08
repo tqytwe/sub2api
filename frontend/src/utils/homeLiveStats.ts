@@ -138,21 +138,6 @@ export function formatHomeStatLatency(ms: number): string {
   return String(Math.round(ms))
 }
 
-export type HomeStatOdometerChar = {
-  ch: string
-  digit: number | null
-  roll: number
-}
-
-export function buildOdometerChars(value: string): HomeStatOdometerChar[] {
-  let roll = 0
-  return value.split('').map((ch) => ({
-    ch,
-    digit: /\d/.test(ch) ? Number(ch) : null,
-    roll: /\d/.test(ch) ? roll++ : 0,
-  }))
-}
-
 function clamp(n: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, n))
 }

@@ -3,7 +3,6 @@ import { fetchPublicHomeStats } from '@/api/publicHomeStats'
 import {
   HOME_LIVE_STATS_STORAGE_KEY,
   advanceOnline,
-  buildOdometerChars,
   defaultPersisted,
   formatHomeStatLatency,
   formatHomeStatRequests,
@@ -81,10 +80,7 @@ export function useHomeLiveStats() {
       { key: 'uptime' as const, value: formatHomeStatUptime(v.uptimePct), unit: '%' },
       { key: 'latency' as const, value: formatHomeStatLatency(v.latencyMs), unit: 'ms' },
     ]
-    return defs.map((d) => ({
-      ...d,
-      chars: buildOdometerChars(d.value),
-    }))
+    return defs.map((d) => ({ ...d }))
   })
 
   onMounted(() => {

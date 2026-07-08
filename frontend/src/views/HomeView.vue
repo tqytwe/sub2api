@@ -161,17 +161,7 @@
         <div class="stats-strip">
           <div v-for="stat in statItems" :key="stat.key" class="stat">
             <span class="sr-only">{{ stat.value }}{{ stat.unit }} {{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
-            <span class="stat-value" aria-hidden="true">
-              <template v-for="(ch, ci) in stat.chars" :key="ci">
-                <span v-if="ch.digit !== null" class="od-col" :style="{ '--n': 10 + ch.digit, '--d': `${ch.roll * 60}ms` }">
-                  <span class="od-strip">
-                    <span v-for="d in 20" :key="d" class="od-d">{{ (d - 1) % 10 }}</span>
-                  </span>
-                </span>
-                <span v-else class="od-static">{{ ch.ch }}</span>
-              </template>
-              <span class="stat-unit">{{ stat.unit }}</span>
-            </span>
+            <HomeStatOdometer :value="stat.value" :unit="stat.unit" :active="inView.stats" />
             <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
           </div>
         </div>
@@ -313,7 +303,7 @@
         </div>
         <p class="onboard-foot">
           {{ t('home.jisudeng.onboard.docLink') }}
-          <router-link to="/docs?cat=deploy&page=sdk-quick" class="onboard-foot-link">
+          <router-link to="/docs?cat=tutorial&page=quick-start" class="onboard-foot-link">
             {{ t('home.jisudeng.onboard.docLinkCta') }}
           </router-link>
         </p>
@@ -399,6 +389,7 @@ import ChannelTV from '@/components/home/ChannelTV.vue'
 import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
 
 const { t } = useI18n()
