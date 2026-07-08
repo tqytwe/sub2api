@@ -7,7 +7,7 @@
           class="od-strip"
           :class="{ 'is-animating': col.animating }"
           :style="stripStyle(col)"
-          @transitionend="onStripEnd(col.key)"
+          @transitionend="onStripEnd(col.key, $event)"
         >
           <span v-for="n in stripLen" :key="n" class="od-d">{{ (n - 1) % 10 }}</span>
         </span>
@@ -22,6 +22,7 @@ import { nextTick, ref, watch } from 'vue'
 import {
   ODOMETER_DEFAULT_SPIN_TAIL,
   ODOMETER_STRIP_LEN,
+  landOffset,
   type OdometerColumnState,
   type OdometerDigitState,
   syncColumnsFromValue,
@@ -46,16 +47,23 @@ let entered = false
 
 function stripStyle(col: OdometerDigitState) {
   return {
-    transform: `translate3d(0, ${-col.offset}em, 0)`,
+    transform: `translate3d(0, calc(-1 * ${col.offset} * var(--od-cell)), 0)`,
     transitionDuration: col.animating ? `${col.durationMs}ms` : '0ms',
     transitionDelay: col.animating ? `${col.delayMs}ms` : '0ms',
   }
 }
 
-function onStripEnd(key: string) {
+function onStripEnd(key: string, ev: TransitionEvent) {
+  if (ev.propertyName !== 'transform') return
   columns.value = columns.value.map((col) => {
     if (col.type !== 'digit' || col.key !== key) return col
-    return { ...col, animating: false }
+    return {
+      ...col,
+      offset: landOffset(col.targetDigit),
+      animating: false,
+      durationMs: 0,
+      delayMs: 0,
+    }
   })
 }
 
@@ -86,11 +94,7 @@ async function runEntrance() {
 watch(
   () => props.value,
   () => {
-    if (entered) {
-      applyValue(false)
-      return
-    }
-    applyValue(false)
+    applyValue(entered)
   },
   { immediate: true },
 )
@@ -107,16 +111,48 @@ watch(
 </script>
 
 <style scoped>
+.stat-value {
+  --od-cell: 1.12em;
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: nowrap;
+  max-width: 100%;
+  font-variant-numeric: tabular-nums;
+}
+
+.od-static {
+  flex-shrink: 0;
+  line-height: var(--od-cell);
+}
+
+.od-col {
+  display: block;
+  flex-shrink: 0;
+  width: 0.62em;
+  height: var(--od-cell);
+  overflow: hidden;
+}
+
+.od-d {
+  display: block;
+  height: var(--od-cell);
+  line-height: var(--od-cell);
+  text-align: center;
+}
+
 .od-strip {
   display: block;
   transform: translate3d(0, 0, 0);
   transition-property: none;
-  will-change: auto;
 }
 
 .od-strip.is-animating {
   transition-property: transform;
   transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform;
+}
+
+.stat-unit {
+  flex-shrink: 0;
+  margin-left: 0.14em;
 }
 </style>

@@ -130,8 +130,19 @@ export function syncColumnsFromValue(
     }
 
     const prevTarget = old?.targetDigit
-    if (prevTarget === def.targetDigit && old && visibleDigit(old.offset) === def.targetDigit && !old.animating) {
-      col.offset = old.offset
+    if (
+      prevTarget === def.targetDigit &&
+      old &&
+      visibleDigit(old.offset) === def.targetDigit &&
+      !old.animating
+    ) {
+      col.offset = landOffset(def.targetDigit)
+      return col
+    }
+
+    if (old?.animating) {
+      col.offset = landOffset(def.targetDigit)
+      col.animating = false
       return col
     }
 
