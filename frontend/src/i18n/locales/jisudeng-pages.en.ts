@@ -331,80 +331,19 @@ export const jisudengPagesEn = {
   docs: {
     eyebrow: 'DOCS',
     title: 'Documentation',
-    desc: 'Pick a category — tutorials, billing, models, and deployment.',
+    desc: 'Tutorials, billing, models, CLI setup, and Vibe Coding tools — all in one place.',
     backDashboard: 'Back to console',
     sidebarTitle: 'Contents',
     backToIndex: '← Back to index',
     categories: {
       tutorial: { title: 'Getting started', desc: 'API keys · first request · examples' },
-      vip: { title: 'Billing & VIP', desc: 'Tiers · recharge · check-in rewards' },
-      about: { title: 'About us', desc: 'Privacy · relay integrity · promises' },
-      models: { title: 'Models', desc: 'Available models · selection tips' },
-      deploy: { title: 'Deployment', desc: 'CLI setup for Claude Code, Codex, Gemini' },
-      channels: { title: 'Channels', desc: 'Available channels · pricing · status' },
-    },
-    pages: {
-      tutorial: {
-        quickstart: {
-          title: 'Quick start',
-          body: `## Quick start
-
-1. Click **Register** on the home page.
-2. Sign in and create an API key under **API Keys**.
-3. Set Base URL to \`https://your-domain/v1\` and Authorization to \`Bearer sk-...\`.
-4. Send your first request — billing follows upstream token rates × group multiplier.`,
-        },
-        'api-key': {
-          title: 'Create an API key',
-          body: `## Create an API key
-
-Console → **API Keys** → **New**.
-
-Each project can have its own key. IP allowlists and quota limits are supported.`,
-        },
-        'first-request': {
-          title: 'First API call',
-          body: `## First call
-
-\`\`\`bash
-curl https://your-domain/v1/chat/completions \\
-  -H "Authorization: Bearer sk-your-key" \\
-  -H "Content-Type: application/json" \\
-  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello"}]}'
-\`\`\``,
-        },
-      },
-      vip: {
-        recharge: { title: 'Recharge', body: `## Recharge\n\nConsole → **Purchase / Recharge** → pick a plan or custom amount.` },
-        'vip-tiers': { title: 'VIP tiers', body: `## VIP tiers\n\nLifetime recharge unlocks permanent discount tiers.` },
-        'check-in': { title: 'Check-in rewards', body: `## Daily check-in\n\nOpen the check-in entry in the sidebar when enabled.` },
-      },
-      deploy: {
-        'sdk-quick': {
-          title: 'SDK quick start',
-          body: `## SDK quick start
-
-\`\`\`python
-from openai import OpenAI
-client = OpenAI(api_key="sk-your-key", base_url="https://your-domain/v1")
-\`\`\``,
-        },
-        'claude-code': { title: 'Claude Code', body: `## Claude Code\n\nSet \`ANTHROPIC_BASE_URL\` and \`ANTHROPIC_API_KEY\` to this gateway.` },
-        'codex-cli': { title: 'Codex CLI', body: `## Codex CLI\n\nPoint Codex / CC-Switch at this gateway base URL.` },
-        'gemini-cli': { title: 'Gemini CLI', body: `## Gemini CLI\n\nUse the unified API key with a compatible Gemini endpoint.` },
-      },
-      models: {
-        overview: { title: 'Model overview', body: `## Overview\n\nSee [/models](/models) for the full list.` },
-        selection: { title: 'Selection tips', body: `## Tips\n\nHaiku / 4o-mini for chat; Opus / 4o for hard tasks; Sonnet for code.` },
-      },
-      channels: {
-        available: { title: 'Available channels', body: `## Channels\n\nSigned-in users see channels under **Available Channels**.` },
-        pricing: { title: 'Pricing', body: `## Pricing\n\nUpstream rate × group multiplier × VIP discount if any.` },
-      },
-      about: {
-        privacy: { title: 'Privacy', body: `## Privacy\n\nRequest bodies are not stored. See [About](/about).` },
-        integrity: { title: 'Integrity', body: `## Integrity\n\nByte-perfect relay without silent model swaps.` },
-      },
+      'recharge-vip': { title: 'Billing & VIP', desc: 'Tiers · recharge · check-in · blind box' },
+      'about-us': { title: 'About us', desc: 'Privacy · relay integrity · promises' },
+      'model-learning': { title: 'Models', desc: 'Available models · selection · best practices' },
+      deploy: { title: 'Deployment', desc: 'Claude Code · Codex · Gemini CLI' },
+      tools: { title: 'Tools & clients', desc: 'CC-Switch · OpenClaw · Cherry Studio' },
+      environment: { title: 'Environment', desc: 'Node.js · network · platform setup' },
+      'vibe-coding': { title: 'Vibe Coding', desc: 'AI pair-programming mindset & plugins' },
     },
   },
   authAside: {

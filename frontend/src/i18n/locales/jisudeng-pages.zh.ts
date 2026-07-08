@@ -338,154 +338,19 @@ export const jisudengPagesZh = {
   docs: {
     eyebrow: 'DOCS · INDEX',
     title: '使用文档',
-    desc: '挑选一个分类开始阅读 — 教程、充值、模型选型，一站式速查。',
+    desc: '挑选一个分类开始阅读 — 教程、充值、模型选型、CLI 接入与 Vibe Coding 工具，一站式速查。',
     backDashboard: '返回控制台',
     sidebarTitle: '文档目录',
     backToIndex: '← 返回文档索引',
     categories: {
       tutorial: { title: '使用教程', desc: '从零上手 · API Key 创建 · 调用示例' },
-      vip: { title: '充值与 VIP', desc: 'VIP 分级 · 享受折扣 · 充值流程 · 签到奖励' },
-      about: { title: '了解我们', desc: '中转技术真伪 · 隐私边界 · 我们的承诺' },
-      models: { title: '模型学习', desc: '可用模型 · 选型建议 · 调用范例' },
-      deploy: { title: '接入部署', desc: '主流 AI 编程 CLI 接入极速蹬 AI · 一步到位' },
-      channels: { title: '渠道状态', desc: '可用渠道 · 模型定价 · 服务状态' },
-    },
-    pages: {
-      tutorial: {
-        quickstart: {
-          title: '5 分钟快速上手',
-          body: `## 快速开始
-
-1. 在首页点击 **注册**，完成邮箱验证。
-2. 登录控制台，进入 **API 密钥** 创建密钥。
-3. 将 Base URL 设为 \`https://你的域名/v1\`，Authorization 填入 \`Bearer sk-...\`。
-4. 选择模型发起第一次对话 — 计费按上游官方 token 价 × 分组倍率。`,
-        },
-        'api-key': {
-          title: '创建 API Key',
-          body: `## 创建 API Key
-
-控制台 → **API 密钥** → **新建**。
-
-- 可为每个项目单独建 Key，便于用量拆分。
-- 支持设置 IP 白名单、额度上限与速率限制。
-- Key 创建后仅展示一次，请妥善保存。`,
-        },
-        'first-request': {
-          title: '第一次 API 调用',
-          body: `## 第一次调用
-
-\`\`\`bash
-curl https://你的域名/v1/chat/completions \\
-  -H "Authorization: Bearer sk-你的密钥" \\
-  -H "Content-Type: application/json" \\
-  -d '{"model":"gpt-4o-mini","messages":[{"role":"user","content":"Hello"}]}'
-\`\`\`
-
-响应中的 \`usage\` 字段即为计费依据，与上游一致。`,
-        },
-      },
-      vip: {
-        recharge: {
-          title: '充值流程',
-          body: `## 充值
-
-控制台 → **购买订阅 / 充值** → 选择套餐或自定义金额。`,
-        },
-        'vip-tiers': {
-          title: 'VIP 分级',
-          body: `## VIP 分级
-
-按 **累计充值** 自动升级，折扣 **永久生效**，不会按月清零。`,
-        },
-        'check-in': {
-          title: '签到奖励',
-          body: `## 每日签到
-
-登录控制台侧边栏 **签到**（若已开启），每日领取测试额度。`,
-        },
-      },
-      deploy: {
-        'sdk-quick': {
-          title: 'SDK 快速接入',
-          body: `## SDK 快速接入
-
-任意 OpenAI 兼容 SDK 均可使用：
-
-\`\`\`python
-from openai import OpenAI
-client = OpenAI(
-    api_key="sk-你的密钥",
-    base_url="https://你的域名/v1",
-)
-\`\`\``,
-        },
-        'claude-code': {
-          title: 'Claude Code 接入',
-          body: `## Claude Code
-
-\`\`\`bash
-export ANTHROPIC_BASE_URL=https://你的域名
-export ANTHROPIC_API_KEY=sk-你的密钥
-\`\`\``,
-        },
-        'codex-cli': {
-          title: 'Codex CLI 接入',
-          body: `## Codex CLI
-
-在 CC-Switch 或 Codex 配置中将 API Base 指向本网关。`,
-        },
-        'gemini-cli': {
-          title: 'Gemini CLI 接入',
-          body: `## Gemini CLI
-
-将 Gemini API endpoint 替换为本站兼容地址，并使用统一 API Key。`,
-        },
-      },
-      models: {
-        overview: {
-          title: '模型概览',
-          body: `## 模型概览
-
-本站聚合 Claude、GPT、Gemini 等上百个模型。完整列表见 [/models](/models)。`,
-        },
-        selection: {
-          title: '选型建议',
-          body: `## 选型建议
-
-- 日常对话：GPT-4o-mini、Claude Haiku
-- 复杂推理：Claude Opus、GPT-4o
-- 代码：Claude Sonnet、Codex 系列`,
-        },
-      },
-      channels: {
-        available: {
-          title: '可用渠道',
-          body: `## 可用渠道
-
-登录后访问 **可用渠道**，查看可访问的上游通道与支持模型。`,
-        },
-        pricing: {
-          title: '定价说明',
-          body: `## 定价
-
-计费 = 上游官方单价 × 分组倍率 ×（VIP 折扣若有）。`,
-        },
-      },
-      about: {
-        privacy: {
-          title: '隐私承诺',
-          body: `## 隐私
-
-请求体不写日志、不入库。详见 [了解我们](/about)。`,
-        },
-        integrity: {
-          title: '响应完整性',
-          body: `## 响应完整性
-
-字节级转发，不蒸馏、不替换模型。`,
-        },
-      },
+      'recharge-vip': { title: '充值与 VIP', desc: 'VIP 分级 · 充值流程 · 签到 · 盲盒' },
+      'about-us': { title: '了解我们', desc: '中转技术真伪 · 隐私边界 · 我们的承诺' },
+      'model-learning': { title: '模型学习', desc: '可用模型 · 选型建议 · 最佳实践' },
+      deploy: { title: '接入部署', desc: 'Claude Code · Codex · Gemini CLI 接入' },
+      tools: { title: '工具与客户端', desc: 'CC-Switch · OpenClaw · Cherry Studio 等' },
+      environment: { title: '环境准备', desc: 'Node.js · 网络 · 各平台安装' },
+      'vibe-coding': { title: 'Vibe Coding 必装', desc: 'AI 编程协作心法与插件清单' },
     },
   },
   authAside: {

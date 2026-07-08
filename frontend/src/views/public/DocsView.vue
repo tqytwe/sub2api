@@ -2,24 +2,23 @@
 import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { marked } from 'marked'
 import DOMPurify from 'dompurify'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useAppStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import {
+  PUBLIC_DOC_CONTENT_ZH,
   PUBLIC_DOC_TREE,
   defaultDocPageForCategory,
-  findDocPage,
+  findDocContent,
 } from '@/content/public-docs'
 import '@/styles/public-pages.css'
 
-marked.setOptions({ gfm: true, breaks: true })
-
-const { t, te } = useI18n()
+const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 
 const backTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/home'))
 const backLabel = computed(() =>
@@ -38,9 +37,15 @@ const activePage = computed(() => {
 
 const isReaderMode = computed(() => !!activeCat.value && !!activePage.value)
 
+const activePageContent = computed(() =>
+  isReaderMode.value ? findDocContent(activeCat.value, activePage.value) : undefined,
+)
+
 const categories = computed(() =>
-  PUBLIC_DOC_TREE.map((cat) => ({
+  PUBLIC_DOC_CONTENT_ZH.map((cat) => ({
     key: cat.id,
+    title: cat.title,
+    desc: personalizeDocText(cat.description),
     to: {
       path: '/docs',
       query: { cat: cat.id, page: defaultDocPageForCategory(cat.id) },
@@ -48,18 +53,31 @@ const categories = computed(() =>
   })),
 )
 
-const pageTitle = computed(() => {
-  if (!isReaderMode.value) return ''
-  const key = `docs.pages.${activeCat.value}.${activePage.value}.title`
-  return te(key) ? t(key) : activePage.value
-})
+const pageTitle = computed(() => activePageContent.value?.title ?? activePage.value)
+
+const pageSummary = computed(() =>
+  activePageContent.value?.summary ? personalizeDocText(activePageContent.value.summary) : '',
+)
+
+function personalizeDocText(raw: string) {
+  const siteName = appStore.siteName || '本站'
+  const baseUrl = (appStore.apiBaseUrl || window.location.origin).replace(/\/$/, '')
+  return raw
+    .replace(/随想 AI/g, siteName)
+    .replace(/随想/g, siteName)
+    .replace(/本站/g, siteName)
+    .replace(/https:\/\/sui-xiang\.com/g, baseUrl)
+    .replace(/https:\/\/your-host/g, baseUrl)
+}
+
+function personalizeDocHtml(raw: string) {
+  return personalizeDocText(raw)
+}
 
 const pageHtml = computed(() => {
-  if (!isReaderMode.value) return ''
-  const key = `docs.pages.${activeCat.value}.${activePage.value}.body`
-  if (!te(key)) return ''
-  const raw = t(key)
-  return DOMPurify.sanitize(marked.parse(raw) as string)
+  const html = activePageContent.value?.html
+  if (!html) return ''
+  return DOMPurify.sanitize(personalizeDocHtml(html))
 })
 
 function docLink(catId: string, pageId: string) {
@@ -76,7 +94,7 @@ watch(
     const cat = typeof query.cat === 'string' ? query.cat : ''
     if (!cat) return
     const page = typeof query.page === 'string' ? query.page : ''
-    if (page && findDocPage(cat, page)) return
+    if (page && findDocContent(cat, page)) return
     const fallback = defaultDocPageForCategory(cat)
     if (fallback) {
       router.replace({ path: '/docs', query: { cat, page: fallback } })
@@ -107,8 +125,8 @@ watch(
           class="docs-card"
           :to="cat.to"
         >
-          <h3 class="docs-card-title">{{ t(`docs.categories.${cat.key}.title`) }}</h3>
-          <p class="docs-card-desc">{{ t(`docs.categories.${cat.key}.desc`) }}</p>
+          <h3 class="docs-card-title">{{ cat.title }}</h3>
+          <p class="docs-card-desc">{{ cat.desc }}</p>
         </router-link>
       </div>
     </div>
@@ -117,7 +135,9 @@ watch(
       <aside class="docs-sidebar">
         <p class="docs-sidebar-title">{{ t('docs.sidebarTitle') }}</p>
         <nav v-for="cat in PUBLIC_DOC_TREE" :key="cat.id" class="docs-sidebar-group">
-          <p class="docs-sidebar-cat">{{ t(`docs.categories.${cat.categoryKey}.title`) }}</p>
+          <p class="docs-sidebar-cat">
+            {{ PUBLIC_DOC_CONTENT_ZH.find((c) => c.id === cat.id)?.title ?? cat.id }}
+          </p>
           <router-link
             v-for="page in cat.pages"
             :key="page.id"
@@ -125,17 +145,16 @@ watch(
             class="docs-sidebar-link"
             :class="{ 'is-active': isActivePage(cat.id, page.id) }"
           >
-            {{
-              te(`docs.pages.${cat.id}.${page.id}.title`)
-                ? t(`docs.pages.${cat.id}.${page.id}.title`)
-                : page.id
-            }}
+            {{ findDocContent(cat.id, page.id)?.title ?? page.id }}
           </router-link>
         </nav>
       </aside>
 
       <article class="docs-article">
-        <h1 class="docs-article-title">{{ pageTitle }}</h1>
+        <header class="docs-article-head">
+          <h1 class="docs-article-title">{{ pageTitle }}</h1>
+          <p v-if="pageSummary" class="docs-article-summary">{{ pageSummary }}</p>
+        </header>
         <div v-if="pageHtml" class="docs-prose" v-html="pageHtml" />
         <p v-else class="docs-state">{{ t('legal.empty') }}</p>
       </article>

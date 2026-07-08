@@ -1,57 +1,39 @@
 /** Public /docs route tree — cat & page ids match ?cat=&page= query params. */
+export {
+  PUBLIC_DOC_CONTENT_ZH,
+  findDocContent,
+  defaultDocPageId,
+  type PublicDocCategoryContent,
+  type PublicDocPageContent,
+} from './public-docs-data.zh'
+
+import { PUBLIC_DOC_CONTENT_ZH, defaultDocPageId, findDocContent } from './public-docs-data.zh'
+
 export interface PublicDocPage {
   id: string
 }
 
 export interface PublicDocCategory {
   id: string
-  /** i18n key under docs.categories.{id} */
   categoryKey: string
   pages: PublicDocPage[]
 }
 
-export const PUBLIC_DOC_TREE: PublicDocCategory[] = [
-  {
-    id: 'tutorial',
-    categoryKey: 'tutorial',
-    pages: [{ id: 'quickstart' }, { id: 'api-key' }, { id: 'first-request' }],
-  },
-  {
-    id: 'vip',
-    categoryKey: 'vip',
-    pages: [{ id: 'recharge' }, { id: 'vip-tiers' }, { id: 'check-in' }],
-  },
-  {
-    id: 'deploy',
-    categoryKey: 'deploy',
-    pages: [{ id: 'sdk-quick' }, { id: 'claude-code' }, { id: 'codex-cli' }, { id: 'gemini-cli' }],
-  },
-  {
-    id: 'models',
-    categoryKey: 'models',
-    pages: [{ id: 'overview' }, { id: 'selection' }],
-  },
-  {
-    id: 'channels',
-    categoryKey: 'channels',
-    pages: [{ id: 'available' }, { id: 'pricing' }],
-  },
-  {
-    id: 'about',
-    categoryKey: 'about',
-    pages: [{ id: 'privacy' }, { id: 'integrity' }],
-  },
-]
+/** Route tree derived from doc content (single source of truth). */
+export const PUBLIC_DOC_TREE: PublicDocCategory[] = PUBLIC_DOC_CONTENT_ZH.map((cat) => ({
+  id: cat.id,
+  categoryKey: cat.id,
+  pages: cat.pages.map((p) => ({ id: p.id })),
+}))
 
 export function findDocCategory(catId: string) {
   return PUBLIC_DOC_TREE.find((c) => c.id === catId)
 }
 
 export function findDocPage(catId: string, pageId: string) {
-  const cat = findDocCategory(catId)
-  return cat?.pages.find((p) => p.id === pageId)
+  return findDocContent(catId, pageId)
 }
 
 export function defaultDocPageForCategory(catId: string) {
-  return findDocCategory(catId)?.pages[0]?.id
+  return defaultDocPageId(catId)
 }
