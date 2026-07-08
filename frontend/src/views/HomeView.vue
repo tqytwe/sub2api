@@ -165,7 +165,7 @@
               <template v-for="(ch, ci) in stat.chars" :key="ci">
                 <span v-if="ch.digit !== null" class="od-col" :style="{ '--n': 10 + ch.digit, '--d': `${ch.roll * 60}ms` }">
                   <span class="od-strip">
-                    <span v-for="d in odometerDigits" :key="d" class="od-d">{{ d }}</span>
+                    <span v-for="d in 10" :key="d" class="od-d">{{ d - 1 }}</span>
                   </span>
                 </span>
                 <span v-else class="od-static">{{ ch.ch }}</span>
@@ -399,6 +399,7 @@ import ChannelTV from '@/components/home/ChannelTV.vue'
 import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -413,7 +414,7 @@ const whyY = ref(0)
 const onboardPhase = ref(1)
 const year = new Date().getFullYear()
 const integrityHash = 'a3f9e2c7…d41b7c'
-const odometerDigits = Array.from({ length: 10 }, (_, i) => i)
+const { statItems } = useHomeLiveStats()
 
 const inView = ref<Record<string, boolean>>({})
 
@@ -457,23 +458,6 @@ const manifestoParts = computed(() => {
     after: title.slice(m.index + m[0].length)
   }
 })
-
-const statItems = (() => {
-  let roll = 0
-  const defs = [
-    { key: 'requests', value: '12,847,360', unit: '+' },
-    { key: 'uptime', value: '99.97', unit: '%' },
-    { key: 'latency', value: '386', unit: 'ms' }
-  ] as const
-  return defs.map((d) => ({
-    ...d,
-    chars: d.value.split('').map((ch) => ({
-      ch,
-      digit: /\d/.test(ch) ? Number(ch) : null,
-      roll: /\d/.test(ch) ? roll++ : 0
-    }))
-  }))
-})()
 
 const imageEndpoints = [
   { method: 'POST', path: '/v1/images/generations' },
