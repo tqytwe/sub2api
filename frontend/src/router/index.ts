@@ -13,6 +13,7 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { useTheme } from '@/composables/useTheme'
 
 /**
  * Route definitions with lazy loading
@@ -994,6 +995,9 @@ router.beforeEach(async (to, _from, next) => {
  * Navigation guard: End loading and trigger prefetch
  */
 router.afterEach((to) => {
+  // Keep html.dark in sync when crossing public vs authenticated layouts.
+  useTheme().applyThemeClass()
+
   // 结束导航加载状态
   navigationLoading.endNavigation()
 

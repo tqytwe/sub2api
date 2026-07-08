@@ -12,7 +12,8 @@ function readStoredPreference(): ThemePreference {
   if (saved === 'light' || saved === 'dark' || saved === 'system') {
     return saved
   }
-  return 'system'
+  // Match public marketing pages: light by default unless user picks otherwise.
+  return 'light'
 }
 
 function systemPrefersDark(): boolean {
