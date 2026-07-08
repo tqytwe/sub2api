@@ -118,7 +118,7 @@ backend/.installed
 tests
 CLAUDE.md
 .claude
-scripts
+scripts/*
 !scripts/push-github-and-deploy.sh
 !backend/scripts/
 !backend/scripts/resolve-version.sh
