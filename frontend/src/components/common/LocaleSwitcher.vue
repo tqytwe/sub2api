@@ -71,7 +71,7 @@ const buttonClass = computed(() => {
 })
 
 const labelClass = computed(() =>
-  props.variant === 'public' ? 'hidden md:inline text-sm' : 'hidden sm:inline text-xs uppercase',
+  props.variant === 'public' ? 'hidden lg:inline text-sm' : 'hidden sm:inline text-xs uppercase',
 )
 
 const menuClass = computed(() => {
