@@ -5,10 +5,11 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import playAPI, { type PlayHubSummary } from '@/api/play'
+import { resolveCampaignDisplayName } from '@/utils/playCampaign'
 import { useAuthStore } from '@/stores/auth'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
@@ -25,6 +26,9 @@ const showGrowthCta = computed(() => {
 const vip = computed(() => hub.value?.growth.vip)
 const vipPerks = computed(() => vip.value?.perks ?? [])
 const primaryCampaign = computed(() => hub.value?.campaigns?.[0] ?? null)
+const campaignDisplayName = computed(() =>
+  resolveCampaignDisplayName(primaryCampaign.value, locale.value),
+)
 
 const campaignPerkLines = computed(() => {
   const rules = primaryCampaign.value?.rules
@@ -255,7 +259,7 @@ onMounted(load)
         <p class="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
           {{ t('playHub.campaignEyebrow') }}
         </p>
-        <h2 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ primaryCampaign.name }}</h2>
+        <h2 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ campaignDisplayName }}</h2>
         <ul v-if="campaignPerkLines.length" class="mt-2 space-y-1 text-sm text-violet-900 dark:text-violet-200">
           <li v-for="(line, idx) in campaignPerkLines" :key="idx">· {{ line }}</li>
         </ul>

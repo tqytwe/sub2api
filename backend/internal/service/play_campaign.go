@@ -8,9 +8,10 @@ import (
 )
 
 type PlayCampaignRules struct {
-	RechargeBonusPct     float64 `json:"recharge_bonus_pct,omitempty"`
-	BlindboxExtraOpens   int     `json:"blindbox_extra_opens,omitempty"`
-	ArenaScoreMultiplier float64 `json:"arena_score_multiplier,omitempty"`
+	RechargeBonusPct     float64            `json:"recharge_bonus_pct,omitempty"`
+	BlindboxExtraOpens   int                `json:"blindbox_extra_opens,omitempty"`
+	ArenaScoreMultiplier float64            `json:"arena_score_multiplier,omitempty"`
+	NameI18n             map[string]string  `json:"name_i18n,omitempty"`
 }
 
 type PlayCampaign struct {

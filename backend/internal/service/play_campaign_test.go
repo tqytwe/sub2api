@@ -21,4 +21,8 @@ func TestParsePlayCampaignRules(t *testing.T) {
 	require.Equal(t, 10.0, got.RechargeBonusPct)
 	require.Equal(t, 2, got.BlindboxExtraOpens)
 	require.Equal(t, 2.0, got.ArenaScoreMultiplier)
+
+	withI18n := ParsePlayCampaignRules(`{"name_i18n":{"en":"Launch week","zh":"开服福利周"}}`)
+	require.Equal(t, "Launch week", withI18n.NameI18n["en"])
+	require.Equal(t, "开服福利周", withI18n.NameI18n["zh"])
 }

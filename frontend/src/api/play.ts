@@ -144,6 +144,7 @@ export interface PlayCampaignRules {
   recharge_bonus_pct?: number
   blindbox_extra_opens?: number
   arena_score_multiplier?: number
+  name_i18n?: Record<string, string>
 }
 
 export interface PlayCampaignSummary {

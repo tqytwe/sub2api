@@ -3,14 +3,17 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import playAPI, { type PlayCampaignSummary } from '@/api/play'
+import { resolveCampaignDisplayName } from '@/utils/playCampaign'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 
 const campaigns = ref<PlayCampaignSummary[]>([])
 const loading = ref(true)
 
 const primary = computed(() => campaigns.value[0] ?? null)
+
+const displayName = computed(() => resolveCampaignDisplayName(primary.value, locale.value))
 
 const perkLines = computed(() => {
   const c = primary.value
@@ -63,7 +66,7 @@ defineExpose({ reload: load })
         <p class="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
           {{ t('dashboard.campaign.eyebrow') }}
         </p>
-        <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ primary.name }}</p>
+        <p class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ displayName }}</p>
         <ul v-if="perkLines.length" class="mt-2 space-y-1 text-sm text-violet-900 dark:text-violet-200">
           <li v-for="(line, idx) in perkLines" :key="idx">· {{ line }}</li>
         </ul>
