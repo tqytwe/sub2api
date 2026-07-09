@@ -1,4 +1,5 @@
 import { createI18n } from 'vue-i18n'
+import type { LocationQuery } from 'vue-router'
 
 type LocaleCode = 'en' | 'zh'
 
@@ -84,9 +85,7 @@ export async function initI18n(): Promise<void> {
   document.documentElement.setAttribute('lang', active === 'zh' ? 'zh-MY' : active)
 }
 
-export async function applyLocaleFromRouteQuery(
-  query: Record<string, string | string[] | null | undefined>,
-): Promise<void> {
+export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<void> {
   const raw = query.lang ?? query.locale
   const value = Array.isArray(raw) ? raw[0] : raw
   if (typeof value !== 'string' || !value.trim()) return
