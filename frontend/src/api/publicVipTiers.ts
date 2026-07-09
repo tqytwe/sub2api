@@ -13,6 +13,6 @@ export interface PublicVIPTiersResponse {
 }
 
 export async function fetchPublicVIPTiers(): Promise<PublicVIPTiersResponse> {
-  const { data } = await apiClient.get<{ data: PublicVIPTiersResponse }>('/public/vip-tiers')
-  return data.data
+  const { data } = await apiClient.get<PublicVIPTiersResponse>('/public/vip-tiers')
+  return data ?? { enabled: false, tiers: [] }
 }
