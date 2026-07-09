@@ -416,7 +416,7 @@ import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 
-const { t, locale, tm, te } = useI18n()
+const { t, tm, te } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
@@ -453,15 +453,15 @@ const dashboardPath = computed(() => (isAdmin.value ? '/admin' : '/dashboard'))
 const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
 const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
 
-const isGlobalEnHome = computed(() => locale.value === 'en')
+const isGtmHome = computed(() => te('home.jisudeng.hero.subtitle') && te('home.jisudeng.cta.register'))
 const heroSubtitle = computed(() => {
-  if (isGlobalEnHome.value && te('home.jisudeng.hero.subtitle')) {
+  if (isGtmHome.value) {
     return t('home.jisudeng.hero.subtitle')
   }
   return siteSubtitle.value
 })
-const showVerifyLink = computed(() => isGlobalEnHome.value && te('home.jisudeng.manifesto.verifyLink'))
-const showGuestStickyCta = computed(() => isGlobalEnHome.value)
+const showVerifyLink = computed(() => isGtmHome.value && te('home.jisudeng.manifesto.verifyLink'))
+const showGuestStickyCta = computed(() => isGtmHome.value)
 
 type FaqItem = { q: string; a: string }
 const faqItems = computed((): FaqItem[] => {
@@ -566,7 +566,7 @@ function goStart() {
     router.push(dashboardPath.value)
     return
   }
-  router.push(isGlobalEnHome.value ? '/register' : '/login')
+  router.push(isGtmHome.value ? '/register' : '/login')
 }
 
 function openDocs() {

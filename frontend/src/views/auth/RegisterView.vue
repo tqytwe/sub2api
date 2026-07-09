@@ -342,7 +342,7 @@ import {
 import type { LoginAgreementDocument } from '@/types'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 
-const { t, locale } = useI18n()
+const { t, locale, te } = useI18n()
 const LOGIN_AGREEMENT_STORAGE_KEY = 'sub2api_login_agreement_consent'
 
 // ==================== Router & Stores ====================
@@ -370,7 +370,7 @@ const siteName = ref<string>('Sub2API')
 const { teaser } = usePublicGrowthTeaser()
 
 const registerPromoText = computed(() => {
-  if (locale.value !== 'en') return ''
+  if (!te('home.jisudeng.registerBanner.signupCredit')) return ''
   const g = teaser.value
   if (!g?.registration_enabled) return ''
 
