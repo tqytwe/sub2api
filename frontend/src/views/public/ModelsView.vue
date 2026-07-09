@@ -17,7 +17,7 @@ interface ModelRow {
   pricing: UserSupportedModel['pricing']
 }
 
-const { t, locale } = useI18n()
+const { t, te } = useI18n()
 const authStore = useAuthStore()
 
 const loading = ref(false)
@@ -31,8 +31,9 @@ const showVipBadge = computed(
   () => authStore.isAuthenticated && (vip.value?.perks?.includes('models_vip_tag') ?? false),
 )
 
-const guestPrimaryPath = computed(() => (locale.value === 'en' ? '/register' : '/login'))
-const guestSecondaryPath = computed(() => (locale.value === 'en' ? '/login' : '/register'))
+const guestPrimaryPath = computed(() => (te('home.jisudeng.cta.register') ? '/register' : '/login'))
+const guestSecondaryPath = computed(() => (te('home.jisudeng.cta.register') ? '/login' : '/register'))
+const guestPrimaryIsRegister = computed(() => te('home.jisudeng.cta.register'))
 
 function formatPrice(value: number | null | undefined): string {
   if (value == null) return '—'
@@ -143,16 +144,16 @@ onMounted(loadModels)
       <div v-if="showGuestLoginBanner" class="models-auth-card">
         <p>{{ t('models.loginForRates') }}</p>
         <div class="models-auth-actions">
-          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ locale === 'en' ? t('models.registerCta') : t('models.loginCta') }}</router-link>
-          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ locale === 'en' ? t('models.loginCta') : t('models.registerCta') }}</router-link>
+          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
+          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
         </div>
       </div>
 
       <div v-else-if="showPreview" class="models-auth-card">
         <p>{{ t('models.loginPrompt') }}</p>
         <div class="models-auth-actions">
-          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ locale === 'en' ? t('models.registerCta') : t('models.loginCta') }}</router-link>
-          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ locale === 'en' ? t('models.loginCta') : t('models.registerCta') }}</router-link>
+          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
+          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
         </div>
       </div>
 

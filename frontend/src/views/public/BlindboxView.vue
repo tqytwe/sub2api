@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayBlindboxOpenResult, type PlayBlindboxStatus } from '@/api/play'
 import '@/styles/public-pages.css'
@@ -77,7 +78,7 @@ onMounted(loadStatus)
 <template>
   <div class="play-page">
     <header class="public-page-header">
-      <router-link to="/home" class="back-link">{{ t('play.backHome') }}</router-link>
+      <PublicPlayBackLink />
       <PublicPageToolbar />
     </header>
 

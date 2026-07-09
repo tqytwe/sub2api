@@ -241,6 +241,7 @@ export const jisudengPagesEn = {
   },
   play: {
     backHome: '← Back home',
+    backPlayHub: '← Back to Play Hub',
     howItWorks: 'How it works',
     learnMore: 'VIP & perks docs',
     blindbox: {

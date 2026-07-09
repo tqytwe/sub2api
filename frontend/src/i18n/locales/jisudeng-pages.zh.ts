@@ -88,13 +88,13 @@ export const jisudengPagesZh = {
   },
   models: {
     backHome: '← 返回首页',
-    title: '模型列表',
-    subtitle: '登录后查看您账户可见的模型与官方定价倍率',
+    title: '模型与价格',
+    subtitle: '浏览公开参考价 — 免费注册解锁您账户的分组倍率',
     searchPlaceholder: '搜索模型或平台…',
-    loginPrompt: '登录后即可查看完整模型列表与定价',
-    loginForRates: '以下为官方参考价；登录后可查看您账户分组下的倍率定价。',
-    loginCta: '登录查看',
-    registerCta: '注册账号',
+    loginPrompt: '免费注册即可查看完整模型列表与账户定价',
+    loginForRates: '以下为官方参考价；注册后可查看您账户分组下的倍率定价。',
+    loginCta: '登录',
+    registerCta: '免费注册',
     empty: '暂无可用模型',
     loading: '加载中…',
     columns: {
@@ -106,7 +106,7 @@ export const jisudengPagesZh = {
     },
     noPricing: '暂无定价',
     previewTitle: '热门模型预览',
-    previewNote: '以下为常见模型示例；登录后可查看您账户分组下的完整列表与定价倍率。',
+    previewNote: '以下为常见模型示例；免费注册后可查看您账户分组下的完整列表与定价倍率。',
     previewColumns: {
       model: '模型',
       platform: '平台',
@@ -248,6 +248,7 @@ export const jisudengPagesZh = {
   },
   play: {
     backHome: '← 返回首页',
+    backPlayHub: '← 返回玩法中枢',
     howItWorks: '怎么玩',
     learnMore: '查看 VIP 与玩法文档',
     blindbox: {
@@ -258,7 +259,7 @@ export const jisudengPagesZh = {
         '盲盒是极速蹬的正反馈玩法之一：在控制台消耗一定 Token 后可开启盲盒，奖池包含测试额度、充值加成券等。具体奖池与概率以控制台实时展示为准。',
       rulesTitle: '参与须知',
       steps: [
-        '登录控制台，在侧边栏或玩法入口进入盲盒页面',
+        '免费注册后，在侧边栏或玩法入口进入盲盒页面',
         '确认当前 Token 余额与单次开箱消耗',
         '开箱后奖励即时入账，可在余额与活动记录中查看',
       ],
@@ -268,7 +269,7 @@ export const jisudengPagesZh = {
         '禁止利用漏洞刷奖；违规账户可能被限制玩法',
       ],
       statusNote: '完整开箱与奖池需登录控制台；若管理员未开启该模块，入口可能暂不可见。',
-      ctaGuest: '登录开盲盒',
+      ctaGuest: '免费注册开盲盒',
       ctaAuth: '进入控制台',
     },
     arena: {
@@ -289,7 +290,7 @@ export const jisudengPagesZh = {
         '奖励不可转让，具体档位以活动页为准',
       ],
       statusNote: '当前周期排行与领奖需登录控制台查看。',
-      ctaGuest: '登录查看排行',
+      ctaGuest: '免费注册看排行',
       ctaAuth: '进入 Token 农场',
     },
     quizQuest: {
@@ -310,7 +311,7 @@ export const jisudengPagesZh = {
         '题目与奖池可能随版本更新',
       ],
       statusNote: '题库与积分兑换需登录后参与。',
-      ctaGuest: '登录开始挑战',
+      ctaGuest: '免费注册开始挑战',
       ctaAuth: '开始今日挑战',
     },
     agentTeam: {
@@ -331,7 +332,7 @@ export const jisudengPagesZh = {
         '团队奖励分配方式以活动规则为准',
       ],
       statusNote: '创建队伍与邀请链接需登录控制台。',
-      ctaGuest: '登录组队',
+      ctaGuest: '免费注册组队',
       ctaAuth: '管理我的队伍',
     },
   },
@@ -364,7 +365,7 @@ export const jisudengPagesZh = {
     titleRegister: '即刻开通',
     titleFaintRegister: '一念可达每一个模型',
     pitchRegister:
-      '把上百个模型按官方 token 倍率聚合到一个 API。注册后即可拿到密钥，5 分钟把 Claude / GPT / Gemini 通通接入你的项目。',
+      '注册即送测试额度 · 上百个模型官方倍率聚合 · 5 分钟接入 Claude / GPT / Gemini。',
     regPledge1: '注册即开 API · 无需审批 · 秒级接入',
     regPledge2: '按 Token 计费 · 无月费 · 见账见量',
     regPledge3: '邀请码 / 优惠码 · 充值赠送可叠加',

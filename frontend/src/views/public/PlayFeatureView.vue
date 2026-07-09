@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import { findPlayFeature, type PlayFeatureId } from '@/content/play-features'
 import '@/styles/public-pages.css'
@@ -50,7 +51,7 @@ const ctaTarget = computed(() =>
 <template>
   <div v-if="feature && i18nBase" class="play-page">
     <header class="public-page-header">
-      <router-link to="/home" class="back-link">{{ t('play.backHome') }}</router-link>
+      <PublicPlayBackLink />
       <PublicPageToolbar />
     </header>
 
