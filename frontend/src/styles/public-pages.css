@@ -951,7 +951,7 @@
   color: var(--ink-2);
 }
 
-.docs-prose :deep(h2) {
+.docs-prose h2 {
   font-family: 'Noto Serif SC', serif;
   color: var(--ink);
   font-size: 20px;
@@ -961,7 +961,7 @@
   border-bottom: 1px solid var(--line-soft);
 }
 
-.docs-prose :deep(h3) {
+.docs-prose h3 {
   font-family: 'Noto Serif SC', serif;
   color: var(--ink);
   font-size: 16px;
@@ -969,11 +969,11 @@
   margin: 24px 0 10px;
 }
 
-.docs-prose :deep(p) {
+.docs-prose p {
   margin: 0 0 14px;
 }
 
-.docs-prose :deep(code) {
+.docs-prose code {
   font-family: 'JetBrains Mono', 'IBM Plex Mono', monospace;
   font-size: 0.92em;
   background: var(--bg-soft);
@@ -983,7 +983,7 @@
   border: 1px solid var(--line-soft);
 }
 
-.docs-prose :deep(pre) {
+.docs-prose pre {
   overflow-x: auto;
   padding: 16px 18px;
   border-radius: 10px;
@@ -995,7 +995,7 @@
   border: none;
 }
 
-.docs-prose :deep(pre code) {
+.docs-prose pre code {
   background: none;
   padding: 0;
   color: inherit;
@@ -1003,29 +1003,29 @@
   font-size: inherit;
 }
 
-.docs-prose :deep(ul),
-.docs-prose :deep(ol) {
+.docs-prose ul,
+.docs-prose ol {
   margin: 0 0 14px;
   padding-left: 22px;
 }
 
-.docs-prose :deep(li) {
+.docs-prose li {
   margin: 0 0 6px;
 }
 
-.docs-prose :deep(li strong),
-.docs-prose :deep(p strong) {
+.docs-prose li strong,
+.docs-prose p strong {
   color: var(--ink);
   font-weight: 600;
 }
 
-.docs-prose :deep(a) {
+.docs-prose a {
   color: var(--accent);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.docs-prose :deep(.docs-lead) {
+.docs-prose .docs-lead {
   font-size: 15px;
   font-weight: 500;
   color: var(--ink);
@@ -1036,7 +1036,7 @@
   margin: 0 0 24px;
 }
 
-.docs-prose :deep(.docs-tip) {
+.docs-prose .docs-tip {
   padding: 12px 16px;
   border-radius: 0 8px 8px 0;
   border: none;
@@ -1047,20 +1047,20 @@
   margin: 16px 0;
 }
 
-.dark .docs-prose :deep(.docs-tip) {
+.dark .docs-prose .docs-tip {
   border-left-color: #d4a017;
   background: rgba(146, 64, 14, 0.25);
   color: #fde68a;
 }
 
-.docs-prose :deep(.docs-figure) {
+.docs-prose .docs-figure {
   margin: 18px 0 22px;
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.docs-prose :deep(.docs-figure img) {
+.docs-prose .docs-figure img {
   display: block;
   max-width: 100%;
   height: auto;
@@ -1069,7 +1069,7 @@
   background: rgba(0, 0, 0, 0.02);
 }
 
-.docs-prose :deep(.docs-figure-placeholder) {
+.docs-prose .docs-figure-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1088,7 +1088,7 @@
   text-align: center;
 }
 
-.docs-prose :deep(.docs-figure-tag) {
+.docs-prose .docs-figure-tag {
   display: inline-block;
   padding: 3px 10px;
   font-family: 'JetBrains Mono', monospace;
@@ -1101,19 +1101,19 @@
   border-radius: 999px;
 }
 
-.docs-prose :deep(.docs-figure-hint) {
+.docs-prose .docs-figure-hint {
   font-size: 12.5px;
   color: var(--ink-2);
 }
 
-.docs-prose :deep(.docs-figure figcaption) {
+.docs-prose .docs-figure figcaption {
   font-size: 12.5px;
   color: var(--ink-3);
   text-align: center;
   font-style: italic;
 }
 
-.docs-prose :deep(.docs-launch) {
+.docs-prose .docs-launch {
   position: relative;
   display: block;
   padding: 20px 0 18px;
@@ -1122,7 +1122,7 @@
   border-bottom: 1px solid var(--line);
 }
 
-.docs-prose :deep(.docs-launch-title) {
+.docs-prose .docs-launch-title {
   font-family: 'Noto Serif SC', serif;
   font-size: 22px;
   font-weight: 600;
@@ -1131,14 +1131,14 @@
   padding-right: 290px;
 }
 
-.docs-prose :deep(.docs-launch-tags) {
+.docs-prose .docs-launch-tags {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
   margin: 7px 0 10px;
 }
 
-.docs-prose :deep(.docs-launch-tag) {
+.docs-prose .docs-launch-tag {
   font-family: 'JetBrains Mono', monospace;
   font-size: 10px;
   font-weight: 600;
@@ -1147,20 +1147,20 @@
   color: var(--ink-3);
 }
 
-.docs-prose :deep(.docs-launch-tag + .docs-launch-tag::before) {
+.docs-prose .docs-launch-tag + .docs-launch-tag::before {
   content: '·';
   margin: 0 9px;
   color: var(--line);
 }
 
-.docs-prose :deep(.docs-launch-blurb) {
+.docs-prose .docs-launch-blurb {
   font-size: 14px;
   line-height: 1.7;
   color: var(--ink-2);
   max-width: 620px;
 }
 
-.docs-prose :deep(.docs-launch-link) {
+.docs-prose .docs-launch-link {
   position: absolute;
   top: 24px;
   right: 0;
@@ -1170,7 +1170,7 @@
   text-decoration: none;
 }
 
-.docs-prose :deep(.docs-launch-link-label) {
+.docs-prose .docs-launch-link-label {
   order: 1;
   font-family: 'JetBrains Mono', monospace;
   font-size: 9px;
@@ -1180,7 +1180,7 @@
   color: var(--ink-3);
 }
 
-.docs-prose :deep(.docs-launch-link-host) {
+.docs-prose .docs-launch-link-host {
   order: 2;
   font-family: 'JetBrains Mono', monospace;
   font-size: 12px;
@@ -1189,27 +1189,27 @@
   padding-bottom: 2px;
 }
 
-.docs-prose :deep(.docs-launch-link-icon) {
+.docs-prose .docs-launch-link-icon {
   order: 3;
   font-size: 12px;
   font-weight: 600;
   color: var(--ink-3);
 }
 
-.docs-prose :deep(.docs-launch-link:hover .docs-launch-link-host) {
+.docs-prose .docs-launch-link:hover .docs-launch-link-host {
   border-color: var(--ink);
 }
 
-.docs-prose :deep(.docs-steps) {
+.docs-prose .docs-steps {
   margin: 22px 0;
 }
 
-.docs-prose :deep(.docs-step) {
+.docs-prose .docs-step {
   position: relative;
   padding: 0 0 8px 44px;
 }
 
-.docs-prose :deep(.docs-step::before) {
+.docs-prose .docs-step::before {
   content: '';
   position: absolute;
   left: 14px;
@@ -1218,11 +1218,11 @@
   border-left: 1.5px solid var(--line);
 }
 
-.docs-prose :deep(.docs-step:last-child::before) {
+.docs-prose .docs-step:last-child::before {
   display: none;
 }
 
-.docs-prose :deep(.docs-step-no) {
+.docs-prose .docs-step-no {
   position: absolute;
   left: 0;
   top: 0;
@@ -1240,7 +1240,7 @@
   color: var(--ink);
 }
 
-.docs-prose :deep(.docs-step-title) {
+.docs-prose .docs-step-title {
   display: flex;
   align-items: center;
   min-height: 29px;
@@ -1250,19 +1250,19 @@
   color: var(--ink);
 }
 
-.docs-prose :deep(.docs-step-body) {
+.docs-prose .docs-step-body {
   padding: 6px 0 10px;
 }
 
-.docs-prose :deep(.docs-step-body p) {
+.docs-prose .docs-step-body p {
   margin: 0 0 10px;
 }
 
-.docs-prose :deep(.docs-step-body pre) {
+.docs-prose .docs-step-body pre {
   margin: 10px 0;
 }
 
-.docs-prose :deep(.docs-cli) {
+.docs-prose .docs-cli {
   display: inline-block;
   margin: 6px 0 0;
   padding: 2px 10px;
@@ -1277,34 +1277,34 @@
   border-radius: 999px;
 }
 
-.docs-prose :deep(.docs-cli + pre) {
+.docs-prose .docs-cli + pre {
   margin-top: 6px;
 }
 
-.docs-prose :deep(.docs-map) {
+.docs-prose .docs-map {
   margin: 20px 0 26px;
   overflow-x: auto;
 }
 
-.docs-prose :deep(.docs-map svg) {
+.docs-prose .docs-map svg {
   display: block;
   width: 100%;
   min-width: 700px;
   height: auto;
 }
 
-.docs-prose :deep(.docs-table-wrap) {
+.docs-prose .docs-table-wrap {
   overflow-x: auto;
   margin: 14px 0;
 }
 
-.docs-prose :deep(.docs-table) {
+.docs-prose .docs-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 13px;
 }
 
-.docs-prose :deep(.docs-table th) {
+.docs-prose .docs-table th {
   text-align: left;
   font-weight: 600;
   font-size: 11px;
@@ -1315,13 +1315,13 @@
   border-bottom: 1px solid var(--line);
 }
 
-.docs-prose :deep(.docs-table td) {
+.docs-prose .docs-table td {
   padding: 12px;
   border-bottom: 1px solid var(--line);
   color: var(--ink);
 }
 
-.docs-prose :deep(.docs-tier) {
+.docs-prose .docs-tier {
   display: inline-flex;
   align-items: center;
   padding: 2px 8px;
@@ -1331,25 +1331,25 @@
   font-weight: 600;
 }
 
-.docs-prose :deep(.docs-tier-0) {
+.docs-prose .docs-tier-0 {
   background: #f5f5f4;
   color: #525252;
   border: 1px solid #e7e5e4;
 }
 
-.docs-prose :deep(.docs-tier-1) {
+.docs-prose .docs-tier-1 {
   background: linear-gradient(135deg, #e7eaef, #c7ced8);
   color: #2d3340;
   border: 1px solid #c7ced8;
 }
 
-.docs-prose :deep(.docs-tier-2) {
+.docs-prose .docs-tier-2 {
   background: linear-gradient(135deg, #fbeec7, #c9a04a);
   color: #4a3818;
   border: 1px solid #c9a04a;
 }
 
-.docs-prose :deep(.docs-tier-3) {
+.docs-prose .docs-tier-3 {
   background: linear-gradient(135deg, #1a1a18, #0a0a0a);
   color: #d6af6e;
   border: 1px solid #1a1a18;
@@ -1390,11 +1390,11 @@
     border-radius: 12px;
   }
 
-  .docs-prose :deep(.docs-launch-title) {
+  .docs-prose .docs-launch-title {
     padding-right: 0;
   }
 
-  .docs-prose :deep(.docs-launch-link) {
+  .docs-prose .docs-launch-link {
     position: static;
     margin-top: 12px;
   }

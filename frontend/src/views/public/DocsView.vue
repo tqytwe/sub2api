@@ -12,7 +12,6 @@ import {
   defaultDocPageForCategory,
   findDocContent,
 } from '@/content/public-docs'
-import '@/styles/public-pages.css'
 
 const { t } = useI18n()
 const route = useRoute()
