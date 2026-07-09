@@ -1,7 +1,12 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
+      <UsageStatsCards
+        :stats="usageStats"
+        :show-account-cost="false"
+        :strike-standard-cost="true"
+        :savings-label="usageSavingsLabel"
+      />
 
       <div class="space-y-4">
         <div class="card p-4">
@@ -343,6 +348,13 @@ const defaultRange = getLast24HoursRangeDates()
 const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
 const granularity = ref<'day' | 'hour'>(getGranularityForRange(startDate.value, endDate.value))
+
+const usageSavingsLabel = computed<'month' | 'range' | null>(() => {
+  const now = new Date()
+  const monthStart = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1))
+  if (startDate.value === monthStart) return 'month'
+  return 'range'
+})
 
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const groupDistributionMetric = ref<DistributionMetric>('tokens')

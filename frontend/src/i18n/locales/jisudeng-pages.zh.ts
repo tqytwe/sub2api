@@ -353,6 +353,21 @@ export const jisudengPagesZh = {
       environment: { title: '环境准备', desc: 'Node.js · 网络 · 各平台安装' },
       'vibe-coding': { title: 'Vibe Coding 必装', desc: 'AI 编程协作心法与插件清单' },
     },
+    vipTiers: {
+      loading: '正在加载 VIP 档位…',
+      lead: '下表与玩法中枢 /play 的 VIP 卡片实时同步，由后台配置驱动。',
+      tableTitle: 'VIP 档位一览',
+      colTier: '档位',
+      colRecharge: '累计充值',
+      colPerks: '权益',
+      syncNote: '累计充值 = 账户成功充值总额（不含签到、活动赠送）。登录后可在玩法中枢查看当前档位与距下一档差额。',
+      perks: {
+        models_vip_tag: '模型页 VIP 标签',
+        blindbox_pool_upgrade: '盲盒奖池升级',
+        arena_settlement_bonus: 'Arena 结算加成',
+        affiliate_bonus_5pct: '邀请返利 +5%',
+      },
+    },
   },
   authAside: {
     eyebrow: '隐私 · 透明 · 一念可达',

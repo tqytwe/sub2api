@@ -44,6 +44,7 @@ type PlayArenaScoreRow struct {
 	Rank        int
 	UserID      int64
 	DisplayName string
+	AvatarURL   string
 	TokenSum    int64
 }
 
@@ -129,6 +130,7 @@ type PlayQuizSubmitResult struct {
 type PlayTeamMember struct {
 	UserID      int64
 	DisplayName string
+	AvatarURL   string
 	JoinedAt    time.Time
 }
 

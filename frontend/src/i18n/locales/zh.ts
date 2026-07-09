@@ -984,6 +984,8 @@ export default {
     accountMultiplier: '账号倍率',
     avgDuration: '平均耗时',
     inSelectedRange: '所选范围内',
+    savedVsOfficial: '对比官方价已省 ${amount}',
+    savedThisMonth: '本月已省 ${amount}（对比官方价）',
     perRequest: '每次请求',
     apiKeyFilter: 'API 密钥',
     allApiKeys: '全部密钥',

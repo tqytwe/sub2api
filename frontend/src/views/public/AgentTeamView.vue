@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import userAPI from '@/api/user'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
+import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayTeamMe } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
@@ -159,9 +160,9 @@ onMounted(loadTeam)
             </button>
           </div>
         </div>
-        <ul class="play-rules">
+        <ul class="play-rules space-y-2">
           <li v-for="member in teamMe.team.members" :key="member.user_id">
-            {{ member.display_name }}
+            <PlayUserAvatar :name="member.display_name" :avatar-url="member.avatar_url" />
           </li>
         </ul>
       </div>

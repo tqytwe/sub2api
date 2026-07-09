@@ -346,6 +346,21 @@ export const jisudengPagesEn = {
       environment: { title: 'Environment', desc: 'Node.js · network · platform setup' },
       'vibe-coding': { title: 'Vibe Coding', desc: 'AI pair-programming mindset & plugins' },
     },
+    vipTiers: {
+      loading: 'Loading VIP tiers…',
+      lead: 'This table stays in sync with the Play Hub (/play) VIP card — driven by admin settings.',
+      tableTitle: 'VIP tiers',
+      colTier: 'Tier',
+      colRecharge: 'Lifetime top-up',
+      colPerks: 'Perks',
+      syncNote: 'Lifetime top-up counts successful recharge only (not check-in or promo grants). See your tier and gap in the Play Hub after login.',
+      perks: {
+        models_vip_tag: 'VIP badge on models page',
+        blindbox_pool_upgrade: 'Upgraded blind-box pool',
+        arena_settlement_bonus: 'Arena settlement bonus',
+        affiliate_bonus_5pct: '+5% referral rebate',
+      },
+    },
   },
   authAside: {
     eyebrow: 'Privacy · Transparent · One thought away',

@@ -1,6 +1,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchPublicGrowthTeaser, type PublicGrowthTeaser } from '@/api/publicGrowthTeaser'
+import { formatAffiliatePct } from '@/utils/formatAffiliatePct'
 
 export function usePublicGrowthTeaser() {
   const { t } = useI18n()
@@ -41,7 +42,7 @@ export function usePublicGrowthTeaser() {
     if (g.affiliate_enabled && (g.affiliate_rebate_pct ?? 0) > 0) {
       lines.push(
         t('home.jisudeng.hero.perks.referral', {
-          pct: Math.round(g.affiliate_rebate_pct ?? 0),
+          pct: formatAffiliatePct(g.affiliate_rebate_pct ?? 0),
         }),
       )
     }

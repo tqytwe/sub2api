@@ -23,7 +23,19 @@ function normalizeStoredLocale(saved: string | null): LocaleCode | null {
   return isLocaleCode(saved) ? saved : null
 }
 
+function localeFromURL(): LocaleCode | null {
+  if (typeof window === 'undefined') return null
+  const params = new URLSearchParams(window.location.search)
+  const fromQuery = params.get('lang') ?? params.get('locale')
+  return normalizeStoredLocale(fromQuery)
+}
+
 function getDefaultLocale(): LocaleCode {
+  const fromURL = localeFromURL()
+  if (fromURL) {
+    return fromURL
+  }
+
   const saved = normalizeStoredLocale(localStorage.getItem(LOCALE_KEY))
   if (saved) {
     return saved
@@ -59,9 +71,26 @@ export async function loadLocaleMessages(locale: LocaleCode): Promise<void> {
 }
 
 export async function initI18n(): Promise<void> {
-  const current = getLocale()
-  await loadLocaleMessages(current)
-  document.documentElement.setAttribute('lang', current === 'zh' ? 'zh-MY' : current)
+  const fromURL = localeFromURL()
+  if (fromURL) {
+    await loadLocaleMessages(fromURL)
+    i18n.global.locale.value = fromURL
+    localStorage.setItem(LOCALE_KEY, fromURL)
+  } else {
+    const current = getLocale()
+    await loadLocaleMessages(current)
+  }
+  const active = getLocale()
+  document.documentElement.setAttribute('lang', active === 'zh' ? 'zh-MY' : active)
+}
+
+export async function applyLocaleFromRouteQuery(
+  query: Record<string, string | string[] | null | undefined>,
+): Promise<void> {
+  const raw = query.lang ?? query.locale
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value !== 'string' || !value.trim()) return
+  await setLocale(value.trim())
 }
 
 export async function setLocale(locale: string): Promise<void> {

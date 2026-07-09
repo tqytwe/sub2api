@@ -265,3 +265,43 @@ func (s *PlayService) ListPublicModels(ctx context.Context) ([]AvailableChannel,
 	}
 	return active, nil
 }
+
+func countPlayPublicModels(channels []AvailableChannel) int {
+	seen := make(map[string]struct{})
+	for _, ch := range channels {
+		for _, model := range ch.SupportedModels {
+			if model.Name == "" {
+				continue
+			}
+			platform := model.Platform
+			if platform == "" {
+				platform = "_"
+			}
+			seen[model.Name+"::"+platform] = struct{}{}
+		}
+	}
+	return len(seen)
+}
+
+// PublicMarketingModelCount returns unique model count for landing pages.
+// Falls back to all configured channels when no active public channels are available.
+func (s *PlayService) PublicMarketingModelCount(ctx context.Context) int {
+	rt := s.GetRuntime(ctx)
+	if !rt.PublicModelsEnabled {
+		return 0
+	}
+	channels, err := s.ListPublicModels(ctx)
+	if err == nil {
+		if n := countPlayPublicModels(channels); n > 0 {
+			return n
+		}
+	}
+	if s.channelService == nil {
+		return 0
+	}
+	all, err := s.channelService.ListAvailable(ctx)
+	if err != nil {
+		return 0
+	}
+	return countPlayPublicModels(all)
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Push local main to GitHub, then pull + rebuild on Dell.
 # Usage: ./scripts/push-github-and-deploy.sh [branch]
+# Set DOCKER_NO_CACHE=1 to force a clean frontend/backend image rebuild.
 set -euo pipefail
 
 BRANCH="${1:-play/main}"
@@ -36,12 +37,17 @@ if [ ! -f .env ]; then
   echo "error: deploy/.env missing — copy .env.server.example and set secrets" >&2
   exit 1
 fi
-docker compose -f "${COMPOSE_FILE}" up -d --build
+BUILD_ARGS=()
+if [ "\${DOCKER_NO_CACHE:-}" = "1" ]; then
+  BUILD_ARGS+=(--no-cache)
+fi
+docker compose -f "${COMPOSE_FILE}" build "\${BUILD_ARGS[@]}"
+docker compose -f "${COMPOSE_FILE}" up -d
 docker compose -f "${COMPOSE_FILE}" ps
 set -a
 source .env
 set +a
-curl -sfS -o /dev/null -w "health=%{http_code}\n" "http://127.0.0.1:${SERVER_PORT:-8206}/health" || true
+curl -sfS -o /dev/null -w "health=%{http_code}\n" "http://127.0.0.1:\${SERVER_PORT:-8206}/health" || true
 EOF
 
 echo "==> done — open http://192.168.100.10:8206"

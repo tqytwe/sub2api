@@ -64,6 +64,7 @@ type playQuizSubmitResultDTO struct {
 type playTeamMemberDTO struct {
 	UserID      int64  `json:"user_id"`
 	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
 	JoinedAt    string `json:"joined_at"`
 }
 
@@ -278,6 +279,7 @@ func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
 		out.Members = append(out.Members, playTeamMemberDTO{
 			UserID:      m.UserID,
 			DisplayName: m.DisplayName,
+			AvatarURL:   m.AvatarURL,
 			JoinedAt:    m.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
 		})
 	}

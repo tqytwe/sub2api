@@ -201,9 +201,11 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) ([]s
 	rows, err := exec.QueryContext(ctx, `
 		SELECT m.user_id,
 		       COALESCE(NULLIF(TRIM(u.username), ''), CONCAT('user-', m.user_id::text)) AS display_name,
+		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
 		       m.joined_at
 		FROM play_team_members m
 		JOIN users u ON u.id = m.user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = m.user_id
 		WHERE m.team_id = $1
 		ORDER BY m.joined_at ASC`, teamID)
 	if err != nil {
@@ -214,7 +216,7 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) ([]s
 	out := make([]service.PlayTeamMember, 0, 8)
 	for rows.Next() {
 		var m service.PlayTeamMember
-		if err := rows.Scan(&m.UserID, &m.DisplayName, &m.JoinedAt); err != nil {
+		if err := rows.Scan(&m.UserID, &m.DisplayName, &m.AvatarURL, &m.JoinedAt); err != nil {
 			return nil, fmt.Errorf("scan team member: %w", err)
 		}
 		out = append(out, m)

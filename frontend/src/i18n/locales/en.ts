@@ -980,6 +980,8 @@ export default {
     accountMultiplier: 'Account rate',
     avgDuration: 'Avg Duration',
     inSelectedRange: 'in selected range',
+    savedVsOfficial: 'Saved ${amount} vs official pricing',
+    savedThisMonth: 'Saved ${amount} this month vs official pricing',
     perRequest: 'per request',
     apiKeyFilter: 'API Key',
     allApiKeys: 'All API Keys',

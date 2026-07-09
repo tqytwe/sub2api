@@ -67,6 +67,7 @@ type playArenaScoreDTO struct {
 	Rank        int    `json:"rank"`
 	UserID      int64  `json:"user_id"`
 	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
 	TokenSum    int64  `json:"token_sum"`
 }
 
@@ -243,6 +244,7 @@ func (h *PlayHandler) ArenaLeaderboard(c *gin.Context) {
 			Rank:        row.Rank,
 			UserID:      row.UserID,
 			DisplayName: row.DisplayName,
+			AvatarURL:   row.AvatarURL,
 			TokenSum:    row.TokenSum,
 		})
 	}
@@ -318,9 +320,5 @@ func (h *PlayHandler) PublicModelCount(ctx context.Context) int {
 	if h == nil || h.playService == nil {
 		return 0
 	}
-	channels, err := h.playService.ListPublicModels(ctx)
-	if err != nil {
-		return 0
-	}
-	return countPublicModels(channels)
+	return h.playService.PublicMarketingModelCount(ctx)
 }

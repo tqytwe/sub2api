@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
+import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayArenaCurrent, type PlayArenaLeaderboard } from '@/api/play'
 import '@/styles/public-pages.css'
@@ -97,7 +98,9 @@ onMounted(load)
                   class="border-t border-gray-100 dark:border-dark-700"
                 >
                   <td class="px-4 py-3 font-medium">#{{ row.rank }}</td>
-                  <td class="px-4 py-3">{{ row.display_name }}</td>
+                  <td class="px-4 py-3">
+                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" size-class="h-8 w-8" />
+                  </td>
                   <td class="px-4 py-3">{{ row.token_sum.toLocaleString() }}</td>
                 </tr>
                 <tr v-if="!(leaderboard?.rows?.length)">

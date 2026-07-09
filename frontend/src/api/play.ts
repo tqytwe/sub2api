@@ -46,6 +46,7 @@ export interface PlayArenaScore {
   rank: number
   user_id: number
   display_name: string
+  avatar_url?: string
   token_sum: number
 }
 
@@ -102,6 +103,7 @@ export interface PlayQuizSubmitResult {
 export interface PlayTeamMember {
   user_id: number
   display_name: string
+  avatar_url?: string
   joined_at: string
 }
 

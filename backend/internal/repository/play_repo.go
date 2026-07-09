@@ -137,6 +137,7 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 	rows, err := exec.QueryContext(ctx, `
 		SELECT s.user_id,
 		       COALESCE(NULLIF(TRIM(u.username), ''), CONCAT('user-', s.user_id::text)) AS display_name,
+		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
 		       s.token_sum
 		FROM (
 			SELECT user_id,
@@ -148,6 +149,7 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 			HAVING SUM(input_tokens + output_tokens + cache_creation_tokens) > 0
 		) s
 		JOIN users u ON u.id = s.user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = s.user_id
 		ORDER BY s.token_sum DESC, s.first_at ASC
 		LIMIT $3`, start, end, limit)
 	if err != nil {
@@ -159,7 +161,7 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 	rank := 0
 	for rows.Next() {
 		var row service.PlayArenaScoreRow
-		if err := rows.Scan(&row.UserID, &row.DisplayName, &row.TokenSum); err != nil {
+		if err := rows.Scan(&row.UserID, &row.DisplayName, &row.AvatarURL, &row.TokenSum); err != nil {
 			return nil, fmt.Errorf("scan arena leaderboard: %w", err)
 		}
 		rank++

@@ -6,6 +6,7 @@ import DOMPurify from 'dompurify'
 import { useAuthStore, useAppStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
+import DocsVipTiersTable from '@/components/public/DocsVipTiersTable.vue'
 import {
   PUBLIC_DOC_CONTENT_ZH,
   PUBLIC_DOC_TREE,
@@ -131,6 +132,11 @@ const pageHtml = computed(() => {
   const html = activePageContent.value?.html
   if (!html) return ''
   return DOMPurify.sanitize(personalizeDocHtml(html))
+})
+
+const vipLevelsTailHtml = computed(() => {
+  if (activeCat.value !== 'recharge-vip' || activePage.value !== 'vip-levels') return ''
+  return pageHtml.value
 })
 
 function docLink(catId: string, pageId: string) {
@@ -300,8 +306,18 @@ const categoryIcons: Record<string, string> = {
             <p v-if="pageSummary" class="docs-article-summary">{{ pageSummary }}</p>
           </header>
 
-          <div v-if="pageHtml" class="docs-prose" v-html="pageHtml" />
-          <p v-else class="docs-state">{{ t('legal.empty') }}</p>
+          <DocsVipTiersTable
+            v-if="activeCat === 'recharge-vip' && activePage === 'vip-levels'"
+            class="docs-prose docs-vip-tiers-wrap"
+          />
+
+          <div v-if="pageHtml && !(activeCat === 'recharge-vip' && activePage === 'vip-levels')" class="docs-prose" v-html="pageHtml" />
+          <div
+            v-else-if="activeCat === 'recharge-vip' && activePage === 'vip-levels' && vipLevelsTailHtml"
+            class="docs-prose"
+            v-html="vipLevelsTailHtml"
+          />
+          <p v-else-if="!pageHtml && !(activeCat === 'recharge-vip' && activePage === 'vip-levels')" class="docs-state">{{ t('legal.empty') }}</p>
 
           <footer v-if="prevPage || nextPage" class="docs-article-foot">
             <router-link

@@ -92,22 +92,6 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
         summary: "4 档会员等级、对应折扣与省钱直观对照",
         html: `<p class="docs-lead">按 <strong>累计充值</strong> 自动升级，档位永久保留。权益在 Play 中枢与模型页展示，计费引擎仍按分组倍率 × 上游单价扣费。</p>
 
-<h2>4 档等级一览</h2>
-<div class="docs-table-wrap">
-<table class="docs-table">
-<thead>
-<tr><th>档位</th><th>累计充值</th><th>权益</th></tr>
-</thead>
-<tbody>
-<tr><td><span class="docs-tier docs-tier-0">V0</span></td><td>$0（新用户默认）</td><td>基础功能</td></tr>
-<tr><td><span class="docs-tier docs-tier-1">V1</span></td><td>累计 $50</td><td>模型页 VIP 标签</td></tr>
-<tr><td><span class="docs-tier docs-tier-2">V2</span></td><td>累计 $200</td><td>盲盒奖池升级</td></tr>
-<tr><td><span class="docs-tier docs-tier-3">V3</span></td><td>累计 $500</td><td>Arena 结算加成 · 邀请返利 +5%</td></tr>
-</tbody>
-</table>
-</div>
-<p class="docs-tip">累计充值 = 账户成功充值总额（不含签到、活动赠送）。登录后可在 <strong>玩法中枢</strong> 查看当前档位与距下一档差额。</p>
-
 <h2>升级规则</h2>
 <ul>
   <li>每次充值成功自动累加累计金额，达到阈值即时升级</li>
