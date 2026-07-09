@@ -161,7 +161,12 @@
         <div class="stats-strip">
           <div v-for="stat in statItems" :key="stat.key" class="stat" :class="`stat--${stat.key}`">
             <span class="sr-only">{{ stat.value }}{{ stat.unit }} {{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
-            <HomeStatOdometer :value="stat.value" :unit="stat.unit" :active="inView.stats" />
+            <HomeStatOdometer
+              :value="stat.value"
+              :unit="stat.unit"
+              :active="inView.stats"
+              :spin-tail="stat.key === 'uptime' ? 2 : 3"
+            />
             <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
           </div>
         </div>

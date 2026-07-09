@@ -34,16 +34,30 @@ export function splitStableTail(value: string, spinTail = ODOMETER_DEFAULT_SPIN_
   tails: { key: string; digit: number; tailRank: number }[]
 } {
   const digitIndexes: number[] = []
+  let dotIndex = -1
   for (let i = 0; i < value.length; i++) {
-    if (/\d/.test(value[i]!)) digitIndexes.push(i)
+    const ch = value[i]!
+    if (ch === '.') dotIndex = i
+    if (/\d/.test(ch)) digitIndexes.push(i)
   }
 
   if (digitIndexes.length === 0) {
     return { stable: value, tails: [] }
   }
 
-  const tailFrom = Math.max(0, digitIndexes.length - spinTail)
-  const tailIndexSet = new Set(digitIndexes.slice(tailFrom))
+  // For decimals (e.g. 99.97), keep the integer part stable and only spin fractional digits.
+  let spinDigitIndexes: number[]
+  if (dotIndex >= 0) {
+    const fractional = digitIndexes.filter((i) => i > dotIndex)
+    spinDigitIndexes =
+      fractional.length > 0
+        ? fractional.slice(-Math.min(spinTail, fractional.length))
+        : digitIndexes.slice(-spinTail)
+  } else {
+    spinDigitIndexes = digitIndexes.slice(-spinTail)
+  }
+
+  const tailIndexSet = new Set(spinDigitIndexes)
 
   const tails: { key: string; digit: number; tailRank: number }[] = []
   let stable = ''
@@ -54,7 +68,7 @@ export function splitStableTail(value: string, spinTail = ODOMETER_DEFAULT_SPIN_
       stable += ch
       continue
     }
-    const tailRank = digitIndexes.length - 1 - digitIndexes.indexOf(i)
+    const tailRank = spinDigitIndexes.length - 1 - spinDigitIndexes.indexOf(i)
     tails.push({ key: `t-${i}`, digit: Number(ch), tailRank })
   }
 

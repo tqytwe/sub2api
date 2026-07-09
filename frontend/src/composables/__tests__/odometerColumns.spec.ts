@@ -19,6 +19,12 @@ describe('odometerColumns', () => {
     expect(visibleDigit(spinOffset(26, 3, 2))).toBe(3)
   })
 
+  it('keeps integer part stable for decimal percentages', () => {
+    const { stable, tails } = splitStableTail('99.97', 3)
+    expect(stable).toBe('99.')
+    expect(tails.map((t) => t.digit)).toEqual([9, 7])
+  })
+
   it('supports long formatted values', () => {
     const { stable, tails } = splitStableTail('1,234,567,890,123', 3)
     expect(stable).toBe('1,234,567,890,')
