@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"sort"
 	"strconv"
 
@@ -292,4 +293,34 @@ func buildPublicPlatformSections(ch service.AvailableChannel) []publicModelPlatf
 		})
 	}
 	return sections
+}
+
+func countPublicModels(channels []service.AvailableChannel) int {
+	seen := make(map[string]struct{})
+	for _, ch := range channels {
+		for _, model := range ch.SupportedModels {
+			if model.Name == "" {
+				continue
+			}
+			platform := model.Platform
+			if platform == "" {
+				platform = "_"
+			}
+			key := model.Name + "::" + platform
+			seen[key] = struct{}{}
+		}
+	}
+	return len(seen)
+}
+
+// PublicModelCount returns unique public model count for marketing endpoints.
+func (h *PlayHandler) PublicModelCount(ctx context.Context) int {
+	if h == nil || h.playService == nil {
+		return 0
+	}
+	channels, err := h.playService.ListPublicModels(ctx)
+	if err != nil {
+		return 0
+	}
+	return countPublicModels(channels)
 }

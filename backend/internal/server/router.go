@@ -117,6 +117,7 @@ func registerRoutes(
 	routes.RegisterPlayRoutes(v1, h, jwtAuth)
 
 	v1.GET("/public/home-stats", handler.PublicHomeStats(dashboardService))
+	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))
 
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
 }

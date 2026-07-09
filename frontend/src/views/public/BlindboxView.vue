@@ -106,7 +106,7 @@ onMounted(loadStatus)
       <div class="play-actions">
         <router-link
           v-if="!authStore.isAuthenticated"
-          to="/login"
+          to="/register"
           class="play-btn play-btn-primary"
         >
           {{ t('play.blindbox.ctaGuest') }}

@@ -163,6 +163,7 @@ import {
 } from '@/api/auth'
 import { apiClient } from '@/api/client'
 import { buildAuthErrorMessage } from '@/utils/authError'
+import { markFirstLoginWelcomePending } from '@/utils/firstLoginWelcome'
 import {
   formatRegistrationEmailSuffixWhitelistForMessage,
   isRegistrationEmailSuffixAllowed,
@@ -555,6 +556,8 @@ async function handleVerify(): Promise<void> {
     sessionStorage.removeItem('register_data')
     await tryJoinTeamFromReferral()
     clearAllAffiliateReferralCodes()
+
+    markFirstLoginWelcomePending()
 
     // Show success toast
     appStore.showSuccess(t('auth.accountCreatedSuccess', { siteName: siteName.value }))

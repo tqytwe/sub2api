@@ -43,7 +43,7 @@ const rules = computed(() => {
 })
 
 const ctaTarget = computed(() =>
-  authStore.isAuthenticated ? '/dashboard' : '/login',
+  authStore.isAuthenticated ? '/dashboard' : '/register',
 )
 </script>
 

@@ -334,11 +334,25 @@ sub2api-bmai/
 │   │   └── i18n/            # 国际化
 │   ├── package.json         # 依赖配置
 │   └── pnpm-lock.yaml       # pnpm 锁文件（必须提交）
-└── .claude/
-    └── CLAUDE.md            # 本文档
+└── DEV_GUIDE.md             # 本文档
 ```
 
-## 七、参考资源
+## 七、Agent Skills（仓库内）
+
+| Skill | 路径 | 用途 |
+|-------|------|------|
+| sub2api-admin | `skills/sub2api-admin/` | CLI 管理后台账号、兑换码、错误规则、TLS 模板；Play 运维（Arena 结算等）走 `api` 子命令 |
+
+```bash
+cd skills/sub2api-admin
+export SUB2API_BASE_URL='http://192.168.100.10:8206'
+export SUB2API_ADMIN_API_KEY='<admin api key>'
+node scripts/sub2api-admin.js accounts list
+```
+
+完整命令见 `skills/sub2api-admin/references/admin-cli.md`。增长/Play 产品方案见 `docs/growth-play-roadmap.md`。
+
+## 八、参考资源
 
 - [上游仓库](https://github.com/Wei-Shaw/sub2api)
 - [Ent 文档](https://entgo.io/docs/getting-started)

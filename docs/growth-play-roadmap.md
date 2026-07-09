@@ -16,6 +16,8 @@
 | 答题闯关 | 每日题库 | `/quiz-quest` | `play_quiz_*` |
 | Agent Team | 建队/加入 | `/agent-team` | `play_agent_team_enabled` |
 | 公开模型价 | `GET /public/models` | `/models` | `public_models_enabled` |
+| 首页实时统计 | `GET /public/home-stats` | `HomeView` + `useHomeLiveStats` | — |
+| 公开增长 Teaser | `GET /public/growth-teaser` | 首页 / 注册页 `usePublicGrowthTeaser` | 聚合 `play_*` / `affiliate_*` / 注册赠金 |
 | 支付充值 | 完整订单流 | `/purchase` | `payment_*` |
 | 邀请返利 | Affiliate 全链路 | `/affiliate` | `affiliate_*` |
 | 余额低通知 | 邮件 + 阈值 | Profile 配置 | `balance_low_notify_*` |
@@ -39,8 +41,9 @@ flowchart TB
 
 | 缺口 | 影响 | Sprint |
 |------|------|--------|
-| 无 Play Hub 聚合 | 用户不知道「今天还能做什么」 | **A** ✅ 本迭代 |
-| Play 与充值无联动 | 玩法只送钱，不拉 ARPU | B |
+| 无 Play Hub 聚合 | 用户不知道「今天还能做什么」 | **A** ✅ |
+| 公开页福利文案静态/不准 | 首页/注册页无法反映真实赠金与玩法 | **体验层** ✅ `growth-teaser` |
+| Play 与充值无联动 | 玩法只送钱，不拉 ARPU | B（部分：Recharge Boost ✅） |
 | 余额低提醒仅邮件 | Dashboard 无强 CTA | **A** ✅ |
 | Arena 无结算/差距展示 | 缺冲榜动机 | **A** 差距 / B 结算 |
 | 无签到 streak / 补签 | 日活抓手弱 | B |
@@ -218,11 +221,14 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 
 ### 6.1 首页 → 注册 → 首充
 
-| 阶段 | 改动 |
-|------|------|
-| 游客 `/models` | CTA：「登录查看你的分组价 + 新人礼包」 |
-| 新注册首登 | 弹层：创建 Key → curl 示例 → 首充 $X 送 $Y |
-| 已登录未充值 | Dashboard 首屏弱化图表，强化首充 Banner |
+| 阶段 | 改动 | 状态 |
+|------|------|------|
+| 首页 Hero | `GET /public/growth-teaser` 动态展示注册赠金、签到、模型数、返利等 perks | ✅ |
+| 注册页 | 同 API 展示新人权益摘要 | ✅ |
+| 公开 Play 页 | 游客 CTA 统一跳转 `/register`（原 `/login`） | ✅ |
+| 游客 `/models` | CTA：「登录查看你的分组价 + 新人礼包」 | 部分（VIP 徽章需登录） |
+| 新注册首登 | 弹层：创建 Key → curl 示例 → 首充 $X 送 $Y | ✅ `FirstLoginWelcomeModal` |
+| 已登录未充值 | Dashboard 首屏弱化图表，强化首充 Banner | Sprint A ✅ |
 
 ### 6.2 各模块消费钩子
 
@@ -258,7 +264,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 2. **奖池先用 JSON + settings** — 不做复杂 Admin 编辑器
 3. **公开页保留 SEO** — 消费行为在登录后 Hub
 4. **幂等发奖** — 沿用 `play_reward_ledger.idempotency_key`
-5. **服务器验收** — 部署 Dell `192.168.100.10:8106`，禁止本地 dev 验收
+5. **服务器验收** — 部署 Dell `192.168.100.10:8206`（`./scripts/push-github-and-deploy.sh main`），禁止本地 dev 验收
 
 ---
 
@@ -283,6 +289,48 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 | Team × Affiliate 迁移 | `backend/migrations/174_play_team_affiliate.sql` |
 | 活动引擎 | `backend/internal/service/play_campaign.go` |
 | 活动迁移 | `backend/migrations/175_play_campaigns.sql` |
+| 公开增长摘要 API | `backend/internal/service/public_growth_teaser.go` |
+| 公开增长摘要 Handler | `backend/internal/handler/public_growth_teaser.go` |
+| 首页实时统计 Handler | `backend/internal/handler/public_home_stats.go` |
+| 前端增长摘要 | `frontend/src/api/publicGrowthTeaser.ts` |
+| 前端增长 Composable | `frontend/src/composables/usePublicGrowthTeaser.ts` |
+| 首登引导弹层 | `frontend/src/components/user/dashboard/FirstLoginWelcomeModal.vue` |
+| 首登标记工具 | `frontend/src/utils/firstLoginWelcome.ts` |
+
+### `GET /api/v1/public/growth-teaser` 响应字段
+
+```json
+{
+  "registration_enabled": true,
+  "signup_balance_usd": 1.0,
+  "signup_grant_enabled": true,
+  "payment_enabled": true,
+  "checkin_enabled": true,
+  "checkin_daily_reward": 0.5,
+  "affiliate_enabled": true,
+  "affiliate_rebate_pct": 10,
+  "public_models_enabled": true,
+  "public_model_count": 42,
+  "play_any_enabled": true,
+  "play_features": ["checkin", "arena", "blindbox"],
+  "vip_tiers_enabled": true,
+  "total_requests": 1234567,
+  "has_live_stats": true
+}
+```
+
+### `GET /api/v1/public/home-stats` 响应字段
+
+```json
+{
+  "total_requests": 1234567,
+  "availability_pct": 99.97,
+  "avg_ttft_ms": 842,
+  "has_live_data": true
+}
+```
+
+`availability_pct` / `avg_ttft_ms` 在无请求量时为 `null`；前端 `useHomeLiveStats` 做降级展示。
 
 ---
 
@@ -295,3 +343,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 - [ ] Channel TV 登录态显示待办提示
 - [ ] 全部 Play 开关关闭时 Hub 显示引导文案
 - [ ] `GET /play/hub` 契约测试通过
+- [ ] 首页 Hero 根据 `GET /public/growth-teaser` 展示动态 perks
+- [ ] 注册页展示新人权益摘要（同 API）
+- [ ] 公开 Play 页游客 CTA 跳转 `/register`
+- [ ] `GET /public/growth-teaser` 单元测试通过

@@ -126,7 +126,7 @@ onMounted(loadTeam)
       <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
       <div v-else-if="!teamMe?.enabled" class="play-note">{{ t('agentTeam.disabled') }}</div>
       <div v-else-if="!authStore.isAuthenticated" class="play-actions">
-        <router-link to="/login" class="play-btn play-btn-primary">{{ t('play.agentTeam.ctaGuest') }}</router-link>
+        <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.agentTeam.ctaGuest') }}</router-link>
       </div>
       <div v-else-if="teamMe.team" class="play-section space-y-4">
         <h2 class="play-section-title">{{ teamMe.team.name }}</h2>

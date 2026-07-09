@@ -62,9 +62,12 @@
             <span class="hz-mid">{{ t('home.jisudeng.hero.titleParts.mid') }}</span>
             <span class="hz-tail">{{ t('home.jisudeng.hero.titleParts.tail') }}</span>
           </span>
-          <span class="hero-en">{{ siteSubtitle }}</span>
+          <span class="hero-en">{{ heroSubtitle }}</span>
         </h1>
         <p class="hero-slogan">{{ t('home.jisudeng.hero.tagline') }}</p>
+        <ul v-if="perkLines.length" class="hero-perks">
+          <li v-for="(line, idx) in perkLines" :key="idx">{{ line }}</li>
+        </ul>
         <div class="hero-ctas">
           <button type="button" class="cta-primary" @click="goStart">
             {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
@@ -107,17 +110,10 @@
           </template>
           <template v-else>{{ t('home.jisudeng.manifesto.title') }}</template>
         </h2>
-        <div v-if="manifestoParts.keyword" class="integrity-check" aria-hidden="true">
-          <span class="ic-hash">
-            <span class="ic-hash-label">sha256</span>
-            <span class="ic-hash-val">{{ integrityHash }}</span>
-          </span>
-          <span class="ic-verified">
-            <svg class="ic-check" viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 12.5l5 5L20 6.5" />
-            </svg>
-            <span class="ic-verified-label">{{ t('home.jisudeng.manifesto.integrity') }}</span>
-          </span>
+        <div v-if="manifestoParts.keyword && showVerifyLink" class="integrity-check">
+          <router-link to="/about" class="integrity-verify-link">
+            {{ t('home.jisudeng.manifesto.verifyLink') }}
+          </router-link>
         </div>
         <div class="manifesto-body">
           <p>{{ t('home.jisudeng.manifesto.body1') }}</p>
@@ -334,6 +330,21 @@
       </div>
     </section>
 
+    <section v-if="faqItems.length" id="faq" class="faq-section section-block" :class="{ 'in-view': inView.faq }">
+      <div class="page-container">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.faqTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.faqTitle') }}</h2>
+        </div>
+        <dl class="faq-list">
+          <div v-for="(item, idx) in faqItems" :key="idx" class="faq-item">
+            <dt class="faq-q">{{ item.q }}</dt>
+            <dd class="faq-a">{{ item.a }}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
     <section id="closer" class="closer-section" :class="{ 'in-view': inView.closer }">
       <div class="closer-stage">
         <svg viewBox="0 0 1200 500" class="closer-map" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
@@ -379,6 +390,13 @@
         </span>
       </div>
     </footer>
+
+    <div v-if="!isAuthenticated && showGuestStickyCta" class="home-sticky-cta">
+      <button type="button" class="cta-primary home-sticky-cta-btn" @click="goRegister">
+        {{ t('home.jisudeng.cta.register') }}
+        <span class="arrow">→</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -396,8 +414,9 @@ import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
+import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 
-const { t } = useI18n()
+const { t, locale, tm, te } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
@@ -409,8 +428,8 @@ const whyX = ref(0)
 const whyY = ref(0)
 const onboardPhase = ref(1)
 const year = new Date().getFullYear()
-const integrityHash = 'a3f9e2c7…d41b7c'
 const { statItems } = useHomeLiveStats()
+const { perkLines } = usePublicGrowthTeaser()
 
 const inView = ref<Record<string, boolean>>({})
 
@@ -433,6 +452,26 @@ const isAdmin = computed(() => authStore.isAdmin)
 const dashboardPath = computed(() => (isAdmin.value ? '/admin' : '/dashboard'))
 const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
 const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
+
+const isGlobalEnHome = computed(() => locale.value === 'en')
+const heroSubtitle = computed(() => {
+  if (isGlobalEnHome.value && te('home.jisudeng.hero.subtitle')) {
+    return t('home.jisudeng.hero.subtitle')
+  }
+  return siteSubtitle.value
+})
+const showVerifyLink = computed(() => isGlobalEnHome.value && te('home.jisudeng.manifesto.verifyLink'))
+const showGuestStickyCta = computed(() => isGlobalEnHome.value)
+
+type FaqItem = { q: string; a: string }
+const faqItems = computed((): FaqItem[] => {
+  if (!te('home.jisudeng.faq.items')) return []
+  const raw = tm('home.jisudeng.faq.items') as unknown
+  if (!Array.isArray(raw)) return []
+  return raw.filter((item): item is FaqItem => {
+    return typeof item === 'object' && item !== null && 'q' in item && 'a' in item
+  })
+})
 
 const eyebrowBits = computed(() =>
   t('home.jisudeng.hero.eyebrow')
@@ -518,8 +557,16 @@ function onReveal() {
   isIntro.value = false
 }
 
+function goRegister() {
+  router.push('/register')
+}
+
 function goStart() {
-  router.push(isAuthenticated.value ? dashboardPath.value : '/login')
+  if (isAuthenticated.value) {
+    router.push(dashboardPath.value)
+    return
+  }
+  router.push(isGlobalEnHome.value ? '/register' : '/login')
 }
 
 function openDocs() {

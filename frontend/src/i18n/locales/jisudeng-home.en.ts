@@ -1,4 +1,4 @@
-/** 极速蹬 home page copy (custom theme) */
+/** 极速蹬 home page copy (custom theme) — global English GTM */
 export const jisudengHomeEn = {
   nav: {
     models: 'Models & Pricing',
@@ -8,20 +8,29 @@ export const jisudengHomeEn = {
     admin: 'Admin',
     console: 'Console',
     signIn: 'Sign in',
-    signUp: 'Register'
+    signUp: 'Register free'
   },
   hero: {
-    eyebrow: 'Privacy-first relay · No data resale · No model dilution',
+    eyebrow: 'Privacy-first · No data resale · No model dilution',
     titleParts: {
       brand: '极速蹬',
       mid: 'AI',
       tail: 'Gateway'
     },
-    tagline: 'Connect everything · One thought · Your world',
-    activeOn: 'WORKS ON'
+    subtitle: 'One API key · Claude, GPT & Gemini · Pay per token · No subscription',
+    tagline: 'Register in minutes. Official token rates. Prompts never stored.',
+    activeOn: 'WORKS WITH',
+    perks: {
+      signupCredit: '${amount} free credits on signup',
+      dailyCheckin: 'Daily check-in · ${amount} balance',
+      modelCount: '{count}+ models on public pricing',
+      referral: '{pct}% referral rewards',
+      payPerToken: 'Stripe top-up · Balance never expires'
+    }
   },
   cta: {
-    start: 'Get started',
+    start: 'Get API key — free',
+    register: 'Register free',
     console: 'Open console',
     docs: 'Read docs',
     viewPrice: 'View models & pricing'
@@ -30,10 +39,10 @@ export const jisudengHomeEn = {
     tag: 'OUR PROMISE',
     title: 'Unchanged tokens, unmixed bills',
     body1:
-      '极速蹬 forwards your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps.',
+      'We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps.',
     body2:
-      'Your prompts live in memory only for one response cycle, then are released. No logs, no database, no training, no third-party sharing.',
-    integrity: 'Response integrity verified',
+      'Prompts live in memory only for one response cycle, then are released. No logs, no database, no training, no third-party sharing.',
+    verifyLink: 'See how to verify in usage logs →',
     pledges: {
       p1: 'Private · Burn after read',
       p2: 'Faithful · Byte-for-byte',
@@ -48,19 +57,50 @@ export const jisudengHomeEn = {
   stats: {
     requests: 'Total API requests',
     uptime: 'Service uptime',
-    latency: 'Avg. first-token latency'
+    latency: 'Avg. first-token latency',
+    models: 'Models available'
   },
   sections: {
     imageTag: 'IMAGE API',
     imageTitle: 'One sentence, one image.',
     imageLede:
       'Full gpt-image-2 support. Text-to-image and image editing share one key. OpenAI-compatible — point base_url here.',
-    featuresTag: 'WHY JISU-DENG',
+    featuresTag: 'WHY US',
     featuresTitle: 'Less friction, more flow.',
-    codeTag: 'ONE-CLICK SETUP',
-    codeTitle: 'Not a single line of code.',
-    codeLede: 'Copy one command from the console — detect env, write config, self-check. The script does the rest.',
-    pricingTag: 'FAIR BILLING'
+    codeTag: '3-MINUTE SETUP',
+    codeTitle: 'Copy one command. Start calling.',
+    codeLede: 'One-click deploy from the console — detect env, write config, self-check.',
+    pricingTag: 'FAIR BILLING',
+    faqTag: 'FAQ',
+    faqTitle: 'Questions developers ask first'
+  },
+  faq: {
+    items: [
+      {
+        q: 'Do you store my prompts?',
+        a: 'No. Request bodies are not written to logs or databases. They exist in memory only for the duration of a single response.'
+      },
+      {
+        q: 'How do I know I get the model I asked for?',
+        a: 'We byte-forward upstream responses without silent substitution. Usage logs show model name, token counts, and response IDs you can audit line by line.'
+      },
+      {
+        q: 'Is a credit card required to start?',
+        a: 'No. Register with email or GitHub/Google OAuth. Free signup credits (when enabled) and daily check-in rewards let you test before you top up via Stripe.'
+      },
+      {
+        q: 'How is billing calculated?',
+        a: 'Pay per token at published official multipliers. No monthly fee, no seat license, no minimum spend. Balance does not expire.'
+      },
+      {
+        q: 'Which tools work out of the box?',
+        a: 'Any OpenAI-compatible client: Claude Code, Cursor, Codex CLI, Cline, Gemini CLI, Continue, and custom SDKs — change base_url and API key only.'
+      },
+      {
+        q: 'What are Usage Rewards?',
+        a: 'Optional perks for active users: daily check-in credits, leaderboards, referral rebates, and VIP tiers from lifetime top-ups. All optional — the API works without them.'
+      }
+    ]
   },
   image: {
     model: 'gpt-image-2',
@@ -76,26 +116,27 @@ export const jisudengHomeEn = {
     demoBadge: 'OpenAI compatible · Same key'
   },
   channels: {
-    tag: 'PLAY',
-    title: 'More than API.',
-    copyTitle: 'Tokens should mean something.',
+    tag: 'USAGE REWARDS',
+    title: 'More than a meter.',
+    copyTitle: 'Usage should pay you back.',
     copyBody:
-      'Blind boxes, daily check-ins, referral rewards, and token farming — every spend adds a little extra.',
+      'Daily check-ins, leaderboards, referral rebates, and VIP tiers — optional perks on top of fair API billing.',
     next: 'Next',
-    enter: 'Enter',
-    ch1: { name: 'Blind box', hint: 'Spend tokens for random balance rewards' },
-    ch2: { name: 'Check-in', hint: 'Daily sign-in credits' },
-    ch3: { name: 'Agent Team', hint: 'Team up and share rewards' },
-    ch4: { name: 'Token farm', hint: 'Daily leaderboard rewards' }
+    enter: 'Explore',
+    joinCta: 'Register to join',
+    ch1: { name: 'Rewards box', hint: 'Spend tokens for random balance boosts' },
+    ch2: { name: 'Daily check-in', hint: 'Free balance every day' },
+    ch3: { name: 'Agent Team', hint: 'Squad up and share rewards' },
+    ch4: { name: 'Token leaderboard', hint: 'High usage earns extra perks' }
   },
   features: {
     multiModel: {
       title: 'Multi-model hub',
-      desc: 'Claude, GPT, Gemini and more — one OpenAI-compatible endpoint.'
+      desc: 'Claude, GPT, Gemini and more — one OpenAI-compatible endpoint. Switch models in one line.'
     },
     stable: {
-      title: 'Reliable',
-      desc: 'Multi-line redundancy, cross-region failover, stable long SSE streams. 99.9% uptime.'
+      title: 'Reliable routing',
+      desc: 'Multi-line redundancy, automatic failover, stable long SSE streams. 99.9% uptime target.'
     },
     privacy: {
       title: 'Privacy first',
@@ -103,40 +144,45 @@ export const jisudengHomeEn = {
     },
     instant: {
       title: 'Instant access',
-      desc: 'Register and get API access immediately. No approval, no card required.'
+      desc: 'Register and create an API key immediately. No approval queue, no card required to start.'
     },
     transparent: {
       title: 'Transparent billing',
-      desc: 'Official token multipliers. Every call logged with usage, balance change, and raw response.'
+      desc: 'Official token multipliers published on the models page. Every call auditable in usage logs.'
     },
     selfService: {
-      title: 'Self-service top-up',
-      desc: 'Mainstream payment methods, balance dashboard, low-balance alerts, redeem codes and referrals.'
+      title: 'Self-service billing',
+      desc: 'Stripe top-up, balance dashboard, low-balance alerts, promo codes, and referral program.'
     }
   },
   onboard: {
-    s1t: 'Copy command',
-    s1d: 'One-click deploy on the API keys page — copy the command',
-    s2t: 'Paste in terminal',
-    s2d: 'Script detects env, writes config, and self-checks',
-    s3t: 'Start chatting',
-    s3d: 'Terminal, IDE, or desktop client — ready to go',
-    docLink: 'Calling the API directly?',
-    docLinkCta: 'Read the docs'
+    s1t: 'Register & create key',
+    s1d: 'Sign up with email or OAuth — create your first API key in the console',
+    s2t: 'Copy deploy command',
+    s2d: 'One-click script writes config for Claude Code, Cursor, or Codex',
+    s3t: 'First API call',
+    s3d: 'OpenAI-compatible SDK — change base_url and start calling',
+    docLink: 'Prefer curl or raw HTTP?',
+    docLinkCta: 'Quick start docs'
   },
   pricing: {
     lineA: 'Pay per token,',
     lineB: 'not per seat,',
     lineC: 'pay what you use.',
-    blurb: 'No monthly fee, no minimum spend. All calls billed at published official multipliers.',
-    tags: ['Official multiplier · Line-item audit', 'No monthly fee', 'Balance never expires']
+    blurb: 'No monthly fee, no minimum spend. All calls billed at published official multipliers — line by line.',
+    tags: ['Official multiplier · Line-item audit', 'No monthly fee · No minimum', 'Balance never expires']
   },
   closer: {
-    title: 'One thought · Model arrives',
-    sub: 'GLOBAL · MULTI-MODEL · API GATEWAY'
+    title: 'Ready when you are.',
+    sub: 'ONE KEY · MULTI-MODEL · VERIFIABLE BILLING'
   },
   footer: {
-    tagline: 'AI relay gateway',
+    tagline: 'AI API gateway',
     docs: 'Documentation'
+  },
+  registerBanner: {
+    signupCredit: 'Register now — get ${amount} free credits to test every model.',
+    checkin: 'Plus ${amount}/day from daily check-in.',
+    cta: 'Create free account'
   }
 }

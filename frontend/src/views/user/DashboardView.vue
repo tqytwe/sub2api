@@ -7,6 +7,7 @@
         <DashboardCampaignBanner v-if="!authStore.isSimpleMode" />
         <UserDashboardStats :stats="stats" :balance="user?.balance || 0" :is-simple="authStore.isSimpleMode" :platform-quotas="platformQuotas" />
         <DashboardPlayHubCard v-if="!authStore.isSimpleMode" />
+        <FirstLoginWelcomeModal v-if="!authStore.isSimpleMode" />
         <UserDashboardCharts v-model:startDate="startDate" v-model:endDate="endDate" v-model:granularity="granularity" :loading="loadingCharts" :trend="trendData" :models="modelStats" @dateRangeChange="loadCharts" @granularityChange="loadCharts" @refresh="refreshAll" />
         <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div class="lg:col-span-2"><UserDashboardRecentUsage :data="recentUsage" :loading="loadingUsage" /></div>
@@ -25,6 +26,7 @@ import UserDashboardRecentUsage from '@/components/user/dashboard/UserDashboardR
 import DashboardGrowthBanner from '@/components/user/dashboard/DashboardGrowthBanner.vue'
 import DashboardCampaignBanner from '@/components/user/dashboard/DashboardCampaignBanner.vue'
 import DashboardPlayHubCard from '@/components/user/dashboard/DashboardPlayHubCard.vue'
+import FirstLoginWelcomeModal from '@/components/user/dashboard/FirstLoginWelcomeModal.vue'
 import type { UsageLog, TrendDataPoint, ModelStat, PlatformQuotaItem } from '@/types'
 import { getMyPlatformQuotas } from '@/api/user'
 

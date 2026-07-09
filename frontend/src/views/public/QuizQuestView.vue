@@ -95,7 +95,7 @@ onMounted(loadQuiz)
         </p>
       </div>
       <div v-else-if="!authStore.isAuthenticated" class="play-actions">
-        <router-link to="/login" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
+        <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
       </div>
       <div v-else class="play-section space-y-6">
         <p class="play-intro">
