@@ -336,6 +336,8 @@ export const jisudengPagesEn = {
     backDashboard: 'Back to console',
     sidebarTitle: 'Contents',
     backToIndex: '← Back to index',
+    prevArticle: '← Previous',
+    nextArticle: 'Next →',
     categories: {
       tutorial: { title: 'Getting started', desc: 'API keys · first request · examples' },
       'recharge-vip': { title: 'Billing & VIP', desc: 'Tiers · recharge · check-in · blind box' },

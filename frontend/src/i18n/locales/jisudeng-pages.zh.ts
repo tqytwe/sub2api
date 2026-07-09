@@ -343,6 +343,8 @@ export const jisudengPagesZh = {
     backDashboard: '返回控制台',
     sidebarTitle: '文档目录',
     backToIndex: '← 返回文档索引',
+    prevArticle: '← 上一篇',
+    nextArticle: '下一篇 →',
     categories: {
       tutorial: { title: '使用教程', desc: '从零上手 · API Key 创建 · 调用示例' },
       'recharge-vip': { title: '充值与 VIP', desc: 'VIP 分级 · 充值流程 · 签到 · 盲盒' },

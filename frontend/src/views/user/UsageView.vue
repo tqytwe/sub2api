@@ -349,11 +349,13 @@ const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
 const granularity = ref<'day' | 'hour'>(getGranularityForRange(startDate.value, endDate.value))
 
-const usageSavingsLabel = computed<'month' | 'range' | null>(() => {
+const usageSavingsLabel = computed<'month' | null>(() => {
   const now = new Date()
   const monthStart = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1))
-  if (startDate.value === monthStart) return 'month'
-  return 'range'
+  const today = formatLocalDate(now)
+  // Match DateRangePicker "this month" preset: 1st of month through today only.
+  if (startDate.value === monthStart && endDate.value === today) return 'month'
+  return null
 })
 
 const modelDistributionMetric = ref<DistributionMetric>('tokens')

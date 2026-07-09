@@ -325,7 +325,7 @@ const categoryIcons: Record<string, string> = {
               :to="docLink(prevPage.catId, prevPage.pageId)"
               class="docs-article-foot-btn docs-article-foot-prev"
             >
-              <span class="docs-article-foot-dir">← 上一篇</span>
+              <span class="docs-article-foot-dir">{{ t('docs.prevArticle') }}</span>
               <span class="docs-article-foot-name">{{ prevPage.title }}</span>
             </router-link>
             <router-link
@@ -333,7 +333,7 @@ const categoryIcons: Record<string, string> = {
               :to="docLink(nextPage.catId, nextPage.pageId)"
               class="docs-article-foot-btn docs-article-foot-next"
             >
-              <span class="docs-article-foot-dir">下一篇 →</span>
+              <span class="docs-article-foot-dir">{{ t('docs.nextArticle') }}</span>
               <span class="docs-article-foot-name">{{ nextPage.title }}</span>
             </router-link>
           </footer>
