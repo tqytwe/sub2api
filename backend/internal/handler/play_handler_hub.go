@@ -66,7 +66,8 @@ func (h *PlayHandler) Hub(c *gin.Context) {
 		return
 	}
 
-	summary, err := h.playService.GetHub(c.Request.Context(), subject.UserID)
+	language := c.GetHeader("Accept-Language")
+	summary, err := h.playService.GetHub(c.Request.Context(), subject.UserID, language)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

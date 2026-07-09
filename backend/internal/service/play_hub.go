@@ -31,7 +31,7 @@ type PlayHubSummary struct {
 }
 
 // GetHub returns a single payload for the Play Hub dashboard.
-func (s *PlayService) GetHub(ctx context.Context, userID int64) (*PlayHubSummary, error) {
+func (s *PlayService) GetHub(ctx context.Context, userID int64, language string) (*PlayHubSummary, error) {
 	rt := s.GetRuntime(ctx)
 	hub := &PlayHubSummary{
 		AnyEnabled: rt.CheckinEnabled || rt.ArenaEnabled || rt.BlindboxEnabled ||
@@ -79,7 +79,7 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64) (*PlayHubSummary
 	}
 
 	if rt.QuizEnabled {
-		today, err := s.GetQuizToday(ctx, userID)
+		today, err := s.GetQuizToday(ctx, userID, language)
 		if err != nil {
 			return nil, err
 		}

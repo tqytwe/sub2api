@@ -7,7 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"math/big"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -142,7 +145,75 @@ func pickBlindboxReward() float64 {
 	return tiers[0].amount
 }
 
-func (s *PlayService) GetQuizToday(ctx context.Context, userID int64) (*PlayQuizToday, error) {
+func normalizeQuizLanguage(language string) string {
+	lang := strings.ToLower(strings.TrimSpace(language))
+	switch {
+	case strings.HasPrefix(lang, "zh"):
+		return "zh"
+	case strings.HasPrefix(lang, "en"):
+		return "en"
+	default:
+		return "en"
+	}
+}
+
+func (s *PlayService) pickDailyQuizQuestions(questions []PlayQuizQuestionDB, limit int, userID int64, date time.Time, language string) []PlayQuizQuestionDB {
+	if len(questions) == 0 {
+		return nil
+	}
+	if limit <= 0 || limit > len(questions) {
+		limit = len(questions)
+	}
+	if userID <= 0 {
+		userID = 1
+	}
+	dayKey := date.Format("2006-01-02")
+	type scoredQuestion struct {
+		q     PlayQuizQuestionDB
+		score uint64
+	}
+	scored := make([]scoredQuestion, 0, len(questions))
+	for _, q := range questions {
+		h := fnv.New64a()
+		_, _ = h.Write([]byte(strconv.FormatInt(userID, 10)))
+		_, _ = h.Write([]byte(":"))
+		_, _ = h.Write([]byte(dayKey))
+		_, _ = h.Write([]byte(":"))
+		_, _ = h.Write([]byte(language))
+		_, _ = h.Write([]byte(":"))
+		_, _ = h.Write([]byte(strconv.FormatInt(q.ID, 10)))
+		scored = append(scored, scoredQuestion{q: q, score: h.Sum64()})
+	}
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].q.ID < scored[j].q.ID
+		}
+		return scored[i].score < scored[j].score
+	})
+	out := make([]PlayQuizQuestionDB, 0, limit)
+	for i := 0; i < limit; i++ {
+		out = append(out, scored[i].q)
+	}
+	return out
+}
+
+func (s *PlayService) getQuizPoolByLanguage(ctx context.Context, language string) ([]PlayQuizQuestionDB, string, error) {
+	lang := normalizeQuizLanguage(language)
+	questions, err := s.repo.ListQuizQuestions(ctx, lang)
+	if err != nil {
+		return nil, "", err
+	}
+	if len(questions) == 0 && lang != "en" {
+		questions, err = s.repo.ListQuizQuestions(ctx, "en")
+		if err != nil {
+			return nil, "", err
+		}
+		lang = "en"
+	}
+	return questions, lang, nil
+}
+
+func (s *PlayService) GetQuizToday(ctx context.Context, userID int64, language string) (*PlayQuizToday, error) {
 	rt := s.GetRuntime(ctx)
 	now := s.serverNow()
 	date := s.serverDate(now)
@@ -156,10 +227,11 @@ func (s *PlayService) GetQuizToday(ctx context.Context, userID int64) (*PlayQuiz
 		return out, nil
 	}
 
-	questions, err := s.repo.ListQuizQuestions(ctx, rt.QuizQuestionsPerDay)
+	quizPool, resolvedLanguage, err := s.getQuizPoolByLanguage(ctx, language)
 	if err != nil {
 		return nil, err
 	}
+	questions := s.pickDailyQuizQuestions(quizPool, rt.QuizQuestionsPerDay, userID, date, resolvedLanguage)
 	out.Questions = make([]PlayQuizQuestion, 0, len(questions))
 	for _, q := range questions {
 		var options []string
@@ -189,7 +261,7 @@ func (s *PlayService) GetQuizToday(ctx context.Context, userID int64) (*PlayQuiz
 	return out, nil
 }
 
-func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, answers []PlayQuizAnswer) (*PlayQuizSubmitResult, error) {
+func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language string, answers []PlayQuizAnswer) (*PlayQuizSubmitResult, error) {
 	rt := s.GetRuntime(ctx)
 	if !rt.QuizEnabled {
 		return nil, ErrPlayFeatureDisabled
@@ -207,10 +279,11 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, answers []Pl
 		return nil, ErrPlayQuizAlreadyDone
 	}
 
-	questions, err := s.repo.ListQuizQuestions(ctx, rt.QuizQuestionsPerDay)
+	quizPool, resolvedLanguage, err := s.getQuizPoolByLanguage(ctx, language)
 	if err != nil {
 		return nil, err
 	}
+	questions := s.pickDailyQuizQuestions(quizPool, rt.QuizQuestionsPerDay, userID, date, resolvedLanguage)
 	byID := make(map[int64]PlayQuizQuestionDB, len(questions))
 	for _, q := range questions {
 		byID[q.ID] = q

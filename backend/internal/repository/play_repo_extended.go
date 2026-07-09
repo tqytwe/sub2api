@@ -45,27 +45,28 @@ func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, d
 	return nil
 }
 
-func (r *playRepository) ListQuizQuestions(ctx context.Context, limit int) ([]service.PlayQuizQuestionDB, error) {
-	if limit <= 0 {
-		limit = 5
+func (r *playRepository) ListQuizQuestions(ctx context.Context, language string) ([]service.PlayQuizQuestionDB, error) {
+	language = strings.ToLower(strings.TrimSpace(language))
+	if language == "" {
+		language = "en"
 	}
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
-		SELECT id, prompt, options, correct_index
+		SELECT id, language, prompt, options, correct_index
 		FROM play_quiz_questions
-		WHERE active = TRUE
+		WHERE active = TRUE AND language = $1
 		ORDER BY sort_order ASC, id ASC
-		LIMIT $1`, limit)
+	`, language)
 	if err != nil {
 		return nil, fmt.Errorf("list quiz questions: %w", err)
 	}
 	defer rows.Close()
 
-	out := make([]service.PlayQuizQuestionDB, 0, limit)
+	out := make([]service.PlayQuizQuestionDB, 0, 32)
 	for rows.Next() {
 		var q service.PlayQuizQuestionDB
 		var options []byte
-		if err := rows.Scan(&q.ID, &q.Prompt, &options, &q.CorrectIndex); err != nil {
+		if err := rows.Scan(&q.ID, &q.Language, &q.Prompt, &options, &q.CorrectIndex); err != nil {
 			return nil, fmt.Errorf("scan quiz question: %w", err)
 		}
 		q.OptionsJSON = string(options)

@@ -150,7 +150,8 @@ func (h *PlayHandler) QuizToday(c *gin.Context) {
 	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
 		userID = subject.UserID
 	}
-	today, err := h.playService.GetQuizToday(c.Request.Context(), userID)
+	language := c.GetHeader("Accept-Language")
+	today, err := h.playService.GetQuizToday(c.Request.Context(), userID, language)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -193,7 +194,8 @@ func (h *PlayHandler) QuizSubmit(c *gin.Context) {
 			ChoiceIndex: a.ChoiceIndex,
 		})
 	}
-	result, err := h.playService.SubmitQuiz(c.Request.Context(), subject.UserID, answers)
+	language := c.GetHeader("Accept-Language")
+	result, err := h.playService.SubmitQuiz(c.Request.Context(), subject.UserID, language, answers)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
