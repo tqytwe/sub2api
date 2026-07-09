@@ -39,6 +39,7 @@ func toPlayCampaignSummaryDTO(item service.PlayCampaignSummary) playCampaignSumm
 			RechargeBonusPct:     item.Rules.RechargeBonusPct,
 			BlindboxExtraOpens:   item.Rules.BlindboxExtraOpens,
 			ArenaScoreMultiplier: item.Rules.ArenaScoreMultiplier,
+			NameI18n:             item.Rules.NameI18n,
 		},
 	}
 }
