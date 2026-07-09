@@ -22,7 +22,7 @@ echo "==> push ${REMOTE}/${BRANCH}"
 git push -u "$REMOTE" "$BRANCH"
 
 echo "==> deploy on ${SERVER}:${SERVER_DIR}"
-ssh "$SERVER" bash -s <<EOF
+ssh "$SERVER" "DOCKER_NO_CACHE=${DOCKER_NO_CACHE:-}" bash -s <<EOF
 set -euo pipefail
 cd "${SERVER_DIR}"
 if [ ! -d .git ]; then
