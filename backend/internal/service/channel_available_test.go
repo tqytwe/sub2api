@@ -309,3 +309,14 @@ func TestFillGlobalPricingFallback_KeepsExistingPrice(t *testing.T) {
 func newStubPricingServiceFromMap(data map[string]*LiteLLMModelPricing) *PricingService {
 	return &PricingService{pricingData: data}
 }
+
+func TestChannelService_PricingCatalogModelCount(t *testing.T) {
+	svc := &ChannelService{
+		pricingService: newStubPricingServiceFromMap(map[string]*LiteLLMModelPricing{
+			"claude-sonnet-4": {},
+			"gpt-4o":          {},
+		}),
+	}
+	require.Equal(t, 2, svc.PricingCatalogModelCount())
+	require.Equal(t, 0, (&ChannelService{}).PricingCatalogModelCount())
+}

@@ -303,5 +303,8 @@ func (s *PlayService) PublicMarketingModelCount(ctx context.Context) int {
 	if err != nil {
 		return 0
 	}
-	return countPlayPublicModels(all)
+	if n := countPlayPublicModels(all); n > 0 {
+		return n
+	}
+	return s.channelService.PricingCatalogModelCount()
 }
