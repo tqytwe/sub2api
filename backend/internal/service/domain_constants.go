@@ -366,6 +366,31 @@ const (
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
+	SettingKeyPublicModelsEnabled      = "public_models_enabled"
+	SettingKeyPlayCheckinEnabled       = "play_checkin_enabled"
+	SettingKeyPlayCheckinDailyReward   = "play_checkin_daily_reward"
+	SettingKeyPlayArenaEnabled         = "play_arena_enabled"
+	SettingKeyPlayBlindboxEnabled      = "play_blindbox_enabled"
+	SettingKeyPlayBlindboxCost         = "play_blindbox_cost"
+	SettingKeyPlayBlindboxDailyLimit   = "play_blindbox_daily_limit"
+	SettingKeyPlayQuizEnabled          = "play_quiz_enabled"
+	SettingKeyPlayQuizRewardPerCorrect = "play_quiz_reward_per_correct"
+	SettingKeyPlayQuizQuestionsPerDay  = "play_quiz_questions_per_day"
+	SettingKeyPlayAgentTeamEnabled     = "play_agent_team_enabled"
+
+	SettingKeyPlayRechargeBoostEnabled        = "play_recharge_boost_enabled"
+	SettingKeyPlayRechargeBoostDurationHours  = "play_recharge_boost_duration_hours"
+	SettingKeyPlayRechargeBoostCheckinMult    = "play_recharge_boost_checkin_multiplier"
+	SettingKeyPlayRechargeBoostBlindboxExtra  = "play_recharge_boost_blindbox_extra_opens"
+	SettingKeyPlayRechargeBoostArenaMult      = "play_recharge_boost_arena_multiplier"
+	SettingKeyPlayCheckinMakeupEnabled        = "play_checkin_makeup_enabled"
+	SettingKeyPlayCheckinStreakMilestones     = "play_checkin_streak_milestones"
+	SettingKeyPlayArenaSettlementRewards      = "play_arena_settlement_rewards"
+	SettingKeyPlayVIPTiers                    = "play_vip_tiers"
+	SettingKeyPlayTeamAffiliateEnabled        = "play_team_affiliate_enabled"
+	SettingKeyPlayTeamAffiliateTokenThreshold = "play_team_affiliate_token_threshold"
+	SettingKeyPlayTeamAffiliateCaptainBonus   = "play_team_affiliate_captain_bonus"
+	SettingKeyPlayCampaignsEnabled            = "play_campaigns_enabled"
 
 	// =========================
 	// Overload Cooldown (529)

@@ -298,7 +298,15 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder) e
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
 		return err
 	}
-	return s.markCompleted(ctx, o, "RECHARGE_SUCCESS")
+	if err := s.markCompleted(ctx, o, "RECHARGE_SUCCESS"); err != nil {
+		return err
+	}
+	if s.playService != nil {
+		if err := s.playService.GrantRechargeBoost(ctx, o.UserID); err != nil {
+			slog.Warn("grant play recharge boost failed", "user_id", o.UserID, "order_id", o.ID, "err", err)
+		}
+	}
+	return nil
 }
 
 func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrder, auditAction string) error {

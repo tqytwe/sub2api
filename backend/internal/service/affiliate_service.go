@@ -386,6 +386,19 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 	return rebate, nil
 }
 
+func (s *AffiliateService) AccrueBonusQuota(ctx context.Context, userID int64, amount float64) (bool, error) {
+	if s == nil || s.repo == nil {
+		return false, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
+	}
+	if amount <= 0 || !s.IsEnabled(ctx) {
+		return false, nil
+	}
+	if _, err := s.EnsureUserAffiliate(ctx, userID); err != nil {
+		return false, err
+	}
+	return s.repo.AccrueQuota(ctx, userID, 0, amount, 0, nil)
+}
+
 // resolveRebateRatePercent returns the inviter's exclusive rate when set,
 // otherwise the global setting value (clamped to [Min, Max]).
 func (s *AffiliateService) resolveRebateRatePercent(ctx context.Context, inviter *AffiliateSummary) float64 {

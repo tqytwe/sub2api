@@ -1,5 +1,6 @@
 const OAUTH_AFFILIATE_CODE_KEY = 'oauth_aff_code'
 const AFFILIATE_REFERRAL_CODE_KEY = 'affiliate_referral_code'
+const TEAM_REFERRAL_CODE_KEY = 'team_referral_code'
 const AFFILIATE_REFERRAL_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 interface StoredAffiliateReferralCode {
@@ -125,6 +126,95 @@ export function clearOAuthAffiliateCode(): void {
 export function clearAllAffiliateReferralCodes(): void {
   clearOAuthAffiliateCode()
   clearAffiliateReferralCode()
+  clearTeamReferralCode()
+}
+
+export function storeTeamReferralCode(value?: unknown, now = Date.now()): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  const code = normalizeOAuthAffiliateCode(value)
+  if (!code) {
+    return
+  }
+  try {
+    const payload: StoredAffiliateReferralCode = {
+      code,
+      expiresAt: now + AFFILIATE_REFERRAL_TTL_MS,
+    }
+    window.localStorage.setItem(TEAM_REFERRAL_CODE_KEY, JSON.stringify(payload))
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function loadTeamReferralCode(now = Date.now()): string {
+  if (typeof window === 'undefined') {
+    return ''
+  }
+  try {
+    const raw = window.localStorage.getItem(TEAM_REFERRAL_CODE_KEY)
+    if (!raw) {
+      return ''
+    }
+    const parsed = JSON.parse(raw) as Partial<StoredAffiliateReferralCode>
+    const code = normalizeOAuthAffiliateCode(parsed.code)
+    const expiresAt = Number(parsed.expiresAt) || 0
+    if (!code || expiresAt <= now) {
+      clearTeamReferralCode()
+      return ''
+    }
+    return code
+  } catch {
+    clearTeamReferralCode()
+    return ''
+  }
+}
+
+export function clearTeamReferralCode(): void {
+  if (typeof window === 'undefined') {
+    return
+  }
+  try {
+    window.localStorage.removeItem(TEAM_REFERRAL_CODE_KEY)
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function resolveTeamReferralCode(...values: unknown[]): string {
+  const code = pickOAuthAffiliateCode(...values)
+  if (code) {
+    storeTeamReferralCode(code)
+    return code
+  }
+  return loadTeamReferralCode()
+}
+
+export function buildRegisterInviteLink(affCode: string, teamCode?: string): string {
+  const params = new URLSearchParams()
+  params.set('ref', affCode)
+  if (teamCode?.trim()) {
+    params.set('team', teamCode.trim().toUpperCase())
+  }
+  if (typeof window === 'undefined') {
+    return `/register?${params.toString()}`
+  }
+  return `${window.location.origin}/register?${params.toString()}`
+}
+
+export async function tryJoinTeamFromReferral(): Promise<void> {
+  const code = loadTeamReferralCode()
+  if (!code) {
+    return
+  }
+  try {
+    const { joinTeam } = await import('@/api/play')
+    await joinTeam(code)
+    clearTeamReferralCode()
+  } catch {
+    // best effort: user may already belong to a team
+  }
 }
 
 export function oauthAffiliatePayload(value?: unknown): { aff_code?: string } {
