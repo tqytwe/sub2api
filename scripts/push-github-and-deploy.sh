@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
-# Push local main to GitHub, then pull + rebuild on Dell.
+# Push play/main to GitHub, then pull + rebuild on Dell.
 # Usage: ./scripts/push-github-and-deploy.sh [branch]
+# Default branch is play/main (NOT origin/main — that is unrelated upstream history).
 # Set DOCKER_NO_CACHE=1 to force a clean frontend/backend image rebuild.
 set -euo pipefail
 
 BRANCH="${1:-play/main}"
 REMOTE="${SUB2API_GITHUB_REMOTE:-origin}"
+
+if [[ "$BRANCH" == "main" ]]; then
+  echo "error: refusing to deploy branch 'main'" >&2
+  echo "  Local play/main tracks origin/play/main; origin/main is unrelated upstream history." >&2
+  echo "  Use: ./scripts/push-github-and-deploy.sh" >&2
+  echo "  Or:  ./scripts/push-github-and-deploy.sh play/main" >&2
+  exit 1
+fi
 SERVER="${SUB2API_DEPLOY_HOST:-dell@192.168.100.10}"
 SERVER_DIR="${SUB2API_DEPLOY_DIR:-/data/1panel/sub2api}"
 COMPOSE_FILE="docker-compose.server.yml"

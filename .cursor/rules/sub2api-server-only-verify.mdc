@@ -10,7 +10,7 @@ alwaysApply: true
 部署流程：
 
 ```bash
-./scripts/push-github-and-deploy.sh main
+./scripts/push-github-and-deploy.sh
 ```
 
 验收地址：**http://192.168.100.10:8206**（API 同端口 `/api/v1/...`）。
