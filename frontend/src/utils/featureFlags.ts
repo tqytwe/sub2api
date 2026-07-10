@@ -119,6 +119,36 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Affiliate',
   }),
+  playCheckin: defineFlag({
+    key: 'play_checkin_enabled',
+    mode: 'opt-in',
+    label: 'Daily Check-in',
+  }),
+  playArena: defineFlag({
+    key: 'play_arena_enabled',
+    mode: 'opt-in',
+    label: 'Token Arena',
+  }),
+  playBlindbox: defineFlag({
+    key: 'play_blindbox_enabled',
+    mode: 'opt-in',
+    label: 'Blind Box',
+  }),
+  playQuiz: defineFlag({
+    key: 'play_quiz_enabled',
+    mode: 'opt-in',
+    label: 'Quiz Quest',
+  }),
+  playAgentTeam: defineFlag({
+    key: 'play_agent_team_enabled',
+    mode: 'opt-in',
+    label: 'Agent Team',
+  }),
+  publicModels: defineFlag({
+    key: 'public_models_enabled',
+    mode: 'opt-in',
+    label: 'Public Models',
+  }),
 } as const
 
 export type RegisteredFeatureFlag = keyof typeof FeatureFlags

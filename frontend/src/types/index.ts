@@ -238,6 +238,12 @@ export interface PublicSettings {
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
+  public_models_enabled: boolean
+  play_checkin_enabled: boolean
+  play_arena_enabled: boolean
+  play_blindbox_enabled: boolean
+  play_quiz_enabled: boolean
+  play_agent_team_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean

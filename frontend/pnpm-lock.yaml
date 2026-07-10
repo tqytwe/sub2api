@@ -33,6 +33,9 @@ importers:
       chart.js:
         specifier: ^4.4.1
         version: 4.5.1
+      d3-geo:
+        specifier: ^3.1.1
+        version: 3.1.1
       dompurify:
         specifier: ^3.3.1
         version: 3.3.1
@@ -70,12 +73,18 @@ importers:
         specifier: ^0.18.5
         version: 0.18.5
     devDependencies:
+      '@types/d3-geo':
+        specifier: ^3.1.0
+        version: 3.1.0
       '@types/dompurify':
         specifier: ^3.0.5
         version: 3.2.0
       '@types/file-saver':
         specifier: ^2.0.7
         version: 2.0.7
+      '@types/geojson':
+        specifier: ^7946.0.16
+        version: 7946.0.16
       '@types/mdx':
         specifier: ^2.0.13
         version: 2.0.13
