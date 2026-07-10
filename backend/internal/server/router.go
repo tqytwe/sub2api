@@ -30,6 +30,7 @@ func SetupRouter(
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
 	settingService *service.SettingService,
+	dashboardService *service.DashboardService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) *gin.Engine {
@@ -81,7 +82,7 @@ func SetupRouter(
 	}
 
 	// 注册路由
-	registerRoutes(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg, redisClient)
+	registerRoutes(r, handlers, jwtAuth, adminAuth, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, dashboardService, cfg, redisClient)
 
 	return r
 }
@@ -97,6 +98,7 @@ func registerRoutes(
 	subscriptionService *service.SubscriptionService,
 	opsService *service.OpsService,
 	settingService *service.SettingService,
+	dashboardService *service.DashboardService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) {
@@ -112,6 +114,11 @@ func registerRoutes(
 	routes.RegisterAdminRoutes(v1, h, adminAuth, settingService)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, settingService)
+	routes.RegisterPlayRoutes(v1, h, jwtAuth)
+
+	v1.GET("/public/home-stats", handler.PublicHomeStats(dashboardService))
+	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))
+	v1.GET("/public/vip-tiers", handler.PublicVIPTiers(settingService))
 
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
 }

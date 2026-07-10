@@ -203,3 +203,24 @@ func nonZeroPtr(v float64) *float64 {
 	}
 	return &v
 }
+
+// PricingCatalogModelCount returns the number of models in the global LiteLLM pricing catalog.
+func (s *ChannelService) PricingCatalogModelCount() int {
+	if s == nil || s.pricingService == nil {
+		return 0
+	}
+	status := s.pricingService.GetStatus()
+	if status == nil {
+		return 0
+	}
+	switch n := status["model_count"].(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	default:
+		return 0
+	}
+}

@@ -5,18 +5,12 @@ import router from './router'
 import i18n, { initI18n } from './i18n'
 import { useAppStore } from '@/stores/app'
 import './style.css'
-
-function initThemeClass() {
-  const savedTheme = localStorage.getItem('theme')
-  const shouldUseDark =
-    savedTheme === 'dark' ||
-    (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  document.documentElement.classList.toggle('dark', shouldUseDark)
-}
+import '@/styles/public-pages.css'
+import { initTheme } from '@/composables/useTheme'
 
 async function bootstrap() {
   // Apply theme class globally before app mount to keep all routes consistent.
-  initThemeClass()
+  initTheme()
 
   const app = createApp(App)
   const pinia = createPinia()

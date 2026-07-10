@@ -1,645 +1,681 @@
 <template>
-  <!-- Custom Home Content: Full Page Mode -->
+  <!-- 管理员自定义首页内容优先 -->
   <div v-if="homeContent" class="min-h-screen">
-    <!-- iframe mode -->
     <iframe
       v-if="isHomeContentUrl"
       :src="homeContent.trim()"
       class="h-screen w-full border-0"
       allowfullscreen
-    ></iframe>
-    <!-- HTML mode - SECURITY: homeContent is admin-only setting, XSS risk is acceptable -->
-    <div v-else v-html="homeContent"></div>
+    />
+    <div v-else v-html="safeHomeContent" />
   </div>
 
-  <!-- Default Home Page -->
-  <div
-    v-else
-    class="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-gray-50 via-primary-50/30 to-gray-100 dark:from-dark-950 dark:via-dark-900 dark:to-dark-950"
-  >
-    <!-- Background Decorations -->
-    <div class="pointer-events-none absolute inset-0 overflow-hidden">
-      <div
-        class="absolute -right-40 -top-40 h-96 w-96 rounded-full bg-primary-400/20 blur-3xl"
-      ></div>
-      <div
-        class="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-primary-500/15 blur-3xl"
-      ></div>
-      <div
-        class="absolute left-1/3 top-1/4 h-72 w-72 rounded-full bg-primary-300/10 blur-3xl"
-      ></div>
-      <div
-        class="absolute bottom-1/4 right-1/4 h-64 w-64 rounded-full bg-primary-400/10 blur-3xl"
-      ></div>
-      <div
-        class="absolute inset-0 bg-[linear-gradient(rgba(20,184,166,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(20,184,166,0.03)_1px,transparent_1px)] bg-[size:64px_64px]"
-      ></div>
-    </div>
-
-    <!-- Header -->
-    <header class="relative z-20 px-6 py-4">
-      <nav class="mx-auto flex max-w-6xl items-center justify-between">
-        <!-- Logo -->
-        <div class="flex items-center">
-          <div class="h-10 w-10 overflow-hidden rounded-xl shadow-md">
-            <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
-          </div>
-        </div>
-
-        <!-- Nav Actions -->
-        <div class="flex items-center gap-3">
-          <!-- Language Switcher -->
-          <LocaleSwitcher />
-
-          <!-- Doc Link -->
-          <a
-            v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
-            :title="t('home.viewDocs')"
-          >
-            <Icon name="book" size="md" />
-          </a>
-
-          <!-- Theme Toggle -->
-          <button
-            @click="toggleTheme"
-            class="rounded-lg p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
-            :title="isDark ? t('home.switchToLight') : t('home.switchToDark')"
-          >
-            <Icon v-if="isDark" name="sun" size="md" />
-            <Icon v-else name="moon" size="md" />
-          </button>
-
-          <!-- Login / Dashboard Button -->
-          <router-link
-            v-if="isAuthenticated"
-            :to="dashboardPath"
-            class="inline-flex items-center gap-1.5 rounded-full bg-gray-900 py-1 pl-1 pr-2.5 transition-colors hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
-          >
-            <span
-              class="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-primary-400 to-primary-600 text-[10px] font-semibold text-white"
-            >
-              {{ userInitial }}
+  <div v-else class="home-page" :class="{ 'is-intro': isIntro }">
+    <header class="page-header" :class="{ scrolled: headerScrolled }">
+      <div class="page-container header-row">
+        <div class="header-left">
+          <router-link to="/" class="brand">
+            <span v-if="siteLogo" class="brand-mark" aria-hidden="true">
+              <img :src="siteLogo" :alt="siteName" />
             </span>
-            <span class="text-xs font-medium text-white">{{ t('home.dashboard') }}</span>
-            <svg
-              class="h-3 w-3 text-gray-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                d="M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25"
-              />
-            </svg>
+            <span class="brand-name">{{ siteName }}</span>
           </router-link>
-          <router-link
-            v-else
-            to="/login"
-            class="inline-flex items-center rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-800 dark:bg-gray-800 dark:hover:bg-gray-700"
-          >
-            {{ t('home.login') }}
-          </router-link>
+          <nav class="header-nav">
+            <router-link to="/models" class="nav-link">{{ t('home.jisudeng.nav.models') }}</router-link>
+            <router-link to="/docs" class="nav-link">{{ t('home.jisudeng.nav.docs') }}</router-link>
+            <router-link to="/about" class="nav-link">{{ t('home.jisudeng.nav.about') }}</router-link>
+            <router-link to="/contact" class="nav-link">{{ t('home.jisudeng.nav.contact') }}</router-link>
+          </nav>
         </div>
-      </nav>
+        <nav class="page-nav">
+          <PublicPageToolbar />
+          <template v-if="isAuthenticated">
+            <router-link v-if="isAdmin" to="/admin" class="nav-link">{{ t('home.jisudeng.nav.admin') }}</router-link>
+            <router-link :to="dashboardPath" class="nav-cta">{{ t('home.jisudeng.nav.console') }}</router-link>
+          </template>
+          <template v-else>
+            <router-link to="/login" class="nav-link">{{ t('home.jisudeng.nav.signIn') }}</router-link>
+            <router-link to="/register" class="nav-cta">{{ t('home.jisudeng.nav.signUp') }}</router-link>
+          </template>
+        </nav>
+      </div>
     </header>
 
-    <!-- Main Content -->
-    <main class="relative z-10 flex-1 px-6 py-16">
-      <div class="mx-auto max-w-6xl">
-        <!-- Hero Section - Left/Right Layout -->
-        <div class="mb-12 flex flex-col items-center justify-between gap-12 lg:flex-row lg:gap-16">
-          <!-- Left: Text Content -->
-          <div class="flex-1 text-center lg:text-left">
-            <h1
-              class="mb-4 text-4xl font-bold text-gray-900 dark:text-white md:text-5xl lg:text-6xl"
-            >
-              {{ siteName }}
-            </h1>
-            <p class="mb-8 text-lg text-gray-600 dark:text-dark-300 md:text-xl">
-              {{ siteSubtitle }}
-            </p>
+    <section class="hero-section">
+      <HeroSphere @reveal="onReveal" />
+      <div class="page-container hero-block">
+        <p class="hero-eyebrow">
+          <template v-for="(bit, idx) in eyebrowBits" :key="idx">
+            <span v-if="idx > 0" class="eb-dot" :style="{ '--ebi': idx }" aria-hidden="true">·</span>
+            <span class="eb-bit" :style="{ '--ebi': idx }">
+              <template v-if="bit.pre">
+                <span class="eb-no">{{ bit.pre }}</span>
+                <span class="eb-strike">{{ bit.obj }}</span>
+              </template>
+              <span v-else class="eb-em">{{ bit.text }}</span>
+            </span>
+          </template>
+        </p>
+        <h1 class="hero-title">
+          <span class="hero-zh">
+            <span class="hz-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
+            <span class="hz-mid">{{ t('home.jisudeng.hero.titleParts.mid') }}</span>
+            <span class="hz-tail">{{ t('home.jisudeng.hero.titleParts.tail') }}</span>
+          </span>
+          <span class="hero-en">{{ heroSubtitle }}</span>
+        </h1>
+        <p class="hero-slogan">{{ t('home.jisudeng.hero.tagline') }}</p>
+        <ul v-if="perkLines.length" class="hero-perks">
+          <li v-for="(line, idx) in perkLines" :key="idx">{{ line }}</li>
+        </ul>
+        <div class="hero-ctas">
+          <button type="button" class="cta-primary" @click="goStart">
+            {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
+            <span class="arrow">→</span>
+          </button>
+          <button v-if="docUrl" type="button" class="cta-text" @click="openDocs">
+            {{ t('home.jisudeng.cta.docs') }}
+            <span class="arrow-tiny">↗</span>
+          </button>
+        </div>
+        <ul class="active-on">
+          <li class="active-on-label">{{ t('home.jisudeng.hero.activeOn') }}</li>
+          <li>Claude Code</li>
+          <li class="dot">·</li>
+          <li>Codex CLI</li>
+          <li class="dot">·</li>
+          <li>Cline</li>
+          <li class="dot">·</li>
+          <li>Gemini CLI</li>
+          <li class="dot">·</li>
+          <li>Cursor</li>
+          <li class="dot">·</li>
+          <li>Continue</li>
+        </ul>
+      </div>
+      <a class="hero-scroll-cue" href="#manifesto" aria-label="向下浏览">
+        <span class="scroll-track"><span class="scroll-dot" /></span>
+      </a>
+    </section>
 
-            <!-- CTA Button -->
-            <div>
-              <router-link
-                :to="isAuthenticated ? dashboardPath : '/login'"
-                class="btn btn-primary px-8 py-3 text-base shadow-lg shadow-primary-500/30"
-              >
-                {{ isAuthenticated ? t('home.goToDashboard') : t('home.getStarted') }}
-                <Icon name="arrowRight" size="md" class="ml-2" :stroke-width="2" />
-              </router-link>
+    <section id="manifesto" class="manifesto-section" :class="{ 'in-view': inView.manifesto }">
+      <div class="page-container manifesto-block">
+        <p class="manifesto-tag">{{ t('home.jisudeng.manifesto.tag') }}</p>
+        <h2 class="manifesto-title has-token-play">
+          <span class="manifesto-sweep" aria-hidden="true" />
+          <template v-if="manifestoParts.keyword">
+            <span>{{ manifestoParts.before }}</span>
+            <span class="title-token">{{ manifestoParts.keyword }}</span>
+            <span>{{ manifestoParts.after }}</span>
+          </template>
+          <template v-else>{{ t('home.jisudeng.manifesto.title') }}</template>
+        </h2>
+        <div v-if="manifestoParts.keyword && showVerifyLink" class="integrity-check">
+          <router-link to="/about" class="integrity-verify-link">
+            {{ t('home.jisudeng.manifesto.verifyLink') }}
+          </router-link>
+        </div>
+        <div class="manifesto-body">
+          <p>{{ t('home.jisudeng.manifesto.body1') }}</p>
+          <p>{{ t('home.jisudeng.manifesto.body2') }}</p>
+        </div>
+        <ul class="manifesto-pledges">
+          <li v-for="n in 4" :key="n" class="pledge" tabindex="0">
+            <span class="pledge-mark" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+                <template v-if="n === 1">
+                  <rect x="5" y="11" width="14" height="9" rx="1.5" />
+                  <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+                  <path d="M12 14v3" />
+                </template>
+                <template v-else-if="n === 2">
+                  <path d="M4 9h13l-3-3" />
+                  <path d="M20 15H7l3 3" />
+                </template>
+                <template v-else-if="n === 3">
+                  <path d="M12 3v18" />
+                  <path d="M5 21h14" />
+                  <path d="M4 7h16" />
+                  <path d="M4 7l-2.5 6h5L4 7z" />
+                  <path d="M20 7l-2.5 6h5L20 7z" />
+                </template>
+                <path v-else d="M13 2L4 14h7l-1 8 9-12h-7l1-8z" />
+              </svg>
+            </span>
+            <span class="pledge-label">{{ t(`home.jisudeng.manifesto.pledges.p${n}`) }}</span>
+            <div class="pledge-card" role="tooltip">
+              <p class="pledge-card-title">{{ t(`home.jisudeng.manifesto.pledges.p${n}`) }}</p>
+              <p class="pledge-card-desc">{{ t(`home.jisudeng.manifesto.pledges.d${n}`) }}</p>
             </div>
-          </div>
+          </li>
+        </ul>
+      </div>
+    </section>
 
-          <!-- Right: Terminal Animation -->
-          <div class="flex flex-1 justify-center lg:justify-end">
-            <div class="terminal-container">
-              <div class="terminal-window">
-                <!-- Window header -->
-                <div class="terminal-header">
-                  <div class="terminal-buttons">
-                    <span class="btn-close"></span>
-                    <span class="btn-minimize"></span>
-                    <span class="btn-maximize"></span>
-                  </div>
-                  <span class="terminal-title">terminal</span>
-                </div>
-                <!-- Terminal content -->
-                <div class="terminal-body">
-                  <div class="code-line line-1">
-                    <span class="code-prompt">$</span>
-                    <span class="code-cmd">curl</span>
-                    <span class="code-flag">-X POST</span>
-                    <span class="code-url">/v1/messages</span>
-                  </div>
-                  <div class="code-line line-2">
-                    <span class="code-comment"># Routing to upstream...</span>
-                  </div>
-                  <div class="code-line line-3">
-                    <span class="code-success">200 OK</span>
-                    <span class="code-response">{ "content": "Hello!" }</span>
-                  </div>
-                  <div class="code-line line-4">
-                    <span class="code-prompt">$</span>
-                    <span class="cursor"></span>
-                  </div>
-                </div>
+    <section id="stats" class="stats-section" :class="{ 'in-view': inView.stats }">
+      <div class="page-container">
+        <div class="stats-strip">
+          <div v-for="stat in statItems" :key="stat.key" class="stat" :class="`stat--${stat.key}`">
+            <span class="sr-only">{{ stat.value }}{{ stat.unit }} {{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
+            <HomeStatOdometer
+              :value="stat.value"
+              :unit="stat.unit"
+              :active="inView.stats"
+              :spin-tail="stat.key === 'uptime' ? 2 : 3"
+            />
+            <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="image" class="image-section" :class="{ 'in-view': inView.image }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.imageTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.imageTitle') }}</h2>
+          <p class="section-lede">{{ t('home.jisudeng.sections.imageLede') }}</p>
+        </div>
+        <div class="image-showcase">
+          <div class="img-info">
+            <span class="chc-rule" aria-hidden="true" />
+            <div class="img-model-line">
+              <span class="img-model">{{ t('home.jisudeng.image.model') }}</span>
+              <span class="img-badge">{{ t('home.jisudeng.image.badge') }}</span>
+              <span class="img-vendor">· OpenAI</span>
+            </div>
+            <p class="img-desc">{{ t('home.jisudeng.image.desc') }}</p>
+            <div class="img-endpoints">
+              <div v-for="ep in imageEndpoints" :key="ep.path" class="img-endpoint">
+                <span class="img-ep-method">{{ ep.method }}</span>
+                <span class="img-ep-path">{{ ep.path }}</span>
               </div>
             </div>
+            <ul class="img-caps">
+              <li v-for="(cap, i) in imageCaps" :key="i" class="img-cap">{{ cap }}</li>
+            </ul>
+            <router-link to="/docs" class="img-doclink">
+              {{ t('home.jisudeng.image.docLink') }}
+              <span class="img-doclink-arrow">→</span>
+            </router-link>
           </div>
-        </div>
-
-        <!-- Feature Tags - Centered -->
-        <div class="mb-12 flex flex-wrap items-center justify-center gap-4 md:gap-6">
-          <div
-            class="inline-flex items-center gap-2.5 rounded-full border border-gray-200/50 bg-white/80 px-5 py-2.5 shadow-sm backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/80"
-          >
-            <Icon name="swap" size="sm" class="text-primary-500" />
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{
-              t('home.tags.subscriptionToApi')
-            }}</span>
-          </div>
-          <div
-            class="inline-flex items-center gap-2.5 rounded-full border border-gray-200/50 bg-white/80 px-5 py-2.5 shadow-sm backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/80"
-          >
-            <Icon name="shield" size="sm" class="text-primary-500" />
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{
-              t('home.tags.stickySession')
-            }}</span>
-          </div>
-          <div
-            class="inline-flex items-center gap-2.5 rounded-full border border-gray-200/50 bg-white/80 px-5 py-2.5 shadow-sm backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/80"
-          >
-            <Icon name="chart" size="sm" class="text-primary-500" />
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{
-              t('home.tags.realtimeBilling')
-            }}</span>
-          </div>
-        </div>
-
-        <!-- Features Grid -->
-        <div class="mb-12 grid gap-6 md:grid-cols-3">
-          <!-- Feature 1: Unified Gateway -->
-          <div
-            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
-          >
-            <div
-              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-blue-600 shadow-lg shadow-blue-500/30 transition-transform group-hover:scale-110"
-            >
-              <Icon name="server" size="lg" class="text-white" />
+          <div class="img-demo" aria-hidden="true">
+            <div class="demo-prompt">
+              <span class="demo-prompt-label">{{ t('home.jisudeng.image.promptLabel') }}</span>
+              <span class="demo-prompt-body">
+                <span class="demo-prompt-text">{{ t('home.jisudeng.image.promptText') }}</span>
+                <span class="demo-prompt-caret" />
+              </span>
             </div>
-            <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('home.features.unifiedGateway') }}
-            </h3>
-            <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-              {{ t('home.features.unifiedGatewayDesc') }}
-            </p>
-          </div>
-
-          <!-- Feature 2: Account Pool -->
-          <div
-            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
-          >
-            <div
-              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-lg shadow-primary-500/30 transition-transform group-hover:scale-110"
-            >
-              <svg
-                class="h-6 w-6 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
-                />
-              </svg>
+            <div class="demo-canvas">
+              <div class="demo-canvas-loading" />
+              <div class="demo-canvas-photo" />
+              <div class="demo-canvas-noise" />
+              <div class="demo-canvas-sheen" />
             </div>
-            <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('home.features.multiAccount') }}
-            </h3>
-            <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-              {{ t('home.features.multiAccountDesc') }}
-            </p>
-          </div>
-
-          <!-- Feature 3: Billing & Quota -->
-          <div
-            class="group rounded-2xl border border-gray-200/50 bg-white/60 p-6 backdrop-blur-sm transition-all duration-300 hover:shadow-xl hover:shadow-primary-500/10 dark:border-dark-700/50 dark:bg-dark-800/60"
-          >
-            <div
-              class="mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30 transition-transform group-hover:scale-110"
-            >
-              <svg
-                class="h-6 w-6 text-white"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="1.5"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M2.25 18.75a60.07 60.07 0 0115.797 2.101c.727.198 1.453-.342 1.453-1.096V18.75M3.75 4.5v.75A.75.75 0 013 6h-.75m0 0v-.375c0-.621.504-1.125 1.125-1.125H20.25M2.25 6v9m18-10.5v.75c0 .414.336.75.75.75h.75m-1.5-1.5h.375c.621 0 1.125.504 1.125 1.125v9.75c0 .621-.504 1.125-1.125 1.125h-.375m1.5-1.5H21a.75.75 0 00-.75.75v.75m0 0H3.75m0 0h-.375a1.125 1.125 0 01-1.125-1.125V15m1.5 1.5v-.75A.75.75 0 003 15h-.75M15 10.5a3 3 0 11-6 0 3 3 0 016 0zm3 0h.008v.008H18V10.5zm-12 0h.008v.008H6V10.5z"
-                />
-              </svg>
+            <div class="demo-foot">
+              <div class="demo-progress">
+                <div class="demo-progress-fill"><div class="demo-progress-shimmer" /></div>
+              </div>
+              <div class="demo-status">
+                <span class="demo-status-gen">
+                  <span class="demo-dot" />
+                  {{ t('home.jisudeng.image.statusGen') }}
+                  <span class="demo-status-meta"> · {{ t('home.jisudeng.image.statusMeta') }}</span>
+                </span>
+                <span class="demo-status-done">{{ t('home.jisudeng.image.statusDone') }}</span>
+              </div>
             </div>
-            <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('home.features.balanceQuota') }}
-            </h3>
-            <p class="text-sm leading-relaxed text-gray-600 dark:text-dark-400">
-              {{ t('home.features.balanceQuotaDesc') }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Supported Providers -->
-        <div class="mb-8 text-center">
-          <h2 class="mb-3 text-2xl font-bold text-gray-900 dark:text-white">
-            {{ t('home.providers.title') }}
-          </h2>
-          <p class="text-sm text-gray-600 dark:text-dark-400">
-            {{ t('home.providers.description') }}
-          </p>
-        </div>
-
-        <div class="mb-16 flex flex-wrap items-center justify-center gap-4">
-          <!-- Claude - Supported -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-orange-400 to-orange-500"
-            >
-              <span class="text-xs font-bold text-white">C</span>
+            <div class="demo-badge">
+              <span class="demo-badge-dot" />
+              {{ t('home.jisudeng.image.demoBadge') }}
             </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.claude') }}</span>
-            <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-              >{{ t('home.providers.supported') }}</span
-            >
-          </div>
-          <!-- GPT - Supported -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-green-500 to-green-600"
-            >
-              <span class="text-xs font-bold text-white">G</span>
-            </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">GPT</span>
-            <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-              >{{ t('home.providers.supported') }}</span
-            >
-          </div>
-          <!-- Gemini - Supported -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-blue-600"
-            >
-              <span class="text-xs font-bold text-white">G</span>
-            </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.gemini') }}</span>
-            <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-              >{{ t('home.providers.supported') }}</span
-            >
-          </div>
-          <!-- Antigravity - Supported -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-primary-200 bg-white/60 px-5 py-3 ring-1 ring-primary-500/20 backdrop-blur-sm dark:border-primary-800 dark:bg-dark-800/60"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-pink-600"
-            >
-              <span class="text-xs font-bold text-white">A</span>
-            </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.antigravity') }}</span>
-            <span
-              class="rounded bg-primary-100 px-1.5 py-0.5 text-[10px] font-medium text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
-              >{{ t('home.providers.supported') }}</span
-            >
-          </div>
-          <!-- More - Coming Soon -->
-          <div
-            class="flex items-center gap-2 rounded-xl border border-gray-200/50 bg-white/40 px-5 py-3 opacity-60 backdrop-blur-sm dark:border-dark-700/50 dark:bg-dark-800/40"
-          >
-            <div
-              class="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-gray-500 to-gray-600"
-            >
-              <span class="text-xs font-bold text-white">+</span>
-            </div>
-            <span class="text-sm font-medium text-gray-700 dark:text-dark-200">{{ t('home.providers.more') }}</span>
-            <span
-              class="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] font-medium text-gray-500 dark:bg-dark-700 dark:text-dark-400"
-              >{{ t('home.providers.soon') }}</span
-            >
           </div>
         </div>
       </div>
-    </main>
+    </section>
 
-    <!-- Footer -->
-    <footer class="relative z-10 border-t border-gray-200/50 px-6 py-8 dark:border-dark-800/50">
-      <div
-        class="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 text-center sm:flex-row sm:text-left"
-      >
-        <p class="text-sm text-gray-500 dark:text-dark-400">
-          &copy; {{ currentYear }} {{ siteName }}. {{ t('home.footer.allRightsReserved') }}
-        </p>
-        <div class="flex items-center gap-4">
-          <a
-            v-if="docUrl"
-            :href="docUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            {{ t('home.docs') }}
-          </a>
-          <a
-            :href="githubUrl"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="text-sm text-gray-500 transition-colors hover:text-gray-700 dark:text-dark-400 dark:hover:text-white"
-          >
-            GitHub
-          </a>
+    <section id="channels" class="channels-section" :class="{ 'in-view': inView.channels }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.channels.tag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.channels.title') }}</h2>
         </div>
+        <div class="channels-layout">
+          <div class="channels-copy">
+            <span class="chc-rule" aria-hidden="true" />
+            <p class="chc-title">{{ t('home.jisudeng.channels.copyTitle') }}</p>
+            <p class="chc-body">{{ t('home.jisudeng.channels.copyBody') }}</p>
+          </div>
+          <div class="channels-tv"><ChannelTV /></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="features" class="features-section" :class="{ 'in-view': inView.features }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.featuresTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.featuresTitle') }}</h2>
+        </div>
+        <ul class="why-ledger" @mousemove="onWhyMove" @mouseleave="onWhyLeave">
+          <li
+            v-for="(row, idx) in featureRows"
+            :key="row.en"
+            class="why-row"
+            :style="{ '--d': `${idx * 90}ms` }"
+            @mouseenter="onWhyEnter(idx, $event)"
+          >
+            <span class="why-idx">{{ row.idx }}</span>
+            <div class="why-head">
+              <h3 class="why-title">{{ row.title }}</h3>
+              <span class="why-en">{{ row.en }}</span>
+            </div>
+            <p class="why-desc">{{ row.desc }}</p>
+          </li>
+        </ul>
+        <WhyHoverCard :active="whyActive" :x="whyX" :y="whyY" />
+      </div>
+    </section>
+
+    <section id="onboard" class="code-section" :class="{ 'in-view': inView.onboard }">
+      <div class="page-container section-block">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.codeTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.codeTitle') }}</h2>
+          <p class="section-lede">{{ t('home.jisudeng.sections.codeLede') }}</p>
+        </div>
+        <div class="onboard-grid">
+          <ol class="onboard-steps">
+            <li
+              v-for="(step, idx) in onboardSteps"
+              :key="idx"
+              class="onboard-step"
+              :class="{ 'is-done': onboardPhase > idx + 1, 'is-now': onboardPhase === idx + 1 }"
+            >
+              <span class="onboard-no">{{ idx + 1 }}</span>
+              <div class="onboard-step-body">
+                <h3 class="onboard-step-title">{{ step.t }}</h3>
+                <p class="onboard-step-desc">{{ step.d }}</p>
+              </div>
+            </li>
+          </ol>
+          <TerminalDemo @phase="(p) => (onboardPhase = p)" />
+        </div>
+        <p class="onboard-foot">
+          {{ t('home.jisudeng.onboard.docLink') }}
+          <router-link to="/docs?cat=tutorial&page=quick-start" class="onboard-foot-link">
+            {{ t('home.jisudeng.onboard.docLinkCta') }}
+          </router-link>
+        </p>
+      </div>
+    </section>
+
+    <section id="pricing" class="pricing-section" :class="{ 'in-view': inView.pricing }">
+      <div class="page-container section-block">
+        <span class="section-tag">{{ t('home.jisudeng.sections.pricingTag') }}</span>
+        <h2 class="pricing-headline">
+          <span>{{ t('home.jisudeng.pricing.lineA') }}</span>
+          <span class="pricing-line2">{{ t('home.jisudeng.pricing.lineB') }}</span>
+          <span>{{ t('home.jisudeng.pricing.lineC') }}</span>
+        </h2>
+        <p class="pricing-blurb">{{ t('home.jisudeng.pricing.blurb') }}</p>
+        <ul class="pricing-tags">
+          <li v-for="tag in pricingTags" :key="tag">— {{ tag }}</li>
+        </ul>
+        <button type="button" class="cta-text-large" @click="goStart">
+          {{ t('home.jisudeng.cta.viewPrice') }}
+          <span class="arrow">→</span>
+        </button>
+      </div>
+    </section>
+
+    <section v-if="faqItems.length" id="faq" class="faq-section section-block" :class="{ 'in-view': inView.faq }">
+      <div class="page-container">
+        <div class="section-head">
+          <span class="section-tag">{{ t('home.jisudeng.sections.faqTag') }}</span>
+          <h2 class="section-title">{{ t('home.jisudeng.sections.faqTitle') }}</h2>
+        </div>
+        <dl class="faq-list">
+          <div v-for="(item, idx) in faqItems" :key="idx" class="faq-item">
+            <dt class="faq-q">{{ item.q }}</dt>
+            <dd class="faq-a">{{ item.a }}</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section id="closer" class="closer-section" :class="{ 'in-view': inView.closer }">
+      <div class="closer-stage">
+        <svg viewBox="0 0 1200 500" class="closer-map" aria-hidden="true" preserveAspectRatio="xMidYMid meet">
+          <g class="closer-dots">
+            <circle v-for="(d, i) in closerDots" :key="`d-${i}`" :cx="d.cx" :cy="d.cy" :r="d.r" :opacity="d.opacity" fill="#0a0a0a" />
+          </g>
+          <g class="closer-lines">
+            <path
+              v-for="(line, i) in closerLines"
+              :key="`l-${i}`"
+              :d="line.d"
+              stroke="#0a0a0a"
+              stroke-width="0.8"
+              fill="none"
+              stroke-dasharray="3 5"
+              stroke-opacity="0.45"
+              :class="`flyline flyline-${i}`"
+            />
+            <circle v-for="(line, i) in closerLines" :key="`s-${i}`" :cx="line.sx" :cy="line.sy" r="2.5" fill="#0a0a0a" opacity="0.55" />
+            <circle v-for="(line, i) in closerLines" :key="`e-${i}`" :cx="line.ex" :cy="line.ey" r="3" fill="#0a0a0a" opacity="0.85" />
+          </g>
+        </svg>
+        <div class="closer-overlay">
+          <div class="closer-logo">
+            <img :src="siteLogo || '/logo.png'" :alt="siteName" />
+          </div>
+          <h2 class="closer-title">{{ t('home.jisudeng.closer.title') }}</h2>
+          <p class="closer-sub">{{ t('home.jisudeng.closer.sub') }}</p>
+          <button type="button" class="cta-primary" @click="goStart">
+            {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
+            <span class="arrow">→</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="page-footer">
+      <div class="page-container footer-row">
+        <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
+        <span class="f-links">
+          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
+          <span class="f-copy">© {{ year }} {{ siteName }}</span>
+        </span>
       </div>
     </footer>
+
+    <div v-if="!isAuthenticated && showGuestStickyCta" class="home-sticky-cta">
+      <button type="button" class="cta-primary home-sticky-cta-btn" @click="goRegister">
+        {{ t('home.jisudeng.cta.register') }}
+        <span class="arrow">→</span>
+      </button>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import '@/styles/home-view.css'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import DOMPurify from 'dompurify'
+import { useRouter } from 'vue-router'
 import { useAuthStore, useAppStore } from '@/stores'
-import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
-import Icon from '@/components/icons/Icon.vue'
+import HeroSphere from '@/components/home/HeroSphere.vue'
+import ChannelTV from '@/components/home/ChannelTV.vue'
+import TerminalDemo from '@/components/home/TerminalDemo.vue'
+import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
+import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
+import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
+import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { sanitizeUrl } from '@/utils/url'
 
-const { t } = useI18n()
-
+const { t, tm, te } = useI18n()
+const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
-// Site settings - directly from appStore (already initialized from injected config)
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || 'Sub2API')
-const siteLogo = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true }))
-const siteSubtitle = computed(() => appStore.cachedPublicSettings?.site_subtitle || 'AI API Gateway Platform')
-const docUrl = computed(() => sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''))
+const isIntro = ref(true)
+const headerScrolled = ref(false)
+const whyActive = ref<number | null>(null)
+const whyX = ref(0)
+const whyY = ref(0)
+const onboardPhase = ref(1)
+const year = new Date().getFullYear()
+const { statItems } = useHomeLiveStats()
+const { perkLines } = usePublicGrowthTeaser()
+
+const inView = ref<Record<string, boolean>>({})
+
+let observer: IntersectionObserver | null = null
+let scrollHandler: (() => void) | null = null
+let whyRaf = 0
+let whyTargetX = 0
+let whyTargetY = 0
+let fontEl: HTMLLinkElement | null = null
+
+const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
+const siteLogo = computed(() =>
+  sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
+    allowRelative: true,
+    allowDataUrl: true
+  })
+)
+const siteSubtitle = computed(
+  () => appStore.cachedPublicSettings?.site_subtitle || '最安全的大模型中转平台'
+)
+const docUrl = computed(() =>
+  sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
+)
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
-
-// Check if homeContent is a URL (for iframe display)
-const isHomeContentUrl = computed(() => {
-  const content = homeContent.value.trim()
-  return content.startsWith('http://') || content.startsWith('https://')
-})
-
-// Theme
-const isDark = ref(document.documentElement.classList.contains('dark'))
-
-// GitHub URL
-const githubUrl = 'https://github.com/Wei-Shaw/sub2api'
-
-// Auth state
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
-const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
-const userInitial = computed(() => {
-  const user = authStore.user
-  if (!user || !user.email) return ''
-  return user.email.charAt(0).toUpperCase()
+const dashboardPath = computed(() => (isAdmin.value ? '/admin' : '/dashboard'))
+const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
+const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
+
+const isGtmHome = computed(() => te('home.jisudeng.hero.subtitle') && te('home.jisudeng.cta.register'))
+const heroSubtitle = computed(() => {
+  if (isGtmHome.value) {
+    return t('home.jisudeng.hero.subtitle')
+  }
+  return siteSubtitle.value
+})
+const showVerifyLink = computed(() => isGtmHome.value && te('home.jisudeng.manifesto.verifyLink'))
+const showGuestStickyCta = computed(() => isGtmHome.value)
+
+type FaqItem = { q: string; a: string }
+const faqItems = computed((): FaqItem[] => {
+  if (!te('home.jisudeng.faq.items')) return []
+  const raw = tm('home.jisudeng.faq.items') as unknown
+  if (!Array.isArray(raw)) return []
+  return raw.filter((item): item is FaqItem => {
+    return typeof item === 'object' && item !== null && 'q' in item && 'a' in item
+  })
 })
 
-// Current year for footer
-const currentYear = computed(() => new Date().getFullYear())
+const eyebrowBits = computed(() =>
+  t('home.jisudeng.hero.eyebrow')
+    .split(/\s*·\s*/)
+    .filter(Boolean)
+    .map((part) => {
+      const m = part.match(/^(拒绝|NO\s|REFUSE\s)(.+)$/i)
+      return m ? { pre: m[1], obj: m[2] } : { text: part }
+    })
+)
 
-// Toggle theme
-function toggleTheme() {
-  isDark.value = !isDark.value
-  document.documentElement.classList.toggle('dark', isDark.value)
-  localStorage.setItem('theme', isDark.value ? 'dark' : 'light')
+const manifestoParts = computed(() => {
+  const title = t('home.jisudeng.manifesto.title')
+  const m = title.match(/Tokens?/i)
+  if (!m || m.index === undefined) return { before: title, keyword: '', after: '' }
+  return {
+    before: title.slice(0, m.index),
+    keyword: m[0],
+    after: title.slice(m.index + m[0].length)
+  }
+})
+
+const imageEndpoints = [
+  { method: 'POST', path: '/v1/images/generations' },
+  { method: 'POST', path: '/v1/images/edits' }
+]
+
+const imageCaps = computed(() => [
+  t('home.jisudeng.image.caps.0'),
+  t('home.jisudeng.image.caps.1'),
+  t('home.jisudeng.image.caps.2'),
+  t('home.jisudeng.image.caps.3')
+])
+
+const featureRows = computed(() => [
+  { idx: '01', en: 'Multi-Model', title: t('home.jisudeng.features.multiModel.title'), desc: t('home.jisudeng.features.multiModel.desc') },
+  { idx: '02', en: 'Reliability', title: t('home.jisudeng.features.stable.title'), desc: t('home.jisudeng.features.stable.desc') },
+  { idx: '03', en: 'Privacy', title: t('home.jisudeng.features.privacy.title'), desc: t('home.jisudeng.features.privacy.desc') },
+  { idx: '04', en: 'Instant Access', title: t('home.jisudeng.features.instant.title'), desc: t('home.jisudeng.features.instant.desc') },
+  { idx: '05', en: 'Fair Billing', title: t('home.jisudeng.features.transparent.title'), desc: t('home.jisudeng.features.transparent.desc') },
+  { idx: '06', en: 'Self-Service', title: t('home.jisudeng.features.selfService.title'), desc: t('home.jisudeng.features.selfService.desc') }
+])
+
+const onboardSteps = computed(() => [
+  { t: t('home.jisudeng.onboard.s1t'), d: t('home.jisudeng.onboard.s1d') },
+  { t: t('home.jisudeng.onboard.s2t'), d: t('home.jisudeng.onboard.s2d') },
+  { t: t('home.jisudeng.onboard.s3t'), d: t('home.jisudeng.onboard.s3d') }
+])
+
+const pricingTags = computed(() => [
+  t('home.jisudeng.pricing.tags.0'),
+  t('home.jisudeng.pricing.tags.1'),
+  t('home.jisudeng.pricing.tags.2')
+])
+
+const closerLines = [
+  { d: 'M 160,360 C 320,180 460,160 580,240', sx: 160, sy: 360, ex: 580, ey: 240 },
+  { d: 'M 1040,380 C 880,260 760,200 620,240', sx: 1040, sy: 380, ex: 620, ey: 240 },
+  { d: 'M 240,140 C 380,200 480,230 580,250', sx: 240, sy: 140, ex: 580, ey: 250 },
+  { d: 'M 970,130 C 830,190 720,220 620,260', sx: 970, sy: 130, ex: 620, ey: 260 }
+]
+
+const closerDots = (() => {
+  const dots: Array<{ cx: number; cy: number; r: number; opacity: number }> = []
+  for (let x = 0; x <= 1200; x += 14) {
+    for (let y = 0; y <= 500; y += 14) {
+      const nx = (x - 600) / 540
+      const ny = (y - 250) / 220
+      const n = nx * nx + ny * ny
+      if (n > 1) continue
+      const d = (x - 600) / 280
+      const u = (y - 250) / 110
+      if (d * d + u * u < 1) continue
+      const p = Math.max(0, 1 - n * 0.95)
+      if (Math.random() > 0.42 + p * 0.45) continue
+      dots.push({ cx: x, cy: y, r: 0.7 + Math.random() * 0.5, opacity: 0.16 + p * 0.55 })
+    }
+  }
+  return dots
+})()
+
+function onReveal() {
+  isIntro.value = false
 }
 
-// Initialize theme
-function initTheme() {
-  const savedTheme = localStorage.getItem('theme')
-  if (
-    savedTheme === 'dark' ||
-    (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)
-  ) {
-    isDark.value = true
-    document.documentElement.classList.add('dark')
+function goRegister() {
+  router.push('/register')
+}
+
+function goStart() {
+  if (isAuthenticated.value) {
+    router.push(dashboardPath.value)
+    return
   }
+  router.push(isGtmHome.value ? '/register' : '/login')
+}
+
+function openDocs() {
+  if (docUrl.value) window.open(docUrl.value, '_blank', 'noopener')
+}
+
+function cardPos(ev: MouseEvent) {
+  return {
+    x: Math.min(ev.clientX + 30, window.innerWidth - 400),
+    y: Math.min(Math.max(ev.clientY - 124, 12), window.innerHeight - 296)
+  }
+}
+
+function whyLoop() {
+  whyX.value += (whyTargetX - whyX.value) * 0.16
+  whyY.value += (whyTargetY - whyY.value) * 0.16
+  if (whyActive.value !== null) whyRaf = requestAnimationFrame(whyLoop)
+}
+
+function onWhyEnter(idx: number, ev: MouseEvent) {
+  if (!window.matchMedia('(hover: hover)').matches || window.innerWidth < 1024) return
+  const pos = cardPos(ev)
+  whyTargetX = pos.x
+  whyTargetY = pos.y
+  if (whyActive.value === null) {
+    whyX.value = pos.x
+    whyY.value = pos.y
+    whyRaf = requestAnimationFrame(whyLoop)
+  }
+  whyActive.value = idx
+}
+
+function onWhyMove(ev: MouseEvent) {
+  if (whyActive.value === null) return
+  const pos = cardPos(ev)
+  whyTargetX = pos.x
+  whyTargetY = pos.y
+}
+
+function onWhyLeave() {
+  whyActive.value = null
+  cancelAnimationFrame(whyRaf)
+}
+
+function ensureFonts() {
+  if (document.querySelector('link[data-jisudeng-fonts]')) return
+  fontEl = document.createElement('link')
+  fontEl.rel = 'stylesheet'
+  fontEl.setAttribute('data-jisudeng-fonts', 'true')
+  fontEl.href =
+    'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@600;700;800&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap'
+  document.head.appendChild(fontEl)
 }
 
 onMounted(() => {
-  initTheme()
+  window.scrollTo(0, 0)
+  ensureFonts()
 
-  // Check auth state
-  authStore.checkAuth()
-
-  // Ensure public settings are loaded (will use cache if already loaded from injected config)
   if (!appStore.publicSettingsLoaded) {
-    appStore.fetchPublicSettings()
+    void appStore.fetchPublicSettings()
   }
+
+  scrollHandler = () => {
+    headerScrolled.value = window.scrollY > 12
+  }
+  window.addEventListener('scroll', scrollHandler, { passive: true })
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        const id = (entry.target as HTMLElement).id
+        if (!id) continue
+        if (entry.isIntersecting) {
+          entry.target.classList.add('in-view')
+          inView.value = { ...inView.value, [id]: true }
+          observer?.unobserve(entry.target)
+        }
+      }
+    },
+    { rootMargin: '0px 0px -80px 0px', threshold: 0.08 }
+  )
+  document.querySelectorAll('.home-page section:not(.hero-section)').forEach((el) => observer?.observe(el))
+})
+
+onBeforeUnmount(() => {
+  observer?.disconnect()
+  if (scrollHandler) window.removeEventListener('scroll', scrollHandler)
+  cancelAnimationFrame(whyRaf)
 })
 </script>
 
 <style scoped>
-/* Terminal Container */
-.terminal-container {
-  position: relative;
-  display: inline-block;
-}
-
-/* Terminal Window */
-.terminal-window {
-  width: 420px;
-  background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
-  border-radius: 14px;
-  box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  transform: perspective(1000px) rotateX(2deg) rotateY(-2deg);
-  transition: transform 0.3s ease;
-}
-
-.terminal-window:hover {
-  transform: perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(-4px);
-}
-
-/* Terminal Header */
-.terminal-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 16px;
-  background: rgba(30, 41, 59, 0.8);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.terminal-buttons {
-  display: flex;
-  gap: 8px;
-}
-
-.terminal-buttons span {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.btn-close {
-  background: #ef4444;
-}
-.btn-minimize {
-  background: #eab308;
-}
-.btn-maximize {
-  background: #22c55e;
-}
-
-.terminal-title {
-  flex: 1;
-  text-align: center;
-  font-size: 12px;
-  font-family: ui-monospace, monospace;
-  color: #64748b;
-  margin-right: 52px;
-}
-
-/* Terminal Body */
-.terminal-body {
-  padding: 20px 24px;
-  font-family: ui-monospace, 'Fira Code', monospace;
-  font-size: 14px;
-  line-height: 2;
-}
-
-.code-line {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  opacity: 0;
-  animation: line-appear 0.5s ease forwards;
-}
-
-.line-1 {
-  animation-delay: 0.3s;
-}
-.line-2 {
-  animation-delay: 1s;
-}
-.line-3 {
-  animation-delay: 1.8s;
-}
-.line-4 {
-  animation-delay: 2.5s;
-}
-
-@keyframes line-appear {
-  from {
-    opacity: 0;
-    transform: translateY(5px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.code-prompt {
-  color: #22c55e;
-  font-weight: bold;
-}
-.code-cmd {
-  color: #38bdf8;
-}
-.code-flag {
-  color: #a78bfa;
-}
-.code-url {
-  color: #14b8a6;
-}
-.code-comment {
-  color: #64748b;
-  font-style: italic;
-}
-.code-success {
-  color: #22c55e;
-  background: rgba(34, 197, 94, 0.15);
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-weight: 600;
-}
-.code-response {
-  color: #fbbf24;
-}
-
-/* Blinking Cursor */
-.cursor {
-  display: inline-block;
-  width: 8px;
-  height: 16px;
-  background: #22c55e;
-  animation: blink 1s step-end infinite;
-}
-
-@keyframes blink {
-  0%,
-  50% {
-    opacity: 1;
-  }
-  51%,
-  100% {
-    opacity: 0;
-  }
-}
-
-/* Dark mode adjustments */
-:deep(.dark) .terminal-window {
-  box-shadow:
-    0 25px 50px -12px rgba(0, 0, 0, 0.6),
-    0 0 0 1px rgba(20, 184, 166, 0.2),
-    0 0 40px rgba(20, 184, 166, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 </style>

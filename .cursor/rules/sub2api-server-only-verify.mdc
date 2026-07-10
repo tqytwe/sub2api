@@ -1,0 +1,21 @@
+---
+description: Sub2API 禁止本地起服务，必须部署到 Dell 服务器验收
+alwaysApply: true
+---
+
+# Sub2API — 服务器验证（本项目）
+
+**禁止**为验收启动本地 `go run serve`、`pnpm dev` 或访问 `localhost`。
+
+部署流程：
+
+```bash
+./scripts/push-github-and-deploy.sh
+```
+
+验收地址：**http://192.168.100.10:8206**（API 同端口 `/api/v1/...`）。
+
+- 服务器目录：`/data/1panel/sub2api`
+- SSH：`dell@192.168.100.10`
+- 复用现有 PostgreSQL / Redis，**禁止** compose 再起 postgres/redis 容器
+- Admin 密码以服务器 `deploy/.env` 为准

@@ -163,6 +163,7 @@ import {
 } from '@/api/auth'
 import { apiClient } from '@/api/client'
 import { buildAuthErrorMessage } from '@/utils/authError'
+import { markFirstLoginWelcomePending } from '@/utils/firstLoginWelcome'
 import {
   formatRegistrationEmailSuffixWhitelistForMessage,
   isRegistrationEmailSuffixAllowed,
@@ -171,7 +172,9 @@ import {
 import {
   clearAllAffiliateReferralCodes,
   loadAffiliateReferralCode,
-  oauthAffiliatePayload
+  oauthAffiliatePayload,
+  storeTeamReferralCode,
+  tryJoinTeamFromReferral,
 } from '@/utils/oauthAffiliate'
 
 const { t, locale } = useI18n()
@@ -268,6 +271,9 @@ onMounted(async () => {
       promoCode.value = registerData.promo_code || ''
       invitationCode.value = registerData.invitation_code || ''
       affCode.value = registerData.aff_code || loadAffiliateReferralCode()
+      if (registerData.team_code) {
+        storeTeamReferralCode(registerData.team_code)
+      }
       pendingAuthToken.value = registerData.pending_auth_token || activePendingSession?.token || ''
       pendingAuthTokenField.value = registerData.pending_auth_token_field || activePendingSession?.token_field || 'pending_auth_token'
       pendingProvider.value = registerData.pending_provider || activePendingSession?.provider || ''
@@ -548,7 +554,10 @@ async function handleVerify(): Promise<void> {
 
     // Clear session data
     sessionStorage.removeItem('register_data')
+    await tryJoinTeamFromReferral()
     clearAllAffiliateReferralCodes()
+
+    markFirstLoginWelcomePending()
 
     // Show success toast
     appStore.showSuccess(t('auth.accountCreatedSuccess', { siteName: siteName.value }))

@@ -1,5 +1,5 @@
 <template>
-  <AuthLayout>
+  <AuthLayout aside-mode="register">
     <div class="space-y-6">
       <!-- Title -->
       <div class="text-center">
@@ -8,6 +8,15 @@
         </h2>
         <p class="mt-2 text-sm text-gray-500 dark:text-dark-400">
           {{ t('auth.signUpToStart', { siteName }) }}
+        </p>
+      </div>
+
+      <div
+        v-if="registerPromoText"
+        class="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center dark:border-emerald-800/50 dark:bg-emerald-900/20"
+      >
+        <p class="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+          {{ registerPromoText }}
         </p>
       </div>
 
@@ -317,6 +326,7 @@ import {
   validateInvitationCode
 } from '@/api/auth'
 import { buildAuthErrorMessage } from '@/utils/authError'
+import { markFirstLoginWelcomePending } from '@/utils/firstLoginWelcome'
 import {
   formatRegistrationEmailSuffixWhitelistForMessage,
   isRegistrationEmailSuffixAllowed,
@@ -325,11 +335,14 @@ import {
 import {
   clearAffiliateReferralCode,
   loadAffiliateReferralCode,
-  resolveAffiliateReferralCode
+  resolveAffiliateReferralCode,
+  resolveTeamReferralCode,
+  tryJoinTeamFromReferral,
 } from '@/utils/oauthAffiliate'
 import type { LoginAgreementDocument } from '@/types'
+import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 
-const { t, locale } = useI18n()
+const { t, locale, te } = useI18n()
 const LOGIN_AGREEMENT_STORAGE_KEY = 'sub2api_login_agreement_consent'
 
 // ==================== Router & Stores ====================
@@ -354,6 +367,30 @@ const invitationCodeEnabled = ref<boolean>(false)
 const turnstileEnabled = ref<boolean>(false)
 const turnstileSiteKey = ref<string>('')
 const siteName = ref<string>('Sub2API')
+const { teaser } = usePublicGrowthTeaser()
+
+const registerPromoText = computed(() => {
+  if (!te('home.jisudeng.registerBanner.signupCredit')) return ''
+  const g = teaser.value
+  if (!g?.registration_enabled) return ''
+
+  const parts: string[] = []
+  if (g.signup_grant_enabled && g.signup_balance_usd > 0) {
+    parts.push(
+      t('home.jisudeng.registerBanner.signupCredit', {
+        amount: g.signup_balance_usd.toFixed(2),
+      }),
+    )
+  }
+  if (g.checkin_enabled && (g.checkin_daily_reward ?? 0) > 0) {
+    parts.push(
+      t('home.jisudeng.registerBanner.checkin', {
+        amount: (g.checkin_daily_reward ?? 0).toFixed(2),
+      }),
+    )
+  }
+  return parts.join(' ')
+})
 const linuxdoOAuthEnabled = ref<boolean>(false)
 const wechatOAuthEnabled = ref<boolean>(false)
 const oidcOAuthEnabled = ref<boolean>(false)
@@ -441,17 +478,22 @@ watch(validationToastMessage, (value, previousValue) => {
 })
 
 function syncAffiliateReferralCode(): string {
-  const code = resolveAffiliateReferralCode(route.query.aff, route.query.aff_code)
+  const code = resolveAffiliateReferralCode(route.query.ref, route.query.aff, route.query.aff_code)
   if (code) {
     formData.aff_code = code
   }
   return code
 }
 
+function syncTeamReferralCode(): string {
+  return resolveTeamReferralCode(route.query.team)
+}
+
 // ==================== Lifecycle ====================
 
 onMounted(async () => {
   syncAffiliateReferralCode()
+  syncTeamReferralCode()
 
   try {
     const settings = await getPublicSettings()
@@ -493,9 +535,16 @@ onMounted(async () => {
 })
 
 watch(
-  () => [route.query.aff, route.query.aff_code],
+  () => [route.query.ref, route.query.aff, route.query.aff_code],
   () => {
     syncAffiliateReferralCode()
+  }
+)
+
+watch(
+  () => route.query.team,
+  () => {
+    syncTeamReferralCode()
   }
 )
 
@@ -860,6 +909,7 @@ async function handleRegister(): Promise<void> {
     if (affCode) {
       formData.aff_code = affCode
     }
+    const teamCode = syncTeamReferralCode()
 
     // If email verification is enabled, redirect to verification page
     if (emailVerifyEnabled.value) {
@@ -872,7 +922,8 @@ async function handleRegister(): Promise<void> {
           turnstile_token: turnstileToken.value,
           promo_code: formData.promo_code || undefined,
           invitation_code: formData.invitation_code || undefined,
-          ...(affCode ? { aff_code: affCode } : {})
+          ...(affCode ? { aff_code: affCode } : {}),
+          ...(teamCode ? { team_code: teamCode } : {}),
         })
       )
 
@@ -891,6 +942,10 @@ async function handleRegister(): Promise<void> {
       ...(affCode ? { aff_code: affCode } : {})
     })
     clearAffiliateReferralCode()
+
+    await tryJoinTeamFromReferral()
+
+    markFirstLoginWelcomePending()
 
     // Show success toast
     appStore.showSuccess(t('auth.accountCreatedSuccess', { siteName: siteName.value }))

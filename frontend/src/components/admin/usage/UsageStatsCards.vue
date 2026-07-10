@@ -67,6 +67,9 @@
         <p class="text-xl font-bold text-green-600">
           ${{ (stats?.total_actual_cost || 0).toFixed(4) }}
         </p>
+        <p v-if="savingsText" class="mt-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          {{ savingsText }}
+        </p>
         <p class="text-xs text-gray-400">
           <template v-if="showAccountCost && totalAccountCost != null">
             <span class="text-orange-500">{{ t('usage.accountCost') }} ${{ totalAccountCost.toFixed(4) }}</span>
@@ -99,9 +102,11 @@ const props = withDefaults(defineProps<{
   stats: (AdminUsageStatsResponse | UsageStatsResponse) | null
   showAccountCost?: boolean
   strikeStandardCost?: boolean
+  savingsLabel?: 'range' | 'month' | null
 }>(), {
   showAccountCost: true,
   strikeStandardCost: false,
+  savingsLabel: null,
 })
 
 const { t } = useI18n()
@@ -112,6 +117,21 @@ const totalAccountCost = computed(() => {
 })
 const showAccountCost = computed(() => props.showAccountCost)
 const strikeStandardCost = computed(() => props.strikeStandardCost)
+const savingsAmount = computed(() => {
+  const stats = props.stats
+  if (!stats || !props.strikeStandardCost) return 0
+  const standard = stats.total_cost ?? 0
+  const actual = stats.total_actual_cost ?? 0
+  const saved = standard - actual
+  return saved > 0.0001 ? saved : 0
+})
+const savingsText = computed(() => {
+  if (savingsAmount.value <= 0 || !props.savingsLabel) return ''
+  const amount = savingsAmount.value.toFixed(2)
+  return props.savingsLabel === 'month'
+    ? t('usage.savedThisMonth', { amount })
+    : t('usage.savedVsOfficial', { amount })
+})
 
 const formatDuration = (ms: number) =>
   ms < 1000 ? `${ms.toFixed(0)}ms` : `${(ms / 1000).toFixed(2)}s`

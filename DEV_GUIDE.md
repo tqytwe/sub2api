@@ -7,7 +7,7 @@
 | 项目 | 说明 |
 |------|------|
 | **上游仓库** | Wei-Shaw/sub2api |
-| **Fork 仓库** | bayma888/sub2api-bmai |
+| **Fork 仓库** | tqytwe/sub2api（工作分支 `play/main`） |
 | **技术栈** | Go 后端 (Ent ORM + Gin) + Vue3 前端 (pnpm) |
 | **数据库** | PostgreSQL 16 + Redis |
 | **包管理** | 后端: go modules, 前端: **pnpm**（不是 npm） |
@@ -53,7 +53,7 @@ npm install -g pnpm
 
 ### CI 要求
 
-- Go 版本必须是 **1.25.7**
+- Go 版本以 `backend/go.mod` 为准（当前 **1.26.4**）
 - 前端使用 `pnpm install --frozen-lockfile`，必须提交 `pnpm-lock.yaml`
 
 ### 本地测试命令
@@ -264,18 +264,17 @@ psql -U sub2api -h 127.0.0.1 -d sub2api -f migration.sql
 ### Git 操作
 
 ```bash
-# 同步上游
-git fetch upstream
-git checkout main
-git merge upstream/main
-git push origin main
+# 日常开发部署（play/main，勿用 origin/main）
+git checkout play/main
+./scripts/push-github-and-deploy.sh
 
-# 创建功能分支
+# 仅对比上游官方历史（只读，不要 rebase/merge 到 play/main）
+git fetch origin
+git checkout -b upstream-main origin/main
+
+# 创建功能分支（从 play/main 拉出）
+git checkout play/main
 git checkout -b feature/xxx
-
-# Rebase 到最新 main
-git fetch upstream
-git rebase upstream/main
 ```
 
 ### 前端操作
@@ -313,7 +312,7 @@ golangci-lint run ./...
 ## 六、项目结构速览
 
 ```
-sub2api-bmai/
+sub2api/
 ├── backend/
 │   ├── cmd/server/          # 主程序入口
 │   ├── ent/                 # Ent ORM 生成代码
@@ -334,11 +333,25 @@ sub2api-bmai/
 │   │   └── i18n/            # 国际化
 │   ├── package.json         # 依赖配置
 │   └── pnpm-lock.yaml       # pnpm 锁文件（必须提交）
-└── .claude/
-    └── CLAUDE.md            # 本文档
+└── DEV_GUIDE.md             # 本文档
 ```
 
-## 七、参考资源
+## 七、Agent Skills（仓库内）
+
+| Skill | 路径 | 用途 |
+|-------|------|------|
+| sub2api-admin | `skills/sub2api-admin/` | CLI 管理后台账号、兑换码、错误规则、TLS 模板；Play 运维（Arena 结算等）走 `api` 子命令 |
+
+```bash
+cd skills/sub2api-admin
+export SUB2API_BASE_URL='http://192.168.100.10:8206'
+export SUB2API_ADMIN_API_KEY='<admin api key>'
+node scripts/sub2api-admin.js accounts list
+```
+
+完整命令见 `skills/sub2api-admin/references/admin-cli.md`。增长/Play 产品方案见 `docs/growth-play-roadmap.md`。
+
+## 八、参考资源
 
 - [上游仓库](https://github.com/Wei-Shaw/sub2api)
 - [Ent 文档](https://entgo.io/docs/getting-started)

@@ -1,40 +1,40 @@
 <template>
   <div class="relative" ref="dropdownRef">
     <button
+      type="button"
       @click="toggleDropdown"
       :disabled="switching"
-      class="flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700"
+      :class="buttonClass"
       :title="currentLocale?.name"
     >
       <span class="text-base">{{ currentLocale?.flag }}</span>
-      <span class="hidden sm:inline">{{ currentLocale?.code.toUpperCase() }}</span>
+      <span :class="labelClass">{{ currentLocale?.name }}</span>
       <Icon
         name="chevronDown"
         size="xs"
-        class="text-gray-400 transition-transform duration-200"
+        class="text-gray-400 transition-transform duration-200 dark:text-gray-500"
         :class="{ 'rotate-180': isOpen }"
       />
     </button>
 
     <transition name="dropdown">
-      <div
-        v-if="isOpen"
-        class="absolute right-0 z-50 mt-1 w-32 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg dark:border-dark-700 dark:bg-dark-800"
-      >
+      <div v-if="isOpen" :class="menuClass">
         <button
           v-for="locale in availableLocales"
           :key="locale.code"
+          type="button"
           :disabled="switching"
           @click="selectLocale(locale.code)"
-          class="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700"
-          :class="{
-            'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400':
-              locale.code === currentLocaleCode
-          }"
+          :class="itemClass(locale.code)"
         >
           <span class="text-base">{{ locale.flag }}</span>
           <span>{{ locale.name }}</span>
-          <Icon v-if="locale.code === currentLocaleCode" name="check" size="sm" class="ml-auto text-primary-500" />
+          <Icon
+            v-if="locale.code === currentLocaleCode"
+            name="check"
+            size="sm"
+            class="ml-auto text-primary-500"
+          />
         </button>
       </div>
     </transition>
@@ -47,6 +47,13 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { setLocale, availableLocales } from '@/i18n'
 
+const props = withDefaults(
+  defineProps<{
+    variant?: 'default' | 'public'
+  }>(),
+  { variant: 'default' },
+)
+
 const { locale } = useI18n()
 
 const isOpen = ref(false)
@@ -55,6 +62,36 @@ const switching = ref(false)
 
 const currentLocaleCode = computed(() => locale.value)
 const currentLocale = computed(() => availableLocales.find((l) => l.code === locale.value))
+
+const buttonClass = computed(() => {
+  if (props.variant === 'public') {
+    return 'public-toolbar-btn'
+  }
+  return 'flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700'
+})
+
+const labelClass = computed(() =>
+  props.variant === 'public' ? 'hidden lg:inline text-sm' : 'hidden sm:inline text-xs uppercase',
+)
+
+const menuClass = computed(() => {
+  const base = 'absolute right-0 z-50 mt-1 overflow-hidden rounded-lg border shadow-lg'
+  if (props.variant === 'public') {
+    return `${base} public-locale-menu min-w-[11rem]`
+  }
+  return `${base} w-44 border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-800`
+})
+
+function itemClass(code: string) {
+  const active = code === currentLocaleCode.value
+  if (props.variant === 'public') {
+    return ['public-locale-item', active ? 'is-active' : '']
+  }
+  return [
+    'flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 transition-colors hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-dark-700',
+    active ? 'bg-primary-50 text-primary-600 dark:bg-primary-900/20 dark:text-primary-400' : '',
+  ]
+}
 
 function toggleDropdown() {
   isOpen.value = !isOpen.value

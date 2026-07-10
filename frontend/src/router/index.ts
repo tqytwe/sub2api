@@ -4,6 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
+import { applyLocaleFromRouteQuery } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -13,6 +14,7 @@ import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
+import { useTheme } from '@/composables/useTheme'
 
 /**
  * Route definitions with lazy loading
@@ -175,6 +177,95 @@ const routes: RouteRecordRaw[] = [
       title: 'Legal Document'
     }
   },
+  {
+    path: '/about',
+    name: 'About',
+    component: () => import('@/views/public/AboutView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'About',
+      titleKey: 'about.eyebrow'
+    }
+  },
+  {
+    path: '/contact',
+    name: 'Contact',
+    component: () => import('@/views/public/ContactView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Contact',
+      titleKey: 'contact.title'
+    }
+  },
+  {
+    path: '/contact/qq',
+    name: 'ContactQQ',
+    redirect: '/contact'
+  },
+  {
+    path: '/models',
+    name: 'Models',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Models',
+      titleKey: 'models.title'
+    }
+  },
+  {
+    path: '/docs',
+    name: 'Docs',
+    component: () => import('@/views/public/DocsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Docs',
+      titleKey: 'docs.title'
+    }
+  },
+  {
+    path: '/blindbox',
+    name: 'Blindbox',
+    component: () => import('@/views/public/BlindboxView.vue'),
+    meta: {
+      requiresAuth: false,
+      playFeature: 'blindbox',
+      title: 'Blindbox',
+      titleKey: 'play.blindbox.title'
+    }
+  },
+  {
+    path: '/arena',
+    name: 'Arena',
+    component: () => import('@/views/public/ArenaView.vue'),
+    meta: {
+      requiresAuth: false,
+      playFeature: 'arena',
+      title: 'Token Farm',
+      titleKey: 'play.arena.title'
+    }
+  },
+  {
+    path: '/quiz-quest',
+    name: 'QuizQuest',
+    component: () => import('@/views/public/QuizQuestView.vue'),
+    meta: {
+      requiresAuth: false,
+      playFeature: 'quiz-quest',
+      title: 'Quiz Quest',
+      titleKey: 'play.quizQuest.title'
+    }
+  },
+  {
+    path: '/agent-team',
+    name: 'AgentTeam',
+    component: () => import('@/views/public/AgentTeamView.vue'),
+    meta: {
+      requiresAuth: false,
+      playFeature: 'agent-team',
+      title: 'Agent Team',
+      titleKey: 'play.agentTeam.title'
+    }
+  },
 
   // ==================== User Routes ====================
   {
@@ -240,6 +331,30 @@ const routes: RouteRecordRaw[] = [
       title: 'Redeem Code',
       titleKey: 'redeem.title',
       descriptionKey: 'redeem.description'
+    }
+  },
+  {
+    path: '/play',
+    name: 'PlayHub',
+    component: () => import('@/views/user/PlayHubView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Play Hub',
+      titleKey: 'playHub.title',
+      descriptionKey: 'playHub.subtitle',
+    },
+  },
+  {
+    path: '/check-in',
+    name: 'CheckIn',
+    component: () => import('@/views/user/CheckInView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Daily Check-in',
+      titleKey: 'checkin.title',
+      descriptionKey: 'checkin.description'
     }
   },
   {
@@ -735,6 +850,8 @@ router.beforeEach(async (to, _from, next) => {
   // 开始导航加载状态
   navigationLoading.startNavigation()
 
+  await applyLocaleFromRouteQuery(to.query)
+
   const authStore = useAuthStore()
 
   // Restore auth state from localStorage on first navigation (page refresh)
@@ -833,7 +950,7 @@ router.beforeEach(async (to, _from, next) => {
     try {
       await appStore.fetchPublicSettings()
     } catch (error) {
-      console.warn('Failed to load public settings in route guard', error)
+      console.warn('Failed to load public settings before route guard:', error)
     }
   }
 
@@ -892,6 +1009,9 @@ router.beforeEach(async (to, _from, next) => {
  * Navigation guard: End loading and trigger prefetch
  */
 router.afterEach((to) => {
+  // Keep html.dark in sync when crossing public vs authenticated layouts.
+  useTheme().applyThemeClass()
+
   // 结束导航加载状态
   navigationLoading.endNavigation()
 

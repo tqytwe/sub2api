@@ -1,6 +1,6 @@
 ---
 name: sub2api-admin
-description: Manage Sub2API admin APIs for accounts, redeem codes, groups, proxies, error passthrough rules, TLS fingerprint profiles, imports, exports, batch updates, and raw administrator API calls. Use when the user mentions Sub2API, admin API keys, account management, redeem code management, recharge codes, invitation codes, bulk account import/export, keeping or deleting accounts, refreshing accounts, clearing errors, CRS sync, or managing Sub2API backend settings through the admin API.
+description: Manage Sub2API admin APIs for accounts, redeem codes, groups, proxies, error passthrough rules, TLS fingerprint profiles, imports, exports, batch updates, play arena settlement, and raw administrator API calls. Use when the user mentions Sub2API, admin API keys, account management, redeem code management, recharge codes, invitation codes, bulk account import/export, keeping or deleting accounts, refreshing accounts, clearing errors, CRS sync, arena settle, or managing Sub2API backend settings through the admin API.
 ---
 
 # Sub2API Admin
@@ -38,6 +38,7 @@ node scripts/sub2api-admin.js redeem-codes generate --json '{"count":1,"type":"b
 node scripts/sub2api-admin.js redeem-codes create-and-redeem --json '{"code":"order_123","type":"balance","value":10,"user_id":123}' --idempotency-key order-123
 node scripts/sub2api-admin.js error-rules list
 node scripts/sub2api-admin.js tls-profiles list
+node scripts/sub2api-admin.js api POST /admin/play/arena/settle --json '{"period_id":0}'
 ```
 
 ## Safety Notes

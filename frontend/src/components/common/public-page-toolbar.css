@@ -1,0 +1,83 @@
+.public-page-toolbar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.public-toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line, #d4d4d0);
+  background: var(--card, #ffffff);
+  color: var(--ink-2, #525252);
+  font-size: 13px;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.public-toolbar-btn:hover {
+  border-color: var(--ink, #0a0a0a);
+  color: var(--ink, #0a0a0a);
+}
+
+.public-locale-menu,
+.public-theme-menu {
+  min-width: 10.5rem;
+  border-color: var(--line, #d4d4d0);
+  background: var(--card, #ffffff);
+}
+
+.public-locale-item,
+.public-theme-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--ink-2, #525252);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.public-locale-item:hover,
+.public-theme-item:hover {
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--ink, #0a0a0a);
+}
+
+.dark .public-locale-item:hover,
+.dark .public-theme-item:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.public-locale-item.is-active,
+.public-theme-item.is-active {
+  color: var(--ink, #0a0a0a);
+  font-weight: 600;
+}
+
+.dark .public-toolbar-btn {
+  background: var(--card, #1a1a19);
+  border-color: var(--line, #292524);
+  color: var(--ink-2, #a8a29e);
+}
+
+.dark .public-toolbar-btn:hover {
+  border-color: var(--ink, #f5f5f4);
+  color: var(--ink, #f5f5f4);
+}
+
+.dark .public-locale-menu,
+.dark .public-theme-menu {
+  background: var(--card, #1a1a19);
+  border-color: var(--line, #292524);
+}

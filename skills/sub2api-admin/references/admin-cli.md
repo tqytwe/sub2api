@@ -197,6 +197,18 @@ node scripts/sub2api-admin.js tls-profiles update 1 --file profile.json
 node scripts/sub2api-admin.js tls-profiles delete 1
 ```
 
+## Play（未封装，走 `api` 直通）
+
+Arena 周期结算等 Play 运维接口尚未封装为子命令，用 `api` 调用：
+
+```bash
+# 结算当前可结算的 Arena 周期（幂等发奖，见 play_arena_settlement_rewards）
+node scripts/sub2api-admin.js api POST /admin/play/arena/settle \
+  --json '{"period_id":0}'
+```
+
+`period_id` 为 `0` 时结算当前可结算周期；写入前先 `GET /play/arena/leaderboard` 或后台确认周期状态。
+
 ## Raw Admin API
 
 未封装或新版本后台接口可用 `api` 直通。路径可写 `/admin/...` 或 `/api/v1/admin/...`。
@@ -264,6 +276,7 @@ node scripts/sub2api-admin.js api POST /admin/accounts/bulk-update \
 - `POST /api/v1/admin/tls-fingerprint-profiles`
 - `PUT /api/v1/admin/tls-fingerprint-profiles/:id`
 - `DELETE /api/v1/admin/tls-fingerprint-profiles/:id`
+- `POST /api/v1/admin/play/arena/settle`
 
 ## Notes
 

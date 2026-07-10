@@ -118,7 +118,8 @@ backend/.installed
 tests
 CLAUDE.md
 .claude
-scripts
+scripts/*
+!scripts/push-github-and-deploy.sh
 !backend/scripts/
 !backend/scripts/resolve-version.sh
 .code-review-state
@@ -133,6 +134,7 @@ docs/*
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
+!docs/growth-play-roadmap.md
 !docs/legal/
 !docs/legal/*.md
 .serena/

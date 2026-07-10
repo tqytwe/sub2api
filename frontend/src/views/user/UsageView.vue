@@ -1,7 +1,12 @@
 <template>
   <AppLayout>
     <div class="space-y-6">
-      <UsageStatsCards :stats="usageStats" :show-account-cost="false" :strike-standard-cost="true" />
+      <UsageStatsCards
+        :stats="usageStats"
+        :show-account-cost="false"
+        :strike-standard-cost="true"
+        :savings-label="usageSavingsLabel"
+      />
 
       <div class="space-y-4">
         <div class="card p-4">
@@ -344,6 +349,15 @@ const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
 const granularity = ref<'day' | 'hour'>(getGranularityForRange(startDate.value, endDate.value))
 
+const usageSavingsLabel = computed<'month' | null>(() => {
+  const now = new Date()
+  const monthStart = formatLocalDate(new Date(now.getFullYear(), now.getMonth(), 1))
+  const today = formatLocalDate(now)
+  // Match DateRangePicker "this month" preset: 1st of month through today only.
+  if (startDate.value === monthStart && endDate.value === today) return 'month'
+  return null
+})
+
 const modelDistributionMetric = ref<DistributionMetric>('tokens')
 const groupDistributionMetric = ref<DistributionMetric>('tokens')
 const endpointDistributionMetric = ref<DistributionMetric>('tokens')
@@ -389,7 +403,6 @@ const billingModeOptions = computed<SelectOption[]>(() => [
   { value: 'token', label: t('admin.usage.billingModeToken') },
   { value: 'per_request', label: t('admin.usage.billingModePerRequest') },
   { value: 'image', label: t('admin.usage.billingModeImage') },
-  { value: 'video', label: t('admin.usage.billingModeVideo') },
 ])
 
 const apiKeys = ref<ApiKey[]>([])
@@ -709,7 +722,8 @@ const allColumns = computed<Column[]>(() => [
   { key: 'billing_mode', label: t('admin.usage.billingMode'), sortable: false },
   { key: 'tokens', label: t('usage.tokens'), sortable: false },
   { key: 'cost', label: t('usage.cost'), sortable: false },
-  { key: 'latency', label: t('usage.latency'), sortable: false },
+  { key: 'first_token', label: t('usage.firstToken'), sortable: false },
+  { key: 'duration', label: t('usage.duration'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'user_agent', label: t('usage.userAgent'), sortable: false },
 ])
