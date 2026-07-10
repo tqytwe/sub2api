@@ -98,6 +98,13 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
+		PublicModelsEnabled:  settings.PublicModelsEnabled,
+		PlayCheckinEnabled:   settings.PlayCheckinEnabled,
+		PlayArenaEnabled:     settings.PlayArenaEnabled,
+		PlayBlindboxEnabled:  settings.PlayBlindboxEnabled,
+		PlayQuizEnabled:      settings.PlayQuizEnabled,
+		PlayAgentTeamEnabled: settings.PlayAgentTeamEnabled,
+
 		AffiliateEnabled: settings.AffiliateEnabled,
 
 		RiskControlEnabled: settings.RiskControlEnabled,

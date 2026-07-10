@@ -324,6 +324,14 @@ type PublicSettings struct {
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	// Public models + Play growth features (opt-in via public settings)
+	PublicModelsEnabled  bool `json:"public_models_enabled"`
+	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled     bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
+
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

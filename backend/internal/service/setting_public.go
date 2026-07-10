@@ -220,6 +220,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyPublicModelsEnabled,
+		SettingKeyPlayCheckinEnabled,
+		SettingKeyPlayArenaEnabled,
+		SettingKeyPlayBlindboxEnabled,
+		SettingKeyPlayQuizEnabled,
+		SettingKeyPlayAgentTeamEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
@@ -331,6 +337,12 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		PublicModelsEnabled:      settings[SettingKeyPublicModelsEnabled] == "true",
+		PlayCheckinEnabled:       settings[SettingKeyPlayCheckinEnabled] == "true",
+		PlayArenaEnabled:         settings[SettingKeyPlayArenaEnabled] == "true",
+		PlayBlindboxEnabled:      settings[SettingKeyPlayBlindboxEnabled] == "true",
+		PlayQuizEnabled:          settings[SettingKeyPlayQuizEnabled] == "true",
+		PlayAgentTeamEnabled:     settings[SettingKeyPlayAgentTeamEnabled] == "true",
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
@@ -494,6 +506,12 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	PublicModelsEnabled                  bool `json:"public_models_enabled"`
+	PlayCheckinEnabled                   bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled                     bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled                  bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled                      bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled                 bool `json:"play_agent_team_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
@@ -559,6 +577,12 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		PublicModelsEnabled:                  settings.PublicModelsEnabled,
+		PlayCheckinEnabled:                   settings.PlayCheckinEnabled,
+		PlayArenaEnabled:                     settings.PlayArenaEnabled,
+		PlayBlindboxEnabled:                  settings.PlayBlindboxEnabled,
+		PlayQuizEnabled:                      settings.PlayQuizEnabled,
+		PlayAgentTeamEnabled:                 settings.PlayAgentTeamEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,

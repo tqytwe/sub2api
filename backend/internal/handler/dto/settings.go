@@ -358,6 +358,13 @@ type PublicSettings struct {
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
 
+	PublicModelsEnabled  bool `json:"public_models_enabled"`
+	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled     bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
+
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	RiskControlEnabled bool `json:"risk_control_enabled"`
