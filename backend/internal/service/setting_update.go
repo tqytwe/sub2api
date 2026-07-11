@@ -335,6 +335,14 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Affiliate (邀请返利) feature switch
 	updates[SettingKeyAffiliateEnabled] = strconv.FormatBool(settings.AffiliateEnabled)
 
+	// Play growth user sidebar switches
+	updates[SettingKeyImageStudioEnabled] = strconv.FormatBool(settings.ImageStudioEnabled)
+	updates[SettingKeyPlayCheckinEnabled] = strconv.FormatBool(settings.PlayCheckinEnabled)
+	updates[SettingKeyPlayArenaEnabled] = strconv.FormatBool(settings.PlayArenaEnabled)
+	updates[SettingKeyPlayBlindboxEnabled] = strconv.FormatBool(settings.PlayBlindboxEnabled)
+	updates[SettingKeyPlayQuizEnabled] = strconv.FormatBool(settings.PlayQuizEnabled)
+	updates[SettingKeyPlayAgentTeamEnabled] = strconv.FormatBool(settings.PlayAgentTeamEnabled)
+
 	// 风控中心功能开关
 	updates[SettingKeyRiskControlEnabled] = strconv.FormatBool(settings.RiskControlEnabled)
 

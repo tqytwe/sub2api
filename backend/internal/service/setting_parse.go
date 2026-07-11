@@ -180,10 +180,18 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
-		// Affiliate (邀请返利) feature (default disabled; opt-in)
-		SettingKeyAffiliateEnabled: "false",
+	// Affiliate (邀请返利) feature (default disabled; opt-in)
+	SettingKeyAffiliateEnabled: "false",
 
-		// 风控中心功能（默认关闭，显式启用）
+	// Play growth user sidebar (default disabled; opt-in)
+	SettingKeyImageStudioEnabled:   "false",
+	SettingKeyPlayCheckinEnabled:   "false",
+	SettingKeyPlayArenaEnabled:     "false",
+	SettingKeyPlayBlindboxEnabled:  "false",
+	SettingKeyPlayQuizEnabled:      "false",
+	SettingKeyPlayAgentTeamEnabled: "false",
+
+	// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
 		// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
@@ -716,6 +724,14 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 
 	// Affiliate (邀请返利) feature (default: disabled; strict true)
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
+
+	// Play growth user sidebar (default: disabled; strict true)
+	result.ImageStudioEnabled = settings[SettingKeyImageStudioEnabled] == "true"
+	result.PlayCheckinEnabled = settings[SettingKeyPlayCheckinEnabled] == "true"
+	result.PlayArenaEnabled = settings[SettingKeyPlayArenaEnabled] == "true"
+	result.PlayBlindboxEnabled = settings[SettingKeyPlayBlindboxEnabled] == "true"
+	result.PlayQuizEnabled = settings[SettingKeyPlayQuizEnabled] == "true"
+	result.PlayAgentTeamEnabled = settings[SettingKeyPlayAgentTeamEnabled] == "true"
 
 	// 风控中心功能（默认关闭，严格 true 才启用）
 	result.RiskControlEnabled = settings[SettingKeyRiskControlEnabled] == "true"

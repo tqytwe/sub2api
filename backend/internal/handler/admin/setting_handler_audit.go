@@ -507,6 +507,24 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.AffiliateEnabled != after.AffiliateEnabled {
 		changed = append(changed, "affiliate_enabled")
 	}
+	if before.ImageStudioEnabled != after.ImageStudioEnabled {
+		changed = append(changed, "image_studio_enabled")
+	}
+	if before.PlayCheckinEnabled != after.PlayCheckinEnabled {
+		changed = append(changed, "play_checkin_enabled")
+	}
+	if before.PlayArenaEnabled != after.PlayArenaEnabled {
+		changed = append(changed, "play_arena_enabled")
+	}
+	if before.PlayBlindboxEnabled != after.PlayBlindboxEnabled {
+		changed = append(changed, "play_blindbox_enabled")
+	}
+	if before.PlayQuizEnabled != after.PlayQuizEnabled {
+		changed = append(changed, "play_quiz_enabled")
+	}
+	if before.PlayAgentTeamEnabled != after.PlayAgentTeamEnabled {
+		changed = append(changed, "play_agent_team_enabled")
+	}
 	if before.RiskControlEnabled != after.RiskControlEnabled {
 		changed = append(changed, "risk_control_enabled")
 	}

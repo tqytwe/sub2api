@@ -152,6 +152,15 @@ type SystemSettings struct {
 	AffiliateRebateFreezeHours   int
 	AffiliateRebateDurationDays  int
 	AffiliateRebatePerInviteeCap float64
+
+	// User sidebar — Play growth features (opt-in via public settings)
+	ImageStudioEnabled   bool `json:"image_studio_enabled"`
+	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled     bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
+
 	DefaultUserRPMLimit          int
 	DefaultSubscriptions         []DefaultSubscriptionSetting
 

@@ -40,6 +40,17 @@ export default {
           cyberSessionBlockHint: '开启后,被上游网络安全策略(cyber_policy)拦截的会话将在 TTL 内被本地屏蔽,不再发往上游。仅屏蔽该会话,不影响同 Key 其他会话。',
           cyberSessionBlockTTL: '屏蔽时长(秒)',
         },
+        userSidebar: {
+          title: '用户侧栏',
+          description: '控制登录用户在侧边栏看到的增长世界入口。极速蹬不向普通用户展示「可用渠道 / 渠道状态」。',
+          imageStudioHint: '图像工作室 /image-studio',
+          checkinHint: '每日签到与玩法中枢签到卡片',
+          arenaHint: 'Token 农场 /arena',
+          blindboxHint: '盲盒 /blindbox',
+          quizHint: '答题闯关 /quiz-quest',
+          agentTeamHint: 'Agent Team /agent-team',
+          affiliateHint: '邀请返利 /affiliate',
+        },
         affiliate: {
           title: '邀请返利',
           description: '老用户邀请新用户注册，新用户充值后老用户按比例获得返利额度。默认关闭。',

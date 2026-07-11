@@ -327,6 +327,13 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 
+		ImageStudioEnabled:   settings.ImageStudioEnabled,
+		PlayCheckinEnabled:   settings.PlayCheckinEnabled,
+		PlayArenaEnabled:     settings.PlayArenaEnabled,
+		PlayBlindboxEnabled:  settings.PlayBlindboxEnabled,
+		PlayQuizEnabled:      settings.PlayQuizEnabled,
+		PlayAgentTeamEnabled: settings.PlayAgentTeamEnabled,
+
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	}
 

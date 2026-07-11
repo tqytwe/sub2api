@@ -5785,19 +5785,19 @@ export default {
       features: {
         channelMonitor: {
           title: 'Channel Monitor',
-          description: 'Periodically probe configured channels and surface availability / latency to users. Turning it off stops the scheduler and returns an empty list on the user page.',
+          description: 'Periodically probe configured channels. Admin-only on Jisudeng Play — end users never see channel sidebar entries.',
           configureLink: 'Configure monitors in Channel Management > Channel Monitor',
           enabled: 'Enable Channel Monitor',
-          enabledHint: 'Disabling stops background checks; existing history is preserved.',
+          enabledHint: 'Disabling stops background checks; existing history is preserved. Does not affect user sidebar (channels are hidden there).',
           defaultInterval: 'Default check interval (seconds)',
           defaultIntervalHint: 'Pre-fills the interval when creating a new monitor; each monitor can override it. Range 15 – 3600.',
         },
         availableChannels: {
           title: 'Available Channels',
-          description: 'Show logged-in users an aggregate view of the channels, models and pricing they can access. Disabled by default.',
+          description: 'Channel pricing aggregate API. Hidden from Play user sidebar; mainly for upstream forks or direct URL access.',
           configureLink: 'Configure model pricing in Channel Management > Channel Pricing',
           enabled: 'Enable Available Channels',
-          enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
+          enabledHint: 'When off, the API returns an empty list. Play user sidebar always hides this entry.',
         },
         riskControl: {
           title: 'Risk Control',
@@ -5808,6 +5808,17 @@ export default {
           cyberSessionBlock: 'Cyber session auto-block',
           cyberSessionBlockHint: 'When enabled, sessions hit by upstream cyber_policy are blocked locally for the TTL and no longer forwarded. Only the offending session is blocked; other sessions on the same key are unaffected.',
           cyberSessionBlockTTL: 'Block TTL (seconds)',
+        },
+        userSidebar: {
+          title: 'User Sidebar',
+          description: 'Control growth-world entries in the logged-in user sidebar. Jisudeng Play never shows channel items to end users — use the admin console for channel ops.',
+          imageStudioHint: 'Image Studio at /image-studio',
+          checkinHint: 'Daily check-in and Play Hub card',
+          arenaHint: 'Token Farm at /arena',
+          blindboxHint: 'Blind box at /blindbox',
+          quizHint: 'Quiz quest at /quiz-quest',
+          agentTeamHint: 'Agent Team at /agent-team',
+          affiliateHint: 'Affiliate at /affiliate (synced with rebate settings below)',
         },
         play: {
           title: 'Play Center',

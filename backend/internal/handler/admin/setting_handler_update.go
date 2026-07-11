@@ -302,6 +302,14 @@ type UpdateSettingsRequest struct {
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
 
+	// User sidebar — Play growth features
+	ImageStudioEnabled   *bool `json:"image_studio_enabled"`
+	PlayCheckinEnabled   *bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled     *bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled  *bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled      *bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled *bool `json:"play_agent_team_enabled"`
+
 	// 风控中心功能开关
 	RiskControlEnabled *bool `json:"risk_control_enabled"`
 
@@ -1511,6 +1519,42 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AffiliateEnabled
 		}(),
+		ImageStudioEnabled: func() bool {
+			if req.ImageStudioEnabled != nil {
+				return *req.ImageStudioEnabled
+			}
+			return previousSettings.ImageStudioEnabled
+		}(),
+		PlayCheckinEnabled: func() bool {
+			if req.PlayCheckinEnabled != nil {
+				return *req.PlayCheckinEnabled
+			}
+			return previousSettings.PlayCheckinEnabled
+		}(),
+		PlayArenaEnabled: func() bool {
+			if req.PlayArenaEnabled != nil {
+				return *req.PlayArenaEnabled
+			}
+			return previousSettings.PlayArenaEnabled
+		}(),
+		PlayBlindboxEnabled: func() bool {
+			if req.PlayBlindboxEnabled != nil {
+				return *req.PlayBlindboxEnabled
+			}
+			return previousSettings.PlayBlindboxEnabled
+		}(),
+		PlayQuizEnabled: func() bool {
+			if req.PlayQuizEnabled != nil {
+				return *req.PlayQuizEnabled
+			}
+			return previousSettings.PlayQuizEnabled
+		}(),
+		PlayAgentTeamEnabled: func() bool {
+			if req.PlayAgentTeamEnabled != nil {
+				return *req.PlayAgentTeamEnabled
+			}
+			return previousSettings.PlayAgentTeamEnabled
+		}(),
 		RiskControlEnabled: func() bool {
 			if req.RiskControlEnabled != nil {
 				return *req.RiskControlEnabled
@@ -1882,6 +1926,13 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		AvailableChannelsEnabled: updatedSettings.AvailableChannelsEnabled,
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
+
+		ImageStudioEnabled:   updatedSettings.ImageStudioEnabled,
+		PlayCheckinEnabled:   updatedSettings.PlayCheckinEnabled,
+		PlayArenaEnabled:     updatedSettings.PlayArenaEnabled,
+		PlayBlindboxEnabled:  updatedSettings.PlayBlindboxEnabled,
+		PlayQuizEnabled:      updatedSettings.PlayQuizEnabled,
+		PlayAgentTeamEnabled: updatedSettings.PlayAgentTeamEnabled,
 
 		RiskControlEnabled:          updatedSettings.RiskControlEnabled,
 		CyberSessionBlockEnabled:    updatedSettings.CyberSessionBlockEnabled,

@@ -5937,19 +5937,19 @@ export default {
       features: {
         channelMonitor: {
           title: '渠道监控',
-          description: '定期对配置的渠道发起健康检查，向用户展示可用性与延迟。关闭后调度器停止扫描，用户端列表为空。',
+          description: '定期对配置的渠道发起健康检查。仅管理后台使用；极速蹬用户侧栏不展示渠道入口。',
           configureLink: '前往 渠道管理 > 渠道监控 配置监控项',
           enabled: '启用渠道监控',
-          enabledHint: '关闭后后台不再执行定时检测，已有数据保留。',
+          enabledHint: '关闭后后台不再执行定时检测，已有数据保留。不影响用户侧栏（用户侧栏本就不含渠道项）。',
           defaultInterval: '默认检测间隔（秒）',
           defaultIntervalHint: '新建渠道监控时表单的默认值，可被单个渠道覆盖。范围 15 – 3600 秒。',
         },
         availableChannels: {
           title: '可用渠道',
-          description: '向已登录用户展示他们能访问的渠道、模型和定价聚合视图。默认关闭。',
+          description: '渠道定价聚合 API。极速蹬 Play 不向普通用户展示侧栏入口；此开关主要供 upstream 或直连 URL 场景。',
           configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',
           enabled: '启用可用渠道',
-          enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
+          enabledHint: '关闭后 API 返回空数组。Play 用户侧栏始终隐藏此项。',
         },
         riskControl: {
           title: '风控中心',
@@ -5960,6 +5960,17 @@ export default {
           cyberSessionBlock: 'cyber 会话自动屏蔽',
           cyberSessionBlockHint: '开启后,被上游网络安全策略(cyber_policy)拦截的会话将在 TTL 内被本地屏蔽,不再发往上游。仅屏蔽该会话,不影响同 Key 其他会话。',
           cyberSessionBlockTTL: '屏蔽时长(秒)',
+        },
+        userSidebar: {
+          title: '用户侧栏',
+          description: '控制登录用户在侧边栏看到的增长世界入口。极速蹬不向普通用户展示「可用渠道 / 渠道状态」，渠道运维请走管理后台。',
+          imageStudioHint: '图像工作室 /image-studio',
+          checkinHint: '每日签到与玩法中枢签到卡片',
+          arenaHint: 'Token 农场 /arena',
+          blindboxHint: '盲盒 /blindbox',
+          quizHint: '答题闯关 /quiz-quest',
+          agentTeamHint: 'Agent Team /agent-team',
+          affiliateHint: '邀请返利 /affiliate（与下方返利配置联动）',
         },
         play: {
           title: '玩法中心',

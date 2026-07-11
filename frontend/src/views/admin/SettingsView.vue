@@ -5826,6 +5826,68 @@
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.userSidebar.title') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.userSidebar.description') }}
+            </p>
+          </div>
+          <div class="divide-y divide-gray-100 dark:divide-dark-700">
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.imageStudio') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.imageStudioHint') }}</p>
+              </div>
+              <Toggle v-model="form.image_studio_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.checkIn') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.checkinHint') }}</p>
+              </div>
+              <Toggle v-model="form.play_checkin_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.arena') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.arenaHint') }}</p>
+              </div>
+              <Toggle v-model="form.play_arena_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.blindbox') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.blindboxHint') }}</p>
+              </div>
+              <Toggle v-model="form.play_blindbox_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.quizQuest') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.quizHint') }}</p>
+              </div>
+              <Toggle v-model="form.play_quiz_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.agentTeam') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.agentTeamHint') }}</p>
+              </div>
+              <Toggle v-model="form.play_agent_team_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.affiliate') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.affiliateHint') }}</p>
+              </div>
+              <Toggle v-model="form.affiliate_enabled" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ t('admin.settings.features.channelMonitor.title') }}
             </h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -8324,6 +8386,13 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  // User sidebar — Play growth features
+  image_studio_enabled: false,
+  play_checkin_enabled: false,
+  play_arena_enabled: false,
+  play_blindbox_enabled: false,
+  play_quiz_enabled: false,
+  play_agent_team_enabled: false,
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: false,
   // Allow user view error requests
@@ -9700,6 +9769,12 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      image_studio_enabled: form.image_studio_enabled,
+      play_checkin_enabled: form.play_checkin_enabled,
+      play_arena_enabled: form.play_arena_enabled,
+      play_blindbox_enabled: form.play_blindbox_enabled,
+      play_quiz_enabled: form.play_quiz_enabled,
+      play_agent_team_enabled: form.play_agent_team_enabled,
       // Affiliate (邀请返利) feature switch
       affiliate_enabled: form.affiliate_enabled,
       allow_user_view_error_requests: form.allow_user_view_error_requests,

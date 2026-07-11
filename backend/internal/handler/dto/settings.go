@@ -285,6 +285,14 @@ type SystemSettings struct {
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
+	// User sidebar — Play growth features
+	ImageStudioEnabled   bool `json:"image_studio_enabled"`
+	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled     bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
+
 	// OpenAI fast/flex policy
 	OpenAIFastPolicySettings *OpenAIFastPolicySettings `json:"openai_fast_policy_settings,omitempty"`
 

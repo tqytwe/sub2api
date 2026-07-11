@@ -648,6 +648,14 @@ export interface SystemSettings {
   // Affiliate (邀请返利) feature switch
   affiliate_enabled: boolean;
 
+  // User sidebar — Play growth features
+  image_studio_enabled: boolean;
+  play_checkin_enabled: boolean;
+  play_arena_enabled: boolean;
+  play_blindbox_enabled: boolean;
+  play_quiz_enabled: boolean;
+  play_agent_team_enabled: boolean;
+
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;
 
@@ -908,6 +916,14 @@ export interface UpdateSettingsRequest {
 
   // Affiliate (邀请返利) feature switch
   affiliate_enabled?: boolean;
+
+  // User sidebar — Play growth features
+  image_studio_enabled?: boolean;
+  play_checkin_enabled?: boolean;
+  play_arena_enabled?: boolean;
+  play_blindbox_enabled?: boolean;
+  play_quiz_enabled?: boolean;
+  play_agent_team_enabled?: boolean;
 
   // OpenAI fast/flex policy
   openai_fast_policy_settings?: OpenAIFastPolicySettings;

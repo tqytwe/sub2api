@@ -40,6 +40,17 @@ export default {
           cyberSessionBlockHint: 'When enabled, sessions hit by upstream cyber_policy are blocked locally for the TTL and no longer forwarded. Only the offending session is blocked; other sessions on the same key are unaffected.',
           cyberSessionBlockTTL: 'Block TTL (seconds)',
         },
+        userSidebar: {
+          title: 'User Sidebar',
+          description: 'Control growth-world entries in the logged-in user sidebar. Jisudeng Play never shows channel items to end users.',
+          imageStudioHint: 'Image Studio at /image-studio',
+          checkinHint: 'Daily check-in and Play Hub card',
+          arenaHint: 'Token Farm at /arena',
+          blindboxHint: 'Blind box at /blindbox',
+          quizHint: 'Quiz quest at /quiz-quest',
+          agentTeamHint: 'Agent Team at /agent-team',
+          affiliateHint: 'Affiliate at /affiliate',
+        },
         affiliate: {
           title: 'Affiliate (Invite Rebate)',
           description: 'Existing users invite new ones; the inviter earns a percentage rebate on the invitee’s recharges. Disabled by default.',
