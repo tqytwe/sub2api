@@ -8,6 +8,7 @@ import playAPI, { type PlayHubSummary } from '@/api/play'
 import { resolveCampaignDisplayName } from '@/utils/playCampaign'
 import { useAuthStore } from '@/stores/auth'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
+import '@/styles/growth-world.css'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -56,21 +57,6 @@ const playCards = computed(() => {
     action?: string
     enabled: boolean
   }> = []
-
-  if (isFeatureFlagEnabled(FeatureFlags.imageStudio)) {
-    const studio = hub.value?.image_studio
-    cards.push({
-      key: 'image-studio',
-      title: t('nav.imageStudio'),
-      subtitle: studio?.has_completed_job
-        ? t('playHub.studioDone', { count: studio.images_today ?? 0 })
-        : t('playHub.studioPending'),
-      route: '/image-studio',
-      badge: studio && !studio.has_completed_job ? t('playHub.badgePending') : undefined,
-      action: t('playHub.actionStudio'),
-      enabled: !!studio?.enabled,
-    })
-  }
 
   if (isFeatureFlagEnabled(FeatureFlags.playCheckin)) {
     const c = hub.value?.checkin
@@ -136,39 +122,6 @@ const playCards = computed(() => {
     })
   }
 
-  if (isFeatureFlagEnabled(FeatureFlags.playAgentTeam)) {
-    const team = hub.value?.team?.team
-    let subtitle = t('playHub.teamNone')
-    if (team) {
-      subtitle = t('playHub.teamJoined', { members: team.member_count, tokens: team.token_sum.toLocaleString() })
-      const aff = team.affiliate
-      if (aff?.enabled && !aff.milestone_reached && aff.tokens_to_milestone) {
-        subtitle = t('playHub.teamAffiliateRemaining', { remaining: aff.tokens_to_milestone.toLocaleString() })
-      } else if (aff?.milestone_reached) {
-        subtitle = t('playHub.teamAffiliateReached')
-      }
-    }
-    cards.push({
-      key: 'team',
-      title: t('nav.agentTeam'),
-      subtitle: team
-        ? subtitle
-        : t('playHub.teamNone'),
-      route: '/agent-team',
-      enabled: !!hub.value?.team?.enabled,
-    })
-  }
-
-  if (isFeatureFlagEnabled(FeatureFlags.affiliate)) {
-    cards.push({
-      key: 'affiliate',
-      title: t('nav.affiliate'),
-      subtitle: t('playHub.affiliateHint'),
-      route: '/affiliate',
-      enabled: true,
-    })
-  }
-
   return cards.filter((c) => c.enabled)
 })
 
@@ -199,146 +152,139 @@ onMounted(load)
 
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-4xl space-y-6">
+    <div class="gw-page gw-page--wide space-y-6 pb-10">
       <div class="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p class="text-sm font-medium text-primary-600 dark:text-primary-400">{{ t('playHub.eyebrow') }}</p>
-          <h1 class="mt-1 text-2xl font-bold text-gray-900 dark:text-white">{{ t('playHub.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ t('playHub.subtitle') }}</p>
+          <p class="gw-eyebrow">{{ t('playHub.eyebrow') }}</p>
+          <h1 class="gw-title">{{ t('playHub.title') }}</h1>
+          <p class="gw-subtitle">{{ t('playHub.subtitle') }}</p>
         </div>
-        <div v-if="hub?.pending_actions" class="rounded-full bg-amber-100 px-3 py-1 text-sm font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200">
+        <span
+          v-if="hub?.pending_actions"
+          class="gw-buff"
+        >
           {{ t('playHub.pending', { count: hub.pending_actions }) }}
-        </div>
+        </span>
       </div>
 
-      <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-violet-600 to-indigo-700 px-6 py-6 text-white">
-          <div class="flex flex-wrap items-center justify-between gap-4">
-            <div>
-              <p class="text-sm text-violet-200">{{ t('playHub.balanceLabel') }}</p>
-              <p class="text-3xl font-bold">${{ balance.toFixed(2) }}</p>
-              <p v-if="hub?.growth.recharge_multiplier && hub.growth.recharge_multiplier !== 1" class="mt-1 text-sm text-violet-200">
-                {{ t('playHub.rechargeBoost', { mult: hub.growth.recharge_multiplier }) }}
-              </p>
-            </div>
-            <button
-              v-if="hub?.growth.payment_enabled"
-              type="button"
-              class="rounded-xl bg-white px-5 py-2.5 text-sm font-semibold text-indigo-700 transition hover:bg-violet-50"
-              @click="goPurchase"
-            >
-              {{ t('playHub.rechargeCta') }}
-            </button>
-          </div>
-        </div>
-        <div v-if="showGrowthCta" class="border-t border-violet-500/20 bg-violet-50 px-6 py-3 text-sm text-violet-900 dark:bg-violet-950/30 dark:text-violet-200">
-          <span v-if="hub?.growth.first_recharge_eligible">{{ t('playHub.firstRecharge') }}</span>
-          <span v-else-if="hub?.growth.balance_low_warning">
-            {{ t('playHub.balanceLow', { threshold: (hub.growth.balance_low_threshold ?? 0).toFixed(2) }) }}
-          </span>
-        </div>
-      </div>
-
-      <div v-if="vip" class="card p-5">
-        <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="gw-hub-balance">
+        <div class="gw-hub-balance-row">
           <div>
-            <p class="text-sm font-medium text-gray-500 dark:text-dark-400">{{ t('playHub.vipTitle') }}</p>
-            <div class="mt-1 flex flex-wrap items-center gap-2">
-              <span class="rounded-full bg-amber-100 px-3 py-1 text-sm font-semibold text-amber-900 dark:bg-amber-900/40 dark:text-amber-100">
-                {{ vip.label }}
-              </span>
-              <span class="text-sm text-gray-500 dark:text-dark-400">
-                {{ t('playHub.vipRecharged', { amount: (hub?.growth.total_recharged ?? 0).toFixed(2) }) }}
-              </span>
-            </div>
-            <p v-if="vip.next_tier" class="mt-2 text-sm text-primary-600 dark:text-primary-400">
-              {{ t('playHub.vipNext', { amount: (vip.amount_to_next ?? 0).toFixed(2), label: vip.next_label ?? '' }) }}
+            <p class="gw-balance-label">{{ t('playHub.balanceLabel') }}</p>
+            <p class="gw-balance-value">${{ balance.toFixed(2) }}</p>
+            <p v-if="hub?.growth.recharge_multiplier && hub.growth.recharge_multiplier !== 1" class="gw-subtitle">
+              {{ t('playHub.rechargeBoost', { mult: hub.growth.recharge_multiplier }) }}
             </p>
-            <p v-else class="mt-2 text-sm text-emerald-600 dark:text-emerald-400">{{ t('playHub.vipMax') }}</p>
           </div>
           <button
-            v-if="hub?.growth.payment_enabled && vip.next_tier"
+            v-if="hub?.growth.payment_enabled"
             type="button"
-            class="btn btn-secondary text-sm"
+            class="gw-btn gw-btn-primary"
             @click="goPurchase"
           >
             {{ t('playHub.rechargeCta') }}
           </button>
         </div>
-        <ul v-if="vipPerks.length" class="mt-4 space-y-1 text-sm text-gray-600 dark:text-dark-300">
+        <p v-if="showGrowthCta" class="gw-subtitle mt-3 border-t border-[var(--gw-line)] pt-3">
+          <span v-if="hub?.growth.first_recharge_eligible">{{ t('playHub.firstRecharge') }}</span>
+          <span v-else-if="hub?.growth.balance_low_warning">
+            {{ t('playHub.balanceLow', { threshold: (hub.growth.balance_low_threshold ?? 0).toFixed(2) }) }}
+          </span>
+        </p>
+      </div>
+
+      <div v-if="vip" class="gw-panel">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p class="gw-balance-label">{{ t('playHub.vipTitle') }}</p>
+            <div class="mt-1 flex flex-wrap items-center gap-2">
+              <span class="gw-buff">{{ vip.label }}</span>
+              <span class="gw-subtitle">
+                {{ t('playHub.vipRecharged', { amount: (hub?.growth.total_recharged ?? 0).toFixed(2) }) }}
+              </span>
+            </div>
+            <p v-if="vip.next_tier" class="gw-subtitle mt-2">
+              {{ t('playHub.vipNext', { amount: (vip.amount_to_next ?? 0).toFixed(2), label: vip.next_label ?? '' }) }}
+            </p>
+            <p v-else class="gw-subtitle mt-2" style="color: var(--gw-ok)">{{ t('playHub.vipMax') }}</p>
+          </div>
+          <button
+            v-if="hub?.growth.payment_enabled && vip.next_tier"
+            type="button"
+            class="gw-btn gw-btn-secondary"
+            @click="goPurchase"
+          >
+            {{ t('playHub.rechargeCta') }}
+          </button>
+        </div>
+        <ul v-if="vipPerks.length" class="mt-4 space-y-1 gw-subtitle">
           <li v-for="perk in vipPerks" :key="perk">· {{ perkLabel(perk) }}</li>
         </ul>
       </div>
 
-      <div v-if="primaryCampaign" class="card border-violet-200 bg-violet-50 p-5 dark:border-violet-800 dark:bg-violet-950/30">
-        <p class="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-300">
-          {{ t('playHub.campaignEyebrow') }}
-        </p>
-        <h2 class="mt-1 text-lg font-semibold text-gray-900 dark:text-white">{{ campaignDisplayName }}</h2>
-        <ul v-if="campaignPerkLines.length" class="mt-2 space-y-1 text-sm text-violet-900 dark:text-violet-200">
+      <div v-if="primaryCampaign" class="gw-panel">
+        <p class="gw-balance-label">{{ t('playHub.campaignEyebrow') }}</p>
+        <h2 class="gw-section-title">{{ campaignDisplayName }}</h2>
+        <ul v-if="campaignPerkLines.length" class="mt-2 space-y-1 gw-subtitle">
           <li v-for="(line, idx) in campaignPerkLines" :key="idx">· {{ line }}</li>
         </ul>
         <button
           v-if="hub?.growth.payment_enabled && primaryCampaign.rules.recharge_bonus_pct"
           type="button"
-          class="btn btn-primary btn-sm mt-4"
+          class="gw-btn gw-btn-primary mt-4"
           @click="goPurchase"
         >
           {{ t('playHub.rechargeCta') }}
         </button>
       </div>
 
-      <div v-if="loading" class="py-12 text-center text-gray-500 dark:text-dark-400">{{ t('models.loading') }}</div>
-      <div v-else-if="!hub?.any_enabled && playCards.length === 0" class="card p-8 text-center text-gray-500 dark:text-dark-400">
+      <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
+      <div v-else-if="!hub?.any_enabled && playCards.length === 0" class="gw-panel py-8 text-center gw-subtitle">
         {{ t('playHub.empty') }}
       </div>
       <template v-else>
-        <div v-if="hub?.quests?.enabled && hub.quests.tasks?.length" class="card p-4">
+        <div v-if="hub?.quests?.enabled && hub.quests.tasks?.length" class="gw-quest-banner">
           <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('playHub.questsTitle') }}</h2>
-            <span class="text-sm text-gray-500">
+            <h2 class="gw-quest-banner-title">{{ t('playHub.questsTitle') }}</h2>
+            <span class="gw-buff">
               {{ t('playHub.questsEnergy', { energy: hub.quests.energy, level: hub.quests.level }) }}
             </span>
           </div>
-          <ul class="mt-3 space-y-2 text-sm">
-            <li v-for="task in hub.quests.tasks" :key="task.key" class="flex items-center justify-between gap-3">
-              <span>{{ task.completed ? '☑' : '☐' }} {{ t(`playHub.quest.${task.key}`, task.key) }} (+{{ task.energy }})</span>
-              <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="text-primary-600 hover:underline">
+          <ul class="mt-3">
+            <li v-for="task in hub.quests.tasks" :key="task.key" class="gw-quest-item">
+              <span>
+                <span class="gw-quest-check" :class="{ done: task.completed }">{{ task.completed ? '✓' : '' }}</span>
+                {{ t(`playHub.quest.${task.key}`, task.key) }} (+{{ task.energy }})
+              </span>
+              <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="gw-link">
                 {{ t('playHub.actionGo') }}
               </router-link>
             </li>
           </ul>
         </div>
         <div class="grid gap-4 sm:grid-cols-2">
-        <router-link
-          v-for="card in playCards"
-          :key="card.key"
-          :to="card.route"
-          class="card group p-5 transition hover:shadow-md"
-        >
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h2 class="font-semibold text-gray-900 group-hover:text-primary-600 dark:text-white dark:group-hover:text-primary-400">
-                {{ card.title }}
-              </h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-dark-400">{{ card.subtitle }}</p>
-              <p v-if="card.action" class="mt-2 text-xs font-medium text-primary-600 dark:text-primary-400">{{ card.action }} →</p>
+          <router-link
+            v-for="card in playCards"
+            :key="card.key"
+            :to="card.route"
+            class="gw-hub-card group"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div class="min-w-0">
+                <h2 class="gw-section-title">{{ card.title }}</h2>
+                <p class="gw-subtitle">{{ card.subtitle }}</p>
+                <p v-if="card.action" class="mt-2 text-xs font-medium" style="color: var(--gw-ink)">{{ card.action }} →</p>
+              </div>
+              <span v-if="card.badge" class="gw-buff flex-shrink-0">{{ card.badge }}</span>
+              <Icon v-else name="chevronRight" size="sm" class="flex-shrink-0" style="color: var(--gw-ink-3)" />
             </div>
-            <span
-              v-if="card.badge"
-              class="flex-shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
-            >
-              {{ card.badge }}
-            </span>
-            <Icon name="chevronRight" size="sm" class="flex-shrink-0 text-gray-300 group-hover:text-primary-500 dark:text-dark-600" />
-          </div>
-        </router-link>
+          </router-link>
         </div>
       </template>
 
       <div class="flex flex-wrap gap-3">
-        <router-link to="/keys" class="btn btn-secondary text-sm">{{ t('playHub.goKeys') }}</router-link>
-        <router-link to="/purchase" class="btn btn-secondary text-sm">{{ t('nav.buySubscription') }}</router-link>
+        <router-link to="/keys" class="gw-btn gw-btn-secondary">{{ t('playHub.goKeys') }}</router-link>
+        <router-link to="/purchase" class="gw-btn gw-btn-secondary">{{ t('nav.buySubscription') }}</router-link>
       </div>
     </div>
   </AppLayout>

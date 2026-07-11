@@ -737,13 +737,10 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 function buildGrowthNavChildren(): NavItem[] {
   return [
     { path: '/play', label: t('nav.playHub'), icon: DashboardIcon, hideInSimpleMode: true },
-    { path: '/image-studio', label: t('nav.imageStudio'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagImageStudio },
     { path: '/check-in', label: t('nav.checkIn'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagPlayCheckin },
     { path: '/arena', label: t('nav.arena'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagPlayArena },
     { path: '/blindbox', label: t('nav.blindbox'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagPlayBlindbox },
     { path: '/quiz-quest', label: t('nav.quizQuest'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagPlayQuiz },
-    { path: '/agent-team', label: t('nav.agentTeam'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagPlayAgentTeam },
-    { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
   ]
 }
 
@@ -776,6 +773,8 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
       expandOnly: true,
       children: buildGrowthNavChildren(),
     },
+    { path: '/agent-team', label: t('nav.agentTeam'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagPlayAgentTeam },
+    { path: '/affiliate', label: t('nav.affiliate'), icon: UsersIcon, hideInSimpleMode: true, featureFlag: flagAffiliate },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
     ...customMenuItemsForUser.value.map((item): NavItem => ({
       path: `/custom/${item.id}`,

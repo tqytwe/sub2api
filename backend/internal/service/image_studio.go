@@ -61,6 +61,7 @@ type ImageStudioGenerateRequest struct {
 	Count        int     `json:"count"`
 	ExpertPrompt *string `json:"expert_prompt"`
 	APIKeyID     int64   `json:"api_key_id"`
+	RetainDays   *int    `json:"retain_days,omitempty"`
 }
 
 type ImageStudioGenerateResult struct {
@@ -85,6 +86,9 @@ type ImageStudioRepository interface {
 	ListJobs(ctx context.Context, userID int64, limit int) ([]ImageStudioJob, error)
 	DeleteJob(ctx context.Context, userID int64, jobID string) error
 	CountCompletedToday(ctx context.Context, userID int64, dayStart time.Time) (int, error)
+	UpdateJobStatus(ctx context.Context, jobID string, status string) error
+	DeleteExpiredJobsBefore(ctx context.Context, before time.Time) (int64, error)
+	HasCompletedJob(ctx context.Context, userID int64) (bool, error)
 }
 
 type ImageStudioHubStatus struct {
@@ -148,6 +152,9 @@ func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templat
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
+	}
+	if user.TotalRecharged <= 0 && count > 1 {
+		count = 1
 	}
 	cost, err := s.estimateCost(ctx, userID, apiKeyID, size, count)
 	if err != nil {
@@ -224,6 +231,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if user.TotalRecharged <= 0 && count > 1 {
 		count = 1
 	}
+	if count <= 0 {
+		count = 1
+	}
 	apiKey, err := s.resolveAPIKey(ctx, userID, req.APIKeyID)
 	if err != nil {
 		return nil, "", err
@@ -236,7 +246,17 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if user.Balance < est {
 		return nil, "", infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance for image generation")
 	}
-	expires := time.Now().AddDate(0, 0, 7)
+	var expires *time.Time
+	if req.RetainDays != nil && *req.RetainDays == 0 {
+		expires = nil
+	} else {
+		days := 7
+		if req.RetainDays != nil && *req.RetainDays > 0 {
+			days = *req.RetainDays
+		}
+		t := time.Now().AddDate(0, 0, days)
+		expires = &t
+	}
 	job := &ImageStudioJob{
 		ID:            uuid.NewString(),
 		UserID:        userID,
@@ -247,7 +267,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		Status:        ImageStudioJobStatusPending,
 		EstimatedCost: est,
 		APIKeyID:      &apiKey.ID,
-		ExpiresAt:     &expires,
+		ExpiresAt:     expires,
 	}
 	if err := s.repo.InsertJob(ctx, job); err != nil {
 		return nil, "", err
@@ -314,6 +334,14 @@ func (s *ImageStudioService) DeleteJob(ctx context.Context, userID int64, jobID 
 	return s.repo.DeleteJob(ctx, userID, jobID)
 }
 
+func (s *ImageStudioService) MarkJobRunning(ctx context.Context, jobID string) error {
+	return s.repo.UpdateJobStatus(ctx, jobID, ImageStudioJobStatusRunning)
+}
+
+func (s *ImageStudioService) PurgeExpiredJobs(ctx context.Context, now time.Time) (int64, error) {
+	return s.repo.DeleteExpiredJobsBefore(ctx, now)
+}
+
 func (s *ImageStudioService) GetHubStatus(ctx context.Context, userID int64) (*ImageStudioHubStatus, error) {
 	out := &ImageStudioHubStatus{Enabled: s.IsEnabled(ctx)}
 	if !out.Enabled || userID <= 0 || s.playService == nil {
@@ -326,7 +354,11 @@ func (s *ImageStudioService) GetHubStatus(ctx context.Context, userID int64) (*I
 		return nil, err
 	}
 	out.ImagesToday = count
-	out.HasCompletedJob = count > 0
+	hasJob, err := s.repo.HasCompletedJob(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	out.HasCompletedJob = hasJob || count > 0
 	return out, nil
 }
 

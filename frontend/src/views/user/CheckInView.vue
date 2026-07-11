@@ -3,10 +3,10 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import Icon from '@/components/icons/Icon.vue'
 import playAPI, { type PlayCheckinStatus } from '@/api/play'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
+import '@/styles/growth-world.css'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -102,61 +102,57 @@ onMounted(loadStatus)
 
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-2xl space-y-6">
-      <div class="card overflow-hidden">
-        <div class="bg-gradient-to-br from-emerald-500 to-teal-600 px-6 py-8 text-center">
-          <div
-            class="mb-4 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm"
-          >
-            <Icon name="calendar" size="xl" class="text-white" />
-          </div>
-          <p class="text-sm font-medium text-emerald-100">{{ t('checkin.title') }}</p>
-          <p class="mt-2 text-4xl font-bold text-white">
-            ${{ user?.balance?.toFixed(2) || '0.00' }}
-          </p>
-          <p v-if="status?.streak_count" class="mt-2 text-sm font-medium text-emerald-100">
-            {{ t('checkin.streak', { days: status.streak_count }) }}
-          </p>
-          <p v-if="status?.enabled" class="mt-2 text-sm text-emerald-100">
-            {{ t('checkin.rewardHint', { amount: status.reward_amount.toFixed(2) }) }}
-          </p>
-          <p v-if="status?.recharge_boost_active" class="mt-1 text-xs text-amber-200">
-            {{ t('checkin.boostActive', { mult: status.boost_checkin_multiplier || 2 }) }}
-          </p>
-        </div>
+    <div class="gw-page space-y-6 pb-10">
+      <div>
+        <p class="gw-eyebrow">{{ t('checkin.eyebrow', 'CHECK-IN') }}</p>
+        <h1 class="gw-title">{{ t('checkin.title') }}</h1>
       </div>
 
-      <div v-if="status?.next_milestone_days" class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+      <div class="gw-hub-balance text-center">
+        <p class="gw-balance-label">{{ t('checkin.balanceLabel', 'Balance') }}</p>
+        <p class="gw-balance-value">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
+        <p v-if="status?.streak_count" class="gw-subtitle mt-2">
+          {{ t('checkin.streak', { days: status.streak_count }) }}
+        </p>
+        <p v-if="status?.enabled" class="gw-subtitle">
+          {{ t('checkin.rewardHint', { amount: status.reward_amount.toFixed(2) }) }}
+        </p>
+        <p v-if="status?.recharge_boost_active" class="gw-buff mt-2 inline-flex">
+          {{ t('checkin.boostActive', { mult: status.boost_checkin_multiplier || 2 }) }}
+        </p>
+      </div>
+
+      <div v-if="status?.next_milestone_days" class="gw-quest-banner">
         {{ t('checkin.nextMilestone', { days: status.next_milestone_days, bonus: (status.next_milestone_bonus || 0).toFixed(2) }) }}
       </div>
 
-      <div v-if="status?.can_makeup" class="rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 dark:border-violet-800 dark:bg-violet-950/30">
-        <p class="text-sm text-violet-900 dark:text-violet-200">{{ t('checkin.makeupHint', { date: status.makeup_date }) }}</p>
+      <div v-if="status?.can_makeup" class="gw-panel">
+        <p class="gw-subtitle">{{ t('checkin.makeupHint', { date: status.makeup_date }) }}</p>
         <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" class="btn btn-primary text-sm" :disabled="!canMakeup" @click="handleMakeup">
+          <button type="button" class="gw-btn gw-btn-primary" :disabled="!canMakeup" @click="handleMakeup">
             {{ makingUp ? t('checkin.makeupSubmitting') : t('checkin.makeupButton') }}
           </button>
-          <button type="button" class="btn btn-secondary text-sm" @click="goPurchase">{{ t('checkin.rechargeCta') }}</button>
+          <button type="button" class="gw-btn gw-btn-secondary" @click="goPurchase">{{ t('checkin.rechargeCta') }}</button>
         </div>
       </div>
 
-      <div class="card p-6">
-        <div v-if="loading" class="text-center text-gray-500 dark:text-dark-400">
+      <div class="gw-panel">
+        <div v-if="loading" class="gw-polling text-center py-6">
           {{ t('models.loading') }}
         </div>
-        <div v-else-if="!status?.enabled" class="text-center text-gray-500 dark:text-dark-400">
+        <div v-else-if="!status?.enabled" class="gw-subtitle text-center py-6">
           {{ t('checkin.disabled') }}
         </div>
         <div v-else class="space-y-4">
-          <p class="text-sm text-gray-600 dark:text-dark-300">
+          <p class="gw-subtitle">
             {{ t('checkin.serverDate', { date: status.server_date }) }}
           </p>
-          <p v-if="status.checked_in_today" class="text-sm font-medium text-emerald-600 dark:text-emerald-400">
+          <p v-if="status.checked_in_today" class="text-sm font-medium" style="color: var(--gw-ok)">
             {{ t('checkin.alreadyDone') }}
           </p>
           <button
             type="button"
-            class="btn btn-primary w-full py-3"
+            class="gw-btn gw-btn-primary w-full"
             :disabled="!canCheckIn"
             @click="handleCheckin"
           >

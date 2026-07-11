@@ -213,3 +213,37 @@ func (r *imageStudioRepository) CountCompletedToday(ctx context.Context, userID 
 	}
 	return count, nil
 }
+
+func (r *imageStudioRepository) UpdateJobStatus(ctx context.Context, jobID string, status string) error {
+	exec := r.sqlExec(ctx)
+	_, err := exec.ExecContext(ctx, `UPDATE image_studio_jobs SET status = $2 WHERE id = $1::uuid`, jobID, status)
+	if err != nil {
+		return fmt.Errorf("update image studio job status: %w", err)
+	}
+	return nil
+}
+
+func (r *imageStudioRepository) DeleteExpiredJobsBefore(ctx context.Context, before time.Time) (int64, error) {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		DELETE FROM image_studio_jobs
+		WHERE expires_at IS NOT NULL AND expires_at < $1`, before)
+	if err != nil {
+		return 0, fmt.Errorf("delete expired image studio jobs: %w", err)
+	}
+	n, _ := res.RowsAffected()
+	return n, nil
+}
+
+func (r *imageStudioRepository) HasCompletedJob(ctx context.Context, userID int64) (bool, error) {
+	exec := r.sqlExec(ctx)
+	var exists bool
+	err := scanSingleRow(ctx, exec, `
+		SELECT EXISTS(
+			SELECT 1 FROM image_studio_jobs WHERE user_id = $1 AND status = 'completed' LIMIT 1
+		)`, []any{userID}, &exists)
+	if err != nil {
+		return false, fmt.Errorf("has completed image studio job: %w", err)
+	}
+	return exists, nil
+}

@@ -44,7 +44,7 @@ export interface ImageStudioJob {
   template_id: string
   size: string
   count: number
-  status: string
+  status: 'pending' | 'running' | 'completed' | 'failed' | string
   estimated_cost: number
   actual_cost?: number
   error_message?: string
@@ -60,10 +60,13 @@ export interface ImageStudioGenerateRequest {
   count?: number
   expert_prompt?: string | null
   api_key_id: number
+  retain_days?: number
 }
 
 export interface ImageStudioGenerateResult {
   job: ImageStudioJob
+  async?: boolean
+  poll?: string
   quest_progress?: PlayQuestToday
 }
 
@@ -87,6 +90,30 @@ export async function generateImageStudio(body: ImageStudioGenerateRequest): Pro
   return data
 }
 
+export async function getImageStudioJob(id: string): Promise<ImageStudioJob> {
+  const { data } = await apiClient.get<ImageStudioJob>(`/image-studio/jobs/${id}`)
+  return data
+}
+
+export async function pollImageStudioJob(
+  id: string,
+  opts?: { intervalMs?: number; timeoutMs?: number },
+): Promise<ImageStudioJob> {
+  const intervalMs = opts?.intervalMs ?? 2000
+  const timeoutMs = opts?.timeoutMs ?? 120000
+  const start = Date.now()
+  for (;;) {
+    const job = await getImageStudioJob(id)
+    if (job.status === 'completed' || job.status === 'failed') {
+      return job
+    }
+    if (Date.now() - start > timeoutMs) {
+      throw new Error('IMAGE_STUDIO_POLL_TIMEOUT')
+    }
+    await new Promise((r) => setTimeout(r, intervalMs))
+  }
+}
+
 export async function listImageStudioJobs(limit = 20): Promise<ImageStudioJob[]> {
   const { data } = await apiClient.get<{ jobs: ImageStudioJob[] }>('/image-studio/jobs', { params: { limit } })
   return data.jobs ?? []
@@ -100,6 +127,8 @@ export const imageStudioAPI = {
   getImageStudioTemplates,
   estimateImageStudio,
   generateImageStudio,
+  getImageStudioJob,
+  pollImageStudioJob,
   listImageStudioJobs,
   deleteImageStudioJob,
 }

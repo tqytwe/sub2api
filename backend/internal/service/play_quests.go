@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"time"
 )
 
 func (s *PlayService) MarkQuestCompleted(ctx context.Context, userID int64, questKey string) error {
@@ -217,6 +218,9 @@ func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64
 		if amount <= 0 {
 			continue
 		}
+		if result.TotalAwarded+amount > playDailyArenaDailyBudgetUSD {
+			break
+		}
 		idempotencyKey := "arena_daily_settlement:" + strconv.FormatInt(period.ID, 10) + ":" + strconv.FormatInt(row.UserID, 10)
 		if err := s.grantBalance(ctx, row.UserID, amount, PlayRewardSourceArenaDaily, idempotencyKey, map[string]any{
 			"period_id": period.ID,
@@ -235,4 +239,19 @@ func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64
 	}
 	_ = rt
 	return result, nil
+}
+
+func (s *PlayService) SettleExpiredDailyArenaPeriods(ctx context.Context, now time.Time) (int, error) {
+	periods, err := s.repo.ListExpiredActiveDailyArenaPeriods(ctx, now)
+	if err != nil {
+		return 0, err
+	}
+	settled := 0
+	for _, period := range periods {
+		if _, err := s.SettleDailyArenaPeriod(ctx, period.ID); err != nil {
+			return settled, err
+		}
+		settled++
+	}
+	return settled, nil
 }

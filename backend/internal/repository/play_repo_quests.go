@@ -121,3 +121,16 @@ func (r *playRepository) CountImageStudioJobsToday(ctx context.Context, userID i
 	}
 	return count, nil
 }
+
+func (r *playRepository) HasCompletedImageStudioJob(ctx context.Context, userID int64) (bool, error) {
+	exec := r.sqlExec(ctx)
+	var exists bool
+	err := scanSingleRow(ctx, exec, `
+		SELECT EXISTS(
+			SELECT 1 FROM image_studio_jobs WHERE user_id = $1 AND status = 'completed' LIMIT 1
+		)`, []any{userID}, &exists)
+	if err != nil {
+		return false, fmt.Errorf("has completed image studio job: %w", err)
+	}
+	return exists, nil
+}

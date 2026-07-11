@@ -662,6 +662,7 @@ var ProviderSet = wire.NewSet(
 	ProvideUserPlatformQuotaUsageFlusher,
 	NewPlayService,
 	NewImageStudioService,
+	ProvidePlayGrowthRunner,
 )
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。

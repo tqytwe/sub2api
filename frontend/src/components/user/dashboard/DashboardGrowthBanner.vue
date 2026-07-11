@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import playAPI, { type PlayHubGrowth } from '@/api/play'
+import '@/styles/growth-world.css'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -48,26 +49,16 @@ defineExpose({ reload: load })
 <template>
   <div
     v-if="!loading && showBanner"
-    class="rounded-xl border px-4 py-3 sm:flex sm:items-center sm:justify-between sm:gap-4"
-    :class="bannerType === 'first'
-      ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30'
-      : 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30'"
+    class="gw-quest-banner flex flex-wrap items-center justify-between gap-3"
+    :class="bannerType === 'low' ? 'gw-quest-banner--warn' : ''"
   >
-    <p
-      class="text-sm font-medium"
-      :class="bannerType === 'first' ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'"
-    >
+    <p class="gw-subtitle mb-0">
       <template v-if="bannerType === 'first'">{{ t('dashboard.growth.firstRecharge') }}</template>
       <template v-else>
         {{ t('dashboard.growth.balanceLow', { threshold: (growth?.balance_low_threshold ?? 0).toFixed(2) }) }}
       </template>
     </p>
-    <button
-      type="button"
-      class="mt-2 rounded-lg px-4 py-2 text-sm font-semibold text-white sm:mt-0"
-      :class="bannerType === 'first' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-amber-600 hover:bg-amber-700'"
-      @click="goPurchase"
-    >
+    <button type="button" class="gw-btn gw-btn-primary shrink-0" @click="goPurchase">
       {{ t('dashboard.growth.rechargeCta') }}
     </button>
   </div>

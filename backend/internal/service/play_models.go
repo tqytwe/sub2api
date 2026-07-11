@@ -199,7 +199,9 @@ type PlayRepository interface {
 	ListQuestProgress(ctx context.Context, userID int64, questDate time.Time) ([]PlayQuestProgressRow, error)
 	GetUserDailyTokenSum(ctx context.Context, userID int64, start, end time.Time) (int64, error)
 	EnsureDailyArenaPeriod(ctx context.Context, now time.Time) (*PlayArenaPeriod, error)
+	ListExpiredActiveDailyArenaPeriods(ctx context.Context, now time.Time) ([]PlayArenaPeriod, error)
 	CountImageStudioJobsToday(ctx context.Context, userID int64, dayStart time.Time) (int, error)
+	HasCompletedImageStudioJob(ctx context.Context, userID int64) (bool, error)
 	UpsertRechargeBoost(ctx context.Context, userID int64, expiresAt time.Time) error
 	GetActiveRechargeBoost(ctx context.Context, userID int64, now time.Time) (*time.Time, error)
 	HasCompletedBalanceRechargeSince(ctx context.Context, userID int64, since time.Time) (bool, error)

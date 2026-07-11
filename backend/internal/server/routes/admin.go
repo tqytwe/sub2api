@@ -106,6 +106,15 @@ func RegisterAdminRoutes(
 
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
+
+		registerAdminPlayRoutes(admin, h)
+	}
+}
+
+func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	play := admin.Group("/play")
+	{
+		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
 	}
 }
 

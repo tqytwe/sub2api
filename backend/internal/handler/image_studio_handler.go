@@ -88,34 +88,36 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		response.ErrorFrom(c, service.ErrImageStudioAPIKey)
 		return
 	}
-	storedKey, err := h.apiKeyService.GetByID(c.Request.Context(), *job.APIKeyID)
+	userID := subject.UserID
+	jobID := job.ID
+	apiKeyID := *job.APIKeyID
+	baseCtx := c.Request.Context()
+
+	go h.runGenerateJob(baseCtx, userID, jobID, apiKeyID, body)
+
+	response.Success(c, gin.H{
+		"job":    job,
+		"async":  true,
+		"poll":   fmt.Sprintf("/api/v1/image-studio/jobs/%s", jobID),
+	})
+}
+
+func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64, jobID string, apiKeyID int64, body string) {
+	ctx := context.WithoutCancel(parent)
+	_ = h.studio.MarkJobRunning(ctx, jobID)
+
+	storedKey, err := h.apiKeyService.GetByID(ctx, apiKeyID)
 	if err != nil {
-		response.ErrorFrom(c, service.ErrImageStudioAPIKey)
+		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, service.ErrImageStudioAPIKey.Error())
 		return
 	}
-	apiKey, err := h.apiKeyService.GetByKey(c.Request.Context(), storedKey.Key)
+	apiKey, err := h.apiKeyService.GetByKey(ctx, storedKey.Key)
 	if err != nil {
-		response.ErrorFrom(c, service.ErrImageStudioAPIKey)
+		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, service.ErrImageStudioAPIKey.Error())
 		return
 	}
-	imageURLs, actualCost, genErr := h.invokeGatewayImages(c, apiKey, body)
-	result, completeErr := h.studio.CompleteJob(
-		c.Request.Context(),
-		subject.UserID,
-		job.ID,
-		imageURLs,
-		actualCost,
-		errString(genErr),
-	)
-	if completeErr != nil {
-		response.ErrorFrom(c, completeErr)
-		return
-	}
-	if genErr != nil {
-		response.ErrorFrom(c, genErr)
-		return
-	}
-	response.Success(c, result)
+	imageURLs, actualCost, genErr := h.invokeGatewayImages(ctx, apiKey, body)
+	_, _ = h.studio.CompleteJob(ctx, userID, jobID, imageURLs, actualCost, errString(genErr))
 }
 
 func (h *ImageStudioHandler) ListJobs(c *gin.Context) {
@@ -160,9 +162,8 @@ func (h *ImageStudioHandler) DeleteJob(c *gin.Context) {
 	response.Success(c, gin.H{"deleted": true})
 }
 
-func (h *ImageStudioHandler) invokeGatewayImages(parent *gin.Context, apiKey *service.APIKey, body string) ([]string, float64, error) {
-	// Load full auth context (user/group) for gateway billing.
-	authKey, err := h.apiKeyService.GetByKey(parent.Request.Context(), apiKey.Key)
+func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *service.APIKey, body string) ([]string, float64, error) {
+	authKey, err := h.apiKeyService.GetByKey(ctx, apiKey.Key)
 	if err != nil {
 		return nil, 0, service.ErrImageStudioAPIKey
 	}
@@ -173,13 +174,12 @@ func (h *ImageStudioHandler) invokeGatewayImages(parent *gin.Context, apiKey *se
 	rec := httptest.NewRecorder()
 	gwCtx, _ := gin.CreateTestContext(rec)
 	gwCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader(body))
-	gwCtx.Request = gwCtx.Request.WithContext(parent.Request.Context())
+	gwCtx.Request = gwCtx.Request.WithContext(ctx)
 	gwCtx.Request.Header.Set("Content-Type", "application/json")
 	gwCtx.Request.Header.Set("Authorization", "Bearer "+apiKey.Key)
 	gwCtx.Set(string(middleware2.ContextKeyAPIKey), apiKey)
 	if apiKey.Group != nil && service.IsGroupContextValid(apiKey.Group) {
-		ctx := context.WithValue(gwCtx.Request.Context(), ctxkey.Group, apiKey.Group)
-		gwCtx.Request = gwCtx.Request.WithContext(ctx)
+		gwCtx.Request = gwCtx.Request.WithContext(context.WithValue(gwCtx.Request.Context(), ctxkey.Group, apiKey.Group))
 	}
 	concurrency := 1
 	if apiKey.User != nil && apiKey.User.Concurrency > 0 {
@@ -189,7 +189,6 @@ func (h *ImageStudioHandler) invokeGatewayImages(parent *gin.Context, apiKey *se
 		UserID:      apiKey.UserID,
 		Concurrency: concurrency,
 	})
-	_ = h.billingCache
 	h.gateway.Images(gwCtx)
 	respBody, _ := io.ReadAll(rec.Body)
 	if rec.Code >= 400 {
@@ -197,7 +196,7 @@ func (h *ImageStudioHandler) invokeGatewayImages(parent *gin.Context, apiKey *se
 		if msg == "" {
 			msg = "image generation failed"
 		}
-		return nil, 0, service.ErrImageStudioAPIKey
+		return nil, 0, fmt.Errorf("%s", msg)
 	}
 	var parsed struct {
 		Data []struct {

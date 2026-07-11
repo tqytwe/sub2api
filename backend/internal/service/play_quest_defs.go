@@ -10,6 +10,8 @@ const (
 	PlayQuestKeyCheckin       = "checkin"
 	PlayQuestKeyImageGenerate = "image_generate"
 	PlayQuestKeyAPICall       = "api_call"
+
+	playDailyArenaDailyBudgetUSD = 50.0
 )
 
 type PlayDailyQuestDef struct {

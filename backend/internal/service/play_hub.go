@@ -63,13 +63,17 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 		if err != nil {
 			return nil, err
 		}
+		hasJob, err := s.repo.HasCompletedImageStudioJob(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
 		hub.ImageStudio = &PlayHubImageStudio{
 			Enabled:         true,
 			ImagesToday:     count,
-			HasCompletedJob: count > 0,
+			HasCompletedJob: hasJob,
 		}
 		hub.AnyEnabled = true
-		if count == 0 {
+		if !hasJob {
 			hub.PendingActions++
 		}
 	}

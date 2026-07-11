@@ -127,7 +127,7 @@ export const jisudengHomeEn = {
     ch1: { name: 'Rewards box', hint: 'Spend tokens for random balance boosts' },
     ch2: { name: 'Daily check-in', hint: 'Free balance every day' },
     ch3: { name: 'Agent Team', hint: 'Squad up and share rewards' },
-    ch4: { name: 'Token leaderboard', hint: 'High usage earns extra perks' }
+    ch4: { name: 'Token Farm', hint: 'Daily quests · Monthly season prizes' }
   },
   features: {
     multiModel: {
