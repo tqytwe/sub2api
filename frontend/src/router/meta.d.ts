@@ -64,5 +64,10 @@ declare module 'vue-router' {
      * i18n key for the page description
      */
     descriptionKey?: string
+
+    /**
+     * Hide the default AppHeader title block (pages with their own hero section).
+     */
+    hidePageHeader?: boolean
   }
 }

@@ -88,7 +88,7 @@ onMounted(() => {
   <AppLayout>
     <div class="gw-page gw-page--wide space-y-6 pb-10">
       <div>
-        <p class="gw-eyebrow">AFFILIATE</p>
+        <p class="gw-eyebrow">{{ t('affiliate.eyebrow') }}</p>
         <h1 class="gw-title">{{ t('affiliate.title') }}</h1>
         <p class="gw-subtitle">{{ t('affiliate.description') }}</p>
       </div>

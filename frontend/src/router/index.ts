@@ -343,6 +343,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Image Studio',
       titleKey: 'imageStudio.title',
       descriptionKey: 'imageStudio.subtitle',
+      hidePageHeader: true,
     },
   },
   {
@@ -355,6 +356,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Play Hub',
       titleKey: 'playHub.title',
       descriptionKey: 'playHub.subtitle',
+      hidePageHeader: true,
     },
   },
   {
@@ -366,7 +368,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Daily Check-in',
       titleKey: 'checkin.title',
-      descriptionKey: 'checkin.description'
+      descriptionKey: 'checkin.description',
+      hidePageHeader: true,
     }
   },
   {
@@ -378,7 +381,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Affiliate',
       titleKey: 'affiliate.title',
-      descriptionKey: 'affiliate.description'
+      descriptionKey: 'affiliate.description',
+      hidePageHeader: true,
     }
   },
   {

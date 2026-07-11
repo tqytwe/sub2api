@@ -424,7 +424,7 @@ export default {
     availableChannels: 'Available Channels',
     checkIn: 'Daily Check-in',
     playHub: 'Play Hub',
-    growth: 'Growth & Perks',
+    growth: 'Play & Perks',
     arena: 'Token Farm',
     blindbox: 'Blind Box',
     quizQuest: 'Quiz Quest',
@@ -1220,6 +1220,7 @@ export default {
   },
 
   affiliate: {
+    eyebrow: 'Affiliate',
     title: 'Affiliate Rebates',
     description: 'Invite new users and convert your rebate quota into account balance',
     yourCode: 'Your Affiliate Code',
