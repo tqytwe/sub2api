@@ -226,6 +226,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyPlayBlindboxEnabled,
 		SettingKeyPlayQuizEnabled,
 		SettingKeyPlayAgentTeamEnabled,
+		SettingKeyImageStudioEnabled,
 		SettingKeyAffiliateEnabled,
 		SettingKeyRiskControlEnabled,
 		SettingKeyAllowUserViewErrorRequests,
@@ -343,6 +344,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PlayBlindboxEnabled:      settings[SettingKeyPlayBlindboxEnabled] == "true",
 		PlayQuizEnabled:          settings[SettingKeyPlayQuizEnabled] == "true",
 		PlayAgentTeamEnabled:     settings[SettingKeyPlayAgentTeamEnabled] == "true",
+		ImageStudioEnabled:       settings[SettingKeyImageStudioEnabled] == "true",
 
 		AffiliateEnabled: settings[SettingKeyAffiliateEnabled] == "true",
 
@@ -512,6 +514,7 @@ type PublicSettingsInjectionPayload struct {
 	PlayBlindboxEnabled                  bool `json:"play_blindbox_enabled"`
 	PlayQuizEnabled                      bool `json:"play_quiz_enabled"`
 	PlayAgentTeamEnabled                 bool `json:"play_agent_team_enabled"`
+	ImageStudioEnabled                   bool `json:"image_studio_enabled"`
 	AffiliateEnabled                     bool `json:"affiliate_enabled"`
 	RiskControlEnabled                   bool `json:"risk_control_enabled"`
 	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
@@ -583,6 +586,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PlayBlindboxEnabled:                  settings.PlayBlindboxEnabled,
 		PlayQuizEnabled:                      settings.PlayQuizEnabled,
 		PlayAgentTeamEnabled:                 settings.PlayAgentTeamEnabled,
+		ImageStudioEnabled:                   settings.ImageStudioEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,

@@ -23,11 +23,20 @@ type PlayHubSummary struct {
 	PendingActions int                   `json:"pending_actions"`
 	Growth         PlayHubGrowth         `json:"growth"`
 	Campaigns      []PlayCampaignSummary `json:"campaigns,omitempty"`
+	ImageStudio    *PlayHubImageStudio   `json:"image_studio,omitempty"`
+	Quests         *PlayQuestToday       `json:"quests,omitempty"`
 	Checkin        *PlayCheckinStatus    `json:"checkin,omitempty"`
-	Arena          *PlayArenaCurrent  `json:"arena,omitempty"`
-	Blindbox       *PlayBlindboxStatus `json:"blindbox,omitempty"`
-	Quiz           *PlayQuizToday     `json:"quiz,omitempty"`
-	Team           *PlayTeamMe        `json:"team,omitempty"`
+	Arena          *PlayArenaCurrent     `json:"arena,omitempty"`
+	DailyArena     *PlayArenaCurrent     `json:"daily_arena,omitempty"`
+	Blindbox       *PlayBlindboxStatus   `json:"blindbox,omitempty"`
+	Quiz           *PlayQuizToday        `json:"quiz,omitempty"`
+	Team           *PlayTeamMe           `json:"team,omitempty"`
+}
+
+type PlayHubImageStudio struct {
+	Enabled         bool `json:"enabled"`
+	ImagesToday     int  `json:"images_today"`
+	HasCompletedJob bool `json:"has_completed_job"`
 }
 
 // GetHub returns a single payload for the Play Hub dashboard.
@@ -35,7 +44,7 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 	rt := s.GetRuntime(ctx)
 	hub := &PlayHubSummary{
 		AnyEnabled: rt.CheckinEnabled || rt.ArenaEnabled || rt.BlindboxEnabled ||
-			rt.QuizEnabled || rt.AgentTeamEnabled,
+			rt.QuizEnabled || rt.AgentTeamEnabled || rt.ImageStudioEnabled || rt.DailyQuestsEnabled,
 	}
 
 	if userID <= 0 {
@@ -47,6 +56,37 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 		return nil, err
 	}
 	hub.Growth = s.buildHubGrowth(ctx, user, s.GetRuntime(ctx))
+
+	if rt.ImageStudioEnabled {
+		dayStart := s.serverDate(s.serverNow())
+		count, err := s.repo.CountImageStudioJobsToday(ctx, userID, dayStart)
+		if err != nil {
+			return nil, err
+		}
+		hub.ImageStudio = &PlayHubImageStudio{
+			Enabled:         true,
+			ImagesToday:     count,
+			HasCompletedJob: count > 0,
+		}
+		hub.AnyEnabled = true
+		if count == 0 {
+			hub.PendingActions++
+		}
+	}
+
+	if rt.DailyQuestsEnabled {
+		quests, err := s.GetQuestsToday(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		hub.Quests = quests
+		hub.AnyEnabled = true
+		for _, task := range quests.Tasks {
+			if !task.Completed {
+				hub.PendingActions++
+			}
+		}
+	}
 
 	if rt.CheckinEnabled {
 		status, err := s.GetCheckinStatus(ctx, userID)
@@ -65,6 +105,13 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 			return nil, err
 		}
 		hub.Arena = current
+		if rt.DailyArenaEnabled {
+			daily, err := s.GetDailyArenaCurrent(ctx, userID)
+			if err != nil {
+				return nil, err
+			}
+			hub.DailyArena = daily
+		}
 	}
 
 	if rt.BlindboxEnabled {

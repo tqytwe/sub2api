@@ -118,6 +118,7 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 		return nil, err
 	}
 
+	_ = s.MarkQuestCompleted(ctx, userID, PlayQuestKeyCheckin)
 	return &PlayCheckinResult{
 		RewardAmount:   totalReward,
 		BalanceAdded:   totalReward,

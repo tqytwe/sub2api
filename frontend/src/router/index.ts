@@ -334,6 +334,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/image-studio',
+    name: 'ImageStudio',
+    component: () => import('@/views/user/ImageStudioView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Image Studio',
+      titleKey: 'imageStudio.title',
+      descriptionKey: 'imageStudio.subtitle',
+    },
+  },
+  {
     path: '/play',
     name: 'PlayHub',
     component: () => import('@/views/user/PlayHubView.vue'),

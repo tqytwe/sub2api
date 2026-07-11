@@ -50,11 +50,14 @@ type playHubSummaryDTO struct {
 	PendingActions int                      `json:"pending_actions"`
 	Growth         playHubGrowthDTO         `json:"growth"`
 	Campaigns      []playCampaignSummaryDTO `json:"campaigns,omitempty"`
+	ImageStudio    *playHubImageStudioDTO   `json:"image_studio,omitempty"`
+	Quests         *playQuestTodayDTO       `json:"quests,omitempty"`
 	Checkin        *playCheckinStatusDTO    `json:"checkin,omitempty"`
-	Arena          *playArenaCurrentDTO    `json:"arena,omitempty"`
-	Blindbox       *playBlindboxStatusDTO  `json:"blindbox,omitempty"`
-	Quiz           *playQuizTodayDTO       `json:"quiz,omitempty"`
-	Team           *playTeamMeDTO          `json:"team,omitempty"`
+	Arena          *playArenaCurrentDTO     `json:"arena,omitempty"`
+	DailyArena     *playArenaCurrentDTO     `json:"daily_arena,omitempty"`
+	Blindbox       *playBlindboxStatusDTO   `json:"blindbox,omitempty"`
+	Quiz           *playQuizTodayDTO        `json:"quiz,omitempty"`
+	Team           *playTeamMeDTO           `json:"team,omitempty"`
 }
 
 // Hub returns aggregated play state for the logged-in user.
@@ -95,6 +98,11 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 		},
 		Campaigns: toPlayCampaignSummaryDTOs(s.Campaigns),
 	}
+	out.ImageStudio = toPlayHubImageStudioDTO(s.ImageStudio)
+	if s.Quests != nil {
+		q := toPlayQuestTodayDTO(s.Quests)
+		out.Quests = &q
+	}
 	if s.Checkin != nil {
 		out.Checkin = &playCheckinStatusDTO{
 			Enabled:                s.Checkin.Enabled,
@@ -125,6 +133,19 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 			dto.Period = toPlayArenaPeriodDTO(s.Arena.Period)
 		}
 		out.Arena = &dto
+	}
+	if s.DailyArena != nil {
+		dto := playArenaCurrentDTO{
+			Enabled:          s.DailyArena.Enabled,
+			TokenSum:         s.DailyArena.TokenSum,
+			DisplayTokenSum:  s.DailyArena.DisplayTokenSum,
+			Rank:             s.DailyArena.Rank,
+			TokensToPrevRank: s.DailyArena.TokensToPrevRank,
+		}
+		if s.DailyArena.Period != nil {
+			dto.Period = toPlayArenaPeriodDTO(s.DailyArena.Period)
+		}
+		out.DailyArena = &dto
 	}
 	if s.Blindbox != nil {
 		out.Blindbox = &playBlindboxStatusDTO{

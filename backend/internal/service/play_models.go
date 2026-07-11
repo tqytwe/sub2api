@@ -12,6 +12,7 @@ const (
 	PlayRewardSourceBlindbox         = "blindbox"
 	PlayRewardSourceQuiz             = "quiz"
 	PlayRewardSourceArenaSettlement  = "arena_settlement"
+	PlayRewardSourceArenaDaily       = "arena_daily_settlement"
 )
 
 type PlayStreakMilestone struct {
@@ -194,6 +195,11 @@ type PlayRepository interface {
 	ListTeamMembers(ctx context.Context, teamID int64) ([]PlayTeamMember, error)
 	SumTeamTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (int64, error)
 	ListActiveCampaigns(ctx context.Context, now time.Time) ([]PlayCampaign, error)
+	UpsertQuestProgress(ctx context.Context, userID int64, questDate time.Time, questKey string, completed bool) error
+	ListQuestProgress(ctx context.Context, userID int64, questDate time.Time) ([]PlayQuestProgressRow, error)
+	GetUserDailyTokenSum(ctx context.Context, userID int64, start, end time.Time) (int64, error)
+	EnsureDailyArenaPeriod(ctx context.Context, now time.Time) (*PlayArenaPeriod, error)
+	CountImageStudioJobsToday(ctx context.Context, userID int64, dayStart time.Time) (int, error)
 	UpsertRechargeBoost(ctx context.Context, userID int64, expiresAt time.Time) error
 	GetActiveRechargeBoost(ctx context.Context, userID int64, now time.Time) (*time.Time, error)
 	HasCompletedBalanceRechargeSince(ctx context.Context, userID int64, since time.Time) (bool, error)
@@ -245,4 +251,9 @@ type PlayRuntime struct {
 	TeamAffiliateTokenThreshold int64
 	TeamAffiliateCaptainBonus   float64
 	CampaignsEnabled            bool
+	ImageStudioEnabled          bool
+	DailyQuestsEnabled          bool
+	DailyArenaEnabled           bool
+	DailyQuests                 []PlayDailyQuestDef
+	DailyArenaTopRewards        []PlayArenaSettlementTier
 }

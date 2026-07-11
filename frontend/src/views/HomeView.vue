@@ -198,6 +198,10 @@
               {{ t('home.jisudeng.image.docLink') }}
               <span class="img-doclink-arrow">→</span>
             </router-link>
+            <router-link to="/image-studio" class="img-doclink mt-2 inline-flex">
+              {{ t('home.jisudeng.image.studioCta') }}
+              <span class="img-doclink-arrow">→</span>
+            </router-link>
           </div>
           <div class="img-demo" aria-hidden="true">
             <div class="demo-prompt">

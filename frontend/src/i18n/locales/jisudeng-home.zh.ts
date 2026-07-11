@@ -108,6 +108,7 @@ export const jisudengHomeZh = {
     desc: '两个端点：文生图 (generations) 与图像编辑 (edits)。单次请求最大 30 MiB。',
     caps: ['文生图', '图生图', '多图参考', '风格迁移'],
     docLink: '查看图像 API 文档',
+    studioCta: '免费试做一张',
     promptLabel: 'PROMPT',
     promptText: '一只在东京雨夜霓虹下的柴犬，赛博朋克风格',
     statusGen: 'Generating',
@@ -127,7 +128,7 @@ export const jisudengHomeZh = {
     ch1: { name: '盲盒', hint: '消耗 Token 开盲盒，随机奖励余额' },
     ch2: { name: '签到', hint: '每日签到领测试额度' },
     ch3: { name: 'Agent Team', hint: '组队协作，共享收益' },
-    ch4: { name: 'Token 农场', hint: '消耗排行，每日奖励' }
+    ch4: { name: 'Token 农场', hint: '每日任务有奖 · 每月赛季大奖' }
   },
   features: {
     multiModel: {

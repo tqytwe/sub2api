@@ -33,6 +33,11 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		SettingKeyPlayTeamAffiliateTokenThreshold,
 		SettingKeyPlayTeamAffiliateCaptainBonus,
 		SettingKeyPlayCampaignsEnabled,
+		SettingKeyImageStudioEnabled,
+		SettingKeyPlayDailyQuestsEnabled,
+		SettingKeyPlayDailyArenaEnabled,
+		SettingKeyPlayDailyQuests,
+		SettingKeyPlayDailyArenaTopRewards,
 	}
 	vals, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -83,6 +88,11 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		TeamAffiliateTokenThreshold: parsePositiveInt64Setting(vals[SettingKeyPlayTeamAffiliateTokenThreshold], 1_000_000),
 		TeamAffiliateCaptainBonus:   parsePositiveFloatSetting(vals[SettingKeyPlayTeamAffiliateCaptainBonus], 5),
 		CampaignsEnabled:            vals[SettingKeyPlayCampaignsEnabled] == "true",
+		ImageStudioEnabled:          vals[SettingKeyImageStudioEnabled] == "true",
+		DailyQuestsEnabled:          vals[SettingKeyPlayDailyQuestsEnabled] == "true",
+		DailyArenaEnabled:           vals[SettingKeyPlayDailyArenaEnabled] == "true",
+		DailyQuests:                 parsePlayDailyQuests(vals[SettingKeyPlayDailyQuests]),
+		DailyArenaTopRewards:        parsePlayDailyArenaRewards(vals[SettingKeyPlayDailyArenaTopRewards]),
 	}
 }
 

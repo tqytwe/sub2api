@@ -391,6 +391,11 @@ const (
 	SettingKeyPlayTeamAffiliateTokenThreshold = "play_team_affiliate_token_threshold"
 	SettingKeyPlayTeamAffiliateCaptainBonus   = "play_team_affiliate_captain_bonus"
 	SettingKeyPlayCampaignsEnabled            = "play_campaigns_enabled"
+	SettingKeyImageStudioEnabled              = "image_studio_enabled"
+	SettingKeyPlayDailyQuestsEnabled          = "play_daily_quests_enabled"
+	SettingKeyPlayDailyArenaEnabled           = "play_daily_arena_enabled"
+	SettingKeyPlayDailyQuests                 = "play_daily_quests"
+	SettingKeyPlayDailyArenaTopRewards        = "play_daily_arena_top_rewards"
 
 	// =========================
 	// Overload Cooldown (529)

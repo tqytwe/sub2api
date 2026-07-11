@@ -169,13 +169,39 @@ export interface PlayHubGrowth {
   vip?: PlayVIPStatus
 }
 
+export interface PlayHubImageStudio {
+  enabled: boolean
+  images_today: number
+  has_completed_job: boolean
+}
+
+export interface PlayQuestTask {
+  key: string
+  label?: string
+  completed: boolean
+  energy: number
+  cta_route?: string
+}
+
+export interface PlayQuestToday {
+  enabled: boolean
+  energy: number
+  level: number
+  energy_to_next_level: number
+  tasks: PlayQuestTask[]
+  server_date: string
+}
+
 export interface PlayHubSummary {
   any_enabled: boolean
   pending_actions: number
   growth: PlayHubGrowth
   campaigns?: PlayCampaignSummary[]
+  image_studio?: PlayHubImageStudio
+  quests?: PlayQuestToday
   checkin?: PlayCheckinStatus
   arena?: PlayArenaCurrent
+  daily_arena?: PlayArenaCurrent
   blindbox?: PlayBlindboxStatus
   quiz?: PlayQuizToday
   team?: PlayTeamMe
@@ -208,6 +234,23 @@ export async function checkinMakeup(): Promise<PlayCheckinResult> {
 
 export async function getArenaCurrent(): Promise<PlayArenaCurrent> {
   const { data } = await apiClient.get<PlayArenaCurrent>('/play/arena/current')
+  return data
+}
+
+export async function getArenaDailyCurrent(): Promise<PlayArenaCurrent> {
+  const { data } = await apiClient.get<PlayArenaCurrent>('/play/arena/daily/current')
+  return data
+}
+
+export async function getArenaDailyLeaderboard(limit = 50): Promise<PlayArenaLeaderboard> {
+  const { data } = await apiClient.get<PlayArenaLeaderboard>('/play/arena/daily/leaderboard', {
+    params: { limit },
+  })
+  return data
+}
+
+export async function getQuestsToday(): Promise<PlayQuestToday> {
+  const { data } = await apiClient.get<PlayQuestToday>('/play/quests/today')
   return data
 }
 
@@ -262,6 +305,9 @@ export const playAPI = {
   checkinMakeup,
   getArenaCurrent,
   getArenaLeaderboard,
+  getArenaDailyCurrent,
+  getArenaDailyLeaderboard,
+  getQuestsToday,
   getBlindboxStatus,
   openBlindbox,
   getQuizToday,

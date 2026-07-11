@@ -96,7 +96,8 @@ func (r *playRepository) GetActiveArenaPeriod(ctx context.Context, now time.Time
 	err := scanSingleRow(ctx, exec, `
 		SELECT id, name, start_at, end_at, status
 		FROM play_arena_periods
-		WHERE status = 'active' AND start_at <= $1 AND end_at > $1
+		WHERE status = 'active' AND period_type = 'monthly'
+		  AND start_at <= $1 AND end_at > $1
 		ORDER BY start_at DESC
 		LIMIT 1`, []any{now}, &p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status)
 	if err != nil {
@@ -122,8 +123,8 @@ func (r *playRepository) EnsureMonthlyArenaPeriod(ctx context.Context, now time.
 
 	exec := r.sqlExec(ctx)
 	if _, err := exec.ExecContext(ctx, `
-		INSERT INTO play_arena_periods (name, start_at, end_at, status)
-		VALUES ($1, $2, $3, 'active')`, name, start, end); err != nil {
+		INSERT INTO play_arena_periods (name, start_at, end_at, status, period_type)
+		VALUES ($1, $2, $3, 'active', 'monthly')`, name, start, end); err != nil {
 		return nil, fmt.Errorf("insert arena period: %w", err)
 	}
 	return r.GetActiveArenaPeriod(ctx, now)

@@ -364,6 +364,7 @@ type PublicSettings struct {
 	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
 	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
 	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
+	ImageStudioEnabled   bool `json:"image_studio_enabled"`
 
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 

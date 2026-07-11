@@ -727,6 +727,7 @@ const flagPlayArena = makeSidebarFlag(FeatureFlags.playArena)
 const flagPlayBlindbox = makeSidebarFlag(FeatureFlags.playBlindbox)
 const flagPlayQuiz = makeSidebarFlag(FeatureFlags.playQuiz)
 const flagPlayAgentTeam = makeSidebarFlag(FeatureFlags.playAgentTeam)
+const flagImageStudio = makeSidebarFlag(FeatureFlags.imageStudio)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
@@ -736,6 +737,7 @@ const flagBatchImageAccess = () => canUseBatchImage.value
 function buildGrowthNavChildren(): NavItem[] {
   return [
     { path: '/play', label: t('nav.playHub'), icon: DashboardIcon, hideInSimpleMode: true },
+    { path: '/image-studio', label: t('nav.imageStudio'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagImageStudio },
     { path: '/check-in', label: t('nav.checkIn'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagPlayCheckin },
     { path: '/arena', label: t('nav.arena'), icon: ChartIcon, hideInSimpleMode: true, featureFlag: flagPlayArena },
     { path: '/blindbox', label: t('nav.blindbox'), icon: GiftIcon, hideInSimpleMode: true, featureFlag: flagPlayBlindbox },
@@ -757,6 +759,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   }
   items.push(
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+    { path: '/image-studio', label: t('nav.imageStudio'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagImageStudio },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
     { path: '/available-channels', label: t('nav.availableChannels'), icon: ChannelIcon, hideInSimpleMode: true, featureFlag: flagAvailableChannels },

@@ -115,6 +115,7 @@ func registerRoutes(
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, settingService)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth)
+	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
 
 	v1.GET("/public/home-stats", handler.PublicHomeStats(dashboardService))
 	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))

@@ -57,6 +57,21 @@ const playCards = computed(() => {
     enabled: boolean
   }> = []
 
+  if (isFeatureFlagEnabled(FeatureFlags.imageStudio)) {
+    const studio = hub.value?.image_studio
+    cards.push({
+      key: 'image-studio',
+      title: t('nav.imageStudio'),
+      subtitle: studio?.has_completed_job
+        ? t('playHub.studioDone', { count: studio.images_today ?? 0 })
+        : t('playHub.studioPending'),
+      route: '/image-studio',
+      badge: studio && !studio.has_completed_job ? t('playHub.badgePending') : undefined,
+      action: t('playHub.actionStudio'),
+      enabled: !!studio?.enabled,
+    })
+  }
+
   if (isFeatureFlagEnabled(FeatureFlags.playCheckin)) {
     const c = hub.value?.checkin
     cards.push({
@@ -277,7 +292,24 @@ onMounted(load)
       <div v-else-if="!hub?.any_enabled && playCards.length === 0" class="card p-8 text-center text-gray-500 dark:text-dark-400">
         {{ t('playHub.empty') }}
       </div>
-      <div v-else class="grid gap-4 sm:grid-cols-2">
+      <template v-else>
+        <div v-if="hub?.quests?.enabled && hub.quests.tasks?.length" class="card p-4">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('playHub.questsTitle') }}</h2>
+            <span class="text-sm text-gray-500">
+              {{ t('playHub.questsEnergy', { energy: hub.quests.energy, level: hub.quests.level }) }}
+            </span>
+          </div>
+          <ul class="mt-3 space-y-2 text-sm">
+            <li v-for="task in hub.quests.tasks" :key="task.key" class="flex items-center justify-between gap-3">
+              <span>{{ task.completed ? '☑' : '☐' }} {{ t(`playHub.quest.${task.key}`, task.key) }} (+{{ task.energy }})</span>
+              <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="text-primary-600 hover:underline">
+                {{ t('playHub.actionGo') }}
+              </router-link>
+            </li>
+          </ul>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2">
         <router-link
           v-for="card in playCards"
           :key="card.key"
@@ -301,7 +333,8 @@ onMounted(load)
             <Icon name="chevronRight" size="sm" class="flex-shrink-0 text-gray-300 group-hover:text-primary-500 dark:text-dark-600" />
           </div>
         </router-link>
-      </div>
+        </div>
+      </template>
 
       <div class="flex flex-wrap gap-3">
         <router-link to="/keys" class="btn btn-secondary text-sm">{{ t('playHub.goKeys') }}</router-link>

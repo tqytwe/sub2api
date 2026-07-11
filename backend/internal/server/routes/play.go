@@ -19,6 +19,8 @@ func RegisterPlayRoutes(
 	{
 		play.GET("/arena/current", h.Play.ArenaCurrent)
 		play.GET("/arena/leaderboard", h.Play.ArenaLeaderboard)
+		play.GET("/arena/daily/current", h.Play.ArenaDailyCurrent)
+		play.GET("/arena/daily/leaderboard", h.Play.ArenaDailyLeaderboard)
 		play.GET("/quiz/today", h.Play.QuizToday)
 	}
 
@@ -51,6 +53,7 @@ func RegisterPlayRoutes(
 		}
 
 		authenticated.GET("/play/hub", h.Play.Hub)
+		authenticated.GET("/play/quests/today", h.Play.QuestsToday)
 		authenticated.GET("/play/campaigns/active", h.Play.CampaignsActive)
 	}
 }

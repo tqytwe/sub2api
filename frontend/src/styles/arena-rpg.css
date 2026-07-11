@@ -1,0 +1,131 @@
+.arena-rpg-page {
+  --arena-ink: #0a0a0a;
+  --arena-muted: #737373;
+  --arena-border: rgba(10, 10, 10, 0.12);
+  --arena-field: #faf9f6;
+}
+
+.dark .arena-rpg-page {
+  --arena-ink: #fafafa;
+  --arena-muted: #a3a3a3;
+  --arena-border: rgba(255, 255, 255, 0.12);
+  --arena-field: #171717;
+}
+
+.arena-rpg-hud {
+  border: 1px solid var(--arena-border);
+  border-radius: 1rem;
+  background: linear-gradient(135deg, var(--arena-field) 0%, #fff 100%);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.dark .arena-rpg-hud {
+  background: linear-gradient(135deg, #171717 0%, #0a0a0a 100%);
+}
+
+.arena-rpg-level {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.arena-rpg-xp-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(10, 10, 10, 0.08);
+  overflow: hidden;
+}
+
+.dark .arena-rpg-xp-bar {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.arena-rpg-xp-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--arena-ink);
+  transition: width 0.3s ease;
+}
+
+.arena-rpg-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.arena-rpg-tab {
+  border: 1px solid var(--arena-border);
+  border-radius: 999px;
+  padding: 0.35rem 0.9rem;
+  font-size: 0.875rem;
+  color: var(--arena-muted);
+  background: transparent;
+  cursor: pointer;
+}
+
+.arena-rpg-tab.active {
+  background: var(--arena-ink);
+  color: #fff;
+  border-color: var(--arena-ink);
+}
+
+.dark .arena-rpg-tab.active {
+  color: #0a0a0a;
+  background: #fafafa;
+}
+
+.arena-quest-bar {
+  display: grid;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.arena-quest-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px dashed var(--arena-border);
+  border-radius: 0.75rem;
+  padding: 0.65rem 0.85rem;
+  font-size: 0.875rem;
+}
+
+.arena-quest-item.done {
+  opacity: 0.65;
+}
+
+.arena-field-card {
+  border: 1px solid var(--arena-border);
+  border-radius: 0.875rem;
+  padding: 1rem 1.1rem;
+  background: var(--arena-field);
+  margin-bottom: 1rem;
+}
+
+.arena-buff-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.arena-buff {
+  font-size: 0.75rem;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  border: 1px solid var(--arena-border);
+}
+
+.arena-seed-guide ol {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.arena-seed-guide li {
+  margin: 0.35rem 0;
+}

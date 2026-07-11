@@ -144,6 +144,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Agent Team',
   }),
+  imageStudio: defineFlag({
+    key: 'image_studio_enabled',
+    mode: 'opt-in',
+    label: 'Image Studio',
+  }),
   publicModels: defineFlag({
     key: 'public_models_enabled',
     mode: 'opt-in',

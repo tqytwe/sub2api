@@ -371,6 +371,7 @@ export const useAppStore = defineStore('app', () => {
         play_blindbox_enabled: false,
         play_quiz_enabled: false,
         play_agent_team_enabled: false,
+        image_studio_enabled: false,
         risk_control_enabled: false,
         service_quota_enabled: false,
         affiliate_enabled: false,
