@@ -1,0 +1,33 @@
+---
+description: 极速蹬 Play 定制品牌文件 — 合并 upstream 时必须保留
+alwaysApply: true
+---
+
+# 极速蹬品牌保护（Play Fork）
+
+合并 `upstream/main` 到 `play/main` 时，**禁止**用 upstream 默认样式覆盖以下定制内容。
+
+## 受保护文件
+
+| 文件 | 必须保留的内容 |
+|------|----------------|
+| `frontend/src/components/layout/AuthLayout.vue` | `auth-page` 布局、`asideMode` prop、`auth-layout-jisudeng.css` 导入 |
+| `frontend/src/styles/auth-layout-jisudeng.css` | 登录/注册米白+ink 配色 |
+| `frontend/src/styles/home-view.css` | 首页 `.home-page` 变量与样式 |
+| `frontend/src/components/layout/AppSidebar.vue` | `/growth-group` 折叠菜单、`buildGrowthNavChildren()` |
+| `frontend/tailwind.config.js` | `primary` 色板为 ink 黑白系（`#0a0a0a`），**禁止**改回 teal `#14b8a6` |
+
+## 合并后必跑检查
+
+```bash
+./scripts/check-jisudeng-branding.sh
+```
+
+任一检查失败 = 合并冲突解决错误，需手动恢复 Play 侧版本后再提交。
+
+## 冲突解决原则
+
+1. **AuthLayout**：永远保留 Play（极速蹬）版本，不要选 upstream 青绿渐变版
+2. **AppSidebar 增长菜单**：保留 `growth-group` 及 Play 功能入口
+3. **tailwind primary**：保留 ink 色板；upstream 的 teal primary 只用于 diff 参考，不采纳
+4. **HomeView / home-view.css**：保留完整定制首页，不与 upstream 公共页合并覆盖

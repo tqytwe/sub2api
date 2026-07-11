@@ -351,7 +351,25 @@ node scripts/sub2api-admin.js accounts list
 
 完整命令见 `skills/sub2api-admin/references/admin-cli.md`。增长/Play 产品方案见 `docs/growth-play-roadmap.md`。
 
-## 八、参考资源
+## 八、极速蹬品牌保护（合并 upstream 必读）
+
+Fork 在首页、登录页、控制台使用 **ink 黑白** 定制品牌，与 upstream 默认 **teal 青绿** 不同。合并 `upstream/main` 后必须：
+
+```bash
+./scripts/check-jisudeng-branding.sh
+```
+
+**常见被覆盖项**（v0.1.149 合并曾发生）：
+
+| 项 | 正确（Play） | 错误（upstream 默认） |
+|----|-------------|----------------------|
+| AuthLayout | `auth-page` + `auth-layout-jisudeng.css` | 青绿渐变居中卡片 |
+| 侧边栏 | `/growth-group` 折叠菜单 | Play 入口丢失 |
+| tailwind primary | `#0a0a0a` ink 系 | `#14b8a6` teal 系 |
+
+受保护文件清单见 `.cursor/rules/jisudeng-branding-protected.mdc`。
+
+## 九、参考资源
 
 - [上游仓库](https://github.com/Wei-Shaw/sub2api)
 - [Ent 文档](https://entgo.io/docs/getting-started)
