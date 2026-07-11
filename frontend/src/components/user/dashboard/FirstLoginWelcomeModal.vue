@@ -8,7 +8,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores'
 import keysAPI from '@/api/keys'
 import userGroupsAPI from '@/api/groups'
-import playAPI, { type PlayHubGrowth } from '@/api/play'
+import playAPI, { type PlayHubGrowth, type PlayHubImageStudio } from '@/api/play'
+import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import { buildGatewayUrl } from '@/api/url'
 import {
   consumeFirstLoginWelcomePending,
@@ -31,6 +32,14 @@ const selectedGroupId = ref<number | null>(null)
 const createdKey = ref<ApiKey | null>(null)
 const creating = ref(false)
 const growth = ref<PlayHubGrowth | null>(null)
+const imageStudio = ref<PlayHubImageStudio | null>(null)
+
+const showStudioFirst = computed(
+  () =>
+    isFeatureFlagEnabled(FeatureFlags.imageStudio) &&
+    imageStudio.value?.enabled &&
+    !imageStudio.value.has_completed_job,
+)
 
 const curlExample = computed(() => {
   const apiKey = createdKey.value?.key || 'YOUR_API_KEY'
@@ -59,7 +68,11 @@ const rechargeHint = computed(() => {
 })
 
 const stepTitle = computed(() => {
-  if (step.value === 1) return t('dashboard.firstLoginWelcome.step1Title')
+  if (step.value === 1) {
+    return showStudioFirst.value
+      ? t('dashboard.firstLoginWelcome.step1TitleStudio')
+      : t('dashboard.firstLoginWelcome.step1Title')
+  }
   if (step.value === 2) return t('dashboard.firstLoginWelcome.step2Title')
   return t('dashboard.firstLoginWelcome.step3Title')
 })
@@ -72,6 +85,7 @@ async function loadContext() {
   groups.value = groupList
   selectedGroupId.value = groupList[0]?.id ?? null
   growth.value = hub?.growth ?? null
+  imageStudio.value = hub?.image_studio ?? null
   keyName.value = t('dashboard.firstLoginWelcome.defaultKeyName')
 }
 
@@ -125,6 +139,11 @@ function goRecharge() {
   router.push('/purchase')
 }
 
+function goImageStudio() {
+  finish()
+  router.push('/image-studio')
+}
+
 async function copyCurl() {
   await copyToClipboard(curlExample.value, t('dashboard.firstLoginWelcome.curlCopied'))
 }
@@ -158,8 +177,11 @@ onMounted(() => {
       </div>
 
       <template v-if="step === 1">
+        <p v-if="showStudioFirst" class="rounded-xl border border-[var(--gw-line)] bg-[var(--gw-paper)] px-4 py-3 text-sm text-gray-700 dark:text-dark-200">
+          {{ t('dashboard.firstLoginWelcome.studioHint') }}
+        </p>
         <p class="text-sm text-gray-600 dark:text-dark-300">
-          {{ t('dashboard.firstLoginWelcome.step1Desc') }}
+          {{ showStudioFirst ? t('dashboard.firstLoginWelcome.step1DescStudio') : t('dashboard.firstLoginWelcome.step1Desc') }}
         </p>
         <div>
           <label class="input-label">{{ t('keys.nameLabel') }}</label>
@@ -217,6 +239,9 @@ onMounted(() => {
         </button>
         <div class="flex flex-wrap gap-2">
           <template v-if="step === 1">
+            <button v-if="showStudioFirst" type="button" class="btn btn-primary" @click="goImageStudio">
+              {{ t('dashboard.firstLoginWelcome.studioCta') }}
+            </button>
             <button type="button" class="btn btn-secondary" @click="skipKeyStep">
               {{ t('dashboard.firstLoginWelcome.skipKey') }}
             </button>

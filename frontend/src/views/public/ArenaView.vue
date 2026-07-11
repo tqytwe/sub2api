@@ -13,6 +13,7 @@ import playAPI, {
 } from '@/api/play'
 import '@/styles/public-pages.css'
 import '@/styles/arena-rpg.css'
+import { trackGrowthEvent, trackQuestCompleteOnce } from '@/utils/growthAnalytics'
 
 const { t, te } = useI18n()
 const authStore = useAuthStore()
@@ -57,6 +58,13 @@ function questLabel(key: string) {
   return te(k) ? t(k) : key
 }
 
+function switchTab(next: BoardTab) {
+  tab.value = next
+  if (next === 'daily') {
+    trackGrowthEvent('farm_daily_tab_view')
+  }
+}
+
 async function load() {
   loading.value = true
   try {
@@ -72,6 +80,9 @@ async function load() {
     monthlyBoard.value = mBoard
     dailyBoard.value = dBoard
     quests.value = q
+    if (q?.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
+      trackQuestCompleteOnce('api_call')
+    }
   } catch {
     monthlyCurrent.value = null
     dailyCurrent.value = null
@@ -163,10 +174,10 @@ onMounted(load)
         </section>
 
         <div class="arena-rpg-tabs">
-          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="tab = 'daily'">
+          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
             {{ t('arena.rpg.tabDaily') }}
           </button>
-          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="tab = 'monthly'">
+          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
             {{ t('arena.rpg.tabMonthly') }}
           </button>
         </div>

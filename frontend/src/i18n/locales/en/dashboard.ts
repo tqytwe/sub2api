@@ -51,6 +51,8 @@ export default {
     quickActions: 'Quick Actions',
     createApiKey: 'Create API Key',
     generateNewKey: 'Generate a new API key',
+    imageStudioAgent: 'Image Studio',
+    imageStudioAgentDesc: 'Template-based images in 3 minutes',
     batchImageAgent: 'Batch Image Assistant',
     batchImageAgentDesc: 'Copy instructions for an agent',
     viewUsage: 'View Usage',

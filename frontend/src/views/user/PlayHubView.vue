@@ -8,6 +8,7 @@ import playAPI, { type PlayHubSummary } from '@/api/play'
 import { resolveCampaignDisplayName } from '@/utils/playCampaign'
 import { useAuthStore } from '@/stores/auth'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
+import { trackGrowthEvent } from '@/utils/growthAnalytics'
 import '@/styles/growth-world.css'
 
 const { t, locale } = useI18n()
@@ -141,6 +142,10 @@ function goPurchase() {
   router.push('/purchase')
 }
 
+function trackHubClick(cardKey: string) {
+  trackGrowthEvent('play_hub_action_click', { card_key: cardKey })
+}
+
 function perkLabel(perk: string): string {
   const key = `playHub.vipPerks.${perk}`
   const translated = t(key)
@@ -262,12 +267,46 @@ onMounted(load)
             </li>
           </ul>
         </div>
+        <router-link
+          v-if="hub?.image_studio?.enabled"
+          to="/image-studio"
+          class="gw-hub-card group block"
+          @click="trackHubClick('image_studio')"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <h2 class="gw-section-title">{{ t('nav.imageStudio') }}</h2>
+              <p class="gw-subtitle">
+                {{
+                  hub.image_studio.has_completed_job
+                    ? t('playHub.studioDone', { count: hub.image_studio.images_today })
+                    : t('playHub.studioPending')
+                }}
+              </p>
+              <p
+                v-if="!hub.image_studio.has_completed_job"
+                class="mt-2 text-xs font-medium"
+                style="color: var(--gw-ink)"
+              >
+                {{ t('playHub.actionStudio') }} →
+              </p>
+            </div>
+            <span
+              v-if="!hub.image_studio.has_completed_job"
+              class="gw-buff flex-shrink-0"
+            >
+              {{ t('playHub.badgePending') }}
+            </span>
+            <Icon v-else name="chevronRight" size="sm" class="flex-shrink-0" style="color: var(--gw-ink-3)" />
+          </div>
+        </router-link>
         <div class="grid gap-4 sm:grid-cols-2">
           <router-link
             v-for="card in playCards"
             :key="card.key"
             :to="card.route"
             class="gw-hub-card group"
+            @click="trackHubClick(card.key)"
           >
             <div class="flex items-start justify-between gap-3">
               <div class="min-w-0">

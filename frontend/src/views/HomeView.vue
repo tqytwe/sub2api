@@ -198,7 +198,7 @@
               {{ t('home.jisudeng.image.docLink') }}
               <span class="img-doclink-arrow">→</span>
             </router-link>
-            <router-link to="/image-studio" class="img-doclink mt-2 inline-flex">
+            <router-link :to="studioCtaLink" class="img-doclink mt-2 inline-flex">
               {{ t('home.jisudeng.image.studioCta') }}
               <span class="img-doclink-arrow">→</span>
             </router-link>
@@ -446,6 +446,9 @@ let whyTargetY = 0
 let fontEl: HTMLLinkElement | null = null
 
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
+const studioCtaLink = computed(() =>
+  authStore.isAuthenticated ? '/image-studio' : '/register?return=/image-studio',
+)
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
     allowRelative: true,

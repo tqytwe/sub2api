@@ -51,6 +51,8 @@ export default {
     quickActions: '快捷操作',
     createApiKey: '创建 API 密钥',
     generateNewKey: '生成新的 API 密钥',
+    imageStudioAgent: '图像工作室',
+    imageStudioAgentDesc: '选模板出图，3 分钟上手',
     batchImageAgent: '批量生图助手',
     batchImageAgentDesc: '复制给 Agent 的任务说明',
     viewUsage: '查看使用记录',

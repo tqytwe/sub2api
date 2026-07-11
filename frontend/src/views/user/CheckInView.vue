@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import playAPI, { type PlayCheckinStatus } from '@/api/play'
+import { trackQuestCompleteOnce } from '@/utils/growthAnalytics'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import '@/styles/growth-world.css'
@@ -54,6 +55,7 @@ async function handleCheckin() {
   try {
     const result = await playAPI.checkin()
     appStore.showSuccess(successMessage(result))
+    trackQuestCompleteOnce('checkin')
     await authStore.refreshUser()
     await loadStatus()
   } catch (err: unknown) {

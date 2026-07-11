@@ -22,6 +22,7 @@ import {
   setStudioAutoCleanup,
   setStudioLastTemplate,
   trackGrowthEvent,
+  trackQuestCompleteOnce,
 } from '@/utils/growthAnalytics'
 import '@/styles/growth-world.css'
 
@@ -188,6 +189,7 @@ async function generate() {
       actual_cost: job.actual_cost ?? job.estimated_cost,
       count: job.count,
     })
+    trackQuestCompleteOnce('image_generate')
     latestJob.value = job
     jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
     step.value = 4

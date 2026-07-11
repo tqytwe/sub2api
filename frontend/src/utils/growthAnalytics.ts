@@ -47,3 +47,14 @@ export function getStudioAutoCleanup(): boolean {
 export function setStudioAutoCleanup(enabled: boolean) {
   localStorage.setItem('image_studio_auto_cleanup', enabled ? '1' : '0')
 }
+
+const QUEST_TRACKED_PREFIX = 'farm_quest_tracked_'
+
+/** Fire farm_quest_complete at most once per quest per local day. */
+export function trackQuestCompleteOnce(questKey: string) {
+  const day = new Date().toISOString().slice(0, 10)
+  const key = `${QUEST_TRACKED_PREFIX}${questKey}_${day}`
+  if (localStorage.getItem(key) === '1') return
+  localStorage.setItem(key, '1')
+  trackGrowthEvent('farm_quest_complete', { quest_key: questKey })
+}
