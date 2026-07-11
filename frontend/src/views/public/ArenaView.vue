@@ -9,8 +9,14 @@ import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayArenaCurrent, type PlayArenaLeaderboard } from '@/api/play'
 import '@/styles/public-pages.css'
 
-const { t, tm, te } = useI18n()
+const { t, te } = useI18n()
 const authStore = useAuthStore()
+
+function readStringList(key: string): string[] {
+  if (!te(key)) return []
+  const val = t(key, { returnObjects: true }) as unknown
+  return Array.isArray(val) ? val.filter((item): item is string => typeof item === 'string') : []
+}
 
 const loading = ref(true)
 const current = ref<PlayArenaCurrent | null>(null)
@@ -22,19 +28,8 @@ const periodLabel = computed(() => {
   return p.name
 })
 
-const steps = computed(() => {
-  const key = 'play.arena.steps'
-  if (!te(key)) return [] as string[]
-  const val = tm(key)
-  return Array.isArray(val) ? (val as string[]) : []
-})
-
-const rules = computed(() => {
-  const key = 'play.arena.rules'
-  if (!te(key)) return [] as string[]
-  const val = tm(key)
-  return Array.isArray(val) ? (val as string[]) : []
-})
+const steps = computed(() => readStringList('play.arena.steps'))
+const rules = computed(() => readStringList('play.arena.rules'))
 
 async function load() {
   loading.value = true
