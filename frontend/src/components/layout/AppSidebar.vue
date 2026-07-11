@@ -721,7 +721,6 @@ const ChevronDownIcon = {
 // yet. Admin-only flags (not in public settings) stay inline below.
 const flagChannelMonitor = makeSidebarFlag(FeatureFlags.channelMonitor)
 const flagPayment = makeSidebarFlag(FeatureFlags.payment)
-const flagAvailableChannels = makeSidebarFlag(FeatureFlags.availableChannels)
 const flagPlayCheckin = makeSidebarFlag(FeatureFlags.playCheckin)
 const flagPlayArena = makeSidebarFlag(FeatureFlags.playArena)
 const flagPlayBlindbox = makeSidebarFlag(FeatureFlags.playBlindbox)
