@@ -24,8 +24,8 @@
         >
           {{ siteName }}
         </router-link>
-        <!-- Version Badge -->
-        <VersionBadge :version="siteVersion" />
+        <!-- Version Badge (admin only — Play fork hides upstream version from users) -->
+        <VersionBadge v-if="isAdmin" :version="siteVersion" />
       </div>
     </div>
 

@@ -43,6 +43,11 @@ describe('AppSidebar scroll position persistence', () => {
 })
 
 describe('AppSidebar header styles', () => {
+  it('only shows the version badge to admins', () => {
+    expect(componentSource).toContain('VersionBadge v-if="isAdmin"')
+    expect(componentSource).not.toMatch(/<VersionBadge(?![^>]*v-if="isAdmin")[^>]*:version="siteVersion"/)
+  })
+
   it('does not clip the version badge dropdown', () => {
     const sidebarHeaderBlockMatch = styleSource.match(/\.sidebar-header\s*\{[\s\S]*?\n {2}\}/)
     const sidebarBrandBlockMatch = componentSource.match(/\.sidebar-brand\s*\{[\s\S]*?\n\}/)

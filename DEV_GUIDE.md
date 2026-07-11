@@ -364,7 +364,7 @@ Fork 在首页、登录页、控制台使用 **ink 黑白** 定制品牌，与 u
 | 项 | 正确（Play） | 错误（upstream 默认） |
 |----|-------------|----------------------|
 | AuthLayout | `auth-page` + `auth-layout-jisudeng.css` | 青绿渐变居中卡片 |
-| 侧边栏 | `/growth-group` 折叠菜单 | Play 入口丢失 |
+| 侧边栏 | `/growth-group` 折叠菜单；`VersionBadge v-if="isAdmin"` | Play 入口丢失；所有用户看到 `v0.1.xxx` |
 | tailwind primary | `#0a0a0a` ink 系 | `#14b8a6` teal 系 |
 
 受保护文件清单见 `.cursor/rules/jisudeng-branding-protected.mdc`。
