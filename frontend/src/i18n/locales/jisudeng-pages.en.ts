@@ -284,7 +284,7 @@ export const jisudengPagesEn = {
       ],
       statusNote: 'Current period ranks and claims require the console.',
       ctaGuest: 'Register free to view ranks',
-      ctaAuth: 'Open token farm',
+      ctaAuth: 'Call the API to rank up',
     },
     quizQuest: {
       eyebrow: 'PLAY · QUIZ QUEST',

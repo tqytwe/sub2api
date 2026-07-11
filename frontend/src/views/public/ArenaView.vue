@@ -9,7 +9,7 @@ import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayArenaCurrent, type PlayArenaLeaderboard } from '@/api/play'
 import '@/styles/public-pages.css'
 
-const { t } = useI18n()
+const { t, tm, te } = useI18n()
 const authStore = useAuthStore()
 
 const loading = ref(true)
@@ -20,6 +20,20 @@ const periodLabel = computed(() => {
   const p = current.value?.period || leaderboard.value?.period
   if (!p) return ''
   return p.name
+})
+
+const steps = computed(() => {
+  const key = 'play.arena.steps'
+  if (!te(key)) return [] as string[]
+  const val = tm(key)
+  return Array.isArray(val) ? (val as string[]) : []
+})
+
+const rules = computed(() => {
+  const key = 'play.arena.rules'
+  if (!te(key)) return [] as string[]
+  const val = tm(key)
+  return Array.isArray(val) ? (val as string[]) : []
 })
 
 async function load() {
@@ -53,6 +67,7 @@ onMounted(load)
       <p class="play-eyebrow">{{ t('play.arena.eyebrow') }}</p>
       <h1 class="play-title">{{ t('play.arena.title') }}</h1>
       <p class="play-subtitle">{{ t('play.arena.subtitle') }}</p>
+      <p class="play-intro">{{ t('play.arena.intro') }}</p>
 
       <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
       <div v-else-if="!current?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
@@ -61,21 +76,26 @@ onMounted(load)
           {{ t('arena.period', { name: periodLabel }) }}
         </p>
 
-        <section v-if="authStore.isAuthenticated && (current?.rank || current?.token_sum)" class="play-section">
+        <section v-if="authStore.isAuthenticated" class="play-section">
           <h2 class="play-section-title">{{ t('arena.myRank') }}</h2>
-          <p v-if="current?.rank" class="play-intro">
-            {{ t('arena.myStats', { rank: current.rank, tokens: (current.display_token_sum || current.token_sum || 0) }) }}
-          </p>
-          <p v-if="current?.recharge_boost_active" class="play-intro text-amber-700 dark:text-amber-300">
-            {{ t('arena.boostActive', { mult: current.arena_score_multiplier || 1.5 }) }}
-          </p>
-          <p v-else-if="current?.token_sum" class="play-intro">
-            {{ t('arena.myTokens', { tokens: current.token_sum }) }}
-          </p>
-          <p v-if="current?.tokens_to_prev_rank && current.tokens_to_prev_rank > 0" class="play-intro font-medium text-amber-700 dark:text-amber-300">
-            {{ t('arena.gapToPrev', { gap: current.tokens_to_prev_rank.toLocaleString() }) }}
-          </p>
-          <router-link v-if="authStore.isAuthenticated" to="/keys" class="play-btn play-btn-primary mt-3 inline-flex">
+          <template v-if="current?.rank">
+            <p class="play-intro">
+              {{ t('arena.myStats', { rank: current.rank, tokens: (current.display_token_sum || current.token_sum || 0) }) }}
+            </p>
+            <p v-if="current.recharge_boost_active" class="play-intro text-amber-700 dark:text-amber-300">
+              {{ t('arena.boostActive', { mult: current.arena_score_multiplier || 1.5 }) }}
+            </p>
+            <p v-if="current.tokens_to_prev_rank && current.tokens_to_prev_rank > 0" class="play-intro font-medium text-amber-700 dark:text-amber-300">
+              {{ t('arena.gapToPrev', { gap: current.tokens_to_prev_rank.toLocaleString() }) }}
+            </p>
+          </template>
+          <template v-else>
+            <p class="play-intro">{{ t('playHub.arenaNoRank') }}</p>
+            <p v-if="current?.token_sum" class="play-intro">
+              {{ t('arena.myTokens', { tokens: current.token_sum }) }}
+            </p>
+          </template>
+          <router-link to="/keys" class="play-btn play-btn-primary mt-3 inline-flex">
             {{ t('playHub.actionUseApi') }}
           </router-link>
         </section>
@@ -112,18 +132,25 @@ onMounted(load)
             </table>
           </div>
         </section>
+
+        <section v-if="steps.length" class="play-section">
+          <h2 class="play-section-title">{{ t('play.howItWorks') }}</h2>
+          <ol class="play-steps">
+            <li v-for="(step, idx) in steps" :key="idx">{{ step }}</li>
+          </ol>
+        </section>
+
+        <section v-if="rules.length" class="play-section">
+          <h2 class="play-section-title">{{ t('play.arena.rulesTitle') }}</h2>
+          <ul class="play-rules">
+            <li v-for="(rule, idx) in rules" :key="idx">{{ rule }}</li>
+          </ul>
+        </section>
       </template>
 
-      <div class="play-actions">
-        <router-link
-          v-if="!authStore.isAuthenticated"
-          to="/register"
-          class="play-btn play-btn-primary"
-        >
+      <div v-if="!authStore.isAuthenticated" class="play-actions">
+        <router-link to="/register" class="play-btn play-btn-primary">
           {{ t('play.arena.ctaGuest') }}
-        </router-link>
-        <router-link v-else to="/dashboard" class="play-btn play-btn-primary">
-          {{ t('play.arena.ctaAuth') }}
         </router-link>
       </div>
     </main>

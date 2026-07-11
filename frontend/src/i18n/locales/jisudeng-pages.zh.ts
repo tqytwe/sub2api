@@ -291,7 +291,7 @@ export const jisudengPagesZh = {
       ],
       statusNote: '当前周期排行与领奖需登录控制台查看。',
       ctaGuest: '免费注册看排行',
-      ctaAuth: '进入 Token 农场',
+      ctaAuth: '去调 API 冲榜',
     },
     quizQuest: {
       eyebrow: 'PLAY · 答题闯关',
