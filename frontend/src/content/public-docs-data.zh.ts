@@ -204,8 +204,10 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
 
 <h2>Play 中枢（/play）聚合能力</h2>
 <ul>
+  <li><strong>图像工作室</strong> — 模板向导出图、今日是否已出图、首图引导</li>
+  <li><strong>每日任务</strong> — 签到 / 出图 / API 调用进度与能量等级</li>
   <li><strong>签到</strong> — 今日是否已签、连续天数、距下一里程碑</li>
-  <li><strong>Token 农场 / Arena</strong> — 排名、距上一名 token 差、周期结算</li>
+  <li><strong>Token 农场 / Arena</strong> — 日榜 + 月榜排名、距上一名 token 差、周期结算</li>
   <li><strong>盲盒</strong> — 今日剩余次数、是否可开</li>
   <li><strong>答题闯关</strong> — 今日题目提交状态</li>
   <li><strong>Agent Team</strong> — 小队进度与邀请合一链接</li>
@@ -274,6 +276,95 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
   <li><code>POST /api/v1/play/blindbox/open</code> — 开箱（支持幂等键）</li>
 </ul>
 <p class="docs-tip">需管理员开启 <code>play_blindbox_enabled</code>。概率与扣费可在 Settings 调整。</p>`,
+      },
+      {
+        id: 'image-studio',
+        title: "图像工作室",
+        summary: "模板向导 · 生成前估价 · 图库 · 与每日任务联动",
+        html: `<p class="docs-lead">图像工作室面向<strong>不会写 prompt</strong>的用户：选意图 → 选模板 → 填描述 → 确认费用后生成。服务端代调图像 API 并扣余额，与 Batch Image 批量控制台并列、互不替代。</p>
+
+<h2>入口</h2>
+<ul>
+  <li>控制台侧边栏 <strong>图像工作室</strong>（<a href="/image-studio">/image-studio</a>）</li>
+  <li><a href="/play">玩法中枢</a>「今日出图」卡片</li>
+  <li>首页 IMAGE 区 CTA「免费试做一张」</li>
+</ul>
+
+<h2>四步向导</h2>
+<ol>
+  <li><strong>意图</strong> — 电商白底 / 小红书封面 / 自由创作</li>
+  <li><strong>模板</strong> — 每类默认 1 个模板（尺寸、合规提示已预填）</li>
+  <li><strong>内容</strong> — 产品描述、主色、尺寸、数量；可折叠编辑专家 prompt</li>
+  <li><strong>确认</strong> — 选择 API Key、查看预估费用与余额状态后生成</li>
+</ol>
+<p class="docs-tip">已充值用户默认生成 4 张变体；新用户默认 1 张，避免赠金过快耗尽。回访用户可跳过前两步，直达上次模板。</p>
+
+<h2>费用与余额</h2>
+<ul>
+  <li>生成前调用 <code>GET /api/v1/image-studio/estimate</code> 展示预估费用</li>
+  <li>余额不足时引导 <code>/purchase?return=/image-studio</code></li>
+  <li>扣费与 Gateway 图像 API 同源，按所选 Key 的分组计费</li>
+</ul>
+
+<h2>图库与隐私</h2>
+<ul>
+  <li>最近任务可在页面底部图库查看、下载、删除</li>
+  <li>可选 <strong>7 天自动清理</strong>（仅影响本地偏好与任务过期标记）</li>
+  <li>Gateway 请求正文仍<strong>不入库</strong>；工作室任务表仅存 template_id 与合成 prompt（可配置不落盘）</li>
+</ul>
+
+<h2>与 Play 联动</h2>
+<ul>
+  <li>每日首次成功出图 → 完成「出图 1 张」任务（+20 能量）</li>
+  <li>首次出图 → 首图仪式庆祝（客户端 localStorage）</li>
+  <li>Hub <code>pending_actions</code> 含未完成任务与首图引导</li>
+</ul>
+
+<h2>API</h2>
+<ul>
+  <li><code>GET /api/v1/image-studio/templates</code></li>
+  <li><code>GET /api/v1/image-studio/estimate</code></li>
+  <li><code>POST /api/v1/image-studio/generate</code>（异步 job，前端轮询）</li>
+  <li><code>GET /api/v1/image-studio/jobs</code> / <code>DELETE .../jobs/:id</code></li>
+</ul>
+<p class="docs-tip">需开启 <code>image_studio_enabled</code>。Batch Image（<code>/batch-image</code>）面向 Gemini 批量任务，适合老手。</p>`,
+      },
+      {
+        id: 'token-farm',
+        title: "Token 农场",
+        summary: "日榜 + 月榜 · 每日任务 · RPG 能量等级",
+        html: `<p class="docs-lead">Token 农场将 API Token 消耗可视化为 Ink 风格 RPG：每日任务攒能量、日榜即时反馈、月榜赛季大奖。底层仍使用 <code>usage_logs</code> 统计，不引入玩法代币。</p>
+
+<h2>排行榜</h2>
+<ul>
+  <li><strong>日榜</strong> — 当日有效 Token 消耗排名；Top 10 次日自动发放小额余额奖励（日预算上限 $50）</li>
+  <li><strong>月榜</strong> — 赛季周期排名；Admin 调用 <code>POST /admin/play/arena/settle</code> 结算大奖</li>
+  <li>展示「距上一名还差 X tokens」与 Recharge Boost / Campaign Buff 倍率</li>
+</ul>
+
+<h2>每日任务（能量 → 等级，纯展示）</h2>
+<div class="docs-table-wrap">
+<table class="docs-table">
+<thead><tr><th>任务</th><th>条件</th><th>能量</th></tr></thead>
+<tbody>
+<tr><td>签到</td><td>当日完成签到</td><td>+10</td></tr>
+<tr><td>出图 1 张</td><td>图像工作室成功 1 次</td><td>+20</td></tr>
+<tr><td>API 调用</td><td>当日 usage ≥ 100 tokens</td><td>+15</td></tr>
+</tbody>
+</table>
+</div>
+<p>能量与等级用于 HUD 进度条，<strong>不单独兑换余额</strong>（防刷量设计）。</p>
+
+<h2>零消耗用户</h2>
+<p>若日榜与月榜消耗均为 0，页面展示「播种指南」：创建 Key → 调用 API 或先去图像工作室出图。</p>
+
+<h2>入口与 API</h2>
+<ul>
+  <li>页面 <a href="/arena">/arena</a> 或玩法中枢 Token 农场卡片</li>
+  <li><code>GET /api/v1/play/arena/daily/current</code> · <code>.../daily/leaderboard</code></li>
+  <li><code>GET /api/v1/play/quests/today</code></li>
+</ul>
+<p class="docs-tip">需开启 <code>play_arena_enabled</code> 与 <code>play_daily_arena_enabled</code>。对外文案：<strong>每日任务有奖 · 每月赛季大奖</strong>。</p>`,
       },
     ],
   },

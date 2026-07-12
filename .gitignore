@@ -136,6 +136,8 @@ docs/*
 !docs/PAYMENT_CN.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/growth-play-roadmap.md
+!docs/growth-world-prd.md
+!docs/growth-analytics.md
 !docs/legal/
 !docs/legal/*.md
 .serena/

@@ -349,7 +349,16 @@ export SUB2API_ADMIN_API_KEY='<admin api key>'
 node scripts/sub2api-admin.js accounts list
 ```
 
-完整命令见 `skills/sub2api-admin/references/admin-cli.md`。增长/Play 产品方案见 `docs/growth-play-roadmap.md`。
+完整命令见 `skills/sub2api-admin/references/admin-cli.md`。
+
+**增长 / Play 文档**：
+
+| 文档 | 路径 |
+|------|------|
+| Sprint A–C 路线图 | `docs/growth-play-roadmap.md` |
+| Phase 1 详细 PRD | `docs/growth-world-prd.md` |
+| 埋点与 North Star | `docs/growth-analytics.md` |
+| 用户可见 `/docs` 内容 | `frontend/src/content/public-docs-data.zh.ts` |
 
 ## 八、极速蹬品牌保护（合并 upstream 必读）
 

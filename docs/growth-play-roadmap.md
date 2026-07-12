@@ -126,7 +126,7 @@ flowchart TB
 ### 3.4 侧边栏信息架构
 
 ```
-增长 / 福利（可折叠）
+玩法福利（可折叠）
   ├─ 玩法中枢 /play
   ├─ 每日签到
   ├─ Token 农场
@@ -135,6 +135,8 @@ flowchart TB
   ├─ Agent Team
   └─ 邀请返利
 ```
+
+> 图像工作室 `/image-studio` 位于「玩法福利」分组**上方**的账户区（与 Batch Image 并列）。Admin 可在 **系统设置 → 功能开关 → 用户侧栏** 逐项控制可见性。
 
 ### 3.5 Channel TV 登录态增强
 
@@ -243,7 +245,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 ### 6.3 信任 → 消费
 
 - 用量页：「本月已省 $X（对比官方价）」— 需 usage API 扩展
-- 文档 `/docs` VIP 树与 Hub 档位一致
+- 文档 `/docs` VIP 树与 Hub 档位一致 — 见 `public-docs-data.zh.ts` `discount-examples` 页
 
 ---
 
@@ -251,7 +253,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 
 | 频率 | 动作 |
 |------|------|
-| 每日 | 签到、Quiz |
+| 每日 | 签到、Quiz、每日任务、日榜 |
 | 每周 | Arena 小周期榜（可选） |
 | 每月 | Arena 大奖结算 |
 | 节点 | 充值加赠活动（Campaign 引擎） |
@@ -339,7 +341,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 - [ ] 登录用户访问 `/play` 看到聚合状态与余额
 - [ ] Dashboard 余额低 / 首充 Banner 正确展示
 - [ ] Arena 显示「距上一名还差 X tokens」
-- [ ] 侧边栏「增长/福利」分组可折叠
+- [x] 侧边栏「玩法福利」分组可折叠（7 个子入口）
 - [ ] Channel TV 登录态显示待办提示
 - [ ] 全部 Play 开关关闭时 Hub 显示引导文案
 - [ ] `GET /play/hub` 契约测试通过
@@ -347,3 +349,67 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 - [ ] 注册页展示新人权益摘要（同 API）
 - [ ] 公开 Play 页游客 CTA 跳转 `/register`
 - [ ] `GET /public/growth-teaser` 单元测试通过
+
+---
+
+## 11. Phase 1 — 增长世界双核 ✅（2026-07）
+
+> 详细 PRD 与多角色评审纪要见 [`growth-world-prd.md`](./growth-world-prd.md)。埋点见 [`growth-analytics.md`](./growth-analytics.md)。
+
+### 11.1 图像工作室（Image Studio）
+
+| 项 | 说明 |
+|----|------|
+| 路由 | `/image-studio`（`ImageStudioView.vue`） |
+| Flag | `image_studio_enabled` |
+| BFF | `GET/POST /api/v1/image-studio/*`（templates / estimate / generate / jobs） |
+| 数据 | migration `178_phase1_growth_world.sql` → `image_studio_jobs` / `image_studio_assets` |
+| 模板 | 后端 `defaultImageStudioCatalog()`（电商 / 小红书 / 自由创作） |
+| 联动 | 首图仪式（localStorage）、每日任务 `image_generate`、Hub 卡片、首页 CTA |
+
+**与 Batch Image**：工作室 = 新手单张模板向导；Batch = 老手 Gemini 批量 — 菜单并列，Hub 主推工作室。
+
+### 11.2 Token Farm RPG + 日榜 + 每日任务
+
+| 项 | 说明 |
+|----|------|
+| 视觉 | `arena-rpg.css` + `growth-world.css` — Ink HUD、等级条、Buff、播种指南 |
+| 日榜 | `play_arena_periods.period_type = daily`；`GET /play/arena/daily/*` |
+| 任务 | `play_quest_progress` 表；`GET /play/quests/today` |
+| 默认任务 | 签到 +10 / 出图 +20 / API≥100 tokens +15 能量 |
+| 日榜结算 | `play_growth_runner` cron；Top 10 + 日预算上限 $50 |
+| Hub 扩展 | `quests` / `image_studio` / `daily_arena` 字段 |
+
+### 11.3 文件索引（Phase 1）
+
+| 层 | 路径 |
+|----|------|
+| 方案 PRD | `docs/growth-world-prd.md` |
+| 埋点 | `docs/growth-analytics.md` |
+| Migration | `backend/migrations/178_phase1_growth_world.sql` |
+| Image Studio 服务 | `backend/internal/service/image_studio.go` |
+| Image Studio 模板 | `backend/internal/service/image_studio_templates.go` |
+| Image Studio Handler | `backend/internal/handler/image_studio_handler.go` |
+| Image Studio 路由 | `backend/internal/server/routes/image_studio.go` |
+| Quests / 日榜 | `backend/internal/service/play_quests.go` |
+| Quest 定义 | `backend/internal/service/play_quest_defs.go` |
+| Growth cron | `backend/internal/service/play_growth_runner.go` |
+| Hub 聚合 | `backend/internal/service/play_hub.go` |
+| 前端工作室 | `frontend/src/views/user/ImageStudioView.vue` |
+| 前端 API | `frontend/src/api/imageStudio.ts` |
+| Arena RPG | `frontend/src/views/public/ArenaView.vue` |
+| 埋点工具 | `frontend/src/utils/growthAnalytics.ts` |
+| 样式 | `frontend/src/styles/growth-world.css` · `arena-rpg.css` |
+
+### 11.4 Phase 1 验收清单
+
+- [x] `/image-studio` 四步向导 + 费用预估 + 图库 + 7 天自动清理选项
+- [x] 新用户默认生成 1 张，已充值用户默认 4 张
+- [x] 回访用户快捷模式（记住上次模板，跳过 Step 1–2）
+- [x] Arena 日榜 / 月榜 Tab + 每日任务条 + 播种指南
+- [x] Hub 置顶今日任务 + 图像工作室卡片
+- [x] 首页 `#image` CTA → `/image-studio`
+- [x] 侧边栏「玩法福利」可折叠子菜单（7 个子入口）
+- [x] 首页 Channel TV 文案「每日任务有奖 · 每月赛季大奖」
+- [ ] 隐私政策增加图像工作室数据保留专节（Phase 2 法务）
+- [ ] moderation 失败未扣费 + audit（Phase 2）
