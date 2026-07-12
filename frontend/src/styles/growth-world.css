@@ -1,7 +1,8 @@
 /**
  * Growth world ink design tokens — aligned with public-pages.css / home-view.css
+ * Tokens on :root so dashboard banners / modals work outside .gw-page.
  */
-.gw-page {
+:root {
   --gw-bg: #f7f6f2;
   --gw-card: #ffffff;
   --gw-ink: #0a0a0a;
@@ -11,6 +12,19 @@
   --gw-soft: #fafaf7;
   --gw-ok: #15803d;
   --gw-warn: #b45309;
+}
+
+.dark {
+  --gw-bg: #141414;
+  --gw-card: #1a1a19;
+  --gw-ink: #f5f5f4;
+  --gw-ink-2: #a8a29e;
+  --gw-ink-3: #78716c;
+  --gw-line: #292524;
+  --gw-soft: #1f1f1e;
+}
+
+.gw-page {
   max-width: 48rem;
   margin: 0 auto;
   color: var(--gw-ink);
@@ -20,14 +34,25 @@
   max-width: 56rem;
 }
 
-.dark .gw-page {
-  --gw-bg: #141414;
-  --gw-card: #1a1a19;
-  --gw-ink: #f5f5f4;
-  --gw-ink-2: #a8a29e;
-  --gw-ink-3: #78716c;
-  --gw-line: #292524;
-  --gw-soft: #1f1f1e;
+@keyframes gw-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gw-pulse-soft {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(10, 10, 10, 0.08);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(10, 10, 10, 0);
+  }
 }
 
 .gw-eyebrow {
@@ -60,6 +85,12 @@
   background: var(--gw-card);
   padding: 1rem 1.15rem;
   text-align: right;
+  animation: gw-fade-up 0.4s ease both;
+}
+
+.gw-balance-card--low {
+  border-color: var(--gw-warn);
+  animation: gw-pulse-soft 2.5s ease-in-out infinite;
 }
 
 .gw-balance-label {
@@ -75,6 +106,14 @@
   font-size: 1.5rem;
   font-weight: 600;
   margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+.gw-balance-actions {
+  margin-top: 0.65rem;
+  display: flex;
+  justify-content: flex-end;
 }
 
 .gw-link {
@@ -100,6 +139,7 @@
   border: 1px solid var(--gw-line);
   color: var(--gw-ink-3);
   background: transparent;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease, transform 0.2s ease;
 }
 
 .gw-step-pill.active {
@@ -133,18 +173,43 @@
   text-align: left;
   cursor: pointer;
   background: var(--gw-card);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+  animation: gw-fade-up 0.4s ease both;
 }
 
 .gw-card-btn:hover,
 .gw-card-btn.selected {
   border-color: var(--gw-ink);
-  box-shadow: 0 0 0 1px var(--gw-ink);
+  box-shadow: 0 8px 24px -12px rgba(10, 10, 10, 0.25);
+  transform: translateY(-2px);
 }
 
-.gw-card-emoji {
-  font-size: 1.5rem;
-  line-height: 1;
+.gw-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 10px;
+  background: var(--gw-soft);
+  border: 1px solid var(--gw-line);
+  color: var(--gw-ink);
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
+}
+
+.gw-card-btn:hover .gw-card-icon,
+.gw-card-btn.selected .gw-card-icon {
+  background: var(--gw-ink);
+  color: #fff;
+  border-color: var(--gw-ink);
+  transform: scale(1.04);
+}
+
+.dark .gw-card-btn:hover .gw-card-icon,
+.dark .gw-card-btn.selected .gw-card-icon {
+  background: #f5f5f4;
+  color: #0a0a0a;
+  border-color: #f5f5f4;
 }
 
 .gw-card-label {
@@ -237,17 +302,24 @@
   text-decoration: none;
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.2s, border-color 0.2s;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .gw-btn-primary {
-  background: var(--gw-ink);
+  background: var(--gw-ink, #0a0a0a);
   color: #fff;
-  border-color: var(--gw-ink);
+  border-color: var(--gw-ink, #0a0a0a);
 }
 
 .gw-btn-primary:hover:not(:disabled) {
   background: #262626;
+  border-color: #262626;
+  transform: translateY(-1px);
+}
+
+.gw-btn-sm {
+  padding: 0.4rem 0.85rem;
+  font-size: 13px;
 }
 
 .gw-btn-primary:disabled {
@@ -295,6 +367,7 @@
   border-radius: 14px;
   background: var(--gw-card);
   padding: 1rem 1.15rem;
+  animation: gw-fade-up 0.45s ease both;
 }
 
 .gw-quest-banner {
@@ -303,6 +376,7 @@
   background: var(--gw-soft);
   padding: 1rem 1.15rem;
   margin-bottom: 1rem;
+  animation: gw-fade-up 0.35s ease both;
 }
 
 .gw-quest-banner-title {

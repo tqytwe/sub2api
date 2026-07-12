@@ -13,7 +13,9 @@ alwaysApply: true
 ./scripts/push-github-and-deploy.sh
 ```
 
-验收地址：**http://192.168.100.10:8206**（API 同端口 `/api/v1/...`）。
+**用户侧前端 UI 验收**（Play / 增长世界 / 仪表盘 / 图像工作室）：在 **https://jisuodeng.zeabur.app/** 浏览器走查（浅色 + 深色模式）。禁止用 localhost。
+
+**API / 后端 / Admin 验收**：**http://192.168.100.10:8206**（API 同端口 `/api/v1/...`）。
 
 - 服务器目录：`/data/1panel/sub2api`
 - SSH：`dell@192.168.100.10`

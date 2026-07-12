@@ -25,6 +25,7 @@ import {
   trackQuestCompleteOnce,
 } from '@/utils/growthAnalytics'
 import '@/styles/growth-world.css'
+import Icon from '@/components/icons/Icon.vue'
 
 const { t, locale } = useI18n()
 const router = useRouter()
@@ -58,6 +59,16 @@ const enabled = computed(() => isFeatureFlagEnabled(FeatureFlags.imageStudio))
 const balance = computed(() => authStore.user?.balance ?? estimate.value?.balance ?? 0)
 const isNewUser = computed(() => totalRecharged.value <= 0)
 const maxCount = computed(() => (isNewUser.value ? 1 : 4))
+const balanceLow = computed(() => balance.value <= 0)
+
+type StudioIconName = 'cube' | 'grid' | 'sparkles' | 'document'
+
+function studioIconFor(id: string): StudioIconName {
+  if (id === 'ecommerce') return 'cube'
+  if (id === 'social') return 'grid'
+  if (id === 'creative') return 'sparkles'
+  return 'document'
+}
 const showAccentColor = computed(() => selectedIntent.value?.id === 'ecommerce')
 
 function labelFor(obj?: { zh: string; en: string }) {
@@ -226,10 +237,14 @@ onMounted(load)
           <h1 class="gw-title">{{ t('imageStudio.title') }}</h1>
           <p class="gw-subtitle">{{ t('imageStudio.subtitle') }}</p>
         </div>
-        <div class="gw-balance-card">
+        <div class="gw-balance-card" :class="{ 'gw-balance-card--low': balanceLow }">
           <p class="gw-balance-label">{{ t('imageStudio.balance') }}</p>
           <p class="gw-balance-value">${{ balance.toFixed(2) }}</p>
-          <router-link to="/purchase?return=/image-studio" class="gw-link">{{ t('imageStudio.recharge') }}</router-link>
+          <div class="gw-balance-actions">
+            <router-link to="/purchase?return=/image-studio" class="gw-btn gw-btn-primary gw-btn-sm">
+              {{ t('imageStudio.recharge') }}
+            </router-link>
+          </div>
         </div>
       </div>
 
@@ -254,7 +269,9 @@ onMounted(load)
             class="gw-card-btn"
             @click="pickIntent(intent)"
           >
-            <div class="gw-card-emoji">{{ intent.templates[0]?.preview_emoji || '✨' }}</div>
+            <div class="gw-card-icon">
+              <Icon :name="studioIconFor(intent.id)" size="lg" />
+            </div>
             <div class="gw-card-label">{{ labelFor(intent.label) }}</div>
           </button>
         </div>
@@ -271,7 +288,9 @@ onMounted(load)
             :class="{ selected: selectedTemplate?.id === tpl.id }"
             @click="pickTemplate(tpl)"
           >
-            <div class="gw-card-emoji">{{ tpl.preview_emoji || '🖼️' }}</div>
+            <div class="gw-card-icon">
+              <Icon :name="studioIconFor(selectedIntent?.id || tpl.id)" size="lg" />
+            </div>
             <div class="gw-card-label">{{ labelFor(tpl.label) }}</div>
             <ul v-if="tpl.compliance_hints?.length" class="gw-hints">
               <li v-for="(hint, i) in tpl.compliance_hints" :key="i">{{ hint }}</li>
