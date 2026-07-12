@@ -123,6 +123,44 @@ const playCards = computed(() => {
     })
   }
 
+  if (isFeatureFlagEnabled(FeatureFlags.playAgentTeam)) {
+    const tm = hub.value?.team
+    const team = tm?.team
+    let subtitle = t('playHub.teamNone')
+    if (team) {
+      subtitle = t('playHub.teamJoined', {
+        members: team.member_count,
+        tokens: (team.token_sum ?? 0).toLocaleString(),
+      })
+      const aff = team.affiliate
+      if (aff?.enabled && !aff.milestone_reached && (aff.tokens_to_milestone ?? 0) > 0) {
+        subtitle = t('playHub.teamAffiliateRemaining', {
+          remaining: (aff.tokens_to_milestone ?? 0).toLocaleString(),
+        })
+      } else if (aff?.enabled && (aff.milestone_reached || aff.captain_bonus_granted)) {
+        subtitle = t('playHub.teamAffiliateReached')
+      }
+    }
+    cards.push({
+      key: 'agent-team',
+      title: t('nav.agentTeam'),
+      subtitle,
+      route: '/agent-team',
+      badge: tm?.enabled && !team ? t('playHub.badgePending') : undefined,
+      enabled: !!tm?.enabled,
+    })
+  }
+
+  if (isFeatureFlagEnabled(FeatureFlags.affiliate)) {
+    cards.push({
+      key: 'affiliate',
+      title: t('nav.affiliate'),
+      subtitle: t('playHub.affiliateHint'),
+      route: '/affiliate',
+      enabled: true,
+    })
+  }
+
   return cards.filter((c) => c.enabled)
 })
 

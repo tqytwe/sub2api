@@ -183,13 +183,13 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	// Affiliate (邀请返利) feature (default disabled; opt-in)
 	SettingKeyAffiliateEnabled: "false",
 
-	// Play growth user sidebar (default disabled; opt-in)
-	SettingKeyImageStudioEnabled:   "false",
-	SettingKeyPlayCheckinEnabled:   "false",
-	SettingKeyPlayArenaEnabled:     "false",
-	SettingKeyPlayBlindboxEnabled:  "false",
-	SettingKeyPlayQuizEnabled:      "false",
-	SettingKeyPlayAgentTeamEnabled: "false",
+	// Play growth user sidebar (Jisudeng Play ships enabled; admin can disable)
+	SettingKeyImageStudioEnabled:   "true",
+	SettingKeyPlayCheckinEnabled:   "true",
+	SettingKeyPlayArenaEnabled:     "true",
+	SettingKeyPlayBlindboxEnabled:  "true",
+	SettingKeyPlayQuizEnabled:      "true",
+	SettingKeyPlayAgentTeamEnabled: "true",
 
 	// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
