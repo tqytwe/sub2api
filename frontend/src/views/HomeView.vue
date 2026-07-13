@@ -478,9 +478,13 @@ const siteLogo = computed(() =>
     allowDataUrl: true
   })
 )
-const siteSubtitle = computed(
-  () => appStore.cachedPublicSettings?.site_subtitle || '最安全的大模型中转平台'
-)
+const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
+
+const siteSubtitle = computed(() => {
+  const raw = appStore.cachedPublicSettings?.site_subtitle?.trim()
+  if (raw && raw !== UPSTREAM_SITE_SUBTITLE) return raw
+  return t('authAside.siteSubtitleDefault')
+})
 const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 )

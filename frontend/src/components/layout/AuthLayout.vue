@@ -102,9 +102,11 @@ const siteName = computed(() => appStore.siteName || 'Sub2API')
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true })
 )
+const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
+
 const siteSubtitle = computed(() => {
   const raw = appStore.cachedPublicSettings?.site_subtitle?.trim()
-  if (raw) return raw
+  if (raw && raw !== UPSTREAM_SITE_SUBTITLE) return raw
   return t('authAside.siteSubtitleDefault')
 })
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
