@@ -186,5 +186,17 @@ export const jisudengHomeZh = {
     signupCredit: '现在注册 — 送 ${amount} 测试额度，全模型可试。',
     checkin: '另享每日签到 ${amount} 余额。',
     cta: '创建免费账号'
+  },
+  anchors: {
+    manifesto: '承诺',
+    stats: '数据',
+    image: '图像',
+    channels: '渠道',
+    features: '优势',
+    onboard: '接入',
+    pricing: '计费',
+    faq: '问答',
+    closer: '开始',
+    backToTop: '回到顶部'
   }
 }

@@ -8,6 +8,42 @@
         :savings-label="usageSavingsLabel"
       />
 
+      <div
+        v-if="showUsageEmptyGuide"
+        class="rounded-xl border border-dashed border-gray-200 bg-gray-50/80 p-6 dark:border-dark-600 dark:bg-dark-900/50"
+      >
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('usage.emptyGuide.title') }}</h3>
+        <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t('usage.emptyGuide.lead') }}</p>
+        <ol class="mt-4 list-decimal space-y-2 pl-5 text-sm text-gray-700 dark:text-gray-300">
+          <li>{{ t('usage.emptyGuide.step1') }}</li>
+          <li>{{ t('usage.emptyGuide.step2') }}</li>
+          <li>{{ t('usage.emptyGuide.step3') }}</li>
+        </ol>
+        <div class="mt-5 flex flex-wrap gap-3">
+          <router-link to="/keys" class="btn btn-primary">{{ t('usage.emptyGuide.ctaKeys') }}</router-link>
+          <a
+            v-if="docUrl"
+            :href="docUrl"
+            target="_blank"
+            rel="noopener"
+            class="btn btn-secondary"
+          >
+            {{ t('usage.emptyGuide.ctaDocs') }}
+          </a>
+        </div>
+        <div class="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
+          <p class="border-b border-gray-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-dark-600 dark:text-gray-400">
+            {{ t('usage.emptyGuide.exampleTitle') }}
+          </p>
+          <div class="grid gap-3 px-4 py-3 text-sm text-gray-600 dark:text-gray-300 sm:grid-cols-4">
+            <span>{{ t('usage.emptyGuide.exampleModel') }}</span>
+            <span class="font-mono text-xs">{{ t('usage.emptyGuide.exampleEndpoint') }}</span>
+            <span>{{ t('usage.emptyGuide.exampleTokens') }}</span>
+            <span>{{ t('usage.emptyGuide.exampleCost') }}</span>
+          </div>
+        </div>
+      </div>
+
       <div class="space-y-4">
         <div class="card p-4">
           <div class="flex flex-wrap items-center gap-4">
@@ -252,9 +288,14 @@ import type {
 } from '@/types'
 import type { Column } from '@/components/common/types'
 import { COMMON_ERROR_STATUS_CODES } from '@/utils/errorBadges'
+import { sanitizeUrl } from '@/utils/url'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+
+const docUrl = computed(() =>
+  sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || ''),
+)
 
 type DistributionMetric = 'tokens' | 'actual_cost'
 type EndpointSource = 'inbound' | 'upstream' | 'path'
@@ -332,9 +373,10 @@ let modelStatsReqSeq = 0
 const formatLocalDate = (date: Date): string =>
   `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
 
-const getLast24HoursRangeDates = () => {
+const getLast7DaysRangeDates = () => {
   const end = new Date()
-  const start = new Date(end.getTime() - 24 * 60 * 60 * 1000)
+  const start = new Date()
+  start.setDate(end.getDate() - 6)
   return { start: formatLocalDate(start), end: formatLocalDate(end) }
 }
 
@@ -344,7 +386,7 @@ const getGranularityForRange = (start: string, end: string): 'day' | 'hour' => {
   return Math.ceil((endTime - startTime) / (1000 * 60 * 60 * 24)) <= 1 ? 'hour' : 'day'
 }
 
-const defaultRange = getLast24HoursRangeDates()
+const defaultRange = getLast7DaysRangeDates()
 const startDate = ref(defaultRange.start)
 const endDate = ref(defaultRange.end)
 const granularity = ref<'day' | 'hour'>(getGranularityForRange(startDate.value, endDate.value))
@@ -378,6 +420,13 @@ const pagination = reactive({
   page_size: getPersistedPageSize(),
   total: 0,
 })
+const showUsageEmptyGuide = computed(
+  () =>
+    !loading.value &&
+    usageStats.value !== null &&
+    (usageStats.value.total_requests ?? 0) === 0 &&
+    pagination.total === 0,
+)
 const sortState = reactive({
   sort_by: 'created_at',
   sort_order: 'desc' as 'asc' | 'desc',
@@ -557,7 +606,7 @@ const refreshData = () => {
 }
 
 const resetFilters = () => {
-  const range = getLast24HoursRangeDates()
+  const range = getLast7DaysRangeDates()
   startDate.value = range.start
   endDate.value = range.end
   filters.value = {

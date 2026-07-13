@@ -26,6 +26,16 @@ const canOpen = computed(
     !opening.value,
 )
 
+const prizeTiers = [
+  { amount: '0.05', rate: '40%' },
+  { amount: '0.20', rate: '30%' },
+  { amount: '0.50', rate: '20%' },
+  { amount: '1.00', rate: '8%' },
+  { amount: '2.00', rate: '2%' },
+]
+
+const recentWins = ref<Array<{ user: string; reward: string; when: string }>>([])
+
 async function loadStatus() {
   if (!authStore.isAuthenticated) {
     status.value = { enabled: false, cost_amount: 0, daily_limit: 0, opens_today: 0, can_open: false, server_date: '' }
@@ -112,6 +122,29 @@ onMounted(loadStatus)
         >
           {{ t('play.blindbox.ctaGuest') }}
         </router-link>
+      </div>
+
+      <div class="play-section play-prize-section">
+        <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
+        <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
+        <ul class="play-prize-grid">
+          <li v-for="tier in prizeTiers" :key="tier.amount" class="play-prize-tier">
+            <span class="play-prize-amount">${{ tier.amount }}</span>
+            <span class="play-prize-rate">{{ tier.rate }}</span>
+          </li>
+        </ul>
+      </div>
+
+      <div class="play-section">
+        <h2 class="play-section-title">{{ t('blindbox.recentWinsTitle') }}</h2>
+        <p v-if="recentWins.length === 0" class="play-note">{{ t('blindbox.recentWinsPlaceholder') }}</p>
+        <ul v-else class="play-wins-list">
+          <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
+            <span class="play-win-user">{{ win.user }}</span>
+            <span class="play-win-reward">+${{ win.reward }}</span>
+            <span class="play-win-when">{{ win.when }}</span>
+          </li>
+        </ul>
       </div>
     </main>
 

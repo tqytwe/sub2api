@@ -102,9 +102,11 @@ const siteName = computed(() => appStore.siteName || 'Sub2API')
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true })
 )
-const siteSubtitle = computed(
-  () => appStore.cachedPublicSettings?.site_subtitle || '最安全的大模型中转平台'
-)
+const siteSubtitle = computed(() => {
+  const raw = appStore.cachedPublicSettings?.site_subtitle?.trim()
+  if (raw) return raw
+  return t('authAside.siteSubtitleDefault')
+})
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
 const currentYear = computed(() => new Date().getFullYear())
 const contactQQ = computed(() => appStore.contactInfo?.trim() || '')

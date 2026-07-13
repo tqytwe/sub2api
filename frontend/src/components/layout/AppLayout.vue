@@ -19,6 +19,8 @@
         <slot />
       </main>
     </div>
+
+    <SupportFloatingCard />
   </div>
 </template>
 
@@ -29,6 +31,7 @@ import { useAppStore } from '@/stores'
 import { useAuthStore } from '@/stores/auth'
 import { useOnboardingTour } from '@/composables/useOnboardingTour'
 import { useOnboardingStore } from '@/stores/onboarding'
+import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
 

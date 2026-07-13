@@ -106,12 +106,12 @@ onMounted(loadStatus)
   <AppLayout>
     <div class="gw-page space-y-6 pb-10">
       <div>
-        <p class="gw-eyebrow">{{ t('checkin.eyebrow', 'CHECK-IN') }}</p>
+        <p class="gw-eyebrow">{{ t('checkin.eyebrow') }}</p>
         <h1 class="gw-title">{{ t('checkin.title') }}</h1>
       </div>
 
       <div class="gw-hub-balance text-center">
-        <p class="gw-balance-label">{{ t('checkin.balanceLabel', 'Balance') }}</p>
+        <p class="gw-balance-label">{{ t('checkin.balanceLabel') }}</p>
         <p class="gw-balance-value">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
         <p v-if="status?.streak_count" class="gw-subtitle mt-2">
           {{ t('checkin.streak', { days: status.streak_count }) }}

@@ -184,5 +184,17 @@ export const jisudengHomeEn = {
     signupCredit: 'Register now — get ${amount} free credits to test every model.',
     checkin: 'Plus ${amount}/day from daily check-in.',
     cta: 'Create free account'
+  },
+  anchors: {
+    manifesto: 'Promise',
+    stats: 'Stats',
+    image: 'Image',
+    channels: 'Channels',
+    features: 'Why us',
+    onboard: 'Setup',
+    pricing: 'Pricing',
+    faq: 'FAQ',
+    closer: 'Start',
+    backToTop: 'Back to top'
   }
 }

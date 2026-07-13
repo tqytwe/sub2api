@@ -121,6 +121,8 @@ export const jisudengPagesZh = {
     vipBadge: 'VIP {label}',
   },
   checkin: {
+    eyebrow: '每日签到',
+    balanceLabel: '当前余额',
     title: '每日签到',
     description: '领取每日余额奖励',
     rewardHint: '今日奖励：${amount}',
@@ -181,6 +183,10 @@ export const jisudengPagesZh = {
     },
   },
   blindbox: {
+    prizePoolTitle: '奖池预览',
+    prizePoolNote: '概率为默认奖池参考值，VIP 档位可能升级奖池。',
+    recentWinsTitle: '近期中奖',
+    recentWinsPlaceholder: '暂无公开中奖记录，开箱后你的奖励会即时入账。',
     disabled: '盲盒暂未开启',
     costHint: '每次消耗 ${cost} · 今日 {opens}/{limit} 次',
     openButton: '开启盲盒',
@@ -224,7 +230,7 @@ export const jisudengPagesZh = {
     linkCopied: '邀请链接已复制',
   },
   playHub: {
-    eyebrow: 'GROWTH',
+    eyebrow: '增长福利',
     title: '玩法中枢',
     subtitle: '一眼看清今日福利与消费机会',
     balanceLabel: '可用余额',
@@ -444,13 +450,14 @@ export const jisudengPagesZh = {
     },
   },
   authAside: {
+    siteSubtitleDefault: '最安全的大模型中转平台',
     eyebrow: '隐私 · 透明 · 一念可达',
     titleLogin: '一念之轻',
     titleFaintLogin: '接万模之响',
     pledge1: '不存请求体 · 不参与训练',
     pledge2: '全链路 TLS · 全程可审计',
     pledge3: '注册即开 · 秒级接入',
-    eyebrowRegister: 'JOIN · 加入极速蹬 AI',
+    eyebrowRegister: '加入极速蹬 AI',
     titleRegister: '即刻开通',
     titleFaintRegister: '一念可达每一个模型',
     pitchRegister:

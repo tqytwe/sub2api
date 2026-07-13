@@ -385,6 +385,29 @@
       </div>
     </section>
 
+    <nav v-if="isGtmHome" class="home-anchor-nav" aria-label="Page sections">
+      <a
+        v-for="section in anchorSections"
+        :key="section.id"
+        :href="`#${section.id}`"
+        class="home-anchor-link"
+        :class="{ 'is-active': activeAnchor === section.id }"
+        @click.prevent="scrollToSection(section.id)"
+      >
+        {{ section.label }}
+      </a>
+    </nav>
+
+    <button
+      v-if="showBackToTop"
+      type="button"
+      class="home-back-top"
+      :aria-label="t('home.jisudeng.anchors.backToTop')"
+      @click="scrollToTop"
+    >
+      ↑
+    </button>
+
     <footer class="page-footer">
       <div class="page-container footer-row">
         <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
@@ -488,6 +511,27 @@ const faqItems = computed((): FaqItem[] => {
   })
 })
 
+const anchorSections = computed(() => {
+  const sections = [
+    { id: 'manifesto', label: t('home.jisudeng.anchors.manifesto') },
+    { id: 'stats', label: t('home.jisudeng.anchors.stats') },
+    { id: 'image', label: t('home.jisudeng.anchors.image') },
+    { id: 'channels', label: t('home.jisudeng.anchors.channels') },
+    { id: 'features', label: t('home.jisudeng.anchors.features') },
+    { id: 'onboard', label: t('home.jisudeng.anchors.onboard') },
+    { id: 'pricing', label: t('home.jisudeng.anchors.pricing') },
+    { id: 'faq', label: t('home.jisudeng.anchors.faq') },
+    { id: 'closer', label: t('home.jisudeng.anchors.closer') },
+  ]
+  if (faqItems.value.length === 0) {
+    return sections.filter((section) => section.id !== 'faq')
+  }
+  return sections
+})
+
+const showBackToTop = ref(false)
+const activeAnchor = ref('manifesto')
+
 const eyebrowBits = computed(() =>
   t('home.jisudeng.hero.eyebrow')
     .split(/\s*·\s*/)
@@ -588,6 +632,27 @@ function openDocs() {
   if (docUrl.value) window.open(docUrl.value, '_blank', 'noopener')
 }
 
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+function scrollToTop() {
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+function updateScrollState() {
+  headerScrolled.value = window.scrollY > 12
+  showBackToTop.value = window.scrollY > 480
+  let current = anchorSections.value[0]?.id ?? 'manifesto'
+  for (const section of anchorSections.value) {
+    const el = document.getElementById(section.id)
+    if (el && el.getBoundingClientRect().top <= 120) {
+      current = section.id
+    }
+  }
+  activeAnchor.value = current
+}
+
 function cardPos(ev: MouseEvent) {
   return {
     x: Math.min(ev.clientX + 30, window.innerWidth - 400),
@@ -645,9 +710,10 @@ onMounted(() => {
   }
 
   scrollHandler = () => {
-    headerScrolled.value = window.scrollY > 12
+    updateScrollState()
   }
   window.addEventListener('scroll', scrollHandler, { passive: true })
+  updateScrollState()
 
   observer = new IntersectionObserver(
     (entries) => {

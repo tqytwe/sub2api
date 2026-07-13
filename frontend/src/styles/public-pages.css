@@ -1519,6 +1519,76 @@
   background: var(--card);
 }
 
+.play-prize-section .play-note {
+  margin-bottom: 16px;
+}
+
+.play-prize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.play-prize-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+
+.play-prize-amount {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.play-prize-rate {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
+.play-wins-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 8px;
+}
+
+.play-win-item {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  font-size: 14px;
+}
+
+.play-win-user {
+  color: var(--ink-2);
+}
+
+.play-win-reward {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.play-win-when {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+
 .play-actions {
   display: flex;
   flex-wrap: wrap;
