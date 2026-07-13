@@ -34,6 +34,17 @@ func TestSanitizeFrontendRedirectPath(t *testing.T) {
 	require.Equal(t, "", sanitizeFrontendRedirectPath(long))
 }
 
+func TestOAuthCookieDomain(t *testing.T) {
+	require.Equal(t, "", oauthCookieDomain("localhost"))
+	require.Equal(t, "", oauthCookieDomain("localhost:8080"))
+	require.Equal(t, "", oauthCookieDomain("127.0.0.1"))
+	require.Equal(t, "", oauthCookieDomain("192.168.1.1"))
+	require.Equal(t, ".jisudeng.com", oauthCookieDomain("jisudeng.com"))
+	require.Equal(t, ".jisudeng.com", oauthCookieDomain("www.jisudeng.com"))
+	require.Equal(t, ".jisudeng.com", oauthCookieDomain("api.jisudeng.com"))
+	require.Equal(t, "", oauthCookieDomain("example.com"))
+}
+
 func TestBuildBearerAuthorization(t *testing.T) {
 	auth, err := buildBearerAuthorization("", "token123")
 	require.NoError(t, err)

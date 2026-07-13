@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -1012,6 +1013,32 @@ func isRequestHTTPS(c *gin.Context) bool {
 	}
 	proto := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
 	return proto == "https"
+}
+
+// oauthCookieDomain returns a shared cookie domain for apex + www on the same site.
+// Empty means host-only cookies (localhost, IP addresses, unknown domains).
+func oauthCookieDomain(host string) string {
+	host = strings.ToLower(strings.TrimSpace(host))
+	if i := strings.Index(host, ":"); i > 0 {
+		host = host[:i]
+	}
+	if host == "" || host == "localhost" || host == "127.0.0.1" {
+		return ""
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ""
+	}
+	if host == "jisudeng.com" || strings.HasSuffix(host, ".jisudeng.com") {
+		return ".jisudeng.com"
+	}
+	return ""
+}
+
+func oauthCookieDomainFromContext(c *gin.Context) string {
+	if c == nil || c.Request == nil {
+		return ""
+	}
+	return oauthCookieDomain(c.Request.Host)
 }
 
 func encodeCookieValue(value string) string {
