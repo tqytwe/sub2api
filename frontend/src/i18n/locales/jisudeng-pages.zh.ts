@@ -89,7 +89,7 @@ export const jisudengPagesZh = {
   models: {
     backHome: '← 返回首页',
     title: '模型与价格',
-    subtitle: '浏览公开参考价 — 免费注册解锁您账户的分组倍率',
+    subtitle: '官方原价与站内参考价（USD / 百万 token）— 注册后按账户分组倍率结算',
     searchPlaceholder: '搜索模型或平台…',
     loginPrompt: '免费注册即可查看完整模型列表与账户定价',
     loginForRates: '以下为官方参考价；注册后可查看您账户分组下的倍率定价。',
@@ -98,7 +98,7 @@ export const jisudengPagesZh = {
     empty: '暂无可用模型',
     loading: '加载中…',
     loadFailed: '价格列表加载失败，请稍后刷新',
-    priceUnitNote: '价格为美元/token；「我们的价格」= 官方价 × 站内参考倍率（可在管理后台调整 public_model_rate_multiplier）。',
+    priceUnitNote: '价格为美元/百万 token（1M tokens）；「我们的价格」= 官方价 × 站内参考倍率（管理后台 public_model_rate_multiplier）。',
     columns: {
       model: '模型',
       platform: '平台',
@@ -235,6 +235,10 @@ export const jisudengPagesZh = {
     combinedInviteLink: '小队 + 邀请合一链接',
     copyInviteLink: '复制邀请链接',
     linkCopied: '邀请链接已复制',
+    contributionsTitle: '本月成员贡献',
+    captainBadge: '队长',
+    memberUsage: '{tokens} tokens · {pct}%',
+    memberUsageEmpty: '本月暂无 API 消耗记录',
   },
   playHub: {
     eyebrow: '增长福利',
@@ -335,6 +339,11 @@ export const jisudengPagesZh = {
     firstWinTitle: '第一次收成',
     firstWinHint: '图片已保存到图库，完成今日出图任务可获得农场能量。',
     firstWinCta: '知道了',
+    preview: '查看大图',
+    download: '下载',
+    openNewTab: '新标签打开',
+    closePreview: '关闭',
+    startOver: '重新选模板',
   },
   play: {
     backHome: '← 返回首页',

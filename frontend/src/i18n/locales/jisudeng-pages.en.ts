@@ -81,7 +81,7 @@ export const jisudengPagesEn = {
   models: {
     backHome: '← Back home',
     title: 'Models & pricing',
-    subtitle: 'Official vs site reference pricing (USD / token) — billing uses your group multiplier after sign-in',
+    subtitle: 'Official vs site reference pricing (USD / 1M tokens) — billing uses your group multiplier after sign-in',
     searchPlaceholder: 'Search models or platforms…',
     loginPrompt: 'Register free to unlock the full model list and group-based billing rates',
     loginForRates: 'Official reference prices below; sign in for your account group multipliers.',
@@ -90,7 +90,7 @@ export const jisudengPagesEn = {
     empty: 'No models available',
     loading: 'Loading…',
     loadFailed: 'Failed to load pricing. Please refresh.',
-    priceUnitNote: 'Prices are USD per token. “Our price” = official × site reference multiplier (admin: public_model_rate_multiplier).',
+    priceUnitNote: 'Prices are USD per 1M tokens. “Our price” = official × site reference multiplier (admin: public_model_rate_multiplier).',
     columns: {
       model: 'Model',
       platform: 'Platform',
@@ -228,6 +228,10 @@ export const jisudengPagesEn = {
     combinedInviteLink: 'Squad + affiliate invite link',
     copyInviteLink: 'Copy invite link',
     linkCopied: 'Invite link copied',
+    contributionsTitle: 'Member contributions this month',
+    captainBadge: 'Captain',
+    memberUsage: '{tokens} tokens · {pct}%',
+    memberUsageEmpty: 'No API usage recorded this month',
   },
   playHub: {
     eyebrow: 'Growth perks',
@@ -328,6 +332,11 @@ export const jisudengPagesEn = {
     firstWinTitle: 'First harvest',
     firstWinHint: 'Saved to gallery. Complete today\'s image quest for farm energy.',
     firstWinCta: 'Got it',
+    preview: 'Preview',
+    download: 'Download',
+    openNewTab: 'Open in new tab',
+    closePreview: 'Close',
+    startOver: 'Pick another template',
   },
   play: {
     backHome: '← Back home',

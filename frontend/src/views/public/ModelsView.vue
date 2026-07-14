@@ -6,6 +6,7 @@ import playAPI, { type PlayVIPStatus } from '@/api/play'
 import { useAuthStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
+import { formatScaled } from '@/utils/pricing'
 import '@/styles/public-pages.css'
 
 const { t, te } = useI18n()
@@ -25,9 +26,9 @@ const guestPrimaryPath = computed(() => (te('home.jisudeng.cta.register') ? '/re
 const guestSecondaryPath = computed(() => (te('home.jisudeng.cta.register') ? '/login' : '/register'))
 const guestPrimaryIsRegister = computed(() => te('home.jisudeng.cta.register'))
 
-function formatPrice(value: number | null | undefined): string {
+function formatTokenPrice(value: number | null | undefined): string {
   if (value == null) return '—'
-  return `$${value.toFixed(4)}`
+  return formatScaled(value, 1_000_000)
 }
 
 function useCaseLabel(useCase: string): string {
@@ -123,10 +124,10 @@ onMounted(loadModels)
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
               <td>{{ useCaseLabel(row.use_case) }}</td>
-              <td>{{ formatPrice(row.official_input_price) }}</td>
-              <td>{{ formatPrice(row.official_output_price) }}</td>
-              <td class="models-cell-our">{{ formatPrice(row.our_input_price) }}</td>
-              <td class="models-cell-our">{{ formatPrice(row.our_output_price) }}</td>
+              <td>{{ formatTokenPrice(row.official_input_price) }}</td>
+              <td>{{ formatTokenPrice(row.official_output_price) }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.our_input_price) }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.our_output_price) }}</td>
             </tr>
           </tbody>
         </table>
