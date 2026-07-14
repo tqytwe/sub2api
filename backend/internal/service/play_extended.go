@@ -187,7 +187,59 @@ func normalizeQuizLanguage(language string) string {
 	}
 }
 
+func quizTemplateKey(q PlayQuizQuestionDB) string {
+	return q.OptionsJSON + "\x00" + strconv.Itoa(q.CorrectIndex)
+}
+
+// dedupeQuizQuestionsByTemplate keeps one variant per unique stem/options set.
+// The seeded zh/en pools repeat the same 10 templates with suffix-only variants;
+// without dedupe the daily quiz can show five near-identical prompts.
+func dedupeQuizQuestionsByTemplate(questions []PlayQuizQuestionDB, userID int64, date time.Time, language string) []PlayQuizQuestionDB {
+	if len(questions) == 0 {
+		return nil
+	}
+	if userID <= 0 {
+		userID = 1
+	}
+	dayKey := date.Format("2006-01-02")
+	groups := make(map[string][]PlayQuizQuestionDB)
+	for _, q := range questions {
+		key := quizTemplateKey(q)
+		groups[key] = append(groups[key], q)
+	}
+	keys := make([]string, 0, len(groups))
+	for key := range groups {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	out := make([]PlayQuizQuestionDB, 0, len(keys))
+	for _, key := range keys {
+		group := groups[key]
+		sort.SliceStable(group, func(i, j int) bool { return group[i].ID < group[j].ID })
+		idx := quizDeterministicIndex(userID, dayKey, language, key, len(group))
+		out = append(out, group[idx])
+	}
+	return out
+}
+
+func quizDeterministicIndex(userID int64, dayKey, language, salt string, size int) int {
+	if size <= 1 {
+		return 0
+	}
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(strconv.FormatInt(userID, 10)))
+	_, _ = h.Write([]byte(":"))
+	_, _ = h.Write([]byte(dayKey))
+	_, _ = h.Write([]byte(":"))
+	_, _ = h.Write([]byte(language))
+	_, _ = h.Write([]byte(":"))
+	_, _ = h.Write([]byte(salt))
+	return int(h.Sum64() % uint64(size))
+}
+
 func (s *PlayService) pickDailyQuizQuestions(questions []PlayQuizQuestionDB, limit int, userID int64, date time.Time, language string) []PlayQuizQuestionDB {
+	questions = dedupeQuizQuestionsByTemplate(questions, userID, date, language)
 	if len(questions) == 0 {
 		return nil
 	}
@@ -227,6 +279,25 @@ func (s *PlayService) pickDailyQuizQuestions(questions []PlayQuizQuestionDB, lim
 	return out
 }
 
+func (s *PlayService) resolveDailyQuizQuestions(ctx context.Context, userID int64, language string, limit int) ([]PlayQuizQuestionDB, string, error) {
+	now := s.serverNow()
+	date := s.serverDate(now)
+	quizPool, resolvedLanguage, err := s.getQuizPoolByLanguage(ctx, language)
+	if err != nil {
+		return nil, "", err
+	}
+	picked := s.pickDailyQuizQuestions(quizPool, limit, userID, date, resolvedLanguage)
+	valid := make([]PlayQuizQuestionDB, 0, len(picked))
+	for _, q := range picked {
+		var options []string
+		if err := json.Unmarshal([]byte(q.OptionsJSON), &options); err != nil || len(options) == 0 {
+			continue
+		}
+		valid = append(valid, q)
+	}
+	return valid, resolvedLanguage, nil
+}
+
 func (s *PlayService) getQuizPoolByLanguage(ctx context.Context, language string) ([]PlayQuizQuestionDB, string, error) {
 	lang := normalizeQuizLanguage(language)
 	questions, err := s.repo.ListQuizQuestions(ctx, lang)
@@ -257,11 +328,10 @@ func (s *PlayService) GetQuizToday(ctx context.Context, userID int64, language s
 		return out, nil
 	}
 
-	quizPool, resolvedLanguage, err := s.getQuizPoolByLanguage(ctx, language)
+	questions, _, err := s.resolveDailyQuizQuestions(ctx, userID, language, rt.QuizQuestionsPerDay)
 	if err != nil {
 		return nil, err
 	}
-	questions := s.pickDailyQuizQuestions(quizPool, rt.QuizQuestionsPerDay, userID, date, resolvedLanguage)
 	out.Questions = make([]PlayQuizQuestion, 0, len(questions))
 	for _, q := range questions {
 		var options []string
@@ -309,11 +379,16 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 		return nil, ErrPlayQuizAlreadyDone
 	}
 
-	quizPool, resolvedLanguage, err := s.getQuizPoolByLanguage(ctx, language)
+	questions, _, err := s.resolveDailyQuizQuestions(ctx, userID, language, rt.QuizQuestionsPerDay)
 	if err != nil {
 		return nil, err
 	}
-	questions := s.pickDailyQuizQuestions(quizPool, rt.QuizQuestionsPerDay, userID, date, resolvedLanguage)
+	if len(questions) == 0 {
+		return nil, ErrPlayQuizInvalidAnswer
+	}
+	if len(answers) != len(questions) {
+		return nil, ErrPlayQuizInvalidAnswer
+	}
 	byID := make(map[int64]PlayQuizQuestionDB, len(questions))
 	for _, q := range questions {
 		byID[q.ID] = q
