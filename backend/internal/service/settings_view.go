@@ -154,6 +154,7 @@ type SystemSettings struct {
 	AffiliateRebatePerInviteeCap float64
 
 	// User sidebar — Play growth features (opt-in via public settings)
+	PublicModelsEnabled  bool `json:"public_models_enabled"`
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
 	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled     bool `json:"play_arena_enabled"`

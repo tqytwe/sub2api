@@ -325,6 +325,8 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 
 		AvailableChannelsEnabled: settings.AvailableChannelsEnabled,
 
+		PublicModelsEnabled: settings.PublicModelsEnabled,
+
 		AffiliateEnabled: settings.AffiliateEnabled,
 
 		ImageStudioEnabled:   settings.ImageStudioEnabled,

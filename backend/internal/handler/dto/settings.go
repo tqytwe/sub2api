@@ -286,6 +286,7 @@ type SystemSettings struct {
 	AffiliateEnabled bool `json:"affiliate_enabled"`
 
 	// User sidebar — Play growth features
+	PublicModelsEnabled  bool `json:"public_models_enabled"`
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
 	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled     bool `json:"play_arena_enabled"`

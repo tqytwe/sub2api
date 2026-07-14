@@ -184,6 +184,7 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 	SettingKeyAffiliateEnabled: "false",
 
 	// Play growth user sidebar (Jisudeng Play ships enabled; admin can disable)
+	SettingKeyPublicModelsEnabled:  "true",
 	SettingKeyImageStudioEnabled:   "true",
 	SettingKeyPlayCheckinEnabled:   "true",
 	SettingKeyPlayArenaEnabled:     "true",
@@ -726,6 +727,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.AffiliateEnabled = settings[SettingKeyAffiliateEnabled] == "true"
 
 	// Play growth user sidebar (default: disabled; strict true)
+	result.PublicModelsEnabled = settings[SettingKeyPublicModelsEnabled] == "true"
 	result.ImageStudioEnabled = settings[SettingKeyImageStudioEnabled] == "true"
 	result.PlayCheckinEnabled = settings[SettingKeyPlayCheckinEnabled] == "true"
 	result.PlayArenaEnabled = settings[SettingKeyPlayArenaEnabled] == "true"

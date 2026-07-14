@@ -148,6 +148,7 @@ export default {
   // Navigation
   nav: {
     dashboard: '仪表盘',
+    modelsAndPricing: '模型与价格',
     announcements: '公告',
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
@@ -187,6 +188,7 @@ export default {
     paymentPlans: '订阅套餐',
     channelManagement: '渠道管理',
     channelPricing: '渠道定价',
+    modelCatalog: '模型价目',
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',

@@ -42,6 +42,7 @@ func ProvideAdminHandlers(
 	affiliateHandler *admin.AffiliateHandler,
 	complianceHandler *admin.ComplianceHandler,
 	adminPlayHandler *admin.AdminPlayHandler,
+	modelCatalogHandler *admin.ModelCatalogHandler,
 ) *AdminHandlers {
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
@@ -77,6 +78,7 @@ func ProvideAdminHandlers(
 		Affiliate:              affiliateHandler,
 		Compliance:             complianceHandler,
 		Play:                   adminPlayHandler,
+		ModelCatalog:           modelCatalogHandler,
 	}
 }
 
@@ -120,6 +122,7 @@ func ProvideHandlers(
 	batchImageHandler *BatchImageHandler,
 	playHandler *PlayHandler,
 	imageStudioHandler *ImageStudioHandler,
+	modelPricingHandler *ModelPricingHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -143,6 +146,7 @@ func ProvideHandlers(
 		BatchImage:       batchImageHandler,
 		Play:             playHandler,
 		ImageStudio:      imageStudioHandler,
+		ModelPricing:     modelPricingHandler,
 	}
 }
 
@@ -167,6 +171,7 @@ var ProviderSet = wire.NewSet(
 	NewBatchImageHandler,
 	NewPlayHandler,
 	NewImageStudioHandler,
+	NewModelPricingHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -202,6 +207,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAffiliateHandler,
 	admin.NewComplianceHandler,
 	admin.NewAdminPlayHandler,
+	admin.NewModelCatalogHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

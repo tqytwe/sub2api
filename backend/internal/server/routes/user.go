@@ -78,6 +78,8 @@ func RegisterUserRoutes(
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
+		authenticated.GET("/models/my-pricing", h.ModelPricing.MyPricing)
+
 		// 使用记录
 		usage := authenticated.Group("/usage")
 		{

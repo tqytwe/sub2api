@@ -50,6 +50,8 @@ type ChannelRepository interface {
 	UpdateModelPricing(ctx context.Context, pricing *ChannelModelPricing) error
 	DeleteModelPricing(ctx context.Context, id int64) error
 	ReplaceModelPricing(ctx context.Context, channelID int64, pricingList []ChannelModelPricing) error
+	ListAllModelPricingEntries(ctx context.Context) ([]ChannelModelPricing, error)
+	UpdateModelPricingPrices(ctx context.Context, pricing *ChannelModelPricing) error
 }
 
 // channelModelKey 渠道缓存复合键（显式包含 platform 防止跨平台同名模型冲突）

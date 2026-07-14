@@ -298,6 +298,7 @@ type UpdateSettingsRequest struct {
 
 	// Available Channels feature switch (user-facing)
 	AvailableChannelsEnabled *bool `json:"available_channels_enabled"`
+	PublicModelsEnabled      *bool `json:"public_models_enabled"`
 
 	// Affiliate (邀请返利) feature switch
 	AffiliateEnabled *bool `json:"affiliate_enabled"`
@@ -1519,6 +1520,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.AffiliateEnabled
 		}(),
+		PublicModelsEnabled: func() bool {
+			if req.PublicModelsEnabled != nil {
+				return *req.PublicModelsEnabled
+			}
+			return previousSettings.PublicModelsEnabled
+		}(),
 		ImageStudioEnabled: func() bool {
 			if req.ImageStudioEnabled != nil {
 				return *req.ImageStudioEnabled
@@ -1927,6 +1934,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		AffiliateEnabled: updatedSettings.AffiliateEnabled,
 
+		PublicModelsEnabled:  updatedSettings.PublicModelsEnabled,
 		ImageStudioEnabled:   updatedSettings.ImageStudioEnabled,
 		PlayCheckinEnabled:   updatedSettings.PlayCheckinEnabled,
 		PlayArenaEnabled:     updatedSettings.PlayArenaEnabled,

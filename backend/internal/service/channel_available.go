@@ -224,3 +224,19 @@ func (s *ChannelService) PricingCatalogModelCount() int {
 		return 0
 	}
 }
+
+// ListAllModelPricingEntries returns all channel model pricing rows (for admin sync).
+func (s *ChannelService) ListAllModelPricingEntries(ctx context.Context) ([]ChannelModelPricing, error) {
+	if s == nil || s.repo == nil {
+		return nil, fmt.Errorf("channel service unavailable")
+	}
+	return s.repo.ListAllModelPricingEntries(ctx)
+}
+
+// UpdateModelPricingPrices updates price columns on one pricing entry.
+func (s *ChannelService) UpdateModelPricingPrices(ctx context.Context, pricing *ChannelModelPricing) error {
+	if s == nil || s.repo == nil {
+		return fmt.Errorf("channel service unavailable")
+	}
+	return s.repo.UpdateModelPricingPrices(ctx, pricing)
+}

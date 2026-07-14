@@ -2,8 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import publicAPI, { type PublicModelPricingRow } from '@/api/public'
+import modelPricingAPI, { type MyModelPricingRow } from '@/api/modelPricing'
 import playAPI, { type PlayVIPStatus } from '@/api/play'
-import { useAuthStore } from '@/stores'
+import { useAuthStore, useAppStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import { formatScaled } from '@/utils/pricing'
@@ -11,12 +12,18 @@ import '@/styles/public-pages.css'
 
 const { t, te } = useI18n()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 
 const loading = ref(false)
-const pricingRows = ref<PublicModelPricingRow[]>([])
+const publicRows = ref<PublicModelPricingRow[]>([])
+const authRows = ref<MyModelPricingRow[]>([])
+const authPricingEnabled = ref(true)
 const searchQuery = ref('')
 const vip = ref<PlayVIPStatus | null>(null)
 const loadError = ref(false)
+const pricingDisabled = ref(false)
+
+const isAuthMode = computed(() => authStore.isAuthenticated)
 
 const showVipBadge = computed(
   () => authStore.isAuthenticated && (vip.value?.perks?.includes('models_vip_tag') ?? false),
@@ -25,6 +32,10 @@ const showVipBadge = computed(
 const guestPrimaryPath = computed(() => (te('home.jisudeng.cta.register') ? '/register' : '/login'))
 const guestSecondaryPath = computed(() => (te('home.jisudeng.cta.register') ? '/login' : '/register'))
 const guestPrimaryIsRegister = computed(() => te('home.jisudeng.cta.register'))
+
+const publicModelsEnabled = computed(
+  () => appStore.cachedPublicSettings?.public_models_enabled ?? true,
+)
 
 function formatTokenPrice(value: number | null | undefined): string {
   if (value == null) return '—'
@@ -36,9 +47,13 @@ function useCaseLabel(useCase: string): string {
   return te(key) ? t(key) : t('models.previewUseCases.chat')
 }
 
-const filteredRows = computed(() => {
+function groupBadge(g: { name: string; rate_multiplier: number }): string {
+  return `${g.name} ×${g.rate_multiplier}`
+}
+
+const filteredPublicRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = pricingRows.value
+  const rows = publicRows.value
   if (!q) return rows
   return rows.filter(
     (row) =>
@@ -48,24 +63,55 @@ const filteredRows = computed(() => {
   )
 })
 
+const filteredAuthRows = computed(() => {
+  const q = searchQuery.value.trim().toLowerCase()
+  const rows = authRows.value
+  if (!q) return rows
+  return rows.filter(
+    (row) =>
+      row.name.toLowerCase().includes(q) ||
+      row.platform.toLowerCase().includes(q) ||
+      (row.channel ?? '').toLowerCase().includes(q) ||
+      row.groups.some((g) => g.name.toLowerCase().includes(q)),
+  )
+})
+
 async function loadModels() {
   loading.value = true
   loadError.value = false
+  pricingDisabled.value = false
   vip.value = null
+  publicRows.value = []
+  authRows.value = []
+
   try {
     if (authStore.isAuthenticated) {
       vip.value = (await playAPI.getPlayHub().catch(() => null))?.growth.vip ?? null
+      const resp = await modelPricingAPI.getMyModelPricing()
+      authPricingEnabled.value = resp.enabled
+      if (!resp.enabled) {
+        pricingDisabled.value = true
+        return
+      }
+      authRows.value = resp.models ?? []
+      return
     }
-    pricingRows.value = await publicAPI.getPublicModelPricing()
+
+    if (!publicModelsEnabled.value) {
+      pricingDisabled.value = true
+      return
+    }
+    publicRows.value = await publicAPI.getPublicModelPricing()
   } catch {
     loadError.value = true
-    pricingRows.value = []
   } finally {
     loading.value = false
   }
 }
 
-onMounted(loadModels)
+onMounted(() => {
+  void appStore.fetchPublicSettings().finally(loadModels)
+})
 </script>
 
 <template>
@@ -83,7 +129,9 @@ onMounted(loadModels)
           {{ t('models.vipBadge', { label: vip?.label ?? 'VIP' }) }}
         </span>
       </div>
-      <p class="models-subtitle">{{ t('models.subtitle') }}</p>
+      <p class="models-subtitle">
+        {{ isAuthMode ? t('models.subtitleAuth') : t('models.subtitle') }}
+      </p>
       <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
 
       <div v-if="!authStore.isAuthenticated" class="models-auth-card">
@@ -105,9 +153,12 @@ onMounted(loadModels)
 
       <div v-if="loading" class="models-state">{{ t('models.loading') }}</div>
       <div v-else-if="loadError" class="models-state">{{ t('models.loadFailed') }}</div>
-      <div v-else-if="filteredRows.length === 0" class="models-state">{{ t('models.empty') }}</div>
-      <div v-else class="models-table-wrap">
-        <table class="models-table">
+      <div v-else-if="pricingDisabled" class="models-state">{{ t('models.disabled') }}</div>
+
+      <!-- Guest / public catalog -->
+      <div v-else-if="!isAuthMode" class="models-table-wrap">
+        <div v-if="filteredPublicRows.length === 0" class="models-state">{{ t('models.empty') }}</div>
+        <table v-else class="models-table">
           <thead>
             <tr>
               <th>{{ t('models.columns.model') }}</th>
@@ -120,7 +171,7 @@ onMounted(loadModels)
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in filteredRows" :key="row.name">
+            <tr v-for="row in filteredPublicRows" :key="row.name">
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
               <td>{{ useCaseLabel(row.use_case) }}</td>
@@ -128,6 +179,47 @@ onMounted(loadModels)
               <td>{{ formatTokenPrice(row.official_output_price) }}</td>
               <td class="models-cell-our">{{ formatTokenPrice(row.our_input_price) }}</td>
               <td class="models-cell-our">{{ formatTokenPrice(row.our_output_price) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Authenticated: effective pricing per group -->
+      <div v-else class="models-table-wrap">
+        <div v-if="filteredAuthRows.length === 0" class="models-state">{{ t('models.empty') }}</div>
+        <table v-else class="models-table models-table-auth">
+          <thead>
+            <tr>
+              <th>{{ t('models.columns.model') }}</th>
+              <th>{{ t('models.columns.platform') }}</th>
+              <th>{{ t('models.columns.channel') }}</th>
+              <th>{{ t('models.columns.group') }}</th>
+              <th>{{ t('models.columns.officialInput') }}</th>
+              <th>{{ t('models.columns.officialOutput') }}</th>
+              <th>{{ t('models.columns.channelInput') }}</th>
+              <th>{{ t('models.columns.channelOutput') }}</th>
+              <th>{{ t('models.columns.effectiveInput') }}</th>
+              <th>{{ t('models.columns.effectiveOutput') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, idx) in filteredAuthRows" :key="`${row.name}-${row.platform}-${row.groups[0]?.id ?? idx}`">
+              <td class="models-cell-name">{{ row.name }}</td>
+              <td><span class="models-platform">{{ row.platform }}</span></td>
+              <td>{{ row.channel || '—' }}</td>
+              <td>
+                <span
+                  v-for="g in row.groups"
+                  :key="g.id"
+                  class="models-group-badge"
+                >{{ groupBadge(g) }}</span>
+              </td>
+              <td>{{ formatTokenPrice(row.official_input_price) }}</td>
+              <td>{{ formatTokenPrice(row.official_output_price) }}</td>
+              <td>{{ formatTokenPrice(row.base_input_price) }}</td>
+              <td>{{ formatTokenPrice(row.base_output_price) }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.effective_input_price) }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.effective_output_price) }}</td>
             </tr>
           </tbody>
         </table>
@@ -141,5 +233,20 @@ onMounted(loadModels)
 <style scoped>
 .models-cell-our {
   font-weight: 600;
+}
+
+.models-group-badge {
+  display: inline-block;
+  margin-right: 0.35rem;
+  margin-bottom: 0.15rem;
+  padding: 0.1rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  background: rgba(10, 10, 10, 0.06);
+  color: #0a0a0a;
+}
+
+.models-table-auth {
+  font-size: 0.875rem;
 }
 </style>

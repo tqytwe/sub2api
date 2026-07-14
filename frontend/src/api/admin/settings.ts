@@ -649,6 +649,7 @@ export interface SystemSettings {
   affiliate_enabled: boolean;
 
   // User sidebar — Play growth features
+  public_models_enabled: boolean;
   image_studio_enabled: boolean;
   play_checkin_enabled: boolean;
   play_arena_enabled: boolean;
@@ -918,6 +919,7 @@ export interface UpdateSettingsRequest {
   affiliate_enabled?: boolean;
 
   // User sidebar — Play growth features
+  public_models_enabled?: boolean;
   image_studio_enabled?: boolean;
   play_checkin_enabled?: boolean;
   play_arena_enabled?: boolean;

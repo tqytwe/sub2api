@@ -1051,6 +1051,17 @@ func (s *PricingService) ListModelNamesByProvider(provider string) []string {
 	return names
 }
 
+// ListAllModelPricing returns a snapshot of all LiteLLM pricing entries.
+func (s *PricingService) ListAllModelPricing() map[string]*LiteLLMModelPricing {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	out := make(map[string]*LiteLLMModelPricing, len(s.pricingData))
+	for k, v := range s.pricingData {
+		out[k] = v
+	}
+	return out
+}
+
 // isNumeric 检查字符串是否为纯数字
 func isNumeric(s string) bool {
 	for _, c := range s {

@@ -148,6 +148,7 @@ export default {
   // Navigation
   nav: {
     dashboard: 'Dashboard',
+    modelsAndPricing: 'Models & Pricing',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
@@ -187,6 +188,7 @@ export default {
     paymentPlans: 'Plans',
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
+    modelCatalog: 'Model Catalog',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',

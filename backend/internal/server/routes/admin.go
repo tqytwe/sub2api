@@ -108,6 +108,24 @@ func RegisterAdminRoutes(
 		registerAffiliateRoutes(admin, h)
 
 		registerAdminPlayRoutes(admin, h)
+
+		registerModelCatalogRoutes(admin, h)
+	}
+}
+
+func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	catalog := admin.Group("/model-catalog")
+	{
+		catalog.GET("", h.Admin.ModelCatalog.List)
+		catalog.PUT("", h.Admin.ModelCatalog.Upsert)
+		catalog.DELETE("/:id", h.Admin.ModelCatalog.Delete)
+		catalog.POST("/batch-visibility", h.Admin.ModelCatalog.BatchVisibility)
+		catalog.POST("/batch-prices", h.Admin.ModelCatalog.BatchPrices)
+		catalog.POST("/sync-jobs", h.Admin.ModelCatalog.CreateSyncJob)
+		catalog.GET("/sync-jobs/:id", h.Admin.ModelCatalog.GetSyncJob)
+		catalog.GET("/discoveries", h.Admin.ModelCatalog.ListDiscoveries)
+		catalog.POST("/discoveries/import", h.Admin.ModelCatalog.ImportDiscoveries)
+		catalog.POST("/fill-litellm", h.Admin.ModelCatalog.FillFromLiteLLM)
 	}
 }
 

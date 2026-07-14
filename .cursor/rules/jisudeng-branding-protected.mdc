@@ -14,7 +14,7 @@ alwaysApply: true
 | `frontend/src/components/layout/AuthLayout.vue` | `auth-page` 布局、`asideMode` prop、`auth-layout-jisudeng.css` 导入 |
 | `frontend/src/styles/auth-layout-jisudeng.css` | 登录/注册米白+ink 配色 |
 | `frontend/src/styles/home-view.css` | 首页 `.home-page` 变量与样式 |
-| `frontend/src/components/layout/AppSidebar.vue` | `/growth-group` 折叠菜单、`buildGrowthNavChildren()`；`VersionBadge` 仅 `v-if="isAdmin"`（普通用户不显示版本号）；**用户侧栏不含** `/available-channels`、`/monitor`（渠道仅管理后台） |
+| `frontend/src/components/layout/AppSidebar.vue` | `/growth-group` 折叠菜单、`buildGrowthNavChildren()`；`VersionBadge` 仅 `v-if="isAdmin"`；**用户侧栏可有** `/models`「模型与价格」；**禁止** `/available-channels`、`/monitor` |
 | `frontend/tailwind.config.js` | `primary` 色板为 ink 黑白系（`#0a0a0a`），**禁止**改回 teal `#14b8a6` |
 
 ## 合并后必跑检查
@@ -32,4 +32,4 @@ alwaysApply: true
 3. **AppSidebar 版本号**：`VersionBadge` 必须带 `v-if="isAdmin"`，禁止恢复为所有登录用户可见
 4. **tailwind primary**：保留 ink 色板；upstream 的 teal primary 只用于 diff 参考，不采纳
 5. **HomeView / home-view.css**：保留完整定制首页，不与 upstream 公共页合并覆盖
-6. **用户侧栏**：普通用户不展示「可用渠道 / 渠道状态」；增长入口在 **系统设置 → 功能开关 → 用户侧栏** 配置
+6. **用户侧栏**：可有「模型与价格」→ `/models`；不展示「可用渠道 / 渠道状态」；增长入口在 **系统设置 → 功能开关 → 用户侧栏** 配置

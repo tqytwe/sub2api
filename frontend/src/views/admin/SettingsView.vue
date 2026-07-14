@@ -5888,6 +5888,31 @@
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('admin.settings.features.play.publicModelsEnabled') }}
+            </h2>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
+              {{ t('admin.settings.features.play.publicModelsEnabledHint') }}
+            </p>
+            <p class="mt-1.5 text-xs">
+              <router-link
+                to="/admin/model-catalog"
+                class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
+              >
+                {{ t('nav.modelCatalog') }}
+                <span aria-hidden="true">→</span>
+              </router-link>
+            </p>
+          </div>
+          <div class="space-y-5 p-6">
+            <div class="flex items-center justify-between">
+              <Toggle v-model="form.public_models_enabled" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
               {{ t('admin.settings.features.availableChannels.title') }}
             </h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -5895,7 +5920,7 @@
             </p>
             <p class="mt-1.5 text-xs">
               <router-link
-                to="/admin/channels/pricing"
+                to="/admin/model-catalog"
                 class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
               >
                 {{ t('admin.settings.features.availableChannels.configureLink') }}
@@ -8337,6 +8362,7 @@ const form = reactive<SettingsForm>({
   channel_monitor_default_interval_seconds: 60,
   // Available Channels feature switch
   available_channels_enabled: false,
+  public_models_enabled: true,
   // User sidebar — Play growth features
   image_studio_enabled: false,
   play_checkin_enabled: false,
@@ -9720,6 +9746,7 @@ async function saveSettings() {
         Number(form.channel_monitor_default_interval_seconds) || 60,
       // Available Channels feature switch
       available_channels_enabled: form.available_channels_enabled,
+      public_models_enabled: form.public_models_enabled,
       image_studio_enabled: form.image_studio_enabled,
       play_checkin_enabled: form.play_checkin_enabled,
       play_arena_enabled: form.play_arena_enabled,
