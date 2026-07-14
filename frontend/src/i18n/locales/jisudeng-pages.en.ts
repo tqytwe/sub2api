@@ -81,10 +81,6 @@ export const jisudengPagesEn = {
   models: {
     backHome: '← Back home',
     title: 'Models & pricing',
-    subtitle: 'Browse public reference rates — register free to unlock your group multipliers',
-    searchPlaceholder: 'Search models or platforms…',
-    loginPrompt: 'Register free to view the full model list and your account pricing',
-    loginForRates: 'Reference pricing below. Register to see group rate multipliers for your account.',
     subtitle: 'Official vs site reference pricing (USD / token) — billing uses your group multiplier after sign-in',
     searchPlaceholder: 'Search models or platforms…',
     loginPrompt: 'Register free to unlock the full model list and group-based billing rates',

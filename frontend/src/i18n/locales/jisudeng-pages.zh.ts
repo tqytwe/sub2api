@@ -89,9 +89,9 @@ export const jisudengPagesZh = {
   models: {
     backHome: '← 返回首页',
     title: '模型与价格',
-    subtitle: '官方原价与站内参考价（USD / token）— 注册后按账户分组倍率结算',
+    subtitle: '浏览公开参考价 — 免费注册解锁您账户的分组倍率',
     searchPlaceholder: '搜索模型或平台…',
-    loginPrompt: '免费注册即可查看完整模型列表，并按您账户分组倍率计费',
+    loginPrompt: '免费注册即可查看完整模型列表与账户定价',
     loginForRates: '以下为官方参考价；注册后可查看您账户分组下的倍率定价。',
     loginCta: '登录',
     registerCta: '免费注册',
