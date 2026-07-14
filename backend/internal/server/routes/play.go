@@ -22,6 +22,7 @@ func RegisterPlayRoutes(
 		play.GET("/arena/daily/current", h.Play.ArenaDailyCurrent)
 		play.GET("/arena/daily/leaderboard", h.Play.ArenaDailyLeaderboard)
 		play.GET("/quiz/today", h.Play.QuizToday)
+		play.GET("/blindbox/recent", h.Play.BlindboxRecent)
 	}
 
 	authenticated := v1.Group("")

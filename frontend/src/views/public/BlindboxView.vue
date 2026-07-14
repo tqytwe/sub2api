@@ -6,7 +6,7 @@ import { useAppStore } from '@/stores/app'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import playAPI, { type PlayBlindboxOpenResult, type PlayBlindboxStatus } from '@/api/play'
+import playAPI, { type PlayBlindboxOpenResult, type PlayBlindboxRecentWin, type PlayBlindboxStatus } from '@/api/play'
 import '@/styles/public-pages.css'
 
 const { t } = useI18n()
@@ -17,6 +17,7 @@ const loading = ref(true)
 const opening = ref(false)
 const status = ref<PlayBlindboxStatus | null>(null)
 const lastResult = ref<PlayBlindboxOpenResult | null>(null)
+const recentWins = ref<PlayBlindboxRecentWin[]>([])
 
 const canOpen = computed(
   () =>
@@ -34,7 +35,20 @@ const prizeTiers = [
   { amount: '2.00', rate: '2%' },
 ]
 
-const recentWins = ref<Array<{ user: string; reward: string; when: string }>>([])
+function formatWinWhen(iso: string): string {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+async function loadRecentWins() {
+  try {
+    recentWins.value = await playAPI.getBlindboxRecentWins()
+  } catch {
+    recentWins.value = []
+  }
+}
 
 async function loadStatus() {
   if (!authStore.isAuthenticated) {
@@ -64,7 +78,7 @@ async function handleOpen() {
       }),
     )
     await authStore.refreshUser()
-    await loadStatus()
+    await Promise.all([loadStatus(), loadRecentWins()])
   } catch (err: unknown) {
     const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
     if (code === 'INSUFFICIENT_BALANCE') {
@@ -82,7 +96,9 @@ async function handleOpen() {
   }
 }
 
-onMounted(loadStatus)
+onMounted(async () => {
+  await Promise.all([loadStatus(), loadRecentWins()])
+})
 </script>
 
 <template>
@@ -141,8 +157,8 @@ onMounted(loadStatus)
         <ul v-else class="play-wins-list">
           <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
             <span class="play-win-user">{{ win.user }}</span>
-            <span class="play-win-reward">+${{ win.reward }}</span>
-            <span class="play-win-when">{{ win.when }}</span>
+            <span class="play-win-reward">+${{ win.reward.toFixed(2) }}</span>
+            <span class="play-win-when">{{ formatWinWhen(win.when) }}</span>
           </li>
         </ul>
       </div>

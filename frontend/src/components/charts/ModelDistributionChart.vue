@@ -104,7 +104,8 @@
       class="flex items-center gap-6"
     >
       <div class="h-48 w-48">
-        <Doughnut :data="chartData" :options="doughnutOptions" />
+        <!-- key: metric/source 切换会重排 labels，Chart.js 原地 update 常不刷新 -->
+        <Doughnut :key="`model-${source}-${metric}`" :data="chartData" :options="doughnutOptions" />
       </div>
       <div class="max-h-48 flex-1 overflow-y-auto">
         <table class="w-full text-xs">
@@ -112,8 +113,14 @@
             <tr class="text-gray-500 dark:text-gray-400">
               <th class="pb-2 text-left">{{ t('admin.dashboard.model') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.requests') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.tokens') }}</th>
-              <th class="pb-2 text-right">{{ t('admin.dashboard.actual') }}</th>
+              <th
+                class="pb-2 text-right"
+                :class="metric === 'tokens' ? 'font-semibold text-gray-900 dark:text-white' : ''"
+              >{{ t('admin.dashboard.tokens') }}</th>
+              <th
+                class="pb-2 text-right"
+                :class="metric === 'actual_cost' ? 'font-semibold text-green-700 dark:text-green-300' : ''"
+              >{{ t('admin.dashboard.actual') }}</th>
               <th v-if="showAccountCost" class="pb-2 text-right">{{ t('admin.dashboard.accountCost') }}</th>
               <th class="pb-2 text-right">{{ t('admin.dashboard.standard') }}</th>
             </tr>

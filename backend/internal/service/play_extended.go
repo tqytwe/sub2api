@@ -116,6 +116,36 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	}, nil
 }
 
+func (s *PlayService) ListRecentBlindboxWins(ctx context.Context, limit int) ([]PlayBlindboxRecentWin, error) {
+	rows, err := s.repo.ListRecentBlindboxWins(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	for i := range rows {
+		rows[i].UserLabel = maskBlindboxUserLabel(rows[i].UserLabel)
+	}
+	return rows, nil
+}
+
+// maskBlindboxUserLabel hides PII in the public win feed while keeping a recognizable stub.
+func maskBlindboxUserLabel(label string) string {
+	label = strings.TrimSpace(label)
+	if label == "" {
+		return "***"
+	}
+	if strings.Contains(label, "@") {
+		return maskEmail(label)
+	}
+	runes := []rune(label)
+	if len(runes) <= 1 {
+		return string(runes) + "***"
+	}
+	if len(runes) == 2 {
+		return string(runes[0]) + "*"
+	}
+	return string(runes[0]) + "***" + string(runes[len(runes)-1])
+}
+
 func pickBlindboxReward() float64 {
 	tiers := []struct {
 		amount float64

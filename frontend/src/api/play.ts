@@ -76,6 +76,12 @@ export interface PlayBlindboxOpenResult {
   server_date: string
 }
 
+export interface PlayBlindboxRecentWin {
+  user: string
+  reward: number
+  when: string
+}
+
 export interface PlayQuizQuestion {
   id: number
   prompt: string
@@ -266,6 +272,11 @@ export async function getBlindboxStatus(): Promise<PlayBlindboxStatus> {
   return data
 }
 
+export async function getBlindboxRecentWins(): Promise<PlayBlindboxRecentWin[]> {
+  const { data } = await apiClient.get<PlayBlindboxRecentWin[]>('/play/blindbox/recent')
+  return data ?? []
+}
+
 export async function openBlindbox(idempotencyKey?: string): Promise<PlayBlindboxOpenResult> {
   const headers = idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined
   const { data } = await apiClient.post<PlayBlindboxOpenResult>('/play/blindbox/open', {}, { headers })
@@ -310,6 +321,7 @@ export const playAPI = {
   getQuestsToday,
   getBlindboxStatus,
   openBlindbox,
+  getBlindboxRecentWins,
   getQuizToday,
   submitQuiz,
   getTeamMe,

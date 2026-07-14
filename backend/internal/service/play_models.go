@@ -99,6 +99,13 @@ type PlayBlindboxOpenResult struct {
 	ServerDate    string
 }
 
+// PlayBlindboxRecentWin is a privacy-masked public feed row for recent opens.
+type PlayBlindboxRecentWin struct {
+	UserLabel    string
+	RewardAmount float64
+	CreatedAt    time.Time
+}
+
 type PlayQuizQuestion struct {
 	ID      int64
 	Prompt  string
@@ -184,6 +191,7 @@ type PlayRepository interface {
 	GetArenaTokensToPrevRank(ctx context.Context, userID int64, start, end time.Time, rank int, tokenSum int64) (int64, error)
 	CountBlindboxOpens(ctx context.Context, userID int64, date time.Time) (int, error)
 	InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error
+	ListRecentBlindboxWins(ctx context.Context, limit int) ([]PlayBlindboxRecentWin, error)
 	ListQuizQuestions(ctx context.Context, language string) ([]PlayQuizQuestionDB, error)
 	GetQuizAttempt(ctx context.Context, userID int64, date time.Time) (*PlayQuizAttemptDB, error)
 	InsertQuizAttempt(ctx context.Context, userID int64, date time.Time, score, total int, reward float64, answers map[string]any) error

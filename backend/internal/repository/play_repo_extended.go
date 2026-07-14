@@ -45,6 +45,41 @@ func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, d
 	return nil
 }
 
+func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) ([]service.PlayBlindboxRecentWin, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 50 {
+		limit = 50
+	}
+	exec := r.sqlExec(ctx)
+	rows, err := exec.QueryContext(ctx, `
+		SELECT COALESCE(NULLIF(TRIM(u.username), ''), NULLIF(TRIM(u.email), ''), CONCAT('user-', b.user_id::text)),
+		       b.reward_amount,
+		       b.created_at
+		FROM play_blindbox_opens b
+		JOIN users u ON u.id = b.user_id
+		ORDER BY b.id DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list recent blindbox wins: %w", err)
+	}
+	defer rows.Close()
+
+	out := make([]service.PlayBlindboxRecentWin, 0, limit)
+	for rows.Next() {
+		var win service.PlayBlindboxRecentWin
+		if err := rows.Scan(&win.UserLabel, &win.RewardAmount, &win.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan recent blindbox win: %w", err)
+		}
+		out = append(out, win)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate recent blindbox wins: %w", err)
+	}
+	return out, nil
+}
+
 func (r *playRepository) ListQuizQuestions(ctx context.Context, language string) ([]service.PlayQuizQuestionDB, error) {
 	language = strings.ToLower(strings.TrimSpace(language))
 	if language == "" {

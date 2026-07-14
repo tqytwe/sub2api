@@ -28,6 +28,12 @@ type playBlindboxOpenResultDTO struct {
 	ServerDate   string  `json:"server_date"`
 }
 
+type playBlindboxRecentWinDTO struct {
+	User   string  `json:"user"`
+	Reward float64 `json:"reward"`
+	When   string  `json:"when"`
+}
+
 type playQuizQuestionDTO struct {
 	ID      int64    `json:"id"`
 	Prompt  string   `json:"prompt"`
@@ -143,6 +149,23 @@ func (h *PlayHandler) BlindboxOpen(c *gin.Context) {
 		OpensToday:   result.OpensToday,
 		ServerDate:   result.ServerDate,
 	})
+}
+
+func (h *PlayHandler) BlindboxRecent(c *gin.Context) {
+	wins, err := h.playService.ListRecentBlindboxWins(c.Request.Context(), 20)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]playBlindboxRecentWinDTO, 0, len(wins))
+	for _, w := range wins {
+		out = append(out, playBlindboxRecentWinDTO{
+			User:   w.UserLabel,
+			Reward: w.RewardAmount,
+			When:   w.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+		})
+	}
+	response.Success(c, out)
 }
 
 func (h *PlayHandler) QuizToday(c *gin.Context) {
