@@ -430,23 +430,27 @@ const currentFiles = computed((): FileConfig[] => {
   switch (props.platform) {
     case 'openai':
       if (activeClientTab.value === 'claude') {
-        return generateAnthropicFiles(baseUrl, apiKey)
+        // OpenAI 分组也可走 Anthropic /v1/messages 桥 —— 根域名、不要 /v1
+        return generateAnthropicFiles(baseRoot, apiKey)
       }
       if (activeClientTab.value === 'codex-ws') {
-        return generateOpenAIWsFiles(baseUrl, apiKey)
+        // Codex config.toml base_url 需要带 /v1
+        return generateOpenAIWsFiles(apiBase, apiKey)
       }
-      return generateOpenAIFiles(baseUrl, apiKey)
+      return generateOpenAIFiles(apiBase, apiKey)
     case 'gemini':
-      return [generateGeminiCliContent(baseUrl, apiKey)]
+      // Gemini CLI：根域名（与官方文档一致），不要强制 /v1beta
+      return [generateGeminiCliContent(baseRoot, apiKey)]
     case 'antigravity':
       if (activeClientTab.value === 'gemini') {
-        return [generateGeminiCliContent(`${baseUrl}/antigravity`, apiKey)]
+        return [generateGeminiCliContent(`${baseRoot}/antigravity`, apiKey)]
       }
-      return generateAnthropicFiles(`${baseUrl}/antigravity`, apiKey)
+      return generateAnthropicFiles(`${baseRoot}/antigravity`, apiKey)
     case 'grok':
       return generateGrokFiles(apiBase, apiKey)
     default:
-      return generateAnthropicFiles(baseUrl, apiKey)
+      // Claude Code：根域名，不要 /v1（客户端会拼 /v1/messages）
+      return generateAnthropicFiles(baseRoot, apiKey)
   }
 })
 

@@ -719,7 +719,7 @@ $env:ANTHROPIC_AUTH_TOKEN = "sk-xxxxxxxxxxxxxxx"</code></pre>
 <h2>常见问题</h2>
 <ul>
   <li><strong>401 Unauthorized</strong> — AUTH_TOKEN 拼错或 Key 已被禁用,重新检查 / 重建 Key</li>
-  <li><strong>连接超时</strong> — BASE_URL 域名错误,确认前缀 <code>https://</code> 和域名后缀正确,不要带尾部 <code>/v1</code></li>
+  <li><strong>连接超时 / 能查余额但不能请求（或反过来）</strong> — <code>ANTHROPIC_BASE_URL</code> 只填根域名（如 <code>https://api.jisudeng.com</code>），<strong>不要</strong>带尾部 <code>/v1</code>。Claude Code 会拼 <code>/v1/messages</code>，余额查询会拼 <code>/v1/usage</code>；多写 <code>/v1</code> 会变成 <code>/v1/v1/...</code>，两者会打架</li>
   <li><strong>模型不可用</strong> — 服务分组下没该模型,在控制台 <strong>模型与价格</strong> 看分组支持清单</li>
   <li><strong>cc use 后还是连官方</strong> — 没新开终端窗口。CC-Switch 写的是 shell 环境变量,新窗口才生效</li>
 </ul>`,

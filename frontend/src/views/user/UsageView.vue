@@ -772,8 +772,8 @@ const allColumns = computed<Column[]>(() => [
   { key: 'billing_mode', label: t('admin.usage.billingMode'), sortable: false },
   { key: 'tokens', label: t('usage.tokens'), sortable: false },
   { key: 'cost', label: t('usage.cost'), sortable: false },
-  { key: 'first_token', label: t('usage.firstToken'), sortable: false },
-  { key: 'duration', label: t('usage.duration'), sortable: false },
+  // 与管理端一致：UsageTable 只有 #cell-latency，绑定 first_token_ms / duration_ms
+  { key: 'latency', label: t('usage.latency'), sortable: false },
   { key: 'created_at', label: t('usage.time'), sortable: true },
   { key: 'user_agent', label: t('usage.userAgent'), sortable: false },
 ])
@@ -793,7 +793,11 @@ const loadSavedColumns = () => {
   try {
     const saved = localStorage.getItem(HIDDEN_COLUMNS_KEY)
     const values = saved ? JSON.parse(saved) as string[] : DEFAULT_HIDDEN_COLUMNS
-    values.forEach((key) => hiddenColumns.add(key))
+    // 旧版拆成 first_token / duration 两列；现已合并为 latency
+    const migrated = values.map((key) =>
+      key === 'first_token' || key === 'duration' ? 'latency' : key
+    )
+    migrated.forEach((key) => hiddenColumns.add(key))
   } catch {
     DEFAULT_HIDDEN_COLUMNS.forEach((key) => hiddenColumns.add(key))
   }

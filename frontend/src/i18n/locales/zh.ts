@@ -913,6 +913,8 @@ export default {
     ipRestrictionEnabled: '已配置 IP 限制',
     ccSwitchNotInstalled:
       'CC-Switch 未安装或协议处理程序未注册。请先安装 CC-Switch 或手动复制 API 密钥。',
+    ccSwitchNotSupportedForPlatform:
+      '当前分组平台不支持导入到 CC-Switch，请改用「使用密钥」查看专用配置。',
     ccsClientSelect: {
       title: '选择客户端',
       description: '请选择您要导入到 CC-Switch 的客户端类型：',
