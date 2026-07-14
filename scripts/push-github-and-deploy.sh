@@ -6,7 +6,7 @@ set -euo pipefail
 
 BRANCH="${1:-play/main}"
 REMOTE="${SUB2API_GITHUB_REMOTE:-origin}"
-VERIFY_URL="${SUB2API_VERIFY_URL:-https://jisuodeng.zeabur.app/}"
+VERIFY_URL="${SUB2API_VERIFY_URL:-https://www.jisudeng.com/}"
 
 if [[ "$BRANCH" == "main" ]]; then
   echo "error: refusing to push branch 'main'" >&2

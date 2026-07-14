@@ -344,7 +344,7 @@ sub2api/
 
 ```bash
 cd skills/sub2api-admin
-export SUB2API_BASE_URL='https://jisuodeng.zeabur.app'
+export SUB2API_BASE_URL='https://www.jisudeng.com'
 export SUB2API_ADMIN_API_KEY='<admin api key>'
 node scripts/sub2api-admin.js accounts list
 ```

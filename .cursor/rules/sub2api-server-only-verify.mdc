@@ -13,7 +13,7 @@ alwaysApply: true
 ./scripts/push-github-and-deploy.sh
 ```
 
-**验收地址**：**https://jisuodeng.zeabur.app/**（前端 + API / Admin / `/api/v1/...`）。
+**验收地址**：**https://www.jisudeng.com/**（前端 + API / Admin / `/api/v1/...`）。
 
 - 用户侧 UI（Play / 增长世界 / 仪表盘 / 图像工作室）：浏览器走查浅色 + 深色模式
 - Admin 密码以 Zeabur / 线上环境变量为准
