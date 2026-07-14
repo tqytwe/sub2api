@@ -40,8 +40,12 @@ export interface ImageStudioModelOption {
 
 export interface ImageStudioAsset {
   id: string
-  url: string
+  url?: string
   sort_order: number
+  content_type?: string
+  byte_size?: number
+  preview_url?: string
+  download_url?: string
 }
 
 export interface ImageStudioJob {
@@ -109,14 +113,22 @@ export async function getImageStudioJob(id: string): Promise<ImageStudioJob> {
   return data
 }
 
+export async function getActiveImageStudioJob(): Promise<ImageStudioJob | null> {
+  const { data } = await apiClient.get<{ job: ImageStudioJob | null }>('/image-studio/jobs/active')
+  return data.job ?? null
+}
+
 export async function pollImageStudioJob(
   id: string,
-  opts?: { intervalMs?: number; timeoutMs?: number },
+  opts?: { intervalMs?: number; timeoutMs?: number; signal?: AbortSignal },
 ): Promise<ImageStudioJob> {
   const intervalMs = opts?.intervalMs ?? 2000
-  const timeoutMs = opts?.timeoutMs ?? 120000
+  const timeoutMs = opts?.timeoutMs ?? 180000
   const start = Date.now()
   for (;;) {
+    if (opts?.signal?.aborted) {
+      throw new Error('IMAGE_STUDIO_POLL_ABORTED')
+    }
     const job = await getImageStudioJob(id)
     if (job.status === 'completed' || job.status === 'failed') {
       return job
@@ -143,6 +155,7 @@ export const imageStudioAPI = {
   estimateImageStudio,
   generateImageStudio,
   getImageStudioJob,
+  getActiveImageStudioJob,
   pollImageStudioJob,
   listImageStudioJobs,
   deleteImageStudioJob,

@@ -287,3 +287,41 @@ func (r *playRepository) SumTeamTokenUsage(ctx context.Context, userIDs []int64,
 	}
 	return sum, nil
 }
+
+func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]int64, error) {
+	out := make(map[int64]int64, len(userIDs))
+	if len(userIDs) == 0 {
+		return out, nil
+	}
+	exec := r.sqlExec(ctx)
+	placeholders := make([]string, len(userIDs))
+	args := make([]any, 0, len(userIDs)+2)
+	for i, id := range userIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args = append(args, id)
+	}
+	args = append(args, start, end)
+	query := fmt.Sprintf(`
+		SELECT user_id,
+		       COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens), 0)::bigint
+		FROM usage_logs
+		WHERE user_id IN (%s) AND created_at >= $%d AND created_at < $%d
+		GROUP BY user_id`,
+		strings.Join(placeholders, ","), len(userIDs)+1, len(userIDs)+2)
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list team member token usage: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var userID, tokenSum int64
+		if err := rows.Scan(&userID, &tokenSum); err != nil {
+			return nil, fmt.Errorf("scan team member token usage: %w", err)
+		}
+		out[userID] = tokenSum
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate team member token usage: %w", err)
+	}
+	return out, nil
+}

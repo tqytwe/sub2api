@@ -27,12 +27,32 @@ var (
 	ErrImageStudioJobNotFound = infraerrors.NotFound("IMAGE_STUDIO_JOB_NOT_FOUND", "image studio job not found")
 	ErrImageStudioTemplate    = infraerrors.BadRequest("IMAGE_STUDIO_TEMPLATE_INVALID", "invalid template")
 	ErrImageStudioAPIKey      = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
+	ErrImageStudioAssetNotFound = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
 )
 
 type ImageStudioAsset struct {
-	ID        string `json:"id"`
-	URL       string `json:"url"`
-	SortOrder int    `json:"sort_order"`
+	ID          string `json:"id"`
+	URL         string `json:"url,omitempty"`
+	SortOrder   int    `json:"sort_order"`
+	ContentType string `json:"content_type,omitempty"`
+	ByteSize    int64  `json:"byte_size,omitempty"`
+	PreviewURL  string `json:"preview_url,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
+	StorageKey  string `json:"-"`
+}
+
+type ImageStudioAssetRecord struct {
+	ID          string
+	StorageKey  string
+	ContentType string
+	ByteSize    int64
+	SortOrder   int
+	URL         string
+}
+
+type ImageStudioImagePayload struct {
+	Data        []byte
+	ContentType string
 }
 
 type ImageStudioJob struct {
@@ -81,9 +101,13 @@ type ImageStudioEstimate struct {
 type ImageStudioRepository interface {
 	InsertJob(ctx context.Context, job *ImageStudioJob) error
 	UpdateJobResult(ctx context.Context, jobID string, status string, actualCost *float64, errMsg string) error
-	InsertAssets(ctx context.Context, jobID string, urls []string) error
+	InsertAssets(ctx context.Context, jobID string, assets []ImageStudioAssetRecord) error
 	GetJob(ctx context.Context, userID int64, jobID string) (*ImageStudioJob, error)
+	GetActiveJob(ctx context.Context, userID int64) (*ImageStudioJob, error)
+	GetAsset(ctx context.Context, userID int64, assetID string) (*ImageStudioAsset, error)
 	ListJobs(ctx context.Context, userID int64, limit int) ([]ImageStudioJob, error)
+	ListAssetStorageKeysForJob(ctx context.Context, jobID string) ([]string, error)
+	ListExpiredJobIDs(ctx context.Context, before time.Time) ([]string, error)
 	DeleteJob(ctx context.Context, userID int64, jobID string) error
 	CountCompletedToday(ctx context.Context, userID int64, dayStart time.Time) (int, error)
 	UpdateJobStatus(ctx context.Context, jobID string, status string) error
@@ -99,6 +123,7 @@ type ImageStudioHubStatus struct {
 
 type ImageStudioService struct {
 	repo           ImageStudioRepository
+	assetStore     *ImageStudioAssetStore
 	apiKeyService  *APIKeyService
 	userRepo       UserRepository
 	settingService *SettingService
@@ -109,6 +134,7 @@ type ImageStudioService struct {
 
 func NewImageStudioService(
 	repo ImageStudioRepository,
+	assetStore *ImageStudioAssetStore,
 	apiKeyService *APIKeyService,
 	userRepo UserRepository,
 	settingService *SettingService,
@@ -118,6 +144,7 @@ func NewImageStudioService(
 ) *ImageStudioService {
 	return &ImageStudioService{
 		repo:           repo,
+		assetStore:     assetStore,
 		apiKeyService:  apiKeyService,
 		userRepo:       userRepo,
 		settingService: settingService,
@@ -299,31 +326,58 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	return job, string(body), nil
 }
 
-func (s *ImageStudioService) CompleteJob(ctx context.Context, userID int64, jobID string, imageURLs []string, actualCost float64, errMsg string) (*ImageStudioGenerateResult, error) {
+func (s *ImageStudioService) CompleteJob(ctx context.Context, userID int64, jobID string, images []ImageStudioImagePayload, actualCost float64, errMsg string) (*ImageStudioGenerateResult, error) {
 	status := ImageStudioJobStatusCompleted
-	if errMsg != "" || len(imageURLs) == 0 {
+	if errMsg != "" || len(images) == 0 {
 		status = ImageStudioJobStatusFailed
 	}
+	job, err := s.repo.GetJob(ctx, userID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	cost := actualCost
+	if cost <= 0 && status == ImageStudioJobStatusCompleted {
+		cost = job.EstimatedCost
+	}
 	var costPtr *float64
-	if actualCost > 0 {
-		costPtr = &actualCost
+	if cost > 0 {
+		costPtr = &cost
 	}
 	if err := s.repo.UpdateJobResult(ctx, jobID, status, costPtr, errMsg); err != nil {
 		return nil, err
 	}
 	if status == ImageStudioJobStatusCompleted {
-		if err := s.repo.InsertAssets(ctx, jobID, imageURLs); err != nil {
+		records := make([]ImageStudioAssetRecord, 0, len(images))
+		for i, img := range images {
+			assetID := uuid.NewString()
+			storageKey := ""
+			if s.assetStore != nil {
+				storageKey, err = s.assetStore.Save(userID, assetID, img.ContentType, img.Data)
+				if err != nil {
+					return nil, err
+				}
+			}
+			records = append(records, ImageStudioAssetRecord{
+				ID:          assetID,
+				StorageKey:  storageKey,
+				ContentType: img.ContentType,
+				ByteSize:    int64(len(img.Data)),
+				SortOrder:   i,
+			})
+		}
+		if err := s.repo.InsertAssets(ctx, jobID, records); err != nil {
 			return nil, err
 		}
 		if s.playService != nil {
 			_ = s.playService.MarkQuestCompleted(ctx, userID, PlayQuestKeyImageGenerate)
 		}
 	}
-	job, err := s.repo.GetJob(ctx, userID, jobID)
+	outJob, err := s.repo.GetJob(ctx, userID, jobID)
 	if err != nil {
 		return nil, err
 	}
-	out := &ImageStudioGenerateResult{Job: *job}
+	s.enrichJobAssets(outJob)
+	out := &ImageStudioGenerateResult{Job: *outJob}
 	if s.playService != nil {
 		quests, err := s.playService.GetQuestsToday(ctx, userID)
 		if err == nil {
@@ -337,14 +391,68 @@ func (s *ImageStudioService) ListJobs(ctx context.Context, userID int64, limit i
 	if !s.IsEnabled(ctx) {
 		return nil, ErrImageStudioDisabled
 	}
-	return s.repo.ListJobs(ctx, userID, limit)
+	jobs, err := s.repo.ListJobs(ctx, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	for i := range jobs {
+		s.enrichJobAssets(&jobs[i])
+	}
+	return jobs, nil
 }
 
 func (s *ImageStudioService) GetJob(ctx context.Context, userID int64, jobID string) (*ImageStudioJob, error) {
-	return s.repo.GetJob(ctx, userID, jobID)
+	job, err := s.repo.GetJob(ctx, userID, jobID)
+	if err != nil {
+		return nil, err
+	}
+	s.enrichJobAssets(job)
+	return job, nil
+}
+
+func (s *ImageStudioService) GetActiveJob(ctx context.Context, userID int64) (*ImageStudioJob, error) {
+	if !s.IsEnabled(ctx) || userID <= 0 {
+		return nil, nil
+	}
+	job, err := s.repo.GetActiveJob(ctx, userID)
+	if err != nil || job == nil {
+		return job, err
+	}
+	s.enrichJobAssets(job)
+	return job, nil
+}
+
+func (s *ImageStudioService) OpenAssetContent(ctx context.Context, userID int64, assetID string) ([]byte, string, error) {
+	asset, err := s.repo.GetAsset(ctx, userID, assetID)
+	if err != nil {
+		return nil, "", err
+	}
+	if asset.StorageKey != "" && s.assetStore != nil {
+		data, err := s.assetStore.Read(asset.StorageKey)
+		if err != nil {
+			return nil, "", err
+		}
+		ct := asset.ContentType
+		if ct == "" {
+			ct = "image/png"
+		}
+		return data, ct, nil
+	}
+	if asset.URL != "" {
+		return nil, asset.URL, nil
+	}
+	return nil, "", ErrImageStudioAssetNotFound
 }
 
 func (s *ImageStudioService) DeleteJob(ctx context.Context, userID int64, jobID string) error {
+	if s.assetStore != nil {
+		keys, err := s.repo.ListAssetStorageKeysForJob(ctx, jobID)
+		if err == nil {
+			for _, key := range keys {
+				_ = s.assetStore.Delete(key)
+			}
+		}
+	}
 	return s.repo.DeleteJob(ctx, userID, jobID)
 }
 
@@ -353,7 +461,46 @@ func (s *ImageStudioService) MarkJobRunning(ctx context.Context, jobID string) e
 }
 
 func (s *ImageStudioService) PurgeExpiredJobs(ctx context.Context, now time.Time) (int64, error) {
+	if s.assetStore != nil {
+		jobIDs, err := s.repo.ListExpiredJobIDs(ctx, now)
+		if err == nil {
+			for _, jobID := range jobIDs {
+				keys, kerr := s.repo.ListAssetStorageKeysForJob(ctx, jobID)
+				if kerr != nil {
+					continue
+				}
+				for _, key := range keys {
+					_ = s.assetStore.Delete(key)
+				}
+			}
+		}
+	}
 	return s.repo.DeleteExpiredJobsBefore(ctx, now)
+}
+
+func (s *ImageStudioService) enrichJobAssets(job *ImageStudioJob) {
+	if job == nil {
+		return
+	}
+	for i := range job.Assets {
+		s.enrichAsset(&job.Assets[i])
+	}
+}
+
+func (s *ImageStudioService) enrichAsset(asset *ImageStudioAsset) {
+	if asset == nil {
+		return
+	}
+	if asset.StorageKey != "" {
+		asset.PreviewURL = "/api/v1/image-studio/assets/" + asset.ID + "/content"
+		asset.DownloadURL = "/api/v1/image-studio/assets/" + asset.ID + "/download"
+		asset.URL = asset.PreviewURL
+		return
+	}
+	if asset.URL != "" {
+		asset.PreviewURL = asset.URL
+		asset.DownloadURL = asset.URL
+	}
 }
 
 func (s *ImageStudioService) GetHubStatus(ctx context.Context, userID int64) (*ImageStudioHubStatus, error) {

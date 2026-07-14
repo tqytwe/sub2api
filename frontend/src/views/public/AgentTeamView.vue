@@ -160,9 +160,39 @@ onMounted(loadTeam)
             </button>
           </div>
         </div>
-        <ul class="play-rules space-y-2">
-          <li v-for="member in teamMe.team.members" :key="member.user_id">
-            <PlayUserAvatar :name="member.display_name" :avatar-url="member.avatar_url" />
+        <ul class="play-rules space-y-3">
+          <li class="text-sm font-medium">{{ t('agentTeam.contributionsTitle') }}</li>
+          <li v-if="teamMe.team.token_sum <= 0" class="play-intro text-sm">
+            {{ t('agentTeam.memberUsageEmpty') }}
+          </li>
+          <li
+            v-for="member in teamMe.team.members"
+            :key="member.user_id"
+            class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[var(--play-line)] px-3 py-2"
+          >
+            <div class="flex min-w-0 items-center gap-2">
+              <PlayUserAvatar :name="member.display_name" :avatar-url="member.avatar_url" />
+              <span v-if="member.user_id === teamMe.team.captain_id" class="text-xs opacity-70">
+                {{ t('agentTeam.captainBadge') }}
+              </span>
+            </div>
+            <div class="text-right text-sm">
+              <div class="font-medium tabular-nums">
+                {{ t('agentTeam.memberUsage', {
+                  tokens: (member.token_sum ?? 0).toLocaleString(),
+                  pct: member.token_pct ?? 0,
+                }) }}
+              </div>
+              <div
+                v-if="teamMe.team.token_sum > 0"
+                class="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
+              >
+                <div
+                  class="h-full rounded-full bg-[var(--play-ink)]"
+                  :style="{ width: `${member.token_pct ?? 0}%` }"
+                />
+              </div>
+            </div>
           </li>
         </ul>
       </div>

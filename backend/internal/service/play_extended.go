@@ -550,6 +550,16 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 	if err != nil {
 		return nil, err
 	}
+	usageByUser, err := s.repo.ListTeamMemberTokenUsage(ctx, userIDs, start, end)
+	if err != nil {
+		return nil, err
+	}
+	for i := range members {
+		members[i].TokenSum = usageByUser[members[i].UserID]
+		if tokenSum > 0 {
+			members[i].TokenPct = int(members[i].TokenSum * 100 / tokenSum)
+		}
+	}
 	rt := s.GetRuntime(ctx)
 	summary := &PlayTeamSummary{
 		ID:          teamDB.ID,

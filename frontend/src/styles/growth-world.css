@@ -677,6 +677,124 @@
   margin-bottom: 1rem;
 }
 
+.gw-page--studio {
+  max-width: 56rem;
+}
+
+.gw-gallery--studio {
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 1rem;
+}
+
+.gw-gallery--result {
+  grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+}
+
+.gw-thumb--studio {
+  aspect-ratio: auto;
+}
+
+.gw-thumb-btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.gw-thumb-btn img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  transition: transform 0.2s ease;
+}
+
+.gw-thumb-btn:hover img {
+  transform: scale(1.02);
+}
+
+.gw-thumb-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.gw-thumb-action {
+  font-size: 12px;
+  color: var(--gw-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+.gw-generating-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--gw-line);
+  border-radius: 12px;
+  background: var(--gw-soft);
+  padding: 0.85rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.gw-generating-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--gw-ink);
+  animation: gw-pulse-soft 1.4s ease-in-out infinite;
+}
+
+.gw-preview-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(10, 10, 10, 0.82);
+  padding: 1.5rem;
+}
+
+.gw-preview-card {
+  position: relative;
+  max-width: min(92vw, 56rem);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.gw-preview-card img {
+  max-width: 100%;
+  max-height: calc(92vh - 3rem);
+  object-fit: contain;
+  border-radius: 12px;
+  box-shadow: 0 24px 64px -24px rgba(0, 0, 0, 0.65);
+}
+
+.gw-preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.gw-step-pill.clickable {
+  cursor: pointer;
+}
+
+.gw-step-pill.clickable:hover {
+  border-color: var(--gw-ink);
+}
+
 .gw-buff {
   font-family: 'IBM Plex Mono', monospace;
   font-size: 11px;

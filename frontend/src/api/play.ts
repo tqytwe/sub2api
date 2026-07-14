@@ -111,6 +111,8 @@ export interface PlayTeamMember {
   display_name: string
   avatar_url?: string
   joined_at: string
+  token_sum: number
+  token_pct: number
 }
 
 export interface PlayTeamAffiliateInfo {

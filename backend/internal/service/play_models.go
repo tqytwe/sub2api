@@ -140,6 +140,8 @@ type PlayTeamMember struct {
 	DisplayName string
 	AvatarURL   string
 	JoinedAt    time.Time
+	TokenSum    int64
+	TokenPct    int
 }
 
 type PlayTeamSummary struct {
@@ -202,6 +204,7 @@ type PlayRepository interface {
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	ListTeamMembers(ctx context.Context, teamID int64) ([]PlayTeamMember, error)
 	SumTeamTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (int64, error)
+	ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]int64, error)
 	ListActiveCampaigns(ctx context.Context, now time.Time) ([]PlayCampaign, error)
 	UpsertQuestProgress(ctx context.Context, userID int64, questDate time.Time, questKey string, completed bool) error
 	ListQuestProgress(ctx context.Context, userID int64, questDate time.Time) ([]PlayQuestProgressRow, error)

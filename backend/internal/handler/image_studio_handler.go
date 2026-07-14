@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/tidwall/gjson"
 )
 
 type ImageStudioHandler struct {
@@ -107,9 +109,10 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	userID := subject.UserID
 	jobID := job.ID
 	apiKeyID := *job.APIKeyID
+	estimatedCost := job.EstimatedCost
 	baseCtx := c.Request.Context()
 
-	go h.runGenerateJob(baseCtx, userID, jobID, apiKeyID, body)
+	go h.runGenerateJob(baseCtx, userID, jobID, apiKeyID, estimatedCost, body)
 
 	response.Success(c, gin.H{
 		"job":    job,
@@ -118,7 +121,21 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	})
 }
 
-func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64, jobID string, apiKeyID int64, body string) {
+func (h *ImageStudioHandler) ActiveJob(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	job, err := h.studio.GetActiveJob(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"job": job})
+}
+
+func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64, jobID string, apiKeyID int64, estimatedCost float64, body string) {
 	ctx := context.WithoutCancel(parent)
 	_ = h.studio.MarkJobRunning(ctx, jobID)
 
@@ -132,8 +149,8 @@ func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64
 		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, service.ErrImageStudioAPIKey.Error())
 		return
 	}
-	imageURLs, actualCost, genErr := h.invokeGatewayImages(ctx, apiKey, body)
-	_, _ = h.studio.CompleteJob(ctx, userID, jobID, imageURLs, actualCost, errString(genErr))
+	images, actualCost, genErr := h.invokeGatewayImages(ctx, apiKey, body, estimatedCost)
+	_, _ = h.studio.CompleteJob(ctx, userID, jobID, images, actualCost, errString(genErr))
 }
 
 func (h *ImageStudioHandler) ListJobs(c *gin.Context) {
@@ -178,7 +195,61 @@ func (h *ImageStudioHandler) DeleteJob(c *gin.Context) {
 	response.Success(c, gin.H{"deleted": true})
 }
 
-func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *service.APIKey, body string) ([]string, float64, error) {
+func (h *ImageStudioHandler) AssetContent(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, c.Param("id"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if len(data) == 0 && contentType != "" && strings.HasPrefix(contentType, "http") {
+		c.Redirect(http.StatusFound, contentType)
+		return
+	}
+	if contentType == "" {
+		contentType = "image/png"
+	}
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *ImageStudioHandler) AssetDownload(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, c.Param("id"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if len(data) == 0 && contentType != "" && strings.HasPrefix(contentType, "http") {
+		c.Redirect(http.StatusFound, contentType)
+		return
+	}
+	if contentType == "" {
+		contentType = "image/png"
+	}
+	ext := ".png"
+	switch contentType {
+	case "image/jpeg":
+		ext = ".jpg"
+	case "image/webp":
+		ext = ".webp"
+	}
+	filename := "image-studio"
+	if id := c.Param("id"); len(id) >= 8 {
+		filename += "-" + id[:8]
+	}
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s%s\"", filename, ext))
+	c.Data(http.StatusOK, contentType, data)
+}
+
+func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *service.APIKey, body string, estimatedCost float64) ([]service.ImageStudioImagePayload, float64, error) {
 	authKey, err := h.apiKeyService.GetByKey(ctx, apiKey.Key)
 	if err != nil {
 		return nil, 0, service.ErrImageStudioAPIKey
@@ -216,19 +287,47 @@ func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *se
 	}
 	var parsed struct {
 		Data []struct {
-			URL string `json:"url"`
+			URL     string `json:"url"`
+			B64JSON string `json:"b64_json"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(respBody, &parsed); err != nil {
 		return nil, 0, err
 	}
-	urls := make([]string, 0, len(parsed.Data))
+	out := make([]service.ImageStudioImagePayload, 0, len(parsed.Data))
 	for _, item := range parsed.Data {
-		if item.URL != "" {
-			urls = append(urls, item.URL)
+		switch {
+		case item.B64JSON != "":
+			data, err := base64.StdEncoding.DecodeString(item.B64JSON)
+			if err != nil {
+				return nil, 0, err
+			}
+			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: "image/png"})
+		case item.URL != "":
+			if strings.HasPrefix(item.URL, "data:") {
+				data, ct, err := service.DecodeImageStudioDataURL(item.URL)
+				if err != nil {
+					return nil, 0, err
+				}
+				out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
+				continue
+			}
+			data, ct, err := service.FetchImageStudioRemoteURL(ctx, item.URL)
+			if err != nil {
+				return nil, 0, err
+			}
+			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
 		}
 	}
-	return urls, 0, nil
+	normalized, err := service.NormalizeImageStudioPayloads(ctx, out)
+	if err != nil {
+		return nil, 0, err
+	}
+	actualCost := estimatedCost
+	if usageCost := gjson.GetBytes(respBody, "usage.total_cost").Float(); usageCost > 0 {
+		actualCost = usageCost
+	}
+	return normalized, actualCost, nil
 }
 
 func parseInt64Query(c *gin.Context, key string) (int64, bool) {

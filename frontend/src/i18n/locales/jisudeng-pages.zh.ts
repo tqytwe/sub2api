@@ -344,6 +344,11 @@ export const jisudengPagesZh = {
     openNewTab: '新标签打开',
     closePreview: '关闭',
     startOver: '重新选模板',
+    deleteConfirm: '确定删除这组图片吗？',
+    pollTimeout: '生成仍在后台进行，稍后在图库查看结果。',
+    noApiKeysTitle: '还没有 API Key',
+    noApiKeysHint: '图像工作室需要 API Key 才能调用生图模型。请先创建一个 Key。',
+    goKeys: '去创建 Key',
   },
   play: {
     backHome: '← 返回首页',

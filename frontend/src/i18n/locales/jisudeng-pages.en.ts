@@ -337,6 +337,11 @@ export const jisudengPagesEn = {
     openNewTab: 'Open in new tab',
     closePreview: 'Close',
     startOver: 'Pick another template',
+    deleteConfirm: 'Delete this image set?',
+    pollTimeout: 'Generation is still running in the background. Check your gallery shortly.',
+    noApiKeysTitle: 'No API key yet',
+    noApiKeysHint: 'Image Studio needs an API key to call image models. Create one first.',
+    goKeys: 'Create API key',
   },
   play: {
     backHome: '← Back home',

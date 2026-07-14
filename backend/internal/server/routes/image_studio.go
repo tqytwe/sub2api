@@ -23,8 +23,11 @@ func RegisterImageStudioRoutes(
 		authenticated.GET("/models", h.ImageStudio.Models)
 		authenticated.GET("/estimate", h.ImageStudio.Estimate)
 		authenticated.POST("/generate", h.ImageStudio.Generate)
+		authenticated.GET("/jobs/active", h.ImageStudio.ActiveJob)
 		authenticated.GET("/jobs", h.ImageStudio.ListJobs)
 		authenticated.GET("/jobs/:id", h.ImageStudio.GetJob)
 		authenticated.DELETE("/jobs/:id", h.ImageStudio.DeleteJob)
+		authenticated.GET("/assets/:id/content", h.ImageStudio.AssetContent)
+		authenticated.GET("/assets/:id/download", h.ImageStudio.AssetDownload)
 	}
 }

@@ -273,7 +273,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageHandler := handler.NewBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService)
 	playHandler := handler.NewPlayHandler(playService, billingService)
 	imageStudioRepository := repository.NewImageStudioRepository(client, db)
-	imageStudioService := service.NewImageStudioService(imageStudioRepository, apiKeyService, userRepository, settingService, playService, batchImageModelPricingResolver, gatewayService)
+	imageStudioService := service.ProvideImageStudioService(imageStudioRepository, apiKeyService, userRepository, settingService, playService, batchImageModelPricingResolver, gatewayService, configConfig)
 	playGrowthRunner := service.ProvidePlayGrowthRunner(playService, imageStudioService)
 	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, openAIGatewayHandler, billingCacheService, apiKeyService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)

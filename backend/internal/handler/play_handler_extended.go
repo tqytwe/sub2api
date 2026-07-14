@@ -72,6 +72,8 @@ type playTeamMemberDTO struct {
 	DisplayName string `json:"display_name"`
 	AvatarURL   string `json:"avatar_url,omitempty"`
 	JoinedAt    string `json:"joined_at"`
+	TokenSum    int64  `json:"token_sum"`
+	TokenPct    int    `json:"token_pct"`
 }
 
 type playTeamAffiliateDTO struct {
@@ -306,6 +308,8 @@ func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
 			DisplayName: m.DisplayName,
 			AvatarURL:   m.AvatarURL,
 			JoinedAt:    m.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
+			TokenSum:    m.TokenSum,
+			TokenPct:    m.TokenPct,
 		})
 	}
 	if team.Affiliate != nil {
