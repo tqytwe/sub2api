@@ -266,7 +266,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 2. **奖池先用 JSON + settings** — 不做复杂 Admin 编辑器
 3. **公开页保留 SEO** — 消费行为在登录后 Hub
 4. **幂等发奖** — 沿用 `play_reward_ledger.idempotency_key`
-5. **服务器验收** — 部署 Dell `192.168.100.10:8206`（`./scripts/push-github-and-deploy.sh` 或显式 `play/main`），禁止本地 dev 验收
+5. **线上验收** — 推送 `play/main`（`./scripts/push-github-and-deploy.sh`）后在 **https://jisuodeng.zeabur.app/** 验收，禁止本地 dev 验收
 
 ---
 

@@ -264,7 +264,7 @@ psql -U sub2api -h 127.0.0.1 -d sub2api -f migration.sql
 ### Git 操作
 
 ```bash
-# 日常开发部署（play/main，勿用 origin/main）
+# 日常开发部署（推送 play/main，Zeabur 自动构建；勿用 origin/main）
 git checkout play/main
 ./scripts/push-github-and-deploy.sh
 
@@ -344,7 +344,7 @@ sub2api/
 
 ```bash
 cd skills/sub2api-admin
-export SUB2API_BASE_URL='http://192.168.100.10:8206'
+export SUB2API_BASE_URL='https://jisuodeng.zeabur.app'
 export SUB2API_ADMIN_API_KEY='<admin api key>'
 node scripts/sub2api-admin.js accounts list
 ```

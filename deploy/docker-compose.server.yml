@@ -1,6 +1,7 @@
-# Sub2API — Dell server deploy (external PG/Redis, no bundled DB containers)
-# Usage (on server):
-#   cd /data/1panel/sub2api/deploy
+# Sub2API — self-hosted deploy (external PG/Redis, no bundled DB containers)
+# Primary production deploy: push play/main → Zeabur (see deploy/zeabur.template.yaml).
+# Usage (optional bare-metal / VPS):
+#   cd deploy
 #   cp .env.server.example .env   # first time only, then edit secrets
 #   docker compose -f docker-compose.server.yml up -d --build
 

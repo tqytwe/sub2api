@@ -1,23 +1,20 @@
 #!/usr/bin/env bash
-# Push play/main to GitHub, then pull + rebuild on Dell.
+# Push play/main to GitHub; Zeabur (or other) auto-deploys from the remote.
 # Usage: ./scripts/push-github-and-deploy.sh [branch]
 # Default branch is play/main (NOT origin/main — that is unrelated upstream history).
-# Set DOCKER_NO_CACHE=1 to force a clean frontend/backend image rebuild.
 set -euo pipefail
 
 BRANCH="${1:-play/main}"
 REMOTE="${SUB2API_GITHUB_REMOTE:-origin}"
+VERIFY_URL="${SUB2API_VERIFY_URL:-https://jisuodeng.zeabur.app/}"
 
 if [[ "$BRANCH" == "main" ]]; then
-  echo "error: refusing to deploy branch 'main'" >&2
+  echo "error: refusing to push branch 'main'" >&2
   echo "  Local play/main tracks origin/play/main; origin/main is unrelated upstream history." >&2
   echo "  Use: ./scripts/push-github-and-deploy.sh" >&2
   echo "  Or:  ./scripts/push-github-and-deploy.sh play/main" >&2
   exit 1
 fi
-SERVER="${SUB2API_DEPLOY_HOST:-dell@192.168.100.10}"
-SERVER_DIR="${SUB2API_DEPLOY_DIR:-/data/1panel/sub2api}"
-COMPOSE_FILE="docker-compose.server.yml"
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
@@ -30,33 +27,4 @@ fi
 echo "==> push ${REMOTE}/${BRANCH}"
 git push -u "$REMOTE" "$BRANCH"
 
-echo "==> deploy on ${SERVER}:${SERVER_DIR}"
-ssh "$SERVER" "DOCKER_NO_CACHE=${DOCKER_NO_CACHE:-}" bash -s <<EOF
-set -euo pipefail
-cd "${SERVER_DIR}"
-if [ ! -d .git ]; then
-  echo "error: ${SERVER_DIR} is not a git clone" >&2
-  exit 1
-fi
-git fetch origin
-git checkout "${BRANCH}"
-git pull --ff-only origin "${BRANCH}"
-cd deploy
-if [ ! -f .env ]; then
-  echo "error: deploy/.env missing — copy .env.server.example and set secrets" >&2
-  exit 1
-fi
-BUILD_ARGS=()
-if [ "\${DOCKER_NO_CACHE:-}" = "1" ]; then
-  BUILD_ARGS+=(--no-cache)
-fi
-docker compose -f "${COMPOSE_FILE}" build "\${BUILD_ARGS[@]}"
-docker compose -f "${COMPOSE_FILE}" up -d
-docker compose -f "${COMPOSE_FILE}" ps
-set -a
-source .env
-set +a
-curl -sfS -o /dev/null -w "health=%{http_code}\n" "http://127.0.0.1:\${SERVER_PORT:-8206}/health" || true
-EOF
-
-echo "==> done — open http://192.168.100.10:8206"
+echo "==> done — wait for remote build, then verify ${VERIFY_URL}"
