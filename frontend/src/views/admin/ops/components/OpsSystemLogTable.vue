@@ -5,6 +5,7 @@ import { opsAPI, type OpsRuntimeLogConfig, type OpsSystemLog, type OpsSystemLogS
 import Pagination from '@/components/common/Pagination.vue'
 import Select from '@/components/common/Select.vue'
 import { useAppStore } from '@/stores'
+import { parseTimeRangeMinutes } from '../utils/opsFormatters'
 
 const appStore = useAppStore()
 const { t } = useI18n()
@@ -285,9 +286,19 @@ const cleanupCurrentFilter = async () => {
   const ok = window.confirm(t('admin.ops.systemLogs.cleanupConfirm'))
   if (!ok) return
   try {
+    // Cleanup API 只认 start/end；预设 time_range（如 1h）需展开，否则空条件 → FILTER_REQUIRED
+    let startTime = toRFC3339(filters.start_time)
+    let endTime = toRFC3339(filters.end_time)
+    if (!startTime && !endTime) {
+      const minutes = parseTimeRangeMinutes(filters.time_range)
+      const end = new Date()
+      const start = new Date(end.getTime() - minutes * 60_000)
+      startTime = start.toISOString()
+      endTime = end.toISOString()
+    }
     const payload = {
-      start_time: toRFC3339(filters.start_time),
-      end_time: toRFC3339(filters.end_time),
+      start_time: startTime,
+      end_time: endTime,
       level: filters.level.trim() || undefined,
       component: filters.component.trim() || undefined,
       request_id: filters.request_id.trim() || undefined,
@@ -305,7 +316,8 @@ const cleanupCurrentFilter = async () => {
     await Promise.all([fetchLogs(), fetchHealth()])
   } catch (err: any) {
     console.error('[OpsSystemLogTable] Failed to cleanup logs', err)
-    appStore.showError(err?.response?.data?.detail || t('admin.ops.systemLogs.cleanupFailed'))
+    const apiMsg = err?.response?.data?.detail || err?.response?.data?.message
+    appStore.showError(apiMsg || t('admin.ops.systemLogs.cleanupFailed'))
   }
 }
 
