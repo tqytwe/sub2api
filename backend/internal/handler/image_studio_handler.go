@@ -45,6 +45,21 @@ func (h *ImageStudioHandler) Templates(c *gin.Context) {
 	response.Success(c, h.studio.ListTemplates())
 }
 
+func (h *ImageStudioHandler) Models(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	apiKeyID, _ := parseInt64Query(c, "api_key_id")
+	models, err := h.studio.ListModels(c.Request.Context(), subject.UserID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"models": models})
+}
+
 func (h *ImageStudioHandler) Estimate(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -60,6 +75,7 @@ func (h *ImageStudioHandler) Estimate(c *gin.Context) {
 		c.Query("size"),
 		count,
 		apiKeyID,
+		c.Query("model"),
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)

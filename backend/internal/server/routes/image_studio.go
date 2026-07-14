@@ -20,6 +20,7 @@ func RegisterImageStudioRoutes(
 	authenticated := v1.Group("/image-studio")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	{
+		authenticated.GET("/models", h.ImageStudio.Models)
 		authenticated.GET("/estimate", h.ImageStudio.Estimate)
 		authenticated.POST("/generate", h.ImageStudio.Generate)
 		authenticated.GET("/jobs", h.ImageStudio.ListJobs)

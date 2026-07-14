@@ -19,7 +19,6 @@ const (
 	ImageStudioJobStatusCompleted = "completed"
 	ImageStudioJobStatusFailed    = "failed"
 
-	defaultImageStudioModel = "gpt-image-2"
 	defaultImageStudioSize  = "1024x1024"
 )
 
@@ -59,6 +58,7 @@ type ImageStudioGenerateRequest struct {
 	AccentColor  string  `json:"accent_color"`
 	Size         string  `json:"size"`
 	Count        int     `json:"count"`
+	Model        string  `json:"model"`
 	ExpertPrompt *string `json:"expert_prompt"`
 	APIKeyID     int64   `json:"api_key_id"`
 	RetainDays   *int    `json:"retain_days,omitempty"`
@@ -104,6 +104,7 @@ type ImageStudioService struct {
 	settingService *SettingService
 	playService    *PlayService
 	pricing        *BatchImageModelPricingResolver
+	gateway        ImageStudioModelResolver
 }
 
 func NewImageStudioService(
@@ -113,6 +114,7 @@ func NewImageStudioService(
 	settingService *SettingService,
 	playService *PlayService,
 	pricing *BatchImageModelPricingResolver,
+	gateway ImageStudioModelResolver,
 ) *ImageStudioService {
 	return &ImageStudioService{
 		repo:           repo,
@@ -121,6 +123,7 @@ func NewImageStudioService(
 		settingService: settingService,
 		playService:    playService,
 		pricing:        pricing,
+		gateway:        gateway,
 	}
 }
 
@@ -135,7 +138,7 @@ func (s *ImageStudioService) ListTemplates() ImageStudioCatalog {
 	return defaultImageStudioCatalog()
 }
 
-func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templateID string, size string, count int, apiKeyID int64) (*ImageStudioEstimate, error) {
+func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templateID string, size string, count int, apiKeyID int64, model string) (*ImageStudioEstimate, error) {
 	if !s.IsEnabled(ctx) {
 		return nil, ErrImageStudioDisabled
 	}
@@ -156,7 +159,15 @@ func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templat
 	if user.TotalRecharged <= 0 && count > 1 {
 		count = 1
 	}
-	cost, err := s.estimateCost(ctx, userID, apiKeyID, size, count)
+	apiKey, err := s.resolveAPIKey(ctx, userID, apiKeyID)
+	if err != nil {
+		return nil, err
+	}
+	resolvedModel, err := s.resolveImageModel(ctx, apiKey, model)
+	if err != nil {
+		return nil, err
+	}
+	cost, err := s.estimateCost(ctx, apiKey, resolvedModel, size, count)
 	if err != nil {
 		return nil, err
 	}
@@ -164,22 +175,21 @@ func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templat
 		EstimatedCost: cost,
 		Balance:       user.Balance,
 		Sufficient:    user.Balance >= cost,
-		Model:         defaultImageStudioModel,
+		Model:         resolvedModel,
 		Count:         count,
 		Size:          size,
 	}, nil
 }
 
-func (s *ImageStudioService) estimateCost(ctx context.Context, userID, apiKeyID int64, size string, count int) (float64, error) {
-	apiKey, err := s.resolveAPIKey(ctx, userID, apiKeyID)
-	if err != nil {
-		return 0, err
+func (s *ImageStudioService) estimateCost(ctx context.Context, apiKey *APIKey, model, size string, count int) (float64, error) {
+	if apiKey == nil {
+		return 0, ErrImageStudioAPIKey
 	}
 	unit := 0.04
 	if s.pricing != nil && apiKey.GroupID != nil {
 		if p, err := s.pricing.BatchImageUnitPrice(ctx, &BatchImageJob{
 			Provider: PlatformOpenAI,
-			Model:    defaultImageStudioModel,
+			Model:    model,
 		}); err == nil && p > 0 {
 			unit = p
 		}
@@ -238,8 +248,12 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
+	resolvedModel, err := s.resolveImageModel(ctx, apiKey, req.Model)
+	if err != nil {
+		return nil, "", err
+	}
 	prompt := buildImageStudioPrompt(tpl, req)
-	est, err := s.estimateCost(ctx, userID, apiKey.ID, size, count)
+	est, err := s.estimateCost(ctx, apiKey, resolvedModel, size, count)
 	if err != nil {
 		return nil, "", err
 	}
@@ -273,7 +287,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		return nil, "", err
 	}
 	body, err := json.Marshal(map[string]any{
-		"model":           defaultImageStudioModel,
+		"model":           resolvedModel,
 		"prompt":          prompt,
 		"n":               count,
 		"size":            size,

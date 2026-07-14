@@ -9,6 +9,7 @@ import imageStudioAPI, {
   type ImageStudioEstimate,
   type ImageStudioIntent,
   type ImageStudioJob,
+  type ImageStudioModelOption,
   type ImageStudioTemplate,
 } from '@/api/imageStudio'
 import { useAuthStore } from '@/stores/auth'
@@ -46,6 +47,11 @@ const expertOpen = ref(false)
 const expertPrompt = ref('')
 const apiKeyId = ref<number | null>(null)
 const apiKeys = ref<Array<{ id: number; name: string }>>([])
+const availableModels = ref<ImageStudioModelOption[]>([])
+const selectedModel = ref('')
+const loadingModels = ref(false)
+const modelError = ref('')
+const estimateError = ref('')
 const estimate = ref<ImageStudioEstimate | null>(null)
 const jobs = ref<ImageStudioJob[]>([])
 const errorMsg = ref('')
@@ -109,6 +115,7 @@ async function load() {
     if (apiKeys.value.length && !apiKeyId.value) apiKeyId.value = apiKeys.value[0].id
     jobs.value = jobList
     applyQuickStart()
+    await loadModels()
   } catch {
     errorMsg.value = t('imageStudio.loadFailed')
   } finally {
@@ -116,8 +123,29 @@ async function load() {
   }
 }
 
+async function loadModels() {
+  modelError.value = ''
+  availableModels.value = []
+  selectedModel.value = ''
+  if (!apiKeyId.value) return
+  loadingModels.value = true
+  try {
+    const models = await imageStudioAPI.listImageStudioModels(apiKeyId.value)
+    availableModels.value = models
+    selectedModel.value = models[0]?.id ?? ''
+    if (!models.length) {
+      modelError.value = t('imageStudio.noModels')
+    }
+  } catch {
+    modelError.value = t('imageStudio.loadModelsFailed')
+  } finally {
+    loadingModels.value = false
+  }
+}
+
 async function refreshEstimate() {
-  if (!selectedTemplate.value || !apiKeyId.value) {
+  estimateError.value = ''
+  if (!selectedTemplate.value || !apiKeyId.value || !selectedModel.value) {
     estimate.value = null
     return
   }
@@ -127,13 +155,18 @@ async function refreshEstimate() {
       size: size.value,
       count: count.value,
       api_key_id: apiKeyId.value,
+      model: selectedModel.value,
     })
   } catch {
     estimate.value = null
+    estimateError.value = t('imageStudio.estimateFailed')
   }
 }
 
-watch([selectedTemplate, size, count, apiKeyId], refreshEstimate)
+watch([selectedTemplate, size, count, apiKeyId, selectedModel], refreshEstimate)
+watch(apiKeyId, () => {
+  void loadModels()
+})
 watch(maxCount, (max) => {
   if (count.value > max) count.value = max
 })
@@ -161,7 +194,7 @@ function onAutoCleanupChange() {
 }
 
 async function generate() {
-  if (!selectedTemplate.value || !apiKeyId.value) return
+  if (!selectedTemplate.value || !apiKeyId.value || !selectedModel.value) return
   if (estimate.value && !estimate.value.sufficient) {
     trackGrowthEvent('image_studio_insufficient_balance', { balance: estimate.value.balance })
     router.push('/purchase?return=/image-studio')
@@ -182,6 +215,7 @@ async function generate() {
       accent_color: accentColor.value,
       size: size.value,
       count: count.value,
+      model: selectedModel.value,
       expert_prompt: expertOpen.value ? expertPrompt.value : null,
       api_key_id: apiKeyId.value,
       retain_days: autoCleanup.value ? 7 : 0,
@@ -335,7 +369,19 @@ onMounted(load)
               <option v-for="k in apiKeys" :key="k.id" :value="k.id">{{ k.name }}</option>
             </select>
           </label>
+          <label class="gw-field">
+            <span class="gw-field-label">{{ t('imageStudio.model') }}</span>
+            <select v-model="selectedModel" class="gw-select" :disabled="loadingModels || !availableModels.length">
+              <option v-if="loadingModels" value="">{{ t('imageStudio.loadingModels') }}</option>
+              <option v-else-if="!availableModels.length" value="">{{ t('imageStudio.noModels') }}</option>
+              <option v-for="model in availableModels" :key="model.id" :value="model.id">
+                {{ model.display_name || model.id }}
+              </option>
+            </select>
+          </label>
         </div>
+        <p v-if="modelError" class="gw-error">{{ modelError }}</p>
+        <p v-else-if="estimateError" class="gw-error">{{ estimateError }}</p>
         <details class="gw-field" @toggle="expertOpen = ($event.target as HTMLDetailsElement).open">
           <summary class="cursor-pointer text-sm" style="color: var(--gw-ink-2)">{{ t('imageStudio.expertPrompt') }}</summary>
           <textarea v-if="expertOpen" v-model="expertPrompt" class="gw-textarea mt-2" rows="3" />
@@ -348,7 +394,7 @@ onMounted(load)
           <span class="gw-cost-pill" :class="estimate.sufficient ? 'ok' : 'warn'">
             {{ t('imageStudio.estimate', { cost: estimate.estimated_cost.toFixed(4) }) }}
           </span>
-          <button type="button" class="gw-btn gw-btn-primary" :disabled="generating || polling || !apiKeyId" @click="generate">
+          <button type="button" class="gw-btn gw-btn-primary" :disabled="generating || polling || !apiKeyId || !selectedModel || !estimate" @click="generate">
             {{ generating || polling ? t('imageStudio.generating') : t('imageStudio.generate') }}
           </button>
         </div>

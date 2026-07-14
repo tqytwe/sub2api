@@ -33,6 +33,11 @@ export interface ImageStudioEstimate {
   size: string
 }
 
+export interface ImageStudioModelOption {
+  id: string
+  display_name: string
+}
+
 export interface ImageStudioAsset {
   id: string
   url: string
@@ -58,6 +63,7 @@ export interface ImageStudioGenerateRequest {
   accent_color?: string
   size?: string
   count?: number
+  model?: string
   expert_prompt?: string | null
   api_key_id: number
   retain_days?: number
@@ -75,11 +81,19 @@ export async function getImageStudioTemplates(): Promise<ImageStudioCatalog> {
   return data
 }
 
+export async function listImageStudioModels(apiKeyId: number): Promise<ImageStudioModelOption[]> {
+  const { data } = await apiClient.get<{ models: ImageStudioModelOption[] }>('/image-studio/models', {
+    params: { api_key_id: apiKeyId },
+  })
+  return data.models ?? []
+}
+
 export async function estimateImageStudio(params: {
   template_id: string
   size?: string
   count?: number
   api_key_id?: number
+  model?: string
 }): Promise<ImageStudioEstimate> {
   const { data } = await apiClient.get<ImageStudioEstimate>('/image-studio/estimate', { params })
   return data
@@ -125,6 +139,7 @@ export async function deleteImageStudioJob(id: string): Promise<void> {
 
 export const imageStudioAPI = {
   getImageStudioTemplates,
+  listImageStudioModels,
   estimateImageStudio,
   generateImageStudio,
   getImageStudioJob,
