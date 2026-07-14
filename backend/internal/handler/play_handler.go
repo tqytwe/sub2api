@@ -14,11 +14,12 @@ import (
 
 // PlayHandler serves play/engagement endpoints (check-in, arena, public models).
 type PlayHandler struct {
-	playService *service.PlayService
+	playService    *service.PlayService
+	billingService *service.BillingService
 }
 
-func NewPlayHandler(playService *service.PlayService) *PlayHandler {
-	return &PlayHandler{playService: playService}
+func NewPlayHandler(playService *service.PlayService, billingService *service.BillingService) *PlayHandler {
+	return &PlayHandler{playService: playService, billingService: billingService}
 }
 
 type playCheckinStatusDTO struct {
@@ -110,6 +111,17 @@ func (h *PlayHandler) PublicModels(c *gin.Context) {
 		})
 	}
 	response.Success(c, out)
+}
+
+// PublicModelPricing lists official catalog prices and site reference prices for /models.
+// GET /api/v1/public/model-pricing
+func (h *PlayHandler) PublicModelPricing(c *gin.Context) {
+	if h.playService == nil || h.billingService == nil {
+		response.Success(c, []service.PublicModelPricingRow{})
+		return
+	}
+	rows := h.playService.ListPublicModelPricing(c.Request.Context(), h.billingService)
+	response.Success(c, rows)
 }
 
 // CheckinStatus returns today's check-in state for the current user.

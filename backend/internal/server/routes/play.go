@@ -14,6 +14,7 @@ func RegisterPlayRoutes(
 	jwtAuth middleware.JWTAuthMiddleware,
 ) {
 	v1.GET("/public/models", h.Play.PublicModels)
+	v1.GET("/public/model-pricing", h.Play.PublicModelPricing)
 
 	play := v1.Group("/play")
 	{

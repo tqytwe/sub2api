@@ -367,6 +367,7 @@ const (
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled = "available_channels_enabled"
 	SettingKeyPublicModelsEnabled      = "public_models_enabled"
+	SettingKeyPublicModelRateMultiplier = "public_model_rate_multiplier"
 	SettingKeyPlayCheckinEnabled       = "play_checkin_enabled"
 	SettingKeyPlayCheckinDailyReward   = "play_checkin_daily_reward"
 	SettingKeyPlayArenaEnabled         = "play_arena_enabled"

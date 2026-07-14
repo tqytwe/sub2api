@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"strconv"
+	"strings"
 )
 
 // GetPlayRuntime reads play feature toggles and reward config directly from the
@@ -94,6 +95,22 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		DailyQuests:                 parsePlayDailyQuests(vals[SettingKeyPlayDailyQuests]),
 		DailyArenaTopRewards:        parsePlayDailyArenaRewards(vals[SettingKeyPlayDailyArenaTopRewards]),
 	}
+}
+
+// GetPublicModelRateMultiplier returns the public /models reference multiplier (default 1).
+func (s *SettingService) GetPublicModelRateMultiplier(ctx context.Context) float64 {
+	if s == nil || s.settingRepo == nil {
+		return 1
+	}
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyPublicModelRateMultiplier})
+	if err != nil {
+		return 1
+	}
+	mult, err := strconv.ParseFloat(strings.TrimSpace(vals[SettingKeyPublicModelRateMultiplier]), 64)
+	if err != nil || mult <= 0 {
+		return 1
+	}
+	return mult
 }
 
 // GetBalanceRechargeMultiplier returns the configured payment balance credit multiplier.

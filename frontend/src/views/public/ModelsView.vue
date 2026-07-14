@@ -1,31 +1,21 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import userChannelsAPI, { type UserAvailableChannel, type UserSupportedModel } from '@/api/channels'
-import publicAPI from '@/api/public'
+import publicAPI, { type PublicModelPricingRow } from '@/api/public'
 import playAPI, { type PlayVIPStatus } from '@/api/play'
 import { useAuthStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import { FEATURED_PUBLIC_MODELS } from '@/content/featured-models'
 import '@/styles/public-pages.css'
-
-interface ModelRow {
-  name: string
-  platform: string
-  channel: string
-  pricing: UserSupportedModel['pricing']
-}
 
 const { t, te } = useI18n()
 const authStore = useAuthStore()
 
 const loading = ref(false)
-const showPreview = ref(false)
-const showGuestLoginBanner = ref(false)
-const channels = ref<UserAvailableChannel[]>([])
+const pricingRows = ref<PublicModelPricingRow[]>([])
 const searchQuery = ref('')
 const vip = ref<PlayVIPStatus | null>(null)
+const loadError = ref(false)
 
 const showVipBadge = computed(
   () => authStore.isAuthenticated && (vip.value?.perks?.includes('models_vip_tag') ?? false),
@@ -40,82 +30,35 @@ function formatPrice(value: number | null | undefined): string {
   return `$${value.toFixed(4)}`
 }
 
-function flattenModels(list: UserAvailableChannel[]): ModelRow[] {
-  const rows: ModelRow[] = []
-  const seen = new Set<string>()
-  for (const ch of list) {
-    for (const section of ch.platforms) {
-      for (const model of section.supported_models) {
-        const key = `${model.name}::${section.platform}::${ch.name}`
-        if (seen.has(key)) continue
-        seen.add(key)
-        rows.push({
-          name: model.name,
-          platform: section.platform,
-          channel: ch.name,
-          pricing: model.pricing,
-        })
-      }
-    }
-  }
-  return rows.sort((a, b) => a.name.localeCompare(b.name))
+function useCaseLabel(useCase: string): string {
+  const key = `models.previewUseCases.${useCase}`
+  return te(key) ? t(key) : t('models.previewUseCases.chat')
 }
-
-const modelRows = computed(() => flattenModels(channels.value))
 
 const filteredRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return modelRows.value
-  return modelRows.value.filter(
+  const rows = pricingRows.value
+  if (!q) return rows
+  return rows.filter(
     (row) =>
       row.name.toLowerCase().includes(q) ||
       row.platform.toLowerCase().includes(q) ||
-      row.channel.toLowerCase().includes(q),
-  )
-})
-
-const filteredPreviewRows = computed(() => {
-  const q = searchQuery.value.trim().toLowerCase()
-  if (!q) return FEATURED_PUBLIC_MODELS
-  return FEATURED_PUBLIC_MODELS.filter(
-    (row) =>
-      row.name.toLowerCase().includes(q) ||
-      row.platform.toLowerCase().includes(q) ||
-      t(row.useCaseKey).toLowerCase().includes(q),
+      useCaseLabel(row.use_case).toLowerCase().includes(q),
   )
 })
 
 async function loadModels() {
   loading.value = true
-  showPreview.value = false
-  showGuestLoginBanner.value = false
+  loadError.value = false
   vip.value = null
   try {
     if (authStore.isAuthenticated) {
-      const [available, hub] = await Promise.all([
-        userChannelsAPI.getAvailable(),
-        playAPI.getPlayHub().catch(() => null),
-      ])
-      channels.value = available
-      vip.value = hub?.growth.vip ?? null
-      return
+      vip.value = (await playAPI.getPlayHub().catch(() => null))?.growth.vip ?? null
     }
-
-    const publicChannels = await publicAPI.getPublicModels().catch(() => [])
-    if (publicChannels.length > 0) {
-      channels.value = publicChannels
-      showGuestLoginBanner.value = true
-      return
-    }
-
-    showPreview.value = true
-    channels.value = []
-  } catch (err: unknown) {
-    const status = (err as { response?: { status?: number } })?.response?.status
-    if (status === 401) {
-      showPreview.value = true
-    }
-    channels.value = []
+    pricingRows.value = await publicAPI.getPublicModelPricing()
+  } catch {
+    loadError.value = true
+    pricingRows.value = []
   } finally {
     loading.value = false
   }
@@ -140,16 +83,9 @@ onMounted(loadModels)
         </span>
       </div>
       <p class="models-subtitle">{{ t('models.subtitle') }}</p>
+      <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
 
-      <div v-if="showGuestLoginBanner" class="models-auth-card">
-        <p>{{ t('models.loginForRates') }}</p>
-        <div class="models-auth-actions">
-          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
-          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
-        </div>
-      </div>
-
-      <div v-else-if="showPreview" class="models-auth-card">
+      <div v-if="!authStore.isAuthenticated" class="models-auth-card">
         <p>{{ t('models.loginPrompt') }}</p>
         <div class="models-auth-actions">
           <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
@@ -157,87 +93,52 @@ onMounted(loadModels)
         </div>
       </div>
 
-      <template v-if="showPreview">
-        <div class="models-toolbar">
-          <input
-            v-model="searchQuery"
-            type="search"
-            class="models-search"
-            :placeholder="t('models.searchPlaceholder')"
-          />
-        </div>
-        <h2 class="models-preview-title">{{ t('models.previewTitle') }}</h2>
-        <p class="models-preview-note">{{ t('models.previewNote') }}</p>
-        <div v-if="filteredPreviewRows.length === 0" class="models-state">{{ t('models.empty') }}</div>
-        <div v-else class="models-table-wrap">
-          <table class="models-table">
-            <thead>
-              <tr>
-                <th>{{ t('models.previewColumns.model') }}</th>
-                <th>{{ t('models.previewColumns.platform') }}</th>
-                <th>{{ t('models.previewColumns.useCase') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in filteredPreviewRows" :key="row.name">
-                <td class="models-cell-name">{{ row.name }}</td>
-                <td><span class="models-platform">{{ row.platform }}</span></td>
-                <td>{{ t(row.useCaseKey) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
+      <div class="models-toolbar">
+        <input
+          v-model="searchQuery"
+          type="search"
+          class="models-search"
+          :placeholder="t('models.searchPlaceholder')"
+        />
+      </div>
 
-      <template v-else>
-        <div class="models-toolbar">
-          <input
-            v-model="searchQuery"
-            type="search"
-            class="models-search"
-            :placeholder="t('models.searchPlaceholder')"
-          />
-        </div>
-
-        <div v-if="loading" class="models-state">{{ t('models.loading') }}</div>
-        <div v-else-if="filteredRows.length === 0" class="models-state">{{ t('models.empty') }}</div>
-        <div v-else class="models-table-wrap">
-          <table class="models-table">
-            <thead>
-              <tr>
-                <th>{{ t('models.columns.model') }}</th>
-                <th>{{ t('models.columns.platform') }}</th>
-                <th>{{ t('models.columns.channel') }}</th>
-                <th>{{ t('models.columns.input') }}</th>
-                <th>{{ t('models.columns.output') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="row in filteredRows" :key="`${row.name}-${row.platform}-${row.channel}`">
-                <td class="models-cell-name">{{ row.name }}</td>
-                <td><span class="models-platform">{{ row.platform }}</span></td>
-                <td>{{ row.channel }}</td>
-                <td>
-                  {{
-                    row.pricing?.input_price != null
-                      ? formatPrice(row.pricing.input_price)
-                      : t('models.noPricing')
-                  }}
-                </td>
-                <td>
-                  {{
-                    row.pricing?.output_price != null
-                      ? formatPrice(row.pricing.output_price)
-                      : t('models.noPricing')
-                  }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </template>
+      <div v-if="loading" class="models-state">{{ t('models.loading') }}</div>
+      <div v-else-if="loadError" class="models-state">{{ t('models.loadFailed') }}</div>
+      <div v-else-if="filteredRows.length === 0" class="models-state">{{ t('models.empty') }}</div>
+      <div v-else class="models-table-wrap">
+        <table class="models-table">
+          <thead>
+            <tr>
+              <th>{{ t('models.columns.model') }}</th>
+              <th>{{ t('models.columns.platform') }}</th>
+              <th>{{ t('models.columns.useCase') }}</th>
+              <th>{{ t('models.columns.officialInput') }}</th>
+              <th>{{ t('models.columns.officialOutput') }}</th>
+              <th>{{ t('models.columns.ourInput') }}</th>
+              <th>{{ t('models.columns.ourOutput') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in filteredRows" :key="row.name">
+              <td class="models-cell-name">{{ row.name }}</td>
+              <td><span class="models-platform">{{ row.platform }}</span></td>
+              <td>{{ useCaseLabel(row.use_case) }}</td>
+              <td>{{ formatPrice(row.official_input_price) }}</td>
+              <td>{{ formatPrice(row.official_output_price) }}</td>
+              <td class="models-cell-our">{{ formatPrice(row.our_input_price) }}</td>
+              <td class="models-cell-our">{{ formatPrice(row.our_output_price) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </main>
 
     <SupportFloatingCard />
   </div>
 </template>
+
+<style scoped>
+.models-cell-our {
+  font-weight: 600;
+}
+</style>
