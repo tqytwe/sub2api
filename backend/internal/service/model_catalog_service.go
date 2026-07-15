@@ -127,18 +127,23 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 	}
 	rowsByKey := make(map[rowKey]*MyModelPricingRow)
 	representedCatalogGroups := make(map[string]map[int64]struct{}, len(catalogEntries))
-	var userGroups []Group
+	var keyGroups []Group
+	var availableGroups []Group
 	var userRates map[int64]float64
 	if s.apiKeyService != nil {
-		userGroups, _ = s.apiKeyService.GetUserKeyGroups(ctx, userID)
+		keyGroups, _ = s.apiKeyService.GetUserKeyGroups(ctx, userID)
+		availableGroups = keyGroups
+		if groups, groupsErr := s.apiKeyService.GetAvailableGroups(ctx, userID); groupsErr == nil {
+			availableGroups = groups
+		}
 		userRates, _ = s.apiKeyService.GetUserGroupRates(ctx, userID)
 	}
 
-	if s.channelService != nil && len(userGroups) > 0 {
+	if s.channelService != nil && len(keyGroups) > 0 {
 		channels, channelsErr := s.channelService.ListAvailable(ctx)
 		if channelsErr == nil {
-			allowedGroupIDs := make(map[int64]struct{}, len(userGroups))
-			for _, g := range userGroups {
+			allowedGroupIDs := make(map[int64]struct{}, len(keyGroups))
+			for _, g := range keyGroups {
 				allowedGroupIDs[g.ID] = struct{}{}
 			}
 
@@ -213,7 +218,11 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		officialIn, officialOut := catalogOfficialPrices(catalogEntry)
 		siteIn, siteOut := catalogSitePrices(catalogEntry, officialIn, officialOut, 1)
 		addedGroupRow := false
-		for _, group := range userGroups {
+		pricingGroups := keyGroups
+		if catalogEntry.GroupIDs != nil {
+			pricingGroups = availableGroups
+		}
+		for _, group := range pricingGroups {
 			if !catalogAllowsGroup(catalogEntry, group.ID, group.Platform) {
 				continue
 			}

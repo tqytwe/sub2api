@@ -247,9 +247,9 @@ func TestModelCatalogService_ListMyPricingUsesSiteBaseForActualKeyGroupWithoutCh
 			Group:   &group,
 			Status:  StatusActive,
 		}}},
-		nil,
+		&modelPricingUserRepoStub{user: &User{ID: 4, Status: StatusActive}},
 		&modelPricingGroupRepoStub{groups: []Group{group}},
-		nil,
+		&modelPricingSubscriptionRepoStub{},
 		&modelPricingUserRateRepoStub{rates: map[int64]float64{group.ID: 0.25}},
 		nil,
 		nil,
@@ -288,9 +288,9 @@ func TestModelCatalogService_ExplicitCatalogGroupsOverridePlatformMatching(t *te
 			{ID: 8, UserID: 4, GroupID: &codex.ID, Group: &codex, Status: StatusActive},
 			{ID: 9, UserID: 4, GroupID: &domestic.ID, Group: &domestic, Status: StatusActive},
 		}},
-		nil,
+		&modelPricingUserRepoStub{user: &User{ID: 4, Status: StatusActive}},
 		&modelPricingGroupRepoStub{groups: []Group{codex, domestic}},
-		nil,
+		&modelPricingSubscriptionRepoStub{},
 		&modelPricingUserRateRepoStub{rates: map[int64]float64{}},
 		nil,
 		nil,
@@ -313,4 +313,44 @@ func TestModelCatalogService_ExplicitCatalogGroupsOverridePlatformMatching(t *te
 	require.Equal(t, domestic.ID, resp.Models[0].Groups[0].ID)
 	require.Equal(t, domestic.Name, resp.Models[0].Groups[0].Name)
 	require.InDelta(t, siteIn*domestic.RateMultiplier, *resp.Models[0].EffectiveInputPrice, 1e-12)
+}
+
+func TestModelCatalogService_ExplicitCatalogGroupUsesAvailableGroupWithoutKey(t *testing.T) {
+	siteIn, siteOut := 4e-6, 24e-6
+	domestic := Group{
+		ID:               14,
+		Name:             "国产分组",
+		Platform:         PlatformOpenAI,
+		RateMultiplier:   0.05,
+		Status:           StatusActive,
+		SubscriptionType: SubscriptionTypeStandard,
+	}
+	apiKeyService := NewAPIKeyService(
+		&modelPricingAPIKeyRepoStub{keys: []APIKey{}},
+		&modelPricingUserRepoStub{user: &User{ID: 2, Status: StatusActive}},
+		&modelPricingGroupRepoStub{groups: []Group{domestic}},
+		&modelPricingSubscriptionRepoStub{},
+		&modelPricingUserRateRepoStub{rates: map[int64]float64{}},
+		nil,
+		nil,
+	)
+	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
+		ModelName:   "deepseek-v4-flash",
+		Platform:    PlatformOpenAI,
+		VisibleAuth: true,
+		GroupIDs:    []int64{domestic.ID},
+		InputPrice:  &siteIn,
+		OutputPrice: &siteOut,
+	}}}
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService)
+
+	resp, err := svc.ListMyPricing(context.Background(), 2)
+
+	require.NoError(t, err)
+	require.Len(t, resp.Models, 1)
+	require.Len(t, resp.Models[0].Groups, 1)
+	require.Equal(t, domestic.ID, resp.Models[0].Groups[0].ID)
+	require.Equal(t, domestic.Name, resp.Models[0].Groups[0].Name)
+	require.InDelta(t, siteIn*domestic.RateMultiplier, *resp.Models[0].EffectiveInputPrice, 1e-12)
+	require.InDelta(t, siteOut*domestic.RateMultiplier, *resp.Models[0].EffectiveOutputPrice, 1e-12)
 }
