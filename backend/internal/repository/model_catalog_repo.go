@@ -299,16 +299,16 @@ func (r *modelCatalogRepository) UpdateCatalogOfficialPrices(
 ) (int, error) {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE site_model_catalog SET
-			official_input_price = $1,
-			official_output_price = $2,
-			official_cache_read_price = $3,
-			official_cache_write_price = $4,
+			official_input_price = $1::numeric,
+			official_output_price = $2::numeric,
+			official_cache_read_price = $3::numeric,
+			official_cache_write_price = $4::numeric,
 			official_source = $5,
 			official_updated_at = $6,
-			input_price = CASE WHEN price_multiplier IS NOT NULL AND $1 IS NOT NULL THEN $1 * price_multiplier ELSE input_price END,
-			output_price = CASE WHEN price_multiplier IS NOT NULL AND $2 IS NOT NULL THEN $2 * price_multiplier ELSE output_price END,
-			cache_read_price = CASE WHEN price_multiplier IS NOT NULL AND $3 IS NOT NULL THEN $3 * price_multiplier ELSE cache_read_price END,
-			cache_write_price = CASE WHEN price_multiplier IS NOT NULL AND $4 IS NOT NULL THEN $4 * price_multiplier ELSE cache_write_price END,
+			input_price = CASE WHEN price_multiplier IS NOT NULL AND $1::numeric IS NOT NULL THEN $1::numeric * price_multiplier ELSE input_price END,
+			output_price = CASE WHEN price_multiplier IS NOT NULL AND $2::numeric IS NOT NULL THEN $2::numeric * price_multiplier ELSE output_price END,
+			cache_read_price = CASE WHEN price_multiplier IS NOT NULL AND $3::numeric IS NOT NULL THEN $3::numeric * price_multiplier ELSE cache_read_price END,
+			cache_write_price = CASE WHEN price_multiplier IS NOT NULL AND $4::numeric IS NOT NULL THEN $4::numeric * price_multiplier ELSE cache_write_price END,
 			updated_at = NOW()
 		WHERE LOWER(model_name) = LOWER($7)
 			AND LOWER(platform) = LOWER($8)

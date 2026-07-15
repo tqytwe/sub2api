@@ -59,6 +59,13 @@ func TestModelCatalogRepository_OfficialAndSitePricesRemainSeparate(t *testing.T
 	require.InDelta(t, officialCacheRead*multiplier, *got.CacheReadPrice, 1e-12)
 	require.InDelta(t, officialCacheWrite*multiplier, *got.CacheWritePrice, 1e-12)
 	require.InDelta(t, multiplier, *got.PriceMultiplier, 1e-12)
+
+	updated, err = repo.UpdateCatalogOfficialPrices(
+		ctx, model, service.PlatformOpenAI, "aihubmix",
+		nil, &officialOutput, nil, nil, time.Now(),
+	)
+	require.NoError(t, err, "nullable AIHubMix price fields must have explicit PostgreSQL types")
+	require.Equal(t, 1, updated)
 }
 
 func TestModelCatalogRepository_SyncJobRoundTrip(t *testing.T) {
