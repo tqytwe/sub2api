@@ -29,7 +29,11 @@ import {
   getStudioPendingJobId,
   setStudioPendingJobId,
 } from '@/utils/imageStudioSession'
-import { isImageStudioPromptValid, resolveInitialImageStudioTemplate } from '@/utils/imageStudioWorkspace'
+import {
+  findFirstImageStudioKeyWithModels,
+  isImageStudioPromptValid,
+  resolveInitialImageStudioTemplate,
+} from '@/utils/imageStudioWorkspace'
 
 export function useImageStudioWorkspace() {
   const { t, locale } = useI18n()
@@ -120,19 +124,23 @@ export function useImageStudioWorkspace() {
     loadingModels.value = true
     try {
       const models = await imageStudioAPI.listImageStudioModels(apiKeyId.value)
-      availableModels.value = models
-      selectedModel.value = models[0]?.id ?? ''
-      quality.value = models[0]?.default_quality ?? models[0]?.supported_qualities?.[0] ?? ''
-      if (models[0]?.default_size && !selectedTemplate.value) {
-        sizeCaps.applyTemplateDefault(models[0].default_size, true)
-      }
-      sizeCaps.ensureSelectableTier()
-      if (!models.length) modelError.value = t('imageStudio.noModels')
+      applyModels(models)
     } catch {
       modelError.value = t('imageStudio.loadModelsFailed')
     } finally {
       loadingModels.value = false
     }
+  }
+
+  function applyModels(models: ImageStudioModelOption[]) {
+    availableModels.value = models
+    selectedModel.value = models[0]?.id ?? ''
+    quality.value = models[0]?.default_quality ?? models[0]?.supported_qualities?.[0] ?? ''
+    if (models[0]?.default_size && !selectedTemplate.value) {
+      sizeCaps.applyTemplateDefault(models[0].default_size, true)
+    }
+    sizeCaps.ensureSelectableTier()
+    if (!models.length) modelError.value = t('imageStudio.noModels')
   }
 
   async function refreshEstimate() {
@@ -211,10 +219,19 @@ export function useImageStudioWorkspace() {
       catalog.value = tpl
       capabilities.value = caps
       apiKeys.value = (keyPage.items ?? []).map((k) => ({ id: k.id, name: k.name || `Key #${k.id}` }))
-      if (apiKeys.value.length && !apiKeyId.value) apiKeyId.value = apiKeys.value[0].id
+      let initialModels: ImageStudioModelOption[] | null = null
+      if (apiKeys.value.length && !apiKeyId.value) {
+        const selection = await findFirstImageStudioKeyWithModels(
+          apiKeys.value,
+          imageStudioAPI.listImageStudioModels,
+        )
+        apiKeyId.value = selection?.key.id ?? apiKeys.value[0].id
+        initialModels = selection?.models ?? null
+      }
       jobs.value = jobList
       if (!isRefresh && !applyQuickStart()) applyDefaultTemplate()
-      await loadModels()
+      if (initialModels) applyModels(initialModels)
+      else await loadModels()
 
       const pendingId = getStudioPendingJobId()
       const resumeId = pendingId || (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running') ? activeJob.id : null)
@@ -229,7 +246,9 @@ export function useImageStudioWorkspace() {
   }
 
   watch([selectedTemplate, size, count, apiKeyId, selectedModel], refreshEstimate)
-  watch(apiKeyId, () => { void loadModels() })
+  watch(apiKeyId, () => {
+    if (!bootstrapping.value) void loadModels()
+  })
   watch(maxCount, (max) => { if (count.value > max) count.value = max })
   watch(selectedModel, (modelId) => {
     const model = availableModels.value.find((m) => m.id === modelId)

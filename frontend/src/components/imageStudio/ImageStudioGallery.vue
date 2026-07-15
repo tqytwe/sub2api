@@ -83,6 +83,7 @@ onUnmounted(() => {
 
 function thumbSrc(asset: ImageStudioAsset) {
   if (thumbUrls.value[asset.id]) return thumbUrls.value[asset.id]
+  if (isManagedAsset(asset)) return ''
   return legacySrc(asset)
 }
 
