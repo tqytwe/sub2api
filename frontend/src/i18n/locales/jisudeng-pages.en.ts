@@ -301,6 +301,7 @@ export const jisudengPagesEn = {
   },
   imageStudio: {
     title: 'Image Studio',
+    subtitle: 'Choose a template, describe the scene, and start creating',
     workspaceSubtitle: 'Choose a template, describe the scene, and start creating',
     createTab: 'Create',
     worksTab: 'Works',

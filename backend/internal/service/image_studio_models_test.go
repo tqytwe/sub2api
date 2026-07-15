@@ -3,9 +3,33 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
+
+func TestValidateImageStudioAPIKey_RejectsUnusableKeys(t *testing.T) {
+	past := time.Now().Add(-time.Minute)
+	tests := []struct {
+		name string
+		key  *APIKey
+	}{
+		{name: "missing", key: nil},
+		{name: "disabled", key: &APIKey{Status: StatusAPIKeyDisabled}},
+		{name: "expired status", key: &APIKey{Status: StatusAPIKeyExpired}},
+		{name: "quota status", key: &APIKey{Status: StatusAPIKeyQuotaExhausted}},
+		{name: "runtime expired", key: &APIKey{Status: StatusAPIKeyActive, ExpiresAt: &past}},
+		{name: "runtime quota exhausted", key: &APIKey{Status: StatusAPIKeyActive, Quota: 1, QuotaUsed: 1}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.ErrorIs(t, ValidateImageStudioAPIKey(tt.key), ErrImageStudioAPIKey)
+		})
+	}
+
+	require.NoError(t, ValidateImageStudioAPIKey(&APIKey{Status: StatusAPIKeyActive}))
+}
 
 type imageStudioModelResolverStub struct {
 	models []string

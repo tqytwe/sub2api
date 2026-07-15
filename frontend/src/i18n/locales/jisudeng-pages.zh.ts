@@ -308,6 +308,7 @@ export const jisudengPagesZh = {
   },
   imageStudio: {
     title: '图像工作室',
+    subtitle: '选择模板，描述画面，开始创作',
     workspaceSubtitle: '选择模板，描述画面，开始创作',
     createTab: '创作',
     worksTab: '作品',
