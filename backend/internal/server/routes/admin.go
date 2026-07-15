@@ -125,7 +125,6 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		catalog.GET("/sync-jobs/:id", h.Admin.ModelCatalog.GetSyncJob)
 		catalog.GET("/discoveries", h.Admin.ModelCatalog.ListDiscoveries)
 		catalog.POST("/discoveries/import", h.Admin.ModelCatalog.ImportDiscoveries)
-		catalog.POST("/fill-litellm", h.Admin.ModelCatalog.FillFromLiteLLM)
 	}
 }
 

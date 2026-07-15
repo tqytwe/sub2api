@@ -292,6 +292,49 @@ describe('API Client', () => {
         writable: true,
       })
     })
+
+    it('旧账号的延迟 401 刷新不能覆盖新账号 token', async () => {
+      localStorage.setItem('auth_token', 'account-b-expired')
+      localStorage.setItem('refresh_token', 'account-b-refresh')
+
+      let resolveRefresh!: (value: unknown) => void
+      const refreshResponse = new Promise((resolve) => {
+        resolveRefresh = resolve
+      })
+      const refreshSpy = vi.spyOn(axios, 'post').mockReturnValue(refreshResponse as never)
+
+      const adapter = vi.fn().mockRejectedValue({
+        response: {
+          status: 401,
+          data: { code: 'TOKEN_EXPIRED', message: 'Token expired' },
+        },
+        config: {
+          url: '/usage',
+          headers: { Authorization: 'Bearer account-b-expired' },
+        },
+        code: 'ERR_BAD_REQUEST',
+      })
+      apiClient.defaults.adapter = adapter
+
+      const request = apiClient.get('/usage')
+      await vi.waitFor(() => expect(refreshSpy).toHaveBeenCalledTimes(1))
+      localStorage.setItem('auth_token', 'account-a-access')
+      localStorage.setItem('refresh_token', 'account-a-refresh')
+      resolveRefresh({
+        data: {
+          code: 0,
+          data: {
+            access_token: 'late-account-b-access',
+            refresh_token: 'late-account-b-refresh',
+            expires_in: 3600,
+          },
+        },
+      })
+
+      await expect(request).rejects.toEqual(expect.objectContaining({ code: 'AUTH_SESSION_CHANGED' }))
+      expect(localStorage.getItem('auth_token')).toBe('account-a-access')
+      expect(localStorage.getItem('refresh_token')).toBe('account-a-refresh')
+    })
   })
 
   // --- 网络错误 ---

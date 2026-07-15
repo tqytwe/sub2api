@@ -44,11 +44,16 @@
           <button class="btn btn-secondary btn-sm" @click="batchSetPublic(false)">
             {{ t('admin.modelCatalog.batchPublicOff') }}
           </button>
-          <button class="btn btn-secondary btn-sm" @click="batchMultiply(0.8)">
-            {{ t('admin.modelCatalog.batchMultiply', { mult: '0.8' }) }}
-          </button>
-          <button class="btn btn-secondary btn-sm" @click="fillLiteLLM">
-            {{ t('admin.modelCatalog.fillLiteLLM') }}
+          <input
+            v-model.number="batchMultiplier"
+            type="number"
+            min="0.000001"
+            step="0.01"
+            class="input h-8 w-24 text-sm"
+            :aria-label="t('admin.modelCatalog.fields.multiplier')"
+          />
+          <button class="btn btn-secondary btn-sm" @click="batchMultiply">
+            {{ t('admin.modelCatalog.batchApplyMultiplier') }}
           </button>
         </div>
 
@@ -86,6 +91,9 @@
           <template #cell-visible_public="{ row }">
             <Toggle :model-value="row.visible_public" @update:model-value="(v: boolean) => patchVisibility(row, v, undefined)" />
           </template>
+          <template #cell-visible_auth="{ row }">
+            <Toggle :model-value="row.visible_auth" @update:model-value="(v: boolean) => patchVisibility(row, undefined, v)" />
+          </template>
           <template #cell-actions="{ row }">
             <button class="btn btn-ghost btn-sm" @click="openEdit(row)">{{ t('common.edit') }}</button>
             <button class="btn btn-ghost btn-sm text-red-600" @click="removeRow(row)">{{ t('common.delete') }}</button>
@@ -95,7 +103,7 @@
     </TablePageLayout>
 
     <BaseDialog :show="editOpen" :title="editForm.id ? t('admin.modelCatalog.editTitle') : t('admin.modelCatalog.addTitle')" @close="editOpen = false">
-      <div class="space-y-3">
+      <div class="space-y-4">
         <label class="block text-sm">
           {{ t('admin.modelCatalog.fields.model') }}
           <input v-model="editForm.model_name" class="input mt-1 w-full" />
@@ -103,6 +111,10 @@
         <label class="block text-sm">
           {{ t('admin.modelCatalog.fields.platform') }}
           <input v-model="editForm.platform" class="input mt-1 w-full" />
+        </label>
+        <label class="block text-sm">
+          {{ t('admin.modelCatalog.fields.displayName') }}
+          <input v-model="editForm.display_name" class="input mt-1 w-full" />
         </label>
         <label class="block text-sm">
           {{ t('admin.modelCatalog.fields.sortOrder') }}
@@ -118,10 +130,65 @@
             {{ t('admin.modelCatalog.fields.visibleAuth') }}
           </label>
         </div>
+
+        <div v-if="editForm.id" class="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 text-sm dark:border-dark-700">
+          <div>
+            <span class="text-gray-500">{{ t('admin.modelCatalog.columns.officialInput') }}</span>
+            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.input) }}</div>
+          </div>
+          <div>
+            <span class="text-gray-500">{{ t('admin.modelCatalog.columns.officialOutput') }}</span>
+            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.output) }}</div>
+          </div>
+          <div>
+            <span class="text-gray-500">{{ t('admin.modelCatalog.fields.officialCacheRead') }}</span>
+            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.cacheRead) }}</div>
+          </div>
+          <div>
+            <span class="text-gray-500">{{ t('admin.modelCatalog.fields.officialCacheWrite') }}</span>
+            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.cacheWrite) }}</div>
+          </div>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
+          <label class="block text-sm">
+            {{ t('admin.modelCatalog.fields.priceMode') }}
+            <select v-model="editForm.price_mode" class="input mt-1 w-full">
+              <option value="manual">{{ t('admin.modelCatalog.fields.priceModeManual') }}</option>
+              <option value="multiplier" :disabled="!hasEditOfficialPrice">{{ t('admin.modelCatalog.fields.priceModeMultiplier') }}</option>
+            </select>
+          </label>
+
+          <label v-if="editForm.price_mode === 'multiplier'" class="mt-3 block text-sm">
+            {{ t('admin.modelCatalog.fields.multiplier') }}
+            <input v-model.number="editForm.price_multiplier" type="number" min="0.000001" step="0.01" class="input mt-1 w-full" />
+          </label>
+
+          <div v-else class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label class="block text-sm">
+              {{ t('admin.modelCatalog.fields.siteInputPerMillion') }}
+              <input v-model.number="editForm.input_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
+            </label>
+            <label class="block text-sm">
+              {{ t('admin.modelCatalog.fields.siteOutputPerMillion') }}
+              <input v-model.number="editForm.output_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
+            </label>
+            <label class="block text-sm">
+              {{ t('admin.modelCatalog.fields.siteCacheReadPerMillion') }}
+              <input v-model.number="editForm.cache_read_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
+            </label>
+            <label class="block text-sm">
+              {{ t('admin.modelCatalog.fields.siteCacheWritePerMillion') }}
+              <input v-model.number="editForm.cache_write_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
+            </label>
+          </div>
+        </div>
       </div>
       <template #footer>
-        <button class="btn btn-secondary" @click="editOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-primary" :disabled="saving" @click="saveEdit">{{ t('common.save') }}</button>
+        <div class="flex gap-2 pr-14 sm:pr-0">
+          <button class="btn btn-secondary" @click="editOpen = false">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" :disabled="saving" @click="saveEdit">{{ t('common.save') }}</button>
+        </div>
       </template>
     </BaseDialog>
 
@@ -154,6 +221,10 @@
           <button class="btn btn-secondary btn-sm" @click="toggleDiscoveryPageSelect">
             {{ t('admin.modelCatalog.discoverySelectAll') }}
           </button>
+          <label class="flex items-center gap-2 text-sm">
+            {{ t('admin.modelCatalog.fields.importMultiplier') }}
+            <input v-model.number="discoveryMultiplier" type="number" min="0.000001" step="0.01" class="input h-8 w-24" />
+          </label>
         </div>
 
         <div v-if="discoveryLoading" class="py-8 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
@@ -237,6 +308,7 @@ const syncing = ref(false)
 const searchQuery = ref('')
 const platformFilter = ref('')
 const selectedIds = ref<number[]>([])
+const batchMultiplier = ref(1)
 const editOpen = ref(false)
 const syncResultOpen = ref(false)
 const syncResult = ref<ModelSyncJob['result'] | null>(null)
@@ -251,15 +323,32 @@ const discoverySearch = ref('')
 const discoverySelectedIds = ref<number[]>([])
 const discoveryPage = ref(1)
 const discoveryPageSize = 50
+const discoveryMultiplier = ref(1)
 
 const editForm = reactive({
   id: 0,
   model_name: '',
   platform: 'openai',
+  display_name: '',
   sort_order: 0,
   visible_public: false,
   visible_auth: true,
+  price_mode: 'manual' as 'manual' | 'multiplier',
+  price_multiplier: 1,
+  input_price_million: null as number | null,
+  output_price_million: null as number | null,
+  cache_read_price_million: null as number | null,
+  cache_write_price_million: null as number | null,
 })
+
+const editOfficial = reactive({
+  input: null as number | null,
+  output: null as number | null,
+  cacheRead: null as number | null,
+  cacheWrite: null as number | null,
+})
+
+const hasEditOfficialPrice = computed(() => editOfficial.input != null || editOfficial.output != null)
 
 const columns = computed(() => [
   { key: 'select', label: '', sortable: false },
@@ -274,6 +363,7 @@ const columns = computed(() => [
   { key: 'input_diff', label: t('admin.modelCatalog.columns.inputDiff'), sortable: false },
   { key: 'output_diff', label: t('admin.modelCatalog.columns.outputDiff'), sortable: false },
   { key: 'visible_public', label: t('admin.modelCatalog.columns.public'), sortable: false },
+  { key: 'visible_auth', label: t('admin.modelCatalog.columns.auth'), sortable: false },
   { key: 'actions', label: t('common.actions'), sortable: false },
 ])
 
@@ -306,13 +396,13 @@ function debouncedDiscoveryLoad() {
 
 function formatPrice(v: number | null | undefined): string {
   if (v == null) return '—'
-  return `$${formatScaled(v, 1_000_000)}`
+  return formatScaled(v, 1_000_000)
 }
 
 function formatPayloadPrice(payload: Record<string, unknown>, key: string): string {
   const raw = payload[key]
   if (typeof raw !== 'number') return '—'
-  return `$${formatScaled(raw, 1_000_000)}`
+  return formatScaled(raw, 1_000_000)
 }
 
 function formatDiff(site: number | null | undefined, official: number | null | undefined): string {
@@ -409,7 +499,10 @@ async function importSelectedDiscoveries() {
   }
   discoveryImporting.value = true
   try {
-    const n = await adminModelCatalogAPI.importDiscoveries({ ids: discoverySelectedIds.value })
+    const n = await adminModelCatalogAPI.importDiscoveries({
+      ids: discoverySelectedIds.value,
+      site_multiplier: discoveryMultiplier.value > 0 ? discoveryMultiplier.value : undefined,
+    })
     appStore.showSuccess(t('admin.modelCatalog.importDone', { n }))
     discoveryOpen.value = false
     discoverySelectedIds.value = []
@@ -426,10 +519,18 @@ function openCreate() {
     id: 0,
     model_name: '',
     platform: 'openai',
+    display_name: '',
     sort_order: rows.value.length * 10,
     visible_public: false,
     visible_auth: true,
+    price_mode: 'manual',
+    price_multiplier: 1,
+    input_price_million: null,
+    output_price_million: null,
+    cache_read_price_million: null,
+    cache_write_price_million: null,
   })
+  Object.assign(editOfficial, { input: null, output: null, cacheRead: null, cacheWrite: null })
   editOpen.value = true
 }
 
@@ -438,9 +539,22 @@ function openEdit(row: AdminCatalogRow) {
     id: row.id,
     model_name: row.model_name,
     platform: row.platform,
+    display_name: row.display_name ?? '',
     sort_order: row.sort_order,
     visible_public: row.visible_public,
     visible_auth: row.visible_auth,
+    price_mode: row.price_multiplier != null ? 'multiplier' : 'manual',
+    price_multiplier: row.price_multiplier ?? 1,
+    input_price_million: toPerMillion(row.input_price),
+    output_price_million: toPerMillion(row.output_price),
+    cache_read_price_million: toPerMillion(row.cache_read_price),
+    cache_write_price_million: toPerMillion(row.cache_write_price),
+  })
+  Object.assign(editOfficial, {
+    input: row.official_input_price,
+    output: row.official_output_price,
+    cacheRead: row.official_cache_read_price,
+    cacheWrite: row.official_cache_write_price,
   })
   editOpen.value = true
 }
@@ -448,7 +562,23 @@ function openEdit(row: AdminCatalogRow) {
 async function saveEdit() {
   saving.value = true
   try {
-    await adminModelCatalogAPI.saveCatalogEntry({ ...editForm })
+    const multiplierMode = editForm.price_mode === 'multiplier'
+    await adminModelCatalogAPI.saveCatalogEntry({
+      id: editForm.id,
+      model_name: editForm.model_name,
+      platform: editForm.platform,
+      display_name: editForm.display_name || null,
+      sort_order: editForm.sort_order,
+      visible_public: editForm.visible_public,
+      visible_auth: editForm.visible_auth,
+      price_multiplier: multiplierMode ? editForm.price_multiplier : null,
+      input_price: multiplierMode ? null : fromPerMillion(editForm.input_price_million),
+      output_price: multiplierMode ? null : fromPerMillion(editForm.output_price_million),
+      cache_read_price: multiplierMode ? null : fromPerMillion(editForm.cache_read_price_million),
+      cache_write_price: multiplierMode ? null : fromPerMillion(editForm.cache_write_price_million),
+      billing_mode: 'token',
+      source: 'manual',
+    })
     editOpen.value = false
     await loadCatalog()
     appStore.showSuccess(t('common.saved'))
@@ -465,7 +595,7 @@ async function removeRow(row: AdminCatalogRow) {
   await loadCatalog()
 }
 
-async function patchVisibility(row: AdminCatalogRow, visiblePublic: boolean, visibleAuth?: boolean) {
+async function patchVisibility(row: AdminCatalogRow, visiblePublic?: boolean, visibleAuth?: boolean) {
   await adminModelCatalogAPI.batchVisibility({
     ids: [row.id],
     visible_public: visiblePublic,
@@ -480,17 +610,19 @@ async function batchSetPublic(on: boolean) {
   await loadCatalog()
 }
 
-async function batchMultiply(mult: number) {
+async function batchMultiply() {
   if (!selectedIds.value.length) return
-  await adminModelCatalogAPI.batchPrices({ ids: selectedIds.value, multiplier: mult })
+  if (!(batchMultiplier.value > 0)) return
+  await adminModelCatalogAPI.batchPrices({ ids: selectedIds.value, multiplier: batchMultiplier.value })
   await loadCatalog()
 }
 
-async function fillLiteLLM() {
-  const ids = selectedIds.value.length ? selectedIds.value : undefined
-  const n = await adminModelCatalogAPI.fillFromLiteLLM(ids)
-  appStore.showSuccess(t('admin.modelCatalog.fillDone', { n }))
-  await loadCatalog()
+function toPerMillion(value: number | null | undefined): number | null {
+  return value == null ? null : value * 1_000_000
+}
+
+function fromPerMillion(value: number | null): number | null {
+  return value == null || Number.isNaN(value) ? null : value / 1_000_000
 }
 
 async function pollSyncJob(id: string) {

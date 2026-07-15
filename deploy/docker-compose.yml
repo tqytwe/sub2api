@@ -49,6 +49,9 @@ services:
       - SERVER_MODE=${SERVER_MODE:-release}
       - ENABLE_SERVER_TIMING=${ENABLE_SERVER_TIMING:-false}
       - RUN_MODE=${RUN_MODE:-standard}
+      - MODEL_SYNC_SOURCE=${MODEL_SYNC_SOURCE:-aihubmix}
+      - AIHUBMIX_MODELS_URL=${AIHUBMIX_MODELS_URL:-https://aihubmix.com/api/v1/models}
+      - AIHUBMIX_API_KEY=${AIHUBMIX_API_KEY:-}
 
       # =======================================================================
       # Database Configuration (PostgreSQL)

@@ -183,6 +183,8 @@ onMounted(() => {
               <th>{{ t('models.columns.group') }}</th>
               <th>{{ t('models.columns.officialInput') }}</th>
               <th>{{ t('models.columns.officialOutput') }}</th>
+              <th>{{ t('models.columns.ourInput') }}</th>
+              <th>{{ t('models.columns.ourOutput') }}</th>
               <th>{{ t('models.columns.channelInput') }}</th>
               <th>{{ t('models.columns.channelOutput') }}</th>
               <th>{{ t('models.columns.effectiveInput') }}</th>
@@ -203,6 +205,8 @@ onMounted(() => {
               </td>
               <td>{{ formatTokenPrice(row.official_input_price) }}</td>
               <td>{{ formatTokenPrice(row.official_output_price) }}</td>
+              <td>{{ formatTokenPrice(row.site_input_price) }}</td>
+              <td>{{ formatTokenPrice(row.site_output_price) }}</td>
               <td>{{ formatTokenPrice(row.base_input_price) }}</td>
               <td>{{ formatTokenPrice(row.base_output_price) }}</td>
               <td class="models-cell-our">{{ formatTokenPrice(row.effective_input_price) }}</td>

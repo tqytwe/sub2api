@@ -114,6 +114,10 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			AbortWithError(c, 401, "USER_NOT_FOUND", "User associated with API key not found")
 			return
 		}
+		if err := service.ValidateAPIKeyUserOwnership(apiKey, apiKey.User); err != nil {
+			AbortWithError(c, 500, "API_KEY_OWNER_MISMATCH", "API key ownership validation failed")
+			return
+		}
 
 		// 检查用户状态
 		if !apiKey.User.IsActive() {

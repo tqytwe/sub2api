@@ -10,6 +10,13 @@ export interface SiteModelCatalogEntry {
   visible_public: boolean
   visible_auth: boolean
   featured: boolean
+  official_input_price: number | null
+  official_output_price: number | null
+  official_cache_read_price: number | null
+  official_cache_write_price: number | null
+  official_source: string
+  official_updated_at: string | null
+  price_multiplier: number | null
   input_price: number | null
   output_price: number | null
   cache_read_price: number | null
@@ -22,8 +29,6 @@ export interface SiteModelCatalogEntry {
 }
 
 export interface AdminCatalogRow extends SiteModelCatalogEntry {
-  official_input_price: number | null
-  official_output_price: number | null
   channel_input_price: number | null
   channel_output_price: number | null
 }
@@ -116,17 +121,12 @@ export async function listDiscoveries(params?: {
   return data ?? { items: [], total: 0 }
 }
 
-export async function importDiscoveries(payload: { ids: number[]; to_catalog?: boolean }): Promise<number> {
+export async function importDiscoveries(payload: { ids: number[]; to_catalog?: boolean; site_multiplier?: number }): Promise<number> {
   const { data } = await apiClient.post<{ imported: number }>('/admin/model-catalog/discoveries/import', {
     to_catalog: true,
     ...payload,
   })
   return data?.imported ?? 0
-}
-
-export async function fillFromLiteLLM(ids?: number[]): Promise<number> {
-  const { data } = await apiClient.post<{ updated: number }>('/admin/model-catalog/fill-litellm', { ids: ids ?? [] })
-  return data?.updated ?? 0
 }
 
 export const adminModelCatalogAPI = {
@@ -139,7 +139,6 @@ export const adminModelCatalogAPI = {
   getSyncJob,
   listDiscoveries,
   importDiscoveries,
-  fillFromLiteLLM,
 }
 
 export default adminModelCatalogAPI

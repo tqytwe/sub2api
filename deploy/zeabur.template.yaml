@@ -108,7 +108,7 @@ spec:
           - id: web
             port: 8080
             type: HTTP
-		volumes:
+        volumes:
           - id: data
             dir: /data
         env:
@@ -124,6 +124,10 @@ spec:
             default: release
           TZ:
             default: Asia/Shanghai
+          MODEL_SYNC_SOURCE:
+            default: aihubmix
+          AIHUBMIX_MODELS_URL:
+            default: https://aihubmix.com/api/v1/models
           DATABASE_HOST:
             default: ${POSTGRES_HOST}
           DATABASE_PORT:

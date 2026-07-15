@@ -49,7 +49,11 @@ func (f fakeAPIKeyRepo) GetByKey(ctx context.Context, key string) (*service.APIK
 	return f.getByKey(ctx, key)
 }
 func (f fakeAPIKeyRepo) GetByKeyForAuth(ctx context.Context, key string) (*service.APIKey, error) {
-	return f.GetByKey(ctx, key)
+	apiKey, err := f.GetByKey(ctx, key)
+	if apiKey != nil && apiKey.UserID == 0 && apiKey.User != nil {
+		apiKey.UserID = apiKey.User.ID
+	}
+	return apiKey, err
 }
 func (f fakeAPIKeyRepo) Update(ctx context.Context, key *service.APIKey) error {
 	return errors.New("not implemented")

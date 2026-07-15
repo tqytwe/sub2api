@@ -7,24 +7,31 @@ import (
 
 // SiteModelCatalogEntry is one row in site_model_catalog.
 type SiteModelCatalogEntry struct {
-	ID              int64      `json:"id"`
-	ModelName       string     `json:"model_name"`
-	Platform        string     `json:"platform"`
-	DisplayName     *string    `json:"display_name"`
-	UseCase         *string    `json:"use_case"`
-	SortOrder       int        `json:"sort_order"`
-	VisiblePublic   bool       `json:"visible_public"`
-	VisibleAuth     bool       `json:"visible_auth"`
-	Featured        bool       `json:"featured"`
-	InputPrice      *float64   `json:"input_price"`
-	OutputPrice     *float64   `json:"output_price"`
-	CacheReadPrice  *float64   `json:"cache_read_price"`
-	CacheWritePrice *float64   `json:"cache_write_price"`
-	BillingMode     string     `json:"billing_mode"`
-	Source          string     `json:"source"`
-	SourceUpdatedAt *time.Time `json:"source_updated_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
+	ID                      int64      `json:"id"`
+	ModelName               string     `json:"model_name"`
+	Platform                string     `json:"platform"`
+	DisplayName             *string    `json:"display_name"`
+	UseCase                 *string    `json:"use_case"`
+	SortOrder               int        `json:"sort_order"`
+	VisiblePublic           bool       `json:"visible_public"`
+	VisibleAuth             bool       `json:"visible_auth"`
+	Featured                bool       `json:"featured"`
+	OfficialInputPrice      *float64   `json:"official_input_price"`
+	OfficialOutputPrice     *float64   `json:"official_output_price"`
+	OfficialCacheReadPrice  *float64   `json:"official_cache_read_price"`
+	OfficialCacheWritePrice *float64   `json:"official_cache_write_price"`
+	OfficialSource          string     `json:"official_source"`
+	OfficialUpdatedAt       *time.Time `json:"official_updated_at"`
+	PriceMultiplier         *float64   `json:"price_multiplier"`
+	InputPrice              *float64   `json:"input_price"`
+	OutputPrice             *float64   `json:"output_price"`
+	CacheReadPrice          *float64   `json:"cache_read_price"`
+	CacheWritePrice         *float64   `json:"cache_write_price"`
+	BillingMode             string     `json:"billing_mode"`
+	Source                  string     `json:"source"`
+	SourceUpdatedAt         *time.Time `json:"source_updated_at"`
+	CreatedAt               time.Time  `json:"created_at"`
+	UpdatedAt               time.Time  `json:"updated_at"`
 }
 
 // ModelDiscovery is a newly discovered model from an online pricing source.
@@ -67,17 +74,19 @@ type MyModelPricingGroup struct {
 
 // MyModelPricingRow is one model row for authenticated /models/my-pricing.
 type MyModelPricingRow struct {
-	Name                  string                `json:"name"`
-	Platform              string                `json:"platform"`
-	Channel               string                `json:"channel,omitempty"`
-	UseCase               string                `json:"use_case,omitempty"`
-	Groups                []MyModelPricingGroup `json:"groups"`
-	BaseInputPrice        *float64              `json:"base_input_price"`
-	BaseOutputPrice       *float64              `json:"base_output_price"`
-	EffectiveInputPrice   *float64              `json:"effective_input_price"`
-	EffectiveOutputPrice  *float64              `json:"effective_output_price"`
-	OfficialInputPrice    *float64              `json:"official_input_price"`
-	OfficialOutputPrice   *float64              `json:"official_output_price"`
+	Name                 string                `json:"name"`
+	Platform             string                `json:"platform"`
+	Channel              string                `json:"channel,omitempty"`
+	UseCase              string                `json:"use_case,omitempty"`
+	Groups               []MyModelPricingGroup `json:"groups"`
+	BaseInputPrice       *float64              `json:"base_input_price"`
+	BaseOutputPrice      *float64              `json:"base_output_price"`
+	EffectiveInputPrice  *float64              `json:"effective_input_price"`
+	EffectiveOutputPrice *float64              `json:"effective_output_price"`
+	OfficialInputPrice   *float64              `json:"official_input_price"`
+	OfficialOutputPrice  *float64              `json:"official_output_price"`
+	SiteInputPrice       *float64              `json:"site_input_price"`
+	SiteOutputPrice      *float64              `json:"site_output_price"`
 }
 
 // MyModelPricingResponse is the payload for GET /models/my-pricing.
@@ -97,6 +106,7 @@ type ModelCatalogRepository interface {
 	DeleteCatalogEntry(ctx context.Context, id int64) error
 	BatchUpdateVisibility(ctx context.Context, ids []int64, visiblePublic, visibleAuth *bool) (int, error)
 	BatchUpdatePrices(ctx context.Context, ids []int64, multiplier *float64, absoluteInput, absoluteOutput *float64) (int, error)
+	UpdateCatalogOfficialPrices(ctx context.Context, modelName, platform, source string, input, output, cacheRead, cacheWrite *float64, updatedAt time.Time) (int, error)
 
 	ListDiscoveries(ctx context.Context, filter DiscoveryListFilter) (DiscoveryListResult, error)
 	ListDiscoveriesByIDs(ctx context.Context, ids []int64) ([]ModelDiscovery, error)
@@ -111,10 +121,8 @@ type ModelCatalogRepository interface {
 // AdminCatalogRow extends catalog entry with comparison prices for admin UI.
 type AdminCatalogRow struct {
 	SiteModelCatalogEntry
-	OfficialInputPrice  *float64 `json:"official_input_price"`
-	OfficialOutputPrice *float64 `json:"official_output_price"`
-	ChannelInputPrice   *float64 `json:"channel_input_price"`
-	ChannelOutputPrice  *float64 `json:"channel_output_price"`
+	ChannelInputPrice  *float64 `json:"channel_input_price"`
+	ChannelOutputPrice *float64 `json:"channel_output_price"`
 }
 
 // DiscoveryListFilter filters discovery pool listing.
@@ -133,10 +141,10 @@ type DiscoveryListResult struct {
 
 // CatalogListFilter filters admin catalog listing.
 type CatalogListFilter struct {
-	Platform       string
-	VisiblePublic  *bool
-	VisibleAuth    *bool
-	Search         string
-	Limit          int
-	Offset         int
+	Platform      string
+	VisiblePublic *bool
+	VisibleAuth   *bool
+	Search        string
+	Limit         int
+	Offset        int
 }

@@ -198,11 +198,14 @@ func (s *APIKeyService) applyAuthCacheEntry(key string, entry *APIKeyAuthCacheEn
 	if entry.Snapshot.Version != apiKeyAuthSnapshotVersion {
 		return nil, false, nil
 	}
+	if entry.Snapshot.UserID <= 0 || entry.Snapshot.User.ID <= 0 || entry.Snapshot.UserID != entry.Snapshot.User.ID {
+		return nil, true, ErrAPIKeyUserOwnershipMismatch
+	}
 	return s.snapshotToAPIKey(key, entry.Snapshot), true, nil
 }
 
 func (s *APIKeyService) snapshotFromAPIKey(ctx context.Context, apiKey *APIKey) *APIKeyAuthSnapshot {
-	if apiKey == nil || apiKey.User == nil {
+	if ValidateAPIKeyUserOwnership(apiKey, apiKey.User) != nil {
 		return nil
 	}
 	snapshot := &APIKeyAuthSnapshot{

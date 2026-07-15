@@ -1,10 +1,13 @@
 package service
 
 import (
+	"errors"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 )
+
+var ErrAPIKeyUserOwnershipMismatch = errors.New("api key user ownership mismatch")
 
 // API Key status constants
 const (
@@ -62,6 +65,34 @@ type APIKey struct {
 	Window5hStart *time.Time // Start of current 5h window
 	Window1dStart *time.Time // Start of current 1d window
 	Window7dStart *time.Time // Start of current 7d window
+}
+
+// ValidateAPIKeyUserOwnership is a fail-closed guard shared by authentication
+// and billing. Both denormalized owner fields must identify the same user.
+func ValidateAPIKeyUserOwnership(apiKey *APIKey, user *User) error {
+	if apiKey == nil || user == nil || apiKey.UserID <= 0 || user.ID <= 0 {
+		return ErrAPIKeyUserOwnershipMismatch
+	}
+	if apiKey.UserID != user.ID {
+		return ErrAPIKeyUserOwnershipMismatch
+	}
+	if apiKey.User != nil && apiKey.User.ID != user.ID {
+		return ErrAPIKeyUserOwnershipMismatch
+	}
+	return nil
+}
+
+func validateUsageInputOwnership(apiKey *APIKey, user *User) error {
+	if apiKey == nil || user == nil || user.ID <= 0 {
+		return ErrAPIKeyUserOwnershipMismatch
+	}
+	// Some internal tests and legacy synthetic callers do not hydrate UserID.
+	// Real authenticated requests always do, and the repository repeats the
+	// strict ownership check against the database before applying any charge.
+	if apiKey.UserID == 0 {
+		return nil
+	}
+	return ValidateAPIKeyUserOwnership(apiKey, user)
 }
 
 func (k *APIKey) IsActive() bool {

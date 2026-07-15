@@ -41,6 +41,21 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 			_ = tx.Rollback()
 		}
 	}()
+	if cmd.UserID > 0 {
+		if err := validateUsageBillingOwnership(ctx, tx, cmd.APIKeyID, cmd.UserID); err != nil {
+			return nil, err
+		}
+	} else if cmd.BalanceCost > 0 || cmd.SubscriptionCost > 0 {
+		return nil, service.ErrUsageBillingOwnershipMismatch
+	}
+	if cmd.SubscriptionCost > 0 {
+		if cmd.SubscriptionID == nil || *cmd.SubscriptionID <= 0 {
+			return nil, service.ErrUsageBillingOwnershipMismatch
+		}
+		if err := validateUsageBillingSubscriptionOwnership(ctx, tx, *cmd.SubscriptionID, cmd.UserID); err != nil {
+			return nil, err
+		}
+	}
 
 	applied, err := r.claimUsageBillingKey(ctx, tx, cmd)
 	if err != nil {
@@ -146,6 +161,9 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 			_ = tx.Rollback()
 		}
 	}()
+	if err := validateUsageBillingOwnership(ctx, tx, cmd.APIKeyID, cmd.UserID); err != nil {
+		return nil, err
+	}
 
 	applied, err := r.claimUsageBillingRequest(ctx, tx, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint)
 	if err != nil {
@@ -173,7 +191,7 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
-		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.SubscriptionCost); err != nil {
+		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.UserID, cmd.SubscriptionCost); err != nil {
 			return err
 		}
 	}
@@ -212,7 +230,39 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	return nil
 }
 
-func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID int64, costUSD float64) error {
+func validateUsageBillingOwnership(ctx context.Context, tx *sql.Tx, apiKeyID, userID int64) error {
+	if apiKeyID <= 0 || userID <= 0 {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	var exists int
+	err := tx.QueryRowContext(ctx, `
+		SELECT 1
+		FROM api_keys
+		WHERE id = $1 AND user_id = $2
+	`, apiKeyID, userID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	return err
+}
+
+func validateUsageBillingSubscriptionOwnership(ctx context.Context, tx *sql.Tx, subscriptionID, userID int64) error {
+	if subscriptionID <= 0 || userID <= 0 {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	var exists int
+	err := tx.QueryRowContext(ctx, `
+		SELECT 1
+		FROM user_subscriptions
+		WHERE id = $1 AND user_id = $2 AND deleted_at IS NULL
+	`, subscriptionID, userID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	return err
+}
+
+func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscriptionID, userID int64, costUSD float64) error {
 	const updateSQL = `
 		UPDATE user_subscriptions us
 		SET
@@ -222,11 +272,12 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 			updated_at = NOW()
 		FROM groups g
 		WHERE us.id = $2
+			AND us.user_id = $3
 			AND us.deleted_at IS NULL
 			AND us.group_id = g.id
 			AND g.deleted_at IS NULL
 	`
-	res, err := tx.ExecContext(ctx, updateSQL, costUSD, subscriptionID)
+	res, err := tx.ExecContext(ctx, updateSQL, costUSD, subscriptionID, userID)
 	if err != nil {
 		return err
 	}

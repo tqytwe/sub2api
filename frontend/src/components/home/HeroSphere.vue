@@ -411,7 +411,7 @@ function buildParticles(count: number) {
 }
 
 onMounted(async () => {
-  ;[land, coast, rivers, lakes] = await Promise.all([
+  [land, coast, rivers, lakes] = await Promise.all([
     loadEarth('land50'),
     loadEarth('coast50'),
     loadEarth('rivers50'),

@@ -79,6 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
   const pendingAuthSession = ref<PendingAuthSessionSummary | null>(null)
   let refreshIntervalId: ReturnType<typeof setInterval> | null = null
   let tokenRefreshTimeoutId: ReturnType<typeof setTimeout> | null = null
+  let sessionGeneration = 0
 
   // ==================== Computed ====================
 
@@ -202,16 +203,31 @@ export const useAuthStore = defineStore('auth', () => {
    * Perform the actual token refresh
    */
   async function performTokenRefresh(): Promise<void> {
-    if (!refreshTokenValue.value) {
+    const refreshTokenAtStart = refreshTokenValue.value
+    const accessTokenAtStart = token.value
+    const generationAtStart = sessionGeneration
+    if (!refreshTokenAtStart || !accessTokenAtStart) {
       return
     }
 
     try {
-      const response = await authAPI.refreshToken()
+      const response = await authAPI.refreshToken(refreshTokenAtStart)
+
+      // A response from a previous account must never replace the current session.
+      if (
+        generationAtStart !== sessionGeneration ||
+        token.value !== accessTokenAtStart ||
+        refreshTokenValue.value !== refreshTokenAtStart ||
+        localStorage.getItem(REFRESH_TOKEN_KEY) !== refreshTokenAtStart
+      ) {
+        return
+      }
 
       // Update state
       token.value = response.access_token
       refreshTokenValue.value = response.refresh_token
+      localStorage.setItem(AUTH_TOKEN_KEY, response.access_token)
+      localStorage.setItem(REFRESH_TOKEN_KEY, response.refresh_token)
 
       // Schedule next refresh (this also updates tokenExpiresAt and localStorage)
       scheduleTokenRefresh(response.expires_in)
@@ -280,6 +296,10 @@ export const useAuthStore = defineStore('auth', () => {
    * Internal helper function
    */
   function setAuthFromResponse(response: AuthResponse): void {
+    stopAutoRefresh()
+    stopTokenRefresh()
+    sessionGeneration += 1
+
     // Store token and user
     token.value = response.access_token
 
@@ -397,15 +417,16 @@ export const useAuthStore = defineStore('auth', () => {
    * Clears all authentication state and persisted data
    */
   async function logout(): Promise<void> {
+    const refreshTokenToRevoke = refreshTokenValue.value
+    // Invalidate the local session before awaiting the network. This prevents an
+    // in-flight refresh for the old account from being committed meanwhile.
+    clearAuth()
     try {
       // Call API logout (revokes refresh token on server)
-      await authAPI.logout()
+      await authAPI.logout(refreshTokenToRevoke)
     } catch (err) {
       // 服务端吊销失败（网络/5xx/超时）不应阻止本地登出，否则用户点了退出仍处于登录态。
-      console.warn('Logout API call failed, clearing local session anyway', err)
-    } finally {
-      // Always clear local state (tokens, user data, refresh timers)
-      clearAuth()
+      console.warn('Logout API call failed; local session was already cleared', err)
     }
   }
 
@@ -416,12 +437,17 @@ export const useAuthStore = defineStore('auth', () => {
    * @throws Error if not authenticated or request fails
    */
   async function refreshUser(): Promise<User> {
-    if (!token.value) {
+    const accessTokenAtStart = token.value
+    const generationAtStart = sessionGeneration
+    if (!accessTokenAtStart) {
       throw new Error('Not authenticated')
     }
 
     try {
       const response = await authAPI.getCurrentUser()
+      if (generationAtStart !== sessionGeneration || token.value !== accessTokenAtStart) {
+        throw new Error('Authentication session changed while refreshing user')
+      }
       if (response.data.run_mode) {
         runMode.value = response.data.run_mode
       }
@@ -446,6 +472,7 @@ export const useAuthStore = defineStore('auth', () => {
    * Internal helper function
    */
   function clearAuth(options?: { preservePendingAuthSession?: boolean }): void {
+    sessionGeneration += 1
     // Stop auto-refresh
     stopAutoRefresh()
     // Stop token refresh

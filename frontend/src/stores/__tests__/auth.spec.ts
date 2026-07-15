@@ -51,6 +51,16 @@ const fakeAuthResponse = {
   user: { ...fakeUser },
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (reason?: unknown) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
 describe('useAuthStore', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
@@ -155,6 +165,70 @@ describe('useAuthStore', () => {
       expect(localStorage.getItem('auth_user')).toBeNull()
       expect(localStorage.getItem('refresh_token')).toBeNull()
       expect(localStorage.getItem('token_expires_at')).toBeNull()
+      expect(mockLogout).toHaveBeenCalledWith('refresh-token-456')
+    })
+  })
+
+  describe('cross-account session isolation', () => {
+    it('旧账号的延迟 token 刷新不会覆盖新账号登录', async () => {
+      const oldRefresh = deferred<{
+        access_token: string
+        refresh_token: string
+        expires_in: number
+      }>()
+      mockLogin.mockResolvedValueOnce(fakeAuthResponse)
+      mockRefreshToken.mockReturnValueOnce(oldRefresh.promise)
+      mockGetCurrentUser.mockResolvedValue({ data: fakeUser })
+      const store = useAuthStore()
+
+      await store.login({ email: 'test@example.com', password: '123456' })
+      await vi.advanceTimersByTimeAsync(3_480_000)
+
+      const accountAResponse = {
+        ...fakeAuthResponse,
+        access_token: 'account-a-access',
+        refresh_token: 'account-a-refresh',
+        user: { ...fakeUser, id: 99, email: 'account-a@example.com' },
+      }
+      mockLogin.mockResolvedValueOnce(accountAResponse)
+      await store.login({ email: 'account-a@example.com', password: '123456' })
+
+      oldRefresh.resolve({
+        access_token: 'old-account-b-access',
+        refresh_token: 'old-account-b-refresh',
+        expires_in: 3600,
+      })
+      await Promise.resolve()
+      await Promise.resolve()
+
+      expect(store.token).toBe('account-a-access')
+      expect(store.user?.id).toBe(99)
+      expect(localStorage.getItem('auth_token')).toBe('account-a-access')
+      expect(localStorage.getItem('refresh_token')).toBe('account-a-refresh')
+    })
+
+    it('旧账号的延迟用户资料响应不会覆盖新账号', async () => {
+      mockLogin.mockResolvedValueOnce(fakeAuthResponse)
+      const store = useAuthStore()
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      const oldProfile = deferred<{ data: typeof fakeUser }>()
+      mockGetCurrentUser.mockReturnValueOnce(oldProfile.promise)
+      const refreshPromise = store.refreshUser()
+
+      const accountAResponse = {
+        ...fakeAuthResponse,
+        access_token: 'account-a-access',
+        refresh_token: 'account-a-refresh',
+        user: { ...fakeUser, id: 99, email: 'account-a@example.com' },
+      }
+      mockLogin.mockResolvedValueOnce(accountAResponse)
+      await store.login({ email: 'account-a@example.com', password: '123456' })
+
+      oldProfile.resolve({ data: fakeUser })
+      await expect(refreshPromise).rejects.toThrow('Authentication session changed')
+      expect(store.user?.id).toBe(99)
+      expect(JSON.parse(localStorage.getItem('auth_user') || '{}').id).toBe(99)
     })
   })
 

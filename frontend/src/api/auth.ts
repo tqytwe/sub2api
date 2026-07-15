@@ -90,19 +90,6 @@ export function clearAuthToken(): void {
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   const { data } = await apiClient.post<LoginResponse>('/auth/login', credentials)
-
-  // Only store token if 2FA is not required
-  if (!isTotp2FARequired(data)) {
-    setAuthToken(data.access_token)
-    if (data.refresh_token) {
-      setRefreshToken(data.refresh_token)
-    }
-    if (data.expires_in) {
-      setTokenExpiresAt(data.expires_in)
-    }
-    localStorage.setItem('auth_user', JSON.stringify(data.user))
-  }
-
   return data
 }
 
@@ -113,17 +100,6 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  */
 export async function login2FA(request: TotpLogin2FARequest): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/login/2fa', request)
-
-  // Store token and user data
-  setAuthToken(data.access_token)
-  if (data.refresh_token) {
-    setRefreshToken(data.refresh_token)
-  }
-  if (data.expires_in) {
-    setTokenExpiresAt(data.expires_in)
-  }
-  localStorage.setItem('auth_user', JSON.stringify(data.user))
-
   return data
 }
 
@@ -134,17 +110,6 @@ export async function login2FA(request: TotpLogin2FARequest): Promise<AuthRespon
  */
 export async function register(userData: RegisterRequest): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/register', userData)
-
-  // Store token and user data
-  setAuthToken(data.access_token)
-  if (data.refresh_token) {
-    setRefreshToken(data.refresh_token)
-  }
-  if (data.expires_in) {
-    setTokenExpiresAt(data.expires_in)
-  }
-  localStorage.setItem('auth_user', JSON.stringify(data.user))
-
   return data
 }
 
@@ -161,8 +126,8 @@ export async function getCurrentUser() {
  * Clears authentication token and user data from localStorage
  * Optionally revokes the refresh token on the server
  */
-export async function logout(): Promise<void> {
-  const refreshToken = getRefreshToken()
+export async function logout(refreshTokenOverride?: string | null): Promise<void> {
+  const refreshToken = refreshTokenOverride ?? getRefreshToken()
 
   // Try to revoke the refresh token on the server
   if (refreshToken) {
@@ -173,7 +138,6 @@ export async function logout(): Promise<void> {
     }
   }
 
-  clearAuthToken()
 }
 
 /**
@@ -292,8 +256,8 @@ export async function prepareOAuthBindAccessTokenCookie(): Promise<void> {
  * Refresh the access token using the refresh token
  * @returns New token pair
  */
-export async function refreshToken(): Promise<RefreshTokenResponse> {
-  const currentRefreshToken = getRefreshToken()
+export async function refreshToken(refreshTokenOverride?: string): Promise<RefreshTokenResponse> {
+  const currentRefreshToken = refreshTokenOverride ?? getRefreshToken()
   if (!currentRefreshToken) {
     throw new Error('No refresh token available')
   }
@@ -301,11 +265,6 @@ export async function refreshToken(): Promise<RefreshTokenResponse> {
   const { data } = await apiClient.post<RefreshTokenResponse>('/auth/refresh', {
     refresh_token: currentRefreshToken
   })
-
-  // Update tokens in localStorage
-  setAuthToken(data.access_token)
-  setRefreshToken(data.refresh_token)
-  setTokenExpiresAt(data.expires_in)
 
   return data
 }

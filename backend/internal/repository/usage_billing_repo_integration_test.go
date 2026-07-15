@@ -80,6 +80,131 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	require.Equal(t, 1, dedupCount)
 }
 
+func TestUsageBillingRepositoryApply_RejectsCrossUserCharge(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	owner := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-owner-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	victim := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-victim-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: owner.ID,
+		Key:    "sk-usage-billing-cross-user-" + uuid.NewString(),
+		Name:   "cross-user",
+	})
+	requestID := uuid.NewString()
+
+	_, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:   requestID,
+		APIKeyID:    apiKey.ID,
+		UserID:      victim.ID,
+		BalanceCost: 9.99,
+	})
+	require.ErrorIs(t, err, service.ErrUsageBillingOwnershipMismatch)
+
+	var victimBalance float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", victim.ID).Scan(&victimBalance))
+	require.InDelta(t, 100, victimBalance, 0.000001)
+	var dedupCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM usage_billing_dedup WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&dedupCount))
+	require.Zero(t, dedupCount)
+}
+
+func TestUsageBillingRepositoryApply_RejectsCrossUserSubscriptionCharge(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	owner := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-sub-owner-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+	})
+	otherUser := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-sub-other-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+	})
+	group := mustCreateGroup(t, client, &service.Group{
+		Name:             "usage-billing-cross-sub-group-" + uuid.NewString(),
+		Platform:         service.PlatformAnthropic,
+		SubscriptionType: service.SubscriptionTypeSubscription,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID:  owner.ID,
+		GroupID: &group.ID,
+		Key:     "sk-usage-billing-cross-sub-" + uuid.NewString(),
+		Name:    "cross-subscription",
+	})
+	otherSubscription := mustCreateSubscription(t, client, &service.UserSubscription{
+		UserID:  otherUser.ID,
+		GroupID: group.ID,
+	})
+	requestID := uuid.NewString()
+
+	_, err := repo.Apply(ctx, &service.UsageBillingCommand{
+		RequestID:        requestID,
+		APIKeyID:         apiKey.ID,
+		UserID:           owner.ID,
+		SubscriptionID:   &otherSubscription.ID,
+		SubscriptionCost: 7.5,
+	})
+	require.ErrorIs(t, err, service.ErrUsageBillingOwnershipMismatch)
+
+	var dailyUsage float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT daily_usage_usd FROM user_subscriptions WHERE id = $1", otherSubscription.ID).Scan(&dailyUsage))
+	require.Zero(t, dailyUsage)
+	var dedupCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM usage_billing_dedup WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&dedupCount))
+	require.Zero(t, dedupCount)
+}
+
+func TestUsageBillingRepositoryReserveBatchImageBalance_RejectsCrossUserCharge(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	owner := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-image-owner-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	otherUser := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-image-other-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: owner.ID,
+		Key:    "sk-batch-image-cross-user-" + uuid.NewString(),
+		Name:   "batch-image-cross-user",
+	})
+	requestID := uuid.NewString()
+
+	_, err := repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:  requestID,
+		APIKeyID:   apiKey.ID,
+		UserID:     otherUser.ID,
+		BatchID:    uuid.NewString(),
+		HoldAmount: 12.5,
+	})
+	require.ErrorIs(t, err, service.ErrUsageBillingOwnershipMismatch)
+
+	var balance, frozen float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance, frozen_balance FROM users WHERE id = $1", otherUser.ID).Scan(&balance, &frozen))
+	require.InDelta(t, 100, balance, 0.000001)
+	require.Zero(t, frozen)
+	var dedupCount int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT COUNT(*) FROM usage_billing_dedup WHERE request_id = $1 AND api_key_id = $2", requestID, apiKey.ID).Scan(&dedupCount))
+	require.Zero(t, dedupCount)
+}
+
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

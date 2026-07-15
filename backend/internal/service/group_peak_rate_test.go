@@ -209,7 +209,8 @@ func TestPeakMultiplier_GatewayBillingSequence(t *testing.T) {
 // 调用真实链路 snapshotFromAPIKey → snapshotToAPIKey，验证 peak 配置经快照往返后仍生效。
 func TestPeakMultiplier_SnapshotRoundTrip(t *testing.T) {
 	apiKey := &APIKey{
-		User:  &User{ID: 1, Status: StatusActive, Role: RoleUser},
+		UserID: 1,
+		User:   &User{ID: 1, Status: StatusActive, Role: RoleUser},
 		Group: newPeakGroup(true, "14:00", "18:00", 3.0),
 	}
 	svc := &APIKeyService{}

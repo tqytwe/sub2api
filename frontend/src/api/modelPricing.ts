@@ -18,6 +18,8 @@ export interface MyModelPricingRow {
   effective_output_price: number | null
   official_input_price: number | null
   official_output_price: number | null
+  site_input_price: number | null
+  site_output_price: number | null
 }
 
 export interface MyModelPricingResponse {

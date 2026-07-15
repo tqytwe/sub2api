@@ -115,6 +115,12 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	user := input.User
 	account := input.Account
 	subscription := input.Subscription
+	if err := validateUsageInputOwnership(apiKey, user); err != nil {
+		return err
+	}
+	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
+		return ErrUsageBillingOwnershipMismatch
+	}
 	if !isGrokVideoUsageResult(result, nil) {
 		ApplyOpenAIImageBillingResolution(result)
 	}

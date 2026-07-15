@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -24,10 +25,10 @@ func NewModelPricingSyncRunner(svc *ModelCatalogService) *ModelPricingSyncRunner
 type ExternalModelPrice struct {
 	ModelName       string
 	Platform        string
-	InputPerToken   float64
-	OutputPerToken  float64
-	CacheReadToken  float64
-	CacheWriteToken float64
+	InputPerToken   *float64
+	OutputPerToken  *float64
+	CacheReadToken  *float64
+	CacheWriteToken *float64
 	Source          string
 	Raw             map[string]any
 }
@@ -41,7 +42,7 @@ func (r *ModelPricingSyncRunner) Run(ctx context.Context, jobID string) {
 	result := ModelSyncResult{Source: syncSourceName()}
 	warnings := make([]string, 0)
 
-	prices, fetchErr := fetchExternalPricing(r.svc.PricingService())
+	prices, fetchErr := fetchExternalPricing()
 	if fetchErr != nil {
 		warnings = append(warnings, fetchErr.Error())
 		result.Warnings = warnings
@@ -61,56 +62,19 @@ func (r *ModelPricingSyncRunner) Run(ctx context.Context, jobID string) {
 	}
 
 	knownKeys, _ := r.svc.CatalogKeys(ctx)
-	channelSvc := r.svc.ChannelService()
-	if channelSvc == nil {
-		warnings = append(warnings, "channel service unavailable")
-	} else {
-		entries, err := channelSvc.ListAllModelPricingEntries(ctx)
-		if err != nil {
-			warnings = append(warnings, err.Error())
-		} else {
-			for _, entry := range entries {
-				for _, modelName := range entry.Models {
-					ext, ok := matchExternalPrice(prices, modelName, entry.Platform)
-					if !ok {
-						continue
-					}
-					changed := false
-					if ext.InputPerToken > 0 {
-						v := ext.InputPerToken
-						entry.InputPrice = &v
-						changed = true
-					}
-					if ext.OutputPerToken > 0 {
-						v := ext.OutputPerToken
-						entry.OutputPrice = &v
-						changed = true
-					}
-					if ext.CacheReadToken > 0 {
-						v := ext.CacheReadToken
-						entry.CacheReadPrice = &v
-						changed = true
-					}
-					if ext.CacheWriteToken > 0 {
-						v := ext.CacheWriteToken
-						entry.CacheWritePrice = &v
-						changed = true
-					}
-					if changed {
-						if err := channelSvc.UpdateModelPricingPrices(ctx, &entry); err == nil {
-							result.Updated++
-						}
-					}
-					key := catalogSyncKey(modelName, entry.Platform)
-					delete(knownKeys, key)
-				}
-			}
-		}
-	}
-
+	syncedAt := time.Now()
 	for _, ext := range prices {
 		key := catalogSyncKey(ext.ModelName, ext.Platform)
 		if _, exists := knownKeys[key]; exists {
+			updated, err := r.svc.Repo().UpdateCatalogOfficialPrices(
+				ctx, ext.ModelName, ext.Platform, ext.Source,
+				ext.InputPerToken, ext.OutputPerToken, ext.CacheReadToken, ext.CacheWriteToken, syncedAt,
+			)
+			if err != nil {
+				warnings = append(warnings, fmt.Sprintf("%s: %v", ext.ModelName, err))
+				continue
+			}
+			result.Updated += updated
 			continue
 		}
 		payload := ext.Raw
@@ -148,50 +112,18 @@ func (r *ModelPricingSyncRunner) Run(ctx context.Context, jobID string) {
 func syncSourceName() string {
 	src := strings.ToLower(strings.TrimSpace(os.Getenv("MODEL_SYNC_SOURCE")))
 	if src == "" {
-		return "litellm"
+		return "aihubmix"
 	}
 	return src
 }
 
-func fetchExternalPricing(pricingSvc *PricingService) ([]ExternalModelPrice, error) {
+func fetchExternalPricing() ([]ExternalModelPrice, error) {
 	switch syncSourceName() {
 	case "aihubmix":
 		return fetchAiHubMixPricing()
 	default:
-		return fetchLiteLLMPricing(pricingSvc)
+		return nil, fmt.Errorf("unsupported model pricing source %q; expected aihubmix", syncSourceName())
 	}
-}
-
-func fetchLiteLLMPricing(pricingSvc *PricingService) ([]ExternalModelPrice, error) {
-	if pricingSvc == nil {
-		return nil, fmt.Errorf("pricing service unavailable")
-	}
-	raw := pricingSvc.ListAllModelPricing()
-	out := make([]ExternalModelPrice, 0, len(raw))
-	for name, p := range raw {
-		if p == nil {
-			continue
-		}
-		platform := p.LiteLLMProvider
-		if platform == "" {
-			platform = inferPlatformFromModel(name)
-		}
-		out = append(out, ExternalModelPrice{
-			ModelName:       name,
-			Platform:        platform,
-			InputPerToken:   p.InputCostPerToken,
-			OutputPerToken:  p.OutputCostPerToken,
-			CacheReadToken:  p.CacheReadInputTokenCost,
-			CacheWriteToken: p.CacheCreationInputTokenCost,
-			Source:          "litellm",
-			Raw: map[string]any{
-				"input_price":  p.InputCostPerToken,
-				"output_price": p.OutputCostPerToken,
-				"mode":         p.Mode,
-			},
-		})
-	}
-	return out, nil
 }
 
 func fetchAiHubMixPricing() ([]ExternalModelPrice, error) {
@@ -206,12 +138,24 @@ func fetchAiHubMixPricing() ([]ExternalModelPrice, error) {
 	if filePath != "" {
 		body, err = os.ReadFile(filePath)
 	} else {
-		resp, reqErr := http.Get(url) //nolint:gosec // admin-configured URL
+		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 		if reqErr != nil {
-			return nil, reqErr
+			return nil, fmt.Errorf("create AIHubMix request: %w", reqErr)
+		}
+		if token := strings.TrimSpace(os.Getenv("AIHUBMIX_API_KEY")); token != "" {
+			req.Header.Set("Authorization", "Bearer "+token)
+		}
+		client := &http.Client{Timeout: 20 * time.Second}
+		resp, reqErr := client.Do(req) //nolint:gosec // admin-configured URL
+		if reqErr != nil {
+			return nil, fmt.Errorf("request AIHubMix models: %w", reqErr)
 		}
 		defer func() { _ = resp.Body.Close() }()
-		body, err = io.ReadAll(resp.Body)
+		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			preview, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+			return nil, fmt.Errorf("AIHubMix models returned HTTP %d: %s", resp.StatusCode, strings.TrimSpace(string(preview)))
+		}
+		body, err = io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	}
 	if err != nil {
 		return nil, err
@@ -219,41 +163,69 @@ func fetchAiHubMixPricing() ([]ExternalModelPrice, error) {
 
 	var payload struct {
 		Data []struct {
-			ID      string `json:"id"`
-			OwnedBy string `json:"owned_by"`
-			Pricing struct {
-				InputPerMillion  float64 `json:"input_per_million"`
-				OutputPerMillion float64 `json:"output_per_million"`
+			ModelID   string `json:"model_id"`
+			ModelName string `json:"model_name"`
+			Pricing   struct {
+				Input      *float64 `json:"input"`
+				Output     *float64 `json:"output"`
+				CacheRead  *float64 `json:"cache_read"`
+				CacheWrite *float64 `json:"cache_write"`
 			} `json:"pricing"`
+			Types string `json:"types"`
 		} `json:"data"`
+		Success bool   `json:"success"`
+		Message string `json:"message"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil {
 		return nil, err
 	}
 	out := make([]ExternalModelPrice, 0, len(payload.Data))
 	for _, m := range payload.Data {
-		if m.ID == "" {
+		if strings.TrimSpace(m.ModelID) == "" {
 			continue
 		}
-		platform := strings.ToLower(strings.TrimSpace(m.OwnedBy))
-		if platform == "" {
-			platform = inferPlatformFromModel(m.ID)
-		}
-		inTok := m.Pricing.InputPerMillion / 1_000_000
-		outTok := m.Pricing.OutputPerMillion / 1_000_000
+		platform := inferPlatformFromModel(m.ModelID)
+		inTok := perMillionToToken(m.Pricing.Input)
+		outTok := perMillionToToken(m.Pricing.Output)
+		cacheReadTok := perMillionToToken(m.Pricing.CacheRead)
+		cacheWriteTok := perMillionToToken(m.Pricing.CacheWrite)
 		out = append(out, ExternalModelPrice{
-			ModelName:      m.ID,
-			Platform:       platform,
-			InputPerToken:  inTok,
-			OutputPerToken: outTok,
-			Source:         "aihubmix",
+			ModelName:       m.ModelID,
+			Platform:        platform,
+			InputPerToken:   inTok,
+			OutputPerToken:  outTok,
+			CacheReadToken:  cacheReadTok,
+			CacheWriteToken: cacheWriteTok,
+			Source:          "aihubmix",
 			Raw: map[string]any{
-				"input_price":  inTok,
-				"output_price": outTok,
+				"input_price":       ptrValue(inTok),
+				"output_price":      ptrValue(outTok),
+				"cache_read_price":  ptrValue(cacheReadTok),
+				"cache_write_price": ptrValue(cacheWriteTok),
+				"display_name":      m.ModelName,
+				"types":             m.Types,
 			},
 		})
 	}
+	if len(out) == 0 {
+		return nil, fmt.Errorf("AIHubMix returned no usable models (success=%s, message=%s)", strconv.FormatBool(payload.Success), payload.Message)
+	}
 	return out, nil
+}
+
+func perMillionToToken(v *float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	value := *v / 1_000_000
+	return &value
+}
+
+func ptrValue(v *float64) any {
+	if v == nil {
+		return nil
+	}
+	return *v
 }
 
 func matchExternalPrice(prices []ExternalModelPrice, modelName, platform string) (ExternalModelPrice, bool) {

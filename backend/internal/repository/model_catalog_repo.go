@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
@@ -15,6 +16,13 @@ type modelCatalogRepository struct {
 	db *sql.DB
 }
 
+const catalogSelectColumns = `id, model_name, platform, display_name, use_case, sort_order,
+	visible_public, visible_auth, featured,
+	official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
+	official_source, official_updated_at, price_multiplier,
+	input_price, output_price, cache_read_price, cache_write_price,
+	billing_mode, source, source_updated_at, created_at, updated_at`
+
 // NewModelCatalogRepository creates a model catalog repository.
 func NewModelCatalogRepository(db *sql.DB) service.ModelCatalogRepository {
 	return &modelCatalogRepository{db: db}
@@ -23,11 +31,7 @@ func NewModelCatalogRepository(db *sql.DB) service.ModelCatalogRepository {
 func (r *modelCatalogRepository) ListCatalog(ctx context.Context, filter service.CatalogListFilter) ([]service.SiteModelCatalogEntry, error) {
 	var sb strings.Builder
 	args := make([]any, 0, 8)
-	sb.WriteString(`SELECT id, model_name, platform, display_name, use_case, sort_order,
-		visible_public, visible_auth, featured,
-		input_price, output_price, cache_read_price, cache_write_price,
-		billing_mode, source, source_updated_at, created_at, updated_at
-		FROM site_model_catalog WHERE 1=1`)
+	sb.WriteString("SELECT " + catalogSelectColumns + " FROM site_model_catalog WHERE 1=1")
 
 	if p := strings.TrimSpace(filter.Platform); p != "" {
 		args = append(args, p)
@@ -73,12 +77,7 @@ func (r *modelCatalogRepository) ListCatalog(ctx context.Context, filter service
 }
 
 func (r *modelCatalogRepository) GetCatalogEntry(ctx context.Context, id int64) (*service.SiteModelCatalogEntry, error) {
-	row := r.db.QueryRowContext(ctx,
-		`SELECT id, model_name, platform, display_name, use_case, sort_order,
-			visible_public, visible_auth, featured,
-			input_price, output_price, cache_read_price, cache_write_price,
-			billing_mode, source, source_updated_at, created_at, updated_at
-		 FROM site_model_catalog WHERE id = $1`, id)
+	row := r.db.QueryRowContext(ctx, "SELECT "+catalogSelectColumns+" FROM site_model_catalog WHERE id = $1", id)
 	entry, err := scanCatalogEntry(row)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -99,9 +98,11 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 		`INSERT INTO site_model_catalog (
 			model_name, platform, display_name, use_case, sort_order,
 			visible_public, visible_auth, featured,
+			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
+			official_source, official_updated_at, price_multiplier,
 			input_price, output_price, cache_read_price, cache_write_price,
 			billing_mode, source, source_updated_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			use_case = EXCLUDED.use_case,
@@ -109,6 +110,13 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 			visible_public = EXCLUDED.visible_public,
 			visible_auth = EXCLUDED.visible_auth,
 			featured = EXCLUDED.featured,
+			official_input_price = COALESCE(EXCLUDED.official_input_price, site_model_catalog.official_input_price),
+			official_output_price = COALESCE(EXCLUDED.official_output_price, site_model_catalog.official_output_price),
+			official_cache_read_price = COALESCE(EXCLUDED.official_cache_read_price, site_model_catalog.official_cache_read_price),
+			official_cache_write_price = COALESCE(EXCLUDED.official_cache_write_price, site_model_catalog.official_cache_write_price),
+			official_source = COALESCE(EXCLUDED.official_source, site_model_catalog.official_source),
+			official_updated_at = COALESCE(EXCLUDED.official_updated_at, site_model_catalog.official_updated_at),
+			price_multiplier = EXCLUDED.price_multiplier,
 			input_price = EXCLUDED.input_price,
 			output_price = EXCLUDED.output_price,
 			cache_read_price = EXCLUDED.cache_read_price,
@@ -120,6 +128,8 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 		RETURNING id, created_at, updated_at`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured,
+		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
+		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt, entry.PriceMultiplier,
 		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
 		billingMode, source, entry.SourceUpdatedAt,
 	).Scan(&entry.ID, &entry.CreatedAt, &entry.UpdatedAt)
@@ -144,11 +154,20 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 		`INSERT INTO site_model_catalog (
 			model_name, platform, display_name, use_case, sort_order,
 			visible_public, visible_auth, featured,
+			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
+			official_source, official_updated_at, price_multiplier,
 			input_price, output_price, cache_read_price, cache_write_price,
 			billing_mode, source, source_updated_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			use_case = COALESCE(EXCLUDED.use_case, site_model_catalog.use_case),
+			official_input_price = EXCLUDED.official_input_price,
+			official_output_price = EXCLUDED.official_output_price,
+			official_cache_read_price = EXCLUDED.official_cache_read_price,
+			official_cache_write_price = EXCLUDED.official_cache_write_price,
+			official_source = EXCLUDED.official_source,
+			official_updated_at = EXCLUDED.official_updated_at,
+			price_multiplier = COALESCE(EXCLUDED.price_multiplier, site_model_catalog.price_multiplier),
 			input_price = COALESCE(EXCLUDED.input_price, site_model_catalog.input_price),
 			output_price = COALESCE(EXCLUDED.output_price, site_model_catalog.output_price),
 			cache_read_price = COALESCE(EXCLUDED.cache_read_price, site_model_catalog.cache_read_price),
@@ -159,6 +178,8 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 		RETURNING id, created_at, updated_at`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured,
+		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
+		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt, entry.PriceMultiplier,
 		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
 		billingMode, source, entry.SourceUpdatedAt,
 	).Scan(&entry.ID, &entry.CreatedAt, &entry.UpdatedAt)
@@ -178,11 +199,11 @@ func (r *modelCatalogRepository) UpdateCatalogEntry(ctx context.Context, entry *
 			model_name = $1, platform = $2, display_name = $3, use_case = $4, sort_order = $5,
 			visible_public = $6, visible_auth = $7, featured = $8,
 			input_price = $9, output_price = $10, cache_read_price = $11, cache_write_price = $12,
-			billing_mode = $13, source = $14, source_updated_at = $15, updated_at = NOW()
-		 WHERE id = $16`,
+			price_multiplier = $13, billing_mode = $14, source = $15, source_updated_at = $16, updated_at = NOW()
+		 WHERE id = $17`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured,
-		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
+		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice, entry.PriceMultiplier,
 		billingMode, entry.Source, entry.SourceUpdatedAt, entry.ID,
 	)
 	if err != nil {
@@ -235,10 +256,14 @@ func (r *modelCatalogRepository) BatchUpdatePrices(ctx context.Context, ids []in
 	var sets []string
 	args := make([]any, 0, len(ids)+3)
 	if multiplier != nil && *multiplier > 0 {
-		m := *multiplier
+		args = append(args, *multiplier)
+		pos := len(args)
 		sets = append(sets,
-			fmt.Sprintf("input_price = CASE WHEN input_price IS NOT NULL THEN input_price * %f ELSE input_price END", m),
-			fmt.Sprintf("output_price = CASE WHEN output_price IS NOT NULL THEN output_price * %f ELSE output_price END", m),
+			fmt.Sprintf("input_price = CASE WHEN official_input_price IS NOT NULL THEN official_input_price * $%d ELSE input_price END", pos),
+			fmt.Sprintf("output_price = CASE WHEN official_output_price IS NOT NULL THEN official_output_price * $%d ELSE output_price END", pos),
+			fmt.Sprintf("cache_read_price = CASE WHEN official_cache_read_price IS NOT NULL THEN official_cache_read_price * $%d ELSE cache_read_price END", pos),
+			fmt.Sprintf("cache_write_price = CASE WHEN official_cache_write_price IS NOT NULL THEN official_cache_write_price * $%d ELSE cache_write_price END", pos),
+			fmt.Sprintf("price_multiplier = $%d", pos),
 		)
 	}
 	if absoluteInput != nil {
@@ -249,6 +274,9 @@ func (r *modelCatalogRepository) BatchUpdatePrices(ctx context.Context, ids []in
 		args = append(args, *absoluteOutput)
 		sets = append(sets, fmt.Sprintf("output_price = $%d", len(args)))
 	}
+	if absoluteInput != nil || absoluteOutput != nil {
+		sets = append(sets, "price_multiplier = NULL")
+	}
 	if len(sets) == 0 {
 		return 0, nil
 	}
@@ -258,6 +286,35 @@ func (r *modelCatalogRepository) BatchUpdatePrices(ctx context.Context, ids []in
 	res, err := r.db.ExecContext(ctx, query, args...)
 	if err != nil {
 		return 0, err
+	}
+	n, _ := res.RowsAffected()
+	return int(n), nil
+}
+
+func (r *modelCatalogRepository) UpdateCatalogOfficialPrices(
+	ctx context.Context,
+	modelName, platform, source string,
+	input, output, cacheRead, cacheWrite *float64,
+	updatedAt time.Time,
+) (int, error) {
+	res, err := r.db.ExecContext(ctx, `
+		UPDATE site_model_catalog SET
+			official_input_price = $1,
+			official_output_price = $2,
+			official_cache_read_price = $3,
+			official_cache_write_price = $4,
+			official_source = $5,
+			official_updated_at = $6,
+			input_price = CASE WHEN price_multiplier IS NOT NULL AND $1 IS NOT NULL THEN $1 * price_multiplier ELSE input_price END,
+			output_price = CASE WHEN price_multiplier IS NOT NULL AND $2 IS NOT NULL THEN $2 * price_multiplier ELSE output_price END,
+			cache_read_price = CASE WHEN price_multiplier IS NOT NULL AND $3 IS NOT NULL THEN $3 * price_multiplier ELSE cache_read_price END,
+			cache_write_price = CASE WHEN price_multiplier IS NOT NULL AND $4 IS NOT NULL THEN $4 * price_multiplier ELSE cache_write_price END,
+			updated_at = NOW()
+		WHERE LOWER(model_name) = LOWER($7)
+			AND LOWER(platform) = LOWER($8)
+	`, input, output, cacheRead, cacheWrite, source, updatedAt, modelName, platform)
+	if err != nil {
+		return 0, fmt.Errorf("update catalog official prices: %w", err)
 	}
 	n, _ := res.RowsAffected()
 	return int(n), nil
@@ -447,11 +504,13 @@ type catalogScanner interface {
 
 func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error) {
 	var e service.SiteModelCatalogEntry
-	var displayName, useCase sql.NullString
-	var sourceUpdated sql.NullTime
+	var displayName, useCase, officialSource sql.NullString
+	var sourceUpdated, officialUpdated sql.NullTime
 	err := row.Scan(
 		&e.ID, &e.ModelName, &e.Platform, &displayName, &useCase, &e.SortOrder,
 		&e.VisiblePublic, &e.VisibleAuth, &e.Featured,
+		&e.OfficialInputPrice, &e.OfficialOutputPrice, &e.OfficialCacheReadPrice, &e.OfficialCacheWritePrice,
+		&officialSource, &officialUpdated, &e.PriceMultiplier,
 		&e.InputPrice, &e.OutputPrice, &e.CacheReadPrice, &e.CacheWritePrice,
 		&e.BillingMode, &e.Source, &sourceUpdated, &e.CreatedAt, &e.UpdatedAt,
 	)
@@ -463,6 +522,13 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 	}
 	if useCase.Valid {
 		e.UseCase = &useCase.String
+	}
+	if officialSource.Valid {
+		e.OfficialSource = officialSource.String
+	}
+	if officialUpdated.Valid {
+		t := officialUpdated.Time
+		e.OfficialUpdatedAt = &t
 	}
 	if sourceUpdated.Valid {
 		t := sourceUpdated.Time

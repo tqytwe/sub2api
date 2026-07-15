@@ -626,6 +626,9 @@ func (s *APIKeyService) GetByKey(ctx context.Context, key string) (*APIKey, erro
 	if err != nil {
 		return nil, fmt.Errorf("get api key: %w", err)
 	}
+	if err := ValidateAPIKeyUserOwnership(apiKey, apiKey.User); err != nil {
+		return nil, fmt.Errorf("get api key: %w", err)
+	}
 	apiKey.Key = key
 	s.compileAPIKeyIPRules(apiKey)
 	return apiKey, nil

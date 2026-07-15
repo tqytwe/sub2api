@@ -78,6 +78,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			abortWithGoogleError(c, 401, "User associated with API key not found")
 			return
 		}
+		if err := service.ValidateAPIKeyUserOwnership(apiKey, apiKey.User); err != nil {
+			abortWithGoogleError(c, 500, "API key ownership validation failed")
+			return
+		}
 		if !apiKey.User.IsActive() {
 			abortWithGoogleError(c, 401, "User account is not active")
 			return

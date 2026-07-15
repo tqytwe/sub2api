@@ -53,7 +53,7 @@ func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicMod
 	visible := true
 	entries, err := s.repo.ListCatalog(ctx, CatalogListFilter{VisiblePublic: &visible})
 	if err != nil || len(entries) == 0 {
-		return legacyPublicPricing(ctx, s)
+		return []PublicModelPricingRow{}
 	}
 
 	mult := 1.0
@@ -71,7 +71,10 @@ func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicMod
 			useCase = *e.UseCase
 		}
 
-		officialIn, officialOut := lookupOfficialPrices(s.billingService, name)
+		officialIn, officialOut := e.OfficialInputPrice, e.OfficialOutputPrice
+		if officialIn == nil && officialOut == nil {
+			officialIn, officialOut = lookupOfficialPrices(s.billingService, name)
+		}
 		ourIn, ourOut := scalePricePtr(officialIn, mult), scalePricePtr(officialOut, mult)
 
 		if e.InputPrice != nil {
@@ -97,11 +100,6 @@ func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicMod
 		})
 	}
 	return out
-}
-
-func legacyPublicPricing(ctx context.Context, s *ModelCatalogService) []PublicModelPricingRow {
-	play := &PlayService{channelService: s.channelService, settingService: s.settingService}
-	return play.ListPublicModelPricing(ctx, s.billingService)
 }
 
 func collectChannelBasePricesFromService(ctx context.Context, channelService *ChannelService) map[string]channelPricePair {
@@ -141,6 +139,20 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 	if err != nil {
 		return nil, err
 	}
+	visibleAuth := true
+	catalogEntries, err := s.repo.ListCatalog(ctx, CatalogListFilter{VisibleAuth: &visibleAuth})
+	if err != nil {
+		return nil, err
+	}
+	catalogByKey := make(map[string]SiteModelCatalogEntry, len(catalogEntries))
+	catalogByName := make(map[string]SiteModelCatalogEntry, len(catalogEntries))
+	for _, entry := range catalogEntries {
+		catalogByKey[catalogSyncKey(entry.ModelName, entry.Platform)] = entry
+		nameKey := strings.ToLower(strings.TrimSpace(entry.ModelName))
+		if _, exists := catalogByName[nameKey]; !exists {
+			catalogByName[nameKey] = entry
+		}
+	}
 
 	type rowKey struct {
 		model    string
@@ -164,6 +176,13 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 				continue
 			}
 			platform := sm.Platform
+			catalogEntry, catalogVisible := catalogByKey[catalogSyncKey(sm.Name, platform)]
+			if !catalogVisible {
+				catalogEntry, catalogVisible = catalogByName[strings.ToLower(strings.TrimSpace(sm.Name))]
+			}
+			if !catalogVisible {
+				continue
+			}
 			grps := platformGroups[strings.ToLower(strings.TrimSpace(platform))]
 			// Channel may list models whose platform doesn't match the unlock group
 			// (common for mixed / domestic model catalogs). Fall back to all groups
@@ -171,7 +190,10 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 			if len(grps) == 0 {
 				grps = visibleGroups
 			}
-			officialIn, officialOut := lookupOfficialPrices(s.billingService, sm.Name)
+			officialIn, officialOut := catalogEntry.OfficialInputPrice, catalogEntry.OfficialOutputPrice
+			if officialIn == nil && officialOut == nil {
+				officialIn, officialOut = lookupOfficialPrices(s.billingService, sm.Name)
+			}
 			var baseIn, baseOut *float64
 			if sm.Pricing != nil {
 				baseIn, baseOut = sm.Pricing.InputPrice, sm.Pricing.OutputPrice
@@ -195,6 +217,9 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 					EffectiveOutputPrice: scalePricePtr(baseOut, mult),
 					OfficialInputPrice:   officialIn,
 					OfficialOutputPrice:  officialOut,
+					SiteInputPrice:       catalogEntry.InputPrice,
+					SiteOutputPrice:      catalogEntry.OutputPrice,
+					UseCase:              derefCatalogString(catalogEntry.UseCase),
 				}
 			}
 		}
@@ -258,18 +283,21 @@ func (s *ModelCatalogService) ListAdminCatalog(ctx context.Context, filter Catal
 	channelBase := collectChannelBasePricesFromService(ctx, s.channelService)
 	out := make([]AdminCatalogRow, 0, len(entries))
 	for _, e := range entries {
-		officialIn, officialOut := lookupOfficialPrices(s.billingService, e.ModelName)
+		officialIn, officialOut := e.OfficialInputPrice, e.OfficialOutputPrice
+		if officialIn == nil && officialOut == nil {
+			officialIn, officialOut = lookupOfficialPrices(s.billingService, e.ModelName)
+		}
 		var chIn, chOut *float64
 		if base, ok := channelBase[strings.ToLower(e.ModelName)]; ok {
 			chIn, chOut = base.input, base.output
 		}
 		out = append(out, AdminCatalogRow{
 			SiteModelCatalogEntry: e,
-			OfficialInputPrice:    officialIn,
-			OfficialOutputPrice:   officialOut,
 			ChannelInputPrice:     chIn,
 			ChannelOutputPrice:    chOut,
 		})
+		out[len(out)-1].OfficialInputPrice = officialIn
+		out[len(out)-1].OfficialOutputPrice = officialOut
 	}
 	return out, nil
 }
@@ -279,6 +307,39 @@ func (s *ModelCatalogService) GetCatalogEntry(ctx context.Context, id int64) (*S
 }
 
 func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error {
+	if entry == nil || strings.TrimSpace(entry.ModelName) == "" {
+		return fmt.Errorf("model name is required")
+	}
+	if hasNegativeCatalogPrice(entry) {
+		return fmt.Errorf("model prices cannot be negative")
+	}
+	if entry.ID > 0 {
+		existing, err := s.repo.GetCatalogEntry(ctx, entry.ID)
+		if err != nil {
+			return err
+		}
+		if existing == nil {
+			return fmt.Errorf("catalog entry not found: %d", entry.ID)
+		}
+		entry.OfficialInputPrice = existing.OfficialInputPrice
+		entry.OfficialOutputPrice = existing.OfficialOutputPrice
+		entry.OfficialCacheReadPrice = existing.OfficialCacheReadPrice
+		entry.OfficialCacheWritePrice = existing.OfficialCacheWritePrice
+		entry.OfficialSource = existing.OfficialSource
+		entry.OfficialUpdatedAt = existing.OfficialUpdatedAt
+	}
+	if entry.PriceMultiplier != nil {
+		if *entry.PriceMultiplier <= 0 {
+			return fmt.Errorf("price multiplier must be greater than zero")
+		}
+		entry.InputPrice = scalePricePtr(entry.OfficialInputPrice, *entry.PriceMultiplier)
+		entry.OutputPrice = scalePricePtr(entry.OfficialOutputPrice, *entry.PriceMultiplier)
+		entry.CacheReadPrice = scalePricePtr(entry.OfficialCacheReadPrice, *entry.PriceMultiplier)
+		entry.CacheWritePrice = scalePricePtr(entry.OfficialCacheWritePrice, *entry.PriceMultiplier)
+	}
+	entry.ModelName = strings.TrimSpace(entry.ModelName)
+	entry.Platform = strings.ToLower(strings.TrimSpace(entry.Platform))
+	entry.Source = "manual"
 	if entry.ID > 0 {
 		return s.repo.UpdateCatalogEntry(ctx, entry)
 	}
@@ -304,7 +365,7 @@ func (s *ModelCatalogService) ListDiscoveries(ctx context.Context, filter Discov
 	return s.repo.ListDiscoveries(ctx, filter)
 }
 
-func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool) (int, error) {
+func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool, siteMultiplier *float64) (int, error) {
 	if len(ids) == 0 {
 		return 0, fmt.Errorf("ids required: select discoveries to import")
 	}
@@ -322,17 +383,29 @@ func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64
 		if v, ok := d.Payload["use_case"].(string); ok {
 			useCase = v
 		}
+		now := time.Now()
 		entry := &SiteModelCatalogEntry{
-			ModelName:     d.ModelName,
-			Platform:      d.Platform,
-			UseCase:       catalogOptionalString(useCase),
-			VisiblePublic: false,
-			VisibleAuth:   true,
-			Source:        d.Source,
+			ModelName:         d.ModelName,
+			Platform:          d.Platform,
+			DisplayName:       catalogOptionalString(payloadString(d.Payload, "display_name")),
+			UseCase:           catalogOptionalString(useCase),
+			VisiblePublic:     false,
+			VisibleAuth:       true,
+			Source:            d.Source,
+			OfficialSource:    d.Source,
+			OfficialUpdatedAt: &now,
 		}
-		if in, out := pricesFromDiscoveryPayload(d.Payload); in != nil || out != nil {
-			entry.InputPrice = in
-			entry.OutputPrice = out
+		entry.OfficialInputPrice, entry.OfficialOutputPrice,
+			entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice = pricesFromDiscoveryPayload(d.Payload)
+		if siteMultiplier != nil {
+			if *siteMultiplier <= 0 {
+				return imported, fmt.Errorf("site multiplier must be greater than zero")
+			}
+			entry.PriceMultiplier = siteMultiplier
+			entry.InputPrice = scalePricePtr(entry.OfficialInputPrice, *siteMultiplier)
+			entry.OutputPrice = scalePricePtr(entry.OfficialOutputPrice, *siteMultiplier)
+			entry.CacheReadPrice = scalePricePtr(entry.OfficialCacheReadPrice, *siteMultiplier)
+			entry.CacheWritePrice = scalePricePtr(entry.OfficialCacheWritePrice, *siteMultiplier)
 		}
 		if err := s.repo.UpsertDiscoveryCatalogEntry(ctx, entry); err != nil {
 			if len(importedIDs) > 0 {
@@ -351,15 +424,39 @@ func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64
 	return imported, nil
 }
 
-func pricesFromDiscoveryPayload(payload map[string]any) (*float64, *float64) {
-	var inPtr, outPtr *float64
-	if v, ok := payload["input_price"].(float64); ok {
-		inPtr = &v
+func pricesFromDiscoveryPayload(payload map[string]any) (*float64, *float64, *float64, *float64) {
+	return payloadFloat(payload, "input_price"), payloadFloat(payload, "output_price"),
+		payloadFloat(payload, "cache_read_price"), payloadFloat(payload, "cache_write_price")
+}
+
+func payloadFloat(payload map[string]any, key string) *float64 {
+	if v, ok := payload[key].(float64); ok {
+		value := v
+		return &value
 	}
-	if v, ok := payload["output_price"].(float64); ok {
-		outPtr = &v
+	return nil
+}
+
+func payloadString(payload map[string]any, key string) string {
+	v, _ := payload[key].(string)
+	return strings.TrimSpace(v)
+}
+
+func derefCatalogString(v *string) string {
+	if v == nil {
+		return ""
 	}
-	return inPtr, outPtr
+	return *v
+}
+
+func hasNegativeCatalogPrice(entry *SiteModelCatalogEntry) bool {
+	prices := []*float64{entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice}
+	for _, price := range prices {
+		if price != nil && *price < 0 {
+			return true
+		}
+	}
+	return false
 }
 
 func catalogOptionalString(s string) *string {
@@ -401,50 +498,6 @@ func newSyncJobID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-// FillCatalogFromLiteLLM applies LiteLLM official prices to catalog rows missing overrides.
-func (s *ModelCatalogService) FillCatalogFromLiteLLM(ctx context.Context, ids []int64) (int, error) {
-	entries, err := s.repo.ListCatalog(ctx, CatalogListFilter{})
-	if err != nil {
-		return 0, err
-	}
-	idSet := make(map[int64]struct{}, len(ids))
-	for _, id := range ids {
-		idSet[id] = struct{}{}
-	}
-	updated := 0
-	now := time.Now()
-	for _, e := range entries {
-		if len(idSet) > 0 {
-			if _, ok := idSet[e.ID]; !ok {
-				continue
-			}
-		}
-		if s.pricingService == nil {
-			continue
-		}
-		p := s.pricingService.GetModelPricing(e.ModelName)
-		if p == nil {
-			continue
-		}
-		var in, out float64
-		if p.InputCostPerToken > 0 {
-			in = p.InputCostPerToken
-			e.InputPrice = &in
-		}
-		if p.OutputCostPerToken > 0 {
-			out = p.OutputCostPerToken
-			e.OutputPrice = &out
-		}
-		e.Source = "litellm"
-		e.SourceUpdatedAt = &now
-		if err := s.repo.UpdateCatalogEntry(ctx, &e); err != nil {
-			return updated, err
-		}
-		updated++
-	}
-	return updated, nil
-}
-
 // Repo exposes the repository for sync runner (same package).
 func (s *ModelCatalogService) Repo() ModelCatalogRepository {
 	return s.repo
@@ -452,10 +505,6 @@ func (s *ModelCatalogService) Repo() ModelCatalogRepository {
 
 func (s *ModelCatalogService) ChannelService() *ChannelService {
 	return s.channelService
-}
-
-func (s *ModelCatalogService) PricingService() *PricingService {
-	return s.pricingService
 }
 
 // SyncComplete updates a job after sync.

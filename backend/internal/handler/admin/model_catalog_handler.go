@@ -32,6 +32,7 @@ type catalogEntryRequest struct {
 	OutputPrice     *float64 `json:"output_price"`
 	CacheReadPrice  *float64 `json:"cache_read_price"`
 	CacheWritePrice *float64 `json:"cache_write_price"`
+	PriceMultiplier *float64 `json:"price_multiplier"`
 	BillingMode     string   `json:"billing_mode"`
 	Source          string   `json:"source"`
 }
@@ -43,15 +44,16 @@ type batchVisibilityRequest struct {
 }
 
 type batchPricesRequest struct {
-	IDs           []int64  `json:"ids" binding:"required,min=1"`
-	Multiplier    *float64 `json:"multiplier"`
-	InputPrice    *float64 `json:"input_price"`
-	OutputPrice   *float64 `json:"output_price"`
+	IDs         []int64  `json:"ids" binding:"required,min=1"`
+	Multiplier  *float64 `json:"multiplier"`
+	InputPrice  *float64 `json:"input_price"`
+	OutputPrice *float64 `json:"output_price"`
 }
 
 type importDiscoveriesRequest struct {
-	IDs       []int64 `json:"ids"`
-	ToCatalog bool    `json:"to_catalog"`
+	IDs            []int64  `json:"ids"`
+	ToCatalog      bool     `json:"to_catalog"`
+	SiteMultiplier *float64 `json:"site_multiplier"`
 }
 
 // List GET /admin/model-catalog
@@ -97,6 +99,7 @@ func (h *ModelCatalogHandler) Upsert(c *gin.Context) {
 		OutputPrice:     req.OutputPrice,
 		CacheReadPrice:  req.CacheReadPrice,
 		CacheWritePrice: req.CacheWritePrice,
+		PriceMultiplier: req.PriceMultiplier,
 		BillingMode:     req.BillingMode,
 		Source:          req.Source,
 	}
@@ -206,24 +209,10 @@ func (h *ModelCatalogHandler) ImportDiscoveries(c *gin.Context) {
 		response.BadRequest(c, "ids required: select discoveries to import")
 		return
 	}
-	n, err := h.catalogService.ImportDiscoveries(c.Request.Context(), req.IDs, req.ToCatalog)
+	n, err := h.catalogService.ImportDiscoveries(c.Request.Context(), req.IDs, req.ToCatalog, req.SiteMultiplier)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, gin.H{"imported": n})
-}
-
-// FillFromLiteLLM POST /admin/model-catalog/fill-litellm
-func (h *ModelCatalogHandler) FillFromLiteLLM(c *gin.Context) {
-	var req struct {
-		IDs []int64 `json:"ids"`
-	}
-	_ = c.ShouldBindJSON(&req)
-	n, err := h.catalogService.FillCatalogFromLiteLLM(c.Request.Context(), req.IDs)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, gin.H{"updated": n})
 }

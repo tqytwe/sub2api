@@ -1,6 +1,9 @@
 package service
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestAPIKeyService_RejectsV10AuthSnapshotWithoutModelsListConfig(t *testing.T) {
 	groupID := int64(9)
@@ -39,5 +42,30 @@ func TestAPIKeyService_RejectsV10AuthSnapshotWithoutModelsListConfig(t *testing.
 	}
 	if apiKey != nil {
 		t.Fatalf("expected no API key from stale snapshot, got %#v", apiKey)
+	}
+}
+
+func TestAPIKeyService_RejectsCrossUserAuthSnapshot(t *testing.T) {
+	svc := &APIKeyService{}
+
+	apiKey, used, err := svc.applyAuthCacheEntry("k-cross-user", &APIKeyAuthCacheEntry{
+		Snapshot: &APIKeyAuthSnapshot{
+			Version:  apiKeyAuthSnapshotVersion,
+			APIKeyID: 7,
+			UserID:   101,
+			User: APIKeyAuthUserSnapshot{
+				ID: 202,
+			},
+		},
+	})
+
+	if !used {
+		t.Fatal("expected invalid current-version snapshot to be consumed fail-closed")
+	}
+	if apiKey != nil {
+		t.Fatalf("expected no API key from cross-user snapshot, got %#v", apiKey)
+	}
+	if !errors.Is(err, ErrAPIKeyUserOwnershipMismatch) {
+		t.Fatalf("expected ownership mismatch, got %v", err)
 	}
 }

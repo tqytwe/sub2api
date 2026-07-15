@@ -26,20 +26,20 @@ export const apiClient: AxiosInstance = axios.create({
 // Track if a token refresh is in progress to prevent multiple simultaneous refresh requests
 let isRefreshing = false
 // Queue of requests waiting for token refresh
-let refreshSubscribers: Array<(token: string) => void> = []
+let refreshSubscribers: Array<(token: string, sourceRefreshToken: string) => void> = []
 
 /**
  * Subscribe to token refresh completion
  */
-function subscribeTokenRefresh(callback: (token: string) => void): void {
+function subscribeTokenRefresh(callback: (token: string, sourceRefreshToken: string) => void): void {
   refreshSubscribers.push(callback)
 }
 
 /**
  * Notify all subscribers that token has been refreshed
  */
-function onTokenRefreshed(token: string): void {
-  refreshSubscribers.forEach((callback) => callback(token))
+function onTokenRefreshed(token: string, sourceRefreshToken: string): void {
+  refreshSubscribers.forEach((callback) => callback(token, sourceRefreshToken))
   refreshSubscribers = []
 }
 
@@ -182,8 +182,8 @@ apiClient.interceptors.response.use(
           if (isRefreshing) {
             // Wait for the ongoing refresh to complete
             return new Promise((resolve, reject) => {
-              subscribeTokenRefresh((newToken: string) => {
-                if (newToken) {
+              subscribeTokenRefresh((newToken: string, sourceRefreshToken: string) => {
+                if (newToken && sourceRefreshToken === refreshToken) {
                   // Mark as retried to prevent infinite loop if retry also returns 401
                   originalRequest._retry = true
                   if (originalRequest.headers) {
@@ -224,13 +224,25 @@ apiClient.interceptors.response.use(
             if (refreshData.code === 0 && refreshData.data) {
               const { access_token, refresh_token: newRefreshToken, expires_in } = refreshData.data
 
+              // Logout or a different account login may have happened while this
+              // request was in flight. Never let the old account win that race.
+              if (localStorage.getItem('refresh_token') !== refreshToken) {
+                onTokenRefreshed('', refreshToken)
+                isRefreshing = false
+                return Promise.reject({
+                  status: 401,
+                  code: 'AUTH_SESSION_CHANGED',
+                  message: 'Authentication session changed. Please retry the request.'
+                })
+              }
+
               // Update tokens in localStorage (convert expires_in to timestamp)
               localStorage.setItem('auth_token', access_token)
               localStorage.setItem('refresh_token', newRefreshToken)
               localStorage.setItem('token_expires_at', String(Date.now() + expires_in * 1000))
 
               // Notify subscribers with new token
-              onTokenRefreshed(access_token)
+              onTokenRefreshed(access_token, refreshToken)
 
               // Retry the original request with new token
               if (originalRequest.headers) {
@@ -245,8 +257,18 @@ apiClient.interceptors.response.use(
             throw new Error('Token refresh failed')
           } catch (refreshError) {
             // Refresh failed - notify subscribers with empty token
-            onTokenRefreshed('')
+            onTokenRefreshed('', refreshToken)
             isRefreshing = false
+
+            // The failed refresh belongs to an old account. Do not clear the
+            // newer account's tokens or redirect its active session.
+            if (localStorage.getItem('refresh_token') !== refreshToken) {
+              return Promise.reject({
+                status: 401,
+                code: 'AUTH_SESSION_CHANGED',
+                message: 'Authentication session changed. Please retry the request.'
+              })
+            }
 
             // Clear tokens and redirect to login
             localStorage.removeItem('auth_token')
