@@ -55,23 +55,10 @@ export const jisudengHomeEn = {
     }
   },
   stats: {
-	requests: 'Successful requests · 24h',
-	users: 'Active developers · 7d',
-	uptime: 'Request success rate · 30d',
-	tokens: 'Verified tokens processed',
-	methodology: 'Updated every 30 seconds. Failed, retried, and policy-blocked requests are excluded.',
-	methodologyTitle: 'View metric methodology',
-	estimated: 'This snapshot is estimated.',
-	updatedAt: 'Updated {time}',
-	activityTitle: 'Verified activity',
-	activityEmpty: 'The weekly season has just started. Complete one valid request to enter the contribution record.',
-	activityUsage: 'Developer {actor} completed {requests} requests · {tokens} tokens',
-	activityBlindbox: 'Developer {actor} received a ${reward} blindbox reward',
-	activityTeamCreated: 'Developer {actor} created an Agent Team',
-	activityTeamJoined: 'Developer {actor} joined an Agent Team',
-	activityFirstRequest: 'Developer {actor} completed a first verified request',
-	activityWeeklyMission: 'Agent Team {actor} completed its weekly mission',
-	activityGeneric: 'Developer {actor} completed a verified activity'
+    requests: 'Total API requests',
+    uptime: 'Service uptime',
+    latency: 'Avg. first-token latency',
+    models: 'Models available'
   },
   sections: {
     imageTag: 'IMAGE API',

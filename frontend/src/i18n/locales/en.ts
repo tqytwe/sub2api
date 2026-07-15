@@ -430,7 +430,6 @@ export default {
     blindbox: 'Blind Box',
     quizQuest: 'Quiz Quest',
     agentTeam: 'Agent Team',
-	playGrowth: 'Growth World',
     subscriptions: 'Subscriptions',
     accounts: 'Accounts',
     proxies: 'Proxies',

@@ -8,16 +8,10 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import playAPI, {
-  type PlayActivityItem,
-  type PlayTeamDiscovery,
-  type PlayTeamJoinRequest,
-  type PlayTeamMe,
-} from '@/api/play'
+import playAPI, { type PlayTeamMe } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
 import { buildRegisterInviteLink } from '@/utils/oauthAffiliate'
 import '@/styles/public-pages.css'
-import { trackGrowthEvent } from '@/utils/growthAnalytics'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -30,9 +24,6 @@ const teamMe = ref<PlayTeamMe | null>(null)
 const teamName = ref('')
 const inviteCode = ref('')
 const affCode = ref('')
-const discoveries = ref<PlayTeamDiscovery[]>([])
-const joinRequests = ref<PlayTeamJoinRequest[]>([])
-const activity = ref<PlayActivityItem[]>([])
 
 const isCaptain = computed(
   () => teamMe.value?.team && authStore.user?.id === teamMe.value.team.captain_id,
@@ -42,23 +33,10 @@ const combinedInviteLink = computed(() => {
   return buildRegisterInviteLink(affCode.value, teamMe.value.team.invite_code)
 })
 const affiliateInfo = computed(() => teamMe.value?.team?.affiliate)
-const weeklyPct = computed(() => {
-  const weekly = teamMe.value?.team?.weekly
-  if (!weekly) return 0
-  const tokenPct = weekly.token_target > 0 ? weekly.token_sum / weekly.token_target : 0
-  const requestPct = weekly.request_target > 0 ? weekly.request_count / weekly.request_target : 0
-  return Math.min(100, Math.round(Math.min(tokenPct, requestPct) * 100))
-})
 
 async function loadTeam() {
   if (!authStore.isAuthenticated) {
-    try {
-      discoveries.value = await playAPI.discoverTeams(12)
-      teamMe.value = { enabled: true }
-    } catch {
-      teamMe.value = { enabled: false }
-      discoveries.value = []
-    }
+    teamMe.value = { enabled: false }
     loading.value = false
     return
   }
@@ -73,15 +51,6 @@ async function loadTeam() {
         affCode.value = ''
       }
     }
-    if (teamMe.value?.team) {
-      activity.value = await playAPI.getTeamActivity(12)
-      joinRequests.value = isCaptain.value ? await playAPI.getTeamJoinRequests() : []
-      discoveries.value = []
-    } else {
-      discoveries.value = await playAPI.discoverTeams(12)
-      activity.value = []
-      joinRequests.value = []
-    }
   } catch {
     teamMe.value = null
   } finally {
@@ -89,66 +58,11 @@ async function loadTeam() {
   }
 }
 
-async function requestJoin(teamId: number) {
-  if (submitting.value) return
-  submitting.value = true
-  try {
-    await playAPI.requestTeamJoin(teamId)
-    appStore.showSuccess(t('agentTeam.requestSent'))
-  } catch {
-    appStore.showError(t('agentTeam.failed'))
-  } finally {
-    submitting.value = false
-  }
-}
-
-async function reviewRequest(requestId: number, approve: boolean) {
-  try {
-    await playAPI.reviewTeamJoinRequest(requestId, approve)
-    await loadTeam()
-  } catch {
-    appStore.showError(t('agentTeam.failed'))
-  }
-}
-
-async function leaveCurrentTeam() {
-  try {
-    await playAPI.leaveTeam()
-    await loadTeam()
-  } catch (err: unknown) {
-    const code = (err as { response?: { data?: { code?: string } } })?.response?.data?.code
-    appStore.showError(code === 'PLAY_TEAM_TRANSFER_REQUIRED' ? t('agentTeam.transferRequired') : t('agentTeam.failed'))
-  }
-}
-
-async function transferCaptain(userId: number) {
-  try {
-    await playAPI.transferTeamCaptain(userId)
-    await loadTeam()
-  } catch {
-    appStore.showError(t('agentTeam.failed'))
-  }
-}
-
-async function removeMember(userId: number) {
-  try {
-    await playAPI.removeTeamMember(userId)
-    await loadTeam()
-  } catch {
-    appStore.showError(t('agentTeam.failed'))
-  }
-}
-
-function activityLabel(item: PlayActivityItem) {
-  return t(`agentTeam.activity.${item.event_type}`, { actor: item.actor })
-}
-
 async function handleCreate() {
   if (!teamName.value.trim() || submitting.value) return
   submitting.value = true
   try {
     await playAPI.createTeam(teamName.value.trim())
-	trackGrowthEvent('team_created')
     appStore.showSuccess(t('agentTeam.created'))
     teamName.value = ''
     await loadTeam()
@@ -170,7 +84,6 @@ async function handleJoin() {
   submitting.value = true
   try {
     await playAPI.joinTeam(inviteCode.value.trim())
-	trackGrowthEvent('team_joined', { source: 'invite_code' })
     appStore.showSuccess(t('agentTeam.joined'))
     inviteCode.value = ''
     await loadTeam()
@@ -214,57 +127,15 @@ onMounted(loadTeam)
 
       <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
       <div v-else-if="!teamMe?.enabled" class="play-note">{{ t('agentTeam.disabled') }}</div>
-      <template v-else-if="!authStore.isAuthenticated">
-        <div class="play-actions">
-          <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.agentTeam.ctaGuest') }}</router-link>
-        </div>
-        <section v-if="discoveries.length" class="play-section space-y-3">
-          <h2 class="play-section-title">{{ t('agentTeam.discoverTitle') }}</h2>
-          <div v-for="team in discoveries" :key="team.id" class="flex items-center justify-between gap-3 border-b border-[var(--play-line)] py-3">
-            <div>
-              <div class="font-medium">{{ team.name }} · Lv.{{ team.level }}</div>
-              <div class="text-sm opacity-60">{{ t('agentTeam.discoveryStats', { members: team.member_count, max: team.max_members, requests: team.request_count.toLocaleString() }) }}</div>
-            </div>
-          </div>
-        </section>
-      </template>
+      <div v-else-if="!authStore.isAuthenticated" class="play-actions">
+        <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.agentTeam.ctaGuest') }}</router-link>
+      </div>
       <div v-else-if="teamMe.team" class="play-section space-y-4">
         <h2 class="play-section-title">{{ teamMe.team.name }}</h2>
         <p class="play-intro">{{ t('agentTeam.inviteCode', { code: teamMe.team.invite_code }) }}</p>
         <p class="play-intro">
           {{ t('agentTeam.stats', { members: teamMe.team.member_count, tokens: teamMe.team.token_sum.toLocaleString() }) }}
         </p>
-        <div class="grid border-y border-[var(--play-line)] sm:grid-cols-3">
-          <div class="py-3 sm:border-r sm:border-[var(--play-line)] sm:pr-3">
-            <div class="text-xs opacity-60">{{ t('agentTeam.levelLabel') }}</div>
-            <div class="mt-1 font-semibold">Lv.{{ teamMe.team.level }}</div>
-          </div>
-          <div class="py-3 sm:border-r sm:border-[var(--play-line)] sm:px-3">
-            <div class="text-xs opacity-60">{{ t('agentTeam.requestsLabel') }}</div>
-            <div class="mt-1 font-semibold tabular-nums">{{ teamMe.team.request_count.toLocaleString() }}</div>
-          </div>
-          <div class="py-3 sm:pl-3">
-            <div class="text-xs opacity-60">{{ t('agentTeam.activeDaysLabel') }}</div>
-            <div class="mt-1 font-semibold tabular-nums">{{ teamMe.team.active_days }}</div>
-          </div>
-        </div>
-        <section v-if="teamMe.team.weekly" class="space-y-2 border-y border-[var(--play-line)] py-4">
-          <div class="flex items-center justify-between gap-3">
-            <h3 class="font-medium">{{ t('agentTeam.weeklyMission') }}</h3>
-            <span class="text-sm tabular-nums">{{ weeklyPct }}%</span>
-          </div>
-          <div class="h-2 overflow-hidden bg-black/10 dark:bg-white/10">
-            <div class="h-full bg-[var(--play-ink)]" :style="{ width: `${weeklyPct}%` }" />
-          </div>
-          <p class="text-sm opacity-70">
-            {{ t('agentTeam.weeklyProgress', {
-              tokens: teamMe.team.weekly.token_sum.toLocaleString(),
-              tokenTarget: teamMe.team.weekly.token_target.toLocaleString(),
-              requests: teamMe.team.weekly.request_count.toLocaleString(),
-              requestTarget: teamMe.team.weekly.request_target.toLocaleString(),
-            }) }}
-          </p>
-        </section>
         <p v-if="affiliateInfo?.enabled" class="play-intro">
           {{ t('agentTeam.affiliateProgress', {
             tokens: teamMe.team.token_sum.toLocaleString(),
@@ -305,7 +176,7 @@ onMounted(loadTeam)
                 {{ t('agentTeam.captainBadge') }}
               </span>
             </div>
-              <div class="text-right text-sm">
+            <div class="text-right text-sm">
               <div class="font-medium tabular-nums">
                 {{ t('agentTeam.memberUsage', {
                   tokens: (member.token_sum ?? 0).toLocaleString(),
@@ -321,31 +192,9 @@ onMounted(loadTeam)
                   :style="{ width: `${member.token_pct ?? 0}%` }"
                 />
               </div>
-              <div v-if="isCaptain && member.user_id !== teamMe.team.captain_id" class="flex gap-2">
-                <button type="button" class="text-xs underline" @click="transferCaptain(member.user_id)">{{ t('agentTeam.transferCaptain') }}</button>
-                <button type="button" class="text-xs underline" @click="removeMember(member.user_id)">{{ t('agentTeam.removeMember') }}</button>
-              </div>
             </div>
           </li>
         </ul>
-        <section v-if="isCaptain && joinRequests.length" class="space-y-3 border-t border-[var(--play-line)] pt-4">
-          <h3 class="font-medium">{{ t('agentTeam.joinRequestsTitle') }}</h3>
-          <div v-for="request in joinRequests" :key="request.id" class="flex items-center justify-between gap-3 text-sm">
-            <span>{{ request.display_name }}</span>
-            <div class="flex gap-2">
-              <button type="button" class="play-btn play-btn-primary" @click="reviewRequest(request.id, true)">{{ t('agentTeam.approve') }}</button>
-              <button type="button" class="play-btn play-btn-secondary" @click="reviewRequest(request.id, false)">{{ t('agentTeam.reject') }}</button>
-            </div>
-          </div>
-        </section>
-        <section class="space-y-2 border-t border-[var(--play-line)] pt-4">
-          <h3 class="font-medium">{{ t('agentTeam.activityTitle') }}</h3>
-          <p v-if="!activity.length" class="text-sm opacity-60">{{ t('agentTeam.activityEmpty') }}</p>
-          <ul v-else class="space-y-2 text-sm">
-            <li v-for="item in activity" :key="item.id">{{ activityLabel(item) }}</li>
-          </ul>
-        </section>
-        <button type="button" class="play-btn play-btn-secondary" @click="leaveCurrentTeam">{{ t('agentTeam.leaveTeam') }}</button>
       </div>
       <div v-else class="play-section space-y-6">
         <div>
@@ -366,16 +215,6 @@ onMounted(loadTeam)
             </button>
           </div>
         </div>
-        <section v-if="discoveries.length" class="space-y-3 border-t border-[var(--play-line)] pt-5">
-          <h2 class="play-section-title">{{ t('agentTeam.discoverTitle') }}</h2>
-          <div v-for="team in discoveries" :key="team.id" class="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--play-line)] py-3">
-            <div>
-              <div class="font-medium">{{ team.name }} · Lv.{{ team.level }}</div>
-              <div class="text-sm opacity-60">{{ t('agentTeam.discoveryStats', { members: team.member_count, max: team.max_members, requests: team.request_count.toLocaleString() }) }}</div>
-            </div>
-            <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="requestJoin(team.id)">{{ t('agentTeam.requestJoin') }}</button>
-          </div>
-        </section>
       </div>
     </main>
 

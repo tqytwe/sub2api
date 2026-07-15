@@ -74,8 +74,8 @@ func defaultPlayVIPTiers() []PlayVIPTier {
 	return []PlayVIPTier{
 		{Tier: 0, Label: "V0", MinRecharge: 0},
 		{Tier: 1, Label: "V1", MinRecharge: 50, Perks: []string{"models_vip_tag"}},
-		{Tier: 2, Label: "V2", MinRecharge: 200, Perks: []string{"models_vip_tag"}},
-		{Tier: 3, Label: "V3", MinRecharge: 500, Perks: []string{"models_vip_tag", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
+		{Tier: 2, Label: "V2", MinRecharge: 200, Perks: []string{"models_vip_tag", "blindbox_pool_upgrade"}},
+		{Tier: 3, Label: "V3", MinRecharge: 500, Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
 	}
 }
 
@@ -88,9 +88,6 @@ func parsePlayVIPTiers(raw string) []PlayVIPTier {
 	if err := json.Unmarshal([]byte(raw), &items); err != nil || len(items) == 0 {
 		return defaultPlayVIPTiers()
 	}
-	for i := range items {
-		items[i].Perks = removeUnsupportedVIPPerks(items[i].Perks)
-	}
 	sort.Slice(items, func(i, j int) bool {
 		if items[i].MinRecharge == items[j].MinRecharge {
 			return items[i].Tier < items[j].Tier
@@ -98,15 +95,4 @@ func parsePlayVIPTiers(raw string) []PlayVIPTier {
 		return items[i].MinRecharge < items[j].MinRecharge
 	})
 	return items
-}
-
-func removeUnsupportedVIPPerks(perks []string) []string {
-	out := make([]string, 0, len(perks))
-	for _, perk := range perks {
-		if strings.TrimSpace(perk) == "blindbox_pool_upgrade" {
-			continue
-		}
-		out = append(out, perk)
-	}
-	return out
 }

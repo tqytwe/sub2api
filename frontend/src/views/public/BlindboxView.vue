@@ -8,7 +8,6 @@ import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayBlindboxOpenResult, type PlayBlindboxRecentWin, type PlayBlindboxStatus } from '@/api/play'
 import '@/styles/public-pages.css'
-import { trackGrowthEvent } from '@/utils/growthAnalytics'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
@@ -28,10 +27,13 @@ const canOpen = computed(
     !opening.value,
 )
 
-const prizeTiers = computed(() => (status.value?.pool?.tiers || []).map((tier) => ({
-  amount: tier.amount.toFixed(2),
-  rate: `${(tier.weight / 100).toFixed(tier.weight % 100 === 0 ? 0 : 2)}%`,
-})))
+const prizeTiers = [
+  { amount: '0.05', rate: '40%' },
+  { amount: '0.20', rate: '30%' },
+  { amount: '0.50', rate: '20%' },
+  { amount: '1.00', rate: '8%' },
+  { amount: '2.00', rate: '2%' },
+]
 
 function formatWinWhen(iso: string): string {
   const d = new Date(iso)
@@ -50,11 +52,7 @@ async function loadRecentWins() {
 
 async function loadStatus() {
   if (!authStore.isAuthenticated) {
-    try {
-      status.value = await playAPI.getBlindboxPool()
-    } catch {
-      status.value = null
-    }
+    status.value = { enabled: false, cost_amount: 0, daily_limit: 0, opens_today: 0, can_open: false, server_date: '' }
     loading.value = false
     return
   }
@@ -73,7 +71,6 @@ async function handleOpen() {
   opening.value = true
   try {
     lastResult.value = await playAPI.openBlindbox(`blindbox-${Date.now()}`)
-	trackGrowthEvent('blindbox_opened', { pool_version: lastResult.value.pool_version, source: lastResult.value.open_source, reward: lastResult.value.reward_amount })
     appStore.showSuccess(
       t('blindbox.success', {
         reward: lastResult.value.reward_amount.toFixed(2),
@@ -122,13 +119,7 @@ onMounted(async () => {
         <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
         <template v-else>
           <p class="play-intro">
-            {{ t('blindbox.costHint', { cost: status.cost_amount.toFixed(2), opens: status.opens_today, limit: status.effective_limit || status.daily_limit }) }}
-          </p>
-          <p v-if="status.ticket_balance > 0" class="play-note">
-            {{ t('blindbox.ticketHint', { count: status.ticket_balance }) }}
-          </p>
-          <p v-if="!status.paid_enabled || !status.region_enabled" class="play-note">
-            {{ t('blindbox.paidDisabled') }}
+            {{ t('blindbox.costHint', { cost: status.cost_amount.toFixed(2), opens: status.opens_today, limit: status.daily_limit }) }}
           </p>
           <button type="button" class="play-btn play-btn-primary" :disabled="!canOpen" @click="handleOpen">
             {{ opening ? t('blindbox.opening') : t('blindbox.openButton') }}

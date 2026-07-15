@@ -133,8 +133,6 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	play := admin.Group("/play")
 	{
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
-		play.GET("/growth-config", h.Admin.Play.GetGrowthConfig)
-		play.PUT("/growth-config", h.Admin.Play.UpdateGrowthConfig)
 	}
 }
 

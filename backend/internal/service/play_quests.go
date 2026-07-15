@@ -145,31 +145,7 @@ func (s *PlayService) GetDailyArenaCurrent(ctx context.Context, userID int64) (*
 		return out, nil
 	}
 	out.Period = period
-	s.refreshArenaAggregates(ctx)
 	if userID <= 0 {
-		return out, nil
-	}
-	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
-	if err != nil {
-		return nil, err
-	}
-	out.ArenaScoreMultiplier = mods.ArenaScoreMultiplier
-	if out.ArenaScoreMultiplier <= 0 {
-		out.ArenaScoreMultiplier = 1
-	}
-	if aggregateRepo, ok := s.repo.(ArenaAggregateRepository); ok {
-		score, rank, gap, _, _, err := aggregateRepo.GetArenaAggregateScore(ctx, userID, "daily", period.StartAt)
-		if err != nil {
-			return nil, err
-		}
-		out.TokenSum = score
-		out.DisplayTokenSum = score
-		out.Rank = rank
-		out.TokensToPrevRank = gap
-		out.CampaignActive = mods.CampaignActive
-		if boost, err := s.getRechargeBoostStatus(ctx, userID, rt); err == nil && boost.Active {
-			out.RechargeBoostActive = true
-		}
 		return out, nil
 	}
 	tokenSum, rank, err := s.repo.GetUserArenaScore(ctx, userID, period.StartAt, period.EndAt)
@@ -178,7 +154,7 @@ func (s *PlayService) GetDailyArenaCurrent(ctx context.Context, userID int64) (*
 	}
 	out.TokenSum = tokenSum
 	out.Rank = rank
-	out.DisplayTokenSum = applyArenaScoreMultiplier(tokenSum, out.ArenaScoreMultiplier)
+	out.DisplayTokenSum = tokenSum
 	if rank > 1 {
 		gap, err := s.repo.GetArenaTokensToPrevRank(ctx, userID, period.StartAt, period.EndAt, rank, tokenSum)
 		if err != nil {
@@ -201,14 +177,6 @@ func (s *PlayService) ListDailyArenaLeaderboard(ctx context.Context, limit int) 
 	}
 	if period == nil {
 		return []PlayArenaScoreRow{}, nil, nil
-	}
-	s.refreshArenaAggregates(ctx)
-	if aggregateRepo, ok := s.repo.(ArenaAggregateRepository); ok {
-		rows, err := aggregateRepo.ListArenaAggregateLeaderboard(ctx, "daily", period.StartAt, limit)
-		if err != nil {
-			return nil, nil, err
-		}
-		return rows, period, nil
 	}
 	rows, err := s.repo.ListArenaLeaderboard(ctx, period.StartAt, period.EndAt, limit)
 	if err != nil {
