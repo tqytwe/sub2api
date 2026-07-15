@@ -26,6 +26,7 @@ const appStore = useAppStore()
 const thumbUrls = ref<Record<string, string>>({})
 const loadingAssets = ref<Set<string>>(new Set())
 const failedAssets = ref<Set<string>>(new Set())
+let disposed = false
 
 const displayJobs = computed(() => {
   if ((props.resultMode || props.featured) && props.latestJob) return [props.latestJob]
@@ -50,6 +51,16 @@ function legacySrc(asset: ImageStudioAsset) {
   return buildApiUrl(raw)
 }
 
+function displayedManagedAssetIds() {
+  const ids = new Set<string>()
+  for (const job of displayJobs.value) {
+    for (const asset of job.assets || []) {
+      if (isManagedAsset(asset)) ids.add(asset.id)
+    }
+  }
+  return ids
+}
+
 async function ensureThumb(asset: ImageStudioAsset) {
   if (!isManagedAsset(asset) || thumbUrls.value[asset.id] || loadingAssets.value.has(asset.id)) return
   loadingAssets.value.add(asset.id)
@@ -59,15 +70,32 @@ async function ensureThumb(asset: ImageStudioAsset) {
     if (!blob || blob.size === 0 || String(blob.type || '').includes('json')) {
       throw new Error('empty or invalid asset blob')
     }
-    thumbUrls.value = { ...thumbUrls.value, [asset.id]: URL.createObjectURL(blob) }
+    const objectUrl = URL.createObjectURL(blob)
+    if (disposed || !displayedManagedAssetIds().has(asset.id)) {
+      URL.revokeObjectURL(objectUrl)
+      return
+    }
+    const previousUrl = thumbUrls.value[asset.id]
+    if (previousUrl && previousUrl !== objectUrl) URL.revokeObjectURL(previousUrl)
+    thumbUrls.value = { ...thumbUrls.value, [asset.id]: objectUrl }
   } catch {
-    failedAssets.value.add(asset.id)
+    if (!disposed && displayedManagedAssetIds().has(asset.id)) failedAssets.value.add(asset.id)
   } finally {
     loadingAssets.value.delete(asset.id)
   }
 }
 
 function syncThumbs() {
+  const displayedIds = displayedManagedAssetIds()
+  const retainedUrls = { ...thumbUrls.value }
+  for (const [assetId, url] of Object.entries(retainedUrls)) {
+    if (displayedIds.has(assetId)) continue
+    URL.revokeObjectURL(url)
+    delete retainedUrls[assetId]
+  }
+  thumbUrls.value = retainedUrls
+  failedAssets.value = new Set([...failedAssets.value].filter((assetId) => displayedIds.has(assetId)))
+
   for (const job of displayJobs.value) {
     for (const asset of job.assets || []) {
       void ensureThumb(asset)
@@ -78,11 +106,14 @@ function syncThumbs() {
 watch(displayJobs, syncThumbs, { immediate: true, deep: true })
 
 onUnmounted(() => {
+  disposed = true
   Object.values(thumbUrls.value).forEach((url) => URL.revokeObjectURL(url))
+  thumbUrls.value = {}
 })
 
 function thumbSrc(asset: ImageStudioAsset) {
   if (thumbUrls.value[asset.id]) return thumbUrls.value[asset.id]
+  if (isManagedAsset(asset)) return ''
   return legacySrc(asset)
 }
 

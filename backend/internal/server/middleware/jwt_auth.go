@@ -15,6 +15,17 @@ func NewJWTAuthMiddleware(authService *service.AuthService, userService *service
 	return JWTAuthMiddleware(jwtAuth(authService, userService, userService))
 }
 
+// OptionalJWTAuth preserves public access while resolving a supplied JWT.
+func OptionalJWTAuth(required JWTAuthMiddleware) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if len(c.Request.Header.Values("Authorization")) == 0 {
+			c.Next()
+			return
+		}
+		gin.HandlerFunc(required)(c)
+	}
+}
+
 type jwtUserReader interface {
 	GetByID(ctx context.Context, id int64) (*service.User, error)
 }

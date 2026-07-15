@@ -273,6 +273,9 @@ func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *se
 		return nil, 0, service.ErrImageStudioAPIKey
 	}
 	apiKey = authKey
+	if service.ValidateImageStudioAPIKey(apiKey) != nil {
+		return nil, 0, service.ErrImageStudioAPIKey
+	}
 	if h.gateway == nil {
 		return nil, 0, service.ErrImageStudioDisabled
 	}

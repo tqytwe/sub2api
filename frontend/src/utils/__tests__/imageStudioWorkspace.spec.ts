@@ -1,8 +1,10 @@
-import { describe, expect, it } from 'vitest'
-import type { ImageStudioCatalog } from '@/api/imageStudio'
+import { describe, expect, it, vi } from 'vitest'
+import type { ImageStudioCatalog, ImageStudioModelOption } from '@/api/imageStudio'
 import {
+  findFirstImageStudioKeyWithModels,
   flattenImageStudioTemplates,
   isImageStudioPromptValid,
+  loadAllActiveImageStudioKeys,
   resolveInitialImageStudioTemplate,
 } from '@/utils/imageStudioWorkspace'
 
@@ -38,5 +40,53 @@ describe('image studio workspace helpers', () => {
   it('requires a non-whitespace prompt', () => {
     expect(isImageStudioPromptValid('  ')).toBe(false)
     expect(isImageStudioPromptValid('matte black headphones')).toBe(true)
+  })
+
+  it('selects the first API key whose group exposes image models', async () => {
+    const imageModel: ImageStudioModelOption = { id: 'gpt-image-1', display_name: 'GPT Image 1' }
+    const loadModels = vi.fn(async (keyId: number) => {
+      if (keyId === 10) throw new Error('IMAGE_STUDIO_IMAGE_NOT_ALLOWED')
+      if (keyId === 11) return []
+      return [imageModel]
+    })
+
+    const selection = await findFirstImageStudioKeyWithModels([
+      { id: 10, name: 'Default' },
+      { id: 11, name: 'Text only' },
+      { id: 12, name: 'Images' },
+      { id: 13, name: 'Unused' },
+    ], loadModels)
+
+    expect(selection).toEqual({ key: { id: 12, name: 'Images' }, models: [imageModel] })
+    expect(loadModels.mock.calls.map(([keyId]) => keyId)).toEqual([10, 11, 12])
+  })
+
+  it('returns null when no API key exposes image models', async () => {
+    const loadModels = vi.fn()
+      .mockRejectedValueOnce(new Error('not allowed'))
+      .mockResolvedValueOnce([])
+
+    await expect(findFirstImageStudioKeyWithModels([
+      { id: 10, name: 'Default' },
+      { id: 11, name: 'Text only' },
+    ], loadModels)).resolves.toBeNull()
+  })
+
+  it('loads every API key page and keeps only active keys', async () => {
+    const loadPage = vi.fn(async (page: number) => ({
+      items: page === 1
+        ? [
+            { id: 10, name: 'Disabled', status: 'inactive' },
+            { id: 11, name: 'First active', status: 'active' },
+          ]
+        : [{ id: 12, name: 'Later active', status: 'active' }],
+      pages: 2,
+    }))
+
+    await expect(loadAllActiveImageStudioKeys(loadPage)).resolves.toEqual([
+      { id: 11, name: 'First active' },
+      { id: 12, name: 'Later active' },
+    ])
+    expect(loadPage.mock.calls).toEqual([[1, 100], [2, 100]])
   })
 })

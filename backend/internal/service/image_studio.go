@@ -31,6 +31,14 @@ var (
 	ErrImageStudioAssetNotFound  = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
 )
 
+// ValidateImageStudioAPIKey rejects keys that cannot authorize a generation request.
+func ValidateImageStudioAPIKey(apiKey *APIKey) error {
+	if apiKey == nil || !apiKey.IsActive() || apiKey.IsExpired() || apiKey.IsQuotaExhausted() {
+		return ErrImageStudioAPIKey
+	}
+	return nil
+}
+
 type ImageStudioAsset struct {
 	ID          string `json:"id"`
 	URL         string `json:"url,omitempty"`
@@ -597,13 +605,16 @@ func (s *ImageStudioService) resolveAPIKey(ctx context.Context, userID, apiKeyID
 		if err != nil {
 			return nil, ErrImageStudioAPIKey
 		}
-		if key.UserID != userID {
+		if key.UserID != userID || ValidateImageStudioAPIKey(key) != nil {
 			return nil, ErrImageStudioAPIKey
 		}
 		return key, nil
 	}
-	keys, _, err := s.apiKeyService.List(ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 1}, APIKeyListFilters{})
+	keys, _, err := s.apiKeyService.List(ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 1}, APIKeyListFilters{Status: StatusAPIKeyActive})
 	if err != nil || len(keys) == 0 {
+		return nil, ErrImageStudioAPIKey
+	}
+	if ValidateImageStudioAPIKey(&keys[0]) != nil {
 		return nil, ErrImageStudioAPIKey
 	}
 	return &keys[0], nil
