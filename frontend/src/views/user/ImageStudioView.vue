@@ -6,76 +6,76 @@ import Icon from '@/components/icons/Icon.vue'
 import ImageStudioGallery from '@/components/imageStudio/ImageStudioGallery.vue'
 import ImageStudioPreviewModal from '@/components/imageStudio/ImageStudioPreviewModal.vue'
 import ImageStudioSizePicker from '@/components/imageStudio/ImageStudioSizePicker.vue'
-import { useImageStudioWizard } from '@/composables/useImageStudioWizard'
+import { useImageStudioWorkspace } from '@/composables/useImageStudioWorkspace'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import type { ImageStudioJob, ImageStudioTemplate } from '@/api/imageStudio'
 import { flattenImageStudioTemplates } from '@/utils/imageStudioWorkspace'
 
 const { t } = useI18n()
 const enabled = isFeatureFlagEnabled(FeatureFlags.imageStudio)
-const wizard = useImageStudioWizard()
+const workspace = useImageStudioWorkspace()
 
 const mobileView = ref<'create' | 'works'>('create')
 const promptTouched = ref(false)
 
-const templateOptions = computed(() => flattenImageStudioTemplates(wizard.catalog.value))
+const templateOptions = computed(() => flattenImageStudioTemplates(workspace.catalog.value))
 
 const featuredJob = computed<ImageStudioJob | null>(() =>
-  wizard.latestJob.value ?? wizard.jobs.value[0] ?? null,
+  workspace.latestJob.value ?? workspace.jobs.value[0] ?? null,
 )
 
 const historyJobs = computed(() => {
   const featuredId = featuredJob.value?.id
-  return wizard.jobs.value.filter((job) => job.id !== featuredId)
+  return workspace.jobs.value.filter((job) => job.id !== featuredId)
 })
 
 const selectedTemplateDescription = computed(() =>
-  wizard.labelFor(wizard.selectedTemplate.value?.description),
+  workspace.labelFor(workspace.selectedTemplate.value?.description),
 )
 
-const selectedTemplatePreview = computed(() => wizard.selectedTemplate.value?.preview_url || '')
+const selectedTemplatePreview = computed(() => workspace.selectedTemplate.value?.preview_url || '')
 
-const promptLength = computed(() => wizard.userPrompt.value.length)
+const promptLength = computed(() => workspace.userPrompt.value.length)
 const canGenerate = computed(() =>
-  wizard.promptValid.value
-    && !!wizard.selectedTemplate.value
-    && !!wizard.apiKeyId.value
-    && !!wizard.selectedModel.value
-    && !!wizard.estimate.value
-    && !wizard.generating.value
-    && !wizard.polling.value,
+  workspace.promptValid.value
+    && !!workspace.selectedTemplate.value
+    && !!workspace.apiKeyId.value
+    && !!workspace.selectedModel.value
+    && !!workspace.estimate.value
+    && !workspace.generating.value
+    && !workspace.polling.value,
 )
 
 const generateLabel = computed(() => {
-  if (wizard.generating.value || wizard.polling.value) return t('imageStudio.generating')
-  return t('imageStudio.generateCount', { count: wizard.count.value })
+  if (workspace.generating.value || workspace.polling.value) return t('imageStudio.generating')
+  return t('imageStudio.generateCount', { count: workspace.count.value })
 })
 
 const selectedModelLabel = computed(() =>
-  wizard.selectedModelOption.value?.display_name || wizard.selectedModel.value || t('imageStudio.noModelSelected'),
+  workspace.selectedModelOption.value?.display_name || workspace.selectedModel.value || t('imageStudio.noModelSelected'),
 )
 
 function selectTemplate(template: ImageStudioTemplate) {
-  wizard.pickTemplate(template)
+  workspace.pickTemplate(template)
 }
 
 function changeCount(delta: number) {
-  const next = Math.min(wizard.maxCount.value, Math.max(1, wizard.count.value + delta))
-  wizard.count.value = next
+  const next = Math.min(workspace.maxCount.value, Math.max(1, workspace.count.value + delta))
+  workspace.count.value = next
 }
 
 async function generate() {
   promptTouched.value = true
-  if (!wizard.promptValid.value) {
+  if (!workspace.promptValid.value) {
     mobileView.value = 'create'
     return
   }
   mobileView.value = 'works'
-  await wizard.generate()
+  await workspace.generate()
 }
 
 function reuseJob(job: ImageStudioJob) {
-  wizard.regenerateFromJob(job)
+  workspace.regenerateFromJob(job)
   mobileView.value = 'create'
 }
 </script>
@@ -111,7 +111,7 @@ function reuseJob(job: ImageStudioJob) {
         </button>
       </div>
 
-      <div v-if="wizard.bootstrapping.value" class="card flex min-h-72 items-center justify-center p-8">
+      <div v-if="workspace.bootstrapping.value" class="card flex min-h-72 items-center justify-center p-8">
         <div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
           <span class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
           {{ t('models.loading') }}
@@ -131,7 +131,7 @@ function reuseJob(job: ImageStudioJob) {
             <span class="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.settingsRetained') }}</span>
           </header>
 
-          <div v-if="!wizard.hasApiKeys.value" class="p-5">
+          <div v-if="!workspace.hasApiKeys.value" class="p-5">
             <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center dark:border-dark-600 dark:bg-dark-900">
               <div class="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-white text-gray-500 shadow-sm dark:bg-dark-800 dark:text-gray-300">
                 <Icon name="key" />
@@ -154,20 +154,20 @@ function reuseJob(job: ImageStudioJob) {
                   :key="option.template.id"
                   type="button"
                   class="group relative min-w-0 rounded-xl border bg-white p-1.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:bg-dark-800"
-                  :class="wizard.selectedTemplate.value?.id === option.template.id
+                  :class="workspace.selectedTemplate.value?.id === option.template.id
                     ? 'border-primary-500 ring-2 ring-primary-500/10 dark:border-primary-400'
                     : 'border-gray-200 hover:border-gray-300 dark:border-dark-600 dark:hover:border-dark-500'"
                   @click="selectTemplate(option.template)"
                 >
                   <div class="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100 dark:bg-dark-900">
-                    <img v-if="option.template.preview_url" :src="option.template.preview_url" :alt="wizard.labelFor(option.template.label)" class="h-full w-full object-cover" />
+                    <img v-if="option.template.preview_url" :src="option.template.preview_url" :alt="workspace.labelFor(option.template.label)" class="h-full w-full object-cover" />
                     <span v-else class="grid h-full place-items-center text-2xl">{{ option.template.preview_emoji }}</span>
-                    <span v-if="wizard.selectedTemplate.value?.id === option.template.id" class="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-primary-500 text-white shadow ring-2 ring-white dark:ring-dark-800">
+                    <span v-if="workspace.selectedTemplate.value?.id === option.template.id" class="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-primary-500 text-white shadow ring-2 ring-white dark:ring-dark-800">
                       <Icon name="check" size="xs" :stroke-width="2.5" />
                     </span>
                   </div>
-                  <p class="mt-2 h-8 overflow-hidden px-0.5 text-xs font-semibold leading-4 text-gray-800 dark:text-gray-100">{{ wizard.labelFor(option.template.label) }}</p>
-                  <p class="mt-0.5 hidden truncate px-0.5 text-[10px] text-gray-400 sm:block dark:text-gray-500">{{ wizard.labelFor(option.template.description) }}</p>
+                  <p class="mt-2 h-8 overflow-hidden px-0.5 text-xs font-semibold leading-4 text-gray-800 dark:text-gray-100">{{ workspace.labelFor(option.template.label) }}</p>
+                  <p class="mt-0.5 hidden truncate px-0.5 text-[10px] text-gray-400 sm:block dark:text-gray-500">{{ workspace.labelFor(option.template.description) }}</p>
                 </button>
               </div>
             </div>
@@ -179,112 +179,112 @@ function reuseJob(job: ImageStudioJob) {
                   <span class="text-xs text-gray-400 dark:text-gray-500">{{ promptLength }} / 500</span>
                 </span>
                 <textarea
-                  v-model="wizard.userPrompt.value"
+                  v-model="workspace.userPrompt.value"
                   class="input min-h-[88px] resize-y leading-6"
-                  :class="{ 'input-error': promptTouched && !wizard.promptValid.value }"
+                  :class="{ 'input-error': promptTouched && !workspace.promptValid.value }"
                   rows="3"
                   maxlength="500"
                   :placeholder="t('imageStudio.promptPlaceholder')"
                   @blur="promptTouched = true"
                 />
-                <span v-if="promptTouched && !wizard.promptValid.value" class="input-error-text">{{ t('imageStudio.promptRequired') }}</span>
+                <span v-if="promptTouched && !workspace.promptValid.value" class="input-error-text">{{ t('imageStudio.promptRequired') }}</span>
               </label>
 
-              <label v-if="wizard.showAccentColor.value" class="block">
+              <label v-if="workspace.showAccentColor.value" class="block">
                 <span class="mb-2 flex items-center justify-between gap-3">
                   <span class="input-label mb-0">{{ t('imageStudio.accentColor') }}</span>
                   <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.optional') }}</span>
                 </span>
                 <span class="flex items-center gap-2">
-                  <input v-model="wizard.accentColor.value" type="color" class="h-11 w-12 cursor-pointer rounded-xl border border-gray-200 bg-white p-1 dark:border-dark-600 dark:bg-dark-800" />
-                  <input v-model="wizard.accentColor.value" class="input max-w-32 font-mono uppercase" maxlength="7" />
+                  <input v-model="workspace.accentColor.value" type="color" class="h-11 w-12 cursor-pointer rounded-xl border border-gray-200 bg-white p-1 dark:border-dark-600 dark:bg-dark-800" />
+                  <input v-model="workspace.accentColor.value" class="input max-w-32 font-mono uppercase" maxlength="7" />
                 </span>
               </label>
 
               <ImageStudioSizePicker
-                :capabilities="wizard.capabilities.value"
-                :aspect="wizard.aspect.value"
-                :tier="wizard.tier.value"
-                :selected-model="wizard.selectedModelOption.value"
-                :disabled="wizard.polling.value || wizard.generating.value"
-                @update:aspect="wizard.onAspectChange"
-                @update:tier="wizard.onTierChange"
+                :capabilities="workspace.capabilities.value"
+                :aspect="workspace.aspect.value"
+                :tier="workspace.tier.value"
+                :selected-model="workspace.selectedModelOption.value"
+                :disabled="workspace.polling.value || workspace.generating.value"
+                @update:aspect="workspace.onAspectChange"
+                @update:tier="workspace.onTierChange"
               />
 
               <div>
                 <span class="input-label">{{ t('imageStudio.count') }}</span>
                 <div class="grid h-11 grid-cols-[44px_1fr_44px] items-center rounded-xl border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
-                  <button type="button" class="grid h-full place-items-center rounded-l-xl text-gray-500 hover:bg-gray-50 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-dark-700" :disabled="wizard.count.value <= 1" :aria-label="t('imageStudio.decreaseCount')" @click="changeCount(-1)">
+                  <button type="button" class="grid h-full place-items-center rounded-l-xl text-gray-500 hover:bg-gray-50 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-dark-700" :disabled="workspace.count.value <= 1" :aria-label="t('imageStudio.decreaseCount')" @click="changeCount(-1)">
                     <span class="text-lg">−</span>
                   </button>
-                  <strong class="text-center tabular-nums text-gray-900 dark:text-white">{{ wizard.count.value }}</strong>
-                  <button type="button" class="grid h-full place-items-center rounded-r-xl text-gray-500 hover:bg-gray-50 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-dark-700" :disabled="wizard.count.value >= wizard.maxCount.value" :aria-label="t('imageStudio.increaseCount')" @click="changeCount(1)">
+                  <strong class="text-center tabular-nums text-gray-900 dark:text-white">{{ workspace.count.value }}</strong>
+                  <button type="button" class="grid h-full place-items-center rounded-r-xl text-gray-500 hover:bg-gray-50 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-dark-700" :disabled="workspace.count.value >= workspace.maxCount.value" :aria-label="t('imageStudio.increaseCount')" @click="changeCount(1)">
                     <Icon name="plus" size="sm" />
                   </button>
                 </div>
-                <p v-if="wizard.isNewUser.value" class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.newUserHint') }}</p>
+                <p v-if="workspace.isNewUser.value" class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.newUserHint') }}</p>
               </div>
             </div>
 
-            <details class="group border-b border-gray-100 dark:border-dark-700" @toggle="wizard.expertOpen.value = ($event.target as HTMLDetailsElement).open">
+            <details class="group border-b border-gray-100 dark:border-dark-700" @toggle="workspace.expertOpen.value = ($event.target as HTMLDetailsElement).open">
               <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-dark-700/50">
                 <span>{{ t('imageStudio.advancedSettings') }}</span>
                 <span class="flex min-w-0 items-center gap-2 text-xs font-normal text-gray-400 dark:text-gray-500">
-                  <span class="max-w-48 truncate">{{ selectedModelLabel }} · {{ wizard.apiKeys.value.find((key) => key.id === wizard.apiKeyId.value)?.name }}</span>
+                  <span class="max-w-48 truncate">{{ selectedModelLabel }} · {{ workspace.apiKeys.value.find((key) => key.id === workspace.apiKeyId.value)?.name }}</span>
                   <Icon name="chevronDown" size="xs" class="transition group-open:rotate-180" />
                 </span>
               </summary>
               <div class="space-y-4 border-t border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-dark-700 dark:bg-dark-900/50">
                 <label class="block">
                   <span class="input-label">{{ t('imageStudio.apiKey') }}</span>
-                  <select v-model.number="wizard.apiKeyId.value" class="input" :disabled="wizard.polling.value || wizard.generating.value">
-                    <option v-for="key in wizard.apiKeys.value" :key="key.id" :value="key.id">{{ key.name }}</option>
+                  <select v-model.number="workspace.apiKeyId.value" class="input" :disabled="workspace.polling.value || workspace.generating.value">
+                    <option v-for="key in workspace.apiKeys.value" :key="key.id" :value="key.id">{{ key.name }}</option>
                   </select>
                 </label>
                 <label class="block">
                   <span class="input-label">{{ t('imageStudio.model') }}</span>
-                  <select v-model="wizard.selectedModel.value" class="input" :disabled="wizard.loadingModels.value || !wizard.availableModels.value.length || wizard.polling.value || wizard.generating.value">
-                    <option v-if="wizard.loadingModels.value" value="">{{ t('imageStudio.loadingModels') }}</option>
-                    <option v-for="model in wizard.availableModels.value" :key="model.id" :value="model.id">{{ model.display_name || model.id }}</option>
+                  <select v-model="workspace.selectedModel.value" class="input" :disabled="workspace.loadingModels.value || !workspace.availableModels.value.length || workspace.polling.value || workspace.generating.value">
+                    <option v-if="workspace.loadingModels.value" value="">{{ t('imageStudio.loadingModels') }}</option>
+                    <option v-for="model in workspace.availableModels.value" :key="model.id" :value="model.id">{{ model.display_name || model.id }}</option>
                   </select>
                 </label>
-                <label v-if="wizard.showQuality.value" class="block">
+                <label v-if="workspace.showQuality.value" class="block">
                   <span class="input-label">{{ t('imageStudio.renderQuality') }}</span>
-                  <select v-model="wizard.quality.value" class="input" :disabled="wizard.polling.value || wizard.generating.value">
-                    <option v-for="quality in wizard.selectedModelOption.value?.supported_qualities || []" :key="quality" :value="quality">{{ t(`imageStudio.qualityOptions.${quality}`, quality) }}</option>
+                  <select v-model="workspace.quality.value" class="input" :disabled="workspace.polling.value || workspace.generating.value">
+                    <option v-for="quality in workspace.selectedModelOption.value?.supported_qualities || []" :key="quality" :value="quality">{{ t(`imageStudio.qualityOptions.${quality}`, quality) }}</option>
                   </select>
                 </label>
                 <label class="block">
                   <span class="input-label">{{ t('imageStudio.expertPrompt') }}</span>
-                  <textarea v-model="wizard.expertPrompt.value" class="input min-h-20 resize-y font-mono text-xs leading-5" rows="3" />
+                  <textarea v-model="workspace.expertPrompt.value" class="input min-h-20 resize-y font-mono text-xs leading-5" rows="3" />
                 </label>
                 <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <input v-model="wizard.autoCleanup.value" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" :disabled="wizard.polling.value || wizard.generating.value" @change="wizard.onAutoCleanupChange()" />
+                  <input v-model="workspace.autoCleanup.value" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" :disabled="workspace.polling.value || workspace.generating.value" @change="workspace.onAutoCleanupChange()" />
                   {{ t('imageStudio.autoCleanup') }}
                 </label>
               </div>
             </details>
 
             <div class="bg-gray-50/80 p-5 dark:bg-dark-900/60">
-              <p v-if="wizard.modelError.value || wizard.estimateError.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                {{ wizard.modelError.value || wizard.estimateError.value }}
+              <p v-if="workspace.modelError.value || workspace.estimateError.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {{ workspace.modelError.value || workspace.estimateError.value }}
               </p>
-              <p v-if="wizard.errorMsg.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                {{ wizard.errorMsg.value }}
+              <p v-if="workspace.errorMsg.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {{ workspace.errorMsg.value }}
               </p>
               <div class="mb-3 flex items-center justify-between gap-3 text-xs">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('imageStudio.estimateLabel') }}</span>
-                <span v-if="wizard.estimate.value" class="font-semibold tabular-nums text-gray-900 dark:text-white">
-                  ${{ wizard.estimate.value.estimated_cost.toFixed(4) }}
-                  <span class="ml-1 font-normal" :class="wizard.estimate.value.sufficient ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
-                    {{ wizard.estimate.value.sufficient ? t('imageStudio.balanceSufficient') : t('imageStudio.balanceInsufficient') }}
+                <span v-if="workspace.estimate.value" class="font-semibold tabular-nums text-gray-900 dark:text-white">
+                  ${{ workspace.estimate.value.estimated_cost.toFixed(4) }}
+                  <span class="ml-1 font-normal" :class="workspace.estimate.value.sufficient ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                    {{ workspace.estimate.value.sufficient ? t('imageStudio.balanceSufficient') : t('imageStudio.balanceInsufficient') }}
                   </span>
                 </span>
                 <span v-else class="text-gray-400">{{ t('imageStudio.estimatePending') }}</span>
               </div>
-              <button type="button" class="btn btn-primary w-full" :disabled="!wizard.promptValid.value || (!canGenerate && wizard.estimate.value?.sufficient !== false)" @click="generate">
+              <button type="button" class="btn btn-primary w-full" :disabled="!workspace.promptValid.value || (!canGenerate && workspace.estimate.value?.sufficient !== false)" @click="generate">
                 <Icon name="sparkles" size="sm" />
-                {{ wizard.estimate.value && !wizard.estimate.value.sufficient ? t('imageStudio.rechargeToGenerate') : generateLabel }}
+                {{ workspace.estimate.value && !workspace.estimate.value.sufficient ? t('imageStudio.rechargeToGenerate') : generateLabel }}
               </button>
             </div>
           </template>
@@ -299,17 +299,17 @@ function reuseJob(job: ImageStudioJob) {
               <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.latestResult') }}</h2>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('imageStudio.latestResultHint') }}</p>
             </div>
-            <span v-if="wizard.polling.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <span v-if="workspace.polling.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
               <span class="h-2 w-2 animate-pulse rounded-full bg-current" />
-              {{ wizard.pollNotice.value || t('imageStudio.polling') }}
+              {{ workspace.pollNotice.value || t('imageStudio.polling') }}
             </span>
           </header>
 
           <div class="p-4 sm:p-5">
-            <div v-if="wizard.polling.value" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl bg-gray-50 px-6 text-center dark:bg-dark-900">
+            <div v-if="workspace.polling.value" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl bg-gray-50 px-6 text-center dark:bg-dark-900">
               <span class="h-10 w-10 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
               <h3 class="mt-4 font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.generatingTitle') }}</h3>
-              <p class="mt-2 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{{ wizard.pollNotice.value || t('imageStudio.polling') }}</p>
+              <p class="mt-2 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{{ workspace.pollNotice.value || t('imageStudio.polling') }}</p>
             </div>
 
             <ImageStudioGallery
@@ -317,16 +317,16 @@ function reuseJob(job: ImageStudioJob) {
               :jobs="[featuredJob]"
               :latest-job="featuredJob"
               featured
-              @preview="wizard.openPreview"
-              @delete="wizard.removeJob"
+              @preview="workspace.openPreview"
+              @delete="workspace.removeJob"
               @regenerate="reuseJob"
             />
 
             <div v-else-if="selectedTemplatePreview" class="relative overflow-hidden rounded-xl bg-gray-100 dark:bg-dark-900">
-              <img :src="selectedTemplatePreview" :alt="wizard.labelFor(wizard.selectedTemplate.value?.label)" class="max-h-[62vh] min-h-72 w-full object-cover" />
+              <img :src="selectedTemplatePreview" :alt="workspace.labelFor(workspace.selectedTemplate.value?.label)" class="max-h-[62vh] min-h-72 w-full object-cover" />
               <span class="absolute left-3 top-3 rounded-lg bg-gray-950/70 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur">{{ t('imageStudio.templatePreview') }}</span>
               <div class="border-t border-gray-100 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
-                <p class="font-medium text-gray-900 dark:text-white">{{ wizard.labelFor(wizard.selectedTemplate.value?.label) }}</p>
+                <p class="font-medium text-gray-900 dark:text-white">{{ workspace.labelFor(workspace.selectedTemplate.value?.label) }}</p>
                 <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ selectedTemplateDescription }}</p>
               </div>
             </div>
@@ -343,8 +343,8 @@ function reuseJob(job: ImageStudioJob) {
             </div>
             <ImageStudioGallery
               :jobs="historyJobs"
-              @preview="wizard.openPreview"
-              @delete="wizard.removeJob"
+              @preview="workspace.openPreview"
+              @delete="workspace.removeJob"
               @regenerate="reuseJob"
             />
           </div>
@@ -353,20 +353,20 @@ function reuseJob(job: ImageStudioJob) {
     </div>
 
     <ImageStudioPreviewModal
-      :asset="wizard.previewAsset.value"
-      :job-id="wizard.previewJobId.value"
-      :index="wizard.previewIndex.value"
-      @close="wizard.closePreview()"
+      :asset="workspace.previewAsset.value"
+      :job-id="workspace.previewJobId.value"
+      :index="workspace.previewIndex.value"
+      @close="workspace.closePreview()"
     />
 
-    <div v-if="wizard.showFirstWin.value" class="fixed inset-0 z-[190] flex items-center justify-center bg-gray-950/60 p-5 backdrop-blur-sm" @click.self="wizard.showFirstWin.value = false">
+    <div v-if="workspace.showFirstWin.value" class="fixed inset-0 z-[190] flex items-center justify-center bg-gray-950/60 p-5 backdrop-blur-sm" @click.self="workspace.showFirstWin.value = false">
       <div class="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl dark:bg-dark-800">
         <div class="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
           <Icon name="checkCircle" size="lg" />
         </div>
         <h2 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.firstWinTitle') }}</h2>
         <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('imageStudio.firstWinHint') }}</p>
-        <button type="button" class="btn btn-primary mt-5 w-full" @click="wizard.showFirstWin.value = false">{{ t('imageStudio.firstWinCta') }}</button>
+        <button type="button" class="btn btn-primary mt-5 w-full" @click="workspace.showFirstWin.value = false">{{ t('imageStudio.firstWinCta') }}</button>
       </div>
     </div>
   </AppLayout>

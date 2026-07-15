@@ -7,7 +7,6 @@ import imageStudioAPI, {
   type ImageStudioCapabilities,
   type ImageStudioCatalog,
   type ImageStudioEstimate,
-  type ImageStudioIntent,
   type ImageStudioJob,
   type ImageStudioModelOption,
   type ImageStudioTemplate,
@@ -32,7 +31,7 @@ import {
 } from '@/utils/imageStudioSession'
 import { isImageStudioPromptValid, resolveInitialImageStudioTemplate } from '@/utils/imageStudioWorkspace'
 
-export function useImageStudioWizard() {
+export function useImageStudioWorkspace() {
   const { t, locale } = useI18n()
   const router = useRouter()
   const authStore = useAuthStore()
@@ -40,10 +39,8 @@ export function useImageStudioWizard() {
   const bootstrapping = ref(true)
   const generating = ref(false)
   const polling = ref(false)
-  const step = ref(1)
   const catalog = ref<ImageStudioCatalog | null>(null)
   const capabilities = ref<ImageStudioCapabilities | null>(null)
-  const selectedIntent = ref<ImageStudioIntent | null>(null)
   const selectedTemplate = ref<ImageStudioTemplate | null>(null)
   const userPrompt = ref('')
   const accentColor = ref('#1a1a1a')
@@ -84,7 +81,6 @@ export function useImageStudioWizard() {
   const isNewUser = computed(() => totalRecharged.value <= 0)
   const maxCount = computed(() => (isNewUser.value ? 1 : 4))
   const balance = computed(() => authStore.user?.balance ?? estimate.value?.balance ?? 0)
-  const balanceLow = computed(() => balance.value <= 0)
   const hasApiKeys = computed(() => apiKeys.value.length > 0)
   const showAccentColor = computed(() => selectedTemplate.value !== null)
   const showQuality = computed(() => (selectedModelOption.value?.supported_qualities?.length ?? 0) > 0)
@@ -100,22 +96,18 @@ export function useImageStudioWizard() {
     if (!lastId) return false
     const selection = resolveInitialImageStudioTemplate(catalog.value, lastId)
     if (!selection || selection.template.id !== lastId) return false
-    selectedIntent.value = selection.intent
     selectedTemplate.value = selection.template
     sizeCaps.applyTemplateDefault(selection.template.defaults.size, true)
     count.value = isNewUser.value ? 1 : Math.min(selection.template.defaults.count, maxCount.value)
-    step.value = 3
     return true
   }
 
   function applyDefaultTemplate() {
     const selection = resolveInitialImageStudioTemplate(catalog.value)
     if (!selection) return false
-    selectedIntent.value = selection.intent
     selectedTemplate.value = selection.template
     sizeCaps.applyTemplateDefault(selection.template.defaults.size, true)
     count.value = isNewUser.value ? 1 : Math.min(selection.template.defaults.count, maxCount.value)
-    step.value = 3
     return true
   }
 
@@ -187,7 +179,6 @@ export function useImageStudioWizard() {
       }
       latestJob.value = job
       jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
-      step.value = 4
       await authStore.refreshUser()
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : ''
@@ -252,21 +243,9 @@ export function useImageStudioWizard() {
     trackGrowthEvent('image_studio_size_change', { aspect, tier, resolved_size: size.value })
   })
 
-  function pickIntent(intent: ImageStudioIntent) {
-    trackGrowthEvent('image_studio_intent_select', { intent_id: intent.id })
-    selectedIntent.value = intent
-    selectedTemplate.value = intent.templates[0] ?? null
-    if (selectedTemplate.value) {
-      sizeCaps.applyTemplateDefault(selectedTemplate.value.defaults.size)
-      count.value = isNewUser.value ? 1 : Math.min(selectedTemplate.value.defaults.count, maxCount.value)
-    }
-    step.value = 2
-  }
-
   function pickTemplate(tpl: ImageStudioTemplate) {
     for (const intent of catalog.value?.intents ?? []) {
       if (intent.templates.some((item) => item.id === tpl.id)) {
-        selectedIntent.value = intent
         trackGrowthEvent('image_studio_intent_select', { intent_id: intent.id })
         break
       }
@@ -275,30 +254,6 @@ export function useImageStudioWizard() {
     selectedTemplate.value = tpl
     sizeCaps.applyTemplateDefault(tpl.defaults.size)
     count.value = isNewUser.value ? 1 : Math.min(tpl.defaults.count, maxCount.value)
-    step.value = 3
-  }
-
-  function goToStep(target: number) {
-    if (polling.value || generating.value) return
-    if (target < step.value) step.value = target
-  }
-
-  function goBack() {
-    if (polling.value || generating.value) return
-    if (step.value === 4) { step.value = 3; return }
-    if (step.value === 3) { step.value = 2; return }
-    if (step.value === 2) step.value = 1
-  }
-
-  function startOver() {
-    if (polling.value || generating.value) return
-    step.value = 1
-    selectedIntent.value = null
-    selectedTemplate.value = null
-    latestJob.value = null
-    errorMsg.value = ''
-    pollNotice.value = ''
-    sizeCaps.resetUserTouched()
   }
 
   function onAutoCleanupChange() {
@@ -323,7 +278,6 @@ export function useImageStudioWizard() {
     for (const intent of catalog.value.intents) {
       const tpl = intent.templates.find((x) => x.id === job.template_id)
       if (!tpl) continue
-      selectedIntent.value = intent
       selectedTemplate.value = tpl
       break
     }
@@ -332,7 +286,6 @@ export function useImageStudioWizard() {
     count.value = Math.min(job.count, maxCount.value)
     errorMsg.value = ''
     pollNotice.value = ''
-    step.value = 3
     void refreshEstimate()
   }
 
@@ -389,7 +342,6 @@ export function useImageStudioWizard() {
         errorMsg.value = t('imageStudio.assetsMissingHint')
         latestJob.value = job
         jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
-        step.value = 4
         pollNotice.value = ''
         return
       }
@@ -402,7 +354,6 @@ export function useImageStudioWizard() {
       trackQuestCompleteOnce('image_generate')
       latestJob.value = job
       jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
-      step.value = 4
       pollNotice.value = ''
       trackGrowthEvent('image_studio_result_view', { job_id: job.id, count: job.count })
       await authStore.refreshUser()
@@ -453,10 +404,8 @@ export function useImageStudioWizard() {
     generating,
     polling,
     pollNotice,
-    step,
     catalog,
     capabilities,
-    selectedIntent,
     selectedTemplate,
     userPrompt,
     accentColor,
@@ -482,7 +431,6 @@ export function useImageStudioWizard() {
     showFirstWin,
     latestJob,
     balance,
-    balanceLow,
     hasApiKeys,
     showAccentColor,
     showQuality,
@@ -493,11 +441,7 @@ export function useImageStudioWizard() {
     previewJobId,
     previewIndex,
     labelFor,
-    pickIntent,
     pickTemplate,
-    goToStep,
-    goBack,
-    startOver,
     onAutoCleanupChange,
     openPreview,
     closePreview,
