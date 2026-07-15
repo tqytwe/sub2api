@@ -788,13 +788,15 @@ func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
 	if parsed.MetadataUserID != "" {
 		uid := ParseMetadataUserID(parsed.MetadataUserID)
 		if uid != nil && uid.SessionID != "" {
+			seed := scopeStickySessionSeed(uid.SessionID, sessionContextAPIKeyID(parsed.SessionContext))
 			slog.Info("sticky.hash_source",
 				"source", "metadata_user_id",
 				"session_id", uid.SessionID,
 				"device_id", uid.DeviceID,
 				"is_new_format", uid.IsNewFormat,
+				"api_key_scoped", seed != uid.SessionID,
 			)
-			return uid.SessionID
+			return seed
 		}
 		slog.Info("sticky.hash_metadata_parse_failed",
 			"metadata_user_id", parsed.MetadataUserID,
@@ -803,12 +805,16 @@ func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
 	}
 
 	// 2. 提取带 cache_control: {type: "ephemeral"} 的内容
+	// Must still scope by API key: identical Claude prompts across users would otherwise
+	// collide and stick an entire group onto one upstream account.
 	cacheableContent := s.extractCacheableContent(parsed)
 	if cacheableContent != "" {
-		hash := s.hashContent(cacheableContent)
+		seed := scopeStickySessionSeed(cacheableContent, sessionContextAPIKeyID(parsed.SessionContext))
+		hash := s.hashContent(seed)
 		slog.Info("sticky.hash_source",
 			"source", "cacheable_content",
 			"hash", hash,
+			"api_key_scoped", seed != cacheableContent,
 		)
 		return hash
 	}
@@ -843,6 +849,23 @@ func (s *GatewayService) GenerateSessionHash(parsed *ParsedRequest) string {
 	}
 
 	return ""
+}
+
+func sessionContextAPIKeyID(sc *SessionContext) int64 {
+	if sc == nil {
+		return 0
+	}
+	return sc.APIKeyID
+}
+
+// scopeStickySessionSeed appends api-key isolation so sticky Redis keys do not
+// collapse all users in a group onto one upstream account.
+func scopeStickySessionSeed(seed string, apiKeyID int64) string {
+	seed = strings.TrimSpace(seed)
+	if seed == "" || apiKeyID <= 0 {
+		return seed
+	}
+	return seed + "|ak=" + strconv.FormatInt(apiKeyID, 10)
 }
 
 // BindStickySession sets session -> account binding with standard TTL.

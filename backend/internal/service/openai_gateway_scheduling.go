@@ -98,9 +98,25 @@ func (s *OpenAIGatewayService) GenerateSessionHash(c *gin.Context, body []byte) 
 		return ""
 	}
 
+	// Scope by API key so identical prompts/tools across users do not pin the
+	// whole group onto one upstream account via Redis sticky_session keys.
+	sessionID = scopeStickySessionSeed(sessionID, stickyAPIKeyIDFromGin(c))
+
 	currentHash, legacyHash := deriveOpenAISessionHashes(sessionID)
 	attachOpenAILegacySessionHashToGin(c, legacyHash)
 	return currentHash
+}
+
+func stickyAPIKeyIDFromGin(c *gin.Context) int64 {
+	if c == nil {
+		return 0
+	}
+	if v, ok := c.Get("api_key"); ok {
+		if key, ok := v.(*APIKey); ok && key != nil {
+			return key.ID
+		}
+	}
+	return 0
 }
 
 // GenerateSessionHashWithFallback 先按常规信号生成会话哈希；

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -67,10 +68,15 @@ func (r *imageStudioRepository) InsertAssets(ctx context.Context, jobID string, 
 		if id == "" {
 			id = uuid.NewString()
 		}
+		url := strings.TrimSpace(asset.URL)
+		storageKey := strings.TrimSpace(asset.StorageKey)
+		if url == "" && storageKey == "" {
+			return fmt.Errorf("insert image studio asset: either url or storage_key is required")
+		}
 		if _, err := exec.ExecContext(ctx, `
 			INSERT INTO image_studio_assets (id, job_id, url, sort_order, storage_key, content_type, byte_size)
 			VALUES ($1::uuid, $2::uuid, NULLIF($3, ''), $4, NULLIF($5, ''), NULLIF($6, ''), $7)`,
-			id, jobID, asset.URL, asset.SortOrder, asset.StorageKey, asset.ContentType, asset.ByteSize); err != nil {
+			id, jobID, url, asset.SortOrder, storageKey, asset.ContentType, asset.ByteSize); err != nil {
 			return fmt.Errorf("insert image studio asset: %w", err)
 		}
 	}

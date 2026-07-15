@@ -461,16 +461,19 @@ func TestGenerateSessionHash_ArraySystemPrompt(t *testing.T) {
 	require.NotEmpty(t, h, "array system prompt should produce a hash")
 }
 
-func TestGenerateSessionHash_CacheControlOverridesSessionContext(t *testing.T) {
+func TestGenerateSessionHash_CacheControlScopesByAPIKey(t *testing.T) {
 	svc := &GatewayService{}
 	system := []any{map[string]any{"type": "text", "text": "You are a tool-specific assistant.", "cache_control": map[string]any{"type": "ephemeral"}}}
 	body := anthropicSessionBody(system, []any{msg("user", "hello")}, "")
 	parsed1 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "1.1.1.1", UserAgent: "ua1", APIKeyID: 100})
 	parsed2 := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "2.2.2.2", UserAgent: "ua2", APIKeyID: 200})
+	parsedSameKey := mustParseSessionHashRequest(t, body, &SessionContext{ClientIP: "9.9.9.9", UserAgent: "ua9", APIKeyID: 100})
 
 	h1 := svc.GenerateSessionHash(parsed1)
 	h2 := svc.GenerateSessionHash(parsed2)
-	require.Equal(t, h1, h2, "cache_control ephemeral has higher priority, SessionContext should not affect result")
+	hSame := svc.GenerateSessionHash(parsedSameKey)
+	require.NotEqual(t, h1, h2, "different API keys must not share sticky hash for the same cacheable prompt")
+	require.Equal(t, h1, hSame, "same API key should keep sticky hash stable across IP/UA for prompt-cache affinity")
 }
 
 func TestGenerateSessionHash_EmptyMessages(t *testing.T) {

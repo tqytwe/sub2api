@@ -44,8 +44,8 @@ var (
 )
 
 // SessionContext 粘性会话上下文，用于区分不同来源的请求。
-// 仅在 GenerateSessionHash 第 3 级 fallback（消息内容 hash）时混入，
-// 避免不同用户发送相同消息产生相同 hash 导致账号集中。
+// APIKeyID 会混入 metadata / cache_control / fallback 等路径，避免同组不同用户
+// 因相同 prompt 共用一个 sticky Redis key 而全部压到同一上游账号。
 type SessionContext struct {
 	ClientIP  string
 	UserAgent string
