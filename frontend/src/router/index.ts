@@ -559,6 +559,17 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/play-growth',
+    name: 'AdminPlayGrowth',
+    component: () => import('@/views/admin/PlayGrowthConfigView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      layout: 'admin',
+      title: 'Growth World',
+    },
+  },
+  {
     path: '/admin/groups',
     name: 'AdminGroups',
     component: () => import('@/views/admin/GroupsView.vue'),

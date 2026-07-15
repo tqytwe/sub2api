@@ -55,10 +55,23 @@ export const jisudengHomeZh = {
     }
   },
   stats: {
-    requests: '累计 API 请求',
-    uptime: '服务可用率',
-    latency: '平均首字延迟',
-    models: '可用模型数'
+	requests: '过去 24 小时成功请求',
+	users: '过去 7 天活跃开发者',
+	uptime: '近 30 天请求成功率',
+	tokens: '累计有效 Token',
+	methodology: '数据每 30 秒更新，失败、重试与安全拦截请求不计入。',
+	methodologyTitle: '查看统计口径',
+	estimated: '当前为估算数据。',
+	updatedAt: '更新于 {time}',
+	activityTitle: '真实活动',
+	activityEmpty: '本周赛季刚刚开始，完成一次有效调用即可进入贡献记录。',
+	activityUsage: '开发者 {actor} 完成 {requests} 次请求 · {tokens} Token',
+	activityBlindbox: '开发者 {actor} 获得 ${reward} 盲盒奖励',
+	activityTeamCreated: '开发者 {actor} 创建了一支 Agent Team',
+	activityTeamJoined: '开发者 {actor} 加入了 Agent Team',
+	activityFirstRequest: '开发者 {actor} 完成了首次有效调用',
+	activityWeeklyMission: 'Agent Team {actor} 完成了本周共同任务',
+	activityGeneric: '开发者 {actor} 完成了一项真实活动'
   },
   sections: {
     imageTag: 'IMAGE API',

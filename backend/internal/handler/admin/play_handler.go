@@ -20,11 +20,34 @@ type adminArenaSettleResultDTO struct {
 
 // AdminPlayHandler serves admin play operations.
 type AdminPlayHandler struct {
-	playService *service.PlayService
+	playService    *service.PlayService
+	settingService *service.SettingService
 }
 
-func NewAdminPlayHandler(playService *service.PlayService) *AdminPlayHandler {
-	return &AdminPlayHandler{playService: playService}
+func NewAdminPlayHandler(playService *service.PlayService, settingService *service.SettingService) *AdminPlayHandler {
+	return &AdminPlayHandler{playService: playService, settingService: settingService}
+}
+
+func (h *AdminPlayHandler) GetGrowthConfig(c *gin.Context) {
+	cfg, err := h.settingService.GetPlayGrowthConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func (h *AdminPlayHandler) UpdateGrowthConfig(c *gin.Context) {
+	var cfg service.PlayGrowthConfig
+	if err := c.ShouldBindJSON(&cfg); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	if err := h.settingService.UpdatePlayGrowthConfig(c.Request.Context(), cfg); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	response.Success(c, cfg)
 }
 
 // ArenaSettle settles an arena period and distributes rank rewards.
