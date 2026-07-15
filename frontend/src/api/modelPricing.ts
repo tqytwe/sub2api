@@ -9,6 +9,7 @@ export interface MyModelPricingGroup {
 export interface MyModelPricingRow {
   name: string
   platform: string
+  sort_order: number
   channel?: string
   use_case?: string
   groups: MyModelPricingGroup[]

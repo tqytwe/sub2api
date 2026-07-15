@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -14,8 +15,87 @@ type modelCatalogVisibilityRepoStub struct {
 	err     error
 }
 
-func (r *modelCatalogVisibilityRepoStub) ListCatalog(context.Context, CatalogListFilter) ([]SiteModelCatalogEntry, error) {
-	return r.entries, r.err
+func (r *modelCatalogVisibilityRepoStub) ListCatalog(_ context.Context, filter CatalogListFilter) ([]SiteModelCatalogEntry, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	out := make([]SiteModelCatalogEntry, 0, len(r.entries))
+	for _, entry := range r.entries {
+		if filter.VisiblePublic != nil && entry.VisiblePublic != *filter.VisiblePublic {
+			continue
+		}
+		if filter.VisibleAuth != nil && entry.VisibleAuth != *filter.VisibleAuth {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out, nil
+}
+
+type modelPricingSettingRepoStub struct {
+	SettingRepository
+	values map[string]string
+}
+
+func (r *modelPricingSettingRepoStub) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
+	out := make(map[string]string, len(keys))
+	for _, key := range keys {
+		if value, ok := r.values[key]; ok {
+			out[key] = value
+		}
+	}
+	return out, nil
+}
+
+type modelPricingUserRepoStub struct {
+	UserRepository
+	user *User
+}
+
+func (r *modelPricingUserRepoStub) GetByID(context.Context, int64) (*User, error) {
+	return r.user, nil
+}
+
+type modelPricingGroupRepoStub struct {
+	GroupRepository
+	groups []Group
+}
+
+func (r *modelPricingGroupRepoStub) ListActive(context.Context) ([]Group, error) {
+	return r.groups, nil
+}
+
+type modelPricingSubscriptionRepoStub struct {
+	UserSubscriptionRepository
+}
+
+func (r *modelPricingSubscriptionRepoStub) ListActiveByUserID(context.Context, int64) ([]UserSubscription, error) {
+	return []UserSubscription{}, nil
+}
+
+type modelPricingUserRateRepoStub struct {
+	UserGroupRateRepository
+	rates map[int64]float64
+}
+
+func (r *modelPricingUserRateRepoStub) GetByUserID(context.Context, int64) (map[int64]float64, error) {
+	return r.rates, nil
+}
+
+type modelPricingChannelRepoStub struct {
+	ChannelRepository
+	channels []Channel
+}
+
+func (r *modelPricingChannelRepoStub) ListAll(context.Context) ([]Channel, error) {
+	return r.channels, nil
+}
+
+func modelPricingSettingService(multiplier string) *SettingService {
+	return NewSettingService(&modelPricingSettingRepoStub{values: map[string]string{
+		SettingKeyAvailableChannelsEnabled:  "true",
+		SettingKeyPublicModelRateMultiplier: multiplier,
+	}}, &config.Config{})
 }
 
 func TestModelCatalogService_ListPublicPricingFailsClosed(t *testing.T) {
@@ -28,4 +108,114 @@ func TestModelCatalogService_ListPublicPricingFailsClosed(t *testing.T) {
 		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{err: errors.New("database unavailable")}, nil, nil, nil, nil, nil)
 		require.Empty(t, svc.ListPublicPricing(context.Background()))
 	})
+}
+
+func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch(t *testing.T) {
+	officialAIn, officialAOut := 10e-6, 20e-6
+	officialBIn, officialBOut := 5e-6, 30e-6
+	explicitSiteAIn := 2e-6
+	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{
+		{
+			ModelName:           "hidden-model",
+			Platform:            PlatformOpenAI,
+			VisibleAuth:         false,
+			SortOrder:           1,
+			OfficialInputPrice:  &officialAIn,
+			OfficialOutputPrice: &officialAOut,
+		},
+		{
+			ModelName:           "model-b",
+			Platform:            PlatformOpenAI,
+			VisibleAuth:         true,
+			SortOrder:           20,
+			OfficialInputPrice:  &officialBIn,
+			OfficialOutputPrice: &officialBOut,
+		},
+		{
+			ModelName:           "model-a",
+			Platform:            PlatformAnthropic,
+			VisibleAuth:         true,
+			SortOrder:           10,
+			OfficialInputPrice:  &officialAIn,
+			OfficialOutputPrice: &officialAOut,
+			InputPrice:          &explicitSiteAIn,
+		},
+	}}
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("0.8"), nil)
+
+	resp, err := svc.ListMyPricing(context.Background(), 4)
+
+	require.NoError(t, err)
+	require.True(t, resp.Enabled)
+	require.Len(t, resp.Models, 2)
+	require.Equal(t, "model-a", resp.Models[0].Name)
+	require.Equal(t, "model-b", resp.Models[1].Name)
+	require.Empty(t, resp.Models[0].Groups)
+	require.Nil(t, resp.Models[0].EffectiveInputPrice)
+	require.Nil(t, resp.Models[0].EffectiveOutputPrice)
+	require.Equal(t, explicitSiteAIn, *resp.Models[0].SiteInputPrice)
+	require.InDelta(t, 16e-6, *resp.Models[0].SiteOutputPrice, 1e-12)
+	require.InDelta(t, 4e-6, *resp.Models[1].SiteInputPrice, 1e-12)
+	require.InDelta(t, 24e-6, *resp.Models[1].SiteOutputPrice, 1e-12)
+}
+
+func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testing.T) {
+	baseIn, baseOut := 2e-6, 8e-6
+	officialIn, officialOut := 5e-6, 30e-6
+	group := Group{
+		ID:               2,
+		Name:             "codex",
+		Platform:         PlatformOpenAI,
+		RateMultiplier:   0.18,
+		Status:           StatusActive,
+		SubscriptionType: SubscriptionTypeStandard,
+	}
+	groupRepo := &modelPricingGroupRepoStub{groups: []Group{group}}
+	channelService := NewChannelService(&modelPricingChannelRepoStub{channels: []Channel{{
+		ID:       1,
+		Name:     "primary",
+		Status:   StatusActive,
+		GroupIDs: []int64{group.ID},
+		ModelPricing: []ChannelModelPricing{{
+			Platform:    PlatformOpenAI,
+			Models:      []string{"gpt-test"},
+			BillingMode: BillingModeToken,
+			InputPrice:  &baseIn,
+			OutputPrice: &baseOut,
+		}},
+	}}}, groupRepo, nil, nil)
+	apiKeyService := NewAPIKeyService(
+		nil,
+		&modelPricingUserRepoStub{user: &User{ID: 4, Status: StatusActive}},
+		groupRepo,
+		&modelPricingSubscriptionRepoStub{},
+		&modelPricingUserRateRepoStub{rates: map[int64]float64{group.ID: 0.25}},
+		nil,
+		nil,
+	)
+	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
+		ModelName:           "gpt-test",
+		Platform:            PlatformOpenAI,
+		VisibleAuth:         true,
+		SortOrder:           1,
+		OfficialInputPrice:  &officialIn,
+		OfficialOutputPrice: &officialOut,
+	}}}
+	svc := NewModelCatalogService(repo, channelService, nil, nil, modelPricingSettingService("0.8"), apiKeyService)
+
+	resp, err := svc.ListMyPricing(context.Background(), 4)
+
+	require.NoError(t, err)
+	require.Len(t, resp.Models, 1)
+	row := resp.Models[0]
+	require.Equal(t, "primary", row.Channel)
+	require.Len(t, row.Groups, 1)
+	require.Equal(t, group.ID, row.Groups[0].ID)
+	require.Equal(t, 0.25, row.Groups[0].RateMultiplier)
+	require.Equal(t, baseIn, *row.BaseInputPrice)
+	require.Equal(t, baseOut, *row.BaseOutputPrice)
+	require.InDelta(t, 0.5e-6, *row.EffectiveInputPrice, 1e-12)
+	require.InDelta(t, 2e-6, *row.EffectiveOutputPrice, 1e-12)
+	require.InDelta(t, 4e-6, *row.SiteInputPrice, 1e-12)
+	require.InDelta(t, 24e-6, *row.SiteOutputPrice, 1e-12)
 }

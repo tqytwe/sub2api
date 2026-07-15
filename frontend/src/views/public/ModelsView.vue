@@ -179,14 +179,9 @@ onMounted(() => {
             <tr>
               <th>{{ t('models.columns.model') }}</th>
               <th>{{ t('models.columns.platform') }}</th>
-              <th>{{ t('models.columns.channel') }}</th>
-              <th>{{ t('models.columns.group') }}</th>
-              <th>{{ t('models.columns.officialInput') }}</th>
-              <th>{{ t('models.columns.officialOutput') }}</th>
               <th>{{ t('models.columns.ourInput') }}</th>
               <th>{{ t('models.columns.ourOutput') }}</th>
-              <th>{{ t('models.columns.channelInput') }}</th>
-              <th>{{ t('models.columns.channelOutput') }}</th>
+              <th>{{ t('models.columns.group') }}</th>
               <th>{{ t('models.columns.effectiveInput') }}</th>
               <th>{{ t('models.columns.effectiveOutput') }}</th>
             </tr>
@@ -195,20 +190,16 @@ onMounted(() => {
             <tr v-for="(row, idx) in filteredAuthRows" :key="`${row.name}-${row.platform}-${row.groups[0]?.id ?? idx}`">
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
-              <td>{{ row.channel || '—' }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.site_input_price) }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.site_output_price) }}</td>
               <td>
                 <span
                   v-for="g in row.groups"
                   :key="g.id"
                   class="models-group-badge"
                 >{{ groupBadge(g) }}</span>
+                <span v-if="row.groups.length === 0">—</span>
               </td>
-              <td>{{ formatTokenPrice(row.official_input_price) }}</td>
-              <td>{{ formatTokenPrice(row.official_output_price) }}</td>
-              <td>{{ formatTokenPrice(row.site_input_price) }}</td>
-              <td>{{ formatTokenPrice(row.site_output_price) }}</td>
-              <td>{{ formatTokenPrice(row.base_input_price) }}</td>
-              <td>{{ formatTokenPrice(row.base_output_price) }}</td>
               <td class="models-cell-our">{{ formatTokenPrice(row.effective_input_price) }}</td>
               <td class="models-cell-our">{{ formatTokenPrice(row.effective_output_price) }}</td>
             </tr>

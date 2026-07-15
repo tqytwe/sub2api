@@ -114,31 +114,14 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		RateMultiplierNote: "实付价 = 渠道价 × 分组倍率",
 		Enabled:            false,
 	}
-	if s.settingService == nil || !s.settingService.GetAvailableChannelsRuntime(ctx).Enabled {
+	if s.settingService != nil && !s.settingService.GetAvailableChannelsRuntime(ctx).Enabled {
 		return resp, nil
 	}
 	resp.Enabled = true
-	if s.channelService == nil || s.apiKeyService == nil || userID <= 0 {
+	if userID <= 0 {
 		return resp, nil
 	}
 
-	userGroups, err := s.apiKeyService.GetAvailableGroups(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	userRates, _ := s.apiKeyService.GetUserGroupRates(ctx, userID)
-
-	allowedGroupIDs := make(map[int64]struct{}, len(userGroups))
-	groupByID := make(map[int64]Group, len(userGroups))
-	for _, g := range userGroups {
-		allowedGroupIDs[g.ID] = struct{}{}
-		groupByID[g.ID] = g
-	}
-
-	channels, err := s.channelService.ListAvailable(ctx)
-	if err != nil {
-		return nil, err
-	}
 	visibleAuth := true
 	catalogEntries, err := s.repo.ListCatalog(ctx, CatalogListFilter{VisibleAuth: &visibleAuth})
 	if err != nil {
@@ -161,89 +144,149 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		channel  string
 	}
 	rowsByKey := make(map[rowKey]*MyModelPricingRow)
+	representedCatalog := make(map[string]struct{}, len(catalogEntries))
+	siteMultiplier := 1.0
+	if s.settingService != nil {
+		siteMultiplier = s.settingService.GetPublicModelRateMultiplier(ctx)
+	}
 
-	for _, ch := range channels {
-		if ch.Status != StatusActive {
-			continue
-		}
-		visibleGroups := filterAvailableGroupsForUser(ch.Groups, allowedGroupIDs)
-		if len(visibleGroups) == 0 {
-			continue
-		}
-		platformGroups := groupRefsByPlatform(visibleGroups)
-		for _, sm := range ch.SupportedModels {
-			if sm.Name == "" {
-				continue
+	if s.channelService != nil && s.apiKeyService != nil {
+		userGroups, groupsErr := s.apiKeyService.GetAvailableGroups(ctx, userID)
+		channels, channelsErr := s.channelService.ListAvailable(ctx)
+		if groupsErr == nil && channelsErr == nil {
+			userRates, _ := s.apiKeyService.GetUserGroupRates(ctx, userID)
+			allowedGroupIDs := make(map[int64]struct{}, len(userGroups))
+			for _, g := range userGroups {
+				allowedGroupIDs[g.ID] = struct{}{}
 			}
-			platform := sm.Platform
-			catalogEntry, catalogVisible := catalogByKey[catalogSyncKey(sm.Name, platform)]
-			if !catalogVisible {
-				catalogEntry, catalogVisible = catalogByName[strings.ToLower(strings.TrimSpace(sm.Name))]
-			}
-			if !catalogVisible {
-				continue
-			}
-			grps := platformGroups[strings.ToLower(strings.TrimSpace(platform))]
-			// Channel may list models whose platform doesn't match the unlock group
-			// (common for mixed / domestic model catalogs). Fall back to all groups
-			// that unlocked this channel so /models is not an empty page.
-			if len(grps) == 0 {
-				grps = visibleGroups
-			}
-			officialIn, officialOut := catalogEntry.OfficialInputPrice, catalogEntry.OfficialOutputPrice
-			if officialIn == nil && officialOut == nil {
-				officialIn, officialOut = lookupOfficialPrices(s.billingService, sm.Name)
-			}
-			var baseIn, baseOut *float64
-			if sm.Pricing != nil {
-				baseIn, baseOut = sm.Pricing.InputPrice, sm.Pricing.OutputPrice
-			}
-			for _, g := range grps {
-				mult := g.RateMultiplier
-				if userRates != nil {
-					if ur, ok := userRates[g.ID]; ok && ur > 0 {
-						mult = ur
+
+			for _, ch := range channels {
+				if ch.Status != StatusActive {
+					continue
+				}
+				visibleGroups := filterAvailableGroupsForUser(ch.Groups, allowedGroupIDs)
+				if len(visibleGroups) == 0 {
+					continue
+				}
+				platformGroups := groupRefsByPlatform(visibleGroups)
+				for _, sm := range ch.SupportedModels {
+					if sm.Name == "" {
+						continue
+					}
+					platform := sm.Platform
+					catalogEntry, catalogVisible := catalogByKey[catalogSyncKey(sm.Name, platform)]
+					if !catalogVisible {
+						catalogEntry, catalogVisible = catalogByName[strings.ToLower(strings.TrimSpace(sm.Name))]
+					}
+					if !catalogVisible {
+						continue
+					}
+					grps := platformGroups[strings.ToLower(strings.TrimSpace(platform))]
+					if len(grps) == 0 {
+						grps = visibleGroups
+					}
+					officialIn, officialOut := catalogOfficialPrices(s.billingService, catalogEntry)
+					siteIn, siteOut := catalogSitePrices(catalogEntry, officialIn, officialOut, siteMultiplier)
+					var baseIn, baseOut *float64
+					if sm.Pricing != nil {
+						baseIn, baseOut = sm.Pricing.InputPrice, sm.Pricing.OutputPrice
+					}
+					for _, g := range grps {
+						mult := g.RateMultiplier
+						if userRates != nil {
+							if ur, ok := userRates[g.ID]; ok && ur > 0 {
+								mult = ur
+							}
+						}
+						key := rowKey{model: sm.Name, platform: platform, groupID: g.ID, channel: ch.Name}
+						rowsByKey[key] = &MyModelPricingRow{
+							Name:                 sm.Name,
+							Platform:             displayPlatformName(platform),
+							SortOrder:            catalogEntry.SortOrder,
+							Channel:              ch.Name,
+							Groups:               []MyModelPricingGroup{{ID: g.ID, Name: g.Name, RateMultiplier: mult}},
+							BaseInputPrice:       baseIn,
+							BaseOutputPrice:      baseOut,
+							EffectiveInputPrice:  scalePricePtr(baseIn, mult),
+							EffectiveOutputPrice: scalePricePtr(baseOut, mult),
+							OfficialInputPrice:   officialIn,
+							OfficialOutputPrice:  officialOut,
+							SiteInputPrice:       siteIn,
+							SiteOutputPrice:      siteOut,
+							UseCase:              derefCatalogString(catalogEntry.UseCase),
+						}
+						representedCatalog[catalogSyncKey(catalogEntry.ModelName, catalogEntry.Platform)] = struct{}{}
 					}
 				}
-				key := rowKey{model: sm.Name, platform: platform, groupID: g.ID, channel: ch.Name}
-				rowsByKey[key] = &MyModelPricingRow{
-					Name:                 sm.Name,
-					Platform:             displayPlatformName(platform),
-					Channel:              ch.Name,
-					Groups:               []MyModelPricingGroup{{ID: g.ID, Name: g.Name, RateMultiplier: mult}},
-					BaseInputPrice:       baseIn,
-					BaseOutputPrice:      baseOut,
-					EffectiveInputPrice:  scalePricePtr(baseIn, mult),
-					EffectiveOutputPrice: scalePricePtr(baseOut, mult),
-					OfficialInputPrice:   officialIn,
-					OfficialOutputPrice:  officialOut,
-					SiteInputPrice:       catalogEntry.InputPrice,
-					SiteOutputPrice:      catalogEntry.OutputPrice,
-					UseCase:              derefCatalogString(catalogEntry.UseCase),
-				}
 			}
 		}
 	}
 
-	keys := make([]rowKey, 0, len(rowsByKey))
-	for k := range rowsByKey {
-		keys = append(keys, k)
+	for _, catalogEntry := range catalogEntries {
+		catalogKey := catalogSyncKey(catalogEntry.ModelName, catalogEntry.Platform)
+		if _, represented := representedCatalog[catalogKey]; represented {
+			continue
+		}
+		officialIn, officialOut := catalogOfficialPrices(s.billingService, catalogEntry)
+		siteIn, siteOut := catalogSitePrices(catalogEntry, officialIn, officialOut, siteMultiplier)
+		key := rowKey{model: catalogEntry.ModelName, platform: catalogEntry.Platform}
+		rowsByKey[key] = &MyModelPricingRow{
+			Name:                catalogEntry.ModelName,
+			Platform:            displayPlatformName(catalogEntry.Platform),
+			SortOrder:           catalogEntry.SortOrder,
+			Groups:              []MyModelPricingGroup{},
+			OfficialInputPrice:  officialIn,
+			OfficialOutputPrice: officialOut,
+			SiteInputPrice:      siteIn,
+			SiteOutputPrice:     siteOut,
+			UseCase:             derefCatalogString(catalogEntry.UseCase),
+		}
 	}
-	sort.Slice(keys, func(i, j int) bool {
-		if keys[i].model != keys[j].model {
-			return keys[i].model < keys[j].model
+
+	out := make([]MyModelPricingRow, 0, len(rowsByKey))
+	for _, row := range rowsByKey {
+		out = append(out, *row)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].SortOrder != out[j].SortOrder {
+			return out[i].SortOrder < out[j].SortOrder
 		}
-		if keys[i].platform != keys[j].platform {
-			return keys[i].platform < keys[j].platform
+		if out[i].Name != out[j].Name {
+			return out[i].Name < out[j].Name
 		}
-		return keys[i].groupID < keys[j].groupID
+		if out[i].Platform != out[j].Platform {
+			return out[i].Platform < out[j].Platform
+		}
+		leftGroupID, rightGroupID := int64(0), int64(0)
+		if len(out[i].Groups) > 0 {
+			leftGroupID = out[i].Groups[0].ID
+		}
+		if len(out[j].Groups) > 0 {
+			rightGroupID = out[j].Groups[0].ID
+		}
+		return leftGroupID < rightGroupID
 	})
-	out := make([]MyModelPricingRow, 0, len(keys))
-	for _, k := range keys {
-		out = append(out, *rowsByKey[k])
-	}
 	resp.Models = out
 	return resp, nil
+}
+
+func catalogOfficialPrices(billingService *BillingService, entry SiteModelCatalogEntry) (*float64, *float64) {
+	officialIn, officialOut := entry.OfficialInputPrice, entry.OfficialOutputPrice
+	if officialIn == nil && officialOut == nil {
+		officialIn, officialOut = lookupOfficialPrices(billingService, entry.ModelName)
+	}
+	return officialIn, officialOut
+}
+
+func catalogSitePrices(entry SiteModelCatalogEntry, officialIn, officialOut *float64, defaultMultiplier float64) (*float64, *float64) {
+	siteIn, siteOut := entry.InputPrice, entry.OutputPrice
+	if siteIn == nil {
+		siteIn = scalePricePtr(officialIn, defaultMultiplier)
+	}
+	if siteOut == nil {
+		siteOut = scalePricePtr(officialOut, defaultMultiplier)
+	}
+	return siteIn, siteOut
 }
 
 func filterAvailableGroupsForUser(groups []AvailableGroupRef, allowed map[int64]struct{}) []AvailableGroupRef {

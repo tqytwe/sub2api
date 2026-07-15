@@ -76,6 +76,7 @@ type MyModelPricingGroup struct {
 type MyModelPricingRow struct {
 	Name                 string                `json:"name"`
 	Platform             string                `json:"platform"`
+	SortOrder            int                   `json:"sort_order"`
 	Channel              string                `json:"channel,omitempty"`
 	UseCase              string                `json:"use_case,omitempty"`
 	Groups               []MyModelPricingGroup `json:"groups"`
