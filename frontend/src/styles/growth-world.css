@@ -692,6 +692,28 @@
 
 .gw-thumb--studio {
   aspect-ratio: auto;
+  min-height: 11rem;
+}
+
+.gw-thumb--empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gw-soft);
+}
+
+.gw-thumb-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 11rem;
+  aspect-ratio: 1;
+  padding: 1rem;
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--gw-ink-3);
+  background: var(--gw-soft);
 }
 
 .gw-size-badge {

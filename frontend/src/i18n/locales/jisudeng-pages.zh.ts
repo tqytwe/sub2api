@@ -342,6 +342,8 @@ export const jisudengPagesZh = {
     generating: '生成中…',
     doneTitle: '生成完成',
     doneHint: '图片已保存到图库，可下载或继续创作。',
+    assetsMissing: '图片未保存成功',
+    assetsMissingHint: '任务显示已完成，但没有可预览/下载的文件。请用相同设置再生成，或联系管理员检查存储卷。',
     makeAnother: '再做一张',
     goHub: '查看玩法中枢',
     goFarm: '查看 Token 农场',

@@ -204,8 +204,12 @@ function studioIconFor(id: string): StudioIconName {
         </section>
 
         <section v-else-if="wizard.step.value === 4" class="gw-panel space-y-4">
-          <h2 class="gw-section-title">{{ t('imageStudio.doneTitle') }}</h2>
-          <p class="gw-subtitle">{{ t('imageStudio.doneHint') }}</p>
+          <h2 class="gw-section-title">
+            {{ wizard.errorMsg.value ? t('imageStudio.assetsMissing') : t('imageStudio.doneTitle') }}
+          </h2>
+          <p class="gw-subtitle">
+            {{ wizard.errorMsg.value || t('imageStudio.doneHint') }}
+          </p>
           <ImageStudioGallery
             :jobs="wizard.jobs.value"
             :latest-job="wizard.latestJob.value"

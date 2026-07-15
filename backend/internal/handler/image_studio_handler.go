@@ -165,7 +165,10 @@ func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64
 			errString(genErr),
 		)
 	}
-	_, _ = h.studio.CompleteJob(ctx, userID, jobID, images, actualCost, errString(genErr))
+	if _, completeErr := h.studio.CompleteJob(ctx, userID, jobID, images, actualCost, errString(genErr)); completeErr != nil {
+		// Fall back to an explicit failed job so polling never sees orphan "completed" rows.
+		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, completeErr.Error())
+	}
 }
 
 func (h *ImageStudioHandler) ListJobs(c *gin.Context) {

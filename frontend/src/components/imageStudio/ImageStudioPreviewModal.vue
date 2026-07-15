@@ -43,6 +43,9 @@ async function loadPreview() {
   try {
     if (isManagedAsset(asset)) {
       const blob = await imageStudioAPI.fetchImageStudioAssetBlob(asset.id, 'content')
+      if (!blob || blob.size === 0 || String(blob.type || '').includes('json')) {
+        throw new Error('invalid preview blob')
+      }
       objectUrl = URL.createObjectURL(blob)
       previewUrl.value = objectUrl
       return

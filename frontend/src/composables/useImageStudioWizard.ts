@@ -173,6 +173,9 @@ export function useImageStudioWizard() {
         sizeCaps.ensureSelectableTier()
         return
       }
+      if (!job.assets?.length) {
+        errorMsg.value = t('imageStudio.assetsMissingHint')
+      }
       latestJob.value = job
       jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
       step.value = 4
@@ -355,6 +358,14 @@ export function useImageStudioWizard() {
         errorMsg.value = job.error_message || t('imageStudio.generateFailed')
         await loadModels()
         sizeCaps.ensureSelectableTier()
+        return
+      }
+      if (!job.assets?.length) {
+        errorMsg.value = t('imageStudio.assetsMissingHint')
+        latestJob.value = job
+        jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
+        step.value = 4
+        pollNotice.value = ''
         return
       }
       trackGrowthEvent('image_studio_generate_success', {

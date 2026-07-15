@@ -23,6 +23,7 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const thumbUrls = ref<Record<string, string>>({})
 const loadingAssets = ref<Set<string>>(new Set())
+const failedAssets = ref<Set<string>>(new Set())
 
 const displayJobs = computed(() => {
   if (props.resultMode && props.latestJob) return [props.latestJob]
@@ -48,11 +49,15 @@ function legacySrc(asset: ImageStudioAsset) {
 async function ensureThumb(asset: ImageStudioAsset) {
   if (!isManagedAsset(asset) || thumbUrls.value[asset.id] || loadingAssets.value.has(asset.id)) return
   loadingAssets.value.add(asset.id)
+  failedAssets.value.delete(asset.id)
   try {
     const blob = await imageStudioAPI.fetchImageStudioAssetBlob(asset.id, 'content')
+    if (!blob || blob.size === 0 || String(blob.type || '').includes('json')) {
+      throw new Error('empty or invalid asset blob')
+    }
     thumbUrls.value = { ...thumbUrls.value, [asset.id]: URL.createObjectURL(blob) }
   } catch {
-    // leave broken image; user can retry download
+    failedAssets.value.add(asset.id)
   } finally {
     loadingAssets.value.delete(asset.id)
   }
@@ -75,6 +80,10 @@ onUnmounted(() => {
 function thumbSrc(asset: ImageStudioAsset) {
   if (thumbUrls.value[asset.id]) return thumbUrls.value[asset.id]
   return legacySrc(asset)
+}
+
+function jobMissingAssets(job: ImageStudioJob) {
+  return job.status === 'completed' && !(job.assets && job.assets.length > 0)
 }
 
 function openPreview(asset: ImageStudioAsset, jobId: string, index: number) {
@@ -123,10 +132,17 @@ function truncateError(msg?: string) {
       <div class="flex flex-wrap items-center gap-2 text-xs" style="color: var(--gw-ink-3)">
         <span class="gw-size-badge">{{ job.size }}</span>
         <span v-if="job.status === 'failed'" class="gw-error text-xs">{{ truncateError(job.error_message) }}</span>
+        <span v-else-if="jobMissingAssets(job)" class="gw-error text-xs">{{ t('imageStudio.assetsMissing') }}</span>
+      </div>
+      <div v-if="jobMissingAssets(job)" class="gw-thumb gw-thumb--studio gw-thumb--empty">
+        <p class="gw-subtitle text-sm px-3 py-6">{{ t('imageStudio.assetsMissingHint') }}</p>
       </div>
       <div v-for="(asset, index) in job.assets || []" :key="asset.id" class="gw-thumb gw-thumb--studio">
         <button type="button" class="gw-thumb-btn" @click="openPreview(asset, job.id, index)">
-          <img :src="thumbSrc(asset)" :alt="job.template_id" loading="lazy" />
+          <img v-if="thumbSrc(asset) && !failedAssets.has(asset.id)" :src="thumbSrc(asset)" :alt="job.template_id" loading="lazy" />
+          <div v-else class="gw-thumb-fallback">
+            {{ failedAssets.has(asset.id) ? t('imageStudio.previewFailed') : t('imageStudio.loadingPreview') }}
+          </div>
         </button>
         <div class="gw-thumb-actions">
           <button type="button" class="gw-thumb-action" @click="openPreview(asset, job.id, index)">

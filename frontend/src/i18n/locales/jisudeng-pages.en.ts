@@ -339,6 +339,8 @@ export const jisudengPagesEn = {
     autoCleanup: 'Auto-delete gallery entries after 7 days',
     doneTitle: 'Done',
     doneHint: 'Images saved to your gallery. Download or keep creating.',
+    assetsMissing: 'Image was not saved',
+    assetsMissingHint: 'The job is marked complete but has no previewable file. Regenerate with the same settings, or ask an admin to check persistent storage.',
     makeAnother: 'Make another',
     goHub: 'Play Hub',
     goFarm: 'Token Farm',

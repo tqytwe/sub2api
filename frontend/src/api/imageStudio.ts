@@ -188,7 +188,17 @@ export async function deleteImageStudioJob(id: string): Promise<void> {
 export async function fetchImageStudioAssetBlob(assetId: string, mode: 'content' | 'download' = 'content'): Promise<Blob> {
   const path = `/image-studio/assets/${encodeURIComponent(assetId)}/${mode}`
   const response = await apiClient.get(path, { responseType: 'blob' })
-  return response.data as Blob
+  const blob = response.data as Blob
+  const ctype = String(blob?.type || '').toLowerCase()
+  if (!blob || blob.size === 0) {
+    throw new Error('empty asset')
+  }
+  // Axios may surface JSON API errors as Blob when responseType is blob.
+  if (ctype.includes('json') || ctype.includes('text')) {
+    const text = await blob.text()
+    throw new Error(text || 'asset fetch failed')
+  }
+  return blob
 }
 
 export async function downloadImageStudioAsset(

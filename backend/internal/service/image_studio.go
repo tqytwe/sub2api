@@ -361,7 +361,8 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		"prompt":          prompt,
 		"n":               count,
 		"size":            size,
-		"response_format": "url",
+		// Prefer inline bytes so CompleteJob can persist without a second remote fetch.
+		"response_format": "b64_json",
 	}
 	if quality := strings.TrimSpace(strings.ToLower(req.Quality)); quality != "" {
 		payload["quality"] = quality
@@ -382,6 +383,44 @@ func (s *ImageStudioService) CompleteJob(ctx context.Context, userID int64, jobI
 	if err != nil {
 		return nil, err
 	}
+
+	// Persist assets BEFORE marking completed. Previously UpdateJobResult ran first;
+	// Save/Insert failures left jobs stuck as "completed" with zero assets (blank gallery).
+	if status == ImageStudioJobStatusCompleted {
+		if s.assetStore == nil {
+			status = ImageStudioJobStatusFailed
+			errMsg = "image asset store unavailable"
+		} else {
+			records := make([]ImageStudioAssetRecord, 0, len(images))
+			for i, img := range images {
+				assetID := uuid.NewString()
+				storageKey, saveErr := s.assetStore.Save(userID, assetID, img.ContentType, img.Data)
+				if saveErr != nil {
+					status = ImageStudioJobStatusFailed
+					errMsg = "failed to persist generated image: " + saveErr.Error()
+					records = nil
+					break
+				}
+				records = append(records, ImageStudioAssetRecord{
+					ID:          assetID,
+					StorageKey:  storageKey,
+					ContentType: img.ContentType,
+					ByteSize:    int64(len(img.Data)),
+					SortOrder:   i,
+				})
+			}
+			if status == ImageStudioJobStatusCompleted {
+				if err := s.repo.InsertAssets(ctx, jobID, records); err != nil {
+					status = ImageStudioJobStatusFailed
+					errMsg = "failed to save image assets: " + err.Error()
+					for _, rec := range records {
+						_ = s.assetStore.Delete(rec.StorageKey)
+					}
+				}
+			}
+		}
+	}
+
 	cost := actualCost
 	if cost <= 0 && status == ImageStudioJobStatusCompleted {
 		cost = job.EstimatedCost
@@ -393,32 +432,10 @@ func (s *ImageStudioService) CompleteJob(ctx context.Context, userID int64, jobI
 	if err := s.repo.UpdateJobResult(ctx, jobID, status, costPtr, errMsg); err != nil {
 		return nil, err
 	}
-	if status == ImageStudioJobStatusCompleted {
-		records := make([]ImageStudioAssetRecord, 0, len(images))
-		for i, img := range images {
-			assetID := uuid.NewString()
-			storageKey := ""
-			if s.assetStore != nil {
-				storageKey, err = s.assetStore.Save(userID, assetID, img.ContentType, img.Data)
-				if err != nil {
-					return nil, err
-				}
-			}
-			records = append(records, ImageStudioAssetRecord{
-				ID:          assetID,
-				StorageKey:  storageKey,
-				ContentType: img.ContentType,
-				ByteSize:    int64(len(img.Data)),
-				SortOrder:   i,
-			})
-		}
-		if err := s.repo.InsertAssets(ctx, jobID, records); err != nil {
-			return nil, err
-		}
-		if s.playService != nil {
-			_ = s.playService.MarkQuestCompleted(ctx, userID, PlayQuestKeyImageGenerate)
-		}
+	if status == ImageStudioJobStatusCompleted && s.playService != nil {
+		_ = s.playService.MarkQuestCompleted(ctx, userID, PlayQuestKeyImageGenerate)
 	}
+
 	outJob, err := s.repo.GetJob(ctx, userID, jobID)
 	if err != nil {
 		return nil, err
