@@ -160,11 +160,35 @@
             <HomeStatOdometer
               :value="stat.value"
               :unit="stat.unit"
-              :active="inView.stats"
+              :active="inView.stats && !loadingStats && Boolean(homeStats)"
               :spin-tail="stat.key === 'uptime' ? 2 : 3"
             />
             <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
           </div>
+        </div>
+        <div class="home-stats-meta">
+          <details @toggle="trackMethodology">
+            <summary>{{ t('home.jisudeng.stats.methodologyTitle') }}</summary>
+            <p>
+              {{ t('home.jisudeng.stats.methodology') }}
+              <span v-if="homeStats?.source !== 'live'">{{ t('home.jisudeng.stats.estimated') }}</span>
+            </p>
+          </details>
+          <time v-if="homeStats?.updatedAt" :datetime="homeStats.updatedAt">
+            {{ t('home.jisudeng.stats.updatedAt', { time: formatStatsUpdatedAt(homeStats.updatedAt) }) }}
+          </time>
+        </div>
+        <div class="home-activity-band">
+          <p class="home-activity-title">{{ t('home.jisudeng.stats.activityTitle') }}</p>
+          <p v-if="publicActivity.length === 0" class="home-activity-empty">
+            {{ t('home.jisudeng.stats.activityEmpty') }}
+          </p>
+          <ul v-else class="home-activity-list">
+            <li v-for="item in publicActivity" :key="item.id">
+              <span>{{ formatActivity(item) }}</span>
+              <time :datetime="item.created_at">{{ formatStatsUpdatedAt(item.created_at) }}</time>
+            </li>
+          </ul>
         </div>
       </div>
     </section>
@@ -429,7 +453,7 @@
 
 <script setup lang="ts">
 import '@/styles/home-view.css'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import DOMPurify from 'dompurify'
 import { useRouter } from 'vue-router'
@@ -441,6 +465,8 @@ import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
+import { fetchPublicActivity, type PublicActivityItem } from '@/api/publicHomeStats'
+import { trackGrowthEvent } from '@/utils/growthAnalytics'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { sanitizeUrl } from '@/utils/url'
 
@@ -456,7 +482,8 @@ const whyX = ref(0)
 const whyY = ref(0)
 const onboardPhase = ref(1)
 const year = new Date().getFullYear()
-const { statItems } = useHomeLiveStats()
+const { statItems, values: homeStats, loading: loadingStats } = useHomeLiveStats()
+const publicActivity = ref<PublicActivityItem[]>([])
 const { perkLines } = usePublicGrowthTeaser()
 
 const inView = ref<Record<string, boolean>>({})
@@ -504,6 +531,37 @@ const heroSubtitle = computed(() => {
 })
 const showVerifyLink = computed(() => isGtmHome.value && te('home.jisudeng.manifesto.verifyLink'))
 const showGuestStickyCta = computed(() => isGtmHome.value)
+let statsTracked = false
+
+watch([() => inView.value.stats, homeStats], ([visible, stats]) => {
+  if (!visible || !stats || statsTracked) return
+  statsTracked = true
+  trackGrowthEvent('home_stats_viewed', { snapshot_id: stats.snapshotId, source: stats.source })
+})
+
+function trackMethodology(event: Event) {
+  const details = event.currentTarget as HTMLDetailsElement
+  if (!details.open) return
+  trackGrowthEvent('stats_methodology_opened', { snapshot_id: homeStats.value?.snapshotId })
+}
+
+function formatStatsUpdatedAt(raw: string): string {
+  const date = new Date(raw)
+  if (Number.isNaN(date.getTime())) return raw
+  return new Intl.DateTimeFormat(undefined, { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).format(date)
+}
+
+function formatActivity(item: PublicActivityItem): string {
+  const requests = Number(item.payload.requests || 0).toLocaleString()
+  const tokens = Number(item.payload.tokens || 0).toLocaleString()
+  if (item.event_type === 'usage_day') return t('home.jisudeng.stats.activityUsage', { actor: item.actor, requests, tokens })
+  if (item.event_type === 'blindbox_opened') return t('home.jisudeng.stats.activityBlindbox', { actor: item.actor, reward: Number(item.payload.reward || 0).toFixed(2) })
+  if (item.event_type === 'team_created') return t('home.jisudeng.stats.activityTeamCreated', { actor: item.actor })
+  if (item.event_type === 'team_joined') return t('home.jisudeng.stats.activityTeamJoined', { actor: item.actor })
+  if (item.event_type === 'first_valid_request') return t('home.jisudeng.stats.activityFirstRequest', { actor: item.actor })
+  if (item.event_type === 'weekly_mission_completed') return t('home.jisudeng.stats.activityWeeklyMission', { actor: item.actor })
+  return t('home.jisudeng.stats.activityGeneric', { actor: item.actor })
+}
 
 type FaqItem = { q: string; a: string }
 const faqItems = computed((): FaqItem[] => {
@@ -706,8 +764,11 @@ function ensureFonts() {
 }
 
 onMounted(() => {
-  window.scrollTo(0, 0)
-  ensureFonts()
+	window.scrollTo(0, 0)
+	ensureFonts()
+	void fetchPublicActivity(8).then((items) => {
+		publicActivity.value = items
+	})
 
   if (!appStore.publicSettingsLoaded) {
     void appStore.fetchPublicSettings()
@@ -744,6 +805,86 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
+.stats-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.stats-strip .stat:nth-child(2),
+.stats-strip .stat:nth-child(3),
+.stats-strip .stat:nth-child(4) {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.home-stats-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 12px;
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.home-stats-meta p,
+.home-stats-meta time {
+  margin: 0;
+}
+
+.home-activity-band {
+  margin-top: 24px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.home-activity-title {
+  margin: 0 0 8px;
+  font-family: IBM Plex Mono, ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.home-activity-list {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.home-activity-list li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.home-activity-list time,
+.home-activity-empty {
+  color: var(--ink-3);
+}
+
+@media (max-width: 767px) {
+  .stats-strip {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-strip .stat:nth-child(2),
+  .stats-strip .stat:nth-child(3),
+  .stats-strip .stat:nth-child(4) {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .home-stats-meta,
+  .home-activity-list li {
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

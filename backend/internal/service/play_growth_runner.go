@@ -9,7 +9,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
-const playGrowthRunnerInterval = 5 * time.Minute
+const playGrowthRunnerInterval = time.Minute
 
 // PlayGrowthRunner settles expired daily arena periods and purges expired image studio jobs.
 type PlayGrowthRunner struct {
@@ -73,6 +73,9 @@ func (r *PlayGrowthRunner) Stop() {
 func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 	if r.playService != nil {
 		now := time.Now().In(timezone.Location())
+		if err := r.playService.RefreshGrowthWorld(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] refresh growth world: %v", err)
+		}
 		if n, err := r.playService.SettleExpiredDailyArenaPeriods(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settle daily periods: %v", err)
 		} else if n > 0 {

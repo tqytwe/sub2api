@@ -124,6 +124,27 @@ func (h *PlayHandler) PublicModelPricing(c *gin.Context) {
 	response.Success(c, rows)
 }
 
+// PublicHomeStats returns the canonical server-side marketing snapshot.
+func (h *PlayHandler) PublicHomeStats(c *gin.Context) {
+	snapshot, err := h.playService.GetPublicMetricSnapshot(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, snapshot)
+}
+
+// PublicActivity returns truthful, privacy-masked growth events.
+func (h *PlayHandler) PublicActivity(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.Query("limit"))
+	items, err := h.playService.ListPublicActivity(c.Request.Context(), limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
 // CheckinStatus returns today's check-in state for the current user.
 // GET /api/v1/play/checkin/status
 func (h *PlayHandler) CheckinStatus(c *gin.Context) {
@@ -261,6 +282,32 @@ func (h *PlayHandler) ArenaLeaderboard(c *gin.Context) {
 		})
 	}
 	response.Success(c, out)
+}
+
+func (h *PlayHandler) ArenaSummary(c *gin.Context) {
+	var userID int64
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
+		userID = subject.UserID
+	}
+	summary, err := h.playService.GetArenaSummary(c.Request.Context(), userID, false)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, summary)
+}
+
+func (h *PlayHandler) ArenaDailySummary(c *gin.Context) {
+	var userID int64
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
+		userID = subject.UserID
+	}
+	summary, err := h.playService.GetArenaSummary(c.Request.Context(), userID, true)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, summary)
 }
 
 func toPlayArenaPeriodDTO(p *service.PlayArenaPeriod) *playArenaPeriodDTO {
