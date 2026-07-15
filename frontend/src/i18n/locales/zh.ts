@@ -431,7 +431,6 @@ export default {
     blindbox: '盲盒',
     quizQuest: '答题闯关',
     agentTeam: 'Agent Team',
-	playGrowth: '增长世界配置',
     subscriptions: '订阅管理',
     accounts: '账号管理',
     proxies: 'IP管理',

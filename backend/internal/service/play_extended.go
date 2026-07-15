@@ -20,13 +20,10 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 	now := s.serverNow()
 	date := s.serverDate(now)
 	out := &PlayBlindboxStatus{
-		Enabled:       rt.BlindboxEnabled,
-		CostAmount:    rt.BlindboxPool.Cost,
-		DailyLimit:    rt.BlindboxDailyLimit,
-		ServerDate:    date.Format("2006-01-02"),
-		PaidEnabled:   rt.BlindboxPaidEnabled,
-		RegionEnabled: rt.BlindboxRegionEnabled,
-		Pool:          rt.BlindboxPool,
+		Enabled:    rt.BlindboxEnabled,
+		CostAmount: rt.BlindboxCost,
+		DailyLimit: rt.BlindboxDailyLimit,
+		ServerDate: date.Format("2006-01-02"),
 	}
 	out.EffectiveLimit = rt.BlindboxDailyLimit
 	if !rt.BlindboxEnabled || userID <= 0 {
@@ -52,14 +49,7 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 		return nil, err
 	}
 	out.OpensToday = opens
-	if ticketRepo, ok := s.repo.(BlindboxTicketRepository); ok {
-		balance, err := ticketRepo.GetBlindboxTicketBalance(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		out.TicketBalance = balance
-	}
-	out.CanOpen = opens < out.EffectiveLimit && (out.TicketBalance > 0 || (rt.BlindboxPaidEnabled && rt.BlindboxRegionEnabled))
+	out.CanOpen = opens < out.EffectiveLimit
 	return out, nil
 }
 
@@ -68,8 +58,7 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	if !rt.BlindboxEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	pool := rt.BlindboxPool
-	if err := ValidateBlindboxPool(pool); err != nil {
+	if rt.BlindboxCost <= 0 {
 		return nil, fmt.Errorf("blindbox cost not configured")
 	}
 	idempotencyKey = strings.TrimSpace(idempotencyKey)
@@ -77,26 +66,11 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		idempotencyKey = fmt.Sprintf("blindbox:%d:%d", userID, time.Now().UnixNano())
 	}
 
-	openSource := "paid"
-	cost := pool.Cost
-	if ticketRepo, ok := s.repo.(BlindboxTicketRepository); ok {
-		balance, err := ticketRepo.GetBlindboxTicketBalance(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		if balance > 0 {
-			openSource = "ticket"
-			cost = 0
-		}
-	}
-	if openSource == "paid" && (!rt.BlindboxPaidEnabled || !rt.BlindboxRegionEnabled) {
-		return nil, ErrPlayBlindboxPaidDisabled
-	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	if user.Balance < cost {
+	if user.Balance < rt.BlindboxCost {
 		return nil, ErrPlayInsufficientBalance
 	}
 
@@ -116,54 +90,29 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		return nil, ErrPlayBlindboxDailyLimit
 	}
 
-	reward := pickBlindboxReward(pool)
-	net := reward - cost
+	reward := pickBlindboxReward()
+	net := reward - rt.BlindboxCost
 
 	if err := s.grantBalance(ctx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, map[string]any{
-		"open_date":     dateKey,
-		"cost_amount":   cost,
-		"reward_amount": reward,
-		"net_amount":    net,
-		"pool_version":  pool.Version,
-		"open_source":   openSource,
+		"open_date":      dateKey,
+		"cost_amount":    rt.BlindboxCost,
+		"reward_amount":  reward,
+		"net_amount":     net,
 	}, func(txCtx context.Context) error {
-		if ticketRepo, ok := s.repo.(BlindboxTicketRepository); ok {
-			if openSource == "ticket" {
-				if err := ticketRepo.ConsumeBlindboxTicket(txCtx, userID, "ticket-consume:"+idempotencyKey); err != nil {
-					return err
-				}
-			}
-			if err := ticketRepo.InsertBlindboxOpenV2(txCtx, userID, date, openSource, pool.Version, cost, reward, idempotencyKey); err != nil {
-				return err
-			}
-			return ticketRepo.InsertBlindboxOpenAudit(txCtx, userID, openSource, pool.Version, idempotencyKey, cost, reward, map[string]any{
-				"open_date":  dateKey,
-				"net_amount": net,
-			})
-		}
-		return s.repo.InsertBlindboxOpen(txCtx, userID, date, cost, reward, idempotencyKey)
+		return s.repo.InsertBlindboxOpen(txCtx, userID, date, rt.BlindboxCost, reward, idempotencyKey)
 	}); err != nil {
 		if errors.Is(err, ErrPlayRewardDuplicate) {
 			return nil, ErrPlayRewardDuplicate
 		}
 		return nil, err
 	}
-	if activityRepo, ok := s.repo.(PlayActivityRepository); ok {
-		_ = activityRepo.InsertPlayActivity(ctx, "blindbox:"+idempotencyKey, "blindbox_opened", userID, "user", userID, map[string]any{
-			"reward":       reward,
-			"pool_version": pool.Version,
-			"open_source":  openSource,
-		}, now)
-	}
 
 	return &PlayBlindboxOpenResult{
-		CostAmount:   cost,
+		CostAmount:   rt.BlindboxCost,
 		RewardAmount: reward,
 		NetAmount:    net,
 		OpensToday:   opens + 1,
 		ServerDate:   dateKey,
-		PoolVersion:  pool.Version,
-		OpenSource:   openSource,
 	}, nil
 }
 
@@ -197,19 +146,33 @@ func maskBlindboxUserLabel(label string) string {
 	return string(runes[0]) + "***" + string(runes[len(runes)-1])
 }
 
-func pickBlindboxReward(pool PlayBlindboxPool) float64 {
-	n, err := rand.Int(rand.Reader, big.NewInt(blindboxWeightTotal))
+func pickBlindboxReward() float64 {
+	tiers := []struct {
+		amount float64
+		weight int64
+	}{
+		{0.05, 40},
+		{0.2, 30},
+		{0.5, 20},
+		{1.0, 8},
+		{2.0, 2},
+	}
+	var total int64
+	for _, t := range tiers {
+		total += t.weight
+	}
+	n, err := rand.Int(rand.Reader, big.NewInt(total))
 	if err != nil {
-		return pool.Tiers[0].Amount
+		return 0.2
 	}
 	var acc int64
-	for _, t := range pool.Tiers {
-		acc += t.Weight
+	for _, t := range tiers {
+		acc += t.weight
 		if n.Int64() < acc {
-			return t.Amount
+			return t.amount
 		}
 	}
-	return pool.Tiers[0].Amount
+	return tiers[0].amount
 }
 
 func normalizeQuizLanguage(language string) string {
@@ -523,12 +486,6 @@ func (s *PlayService) CreateTeam(ctx context.Context, userID int64, name string)
 	if err := s.repo.JoinTeam(ctx, team.ID, userID); err != nil {
 		return nil, err
 	}
-	if advanced, ok := s.repo.(AdvancedTeamRepository); ok {
-		_ = advanced.SetTeamMaxMembers(ctx, team.ID, rt.TeamMaxMembers)
-	}
-	if activityRepo, ok := s.repo.(PlayActivityRepository); ok {
-		_ = activityRepo.InsertPlayActivity(ctx, fmt.Sprintf("team_created:%d", team.ID), "team_created", userID, "team", team.ID, map[string]any{"team_name": team.Name}, s.serverNow())
-	}
 	return s.buildTeamSummaryByID(ctx, team.ID)
 }
 
@@ -553,20 +510,8 @@ func (s *PlayService) JoinTeam(ctx context.Context, userID int64, inviteCode str
 	if team == nil {
 		return nil, ErrPlayTeamNotFound
 	}
-	if advanced, ok := s.repo.(AdvancedTeamRepository); ok {
-		count, err := advanced.GetTeamMemberCount(ctx, team.ID)
-		if err != nil {
-			return nil, err
-		}
-		if count >= rt.TeamMaxMembers {
-			return nil, ErrPlayTeamFull
-		}
-	}
 	if err := s.repo.JoinTeam(ctx, team.ID, userID); err != nil {
 		return nil, err
-	}
-	if activityRepo, ok := s.repo.(PlayActivityRepository); ok {
-		_ = activityRepo.InsertPlayActivity(ctx, fmt.Sprintf("team_joined:%d:%d", team.ID, userID), "team_joined", userID, "team", team.ID, map[string]any{}, s.serverNow())
 	}
 	return s.buildTeamSummaryByID(ctx, team.ID)
 }
@@ -601,8 +546,6 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 	now := s.serverNow()
 	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
 	end := start.AddDate(0, 1, 0)
-	weekStart := s.serverDate(now).AddDate(0, 0, -((int(now.Weekday()) + 6) % 7))
-	_ = s.RefreshGrowthWorld(ctx, now)
 	tokenSum, err := s.repo.SumTeamTokenUsage(ctx, userIDs, start, end)
 	if err != nil {
 		return nil, err
@@ -626,158 +569,13 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 		MemberCount: len(members),
 		TokenSum:    tokenSum,
 		Members:     members,
-		MaxMembers:  rt.TeamMaxMembers,
-		IsPublic:    true,
-		Level:       1,
 	}
-	if advanced, ok := s.repo.(AdvancedTeamRepository); ok {
-		if engagement, err := advanced.GetTeamEngagement(ctx, teamID, start, weekStart); err != nil {
-			return nil, err
-		} else if engagement != nil {
-			summary.RequestCount = engagement.RequestCount
-			summary.ActiveDays = engagement.ActiveDays
-			summary.TokenSum = engagement.TokenSum
-			summary.Level = engagement.Level
-			summary.MaxMembers = engagement.MaxMembers
-			summary.IsPublic = engagement.IsPublic
-			summary.Weekly = engagement.Weekly
-		}
-		memberStats, err := advanced.ListTeamMemberEngagement(ctx, userIDs, start, end)
-		if err != nil {
-			return nil, err
-		}
-		for i := range members {
-			stats := memberStats[members[i].UserID]
-			members[i].TokenSum = stats.TokenSum
-			members[i].RequestCount = stats.RequestCount
-			members[i].ActiveDays = stats.ActiveDays
-			if summary.TokenSum > 0 {
-				members[i].TokenPct = int(members[i].TokenSum * 100 / summary.TokenSum)
-			}
-		}
-		summary.Members = members
-	}
-	affiliateInfo, err := s.enrichTeamAffiliate(ctx, teamDB.ID, teamDB.CaptainUserID, summary.TokenSum, rt)
+	affiliateInfo, err := s.enrichTeamAffiliate(ctx, teamDB.ID, teamDB.CaptainUserID, tokenSum, rt)
 	if err != nil {
 		return nil, err
 	}
 	summary.Affiliate = affiliateInfo
 	return summary, nil
-}
-
-func (s *PlayService) DiscoverTeams(ctx context.Context, limit int) ([]PlayTeamDiscovery, error) {
-	if !s.GetRuntime(ctx).AgentTeamEnabled {
-		return nil, ErrPlayFeatureDisabled
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return []PlayTeamDiscovery{}, nil
-	}
-	now := s.serverNow()
-	_ = s.RefreshGrowthWorld(ctx, now)
-	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
-	return advanced.ListDiscoverableTeams(ctx, monthStart, limit)
-}
-
-func (s *PlayService) RequestTeamJoin(ctx context.Context, userID, teamID int64) error {
-	if existing, err := s.repo.GetUserTeam(ctx, userID); err != nil {
-		return err
-	} else if existing != nil {
-		return ErrPlayTeamAlreadyJoined
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return ErrPlayTeamNotFound
-	}
-	count, err := advanced.GetTeamMemberCount(ctx, teamID)
-	if err != nil {
-		return err
-	}
-	if count >= s.GetRuntime(ctx).TeamMaxMembers {
-		return ErrPlayTeamFull
-	}
-	return advanced.CreateTeamJoinRequest(ctx, teamID, userID)
-}
-
-func (s *PlayService) ListTeamJoinRequests(ctx context.Context, captainID int64) ([]PlayTeamJoinRequest, error) {
-	team, err := s.repo.GetUserTeam(ctx, captainID)
-	if err != nil || team == nil {
-		return nil, ErrPlayTeamNotFound
-	}
-	if team.CaptainUserID != captainID {
-		return nil, ErrPlayTeamNotCaptain
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return []PlayTeamJoinRequest{}, nil
-	}
-	return advanced.ListTeamJoinRequests(ctx, team.ID)
-}
-
-func (s *PlayService) ReviewTeamJoinRequest(ctx context.Context, captainID, requestID int64, approve bool) error {
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return ErrPlayTeamJoinRequestNotFound
-	}
-	if approve {
-		return advanced.ApproveTeamJoinRequest(ctx, requestID, captainID)
-	}
-	return advanced.RejectTeamJoinRequest(ctx, requestID, captainID)
-}
-
-func (s *PlayService) LeaveTeam(ctx context.Context, userID int64) error {
-	team, err := s.repo.GetUserTeam(ctx, userID)
-	if err != nil || team == nil {
-		return ErrPlayTeamNotFound
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return ErrPlayTeamNotFound
-	}
-	count, err := advanced.GetTeamMemberCount(ctx, team.ID)
-	if err != nil {
-		return err
-	}
-	if team.CaptainUserID == userID && count > 1 {
-		return ErrPlayTeamTransferRequired
-	}
-	return advanced.LeaveTeam(ctx, team.ID, userID, team.CaptainUserID == userID)
-}
-
-func (s *PlayService) TransferTeamCaptain(ctx context.Context, captainID, nextCaptainID int64) error {
-	team, err := s.repo.GetUserTeam(ctx, captainID)
-	if err != nil || team == nil {
-		return ErrPlayTeamNotFound
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return ErrPlayTeamNotCaptain
-	}
-	return advanced.TransferTeamCaptain(ctx, team.ID, captainID, nextCaptainID)
-}
-
-func (s *PlayService) RemoveTeamMember(ctx context.Context, captainID, memberID int64) error {
-	team, err := s.repo.GetUserTeam(ctx, captainID)
-	if err != nil || team == nil {
-		return ErrPlayTeamNotFound
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return ErrPlayTeamNotCaptain
-	}
-	return advanced.RemoveTeamMember(ctx, team.ID, captainID, memberID)
-}
-
-func (s *PlayService) ListMyTeamActivity(ctx context.Context, userID, limit int64) ([]PlayPublicActivity, error) {
-	team, err := s.repo.GetUserTeam(ctx, userID)
-	if err != nil || team == nil {
-		return []PlayPublicActivity{}, nil
-	}
-	advanced, ok := s.repo.(AdvancedTeamRepository)
-	if !ok {
-		return []PlayPublicActivity{}, nil
-	}
-	return advanced.ListTeamActivity(ctx, team.ID, int(limit))
 }
 
 func generateTeamInviteCode() (string, error) {

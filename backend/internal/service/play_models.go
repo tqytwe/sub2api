@@ -72,85 +72,31 @@ type PlayCheckinStatus struct {
 }
 
 type PlayCheckinResult struct {
-	RewardAmount   float64
-	BalanceAdded   float64
-	ServerDate     string
-	StreakCount    int
-	MilestoneBonus float64
+	RewardAmount    float64
+	BalanceAdded    float64
+	ServerDate      string
+	StreakCount     int
+	MilestoneBonus  float64
 }
 
 type PlayBlindboxStatus struct {
-	Enabled             bool
-	CostAmount          float64
-	DailyLimit          int
-	EffectiveLimit      int
-	OpensToday          int
-	CanOpen             bool
-	ServerDate          string
+	Enabled           bool
+	CostAmount        float64
+	DailyLimit        int
+	EffectiveLimit    int
+	OpensToday        int
+	CanOpen           bool
+	ServerDate        string
 	RechargeBoostActive bool
 	CampaignActive      bool
-	PaidEnabled         bool
-	RegionEnabled       bool
-	Pool                PlayBlindboxPool
-	TicketBalance       int
 }
 
 type PlayBlindboxOpenResult struct {
-	CostAmount   float64
-	RewardAmount float64
-	NetAmount    float64
-	OpensToday   int
-	ServerDate   string
-	PoolVersion  string
-	OpenSource   string
-}
-
-type PlayBlindboxTier struct {
-	Amount float64 `json:"amount"`
-	Weight int64   `json:"weight"`
-}
-
-type PlayBlindboxPool struct {
-	Version string             `json:"version"`
-	Cost    float64            `json:"cost"`
-	RTPCap  float64            `json:"rtp_cap"`
-	Tiers   []PlayBlindboxTier `json:"tiers"`
-}
-
-type PublicMetricSnapshot struct {
-	SnapshotID     string    `json:"snapshot_id"`
-	UpdatedAt      time.Time `json:"updated_at"`
-	Source         string    `json:"source"`
-	Requests24h    int64     `json:"requests_24h"`
-	RequestsTotal  int64     `json:"requests_total"`
-	ActiveUsers7d  int64     `json:"active_users_7d"`
-	TokensTotal    int64     `json:"tokens_total"`
-	SuccessRate30d *float64  `json:"success_rate_30d"`
-	P50TTFTMs      *int64    `json:"p50_ttft_ms"`
-	P95TTFTMs      *int64    `json:"p95_ttft_ms"`
-}
-
-type PlayPublicActivity struct {
-	ID        int64          `json:"id"`
-	EventType string         `json:"event_type"`
-	Actor     string         `json:"actor"`
-	Payload   map[string]any `json:"payload"`
-	CreatedAt time.Time      `json:"created_at"`
-}
-
-type PlayActivityRepository interface {
-	InsertPlayActivity(ctx context.Context, eventKey, eventType string, userID int64, subjectType string, subjectID int64, payload map[string]any, createdAt time.Time) error
-}
-
-type PlayArenaSummary struct {
-	Enabled                bool             `json:"enabled"`
-	Period                 *PlayArenaPeriod `json:"period,omitempty"`
-	Participants           int              `json:"participants"`
-	MyScore                int64            `json:"my_score"`
-	MyRank                 int              `json:"my_rank"`
-	ScoreMultiplierApplied float64          `json:"score_multiplier_applied"`
-	TokensToPreviousRank   int64            `json:"tokens_to_previous_rank"`
-	NewcomerRank           int              `json:"newcomer_rank"`
+	CostAmount    float64
+	RewardAmount  float64
+	NetAmount     float64
+	OpensToday    int
+	ServerDate    string
 }
 
 // PlayBlindboxRecentWin is a privacy-masked public feed row for recent opens.
@@ -160,14 +106,6 @@ type PlayBlindboxRecentWin struct {
 	CreatedAt    time.Time
 }
 
-type BlindboxTicketRepository interface {
-	GetBlindboxTicketBalance(ctx context.Context, userID int64) (int, error)
-	ConsumeBlindboxTicket(ctx context.Context, userID int64, idempotencyKey string) error
-	InsertBlindboxTicket(ctx context.Context, userID int64, source string, quantity int, idempotencyKey string, detail map[string]any) error
-	InsertBlindboxOpenAudit(ctx context.Context, userID int64, source, poolVersion, idempotencyKey string, cost, reward float64, detail map[string]any) error
-	InsertBlindboxOpenV2(ctx context.Context, userID int64, date time.Time, source, poolVersion string, cost, reward float64, idempotencyKey string) error
-}
-
 type PlayQuizQuestion struct {
 	ID      int64
 	Prompt  string
@@ -175,18 +113,18 @@ type PlayQuizQuestion struct {
 }
 
 type PlayQuizToday struct {
-	Enabled          bool
-	Questions        []PlayQuizQuestion
-	AlreadySubmitted bool
-	PreviousScore    int
-	PreviousTotal    int
-	PreviousReward   float64
-	RewardPerCorrect float64
-	ServerDate       string
+	Enabled           bool
+	Questions         []PlayQuizQuestion
+	AlreadySubmitted  bool
+	PreviousScore     int
+	PreviousTotal     int
+	PreviousReward    float64
+	RewardPerCorrect  float64
+	ServerDate        string
 }
 
 type PlayQuizAnswer struct {
-	QuestionID  int64
+	QuestionID int64
 	ChoiceIndex int
 }
 
@@ -198,92 +136,23 @@ type PlayQuizSubmitResult struct {
 }
 
 type PlayTeamMember struct {
-	UserID       int64
-	DisplayName  string
-	AvatarURL    string
-	JoinedAt     time.Time
-	TokenSum     int64
-	TokenPct     int
-	RequestCount int64
-	ActiveDays   int
+	UserID      int64
+	DisplayName string
+	AvatarURL   string
+	JoinedAt    time.Time
+	TokenSum    int64
+	TokenPct    int
 }
 
 type PlayTeamSummary struct {
-	ID           int64
-	Name         string
-	InviteCode   string
-	CaptainID    int64
-	MemberCount  int
-	TokenSum     int64
-	Members      []PlayTeamMember
-	Affiliate    *PlayTeamAffiliateInfo
-	RequestCount int64
-	ActiveDays   int
-	Level        int
-	MaxMembers   int
-	IsPublic     bool
-	Weekly       *PlayTeamWeeklyProgress
-}
-
-type PlayTeamWeeklyProgress struct {
-	WeekStart     string `json:"week_start"`
-	TokenTarget   int64  `json:"token_target"`
-	RequestTarget int64  `json:"request_target"`
-	TokenSum      int64  `json:"token_sum"`
-	RequestCount  int64  `json:"request_count"`
-	ActiveDays    int    `json:"active_days"`
-	Completed     bool   `json:"completed"`
-}
-
-type PlayTeamDiscovery struct {
-	ID           int64  `json:"id"`
-	Name         string `json:"name"`
-	MemberCount  int    `json:"member_count"`
-	MaxMembers   int    `json:"max_members"`
-	Level        int    `json:"level"`
-	TokenSum     int64  `json:"token_sum"`
-	RequestCount int64  `json:"request_count"`
-}
-
-type PlayTeamJoinRequest struct {
-	ID          int64     `json:"id"`
-	TeamID      int64     `json:"team_id"`
-	UserID      int64     `json:"user_id"`
-	DisplayName string    `json:"display_name"`
-	Status      string    `json:"status"`
-	CreatedAt   time.Time `json:"created_at"`
-}
-
-type PlayTeamEngagement struct {
-	RequestCount int64
-	TokenSum     int64
-	ActiveDays   int
-	Level        int
-	MaxMembers   int
-	IsPublic     bool
-	Weekly       *PlayTeamWeeklyProgress
-}
-
-type PlayMemberEngagement struct {
-	RequestCount int64
-	TokenSum     int64
-	ActiveDays   int
-}
-
-type AdvancedTeamRepository interface {
-	SetTeamMaxMembers(ctx context.Context, teamID int64, maxMembers int) error
-	GetTeamMemberCount(ctx context.Context, teamID int64) (int, error)
-	GetTeamEngagement(ctx context.Context, teamID int64, monthStart, weekStart time.Time) (*PlayTeamEngagement, error)
-	ListTeamMemberEngagement(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]PlayMemberEngagement, error)
-	ListDiscoverableTeams(ctx context.Context, monthStart time.Time, limit int) ([]PlayTeamDiscovery, error)
-	CreateTeamJoinRequest(ctx context.Context, teamID, userID int64) error
-	ListTeamJoinRequests(ctx context.Context, teamID int64) ([]PlayTeamJoinRequest, error)
-	ApproveTeamJoinRequest(ctx context.Context, requestID, captainID int64) error
-	RejectTeamJoinRequest(ctx context.Context, requestID, captainID int64) error
-	LeaveTeam(ctx context.Context, teamID, userID int64, deleteTeam bool) error
-	TransferTeamCaptain(ctx context.Context, teamID, captainID, nextCaptainID int64) error
-	RemoveTeamMember(ctx context.Context, teamID, captainID, memberID int64) error
-	ListTeamActivity(ctx context.Context, teamID int64, limit int) ([]PlayPublicActivity, error)
+	ID          int64
+	Name        string
+	InviteCode  string
+	CaptainID   int64
+	MemberCount int
+	TokenSum    int64
+	Members     []PlayTeamMember
+	Affiliate   *PlayTeamAffiliateInfo
 }
 
 type PlayTeamMe struct {
@@ -350,11 +219,11 @@ type PlayRepository interface {
 }
 
 type PlayQuizQuestionDB struct {
-	ID           int64
-	Language     string
-	Prompt       string
-	OptionsJSON  string
-	CorrectIndex int
+	ID            int64
+	Language      string
+	Prompt        string
+	OptionsJSON   string
+	CorrectIndex  int
 }
 
 type PlayQuizAttemptDB struct {
@@ -380,21 +249,10 @@ type PlayRuntime struct {
 	BlindboxEnabled             bool
 	BlindboxCost                float64
 	BlindboxDailyLimit          int
-	BlindboxPool                PlayBlindboxPool
-	BlindboxPaidEnabled         bool
-	BlindboxRegionEnabled       bool
-	BlindboxFirstRequestTickets int
-	BlindboxTeamWeeklyTickets   int
 	QuizEnabled                 bool
 	QuizRewardPerCorrect        float64
 	QuizQuestionsPerDay         int
 	AgentTeamEnabled            bool
-	TeamMaxMembers              int
-	TeamWeeklyTokenTarget       int64
-	TeamWeeklyRequestTarget     int64
-	PublicActivityMinCount      int
-	FounderSeasonJSON           string
-	GrowthExperimentJSON        string
 	PublicModelsEnabled         bool
 	RechargeBoostEnabled        bool
 	RechargeBoostDurationHours  int

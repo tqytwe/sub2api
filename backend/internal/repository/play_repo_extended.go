@@ -25,16 +25,12 @@ func (r *playRepository) CountBlindboxOpens(ctx context.Context, userID int64, d
 }
 
 func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error {
-	return r.InsertBlindboxOpenV2(ctx, userID, date, "paid", "legacy-v1", cost, reward, idempotencyKey)
-}
-
-func (r *playRepository) InsertBlindboxOpenV2(ctx context.Context, userID int64, date time.Time, source, poolVersion string, cost, reward float64, idempotencyKey string) error {
 	exec := r.sqlExec(ctx)
 	res, err := exec.ExecContext(ctx, `
-		INSERT INTO play_blindbox_opens (user_id, open_date, cost_amount, reward_amount, idempotency_key, open_source, pool_version)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO play_blindbox_opens (user_id, open_date, cost_amount, reward_amount, idempotency_key)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (idempotency_key) DO NOTHING`,
-		userID, date.Format("2006-01-02"), cost, reward, idempotencyKey, source, poolVersion,
+		userID, date.Format("2006-01-02"), cost, reward, idempotencyKey,
 	)
 	if err != nil {
 		return fmt.Errorf("insert blindbox open: %w", err)
@@ -45,75 +41,6 @@ func (r *playRepository) InsertBlindboxOpenV2(ctx context.Context, userID int64,
 	}
 	if n == 0 {
 		return service.ErrPlayRewardDuplicate
-	}
-	return nil
-}
-
-func (r *playRepository) GetBlindboxTicketBalance(ctx context.Context, userID int64) (int, error) {
-	var balance int
-	err := scanSingleRow(ctx, r.sqlExec(ctx), `
-		SELECT COALESCE(SUM(quantity), 0)::int
-		FROM play_blindbox_ticket_ledger
-		WHERE user_id = $1`, []any{userID}, &balance)
-	if err != nil {
-		return 0, fmt.Errorf("get blindbox ticket balance: %w", err)
-	}
-	return balance, nil
-}
-
-func (r *playRepository) ConsumeBlindboxTicket(ctx context.Context, userID int64, idempotencyKey string) error {
-	exec := r.sqlExec(ctx)
-	// Serialize ticket consumption for one user inside the reward transaction.
-	if _, err := exec.ExecContext(ctx, `SELECT pg_advisory_xact_lock(7011200000000000000 + $1::bigint)`, userID); err != nil {
-		return fmt.Errorf("lock blindbox ticket balance: %w", err)
-	}
-	res, err := exec.ExecContext(ctx, `
-		INSERT INTO play_blindbox_ticket_ledger (user_id, source, quantity, idempotency_key, detail)
-		SELECT $1, 'consume', -1, $2, '{"reason":"blindbox_open"}'::jsonb
-		WHERE (SELECT COALESCE(SUM(quantity), 0) FROM play_blindbox_ticket_ledger WHERE user_id = $1) > 0
-		ON CONFLICT (idempotency_key) DO NOTHING`, userID, idempotencyKey)
-	if err != nil {
-		return fmt.Errorf("consume blindbox ticket: %w", err)
-	}
-	rows, err := res.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("consume blindbox ticket rows: %w", err)
-	}
-	if rows == 0 {
-		return service.ErrPlayBlindboxPaidDisabled
-	}
-	return nil
-}
-
-func (r *playRepository) InsertBlindboxTicket(ctx context.Context, userID int64, source string, quantity int, idempotencyKey string, detail map[string]any) error {
-	payload, err := json.Marshal(detail)
-	if err != nil {
-		return fmt.Errorf("marshal blindbox ticket detail: %w", err)
-	}
-	res, err := r.sqlExec(ctx).ExecContext(ctx, `
-		INSERT INTO play_blindbox_ticket_ledger (user_id, source, quantity, idempotency_key, detail)
-		VALUES ($1, $2, $3, $4, $5)
-		ON CONFLICT (idempotency_key) DO NOTHING`, userID, source, quantity, idempotencyKey, payload)
-	if err != nil {
-		return fmt.Errorf("insert blindbox ticket: %w", err)
-	}
-	if rows, _ := res.RowsAffected(); rows == 0 {
-		return service.ErrPlayRewardDuplicate
-	}
-	return nil
-}
-
-func (r *playRepository) InsertBlindboxOpenAudit(ctx context.Context, userID int64, source, poolVersion, idempotencyKey string, cost, reward float64, detail map[string]any) error {
-	payload, err := json.Marshal(detail)
-	if err != nil {
-		return fmt.Errorf("marshal blindbox audit detail: %w", err)
-	}
-	_, err = r.sqlExec(ctx).ExecContext(ctx, `
-		INSERT INTO play_reward_audit (user_id, source, pool_version, open_source, idempotency_key, cost_amount, reward_amount, detail)
-		VALUES ($1, 'blindbox', $2, $3, $4, $5, $6, $7)
-		ON CONFLICT (idempotency_key) DO NOTHING`, userID, poolVersion, source, idempotencyKey, cost, reward, payload)
-	if err != nil {
-		return fmt.Errorf("insert blindbox reward audit: %w", err)
 	}
 	return nil
 }

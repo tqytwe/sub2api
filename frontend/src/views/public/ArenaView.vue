@@ -9,7 +9,6 @@ import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, {
   type PlayArenaCurrent,
   type PlayArenaLeaderboard,
-  type PlayArenaSummary,
   type PlayQuestToday,
 } from '@/api/play'
 import '@/styles/public-pages.css'
@@ -34,12 +33,9 @@ const dailyCurrent = ref<PlayArenaCurrent | null>(null)
 const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
 const dailyBoard = ref<PlayArenaLeaderboard | null>(null)
 const quests = ref<PlayQuestToday | null>(null)
-const monthlySummary = ref<PlayArenaSummary | null>(null)
-const dailySummary = ref<PlayArenaSummary | null>(null)
 
 const current = computed(() => (tab.value === 'daily' ? dailyCurrent.value : monthlyCurrent.value))
 const leaderboard = computed(() => (tab.value === 'daily' ? dailyBoard.value : monthlyBoard.value))
-const summary = computed(() => (tab.value === 'daily' ? dailySummary.value : monthlySummary.value))
 const periodLabel = computed(() => current.value?.period?.name || leaderboard.value?.period?.name || '')
 const steps = computed(() => readStringList('play.arena.steps'))
 const rules = computed(() => readStringList('play.arena.rules'))
@@ -72,21 +68,17 @@ function switchTab(next: BoardTab) {
 async function load() {
   loading.value = true
   try {
-    const [mCur, dCur, mBoard, dBoard, mSummary, dSummary, q] = await Promise.all([
+    const [mCur, dCur, mBoard, dBoard, q] = await Promise.all([
       playAPI.getArenaCurrent(),
       playAPI.getArenaDailyCurrent(),
       playAPI.getArenaLeaderboard(50),
       playAPI.getArenaDailyLeaderboard(50),
-      playAPI.getArenaSummary(),
-      playAPI.getArenaDailySummary(),
       authStore.isAuthenticated ? playAPI.getQuestsToday() : Promise.resolve(null),
     ])
     monthlyCurrent.value = mCur
     dailyCurrent.value = dCur
     monthlyBoard.value = mBoard
     dailyBoard.value = dBoard
-    monthlySummary.value = mSummary
-    dailySummary.value = dSummary
     quests.value = q
     if (q?.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
       trackQuestCompleteOnce('api_call')
@@ -96,8 +88,6 @@ async function load() {
     dailyCurrent.value = null
     monthlyBoard.value = null
     dailyBoard.value = null
-    monthlySummary.value = null
-    dailySummary.value = null
     quests.value = null
   } finally {
     loading.value = false
@@ -193,10 +183,6 @@ onMounted(load)
         </div>
 
         <p v-if="periodLabel" class="play-intro">{{ t('arena.period', { name: periodLabel }) }}</p>
-        <p v-if="summary?.participants" class="play-note">
-          {{ t('arena.participantCount', { count: summary.participants }) }}
-          <span v-if="summary.newcomer_rank"> · {{ t('arena.newcomerRank', { rank: summary.newcomer_rank }) }}</span>
-        </p>
 
         <section class="play-section">
           <h2 class="play-section-title">{{ t('arena.leaderboard') }}</h2>

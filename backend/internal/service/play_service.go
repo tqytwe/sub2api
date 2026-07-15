@@ -18,7 +18,6 @@ type PlayService struct {
 	settingService   *SettingService
 	affiliateService *AffiliateService
 	entClient        *dbent.Client
-	publicMetrics    *PublicMetricSnapshotService
 }
 
 func NewPlayService(
@@ -29,7 +28,7 @@ func NewPlayService(
 	affiliateService *AffiliateService,
 	entClient *dbent.Client,
 ) *PlayService {
-	play := &PlayService{
+	return &PlayService{
 		repo:             repo,
 		userRepo:         userRepo,
 		channelService:   channelService,
@@ -37,10 +36,6 @@ func NewPlayService(
 		affiliateService: affiliateService,
 		entClient:        entClient,
 	}
-	if metricsRepo, ok := repo.(PublicMetricsRepository); ok {
-		play.publicMetrics = NewPublicMetricSnapshotService(metricsRepo)
-	}
-	return play
 }
 
 func (s *PlayService) GetRuntime(ctx context.Context) PlayRuntime {
@@ -195,10 +190,16 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 		return out, nil
 	}
 	out.Period = period
-	s.refreshArenaAggregates(ctx)
 	if userID <= 0 {
 		return out, nil
 	}
+	tokenSum, rank, err := s.repo.GetUserArenaScore(ctx, userID, period.StartAt, period.EndAt)
+	if err != nil {
+		return nil, err
+	}
+	out.TokenSum = tokenSum
+	out.Rank = rank
+	out.DisplayTokenSum = tokenSum
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
 	if err != nil {
 		return nil, err
@@ -208,33 +209,15 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 	} else if boost.Active {
 		out.RechargeBoostActive = true
 	}
-	out.ArenaScoreMultiplier = mods.ArenaScoreMultiplier
-	if out.ArenaScoreMultiplier <= 0 {
-		out.ArenaScoreMultiplier = 1
-	}
-	if aggregateRepo, ok := s.repo.(ArenaAggregateRepository); ok {
-		score, rank, gap, _, _, err := aggregateRepo.GetArenaAggregateScore(ctx, userID, "monthly", period.StartAt)
-		if err != nil {
-			return nil, err
-		}
-		out.TokenSum = score
-		out.DisplayTokenSum = score
-		out.Rank = rank
-		out.TokensToPrevRank = gap
-	} else {
-		tokenSum, rank, err := s.repo.GetUserArenaScore(ctx, userID, period.StartAt, period.EndAt)
-		if err != nil {
-			return nil, err
-		}
-		out.TokenSum = tokenSum
-		out.Rank = rank
-		out.DisplayTokenSum = applyArenaScoreMultiplier(tokenSum, out.ArenaScoreMultiplier)
+	if mods.ArenaScoreMultiplier > 1 {
+		out.ArenaScoreMultiplier = mods.ArenaScoreMultiplier
+		out.DisplayTokenSum = applyArenaScoreMultiplier(tokenSum, mods.ArenaScoreMultiplier)
 	}
 	if mods.CampaignActive {
 		out.CampaignActive = true
 	}
-	if _, ok := s.repo.(ArenaAggregateRepository); !ok && out.Rank > 1 && period != nil {
-		gap, err := s.repo.GetArenaTokensToPrevRank(ctx, userID, period.StartAt, period.EndAt, out.Rank, out.TokenSum)
+	if rank > 1 && period != nil {
+		gap, err := s.repo.GetArenaTokensToPrevRank(ctx, userID, period.StartAt, period.EndAt, rank, tokenSum)
 		if err != nil {
 			return nil, err
 		}
@@ -255,14 +238,6 @@ func (s *PlayService) ListArenaLeaderboard(ctx context.Context, limit int) ([]Pl
 	}
 	if period == nil {
 		return []PlayArenaScoreRow{}, nil, nil
-	}
-	s.refreshArenaAggregates(ctx)
-	if aggregateRepo, ok := s.repo.(ArenaAggregateRepository); ok {
-		rows, err := aggregateRepo.ListArenaAggregateLeaderboard(ctx, "monthly", period.StartAt, limit)
-		if err != nil {
-			return nil, nil, err
-		}
-		return rows, period, nil
 	}
 	rows, err := s.repo.ListArenaLeaderboard(ctx, period.StartAt, period.EndAt, limit)
 	if err != nil {

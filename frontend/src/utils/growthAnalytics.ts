@@ -1,18 +1,5 @@
 /** Lightweight growth analytics — forwards to window.dataLayer when present. */
 export type GrowthEventName =
-	| 'home_stats_viewed'
-	| 'stats_methodology_opened'
-	| 'signup_completed'
-	| 'api_key_created'
-	| 'first_valid_request'
-	| 'farm_stage_completed'
-	| 'reward_claimed'
-	| 'blindbox_ticket_earned'
-	| 'blindbox_opened'
-	| 'team_created'
-	| 'team_joined'
-	| 'invitee_activated'
-	| 'weekly_mission_completed'
   | 'image_studio_workspace_view'
   | 'image_studio_intent_select'
   | 'image_studio_template_select'

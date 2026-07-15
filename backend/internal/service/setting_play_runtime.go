@@ -19,21 +19,10 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		SettingKeyPlayBlindboxEnabled,
 		SettingKeyPlayBlindboxCost,
 		SettingKeyPlayBlindboxDailyLimit,
-		SettingKeyPlayBlindboxPoolJSON,
-		SettingKeyPlayBlindboxPaidEnabled,
-		SettingKeyPlayBlindboxRegionEnabled,
-		SettingKeyPlayBlindboxFirstRequestTickets,
-		SettingKeyPlayBlindboxTeamWeeklyTickets,
 		SettingKeyPlayQuizEnabled,
 		SettingKeyPlayQuizRewardPerCorrect,
 		SettingKeyPlayQuizQuestionsPerDay,
 		SettingKeyPlayAgentTeamEnabled,
-		SettingKeyPlayTeamMaxMembers,
-		SettingKeyPlayTeamWeeklyTokenTarget,
-		SettingKeyPlayTeamWeeklyRequestTarget,
-		SettingKeyPlayPublicActivityMinCount,
-		SettingKeyPlayFounderSeasonJSON,
-		SettingKeyPlayGrowthExperimentJSON,
 		SettingKeyPublicModelsEnabled,
 		SettingKeyPlayRechargeBoostEnabled,
 		SettingKeyPlayRechargeBoostDurationHours,
@@ -59,6 +48,10 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 	if reward <= 0 {
 		reward = 0.5
 	}
+	blindboxCost, _ := strconv.ParseFloat(vals[SettingKeyPlayBlindboxCost], 64)
+	if blindboxCost <= 0 {
+		blindboxCost = 0.5
+	}
 	blindboxLimit, _ := strconv.Atoi(vals[SettingKeyPlayBlindboxDailyLimit])
 	if blindboxLimit <= 0 {
 		blindboxLimit = 10
@@ -71,7 +64,6 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 	if quizCount <= 0 {
 		quizCount = 5
 	}
-	growth := parsePlayGrowthConfig(vals)
 	return PlayRuntime{
 		CheckinEnabled:              vals[SettingKeyPlayCheckinEnabled] == "true",
 		CheckinReward:               reward,
@@ -80,23 +72,12 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		ArenaEnabled:                vals[SettingKeyPlayArenaEnabled] == "true",
 		ArenaSettlementRewards:      parseArenaSettlementRewards(vals[SettingKeyPlayArenaSettlementRewards]),
 		BlindboxEnabled:             vals[SettingKeyPlayBlindboxEnabled] == "true",
-		BlindboxCost:                growth.BlindboxPool.Cost,
+		BlindboxCost:                blindboxCost,
 		BlindboxDailyLimit:          blindboxLimit,
-		BlindboxPool:                growth.BlindboxPool,
-		BlindboxPaidEnabled:         growth.BlindboxPaidEnabled,
-		BlindboxRegionEnabled:       growth.BlindboxRegionEnabled,
-		BlindboxFirstRequestTickets: parsePositiveIntSetting(vals[SettingKeyPlayBlindboxFirstRequestTickets], 1),
-		BlindboxTeamWeeklyTickets:   parsePositiveIntSetting(vals[SettingKeyPlayBlindboxTeamWeeklyTickets], 1),
 		QuizEnabled:                 vals[SettingKeyPlayQuizEnabled] == "true",
 		QuizRewardPerCorrect:        quizReward,
 		QuizQuestionsPerDay:         quizCount,
 		AgentTeamEnabled:            vals[SettingKeyPlayAgentTeamEnabled] == "true",
-		TeamMaxMembers:              growth.TeamMaxMembers,
-		TeamWeeklyTokenTarget:       growth.TeamWeeklyTokenTarget,
-		TeamWeeklyRequestTarget:     growth.TeamWeeklyRequestTarget,
-		PublicActivityMinCount:      growth.PublicActivityMinCount,
-		FounderSeasonJSON:           growth.FounderSeasonJSON,
-		GrowthExperimentJSON:        growth.GrowthExperimentJSON,
 		PublicModelsEnabled:         vals[SettingKeyPublicModelsEnabled] == "true",
 		RechargeBoostEnabled:        vals[SettingKeyPlayRechargeBoostEnabled] == "true",
 		RechargeBoostDurationHours:  parsePositiveIntSetting(vals[SettingKeyPlayRechargeBoostDurationHours], 24),

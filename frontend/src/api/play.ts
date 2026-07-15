@@ -66,22 +66,6 @@ export interface PlayBlindboxStatus {
   server_date: string
   recharge_boost_active?: boolean
   campaign_active?: boolean
-  paid_enabled: boolean
-  region_enabled: boolean
-  ticket_balance: number
-  pool: PlayBlindboxPool
-}
-
-export interface PlayBlindboxTier {
-  amount: number
-  weight: number
-}
-
-export interface PlayBlindboxPool {
-  version: string
-  cost: number
-  rtp_cap: number
-  tiers: PlayBlindboxTier[]
 }
 
 export interface PlayBlindboxOpenResult {
@@ -90,8 +74,6 @@ export interface PlayBlindboxOpenResult {
   net_amount: number
   opens_today: number
   server_date: string
-  pool_version: string
-  open_source: string
 }
 
 export interface PlayBlindboxRecentWin {
@@ -131,18 +113,6 @@ export interface PlayTeamMember {
   joined_at: string
   token_sum: number
   token_pct: number
-  request_count: number
-  active_days: number
-}
-
-export interface PlayTeamWeeklyProgress {
-  week_start: string
-  token_target: number
-  request_target: number
-  token_sum: number
-  request_count: number
-  active_days: number
-  completed: boolean
 }
 
 export interface PlayTeamAffiliateInfo {
@@ -163,50 +133,6 @@ export interface PlayTeamSummary {
   token_sum: number
   members: PlayTeamMember[]
   affiliate?: PlayTeamAffiliateInfo
-  request_count: number
-  active_days: number
-  level: number
-  max_members: number
-  is_public: boolean
-  weekly?: PlayTeamWeeklyProgress
-}
-
-export interface PlayTeamDiscovery {
-  id: number
-  name: string
-  member_count: number
-  max_members: number
-  level: number
-  token_sum: number
-  request_count: number
-}
-
-export interface PlayTeamJoinRequest {
-  id: number
-  team_id: number
-  user_id: number
-  display_name: string
-  status: string
-  created_at: string
-}
-
-export interface PlayActivityItem {
-  id: number
-  event_type: string
-  actor: string
-  payload: Record<string, unknown>
-  created_at: string
-}
-
-export interface PlayArenaSummary {
-  enabled: boolean
-  period?: PlayArenaPeriod
-  participants: number
-  my_score: number
-  my_rank: number
-  score_multiplier_applied: number
-  tokens_to_previous_rank: number
-  newcomer_rank: number
 }
 
 export interface PlayTeamMe {
@@ -331,16 +257,6 @@ export async function getArenaDailyLeaderboard(limit = 50): Promise<PlayArenaLea
   return data
 }
 
-export async function getArenaSummary(): Promise<PlayArenaSummary> {
-  const { data } = await apiClient.get<PlayArenaSummary>('/play/arena/summary')
-  return data
-}
-
-export async function getArenaDailySummary(): Promise<PlayArenaSummary> {
-  const { data } = await apiClient.get<PlayArenaSummary>('/play/arena/daily/summary')
-  return data
-}
-
 export async function getQuestsToday(): Promise<PlayQuestToday> {
   const { data } = await apiClient.get<PlayQuestToday>('/play/quests/today')
   return data
@@ -355,11 +271,6 @@ export async function getArenaLeaderboard(limit = 50): Promise<PlayArenaLeaderbo
 
 export async function getBlindboxStatus(): Promise<PlayBlindboxStatus> {
   const { data } = await apiClient.get<PlayBlindboxStatus>('/play/blindbox/status')
-  return data
-}
-
-export async function getBlindboxPool(): Promise<PlayBlindboxStatus> {
-  const { data } = await apiClient.get<PlayBlindboxStatus>('/play/blindbox/pool')
   return data
 }
 
@@ -399,41 +310,6 @@ export async function joinTeam(inviteCode: string): Promise<PlayTeamSummary> {
   return data
 }
 
-export async function discoverTeams(limit = 20): Promise<PlayTeamDiscovery[]> {
-  const { data } = await apiClient.get<PlayTeamDiscovery[]>('/play/teams/discover', { params: { limit } })
-  return data ?? []
-}
-
-export async function requestTeamJoin(teamId: number): Promise<void> {
-  await apiClient.post('/play/teams/request', { team_id: teamId })
-}
-
-export async function getTeamJoinRequests(): Promise<PlayTeamJoinRequest[]> {
-  const { data } = await apiClient.get<PlayTeamJoinRequest[]>('/play/teams/join-requests')
-  return data ?? []
-}
-
-export async function reviewTeamJoinRequest(requestId: number, approve: boolean): Promise<void> {
-  await apiClient.post('/play/teams/review', { request_id: requestId, approve })
-}
-
-export async function leaveTeam(): Promise<void> {
-  await apiClient.post('/play/teams/leave')
-}
-
-export async function transferTeamCaptain(userId: number): Promise<void> {
-  await apiClient.post('/play/teams/transfer', { user_id: userId })
-}
-
-export async function removeTeamMember(userId: number): Promise<void> {
-  await apiClient.post('/play/teams/remove', { user_id: userId })
-}
-
-export async function getTeamActivity(limit = 20): Promise<PlayActivityItem[]> {
-  const { data } = await apiClient.get<PlayActivityItem[]>('/play/teams/activity', { params: { limit } })
-  return data ?? []
-}
-
 export const playAPI = {
   getPlayHub,
   getActiveCampaigns,
@@ -444,11 +320,8 @@ export const playAPI = {
   getArenaLeaderboard,
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
-  getArenaSummary,
-  getArenaDailySummary,
   getQuestsToday,
   getBlindboxStatus,
-  getBlindboxPool,
   openBlindbox,
   getBlindboxRecentWins,
   getQuizToday,
@@ -456,14 +329,6 @@ export const playAPI = {
   getTeamMe,
   createTeam,
   joinTeam,
-  discoverTeams,
-  requestTeamJoin,
-  getTeamJoinRequests,
-  reviewTeamJoinRequest,
-  leaveTeam,
-  transferTeamCaptain,
-  removeTeamMember,
-  getTeamActivity,
 }
 
 export default playAPI

@@ -5827,13 +5827,6 @@
             </div>
             <div class="flex items-center justify-between px-6 py-4">
               <div>
-                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">增长世界运营配置</label>
-                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">配置盲盒概率、团队周目标、赛季与实验规则</p>
-              </div>
-              <router-link to="/admin/play-growth" class="btn btn-secondary">打开配置</router-link>
-            </div>
-            <div class="flex items-center justify-between px-6 py-4">
-              <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.affiliate') }}</label>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.affiliateHint') }}</p>
               </div>
