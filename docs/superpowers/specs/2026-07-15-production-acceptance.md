@@ -43,4 +43,3 @@ Close the remaining read-only production acceptance gaps after the growth rollba
 | Image Studio key | A compatible key and image model are selected | Pending deployment |
 | Image Studio history | Historical thumbnails/previews load without direct 401 image requests | Pending deployment |
 | Other user pages | Check-in, blindbox, quiz, teams, and models load without API errors | Pending deployment |
-

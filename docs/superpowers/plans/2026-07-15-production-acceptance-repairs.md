@@ -61,4 +61,3 @@
 - [ ] Commit intended files, push the repair branch, and open a PR to `play/main`.
 - [ ] Wait for protected checks, merge, and verify the deployed commit.
 - [ ] Use the normal-user production session for read-only acceptance and update every acceptance row with evidence.
-
