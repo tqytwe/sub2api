@@ -3,10 +3,12 @@ package admin
 import (
 	"strconv"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 // ModelCatalogHandler admin APIs for site model catalog.
@@ -158,6 +160,7 @@ func (h *ModelCatalogHandler) BatchPrices(c *gin.Context) {
 func (h *ModelCatalogHandler) CreateSyncJob(c *gin.Context) {
 	job, err := h.catalogService.StartSyncJob(c.Request.Context())
 	if err != nil {
+		logger.FromContext(c.Request.Context()).Error("model_catalog.create_sync_job_failed", zap.Error(err))
 		response.ErrorFrom(c, err)
 		return
 	}

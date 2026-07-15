@@ -60,3 +60,31 @@ func TestModelCatalogRepository_OfficialAndSitePricesRemainSeparate(t *testing.T
 	require.InDelta(t, officialCacheWrite*multiplier, *got.CacheWritePrice, 1e-12)
 	require.InDelta(t, multiplier, *got.PriceMultiplier, 1e-12)
 }
+
+func TestModelCatalogRepository_SyncJobRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	repo := NewModelCatalogRepository(integrationDB)
+	job := &service.ModelSyncJob{
+		ID:        uuid.NewString(),
+		Kind:      "pricing_refresh",
+		Status:    "running",
+		StartedAt: time.Now(),
+	}
+	require.NoError(t, repo.CreateSyncJob(ctx, job))
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(context.Background(), "DELETE FROM model_sync_jobs WHERE id = $1", job.ID)
+	})
+
+	completedAt := time.Now()
+	job.Status = "succeeded"
+	job.Result = map[string]any{"updated": 3, "source": "aihubmix"}
+	job.CompletedAt = &completedAt
+	require.NoError(t, repo.UpdateSyncJob(ctx, job))
+
+	got, err := repo.GetSyncJob(ctx, job.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "succeeded", got.Status)
+	require.Equal(t, "aihubmix", got.Result["source"])
+	require.EqualValues(t, 3, got.Result["updated"])
+}

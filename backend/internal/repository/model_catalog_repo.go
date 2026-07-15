@@ -440,36 +440,42 @@ func (r *modelCatalogRepository) UpdateDiscoveryStatus(ctx context.Context, ids 
 }
 
 func (r *modelCatalogRepository) CreateSyncJob(ctx context.Context, job *service.ModelSyncJob) error {
-	var resultJSON []byte
+	var resultJSON any
 	if job.Result != nil {
-		var err error
-		resultJSON, err = json.Marshal(job.Result)
+		encoded, err := json.Marshal(job.Result)
 		if err != nil {
-			return err
+			return fmt.Errorf("marshal model sync job result: %w", err)
 		}
+		resultJSON = string(encoded)
 	}
 	_, err := r.db.ExecContext(ctx,
 		`INSERT INTO model_sync_jobs (id, kind, status, result, error, started_at, completed_at)
-		 VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+		 VALUES ($1,$2,$3,$4::jsonb,$5,$6,$7)`,
 		job.ID, job.Kind, job.Status, resultJSON, catalogNullString(job.Error), job.StartedAt, job.CompletedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("create model sync job: %w", err)
+	}
+	return nil
 }
 
 func (r *modelCatalogRepository) UpdateSyncJob(ctx context.Context, job *service.ModelSyncJob) error {
-	var resultJSON []byte
+	var resultJSON any
 	if job.Result != nil {
-		var err error
-		resultJSON, err = json.Marshal(job.Result)
+		encoded, err := json.Marshal(job.Result)
 		if err != nil {
-			return err
+			return fmt.Errorf("marshal model sync job result: %w", err)
 		}
+		resultJSON = string(encoded)
 	}
 	_, err := r.db.ExecContext(ctx,
-		`UPDATE model_sync_jobs SET status = $2, result = $3, error = $4, completed_at = $5 WHERE id = $1`,
+		`UPDATE model_sync_jobs SET status = $2, result = $3::jsonb, error = $4, completed_at = $5 WHERE id = $1`,
 		job.ID, job.Status, resultJSON, catalogNullString(job.Error), job.CompletedAt,
 	)
-	return err
+	if err != nil {
+		return fmt.Errorf("update model sync job: %w", err)
+	}
+	return nil
 }
 
 func (r *modelCatalogRepository) GetSyncJob(ctx context.Context, id string) (*service.ModelSyncJob, error) {
@@ -483,7 +489,7 @@ func (r *modelCatalogRepository) GetSyncJob(ctx context.Context, id string) (*se
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("get model sync job: %w", err)
 	}
 	if len(resultJSON) > 0 {
 		_ = json.Unmarshal(resultJSON, &job.Result)
