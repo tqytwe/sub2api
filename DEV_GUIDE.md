@@ -1,386 +1,104 @@
-# sub2api 项目开发指南
+# sub2api 极速蹬 Fork 开发指南
 
-> 本文档记录项目环境配置、常见坑点和注意事项，供 Claude Code 和团队成员参考。
+> 状态：active
+> 最后核验：2026-07-15
 
-## 一、项目基本信息
+## 仓库与分支
 
 | 项目 | 说明 |
 |------|------|
-| **上游仓库** | Wei-Shaw/sub2api |
-| **Fork 仓库** | tqytwe/sub2api（工作分支 `play/main`） |
-| **技术栈** | Go 后端 (Ent ORM + Gin) + Vue3 前端 (pnpm) |
-| **数据库** | PostgreSQL 16 + Redis |
-| **包管理** | 后端: go modules, 前端: **pnpm**（不是 npm） |
+| 上游仓库 | `Wei-Shaw/sub2api`，remote 为 `upstream` |
+| Fork 仓库 | `tqytwe/sub2api`，remote 为 `origin` |
+| 生产分支 | `play/main` |
+| 技术栈 | Go + Gin + Ent、Vue 3 + TypeScript + pnpm、PostgreSQL、Redis |
 
-## 二、本地环境配置
+`play/main` 包含极速蹬品牌、Growth / Play、图像工作室、模型目录和计费保护等定制。同步上游前必须阅读 [Fork 定制登记](./docs/FORK_CUSTOMIZATIONS.md) 与 [上游同步手册](./docs/UPSTREAM_SYNC_PLAYBOOK.md)。禁止 rebase 或强推 `play/main`。
 
-### PostgreSQL 16 (Windows 服务)
+## 环境要求
 
-| 配置项 | 值 |
-|--------|-----|
-| 端口 | 5432 |
-| psql 路径 | `C:\Program Files\PostgreSQL\16\bin\psql.exe` |
-| pg_hba.conf | `C:\Program Files\PostgreSQL\16\data\pg_hba.conf` |
-| 数据库凭据 | user=`sub2api`, password=`sub2api`, dbname=`sub2api` |
-| 超级用户 | user=`postgres`, password=`postgres` |
+- Go 版本以 `backend/go.mod` 为准。
+- 前端只使用 pnpm；修改依赖时同步提交 `frontend/pnpm-lock.yaml`。
+- PostgreSQL 和 Redis 的地址、账号与密码由环境变量或未跟踪配置提供，不能写进仓库文档。
+- Ent schema 修改后运行 `cd backend && go generate ./ent`，并提交生成文件。
 
-### Redis
+不要混用 npm 与 pnpm 的 `node_modules`。新增 Go interface 方法时必须同步更新全部 mock 和 stub。
 
-| 配置项 | 值 |
-|--------|-----|
-| 端口 | 6379 |
-| 密码 | 无 |
+## 常用命令
 
-### 开发工具
+安装前端依赖：
 
 ```bash
-# golangci-lint v2.7
-go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.7
-
-# pnpm (前端包管理)
-npm install -g pnpm
+pnpm --dir frontend install --frozen-lockfile
 ```
 
-## 三、CI/CD 流水线
-
-### GitHub Actions Workflows
-
-| Workflow | 触发条件 | 检查内容 |
-|----------|----------|----------|
-| **backend-ci.yml** | push, pull_request | 单元测试 + 集成测试 + golangci-lint v2.7 |
-| **security-scan.yml** | push, pull_request, 每周一 | govulncheck + gosec + pnpm audit |
-| **release.yml** | tag `v*` | 构建发布（PR 不触发） |
-
-### CI 要求
-
-- Go 版本以 `backend/go.mod` 为准（当前 **1.26.4**）
-- 前端使用 `pnpm install --frozen-lockfile`，必须提交 `pnpm-lock.yaml`
-
-### 本地测试命令
+Fork 定制完整性检查：
 
 ```bash
-# 后端单元测试
-cd backend && go test -tags=unit ./...
-
-# 后端集成测试
-cd backend && go test -tags=integration ./...
-
-# 代码质量检查
-cd backend && golangci-lint run ./...
-
-# 前端依赖安装（必须用 pnpm）
-cd frontend && pnpm install
+./scripts/check-fork-integrity.sh
 ```
 
-## 四、常见坑点 & 解决方案
-
-### 坑 1：pnpm-lock.yaml 必须同步提交
-
-**问题**：`package.json` 新增依赖后，CI 的 `pnpm install --frozen-lockfile` 失败。
-
-**原因**：上游 CI 使用 pnpm，lock 文件不同步会报错。
-
-**解决**：
-```bash
-cd frontend
-pnpm install  # 更新 pnpm-lock.yaml
-git add pnpm-lock.yaml
-git commit -m "chore: update pnpm-lock.yaml"
-```
-
----
-
-### 坑 2：npm 和 pnpm 的 node_modules 冲突
-
-**问题**：之前用 npm 装过 `node_modules`，pnpm install 报 `EPERM` 错误。
-
-**解决**：
-```bash
-cd frontend
-rm -rf node_modules  # 或 PowerShell: Remove-Item -Recurse -Force node_modules
-pnpm install
-```
-
----
-
-### 坑 3：PowerShell 中 bcrypt hash 的 `$` 被转义
-
-**问题**：bcrypt hash 格式如 `$2a$10$xxx...`，PowerShell 把 `$2a` 当变量解析，导致数据丢失。
-
-**解决**：将 SQL 写入文件，用 `psql -f` 执行：
-```bash
-# 错误示范（PowerShell 会吃掉 $）
-psql -c "INSERT INTO users ... VALUES ('$2a$10$...')"
-
-# 正确做法
-echo "INSERT INTO users ... VALUES ('\$2a\$10\$...')" > temp.sql
-psql -U sub2api -h 127.0.0.1 -d sub2api -f temp.sql
-```
-
----
-
-### 坑 4：psql 不支持中文路径
-
-**问题**：`psql -f "D:\中文路径\file.sql"` 报错找不到文件。
-
-**解决**：复制到纯英文路径再执行：
-```bash
-cp "D:\中文路径\file.sql" "C:\temp.sql"
-psql -f "C:\temp.sql"
-```
-
----
-
-### 坑 5：PostgreSQL 密码重置流程
-
-**场景**：忘记 PostgreSQL 密码。
-
-**步骤**：
-1. 修改 `C:\Program Files\PostgreSQL\16\data\pg_hba.conf`
-   ```
-   # 将 scram-sha-256 改为 trust
-   host    all    all    127.0.0.1/32    trust
-   ```
-2. 重启 PostgreSQL 服务
-   ```powershell
-   Restart-Service postgresql-x64-16
-   ```
-3. 无密码登录并重置
-   ```bash
-   psql -U postgres -h 127.0.0.1
-   ALTER USER sub2api WITH PASSWORD 'sub2api';
-   ALTER USER postgres WITH PASSWORD 'postgres';
-   ```
-4. 改回 `scram-sha-256` 并重启
-
----
-
-### 坑 6：Go interface 新增方法后 test stub 必须补全
-
-**问题**：给 interface 新增方法后，编译报错 `does not implement interface (missing method XXX)`。
-
-**原因**：所有测试文件中实现该 interface 的 stub/mock 都必须补上新方法。
-
-**解决**：
-```bash
-# 搜索所有实现该 interface 的 struct
-cd backend
-grep -r "type.*Stub.*struct" internal/
-grep -r "type.*Mock.*struct" internal/
-
-# 逐一补全新方法
-```
-
----
-
-### 坑 7：Windows 上 psql 连 localhost 的 IPv6 问题
-
-**问题**：psql 连 `localhost` 先尝试 IPv6 (::1)，可能报错后再回退 IPv4。
-
-**建议**：直接用 `127.0.0.1` 代替 `localhost`。
-
----
-
-### 坑 8：Windows 没有 make 命令
-
-**问题**：CI 里用 `make test-unit`，本地 Windows 没有 make。
-
-**解决**：直接用 Makefile 里的原始命令：
-```bash
-# 代替 make test-unit
-go test -tags=unit ./...
-
-# 代替 make test-integration
-go test -tags=integration ./...
-```
-
----
-
-### 坑 9：Ent Schema 修改后必须重新生成
-
-**问题**：修改 `ent/schema/*.go` 后，代码不生效。
-
-**解决**：
-```bash
-cd backend
-go generate ./ent  # 重新生成 ent 代码
-git add ent/       # 生成的文件也要提交
-```
-
----
-
-### 坑 10：前端测试看似正常，但后端调用失败（模型映射被批量误改）
-
-**典型现象**：
-- 前端按钮点测看起来正常；
-- 实际通过 API/客户端调用时返回 `Service temporarily unavailable` 或提示无可用账号；
-- 常见于 OpenAI 账号（例如 Codex 模型）在批量修改后突然不可用。
-
-**根因**：
-- OpenAI 账号编辑页默认不显式展示映射规则，容易让人误以为“没映射也没关系”；
-- 但在**批量修改同时选中不同平台账号**（OpenAI + Antigravity/Gemini）时，模型白名单/映射可能被跨平台策略覆盖；
-- 结果是 OpenAI 账号的关键模型映射丢失或被改坏，后端选不到可用账号。
-
-**修复方案（按优先级）**：
-1. **快速修复（推荐）**：在批量修改中补回正确的透传映射（例如 `gpt-5.3-codex -> gpt-5.3-codex-spark`）。
-2. **彻底重建**：删除并重新添加全部相关账号（最稳但成本高）。
-
-**关键经验**：
-- 如果某模型已被软件内置默认映射覆盖，通常不需要额外再加透传；
-- 但当上游模型更新快于本仓库默认映射时，**手动批量添加透传映射**是最简单、最低风险的临时兜底方案；
-- 批量操作前尽量按平台分组，不要混选不同平台账号。
-
----
-
-### 坑 11：PR 提交前检查清单
-
-提交 PR 前务必本地验证：
-
-- [ ] `go test -tags=unit ./...` 通过
-- [ ] `go test -tags=integration ./...` 通过
-- [ ] `golangci-lint run ./...` 无新增问题
-- [ ] `pnpm-lock.yaml` 已同步（如果改了 package.json）
-- [ ] 所有 test stub 补全新接口方法（如果改了 interface）
-- [ ] Ent 生成的代码已提交（如果改了 schema）
-
-## 五、常用命令速查
-
-### 数据库操作
+完整测试与构建：
 
 ```bash
-# 连接数据库
-psql -U sub2api -h 127.0.0.1 -d sub2api
-
-# 查看所有用户
-psql -U postgres -h 127.0.0.1 -c "\du"
-
-# 查看所有数据库
-psql -U postgres -h 127.0.0.1 -c "\l"
-
-# 执行 SQL 文件
-psql -U sub2api -h 127.0.0.1 -d sub2api -f migration.sql
+make test
+make build
 ```
 
-### Git 操作
+单独执行：
 
 ```bash
-# 日常开发部署（推送 play/main，Zeabur 自动构建；勿用 origin/main）
-git checkout play/main
-./scripts/push-github-and-deploy.sh
-
-# 仅对比上游官方历史（只读，不要 rebase/merge 到 play/main）
-git fetch origin
-git checkout -b upstream-main origin/main
-
-# 创建功能分支（从 play/main 拉出）
-git checkout play/main
-git checkout -b feature/xxx
+make -C backend test-unit
+pnpm --dir frontend run lint:check
+pnpm --dir frontend run typecheck
+pnpm --dir frontend run test:run
+pnpm --dir frontend run build
 ```
 
-### 前端操作
+测试和构建可以在本地运行，但不得启动 `go run serve`、`pnpm dev` 或把 localhost 当作产品验收环境。
+
+## CI 与提交要求
+
+`.github/workflows/fork-integrity.yml` 对 `play/main`、同步分支及相关 PR 执行：
+
+- Fork 静态不变量与定向行为测试。
+- 后端 unit tests。
+- 前端 lint、typecheck、Vitest 和 production build。
+- 仓库内 Markdown 链接检查。
+
+CI 失败时不得合并。新增极速蹬特有行为必须在同一 PR：
+
+1. 更新 `docs/FORK_CUSTOMIZATIONS.md`。
+2. 增加或更新静态保护、后端测试或前端测试。
+3. 在 PR 模板中声明受影响的 `FORK-*` 条目和 upstream commit。
+
+## 数据库迁移
+
+- 已部署 SQL 不可修改；修复必须新增迁移。
+- 迁移按完整文件名识别，上游与 Fork 可以出现相同数字前缀。
+- 极速蹬自定义迁移清单登记在 `FORK-MIGRATION-009`，上游合并时不得按编号覆盖。
+- 修改 Ent schema 后检查 SQL migration、生成代码和运行时迁移三者一致。
+
+## 部署与验收
+
+极速蹬生产由 `origin/play/main` 触发 Zeabur 构建：
 
 ```bash
-# 安装依赖（必须用 pnpm）
-cd frontend
-pnpm install
-
-# 开发服务器
-pnpm dev
-
-# 构建
-pnpm build
+./scripts/push-github-and-deploy.sh play/main
 ```
 
-### 后端操作
+脚本会拒绝推送 `main`。唯一生产验收入口为 `https://www.jisudeng.com/`。上游 Docker、Apple Container 等文档只作为通用参考，不代表极速蹬发布流程。
 
-```bash
-# 运行服务器
-cd backend
-go run ./cmd/server/
+## 文档入口
 
-# 生成 Ent 代码
-go generate ./ent
-
-# 运行测试
-go test -tags=unit ./...
-go test -tags=integration ./...
-
-# Lint 检查
-golangci-lint run ./...
-```
-
-## 六、项目结构速览
-
-```
-sub2api/
-├── backend/
-│   ├── cmd/server/          # 主程序入口
-│   ├── ent/                 # Ent ORM 生成代码
-│   │   └── schema/          # 数据库 Schema 定义
-│   ├── internal/
-│   │   ├── handler/         # HTTP 处理器
-│   │   ├── service/         # 业务逻辑
-│   │   ├── repository/      # 数据访问层
-│   │   └── server/          # 服务器配置
-│   ├── migrations/          # 数据库迁移脚本
-│   └── config.yaml          # 配置文件
-├── frontend/
-│   ├── src/
-│   │   ├── api/             # API 调用
-│   │   ├── components/      # Vue 组件
-│   │   ├── views/           # 页面视图
-│   │   ├── types/           # TypeScript 类型
-│   │   └── i18n/            # 国际化
-│   ├── package.json         # 依赖配置
-│   └── pnpm-lock.yaml       # pnpm 锁文件（必须提交）
-└── DEV_GUIDE.md             # 本文档
-```
-
-## 七、Agent Skills（仓库内）
-
-| Skill | 路径 | 用途 |
-|-------|------|------|
-| sub2api-admin | `skills/sub2api-admin/` | CLI 管理后台账号、兑换码、错误规则、TLS 模板；Play 运维（Arena 结算等）走 `api` 子命令 |
-
-```bash
-cd skills/sub2api-admin
-export SUB2API_BASE_URL='https://www.jisudeng.com'
-export SUB2API_ADMIN_API_KEY='<admin api key>'
-node scripts/sub2api-admin.js accounts list
-```
-
-完整命令见 `skills/sub2api-admin/references/admin-cli.md`。
-
-**增长 / Play 文档**：
-
-| 文档 | 路径 |
+| 文档 | 用途 |
 |------|------|
-| Sprint A–C 路线图 | `docs/growth-play-roadmap.md` |
-| Phase 1 详细 PRD | `docs/growth-world-prd.md` |
-| 埋点与 North Star | `docs/growth-analytics.md` |
-| 用户可见 `/docs` 内容 | `frontend/src/content/public-docs-data.zh.ts` |
+| [项目文档索引](./docs/README.md) | 当前、参考和历史文档的唯一目录 |
+| [Fork 定制登记](./docs/FORK_CUSTOMIZATIONS.md) | 不能被上游覆盖的行为与验证 |
+| [上游同步手册](./docs/UPSTREAM_SYNC_PLAYBOOK.md) | 分支、冲突、部署与回滚 |
+| [图像工作室](./docs/IMAGE_STUDIO.md) | 当前工作台、接口、隐私和资产行为 |
+| [Growth / Play](./docs/GROWTH_PLAY.md) | 当前玩法、设置和路由 |
+| [模型与价格](./docs/MODEL_PRICING_CN.md) | 参考价、渠道价和实付价关系 |
 
-## 八、极速蹬品牌保护（合并 upstream 必读）
+## 仓库内 Skill
 
-Fork 在首页、登录页、控制台使用 **ink 黑白** 定制品牌，与 upstream 默认 **teal 青绿** 不同。合并 `upstream/main` 后必须：
-
-```bash
-./scripts/check-jisudeng-branding.sh
-```
-
-**常见被覆盖项**（v0.1.149 合并曾发生）：
-
-| 项 | 正确（Play） | 错误（upstream 默认） |
-|----|-------------|----------------------|
-| AuthLayout | `auth-page` + `auth-layout-jisudeng.css` | 青绿渐变居中卡片 |
-| 侧边栏 | `/growth-group` 折叠菜单；`VersionBadge v-if="isAdmin"` | Play 入口丢失；所有用户看到 `v0.1.xxx` |
-| tailwind primary | `#0a0a0a` ink 系 | `#14b8a6` teal 系 |
-
-受保护文件清单见 `.cursor/rules/jisudeng-branding-protected.mdc`。
-
-## 九、参考资源
-
-- [上游仓库](https://github.com/Wei-Shaw/sub2api)
-- [Ent 文档](https://entgo.io/docs/getting-started)
-- [Vue3 文档](https://vuejs.org/)
-- [pnpm 文档](https://pnpm.io/)
+`skills/sub2api-admin/` 提供管理员 CLI，可管理账号、兑换码、错误规则和 Play 运维。完整命令见 `skills/sub2api-admin/references/admin-cli.md`，凭据只通过环境变量传入。

@@ -1,6 +1,6 @@
-> **文档状态**（2026-07-12）：Phase 1 已在 `play/main` 实现并部署验收（`http://192.168.100.10:8206`）。Phase 0 文案债已修正。Phase 2 规划见文末路线图。
->
-> **相关文档**：[`growth-play-roadmap.md`](./growth-play-roadmap.md) · [`growth-analytics.md`](./growth-analytics.md)
+> 状态：historical
+> 归档时间：2026-07-15
+> 本文只用于追溯 2026-07 的产品决策，不得作为当前实现或验收依据。当前行为见 [Growth / Play](../GROWTH_PLAY.md)、[图像工作室](../IMAGE_STUDIO.md) 与 [增长埋点](../growth-analytics.md)。
 
 ---
 
@@ -686,7 +686,7 @@ sequenceDiagram
 
 | 阶段 | 状态 | 后续 |
 |------|------|------|
-| Phase 0 文案 + 埋点方案 | ✅ | 基线数据采集见 [`growth-analytics.md`](./growth-analytics.md) |
-| Phase 1 工作室 + 农场 RPG + 日榜 + 任务 | ✅ | 文件索引见 [`growth-play-roadmap.md` §11](./growth-play-roadmap.md) |
+| Phase 0 文案 + 埋点方案 | ✅ | 当前口径见 [增长埋点](../growth-analytics.md) |
+| Phase 1 工作室 + 农场 RPG + 日榜 + 任务 | ✅ | 历史索引见 [2026-07 Play 路线图](./2026-07-growth-play-roadmap.md) |
 | Phase 2 Recipe / 参考图 / VIP 模板 | 待排期 | 见 §7 路线图 |
 | 隐私政策「图像工作室数据保留」专节 | 待法务 | 见 §8.8 |

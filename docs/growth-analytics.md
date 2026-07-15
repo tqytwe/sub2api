@@ -1,6 +1,8 @@
 # 增长世界 — 埋点与指标
 
-> Phase 1 前端实现：`frontend/src/utils/growthAnalytics.ts`（写入 `window.dataLayer`，DEV 模式 `console.debug`）。
+> 状态：active
+> 最后核验：2026-07-15
+> 前端实现：`frontend/src/utils/growthAnalytics.ts`（写入 `window.dataLayer`，DEV 模式 `console.debug`）。
 
 ---
 
@@ -83,4 +85,4 @@ window.dataLayer = window.dataLayer || []
 | 日榜参与 | `farm_daily_tab_view` UV |
 | Hub 效能 | `play_hub_action_click` 按 card_key |
 
-相关 PRD：[`growth-world-prd.md`](./growth-world-prd.md) §6、§8.6。
+当前产品行为见 [Growth / Play](./GROWTH_PLAY.md) 与 [图像工作室](./IMAGE_STUDIO.md)。历史决策见 [2026-07 增长世界 PRD](./archive/2026-07-growth-world-prd.md)。

@@ -1,5 +1,9 @@
 # Play 增长操作系统 — 完整方案与落地路线图
 
+> 状态：superseded
+> 归档时间：2026-07-15
+> 本文只用于追溯 2026-07 的阶段决策，不得作为当前实现或验收依据。当前行为见 [Growth / Play](../GROWTH_PLAY.md) 与 [图像工作室](../IMAGE_STUDIO.md)。
+
 > **战略一句话**：Play 不是「送余额的小游戏」，而是驱动 **更频繁调用 API → 更愿意充值 → 更愿意拉人** 的增长操作系统。
 
 ---
@@ -354,7 +358,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 
 ## 11. Phase 1 — 增长世界双核 ✅（2026-07）
 
-> 详细 PRD 与多角色评审纪要见 [`growth-world-prd.md`](./growth-world-prd.md)。埋点见 [`growth-analytics.md`](./growth-analytics.md)。
+> 历史 PRD 与多角色评审纪要见 [2026-07 增长世界 PRD](./2026-07-growth-world-prd.md)。当前埋点见 [增长埋点](../growth-analytics.md)。
 
 ### 11.1 图像工作室（Image Studio）
 
@@ -403,7 +407,7 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 
 ### 11.4 Phase 1 验收清单
 
-> **完整补齐计划**（下载鉴权、分辨率矩阵、同参数再生成）：[`IMAGE_STUDIO_COMPLETION_PLAN.md`](./IMAGE_STUDIO_COMPLETION_PLAN.md)
+> 图像工作室当前行为见 [图像工作室](../IMAGE_STUDIO.md)。已完成的补齐计划从工作树删除，可从 Git 历史追溯。
 
 - [x] `/image-studio` 四步向导 + 费用预估 + 图库 + 7 天自动清理选项
 - [x] 鉴权 blob 下载/预览（`apiClient` + `/assets/:id/content|download`）
