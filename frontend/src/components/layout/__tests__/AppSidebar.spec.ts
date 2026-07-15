@@ -58,3 +58,20 @@ describe('AppSidebar header styles', () => {
     expect(sidebarBrandBlockMatch?.[0]).not.toContain('overflow: hidden;')
   })
 })
+
+describe('AppSidebar Fork navigation invariants', () => {
+  const selfNavBlock = componentSource.match(/function buildSelfNavItems[\s\S]*?\n}\n\n\/\/ finalizeNav/)?.[0] ?? ''
+
+  it('keeps the models, image tools, and Growth group in user navigation', () => {
+    expect(selfNavBlock).toContain("path: '/models'")
+    expect(selfNavBlock).toContain("path: '/image-studio'")
+    expect(selfNavBlock).toContain("path: '/batch-image'")
+    expect(selfNavBlock).toContain("path: '/growth-group'")
+    expect(componentSource).toContain('children: buildGrowthNavChildren()')
+  })
+
+  it('does not expose channel operations in user navigation', () => {
+    expect(selfNavBlock).not.toContain("path: '/available-channels'")
+    expect(selfNavBlock).not.toContain("path: '/monitor'")
+  })
+})

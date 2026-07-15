@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+FAIL=0
+REGISTRY="$ROOT/docs/FORK_CUSTOMIZATIONS.md"
+
+pass() {
+  printf '  [PASS] %s: %s\n' "$1" "$2"
+}
+
+fail() {
+  printf '  [FAIL] %s: %s\n' "$1" "$2" >&2
+  FAIL=1
+}
+
+check_file() {
+  local id="$1" desc="$2" file="$3"
+  if [[ -f "$ROOT/$file" ]]; then pass "$id" "$desc"; else fail "$id" "$desc ($file missing)"; fi
+}
+
+check_contains() {
+  local id="$1" desc="$2" file="$3" needle="$4"
+  if grep -Fq -- "$needle" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
+}
+
+check_not_contains() {
+  local id="$1" desc="$2" file="$3" needle="$4"
+  if ! grep -Fq -- "$needle" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
+}
+
+run_check() {
+  local id="$1" desc="$2"
+  shift 2
+  if "$@"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
+}
+
+echo "Checking fork registry and static invariants..."
+
+for id in \
+  FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
+  FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010; do
+  check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
+done
+
+if "$ROOT/scripts/check-jisudeng-branding.sh"; then
+  pass "FORK-BRAND-001" "branding protection script"
+else
+  fail "FORK-BRAND-001" "branding protection script"
+fi
+
+check_contains "FORK-NAV-002" "Growth navigation group" "frontend/src/components/layout/AppSidebar.vue" "path: '/growth-group'"
+check_contains "FORK-NAV-002" "models navigation entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/models'"
+check_not_contains "FORK-NAV-002" "user sidebar excludes available channels" "frontend/src/components/layout/AppSidebar.vue" "path: '/available-channels'"
+check_not_contains "FORK-NAV-002" "user sidebar excludes monitor route" "frontend/src/components/layout/AppSidebar.vue" "path: '/monitor'"
+
+check_contains "FORK-PLAY-003" "Play Hub API route" "backend/internal/server/routes/play.go" "authenticated.GET(\"/play/hub\""
+check_contains "FORK-PLAY-003" "Play runtime is fail-closed" "backend/internal/service/setting_play_runtime.go" "return PlayRuntime{}"
+check_file "FORK-PLAY-003" "Play Hub view" "frontend/src/views/user/PlayHubView.vue"
+
+check_contains "FORK-IMAGE-004" "required prompt error" "backend/internal/service/image_studio.go" "IMAGE_STUDIO_PROMPT_REQUIRED"
+check_contains "FORK-IMAGE-004" "prompt hash is private" "backend/internal/service/image_studio.go" 'PromptHash    string             `json:"-"`'
+check_contains "FORK-IMAGE-004" "authenticated asset download" "backend/internal/server/routes/image_studio.go" 'authenticated.GET("/assets/:id/download"'
+check_contains "FORK-IMAGE-004" "mobile support overlay hidden" "frontend/src/router/index.ts" "hideMobileSupport: true"
+for asset in ecom-white-bg.webp xhs-cover.webp free-create.webp; do
+  check_file "FORK-IMAGE-004" "template asset $asset" "frontend/public/image-studio/templates/$asset"
+done
+
+check_file "FORK-PRICING-005" "model catalog service" "backend/internal/service/model_catalog_service.go"
+check_contains "FORK-PRICING-005" "explicit catalog group IDs" "backend/internal/service/model_catalog_types.go" 'GroupIDs                []int64    `json:"group_ids"`'
+check_contains "FORK-PRICING-005" "site catalog price precedence" "backend/internal/service/model_pricing_resolver.go" "firstCatalogPrice"
+
+check_contains "FORK-DEPLOY-006" "deployment defaults to play/main" "scripts/push-github-and-deploy.sh" 'BRANCH="${1:-play/main}"'
+check_contains "FORK-DEPLOY-006" "deployment rejects main" "scripts/push-github-and-deploy.sh" 'if [[ "$BRANCH" == "main" ]]'
+check_contains "FORK-DEPLOY-006" "production verification URL" "scripts/push-github-and-deploy.sh" "https://www.jisudeng.com/"
+check_file "FORK-DEPLOY-006" "server-only verification rule" ".cursor/rules/sub2api-server-only-verify.mdc"
+
+check_contains "FORK-OAUTH-007" "shared OAuth cookie domain" "backend/internal/handler/auth_linuxdo_oauth.go" 'return ".jisudeng.com"'
+check_contains "FORK-OAUTH-007" "OAuth domain behavior test" "backend/internal/handler/auth_linuxdo_oauth_test.go" "TestOAuthCookieDomain"
+
+check_contains "FORK-PUBLIC-008" "public model route" "backend/internal/server/routes/play.go" 'v1.GET("/public/model-pricing"'
+check_file "FORK-PUBLIC-008" "public docs content" "frontend/src/content/public-docs-data.zh.ts"
+check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/service/domain_constants.go" "SettingKeyPublicModelsEnabled"
+
+MIGRATIONS=(
+  170_play_foundation.sql
+  171_play_extended.sql
+  172_play_retention.sql
+  173_play_vip.sql
+  174_play_team_affiliate.sql
+  175_play_campaigns.sql
+  176_play_campaign_name_i18n.sql
+  177_marketing_fixes.sql
+  177_play_quiz_i18n_and_pool.sql
+  178_phase1_growth_world.sql
+  179_play_sidebar_defaults.sql
+  180_site_subtitle_jisudeng.sql
+  181_jisudeng_public_model_pricing.sql
+  182_image_studio_asset_storage.sql
+  183_model_catalog.sql
+  184_image_studio_asset_url_nullable.sql
+  185_model_catalog_official_prices.sql
+  186_model_catalog_billing_lookup.sql
+  186_model_sync_jobs_repair.sql
+  187_model_catalog_group_scope.sql
+)
+for migration in "${MIGRATIONS[@]}"; do
+  check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
+  check_contains "FORK-MIGRATION-009" "migration registered in canonical list: $migration" "docs/FORK_CUSTOMIZATIONS.md" "$migration"
+done
+
+check_contains "FORK-BILLING-010" "API key ownership validation" "backend/internal/repository/usage_billing_repo.go" "validateUsageBillingOwnership"
+check_contains "FORK-BILLING-010" "subscription ownership validation" "backend/internal/repository/usage_billing_repo.go" "validateUsageBillingSubscriptionOwnership"
+check_contains "FORK-BILLING-010" "sticky sessions are scoped by API key" "backend/internal/service/gateway_service.go" "scopeStickySessionSeed"
+check_contains "FORK-BILLING-010" "recharge completion grants Play boost" "backend/internal/service/payment_fulfillment.go" "GrantRechargeBoost"
+
+run_check "DOCS" "local links and document index" node "$ROOT/scripts/check-doc-links.mjs"
+
+if grep -R -n -E '192\.168\.|backend-ci\.yml|security-scan\.yml|release\.yml|\./(growth-world-prd|growth-play-roadmap|IMAGE_STUDIO_COMPLETION_PLAN|MODEL_PRICING_PLAN)\.md' \
+  "$ROOT/DEV_GUIDE.md" "$ROOT/docs" --exclude-dir=archive; then
+  fail "DOCS" "active documents contain obsolete references"
+else
+  pass "DOCS" "active documents exclude obsolete references"
+fi
+
+echo
+echo "Running protected backend behaviors..."
+run_check "FORK-OAUTH-007" "OAuth cookie domain unit test" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/handler -run '^TestOAuthCookieDomain$'"
+run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
+run_check "FORK-BILLING-010" "billing ownership unit tests" \
+  bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
+
+echo
+echo "Running protected frontend behaviors..."
+run_check "FORK-NAV-002/FORK-IMAGE-004" "sidebar and Image Studio tests" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/components/layout/__tests__/AppSidebar.spec.ts \
+    src/components/imageStudio/__tests__/ImageStudioGallery.spec.ts \
+    src/components/imageStudio/__tests__/ImageStudioSizePicker.spec.ts \
+    src/composables/__tests__/useImageStudioCapabilities.spec.ts \
+    src/utils/__tests__/imageStudioWorkspace.spec.ts
+
+echo
+if [[ "$FAIL" -ne 0 ]]; then
+  echo "Fork integrity FAILED. Review $REGISTRY before merging upstream." >&2
+  exit 1
+fi
+
+echo "Fork integrity passed."

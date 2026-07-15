@@ -20,7 +20,49 @@ const (
 	captureBatchImageHoldSQL    = `(?s)UPDATE users\s+SET balance = balance\s+\+ CASE WHEN \$1 > \$2 THEN \$1 - \$2 ELSE 0 END\s+- CASE WHEN \$2 > \$1 THEN \$2 - \$1 ELSE 0 END,\s+frozen_balance = COALESCE\(frozen_balance, 0\) - \$1,\s+updated_at = NOW\(\)\s+WHERE id = \$3 AND deleted_at IS NULL AND COALESCE\(frozen_balance, 0\) >= \$1\s+RETURNING balance, frozen_balance`
 	releaseBatchImageHoldSQL    = `(?s)UPDATE users\s+SET balance = balance \+ \$1,\s+frozen_balance = COALESCE\(frozen_balance, 0\) - \$1,\s+updated_at = NOW\(\)\s+WHERE id = \$2 AND deleted_at IS NULL AND COALESCE\(frozen_balance, 0\) >= \$1\s+RETURNING balance, frozen_balance`
 	userExistsForBillingSQL     = `(?s)SELECT 1\s+FROM users\s+WHERE id = \$1 AND deleted_at IS NULL`
+	apiKeyOwnershipSQL          = `(?s)SELECT 1\s+FROM api_keys\s+WHERE id = \$1 AND user_id = \$2`
+	subscriptionOwnershipSQL    = `(?s)SELECT 1\s+FROM user_subscriptions\s+WHERE id = \$1 AND user_id = \$2 AND deleted_at IS NULL`
 )
+
+func TestValidateUsageBillingAPIKeyOwnership(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(apiKeyOwnershipSQL).
+		WithArgs(int64(7), int64(42)).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectRollback()
+
+	err = validateUsageBillingOwnership(ctx, tx, 7, 42)
+	require.ErrorIs(t, err, service.ErrUsageBillingOwnershipMismatch)
+	require.NoError(t, tx.Rollback())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestValidateUsageBillingSubscriptionOwnership(t *testing.T) {
+	ctx := context.Background()
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	defer func() { _ = db.Close() }()
+
+	mock.ExpectBegin()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err)
+	mock.ExpectQuery(subscriptionOwnershipSQL).
+		WithArgs(int64(9), int64(42)).
+		WillReturnError(sql.ErrNoRows)
+	mock.ExpectRollback()
+
+	err = validateUsageBillingSubscriptionOwnership(ctx, tx, 9, 42)
+	require.ErrorIs(t, err, service.ErrUsageBillingOwnershipMismatch)
+	require.NoError(t, tx.Rollback())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
 
 func TestDeductUsageBillingBalance_UsesSufficientBalanceGuard(t *testing.T) {
 	ctx := context.Background()

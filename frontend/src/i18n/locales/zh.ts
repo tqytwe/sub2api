@@ -2492,6 +2492,13 @@ export default {
         finalPricePreview: '最终单张价格预览',
         notConfigured: '未配置'
       },
+      webSearchPricing: {
+        title: 'Codex 网页搜索计费',
+        pricePerCall: '搜索单次价格（USD/次）',
+        pricePerCallHint:
+          '留空使用默认价 $0.01/次（官方定价 $10/1000 次）；填 0 表示免费。实际扣费会叠加分组费率倍数。',
+        finalPricePreview: '应用当前倍率后的单次价格：{price}'
+      },
       peakRate: {
         enable: '启用高峰倍率',
         peakStart: '高峰开始',
@@ -5266,6 +5273,7 @@ export default {
         timeRange: '时间范围',
         startTime: '开始时间（可选）',
         endTime: '结束时间（可选）',
+        host: 'Host',
         component: '组件',
         componentPlaceholder: '例如 http.access',
         keyId: 'KEY ID',
@@ -7063,12 +7071,20 @@ export default {
         action: '处理方式',
         actionPass: '透传（保留 service_tier）',
         actionFilter: '过滤（移除 service_tier）',
+        actionForcePriority: '强制设置 priority（fast）',
         actionBlock: '拦截（拒绝请求）',
         scope: '生效范围',
         scopeAll: '全部账号',
         scopeOAuth: '仅 OAuth 账号',
         scopeAPIKey: '仅 API Key 账号',
         scopeBedrock: '仅 Bedrock 账号',
+        userIds: '指定用户',
+        userIdsHint: '输入任意邮箱关键词进行模糊搜索。留空表示对全部 Sub2API 用户生效；选中用户的 API Key 请求优先匹配用户规则。',
+        userSearchPlaceholder: '输入用户邮箱搜索',
+        userSearchEmpty: '未找到匹配用户',
+        userDeleted: '（已删除）',
+        userIdFallback: '用户 #{id}',
+        removeUser: '移除用户',
         errorMessage: '错误消息',
         errorMessagePlaceholder: '拦截时返回的自定义错误消息',
         errorMessageHint: '留空则使用默认错误消息。',

@@ -1,0 +1,92 @@
+name: Fork Integrity
+
+on:
+  push:
+    branches:
+      - play/main
+      - 'sync/upstream-*'
+  pull_request:
+    branches:
+      - play/main
+      - 'sync/upstream-*'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fork-integrity-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  protected-behavior:
+    name: Protected behavior
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Go
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@7088e561eb65bb68695d245aa206f005ef30921d
+        with:
+          version: 10.34.4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: Install frontend dependencies
+        run: pnpm --dir frontend install --frozen-lockfile
+
+      - name: Check protected Fork behavior
+        run: ./scripts/check-fork-integrity.sh
+
+      - name: Run backend unit tests
+        working-directory: backend
+        run: go test -tags=unit ./...
+
+      - name: Lint frontend
+        run: pnpm --dir frontend run lint:check
+
+      - name: Type-check frontend
+        run: pnpm --dir frontend run typecheck
+
+      - name: Run frontend tests
+        run: pnpm --dir frontend run test:run
+
+      - name: Build frontend
+        run: pnpm --dir frontend run build
+
+  documentation:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Check document index and local targets
+        run: node scripts/check-doc-links.mjs
+
+      - name: Check Markdown links with lychee 2.9.0
+        uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8
+        with:
+          args: >-
+            --offline
+            --no-progress
+            ./DEV_GUIDE.md
+            ./README.md
+            ./README_CN.md
+            ./README_JA.md
+            './docs/**/*.md'
+            './deploy/*.md'
+          fail: true

@@ -97,6 +97,7 @@ function runGuard(meta: Record<string, unknown>, path: string) {
       fullPath: path,
       name: 'FeatureRoute',
       params: {},
+      query: {},
       meta: { requiresAuth: true, ...meta },
     },
     {},

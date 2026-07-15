@@ -2410,6 +2410,13 @@ export default {
         finalPricePreview: 'Final per-image price preview',
         notConfigured: 'Not configured'
       },
+      webSearchPricing: {
+        title: 'Codex Web Search Pricing',
+        pricePerCall: 'Price per search call (USD)',
+        pricePerCallHint:
+          'Leave empty to use the default $0.01 per call (official pricing: $10 per 1,000 calls); 0 means free. The group rate multiplier is applied on top.',
+        finalPricePreview: 'Per-call price after current multiplier: {price}'
+      },
       peakRate: {
         enable: 'Enable peak rate multiplier',
         peakStart: 'Peak start',
@@ -5115,6 +5122,7 @@ export default {
         timeRange: 'Time range',
         startTime: 'Start time (optional)',
         endTime: 'End time (optional)',
+        host: 'Host',
         component: 'Component',
         componentPlaceholder: 'e.g. http.access',
         keyId: 'KEY ID',
@@ -6916,12 +6924,20 @@ export default {
         action: 'Action',
         actionPass: 'Pass (keep service_tier)',
         actionFilter: 'Filter (remove service_tier)',
+        actionForcePriority: 'Force priority (fast)',
         actionBlock: 'Block (reject request)',
         scope: 'Scope',
         scopeAll: 'All accounts',
         scopeOAuth: 'OAuth only',
         scopeAPIKey: 'API Key only',
         scopeBedrock: 'Bedrock only',
+        userIds: 'Specific users',
+        userIdsHint: 'Type any part of a user email to search. Leave empty to apply to all Sub2API users. Selected users match requests from their API keys and take precedence over global rules.',
+        userSearchPlaceholder: 'Search by user email',
+        userSearchEmpty: 'No matching users found',
+        userDeleted: '(deleted)',
+        userIdFallback: 'User #{id}',
+        removeUser: 'Remove user',
         errorMessage: 'Error message',
         errorMessagePlaceholder: 'Custom error message when blocked',
         errorMessageHint: 'Leave empty for the default message.',
