@@ -118,6 +118,7 @@
 186_model_catalog_billing_lookup.sql
 186_model_sync_jobs_repair.sql
 187_model_catalog_group_scope.sql
+189_restore_growth_rollback_defaults.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
