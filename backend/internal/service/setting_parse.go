@@ -180,19 +180,20 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
-	// Affiliate (邀请返利) feature (default disabled; opt-in)
-	SettingKeyAffiliateEnabled: "false",
+		// Affiliate (邀请返利) feature (default disabled; opt-in)
+		SettingKeyAffiliateEnabled:              "false",
+		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 
-	// Play growth user sidebar (Jisudeng Play ships enabled; admin can disable)
-	SettingKeyPublicModelsEnabled:  "true",
-	SettingKeyImageStudioEnabled:   "true",
-	SettingKeyPlayCheckinEnabled:   "true",
-	SettingKeyPlayArenaEnabled:     "true",
-	SettingKeyPlayBlindboxEnabled:  "true",
-	SettingKeyPlayQuizEnabled:      "true",
-	SettingKeyPlayAgentTeamEnabled: "true",
+		// Play growth user sidebar (Jisudeng Play ships enabled; admin can disable)
+		SettingKeyPublicModelsEnabled:  "true",
+		SettingKeyImageStudioEnabled:   "true",
+		SettingKeyPlayCheckinEnabled:   "true",
+		SettingKeyPlayArenaEnabled:     "true",
+		SettingKeyPlayBlindboxEnabled:  "true",
+		SettingKeyPlayQuizEnabled:      "true",
+		SettingKeyPlayAgentTeamEnabled: "true",
 
-	// 风控中心功能（默认关闭，显式启用）
+		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",
 
 		// cyber 会话屏蔽（默认关闭，TTL 默认 3600s）
@@ -341,6 +342,7 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	if perInviteeCap, err := strconv.ParseFloat(settings[SettingKeyAffiliateRebatePerInviteeCap], 64); err == nil && perInviteeCap >= 0 {
 		result.AffiliateRebatePerInviteeCap = perInviteeCap
 	}
+	result.AdminRechargeRebateEnabled = settings[SettingKeyAffiliateAdminRechargeEnabled] == "true"
 	result.DefaultSubscriptions = parseDefaultSubscriptions(settings[SettingKeyDefaultSubscriptions])
 
 	// 敏感信息直接返回，方便测试连接时使用

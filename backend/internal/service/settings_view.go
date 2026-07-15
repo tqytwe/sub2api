@@ -152,6 +152,7 @@ type SystemSettings struct {
 	AffiliateRebateFreezeHours   int
 	AffiliateRebateDurationDays  int
 	AffiliateRebatePerInviteeCap float64
+	AdminRechargeRebateEnabled   bool
 
 	// User sidebar — Play growth features (opt-in via public settings)
 	PublicModelsEnabled  bool `json:"public_models_enabled"`
@@ -162,8 +163,8 @@ type SystemSettings struct {
 	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
 	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
 
-	DefaultUserRPMLimit          int
-	DefaultSubscriptions         []DefaultSubscriptionSetting
+	DefaultUserRPMLimit  int
+	DefaultSubscriptions []DefaultSubscriptionSetting
 
 	// Model fallback configuration
 	EnableModelFallback      bool   `json:"enable_model_fallback"`
