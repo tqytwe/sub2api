@@ -18,9 +18,9 @@ func RegisterPlayRoutes(
 
 	play := v1.Group("/play")
 	{
-		play.GET("/arena/current", h.Play.ArenaCurrent)
+		play.GET("/arena/current", middleware.OptionalJWTAuth(jwtAuth), h.Play.ArenaCurrent)
 		play.GET("/arena/leaderboard", h.Play.ArenaLeaderboard)
-		play.GET("/arena/daily/current", h.Play.ArenaDailyCurrent)
+		play.GET("/arena/daily/current", middleware.OptionalJWTAuth(jwtAuth), h.Play.ArenaDailyCurrent)
 		play.GET("/arena/daily/leaderboard", h.Play.ArenaDailyLeaderboard)
 		play.GET("/blindbox/recent", h.Play.BlindboxRecent)
 	}

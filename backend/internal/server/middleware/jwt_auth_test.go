@@ -77,6 +77,69 @@ func newJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service.AuthSer
 	return r, authSvc
 }
 
+func newOptionalJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service.AuthService) {
+	gin.SetMode(gin.TestMode)
+
+	cfg := &config.Config{}
+	cfg.JWT.Secret = "test-jwt-secret-32bytes-long!!!"
+	cfg.JWT.AccessTokenExpireMinutes = 60
+
+	userRepo := &stubJWTUserRepo{users: users}
+	authSvc := service.NewAuthService(nil, userRepo, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
+	userSvc := service.NewUserService(userRepo, nil, nil, nil)
+	required := NewJWTAuthMiddleware(authSvc, userSvc)
+
+	r := gin.New()
+	r.Use(OptionalJWTAuth(required))
+	r.GET("/arena", func(c *gin.Context) {
+		subject, authenticated := GetAuthSubjectFromContext(c)
+		c.JSON(http.StatusOK, gin.H{
+			"authenticated": authenticated,
+			"user_id":       subject.UserID,
+		})
+	})
+	return r, authSvc
+}
+
+func TestOptionalJWTAuth_AllowsAnonymousRequest(t *testing.T) {
+	router, _ := newOptionalJWTTestEnv(nil)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/arena", nil)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equal(t, false, body["authenticated"])
+	require.Equal(t, float64(0), body["user_id"])
+}
+
+func TestOptionalJWTAuth_UsesBearerIdentityWhenPresent(t *testing.T) {
+	user := &service.User{
+		ID:           42,
+		Email:        "arena@example.com",
+		Role:         "user",
+		Status:       service.StatusActive,
+		Concurrency:  3,
+		TokenVersion: 1,
+	}
+	router, authSvc := newOptionalJWTTestEnv(map[int64]*service.User{user.ID: user})
+	token, err := authSvc.GenerateToken(user)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/arena", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	var body map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+	require.Equal(t, true, body["authenticated"])
+	require.Equal(t, float64(user.ID), body["user_id"])
+}
+
 func TestJWTAuth_ValidToken(t *testing.T) {
 	user := &service.User{
 		ID:           1,
