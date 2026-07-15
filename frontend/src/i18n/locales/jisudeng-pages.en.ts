@@ -89,7 +89,7 @@ export const jisudengPagesEn = {
     loginCta: 'Sign in',
     registerCta: 'Register free',
     empty: 'No models available',
-    emptyNoChannels: 'Pricing is enabled, but no channel models are available for your groups. Ask an admin to configure channels and groups, or enable signed-in pricing in settings.',
+    emptyNoChannels: 'Pricing is enabled, but no channel models are linked to your groups. In admin: (1) attach your user group to a channel; (2) add models under channel pricing.',
     emptyApiNotDeployed: 'The pricing API is not deployed yet. Please refresh later or contact an administrator.',
     loading: 'Loading…',
     loadFailed: 'Failed to load pricing. Please refresh.',
