@@ -621,8 +621,10 @@ function toPerMillion(value: number | null | undefined): number | null {
   return value == null ? null : value * 1_000_000
 }
 
-function fromPerMillion(value: number | null): number | null {
-  return value == null || Number.isNaN(value) ? null : value / 1_000_000
+function fromPerMillion(value: number | string | null): number | null {
+  if (value == null || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric / 1_000_000 : null
 }
 
 async function pollSyncJob(id: string) {
