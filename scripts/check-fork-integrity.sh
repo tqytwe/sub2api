@@ -116,7 +116,7 @@ check_contains "FORK-BILLING-010" "recharge completion grants Play boost" "backe
 
 run_check "DOCS" "local links and document index" node "$ROOT/scripts/check-doc-links.mjs"
 
-if grep -R -n -E '192\.168\.|backend-ci\.yml|security-scan\.yml|release\.yml|\./(growth-world-prd|growth-play-roadmap|IMAGE_STUDIO_COMPLETION_PLAN|MODEL_PRICING_PLAN)\.md' \
+if grep -R -n -E '192\.168\.|\./(growth-world-prd|growth-play-roadmap|IMAGE_STUDIO_COMPLETION_PLAN|MODEL_PRICING_PLAN)\.md' \
   "$ROOT/DEV_GUIDE.md" "$ROOT/docs" --exclude-dir=archive; then
   fail "DOCS" "active documents contain obsolete references"
 else

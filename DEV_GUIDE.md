@@ -58,7 +58,16 @@ pnpm --dir frontend run build
 
 ## CI 与提交要求
 
-`.github/workflows/fork-integrity.yml` 对 `play/main`、同步分支及相关 PR 执行：
+当前 GitHub Actions：
+
+| Workflow | 作用 |
+|----------|------|
+| `backend-ci.yml` | 后端测试、lint 与前端检查 |
+| `security-scan.yml` | 依赖与安全扫描 |
+| `release.yml` | tag 发布构建 |
+| `fork-integrity.yml` | 极速蹬定制、文档、全量 unit/Vitest 与 production build |
+
+`fork-integrity.yml` 对 `play/main`、同步分支及相关 PR 执行：
 
 - Fork 静态不变量与定向行为测试。
 - 后端 unit tests。
