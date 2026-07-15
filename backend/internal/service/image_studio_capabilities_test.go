@@ -20,6 +20,16 @@ func TestResolveImageStudioSizeFromAspectTier(t *testing.T) {
 	require.Equal(t, "4096x7168", size)
 }
 
+func TestResolveImageStudioSizeSupportsLegacyAspectAliases(t *testing.T) {
+	size, err := ResolveImageStudioSize("3:4", "1K", "")
+	require.NoError(t, err)
+	require.Equal(t, "1024x1536", size)
+
+	size, err = ResolveImageStudioSize("4:3", "1K", "")
+	require.NoError(t, err)
+	require.Equal(t, "1536x1024", size)
+}
+
 func TestResolveImageStudioSizeFromRaw(t *testing.T) {
 	size, err := ResolveImageStudioSize("", "", "1536x1024")
 	require.NoError(t, err)
@@ -31,9 +41,24 @@ func TestResolveImageStudioSizeFromRaw(t *testing.T) {
 
 func TestListImageStudioCapabilities(t *testing.T) {
 	caps := ListImageStudioCapabilities()
-	require.GreaterOrEqual(t, len(caps.SizeOptions), 16)
+	require.Len(t, caps.SizeOptions, 15)
 	require.NotEmpty(t, caps.Aspects)
 	require.NotEmpty(t, caps.Tiers)
+	require.Equal(t, []string{"1:1", "2:3", "3:2", "9:16", "16:9"}, []string{
+		caps.Aspects[0].ID,
+		caps.Aspects[1].ID,
+		caps.Aspects[2].ID,
+		caps.Aspects[3].ID,
+		caps.Aspects[4].ID,
+	})
+}
+
+func TestInferImageStudioAspectTierIsDeterministic(t *testing.T) {
+	for range 20 {
+		aspect, tier := InferImageStudioAspectTier("1024x1536")
+		require.Equal(t, "2:3", aspect)
+		require.Equal(t, "1K", tier)
+	}
 }
 
 func TestImageStudioCapabilityCacheDeniesSize(t *testing.T) {

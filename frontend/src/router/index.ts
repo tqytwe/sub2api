@@ -343,7 +343,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Image Studio',
       titleKey: 'imageStudio.title',
       descriptionKey: 'imageStudio.subtitle',
-      hidePageHeader: true,
+      hideMobileSupport: true,
     },
   },
   {

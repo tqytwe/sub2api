@@ -23,9 +23,13 @@
 
 | 事件 | 属性 | 触发位置 |
 |------|------|----------|
-| `image_studio_intent_select` | `intent_id` | `ImageStudioView` Step 1 |
+| `image_studio_workspace_view` | — | 进入图像工作室 |
+| `image_studio_intent_select` | `intent_id` | 选择模板所属意图 |
+| `image_studio_template_select` | `template_id` | 工作台模板选择 |
 | `image_studio_generate_click` | `template_id`, `estimated_cost` | 确认生成按钮 |
 | `image_studio_generate_success` | `actual_cost`, `count` | 任务完成 / 轮询成功 |
+| `image_studio_generate_fail` | `template_id`, `reason` | 任务或请求失败 |
+| `image_studio_result_view` | `job_id`, `count` | 最新结果进入作品区 |
 | `image_studio_insufficient_balance` | `balance` | 余额不足拦截 |
 | `farm_quest_complete` | `quest_key` | `trackQuestCompleteOnce`（每 quest 每日一次） |
 | `farm_daily_tab_view` | — | Arena 日榜 Tab 切换 |

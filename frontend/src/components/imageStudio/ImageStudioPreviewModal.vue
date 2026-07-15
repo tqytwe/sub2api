@@ -7,6 +7,7 @@ import { useAppStore } from '@/stores/app'
 import { filenameForAsset, isExternalAssetUrl, isStudioAssetApiPath, saveBlob } from '@/utils/imageStudioBlob'
 import { buildApiUrl } from '@/api/url'
 import { trackGrowthEvent } from '@/utils/growthAnalytics'
+import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{
   asset: ImageStudioAsset | null
@@ -105,19 +106,23 @@ onUnmounted(() => {
 
 <template>
   <Teleport to="body">
-    <div v-if="asset" class="gw-preview-overlay" @click.self="emit('close')">
-      <div class="gw-preview-card">
-        <img v-if="previewUrl" :src="previewUrl" alt="preview" />
-        <div v-else class="gw-polling py-16">{{ t('imageStudio.loadingPreview') }}</div>
-        <div class="gw-preview-toolbar">
-          <button type="button" class="gw-btn gw-btn-primary" @click="download">
+    <div v-if="asset" class="fixed inset-0 z-[200] flex items-center justify-center bg-gray-950/85 p-4 backdrop-blur-sm sm:p-8" role="dialog" aria-modal="true" @click.self="emit('close')">
+      <div class="flex max-h-[94vh] w-full max-w-6xl flex-col gap-3">
+        <div class="relative flex min-h-64 flex-1 items-center justify-center overflow-hidden rounded-xl bg-gray-900 shadow-2xl">
+          <img v-if="previewUrl" :src="previewUrl" :alt="t('imageStudio.preview')" class="max-h-[82vh] max-w-full object-contain" />
+          <div v-else class="py-20 text-sm text-gray-300">{{ t('imageStudio.loadingPreview') }}</div>
+          <button type="button" class="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-lg bg-gray-950/70 text-white backdrop-blur hover:bg-gray-950" :title="t('imageStudio.closePreview')" :aria-label="t('imageStudio.closePreview')" @click="emit('close')">
+            <Icon name="x" size="sm" />
+          </button>
+        </div>
+        <div class="flex flex-wrap justify-center gap-2">
+          <button type="button" class="btn btn-primary" @click="download">
+            <Icon name="download" size="sm" />
             {{ t('imageStudio.download') }}
           </button>
-          <button type="button" class="gw-btn gw-btn-secondary" @click="openNewTab">
+          <button type="button" class="btn btn-secondary" @click="openNewTab">
+            <Icon name="externalLink" size="sm" />
             {{ t('imageStudio.openNewTab') }}
-          </button>
-          <button type="button" class="gw-btn gw-btn-secondary" @click="emit('close')">
-            {{ t('imageStudio.closePreview') }}
           </button>
         </div>
       </div>

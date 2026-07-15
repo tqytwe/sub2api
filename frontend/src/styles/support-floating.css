@@ -18,6 +18,12 @@
   font-family: 'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
 
+@media (max-width: 1279px) {
+  .support-fab.support-fab--mobile-hidden {
+    display: none;
+  }
+}
+
 @media (min-width: 768px) {
   .support-fab {
     right: 32px;

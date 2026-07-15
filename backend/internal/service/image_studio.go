@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/google/uuid"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
@@ -19,15 +19,16 @@ const (
 	ImageStudioJobStatusCompleted = "completed"
 	ImageStudioJobStatusFailed    = "failed"
 
-	defaultImageStudioSize  = "1024x1024"
+	defaultImageStudioSize = "1024x1024"
 )
 
 var (
-	ErrImageStudioDisabled    = infraerrors.BadRequest("IMAGE_STUDIO_DISABLED", "image studio is disabled")
-	ErrImageStudioJobNotFound = infraerrors.NotFound("IMAGE_STUDIO_JOB_NOT_FOUND", "image studio job not found")
-	ErrImageStudioTemplate    = infraerrors.BadRequest("IMAGE_STUDIO_TEMPLATE_INVALID", "invalid template")
-	ErrImageStudioAPIKey      = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
-	ErrImageStudioAssetNotFound = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
+	ErrImageStudioDisabled       = infraerrors.BadRequest("IMAGE_STUDIO_DISABLED", "image studio is disabled")
+	ErrImageStudioJobNotFound    = infraerrors.NotFound("IMAGE_STUDIO_JOB_NOT_FOUND", "image studio job not found")
+	ErrImageStudioTemplate       = infraerrors.BadRequest("IMAGE_STUDIO_TEMPLATE_INVALID", "invalid template")
+	ErrImageStudioPromptRequired = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_REQUIRED", "image description is required")
+	ErrImageStudioAPIKey         = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
+	ErrImageStudioAssetNotFound  = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
 )
 
 type ImageStudioAsset struct {
@@ -88,8 +89,8 @@ type ImageStudioGenerateRequest struct {
 }
 
 type ImageStudioGenerateResult struct {
-	Job            ImageStudioJob     `json:"job"`
-	QuestProgress  *PlayQuestToday    `json:"quest_progress,omitempty"`
+	Job           ImageStudioJob  `json:"job"`
+	QuestProgress *PlayQuestToday `json:"quest_progress,omitempty"`
 }
 
 type ImageStudioEstimate struct {
@@ -289,6 +290,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if !s.IsEnabled(ctx) {
 		return nil, "", ErrImageStudioDisabled
 	}
+	if err := validateImageStudioPrompt(req.UserPrompt); err != nil {
+		return nil, "", err
+	}
 	tpl, ok := findImageStudioTemplate(req.TemplateID)
 	if !ok {
 		return nil, "", ErrImageStudioTemplate
@@ -357,10 +361,10 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		return nil, "", err
 	}
 	payload := map[string]any{
-		"model":           resolvedModel,
-		"prompt":          prompt,
-		"n":               count,
-		"size":            size,
+		"model":  resolvedModel,
+		"prompt": prompt,
+		"n":      count,
+		"size":   size,
 		// Prefer inline bytes so CompleteJob can persist without a second remote fetch.
 		"response_format": "b64_json",
 	}
@@ -610,14 +614,18 @@ func buildImageStudioPrompt(tpl ImageStudioTemplate, req ImageStudioGenerateRequ
 		return strings.TrimSpace(*req.ExpertPrompt)
 	}
 	subject := strings.TrimSpace(req.UserPrompt)
-	if subject == "" {
-		subject = "product"
-	}
 	prompt := strings.ReplaceAll(tpl.PromptTemplate, "{{subject}}", subject)
 	if accent := strings.TrimSpace(req.AccentColor); accent != "" {
 		prompt += ", accent color " + accent
 	}
 	return prompt
+}
+
+func validateImageStudioPrompt(prompt string) error {
+	if strings.TrimSpace(prompt) == "" {
+		return ErrImageStudioPromptRequired
+	}
+	return nil
 }
 
 func hashPrompt(prompt string) string {

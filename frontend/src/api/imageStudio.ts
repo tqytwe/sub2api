@@ -10,9 +10,11 @@ export interface ImageStudioLocalizedText {
 export interface ImageStudioTemplate {
   id: string
   label: ImageStudioLocalizedText
+  description?: ImageStudioLocalizedText
   defaults: { size: string; count: number }
   compliance_hints?: string[]
   preview_emoji?: string
+  preview_url?: string
 }
 
 export interface ImageStudioIntent {

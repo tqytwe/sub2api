@@ -1,249 +1,355 @@
 <script setup lang="ts">
+import { computed, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import Icon from '@/components/icons/Icon.vue'
 import ImageStudioGallery from '@/components/imageStudio/ImageStudioGallery.vue'
 import ImageStudioPreviewModal from '@/components/imageStudio/ImageStudioPreviewModal.vue'
 import ImageStudioSizePicker from '@/components/imageStudio/ImageStudioSizePicker.vue'
 import { useImageStudioWizard } from '@/composables/useImageStudioWizard'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
-import '@/styles/growth-world.css'
-import Icon from '@/components/icons/Icon.vue'
-import { useI18n } from 'vue-i18n'
+import type { ImageStudioJob, ImageStudioTemplate } from '@/api/imageStudio'
+import { flattenImageStudioTemplates } from '@/utils/imageStudioWorkspace'
 
 const { t } = useI18n()
 const enabled = isFeatureFlagEnabled(FeatureFlags.imageStudio)
-
 const wizard = useImageStudioWizard()
 
-type StudioIconName = 'cube' | 'grid' | 'sparkles' | 'document'
+const mobileView = ref<'create' | 'works'>('create')
+const promptTouched = ref(false)
 
-function studioIconFor(id: string): StudioIconName {
-  if (id === 'ecommerce') return 'cube'
-  if (id === 'social') return 'grid'
-  if (id === 'creative') return 'sparkles'
-  return 'document'
+const templateOptions = computed(() => flattenImageStudioTemplates(wizard.catalog.value))
+
+const featuredJob = computed<ImageStudioJob | null>(() =>
+  wizard.latestJob.value ?? wizard.jobs.value[0] ?? null,
+)
+
+const historyJobs = computed(() => {
+  const featuredId = featuredJob.value?.id
+  return wizard.jobs.value.filter((job) => job.id !== featuredId)
+})
+
+const selectedTemplateDescription = computed(() =>
+  wizard.labelFor(wizard.selectedTemplate.value?.description),
+)
+
+const selectedTemplatePreview = computed(() => wizard.selectedTemplate.value?.preview_url || '')
+
+const promptLength = computed(() => wizard.userPrompt.value.length)
+const canGenerate = computed(() =>
+  wizard.promptValid.value
+    && !!wizard.selectedTemplate.value
+    && !!wizard.apiKeyId.value
+    && !!wizard.selectedModel.value
+    && !!wizard.estimate.value
+    && !wizard.generating.value
+    && !wizard.polling.value,
+)
+
+const generateLabel = computed(() => {
+  if (wizard.generating.value || wizard.polling.value) return t('imageStudio.generating')
+  return t('imageStudio.generateCount', { count: wizard.count.value })
+})
+
+const selectedModelLabel = computed(() =>
+  wizard.selectedModelOption.value?.display_name || wizard.selectedModel.value || t('imageStudio.noModelSelected'),
+)
+
+function selectTemplate(template: ImageStudioTemplate) {
+  wizard.pickTemplate(template)
+}
+
+function changeCount(delta: number) {
+  const next = Math.min(wizard.maxCount.value, Math.max(1, wizard.count.value + delta))
+  wizard.count.value = next
+}
+
+async function generate() {
+  promptTouched.value = true
+  if (!wizard.promptValid.value) {
+    mobileView.value = 'create'
+    return
+  }
+  mobileView.value = 'works'
+  await wizard.generate()
+}
+
+function reuseJob(job: ImageStudioJob) {
+  wizard.regenerateFromJob(job)
+  mobileView.value = 'create'
 }
 </script>
 
 <template>
   <AppLayout>
-    <div v-if="!enabled" class="gw-page py-12 text-center">
-      <p class="gw-subtitle">{{ t('imageStudio.disabled') }}</p>
+    <div v-if="!enabled" class="mx-auto max-w-3xl py-16 text-center text-sm text-gray-500 dark:text-gray-400">
+      {{ t('imageStudio.disabled') }}
     </div>
-    <div v-else class="gw-page gw-page--studio space-y-6 pb-10">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p class="gw-eyebrow">{{ t('imageStudio.eyebrow') }}</p>
-          <h1 class="gw-title">{{ t('imageStudio.title') }}</h1>
-          <p class="gw-subtitle">{{ t('imageStudio.subtitle') }}</p>
-        </div>
-        <div class="gw-balance-card" :class="{ 'gw-balance-card--low': wizard.balanceLow.value }">
-          <p class="gw-balance-label">{{ t('imageStudio.balance') }}</p>
-          <p class="gw-balance-value">${{ wizard.balance.value.toFixed(2) }}</p>
-          <div class="gw-balance-actions">
-            <router-link to="/purchase?return=/image-studio" class="gw-btn gw-btn-primary gw-btn-sm">
-              {{ t('imageStudio.recharge') }}
-            </router-link>
-          </div>
-        </div>
+
+    <div v-else class="mx-auto max-w-[1440px]">
+      <div class="mb-4 lg:hidden">
+        <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('imageStudio.title') }}</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('imageStudio.workspaceSubtitle') }}</p>
       </div>
 
-      <div class="gw-steps">
+      <div class="mb-4 grid grid-cols-2 rounded-xl bg-gray-200/70 p-1 lg:hidden dark:bg-dark-800">
         <button
-          v-for="n in 4"
-          :key="n"
           type="button"
-          class="gw-step-pill"
-          :class="{ active: wizard.step.value >= n, clickable: n < wizard.step.value && !wizard.polling.value && !wizard.generating.value }"
-          :disabled="n >= wizard.step.value || wizard.polling.value || wizard.generating.value"
-          @click="wizard.goToStep(n)"
+          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
+          :class="mobileView === 'create' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+          @click="mobileView = 'create'"
         >
-          {{ t('imageStudio.step', { n }) }}
+          {{ t('imageStudio.createTab') }}
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
+          :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+          @click="mobileView = 'works'"
+        >
+          {{ t('imageStudio.worksTab') }}
         </button>
       </div>
 
-      <div v-if="wizard.bootstrapping.value" class="gw-polling">{{ t('models.loading') }}</div>
-      <template v-else>
-        <div v-if="wizard.polling.value" class="gw-generating-banner">
-          <span class="gw-generating-dot" />
-          <span>{{ wizard.pollNotice.value || t('imageStudio.polling') }}</span>
+      <div v-if="wizard.bootstrapping.value" class="card flex min-h-72 items-center justify-center p-8">
+        <div class="flex items-center gap-3 text-sm text-gray-500 dark:text-gray-400">
+          <span class="h-5 w-5 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+          {{ t('models.loading') }}
         </div>
+      </div>
 
-        <p v-if="wizard.errorMsg.value" class="gw-error">{{ wizard.errorMsg.value }}</p>
-
-        <section v-if="!wizard.hasApiKeys.value" class="gw-panel space-y-3">
-          <h2 class="gw-section-title">{{ t('imageStudio.noApiKeysTitle') }}</h2>
-          <p class="gw-subtitle">{{ t('imageStudio.noApiKeysHint') }}</p>
-          <router-link to="/keys" class="gw-btn gw-btn-primary">{{ t('imageStudio.goKeys') }}</router-link>
-        </section>
-
-        <section v-else-if="wizard.step.value === 1" class="gw-panel">
-          <h2 class="gw-section-title">{{ t('imageStudio.pickIntent') }}</h2>
-          <div class="gw-grid">
-            <button
-              v-for="intent in wizard.catalog.value?.intents || []"
-              :key="intent.id"
-              type="button"
-              class="gw-card-btn"
-              @click="wizard.pickIntent(intent)"
-            >
-              <div class="gw-card-icon">
-                <Icon :name="studioIconFor(intent.id)" size="lg" />
-              </div>
-              <div class="gw-card-label">{{ wizard.labelFor(intent.label) }}</div>
-            </button>
-          </div>
-        </section>
-
-        <section v-else-if="wizard.step.value === 2 && wizard.selectedIntent.value" class="gw-panel">
-          <h2 class="gw-section-title">{{ t('imageStudio.pickTemplate') }}</h2>
-          <div class="gw-grid">
-            <button
-              v-for="tpl in wizard.selectedIntent.value.templates"
-              :key="tpl.id"
-              type="button"
-              class="gw-card-btn"
-              :class="{ selected: wizard.selectedTemplate?.value?.id === tpl.id }"
-              @click="wizard.pickTemplate(tpl)"
-            >
-              <div class="gw-card-icon">
-                <Icon :name="studioIconFor(wizard.selectedIntent.value?.id || tpl.id)" size="lg" />
-              </div>
-              <div class="gw-card-label">{{ wizard.labelFor(tpl.label) }}</div>
-              <ul v-if="tpl.compliance_hints?.length" class="gw-hints">
-                <li v-for="(hint, i) in tpl.compliance_hints" :key="i">{{ hint }}</li>
-              </ul>
-            </button>
-          </div>
-          <button type="button" class="gw-btn gw-btn-secondary mt-4" @click="wizard.goBack()">{{ t('imageStudio.back') }}</button>
-        </section>
-
-        <section v-else-if="wizard.step.value === 3 && wizard.selectedTemplate.value" class="gw-panel space-y-4">
-          <h2 class="gw-section-title">{{ t('imageStudio.fillForm') }}</h2>
-          <p v-if="wizard.isNewUser.value" class="text-sm" style="color: var(--gw-ink-3)">{{ t('imageStudio.newUserHint') }}</p>
-          <label class="gw-field">
-            <span class="gw-field-label">{{ t('imageStudio.promptLabel') }}</span>
-            <input v-model="wizard.userPrompt.value" class="gw-input" :placeholder="t('imageStudio.promptPlaceholder')" />
-          </label>
-          <label v-if="wizard.showAccentColor.value" class="gw-field">
-            <span class="gw-field-label">{{ t('imageStudio.accentColor') }}</span>
-            <div class="flex items-center gap-3">
-              <input v-model="wizard.accentColor.value" type="color" class="h-10 w-14 cursor-pointer rounded-lg border border-[var(--gw-line)] bg-transparent p-1" />
-              <input v-model="wizard.accentColor.value" class="gw-input max-w-[8rem]" />
+      <div v-else class="grid items-start gap-5 xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
+        <section
+          class="card overflow-hidden xl:sticky xl:top-24"
+          :class="mobileView === 'create' ? 'block' : 'hidden lg:block'"
+        >
+          <header class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+            <div>
+              <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.createTitle') }}</h2>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('imageStudio.createHint') }}</p>
             </div>
-          </label>
-          <ImageStudioSizePicker
-            :capabilities="wizard.capabilities.value"
-            :aspect="wizard.aspect.value"
-            :tier="wizard.tier.value"
-            :selected-model="wizard.selectedModelOption.value"
-            :disabled="wizard.polling.value || wizard.generating.value"
-            @update:aspect="wizard.onAspectChange"
-            @update:tier="wizard.onTierChange"
-          />
-          <div class="gw-field-row">
-            <label class="gw-field">
-              <span class="gw-field-label">{{ t('imageStudio.count') }}</span>
-              <select v-model.number="wizard.count.value" class="gw-select" :disabled="wizard.polling.value || wizard.generating.value">
-                <option v-for="n in wizard.maxCount.value" :key="n" :value="n">{{ n }}</option>
-              </select>
-            </label>
-            <label v-if="wizard.showQuality.value" class="gw-field">
-              <span class="gw-field-label">{{ t('imageStudio.quality') }}</span>
-              <select v-model="wizard.quality.value" class="gw-select" :disabled="wizard.polling.value || wizard.generating.value">
-                <option
-                  v-for="q in wizard.selectedModelOption.value?.supported_qualities || []"
-                  :key="q"
-                  :value="q"
+            <span class="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.settingsRetained') }}</span>
+          </header>
+
+          <div v-if="!wizard.hasApiKeys.value" class="p-5">
+            <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center dark:border-dark-600 dark:bg-dark-900">
+              <div class="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-white text-gray-500 shadow-sm dark:bg-dark-800 dark:text-gray-300">
+                <Icon name="key" />
+              </div>
+              <h3 class="mt-3 font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.noApiKeysTitle') }}</h3>
+              <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('imageStudio.noApiKeysHint') }}</p>
+              <router-link to="/keys" class="btn btn-primary mt-4">{{ t('imageStudio.goKeys') }}</router-link>
+            </div>
+          </div>
+
+          <template v-else>
+            <div class="border-b border-gray-100 p-5 dark:border-dark-700">
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <h3 class="input-label mb-0">{{ t('imageStudio.template') }}</h3>
+                <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.templateHint') }}</span>
+              </div>
+              <div class="grid grid-cols-3 gap-2">
+                <button
+                  v-for="option in templateOptions"
+                  :key="option.template.id"
+                  type="button"
+                  class="group relative min-w-0 rounded-xl border bg-white p-1.5 text-left transition focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:bg-dark-800"
+                  :class="wizard.selectedTemplate.value?.id === option.template.id
+                    ? 'border-primary-500 ring-2 ring-primary-500/10 dark:border-primary-400'
+                    : 'border-gray-200 hover:border-gray-300 dark:border-dark-600 dark:hover:border-dark-500'"
+                  @click="selectTemplate(option.template)"
                 >
-                  {{ t(`imageStudio.qualityOptions.${q}`, q) }}
-                </option>
-              </select>
-            </label>
-            <label class="gw-field">
-              <span class="gw-field-label">{{ t('imageStudio.apiKey') }}</span>
-              <select v-model.number="wizard.apiKeyId.value" class="gw-select" :disabled="wizard.polling.value || wizard.generating.value">
-                <option v-for="k in wizard.apiKeys.value" :key="k.id" :value="k.id">{{ k.name }}</option>
-              </select>
-            </label>
-            <label class="gw-field">
-              <span class="gw-field-label">{{ t('imageStudio.model') }}</span>
-              <select
-                v-model="wizard.selectedModel.value"
-                class="gw-select"
-                :disabled="wizard.loadingModels.value || !wizard.availableModels.value.length || wizard.polling.value || wizard.generating.value"
-              >
-                <option v-if="wizard.loadingModels.value" value="">{{ t('imageStudio.loadingModels') }}</option>
-                <option v-else-if="!wizard.availableModels.value.length" value="">{{ t('imageStudio.noModels') }}</option>
-                <option v-for="model in wizard.availableModels.value" :key="model.id" :value="model.id">
-                  {{ model.display_name || model.id }}
-                </option>
-              </select>
-            </label>
-          </div>
-          <p v-if="wizard.modelError.value" class="gw-error">{{ wizard.modelError.value }}</p>
-          <p v-else-if="wizard.estimateError.value" class="gw-error">{{ wizard.estimateError.value }}</p>
-          <details class="gw-field" @toggle="wizard.expertOpen.value = ($event.target as HTMLDetailsElement).open">
-            <summary class="cursor-pointer text-sm" style="color: var(--gw-ink-2)">{{ t('imageStudio.expertPrompt') }}</summary>
-            <textarea v-if="wizard.expertOpen.value" v-model="wizard.expertPrompt.value" class="gw-textarea mt-2" rows="3" />
-          </details>
-          <label class="gw-checkbox-row">
-            <input v-model="wizard.autoCleanup.value" type="checkbox" :disabled="wizard.polling.value || wizard.generating.value" @change="wizard.onAutoCleanupChange()" />
-            {{ t('imageStudio.autoCleanup') }}
-          </label>
-          <div v-if="wizard.estimate.value" class="flex flex-wrap items-center gap-3">
-            <span class="gw-cost-pill" :class="wizard.estimate.value.sufficient ? 'ok' : 'warn'">
-              {{ t('imageStudio.estimate', { cost: wizard.estimate.value.estimated_cost.toFixed(4) }) }}
+                  <div class="relative aspect-[4/3] overflow-hidden rounded-lg bg-gray-100 dark:bg-dark-900">
+                    <img v-if="option.template.preview_url" :src="option.template.preview_url" :alt="wizard.labelFor(option.template.label)" class="h-full w-full object-cover" />
+                    <span v-else class="grid h-full place-items-center text-2xl">{{ option.template.preview_emoji }}</span>
+                    <span v-if="wizard.selectedTemplate.value?.id === option.template.id" class="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-primary-500 text-white shadow ring-2 ring-white dark:ring-dark-800">
+                      <Icon name="check" size="xs" :stroke-width="2.5" />
+                    </span>
+                  </div>
+                  <p class="mt-2 h-8 overflow-hidden px-0.5 text-xs font-semibold leading-4 text-gray-800 dark:text-gray-100">{{ wizard.labelFor(option.template.label) }}</p>
+                  <p class="mt-0.5 hidden truncate px-0.5 text-[10px] text-gray-400 sm:block dark:text-gray-500">{{ wizard.labelFor(option.template.description) }}</p>
+                </button>
+              </div>
+            </div>
+
+            <div class="space-y-4 border-b border-gray-100 p-5 dark:border-dark-700">
+              <label class="block">
+                <span class="mb-2 flex items-center justify-between gap-3">
+                  <span class="input-label mb-0">{{ t('imageStudio.promptLabel') }}</span>
+                  <span class="text-xs text-gray-400 dark:text-gray-500">{{ promptLength }} / 500</span>
+                </span>
+                <textarea
+                  v-model="wizard.userPrompt.value"
+                  class="input min-h-[88px] resize-y leading-6"
+                  :class="{ 'input-error': promptTouched && !wizard.promptValid.value }"
+                  rows="3"
+                  maxlength="500"
+                  :placeholder="t('imageStudio.promptPlaceholder')"
+                  @blur="promptTouched = true"
+                />
+                <span v-if="promptTouched && !wizard.promptValid.value" class="input-error-text">{{ t('imageStudio.promptRequired') }}</span>
+              </label>
+
+              <label v-if="wizard.showAccentColor.value" class="block">
+                <span class="mb-2 flex items-center justify-between gap-3">
+                  <span class="input-label mb-0">{{ t('imageStudio.accentColor') }}</span>
+                  <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.optional') }}</span>
+                </span>
+                <span class="flex items-center gap-2">
+                  <input v-model="wizard.accentColor.value" type="color" class="h-11 w-12 cursor-pointer rounded-xl border border-gray-200 bg-white p-1 dark:border-dark-600 dark:bg-dark-800" />
+                  <input v-model="wizard.accentColor.value" class="input max-w-32 font-mono uppercase" maxlength="7" />
+                </span>
+              </label>
+
+              <ImageStudioSizePicker
+                :capabilities="wizard.capabilities.value"
+                :aspect="wizard.aspect.value"
+                :tier="wizard.tier.value"
+                :selected-model="wizard.selectedModelOption.value"
+                :disabled="wizard.polling.value || wizard.generating.value"
+                @update:aspect="wizard.onAspectChange"
+                @update:tier="wizard.onTierChange"
+              />
+
+              <div>
+                <span class="input-label">{{ t('imageStudio.count') }}</span>
+                <div class="grid h-11 grid-cols-[44px_1fr_44px] items-center rounded-xl border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
+                  <button type="button" class="grid h-full place-items-center rounded-l-xl text-gray-500 hover:bg-gray-50 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-dark-700" :disabled="wizard.count.value <= 1" :aria-label="t('imageStudio.decreaseCount')" @click="changeCount(-1)">
+                    <span class="text-lg">−</span>
+                  </button>
+                  <strong class="text-center tabular-nums text-gray-900 dark:text-white">{{ wizard.count.value }}</strong>
+                  <button type="button" class="grid h-full place-items-center rounded-r-xl text-gray-500 hover:bg-gray-50 disabled:opacity-30 dark:text-gray-400 dark:hover:bg-dark-700" :disabled="wizard.count.value >= wizard.maxCount.value" :aria-label="t('imageStudio.increaseCount')" @click="changeCount(1)">
+                    <Icon name="plus" size="sm" />
+                  </button>
+                </div>
+                <p v-if="wizard.isNewUser.value" class="mt-1.5 text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.newUserHint') }}</p>
+              </div>
+            </div>
+
+            <details class="group border-b border-gray-100 dark:border-dark-700" @toggle="wizard.expertOpen.value = ($event.target as HTMLDetailsElement).open">
+              <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-dark-700/50">
+                <span>{{ t('imageStudio.advancedSettings') }}</span>
+                <span class="flex min-w-0 items-center gap-2 text-xs font-normal text-gray-400 dark:text-gray-500">
+                  <span class="max-w-48 truncate">{{ selectedModelLabel }} · {{ wizard.apiKeys.value.find((key) => key.id === wizard.apiKeyId.value)?.name }}</span>
+                  <Icon name="chevronDown" size="xs" class="transition group-open:rotate-180" />
+                </span>
+              </summary>
+              <div class="space-y-4 border-t border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-dark-700 dark:bg-dark-900/50">
+                <label class="block">
+                  <span class="input-label">{{ t('imageStudio.apiKey') }}</span>
+                  <select v-model.number="wizard.apiKeyId.value" class="input" :disabled="wizard.polling.value || wizard.generating.value">
+                    <option v-for="key in wizard.apiKeys.value" :key="key.id" :value="key.id">{{ key.name }}</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="input-label">{{ t('imageStudio.model') }}</span>
+                  <select v-model="wizard.selectedModel.value" class="input" :disabled="wizard.loadingModels.value || !wizard.availableModels.value.length || wizard.polling.value || wizard.generating.value">
+                    <option v-if="wizard.loadingModels.value" value="">{{ t('imageStudio.loadingModels') }}</option>
+                    <option v-for="model in wizard.availableModels.value" :key="model.id" :value="model.id">{{ model.display_name || model.id }}</option>
+                  </select>
+                </label>
+                <label v-if="wizard.showQuality.value" class="block">
+                  <span class="input-label">{{ t('imageStudio.renderQuality') }}</span>
+                  <select v-model="wizard.quality.value" class="input" :disabled="wizard.polling.value || wizard.generating.value">
+                    <option v-for="quality in wizard.selectedModelOption.value?.supported_qualities || []" :key="quality" :value="quality">{{ t(`imageStudio.qualityOptions.${quality}`, quality) }}</option>
+                  </select>
+                </label>
+                <label class="block">
+                  <span class="input-label">{{ t('imageStudio.expertPrompt') }}</span>
+                  <textarea v-model="wizard.expertPrompt.value" class="input min-h-20 resize-y font-mono text-xs leading-5" rows="3" />
+                </label>
+                <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+                  <input v-model="wizard.autoCleanup.value" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" :disabled="wizard.polling.value || wizard.generating.value" @change="wizard.onAutoCleanupChange()" />
+                  {{ t('imageStudio.autoCleanup') }}
+                </label>
+              </div>
+            </details>
+
+            <div class="bg-gray-50/80 p-5 dark:bg-dark-900/60">
+              <p v-if="wizard.modelError.value || wizard.estimateError.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {{ wizard.modelError.value || wizard.estimateError.value }}
+              </p>
+              <p v-if="wizard.errorMsg.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {{ wizard.errorMsg.value }}
+              </p>
+              <div class="mb-3 flex items-center justify-between gap-3 text-xs">
+                <span class="text-gray-500 dark:text-gray-400">{{ t('imageStudio.estimateLabel') }}</span>
+                <span v-if="wizard.estimate.value" class="font-semibold tabular-nums text-gray-900 dark:text-white">
+                  ${{ wizard.estimate.value.estimated_cost.toFixed(4) }}
+                  <span class="ml-1 font-normal" :class="wizard.estimate.value.sufficient ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'">
+                    {{ wizard.estimate.value.sufficient ? t('imageStudio.balanceSufficient') : t('imageStudio.balanceInsufficient') }}
+                  </span>
+                </span>
+                <span v-else class="text-gray-400">{{ t('imageStudio.estimatePending') }}</span>
+              </div>
+              <button type="button" class="btn btn-primary w-full" :disabled="!wizard.promptValid.value || (!canGenerate && wizard.estimate.value?.sufficient !== false)" @click="generate">
+                <Icon name="sparkles" size="sm" />
+                {{ wizard.estimate.value && !wizard.estimate.value.sufficient ? t('imageStudio.rechargeToGenerate') : generateLabel }}
+              </button>
+            </div>
+          </template>
+        </section>
+
+        <section
+          class="card min-w-0 overflow-hidden"
+          :class="mobileView === 'works' ? 'block' : 'hidden lg:block'"
+        >
+          <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+            <div>
+              <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.latestResult') }}</h2>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('imageStudio.latestResultHint') }}</p>
+            </div>
+            <span v-if="wizard.polling.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+              <span class="h-2 w-2 animate-pulse rounded-full bg-current" />
+              {{ wizard.pollNotice.value || t('imageStudio.polling') }}
             </span>
-            <button type="button" class="gw-btn gw-btn-primary" :disabled="wizard.generating.value || wizard.polling.value || !wizard.apiKeyId.value || !wizard.selectedModel.value || !wizard.estimate.value" @click="wizard.generate()">
-              {{ wizard.generating.value || wizard.polling.value ? t('imageStudio.generating') : t('imageStudio.generate') }}
-            </button>
-            <button type="button" class="gw-btn gw-btn-secondary" :disabled="wizard.polling.value || wizard.generating.value" @click="wizard.goBack()">
-              {{ t('imageStudio.back') }}
-            </button>
+          </header>
+
+          <div class="p-4 sm:p-5">
+            <div v-if="wizard.polling.value" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl bg-gray-50 px-6 text-center dark:bg-dark-900">
+              <span class="h-10 w-10 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+              <h3 class="mt-4 font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.generatingTitle') }}</h3>
+              <p class="mt-2 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{{ wizard.pollNotice.value || t('imageStudio.polling') }}</p>
+            </div>
+
+            <ImageStudioGallery
+              v-else-if="featuredJob"
+              :jobs="[featuredJob]"
+              :latest-job="featuredJob"
+              featured
+              @preview="wizard.openPreview"
+              @delete="wizard.removeJob"
+              @regenerate="reuseJob"
+            />
+
+            <div v-else-if="selectedTemplatePreview" class="relative overflow-hidden rounded-xl bg-gray-100 dark:bg-dark-900">
+              <img :src="selectedTemplatePreview" :alt="wizard.labelFor(wizard.selectedTemplate.value?.label)" class="max-h-[62vh] min-h-72 w-full object-cover" />
+              <span class="absolute left-3 top-3 rounded-lg bg-gray-950/70 px-2.5 py-1.5 text-xs font-medium text-white backdrop-blur">{{ t('imageStudio.templatePreview') }}</span>
+              <div class="border-t border-gray-100 bg-white px-4 py-3 dark:border-dark-700 dark:bg-dark-800">
+                <p class="font-medium text-gray-900 dark:text-white">{{ wizard.labelFor(wizard.selectedTemplate.value?.label) }}</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ selectedTemplateDescription }}</p>
+              </div>
+            </div>
+
+            <div v-else class="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center text-sm text-gray-500 dark:border-dark-600 dark:bg-dark-900 dark:text-gray-400">
+              {{ t('imageStudio.galleryEmpty') }}
+            </div>
+          </div>
+
+          <div v-if="historyJobs.length" class="border-t border-gray-100 px-4 py-5 sm:px-5 dark:border-dark-700">
+            <div class="mb-4 flex items-center justify-between gap-3">
+              <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.recentWorks') }}</h2>
+              <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.recentWorksCount', { count: historyJobs.length }) }}</span>
+            </div>
+            <ImageStudioGallery
+              :jobs="historyJobs"
+              @preview="wizard.openPreview"
+              @delete="wizard.removeJob"
+              @regenerate="reuseJob"
+            />
           </div>
         </section>
-
-        <section v-else-if="wizard.step.value === 4" class="gw-panel space-y-4">
-          <h2 class="gw-section-title">
-            {{ wizard.errorMsg.value ? t('imageStudio.assetsMissing') : t('imageStudio.doneTitle') }}
-          </h2>
-          <p class="gw-subtitle">
-            {{ wizard.errorMsg.value || t('imageStudio.doneHint') }}
-          </p>
-          <ImageStudioGallery
-            :jobs="wizard.jobs.value"
-            :latest-job="wizard.latestJob.value"
-            result-mode
-            @preview="wizard.openPreview"
-            @delete="wizard.removeJob"
-            @regenerate="wizard.regenerateFromJob"
-          />
-          <div class="flex flex-wrap gap-3">
-            <button type="button" class="gw-btn gw-btn-primary" @click="wizard.step.value = 3">{{ t('imageStudio.makeAnother') }}</button>
-            <button
-              v-if="wizard.latestJob.value"
-              type="button"
-              class="gw-btn gw-btn-secondary"
-              @click="wizard.regenerateFromJob(wizard.latestJob.value!)"
-            >
-              {{ t('imageStudio.regenerateSame') }}
-            </button>
-            <button type="button" class="gw-btn gw-btn-secondary" @click="wizard.startOver()">{{ t('imageStudio.startOver') }}</button>
-            <router-link to="/play" class="gw-btn gw-btn-secondary">{{ t('imageStudio.goHub') }}</router-link>
-            <router-link to="/arena" class="gw-btn gw-btn-secondary">{{ t('imageStudio.goFarm') }}</router-link>
-          </div>
-        </section>
-      </template>
-
-      <section v-if="!wizard.bootstrapping.value" class="gw-panel space-y-3">
-        <h2 class="gw-section-title">{{ t('imageStudio.gallery') }}</h2>
-        <ImageStudioGallery
-          :jobs="wizard.jobs.value"
-          @preview="wizard.openPreview"
-          @delete="wizard.removeJob"
-          @regenerate="wizard.regenerateFromJob"
-        />
-      </section>
+      </div>
     </div>
 
     <ImageStudioPreviewModal
@@ -253,13 +359,14 @@ function studioIconFor(id: string): StudioIconName {
       @close="wizard.closePreview()"
     />
 
-    <div v-if="wizard.showFirstWin.value" class="gw-first-win" @click.self="wizard.showFirstWin.value = false">
-      <div class="gw-first-win-card">
-        <h2>{{ t('imageStudio.firstWinTitle') }}</h2>
-        <p>{{ t('imageStudio.firstWinHint') }}</p>
-        <button type="button" class="gw-btn gw-btn-primary w-full" @click="wizard.showFirstWin.value = false">
-          {{ t('imageStudio.firstWinCta') }}
-        </button>
+    <div v-if="wizard.showFirstWin.value" class="fixed inset-0 z-[190] flex items-center justify-center bg-gray-950/60 p-5 backdrop-blur-sm" @click.self="wizard.showFirstWin.value = false">
+      <div class="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-2xl dark:bg-dark-800">
+        <div class="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-300">
+          <Icon name="checkCircle" size="lg" />
+        </div>
+        <h2 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.firstWinTitle') }}</h2>
+        <p class="mt-2 text-sm leading-6 text-gray-500 dark:text-gray-400">{{ t('imageStudio.firstWinHint') }}</p>
+        <button type="button" class="btn btn-primary mt-5 w-full" @click="wizard.showFirstWin.value = false">{{ t('imageStudio.firstWinCta') }}</button>
       </div>
     </div>
   </AppLayout>

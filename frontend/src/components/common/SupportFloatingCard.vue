@@ -5,6 +5,12 @@ import { useAppStore } from '@/stores'
 import { useClipboard } from '@/composables/useClipboard'
 import '@/styles/support-floating.css'
 
+const props = withDefaults(defineProps<{
+  hideOnMobile?: boolean
+}>(), {
+  hideOnMobile: false,
+})
+
 const PEEK_KEY = 'support_fab_peeked'
 const OFFSET_KEY = 'support_fab_offset'
 
@@ -139,7 +145,7 @@ onBeforeUnmount(() => {
   <div
     ref="fabRef"
     class="support-fab"
-    :class="{ 'is-open': panelOpen }"
+    :class="{ 'is-open': panelOpen, 'support-fab--mobile-hidden': props.hideOnMobile }"
     :style="fabStyle"
   >
     <Transition name="support-pop">

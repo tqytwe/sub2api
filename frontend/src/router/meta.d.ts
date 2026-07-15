@@ -69,5 +69,8 @@ declare module 'vue-router' {
      * Hide the default AppHeader title block (pages with their own hero section).
      */
     hidePageHeader?: boolean
+
+    /** Hide the floating support trigger on compact tool layouts. */
+    hideMobileSupport?: boolean
   }
 }

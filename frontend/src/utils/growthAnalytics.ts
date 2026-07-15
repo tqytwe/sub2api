@@ -1,8 +1,12 @@
 /** Lightweight growth analytics — forwards to window.dataLayer when present. */
 export type GrowthEventName =
+  | 'image_studio_workspace_view'
   | 'image_studio_intent_select'
+  | 'image_studio_template_select'
   | 'image_studio_generate_click'
   | 'image_studio_generate_success'
+  | 'image_studio_generate_fail'
+  | 'image_studio_result_view'
   | 'image_studio_insufficient_balance'
   | 'image_studio_download_click'
   | 'image_studio_download_success'

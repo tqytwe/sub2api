@@ -46,11 +46,10 @@ type ImageStudioCapabilities struct {
 
 var imageStudioAspectCatalog = []ImageStudioAspectOption{
 	{ID: "1:1", Label: ImageStudioLocalizedLabel{Zh: "正方 1:1", En: "Square 1:1"}},
-	{ID: "3:4", Label: ImageStudioLocalizedLabel{Zh: "竖版 3:4", En: "Portrait 3:4"}},
-	{ID: "4:3", Label: ImageStudioLocalizedLabel{Zh: "横版 4:3", En: "Landscape 4:3"}},
+	{ID: "2:3", Label: ImageStudioLocalizedLabel{Zh: "竖版 2:3", En: "Portrait 2:3"}},
+	{ID: "3:2", Label: ImageStudioLocalizedLabel{Zh: "横版 3:2", En: "Landscape 3:2"}},
 	{ID: "9:16", Label: ImageStudioLocalizedLabel{Zh: "竖屏 9:16", En: "Story 9:16"}},
 	{ID: "16:9", Label: ImageStudioLocalizedLabel{Zh: "宽屏 16:9", En: "Wide 16:9"}},
-	{ID: "2:3", Label: ImageStudioLocalizedLabel{Zh: "竖版 2:3", En: "Portrait 2:3"}},
 }
 
 var imageStudioTierCatalog = []ImageStudioTierOption{
@@ -65,12 +64,12 @@ var imageStudioSizeMatrix = map[string]map[string]string{
 		ImageBillingSize2K: "2048x2048",
 		ImageBillingSize4K: "4096x4096",
 	},
-	"3:4": {
+	"2:3": {
 		ImageBillingSize1K: "1024x1536",
 		ImageBillingSize2K: "2048x3072",
 		ImageBillingSize4K: "4096x6144",
 	},
-	"4:3": {
+	"3:2": {
 		ImageBillingSize1K: "1536x1024",
 		ImageBillingSize2K: "3072x2048",
 		ImageBillingSize4K: "6144x4096",
@@ -84,11 +83,6 @@ var imageStudioSizeMatrix = map[string]map[string]string{
 		ImageBillingSize1K: "1792x1024",
 		ImageBillingSize2K: "3584x2048",
 		ImageBillingSize4K: "3840x2160",
-	},
-	"2:3": {
-		ImageBillingSize1K: "1024x1536",
-		ImageBillingSize2K: "2048x3072",
-		ImageBillingSize4K: "4096x6144",
 	},
 }
 
@@ -133,6 +127,12 @@ func ResolveImageStudioSize(aspect, tier, rawSize string) (string, error) {
 	}
 	aspect = strings.TrimSpace(aspect)
 	tier = strings.TrimSpace(tier)
+	switch aspect {
+	case "3:4":
+		aspect = "2:3"
+	case "4:3":
+		aspect = "3:2"
+	}
 	if aspect == "" {
 		aspect = "1:1"
 	}
@@ -164,10 +164,12 @@ func isKnownImageStudioSize(size string) bool {
 
 func InferImageStudioAspectTier(size string) (aspect, tier string) {
 	size = strings.TrimSpace(size)
-	for aspectID, tiers := range imageStudioSizeMatrix {
-		for tierID, resolved := range tiers {
+	for _, aspectOption := range imageStudioAspectCatalog {
+		tiers := imageStudioSizeMatrix[aspectOption.ID]
+		for _, tierOption := range imageStudioTierCatalog {
+			resolved := tiers[tierOption.ID]
 			if resolved == size {
-				return aspectID, tierID
+				return aspectOption.ID, tierOption.ID
 			}
 		}
 	}
