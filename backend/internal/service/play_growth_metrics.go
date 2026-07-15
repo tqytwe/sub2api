@@ -36,12 +36,23 @@ func (s *PublicMetricSnapshotService) Get(ctx context.Context) (*PublicMetricSna
 		copy := *s.last
 		return &copy, nil
 	}
-	if latest, err := s.repo.GetLatestPublicMetricSnapshot(ctx); err == nil && latest != nil && time.Since(latest.UpdatedAt) <= publicMetricSnapshotTTL {
+	latest, latestErr := s.repo.GetLatestPublicMetricSnapshot(ctx)
+	if latestErr == nil && latest != nil && time.Since(latest.UpdatedAt) <= publicMetricSnapshotTTL {
 		s.last = latest
 		copy := *latest
 		return &copy, nil
 	}
-	return s.refreshLocked(ctx, time.Now().UTC())
+	now := time.Now().UTC()
+	refreshed, err := s.refreshLocked(ctx, now)
+	if err == nil {
+		return refreshed, nil
+	}
+	if latestErr == nil && latest != nil {
+		s.last = latest
+		copy := *latest
+		return &copy, nil
+	}
+	return unavailablePublicMetricSnapshot(now), nil
 }
 
 func (s *PublicMetricSnapshotService) Refresh(ctx context.Context, now time.Time) (*PublicMetricSnapshot, error) {
@@ -62,6 +73,15 @@ func (s *PublicMetricSnapshotService) refreshLocked(ctx context.Context, now tim
 	s.last = snapshot
 	copy := *snapshot
 	return &copy, nil
+}
+
+func unavailablePublicMetricSnapshot(now time.Time) *PublicMetricSnapshot {
+	bucket := now.UTC().Truncate(time.Minute)
+	return &PublicMetricSnapshot{
+		SnapshotID: bucket.Format(time.RFC3339) + ":unavailable",
+		UpdatedAt:  bucket,
+		Source:     "estimated",
+	}
 }
 
 func (s *PlayService) GetPublicMetricSnapshot(ctx context.Context) (*PublicMetricSnapshot, error) {
