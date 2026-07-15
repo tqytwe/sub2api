@@ -108,10 +108,12 @@ spec:
           - id: web
             port: 8080
             type: HTTP
-        volumes:
+		volumes:
           - id: data
-            dir: /app/data
+            dir: /data
         env:
+          DATA_DIR:
+            default: /data
           AUTO_SETUP:
             default: "true"
           SERVER_HOST:

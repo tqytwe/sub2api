@@ -164,9 +164,12 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 				continue
 			}
 			platform := sm.Platform
-			grps := platformGroups[platform]
+			grps := platformGroups[strings.ToLower(strings.TrimSpace(platform))]
+			// Channel may list models whose platform doesn't match the unlock group
+			// (common for mixed / domestic model catalogs). Fall back to all groups
+			// that unlocked this channel so /models is not an empty page.
 			if len(grps) == 0 {
-				continue
+				grps = visibleGroups
 			}
 			officialIn, officialOut := lookupOfficialPrices(s.billingService, sm.Name)
 			var baseIn, baseOut *float64
@@ -231,10 +234,11 @@ func filterAvailableGroupsForUser(groups []AvailableGroupRef, allowed map[int64]
 func groupRefsByPlatform(groups []AvailableGroupRef) map[string][]AvailableGroupRef {
 	m := make(map[string][]AvailableGroupRef)
 	for _, g := range groups {
-		if g.Platform == "" {
+		key := strings.ToLower(strings.TrimSpace(g.Platform))
+		if key == "" {
 			continue
 		}
-		m[g.Platform] = append(m[g.Platform], g)
+		m[key] = append(m[key], g)
 	}
 	return m
 }

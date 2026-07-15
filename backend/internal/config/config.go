@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -1452,6 +1453,8 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 	// 2. Docker data directory
 	viper.AddConfigPath("/app/data")
+	// 2b. Zeabur / common mount at /data
+	viper.AddConfigPath("/data")
 	// 3. Current directory
 	viper.AddConfigPath(".")
 	// 4. Config subdirectory
@@ -1610,7 +1613,61 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		)
 	}
 
+	cfg.Pricing.DataDir = ResolvePricingDataDir(cfg.Pricing.DataDir)
+	slog.Info("pricing data dir resolved", "data_dir", cfg.Pricing.DataDir)
+
 	return &cfg, nil
+}
+
+// ResolvePricingDataDir picks the writable data root for pricing caches and image-studio assets.
+// Priority: DATA_DIR env > explicit non-default path > /data (Zeabur) > /app/data (Docker) > configured/default.
+func ResolvePricingDataDir(configured string) string {
+	if dir := strings.TrimSpace(os.Getenv("DATA_DIR")); dir != "" {
+		_ = os.MkdirAll(dir, 0o755)
+		return dir
+	}
+	configured = strings.TrimSpace(configured)
+	candidates := make([]string, 0, 4)
+	if configured != "" && configured != "./data" && configured != "data" {
+		candidates = append(candidates, configured)
+	}
+	candidates = append(candidates, "/data", "/app/data")
+	if configured != "" {
+		candidates = append(candidates, configured)
+	} else {
+		candidates = append(candidates, "./data")
+	}
+	seen := map[string]struct{}{}
+	for _, dir := range candidates {
+		if _, ok := seen[dir]; ok {
+			continue
+		}
+		seen[dir] = struct{}{}
+		if isWritableDataDir(dir) {
+			return dir
+		}
+	}
+	if configured != "" {
+		_ = os.MkdirAll(configured, 0o755)
+		return configured
+	}
+	_ = os.MkdirAll("./data", 0o755)
+	return "./data"
+}
+
+func isWritableDataDir(dir string) bool {
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return false
+	}
+	testFile := filepath.Join(dir, ".write_test")
+	f, err := os.Create(testFile)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	_ = os.Remove(testFile)
+	return true
 }
 
 func setDefaults() {

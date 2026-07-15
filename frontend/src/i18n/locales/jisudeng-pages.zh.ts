@@ -97,7 +97,7 @@ export const jisudengPagesZh = {
     loginCta: '登录',
     registerCta: '免费注册',
     empty: '暂无可用模型',
-    emptyNoChannels: '价目已开启，但您所在分组暂无可用渠道模型。请联系管理员配置渠道与分组，或在后台启用「登录价目」。',
+    emptyNoChannels: '价目已开启，但您当前分组下没有挂到任何渠道模型。请在后台：1）渠道绑定您的用户分组；2）渠道定价里配置模型。',
     emptyApiNotDeployed: '价目接口尚未部署，请稍后刷新或联系管理员。',
     loading: '加载中…',
     loadFailed: '价格列表加载失败，请稍后刷新',
