@@ -4,6 +4,7 @@ import {
   findFirstImageStudioKeyWithModels,
   flattenImageStudioTemplates,
   isImageStudioPromptValid,
+  loadAllActiveImageStudioKeys,
   resolveInitialImageStudioTemplate,
 } from '@/utils/imageStudioWorkspace'
 
@@ -69,5 +70,23 @@ describe('image studio workspace helpers', () => {
       { id: 10, name: 'Default' },
       { id: 11, name: 'Text only' },
     ], loadModels)).resolves.toBeNull()
+  })
+
+  it('loads every API key page and keeps only active keys', async () => {
+    const loadPage = vi.fn(async (page: number) => ({
+      items: page === 1
+        ? [
+            { id: 10, name: 'Disabled', status: 'inactive' },
+            { id: 11, name: 'First active', status: 'active' },
+          ]
+        : [{ id: 12, name: 'Later active', status: 'active' }],
+      pages: 2,
+    }))
+
+    await expect(loadAllActiveImageStudioKeys(loadPage)).resolves.toEqual([
+      { id: 11, name: 'First active' },
+      { id: 12, name: 'Later active' },
+    ])
+    expect(loadPage.mock.calls).toEqual([[1, 100], [2, 100]])
   })
 })

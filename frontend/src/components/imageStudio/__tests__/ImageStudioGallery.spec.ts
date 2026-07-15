@@ -1,10 +1,14 @@
-import { mount } from '@vue/test-utils'
+import { flushPromises, mount } from '@vue/test-utils'
 import { createPinia } from 'pinia'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ImageStudioGallery from '@/components/imageStudio/ImageStudioGallery.vue'
 import type { ImageStudioJob } from '@/api/imageStudio'
 
 const fetchImageStudioAssetBlobMock = vi.hoisted(() => vi.fn())
+const originalCreateObjectURL = window.URL.createObjectURL
+const originalRevokeObjectURL = window.URL.revokeObjectURL
+const createObjectURLMock = vi.fn(() => 'blob:managed-thumb')
+const revokeObjectURLMock = vi.fn()
 
 vi.mock('@/api/imageStudio', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/api/imageStudio')>()
@@ -55,6 +59,19 @@ const managedAssetJob: ImageStudioJob = {
 }
 
 describe('ImageStudioGallery', () => {
+  beforeEach(() => {
+    fetchImageStudioAssetBlobMock.mockReset()
+    createObjectURLMock.mockClear()
+    revokeObjectURLMock.mockClear()
+    window.URL.createObjectURL = createObjectURLMock as typeof window.URL.createObjectURL
+    window.URL.revokeObjectURL = revokeObjectURLMock as typeof window.URL.revokeObjectURL
+  })
+
+  afterEach(() => {
+    window.URL.createObjectURL = originalCreateObjectURL
+    window.URL.revokeObjectURL = originalRevokeObjectURL
+  })
+
   it('renders an explicit empty state', () => {
     const wrapper = mount(ImageStudioGallery, {
       props: { jobs: [] },
@@ -90,5 +107,42 @@ describe('ImageStudioGallery', () => {
 
     expect(wrapper.find('img').exists()).toBe(false)
     expect(wrapper.text()).toContain('imageStudio.loadingPreview')
+  })
+
+  it('revokes managed thumbnail URLs when assets leave the gallery', async () => {
+    fetchImageStudioAssetBlobMock.mockResolvedValue(new Blob(['image'], { type: 'image/png' }))
+    const wrapper = mount(ImageStudioGallery, {
+      props: { jobs: [managedAssetJob] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { Icon: true },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.setProps({ jobs: [] })
+    await flushPromises()
+
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:managed-thumb')
+  })
+
+  it('revokes a thumbnail that resolves after the gallery unmounts', async () => {
+    let resolveBlob!: (blob: Blob) => void
+    fetchImageStudioAssetBlobMock.mockReturnValue(new Promise<Blob>((resolve) => {
+      resolveBlob = resolve
+    }))
+    const wrapper = mount(ImageStudioGallery, {
+      props: { jobs: [managedAssetJob] },
+      global: {
+        plugins: [createPinia()],
+        stubs: { Icon: true },
+      },
+    })
+
+    wrapper.unmount()
+    resolveBlob(new Blob(['image'], { type: 'image/png' }))
+    await flushPromises()
+
+    expect(revokeObjectURLMock).toHaveBeenCalledWith('blob:managed-thumb')
   })
 })

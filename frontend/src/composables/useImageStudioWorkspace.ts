@@ -32,6 +32,7 @@ import {
 import {
   findFirstImageStudioKeyWithModels,
   isImageStudioPromptValid,
+  loadAllActiveImageStudioKeys,
   resolveInitialImageStudioTemplate,
 } from '@/utils/imageStudioWorkspace'
 
@@ -207,10 +208,11 @@ export function useImageStudioWorkspace() {
     if (!isRefresh) bootstrapping.value = true
     errorMsg.value = ''
     try {
-      const [tpl, caps, keyPage, jobList, hub, activeJob] = await Promise.all([
+      const [tpl, caps, activeKeys, jobList, hub, activeJob] = await Promise.all([
         imageStudioAPI.getImageStudioTemplates(),
         imageStudioAPI.getImageStudioCapabilities().catch(() => null),
-        keysAPI.list(1, 20),
+        loadAllActiveImageStudioKeys((page, pageSize) =>
+          keysAPI.list(page, pageSize, { status: 'active' })),
         imageStudioAPI.listImageStudioJobs(12).catch(() => []),
         playAPI.getPlayHub().catch(() => null),
         imageStudioAPI.getActiveImageStudioJob().catch(() => null),
@@ -218,7 +220,7 @@ export function useImageStudioWorkspace() {
       totalRecharged.value = hub?.growth?.total_recharged ?? 0
       catalog.value = tpl
       capabilities.value = caps
-      apiKeys.value = (keyPage.items ?? []).map((k) => ({ id: k.id, name: k.name || `Key #${k.id}` }))
+      apiKeys.value = activeKeys
       let initialModels: ImageStudioModelOption[] | null = null
       if (apiKeys.value.length && !apiKeyId.value) {
         const selection = await findFirstImageStudioKeyWithModels(

@@ -140,6 +140,34 @@ func TestOptionalJWTAuth_UsesBearerIdentityWhenPresent(t *testing.T) {
 	require.Equal(t, float64(user.ID), body["user_id"])
 }
 
+func TestOptionalJWTAuth_RejectsSuppliedInvalidAuthorization(t *testing.T) {
+	tests := []struct {
+		name  string
+		value string
+		code  string
+	}{
+		{name: "empty", value: "", code: "UNAUTHORIZED"},
+		{name: "whitespace", value: "   ", code: "INVALID_AUTH_HEADER"},
+		{name: "malformed", value: "Token invalid", code: "INVALID_AUTH_HEADER"},
+		{name: "invalid bearer", value: "Bearer invalid", code: "INVALID_TOKEN"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			router, _ := newOptionalJWTTestEnv(nil)
+			w := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodGet, "/arena", nil)
+			req.Header["Authorization"] = []string{tt.value}
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusUnauthorized, w.Code)
+			var body ErrorResponse
+			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+			require.Equal(t, tt.code, body.Code)
+		})
+	}
+}
+
 func TestJWTAuth_ValidToken(t *testing.T) {
 	user := &service.User{
 		ID:           1,
