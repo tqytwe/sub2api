@@ -87,6 +87,15 @@ type modelPricingChannelRepoStub struct {
 	channels []Channel
 }
 
+type modelPricingAPIKeyRepoStub struct {
+	APIKeyRepository
+	keys []APIKey
+}
+
+func (r *modelPricingAPIKeyRepoStub) ListAllByUserID(context.Context, int64, APIKeyListFilters) ([]APIKey, error) {
+	return r.keys, nil
+}
+
 func (r *modelPricingChannelRepoStub) ListAll(context.Context) ([]Channel, error) {
 	return r.channels, nil
 }
@@ -154,9 +163,9 @@ func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch
 	require.Nil(t, resp.Models[0].EffectiveInputPrice)
 	require.Nil(t, resp.Models[0].EffectiveOutputPrice)
 	require.Equal(t, explicitSiteAIn, *resp.Models[0].SiteInputPrice)
-	require.InDelta(t, 16e-6, *resp.Models[0].SiteOutputPrice, 1e-12)
-	require.InDelta(t, 4e-6, *resp.Models[1].SiteInputPrice, 1e-12)
-	require.InDelta(t, 24e-6, *resp.Models[1].SiteOutputPrice, 1e-12)
+	require.InDelta(t, 20e-6, *resp.Models[0].SiteOutputPrice, 1e-12)
+	require.InDelta(t, 5e-6, *resp.Models[1].SiteInputPrice, 1e-12)
+	require.InDelta(t, 30e-6, *resp.Models[1].SiteOutputPrice, 1e-12)
 }
 
 func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testing.T) {
@@ -216,6 +225,56 @@ func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testin
 	require.Equal(t, baseOut, *row.BaseOutputPrice)
 	require.InDelta(t, 0.5e-6, *row.EffectiveInputPrice, 1e-12)
 	require.InDelta(t, 2e-6, *row.EffectiveOutputPrice, 1e-12)
-	require.InDelta(t, 4e-6, *row.SiteInputPrice, 1e-12)
-	require.InDelta(t, 24e-6, *row.SiteOutputPrice, 1e-12)
+	require.InDelta(t, 5e-6, *row.SiteInputPrice, 1e-12)
+	require.InDelta(t, 30e-6, *row.SiteOutputPrice, 1e-12)
+}
+
+func TestModelCatalogService_ListMyPricingUsesSiteBaseForActualKeyGroupWithoutChannel(t *testing.T) {
+	siteIn, siteOut := 4e-6, 24e-6
+	group := Group{
+		ID:               2,
+		Name:             "codex",
+		Platform:         PlatformOpenAI,
+		RateMultiplier:   0.18,
+		Status:           StatusActive,
+		SubscriptionType: SubscriptionTypeStandard,
+	}
+	apiKeyService := NewAPIKeyService(
+		&modelPricingAPIKeyRepoStub{keys: []APIKey{{
+			ID:      8,
+			UserID:  4,
+			GroupID: &group.ID,
+			Group:   &group,
+			Status:  StatusActive,
+		}}},
+		nil,
+		&modelPricingGroupRepoStub{groups: []Group{group}},
+		nil,
+		&modelPricingUserRateRepoStub{rates: map[int64]float64{group.ID: 0.25}},
+		nil,
+		nil,
+	)
+	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
+		ModelName:   "gpt-test",
+		Platform:    PlatformOpenAI,
+		VisibleAuth: true,
+		InputPrice:  &siteIn,
+		OutputPrice: &siteOut,
+		BillingMode: string(BillingModeToken),
+	}}}
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService)
+
+	resp, err := svc.ListMyPricing(context.Background(), 4)
+
+	require.NoError(t, err)
+	require.Len(t, resp.Models, 1)
+	row := resp.Models[0]
+	require.Empty(t, row.Channel)
+	require.Len(t, row.Groups, 1)
+	require.Equal(t, group.ID, row.Groups[0].ID)
+	require.Equal(t, 0.25, row.Groups[0].RateMultiplier)
+	require.InDelta(t, siteIn, *row.BaseInputPrice, 1e-12)
+	require.InDelta(t, siteOut, *row.BaseOutputPrice, 1e-12)
+	require.InDelta(t, 1e-6, *row.EffectiveInputPrice, 1e-12)
+	require.InDelta(t, 6e-6, *row.EffectiveOutputPrice, 1e-12)
 }

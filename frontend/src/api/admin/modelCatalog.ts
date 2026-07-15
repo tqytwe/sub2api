@@ -28,10 +28,7 @@ export interface SiteModelCatalogEntry {
   updated_at: string
 }
 
-export interface AdminCatalogRow extends SiteModelCatalogEntry {
-  channel_input_price: number | null
-  channel_output_price: number | null
-}
+export type AdminCatalogRow = SiteModelCatalogEntry
 
 export interface ModelDiscovery {
   id: number

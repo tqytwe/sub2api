@@ -85,6 +85,25 @@ func (r *modelCatalogRepository) GetCatalogEntry(ctx context.Context, id int64) 
 	return entry, err
 }
 
+func (r *modelCatalogRepository) GetCatalogPricing(ctx context.Context, modelName string) (*service.SiteModelCatalogEntry, error) {
+	row := r.db.QueryRowContext(ctx, `SELECT `+catalogSelectColumns+`
+		FROM site_model_catalog
+		WHERE LOWER(model_name) = LOWER($1)
+		ORDER BY
+			CASE WHEN input_price IS NOT NULL OR output_price IS NOT NULL THEN 0 ELSE 1 END,
+			visible_auth DESC,
+			id ASC
+		LIMIT 1`, strings.TrimSpace(modelName))
+	entry, err := scanCatalogEntry(row)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get catalog pricing: %w", err)
+	}
+	return entry, nil
+}
+
 func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *service.SiteModelCatalogEntry) error {
 	billingMode := entry.BillingMode
 	if billingMode == "" {

@@ -70,12 +70,6 @@
           <template #cell-official_output_price="{ row }">
             {{ formatPrice(row.official_output_price) }}
           </template>
-          <template #cell-channel_input_price="{ row }">
-            {{ formatPrice(row.channel_input_price) }}
-          </template>
-          <template #cell-channel_output_price="{ row }">
-            {{ formatPrice(row.channel_output_price) }}
-          </template>
           <template #cell-input_price="{ row }">
             {{ formatPrice(row.input_price) }}
           </template>
@@ -356,8 +350,6 @@ const columns = computed(() => [
   { key: 'platform', label: t('admin.modelCatalog.columns.platform'), sortable: true },
   { key: 'official_input_price', label: t('admin.modelCatalog.columns.officialInput'), sortable: false },
   { key: 'official_output_price', label: t('admin.modelCatalog.columns.officialOutput'), sortable: false },
-  { key: 'channel_input_price', label: t('admin.modelCatalog.columns.channelInput'), sortable: false },
-  { key: 'channel_output_price', label: t('admin.modelCatalog.columns.channelOutput'), sortable: false },
   { key: 'input_price', label: t('admin.modelCatalog.columns.input'), sortable: false },
   { key: 'output_price', label: t('admin.modelCatalog.columns.output'), sortable: false },
   { key: 'input_diff', label: t('admin.modelCatalog.columns.inputDiff'), sortable: false },

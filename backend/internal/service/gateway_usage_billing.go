@@ -856,9 +856,10 @@ func (s *GatewayService) calculateTokenCost(
 	var cost *CostBreakdown
 	var err error
 
-	// 优先尝试渠道定价 → CalculateCostUnified
-	if resolved := s.resolveChannelPricing(ctx, billingModel, apiKey); resolved != nil {
+	// 普通 token 请求统一解析：渠道覆盖 → 本站基础售价 → 兼容兜底。
+	if s.resolver != nil && apiKey.Group != nil && opts.LongContextThreshold <= 0 {
 		gid := apiKey.Group.ID
+		resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid})
 		cost, err = s.billingService.CalculateCostUnified(CostInput{
 			Ctx:            ctx,
 			Model:          billingModel,

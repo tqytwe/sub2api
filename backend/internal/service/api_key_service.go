@@ -931,6 +931,54 @@ func (s *APIKeyService) GetUserGroupRates(ctx context.Context, userID int64) (ma
 	return rates, nil
 }
 
+// GetUserKeyGroups returns the active groups currently used by this user's API keys.
+// It keeps user pricing views aligned with the groups that can actually generate bills.
+func (s *APIKeyService) GetUserKeyGroups(ctx context.Context, userID int64) ([]Group, error) {
+	lister, ok := s.apiKeyRepo.(apiKeyAllByUserIDLister)
+	if !ok {
+		return s.GetAvailableGroups(ctx, userID)
+	}
+	keys, err := lister.ListAllByUserID(ctx, userID, APIKeyListFilters{Status: StatusActive})
+	if err != nil {
+		return nil, fmt.Errorf("list user api key groups: %w", err)
+	}
+	groupByID := make(map[int64]Group)
+	missingGroupIDs := make(map[int64]struct{})
+	for i := range keys {
+		key := &keys[i]
+		if key.GroupID == nil || *key.GroupID <= 0 {
+			continue
+		}
+		if key.Group != nil {
+			groupByID[*key.GroupID] = *key.Group
+			continue
+		}
+		missingGroupIDs[*key.GroupID] = struct{}{}
+	}
+	if len(missingGroupIDs) > 0 && s.groupRepo != nil {
+		groups, listErr := s.groupRepo.ListActive(ctx)
+		if listErr != nil {
+			return nil, fmt.Errorf("list active groups: %w", listErr)
+		}
+		for _, group := range groups {
+			if _, needed := missingGroupIDs[group.ID]; needed {
+				groupByID[group.ID] = group
+			}
+		}
+	}
+	out := make([]Group, 0, len(groupByID))
+	for _, group := range groupByID {
+		out = append(out, group)
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].SortOrder != out[j].SortOrder {
+			return out[i].SortOrder < out[j].SortOrder
+		}
+		return out[i].ID < out[j].ID
+	})
+	return out, nil
+}
+
 // CheckAPIKeyQuotaAndExpiry checks if the API key is valid for use (not expired, quota not exhausted)
 // Returns nil if valid, error if invalid
 func (s *APIKeyService) CheckAPIKeyQuotaAndExpiry(apiKey *APIKey) error {

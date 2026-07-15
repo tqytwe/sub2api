@@ -101,6 +101,7 @@ type MyModelPricingResponse struct {
 type ModelCatalogRepository interface {
 	ListCatalog(ctx context.Context, filter CatalogListFilter) ([]SiteModelCatalogEntry, error)
 	GetCatalogEntry(ctx context.Context, id int64) (*SiteModelCatalogEntry, error)
+	GetCatalogPricing(ctx context.Context, modelName string) (*SiteModelCatalogEntry, error)
 	UpsertCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	UpsertDiscoveryCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	UpdateCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
@@ -119,11 +120,9 @@ type ModelCatalogRepository interface {
 	GetSyncJob(ctx context.Context, id string) (*ModelSyncJob, error)
 }
 
-// AdminCatalogRow extends catalog entry with comparison prices for admin UI.
+// AdminCatalogRow is the catalog entry shape used by the admin comparison UI.
 type AdminCatalogRow struct {
 	SiteModelCatalogEntry
-	ChannelInputPrice  *float64 `json:"channel_input_price"`
-	ChannelOutputPrice *float64 `json:"channel_output_price"`
 }
 
 // DiscoveryListFilter filters discovery pool listing.
