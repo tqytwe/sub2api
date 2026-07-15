@@ -1,0 +1,150 @@
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: Sub2API
+spec:
+  description: AI API Gateway — auto-setup with persistent /app/data
+  icon: https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/frontend/public/favicon.ico
+  tags:
+    - API
+    - AI
+  variables:
+    - key: PUBLIC_DOMAIN
+      type: DOMAIN
+      name: Domain
+      description: Public domain for Sub2API web UI
+    - key: ADMIN_EMAIL
+      type: STRING
+      name: Admin Email
+      description: Administrator login email
+  readme: |-
+    # Sub2API on Zeabur
+
+    This template deploys Sub2API with PostgreSQL and Redis.
+
+    **Important:** `/app/data` is persisted so `config.yaml` survives restarts (fixes the setup wizard loop).
+
+    After deploy, open your domain — you should land on the login page, not the setup wizard.
+
+    Default admin email comes from the `ADMIN_EMAIL` variable. Check Sub2API runtime logs for the admin password if you did not set `ADMIN_PASSWORD` manually.
+  services:
+    - name: PostgreSQL
+      icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/postgresql.svg
+      template: PREBUILT
+      spec:
+        source:
+          image: postgres:16-alpine
+        ports:
+          - id: database
+            port: 5432
+            type: TCP
+        volumes:
+          - id: data
+            dir: /var/lib/postgresql/data
+        env:
+          POSTGRES_USER:
+            default: sub2api
+          POSTGRES_PASSWORD:
+            default: ${PASSWORD}
+            expose: true
+          POSTGRES_DB:
+            default: sub2api
+          POSTGRES_HOST:
+            default: ${CONTAINER_HOSTNAME}
+            expose: true
+            readonly: true
+          POSTGRES_PORT:
+            default: ${DATABASE_PORT}
+            expose: true
+            readonly: true
+          POSTGRES_USERNAME:
+            default: ${POSTGRES_USER}
+            expose: true
+            readonly: true
+          POSTGRES_DATABASE:
+            default: ${POSTGRES_DB}
+            expose: true
+            readonly: true
+
+    - name: Redis
+      icon: https://raw.githubusercontent.com/zeabur/service-icons/main/marketplace/redis.svg
+      template: PREBUILT
+      spec:
+        source:
+          image: redis:7-alpine
+        ports:
+          - id: database
+            port: 6379
+            type: TCP
+        volumes:
+          - id: data
+            dir: /data
+        env:
+          REDIS_PASSWORD:
+            default: ${PASSWORD}
+            expose: true
+          REDIS_ARGS:
+            default: --requirepass ${REDIS_PASSWORD}
+          REDIS_HOST:
+            default: ${CONTAINER_HOSTNAME}
+            expose: true
+            readonly: true
+          REDIS_PORT:
+            default: ${DATABASE_PORT}
+            expose: true
+            readonly: true
+
+    - name: Sub2API
+      icon: https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/frontend/public/favicon.ico
+      template: PREBUILT
+      domainKey: PUBLIC_DOMAIN
+      dependencies:
+        - PostgreSQL
+        - Redis
+      spec:
+        source:
+          image: weishaw/sub2api:latest
+        ports:
+          - id: web
+            port: 8080
+            type: HTTP
+        volumes:
+          - id: data
+            dir: /app/data
+        env:
+          AUTO_SETUP:
+            default: "true"
+          SERVER_HOST:
+            default: 0.0.0.0
+          SERVER_PORT:
+            default: "8080"
+          SERVER_MODE:
+            default: release
+          TZ:
+            default: Asia/Shanghai
+          DATABASE_HOST:
+            default: ${POSTGRES_HOST}
+          DATABASE_PORT:
+            default: ${POSTGRES_PORT}
+          DATABASE_USER:
+            default: ${POSTGRES_USERNAME}
+          DATABASE_PASSWORD:
+            default: ${POSTGRES_PASSWORD}
+          DATABASE_DBNAME:
+            default: sub2api
+          DATABASE_SSLMODE:
+            default: disable
+          REDIS_HOST:
+            default: ${REDIS_HOST}
+          REDIS_PORT:
+            default: ${REDIS_PORT}
+          REDIS_PASSWORD:
+            default: ${REDIS_PASSWORD}
+          REDIS_DB:
+            default: "0"
+          ADMIN_EMAIL:
+            default: ${ADMIN_EMAIL}
+          JWT_SECRET:
+            default: ${PASSWORD}
+          TOTP_ENCRYPTION_KEY:
+            default: ${PASSWORD}

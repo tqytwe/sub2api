@@ -47,6 +47,14 @@ func (h *ImageStudioHandler) Templates(c *gin.Context) {
 	response.Success(c, h.studio.ListTemplates())
 }
 
+func (h *ImageStudioHandler) Capabilities(c *gin.Context) {
+	if !h.studio.IsEnabled(c.Request.Context()) {
+		response.ErrorFrom(c, service.ErrImageStudioDisabled)
+		return
+	}
+	response.Success(c, h.studio.ListCapabilities())
+}
+
 func (h *ImageStudioHandler) Models(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -150,6 +158,13 @@ func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64
 		return
 	}
 	images, actualCost, genErr := h.invokeGatewayImages(ctx, apiKey, body, estimatedCost)
+	if genErr != nil {
+		h.studio.RecordGenerateFailure(
+			gjson.Get(body, "model").String(),
+			gjson.Get(body, "size").String(),
+			errString(genErr),
+		)
+	}
 	_, _ = h.studio.CompleteJob(ctx, userID, jobID, images, actualCost, errString(genErr))
 }
 

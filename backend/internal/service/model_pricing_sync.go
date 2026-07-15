@@ -46,7 +46,8 @@ func (r *ModelPricingSyncRunner) Run(ctx context.Context, jobID string) {
 		warnings = append(warnings, fetchErr.Error())
 		result.Warnings = warnings
 		now := time.Now()
-		job.Status = "succeeded"
+		job.Status = "failed"
+		job.Error = fetchErr.Error()
 		job.CompletedAt = &now
 		job.Result = map[string]any{
 			"updated":    result.Updated,

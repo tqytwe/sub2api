@@ -163,6 +163,14 @@ func (m *mockChannelRepository) ReplaceModelPricing(ctx context.Context, channel
 	return nil
 }
 
+func (m *mockChannelRepository) ListAllModelPricingEntries(ctx context.Context) ([]ChannelModelPricing, error) {
+	return nil, nil
+}
+
+func (m *mockChannelRepository) UpdateModelPricingPrices(ctx context.Context, pricing *ChannelModelPricing) error {
+	return nil
+}
+
 // ---------------------------------------------------------------------------
 // Mock: APIKeyAuthCacheInvalidator
 // ---------------------------------------------------------------------------

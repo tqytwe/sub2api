@@ -2,6 +2,7 @@
 import AppLayout from '@/components/layout/AppLayout.vue'
 import ImageStudioGallery from '@/components/imageStudio/ImageStudioGallery.vue'
 import ImageStudioPreviewModal from '@/components/imageStudio/ImageStudioPreviewModal.vue'
+import ImageStudioSizePicker from '@/components/imageStudio/ImageStudioSizePicker.vue'
 import { useImageStudioWizard } from '@/composables/useImageStudioWizard'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import '@/styles/growth-world.css'
@@ -130,19 +131,32 @@ function studioIconFor(id: string): StudioIconName {
               <input v-model="wizard.accentColor.value" class="gw-input max-w-[8rem]" />
             </div>
           </label>
+          <ImageStudioSizePicker
+            :capabilities="wizard.capabilities.value"
+            :aspect="wizard.aspect.value"
+            :tier="wizard.tier.value"
+            :selected-model="wizard.selectedModelOption.value"
+            :disabled="wizard.polling.value || wizard.generating.value"
+            @update:aspect="wizard.onAspectChange"
+            @update:tier="wizard.onTierChange"
+          />
           <div class="gw-field-row">
-            <label class="gw-field">
-              <span class="gw-field-label">{{ t('imageStudio.size') }}</span>
-              <select v-model="wizard.size.value" class="gw-select" :disabled="wizard.polling.value || wizard.generating.value">
-                <option value="1024x1024">1:1</option>
-                <option value="1024x1536">3:4</option>
-                <option value="1536x1024">4:3</option>
-              </select>
-            </label>
             <label class="gw-field">
               <span class="gw-field-label">{{ t('imageStudio.count') }}</span>
               <select v-model.number="wizard.count.value" class="gw-select" :disabled="wizard.polling.value || wizard.generating.value">
                 <option v-for="n in wizard.maxCount.value" :key="n" :value="n">{{ n }}</option>
+              </select>
+            </label>
+            <label v-if="wizard.showQuality.value" class="gw-field">
+              <span class="gw-field-label">{{ t('imageStudio.quality') }}</span>
+              <select v-model="wizard.quality.value" class="gw-select" :disabled="wizard.polling.value || wizard.generating.value">
+                <option
+                  v-for="q in wizard.selectedModelOption.value?.supported_qualities || []"
+                  :key="q"
+                  :value="q"
+                >
+                  {{ t(`imageStudio.qualityOptions.${q}`, q) }}
+                </option>
               </select>
             </label>
             <label class="gw-field">
@@ -198,9 +212,18 @@ function studioIconFor(id: string): StudioIconName {
             result-mode
             @preview="wizard.openPreview"
             @delete="wizard.removeJob"
+            @regenerate="wizard.regenerateFromJob"
           />
           <div class="flex flex-wrap gap-3">
             <button type="button" class="gw-btn gw-btn-primary" @click="wizard.step.value = 3">{{ t('imageStudio.makeAnother') }}</button>
+            <button
+              v-if="wizard.latestJob.value"
+              type="button"
+              class="gw-btn gw-btn-secondary"
+              @click="wizard.regenerateFromJob(wizard.latestJob.value!)"
+            >
+              {{ t('imageStudio.regenerateSame') }}
+            </button>
             <button type="button" class="gw-btn gw-btn-secondary" @click="wizard.startOver()">{{ t('imageStudio.startOver') }}</button>
             <router-link to="/play" class="gw-btn gw-btn-secondary">{{ t('imageStudio.goHub') }}</router-link>
             <router-link to="/arena" class="gw-btn gw-btn-secondary">{{ t('imageStudio.goFarm') }}</router-link>
@@ -214,13 +237,15 @@ function studioIconFor(id: string): StudioIconName {
           :jobs="wizard.jobs.value"
           @preview="wizard.openPreview"
           @delete="wizard.removeJob"
+          @regenerate="wizard.regenerateFromJob"
         />
       </section>
     </div>
 
     <ImageStudioPreviewModal
-      :url="wizard.previewUrl.value"
-      :filename="wizard.previewFilename.value"
+      :asset="wizard.previewAsset.value"
+      :job-id="wizard.previewJobId.value"
+      :index="wizard.previewIndex.value"
       @close="wizard.closePreview()"
     />
 

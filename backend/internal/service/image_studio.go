@@ -77,6 +77,9 @@ type ImageStudioGenerateRequest struct {
 	UserPrompt   string  `json:"user_prompt"`
 	AccentColor  string  `json:"accent_color"`
 	Size         string  `json:"size"`
+	Aspect       string  `json:"aspect"`
+	Tier         string  `json:"tier"`
+	Quality      string  `json:"quality"`
 	Count        int     `json:"count"`
 	Model        string  `json:"model"`
 	ExpertPrompt *string `json:"expert_prompt"`
@@ -122,14 +125,15 @@ type ImageStudioHubStatus struct {
 }
 
 type ImageStudioService struct {
-	repo           ImageStudioRepository
-	assetStore     *ImageStudioAssetStore
-	apiKeyService  *APIKeyService
-	userRepo       UserRepository
-	settingService *SettingService
-	playService    *PlayService
-	pricing        *BatchImageModelPricingResolver
-	gateway        ImageStudioModelResolver
+	repo            ImageStudioRepository
+	assetStore      *ImageStudioAssetStore
+	apiKeyService   *APIKeyService
+	userRepo        UserRepository
+	settingService  *SettingService
+	playService     *PlayService
+	pricing         *BatchImageModelPricingResolver
+	gateway         ImageStudioModelResolver
+	capabilityCache *ImageStudioCapabilityCache
 }
 
 func NewImageStudioService(
@@ -143,14 +147,15 @@ func NewImageStudioService(
 	gateway ImageStudioModelResolver,
 ) *ImageStudioService {
 	return &ImageStudioService{
-		repo:           repo,
-		assetStore:     assetStore,
-		apiKeyService:  apiKeyService,
-		userRepo:       userRepo,
-		settingService: settingService,
-		playService:    playService,
-		pricing:        pricing,
-		gateway:        gateway,
+		repo:            repo,
+		assetStore:      assetStore,
+		apiKeyService:   apiKeyService,
+		userRepo:        userRepo,
+		settingService:  settingService,
+		playService:     playService,
+		pricing:         pricing,
+		gateway:         gateway,
+		capabilityCache: NewImageStudioCapabilityCache(),
 	}
 }
 
@@ -165,6 +170,39 @@ func (s *ImageStudioService) ListTemplates() ImageStudioCatalog {
 	return defaultImageStudioCatalog()
 }
 
+func (s *ImageStudioService) ListCapabilities() ImageStudioCapabilities {
+	return ListImageStudioCapabilities()
+}
+
+func (s *ImageStudioService) resolveGenerateSize(apiKey *APIKey, model string, req ImageStudioGenerateRequest, tpl ImageStudioTemplate) (string, error) {
+	size := strings.TrimSpace(req.Size)
+	if size == "" {
+		aspect, tier := strings.TrimSpace(req.Aspect), strings.TrimSpace(req.Tier)
+		if aspect == "" && tier == "" {
+			size = tpl.Defaults.Size
+			if size == "" {
+				size = defaultImageStudioSize
+			}
+		} else {
+			resolved, err := ResolveImageStudioSize(aspect, tier, "")
+			if err != nil {
+				return "", err
+			}
+			size = resolved
+		}
+	} else {
+		resolved, err := ResolveImageStudioSize("", "", size)
+		if err != nil {
+			return "", err
+		}
+		size = resolved
+	}
+	if err := s.ValidateSizeForModel(apiKey, model, size); err != nil {
+		return "", err
+	}
+	return size, nil
+}
+
 func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templateID string, size string, count int, apiKeyID int64, model string) (*ImageStudioEstimate, error) {
 	if !s.IsEnabled(ctx) {
 		return nil, ErrImageStudioDisabled
@@ -172,9 +210,6 @@ func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templat
 	tpl, ok := findImageStudioTemplate(templateID)
 	if !ok {
 		return nil, ErrImageStudioTemplate
-	}
-	if size == "" {
-		size = tpl.Defaults.Size
 	}
 	if count <= 0 {
 		count = tpl.Defaults.Count
@@ -194,6 +229,20 @@ func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templat
 	if err != nil {
 		return nil, err
 	}
+	if size == "" {
+		size = tpl.Defaults.Size
+		if size == "" {
+			size = defaultImageStudioSize
+		}
+	}
+	resolvedSize, err := ResolveImageStudioSize("", "", size)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.ValidateSizeForModel(apiKey, resolvedModel, resolvedSize); err != nil {
+		return nil, err
+	}
+	size = resolvedSize
 	cost, err := s.estimateCost(ctx, apiKey, resolvedModel, size, count)
 	if err != nil {
 		return nil, err
@@ -236,15 +285,6 @@ func (s *ImageStudioService) estimateCost(ctx context.Context, apiKey *APIKey, m
 	return unit * float64(count), nil
 }
 
-func normalizeStudioImageSize(size string) string {
-	switch strings.TrimSpace(size) {
-	case "1024x1536", "1536x1024":
-		return "2K"
-	default:
-		return "1K"
-	}
-}
-
 func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64, req ImageStudioGenerateRequest) (*ImageStudioJob, string, error) {
 	if !s.IsEnabled(ctx) {
 		return nil, "", ErrImageStudioDisabled
@@ -252,10 +292,6 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	tpl, ok := findImageStudioTemplate(req.TemplateID)
 	if !ok {
 		return nil, "", ErrImageStudioTemplate
-	}
-	size := req.Size
-	if size == "" {
-		size = tpl.Defaults.Size
 	}
 	count := req.Count
 	if count <= 0 {
@@ -277,6 +313,13 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	}
 	resolvedModel, err := s.resolveImageModel(ctx, apiKey, req.Model)
 	if err != nil {
+		return nil, "", err
+	}
+	size, err := s.resolveGenerateSize(apiKey, resolvedModel, req, tpl)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := s.ValidateQualityForModel(resolvedModel, req.Quality); err != nil {
 		return nil, "", err
 	}
 	prompt := buildImageStudioPrompt(tpl, req)
@@ -313,13 +356,17 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err := s.repo.InsertJob(ctx, job); err != nil {
 		return nil, "", err
 	}
-	body, err := json.Marshal(map[string]any{
+	payload := map[string]any{
 		"model":           resolvedModel,
 		"prompt":          prompt,
 		"n":               count,
 		"size":            size,
 		"response_format": "url",
-	})
+	}
+	if quality := strings.TrimSpace(strings.ToLower(req.Quality)); quality != "" {
+		payload["quality"] = quality
+	}
+	body, err := json.Marshal(payload)
 	if err != nil {
 		return nil, "", err
 	}

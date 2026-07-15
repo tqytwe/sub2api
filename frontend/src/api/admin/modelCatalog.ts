@@ -21,6 +21,13 @@ export interface SiteModelCatalogEntry {
   updated_at: string
 }
 
+export interface AdminCatalogRow extends SiteModelCatalogEntry {
+  official_input_price: number | null
+  official_output_price: number | null
+  channel_input_price: number | null
+  channel_output_price: number | null
+}
+
 export interface ModelDiscovery {
   id: number
   model_name: string
@@ -29,6 +36,11 @@ export interface ModelDiscovery {
   payload: Record<string, unknown>
   status: string
   discovered_at: string
+}
+
+export interface DiscoveryListResult {
+  items: ModelDiscovery[]
+  total: number
 }
 
 export interface ModelSyncJob {
@@ -51,8 +63,8 @@ export async function listCatalog(params?: {
   platform?: string
   search?: string
   visible_public?: boolean
-}): Promise<SiteModelCatalogEntry[]> {
-  const { data } = await apiClient.get<SiteModelCatalogEntry[]>('/admin/model-catalog', { params })
+}): Promise<AdminCatalogRow[]> {
+  const { data } = await apiClient.get<AdminCatalogRow[]>('/admin/model-catalog', { params })
   return data ?? []
 }
 
@@ -94,14 +106,17 @@ export async function getSyncJob(id: string): Promise<ModelSyncJob> {
   return data
 }
 
-export async function listDiscoveries(status = 'new'): Promise<ModelDiscovery[]> {
-  const { data } = await apiClient.get<ModelDiscovery[]>('/admin/model-catalog/discoveries', {
-    params: { status },
-  })
-  return data ?? []
+export async function listDiscoveries(params?: {
+  status?: string
+  search?: string
+  limit?: number
+  offset?: number
+}): Promise<DiscoveryListResult> {
+  const { data } = await apiClient.get<DiscoveryListResult>('/admin/model-catalog/discoveries', { params })
+  return data ?? { items: [], total: 0 }
 }
 
-export async function importDiscoveries(payload: { ids?: number[]; to_catalog?: boolean }): Promise<number> {
+export async function importDiscoveries(payload: { ids: number[]; to_catalog?: boolean }): Promise<number> {
   const { data } = await apiClient.post<{ imported: number }>('/admin/model-catalog/discoveries/import', {
     to_catalog: true,
     ...payload,

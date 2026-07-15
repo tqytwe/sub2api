@@ -1,5 +1,6 @@
 import { apiClient } from './client'
 import type { PlayQuestToday } from './play'
+import { extensionForContentType, filenameForAsset, saveBlob } from '@/utils/imageStudioBlob'
 
 export interface ImageStudioLocalizedText {
   zh: string
@@ -24,6 +25,29 @@ export interface ImageStudioCatalog {
   intents: ImageStudioIntent[]
 }
 
+export interface ImageStudioAspectOption {
+  id: string
+  label: ImageStudioLocalizedText
+}
+
+export interface ImageStudioTierOption {
+  id: string
+  label: ImageStudioLocalizedText
+}
+
+export interface ImageStudioSizeOption {
+  aspect: string
+  tier: string
+  size: string
+  billing_tier: string
+}
+
+export interface ImageStudioCapabilities {
+  aspects: ImageStudioAspectOption[]
+  tiers: ImageStudioTierOption[]
+  size_options: ImageStudioSizeOption[]
+}
+
 export interface ImageStudioEstimate {
   estimated_cost: number
   balance: number
@@ -36,6 +60,10 @@ export interface ImageStudioEstimate {
 export interface ImageStudioModelOption {
   id: string
   display_name: string
+  supported_sizes?: string[]
+  supported_qualities?: string[]
+  default_size?: string
+  default_quality?: string
 }
 
 export interface ImageStudioAsset {
@@ -66,6 +94,9 @@ export interface ImageStudioGenerateRequest {
   user_prompt: string
   accent_color?: string
   size?: string
+  aspect?: string
+  tier?: string
+  quality?: string
   count?: number
   model?: string
   expert_prompt?: string | null
@@ -82,6 +113,11 @@ export interface ImageStudioGenerateResult {
 
 export async function getImageStudioTemplates(): Promise<ImageStudioCatalog> {
   const { data } = await apiClient.get<ImageStudioCatalog>('/image-studio/templates')
+  return data
+}
+
+export async function getImageStudioCapabilities(): Promise<ImageStudioCapabilities> {
+  const { data } = await apiClient.get<ImageStudioCapabilities>('/image-studio/capabilities')
   return data
 }
 
@@ -149,8 +185,27 @@ export async function deleteImageStudioJob(id: string): Promise<void> {
   await apiClient.delete(`/image-studio/jobs/${id}`)
 }
 
+export async function fetchImageStudioAssetBlob(assetId: string, mode: 'content' | 'download' = 'content'): Promise<Blob> {
+  const path = `/image-studio/assets/${encodeURIComponent(assetId)}/${mode}`
+  const response = await apiClient.get(path, { responseType: 'blob' })
+  return response.data as Blob
+}
+
+export async function downloadImageStudioAsset(
+  asset: ImageStudioAsset,
+  jobId: string,
+  index: number,
+): Promise<void> {
+  const blob = await fetchImageStudioAssetBlob(asset.id, 'download')
+  const filename = filenameForAsset(jobId, index, blob.type || asset.content_type)
+  saveBlob(blob, filename)
+}
+
+export { extensionForContentType, filenameForAsset, saveBlob }
+
 export const imageStudioAPI = {
   getImageStudioTemplates,
+  getImageStudioCapabilities,
   listImageStudioModels,
   estimateImageStudio,
   generateImageStudio,
@@ -159,6 +214,8 @@ export const imageStudioAPI = {
   pollImageStudioJob,
   listImageStudioJobs,
   deleteImageStudioJob,
+  fetchImageStudioAssetBlob,
+  downloadImageStudioAsset,
 }
 
 export default imageStudioAPI

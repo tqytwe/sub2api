@@ -26,8 +26,12 @@ var imageStudioModelPreference = []string{
 }
 
 type ImageStudioModelOption struct {
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
+	ID                  string   `json:"id"`
+	DisplayName         string   `json:"display_name"`
+	SupportedSizes      []string `json:"supported_sizes,omitempty"`
+	SupportedQualities  []string `json:"supported_qualities,omitempty"`
+	DefaultSize         string   `json:"default_size,omitempty"`
+	DefaultQuality      string   `json:"default_quality,omitempty"`
 }
 
 type ImageStudioModelResolver interface {
@@ -48,9 +52,14 @@ func (s *ImageStudioService) ListModels(ctx context.Context, userID, apiKeyID in
 	}
 	out := make([]ImageStudioModelOption, 0, len(models))
 	for _, model := range models {
+		caps := s.ResolveModelCapabilities(apiKey, model)
 		out = append(out, ImageStudioModelOption{
-			ID:          model,
-			DisplayName: imageStudioModelDisplayName(model),
+			ID:                 model,
+			DisplayName:        imageStudioModelDisplayName(model),
+			SupportedSizes:     caps.SupportedSizes,
+			SupportedQualities: caps.SupportedQualities,
+			DefaultSize:        caps.DefaultSize,
+			DefaultQuality:     caps.DefaultQuality,
 		})
 	}
 	return out, nil

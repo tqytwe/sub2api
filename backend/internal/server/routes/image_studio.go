@@ -15,6 +15,7 @@ func RegisterImageStudioRoutes(
 	studio := v1.Group("/image-studio")
 	{
 		studio.GET("/templates", h.ImageStudio.Templates)
+		studio.GET("/capabilities", h.ImageStudio.Capabilities)
 	}
 
 	authenticated := v1.Group("/image-studio")

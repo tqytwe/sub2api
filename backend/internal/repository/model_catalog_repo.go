@@ -129,6 +129,45 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 	return nil
 }
 
+// UpsertDiscoveryCatalogEntry inserts or updates catalog rows from the discovery pool.
+// On conflict it preserves visibility/sort and only refreshes prices and metadata.
+func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context, entry *service.SiteModelCatalogEntry) error {
+	billingMode := entry.BillingMode
+	if billingMode == "" {
+		billingMode = string(service.BillingModeToken)
+	}
+	source := entry.Source
+	if source == "" {
+		source = "discovery"
+	}
+	err := r.db.QueryRowContext(ctx,
+		`INSERT INTO site_model_catalog (
+			model_name, platform, display_name, use_case, sort_order,
+			visible_public, visible_auth, featured,
+			input_price, output_price, cache_read_price, cache_write_price,
+			billing_mode, source, source_updated_at, updated_at
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,NOW())
+		ON CONFLICT (model_name, platform) DO UPDATE SET
+			use_case = COALESCE(EXCLUDED.use_case, site_model_catalog.use_case),
+			input_price = COALESCE(EXCLUDED.input_price, site_model_catalog.input_price),
+			output_price = COALESCE(EXCLUDED.output_price, site_model_catalog.output_price),
+			cache_read_price = COALESCE(EXCLUDED.cache_read_price, site_model_catalog.cache_read_price),
+			cache_write_price = COALESCE(EXCLUDED.cache_write_price, site_model_catalog.cache_write_price),
+			source = EXCLUDED.source,
+			source_updated_at = EXCLUDED.source_updated_at,
+			updated_at = NOW()
+		RETURNING id, created_at, updated_at`,
+		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
+		entry.VisiblePublic, entry.VisibleAuth, entry.Featured,
+		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
+		billingMode, source, entry.SourceUpdatedAt,
+	).Scan(&entry.ID, &entry.CreatedAt, &entry.UpdatedAt)
+	if err != nil {
+		return fmt.Errorf("upsert discovery catalog: %w", err)
+	}
+	return nil
+}
+
 func (r *modelCatalogRepository) UpdateCatalogEntry(ctx context.Context, entry *service.SiteModelCatalogEntry) error {
 	billingMode := entry.BillingMode
 	if billingMode == "" {
@@ -224,27 +263,76 @@ func (r *modelCatalogRepository) BatchUpdatePrices(ctx context.Context, ids []in
 	return int(n), nil
 }
 
-func (r *modelCatalogRepository) ListDiscoveries(ctx context.Context, status string, limit int) ([]service.ModelDiscovery, error) {
+func (r *modelCatalogRepository) ListDiscoveries(ctx context.Context, filter service.DiscoveryListFilter) (service.DiscoveryListResult, error) {
+	limit := filter.Limit
 	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 200 {
 		limit = 200
 	}
-	query := `SELECT id, model_name, platform, source, payload, status, discovered_at
-		FROM model_discoveries WHERE 1=1`
-	args := make([]any, 0, 2)
-	if status != "" {
-		args = append(args, status)
-		query += fmt.Sprintf(" AND status = $%d", len(args))
+	offset := filter.Offset
+	if offset < 0 {
+		offset = 0
 	}
-	args = append(args, limit)
-	query += fmt.Sprintf(" ORDER BY discovered_at DESC LIMIT $%d", len(args))
+
+	where := "WHERE 1=1"
+	args := make([]any, 0, 4)
+	if filter.Status != "" {
+		args = append(args, filter.Status)
+		where += fmt.Sprintf(" AND status = $%d", len(args))
+	}
+	if q := strings.TrimSpace(filter.Search); q != "" {
+		args = append(args, "%"+strings.ToLower(q)+"%")
+		where += fmt.Sprintf(" AND (LOWER(model_name) LIKE $%d OR LOWER(platform) LIKE $%d)", len(args), len(args))
+	}
+
+	countQuery := "SELECT COUNT(*) FROM model_discoveries " + where
+	var total int
+	if err := r.db.QueryRowContext(ctx, countQuery, args...).Scan(&total); err != nil {
+		return service.DiscoveryListResult{}, err
+	}
+
+	args = append(args, limit, offset)
+	query := fmt.Sprintf(`SELECT id, model_name, platform, source, payload, status, discovered_at
+		FROM model_discoveries %s ORDER BY discovered_at DESC LIMIT $%d OFFSET $%d`,
+		where, len(args)-1, len(args))
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return service.DiscoveryListResult{}, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	out := make([]service.ModelDiscovery, 0)
+	for rows.Next() {
+		var d service.ModelDiscovery
+		var payload []byte
+		if err := rows.Scan(&d.ID, &d.ModelName, &d.Platform, &d.Source, &payload, &d.Status, &d.DiscoveredAt); err != nil {
+			return service.DiscoveryListResult{}, err
+		}
+		_ = json.Unmarshal(payload, &d.Payload)
+		if d.Payload == nil {
+			d.Payload = map[string]any{}
+		}
+		out = append(out, d)
+	}
+	return service.DiscoveryListResult{Items: out, Total: total}, rows.Err()
+}
+
+func (r *modelCatalogRepository) ListDiscoveriesByIDs(ctx context.Context, ids []int64) ([]service.ModelDiscovery, error) {
+	if len(ids) == 0 {
+		return []service.ModelDiscovery{}, nil
+	}
+	query := `SELECT id, model_name, platform, source, payload, status, discovered_at
+		FROM model_discoveries WHERE id = ANY($1) AND status = 'new'`
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(ids))
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
 
-	out := make([]service.ModelDiscovery, 0)
+	out := make([]service.ModelDiscovery, 0, len(ids))
 	for rows.Next() {
 		var d service.ModelDiscovery
 		var payload []byte

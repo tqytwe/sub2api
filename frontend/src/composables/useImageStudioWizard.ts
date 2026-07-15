@@ -3,6 +3,8 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { keysAPI } from '@/api/keys'
 import imageStudioAPI, {
+  type ImageStudioAsset,
+  type ImageStudioCapabilities,
   type ImageStudioCatalog,
   type ImageStudioEstimate,
   type ImageStudioIntent,
@@ -12,6 +14,7 @@ import imageStudioAPI, {
 } from '@/api/imageStudio'
 import playAPI from '@/api/play'
 import { useAuthStore } from '@/stores/auth'
+import { useImageStudioCapabilities } from '@/composables/useImageStudioCapabilities'
 import {
   getStudioAutoCleanup,
   getStudioLastTemplate,
@@ -38,11 +41,11 @@ export function useImageStudioWizard() {
   const polling = ref(false)
   const step = ref(1)
   const catalog = ref<ImageStudioCatalog | null>(null)
+  const capabilities = ref<ImageStudioCapabilities | null>(null)
   const selectedIntent = ref<ImageStudioIntent | null>(null)
   const selectedTemplate = ref<ImageStudioTemplate | null>(null)
   const userPrompt = ref('')
   const accentColor = ref('#1a1a1a')
-  const size = ref('1024x1024')
   const count = ref(1)
   const expertOpen = ref(false)
   const expertPrompt = ref('')
@@ -50,6 +53,7 @@ export function useImageStudioWizard() {
   const apiKeys = ref<Array<{ id: number; name: string }>>([])
   const availableModels = ref<ImageStudioModelOption[]>([])
   const selectedModel = ref('')
+  const quality = ref('')
   const loadingModels = ref(false)
   const modelError = ref('')
   const estimateError = ref('')
@@ -61,8 +65,20 @@ export function useImageStudioWizard() {
   const showFirstWin = ref(false)
   const latestJob = ref<ImageStudioJob | null>(null)
   const totalRecharged = ref(0)
-  const previewUrl = ref<string | null>(null)
-  const previewFilename = ref('image-studio.png')
+  const previewAsset = ref<ImageStudioAsset | null>(null)
+  const previewJobId = ref('')
+  const previewIndex = ref(0)
+
+  const selectedModelOption = computed(() =>
+    availableModels.value.find((m) => m.id === selectedModel.value) ?? null,
+  )
+
+  const sizeCaps = useImageStudioCapabilities(
+    () => capabilities.value,
+    () => selectedModelOption.value,
+  )
+
+  const size = sizeCaps.resolvedSize
 
   const isNewUser = computed(() => totalRecharged.value <= 0)
   const maxCount = computed(() => (isNewUser.value ? 1 : 4))
@@ -70,6 +86,7 @@ export function useImageStudioWizard() {
   const balanceLow = computed(() => balance.value <= 0)
   const hasApiKeys = computed(() => apiKeys.value.length > 0)
   const showAccentColor = computed(() => selectedIntent.value?.id === 'ecommerce')
+  const showQuality = computed(() => (selectedModelOption.value?.supported_qualities?.length ?? 0) > 0)
 
   function labelFor(obj?: { zh: string; en: string }) {
     if (!obj) return ''
@@ -84,7 +101,7 @@ export function useImageStudioWizard() {
       if (tpl) {
         selectedIntent.value = intent
         selectedTemplate.value = tpl
-        size.value = tpl.defaults.size
+        sizeCaps.applyTemplateDefault(tpl.defaults.size, true)
         count.value = isNewUser.value ? 1 : Math.min(tpl.defaults.count, maxCount.value)
         step.value = 3
         return true
@@ -97,12 +114,18 @@ export function useImageStudioWizard() {
     modelError.value = ''
     availableModels.value = []
     selectedModel.value = ''
+    quality.value = ''
     if (!apiKeyId.value) return
     loadingModels.value = true
     try {
       const models = await imageStudioAPI.listImageStudioModels(apiKeyId.value)
       availableModels.value = models
       selectedModel.value = models[0]?.id ?? ''
+      quality.value = models[0]?.default_quality ?? models[0]?.supported_qualities?.[0] ?? ''
+      if (models[0]?.default_size) {
+        sizeCaps.applyTemplateDefault(models[0].default_size, true)
+      }
+      sizeCaps.ensureSelectableTier()
       if (!models.length) modelError.value = t('imageStudio.noModels')
     } catch {
       modelError.value = t('imageStudio.loadModelsFailed')
@@ -146,6 +169,8 @@ export function useImageStudioWizard() {
       const job = await imageStudioAPI.pollImageStudioJob(jobId)
       if (job.status === 'failed') {
         errorMsg.value = job.error_message || t('imageStudio.generateFailed')
+        await loadModels()
+        sizeCaps.ensureSelectableTier()
         return
       }
       latestJob.value = job
@@ -171,8 +196,9 @@ export function useImageStudioWizard() {
     if (!isRefresh) bootstrapping.value = true
     errorMsg.value = ''
     try {
-      const [tpl, keyPage, jobList, hub, activeJob] = await Promise.all([
+      const [tpl, caps, keyPage, jobList, hub, activeJob] = await Promise.all([
         imageStudioAPI.getImageStudioTemplates(),
+        imageStudioAPI.getImageStudioCapabilities().catch(() => null),
         keysAPI.list(1, 20),
         imageStudioAPI.listImageStudioJobs(12).catch(() => []),
         playAPI.getPlayHub().catch(() => null),
@@ -180,6 +206,7 @@ export function useImageStudioWizard() {
       ])
       totalRecharged.value = hub?.growth?.total_recharged ?? 0
       catalog.value = tpl
+      capabilities.value = caps
       apiKeys.value = (keyPage.items ?? []).map((k) => ({ id: k.id, name: k.name || `Key #${k.id}` }))
       if (apiKeys.value.length && !apiKeyId.value) apiKeyId.value = apiKeys.value[0].id
       jobs.value = jobList
@@ -201,13 +228,24 @@ export function useImageStudioWizard() {
   watch([selectedTemplate, size, count, apiKeyId, selectedModel], refreshEstimate)
   watch(apiKeyId, () => { void loadModels() })
   watch(maxCount, (max) => { if (count.value > max) count.value = max })
+  watch(selectedModel, (modelId) => {
+    const model = availableModels.value.find((m) => m.id === modelId)
+    if (!model) return
+    if (!quality.value || !(model.supported_qualities || []).includes(quality.value)) {
+      quality.value = model.default_quality ?? model.supported_qualities?.[0] ?? ''
+    }
+    sizeCaps.ensureSelectableTier()
+  })
+  watch([sizeCaps.aspect, sizeCaps.tier], ([aspect, tier]) => {
+    trackGrowthEvent('image_studio_size_change', { aspect, tier, resolved_size: size.value })
+  })
 
   function pickIntent(intent: ImageStudioIntent) {
     trackGrowthEvent('image_studio_intent_select', { intent_id: intent.id })
     selectedIntent.value = intent
     selectedTemplate.value = intent.templates[0] ?? null
     if (selectedTemplate.value) {
-      size.value = selectedTemplate.value.defaults.size
+      sizeCaps.applyTemplateDefault(selectedTemplate.value.defaults.size)
       count.value = isNewUser.value ? 1 : Math.min(selectedTemplate.value.defaults.count, maxCount.value)
     }
     step.value = 2
@@ -215,7 +253,7 @@ export function useImageStudioWizard() {
 
   function pickTemplate(tpl: ImageStudioTemplate) {
     selectedTemplate.value = tpl
-    size.value = tpl.defaults.size
+    sizeCaps.applyTemplateDefault(tpl.defaults.size)
     count.value = isNewUser.value ? 1 : Math.min(tpl.defaults.count, maxCount.value)
     step.value = 3
   }
@@ -240,23 +278,42 @@ export function useImageStudioWizard() {
     latestJob.value = null
     errorMsg.value = ''
     pollNotice.value = ''
+    sizeCaps.resetUserTouched()
   }
 
   function onAutoCleanupChange() {
     setStudioAutoCleanup(autoCleanup.value)
   }
 
-  function assetFilename(jobId: string, index: number) {
-    return `image-studio-${jobId.slice(0, 8)}-${index + 1}.png`
-  }
-
-  function openPreview(url: string, jobId: string, index: number) {
-    previewUrl.value = url
-    previewFilename.value = assetFilename(jobId, index)
+  function openPreview(asset: ImageStudioAsset, jobId: string, index: number) {
+    previewAsset.value = asset
+    previewJobId.value = jobId
+    previewIndex.value = index
   }
 
   function closePreview() {
-    previewUrl.value = null
+    previewAsset.value = null
+    previewJobId.value = ''
+    previewIndex.value = 0
+  }
+
+  function regenerateFromJob(job: ImageStudioJob) {
+    trackGrowthEvent('image_studio_regenerate_same', { template_id: job.template_id, size: job.size })
+    if (!catalog.value) return
+    for (const intent of catalog.value.intents) {
+      const tpl = intent.templates.find((x) => x.id === job.template_id)
+      if (!tpl) continue
+      selectedIntent.value = intent
+      selectedTemplate.value = tpl
+      break
+    }
+    sizeCaps.setFromSize(job.size)
+    sizeCaps.userTouchedSize.value = true
+    count.value = Math.min(job.count, maxCount.value)
+    errorMsg.value = ''
+    pollNotice.value = ''
+    step.value = 3
+    void refreshEstimate()
   }
 
   async function generate() {
@@ -269,6 +326,7 @@ export function useImageStudioWizard() {
     trackGrowthEvent('image_studio_generate_click', {
       template_id: selectedTemplate.value.id,
       estimated_cost: estimate.value?.estimated_cost,
+      size: size.value,
     })
     generating.value = true
     polling.value = true
@@ -280,6 +338,9 @@ export function useImageStudioWizard() {
         user_prompt: userPrompt.value,
         accent_color: accentColor.value,
         size: size.value,
+        aspect: sizeCaps.aspect.value,
+        tier: sizeCaps.tier.value,
+        quality: quality.value || undefined,
         count: count.value,
         model: selectedModel.value,
         expert_prompt: expertOpen.value ? expertPrompt.value : null,
@@ -292,12 +353,15 @@ export function useImageStudioWizard() {
       clearStudioPendingJobId()
       if (job.status === 'failed') {
         errorMsg.value = job.error_message || t('imageStudio.generateFailed')
+        await loadModels()
+        sizeCaps.ensureSelectableTier()
         return
       }
       trackGrowthEvent('image_studio_generate_success', {
         template_id: job.template_id,
         actual_cost: job.actual_cost ?? job.estimated_cost,
         count: job.count,
+        size: job.size,
       })
       trackQuestCompleteOnce('image_generate')
       latestJob.value = job
@@ -330,6 +394,14 @@ export function useImageStudioWizard() {
     if (latestJob.value?.id === id) latestJob.value = null
   }
 
+  function onAspectChange(value: string) {
+    sizeCaps.selectAspect(value)
+  }
+
+  function onTierChange(value: string) {
+    sizeCaps.selectTier(value)
+  }
+
   onMounted(load)
 
   return {
@@ -339,11 +411,14 @@ export function useImageStudioWizard() {
     pollNotice,
     step,
     catalog,
+    capabilities,
     selectedIntent,
     selectedTemplate,
     userPrompt,
     accentColor,
     size,
+    aspect: sizeCaps.aspect,
+    tier: sizeCaps.tier,
     count,
     expertOpen,
     expertPrompt,
@@ -351,6 +426,8 @@ export function useImageStudioWizard() {
     apiKeys,
     availableModels,
     selectedModel,
+    selectedModelOption,
+    quality,
     loadingModels,
     modelError,
     estimateError,
@@ -364,10 +441,12 @@ export function useImageStudioWizard() {
     balanceLow,
     hasApiKeys,
     showAccentColor,
+    showQuality,
     maxCount,
     isNewUser,
-    previewUrl,
-    previewFilename,
+    previewAsset,
+    previewJobId,
+    previewIndex,
     labelFor,
     pickIntent,
     pickTemplate,
@@ -377,8 +456,11 @@ export function useImageStudioWizard() {
     onAutoCleanupChange,
     openPreview,
     closePreview,
+    regenerateFromJob,
     generate,
     removeJob,
+    onAspectChange,
+    onTierChange,
     load,
   }
 }

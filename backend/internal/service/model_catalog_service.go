@@ -245,6 +245,31 @@ func (s *ModelCatalogService) ListCatalog(ctx context.Context, filter CatalogLis
 	return s.repo.ListCatalog(ctx, filter)
 }
 
+// ListAdminCatalog returns catalog rows enriched with official and channel prices for admin comparison UI.
+func (s *ModelCatalogService) ListAdminCatalog(ctx context.Context, filter CatalogListFilter) ([]AdminCatalogRow, error) {
+	entries, err := s.repo.ListCatalog(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	channelBase := collectChannelBasePricesFromService(ctx, s.channelService)
+	out := make([]AdminCatalogRow, 0, len(entries))
+	for _, e := range entries {
+		officialIn, officialOut := lookupOfficialPrices(s.billingService, e.ModelName)
+		var chIn, chOut *float64
+		if base, ok := channelBase[strings.ToLower(e.ModelName)]; ok {
+			chIn, chOut = base.input, base.output
+		}
+		out = append(out, AdminCatalogRow{
+			SiteModelCatalogEntry: e,
+			OfficialInputPrice:    officialIn,
+			OfficialOutputPrice:   officialOut,
+			ChannelInputPrice:     chIn,
+			ChannelOutputPrice:    chOut,
+		})
+	}
+	return out, nil
+}
+
 func (s *ModelCatalogService) GetCatalogEntry(ctx context.Context, id int64) (*SiteModelCatalogEntry, error) {
 	return s.repo.GetCatalogEntry(ctx, id)
 }
@@ -268,26 +293,24 @@ func (s *ModelCatalogService) BatchPrices(ctx context.Context, ids []int64, mult
 	return s.repo.BatchUpdatePrices(ctx, ids, multiplier, absoluteInput, absoluteOutput)
 }
 
-func (s *ModelCatalogService) ListDiscoveries(ctx context.Context, status string) ([]ModelDiscovery, error) {
-	return s.repo.ListDiscoveries(ctx, status, 500)
+func (s *ModelCatalogService) ListDiscoveries(ctx context.Context, filter DiscoveryListFilter) (DiscoveryListResult, error) {
+	if filter.Status == "" {
+		filter.Status = "new"
+	}
+	return s.repo.ListDiscoveries(ctx, filter)
 }
 
 func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool) (int, error) {
-	discoveries, err := s.repo.ListDiscoveries(ctx, "new", 1000)
+	if len(ids) == 0 {
+		return 0, fmt.Errorf("ids required: select discoveries to import")
+	}
+	discoveries, err := s.repo.ListDiscoveriesByIDs(ctx, ids)
 	if err != nil {
 		return 0, err
 	}
-	idSet := make(map[int64]struct{}, len(ids))
-	for _, id := range ids {
-		idSet[id] = struct{}{}
-	}
 	imported := 0
+	importedIDs := make([]int64, 0, len(ids))
 	for _, d := range discoveries {
-		if len(idSet) > 0 {
-			if _, ok := idSet[d.ID]; !ok {
-				continue
-			}
-		}
 		if !toCatalog {
 			continue
 		}
@@ -298,7 +321,7 @@ func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64
 		entry := &SiteModelCatalogEntry{
 			ModelName:     d.ModelName,
 			Platform:      d.Platform,
-			UseCase:       strPtr(useCase),
+			UseCase:       catalogOptionalString(useCase),
 			VisiblePublic: false,
 			VisibleAuth:   true,
 			Source:        d.Source,
@@ -307,13 +330,19 @@ func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64
 			entry.InputPrice = in
 			entry.OutputPrice = out
 		}
-		if err := s.repo.UpsertCatalogEntry(ctx, entry); err != nil {
+		if err := s.repo.UpsertDiscoveryCatalogEntry(ctx, entry); err != nil {
+			if len(importedIDs) > 0 {
+				_, _ = s.repo.UpdateDiscoveryStatus(ctx, importedIDs, "imported")
+			}
 			return imported, err
 		}
 		imported++
+		importedIDs = append(importedIDs, d.ID)
 	}
-	if imported > 0 {
-		_, _ = s.repo.UpdateDiscoveryStatus(ctx, ids, "imported")
+	if len(importedIDs) > 0 {
+		if _, err := s.repo.UpdateDiscoveryStatus(ctx, importedIDs, "imported"); err != nil {
+			return imported, err
+		}
 	}
 	return imported, nil
 }
@@ -329,7 +358,7 @@ func pricesFromDiscoveryPayload(payload map[string]any) (*float64, *float64) {
 	return inPtr, outPtr
 }
 
-func strPtr(s string) *string {
+func catalogOptionalString(s string) *string {
 	if s == "" {
 		return nil
 	}

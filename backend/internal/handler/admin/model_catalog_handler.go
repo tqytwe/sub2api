@@ -68,7 +68,7 @@ func (h *ModelCatalogHandler) List(c *gin.Context) {
 		b := v == "true"
 		filter.VisibleAuth = &b
 	}
-	rows, err := h.catalogService.ListCatalog(c.Request.Context(), filter)
+	rows, err := h.catalogService.ListAdminCatalog(c.Request.Context(), filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -177,13 +177,22 @@ func (h *ModelCatalogHandler) GetSyncJob(c *gin.Context) {
 
 // ListDiscoveries GET /admin/model-catalog/discoveries
 func (h *ModelCatalogHandler) ListDiscoveries(c *gin.Context) {
-	status := c.DefaultQuery("status", "new")
-	rows, err := h.catalogService.ListDiscoveries(c.Request.Context(), status)
+	filter := service.DiscoveryListFilter{
+		Status: c.DefaultQuery("status", "new"),
+		Search: c.Query("search"),
+	}
+	if v, err := strconv.Atoi(c.DefaultQuery("limit", "50")); err == nil {
+		filter.Limit = v
+	}
+	if v, err := strconv.Atoi(c.DefaultQuery("offset", "0")); err == nil {
+		filter.Offset = v
+	}
+	result, err := h.catalogService.ListDiscoveries(c.Request.Context(), filter)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, rows)
+	response.Success(c, result)
 }
 
 // ImportDiscoveries POST /admin/model-catalog/discoveries/import
@@ -191,6 +200,10 @@ func (h *ModelCatalogHandler) ImportDiscoveries(c *gin.Context) {
 	var req importDiscoveriesRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, err.Error())
+		return
+	}
+	if len(req.IDs) == 0 {
+		response.BadRequest(c, "ids required: select discoveries to import")
 		return
 	}
 	n, err := h.catalogService.ImportDiscoveries(c.Request.Context(), req.IDs, req.ToCatalog)

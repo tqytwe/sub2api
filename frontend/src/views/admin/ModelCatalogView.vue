@@ -26,7 +26,7 @@
             <button class="btn btn-secondary" :disabled="syncing" @click="startSync">
               {{ syncing ? t('admin.modelCatalog.syncing') : t('admin.modelCatalog.sync') }}
             </button>
-            <button class="btn btn-secondary" @click="importFromDiscovery">
+            <button class="btn btn-secondary" @click="openDiscoveryPanel">
               {{ t('admin.modelCatalog.importDiscovery') }}
             </button>
             <button class="btn btn-primary" @click="openCreate">
@@ -59,11 +59,29 @@
           <template #cell-model_name="{ value }">
             <span class="font-medium">{{ value }}</span>
           </template>
+          <template #cell-official_input_price="{ row }">
+            {{ formatPrice(row.official_input_price) }}
+          </template>
+          <template #cell-official_output_price="{ row }">
+            {{ formatPrice(row.official_output_price) }}
+          </template>
+          <template #cell-channel_input_price="{ row }">
+            {{ formatPrice(row.channel_input_price) }}
+          </template>
+          <template #cell-channel_output_price="{ row }">
+            {{ formatPrice(row.channel_output_price) }}
+          </template>
           <template #cell-input_price="{ row }">
             {{ formatPrice(row.input_price) }}
           </template>
           <template #cell-output_price="{ row }">
             {{ formatPrice(row.output_price) }}
+          </template>
+          <template #cell-input_diff="{ row }">
+            <span :class="diffClass(row.input_price, row.official_input_price)">{{ formatDiff(row.input_price, row.official_input_price) }}</span>
+          </template>
+          <template #cell-output_diff="{ row }">
+            <span :class="diffClass(row.output_price, row.official_output_price)">{{ formatDiff(row.output_price, row.official_output_price) }}</span>
           </template>
           <template #cell-visible_public="{ row }">
             <Toggle :model-value="row.visible_public" @update:model-value="(v: boolean) => patchVisibility(row, v, undefined)" />
@@ -114,11 +132,78 @@
           discovered: syncResult.discovered ?? 0,
         }) }}
       </p>
+      <p v-if="syncJobError" class="mt-2 text-sm text-red-600">{{ syncJobError }}</p>
       <ul v-if="syncResult?.warnings?.length" class="mt-2 list-disc pl-5 text-sm text-amber-700">
         <li v-for="(w, i) in syncResult.warnings" :key="i">{{ w }}</li>
       </ul>
       <template #footer>
         <button class="btn btn-primary" @click="syncResultOpen = false">{{ t('common.close') }}</button>
+      </template>
+    </BaseDialog>
+
+    <BaseDialog :show="discoveryOpen" :title="t('admin.modelCatalog.discoveryTitle')" width="extra-wide" @close="discoveryOpen = false">
+      <div class="space-y-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <input
+            v-model="discoverySearch"
+            type="search"
+            class="input flex-1 min-w-[12rem]"
+            :placeholder="t('admin.modelCatalog.discoverySearch')"
+            @input="debouncedDiscoveryLoad"
+          />
+          <button class="btn btn-secondary btn-sm" @click="toggleDiscoveryPageSelect">
+            {{ t('admin.modelCatalog.discoverySelectAll') }}
+          </button>
+        </div>
+
+        <div v-if="discoveryLoading" class="py-8 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
+        <div v-else-if="discoveryRows.length === 0" class="py-8 text-center text-sm text-gray-500">
+          {{ t('admin.modelCatalog.discoveryEmpty') }}
+        </div>
+        <div v-else class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="border-b text-left text-gray-500">
+                <th class="py-2 pr-2 w-8"></th>
+                <th class="py-2 pr-3">{{ t('admin.modelCatalog.columns.model') }}</th>
+                <th class="py-2 pr-3">{{ t('admin.modelCatalog.columns.platform') }}</th>
+                <th class="py-2 pr-3">{{ t('admin.modelCatalog.discoverySource') }}</th>
+                <th class="py-2 pr-3">{{ t('admin.modelCatalog.columns.officialInput') }}</th>
+                <th class="py-2">{{ t('admin.modelCatalog.columns.officialOutput') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in discoveryRows" :key="row.id" class="border-b border-gray-100 dark:border-dark-800">
+                <td class="py-2 pr-2">
+                  <input type="checkbox" :checked="discoverySelectedIds.includes(row.id)" @change="toggleDiscoverySelect(row.id)" />
+                </td>
+                <td class="py-2 pr-3 font-medium">{{ row.model_name }}</td>
+                <td class="py-2 pr-3">{{ row.platform }}</td>
+                <td class="py-2 pr-3">{{ row.source }}</td>
+                <td class="py-2 pr-3">{{ formatPayloadPrice(row.payload, 'input_price') }}</td>
+                <td class="py-2">{{ formatPayloadPrice(row.payload, 'output_price') }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div v-if="discoveryTotal > discoveryPageSize" class="flex items-center justify-between text-sm">
+          <span>{{ t('admin.modelCatalog.discoveryPage', { page: discoveryPage, total: discoveryTotalPages }) }}</span>
+          <div class="flex gap-2">
+            <button class="btn btn-secondary btn-sm" :disabled="discoveryPage <= 1" @click="changeDiscoveryPage(discoveryPage - 1)">
+              {{ t('common.previous') }}
+            </button>
+            <button class="btn btn-secondary btn-sm" :disabled="discoveryPage >= discoveryTotalPages" @click="changeDiscoveryPage(discoveryPage + 1)">
+              {{ t('common.next') }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <button class="btn btn-secondary" @click="discoveryOpen = false">{{ t('common.cancel') }}</button>
+        <button class="btn btn-primary" :disabled="discoverySelectedIds.length === 0 || discoveryImporting" @click="importSelectedDiscoveries">
+          {{ t('admin.modelCatalog.discoveryImportSelected', { n: discoverySelectedIds.length }) }}
+        </button>
       </template>
     </BaseDialog>
   </AppLayout>
@@ -134,7 +219,8 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Toggle from '@/components/common/Toggle.vue'
 import Icon from '@/components/icons/Icon.vue'
 import adminModelCatalogAPI, {
-  type SiteModelCatalogEntry,
+  type AdminCatalogRow,
+  type ModelDiscovery,
   type ModelSyncJob,
 } from '@/api/admin/modelCatalog'
 import { formatScaled } from '@/utils/pricing'
@@ -144,7 +230,7 @@ import { extractApiErrorMessage } from '@/utils/apiError'
 const { t } = useI18n()
 const appStore = useAppStore()
 
-const rows = ref<SiteModelCatalogEntry[]>([])
+const rows = ref<AdminCatalogRow[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const syncing = ref(false)
@@ -154,6 +240,17 @@ const selectedIds = ref<number[]>([])
 const editOpen = ref(false)
 const syncResultOpen = ref(false)
 const syncResult = ref<ModelSyncJob['result'] | null>(null)
+const syncJobError = ref<string | null>(null)
+
+const discoveryOpen = ref(false)
+const discoveryLoading = ref(false)
+const discoveryImporting = ref(false)
+const discoveryRows = ref<ModelDiscovery[]>([])
+const discoveryTotal = ref(0)
+const discoverySearch = ref('')
+const discoverySelectedIds = ref<number[]>([])
+const discoveryPage = ref(1)
+const discoveryPageSize = 50
 
 const editForm = reactive({
   id: 0,
@@ -168,8 +265,14 @@ const columns = computed(() => [
   { key: 'select', label: '', sortable: false },
   { key: 'model_name', label: t('admin.modelCatalog.columns.model'), sortable: true },
   { key: 'platform', label: t('admin.modelCatalog.columns.platform'), sortable: true },
+  { key: 'official_input_price', label: t('admin.modelCatalog.columns.officialInput'), sortable: false },
+  { key: 'official_output_price', label: t('admin.modelCatalog.columns.officialOutput'), sortable: false },
+  { key: 'channel_input_price', label: t('admin.modelCatalog.columns.channelInput'), sortable: false },
+  { key: 'channel_output_price', label: t('admin.modelCatalog.columns.channelOutput'), sortable: false },
   { key: 'input_price', label: t('admin.modelCatalog.columns.input'), sortable: false },
   { key: 'output_price', label: t('admin.modelCatalog.columns.output'), sortable: false },
+  { key: 'input_diff', label: t('admin.modelCatalog.columns.inputDiff'), sortable: false },
+  { key: 'output_diff', label: t('admin.modelCatalog.columns.outputDiff'), sortable: false },
   { key: 'visible_public', label: t('admin.modelCatalog.columns.public'), sortable: false },
   { key: 'actions', label: t('common.actions'), sortable: false },
 ])
@@ -184,15 +287,48 @@ const filteredRows = computed(() => {
   )
 })
 
+const discoveryTotalPages = computed(() => Math.max(1, Math.ceil(discoveryTotal.value / discoveryPageSize)))
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 function debouncedLoad() {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = setTimeout(loadCatalog, 300)
 }
 
-function formatPrice(v: number | null): string {
+let discoveryDebounceTimer: ReturnType<typeof setTimeout> | null = null
+function debouncedDiscoveryLoad() {
+  if (discoveryDebounceTimer) clearTimeout(discoveryDebounceTimer)
+  discoveryDebounceTimer = setTimeout(() => {
+    discoveryPage.value = 1
+    void loadDiscoveries()
+  }, 300)
+}
+
+function formatPrice(v: number | null | undefined): string {
   if (v == null) return '—'
   return `$${formatScaled(v, 1_000_000)}`
+}
+
+function formatPayloadPrice(payload: Record<string, unknown>, key: string): string {
+  const raw = payload[key]
+  if (typeof raw !== 'number') return '—'
+  return `$${formatScaled(raw, 1_000_000)}`
+}
+
+function formatDiff(site: number | null | undefined, official: number | null | undefined): string {
+  if (site == null || official == null || official === 0) return '—'
+  const pct = Math.round(((site / official) - 1) * 100)
+  if (pct === 0) return t('admin.modelCatalog.diffSame')
+  if (pct > 0) return t('admin.modelCatalog.diffHigher', { pct })
+  return t('admin.modelCatalog.diffLower', { pct })
+}
+
+function diffClass(site: number | null | undefined, official: number | null | undefined): string {
+  if (site == null || official == null || official === 0) return ''
+  const pct = ((site / official) - 1) * 100
+  if (pct > 5) return 'text-amber-700'
+  if (pct < -5) return 'text-emerald-700'
+  return 'text-gray-500'
 }
 
 async function loadCatalog() {
@@ -209,11 +345,79 @@ async function loadCatalog() {
   }
 }
 
+async function loadDiscoveries() {
+  discoveryLoading.value = true
+  try {
+    const result = await adminModelCatalogAPI.listDiscoveries({
+      status: 'new',
+      search: discoverySearch.value || undefined,
+      limit: discoveryPageSize,
+      offset: (discoveryPage.value - 1) * discoveryPageSize,
+    })
+    discoveryRows.value = result.items
+    discoveryTotal.value = result.total
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.discoveryLoadFailed')))
+  } finally {
+    discoveryLoading.value = false
+  }
+}
+
+function openDiscoveryPanel() {
+  discoveryOpen.value = true
+  discoverySelectedIds.value = []
+  discoveryPage.value = 1
+  void loadDiscoveries()
+}
+
 function toggleSelect(id: number) {
   if (selectedIds.value.includes(id)) {
     selectedIds.value = selectedIds.value.filter((x) => x !== id)
   } else {
     selectedIds.value = [...selectedIds.value, id]
+  }
+}
+
+function toggleDiscoverySelect(id: number) {
+  if (discoverySelectedIds.value.includes(id)) {
+    discoverySelectedIds.value = discoverySelectedIds.value.filter((x) => x !== id)
+  } else {
+    discoverySelectedIds.value = [...discoverySelectedIds.value, id]
+  }
+}
+
+function toggleDiscoveryPageSelect() {
+  const pageIds = discoveryRows.value.map((r) => r.id)
+  const allSelected = pageIds.every((id) => discoverySelectedIds.value.includes(id))
+  if (allSelected) {
+    discoverySelectedIds.value = discoverySelectedIds.value.filter((id) => !pageIds.includes(id))
+  } else {
+    const merged = new Set([...discoverySelectedIds.value, ...pageIds])
+    discoverySelectedIds.value = [...merged]
+  }
+}
+
+function changeDiscoveryPage(page: number) {
+  discoveryPage.value = page
+  void loadDiscoveries()
+}
+
+async function importSelectedDiscoveries() {
+  if (!discoverySelectedIds.value.length) {
+    appStore.showError(t('admin.modelCatalog.importSelectRequired'))
+    return
+  }
+  discoveryImporting.value = true
+  try {
+    const n = await adminModelCatalogAPI.importDiscoveries({ ids: discoverySelectedIds.value })
+    appStore.showSuccess(t('admin.modelCatalog.importDone', { n }))
+    discoveryOpen.value = false
+    discoverySelectedIds.value = []
+    await loadCatalog()
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.importSelectRequired')))
+  } finally {
+    discoveryImporting.value = false
   }
 }
 
@@ -229,7 +433,7 @@ function openCreate() {
   editOpen.value = true
 }
 
-function openEdit(row: SiteModelCatalogEntry) {
+function openEdit(row: AdminCatalogRow) {
   Object.assign(editForm, {
     id: row.id,
     model_name: row.model_name,
@@ -255,13 +459,13 @@ async function saveEdit() {
   }
 }
 
-async function removeRow(row: SiteModelCatalogEntry) {
+async function removeRow(row: AdminCatalogRow) {
   if (!confirm(t('admin.modelCatalog.deleteConfirm', { name: row.model_name }))) return
   await adminModelCatalogAPI.deleteCatalogEntry(row.id)
   await loadCatalog()
 }
 
-async function patchVisibility(row: SiteModelCatalogEntry, visiblePublic: boolean, visibleAuth?: boolean) {
+async function patchVisibility(row: AdminCatalogRow, visiblePublic: boolean, visibleAuth?: boolean) {
   await adminModelCatalogAPI.batchVisibility({
     ids: [row.id],
     visible_public: visiblePublic,
@@ -289,18 +493,13 @@ async function fillLiteLLM() {
   await loadCatalog()
 }
 
-async function importFromDiscovery() {
-  const n = await adminModelCatalogAPI.importDiscoveries({})
-  appStore.showSuccess(t('admin.modelCatalog.importDone', { n }))
-  await loadCatalog()
-}
-
 async function pollSyncJob(id: string) {
   for (let i = 0; i < 120; i++) {
     await new Promise((r) => setTimeout(r, 1500))
     const job = await adminModelCatalogAPI.getSyncJob(id)
     if (job.status === 'succeeded' || job.status === 'failed') {
       syncResult.value = job.result ?? null
+      syncJobError.value = job.status === 'failed' ? (job.error || t('admin.modelCatalog.syncFailed')) : null
       syncResultOpen.value = true
       syncing.value = false
       await loadCatalog()
@@ -312,6 +511,7 @@ async function pollSyncJob(id: string) {
 
 async function startSync() {
   syncing.value = true
+  syncJobError.value = null
   try {
     const job = await adminModelCatalogAPI.createSyncJob()
     void pollSyncJob(job.id)

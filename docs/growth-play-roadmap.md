@@ -403,7 +403,12 @@ Sprint C 范围在 5.1–5.3；后续迭代见第 6 节体验层。
 
 ### 11.4 Phase 1 验收清单
 
+> **完整补齐计划**（下载鉴权、分辨率矩阵、同参数再生成）：[`IMAGE_STUDIO_COMPLETION_PLAN.md`](./IMAGE_STUDIO_COMPLETION_PLAN.md)
+
 - [x] `/image-studio` 四步向导 + 费用预估 + 图库 + 7 天自动清理选项
+- [x] 鉴权 blob 下载/预览（`apiClient` + `/assets/:id/content|download`）
+- [x] 画面比例 × 清晰度（1K/2K/4K）规格矩阵 + 模型过滤
+- [x] 同参数再生成 + 失败 job 重试入口
 - [x] 新用户默认生成 1 张，已充值用户默认 4 张
 - [x] 回访用户快捷模式（记住上次模板，跳过 Step 1–2）
 - [x] Arena 日榜 / 月榜 Tab + 每日任务条 + 播种指南

@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { ImageStudioAsset, ImageStudioJob } from '@/api/imageStudio'
+import imageStudioAPI, { type ImageStudioAsset, type ImageStudioJob } from '@/api/imageStudio'
+import { useAppStore } from '@/stores/app'
+import { filenameForAsset, isExternalAssetUrl, isStudioAssetApiPath, saveBlob } from '@/utils/imageStudioBlob'
 import { buildApiUrl } from '@/api/url'
+import { trackGrowthEvent } from '@/utils/growthAnalytics'
 
 const props = defineProps<{
   jobs: ImageStudioJob[]
@@ -11,61 +14,92 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  preview: [url: string, jobId: string, index: number]
+  preview: [asset: ImageStudioAsset, jobId: string, index: number]
   delete: [jobId: string]
+  regenerate: [job: ImageStudioJob]
 }>()
 
 const { t } = useI18n()
-const previewTarget = ref<{ url: string; jobId: string; index: number } | null>(null)
+const appStore = useAppStore()
+const thumbUrls = ref<Record<string, string>>({})
+const loadingAssets = ref<Set<string>>(new Set())
 
 const displayJobs = computed(() => {
   if (props.resultMode && props.latestJob) return [props.latestJob]
   return props.jobs
 })
 
-function assetUrl(asset: ImageStudioAsset) {
+function assetApiPath(asset: ImageStudioAsset) {
   return asset.preview_url || asset.url || ''
 }
 
-function resolveAssetSrc(asset: ImageStudioAsset) {
-  const raw = assetUrl(asset)
+function isManagedAsset(asset: ImageStudioAsset) {
+  const raw = assetApiPath(asset)
+  return !!asset.id && (isStudioAssetApiPath(raw) || !isExternalAssetUrl(raw))
+}
+
+function legacySrc(asset: ImageStudioAsset) {
+  const raw = assetApiPath(asset)
   if (!raw) return ''
-  if (raw.startsWith('http://') || raw.startsWith('https://') || raw.startsWith('data:')) return raw
+  if (isExternalAssetUrl(raw)) return raw
   return buildApiUrl(raw)
 }
 
-function downloadUrl(asset: ImageStudioAsset) {
-  return asset.download_url || asset.preview_url || asset.url
+async function ensureThumb(asset: ImageStudioAsset) {
+  if (!isManagedAsset(asset) || thumbUrls.value[asset.id] || loadingAssets.value.has(asset.id)) return
+  loadingAssets.value.add(asset.id)
+  try {
+    const blob = await imageStudioAPI.fetchImageStudioAssetBlob(asset.id, 'content')
+    thumbUrls.value = { ...thumbUrls.value, [asset.id]: URL.createObjectURL(blob) }
+  } catch {
+    // leave broken image; user can retry download
+  } finally {
+    loadingAssets.value.delete(asset.id)
+  }
 }
 
-function assetFilename(jobId: string, index: number) {
-  return `image-studio-${jobId.slice(0, 8)}-${index + 1}.png`
+function syncThumbs() {
+  for (const job of displayJobs.value) {
+    for (const asset of job.assets || []) {
+      void ensureThumb(asset)
+    }
+  }
+}
+
+watch(displayJobs, syncThumbs, { immediate: true, deep: true })
+
+onUnmounted(() => {
+  Object.values(thumbUrls.value).forEach((url) => URL.revokeObjectURL(url))
+})
+
+function thumbSrc(asset: ImageStudioAsset) {
+  if (thumbUrls.value[asset.id]) return thumbUrls.value[asset.id]
+  return legacySrc(asset)
 }
 
 function openPreview(asset: ImageStudioAsset, jobId: string, index: number) {
-  const url = assetUrl(asset)
-  if (!url) return
-  previewTarget.value = { url, jobId, index }
-  emit('preview', url, jobId, index)
+  emit('preview', asset, jobId, index)
 }
 
 async function downloadAsset(asset: ImageStudioAsset, jobId: string, index: number) {
-  const href = downloadUrl(asset)
-  if (!href) return
-  const full = href.startsWith('http') || href.startsWith('data:') ? href : buildApiUrl(href)
-  const filename = assetFilename(jobId, index)
+  trackGrowthEvent('image_studio_download_click', { job_id: jobId, asset_id: asset.id })
   try {
-    const res = await fetch(full, { credentials: 'include' })
-    if (!res.ok) throw new Error('download failed')
-    const blob = await res.blob()
-    const objectUrl = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = objectUrl
-    a.download = filename
-    a.click()
-    URL.revokeObjectURL(objectUrl)
+    if (isManagedAsset(asset)) {
+      const blob = await imageStudioAPI.fetchImageStudioAssetBlob(asset.id, 'download')
+      const filename = filenameForAsset(jobId, index, blob.type || asset.content_type)
+      saveBlob(blob, filename)
+    } else {
+      const raw = asset.download_url || asset.preview_url || asset.url
+      if (!raw) throw new Error('missing url')
+      const href = isExternalAssetUrl(raw) ? raw : buildApiUrl(raw)
+      const res = await fetch(href)
+      if (!res.ok) throw new Error('download failed')
+      saveBlob(await res.blob(), filenameForAsset(jobId, index, asset.content_type))
+    }
+    trackGrowthEvent('image_studio_download_success', { job_id: jobId, asset_id: asset.id })
   } catch {
-    window.open(full, '_blank', 'noopener,noreferrer')
+    appStore.showToast('error', t('imageStudio.downloadFailed'))
+    trackGrowthEvent('image_studio_download_fail', { job_id: jobId, asset_id: asset.id })
   }
 }
 
@@ -74,15 +108,25 @@ function confirmDelete(jobId: string) {
     emit('delete', jobId)
   }
 }
+
+function truncateError(msg?: string) {
+  const text = String(msg || '').trim()
+  if (!text) return t('imageStudio.generateFailed')
+  return text.length > 120 ? `${text.slice(0, 120)}…` : text
+}
 </script>
 
 <template>
   <div v-if="!displayJobs.length" class="gw-subtitle">{{ t('imageStudio.galleryEmpty') }}</div>
   <div v-else class="gw-gallery gw-gallery--studio" :class="{ 'gw-gallery--result': resultMode }">
     <div v-for="job in displayJobs" :key="job.id" class="space-y-2">
+      <div class="flex flex-wrap items-center gap-2 text-xs" style="color: var(--gw-ink-3)">
+        <span class="gw-size-badge">{{ job.size }}</span>
+        <span v-if="job.status === 'failed'" class="gw-error text-xs">{{ truncateError(job.error_message) }}</span>
+      </div>
       <div v-for="(asset, index) in job.assets || []" :key="asset.id" class="gw-thumb gw-thumb--studio">
         <button type="button" class="gw-thumb-btn" @click="openPreview(asset, job.id, index)">
-          <img :src="resolveAssetSrc(asset)" :alt="job.template_id" loading="lazy" />
+          <img :src="thumbSrc(asset)" :alt="job.template_id" loading="lazy" />
         </button>
         <div class="gw-thumb-actions">
           <button type="button" class="gw-thumb-action" @click="openPreview(asset, job.id, index)">
@@ -93,15 +137,26 @@ function confirmDelete(jobId: string) {
           </button>
         </div>
       </div>
-      <button
-        v-if="!resultMode"
-        type="button"
-        class="text-xs"
-        style="color: var(--gw-ink-3)"
-        @click="confirmDelete(job.id)"
-      >
-        {{ t('imageStudio.delete') }}
-      </button>
+      <div class="flex flex-wrap gap-3">
+        <button
+          v-if="job.status === 'failed' || job.status === 'completed'"
+          type="button"
+          class="text-xs"
+          style="color: var(--gw-ink-2)"
+          @click="emit('regenerate', job)"
+        >
+          {{ t('imageStudio.regenerateSame') }}
+        </button>
+        <button
+          v-if="!resultMode"
+          type="button"
+          class="text-xs"
+          style="color: var(--gw-ink-3)"
+          @click="confirmDelete(job.id)"
+        >
+          {{ t('imageStudio.delete') }}
+        </button>
+      </div>
     </div>
   </div>
 </template>

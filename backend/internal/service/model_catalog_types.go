@@ -92,18 +92,43 @@ type ModelCatalogRepository interface {
 	ListCatalog(ctx context.Context, filter CatalogListFilter) ([]SiteModelCatalogEntry, error)
 	GetCatalogEntry(ctx context.Context, id int64) (*SiteModelCatalogEntry, error)
 	UpsertCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
+	UpsertDiscoveryCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	UpdateCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	DeleteCatalogEntry(ctx context.Context, id int64) error
 	BatchUpdateVisibility(ctx context.Context, ids []int64, visiblePublic, visibleAuth *bool) (int, error)
 	BatchUpdatePrices(ctx context.Context, ids []int64, multiplier *float64, absoluteInput, absoluteOutput *float64) (int, error)
 
-	ListDiscoveries(ctx context.Context, status string, limit int) ([]ModelDiscovery, error)
+	ListDiscoveries(ctx context.Context, filter DiscoveryListFilter) (DiscoveryListResult, error)
+	ListDiscoveriesByIDs(ctx context.Context, ids []int64) ([]ModelDiscovery, error)
 	UpsertDiscovery(ctx context.Context, d *ModelDiscovery) error
 	UpdateDiscoveryStatus(ctx context.Context, ids []int64, status string) (int, error)
 
 	CreateSyncJob(ctx context.Context, job *ModelSyncJob) error
 	UpdateSyncJob(ctx context.Context, job *ModelSyncJob) error
 	GetSyncJob(ctx context.Context, id string) (*ModelSyncJob, error)
+}
+
+// AdminCatalogRow extends catalog entry with comparison prices for admin UI.
+type AdminCatalogRow struct {
+	SiteModelCatalogEntry
+	OfficialInputPrice  *float64 `json:"official_input_price"`
+	OfficialOutputPrice *float64 `json:"official_output_price"`
+	ChannelInputPrice   *float64 `json:"channel_input_price"`
+	ChannelOutputPrice  *float64 `json:"channel_output_price"`
+}
+
+// DiscoveryListFilter filters discovery pool listing.
+type DiscoveryListFilter struct {
+	Status string
+	Search string
+	Limit  int
+	Offset int
+}
+
+// DiscoveryListResult is a paginated discovery pool response.
+type DiscoveryListResult struct {
+	Items []ModelDiscovery `json:"items"`
+	Total int              `json:"total"`
 }
 
 // CatalogListFilter filters admin catalog listing.

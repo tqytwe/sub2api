@@ -694,6 +694,21 @@
   aspect-ratio: auto;
 }
 
+.gw-size-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.15rem 0.5rem;
+  border-radius: 9999px;
+  border: 1px solid var(--gw-line);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.7rem;
+  color: var(--gw-ink-2);
+}
+
+.gw-size-picker .gw-field-row {
+  margin-bottom: 0;
+}
+
 .gw-thumb-btn {
   display: block;
   width: 100%;

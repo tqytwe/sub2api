@@ -1,0 +1,150 @@
+package service
+
+import (
+	"strings"
+)
+
+type ImageStudioModelCapabilities struct {
+	SupportedSizes     []string
+	SupportedQualities []string
+	DefaultSize        string
+	DefaultQuality     string
+}
+
+func allImageStudioCatalogSizes() []string {
+	seen := make(map[string]struct{})
+	out := make([]string, 0, len(imageStudioSizeMatrix)*3)
+	for _, aspect := range imageStudioAspectCatalog {
+		tiers, ok := imageStudioSizeMatrix[aspect.ID]
+		if !ok {
+			continue
+		}
+		for _, tier := range imageStudioTierCatalog {
+			size, ok := tiers[tier.ID]
+			if !ok || strings.TrimSpace(size) == "" {
+				continue
+			}
+			if _, exists := seen[size]; exists {
+				continue
+			}
+			seen[size] = struct{}{}
+			out = append(out, size)
+		}
+	}
+	return out
+}
+
+func inferImageStudioQualities(model string) []string {
+	model = strings.ToLower(strings.TrimSpace(model))
+	switch {
+	case strings.HasPrefix(model, "gpt-image"):
+		return []string{"standard", "high"}
+	case strings.Contains(model, "grok-imagine"):
+		return []string{"standard"}
+	default:
+		return nil
+	}
+}
+
+func isImageStudioSizeRelatedError(msg string) bool {
+	msg = strings.ToLower(strings.TrimSpace(msg))
+	if msg == "" {
+		return false
+	}
+	for _, kw := range []string{
+		"size",
+		"dimension",
+		"resolution",
+		"invalid_image",
+		"image_size",
+		"aspect",
+		"too large",
+		"not supported",
+	} {
+		if strings.Contains(msg, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *ImageStudioService) ResolveModelCapabilities(_ *APIKey, model string) ImageStudioModelCapabilities {
+	sizes := filterImageStudioSizesForModel(s, model, allImageStudioCatalogSizes())
+	qualities := inferImageStudioQualities(model)
+
+	defaultSize := defaultImageStudioSize
+	if len(sizes) > 0 {
+		defaultSize = sizes[0]
+	}
+	defaultQuality := ""
+	if len(qualities) > 0 {
+		defaultQuality = qualities[0]
+	}
+
+	return ImageStudioModelCapabilities{
+		SupportedSizes:     sizes,
+		SupportedQualities: append([]string(nil), qualities...),
+		DefaultSize:        defaultSize,
+		DefaultQuality:     defaultQuality,
+	}
+}
+
+func filterImageStudioSizesForModel(s *ImageStudioService, model string, sizes []string) []string {
+	if len(sizes) == 0 {
+		return nil
+	}
+	if s == nil || s.capabilityCache == nil {
+		return append([]string(nil), sizes...)
+	}
+	out := make([]string, 0, len(sizes))
+	for _, size := range sizes {
+		if s.capabilityCache.IsDenied(model, size) {
+			continue
+		}
+		out = append(out, size)
+	}
+	return out
+}
+
+func (s *ImageStudioService) ValidateSizeForModel(apiKey *APIKey, model, size string) error {
+	size = strings.TrimSpace(size)
+	if size == "" {
+		return ErrImageStudioSizeNotSupported
+	}
+	if !isKnownImageStudioSize(size) {
+		return ErrImageStudioSizeNotSupported
+	}
+	for _, supported := range s.ResolveModelCapabilities(apiKey, model).SupportedSizes {
+		if supported == size {
+			return nil
+		}
+	}
+	return ErrImageStudioSizeNotSupported
+}
+
+func (s *ImageStudioService) ValidateQualityForModel(model, quality string) error {
+	quality = strings.TrimSpace(strings.ToLower(quality))
+	if quality == "" {
+		return nil
+	}
+	supported := inferImageStudioQualities(model)
+	if len(supported) == 0 {
+		return nil
+	}
+	for _, item := range supported {
+		if item == quality {
+			return nil
+		}
+	}
+	return ErrImageStudioQualityNotSupported
+}
+
+func (s *ImageStudioService) RecordGenerateFailure(model, size, errMsg string) {
+	if s == nil || s.capabilityCache == nil {
+		return
+	}
+	if !isImageStudioSizeRelatedError(errMsg) {
+		return
+	}
+	s.capabilityCache.Deny(model, size)
+}
