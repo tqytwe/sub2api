@@ -121,6 +121,7 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		catalog.DELETE("/:id", h.Admin.ModelCatalog.Delete)
 		catalog.POST("/batch-visibility", h.Admin.ModelCatalog.BatchVisibility)
 		catalog.POST("/batch-prices", h.Admin.ModelCatalog.BatchPrices)
+		catalog.POST("/batch-groups", h.Admin.ModelCatalog.BatchGroups)
 		catalog.POST("/sync-jobs", h.Admin.ModelCatalog.CreateSyncJob)
 		catalog.GET("/sync-jobs/:id", h.Admin.ModelCatalog.GetSyncJob)
 		catalog.GET("/discoveries", h.Admin.ModelCatalog.ListDiscoveries)

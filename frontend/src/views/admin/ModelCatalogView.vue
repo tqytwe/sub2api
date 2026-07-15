@@ -55,6 +55,9 @@
           <button class="btn btn-secondary btn-sm" @click="batchMultiply">
             {{ t('admin.modelCatalog.batchApplyMultiplier') }}
           </button>
+          <button class="btn btn-secondary btn-sm" @click="openBatchGroups">
+            {{ t('admin.modelCatalog.batchSetGroups') }}
+          </button>
         </div>
 
         <DataTable :columns="columns" :data="filteredRows" :loading="loading">
@@ -75,6 +78,15 @@
           </template>
           <template #cell-output_price="{ row }">
             {{ formatPrice(row.output_price) }}
+          </template>
+          <template #cell-group_ids="{ row }">
+            <span v-if="row.group_ids == null" class="text-xs text-gray-500">{{ t('admin.modelCatalog.groupModeAuto') }}</span>
+            <span v-else-if="row.group_ids.length === 0" class="text-xs text-gray-500">{{ t('admin.modelCatalog.groupModeNone') }}</span>
+            <span v-else class="flex flex-wrap gap-1">
+              <span v-for="id in row.group_ids" :key="id" class="rounded bg-gray-100 px-1.5 py-0.5 text-xs dark:bg-dark-700">
+                {{ groupLabel(id) }}
+              </span>
+            </span>
           </template>
           <template #cell-input_diff="{ row }">
             <span :class="diffClass(row.input_price, row.official_input_price)">{{ formatDiff(row.input_price, row.official_input_price) }}</span>
@@ -106,6 +118,25 @@
           {{ t('admin.modelCatalog.fields.platform') }}
           <input v-model="editForm.platform" class="input mt-1 w-full" />
         </label>
+        <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
+          <label class="block text-sm">
+            {{ t('admin.modelCatalog.fields.groupMode') }}
+            <select v-model="editForm.group_mode" class="input mt-1 w-full">
+              <option value="selected">{{ t('admin.modelCatalog.fields.groupModeSelected') }}</option>
+              <option value="auto">{{ t('admin.modelCatalog.fields.groupModeAuto') }}</option>
+            </select>
+          </label>
+          <GroupSelector
+            v-if="editForm.group_mode === 'selected'"
+            v-model="editForm.group_ids"
+            :groups="groups"
+            searchable="auto"
+            class="mt-3"
+          />
+          <p v-else class="mt-2 text-xs text-amber-700 dark:text-amber-300">
+            {{ t('admin.modelCatalog.fields.groupModeAutoHint') }}
+          </p>
+        </div>
         <label class="block text-sm">
           {{ t('admin.modelCatalog.fields.displayName') }}
           <input v-model="editForm.display_name" class="input mt-1 w-full" />
@@ -186,6 +217,31 @@
       </template>
     </BaseDialog>
 
+    <BaseDialog :show="batchGroupOpen" :title="t('admin.modelCatalog.batchGroupsTitle')" @close="batchGroupOpen = false">
+      <div class="space-y-4">
+        <label class="block text-sm">
+          {{ t('admin.modelCatalog.fields.groupMode') }}
+          <select v-model="batchGroupMode" class="input mt-1 w-full">
+            <option value="selected">{{ t('admin.modelCatalog.fields.groupModeSelected') }}</option>
+            <option value="auto">{{ t('admin.modelCatalog.fields.groupModeAuto') }}</option>
+          </select>
+        </label>
+        <GroupSelector
+          v-if="batchGroupMode === 'selected'"
+          v-model="batchGroupIDs"
+          :groups="groups"
+          searchable="auto"
+        />
+        <p v-else class="text-xs text-amber-700 dark:text-amber-300">{{ t('admin.modelCatalog.fields.groupModeAutoHint') }}</p>
+      </div>
+      <template #footer>
+        <button class="btn btn-secondary" @click="batchGroupOpen = false">{{ t('common.cancel') }}</button>
+        <button class="btn btn-primary" :disabled="saving || (batchGroupMode === 'selected' && !batchGroupIDs.length)" @click="saveBatchGroups">
+          {{ t('common.save') }}
+        </button>
+      </template>
+    </BaseDialog>
+
     <BaseDialog :show="syncResultOpen" :title="t('admin.modelCatalog.syncResultTitle')" @close="syncResultOpen = false">
       <p v-if="syncResult">
         {{ t('admin.modelCatalog.syncResult', {
@@ -219,7 +275,22 @@
             {{ t('admin.modelCatalog.fields.importMultiplier') }}
             <input v-model.number="discoveryMultiplier" type="number" min="0.000001" step="0.01" class="input h-8 w-24" />
           </label>
+          <label class="flex items-center gap-2 text-sm">
+            {{ t('admin.modelCatalog.fields.groupMode') }}
+            <select v-model="discoveryGroupMode" class="input h-8">
+              <option value="selected">{{ t('admin.modelCatalog.fields.groupModeSelected') }}</option>
+              <option value="auto">{{ t('admin.modelCatalog.fields.groupModeAuto') }}</option>
+            </select>
+          </label>
         </div>
+
+        <GroupSelector
+          v-if="discoveryGroupMode === 'selected'"
+          v-model="discoveryGroupIDs"
+          :groups="groups"
+          searchable="auto"
+        />
+        <p v-else class="text-xs text-amber-700 dark:text-amber-300">{{ t('admin.modelCatalog.fields.groupModeAutoHint') }}</p>
 
         <div v-if="discoveryLoading" class="py-8 text-center text-sm text-gray-500">{{ t('common.loading') }}</div>
         <div v-else-if="discoveryRows.length === 0" class="py-8 text-center text-sm text-gray-500">
@@ -266,7 +337,7 @@
       </div>
       <template #footer>
         <button class="btn btn-secondary" @click="discoveryOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-primary" :disabled="discoverySelectedIds.length === 0 || discoveryImporting" @click="importSelectedDiscoveries">
+        <button class="btn btn-primary" :disabled="discoverySelectedIds.length === 0 || discoveryImporting || (discoveryGroupMode === 'selected' && !discoveryGroupIDs.length)" @click="importSelectedDiscoveries">
           {{ t('admin.modelCatalog.discoveryImportSelected', { n: discoverySelectedIds.length }) }}
         </button>
       </template>
@@ -282,15 +353,18 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Toggle from '@/components/common/Toggle.vue'
+import GroupSelector from '@/components/common/GroupSelector.vue'
 import Icon from '@/components/icons/Icon.vue'
 import adminModelCatalogAPI, {
   type AdminCatalogRow,
   type ModelDiscovery,
   type ModelSyncJob,
 } from '@/api/admin/modelCatalog'
+import groupsAPI from '@/api/admin/groups'
 import { formatScaled } from '@/utils/pricing'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import type { AdminGroup } from '@/types'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -307,6 +381,10 @@ const editOpen = ref(false)
 const syncResultOpen = ref(false)
 const syncResult = ref<ModelSyncJob['result'] | null>(null)
 const syncJobError = ref<string | null>(null)
+const groups = ref<AdminGroup[]>([])
+const batchGroupOpen = ref(false)
+const batchGroupMode = ref<'auto' | 'selected'>('selected')
+const batchGroupIDs = ref<number[]>([])
 
 const discoveryOpen = ref(false)
 const discoveryLoading = ref(false)
@@ -318,6 +396,8 @@ const discoverySelectedIds = ref<number[]>([])
 const discoveryPage = ref(1)
 const discoveryPageSize = 50
 const discoveryMultiplier = ref(1)
+const discoveryGroupMode = ref<'auto' | 'selected'>('selected')
+const discoveryGroupIDs = ref<number[]>([])
 
 const editForm = reactive({
   id: 0,
@@ -327,6 +407,8 @@ const editForm = reactive({
   sort_order: 0,
   visible_public: false,
   visible_auth: true,
+  group_mode: 'selected' as 'auto' | 'selected',
+  group_ids: [] as number[],
   price_mode: 'manual' as 'manual' | 'multiplier',
   price_multiplier: 1,
   input_price_million: null as number | null,
@@ -348,6 +430,7 @@ const columns = computed(() => [
   { key: 'select', label: '', sortable: false },
   { key: 'model_name', label: t('admin.modelCatalog.columns.model'), sortable: true },
   { key: 'platform', label: t('admin.modelCatalog.columns.platform'), sortable: true },
+  { key: 'group_ids', label: t('admin.modelCatalog.columns.groups'), sortable: false },
   { key: 'official_input_price', label: t('admin.modelCatalog.columns.officialInput'), sortable: false },
   { key: 'official_output_price', label: t('admin.modelCatalog.columns.officialOutput'), sortable: false },
   { key: 'input_price', label: t('admin.modelCatalog.columns.input'), sortable: false },
@@ -413,6 +496,18 @@ function diffClass(site: number | null | undefined, official: number | null | un
   return 'text-gray-500'
 }
 
+function groupLabel(id: number): string {
+  return groups.value.find((group) => group.id === id)?.name ?? `#${id}`
+}
+
+async function loadGroups() {
+  try {
+    groups.value = await groupsAPI.getAllIncludingInactive()
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.groupLoadFailed')))
+  }
+}
+
 async function loadCatalog() {
   loading.value = true
   try {
@@ -449,6 +544,8 @@ function openDiscoveryPanel() {
   discoveryOpen.value = true
   discoverySelectedIds.value = []
   discoveryPage.value = 1
+  discoveryGroupMode.value = 'selected'
+  discoveryGroupIDs.value = []
   void loadDiscoveries()
 }
 
@@ -491,9 +588,14 @@ async function importSelectedDiscoveries() {
   }
   discoveryImporting.value = true
   try {
+    if (discoveryGroupMode.value === 'selected' && !discoveryGroupIDs.value.length) {
+      appStore.showError(t('admin.modelCatalog.groupSelectRequired'))
+      return
+    }
     const n = await adminModelCatalogAPI.importDiscoveries({
       ids: discoverySelectedIds.value,
       site_multiplier: discoveryMultiplier.value > 0 ? discoveryMultiplier.value : undefined,
+      group_ids: discoveryGroupMode.value === 'selected' ? discoveryGroupIDs.value : null,
     })
     appStore.showSuccess(t('admin.modelCatalog.importDone', { n }))
     discoveryOpen.value = false
@@ -515,6 +617,8 @@ function openCreate() {
     sort_order: rows.value.length * 10,
     visible_public: false,
     visible_auth: true,
+    group_mode: 'selected',
+    group_ids: [],
     price_mode: 'manual',
     price_multiplier: 1,
     input_price_million: null,
@@ -535,6 +639,8 @@ function openEdit(row: AdminCatalogRow) {
     sort_order: row.sort_order,
     visible_public: row.visible_public,
     visible_auth: row.visible_auth,
+    group_mode: row.group_ids == null ? 'auto' : 'selected',
+    group_ids: row.group_ids ?? [],
     price_mode: row.price_multiplier != null ? 'multiplier' : 'manual',
     price_multiplier: row.price_multiplier ?? 1,
     input_price_million: toPerMillion(row.input_price),
@@ -552,6 +658,10 @@ function openEdit(row: AdminCatalogRow) {
 }
 
 async function saveEdit() {
+  if (editForm.group_mode === 'selected' && !editForm.group_ids.length) {
+    appStore.showError(t('admin.modelCatalog.groupSelectRequired'))
+    return
+  }
   saving.value = true
   try {
     const multiplierMode = editForm.price_mode === 'multiplier'
@@ -563,6 +673,7 @@ async function saveEdit() {
       sort_order: editForm.sort_order,
       visible_public: editForm.visible_public,
       visible_auth: editForm.visible_auth,
+      group_ids: editForm.group_mode === 'selected' ? editForm.group_ids : null,
       price_multiplier: multiplierMode ? editForm.price_multiplier : null,
       input_price: multiplierMode ? null : fromPerMillion(editForm.input_price_million),
       output_price: multiplierMode ? null : fromPerMillion(editForm.output_price_million),
@@ -609,6 +720,35 @@ async function batchMultiply() {
   await loadCatalog()
 }
 
+function openBatchGroups() {
+  batchGroupMode.value = 'selected'
+  batchGroupIDs.value = []
+  batchGroupOpen.value = true
+}
+
+async function saveBatchGroups() {
+  if (!selectedIds.value.length) return
+  if (batchGroupMode.value === 'selected' && !batchGroupIDs.value.length) {
+    appStore.showError(t('admin.modelCatalog.groupSelectRequired'))
+    return
+  }
+  saving.value = true
+  try {
+    await adminModelCatalogAPI.batchGroups({
+      ids: selectedIds.value,
+      group_ids: batchGroupMode.value === 'selected' ? batchGroupIDs.value : null,
+    })
+    batchGroupOpen.value = false
+    selectedIds.value = []
+    await loadCatalog()
+    appStore.showSuccess(t('common.saved'))
+  } catch (err: unknown) {
+    appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.saveFailed')))
+  } finally {
+    saving.value = false
+  }
+}
+
 function toPerMillion(value: number | null | undefined): number | null {
   return value == null ? null : value * 1_000_000
 }
@@ -647,5 +787,7 @@ async function startSync() {
   }
 }
 
-onMounted(loadCatalog)
+onMounted(() => {
+  void Promise.all([loadCatalog(), loadGroups()])
+})
 </script>

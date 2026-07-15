@@ -30,6 +30,7 @@ type catalogEntryRequest struct {
 	VisiblePublic   bool     `json:"visible_public"`
 	VisibleAuth     bool     `json:"visible_auth"`
 	Featured        bool     `json:"featured"`
+	GroupIDs        []int64  `json:"group_ids"`
 	InputPrice      *float64 `json:"input_price"`
 	OutputPrice     *float64 `json:"output_price"`
 	CacheReadPrice  *float64 `json:"cache_read_price"`
@@ -52,10 +53,16 @@ type batchPricesRequest struct {
 	OutputPrice *float64 `json:"output_price"`
 }
 
+type batchGroupsRequest struct {
+	IDs      []int64 `json:"ids" binding:"required,min=1"`
+	GroupIDs []int64 `json:"group_ids"`
+}
+
 type importDiscoveriesRequest struct {
 	IDs            []int64  `json:"ids"`
 	ToCatalog      bool     `json:"to_catalog"`
 	SiteMultiplier *float64 `json:"site_multiplier"`
+	GroupIDs       []int64  `json:"group_ids"`
 }
 
 // List GET /admin/model-catalog
@@ -97,6 +104,7 @@ func (h *ModelCatalogHandler) Upsert(c *gin.Context) {
 		VisiblePublic:   req.VisiblePublic,
 		VisibleAuth:     req.VisibleAuth,
 		Featured:        req.Featured,
+		GroupIDs:        req.GroupIDs,
 		InputPrice:      req.InputPrice,
 		OutputPrice:     req.OutputPrice,
 		CacheReadPrice:  req.CacheReadPrice,
@@ -149,6 +157,21 @@ func (h *ModelCatalogHandler) BatchPrices(c *gin.Context) {
 		return
 	}
 	n, err := h.catalogService.BatchPrices(c.Request.Context(), req.IDs, req.Multiplier, req.InputPrice, req.OutputPrice)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"updated": n})
+}
+
+// BatchGroups POST /admin/model-catalog/batch-groups
+func (h *ModelCatalogHandler) BatchGroups(c *gin.Context) {
+	var req batchGroupsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	n, err := h.catalogService.BatchGroups(c.Request.Context(), req.IDs, req.GroupIDs)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -212,7 +235,7 @@ func (h *ModelCatalogHandler) ImportDiscoveries(c *gin.Context) {
 		response.BadRequest(c, "ids required: select discoveries to import")
 		return
 	}
-	n, err := h.catalogService.ImportDiscoveries(c.Request.Context(), req.IDs, req.ToCatalog, req.SiteMultiplier)
+	n, err := h.catalogService.ImportDiscoveries(c.Request.Context(), req.IDs, req.ToCatalog, req.SiteMultiplier, req.GroupIDs)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

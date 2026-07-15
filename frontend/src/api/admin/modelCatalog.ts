@@ -10,6 +10,7 @@ export interface SiteModelCatalogEntry {
   visible_public: boolean
   visible_auth: boolean
   featured: boolean
+  group_ids: number[] | null
   official_input_price: number | null
   official_output_price: number | null
   official_cache_read_price: number | null
@@ -98,6 +99,11 @@ export async function batchPrices(payload: {
   return data?.updated ?? 0
 }
 
+export async function batchGroups(payload: { ids: number[]; group_ids: number[] | null }): Promise<number> {
+  const { data } = await apiClient.post<{ updated: number }>('/admin/model-catalog/batch-groups', payload)
+  return data?.updated ?? 0
+}
+
 export async function createSyncJob(): Promise<ModelSyncJob> {
   const { data } = await apiClient.post<ModelSyncJob>('/admin/model-catalog/sync-jobs')
   return data
@@ -118,7 +124,12 @@ export async function listDiscoveries(params?: {
   return data ?? { items: [], total: 0 }
 }
 
-export async function importDiscoveries(payload: { ids: number[]; to_catalog?: boolean; site_multiplier?: number }): Promise<number> {
+export async function importDiscoveries(payload: {
+  ids: number[]
+  to_catalog?: boolean
+  site_multiplier?: number
+  group_ids?: number[] | null
+}): Promise<number> {
   const { data } = await apiClient.post<{ imported: number }>('/admin/model-catalog/discoveries/import', {
     to_catalog: true,
     ...payload,
@@ -132,6 +143,7 @@ export const adminModelCatalogAPI = {
   deleteCatalogEntry,
   batchVisibility,
   batchPrices,
+  batchGroups,
   createSyncJob,
   getSyncJob,
   listDiscoveries,

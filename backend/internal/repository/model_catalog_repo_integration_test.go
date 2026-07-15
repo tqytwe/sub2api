@@ -68,6 +68,50 @@ func TestModelCatalogRepository_OfficialAndSitePricesRemainSeparate(t *testing.T
 	require.Equal(t, 1, updated)
 }
 
+func TestModelCatalogRepository_GroupScopeRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	repo := NewModelCatalogRepository(integrationDB)
+	entry := &service.SiteModelCatalogEntry{
+		ModelName:   "catalog-groups-" + uuid.NewString(),
+		Platform:    service.PlatformOpenAI,
+		VisibleAuth: true,
+		GroupIDs:    []int64{14, 21},
+		BillingMode: string(service.BillingModeToken),
+		Source:      "manual",
+	}
+	require.NoError(t, repo.UpsertCatalogEntry(ctx, entry))
+	t.Cleanup(func() { _ = repo.DeleteCatalogEntry(context.Background(), entry.ID) })
+
+	got, err := repo.GetCatalogEntry(ctx, entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, []int64{14, 21}, got.GroupIDs)
+
+	updated, err := repo.BatchUpdateGroups(ctx, []int64{entry.ID}, []int64{14})
+	require.NoError(t, err)
+	require.Equal(t, 1, updated)
+
+	got, err = repo.GetCatalogEntry(ctx, entry.ID)
+	require.NoError(t, err)
+	require.Equal(t, []int64{14}, got.GroupIDs)
+
+	updated, err = repo.BatchUpdateGroups(ctx, []int64{entry.ID}, []int64{})
+	require.NoError(t, err)
+	require.Equal(t, 1, updated)
+
+	got, err = repo.GetCatalogEntry(ctx, entry.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.GroupIDs, "empty array must remain distinct from automatic matching")
+	require.Empty(t, got.GroupIDs)
+
+	updated, err = repo.BatchUpdateGroups(ctx, []int64{entry.ID}, nil)
+	require.NoError(t, err)
+	require.Equal(t, 1, updated)
+
+	got, err = repo.GetCatalogEntry(ctx, entry.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.GroupIDs, "NULL group_ids must restore legacy platform auto-matching")
+}
+
 func TestModelCatalogRepository_SyncJobRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	repo := NewModelCatalogRepository(integrationDB)

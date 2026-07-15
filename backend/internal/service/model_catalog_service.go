@@ -163,8 +163,8 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 					if !catalogVisible {
 						continue
 					}
-					grps := platformGroups[strings.ToLower(strings.TrimSpace(platform))]
-					if len(grps) == 0 {
+					grps := visibleGroupsForCatalogEntry(catalogEntry, visibleGroups, platformGroups[strings.ToLower(strings.TrimSpace(platform))])
+					if len(grps) == 0 && catalogEntry.GroupIDs == nil {
 						grps = visibleGroups
 					}
 					officialIn, officialOut := catalogOfficialPrices(catalogEntry)
@@ -214,7 +214,7 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		siteIn, siteOut := catalogSitePrices(catalogEntry, officialIn, officialOut, 1)
 		addedGroupRow := false
 		for _, group := range userGroups {
-			if !catalogGroupMatchesPlatform(group.Platform, catalogEntry.Platform) {
+			if !catalogAllowsGroup(catalogEntry, group.ID, group.Platform) {
 				continue
 			}
 			if _, represented := representedCatalogGroups[catalogKey][group.ID]; represented {
@@ -294,6 +294,35 @@ func catalogGroupMatchesPlatform(groupPlatform, modelPlatform string) bool {
 		return true
 	}
 	return group == PlatformAntigravity && (model == PlatformAnthropic || model == PlatformGemini)
+}
+
+func catalogAllowsGroup(entry SiteModelCatalogEntry, groupID int64, groupPlatform string) bool {
+	if entry.GroupIDs != nil {
+		for _, allowedID := range entry.GroupIDs {
+			if allowedID == groupID {
+				return true
+			}
+		}
+		return false
+	}
+	return catalogGroupMatchesPlatform(groupPlatform, entry.Platform)
+}
+
+func visibleGroupsForCatalogEntry(entry SiteModelCatalogEntry, visibleGroups []AvailableGroupRef, platformGroups []AvailableGroupRef) []AvailableGroupRef {
+	if entry.GroupIDs == nil {
+		return platformGroups
+	}
+	allowed := make(map[int64]struct{}, len(entry.GroupIDs))
+	for _, id := range entry.GroupIDs {
+		allowed[id] = struct{}{}
+	}
+	out := make([]AvailableGroupRef, 0, len(allowed))
+	for _, group := range visibleGroups {
+		if _, ok := allowed[group.ID]; ok {
+			out = append(out, group)
+		}
+	}
+	return out
 }
 
 func catalogOfficialPrices(entry SiteModelCatalogEntry) (*float64, *float64) {
@@ -385,6 +414,11 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 	if hasNegativeCatalogPrice(entry) {
 		return fmt.Errorf("model prices cannot be negative")
 	}
+	groupIDs, err := normalizeCatalogGroupIDs(entry.GroupIDs)
+	if err != nil {
+		return err
+	}
+	entry.GroupIDs = groupIDs
 	if entry.ID > 0 {
 		existing, err := s.repo.GetCatalogEntry(ctx, entry.ID)
 		if err != nil {
@@ -430,6 +464,17 @@ func (s *ModelCatalogService) BatchPrices(ctx context.Context, ids []int64, mult
 	return s.repo.BatchUpdatePrices(ctx, ids, multiplier, absoluteInput, absoluteOutput)
 }
 
+func (s *ModelCatalogService) BatchGroups(ctx context.Context, ids []int64, groupIDs []int64) (int, error) {
+	if len(ids) == 0 {
+		return 0, nil
+	}
+	groupIDs, err := normalizeCatalogGroupIDs(groupIDs)
+	if err != nil {
+		return 0, err
+	}
+	return s.repo.BatchUpdateGroups(ctx, ids, groupIDs)
+}
+
 func (s *ModelCatalogService) ListDiscoveries(ctx context.Context, filter DiscoveryListFilter) (DiscoveryListResult, error) {
 	if filter.Status == "" {
 		filter.Status = "new"
@@ -437,9 +482,13 @@ func (s *ModelCatalogService) ListDiscoveries(ctx context.Context, filter Discov
 	return s.repo.ListDiscoveries(ctx, filter)
 }
 
-func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool, siteMultiplier *float64) (int, error) {
+func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool, siteMultiplier *float64, groupIDs []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, fmt.Errorf("ids required: select discoveries to import")
+	}
+	groupIDs, err := normalizeCatalogGroupIDs(groupIDs)
+	if err != nil {
+		return 0, err
 	}
 	discoveries, err := s.repo.ListDiscoveriesByIDs(ctx, ids)
 	if err != nil {
@@ -466,6 +515,7 @@ func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64
 			Source:            d.Source,
 			OfficialSource:    d.Source,
 			OfficialUpdatedAt: &now,
+			GroupIDs:          groupIDs,
 		}
 		entry.OfficialInputPrice, entry.OfficialOutputPrice,
 			entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice = pricesFromDiscoveryPayload(d.Payload)
@@ -529,6 +579,25 @@ func hasNegativeCatalogPrice(entry *SiteModelCatalogEntry) bool {
 		}
 	}
 	return false
+}
+
+func normalizeCatalogGroupIDs(groupIDs []int64) ([]int64, error) {
+	if groupIDs == nil {
+		return nil, nil
+	}
+	seen := make(map[int64]struct{}, len(groupIDs))
+	normalized := make([]int64, 0, len(groupIDs))
+	for _, id := range groupIDs {
+		if id <= 0 {
+			return nil, fmt.Errorf("group id must be positive")
+		}
+		if _, ok := seen[id]; ok {
+			continue
+		}
+		seen[id] = struct{}{}
+		normalized = append(normalized, id)
+	}
+	return normalized, nil
 }
 
 func catalogOptionalString(s string) *string {

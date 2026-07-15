@@ -16,6 +16,7 @@ type SiteModelCatalogEntry struct {
 	VisiblePublic           bool       `json:"visible_public"`
 	VisibleAuth             bool       `json:"visible_auth"`
 	Featured                bool       `json:"featured"`
+	GroupIDs                []int64    `json:"group_ids"`
 	OfficialInputPrice      *float64   `json:"official_input_price"`
 	OfficialOutputPrice     *float64   `json:"official_output_price"`
 	OfficialCacheReadPrice  *float64   `json:"official_cache_read_price"`
@@ -108,6 +109,7 @@ type ModelCatalogRepository interface {
 	DeleteCatalogEntry(ctx context.Context, id int64) error
 	BatchUpdateVisibility(ctx context.Context, ids []int64, visiblePublic, visibleAuth *bool) (int, error)
 	BatchUpdatePrices(ctx context.Context, ids []int64, multiplier *float64, absoluteInput, absoluteOutput *float64) (int, error)
+	BatchUpdateGroups(ctx context.Context, ids []int64, groupIDs []int64) (int, error)
 	UpdateCatalogOfficialPrices(ctx context.Context, modelName, platform, source string, input, output, cacheRead, cacheWrite *float64, updatedAt time.Time) (int, error)
 
 	ListDiscoveries(ctx context.Context, filter DiscoveryListFilter) (DiscoveryListResult, error)
