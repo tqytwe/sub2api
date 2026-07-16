@@ -1,8 +1,8 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@be6cd1250c10ba2812305dcf071da133e4d738f6`
-> 对应合并提交：`3a23bd68be50654f165acfde7e537f51c1ec5abf`
+> 当前验证基线：`upstream/main@bc2244c83fd8e92769d89ca01eb980513a720486`
+> 对应合并提交：`0f45fb9cb8b29a819c3bd28dcce586dfbeef040d`
 > 最后核验：2026-07-16
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。

@@ -40,6 +40,7 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	Play                   *admin.AdminPlayHandler
 	ModelCatalog           *admin.ModelCatalogHandler
+	AuditLog               *admin.AuditLogHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -60,6 +61,7 @@ type Handlers struct {
 	Payment          *PaymentHandler
 	PaymentWebhook   *PaymentWebhookHandler
 	AvailableChannel *AvailableChannelHandler
+	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 	Play             *PlayHandler
 	ImageStudio      *ImageStudioHandler
