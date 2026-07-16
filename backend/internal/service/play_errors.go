@@ -17,6 +17,7 @@ var (
 	ErrPlayTeamMemberNotFound          = infraerrors.NotFound("PLAY_TEAM_MEMBER_NOT_FOUND", "active squad member not found")
 	ErrPlayTeamCaptainRequired         = infraerrors.Forbidden("PLAY_TEAM_CAPTAIN_REQUIRED", "only the active squad captain may perform this action")
 	ErrPlayTeamCaptainMustTransfer     = infraerrors.Conflict("PLAY_TEAM_CAPTAIN_MUST_TRANSFER", "transfer captaincy before leaving the squad")
+	ErrPlayTeamCaptainTransferSelf     = infraerrors.BadRequest("PLAY_TEAM_CAPTAIN_TRANSFER_SELF", "captaincy must be transferred to another active member")
 	ErrPlayTeamCaptainCannotRemoveSelf = infraerrors.BadRequest(
 		"PLAY_TEAM_CAPTAIN_CANNOT_REMOVE_SELF",
 		"the captain cannot remove themselves",

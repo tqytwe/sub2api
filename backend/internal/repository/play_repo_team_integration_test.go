@@ -130,6 +130,8 @@ func TestTeamMembershipLifecyclePreservesHistoryAndAuthorization(t *testing.T) {
 	require.ErrorIs(t, err, service.ErrPlayTeamCaptainRequired)
 	err = f.service.TransferTeamCaptain(f.ctx, captainID, otherID)
 	require.ErrorIs(t, err, service.ErrPlayTeamMemberNotFound)
+	err = f.service.TransferTeamCaptain(f.ctx, captainID, captainID)
+	require.ErrorIs(t, err, service.ErrPlayTeamCaptainTransferSelf)
 
 	require.NoError(t, f.service.TransferTeamCaptain(f.ctx, captainID, memberID))
 	require.NoError(t, f.service.LeaveTeam(f.ctx, captainID))
@@ -235,6 +237,32 @@ func TestTeamConcurrentJoinCreatesOneActiveMembership(t *testing.T) {
 		FROM play_team_members
 		WHERE user_id = $1 AND left_at IS NULL`, joinerID).Scan(&activeRows))
 	require.Equal(t, 1, activeRows)
+}
+
+func TestTeamArchiveRequiresCaptainAndOneMember(t *testing.T) {
+	f := newTeamLifecycleFixture(t)
+	captainID := f.user("captain")
+	memberID := f.user("member")
+	team := f.createTeam(captainID, "archive-auth")
+	_, err := f.service.JoinTeam(f.ctx, memberID, team.InviteCode)
+	require.NoError(t, err)
+
+	err = f.service.ArchiveTeam(f.ctx, memberID)
+	require.ErrorIs(t, err, service.ErrPlayTeamCaptainRequired)
+	err = f.service.ArchiveTeam(f.ctx, captainID)
+	require.ErrorIs(t, err, service.ErrPlayTeamCaptainMustTransfer)
+
+	var activeRows, archivedRows int
+	require.NoError(t, integrationDB.QueryRowContext(f.ctx, `
+		SELECT COUNT(*)
+		FROM play_team_members
+		WHERE team_id = $1 AND left_at IS NULL`, team.ID).Scan(&activeRows))
+	require.NoError(t, integrationDB.QueryRowContext(f.ctx, `
+		SELECT COUNT(*)
+		FROM play_teams
+		WHERE id = $1 AND archived_at IS NOT NULL`, team.ID).Scan(&archivedRows))
+	require.Equal(t, 2, activeRows)
+	require.Zero(t, archivedRows)
 }
 
 func TestTeamConcurrentCreateRollsBackLosingTeam(t *testing.T) {

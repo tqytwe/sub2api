@@ -165,12 +165,16 @@ when the event insert fails.
 
 Run: `& 'C:\Program Files\Go\bin\go.exe' test ./internal/repository ./internal/service -run 'Team(Leave|Join|Transfer|Remove|Archive|Membership)' -count=1 -p 1`
 
-Expected: PASS.
+Run: `& 'C:\Program Files\Go\bin\go.exe' test -tags=integration ./internal/repository -run '^TestTeam' -count=1 -p 1`
+
+Expected: both commands PASS. The integration command is required because it
+covers concurrent create/join, typed events, rollback, and lifecycle
+authorization against PostgreSQL.
 
 - [ ] **Step 5: Commit lifecycle support**
 
 ```powershell
-git add backend/internal/repository/play_repo_team_test.go backend/internal/repository/play_repo_extended.go backend/internal/service/play_models.go backend/internal/service/play_extended.go backend/internal/service/play_errors.go
+git add backend/internal/repository/play_repo_team_test.go backend/internal/repository/play_repo_team_integration_test.go backend/internal/repository/play_repo_extended.go backend/internal/service/play_models.go backend/internal/service/play_extended.go backend/internal/service/play_errors.go
 git commit -m "feat(play): add team membership lifecycle"
 ```
 

@@ -600,16 +600,16 @@ func isPlayTeamUniqueViolation(err error) bool {
 }
 
 func (s *PlayService) LeaveTeam(ctx context.Context, userID int64) error {
-	return s.leaveAndMaybeArchiveTeam(ctx, userID)
+	return s.leaveAndMaybeArchiveTeam(ctx, userID, false)
 }
 
 // ArchiveTeam closes a one-member captain membership and archives its team.
 // It shares the leave transaction because an archived team must never retain an active member.
 func (s *PlayService) ArchiveTeam(ctx context.Context, actorUserID int64) error {
-	return s.leaveAndMaybeArchiveTeam(ctx, actorUserID)
+	return s.leaveAndMaybeArchiveTeam(ctx, actorUserID, true)
 }
 
-func (s *PlayService) leaveAndMaybeArchiveTeam(ctx context.Context, userID int64) error {
+func (s *PlayService) leaveAndMaybeArchiveTeam(ctx context.Context, userID int64, requireArchive bool) error {
 	rt := s.GetRuntime(ctx)
 	if !rt.AgentTeamEnabled {
 		return ErrPlayFeatureDisabled
@@ -644,6 +644,9 @@ func (s *PlayService) leaveAndMaybeArchiveTeam(ctx context.Context, userID int64
 	}
 	if membership == nil || membership.TeamID != team.ID {
 		return ErrPlayTeamNotMember
+	}
+	if requireArchive && team.CaptainUserID != userID {
+		return ErrPlayTeamCaptainRequired
 	}
 
 	archive := false
@@ -693,6 +696,9 @@ func (s *PlayService) TransferTeamCaptain(ctx context.Context, actorUserID, targ
 	rt := s.GetRuntime(ctx)
 	if !rt.AgentTeamEnabled {
 		return ErrPlayFeatureDisabled
+	}
+	if actorUserID == targetUserID {
+		return ErrPlayTeamCaptainTransferSelf
 	}
 	if s.entClient == nil {
 		return fmt.Errorf("play service: ent client missing")
