@@ -70,16 +70,3 @@ func (s *ImageStudioAssetStore) resolve(storageKey string) (string, error) {
 	}
 	return abs, nil
 }
-
-func extensionForContentType(contentType string) string {
-	switch strings.ToLower(strings.TrimSpace(contentType)) {
-	case "image/jpeg", "image/jpg":
-		return ".jpg"
-	case "image/webp":
-		return ".webp"
-	case "image/gif":
-		return ".gif"
-	default:
-		return ".png"
-	}
-}
