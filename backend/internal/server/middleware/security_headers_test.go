@@ -93,7 +93,7 @@ func TestSecurityHeaders(t *testing.T) {
 		middleware(c)
 
 		assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
-		assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
+		assert.Equal(t, "SAMEORIGIN", w.Header().Get("X-Frame-Options"))
 		assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
 	})
 
@@ -131,6 +131,46 @@ func TestSecurityHeaders(t *testing.T) {
 		assert.Contains(t, csp, CloudflareInsightsDomain)
 	})
 
+	t.Run("does_not_inject_frame_src_origins_into_frame_ancestors", func(t *testing.T) {
+		cfg := config.CSPConfig{
+			Enabled: true,
+			Policy:  "default-src 'self'; frame-ancestors 'self'",
+		}
+		middleware := SecurityHeaders(cfg, func() []string {
+			return []string{"https://tickets.example.com"}
+		})
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+		middleware(c)
+
+		csp := w.Header().Get("Content-Security-Policy")
+		assert.Contains(t, csp, "frame-src 'self' https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com https://tickets.example.com")
+		assert.Contains(t, csp, "frame-ancestors 'self'")
+		assert.NotContains(t, csp, "frame-ancestors 'self' https://tickets.example.com")
+	})
+
+	t.Run("injects_configured_parent_origins_into_frame_ancestors", func(t *testing.T) {
+		cfg := config.CSPConfig{
+			Enabled: true,
+			Policy:  "default-src 'self'; frame-ancestors 'self'",
+		}
+		middleware := SecurityHeaders(cfg, nil, func() []string {
+			return []string{"https://www.jisudeng.com"}
+		})
+
+		w := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(w)
+		c.Request = httptest.NewRequest(http.MethodGet, "/", nil)
+
+		middleware(c)
+
+		csp := w.Header().Get("Content-Security-Policy")
+		assert.Contains(t, csp, "frame-ancestors 'self' https://www.jisudeng.com")
+	})
+
 	t.Run("api_route_skips_csp_nonce_generation", func(t *testing.T) {
 		cfg := config.CSPConfig{
 			Enabled: true,
@@ -145,7 +185,7 @@ func TestSecurityHeaders(t *testing.T) {
 		middleware(c)
 
 		assert.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"))
-		assert.Equal(t, "DENY", w.Header().Get("X-Frame-Options"))
+		assert.Equal(t, "SAMEORIGIN", w.Header().Get("X-Frame-Options"))
 		assert.Equal(t, "strict-origin-when-cross-origin", w.Header().Get("Referrer-Policy"))
 		assert.Empty(t, w.Header().Get("Content-Security-Policy"))
 		assert.Empty(t, GetNonceFromContext(c))

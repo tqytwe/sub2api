@@ -34,10 +34,12 @@ func SetupRouter(
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) *gin.Engine {
-	// 缓存 iframe 页面的 origin 列表，用于动态注入 CSP frame-src
+	// 缓存 iframe 页面的 origin 列表，用于动态注入 CSP frame-src / frame-ancestors
 	var cachedFrameOrigins atomic.Pointer[[]string]
+	var cachedFrameAncestorOrigins atomic.Pointer[[]string]
 	emptyOrigins := []string{}
 	cachedFrameOrigins.Store(&emptyOrigins)
+	cachedFrameAncestorOrigins.Store(&emptyOrigins)
 
 	refreshFrameOrigins := func() {
 		ctx, cancel := context.WithTimeout(context.Background(), frameSrcRefreshTimeout)
@@ -48,6 +50,11 @@ func SetupRouter(
 			return
 		}
 		cachedFrameOrigins.Store(&origins)
+		ancestorOrigins, err := settingService.GetFrameAncestorOrigins(ctx)
+		if err != nil {
+			return
+		}
+		cachedFrameAncestorOrigins.Store(&ancestorOrigins)
 	}
 	refreshFrameOrigins() // 启动时初始化
 
@@ -57,6 +64,11 @@ func SetupRouter(
 	r.Use(middleware2.CORS(cfg.CORS))
 	r.Use(middleware2.SecurityHeaders(cfg.Security.CSP, func() []string {
 		if p := cachedFrameOrigins.Load(); p != nil {
+			return *p
+		}
+		return nil
+	}, func() []string {
+		if p := cachedFrameAncestorOrigins.Load(); p != nil {
 			return *p
 		}
 		return nil

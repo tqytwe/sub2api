@@ -70,9 +70,13 @@ func GetNonceFromContext(c *gin.Context) string {
 }
 
 // SecurityHeaders sets baseline security headers for all responses.
-// getFrameSrcOrigins is an optional function that returns extra origins to inject into frame-src;
-// pass nil to disable dynamic frame-src injection.
-func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) gin.HandlerFunc {
+// getFrameSrcOrigins is an optional function that returns extra origins to inject into frame-src.
+// getFrameAncestorOrigins optionally returns parent origins allowed to embed this app.
+func SecurityHeaders(
+	cfg config.CSPConfig,
+	getFrameSrcOrigins func() []string,
+	getFrameAncestorOrigins ...func() []string,
+) gin.HandlerFunc {
 	policy := strings.TrimSpace(cfg.Policy)
 	if policy == "" {
 		policy = config.DefaultCSPPolicy
@@ -90,9 +94,16 @@ func SecurityHeaders(cfg config.CSPConfig, getFrameSrcOrigins func() []string) g
 				}
 			}
 		}
+		if len(getFrameAncestorOrigins) > 0 && getFrameAncestorOrigins[0] != nil {
+			for _, origin := range getFrameAncestorOrigins[0]() {
+				if origin != "" {
+					finalPolicy = addToDirective(finalPolicy, "frame-ancestors", origin)
+				}
+			}
+		}
 
 		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("X-Frame-Options", "DENY")
+		c.Header("X-Frame-Options", "SAMEORIGIN")
 		c.Header("Referrer-Policy", "strict-origin-when-cross-origin")
 		if isAPIRoutePath(c) {
 			c.Next()
@@ -188,10 +199,42 @@ func addToDirective(policy, directive, value string) string {
 
 	if endIdx == -1 {
 		// No semicolon found, directive goes to end of string
+		policy = removeNoneFromDirective(policy, directive)
 		return policy + " " + value
 	}
 
 	// Insert value before the semicolon
+	policy = removeNoneFromDirective(policy, directive)
+	idx = strings.Index(policy, directivePrefix)
+	endIdx = strings.Index(policy[idx:], ";")
+	if endIdx == -1 {
+		return policy + " " + value
+	}
 	insertPos := idx + endIdx
 	return policy[:insertPos] + " " + value + policy[insertPos:]
+}
+
+func removeNoneFromDirective(policy, directive string) string {
+	directivePrefix := directive + " "
+	idx := strings.Index(policy, directivePrefix)
+	if idx == -1 {
+		return policy
+	}
+	endIdx := strings.Index(policy[idx:], ";")
+	if endIdx == -1 {
+		endIdx = len(policy) - idx
+	}
+	raw := policy[idx : idx+endIdx]
+	fields := strings.Fields(raw)
+	if len(fields) == 0 || fields[0] != directive {
+		return policy
+	}
+	kept := make([]string, 0, len(fields))
+	for _, field := range fields {
+		if field != "'none'" {
+			kept = append(kept, field)
+		}
+	}
+	replacement := strings.Join(kept, " ")
+	return policy[:idx] + replacement + policy[idx+endIdx:]
 }
