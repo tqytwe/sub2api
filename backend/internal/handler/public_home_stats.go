@@ -2,6 +2,8 @@ package handler
 
 import (
 	"net/http"
+	"sync"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -9,41 +11,43 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// PublicHomeStats exposes sanitized marketing metrics for the landing page.
-// GET /api/v1/public/home-stats
-func PublicHomeStats(dashboardService *service.DashboardService) gin.HandlerFunc {
+const publicHomeStatsCacheTTL = 60 * time.Second
+
+type publicHomeStatsCache struct {
+	mu        sync.Mutex
+	snapshot  *service.PublicHomeStats
+	expiresAt time.Time
+}
+
+// PublicHomeStats exposes authoritative production metrics for the landing page.
+func PublicHomeStats(statsService *service.PublicHomeStatsService) gin.HandlerFunc {
+	return newPublicHomeStatsHandler(statsService, time.Now)
+}
+
+func newPublicHomeStatsHandler(statsService *service.PublicHomeStatsService, now func() time.Time) gin.HandlerFunc {
+	cache := &publicHomeStatsCache{}
 	return func(c *gin.Context) {
-		stats, err := dashboardService.GetDashboardStats(c.Request.Context())
+		cache.mu.Lock()
+		defer cache.mu.Unlock()
+
+		requestedAt := now()
+		if cache.snapshot != nil && requestedAt.Before(cache.expiresAt) {
+			response.Success(c, cache.snapshot)
+			return
+		}
+
+		stats, err := statsService.Get(c.Request.Context())
 		if err != nil {
+			if cache.snapshot != nil {
+				response.Success(c, cache.snapshot)
+				return
+			}
 			response.Error(c, http.StatusInternalServerError, "failed to load home stats")
 			return
 		}
 
-		availability := (*float64)(nil)
-		if stats.TotalRequests > 0 && stats.AverageDurationMs >= 0 {
-			// Proxy availability from aggregate health when ops is not public.
-			pct := 99.97
-			if stats.ErrorAccounts > 0 && stats.TotalAccounts > 0 {
-				ratio := float64(stats.NormalAccounts) / float64(stats.TotalAccounts)
-				pct = 99.5 + ratio*0.49
-				if pct > 99.99 {
-					pct = 99.99
-				}
-			}
-			availability = &pct
-		}
-
-		avgTTFT := (*float64)(nil)
-		if stats.AverageDurationMs > 0 {
-			v := stats.AverageDurationMs
-			avgTTFT = &v
-		}
-
-		response.Success(c, gin.H{
-			"total_requests":   stats.TotalRequests,
-			"availability_pct": availability,
-			"avg_ttft_ms":      avgTTFT,
-			"has_live_data":    stats.TotalRequests > 0,
-		})
+		cache.snapshot = stats
+		cache.expiresAt = requestedAt.Add(publicHomeStatsCacheTTL)
+		response.Success(c, stats)
 	}
 }

@@ -135,6 +135,10 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		play.GET("/blindbox/pool", h.Admin.Play.GetBlindboxPool)
 		play.PUT("/blindbox/pool", h.Admin.Play.UpdateBlindboxPool)
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
+		play.GET("/team-rewards/settings", h.Admin.Play.GetTeamRewardSettings)
+		play.PUT("/team-rewards/settings", h.Admin.Play.UpdateTeamRewardSettings)
+		play.GET("/team-rewards/settlements", h.Admin.Play.ListTeamRewardSettlements)
+		play.POST("/team-rewards/settlements/:id/retry", h.Admin.Play.RetryTeamRewardSettlement)
 	}
 }
 

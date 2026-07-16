@@ -2,15 +2,67 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 const PlayRewardSourceTeamSharedReward = "team_shared_reward"
+
+func (s *PlayService) GetTeamRewardSettings(ctx context.Context) PlayTeamRewardSettings {
+	rt := s.GetRuntime(ctx)
+	return PlayTeamRewardSettings{
+		Enabled:    rt.TeamSharedRewardEnabled,
+		Tiers:      append([]TeamRewardTier(nil), rt.TeamSharedRewardTiers...),
+		Cap:        rt.TeamSharedRewardCap,
+		StartMonth: rt.TeamSharedRewardStartMonth,
+	}
+}
+
+func (s *PlayService) UpdateTeamRewardSettings(
+	ctx context.Context,
+	settings PlayTeamRewardSettings,
+) (PlayTeamRewardSettings, error) {
+	cfg := TeamRewardConfig{
+		Enabled: settings.Enabled,
+		Tiers:   append([]TeamRewardTier(nil), settings.Tiers...),
+		Cap:     settings.Cap,
+	}
+	if err := validateTeamRewardConfig(cfg); err != nil {
+		return PlayTeamRewardSettings{}, err
+	}
+	startMonth, diagnostic := parseTeamRewardStartMonth(settings.StartMonth)
+	if diagnostic != nil || startMonth == "" {
+		return PlayTeamRewardSettings{}, fmt.Errorf("team reward start month must use YYYY-MM")
+	}
+	if s.settingService == nil || s.settingService.settingRepo == nil {
+		return PlayTeamRewardSettings{}, fmt.Errorf("team reward settings repository missing")
+	}
+	tiersJSON, err := json.Marshal(cfg.Tiers)
+	if err != nil {
+		return PlayTeamRewardSettings{}, fmt.Errorf("marshal team reward tiers: %w", err)
+	}
+	if err := s.settingService.settingRepo.SetMultiple(ctx, map[string]string{
+		SettingKeyPlayTeamSharedRewardEnabled:    strconv.FormatBool(cfg.Enabled),
+		SettingKeyPlayTeamSharedRewardTiers:      string(tiersJSON),
+		SettingKeyPlayTeamSharedRewardCap:        cfg.Cap.StringFixed(teamRewardAmountScale),
+		SettingKeyPlayTeamSharedRewardStartMonth: startMonth,
+	}); err != nil {
+		return PlayTeamRewardSettings{}, fmt.Errorf("update team reward settings: %w", err)
+	}
+	if s.settingService.onUpdate != nil {
+		s.settingService.onUpdate()
+	}
+	settings.StartMonth = startMonth
+	settings.Tiers = cfg.Tiers
+	settings.Cap = cfg.Cap
+	return settings, nil
+}
 
 func (s *PlayService) SettleTeamRewardMonth(
 	ctx context.Context,
@@ -178,6 +230,103 @@ func (s *PlayService) PayoutTeamRewardSettlement(
 		return nil, errors.Join(payoutErr, refreshErr)
 	}
 	return refreshed, payoutErr
+}
+
+func (s *PlayService) SettleDueTeamRewardMonths(ctx context.Context, now time.Time) (int, error) {
+	settings := s.GetTeamRewardSettings(ctx)
+	if !settings.Enabled || settings.StartMonth == "" {
+		return 0, nil
+	}
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return 0, fmt.Errorf("load team reward timezone: %w", err)
+	}
+	currentMonth := time.Date(now.In(location).Year(), now.In(location).Month(), 1, 0, 0, 0, 0, location)
+	period := currentMonth.AddDate(0, -1, 0)
+	if period.Format("2006-01") < settings.StartMonth {
+		return 0, nil
+	}
+	windowEnd := currentMonth
+	teamIDs, err := s.repo.ListTeamIDsForRewardMonth(ctx, period, windowEnd)
+	if err != nil {
+		return 0, err
+	}
+	cfg := TeamRewardConfig{
+		Enabled: settings.Enabled,
+		Tiers:   settings.Tiers,
+		Cap:     settings.Cap,
+	}
+	settled := 0
+	var settleErr error
+	for _, teamID := range teamIDs {
+		snapshot, err := s.settleTeamRewardMonth(ctx, teamID, period, cfg)
+		if err != nil {
+			settleErr = errors.Join(settleErr, err)
+			continue
+		}
+		if snapshot == nil {
+			continue
+		}
+		if _, err := s.PayoutTeamRewardSettlement(ctx, snapshot.ID); err != nil {
+			settleErr = errors.Join(settleErr, err)
+			continue
+		}
+		settled++
+	}
+	return settled, settleErr
+}
+
+func (s *PlayService) ListUserTeamRewardSettlements(
+	ctx context.Context,
+	userID int64,
+	limit int,
+) ([]PlayTeamSettlementRecord, error) {
+	team, err := s.repo.GetUserTeam(ctx, userID)
+	if err != nil || team == nil {
+		return nil, err
+	}
+	return s.listTeamRewardSettlementRecords(ctx, team.ID, limit)
+}
+
+func (s *PlayService) ListAdminTeamRewardSettlements(
+	ctx context.Context,
+	limit int,
+) ([]PlayTeamSettlementRecord, error) {
+	settlements, err := s.repo.ListTeamRewardSettlements(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.attachTeamRewardAllocations(ctx, settlements)
+}
+
+func (s *PlayService) listTeamRewardSettlementRecords(
+	ctx context.Context,
+	teamID int64,
+	limit int,
+) ([]PlayTeamSettlementRecord, error) {
+	settlements, err := s.repo.ListTeamRewardSettlementsByTeam(ctx, teamID, limit)
+	if err != nil {
+		return nil, err
+	}
+	return s.attachTeamRewardAllocations(ctx, settlements)
+}
+
+func (s *PlayService) attachTeamRewardAllocations(
+	ctx context.Context,
+	settlements []PlayTeamSettlement,
+) ([]PlayTeamSettlementRecord, error) {
+	records := make([]PlayTeamSettlementRecord, 0, len(settlements))
+	for _, settlement := range settlements {
+		allocations, err := s.repo.ListTeamRewardAllocations(ctx, settlement.ID)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, PlayTeamSettlementRecord{
+			Settlement:  settlement,
+			Allocations: allocations,
+		})
+	}
+	return records, nil
 }
 
 func normalizeTeamContributions(contributions []TeamContribution) []TeamContribution {

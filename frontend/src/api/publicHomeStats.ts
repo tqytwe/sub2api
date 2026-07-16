@@ -4,7 +4,8 @@ export interface PublicHomeStatsResponse {
   total_requests: number
   availability_pct: number | null
   avg_ttft_ms: number | null
-  has_live_data: boolean
+  ops_data_through: string | null
+  computed_at: string
 }
 
 export async function fetchPublicHomeStats(): Promise<PublicHomeStatsResponse | null> {

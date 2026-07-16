@@ -14,6 +14,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/shopspring/decimal"
 )
 
 func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*PlayBlindboxStatus, error) {
@@ -870,14 +871,59 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 			members[i].TokenPct = int(members[i].TokenSum * 100 / tokenSum)
 		}
 	}
+	shanghai, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return nil, fmt.Errorf("load team summary timezone: %w", err)
+	}
+	localNow := now.In(shanghai)
+	rewardStart := time.Date(localNow.Year(), localNow.Month(), 1, 0, 0, 0, 0, shanghai)
+	rewardEnd := rewardStart.AddDate(0, 1, 0)
+	contributions, err := s.repo.ListTeamRewardContributions(ctx, teamID, rewardStart, rewardEnd)
+	if err != nil {
+		return nil, err
+	}
+	contributions = normalizeTeamContributions(contributions)
+	teamSpend := sumTeamContributions(contributions).Round(teamRewardAmountScale)
+	spendByUser := make(map[int64]decimal.Decimal, len(contributions))
+	for _, contribution := range contributions {
+		spendByUser[contribution.UserID] = contribution.Amount
+	}
+	for i := range members {
+		members[i].Spend = spendByUser[members[i].UserID].Round(teamRewardAmountScale)
+		if teamSpend.IsPositive() {
+			members[i].SpendPct = int(members[i].Spend.Mul(decimal.NewFromInt(100)).Div(teamSpend).IntPart())
+		}
+	}
+	rt := s.GetRuntime(ctx)
+	cfg := TeamRewardConfig{
+		Enabled: rt.TeamSharedRewardEnabled,
+		Tiers:   append([]TeamRewardTier(nil), rt.TeamSharedRewardTiers...),
+		Cap:     rt.TeamSharedRewardCap,
+	}
+	reachedThreshold, rewardRate := reachedTeamRewardTier(teamSpend, cfg.Tiers)
+	nextThreshold := decimal.Zero
+	for _, tier := range cfg.Tiers {
+		if tier.Threshold.GreaterThan(teamSpend) {
+			nextThreshold = tier.Threshold
+			break
+		}
+	}
 	summary := &PlayTeamSummary{
-		ID:          teamDB.ID,
-		Name:        teamDB.Name,
-		InviteCode:  teamDB.InviteCode,
-		CaptainID:   teamDB.CaptainUserID,
-		MemberCount: len(members),
-		TokenSum:    tokenSum,
-		Members:     members,
+		ID:               teamDB.ID,
+		Name:             teamDB.Name,
+		InviteCode:       teamDB.InviteCode,
+		CaptainID:        teamDB.CaptainUserID,
+		MemberCount:      len(members),
+		TokenSum:         tokenSum,
+		Members:          members,
+		CurrentMonth:     rewardStart.Format("2006-01"),
+		TeamSpend:        teamSpend,
+		ReachedThreshold: reachedThreshold,
+		RewardRate:       rewardRate,
+		NextThreshold:    nextThreshold,
+		EstimatedPool:    resolveTeamRewardPool(teamSpend, cfg),
+		RewardCap:        cfg.Cap,
+		RewardTiers:      cfg.Tiers,
 	}
 	return summary, nil
 }

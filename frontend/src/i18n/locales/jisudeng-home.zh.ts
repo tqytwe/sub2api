@@ -56,8 +56,8 @@ export const jisudengHomeZh = {
   },
   stats: {
     requests: '累计 API 请求',
-    uptime: '服务可用率',
-    latency: '平均首字延迟',
+    uptime: '30 天可用率',
+    latency: '24 小时平均首字延迟',
     models: '可用模型数'
   },
   sections: {

@@ -290,6 +290,137 @@ func (r *playRepository) RefreshTeamRewardSettlementStatus(
 	return r.GetTeamRewardSettlement(ctx, settlementID)
 }
 
+func (r *playRepository) ListTeamIDsForRewardMonth(
+	ctx context.Context,
+	start time.Time,
+	end time.Time,
+) (result []int64, err error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT DISTINCT team_id
+		FROM play_team_members
+		WHERE joined_at < $2
+		  AND (left_at IS NULL OR left_at > $1)
+		ORDER BY team_id`, start, end)
+	if err != nil {
+		return nil, fmt.Errorf("list team IDs for reward month: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	for rows.Next() {
+		var teamID int64
+		if err := rows.Scan(&teamID); err != nil {
+			return nil, fmt.Errorf("scan team ID for reward month: %w", err)
+		}
+		result = append(result, teamID)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate team IDs for reward month: %w", err)
+	}
+	return result, nil
+}
+
+func (r *playRepository) ListTeamRewardSettlementsByTeam(
+	ctx context.Context,
+	teamID int64,
+	limit int,
+) ([]service.PlayTeamSettlement, error) {
+	return listTeamRewardSettlements(ctx, r.sqlExec(ctx), `
+		SELECT id, team_id, period_start, window_start, window_end,
+		       team_spend::text, reached_threshold::text, reward_rate::text,
+		       pool_amount::text, cap_amount::text, status, last_error,
+		       processing_started_at, completed_at
+		FROM play_team_settlements
+		WHERE team_id = $1
+		ORDER BY period_start DESC, id DESC
+		LIMIT $2`, teamID, normalizeTeamRewardListLimit(limit))
+}
+
+func (r *playRepository) ListTeamRewardSettlements(
+	ctx context.Context,
+	limit int,
+) ([]service.PlayTeamSettlement, error) {
+	return listTeamRewardSettlements(ctx, r.sqlExec(ctx), `
+		SELECT id, team_id, period_start, window_start, window_end,
+		       team_spend::text, reached_threshold::text, reward_rate::text,
+		       pool_amount::text, cap_amount::text, status, last_error,
+		       processing_started_at, completed_at
+		FROM play_team_settlements
+		ORDER BY period_start DESC, id DESC
+		LIMIT $1`, normalizeTeamRewardListLimit(limit))
+}
+
+func (r *playRepository) ListTeamRewardAllocations(
+	ctx context.Context,
+	settlementID int64,
+) (result []service.PlayTeamRewardAllocation, err error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT id, settlement_id, user_id, contribution::text, ratio::text,
+		       reward_amount::text, payout_status, idempotency_key, paid_at, last_error
+		FROM play_team_reward_allocations
+		WHERE settlement_id = $1
+		ORDER BY user_id`, settlementID)
+	if err != nil {
+		return nil, fmt.Errorf("list team reward allocations: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	for rows.Next() {
+		allocation, scanErr := scanTeamRewardAllocation(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		result = append(result, *allocation)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate team reward allocations: %w", err)
+	}
+	return result, nil
+}
+
+func listTeamRewardSettlements(
+	ctx context.Context,
+	exec sqlExecutor,
+	query string,
+	args ...any,
+) (result []service.PlayTeamSettlement, err error) {
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list team reward settlements: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	for rows.Next() {
+		settlement, scanErr := scanTeamRewardSettlement(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		result = append(result, *settlement)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate team reward settlements: %w", err)
+	}
+	return result, nil
+}
+
+func normalizeTeamRewardListLimit(limit int) int {
+	if limit <= 0 || limit > 200 {
+		return 50
+	}
+	return limit
+}
+
 func getTeamRewardSettlementByTeamPeriod(
 	ctx context.Context,
 	exec sqlExecutor,
@@ -328,11 +459,36 @@ func scanTeamRewardSettlementQuery(
 	query string,
 	args ...any,
 ) (*service.PlayTeamSettlement, error) {
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+	settlement, err := scanTeamRewardSettlement(rows)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get team reward settlement: %w", err)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return settlement, nil
+}
+
+func scanTeamRewardSettlement(scan rowScanner) (*service.PlayTeamSettlement, error) {
 	var settlement service.PlayTeamSettlement
 	var teamSpend, threshold, rate, pool, cap string
 	var lastError sql.NullString
 	var processingAt, completedAt sql.NullTime
-	err := scanSingleRow(ctx, exec, query, args,
+	if err := scan.Scan(
 		&settlement.ID,
 		&settlement.TeamID,
 		&settlement.PeriodStart,
@@ -347,12 +503,8 @@ func scanTeamRewardSettlementQuery(
 		&lastError,
 		&processingAt,
 		&completedAt,
-	)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get team reward settlement: %w", err)
+	); err != nil {
+		return nil, fmt.Errorf("scan team reward settlement: %w", err)
 	}
 	values := []*decimal.Decimal{
 		&settlement.TeamSpend,

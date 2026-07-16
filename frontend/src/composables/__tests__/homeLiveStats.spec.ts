@@ -1,41 +1,48 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
-  advanceOnline,
-  defaultPersisted,
-  markOffline,
-  markOnline,
-  mergeHomeLiveStats,
-  syntheticRequests,
+  emptyHomeStats,
+  formatHomeStatLatency,
+  formatHomeStatRequests,
+  formatHomeStatUptime,
+  loadHomeStatsSnapshot,
+  toHomeStatsValues,
 } from '@/utils/homeLiveStats'
 
 describe('homeLiveStats', () => {
-  it('advances requests while online', () => {
-    let state = defaultPersisted(0)
-    state = advanceOnline(state, 1000)
-    expect(syntheticRequests(state.creditedMs)).toBeGreaterThan(12_847_360)
-  })
-
-  it('pauses while offline and catch-up on reconnect', () => {
-    let state = defaultPersisted(0)
-    state = advanceOnline(state, 5000)
-    const mid = state.creditedMs
-
-    state = markOffline(state, 10_000)
-    state = advanceOnline(state, 3000)
-    expect(state.creditedMs).toBe(mid)
-
-    state = markOnline(state, 25_000)
-    expect(state.creditedMs).toBe(mid + 15_000)
-  })
-
-  it('uses real requests when higher than synthetic', () => {
-    const merged = mergeHomeLiveStats(60_000, {
-      totalRequests: 20_000_000,
-      availabilityPct: 99.5,
-      avgTtftMs: 420,
-      fetchedAtMs: Date.now(),
+  it('never advances a real snapshot with elapsed time', () => {
+    vi.useFakeTimers()
+    const snapshot = toHomeStatsValues({
+      total_requests: 11336,
+      availability_pct: 99.5,
+      avg_ttft_ms: 600,
+      ops_data_through: '2026-07-16T01:00:00Z',
+      computed_at: '2026-07-16T02:00:00Z',
     })
-    expect(merged.requests).toBe(20_000_000)
-    expect(merged.latencyMs).toBeGreaterThan(0)
+    expect(snapshot.requests).toBe(11336)
+    vi.advanceTimersByTime(60 * 60 * 1000)
+    expect(snapshot.requests).toBe(11336)
+    vi.useRealTimers()
+  })
+
+  it('returns unavailable values without a real snapshot', () => {
+    expect(emptyHomeStats()).toEqual({ requests: null, uptimePct: null, latencyMs: null })
+  })
+
+  it('formats null metrics as unavailable', () => {
+    expect(formatHomeStatRequests(null)).toBe('--')
+    expect(formatHomeStatUptime(null)).toBe('--')
+    expect(formatHomeStatLatency(null)).toBe('--')
+  })
+
+  it('loads only a persisted real API snapshot', () => {
+    const raw = JSON.stringify({
+      total_requests: 99,
+      availability_pct: null,
+      avg_ttft_ms: 420,
+      ops_data_through: null,
+      computed_at: '2026-07-16T02:00:00Z',
+    })
+    expect(loadHomeStatsSnapshot(raw)?.total_requests).toBe(99)
+    expect(loadHomeStatsSnapshot(JSON.stringify({ anchorMs: 0, creditedMs: 5000 }))).toBeNull()
   })
 })

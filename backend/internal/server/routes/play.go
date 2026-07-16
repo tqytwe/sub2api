@@ -53,6 +53,10 @@ func RegisterPlayRoutes(
 			teams.GET("/me", h.Play.TeamMe)
 			teams.POST("", h.Play.TeamCreate)
 			teams.POST("/join", h.Play.TeamJoin)
+			teams.POST("/leave", h.Play.TeamLeave)
+			teams.POST("/transfer", h.Play.TeamTransfer)
+			teams.POST("/remove", h.Play.TeamRemove)
+			teams.GET("/settlements", h.Play.TeamSettlements)
 		}
 
 		authenticated.GET("/play/hub", h.Play.Hub)

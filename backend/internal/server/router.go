@@ -3,11 +3,14 @@ package server
 import (
 	"context"
 	"log"
+	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/server/routes"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -18,6 +21,28 @@ import (
 )
 
 const frameSrcRefreshTimeout = 5 * time.Second
+
+var publicHomeStatsService atomic.Pointer[service.PublicHomeStatsService]
+
+func SetPublicHomeStatsService(statsService *service.PublicHomeStatsService) {
+	publicHomeStatsService.Store(statsService)
+}
+
+func publicHomeStatsRoute() gin.HandlerFunc {
+	var once sync.Once
+	var route gin.HandlerFunc
+	return func(c *gin.Context) {
+		statsService := publicHomeStatsService.Load()
+		if statsService == nil {
+			response.Error(c, http.StatusInternalServerError, "failed to load home stats")
+			return
+		}
+		once.Do(func() {
+			route = handler.PublicHomeStats(statsService)
+		})
+		route(c)
+	}
+}
 
 // SetupRouter 配置路由器中间件和路由
 func SetupRouter(
@@ -130,7 +155,7 @@ func registerRoutes(
 	routes.RegisterPlayRoutes(v1, h, jwtAuth)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
 
-	v1.GET("/public/home-stats", handler.PublicHomeStats(dashboardService))
+	v1.GET("/public/home-stats", publicHomeStatsRoute())
 	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))
 	v1.GET("/public/vip-tiers", handler.PublicVIPTiers(settingService))
 

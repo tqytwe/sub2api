@@ -157,17 +157,27 @@ type PlayTeamMember struct {
 	JoinedAt    time.Time
 	TokenSum    int64
 	TokenPct    int
+	Spend       decimal.Decimal
+	SpendPct    int
 }
 
 type PlayTeamSummary struct {
-	ID          int64
-	Name        string
-	InviteCode  string
-	CaptainID   int64
-	MemberCount int
-	TokenSum    int64
-	Members     []PlayTeamMember
-	Affiliate   *PlayTeamAffiliateInfo
+	ID               int64
+	Name             string
+	InviteCode       string
+	CaptainID        int64
+	MemberCount      int
+	TokenSum         int64
+	Members          []PlayTeamMember
+	Affiliate        *PlayTeamAffiliateInfo
+	CurrentMonth     string
+	TeamSpend        decimal.Decimal
+	ReachedThreshold decimal.Decimal
+	RewardRate       decimal.Decimal
+	NextThreshold    decimal.Decimal
+	EstimatedPool    decimal.Decimal
+	RewardCap        decimal.Decimal
+	RewardTiers      []TeamRewardTier
 }
 
 type PlayTeamMe struct {
@@ -253,6 +263,10 @@ type PlayRepository interface {
 	MarkTeamRewardAllocationPaid(ctx context.Context, allocationID int64) error
 	MarkTeamRewardAllocationFailed(ctx context.Context, allocationID int64, message string) error
 	RefreshTeamRewardSettlementStatus(ctx context.Context, settlementID int64) (*PlayTeamSettlement, error)
+	ListTeamIDsForRewardMonth(ctx context.Context, start, end time.Time) ([]int64, error)
+	ListTeamRewardSettlementsByTeam(ctx context.Context, teamID int64, limit int) ([]PlayTeamSettlement, error)
+	ListTeamRewardSettlements(ctx context.Context, limit int) ([]PlayTeamSettlement, error)
+	ListTeamRewardAllocations(ctx context.Context, settlementID int64) ([]PlayTeamRewardAllocation, error)
 	GetTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamDB, error)
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	ListTeamMembers(ctx context.Context, teamID int64) ([]PlayTeamMember, error)
@@ -313,33 +327,45 @@ const (
 )
 
 type PlayTeamSettlement struct {
-	ID                  int64
-	TeamID              int64
-	PeriodStart         time.Time
-	WindowStart         time.Time
-	WindowEnd           time.Time
-	TeamSpend           decimal.Decimal
-	ReachedThreshold    decimal.Decimal
-	RewardRate          decimal.Decimal
-	PoolAmount          decimal.Decimal
-	CapAmount           decimal.Decimal
-	Status              string
-	LastError           string
-	ProcessingStartedAt *time.Time
-	CompletedAt         *time.Time
+	ID                  int64           `json:"id"`
+	TeamID              int64           `json:"team_id"`
+	PeriodStart         time.Time       `json:"period_start"`
+	WindowStart         time.Time       `json:"window_start"`
+	WindowEnd           time.Time       `json:"window_end"`
+	TeamSpend           decimal.Decimal `json:"team_spend"`
+	ReachedThreshold    decimal.Decimal `json:"reached_threshold"`
+	RewardRate          decimal.Decimal `json:"reward_rate"`
+	PoolAmount          decimal.Decimal `json:"pool_amount"`
+	CapAmount           decimal.Decimal `json:"cap_amount"`
+	Status              string          `json:"status"`
+	LastError           string          `json:"last_error,omitempty"`
+	ProcessingStartedAt *time.Time      `json:"processing_started_at,omitempty"`
+	CompletedAt         *time.Time      `json:"completed_at,omitempty"`
 }
 
 type PlayTeamRewardAllocation struct {
-	ID             int64
-	SettlementID   int64
-	UserID         int64
-	Contribution   decimal.Decimal
-	Ratio          decimal.Decimal
-	RewardAmount   decimal.Decimal
-	PayoutStatus   string
-	IdempotencyKey string
-	PaidAt         *time.Time
-	LastError      string
+	ID             int64           `json:"id"`
+	SettlementID   int64           `json:"settlement_id"`
+	UserID         int64           `json:"user_id"`
+	Contribution   decimal.Decimal `json:"contribution"`
+	Ratio          decimal.Decimal `json:"ratio"`
+	RewardAmount   decimal.Decimal `json:"reward_amount"`
+	PayoutStatus   string          `json:"payout_status"`
+	IdempotencyKey string          `json:"-"`
+	PaidAt         *time.Time      `json:"paid_at,omitempty"`
+	LastError      string          `json:"last_error,omitempty"`
+}
+
+type PlayTeamSettlementRecord struct {
+	Settlement  PlayTeamSettlement         `json:"settlement"`
+	Allocations []PlayTeamRewardAllocation `json:"allocations"`
+}
+
+type PlayTeamRewardSettings struct {
+	Enabled    bool             `json:"enabled"`
+	Tiers      []TeamRewardTier `json:"tiers"`
+	Cap        decimal.Decimal  `json:"cap"`
+	StartMonth string           `json:"start_month"`
 }
 
 type PlayRuntime struct {

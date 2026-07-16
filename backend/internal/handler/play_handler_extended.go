@@ -94,6 +94,8 @@ type playTeamMemberDTO struct {
 	JoinedAt    string `json:"joined_at"`
 	TokenSum    int64  `json:"token_sum"`
 	TokenPct    int    `json:"token_pct"`
+	Spend       string `json:"spend"`
+	SpendPct    int    `json:"spend_pct"`
 }
 
 type playTeamAffiliateDTO struct {
@@ -106,14 +108,22 @@ type playTeamAffiliateDTO struct {
 }
 
 type playTeamSummaryDTO struct {
-	ID          int64                 `json:"id"`
-	Name        string                `json:"name"`
-	InviteCode  string                `json:"invite_code"`
-	CaptainID   int64                 `json:"captain_id"`
-	MemberCount int                   `json:"member_count"`
-	TokenSum    int64                 `json:"token_sum"`
-	Members     []playTeamMemberDTO   `json:"members"`
-	Affiliate   *playTeamAffiliateDTO `json:"affiliate,omitempty"`
+	ID               int64                    `json:"id"`
+	Name             string                   `json:"name"`
+	InviteCode       string                   `json:"invite_code"`
+	CaptainID        int64                    `json:"captain_id"`
+	MemberCount      int                      `json:"member_count"`
+	TokenSum         int64                    `json:"token_sum"`
+	Members          []playTeamMemberDTO      `json:"members"`
+	Affiliate        *playTeamAffiliateDTO    `json:"affiliate,omitempty"`
+	CurrentMonth     string                   `json:"current_month"`
+	TeamSpend        string                   `json:"team_spend"`
+	ReachedThreshold string                   `json:"reached_threshold"`
+	RewardRate       string                   `json:"reward_rate"`
+	NextThreshold    string                   `json:"next_threshold"`
+	EstimatedPool    string                   `json:"estimated_pool"`
+	RewardCap        string                   `json:"reward_cap"`
+	RewardTiers      []service.TeamRewardTier `json:"reward_tiers"`
 }
 
 type playTeamMeDTO struct {
@@ -127,6 +137,10 @@ type playTeamCreateRequest struct {
 
 type playTeamJoinRequest struct {
 	InviteCode string `json:"invite_code"`
+}
+
+type playTeamMemberActionRequest struct {
+	TargetUserID int64 `json:"target_user_id" binding:"required,gt=0"`
 }
 
 func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
@@ -345,18 +359,89 @@ func (h *PlayHandler) TeamJoin(c *gin.Context) {
 	response.Success(c, toPlayTeamSummaryDTO(team))
 }
 
+func (h *PlayHandler) TeamLeave(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if err := h.playService.LeaveTeam(c.Request.Context(), subject.UserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"success": true})
+}
+
+func (h *PlayHandler) TeamTransfer(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req playTeamMemberActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	if err := h.playService.TransferTeamCaptain(c.Request.Context(), subject.UserID, req.TargetUserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"success": true})
+}
+
+func (h *PlayHandler) TeamRemove(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req playTeamMemberActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	if err := h.playService.RemoveTeamMember(c.Request.Context(), subject.UserID, req.TargetUserID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"success": true})
+}
+
+func (h *PlayHandler) TeamSettlements(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	records, err := h.playService.ListUserTeamRewardSettlements(c.Request.Context(), subject.UserID, 24)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, records)
+}
+
 func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
 	if team == nil {
 		return nil
 	}
 	out := &playTeamSummaryDTO{
-		ID:          team.ID,
-		Name:        team.Name,
-		InviteCode:  team.InviteCode,
-		CaptainID:   team.CaptainID,
-		MemberCount: team.MemberCount,
-		TokenSum:    team.TokenSum,
-		Members:     make([]playTeamMemberDTO, 0, len(team.Members)),
+		ID:               team.ID,
+		Name:             team.Name,
+		InviteCode:       team.InviteCode,
+		CaptainID:        team.CaptainID,
+		MemberCount:      team.MemberCount,
+		TokenSum:         team.TokenSum,
+		Members:          make([]playTeamMemberDTO, 0, len(team.Members)),
+		CurrentMonth:     team.CurrentMonth,
+		TeamSpend:        team.TeamSpend.StringFixed(8),
+		ReachedThreshold: team.ReachedThreshold.StringFixed(8),
+		RewardRate:       team.RewardRate.StringFixed(8),
+		NextThreshold:    team.NextThreshold.StringFixed(8),
+		EstimatedPool:    team.EstimatedPool.StringFixed(8),
+		RewardCap:        team.RewardCap.StringFixed(8),
+		RewardTiers:      team.RewardTiers,
 	}
 	for _, m := range team.Members {
 		out.Members = append(out.Members, playTeamMemberDTO{
@@ -366,6 +451,8 @@ func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
 			JoinedAt:    m.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
 			TokenSum:    m.TokenSum,
 			TokenPct:    m.TokenPct,
+			Spend:       m.Spend.StringFixed(8),
+			SpendPct:    m.SpendPct,
 		})
 	}
 	if team.Affiliate != nil {
