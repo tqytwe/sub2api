@@ -12,12 +12,13 @@ import (
 )
 
 type PlayService struct {
-	repo             PlayRepository
-	userRepo         UserRepository
-	channelService   *ChannelService
-	settingService   *SettingService
-	affiliateService *AffiliateService
-	entClient        *dbent.Client
+	repo               PlayRepository
+	userRepo           UserRepository
+	channelService     *ChannelService
+	settingService     *SettingService
+	affiliateService   *AffiliateService
+	entClient          *dbent.Client
+	blindboxDrawSource func(max int64) (int64, error)
 }
 
 func NewPlayService(
@@ -29,12 +30,13 @@ func NewPlayService(
 	entClient *dbent.Client,
 ) *PlayService {
 	return &PlayService{
-		repo:             repo,
-		userRepo:         userRepo,
-		channelService:   channelService,
-		settingService:   settingService,
-		affiliateService: affiliateService,
-		entClient:        entClient,
+		repo:               repo,
+		userRepo:           userRepo,
+		channelService:     channelService,
+		settingService:     settingService,
+		affiliateService:   affiliateService,
+		entClient:          entClient,
+		blindboxDrawSource: cryptoBlindboxDrawSource,
 	}
 }
 

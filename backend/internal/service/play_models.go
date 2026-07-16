@@ -80,23 +80,26 @@ type PlayCheckinResult struct {
 }
 
 type PlayBlindboxStatus struct {
-	Enabled           bool
-	CostAmount        float64
-	DailyLimit        int
-	EffectiveLimit    int
-	OpensToday        int
-	CanOpen           bool
-	ServerDate        string
+	Enabled             bool
+	CostAmount          float64
+	BlindboxPool        PlayBlindboxPool
+	DailyLimit          int
+	EffectiveLimit      int
+	OpensToday          int
+	CanOpen             bool
+	ServerDate          string
 	RechargeBoostActive bool
 	CampaignActive      bool
 }
 
 type PlayBlindboxOpenResult struct {
-	CostAmount    float64
-	RewardAmount  float64
-	NetAmount     float64
-	OpensToday    int
-	ServerDate    string
+	CostAmount   float64
+	RewardAmount float64
+	NetAmount    float64
+	OpensToday   int
+	ServerDate   string
+	PoolVersion  string
+	OpenSource   string
 }
 
 // PlayBlindboxRecentWin is a privacy-masked public feed row for recent opens.
@@ -248,6 +251,7 @@ type PlayRuntime struct {
 	ArenaSettlementRewards      []PlayArenaSettlementTier
 	BlindboxEnabled             bool
 	BlindboxCost                float64
+	BlindboxPool                PlayBlindboxPool
 	BlindboxDailyLimit          int
 	QuizEnabled                 bool
 	QuizRewardPerCorrect        float64

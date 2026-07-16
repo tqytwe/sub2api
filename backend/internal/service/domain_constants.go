@@ -375,6 +375,7 @@ const (
 	SettingKeyPlayArenaEnabled         = "play_arena_enabled"
 	SettingKeyPlayBlindboxEnabled      = "play_blindbox_enabled"
 	SettingKeyPlayBlindboxCost         = "play_blindbox_cost"
+	SettingKeyPlayBlindboxPoolJSON     = "play_blindbox_pool_json"
 	SettingKeyPlayBlindboxDailyLimit   = "play_blindbox_daily_limit"
 	SettingKeyPlayQuizEnabled          = "play_quiz_enabled"
 	SettingKeyPlayQuizRewardPerCorrect = "play_quiz_reward_per_correct"
