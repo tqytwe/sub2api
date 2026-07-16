@@ -1,5 +1,6 @@
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
+import auditAdminEn from './en/admin/audit'
 
 export default {
   batchImageGuide: {
@@ -1570,6 +1571,7 @@ export default {
 
   // Admin
   admin: {
+    ...auditAdminEn,
     // Dashboard
     dashboard: {
       title: 'Admin Dashboard',
