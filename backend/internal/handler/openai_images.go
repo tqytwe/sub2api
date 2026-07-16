@@ -70,7 +70,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 
 	parsed, err := h.gatewayService.ParseOpenAIImagesRequest(c, body)
 	if err != nil {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		h.errorResponse(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
 		return
 	}
 	requestModel := parsed.Model
@@ -411,4 +411,12 @@ func (h *OpenAIGatewayHandler) openAIImagesJSONKeepaliveInterval() time.Duration
 
 func isMultipartImagesContentType(contentType string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "multipart/form-data")
+}
+
+func openAIImagesValidationErrorStatus(err error) int {
+	var fieldTooLarge *service.OpenAIImagesMultipartFieldTooLargeError
+	if errors.As(err, &fieldTooLarge) {
+		return http.StatusRequestEntityTooLarge
+	}
+	return http.StatusBadRequest
 }

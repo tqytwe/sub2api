@@ -58,6 +58,36 @@ type OpenAIImagesUpload struct {
 	Height      int
 }
 
+type OpenAIImagesMultipartFieldTooLargeError struct {
+	FieldName  string
+	LimitBytes int64
+}
+
+func (e *OpenAIImagesMultipartFieldTooLargeError) Error() string {
+	if e == nil {
+		return "Multipart field exceeds upload limit"
+	}
+	return fmt.Sprintf(
+		"Multipart field %s exceeds %d MiB limit",
+		e.FieldName,
+		e.LimitBytes/(1024*1024),
+	)
+}
+
+func readOpenAIImagesMultipartField(part io.Reader, fieldName string) ([]byte, error) {
+	data, err := io.ReadAll(io.LimitReader(part, openAIImageMaxUploadPartSize+1))
+	if err != nil {
+		return nil, fmt.Errorf("read multipart field %s: %w", fieldName, err)
+	}
+	if len(data) > openAIImageMaxUploadPartSize {
+		return nil, &OpenAIImagesMultipartFieldTooLargeError{
+			FieldName:  fieldName,
+			LimitBytes: openAIImageMaxUploadPartSize,
+		}
+	}
+	return data, nil
+}
+
 type OpenAIImagesRequest struct {
 	Endpoint           string
 	ContentType        string
@@ -331,10 +361,10 @@ func parseOpenAIImagesMultipartRequest(body []byte, contentType string, req *Ope
 			continue
 		}
 
-		data, err := io.ReadAll(io.LimitReader(part, openAIImageMaxUploadPartSize))
+		data, err := readOpenAIImagesMultipartField(part, name)
 		_ = part.Close()
 		if err != nil {
-			return fmt.Errorf("read multipart field %s: %w", name, err)
+			return err
 		}
 
 		fileName := strings.TrimSpace(part.FileName())

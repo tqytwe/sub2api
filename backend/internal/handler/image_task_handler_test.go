@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,7 +17,15 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
+
+type asyncImageZeroReader struct{}
+
+func (asyncImageZeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
 
 type asyncImageMemoryStore struct {
 	mu    sync.RWMutex
@@ -141,5 +152,98 @@ func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, pollWriter.Code)
 
 	// No task was created / persisted.
+	require.Empty(t, store.tasks)
+}
+
+func TestAsyncImageHandlerMultipartPartTooLargeReturnsOpenAICompatible413(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, platform := range []string{service.PlatformOpenAI, service.PlatformGrok} {
+		t.Run(platform, func(t *testing.T) {
+			store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+			tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+			openAI := &OpenAIGatewayHandler{gatewayService: &service.OpenAIGatewayService{}}
+			h := NewAsyncImageHandler(tasks, openAI)
+
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				groupID := int64(3)
+				c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+					ID:      9,
+					UserID:  7,
+					GroupID: &groupID,
+					Group: &service.Group{
+						ID:                   groupID,
+						Platform:             platform,
+						AllowImageGeneration: true,
+					},
+				})
+				c.Next()
+			})
+			router.POST("/v1/images/edits/async", h.Submit)
+
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			model := "gpt-image-2"
+			if platform == service.PlatformGrok {
+				model = "grok-imagine-edit"
+			}
+			require.NoError(t, writer.WriteField("model", model))
+			part, err := writer.CreateFormFile("image", "source.png")
+			require.NoError(t, err)
+			_, err = io.CopyN(part, asyncImageZeroReader{}, (20<<20)+1)
+			require.NoError(t, err)
+			require.NoError(t, writer.Close())
+
+			req := httptest.NewRequest(http.MethodPost, "/v1/images/edits/async", bytes.NewReader(body.Bytes()))
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+			require.Equal(t, "invalid_request_error", gjson.GetBytes(w.Body.Bytes(), "error.type").String())
+			require.Equal(t, "Multipart field image exceeds 20 MiB limit", gjson.GetBytes(w.Body.Bytes(), "error.message").String())
+			require.Empty(t, store.tasks)
+		})
+	}
+}
+
+func TestAsyncImageHandlerGrokMalformedMultipartJSONBodyReturnsOpenAICompatible400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	openAI := &OpenAIGatewayHandler{gatewayService: &service.OpenAIGatewayService{}}
+	h := NewAsyncImageHandler(tasks, openAI)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		groupID := int64(3)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+			ID:      9,
+			UserID:  7,
+			GroupID: &groupID,
+			Group: &service.Group{
+				ID:                   groupID,
+				Platform:             service.PlatformGrok,
+				AllowImageGeneration: true,
+			},
+		})
+		c.Next()
+	})
+	router.POST("/v1/images/edits/async", h.Submit)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/images/edits/async",
+		strings.NewReader(`{"model":"grok-imagine-edit","prompt":"test"}`),
+	)
+	req.Header.Set("Content-Type", "multipart/form-data")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, "invalid_request_error", gjson.GetBytes(w.Body.Bytes(), "error.type").String())
+	require.Equal(t, "multipart boundary is required", gjson.GetBytes(w.Body.Bytes(), "error.message").String())
 	require.Empty(t, store.tasks)
 }
