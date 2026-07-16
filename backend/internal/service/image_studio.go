@@ -20,6 +20,7 @@ const (
 	ImageStudioJobStatusFailed    = "failed"
 
 	defaultImageStudioSize = "1024x1024"
+	maxImageStudioCount    = 4
 )
 
 var (
@@ -223,6 +224,9 @@ func (s *ImageStudioService) Estimate(ctx context.Context, userID int64, templat
 	if count <= 0 {
 		count = tpl.Defaults.Count
 	}
+	if count > maxImageStudioCount {
+		count = maxImageStudioCount
+	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -308,6 +312,9 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	count := req.Count
 	if count <= 0 {
 		count = tpl.Defaults.Count
+	}
+	if count > maxImageStudioCount {
+		count = maxImageStudioCount
 	}
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
