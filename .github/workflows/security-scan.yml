@@ -2,9 +2,18 @@ name: Security Scan
 
 on:
   push:
+    branches:
+      - play/main
   pull_request:
+    branches:
+      - play/main
   schedule:
     - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: security-scan-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read

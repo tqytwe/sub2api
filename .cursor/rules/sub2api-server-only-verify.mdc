@@ -12,8 +12,8 @@ alwaysApply: true
 - 使用隔离 Git worktree 开发。
 - 业务行为严格 TDD，每个任务依次完成规格审查和代码质量审查。
 - 定向测试、完整测试、完整构建和 `./scripts/check-fork-integrity.sh` 全通过后才能提交和推送。
-- 先推送审查分支；确认后以非 rebase、非强推方式进入 `play/main`。
-- `origin/play/main` 触发 Zeabur；确认实际部署 commit 和健康状态后才能验收。
+- 先推送审查分支并创建目标为 `play/main` 的 PR；完整 GitHub CI 只在 PR 执行一次。
+- `origin/play/main` 触发 Zeabur，不重复等待完整测试；确认实际部署 commit、健康状态和关键 API 后才能验收。
 
 ## 本地电脑验收
 

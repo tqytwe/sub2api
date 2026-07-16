@@ -57,15 +57,15 @@ make build
 
 1. 检查 diff，只暂存当前任务文件，确认没有凭据或无关改动。
 2. 创建可追溯提交并记录 commit SHA。
-3. 先推送 `codex/**` 审查分支，等待规格、代码质量和 GitHub CI（包括 Fork Integrity）确认。
-4. 确认后以 merge commit 或其他非 rebase、非强推方式进入 `play/main`。
-5. 推送 `origin/play/main`；禁止向 `origin/main` 发布极速蹬生产代码。
+3. 先推送审查分支并创建目标为 `play/main` 的 PR。推送普通审查分支本身不触发完整测试，避免同一提交在 push 和 PR 阶段重复运行。
+4. 完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，包括 Fork Integrity 和安全扫描。确认后以 merge commit 或其他非 rebase、非强推方式进入 `play/main`。
+5. 推送 `origin/play/main`；禁止向 `origin/main` 发布极速蹬生产代码。生产推送只触发 Zeabur、生产安全扫描和健康核对，不重复执行已在服务器和 PR 通过的完整测试。
 
-不得绕过审查分支直接把未经确认的开发提交推入生产分支。若使用其他审查分支命名，必须创建目标为 `play/main` 的 PR，以触发同等 CI 闸门。
+不得绕过审查分支直接把未经确认的开发提交推入生产分支。所有审查分支名称都通过目标为 `play/main` 的 PR 获得同一套 CI 闸门，不再依赖 `codex/**` push 触发。
 
 ## 5. Zeabur 部署核对
 
-`origin/play/main` 推送后等待 Zeabur 完成生产部署。验收前必须记录并确认：
+`origin/play/main` 推送后 Zeabur 立即并行构建，不再等待重复的完整 GitHub 测试。验收前必须记录并确认：
 
 - 预期的 `play/main` commit SHA。
 - Zeabur 实际部署的 commit SHA 与预期一致。

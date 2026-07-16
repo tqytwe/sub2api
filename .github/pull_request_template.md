@@ -18,6 +18,7 @@
 - [ ] 已运行 `./scripts/check-fork-integrity.sh`。
 - [ ] 已运行适用的定向测试、`make test` 和 `make build`，全部通过后才提交/推送。
 - [ ] 本 PR 是先推送的审查分支；确认后将以非 rebase、非强推方式进入 `play/main`。
+- [ ] 完整 GitHub CI 仅由本 PR 执行一次；普通分支 push 和生产 push 不重复运行完整测试。
 
 受影响的定制 ID：`FORK-...` / 无
 

@@ -1,8 +1,7 @@
-name: CI
+name: Legacy CI (manual)
 
 on:
-  push:
-  pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
