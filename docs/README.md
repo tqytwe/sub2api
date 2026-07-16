@@ -21,6 +21,8 @@
 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-16 |
 | [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | 合并、验证、部署和回滚 | 发布负责人 | 2026-07-16 |
 | [图像工作室](./IMAGE_STUDIO.md) | `active` | 当前产品行为、接口和运维不变量 | 图像工作室维护者 | 2026-07-15 |
+| [GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md) | `active` | GPT/Grok 单张、多张、编辑、保存和网页显示 | API 维护者 | 2026-07-16 |
+| [多张 / 批量生图调用](./BATCH_IMAGE_API.md) | `active` | GPT/Grok 多张输出、多 prompt 批量调用和本地保存 | API 维护者 | 2026-07-16 |
 | [Growth / Play](./GROWTH_PLAY.md) | `active` | 当前功能、开关、路由和短期 backlog | Growth 维护者 | 2026-07-15 |
 | [增长埋点](./growth-analytics.md) | `active` | 当前埋点和指标口径 | Growth 维护者 | 2026-07-15 |
 | [模型与价格](./MODEL_PRICING_CN.md) | `active` | 模型目录、参考价和实际计费关系 | 计费维护者 | 2026-07-15 |
