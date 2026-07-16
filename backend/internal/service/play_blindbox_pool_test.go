@@ -4,10 +4,14 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"math"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zaptest/observer"
 )
 
 func TestDefaultBlindboxPoolIsApprovedPool(t *testing.T) {
@@ -69,6 +73,19 @@ func TestValidateBlindboxPoolRejectsInvalidPools(t *testing.T) {
 	}
 }
 
+func TestValidateBlindboxPoolAcceptsExactRTPCapBoundary(t *testing.T) {
+	pool := PlayBlindboxPool{
+		Version: "exact-cap",
+		Cost:    0.1,
+		RTPCap:  0.7,
+		Tiers: []PlayBlindboxTier{
+			{Amount: 0.07, Weight: blindboxWeightTotal},
+		},
+	}
+
+	require.NoError(t, ValidateBlindboxPool(pool))
+}
+
 func TestPickBlindboxRewardAtCoversBoundaries(t *testing.T) {
 	pool := defaultBlindboxPool()
 
@@ -102,23 +119,43 @@ func TestGetPlayRuntimeUsesValidCustomBlindboxPool(t *testing.T) {
 
 func TestGetPlayRuntimeFallsBackToDefaultBlindboxPool(t *testing.T) {
 	tests := []struct {
-		name string
-		raw  string
+		name        string
+		raw         string
+		wantWarning bool
 	}{
-		{name: "missing", raw: ""},
-		{name: "malformed json", raw: `{"version":`},
-		{name: "invalid weights", raw: `{"version":"bad","cost":1,"rtp_cap":1,"tiers":[{"amount":0.1,"weight":9999}]}`},
+		{name: "missing", raw: "", wantWarning: false},
+		{name: "whitespace", raw: " \t\n", wantWarning: false},
+		{name: "malformed json", raw: `{"version":"private-pool-secret",`, wantWarning: true},
+		{name: "overflowing sensitive number", raw: `{"version":"pool","cost":123456789012345678901234567890e9999,"rtp_cap":1,"tiers":[{"amount":0.1,"weight":10000}]}`, wantWarning: true},
+		{name: "invalid weights", raw: `{"version":"private-pool-secret","cost":1,"rtp_cap":1,"tiers":[{"amount":0.1,"weight":9999}]}`, wantWarning: true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			core, observed := observer.New(zap.WarnLevel)
+			ctx := logger.IntoContext(context.Background(), zap.New(core))
 			repo := &blindboxPoolSettingRepoStub{values: map[string]string{
 				SettingKeyPlayBlindboxPoolJSON: tt.raw,
 			}}
 
-			runtime := (&SettingService{settingRepo: repo}).GetPlayRuntime(context.Background())
+			runtime := (&SettingService{settingRepo: repo}).GetPlayRuntime(ctx)
 
 			require.Equal(t, defaultBlindboxPool(), runtime.BlindboxPool)
+			warnings := observed.FilterMessage("invalid play blindbox pool configuration; using approved default").All()
+			if tt.wantWarning {
+				require.Len(t, warnings, 1)
+				fields := warnings[0].ContextMap()
+				require.NotContains(t, fields, "raw")
+				require.NotContains(t, fields, "value")
+				require.NotContains(t, fields, "config")
+				reason, ok := fields["reason"].(string)
+				require.True(t, ok)
+				logged := warnings[0].Message + " " + reason + " " + fmt.Sprint(fields)
+				require.NotContains(t, logged, "private-pool-secret")
+				require.NotContains(t, logged, "123456789012345678901234567890e9999")
+			} else {
+				require.Empty(t, warnings)
+			}
 		})
 	}
 }
@@ -150,6 +187,45 @@ func TestBlindboxPoolDrawSourceRejectsErrorsAndOutOfRangeDraws(t *testing.T) {
 		}
 		_, err = service.pickBlindboxReward(pool)
 		require.Error(t, err)
+	}
+}
+
+func TestPlayServicePickBlindboxRewardCoversEveryTierBoundary(t *testing.T) {
+	pool := defaultBlindboxPool()
+	tests := []struct {
+		name   string
+		draw   int64
+		reward float64
+	}{
+		{name: "tier 1 start", draw: 0, reward: 0.05},
+		{name: "tier 1 end", draw: 3999, reward: 0.05},
+		{name: "tier 2 start", draw: 4000, reward: 0.20},
+		{name: "tier 2 end", draw: 6999, reward: 0.20},
+		{name: "tier 3 start", draw: 7000, reward: 0.50},
+		{name: "tier 3 end", draw: 8799, reward: 0.50},
+		{name: "tier 4 start", draw: 8800, reward: 1},
+		{name: "tier 4 end", draw: 9599, reward: 1},
+		{name: "tier 5 start", draw: 9600, reward: 3},
+		{name: "tier 5 end", draw: 9899, reward: 3},
+		{name: "tier 6 start", draw: 9900, reward: 10},
+		{name: "tier 6 end", draw: 9989, reward: 10},
+		{name: "tier 7 start", draw: 9990, reward: 20},
+		{name: "tier 7 end", draw: 9999, reward: 20},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewPlayService(nil, nil, nil, nil, nil, nil)
+			svc.blindboxDrawSource = func(max int64) (int64, error) {
+				require.Equal(t, blindboxWeightTotal, max)
+				return tt.draw, nil
+			}
+
+			reward, err := svc.pickBlindboxReward(pool)
+
+			require.NoError(t, err)
+			require.Equal(t, tt.reward, reward)
+		})
 	}
 }
 

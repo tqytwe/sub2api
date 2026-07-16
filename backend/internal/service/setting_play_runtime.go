@@ -4,6 +4,9 @@ import (
 	"context"
 	"strconv"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // GetPlayRuntime reads play feature toggles and reward config directly from the
@@ -65,6 +68,14 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 	if quizCount <= 0 {
 		quizCount = 5
 	}
+	blindboxPool, blindboxPoolDiagnostic := parseBlindboxPool(vals[SettingKeyPlayBlindboxPoolJSON])
+	if blindboxPoolDiagnostic != nil {
+		logger.FromContext(ctx).Warn(
+			"invalid play blindbox pool configuration; using approved default",
+			zap.String("setting_key", SettingKeyPlayBlindboxPoolJSON),
+			zap.String("reason", blindboxPoolDiagnostic.Reason),
+		)
+	}
 	return PlayRuntime{
 		CheckinEnabled:              vals[SettingKeyPlayCheckinEnabled] == "true",
 		CheckinReward:               reward,
@@ -74,7 +85,7 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		ArenaSettlementRewards:      parseArenaSettlementRewards(vals[SettingKeyPlayArenaSettlementRewards]),
 		BlindboxEnabled:             vals[SettingKeyPlayBlindboxEnabled] == "true",
 		BlindboxCost:                blindboxCost,
-		BlindboxPool:                parseBlindboxPool(vals[SettingKeyPlayBlindboxPoolJSON]),
+		BlindboxPool:                blindboxPool,
 		BlindboxDailyLimit:          blindboxLimit,
 		QuizEnabled:                 vals[SettingKeyPlayQuizEnabled] == "true",
 		QuizRewardPerCorrect:        quizReward,

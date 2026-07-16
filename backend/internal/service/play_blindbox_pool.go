@@ -7,6 +7,8 @@ import (
 	"math"
 	"math/big"
 	"strings"
+
+	"github.com/shopspring/decimal"
 )
 
 const blindboxWeightTotal int64 = 10_000
@@ -21,6 +23,10 @@ type PlayBlindboxPool struct {
 	Cost    float64            `json:"cost"`
 	RTPCap  float64            `json:"rtp_cap"`
 	Tiers   []PlayBlindboxTier `json:"tiers"`
+}
+
+type blindboxPoolConfigDiagnostic struct {
+	Reason string
 }
 
 func defaultBlindboxPool() PlayBlindboxPool {
@@ -79,30 +85,36 @@ func ValidateBlindboxPool(pool PlayBlindboxPool) error {
 		return fmt.Errorf("blindbox pool weights must total %d", blindboxWeightTotal)
 	}
 
-	expectedReward := pool.ExpectedReward()
-	if !isFiniteFloat(expectedReward) {
-		return fmt.Errorf("blindbox pool expected reward must be finite")
-	}
-	if expectedReward > pool.Cost*pool.RTPCap {
-		return fmt.Errorf("blindbox pool expected reward %.12g exceeds rtp cap %.12g", expectedReward, pool.Cost*pool.RTPCap)
+	expectedReward := blindboxExpectedRewardDecimal(pool)
+	rtpLimit := decimal.NewFromFloat(pool.Cost).Mul(decimal.NewFromFloat(pool.RTPCap))
+	if expectedReward.GreaterThan(rtpLimit) {
+		return fmt.Errorf(
+			"blindbox pool expected reward %s exceeds rtp cap %s",
+			expectedReward.String(),
+			rtpLimit.String(),
+		)
 	}
 	return nil
 }
 
-func parseBlindboxPool(raw string) PlayBlindboxPool {
+func parseBlindboxPool(raw string) (PlayBlindboxPool, *blindboxPoolConfigDiagnostic) {
 	fallback := defaultBlindboxPool()
 	if strings.TrimSpace(raw) == "" {
-		return fallback
+		return fallback, nil
 	}
 
 	var pool PlayBlindboxPool
 	if err := json.Unmarshal([]byte(raw), &pool); err != nil {
-		return fallback
+		return fallback, &blindboxPoolConfigDiagnostic{
+			Reason: "malformed_json",
+		}
 	}
 	if err := ValidateBlindboxPool(pool); err != nil {
-		return fallback
+		return fallback, &blindboxPoolConfigDiagnostic{
+			Reason: "invalid_pool",
+		}
 	}
-	return pool
+	return pool, nil
 }
 
 func pickBlindboxRewardAt(pool PlayBlindboxPool, draw int64) float64 {
@@ -147,4 +159,14 @@ func (s *PlayService) pickBlindboxReward(pool PlayBlindboxPool) (float64, error)
 
 func isFiniteFloat(value float64) bool {
 	return !math.IsNaN(value) && !math.IsInf(value, 0)
+}
+
+func blindboxExpectedRewardDecimal(pool PlayBlindboxPool) decimal.Decimal {
+	weightedReward := decimal.Zero
+	for _, tier := range pool.Tiers {
+		weightedReward = weightedReward.Add(
+			decimal.NewFromFloat(tier.Amount).Mul(decimal.NewFromInt(tier.Weight)),
+		)
+	}
+	return weightedReward.Div(decimal.NewFromInt(blindboxWeightTotal))
 }
