@@ -194,10 +194,12 @@ export const jisudengPagesEn = {
   },
   blindbox: {
     prizePoolTitle: 'Prize pool preview',
-    prizePoolNote: 'Odds shown are for the default pool; VIP tiers may upgrade rewards.',
+    prizePoolNote: 'Rewards and odds reflect the current public prize pool.',
     recentWinsTitle: 'Recent wins',
     recentWinsPlaceholder: 'No public wins yet — your rewards credit instantly after each open.',
+    recentWinsUnavailable: 'Recent wins are unavailable right now.',
     disabled: 'Blind box is not available right now',
+    unavailable: 'The prize pool is unavailable. Please try again later.',
     costHint: 'Cost ${cost} per open · Today {opens}/{limit}',
     openButton: 'Open blind box',
     opening: 'Opening…',
@@ -279,7 +281,7 @@ export const jisudengPagesEn = {
     vipMax: 'Top tier unlocked',
     vipPerks: {
       models_vip_tag: 'VIP badge on models page',
-      blindbox_pool_upgrade: 'Upgraded blind box pool',
+      blindbox_pool_upgrade: 'Blind box pool upgrade (not active)',
       arena_settlement_bonus: 'Arena settlement bonus',
       affiliate_bonus_5pct: '+5% affiliate rebate',
     },
@@ -509,7 +511,7 @@ export const jisudengPagesEn = {
       syncNote: 'Lifetime top-up counts successful recharge only (not check-in or promo grants). See your tier and gap in the Play Hub after login.',
       perks: {
         models_vip_tag: 'VIP badge on models page',
-        blindbox_pool_upgrade: 'Upgraded blind-box pool',
+        blindbox_pool_upgrade: 'Blind-box pool upgrade (not active)',
         arena_settlement_bonus: 'Arena settlement bonus',
         affiliate_bonus_5pct: '+5% referral rebate',
       },

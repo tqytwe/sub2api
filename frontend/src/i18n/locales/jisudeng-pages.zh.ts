@@ -201,10 +201,12 @@ export const jisudengPagesZh = {
   },
   blindbox: {
     prizePoolTitle: '奖池预览',
-    prizePoolNote: '概率为默认奖池参考值，VIP 档位可能升级奖池。',
+    prizePoolNote: '奖金与概率以当前公开奖池为准。',
     recentWinsTitle: '近期中奖',
     recentWinsPlaceholder: '暂无公开中奖记录，开箱后你的奖励会即时入账。',
+    recentWinsUnavailable: '近期中奖记录暂不可用',
     disabled: '盲盒暂未开启',
+    unavailable: '奖池暂不可用，请稍后再试',
     costHint: '每次消耗 ${cost} · 今日 {opens}/{limit} 次',
     openButton: '开启盲盒',
     opening: '开启中…',
@@ -286,7 +288,7 @@ export const jisudengPagesZh = {
     vipMax: '已达最高档位',
     vipPerks: {
       models_vip_tag: '模型页 VIP 标识',
-      blindbox_pool_upgrade: '盲盒奖池升级',
+      blindbox_pool_upgrade: '盲盒奖池升级（暂未启用）',
       arena_settlement_bonus: 'Arena 结算加成',
       affiliate_bonus_5pct: '邀请返利 +5%',
     },
@@ -516,7 +518,7 @@ export const jisudengPagesZh = {
       syncNote: '累计充值 = 账户成功充值总额（不含签到、活动赠送）。登录后可在玩法中枢查看当前档位与距下一档差额。',
       perks: {
         models_vip_tag: '模型页 VIP 标签',
-        blindbox_pool_upgrade: '盲盒奖池升级',
+        blindbox_pool_upgrade: '盲盒奖池升级（暂未启用）',
         arena_settlement_bonus: 'Arena 结算加成',
         affiliate_bonus_5pct: '邀请返利 +5%',
       },

@@ -59,6 +59,7 @@ export interface PlayArenaLeaderboard {
 export interface PlayBlindboxStatus {
   enabled: boolean
   cost_amount: number
+  pool?: PlayBlindboxPool
   daily_limit: number
   effective_limit?: number
   opens_today: number
@@ -68,12 +69,31 @@ export interface PlayBlindboxStatus {
   campaign_active?: boolean
 }
 
+export interface PlayBlindboxPoolTier {
+  amount: number
+  weight: number
+}
+
+export interface PlayBlindboxPool {
+  version: string
+  cost: number
+  rtp_cap: number
+  tiers: PlayBlindboxPoolTier[]
+}
+
+export interface PlayBlindboxPoolResponse {
+  enabled: boolean
+  pool: PlayBlindboxPool
+}
+
 export interface PlayBlindboxOpenResult {
   cost_amount: number
   reward_amount: number
   net_amount: number
   opens_today: number
   server_date: string
+  pool_version: string
+  open_source: string
 }
 
 export interface PlayBlindboxRecentWin {
@@ -274,6 +294,11 @@ export async function getBlindboxStatus(): Promise<PlayBlindboxStatus> {
   return data
 }
 
+export async function getBlindboxPool(): Promise<PlayBlindboxPoolResponse> {
+  const { data } = await apiClient.get<PlayBlindboxPoolResponse>('/play/blindbox/pool')
+  return data
+}
+
 export async function getBlindboxRecentWins(): Promise<PlayBlindboxRecentWin[]> {
   const { data } = await apiClient.get<PlayBlindboxRecentWin[]>('/play/blindbox/recent')
   return data ?? []
@@ -321,6 +346,7 @@ export const playAPI = {
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
   getQuestsToday,
+  getBlindboxPool,
   getBlindboxStatus,
   openBlindbox,
   getBlindboxRecentWins,
