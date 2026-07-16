@@ -23,6 +23,9 @@ POST https://api.jisudeng.com/v1/images/generations
 
 GPT/Grok 图片批量调用主要就是调用 `https://api.jisudeng.com/v1/images/generations`。不要换成其他地址，也不要把 API Key 放到 URL 参数里。
 
+设置 `n > 1` 时，同一响应的 `data` 数组包含实际返回的全部图片；保存和展示时
+必须遍历 `data[]`，不能只读取 `data[0]`。
+
 ## 一次请求生成多张
 
 ```bash

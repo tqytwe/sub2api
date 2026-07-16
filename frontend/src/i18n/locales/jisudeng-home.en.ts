@@ -55,10 +55,13 @@ export const jisudengHomeEn = {
     }
   },
   stats: {
-    requests: 'Total API requests',
+    requests: 'Recorded API requests',
     uptime: '30-day availability',
     latency: '24-hour avg. first-token latency',
-    models: 'Models available'
+    models: 'Models available',
+    through: 'Latest operations sample ended {time}',
+    computed: 'Snapshot generated {time}',
+    stale: 'Showing cached or delayed data'
   },
   sections: {
     imageTag: 'IMAGE API',
@@ -105,7 +108,7 @@ export const jisudengHomeEn = {
   image: {
     model: 'gpt-image-2',
     badge: 'NEW',
-    desc: 'Two endpoints: generations and edits. Max 30 MiB per request.',
+    desc: 'Two endpoints: generations and edits. Up to 20 MiB per multipart field.',
     caps: ['Text-to-image', 'Image-to-image', 'Multi-reference', 'Style transfer'],
     docLink: 'Image API docs',
     promptLabel: 'PROMPT',

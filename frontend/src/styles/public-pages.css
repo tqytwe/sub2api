@@ -1043,6 +1043,8 @@
 
 .docs-prose .docs-tip {
   padding: 12px 16px;
+  max-width: 100%;
+  min-width: 0;
   border-radius: 0 8px 8px 0;
   border: none;
   border-left: 3px solid #d4a017;
@@ -1050,6 +1052,12 @@
   color: #5a4308;
   font-size: 13.5px;
   margin: 16px 0;
+  overflow-wrap: anywhere;
+}
+
+.docs-prose .docs-tip code {
+  white-space: normal;
+  max-width: 100%;
 }
 
 .dark .docs-prose .docs-tip {

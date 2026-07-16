@@ -5,6 +5,7 @@ import {
   formatHomeStatLatency,
   formatHomeStatRequests,
   formatHomeStatUptime,
+  isHomeStatsSnapshotStale,
   loadHomeStatsSnapshot,
   toHomeStatsValues,
 } from '@/utils/homeLiveStats'
@@ -13,7 +14,8 @@ const LIVE_POLL_MS = 60_000
 
 export function useHomeLiveStats() {
   const realSnapshot = ref<PublicHomeStatsResponse | null>(null)
-  const isStale = ref(false)
+  const networkStale = ref(false)
+  const nowMs = ref(Date.now())
   let pollTimer: ReturnType<typeof setInterval> | null = null
 
   function save(snapshot: PublicHomeStatsResponse) {
@@ -26,20 +28,27 @@ export function useHomeLiveStats() {
 
   async function pullLive() {
     if (!navigator.onLine) {
-      isStale.value = realSnapshot.value !== null
+      networkStale.value = realSnapshot.value !== null
       return
     }
     const data = await fetchPublicHomeStats()
     if (!data) {
-      isStale.value = realSnapshot.value !== null
+      networkStale.value = realSnapshot.value !== null
       return
     }
     realSnapshot.value = data
-    isStale.value = false
+    networkStale.value = false
     save(data)
   }
 
   const values = computed(() => toHomeStatsValues(realSnapshot.value))
+  const computedAt = computed(() => realSnapshot.value?.computed_at ?? null)
+  const opsDataThrough = computed(() => realSnapshot.value?.ops_data_through ?? null)
+  const isStale = computed(
+    () =>
+      networkStale.value
+      || isHomeStatsSnapshotStale(realSnapshot.value, nowMs.value),
+  )
 
   const statItems = computed(() => {
     const value = values.value
@@ -51,14 +60,18 @@ export function useHomeLiveStats() {
   })
 
   onMounted(() => {
+    nowMs.value = Date.now()
     realSnapshot.value = loadHomeStatsSnapshot(localStorage.getItem(HOME_LIVE_STATS_STORAGE_KEY))
     void pullLive()
-    pollTimer = setInterval(() => void pullLive(), LIVE_POLL_MS)
+    pollTimer = setInterval(() => {
+      nowMs.value = Date.now()
+      void pullLive()
+    }, LIVE_POLL_MS)
   })
 
   onBeforeUnmount(() => {
     if (pollTimer) clearInterval(pollTimer)
   })
 
-  return { statItems, values, isStale }
+  return { statItems, values, computedAt, opsDataThrough, isStale }
 }

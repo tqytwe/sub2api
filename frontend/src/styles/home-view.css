@@ -158,6 +158,25 @@
   display: none;
 }
 
+.stats-freshness {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding-top: 12px;
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-3, #78716c);
+}
+
+.stats-freshness.is-stale strong {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.dark .stats-freshness.is-stale strong {
+  color: #fbbf24;
+}
+
 .custom-home-claim-footer {
   display: flex;
   justify-content: center;

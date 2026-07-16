@@ -47,9 +47,12 @@ func (s *PublicHomeStatsService) Get(ctx context.Context) (*PublicHomeStats, err
 	}
 
 	stats := &PublicHomeStats{
-		TotalRequests:  raw.TotalRequests,
-		OpsDataThrough: raw.OpsDataThrough,
-		ComputedAt:     computedAt,
+		TotalRequests: raw.TotalRequests,
+		ComputedAt:    computedAt,
+	}
+	if raw.OpsDataThrough != nil {
+		value := raw.OpsDataThrough.UTC()
+		stats.OpsDataThrough = &value
 	}
 	if denominator := raw.Success30d + raw.ErrorSLA30d; denominator > 0 {
 		value := float64(raw.Success30d) / float64(denominator) * 100

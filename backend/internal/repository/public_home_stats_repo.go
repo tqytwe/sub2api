@@ -30,9 +30,17 @@ ops AS (
 				AND ttft_avg_ms IS NOT NULL
 				AND ttft_sample_count > 0
 		), 0)::bigint AS ttft_samples_24h,
-		MAX(bucket_start) FILTER (
-			WHERE bucket_start >= $1 AND bucket_start < $3
-		) AS ops_data_through
+		CASE
+			WHEN MAX(bucket_start) FILTER (
+				WHERE bucket_start >= $1 AND bucket_start < $3
+			) IS NULL THEN NULL
+			ELSE LEAST(
+				MAX(bucket_start) FILTER (
+					WHERE bucket_start >= $1 AND bucket_start < $3
+				) + INTERVAL '1 hour',
+				$3
+			)
+		END AS ops_data_through
 	FROM ops_metrics_hourly
 	WHERE platform IS NULL
 		AND group_id IS NULL
@@ -78,7 +86,7 @@ func (r *publicHomeStatsRepository) GetPublicHomeStats(ctx context.Context, now 
 		return service.PublicHomeStatsRaw{}, err
 	}
 	if opsDataThrough.Valid {
-		value := opsDataThrough.Time
+		value := opsDataThrough.Time.UTC()
 		raw.OpsDataThrough = &value
 	}
 	return raw, nil

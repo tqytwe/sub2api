@@ -74,6 +74,29 @@ Content-Type: application/json</code></pre>
 </ul>
 <p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。</p>
 
+<h2>三类返回契约</h2>
+<h3>同步 Base64 返回</h3>
+<p>请求使用 <code>"response_format": "b64_json"</code> 时，每张图片位于 <code>data[].b64_json</code>。设置 <code>n</code> 大于 1 时，<code>data</code> 会包含实际返回的全部图片，不要只读取第 1 项。</p>
+<pre><code>{
+  "created": 1784160000,
+  "data": [
+    {"b64_json": "iVBORw0KGgo..."},
+    {"b64_json": "iVBORw0KGgo..."}
+  ]
+}</code></pre>
+
+<h3>同步 URL 返回</h3>
+<p>请求使用 <code>"response_format": "url"</code> 时，每张图片位于 <code>data[].url</code>。不同上游可能返回临时公网 URL 或 data URL，客户端都应按 URL 字段读取并及时保存。</p>
+<pre><code>{
+  "created": 1784160000,
+  "data": [
+    {"url": "https://example.com/generated/image.png"}
+  ]
+}</code></pre>
+
+<h3>异步任务返回</h3>
+<p>长耗时请求可提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。完整 processing / completed / failed 契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
+
 <h2>单张生成</h2>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
@@ -208,6 +231,7 @@ json.data.forEach((item, index) =&gt; {
   -F "response_format=b64_json" \\
   -o edit-response.json</code></pre>
 <pre><code>jq -r '.data[0].b64_json' edit-response.json | base64 -d &gt; edited.png</code></pre>
+<p class="docs-tip">每个 multipart 文件或文本字段最多 <strong>20 MiB</strong>；整个请求还受部署配置的全局请求体上限约束。</p>
 
 <h2>常用字段</h2>
 <div class="docs-table-wrap">
@@ -231,6 +255,7 @@ json.data.forEach((item, index) =&gt; {
   <li><code>401 API_KEY_REQUIRED / INVALID_API_KEY</code> — Key 缺失或无效</li>
   <li><code>403 permission_error</code> — Key 所属分组没有开启图片生成</li>
   <li><code>404 not_found_error</code> — Key 所属分组不是 GPT/OpenAI 或 Grok 图片分组</li>
+  <li><code>413 invalid_request_error</code> — multipart 文件或文本字段超过 20 MiB，或整个请求超过部署上限</li>
   <li><code>429</code> — Key、用户、分组、账号或上游限流</li>
   <li><code>502 upstream_error</code> — 上游异常或没有返回有效图片</li>
 </ul>
@@ -240,6 +265,7 @@ json.data.forEach((item, index) =&gt; {
   <li><strong>API 生成</strong>：开发者直调 <code>/v1/images/generations</code>，Base URL 是 <code>https://api.jisudeng.com</code>，自己保存和展示图片。</li>
   <li><strong>图像工作室</strong>：打开 <a href="/image-studio">/image-studio</a> 手动生成，站内负责模板、估价、异步 job 和图库。</li>
   <li><strong>批量调用</strong>：多个 prompt 或一次多张，见 <a href="/docs?cat=deploy&amp;page=batch-image-api">多张 / 批量生图调用</a>。</li>
+  <li><strong>异步调用</strong>：避免长连接超时，见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</li>
 </ul>`,
       },
       {
@@ -378,6 +404,87 @@ async function run() {
 run()
 &lt;/script&gt;</code></pre>
 <p class="docs-tip">正式网站不要把 API Key 暴露在前端，请让你的后端调用极速蹬 API，再把图片结果返回给浏览器。</p>`,
+      },
+      {
+        id: 'async-image-tasks',
+        title: "异步图片任务",
+        summary: "202 提交、任务轮询、对象存储 URL 与失败返回契约",
+        html: `<p class="docs-lead">异步图片任务适合耗时较长的 GPT / Grok 生成与编辑请求。提交接口立即返回任务 ID，客户端按建议间隔轮询，不需要保持一条长 HTTP 连接。</p>
+<pre><code>POST https://api.jisudeng.com/v1/images/generations/async
+POST https://api.jisudeng.com/v1/images/edits/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
+<p class="docs-tip">异步任务依赖对象存储。功能未启用或存储配置不完整时，上述接口返回 <code>404 not_found_error</code>，不会创建任务。</p>
+
+<h2>提交任务</h2>
+<p>请求体与同步生成或编辑接口相同。提交成功返回 <code>202 Accepted</code>，响应头同时包含 <code>Location</code> 和建议轮询间隔 <code>Retry-After: 3</code>。</p>
+<pre><code>curl -i https://api.jisudeng.com/v1/images/generations/async \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gpt-image-2",
+    "prompt": "暴风雪中的灯塔，电影感，横向构图",
+    "size": "1536x1024",
+    "n": 2
+  }'</code></pre>
+<pre><code>{
+  "id": "imgtask_0123456789abcdef",
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "processing",
+  "created_at": 1784160000,
+  "expires_at": 1784246400,
+  "poll_url": "/v1/images/tasks/imgtask_0123456789abcdef"
+}</code></pre>
+
+<h2>轮询任务</h2>
+<p>必须使用提交任务时的同一把 API Key：</p>
+<pre><code>curl https://api.jisudeng.com/v1/images/tasks/imgtask_0123456789abcdef \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"</code></pre>
+
+<h3>处理中</h3>
+<pre><code>{
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "processing",
+  "created_at": 1784160000,
+  "expires_at": 1784246400
+}</code></pre>
+
+<h3>已完成</h3>
+<p>生成结果会先转存到对象存储，最终图片位于 <code>result.data[].url</code>；<code>image_url</code> 是第一张图片的便捷字段。异步结果不会把大段 <code>b64_json</code> 存入任务记录。</p>
+<pre><code>{
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "completed",
+  "http_status": 200,
+  "image_url": "https://cdn.example.com/images/first.png",
+  "result": {
+    "created": 1784160123,
+    "data": [
+      {"url": "https://cdn.example.com/images/first.png"},
+      {"url": "https://cdn.example.com/images/second.png"}
+    ]
+  },
+  "created_at": 1784160000,
+  "completed_at": 1784160123,
+  "expires_at": 1784246523
+}</code></pre>
+
+<h3>失败</h3>
+<pre><code>{
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "failed",
+  "http_status": 502,
+  "error": {
+    "type": "api_error",
+    "message": "Upstream request failed"
+  },
+  "created_at": 1784160000,
+  "completed_at": 1784160123,
+  "expires_at": 1784246523
+}</code></pre>
+<p>成功提交和成功轮询响应都带 <code>Cache-Control: no-store</code>。未知任务 ID 与其他 API Key 拥有的任务都返回 404，避免泄露任务是否存在。</p>`,
       },
       {
         id: 'api-key',
@@ -2784,7 +2891,11 @@ api_key:  sk-你的本站Key</code></pre></div>
   },
 ]
 
-const IMAGE_API_PAGE_IDS = new Set(['text-to-image-api', 'batch-image-api'])
+const IMAGE_API_PAGE_IDS = new Set([
+  'text-to-image-api',
+  'batch-image-api',
+  'async-image-tasks',
+])
 const imageApiPages =
   PUBLIC_DOC_CONTENT_ZH_SOURCE.find((category) => category.id === 'tutorial')?.pages.filter(
     (page) => IMAGE_API_PAGE_IDS.has(page.id),

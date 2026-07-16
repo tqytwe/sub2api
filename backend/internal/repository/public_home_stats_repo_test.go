@@ -14,7 +14,8 @@ func TestPublicHomeStatsRepositoryUsesExactOverallQueries(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 
 	now := time.Date(2026, 7, 16, 2, 30, 0, 0, time.UTC)
-	through := time.Date(2026, 7, 16, 2, 0, 0, 0, time.UTC)
+	throughLocation := time.FixedZone("UTC+8", 8*60*60)
+	through := time.Date(2026, 7, 16, 10, 0, 0, 0, throughLocation)
 	mock.ExpectQuery(publicHomeStatsQuery).
 		WithArgs(now.Add(-30*24*time.Hour), now.Add(-24*time.Hour), now).
 		WillReturnRows(sqlmock.NewRows([]string{
@@ -34,8 +35,15 @@ func TestPublicHomeStatsRepositoryUsesExactOverallQueries(t *testing.T) {
 	require.Equal(t, int64(2), got.ErrorSLA30d)
 	require.Equal(t, float64(4250), got.TTFTWeightedSum24h)
 	require.Equal(t, int64(10), got.TTFTSamples24h)
-	require.Equal(t, &through, got.OpsDataThrough)
+	require.Equal(t, through.UTC(), got.OpsDataThrough.UTC())
+	require.Equal(t, time.UTC, got.OpsDataThrough.Location())
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestPublicHomeStatsQueryReportsLastBucketEndWithoutPassingSnapshotTime(t *testing.T) {
+	require.Contains(t, publicHomeStatsQuery, "INTERVAL '1 hour'")
+	require.Contains(t, publicHomeStatsQuery, "LEAST(")
+	require.Contains(t, publicHomeStatsQuery, "THEN NULL")
 }
 
 func TestPublicHomeStatsRepositoryKeepsMissingOpsWatermarkNull(t *testing.T) {
