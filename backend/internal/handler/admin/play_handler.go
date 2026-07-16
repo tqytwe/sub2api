@@ -1,6 +1,7 @@
 package admin
 
 import (
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -25,6 +26,33 @@ type AdminPlayHandler struct {
 
 func NewAdminPlayHandler(playService *service.PlayService) *AdminPlayHandler {
 	return &AdminPlayHandler{playService: playService}
+}
+
+// GetBlindboxPool returns the effective editable blindbox pool.
+// GET /api/v1/admin/play/blindbox/pool
+func (h *AdminPlayHandler) GetBlindboxPool(c *gin.Context) {
+	pool, err := h.playService.GetBlindboxPoolConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, pool)
+}
+
+// UpdateBlindboxPool validates and replaces the editable blindbox pool.
+// PUT /api/v1/admin/play/blindbox/pool
+func (h *AdminPlayHandler) UpdateBlindboxPool(c *gin.Context) {
+	var pool service.PlayBlindboxPool
+	if err := c.ShouldBindJSON(&pool); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid blindbox pool request"))
+		return
+	}
+	updated, err := h.playService.UpdateBlindboxPoolConfig(c.Request.Context(), pool)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, updated)
 }
 
 // ArenaSettle settles an arena period and distributes rank rewards.
