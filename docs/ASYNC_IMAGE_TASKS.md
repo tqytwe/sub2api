@@ -44,7 +44,7 @@ To support a different vendor beyond the S3-compatible client, implement the `se
 ## Submit a task
 
 ```bash
-curl -i https://api.example.com/v1/images/generations/async \
+curl -i https://api.jisudeng.com/v1/images/generations/async \
   -H 'Authorization: Bearer sk-...' \
   -H 'Content-Type: application/json' \
   -d '{
@@ -75,7 +75,7 @@ The server stores the initial task in Redis and responds with `202 Accepted`:
 Use the same API key that submitted the task:
 
 ```bash
-curl https://api.example.com/v1/images/tasks/imgtask_0123456789abcdef \
+curl https://api.jisudeng.com/v1/images/tasks/imgtask_0123456789abcdef \
   -H 'Authorization: Bearer sk-...'
 ```
 
