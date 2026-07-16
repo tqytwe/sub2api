@@ -1,5 +1,6 @@
 import { jisudengHomeZh } from './jisudeng-home.zh'
 import { jisudengPagesZh } from './jisudeng-pages.zh'
+import auditAdminZh from './zh/admin/audit'
 
 export default {
   batchImageGuide: {
@@ -1574,6 +1575,7 @@ export default {
 
   // Admin
   admin: {
+    ...auditAdminZh,
     // Dashboard
     dashboard: {
       title: '管理控制台',
