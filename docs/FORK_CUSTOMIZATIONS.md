@@ -27,8 +27,8 @@
 ## FORK-BRAND-001 品牌、首页、登录布局和主题
 
 - 产品目的：公开首页、认证页和控制台保持极速蹬 ink 黑白品牌，不回退到上游 teal 视觉。
-- 不变量：`AuthLayout` 保留 `auth-page`、`asideMode` 和定制 CSS；首页保留极速蹬内容与资源；Tailwind `primary` 为 ink；版本号只对管理员展示。
-- 关键位置：`frontend/src/views/HomeView.vue`、`frontend/src/components/layout/AuthLayout.vue`、`frontend/src/styles/home-view.css`、`frontend/src/styles/auth-layout-jisudeng.css`、`frontend/tailwind.config.js`。
+- 不变量：`AuthLayout` 保留 `auth-page`、`asideMode` 和定制 CSS；首页保留极速蹬内容与资源；首页页脚和自定义首页保留 LMSpeed Provider 2039 的 claim badge，`frontend/index.html` 保留无 JavaScript 备用标记；Tailwind `primary` 为 ink；版本号只对管理员展示。
+- 关键位置：`frontend/src/views/HomeView.vue`、`frontend/src/components/home/LmspeedBadge.vue`、`frontend/index.html`、`frontend/src/components/layout/AuthLayout.vue`、`frontend/src/styles/home-view.css`、`frontend/src/styles/auth-layout-jisudeng.css`、`frontend/tailwind.config.js`。
 - 冲突策略：吸收上游可访问性和业务修复，视觉结构、品牌资源及色板保留 Fork 语义。
 - 验证：`scripts/check-jisudeng-branding.sh`、`frontend/src/components/layout/__tests__/AppSidebar.spec.ts`；线上检查首页、登录、注册、浅色和深色主题。
 

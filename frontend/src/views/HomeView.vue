@@ -1,6 +1,6 @@
 <template>
   <!-- 管理员自定义首页内容优先 -->
-  <div v-if="homeContent" class="min-h-screen">
+  <div v-if="homeContent" class="custom-home-page min-h-screen">
     <iframe
       v-if="isHomeContentUrl"
       :src="homeContent.trim()"
@@ -8,9 +8,19 @@
       allowfullscreen
     />
     <div v-else v-html="safeHomeContent" />
+    <footer class="custom-home-claim-footer">
+      <LmspeedBadge />
+    </footer>
   </div>
 
-  <div v-else class="home-page" :class="{ 'is-intro': isIntro }">
+  <div
+    v-else
+    class="home-page"
+    :class="{
+      'is-intro': isIntro,
+      'has-guest-sticky-cta': !isAuthenticated && showGuestStickyCta,
+    }"
+  >
     <header class="page-header" :class="{ scrolled: headerScrolled }">
       <div class="page-container header-row">
         <div class="header-left">
@@ -411,6 +421,7 @@
     <footer class="page-footer">
       <div class="page-container footer-row">
         <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
+        <LmspeedBadge />
         <span class="f-links">
           <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
           <span class="f-copy">© {{ year }} {{ siteName }}</span>
@@ -438,6 +449,7 @@ import HeroSphere from '@/components/home/HeroSphere.vue'
 import ChannelTV from '@/components/home/ChannelTV.vue'
 import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
+import LmspeedBadge from '@/components/home/LmspeedBadge.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
