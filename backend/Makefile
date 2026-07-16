@@ -2,9 +2,10 @@
 
 VERSION ?= $(shell ./scripts/resolve-version.sh)
 LDFLAGS ?= -s -w -X main.Version=$(VERSION)
+GO_BUILD_FLAGS ?= -buildvcs=false
 
 build:
-	CGO_ENABLED=0 go build -ldflags="$(LDFLAGS)" -trimpath -o bin/server ./cmd/server
+	CGO_ENABLED=0 go build $(GO_BUILD_FLAGS) -ldflags="$(LDFLAGS)" -trimpath -o bin/server ./cmd/server
 
 generate:
 	go generate ./ent
