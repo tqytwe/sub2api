@@ -981,6 +981,8 @@
   border-radius: 4px;
   color: var(--accent);
   border: 1px solid var(--line-soft);
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .docs-prose pre {
@@ -1001,6 +1003,9 @@
   color: inherit;
   border: none;
   font-size: inherit;
+  overflow-wrap: normal;
+  white-space: pre;
+  word-break: normal;
 }
 
 .docs-prose ul,

@@ -49,7 +49,9 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
         id: 'text-to-image-api',
         title: "GPT / Grok 图片生成 API",
         summary: "真实 API 地址、单张/多张生成、prompt、保存与网页显示",
-        html: `<p class="docs-lead">极速蹬当前图片生成主要使用 <strong>GPT 图片模型</strong> 和 <strong>Grok 图片模型</strong>。开发者直接调用 <code>https://api.jisudeng.com/v1/images/generations</code>，图像编辑调用 <code>https://api.jisudeng.com/v1/images/edits</code>。</p>
+        html: `<p class="docs-lead">极速蹬当前图片生成主要使用 <strong>GPT 图片模型</strong> 和 <strong>Grok 图片模型</strong>。开发者直接调用 Images API，图像编辑调用 Edits API。</p>
+<pre><code>POST https://api.jisudeng.com/v1/images/generations
+POST https://api.jisudeng.com/v1/images/edits</code></pre>
 
 <h2>真实入口</h2>
 <ul>
@@ -235,7 +237,7 @@ json.data.forEach((item, index) =&gt; {
 
 <h2>和图像工作室的区别</h2>
 <ul>
-  <li><strong>API 生成</strong>：开发者直调 <code>https://api.jisudeng.com/v1/images/generations</code>，自己保存和展示图片。</li>
+  <li><strong>API 生成</strong>：开发者直调 <code>/v1/images/generations</code>，Base URL 是 <code>https://api.jisudeng.com</code>，自己保存和展示图片。</li>
   <li><strong>图像工作室</strong>：打开 <a href="/image-studio">/image-studio</a> 手动生成，站内负责模板、估价、异步 job 和图库。</li>
   <li><strong>批量调用</strong>：多个 prompt 或一次多张，见 <a href="/docs?cat=tutorial&amp;page=batch-image-api">多张 / 批量生图调用</a>。</li>
 </ul>`,
@@ -244,7 +246,8 @@ json.data.forEach((item, index) =&gt; {
         id: 'batch-image-api',
         title: "多张 / 批量生图调用",
         summary: "同一个 GPT/Grok 图片接口：n 多张、多 prompt 批量跑、保存本地",
-        html: `<p class="docs-lead">批量调用 GPT/Grok 图片生成时，继续使用同一个接口 <code>POST https://api.jisudeng.com/v1/images/generations</code>。常见方式有两种：同一个 prompt 设置 <code>n</code> 一次出多张；多个 prompt 循环调用接口并保存结果。</p>
+        html: `<p class="docs-lead">批量调用 GPT/Grok 图片生成时，继续使用同一个 Images API。常见方式有两种：同一个 prompt 设置 <code>n</code> 一次出多张；多个 prompt 循环调用接口并保存结果。</p>
+<pre><code>POST https://api.jisudeng.com/v1/images/generations</code></pre>
 
 <h2>两种批量方式</h2>
 <div class="docs-table-wrap">
@@ -256,7 +259,7 @@ json.data.forEach((item, index) =&gt; {
 </tbody>
 </table>
 </div>
-<p class="docs-tip">GPT/Grok 批量调用主要就是调用 <code>https://api.jisudeng.com/v1/images/generations</code>。不要换成其他地址，也不要把 API Key 放到 URL 参数里。</p>
+<p class="docs-tip">GPT/Grok 批量调用主要就是调用上面的 <code>/v1/images/generations</code> 接口，Base URL 是 <code>https://api.jisudeng.com</code>。不要换成其他地址，也不要把 API Key 放到 URL 参数里。</p>
 
 <h2>一次请求生成多张</h2>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
