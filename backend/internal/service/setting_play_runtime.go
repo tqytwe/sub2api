@@ -37,6 +37,10 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		SettingKeyPlayTeamAffiliateEnabled,
 		SettingKeyPlayTeamAffiliateTokenThreshold,
 		SettingKeyPlayTeamAffiliateCaptainBonus,
+		SettingKeyPlayTeamSharedRewardEnabled,
+		SettingKeyPlayTeamSharedRewardTiers,
+		SettingKeyPlayTeamSharedRewardCap,
+		SettingKeyPlayTeamSharedRewardStartMonth,
 		SettingKeyPlayCampaignsEnabled,
 		SettingKeyImageStudioEnabled,
 		SettingKeyPlayDailyQuestsEnabled,
@@ -76,6 +80,28 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 			zap.String("reason", blindboxPoolDiagnostic.Reason),
 		)
 	}
+	teamRewardConfig, teamRewardDiagnostic := parseTeamRewardConfig(
+		vals[SettingKeyPlayTeamSharedRewardEnabled],
+		vals[SettingKeyPlayTeamSharedRewardTiers],
+		vals[SettingKeyPlayTeamSharedRewardCap],
+	)
+	if teamRewardDiagnostic != nil {
+		logger.FromContext(ctx).Warn(
+			"invalid play team shared reward configuration; using approved default",
+			zap.String("setting_key", teamRewardDiagnostic.SettingKey),
+			zap.String("reason", teamRewardDiagnostic.Reason),
+		)
+	}
+	teamRewardStartMonth, teamRewardStartMonthDiagnostic := parseTeamRewardStartMonth(
+		vals[SettingKeyPlayTeamSharedRewardStartMonth],
+	)
+	if teamRewardStartMonthDiagnostic != nil {
+		logger.FromContext(ctx).Warn(
+			"invalid play team shared reward start month; using empty value",
+			zap.String("setting_key", teamRewardStartMonthDiagnostic.SettingKey),
+			zap.String("reason", teamRewardStartMonthDiagnostic.Reason),
+		)
+	}
 	return PlayRuntime{
 		CheckinEnabled:              vals[SettingKeyPlayCheckinEnabled] == "true",
 		CheckinReward:               reward,
@@ -101,6 +127,10 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		TeamAffiliateEnabled:        vals[SettingKeyPlayTeamAffiliateEnabled] == "true",
 		TeamAffiliateTokenThreshold: parsePositiveInt64Setting(vals[SettingKeyPlayTeamAffiliateTokenThreshold], 1_000_000),
 		TeamAffiliateCaptainBonus:   parsePositiveFloatSetting(vals[SettingKeyPlayTeamAffiliateCaptainBonus], 5),
+		TeamSharedRewardEnabled:     teamRewardConfig.Enabled,
+		TeamSharedRewardTiers:       teamRewardConfig.Tiers,
+		TeamSharedRewardCap:         teamRewardConfig.Cap,
+		TeamSharedRewardStartMonth:  teamRewardStartMonth,
 		CampaignsEnabled:            vals[SettingKeyPlayCampaignsEnabled] == "true",
 		ImageStudioEnabled:          vals[SettingKeyImageStudioEnabled] == "true",
 		DailyQuestsEnabled:          vals[SettingKeyPlayDailyQuestsEnabled] == "true",

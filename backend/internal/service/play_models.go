@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"time"
+
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -280,6 +282,10 @@ type PlayRuntime struct {
 	TeamAffiliateEnabled        bool
 	TeamAffiliateTokenThreshold int64
 	TeamAffiliateCaptainBonus   float64
+	TeamSharedRewardEnabled     bool
+	TeamSharedRewardTiers       []TeamRewardTier
+	TeamSharedRewardCap         decimal.Decimal
+	TeamSharedRewardStartMonth  string
 	CampaignsEnabled            bool
 	ImageStudioEnabled          bool
 	DailyQuestsEnabled          bool
