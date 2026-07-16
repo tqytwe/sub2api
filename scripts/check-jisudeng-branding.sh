@@ -50,6 +50,17 @@ check "auth-layout-jisudeng.css exists" \
 check "home-view.css exists" \
   test -f "$ROOT/frontend/src/styles/home-view.css"
 
+check "HomeView renders the LMSpeed badge in default and custom home modes" \
+  test "$(grep -c '<LmspeedBadge' "$ROOT/frontend/src/views/HomeView.vue")" -eq 2
+
+check "LMSpeed claim badge URL is preserved" \
+  grep -q 'claim-badge/2039?claim=2039-1kHJJSboOUMX0Au9G01tAaBWozH20jbC' \
+    "$ROOT/frontend/src/components/home/LmspeedBadge.vue"
+
+check "LMSpeed claim has a no-JavaScript fallback" \
+  grep -q 'claim-badge/2039?claim=2039-1kHJJSboOUMX0Au9G01tAaBWozH20jbC' \
+    "$ROOT/frontend/index.html"
+
 if [ "$FAIL" -ne 0 ]; then
   echo ""
   echo "FAILED: jisudeng branding checks — see .cursor/rules/jisudeng-branding-protected.mdc"

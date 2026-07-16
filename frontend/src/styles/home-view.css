@@ -158,6 +158,19 @@
   display: none;
 }
 
+.custom-home-claim-footer {
+  display: flex;
+  justify-content: center;
+  padding: 24px;
+  border-top: 1px solid #e7e5e4;
+  background: #fff;
+}
+
+.dark .custom-home-claim-footer {
+  border-color: #292524;
+  background: #0f0f0f;
+}
+
 .home-anchor-nav {
   display: none;
 }
@@ -222,6 +235,10 @@
 }
 
 @media (max-width: 767px) {
+  .home-page.has-guest-sticky-cta .page-footer {
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
+  }
+
   .home-sticky-cta {
     display: block;
     position: fixed;
