@@ -16,6 +16,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 type ImageStudioHandler struct {
@@ -279,6 +280,50 @@ func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *se
 	if h.gateway == nil {
 		return nil, 0, service.ErrImageStudioDisabled
 	}
+
+	requestCount := imageStudioGenerationCount(body)
+	if requestCount > 1 {
+		singleBody, err := imageStudioSingleImageRequestBody(body)
+		if err != nil {
+			return nil, 0, err
+		}
+		perRequestEstimatedCost := estimatedCost / float64(requestCount)
+		allImages := make([]service.ImageStudioImagePayload, 0, requestCount)
+		totalActualCost := 0.0
+		for i := 0; i < requestCount; i++ {
+			images, actualCost, err := h.invokeGatewayImagesOnce(ctx, apiKey, singleBody, perRequestEstimatedCost)
+			if err != nil {
+				return nil, totalActualCost, err
+			}
+			allImages = append(allImages, images...)
+			totalActualCost += actualCost
+		}
+		normalized, err := service.NormalizeImageStudioPayloads(ctx, allImages)
+		if err != nil {
+			return nil, 0, err
+		}
+		return normalized, totalActualCost, nil
+	}
+
+	return h.invokeGatewayImagesOnce(ctx, apiKey, body, estimatedCost)
+}
+
+func imageStudioGenerationCount(body string) int {
+	count := int(gjson.Get(body, "n").Int())
+	if count <= 0 {
+		return 1
+	}
+	return count
+}
+
+func imageStudioSingleImageRequestBody(body string) (string, error) {
+	if !gjson.Valid(body) {
+		return "", fmt.Errorf("invalid image generation request")
+	}
+	return sjson.Set(body, "n", 1)
+}
+
+func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey *service.APIKey, body string, estimatedCost float64) ([]service.ImageStudioImagePayload, float64, error) {
 	rec := httptest.NewRecorder()
 	gwCtx, _ := gin.CreateTestContext(rec)
 	gwCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader(body))
