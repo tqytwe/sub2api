@@ -41,6 +41,7 @@ export function defaultDocPageForCategory(catId: string) {
 const LEGACY_TUTORIAL_PAGE_CATEGORIES: Record<string, string> = {
   'text-to-image-api': 'deploy',
   'batch-image-api': 'deploy',
+  'async-image-tasks': 'deploy',
 }
 
 export function normalizePublicDocLocation(catId: string, pageId: string) {

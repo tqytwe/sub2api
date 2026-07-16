@@ -176,6 +176,10 @@
             <span class="stat-label" aria-hidden="true">{{ t(`home.jisudeng.stats.${stat.key}`) }}</span>
           </div>
         </div>
+        <div v-if="statsFreshness.length" class="stats-freshness" :class="{ 'is-stale': isStatsStale }">
+          <span v-for="item in statsFreshness" :key="item">{{ item }}</span>
+          <strong v-if="isStatsStale">{{ t('home.jisudeng.stats.stale') }}</strong>
+        </div>
       </div>
     </section>
 
@@ -454,9 +458,10 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
+import { formatHomeStatsTimestamp } from '@/utils/homeLiveStats'
 import { sanitizeUrl } from '@/utils/url'
 
-const { t, tm, te } = useI18n()
+const { t, tm, te, locale } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
@@ -468,8 +473,22 @@ const whyX = ref(0)
 const whyY = ref(0)
 const onboardPhase = ref(1)
 const year = new Date().getFullYear()
-const { statItems } = useHomeLiveStats()
+const {
+  statItems,
+  computedAt: statsComputedAt,
+  opsDataThrough: statsOpsDataThrough,
+  isStale: isStatsStale,
+} = useHomeLiveStats()
 const { perkLines } = usePublicGrowthTeaser()
+
+const statsFreshness = computed(() => {
+  const items: string[] = []
+  const through = formatHomeStatsTimestamp(statsOpsDataThrough.value, locale.value)
+  const computed = formatHomeStatsTimestamp(statsComputedAt.value, locale.value)
+  if (through) items.push(t('home.jisudeng.stats.through', { time: through }))
+  if (computed) items.push(t('home.jisudeng.stats.computed', { time: computed }))
+  return items
+})
 
 const inView = ref<Record<string, boolean>>({})
 
