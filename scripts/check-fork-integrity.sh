@@ -29,6 +29,57 @@ check_not_contains() {
   if ! grep -Fq -- "$needle" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
 }
 
+check_yaml_push_branch() {
+  local id="$1" desc="$2" file="$3" branch="$4"
+  if node -e '
+    const fs = require("fs");
+    const lines = fs.readFileSync(process.argv[1], "utf8").split(/\r?\n/);
+    const wanted = process.argv[2];
+    let inOn = false;
+    let inPush = false;
+    let inBranches = false;
+    let found = false;
+    for (const raw of lines) {
+      const line = raw.replace(/\s+#.*$/, "");
+      if (!line.trim()) continue;
+      const indent = line.match(/^ */)[0].length;
+      const value = line.trim();
+      if (indent === 0) {
+        inOn = value === "on:";
+        inPush = false;
+        inBranches = false;
+        continue;
+      }
+      if (!inOn) continue;
+      if (indent === 2) {
+        inPush = value === "push:";
+        inBranches = false;
+        continue;
+      }
+      if (!inPush) continue;
+      if (indent === 4) {
+        inBranches = value === "branches:";
+        continue;
+      }
+      if (!inBranches || indent !== 6 || !value.startsWith("- ")) continue;
+      let branch = value.slice(2).trim();
+      const quote = branch.charCodeAt(0);
+      if ((quote === 34 || quote === 39) && branch.charCodeAt(branch.length - 1) === quote) {
+        branch = branch.slice(1, -1);
+      }
+      if (branch === wanted) {
+        found = true;
+        break;
+      }
+    }
+    process.exit(found ? 0 : 1);
+  ' "$ROOT/$file" "$branch"; then
+    pass "$id" "$desc"
+  else
+    fail "$id" "$desc"
+  fi
+}
+
 run_check() {
   local id="$1" desc="$2"
   shift 2
@@ -73,7 +124,23 @@ check_contains "FORK-PRICING-005" "site catalog price precedence" "backend/inter
 check_contains "FORK-DEPLOY-006" "deployment defaults to play/main" "scripts/push-github-and-deploy.sh" 'BRANCH="${1:-play/main}"'
 check_contains "FORK-DEPLOY-006" "deployment rejects main" "scripts/push-github-and-deploy.sh" 'if [[ "$BRANCH" == "main" ]]'
 check_contains "FORK-DEPLOY-006" "production verification URL" "scripts/push-github-and-deploy.sh" "https://www.jisudeng.com/"
-check_file "FORK-DEPLOY-006" "server-only verification rule" ".cursor/rules/sub2api-server-only-verify.mdc"
+check_file "FORK-DEPLOY-006" "repository delivery rules" "AGENTS.md"
+check_file "FORK-DEPLOY-006" "canonical delivery workflow" "docs/DELIVERY_WORKFLOW.md"
+check_file "FORK-DEPLOY-006" "delivery verification rule" ".cursor/rules/sub2api-server-only-verify.mdc"
+check_contains "FORK-DEPLOY-006" "isolated server worktree is mandatory" "docs/DELIVERY_WORKFLOW.md" "在服务器上从最新审查基线创建独立分支和 Git worktree"
+check_contains "FORK-DEPLOY-006" "TDD and per-task reviews are mandatory" "AGENTS.md" "业务行为严格执行 TDD"
+check_contains "FORK-DEPLOY-006" "review branch precedes play/main" "docs/DELIVERY_WORKFLOW.md" "审查分支"
+check_contains "FORK-DEPLOY-006" "origin play/main remains production source" "docs/DELIVERY_WORKFLOW.md" '生产源码分支是 `origin/play/main`'
+check_contains "FORK-DEPLOY-006" "local workstation covers three roles" "docs/DELIVERY_WORKFLOW.md" "用户本地电脑浏览器"
+check_contains "FORK-DEPLOY-006" "guest acceptance evidence is recorded" "docs/DELIVERY_WORKFLOW.md" "本地浏览器游客验收："
+check_contains "FORK-DEPLOY-006" "regular user acceptance evidence is recorded" "docs/DELIVERY_WORKFLOW.md" "本地浏览器普通用户验收："
+check_contains "FORK-DEPLOY-006" "admin acceptance evidence is recorded" "docs/DELIVERY_WORKFLOW.md" "本地浏览器管理员验收："
+check_contains "FORK-DEPLOY-006" "credentials stay out of tracked artifacts and logs" "AGENTS.md" "禁止写入 Git、代码、文档、命令输出或日志"
+check_not_contains "FORK-DEPLOY-006" "legacy server-only completion wording removed" ".cursor/rules/sub2api-server-only-verify.mdc" "必须通过推送后在 Zeabur 线上验收"
+check_yaml_push_branch "FORK-DEPLOY-006" "review branches trigger fork integrity CI" ".github/workflows/fork-integrity.yml" "codex/**"
+check_contains "FORK-DEPLOY-006" "active release playbook requires local workstation acceptance" "docs/UPSTREAM_SYNC_PLAYBOOK.md" "由用户在本地电脑浏览器"
+check_contains "FORK-DEPLOY-006" "legacy rollback plan is overridden by local workstation acceptance" "docs/superpowers/plans/2026-07-15-growth-regression-rollback.md" "2026-07-16 delivery override"
+check_contains "FORK-DEPLOY-006" "make test runs the full frontend suite" "Makefile" "pnpm --dir frontend run test:run"
 
 check_contains "FORK-OAUTH-007" "shared OAuth cookie domain" "backend/internal/handler/auth_linuxdo_oauth.go" 'return ".jisudeng.com"'
 check_contains "FORK-OAUTH-007" "OAuth domain behavior test" "backend/internal/handler/auth_linuxdo_oauth_test.go" "TestOAuthCookieDomain"

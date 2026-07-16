@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"sort"
-	"strconv"
 	"strings"
 )
 
@@ -198,12 +197,4 @@ func displayPlatformName(platform string) string {
 		}
 		return strings.ToUpper(platform[:1]) + platform[1:]
 	}
-}
-
-func parsePositiveFloat(raw string) (float64, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return 0, nil
-	}
-	return strconv.ParseFloat(raw, 64)
 }

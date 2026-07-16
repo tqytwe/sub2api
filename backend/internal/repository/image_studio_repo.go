@@ -185,7 +185,7 @@ func (r *imageStudioRepository) scanJob(ctx context.Context, query string, args 
 	return &job, nil
 }
 
-func (r *imageStudioRepository) listAssets(ctx context.Context, jobID string) ([]service.ImageStudioAsset, error) {
+func (r *imageStudioRepository) listAssets(ctx context.Context, jobID string) (result []service.ImageStudioAsset, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT id::text, COALESCE(url, ''), sort_order,
@@ -196,7 +196,12 @@ func (r *imageStudioRepository) listAssets(ctx context.Context, jobID string) ([
 	if err != nil {
 		return nil, fmt.Errorf("list image studio assets: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	out := make([]service.ImageStudioAsset, 0)
 	for rows.Next() {
 		var a service.ImageStudioAsset
@@ -208,7 +213,7 @@ func (r *imageStudioRepository) listAssets(ctx context.Context, jobID string) ([
 	return out, rows.Err()
 }
 
-func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limit int) ([]service.ImageStudioJob, error) {
+func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limit int) (result []service.ImageStudioJob, err error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -223,7 +228,12 @@ func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limi
 	if err != nil {
 		return nil, fmt.Errorf("list image studio jobs: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	out := make([]service.ImageStudioJob, 0)
 	for rows.Next() {
 		var job service.ImageStudioJob
@@ -259,7 +269,7 @@ func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limi
 	return out, rows.Err()
 }
 
-func (r *imageStudioRepository) ListAssetStorageKeysForJob(ctx context.Context, jobID string) ([]string, error) {
+func (r *imageStudioRepository) ListAssetStorageKeysForJob(ctx context.Context, jobID string) (result []string, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT COALESCE(storage_key, '')
@@ -268,7 +278,12 @@ func (r *imageStudioRepository) ListAssetStorageKeysForJob(ctx context.Context, 
 	if err != nil {
 		return nil, fmt.Errorf("list image studio asset storage keys: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	out := make([]string, 0)
 	for rows.Next() {
 		var key string
@@ -282,7 +297,7 @@ func (r *imageStudioRepository) ListAssetStorageKeysForJob(ctx context.Context, 
 	return out, rows.Err()
 }
 
-func (r *imageStudioRepository) ListExpiredJobIDs(ctx context.Context, before time.Time) ([]string, error) {
+func (r *imageStudioRepository) ListExpiredJobIDs(ctx context.Context, before time.Time) (result []string, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT id::text
@@ -291,7 +306,12 @@ func (r *imageStudioRepository) ListExpiredJobIDs(ctx context.Context, before ti
 	if err != nil {
 		return nil, fmt.Errorf("list expired image studio jobs: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	out := make([]string, 0)
 	for rows.Next() {
 		var id string

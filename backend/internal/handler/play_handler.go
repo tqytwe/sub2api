@@ -309,7 +309,7 @@ func buildPublicPlatformSections(ch service.AvailableChannel) []publicModelPlatf
 	return sections
 }
 
-func countPublicModels(channels []service.AvailableChannel) int {
+func countPublicModels(channels []service.AvailableChannel) int { //nolint:unused // Used by unit-tagged regression tests.
 	seen := make(map[string]struct{})
 	for _, ch := range channels {
 		for _, model := range ch.SupportedModels {

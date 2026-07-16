@@ -59,6 +59,7 @@ export interface PlayArenaLeaderboard {
 export interface PlayBlindboxStatus {
   enabled: boolean
   cost_amount: number
+  pool?: PlayBlindboxPool
   daily_limit: number
   effective_limit?: number
   opens_today: number
@@ -68,12 +69,31 @@ export interface PlayBlindboxStatus {
   campaign_active?: boolean
 }
 
+export interface PlayBlindboxPoolTier {
+  amount: number
+  weight: number
+}
+
+export interface PlayBlindboxPool {
+  version: string
+  cost: number
+  rtp_cap: number
+  tiers: PlayBlindboxPoolTier[]
+}
+
+export interface PlayBlindboxPoolResponse {
+  enabled: boolean
+  pool: PlayBlindboxPool
+}
+
 export interface PlayBlindboxOpenResult {
   cost_amount: number
   reward_amount: number
   net_amount: number
   opens_today: number
   server_date: string
+  pool_version: string
+  open_source: string
 }
 
 export interface PlayBlindboxRecentWin {
@@ -113,6 +133,13 @@ export interface PlayTeamMember {
   joined_at: string
   token_sum: number
   token_pct: number
+  spend: string
+  spend_pct: number
+}
+
+export interface TeamRewardTier {
+  threshold: string
+  rate: string
 }
 
 export interface PlayTeamAffiliateInfo {
@@ -133,11 +160,52 @@ export interface PlayTeamSummary {
   token_sum: number
   members: PlayTeamMember[]
   affiliate?: PlayTeamAffiliateInfo
+  current_month: string
+  team_spend: string
+  reached_threshold: string
+  reward_rate: string
+  next_threshold: string
+  estimated_pool: string
+  reward_cap: string
+  reward_tiers: TeamRewardTier[]
 }
 
 export interface PlayTeamMe {
   enabled: boolean
   team?: PlayTeamSummary
+}
+
+export interface PlayTeamRewardAllocation {
+  id: number
+  settlement_id: number
+  user_id: number
+  contribution: string
+  ratio: string
+  reward_amount: string
+  payout_status: 'pending' | 'processing' | 'paid' | 'failed'
+  paid_at?: string
+  last_error?: string
+}
+
+export interface PlayTeamSettlement {
+  id: number
+  team_id: number
+  period_start: string
+  window_start: string
+  window_end: string
+  team_spend: string
+  reached_threshold: string
+  reward_rate: string
+  pool_amount: string
+  cap_amount: string
+  status: 'pending' | 'processing' | 'completed' | 'partial' | 'failed'
+  last_error?: string
+  completed_at?: string
+}
+
+export interface PlayTeamSettlementRecord {
+  settlement: PlayTeamSettlement
+  allocations: PlayTeamRewardAllocation[]
 }
 
 export interface PlayVIPStatus {
@@ -274,6 +342,11 @@ export async function getBlindboxStatus(): Promise<PlayBlindboxStatus> {
   return data
 }
 
+export async function getBlindboxPool(): Promise<PlayBlindboxPoolResponse> {
+  const { data } = await apiClient.get<PlayBlindboxPoolResponse>('/play/blindbox/pool')
+  return data
+}
+
 export async function getBlindboxRecentWins(): Promise<PlayBlindboxRecentWin[]> {
   const { data } = await apiClient.get<PlayBlindboxRecentWin[]>('/play/blindbox/recent')
   return data ?? []
@@ -310,6 +383,23 @@ export async function joinTeam(inviteCode: string): Promise<PlayTeamSummary> {
   return data
 }
 
+export async function leaveTeam(): Promise<void> {
+  await apiClient.post('/play/teams/leave')
+}
+
+export async function transferTeam(targetUserId: number): Promise<void> {
+  await apiClient.post('/play/teams/transfer', { target_user_id: targetUserId })
+}
+
+export async function removeTeamMember(targetUserId: number): Promise<void> {
+  await apiClient.post('/play/teams/remove', { target_user_id: targetUserId })
+}
+
+export async function getTeamSettlements(): Promise<PlayTeamSettlementRecord[]> {
+  const { data } = await apiClient.get<PlayTeamSettlementRecord[]>('/play/teams/settlements')
+  return data ?? []
+}
+
 export const playAPI = {
   getPlayHub,
   getActiveCampaigns,
@@ -321,6 +411,7 @@ export const playAPI = {
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
   getQuestsToday,
+  getBlindboxPool,
   getBlindboxStatus,
   openBlindbox,
   getBlindboxRecentWins,
@@ -329,6 +420,10 @@ export const playAPI = {
   getTeamMe,
   createTeam,
   joinTeam,
+  leaveTeam,
+  transferTeam,
+  removeTeamMember,
+  getTeamSettlements,
 }
 
 export default playAPI

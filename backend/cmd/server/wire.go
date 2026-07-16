@@ -104,7 +104,9 @@ func provideCleanup(
 	channelMonitorRunner *service.ChannelMonitorRunner,
 	quotaFlusher *service.UserPlatformQuotaUsageFlusher,
 	playGrowthRunner *service.PlayGrowthRunner,
+	publicHomeStatsService *service.PublicHomeStatsService,
 ) func() {
+	server.SetPublicHomeStatsService(publicHomeStatsService)
 	return func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()

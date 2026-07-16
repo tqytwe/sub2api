@@ -22,6 +22,7 @@ func RegisterPlayRoutes(
 		play.GET("/arena/leaderboard", h.Play.ArenaLeaderboard)
 		play.GET("/arena/daily/current", middleware.OptionalJWTAuth(jwtAuth), h.Play.ArenaDailyCurrent)
 		play.GET("/arena/daily/leaderboard", h.Play.ArenaDailyLeaderboard)
+		play.GET("/blindbox/pool", h.Play.BlindboxPool)
 		play.GET("/blindbox/recent", h.Play.BlindboxRecent)
 	}
 
@@ -52,6 +53,10 @@ func RegisterPlayRoutes(
 			teams.GET("/me", h.Play.TeamMe)
 			teams.POST("", h.Play.TeamCreate)
 			teams.POST("/join", h.Play.TeamJoin)
+			teams.POST("/leave", h.Play.TeamLeave)
+			teams.POST("/transfer", h.Play.TeamTransfer)
+			teams.POST("/remove", h.Play.TeamRemove)
+			teams.GET("/settlements", h.Play.TeamSettlements)
 		}
 
 		authenticated.GET("/play/hub", h.Play.Hub)

@@ -482,6 +482,9 @@ function mountView() {
         ProxySelector: true,
         ImageUpload: ImageUploadStub,
         BackupSettings: true,
+        BlindboxPoolEditor: {
+          template: '<section data-testid="blindbox-pool-editor-stub" />',
+        },
       },
     },
   });
@@ -594,6 +597,22 @@ describe("admin SettingsView payment visible method controls", () => {
     });
     fetchPublicSettings.mockResolvedValue(undefined);
     adminSettingsFetch.mockResolvedValue(undefined);
+  });
+
+  it("places the focused blindbox pool editor in the Features tab", async () => {
+    const wrapper = mountView();
+    await flushPromises();
+
+    const editor = wrapper.get('[data-testid="blindbox-pool-editor-stub"]');
+    const featuresPanel = wrapper.get('[data-testid="settings-features-panel"]');
+    expect(featuresPanel.attributes("style")).toContain("display: none");
+    expect(featuresPanel.element.contains(editor.element)).toBe(true);
+
+    await wrapper.get("#settings-tab-features").trigger("click");
+    await flushPromises();
+
+    expect(featuresPanel.attributes("style")).not.toContain("display: none");
+    expect(wrapper.get("#settings-tab-features").attributes("aria-selected")).toBe("true");
   });
 
   it("does not render legacy visible payment method controls", async () => {

@@ -12,6 +12,45 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
+func (r *playRepository) LockBlindboxOpenUser(ctx context.Context, userID int64) (float64, error) {
+	exec := r.sqlExec(ctx)
+	var balance float64
+	err := scanSingleRow(ctx, exec, `
+		SELECT balance
+		FROM users
+		WHERE id = $1 AND deleted_at IS NULL
+		FOR UPDATE`, []any{userID}, &balance)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, service.ErrUserNotFound
+		}
+		return 0, fmt.Errorf("lock blindbox user: %w", err)
+	}
+	return balance, nil
+}
+
+func (r *playRepository) UpdatePlayBalance(ctx context.Context, userID int64, amount float64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE users
+		SET balance = balance + $1,
+		    updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL`,
+		amount, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update play balance: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update play balance rows affected: %w", err)
+	}
+	if n == 0 {
+		return service.ErrUserNotFound
+	}
+	return nil
+}
+
 func (r *playRepository) CountBlindboxOpens(ctx context.Context, userID int64, date time.Time) (int, error) {
 	exec := r.sqlExec(ctx)
 	var count int
@@ -25,12 +64,32 @@ func (r *playRepository) CountBlindboxOpens(ctx context.Context, userID int64, d
 }
 
 func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error {
+	return r.InsertBlindboxOpenRecord(ctx, service.PlayBlindboxOpenRecord{
+		UserID:         userID,
+		Date:           date,
+		Cost:           cost,
+		Reward:         reward,
+		IdempotencyKey: idempotencyKey,
+		PoolVersion:    "legacy-v1",
+		OpenSource:     "paid",
+	})
+}
+
+func (r *playRepository) InsertBlindboxOpenRecord(ctx context.Context, record service.PlayBlindboxOpenRecord) error {
 	exec := r.sqlExec(ctx)
 	res, err := exec.ExecContext(ctx, `
-		INSERT INTO play_blindbox_opens (user_id, open_date, cost_amount, reward_amount, idempotency_key)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO play_blindbox_opens (
+			user_id, open_date, cost_amount, reward_amount, idempotency_key, pool_version, open_source
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (idempotency_key) DO NOTHING`,
-		userID, date.Format("2006-01-02"), cost, reward, idempotencyKey,
+		record.UserID,
+		record.Date.Format("2006-01-02"),
+		record.Cost,
+		record.Reward,
+		record.IdempotencyKey,
+		record.PoolVersion,
+		record.OpenSource,
 	)
 	if err != nil {
 		return fmt.Errorf("insert blindbox open: %w", err)
@@ -45,7 +104,7 @@ func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, d
 	return nil
 }
 
-func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) ([]service.PlayBlindboxRecentWin, error) {
+func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) (result []service.PlayBlindboxRecentWin, err error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -64,7 +123,12 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 	if err != nil {
 		return nil, fmt.Errorf("list recent blindbox wins: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayBlindboxRecentWin, 0, limit)
 	for rows.Next() {
@@ -80,7 +144,7 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 	return out, nil
 }
 
-func (r *playRepository) ListQuizQuestions(ctx context.Context, language string) ([]service.PlayQuizQuestionDB, error) {
+func (r *playRepository) ListQuizQuestions(ctx context.Context, language string) (result []service.PlayQuizQuestionDB, err error) {
 	language = strings.ToLower(strings.TrimSpace(language))
 	if language == "" {
 		language = "en"
@@ -95,7 +159,12 @@ func (r *playRepository) ListQuizQuestions(ctx context.Context, language string)
 	if err != nil {
 		return nil, fmt.Errorf("list quiz questions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayQuizQuestionDB, 0, 32)
 	for rows.Next() {
@@ -163,6 +232,8 @@ func (r *playRepository) GetUserTeam(ctx context.Context, userID int64) (*servic
 		FROM play_teams t
 		JOIN play_team_members m ON m.team_id = t.id
 		WHERE m.user_id = $1
+		  AND m.left_at IS NULL
+		  AND t.archived_at IS NULL
 		LIMIT 1`, []any{userID}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -178,7 +249,9 @@ func (r *playRepository) GetTeamByID(ctx context.Context, teamID int64) (*servic
 	var team service.PlayTeamDB
 	err := scanSingleRow(ctx, exec, `
 		SELECT id, name, captain_user_id, invite_code
-		FROM play_teams WHERE id = $1`, []any{teamID}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
+		FROM play_teams
+		WHERE id = $1
+		  AND archived_at IS NULL`, []any{teamID}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -193,7 +266,9 @@ func (r *playRepository) GetTeamByInviteCode(ctx context.Context, inviteCode str
 	var team service.PlayTeamDB
 	err := scanSingleRow(ctx, exec, `
 		SELECT id, name, captain_user_id, invite_code
-		FROM play_teams WHERE invite_code = $1`, []any{inviteCode}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
+		FROM play_teams
+		WHERE invite_code = $1
+		  AND archived_at IS NULL`, []any{inviteCode}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -223,8 +298,7 @@ func (r *playRepository) JoinTeam(ctx context.Context, teamID, userID int64) err
 		INSERT INTO play_team_members (team_id, user_id)
 		VALUES ($1, $2)`, teamID, userID)
 	if err != nil {
-		msg := strings.ToLower(err.Error())
-		if strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint") {
+		if isPlayTeamUniqueViolation(err) {
 			return service.ErrPlayTeamAlreadyJoined
 		}
 		return fmt.Errorf("join team: %w", err)
@@ -232,7 +306,171 @@ func (r *playRepository) JoinTeam(ctx context.Context, teamID, userID int64) err
 	return nil
 }
 
-func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) ([]service.PlayTeamMember, error) {
+func isPlayTeamUniqueViolation(err error) bool {
+	type sqlStateError interface {
+		SQLState() string
+	}
+	var stateErr sqlStateError
+	if errors.As(err, &stateErr) && stateErr.SQLState() == "23505" {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint")
+}
+
+func (r *playRepository) LockActiveTeamMembership(ctx context.Context, userID int64) (*service.PlayTeamMembershipDB, error) {
+	exec := r.sqlExec(ctx)
+	var membership service.PlayTeamMembershipDB
+	err := scanSingleRow(ctx, exec, `
+		SELECT id, team_id, user_id, joined_at
+		FROM play_team_members
+		WHERE user_id = $1
+		  AND left_at IS NULL
+		FOR UPDATE`,
+		[]any{userID},
+		&membership.ID,
+		&membership.TeamID,
+		&membership.UserID,
+		&membership.JoinedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("lock active team membership: %w", err)
+	}
+	return &membership, nil
+}
+
+func (r *playRepository) LockTeam(ctx context.Context, teamID int64) (*service.PlayTeamDB, error) {
+	exec := r.sqlExec(ctx)
+	var team service.PlayTeamDB
+	err := scanSingleRow(ctx, exec, `
+		SELECT id, name, captain_user_id, invite_code
+		FROM play_teams
+		WHERE id = $1
+		  AND archived_at IS NULL
+		FOR UPDATE`,
+		[]any{teamID},
+		&team.ID,
+		&team.Name,
+		&team.CaptainUserID,
+		&team.InviteCode,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("lock team: %w", err)
+	}
+	return &team, nil
+}
+
+func (r *playRepository) CountActiveTeamMembers(ctx context.Context, teamID int64) (int, error) {
+	exec := r.sqlExec(ctx)
+	var count int
+	if err := scanSingleRow(ctx, exec, `
+		SELECT COUNT(*)::int
+		FROM play_team_members
+		WHERE team_id = $1
+		  AND left_at IS NULL`, []any{teamID}, &count); err != nil {
+		return 0, fmt.Errorf("count active team members: %w", err)
+	}
+	return count, nil
+}
+
+func (r *playRepository) LeaveTeam(ctx context.Context, teamID, userID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_team_members
+		SET left_at = NOW()
+		WHERE team_id = $1
+		  AND user_id = $2
+		  AND left_at IS NULL`, teamID, userID)
+	if err != nil {
+		return fmt.Errorf("leave team: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamMemberNotFound, "leave team")
+}
+
+func (r *playRepository) TransferTeamCaptain(ctx context.Context, teamID, captainUserID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_teams
+		SET captain_user_id = $2
+		WHERE id = $1
+		  AND archived_at IS NULL`, teamID, captainUserID)
+	if err != nil {
+		return fmt.Errorf("transfer team captain: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamNotFound, "transfer team captain")
+}
+
+func (r *playRepository) RemoveTeamMember(ctx context.Context, teamID, userID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_team_members
+		SET left_at = NOW()
+		WHERE team_id = $1
+		  AND user_id = $2
+		  AND left_at IS NULL`, teamID, userID)
+	if err != nil {
+		return fmt.Errorf("remove team member: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamMemberNotFound, "remove team member")
+}
+
+func (r *playRepository) ArchiveTeam(ctx context.Context, teamID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_teams
+		SET archived_at = NOW()
+		WHERE id = $1
+		  AND archived_at IS NULL`, teamID)
+	if err != nil {
+		return fmt.Errorf("archive team: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamNotFound, "archive team")
+}
+
+func requireTeamMutationRow(result sql.Result, notFound error, operation string) error {
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s rows affected: %w", operation, err)
+	}
+	if rows == 0 {
+		return notFound
+	}
+	return nil
+}
+
+func (r *playRepository) InsertTeamEvent(ctx context.Context, event service.PlayTeamEvent) error {
+	detail, err := json.Marshal(event.Detail)
+	if err != nil {
+		return fmt.Errorf("marshal team event detail: %w", err)
+	}
+	var subjectUserID any
+	if event.SubjectUserID > 0 {
+		subjectUserID = event.SubjectUserID
+	}
+	exec := r.sqlExec(ctx)
+	if _, err := exec.ExecContext(ctx, `
+		INSERT INTO play_team_events (
+			team_id, actor_user_id, subject_user_id, event_type, detail
+		)
+		VALUES ($1, $2, $3, $4, $5)`,
+		event.TeamID,
+		event.ActorUserID,
+		subjectUserID,
+		event.Type,
+		detail,
+	); err != nil {
+		return fmt.Errorf("insert team event: %w", err)
+	}
+	return nil
+}
+
+func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (result []service.PlayTeamMember, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT m.user_id,
@@ -240,14 +478,22 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) ([]s
 		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
 		       m.joined_at
 		FROM play_team_members m
+		JOIN play_teams t ON t.id = m.team_id
 		JOIN users u ON u.id = m.user_id
 		LEFT JOIN user_avatars ua ON ua.user_id = m.user_id
 		WHERE m.team_id = $1
+		  AND m.left_at IS NULL
+		  AND t.archived_at IS NULL
 		ORDER BY m.joined_at ASC`, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("list team members: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayTeamMember, 0, 8)
 	for rows.Next() {
@@ -288,7 +534,7 @@ func (r *playRepository) SumTeamTokenUsage(ctx context.Context, userIDs []int64,
 	return sum, nil
 }
 
-func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]int64, error) {
+func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (result map[int64]int64, err error) {
 	out := make(map[int64]int64, len(userIDs))
 	if len(userIDs) == 0 {
 		return out, nil
@@ -312,7 +558,12 @@ func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs [
 	if err != nil {
 		return nil, fmt.Errorf("list team member token usage: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	for rows.Next() {
 		var userID, tokenSum int64
 		if err := rows.Scan(&userID, &tokenSum); err != nil {

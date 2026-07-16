@@ -130,7 +130,7 @@ func (r *playRepository) EnsureMonthlyArenaPeriod(ctx context.Context, now time.
 	return r.GetActiveArenaPeriod(ctx, now)
 }
 
-func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end time.Time, limit int) ([]service.PlayArenaScoreRow, error) {
+func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end time.Time, limit int) (result []service.PlayArenaScoreRow, err error) {
 	if limit <= 0 {
 		limit = 50
 	}
@@ -156,7 +156,12 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 	if err != nil {
 		return nil, fmt.Errorf("list arena leaderboard: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayArenaScoreRow, 0, limit)
 	rank := 0

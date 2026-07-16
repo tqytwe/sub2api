@@ -228,24 +228,6 @@ func ptrValue(v *float64) any {
 	return *v
 }
 
-func matchExternalPrice(prices []ExternalModelPrice, modelName, platform string) (ExternalModelPrice, bool) {
-	modelLower := strings.ToLower(modelName)
-	platformLower := strings.ToLower(platform)
-	for _, p := range prices {
-		if strings.ToLower(p.ModelName) == modelLower {
-			if platformLower == "" || strings.ToLower(p.Platform) == platformLower {
-				return p, true
-			}
-		}
-	}
-	for _, p := range prices {
-		if strings.ToLower(p.ModelName) == modelLower {
-			return p, true
-		}
-	}
-	return ExternalModelPrice{}, false
-}
-
 func catalogSyncKey(modelName, platform string) string {
 	return strings.ToLower(strings.TrimSpace(modelName)) + "::" + strings.ToLower(strings.TrimSpace(platform))
 }

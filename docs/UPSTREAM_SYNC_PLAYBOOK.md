@@ -3,7 +3,7 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-07-15
+> 最后核验：2026-07-16
 
 ## 分支模型
 
@@ -53,6 +53,7 @@ git merge --no-ff upstream/main
 
 ```bash
 ./scripts/check-fork-integrity.sh
+make test
 make build
 ```
 
@@ -64,7 +65,7 @@ make build
 - 测试、构建和线上验收结果。
 - 如需回滚，对应 merge commit。
 
-## 合并、部署与线上验收
+## 合并、部署与生产验收
 
 同步分支 CI 全部通过后，以 merge commit 合入 `play/main`，然后：
 
@@ -74,7 +75,9 @@ git pull --ff-only origin play/main
 ./scripts/push-github-and-deploy.sh play/main
 ```
 
-等待 Zeabur 构建完成，在生产环境检查：
+等待 Zeabur 构建完成，先确认实际部署 commit 与预期 `origin/play/main`
+一致且健康检查通过。随后由用户在本地电脑浏览器访问
+`https://www.jisudeng.com/`，至少使用游客、普通用户和管理员三种身份检查：
 
 1. 首页、登录、注册、浅色与深色主题。
 2. 普通用户和管理员侧栏。
@@ -83,6 +86,12 @@ git pull --ff-only origin play/main
 5. 游客与登录用户模型价格、分组绑定和真实调用扣费抽样。
 6. 支付入口、测试订单到账和充值 boost。
 7. 从 `jisudeng.com` 与 `www.jisudeng.com` 发起 OAuth。
+
+功能同时涉及用户页和管理员页时必须两侧闭环检查；视觉修改检查浅色和
+深色主题；余额、奖励、计费、统计、配置或迁移修改按风险补充 API 与
+数据库数字对账。服务器浏览器、curl、健康检查或 localhost 不能替代用户
+本地电脑浏览器验收。完整准则见
+[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)。
 
 ## 回滚
 

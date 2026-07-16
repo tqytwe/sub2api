@@ -31,7 +31,7 @@ func NewModelCatalogRepository(db *sql.DB) service.ModelCatalogRepository {
 func (r *modelCatalogRepository) ListCatalog(ctx context.Context, filter service.CatalogListFilter) ([]service.SiteModelCatalogEntry, error) {
 	var sb strings.Builder
 	args := make([]any, 0, 8)
-	sb.WriteString("SELECT " + catalogSelectColumns + " FROM site_model_catalog WHERE 1=1")
+	_, _ = sb.WriteString("SELECT " + catalogSelectColumns + " FROM site_model_catalog WHERE 1=1")
 
 	if p := strings.TrimSpace(filter.Platform); p != "" {
 		args = append(args, p)
@@ -49,7 +49,7 @@ func (r *modelCatalogRepository) ListCatalog(ctx context.Context, filter service
 		args = append(args, "%"+strings.ToLower(q)+"%")
 		fmt.Fprintf(&sb, " AND (LOWER(model_name) LIKE $%d OR LOWER(platform) LIKE $%d)", len(args), len(args))
 	}
-	sb.WriteString(" ORDER BY sort_order ASC, model_name ASC")
+	_, _ = sb.WriteString(" ORDER BY sort_order ASC, model_name ASC")
 	if filter.Limit > 0 {
 		args = append(args, filter.Limit)
 		fmt.Fprintf(&sb, " LIMIT $%d", len(args))

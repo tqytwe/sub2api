@@ -56,8 +56,8 @@ export const jisudengHomeEn = {
   },
   stats: {
     requests: 'Total API requests',
-    uptime: 'Service uptime',
-    latency: 'Avg. first-token latency',
+    uptime: '30-day availability',
+    latency: '24-hour avg. first-token latency',
     models: 'Models available'
   },
   sections: {

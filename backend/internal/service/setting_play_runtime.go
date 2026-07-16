@@ -4,6 +4,9 @@ import (
 	"context"
 	"strconv"
 	"strings"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"go.uber.org/zap"
 )
 
 // GetPlayRuntime reads play feature toggles and reward config directly from the
@@ -18,6 +21,7 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		SettingKeyPlayArenaSettlementRewards,
 		SettingKeyPlayBlindboxEnabled,
 		SettingKeyPlayBlindboxCost,
+		SettingKeyPlayBlindboxPoolJSON,
 		SettingKeyPlayBlindboxDailyLimit,
 		SettingKeyPlayQuizEnabled,
 		SettingKeyPlayQuizRewardPerCorrect,
@@ -33,6 +37,10 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		SettingKeyPlayTeamAffiliateEnabled,
 		SettingKeyPlayTeamAffiliateTokenThreshold,
 		SettingKeyPlayTeamAffiliateCaptainBonus,
+		SettingKeyPlayTeamSharedRewardEnabled,
+		SettingKeyPlayTeamSharedRewardTiers,
+		SettingKeyPlayTeamSharedRewardCap,
+		SettingKeyPlayTeamSharedRewardStartMonth,
 		SettingKeyPlayCampaignsEnabled,
 		SettingKeyImageStudioEnabled,
 		SettingKeyPlayDailyQuestsEnabled,
@@ -64,6 +72,36 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 	if quizCount <= 0 {
 		quizCount = 5
 	}
+	blindboxPool, blindboxPoolDiagnostic := parseBlindboxPool(vals[SettingKeyPlayBlindboxPoolJSON])
+	if blindboxPoolDiagnostic != nil {
+		logger.FromContext(ctx).Warn(
+			"invalid play blindbox pool configuration; using approved default",
+			zap.String("setting_key", SettingKeyPlayBlindboxPoolJSON),
+			zap.String("reason", blindboxPoolDiagnostic.Reason),
+		)
+	}
+	teamRewardConfig, teamRewardDiagnostic := parseTeamRewardConfig(
+		vals[SettingKeyPlayTeamSharedRewardEnabled],
+		vals[SettingKeyPlayTeamSharedRewardTiers],
+		vals[SettingKeyPlayTeamSharedRewardCap],
+	)
+	if teamRewardDiagnostic != nil {
+		logger.FromContext(ctx).Warn(
+			"invalid play team shared reward configuration; using approved default",
+			zap.String("setting_key", teamRewardDiagnostic.SettingKey),
+			zap.String("reason", teamRewardDiagnostic.Reason),
+		)
+	}
+	teamRewardStartMonth, teamRewardStartMonthDiagnostic := parseTeamRewardStartMonth(
+		vals[SettingKeyPlayTeamSharedRewardStartMonth],
+	)
+	if teamRewardStartMonthDiagnostic != nil {
+		logger.FromContext(ctx).Warn(
+			"invalid play team shared reward start month; using empty value",
+			zap.String("setting_key", teamRewardStartMonthDiagnostic.SettingKey),
+			zap.String("reason", teamRewardStartMonthDiagnostic.Reason),
+		)
+	}
 	return PlayRuntime{
 		CheckinEnabled:              vals[SettingKeyPlayCheckinEnabled] == "true",
 		CheckinReward:               reward,
@@ -73,6 +111,7 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		ArenaSettlementRewards:      parseArenaSettlementRewards(vals[SettingKeyPlayArenaSettlementRewards]),
 		BlindboxEnabled:             vals[SettingKeyPlayBlindboxEnabled] == "true",
 		BlindboxCost:                blindboxCost,
+		BlindboxPool:                blindboxPool,
 		BlindboxDailyLimit:          blindboxLimit,
 		QuizEnabled:                 vals[SettingKeyPlayQuizEnabled] == "true",
 		QuizRewardPerCorrect:        quizReward,
@@ -88,6 +127,10 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		TeamAffiliateEnabled:        vals[SettingKeyPlayTeamAffiliateEnabled] == "true",
 		TeamAffiliateTokenThreshold: parsePositiveInt64Setting(vals[SettingKeyPlayTeamAffiliateTokenThreshold], 1_000_000),
 		TeamAffiliateCaptainBonus:   parsePositiveFloatSetting(vals[SettingKeyPlayTeamAffiliateCaptainBonus], 5),
+		TeamSharedRewardEnabled:     teamRewardConfig.Enabled,
+		TeamSharedRewardTiers:       teamRewardConfig.Tiers,
+		TeamSharedRewardCap:         teamRewardConfig.Cap,
+		TeamSharedRewardStartMonth:  teamRewardStartMonth,
 		CampaignsEnabled:            vals[SettingKeyPlayCampaignsEnabled] == "true",
 		ImageStudioEnabled:          vals[SettingKeyImageStudioEnabled] == "true",
 		DailyQuestsEnabled:          vals[SettingKeyPlayDailyQuestsEnabled] == "true",

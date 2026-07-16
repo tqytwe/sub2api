@@ -6,15 +6,15 @@ import (
 
 // PlayHubGrowth surfaces balance/recharge conversion signals for the dashboard and hub.
 type PlayHubGrowth struct {
-	Balance               float64 `json:"balance"`
-	TotalRecharged        float64 `json:"total_recharged"`
-	FirstRechargeEligible bool    `json:"first_recharge_eligible"`
-	BalanceLowWarning     bool    `json:"balance_low_warning"`
-	BalanceLowThreshold   float64 `json:"balance_low_threshold,omitempty"`
-	RechargeMultiplier         float64         `json:"recharge_multiplier"`
-	PaymentEnabled             bool            `json:"payment_enabled"`
-	CampaignRechargeBonusPct   float64         `json:"campaign_recharge_bonus_pct,omitempty"`
-	VIP                        *PlayVIPStatus  `json:"vip,omitempty"`
+	Balance                  float64        `json:"balance"`
+	TotalRecharged           float64        `json:"total_recharged"`
+	FirstRechargeEligible    bool           `json:"first_recharge_eligible"`
+	BalanceLowWarning        bool           `json:"balance_low_warning"`
+	BalanceLowThreshold      float64        `json:"balance_low_threshold,omitempty"`
+	RechargeMultiplier       float64        `json:"recharge_multiplier"`
+	PaymentEnabled           bool           `json:"payment_enabled"`
+	CampaignRechargeBonusPct float64        `json:"campaign_recharge_bonus_pct,omitempty"`
+	VIP                      *PlayVIPStatus `json:"vip,omitempty"`
 }
 
 // PlayHubSummary aggregates all play module states for the logged-in user.

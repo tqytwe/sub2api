@@ -8,7 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
-func (r *playRepository) ListExpiredActiveDailyArenaPeriods(ctx context.Context, now time.Time) ([]service.PlayArenaPeriod, error) {
+func (r *playRepository) ListExpiredActiveDailyArenaPeriods(ctx context.Context, now time.Time) (result []service.PlayArenaPeriod, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT id, name, start_at, end_at, status
@@ -18,7 +18,12 @@ func (r *playRepository) ListExpiredActiveDailyArenaPeriods(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("list expired daily arena periods: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	out := make([]service.PlayArenaPeriod, 0)
 	for rows.Next() {
 		var p service.PlayArenaPeriod

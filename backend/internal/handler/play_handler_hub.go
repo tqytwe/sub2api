@@ -9,22 +9,22 @@ import (
 )
 
 type playHubGrowthDTO struct {
-	Balance               float64 `json:"balance"`
-	TotalRecharged        float64 `json:"total_recharged"`
-	FirstRechargeEligible bool    `json:"first_recharge_eligible"`
-	BalanceLowWarning     bool    `json:"balance_low_warning"`
-	BalanceLowThreshold   float64 `json:"balance_low_threshold,omitempty"`
-	RechargeMultiplier         float64           `json:"recharge_multiplier"`
-	PaymentEnabled             bool              `json:"payment_enabled"`
-	CampaignRechargeBonusPct   float64           `json:"campaign_recharge_bonus_pct,omitempty"`
-	VIP                        *playVIPStatusDTO `json:"vip,omitempty"`
+	Balance                  float64           `json:"balance"`
+	TotalRecharged           float64           `json:"total_recharged"`
+	FirstRechargeEligible    bool              `json:"first_recharge_eligible"`
+	BalanceLowWarning        bool              `json:"balance_low_warning"`
+	BalanceLowThreshold      float64           `json:"balance_low_threshold,omitempty"`
+	RechargeMultiplier       float64           `json:"recharge_multiplier"`
+	PaymentEnabled           bool              `json:"payment_enabled"`
+	CampaignRechargeBonusPct float64           `json:"campaign_recharge_bonus_pct,omitempty"`
+	VIP                      *playVIPStatusDTO `json:"vip,omitempty"`
 }
 
 type playCampaignRulesDTO struct {
-	RechargeBonusPct     float64            `json:"recharge_bonus_pct,omitempty"`
-	BlindboxExtraOpens   int                `json:"blindbox_extra_opens,omitempty"`
-	ArenaScoreMultiplier float64            `json:"arena_score_multiplier,omitempty"`
-	NameI18n             map[string]string  `json:"name_i18n,omitempty"`
+	RechargeBonusPct     float64           `json:"recharge_bonus_pct,omitempty"`
+	BlindboxExtraOpens   int               `json:"blindbox_extra_opens,omitempty"`
+	ArenaScoreMultiplier float64           `json:"arena_score_multiplier,omitempty"`
+	NameI18n             map[string]string `json:"name_i18n,omitempty"`
 }
 
 type playCampaignSummaryDTO struct {
@@ -86,11 +86,11 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 		AnyEnabled:     s.AnyEnabled,
 		PendingActions: s.PendingActions,
 		Growth: playHubGrowthDTO{
-			Balance:               s.Growth.Balance,
-			TotalRecharged:        s.Growth.TotalRecharged,
-			FirstRechargeEligible: s.Growth.FirstRechargeEligible,
-			BalanceLowWarning:     s.Growth.BalanceLowWarning,
-			BalanceLowThreshold:   s.Growth.BalanceLowThreshold,
+			Balance:                  s.Growth.Balance,
+			TotalRecharged:           s.Growth.TotalRecharged,
+			FirstRechargeEligible:    s.Growth.FirstRechargeEligible,
+			BalanceLowWarning:        s.Growth.BalanceLowWarning,
+			BalanceLowThreshold:      s.Growth.BalanceLowThreshold,
 			RechargeMultiplier:       s.Growth.RechargeMultiplier,
 			PaymentEnabled:           s.Growth.PaymentEnabled,
 			CampaignRechargeBonusPct: s.Growth.CampaignRechargeBonusPct,
@@ -151,6 +151,7 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 		out.Blindbox = &playBlindboxStatusDTO{
 			Enabled:             s.Blindbox.Enabled,
 			CostAmount:          s.Blindbox.CostAmount,
+			Pool:                toPlayBlindboxPoolDTOPtr(s.Blindbox.BlindboxPool),
 			DailyLimit:          s.Blindbox.DailyLimit,
 			EffectiveLimit:      s.Blindbox.EffectiveLimit,
 			OpensToday:          s.Blindbox.OpensToday,

@@ -29,7 +29,7 @@ func (r *playRepository) UpsertQuestProgress(ctx context.Context, userID int64, 
 	return nil
 }
 
-func (r *playRepository) ListQuestProgress(ctx context.Context, userID int64, questDate time.Time) ([]service.PlayQuestProgressRow, error) {
+func (r *playRepository) ListQuestProgress(ctx context.Context, userID int64, questDate time.Time) (result []service.PlayQuestProgressRow, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT quest_key, completed, completed_at, reward_claimed
@@ -39,7 +39,12 @@ func (r *playRepository) ListQuestProgress(ctx context.Context, userID int64, qu
 	if err != nil {
 		return nil, fmt.Errorf("list quest progress: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	out := make([]service.PlayQuestProgressRow, 0)
 	for rows.Next() {
 		var row service.PlayQuestProgressRow

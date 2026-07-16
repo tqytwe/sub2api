@@ -3,14 +3,12 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
-import userAPI from '@/api/user'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import playAPI, { type PlayTeamMe } from '@/api/play'
+import playAPI, { type PlayTeamMe, type PlayTeamSettlementRecord } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
-import { buildRegisterInviteLink } from '@/utils/oauthAffiliate'
 import '@/styles/public-pages.css'
 
 const { t } = useI18n()
@@ -23,16 +21,14 @@ const submitting = ref(false)
 const teamMe = ref<PlayTeamMe | null>(null)
 const teamName = ref('')
 const inviteCode = ref('')
-const affCode = ref('')
+const settlements = ref<PlayTeamSettlementRecord[]>([])
 
 const isCaptain = computed(
   () => teamMe.value?.team && authStore.user?.id === teamMe.value.team.captain_id,
 )
-const combinedInviteLink = computed(() => {
-  if (!affCode.value || !teamMe.value?.team?.invite_code) return ''
-  return buildRegisterInviteLink(affCode.value, teamMe.value.team.invite_code)
-})
-const affiliateInfo = computed(() => teamMe.value?.team?.affiliate)
+const teamSpend = computed(() => Number(teamMe.value?.team?.team_spend ?? 0))
+const rewardRatePct = computed(() => Number(teamMe.value?.team?.reward_rate ?? 0) * 100)
+const nextThreshold = computed(() => Number(teamMe.value?.team?.next_threshold ?? 0))
 
 async function loadTeam() {
   if (!authStore.isAuthenticated) {
@@ -43,14 +39,7 @@ async function loadTeam() {
   loading.value = true
   try {
     teamMe.value = await playAPI.getTeamMe()
-    if (authStore.isAuthenticated && teamMe.value?.team && authStore.user?.id === teamMe.value.team.captain_id) {
-      try {
-        const detail = await userAPI.getAffiliateDetail()
-        affCode.value = detail.aff_code
-      } catch {
-        affCode.value = ''
-      }
-    }
+    settlements.value = teamMe.value?.team ? await playAPI.getTeamSettlements() : []
   } catch {
     teamMe.value = null
   } finally {
@@ -105,8 +94,51 @@ async function handleJoin() {
 }
 
 async function copyCombinedInviteLink() {
-  if (!combinedInviteLink.value) return
-  await copyToClipboard(combinedInviteLink.value, t('agentTeam.linkCopied'))
+  const code = teamMe.value?.team?.invite_code
+  if (!code) return
+  await copyToClipboard(code, t('agentTeam.linkCopied'))
+}
+
+async function handleLeave() {
+  if (submitting.value || !window.confirm(t('agentTeam.leaveConfirm'))) return
+  submitting.value = true
+  try {
+    await playAPI.leaveTeam()
+    appStore.showSuccess(t('agentTeam.left'))
+    await loadTeam()
+  } catch {
+    appStore.showError(t('agentTeam.failed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleTransfer(userId: number) {
+  if (submitting.value || !window.confirm(t('agentTeam.transferConfirm'))) return
+  submitting.value = true
+  try {
+    await playAPI.transferTeam(userId)
+    appStore.showSuccess(t('agentTeam.transferred'))
+    await loadTeam()
+  } catch {
+    appStore.showError(t('agentTeam.failed'))
+  } finally {
+    submitting.value = false
+  }
+}
+
+async function handleRemove(userId: number) {
+  if (submitting.value || !window.confirm(t('agentTeam.removeConfirm'))) return
+  submitting.value = true
+  try {
+    await playAPI.removeTeamMember(userId)
+    appStore.showSuccess(t('agentTeam.removed'))
+    await loadTeam()
+  } catch {
+    appStore.showError(t('agentTeam.failed'))
+  } finally {
+    submitting.value = false
+  }
 }
 
 onMounted(loadTeam)
@@ -133,36 +165,28 @@ onMounted(loadTeam)
       <div v-else-if="teamMe.team" class="play-section space-y-4">
         <h2 class="play-section-title">{{ teamMe.team.name }}</h2>
         <p class="play-intro">{{ t('agentTeam.inviteCode', { code: teamMe.team.invite_code }) }}</p>
+        <p class="play-intro">{{ t('agentTeam.spendStats', { members: teamMe.team.member_count, spend: teamSpend.toFixed(2) }) }}</p>
         <p class="play-intro">
-          {{ t('agentTeam.stats', { members: teamMe.team.member_count, tokens: teamMe.team.token_sum.toLocaleString() }) }}
+          {{ rewardRatePct > 0
+            ? t('agentTeam.reachedTier', { rate: rewardRatePct.toFixed(0), pool: Number(teamMe.team.estimated_pool).toFixed(2) })
+            : t('agentTeam.noTier') }}
         </p>
-        <p v-if="affiliateInfo?.enabled" class="play-intro">
-          {{ t('agentTeam.affiliateProgress', {
-            tokens: teamMe.team.token_sum.toLocaleString(),
-            threshold: affiliateInfo.token_threshold.toLocaleString(),
-          }) }}
+        <p v-if="nextThreshold > 0" class="play-intro">
+          {{ t('agentTeam.nextTier', { amount: Math.max(0, nextThreshold - teamSpend).toFixed(2), threshold: nextThreshold.toFixed(2) }) }}
         </p>
-        <p v-if="affiliateInfo?.enabled && !affiliateInfo.milestone_reached" class="play-intro">
-          {{ t('agentTeam.affiliateRemaining', {
-            remaining: (affiliateInfo.tokens_to_milestone ?? 0).toLocaleString(),
-            bonus: (affiliateInfo.captain_bonus ?? 0).toFixed(2),
-          }) }}
-        </p>
-        <p v-else-if="affiliateInfo?.milestone_reached" class="play-intro">
-          {{ t('agentTeam.affiliateReached', { bonus: (affiliateInfo.captain_bonus ?? 0).toFixed(2) }) }}
-        </p>
-        <div v-if="isCaptain && combinedInviteLink" class="play-section space-y-2">
-          <p class="text-sm font-medium">{{ t('agentTeam.combinedInviteLink') }}</p>
+        <p class="play-intro">{{ t('agentTeam.rewardRule', { cap: Number(teamMe.team.reward_cap).toFixed(2) }) }}</p>
+        <div v-if="isCaptain" class="play-section space-y-2">
+          <p class="text-sm font-medium">{{ t('agentTeam.inviteCodeLabel') }}</p>
           <div class="flex flex-wrap gap-2">
-            <code class="flex-1 truncate rounded-lg border px-3 py-2 text-sm">{{ combinedInviteLink }}</code>
+            <code class="flex-1 truncate rounded border px-3 py-2 text-sm">{{ teamMe.team.invite_code }}</code>
             <button type="button" class="play-btn play-btn-secondary" @click="copyCombinedInviteLink">
-              {{ t('agentTeam.copyInviteLink') }}
+              {{ t('agentTeam.copyInviteCode') }}
             </button>
           </div>
         </div>
         <ul class="play-rules space-y-3">
           <li class="text-sm font-medium">{{ t('agentTeam.contributionsTitle') }}</li>
-          <li v-if="teamMe.team.token_sum <= 0" class="play-intro text-sm">
+          <li v-if="teamSpend <= 0" class="play-intro text-sm">
             {{ t('agentTeam.memberUsageEmpty') }}
           </li>
           <li
@@ -178,23 +202,53 @@ onMounted(loadTeam)
             </div>
             <div class="text-right text-sm">
               <div class="font-medium tabular-nums">
-                {{ t('agentTeam.memberUsage', {
-                  tokens: (member.token_sum ?? 0).toLocaleString(),
-                  pct: member.token_pct ?? 0,
+                {{ t('agentTeam.memberSpend', {
+                  spend: Number(member.spend).toFixed(2),
+                  pct: member.spend_pct ?? 0,
                 }) }}
               </div>
+              <div class="text-xs opacity-70">{{ t('agentTeam.memberTokens', { tokens: member.token_sum.toLocaleString() }) }}</div>
               <div
-                v-if="teamMe.team.token_sum > 0"
-                class="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-black/10 dark:bg-white/10"
+                v-if="teamSpend > 0"
+                class="mt-1 h-1.5 w-28 overflow-hidden rounded bg-black/10 dark:bg-white/10"
               >
                 <div
-                  class="h-full rounded-full bg-[var(--play-ink)]"
-                  :style="{ width: `${member.token_pct ?? 0}%` }"
+                  class="h-full rounded bg-[var(--play-ink)]"
+                  :style="{ width: `${member.spend_pct ?? 0}%` }"
                 />
+              </div>
+              <div v-if="isCaptain && member.user_id !== authStore.user?.id" class="mt-2 flex justify-end gap-2">
+                <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleTransfer(member.user_id)">
+                  {{ t('agentTeam.transfer') }}
+                </button>
+                <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleRemove(member.user_id)">
+                  {{ t('agentTeam.remove') }}
+                </button>
               </div>
             </div>
           </li>
         </ul>
+        <div class="flex justify-end">
+          <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleLeave">
+            {{ t('agentTeam.leave') }}
+          </button>
+        </div>
+        <section class="space-y-3">
+          <h3 class="play-section-title">{{ t('agentTeam.settlementHistory') }}</h3>
+          <p v-if="settlements.length === 0" class="play-intro">{{ t('agentTeam.noSettlements') }}</p>
+          <div v-for="record in settlements" :key="record.settlement.id" class="rounded border border-[var(--play-line)] p-3">
+            <div class="flex flex-wrap justify-between gap-2 text-sm">
+              <strong>{{ record.settlement.period_start.slice(0, 7) }}</strong>
+              <span>{{ t('agentTeam.poolStatus', { pool: Number(record.settlement.pool_amount).toFixed(2), status: record.settlement.status }) }}</span>
+            </div>
+            <ul class="mt-2 space-y-1 text-sm">
+              <li v-for="allocation in record.allocations" :key="allocation.id" class="flex justify-between gap-3">
+                <span>#{{ allocation.user_id }}</span>
+                <span>{{ Number(allocation.reward_amount).toFixed(2) }} · {{ allocation.payout_status }}</span>
+              </li>
+            </ul>
+          </div>
+        </section>
       </div>
       <div v-else class="play-section space-y-6">
         <div>
