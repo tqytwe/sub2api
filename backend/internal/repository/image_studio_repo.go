@@ -16,10 +16,11 @@ import (
 type imageStudioRepository struct {
 	client *dbent.Client
 	sql    sqlExecutor
+	db     *sql.DB
 }
 
 func NewImageStudioRepository(client *dbent.Client, db *sql.DB) service.ImageStudioRepository {
-	return &imageStudioRepository{client: client, sql: db}
+	return &imageStudioRepository{client: client, sql: db, db: db}
 }
 
 func (r *imageStudioRepository) sqlExec(ctx context.Context) sqlExecutor {
@@ -270,7 +271,14 @@ func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limi
 }
 
 func (r *imageStudioRepository) ListAssetStorageKeysForJob(ctx context.Context, jobID string) (result []string, err error) {
-	exec := r.sqlExec(ctx)
+	return listImageStudioAssetStorageKeys(ctx, r.sqlExec(ctx), jobID)
+}
+
+func listImageStudioAssetStorageKeys(
+	ctx context.Context,
+	exec sqlExecutor,
+	jobID string,
+) (result []string, err error) {
 	rows, err := exec.QueryContext(ctx, `
 		SELECT COALESCE(storage_key, '')
 		FROM image_studio_assets
@@ -323,18 +331,56 @@ func (r *imageStudioRepository) ListExpiredJobIDs(ctx context.Context, before ti
 	return out, rows.Err()
 }
 
-func (r *imageStudioRepository) DeleteJob(ctx context.Context, userID int64, jobID string) error {
-	exec := r.sqlExec(ctx)
-	res, err := exec.ExecContext(ctx, `
+func (r *imageStudioRepository) DeleteJobWithStorageKeys(
+	ctx context.Context,
+	userID int64,
+	jobID string,
+) (_ []string, err error) {
+	if r.db == nil {
+		return nil, errors.New("image studio repository db is nil")
+	}
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin delete image studio job: %w", err)
+	}
+	defer func() {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil && !errors.Is(rollbackErr, sql.ErrTxDone) {
+			err = errors.Join(err, rollbackErr)
+		}
+	}()
+
+	var lockedJobID string
+	if err := scanSingleRow(ctx, tx, `
+		SELECT id::text
+		FROM image_studio_jobs
+		WHERE id = $1::uuid AND user_id = $2
+		FOR UPDATE`, []any{jobID, userID}, &lockedJobID); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, service.ErrImageStudioJobNotFound
+		}
+		return nil, fmt.Errorf("lock image studio job for delete: %w", err)
+	}
+
+	keys, err := listImageStudioAssetStorageKeys(ctx, tx, lockedJobID)
+	if err != nil {
+		return nil, err
+	}
+	res, err := tx.ExecContext(ctx, `
 		DELETE FROM image_studio_jobs WHERE id = $1::uuid AND user_id = $2`, jobID, userID)
 	if err != nil {
-		return fmt.Errorf("delete image studio job: %w", err)
+		return nil, fmt.Errorf("delete image studio job: %w", err)
 	}
-	n, _ := res.RowsAffected()
+	n, err := res.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("read deleted image studio job count: %w", err)
+	}
 	if n == 0 {
-		return service.ErrImageStudioJobNotFound
+		return nil, service.ErrImageStudioJobNotFound
 	}
-	return nil
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit delete image studio job: %w", err)
+	}
+	return keys, nil
 }
 
 func (r *imageStudioRepository) CountCompletedToday(ctx context.Context, userID int64, dayStart time.Time) (int, error) {

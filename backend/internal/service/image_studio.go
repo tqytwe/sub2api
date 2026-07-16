@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -121,7 +122,7 @@ type ImageStudioRepository interface {
 	ListJobs(ctx context.Context, userID int64, limit int) ([]ImageStudioJob, error)
 	ListAssetStorageKeysForJob(ctx context.Context, jobID string) ([]string, error)
 	ListExpiredJobIDs(ctx context.Context, before time.Time) ([]string, error)
-	DeleteJob(ctx context.Context, userID int64, jobID string) error
+	DeleteJobWithStorageKeys(ctx context.Context, userID int64, jobID string) ([]string, error)
 	CountCompletedToday(ctx context.Context, userID int64, dayStart time.Time) (int, error)
 	UpdateJobStatus(ctx context.Context, jobID string, status string) error
 	DeleteExpiredJobsBefore(ctx context.Context, before time.Time) (int64, error)
@@ -528,15 +529,20 @@ func (s *ImageStudioService) OpenAssetContent(ctx context.Context, userID int64,
 }
 
 func (s *ImageStudioService) DeleteJob(ctx context.Context, userID int64, jobID string) error {
-	if s.assetStore != nil {
-		keys, err := s.repo.ListAssetStorageKeysForJob(ctx, jobID)
-		if err == nil {
-			for _, key := range keys {
-				_ = s.assetStore.Delete(key)
-			}
-		}
+	if s.assetStore == nil {
+		_, err := s.repo.DeleteJobWithStorageKeys(ctx, userID, jobID)
+		return err
 	}
-	return s.repo.DeleteJob(ctx, userID, jobID)
+
+	keys, err := s.repo.DeleteJobWithStorageKeys(ctx, userID, jobID)
+	if err != nil {
+		return err
+	}
+	var deleteErr error
+	for _, key := range keys {
+		deleteErr = errors.Join(deleteErr, s.assetStore.Delete(key))
+	}
+	return deleteErr
 }
 
 func (s *ImageStudioService) MarkJobRunning(ctx context.Context, jobID string) error {
