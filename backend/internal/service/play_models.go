@@ -243,6 +243,16 @@ type PlayRepository interface {
 	RemoveTeamMember(ctx context.Context, teamID, userID int64) error
 	ArchiveTeam(ctx context.Context, teamID int64) error
 	InsertTeamEvent(ctx context.Context, event PlayTeamEvent) error
+	ListTeamRewardContributions(ctx context.Context, teamID int64, start, end time.Time) ([]TeamContribution, error)
+	GetTeamRewardSettlementByTeamPeriod(ctx context.Context, teamID int64, periodStart time.Time) (*PlayTeamSettlement, error)
+	CreateTeamRewardSnapshot(ctx context.Context, settlement PlayTeamSettlement, allocations []PlayTeamRewardAllocation) (*PlayTeamSettlement, bool, error)
+	GetTeamRewardSettlement(ctx context.Context, settlementID int64) (*PlayTeamSettlement, error)
+	ListUnpaidTeamRewardAllocations(ctx context.Context, settlementID int64) ([]PlayTeamRewardAllocation, error)
+	MarkTeamRewardSettlementProcessing(ctx context.Context, settlementID int64) error
+	ClaimTeamRewardAllocation(ctx context.Context, allocationID int64) (bool, error)
+	MarkTeamRewardAllocationPaid(ctx context.Context, allocationID int64) error
+	MarkTeamRewardAllocationFailed(ctx context.Context, allocationID int64, message string) error
+	RefreshTeamRewardSettlementStatus(ctx context.Context, settlementID int64) (*PlayTeamSettlement, error)
 	GetTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamDB, error)
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	ListTeamMembers(ctx context.Context, teamID int64) ([]PlayTeamMember, error)
@@ -287,6 +297,49 @@ type PlayTeamMembershipDB struct {
 	TeamID   int64
 	UserID   int64
 	JoinedAt time.Time
+}
+
+const (
+	PlayTeamSettlementStatusPending    = "pending"
+	PlayTeamSettlementStatusProcessing = "processing"
+	PlayTeamSettlementStatusCompleted  = "completed"
+	PlayTeamSettlementStatusPartial    = "partial"
+	PlayTeamSettlementStatusFailed     = "failed"
+
+	PlayTeamRewardAllocationStatusPending    = "pending"
+	PlayTeamRewardAllocationStatusProcessing = "processing"
+	PlayTeamRewardAllocationStatusPaid       = "paid"
+	PlayTeamRewardAllocationStatusFailed     = "failed"
+)
+
+type PlayTeamSettlement struct {
+	ID                  int64
+	TeamID              int64
+	PeriodStart         time.Time
+	WindowStart         time.Time
+	WindowEnd           time.Time
+	TeamSpend           decimal.Decimal
+	ReachedThreshold    decimal.Decimal
+	RewardRate          decimal.Decimal
+	PoolAmount          decimal.Decimal
+	CapAmount           decimal.Decimal
+	Status              string
+	LastError           string
+	ProcessingStartedAt *time.Time
+	CompletedAt         *time.Time
+}
+
+type PlayTeamRewardAllocation struct {
+	ID             int64
+	SettlementID   int64
+	UserID         int64
+	Contribution   decimal.Decimal
+	Ratio          decimal.Decimal
+	RewardAmount   decimal.Decimal
+	PayoutStatus   string
+	IdempotencyKey string
+	PaidAt         *time.Time
+	LastError      string
 }
 
 type PlayRuntime struct {
