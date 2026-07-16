@@ -12,6 +12,7 @@ import {
   PUBLIC_DOC_TREE,
   defaultDocPageForCategory,
   findDocContent,
+  normalizePublicDocLocation,
 } from '@/content/public-docs'
 
 const { t } = useI18n()
@@ -162,6 +163,14 @@ watch(
     const cat = typeof query.cat === 'string' ? query.cat : ''
     if (!cat) return
     const page = typeof query.page === 'string' ? query.page : ''
+    const normalized = normalizePublicDocLocation(cat, page)
+    if (normalized.catId !== cat || normalized.pageId !== page) {
+      router.replace({
+        path: '/docs',
+        query: { cat: normalized.catId, page: normalized.pageId },
+      })
+      return
+    }
     if (page && findDocContent(cat, page)) return
     const fallback = defaultDocPageForCategory(cat)
     if (fallback) {
@@ -341,6 +350,6 @@ const categoryIcons: Record<string, string> = {
       </main>
     </div>
 
-    <SupportFloatingCard />
+    <SupportFloatingCard hide-on-mobile />
   </div>
 </template>

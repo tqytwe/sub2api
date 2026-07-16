@@ -1,7 +1,7 @@
 # GPT / Grok 图片生成 API
 
 > 状态：active
-> 网站入口：`https://www.jisudeng.com/docs?cat=tutorial&page=text-to-image-api`
+> 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=text-to-image-api`
 > API Key：`https://www.jisudeng.com/keys`
 > 模型与价格：`https://www.jisudeng.com/models`
 > API 地址：`https://api.jisudeng.com`
