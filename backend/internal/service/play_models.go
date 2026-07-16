@@ -175,6 +175,23 @@ type PlayTeamMe struct {
 	Team    *PlayTeamSummary
 }
 
+const (
+	PlayTeamEventCreated            = "team_created"
+	PlayTeamEventMemberJoined       = "member_joined"
+	PlayTeamEventMemberLeft         = "member_left"
+	PlayTeamEventCaptainTransferred = "captain_transferred"
+	PlayTeamEventMemberRemoved      = "member_removed"
+	PlayTeamEventArchived           = "team_archived"
+)
+
+type PlayTeamEvent struct {
+	TeamID        int64
+	ActorUserID   int64
+	SubjectUserID int64
+	Type          string
+	Detail        map[string]any
+}
+
 type PlayArenaCurrent struct {
 	Enabled              bool
 	Period               *PlayArenaPeriod
@@ -216,8 +233,16 @@ type PlayRepository interface {
 	GetQuizAttempt(ctx context.Context, userID int64, date time.Time) (*PlayQuizAttemptDB, error)
 	InsertQuizAttempt(ctx context.Context, userID int64, date time.Time, score, total int, reward float64, answers map[string]any) error
 	GetUserTeam(ctx context.Context, userID int64) (*PlayTeamDB, error)
+	LockActiveTeamMembership(ctx context.Context, userID int64) (*PlayTeamMembershipDB, error)
+	LockTeam(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	CreateTeam(ctx context.Context, name string, captainUserID int64, inviteCode string) (*PlayTeamDB, error)
 	JoinTeam(ctx context.Context, teamID, userID int64) error
+	CountActiveTeamMembers(ctx context.Context, teamID int64) (int, error)
+	LeaveTeam(ctx context.Context, teamID, userID int64) error
+	TransferTeamCaptain(ctx context.Context, teamID, captainUserID int64) error
+	RemoveTeamMember(ctx context.Context, teamID, userID int64) error
+	ArchiveTeam(ctx context.Context, teamID int64) error
+	InsertTeamEvent(ctx context.Context, event PlayTeamEvent) error
 	GetTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamDB, error)
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	ListTeamMembers(ctx context.Context, teamID int64) ([]PlayTeamMember, error)
@@ -255,6 +280,13 @@ type PlayTeamDB struct {
 	Name          string
 	CaptainUserID int64
 	InviteCode    string
+}
+
+type PlayTeamMembershipDB struct {
+	ID       int64
+	TeamID   int64
+	UserID   int64
+	JoinedAt time.Time
 }
 
 type PlayRuntime struct {

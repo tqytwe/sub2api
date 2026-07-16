@@ -488,22 +488,43 @@ func (s *PlayService) CreateTeam(ctx context.Context, userID int64, name string)
 	if name == "" {
 		return nil, ErrPlayTeamNameRequired
 	}
-	if existing, err := s.repo.GetUserTeam(ctx, userID); err != nil {
-		return nil, err
-	} else if existing != nil {
-		return nil, ErrPlayTeamAlreadyJoined
-	}
-
 	code, err := generateTeamInviteCode()
 	if err != nil {
 		return nil, err
 	}
-	team, err := s.repo.CreateTeam(ctx, name, userID, code)
+	if s.entClient == nil {
+		return nil, fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin create team tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	if existing, err := s.repo.LockActiveTeamMembership(txCtx, userID); err != nil {
+		return nil, err
+	} else if existing != nil {
+		return nil, ErrPlayTeamAlreadyJoined
+	}
+	team, err := s.repo.CreateTeam(txCtx, name, userID, code)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.repo.JoinTeam(ctx, team.ID, userID); err != nil {
+	if err := s.repo.JoinTeam(txCtx, team.ID, userID); err != nil {
 		return nil, err
+	}
+	if err := s.repo.InsertTeamEvent(txCtx, PlayTeamEvent{
+		TeamID:        team.ID,
+		ActorUserID:   userID,
+		SubjectUserID: userID,
+		Type:          PlayTeamEventCreated,
+		Detail:        map[string]any{},
+	}); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit create team tx: %w", err)
 	}
 	return s.buildTeamSummaryByID(ctx, team.ID)
 }
@@ -517,22 +538,286 @@ func (s *PlayService) JoinTeam(ctx context.Context, userID int64, inviteCode str
 	if inviteCode == "" {
 		return nil, ErrPlayTeamNotFound
 	}
-	if existing, err := s.repo.GetUserTeam(ctx, userID); err != nil {
+	if s.entClient == nil {
+		return nil, fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin join team tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	if existing, err := s.repo.LockActiveTeamMembership(txCtx, userID); err != nil {
 		return nil, err
 	} else if existing != nil {
 		return nil, ErrPlayTeamAlreadyJoined
 	}
-	team, err := s.repo.GetTeamByInviteCode(ctx, inviteCode)
+	team, err := s.repo.GetTeamByInviteCode(txCtx, inviteCode)
 	if err != nil {
 		return nil, err
 	}
 	if team == nil {
 		return nil, ErrPlayTeamNotFound
 	}
-	if err := s.repo.JoinTeam(ctx, team.ID, userID); err != nil {
+	team, err = s.repo.LockTeam(txCtx, team.ID)
+	if err != nil {
 		return nil, err
 	}
+	if team == nil {
+		return nil, ErrPlayTeamNotFound
+	}
+	if err := s.repo.JoinTeam(txCtx, team.ID, userID); err != nil {
+		if errors.Is(err, ErrPlayTeamAlreadyJoined) {
+			return nil, ErrPlayTeamAlreadyJoined
+		}
+		return nil, err
+	}
+	if err := s.repo.InsertTeamEvent(txCtx, PlayTeamEvent{
+		TeamID:        team.ID,
+		ActorUserID:   userID,
+		SubjectUserID: userID,
+		Type:          PlayTeamEventMemberJoined,
+		Detail:        map[string]any{},
+	}); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		if isPlayTeamUniqueViolation(err) {
+			return nil, ErrPlayTeamAlreadyJoined
+		}
+		return nil, fmt.Errorf("commit join team tx: %w", err)
+	}
 	return s.buildTeamSummaryByID(ctx, team.ID)
+}
+
+func isPlayTeamUniqueViolation(err error) bool {
+	type sqlStateError interface {
+		SQLState() string
+	}
+	var stateErr sqlStateError
+	return errors.As(err, &stateErr) && stateErr.SQLState() == "23505"
+}
+
+func (s *PlayService) LeaveTeam(ctx context.Context, userID int64) error {
+	return s.leaveAndMaybeArchiveTeam(ctx, userID)
+}
+
+// ArchiveTeam closes a one-member captain membership and archives its team.
+// It shares the leave transaction because an archived team must never retain an active member.
+func (s *PlayService) ArchiveTeam(ctx context.Context, actorUserID int64) error {
+	return s.leaveAndMaybeArchiveTeam(ctx, actorUserID)
+}
+
+func (s *PlayService) leaveAndMaybeArchiveTeam(ctx context.Context, userID int64) error {
+	rt := s.GetRuntime(ctx)
+	if !rt.AgentTeamEnabled {
+		return ErrPlayFeatureDisabled
+	}
+	if s.entClient == nil {
+		return fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin leave team tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	currentTeam, err := s.repo.GetUserTeam(txCtx, userID)
+	if err != nil {
+		return err
+	}
+	if currentTeam == nil {
+		return ErrPlayTeamNotMember
+	}
+	team, err := s.repo.LockTeam(txCtx, currentTeam.ID)
+	if err != nil {
+		return err
+	}
+	if team == nil {
+		return ErrPlayTeamNotFound
+	}
+	membership, err := s.repo.LockActiveTeamMembership(txCtx, userID)
+	if err != nil {
+		return err
+	}
+	if membership == nil || membership.TeamID != team.ID {
+		return ErrPlayTeamNotMember
+	}
+
+	archive := false
+	if team.CaptainUserID == userID {
+		memberCount, err := s.repo.CountActiveTeamMembers(txCtx, team.ID)
+		if err != nil {
+			return err
+		}
+		if memberCount > 1 {
+			return ErrPlayTeamCaptainMustTransfer
+		}
+		archive = true
+	}
+	if err := s.repo.LeaveTeam(txCtx, team.ID, userID); err != nil {
+		return err
+	}
+	if err := s.repo.InsertTeamEvent(txCtx, PlayTeamEvent{
+		TeamID:        team.ID,
+		ActorUserID:   userID,
+		SubjectUserID: userID,
+		Type:          PlayTeamEventMemberLeft,
+		Detail:        map[string]any{},
+	}); err != nil {
+		return err
+	}
+	if archive {
+		if err := s.repo.ArchiveTeam(txCtx, team.ID); err != nil {
+			return err
+		}
+		if err := s.repo.InsertTeamEvent(txCtx, PlayTeamEvent{
+			TeamID:        team.ID,
+			ActorUserID:   userID,
+			SubjectUserID: userID,
+			Type:          PlayTeamEventArchived,
+			Detail:        map[string]any{"reason": "last_member_left"},
+		}); err != nil {
+			return err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit leave team tx: %w", err)
+	}
+	return nil
+}
+
+func (s *PlayService) TransferTeamCaptain(ctx context.Context, actorUserID, targetUserID int64) error {
+	rt := s.GetRuntime(ctx)
+	if !rt.AgentTeamEnabled {
+		return ErrPlayFeatureDisabled
+	}
+	if s.entClient == nil {
+		return fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin transfer team captain tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	currentTeam, err := s.repo.GetUserTeam(txCtx, actorUserID)
+	if err != nil {
+		return err
+	}
+	if currentTeam == nil {
+		return ErrPlayTeamNotMember
+	}
+	team, err := s.repo.LockTeam(txCtx, currentTeam.ID)
+	if err != nil {
+		return err
+	}
+	if team == nil {
+		return ErrPlayTeamNotFound
+	}
+	actorMembership, err := s.repo.LockActiveTeamMembership(txCtx, actorUserID)
+	if err != nil {
+		return err
+	}
+	if actorMembership == nil || actorMembership.TeamID != team.ID {
+		return ErrPlayTeamNotMember
+	}
+	if team.CaptainUserID != actorUserID {
+		return ErrPlayTeamCaptainRequired
+	}
+	targetMembership, err := s.repo.LockActiveTeamMembership(txCtx, targetUserID)
+	if err != nil {
+		return err
+	}
+	if targetMembership == nil || targetMembership.TeamID != team.ID {
+		return ErrPlayTeamMemberNotFound
+	}
+	if err := s.repo.TransferTeamCaptain(txCtx, team.ID, targetUserID); err != nil {
+		return err
+	}
+	if err := s.repo.InsertTeamEvent(txCtx, PlayTeamEvent{
+		TeamID:        team.ID,
+		ActorUserID:   actorUserID,
+		SubjectUserID: targetUserID,
+		Type:          PlayTeamEventCaptainTransferred,
+		Detail:        map[string]any{"previous_captain_user_id": actorUserID},
+	}); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit transfer team captain tx: %w", err)
+	}
+	return nil
+}
+
+func (s *PlayService) RemoveTeamMember(ctx context.Context, actorUserID, targetUserID int64) error {
+	rt := s.GetRuntime(ctx)
+	if !rt.AgentTeamEnabled {
+		return ErrPlayFeatureDisabled
+	}
+	if actorUserID == targetUserID {
+		return ErrPlayTeamCaptainCannotRemoveSelf
+	}
+	if s.entClient == nil {
+		return fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin remove team member tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	currentTeam, err := s.repo.GetUserTeam(txCtx, actorUserID)
+	if err != nil {
+		return err
+	}
+	if currentTeam == nil {
+		return ErrPlayTeamNotMember
+	}
+	team, err := s.repo.LockTeam(txCtx, currentTeam.ID)
+	if err != nil {
+		return err
+	}
+	if team == nil {
+		return ErrPlayTeamNotFound
+	}
+	actorMembership, err := s.repo.LockActiveTeamMembership(txCtx, actorUserID)
+	if err != nil {
+		return err
+	}
+	if actorMembership == nil || actorMembership.TeamID != team.ID {
+		return ErrPlayTeamNotMember
+	}
+	if team.CaptainUserID != actorUserID {
+		return ErrPlayTeamCaptainRequired
+	}
+	targetMembership, err := s.repo.LockActiveTeamMembership(txCtx, targetUserID)
+	if err != nil {
+		return err
+	}
+	if targetMembership == nil || targetMembership.TeamID != team.ID {
+		return ErrPlayTeamMemberNotFound
+	}
+	if err := s.repo.RemoveTeamMember(txCtx, team.ID, targetUserID); err != nil {
+		return err
+	}
+	if err := s.repo.InsertTeamEvent(txCtx, PlayTeamEvent{
+		TeamID:        team.ID,
+		ActorUserID:   actorUserID,
+		SubjectUserID: targetUserID,
+		Type:          PlayTeamEventMemberRemoved,
+		Detail:        map[string]any{},
+	}); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit remove team member tx: %w", err)
+	}
+	return nil
 }
 
 func (s *PlayService) buildTeamSummary(ctx context.Context, userID int64) (*PlayTeamSummary, error) {
@@ -579,7 +864,6 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 			members[i].TokenPct = int(members[i].TokenSum * 100 / tokenSum)
 		}
 	}
-	rt := s.GetRuntime(ctx)
 	summary := &PlayTeamSummary{
 		ID:          teamDB.ID,
 		Name:        teamDB.Name,
@@ -589,11 +873,6 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 		TokenSum:    tokenSum,
 		Members:     members,
 	}
-	affiliateInfo, err := s.enrichTeamAffiliate(ctx, teamDB.ID, teamDB.CaptainUserID, tokenSum, rt)
-	if err != nil {
-		return nil, err
-	}
-	summary.Affiliate = affiliateInfo
 	return summary, nil
 }
 

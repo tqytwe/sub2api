@@ -232,6 +232,8 @@ func (r *playRepository) GetUserTeam(ctx context.Context, userID int64) (*servic
 		FROM play_teams t
 		JOIN play_team_members m ON m.team_id = t.id
 		WHERE m.user_id = $1
+		  AND m.left_at IS NULL
+		  AND t.archived_at IS NULL
 		LIMIT 1`, []any{userID}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -247,7 +249,9 @@ func (r *playRepository) GetTeamByID(ctx context.Context, teamID int64) (*servic
 	var team service.PlayTeamDB
 	err := scanSingleRow(ctx, exec, `
 		SELECT id, name, captain_user_id, invite_code
-		FROM play_teams WHERE id = $1`, []any{teamID}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
+		FROM play_teams
+		WHERE id = $1
+		  AND archived_at IS NULL`, []any{teamID}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -262,7 +266,9 @@ func (r *playRepository) GetTeamByInviteCode(ctx context.Context, inviteCode str
 	var team service.PlayTeamDB
 	err := scanSingleRow(ctx, exec, `
 		SELECT id, name, captain_user_id, invite_code
-		FROM play_teams WHERE invite_code = $1`, []any{inviteCode}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
+		FROM play_teams
+		WHERE invite_code = $1
+		  AND archived_at IS NULL`, []any{inviteCode}, &team.ID, &team.Name, &team.CaptainUserID, &team.InviteCode)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -292,11 +298,174 @@ func (r *playRepository) JoinTeam(ctx context.Context, teamID, userID int64) err
 		INSERT INTO play_team_members (team_id, user_id)
 		VALUES ($1, $2)`, teamID, userID)
 	if err != nil {
-		msg := strings.ToLower(err.Error())
-		if strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint") {
+		if isPlayTeamUniqueViolation(err) {
 			return service.ErrPlayTeamAlreadyJoined
 		}
 		return fmt.Errorf("join team: %w", err)
+	}
+	return nil
+}
+
+func isPlayTeamUniqueViolation(err error) bool {
+	type sqlStateError interface {
+		SQLState() string
+	}
+	var stateErr sqlStateError
+	if errors.As(err, &stateErr) && stateErr.SQLState() == "23505" {
+		return true
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "duplicate key") || strings.Contains(msg, "unique constraint")
+}
+
+func (r *playRepository) LockActiveTeamMembership(ctx context.Context, userID int64) (*service.PlayTeamMembershipDB, error) {
+	exec := r.sqlExec(ctx)
+	var membership service.PlayTeamMembershipDB
+	err := scanSingleRow(ctx, exec, `
+		SELECT id, team_id, user_id, joined_at
+		FROM play_team_members
+		WHERE user_id = $1
+		  AND left_at IS NULL
+		FOR UPDATE`,
+		[]any{userID},
+		&membership.ID,
+		&membership.TeamID,
+		&membership.UserID,
+		&membership.JoinedAt,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("lock active team membership: %w", err)
+	}
+	return &membership, nil
+}
+
+func (r *playRepository) LockTeam(ctx context.Context, teamID int64) (*service.PlayTeamDB, error) {
+	exec := r.sqlExec(ctx)
+	var team service.PlayTeamDB
+	err := scanSingleRow(ctx, exec, `
+		SELECT id, name, captain_user_id, invite_code
+		FROM play_teams
+		WHERE id = $1
+		  AND archived_at IS NULL
+		FOR UPDATE`,
+		[]any{teamID},
+		&team.ID,
+		&team.Name,
+		&team.CaptainUserID,
+		&team.InviteCode,
+	)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("lock team: %w", err)
+	}
+	return &team, nil
+}
+
+func (r *playRepository) CountActiveTeamMembers(ctx context.Context, teamID int64) (int, error) {
+	exec := r.sqlExec(ctx)
+	var count int
+	if err := scanSingleRow(ctx, exec, `
+		SELECT COUNT(*)::int
+		FROM play_team_members
+		WHERE team_id = $1
+		  AND left_at IS NULL`, []any{teamID}, &count); err != nil {
+		return 0, fmt.Errorf("count active team members: %w", err)
+	}
+	return count, nil
+}
+
+func (r *playRepository) LeaveTeam(ctx context.Context, teamID, userID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_team_members
+		SET left_at = NOW()
+		WHERE team_id = $1
+		  AND user_id = $2
+		  AND left_at IS NULL`, teamID, userID)
+	if err != nil {
+		return fmt.Errorf("leave team: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamMemberNotFound, "leave team")
+}
+
+func (r *playRepository) TransferTeamCaptain(ctx context.Context, teamID, captainUserID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_teams
+		SET captain_user_id = $2
+		WHERE id = $1
+		  AND archived_at IS NULL`, teamID, captainUserID)
+	if err != nil {
+		return fmt.Errorf("transfer team captain: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamNotFound, "transfer team captain")
+}
+
+func (r *playRepository) RemoveTeamMember(ctx context.Context, teamID, userID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_team_members
+		SET left_at = NOW()
+		WHERE team_id = $1
+		  AND user_id = $2
+		  AND left_at IS NULL`, teamID, userID)
+	if err != nil {
+		return fmt.Errorf("remove team member: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamMemberNotFound, "remove team member")
+}
+
+func (r *playRepository) ArchiveTeam(ctx context.Context, teamID int64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE play_teams
+		SET archived_at = NOW()
+		WHERE id = $1
+		  AND archived_at IS NULL`, teamID)
+	if err != nil {
+		return fmt.Errorf("archive team: %w", err)
+	}
+	return requireTeamMutationRow(res, service.ErrPlayTeamNotFound, "archive team")
+}
+
+func requireTeamMutationRow(result sql.Result, notFound error, operation string) error {
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("%s rows affected: %w", operation, err)
+	}
+	if rows == 0 {
+		return notFound
+	}
+	return nil
+}
+
+func (r *playRepository) InsertTeamEvent(ctx context.Context, event service.PlayTeamEvent) error {
+	detail, err := json.Marshal(event.Detail)
+	if err != nil {
+		return fmt.Errorf("marshal team event detail: %w", err)
+	}
+	var subjectUserID any
+	if event.SubjectUserID > 0 {
+		subjectUserID = event.SubjectUserID
+	}
+	exec := r.sqlExec(ctx)
+	if _, err := exec.ExecContext(ctx, `
+		INSERT INTO play_team_events (
+			team_id, actor_user_id, subject_user_id, event_type, detail
+		)
+		VALUES ($1, $2, $3, $4, $5)`,
+		event.TeamID,
+		event.ActorUserID,
+		subjectUserID,
+		event.Type,
+		detail,
+	); err != nil {
+		return fmt.Errorf("insert team event: %w", err)
 	}
 	return nil
 }
@@ -309,9 +478,12 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (res
 		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
 		       m.joined_at
 		FROM play_team_members m
+		JOIN play_teams t ON t.id = m.team_id
 		JOIN users u ON u.id = m.user_id
 		LEFT JOIN user_avatars ua ON ua.user_id = m.user_id
 		WHERE m.team_id = $1
+		  AND m.left_at IS NULL
+		  AND t.archived_at IS NULL
 		ORDER BY m.joined_at ASC`, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("list team members: %w", err)
