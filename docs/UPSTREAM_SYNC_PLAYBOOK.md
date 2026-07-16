@@ -67,7 +67,7 @@ make build
 
 ## 合并、部署与生产验收
 
-同步分支 CI 全部通过后，以 merge commit 合入 `play/main`，然后：
+同步 PR 的单次 CI 全部通过后，以 merge commit 合入 `play/main`，然后：
 
 ```bash
 git switch play/main
@@ -75,8 +75,8 @@ git pull --ff-only origin play/main
 ./scripts/push-github-and-deploy.sh play/main
 ```
 
-等待 Zeabur 构建完成，先确认实际部署 commit 与预期 `origin/play/main`
-一致且健康检查通过。随后由用户在本地电脑浏览器访问
+生产推送不再重复运行完整测试。直接等待 Zeabur 构建完成，先确认实际部署
+commit 与预期 `origin/play/main` 一致且健康检查通过。随后由用户在本地电脑浏览器访问
 `https://www.jisudeng.com/`，至少使用游客、普通用户和管理员三种身份检查：
 
 1. 首页、登录、注册、浅色与深色主题。

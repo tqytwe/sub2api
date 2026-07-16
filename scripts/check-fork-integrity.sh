@@ -29,14 +29,15 @@ check_not_contains() {
   if ! grep -Fq -- "$needle" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
 }
 
-check_yaml_push_branch() {
-  local id="$1" desc="$2" file="$3" branch="$4"
+check_yaml_event_branch() {
+  local id="$1" desc="$2" file="$3" event="$4" branch="$5"
   if node -e '
     const fs = require("fs");
     const lines = fs.readFileSync(process.argv[1], "utf8").split(/\r?\n/);
-    const wanted = process.argv[2];
+    const wantedEvent = process.argv[2];
+    const wantedBranch = process.argv[3];
     let inOn = false;
-    let inPush = false;
+    let inEvent = false;
     let inBranches = false;
     let found = false;
     for (const raw of lines) {
@@ -46,17 +47,17 @@ check_yaml_push_branch() {
       const value = line.trim();
       if (indent === 0) {
         inOn = value === "on:";
-        inPush = false;
+        inEvent = false;
         inBranches = false;
         continue;
       }
       if (!inOn) continue;
       if (indent === 2) {
-        inPush = value === "push:";
+        inEvent = value === `${wantedEvent}:`;
         inBranches = false;
         continue;
       }
-      if (!inPush) continue;
+      if (!inEvent) continue;
       if (indent === 4) {
         inBranches = value === "branches:";
         continue;
@@ -67,13 +68,13 @@ check_yaml_push_branch() {
       if ((quote === 34 || quote === 39) && branch.charCodeAt(branch.length - 1) === quote) {
         branch = branch.slice(1, -1);
       }
-      if (branch === wanted) {
+      if (branch === wantedBranch) {
         found = true;
         break;
       }
     }
     process.exit(found ? 0 : 1);
-  ' "$ROOT/$file" "$branch"; then
+  ' "$ROOT/$file" "$event" "$branch"; then
     pass "$id" "$desc"
   else
     fail "$id" "$desc"
@@ -137,7 +138,15 @@ check_contains "FORK-DEPLOY-006" "regular user acceptance evidence is recorded" 
 check_contains "FORK-DEPLOY-006" "admin acceptance evidence is recorded" "docs/DELIVERY_WORKFLOW.md" "本地浏览器管理员验收："
 check_contains "FORK-DEPLOY-006" "credentials stay out of tracked artifacts and logs" "AGENTS.md" "禁止写入 Git、代码、文档、命令输出或日志"
 check_not_contains "FORK-DEPLOY-006" "legacy server-only completion wording removed" ".cursor/rules/sub2api-server-only-verify.mdc" "必须通过推送后在 Zeabur 线上验收"
-check_yaml_push_branch "FORK-DEPLOY-006" "review branches trigger fork integrity CI" ".github/workflows/fork-integrity.yml" "codex/**"
+check_yaml_event_branch "FORK-DEPLOY-006" "PRs to play/main trigger fork integrity CI" ".github/workflows/fork-integrity.yml" "pull_request" "play/main"
+check_not_contains "FORK-DEPLOY-006" "branch pushes do not duplicate fork integrity CI" ".github/workflows/fork-integrity.yml" "push:"
+check_not_contains "FORK-DEPLOY-006" "codex branch pushes do not duplicate fork integrity CI" ".github/workflows/fork-integrity.yml" "codex/**"
+check_yaml_event_branch "FORK-DEPLOY-006" "production pushes trigger security scan" ".github/workflows/security-scan.yml" "push" "play/main"
+check_yaml_event_branch "FORK-DEPLOY-006" "PRs trigger security scan" ".github/workflows/security-scan.yml" "pull_request" "play/main"
+check_not_contains "FORK-DEPLOY-006" "fork CLA automation does not create skipped PR checks" ".github/workflows/cla.yml" "pull_request_target:"
+check_not_contains "FORK-DEPLOY-006" "legacy CI does not run on pushes" ".github/workflows/backend-ci.yml" "push:"
+check_not_contains "FORK-DEPLOY-006" "legacy CI does not run on PRs" ".github/workflows/backend-ci.yml" "pull_request:"
+check_contains "FORK-DEPLOY-006" "full GitHub CI runs once on PR" "docs/DELIVERY_WORKFLOW.md" '完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次'
 check_contains "FORK-DEPLOY-006" "active release playbook requires local workstation acceptance" "docs/UPSTREAM_SYNC_PLAYBOOK.md" "由用户在本地电脑浏览器"
 check_contains "FORK-DEPLOY-006" "legacy rollback plan is overridden by local workstation acceptance" "docs/superpowers/plans/2026-07-15-growth-regression-rollback.md" "2026-07-16 delivery override"
 check_contains "FORK-DEPLOY-006" "make test runs the full frontend suite" "Makefile" "pnpm --dir frontend run test:run"

@@ -9,8 +9,8 @@
 2. 业务行为严格执行 TDD：先写失败测试，再实现，再重构。
 3. 每个任务完成后依次进行规格审查和代码质量审查；审查问题修复并复审通过后才进入下一任务。
 4. 服务器必须运行相关测试、完整测试、完整构建和 `./scripts/check-fork-integrity.sh`。全部通过后才允许提交和推送。
-5. 先推送审查分支；确认后通过 merge commit 或可追溯的非 rebase 合并进入 `play/main`。禁止 rebase 或强推 `play/main`。
-6. 只有 `origin/play/main` 触发极速蹬 Zeabur 生产部署。必须确认部署 commit 与预期一致且健康检查通过，才能开始产品验收。
+5. 先推送审查分支并创建目标为 `play/main` 的 PR；完整 GitHub CI 只在 PR 上执行一次。确认后通过 merge commit 或可追溯的非 rebase 合并进入 `play/main`。禁止 rebase 或强推 `play/main`。
+6. 只有 `origin/play/main` 触发极速蹬 Zeabur 生产部署。生产推送不重复等待完整 GitHub 测试，直接确认 Zeabur 部署 commit、健康检查和关键 API 后开始产品验收。
 7. 最终产品验收必须由用户在本地电脑浏览器访问 `https://www.jisudeng.com/`，至少覆盖游客、普通用户、管理员三种身份。相关功能同时检查用户页和管理员页；按风险补充浅色/深色主题以及 API/数据库对账。
 8. 服务器允许且必须执行测试和构建，但服务器浏览器、本地启动服务和 `localhost` 都不能替代用户本地电脑的最终验收。
 9. 登录密码、API key 和生产凭据只允许通过环境变量或人工输入提供，禁止写入 Git、代码、文档、命令输出或日志。
