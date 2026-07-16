@@ -1,6 +1,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -23,4 +24,8 @@ func TestDefaultImageStudioCatalogIncludesPreviewMetadata(t *testing.T) {
 func TestValidateImageStudioPrompt(t *testing.T) {
 	require.ErrorIs(t, validateImageStudioPrompt(" \n\t"), ErrImageStudioPromptRequired)
 	require.NoError(t, validateImageStudioPrompt("matte black headphones"))
+	require.NoError(t, validateImageStudioPrompt(strings.Repeat("图", 8000)))
+	require.ErrorIs(t, validateImageStudioPrompt(strings.Repeat("图", 8001)), ErrImageStudioPromptTooLong)
+	require.NoError(t, validateImageStudioPrompt(strings.Repeat("😀", 8000)))
+	require.ErrorIs(t, validateImageStudioPrompt(strings.Repeat("😀", 8001)), ErrImageStudioPromptTooLong)
 }

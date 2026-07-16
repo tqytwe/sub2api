@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,8 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
+
+const ImageStudioGenerateRequestBodyLimit int64 = 128 << 10
 
 type ImageStudioHandler struct {
 	studio        *service.ImageStudioService
@@ -102,8 +105,7 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		return
 	}
 	var req service.ImageStudioGenerateRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		response.BadRequest(c, "Invalid request body")
+	if !bindImageStudioGenerateRequest(c, &req) {
 		return
 	}
 	job, body, err := h.studio.CreatePendingJob(c.Request.Context(), subject.UserID, req)
@@ -128,6 +130,35 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 		"async": true,
 		"poll":  fmt.Sprintf("/api/v1/image-studio/jobs/%s", jobID),
 	})
+}
+
+func bindImageStudioGenerateRequest(c *gin.Context, req *service.ImageStudioGenerateRequest) bool {
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(req); err != nil {
+		writeImageStudioGenerateBindError(c, err)
+		return false
+	}
+	var extra any
+	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
+		writeImageStudioGenerateBindError(c, err)
+		return false
+	}
+	return true
+}
+
+func writeImageStudioGenerateBindError(c *gin.Context, err error) {
+	var maxBytesErr *http.MaxBytesError
+	if errors.As(err, &maxBytesErr) {
+		response.ErrorWithDetails(
+			c,
+			http.StatusRequestEntityTooLarge,
+			"Image studio request body is too large",
+			"IMAGE_STUDIO_REQUEST_TOO_LARGE",
+			nil,
+		)
+		return
+	}
+	response.BadRequest(c, "Invalid request body")
 }
 
 func (h *ImageStudioHandler) ActiveJob(c *gin.Context) {

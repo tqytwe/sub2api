@@ -7,4 +7,14 @@ describe('Jisudeng page locale contracts', () => {
     expect(jisudengPagesZh.imageStudio.subtitle).toBeTruthy()
     expect(jisudengPagesEn.imageStudio.subtitle).toBeTruthy()
   })
+
+  it('keeps prompt validation, saved-draft, and gallery retry copy in sync', () => {
+    for (const locale of [jisudengPagesZh.imageStudio, jisudengPagesEn.imageStudio]) {
+      expect(locale.promptTooLong).toContain('8000')
+      expect(locale.expertPromptTooLong).toContain('8000')
+      expect(locale.settingsRetained).toBeTruthy()
+      expect(locale.galleryLoadFailed).toBeTruthy()
+      expect(locale.retryGallery).toBeTruthy()
+    }
+  })
 })

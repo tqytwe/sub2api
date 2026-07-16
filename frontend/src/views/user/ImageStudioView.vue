@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -9,7 +9,13 @@ import ImageStudioSizePicker from '@/components/imageStudio/ImageStudioSizePicke
 import { useImageStudioWorkspace } from '@/composables/useImageStudioWorkspace'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import type { ImageStudioJob, ImageStudioTemplate } from '@/api/imageStudio'
-import { flattenImageStudioTemplates } from '@/utils/imageStudioWorkspace'
+import {
+  IMAGE_STUDIO_PROMPT_LIMIT,
+  countImageStudioCodePoints,
+  flattenImageStudioTemplates,
+  resizeImageStudioTextarea,
+  validateImageStudioPrompt,
+} from '@/utils/imageStudioWorkspace'
 
 const { t } = useI18n()
 const enabled = isFeatureFlagEnabled(FeatureFlags.imageStudio)
@@ -17,6 +23,9 @@ const workspace = useImageStudioWorkspace()
 
 const mobileView = ref<'create' | 'works'>('create')
 const promptTouched = ref(false)
+const expertPromptTouched = ref(false)
+const promptTextarea = ref<HTMLTextAreaElement | null>(null)
+const expertPromptTextarea = ref<HTMLTextAreaElement | null>(null)
 
 const templateOptions = computed(() => flattenImageStudioTemplates(workspace.catalog.value))
 
@@ -35,9 +44,17 @@ const selectedTemplateDescription = computed(() =>
 
 const selectedTemplatePreview = computed(() => workspace.selectedTemplate.value?.preview_url || '')
 
-const promptLength = computed(() => workspace.userPrompt.value.length)
+const promptLength = computed(() => countImageStudioCodePoints(workspace.userPrompt.value))
+const expertPromptLength = computed(() => countImageStudioCodePoints(workspace.expertPrompt.value))
+const promptError = computed(() => validateImageStudioPrompt(workspace.userPrompt.value))
+const expertPromptError = computed(() =>
+  workspace.expertOpen.value
+    ? validateImageStudioPrompt(workspace.expertPrompt.value, { required: false })
+    : null,
+)
 const canGenerate = computed(() =>
   workspace.promptValid.value
+    && workspace.expertPromptValid.value
     && !!workspace.selectedTemplate.value
     && !!workspace.apiKeyId.value
     && !!workspace.selectedModel.value
@@ -66,18 +83,80 @@ function changeCount(delta: number) {
 
 async function generate() {
   promptTouched.value = true
-  if (!workspace.promptValid.value) {
+  if (workspace.expertOpen.value) expertPromptTouched.value = true
+  if (!workspace.promptValid.value || !workspace.expertPromptValid.value) {
     mobileView.value = 'create'
     return
   }
-  mobileView.value = 'works'
-  await workspace.generate()
+  const succeeded = await workspace.generate()
+  if (!succeeded) mobileView.value = 'create'
 }
 
 function reuseJob(job: ImageStudioJob) {
   workspace.regenerateFromJob(job)
   mobileView.value = 'create'
 }
+
+function resizePromptTextarea() {
+  if (promptTextarea.value) resizeImageStudioTextarea(promptTextarea.value)
+}
+
+function resizeExpertPromptTextarea() {
+  if (workspace.expertOpen.value && expertPromptTextarea.value) {
+    resizeImageStudioTextarea(expertPromptTextarea.value)
+  }
+}
+
+function resizePromptTextareas() {
+  resizePromptTextarea()
+  resizeExpertPromptTextarea()
+}
+
+function toggleExpertSettings(event: Event) {
+  const open = (event.target as HTMLDetailsElement).open
+  workspace.expertOpen.value = open
+  if (open) void nextTick(resizeExpertPromptTextarea)
+}
+
+watch(
+  () => workspace.polling.value,
+  (value) => {
+    if (value) mobileView.value = 'works'
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => workspace.errorMsg.value,
+  (value) => {
+    if (value) mobileView.value = 'create'
+  },
+  { flush: 'sync' },
+)
+watch(
+  () => workspace.userPrompt.value,
+  () => { void nextTick(resizePromptTextarea) },
+  { immediate: true },
+)
+watch(
+  () => workspace.bootstrapping.value,
+  (value) => {
+    if (!value) void nextTick(resizePromptTextareas)
+  },
+  { immediate: true },
+)
+watch(
+  () => workspace.expertPrompt.value,
+  () => { void nextTick(resizeExpertPromptTextarea) },
+  { immediate: true },
+)
+onMounted(() => {
+  window.addEventListener('resize', resizePromptTextareas)
+  window.visualViewport?.addEventListener('resize', resizePromptTextareas)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', resizePromptTextareas)
+  window.visualViewport?.removeEventListener('resize', resizePromptTextareas)
+})
 </script>
 
 <template>
@@ -131,6 +210,15 @@ function reuseJob(job: ImageStudioJob) {
             <span class="flex-shrink-0 text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.settingsRetained') }}</span>
           </header>
 
+          <p
+            v-if="workspace.errorMsg.value"
+            data-testid="mobile-generation-error"
+            role="alert"
+            class="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 lg:hidden dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300"
+          >
+            {{ workspace.errorMsg.value }}
+          </p>
+
           <div v-if="!workspace.hasApiKeys.value" class="p-5">
             <div class="rounded-xl border border-dashed border-gray-200 bg-gray-50 p-5 text-center dark:border-dark-600 dark:bg-dark-900">
               <div class="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-white text-gray-500 shadow-sm dark:bg-dark-800 dark:text-gray-300">
@@ -176,18 +264,21 @@ function reuseJob(job: ImageStudioJob) {
               <label class="block">
                 <span class="mb-2 flex items-center justify-between gap-3">
                   <span class="input-label mb-0">{{ t('imageStudio.promptLabel') }}</span>
-                  <span class="text-xs text-gray-400 dark:text-gray-500">{{ promptLength }} / 500</span>
+                  <span class="text-xs text-gray-400 dark:text-gray-500">{{ promptLength }} / {{ IMAGE_STUDIO_PROMPT_LIMIT }}</span>
                 </span>
                 <textarea
+                  ref="promptTextarea"
                   v-model="workspace.userPrompt.value"
-                  class="input min-h-[88px] resize-y leading-6"
+                  class="input studio-prompt-textarea min-h-[88px] resize-none leading-6"
                   :class="{ 'input-error': promptTouched && !workspace.promptValid.value }"
                   rows="3"
-                  maxlength="500"
                   :placeholder="t('imageStudio.promptPlaceholder')"
+                  @input="resizePromptTextarea"
                   @blur="promptTouched = true"
                 />
-                <span v-if="promptTouched && !workspace.promptValid.value" class="input-error-text">{{ t('imageStudio.promptRequired') }}</span>
+                <span v-if="promptTouched && promptError" class="input-error-text">
+                  {{ t(promptError === 'too_long' ? 'imageStudio.promptTooLong' : 'imageStudio.promptRequired') }}
+                </span>
               </label>
 
               <label v-if="workspace.showAccentColor.value" class="block">
@@ -226,7 +317,7 @@ function reuseJob(job: ImageStudioJob) {
               </div>
             </div>
 
-            <details class="group border-b border-gray-100 dark:border-dark-700" @toggle="workspace.expertOpen.value = ($event.target as HTMLDetailsElement).open">
+            <details :open="workspace.expertOpen.value" class="group border-b border-gray-100 dark:border-dark-700" @toggle="toggleExpertSettings">
               <summary class="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-3.5 text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-dark-700/50">
                 <span>{{ t('imageStudio.advancedSettings') }}</span>
                 <span class="flex min-w-0 items-center gap-2 text-xs font-normal text-gray-400 dark:text-gray-500">
@@ -255,8 +346,22 @@ function reuseJob(job: ImageStudioJob) {
                   </select>
                 </label>
                 <label class="block">
-                  <span class="input-label">{{ t('imageStudio.expertPrompt') }}</span>
-                  <textarea v-model="workspace.expertPrompt.value" class="input min-h-20 resize-y font-mono text-xs leading-5" rows="3" />
+                  <span class="mb-2 flex items-center justify-between gap-3">
+                    <span class="input-label mb-0">{{ t('imageStudio.expertPrompt') }}</span>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ expertPromptLength }} / {{ IMAGE_STUDIO_PROMPT_LIMIT }}</span>
+                  </span>
+                  <textarea
+                    ref="expertPromptTextarea"
+                    v-model="workspace.expertPrompt.value"
+                    class="input studio-prompt-textarea min-h-20 resize-none font-mono text-xs leading-5"
+                    :class="{ 'input-error': expertPromptTouched && !workspace.expertPromptValid.value }"
+                    rows="3"
+                    @input="resizeExpertPromptTextarea"
+                    @blur="expertPromptTouched = true"
+                  />
+                  <span v-if="expertPromptTouched && expertPromptError" class="input-error-text">
+                    {{ t('imageStudio.expertPromptTooLong') }}
+                  </span>
                 </label>
                 <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
                   <input v-model="workspace.autoCleanup.value" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" :disabled="workspace.polling.value || workspace.generating.value" @change="workspace.onAutoCleanupChange()" />
@@ -269,7 +374,7 @@ function reuseJob(job: ImageStudioJob) {
               <p v-if="workspace.modelError.value || workspace.estimateError.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                 {{ workspace.modelError.value || workspace.estimateError.value }}
               </p>
-              <p v-if="workspace.errorMsg.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+              <p v-if="workspace.errorMsg.value" role="alert" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                 {{ workspace.errorMsg.value }}
               </p>
               <div class="mb-3 flex items-center justify-between gap-3 text-xs">
@@ -282,7 +387,7 @@ function reuseJob(job: ImageStudioJob) {
                 </span>
                 <span v-else class="text-gray-400">{{ t('imageStudio.estimatePending') }}</span>
               </div>
-              <button type="button" class="btn btn-primary w-full" :disabled="!workspace.promptValid.value || (!canGenerate && workspace.estimate.value?.sufficient !== false)" @click="generate">
+              <button type="button" class="btn btn-primary w-full" :disabled="!canGenerate" @click="generate">
                 <Icon name="sparkles" size="sm" />
                 {{ workspace.estimate.value && !workspace.estimate.value.sufficient ? t('imageStudio.rechargeToGenerate') : generateLabel }}
               </button>
@@ -321,6 +426,15 @@ function reuseJob(job: ImageStudioJob) {
               @delete="workspace.removeJob"
               @regenerate="reuseJob"
             />
+
+            <div v-else-if="workspace.galleryError.value" class="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 text-center dark:border-red-900/60 dark:bg-red-950/30">
+              <Icon name="exclamationCircle" class="text-red-500 dark:text-red-300" />
+              <p class="mt-3 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">{{ workspace.galleryError.value }}</p>
+              <button data-testid="retry-gallery" type="button" class="btn btn-secondary mt-4" @click="workspace.refreshJobs">
+                <Icon name="refresh" size="sm" />
+                {{ t('imageStudio.retryGallery') }}
+              </button>
+            </div>
 
             <div v-else-if="selectedTemplatePreview" class="relative overflow-hidden rounded-xl bg-gray-100 dark:bg-dark-900">
               <img :src="selectedTemplatePreview" :alt="workspace.labelFor(workspace.selectedTemplate.value?.label)" class="max-h-[62vh] min-h-72 w-full object-cover" />
@@ -371,3 +485,16 @@ function reuseJob(job: ImageStudioJob) {
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+.studio-prompt-textarea {
+  max-height: 320px;
+  overflow-y: hidden;
+}
+
+@media (max-width: 1023px) {
+  .studio-prompt-textarea {
+    max-height: 42dvh;
+  }
+}
+</style>

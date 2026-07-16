@@ -1008,6 +1008,18 @@
   word-break: normal;
 }
 
+.docs-prose pre.docs-endpoint-list {
+  overflow-x: hidden;
+}
+
+.docs-prose pre.docs-endpoint-list code {
+  display: block;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .docs-prose ul,
 .docs-prose ol {
   margin: 0 0 14px;
