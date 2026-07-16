@@ -46,6 +46,337 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
 <p class="docs-tip">完整模型清单与实时单价见 <a href="/models">模型与价格</a>。游客可看精选预览，登录后显示你分组下的<strong>真实可用模型</strong>与倍率。</p>`,
       },
       {
+        id: 'text-to-image-api',
+        title: "GPT / Grok 图片生成 API",
+        summary: "真实 API 地址、单张/多张生成、prompt、保存与网页显示",
+        html: `<p class="docs-lead">极速蹬当前图片生成主要使用 <strong>GPT 图片模型</strong> 和 <strong>Grok 图片模型</strong>。开发者直接调用 <code>https://api.jisudeng.com/v1/images/generations</code>，图像编辑调用 <code>https://api.jisudeng.com/v1/images/edits</code>。</p>
+
+<h2>真实入口</h2>
+<ul>
+  <li>网站：<a href="https://www.jisudeng.com">https://www.jisudeng.com</a></li>
+  <li>API Key：<a href="https://www.jisudeng.com/keys">https://www.jisudeng.com/keys</a></li>
+  <li>模型与价格：<a href="https://www.jisudeng.com/models">https://www.jisudeng.com/models</a></li>
+  <li>生成接口：<code>POST https://api.jisudeng.com/v1/images/generations</code></li>
+  <li>编辑接口：<code>POST https://api.jisudeng.com/v1/images/edits</code></li>
+</ul>
+
+<h2>鉴权</h2>
+<pre><code>Authorization: Bearer sk-xxxxxxxxxxxxxxx
+Content-Type: application/json</code></pre>
+<p>也兼容 <code>x-api-key</code> 和 <code>x-goog-api-key</code>。不要把 Key 放到 URL 的 <code>key</code> / <code>api_key</code> 参数里。</p>
+
+<h2>可用模型</h2>
+<ul>
+  <li>GPT：<code>gpt-image-2</code>、<code>gpt-image-1.5</code>、<code>gpt-image-1</code>。不传 <code>model</code> 时默认 <code>gpt-image-2</code>。</li>
+  <li>Grok：<code>grok-imagine</code>、<code>grok-imagine-image-quality</code>、<code>grok-imagine-image</code>、<code>grok-imagine-edit</code>。Grok 必须传 <code>model</code>。</li>
+</ul>
+<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。</p>
+
+<h2>单张生成</h2>
+<pre><code>curl https://api.jisudeng.com/v1/images/generations \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gpt-image-2",
+    "prompt": "电商白底产品图：一副磨砂黑无线耳机，居中摆放，柔和棚拍光，干净阴影，高清商业摄影",
+    "size": "1024x1024",
+    "n": 1,
+    "response_format": "b64_json"
+  }' \\
+  -o image-response.json</code></pre>
+<p>保存到本地 PNG：</p>
+<pre><code>jq -r '.data[0].b64_json' image-response.json | base64 -d &gt; gpt-image.png</code></pre>
+
+<h2>Grok 生成</h2>
+<pre><code>curl https://api.jisudeng.com/v1/images/generations \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "grok-imagine",
+    "prompt": "赛博朋克城市夜景，雨后的霓虹街道，电影感构图，高细节",
+    "n": 1,
+    "response_format": "b64_json"
+  }' \\
+  -o grok-response.json</code></pre>
+<pre><code>jq -r '.data[0].b64_json' grok-response.json | base64 -d &gt; grok-image.png</code></pre>
+
+<h2>一次生成多张</h2>
+<p>把 <code>n</code> 改成需要的张数，例如一次出 4 张：</p>
+<pre><code>curl https://api.jisudeng.com/v1/images/generations \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gpt-image-2",
+    "prompt": "小红书封面：夏日柠檬气泡水，清爽浅色背景，标题留白，真实摄影质感",
+    "size": "1024x1536",
+    "n": 4,
+    "response_format": "b64_json"
+  }' \\
+  -o multi-response.json</code></pre>
+<p>保存返回的所有图片：</p>
+<pre><code>mkdir -p outputs
+jq -r '.data[].b64_json' multi-response.json | nl -w1 -s' ' | while read -r index b64; do
+  printf '%s' "$b64" | base64 -d &gt; "outputs/image-$index.png"
+done</code></pre>
+<p class="docs-tip"><code>n=4</code> 就是 4 张图，会按 4 张计费。</p>
+
+<h2>prompt 怎么加</h2>
+<p><code>prompt</code> 就是请求 JSON 里的描述字段。建议按「主体 / 场景 / 风格 / 要求」写：</p>
+<pre><code>{
+  "model": "gpt-image-2",
+  "prompt": "主体：一杯冰美式咖啡。场景：木质桌面、自然光。风格：真实商业摄影。要求：杯身清晰、背景干净、不要文字水印。",
+  "size": "1024x1024",
+  "n": 1,
+  "response_format": "b64_json"
+}</code></pre>
+<p>多行 prompt 用 <code>\\n</code>：</p>
+<pre><code>{
+  "prompt": "主体：白色运动鞋\\n场景：纯白摄影棚\\n风格：电商主图\\n要求：居中、干净阴影、不要文字"
+}</code></pre>
+
+<h2>网页直接显示</h2>
+<p>返回 <code>b64_json</code> 时，加上 <code>data:image/png;base64,</code> 就能塞进 <code>&lt;img&gt;</code>：</p>
+<pre><code>&lt;img id="preview" style="max-width:360px;border-radius:12px;" /&gt;
+&lt;script&gt;
+async function generateImage() {
+  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer sk-xxxxxxxxxxxxxxx",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-image-2",
+      prompt: "电商白底产品图：一只透明玻璃香水瓶，柔光，高清",
+      size: "1024x1024",
+      n: 1,
+      response_format: "b64_json"
+    })
+  })
+  const json = await res.json()
+  const item = json.data[0]
+  document.querySelector("#preview").src = item.url || ("data:image/png;base64," + item.b64_json)
+}
+generateImage()
+&lt;/script&gt;</code></pre>
+<p class="docs-tip">浏览器直接写 API Key 只适合本地测试。正式网站应由你的后端调用极速蹬 API，再把图片结果返回给前端。</p>
+
+<h2>Node.js 保存</h2>
+<pre><code>import fs from "node:fs"
+
+const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
+  method: "POST",
+  headers: {
+    Authorization: "Bearer sk-xxxxxxxxxxxxxxx",
+    "Content-Type": "application/json",
+  },
+  body: JSON.stringify({
+    model: "gpt-image-2",
+    prompt: "科技产品海报：黑色智能手表，深色背景，边缘光，商业摄影",
+    size: "1024x1024",
+    n: 2,
+    response_format: "b64_json",
+  }),
+})
+
+const json = await res.json()
+json.data.forEach((item, index) =&gt; {
+  fs.writeFileSync("image-" + (index + 1) + ".png", Buffer.from(item.b64_json, "base64"))
+})</code></pre>
+
+<h2>图像编辑</h2>
+<p>如果图片已经有公网 URL，可以用 JSON：</p>
+<pre><code>curl https://api.jisudeng.com/v1/images/edits \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gpt-image-2",
+    "prompt": "把背景替换成明亮的摄影棚渐变背景，保留主体",
+    "images": [{"image_url": "https://example.com/source.png"}],
+    "size": "1024x1024",
+    "response_format": "b64_json"
+  }'</code></pre>
+<p>如果要直接上传文件，用 multipart：</p>
+<pre><code>curl https://api.jisudeng.com/v1/images/edits \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -F "model=gpt-image-2" \\
+  -F "prompt=把背景替换成明亮的摄影棚渐变背景，保留主体" \\
+  -F "image=@source.png;type=image/png" \\
+  -F "size=1024x1024" \\
+  -F "response_format=b64_json" \\
+  -o edit-response.json</code></pre>
+<pre><code>jq -r '.data[0].b64_json' edit-response.json | base64 -d &gt; edited.png</code></pre>
+
+<h2>常用字段</h2>
+<div class="docs-table-wrap">
+<table class="docs-table">
+<thead><tr><th>字段</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td><code>model</code></td><td>GPT 用 <code>gpt-image-2</code>；Grok 用 <code>grok-imagine</code></td></tr>
+<tr><td><code>prompt</code></td><td>图片描述，生成和编辑都放这里</td></tr>
+<tr><td><code>n</code></td><td>输出张数，默认 1；多张就填 2、4 等</td></tr>
+<tr><td><code>size</code></td><td>GPT 常用 <code>1024x1024</code>、<code>1024x1536</code>、<code>1536x1024</code>；Grok 会用于站内计费分档</td></tr>
+<tr><td><code>response_format</code></td><td>推荐 <code>b64_json</code>，方便保存和直接显示</td></tr>
+<tr><td><code>images</code></td><td>编辑接口的参考图 URL 数组</td></tr>
+<tr><td><code>image</code> / <code>image[]</code></td><td>multipart 编辑接口的本地图片字段</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>常见错误</h2>
+<ul>
+  <li><code>400 invalid_request_error</code> — JSON 写错、请求体为空、<code>n &lt;= 0</code>、编辑接口缺少图片</li>
+  <li><code>401 API_KEY_REQUIRED / INVALID_API_KEY</code> — Key 缺失或无效</li>
+  <li><code>403 permission_error</code> — Key 所属分组没有开启图片生成</li>
+  <li><code>404 not_found_error</code> — Key 所属分组不是 GPT/OpenAI 或 Grok 图片分组</li>
+  <li><code>429</code> — Key、用户、分组、账号或上游限流</li>
+  <li><code>502 upstream_error</code> — 上游异常或没有返回有效图片</li>
+</ul>
+
+<h2>和图像工作室的区别</h2>
+<ul>
+  <li><strong>API 生成</strong>：开发者直调 <code>https://api.jisudeng.com/v1/images/generations</code>，自己保存和展示图片。</li>
+  <li><strong>图像工作室</strong>：打开 <a href="/image-studio">/image-studio</a> 手动生成，站内负责模板、估价、异步 job 和图库。</li>
+  <li><strong>批量调用</strong>：多个 prompt 或一次多张，见 <a href="/docs?cat=tutorial&amp;page=batch-image-api">多张 / 批量生图调用</a>。</li>
+</ul>`,
+      },
+      {
+        id: 'batch-image-api',
+        title: "多张 / 批量生图调用",
+        summary: "同一个 GPT/Grok 图片接口：n 多张、多 prompt 批量跑、保存本地",
+        html: `<p class="docs-lead">批量调用 GPT/Grok 图片生成时，继续使用同一个接口 <code>POST https://api.jisudeng.com/v1/images/generations</code>。常见方式有两种：同一个 prompt 设置 <code>n</code> 一次出多张；多个 prompt 循环调用接口并保存结果。</p>
+
+<h2>两种批量方式</h2>
+<div class="docs-table-wrap">
+<table class="docs-table">
+<thead><tr><th>方式</th><th>怎么做</th><th>适合场景</th></tr></thead>
+<tbody>
+<tr><td>一次请求多张</td><td>设置 <code>n</code>，例如 <code>n: 4</code></td><td>同一个 prompt 出多张备选图</td></tr>
+<tr><td>多个 prompt 批量跑</td><td>循环调用 <code>/v1/images/generations</code></td><td>商品图、封面、头像、素材批处理</td></tr>
+</tbody>
+</table>
+</div>
+<p class="docs-tip">GPT/Grok 批量调用主要就是调用 <code>https://api.jisudeng.com/v1/images/generations</code>。不要换成其他地址，也不要把 API Key 放到 URL 参数里。</p>
+
+<h2>一次请求生成多张</h2>
+<pre><code>curl https://api.jisudeng.com/v1/images/generations \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "model": "gpt-image-2",
+    "prompt": "电商白底主图：一双白色运动鞋，居中摆放，柔和棚拍光，高清真实摄影",
+    "size": "1024x1024",
+    "n": 4,
+    "response_format": "b64_json"
+  }' \\
+  -o multi-response.json</code></pre>
+<pre><code>mkdir -p outputs
+jq -r '.data[].b64_json' multi-response.json | nl -w1 -s' ' | while read -r index b64; do
+  printf '%s' "$b64" | base64 -d &gt; "outputs/shoe-$index.png"
+done</code></pre>
+
+<h2>多个 prompt 批量跑</h2>
+<p>准备 <code>prompts.txt</code>，一行一个 prompt：</p>
+<pre><code>电商白底主图：白色运动鞋，柔光，干净阴影
+电商白底主图：黑色机械键盘，俯拍，高清细节
+社媒封面：夏日冰咖啡，浅色背景，标题留白
+游戏头像：银发机甲角色，蓝色边缘光，半身像</code></pre>
+<p>批量生成并保存：</p>
+<pre><code>mkdir -p batch-outputs
+i=1
+while IFS= read -r prompt || [ -n "$prompt" ]; do
+  [ -z "$prompt" ] &amp;&amp; continue
+
+  jq -n --arg prompt "$prompt" '{
+    model: "gpt-image-2",
+    prompt: $prompt,
+    size: "1024x1024",
+    n: 1,
+    response_format: "b64_json"
+  }' &gt; "batch-outputs/request-$i.json"
+
+  curl https://api.jisudeng.com/v1/images/generations \\
+    -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+    -H "Content-Type: application/json" \\
+    -d @"batch-outputs/request-$i.json" \\
+    -o "batch-outputs/response-$i.json"
+
+  jq -r '.data[0].b64_json' "batch-outputs/response-$i.json" \\
+    | base64 -d &gt; "batch-outputs/image-$i.png"
+
+  i=$((i + 1))
+done &lt; prompts.txt</code></pre>
+<p>要用 Grok，把脚本里的 <code>model: "gpt-image-2"</code> 改成 <code>model: "grok-imagine"</code>。</p>
+
+<h2>每个 prompt 生成多张</h2>
+<p>每行 prompt 出 3 张时，把请求里的 <code>n</code> 改成 3，再保存每条响应里的所有图片：</p>
+<pre><code>jq -r '.data[].b64_json' "batch-outputs/response-$i.json" | nl -w1 -s' ' | while read -r j b64; do
+  printf '%s' "$b64" | base64 -d &gt; "batch-outputs/image-$i-$j.png"
+done</code></pre>
+
+<h2>Node.js 批量保存</h2>
+<pre><code>import fs from "node:fs"
+
+const apiKey = "sk-xxxxxxxxxxxxxxx"
+const prompts = [
+  "电商白底主图：白色运动鞋，柔光，干净阴影",
+  "社媒封面：夏日冰咖啡，浅色背景，标题留白",
+  "游戏头像：银发机甲角色，蓝色边缘光，半身像",
+]
+
+fs.mkdirSync("batch-outputs", { recursive: true })
+
+for (let i = 0; i &lt; prompts.length; i++) {
+  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      Authorization: "Bearer " + apiKey,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "gpt-image-2",
+      prompt: prompts[i],
+      size: "1024x1024",
+      n: 2,
+      response_format: "b64_json",
+    }),
+  })
+
+  const json = await res.json()
+  json.data.forEach((item, j) =&gt; {
+    fs.writeFileSync("batch-outputs/image-" + (i + 1) + "-" + (j + 1) + ".png", Buffer.from(item.b64_json, "base64"))
+  })
+}</code></pre>
+
+<h2>网页批量显示</h2>
+<pre><code>&lt;div id="grid" style="display:grid;grid-template-columns:repeat(2,180px);gap:12px;"&gt;&lt;/div&gt;
+&lt;script&gt;
+async function run() {
+  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
+    method: "POST",
+    headers: {
+      "Authorization": "Bearer sk-xxxxxxxxxxxxxxx",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      model: "gpt-image-2",
+      prompt: "小红书封面：夏日柠檬气泡水，浅色背景，标题留白",
+      size: "1024x1536",
+      n: 4,
+      response_format: "b64_json"
+    })
+  })
+  const json = await res.json()
+  document.querySelector("#grid").innerHTML = json.data.map(function(item) {
+    const src = item.url || ("data:image/png;base64," + item.b64_json)
+    return '&lt;img src="' + src + '" style="width:180px;border-radius:10px;" /&gt;'
+  }).join("")
+}
+run()
+&lt;/script&gt;</code></pre>
+<p class="docs-tip">正式网站不要把 API Key 暴露在前端，请让你的后端调用极速蹬 API，再把图片结果返回给浏览器。</p>`,
+      },
+      {
         id: 'api-key',
         title: "API Key 管理",
         summary: "Key 的创建 / 启用 / 禁用 / 删除 / 限速",
@@ -281,7 +612,7 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
         id: 'image-studio',
         title: "图像工作室",
         summary: "模板向导 · 生成前估价 · 图库 · 与每日任务联动",
-        html: `<p class="docs-lead">图像工作室面向<strong>不会写 prompt</strong>的用户：选意图 → 选模板 → 填描述 → 确认费用后生成。服务端代调图像 API 并扣余额，与 Batch Image 批量控制台并列、互不替代。</p>
+        html: `<p class="docs-lead">图像工作室面向<strong>不会写 prompt</strong>的用户：选意图 → 选模板 → 填描述 → 确认费用后生成。开发者批量调用请直接使用 GPT/Grok 图片生成 API，不需要进入图像工作室。</p>
 
 <h2>入口</h2>
 <ul>
@@ -327,7 +658,7 @@ export const PUBLIC_DOC_CONTENT_ZH: PublicDocCategoryContent[] = [
   <li><code>POST /api/v1/image-studio/generate</code>（异步 job，前端轮询）</li>
   <li><code>GET /api/v1/image-studio/jobs</code> / <code>DELETE .../jobs/:id</code></li>
 </ul>
-<p class="docs-tip">需开启 <code>image_studio_enabled</code>。Batch Image（<code>/batch-image</code>）面向 Gemini 批量任务，适合老手。</p>`,
+<p class="docs-tip">需开启 <code>image_studio_enabled</code>。开发者直调请看 <a href="/docs?cat=tutorial&amp;page=text-to-image-api">GPT / Grok 图片生成 API</a>；多 prompt 或一次多张请看 <a href="/docs?cat=tutorial&amp;page=batch-image-api">多张 / 批量生图调用</a>。</p>`,
       },
       {
         id: 'token-farm',

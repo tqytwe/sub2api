@@ -52,6 +52,8 @@ GET    /api/v1/image-studio/assets/:id/content
 GET    /api/v1/image-studio/assets/:id/download
 ```
 
+对外开发者直调的 GPT/Grok 图像 API 使用 API Key 鉴权，入口为 `https://api.jisudeng.com/v1/images/generations` 和 `https://api.jisudeng.com/v1/images/edits`，见 [GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md)。图像工作室只负责控制台模板、估价、异步 job 和图库，不替代对外 API 文档。
+
 空白描述必须返回 `IMAGE_STUDIO_PROMPT_REQUIRED`，不得替换成默认 `product`。生成接口先建立 `pending` 任务，再在脱离请求取消的后台上下文执行网关调用；客户端通过 job 接口轮询 `pending / running / completed / failed`。
 
 ## 隐私、资产与清理
@@ -67,4 +69,4 @@ GET    /api/v1/image-studio/assets/:id/download
 
 功能由 `image_studio_enabled` 控制，持久卷必须覆盖应用的 data directory。上游合并后运行 `./scripts/check-fork-integrity.sh`，再在 Zeabur 生产环境验证：模板预览、必填校验、Key/模型自动选择、比例与档位、估价、余额不足、异步恢复、失败重试、鉴权预览、下载、删除和暗色主题。
 
-批量异步 Gemini 任务继续使用 [Batch Image MVP](./BATCH_IMAGE_MVP.md)，不得把两套任务或计费链路合并。
+GPT/Grok 多张和多 prompt 批量调用见 [多张 / 批量生图调用](./BATCH_IMAGE_API.md)。内部异步批量任务保留在 [Batch Image MVP](./BATCH_IMAGE_MVP.md)，不得把两套任务或计费链路合并。
