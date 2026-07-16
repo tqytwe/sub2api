@@ -94,10 +94,10 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	net := reward - rt.BlindboxCost
 
 	if err := s.grantBalance(ctx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, map[string]any{
-		"open_date":      dateKey,
-		"cost_amount":    rt.BlindboxCost,
-		"reward_amount":  reward,
-		"net_amount":     net,
+		"open_date":     dateKey,
+		"cost_amount":   rt.BlindboxCost,
+		"reward_amount": reward,
+		"net_amount":    net,
 	}, func(txCtx context.Context) error {
 		return s.repo.InsertBlindboxOpen(txCtx, userID, date, rt.BlindboxCost, reward, idempotencyKey)
 	}); err != nil {

@@ -45,7 +45,7 @@ func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, d
 	return nil
 }
 
-func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) ([]service.PlayBlindboxRecentWin, error) {
+func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) (result []service.PlayBlindboxRecentWin, err error) {
 	if limit <= 0 {
 		limit = 20
 	}
@@ -64,7 +64,12 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 	if err != nil {
 		return nil, fmt.Errorf("list recent blindbox wins: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayBlindboxRecentWin, 0, limit)
 	for rows.Next() {
@@ -80,7 +85,7 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 	return out, nil
 }
 
-func (r *playRepository) ListQuizQuestions(ctx context.Context, language string) ([]service.PlayQuizQuestionDB, error) {
+func (r *playRepository) ListQuizQuestions(ctx context.Context, language string) (result []service.PlayQuizQuestionDB, err error) {
 	language = strings.ToLower(strings.TrimSpace(language))
 	if language == "" {
 		language = "en"
@@ -95,7 +100,12 @@ func (r *playRepository) ListQuizQuestions(ctx context.Context, language string)
 	if err != nil {
 		return nil, fmt.Errorf("list quiz questions: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayQuizQuestionDB, 0, 32)
 	for rows.Next() {
@@ -232,7 +242,7 @@ func (r *playRepository) JoinTeam(ctx context.Context, teamID, userID int64) err
 	return nil
 }
 
-func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) ([]service.PlayTeamMember, error) {
+func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (result []service.PlayTeamMember, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT m.user_id,
@@ -247,7 +257,12 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) ([]s
 	if err != nil {
 		return nil, fmt.Errorf("list team members: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 
 	out := make([]service.PlayTeamMember, 0, 8)
 	for rows.Next() {
@@ -288,7 +303,7 @@ func (r *playRepository) SumTeamTokenUsage(ctx context.Context, userIDs []int64,
 	return sum, nil
 }
 
-func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]int64, error) {
+func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (result map[int64]int64, err error) {
 	out := make(map[int64]int64, len(userIDs))
 	if len(userIDs) == 0 {
 		return out, nil
@@ -312,7 +327,12 @@ func (r *playRepository) ListTeamMemberTokenUsage(ctx context.Context, userIDs [
 	if err != nil {
 		return nil, fmt.Errorf("list team member token usage: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
 	for rows.Next() {
 		var userID, tokenSum int64
 		if err := rows.Scan(&userID, &tokenSum); err != nil {

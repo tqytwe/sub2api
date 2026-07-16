@@ -11,12 +11,12 @@ import (
 )
 
 type playQuestTodayDTO struct {
-	Enabled           bool              `json:"enabled"`
-	Energy            int               `json:"energy"`
-	Level             int               `json:"level"`
-	EnergyToNextLevel int               `json:"energy_to_next_level"`
+	Enabled           bool               `json:"enabled"`
+	Energy            int                `json:"energy"`
+	Level             int                `json:"level"`
+	EnergyToNextLevel int                `json:"energy_to_next_level"`
 	Tasks             []playQuestTaskDTO `json:"tasks"`
-	ServerDate        string            `json:"server_date"`
+	ServerDate        string             `json:"server_date"`
 }
 
 type playQuestTaskDTO struct {

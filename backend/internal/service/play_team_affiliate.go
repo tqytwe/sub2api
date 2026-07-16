@@ -11,12 +11,12 @@ import (
 const PlayRewardSourceTeamAffiliateBonus = "team_affiliate_bonus"
 
 type PlayTeamAffiliateInfo struct {
-	Enabled               bool    `json:"enabled"`
-	TokenThreshold        int64   `json:"token_threshold"`
-	MilestoneReached        bool    `json:"milestone_reached"`
-	TokensToMilestone     int64   `json:"tokens_to_milestone,omitempty"`
-	CaptainBonus          float64 `json:"captain_bonus,omitempty"`
-	CaptainBonusGranted   bool    `json:"captain_bonus_granted,omitempty"`
+	Enabled             bool    `json:"enabled"`
+	TokenThreshold      int64   `json:"token_threshold"`
+	MilestoneReached    bool    `json:"milestone_reached"`
+	TokensToMilestone   int64   `json:"tokens_to_milestone,omitempty"`
+	CaptainBonus        float64 `json:"captain_bonus,omitempty"`
+	CaptainBonusGranted bool    `json:"captain_bonus_granted,omitempty"`
 }
 
 func (s *PlayService) enrichTeamAffiliate(

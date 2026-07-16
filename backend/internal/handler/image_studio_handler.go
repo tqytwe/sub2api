@@ -123,9 +123,9 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	go h.runGenerateJob(baseCtx, userID, jobID, apiKeyID, estimatedCost, body)
 
 	response.Success(c, gin.H{
-		"job":    job,
-		"async":  true,
-		"poll":   fmt.Sprintf("/api/v1/image-studio/jobs/%s", jobID),
+		"job":   job,
+		"async": true,
+		"poll":  fmt.Sprintf("/api/v1/image-studio/jobs/%s", jobID),
 	})
 }
 

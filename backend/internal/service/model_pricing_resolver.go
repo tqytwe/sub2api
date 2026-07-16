@@ -163,9 +163,11 @@ func (r *ModelPricingResolver) getCatalogEntry(ctx context.Context, model string
 		return nil
 	}
 	if cached, ok := r.catalogCache.Load(key); ok {
-		entry := cached.(cachedCatalogPricing)
-		if time.Now().Before(entry.expiresAt) {
-			return entry.entry
+		entry, valid := cached.(cachedCatalogPricing)
+		if valid {
+			if time.Now().Before(entry.expiresAt) {
+				return entry.entry
+			}
 		}
 		r.catalogCache.Delete(key)
 	}

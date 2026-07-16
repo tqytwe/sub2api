@@ -72,11 +72,11 @@ type PlayCheckinStatus struct {
 }
 
 type PlayCheckinResult struct {
-	RewardAmount    float64
-	BalanceAdded    float64
-	ServerDate      string
-	StreakCount     int
-	MilestoneBonus  float64
+	RewardAmount   float64
+	BalanceAdded   float64
+	ServerDate     string
+	StreakCount    int
+	MilestoneBonus float64
 }
 
 type PlayBlindboxStatus struct {
@@ -116,18 +116,18 @@ type PlayQuizQuestion struct {
 }
 
 type PlayQuizToday struct {
-	Enabled           bool
-	Questions         []PlayQuizQuestion
-	AlreadySubmitted  bool
-	PreviousScore     int
-	PreviousTotal     int
-	PreviousReward    float64
-	RewardPerCorrect  float64
-	ServerDate        string
+	Enabled          bool
+	Questions        []PlayQuizQuestion
+	AlreadySubmitted bool
+	PreviousScore    int
+	PreviousTotal    int
+	PreviousReward   float64
+	RewardPerCorrect float64
+	ServerDate       string
 }
 
 type PlayQuizAnswer struct {
-	QuestionID int64
+	QuestionID  int64
 	ChoiceIndex int
 }
 
@@ -222,11 +222,11 @@ type PlayRepository interface {
 }
 
 type PlayQuizQuestionDB struct {
-	ID            int64
-	Language      string
-	Prompt        string
-	OptionsJSON   string
-	CorrectIndex  int
+	ID           int64
+	Language     string
+	Prompt       string
+	OptionsJSON  string
+	CorrectIndex int
 }
 
 type PlayQuizAttemptDB struct {

@@ -26,12 +26,12 @@ var imageStudioModelPreference = []string{
 }
 
 type ImageStudioModelOption struct {
-	ID                  string   `json:"id"`
-	DisplayName         string   `json:"display_name"`
-	SupportedSizes      []string `json:"supported_sizes,omitempty"`
-	SupportedQualities  []string `json:"supported_qualities,omitempty"`
-	DefaultSize         string   `json:"default_size,omitempty"`
-	DefaultQuality      string   `json:"default_quality,omitempty"`
+	ID                 string   `json:"id"`
+	DisplayName        string   `json:"display_name"`
+	SupportedSizes     []string `json:"supported_sizes,omitempty"`
+	SupportedQualities []string `json:"supported_qualities,omitempty"`
+	DefaultSize        string   `json:"default_size,omitempty"`
+	DefaultQuality     string   `json:"default_quality,omitempty"`
 }
 
 type ImageStudioModelResolver interface {
