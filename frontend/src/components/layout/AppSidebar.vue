@@ -319,7 +319,7 @@ function applyFeatureFlags(items: NavItem[]): NavItem[] {
   return out
 }
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -801,12 +801,20 @@ function isDocsCustomMenuItem(item: Pick<CustomMenuNavItem, 'label' | 'url'>): b
   return label.includes('文档') || label.includes('文檔') || label.includes('docs') || url.includes('/docs')
 }
 
+function resolveCustomMenuLabel(label: string): string {
+  const key = label.trim()
+  if (/^nav\.[\w.-]+$/.test(key) && te(key)) {
+    return t(key)
+  }
+  return label
+}
+
 function buildCustomMenuNavItem(item: CustomMenuNavItem): NavItem {
   const icon = isDocsCustomMenuItem(item) ? BookIcon : null
 
   return {
     path: `/custom/${item.id}`,
-    label: item.label,
+    label: resolveCustomMenuLabel(item.label),
     icon,
     iconSvg: icon ? undefined : item.icon_svg,
   }

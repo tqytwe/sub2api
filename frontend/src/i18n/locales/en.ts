@@ -411,6 +411,7 @@ export default {
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
+    imageStudio: 'Image Studio',
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
@@ -463,6 +464,8 @@ export default {
     riskControl: 'Risk Control',
     modelsAndPricing: 'Models & Pricing',
     modelCatalog: 'Model Catalog',
+    auditLogs: 'Audit Logs',
+    auditlogs: 'Audit Logs',
   },
 
   // Auth

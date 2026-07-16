@@ -193,6 +193,7 @@ export default {
     channelStatus: '渠道状态',
     riskControl: '风控中心',
     auditLogs: '操作日志',
+    auditlogs: '操作日志',
   },
 
   // Auth
