@@ -297,6 +297,13 @@ interface NavItem {
   featureFlag?: () => boolean | undefined
 }
 
+interface CustomMenuNavItem {
+  id: string | number
+  label: string
+  url?: string
+  icon_svg?: string
+}
+
 // applyFeatureFlags 递归过滤掉 featureFlag() === false 的节点（含子节点）。
 // 使用 `!== false` 宽容语义：undefined（设置未加载）或 true 都视为显示。
 function applyFeatureFlags(items: NavItem[]): NavItem[] {
@@ -415,6 +422,21 @@ const GiftIcon = {
           'stroke-linecap': 'round',
           'stroke-linejoin': 'round',
           d: 'M21 11.25v8.25a1.5 1.5 0 01-1.5 1.5H5.25a1.5 1.5 0 01-1.5-1.5v-8.25M12 4.875A2.625 2.625 0 109.375 7.5H12m0-2.625V7.5m0-2.625A2.625 2.625 0 1114.625 7.5H12m0 0V21m-8.625-9.75h18c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125h-18c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z'
+        })
+      ]
+    )
+}
+
+const BookIcon = {
+  render: () =>
+    h(
+      'svg',
+      { fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', 'stroke-width': '1.5' },
+      [
+        h('path', {
+          'stroke-linecap': 'round',
+          'stroke-linejoin': 'round',
+          d: 'M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25'
         })
       ]
     )
@@ -772,6 +794,24 @@ const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
 const flagAdminPayment = () => adminSettingsStore.paymentEnabled
 const flagBatchImageAccess = () => canUseBatchImage.value
 
+function isDocsCustomMenuItem(item: Pick<CustomMenuNavItem, 'label' | 'url'>): boolean {
+  const label = item.label.trim().toLowerCase()
+  const url = (item.url ?? '').trim().toLowerCase()
+
+  return label.includes('文档') || label.includes('文檔') || label.includes('docs') || url.includes('/docs')
+}
+
+function buildCustomMenuNavItem(item: CustomMenuNavItem): NavItem {
+  const icon = isDocsCustomMenuItem(item) ? BookIcon : null
+
+  return {
+    path: `/custom/${item.id}`,
+    label: item.label,
+    icon,
+    iconSvg: icon ? undefined : item.icon_svg,
+  }
+}
+
 function buildGrowthNavChildren(): NavItem[] {
   return [
     { path: '/play', label: t('nav.playHub'), icon: DashboardIcon, hideInSimpleMode: true },
@@ -813,12 +853,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
       children: buildGrowthNavChildren(),
     },
     { path: '/profile', label: t('nav.profile'), icon: UserIcon },
-    ...customMenuItemsForUser.value.map((item): NavItem => ({
-      path: `/custom/${item.id}`,
-      label: item.label,
-      icon: null,
-      iconSvg: item.icon_svg,
-    })),
+    ...customMenuItemsForUser.value.map(buildCustomMenuNavItem),
   )
   return items
 }
@@ -915,14 +950,14 @@ const adminNavItems = computed((): NavItem[] => {
     filtered.push({ path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon })
     filtered.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
     for (const cm of customMenuItemsForAdmin.value) {
-      filtered.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
+      filtered.push(buildCustomMenuNavItem(cm))
     }
     return filtered
   }
 
   visible.push({ path: '/admin/settings', label: t('nav.settings'), icon: CogIcon })
   for (const cm of customMenuItemsForAdmin.value) {
-    visible.push({ path: `/custom/${cm.id}`, label: cm.label, icon: null, iconSvg: cm.icon_svg })
+    visible.push(buildCustomMenuNavItem(cm))
   }
   return visible
 })

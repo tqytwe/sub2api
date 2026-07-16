@@ -677,6 +677,15 @@ func (s *SettingService) GetFrameSrcOrigins(ctx context.Context) ([]string, erro
 	return origins, nil
 }
 
+// GetFrameAncestorOrigins returns parent origins that are allowed to embed this app.
+func (s *SettingService) GetFrameAncestorOrigins(ctx context.Context) ([]string, error) {
+	origin := extractOriginFromURL(s.GetFrontendURL(ctx))
+	if origin == "" {
+		return []string{}, nil
+	}
+	return []string{origin}, nil
+}
+
 // extractOriginFromURL returns the scheme+host origin from rawURL.
 // Only http and https schemes are accepted.
 func extractOriginFromURL(rawURL string) string {

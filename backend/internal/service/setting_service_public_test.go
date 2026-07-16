@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -19,7 +20,10 @@ func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, 
 }
 
 func (s *settingPublicRepoStub) GetValue(ctx context.Context, key string) (string, error) {
-	panic("unexpected GetValue call")
+	if value, ok := s.values[key]; ok {
+		return value, nil
+	}
+	return "", errors.New("setting not found")
 }
 
 func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) error {
@@ -163,4 +167,16 @@ func TestSettingService_GetPublicSettings_FallsBackToConfigForWeChatOAuthCapabil
 	require.True(t, settings.WeChatOAuthOpenEnabled)
 	require.False(t, settings.WeChatOAuthMPEnabled)
 	require.False(t, settings.WeChatOAuthMobileEnabled)
+}
+
+func TestSettingService_GetFrameAncestorOrigins_UsesFrontendOrigin(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyFrontendURL: "https://www.jisudeng.com/dashboard",
+		},
+	}, &config.Config{})
+
+	origins, err := svc.GetFrameAncestorOrigins(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, []string{"https://www.jisudeng.com"}, origins)
 }

@@ -19,6 +19,18 @@ describe('AppSidebar custom SVG styles', () => {
   })
 })
 
+describe('AppSidebar custom docs menu icon', () => {
+  it('uses the built-in sidebar book icon for docs custom menu items', () => {
+    expect(componentSource).toContain('const BookIcon = {')
+    expect(componentSource).toContain('function isDocsCustomMenuItem')
+    expect(componentSource).toContain('function buildCustomMenuNavItem')
+    expect(componentSource).toContain('iconSvg: icon ? undefined : item.icon_svg')
+    expect(componentSource).toContain('...customMenuItemsForUser.value.map(buildCustomMenuNavItem)')
+    expect(componentSource).toContain('visible.push(buildCustomMenuNavItem(cm))')
+    expect(componentSource).toContain('filtered.push(buildCustomMenuNavItem(cm))')
+  })
+})
+
 describe('AppSidebar scroll position persistence', () => {
   it('binds a template ref to the sidebar nav element', () => {
     expect(componentSource).toContain('ref="sidebarNavRef"')
