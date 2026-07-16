@@ -204,6 +204,8 @@ type PlayRepository interface {
 	ListArenaLeaderboard(ctx context.Context, start, end time.Time, limit int) ([]PlayArenaScoreRow, error)
 	GetUserArenaScore(ctx context.Context, userID int64, start, end time.Time) (tokenSum int64, rank int, err error)
 	GetArenaTokensToPrevRank(ctx context.Context, userID int64, start, end time.Time, rank int, tokenSum int64) (int64, error)
+	LockBlindboxOpenUser(ctx context.Context, userID int64) (balance float64, err error)
+	UpdatePlayBalance(ctx context.Context, userID int64, amount float64) error
 	CountBlindboxOpens(ctx context.Context, userID int64, date time.Time) (int, error)
 	InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error
 	InsertBlindboxOpenRecord(ctx context.Context, record PlayBlindboxOpenRecord) error

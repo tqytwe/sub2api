@@ -9,15 +9,33 @@ import (
 )
 
 type playBlindboxStatusDTO struct {
-	Enabled             bool    `json:"enabled"`
-	CostAmount          float64 `json:"cost_amount"`
-	DailyLimit          int     `json:"daily_limit"`
-	EffectiveLimit      int     `json:"effective_limit,omitempty"`
-	OpensToday          int     `json:"opens_today"`
-	CanOpen             bool    `json:"can_open"`
-	ServerDate          string  `json:"server_date"`
-	RechargeBoostActive bool    `json:"recharge_boost_active,omitempty"`
-	CampaignActive      bool    `json:"campaign_active,omitempty"`
+	Enabled             bool                 `json:"enabled"`
+	CostAmount          float64              `json:"cost_amount"`
+	Pool                *playBlindboxPoolDTO `json:"pool,omitempty"`
+	DailyLimit          int                  `json:"daily_limit"`
+	EffectiveLimit      int                  `json:"effective_limit,omitempty"`
+	OpensToday          int                  `json:"opens_today"`
+	CanOpen             bool                 `json:"can_open"`
+	ServerDate          string               `json:"server_date"`
+	RechargeBoostActive bool                 `json:"recharge_boost_active,omitempty"`
+	CampaignActive      bool                 `json:"campaign_active,omitempty"`
+}
+
+type playBlindboxPoolResponseDTO struct {
+	Enabled bool                `json:"enabled"`
+	Pool    playBlindboxPoolDTO `json:"pool"`
+}
+
+type playBlindboxPoolDTO struct {
+	Version string                    `json:"version"`
+	Cost    float64                   `json:"cost"`
+	RTPCap  float64                   `json:"rtp_cap"`
+	Tiers   []playBlindboxPoolTierDTO `json:"tiers"`
+}
+
+type playBlindboxPoolTierDTO struct {
+	Amount float64 `json:"amount"`
+	Weight int64   `json:"weight"`
 }
 
 type playBlindboxOpenResultDTO struct {
@@ -26,6 +44,8 @@ type playBlindboxOpenResultDTO struct {
 	NetAmount    float64 `json:"net_amount"`
 	OpensToday   int     `json:"opens_today"`
 	ServerDate   string  `json:"server_date"`
+	PoolVersion  string  `json:"pool_version"`
+	OpenSource   string  `json:"open_source"`
 }
 
 type playBlindboxRecentWinDTO struct {
@@ -123,6 +143,7 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 	response.Success(c, playBlindboxStatusDTO{
 		Enabled:             status.Enabled,
 		CostAmount:          status.CostAmount,
+		Pool:                toPlayBlindboxPoolDTOPtr(status.BlindboxPool),
 		DailyLimit:          status.DailyLimit,
 		EffectiveLimit:      status.EffectiveLimit,
 		OpensToday:          status.OpensToday,
@@ -130,6 +151,18 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 		ServerDate:          status.ServerDate,
 		RechargeBoostActive: status.RechargeBoostActive,
 		CampaignActive:      status.CampaignActive,
+	})
+}
+
+func (h *PlayHandler) BlindboxPool(c *gin.Context) {
+	status, err := h.playService.GetBlindboxStatus(c.Request.Context(), 0)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, playBlindboxPoolResponseDTO{
+		Enabled: status.Enabled,
+		Pool:    toPlayBlindboxPoolDTO(status.BlindboxPool),
 	})
 }
 
@@ -150,7 +183,30 @@ func (h *PlayHandler) BlindboxOpen(c *gin.Context) {
 		NetAmount:    result.NetAmount,
 		OpensToday:   result.OpensToday,
 		ServerDate:   result.ServerDate,
+		PoolVersion:  result.PoolVersion,
+		OpenSource:   result.OpenSource,
 	})
+}
+
+func toPlayBlindboxPoolDTO(pool service.PlayBlindboxPool) playBlindboxPoolDTO {
+	out := playBlindboxPoolDTO{
+		Version: pool.Version,
+		Cost:    pool.Cost,
+		RTPCap:  pool.RTPCap,
+		Tiers:   make([]playBlindboxPoolTierDTO, 0, len(pool.Tiers)),
+	}
+	for _, tier := range pool.Tiers {
+		out.Tiers = append(out.Tiers, playBlindboxPoolTierDTO{
+			Amount: tier.Amount,
+			Weight: tier.Weight,
+		})
+	}
+	return out
+}
+
+func toPlayBlindboxPoolDTOPtr(pool service.PlayBlindboxPool) *playBlindboxPoolDTO {
+	out := toPlayBlindboxPoolDTO(pool)
+	return &out
 }
 
 func (h *PlayHandler) BlindboxRecent(c *gin.Context) {

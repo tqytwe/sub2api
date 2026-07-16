@@ -12,6 +12,45 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
+func (r *playRepository) LockBlindboxOpenUser(ctx context.Context, userID int64) (float64, error) {
+	exec := r.sqlExec(ctx)
+	var balance float64
+	err := scanSingleRow(ctx, exec, `
+		SELECT balance
+		FROM users
+		WHERE id = $1 AND deleted_at IS NULL
+		FOR UPDATE`, []any{userID}, &balance)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, service.ErrUserNotFound
+		}
+		return 0, fmt.Errorf("lock blindbox user: %w", err)
+	}
+	return balance, nil
+}
+
+func (r *playRepository) UpdatePlayBalance(ctx context.Context, userID int64, amount float64) error {
+	exec := r.sqlExec(ctx)
+	res, err := exec.ExecContext(ctx, `
+		UPDATE users
+		SET balance = balance + $1,
+		    updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL`,
+		amount, userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update play balance: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("update play balance rows affected: %w", err)
+	}
+	if n == 0 {
+		return service.ErrUserNotFound
+	}
+	return nil
+}
+
 func (r *playRepository) CountBlindboxOpens(ctx context.Context, userID int64, date time.Time) (int, error) {
 	exec := r.sqlExec(ctx)
 	var count int

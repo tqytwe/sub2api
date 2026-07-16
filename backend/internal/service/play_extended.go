@@ -8,11 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"hash/fnv"
-	"math/big"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
+
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 )
 
 func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*PlayBlindboxStatus, error) {
@@ -20,10 +21,11 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 	now := s.serverNow()
 	date := s.serverDate(now)
 	out := &PlayBlindboxStatus{
-		Enabled:    rt.BlindboxEnabled,
-		CostAmount: rt.BlindboxCost,
-		DailyLimit: rt.BlindboxDailyLimit,
-		ServerDate: date.Format("2006-01-02"),
+		Enabled:      rt.BlindboxEnabled,
+		CostAmount:   rt.BlindboxPool.Cost,
+		BlindboxPool: rt.BlindboxPool,
+		DailyLimit:   rt.BlindboxDailyLimit,
+		ServerDate:   date.Format("2006-01-02"),
 	}
 	out.EffectiveLimit = rt.BlindboxDailyLimit
 	if !rt.BlindboxEnabled || userID <= 0 {
@@ -58,62 +60,108 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	if !rt.BlindboxEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	if rt.BlindboxCost <= 0 {
-		return nil, fmt.Errorf("blindbox cost not configured")
+	pool := rt.BlindboxPool
+	if err := ValidateBlindboxPool(pool); err != nil {
+		return nil, fmt.Errorf("blindbox pool not configured: %w", err)
 	}
-	idempotencyKey = strings.TrimSpace(idempotencyKey)
-	if idempotencyKey == "" {
-		idempotencyKey = fmt.Sprintf("blindbox:%d:%d", userID, time.Now().UnixNano())
-	}
-
-	user, err := s.userRepo.GetByID(ctx, userID)
+	cost := pool.Cost
+	idempotencyKey, err := scopeBlindboxIdempotencyKey(userID, idempotencyKey)
 	if err != nil {
 		return nil, err
-	}
-	if user.Balance < rt.BlindboxCost {
-		return nil, ErrPlayInsufficientBalance
 	}
 
 	now := s.serverNow()
 	date := s.serverDate(now)
 	dateKey := date.Format("2006-01-02")
-	opens, err := s.repo.CountBlindboxOpens(ctx, userID, date)
-	if err != nil {
-		return nil, err
-	}
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
 	if err != nil {
 		return nil, err
 	}
 	effectiveLimit := rt.BlindboxDailyLimit + mods.BlindboxExtraOpens
+
+	reward, err := s.pickBlindboxReward(pool)
+	if err != nil {
+		return nil, err
+	}
+	const openSource = "paid"
+	net := reward - cost
+
+	if s.entClient == nil {
+		return nil, fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin blindbox open tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+
+	balance, err := s.repo.LockBlindboxOpenUser(txCtx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if balance < cost {
+		return nil, ErrPlayInsufficientBalance
+	}
+	opens, err := s.repo.CountBlindboxOpens(txCtx, userID, date)
+	if err != nil {
+		return nil, err
+	}
 	if opens >= effectiveLimit {
 		return nil, ErrPlayBlindboxDailyLimit
 	}
 
-	reward := pickBlindboxReward()
-	net := reward - rt.BlindboxCost
-
-	if err := s.grantBalance(ctx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, map[string]any{
+	if err := s.grantBalanceInTx(txCtx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, map[string]any{
 		"open_date":     dateKey,
-		"cost_amount":   rt.BlindboxCost,
+		"cost_amount":   cost,
 		"reward_amount": reward,
 		"net_amount":    net,
+		"pool_version":  pool.Version,
+		"open_source":   openSource,
 	}, func(txCtx context.Context) error {
-		return s.repo.InsertBlindboxOpen(txCtx, userID, date, rt.BlindboxCost, reward, idempotencyKey)
+		return s.repo.InsertBlindboxOpenRecord(txCtx, PlayBlindboxOpenRecord{
+			UserID:         userID,
+			Date:           date,
+			Cost:           cost,
+			Reward:         reward,
+			IdempotencyKey: idempotencyKey,
+			PoolVersion:    pool.Version,
+			OpenSource:     openSource,
+		})
 	}); err != nil {
 		if errors.Is(err, ErrPlayRewardDuplicate) {
 			return nil, ErrPlayRewardDuplicate
 		}
 		return nil, err
 	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit blindbox open tx: %w", err)
+	}
 
 	return &PlayBlindboxOpenResult{
-		CostAmount:   rt.BlindboxCost,
+		CostAmount:   cost,
 		RewardAmount: reward,
 		NetAmount:    net,
 		OpensToday:   opens + 1,
 		ServerDate:   dateKey,
+		PoolVersion:  pool.Version,
+		OpenSource:   openSource,
 	}, nil
+}
+
+func scopeBlindboxIdempotencyKey(userID int64, raw string) (string, error) {
+	normalized, err := NormalizeIdempotencyKey(raw)
+	if err != nil {
+		return "", err
+	}
+	if normalized == "" {
+		random := make([]byte, 16)
+		if _, err := rand.Read(random); err != nil {
+			return "", fmt.Errorf("generate blindbox idempotency key: %w", err)
+		}
+		normalized = hex.EncodeToString(random)
+	}
+	return fmt.Sprintf("blindbox:%d:%s", userID, HashIdempotencyKey(normalized)), nil
 }
 
 func (s *PlayService) ListRecentBlindboxWins(ctx context.Context, limit int) ([]PlayBlindboxRecentWin, error) {
@@ -144,35 +192,6 @@ func maskBlindboxUserLabel(label string) string {
 		return string(runes[0]) + "*"
 	}
 	return string(runes[0]) + "***" + string(runes[len(runes)-1])
-}
-
-func pickBlindboxReward() float64 {
-	tiers := []struct {
-		amount float64
-		weight int64
-	}{
-		{0.05, 40},
-		{0.2, 30},
-		{0.5, 20},
-		{1.0, 8},
-		{2.0, 2},
-	}
-	var total int64
-	for _, t := range tiers {
-		total += t.weight
-	}
-	n, err := rand.Int(rand.Reader, big.NewInt(total))
-	if err != nil {
-		return 0.2
-	}
-	var acc int64
-	for _, t := range tiers {
-		acc += t.weight
-		if n.Int64() < acc {
-			return t.amount
-		}
-	}
-	return tiers[0].amount
 }
 
 func normalizeQuizLanguage(language string) string {

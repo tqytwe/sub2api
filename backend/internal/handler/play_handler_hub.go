@@ -151,6 +151,7 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 		out.Blindbox = &playBlindboxStatusDTO{
 			Enabled:             s.Blindbox.Enabled,
 			CostAmount:          s.Blindbox.CostAmount,
+			Pool:                toPlayBlindboxPoolDTOPtr(s.Blindbox.BlindboxPool),
 			DailyLimit:          s.Blindbox.DailyLimit,
 			EffectiveLimit:      s.Blindbox.EffectiveLimit,
 			OpensToday:          s.Blindbox.OpensToday,

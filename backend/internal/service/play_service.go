@@ -150,6 +150,25 @@ func (s *PlayService) grantBalance(
 
 	txCtx := dbent.NewTxContext(ctx, tx)
 
+	if err := s.grantBalanceInTx(txCtx, userID, amount, source, idempotencyKey, detail, beforeLedger); err != nil {
+		return err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit play reward tx: %w", err)
+	}
+	return nil
+}
+
+func (s *PlayService) grantBalanceInTx(
+	txCtx context.Context,
+	userID int64,
+	amount float64,
+	source string,
+	idempotencyKey string,
+	detail map[string]any,
+	beforeLedger func(txCtx context.Context) error,
+) error {
 	if beforeLedger != nil {
 		if err := beforeLedger(txCtx); err != nil {
 			return err
@@ -167,12 +186,8 @@ func (s *PlayService) grantBalance(
 		return err
 	}
 
-	if err := s.userRepo.UpdateBalance(txCtx, userID, amount); err != nil {
+	if err := s.repo.UpdatePlayBalance(txCtx, userID, amount); err != nil {
 		return fmt.Errorf("update balance: %w", err)
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("commit play reward tx: %w", err)
 	}
 	return nil
 }
