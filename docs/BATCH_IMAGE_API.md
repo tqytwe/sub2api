@@ -1,7 +1,7 @@
 # 多张 / 批量生图调用
 
 > 状态：active
-> 网站入口：`https://www.jisudeng.com/docs?cat=tutorial&page=batch-image-api`
+> 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=batch-image-api`
 > API Key：`https://www.jisudeng.com/keys`
 > API 地址：`https://api.jisudeng.com`
 > 最后核验：2026-07-16
