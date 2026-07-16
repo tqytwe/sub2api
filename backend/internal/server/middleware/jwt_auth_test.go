@@ -87,7 +87,7 @@ func newOptionalJWTTestEnv(users map[int64]*service.User) (*gin.Engine, *service
 	userRepo := &stubJWTUserRepo{users: users}
 	authSvc := service.NewAuthService(nil, userRepo, nil, nil, cfg, nil, nil, nil, nil, nil, nil, nil, nil)
 	userSvc := service.NewUserService(userRepo, nil, nil, nil)
-	required := NewJWTAuthMiddleware(authSvc, userSvc)
+	required := NewJWTAuthMiddleware(authSvc, userSvc, nil, nil)
 
 	r := gin.New()
 	r.Use(OptionalJWTAuth(required))
@@ -125,7 +125,7 @@ func TestOptionalJWTAuth_UsesBearerIdentityWhenPresent(t *testing.T) {
 		TokenVersion: 1,
 	}
 	router, authSvc := newOptionalJWTTestEnv(map[int64]*service.User{user.ID: user})
-	token, err := authSvc.GenerateToken(user)
+	token, err := authSvc.GenerateToken(context.Background(), user)
 	require.NoError(t, err)
 
 	w := httptest.NewRecorder()
