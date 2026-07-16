@@ -410,7 +410,7 @@ run()
         title: "异步图片任务",
         summary: "202 提交、任务轮询、对象存储 URL 与失败返回契约",
         html: `<p class="docs-lead">异步图片任务适合耗时较长的 GPT / Grok 生成与编辑请求。提交接口立即返回任务 ID，客户端按建议间隔轮询，不需要保持一条长 HTTP 连接。</p>
-<pre><code>POST https://api.jisudeng.com/v1/images/generations/async
+<pre class="docs-endpoint-list"><code>POST https://api.jisudeng.com/v1/images/generations/async
 POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 <p class="docs-tip">异步任务依赖对象存储。功能未启用或存储配置不完整时，上述接口返回 <code>404 not_found_error</code>，不会创建任务。</p>

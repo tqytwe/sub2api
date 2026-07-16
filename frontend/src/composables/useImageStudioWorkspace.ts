@@ -1,4 +1,4 @@
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { keysAPI } from '@/api/keys'
@@ -25,16 +25,23 @@ import {
   trackQuestCompleteOnce,
 } from '@/utils/growthAnalytics'
 import {
-  clearStudioPendingJobId,
-  getStudioPendingJobId,
+  clearStudioPromptDraft,
+  clearStudioPendingJobForUser,
+  getStudioPendingJobForUser,
+  getStudioPendingJobSubmittedPrompt,
+  loadStudioDraft,
+  saveStudioDraft,
   setStudioPendingJobId,
+  type ImageStudioSubmittedPrompt,
 } from '@/utils/imageStudioSession'
 import {
   findFirstImageStudioKeyWithModels,
   isImageStudioPromptValid,
   loadAllActiveImageStudioKeys,
   resolveInitialImageStudioTemplate,
+  validateImageStudioPrompt,
 } from '@/utils/imageStudioWorkspace'
+import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 
 export function useImageStudioWorkspace() {
   const { t, locale } = useI18n()
@@ -62,6 +69,7 @@ export function useImageStudioWorkspace() {
   const estimateError = ref('')
   const estimate = ref<ImageStudioEstimate | null>(null)
   const jobs = ref<ImageStudioJob[]>([])
+  const galleryError = ref('')
   const errorMsg = ref('')
   const pollNotice = ref('')
   const autoCleanup = ref(getStudioAutoCleanup())
@@ -71,6 +79,9 @@ export function useImageStudioWorkspace() {
   const previewAsset = ref<ImageStudioAsset | null>(null)
   const previewJobId = ref('')
   const previewIndex = ref(0)
+  const draftReady = ref(false)
+  let draftSaveTimer: ReturnType<typeof setTimeout> | null = null
+  let pendingDraftSave: { userId: number; draft: ReturnType<typeof currentDraft> } | null = null
 
   const selectedModelOption = computed(() =>
     availableModels.value.find((m) => m.id === selectedModel.value) ?? null,
@@ -89,7 +100,15 @@ export function useImageStudioWorkspace() {
   const hasApiKeys = computed(() => apiKeys.value.length > 0)
   const showAccentColor = computed(() => selectedTemplate.value !== null)
   const showQuality = computed(() => (selectedModelOption.value?.supported_qualities?.length ?? 0) > 0)
-  const promptValid = computed(() => isImageStudioPromptValid(userPrompt.value))
+  const promptError = computed(() => validateImageStudioPrompt(userPrompt.value))
+  const expertPromptError = computed(() =>
+    expertOpen.value
+      ? validateImageStudioPrompt(expertPrompt.value, { required: false })
+      : null,
+  )
+  const promptValid = computed(() => promptError.value === null)
+  const expertPromptValid = computed(() => expertPromptError.value === null)
+  const draftUserId = computed(() => authStore.user?.id ?? null)
 
   function labelFor(obj?: { zh: string; en: string }) {
     if (!obj) return ''
@@ -114,6 +133,87 @@ export function useImageStudioWorkspace() {
     sizeCaps.applyTemplateDefault(selection.template.defaults.size, true)
     count.value = isNewUser.value ? 1 : Math.min(selection.template.defaults.count, maxCount.value)
     return true
+  }
+
+  function currentDraft() {
+    return {
+      userPrompt: userPrompt.value,
+      expertPrompt: expertPrompt.value,
+      expertOpen: expertOpen.value,
+      templateId: selectedTemplate.value?.id ?? null,
+      accentColor: accentColor.value,
+      aspect: sizeCaps.aspect.value,
+      tier: sizeCaps.tier.value,
+      count: count.value,
+    }
+  }
+
+  function persistDraft() {
+    flushScheduledDraft()
+    const userId = draftUserId.value
+    if (!draftReady.value || !userId) return
+    saveStudioDraft(userId, currentDraft())
+  }
+
+  function flushScheduledDraft() {
+    if (draftSaveTimer) clearTimeout(draftSaveTimer)
+    draftSaveTimer = null
+    if (!pendingDraftSave) return
+    saveStudioDraft(pendingDraftSave.userId, pendingDraftSave.draft)
+    pendingDraftSave = null
+  }
+
+  function scheduleDraftPersist() {
+    const userId = draftUserId.value
+    if (!draftReady.value || !userId) return
+    pendingDraftSave = { userId, draft: currentDraft() }
+    if (draftSaveTimer) clearTimeout(draftSaveTimer)
+    draftSaveTimer = setTimeout(flushScheduledDraft, 300)
+  }
+
+  function restoreDraft() {
+    const userId = draftUserId.value
+    if (!userId) return false
+    const draft = loadStudioDraft(userId)
+    if (!draft) return false
+
+    const template = resolveInitialImageStudioTemplate(catalog.value, draft.templateId)
+    if (template && template.template.id === draft.templateId) {
+      selectedTemplate.value = template.template
+    }
+    userPrompt.value = draft.userPrompt
+    expertPrompt.value = draft.expertPrompt
+    expertOpen.value = draft.expertOpen
+    accentColor.value = draft.accentColor
+    sizeCaps.aspect.value = draft.aspect
+    sizeCaps.tier.value = draft.tier
+    sizeCaps.userTouchedSize.value = true
+    count.value = Math.min(maxCount.value, Math.max(1, draft.count))
+    return true
+  }
+
+  function clearPromptDraftAfterSuccess(
+    submittedUserId: number,
+    submittedPrompt: ImageStudioSubmittedPrompt | null,
+  ) {
+    flushScheduledDraft()
+    if (!submittedPrompt) return
+    if (!clearStudioPromptDraft(submittedUserId, submittedPrompt)) return
+    if (
+      draftUserId.value === submittedUserId
+      && userPrompt.value === submittedPrompt.userPrompt
+      && expertPrompt.value === submittedPrompt.expertPrompt
+    ) {
+      userPrompt.value = ''
+      expertPrompt.value = ''
+      persistDraft()
+    }
+  }
+
+  function refreshUserAfterImageSuccess() {
+    void Promise.resolve()
+      .then(() => authStore.refreshUser())
+      .catch(() => {})
   }
 
   async function loadModels() {
@@ -167,38 +267,48 @@ export function useImageStudioWorkspace() {
   async function refreshJobs() {
     try {
       jobs.value = await imageStudioAPI.listImageStudioJobs(12)
-    } catch {
-      // keep gallery on silent failure
+      galleryError.value = ''
+    } catch (err: unknown) {
+      galleryError.value = extractApiErrorMessage(err, t('imageStudio.galleryLoadFailed'))
     }
   }
 
   async function resumePendingJob(jobId: string) {
+    const submittedUserId = draftUserId.value
+    if (!submittedUserId) return
+    const submittedPrompt = getStudioPendingJobSubmittedPrompt(submittedUserId, jobId)
+    let reachedTerminalState = false
     polling.value = true
     pollNotice.value = t('imageStudio.polling')
     try {
       const job = await imageStudioAPI.pollImageStudioJob(jobId)
+      reachedTerminalState = true
       if (job.status === 'failed') {
         errorMsg.value = job.error_message || t('imageStudio.generateFailed')
         await loadModels()
         sizeCaps.ensureSelectableTier()
         return
       }
-      if (!job.assets?.length) {
-        errorMsg.value = t('imageStudio.assetsMissingHint')
-      }
       latestJob.value = job
       jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
-      await authStore.refreshUser()
+      if (!job.assets?.length) {
+        errorMsg.value = t('imageStudio.assetsMissingHint')
+        return
+      }
+      clearPromptDraftAfterSuccess(submittedUserId, submittedPrompt)
+      refreshUserAfterImageSuccess()
     } catch (err: unknown) {
       const code = err instanceof Error ? err.message : ''
       if (code === 'IMAGE_STUDIO_POLL_TIMEOUT') {
-        pollNotice.value = t('imageStudio.pollTimeout')
+        errorMsg.value = t('imageStudio.pollTimeout')
       } else {
-        errorMsg.value = t('imageStudio.generateFailed')
+        errorMsg.value = extractApiErrorMessage(err, t('imageStudio.generateFailed'))
       }
     } finally {
       polling.value = false
-      clearStudioPendingJobId()
+      if (reachedTerminalState) {
+        clearStudioPendingJobForUser(submittedUserId, jobId)
+      }
       void refreshJobs()
     }
   }
@@ -208,12 +318,14 @@ export function useImageStudioWorkspace() {
     if (!isRefresh) bootstrapping.value = true
     errorMsg.value = ''
     try {
-      const [tpl, caps, activeKeys, jobList, hub, activeJob] = await Promise.all([
+      const [tpl, caps, activeKeys, jobResult, hub, activeJob] = await Promise.all([
         imageStudioAPI.getImageStudioTemplates(),
         imageStudioAPI.getImageStudioCapabilities().catch(() => null),
         loadAllActiveImageStudioKeys((page, pageSize) =>
           keysAPI.list(page, pageSize, { status: 'active' })),
-        imageStudioAPI.listImageStudioJobs(12).catch(() => []),
+        imageStudioAPI.listImageStudioJobs(12)
+          .then((value) => ({ value, error: null as unknown }))
+          .catch((error: unknown) => ({ value: [] as ImageStudioJob[], error })),
         playAPI.getPlayHub().catch(() => null),
         imageStudioAPI.getActiveImageStudioJob().catch(() => null),
       ])
@@ -230,12 +342,18 @@ export function useImageStudioWorkspace() {
         apiKeyId.value = selection?.key.id ?? apiKeys.value[0].id
         initialModels = selection?.models ?? null
       }
-      jobs.value = jobList
+      jobs.value = jobResult.value
+      galleryError.value = jobResult.error
+        ? extractApiErrorMessage(jobResult.error, t('imageStudio.galleryLoadFailed'))
+        : ''
       if (!isRefresh && !applyQuickStart()) applyDefaultTemplate()
+      if (!isRefresh) restoreDraft()
       if (initialModels) applyModels(initialModels)
       else await loadModels()
 
-      const pendingId = getStudioPendingJobId()
+      const pendingId = draftUserId.value
+        ? getStudioPendingJobForUser(draftUserId.value)?.jobId
+        : null
       const resumeId = pendingId || (activeJob && (activeJob.status === 'pending' || activeJob.status === 'running') ? activeJob.id : null)
       if (resumeId) {
         await resumePendingJob(resumeId)
@@ -243,6 +361,7 @@ export function useImageStudioWorkspace() {
     } catch {
       errorMsg.value = t('imageStudio.loadFailed')
     } finally {
+      draftReady.value = true
       bootstrapping.value = false
     }
   }
@@ -263,6 +382,19 @@ export function useImageStudioWorkspace() {
   watch([sizeCaps.aspect, sizeCaps.tier], ([aspect, tier]) => {
     trackGrowthEvent('image_studio_size_change', { aspect, tier, resolved_size: size.value })
   })
+  watch(
+    [
+      userPrompt,
+      expertPrompt,
+      expertOpen,
+      selectedTemplate,
+      accentColor,
+      sizeCaps.aspect,
+      sizeCaps.tier,
+      count,
+    ],
+    scheduleDraftPersist,
+  )
 
   function pickTemplate(tpl: ImageStudioTemplate) {
     for (const intent of catalog.value?.intents ?? []) {
@@ -310,16 +442,24 @@ export function useImageStudioWorkspace() {
     void refreshEstimate()
   }
 
-  async function generate() {
-    if (!promptValid.value) {
-      errorMsg.value = t('imageStudio.promptRequired')
-      return
+  async function generate(): Promise<boolean> {
+    if (!isImageStudioPromptValid(userPrompt.value)) {
+      errorMsg.value = promptError.value === 'too_long'
+        ? t('imageStudio.promptTooLong')
+        : t('imageStudio.promptRequired')
+      return false
     }
-    if (!selectedTemplate.value || !apiKeyId.value || !selectedModel.value) return
+    if (!expertPromptValid.value) {
+      errorMsg.value = t('imageStudio.expertPromptTooLong')
+      return false
+    }
+    if (!selectedTemplate.value || !apiKeyId.value || !selectedModel.value) return false
+    const submittedUserId = draftUserId.value
+    if (!submittedUserId) return false
     if (estimate.value && !estimate.value.sufficient) {
       trackGrowthEvent('image_studio_insufficient_balance', { balance: estimate.value.balance })
       router.push('/purchase?return=/image-studio')
-      return
+      return false
     }
     trackGrowthEvent('image_studio_generate_click', {
       template_id: selectedTemplate.value.id,
@@ -327,9 +467,12 @@ export function useImageStudioWorkspace() {
       size: size.value,
     })
     generating.value = true
-    polling.value = true
     errorMsg.value = ''
-    pollNotice.value = t('imageStudio.polling')
+    pollNotice.value = ''
+    const submittedPrompt: ImageStudioSubmittedPrompt = {
+      userPrompt: userPrompt.value,
+      expertPrompt: expertPrompt.value,
+    }
     try {
       const result = await imageStudioAPI.generateImageStudio({
         template_id: selectedTemplate.value.id,
@@ -341,14 +484,19 @@ export function useImageStudioWorkspace() {
         quality: quality.value || undefined,
         count: count.value,
         model: selectedModel.value,
-        expert_prompt: expertOpen.value ? expertPrompt.value : null,
+        expert_prompt: expertOpen.value && expertPrompt.value.trim() ? expertPrompt.value : null,
         api_key_id: apiKeyId.value,
         retain_days: autoCleanup.value ? 7 : 0,
       })
       setStudioLastTemplate(selectedTemplate.value.id)
-      setStudioPendingJobId(result.job.id)
+      setStudioPendingJobId(result.job.id, {
+        userId: submittedUserId,
+        submittedPrompt,
+      })
+      polling.value = true
+      pollNotice.value = t('imageStudio.polling')
       const job = await imageStudioAPI.pollImageStudioJob(result.job.id)
-      clearStudioPendingJobId()
+      clearStudioPendingJobForUser(submittedUserId, result.job.id)
       if (job.status === 'failed') {
         errorMsg.value = job.error_message || t('imageStudio.generateFailed')
         trackGrowthEvent('image_studio_generate_fail', {
@@ -357,14 +505,14 @@ export function useImageStudioWorkspace() {
         })
         await loadModels()
         sizeCaps.ensureSelectableTier()
-        return
+        return false
       }
       if (!job.assets?.length) {
         errorMsg.value = t('imageStudio.assetsMissingHint')
         latestJob.value = job
         jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
         pollNotice.value = ''
-        return
+        return false
       }
       trackGrowthEvent('image_studio_generate_success', {
         template_id: job.template_id,
@@ -377,23 +525,26 @@ export function useImageStudioWorkspace() {
       jobs.value = [job, ...jobs.value.filter((j) => j.id !== job.id)]
       pollNotice.value = ''
       trackGrowthEvent('image_studio_result_view', { job_id: job.id, count: job.count })
-      await authStore.refreshUser()
       if (!hasStudioFirstWin()) {
         markStudioFirstWin()
         showFirstWin.value = true
       }
+      clearPromptDraftAfterSuccess(submittedUserId, submittedPrompt)
+      refreshUserAfterImageSuccess()
+      return true
     } catch (err: unknown) {
-      clearStudioPendingJobId()
       const code = err instanceof Error ? err.message : ''
       if (code === 'IMAGE_STUDIO_POLL_TIMEOUT') {
-        pollNotice.value = t('imageStudio.pollTimeout')
+        errorMsg.value = t('imageStudio.pollTimeout')
       } else {
-        errorMsg.value = t('imageStudio.generateFailed')
+        errorMsg.value = extractApiErrorMessage(err, t('imageStudio.generateFailed'))
       }
       trackGrowthEvent('image_studio_generate_fail', {
         template_id: selectedTemplate.value.id,
-        reason: code || 'request_failed',
+        reason: extractApiErrorCode(err) || code || 'request_failed',
       })
+      persistDraft()
+      return false
     } finally {
       generating.value = false
       polling.value = false
@@ -419,6 +570,7 @@ export function useImageStudioWorkspace() {
     trackGrowthEvent('image_studio_workspace_view')
     void load()
   })
+  onBeforeUnmount(flushScheduledDraft)
 
   return {
     bootstrapping,
@@ -447,6 +599,7 @@ export function useImageStudioWorkspace() {
     estimateError,
     estimate,
     jobs,
+    galleryError,
     errorMsg,
     autoCleanup,
     showFirstWin,
@@ -456,6 +609,9 @@ export function useImageStudioWorkspace() {
     showAccentColor,
     showQuality,
     promptValid,
+    promptError,
+    expertPromptValid,
+    expertPromptError,
     maxCount,
     isNewUser,
     previewAsset,
@@ -471,6 +627,7 @@ export function useImageStudioWorkspace() {
     removeJob,
     onAspectChange,
     onTierChange,
+    refreshJobs,
     load,
   }
 }

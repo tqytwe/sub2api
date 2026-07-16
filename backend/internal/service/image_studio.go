@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -20,8 +21,9 @@ const (
 	ImageStudioJobStatusCompleted = "completed"
 	ImageStudioJobStatusFailed    = "failed"
 
-	defaultImageStudioSize = "1024x1024"
-	maxImageStudioCount    = 4
+	defaultImageStudioSize    = "1024x1024"
+	maxImageStudioCount       = 4
+	maxImageStudioPromptChars = 8000
 )
 
 var (
@@ -29,6 +31,7 @@ var (
 	ErrImageStudioJobNotFound    = infraerrors.NotFound("IMAGE_STUDIO_JOB_NOT_FOUND", "image studio job not found")
 	ErrImageStudioTemplate       = infraerrors.BadRequest("IMAGE_STUDIO_TEMPLATE_INVALID", "invalid template")
 	ErrImageStudioPromptRequired = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_REQUIRED", "image description is required")
+	ErrImageStudioPromptTooLong  = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_TOO_LONG", "image description exceeds 8000 characters")
 	ErrImageStudioAPIKey         = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
 	ErrImageStudioAssetNotFound  = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
 )
@@ -305,6 +308,11 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	}
 	if err := validateImageStudioPrompt(req.UserPrompt); err != nil {
 		return nil, "", err
+	}
+	if req.ExpertPrompt != nil && strings.TrimSpace(*req.ExpertPrompt) != "" {
+		if err := validateImageStudioPrompt(*req.ExpertPrompt); err != nil {
+			return nil, "", err
+		}
 	}
 	tpl, ok := findImageStudioTemplate(req.TemplateID)
 	if !ok {
@@ -648,6 +656,9 @@ func buildImageStudioPrompt(tpl ImageStudioTemplate, req ImageStudioGenerateRequ
 func validateImageStudioPrompt(prompt string) error {
 	if strings.TrimSpace(prompt) == "" {
 		return ErrImageStudioPromptRequired
+	}
+	if utf8.RuneCountInString(prompt) > maxImageStudioPromptChars {
+		return ErrImageStudioPromptTooLong
 	}
 	return nil
 }
