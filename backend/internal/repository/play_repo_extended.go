@@ -25,12 +25,32 @@ func (r *playRepository) CountBlindboxOpens(ctx context.Context, userID int64, d
 }
 
 func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error {
+	return r.InsertBlindboxOpenRecord(ctx, service.PlayBlindboxOpenRecord{
+		UserID:         userID,
+		Date:           date,
+		Cost:           cost,
+		Reward:         reward,
+		IdempotencyKey: idempotencyKey,
+		PoolVersion:    "legacy-v1",
+		OpenSource:     "paid",
+	})
+}
+
+func (r *playRepository) InsertBlindboxOpenRecord(ctx context.Context, record service.PlayBlindboxOpenRecord) error {
 	exec := r.sqlExec(ctx)
 	res, err := exec.ExecContext(ctx, `
-		INSERT INTO play_blindbox_opens (user_id, open_date, cost_amount, reward_amount, idempotency_key)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO play_blindbox_opens (
+			user_id, open_date, cost_amount, reward_amount, idempotency_key, pool_version, open_source
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		ON CONFLICT (idempotency_key) DO NOTHING`,
-		userID, date.Format("2006-01-02"), cost, reward, idempotencyKey,
+		record.UserID,
+		record.Date.Format("2006-01-02"),
+		record.Cost,
+		record.Reward,
+		record.IdempotencyKey,
+		record.PoolVersion,
+		record.OpenSource,
 	)
 	if err != nil {
 		return fmt.Errorf("insert blindbox open: %w", err)

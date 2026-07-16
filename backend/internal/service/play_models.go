@@ -57,6 +57,16 @@ type PlayRewardLedgerEntry struct {
 	Detail         map[string]any
 }
 
+type PlayBlindboxOpenRecord struct {
+	UserID         int64
+	Date           time.Time
+	Cost           float64
+	Reward         float64
+	IdempotencyKey string
+	PoolVersion    string
+	OpenSource     string
+}
+
 type PlayCheckinStatus struct {
 	Enabled                bool
 	CheckedInToday         bool
@@ -196,6 +206,7 @@ type PlayRepository interface {
 	GetArenaTokensToPrevRank(ctx context.Context, userID int64, start, end time.Time, rank int, tokenSum int64) (int64, error)
 	CountBlindboxOpens(ctx context.Context, userID int64, date time.Time) (int, error)
 	InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error
+	InsertBlindboxOpenRecord(ctx context.Context, record PlayBlindboxOpenRecord) error
 	ListRecentBlindboxWins(ctx context.Context, limit int) ([]PlayBlindboxRecentWin, error)
 	ListQuizQuestions(ctx context.Context, language string) ([]PlayQuizQuestionDB, error)
 	GetQuizAttempt(ctx context.Context, userID int64, date time.Time) (*PlayQuizAttemptDB, error)
