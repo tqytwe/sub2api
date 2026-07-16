@@ -204,7 +204,7 @@
             <ul class="img-caps">
               <li v-for="(cap, i) in imageCaps" :key="i" class="img-cap">{{ cap }}</li>
             </ul>
-            <router-link to="/docs" class="img-doclink">
+            <router-link to="/docs?cat=tutorial&page=text-to-image-api" class="img-doclink">
               {{ t('home.jisudeng.image.docLink') }}
               <span class="img-doclink-arrow">→</span>
             </router-link>

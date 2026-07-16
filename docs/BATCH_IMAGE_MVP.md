@@ -1,5 +1,7 @@
 # Batch Image MVP
 
+> 当前 GPT/Grok 对外批量调用文档见 [多张 / 批量生图调用](./BATCH_IMAGE_API.md)。本文只保留 Gemini 异步批量任务的上游能力、内部生命周期与运维参考。
+
 Sub2API Batch Image MVP provides asynchronous Gemini image batch generation through a unified API surface backed by Redis workers, PostgreSQL state, and provider-specific batch backends.
 
 Supported providers:
