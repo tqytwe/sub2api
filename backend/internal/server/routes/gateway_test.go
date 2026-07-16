@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -13,6 +14,19 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type gatewayRouteSettingRepo struct {
+	service.SettingRepository
+	values map[string]string
+}
+
+func (r gatewayRouteSettingRepo) GetValue(_ context.Context, key string) (string, error) {
+	value, ok := r.values[key]
+	if !ok {
+		return "", service.ErrSettingNotFound
+	}
+	return value, nil
+}
 
 func newGatewayRoutesTestRouter(platform ...string) *gin.Engine {
 	gin.SetMode(gin.TestMode)
@@ -46,6 +60,164 @@ func newGatewayRoutesTestRouter(platform ...string) *gin.Engine {
 	)
 
 	return router
+}
+
+func newGatewayRoutesProtocolTestRouter(
+	apiKeyAuth servermiddleware.APIKeyAuthMiddleware,
+	settingService *service.SettingService,
+) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+
+	RegisterGatewayRoutes(
+		router,
+		&handler.Handlers{
+			Gateway:       &handler.GatewayHandler{},
+			OpenAIGateway: &handler.OpenAIGatewayHandler{},
+			AsyncImage:    handler.NewAsyncImageHandler(nil, nil),
+		},
+		apiKeyAuth,
+		nil,
+		nil,
+		nil,
+		settingService,
+		&config.Config{},
+	)
+
+	return router
+}
+
+func imageProtocolRouteCases() []struct {
+	method string
+	path   string
+} {
+	return []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/v1/images/generations"},
+		{http.MethodPost, "/v1/images/edits"},
+		{http.MethodPost, "/v1/images/generations/async"},
+		{http.MethodPost, "/v1/images/edits/async"},
+		{http.MethodGet, "/v1/images/tasks/imgtask_123"},
+		{http.MethodPost, "/v1/images/batches"},
+		{http.MethodGet, "/v1/images/batches"},
+		{http.MethodGet, "/v1/images/batches/models"},
+		{http.MethodGet, "/v1/images/batches/batch_123"},
+		{http.MethodGet, "/v1/images/batches/batch_123/items"},
+		{http.MethodGet, "/v1/images/batches/batch_123/items/item_123/content"},
+		{http.MethodGet, "/v1/images/batches/batch_123/download"},
+		{http.MethodPost, "/v1/images/batches/batch_123/cancel"},
+		{http.MethodDelete, "/v1/images/batches/batch_123"},
+		{http.MethodDelete, "/v1/images/batches/batch_123/outputs"},
+		{http.MethodPost, "/images/generations"},
+		{http.MethodPost, "/images/edits"},
+		{http.MethodPost, "/images/generations/async"},
+		{http.MethodPost, "/images/edits/async"},
+		{http.MethodGet, "/images/tasks/imgtask_123"},
+	}
+}
+
+func TestGatewayRoutesImagesAuthErrorsUseOpenAIProtocol(t *testing.T) {
+	for _, authError := range []struct {
+		name    string
+		apiKey  string
+		code    string
+		message string
+	}{
+		{
+			name:    "missing key",
+			code:    "API_KEY_REQUIRED",
+			message: "API key is required in Authorization header (Bearer scheme), x-api-key header, or x-goog-api-key header",
+		},
+		{
+			name:    "invalid key",
+			apiKey:  "invalid-image-api-key",
+			code:    "INVALID_API_KEY",
+			message: "Invalid API key",
+		},
+	} {
+		t.Run(authError.name, func(t *testing.T) {
+			router, _, _ := newKeyBillingRouteTestRouter(config.RunModeStandard)
+
+			for _, route := range imageProtocolRouteCases() {
+				t.Run(route.method+" "+route.path, func(t *testing.T) {
+					req := httptest.NewRequest(route.method, route.path, strings.NewReader(`{"model":"gpt-image-2","prompt":"cat"}`))
+					req.Header.Set("Content-Type", "application/json")
+					if authError.apiKey != "" {
+						req.Header.Set("Authorization", "Bearer "+authError.apiKey)
+					}
+					w := httptest.NewRecorder()
+
+					router.ServeHTTP(w, req)
+
+					require.Equal(t, http.StatusUnauthorized, w.Code)
+					require.JSONEq(t, `{
+						"error": {
+							"type": "authentication_error",
+							"code": "`+authError.code+`",
+							"message": "`+authError.message+`"
+						}
+					}`, w.Body.String())
+				})
+			}
+		})
+	}
+}
+
+func TestGatewayRoutesImagesUngroupedKeyUsesOpenAIProtocol(t *testing.T) {
+	settingService := service.NewSettingService(
+		gatewayRouteSettingRepo{values: map[string]string{
+			service.SettingKeyAllowUngroupedKeyScheduling: "false",
+		}},
+		&config.Config{},
+	)
+	router := newGatewayRoutesProtocolTestRouter(
+		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
+			c.Set(string(servermiddleware.ContextKeyAPIKey), &service.APIKey{})
+			c.Next()
+		}),
+		settingService,
+	)
+
+	for _, route := range imageProtocolRouteCases() {
+		t.Run(route.method+" "+route.path, func(t *testing.T) {
+			req := httptest.NewRequest(route.method, route.path, strings.NewReader(`{"model":"gpt-image-2","prompt":"cat"}`))
+			req.Header.Set("Content-Type", "application/json")
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusForbidden, w.Code)
+			require.JSONEq(t, `{
+				"error": {
+					"type": "permission_error",
+					"code": "GROUP_NOT_ASSIGNED",
+					"message": "API Key is not assigned to any group and cannot be used. Please contact the administrator to assign it to a group."
+				}
+			}`, w.Body.String())
+		})
+	}
+}
+
+func TestGatewayRoutesNonImagesAuthErrorsKeepLegacyProtocol(t *testing.T) {
+	router := newGatewayRoutesProtocolTestRouter(
+		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
+			servermiddleware.AbortWithError(c, http.StatusUnauthorized, "API_KEY_REQUIRED", "API key is required")
+		}),
+		nil,
+	)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", strings.NewReader(`{"model":"gpt-5"}`))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.JSONEq(t, `{
+		"code": "API_KEY_REQUIRED",
+		"message": "API key is required"
+	}`, w.Body.String())
 }
 
 func TestGatewayRoutesOpenAIResponsesCompactPathIsRegistered(t *testing.T) {
