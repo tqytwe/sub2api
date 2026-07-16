@@ -61,7 +61,7 @@ export const jisudengPagesEn = {
     footnote: 'We do not store request bodies, do not train on your data, and bill at official rates with no hidden multipliers.',
     telegram: {
       name: 'Telegram',
-      handle: '@jisudeng_official',
+      handle: "{'@'}jisudeng_official",
       desc: 'Official channel — updates and announcements',
       cta: 'Open'
     },

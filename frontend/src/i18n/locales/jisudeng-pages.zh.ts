@@ -69,7 +69,7 @@ export const jisudengPagesZh = {
       '我们承诺：不留存您的请求体、不参与模型训练、计费按官方原价对账，无任何隐形倍率与隐形收费。隐私是产品的第一信条。',
     telegram: {
       name: 'Telegram',
-      handle: '@jisudeng_official',
+      handle: "{'@'}jisudeng_official",
       desc: '官方频道，产品更新、变更预告与技术答疑',
       cta: '前往'
     },

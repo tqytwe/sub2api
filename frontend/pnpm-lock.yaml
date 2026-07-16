@@ -76,6 +76,9 @@ importers:
         specifier: ^0.18.5
         version: 0.18.5
     devDependencies:
+      '@intlify/message-compiler':
+        specifier: 9.14.5
+        version: 9.14.5
       '@types/d3-geo':
         specifier: ^3.1.0
         version: 3.1.0
