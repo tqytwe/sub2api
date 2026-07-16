@@ -86,7 +86,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		return
 	}
 	if err := h.validateRequest(c, platform, body); err != nil {
-		imageTaskJSONError(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		imageTaskJSONError(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
 		return
 	}
 
@@ -142,7 +142,10 @@ func (h *AsyncImageHandler) validateRequest(c *gin.Context, platform string, bod
 		return nil
 	}
 	if platform == service.PlatformGrok {
-		parsed := service.ParseGrokMediaRequest(c.GetHeader("Content-Type"), body)
+		parsed, err := service.ParseGrokMediaRequestWithError(c.GetHeader("Content-Type"), body)
+		if err != nil {
+			return err
+		}
 		if strings.TrimSpace(parsed.Model) == "" {
 			return errors.New("model is required")
 		}

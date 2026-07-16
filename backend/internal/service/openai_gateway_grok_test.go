@@ -411,6 +411,47 @@ func TestParseGrokMediaRequestBuildsMultipartModerationBody(t *testing.T) {
 	require.True(t, strings.HasPrefix(gjson.GetBytes(moderationBody, "images.0.image_url").String(), "data:image/"))
 }
 
+func TestParseGrokMediaRequestWithError_MultipartUploadSizeBoundary(t *testing.T) {
+	tests := []struct {
+		name      string
+		imageSize int
+		wantErr   string
+	}{
+		{
+			name:      "accepts exact per-part limit",
+			imageSize: openAIImageMaxUploadPartSize,
+		},
+		{
+			name:      "rejects one byte over per-part limit",
+			imageSize: openAIImageMaxUploadPartSize + 1,
+			wantErr:   "Multipart field image exceeds 20 MiB limit",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			writer := multipart.NewWriter(&buf)
+			require.NoError(t, writer.WriteField("model", "grok-imagine-edit"))
+			part, err := writer.CreateFormFile("image", "input.png")
+			require.NoError(t, err)
+			_, err = io.CopyN(part, zeroReader{}, int64(tt.imageSize))
+			require.NoError(t, err)
+			require.NoError(t, writer.Close())
+
+			info, err := ParseGrokMediaRequestWithError(writer.FormDataContentType(), buf.Bytes())
+			if tt.wantErr != "" {
+				require.EqualError(t, err, tt.wantErr)
+				require.Empty(t, info.Uploads)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, info.Uploads, 1)
+			require.Len(t, info.Uploads[0].Data, tt.imageSize)
+		})
+	}
+}
+
 func TestParseGrokMediaVideoRequestResolution(t *testing.T) {
 	info := ParseGrokMediaRequest("application/json", []byte(`{"model":"grok-imagine-video","prompt":"waves","resolution":"720p"}`))
 

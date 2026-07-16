@@ -26,6 +26,13 @@ type failingOpenAIImageWriter struct {
 	writes    int
 }
 
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
 func (w *failingOpenAIImageWriter) Write(p []byte) (int, error) {
 	if w.writes >= w.failAfter {
 		return 0, errors.New("write failed: client disconnected")
@@ -90,6 +97,90 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_MultipartEdit(t *testing.T
 	require.Equal(t, "2K", parsed.SizeTier)
 	require.Len(t, parsed.Uploads, 1)
 	require.Equal(t, OpenAIImagesCapabilityNative, parsed.RequiredCapability)
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_MultipartUploadSizeBoundary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		endpoint   string
+		fieldName  string
+		fileName   string
+		fieldSize  int
+		wantErr    string
+		wantUpload bool
+	}{
+		{
+			name:       "accepts image at exact per-part limit",
+			endpoint:   "/v1/images/edits",
+			fieldName:  "image",
+			fileName:   "source.png",
+			fieldSize:  openAIImageMaxUploadPartSize,
+			wantUpload: true,
+		},
+		{
+			name:      "rejects image one byte over per-part limit",
+			endpoint:  "/v1/images/edits",
+			fieldName: "image",
+			fileName:  "source.png",
+			fieldSize: openAIImageMaxUploadPartSize + 1,
+			wantErr:   "Multipart field image exceeds 20 MiB limit",
+		},
+		{
+			name:      "accepts text field at exact per-part limit",
+			endpoint:  "/v1/images/generations",
+			fieldName: "prompt",
+			fieldSize: openAIImageMaxUploadPartSize,
+		},
+		{
+			name:      "rejects text field one byte over per-part limit",
+			endpoint:  "/v1/images/generations",
+			fieldName: "prompt",
+			fieldSize: openAIImageMaxUploadPartSize + 1,
+			wantErr:   "Multipart field prompt exceeds 20 MiB limit",
+		},
+	}
+
+	svc := &OpenAIGatewayService{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			require.NoError(t, writer.WriteField("model", "gpt-image-2"))
+			var part io.Writer
+			var err error
+			if tt.fileName != "" {
+				part, err = writer.CreateFormFile(tt.fieldName, tt.fileName)
+			} else {
+				part, err = writer.CreateFormField(tt.fieldName)
+			}
+			require.NoError(t, err)
+			_, err = io.CopyN(part, zeroReader{}, int64(tt.fieldSize))
+			require.NoError(t, err)
+			require.NoError(t, writer.Close())
+
+			req := httptest.NewRequest(http.MethodPost, tt.endpoint, bytes.NewReader(body.Bytes()))
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = req
+
+			parsed, err := svc.ParseOpenAIImagesRequest(c, body.Bytes())
+			if tt.wantErr != "" {
+				require.Nil(t, parsed)
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if tt.wantUpload {
+				require.Len(t, parsed.Uploads, 1)
+				require.Len(t, parsed.Uploads[0].Data, tt.fieldSize)
+			} else {
+				require.Len(t, parsed.Prompt, tt.fieldSize)
+			}
+		})
+	}
 }
 
 func TestOpenAIImagesRequestModerationBody_JSONEditIncludesInputImageURLs(t *testing.T) {

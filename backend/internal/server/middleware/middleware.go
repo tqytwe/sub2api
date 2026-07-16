@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
@@ -29,6 +30,8 @@ const (
 	// apiKey 已加载但尚未写入 ContextKeyAPIKey；该键让 Ops 错误日志仍能取到
 	// user/group/platform。仅供 Ops 错误日志读取，不代表请求已通过鉴权。
 	ContextKeyOpsFallbackAPIKey ContextKey = "ops_fallback_api_key"
+	// ContextKeyGatewayErrorWriter 覆盖当前路由链的协议错误响应格式。
+	ContextKeyGatewayErrorWriter ContextKey = "gateway_error_writer"
 )
 
 // ForcePlatform 返回设置强制平台的中间件
@@ -76,6 +79,13 @@ func NewErrorResponse(code, message string) ErrorResponse {
 
 // AbortWithError 中断请求并返回JSON错误
 func AbortWithError(c *gin.Context, statusCode int, code, message string) {
+	if value, exists := c.Get(string(ContextKeyGatewayErrorWriter)); exists {
+		if writeError, ok := value.(GatewayErrorWriter); ok && writeError != nil {
+			writeError(c, statusCode, code, message)
+			c.Abort()
+			return
+		}
+	}
 	c.JSON(statusCode, NewErrorResponse(code, message))
 	c.Abort()
 }
@@ -85,10 +95,28 @@ func AbortWithError(c *gin.Context, statusCode int, code, message string) {
 // ──────────────────────────────────────────────────────────
 
 // GatewayErrorWriter 定义网关错误响应格式（不同协议使用不同格式）
-type GatewayErrorWriter func(c *gin.Context, status int, message string)
+type GatewayErrorWriter func(c *gin.Context, status int, code, message string)
+
+// GatewayErrorProtocol 为当前路由链安装协议错误写入器。
+func GatewayErrorProtocol(writeError GatewayErrorWriter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Set(string(ContextKeyGatewayErrorWriter), writeError)
+		c.Next()
+	}
+}
+
+// GatewayErrorProtocolForPrefix 只为指定路由前缀安装协议错误写入器。
+func GatewayErrorProtocolForPrefix(prefix string, writeError GatewayErrorWriter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, prefix) {
+			c.Set(string(ContextKeyGatewayErrorWriter), writeError)
+		}
+		c.Next()
+	}
+}
 
 // AnthropicErrorWriter 按 Anthropic API 规范输出错误
-func AnthropicErrorWriter(c *gin.Context, status int, message string) {
+func AnthropicErrorWriter(c *gin.Context, status int, _ string, message string) {
 	c.JSON(status, gin.H{
 		"type":  "error",
 		"error": gin.H{"type": "permission_error", "message": message},
@@ -96,12 +124,34 @@ func AnthropicErrorWriter(c *gin.Context, status int, message string) {
 }
 
 // GoogleErrorWriter 按 Google API 规范输出错误
-func GoogleErrorWriter(c *gin.Context, status int, message string) {
+func GoogleErrorWriter(c *gin.Context, status int, _ string, message string) {
 	c.JSON(status, gin.H{
 		"error": gin.H{
 			"code":    status,
 			"message": message,
 			"status":  googleapi.HTTPStatusToGoogleStatus(status),
+		},
+	})
+}
+
+// OpenAIErrorWriter 按 OpenAI API 规范输出错误。
+func OpenAIErrorWriter(c *gin.Context, status int, code, message string) {
+	errorType := "invalid_request_error"
+	switch {
+	case status == http.StatusUnauthorized:
+		errorType = "authentication_error"
+	case status == http.StatusForbidden:
+		errorType = "permission_error"
+	case status == http.StatusTooManyRequests:
+		errorType = "rate_limit_error"
+	case status >= http.StatusInternalServerError:
+		errorType = "api_error"
+	}
+	c.JSON(status, gin.H{
+		"error": gin.H{
+			"type":    errorType,
+			"code":    code,
+			"message": message,
 		},
 	})
 }
@@ -121,7 +171,13 @@ func RequireGroupAssignment(settingService *service.SettingService, writeError G
 			return
 		}
 		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnassigned)
-		writeError(c, http.StatusForbidden, "API Key is not assigned to any group and cannot be used. Please contact the administrator to assign it to a group.")
+		effectiveWriter := writeError
+		if value, exists := c.Get(string(ContextKeyGatewayErrorWriter)); exists {
+			if protocolWriter, ok := value.(GatewayErrorWriter); ok && protocolWriter != nil {
+				effectiveWriter = protocolWriter
+			}
+		}
+		effectiveWriter(c, http.StatusForbidden, "GROUP_NOT_ASSIGNED", "API Key is not assigned to any group and cannot be used. Please contact the administrator to assign it to a group.")
 		c.Abort()
 	}
 }

@@ -93,7 +93,11 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	}
 
 	contentType := c.GetHeader("Content-Type")
-	requestInfo := service.ParseGrokMediaRequest(contentType, body)
+	requestInfo, err := service.ParseGrokMediaRequestWithError(contentType, body)
+	if err != nil {
+		h.errorResponse(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
+		return
+	}
 	requestModel := requestInfo.Model
 	if endpoint.IsGenerationRequest() && strings.TrimSpace(requestModel) == "" {
 		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", "model is required")
