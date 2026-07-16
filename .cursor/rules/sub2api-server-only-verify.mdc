@@ -1,20 +1,27 @@
 ---
-description: Sub2API 禁止本地起服务，必须通过推送后在 Zeabur 线上验收
+description: Sub2API 服务器开发验证、Zeabur 部署与用户本地电脑生产验收
 alwaysApply: true
 ---
 
-# Sub2API — 线上验收（本项目）
+# Sub2API 交付与验收
 
-**禁止**为验收启动本地 `go run serve`、`pnpm dev` 或访问 `localhost`。
+完整规则以 `docs/DELIVERY_WORKFLOW.md` 为准。
 
-部署流程（推送到 GitHub，由 Zeabur 自动构建）：
+## 服务器阶段
 
-```bash
-./scripts/push-github-and-deploy.sh
-```
+- 使用隔离 Git worktree 开发。
+- 业务行为严格 TDD，每个任务依次完成规格审查和代码质量审查。
+- 定向测试、完整测试、完整构建和 `./scripts/check-fork-integrity.sh` 全通过后才能提交和推送。
+- 先推送审查分支；确认后以非 rebase、非强推方式进入 `play/main`。
+- `origin/play/main` 触发 Zeabur；确认实际部署 commit 和健康状态后才能验收。
 
-**验收地址**：**https://www.jisudeng.com/**（前端 + API / Admin / `/api/v1/...`）。
+## 本地电脑验收
 
-- 用户侧 UI（Play / 增长世界 / 仪表盘 / 图像工作室）：浏览器走查浅色 + 深色模式
-- Admin 密码以 Zeabur / 线上环境变量为准
-- **不再使用** Dell / `192.168.100.10` 做部署或验收
+- 最终产品验收由用户在本地电脑浏览器访问 `https://www.jisudeng.com/`。
+- 至少覆盖游客、普通用户、管理员三种身份；相关功能同时检查用户和管理员页面。
+- 视觉相关修改检查浅色和深色，数据相关修改按需进行 API/数据库对账。
+- 服务器浏览器、curl 和健康检查只是技术证据，不能替代用户本地电脑验收。
+
+**禁止**为最终验收启动 `go run serve`、`pnpm dev` 或访问 localhost。服务器仍允许且必须运行测试与 production build。
+
+登录密码、API key、Cookie 和生产凭据只通过环境变量或人工输入提供，不写入 Git、代码、文档、命令输出或日志。每次交付记录 commit、测试、构建、部署和浏览器验收证据；失败或缺证据时不得宣称完成。

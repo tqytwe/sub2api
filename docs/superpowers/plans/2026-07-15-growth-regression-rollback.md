@@ -1,12 +1,18 @@
 # Growth Regression Rollback Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **2026-07-16 delivery override:** Server-side browser automation is supplementary
+> technical evidence only. Final production acceptance must follow
+> `docs/DELIVERY_WORKFLOW.md` and be completed by the user on their local
+> workstation as guest, regular user, and administrator. This override replaces
+> any older browser-control completion wording below.
 
 **Goal:** Restore the documented Growth / Play production behavior, compensate the database side effect of migration 188, deploy `play/main`, and verify all preserved recent features with the supplied normal-user account.
 
 **Architecture:** Reverse only commits `dc102f78` and `ebce8edf`, leaving every earlier Image Studio, pricing, billing, CI, and fork customization commit intact. Add one forward-only, non-destructive migration that repairs the affected default VIP JSON while preserving custom tier structures and all migration-188 tables. Use local tests as the first gate, production public endpoints as the second gate, and authenticated browser acceptance as the final gate.
 
-**Tech Stack:** Git, Go 1.26, PostgreSQL migrations, Vue 3, TypeScript, Vitest, pnpm, GitHub Actions, Zeabur deployment, in-app browser automation.
+**Tech Stack:** Git, Go 1.26, PostgreSQL migrations, Vue 3, TypeScript, Vitest, pnpm, GitHub Actions, Zeabur deployment, browser-assisted production observation.
 
 ---
 
@@ -274,14 +280,19 @@ curl -fsS https://www.jisudeng.com/api/v1/public/home-stats
 
 Expected: health returns `{"status":"ok"}` and home statistics return the documented `total_requests`, `availability_pct`, `avg_ttft_ms`, and `has_live_data` fields rather than `snapshot_id:...:unavailable`.
 
-### Task 5: Perform Authenticated Production Acceptance
+### Task 5: Perform Local-Workstation Production Acceptance
 
 **Files:**
 - Create after verification: `docs/superpowers/specs/2026-07-15-production-acceptance.md`
 
 - [ ] **Step 1: Open production and log in**
 
-Use the browser control skill to open `https://www.jisudeng.com/login`, enter the user-supplied credentials, and verify that login reaches the normal user area. Do not expose the password in screenshots, logs, source files, or the acceptance report.
+After deployment health is confirmed, the user opens
+`https://www.jisudeng.com/login` in their local computer browser, enters the
+credentials manually, and verifies that login reaches the normal user area.
+Repeat the applicable checks as an administrator, and inspect public behavior
+as a guest. Do not expose passwords, tokens, or cookies in screenshots, logs,
+source files, command output, or the acceptance report.
 
 - [ ] **Step 2: Verify the home and navigation contracts**
 

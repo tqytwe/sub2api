@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - play/main
+      - 'codex/**'
       - 'sync/upstream-*'
   pull_request:
     branches:
