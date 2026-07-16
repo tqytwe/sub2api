@@ -464,6 +464,8 @@ export default {
     riskControl: '风控中心',
     modelsAndPricing: '模型与价格',
     modelCatalog: '模型价目',
+    auditLogs: '操作日志',
+    auditlogs: '操作日志',
   },
 
   // Auth

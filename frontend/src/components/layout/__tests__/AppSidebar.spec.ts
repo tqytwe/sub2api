@@ -4,10 +4,20 @@ import { fileURLToPath } from 'node:url'
 
 import { describe, expect, it } from 'vitest'
 
+import en from '../../../i18n/locales/en'
+import zh from '../../../i18n/locales/zh'
+
 const componentPath = resolve(dirname(fileURLToPath(import.meta.url)), '../AppSidebar.vue')
 const componentSource = readFileSync(componentPath, 'utf8')
 const stylePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../style.css')
 const styleSource = readFileSync(stylePath, 'utf8')
+
+function sidebarNavKeys(): string[] {
+  return [...componentSource.matchAll(/t\('nav\.([^']+)'\)/g)]
+    .map((match) => match[1])
+    .filter((key, index, keys) => keys.indexOf(key) === index)
+    .sort()
+}
 
 describe('AppSidebar custom SVG styles', () => {
   it('does not override uploaded SVG fill or stroke colors', () => {
@@ -28,6 +38,26 @@ describe('AppSidebar custom docs menu icon', () => {
     expect(componentSource).toContain('...customMenuItemsForUser.value.map(buildCustomMenuNavItem)')
     expect(componentSource).toContain('visible.push(buildCustomMenuNavItem(cm))')
     expect(componentSource).toContain('filtered.push(buildCustomMenuNavItem(cm))')
+  })
+})
+
+describe('AppSidebar navigation labels', () => {
+  it.each([
+    ['zh', zh],
+    ['en', en]
+  ] as const)('has runtime translations for every %s sidebar nav key', (_locale, messages) => {
+    const nav = (messages as { nav: Record<string, string> }).nav
+    const missing = sidebarNavKeys().filter((key) => typeof nav[key] !== 'string' || nav[key].trim() === '')
+    expect(missing).toEqual([])
+  })
+
+  it('translates the audit-log nav key and the lowercase legacy config key', () => {
+    expect(zh.nav.auditLogs).toBe('操作日志')
+    expect(zh.nav.auditlogs).toBe('操作日志')
+    expect(en.nav.auditLogs).toBe('Audit Logs')
+    expect(en.nav.auditlogs).toBe('Audit Logs')
+    expect(componentSource).toContain('function resolveCustomMenuLabel')
+    expect(componentSource).toContain('resolveCustomMenuLabel(item.label)')
   })
 })
 
