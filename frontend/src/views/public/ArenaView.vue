@@ -9,6 +9,7 @@ import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, {
   type PlayArenaCurrent,
   type PlayArenaLeaderboard,
+  type PlayArenaScore,
   type PlayQuestToday,
 } from '@/api/play'
 import '@/styles/public-pages.css'
@@ -19,6 +20,7 @@ const { t, te } = useI18n()
 const authStore = useAuthStore()
 
 type BoardTab = 'daily' | 'monthly'
+type RankTone = 'gold' | 'silver' | 'bronze' | 'standard'
 
 function readStringList(key: string): string[] {
   if (!te(key)) return []
@@ -27,7 +29,7 @@ function readStringList(key: string): string[] {
 }
 
 const loading = ref(true)
-const tab = ref<BoardTab>('daily')
+const tab = ref<BoardTab>('monthly')
 const monthlyCurrent = ref<PlayArenaCurrent | null>(null)
 const dailyCurrent = ref<PlayArenaCurrent | null>(null)
 const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
@@ -39,6 +41,23 @@ const leaderboard = computed(() => (tab.value === 'daily' ? dailyBoard.value : m
 const periodLabel = computed(() => current.value?.period?.name || leaderboard.value?.period?.name || '')
 const steps = computed(() => readStringList('play.arena.steps'))
 const rules = computed(() => readStringList('play.arena.rules'))
+const leaderboardRows = computed(() => leaderboard.value?.rows ?? [])
+const podiumRows = computed(() => {
+  const byRank = new Map(leaderboardRows.value.map(row => [row.rank, row]))
+  return [2, 1, 3].map(rank => byRank.get(rank)).filter((row): row is PlayArenaScore => Boolean(row))
+})
+const rankRows = computed(() => leaderboardRows.value.filter(row => row.rank > 3))
+const selectedTokenSum = computed(() => current.value?.display_token_sum ?? current.value?.token_sum ?? 0)
+const selectedRank = computed(() => current.value?.rank ?? null)
+const selectedGap = computed(() => current.value?.tokens_to_prev_rank ?? 0)
+const rankProgressPercent = computed(() => {
+  if (!selectedTokenSum.value || !selectedGap.value) return selectedRank.value ? 100 : 0
+  return Math.max(6, Math.min(100, Math.round((selectedTokenSum.value / (selectedTokenSum.value + selectedGap.value)) * 100)))
+})
+const rewardStatus = computed(() => {
+  if (!selectedRank.value) return t('arena.competitive.noRank')
+  return selectedRank.value <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing')
+})
 
 const xpPercent = computed(() => {
   const q = quests.value
@@ -56,6 +75,21 @@ const showSeedGuide = computed(() => {
 function questLabel(key: string) {
   const k = `arena.quests.${key}`
   return te(k) ? t(k) : key
+}
+
+function formatTokens(value?: number) {
+  return (value ?? 0).toLocaleString()
+}
+
+function toneForRank(rank: number): RankTone {
+  if (rank === 1) return 'gold'
+  if (rank === 2) return 'silver'
+  if (rank === 3) return 'bronze'
+  return 'standard'
+}
+
+function isCurrentRank(row: PlayArenaScore) {
+  return selectedRank.value != null && row.rank === selectedRank.value
 }
 
 function switchTab(next: BoardTab) {
@@ -104,7 +138,7 @@ onMounted(load)
       <PublicPageToolbar />
     </header>
 
-    <main class="play-main">
+    <main class="play-main arena-competitive-main">
       <p class="play-eyebrow">{{ t('play.arena.eyebrow') }}</p>
       <h1 class="play-title">{{ t('play.arena.title') }}</h1>
       <p class="play-subtitle">{{ t('play.arena.subtitle') }}</p>
@@ -112,7 +146,55 @@ onMounted(load)
       <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
       <div v-else-if="!monthlyCurrent?.enabled && !dailyCurrent?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
       <template v-else>
-        <section v-if="quests?.enabled" class="arena-rpg-hud">
+        <div class="arena-rpg-tabs">
+          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
+            {{ t('arena.rpg.tabDaily') }}
+          </button>
+          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
+            {{ t('arena.rpg.tabMonthly') }}
+          </button>
+        </div>
+
+        <p v-if="periodLabel" class="arena-period-pill">{{ t('arena.period', { name: periodLabel }) }}</p>
+
+        <section class="arena-hero-grid">
+          <div class="arena-season-panel">
+            <p class="arena-panel-label">{{ t('arena.competitive.mySeason') }}</p>
+            <div class="arena-season-rank">
+              {{ selectedRank ? `#${selectedRank}` : t('arena.competitive.noRank') }}
+            </div>
+            <p v-if="selectedRank" class="arena-season-copy">
+              {{ t('arena.myStats', { rank: selectedRank, tokens: formatTokens(selectedTokenSum) }) }}
+            </p>
+            <p v-if="selectedGap" class="arena-season-copy">
+              {{ t('arena.gapToPrev', { gap: formatTokens(selectedGap) }) }}
+            </p>
+            <div class="arena-season-meter" aria-label="rank progress">
+              <span :style="{ width: `${rankProgressPercent}%` }" />
+            </div>
+            <div class="arena-season-stats">
+              <span>{{ rewardStatus }}</span>
+              <span>{{ t('arena.competitive.topRange') }}</span>
+            </div>
+            <div v-if="monthlyCurrent?.recharge_boost_active || monthlyCurrent?.campaign_active" class="arena-buff-row">
+              <span v-if="monthlyCurrent?.recharge_boost_active" class="arena-buff">
+                {{ t('arena.boostActive', { mult: monthlyCurrent.arena_score_multiplier || 1.5 }) }}
+              </span>
+              <span v-if="monthlyCurrent?.campaign_active" class="arena-buff">{{ t('arena.rpg.campaignBuff') }}</span>
+            </div>
+          </div>
+
+          <div class="arena-reward-panel">
+            <p class="arena-panel-label">{{ t('arena.competitive.rewardTitle') }}</p>
+            <ul>
+              <li>{{ t('arena.competitive.rewardRuleRanked') }}</li>
+              <li>{{ t('arena.competitive.rewardRuleSettle') }}</li>
+              <li>{{ t('arena.competitive.rewardRuleEnergy') }}</li>
+            </ul>
+          </div>
+        </section>
+
+        <section v-if="quests?.enabled" class="arena-level-card">
           <div class="arena-rpg-level">
             <div>
               <p class="text-sm text-gray-500">{{ t('arena.rpg.season') }} · {{ periodLabel }}</p>
@@ -128,26 +210,63 @@ onMounted(load)
           <div class="arena-rpg-xp-bar">
             <div class="arena-rpg-xp-fill" :style="{ width: `${xpPercent}%` }" />
           </div>
-          <div v-if="monthlyCurrent?.recharge_boost_active || monthlyCurrent?.campaign_active" class="arena-buff-row">
-            <span v-if="monthlyCurrent?.recharge_boost_active" class="arena-buff">
-              {{ t('arena.boostActive', { mult: monthlyCurrent.arena_score_multiplier || 1.5 }) }}
-            </span>
-            <span v-if="monthlyCurrent?.campaign_active" class="arena-buff">{{ t('arena.rpg.campaignBuff') }}</span>
+        </section>
+
+        <section v-if="podiumRows.length" class="play-section">
+          <h2 class="play-section-title">{{ t('arena.competitive.podium') }}</h2>
+          <div class="arena-podium">
+            <article
+              v-for="row in podiumRows"
+              :key="row.user_id"
+              class="arena-podium-card"
+              :class="[`tone-${toneForRank(row.rank)}`, { champion: row.rank === 1 }]"
+            >
+              <div class="arena-podium-rank">#{{ row.rank }}</div>
+              <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" size-class="h-10 w-10" />
+              <strong>{{ formatTokens(row.token_sum) }}</strong>
+              <span>{{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}</span>
+            </article>
           </div>
         </section>
 
-        <section v-if="quests?.enabled && quests.tasks?.length" class="arena-quest-bar">
+        <section class="play-section">
+          <h2 class="play-section-title">{{ t('arena.leaderboard') }}</h2>
+          <div v-if="rankRows.length" class="arena-rank-list">
+            <div
+              v-for="row in rankRows"
+              :key="row.user_id"
+              class="arena-rank-row"
+              :class="{ current: isCurrentRank(row) }"
+            >
+              <span class="arena-rank-number">#{{ row.rank }}</span>
+              <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
+              <span class="arena-rank-tokens">{{ formatTokens(row.token_sum) }} tokens</span>
+              <span class="arena-rank-reward">
+                {{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}
+              </span>
+            </div>
+          </div>
+          <div v-else-if="!leaderboardRows.length" class="play-note">{{ t('arena.empty') }}</div>
+        </section>
+
+        <section v-if="quests?.enabled && quests.tasks?.length" class="play-section">
           <h2 class="play-section-title">{{ t('arena.rpg.dailyQuests') }}</h2>
-          <div
-            v-for="task in quests.tasks"
-            :key="task.key"
-            class="arena-quest-item"
-            :class="{ done: task.completed }"
-          >
-            <span>{{ task.completed ? '☑' : '☐' }} {{ questLabel(task.key) }} (+{{ task.energy }})</span>
-            <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="text-sm text-primary-600">
-              {{ t('arena.rpg.go') }}
-            </router-link>
+          <div class="arena-quest-grid">
+            <div
+              v-for="task in quests.tasks"
+              :key="task.key"
+              class="arena-quest-card"
+              :class="{ done: task.completed }"
+            >
+              <div>
+                <p>{{ questLabel(task.key) }}</p>
+                <span>{{ task.completed ? t('arena.competitive.questDone') : t('arena.rpg.go') }}</span>
+              </div>
+              <strong>{{ t('arena.competitive.questEnergy', { energy: task.energy }) }}</strong>
+              <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="arena-quest-link">
+                {{ t('arena.rpg.go') }}
+              </router-link>
+            </div>
           </div>
         </section>
 
@@ -158,63 +277,6 @@ onMounted(load)
             <li>{{ t('arena.rpg.seedStep2') }}</li>
             <li>{{ t('arena.rpg.seedStep3') }}</li>
           </ol>
-        </section>
-
-        <section v-if="authStore.isAuthenticated" class="arena-field-card">
-          <h2 class="play-section-title">{{ t('arena.rpg.mainField') }}</h2>
-          <p class="play-intro">
-            {{ t('arena.rpg.monthTokens', { tokens: (monthlyCurrent?.display_token_sum || monthlyCurrent?.token_sum || 0).toLocaleString() }) }}
-          </p>
-          <p v-if="monthlyCurrent?.rank" class="play-intro">
-            {{ t('arena.myStats', { rank: monthlyCurrent.rank, tokens: (monthlyCurrent.display_token_sum || monthlyCurrent.token_sum || 0).toLocaleString() }) }}
-          </p>
-          <p v-if="monthlyCurrent?.tokens_to_prev_rank" class="play-intro font-medium text-amber-700 dark:text-amber-300">
-            {{ t('arena.gapToPrev', { gap: monthlyCurrent.tokens_to_prev_rank.toLocaleString() }) }}
-          </p>
-        </section>
-
-        <div class="arena-rpg-tabs">
-          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
-            {{ t('arena.rpg.tabDaily') }}
-          </button>
-          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
-            {{ t('arena.rpg.tabMonthly') }}
-          </button>
-        </div>
-
-        <p v-if="periodLabel" class="play-intro">{{ t('arena.period', { name: periodLabel }) }}</p>
-
-        <section class="play-section">
-          <h2 class="play-section-title">{{ t('arena.leaderboard') }}</h2>
-          <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-dark-600">
-            <table class="min-w-full text-sm">
-              <thead class="bg-gray-50 text-left text-gray-600 dark:bg-dark-800 dark:text-dark-300">
-                <tr>
-                  <th class="px-4 py-3">{{ t('arena.colRank') }}</th>
-                  <th class="px-4 py-3">{{ t('arena.colUser') }}</th>
-                  <th class="px-4 py-3">{{ t('arena.colTokens') }}</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="row in leaderboard?.rows || []"
-                  :key="row.user_id"
-                  class="border-t border-gray-100 dark:border-dark-700"
-                >
-                  <td class="px-4 py-3 font-medium">#{{ row.rank }}</td>
-                  <td class="px-4 py-3">
-                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" size-class="h-8 w-8" />
-                  </td>
-                  <td class="px-4 py-3">{{ row.token_sum.toLocaleString() }}</td>
-                </tr>
-                <tr v-if="!(leaderboard?.rows?.length)">
-                  <td colspan="3" class="px-4 py-6 text-center text-gray-500 dark:text-dark-400">
-                    {{ t('arena.empty') }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
         </section>
 
         <section v-if="steps.length" class="play-section">
@@ -240,3 +302,256 @@ onMounted(load)
     <SupportFloatingCard />
   </div>
 </template>
+
+<style scoped>
+.arena-competitive-main {
+  max-width: 1120px;
+}
+
+.arena-period-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--card);
+  padding: 4px 10px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.arena-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(280px, 0.9fr);
+  gap: 14px;
+  margin: 0 0 22px;
+}
+
+.arena-season-panel,
+.arena-reward-panel,
+.arena-level-card,
+.arena-podium-card,
+.arena-rank-row,
+.arena-quest-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+}
+
+.arena-season-panel,
+.arena-reward-panel,
+.arena-level-card {
+  padding: 20px;
+}
+
+.arena-panel-label {
+  margin: 0 0 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.arena-season-rank {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: clamp(34px, 6vw, 54px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+}
+
+.arena-season-copy,
+.arena-reward-panel li {
+  color: var(--ink-2);
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.arena-season-copy {
+  margin: 8px 0 0;
+}
+
+.arena-reward-panel ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.arena-season-meter {
+  height: 8px;
+  margin: 18px 0 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(120, 113, 108, 0.16);
+}
+
+.arena-season-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #1f7a5b;
+}
+
+.arena-season-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.arena-season-stats span {
+  border-radius: 999px;
+  background: rgba(120, 113, 108, 0.12);
+  padding: 7px 10px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.arena-podium {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.arena-podium-card {
+  display: grid;
+  gap: 10px;
+  min-height: 176px;
+  padding: 18px;
+}
+
+.arena-podium-card.champion {
+  min-height: 218px;
+}
+
+.arena-podium-rank,
+.arena-rank-number {
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 800;
+}
+
+.arena-podium-card strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+}
+
+.arena-podium-card span,
+.arena-rank-tokens,
+.arena-rank-reward,
+.arena-quest-card span {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.tone-gold {
+  border-color: rgba(184, 135, 25, 0.55);
+  background: #fff4c7;
+}
+
+.tone-silver {
+  border-color: rgba(109, 119, 136, 0.55);
+  background: #eef2f6;
+}
+
+.tone-bronze {
+  border-color: rgba(154, 91, 36, 0.55);
+  background: #f8e1cc;
+}
+
+.dark .tone-gold {
+  background: rgba(184, 135, 25, 0.18);
+}
+
+.dark .tone-silver {
+  background: rgba(109, 119, 136, 0.22);
+}
+
+.dark .tone-bronze {
+  background: rgba(154, 91, 36, 0.22);
+}
+
+.arena-rank-list {
+  display: grid;
+  gap: 10px;
+}
+
+.arena-rank-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+}
+
+.arena-rank-row.current {
+  box-shadow: inset 3px 0 0 #1f7a5b;
+}
+
+.arena-quest-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.arena-quest-card {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+}
+
+.arena-quest-card.done {
+  border-color: #b8d7c5;
+  background: #edf7f1;
+}
+
+.dark .arena-quest-card.done {
+  border-color: rgba(31, 122, 91, 0.55);
+  background: rgba(31, 122, 91, 0.18);
+}
+
+.arena-quest-card p {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.arena-quest-card strong,
+.arena-quest-link {
+  white-space: nowrap;
+}
+
+.arena-quest-link {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  color: #1f7a5b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+@media (max-width: 820px) {
+  .arena-hero-grid,
+  .arena-podium,
+  .arena-quest-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .arena-podium-card,
+  .arena-podium-card.champion {
+    min-height: auto;
+  }
+
+  .arena-rank-row {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .arena-rank-tokens,
+  .arena-rank-reward {
+    text-align: left;
+  }
+}
+</style>
