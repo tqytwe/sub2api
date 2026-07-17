@@ -154,6 +154,7 @@ func (s *PlayService) GetDailyArenaCurrent(ctx context.Context, userID int64) (*
 	}
 	out.TokenSum = tokenSum
 	out.Rank = rank
+	out.EstimatedReward = arenaRewardForRank(rank, rt.DailyArenaTopRewards)
 	out.DisplayTokenSum = tokenSum
 	if rank > 1 {
 		gap, err := s.repo.GetArenaTokensToPrevRank(ctx, userID, period.StartAt, period.EndAt, rank, tokenSum)

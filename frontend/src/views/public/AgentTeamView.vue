@@ -208,6 +208,9 @@ onMounted(loadTeam)
                 }) }}
               </div>
               <div class="text-xs opacity-70">{{ t('agentTeam.memberTokens', { tokens: member.token_sum.toLocaleString() }) }}</div>
+              <div class="text-xs opacity-70">
+                {{ t('agentTeam.memberEstimatedReward', { reward: Number(member.estimated_reward || 0).toFixed(2) }) }}
+              </div>
               <div
                 v-if="teamSpend > 0"
                 class="mt-1 h-1.5 w-28 overflow-hidden rounded bg-black/10 dark:bg-white/10"
@@ -243,8 +246,15 @@ onMounted(loadTeam)
             </div>
             <ul class="mt-2 space-y-1 text-sm">
               <li v-for="allocation in record.allocations" :key="allocation.id" class="flex justify-between gap-3">
-                <span>#{{ allocation.user_id }}</span>
-                <span>{{ Number(allocation.reward_amount).toFixed(2) }} · {{ allocation.payout_status }}</span>
+                <span class="min-w-0 truncate">{{ allocation.display_name || `#${allocation.user_id}` }}</span>
+                <span class="text-right">
+                  {{ t('agentTeam.allocationLine', {
+                    contribution: Number(allocation.contribution).toFixed(2),
+                    ratio: (Number(allocation.ratio) * 100).toFixed(1),
+                    reward: Number(allocation.reward_amount).toFixed(2),
+                    status: allocation.payout_status,
+                  }) }}
+                </span>
               </li>
             </ul>
           </div>

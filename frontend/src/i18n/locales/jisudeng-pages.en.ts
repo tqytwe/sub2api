@@ -163,6 +163,7 @@ export const jisudengPagesEn = {
     myStats: 'Rank #{rank} · {tokens} tokens this period',
     myTokens: '{tokens} tokens this period — keep calling the API to rank',
     gapToPrev: '{gap} tokens behind the player above you',
+    estimatedReward: 'Estimated API balance reward at this rank: ${amount}',
     boostActive: 'Recharge boost active · display score ×{mult}',
     leaderboard: 'Leaderboard',
     colRank: 'Rank',
@@ -253,6 +254,7 @@ export const jisudengPagesEn = {
     copyInviteCode: 'Copy invite code',
     memberSpend: '${spend} · {pct}%',
     memberTokens: 'Informational: {tokens} tokens',
+    memberEstimatedReward: 'Estimated monthly share ${reward}',
     leave: 'Leave squad',
     leaveConfirm: 'Leave this squad? A captain must transfer captaincy while other members remain.',
     left: 'Left squad',
@@ -265,6 +267,7 @@ export const jisudengPagesEn = {
     settlementHistory: 'Settlement history',
     noSettlements: 'No monthly settlements yet',
     poolStatus: 'Pool ${pool} · {status}',
+    allocationLine: 'Contribution ${contribution} · {ratio}% · reward ${reward} · {status}',
   },
   playHub: {
     eyebrow: 'Growth perks',

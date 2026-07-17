@@ -59,6 +59,7 @@ type playArenaCurrentDTO struct {
 	DisplayTokenSum      int64               `json:"display_token_sum,omitempty"`
 	Rank                 int                 `json:"rank,omitempty"`
 	TokensToPrevRank     int64               `json:"tokens_to_prev_rank,omitempty"`
+	EstimatedReward      float64             `json:"estimated_reward,omitempty"`
 	RechargeBoostActive  bool                `json:"recharge_boost_active,omitempty"`
 	ArenaScoreMultiplier float64             `json:"arena_score_multiplier,omitempty"`
 	CampaignActive       bool                `json:"campaign_active,omitempty"`
@@ -217,6 +218,7 @@ func (h *PlayHandler) ArenaCurrent(c *gin.Context) {
 		DisplayTokenSum:      current.DisplayTokenSum,
 		Rank:                 current.Rank,
 		TokensToPrevRank:     current.TokensToPrevRank,
+		EstimatedReward:      current.EstimatedReward,
 		RechargeBoostActive:  current.RechargeBoostActive,
 		ArenaScoreMultiplier: current.ArenaScoreMultiplier,
 		CampaignActive:       current.CampaignActive,
