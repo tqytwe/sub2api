@@ -176,14 +176,19 @@ describe('PlayHubView layout', () => {
     state.push.mockReset()
   })
 
-  it('renders the hub on a full-width console canvas', async () => {
+  it('renders the hub on a full-width console workspace', async () => {
     const wrapper = mountView()
     await flushPromises()
 
     const shell = wrapper.get('[data-testid="play-hub-shell"]')
-    expect(shell.classes()).toContain('max-w-[1440px]')
+    expect(shell.classes()).toContain('w-full')
+    expect(shell.classes()).toContain('max-w-none')
+    expect(shell.classes()).not.toContain('max-w-[1440px]')
     expect(shell.classes()).not.toContain('gw-page--wide')
     expect(wrapper.find('.gw-page--wide').exists()).toBe(false)
+
+    const entryGrid = wrapper.get('[data-testid="play-hub-entry-grid"]')
+    expect(entryGrid.classes()).toContain('2xl:grid-cols-4')
   })
 
   it('keeps the overview, summaries, and play entries visible from hub data', async () => {

@@ -197,10 +197,10 @@ onMounted(load)
   <AppLayout>
     <div
       data-testid="play-hub-shell"
-      class="mx-auto max-w-[1440px] space-y-6 overflow-x-hidden pb-10 text-[var(--gw-ink)]"
+      class="w-full max-w-none space-y-5 overflow-x-hidden pb-10 text-[var(--gw-ink)] 2xl:space-y-6"
     >
-      <section class="gw-panel p-4 sm:p-5 lg:p-6">
-        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+      <section class="gw-panel p-4 sm:p-5 lg:p-6 2xl:p-7">
+        <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_24rem] 2xl:grid-cols-[minmax(0,1fr)_28rem]">
           <div class="min-w-0">
             <div class="flex flex-wrap items-center gap-3">
               <p class="gw-eyebrow mb-0">{{ t('playHub.eyebrow') }}</p>
@@ -215,7 +215,7 @@ onMounted(load)
             <p class="gw-subtitle max-w-3xl break-words">{{ t('playHub.subtitle') }}</p>
           </div>
 
-          <div class="rounded-xl border border-[var(--gw-line)] bg-[var(--gw-soft)] p-4">
+          <div class="rounded-xl border border-[var(--gw-line)] bg-[var(--gw-soft)] p-4 2xl:p-5">
             <div class="flex flex-wrap items-start justify-between gap-4">
               <div class="min-w-0">
                 <p class="gw-balance-label">{{ t('playHub.balanceLabel') }}</p>
@@ -254,7 +254,8 @@ onMounted(load)
       <template v-else>
         <div
           v-if="vip || primaryCampaign || (hub?.quests?.enabled && hub.quests.tasks?.length)"
-          class="grid gap-4 lg:grid-cols-3"
+          data-testid="play-hub-summary-grid"
+          class="grid gap-4 lg:grid-cols-2 2xl:grid-cols-[minmax(18rem,0.85fr)_minmax(18rem,0.85fr)_minmax(26rem,1.3fr)]"
         >
           <section v-if="vip" class="gw-panel min-h-[12rem]">
             <div class="flex h-full flex-col">
@@ -331,11 +332,14 @@ onMounted(load)
           </section>
         </div>
 
-        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section
+          data-testid="play-hub-entry-grid"
+          class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+        >
           <router-link
             v-if="hub?.image_studio?.enabled"
             to="/image-studio"
-            class="gw-hub-card group min-h-[10rem]"
+            class="gw-hub-card group min-h-[10rem] xl:col-span-2 2xl:min-h-[11rem]"
             @click="trackHubClick('image_studio')"
           >
             <div class="flex h-full items-start justify-between gap-3">
