@@ -38,6 +38,7 @@ describe('public image API documentation placement', () => {
     expect(imagePage?.html).toContain('同步 URL 返回')
     expect(imagePage?.html).toContain('data[].b64_json')
     expect(imagePage?.html).toContain('data[].url')
+    expect(imagePage?.html).toContain('同步长连接 524')
     expect(imagePage?.html).toContain('每个 multipart 文件或文本字段最多 <strong>20 MiB</strong>')
     expect(imagePage?.html).toContain('413 invalid_request_error')
 

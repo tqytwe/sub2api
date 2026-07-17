@@ -49,9 +49,11 @@ const PUBLIC_DOC_CONTENT_ZH_SOURCE: PublicDocCategoryContent[] = [
         id: 'text-to-image-api',
         title: "GPT / Grok 图片生成 API",
         summary: "真实 API 地址、单张/多张生成、prompt、保存与网页显示",
-        html: `<p class="docs-lead">极速蹬当前图片生成主要使用 <strong>GPT 图片模型</strong> 和 <strong>Grok 图片模型</strong>。开发者直接调用 Images API，图像编辑调用 Edits API。</p>
+        html: `<p class="docs-lead">极速蹬当前图片生成主要使用 <strong>GPT 图片模型</strong> 和 <strong>Grok 图片模型</strong>。短耗时测试可直接调用 Images API；生产长耗时生成建议使用异步任务，避免同步长连接 524。</p>
 <pre><code>POST https://api.jisudeng.com/v1/images/generations
-POST https://api.jisudeng.com/v1/images/edits</code></pre>
+POST https://api.jisudeng.com/v1/images/edits
+POST https://api.jisudeng.com/v1/images/generations/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 
 <h2>真实入口</h2>
 <ul>
@@ -74,6 +76,8 @@ Content-Type: application/json</code></pre>
 </ul>
 <p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。</p>
 
+<p class="docs-tip">大尺寸、批量、多 prompt 或预计超过 60-90 秒的图片生成请优先使用异步接口。同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 <code>524</code>；后台可能已经生成成功并计费，但调用方连接已经断开。</p>
+
 <h2>三类返回契约</h2>
 <h3>同步 Base64 返回</h3>
 <p>请求使用 <code>"response_format": "b64_json"</code> 时，每张图片位于 <code>data[].b64_json</code>。设置 <code>n</code> 大于 1 时，<code>data</code> 会包含实际返回的全部图片，不要只读取第 1 项。</p>
@@ -95,7 +99,7 @@ Content-Type: application/json</code></pre>
 }</code></pre>
 
 <h3>异步任务返回</h3>
-<p>长耗时请求可提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。生产只需启用结果存储，默认使用本机持久卷；完整 processing / completed / failed 契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
+<p>长耗时请求应提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。生产只需启用结果存储，默认使用本机持久卷；完整 processing / completed / failed 契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
 
 <h2>单张生成</h2>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
@@ -272,22 +276,24 @@ json.data.forEach((item, index) =&gt; {
         id: 'batch-image-api',
         title: "多张 / 批量生图调用",
         summary: "同一个 GPT/Grok 图片接口：n 多张、多 prompt 批量跑、保存本地",
-        html: `<p class="docs-lead">批量调用 GPT/Grok 图片生成时，继续使用同一个 Images API。常见方式有两种：同一个 prompt 设置 <code>n</code> 一次出多张；多个 prompt 循环调用接口并保存结果。</p>
-<pre><code>POST https://api.jisudeng.com/v1/images/generations</code></pre>
+        html: `<p class="docs-lead">批量调用 GPT/Grok 图片生成时，生产环境优先使用异步 Images API。常见方式有两种：同一个 prompt 设置 <code>n</code> 一次出多张；多个 prompt 分别提交异步任务并轮询结果。</p>
+<pre><code>POST https://api.jisudeng.com/v1/images/generations/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 
 <h2>两种批量方式</h2>
 <div class="docs-table-wrap">
 <table class="docs-table">
 <thead><tr><th>方式</th><th>怎么做</th><th>适合场景</th></tr></thead>
 <tbody>
-<tr><td>一次请求多张</td><td>设置 <code>n</code>，例如 <code>n: 4</code></td><td>同一个 prompt 出多张备选图</td></tr>
-<tr><td>多个 prompt 批量跑</td><td>循环调用 <code>/v1/images/generations</code></td><td>商品图、封面、头像、素材批处理</td></tr>
+<tr><td>一次请求多张</td><td>异步提交，设置 <code>n</code>，例如 <code>n: 4</code>，再轮询任务结果</td><td>同一个 prompt 出多张备选图</td></tr>
+<tr><td>多个 prompt 批量跑</td><td>每个 prompt 提交一个异步任务，限制并发并轮询 <code>/v1/images/tasks/{task_id}</code></td><td>商品图、封面、头像、素材批处理</td></tr>
 </tbody>
 </table>
 </div>
-<p class="docs-tip">GPT/Grok 批量调用主要就是调用上面的 <code>/v1/images/generations</code> 接口，Base URL 是 <code>https://api.jisudeng.com</code>。不要换成其他地址，也不要把 API Key 放到 URL 参数里。</p>
+<p class="docs-tip">短耗时本地测试仍可调用同步 <code>/v1/images/generations</code>。生产批量任务不要靠把同步请求 timeout 调到 180/300 秒来等待，因为中间层可能先返回 <code>524</code>，而后台上游生成仍可能成功。不要把 API Key 放到 URL 参数里。</p>
 
 <h2>一次请求生成多张</h2>
+<p>下面的同步示例只适合短耗时调试。生产批量生成请把相同 body 提交到 <code>/v1/images/generations/async</code>，拿到 <code>task_id</code> 后轮询 <code>/v1/images/tasks/{task_id}</code>。</p>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\

@@ -4,29 +4,36 @@
 > 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=batch-image-api`
 > API Key：`https://www.jisudeng.com/keys`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-16
+> 最后核验：2026-07-17
 
 ## 当前口径
 
-极速蹬当前面向用户的图片生成主要是 GPT 图片生成和 Grok 图片生成。批量调用不是换一个新地址，而是继续使用同一个生成接口：
+极速蹬当前面向用户的图片生成主要是 GPT 图片生成和 Grok 图片生成。批量或多 prompt 场景建议优先使用异步生成接口，避免同步长连接在 CDN/Cloudflare 后面超时：
 
 ```text
-POST https://api.jisudeng.com/v1/images/generations
+POST https://api.jisudeng.com/v1/images/generations/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}
 ```
 
 常见两种批量方式：
 
 | 方式 | 怎么做 | 适合场景 |
 |------|--------|----------|
-| 一次请求多张 | 设置 `n`，例如 `n: 4` | 同一个 prompt 出多张备选图 |
-| 多个 prompt 批量跑 | 循环调用 `/v1/images/generations` | 商品图、封面、头像、素材批处理 |
+| 一次请求多张 | 异步提交，设置 `n`，例如 `n: 4`，再轮询任务结果 | 同一个 prompt 出多张备选图 |
+| 多个 prompt 批量跑 | 每个 prompt 提交一个异步任务，限制并发并轮询 `/v1/images/tasks/{task_id}` | 商品图、封面、头像、素材批处理 |
 
-GPT/Grok 图片批量调用主要就是调用 `https://api.jisudeng.com/v1/images/generations`。不要换成其他地址，也不要把 API Key 放到 URL 参数里。
+短耗时本地测试仍可调用 `https://api.jisudeng.com/v1/images/generations`。生产批量任务不要靠把同步请求 timeout 调到 180/300 秒来等待，因为中间层可能先返回 `524`，而后台上游生成仍可能成功。不要把 API Key 放到 URL 参数里。
 
 设置 `n > 1` 时，同一响应的 `data` 数组包含实际返回的全部图片；保存和展示时
 必须遍历 `data[]`，不能只读取 `data[0]`。
 
+完整异步任务契约见 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。
+
 ## 一次请求生成多张
+
+下面的同步示例只适合短耗时调试。生产批量生成请把相同 body 提交到
+`/v1/images/generations/async`，拿到 `task_id` 后轮询 `/v1/images/tasks/{task_id}`，
+避免同步长连接 524。
 
 ```bash
 curl https://api.jisudeng.com/v1/images/generations \
@@ -63,6 +70,8 @@ Grok 分组写法一样，只改模型：
 ```
 
 ## 多个 prompt 批量跑
+
+生产多 prompt 批量跑建议每个 prompt 提交一个异步任务，并限制并发。下面同步脚本只适合本地短耗时验证。
 
 准备 `prompts.txt`，一行一个 prompt：
 
