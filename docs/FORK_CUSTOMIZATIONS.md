@@ -130,6 +130,7 @@
 198_image_studio_upload_slots.sql
 199_prompt_library.sql
 200_prompt_library_seed.sql
+201_prompt_library_public_seed.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
