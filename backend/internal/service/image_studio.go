@@ -729,26 +729,28 @@ func buildImageStudioProviderPayload(
 	switch platform {
 	case PlatformOpenAI:
 		payload["size"] = size
-		// Inline output lets the durable worker checkpoint before object storage.
-		payload["response_format"] = "b64_json"
-		if quality := strings.ToLower(strings.TrimSpace(req.Quality)); quality != "" {
-			payload["quality"] = quality
-		}
-		for _, field := range []struct {
-			key   string
-			value string
-		}{
-			{key: "background", value: req.Background},
-			{key: "output_format", value: normalizeImageStudioOutputFormat(req.OutputFormat)},
-			{key: "input_fidelity", value: req.InputFidelity},
-			{key: "style", value: req.Style},
-		} {
-			if value := strings.ToLower(strings.TrimSpace(field.value)); value != "" {
-				payload[field.key] = value
+		if IsGPTImageGenerationModel(model) {
+			// Inline output lets the durable worker checkpoint before object storage.
+			payload["response_format"] = "b64_json"
+			if quality := strings.ToLower(strings.TrimSpace(req.Quality)); quality != "" {
+				payload["quality"] = quality
 			}
-		}
-		if req.OutputCompression != nil {
-			payload["output_compression"] = *req.OutputCompression
+			for _, field := range []struct {
+				key   string
+				value string
+			}{
+				{key: "background", value: req.Background},
+				{key: "output_format", value: normalizeImageStudioOutputFormat(req.OutputFormat)},
+				{key: "input_fidelity", value: req.InputFidelity},
+				{key: "style", value: req.Style},
+			} {
+				if value := strings.ToLower(strings.TrimSpace(field.value)); value != "" {
+					payload[field.key] = value
+				}
+			}
+			if req.OutputCompression != nil {
+				payload["output_compression"] = *req.OutputCompression
+			}
 		}
 	case PlatformGemini:
 		endpoint = "/v1beta/models/" + model + ":generateContent"
