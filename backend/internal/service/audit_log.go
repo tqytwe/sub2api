@@ -131,6 +131,8 @@ var auditBodySensitiveExactKeys = func() map[string]struct{} {
 		// proxy_key 为 protocol|host|port|username|password 拼接，
 		// custom_key 为用户自设的平台 API Key 明文。
 		"proxy_key", "custom_key",
+		"prompt_text", "source_url", "source_payload", "raw_payload",
+		"original_author", "evidence",
 	}
 	set := make(map[string]struct{}, len(builtin)+len(SensitiveCredentialKeys)+16)
 	for _, k := range builtin {

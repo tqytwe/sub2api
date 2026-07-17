@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestMaskAuditCredential(t *testing.T) {
@@ -134,6 +136,31 @@ func TestRedactAuditBody_NonJSONOmitted(t *testing.T) {
 func TestRedactAuditBody_Empty(t *testing.T) {
 	if got := RedactAuditBody(nil, "application/json"); got != "" {
 		t.Fatalf("expected empty for nil body, got %q", got)
+	}
+}
+
+func TestRedactAuditBody_RedactsPromptLibrarySourceMaterial(t *testing.T) {
+	raw := []byte(`{
+		"title_zh": "可保留标题",
+		"prompt_text": "private prompt body",
+		"source_url": "https://source.example/private",
+		"source_payload": {"page": "private source payload"},
+		"raw_payload": {"items": ["private import payload"]},
+		"original_author": "private author",
+		"evidence": {"license": "private evidence"}
+	}`)
+	out := RedactAuditBody(raw, "application/json")
+
+	require.Contains(t, out, "可保留标题")
+	for _, secret := range []string{
+		"private prompt body",
+		"source.example",
+		"private source payload",
+		"private import payload",
+		"private author",
+		"private evidence",
+	} {
+		require.NotContains(t, out, secret)
 	}
 }
 

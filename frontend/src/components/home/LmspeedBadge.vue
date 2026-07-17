@@ -4,12 +4,12 @@
     href="https://lmspeed.net/"
     target="_blank"
     rel="noopener noreferrer"
-    aria-label="Featured on LMSpeed.net"
+    aria-label="极速蹬已被 LMSpeed.net 收录"
   >
     <img
       class="lmspeed-badge-image"
       src="https://lmspeed.net/api/provider/claim-badge/2039?claim=2039-1kHJJSboOUMX0Au9G01tAaBWozH20jbC"
-      alt="Featured on LMSpeed.net"
+      alt="极速蹬已被 LMSpeed.net 收录"
       width="190"
       height="64"
       decoding="async"

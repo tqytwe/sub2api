@@ -37,10 +37,13 @@ func (r *imageStudioRepository) InsertJob(ctx context.Context, job *service.Imag
 	exec := r.sqlExec(ctx)
 	err := scanSingleRow(ctx, exec, `
 		INSERT INTO image_studio_jobs
-			(id, user_id, template_id, prompt_hash, size, count, status, estimated_cost, api_key_id, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			(id, user_id, template_id, prompt_id, prompt_version, prompt_hash, model, quality, size, count, status, estimated_cost, api_key_id, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING created_at`,
-		[]any{job.ID, job.UserID, job.TemplateID, job.PromptHash, job.Size, job.Count, job.Status, job.EstimatedCost, job.APIKeyID, job.ExpiresAt},
+		[]any{
+			job.ID, job.UserID, job.TemplateID, job.PromptID, job.PromptVersion, job.PromptHash,
+			job.Model, job.Quality, job.Size, job.Count, job.Status, job.EstimatedCost, job.APIKeyID, job.ExpiresAt,
+		},
 		&job.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert image studio job: %w", err)
@@ -161,17 +164,17 @@ func (r *imageStudioRepository) createPendingJob(
 	}
 	if err := tx.QueryRowContext(ctx, `
 		INSERT INTO image_studio_jobs (
-			id, user_id, template_id, prompt_hash, request_payload_encrypted,
+			id, user_id, template_id, prompt_id, prompt_version, prompt_hash, request_payload_encrypted,
 			model, quality, size, count, status, estimated_cost, actual_cost,
 			api_key_id, hold_amount, hold_id, success_count, fail_count, expires_at,
 			idempotency_key_hash, idempotency_fingerprint
 		)
 		VALUES (
-			$1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-			$13, $14, $15, $16, $17, $18, NULLIF($19, ''), NULLIF($20, '')
+			$1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
+			$15, $16, $17, $18, $19, $20, NULLIF($21, ''), NULLIF($22, '')
 		)
 		RETURNING created_at`,
-		job.ID, job.UserID, job.TemplateID, job.PromptHash, job.RequestPayloadEncrypted,
+		job.ID, job.UserID, job.TemplateID, job.PromptID, job.PromptVersion, job.PromptHash, job.RequestPayloadEncrypted,
 		job.Model, job.Quality, job.Size, job.Count, job.Status, job.EstimatedCost, job.ActualCost,
 		job.APIKeyID, job.HoldAmount, job.HoldID, job.SuccessCount, job.FailCount, job.ExpiresAt,
 		job.IdempotencyKeyHash, job.IdempotencyFingerprint,
@@ -1575,7 +1578,7 @@ func (r *imageStudioRepository) SettleJob(
 }
 
 const fullImageStudioJobSelect = `
-	SELECT id::text, user_id, template_id, prompt_hash, COALESCE(request_payload_encrypted, ''),
+	SELECT id::text, user_id, template_id, prompt_id, prompt_version, prompt_hash, COALESCE(request_payload_encrypted, ''),
 	       model, quality, size, count, status, estimated_cost, actual_cost, api_key_id,
 	       hold_amount, COALESCE(hold_id, ''), success_count, fail_count, error_message,
 	       created_at, expires_at, cancel_requested_at, started_at, finished_at,
@@ -1589,11 +1592,11 @@ type imageStudioRowScanner interface {
 func scanFullImageStudioJob(_ context.Context, row imageStudioRowScanner) (*service.ImageStudioJob, error) {
 	var job service.ImageStudioJob
 	var actualCost, holdAmount sql.NullFloat64
-	var apiKeyID sql.NullInt64
+	var apiKeyID, promptID, promptVersion sql.NullInt64
 	var errMsg sql.NullString
 	var expiresAt, cancelAt, startedAt, finishedAt, heartbeatAt, leaseExpiresAt sql.NullTime
 	if err := row.Scan(
-		&job.ID, &job.UserID, &job.TemplateID, &job.PromptHash, &job.RequestPayloadEncrypted,
+		&job.ID, &job.UserID, &job.TemplateID, &promptID, &promptVersion, &job.PromptHash, &job.RequestPayloadEncrypted,
 		&job.Model, &job.Quality, &job.Size, &job.Count, &job.Status, &job.EstimatedCost,
 		&actualCost, &apiKeyID, &holdAmount, &job.HoldID, &job.SuccessCount, &job.FailCount,
 		&errMsg, &job.CreatedAt, &expiresAt, &cancelAt, &startedAt, &finishedAt,
@@ -1609,6 +1612,13 @@ func scanFullImageStudioJob(_ context.Context, row imageStudioRowScanner) (*serv
 	}
 	if apiKeyID.Valid {
 		job.APIKeyID = &apiKeyID.Int64
+	}
+	if promptID.Valid {
+		job.PromptID = &promptID.Int64
+	}
+	if promptVersion.Valid {
+		value := int(promptVersion.Int64)
+		job.PromptVersion = &value
 	}
 	if errMsg.Valid {
 		job.ErrorMessage = errMsg.String

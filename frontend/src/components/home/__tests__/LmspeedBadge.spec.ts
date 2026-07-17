@@ -15,10 +15,10 @@ describe('LmspeedBadge', () => {
     expect(link.attributes('href')).toBe('https://lmspeed.net/')
     expect(link.attributes('target')).toBe('_blank')
     expect(link.attributes('rel')).toBe('noopener noreferrer')
-    expect(link.attributes('aria-label')).toBe('Featured on LMSpeed.net')
+    expect(link.attributes('aria-label')).toBe('极速蹬已被 LMSpeed.net 收录')
 
     expect(image.attributes('src')).toBe(CLAIM_BADGE_URL)
-    expect(image.attributes('alt')).toBe('Featured on LMSpeed.net')
+    expect(image.attributes('alt')).toBe('极速蹬已被 LMSpeed.net 收录')
     expect(image.attributes('width')).toBe('190')
     expect(image.attributes('height')).toBe('64')
     expect(image.attributes('decoding')).toBe('async')

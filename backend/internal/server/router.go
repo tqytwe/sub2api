@@ -160,6 +160,8 @@ func registerRoutes(
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
+	routes.RegisterPromptLibraryRoutes(v1, h, jwtAuth)
+	routes.RegisterPromptLibrarySEORoutes(r, h)
 
 	v1.GET("/public/home-stats", publicHomeStatsRoute())
 	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))

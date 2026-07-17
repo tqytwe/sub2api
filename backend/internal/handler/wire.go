@@ -44,6 +44,7 @@ func ProvideAdminHandlers(
 	adminPlayHandler *admin.AdminPlayHandler,
 	modelCatalogHandler *admin.ModelCatalogHandler,
 	auditLogHandler *admin.AuditLogHandler,
+	promptLibraryHandler *admin.PromptLibraryHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
@@ -83,6 +84,7 @@ func ProvideAdminHandlers(
 		Play:                   adminPlayHandler,
 		ModelCatalog:           modelCatalogHandler,
 		AuditLog:               auditLogHandler,
+		PromptLibrary:          promptLibraryHandler,
 	}
 }
 
@@ -128,6 +130,7 @@ func ProvideHandlers(
 	playHandler *PlayHandler,
 	imageStudioHandler *ImageStudioHandler,
 	modelPricingHandler *ModelPricingHandler,
+	promptLibraryHandler *PromptLibraryHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -153,6 +156,7 @@ func ProvideHandlers(
 		Play:             playHandler,
 		ImageStudio:      imageStudioHandler,
 		ModelPricing:     modelPricingHandler,
+		PromptLibrary:    promptLibraryHandler,
 	}
 }
 
@@ -180,6 +184,7 @@ var ProviderSet = wire.NewSet(
 	NewImageStudioHandler,
 	ProvideImageStudioWorkerRuntime,
 	NewModelPricingHandler,
+	NewPromptLibraryHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,
@@ -217,6 +222,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewAdminPlayHandler,
 	admin.NewModelCatalogHandler,
 	admin.NewAuditLogHandler,
+	admin.NewPromptLibraryHandler,
 
 	// AdminHandlers and Handlers constructors
 	ProvideAdminHandlers,

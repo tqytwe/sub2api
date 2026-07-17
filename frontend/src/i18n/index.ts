@@ -6,7 +6,7 @@ type LocaleCode = 'en' | 'zh'
 type LocaleMessages = Record<string, unknown>
 
 const LOCALE_KEY = 'sub2api_locale'
-const DEFAULT_LOCALE: LocaleCode = 'en'
+const DEFAULT_LOCALE: LocaleCode = 'zh'
 
 const localeLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
   en: () => import('./locales/en'),
@@ -19,9 +19,8 @@ function isLocaleCode(value: string): value is LocaleCode {
 
 function normalizeStoredLocale(saved: string | null): LocaleCode | null {
   if (!saved) return null
-  // Legacy: zh-MY was a mistaken third locale — treat as zh.
-  if (saved === 'zh-MY') return 'zh'
-  return isLocaleCode(saved) ? saved : null
+  if (saved === 'zh-MY' || saved === 'zh-CN' || saved === 'zh' || saved === 'en') return 'zh'
+  return null
 }
 
 function localeFromURL(): LocaleCode | null {
@@ -81,8 +80,7 @@ export async function initI18n(): Promise<void> {
     const current = getLocale()
     await loadLocaleMessages(current)
   }
-  const active = getLocale()
-  document.documentElement.setAttribute('lang', active === 'zh' ? 'zh-MY' : active)
+  document.documentElement.setAttribute('lang', 'zh-CN')
 }
 
 export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<void> {
@@ -101,7 +99,7 @@ export async function setLocale(locale: string): Promise<void> {
   await loadLocaleMessages(normalized)
   i18n.global.locale.value = normalized
   localStorage.setItem(LOCALE_KEY, normalized)
-  document.documentElement.setAttribute('lang', normalized === 'zh' ? 'zh-MY' : normalized)
+  document.documentElement.setAttribute('lang', 'zh-CN')
 
   const { resolveRouteDocumentTitle } = await import('@/router/title')
   const { default: router } = await import('@/router')
@@ -126,8 +124,7 @@ export function getLocale(): LocaleCode {
 }
 
 export const availableLocales = [
-  { code: 'en', name: 'English', flag: '🇺🇸' },
-  { code: 'zh', name: '马来西亚中文', flag: '🇲🇾' },
+  { code: 'zh', name: '简体中文', flag: '中' },
 ] as const
 
 export default i18n

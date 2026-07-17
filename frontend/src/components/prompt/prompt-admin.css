@@ -1,0 +1,388 @@
+.prompt-admin-page {
+  display: grid;
+  gap: 22px;
+}
+
+.prompt-admin-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.prompt-admin-heading h1 {
+  margin: 0;
+  color: #16191d;
+  font-size: 26px;
+  font-weight: 750;
+}
+
+.prompt-admin-heading p {
+  margin: 6px 0 0;
+  color: #727a85;
+  font-size: 13px;
+}
+
+.dark .prompt-admin-heading h1 {
+  color: #f6f7f9;
+}
+
+.prompt-admin-tabs {
+  display: flex;
+  gap: 22px;
+  overflow-x: auto;
+  border-bottom: 1px solid #dfe3e8;
+}
+
+.dark .prompt-admin-tabs {
+  border-bottom-color: #303741;
+}
+
+.prompt-admin-tab {
+  min-height: 44px;
+  flex: 0 0 auto;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  padding: 0 2px;
+  color: #68717d;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.prompt-admin-tab.is-active {
+  border-bottom-color: #17191d;
+  color: #17191d;
+}
+
+.dark .prompt-admin-tab {
+  color: #aab1bb;
+}
+
+.dark .prompt-admin-tab.is-active {
+  border-bottom-color: #f4f6f8;
+  color: #f4f6f8;
+}
+
+.prompt-admin-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.prompt-admin-search {
+  min-width: min(100%, 280px);
+  flex: 1;
+  position: relative;
+}
+
+.prompt-admin-search svg {
+  position: absolute;
+  top: 50%;
+  left: 11px;
+  transform: translateY(-50%);
+  color: #858d98;
+}
+
+.prompt-admin-search input {
+  padding-left: 36px;
+}
+
+.prompt-admin-toolbar select {
+  width: 150px;
+}
+
+.prompt-admin-table-shell {
+  overflow-x: auto;
+  border: 1px solid #dfe3e8;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.dark .prompt-admin-table-shell {
+  border-color: #303741;
+  background: #15191e;
+}
+
+.prompt-admin-table {
+  width: 100%;
+  min-width: 940px;
+  border-collapse: collapse;
+}
+
+.prompt-admin-table th,
+.prompt-admin-table td {
+  border-bottom: 1px solid #e9ecf0;
+  padding: 13px 15px;
+  text-align: left;
+  vertical-align: top;
+  font-size: 13px;
+}
+
+.prompt-admin-table th {
+  background: #f6f7f9;
+  color: #5d6671;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.prompt-admin-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.dark .prompt-admin-table th,
+.dark .prompt-admin-table td {
+  border-bottom-color: #292f37;
+}
+
+.dark .prompt-admin-table th {
+  background: #1c2127;
+  color: #b2b9c2;
+}
+
+.prompt-admin-title-cell {
+  max-width: 320px;
+}
+
+.prompt-admin-title-cell strong {
+  display: block;
+  color: #1c2025;
+}
+
+.prompt-admin-title-cell span {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-top: 4px;
+  color: #79818c;
+  line-height: 1.45;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.dark .prompt-admin-title-cell strong {
+  color: #f3f5f7;
+}
+
+.prompt-admin-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+  background: #eceff2;
+  padding: 4px 7px;
+  color: #515963;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.prompt-admin-badge.is-live {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.prompt-admin-badge.is-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.prompt-admin-badge.is-offline {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.dark .prompt-admin-badge {
+  background: #2a3038;
+  color: #d4d9df;
+}
+
+.dark .prompt-admin-badge.is-live {
+  background: rgba(22, 101, 52, 0.35);
+  color: #bbf7d0;
+}
+
+.dark .prompt-admin-badge.is-pending {
+  background: rgba(146, 64, 14, 0.35);
+  color: #fde68a;
+}
+
+.dark .prompt-admin-badge.is-offline {
+  background: rgba(153, 27, 27, 0.35);
+  color: #fecaca;
+}
+
+.prompt-admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.prompt-admin-action {
+  min-height: 31px;
+  border: 1px solid #d8dde3;
+  border-radius: 5px;
+  background: #fff;
+  padding: 5px 8px;
+  color: #424a54;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.prompt-admin-action:hover {
+  border-color: #17191d;
+  color: #17191d;
+}
+
+.prompt-admin-action.is-danger {
+  color: #b91c1c;
+}
+
+.prompt-admin-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.dark .prompt-admin-action {
+  border-color: #3a424c;
+  background: #1a1f25;
+  color: #d8dde4;
+}
+
+.prompt-admin-form {
+  display: grid;
+  gap: 20px;
+}
+
+.prompt-admin-form-section {
+  display: grid;
+  gap: 14px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e4e7eb;
+}
+
+.prompt-admin-form-section:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.dark .prompt-admin-form-section {
+  border-bottom-color: #303741;
+}
+
+.prompt-admin-form-section h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.prompt-admin-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.prompt-admin-form-grid.is-three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.prompt-admin-field {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.prompt-admin-field > span {
+  color: #4f5761;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.dark .prompt-admin-field > span {
+  color: #c5cbd3;
+}
+
+.prompt-admin-field small {
+  color: #818994;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.prompt-admin-field.is-full {
+  grid-column: 1 / -1;
+}
+
+.prompt-admin-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #404852;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.prompt-admin-state {
+  padding: 64px 20px;
+  color: #737c87;
+  text-align: center;
+}
+
+.prompt-admin-evidence {
+  max-width: 360px;
+  color: #626b76;
+  line-height: 1.55;
+}
+
+.prompt-admin-evidence strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #2d333b;
+}
+
+.dark .prompt-admin-evidence {
+  color: #adb4bd;
+}
+
+.dark .prompt-admin-evidence strong {
+  color: #edf0f3;
+}
+
+.prompt-admin-job-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.prompt-admin-job-summary span {
+  border-radius: 4px;
+  background: #eceff2;
+  padding: 6px 9px;
+  color: #59616c;
+  font-size: 12px;
+}
+
+.dark .prompt-admin-job-summary span {
+  background: #252b32;
+  color: #c6ccd4;
+}
+
+@media (max-width: 760px) {
+  .prompt-admin-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .prompt-admin-heading .btn {
+    width: 100%;
+  }
+
+  .prompt-admin-toolbar > * {
+    width: 100%;
+  }
+
+  .prompt-admin-toolbar select {
+    width: 100%;
+  }
+
+  .prompt-admin-form-grid,
+  .prompt-admin-form-grid.is-three {
+    grid-template-columns: 1fr;
+  }
+}
