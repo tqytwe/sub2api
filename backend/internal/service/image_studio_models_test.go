@@ -63,7 +63,7 @@ func TestListImageModelsForAPIKey_UsesGroupMapping(t *testing.T) {
 func TestListImageModelsForAPIKey_FiltersModelsByGroupPlatform(t *testing.T) {
 	groupID := int64(8)
 	resolver := &imageStudioModelResolverStub{
-		models: []string{"gpt-image-2", "grok-imagine-image-quality"},
+		models: []string{"gpt-image-2", "grok-imagine-image-quality", "gemini-3.1-flash-image"},
 	}
 	svc := &ImageStudioService{gateway: resolver}
 
@@ -88,6 +88,17 @@ func TestListImageModelsForAPIKey_FiltersModelsByGroupPlatform(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, []string{"grok-imagine-image-quality"}, grokModels)
+
+	geminiModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformGemini,
+			AllowImageGeneration: true,
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"gemini-3.1-flash-image"}, geminiModels)
 }
 
 func TestResolveImageModel_RejectsUnavailableSelection(t *testing.T) {

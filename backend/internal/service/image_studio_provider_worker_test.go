@@ -113,6 +113,37 @@ func TestImageStudioCreatePendingJobBuildsGrokNativePayload(t *testing.T) {
 	}
 }
 
+func TestImageStudioCreatePendingJobBuildsGeminiNativePayload(t *testing.T) {
+	repo := &imageStudioCreateRepoStub{}
+	encryptor := &imageStudioEncryptorStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		encryptor,
+		PlatformGemini,
+		[]string{"gemini-3.1-flash-image"},
+	)
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID:   "free-create",
+		UserPrompt:   "wide launch artwork",
+		Size:         "3584x2048",
+		Count:        1,
+		Model:        "gemini-3.1-flash-image",
+		OutputFormat: "png",
+		APIKeyID:     20,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, PlatformGemini, gjson.Get(encryptor.plaintext, "platform").String())
+	require.Equal(t, "create", gjson.Get(encryptor.plaintext, "operation").String())
+	require.Equal(t, "gemini:gemini-3.1-flash-image:v1", gjson.Get(encryptor.plaintext, "capability_profile_id").String())
+	require.Equal(t, "/v1beta/models/gemini-3.1-flash-image:generateContent", gjson.Get(encryptor.plaintext, "endpoint").String())
+	require.Contains(t, gjson.Get(encryptor.plaintext, "body.contents.0.parts.0.text").String(), "wide launch artwork")
+	require.Equal(t, "TEXT", gjson.Get(encryptor.plaintext, "body.generationConfig.responseModalities.0").String())
+	require.Equal(t, "IMAGE", gjson.Get(encryptor.plaintext, "body.generationConfig.responseModalities.1").String())
+}
+
 func TestImageStudioBuildWorkerRequestRejectsPinnedProfileDrift(t *testing.T) {
 	svc := &ImageStudioService{}
 	decrypted := `{
@@ -213,6 +244,65 @@ func TestImageStudioBuildWorkerRequestBuildsGrokMultiImageEditJSON(t *testing.T)
 		"data:image/png;base64,"+base64.StdEncoding.EncodeToString(second),
 		gjson.GetBytes(req.Body, "images.1.url").String(),
 	)
+	require.False(t, gjson.GetBytes(req.Body, "image_studio_job_reference_ids").Exists())
+}
+
+func TestImageStudioBuildWorkerRequestBuildsGeminiMultiImageEditJSON(t *testing.T) {
+	store := NewImageStudioAssetStore(t.TempDir())
+	first := encodeImageStudioReferencePNG(t, 2, 2)
+	second := encodeImageStudioReferencePNG(t, 3, 2)
+	firstKey, err := store.Save(10, "gemini-job-ref-1", "image/png", first)
+	require.NoError(t, err)
+	secondKey, err := store.Save(10, "gemini-job-ref-2", "image/png", second)
+	require.NoError(t, err)
+	repo := &imageStudioReferenceRepoStub{
+		jobRefs: []ImageStudioJobReference{
+			{
+				ID:          "gemini-job-ref-1",
+				JobID:       "gemini-job",
+				StorageKey:  firstKey,
+				ContentType: "image/png",
+				ByteSize:    int64(len(first)),
+			},
+			{
+				ID:          "gemini-job-ref-2",
+				JobID:       "gemini-job",
+				StorageKey:  secondKey,
+				ContentType: "image/png",
+				ByteSize:    int64(len(second)),
+			},
+		},
+	}
+	svc := &ImageStudioService{repo: repo, assetStore: store}
+	decrypted := `{
+		"platform":"gemini",
+		"operation":"edit",
+		"capability_profile_id":"gemini:gemini-3.1-flash-image:v1",
+		"capability_revision":"` + imageStudioCapabilityRevision + `",
+		"endpoint":"/v1beta/models/gemini-3.1-flash-image:generateContent",
+		"body":{
+			"contents":[{"parts":[{"text":"combine references"}]}],
+			"generationConfig":{"responseModalities":["TEXT","IMAGE"]},
+			"image_studio_job_reference_ids":["gemini-job-ref-1","gemini-job-ref-2"]
+		}
+	}`
+
+	req, err := svc.BuildWorkerRequest(
+		context.Background(),
+		&ImageStudioJob{ID: "gemini-job", UserID: 10, Model: "gemini-3.1-flash-image"},
+		decrypted,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, PlatformGemini, req.Platform)
+	require.Equal(t, "edit", req.Operation)
+	require.Equal(t, "/v1beta/models/gemini-3.1-flash-image:generateContent", req.Endpoint)
+	require.Equal(t, "application/json", req.ContentType)
+	require.Equal(t, "combine references", gjson.GetBytes(req.Body, "contents.0.parts.0.text").String())
+	require.Equal(t, "image/png", gjson.GetBytes(req.Body, "contents.0.parts.1.inlineData.mimeType").String())
+	require.Equal(t, base64.StdEncoding.EncodeToString(first), gjson.GetBytes(req.Body, "contents.0.parts.1.inlineData.data").String())
+	require.Equal(t, "image/png", gjson.GetBytes(req.Body, "contents.0.parts.2.inlineData.mimeType").String())
+	require.Equal(t, base64.StdEncoding.EncodeToString(second), gjson.GetBytes(req.Body, "contents.0.parts.2.inlineData.data").String())
 	require.False(t, gjson.GetBytes(req.Body, "image_studio_job_reference_ids").Exists())
 }
 

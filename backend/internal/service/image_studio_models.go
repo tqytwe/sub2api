@@ -19,6 +19,9 @@ var imageStudioModelPreference = []string{
 	"gpt-image-2",
 	"gpt-image-1.5",
 	"gpt-image-1",
+	"gemini-3.1-flash-image",
+	"gemini-3.1-flash-image-preview",
+	"gemini-2.5-flash-image",
 	"grok-imagine-image-quality",
 	"grok-imagine-image",
 	"grok-imagine",
@@ -136,13 +139,11 @@ func filterImageGenerationModelsForPlatform(models []string, platform string) []
 	out := make([]string, 0, len(models))
 	for _, model := range models {
 		model = strings.TrimSpace(model)
-		if model == "" || !isOpenAIImageGenerationModel(model) {
+		if model == "" {
 			continue
 		}
-		if platform != "" {
-			if _, ok := ResolveImageStudioProviderCapability(platform, model); !ok {
-				continue
-			}
+		if _, ok := ResolveImageStudioProviderCapability(platform, model); !ok {
+			continue
 		}
 		if _, ok := seen[model]; ok {
 			continue

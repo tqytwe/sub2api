@@ -8,6 +8,7 @@ const {
   getPromptMock,
   unfavoritePromptMock,
   usePromptMock,
+  routerBackMock,
   pushMock,
   showErrorMock,
   showSuccessMock,
@@ -16,6 +17,7 @@ const {
   getPromptMock: vi.fn(),
   unfavoritePromptMock: vi.fn(),
   usePromptMock: vi.fn(),
+  routerBackMock: vi.fn(),
   pushMock: vi.fn(),
   showErrorMock: vi.fn(),
   showSuccessMock: vi.fn(),
@@ -42,7 +44,7 @@ vi.mock('@/stores/app', () => ({
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ params: { id: 'prompt-1' }, fullPath: '/prompts/prompt-1' }),
-  useRouter: () => ({ push: pushMock }),
+  useRouter: () => ({ back: routerBackMock, push: pushMock }),
 }))
 
 describe('PromptDetailView', () => {
@@ -77,6 +79,7 @@ describe('PromptDetailView', () => {
       recommended_sizes: ['1024x1536'],
       reference_requirement: 'optional',
     })
+    routerBackMock.mockReset()
     pushMock.mockReset()
     showErrorMock.mockReset()
     showSuccessMock.mockReset()
@@ -142,5 +145,41 @@ describe('PromptDetailView', () => {
     expect(wrapper.get('[aria-label="收藏提示词"]').exists()).toBe(true)
     expect((wrapper.vm as unknown as { prompt: { favorite_count: number } }).prompt.favorite_count)
       .toBe(11)
+  })
+
+  it('returns to the previous page when browser history exists', async () => {
+    Object.defineProperty(window.history, 'length', { configurable: true, value: 2 })
+    const wrapper = mount(PromptDetailView, {
+      global: {
+        stubs: {
+          PublicPageToolbar: true,
+          Icon: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('[aria-label="返回上一页"]').trigger('click')
+
+    expect(routerBackMock).toHaveBeenCalledTimes(1)
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('falls back to the prompt list when opened directly', async () => {
+    Object.defineProperty(window.history, 'length', { configurable: true, value: 1 })
+    const wrapper = mount(PromptDetailView, {
+      global: {
+        stubs: {
+          PublicPageToolbar: true,
+          Icon: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('[aria-label="返回上一页"]').trigger('click')
+
+    expect(routerBackMock).not.toHaveBeenCalled()
+    expect(pushMock).toHaveBeenCalledWith('/prompts')
   })
 })

@@ -82,7 +82,7 @@ func TestImageStudioListJobsReturnsStablePaginationEnvelope(t *testing.T) {
 		nil,
 		nil,
 	)
-	handler := NewImageStudioHandler(studio, nil, nil)
+	handler := NewImageStudioHandler(studio, nil, nil, nil)
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/image-studio/jobs?page=2&page_size=12", nil)
@@ -189,7 +189,7 @@ func newImageStudioGalleryHandlerForTest(
 		nil,
 		nil,
 	)
-	return NewImageStudioHandler(studio, nil, nil)
+	return NewImageStudioHandler(studio, nil, nil, nil)
 }
 
 func imageStudioHandlerPNG(t *testing.T) []byte {
