@@ -545,11 +545,7 @@ func (s *ImageStudioService) Estimate(
 	}
 	referenceIDs = normalizeImageStudioReferenceIDs(referenceIDs)
 	if len(referenceIDs) > 0 {
-		platform, err := imageStudioPlatformForAPIKey(apiKey)
-		if err != nil {
-			return nil, err
-		}
-		capability, ok := ResolveImageStudioProviderCapability(platform, resolvedModel)
+		capability, ok := ResolveImageStudioModelCapability(resolvedModel)
 		if !ok {
 			return nil, ErrImageStudioProviderNotSupported
 		}
@@ -703,20 +699,11 @@ func imageStudioPlatformForAPIKey(apiKey *APIKey) (string, error) {
 }
 
 func inferImageStudioProviderFromModel(model string) (string, error) {
-	matched := ""
-	for _, platform := range []string{PlatformOpenAI, PlatformGemini, PlatformGrok} {
-		if _, ok := ResolveImageStudioProviderCapability(platform, model); !ok {
-			continue
-		}
-		if matched != "" {
-			return "", ErrImageStudioProviderNotSupported
-		}
-		matched = platform
-	}
-	if matched == "" {
+	capability, ok := ResolveImageStudioModelCapability(model)
+	if !ok || strings.TrimSpace(capability.Platform) == "" {
 		return "", ErrImageStudioProviderNotSupported
 	}
-	return matched, nil
+	return capability.Platform, nil
 }
 
 func ImageStudioProviderSupportsAutomaticRetry(model string) bool {
@@ -877,7 +864,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
-	capability, ok := ResolveImageStudioProviderCapability(platform, resolvedModel)
+	capability, ok := ResolveImageStudioModelCapability(resolvedModel)
 	if !ok {
 		return nil, "", ErrImageStudioProviderNotSupported
 	}
@@ -1293,7 +1280,7 @@ func (s *ImageStudioService) BuildWorkerRequest(ctx context.Context, job *ImageS
 			return nil, err
 		}
 	}
-	capability, ok := ResolveImageStudioProviderCapability(platform, model)
+	capability, ok := ResolveImageStudioModelCapability(model)
 	if !ok {
 		return nil, ErrImageStudioProviderNotSupported
 	}

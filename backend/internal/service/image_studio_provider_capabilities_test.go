@@ -70,6 +70,63 @@ func TestResolveImageStudioProviderCapabilityGPTImage2VariantsInheritBaseProfile
 	}
 }
 
+func TestResolveImageStudioModelCapabilityInfersModelFamilyWithoutTransportPlatform(t *testing.T) {
+	tests := []struct {
+		model    string
+		platform string
+		profile  string
+	}{
+		{
+			model:    "gpt-image-2",
+			platform: PlatformOpenAI,
+			profile:  "openai:gpt-image-2:v1",
+		},
+		{
+			model:    "models/gemini-3.1-flash-image",
+			platform: PlatformGemini,
+			profile:  "gemini:models/gemini-3.1-flash-image:v1",
+		},
+		{
+			model:    "imagen-4.0-generate-preview",
+			platform: PlatformGemini,
+			profile:  "gemini:imagen-4.0-generate-preview:v1",
+		},
+		{
+			model:    "grok-imagine-image-quality",
+			platform: PlatformGrok,
+			profile:  "grok:grok-imagine-image-quality:v1",
+		},
+		{
+			model:    "flux-pro-image",
+			platform: PlatformOpenAI,
+			profile:  "openai_compatible:flux-pro-image:v1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.model, func(t *testing.T) {
+			capability, ok := ResolveImageStudioModelCapability(tt.model)
+			require.True(t, ok)
+			require.Equal(t, tt.platform, capability.Platform)
+			require.Equal(t, tt.profile, capability.ProfileID)
+		})
+	}
+}
+
+func TestResolveImageStudioModelCapabilityRejectsNonImageModels(t *testing.T) {
+	for _, model := range []string{
+		"gpt-5.2",
+		"text-embedding-3-large",
+		"gemini-3.1-pro",
+		"claude-opus-4-1",
+	} {
+		t.Run(model, func(t *testing.T) {
+			_, ok := ResolveImageStudioModelCapability(model)
+			require.False(t, ok)
+		})
+	}
+}
+
 func TestResolveImageStudioProviderCapabilityRejectsCrossPlatformModels(t *testing.T) {
 	_, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "grok-imagine-image-quality")
 	require.False(t, ok)

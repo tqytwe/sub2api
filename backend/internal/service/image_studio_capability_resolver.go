@@ -28,10 +28,8 @@ func allImageStudioCatalogSizes() []string {
 }
 
 func inferImageStudioQualities(model string) []string {
-	for _, platform := range []string{PlatformOpenAI, PlatformGrok} {
-		if capability, ok := ResolveImageStudioProviderCapability(platform, model); ok {
-			return append([]string(nil), capability.SupportedQualities...)
-		}
+	if capability, ok := ResolveImageStudioModelCapability(model); ok {
+		return append([]string(nil), capability.SupportedQualities...)
 	}
 	return nil
 }
@@ -58,12 +56,8 @@ func isImageStudioSizeRelatedError(msg string) bool {
 	return false
 }
 
-func (s *ImageStudioService) ResolveModelCapabilities(apiKey *APIKey, model string) ImageStudioModelCapabilities {
-	platform := PlatformOpenAI
-	if apiKey != nil && apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
-		platform = strings.TrimSpace(apiKey.Group.Platform)
-	}
-	capability, ok := ResolveImageStudioProviderCapability(platform, model)
+func (s *ImageStudioService) ResolveModelCapabilities(_ *APIKey, model string) ImageStudioModelCapabilities {
+	capability, ok := ResolveImageStudioModelCapability(model)
 	if !ok {
 		return ImageStudioModelCapabilities{}
 	}
