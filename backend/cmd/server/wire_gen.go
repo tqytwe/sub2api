@@ -257,14 +257,14 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	adminPlayHandler := admin.NewAdminPlayHandler(playService)
 	modelCatalogService := service.NewModelCatalogService(modelCatalogRepository, channelService, pricingService, billingService, settingService, apiKeyService)
 	modelCatalogHandler := admin.NewModelCatalogHandler(modelCatalogService)
+	promptLibraryRepository := repository.NewPromptLibraryRepository(db)
+	promptLibraryService := service.NewPromptLibraryService(promptLibraryRepository)
+	adminPromptLibraryHandler := admin.NewPromptLibraryHandler(promptLibraryService)
 	auditLogRepository := repository.NewAuditLogRepository(db)
 	auditLogService := service.ProvideAuditLogService(auditLogRepository, settingService)
 	auditLogHandler := admin.NewAuditLogHandler(auditLogService, totpService)
-	promptLibraryRepository := repository.NewPromptLibraryRepository(db)
-	promptLibraryService := service.NewPromptLibraryService(promptLibraryRepository)
-	promptLibraryHandler := admin.NewPromptLibraryHandler(promptLibraryService)
 	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db)
-	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, paymentHandler, affiliateHandler, complianceHandler, adminPlayHandler, modelCatalogHandler, auditLogHandler, promptLibraryHandler, upstreamBillingProbeService)
+	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, paymentHandler, affiliateHandler, complianceHandler, adminPlayHandler, modelCatalogHandler, auditLogHandler, adminPromptLibraryHandler, upstreamBillingProbeService)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	userMsgQueueCache := repository.NewUserMsgQueueCache(redisClient)
 	userMessageQueueService := service.ProvideUserMessageQueueService(userMsgQueueCache, rpmCache, configConfig)
@@ -292,8 +292,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageHandler := handler.NewBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService)
 	playHandler := handler.NewPlayHandler(playService, billingService)
 	imageStudioRepository := repository.NewImageStudioRepository(client, db)
-	imageStudioService := service.ProvideImageStudioService(imageStudioRepository, apiKeyService, userRepository, settingService, playService, batchImageModelPricingResolver, gatewayService, promptLibraryRepository, configConfig)
-	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, openAIGatewayHandler, billingCacheService, apiKeyService)
+	imageStudioService := service.ProvideImageStudioService(imageStudioRepository, apiKeyService, userRepository, settingService, playService, batchImageModelPricingResolver, gatewayService, promptLibraryRepository, configConfig, secretEncryptor, usageBillingRepository, billingCacheService)
+	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, openAIGatewayHandler, apiKeyService)
 	modelPricingHandler := handler.NewModelPricingHandler(modelCatalogService, playService, billingService)
 	handlerPromptLibraryHandler := handler.NewPromptLibraryHandler(promptLibraryService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
@@ -315,6 +315,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	proxyExpiryService := service.ProvideProxyExpiryService(proxyRepository)
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository, settingRepository, notificationEmailService, leaderLockCache, db)
 	batchImageWorkerRuntime := service.ProvideBatchImageWorkerRuntime(batchImageRepository, accountRepository, batchImageQueue, usageBillingRepository, usageLogRepository, batchImageModelPricingResolver, apiKeyAuthCacheInvalidator, configConfig)
+	imageStudioWorkerRuntime := handler.ProvideImageStudioWorkerRuntime(imageStudioService, imageStudioHandler)
 	scheduledTestRunnerService := service.ProvideScheduledTestRunnerService(scheduledTestPlanRepository, scheduledTestService, accountTestService, rateLimitService, configConfig)
 	paymentOrderExpiryService := service.ProvidePaymentOrderExpiryService(paymentService, leaderLockCache, db)
 	channelMonitorRunner := service.ProvideChannelMonitorRunner(channelMonitorService, settingService)
@@ -322,7 +323,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	playGrowthRunner := service.ProvidePlayGrowthRunner(playService, imageStudioService, leaderLockCache, db)
 	publicHomeStatsRepository := repository.NewPublicHomeStatsRepository(db)
 	publicHomeStatsService := service.NewPublicHomeStatsService(publicHomeStatsRepository)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, auditLogService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, auditLogService)
 	application := &Application{
 		Server:  httpServer,
 		Cleanup: v,
@@ -366,6 +367,7 @@ func provideCleanup(
 	idempotencyCleanup *service.IdempotencyCleanupService,
 	batchImageCleanup *service.BatchImageCleanupService,
 	batchImageWorker *service.BatchImageWorkerRuntime,
+	imageStudioWorker *handler.ImageStudioWorkerRuntime,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
 	billingCache *service.BillingCacheService,
@@ -467,6 +469,12 @@ func provideCleanup(
 			{"BatchImageWorkerRuntime", func() error {
 				if batchImageWorker != nil {
 					batchImageWorker.Stop()
+				}
+				return nil
+			}},
+			{"ImageStudioWorkerRuntime", func() error {
+				if imageStudioWorker != nil {
+					imageStudioWorker.Stop()
 				}
 				return nil
 			}},

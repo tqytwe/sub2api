@@ -60,6 +60,36 @@ func TestListImageModelsForAPIKey_UsesGroupMapping(t *testing.T) {
 	require.Equal(t, []string{"gpt-image-2", "gpt-image-1"}, models)
 }
 
+func TestListImageModelsForAPIKey_FiltersModelsByGroupPlatform(t *testing.T) {
+	groupID := int64(8)
+	resolver := &imageStudioModelResolverStub{
+		models: []string{"gpt-image-2", "grok-imagine-image-quality"},
+	}
+	svc := &ImageStudioService{gateway: resolver}
+
+	openAIModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformOpenAI,
+			AllowImageGeneration: true,
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-image-2"}, openAIModels)
+
+	grokModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformGrok,
+			AllowImageGeneration: true,
+		},
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{"grok-imagine-image-quality"}, grokModels)
+}
+
 func TestResolveImageModel_RejectsUnavailableSelection(t *testing.T) {
 	groupID := int64(7)
 	svc := &ImageStudioService{

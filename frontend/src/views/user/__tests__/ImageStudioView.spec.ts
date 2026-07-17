@@ -18,8 +18,23 @@ function workspaceStub() {
   const userPrompt = ref('')
   const expertPrompt = ref('')
   const expertOpen = ref(false)
+  const activeJobCount = ref(0)
+  const mode = ref<'create' | 'edit'>('create')
+  const supportsCreate = ref(true)
+  const supportsEdit = ref(true)
+  const selectedModelOption = ref({
+    id: 'gpt-image-1.5',
+    display_name: 'GPT Image 1.5',
+    supported_backgrounds: ['auto', 'opaque', 'transparent'],
+    supported_output_formats: ['png', 'jpeg', 'webp'],
+    supported_input_fidelities: ['low', 'high'],
+    input_fidelity_mode: 'selectable',
+    output_compression: { min: 0, max: 100, formats: ['jpeg', 'webp'] },
+  })
   return {
     bootstrapping: ref(false),
+    capabilitiesReady: ref(true),
+    capabilityError: ref(''),
     generating: ref(false),
     polling: ref(false),
     pollNotice: ref(''),
@@ -37,12 +52,29 @@ function workspaceStub() {
     count: ref(1),
     expertOpen,
     expertPrompt,
+    mode,
+    supportsCreate,
+    supportsEdit,
+    operationSupported: computed(() =>
+      mode.value === 'create' ? supportsCreate.value : supportsEdit.value),
+    referenceUploads: ref([]),
+    uploadingReferences: computed(() => false),
+    editReferencesReady: computed(() => mode.value === 'create'),
+    maxReferenceImages: ref(4),
     apiKeyId: ref(8),
     apiKeys: ref([{ id: 8, name: 'Images' }]),
-    availableModels: ref([{ id: 'gpt-image-1', display_name: 'GPT Image 1' }]),
-    selectedModel: ref('gpt-image-1'),
-    selectedModelOption: ref({ id: 'gpt-image-1', display_name: 'GPT Image 1' }),
+    availableModels: ref([selectedModelOption.value]),
+    selectedModel: ref('gpt-image-1.5'),
+    selectedModelOption,
     quality: ref(''),
+    background: ref('auto'),
+    outputFormat: ref('webp'),
+    outputCompression: ref(85),
+    inputFidelity: ref('high'),
+    showBackground: ref(true),
+    showOutputFormat: ref(true),
+    showOutputCompression: ref(true),
+    showInputFidelity: ref(true),
     loadingModels: ref(false),
     modelError: ref(''),
     estimateError: ref(''),
@@ -55,11 +87,20 @@ function workspaceStub() {
       size: '1024x1024',
     }),
     jobs: ref([]),
+    activeJobs: ref([]),
     galleryError: ref(''),
+    galleryLoading: ref(false),
+    galleryPage: ref(1),
+    galleryPageSize: 12,
+    galleryTotal: ref(0),
+    galleryPages: ref(0),
     errorMsg: ref(''),
     autoCleanup: ref(false),
     showFirstWin: ref(false),
     latestJob: ref(null),
+    activeJobCount,
+    atActiveJobLimit: computed(() => activeJobCount.value >= 2),
+    cancelingJobIds: ref(new Set<string>()),
     balance: computed(() => 10),
     hasApiKeys: computed(() => true),
     showAccentColor: computed(() => true),
@@ -81,7 +122,11 @@ function workspaceStub() {
     openPreview: vi.fn(),
     closePreview: vi.fn(),
     regenerateFromJob: vi.fn(),
+    addReferenceFiles: vi.fn(),
+    retryReference: vi.fn(),
+    removeReference: vi.fn(),
     generate: state.generate,
+    cancelJob: vi.fn(),
     removeJob: vi.fn(),
     onAspectChange: vi.fn(),
     onTierChange: vi.fn(),
@@ -119,6 +164,7 @@ function mountView() {
         ImageStudioGallery: true,
         ImageStudioPreviewModal: true,
         ImageStudioSizePicker: true,
+        PromptLibraryPanel: true,
         RouterLink: { template: '<a><slot /></a>' },
       },
     },
@@ -160,6 +206,85 @@ describe('ImageStudioView prompt UX', () => {
     await expertPrompt.trigger('blur')
     expect(wrapper.text()).toContain('imageStudio.expertPromptTooLong')
     expect(wrapper.get('button.btn-primary.w-full').attributes('disabled')).toBeDefined()
+  })
+
+  it('keeps generation available for the second active slot and disables the third', async () => {
+    workspace.userPrompt.value = 'valid prompt'
+    workspace.activeJobCount.value = 1
+    const wrapper = mountView()
+    const generateButton = wrapper.get('button.btn-primary.w-full')
+
+    expect(generateButton.attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).toContain('imageStudio.activeJobs')
+
+    workspace.activeJobCount.value = 2
+    await flushPromises()
+    expect(generateButton.attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('imageStudio.activeJobLimit')
+  })
+
+  it('fails closed and shows the reason when capabilities are unavailable', () => {
+    workspace.userPrompt.value = 'valid prompt'
+    workspace.capabilitiesReady.value = false
+    workspace.capabilityError.value = 'imageStudio.loadCapabilitiesFailed'
+
+    const wrapper = mountView()
+
+    expect(wrapper.get('button.btn-primary.w-full').attributes('disabled')).toBeDefined()
+    expect(wrapper.text()).toContain('imageStudio.loadCapabilitiesFailed')
+  })
+
+  it('shows create and edit modes and forwards selected reference files', async () => {
+    const wrapper = mountView()
+    const modeButtons = wrapper.findAll('[data-testid^="image-mode-"]')
+
+    expect(modeButtons).toHaveLength(2)
+    await modeButtons[1].trigger('click')
+    expect(workspace.mode.value).toBe('edit')
+    await flushPromises()
+
+    const file = new File(['test'], 'reference.png', { type: 'image/png' })
+    const input = wrapper.get('[data-testid="reference-input"]')
+    Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
+    await input.trigger('change')
+    expect(workspace.addReferenceFiles).toHaveBeenCalledWith([file])
+  })
+
+  it('disables model operations that are not supported', async () => {
+    workspace.supportsEdit.value = false
+    const wrapper = mountView()
+
+    expect(wrapper.get('[data-testid="image-mode-create"]').attributes('disabled')).toBeUndefined()
+    expect(wrapper.get('[data-testid="image-mode-edit"]').attributes('disabled')).toBeDefined()
+
+    workspace.supportsCreate.value = false
+    workspace.supportsEdit.value = true
+    workspace.mode.value = 'edit'
+    await flushPromises()
+
+    expect(wrapper.get('[data-testid="image-mode-create"]').attributes('disabled')).toBeDefined()
+    expect(wrapper.get('[data-testid="image-mode-edit"]').attributes('disabled')).toBeUndefined()
+  })
+
+  it('renders advanced controls only when the selected model capability allows them', async () => {
+    workspace.mode.value = 'edit'
+    const wrapper = mountView()
+
+    expect(wrapper.get('[data-testid="background-select"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="output-format-select"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="output-compression-input"]').exists()).toBe(true)
+    expect(wrapper.get('[data-testid="input-fidelity-select"]').exists()).toBe(true)
+
+    workspace.showBackground.value = false
+    workspace.showOutputFormat.value = false
+    workspace.showOutputCompression.value = false
+    workspace.showInputFidelity.value = false
+    await flushPromises()
+
+    expect(wrapper.find('[data-testid="background-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="output-format-select"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="output-compression-input"]').exists()).toBe(false)
+    expect(wrapper.find('[data-testid="input-fidelity-select"]').exists()).toBe(false)
   })
 
   it('switches to works only after polling starts and returns to create on failure', async () => {
@@ -218,6 +343,131 @@ describe('ImageStudioView prompt UX', () => {
 
     expect(wrapper.find('image-studio-gallery-stub').exists()).toBe(true)
     expect(wrapper.find('[data-testid="retry-gallery"]').exists()).toBe(false)
+  })
+
+  it('shows history pagination and requests the adjacent 12-item page', async () => {
+    workspace.jobs.value = [
+      {
+        id: 'job-featured',
+        template_id: 'commerce-white',
+        size: '1024x1024',
+        count: 1,
+        status: 'completed',
+        estimated_cost: 0.1,
+        created_at: '2026-07-16T00:00:00Z',
+        assets: [{ id: 'asset-1', sort_order: 0 }],
+      },
+      {
+        id: 'job-history',
+        template_id: 'commerce-white',
+        size: '1536x1024',
+        count: 1,
+        status: 'partial',
+        estimated_cost: 0.1,
+        created_at: '2026-07-15T00:00:00Z',
+        assets: [{ id: 'asset-2', sort_order: 0 }],
+      },
+    ]
+    workspace.galleryPage.value = 2
+    workspace.galleryPages.value = 3
+    workspace.galleryTotal.value = 25
+    const wrapper = mountView()
+
+    expect(wrapper.text()).toContain('imageStudio.pageStatus')
+    await wrapper.get('button[aria-label="imageStudio.previousPage"]').trigger('click')
+    expect(state.refreshJobs).toHaveBeenCalledWith(1)
+
+    await wrapper.get('button[aria-label="imageStudio.nextPage"]').trigger('click')
+    expect(state.refreshJobs).toHaveBeenCalledWith(3)
+  })
+
+  it('does not present a second-page job as the latest featured result', () => {
+    workspace.jobs.value = [{
+      id: 'job-page-2',
+      template_id: 'commerce-white',
+      size: '1024x1024',
+      count: 1,
+      status: 'completed',
+      estimated_cost: 0.1,
+      created_at: '2026-07-15T00:00:00Z',
+      assets: [{ id: 'asset-page-2', sort_order: 0 }],
+    }]
+    workspace.latestJob.value = workspace.jobs.value[0]
+    workspace.galleryPage.value = 2
+    workspace.galleryPages.value = 3
+
+    const wrapper = mountView()
+	const galleries = wrapper.findAll('image-studio-gallery-stub')
+
+	expect(galleries).toHaveLength(1)
+	expect(galleries[0].attributes('featured')).not.toBe('true')
+  })
+
+  it('renders active jobs separately while keeping all 12 history entries on page one', () => {
+    workspace.activeJobs.value = [{
+      id: 'job-active',
+      template_id: 'commerce-white',
+      size: '1024x1024',
+      count: 1,
+      status: 'running',
+      estimated_cost: 0.1,
+      created_at: '2026-07-17T00:00:00Z',
+      assets: [],
+    }]
+    workspace.jobs.value = Array.from({ length: 12 }, (_, index) => ({
+      id: `job-history-${index + 1}`,
+      template_id: 'commerce-white',
+      size: '1024x1024',
+      count: 1,
+      status: 'completed',
+      estimated_cost: 0.1,
+      created_at: '2026-07-16T00:00:00Z',
+      assets: [{ id: `asset-${index + 1}`, sort_order: 0 }],
+    }))
+    workspace.galleryPage.value = 1
+    workspace.galleryTotal.value = 12
+
+    const wrapper = mountView()
+    const galleries = wrapper.findAllComponents({ name: 'ImageStudioGallery' })
+
+    expect(galleries).toHaveLength(2)
+    expect(galleries[0].props('jobs')).toHaveLength(1)
+    expect(galleries[0].props('jobs')[0].id).toBe('job-active')
+    expect(galleries[0].props('featured')).toBe(true)
+    expect(galleries[1].props('jobs')).toHaveLength(12)
+  })
+
+  it('renders only the exact 12 history entries on later pages', () => {
+    workspace.activeJobs.value = [{
+      id: 'job-active',
+      template_id: 'commerce-white',
+      size: '1024x1024',
+      count: 1,
+      status: 'running',
+      estimated_cost: 0.1,
+      created_at: '2026-07-17T00:00:00Z',
+      assets: [],
+    }]
+    workspace.jobs.value = Array.from({ length: 12 }, (_, index) => ({
+      id: `job-page-2-${index + 1}`,
+      template_id: 'commerce-white',
+      size: '1024x1024',
+      count: 1,
+      status: 'completed',
+      estimated_cost: 0.1,
+      created_at: '2026-07-15T00:00:00Z',
+      assets: [{ id: `asset-page-2-${index + 1}`, sort_order: 0 }],
+    }))
+    workspace.galleryPage.value = 2
+    workspace.galleryPages.value = 3
+    workspace.galleryTotal.value = 25
+
+    const wrapper = mountView()
+    const galleries = wrapper.findAllComponents({ name: 'ImageStudioGallery' })
+
+    expect(galleries).toHaveLength(1)
+    expect(galleries[0].props('jobs')).toHaveLength(12)
+    expect(galleries[0].props('featured')).not.toBe(true)
   })
 
   it('remeasures a restored expert prompt when advanced settings opens and the viewport changes', async () => {

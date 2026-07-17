@@ -189,3 +189,34 @@ func TestOpenAIGatewayHandlerSubmitOpenAIUsageRecordTask_ImageResultUsesMandator
 
 	require.True(t, called.Load(), "image usage task must be mandatory when async submit is dropped")
 }
+
+func TestOpenAIGatewayHandlerSubmitOpenAIUsageRecordTask_ImageStudioRunsSynchronously(t *testing.T) {
+	pool := service.NewUsageRecordWorkerPoolWithOptions(service.UsageRecordWorkerPoolOptions{
+		WorkerCount:           1,
+		QueueSize:             1,
+		TaskTimeout:           time.Second,
+		OverflowPolicy:        "drop",
+		OverflowSamplePercent: 0,
+		AutoScaleEnabled:      false,
+	})
+	t.Cleanup(pool.Stop)
+	h := &OpenAIGatewayHandler{usageRecordWorkerPool: pool}
+
+	block := make(chan struct{})
+	release := make(chan struct{})
+	pool.Submit(func(context.Context) {
+		close(block)
+		<-release
+	})
+	<-block
+
+	var called atomic.Bool
+	parent := service.WithImageStudioManagedBilling(context.Background())
+	h.submitOpenAIUsageRecordTask(parent, &service.OpenAIForwardResult{ImageCount: 1}, func(ctx context.Context) {
+		require.True(t, service.IsImageStudioManagedBilling(ctx))
+		called.Store(true)
+	})
+	close(release)
+
+	require.True(t, called.Load(), "managed Image Studio usage must finish before the gateway returns")
+}

@@ -8,7 +8,7 @@ import (
 )
 
 func TestPromptLibraryMigrationContract(t *testing.T) {
-	content, err := FS.ReadFile("192_prompt_library.sql")
+	content, err := FS.ReadFile("199_prompt_library.sql")
 	require.NoError(t, err)
 
 	sql := strings.ToUpper(strings.Join(strings.Fields(string(content)), " "))
@@ -53,7 +53,7 @@ func TestPromptLibraryMigrationContract(t *testing.T) {
 }
 
 func TestPromptLibraryMigrationAvoidsDestructiveEvidenceCleanup(t *testing.T) {
-	content, err := FS.ReadFile("192_prompt_library.sql")
+	content, err := FS.ReadFile("199_prompt_library.sql")
 	require.NoError(t, err)
 
 	sql := strings.ToUpper(strings.Join(strings.Fields(string(content)), " "))
@@ -68,7 +68,7 @@ func TestPromptLibraryMigrationAvoidsDestructiveEvidenceCleanup(t *testing.T) {
 }
 
 func TestPromptLibrarySeedMigrationKeepsExternalContentInReview(t *testing.T) {
-	content, err := FS.ReadFile("193_prompt_library_seed.sql")
+	content, err := FS.ReadFile("200_prompt_library_seed.sql")
 	require.NoError(t, err)
 
 	sql := strings.ToUpper(strings.Join(strings.Fields(string(content)), " "))

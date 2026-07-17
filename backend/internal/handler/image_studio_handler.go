@@ -1,44 +1,54 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 )
 
-const ImageStudioGenerateRequestBodyLimit int64 = 128 << 10
+const (
+	ImageStudioGenerateRequestBodyLimit  int64 = 128 << 10
+	ImageStudioReferenceRequestBodyLimit int64 = 21 << 20
+	imageStudioPrivateCacheControl             = "private, no-store"
+)
 
 type ImageStudioHandler struct {
 	studio        *service.ImageStudioService
-	gateway       *OpenAIGatewayHandler
-	billingCache  *service.BillingCacheService
+	gateway       imageStudioGateway
 	apiKeyService *service.APIKeyService
+}
+
+type imageStudioGateway interface {
+	Images(c *gin.Context)
+	GrokImages(c *gin.Context)
 }
 
 func NewImageStudioHandler(
 	studio *service.ImageStudioService,
 	gateway *OpenAIGatewayHandler,
-	billingCache *service.BillingCacheService,
 	apiKeyService *service.APIKeyService,
 ) *ImageStudioHandler {
 	return &ImageStudioHandler{
 		studio:        studio,
 		gateway:       gateway,
-		billingCache:  billingCache,
 		apiKeyService: apiKeyService,
 	}
 }
@@ -90,12 +100,30 @@ func (h *ImageStudioHandler) Estimate(c *gin.Context) {
 		count,
 		apiKeyID,
 		c.Query("model"),
+		parseImageStudioEstimateReferenceIDs(c),
 	)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, got)
+}
+
+func parseImageStudioEstimateReferenceIDs(c *gin.Context) []string {
+	if c == nil {
+		return nil
+	}
+	values := append([]string(nil), c.QueryArray("reference_ids")...)
+	values = append(values, c.QueryArray("reference_ids[]")...)
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		for _, part := range strings.Split(value, ",") {
+			if id := strings.TrimSpace(part); id != "" {
+				out = append(out, id)
+			}
+		}
+	}
+	return out
 }
 
 func (h *ImageStudioHandler) Generate(c *gin.Context) {
@@ -108,28 +136,122 @@ func (h *ImageStudioHandler) Generate(c *gin.Context) {
 	if !bindImageStudioGenerateRequest(c, &req) {
 		return
 	}
-	job, body, err := h.studio.CreatePendingJob(c.Request.Context(), subject.UserID, req)
+	if err := prepareImageStudioGenerateIdempotency(c, subject.UserID, &req); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	executeUserIdempotentJSON(
+		c,
+		"user.image_studio.generate",
+		req,
+		service.DefaultWriteIdempotencyTTL(),
+		func(ctx context.Context) (any, error) {
+			job, _, err := h.studio.CreatePendingJob(ctx, subject.UserID, req)
+			if err != nil {
+				return nil, err
+			}
+			if job.APIKeyID == nil {
+				return nil, service.ErrImageStudioAPIKey
+			}
+			return gin.H{
+				"job":   job,
+				"async": true,
+				"poll":  fmt.Sprintf("/api/v1/image-studio/jobs/%s", job.ID),
+			}, nil
+		},
+	)
+}
+
+func prepareImageStudioGenerateIdempotency(
+	c *gin.Context,
+	userID int64,
+	req *service.ImageStudioGenerateRequest,
+) error {
+	if c == nil || c.Request == nil || req == nil {
+		return service.ErrIdempotencyKeyRequired
+	}
+	key, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		return err
+	}
+	if key == "" {
+		return service.ErrIdempotencyKeyRequired
+	}
+	fingerprint, err := service.BuildIdempotencyFingerprint(
+		http.MethodPost,
+		"/api/v1/image-studio/generate",
+		fmt.Sprintf("user:%d", userID),
+		req,
+	)
+	if err != nil {
+		return err
+	}
+	req.IdempotencyKeyHash = service.HashIdempotencyKey(key)
+	req.IdempotencyFingerprint = fingerprint
+	return nil
+}
+
+func (h *ImageStudioHandler) UploadReference(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	release, err := h.studio.AcquireReferenceUpload(
+		c.Request.Context(),
+		subject.UserID,
+		time.Now().UTC(),
+	)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if job.APIKeyID == nil {
-		response.ErrorFrom(c, service.ErrImageStudioAPIKey)
+	defer release()
+	file, header, err := c.Request.FormFile("image")
+	if err != nil {
+		response.ErrorFrom(c, service.ErrImageStudioReferenceInvalid)
 		return
 	}
-	userID := subject.UserID
-	jobID := job.ID
-	apiKeyID := *job.APIKeyID
-	estimatedCost := job.EstimatedCost
-	baseCtx := c.Request.Context()
+	defer func() { _ = file.Close() }()
+	data, err := io.ReadAll(io.LimitReader(file, service.ImageStudioReferenceUploadMaxBytes+1))
+	if err != nil {
+		response.ErrorFrom(c, service.ErrImageStudioReferenceInvalid)
+		return
+	}
+	if int64(len(data)) > service.ImageStudioReferenceUploadMaxBytes {
+		response.ErrorFrom(c, service.ErrImageStudioReferenceTooLarge)
+		return
+	}
+	contentType := strings.TrimSpace(header.Header.Get("Content-Type"))
+	reference, err := h.studio.CreateReference(
+		c.Request.Context(),
+		subject.UserID,
+		header.Filename,
+		contentType,
+		data,
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"reference": reference})
+}
 
-	go h.runGenerateJob(baseCtx, userID, jobID, apiKeyID, estimatedCost, body)
-
-	response.Success(c, gin.H{
-		"job":   job,
-		"async": true,
-		"poll":  fmt.Sprintf("/api/v1/image-studio/jobs/%s", jobID),
-	})
+func (h *ImageStudioHandler) DeleteReference(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	referenceID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	if err := h.studio.DeleteReference(c.Request.Context(), subject.UserID, referenceID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
 }
 
 func bindImageStudioGenerateRequest(c *gin.Context, req *service.ImageStudioGenerateRequest) bool {
@@ -161,46 +283,101 @@ func writeImageStudioGenerateBindError(c *gin.Context, err error) {
 	response.BadRequest(c, "Invalid request body")
 }
 
+func requireImageStudioUUIDParam(c *gin.Context) (string, bool) {
+	id, err := uuid.Parse(strings.TrimSpace(c.Param("id")))
+	if err != nil {
+		response.ErrorFrom(c, service.ErrImageStudioInvalidID)
+		return "", false
+	}
+	return id.String(), true
+}
+
 func (h *ImageStudioHandler) ActiveJob(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	job, err := h.studio.GetActiveJob(c.Request.Context(), subject.UserID)
+	jobs, err := h.studio.ListActiveJobs(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"job": job})
+	var job *service.ImageStudioJob
+	if len(jobs) > 0 {
+		job = &jobs[0]
+	}
+	response.Success(c, gin.H{"job": job, "jobs": jobs})
 }
 
-func (h *ImageStudioHandler) runGenerateJob(parent context.Context, userID int64, jobID string, apiKeyID int64, estimatedCost float64, body string) {
-	ctx := context.WithoutCancel(parent)
-	_ = h.studio.MarkJobRunning(ctx, jobID)
-
-	storedKey, err := h.apiKeyService.GetByID(ctx, apiKeyID)
-	if err != nil {
-		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, service.ErrImageStudioAPIKey.Error())
+func (h *ImageStudioHandler) CancelJob(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
 		return
+	}
+	jobID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	job, err := h.studio.CancelJob(c.Request.Context(), subject.UserID, jobID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, job)
+}
+
+func (h *ImageStudioHandler) processWorkerItem(
+	ctx context.Context,
+	job *service.ImageStudioJob,
+	item *service.ImageStudioItem,
+	body string,
+) (*service.ImageStudioImagePayload, float64, error) {
+	if job == nil || item == nil || job.APIKeyID == nil {
+		return nil, 0, service.ErrImageStudioAPIKey
+	}
+	storedKey, err := h.apiKeyService.GetByID(ctx, *job.APIKeyID)
+	if err != nil {
+		return nil, 0, service.ErrImageStudioAPIKey
 	}
 	apiKey, err := h.apiKeyService.GetByKey(ctx, storedKey.Key)
 	if err != nil {
-		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, service.ErrImageStudioAPIKey.Error())
-		return
+		return nil, 0, service.ErrImageStudioAPIKey
 	}
-	images, actualCost, genErr := h.invokeGatewayImages(ctx, apiKey, body, estimatedCost)
-	if genErr != nil {
-		h.studio.RecordGenerateFailure(
-			gjson.Get(body, "model").String(),
-			gjson.Get(body, "size").String(),
-			errString(genErr),
-		)
+	requestID := fmt.Sprintf("image-studio:%s:%s", job.ID, item.ID)
+	ctx = context.WithValue(ctx, ctxkey.ClientRequestID, requestID)
+	ctx = service.WithImageStudioBillingActualCostCap(
+		ctx,
+		service.ImageStudioPerItemBillingCap(job),
+	)
+	workerReq, err := h.studio.BuildWorkerRequest(ctx, job, body)
+	if err != nil {
+		h.studio.RecordGenerateFailure(job.Model, job.Size, err.Error())
+		return nil, 0, err
 	}
-	if _, completeErr := h.studio.CompleteJob(ctx, userID, jobID, images, actualCost, errString(genErr)); completeErr != nil {
-		// Fall back to an explicit failed job so polling never sees orphan "completed" rows.
-		_, _ = h.studio.CompleteJob(ctx, userID, jobID, nil, 0, completeErr.Error())
+	images, actualCost, err := h.invokeGatewayImagesOnce(ctx, apiKey, workerReq)
+	if err != nil {
+		h.studio.RecordGenerateFailure(job.Model, job.Size, err.Error())
+		return nil, 0, err
 	}
+	if len(images) == 0 {
+		return nil, 0, errors.New("image studio gateway returned no image")
+	}
+	return &images[0], actualCost, nil
+}
+
+func ProvideImageStudioWorkerRuntime(
+	studio *service.ImageStudioService,
+	handler *ImageStudioHandler,
+) *ImageStudioWorkerRuntime {
+	runtime := NewImageStudioWorkerRuntime(
+		studio,
+		handler.processWorkerItem,
+		ImageStudioWorkerRuntimeOptions{},
+	)
+	runtime.Start()
+	return runtime
 }
 
 func (h *ImageStudioHandler) ListJobs(c *gin.Context) {
@@ -209,13 +386,42 @@ func (h *ImageStudioHandler) ListJobs(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	limit, _ := parseIntQueryDefault(c, "limit", 20)
-	jobs, err := h.studio.ListJobs(c.Request.Context(), subject.UserID, limit)
+	page, _ := parseIntQueryDefault(c, "page", 1)
+	pageSize, _ := parseIntQueryDefault(c, "page_size", 12)
+	if page <= 0 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 12
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	jobs, total, err := h.studio.ListJobsPage(c.Request.Context(), subject.UserID, page, pageSize)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, gin.H{"jobs": jobs})
+	pages := 0
+	if total > 0 {
+		pages = int(math.Ceil(float64(total) / float64(pageSize)))
+	}
+	if total > 0 && len(jobs) == 0 && page > pages {
+		page = pages
+		jobs, total, err = h.studio.ListJobsPage(c.Request.Context(), subject.UserID, page, pageSize)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		pages = int(math.Ceil(float64(total) / float64(pageSize)))
+	}
+	response.Success(c, gin.H{
+		"jobs":      jobs,
+		"total":     total,
+		"page":      page,
+		"page_size": pageSize,
+		"pages":     pages,
+	})
 }
 
 func (h *ImageStudioHandler) GetJob(c *gin.Context) {
@@ -224,7 +430,11 @@ func (h *ImageStudioHandler) GetJob(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	job, err := h.studio.GetJob(c.Request.Context(), subject.UserID, c.Param("id"))
+	jobID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	job, err := h.studio.GetJob(c.Request.Context(), subject.UserID, jobID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -238,7 +448,11 @@ func (h *ImageStudioHandler) DeleteJob(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	if err := h.studio.DeleteJob(c.Request.Context(), subject.UserID, c.Param("id")); err != nil {
+	jobID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	if err := h.studio.DeleteJob(c.Request.Context(), subject.UserID, jobID); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -251,11 +465,16 @@ func (h *ImageStudioHandler) AssetContent(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, c.Param("id"))
+	assetID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, assetID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	c.Header("Cache-Control", imageStudioPrivateCacheControl)
 	if len(data) == 0 && contentType != "" && strings.HasPrefix(contentType, "http") {
 		c.Redirect(http.StatusFound, contentType)
 		return
@@ -266,17 +485,41 @@ func (h *ImageStudioHandler) AssetContent(c *gin.Context) {
 	c.Data(http.StatusOK, contentType, data)
 }
 
+func (h *ImageStudioHandler) AssetThumbnail(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	assetID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	data, contentType, err := h.studio.OpenAssetThumbnail(c.Request.Context(), subject.UserID, assetID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Header("Cache-Control", imageStudioPrivateCacheControl)
+	c.Data(http.StatusOK, contentType, data)
+}
+
 func (h *ImageStudioHandler) AssetDownload(c *gin.Context) {
 	subject, ok := middleware2.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, c.Param("id"))
+	assetID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, assetID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
+	c.Header("Cache-Control", imageStudioPrivateCacheControl)
 	if len(data) == 0 && contentType != "" && strings.HasPrefix(contentType, "http") {
 		c.Redirect(http.StatusFound, contentType)
 		return
@@ -292,51 +535,31 @@ func (h *ImageStudioHandler) AssetDownload(c *gin.Context) {
 		ext = ".webp"
 	}
 	filename := "image-studio"
-	if id := c.Param("id"); len(id) >= 8 {
-		filename += "-" + id[:8]
+	if len(assetID) >= 8 {
+		filename += "-" + assetID[:8]
 	}
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s%s\"", filename, ext))
 	c.Data(http.StatusOK, contentType, data)
 }
 
-func (h *ImageStudioHandler) invokeGatewayImages(ctx context.Context, apiKey *service.APIKey, body string, estimatedCost float64) ([]service.ImageStudioImagePayload, float64, error) {
-	authKey, err := h.apiKeyService.GetByKey(ctx, apiKey.Key)
+func (h *ImageStudioHandler) JobDownload(c *gin.Context) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	jobID, ok := requireImageStudioUUIDParam(c)
+	if !ok {
+		return
+	}
+	data, filename, err := h.studio.OpenJobArchive(c.Request.Context(), subject.UserID, jobID)
 	if err != nil {
-		return nil, 0, service.ErrImageStudioAPIKey
+		response.ErrorFrom(c, err)
+		return
 	}
-	apiKey = authKey
-	if service.ValidateImageStudioAPIKey(apiKey) != nil {
-		return nil, 0, service.ErrImageStudioAPIKey
-	}
-	if h.gateway == nil {
-		return nil, 0, service.ErrImageStudioDisabled
-	}
-
-	requestCount := imageStudioGenerationCount(body)
-	if requestCount > 1 {
-		singleBody, err := imageStudioSingleImageRequestBody(body)
-		if err != nil {
-			return nil, 0, err
-		}
-		perRequestEstimatedCost := estimatedCost / float64(requestCount)
-		allImages := make([]service.ImageStudioImagePayload, 0, requestCount)
-		totalActualCost := 0.0
-		for i := 0; i < requestCount; i++ {
-			images, actualCost, err := h.invokeGatewayImagesOnce(ctx, apiKey, singleBody, perRequestEstimatedCost)
-			if err != nil {
-				return nil, totalActualCost, err
-			}
-			allImages = append(allImages, images...)
-			totalActualCost += actualCost
-		}
-		normalized, err := service.NormalizeImageStudioPayloads(ctx, allImages)
-		if err != nil {
-			return nil, 0, err
-		}
-		return normalized, totalActualCost, nil
-	}
-
-	return h.invokeGatewayImagesOnce(ctx, apiKey, body, estimatedCost)
+	c.Header("Cache-Control", imageStudioPrivateCacheControl)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
+	c.Data(http.StatusOK, "application/zip", data)
 }
 
 func imageStudioGenerationCount(body string) int {
@@ -354,13 +577,28 @@ func imageStudioSingleImageRequestBody(body string) (string, error) {
 	return sjson.Set(body, "n", 1)
 }
 
-func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey *service.APIKey, body string, estimatedCost float64) ([]service.ImageStudioImagePayload, float64, error) {
+func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey *service.APIKey, workerReq *service.ImageStudioWorkerRequest) ([]service.ImageStudioImagePayload, float64, error) {
+	if workerReq == nil || len(workerReq.Body) == 0 {
+		return nil, 0, errors.New("image studio worker request is empty")
+	}
 	rec := httptest.NewRecorder()
 	gwCtx, _ := gin.CreateTestContext(rec)
-	gwCtx.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", strings.NewReader(body))
-	gwCtx.Request = gwCtx.Request.WithContext(ctx)
-	gwCtx.Request.Header.Set("Content-Type", "application/json")
+	endpoint := strings.TrimSpace(workerReq.Endpoint)
+	if endpoint == "" {
+		endpoint = "/v1/images/generations"
+	}
+	gwCtx.Request = httptest.NewRequest(http.MethodPost, endpoint, bytes.NewReader(workerReq.Body))
+	costCapture := service.NewImageStudioBillingCapture()
+	gwCtx.Request = gwCtx.Request.WithContext(service.WithImageStudioBillingCapture(ctx, costCapture))
+	contentType := strings.TrimSpace(workerReq.ContentType)
+	if contentType == "" {
+		contentType = "application/json"
+	}
+	gwCtx.Request.Header.Set("Content-Type", contentType)
 	gwCtx.Request.Header.Set("Authorization", "Bearer "+apiKey.Key)
+	if requestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(requestID) != "" {
+		gwCtx.Request.Header.Set("Idempotency-Key", strings.TrimSpace(requestID))
+	}
 	gwCtx.Set(string(middleware2.ContextKeyAPIKey), apiKey)
 	if apiKey.Group != nil && service.IsGroupContextValid(apiKey.Group) {
 		gwCtx.Request = gwCtx.Request.WithContext(context.WithValue(gwCtx.Request.Context(), ctxkey.Group, apiKey.Group))
@@ -373,15 +611,13 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 		UserID:      apiKey.UserID,
 		Concurrency: concurrency,
 	})
-	h.gateway.Images(gwCtx)
-	respBody, _ := io.ReadAll(rec.Body)
-	if rec.Code >= 400 {
-		msg := strings.TrimSpace(string(respBody))
-		if msg == "" {
-			msg = "image generation failed"
-		}
-		return nil, 0, fmt.Errorf("%s", msg)
+	if err := h.dispatchImageStudioGateway(gwCtx, workerReq); err != nil {
+		return nil, 0, err
 	}
+	if rec.Code >= 400 {
+		return nil, 0, fmt.Errorf("image generation provider request failed with status %d", rec.Code)
+	}
+	respBody, _ := io.ReadAll(rec.Body)
 	var parsed struct {
 		Data []struct {
 			URL     string `json:"url"`
@@ -420,11 +656,34 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 	if err != nil {
 		return nil, 0, err
 	}
-	actualCost := estimatedCost
-	if usageCost := gjson.GetBytes(respBody, "usage.total_cost").Float(); usageCost > 0 {
-		actualCost = usageCost
+	costCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if capturedCost, ok := costCapture.Wait(costCtx); ok {
+		return normalized, capturedCost, nil
 	}
-	return normalized, actualCost, nil
+	actualCostResult := gjson.GetBytes(respBody, "usage.total_cost")
+	if actualCostResult.Exists() && actualCostResult.Float() >= 0 {
+		return normalized, actualCostResult.Float(), nil
+	}
+	return nil, 0, errors.New("image studio authoritative usage cost is unavailable")
+}
+
+func (h *ImageStudioHandler) dispatchImageStudioGateway(
+	gwCtx *gin.Context,
+	workerReq *service.ImageStudioWorkerRequest,
+) error {
+	if h == nil || h.gateway == nil || gwCtx == nil || workerReq == nil {
+		return errors.New("image studio gateway is unavailable")
+	}
+	switch strings.ToLower(strings.TrimSpace(workerReq.Platform)) {
+	case service.PlatformOpenAI:
+		h.gateway.Images(gwCtx)
+	case service.PlatformGrok:
+		h.gateway.GrokImages(gwCtx)
+	default:
+		return service.ErrImageStudioProviderNotSupported
+	}
+	return nil
 }
 
 func parseInt64Query(c *gin.Context, key string) (int64, bool) {
@@ -449,11 +708,4 @@ func parseIntQueryDefault(c *gin.Context, key string, def int) (int, bool) {
 		return def, true
 	}
 	return v, true
-}
-
-func errString(err error) string {
-	if err == nil {
-		return ""
-	}
-	return err.Error()
 }

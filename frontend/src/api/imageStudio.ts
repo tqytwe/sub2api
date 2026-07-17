@@ -62,10 +62,33 @@ export interface ImageStudioEstimate {
 export interface ImageStudioModelOption {
   id: string
   display_name: string
+  platform?: 'openai' | 'grok' | (string & {})
+  capability_profile_id?: string
+  capability_revision?: string
+  operations?: Array<'create' | 'edit' | (string & {})>
+  sizing_kind?: 'fixed' | 'custom' | 'aspect_resolution' | (string & {})
   supported_sizes?: string[]
+  supported_aspect_ratios?: string[]
+  supported_resolutions?: string[]
   supported_qualities?: string[]
+  supported_backgrounds?: string[]
+  supported_output_formats?: string[]
+  supported_input_fidelities?: string[]
+  input_fidelity_mode?: 'selectable' | 'fixed' | (string & {})
+  supports_transparency?: boolean
+  output_compression?: {
+    min: number
+    max: number
+    formats: string[]
+  }
+  max_reference_images?: number
   default_size?: string
+  default_aspect_ratio?: string
+  default_resolution?: string
   default_quality?: string
+  default_background?: string
+  default_output_format?: string
+  default_input_fidelity?: string
 }
 
 export interface ImageStudioAsset {
@@ -74,8 +97,39 @@ export interface ImageStudioAsset {
   sort_order: number
   content_type?: string
   byte_size?: number
+  width?: number
+  height?: number
+  aspect_ratio?: string
+  thumbnail_url?: string
   preview_url?: string
   download_url?: string
+}
+
+export interface ImageStudioReference {
+  id: string
+  filename?: string
+  content_type: string
+  byte_size: number
+  expires_at: string
+}
+
+export type ImageStudioJobStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'partial'
+  | 'failed'
+  | 'cancelled'
+  | (string & {})
+
+export interface ImageStudioJobItem {
+  id?: string
+  status?: string
+  error?: string
+  error_message?: string
+  asset_id?: string
+  asset?: ImageStudioAsset
+  assets?: ImageStudioAsset[]
 }
 
 export interface ImageStudioJob {
@@ -87,12 +141,23 @@ export interface ImageStudioJob {
   quality?: string
   size: string
   count: number
-  status: 'pending' | 'running' | 'completed' | 'failed' | string
+  status: ImageStudioJobStatus
   estimated_cost: number
   actual_cost?: number
   error_message?: string
+  success_count?: number
+  fail_count?: number
+  items?: ImageStudioJobItem[]
   created_at: string
   assets?: ImageStudioAsset[]
+}
+
+export interface ImageStudioJobPage {
+  jobs: ImageStudioJob[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
 }
 
 export interface ImageStudioGenerateRequest {
@@ -110,6 +175,12 @@ export interface ImageStudioGenerateRequest {
   expert_prompt?: string | null
   api_key_id: number
   retain_days?: number
+  mode?: 'create' | 'edit'
+  reference_ids?: string[]
+  background?: string
+  output_format?: string
+  output_compression?: number
+  input_fidelity?: string
 }
 
 export interface ImageStudioGenerateResult {
@@ -142,24 +213,138 @@ export async function estimateImageStudio(params: {
   count?: number
   api_key_id?: number
   model?: string
+  reference_ids?: string[]
 }): Promise<ImageStudioEstimate> {
   const { data } = await apiClient.get<ImageStudioEstimate>('/image-studio/estimate', { params })
   return data
 }
 
-export async function generateImageStudio(body: ImageStudioGenerateRequest): Promise<ImageStudioGenerateResult> {
-  const { data } = await apiClient.post<ImageStudioGenerateResult>('/image-studio/generate', body)
+export async function generateImageStudio(
+  body: ImageStudioGenerateRequest,
+  idempotencyKey: string,
+): Promise<ImageStudioGenerateResult> {
+  const { data } = await apiClient.post<ImageStudioGenerateResult>(
+    '/image-studio/generate',
+    body,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
   return data
 }
 
-export async function getImageStudioJob(id: string): Promise<ImageStudioJob> {
-  const { data } = await apiClient.get<ImageStudioJob>(`/image-studio/jobs/${id}`)
+export async function uploadImageStudioReference(
+  file: File,
+  signal?: AbortSignal,
+): Promise<ImageStudioReference> {
+  const body = new FormData()
+  body.append('image', file)
+  const { data } = await apiClient.post<{ reference: ImageStudioReference }>(
+    '/image-studio/references',
+    body,
+    signal ? { signal } : undefined,
+  )
+  return data.reference
+}
+
+export async function deleteImageStudioReference(id: string): Promise<void> {
+  await apiClient.delete(`/image-studio/references/${encodeURIComponent(id)}`)
+}
+
+export async function getImageStudioJob(
+  id: string,
+  signal?: AbortSignal,
+): Promise<ImageStudioJob> {
+  const { data } = await apiClient.get<ImageStudioJob>(
+    `/image-studio/jobs/${id}`,
+    signal ? { signal } : undefined,
+  )
   return data
+}
+
+export function isImageStudioJobActive(job: Pick<ImageStudioJob, 'status'>): boolean {
+  return job.status === 'pending' || job.status === 'running'
+}
+
+export function isImageStudioJobTerminal(job: Pick<ImageStudioJob, 'status'>): boolean {
+  return !isImageStudioJobActive(job)
+}
+
+function normalizeImageStudioJobs(
+  data: ImageStudioJob[] | { jobs?: ImageStudioJob[]; job?: ImageStudioJob | null } | null | undefined,
+): ImageStudioJob[] {
+  if (Array.isArray(data)) return data
+  const jobs = Array.isArray(data?.jobs) ? data.jobs : []
+  if (jobs.length > 0) return jobs
+  return data?.job ? [data.job] : []
+}
+
+function positiveInteger(value: unknown, fallback: number): number {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function nonNegativeInteger(value: unknown, fallback: number): number {
+  const parsed = Number(value)
+  return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback
+}
+
+function normalizeImageStudioJobPage(
+  data: ImageStudioJob[] | Partial<ImageStudioJobPage> | null | undefined,
+  requestedPage: number,
+  requestedPageSize: number,
+): ImageStudioJobPage {
+  const jobs = normalizeImageStudioJobs(data)
+  const page = positiveInteger(Array.isArray(data) ? undefined : data?.page, requestedPage)
+  const pageSize = positiveInteger(
+    Array.isArray(data) ? undefined : data?.page_size,
+    requestedPageSize,
+  )
+  const total = nonNegativeInteger(
+    Array.isArray(data) ? undefined : data?.total,
+    jobs.length,
+  )
+  const fallbackPages = total === 0 ? 0 : Math.ceil(total / pageSize)
+  const pages = nonNegativeInteger(
+    Array.isArray(data) ? undefined : data?.pages,
+    fallbackPages,
+  )
+  return { jobs, total, page, page_size: pageSize, pages }
+}
+
+export async function getActiveImageStudioJobs(): Promise<ImageStudioJob[]> {
+  const { data } = await apiClient.get<{
+    jobs?: ImageStudioJob[]
+    job?: ImageStudioJob | null
+  }>('/image-studio/jobs/active')
+  return normalizeImageStudioJobs(data).filter(isImageStudioJobActive)
 }
 
 export async function getActiveImageStudioJob(): Promise<ImageStudioJob | null> {
-  const { data } = await apiClient.get<{ job: ImageStudioJob | null }>('/image-studio/jobs/active')
-  return data.job ?? null
+  return (await getActiveImageStudioJobs())[0] ?? null
+}
+
+function imageStudioPollAbortError(): Error {
+  return new Error('IMAGE_STUDIO_POLL_ABORTED')
+}
+
+function throwIfImageStudioPollAborted(signal?: AbortSignal) {
+  if (signal?.aborted) {
+    throw imageStudioPollAbortError()
+  }
+}
+
+function waitForImageStudioPoll(intervalMs: number, signal?: AbortSignal): Promise<void> {
+  throwIfImageStudioPollAborted(signal)
+  return new Promise((resolve, reject) => {
+    const onAbort = () => {
+      clearTimeout(timer)
+      reject(imageStudioPollAbortError())
+    }
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort)
+      resolve()
+    }, intervalMs)
+    signal?.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 export async function pollImageStudioJob(
@@ -170,43 +355,72 @@ export async function pollImageStudioJob(
   const timeoutMs = opts?.timeoutMs ?? 180000
   const start = Date.now()
   for (;;) {
-    if (opts?.signal?.aborted) {
-      throw new Error('IMAGE_STUDIO_POLL_ABORTED')
+    throwIfImageStudioPollAborted(opts?.signal)
+    let job: ImageStudioJob
+    try {
+      job = await getImageStudioJob(id, opts?.signal)
+    } catch (error) {
+      throwIfImageStudioPollAborted(opts?.signal)
+      throw error
     }
-    const job = await getImageStudioJob(id)
-    if (job.status === 'completed' || job.status === 'failed') {
+    throwIfImageStudioPollAborted(opts?.signal)
+    if (isImageStudioJobTerminal(job)) {
       return job
     }
     if (Date.now() - start > timeoutMs) {
       throw new Error('IMAGE_STUDIO_POLL_TIMEOUT')
     }
-    await new Promise((r) => setTimeout(r, intervalMs))
+    await waitForImageStudioPoll(intervalMs, opts?.signal)
   }
 }
 
-export async function listImageStudioJobs(limit = 20): Promise<ImageStudioJob[]> {
-  const { data } = await apiClient.get<{ jobs: ImageStudioJob[] }>('/image-studio/jobs', { params: { limit } })
-  return data.jobs ?? []
+export async function listImageStudioJobs(
+  page = 1,
+  pageSize = 12,
+): Promise<ImageStudioJobPage> {
+  const { data } = await apiClient.get<ImageStudioJob[] | Partial<ImageStudioJobPage>>(
+    '/image-studio/jobs',
+    { params: { page, page_size: pageSize } },
+  )
+  return normalizeImageStudioJobPage(data, page, pageSize)
+}
+
+export async function cancelImageStudioJob(id: string): Promise<ImageStudioJob> {
+  const { data } = await apiClient.post<ImageStudioJob>(
+    `/image-studio/jobs/${encodeURIComponent(id)}/cancel`,
+  )
+  return data
 }
 
 export async function deleteImageStudioJob(id: string): Promise<void> {
   await apiClient.delete(`/image-studio/jobs/${id}`)
 }
 
-export async function fetchImageStudioAssetBlob(assetId: string, mode: 'content' | 'download' = 'content'): Promise<Blob> {
-  const path = `/image-studio/assets/${encodeURIComponent(assetId)}/${mode}`
-  const response = await apiClient.get(path, { responseType: 'blob' })
-  const blob = response.data as Blob
+async function validateImageStudioBlob(responseData: unknown, emptyMessage: string): Promise<Blob> {
+  const blob = responseData as Blob
   const ctype = String(blob?.type || '').toLowerCase()
   if (!blob || blob.size === 0) {
-    throw new Error('empty asset')
+    throw new Error(emptyMessage)
   }
   // Axios may surface JSON API errors as Blob when responseType is blob.
   if (ctype.includes('json') || ctype.includes('text')) {
     const text = await blob.text()
-    throw new Error(text || 'asset fetch failed')
+    throw new Error(text || emptyMessage)
   }
   return blob
+}
+
+export async function fetchImageStudioAssetBlob(
+  assetId: string,
+  mode: 'thumbnail' | 'content' | 'download' = 'content',
+  signal?: AbortSignal,
+): Promise<Blob> {
+  const path = `/image-studio/assets/${encodeURIComponent(assetId)}/${mode}`
+  const response = await apiClient.get(path, {
+    responseType: 'blob',
+    ...(signal ? { signal } : {}),
+  })
+  return validateImageStudioBlob(response.data, 'asset fetch failed')
 }
 
 export async function downloadImageStudioAsset(
@@ -219,6 +433,15 @@ export async function downloadImageStudioAsset(
   saveBlob(blob, filename)
 }
 
+export async function downloadImageStudioJob(id: string): Promise<void> {
+  const response = await apiClient.get(
+    `/image-studio/jobs/${encodeURIComponent(id)}/download`,
+    { responseType: 'blob' },
+  )
+  const blob = await validateImageStudioBlob(response.data, 'job download failed')
+  saveBlob(blob, `image-studio-${id.slice(0, 8)}.zip`)
+}
+
 export { extensionForContentType, filenameForAsset, saveBlob }
 
 export const imageStudioAPI = {
@@ -227,13 +450,18 @@ export const imageStudioAPI = {
   listImageStudioModels,
   estimateImageStudio,
   generateImageStudio,
+  uploadImageStudioReference,
+  deleteImageStudioReference,
   getImageStudioJob,
+  getActiveImageStudioJobs,
   getActiveImageStudioJob,
   pollImageStudioJob,
   listImageStudioJobs,
+  cancelImageStudioJob,
   deleteImageStudioJob,
   fetchImageStudioAssetBlob,
   downloadImageStudioAsset,
+  downloadImageStudioJob,
 }
 
 export default imageStudioAPI

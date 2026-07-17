@@ -182,6 +182,7 @@ var ProviderSet = wire.NewSet(
 	NewBatchImageHandler,
 	NewPlayHandler,
 	NewImageStudioHandler,
+	ProvideImageStudioWorkerRuntime,
 	NewModelPricingHandler,
 	NewPromptLibraryHandler,
 

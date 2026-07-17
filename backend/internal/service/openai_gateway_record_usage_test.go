@@ -1829,6 +1829,75 @@ func TestOpenAIGatewayServiceRecordUsage_ImageUsesPerImageBillingEvenWithUsageTo
 	require.InDelta(t, 0.0, usageRepo.lastLog.ImageOutputCost, 1e-12)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_ImageEditAddsTextAndImageInputTokenCost(t *testing.T) {
+	groupID := int64(1203)
+	imagePrice := 0.02
+	inputPrice := 5e-6
+	imageInputPrice := 8e-6
+	cache := newEmptyChannelCache()
+	cache.pricingByGroupModel[channelModelKey{groupID: groupID, model: "gpt-image-2"}] = &ChannelModelPricing{
+		BillingMode:     BillingModeImage,
+		PerRequestPrice: &imagePrice,
+		InputPrice:      &inputPrice,
+		ImageInputPrice: &imageInputPrice,
+	}
+	cache.channelByGroupID[groupID] = &Channel{ID: groupID, Status: StatusActive}
+	cache.loadedAt = time.Now()
+	channelService := &ChannelService{}
+	channelService.cache.Store(cache)
+
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(
+		usageRepo,
+		userRepo,
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+	svc.resolver = NewModelPricingResolver(
+		channelService,
+		NewBillingService(&config.Config{}, nil),
+	)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_image_edit_input_tokens",
+			Model:     "gpt-image-2",
+			Usage: OpenAIUsage{
+				InputTokens:       371,
+				ImageInputTokens:  352,
+				OutputTokens:      439,
+				ImageOutputTokens: 439,
+			},
+			ImageCount: 1,
+			ImageSize:  "1K",
+			Duration:   time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      11203,
+			GroupID: i64p(groupID),
+			Group: &Group{
+				ID:             groupID,
+				RateMultiplier: 1,
+			},
+		},
+		User:    &User{ID: 21203},
+		Account: &Account{ID: 31203},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, 352, usageRepo.lastLog.ImageInputTokens)
+	require.InDelta(t, float64(19)*inputPrice, usageRepo.lastLog.InputCost, 1e-15)
+	require.InDelta(t, float64(352)*imageInputPrice, usageRepo.lastLog.ImageInputCost, 1e-15)
+	require.Zero(t, usageRepo.lastLog.OutputCost)
+	require.Zero(t, usageRepo.lastLog.ImageOutputCost)
+	require.InDelta(t, imagePrice+float64(19)*inputPrice+float64(352)*imageInputPrice, usageRepo.lastLog.TotalCost, 1e-12)
+	require.InDelta(t, usageRepo.lastLog.TotalCost, userRepo.lastAmount, 1e-12)
+	require.NotNil(t, usageRepo.lastLog.BillingMode)
+	require.Equal(t, string(BillingModeImage), *usageRepo.lastLog.BillingMode)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_ImageSharedMultiplierPreservesExistingBehavior(t *testing.T) {
 	imagePrice := 0.2
 	groupID := int64(121)

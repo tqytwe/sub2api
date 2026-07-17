@@ -54,7 +54,7 @@ func TestPromptLibraryMigrationRunsTwiceAndEnforcesProvenance(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	raw, err := dbmigrations.FS.ReadFile("192_prompt_library.sql")
+	raw, err := dbmigrations.FS.ReadFile("199_prompt_library.sql")
 	require.NoError(t, err)
 	for range 2 {
 		_, err = db.ExecContext(ctx, string(raw))
@@ -207,9 +207,9 @@ func TestPromptLibrarySeedMigrationIsIdempotentReviewOnly(t *testing.T) {
 	`)
 	require.NoError(t, err)
 
-	coreSQL, err := dbmigrations.FS.ReadFile("192_prompt_library.sql")
+	coreSQL, err := dbmigrations.FS.ReadFile("199_prompt_library.sql")
 	require.NoError(t, err)
-	seedSQL, err := dbmigrations.FS.ReadFile("193_prompt_library_seed.sql")
+	seedSQL, err := dbmigrations.FS.ReadFile("200_prompt_library_seed.sql")
 	require.NoError(t, err)
 	require.NoError(t, execSQLTwice(ctx, db, string(coreSQL)))
 	require.NoError(t, execSQLTwice(ctx, db, string(seedSQL)))
