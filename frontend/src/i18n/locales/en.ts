@@ -1,6 +1,7 @@
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
 import auditAdminEn from './en/admin/audit'
+import promptAuditAdminEn from './en/admin/promptAudit'
 
 export default {
   batchImageGuide: {
@@ -464,10 +465,13 @@ export default {
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
     channelMonitor: 'Channel Monitor',
-    channelStatus: 'Channel Status',
+	channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
-    modelsAndPricing: 'Models & Pricing',
-    modelCatalog: 'Model Catalog',
+    securityAudit: 'Security Audit',
+    contentModeration: 'Content Moderation',
+    promptAudit: 'Prompt Audit',
+	modelsAndPricing: 'Models & Pricing',
+	modelCatalog: 'Model Catalog',
     auditLogs: 'Audit Logs',
     auditlogs: 'Audit Logs',
   },
@@ -1575,6 +1579,7 @@ export default {
   // Admin
   admin: {
     ...auditAdminEn,
+    ...promptAuditAdminEn,
     playOps: {
       title: 'Play Ops',
       description: 'Monitor Token Farm, Agent Team, reward settlements, and exceptions',

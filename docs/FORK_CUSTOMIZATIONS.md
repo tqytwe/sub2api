@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@bc2244c83fd8e92769d89ca01eb980513a720486`
-> 对应合并提交：`0f45fb9cb8b29a819c3bd28dcce586dfbeef040d`
-> 最后核验：2026-07-16
+> 当前验证基线：`upstream/main@57914967cbb127ff715719c3879d881c10d75274`
+> 对应合并提交：`sync/upstream-20260717` 待合入 `play/main` 后回填 merge commit
+> 最后核验：2026-07-17
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -93,7 +93,7 @@
 ## FORK-MIGRATION-009 自定义数据库迁移
 
 - 产品目的：保留 Play、品牌默认值、图像工作室、提示词库和模型目录的数据库结构与数据修复。
-- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/validation 不携带前置 `ALTER TABLE` 锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
+- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
 - 冲突策略：新增迁移使用新的完整文件名；禁止修改已部署 SQL 的内容来解决冲突。
 - 验证：integrity 脚本逐文件检查，部署后检查 `schema_migrations`。
 

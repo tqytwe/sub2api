@@ -3,7 +3,7 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-07-16
+> 最后核验：2026-07-17
 
 ## 分支模型
 
@@ -25,6 +25,7 @@ git switch -c "sync/upstream-$(date +%Y%m%d)"
 ```
 
 工作区不干净时先确认每项改动归属，不得清除他人的未提交修改。
+同步边界必须核对 `backend/cmd/server/VERSION`；如果 release tag 的版本文件仍滞后一档，锁定后续版本同步提交，不直接以 tag 或移动中的 `upstream/main` 标题作为审查结论。
 
 ## 合并与冲突处理
 
