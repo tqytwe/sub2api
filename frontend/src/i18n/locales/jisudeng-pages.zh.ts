@@ -3,7 +3,7 @@ export const jisudengPagesZh = {
   support: {
     trigger: '联系客服',
     title: '联系客服',
-    eyebrow: 'SUPPORT · 人工协助',
+    eyebrow: '支持 · 人工协助',
     lead: '如遇登录 / 注册 / 充值或使用问题，欢迎随时联系客服',
     qqLabel: '客服 QQ',
     copy: '复制',
@@ -11,16 +11,16 @@ export const jisudengPagesZh = {
     copiedToast: '客服 QQ 已复制'
   },
   about: {
-    eyebrow: 'ABOUT · 了解极速蹬',
+    eyebrow: '关于 · 了解极速蹬',
     title: '为什么我们是真的中转',
     lede: 'AI 中转站这个赛道，劣币驱逐良币的现象很严重。本页用具体技术细节而不是营销话术，告诉你极速蹬做了什么、不做什么，以及如何自证。',
     backHome: '← 返回首页',
     s1Title: '请求正文 · 永不入库',
     s1p1:
-      '你打过来的 prompt、消息内容、上下文、上传的图片，从不会写入我们的数据库或日志。管理后台能看到的只有：User-Agent、token 计数、模型名、时间戳、HTTP 状态码、上游账号 ID。',
+      '你提交的提示词、消息内容、上下文、上传的图片，从不会写入我们的数据库或日志。管理后台能看到的只有：User-Agent、token 计数、模型名、时间戳、HTTP 状态码、上游账号 ID。',
     s1p2: '请求体是流式直通到上游 (Anthropic / OpenAI / Google) 的，中间不落盘、不缓存、不分析、不审计。响应体同理。',
     s1verify:
-      '如何验证：你可以联系客服调阅自己 24 小时内任意一笔调用的「全部存储字段」，会发现里面没有 messages 数组、没有 prompt 字符串、没有 image base64。这是设计层面的承诺，不是运营自觉。',
+      '如何验证：你可以联系客服调阅自己 24 小时内任意一笔调用的「全部存储字段」，会发现里面没有 messages 数组、没有提示词字符串、没有 image base64。这是设计层面的承诺，不是运营自觉。',
     s2Title: '渠道透明 · 上游可查',
     s2p1:
       '每个 API Key 绑定一个服务分组，分组下面挂的是哪些上游通道、用的什么计费模式、哪个模型走哪条线，全部在 /available-channels 透明列出。',
@@ -34,7 +34,7 @@ export const jisudengPagesZh = {
     anti1p1:
       '常见操作：抓 KIRO、Cursor、Windsurf、Codex 等 IDE 的 Anthropic 集成 cookie，把这个端点伪装成「Claude 官方 API」卖。',
     anti1p2:
-      '识别方法：真官方 Anthropic API 支持完整的 messages-2023-12-15 beta header、prompt caching、stream usage 末段统计。',
+      '识别方法：真官方 Anthropic API 支持完整的 messages-2023-12-15 beta header、提示词缓存、stream usage 末段统计。',
     anti2Title: '手法二 · Cookie 中转',
     anti2p1: '从某个用户的浏览器抓 claude.ai / chat.openai.com 登录态 cookie，转包装成 API 卖。',
     anti3Title: '手法三 · 模型欺诈',
@@ -60,7 +60,7 @@ export const jisudengPagesZh = {
     ctaContact: '联系我们'
   },
   contact: {
-    eyebrow: 'Contact · 联系',
+    eyebrow: '联系 · 官方渠道',
     title: '联系我们',
     desc: '如果您有任何问题可以随时联系我们 —— 产品反馈、技术答疑、商务合作均可以通过下方任一渠道触达，我们尽快回应。',
     backDashboard: '返回控制台',
@@ -366,8 +366,8 @@ export const jisudengPagesZh = {
     noModels: '当前 Key 的分组没有可用生图模型',
     loadModelsFailed: '加载模型失败，请检查 Key 与分组配置',
     estimateFailed: '无法预估费用，请确认分组已开启生图并配置了可用模型',
-    expertPrompt: '专家 prompt（可选）',
-    expertPromptTooLong: '专家 prompt 不能超过 8000 个字符',
+    expertPrompt: '专家提示词（可选）',
+    expertPromptTooLong: '专家提示词不能超过 8000 个字符',
     advancedSettings: '高级设置',
     accentColor: '强调色',
     estimate: '预估约 ${cost}',
@@ -375,12 +375,12 @@ export const jisudengPagesZh = {
     estimatePending: '等待规格与模型',
     balanceSufficient: '余额充足',
     balanceInsufficient: '余额不足',
-    generate: '生成',
-    generateCount: '生成 {count} 张图片',
+    generate: '开始生成',
+    generateCount: '开始生成 {count} 张图片',
     rechargeToGenerate: '余额不足，去充值',
     generating: '生成中…',
     doneTitle: '生成完成',
-    doneHint: '图片已保存到图库，可下载或继续创作。',
+    doneHint: '图片已保存到作品库，可下载或继续创作。',
     assetsMissing: '图片未保存成功',
     assetsMissingHint: '任务显示已完成，但没有可预览/下载的文件。请用相同设置再生成，或联系管理员检查存储卷。',
     latestResult: '最新结果',
@@ -391,14 +391,14 @@ export const jisudengPagesZh = {
     recentWorksCount: '最近 {count} 组',
     imageCount: '{count} 张',
     galleryEmpty: '还没有作品，完成第一次生成后会出现在这里。',
-    galleryLoadFailed: '图库加载失败，请重试',
-    retryGallery: '重新加载图库',
+    galleryLoadFailed: '作品库加载失败，请重试',
+    retryGallery: '重新加载作品库',
     delete: '删除',
     loadFailed: '加载失败，请刷新重试',
     generateFailed: '生成失败，请检查余额与 Key 权限',
     polling: '正在生成，请稍候…',
     newUserHint: '新用户默认生成 1 张，充值后可一次生成更多变体。',
-    autoCleanup: '7 天后自动清理图库记录',
+    autoCleanup: '7 天后自动清理作品库记录',
     firstWinTitle: '第一次收成',
     firstWinHint: '图片已保存到图库，完成今日出图任务可获得农场能量。',
     firstWinCta: '知道了',
@@ -430,7 +430,7 @@ export const jisudengPagesZh = {
     howItWorks: '怎么玩',
     learnMore: '查看 VIP 与玩法文档',
     blindbox: {
-      eyebrow: 'PLAY · 盲盒',
+      eyebrow: '玩法 · 盲盒',
       title: '消耗 Token，开出惊喜',
       subtitle: '把 API 调用变成一点小期待 — 随机奖励测试额度或余额加成。',
       intro:
@@ -451,7 +451,7 @@ export const jisudengPagesZh = {
       ctaAuth: '进入控制台',
     },
     arena: {
-      eyebrow: 'PLAY · TOKEN 农场',
+      eyebrow: '玩法 · 代币农场',
       title: 'Token 农场 · 消耗也有回报',
       subtitle: '按周期统计 API 消耗排行，上榜用户获得额外奖励。',
       intro:
@@ -472,7 +472,7 @@ export const jisudengPagesZh = {
       ctaAuth: '去调 API 冲榜',
     },
     quizQuest: {
-      eyebrow: 'PLAY · 答题闯关',
+      eyebrow: '玩法 · 答题闯关',
       title: '答题闯关 · 懂模型的人赢奖励',
       subtitle: 'AI 知识小测验，答对累积积分兑换测试额度。',
       intro:
@@ -493,7 +493,7 @@ export const jisudengPagesZh = {
       ctaAuth: '开始今日挑战',
     },
     agentTeam: {
-      eyebrow: 'PLAY · AGENT TEAM',
+      eyebrow: '玩法 · 团队协作',
       title: 'Agent Team · 组队共享收益',
       subtitle: '邀请队友组成小队，共享消耗里程碑奖励与邀请返利加成。',
       intro:
@@ -515,7 +515,7 @@ export const jisudengPagesZh = {
     },
   },
   docs: {
-    eyebrow: 'DOCS · INDEX',
+    eyebrow: '文档 · 目录',
     title: '使用文档',
     desc: '挑选一个分类开始阅读 — 教程、充值、模型选型、CLI 接入与 Vibe Coding 工具，一站式速查。',
     backDashboard: '返回控制台',
@@ -566,7 +566,7 @@ export const jisudengPagesZh = {
     regPledge2: '按 Token 计费 · 无月费 · 见账见量',
     regPledge3: '邀请码 / 优惠码 · 充值赠送可叠加',
     regPledge4: '请求体不落盘 · Apple 级隐私承诺',
-    fineprintRegister: '注册即代表同意《服务条款》与《隐私政策》。我们不会用你的 prompt 训练模型，也不会与任何第三方共享。',
+    fineprintRegister: '注册即代表同意《服务条款》与《隐私政策》。我们不会用你的提示词训练模型，也不会与任何第三方共享。',
     backHome: '返回首页',
     copyrightTagline: '让一念之间链接每个模型',
     flowSrc: '提示词原文',

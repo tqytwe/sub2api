@@ -34,6 +34,7 @@ var (
 	ErrImageStudioPromptTooLong  = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_TOO_LONG", "image description exceeds 8000 characters")
 	ErrImageStudioAPIKey         = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
 	ErrImageStudioAssetNotFound  = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
+	ErrImageStudioPromptRef      = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_REFERENCE_INVALID", "prompt id and version must be provided together")
 )
 
 // ValidateImageStudioAPIKey rejects keys that cannot authorize a generation request.
@@ -73,7 +74,11 @@ type ImageStudioJob struct {
 	ID            string             `json:"id"`
 	UserID        int64              `json:"user_id"`
 	TemplateID    string             `json:"template_id"`
+	PromptID      *int64             `json:"prompt_id,omitempty"`
+	PromptVersion *int               `json:"prompt_version,omitempty"`
 	PromptHash    string             `json:"-"`
+	Model         string             `json:"model"`
+	Quality       string             `json:"quality,omitempty"`
 	Size          string             `json:"size"`
 	Count         int                `json:"count"`
 	Status        string             `json:"status"`
@@ -87,18 +92,20 @@ type ImageStudioJob struct {
 }
 
 type ImageStudioGenerateRequest struct {
-	TemplateID   string  `json:"template_id"`
-	UserPrompt   string  `json:"user_prompt"`
-	AccentColor  string  `json:"accent_color"`
-	Size         string  `json:"size"`
-	Aspect       string  `json:"aspect"`
-	Tier         string  `json:"tier"`
-	Quality      string  `json:"quality"`
-	Count        int     `json:"count"`
-	Model        string  `json:"model"`
-	ExpertPrompt *string `json:"expert_prompt"`
-	APIKeyID     int64   `json:"api_key_id"`
-	RetainDays   *int    `json:"retain_days,omitempty"`
+	TemplateID    string  `json:"template_id"`
+	PromptID      *int64  `json:"prompt_id,omitempty"`
+	PromptVersion *int    `json:"prompt_version,omitempty"`
+	UserPrompt    string  `json:"user_prompt"`
+	AccentColor   string  `json:"accent_color"`
+	Size          string  `json:"size"`
+	Aspect        string  `json:"aspect"`
+	Tier          string  `json:"tier"`
+	Quality       string  `json:"quality"`
+	Count         int     `json:"count"`
+	Model         string  `json:"model"`
+	ExpertPrompt  *string `json:"expert_prompt"`
+	APIKeyID      int64   `json:"api_key_id"`
+	RetainDays    *int    `json:"retain_days,omitempty"`
 }
 
 type ImageStudioGenerateResult struct {
@@ -147,6 +154,7 @@ type ImageStudioService struct {
 	playService     *PlayService
 	pricing         *BatchImageModelPricingResolver
 	gateway         ImageStudioModelResolver
+	promptRepo      PromptLibraryRepository
 	capabilityCache *ImageStudioCapabilityCache
 }
 
@@ -159,6 +167,7 @@ func NewImageStudioService(
 	playService *PlayService,
 	pricing *BatchImageModelPricingResolver,
 	gateway ImageStudioModelResolver,
+	promptRepo PromptLibraryRepository,
 ) *ImageStudioService {
 	return &ImageStudioService{
 		repo:            repo,
@@ -169,6 +178,7 @@ func NewImageStudioService(
 		playService:     playService,
 		pricing:         pricing,
 		gateway:         gateway,
+		promptRepo:      promptRepo,
 		capabilityCache: NewImageStudioCapabilityCache(),
 	}
 }
@@ -306,6 +316,13 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if !s.IsEnabled(ctx) {
 		return nil, "", ErrImageStudioDisabled
 	}
+	promptID, promptVersion, err := normalizeImageStudioPromptReference(req.PromptID, req.PromptVersion)
+	if err != nil {
+		return nil, "", err
+	}
+	if err := s.validatePromptLibraryReference(ctx, userID, promptID, promptVersion); err != nil {
+		return nil, "", err
+	}
 	if err := validateImageStudioPrompt(req.UserPrompt); err != nil {
 		return nil, "", err
 	}
@@ -373,7 +390,11 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		ID:            uuid.NewString(),
 		UserID:        userID,
 		TemplateID:    req.TemplateID,
+		PromptID:      promptID,
+		PromptVersion: promptVersion,
 		PromptHash:    hashPrompt(prompt),
+		Model:         resolvedModel,
+		Quality:       strings.TrimSpace(strings.ToLower(req.Quality)),
 		Size:          size,
 		Count:         count,
 		Status:        ImageStudioJobStatusPending,
@@ -666,6 +687,38 @@ func validateImageStudioPrompt(prompt string) error {
 func hashPrompt(prompt string) string {
 	sum := sha256.Sum256([]byte(prompt))
 	return hex.EncodeToString(sum[:])
+}
+
+func normalizeImageStudioPromptReference(promptID *int64, promptVersion *int) (*int64, *int, error) {
+	if promptID == nil && promptVersion == nil {
+		return nil, nil, nil
+	}
+	if promptID == nil || promptVersion == nil || *promptID <= 0 || *promptVersion <= 0 {
+		return nil, nil, ErrImageStudioPromptRef
+	}
+	return promptID, promptVersion, nil
+}
+
+func (s *ImageStudioService) validatePromptLibraryReference(
+	ctx context.Context,
+	userID int64,
+	promptID *int64,
+	promptVersion *int,
+) error {
+	if promptID == nil {
+		return nil
+	}
+	if s.promptRepo == nil || promptVersion == nil {
+		return ErrImageStudioPromptRef
+	}
+	prompt, err := s.promptRepo.GetPrompt(ctx, *promptID, &userID, true)
+	if err != nil {
+		return err
+	}
+	if prompt == nil || prompt.PublishedVersion != *promptVersion {
+		return ErrImageStudioPromptRef
+	}
+	return nil
 }
 
 func findImageStudioTemplate(id string) (ImageStudioTemplate, bool) {

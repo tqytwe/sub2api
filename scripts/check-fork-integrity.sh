@@ -180,6 +180,8 @@ MIGRATIONS=(
   186_model_sync_jobs_repair.sql
   187_model_catalog_group_scope.sql
   189_restore_growth_rollback_defaults.sql
+  192_prompt_library.sql
+  193_prompt_library_seed.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

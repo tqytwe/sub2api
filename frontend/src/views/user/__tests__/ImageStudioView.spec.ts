@@ -26,6 +26,9 @@ function workspaceStub() {
     catalog: ref({ intents: [] }),
     capabilities: ref(null),
     selectedTemplate: ref(selectedTemplate),
+    promptReference: ref(null),
+    promptReferenceError: ref(''),
+    promptVariableValues: ref({}),
     userPrompt,
     accentColor: ref('#1a1a1a'),
     size: ref('1024x1024'),
@@ -71,6 +74,9 @@ function workspaceStub() {
     previewIndex: ref(0),
     labelFor: (value?: { en: string }) => value?.en || '',
     pickTemplate: vi.fn(),
+    applyPromptVariables: vi.fn(),
+    clearPromptReference: vi.fn(),
+    saveCreationRecipe: vi.fn(),
     onAutoCleanupChange: vi.fn(),
     openPreview: vi.fn(),
     closePreview: vi.fn(),
@@ -161,15 +167,15 @@ describe('ImageStudioView prompt UX', () => {
     state.generate.mockReturnValue(new Promise<boolean>((resolve) => { finish = resolve }))
     workspace.userPrompt.value = 'valid prompt'
     const wrapper = mountView()
-    const tabs = wrapper.findAll('.grid.grid-cols-2 button')
+    const tabs = wrapper.findAll('.grid.grid-cols-4 button')
 
     await wrapper.get('button.btn-primary.w-full').trigger('click')
     expect(tabs[0].classes()).toContain('bg-white')
-    expect(tabs[1].classes()).not.toContain('bg-white')
+    expect(tabs[2].classes()).not.toContain('bg-white')
 
     workspace.polling.value = true
     await flushPromises()
-    expect(tabs[1].classes()).toContain('bg-white')
+    expect(tabs[2].classes()).toContain('bg-white')
 
     workspace.polling.value = false
     finish(false)
@@ -267,6 +273,32 @@ describe('ImageStudioView prompt UX', () => {
 
     expect(mainPrompt.style.height).toBe(`${expectedMaxHeight}px`)
     expect(mainPrompt.style.overflowY).toBe('auto')
+    wrapper.unmount()
     scrollHeight.mockRestore()
+  })
+
+  it('shows the 极速蹬 library reference and Chinese variable controls', async () => {
+    workspace.promptReference.value = {
+      prompt_id: '123',
+      version: 4,
+      title: '夏日饮品海报',
+      prompt_template: 'Create a poster for {{product}}.',
+      variables: [
+        { name: 'product', label: '产品名称', description: '填写要展示的商品' },
+      ],
+      recommended_models: [],
+      recommended_sizes: [],
+      reference_requirement: 'none',
+    }
+    workspace.promptVariableValues.value = { product: '气泡水' }
+
+    const wrapper = mountView()
+
+    expect(wrapper.text()).toContain('来自极速蹬提示词库')
+    expect(wrapper.text()).toContain('夏日饮品海报')
+    expect(wrapper.text()).toContain('产品名称')
+    expect(wrapper.text()).toContain('智能改写')
+    expect(wrapper.text()).toContain('保存为创作配方')
+    wrapper.unmount()
   })
 })

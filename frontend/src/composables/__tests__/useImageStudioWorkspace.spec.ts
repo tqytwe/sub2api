@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   poll: vi.fn(),
   listJobs: vi.fn(),
   routerPush: vi.fn(),
+  routeQuery: {} as Record<string, string>,
   refreshUser: vi.fn(),
   auth: {
     user: { id: 42, balance: 10 },
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: mocks.routerPush }),
+  useRoute: () => ({ query: mocks.routeQuery }),
 }))
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -135,7 +137,9 @@ function completedJob() {
 describe('useImageStudioWorkspace prompt UX', () => {
   beforeEach(() => {
     localStorage.clear()
+    sessionStorage.clear()
     vi.clearAllMocks()
+    mocks.routeQuery = {}
     mocks.auth.user = { id: 42, balance: 10 }
     mocks.auth.refreshUser = mocks.refreshUser
     mocks.listJobs.mockResolvedValue([])
@@ -178,6 +182,35 @@ describe('useImageStudioWorkspace prompt UX', () => {
 
       await vi.advanceTimersByTimeAsync(300)
       expect(loadStudioDraft(42)?.userPrompt).toBe('updated prompt')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('does not persist prompt-library variables or rendered prompt text to localStorage', async () => {
+    mocks.routeQuery = { prompt: '77', version: '3' }
+    sessionStorage.setItem('prompt-library:77:3', JSON.stringify({
+      prompt_id: '77',
+      version: 3,
+      title: '商品主图',
+      prompt_template: 'Create a product image for {{product}}',
+      variables: [{ name: 'product', label: '商品', required: true }],
+      recommended_models: ['gpt-image-1'],
+      recommended_sizes: ['1024x1024'],
+      reference_requirement: 'optional',
+    }))
+
+    const { workspace } = await mountWorkspace()
+    expect(workspace.promptReference.value?.prompt_id).toBe('77')
+
+    vi.useFakeTimers()
+    try {
+      workspace.promptVariableValues.value.product = '私密新品名称'
+      workspace.applyPromptVariables()
+      await flushPromises()
+      await vi.advanceTimersByTimeAsync(300)
+      expect(workspace.userPrompt.value).toContain('私密新品名称')
+      expect(localStorage.getItem('image_studio_draft:v1:user:42')).toBeNull()
     } finally {
       vi.useRealTimers()
     }
@@ -372,5 +405,58 @@ describe('useImageStudioWorkspace prompt UX', () => {
     mocks.listJobs.mockResolvedValueOnce([])
     await workspace.refreshJobs()
     expect(workspace.galleryError.value).toBe('')
+  })
+
+  it('loads a referenced library prompt, applies Chinese variables, and sends only its reference metadata', async () => {
+    mocks.routeQuery = { prompt: '123', version: '4' }
+    sessionStorage.setItem('prompt-library:123:4', JSON.stringify({
+      prompt_id: '123',
+      version: 4,
+      title: '夏日饮品海报',
+      prompt_template: 'Create a poster for {{product}}, using {{color}}.',
+      variables: [
+        { name: 'product', label: '产品名称', required: true, default_value: '气泡水' },
+        { name: 'color', label: '主色调', default_value: '蓝色' },
+      ],
+      recommended_models: ['gpt-image-1'],
+      recommended_sizes: ['1024x1024'],
+      reference_requirement: 'none',
+    }))
+
+    const { workspace } = await mountWorkspace()
+
+    expect(workspace.promptReference.value?.title).toBe('夏日饮品海报')
+    expect(workspace.promptVariableValues.value).toEqual({
+      product: '气泡水',
+      color: '蓝色',
+    })
+    expect(workspace.userPrompt.value).toBe('Create a poster for 气泡水, using 蓝色.')
+
+    workspace.promptVariableValues.value.product = '柠檬茶'
+    workspace.applyPromptVariables()
+    expect(workspace.userPrompt.value).toBe('Create a poster for 柠檬茶, using 蓝色.')
+
+    await expect(workspace.generate()).resolves.toBe(true)
+    expect(mocks.generate).toHaveBeenCalledWith(expect.objectContaining({
+      prompt_id: 123,
+      prompt_version: 4,
+      user_prompt: 'Create a poster for 柠檬茶, using 蓝色.',
+    }))
+  })
+
+  it('ignores missing or mismatched prompt-library handoff data', async () => {
+    mocks.routeQuery = { prompt: '123', version: '4' }
+    sessionStorage.setItem('prompt-library:123:4', JSON.stringify({
+      prompt_id: '999',
+      version: 4,
+      prompt_template: 'Do not load this',
+      variables: [],
+    }))
+
+    const { workspace } = await mountWorkspace()
+
+    expect(workspace.promptReference.value).toBeNull()
+    expect(workspace.userPrompt.value).toBe('')
+    expect(workspace.promptReferenceError.value).toBe('imageStudio.promptReferenceUnavailable')
   })
 })

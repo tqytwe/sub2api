@@ -223,6 +223,26 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/prompts',
+    name: 'PromptSquare',
+    component: () => import('@/views/public/PromptSquareView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '图像工作室 · 选提示词',
+      hidePageHeader: true,
+    },
+  },
+  {
+    path: '/prompts/:id',
+    name: 'PromptDetail',
+    component: () => import('@/views/public/PromptDetailView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '提示词详情',
+      hidePageHeader: true,
+    },
+  },
+  {
     path: '/blindbox',
     name: 'Blindbox',
     component: () => import('@/views/public/BlindboxView.vue'),
@@ -340,7 +360,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Image Studio',
+      title: '图像工作室',
       titleKey: 'imageStudio.title',
       descriptionKey: 'imageStudio.subtitle',
       hideMobileSupport: true,
@@ -668,6 +688,16 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'admin.announcements.title',
       descriptionKey: 'admin.announcements.description'
     }
+  },
+  {
+    path: '/admin/prompts',
+    name: 'AdminPrompts',
+    component: () => import('@/views/admin/PromptsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '提示词管理',
+    },
   },
   {
     path: '/admin/proxies',

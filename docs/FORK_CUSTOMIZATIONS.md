@@ -92,7 +92,7 @@
 
 ## FORK-MIGRATION-009 自定义数据库迁移
 
-- 产品目的：保留 Play、品牌默认值、图像工作室和模型目录的数据库结构与数据修复。
+- 产品目的：保留 Play、品牌默认值、图像工作室、模型目录和提示词库的数据库结构与数据修复。
 - 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖。
 - 冲突策略：新增迁移使用新的完整文件名；禁止修改已部署 SQL 的内容来解决冲突。
 - 验证：integrity 脚本逐文件检查，部署后检查 `schema_migrations`。
@@ -119,6 +119,8 @@
 186_model_sync_jobs_repair.sql
 187_model_catalog_group_scope.sql
 189_restore_growth_rollback_defaults.sql
+192_prompt_library.sql
+193_prompt_library_seed.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

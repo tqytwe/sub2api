@@ -147,7 +147,7 @@ export const FeatureFlags = {
   imageStudio: defineFlag({
     key: 'image_studio_enabled',
     mode: 'opt-in',
-    label: 'Image Studio',
+    label: '图像工作室',
   }),
   publicModels: defineFlag({
     key: 'public_models_enabled',

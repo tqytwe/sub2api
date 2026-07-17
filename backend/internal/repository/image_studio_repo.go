@@ -36,10 +36,13 @@ func (r *imageStudioRepository) InsertJob(ctx context.Context, job *service.Imag
 	exec := r.sqlExec(ctx)
 	err := scanSingleRow(ctx, exec, `
 		INSERT INTO image_studio_jobs
-			(id, user_id, template_id, prompt_hash, size, count, status, estimated_cost, api_key_id, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+			(id, user_id, template_id, prompt_id, prompt_version, prompt_hash, model, quality, size, count, status, estimated_cost, api_key_id, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 		RETURNING created_at`,
-		[]any{job.ID, job.UserID, job.TemplateID, job.PromptHash, job.Size, job.Count, job.Status, job.EstimatedCost, job.APIKeyID, job.ExpiresAt},
+		[]any{
+			job.ID, job.UserID, job.TemplateID, job.PromptID, job.PromptVersion, job.PromptHash,
+			job.Model, job.Quality, job.Size, job.Count, job.Status, job.EstimatedCost, job.APIKeyID, job.ExpiresAt,
+		},
 		&job.CreatedAt)
 	if err != nil {
 		return fmt.Errorf("insert image studio job: %w", err)
@@ -86,7 +89,8 @@ func (r *imageStudioRepository) InsertAssets(ctx context.Context, jobID string, 
 
 func (r *imageStudioRepository) GetJob(ctx context.Context, userID int64, jobID string) (*service.ImageStudioJob, error) {
 	job, err := r.scanJob(ctx, `
-		SELECT id::text, user_id, template_id, prompt_hash, size, count, status,
+		SELECT id::text, user_id, template_id, prompt_id, prompt_version, prompt_hash,
+		       COALESCE(model, ''), COALESCE(quality, ''), size, count, status,
 		       estimated_cost, actual_cost, api_key_id, error_message, created_at, expires_at
 		FROM image_studio_jobs
 		WHERE id = $1::uuid AND user_id = $2`, jobID, userID)
@@ -106,7 +110,8 @@ func (r *imageStudioRepository) GetJob(ctx context.Context, userID int64, jobID 
 
 func (r *imageStudioRepository) GetActiveJob(ctx context.Context, userID int64) (*service.ImageStudioJob, error) {
 	job, err := r.scanJob(ctx, `
-		SELECT id::text, user_id, template_id, prompt_hash, size, count, status,
+		SELECT id::text, user_id, template_id, prompt_id, prompt_version, prompt_hash,
+		       COALESCE(model, ''), COALESCE(quality, ''), size, count, status,
 		       estimated_cost, actual_cost, api_key_id, error_message, created_at, expires_at
 		FROM image_studio_jobs
 		WHERE user_id = $1 AND status IN ('pending', 'running')
@@ -164,9 +169,12 @@ func (r *imageStudioRepository) scanJob(ctx context.Context, query string, args 
 	var actualCost sql.NullFloat64
 	var errMsg sql.NullString
 	var apiKeyID sql.NullInt64
+	var promptID sql.NullInt64
+	var promptVersion sql.NullInt64
 	var expiresAt sql.NullTime
 	err := scanSingleRow(ctx, exec, query, args,
-		&job.ID, &job.UserID, &job.TemplateID, &job.PromptHash, &job.Size, &job.Count, &job.Status,
+		&job.ID, &job.UserID, &job.TemplateID, &promptID, &promptVersion, &job.PromptHash,
+		&job.Model, &job.Quality, &job.Size, &job.Count, &job.Status,
 		&job.EstimatedCost, &actualCost, &apiKeyID, &errMsg, &job.CreatedAt, &expiresAt)
 	if err != nil {
 		return nil, err
@@ -176,6 +184,13 @@ func (r *imageStudioRepository) scanJob(ctx context.Context, query string, args 
 	}
 	if apiKeyID.Valid {
 		job.APIKeyID = &apiKeyID.Int64
+	}
+	if promptID.Valid {
+		job.PromptID = &promptID.Int64
+	}
+	if promptVersion.Valid {
+		value := int(promptVersion.Int64)
+		job.PromptVersion = &value
 	}
 	if errMsg.Valid {
 		job.ErrorMessage = errMsg.String
@@ -220,7 +235,8 @@ func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limi
 	}
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
-		SELECT id::text, user_id, template_id, prompt_hash, size, count, status,
+		SELECT id::text, user_id, template_id, prompt_id, prompt_version, prompt_hash,
+		       COALESCE(model, ''), COALESCE(quality, ''), size, count, status,
 		       estimated_cost, actual_cost, api_key_id, error_message, created_at, expires_at
 		FROM image_studio_jobs
 		WHERE user_id = $1
@@ -240,10 +256,13 @@ func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limi
 		var job service.ImageStudioJob
 		var actualCost sql.NullFloat64
 		var apiKeyID sql.NullInt64
+		var promptID sql.NullInt64
+		var promptVersion sql.NullInt64
 		var errMsg sql.NullString
 		var expiresAt sql.NullTime
 		if err := rows.Scan(
-			&job.ID, &job.UserID, &job.TemplateID, &job.PromptHash, &job.Size, &job.Count, &job.Status,
+			&job.ID, &job.UserID, &job.TemplateID, &promptID, &promptVersion, &job.PromptHash,
+			&job.Model, &job.Quality, &job.Size, &job.Count, &job.Status,
 			&job.EstimatedCost, &actualCost, &apiKeyID, &errMsg, &job.CreatedAt, &expiresAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan image studio job: %w", err)
@@ -253,6 +272,13 @@ func (r *imageStudioRepository) ListJobs(ctx context.Context, userID int64, limi
 		}
 		if apiKeyID.Valid {
 			job.APIKeyID = &apiKeyID.Int64
+		}
+		if promptID.Valid {
+			job.PromptID = &promptID.Int64
+		}
+		if promptVersion.Valid {
+			value := int(promptVersion.Int64)
+			job.PromptVersion = &value
 		}
 		if errMsg.Valid {
 			job.ErrorMessage = errMsg.String

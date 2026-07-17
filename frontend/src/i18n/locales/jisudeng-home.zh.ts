@@ -18,7 +18,7 @@ export const jisudengHomeZh = {
       tail: '网关'
     },
     subtitle: '一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租',
-    tagline: '注册即用 · 官方倍率 · Prompt 不落盘',
+    tagline: '注册即用 · 官方倍率 · 提示词不落盘',
     activeOn: 'WORKS ON',
     perks: {
       signupCredit: '注册即送 ${amount} 测试额度',

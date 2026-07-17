@@ -81,6 +81,10 @@ export interface ImageStudioAsset {
 export interface ImageStudioJob {
   id: string
   template_id: string
+  prompt_id?: number
+  prompt_version?: number
+  model?: string
+  quality?: string
   size: string
   count: number
   status: 'pending' | 'running' | 'completed' | 'failed' | string
@@ -93,6 +97,8 @@ export interface ImageStudioJob {
 
 export interface ImageStudioGenerateRequest {
   template_id: string
+  prompt_id?: number
+  prompt_version?: number
   user_prompt: string
   accent_color?: string
   size?: string

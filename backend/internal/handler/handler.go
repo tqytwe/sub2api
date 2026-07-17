@@ -41,6 +41,7 @@ type AdminHandlers struct {
 	Play                   *admin.AdminPlayHandler
 	ModelCatalog           *admin.ModelCatalogHandler
 	AuditLog               *admin.AuditLogHandler
+	PromptLibrary          *admin.PromptLibraryHandler
 }
 
 // Handlers contains all HTTP handlers
@@ -66,6 +67,7 @@ type Handlers struct {
 	Play             *PlayHandler
 	ImageStudio      *ImageStudioHandler
 	ModelPricing     *ModelPricingHandler
+	PromptLibrary    *PromptLibraryHandler
 }
 
 // BuildInfo contains build-time information

@@ -655,6 +655,7 @@ var ProviderSet = wire.NewSet(
 	NewUsageService,
 	NewDashboardService,
 	NewPublicHomeStatsService,
+	NewPromptLibraryService,
 	ProvidePricingService,
 	NewBillingService,
 	ProvideBillingCacheService,
@@ -766,10 +767,13 @@ func ProvideImageStudioService(
 	playService *PlayService,
 	pricing *BatchImageModelPricingResolver,
 	gateway ImageStudioModelResolver,
+	promptRepo PromptLibraryRepository,
 	cfg *config.Config,
 ) *ImageStudioService {
 	store := NewImageStudioAssetStore(cfg.Pricing.DataDir)
-	return NewImageStudioService(repo, store, apiKeyService, userRepo, settingService, playService, pricing, gateway)
+	return NewImageStudioService(
+		repo, store, apiKeyService, userRepo, settingService, playService, pricing, gateway, promptRepo,
+	)
 }
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。

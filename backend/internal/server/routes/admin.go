@@ -115,6 +115,8 @@ func RegisterAdminRoutes(
 
 		registerModelCatalogRoutes(admin, h)
 
+		registerAdminPromptLibraryRoutes(admin, h)
+
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
 	}

@@ -97,6 +97,8 @@ var ProviderSet = wire.NewSet(
 	NewTLSFingerprintProfileRepository,
 	NewChannelRepository,
 	NewModelCatalogRepository,
+	NewPromptLibraryRepository,
+	wire.Bind(new(service.PromptLibraryRepository), new(*PromptLibraryRepository)),
 	NewPlayRepository,
 	NewChannelMonitorRepository,
 	NewChannelMonitorRequestTemplateRepository,
