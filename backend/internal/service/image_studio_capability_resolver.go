@@ -4,13 +4,6 @@ import (
 	"strings"
 )
 
-type ImageStudioModelCapabilities struct {
-	SupportedSizes     []string
-	SupportedQualities []string
-	DefaultSize        string
-	DefaultQuality     string
-}
-
 func allImageStudioCatalogSizes() []string {
 	seen := make(map[string]struct{})
 	out := make([]string, 0, len(imageStudioSizeMatrix)*3)
@@ -35,15 +28,12 @@ func allImageStudioCatalogSizes() []string {
 }
 
 func inferImageStudioQualities(model string) []string {
-	model = strings.ToLower(strings.TrimSpace(model))
-	switch {
-	case strings.HasPrefix(model, "gpt-image"):
-		return []string{"standard", "high"}
-	case strings.Contains(model, "grok-imagine"):
-		return []string{"standard"}
-	default:
-		return nil
+	for _, platform := range []string{PlatformOpenAI, PlatformGrok} {
+		if capability, ok := ResolveImageStudioProviderCapability(platform, model); ok {
+			return append([]string(nil), capability.SupportedQualities...)
+		}
 	}
+	return nil
 }
 
 func isImageStudioSizeRelatedError(msg string) bool {
@@ -68,25 +58,17 @@ func isImageStudioSizeRelatedError(msg string) bool {
 	return false
 }
 
-func (s *ImageStudioService) ResolveModelCapabilities(_ *APIKey, model string) ImageStudioModelCapabilities {
-	sizes := filterImageStudioSizesForModel(s, model, allImageStudioCatalogSizes())
-	qualities := inferImageStudioQualities(model)
-
-	defaultSize := defaultImageStudioSize
-	if len(sizes) > 0 {
-		defaultSize = sizes[0]
+func (s *ImageStudioService) ResolveModelCapabilities(apiKey *APIKey, model string) ImageStudioModelCapabilities {
+	platform := PlatformOpenAI
+	if apiKey != nil && apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
+		platform = strings.TrimSpace(apiKey.Group.Platform)
 	}
-	defaultQuality := ""
-	if len(qualities) > 0 {
-		defaultQuality = qualities[0]
+	capability, ok := ResolveImageStudioProviderCapability(platform, model)
+	if !ok {
+		return ImageStudioModelCapabilities{}
 	}
-
-	return ImageStudioModelCapabilities{
-		SupportedSizes:     sizes,
-		SupportedQualities: append([]string(nil), qualities...),
-		DefaultSize:        defaultSize,
-		DefaultQuality:     defaultQuality,
-	}
+	capability.SupportedSizes = filterImageStudioSizesForModel(s, model, capability.SupportedSizes)
+	return capability
 }
 
 func filterImageStudioSizesForModel(s *ImageStudioService, model string, sizes []string) []string {

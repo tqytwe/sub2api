@@ -8,7 +8,10 @@ import ImageStudioPreviewModal from '@/components/imageStudio/ImageStudioPreview
 import ImageStudioSizePicker from '@/components/imageStudio/ImageStudioSizePicker.vue'
 import { useImageStudioWorkspace } from '@/composables/useImageStudioWorkspace'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
-import type { ImageStudioJob, ImageStudioTemplate } from '@/api/imageStudio'
+import {
+  type ImageStudioJob,
+  type ImageStudioTemplate,
+} from '@/api/imageStudio'
 import {
   IMAGE_STUDIO_PROMPT_LIMIT,
   countImageStudioCodePoints,
@@ -29,13 +32,18 @@ const expertPromptTextarea = ref<HTMLTextAreaElement | null>(null)
 
 const templateOptions = computed(() => flattenImageStudioTemplates(workspace.catalog.value))
 
-const featuredJob = computed<ImageStudioJob | null>(() =>
-  workspace.latestJob.value ?? workspace.jobs.value[0] ?? null,
-)
+const featuredJobs = computed<ImageStudioJob[]>(() => {
+  if (workspace.galleryPage.value !== 1) return []
+  if (workspace.activeJobs.value.length) return workspace.activeJobs.value
+  return workspace.latestJob.value ? [workspace.latestJob.value] : []
+})
 
 const historyJobs = computed(() => {
-  const featuredId = featuredJob.value?.id
-  return workspace.jobs.value.filter((job) => job.id !== featuredId)
+  const excludedIds = new Set([
+    ...workspace.activeJobs.value.map((job) => job.id),
+    ...featuredJobs.value.map((job) => job.id),
+  ])
+  return workspace.jobs.value.filter((job) => !excludedIds.has(job.id))
 })
 
 const selectedTemplateDescription = computed(() =>
@@ -58,13 +66,17 @@ const canGenerate = computed(() =>
     && !!workspace.selectedTemplate.value
     && !!workspace.apiKeyId.value
     && !!workspace.selectedModel.value
+    && workspace.capabilitiesReady.value
     && !!workspace.estimate.value
+    && workspace.operationSupported.value
+    && workspace.editReferencesReady.value
     && !workspace.generating.value
-    && !workspace.polling.value,
+    && !workspace.atActiveJobLimit.value,
 )
 
 const generateLabel = computed(() => {
-  if (workspace.generating.value || workspace.polling.value) return t('imageStudio.generating')
+  if (workspace.generating.value) return t('imageStudio.generating')
+  if (workspace.atActiveJobLimit.value) return t('imageStudio.activeJobLimit')
   return t('imageStudio.generateCount', { count: workspace.count.value })
 })
 
@@ -79,6 +91,23 @@ function selectTemplate(template: ImageStudioTemplate) {
 function changeCount(delta: number) {
   const next = Math.min(workspace.maxCount.value, Math.max(1, workspace.count.value + delta))
   workspace.count.value = next
+}
+
+function selectImageMode(mode: 'create' | 'edit') {
+  workspace.mode.value = mode
+}
+
+function selectReferenceFiles(event: Event) {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files || [])
+  if (files.length) void workspace.addReferenceFiles(files)
+  input.value = ''
+}
+
+function changeGalleryPage(page: number) {
+  const lastPage = Math.max(1, workspace.galleryPages.value)
+  if (workspace.galleryLoading.value || page < 1 || page > lastPage) return
+  void workspace.refreshJobs(page)
 }
 
 async function generate() {
@@ -261,6 +290,123 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="space-y-4 border-b border-gray-100 p-5 dark:border-dark-700">
+              <div>
+                <span class="input-label">{{ t('imageStudio.mode') }}</span>
+                <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
+                  <button
+                    data-testid="image-mode-create"
+                    type="button"
+                    class="rounded-md px-3 py-2 text-sm font-medium transition"
+                    :class="[
+                      workspace.mode.value === 'create'
+                        ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
+                        : 'text-gray-500 dark:text-gray-400',
+                      { 'cursor-not-allowed opacity-45': !workspace.supportsCreate.value },
+                    ]"
+                    :disabled="!workspace.supportsCreate.value"
+                    :aria-disabled="!workspace.supportsCreate.value"
+                    :title="!workspace.supportsCreate.value ? t('imageStudio.operationUnsupported') : undefined"
+                    @click="selectImageMode('create')"
+                  >
+                    {{ t('imageStudio.createMode') }}
+                  </button>
+                  <button
+                    data-testid="image-mode-edit"
+                    type="button"
+                    class="rounded-md px-3 py-2 text-sm font-medium transition"
+                    :class="[
+                      workspace.mode.value === 'edit'
+                        ? 'bg-white text-gray-900 shadow-sm dark:bg-dark-700 dark:text-white'
+                        : 'text-gray-500 dark:text-gray-400',
+                      { 'cursor-not-allowed opacity-45': !workspace.supportsEdit.value },
+                    ]"
+                    :disabled="!workspace.supportsEdit.value"
+                    :aria-disabled="!workspace.supportsEdit.value"
+                    :title="!workspace.supportsEdit.value ? t('imageStudio.operationUnsupported') : undefined"
+                    @click="selectImageMode('edit')"
+                  >
+                    {{ t('imageStudio.editMode') }}
+                  </button>
+                </div>
+              </div>
+
+              <div v-if="workspace.mode.value === 'edit'" class="space-y-3">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="input-label mb-0">{{ t('imageStudio.referenceImages') }}</span>
+                  <span class="text-xs text-gray-400 dark:text-gray-500">
+                    {{ workspace.referenceUploads.value.length }} / {{ workspace.maxReferenceImages.value }}
+                  </span>
+                </div>
+                <label
+                  v-if="workspace.referenceUploads.value.length < workspace.maxReferenceImages.value"
+                  class="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-900 dark:text-gray-300"
+                >
+                  <Icon name="upload" size="sm" />
+                  {{ t('imageStudio.addReferences') }}
+                  <input
+                    data-testid="reference-input"
+                    type="file"
+                    class="sr-only"
+                    accept="image/png,image/jpeg,image/webp"
+                    multiple
+                    @change="selectReferenceFiles"
+                  />
+                </label>
+                <p class="text-xs leading-5 text-gray-400 dark:text-gray-500">
+                  {{ t('imageStudio.referenceHint') }}
+                </p>
+                <div v-if="workspace.referenceUploads.value.length" class="grid grid-cols-2 gap-2">
+                  <div
+                    v-for="item in workspace.referenceUploads.value"
+                    :key="item.localId"
+                    class="relative min-w-0 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800"
+                  >
+                    <div class="aspect-square bg-gray-100 dark:bg-dark-900">
+                      <img
+                        v-if="item.previewUrl"
+                        :src="item.previewUrl"
+                        :alt="item.file.name"
+                        class="h-full w-full object-cover"
+                      />
+                    </div>
+                    <div class="flex items-center justify-between gap-1 px-2 py-1.5">
+                      <span class="min-w-0 truncate text-[11px] text-gray-500 dark:text-gray-400">
+                        {{ item.status === 'uploading'
+                          ? t('imageStudio.referenceUploading')
+                          : item.status === 'failed'
+                            ? item.error
+                            : item.file.name }}
+                      </span>
+                      <span class="flex flex-shrink-0 items-center">
+                        <button
+                          v-if="item.status === 'failed'"
+                          type="button"
+                          class="grid h-7 w-7 place-items-center text-gray-500 hover:text-primary-600"
+                          :aria-label="t('imageStudio.retryReference')"
+                          @click="workspace.retryReference(item.localId)"
+                        >
+                          <Icon name="refresh" size="xs" />
+                        </button>
+                        <button
+                          type="button"
+                          class="grid h-7 w-7 place-items-center text-gray-500 hover:text-red-600"
+                          :aria-label="t('imageStudio.removeReference')"
+                          @click="workspace.removeReference(item.localId)"
+                        >
+                          <Icon name="trash" size="xs" />
+                        </button>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <p
+                  v-if="!workspace.editReferencesReady.value && !workspace.uploadingReferences.value"
+                  class="text-xs text-amber-600 dark:text-amber-300"
+                >
+                  {{ t('imageStudio.referenceRequired') }}
+                </p>
+              </div>
+
               <label class="block">
                 <span class="mb-2 flex items-center justify-between gap-3">
                   <span class="input-label mb-0">{{ t('imageStudio.promptLabel') }}</span>
@@ -297,7 +443,7 @@ onBeforeUnmount(() => {
                 :aspect="workspace.aspect.value"
                 :tier="workspace.tier.value"
                 :selected-model="workspace.selectedModelOption.value"
-                :disabled="workspace.polling.value || workspace.generating.value"
+                :disabled="workspace.generating.value"
                 @update:aspect="workspace.onAspectChange"
                 @update:tier="workspace.onTierChange"
               />
@@ -328,21 +474,90 @@ onBeforeUnmount(() => {
               <div class="space-y-4 border-t border-gray-100 bg-gray-50/70 px-5 py-4 dark:border-dark-700 dark:bg-dark-900/50">
                 <label class="block">
                   <span class="input-label">{{ t('imageStudio.apiKey') }}</span>
-                  <select v-model.number="workspace.apiKeyId.value" class="input" :disabled="workspace.polling.value || workspace.generating.value">
+                  <select v-model.number="workspace.apiKeyId.value" class="input" :disabled="workspace.generating.value">
                     <option v-for="key in workspace.apiKeys.value" :key="key.id" :value="key.id">{{ key.name }}</option>
                   </select>
                 </label>
                 <label class="block">
                   <span class="input-label">{{ t('imageStudio.model') }}</span>
-                  <select v-model="workspace.selectedModel.value" class="input" :disabled="workspace.loadingModels.value || !workspace.availableModels.value.length || workspace.polling.value || workspace.generating.value">
+                  <select v-model="workspace.selectedModel.value" class="input" :disabled="workspace.loadingModels.value || !workspace.availableModels.value.length || workspace.generating.value">
                     <option v-if="workspace.loadingModels.value" value="">{{ t('imageStudio.loadingModels') }}</option>
                     <option v-for="model in workspace.availableModels.value" :key="model.id" :value="model.id">{{ model.display_name || model.id }}</option>
                   </select>
                 </label>
                 <label v-if="workspace.showQuality.value" class="block">
                   <span class="input-label">{{ t('imageStudio.renderQuality') }}</span>
-                  <select v-model="workspace.quality.value" class="input" :disabled="workspace.polling.value || workspace.generating.value">
+                  <select v-model="workspace.quality.value" class="input" :disabled="workspace.generating.value">
                     <option v-for="quality in workspace.selectedModelOption.value?.supported_qualities || []" :key="quality" :value="quality">{{ t(`imageStudio.qualityOptions.${quality}`, quality) }}</option>
+                  </select>
+                </label>
+                <label v-if="workspace.showBackground.value" class="block">
+                  <span class="input-label">{{ t('imageStudio.background') }}</span>
+                  <select
+                    v-model="workspace.background.value"
+                    data-testid="background-select"
+                    class="input"
+                    :disabled="workspace.generating.value"
+                  >
+                    <option
+                      v-for="option in workspace.selectedModelOption.value?.supported_backgrounds || []"
+                      :key="option"
+                      :value="option"
+                    >
+                      {{ t(`imageStudio.backgroundOptions.${option}`, option) }}
+                    </option>
+                  </select>
+                </label>
+                <label v-if="workspace.showOutputFormat.value" class="block">
+                  <span class="input-label">{{ t('imageStudio.outputFormat') }}</span>
+                  <select
+                    v-model="workspace.outputFormat.value"
+                    data-testid="output-format-select"
+                    class="input"
+                    :disabled="workspace.generating.value"
+                  >
+                    <option
+                      v-for="option in workspace.selectedModelOption.value?.supported_output_formats || []"
+                      :key="option"
+                      :value="option"
+                    >
+                      {{ option.toUpperCase() }}
+                    </option>
+                  </select>
+                </label>
+                <label v-if="workspace.showOutputCompression.value" class="block">
+                  <span class="mb-2 flex items-center justify-between gap-3">
+                    <span class="input-label mb-0">{{ t('imageStudio.outputCompression') }}</span>
+                    <span class="text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                      {{ workspace.outputCompression.value }}
+                    </span>
+                  </span>
+                  <input
+                    v-model.number="workspace.outputCompression.value"
+                    data-testid="output-compression-input"
+                    type="range"
+                    class="w-full accent-primary-600"
+                    :min="workspace.selectedModelOption.value?.output_compression?.min ?? 0"
+                    :max="workspace.selectedModelOption.value?.output_compression?.max ?? 100"
+                    step="1"
+                    :disabled="workspace.generating.value"
+                  />
+                </label>
+                <label v-if="workspace.showInputFidelity.value" class="block">
+                  <span class="input-label">{{ t('imageStudio.inputFidelity') }}</span>
+                  <select
+                    v-model="workspace.inputFidelity.value"
+                    data-testid="input-fidelity-select"
+                    class="input"
+                    :disabled="workspace.generating.value"
+                  >
+                    <option
+                      v-for="option in workspace.selectedModelOption.value?.supported_input_fidelities || []"
+                      :key="option"
+                      :value="option"
+                    >
+                      {{ t(`imageStudio.inputFidelityOptions.${option}`, option) }}
+                    </option>
                   </select>
                 </label>
                 <label class="block">
@@ -364,15 +579,15 @@ onBeforeUnmount(() => {
                   </span>
                 </label>
                 <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-                  <input v-model="workspace.autoCleanup.value" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" :disabled="workspace.polling.value || workspace.generating.value" @change="workspace.onAutoCleanupChange()" />
+                  <input v-model="workspace.autoCleanup.value" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" :disabled="workspace.generating.value" @change="workspace.onAutoCleanupChange()" />
                   {{ t('imageStudio.autoCleanup') }}
                 </label>
               </div>
             </details>
 
             <div class="bg-gray-50/80 p-5 dark:bg-dark-900/60">
-              <p v-if="workspace.modelError.value || workspace.estimateError.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
-                {{ workspace.modelError.value || workspace.estimateError.value }}
+              <p v-if="workspace.capabilityError.value || workspace.modelError.value || workspace.estimateError.value" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                {{ workspace.capabilityError.value || workspace.modelError.value || workspace.estimateError.value }}
               </p>
               <p v-if="workspace.errorMsg.value" role="alert" class="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
                 {{ workspace.errorMsg.value }}
@@ -386,6 +601,14 @@ onBeforeUnmount(() => {
                   </span>
                 </span>
                 <span v-else class="text-gray-400">{{ t('imageStudio.estimatePending') }}</span>
+              </div>
+              <div class="mb-3 flex items-center justify-between gap-3 text-xs">
+                <span class="text-gray-500 dark:text-gray-400">
+                  {{ t('imageStudio.activeJobs', { count: workspace.activeJobCount.value, max: 2 }) }}
+                </span>
+                <span v-if="workspace.atActiveJobLimit.value" class="font-medium text-amber-600 dark:text-amber-300">
+                  {{ t('imageStudio.activeJobLimit') }}
+                </span>
               </div>
               <button type="button" class="btn btn-primary w-full" :disabled="!canGenerate" @click="generate">
                 <Icon name="sparkles" size="sm" />
@@ -404,33 +627,28 @@ onBeforeUnmount(() => {
               <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.latestResult') }}</h2>
               <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('imageStudio.latestResultHint') }}</p>
             </div>
-            <span v-if="workspace.polling.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <span v-if="workspace.activeJobCount.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
               <span class="h-2 w-2 animate-pulse rounded-full bg-current" />
-              {{ workspace.pollNotice.value || t('imageStudio.polling') }}
+              {{ t('imageStudio.activeJobs', { count: workspace.activeJobCount.value, max: 2 }) }}
             </span>
           </header>
 
           <div class="p-4 sm:p-5">
-            <div v-if="workspace.polling.value" class="flex min-h-[420px] flex-col items-center justify-center rounded-xl bg-gray-50 px-6 text-center dark:bg-dark-900">
-              <span class="h-10 w-10 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
-              <h3 class="mt-4 font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.generatingTitle') }}</h3>
-              <p class="mt-2 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">{{ workspace.pollNotice.value || t('imageStudio.polling') }}</p>
-            </div>
-
             <ImageStudioGallery
-              v-else-if="featuredJob"
-              :jobs="[featuredJob]"
-              :latest-job="featuredJob"
+              v-if="featuredJobs.length"
+              :jobs="featuredJobs"
+              :canceling-job-ids="workspace.cancelingJobIds.value"
               featured
               @preview="workspace.openPreview"
+              @cancel="workspace.cancelJob"
               @delete="workspace.removeJob"
               @regenerate="reuseJob"
             />
 
-            <div v-else-if="workspace.galleryError.value" class="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 text-center dark:border-red-900/60 dark:bg-red-950/30">
+            <div v-else-if="workspace.galleryError.value && !historyJobs.length" class="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 text-center dark:border-red-900/60 dark:bg-red-950/30">
               <Icon name="exclamationCircle" class="text-red-500 dark:text-red-300" />
               <p class="mt-3 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">{{ workspace.galleryError.value }}</p>
-              <button data-testid="retry-gallery" type="button" class="btn btn-secondary mt-4" @click="workspace.refreshJobs">
+              <button data-testid="retry-gallery" type="button" class="btn btn-secondary mt-4" @click="workspace.refreshJobs()">
                 <Icon name="refresh" size="sm" />
                 {{ t('imageStudio.retryGallery') }}
               </button>
@@ -450,17 +668,58 @@ onBeforeUnmount(() => {
             </div>
           </div>
 
-          <div v-if="historyJobs.length" class="border-t border-gray-100 px-4 py-5 sm:px-5 dark:border-dark-700">
+          <div
+            v-if="historyJobs.length || workspace.galleryPages.value > 1 || workspace.galleryLoading.value"
+            class="border-t border-gray-100 px-4 py-5 sm:px-5 dark:border-dark-700"
+          >
             <div class="mb-4 flex items-center justify-between gap-3">
               <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.recentWorks') }}</h2>
-              <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('imageStudio.recentWorksCount', { count: historyJobs.length }) }}</span>
+              <span class="inline-flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+                <span v-if="workspace.galleryLoading.value" class="h-3.5 w-3.5 animate-spin rounded-full border border-current border-t-transparent" />
+                {{ t('imageStudio.recentWorksCount', { count: workspace.galleryTotal.value }) }}
+              </span>
             </div>
             <ImageStudioGallery
+              v-if="historyJobs.length"
               :jobs="historyJobs"
+              :canceling-job-ids="workspace.cancelingJobIds.value"
               @preview="workspace.openPreview"
+              @cancel="workspace.cancelJob"
               @delete="workspace.removeJob"
               @regenerate="reuseJob"
             />
+            <nav
+              v-if="workspace.galleryPages.value > 1"
+              class="mt-4 flex items-center justify-center gap-3 border-t border-gray-100 pt-4 dark:border-dark-700"
+              :aria-label="t('imageStudio.pagination')"
+            >
+              <button
+                type="button"
+                class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-primary-300"
+                :disabled="workspace.galleryLoading.value || workspace.galleryPage.value <= 1"
+                :title="t('imageStudio.previousPage')"
+                :aria-label="t('imageStudio.previousPage')"
+                @click="changeGalleryPage(workspace.galleryPage.value - 1)"
+              >
+                <Icon name="chevronLeft" size="sm" />
+              </button>
+              <span class="min-w-24 text-center text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300">
+                {{ t('imageStudio.pageStatus', {
+                  page: workspace.galleryPage.value,
+                  pages: workspace.galleryPages.value,
+                }) }}
+              </span>
+              <button
+                type="button"
+                class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-primary-300"
+                :disabled="workspace.galleryLoading.value || workspace.galleryPage.value >= workspace.galleryPages.value"
+                :title="t('imageStudio.nextPage')"
+                :aria-label="t('imageStudio.nextPage')"
+                @click="changeGalleryPage(workspace.galleryPage.value + 1)"
+              >
+                <Icon name="chevronRight" size="sm" />
+              </button>
+            </nav>
           </div>
         </section>
       </div>

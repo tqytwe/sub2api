@@ -6,6 +6,7 @@ import {
   clearStudioPendingJobId,
   clearStudioPendingJobForUser,
   getStudioDraftKey,
+  getStudioPendingJobsForUser,
   getStudioPendingJobForUser,
   getStudioPendingJobSubmittedPrompt,
   loadStudioDraft,
@@ -109,6 +110,20 @@ describe('Image Studio session draft', () => {
     expect(loadStudioDraft(42, now + 1000)?.userPrompt).toBe('new prompt')
   })
 
+  it('does not clear matching text submitted with different generation settings', () => {
+    saveStudioDraft(42, draft, now)
+
+    expect(clearStudioPromptDraft(42, {
+      userPrompt: draft.userPrompt,
+      expertPrompt: draft.expertPrompt,
+      templateId: 'free-create',
+      aspect: draft.aspect,
+      tier: draft.tier,
+      count: draft.count,
+    }, now + 1000)).toBe(false)
+    expect(loadStudioDraft(42, now + 1000)?.userPrompt).toBe(draft.userPrompt)
+  })
+
   it('scopes pending prompt snapshots to the matching job owner', () => {
     const submittedPrompt = {
       userPrompt: draft.userPrompt,
@@ -125,6 +140,87 @@ describe('Image Studio session draft', () => {
     expect(getStudioPendingJobForUser(42)?.jobId).toBe('job-1')
     clearStudioPendingJobForUser(42, 'job-1')
     expect(getStudioPendingJobSubmittedPrompt(42, 'job-1')).toBeNull()
+  })
+
+  it('round-trips advanced generation settings in pending job snapshots', () => {
+    const submittedPrompt = {
+      userPrompt: draft.userPrompt,
+      expertPrompt: draft.expertPrompt,
+      background: 'transparent',
+      outputFormat: 'webp',
+      outputCompression: 82,
+      inputFidelity: 'high',
+      mode: 'edit' as const,
+      referenceIds: ['ref-1', 'ref-2'],
+    }
+
+    setStudioPendingJobId('job-advanced', { userId: 42, submittedPrompt })
+
+    expect(getStudioPendingJobSubmittedPrompt(42, 'job-advanced')).toEqual(submittedPrompt)
+  })
+
+  it('stores multiple pending jobs per user and clears only the terminal job', () => {
+    setStudioPendingJobId('job-1', {
+      userId: 42,
+      submittedPrompt: { userPrompt: 'first prompt', expertPrompt: '' },
+    })
+    setStudioPendingJobId('job-2', {
+      userId: 42,
+      submittedPrompt: { userPrompt: 'second prompt', expertPrompt: 'second expert' },
+    })
+    setStudioPendingJobId('job-other-user', {
+      userId: 7,
+      submittedPrompt: { userPrompt: 'other account', expertPrompt: '' },
+    })
+
+    expect(getStudioPendingJobsForUser(42)).toEqual([
+      {
+        jobId: 'job-1',
+        submittedPrompt: { userPrompt: 'first prompt', expertPrompt: '' },
+      },
+      {
+        jobId: 'job-2',
+        submittedPrompt: { userPrompt: 'second prompt', expertPrompt: 'second expert' },
+      },
+    ])
+    expect(getStudioPendingJobsForUser(7).map((job) => job.jobId)).toEqual(['job-other-user'])
+
+    clearStudioPendingJobForUser(42, 'job-1')
+    expect(getStudioPendingJobsForUser(42).map((job) => job.jobId)).toEqual(['job-2'])
+    expect(getStudioPendingJobsForUser(7).map((job) => job.jobId)).toEqual(['job-other-user'])
+  })
+
+  it('migrates the legacy single-job context only for its owning account', () => {
+    setStudioPendingJobId('job-existing', {
+      userId: 42,
+      submittedPrompt: { userPrompt: 'existing prompt', expertPrompt: '' },
+    })
+    localStorage.setItem('image_studio_pending_job_id', 'job-legacy')
+    localStorage.setItem('image_studio_pending_job_context:v1', JSON.stringify({
+      version: 1,
+      jobId: 'job-legacy',
+      userId: 42,
+      submittedPrompt: {
+        userPrompt: 'legacy prompt',
+        expertPrompt: 'legacy expert',
+      },
+    }))
+
+    expect(getStudioPendingJobsForUser(7)).toEqual([])
+    expect(localStorage.getItem('image_studio_pending_job_id')).toBe('job-legacy')
+
+    expect(getStudioPendingJobsForUser(42)).toEqual([
+      {
+        jobId: 'job-existing',
+        submittedPrompt: { userPrompt: 'existing prompt', expertPrompt: '' },
+      },
+      {
+        jobId: 'job-legacy',
+        submittedPrompt: { userPrompt: 'legacy prompt', expertPrompt: 'legacy expert' },
+      },
+    ])
+    expect(localStorage.getItem('image_studio_pending_job_id')).toBeNull()
+    expect(localStorage.getItem('image_studio_pending_job_context:v1')).toBeNull()
   })
 
   it('clears malformed pending context without exposing it to another user', () => {

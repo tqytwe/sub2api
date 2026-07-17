@@ -46,6 +46,7 @@ func buildBatchImageHoldCommand(job *BatchImageJob, requestID string, actualAmou
 	}
 	return &BatchImageBalanceHoldCommand{
 		RequestID:          requestID,
+		HoldRequestID:      BatchImageHoldRequestID(job.BatchID),
 		APIKeyID:           *job.APIKeyID,
 		UserID:             job.UserID,
 		BatchID:            job.BatchID,

@@ -1261,6 +1261,39 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyGenerationUsesConfiguredV1BaseU
 	require.Equal(t, "aGVsbG8=", gjson.Get(rec.Body.String(), "data.0.b64_json").String())
 }
 
+func TestBuildOpenAIImagesRequestForManagedStudioForwardsInternalIdempotencyKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat"}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "image-studio:job-1:item-1")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	svc := &OpenAIGatewayService{cfg: &config.Config{}}
+	account := &Account{
+		Type:     AccountTypeAPIKey,
+		Platform: PlatformOpenAI,
+		Credentials: map[string]any{
+			"api_key":  "test-api-key",
+			"base_url": "https://image-upstream.example/v1",
+		},
+	}
+
+	upstream, err := svc.buildOpenAIImagesRequest(
+		WithImageStudioManagedBilling(context.Background()),
+		c,
+		account,
+		body,
+		"application/json",
+		"test-api-key",
+		openAIImagesGenerationsEndpoint,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "image-studio:job-1:item-1", upstream.Header.Get("Idempotency-Key"))
+}
+
 func TestOpenAIGatewayServiceForwardImages_APIKeyStreamJSONResponseBillsImage(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat","stream":true,"response_format":"b64_json"}`)

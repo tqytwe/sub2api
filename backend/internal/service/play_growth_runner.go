@@ -116,6 +116,11 @@ func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 		}
 	}
 	if r.imageStudio != nil {
+		if n, err := r.imageStudio.ReconcileBilling(ctx, 100); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] reconcile image studio billing: %v", err)
+		} else if n > 0 {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] reconciled %d image studio billing records", n)
+		}
 		if n, err := r.imageStudio.PurgeExpiredJobs(ctx, time.Now()); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] purge image studio jobs: %v", err)
 		} else if n > 0 {

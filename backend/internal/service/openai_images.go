@@ -805,6 +805,11 @@ func (s *OpenAIGatewayService) buildOpenAIImagesRequest(
 			req.Header.Add(key, value)
 		}
 	}
+	if IsImageStudioManagedBilling(ctx) {
+		if idempotencyKey := strings.TrimSpace(c.GetHeader("Idempotency-Key")); idempotencyKey != "" {
+			req.Header.Set("Idempotency-Key", idempotencyKey)
+		}
+	}
 	customUA := account.GetOpenAIUserAgent()
 	if customUA != "" {
 		req.Header.Set("User-Agent", customUA)

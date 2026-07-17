@@ -43,4 +43,12 @@ describe('useImageStudioCapabilities', () => {
     const hd = caps.selectableOptions.value.find((opt) => opt.size === '2048x2048')
     expect(hd?.disabled).toBe(true)
   })
+
+  it('does not invent a default size before capabilities are available', () => {
+    const capabilities = ref<ImageStudioCapabilities | null>(null)
+    const caps = useImageStudioCapabilities(() => capabilities.value, () => null)
+
+    expect(caps.currentOption.value).toBeNull()
+    expect(caps.resolvedSize.value).toBe('')
+  })
 })

@@ -26,16 +26,30 @@ var imageStudioModelPreference = []string{
 }
 
 type ImageStudioModelOption struct {
-	ID                 string   `json:"id"`
-	DisplayName        string   `json:"display_name"`
-	SupportedSizes     []string `json:"supported_sizes,omitempty"`
-	SupportedQualities []string `json:"supported_qualities,omitempty"`
-	DefaultSize        string   `json:"default_size,omitempty"`
-	DefaultQuality     string   `json:"default_quality,omitempty"`
+	ID          string `json:"id"`
+	DisplayName string `json:"display_name"`
+	ImageStudioModelCapabilities
 }
 
 type ImageStudioModelResolver interface {
 	GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string
+}
+
+type ImageStudioInputCostEstimator interface {
+	EstimateImageStudioInputCost(
+		ctx context.Context,
+		model string,
+		apiKey *APIKey,
+		imageInputTokens int,
+	) (float64, error)
+}
+
+type ImageStudioRateMultiplierResolver interface {
+	ResolveUserGroupRateMultiplier(
+		ctx context.Context,
+		userID, groupID int64,
+		groupDefaultMultiplier float64,
+	) float64
 }
 
 func (s *ImageStudioService) ListModels(ctx context.Context, userID, apiKeyID int64) ([]ImageStudioModelOption, error) {
@@ -54,12 +68,9 @@ func (s *ImageStudioService) ListModels(ctx context.Context, userID, apiKeyID in
 	for _, model := range models {
 		caps := s.ResolveModelCapabilities(apiKey, model)
 		out = append(out, ImageStudioModelOption{
-			ID:                 model,
-			DisplayName:        imageStudioModelDisplayName(model),
-			SupportedSizes:     caps.SupportedSizes,
-			SupportedQualities: caps.SupportedQualities,
-			DefaultSize:        caps.DefaultSize,
-			DefaultQuality:     caps.DefaultQuality,
+			ID:                           model,
+			DisplayName:                  imageStudioModelDisplayName(model),
+			ImageStudioModelCapabilities: caps,
 		})
 	}
 	return out, nil
@@ -105,7 +116,7 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 		}
 	}
 
-	models := filterImageGenerationModels(candidates)
+	models := filterImageGenerationModelsForPlatform(candidates, platform)
 	if apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 		models = filterImageModelsByCustomList(models, apiKey.Group.ModelsListConfig.Models)
 	}
@@ -116,16 +127,22 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 	return models, nil
 }
 
-func filterImageGenerationModels(models []string) []string {
+func filterImageGenerationModelsForPlatform(models []string, platform string) []string {
 	if len(models) == 0 {
 		return nil
 	}
+	platform = strings.ToLower(strings.TrimSpace(platform))
 	seen := make(map[string]struct{}, len(models))
 	out := make([]string, 0, len(models))
 	for _, model := range models {
 		model = strings.TrimSpace(model)
 		if model == "" || !isOpenAIImageGenerationModel(model) {
 			continue
+		}
+		if platform != "" {
+			if _, ok := ResolveImageStudioProviderCapability(platform, model); !ok {
+				continue
+			}
 		}
 		if _, ok := seen[model]; ok {
 			continue

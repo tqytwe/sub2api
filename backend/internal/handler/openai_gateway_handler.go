@@ -98,6 +98,15 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	if requestID, _ := parent.Value(ctxkey.RequestID).(string); strings.TrimSpace(requestID) != "" {
 		base = context.WithValue(base, ctxkey.RequestID, strings.TrimSpace(requestID))
 	}
+	if managed, _ := parent.Value(ctxkey.ImageStudioManagedBilling).(bool); managed {
+		base = context.WithValue(base, ctxkey.ImageStudioManagedBilling, true)
+	}
+	if capture := service.ImageStudioBillingCaptureFromContext(parent); capture != nil {
+		base = context.WithValue(base, ctxkey.ImageStudioBillingCapture, capture)
+	}
+	if cap, ok := parent.Value(ctxkey.ImageStudioBillingActualCostCap).(float64); ok {
+		base = context.WithValue(base, ctxkey.ImageStudioBillingActualCostCap, cap)
+	}
 	return base
 }
 
@@ -2019,12 +2028,18 @@ func (h *OpenAIGatewayHandler) submitUsageRecordTask(parent context.Context, tas
 	if task == nil {
 		return
 	}
-	task = wrapUsageRecordTaskContext(parent, task)
 	if h.usageRecordWorkerPool != nil {
-		h.usageRecordWorkerPool.Submit(task)
+		h.usageRecordWorkerPool.Submit(wrapUsageRecordTaskContext(parent, task))
 		return
 	}
-	// 回退路径：worker 池未注入时同步执行，避免退回到无界 goroutine 模式。
+	h.runUsageRecordTaskSync(parent, task)
+}
+
+func (h *OpenAIGatewayHandler) runUsageRecordTaskSync(parent context.Context, task service.UsageRecordTask) {
+	if task == nil {
+		return
+	}
+	task = wrapUsageRecordTaskContext(parent, task)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	defer func() {
@@ -2039,6 +2054,10 @@ func (h *OpenAIGatewayHandler) submitUsageRecordTask(parent context.Context, tas
 }
 
 func (h *OpenAIGatewayHandler) submitOpenAIUsageRecordTask(parent context.Context, result *service.OpenAIForwardResult, task service.UsageRecordTask) {
+	if service.IsImageStudioManagedBilling(parent) {
+		h.runUsageRecordTaskSync(parent, task)
+		return
+	}
 	if result != nil && result.ImageCount > 0 {
 		h.submitMandatoryUsageRecordTask(parent, task)
 		return
@@ -2050,26 +2069,15 @@ func (h *OpenAIGatewayHandler) submitMandatoryUsageRecordTask(parent context.Con
 	if task == nil {
 		return
 	}
-	task = wrapUsageRecordTaskContext(parent, task)
 	if h.usageRecordWorkerPool != nil {
-		if mode := h.usageRecordWorkerPool.Submit(task); mode != service.UsageRecordSubmitModeDropped {
+		if mode := h.usageRecordWorkerPool.Submit(wrapUsageRecordTaskContext(parent, task)); mode != service.UsageRecordSubmitModeDropped {
 			return
 		}
 		logger.L().With(
 			zap.String("component", "handler.openai_gateway.usage"),
 		).Warn("openai.usage_record_task_mandatory_sync_fallback")
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	defer func() {
-		if recovered := recover(); recovered != nil {
-			logger.L().With(
-				zap.String("component", "handler.openai_gateway.usage"),
-				zap.Any("panic", recovered),
-			).Error("openai.usage_record_task_panic_recovered")
-		}
-	}()
-	task(ctx)
+	h.runUsageRecordTaskSync(parent, task)
 }
 
 func (h *OpenAIGatewayHandler) acquireImageGenerationSlot(c *gin.Context, streamStarted bool) (func(), bool) {
