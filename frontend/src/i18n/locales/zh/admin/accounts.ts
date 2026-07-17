@@ -108,7 +108,7 @@ export default {
         notes: '备注',
         priority: '优先级',
         billingRateMultiplier: '账号倍率',
-        upstreamBillingRate: '上游声明倍率',
+        upstreamBillingRate: '上游声明计费倍率',
         weight: '权重',
         schedulerScore: '调度权值',
         status: '状态',
