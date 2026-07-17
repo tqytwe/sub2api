@@ -434,7 +434,7 @@ export default {
     arena: 'Token 农场',
     blindbox: '盲盒',
     quizQuest: '答题闯关',
-    agentTeam: 'Agent Team',
+    agentTeam: '组队奖励',
     subscriptions: '订阅管理',
     accounts: '账号管理',
     proxies: 'IP管理',

@@ -195,173 +195,209 @@ onMounted(load)
 
 <template>
   <AppLayout>
-    <div class="gw-page gw-page--wide space-y-6 pb-10">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p class="gw-eyebrow">{{ t('playHub.eyebrow') }}</p>
-          <h1 class="gw-title">{{ t('playHub.title') }}</h1>
-          <p class="gw-subtitle">{{ t('playHub.subtitle') }}</p>
-        </div>
-        <span
-          v-if="hub?.pending_actions"
-          class="gw-buff"
-        >
-          {{ t('playHub.pending', { count: hub.pending_actions }) }}
-        </span>
-      </div>
-
-      <div class="gw-hub-balance">
-        <div class="gw-hub-balance-row">
-          <div>
-            <p class="gw-balance-label">{{ t('playHub.balanceLabel') }}</p>
-            <p class="gw-balance-value">${{ balance.toFixed(2) }}</p>
-            <p v-if="hub?.growth.recharge_multiplier && hub.growth.recharge_multiplier !== 1" class="gw-subtitle">
-              {{ t('playHub.rechargeBoost', { mult: hub.growth.recharge_multiplier }) }}
-            </p>
-          </div>
-          <button
-            v-if="hub?.growth.payment_enabled"
-            type="button"
-            class="gw-btn gw-btn-primary"
-            @click="goPurchase"
-          >
-            {{ t('playHub.rechargeCta') }}
-          </button>
-        </div>
-        <p v-if="showGrowthCta" class="gw-subtitle mt-3 border-t border-[var(--gw-line)] pt-3">
-          <span v-if="hub?.growth.first_recharge_eligible">{{ t('playHub.firstRecharge') }}</span>
-          <span v-else-if="hub?.growth.balance_low_warning">
-            {{ t('playHub.balanceLow', { threshold: (hub.growth.balance_low_threshold ?? 0).toFixed(2) }) }}
-          </span>
-        </p>
-      </div>
-
-      <div v-if="vip" class="gw-panel">
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p class="gw-balance-label">{{ t('playHub.vipTitle') }}</p>
-            <div class="mt-1 flex flex-wrap items-center gap-2">
-              <span class="gw-buff">{{ vip.label }}</span>
-              <span class="gw-subtitle">
-                {{ t('playHub.vipRecharged', { amount: (hub?.growth.total_recharged ?? 0).toFixed(2) }) }}
+    <div
+      data-testid="play-hub-shell"
+      class="mx-auto max-w-[1440px] space-y-6 overflow-x-hidden pb-10 text-[var(--gw-ink)]"
+    >
+      <section class="gw-panel p-4 sm:p-5 lg:p-6">
+        <div class="grid gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-3">
+              <p class="gw-eyebrow mb-0">{{ t('playHub.eyebrow') }}</p>
+              <span
+                v-if="hub?.pending_actions"
+                class="gw-buff"
+              >
+                {{ t('playHub.pending', { count: hub.pending_actions }) }}
               </span>
             </div>
-            <p v-if="vip.next_tier" class="gw-subtitle mt-2">
-              {{ t('playHub.vipNext', { amount: (vip.amount_to_next ?? 0).toFixed(2), label: vip.next_label ?? '' }) }}
-            </p>
-            <p v-else class="gw-subtitle mt-2" style="color: var(--gw-ok)">{{ t('playHub.vipMax') }}</p>
+            <h1 class="gw-title mt-2 break-words">{{ t('playHub.title') }}</h1>
+            <p class="gw-subtitle max-w-3xl break-words">{{ t('playHub.subtitle') }}</p>
           </div>
-          <button
-            v-if="hub?.growth.payment_enabled && vip.next_tier"
-            type="button"
-            class="gw-btn gw-btn-secondary"
-            @click="goPurchase"
-          >
-            {{ t('playHub.rechargeCta') }}
-          </button>
-        </div>
-        <ul v-if="vipPerks.length" class="mt-4 space-y-1 gw-subtitle">
-          <li v-for="perk in vipPerks" :key="perk">· {{ perkLabel(perk) }}</li>
-        </ul>
-      </div>
 
-      <div v-if="primaryCampaign" class="gw-panel">
-        <p class="gw-balance-label">{{ t('playHub.campaignEyebrow') }}</p>
-        <h2 class="gw-section-title">{{ campaignDisplayName }}</h2>
-        <ul v-if="campaignPerkLines.length" class="mt-2 space-y-1 gw-subtitle">
-          <li v-for="(line, idx) in campaignPerkLines" :key="idx">· {{ line }}</li>
-        </ul>
-        <button
-          v-if="hub?.growth.payment_enabled && primaryCampaign.rules.recharge_bonus_pct"
-          type="button"
-          class="gw-btn gw-btn-primary mt-4"
-          @click="goPurchase"
-        >
-          {{ t('playHub.rechargeCta') }}
-        </button>
-      </div>
+          <div class="rounded-xl border border-[var(--gw-line)] bg-[var(--gw-soft)] p-4">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+              <div class="min-w-0">
+                <p class="gw-balance-label">{{ t('playHub.balanceLabel') }}</p>
+                <p class="gw-balance-value">${{ balance.toFixed(2) }}</p>
+              </div>
+              <button
+                v-if="hub?.growth.payment_enabled"
+                type="button"
+                class="gw-btn gw-btn-primary shrink-0 gap-2"
+                @click="goPurchase"
+              >
+                <Icon name="creditCard" size="sm" />
+                <span>{{ t('playHub.rechargeCta') }}</span>
+              </button>
+            </div>
+            <p
+              v-if="hub?.growth.recharge_multiplier && hub.growth.recharge_multiplier !== 1"
+              class="gw-subtitle"
+            >
+              {{ t('playHub.rechargeBoost', { mult: hub.growth.recharge_multiplier }) }}
+            </p>
+            <p v-if="showGrowthCta" class="gw-subtitle mt-3 border-t border-[var(--gw-line)] pt-3">
+              <span v-if="hub?.growth.first_recharge_eligible">{{ t('playHub.firstRecharge') }}</span>
+              <span v-else-if="hub?.growth.balance_low_warning">
+                {{ t('playHub.balanceLow', { threshold: (hub.growth.balance_low_threshold ?? 0).toFixed(2) }) }}
+              </span>
+            </p>
+          </div>
+        </div>
+      </section>
 
       <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
       <div v-else-if="!hub?.any_enabled && playCards.length === 0" class="gw-panel py-8 text-center gw-subtitle">
         {{ t('playHub.empty') }}
       </div>
       <template v-else>
-        <div v-if="hub?.quests?.enabled && hub.quests.tasks?.length" class="gw-quest-banner">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <h2 class="gw-quest-banner-title">{{ t('playHub.questsTitle') }}</h2>
-            <span class="gw-buff">
-              {{ t('playHub.questsEnergy', { energy: hub.quests.energy, level: hub.quests.level }) }}
-            </span>
-          </div>
-          <ul class="mt-3">
-            <li v-for="task in hub.quests.tasks" :key="task.key" class="gw-quest-item">
-              <span>
-                <span class="gw-quest-check" :class="{ done: task.completed }">{{ task.completed ? '✓' : '' }}</span>
-                {{ t(`playHub.quest.${task.key}`, task.key) }} (+{{ task.energy }})
-              </span>
-              <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="gw-link">
-                {{ t('playHub.actionGo') }}
-              </router-link>
-            </li>
-          </ul>
-        </div>
-        <router-link
-          v-if="hub?.image_studio?.enabled"
-          to="/image-studio"
-          class="gw-hub-card group block"
-          @click="trackHubClick('image_studio')"
+        <div
+          v-if="vip || primaryCampaign || (hub?.quests?.enabled && hub.quests.tasks?.length)"
+          class="grid gap-4 lg:grid-cols-3"
         >
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0">
-              <h2 class="gw-section-title">{{ t('nav.imageStudio') }}</h2>
-              <p class="gw-subtitle">
-                {{
-                  hub.image_studio.has_completed_job
-                    ? t('playHub.studioDone', { count: hub.image_studio.images_today })
-                    : t('playHub.studioPending')
-                }}
+          <section v-if="vip" class="gw-panel min-h-[12rem]">
+            <div class="flex h-full flex-col">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="gw-balance-label">{{ t('playHub.vipTitle') }}</p>
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <span class="gw-buff">{{ vip.label }}</span>
+                    <span class="gw-subtitle mt-0">
+                      {{ t('playHub.vipRecharged', { amount: (hub?.growth.total_recharged ?? 0).toFixed(2) }) }}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  v-if="hub?.growth.payment_enabled && vip.next_tier"
+                  type="button"
+                  class="gw-btn gw-btn-secondary gw-btn-sm shrink-0 gap-2"
+                  @click="goPurchase"
+                >
+                  <Icon name="creditCard" size="sm" />
+                  <span>{{ t('playHub.rechargeCta') }}</span>
+                </button>
+              </div>
+              <p v-if="vip.next_tier" class="gw-subtitle mt-3 break-words">
+                {{ t('playHub.vipNext', { amount: (vip.amount_to_next ?? 0).toFixed(2), label: vip.next_label ?? '' }) }}
               </p>
-              <p
-                v-if="!hub.image_studio.has_completed_job"
-                class="mt-2 text-xs font-medium"
-                style="color: var(--gw-ink)"
-              >
-                {{ t('playHub.actionStudio') }} →
-              </p>
+              <p v-else class="gw-subtitle mt-3" style="color: var(--gw-ok)">{{ t('playHub.vipMax') }}</p>
+              <ul v-if="vipPerks.length" class="gw-subtitle mt-4 grid gap-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+                <li v-for="perk in vipPerks" :key="perk" class="break-words">· {{ perkLabel(perk) }}</li>
+              </ul>
             </div>
-            <span
-              v-if="!hub.image_studio.has_completed_job"
-              class="gw-buff flex-shrink-0"
-            >
-              {{ t('playHub.badgePending') }}
-            </span>
-            <Icon v-else name="chevronRight" size="sm" class="flex-shrink-0" style="color: var(--gw-ink-3)" />
-          </div>
-        </router-link>
-        <div class="grid gap-4 sm:grid-cols-2">
+          </section>
+
+          <section v-if="primaryCampaign" class="gw-panel min-h-[12rem]">
+            <div class="flex h-full flex-col">
+              <p class="gw-balance-label">{{ t('playHub.campaignEyebrow') }}</p>
+              <h2 class="gw-section-title mt-2 break-words">{{ campaignDisplayName }}</h2>
+              <ul v-if="campaignPerkLines.length" class="gw-subtitle mt-0 space-y-1">
+                <li v-for="(line, idx) in campaignPerkLines" :key="idx" class="break-words">· {{ line }}</li>
+              </ul>
+              <button
+                v-if="hub?.growth.payment_enabled && primaryCampaign.rules.recharge_bonus_pct"
+                type="button"
+                class="gw-btn gw-btn-primary mt-4 w-fit gap-2"
+                @click="goPurchase"
+              >
+                <Icon name="gift" size="sm" />
+                <span>{{ t('playHub.rechargeCta') }}</span>
+              </button>
+            </div>
+          </section>
+
+          <section
+            v-if="hub?.quests?.enabled && hub.quests.tasks?.length"
+            class="gw-quest-banner m-0 min-h-[12rem]"
+          >
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <h2 class="gw-quest-banner-title">{{ t('playHub.questsTitle') }}</h2>
+              <span class="gw-buff">
+                {{ t('playHub.questsEnergy', { energy: hub.quests.energy, level: hub.quests.level }) }}
+              </span>
+            </div>
+            <ul class="mt-3">
+              <li v-for="task in hub.quests.tasks" :key="task.key" class="gw-quest-item">
+                <span class="min-w-0 break-words">
+                  <span class="gw-quest-check" :class="{ done: task.completed }">{{ task.completed ? '✓' : '' }}</span>
+                  {{ t(`playHub.quest.${task.key}`, task.key) }} (+{{ task.energy }})
+                </span>
+                <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="gw-link shrink-0">
+                  {{ t('playHub.actionGo') }}
+                </router-link>
+              </li>
+            </ul>
+          </section>
+        </div>
+
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <router-link
+            v-if="hub?.image_studio?.enabled"
+            to="/image-studio"
+            class="gw-hub-card group min-h-[10rem]"
+            @click="trackHubClick('image_studio')"
+          >
+            <div class="flex h-full items-start justify-between gap-3">
+              <div class="min-w-0">
+                <div class="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--gw-line)] bg-[var(--gw-soft)]">
+                  <Icon name="sparkles" size="sm" />
+                </div>
+                <h2 class="gw-section-title break-words">{{ t('nav.imageStudio') }}</h2>
+                <p class="gw-subtitle break-words">
+                  {{
+                    hub.image_studio.has_completed_job
+                      ? t('playHub.studioDone', { count: hub.image_studio.images_today })
+                      : t('playHub.studioPending')
+                  }}
+                </p>
+                <p
+                  v-if="!hub.image_studio.has_completed_job"
+                  class="mt-2 text-xs font-medium"
+                  style="color: var(--gw-ink)"
+                >
+                  {{ t('playHub.actionStudio') }} →
+                </p>
+              </div>
+              <span
+                v-if="!hub.image_studio.has_completed_job"
+                class="gw-buff shrink-0"
+              >
+                {{ t('playHub.badgePending') }}
+              </span>
+              <Icon v-else name="chevronRight" size="sm" class="shrink-0" style="color: var(--gw-ink-3)" />
+            </div>
+          </router-link>
+
           <router-link
             v-for="card in playCards"
             :key="card.key"
             :to="card.route"
-            class="gw-hub-card group"
+            class="gw-hub-card group min-h-[10rem]"
             @click="trackHubClick(card.key)"
           >
-            <div class="flex items-start justify-between gap-3">
+            <div class="flex h-full items-start justify-between gap-3">
               <div class="min-w-0">
-                <h2 class="gw-section-title">{{ card.title }}</h2>
-                <p class="gw-subtitle">{{ card.subtitle }}</p>
+                <h2 class="gw-section-title break-words">{{ card.title }}</h2>
+                <p class="gw-subtitle break-words">{{ card.subtitle }}</p>
                 <p v-if="card.action" class="mt-2 text-xs font-medium" style="color: var(--gw-ink)">{{ card.action }} →</p>
               </div>
-              <span v-if="card.badge" class="gw-buff flex-shrink-0">{{ card.badge }}</span>
-              <Icon v-else name="chevronRight" size="sm" class="flex-shrink-0" style="color: var(--gw-ink-3)" />
+              <span v-if="card.badge" class="gw-buff shrink-0">{{ card.badge }}</span>
+              <Icon v-else name="chevronRight" size="sm" class="shrink-0" style="color: var(--gw-ink-3)" />
             </div>
           </router-link>
-        </div>
+        </section>
       </template>
 
       <div class="flex flex-wrap gap-3">
-        <router-link to="/keys" class="gw-btn gw-btn-secondary">{{ t('playHub.goKeys') }}</router-link>
-        <router-link to="/purchase" class="gw-btn gw-btn-secondary">{{ t('nav.buySubscription') }}</router-link>
+        <router-link to="/keys" class="gw-btn gw-btn-secondary gap-2">
+          <Icon name="key" size="sm" />
+          <span>{{ t('playHub.goKeys') }}</span>
+        </router-link>
+        <router-link to="/purchase" class="gw-btn gw-btn-secondary gap-2">
+          <Icon name="creditCard" size="sm" />
+          <span>{{ t('nav.buySubscription') }}</span>
+        </router-link>
       </div>
     </div>
   </AppLayout>
