@@ -43,6 +43,8 @@ describe('public image API documentation placement', () => {
 
     expect(asyncPage?.html).toContain('/v1/images/generations/async')
     expect(asyncPage?.html).toContain('/v1/images/tasks/')
+    expect(asyncPage?.html).toContain('默认使用服务器持久卷')
+    expect(asyncPage?.html).toContain('/v1/images/task-assets/')
     expect(asyncPage?.html).toContain('"status": "processing"')
     expect(asyncPage?.html).toContain('"status": "completed"')
     expect(asyncPage?.html).toContain('"status": "failed"')

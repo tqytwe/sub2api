@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path"
 	"strings"
 	"time"
 
@@ -21,18 +22,22 @@ import (
 )
 
 type AsyncImageHandler struct {
-	tasks   *service.ImageTaskService
-	openAI  *OpenAIGatewayHandler
-	execute func(platform string, c *gin.Context)
+	tasks       *service.ImageTaskService
+	openAI      *OpenAIGatewayHandler
+	assetReader service.ImageAssetReader
+	execute     func(platform string, c *gin.Context)
 }
 
-func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler) *AsyncImageHandler {
+func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorage service.ImageStorage) *AsyncImageHandler {
 	h := &AsyncImageHandler{tasks: tasks, openAI: openAI}
+	if reader, ok := imageStorage.(service.ImageAssetReader); ok {
+		h.assetReader = reader
+	}
 	h.execute = h.executeWithGateway
 	return h
 }
 
-// enabled reports whether the async image task feature is available. Object
+// enabled reports whether the async image task feature is available. Result
 // storage is the enablement gate: without it the endpoints are fully disabled
 // so that large base64 results never land in Redis.
 func (h *AsyncImageHandler) enabled() bool {
@@ -135,6 +140,36 @@ func (h *AsyncImageHandler) Get(c *gin.Context) {
 		c.Header("Retry-After", "3")
 	}
 	c.JSON(http.StatusOK, task)
+}
+
+func (h *AsyncImageHandler) GetAsset(c *gin.Context) {
+	if !h.enabled() || h == nil || h.assetReader == nil {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "async image task asset storage is not enabled")
+		return
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.UserID <= 0 || apiKey.ID <= 0 {
+		imageTaskError(c, service.ErrImageTaskForbidden)
+		return
+	}
+	key := strings.TrimLeft(c.Param("filepath"), "/")
+	taskID := imageTaskIDFromAssetKey(key)
+	if taskID == "" {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image task asset not found")
+		return
+	}
+	if _, err := h.tasks.Get(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID}, taskID); err != nil {
+		imageTaskError(c, err)
+		return
+	}
+	reader, contentType, err := h.assetReader.Open(c.Request.Context(), key)
+	if err != nil {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image task asset not found")
+		return
+	}
+	defer func() { _ = reader.Close() }()
+	c.Header("Cache-Control", "private, max-age=86400")
+	c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
 }
 
 func (h *AsyncImageHandler) validateRequest(c *gin.Context, platform string, body []byte) error {
@@ -245,6 +280,18 @@ func imageTaskPollURL(submitPath, taskID string) string {
 		return "/v1/images/tasks/" + taskID
 	}
 	return "/images/tasks/" + taskID
+}
+
+func imageTaskIDFromAssetKey(key string) string {
+	base := path.Base(strings.ReplaceAll(key, "\\", "/"))
+	if !strings.HasPrefix(base, "imgtask_") {
+		return ""
+	}
+	idx := strings.LastIndex(base, "-")
+	if idx <= len("imgtask_") {
+		return ""
+	}
+	return base[:idx]
 }
 
 func extractImageTaskError(body []byte) json.RawMessage {

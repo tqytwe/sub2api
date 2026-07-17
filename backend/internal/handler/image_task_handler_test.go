@@ -32,6 +32,23 @@ type asyncImageMemoryStore struct {
 	tasks map[string]*service.ImageTaskRecord
 }
 
+type asyncImageMemoryAssetStore struct {
+	data        []byte
+	contentType string
+	err         error
+}
+
+func (s *asyncImageMemoryAssetStore) Save(_ context.Context, _ string, _ string, _ []byte) (string, error) {
+	return "", nil
+}
+
+func (s *asyncImageMemoryAssetStore) Open(_ context.Context, _ string) (io.ReadCloser, string, error) {
+	if s.err != nil {
+		return nil, "", s.err
+	}
+	return io.NopCloser(bytes.NewReader(s.data)), s.contentType, nil
+}
+
 func (s *asyncImageMemoryStore) Save(_ context.Context, task *service.ImageTaskRecord, _ time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -117,7 +134,7 @@ func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
 	require.Contains(t, pollWriter.Body.String(), "https://example.test/image.png")
 }
 
-// When object storage is not configured the feature is fully disabled: the
+// When result storage is not configured the feature is fully disabled: the
 // endpoints must return 404 without creating a task or writing to Redis.
 func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -155,6 +172,45 @@ func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 	require.Empty(t, store.tasks)
 }
 
+func TestAsyncImageHandlerGetAssetRequiresTaskOwner(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	assetStore := &asyncImageMemoryAssetStore{data: []byte("image-bytes"), contentType: "image/png"}
+	h := NewAsyncImageHandler(tasks, nil, assetStore)
+
+	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	task, err := tasks.Create(context.Background(), owner)
+	require.NoError(t, err)
+	require.NoError(t, tasks.Complete(context.Background(), task.ID, http.StatusOK, json.RawMessage(`{"data":[{"url":"/v1/images/task-assets/images/`+task.ID+`-0.png"}]}`)))
+
+	router := gin.New()
+	apiKeyID := int64(9)
+	router.Use(func(c *gin.Context) {
+		groupID := int64(3)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+			ID:      apiKeyID,
+			UserID:  7,
+			GroupID: &groupID,
+			Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
+		})
+		c.Next()
+	})
+	router.GET("/v1/images/task-assets/*filepath", h.GetAsset)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/images/task-assets/images/"+task.ID+"-0.png", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
+	require.Equal(t, "image-bytes", w.Body.String())
+
+	apiKeyID = 10
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
 func TestAsyncImageHandlerMultipartPartTooLargeReturnsOpenAICompatible413(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -163,7 +219,7 @@ func TestAsyncImageHandlerMultipartPartTooLargeReturnsOpenAICompatible413(t *tes
 			store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
 			tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
 			openAI := &OpenAIGatewayHandler{gatewayService: &service.OpenAIGatewayService{}}
-			h := NewAsyncImageHandler(tasks, openAI)
+			h := NewAsyncImageHandler(tasks, openAI, nil)
 
 			router := gin.New()
 			router.Use(func(c *gin.Context) {
@@ -214,7 +270,7 @@ func TestAsyncImageHandlerGrokMalformedMultipartJSONBodyReturnsOpenAICompatible4
 	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
 	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
 	openAI := &OpenAIGatewayHandler{gatewayService: &service.OpenAIGatewayService{}}
-	h := NewAsyncImageHandler(tasks, openAI)
+	h := NewAsyncImageHandler(tasks, openAI, nil)
 
 	router := gin.New()
 	router.Use(func(c *gin.Context) {

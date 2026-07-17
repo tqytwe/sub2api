@@ -1177,23 +1177,26 @@ update:
   proxy_url: ""
 
 # =============================================================================
-# Image Storage (异步图片任务结果对象存储)
+# Image Storage (异步图片任务结果存储)
 # =============================================================================
 # 长耗时生图套 Cloudflare 会 524 超时，异步图片任务接口（/v1/images/generations/async
 # 等）先返回 task_id，再由客户端轮询 /v1/images/tasks/{task_id} 获取结果。
 #
-# 这里配置一个 S3 兼容对象存储（AWS S3 / Cloudflare R2 / 阿里云 OSS / MinIO 等），
-# 任务完成后把生成的图片上传到对象存储，只在 Redis 存一个短链接，避免 gpt-image-1 等
-# 返回的大 base64 结果把 Redis 撑爆。
+# 默认使用本机持久数据目录（DATA_DIR/image-task-results）临时保存图片结果，
+# 只在 Redis 存一个短链接，避免 gpt-image-1 等返回的大 base64 结果把 Redis 撑爆。
+# 如需跨实例共享或 CDN 分发，也可把 backend 改成 s3 并配置 S3 兼容存储
+# （AWS S3 / Cloudflare R2 / 阿里云 OSS / MinIO 等）。
 #
-# enabled 同时是异步图片任务功能的总开关：为 false 或凭证未配全时，异步生图接口
-# 整体返回 404、不创建任务、不写 Redis。
-#
-# 换其它厂商对象存储：只要它兼容 S3 API 即可直接用；如需完全自定义，实现
-# service.ImageStorage 接口（Save(ctx, key, contentType, data) -> url）即可。
+# enabled 同时是异步图片任务功能的总开关：为 false 时异步生图接口整体返回 404。
 image_storage:
   enabled: false
-  # S3 兼容端点。AWS 官方可留空；R2 形如 https://<account_id>.r2.cloudflarestorage.com
+  # local（默认，本机持久卷）/ s3（S3 兼容对象存储）/ auto（有 S3 凭证则 s3，否则 local）
+  backend: "local"
+  # local 后端目录。留空时使用 DATA_DIR/image-task-results。
+  local_dir: ""
+  # local 后端返回的鉴权下载 URL 前缀
+  local_url_prefix: "/v1/images/task-assets/"
+  # S3 后端配置。AWS 官方 endpoint 可留空；R2 形如 https://<account_id>.r2.cloudflarestorage.com
   endpoint: ""
   # 区域。Cloudflare R2 用 "auto"
   region: "auto"
