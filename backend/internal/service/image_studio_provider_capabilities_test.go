@@ -38,6 +38,16 @@ func TestResolveImageStudioProviderCapabilityUsesProviderSpecificProfiles(t *tes
 	require.Empty(t, grok.SupportedBackgrounds)
 	require.Nil(t, grok.OutputCompression)
 	require.Equal(t, 3, grok.MaxReferenceImages)
+
+	gemini, ok := ResolveImageStudioProviderCapability(PlatformGemini, "gemini-3.1-flash-image")
+	require.True(t, ok)
+	require.Equal(t, "gemini:gemini-3.1-flash-image:v1", gemini.ProfileID)
+	require.Equal(t, []string{"create", "edit"}, gemini.Operations)
+	require.Equal(t, "aspect_resolution", gemini.SizingKind)
+	require.Equal(t, []string{"1:1", "2:3", "3:2", "9:16", "16:9"}, gemini.SupportedAspectRatios)
+	require.Equal(t, []string{"1k", "2k"}, gemini.SupportedResolutions)
+	require.Equal(t, []string{"png"}, gemini.SupportedOutputFormats)
+	require.Equal(t, 4, gemini.MaxReferenceImages)
 }
 
 func TestResolveImageStudioProviderCapabilityGPTImage2VariantsInheritBaseProfile(t *testing.T) {
@@ -65,6 +75,9 @@ func TestResolveImageStudioProviderCapabilityRejectsCrossPlatformModels(t *testi
 	require.False(t, ok)
 
 	_, ok = ResolveImageStudioProviderCapability(PlatformGrok, "gpt-image-2")
+	require.False(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability(PlatformGemini, "gpt-image-2")
 	require.False(t, ok)
 
 	_, ok = ResolveImageStudioProviderCapability("anthropic", "gpt-image-2")
@@ -136,4 +149,14 @@ func TestValidateImageStudioProviderOptions(t *testing.T) {
 	require.ErrorIs(t, ValidateImageStudioProviderOptions(grok, "edit", ImageStudioGenerateRequest{
 		ReferenceIDs: []string{"one", "two", "three", "four"},
 	}), ErrImageStudioReferenceLimit)
+
+	gemini, ok := ResolveImageStudioProviderCapability(PlatformGemini, "gemini-3.1-flash-image")
+	require.True(t, ok)
+	require.NoError(t, ValidateImageStudioProviderOptions(gemini, "edit", ImageStudioGenerateRequest{
+		OutputFormat: "png",
+		ReferenceIDs: []string{"one", "two", "three", "four"},
+	}))
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gemini, "create", ImageStudioGenerateRequest{
+		OutputFormat: "webp",
+	}), ErrImageStudioOutputFormatNotSupported)
 }

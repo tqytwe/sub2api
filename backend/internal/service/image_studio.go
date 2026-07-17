@@ -695,7 +695,7 @@ func imageStudioPlatformForAPIKey(apiKey *APIKey) (string, error) {
 	}
 	platform := strings.ToLower(strings.TrimSpace(apiKey.Group.Platform))
 	switch platform {
-	case PlatformOpenAI, PlatformGrok:
+	case PlatformOpenAI, PlatformGemini, PlatformGrok:
 		return platform, nil
 	default:
 		return "", ErrImageStudioProviderNotSupported
@@ -704,7 +704,7 @@ func imageStudioPlatformForAPIKey(apiKey *APIKey) (string, error) {
 
 func inferImageStudioProviderFromModel(model string) (string, error) {
 	matched := ""
-	for _, platform := range []string{PlatformOpenAI, PlatformGrok} {
+	for _, platform := range []string{PlatformOpenAI, PlatformGemini, PlatformGrok} {
 		if _, ok := ResolveImageStudioProviderCapability(platform, model); !ok {
 			continue
 		}
@@ -763,6 +763,24 @@ func buildImageStudioProviderPayload(
 		if req.OutputCompression != nil {
 			payload["output_compression"] = *req.OutputCompression
 		}
+	case PlatformGemini:
+		endpoint = "/v1beta/models/" + model + ":generateContent"
+		geminiBody := map[string]any{
+			"contents": []geminiContent{{
+				Parts: []geminiPart{{Text: prompt}},
+			}},
+			"generationConfig": geminiGenerationConfig{
+				ResponseModalities: []string{"TEXT", "IMAGE"},
+			},
+		}
+		if operation == "edit" {
+			geminiBody["image_studio_job_reference_ids"] = referenceIDs
+		}
+		body, err := json.Marshal(geminiBody)
+		if err != nil {
+			return "", nil, err
+		}
+		return endpoint, body, nil
 	case PlatformGrok:
 		aspect, tier := InferImageStudioAspectTier(size)
 		payload["aspect_ratio"] = aspect
@@ -1306,6 +1324,8 @@ func (s *ImageStudioService) BuildWorkerRequest(ctx context.Context, job *ImageS
 	switch platform {
 	case PlatformOpenAI:
 		return s.buildOpenAIImageStudioWorkerRequest(ctx, job, operation, endpoint, envelope.Body)
+	case PlatformGemini:
+		return s.buildGeminiImageStudioWorkerRequest(ctx, job, operation, endpoint, envelope.Body)
 	case PlatformGrok:
 		return s.buildGrokImageStudioWorkerRequest(ctx, job, operation, endpoint, envelope.Body)
 	default:
@@ -1348,6 +1368,34 @@ func (s *ImageStudioService) buildOpenAIImageStudioWorkerRequest(
 		Endpoint:    endpoint,
 		ContentType: "application/json",
 		Body:        single,
+	}, nil
+}
+
+func (s *ImageStudioService) buildGeminiImageStudioWorkerRequest(
+	ctx context.Context,
+	job *ImageStudioJob,
+	operation, endpoint string,
+	body []byte,
+) (*ImageStudioWorkerRequest, error) {
+	if operation == "edit" {
+		editBody, err := s.buildGeminiImageStudioEditJSON(ctx, job, body)
+		if err != nil {
+			return nil, err
+		}
+		return &ImageStudioWorkerRequest{
+			Platform:    PlatformGemini,
+			Operation:   operation,
+			Endpoint:    endpoint,
+			ContentType: "application/json",
+			Body:        editBody,
+		}, nil
+	}
+	return &ImageStudioWorkerRequest{
+		Platform:    PlatformGemini,
+		Operation:   operation,
+		Endpoint:    endpoint,
+		ContentType: "application/json",
+		Body:        body,
 	}, nil
 }
 
@@ -1451,6 +1499,71 @@ func (s *ImageStudioService) buildGrokImageStudioEditJSON(
 	delete(payload, "image_studio_job_reference_ids")
 	payload["images"] = images
 	payload["n"] = 1
+	return json.Marshal(payload)
+}
+
+func (s *ImageStudioService) buildGeminiImageStudioEditJSON(
+	ctx context.Context,
+	job *ImageStudioJob,
+	body []byte,
+) ([]byte, error) {
+	if s.assetStore == nil {
+		return nil, errors.New("image studio asset store unavailable")
+	}
+	if job == nil || job.ID == "" || job.UserID <= 0 {
+		return nil, errors.New("image studio job identity is required")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+	referenceIDs := referenceIDsFromImageStudioPayload(payload["image_studio_job_reference_ids"])
+	if len(referenceIDs) == 0 {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	repo, ok := s.repo.(ImageStudioJobReferenceReader)
+	if !ok {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	refs, err := repo.ListJobReferencesByID(ctx, job.ID, referenceIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(refs) != len(referenceIDs) {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	contents, _ := payload["contents"].([]any)
+	if len(contents) == 0 {
+		return nil, ErrImageStudioReferenceInvalid
+	}
+	firstContent, _ := contents[0].(map[string]any)
+	if firstContent == nil {
+		return nil, ErrImageStudioReferenceInvalid
+	}
+	parts, _ := firstContent["parts"].([]any)
+	if len(parts) == 0 {
+		return nil, ErrImageStudioReferenceInvalid
+	}
+	for _, ref := range refs {
+		data, err := s.assetStore.Read(ref.StorageKey)
+		if err != nil {
+			return nil, err
+		}
+		contentType := strings.TrimSpace(ref.ContentType)
+		if contentType == "" {
+			return nil, ErrImageStudioReferenceInvalid
+		}
+		parts = append(parts, map[string]any{
+			"inlineData": map[string]string{
+				"mimeType": contentType,
+				"data":     base64.StdEncoding.EncodeToString(data),
+			},
+		})
+	}
+	firstContent["parts"] = parts
+	contents[0] = firstContent
+	payload["contents"] = contents
+	delete(payload, "image_studio_job_reference_ids")
 	return json.Marshal(payload)
 }
 
