@@ -144,6 +144,37 @@ func TestImageStudioCreatePendingJobBuildsGeminiNativePayload(t *testing.T) {
 	require.Equal(t, "IMAGE", gjson.Get(encryptor.plaintext, "body.generationConfig.responseModalities.1").String())
 }
 
+func TestImageStudioCreatePendingJobKeepsOpenAICompatibleTransportForGeminiModel(t *testing.T) {
+	repo := &imageStudioCreateRepoStub{}
+	encryptor := &imageStudioEncryptorStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		encryptor,
+		PlatformOpenAI,
+		[]string{"gemini-3.1-flash-image"},
+	)
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID:   "free-create",
+		UserPrompt:   "wide launch artwork",
+		Size:         "1024x1024",
+		Count:        1,
+		Model:        "gemini-3.1-flash-image",
+		OutputFormat: "png",
+		APIKeyID:     20,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, PlatformOpenAI, gjson.Get(encryptor.plaintext, "platform").String())
+	require.Equal(t, "gemini:gemini-3.1-flash-image:v1", gjson.Get(encryptor.plaintext, "capability_profile_id").String())
+	require.Equal(t, openAIImagesGenerationsEndpoint, gjson.Get(encryptor.plaintext, "endpoint").String())
+	require.Equal(t, "gemini-3.1-flash-image", gjson.Get(encryptor.plaintext, "body.model").String())
+	require.Equal(t, "1024x1024", gjson.Get(encryptor.plaintext, "body.size").String())
+	require.Equal(t, "b64_json", gjson.Get(encryptor.plaintext, "body.response_format").String())
+	require.False(t, gjson.Get(encryptor.plaintext, "body.contents").Exists())
+}
+
 func TestImageStudioBuildWorkerRequestRejectsPinnedProfileDrift(t *testing.T) {
 	svc := &ImageStudioService{}
 	decrypted := `{
@@ -159,6 +190,27 @@ func TestImageStudioBuildWorkerRequestRejectsPinnedProfileDrift(t *testing.T) {
 
 	require.Nil(t, req)
 	require.ErrorIs(t, err, ErrImageStudioCapabilityProfileChanged)
+}
+
+func TestImageStudioBuildWorkerRequestKeepsOpenAICompatibleTransportForGeminiModel(t *testing.T) {
+	svc := &ImageStudioService{}
+	decrypted := `{
+		"platform":"openai",
+		"operation":"create",
+		"capability_profile_id":"gemini:gemini-3.1-flash-image:v1",
+		"capability_revision":"` + imageStudioCapabilityRevision + `",
+		"endpoint":"/v1/images/generations",
+		"body":{"model":"gemini-3.1-flash-image","prompt":"draw","n":1,"size":"1024x1024","response_format":"b64_json"}
+	}`
+
+	req, err := svc.BuildWorkerRequest(context.Background(), &ImageStudioJob{Model: "gemini-3.1-flash-image"}, decrypted)
+
+	require.NoError(t, err)
+	require.Equal(t, PlatformOpenAI, req.Platform)
+	require.Equal(t, "create", req.Operation)
+	require.Equal(t, openAIImagesGenerationsEndpoint, req.Endpoint)
+	require.Equal(t, "application/json", req.ContentType)
+	require.Equal(t, "gemini-3.1-flash-image", gjson.GetBytes(req.Body, "model").String())
 }
 
 func TestImageStudioBuildWorkerRequestKeepsLegacyPayloadCompatible(t *testing.T) {

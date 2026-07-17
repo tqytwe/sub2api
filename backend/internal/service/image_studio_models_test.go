@@ -32,10 +32,12 @@ func TestValidateImageStudioAPIKey_RejectsUnusableKeys(t *testing.T) {
 }
 
 type imageStudioModelResolverStub struct {
-	models []string
+	models       []string
+	seenPlatform string
 }
 
-func (s *imageStudioModelResolverStub) GetAvailableModels(_ context.Context, _ *int64, _ string) []string {
+func (s *imageStudioModelResolverStub) GetAvailableModels(_ context.Context, _ *int64, platform string) []string {
+	s.seenPlatform = platform
 	return append([]string(nil), s.models...)
 }
 
@@ -60,14 +62,22 @@ func TestListImageModelsForAPIKey_UsesGroupMapping(t *testing.T) {
 	require.Equal(t, []string{"gpt-image-2", "gpt-image-1"}, models)
 }
 
-func TestListImageModelsForAPIKey_FiltersModelsByGroupPlatform(t *testing.T) {
+func TestListImageModelsForAPIKey_UsesMappedImageModelsAcrossOpenAICompatibleProtocols(t *testing.T) {
 	groupID := int64(8)
 	resolver := &imageStudioModelResolverStub{
-		models: []string{"gpt-image-2", "grok-imagine-image-quality", "gemini-3.1-flash-image"},
+		models: []string{
+			"gpt-5.2",
+			"text-embedding-3-large",
+			"gpt-image-2",
+			"gemini-3.1-flash-image",
+			"imagen-4.0-generate-preview",
+			"grok-imagine-image-quality",
+			"flux-pro-image",
+		},
 	}
 	svc := &ImageStudioService{gateway: resolver}
 
-	openAIModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+	models, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
 		GroupID: &groupID,
 		Group: &Group{
 			ID:                   groupID,
@@ -76,29 +86,14 @@ func TestListImageModelsForAPIKey_FiltersModelsByGroupPlatform(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{"gpt-image-2"}, openAIModels)
-
-	grokModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
-		GroupID: &groupID,
-		Group: &Group{
-			ID:                   groupID,
-			Platform:             PlatformGrok,
-			AllowImageGeneration: true,
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, []string{"grok-imagine-image-quality"}, grokModels)
-
-	geminiModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
-		GroupID: &groupID,
-		Group: &Group{
-			ID:                   groupID,
-			Platform:             PlatformGemini,
-			AllowImageGeneration: true,
-		},
-	})
-	require.NoError(t, err)
-	require.Equal(t, []string{"gemini-3.1-flash-image"}, geminiModels)
+	require.Empty(t, resolver.seenPlatform)
+	require.Equal(t, []string{
+		"gpt-image-2",
+		"gemini-3.1-flash-image",
+		"grok-imagine-image-quality",
+		"flux-pro-image",
+		"imagen-4.0-generate-preview",
+	}, models)
 }
 
 func TestListImageModelsForAPIKey_UsesProviderDefaultsWhenGroupHasNoMapping(t *testing.T) {

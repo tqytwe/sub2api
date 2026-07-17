@@ -69,6 +69,28 @@ type ImageStudioModelCapabilities struct {
 
 const imageStudioCapabilityRevision = "2026-07-16.1"
 
+const imageStudioOpenAICompatibleProfile = "openai_compatible"
+
+func ResolveImageStudioModelCapability(model string) (ImageStudioModelCapabilities, bool) {
+	model = strings.ToLower(strings.TrimSpace(model))
+	if model == "" {
+		return ImageStudioModelCapabilities{}, false
+	}
+	if capability, ok := resolveOpenAIImageStudioCapability(model); ok {
+		return capability, true
+	}
+	if capability, ok := resolveGeminiImageStudioCapability(model); ok {
+		return capability, true
+	}
+	if capability, ok := resolveGrokImageStudioCapability(model); ok {
+		return capability, true
+	}
+	if !isGenericOpenAICompatibleImageModel(model) {
+		return ImageStudioModelCapabilities{}, false
+	}
+	return resolveGenericOpenAICompatibleImageStudioCapability(model), true
+}
+
 func ResolveImageStudioProviderCapability(platform, model string) (ImageStudioModelCapabilities, bool) {
 	platform = strings.ToLower(strings.TrimSpace(platform))
 	model = strings.ToLower(strings.TrimSpace(model))
@@ -132,7 +154,7 @@ func resolveOpenAIImageStudioCapability(model string) (ImageStudioModelCapabilit
 }
 
 func resolveGeminiImageStudioCapability(model string) (ImageStudioModelCapabilities, bool) {
-	if !isImageGenerationModel(model) {
+	if !isGeminiImageStudioModel(model) {
 		return ImageStudioModelCapabilities{}, false
 	}
 	return ImageStudioModelCapabilities{
@@ -151,6 +173,14 @@ func resolveGeminiImageStudioCapability(model string) (ImageStudioModelCapabilit
 		DefaultResolution:      "1k",
 		DefaultOutputFormat:    "png",
 	}, true
+}
+
+func isGeminiImageStudioModel(model string) bool {
+	model = strings.ToLower(strings.TrimSpace(model))
+	normalized := strings.TrimPrefix(model, "models/")
+	return isImageGenerationModel(model) ||
+		strings.HasPrefix(normalized, "imagen-") ||
+		strings.HasPrefix(normalized, "imagen_")
 }
 
 func resolveGrokImageStudioCapability(model string) (ImageStudioModelCapabilities, bool) {
@@ -175,6 +205,48 @@ func resolveGrokImageStudioCapability(model string) (ImageStudioModelCapabilitie
 		DefaultQuality:         "standard",
 		DefaultOutputFormat:    "jpeg",
 	}, true
+}
+
+func isGenericOpenAICompatibleImageModel(model string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	normalized = strings.TrimPrefix(normalized, "models/")
+	if normalized == "" ||
+		strings.Contains(normalized, "embedding") ||
+		strings.Contains(normalized, "moderation") ||
+		strings.Contains(normalized, "rerank") {
+		return false
+	}
+	if strings.Contains(normalized, "image") {
+		return true
+	}
+	for _, marker := range []string{
+		"dall-e",
+		"stable-diffusion",
+		"sdxl",
+		"flux",
+		"recraft",
+		"midjourney",
+	} {
+		if strings.HasPrefix(normalized, marker) || strings.Contains(normalized, "-"+marker) {
+			return true
+		}
+	}
+	return false
+}
+
+func resolveGenericOpenAICompatibleImageStudioCapability(model string) ImageStudioModelCapabilities {
+	return ImageStudioModelCapabilities{
+		Platform:               PlatformOpenAI,
+		ProfileID:              imageStudioOpenAICompatibleProfile + ":" + model + ":v1",
+		Revision:               imageStudioCapabilityRevision,
+		Operations:             []string{"create", "edit"},
+		SizingKind:             "custom",
+		SupportedSizes:         allImageStudioCatalogSizes(),
+		SupportedOutputFormats: []string{"png", "jpeg", "webp"},
+		MaxReferenceImages:     4,
+		DefaultSize:            defaultImageStudioSize,
+		DefaultOutputFormat:    "png",
+	}
 }
 
 func validGPTImage2StudioSizes() []string {

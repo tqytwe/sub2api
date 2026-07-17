@@ -116,12 +116,12 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 
 	candidates := defaultImageModelIDsForPlatform(platform)
 	if s.gateway != nil && apiKey.GroupID != nil {
-		if mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, platform); len(mapped) > 0 {
+		if mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, ""); len(mapped) > 0 {
 			candidates = mapped
 		}
 	}
 
-	models := filterImageGenerationModelsForPlatform(candidates, platform)
+	models := filterImageGenerationModels(candidates)
 	if apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
 		models = filterImageModelsByCustomList(models, apiKey.Group.ModelsListConfig.Models)
 	}
@@ -132,11 +132,10 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 	return models, nil
 }
 
-func filterImageGenerationModelsForPlatform(models []string, platform string) []string {
+func filterImageGenerationModels(models []string) []string {
 	if len(models) == 0 {
 		return nil
 	}
-	platform = strings.ToLower(strings.TrimSpace(platform))
 	seen := make(map[string]struct{}, len(models))
 	out := make([]string, 0, len(models))
 	for _, model := range models {
@@ -144,7 +143,7 @@ func filterImageGenerationModelsForPlatform(models []string, platform string) []
 		if model == "" {
 			continue
 		}
-		if _, ok := ResolveImageStudioProviderCapability(platform, model); !ok {
+		if _, ok := ResolveImageStudioModelCapability(model); !ok {
 			continue
 		}
 		if _, ok := seen[model]; ok {
