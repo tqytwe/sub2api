@@ -45,13 +45,17 @@ func TestPromptLibraryMigrationRunsTwiceAndEnforcesProvenance(t *testing.T) {
 	_, err = db.ExecContext(ctx, `
 		CREATE TABLE users (
 			id BIGSERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL UNIQUE,
+			email VARCHAR(255) NOT NULL,
 			password_hash VARCHAR(255) NOT NULL,
 			role VARCHAR(20) NOT NULL DEFAULT 'user',
 			status VARCHAR(20) NOT NULL DEFAULT 'active',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			deleted_at TIMESTAMPTZ
 		);
+		CREATE UNIQUE INDEX users_email_unique_active
+			ON users(email)
+			WHERE deleted_at IS NULL;
 		CREATE TABLE image_studio_jobs (
 			id UUID PRIMARY KEY,
 			user_id BIGINT NOT NULL REFERENCES users(id)
@@ -203,13 +207,17 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 	_, err = db.ExecContext(ctx, `
 		CREATE TABLE users (
 			id BIGSERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL UNIQUE,
+			email VARCHAR(255) NOT NULL,
 			password_hash VARCHAR(255) NOT NULL,
 			role VARCHAR(20) NOT NULL DEFAULT 'user',
 			status VARCHAR(20) NOT NULL DEFAULT 'active',
 			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+			deleted_at TIMESTAMPTZ
 		);
+		CREATE UNIQUE INDEX users_email_unique_active
+			ON users(email)
+			WHERE deleted_at IS NULL;
 		CREATE TABLE image_studio_jobs (
 			id UUID PRIMARY KEY,
 			user_id BIGINT NOT NULL REFERENCES users(id)
