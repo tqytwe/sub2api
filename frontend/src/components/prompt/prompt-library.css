@@ -386,6 +386,140 @@
   font-size: 13px;
 }
 
+.prompt-generated-cover {
+  position: relative;
+  min-height: 220px;
+  aspect-ratio: 4 / 3;
+  display: grid;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, var(--cover-bg-1), var(--cover-bg-2) 58%, var(--cover-bg-3));
+  color: var(--cover-fg);
+}
+
+.prompt-generated-cover.is-detail {
+  min-height: 440px;
+  border-radius: 8px;
+}
+
+.prompt-generated-cover-grid {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.28) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.24) 1px, transparent 1px);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(145deg, transparent 0%, #000 26%, #000 72%, transparent 100%);
+}
+
+.prompt-generated-cover-content {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  align-self: end;
+  display: grid;
+  gap: 10px;
+  padding: 22px;
+  text-align: left;
+}
+
+.prompt-generated-cover-kicker,
+.prompt-generated-cover-badge {
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 5px;
+  background: rgba(9, 12, 16, 0.24);
+  padding: 5px 8px;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.2;
+}
+
+.prompt-generated-cover strong {
+  max-width: 12em;
+  color: inherit;
+  font-size: 30px;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.prompt-generated-cover.is-detail strong {
+  font-size: 48px;
+}
+
+.prompt-generated-cover.tone-0 {
+  --cover-bg-1: #134e4a;
+  --cover-bg-2: #0f766e;
+  --cover-bg-3: #f59e0b;
+  --cover-fg: #f8fafc;
+}
+
+.prompt-generated-cover.tone-1 {
+  --cover-bg-1: #581c87;
+  --cover-bg-2: #be123c;
+  --cover-bg-3: #f97316;
+  --cover-fg: #fff7ed;
+}
+
+.prompt-generated-cover.tone-2 {
+  --cover-bg-1: #1e3a8a;
+  --cover-bg-2: #0369a1;
+  --cover-bg-3: #22c55e;
+  --cover-fg: #eff6ff;
+}
+
+.prompt-generated-cover.tone-3 {
+  --cover-bg-1: #3f3f46;
+  --cover-bg-2: #a16207;
+  --cover-bg-3: #facc15;
+  --cover-fg: #fffbeb;
+}
+
+.prompt-generated-cover.tone-4 {
+  --cover-bg-1: #7f1d1d;
+  --cover-bg-2: #dc2626;
+  --cover-bg-3: #fde047;
+  --cover-fg: #fff7ed;
+}
+
+.prompt-generated-cover.tone-5 {
+  --cover-bg-1: #064e3b;
+  --cover-bg-2: #15803d;
+  --cover-bg-3: #38bdf8;
+  --cover-fg: #ecfdf5;
+}
+
+.prompt-generated-cover.tone-6 {
+  --cover-bg-1: #312e81;
+  --cover-bg-2: #4f46e5;
+  --cover-bg-3: #fb7185;
+  --cover-fg: #eef2ff;
+}
+
+.prompt-generated-cover.tone-7 {
+  --cover-bg-1: #27272a;
+  --cover-bg-2: #52525b;
+  --cover-bg-3: #14b8a6;
+  --cover-fg: #f4f4f5;
+}
+
+.prompt-generated-cover.tone-8 {
+  --cover-bg-1: #713f12;
+  --cover-bg-2: #ea580c;
+  --cover-bg-3: #06b6d4;
+  --cover-fg: #fff7ed;
+}
+
+.prompt-generated-cover.tone-9 {
+  --cover-bg-1: #0f172a;
+  --cover-bg-2: #2563eb;
+  --cover-bg-3: #84cc16;
+  --cover-fg: #f8fafc;
+}
+
 .prompt-brand-badge {
   position: absolute;
   top: 10px;
@@ -867,6 +1001,14 @@
   .prompt-masonry,
   .prompt-loading-grid {
     columns: 1;
+  }
+
+  .prompt-generated-cover strong {
+    font-size: 26px;
+  }
+
+  .prompt-generated-cover.is-detail strong {
+    font-size: 34px;
   }
 
   .prompt-detail-content h1 {

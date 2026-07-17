@@ -231,6 +231,8 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 	require.NoError(t, err)
 	publicSeedSQL, err := dbmigrations.FS.ReadFile("201_prompt_library_public_seed.sql")
 	require.NoError(t, err)
+	genericCoverCleanupSQL, err := dbmigrations.FS.ReadFile("202_prompt_library_generic_cover_cleanup.sql")
+	require.NoError(t, err)
 	require.NoError(t, execSQLTwice(ctx, db, string(coreSQL)))
 	require.NoError(t, execSQLTwice(ctx, db, string(seedSQL)))
 	require.NoError(t, execSQLTwice(ctx, db, string(publicSeedSQL)))
@@ -376,6 +378,24 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 		require.NoError(t, db.QueryRowContext(ctx, query).Scan(&missing), name)
 		require.Equal(t, 0, missing, name)
 	}
+
+	require.NoError(t, execSQLTwice(ctx, db, string(genericCoverCleanupSQL)))
+
+	var genericMediaCount int
+	require.NoError(t, db.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM prompt_media media
+		JOIN prompt_sources source
+		  ON source.prompt_id = media.prompt_id
+		 AND source.version = media.version
+		WHERE source.source_key = 'jisudeng-gpt-image-2-curated-seed-20260717'
+		  AND media.url IN (
+			'/image-studio/templates/ecom-white-bg.webp',
+			'/image-studio/templates/free-create.webp',
+			'/image-studio/templates/xhs-cover.webp'
+		  )
+	`).Scan(&genericMediaCount))
+	require.Equal(t, 0, genericMediaCount)
 
 	var publicListCount int
 	require.NoError(t, db.QueryRowContext(ctx, `

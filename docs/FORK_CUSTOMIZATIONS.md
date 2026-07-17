@@ -131,6 +131,7 @@
 199_prompt_library.sql
 200_prompt_library_seed.sql
 201_prompt_library_public_seed.sql
+202_prompt_library_generic_cover_cleanup.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
