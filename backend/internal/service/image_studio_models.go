@@ -6,7 +6,9 @@ import (
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/geminicli"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/openai"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 )
 
 var (
@@ -112,7 +114,7 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 		platform = apiKey.Group.Platform
 	}
 
-	candidates := defaultOpenAIImageModelIDs()
+	candidates := defaultImageModelIDsForPlatform(platform)
 	if s.gateway != nil && apiKey.GroupID != nil {
 		if mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, platform); len(mapped) > 0 {
 			candidates = mapped
@@ -204,6 +206,17 @@ func sortImageStudioModels(models []string) []string {
 	return models
 }
 
+func defaultImageModelIDsForPlatform(platform string) []string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case PlatformGemini:
+		return defaultGeminiImageModelIDs()
+	case PlatformGrok:
+		return defaultGrokImageModelIDs()
+	default:
+		return defaultOpenAIImageModelIDs()
+	}
+}
+
 func defaultOpenAIImageModelIDs() []string {
 	out := make([]string, 0, len(openai.DefaultModels))
 	for _, model := range openai.DefaultModels {
@@ -217,9 +230,40 @@ func defaultOpenAIImageModelIDs() []string {
 	return sortImageStudioModels(out)
 }
 
+func defaultGeminiImageModelIDs() []string {
+	out := make([]string, 0, len(geminicli.DefaultModels))
+	for _, model := range geminicli.DefaultModels {
+		if isImageGenerationModel(model.ID) {
+			out = append(out, model.ID)
+		}
+	}
+	return sortImageStudioModels(out)
+}
+
+func defaultGrokImageModelIDs() []string {
+	defaults := xai.DefaultModels()
+	out := make([]string, 0, len(defaults))
+	for _, model := range defaults {
+		if isGrokImageGenerationModel(model.ID) {
+			out = append(out, model.ID)
+		}
+	}
+	return sortImageStudioModels(out)
+}
+
 func imageStudioModelDisplayName(model string) string {
 	model = strings.TrimSpace(model)
 	for _, item := range openai.DefaultModels {
+		if item.ID == model && strings.TrimSpace(item.DisplayName) != "" {
+			return item.DisplayName
+		}
+	}
+	for _, item := range geminicli.DefaultModels {
+		if item.ID == model && strings.TrimSpace(item.DisplayName) != "" {
+			return item.DisplayName
+		}
+	}
+	for _, item := range xai.DefaultModels() {
 		if item.ID == model && strings.TrimSpace(item.DisplayName) != "" {
 			return item.DisplayName
 		}
