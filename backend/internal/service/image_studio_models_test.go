@@ -101,6 +101,37 @@ func TestListImageModelsForAPIKey_FiltersModelsByGroupPlatform(t *testing.T) {
 	require.Equal(t, []string{"gemini-3.1-flash-image"}, geminiModels)
 }
 
+func TestListImageModelsForAPIKey_UsesProviderDefaultsWhenGroupHasNoMapping(t *testing.T) {
+	groupID := int64(9)
+	svc := &ImageStudioService{}
+
+	geminiModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformGemini,
+			AllowImageGeneration: true,
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, geminiModels, "gemini-3.1-flash-image")
+	require.Contains(t, geminiModels, "gemini-2.5-flash-image")
+	require.NotContains(t, geminiModels, "gpt-image-2")
+
+	grokModels, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformGrok,
+			AllowImageGeneration: true,
+		},
+	})
+	require.NoError(t, err)
+	require.Contains(t, grokModels, "grok-imagine-image-quality")
+	require.Contains(t, grokModels, "grok-imagine-image")
+	require.NotContains(t, grokModels, "gpt-image-2")
+}
+
 func TestResolveImageModel_RejectsUnavailableSelection(t *testing.T) {
 	groupID := int64(7)
 	svc := &ImageStudioService{
