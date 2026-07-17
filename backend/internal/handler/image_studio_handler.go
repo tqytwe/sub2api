@@ -694,6 +694,9 @@ func parseOpenAICompatibleImageStudioPayloads(ctx context.Context, respBody []by
 			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
 		}
 	}
+	if len(out) == 0 {
+		return parseGeminiImageStudioPayloads(ctx, respBody)
+	}
 	return out, nil
 }
 

@@ -171,7 +171,7 @@ func TestImageStudioCreatePendingJobKeepsOpenAICompatibleTransportForGeminiModel
 	require.Equal(t, openAIImagesGenerationsEndpoint, gjson.Get(encryptor.plaintext, "endpoint").String())
 	require.Equal(t, "gemini-3.1-flash-image", gjson.Get(encryptor.plaintext, "body.model").String())
 	require.Equal(t, "1024x1024", gjson.Get(encryptor.plaintext, "body.size").String())
-	require.Equal(t, "b64_json", gjson.Get(encryptor.plaintext, "body.response_format").String())
+	require.False(t, gjson.Get(encryptor.plaintext, "body.response_format").Exists())
 	require.False(t, gjson.Get(encryptor.plaintext, "body.contents").Exists())
 }
 
