@@ -91,6 +91,8 @@ curl -i https://api.jisudeng.com/v1/images/generations/async \
 
 The expected submit response is `202 Accepted` with `task_id` and `poll_url`. A `404` body with `async image tasks are not enabled` means `IMAGE_STORAGE_ENABLED` is not true, or `IMAGE_STORAGE_BACKEND=s3` was selected without complete bucket/access key/secret credentials.
 
+Use the async endpoints for production image requests that may take longer than 60-90 seconds. Synchronous `/v1/images/generations` calls can still finish upstream after a CDN/Cloudflare `524`, which means the dashboard may show a successful generated image while the caller only received a timeout. Retrying the synchronous request can create duplicate paid generations.
+
 When a task completes, each generated image is stored through the selected backend and the result is rewritten to a compact form: `data[].url` points at the stored image and `b64_json` is removed. Only this small JSON is stored in Redis. If storage fails, the task is marked `failed` rather than persisting the raw base64.
 
 To support a different storage backend, implement the `service.ImageStorage` interface (`Save(ctx, key, contentType, data) (url, error)`) and provide it in place of the built-in local/S3 implementations.

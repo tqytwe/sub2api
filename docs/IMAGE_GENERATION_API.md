@@ -5,16 +5,26 @@
 > API Key：`https://www.jisudeng.com/keys`
 > 模型与价格：`https://www.jisudeng.com/models`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-16
+> 最后核验：2026-07-17
 
 ## 现在怎么用
 
-极速蹬当前对外主推的是 GPT 图片生成和 Grok 图片生成，开发者直接调用 OpenAI 兼容的 Images API：
+极速蹬当前对外主推的是 GPT 图片生成和 Grok 图片生成，开发者直接调用 OpenAI 兼容的 Images API。短耗时测试可以使用同步接口：
 
 ```text
 POST https://api.jisudeng.com/v1/images/generations
 POST https://api.jisudeng.com/v1/images/edits
 ```
+
+生产里的长耗时图片生成（例如 `gpt-image-2`、大尺寸、批量、多 prompt、预计超过 60-90 秒）请优先使用异步接口：
+
+```text
+POST https://api.jisudeng.com/v1/images/generations/async
+POST https://api.jisudeng.com/v1/images/edits/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}
+```
+
+同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 `524`。把客户端超时从 180 秒调到 300 秒不能避免中间层超时；上游完成后后台仍可能记录成功和扣费，但客户端连接已经断开。异步接口会先返回 `202 task_id`，再由客户端轮询结果，适合生产稳定接入。
 
 可用模型以你的 API Key 所属分组为准，常用模型是：
 
@@ -64,7 +74,7 @@ GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `mode
 
 ### 异步任务返回
 
-长耗时请求可提交到 `/v1/images/generations/async` 或
+长耗时请求应提交到 `/v1/images/generations/async` 或
 `/v1/images/edits/async`，先收到 `202` 和 `task_id`，再轮询
 `/v1/images/tasks/{task_id}`。processing、completed 和 failed 的完整契约见
 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖服务端结果存储；生产部署设置
