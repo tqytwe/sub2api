@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
+	"path/filepath"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent"
@@ -180,17 +182,31 @@ func ProvideEnt(cfg *config.Config) (*ent.Client, error) {
 	return client, err
 }
 
-// ProvideImageStorage 提供异步图片任务结果转存所用的对象存储实现。
-// 仅当开关打开且 S3 凭证齐全时返回具体实现，否则返回 nil（功能整体禁用）。
+// ProvideImageStorage 提供异步图片任务结果转存实现。
+// 默认使用本机持久数据目录；配置 S3 凭证时也可切换到 S3 兼容对象存储。
 func ProvideImageStorage(cfg *config.Config) (service.ImageStorage, error) {
-	if !cfg.ImageStorage.Active() {
+	if cfg == nil || !cfg.ImageStorage.Enabled {
 		return nil, nil
 	}
-	store, err := NewS3ImageStorage(context.Background(), &cfg.ImageStorage)
-	if err != nil {
-		return nil, err
+	switch cfg.ImageStorage.BackendOrDefault() {
+	case "s3":
+		if !cfg.ImageStorage.S3Configured() {
+			return nil, nil
+		}
+		store, err := NewS3ImageStorage(context.Background(), &cfg.ImageStorage)
+		if err != nil {
+			return nil, err
+		}
+		return store, nil
+	case "local":
+		localDir := cfg.ImageStorage.LocalDir
+		if localDir == "" {
+			localDir = filepath.Join(cfg.Pricing.DataDir, "image-task-results")
+		}
+		return NewLocalImageStorage(localDir, cfg.ImageStorage.LocalURLPrefix)
+	default:
+		return nil, fmt.Errorf("unsupported image_storage.backend %q", cfg.ImageStorage.Backend)
 	}
-	return store, nil
 }
 
 // ProvideSQLDB 从 Ent 客户端提取底层的 *sql.DB 连接。

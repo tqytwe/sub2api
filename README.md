@@ -702,7 +702,7 @@ Simple Mode is designed for individual developers or internal teams who want qui
 
 ## Asynchronous Image Tasks
 
-Long-running OpenAI/Grok image generation and editing can be submitted through `/v1/images/generations/async` or `/v1/images/edits/async`, then polled at `/v1/images/tasks/{task_id}` without holding a CDN connection open. See [Asynchronous Image Tasks](docs/ASYNC_IMAGE_TASKS.md) for request and response examples.
+Long-running OpenAI/Grok image generation and editing can be submitted through `/v1/images/generations/async` or `/v1/images/edits/async`, then polled at `/v1/images/tasks/{task_id}` without holding a CDN connection open. Enable result storage with `IMAGE_STORAGE_ENABLED=true`; the default local backend stores completed images on the persisted data volume and serves authenticated `/v1/images/task-assets/...` URLs. S3/R2 is optional for multi-replica or CDN deployments. See [Asynchronous Image Tasks](docs/ASYNC_IMAGE_TASKS.md) for setup, request, response, and verification examples.
 
 ---
 

@@ -67,7 +67,9 @@ GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `mode
 长耗时请求可提交到 `/v1/images/generations/async` 或
 `/v1/images/edits/async`，先收到 `202` 和 `task_id`，再轮询
 `/v1/images/tasks/{task_id}`。processing、completed 和 failed 的完整契约见
-[异步图片任务](./ASYNC_IMAGE_TASKS.md)。
+[异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖服务端结果存储；生产部署设置
+`IMAGE_STORAGE_ENABLED=true` 即可使用默认本地持久卷存储。只有显式选择
+`IMAGE_STORAGE_BACKEND=s3` 时才需要 bucket/access key/secret。
 
 ## 准备 API Key
 
