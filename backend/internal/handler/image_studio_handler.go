@@ -33,6 +33,7 @@ const (
 type ImageStudioHandler struct {
 	studio        *service.ImageStudioService
 	gateway       imageStudioGateway
+	geminiGateway *GatewayHandler
 	apiKeyService *service.APIKeyService
 }
 
@@ -44,11 +45,13 @@ type imageStudioGateway interface {
 func NewImageStudioHandler(
 	studio *service.ImageStudioService,
 	gateway *OpenAIGatewayHandler,
+	geminiGateway *GatewayHandler,
 	apiKeyService *service.APIKeyService,
 ) *ImageStudioHandler {
 	return &ImageStudioHandler{
 		studio:        studio,
 		gateway:       gateway,
+		geminiGateway: geminiGateway,
 		apiKeyService: apiKeyService,
 	}
 }
@@ -599,6 +602,12 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 	if requestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(requestID) != "" {
 		gwCtx.Request.Header.Set("Idempotency-Key", strings.TrimSpace(requestID))
 	}
+	if workerReq.Platform == service.PlatformGemini {
+		modelAction := strings.TrimPrefix(endpoint, "/v1beta/models/")
+		if modelAction != endpoint && modelAction != "" {
+			gwCtx.Params = gin.Params{{Key: "modelAction", Value: "/" + modelAction}}
+		}
+	}
 	gwCtx.Set(string(middleware2.ContextKeyAPIKey), apiKey)
 	if apiKey.Group != nil && service.IsGroupContextValid(apiKey.Group) {
 		gwCtx.Request = gwCtx.Request.WithContext(context.WithValue(gwCtx.Request.Context(), ctxkey.Group, apiKey.Group))
@@ -618,39 +627,21 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 		return nil, 0, fmt.Errorf("image generation provider request failed with status %d", rec.Code)
 	}
 	respBody, _ := io.ReadAll(rec.Body)
-	var parsed struct {
-		Data []struct {
-			URL     string `json:"url"`
-			B64JSON string `json:"b64_json"`
-		} `json:"data"`
+	if workerReq.Platform == service.PlatformGemini {
+		return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, parseGeminiImageStudioPayloads)
 	}
-	if err := json.Unmarshal(respBody, &parsed); err != nil {
+	return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, parseOpenAICompatibleImageStudioPayloads)
+}
+
+func (h *ImageStudioHandler) parseImageStudioGatewayResponse(
+	ctx context.Context,
+	costCapture *service.ImageStudioBillingCapture,
+	respBody []byte,
+	parser func(context.Context, []byte) ([]service.ImageStudioImagePayload, error),
+) ([]service.ImageStudioImagePayload, float64, error) {
+	out, err := parser(ctx, respBody)
+	if err != nil {
 		return nil, 0, err
-	}
-	out := make([]service.ImageStudioImagePayload, 0, len(parsed.Data))
-	for _, item := range parsed.Data {
-		switch {
-		case item.B64JSON != "":
-			data, err := base64.StdEncoding.DecodeString(item.B64JSON)
-			if err != nil {
-				return nil, 0, err
-			}
-			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: "image/png"})
-		case item.URL != "":
-			if strings.HasPrefix(item.URL, "data:") {
-				data, ct, err := service.DecodeImageStudioDataURL(item.URL)
-				if err != nil {
-					return nil, 0, err
-				}
-				out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
-				continue
-			}
-			data, ct, err := service.FetchImageStudioRemoteURL(ctx, item.URL)
-			if err != nil {
-				return nil, 0, err
-			}
-			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
-		}
 	}
 	normalized, err := service.NormalizeImageStudioPayloads(ctx, out)
 	if err != nil {
@@ -668,6 +659,84 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 	return nil, 0, errors.New("image studio authoritative usage cost is unavailable")
 }
 
+func parseOpenAICompatibleImageStudioPayloads(ctx context.Context, respBody []byte) ([]service.ImageStudioImagePayload, error) {
+	var parsed struct {
+		Data []struct {
+			URL     string `json:"url"`
+			B64JSON string `json:"b64_json"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(respBody, &parsed); err != nil {
+		return nil, err
+	}
+	out := make([]service.ImageStudioImagePayload, 0, len(parsed.Data))
+	for _, item := range parsed.Data {
+		switch {
+		case item.B64JSON != "":
+			data, err := base64.StdEncoding.DecodeString(item.B64JSON)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: "image/png"})
+		case item.URL != "":
+			if strings.HasPrefix(item.URL, "data:") {
+				data, ct, err := service.DecodeImageStudioDataURL(item.URL)
+				if err != nil {
+					return nil, err
+				}
+				out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
+				continue
+			}
+			data, ct, err := service.FetchImageStudioRemoteURL(ctx, item.URL)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
+		}
+	}
+	return out, nil
+}
+
+func parseGeminiImageStudioPayloads(_ context.Context, respBody []byte) ([]service.ImageStudioImagePayload, error) {
+	root := gjson.ParseBytes(respBody)
+	if response := root.Get("response"); response.Exists() {
+		root = response
+	}
+	out := make([]service.ImageStudioImagePayload, 0)
+	var parseErr error
+	root.Get("candidates").ForEach(func(_, candidate gjson.Result) bool {
+		candidate.Get("content.parts").ForEach(func(_, part gjson.Result) bool {
+			inlineData := part.Get("inlineData")
+			if !inlineData.Exists() {
+				inlineData = part.Get("inline_data")
+			}
+			if !inlineData.Exists() {
+				return true
+			}
+			mimeType := strings.TrimSpace(inlineData.Get("mimeType").String())
+			if mimeType == "" {
+				mimeType = strings.TrimSpace(inlineData.Get("mime_type").String())
+			}
+			dataText := strings.TrimSpace(inlineData.Get("data").String())
+			if !strings.HasPrefix(strings.ToLower(mimeType), "image/") || dataText == "" {
+				return true
+			}
+			data, err := base64.StdEncoding.DecodeString(dataText)
+			if err != nil {
+				parseErr = err
+				return false
+			}
+			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: mimeType})
+			return true
+		})
+		return parseErr == nil
+	})
+	if parseErr != nil {
+		return nil, parseErr
+	}
+	return out, nil
+}
+
 func (h *ImageStudioHandler) dispatchImageStudioGateway(
 	gwCtx *gin.Context,
 	workerReq *service.ImageStudioWorkerRequest,
@@ -678,6 +747,11 @@ func (h *ImageStudioHandler) dispatchImageStudioGateway(
 	switch strings.ToLower(strings.TrimSpace(workerReq.Platform)) {
 	case service.PlatformOpenAI:
 		h.gateway.Images(gwCtx)
+	case service.PlatformGemini:
+		if h.geminiGateway == nil {
+			return errors.New("image studio gemini gateway is unavailable")
+		}
+		h.geminiGateway.GeminiV1BetaModels(gwCtx)
 	case service.PlatformGrok:
 		h.gateway.GrokImages(gwCtx)
 	default:

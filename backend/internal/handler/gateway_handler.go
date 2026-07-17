@@ -2257,11 +2257,22 @@ func (h *GatewayHandler) submitUsageRecordTask(parent context.Context, task serv
 		return
 	}
 	task = wrapUsageRecordTaskContext(parent, task)
+	if service.IsImageStudioManagedBilling(parent) {
+		h.runUsageRecordTaskSync(task)
+		return
+	}
 	if h.usageRecordWorkerPool != nil {
 		h.usageRecordWorkerPool.Submit(task)
 		return
 	}
 	// 回退路径：worker 池未注入时同步执行，避免退回到无界 goroutine 模式。
+	h.runUsageRecordTaskSync(task)
+}
+
+func (h *GatewayHandler) runUsageRecordTaskSync(task service.UsageRecordTask) {
+	if task == nil {
+		return
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	defer func() {

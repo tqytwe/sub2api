@@ -168,6 +168,14 @@ function handleDetails(prompt: PromptSummary) {
   void router.push(`/prompts/${encodeURIComponent(prompt.id)}`)
 }
 
+function goBack() {
+  if (window.history.length > 1) {
+    router.back()
+    return
+  }
+  void router.push('/home')
+}
+
 async function handleUse(prompt: PromptSummary) {
   if (busyIds.value.has(prompt.id)) return
   if (!authStore.isAuthenticated) {
@@ -223,10 +231,10 @@ onBeforeUnmount(() => {
   <div class="prompt-library-page">
     <header class="prompt-library-header">
       <div class="prompt-library-header-inner">
-        <router-link to="/home" class="prompt-library-home-link">
+        <button type="button" class="prompt-library-home-link" aria-label="返回上一页" @click="goBack">
           <Icon name="arrowLeft" size="sm" />
-          返回首页
-        </router-link>
+          返回
+        </button>
         <PublicPageToolbar />
       </div>
     </header>
