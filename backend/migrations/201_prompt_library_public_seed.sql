@@ -9,12 +9,20 @@ DECLARE
     public_notice TEXT := '本内容由极速蹬整理、翻译并完成模型适配。原始出处与授权类型已在内容审核记录中留存，内容版权归原权利人所有。';
     review_note TEXT := '首批极速蹬精选提示词完成系统复核并发布。';
 BEGIN
-    INSERT INTO users (email, password_hash, role, status)
-    VALUES ('prompt-reviewer@jisudeng.local', 'system-disabled', 'admin', 'disabled')
-    ON CONFLICT (email) DO UPDATE SET
-        role = EXCLUDED.role,
-        status = EXCLUDED.status
+    UPDATE users
+    SET
+        role = 'admin',
+        status = 'disabled',
+        updated_at = NOW()
+    WHERE email = 'prompt-reviewer@jisudeng.local'
+      AND deleted_at IS NULL
     RETURNING id INTO reviewer_id;
+
+    IF reviewer_id IS NULL THEN
+        INSERT INTO users (email, password_hash, role, status)
+        VALUES ('prompt-reviewer@jisudeng.local', 'system-disabled', 'admin', 'disabled')
+        RETURNING id INTO reviewer_id;
+    END IF;
 
     FOR item IN
         SELECT

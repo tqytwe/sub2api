@@ -125,6 +125,8 @@ func TestPromptLibraryPublicSeedMigrationPublishesCuratedContent(t *testing.T) {
 
 	require.Contains(t, sql, "JISUDENG-GPT-IMAGE-2-CURATED-SEED-20260717")
 	require.Contains(t, sql, "PROMPT-REVIEWER@JISUDENG.LOCAL")
+	require.Contains(t, sql, "WHERE EMAIL = 'PROMPT-REVIEWER@JISUDENG.LOCAL' AND DELETED_AT IS NULL")
+	require.NotContains(t, sql, "ON CONFLICT (EMAIL)")
 	require.Contains(t, sql, "INSERT INTO PROMPTS")
 	require.Contains(t, sql, "INSERT INTO PROMPT_VERSIONS")
 	require.Contains(t, sql, "INSERT INTO PROMPT_CATEGORY_LINKS")
