@@ -3,11 +3,13 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import type { PromptSummary } from '@/api/prompts'
+import { shouldUseGeneratedPromptCover } from '@/utils/promptCover'
 import {
   promptSourceLabel,
   referenceRequirementLabel,
 } from '@/utils/promptLibrary'
 import Icon from '@/components/icons/Icon.vue'
+import PromptGeneratedCover from '@/components/prompt/PromptGeneratedCover.vue'
 
 const props = defineProps<{
   prompt: PromptSummary
@@ -26,6 +28,7 @@ const route = useRoute()
 const router = useRouter()
 
 const brandLabel = computed(() => promptSourceLabel(props.prompt.source_attribution))
+const useGeneratedCover = computed(() => shouldUseGeneratedPromptCover(props.prompt))
 
 async function handleFavorite() {
   if (!authStore.isAuthenticated) {
@@ -48,15 +51,12 @@ async function handleFavorite() {
       @click="emit('details', prompt)"
     >
       <img
-        v-if="prompt.preview_image_url"
+        v-if="!useGeneratedCover && prompt.preview_image_url"
         :src="prompt.preview_image_url"
         :alt="prompt.preview_image_alt || `${prompt.title}示例效果`"
         loading="lazy"
       />
-      <span v-else class="prompt-card-placeholder">
-        <Icon name="sparkles" size="xl" />
-        <span>效果图待补充</span>
-      </span>
+      <PromptGeneratedCover v-else :prompt="prompt" />
       <span class="prompt-brand-badge">{{ brandLabel }}</span>
     </button>
 

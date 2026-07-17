@@ -19,7 +19,9 @@ import {
 import { copyPromptText } from '@/utils/promptLibraryClipboard'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import Icon from '@/components/icons/Icon.vue'
+import PromptGeneratedCover from '@/components/prompt/PromptGeneratedCover.vue'
 import '@/components/prompt/prompt-library.css'
+import { isGenericPromptTemplateImage } from '@/utils/promptCover'
 import { applyPromptPageMetadata, clearPromptPageMetadata } from '@/utils/promptPageMetadata'
 
 const route = useRoute()
@@ -38,14 +40,19 @@ const reportDetail = ref('')
 const promptId = computed(() => String(route.params.id || ''))
 const exampleImages = computed(() => {
   if (!prompt.value) return []
-  if (prompt.value.example_images?.length) return prompt.value.example_images
-  if (prompt.value.preview_image_url) {
+  const realExamples = (prompt.value.example_images || []).filter((image) => !isGenericPromptTemplateImage(image.url))
+  if (realExamples.length) return realExamples
+  if (prompt.value.preview_image_url && !isGenericPromptTemplateImage(prompt.value.preview_image_url)) {
     return [{
       url: prompt.value.preview_image_url,
       alt: prompt.value.preview_image_alt || `${prompt.value.title}示例效果`,
     }]
   }
   return []
+})
+const generatedCoverPrompt = computed(() => {
+  if (!prompt.value || exampleImages.value.length > 0) return null
+  return prompt.value
 })
 
 async function loadDetail() {
@@ -183,10 +190,7 @@ onBeforeUnmount(clearPromptPageMetadata)
             :src="image.url"
             :alt="image.alt || `${prompt.title}示例效果${index + 1}`"
           />
-          <div v-if="exampleImages.length === 0" class="prompt-card-placeholder">
-            <Icon name="sparkles" size="xl" />
-            <span>示例效果待补充</span>
-          </div>
+          <PromptGeneratedCover v-if="generatedCoverPrompt" :prompt="generatedCoverPrompt" detail />
         </section>
 
         <div class="prompt-detail-content">

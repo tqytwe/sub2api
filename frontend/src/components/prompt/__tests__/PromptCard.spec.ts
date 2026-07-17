@@ -75,4 +75,22 @@ describe('PromptCard', () => {
     expect(wrapper.emitted('favorite')).toEqual([[prompt]])
     expect(pushMock).not.toHaveBeenCalled()
   })
+
+  it('uses a generated cover instead of repeated generic Image Studio template art', () => {
+    const wrapper = mount(PromptCard, {
+      props: {
+        prompt: {
+          ...prompt,
+          title: '电影感视频封面',
+          preview_image_url: '/image-studio/templates/free-create.webp',
+          purpose: 'youtube-thumbnail',
+          style: 'cinematic-film-still',
+        },
+      },
+    })
+
+    expect(wrapper.find('.prompt-card-media img').exists()).toBe(false)
+    expect(wrapper.get('.prompt-generated-cover').text()).toContain('电影感视频封面')
+    expect(wrapper.get('.prompt-generated-cover').text()).toContain('视频封面')
+  })
 })

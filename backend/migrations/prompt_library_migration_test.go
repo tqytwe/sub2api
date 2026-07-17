@@ -142,3 +142,19 @@ func TestPromptLibraryPublicSeedMigrationPublishesCuratedContent(t *testing.T) {
 	require.Contains(t, sql, "ON CONFLICT (PROMPT_ID, VERSION) DO UPDATE")
 	require.NotContains(t, sql, "'ORIGINAL'")
 }
+
+func TestPromptLibraryGenericCoverCleanupTargetsOnlyCuratedSeedTemplateMedia(t *testing.T) {
+	content, err := FS.ReadFile("202_prompt_library_generic_cover_cleanup.sql")
+	require.NoError(t, err)
+
+	sql := strings.ToUpper(strings.Join(strings.Fields(string(content)), " "))
+
+	require.Contains(t, sql, "DELETE FROM PROMPT_MEDIA")
+	require.Contains(t, sql, "JISUDENG-GPT-IMAGE-2-CURATED-SEED-20260717")
+	require.Contains(t, sql, "PROMPT.BRAND_TYPE = 'CURATED'")
+	require.Contains(t, sql, "/IMAGE-STUDIO/TEMPLATES/ECOM-WHITE-BG.WEBP")
+	require.Contains(t, sql, "/IMAGE-STUDIO/TEMPLATES/FREE-CREATE.WEBP")
+	require.Contains(t, sql, "/IMAGE-STUDIO/TEMPLATES/XHS-COVER.WEBP")
+	require.NotContains(t, sql, "DELETE FROM PROMPTS")
+	require.NotContains(t, sql, "DELETE FROM PROMPT_SOURCES")
+}
