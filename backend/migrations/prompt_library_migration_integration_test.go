@@ -45,12 +45,7 @@ func TestPromptLibraryMigrationRunsTwiceAndEnforcesProvenance(t *testing.T) {
 	_, err = db.ExecContext(ctx, `
 		CREATE TABLE users (
 			id BIGSERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL UNIQUE,
-			password_hash VARCHAR(255) NOT NULL,
-			role VARCHAR(20) NOT NULL DEFAULT 'user',
-			status VARCHAR(20) NOT NULL DEFAULT 'active',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			email TEXT NOT NULL UNIQUE
 		);
 		CREATE TABLE image_studio_jobs (
 			id UUID PRIMARY KEY,
@@ -173,7 +168,7 @@ func TestPromptLibraryMigrationRunsTwiceAndEnforcesProvenance(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) {
+func TestPromptLibrarySeedMigrationIsIdempotentReviewOnly(t *testing.T) {
 	if err := exec.Command("docker", "info").Run(); err != nil {
 		if os.Getenv("CI") != "" {
 			require.NoError(t, err, "Docker must be available for migration integration tests in CI")
@@ -203,12 +198,7 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 	_, err = db.ExecContext(ctx, `
 		CREATE TABLE users (
 			id BIGSERIAL PRIMARY KEY,
-			email VARCHAR(255) NOT NULL UNIQUE,
-			password_hash VARCHAR(255) NOT NULL,
-			role VARCHAR(20) NOT NULL DEFAULT 'user',
-			status VARCHAR(20) NOT NULL DEFAULT 'active',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+			email TEXT NOT NULL UNIQUE
 		);
 		CREATE TABLE image_studio_jobs (
 			id UUID PRIMARY KEY,
@@ -221,11 +211,8 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 	require.NoError(t, err)
 	seedSQL, err := dbmigrations.FS.ReadFile("200_prompt_library_seed.sql")
 	require.NoError(t, err)
-	publicSeedSQL, err := dbmigrations.FS.ReadFile("201_prompt_library_public_seed.sql")
-	require.NoError(t, err)
 	require.NoError(t, execSQLTwice(ctx, db, string(coreSQL)))
 	require.NoError(t, execSQLTwice(ctx, db, string(seedSQL)))
-	require.NoError(t, execSQLTwice(ctx, db, string(publicSeedSQL)))
 
 	var categoryCount int
 	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM prompt_categories`).Scan(&categoryCount))
@@ -233,7 +220,7 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 
 	var jobCount int
 	var itemCount int
-	var approvedCount int
+	var pendingCount int
 	require.NoError(t, db.QueryRowContext(ctx, `
 		SELECT COUNT(*)
 		FROM prompt_import_jobs
@@ -250,11 +237,10 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 		SELECT COUNT(*)
 		FROM prompt_import_items
 		WHERE source_key = 'jisudeng-gpt-image-2-curated-seed-20260717'
-		  AND status = 'approved'
+		  AND status = 'pending_review'
 		  AND authorization_status = 'curated'
-		  AND prompt_id IS NOT NULL
-	`).Scan(&approvedCount))
-	require.Equal(t, 200, approvedCount)
+	`).Scan(&pendingCount))
+	require.Equal(t, 200, pendingCount)
 
 	var missingCategoryCount int
 	require.NoError(t, db.QueryRowContext(ctx, `
@@ -279,116 +265,8 @@ func TestPromptLibraryPublicSeedMigrationIsIdempotentAndPublished(t *testing.T) 
 	require.Equal(t, 0, missingCategoryCount)
 
 	var promptCount int
-	require.NoError(t, db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM prompts
-		WHERE status = 'published'
-		  AND published_version = 1
-		  AND brand_type = 'curated'
-		  AND provenance_type = 'external'
-		  AND authorization_status = 'curated'
-		  AND source_evidence_verified = TRUE
-	`).Scan(&promptCount))
-	require.Equal(t, 200, promptCount)
-
-	var originalCount int
-	require.NoError(t, db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM prompts WHERE brand_type = 'original'
-	`).Scan(&originalCount))
-	require.Equal(t, 0, originalCount)
-
-	var featuredCount int
-	require.NoError(t, db.QueryRowContext(ctx, `
-		SELECT COUNT(*) FROM prompts WHERE featured = TRUE
-	`).Scan(&featuredCount))
-	require.Equal(t, 24, featuredCount)
-
-	var missingPublishedVersionCount int
-	require.NoError(t, db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM prompts p
-		WHERE p.status = 'published'
-		  AND NOT EXISTS (
-			SELECT 1
-			FROM prompt_versions v
-			WHERE v.prompt_id = p.id
-			  AND v.version = p.published_version
-			  AND v.brand_type = 'curated'
-			  AND v.prompt_text <> ''
-			  AND array_length(v.models, 1) >= 1
-			  AND array_length(v.sizes, 1) >= 1
-			  AND v.public_attribution_note LIKE '%极速蹬整理、翻译并完成模型适配%'
-		  )
-	`).Scan(&missingPublishedVersionCount))
-	require.Equal(t, 0, missingPublishedVersionCount)
-
-	for name, query := range map[string]string{
-		"category links": `
-			SELECT COUNT(*)
-			FROM prompts p
-			WHERE p.status = 'published'
-			  AND (
-				SELECT COUNT(*)
-				FROM prompt_category_links link
-				WHERE link.prompt_id = p.id
-				  AND link.version = p.published_version
-			  ) < 5`,
-		"media": `
-			SELECT COUNT(*)
-			FROM prompts p
-			WHERE p.status = 'published'
-			  AND NOT EXISTS (
-				SELECT 1 FROM prompt_media media
-				WHERE media.prompt_id = p.id
-				  AND media.version = p.published_version
-			  )`,
-		"sources": `
-			SELECT COUNT(*)
-			FROM prompts p
-			WHERE p.status = 'published'
-			  AND NOT EXISTS (
-				SELECT 1 FROM prompt_sources source
-				WHERE source.prompt_id = p.id
-				  AND source.version = p.published_version
-				  AND source.authorization_status = 'curated'
-				  AND source.evidence_verified = TRUE
-			  )`,
-		"reviews": `
-			SELECT COUNT(*)
-			FROM prompts p
-			WHERE p.status = 'published'
-			  AND NOT EXISTS (
-				SELECT 1 FROM prompt_review_records review
-				WHERE review.prompt_id = p.id
-				  AND review.version = p.published_version
-				  AND review.decision = 'approve'
-			  )`,
-	} {
-		var missing int
-		require.NoError(t, db.QueryRowContext(ctx, query).Scan(&missing), name)
-		require.Equal(t, 0, missing, name)
-	}
-
-	var publicListCount int
-	require.NoError(t, db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM prompts p
-		JOIN prompt_versions v
-		  ON v.prompt_id = p.id
-		 AND v.version = p.published_version
-		WHERE p.status = 'published'
-	`).Scan(&publicListCount))
-	require.Equal(t, 200, publicListCount)
-
-	var completedJobCount int
-	require.NoError(t, db.QueryRowContext(ctx, `
-		SELECT COUNT(*)
-		FROM prompt_import_jobs
-		WHERE source_key = 'jisudeng-gpt-image-2-curated-seed-20260717'
-		  AND status = 'completed'
-		  AND item_count = 200
-	`).Scan(&completedJobCount))
-	require.Equal(t, 1, completedJobCount)
+	require.NoError(t, db.QueryRowContext(ctx, `SELECT COUNT(*) FROM prompts`).Scan(&promptCount))
+	require.Equal(t, 0, promptCount)
 }
 
 func execSQLTwice(ctx context.Context, db *sql.DB, sqlText string) error {

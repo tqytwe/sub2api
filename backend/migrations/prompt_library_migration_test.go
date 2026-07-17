@@ -116,27 +116,3 @@ func TestPromptLibrarySeedMigrationKeepsExternalContentInReview(t *testing.T) {
 	require.NotContains(t, sql, "STATUS, BRAND_TYPE")
 	require.NotContains(t, sql, "'PUBLISHED'")
 }
-
-func TestPromptLibraryPublicSeedMigrationPublishesCuratedContent(t *testing.T) {
-	content, err := FS.ReadFile("201_prompt_library_public_seed.sql")
-	require.NoError(t, err)
-
-	sql := strings.ToUpper(strings.Join(strings.Fields(string(content)), " "))
-
-	require.Contains(t, sql, "JISUDENG-GPT-IMAGE-2-CURATED-SEED-20260717")
-	require.Contains(t, sql, "PROMPT-REVIEWER@JISUDENG.LOCAL")
-	require.Contains(t, sql, "INSERT INTO PROMPTS")
-	require.Contains(t, sql, "INSERT INTO PROMPT_VERSIONS")
-	require.Contains(t, sql, "INSERT INTO PROMPT_CATEGORY_LINKS")
-	require.Contains(t, sql, "INSERT INTO PROMPT_MEDIA")
-	require.Contains(t, sql, "INSERT INTO PROMPT_SOURCES")
-	require.Contains(t, sql, "INSERT INTO PROMPT_REVIEW_RECORDS")
-	require.Contains(t, sql, "STATUS = 'PUBLISHED'")
-	require.Contains(t, sql, "PUBLISHED_VERSION = 1")
-	require.Contains(t, sql, "'CURATED'")
-	require.Contains(t, sql, "'EXTERNAL'")
-	require.Contains(t, sql, "极速蹬整理、翻译并完成模型适配")
-	require.Contains(t, sql, "STATUS = 'APPROVED'")
-	require.Contains(t, sql, "ON CONFLICT (PROMPT_ID, VERSION) DO UPDATE")
-	require.NotContains(t, sql, "'ORIGINAL'")
-}
