@@ -170,6 +170,7 @@ export const jisudengPagesZh = {
     myStats: '第 {rank} 名 · 本期 {tokens} tokens',
     myTokens: '本期已用 {tokens} tokens，继续调用 API 即可上榜',
     gapToPrev: '距上一名还差 {gap} tokens',
+    estimatedReward: '当前名次预计 API 余额奖励：${amount}',
     boostActive: '充值加成中 · 展示积分 ×{mult}',
     leaderboard: '排行榜',
     colRank: '排名',
@@ -260,6 +261,7 @@ export const jisudengPagesZh = {
     copyInviteCode: '复制邀请码',
     memberSpend: '${spend} · {pct}%',
     memberTokens: '信息指标：{tokens} tokens',
+    memberEstimatedReward: '预计本月可分 ${reward}',
     leave: '离开小队',
     leaveConfirm: '确认离开当前小队？队长在仍有成员时需先转让队长。',
     left: '已离开小队',
@@ -272,6 +274,7 @@ export const jisudengPagesZh = {
     settlementHistory: '结算历史',
     noSettlements: '暂无已生成的月度结算',
     poolStatus: '奖池 ${pool} · {status}',
+    allocationLine: '贡献 ${contribution} · {ratio}% · 奖励 ${reward} · {status}',
   },
   playHub: {
     eyebrow: '增长福利',

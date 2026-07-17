@@ -125,6 +125,7 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 			DisplayTokenSum:      s.Arena.DisplayTokenSum,
 			Rank:                 s.Arena.Rank,
 			TokensToPrevRank:     s.Arena.TokensToPrevRank,
+			EstimatedReward:      s.Arena.EstimatedReward,
 			RechargeBoostActive:  s.Arena.RechargeBoostActive,
 			ArenaScoreMultiplier: s.Arena.ArenaScoreMultiplier,
 			CampaignActive:       s.Arena.CampaignActive,
@@ -141,6 +142,7 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 			DisplayTokenSum:  s.DailyArena.DisplayTokenSum,
 			Rank:             s.DailyArena.Rank,
 			TokensToPrevRank: s.DailyArena.TokensToPrevRank,
+			EstimatedReward:  s.DailyArena.EstimatedReward,
 		}
 		if s.DailyArena.Period != nil {
 			dto.Period = toPlayArenaPeriodDTO(s.DailyArena.Period)

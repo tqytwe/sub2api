@@ -82,6 +82,7 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import type { PaymentOrder } from '@/types/payment'
 import { currencySymbol } from '@/components/payment/currency'
+import { isPaymentFailureStatus, isPaymentSuccessStatus, normalizeOrderStatus } from '@/components/payment/orderUtils'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
@@ -200,12 +201,12 @@ async function pollStatus() {
   let order = await paymentStore.pollOrderStatus(props.orderId)
   if (!order) return
   order = await tryRecoverPendingOrder(order)
-  if (order.status === 'COMPLETED' || order.status === 'PAID') {
+  if (isPaymentSuccessStatus(order.status)) {
     cleanup()
     paidOrder.value = order
     success.value = true
     emit('success')
-  } else if (order.status === 'EXPIRED' || order.status === 'CANCELLED' || order.status === 'FAILED') {
+  } else if (isPaymentFailureStatus(order.status)) {
     cleanup()
     expired.value = true
   }
@@ -215,7 +216,7 @@ async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder
   if (!isWxpay.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
-  const normalizedStatus = String(order.status || '').trim().toUpperCase()
+  const normalizedStatus = normalizeOrderStatus(order.status)
   if (normalizedStatus !== 'PENDING') return order
   const now = Date.now()
   if (verifyAttempts >= VERIFY_RETRY_MAX_ATTEMPTS || now - lastVerifyAt < VERIFY_RETRY_INTERVAL_MS) {

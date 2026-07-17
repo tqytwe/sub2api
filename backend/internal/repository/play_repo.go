@@ -137,7 +137,8 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT s.user_id,
-		       COALESCE(NULLIF(TRIM(u.username), ''), CONCAT('user-', s.user_id::text)) AS display_name,
+		       COALESCE(u.username, '') AS username,
+		       COALESCE(u.email, '') AS email,
 		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
 		       s.token_sum
 		FROM (
@@ -167,9 +168,12 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 	rank := 0
 	for rows.Next() {
 		var row service.PlayArenaScoreRow
-		if err := rows.Scan(&row.UserID, &row.DisplayName, &row.AvatarURL, &row.TokenSum); err != nil {
+		var username, email string
+		if err := rows.Scan(&row.UserID, &username, &email, &row.AvatarURL, &row.TokenSum); err != nil {
 			return nil, fmt.Errorf("scan arena leaderboard: %w", err)
 		}
+		row.DisplayName = service.PublicPlayDisplayName(username, email, row.UserID)
+		row.Email = email
 		rank++
 		row.Rank = rank
 		out = append(out, row)

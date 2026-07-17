@@ -88,14 +88,15 @@ type playQuizSubmitResultDTO struct {
 }
 
 type playTeamMemberDTO struct {
-	UserID      int64  `json:"user_id"`
-	DisplayName string `json:"display_name"`
-	AvatarURL   string `json:"avatar_url,omitempty"`
-	JoinedAt    string `json:"joined_at"`
-	TokenSum    int64  `json:"token_sum"`
-	TokenPct    int    `json:"token_pct"`
-	Spend       string `json:"spend"`
-	SpendPct    int    `json:"spend_pct"`
+	UserID          int64  `json:"user_id"`
+	DisplayName     string `json:"display_name"`
+	AvatarURL       string `json:"avatar_url,omitempty"`
+	JoinedAt        string `json:"joined_at"`
+	TokenSum        int64  `json:"token_sum"`
+	TokenPct        int    `json:"token_pct"`
+	Spend           string `json:"spend"`
+	SpendPct        int    `json:"spend_pct"`
+	EstimatedReward string `json:"estimated_reward"`
 }
 
 type playTeamAffiliateDTO struct {
@@ -445,14 +446,15 @@ func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
 	}
 	for _, m := range team.Members {
 		out.Members = append(out.Members, playTeamMemberDTO{
-			UserID:      m.UserID,
-			DisplayName: m.DisplayName,
-			AvatarURL:   m.AvatarURL,
-			JoinedAt:    m.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
-			TokenSum:    m.TokenSum,
-			TokenPct:    m.TokenPct,
-			Spend:       m.Spend.StringFixed(8),
-			SpendPct:    m.SpendPct,
+			UserID:          m.UserID,
+			DisplayName:     m.DisplayName,
+			AvatarURL:       m.AvatarURL,
+			JoinedAt:        m.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
+			TokenSum:        m.TokenSum,
+			TokenPct:        m.TokenPct,
+			Spend:           m.Spend.StringFixed(8),
+			SpendPct:        m.SpendPct,
+			EstimatedReward: m.EstimatedReward.StringFixed(8),
 		})
 	}
 	if team.Affiliate != nil {

@@ -47,6 +47,7 @@ type PlayArenaScoreRow struct {
 	Rank        int
 	UserID      int64
 	DisplayName string
+	Email       string
 	AvatarURL   string
 	TokenSum    int64
 }
@@ -151,14 +152,16 @@ type PlayQuizSubmitResult struct {
 }
 
 type PlayTeamMember struct {
-	UserID      int64
-	DisplayName string
-	AvatarURL   string
-	JoinedAt    time.Time
-	TokenSum    int64
-	TokenPct    int
-	Spend       decimal.Decimal
-	SpendPct    int
+	UserID          int64
+	DisplayName     string
+	Email           string
+	AvatarURL       string
+	JoinedAt        time.Time
+	TokenSum        int64
+	TokenPct        int
+	Spend           decimal.Decimal
+	SpendPct        int
+	EstimatedReward decimal.Decimal
 }
 
 type PlayTeamSummary struct {
@@ -178,6 +181,46 @@ type PlayTeamSummary struct {
 	EstimatedPool    decimal.Decimal
 	RewardCap        decimal.Decimal
 	RewardTiers      []TeamRewardTier
+}
+
+type PlayAdminTeamListItem struct {
+	ID                 int64
+	Name               string
+	InviteCode         string
+	CaptainID          int64
+	CaptainDisplayName string
+	CaptainAvatarURL   string
+	CaptainEmail       string
+	MemberCount        int
+	TokenSum           int64
+	TeamSpend          decimal.Decimal
+	EstimatedPool      decimal.Decimal
+	CreatedAt          time.Time
+	ArchivedAt         *time.Time
+}
+
+type PlayAdminTeamList struct {
+	Items    []PlayAdminTeamListItem
+	Total    int
+	Page     int
+	PageSize int
+}
+
+type PlayAdminOpsSummary struct {
+	TotalTeams               int
+	ActiveTeams              int
+	MonthSpend               decimal.Decimal
+	EstimatedSharedPool      decimal.Decimal
+	PendingFailedSettlements int
+	MonthlyArenaRewardBudget float64
+	DailyArenaRewardBudget   float64
+}
+
+type PlayAdminTeamDetail struct {
+	Team        *PlayTeamSummary
+	CreatedAt   time.Time
+	ArchivedAt  *time.Time
+	Settlements []PlayTeamSettlementRecord
 }
 
 type PlayTeamMe struct {
@@ -209,6 +252,7 @@ type PlayArenaCurrent struct {
 	DisplayTokenSum      int64
 	Rank                 int
 	TokensToPrevRank     int64
+	EstimatedReward      float64
 	RechargeBoostActive  bool
 	ArenaScoreMultiplier float64
 	CampaignActive       bool
@@ -269,6 +313,11 @@ type PlayRepository interface {
 	ListTeamRewardAllocations(ctx context.Context, settlementID int64) ([]PlayTeamRewardAllocation, error)
 	GetTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamDB, error)
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
+	CountAdminTeams(ctx context.Context) (total int, active int, err error)
+	CountTeamRewardSettlementsNeedingAttention(ctx context.Context) (int, error)
+	ListAdminTeamMonthlySpends(ctx context.Context, start, end time.Time) ([]decimal.Decimal, error)
+	GetAdminTeamMeta(ctx context.Context, teamID int64) (*PlayAdminTeamListItem, error)
+	ListAdminTeams(ctx context.Context, status, query string, start, end time.Time, limit, offset int) ([]PlayAdminTeamListItem, int, error)
 	ListTeamMembers(ctx context.Context, teamID int64) ([]PlayTeamMember, error)
 	SumTeamTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (int64, error)
 	ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]int64, error)
@@ -347,6 +396,9 @@ type PlayTeamRewardAllocation struct {
 	ID             int64           `json:"id"`
 	SettlementID   int64           `json:"settlement_id"`
 	UserID         int64           `json:"user_id"`
+	DisplayName    string          `json:"display_name,omitempty"`
+	AvatarURL      string          `json:"avatar_url,omitempty"`
+	Email          string          `json:"-"`
 	Contribution   decimal.Decimal `json:"contribution"`
 	Ratio          decimal.Decimal `json:"ratio"`
 	RewardAmount   decimal.Decimal `json:"reward_amount"`

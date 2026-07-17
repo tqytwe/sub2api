@@ -143,7 +143,12 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		play.GET("/blindbox/pool", h.Admin.Play.GetBlindboxPool)
 		play.PUT("/blindbox/pool", h.Admin.Play.UpdateBlindboxPool)
+		play.GET("/summary", h.Admin.Play.Summary)
+		play.GET("/arena/leaderboard", h.Admin.Play.ArenaLeaderboard)
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
+		play.GET("/teams", h.Admin.Play.ListTeams)
+		play.GET("/teams/:id", h.Admin.Play.GetTeam)
+		play.GET("/teams/:id/settlements", h.Admin.Play.GetTeamSettlements)
 		play.GET("/team-rewards/settings", h.Admin.Play.GetTeamRewardSettings)
 		play.PUT("/team-rewards/settings", h.Admin.Play.UpdateTeamRewardSettings)
 		play.GET("/team-rewards/settlements", h.Admin.Play.ListTeamRewardSettlements)
