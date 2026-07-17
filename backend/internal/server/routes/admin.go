@@ -108,12 +108,17 @@ func RegisterAdminRoutes(
 		// 风控中心
 		registerContentModerationRoutes(admin, h)
 
+		// 独立提示词输入审计
+		registerPromptAuditRoutes(admin, h)
+
 		// 邀请返利（专属用户管理）
 		registerAffiliateRoutes(admin, h)
 
 		registerAdminPlayRoutes(admin, h)
 
 		registerModelCatalogRoutes(admin, h)
+
+		registerAdminPromptLibraryRoutes(admin, h)
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
@@ -141,11 +146,32 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	{
 		play.GET("/blindbox/pool", h.Admin.Play.GetBlindboxPool)
 		play.PUT("/blindbox/pool", h.Admin.Play.UpdateBlindboxPool)
+		play.GET("/summary", h.Admin.Play.Summary)
+		play.GET("/arena/leaderboard", h.Admin.Play.ArenaLeaderboard)
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
+		play.GET("/teams", h.Admin.Play.ListTeams)
+		play.GET("/teams/:id", h.Admin.Play.GetTeam)
+		play.GET("/teams/:id/settlements", h.Admin.Play.GetTeamSettlements)
 		play.GET("/team-rewards/settings", h.Admin.Play.GetTeamRewardSettings)
 		play.PUT("/team-rewards/settings", h.Admin.Play.UpdateTeamRewardSettings)
 		play.GET("/team-rewards/settlements", h.Admin.Play.ListTeamRewardSettlements)
 		play.POST("/team-rewards/settlements/:id/retry", h.Admin.Play.RetryTeamRewardSettlement)
+	}
+}
+
+func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	promptAudit := admin.Group("/prompt-audit")
+	{
+		promptAudit.GET("/config", h.Admin.PromptAudit.GetConfig)
+		promptAudit.PUT("/config", h.Admin.PromptAudit.UpdateConfig)
+		promptAudit.POST("/endpoints/probe", h.Admin.PromptAudit.ProbeEndpoint)
+		promptAudit.GET("/runtime", h.Admin.PromptAudit.GetRuntime)
+		promptAudit.GET("/events", h.Admin.PromptAudit.ListEvents)
+		promptAudit.GET("/events/:id", h.Admin.PromptAudit.GetEvent)
+		promptAudit.DELETE("/events/:id", h.Admin.PromptAudit.DeleteEvent)
+		promptAudit.POST("/events/batch-delete", h.Admin.PromptAudit.BatchDelete)
+		promptAudit.POST("/events/delete-preview", h.Admin.PromptAudit.DeletePreview)
+		promptAudit.POST("/events/delete-by-filter", h.Admin.PromptAudit.DeleteByFilter)
 	}
 }
 

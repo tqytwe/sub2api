@@ -26,6 +26,13 @@ type failingOpenAIImageWriter struct {
 	writes    int
 }
 
+type zeroReader struct{}
+
+func (zeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
+
 func (w *failingOpenAIImageWriter) Write(p []byte) (int, error) {
 	if w.writes >= w.failAfter {
 		return 0, errors.New("write failed: client disconnected")
@@ -90,6 +97,90 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_MultipartEdit(t *testing.T
 	require.Equal(t, "2K", parsed.SizeTier)
 	require.Len(t, parsed.Uploads, 1)
 	require.Equal(t, OpenAIImagesCapabilityNative, parsed.RequiredCapability)
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_MultipartUploadSizeBoundary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name       string
+		endpoint   string
+		fieldName  string
+		fileName   string
+		fieldSize  int
+		wantErr    string
+		wantUpload bool
+	}{
+		{
+			name:       "accepts image at exact per-part limit",
+			endpoint:   "/v1/images/edits",
+			fieldName:  "image",
+			fileName:   "source.png",
+			fieldSize:  openAIImageMaxUploadPartSize,
+			wantUpload: true,
+		},
+		{
+			name:      "rejects image one byte over per-part limit",
+			endpoint:  "/v1/images/edits",
+			fieldName: "image",
+			fileName:  "source.png",
+			fieldSize: openAIImageMaxUploadPartSize + 1,
+			wantErr:   "Multipart field image exceeds 20 MiB limit",
+		},
+		{
+			name:      "accepts text field at exact per-part limit",
+			endpoint:  "/v1/images/generations",
+			fieldName: "prompt",
+			fieldSize: openAIImageMaxUploadPartSize,
+		},
+		{
+			name:      "rejects text field one byte over per-part limit",
+			endpoint:  "/v1/images/generations",
+			fieldName: "prompt",
+			fieldSize: openAIImageMaxUploadPartSize + 1,
+			wantErr:   "Multipart field prompt exceeds 20 MiB limit",
+		},
+	}
+
+	svc := &OpenAIGatewayService{}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			require.NoError(t, writer.WriteField("model", "gpt-image-2"))
+			var part io.Writer
+			var err error
+			if tt.fileName != "" {
+				part, err = writer.CreateFormFile(tt.fieldName, tt.fileName)
+			} else {
+				part, err = writer.CreateFormField(tt.fieldName)
+			}
+			require.NoError(t, err)
+			_, err = io.CopyN(part, zeroReader{}, int64(tt.fieldSize))
+			require.NoError(t, err)
+			require.NoError(t, writer.Close())
+
+			req := httptest.NewRequest(http.MethodPost, tt.endpoint, bytes.NewReader(body.Bytes()))
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = req
+
+			parsed, err := svc.ParseOpenAIImagesRequest(c, body.Bytes())
+			if tt.wantErr != "" {
+				require.Nil(t, parsed)
+				require.EqualError(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			if tt.wantUpload {
+				require.Len(t, parsed.Uploads, 1)
+				require.Len(t, parsed.Uploads[0].Data, tt.fieldSize)
+			} else {
+				require.Len(t, parsed.Prompt, tt.fieldSize)
+			}
+		})
+	}
 }
 
 func TestOpenAIImagesRequestModerationBody_JSONEditIncludesInputImageURLs(t *testing.T) {
@@ -475,7 +566,7 @@ func TestAccountSupportsOpenAIImageCapability_EmptyRequirementDoesNotRejectGrok(
 }
 
 func TestAccountSupportsOpenAIEndpointCapability(t *testing.T) {
-	t.Run("OpenAI APIKey 默认兼容 chat 和 embeddings", func(t *testing.T) {
+	t.Run("OpenAI APIKey 默认兼容 chat、embeddings 和 alpha search", func(t *testing.T) {
 		account := &Account{
 			Platform: PlatformOpenAI,
 			Type:     AccountTypeAPIKey,
@@ -483,6 +574,7 @@ func TestAccountSupportsOpenAIEndpointCapability(t *testing.T) {
 
 		require.True(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityChatCompletions))
 		require.True(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityEmbeddings))
+		require.True(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
 	})
 
 	t.Run("OpenAI OAuth 默认仅兼容 chat", func(t *testing.T) {
@@ -496,7 +588,9 @@ func TestAccountSupportsOpenAIEndpointCapability(t *testing.T) {
 		require.False(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityEmbeddings))
 	})
 
-	t.Run("alpha search 仅允许 OpenAI OAuth/PAT 类账号", func(t *testing.T) {
+	t.Run("alpha search 允许 OpenAI OAuth/PAT 与 APIKey 账号，拒绝 Grok", func(t *testing.T) {
+		// OAuth/PAT 走 chatgpt.com Codex 端点，APIKey 走 {base_url}/v1/alpha/search，
+		// 两类都能承接独立搜索（APIKey 被排除曾导致纯 APIKey 分组搜索失效的回归）。
 		apiKey := &Account{
 			Platform: PlatformOpenAI,
 			Type:     AccountTypeAPIKey,
@@ -505,9 +599,14 @@ func TestAccountSupportsOpenAIEndpointCapability(t *testing.T) {
 			Platform: PlatformOpenAI,
 			Type:     AccountTypeOAuth,
 		}
+		grok := &Account{
+			Platform: PlatformGrok,
+			Type:     AccountTypeAPIKey,
+		}
 
-		require.False(t, apiKey.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
+		require.True(t, apiKey.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
 		require.True(t, oauth.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
+		require.False(t, grok.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
 	})
 
 	t.Run("显式列表支持同时声明 chat 和 embeddings", func(t *testing.T) {
@@ -533,7 +632,8 @@ func TestAccountSupportsOpenAIEndpointCapability(t *testing.T) {
 		}
 
 		require.True(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityChatCompletions))
-		require.False(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
+		// chat 能力隐含放行 alpha search（OAuth/APIKey 语义一致）。
+		require.True(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityAlphaSearch))
 		require.False(t, account.SupportsOpenAIEndpointCapability(OpenAIEndpointCapabilityEmbeddings))
 	})
 
@@ -1168,6 +1268,39 @@ func TestOpenAIGatewayServiceForwardImages_APIKeyGenerationUsesConfiguredV1BaseU
 	require.Equal(t, "gpt-image-2", gjson.GetBytes(upstream.lastBody, "model").String())
 	require.Equal(t, http.StatusOK, rec.Code)
 	require.Equal(t, "aGVsbG8=", gjson.Get(rec.Body.String(), "data.0.b64_json").String())
+}
+
+func TestBuildOpenAIImagesRequestForManagedStudioForwardsInternalIdempotencyKey(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"gpt-image-2","prompt":"draw a cat"}`)
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Idempotency-Key", "image-studio:job-1:item-1")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+	svc := &OpenAIGatewayService{cfg: &config.Config{}}
+	account := &Account{
+		Type:     AccountTypeAPIKey,
+		Platform: PlatformOpenAI,
+		Credentials: map[string]any{
+			"api_key":  "test-api-key",
+			"base_url": "https://image-upstream.example/v1",
+		},
+	}
+
+	upstream, err := svc.buildOpenAIImagesRequest(
+		WithImageStudioManagedBilling(context.Background()),
+		c,
+		account,
+		body,
+		"application/json",
+		"test-api-key",
+		openAIImagesGenerationsEndpoint,
+	)
+
+	require.NoError(t, err)
+	require.Equal(t, "image-studio:job-1:item-1", upstream.Header.Get("Idempotency-Key"))
 }
 
 func TestOpenAIGatewayServiceForwardImages_APIKeyStreamJSONResponseBillsImage(t *testing.T) {

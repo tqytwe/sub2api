@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
 	"io"
 	"mime"
 	"mime/multipart"
@@ -50,6 +51,7 @@ type GrokMediaRequestInfo struct {
 	N               int
 	Size            string
 	SizeTier        string
+	ImageResolution string
 	Resolution      string
 	DurationSeconds int
 	InputImageURLs  []string
@@ -108,22 +110,40 @@ func ExtractGrokMediaModel(contentType string, body []byte) string {
 }
 
 func ParseGrokMediaRequest(contentType string, body []byte) GrokMediaRequestInfo {
+	info, _ := ParseGrokMediaRequestWithError(contentType, body)
+	return info
+}
+
+func ParseGrokMediaRequestWithError(contentType string, body []byte) (GrokMediaRequestInfo, error) {
 	info := GrokMediaRequestInfo{N: 1}
-	if gjson.ValidBytes(body) {
+	mediaType, _, mediaErr := mime.ParseMediaType(strings.TrimSpace(contentType))
+	if mediaErr == nil && strings.EqualFold(mediaType, "multipart/form-data") {
+		if err := parseGrokMediaMultipartRequest(contentType, body, &info); err != nil {
+			return GrokMediaRequestInfo{}, err
+		}
+	} else if gjson.ValidBytes(body) {
 		parseGrokMediaJSONRequest(body, &info)
 	} else {
-		parseGrokMediaMultipartRequest(contentType, body, &info)
+		if err := parseGrokMediaMultipartRequest(contentType, body, &info); err != nil {
+			return GrokMediaRequestInfo{}, err
+		}
 	}
 	info.Model = strings.TrimSpace(info.Model)
 	info.Prompt = strings.TrimSpace(info.Prompt)
 	info.Size = strings.TrimSpace(info.Size)
 	info.SizeTier = NormalizeImageBillingTierOrDefault(info.Size)
-	info.Resolution = NormalizeVideoBillingResolutionOrDefault(info.Resolution)
+	rawResolution := strings.ToLower(strings.TrimSpace(info.Resolution))
+	switch rawResolution {
+	case "1k", "2k", "4k":
+		info.ImageResolution = rawResolution
+		info.SizeTier = strings.ToUpper(rawResolution)
+	}
+	info.Resolution = NormalizeVideoBillingResolutionOrDefault(rawResolution)
 	info.DurationSeconds = NormalizeVideoBillingDurationSecondsOrDefault(info.DurationSeconds)
 	if info.N <= 0 {
 		info.N = 1
 	}
-	return info
+	return info, nil
 }
 
 func parseGrokMediaJSONRequest(body []byte, info *GrokMediaRequestInfo) {
@@ -147,9 +167,15 @@ func parseGrokMediaJSONRequest(body []byte, info *GrokMediaRequestInfo) {
 		switch {
 		case value.IsArray():
 			for _, item := range value.Array() {
-				if imageURL := strings.TrimSpace(item.Get("image_url").String()); imageURL != "" {
+				if imageURL := grokMediaJSONImageURL(item); imageURL != "" {
 					info.InputImageURLs = append(info.InputImageURLs, imageURL)
 					continue
+				}
+				if strings.EqualFold(strings.TrimSpace(item.Get("type").String()), "image_url") {
+					if imageURL := strings.TrimSpace(item.Get("url").String()); imageURL != "" {
+						info.InputImageURLs = append(info.InputImageURLs, imageURL)
+						continue
+					}
 				}
 				if item.Type == gjson.String {
 					imageURL := strings.TrimSpace(item.String())
@@ -160,9 +186,15 @@ func parseGrokMediaJSONRequest(body []byte, info *GrokMediaRequestInfo) {
 				}
 			}
 		default:
-			if imageURL := strings.TrimSpace(value.Get("image_url").String()); imageURL != "" {
+			if imageURL := grokMediaJSONImageURL(value); imageURL != "" {
 				info.InputImageURLs = append(info.InputImageURLs, imageURL)
 				return
+			}
+			if strings.EqualFold(strings.TrimSpace(value.Get("type").String()), "image_url") {
+				if imageURL := strings.TrimSpace(value.Get("url").String()); imageURL != "" {
+					info.InputImageURLs = append(info.InputImageURLs, imageURL)
+					return
+				}
 			}
 			if value.Type == gjson.String {
 				imageURL := strings.TrimSpace(value.String())
@@ -175,39 +207,47 @@ func parseGrokMediaJSONRequest(body []byte, info *GrokMediaRequestInfo) {
 	}
 	appendJSONImageURLs(gjson.GetBytes(body, "image"))
 	appendJSONImageURLs(gjson.GetBytes(body, "images"))
-	info.MaskImageURL = strings.TrimSpace(gjson.GetBytes(body, "mask.image_url").String())
+	appendJSONImageURLs(gjson.GetBytes(body, "reference_images"))
+	info.MaskImageURL = grokMediaJSONImageURL(gjson.GetBytes(body, "mask"))
 }
 
-func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokMediaRequestInfo) {
+func grokMediaJSONImageURL(value gjson.Result) string {
+	if imageURL := strings.TrimSpace(value.Get("url").String()); imageURL != "" {
+		return imageURL
+	}
+	return strings.TrimSpace(value.Get("image_url").String())
+}
+
+func parseGrokMediaMultipartRequest(contentType string, body []byte, info *GrokMediaRequestInfo) error {
 	if info == nil {
-		return
+		return nil
 	}
 	mediaType, params, err := mime.ParseMediaType(strings.TrimSpace(contentType))
 	if err != nil || !strings.EqualFold(mediaType, "multipart/form-data") {
-		return
+		return nil
 	}
 	boundary := strings.TrimSpace(params["boundary"])
 	if boundary == "" {
-		return
+		return fmt.Errorf("multipart boundary is required")
 	}
 	reader := multipart.NewReader(bytes.NewReader(body), boundary)
 	for {
 		part, err := reader.NextPart()
 		if err == io.EOF {
-			return
+			return nil
 		}
 		if err != nil {
-			return
+			return fmt.Errorf("read multipart body: %w", err)
 		}
 		name := strings.TrimSpace(part.FormName())
 		if name == "" {
 			_ = part.Close()
 			continue
 		}
-		data, err := io.ReadAll(io.LimitReader(part, openAIImageMaxUploadPartSize))
+		data, err := readOpenAIImagesMultipartField(part, name)
 		_ = part.Close()
 		if err != nil {
-			return
+			return err
 		}
 		fileName := strings.TrimSpace(part.FileName())
 		partContentType := strings.TrimSpace(part.Header.Get("Content-Type"))
@@ -302,7 +342,10 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	if err != nil {
 		return nil, err
 	}
-	requestInfo := ParseGrokMediaRequest(contentType, body)
+	requestInfo, err := ParseGrokMediaRequestWithError(contentType, body)
+	if err != nil {
+		return nil, err
+	}
 	body, contentType, err = sanitizeGrokMediaForwardBody(endpoint, body, contentType)
 	if err != nil {
 		return nil, err
@@ -391,7 +434,10 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 		return body, contentType, nil
 	}
 
-	info := ParseGrokMediaRequest(contentType, body)
+	info, err := ParseGrokMediaRequestWithError(contentType, body)
+	if err != nil {
+		return nil, "", err
+	}
 	payload := make(map[string]any)
 	if info.Model != "" {
 		payload["model"] = info.Model
@@ -409,7 +455,7 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 	images := make([]map[string]string, 0, len(info.InputImageURLs)+len(info.Uploads))
 	for _, imageURL := range info.InputImageURLs {
 		if imageURL = strings.TrimSpace(imageURL); imageURL != "" {
-			images = append(images, map[string]string{"image_url": imageURL})
+			images = append(images, map[string]string{"url": imageURL})
 		}
 	}
 	for _, upload := range info.Uploads {
@@ -417,7 +463,7 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 		if err != nil {
 			return nil, "", err
 		}
-		images = append(images, map[string]string{"image_url": dataURL})
+		images = append(images, map[string]string{"url": dataURL})
 	}
 	if len(images) > 0 {
 		payload["image"] = images[0]
@@ -435,7 +481,7 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 		maskImageURL = dataURL
 	}
 	if maskImageURL != "" {
-		payload["mask"] = map[string]string{"image_url": maskImageURL}
+		payload["mask"] = map[string]string{"url": maskImageURL}
 	}
 
 	out, err := marshalOpenAIUpstreamJSON(payload)
@@ -449,6 +495,18 @@ func normalizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, cont
 	if !endpoint.RequiresRequestBody() || !gjson.ValidBytes(body) {
 		return body, contentType, nil
 	}
+	var imageFields []string
+	switch endpoint {
+	case GrokMediaEndpointImagesEdits:
+		imageFields = []string{"image", "images", "mask"}
+	case GrokMediaEndpointVideosGenerations:
+		imageFields = []string{"image", "images", "reference_images"}
+	}
+	var err error
+	body, err = canonicalizeGrokMediaImageURLFields(body, imageFields...)
+	if err != nil {
+		return nil, "", err
+	}
 	info := ParseGrokMediaRequest(contentType, body)
 	upstreamModel := normalizeGrokMediaModelForEndpoint(endpoint, info.Model, info.HasInputImage())
 	if upstreamModel == "" || upstreamModel == info.Model {
@@ -459,6 +517,54 @@ func normalizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, cont
 		return nil, "", fmt.Errorf("rewrite grok media model: %w", err)
 	}
 	return out, contentType, nil
+}
+
+func canonicalizeGrokMediaImageURLFields(body []byte, fields ...string) ([]byte, error) {
+	out := body
+	for _, field := range fields {
+		value := gjson.GetBytes(out, field)
+		if !value.Exists() {
+			continue
+		}
+		if value.IsArray() {
+			for index := range value.Array() {
+				var err error
+				out, err = canonicalizeGrokMediaImageURLObject(out, fmt.Sprintf("%s.%d", field, index))
+				if err != nil {
+					return nil, err
+				}
+			}
+			continue
+		}
+		var err error
+		out, err = canonicalizeGrokMediaImageURLObject(out, field)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func canonicalizeGrokMediaImageURLObject(body []byte, path string) ([]byte, error) {
+	legacyPath := path + ".image_url"
+	legacy := gjson.GetBytes(body, legacyPath)
+	if !legacy.Exists() {
+		return body, nil
+	}
+
+	out := body
+	if strings.TrimSpace(gjson.GetBytes(out, path+".url").String()) == "" {
+		var err error
+		out, err = sjson.SetBytes(out, path+".url", legacy.Value())
+		if err != nil {
+			return nil, fmt.Errorf("normalize grok media image url: %w", err)
+		}
+	}
+	out, err := sjson.DeleteBytes(out, legacyPath)
+	if err != nil {
+		return nil, fmt.Errorf("remove legacy grok media image url: %w", err)
+	}
+	return out, nil
 }
 
 func sanitizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, contentType string) ([]byte, string, error) {
@@ -513,6 +619,14 @@ type grokMediaUsageMetadata struct {
 
 func grokMediaUsageFromResponse(endpoint GrokMediaEndpoint, requestInfo GrokMediaRequestInfo, responseBody []byte) grokMediaUsageMetadata {
 	usage, _ := extractOpenAIUsageFromJSONBytes(responseBody)
+	if endpoint == GrokMediaEndpointImagesEdits && usage.ImageInputTokens <= 0 {
+		if fallbackTokens := grokMediaConservativeImageInputTokens(requestInfo); fallbackTokens > 0 {
+			usage.ImageInputTokens = fallbackTokens
+			if usage.InputTokens < fallbackTokens {
+				usage.InputTokens = fallbackTokens
+			}
+		}
+	}
 	meta := grokMediaUsageMetadata{Usage: usage}
 	switch endpoint {
 	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits:
@@ -526,6 +640,9 @@ func grokMediaUsageFromResponse(endpoint GrokMediaEndpoint, requestInfo GrokMedi
 		meta.ImageCount = imageCount
 		meta.ImageSize = requestInfo.SizeTier
 		meta.ImageInputSize = requestInfo.Size
+		if meta.ImageInputSize == "" {
+			meta.ImageInputSize = requestInfo.ImageResolution
+		}
 		meta.ImageOutputSizes = collectOpenAIResponseImageOutputSizesFromJSONBytes(responseBody)
 	case GrokMediaEndpointVideosGenerations, GrokMediaEndpointVideosEdits, GrokMediaEndpointVideosExtensions:
 		meta.ResponseID = extractGrokMediaVideoRequestID(responseBody)
@@ -536,6 +653,36 @@ func grokMediaUsageFromResponse(endpoint GrokMediaEndpoint, requestInfo GrokMedi
 		meta.ImageCount = 1
 	}
 	return meta
+}
+
+func grokMediaConservativeImageInputTokens(requestInfo GrokMediaRequestInfo) int {
+	total := 0
+	addImage := func(data []byte) {
+		cfg, _, err := image.DecodeConfig(bytes.NewReader(data))
+		if err != nil || cfg.Width <= 0 || cfg.Height <= 0 {
+			return
+		}
+		total += imageStudioReferenceInputTokenUpperBound(cfg.Width, cfg.Height)
+	}
+	addDataURL := func(raw string) {
+		data, _, err := DecodeImageStudioDataURL(strings.TrimSpace(raw))
+		if err == nil {
+			addImage(data)
+		}
+	}
+	for _, raw := range requestInfo.InputImageURLs {
+		addDataURL(raw)
+	}
+	for _, upload := range requestInfo.Uploads {
+		addImage(upload.Data)
+	}
+	if requestInfo.MaskImageURL != "" {
+		addDataURL(requestInfo.MaskImageURL)
+	}
+	if requestInfo.MaskUpload != nil {
+		addImage(requestInfo.MaskUpload.Data)
+	}
+	return total
 }
 
 func extractGrokMediaVideoRequestID(body []byte) string {

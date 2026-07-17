@@ -24,6 +24,11 @@ check_contains() {
   if grep -Fq -- "$needle" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
 }
 
+check_regex() {
+  local id="$1" desc="$2" file="$3" pattern="$4"
+  if grep -Eq -- "$pattern" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
+}
+
 check_not_contains() {
   local id="$1" desc="$2" file="$3" needle="$4"
   if ! grep -Fq -- "$needle" "$ROOT/$file"; then pass "$id" "$desc"; else fail "$id" "$desc"; fi
@@ -111,7 +116,7 @@ check_contains "FORK-PLAY-003" "Play runtime is fail-closed" "backend/internal/s
 check_file "FORK-PLAY-003" "Play Hub view" "frontend/src/views/user/PlayHubView.vue"
 
 check_contains "FORK-IMAGE-004" "required prompt error" "backend/internal/service/image_studio.go" "IMAGE_STUDIO_PROMPT_REQUIRED"
-check_contains "FORK-IMAGE-004" "prompt hash is private" "backend/internal/service/image_studio.go" 'PromptHash    string             `json:"-"`'
+check_regex "FORK-IMAGE-004" "prompt hash is private" "backend/internal/service/image_studio.go" 'PromptHash[[:space:]]+string[[:space:]]+`json:"-"`'
 check_contains "FORK-IMAGE-004" "authenticated asset download" "backend/internal/server/routes/image_studio.go" 'authenticated.GET("/assets/:id/download"'
 check_contains "FORK-IMAGE-004" "mobile support overlay hidden" "frontend/src/router/index.ts" "hideMobileSupport: true"
 for asset in ecom-white-bg.webp xhs-cover.webp free-create.webp; do
@@ -180,6 +185,19 @@ MIGRATIONS=(
   186_model_sync_jobs_repair.sql
   187_model_catalog_group_scope.sql
   189_restore_growth_rollback_defaults.sql
+  192_image_studio_persistent_jobs.sql
+  192_image_studio_persistent_jobs_indexes_notx.sql
+  193_image_studio_references.sql
+  194_image_studio_asset_derivatives.sql
+  194_image_studio_asset_derivatives_indexes_notx.sql
+  195_image_studio_billing_reconciliation.sql
+  196_image_studio_job_references.sql
+  197_image_studio_object_deletions.sql
+  198_image_studio_upload_slots.sql
+  199_prompt_library.sql
+  200_prompt_library_seed.sql
+  201_prompt_library_public_seed.sql
+  202_prompt_library_generic_cover_cleanup.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

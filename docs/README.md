@@ -23,7 +23,7 @@
 | [图像工作室](./IMAGE_STUDIO.md) | `active` | 当前产品行为、接口和运维不变量 | 图像工作室维护者 | 2026-07-15 |
 | [GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md) | `active` | GPT/Grok 单张、多张、编辑、保存和网页显示 | API 维护者 | 2026-07-16 |
 | [多张 / 批量生图调用](./BATCH_IMAGE_API.md) | `active` | GPT/Grok 多张输出、多 prompt 批量调用和本地保存 | API 维护者 | 2026-07-16 |
-| [异步图片任务](./ASYNC_IMAGE_TASKS.md) | `active` | 长耗时 GPT/Grok 图片任务、轮询和对象存储返回 | API 维护者 | 2026-07-16 |
+| [异步图片任务](./ASYNC_IMAGE_TASKS.md) | `active` | 长耗时 GPT/Grok 图片任务、轮询和结果存储返回 | API 维护者 | 2026-07-17 |
 | [Growth / Play](./GROWTH_PLAY.md) | `active` | 当前功能、开关、路由和短期 backlog | Growth 维护者 | 2026-07-15 |
 | [增长埋点](./growth-analytics.md) | `active` | 当前埋点和指标口径 | Growth 维护者 | 2026-07-15 |
 | [模型与价格](./MODEL_PRICING_CN.md) | `active` | 模型目录、参考价和实际计费关系 | 计费维护者 | 2026-07-15 |

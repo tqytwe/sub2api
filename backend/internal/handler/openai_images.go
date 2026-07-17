@@ -70,7 +70,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 
 	parsed, err := h.gatewayService.ParseOpenAIImagesRequest(c, body)
 	if err != nil {
-		h.errorResponse(c, http.StatusBadRequest, "invalid_request_error", err.Error())
+		h.errorResponse(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
 		return
 	}
 	requestModel := parsed.Model
@@ -86,8 +86,8 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 		return
 	}
-	if decision := h.checkContentModeration(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, parsed.ModerationBody()); decision != nil && decision.Blocked {
-		h.errorResponse(c, contentModerationStatus(decision), contentModerationErrorCode(decision), decision.Message)
+	if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, parsed.ModerationBody()); decision != nil && !decision.AllowNextStage {
+		h.openAISecurityAuditError(c, decision)
 		return
 	}
 	imageReleaseFunc, acquired := h.acquireImageGenerationSlot(c, streamStarted)
@@ -124,9 +124,29 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("openai.images.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
+	var billingEligibilityErr error
+	if service.IsImageStudioManagedBilling(c.Request.Context()) {
+		billingEligibilityErr = h.billingCacheService.CheckImageStudioManagedEligibility(
+			c.Request.Context(),
+			apiKey.User,
+			apiKey,
+			apiKey.Group,
+			subscription,
+			service.QuotaPlatform(c.Request.Context(), apiKey),
+		)
+	} else {
+		billingEligibilityErr = h.billingCacheService.CheckBillingEligibility(
+			c.Request.Context(),
+			apiKey.User,
+			apiKey,
+			apiKey.Group,
+			subscription,
+			service.QuotaPlatform(c.Request.Context(), apiKey),
+		)
+	}
+	if billingEligibilityErr != nil {
+		reqLog.Info("openai.images.billing_eligibility_check_failed", zap.Error(billingEligibilityErr))
+		status, code, message, retryAfter := billingErrorDetails(billingEligibilityErr)
 		if retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
 		}
@@ -367,7 +387,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		if result != nil {
 			upstreamModel = result.UpstreamModel
 		}
-		h.submitMandatoryUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
+		h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 				Result:             result,
 				APIKey:             apiKey,
@@ -411,4 +431,12 @@ func (h *OpenAIGatewayHandler) openAIImagesJSONKeepaliveInterval() time.Duration
 
 func isMultipartImagesContentType(contentType string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(contentType)), "multipart/form-data")
+}
+
+func openAIImagesValidationErrorStatus(err error) int {
+	var fieldTooLarge *service.OpenAIImagesMultipartFieldTooLargeError
+	if errors.As(err, &fieldTooLarge) {
+		return http.StatusRequestEntityTooLarge
+	}
+	return http.StatusBadRequest
 }

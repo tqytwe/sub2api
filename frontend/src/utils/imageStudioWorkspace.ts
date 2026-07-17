@@ -25,6 +25,45 @@ export interface ImageStudioKeyPage {
   pages: number
 }
 
+export const IMAGE_STUDIO_PROMPT_LIMIT = 8000
+
+export type ImageStudioPromptError = 'required' | 'too_long'
+
+export function countImageStudioCodePoints(value: string): number {
+  return Array.from(value).length
+}
+
+export function validateImageStudioPrompt(
+  prompt: string,
+  options: { required?: boolean } = {},
+): ImageStudioPromptError | null {
+  if (!prompt.trim()) return options.required === false ? null : 'required'
+  if (countImageStudioCodePoints(prompt) > IMAGE_STUDIO_PROMPT_LIMIT) return 'too_long'
+  return null
+}
+
+export function resizeImageStudioTextarea(
+  textarea: HTMLTextAreaElement,
+  options: { mobile?: boolean; viewportHeight?: number; desktopMaxHeight?: number } = {},
+): number {
+  const mobile = options.mobile
+    ?? (typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches)
+  const viewportHeight = options.viewportHeight
+    ?? (
+      typeof window !== 'undefined'
+        ? (window.visualViewport?.height || window.innerHeight)
+        : 800
+    )
+  const desktopMaxHeight = options.desktopMaxHeight ?? 320
+  const maxHeight = mobile ? Math.floor(viewportHeight * 0.42) : desktopMaxHeight
+
+  textarea.style.height = 'auto'
+  const height = Math.min(textarea.scrollHeight, maxHeight)
+  textarea.style.height = `${height}px`
+  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+  return height
+}
+
 export async function loadAllActiveImageStudioKeys(
   loadPage: (page: number, pageSize: number) => Promise<ImageStudioKeyPage>,
 ): Promise<ImageStudioKeyOption[]> {
@@ -74,5 +113,5 @@ export function resolveInitialImageStudioTemplate(
 }
 
 export function isImageStudioPromptValid(prompt: string): boolean {
-  return prompt.trim().length > 0
+  return validateImageStudioPrompt(prompt) === null
 }

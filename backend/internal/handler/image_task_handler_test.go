@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,11 +17,36 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 )
+
+type asyncImageZeroReader struct{}
+
+func (asyncImageZeroReader) Read(p []byte) (int, error) {
+	clear(p)
+	return len(p), nil
+}
 
 type asyncImageMemoryStore struct {
 	mu    sync.RWMutex
 	tasks map[string]*service.ImageTaskRecord
+}
+
+type asyncImageMemoryAssetStore struct {
+	data        []byte
+	contentType string
+	err         error
+}
+
+func (s *asyncImageMemoryAssetStore) Save(_ context.Context, _ string, _ string, _ []byte) (string, error) {
+	return "", nil
+}
+
+func (s *asyncImageMemoryAssetStore) Open(_ context.Context, _ string) (io.ReadCloser, string, error) {
+	if s.err != nil {
+		return nil, "", s.err
+	}
+	return io.NopCloser(bytes.NewReader(s.data)), s.contentType, nil
 }
 
 func (s *asyncImageMemoryStore) Save(_ context.Context, task *service.ImageTaskRecord, _ time.Duration) error {
@@ -106,7 +134,7 @@ func TestAsyncImageHandlerSubmitAndPoll(t *testing.T) {
 	require.Contains(t, pollWriter.Body.String(), "https://example.test/image.png")
 }
 
-// When object storage is not configured the feature is fully disabled: the
+// When result storage is not configured the feature is fully disabled: the
 // endpoints must return 404 without creating a task or writing to Redis.
 func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -141,5 +169,137 @@ func TestAsyncImageHandlerDisabledReturns404(t *testing.T) {
 	require.Equal(t, http.StatusNotFound, pollWriter.Code)
 
 	// No task was created / persisted.
+	require.Empty(t, store.tasks)
+}
+
+func TestAsyncImageHandlerGetAssetRequiresTaskOwner(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	assetStore := &asyncImageMemoryAssetStore{data: []byte("image-bytes"), contentType: "image/png"}
+	h := NewAsyncImageHandler(tasks, nil, assetStore)
+
+	owner := service.ImageTaskOwner{UserID: 7, APIKeyID: 9}
+	task, err := tasks.Create(context.Background(), owner)
+	require.NoError(t, err)
+	require.NoError(t, tasks.Complete(context.Background(), task.ID, http.StatusOK, json.RawMessage(`{"data":[{"url":"/v1/images/task-assets/images/`+task.ID+`-0.png"}]}`)))
+
+	router := gin.New()
+	apiKeyID := int64(9)
+	router.Use(func(c *gin.Context) {
+		groupID := int64(3)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+			ID:      apiKeyID,
+			UserID:  7,
+			GroupID: &groupID,
+			Group:   &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
+		})
+		c.Next()
+	})
+	router.GET("/v1/images/task-assets/*filepath", h.GetAsset)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/images/task-assets/images/"+task.ID+"-0.png", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
+	require.Equal(t, "image-bytes", w.Body.String())
+
+	apiKeyID = 10
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestAsyncImageHandlerMultipartPartTooLargeReturnsOpenAICompatible413(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, platform := range []string{service.PlatformOpenAI, service.PlatformGrok} {
+		t.Run(platform, func(t *testing.T) {
+			store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+			tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+			openAI := &OpenAIGatewayHandler{gatewayService: &service.OpenAIGatewayService{}}
+			h := NewAsyncImageHandler(tasks, openAI, nil)
+
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				groupID := int64(3)
+				c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+					ID:      9,
+					UserID:  7,
+					GroupID: &groupID,
+					Group: &service.Group{
+						ID:                   groupID,
+						Platform:             platform,
+						AllowImageGeneration: true,
+					},
+				})
+				c.Next()
+			})
+			router.POST("/v1/images/edits/async", h.Submit)
+
+			var body bytes.Buffer
+			writer := multipart.NewWriter(&body)
+			model := "gpt-image-2"
+			if platform == service.PlatformGrok {
+				model = "grok-imagine-edit"
+			}
+			require.NoError(t, writer.WriteField("model", model))
+			part, err := writer.CreateFormFile("image", "source.png")
+			require.NoError(t, err)
+			_, err = io.CopyN(part, asyncImageZeroReader{}, (20<<20)+1)
+			require.NoError(t, err)
+			require.NoError(t, writer.Close())
+
+			req := httptest.NewRequest(http.MethodPost, "/v1/images/edits/async", bytes.NewReader(body.Bytes()))
+			req.Header.Set("Content-Type", writer.FormDataContentType())
+			w := httptest.NewRecorder()
+			router.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusRequestEntityTooLarge, w.Code)
+			require.Equal(t, "invalid_request_error", gjson.GetBytes(w.Body.Bytes(), "error.type").String())
+			require.Equal(t, "Multipart field image exceeds 20 MiB limit", gjson.GetBytes(w.Body.Bytes(), "error.message").String())
+			require.Empty(t, store.tasks)
+		})
+	}
+}
+
+func TestAsyncImageHandlerGrokMalformedMultipartJSONBodyReturnsOpenAICompatible400(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
+	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	openAI := &OpenAIGatewayHandler{gatewayService: &service.OpenAIGatewayService{}}
+	h := NewAsyncImageHandler(tasks, openAI, nil)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		groupID := int64(3)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+			ID:      9,
+			UserID:  7,
+			GroupID: &groupID,
+			Group: &service.Group{
+				ID:                   groupID,
+				Platform:             service.PlatformGrok,
+				AllowImageGeneration: true,
+			},
+		})
+		c.Next()
+	})
+	router.POST("/v1/images/edits/async", h.Submit)
+
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/v1/images/edits/async",
+		strings.NewReader(`{"model":"grok-imagine-edit","prompt":"test"}`),
+	)
+	req.Header.Set("Content-Type", "multipart/form-data")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, "invalid_request_error", gjson.GetBytes(w.Body.Bytes(), "error.type").String())
+	require.Equal(t, "multipart boundary is required", gjson.GetBytes(w.Body.Bytes(), "error.message").String())
 	require.Empty(t, store.tasks)
 }

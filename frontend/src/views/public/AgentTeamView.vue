@@ -270,6 +270,7 @@ onMounted(loadTeam)
               <div class="agent-member-metrics">
                 <strong>${{ formatMoney(member.spend) }}</strong>
                 <span>{{ t('agentTeam.memberTokens', { tokens: formatTokens(member.token_sum) }) }} · {{ member.spend_pct ?? 0 }}%</span>
+                <span>{{ t('agentTeam.memberEstimatedReward', { reward: formatMoney(member.estimated_reward) }) }}</span>
                 <div class="agent-member-bar">
                   <span :style="{ width: `${member.spend_pct ?? 0}%` }" />
                 </div>
@@ -306,7 +307,13 @@ onMounted(loadTeam)
               </div>
               <div class="agent-allocation-list">
                 <span v-for="allocation in record.allocations" :key="allocation.id">
-                  {{ memberDisplayName(allocation.user_id) }} ${{ formatMoney(allocation.reward_amount) }} · {{ payoutStatusLabel(allocation.payout_status) }}
+                  {{ allocation.display_name || memberDisplayName(allocation.user_id) }}
+                  · {{ t('agentTeam.allocationLine', {
+                    contribution: formatMoney(allocation.contribution),
+                    ratio: (Number(allocation.ratio) * 100).toFixed(1),
+                    reward: formatMoney(allocation.reward_amount),
+                    status: payoutStatusLabel(allocation.payout_status),
+                  }) }}
                 </span>
               </div>
             </article>

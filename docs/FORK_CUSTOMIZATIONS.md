@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@bc2244c83fd8e92769d89ca01eb980513a720486`
-> 对应合并提交：`0f45fb9cb8b29a819c3bd28dcce586dfbeef040d`
-> 最后核验：2026-07-16
+> 当前验证基线：`upstream/main@57914967cbb127ff715719c3879d881c10d75274`
+> 对应合并提交：`sync/upstream-20260717` 待合入 `play/main` 后回填 merge commit
+> 最后核验：2026-07-17
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -50,12 +50,12 @@
 
 ## FORK-IMAGE-004 图像工作室
 
-- 产品目的：登录用户在控制台内完成模板选图、描述、规格、估价、异步生成、预览和下载。
-- 不变量：描述必填且后端返回 `IMAGE_STUDIO_PROMPT_REQUIRED`；不保存明文 Prompt，只保存 SHA-256；任务异步执行并可恢复轮询；资产优先写入 `data/image-studio/`，预览和下载校验资产所属用户；默认保留 7 天，可关闭自动清理；移动端隐藏客服浮窗。
-- 接口与数据：`/api/v1/image-studio/*`；表 `image_studio_jobs`、`image_studio_assets`；设置 `image_studio_enabled`。
+- 产品目的：登录用户在控制台内完成模板选图、描述、规格、参考图编辑、估价、持久异步生成、预览、分页和下载。
+- 不变量：描述必填且后端返回 `IMAGE_STUDIO_PROMPT_REQUIRED`；生成要求稳定 `Idempotency-Key`；不保存明文 Prompt，只保存 SHA-256 和加密 worker payload；每用户最多 2 个活动任务，支持 partial/cancelled、lease/heartbeat/restart recovery；余额按用户专属有效倍率和参考图输入成本先 hold，已确认 provider 成本的实际收费不超过创建时的每 item hold 快照，再 capture/release；Grok 编辑缺少权威图片输入 token 时按真实参考图尺寸保守结算；引用图和资产写入私有持久卷，所有读取按用户鉴权；任务清理先在同一事务写对象删除 outbox 并删除 metadata，对象失败由 outbox 重试；默认保留 7 天，可关闭自动清理；移动端隐藏客服浮窗。
+- 接口与数据：`/api/v1/image-studio/*`；表 `image_studio_jobs`、`image_studio_items`、`image_studio_assets`、`image_studio_references`、`image_studio_job_references`、`image_studio_billing_reconciliations`、`image_studio_object_deletions`、`image_studio_upload_slots`；设置 `image_studio_enabled`。
 - 关键位置：`backend/internal/server/routes/image_studio.go`、`backend/internal/service/image_studio*.go`、`frontend/src/views/user/ImageStudioView.vue`、`frontend/src/composables/useImageStudioWorkspace.ts`。
-- 冲突策略：网关和计费可吸收上游修复；Prompt 隐私、任务所有权、本地持久化、模板字段、规范比例和工作台 UI 不得回退。
-- 验证：image studio Go tests 和前端 gallery/size/workspace tests；线上完成生成、刷新恢复、预览、下载、删除和失败重试。
+- 冲突策略：网关和计费可吸收上游修复；Prompt 隐私、幂等、任务所有权、持久 job/item、checkpoint、余额预占、引用图私有化、capability 路由、模板字段、规范比例和工作台 UI 不得回退。
+- 验证：image studio Go unit/integration tests、真实 PostgreSQL recovery/billing/reference/outbox tests 和前端 gallery/size/workspace tests；线上完成双任务生成、刷新与重启恢复、部分成功、取消、编辑、高级设置、缩略图、分页、ZIP、删除和失败重试。
 
 ## FORK-PRICING-005 模型目录和价格优先级
 
@@ -92,8 +92,8 @@
 
 ## FORK-MIGRATION-009 自定义数据库迁移
 
-- 产品目的：保留 Play、品牌默认值、图像工作室和模型目录的数据库结构与数据修复。
-- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖。
+- 产品目的：保留 Play、品牌默认值、图像工作室、提示词库和模型目录的数据库结构与数据修复。
+- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
 - 冲突策略：新增迁移使用新的完整文件名；禁止修改已部署 SQL 的内容来解决冲突。
 - 验证：integrity 脚本逐文件检查，部署后检查 `schema_migrations`。
 
@@ -119,6 +119,19 @@
 186_model_sync_jobs_repair.sql
 187_model_catalog_group_scope.sql
 189_restore_growth_rollback_defaults.sql
+192_image_studio_persistent_jobs.sql
+192_image_studio_persistent_jobs_indexes_notx.sql
+193_image_studio_references.sql
+194_image_studio_asset_derivatives.sql
+194_image_studio_asset_derivatives_indexes_notx.sql
+195_image_studio_billing_reconciliation.sql
+196_image_studio_job_references.sql
+197_image_studio_object_deletions.sql
+198_image_studio_upload_slots.sql
+199_prompt_library.sql
+200_prompt_library_seed.sql
+201_prompt_library_public_seed.sql
+202_prompt_library_generic_cover_cleanup.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

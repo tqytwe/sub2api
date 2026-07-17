@@ -97,7 +97,7 @@ function aspectShapeStyle(aspectId: string) {
           :title="isTierDisabled(item.id) ? t('imageStudio.optionUnsupported') : labelFor(item.label)"
           @click="emit('update:tier', item.id)"
         >
-          {{ item.id }}
+          {{ labelFor(item.label) || item.id }}
         </button>
       </div>
     </fieldset>

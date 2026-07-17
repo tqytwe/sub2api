@@ -18,7 +18,7 @@ export const jisudengHomeZh = {
       tail: '网关'
     },
     subtitle: '一个 API Key · Claude / GPT / Gemini · 按 Token 计费 · 无月租',
-    tagline: '注册即用 · 官方倍率 · Prompt 不落盘',
+    tagline: '注册即用 · 官方倍率 · 提示词不落盘',
     activeOn: 'WORKS ON',
     perks: {
       signupCredit: '注册即送 ${amount} 测试额度',
@@ -55,10 +55,13 @@ export const jisudengHomeZh = {
     }
   },
   stats: {
-    requests: '累计 API 请求',
+    requests: '累计已记录 API 请求',
     uptime: '30 天可用率',
     latency: '24 小时平均首字延迟',
-    models: '可用模型数'
+    models: '可用模型数',
+    through: '最近运营样本结束于 {time}',
+    computed: '快照生成于 {time}',
+    stale: '当前显示缓存或滞后数据'
   },
   sections: {
     imageTag: 'IMAGE API',
@@ -105,7 +108,7 @@ export const jisudengHomeZh = {
   image: {
     model: 'gpt-image-2',
     badge: 'NEW',
-    desc: '两个端点：文生图 (generations) 与图像编辑 (edits)。单次请求最大 30 MiB。',
+    desc: '两个端点：文生图 (generations) 与图像编辑 (edits)。每个 multipart 字段最大 20 MiB。',
     caps: ['文生图', '图生图', '多图参考', '风格迁移'],
     docLink: '查看图像 API 文档',
     studioCta: '免费试做一张',

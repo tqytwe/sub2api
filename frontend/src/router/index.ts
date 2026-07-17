@@ -16,6 +16,8 @@ import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { useTheme } from '@/composables/useTheme'
 
+const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
+
 /**
  * Route definitions with lazy loading
  */
@@ -223,6 +225,26 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/prompts',
+    name: 'PromptSquare',
+    component: () => import('@/views/public/PromptSquareView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '图像工作室 · 选提示词',
+      hidePageHeader: true,
+    },
+  },
+  {
+    path: '/prompts/:id',
+    name: 'PromptDetail',
+    component: () => import('@/views/public/PromptDetailView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '提示词详情',
+      hidePageHeader: true,
+    },
+  },
+  {
     path: '/blindbox',
     name: 'Blindbox',
     component: () => import('@/views/public/BlindboxView.vue'),
@@ -340,7 +362,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      title: 'Image Studio',
+      title: '图像工作室',
       titleKey: 'imageStudio.title',
       descriptionKey: 'imageStudio.subtitle',
       hideMobileSupport: true,
@@ -547,6 +569,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/play-ops',
+    name: 'AdminPlayOps',
+    component: () => import('@/views/admin/PlayOpsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Play Ops',
+      titleKey: 'admin.playOps.title',
+      descriptionKey: 'admin.playOps.description'
+    }
+  },
+  {
     path: '/admin/audit-logs',
     name: 'AdminAuditLogs',
     component: () => import('@/views/admin/AuditLogView.vue'),
@@ -670,6 +704,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/prompts',
+    name: 'AdminPrompts',
+    component: () => import('@/views/admin/PromptsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '提示词管理',
+    },
+  },
+  {
     path: '/admin/proxies',
     name: 'AdminProxies',
     component: () => import('@/views/admin/ProxiesView.vue'),
@@ -727,6 +771,19 @@ const routes: RouteRecordRaw[] = [
       title: 'Risk Control',
       titleKey: 'admin.riskControl.title',
       descriptionKey: 'admin.riskControl.description',
+      requiresRiskControl: true
+    }
+  },
+  {
+    path: adminPromptAuditPath,
+    name: 'AdminPromptAudit',
+    component: () => import('@/features/security-audit/PromptAuditRouteView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '提示词审计',
+      titleKey: 'admin.promptAudit.title',
+      descriptionKey: 'admin.promptAudit.description',
       requiresRiskControl: true
     }
   },
@@ -1018,6 +1075,7 @@ router.beforeEach(async (to, _from, next) => {
   if (authStore.isSimpleMode) {
     const restrictedPaths = [
       '/admin/groups',
+      '/admin/play-ops',
       '/admin/subscriptions',
       '/admin/redeem',
       '/subscriptions',

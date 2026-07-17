@@ -1,5 +1,7 @@
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
+import auditAdminEn from './en/admin/audit'
+import promptAuditAdminEn from './en/admin/promptAudit'
 
 export default {
   batchImageGuide: {
@@ -411,6 +413,9 @@ export default {
     announcements: 'Announcements',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
+    imageStudio: 'Image Studio',
+    promptSquare: 'Prompt Library',
+    promptManagement: 'Prompt Management',
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
@@ -435,6 +440,7 @@ export default {
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
+    playOps: 'Play Ops',
     promoCodes: 'Promo Codes',
     settings: 'Settings',
     myAccount: 'My Account',
@@ -459,10 +465,15 @@ export default {
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
     channelMonitor: 'Channel Monitor',
-    channelStatus: 'Channel Status',
+	channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
-    modelsAndPricing: 'Models & Pricing',
-    modelCatalog: 'Model Catalog',
+    securityAudit: 'Security Audit',
+    contentModeration: 'Content Moderation',
+    promptAudit: 'Prompt Audit',
+	modelsAndPricing: 'Models & Pricing',
+	modelCatalog: 'Model Catalog',
+    auditLogs: 'Audit Logs',
+    auditlogs: 'Audit Logs',
   },
 
   // Auth
@@ -1567,6 +1578,50 @@ export default {
 
   // Admin
   admin: {
+    ...auditAdminEn,
+    ...promptAuditAdminEn,
+    playOps: {
+      title: 'Play Ops',
+      description: 'Monitor Token Farm, Agent Team, reward settlements, and exceptions',
+      refresh: 'Refresh',
+      totalTeams: 'Total teams',
+      activeTeams: 'Active teams',
+      monthSpend: 'Team spend this month',
+      estimatedPool: 'Estimated shared pool',
+      arenaBudget: 'Arena period budget',
+      failedSettlements: 'Exception settlements',
+      pendingFailedSettlements: 'Pending/failed settlements',
+      arenaTitle: 'Token Farm leaderboard',
+      arenaHint: 'Rewards are API balance, estimated from the current configuration.',
+      daily: 'Daily',
+      monthly: 'Monthly',
+      rank: 'Rank',
+      user: 'User',
+      tokens: 'Tokens',
+      estimatedReward: 'Estimated reward',
+      teamsTitle: 'Agent Team',
+      searchPlaceholder: 'Search team, invite code, or captain email',
+      statusActive: 'Active',
+      statusArchived: 'Archived',
+      statusAll: 'All',
+      team: 'Team',
+      captain: 'Captain',
+      members: 'Members',
+      spend: 'Spend',
+      pool: 'Pool',
+      createdAt: 'Created',
+      details: 'Details',
+      detailTitle: 'Team details',
+      inviteCode: 'Invite code',
+      memberContributions: 'Member contributions',
+      memberTokensLine: '{tokens} tokens · {pct}%',
+      memberEstimated: 'Estimated share',
+      settlements: 'Settlement details',
+      noTeams: 'No teams yet',
+      noSettlements: 'No settlements yet',
+      loading: 'Loading...',
+      loadFailed: 'Failed to load Play Ops data',
+    },
     // Dashboard
     dashboard: {
       title: 'Admin Dashboard',

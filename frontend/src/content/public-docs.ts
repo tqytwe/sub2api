@@ -37,3 +37,19 @@ export function findDocPage(catId: string, pageId: string) {
 export function defaultDocPageForCategory(catId: string) {
   return defaultDocPageId(catId)
 }
+
+const LEGACY_TUTORIAL_PAGE_CATEGORIES: Record<string, string> = {
+  'text-to-image-api': 'deploy',
+  'batch-image-api': 'deploy',
+  'async-image-tasks': 'deploy',
+}
+
+export function normalizePublicDocLocation(catId: string, pageId: string) {
+  if (catId === 'tutorial' && LEGACY_TUTORIAL_PAGE_CATEGORIES[pageId]) {
+    return {
+      catId: LEGACY_TUTORIAL_PAGE_CATEGORIES[pageId],
+      pageId,
+    }
+  }
+  return { catId, pageId }
+}

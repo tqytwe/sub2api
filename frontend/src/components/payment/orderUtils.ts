@@ -20,13 +20,27 @@ const STATUS_BADGE_MAP: Record<string, string> = {
 }
 
 const REFUNDABLE_STATUSES = ['COMPLETED', 'PARTIALLY_REFUNDED', 'REFUND_REQUESTED', 'REFUND_FAILED']
+const PAYMENT_SUCCESS_STATUSES = new Set(['COMPLETED', 'PAID', 'RECHARGING'])
+const PAYMENT_FAILURE_STATUSES = new Set(['EXPIRED', 'CANCELLED', 'FAILED'])
+
+export function normalizeOrderStatus(status: string | null | undefined): string {
+  return String(status || '').trim().toUpperCase()
+}
+
+export function isPaymentSuccessStatus(status: string | null | undefined): boolean {
+  return PAYMENT_SUCCESS_STATUSES.has(normalizeOrderStatus(status))
+}
+
+export function isPaymentFailureStatus(status: string | null | undefined): boolean {
+  return PAYMENT_FAILURE_STATUSES.has(normalizeOrderStatus(status))
+}
 
 export function statusBadgeClass(status: string): string {
-  return STATUS_BADGE_MAP[status] || 'badge-secondary'
+  return STATUS_BADGE_MAP[normalizeOrderStatus(status)] || 'badge-secondary'
 }
 
 export function canRefund(status: string): boolean {
-  return REFUNDABLE_STATUSES.includes(status)
+  return REFUNDABLE_STATUSES.includes(normalizeOrderStatus(status))
 }
 
 export function formatOrderDateTime(dateStr: string): string {

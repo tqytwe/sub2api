@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ImageStudioCatalog, ImageStudioModelOption } from '@/api/imageStudio'
 import {
+  IMAGE_STUDIO_PROMPT_LIMIT,
+  countImageStudioCodePoints,
   findFirstImageStudioKeyWithModels,
   flattenImageStudioTemplates,
   isImageStudioPromptValid,
   loadAllActiveImageStudioKeys,
+  resizeImageStudioTextarea,
   resolveInitialImageStudioTemplate,
+  validateImageStudioPrompt,
 } from '@/utils/imageStudioWorkspace'
 
 const catalog: ImageStudioCatalog = {
@@ -40,6 +44,50 @@ describe('image studio workspace helpers', () => {
   it('requires a non-whitespace prompt', () => {
     expect(isImageStudioPromptValid('  ')).toBe(false)
     expect(isImageStudioPromptValid('matte black headphones')).toBe(true)
+  })
+
+  it('counts Unicode code points instead of UTF-16 code units', () => {
+    expect(countImageStudioCodePoints('a😀b')).toBe(3)
+    expect(countImageStudioCodePoints('😀'.repeat(IMAGE_STUDIO_PROMPT_LIMIT))).toBe(
+      IMAGE_STUDIO_PROMPT_LIMIT,
+    )
+  })
+
+  it('applies the same 8000-code-point validation boundary to prompts', () => {
+    expect(validateImageStudioPrompt('')).toBe('required')
+    expect(validateImageStudioPrompt(' \n\t')).toBe('required')
+    expect(validateImageStudioPrompt(' \n\t', { required: false })).toBeNull()
+    expect(validateImageStudioPrompt('😀'.repeat(IMAGE_STUDIO_PROMPT_LIMIT))).toBeNull()
+    expect(validateImageStudioPrompt('😀'.repeat(IMAGE_STUDIO_PROMPT_LIMIT + 1))).toBe('too_long')
+  })
+
+  it('grows textareas until the mobile viewport cap and then scrolls internally', () => {
+    const textarea = document.createElement('textarea')
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 900 })
+
+    expect(resizeImageStudioTextarea(textarea, { mobile: true, viewportHeight: 1000 })).toBe(420)
+    expect(textarea.style.height).toBe('420px')
+    expect(textarea.style.overflowY).toBe('auto')
+
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 180 })
+    expect(resizeImageStudioTextarea(textarea, { mobile: true, viewportHeight: 1000 })).toBe(180)
+    expect(textarea.style.overflowY).toBe('hidden')
+  })
+
+  it('uses the visual viewport height when a mobile keyboard shrinks it', () => {
+    const descriptor = Object.getOwnPropertyDescriptor(window, 'visualViewport')
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: { height: 400 },
+    })
+    const textarea = document.createElement('textarea')
+    Object.defineProperty(textarea, 'scrollHeight', { configurable: true, value: 900 })
+
+    expect(resizeImageStudioTextarea(textarea, { mobile: true })).toBe(168)
+    expect(textarea.style.height).toBe('168px')
+
+    if (descriptor) Object.defineProperty(window, 'visualViewport', descriptor)
+    else delete (window as { visualViewport?: VisualViewport }).visualViewport
   })
 
   it('selects the first API key whose group exposes image models', async () => {

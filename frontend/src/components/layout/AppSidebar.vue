@@ -319,7 +319,7 @@ function applyFeatureFlags(items: NavItem[]): NavItem[] {
   return out
 }
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
@@ -801,12 +801,20 @@ function isDocsCustomMenuItem(item: Pick<CustomMenuNavItem, 'label' | 'url'>): b
   return label.includes('文档') || label.includes('文檔') || label.includes('docs') || url.includes('/docs')
 }
 
+function resolveCustomMenuLabel(label: string): string {
+  const key = label.trim()
+  if (/^nav\.[\w.-]+$/.test(key) && te(key)) {
+    return t(key)
+  }
+  return label
+}
+
 function buildCustomMenuNavItem(item: CustomMenuNavItem): NavItem {
   const icon = isDocsCustomMenuItem(item) ? BookIcon : null
 
   return {
     path: `/custom/${item.id}`,
-    label: item.label,
+    label: resolveCustomMenuLabel(item.label),
     icon,
     iconSvg: icon ? undefined : item.icon_svg,
   }
@@ -892,6 +900,7 @@ const adminNavItems = computed((): NavItem[] => {
   const baseItems: NavItem[] = [
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
     { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
+    { path: '/admin/play-ops', label: t('nav.playOps'), icon: GiftIcon, hideInSimpleMode: true },
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     {
@@ -909,8 +918,20 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/subscriptions', label: t('nav.subscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/admin/accounts', label: t('nav.accounts'), icon: GlobeIcon },
     { path: '/admin/announcements', label: t('nav.announcements'), icon: BellIcon },
+    { path: '/admin/prompts', label: t('nav.promptManagement'), icon: BookIcon },
     { path: '/admin/proxies', label: t('nav.proxies'), icon: ServerIcon },
-    { path: '/admin/risk-control', label: t('nav.riskControl'), icon: ShieldIcon, hideInSimpleMode: true, featureFlag: flagRiskControl },
+    {
+      path: '/admin/security-audit',
+      label: t('nav.securityAudit'),
+      icon: ShieldIcon,
+      hideInSimpleMode: true,
+      expandOnly: true,
+      featureFlag: flagRiskControl,
+      children: [
+        { path: '/admin/risk-control', label: t('nav.contentModeration'), icon: ShieldIcon },
+        { path: '/admin/prompt-audit', label: t('nav.promptAudit'), icon: ShieldIcon },
+      ],
+    },
     { path: '/admin/redeem', label: t('nav.redeemCodes'), icon: TicketIcon, hideInSimpleMode: true },
     { path: '/admin/promo-codes', label: t('nav.promoCodes'), icon: GiftIcon, hideInSimpleMode: true },
     {

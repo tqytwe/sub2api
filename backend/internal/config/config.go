@@ -229,11 +229,12 @@ type BatchImageConfig struct {
 	VertexGCSBaseURL             string `mapstructure:"vertex_gcs_base_url"`
 }
 
-// ImageStorageConfig 配置异步图片任务结果上传的 S3 兼容对象存储。
-// Enabled 同时作为异步图片任务功能的总开关：未启用或未配置完整凭证时，
-// 异步生图接口整体禁用，避免把上游返回的大 base64 结果塞进 Redis。
+// ImageStorageConfig 配置异步图片任务结果的临时持久化。
+// Enabled 同时作为异步图片任务功能的总开关：未启用时异步生图接口整体禁用，
+// 避免把上游返回的大 base64 结果塞进 Redis。
 type ImageStorageConfig struct {
 	Enabled         bool   `mapstructure:"enabled"`
+	Backend         string `mapstructure:"backend"`  // local / s3 / auto；默认 local
 	Endpoint        string `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
 	Region          string `mapstructure:"region"`   // R2 用 "auto"
 	Bucket          string `mapstructure:"bucket"`
@@ -242,18 +243,41 @@ type ImageStorageConfig struct {
 	Prefix          string `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
 	ForcePathStyle  bool   `mapstructure:"force_path_style"`     // MinIO/路径风格桶
 	PublicBaseURL   string `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
+	LocalDir        string `mapstructure:"local_dir"`            // local 后端目录；为空时使用 data_dir/image-task-results
+	LocalURLPrefix  string `mapstructure:"local_url_prefix"`     // local 返回 URL 前缀
 	PresignExpiry   int    `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
 	MaxDownloadByte int64  `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
 }
 
-// IsConfigured 检查对象存储必要字段是否已配置
-func (c *ImageStorageConfig) IsConfigured() bool {
+func (c *ImageStorageConfig) BackendOrDefault() string {
+	backend := strings.ToLower(strings.TrimSpace(c.Backend))
+	if backend == "" || backend == "auto" {
+		if c.S3Configured() {
+			return "s3"
+		}
+		return "local"
+	}
+	return backend
+}
+
+// S3Configured 检查 S3 兼容对象存储必要字段是否已配置
+func (c *ImageStorageConfig) S3Configured() bool {
 	return c.Bucket != "" && c.AccessKeyID != "" && c.SecretAccessKey != ""
 }
 
-// Active 返回异步图片任务是否可用：开关打开且凭证齐全
+// Active 返回异步图片任务是否可用。
 func (c *ImageStorageConfig) Active() bool {
-	return c.Enabled && c.IsConfigured()
+	if !c.Enabled {
+		return false
+	}
+	switch c.BackendOrDefault() {
+	case "local":
+		return true
+	case "s3":
+		return c.S3Configured()
+	default:
+		return false
+	}
 }
 
 type LinuxDoConnectConfig struct {
@@ -1976,11 +2000,13 @@ func setDefaults() {
 	viper.SetDefault("batch_image.vertex_batch_prediction_base_url", "")
 	viper.SetDefault("batch_image.vertex_gcs_base_url", "")
 
-	// Image storage (async image task result offload to S3-compatible object storage)
+	// Image storage (async image task result offload)
 	viper.SetDefault("image_storage.enabled", false)
+	viper.SetDefault("image_storage.backend", "local")
 	viper.SetDefault("image_storage.region", "auto")
 	viper.SetDefault("image_storage.prefix", "images/")
 	viper.SetDefault("image_storage.force_path_style", false)
+	viper.SetDefault("image_storage.local_url_prefix", "/v1/images/task-assets/")
 	viper.SetDefault("image_storage.presign_expiry_hours", 24)
 	viper.SetDefault("image_storage.max_download_bytes", 33554432)
 
@@ -2184,7 +2210,7 @@ func setDefaults() {
 	viper.SetDefault("gateway.stream_keepalive_interval", 10)
 	viper.SetDefault("gateway.image_stream_data_interval_timeout", 900)
 	viper.SetDefault("gateway.image_stream_keepalive_interval", 10)
-	viper.SetDefault("gateway.image_nonstream_keepalive_interval", 0)
+	viper.SetDefault("gateway.image_nonstream_keepalive_interval", 15)
 	viper.SetDefault("gateway.max_line_size", 500*1024*1024)
 	viper.SetDefault("gateway.scheduling.sticky_session_max_waiting", 3)
 	viper.SetDefault("gateway.scheduling.sticky_session_wait_timeout", 120*time.Second)

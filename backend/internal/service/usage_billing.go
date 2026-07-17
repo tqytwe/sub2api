@@ -12,6 +12,8 @@ import (
 var ErrUsageBillingRequestIDRequired = errors.New("usage billing request_id is required")
 var ErrUsageBillingRequestConflict = errors.New("usage billing request fingerprint conflict")
 var ErrUsageBillingOwnershipMismatch = errors.New("usage billing user does not own api key or subscription")
+var ErrUsageBillingHoldNotFound = errors.New("usage billing hold request was not reserved")
+var ErrImageStudioBillingReconciliationPersistence = errors.New("persist image studio billing reconciliation")
 
 // UsageBillingCommand describes one billable request that must be applied at most once.
 type UsageBillingCommand struct {
@@ -34,6 +36,7 @@ type UsageBillingCommand struct {
 	CacheReadTokens     int
 	ImageCount          int
 	MediaType           string
+	ActualCost          float64
 
 	BalanceCost         float64
 	SubscriptionCost    float64
@@ -122,14 +125,16 @@ type UsageBillingApplyResult struct {
 
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.
 type BatchImageBalanceHoldCommand struct {
-	RequestID          string
-	APIKeyID           int64
-	RequestFingerprint string
-	RequestPayloadHash string
-	UserID             int64
-	BatchID            string
-	HoldAmount         float64
-	ActualAmount       float64
+	RequestID           string
+	HoldRequestID       string
+	APIKeyID            int64
+	RequestFingerprint  string
+	RequestPayloadHash  string
+	UserID              int64
+	BatchID             string
+	HoldAmount          float64
+	ActualAmount        float64
+	AllowBalanceOverage bool
 }
 
 func (c *BatchImageBalanceHoldCommand) Normalize() {
@@ -137,6 +142,7 @@ func (c *BatchImageBalanceHoldCommand) Normalize() {
 		return
 	}
 	c.RequestID = strings.TrimSpace(c.RequestID)
+	c.HoldRequestID = strings.TrimSpace(c.HoldRequestID)
 	c.BatchID = strings.TrimSpace(c.BatchID)
 	if strings.TrimSpace(c.RequestFingerprint) == "" {
 		c.RequestFingerprint = buildBatchImageBalanceHoldFingerprint(c)
@@ -173,4 +179,8 @@ type UsageBillingRepository interface {
 	ReserveBatchImageBalance(ctx context.Context, cmd *BatchImageBalanceHoldCommand) (*BatchImageBalanceHoldResult, error)
 	CaptureBatchImageBalance(ctx context.Context, cmd *BatchImageBalanceHoldCommand) (*BatchImageBalanceHoldResult, error)
 	ReleaseBatchImageBalance(ctx context.Context, cmd *BatchImageBalanceHoldCommand) (*BatchImageBalanceHoldResult, error)
+}
+
+type ImageStudioBillingReconciler interface {
+	ReconcileImageStudioBilling(ctx context.Context, limit int) (int, error)
 }

@@ -1,20 +1,30 @@
 # GPT / Grok 图片生成 API
 
 > 状态：active
-> 网站入口：`https://www.jisudeng.com/docs?cat=tutorial&page=text-to-image-api`
+> 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=text-to-image-api`
 > API Key：`https://www.jisudeng.com/keys`
 > 模型与价格：`https://www.jisudeng.com/models`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-16
+> 最后核验：2026-07-17
 
 ## 现在怎么用
 
-极速蹬当前对外主推的是 GPT 图片生成和 Grok 图片生成，开发者直接调用 OpenAI 兼容的 Images API：
+极速蹬当前对外主推的是 GPT 图片生成和 Grok 图片生成，开发者直接调用 OpenAI 兼容的 Images API。短耗时测试可以使用同步接口：
 
 ```text
 POST https://api.jisudeng.com/v1/images/generations
 POST https://api.jisudeng.com/v1/images/edits
 ```
+
+生产里的长耗时图片生成（例如 `gpt-image-2`、大尺寸、批量、多 prompt、预计超过 60-90 秒）请优先使用异步接口：
+
+```text
+POST https://api.jisudeng.com/v1/images/generations/async
+POST https://api.jisudeng.com/v1/images/edits/async
+GET  https://api.jisudeng.com/v1/images/tasks/{task_id}
+```
+
+同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 `524`。把客户端超时从 180 秒调到 300 秒不能避免中间层超时；上游完成后后台仍可能记录成功和扣费，但客户端连接已经断开。异步接口会先返回 `202 task_id`，再由客户端轮询结果，适合生产稳定接入。
 
 可用模型以你的 API Key 所属分组为准，常用模型是：
 
@@ -29,6 +39,47 @@ grok-imagine-edit
 ```
 
 GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `model`，通常直接填 `grok-imagine` 即可，网关会在图像生成端点规范化到 Grok 图片模型。
+
+## 三类返回契约
+
+### 同步 Base64 返回
+
+请求使用 `"response_format": "b64_json"` 时，每张图片位于
+`data[].b64_json`。当 `n > 1` 时，`data` 包含实际返回的全部图片，客户端
+不得只读取 `data[0]`：
+
+```json
+{
+  "created": 1784160000,
+  "data": [
+    { "b64_json": "iVBORw0KGgo..." },
+    { "b64_json": "iVBORw0KGgo..." }
+  ]
+}
+```
+
+### 同步 URL 返回
+
+请求使用 `"response_format": "url"` 时，每张图片位于 `data[].url`。不同
+上游可能返回临时公网 URL 或 data URL，客户端都应按 URL 字段读取并及时保存：
+
+```json
+{
+  "created": 1784160000,
+  "data": [
+    { "url": "https://example.com/generated/image.png" }
+  ]
+}
+```
+
+### 异步任务返回
+
+长耗时请求应提交到 `/v1/images/generations/async` 或
+`/v1/images/edits/async`，先收到 `202` 和 `task_id`，再轮询
+`/v1/images/tasks/{task_id}`。processing、completed 和 failed 的完整契约见
+[异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖服务端结果存储；生产部署设置
+`IMAGE_STORAGE_ENABLED=true` 即可使用默认本地持久卷存储。只有显式选择
+`IMAGE_STORAGE_BACKEND=s3` 时才需要 bucket/access key/secret。
 
 ## 准备 API Key
 
@@ -330,6 +381,9 @@ curl https://api.jisudeng.com/v1/images/edits \
 jq -r '.data[0].b64_json' edit-response.json | base64 -d > edited.png
 ```
 
+每个 multipart 文件或文本字段最多 **20 MiB**；整个请求还受部署配置的全局
+请求体上限约束。
+
 ## 常用字段
 
 | 字段 | 说明 |
@@ -353,7 +407,7 @@ jq -r '.data[0].b64_json' edit-response.json | base64 -d > edited.png
 | `401 API_KEY_REQUIRED / INVALID_API_KEY` | 没传 Key、Key 写错或已失效 |
 | `403 permission_error` | Key 所属分组没有开启图片生成 |
 | `404 not_found_error` | Key 所属分组不是 GPT/OpenAI 或 Grok 图片分组 |
-| `413 invalid_request_error` | 上传图片或请求体太大 |
+| `413 invalid_request_error` | multipart 文件或文本字段超过 20 MiB，或整个请求超过部署上限 |
 | `429` | Key、用户、分组、账号或上游限流 |
 | `502 upstream_error` | 上游异常或没有返回有效图片 |
 
@@ -367,3 +421,4 @@ https://api.jisudeng.com/v1/images/edits
 ```
 
 需要多个 prompt 批量生成时，看 [多张 / 批量生图调用](./BATCH_IMAGE_API.md)。
+需要避免长连接超时时，看 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。

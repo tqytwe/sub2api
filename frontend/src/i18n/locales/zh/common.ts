@@ -169,6 +169,7 @@ export default {
     proxies: 'IP管理',
     redeemCodes: '兑换码',
     ops: '运维监控',
+    playOps: '玩法运营',
     promoCodes: '优惠码',
     settings: '系统设置',
     myAccount: '我的账户',
@@ -192,7 +193,11 @@ export default {
     channelMonitor: '渠道监控',
     channelStatus: '渠道状态',
     riskControl: '风控中心',
+    securityAudit: '安全审计',
+    contentModeration: '内容审核',
+    promptAudit: '提示词审计',
     auditLogs: '操作日志',
+    auditlogs: '操作日志',
   },
 
   // Auth

@@ -474,7 +474,8 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (res
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
 		SELECT m.user_id,
-		       COALESCE(NULLIF(TRIM(u.username), ''), CONCAT('user-', m.user_id::text)) AS display_name,
+		       COALESCE(u.username, '') AS username,
+		       COALESCE(u.email, '') AS email,
 		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
 		       m.joined_at
 		FROM play_team_members m
@@ -498,9 +499,12 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (res
 	out := make([]service.PlayTeamMember, 0, 8)
 	for rows.Next() {
 		var m service.PlayTeamMember
-		if err := rows.Scan(&m.UserID, &m.DisplayName, &m.AvatarURL, &m.JoinedAt); err != nil {
+		var username, email string
+		if err := rows.Scan(&m.UserID, &username, &email, &m.AvatarURL, &m.JoinedAt); err != nil {
 			return nil, fmt.Errorf("scan team member: %w", err)
 		}
+		m.DisplayName = service.PublicPlayDisplayName(username, email, m.UserID)
+		m.Email = email
 		out = append(out, m)
 	}
 	if err := rows.Err(); err != nil {

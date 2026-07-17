@@ -1,5 +1,7 @@
 import { jisudengHomeZh } from './jisudeng-home.zh'
 import { jisudengPagesZh } from './jisudeng-pages.zh'
+import auditAdminZh from './zh/admin/audit'
+import promptAuditAdminZh from './zh/admin/promptAudit'
 
 export default {
   batchImageGuide: {
@@ -412,6 +414,8 @@ export default {
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
     imageStudio: '图像工作室',
+    promptSquare: '提示词广场',
+    promptManagement: '提示词管理',
     usage: '使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',
@@ -436,6 +440,7 @@ export default {
     proxies: 'IP管理',
     redeemCodes: '兑换码',
     ops: '运维监控',
+    playOps: '玩法运营',
     promoCodes: '优惠码',
     settings: '系统设置',
     myAccount: '我的账户',
@@ -460,10 +465,15 @@ export default {
     channelManagement: '渠道管理',
     channelPricing: '渠道定价',
     channelMonitor: '渠道监控',
-    channelStatus: '渠道状态',
+	channelStatus: '渠道状态',
     riskControl: '风控中心',
-    modelsAndPricing: '模型与价格',
-    modelCatalog: '模型价目',
+    securityAudit: '安全审计',
+    contentModeration: '内容审核',
+    promptAudit: '提示词审计',
+	modelsAndPricing: '模型与价格',
+	modelCatalog: '模型价目',
+    auditLogs: '操作日志',
+    auditlogs: '操作日志',
   },
 
   // Auth
@@ -1572,6 +1582,50 @@ export default {
 
   // Admin
   admin: {
+    ...auditAdminZh,
+    ...promptAuditAdminZh,
+    playOps: {
+      title: '玩法运营',
+      description: '查看 Token 农场、Agent Team、奖励结算与异常状态',
+      refresh: '刷新',
+      totalTeams: 'Team 总数',
+      activeTeams: '活跃 Team',
+      monthSpend: '本月 Team 消费',
+      estimatedPool: '预计共享奖池',
+      arenaBudget: 'Arena 当期预算',
+      failedSettlements: '异常结算',
+      pendingFailedSettlements: '待处理/失败结算',
+      arenaTitle: 'Token 农场榜单',
+      arenaHint: '奖励为 API 余额，按当前配置预估。',
+      daily: '日榜',
+      monthly: '月榜',
+      rank: '排名',
+      user: '用户',
+      tokens: 'Tokens',
+      estimatedReward: '预计奖励',
+      teamsTitle: 'Agent Team',
+      searchPlaceholder: '搜索 Team、邀请码、队长邮箱',
+      statusActive: '活跃',
+      statusArchived: '已归档',
+      statusAll: '全部',
+      team: 'Team',
+      captain: '队长',
+      members: '成员',
+      spend: '消费',
+      pool: '奖池',
+      createdAt: '创建时间',
+      details: '详情',
+      detailTitle: 'Team 详情',
+      inviteCode: '邀请码',
+      memberContributions: '成员贡献',
+      memberTokensLine: '{tokens} Tokens · {pct}%',
+      memberEstimated: '预计可分',
+      settlements: '结算明细',
+      noTeams: '暂无 Team',
+      noSettlements: '暂无结算',
+      loading: '加载中...',
+      loadFailed: '加载玩法运营数据失败',
+    },
     // Dashboard
     dashboard: {
       title: '管理控制台',

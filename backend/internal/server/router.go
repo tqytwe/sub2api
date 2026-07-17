@@ -87,8 +87,9 @@ func SetupRouter(
 
 	// 应用中间件
 	r.Use(middleware2.RequestLogger())
-	// 将可信客户端 IP + UA 注入 request context，供 token 签发路径写入会话绑定
-	r.Use(middleware2.SessionBindingContext())
+	// 将客户端 IP + UA 注入 request context，供 token 签发/会话绑定/审计日志统一读取。
+	// IP 取值与 API Key IP 限制共用「信任反代传递的客户端 IP」系统开关。
+	r.Use(middleware2.SessionBindingContext(cfg))
 	r.Use(middleware2.Logger())
 	r.Use(middleware2.CORS(cfg.CORS))
 	r.Use(middleware2.SecurityHeaders(cfg.Security.CSP, func() []string {
@@ -160,6 +161,8 @@ func registerRoutes(
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
+	routes.RegisterPromptLibraryRoutes(v1, h, jwtAuth)
+	routes.RegisterPromptLibrarySEORoutes(r, h)
 
 	v1.GET("/public/home-stats", publicHomeStatsRoute())
 	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))
