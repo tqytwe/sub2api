@@ -45,6 +45,19 @@ const (
 	// 供 service 层执行用户级策略，不能使用客户端请求体中的 user 标识替代。
 	UserID Key = "ctx_user_id"
 
+	// ImageStudioManagedBilling marks internal Image Studio gateway calls.
+	// The gateway still records authoritative usage and cost, while the durable
+	// Image Studio job owns balance capture/release and ordinary quota charging.
+	ImageStudioManagedBilling Key = "ctx_image_studio_managed_billing"
+
+	// ImageStudioBillingCapture carries the request-local authoritative cost
+	// sink used by the durable Image Studio worker.
+	ImageStudioBillingCapture Key = "ctx_image_studio_billing_capture"
+
+	// ImageStudioBillingActualCostCap carries the per-item held charge snapshot
+	// used by managed Image Studio usage billing.
+	ImageStudioBillingActualCostCap Key = "ctx_image_studio_billing_actual_cost_cap"
+
 	// IsMaxTokensOneHaikuRequest 标识当前请求是否为 max_tokens=1 + haiku 模型的探测请求
 	// 用于 ClaudeCodeOnly 验证绕过（绕过 system prompt 检查，但仍需验证 User-Agent）
 	IsMaxTokensOneHaikuRequest Key = "ctx_is_max_tokens_one_haiku"

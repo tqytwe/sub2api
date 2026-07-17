@@ -34,6 +34,82 @@ func (s *GatewayService) ResolveUserGroupRateMultiplier(ctx context.Context, use
 	return s.getUserGroupRateMultiplier(ctx, userID, groupID, groupDefaultMultiplier)
 }
 
+func (s *GatewayService) EstimateImageStudioInputCost(
+	ctx context.Context,
+	billingModel string,
+	apiKey *APIKey,
+	imageInputTokens int,
+) (float64, error) {
+	if s == nil || s.billingService == nil || apiKey == nil || imageInputTokens <= 0 {
+		return 0, ErrModelPricingUnavailable
+	}
+	multiplier := 1.0
+	if s.cfg != nil {
+		multiplier = s.cfg.Default.RateMultiplier
+	}
+	if apiKey.GroupID != nil && apiKey.Group != nil {
+		multiplier = s.ResolveUserGroupRateMultiplier(
+			ctx,
+			apiKey.UserID,
+			*apiKey.GroupID,
+			apiKey.Group.RateMultiplier,
+		)
+	}
+	multiplier, _ = computePeakAwareMultipliers(apiKey, multiplier, timezone.Now())
+
+	var pricing *ModelPricing
+	if s.resolver != nil {
+		if base, _ := s.resolver.resolveBasePricing(ctx, billingModel); base != nil {
+			cloned := *base
+			pricing = &cloned
+		}
+		if apiKey.Group != nil {
+			resolved := s.resolveChannelPricing(ctx, billingModel, apiKey)
+			if resolved != nil && resolved.channelPricing != nil {
+				channelPricing := resolved.channelPricing
+				if pricing == nil &&
+					(channelPricing.InputPrice != nil ||
+						channelPricing.ImageInputPrice != nil ||
+						channelPricing.CacheWritePrice != nil ||
+						channelPricing.CacheReadPrice != nil) {
+					pricing = &ModelPricing{}
+				}
+				if pricing != nil {
+					if channelPricing.InputPrice != nil {
+						pricing.InputPricePerToken = *channelPricing.InputPrice
+						if channelPricing.ImageInputPrice == nil {
+							pricing.ImageInputPricePerToken = 0
+						}
+					}
+					if channelPricing.ImageInputPrice != nil {
+						pricing.ImageInputPricePerToken = *channelPricing.ImageInputPrice
+					}
+				}
+			}
+		}
+	} else {
+		resolved, err := s.billingService.GetModelPricing(billingModel)
+		if err == nil && resolved != nil {
+			cloned := *resolved
+			pricing = &cloned
+		}
+	}
+	if pricing == nil {
+		return 0, ErrModelPricingUnavailable
+	}
+	cost := s.billingService.computeTokenBreakdown(
+		pricing,
+		UsageTokens{
+			InputTokens:      imageInputTokens,
+			ImageInputTokens: imageInputTokens,
+		},
+		multiplier,
+		"",
+		false,
+	)
+	return cost.ActualCost, nil
+}
+
 // RecordUsageInput 记录使用量的输入参数。
 // 异步 worker 只接收计费所需快照，不能持有 ParsedRequest/RequestBodyRef 这类大请求体引用。
 type RecordUsageInput struct {
@@ -222,7 +298,7 @@ func resolveUsageBillingPayloadFingerprint(ctx context.Context, requestPayloadHa
 	return ""
 }
 
-func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsageBillingParams) *UsageBillingCommand {
+func buildUsageBillingCommandForContext(ctx context.Context, requestID string, usageLog *UsageLog, p *postUsageBillingParams) *UsageBillingCommand {
 	if p == nil || p.Cost == nil || p.APIKey == nil || p.User == nil || p.Account == nil {
 		return nil
 	}
@@ -234,6 +310,7 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 		AccountID:          p.Account.ID,
 		AccountType:        p.Account.Type,
 		RequestPayloadHash: strings.TrimSpace(p.RequestPayloadHash),
+		ActualCost:         p.Cost.ActualCost,
 	}
 	if usageLog != nil {
 		cmd.Model = usageLog.Model
@@ -258,13 +335,15 @@ func buildUsageBillingCommand(requestID string, usageLog *UsageLog, p *postUsage
 	// user-specific) rate multiplier consumes subscription quota at the expected
 	// speed. TotalCost remains the raw (pre-multiplier) value; downstream guards
 	// on "> 0" still correctly skip free subscriptions (RateMultiplier == 0).
-	if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
-		cmd.SubscriptionID = &p.Subscription.ID
-		cmd.SubscriptionCost = p.Cost.ActualCost
-	} else if p.Cost.ActualCost > 0 {
-		cmd.BalanceCost = p.Cost.ActualCost
-	}
+	if !IsImageStudioManagedBilling(ctx) {
+		if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
+			cmd.SubscriptionID = &p.Subscription.ID
+			cmd.SubscriptionCost = p.Cost.ActualCost
+		} else if p.Cost.ActualCost > 0 {
+			cmd.BalanceCost = p.Cost.ActualCost
+		}
 
+	}
 	if p.shouldDeductAPIKeyQuota() {
 		cmd.APIKeyQuotaCost = p.Cost.ActualCost
 	}
@@ -284,8 +363,12 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 		return false, nil
 	}
 
-	cmd := buildUsageBillingCommand(requestID, usageLog, p)
+	cmd := buildUsageBillingCommandForContext(ctx, requestID, usageLog, p)
 	if cmd == nil || cmd.RequestID == "" || repo == nil {
+		if IsImageStudioManagedBilling(ctx) {
+			deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+			return true, nil
+		}
 		postUsageBilling(ctx, p, deps)
 		return true, nil
 	}
@@ -301,6 +384,20 @@ func applyUsageBilling(ctx context.Context, requestID string, usageLog *UsageLog
 	if result == nil || !result.Applied {
 		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
 		return false, nil
+	}
+	if IsImageStudioManagedBilling(ctx) {
+		if result.APIKeyQuotaExhausted {
+			if invalidator, ok := p.APIKeyService.(apiKeyAuthCacheInvalidator); ok && p.APIKey != nil && p.APIKey.Key != "" {
+				invalidator.InvalidateAuthCacheByKey(billingCtx, p.APIKey.Key)
+			}
+		}
+		if p.Cost.ActualCost > 0 && p.APIKey != nil && p.APIKey.HasRateLimits() {
+			deps.billingCacheService.QueueUpdateAPIKeyRateLimitUsage(p.APIKey.ID, p.Cost.ActualCost)
+		}
+		deps.deferredService.ScheduleLastUsedUpdate(p.Account.ID)
+		recordUserPlatformQuotaUsage(billingCtx, p, deps)
+		go notifyAccountQuota(p, deps, result)
+		return true, nil
 	}
 
 	if result.APIKeyQuotaExhausted {
@@ -370,6 +467,36 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 	// no dependency on the request context or upstream connection.
 	go notifyBalanceLow(p, deps, result)
 	go notifyAccountQuota(p, deps, result)
+}
+
+func recordUserPlatformQuotaUsage(ctx context.Context, p *postUsageBillingParams, deps *billingDeps) {
+	if p == nil || p.Cost == nil || deps == nil {
+		return
+	}
+	if p.Platform == "" || p.Cost.ActualCost <= 0 || p.User == nil || deps.userPlatformQuotaRepo == nil {
+		return
+	}
+	if !deps.billingCacheService.HasUserPlatformQuotaLimit(ctx, p.User.ID, p.Platform) {
+		return
+	}
+	deps.billingCacheService.IncrementUserPlatformQuotaUsage(p.User.ID, p.Platform, p.Cost.ActualCost)
+	if deps.cfg != nil && deps.cfg.Database.UserPlatformQuotaFlusherEnabled {
+		return
+	}
+	dbCtx, dbCancel := detachUpstreamContext(ctx)
+	userID, platform, cost := p.User.ID, p.Platform, p.Cost.ActualCost
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				logger.LegacyPrintf("service.gateway", "ALERT: panic in user platform quota incr goroutine user=%d platform=%s: %v", userID, platform, r)
+			}
+		}()
+		defer dbCancel()
+		if err := deps.userPlatformQuotaRepo.IncrementUsageWithReset(dbCtx, userID, platform, cost, time.Now().UTC()); err != nil {
+			userPlatformQuotaDBIncrErrorTotal.Add(1)
+			logger.LegacyPrintf("service.gateway", "ALERT: incr user platform quota DB failed user=%d platform=%s cost=%f: %v", userID, platform, cost, err)
+		}
+	}()
 }
 
 func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingParams, deps *billingDeps, result *UsageBillingApplyResult) {
@@ -696,6 +823,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 
 	// 计算费用
 	cost := s.calculateRecordUsageCost(ctx, result, apiKey, billingModel, multiplier, imageMultiplier, opts)
+	applyImageStudioBillingActualCostCap(ctx, cost)
 
 	// 判断计费方式：订阅模式 vs 余额模式
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
@@ -728,6 +856,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 
 	if s.cfg != nil && s.cfg.RunMode == config.RunModeSimple {
 		writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
+		RecordImageStudioManagedBillingCost(ctx, cost.ActualCost)
 		logger.LegacyPrintf("service.gateway", "[SIMPLE MODE] Usage recorded (not billed): user=%d, tokens=%d", usageLog.UserID, usageLog.TotalTokens())
 		s.deferredService.ScheduleLastUsedUpdate(account.ID)
 		return nil
@@ -755,9 +884,11 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}, s.billingDeps(), s.usageBillingRepo)
 
 	if billingErr != nil {
+		recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.gateway", cost.ActualCost)
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
+	RecordImageStudioManagedBillingCost(ctx, cost.ActualCost)
 
 	return nil
 }

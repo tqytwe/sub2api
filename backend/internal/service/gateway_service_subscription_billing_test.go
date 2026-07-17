@@ -3,6 +3,7 @@
 package service
 
 import (
+	"context"
 	"testing"
 )
 
@@ -70,9 +71,9 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 				IsSubscriptionBill: tt.isSubscription,
 			}
 
-			cmd := buildUsageBillingCommand("req-1", nil, p)
+			cmd := buildUsageBillingCommandForContext(context.Background(), "req-1", nil, p)
 			if cmd == nil {
-				t.Fatal("buildUsageBillingCommand returned nil")
+				t.Fatal("buildUsageBillingCommandForContext returned nil")
 			}
 			if cmd.SubscriptionCost != tt.wantSub {
 				t.Errorf("SubscriptionCost = %v, want %v", cmd.SubscriptionCost, tt.wantSub)

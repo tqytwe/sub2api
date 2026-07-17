@@ -33,7 +33,7 @@ export function useImageStudioCapabilities(
     )
   })
 
-  const resolvedSize = computed(() => currentOption.value?.size ?? '1024x1024')
+  const resolvedSize = computed(() => currentOption.value?.size ?? '')
 
   function setFromSize(size: string) {
     const match = sizeOptions.value.find((opt) => opt.size === size)

@@ -1,0 +1,139 @@
+package service
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestResolveImageStudioProviderCapabilityUsesProviderSpecificProfiles(t *testing.T) {
+	gpt15, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "gpt-image-1.5")
+	require.True(t, ok)
+	require.Equal(t, "openai:gpt-image-1.5:v1", gpt15.ProfileID)
+	require.Equal(t, []string{"create", "edit"}, gpt15.Operations)
+	require.Equal(t, "fixed", gpt15.SizingKind)
+	require.Equal(t, []string{"1024x1024", "1536x1024", "1024x1536"}, gpt15.SupportedSizes)
+	require.Equal(t, []string{"auto", "low", "medium", "high"}, gpt15.SupportedQualities)
+	require.Equal(t, []string{"auto", "opaque", "transparent"}, gpt15.SupportedBackgrounds)
+	require.Equal(t, []string{"png", "jpeg", "webp"}, gpt15.SupportedOutputFormats)
+	require.True(t, gpt15.SupportsTransparency)
+	require.Equal(t, 4, gpt15.MaxReferenceImages)
+
+	gpt2, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "gpt-image-2")
+	require.True(t, ok)
+	require.Equal(t, "custom", gpt2.SizingKind)
+	require.NotContains(t, gpt2.SupportedSizes, "4096x4096")
+	require.Contains(t, gpt2.SupportedSizes, "3840x2160")
+	require.False(t, gpt2.SupportsTransparency)
+	require.Equal(t, "fixed", gpt2.InputFidelityMode)
+	require.Equal(t, []string{"high"}, gpt2.SupportedInputFidelities)
+
+	grok, ok := ResolveImageStudioProviderCapability(PlatformGrok, "grok-imagine-image-quality")
+	require.True(t, ok)
+	require.Equal(t, "grok:grok-imagine-image-quality:v1", grok.ProfileID)
+	require.Equal(t, "aspect_resolution", grok.SizingKind)
+	require.Equal(t, []string{"1:1", "2:3", "3:2", "9:16", "16:9"}, grok.SupportedAspectRatios)
+	require.Equal(t, []string{"1k", "2k"}, grok.SupportedResolutions)
+	require.Equal(t, []string{"jpeg"}, grok.SupportedOutputFormats)
+	require.Empty(t, grok.SupportedBackgrounds)
+	require.Nil(t, grok.OutputCompression)
+	require.Equal(t, 3, grok.MaxReferenceImages)
+}
+
+func TestResolveImageStudioProviderCapabilityGPTImage2VariantsInheritBaseProfile(t *testing.T) {
+	base, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "gpt-image-2")
+	require.True(t, ok)
+
+	for _, model := range []string{
+		"gpt-image-2-codex",
+		"gpt-image-2-preview-2026-07-17",
+	} {
+		t.Run(model, func(t *testing.T) {
+			got, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, model)
+			require.True(t, ok)
+			require.Equal(t, "openai:"+model+":v1", got.ProfileID)
+
+			want := base
+			want.ProfileID = got.ProfileID
+			require.Equal(t, want, got)
+		})
+	}
+}
+
+func TestResolveImageStudioProviderCapabilityRejectsCrossPlatformModels(t *testing.T) {
+	_, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "grok-imagine-image-quality")
+	require.False(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability(PlatformGrok, "gpt-image-2")
+	require.False(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability("anthropic", "gpt-image-2")
+	require.False(t, ok)
+}
+
+func TestValidateImageStudioProviderOptions(t *testing.T) {
+	gpt15, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "gpt-image-1.5")
+	require.True(t, ok)
+
+	compression := 82
+	require.NoError(t, ValidateImageStudioProviderOptions(gpt15, "edit", ImageStudioGenerateRequest{
+		Background:        "transparent",
+		OutputFormat:      "webp",
+		OutputCompression: &compression,
+		InputFidelity:     "high",
+		ReferenceIDs:      []string{"one", "two"},
+	}))
+
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt15, "create", ImageStudioGenerateRequest{
+		InputFidelity: "high",
+	}), ErrImageStudioInputFidelityNotSupported)
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt15, "create", ImageStudioGenerateRequest{
+		Style: "vivid",
+	}), ErrImageStudioStyleNotSupported)
+
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt15, "create", ImageStudioGenerateRequest{
+		Background:   "transparent",
+		OutputFormat: "jpeg",
+	}), ErrImageStudioOutputFormatNotSupported)
+	require.NoError(t, ValidateImageStudioProviderOptions(gpt15, "create", ImageStudioGenerateRequest{
+		Background:   "transparent",
+		OutputFormat: "webp",
+	}))
+
+	pngCompression := 80
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt15, "create", ImageStudioGenerateRequest{
+		OutputFormat:      "png",
+		OutputCompression: &pngCompression,
+	}), ErrImageStudioOutputCompressionNotSupported)
+
+	tooHigh := 101
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt15, "create", ImageStudioGenerateRequest{
+		OutputFormat:      "jpeg",
+		OutputCompression: &tooHigh,
+	}), ErrImageStudioOutputCompressionNotSupported)
+
+	gpt2, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "gpt-image-2")
+	require.True(t, ok)
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt2, "create", ImageStudioGenerateRequest{
+		Background:   "transparent",
+		OutputFormat: "png",
+	}), ErrImageStudioBackgroundNotSupported)
+	require.NoError(t, ValidateImageStudioProviderOptions(gpt2, "edit", ImageStudioGenerateRequest{
+		Background:    "opaque",
+		OutputFormat:  "jpg",
+		InputFidelity: "high",
+	}))
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(gpt2, "edit", ImageStudioGenerateRequest{
+		InputFidelity: "low",
+	}), ErrImageStudioInputFidelityNotSupported)
+
+	grok, ok := ResolveImageStudioProviderCapability(PlatformGrok, "grok-imagine-image-quality")
+	require.True(t, ok)
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(grok, "edit", ImageStudioGenerateRequest{
+		OutputFormat: "webp",
+		ReferenceIDs: []string{"one"},
+	}), ErrImageStudioOutputFormatNotSupported)
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(grok, "edit", ImageStudioGenerateRequest{
+		ReferenceIDs: []string{"one", "two", "three", "four"},
+	}), ErrImageStudioReferenceLimit)
+}

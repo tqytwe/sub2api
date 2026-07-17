@@ -3,23 +3,70 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
 )
 
 type usageBillingRepository struct {
 	db *sql.DB
 }
 
+const imageStudioBillingReconciliationTimeout = 5 * time.Second
+
+type usageBillingTransactionContextKey struct{}
+
+func withUsageBillingTransaction(ctx context.Context, tx *sql.Tx) context.Context {
+	if tx == nil {
+		return ctx
+	}
+	return context.WithValue(ctx, usageBillingTransactionContextKey{}, tx)
+}
+
+func usageBillingTransactionFromContext(ctx context.Context) *sql.Tx {
+	tx, _ := ctx.Value(usageBillingTransactionContextKey{}).(*sql.Tx)
+	return tx
+}
+
 func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
 	return &usageBillingRepository{db: sqlDB}
 }
 
-func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (_ *service.UsageBillingApplyResult, err error) {
+func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (*service.UsageBillingApplyResult, error) {
+	if cmd != nil {
+		cmd.Normalize()
+	}
+	result, applyErr := r.applyUsageBillingTransaction(ctx, cmd)
+	if applyErr == nil || cmd == nil || !service.IsImageStudioManagedBilling(ctx) {
+		return result, applyErr
+	}
+	reconciliationCtx, cancel := detachedImageStudioBillingReconciliationContext(ctx)
+	defer cancel()
+	if reconciliationErr := r.persistImageStudioBillingReconciliation(reconciliationCtx, cmd, applyErr); reconciliationErr != nil {
+		return nil, errors.Join(
+			applyErr,
+			fmt.Errorf("%w: %w", service.ErrImageStudioBillingReconciliationPersistence, reconciliationErr),
+		)
+	}
+	return nil, applyErr
+}
+
+func detachedImageStudioBillingReconciliationContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	base := context.Background()
+	if ctx != nil {
+		base = context.WithoutCancel(ctx)
+	}
+	return context.WithTimeout(base, imageStudioBillingReconciliationTimeout)
+}
+
+func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Context, cmd *service.UsageBillingCommand) (_ *service.UsageBillingApplyResult, err error) {
 	if cmd == nil {
 		return &service.UsageBillingApplyResult{}, nil
 	}
@@ -27,7 +74,6 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 		return nil, errors.New("usage billing repository db is nil")
 	}
 
-	cmd.Normalize()
 	if cmd.RequestID == "" {
 		return nil, service.ErrUsageBillingRequestIDRequired
 	}
@@ -75,6 +121,303 @@ func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBi
 	}
 	tx = nil
 	return result, nil
+}
+
+type imageStudioBillingReconciliationCommand struct {
+	RequestID           string  `json:"request_id"`
+	APIKeyID            int64   `json:"api_key_id"`
+	UserID              int64   `json:"user_id"`
+	AccountID           int64   `json:"account_id"`
+	SubscriptionID      *int64  `json:"subscription_id,omitempty"`
+	AccountType         string  `json:"account_type,omitempty"`
+	Model               string  `json:"model,omitempty"`
+	ServiceTier         string  `json:"service_tier,omitempty"`
+	ReasoningEffort     string  `json:"reasoning_effort,omitempty"`
+	BillingType         int8    `json:"billing_type"`
+	InputTokens         int     `json:"input_tokens"`
+	OutputTokens        int     `json:"output_tokens"`
+	CacheCreationTokens int     `json:"cache_creation_tokens"`
+	CacheReadTokens     int     `json:"cache_read_tokens"`
+	ImageCount          int     `json:"image_count"`
+	MediaType           string  `json:"media_type,omitempty"`
+	ActualCost          float64 `json:"actual_cost"`
+	BalanceCost         float64 `json:"balance_cost"`
+	SubscriptionCost    float64 `json:"subscription_cost"`
+	APIKeyQuotaCost     float64 `json:"api_key_quota_cost"`
+	APIKeyRateLimitCost float64 `json:"api_key_rate_limit_cost"`
+	AccountQuotaCost    float64 `json:"account_quota_cost"`
+	RequestPayloadHash  string  `json:"request_payload_hash,omitempty"`
+	RequestFingerprint  string  `json:"request_fingerprint"`
+}
+
+func marshalImageStudioBillingReconciliationCommand(cmd *service.UsageBillingCommand) ([]byte, error) {
+	if cmd == nil {
+		return nil, errors.New("usage billing command is nil")
+	}
+	return json.Marshal(imageStudioBillingReconciliationCommand{
+		RequestID:           cmd.RequestID,
+		APIKeyID:            cmd.APIKeyID,
+		UserID:              cmd.UserID,
+		AccountID:           cmd.AccountID,
+		SubscriptionID:      cmd.SubscriptionID,
+		AccountType:         cmd.AccountType,
+		Model:               cmd.Model,
+		ServiceTier:         cmd.ServiceTier,
+		ReasoningEffort:     cmd.ReasoningEffort,
+		BillingType:         cmd.BillingType,
+		InputTokens:         cmd.InputTokens,
+		OutputTokens:        cmd.OutputTokens,
+		CacheCreationTokens: cmd.CacheCreationTokens,
+		CacheReadTokens:     cmd.CacheReadTokens,
+		ImageCount:          cmd.ImageCount,
+		MediaType:           cmd.MediaType,
+		ActualCost:          cmd.ActualCost,
+		BalanceCost:         cmd.BalanceCost,
+		SubscriptionCost:    cmd.SubscriptionCost,
+		APIKeyQuotaCost:     cmd.APIKeyQuotaCost,
+		APIKeyRateLimitCost: cmd.APIKeyRateLimitCost,
+		AccountQuotaCost:    cmd.AccountQuotaCost,
+		RequestPayloadHash:  cmd.RequestPayloadHash,
+		RequestFingerprint:  cmd.RequestFingerprint,
+	})
+}
+
+func (r *usageBillingRepository) persistImageStudioBillingReconciliation(
+	ctx context.Context,
+	cmd *service.UsageBillingCommand,
+	applyErr error,
+) (_ error) {
+	if r == nil || r.db == nil {
+		return errors.New("usage billing repository db is nil")
+	}
+	payload, err := marshalImageStudioBillingReconciliationCommand(cmd)
+	if err != nil {
+		return err
+	}
+	lastError := sanitizeImageStudioBillingReconciliationError(applyErr)
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if tx != nil {
+			_ = tx.Rollback()
+		}
+	}()
+
+	var storedFingerprint string
+	err = tx.QueryRowContext(ctx, `
+		INSERT INTO image_studio_billing_reconciliations (
+			request_id,
+			api_key_id,
+			user_id,
+			actual_cost,
+			command_payload,
+			command_fingerprint,
+			last_error,
+			status,
+			attempts,
+			first_failed_at,
+			last_failed_at,
+			created_at,
+			updated_at
+		)
+		VALUES ($1, $2, $3, $4, $5::jsonb, $6, $7, 'pending', 1, NOW(), NOW(), NOW(), NOW())
+		ON CONFLICT (request_id, api_key_id) DO UPDATE
+		SET
+			last_error = EXCLUDED.last_error,
+			attempts = image_studio_billing_reconciliations.attempts + 1,
+			last_failed_at = NOW(),
+			updated_at = NOW()
+		WHERE image_studio_billing_reconciliations.command_fingerprint = EXCLUDED.command_fingerprint
+		  AND image_studio_billing_reconciliations.actual_cost = EXCLUDED.actual_cost
+		RETURNING command_fingerprint
+	`,
+		cmd.RequestID,
+		cmd.APIKeyID,
+		cmd.UserID,
+		cmd.ActualCost,
+		string(payload),
+		cmd.RequestFingerprint,
+		lastError,
+	).Scan(&storedFingerprint)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrUsageBillingRequestConflict
+	}
+	if err != nil {
+		return err
+	}
+	if strings.TrimSpace(storedFingerprint) != strings.TrimSpace(cmd.RequestFingerprint) {
+		return service.ErrUsageBillingRequestConflict
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	tx = nil
+	return nil
+}
+
+func sanitizeImageStudioBillingReconciliationError(err error) string {
+	if err == nil {
+		return "usage billing apply failed"
+	}
+	message := strings.TrimSpace(strings.ReplaceAll(err.Error(), "\x00", ""))
+	if message == "" {
+		return "usage billing apply failed"
+	}
+	message = logredact.RedactText(
+		message,
+		"api_key",
+		"apikey",
+		"authorization",
+		"cookie",
+		"credential",
+		"key",
+		"payload",
+		"prompt",
+		"secret",
+		"token",
+	)
+	const maxRunes = 4096
+	runes := []rune(message)
+	if len(runes) > maxRunes {
+		message = string(runes[:maxRunes])
+	}
+	return message
+}
+
+func (r *usageBillingRepository) ReconcileImageStudioBilling(ctx context.Context, limit int) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("usage billing repository db is nil")
+	}
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	resolved := 0
+	for i := 0; i < limit; i++ {
+		id, payload, ok, err := r.claimImageStudioBillingReconciliation(ctx)
+		if err != nil {
+			return resolved, err
+		}
+		if !ok {
+			break
+		}
+		cmd, err := unmarshalImageStudioBillingReconciliationCommand(payload)
+		if err == nil {
+			_, err = r.applyUsageBillingTransaction(ctx, cmd)
+		}
+		if err != nil {
+			if updateErr := r.failImageStudioBillingReconciliation(ctx, id, err); updateErr != nil {
+				return resolved, errors.Join(err, updateErr)
+			}
+			continue
+		}
+		if _, err := r.db.ExecContext(ctx, `
+			UPDATE image_studio_billing_reconciliations
+			SET status = 'resolved',
+			    resolved_at = NOW(),
+			    updated_at = NOW(),
+			    last_error = ''
+			WHERE id = $1
+			  AND status = 'processing'`, id); err != nil {
+			return resolved, err
+		}
+		resolved++
+	}
+	return resolved, nil
+}
+
+func (r *usageBillingRepository) claimImageStudioBillingReconciliation(
+	ctx context.Context,
+) (id int64, payload []byte, ok bool, err error) {
+	err = r.db.QueryRowContext(ctx, `
+		WITH candidate AS (
+			SELECT id
+			FROM image_studio_billing_reconciliations
+			WHERE status = 'pending'
+			   OR (status = 'failed' AND last_failed_at <= NOW() - INTERVAL '1 minute')
+			   OR (status = 'processing' AND updated_at <= NOW() - INTERVAL '5 minutes')
+			ORDER BY last_failed_at, id
+			FOR UPDATE SKIP LOCKED
+			LIMIT 1
+		)
+		UPDATE image_studio_billing_reconciliations r
+		SET status = 'processing',
+		    updated_at = NOW()
+		FROM candidate
+		WHERE r.id = candidate.id
+		RETURNING r.id, r.command_payload::text`,
+	).Scan(&id, &payload)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil, false, nil
+	}
+	if err != nil {
+		return 0, nil, false, err
+	}
+	return id, payload, true, nil
+}
+
+func (r *usageBillingRepository) failImageStudioBillingReconciliation(
+	ctx context.Context,
+	id int64,
+	reconciliationErr error,
+) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE image_studio_billing_reconciliations
+		SET status = 'failed',
+		    attempts = attempts + 1,
+		    last_failed_at = NOW(),
+		    updated_at = NOW(),
+		    last_error = $2
+		WHERE id = $1
+		  AND status = 'processing'`,
+		id,
+		sanitizeImageStudioBillingReconciliationError(reconciliationErr),
+	)
+	return err
+}
+
+func unmarshalImageStudioBillingReconciliationCommand(payload []byte) (*service.UsageBillingCommand, error) {
+	var stored imageStudioBillingReconciliationCommand
+	if err := json.Unmarshal(payload, &stored); err != nil {
+		return nil, err
+	}
+	cmd := &service.UsageBillingCommand{
+		RequestID:           stored.RequestID,
+		APIKeyID:            stored.APIKeyID,
+		UserID:              stored.UserID,
+		AccountID:           stored.AccountID,
+		SubscriptionID:      stored.SubscriptionID,
+		AccountType:         stored.AccountType,
+		Model:               stored.Model,
+		ServiceTier:         stored.ServiceTier,
+		ReasoningEffort:     stored.ReasoningEffort,
+		BillingType:         stored.BillingType,
+		InputTokens:         stored.InputTokens,
+		OutputTokens:        stored.OutputTokens,
+		CacheCreationTokens: stored.CacheCreationTokens,
+		CacheReadTokens:     stored.CacheReadTokens,
+		ImageCount:          stored.ImageCount,
+		MediaType:           stored.MediaType,
+		ActualCost:          stored.ActualCost,
+		BalanceCost:         stored.BalanceCost,
+		SubscriptionCost:    stored.SubscriptionCost,
+		APIKeyQuotaCost:     stored.APIKeyQuotaCost,
+		APIKeyRateLimitCost: stored.APIKeyRateLimitCost,
+		AccountQuotaCost:    stored.AccountQuotaCost,
+		RequestPayloadHash:  stored.RequestPayloadHash,
+		RequestFingerprint:  stored.RequestFingerprint,
+	}
+	cmd.Normalize()
+	if cmd.RequestID == "" || cmd.APIKeyID <= 0 || cmd.RequestFingerprint == "" {
+		return nil, errors.New("invalid image studio billing reconciliation command")
+	}
+	return cmd, nil
 }
 
 func (r *usageBillingRepository) claimUsageBillingKey(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) (bool, error) {
@@ -151,6 +494,9 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 	if cmd.RequestID == "" {
 		return nil, service.ErrUsageBillingRequestIDRequired
 	}
+	if tx := usageBillingTransactionFromContext(ctx); tx != nil {
+		return r.applyBatchImageBalanceHoldTx(ctx, tx, cmd, apply)
+	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -161,10 +507,27 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 			_ = tx.Rollback()
 		}
 	}()
-	if err := validateUsageBillingOwnership(ctx, tx, cmd.APIKeyID, cmd.UserID); err != nil {
+	result, err := r.applyBatchImageBalanceHoldTx(ctx, tx, cmd, apply)
+	if err != nil {
 		return nil, err
 	}
 
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	tx = nil
+	return result, nil
+}
+
+func (r *usageBillingRepository) applyBatchImageBalanceHoldTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	cmd *service.BatchImageBalanceHoldCommand,
+	apply func(context.Context, *sql.Tx, *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error),
+) (*service.BatchImageBalanceHoldResult, error) {
+	if err := validateUsageBillingOwnership(ctx, tx, cmd.APIKeyID, cmd.UserID); err != nil {
+		return nil, err
+	}
 	applied, err := r.claimUsageBillingRequest(ctx, tx, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint)
 	if err != nil {
 		return nil, err
@@ -172,7 +535,6 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 	if !applied {
 		return &service.BatchImageBalanceHoldResult{Applied: false}, nil
 	}
-
 	result, err := apply(ctx, tx, cmd)
 	if err != nil {
 		return nil, err
@@ -181,11 +543,6 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 		result = &service.BatchImageBalanceHoldResult{}
 	}
 	result.Applied = true
-
-	if err := tx.Commit(); err != nil {
-		return nil, err
-	}
-	tx = nil
 	return result, nil
 }
 
@@ -354,8 +711,11 @@ func captureUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	if cmd.HoldAmount <= 0 && cmd.ActualAmount <= 0 {
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
-	if cmd.ActualAmount-cmd.HoldAmount > 0.00000001 {
+	if cmd.ActualAmount-cmd.HoldAmount > 0.00000001 && !cmd.AllowBalanceOverage {
 		return nil, service.ErrBatchImageSettlementCostExceedsHold
+	}
+	if err := validateBalanceHoldClaim(ctx, tx, cmd); err != nil {
+		return nil, err
 	}
 	var balance, frozen float64
 	err := tx.QueryRowContext(ctx, `
@@ -388,13 +748,16 @@ func releaseUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 	}
 	// 释放前校验该 job 确实预留过 hold（hold request id 已被 claim），
 	// 防止从未成功冻结的 job 触发"幻影释放"，从其他用户的冻结资金池中凭空生成余额。
-	held, heldErr := batchImageHoldClaimExists(ctx, tx, service.BatchImageHoldRequestID(cmd.BatchID), cmd.APIKeyID)
-	if heldErr != nil {
-		return nil, heldErr
-	}
-	if !held {
-		logger.LegacyPrintf("repository.usage_billing", "[BatchImage] release skipped, hold was never reserved: batch=%s", cmd.BatchID)
-		return &service.BatchImageBalanceHoldResult{}, nil
+	if err := validateBalanceHoldClaim(ctx, tx, cmd); err != nil {
+		if errors.Is(err, service.ErrUsageBillingHoldNotFound) {
+			if strings.TrimSpace(cmd.HoldRequestID) != "" &&
+				strings.TrimSpace(cmd.HoldRequestID) != service.BatchImageHoldRequestID(cmd.BatchID) {
+				return nil, err
+			}
+			logger.LegacyPrintf("repository.usage_billing", "[BatchImage] release skipped, hold was never reserved: batch=%s", cmd.BatchID)
+			return &service.BatchImageBalanceHoldResult{}, nil
+		}
+		return nil, err
 	}
 	var balance, frozen float64
 	err := tx.QueryRowContext(ctx, `
@@ -417,6 +780,21 @@ func releaseUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *
 		return nil, service.ErrUserNotFound
 	}
 	return nil, errors.New("batch image frozen balance is insufficient")
+}
+
+func validateBalanceHoldClaim(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) error {
+	holdRequestID := strings.TrimSpace(cmd.HoldRequestID)
+	if holdRequestID == "" {
+		holdRequestID = service.BatchImageHoldRequestID(cmd.BatchID)
+	}
+	held, err := batchImageHoldClaimExists(ctx, tx, holdRequestID, cmd.APIKeyID)
+	if err != nil {
+		return err
+	}
+	if !held {
+		return service.ErrUsageBillingHoldNotFound
+	}
+	return nil
 }
 
 // batchImageHoldClaimExists 检查 hold request id 是否已在 dedup（或归档）表中被 claim，

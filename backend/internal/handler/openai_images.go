@@ -124,9 +124,29 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		defer userReleaseFunc()
 	}
 
-	if err := h.billingCacheService.CheckBillingEligibility(c.Request.Context(), apiKey.User, apiKey, apiKey.Group, subscription, service.QuotaPlatform(c.Request.Context(), apiKey)); err != nil {
-		reqLog.Info("openai.images.billing_eligibility_check_failed", zap.Error(err))
-		status, code, message, retryAfter := billingErrorDetails(err)
+	var billingEligibilityErr error
+	if service.IsImageStudioManagedBilling(c.Request.Context()) {
+		billingEligibilityErr = h.billingCacheService.CheckImageStudioManagedEligibility(
+			c.Request.Context(),
+			apiKey.User,
+			apiKey,
+			apiKey.Group,
+			subscription,
+			service.QuotaPlatform(c.Request.Context(), apiKey),
+		)
+	} else {
+		billingEligibilityErr = h.billingCacheService.CheckBillingEligibility(
+			c.Request.Context(),
+			apiKey.User,
+			apiKey,
+			apiKey.Group,
+			subscription,
+			service.QuotaPlatform(c.Request.Context(), apiKey),
+		)
+	}
+	if billingEligibilityErr != nil {
+		reqLog.Info("openai.images.billing_eligibility_check_failed", zap.Error(billingEligibilityErr))
+		status, code, message, retryAfter := billingErrorDetails(billingEligibilityErr)
 		if retryAfter > 0 {
 			c.Header("Retry-After", strconv.Itoa(retryAfter))
 		}
@@ -367,7 +387,7 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 		if result != nil {
 			upstreamModel = result.UpstreamModel
 		}
-		h.submitMandatoryUsageRecordTask(c.Request.Context(), func(ctx context.Context) {
+		h.submitOpenAIUsageRecordTask(c.Request.Context(), result, func(ctx context.Context) {
 			if err := h.gatewayService.RecordUsage(ctx, &service.OpenAIRecordUsageInput{
 				Result:             result,
 				APIKey:             apiKey,

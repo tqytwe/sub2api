@@ -28,10 +28,19 @@ func RegisterImageStudioRoutes(
 			middleware.RequestBodyLimit(handler.ImageStudioGenerateRequestBodyLimit),
 			h.ImageStudio.Generate,
 		)
+		authenticated.POST(
+			"/references",
+			middleware.RequestBodyLimit(handler.ImageStudioReferenceRequestBodyLimit),
+			h.ImageStudio.UploadReference,
+		)
+		authenticated.DELETE("/references/:id", h.ImageStudio.DeleteReference)
 		authenticated.GET("/jobs/active", h.ImageStudio.ActiveJob)
 		authenticated.GET("/jobs", h.ImageStudio.ListJobs)
 		authenticated.GET("/jobs/:id", h.ImageStudio.GetJob)
+		authenticated.GET("/jobs/:id/download", h.ImageStudio.JobDownload)
+		authenticated.POST("/jobs/:id/cancel", h.ImageStudio.CancelJob)
 		authenticated.DELETE("/jobs/:id", h.ImageStudio.DeleteJob)
+		authenticated.GET("/assets/:id/thumbnail", h.ImageStudio.AssetThumbnail)
 		authenticated.GET("/assets/:id/content", h.ImageStudio.AssetContent)
 		authenticated.GET("/assets/:id/download", h.ImageStudio.AssetDownload)
 	}

@@ -23,6 +23,9 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const previewUrl = ref<string | null>(null)
 let objectUrl: string | null = null
+let previewRequestSequence = 0
+let previewController: AbortController | null = null
+let disposed = false
 
 function isManagedAsset(asset: ImageStudioAsset) {
   const raw = asset.preview_url || asset.url || ''
@@ -37,24 +40,58 @@ function revokeObjectUrl() {
   previewUrl.value = null
 }
 
+function isCurrentPreviewRequest(
+  requestSequence: number,
+  controller: AbortController,
+  assetId: string,
+) {
+  return (
+    !disposed
+    && !controller.signal.aborted
+    && requestSequence === previewRequestSequence
+    && previewController === controller
+    && props.asset?.id === assetId
+  )
+}
+
 async function loadPreview() {
+  previewController?.abort()
+  const requestSequence = ++previewRequestSequence
+  const controller = new AbortController()
+  previewController = controller
   revokeObjectUrl()
   const asset = props.asset
-  if (!asset) return
+  if (!asset) {
+    if (previewController === controller) previewController = null
+    return
+  }
   try {
     if (isManagedAsset(asset)) {
-      const blob = await imageStudioAPI.fetchImageStudioAssetBlob(asset.id, 'content')
+      const blob = await imageStudioAPI.fetchImageStudioAssetBlob(
+        asset.id,
+        'content',
+        controller.signal,
+      )
       if (!blob || blob.size === 0 || String(blob.type || '').includes('json')) {
         throw new Error('invalid preview blob')
       }
-      objectUrl = URL.createObjectURL(blob)
-      previewUrl.value = objectUrl
+      const nextObjectUrl = URL.createObjectURL(blob)
+      if (!isCurrentPreviewRequest(requestSequence, controller, asset.id)) {
+        URL.revokeObjectURL(nextObjectUrl)
+        return
+      }
+      objectUrl = nextObjectUrl
+      previewUrl.value = nextObjectUrl
       return
     }
+    if (!isCurrentPreviewRequest(requestSequence, controller, asset.id)) return
     const raw = asset.preview_url || asset.url || ''
     previewUrl.value = isExternalAssetUrl(raw) ? raw : buildApiUrl(raw)
   } catch {
+    if (!isCurrentPreviewRequest(requestSequence, controller, asset.id)) return
     appStore.showToast('error', t('imageStudio.previewFailed'))
+  } finally {
+    if (previewController === controller) previewController = null
   }
 }
 
@@ -99,6 +136,10 @@ watch(() => props.asset?.id, () => { void loadPreview() }, { immediate: true })
 
 onMounted(() => window.addEventListener('keydown', onKeydown))
 onUnmounted(() => {
+  disposed = true
+  previewRequestSequence += 1
+  previewController?.abort()
+  previewController = null
   window.removeEventListener('keydown', onKeydown)
   revokeObjectUrl()
 })

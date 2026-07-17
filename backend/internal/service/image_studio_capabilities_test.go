@@ -70,21 +70,40 @@ func TestImageStudioCapabilityCacheDeniesSize(t *testing.T) {
 	require.False(t, cache.IsDenied("gpt-image-2", "4096x4096"))
 }
 
-func TestResolveModelCapabilitiesOpenByDefault(t *testing.T) {
+func TestResolveModelCapabilitiesUsesProviderProfile(t *testing.T) {
 	svc := &ImageStudioService{capabilityCache: NewImageStudioCapabilityCache()}
 	caps := svc.ResolveModelCapabilities(nil, "gpt-image-1.5")
 
-	require.Contains(t, caps.SupportedSizes, "2048x2048")
-	require.Contains(t, caps.SupportedSizes, "4096x4096")
-	require.Equal(t, []string{"standard", "high"}, caps.SupportedQualities)
+	require.Equal(t, []string{"1024x1024", "1536x1024", "1024x1536"}, caps.SupportedSizes)
+	require.Equal(t, []string{"auto", "low", "medium", "high"}, caps.SupportedQualities)
+	require.Equal(t, []string{"auto", "opaque", "transparent"}, caps.SupportedBackgrounds)
+}
+
+func TestResolveModelCapabilitiesUsesAPIKeyProviderAndModelFamily(t *testing.T) {
+	svc := &ImageStudioService{capabilityCache: NewImageStudioCapabilityCache()}
+
+	gpt2Variant := svc.ResolveModelCapabilities(nil, "gpt-image-2-codex")
+	require.Equal(t, "custom", gpt2Variant.SizingKind)
+	require.Equal(t, []string{"auto", "opaque"}, gpt2Variant.SupportedBackgrounds)
+	require.Equal(t, []string{"high"}, gpt2Variant.SupportedInputFidelities)
+	require.False(t, gpt2Variant.SupportsTransparency)
+
+	grok := svc.ResolveModelCapabilities(&APIKey{
+		Group: &Group{Platform: PlatformGrok},
+	}, "grok-imagine-image-quality")
+	require.Equal(t, PlatformGrok, grok.Platform)
+	require.Equal(t, "aspect_resolution", grok.SizingKind)
+	require.Equal(t, []string{"jpeg"}, grok.SupportedOutputFormats)
+	require.Empty(t, grok.SupportedBackgrounds)
+	require.False(t, grok.SupportsTransparency)
 }
 
 func TestValidateSizeForModelUsesDenialCache(t *testing.T) {
 	svc := &ImageStudioService{capabilityCache: NewImageStudioCapabilityCache()}
-	require.NoError(t, svc.ValidateSizeForModel(nil, "gpt-image-1.5", "4096x4096"))
+	require.NoError(t, svc.ValidateSizeForModel(nil, "gpt-image-1.5", "1024x1024"))
 
-	svc.capabilityCache.Deny("gpt-image-1.5", "4096x4096")
-	require.ErrorIs(t, svc.ValidateSizeForModel(nil, "gpt-image-1.5", "4096x4096"), ErrImageStudioSizeNotSupported)
+	svc.capabilityCache.Deny("gpt-image-1.5", "1024x1024")
+	require.ErrorIs(t, svc.ValidateSizeForModel(nil, "gpt-image-1.5", "1024x1024"), ErrImageStudioSizeNotSupported)
 }
 
 func TestValidateQualityForModel(t *testing.T) {
