@@ -24,6 +24,8 @@ spec:
 
     **Important:** `/app/data` is persisted so `config.yaml` survives restarts (fixes the setup wizard loop).
 
+    Async image tasks use the persisted `/data/image-task-results` directory by default, so `/v1/images/generations/async` and `/v1/images/edits/async` work without external S3/R2 storage.
+
     After deploy, open your domain — you should land on the login page, not the setup wizard.
 
     Default admin email comes from the `ADMIN_EMAIL` variable. Check Sub2API runtime logs for the admin password if you did not set `ADMIN_PASSWORD` manually.
@@ -148,6 +150,34 @@ spec:
             default: ${REDIS_PASSWORD}
           REDIS_DB:
             default: "0"
+          IMAGE_STORAGE_ENABLED:
+            default: "true"
+          IMAGE_STORAGE_BACKEND:
+            default: local
+          IMAGE_STORAGE_LOCAL_DIR:
+            default: /data/image-task-results
+          IMAGE_STORAGE_LOCAL_URL_PREFIX:
+            default: /v1/images/task-assets/
+          IMAGE_STORAGE_ENDPOINT:
+            default: ""
+          IMAGE_STORAGE_REGION:
+            default: auto
+          IMAGE_STORAGE_BUCKET:
+            default: ""
+          IMAGE_STORAGE_ACCESS_KEY_ID:
+            default: ""
+          IMAGE_STORAGE_SECRET_ACCESS_KEY:
+            default: ""
+          IMAGE_STORAGE_PREFIX:
+            default: images/
+          IMAGE_STORAGE_FORCE_PATH_STYLE:
+            default: "false"
+          IMAGE_STORAGE_PUBLIC_BASE_URL:
+            default: ""
+          IMAGE_STORAGE_PRESIGN_EXPIRY_HOURS:
+            default: "24"
+          IMAGE_STORAGE_MAX_DOWNLOAD_BYTES:
+            default: "33554432"
           ADMIN_EMAIL:
             default: ${ADMIN_EMAIL}
           JWT_SECRET:

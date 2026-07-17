@@ -95,7 +95,7 @@ Content-Type: application/json</code></pre>
 }</code></pre>
 
 <h3>异步任务返回</h3>
-<p>长耗时请求可提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。完整 processing / completed / failed 契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
+<p>长耗时请求可提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。生产只需启用结果存储，默认使用本机持久卷；完整 processing / completed / failed 契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
 
 <h2>单张生成</h2>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
@@ -408,12 +408,12 @@ run()
       {
         id: 'async-image-tasks',
         title: "异步图片任务",
-        summary: "202 提交、任务轮询、对象存储 URL 与失败返回契约",
+        summary: "202 提交、任务轮询、结果存储 URL 与失败返回契约",
         html: `<p class="docs-lead">异步图片任务适合耗时较长的 GPT / Grok 生成与编辑请求。提交接口立即返回任务 ID，客户端按建议间隔轮询，不需要保持一条长 HTTP 连接。</p>
 <pre class="docs-endpoint-list"><code>POST https://api.jisudeng.com/v1/images/generations/async
 POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
-<p class="docs-tip">异步任务依赖对象存储。功能未启用或存储配置不完整时，上述接口返回 <code>404 not_found_error</code>，不会创建任务。</p>
+<p class="docs-tip">异步任务依赖结果存储。生产设置 <code>IMAGE_STORAGE_ENABLED=true</code> 后默认使用服务器持久卷保存临时图片结果；只有显式选择 <code>IMAGE_STORAGE_BACKEND=s3</code> 时才需要 S3/R2 凭证。功能未启用时，上述接口返回 <code>404 not_found_error</code>，不会创建任务。</p>
 
 <h2>提交任务</h2>
 <p>请求体与同步生成或编辑接口相同。提交成功返回 <code>202 Accepted</code>，响应头同时包含 <code>Location</code> 和建议轮询间隔 <code>Retry-After: 3</code>。</p>
@@ -451,13 +451,13 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 }</code></pre>
 
 <h3>已完成</h3>
-<p>生成结果会先转存到对象存储，最终图片位于 <code>result.data[].url</code>；<code>image_url</code> 是第一张图片的便捷字段。异步结果不会把大段 <code>b64_json</code> 存入任务记录。</p>
+<p>生成结果会先转存到结果存储，默认返回受 API Key 鉴权保护的 <code>/v1/images/task-assets/...</code> 地址；<code>image_url</code> 是第一张图片的便捷字段。异步结果不会把大段 <code>b64_json</code> 存入任务记录。</p>
 <pre><code>{
   "task_id": "imgtask_0123456789abcdef",
   "object": "image.generation.task",
   "status": "completed",
   "http_status": 200,
-  "image_url": "https://cdn.example.com/images/first.png",
+  "image_url": "/v1/images/task-assets/images/imgtask_0123456789abcdef-0.png",
   "result": {
     "created": 1784160123,
     "data": [

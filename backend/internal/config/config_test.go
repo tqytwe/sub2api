@@ -68,6 +68,18 @@ func TestNormalizeRunMode(t *testing.T) {
 	}
 }
 
+func TestImageStorageConfigActiveSupportsLocalWithoutS3(t *testing.T) {
+	cfg := ImageStorageConfig{Enabled: true}
+	require.Equal(t, "local", cfg.BackendOrDefault())
+	require.True(t, cfg.Active())
+
+	cfg = ImageStorageConfig{Enabled: true, Backend: "s3"}
+	require.False(t, cfg.Active())
+
+	cfg = ImageStorageConfig{Enabled: true, Backend: "s3", Bucket: "bucket", AccessKeyID: "ak", SecretAccessKey: "sk"}
+	require.True(t, cfg.Active())
+}
+
 func TestLoadDefaultSchedulingConfig(t *testing.T) {
 	resetViperWithJWTSecret(t)
 

@@ -42,7 +42,7 @@ func newGatewayRoutesTestRouter(platform ...string) *gin.Engine {
 		&handler.Handlers{
 			Gateway:       &handler.GatewayHandler{},
 			OpenAIGateway: &handler.OpenAIGatewayHandler{},
-			AsyncImage:    handler.NewAsyncImageHandler(nil, nil),
+			AsyncImage:    handler.NewAsyncImageHandler(nil, nil, nil),
 		},
 		servermiddleware.APIKeyAuthMiddleware(func(c *gin.Context) {
 			groupID := int64(1)
@@ -74,7 +74,7 @@ func newGatewayRoutesProtocolTestRouter(
 		&handler.Handlers{
 			Gateway:       &handler.GatewayHandler{},
 			OpenAIGateway: &handler.OpenAIGatewayHandler{},
-			AsyncImage:    handler.NewAsyncImageHandler(nil, nil),
+			AsyncImage:    handler.NewAsyncImageHandler(nil, nil, nil),
 		},
 		apiKeyAuth,
 		nil,
@@ -114,6 +114,7 @@ func imageProtocolRouteCases() []struct {
 		{http.MethodPost, "/images/edits"},
 		{http.MethodPost, "/images/generations/async"},
 		{http.MethodPost, "/images/edits/async"},
+		{http.MethodGet, "/images/task-assets/images/imgtask_123-0.png"},
 		{http.MethodGet, "/images/tasks/imgtask_123"},
 	}
 }
@@ -296,9 +297,11 @@ func TestGatewayRoutesAsyncImagesPathsAreRegistered(t *testing.T) {
 	for _, route := range []string{
 		"POST /v1/images/generations/async",
 		"POST /v1/images/edits/async",
+		"GET /v1/images/task-assets/*filepath",
 		"GET /v1/images/tasks/:task_id",
 		"POST /images/generations/async",
 		"POST /images/edits/async",
+		"GET /images/task-assets/*filepath",
 		"GET /images/tasks/:task_id",
 	} {
 		require.True(t, registered[route], "%s should be registered", route)
