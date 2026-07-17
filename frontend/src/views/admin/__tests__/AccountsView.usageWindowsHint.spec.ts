@@ -54,10 +54,21 @@ vi.mock('@/stores/auth', () => ({
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  const zhMessages = (await import('@/i18n/locales/zh')).default as Record<string, unknown>
+  const resolveMessage = (key: string) => {
+    const value = key.split('.').reduce<unknown>((current, part) => {
+      if (current && typeof current === 'object' && part in current) {
+        return (current as Record<string, unknown>)[part]
+      }
+      return undefined
+    }, zhMessages)
+    return typeof value === 'string' ? value : key
+  }
+
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key
+      t: resolveMessage
     })
   }
 })
@@ -159,11 +170,11 @@ describe('admin AccountsView usage windows hint', () => {
     const header = wrapper.find('[data-test="usage-header"]')
     expect(header.exists()).toBe(true)
     // Column label is still shown alongside the help icon.
-    expect(header.text()).toContain('admin.accounts.columns.usageWindows')
+    expect(header.text()).toContain('用量窗口')
 
     const hint = wrapper.find('[data-test="usage-windows-hint"]')
     expect(hint.exists()).toBe(true)
-    expect(hint.text()).toBe('admin.accounts.usageWindowsHint')
+    expect(hint.text()).toContain('官方的滚动用量窗口限制')
   })
 
   it('renders the upstream billing trust warning next to the declared-rate column', async () => {
@@ -172,9 +183,10 @@ describe('admin AccountsView usage windows hint', () => {
 
     const header = wrapper.find('[data-test="upstream-billing-header"]')
     expect(header.exists()).toBe(true)
-    expect(header.text()).toContain('admin.accounts.columns.upstreamBillingRate')
+    expect(header.text()).toContain('上游声明计费倍率')
+    expect(header.text()).not.toContain('admin.accounts.columns.upstreamBillingRate')
     expect(wrapper.findAll('[data-test="usage-windows-hint"]').some(node =>
-      node.text() === 'admin.accounts.upstreamBilling.trustWarning'
+      node.text().includes('此倍率由上游站点针对当前 API Key 自行声明')
     )).toBe(true)
   })
 })
