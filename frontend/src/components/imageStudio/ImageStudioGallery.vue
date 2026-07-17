@@ -21,7 +21,7 @@ const emit = defineEmits<{
   regenerate: [job: ImageStudioJob]
 }>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const thumbUrls = ref<Record<string, string>>({})
 const loadingAssets = ref<Set<string>>(new Set())
@@ -168,7 +168,15 @@ function statusLabel(status: string) {
 function formatCreatedAt(value: string) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).format(date)
+  const localeValue = typeof locale?.value === 'string' ? locale.value : 'zh-CN'
+  const activeLocale = localeValue.startsWith('zh') ? 'zh-CN' : localeValue
+  return new Intl.DateTimeFormat(activeLocale, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date)
 }
 </script>
 

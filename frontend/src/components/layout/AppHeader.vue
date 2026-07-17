@@ -115,7 +115,7 @@
                 {{ displayName }}
               </div>
               <div class="text-xs capitalize text-gray-500 dark:text-dark-400">
-                {{ user.role }}
+                {{ userRoleLabel }}
               </div>
             </div>
             <Icon name="chevronDown" size="sm" class="hidden text-gray-400 md:block" />
@@ -299,6 +299,13 @@ const userInitials = computed(() => {
 const displayName = computed(() => {
   if (!user.value) return ''
   return user.value.username || user.value.email?.split('@')[0] || ''
+})
+
+const userRoleLabel = computed(() => {
+  if (!user.value?.role) return ''
+  if (user.value.role === 'admin') return '管理员'
+  if (user.value.role === 'user') return '用户'
+  return user.value.role
 })
 
 const pageTitle = computed(() => {
