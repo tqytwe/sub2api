@@ -193,6 +193,27 @@ func TestParseGeminiImageStudioPayloadsExtractsInlineImages(t *testing.T) {
 	require.NotEmpty(t, images[0].Data)
 }
 
+func TestParseOpenAICompatibleImageStudioPayloadsAcceptsGeminiInlineData(t *testing.T) {
+	raw := []byte(`{
+		"candidates":[{
+			"content":{
+				"parts":[
+					{"text":"done"},
+					{"inlineData":{"mimeType":"image/png","data":"` + base64.StdEncoding.EncodeToString(realImageStudioPNGFixture(t)) + `"}}
+				]
+			}
+		}],
+		"usage":{"total_cost":0.2}
+	}`)
+
+	images, err := parseOpenAICompatibleImageStudioPayloads(context.Background(), raw)
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, "image/png", images[0].ContentType)
+	require.NotEmpty(t, images[0].Data)
+}
+
 func TestImageStudioGatewayDoesNotReturnSensitiveUpstreamErrorBody(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	const secret = "sk-sensitive-upstream-value"
