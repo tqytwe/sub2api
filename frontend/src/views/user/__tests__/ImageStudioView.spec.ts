@@ -150,7 +150,10 @@ vi.mock('vue-i18n', async (importOriginal) => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string, params?: Record<string, unknown>) => params ? `${key}:${JSON.stringify(params)}` : key,
+      t: (key: string, params?: Record<string, unknown>) => {
+        if (key === 'imageStudio.modelPurpose.imageGeneration') return '生图专用'
+        return params ? `${key}:${JSON.stringify(params)}` : key
+      },
     }),
   }
 })
@@ -285,6 +288,47 @@ describe('ImageStudioView prompt UX', () => {
     expect(wrapper.find('[data-testid="output-format-select"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="output-compression-input"]').exists()).toBe(false)
     expect(wrapper.find('[data-testid="input-fidelity-select"]').exists()).toBe(false)
+  })
+
+  it('shows image model options with a localized purpose label', async () => {
+    workspace.availableModels.value = [
+      {
+        id: 'gpt-image-2',
+        display_name: 'GPT Image 2',
+        supported_backgrounds: [],
+        supported_output_formats: ['png'],
+        supported_input_fidelities: [],
+        input_fidelity_mode: 'hidden',
+      },
+      {
+        id: 'gpt-image-1.5',
+        display_name: 'GPT Image 1.5',
+        supported_backgrounds: [],
+        supported_output_formats: ['png'],
+        supported_input_fidelities: [],
+        input_fidelity_mode: 'hidden',
+      },
+      {
+        id: 'gpt-image-1',
+        display_name: 'GPT Image 1 · 生图专用',
+        supported_backgrounds: [],
+        supported_output_formats: ['png'],
+        supported_input_fidelities: [],
+        input_fidelity_mode: 'hidden',
+      },
+    ]
+    workspace.selectedModel.value = 'gpt-image-2'
+    workspace.selectedModelOption.value = workspace.availableModels.value[0]
+
+    const wrapper = mountView()
+    const modelSelect = wrapper.findAll('select').find((select) =>
+      select.find('option[value="gpt-image-2"]').exists())
+
+    expect(modelSelect?.text()).toContain('GPT Image 2 · 生图专用')
+    expect(modelSelect?.text()).toContain('GPT Image 1.5 · 生图专用')
+    expect(modelSelect?.text()).toContain('GPT Image 1 · 生图专用')
+    expect(modelSelect?.text()).not.toContain('GPT Image 1 · 生图专用 · 生图专用')
+    expect(wrapper.text()).toContain('GPT Image 2 · 生图专用')
   })
 
   it('switches to works only after polling starts and returns to create on failure', async () => {

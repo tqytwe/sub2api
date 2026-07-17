@@ -418,6 +418,9 @@ export const jisudengPagesEn = {
     count: 'Count',
     apiKey: 'API key',
     model: 'Image model',
+    modelPurpose: {
+      imageGeneration: 'Image generation',
+    },
     noModelSelected: 'No model selected',
     loadingModels: 'Loading models…',
     noModels: 'No image models available for this key’s group',
