@@ -116,7 +116,7 @@ func TestImageStudioListActiveJobsBatchesJobsAssetsAndPublicItems(t *testing.T) 
 
 func imageStudioJobRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
-		"id", "user_id", "template_id", "prompt_hash", "request_payload_encrypted",
+		"id", "user_id", "template_id", "prompt_id", "prompt_version", "prompt_hash", "request_payload_encrypted",
 		"model", "quality", "size", "count", "status", "estimated_cost", "actual_cost",
 		"api_key_id", "hold_amount", "hold_id", "success_count", "fail_count",
 		"error_message", "created_at", "expires_at", "cancel_requested_at", "started_at",
@@ -126,7 +126,7 @@ func imageStudioJobRows() *sqlmock.Rows {
 
 func imageStudioJobRow(id string, userID int64) []driver.Value {
 	return []driver.Value{
-		id, userID, "free-create", "hash", "",
+		id, userID, "free-create", nil, nil, "hash", "",
 		"gpt-image-1", "standard", "1024x1024", 1, service.ImageStudioJobStatusRunning,
 		0.08, nil, nil, nil, "", 0, 0, nil, time.Now().UTC(),
 		nil, nil, nil, nil, nil, "", nil,

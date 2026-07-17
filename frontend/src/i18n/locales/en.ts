@@ -413,6 +413,8 @@ export default {
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
     imageStudio: 'Image Studio',
+    promptSquare: 'Prompt Library',
+    promptManagement: 'Prompt Management',
     usage: 'Usage',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',

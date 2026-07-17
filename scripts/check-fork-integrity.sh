@@ -194,6 +194,8 @@ MIGRATIONS=(
   196_image_studio_job_references.sql
   197_image_studio_object_deletions.sql
   198_image_studio_upload_slots.sql
+  199_prompt_library.sql
+  200_prompt_library_seed.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

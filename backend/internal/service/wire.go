@@ -766,13 +766,16 @@ func ProvideImageStudioService(
 	playService *PlayService,
 	pricing *BatchImageModelPricingResolver,
 	gateway ImageStudioModelResolver,
+	promptRepo PromptLibraryRepository,
 	cfg *config.Config,
 	encryptor SecretEncryptor,
 	billingRepo UsageBillingRepository,
 	billingCache *BillingCacheService,
 ) *ImageStudioService {
 	store := NewImageStudioAssetStore(cfg.Pricing.DataDir)
-	return NewImageStudioService(repo, store, apiKeyService, userRepo, settingService, playService, pricing, gateway, encryptor, billingRepo, billingCache)
+	svc := NewImageStudioService(repo, store, apiKeyService, userRepo, settingService, playService, pricing, gateway, encryptor, billingRepo, billingCache)
+	svc.promptRepo = promptRepo
+	return svc
 }
 
 // ProvideUserPlatformQuotaUsageFlusher 创建并启动 UserPlatformQuotaUsageFlusher。

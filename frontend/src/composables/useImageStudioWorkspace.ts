@@ -1,5 +1,5 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { keysAPI } from '@/api/keys'
 import imageStudioAPI, {
@@ -15,6 +15,7 @@ import imageStudioAPI, {
   type ImageStudioReference,
   type ImageStudioTemplate,
 } from '@/api/imageStudio'
+import type { PromptUseResult } from '@/api/prompts'
 import playAPI from '@/api/play'
 import { useAuthStore } from '@/stores/auth'
 import { useImageStudioCapabilities } from '@/composables/useImageStudioCapabilities'
@@ -30,7 +31,9 @@ import {
 } from '@/utils/growthAnalytics'
 import {
   clearStudioPromptDraft,
+  clearStudioPendingJobId,
   clearStudioPendingJobForUser,
+  getStudioPendingJobId,
   getStudioPendingJobsForUser,
   getStudioPendingJobSubmittedPrompt,
   loadStudioDraft,
@@ -44,6 +47,13 @@ import {
   validateImageStudioPrompt,
 } from '@/utils/imageStudioWorkspace'
 import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
+import {
+  initialPromptVariableValues,
+  loadPromptLibraryHandoff,
+  renderPromptLibraryTemplate,
+  type PromptLibraryHandoff,
+} from '@/utils/promptLibraryHandoff'
+import { savePromptRecipe } from '@/utils/promptRecipe'
 
 type ImageStudioMode = 'create' | 'edit'
 type ImageStudioReferenceUploadStatus = 'uploading' | 'ready' | 'failed'
@@ -71,6 +81,7 @@ function createImageStudioIdempotencyKey(): string {
 export function useImageStudioWorkspace() {
   const { t, locale } = useI18n()
   const router = useRouter()
+  const route = useRoute()
   const authStore = useAuthStore()
 
   const bootstrapping = ref(true)
@@ -82,6 +93,10 @@ export function useImageStudioWorkspace() {
   const capabilitiesLoading = ref(false)
   const capabilityError = ref('')
   const selectedTemplate = ref<ImageStudioTemplate | null>(null)
+  const promptReference = ref<PromptLibraryHandoff | null>(null)
+  const promptReferenceError = ref('')
+  const promptVariableValues = ref<Record<string, string>>({})
+  const promptPrivacyMode = ref(false)
   const userPrompt = ref('')
   const accentColor = ref('#1a1a1a')
   const count = ref(1)
@@ -300,6 +315,10 @@ export function useImageStudioWorkspace() {
     apiKeys.value = []
     availableModels.value = []
     selectedModel.value = ''
+    promptReference.value = null
+    promptReferenceError.value = ''
+    promptVariableValues.value = {}
+    promptPrivacyMode.value = false
     quality.value = ''
     background.value = ''
     outputFormat.value = ''
@@ -333,6 +352,100 @@ export function useImageStudioWorkspace() {
   function labelFor(obj?: { zh: string; en: string }) {
     if (!obj) return ''
     return locale.value.startsWith('zh') ? obj.zh : obj.en
+  }
+
+  function applyPromptVariables() {
+    if (!promptReference.value) return
+    userPrompt.value = renderPromptLibraryTemplate(
+      promptReference.value.prompt_template,
+      promptReference.value.variables,
+      promptVariableValues.value,
+    )
+  }
+
+  function applyPromptReferenceRecommendations() {
+    const reference = promptReference.value
+    if (!reference) return
+    const recommendedModel = reference.recommended_models.find((model) =>
+      availableModels.value.some((option) => option.id === model))
+    if (recommendedModel) {
+      selectedModel.value = recommendedModel
+      applySelectedModelDefaults(
+        availableModels.value.find((option) => option.id === recommendedModel) ?? null,
+      )
+    }
+    const recommendedSize = reference.recommended_sizes.find((item) =>
+      capabilities.value?.size_options.some((option) => option.size === item))
+    if (recommendedSize) {
+      sizeCaps.setFromSize(recommendedSize)
+      sizeCaps.userTouchedSize.value = true
+    }
+  }
+
+  function loadPromptReference() {
+    if (!route.query.prompt && !route.query.version) return
+    const reference = loadPromptLibraryHandoff(route.query)
+    if (!reference) {
+      promptReferenceError.value = t('imageStudio.promptReferenceUnavailable')
+      return
+    }
+    promptReference.value = reference
+    promptPrivacyMode.value = true
+    promptReferenceError.value = ''
+    promptVariableValues.value = initialPromptVariableValues(reference.variables)
+    applyPromptVariables()
+    applyPromptReferenceRecommendations()
+  }
+
+  function applyPromptUseResult(payload: PromptUseResult) {
+    const reference: PromptLibraryHandoff = {
+      prompt_id: payload.prompt_id,
+      version: payload.version,
+      title: payload.title,
+      prompt_template: payload.prompt_template,
+      variables: payload.variables,
+      recommended_models: payload.recommended_models,
+      recommended_sizes: payload.recommended_sizes,
+      reference_requirement: payload.reference_requirement,
+    }
+    promptReference.value = reference
+    promptPrivacyMode.value = true
+    promptReferenceError.value = ''
+    promptVariableValues.value = initialPromptVariableValues(reference.variables)
+    applyPromptVariables()
+    applyPromptReferenceRecommendations()
+    void router.replace({
+      path: '/image-studio',
+      query: {
+        prompt: reference.prompt_id,
+        version: String(reference.version),
+      },
+    })
+  }
+
+  function clearPromptReference() {
+    userPrompt.value = ''
+    expertPrompt.value = ''
+    promptReference.value = null
+    promptReferenceError.value = ''
+    promptVariableValues.value = {}
+    promptPrivacyMode.value = false
+    void router.replace({ path: '/image-studio', query: {} })
+  }
+
+  function saveCreationRecipe() {
+    const reference = promptReference.value
+    if (!reference) return false
+    savePromptRecipe({
+      promptId: reference.prompt_id,
+      promptVersion: reference.version,
+      title: reference.title,
+      model: selectedModel.value,
+      size: size.value,
+      quality: quality.value,
+      variables: reference.variables,
+    })
+    return true
   }
 
   function firstSupported(
@@ -458,7 +571,7 @@ export function useImageStudioWorkspace() {
   function persistDraft() {
     flushScheduledDraft()
     const userId = draftUserId.value
-    if (!draftReady.value || !userId) return
+    if (!draftReady.value || !userId || promptPrivacyMode.value) return
     saveStudioDraft(userId, currentDraft())
   }
 
@@ -466,13 +579,17 @@ export function useImageStudioWorkspace() {
     if (draftSaveTimer) clearTimeout(draftSaveTimer)
     draftSaveTimer = null
     if (!pendingDraftSave) return
+    if (promptPrivacyMode.value) {
+      pendingDraftSave = null
+      return
+    }
     saveStudioDraft(pendingDraftSave.userId, pendingDraftSave.draft)
     pendingDraftSave = null
   }
 
   function scheduleDraftPersist() {
     const userId = draftUserId.value
-    if (!draftReady.value || !userId) return
+    if (!draftReady.value || !userId || promptPrivacyMode.value) return
     pendingDraftSave = { userId, draft: currentDraft() }
     if (draftSaveTimer) clearTimeout(draftSaveTimer)
     draftSaveTimer = setTimeout(flushScheduledDraft, 300)
@@ -767,6 +884,7 @@ export function useImageStudioWorkspace() {
     availableModels.value = models
     selectedModel.value = models[0]?.id ?? ''
     applySelectedModelDefaults(models[0] ?? null)
+    applyPromptReferenceRecommendations()
     if (models[0]?.default_size && !selectedTemplate.value) {
       sizeCaps.applyTemplateDefault(models[0].default_size, true)
     }
@@ -913,6 +1031,7 @@ export function useImageStudioWorkspace() {
   ) {
     if (!isCurrentSession(scope)) return
     upsertActiveJob(job)
+    if (getStudioPendingJobId() === job.id) clearStudioPendingJobId()
     if (submittedUserId) clearStudioPendingJobForUser(submittedUserId, job.id)
     jobSubmissionSequences.delete(job.id)
 
@@ -1081,6 +1200,7 @@ export function useImageStudioWorkspace() {
       }
       if (!isRefresh && !applyQuickStart()) applyDefaultTemplate()
       if (!isRefresh) restoreDraft()
+      if (!isRefresh) loadPromptReference()
       void loadModels()
 
       const pendingJobs = scope.userId
@@ -1253,12 +1373,15 @@ export function useImageStudioWorkspace() {
     pollNotice.value = ''
     const currentSubmissionSequence = ++submissionSequence
     const submittedPrompt = currentSubmissionSnapshot()
+    const promptReferenceSnapshot = promptReference.value
     const submittedReferenceIds = submittedPrompt.mode === 'edit'
       ? [...(submittedPrompt.referenceIds ?? [])]
       : []
     for (const referenceId of submittedReferenceIds) protectedReferenceIds.add(referenceId)
     const requestBody: ImageStudioGenerateRequest = {
       template_id: template.id,
+      prompt_id: promptReferenceSnapshot ? Number(promptReferenceSnapshot.prompt_id) : undefined,
+      prompt_version: promptReferenceSnapshot?.version,
       user_prompt: submittedPrompt.userPrompt,
       accent_color: submittedPrompt.accentColor,
       size: size.value,
@@ -1294,10 +1417,14 @@ export function useImageStudioWorkspace() {
     try {
       const result = await imageStudioAPI.generateImageStudio(requestBody, idempotencyKey)
       settleSubmissionReferences(submittedReferenceIds, true)
-      setStudioPendingJobId(result.job.id, {
-        userId: submittedUserId,
-        submittedPrompt,
-      })
+      if (promptReferenceSnapshot) {
+        setStudioPendingJobId(result.job.id)
+      } else {
+        setStudioPendingJobId(result.job.id, {
+          userId: submittedUserId,
+          submittedPrompt,
+        })
+      }
       if (!isCurrentSession(scope)) return true
       generateAttempt = null
       setStudioLastTemplate(template.id)
@@ -1306,13 +1433,17 @@ export function useImageStudioWorkspace() {
       if (isImageStudioJobTerminal(result.job)) {
         await handleTerminalJob(
           result.job,
-          submittedUserId,
-          submittedPrompt,
+          promptReferenceSnapshot ? null : submittedUserId,
+          promptReferenceSnapshot ? null : submittedPrompt,
           scope,
           currentSubmissionSequence,
         )
       } else {
         startPollingJob(result.job.id, currentSubmissionSequence, scope)
+      }
+      if (promptReferenceSnapshot) {
+        userPrompt.value = ''
+        expertPrompt.value = ''
       }
       return true
     } catch (err: unknown) {
@@ -1427,6 +1558,9 @@ export function useImageStudioWorkspace() {
     capabilitiesReady,
     capabilityError,
     selectedTemplate,
+    promptReference,
+    promptReferenceError,
+    promptVariableValues,
     userPrompt,
     accentColor,
     size,
@@ -1491,6 +1625,10 @@ export function useImageStudioWorkspace() {
     previewIndex,
     labelFor,
     pickTemplate,
+    applyPromptUseResult,
+    applyPromptVariables,
+    clearPromptReference,
+    saveCreationRecipe,
     onAutoCleanupChange,
     openPreview,
     closePreview,

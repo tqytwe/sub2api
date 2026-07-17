@@ -413,6 +413,8 @@ export default {
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
     imageStudio: '图像工作室',
+    promptSquare: '提示词广场',
+    promptManagement: '提示词管理',
     usage: '使用记录',
     redeem: '兑换',
     affiliate: '邀请返利',

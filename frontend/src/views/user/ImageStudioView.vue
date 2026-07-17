@@ -6,6 +6,7 @@ import Icon from '@/components/icons/Icon.vue'
 import ImageStudioGallery from '@/components/imageStudio/ImageStudioGallery.vue'
 import ImageStudioPreviewModal from '@/components/imageStudio/ImageStudioPreviewModal.vue'
 import ImageStudioSizePicker from '@/components/imageStudio/ImageStudioSizePicker.vue'
+import PromptLibraryPanel from '@/components/prompt/PromptLibraryPanel.vue'
 import { useImageStudioWorkspace } from '@/composables/useImageStudioWorkspace'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import {
@@ -13,22 +14,34 @@ import {
   type ImageStudioTemplate,
 } from '@/api/imageStudio'
 import {
+  usePrompt,
+  type PromptUseResult,
+} from '@/api/prompts'
+import {
   IMAGE_STUDIO_PROMPT_LIMIT,
   countImageStudioCodePoints,
   flattenImageStudioTemplates,
   resizeImageStudioTextarea,
   validateImageStudioPrompt,
 } from '@/utils/imageStudioWorkspace'
+import {
+  listPromptRecipes,
+  type PromptCreationRecipe,
+} from '@/utils/promptRecipe'
 
 const { t } = useI18n()
 const enabled = isFeatureFlagEnabled(FeatureFlags.imageStudio)
 const workspace = useImageStudioWorkspace()
 
-const mobileView = ref<'create' | 'works'>('create')
+type StudioMode = 'create' | 'prompts' | 'works' | 'recipes'
+
+const mobileView = ref<StudioMode>('create')
 const promptTouched = ref(false)
 const expertPromptTouched = ref(false)
 const promptTextarea = ref<HTMLTextAreaElement | null>(null)
 const expertPromptTextarea = ref<HTMLTextAreaElement | null>(null)
+const recipeSaved = ref(false)
+const recipes = ref<PromptCreationRecipe[]>(listPromptRecipes())
 
 const templateOptions = computed(() => flattenImageStudioTemplates(workspace.catalog.value))
 
@@ -88,6 +101,24 @@ function selectTemplate(template: ImageStudioTemplate) {
   workspace.pickTemplate(template)
 }
 
+function variableOptionValue(option: string | { label: string; value: string }) {
+  return typeof option === 'string' ? option : option.value
+}
+
+function variableOptionLabel(option: string | { label: string; value: string }) {
+  return typeof option === 'string' ? option : option.label
+}
+
+function applyPromptVariables() {
+  workspace.applyPromptVariables()
+  recipeSaved.value = false
+}
+
+function saveCreationRecipe() {
+  recipeSaved.value = workspace.saveCreationRecipe()
+  recipes.value = listPromptRecipes()
+}
+
 function changeCount(delta: number) {
   const next = Math.min(workspace.maxCount.value, Math.max(1, workspace.count.value + delta))
   workspace.count.value = next
@@ -119,6 +150,21 @@ async function generate() {
   }
   const succeeded = await workspace.generate()
   if (!succeeded) mobileView.value = 'create'
+}
+
+function usePromptFromLibrary(payload: PromptUseResult) {
+  workspace.applyPromptUseResult(payload)
+  recipeSaved.value = false
+  mobileView.value = 'create'
+  void nextTick(resizePromptTextareas)
+}
+
+async function useRecipe(recipe: PromptCreationRecipe) {
+  try {
+    usePromptFromLibrary(await usePrompt(recipe.prompt_id))
+  } catch {
+    // 复用失败时留在配方列表，避免打断当前创作草稿。
+  }
 }
 
 function reuseJob(job: ImageStudioJob) {
@@ -200,7 +246,7 @@ onBeforeUnmount(() => {
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('imageStudio.workspaceSubtitle') }}</p>
       </div>
 
-      <div class="mb-4 grid grid-cols-2 rounded-xl bg-gray-200/70 p-1 lg:hidden dark:bg-dark-800">
+      <div class="mb-4 grid grid-cols-4 rounded-xl bg-gray-200/70 p-1 lg:hidden dark:bg-dark-800">
         <button
           type="button"
           class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
@@ -212,10 +258,26 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
+          :class="mobileView === 'prompts' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+          @click="mobileView = 'prompts'"
+        >
+          选提示词
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
           :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
           @click="mobileView = 'works'"
         >
-          {{ t('imageStudio.worksTab') }}
+          作品库
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
+          :class="mobileView === 'recipes' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+          @click="mobileView = 'recipes'; recipes = listPromptRecipes()"
+        >
+          创作配方
         </button>
       </div>
 
@@ -227,9 +289,95 @@ onBeforeUnmount(() => {
       </div>
 
       <div v-else class="grid items-start gap-5 xl:grid-cols-[minmax(360px,420px)_minmax(0,1fr)]">
+        <header class="hidden xl:col-span-2 lg:flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ t('imageStudio.title') }}</h1>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('imageStudio.workspaceSubtitle') }}</p>
+          </div>
+          <div class="inline-flex rounded-xl bg-gray-200/70 p-1 dark:bg-dark-800">
+            <button
+              type="button"
+              class="rounded-lg px-4 py-2 text-sm font-semibold transition"
+              :class="mobileView === 'create' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+              @click="mobileView = 'create'"
+            >
+              创作
+            </button>
+            <button
+              type="button"
+              class="rounded-lg px-4 py-2 text-sm font-semibold transition"
+              :class="mobileView === 'prompts' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+              @click="mobileView = 'prompts'"
+            >
+              选提示词
+            </button>
+            <button
+              type="button"
+              class="rounded-lg px-4 py-2 text-sm font-semibold transition"
+              :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+              @click="mobileView = 'works'"
+            >
+              作品库
+            </button>
+            <button
+              type="button"
+              class="rounded-lg px-4 py-2 text-sm font-semibold transition"
+              :class="mobileView === 'recipes' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
+              @click="mobileView = 'recipes'; recipes = listPromptRecipes()"
+            >
+              创作配方
+            </button>
+          </div>
+        </header>
+
+        <section
+          v-if="mobileView === 'prompts'"
+          class="xl:col-span-2"
+        >
+          <PromptLibraryPanel @use="usePromptFromLibrary" />
+        </section>
+
+        <section
+          v-if="mobileView === 'recipes'"
+          class="xl:col-span-2"
+        >
+          <div class="card overflow-hidden">
+            <header class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+              <div>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">创作配方</h2>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">只保存提示词编号、版本、模型与规格，不保存你填写的明文内容。</p>
+              </div>
+              <button type="button" class="btn btn-secondary text-xs" @click="recipes = listPromptRecipes()">刷新</button>
+            </header>
+            <div v-if="recipes.length" class="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+              <article
+                v-for="recipe in recipes"
+                :key="recipe.id"
+                class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800"
+              >
+                <h3 class="font-semibold text-gray-900 dark:text-white">{{ recipe.title }}</h3>
+                <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  提示词编号 {{ recipe.prompt_id }} · 版本 {{ recipe.prompt_version }}
+                </p>
+                <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                  {{ recipe.model || '未指定模型' }} · {{ recipe.size || '未指定尺寸' }}
+                </p>
+                <button type="button" class="btn btn-primary mt-4 w-full text-xs" @click="useRecipe(recipe)">
+                  <Icon name="sparkles" size="sm" />
+                  用于创作
+                </button>
+              </article>
+            </div>
+            <div v-else class="flex min-h-64 flex-col items-center justify-center px-6 text-center text-sm text-gray-500 dark:text-gray-400">
+              <Icon name="save" class="mb-3 text-gray-400" />
+              暂无创作配方。引用提示词后，可以在创作设置中保存为创作配方。
+            </div>
+          </div>
+        </section>
+
         <section
           class="card overflow-hidden xl:sticky xl:top-24"
-          :class="mobileView === 'create' ? 'block' : 'hidden lg:block'"
+          :class="mobileView === 'create' ? 'block' : 'hidden'"
         >
           <header class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <div>
@@ -290,6 +438,90 @@ onBeforeUnmount(() => {
             </div>
 
             <div class="space-y-4 border-b border-gray-100 p-5 dark:border-dark-700">
+              <div
+                v-if="workspace.promptReference.value"
+                class="rounded-lg border border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+              >
+                <div class="flex items-start justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                      来自极速蹬提示词库
+                    </p>
+                    <p class="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white">
+                      {{ workspace.promptReference.value.title }}
+                    </p>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      提示词编号 {{ workspace.promptReference.value.prompt_id }} · 版本 {{ workspace.promptReference.value.version }}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="btn-icon h-8 w-8 flex-shrink-0"
+                    title="取消引用"
+                    aria-label="取消引用"
+                    @click="workspace.clearPromptReference"
+                  >
+                    <Icon name="x" size="sm" />
+                  </button>
+                </div>
+
+                <div v-if="workspace.promptReference.value.variables.length" class="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label
+                    v-for="variable in workspace.promptReference.value.variables"
+                    :key="variable.name"
+                    class="block min-w-0"
+                  >
+                    <span class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
+                      {{ variable.label }}<span v-if="variable.required" class="text-red-500"> *</span>
+                    </span>
+                    <select
+                      v-if="variable.type === 'select' && variable.options?.length"
+                      v-model="workspace.promptVariableValues.value[variable.name]"
+                      class="input h-10 text-sm"
+                    >
+                      <option
+                        v-for="option in variable.options"
+                        :key="variableOptionValue(option)"
+                        :value="variableOptionValue(option)"
+                      >
+                        {{ variableOptionLabel(option) }}
+                      </option>
+                    </select>
+                    <input
+                      v-else
+                      v-model="workspace.promptVariableValues.value[variable.name]"
+                      :type="variable.type === 'number' ? 'number' : variable.type === 'color' ? 'color' : 'text'"
+                      class="input h-10 text-sm"
+                      :placeholder="variable.description || `填写${variable.label}`"
+                    />
+                    <span v-if="variable.description" class="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">
+                      {{ variable.description }}
+                    </span>
+                  </label>
+                </div>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                  <button type="button" class="btn btn-secondary text-xs" @click="applyPromptVariables">
+                    <Icon name="sparkles" size="sm" />
+                    智能改写
+                  </button>
+                  <button type="button" class="btn btn-secondary text-xs" @click="saveCreationRecipe">
+                    <Icon name="save" size="sm" />
+                    保存为创作配方
+                  </button>
+                  <span v-if="recipeSaved" class="text-xs text-emerald-700 dark:text-emerald-300">
+                    创作配方已保存到当前浏览器
+                  </span>
+                </div>
+              </div>
+
+              <p
+                v-else-if="workspace.promptReferenceError.value"
+                class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300"
+              >
+                {{ workspace.promptReferenceError.value }}
+              </p>
+
               <div>
                 <span class="input-label">{{ t('imageStudio.mode') }}</span>
                 <div class="grid grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-800">
@@ -620,7 +852,11 @@ onBeforeUnmount(() => {
 
         <section
           class="card min-w-0 overflow-hidden"
-          :class="mobileView === 'works' ? 'block' : 'hidden lg:block'"
+          :class="[
+            mobileView === 'works' ? 'block xl:col-span-2' : '',
+            mobileView === 'create' ? 'hidden lg:block' : '',
+            mobileView === 'prompts' || mobileView === 'recipes' ? 'hidden' : '',
+          ]"
         >
           <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <div>

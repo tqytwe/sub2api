@@ -35,7 +35,8 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('vue-router', () => ({
-  useRouter: () => ({ push: mocks.routerPush }),
+  useRoute: () => ({ query: {} }),
+  useRouter: () => ({ push: mocks.routerPush, replace: vi.fn() }),
 }))
 
 vi.mock('vue-i18n', async (importOriginal) => {

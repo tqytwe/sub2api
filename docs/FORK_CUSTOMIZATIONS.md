@@ -92,7 +92,7 @@
 
 ## FORK-MIGRATION-009 自定义数据库迁移
 
-- 产品目的：保留 Play、品牌默认值、图像工作室和模型目录的数据库结构与数据修复。
+- 产品目的：保留 Play、品牌默认值、图像工作室、提示词库和模型目录的数据库结构与数据修复。
 - 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/validation 不携带前置 `ALTER TABLE` 锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
 - 冲突策略：新增迁移使用新的完整文件名；禁止修改已部署 SQL 的内容来解决冲突。
 - 验证：integrity 脚本逐文件检查，部署后检查 `schema_migrations`。
@@ -128,6 +128,8 @@
 196_image_studio_job_references.sql
 197_image_studio_object_deletions.sql
 198_image_studio_upload_slots.sql
+199_prompt_library.sql
+200_prompt_library_seed.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

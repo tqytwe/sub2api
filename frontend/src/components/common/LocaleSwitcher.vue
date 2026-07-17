@@ -1,5 +1,5 @@
 <template>
-  <div class="relative" ref="dropdownRef">
+  <div v-if="availableLocales.length > 1" class="relative" ref="dropdownRef">
     <button
       type="button"
       @click="toggleDropdown"
