@@ -29,7 +29,7 @@ func (r *playRepository) CountTeamRewardSettlementsNeedingAttention(ctx context.
 	var count int
 	if err := scanSingleRow(ctx, exec, `
 		SELECT COUNT(*)::int
-		FROM play_team_reward_settlements
+		FROM play_team_settlements
 		WHERE status IN ('pending', 'processing', 'partial', 'failed')`, nil, &count); err != nil {
 		return 0, fmt.Errorf("count team reward settlements needing attention: %w", err)
 	}
