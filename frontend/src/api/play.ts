@@ -37,6 +37,7 @@ export interface PlayArenaCurrent {
   display_token_sum?: number
   rank?: number
   tokens_to_prev_rank?: number
+  estimated_reward?: number
   recharge_boost_active?: boolean
   arena_score_multiplier?: number
   campaign_active?: boolean
@@ -129,12 +130,14 @@ export interface PlayQuizSubmitResult {
 export interface PlayTeamMember {
   user_id: number
   display_name: string
+  email?: string
   avatar_url?: string
   joined_at: string
   token_sum: number
   token_pct: number
   spend: string
   spend_pct: number
+  estimated_reward: string
 }
 
 export interface TeamRewardTier {
@@ -179,6 +182,9 @@ export interface PlayTeamRewardAllocation {
   id: number
   settlement_id: number
   user_id: number
+  display_name?: string
+  avatar_url?: string
+  email?: string
   contribution: string
   ratio: string
   reward_amount: string

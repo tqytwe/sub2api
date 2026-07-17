@@ -163,13 +163,19 @@ func (r *playRepository) ListUnpaidTeamRewardAllocations(
 	settlementID int64,
 ) (result []service.PlayTeamRewardAllocation, err error) {
 	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
-		SELECT id, settlement_id, user_id, contribution::text, ratio::text,
-		       reward_amount::text, payout_status, idempotency_key, paid_at, last_error
-		FROM play_team_reward_allocations
-		WHERE settlement_id = $1
-		  AND payout_status IN ('pending', 'failed')
-		  AND reward_amount > 0
-		ORDER BY user_id`, settlementID)
+		SELECT a.id, a.settlement_id, a.user_id,
+		       COALESCE(u.username, '') AS username,
+		       COALESCE(u.email, '') AS email,
+		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
+		       a.contribution::text, a.ratio::text,
+		       a.reward_amount::text, a.payout_status, a.idempotency_key, a.paid_at, a.last_error
+		FROM play_team_reward_allocations a
+		JOIN users u ON u.id = a.user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = a.user_id
+		WHERE a.settlement_id = $1
+		  AND a.payout_status IN ('pending', 'failed')
+		  AND a.reward_amount > 0
+		ORDER BY a.user_id`, settlementID)
 	if err != nil {
 		return nil, fmt.Errorf("list unpaid team reward allocations: %w", err)
 	}
@@ -358,11 +364,17 @@ func (r *playRepository) ListTeamRewardAllocations(
 	settlementID int64,
 ) (result []service.PlayTeamRewardAllocation, err error) {
 	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
-		SELECT id, settlement_id, user_id, contribution::text, ratio::text,
-		       reward_amount::text, payout_status, idempotency_key, paid_at, last_error
-		FROM play_team_reward_allocations
-		WHERE settlement_id = $1
-		ORDER BY user_id`, settlementID)
+		SELECT a.id, a.settlement_id, a.user_id,
+		       COALESCE(u.username, '') AS username,
+		       COALESCE(u.email, '') AS email,
+		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
+		       a.contribution::text, a.ratio::text,
+		       a.reward_amount::text, a.payout_status, a.idempotency_key, a.paid_at, a.last_error
+		FROM play_team_reward_allocations a
+		JOIN users u ON u.id = a.user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = a.user_id
+		WHERE a.settlement_id = $1
+		ORDER BY a.user_id`, settlementID)
 	if err != nil {
 		return nil, fmt.Errorf("list team reward allocations: %w", err)
 	}
@@ -533,6 +545,7 @@ func scanTeamRewardSettlement(scan rowScanner) (*service.PlayTeamSettlement, err
 
 func scanTeamRewardAllocation(scan rowScanner) (*service.PlayTeamRewardAllocation, error) {
 	var allocation service.PlayTeamRewardAllocation
+	var username, email string
 	var contribution, ratio, reward string
 	var paidAt sql.NullTime
 	var lastError sql.NullString
@@ -540,6 +553,9 @@ func scanTeamRewardAllocation(scan rowScanner) (*service.PlayTeamRewardAllocatio
 		&allocation.ID,
 		&allocation.SettlementID,
 		&allocation.UserID,
+		&username,
+		&email,
+		&allocation.AvatarURL,
 		&contribution,
 		&ratio,
 		&reward,
@@ -550,6 +566,8 @@ func scanTeamRewardAllocation(scan rowScanner) (*service.PlayTeamRewardAllocatio
 	); err != nil {
 		return nil, fmt.Errorf("scan team reward allocation: %w", err)
 	}
+	allocation.DisplayName = service.PublicPlayDisplayName(username, email, allocation.UserID)
+	allocation.Email = email
 	var err error
 	if allocation.Contribution, err = decimal.NewFromString(contribution); err != nil {
 		return nil, fmt.Errorf("parse team reward allocation contribution: %w", err)

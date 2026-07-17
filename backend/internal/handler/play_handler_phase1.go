@@ -93,6 +93,7 @@ func toPlayArenaCurrentDTO(current *service.PlayArenaCurrent) playArenaCurrentDT
 		DisplayTokenSum:      current.DisplayTokenSum,
 		Rank:                 current.Rank,
 		TokensToPrevRank:     current.TokensToPrevRank,
+		EstimatedReward:      current.EstimatedReward,
 		RechargeBoostActive:  current.RechargeBoostActive,
 		ArenaScoreMultiplier: current.ArenaScoreMultiplier,
 		CampaignActive:       current.CampaignActive,

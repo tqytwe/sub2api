@@ -170,6 +170,7 @@ export default {
     proxies: 'Proxies',
     redeemCodes: 'Redeem Codes',
     ops: 'Ops',
+    playOps: 'Play Ops',
     promoCodes: 'Promo Codes',
     settings: 'Settings',
     myAccount: 'My Account',

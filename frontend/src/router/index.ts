@@ -547,6 +547,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/play-ops',
+    name: 'AdminPlayOps',
+    component: () => import('@/views/admin/PlayOpsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Play Ops',
+      titleKey: 'admin.playOps.title',
+      descriptionKey: 'admin.playOps.description'
+    }
+  },
+  {
     path: '/admin/audit-logs',
     name: 'AdminAuditLogs',
     component: () => import('@/views/admin/AuditLogView.vue'),
@@ -1018,6 +1030,7 @@ router.beforeEach(async (to, _from, next) => {
   if (authStore.isSimpleMode) {
     const restrictedPaths = [
       '/admin/groups',
+      '/admin/play-ops',
       '/admin/subscriptions',
       '/admin/redeem',
       '/subscriptions',

@@ -908,6 +908,14 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 			break
 		}
 	}
+	estimatedPool := resolveTeamRewardPool(teamSpend, cfg)
+	if estimatedPool.IsPositive() && teamSpend.IsPositive() {
+		for i := range members {
+			if members[i].Spend.IsPositive() {
+				members[i].EstimatedReward = members[i].Spend.Div(teamSpend).Mul(estimatedPool).Round(teamRewardAmountScale)
+			}
+		}
+	}
 	summary := &PlayTeamSummary{
 		ID:               teamDB.ID,
 		Name:             teamDB.Name,
@@ -921,7 +929,7 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 		ReachedThreshold: reachedThreshold,
 		RewardRate:       rewardRate,
 		NextThreshold:    nextThreshold,
-		EstimatedPool:    resolveTeamRewardPool(teamSpend, cfg),
+		EstimatedPool:    estimatedPool,
 		RewardCap:        cfg.Cap,
 		RewardTiers:      cfg.Tiers,
 	}

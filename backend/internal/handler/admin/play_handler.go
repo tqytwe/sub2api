@@ -2,6 +2,7 @@ package admin
 
 import (
 	"strconv"
+	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -19,6 +20,121 @@ type adminArenaSettleResultDTO struct {
 	PeriodName   string  `json:"period_name"`
 	WinnersCount int     `json:"winners_count"`
 	TotalAwarded float64 `json:"total_awarded"`
+}
+
+type adminArenaLeaderboardDTO struct {
+	Period  *adminArenaPeriodDTO              `json:"period,omitempty"`
+	Rewards []service.PlayArenaSettlementTier `json:"rewards"`
+	Rows    []adminArenaScoreDTO              `json:"rows"`
+}
+
+type adminArenaPeriodDTO struct {
+	ID      int64  `json:"id"`
+	Name    string `json:"name"`
+	StartAt string `json:"start_at"`
+	EndAt   string `json:"end_at"`
+	Status  string `json:"status"`
+}
+
+type adminArenaScoreDTO struct {
+	Rank            int     `json:"rank"`
+	UserID          int64   `json:"user_id"`
+	DisplayName     string  `json:"display_name"`
+	Email           string  `json:"email,omitempty"`
+	AvatarURL       string  `json:"avatar_url,omitempty"`
+	TokenSum        int64   `json:"token_sum"`
+	EstimatedReward float64 `json:"estimated_reward"`
+}
+
+type adminTeamListDTO struct {
+	Items    []adminTeamListItemDTO `json:"items"`
+	Total    int                    `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"page_size"`
+}
+
+type adminPlayOpsSummaryDTO struct {
+	TotalTeams               int     `json:"total_teams"`
+	ActiveTeams              int     `json:"active_teams"`
+	MonthSpend               string  `json:"month_spend"`
+	EstimatedSharedPool      string  `json:"estimated_shared_pool"`
+	PendingFailedSettlements int     `json:"pending_failed_settlements"`
+	MonthlyArenaRewardBudget float64 `json:"monthly_arena_reward_budget"`
+	DailyArenaRewardBudget   float64 `json:"daily_arena_reward_budget"`
+}
+
+type adminTeamListItemDTO struct {
+	ID                 int64   `json:"id"`
+	Name               string  `json:"name"`
+	InviteCode         string  `json:"invite_code"`
+	CaptainID          int64   `json:"captain_id"`
+	CaptainDisplayName string  `json:"captain_display_name"`
+	CaptainAvatarURL   string  `json:"captain_avatar_url,omitempty"`
+	CaptainEmail       string  `json:"captain_email,omitempty"`
+	MemberCount        int     `json:"member_count"`
+	TokenSum           int64   `json:"token_sum"`
+	TeamSpend          string  `json:"team_spend"`
+	EstimatedPool      string  `json:"estimated_pool"`
+	CreatedAt          string  `json:"created_at"`
+	ArchivedAt         *string `json:"archived_at,omitempty"`
+}
+
+type adminTeamDetailDTO struct {
+	Team        *adminTeamSummaryDTO           `json:"team"`
+	CreatedAt   string                         `json:"created_at"`
+	ArchivedAt  *string                        `json:"archived_at,omitempty"`
+	Settlements []adminTeamSettlementRecordDTO `json:"settlements"`
+}
+
+type adminTeamSummaryDTO struct {
+	ID               int64                    `json:"id"`
+	Name             string                   `json:"name"`
+	InviteCode       string                   `json:"invite_code"`
+	CaptainID        int64                    `json:"captain_id"`
+	MemberCount      int                      `json:"member_count"`
+	TokenSum         int64                    `json:"token_sum"`
+	Members          []adminTeamMemberDTO     `json:"members"`
+	CurrentMonth     string                   `json:"current_month"`
+	TeamSpend        string                   `json:"team_spend"`
+	ReachedThreshold string                   `json:"reached_threshold"`
+	RewardRate       string                   `json:"reward_rate"`
+	NextThreshold    string                   `json:"next_threshold"`
+	EstimatedPool    string                   `json:"estimated_pool"`
+	RewardCap        string                   `json:"reward_cap"`
+	RewardTiers      []service.TeamRewardTier `json:"reward_tiers"`
+}
+
+type adminTeamMemberDTO struct {
+	UserID          int64  `json:"user_id"`
+	DisplayName     string `json:"display_name"`
+	Email           string `json:"email,omitempty"`
+	AvatarURL       string `json:"avatar_url,omitempty"`
+	JoinedAt        string `json:"joined_at"`
+	TokenSum        int64  `json:"token_sum"`
+	TokenPct        int    `json:"token_pct"`
+	Spend           string `json:"spend"`
+	SpendPct        int    `json:"spend_pct"`
+	EstimatedReward string `json:"estimated_reward"`
+}
+
+type adminTeamSettlementRecordDTO struct {
+	Settlement  service.PlayTeamSettlement     `json:"settlement"`
+	Allocations []adminTeamRewardAllocationDTO `json:"allocations"`
+}
+
+type adminTeamRewardAllocationDTO struct {
+	ID           int64   `json:"id"`
+	SettlementID int64   `json:"settlement_id"`
+	UserID       int64   `json:"user_id"`
+	DisplayName  string  `json:"display_name,omitempty"`
+	AvatarURL    string  `json:"avatar_url,omitempty"`
+	Email        string  `json:"email,omitempty"`
+	Contribution string  `json:"contribution"`
+	Ratio        string  `json:"ratio"`
+	RewardAmount string  `json:"reward_amount"`
+	PayoutStatus string  `json:"payout_status"`
+	PaidAt       *string `json:"paid_at,omitempty"`
+	LastError    string  `json:"last_error,omitempty"`
 }
 
 // AdminPlayHandler serves admin play operations.
@@ -75,6 +191,42 @@ func (h *AdminPlayHandler) ArenaSettle(c *gin.Context) {
 	})
 }
 
+func (h *AdminPlayHandler) ArenaLeaderboard(c *gin.Context) {
+	limit := parsePositiveInt(c.Query("limit"), 50)
+	periodID := parsePositiveInt64(c.Query("period_id"))
+	periodType := strings.ToLower(strings.TrimSpace(c.Query("period_type")))
+	rows, period, rewards, err := h.playService.ListAdminArenaLeaderboard(c.Request.Context(), periodType, periodID, limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := adminArenaLeaderboardDTO{
+		Rewards: rewards,
+		Rows:    make([]adminArenaScoreDTO, 0, len(rows)),
+	}
+	if period != nil {
+		out.Period = &adminArenaPeriodDTO{
+			ID:      period.ID,
+			Name:    period.Name,
+			StartAt: period.StartAt.Format("2006-01-02T15:04:05Z07:00"),
+			EndAt:   period.EndAt.Format("2006-01-02T15:04:05Z07:00"),
+			Status:  period.Status,
+		}
+	}
+	for _, row := range rows {
+		out.Rows = append(out.Rows, adminArenaScoreDTO{
+			Rank:            row.Rank,
+			UserID:          row.UserID,
+			DisplayName:     row.DisplayName,
+			Email:           row.Email,
+			AvatarURL:       row.AvatarURL,
+			TokenSum:        row.TokenSum,
+			EstimatedReward: arenaRewardForRankAdmin(row.Rank, rewards),
+		})
+	}
+	response.Success(c, out)
+}
+
 func (h *AdminPlayHandler) GetTeamRewardSettings(c *gin.Context) {
 	response.Success(c, h.playService.GetTeamRewardSettings(c.Request.Context()))
 }
@@ -99,7 +251,71 @@ func (h *AdminPlayHandler) ListTeamRewardSettlements(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, records)
+	response.Success(c, toAdminTeamSettlementRecordDTOs(records))
+}
+
+func (h *AdminPlayHandler) ListTeams(c *gin.Context) {
+	page := parsePositiveInt(c.Query("page"), 1)
+	pageSize := parsePositiveInt(c.Query("page_size"), 20)
+	list, err := h.playService.ListAdminTeams(c.Request.Context(), c.Query("status"), c.Query("q"), page, pageSize)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminTeamListDTO(list))
+}
+
+func (h *AdminPlayHandler) Summary(c *gin.Context) {
+	summary, err := h.playService.GetAdminOpsSummary(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, adminPlayOpsSummaryDTO{
+		TotalTeams:               summary.TotalTeams,
+		ActiveTeams:              summary.ActiveTeams,
+		MonthSpend:               summary.MonthSpend.StringFixed(8),
+		EstimatedSharedPool:      summary.EstimatedSharedPool.StringFixed(8),
+		PendingFailedSettlements: summary.PendingFailedSettlements,
+		MonthlyArenaRewardBudget: summary.MonthlyArenaRewardBudget,
+		DailyArenaRewardBudget:   summary.DailyArenaRewardBudget,
+	})
+}
+
+func (h *AdminPlayHandler) GetTeam(c *gin.Context) {
+	teamID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || teamID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team id"))
+		return
+	}
+	detail, err := h.playService.GetAdminTeamDetail(c.Request.Context(), teamID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if detail == nil {
+		response.ErrorFrom(c, infraerrors.NotFound("PLAY_TEAM_NOT_FOUND", "team not found"))
+		return
+	}
+	response.Success(c, toAdminTeamDetailDTO(detail))
+}
+
+func (h *AdminPlayHandler) GetTeamSettlements(c *gin.Context) {
+	teamID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || teamID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team id"))
+		return
+	}
+	detail, err := h.playService.GetAdminTeamDetail(c.Request.Context(), teamID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if detail == nil {
+		response.ErrorFrom(c, infraerrors.NotFound("PLAY_TEAM_NOT_FOUND", "team not found"))
+		return
+	}
+	response.Success(c, toAdminTeamSettlementRecordDTOs(detail.Settlements))
 }
 
 func (h *AdminPlayHandler) RetryTeamRewardSettlement(c *gin.Context) {
@@ -114,4 +330,146 @@ func (h *AdminPlayHandler) RetryTeamRewardSettlement(c *gin.Context) {
 		return
 	}
 	response.Success(c, settlement)
+}
+
+func parsePositiveInt(raw string, fallback int) int {
+	if n, err := strconv.Atoi(strings.TrimSpace(raw)); err == nil && n > 0 {
+		return n
+	}
+	return fallback
+}
+
+func parsePositiveInt64(raw string) int64 {
+	if n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64); err == nil && n > 0 {
+		return n
+	}
+	return 0
+}
+
+func arenaRewardForRankAdmin(rank int, tiers []service.PlayArenaSettlementTier) float64 {
+	for _, tier := range tiers {
+		if rank <= tier.RankMax {
+			return tier.Amount
+		}
+	}
+	return 0
+}
+
+func toAdminTeamListDTO(list *service.PlayAdminTeamList) adminTeamListDTO {
+	out := adminTeamListDTO{
+		Total:    list.Total,
+		Page:     list.Page,
+		PageSize: list.PageSize,
+		Items:    make([]adminTeamListItemDTO, 0, len(list.Items)),
+	}
+	for _, item := range list.Items {
+		out.Items = append(out.Items, toAdminTeamListItemDTO(item))
+	}
+	return out
+}
+
+func toAdminTeamListItemDTO(item service.PlayAdminTeamListItem) adminTeamListItemDTO {
+	out := adminTeamListItemDTO{
+		ID:                 item.ID,
+		Name:               item.Name,
+		InviteCode:         item.InviteCode,
+		CaptainID:          item.CaptainID,
+		CaptainDisplayName: item.CaptainDisplayName,
+		CaptainAvatarURL:   item.CaptainAvatarURL,
+		CaptainEmail:       item.CaptainEmail,
+		MemberCount:        item.MemberCount,
+		TokenSum:           item.TokenSum,
+		TeamSpend:          item.TeamSpend.StringFixed(8),
+		EstimatedPool:      item.EstimatedPool.StringFixed(8),
+		CreatedAt:          item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+	if item.ArchivedAt != nil {
+		value := item.ArchivedAt.Format("2006-01-02T15:04:05Z07:00")
+		out.ArchivedAt = &value
+	}
+	return out
+}
+
+func toAdminTeamDetailDTO(detail *service.PlayAdminTeamDetail) adminTeamDetailDTO {
+	out := adminTeamDetailDTO{
+		Team:        toAdminTeamSummaryDTO(detail.Team),
+		CreatedAt:   detail.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		Settlements: toAdminTeamSettlementRecordDTOs(detail.Settlements),
+	}
+	if detail.ArchivedAt != nil {
+		value := detail.ArchivedAt.Format("2006-01-02T15:04:05Z07:00")
+		out.ArchivedAt = &value
+	}
+	return out
+}
+
+func toAdminTeamSettlementRecordDTOs(records []service.PlayTeamSettlementRecord) []adminTeamSettlementRecordDTO {
+	out := make([]adminTeamSettlementRecordDTO, 0, len(records))
+	for _, record := range records {
+		dto := adminTeamSettlementRecordDTO{
+			Settlement:  record.Settlement,
+			Allocations: make([]adminTeamRewardAllocationDTO, 0, len(record.Allocations)),
+		}
+		for _, allocation := range record.Allocations {
+			var paidAt *string
+			if allocation.PaidAt != nil {
+				value := allocation.PaidAt.Format("2006-01-02T15:04:05Z07:00")
+				paidAt = &value
+			}
+			dto.Allocations = append(dto.Allocations, adminTeamRewardAllocationDTO{
+				ID:           allocation.ID,
+				SettlementID: allocation.SettlementID,
+				UserID:       allocation.UserID,
+				DisplayName:  allocation.DisplayName,
+				AvatarURL:    allocation.AvatarURL,
+				Email:        allocation.Email,
+				Contribution: allocation.Contribution.StringFixed(8),
+				Ratio:        allocation.Ratio.StringFixed(8),
+				RewardAmount: allocation.RewardAmount.StringFixed(8),
+				PayoutStatus: allocation.PayoutStatus,
+				PaidAt:       paidAt,
+				LastError:    allocation.LastError,
+			})
+		}
+		out = append(out, dto)
+	}
+	return out
+}
+
+func toAdminTeamSummaryDTO(team *service.PlayTeamSummary) *adminTeamSummaryDTO {
+	if team == nil {
+		return nil
+	}
+	out := &adminTeamSummaryDTO{
+		ID:               team.ID,
+		Name:             team.Name,
+		InviteCode:       team.InviteCode,
+		CaptainID:        team.CaptainID,
+		MemberCount:      team.MemberCount,
+		TokenSum:         team.TokenSum,
+		Members:          make([]adminTeamMemberDTO, 0, len(team.Members)),
+		CurrentMonth:     team.CurrentMonth,
+		TeamSpend:        team.TeamSpend.StringFixed(8),
+		ReachedThreshold: team.ReachedThreshold.StringFixed(8),
+		RewardRate:       team.RewardRate.StringFixed(8),
+		NextThreshold:    team.NextThreshold.StringFixed(8),
+		EstimatedPool:    team.EstimatedPool.StringFixed(8),
+		RewardCap:        team.RewardCap.StringFixed(8),
+		RewardTiers:      team.RewardTiers,
+	}
+	for _, member := range team.Members {
+		out.Members = append(out.Members, adminTeamMemberDTO{
+			UserID:          member.UserID,
+			DisplayName:     member.DisplayName,
+			Email:           member.Email,
+			AvatarURL:       member.AvatarURL,
+			JoinedAt:        member.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
+			TokenSum:        member.TokenSum,
+			TokenPct:        member.TokenPct,
+			Spend:           member.Spend.StringFixed(8),
+			SpendPct:        member.SpendPct,
+			EstimatedReward: member.EstimatedReward.StringFixed(8),
+		})
+	}
+	return out
 }

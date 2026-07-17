@@ -216,6 +216,7 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 	}
 	out.TokenSum = tokenSum
 	out.Rank = rank
+	out.EstimatedReward = arenaRewardForRank(rank, rt.ArenaSettlementRewards)
 	out.DisplayTokenSum = tokenSum
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
 	if err != nil {

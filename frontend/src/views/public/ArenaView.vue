@@ -171,6 +171,9 @@ onMounted(load)
           <p v-if="monthlyCurrent?.tokens_to_prev_rank" class="play-intro font-medium text-amber-700 dark:text-amber-300">
             {{ t('arena.gapToPrev', { gap: monthlyCurrent.tokens_to_prev_rank.toLocaleString() }) }}
           </p>
+          <p v-if="monthlyCurrent?.rank" class="play-intro">
+            {{ t('arena.estimatedReward', { amount: Number(monthlyCurrent.estimated_reward || 0).toFixed(2) }) }}
+          </p>
         </section>
 
         <div class="arena-rpg-tabs">
