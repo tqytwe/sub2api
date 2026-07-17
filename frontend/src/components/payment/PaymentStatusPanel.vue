@@ -130,6 +130,7 @@ import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import { currencySymbol, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
+import { isPaymentFailureStatus, isPaymentSuccessStatus, normalizeOrderStatus } from '@/components/payment/orderUtils'
 import type { PaymentOrder } from '@/types/payment'
 import Icon from '@/components/icons/Icon.vue'
 import QRCode from 'qrcode'
@@ -227,7 +228,7 @@ function formatGatewayAmount(value: number, currency?: string | null): string {
 }
 
 function isSuccessStatus(status: string | null | undefined): boolean {
-  return status === 'COMPLETED' || status === 'PAID' || status === 'RECHARGING'
+  return isPaymentSuccessStatus(status)
 }
 
 function reopenPopup() {
@@ -258,7 +259,7 @@ async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder
   if (!isWxpay.value) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
-  const normalizedStatus = String(order.status || '').trim().toUpperCase()
+  const normalizedStatus = normalizeOrderStatus(order.status)
   if (normalizedStatus !== 'PENDING') return order
   const now = Date.now()
   if (verifyAttempts >= VERIFY_RETRY_MAX_ATTEMPTS || now - lastVerifyAt < VERIFY_RETRY_INTERVAL_MS) {
@@ -293,10 +294,10 @@ async function pollStatus() {
       paidOrder.value = order
       setOutcome('success')
       emit('success')
-    } else if (order.status === 'CANCELLED') {
+    } else if (normalizeOrderStatus(order.status) === 'CANCELLED') {
       cleanup()
       setOutcome('cancelled')
-    } else if (order.status === 'EXPIRED' || order.status === 'FAILED') {
+    } else if (isPaymentFailureStatus(order.status)) {
       cleanup()
       setOutcome('expired')
     }

@@ -59,6 +59,7 @@ import { useRoute } from 'vue-router'
 import { extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { buildApiUrl } from '@/api/client'
+import { isPaymentSuccessStatus } from '@/components/payment/orderUtils'
 
 interface StripeWithWechatPay {
   confirmWechatPayPayment(clientSecret: string, options: Record<string, unknown>): Promise<{ error?: { message?: string }; paymentIntent?: { status: string } }>
@@ -185,7 +186,7 @@ function startPolling() {
       if (!res.ok) return
       const data = await res.json()
       const status = data?.data?.status
-      if (status === 'COMPLETED' || status === 'PAID') {
+      if (isPaymentSuccessStatus(status)) {
         if (pollTimer) { clearInterval(pollTimer); pollTimer = null }
         success.value = true
         setTimeout(closeWindow, 2000)
