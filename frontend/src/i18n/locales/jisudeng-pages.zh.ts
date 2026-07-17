@@ -426,6 +426,9 @@ export const jisudengPagesZh = {
     count: '数量',
     apiKey: '使用 Key',
     model: '生图模型',
+    modelPurpose: {
+      imageGeneration: '生图专用',
+    },
     noModelSelected: '未选择模型',
     loadingModels: '加载模型中…',
     noModels: '当前 Key 的分组没有可用生图模型',

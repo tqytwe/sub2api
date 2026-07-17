@@ -11,6 +11,7 @@ import { useImageStudioWorkspace } from '@/composables/useImageStudioWorkspace'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import {
   type ImageStudioJob,
+  type ImageStudioModelOption,
   type ImageStudioTemplate,
 } from '@/api/imageStudio'
 import {
@@ -94,8 +95,16 @@ const generateLabel = computed(() => {
 })
 
 const selectedModelLabel = computed(() =>
-  workspace.selectedModelOption.value?.display_name || workspace.selectedModel.value || t('imageStudio.noModelSelected'),
+  workspace.selectedModelOption.value
+    ? formatImageModelLabel(workspace.selectedModelOption.value)
+    : workspace.selectedModel.value || t('imageStudio.noModelSelected'),
 )
+
+function formatImageModelLabel(model: Pick<ImageStudioModelOption, 'id' | 'display_name'>) {
+  const base = model.display_name || model.id
+  const purpose = t('imageStudio.modelPurpose.imageGeneration')
+  return base.includes(purpose) ? base : `${base} · ${purpose}`
+}
 
 function selectTemplate(template: ImageStudioTemplate) {
   workspace.pickTemplate(template)
@@ -714,7 +723,7 @@ onBeforeUnmount(() => {
                   <span class="input-label">{{ t('imageStudio.model') }}</span>
                   <select v-model="workspace.selectedModel.value" class="input" :disabled="workspace.loadingModels.value || !workspace.availableModels.value.length || workspace.generating.value">
                     <option v-if="workspace.loadingModels.value" value="">{{ t('imageStudio.loadingModels') }}</option>
-                    <option v-for="model in workspace.availableModels.value" :key="model.id" :value="model.id">{{ model.display_name || model.id }}</option>
+                    <option v-for="model in workspace.availableModels.value" :key="model.id" :value="model.id">{{ formatImageModelLabel(model) }}</option>
                   </select>
                 </label>
                 <label v-if="workspace.showQuality.value" class="block">
