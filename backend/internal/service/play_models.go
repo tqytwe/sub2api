@@ -322,6 +322,10 @@ type PlayRepository interface {
 	SumTeamTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (int64, error)
 	ListTeamMemberTokenUsage(ctx context.Context, userIDs []int64, start, end time.Time) (map[int64]int64, error)
 	ListActiveCampaigns(ctx context.Context, now time.Time) ([]PlayCampaign, error)
+	ListAdminCampaigns(ctx context.Context) ([]PlayCampaign, error)
+	CreateAdminCampaign(ctx context.Context, campaign PlayCampaign) (*PlayCampaign, error)
+	UpdateAdminCampaign(ctx context.Context, campaign PlayCampaign) (*PlayCampaign, error)
+	DeleteAdminCampaign(ctx context.Context, id int64) error
 	UpsertQuestProgress(ctx context.Context, userID int64, questDate time.Time, questKey string, completed bool) error
 	ListQuestProgress(ctx context.Context, userID int64, questDate time.Time) ([]PlayQuestProgressRow, error)
 	GetUserDailyTokenSum(ctx context.Context, userID int64, start, end time.Time) (int64, error)

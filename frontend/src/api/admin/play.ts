@@ -1,5 +1,5 @@
 import { apiClient } from '../client'
-import type { PlayArenaPeriod, PlayBlindboxPool, PlayTeamSettlementRecord, PlayTeamSummary, TeamRewardTier } from '../play'
+import type { PlayArenaPeriod, PlayBlindboxPool, PlayCampaignRules, PlayTeamSettlementRecord, PlayTeamSummary, TeamRewardTier } from '../play'
 
 export type { PlayBlindboxPool, PlayBlindboxPoolTier } from '../play'
 
@@ -74,6 +74,24 @@ export interface AdminPlayOpsSummary {
   daily_arena_reward_budget: number
 }
 
+export interface AdminPlayCampaign {
+  id: number
+  name: string
+  start_at: string
+  end_at: string
+  rules: PlayCampaignRules
+  enabled: boolean
+  created_at: string
+}
+
+export interface AdminPlayCampaignInput {
+  name: string
+  start_at: string
+  end_at: string
+  rules: PlayCampaignRules
+  enabled: boolean
+}
+
 export interface AdminPlayTeamDetail {
   team: PlayTeamSummary
   created_at: string
@@ -110,6 +128,25 @@ export async function getSummary(): Promise<AdminPlayOpsSummary> {
   return data
 }
 
+export async function listCampaigns(): Promise<AdminPlayCampaign[]> {
+  const { data } = await apiClient.get<AdminPlayCampaign[]>('/admin/play/campaigns')
+  return data ?? []
+}
+
+export async function createCampaign(input: AdminPlayCampaignInput): Promise<AdminPlayCampaign> {
+  const { data } = await apiClient.post<AdminPlayCampaign>('/admin/play/campaigns', input)
+  return data
+}
+
+export async function updateCampaign(id: number, input: AdminPlayCampaignInput): Promise<AdminPlayCampaign> {
+  const { data } = await apiClient.put<AdminPlayCampaign>(`/admin/play/campaigns/${id}`, input)
+  return data
+}
+
+export async function deleteCampaign(id: number): Promise<void> {
+  await apiClient.delete(`/admin/play/campaigns/${id}`)
+}
+
 export async function listTeams(params: { status?: 'active' | 'archived' | 'all'; q?: string; page?: number; page_size?: number } = {}): Promise<AdminPlayTeamList> {
   const { data } = await apiClient.get<AdminPlayTeamList>('/admin/play/teams', { params })
   return data
@@ -133,6 +170,10 @@ export const adminPlayAPI = {
   listTeamRewardSettlements,
   retryTeamRewardSettlement,
   getSummary,
+  listCampaigns,
+  createCampaign,
+  updateCampaign,
+  deleteCampaign,
   getArenaLeaderboard,
   listTeams,
   getTeam,

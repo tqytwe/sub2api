@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"strings"
 	"time"
+
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 type PlayCampaignRules struct {
@@ -53,6 +55,47 @@ func (s *PlayService) ListActiveCampaigns(ctx context.Context) ([]PlayCampaignSu
 		out = append(out, toPlayCampaignSummary(row))
 	}
 	return out, nil
+}
+
+func (s *PlayService) ListAdminCampaigns(ctx context.Context) ([]PlayCampaign, error) {
+	if s.repo == nil {
+		return nil, nil
+	}
+	return s.repo.ListAdminCampaigns(ctx)
+}
+
+func (s *PlayService) CreateAdminCampaign(ctx context.Context, campaign PlayCampaign) (*PlayCampaign, error) {
+	if err := validateAdminPlayCampaign(&campaign); err != nil {
+		return nil, err
+	}
+	return s.repo.CreateAdminCampaign(ctx, campaign)
+}
+
+func (s *PlayService) UpdateAdminCampaign(ctx context.Context, campaign PlayCampaign) (*PlayCampaign, error) {
+	if campaign.ID <= 0 {
+		return nil, infraerrors.BadRequest("PLAY_CAMPAIGN_INVALID_ID", "campaign id is invalid")
+	}
+	if err := validateAdminPlayCampaign(&campaign); err != nil {
+		return nil, err
+	}
+	updated, err := s.repo.UpdateAdminCampaign(ctx, campaign)
+	if err != nil {
+		return nil, err
+	}
+	if updated == nil {
+		return nil, infraerrors.NotFound("PLAY_CAMPAIGN_NOT_FOUND", "campaign not found")
+	}
+	return updated, nil
+}
+
+func (s *PlayService) DeleteAdminCampaign(ctx context.Context, id int64) error {
+	if id <= 0 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_INVALID_ID", "campaign id is invalid")
+	}
+	if err := s.repo.DeleteAdminCampaign(ctx, id); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *PlayService) resolvePlayEffectModifiers(ctx context.Context, userID int64, rt PlayRuntime) (PlayEffectModifiers, error) {
@@ -132,4 +175,57 @@ func ParsePlayCampaignRules(raw string) PlayCampaignRules {
 		rules.ArenaScoreMultiplier = 1
 	}
 	return rules
+}
+
+func validateAdminPlayCampaign(c *PlayCampaign) error {
+	c.Name = strings.TrimSpace(c.Name)
+	if c.Name == "" {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_NAME_REQUIRED", "campaign name is required")
+	}
+	if len([]rune(c.Name)) > 128 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_NAME_TOO_LONG", "campaign name must be at most 128 characters")
+	}
+	if c.StartAt.IsZero() || c.EndAt.IsZero() {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_TIME_REQUIRED", "campaign start and end time are required")
+	}
+	if !c.EndAt.After(c.StartAt) {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_TIME_INVALID", "campaign end time must be after start time")
+	}
+
+	if c.Rules.RechargeBonusPct < 0 || c.Rules.RechargeBonusPct > 1000 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_RECHARGE_BONUS_INVALID", "recharge bonus must be between 0 and 1000")
+	}
+	if c.Rules.BlindboxExtraOpens < 0 || c.Rules.BlindboxExtraOpens > 100 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_BLINDBOX_EXTRA_INVALID", "blindbox extra opens must be between 0 and 100")
+	}
+	if c.Rules.ArenaScoreMultiplier < 0 || c.Rules.ArenaScoreMultiplier > 100 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be between 0 and 100")
+	}
+	if c.Rules.ArenaScoreMultiplier > 0 && c.Rules.ArenaScoreMultiplier < 1 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be 0 or at least 1")
+	}
+
+	if len(c.Rules.NameI18n) > 0 {
+		clean := make(map[string]string, len(c.Rules.NameI18n))
+		for key, value := range c.Rules.NameI18n {
+			locale := strings.TrimSpace(strings.ToLower(key))
+			name := strings.TrimSpace(value)
+			if locale == "" || name == "" {
+				continue
+			}
+			if locale != "zh" && locale != "en" {
+				return infraerrors.BadRequest("PLAY_CAMPAIGN_NAME_I18N_INVALID", "campaign localized names only support zh and en")
+			}
+			if len([]rune(name)) > 128 {
+				return infraerrors.BadRequest("PLAY_CAMPAIGN_NAME_I18N_TOO_LONG", "campaign localized names must be at most 128 characters")
+			}
+			clean[locale] = name
+		}
+		if len(clean) == 0 {
+			c.Rules.NameI18n = nil
+		} else {
+			c.Rules.NameI18n = clean
+		}
+	}
+	return nil
 }
