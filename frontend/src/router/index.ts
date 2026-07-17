@@ -16,6 +16,8 @@ import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { useTheme } from '@/composables/useTheme'
 
+const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
+
 /**
  * Route definitions with lazy loading
  */
@@ -769,6 +771,19 @@ const routes: RouteRecordRaw[] = [
       title: 'Risk Control',
       titleKey: 'admin.riskControl.title',
       descriptionKey: 'admin.riskControl.description',
+      requiresRiskControl: true
+    }
+  },
+  {
+    path: adminPromptAuditPath,
+    name: 'AdminPromptAudit',
+    component: () => import('@/features/security-audit/PromptAuditRouteView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: '提示词审计',
+      titleKey: 'admin.promptAudit.title',
+      descriptionKey: 'admin.promptAudit.description',
       requiresRiskControl: true
     }
   },

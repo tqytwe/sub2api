@@ -1,6 +1,7 @@
 import { jisudengHomeZh } from './jisudeng-home.zh'
 import { jisudengPagesZh } from './jisudeng-pages.zh'
 import auditAdminZh from './zh/admin/audit'
+import promptAuditAdminZh from './zh/admin/promptAudit'
 
 export default {
   batchImageGuide: {
@@ -464,10 +465,13 @@ export default {
     channelManagement: '渠道管理',
     channelPricing: '渠道定价',
     channelMonitor: '渠道监控',
-    channelStatus: '渠道状态',
+	channelStatus: '渠道状态',
     riskControl: '风控中心',
-    modelsAndPricing: '模型与价格',
-    modelCatalog: '模型价目',
+    securityAudit: '安全审计',
+    contentModeration: '内容审核',
+    promptAudit: '提示词审计',
+	modelsAndPricing: '模型与价格',
+	modelCatalog: '模型价目',
     auditLogs: '操作日志',
     auditlogs: '操作日志',
   },
@@ -1579,6 +1583,7 @@ export default {
   // Admin
   admin: {
     ...auditAdminZh,
+    ...promptAuditAdminZh,
     playOps: {
       title: '玩法运营',
       description: '查看 Token 农场、Agent Team、奖励结算与异常状态',
