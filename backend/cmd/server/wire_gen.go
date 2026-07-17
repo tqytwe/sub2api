@@ -303,7 +303,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	playHandler := handler.NewPlayHandler(playService, billingService)
 	imageStudioRepository := repository.NewImageStudioRepository(client, db)
 	imageStudioService := service.ProvideImageStudioService(imageStudioRepository, apiKeyService, userRepository, settingService, playService, batchImageModelPricingResolver, gatewayService, promptLibraryRepository, configConfig, secretEncryptor, usageBillingRepository, billingCacheService)
-	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, openAIGatewayHandler, apiKeyService)
+	imageStudioHandler := handler.NewImageStudioHandler(imageStudioService, openAIGatewayHandler, gatewayHandler, apiKeyService)
 	modelPricingHandler := handler.NewModelPricingHandler(modelCatalogService, playService, billingService)
 	handlerPromptLibraryHandler := handler.NewPromptLibraryHandler(promptLibraryService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)

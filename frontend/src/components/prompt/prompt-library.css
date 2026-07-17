@@ -39,10 +39,14 @@
 }
 
 .prompt-library-home-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: inherit;
+  cursor: pointer;
   font-size: 14px;
   font-weight: 650;
 }

@@ -75,6 +75,8 @@ func ResolveImageStudioProviderCapability(platform, model string) (ImageStudioMo
 	switch platform {
 	case PlatformOpenAI:
 		return resolveOpenAIImageStudioCapability(model)
+	case PlatformGemini:
+		return resolveGeminiImageStudioCapability(model)
 	case PlatformGrok:
 		return resolveGrokImageStudioCapability(model)
 	default:
@@ -127,6 +129,28 @@ func resolveOpenAIImageStudioCapability(model string) (ImageStudioModelCapabilit
 		capability.SupportsTransparency = true
 	}
 	return capability, true
+}
+
+func resolveGeminiImageStudioCapability(model string) (ImageStudioModelCapabilities, bool) {
+	if !isImageGenerationModel(model) {
+		return ImageStudioModelCapabilities{}, false
+	}
+	return ImageStudioModelCapabilities{
+		Platform:               PlatformGemini,
+		ProfileID:              PlatformGemini + ":" + model + ":v1",
+		Revision:               imageStudioCapabilityRevision,
+		Operations:             []string{"create", "edit"},
+		SizingKind:             "aspect_resolution",
+		SupportedSizes:         imageStudioSizesThroughTier(ImageBillingSize2K),
+		SupportedAspectRatios:  []string{"1:1", "2:3", "3:2", "9:16", "16:9"},
+		SupportedResolutions:   []string{"1k", "2k"},
+		SupportedOutputFormats: []string{"png"},
+		MaxReferenceImages:     4,
+		DefaultSize:            defaultImageStudioSize,
+		DefaultAspectRatio:     "1:1",
+		DefaultResolution:      "1k",
+		DefaultOutputFormat:    "png",
+	}, true
 }
 
 func resolveGrokImageStudioCapability(model string) (ImageStudioModelCapabilities, bool) {

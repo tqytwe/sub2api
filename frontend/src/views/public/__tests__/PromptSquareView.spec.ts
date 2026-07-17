@@ -5,10 +5,14 @@ import PromptSquareView from '@/views/public/PromptSquareView.vue'
 const {
   favoritePromptMock,
   listPromptsMock,
+  pushMock,
+  routerBackMock,
   unfavoritePromptMock,
 } = vi.hoisted(() => ({
   favoritePromptMock: vi.fn(),
   listPromptsMock: vi.fn(),
+  pushMock: vi.fn(),
+  routerBackMock: vi.fn(),
   unfavoritePromptMock: vi.fn(),
 }))
 
@@ -34,13 +38,15 @@ vi.mock('@/stores/app', () => ({
 
 vi.mock('vue-router', () => ({
   useRoute: () => ({ query: {}, fullPath: '/prompts' }),
-  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  useRouter: () => ({ back: routerBackMock, replace: vi.fn(), push: pushMock }),
 }))
 
 describe('PromptSquareView', () => {
   beforeEach(() => {
     favoritePromptMock.mockReset()
     unfavoritePromptMock.mockReset()
+    pushMock.mockReset()
+    routerBackMock.mockReset()
     listPromptsMock.mockReset().mockResolvedValue({
       items: [{
         id: 'prompt-1',
@@ -92,5 +98,47 @@ describe('PromptSquareView', () => {
     await flushPromises()
 
     expect(wrapper.get('[data-testid="favorite"]').text()).toBe('20-true')
+  })
+
+  it('returns to the previous page when browser history exists', async () => {
+    Object.defineProperty(window.history, 'length', { configurable: true, value: 2 })
+    const wrapper = mount(PromptSquareView, {
+      global: {
+        stubs: {
+          PromptCard: true,
+          PromptFilters: true,
+          Pagination: true,
+          PublicPageToolbar: true,
+          Icon: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('[aria-label="返回上一页"]').trigger('click')
+
+    expect(routerBackMock).toHaveBeenCalledTimes(1)
+    expect(pushMock).not.toHaveBeenCalled()
+  })
+
+  it('falls back to home when opened directly', async () => {
+    Object.defineProperty(window.history, 'length', { configurable: true, value: 1 })
+    const wrapper = mount(PromptSquareView, {
+      global: {
+        stubs: {
+          PromptCard: true,
+          PromptFilters: true,
+          Pagination: true,
+          PublicPageToolbar: true,
+          Icon: true,
+        },
+      },
+    })
+    await flushPromises()
+
+    await wrapper.get('[aria-label="返回上一页"]').trigger('click')
+
+    expect(routerBackMock).not.toHaveBeenCalled()
+    expect(pushMock).toHaveBeenCalledWith('/home')
   })
 })

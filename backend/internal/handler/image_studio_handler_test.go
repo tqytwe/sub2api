@@ -225,7 +225,7 @@ func newImageStudioUploadHandlerForTest(t *testing.T) (*ImageStudioHandler, *ima
 		nil,
 		nil,
 	)
-	return NewImageStudioHandler(studio, nil, nil), repo
+	return NewImageStudioHandler(studio, nil, nil, nil), repo
 }
 
 func newImageStudioReferenceRequest(t *testing.T, image []byte) *http.Request {
