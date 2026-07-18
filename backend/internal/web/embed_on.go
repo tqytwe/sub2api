@@ -99,13 +99,19 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 		}
 
 		// For index.html or SPA routes, serve with injected settings
-		if cleanPath == "index.html" || !s.fileExists(cleanPath) {
+		if cleanPath == "index.html" {
 			s.serveIndexHTML(c)
 			return
 		}
-
-		// Try local override first
 		if s.tryServeOverride(c, cleanPath) {
+			return
+		}
+		if !s.fileExists(cleanPath) {
+			if isEmbeddedAssetRequest(cleanPath) {
+				serveMissingEmbeddedAsset(c)
+				return
+			}
+			s.serveIndexHTML(c)
 			return
 		}
 
@@ -268,20 +274,35 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 			cleanPath = "index.html"
 		}
 
+		if cleanPath != "index.html" && tryServeOverrideFile(c, overrideDir, cleanPath) {
+			return
+		}
+
 		if file, err := distFS.Open(cleanPath); err == nil {
 			_ = file.Close()
-			// Try local override first
-			if tryServeOverrideFile(c, overrideDir, cleanPath) {
-				return
-			}
 			applyStaticAssetCacheHeaders(c.Writer.Header(), cleanPath)
 			fileServer.ServeHTTP(c.Writer, c.Request)
 			c.Abort()
 			return
 		}
 
+		if isEmbeddedAssetRequest(cleanPath) {
+			serveMissingEmbeddedAsset(c)
+			return
+		}
+
 		serveIndexHTML(c, distFS)
 	}
+}
+
+func isEmbeddedAssetRequest(cleanPath string) bool {
+	return strings.HasPrefix(cleanPath, "assets/")
+}
+
+func serveMissingEmbeddedAsset(c *gin.Context) {
+	c.Header("Cache-Control", "no-store")
+	c.String(http.StatusNotFound, "static asset not found")
+	c.Abort()
 }
 
 // tryServeOverrideFile is a standalone version of tryServeOverride for legacy usage.
