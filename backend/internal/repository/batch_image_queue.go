@@ -178,6 +178,31 @@ func (q *batchImageQueue) Enqueue(ctx context.Context, batchID string) error {
 	return nil
 }
 
+func (q *batchImageQueue) Ping(ctx context.Context) error {
+	if q == nil || q.rdb == nil {
+		return redis.ErrClosed
+	}
+	return q.rdb.Ping(ctx).Err()
+}
+
+func (q *batchImageQueue) Stats(ctx context.Context) (service.BatchImageQueueStats, error) {
+	if q == nil || q.rdb == nil {
+		return service.BatchImageQueueStats{}, redis.ErrClosed
+	}
+	pipe := q.rdb.Pipeline()
+	ready := pipe.LLen(ctx, q.readyKey)
+	delayed := pipe.ZCard(ctx, q.delayedKey)
+	active := pipe.ZCard(ctx, q.activeKey)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return service.BatchImageQueueStats{}, err
+	}
+	return service.BatchImageQueueStats{
+		Ready:   ready.Val(),
+		Delayed: delayed.Val(),
+		Active:  active.Val(),
+	}, nil
+}
+
 func (q *batchImageQueue) Reserve(ctx context.Context, blockTimeout time.Duration) (service.ReservedBatchImageJob, error) {
 	deadline := time.Now().Add(blockTimeout)
 	for {

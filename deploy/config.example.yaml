@@ -1246,3 +1246,13 @@ image_storage:
   presign_expiry_hours: 24
   # 当上游返回的是图片 url 时，下载该图片再转存的字节上限（默认 32MB）
   max_download_bytes: 33554432
+
+# =============================================================================
+# Durable Batch Image (持久化异步批量生图)
+# =============================================================================
+# 通用默认关闭。上线时先开启 queue_enabled，让 worker 恢复和排空存量任务；
+# 完成 Gemini API Key 账号、模型映射、分组权限和价格预检后，再开启 enabled
+# 接受新的 POST /v1/images/batches 提交。
+batch_image:
+  queue_enabled: false
+  enabled: false

@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -14,7 +15,12 @@ import (
 )
 
 type OpsHandler struct {
-	opsService *service.OpsService
+	opsService          *service.OpsService
+	imageRuntimesHealth ImageRuntimesHealthProvider
+}
+
+type ImageRuntimesHealthProvider interface {
+	GetImageRuntimesHealth(ctx context.Context) (*service.ImageRuntimesHealth, error)
 }
 
 // GetErrorLogByID returns ops error log detail.
@@ -68,8 +74,18 @@ func parseOpsViewParam(c *gin.Context) string {
 	}
 }
 
-func NewOpsHandler(opsService *service.OpsService) *OpsHandler {
-	return &OpsHandler{opsService: opsService}
+func NewOpsHandler(opsService *service.OpsService, health ...ImageRuntimesHealthProvider) *OpsHandler {
+	h := &OpsHandler{opsService: opsService}
+	if len(health) > 0 {
+		h.imageRuntimesHealth = health[0]
+	}
+	return h
+}
+
+func (h *OpsHandler) SetImageRuntimesHealthProvider(health ImageRuntimesHealthProvider) {
+	if h != nil {
+		h.imageRuntimesHealth = health
+	}
 }
 
 // GetErrorLogs lists ops error logs.

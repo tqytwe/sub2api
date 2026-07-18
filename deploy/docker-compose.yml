@@ -97,6 +97,14 @@ services:
       - IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=${IMAGE_STORAGE_MAX_DOWNLOAD_BYTES:-33554432}
 
       # =======================================================================
+      # Durable Batch Image
+      # Enable the queue first to drain/recover existing jobs, then enable API
+      # submissions after account, model, group, and pricing preflight passes.
+      # =======================================================================
+      - BATCH_IMAGE_QUEUE_ENABLED=${BATCH_IMAGE_QUEUE_ENABLED:-false}
+      - BATCH_IMAGE_ENABLED=${BATCH_IMAGE_ENABLED:-false}
+
+      # =======================================================================
       # Admin Account (auto-created on first run)
       # =======================================================================
       - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@sub2api.local}

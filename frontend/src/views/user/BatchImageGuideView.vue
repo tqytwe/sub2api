@@ -695,7 +695,7 @@
       <template #footer>
         <div class="flex justify-end gap-3">
           <button type="button" class="btn btn-secondary" :disabled="submitting" @click="closeCreateModal">取消</button>
-	          <button type="button" class="btn btn-primary inline-flex min-w-[120px] justify-center" :disabled="submitting || loadingModels || (parsedItems.length === 0 && !promptDraft.trim()) || !selectedApiKey || !form.model" @click="submitJob">
+	          <button type="button" class="btn btn-primary inline-flex min-w-[120px] justify-center" :disabled="submitting || loadingModels || !!modelLoadError || (parsedItems.length === 0 && !promptDraft.trim()) || !selectedApiKey || !form.model" @click="submitJob">
             <Icon v-if="submitting" name="refresh" size="sm" class="mr-2 animate-spin" />
             {{ submitting ? '提交中...' : '提交任务' }}
           </button>
@@ -708,8 +708,8 @@
 	        <section class="space-y-3">
 	          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">当前界面如何使用</h3>
 	          <div class="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm leading-6 text-gray-700 dark:border-dark-700 dark:bg-dark-900/50 dark:text-gray-200">
-	            <p>1. 选择已开启批量生图的 Gemini API Key，模型列表会按该 Key 所属分组可用模型展示。</p>
-	            <p>2. 任务名称可以留空，提交时会自动使用当前时间；Prompt 需要一条条添加到列表里，每条 Prompt 可附参考图，也可以设置重复生成张数。</p>
+	            <p>1. 选择已开启批量生图的 Gemini API Key。页面会先调用模型预检；平台关闭、运行时异常、分组未开、无账号、无模型或缺少价格时都会禁用提交并显示原因。</p>
+	            <p>2. 任务名称可以留空，提交时会自动使用当前时间；Prompt 需要一条条添加到列表里。生成 5 张请添加 5 个 items，生成 10 张请添加 10 个 items，不要给单个 item 填 output_count=10（单 item 最多 4）。</p>
 	            <p>3. 提交后任务会先排队，明细会展示已提交的 Prompt；图片预览默认不加载，点击明细里的预览按钮才会加载单张图。</p>
 	            <p>4. 完成后可以下载 ZIP；部分失败时，更多菜单里可以只重试失败项。当前结算仍按成功输出图张数计算，不单独对参考图加价。</p>
 	          </div>
@@ -753,6 +753,12 @@ import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize, setPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { useAppStore } from '@/stores/app'
 import { keysAPI } from '@/api'
+import {
+  batchImageAvailabilityIssue,
+  createBatchImageIdempotencyKey,
+  resolveBatchImageSubmissionAttempt,
+  type BatchImageSubmissionAttempt,
+} from '@/utils/batchImageSubmission'
 import {
   cancelBatchImageJob,
   deleteBatchImageJobRecord,
@@ -924,6 +930,8 @@ let previewCacheCleanupTimer: ReturnType<typeof setInterval> | null = null
 let promptPopoverCloseTimer: ReturnType<typeof setTimeout> | null = null
 let promptPopoverOpenTimer: ReturnType<typeof setTimeout> | null = null
 let activePromptPopoverTarget: HTMLElement | null = null
+let pendingCreateSubmission: BatchImageSubmissionAttempt | null = null
+const pendingRetrySubmissions = new Map<string, BatchImageSubmissionAttempt>()
 
 const geminiApiKeys = computed(() =>
   apiKeys.value.filter((key) =>
@@ -1070,7 +1078,7 @@ ${endpointBase.value}
 4. 提交前必须先计算 expected_output_count = 所有 item 的 output_count 之和。单个批量任务硬性最多 200 张输出图；超过 200 张必须拆成多组任务，不能提交一个超大任务，也不能把参考图附件上限当成生成张数上限。
 5. 如果用户提供参考图，把参考图按用途绑定到具体 item。参考图只是输入附件，不是输出图数量。模型单条限制必须按模型执行：Gemini 2.5 Flash Image 每条最多 3 张参考图；Gemini 3 Pro Image 每条最多 14 张参考图。不要把后端附件风控理解成 Pro 单条能力：按 output_count 展开后，所有 item 的参考图附件总数还有内部保护阈值 1000 个，inline base64 参考图解码后总量最多 128MB。这个 1000 只是服务器拒绝异常请求的保护阈值，不是推荐规模；参考图很多或总请求体较大时应主动拆分任务。
 6. 参考图会按 output_count 重复消耗输入 token；大量任务、重复复用同一张参考图或参考图总体积较大时，优先使用 gs:// file_uri 或拆分成多组任务。
-7. 选择 API Key 和模型：先获取当前可用的批量生图 Key/模型；如果用户指定模型且该 Key 支持，则使用用户指定模型；否则使用该 Key 可用模型中的默认/第一个。不要展示或询问内部 provider 名称。
+7. 选择 API Key 和模型：必须先调用 GET /v1/images/batches/models 做完整预检；如果用户指定模型且该 Key 支持，则使用用户指定模型；否则使用该 Key 可用模型中的默认/第一个。不要展示或询问内部 provider 名称。BATCH_IMAGE_DISABLED 表示平台未开放新提交，BATCH_IMAGE_NOT_READY 表示 Redis/队列/worker 运行时未就绪；分组、账号、模型和价格错误也必须原样告知用户。
 8. 调用批量生图 API 提交、轮询、下载，不要求用户去页面里手填。
 
 API 调用规范：
@@ -1108,6 +1116,8 @@ API 调用规范：
 - 不要把 API Key 写入仓库、日志、提交记录或最终回复。
 - 不要把参考图 base64 写入最终回复、日志或公开文件。恢复记录中只保存参考图文件名、用途、数量和请求 JSON 文件路径；若请求 JSON 文件包含 base64，应保存在用户指定输出目录且不要提交到仓库。
 - output_count 表示同一 prompt 和参考图重复生成几张，默认 1，每条最多 4；这不是依赖 Gemini 单次请求返回多图，而是系统展开成多个真实任务项。提交前必须确认预计输出图总数不超过 200，超过就拆分成多组任务。绝不能因为参考图附件有更高的内部保护阈值，就提交会生成超过 200 张图的任务。
+- 需要 5 张时使用 5 个独立 items，需要 10 张时使用 10 个独立 items；不要使用单 item 的 output_count=5 或 output_count=10。
+- 每次首次提交生成一个 Idempotency-Key；网络失败或超时后重试同一请求时必须复用该 key，只有请求内容改变时才生成新 key。
 - 当前对用户的批量生图计费仍按成功输出图片数量结算，不单独对参考图加价。可以向用户说明：参考图会产生少量上游输入 token 和临时存储成本，且会随 output_count 重复计算；页面显示的冻结/结算金额按输出图片数量计算。
 - 提交成功后，必须立刻在输出目录写入本地恢复记录，例如 batch-image-resume.json。不要在恢复记录里保存 API Key。
 - 恢复记录至少包含：endpoint、task_name、batch_id、model、output_dir、request_file、submitted_at、last_status、status_url、items_url、download_url、prompt_count、expected_output_count，以及可用于失败重试的 custom_id 到 prompt 映射或请求 JSON 文件路径。
@@ -1272,7 +1282,10 @@ async function loadAvailableModels() {
     form.model = availableBatchImageModels.value[0]?.value || ''
   } catch (error: any) {
     if (requestID !== modelRequestSeq) return
-    modelLoadError.value = batchImageErrorMessage(error, batchImageText('loadModelsFailed'))
+    const availabilityIssue = batchImageAvailabilityIssue(error)
+    modelLoadError.value = availabilityIssue
+      ? batchImageText(availabilityIssue)
+      : batchImageErrorMessage(error, batchImageText('loadModelsFailed'))
   } finally {
     if (requestID === modelRequestSeq) {
       loadingModels.value = false
@@ -1618,29 +1631,34 @@ async function submitJob() {
   if (!validateForm()) return
   const key = requireApiKey()
   if (!key) return
-	  submitting.value = true
-	  try {
-	    const job = await submitBatchImageJob(
-	      key.key,
-	      {
-	        model: form.model,
-        task_name: form.taskName.trim() || defaultTaskName(),
-        image_size: '1K',
-        response_mime_type: form.responseMimeType,
-        items: parsedItems.value,
-	      },
-	      `sub2api-ui-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
-	    )
-	    currentJob.value = job
-	    selectedBatchId.value = job.id
-	    selectedBatchApiKeyId.value = key.id
-	    items.value = []
-	    upsertJob(job)
-	    showCreateModal.value = false
-	    resetCreateDraft()
-	    appStore.showSuccess(batchImageText('submitted'))
-	    void loadItems()
-	    startPolling()
+  const taskName = form.taskName.trim() || defaultTaskName()
+  if (!form.taskName.trim()) form.taskName = taskName
+  const payload = {
+    model: form.model,
+    task_name: taskName,
+    image_size: '1K',
+    response_mime_type: form.responseMimeType,
+    items: parsedItems.value,
+  }
+  pendingCreateSubmission = resolveBatchImageSubmissionAttempt(
+    pendingCreateSubmission,
+    payload,
+    () => createBatchImageIdempotencyKey('sub2api-ui'),
+  )
+  submitting.value = true
+  try {
+    const job = await submitBatchImageJob(key.key, payload, pendingCreateSubmission.key)
+    pendingCreateSubmission = null
+    currentJob.value = job
+    selectedBatchId.value = job.id
+    selectedBatchApiKeyId.value = key.id
+    items.value = []
+    upsertJob(job)
+    showCreateModal.value = false
+    resetCreateDraft()
+    appStore.showSuccess(batchImageText('submitted'))
+    void loadItems()
+    startPolling()
   } catch (error: any) {
     appStore.showError(batchImageErrorMessage(error, batchImageText('submitFailed')))
   } finally {
@@ -1799,19 +1817,28 @@ async function retryFailedJob(job: BatchImageJobRow | BatchImageJob) {
       appStore.showError(batchImageText('retryMissingPrompts'))
       return
     }
-    const retryJob = await submitBatchImageJob(
-      key.key,
-      {
-        model: job.model,
-        task_name: `${job.task_name || defaultTaskName()} 重试失败项`,
-        parent_batch_id: rootBatchIdForRetry(job),
-        provider: job.provider,
-        image_size: '1K',
-        response_mime_type: form.responseMimeType,
-        items: failedItems,
-      },
-      `sub2api-ui-retry-${job.id}-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+    const preflight = await listBatchImageModels(key.key)
+    if (!(preflight.data || []).some(model => model.id === job.model)) {
+      appStore.showError(batchImageText('noModelsForKey'))
+      return
+    }
+    const payload = {
+      model: job.model,
+      task_name: `${job.task_name || defaultTaskName(job.created_at)} 重试失败项`,
+      parent_batch_id: rootBatchIdForRetry(job),
+      provider: job.provider,
+      image_size: '1K',
+      response_mime_type: form.responseMimeType,
+      items: failedItems,
+    }
+    const attempt = resolveBatchImageSubmissionAttempt(
+      pendingRetrySubmissions.get(job.id) || null,
+      payload,
+      () => createBatchImageIdempotencyKey(`sub2api-ui-retry-${job.id}`),
     )
+    pendingRetrySubmissions.set(job.id, attempt)
+    const retryJob = await submitBatchImageJob(key.key, payload, attempt.key)
+    pendingRetrySubmissions.delete(job.id)
     currentJob.value = retryJob
     selectedBatchId.value = retryJob.id
     selectedBatchApiKeyId.value = key.id
@@ -2414,6 +2441,7 @@ type BatchImageTextKey =
   | 'loadingModels'
   | 'noModels'
   | 'noModelsHint'
+  | 'runtimeNotReady'
   | 'noCompatibleAccount'
   | 'unsupportedProvider'
   | 'providerSubmitFailed'
@@ -2479,6 +2507,7 @@ function batchImageText(key: BatchImageTextKey) {
     loadingModels: '加载可用模型中...',
     noModels: '无可用模型',
     noModelsHint: '当前密钥所属分组没有配置可用于批量生图的模型。',
+    runtimeNotReady: '批量生图运行时暂不可用，系统不会创建任务或冻结余额。请联系管理员检查 Redis、队列和 worker。',
     noCompatibleAccount: '当前密钥所属分组没有可用的批量生图上游账号。请联系管理员检查：该分组是否绑定了可调度的 Gemini API Key 或 Vertex 服务账号，以及账号是否支持所选模型。',
     unsupportedProvider: '这个任务使用的批量生图通道当前不可用。请联系管理员检查批量生图通道配置。',
     providerSubmitFailed: '上游批量生图任务提交失败。请联系管理员检查上游账号状态、模型权限或服务状态。',
@@ -2539,6 +2568,7 @@ function batchImageText(key: BatchImageTextKey) {
     loadingModels: 'Loading available models...',
     noModels: 'No available models',
     noModelsHint: 'This key’s group has no models configured for batch image generation.',
+    runtimeNotReady: 'The batch image runtime is unavailable. No job or balance hold will be created. Ask an administrator to check Redis, the queue, and workers.',
     noCompatibleAccount: 'No usable upstream batch image account is available for this key’s group. Contact an administrator to check the group’s schedulable Gemini API key or Vertex service account and model support.',
     unsupportedProvider: 'The batch image provider for this job is not available. Contact an administrator to check the batch image provider configuration.',
     providerSubmitFailed: 'The upstream batch image job failed to submit. Contact an administrator to check the upstream account, model permission, or provider status.',
@@ -2596,6 +2626,16 @@ function batchImagePlainError(base: string) {
 function batchImageErrorMessage(error: any, fallback: string) {
   const code = String(error?.code || '').trim()
   const message = String(error?.message || '').trim()
+  const availabilityIssue = batchImageAvailabilityIssue(error)
+  if (availabilityIssue === 'runtimeNotReady') {
+    return batchImageAdminError(batchImageText('runtimeNotReady'), error)
+  }
+  if (availabilityIssue === 'noModelsHint') {
+    return batchImagePlainError(batchImageText('noModelsHint'))
+  }
+  if (availabilityIssue === 'pricingMissing') {
+    return batchImageAdminError(batchImageText('pricingMissing'), error)
+  }
   if (code === 'API_KEY_REQUIRED' || code === '401') {
     return batchImagePlainError(batchImageText('authRequired'))
   }
@@ -2624,9 +2664,6 @@ function batchImageErrorMessage(error: any, fallback: string) {
   }
   if (code === 'BATCH_IMAGE_GROUP_DISABLED') {
     return batchImagePlainError(batchImageText('groupDisabled'))
-  }
-  if (code === 'BATCH_IMAGE_SETTLEMENT_PRICING_MISSING') {
-    return batchImageAdminError(batchImageText('pricingMissing'), error)
   }
   if (code === 'BATCH_IMAGE_INSUFFICIENT_BALANCE') {
     return batchImagePlainError(batchImageText('insufficientBalance'))

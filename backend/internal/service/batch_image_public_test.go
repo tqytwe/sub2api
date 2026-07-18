@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strings"
 	"testing"
@@ -23,6 +24,19 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		svc, _, _, _, _ := newTestBatchImagePublicService(false)
 		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
 		require.ErrorIs(t, err, ErrBatchImageDisabled)
+	})
+
+	t.Run("rejects when runtime is not ready before persistence or billing", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+		svc.Runtime = &fakeBatchImageRuntimeReadiness{err: ErrBatchImageRuntimeNotReady}
+
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+
+		require.ErrorIs(t, err, ErrBatchImageRuntimeNotReady)
+		require.Empty(t, repo.jobs)
+		require.Empty(t, queue.enqueued)
+		require.Empty(t, gemini.submits)
+		require.Empty(t, svc.BillingRepo.(*fakeBatchImageBillingRepo).reserves)
 	})
 
 	t.Run("accepts valid request stores refs and enqueues once", func(t *testing.T) {
@@ -62,6 +76,30 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.InDelta(t, 0.125, job.BillableUnitPrice, 1e-12)
 		require.InDelta(t, 0.15, job.HoldUnitPrice, 1e-12)
 	})
+
+	for _, itemCount := range []int{5, 10} {
+		t.Run(fmt.Sprintf("accepts %d independent items", itemCount), func(t *testing.T) {
+			svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+			svc.Config.BatchImage.MaxItemsPerJobDefault = 10
+			request := validBatchImageSubmitRequest()
+			request.Items = make([]BatchImageSubmitItem, 0, itemCount)
+			for i := 0; i < itemCount; i++ {
+				request.Items = append(request.Items, BatchImageSubmitItem{
+					CustomID: fmt.Sprintf("image_%02d", i+1),
+					Prompt:   fmt.Sprintf("p%02d", i+1),
+				})
+			}
+
+			got, err := svc.Submit(ctx, testBatchImageOwner(), request, "")
+
+			require.NoError(t, err)
+			require.Equal(t, itemCount, got.ItemCount)
+			require.Len(t, repo.jobs, 1)
+			require.Len(t, gemini.submits, 1)
+			require.Len(t, gemini.submits[0].Items, itemCount)
+			require.Equal(t, []string{got.ID}, queue.enqueued)
+		})
+	}
 
 	t.Run("combines user group image rate account rate discount and hold margin", func(t *testing.T) {
 		svc, repo, _, _, _ := newTestBatchImagePublicService(true)
@@ -459,18 +497,58 @@ func TestBatchImagePublicService_List(t *testing.T) {
 	require.Len(t, got.Data, 1)
 	require.Equal(t, "visible-1", got.Data[0].ID)
 	require.False(t, got.HasMore)
+
+	svc.Config.BatchImage.Enabled = false
+	got, err = svc.List(ctx, BatchImageOwner{UserID: 11, APIKeyID: visibleKeyID}, BatchImageJobsQuery{Limit: 20})
+	require.NoError(t, err)
+	require.Len(t, got.Data, 1)
+	require.Equal(t, "visible-1", got.Data[0].ID)
 }
 
 func TestBatchImagePublicService_ListModels(t *testing.T) {
 	ctx := context.Background()
 
-	t.Run("requires explicit account model mapping", func(t *testing.T) {
+	t.Run("rejects when runtime is not ready", func(t *testing.T) {
+		svc, _, _, _, _ := newTestBatchImagePublicService(true)
+		svc.Runtime = &fakeBatchImageRuntimeReadiness{err: ErrBatchImageRuntimeNotReady}
+
+		_, err := svc.ListModels(ctx, testBatchImageOwner())
+
+		require.ErrorIs(t, err, ErrBatchImageRuntimeNotReady)
+	})
+
+	t.Run("reports missing account model mapping", func(t *testing.T) {
 		svc, _, _, _, _ := newTestBatchImagePublicService(true)
 
-		got, err := svc.ListModels(ctx, testBatchImageOwner())
-		require.NoError(t, err)
-		require.Equal(t, "list", got.Object)
-		require.Empty(t, got.Data)
+		_, err := svc.ListModels(ctx, testBatchImageOwner())
+
+		require.ErrorIs(t, err, ErrBatchImageNoModelAvailable)
+	})
+
+	t.Run("reports no schedulable account", func(t *testing.T) {
+		svc, _, _, _, _ := newTestBatchImagePublicService(true)
+		svc.AccountRepo.(*publicBatchImageAccountRepo).accounts = nil
+
+		_, err := svc.ListModels(ctx, testBatchImageOwner())
+
+		require.ErrorIs(t, err, ErrBatchImageNoAccountAvailable)
+	})
+
+	t.Run("reports missing pricing", func(t *testing.T) {
+		svc, _, _, _, _ := newTestBatchImagePublicService(true)
+		svc.Pricing = &fakeBatchImagePricingResolver{
+			unitPrice:     0.25,
+			missingModels: map[string]bool{"gemini-2.5-flash-image": true},
+		}
+		svc.AccountRepo.(*publicBatchImageAccountRepo).accounts = []Account{
+			testBatchImageMappedAccount(303, AccountTypeAPIKey, map[string]any{
+				"gemini-2.5-flash-image": "gemini-2.5-flash-image",
+			}),
+		}
+
+		_, err := svc.ListModels(ctx, testBatchImageOwner())
+
+		require.ErrorIs(t, err, ErrBatchImageModelPricingNotReady)
 	})
 
 	t.Run("returns priced models from selected account group", func(t *testing.T) {
@@ -725,8 +803,10 @@ func newTestBatchImagePublicService(enabled bool) (*BatchImagePublicService, *fa
 		Pricing:     &fakeBatchImagePricingResolver{unitPrice: 0.25},
 		BillingRepo: &fakeBatchImageBillingRepo{},
 		AuthCache:   &fakeBatchImageAuthCacheInvalidator{},
+		Runtime:     &fakeBatchImageRuntimeReadiness{},
 		Config: &config.Config{BatchImage: config.BatchImageConfig{
 			Enabled:                 enabled,
+			QueueEnabled:            enabled,
 			MaxItemsPerJobDefault:   2,
 			MaxPromptCharsPerItem:   8,
 			DefaultResponseMimeType: "image/png",
@@ -734,6 +814,14 @@ func newTestBatchImagePublicService(enabled bool) (*BatchImagePublicService, *fa
 		}},
 	}
 	return svc, repo, queue, gemini, vertex
+}
+
+type fakeBatchImageRuntimeReadiness struct {
+	err error
+}
+
+func (f *fakeBatchImageRuntimeReadiness) RequireReady(context.Context) error {
+	return f.err
 }
 
 func testBatchImageOwner() BatchImageOwner {

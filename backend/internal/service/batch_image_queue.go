@@ -35,6 +35,24 @@ type BatchImageQueue interface {
 	TryAcquireJobLock(ctx context.Context, batchID string, ttl time.Duration) (BatchImageJobLock, bool, error)
 }
 
+type BatchImageQueueHealthChecker interface {
+	Ping(ctx context.Context) error
+}
+
+type BatchImageQueueStats struct {
+	Ready   int64 `json:"ready"`
+	Delayed int64 `json:"delayed"`
+	Active  int64 `json:"active"`
+}
+
+type BatchImageQueueStatsReader interface {
+	Stats(ctx context.Context) (BatchImageQueueStats, error)
+}
+
+type BatchImageRuntimeReadiness interface {
+	RequireReady(ctx context.Context) error
+}
+
 type BatchImageService struct {
 	repo  BatchImageRepository
 	queue BatchImageQueue

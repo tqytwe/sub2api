@@ -382,6 +382,56 @@ func TestLoadDefaultBatchImageQueueDisabled(t *testing.T) {
 	require.False(t, cfg.BatchImage.QueueEnabled)
 }
 
+func TestLoadBatchImageRejectsAPIEnabledWithoutQueue(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("BATCH_IMAGE_ENABLED", "true")
+	t.Setenv("BATCH_IMAGE_QUEUE_ENABLED", "false")
+
+	_, err := Load()
+
+	require.ErrorContains(t, err, "batch_image.enabled requires batch_image.queue_enabled")
+}
+
+func TestLoadBatchImageAllowsQueueDrainWithAPIDisabled(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("BATCH_IMAGE_ENABLED", "false")
+	t.Setenv("BATCH_IMAGE_QUEUE_ENABLED", "true")
+
+	cfg, err := Load()
+
+	require.NoError(t, err)
+	require.False(t, cfg.BatchImage.Enabled)
+	require.True(t, cfg.BatchImage.QueueEnabled)
+}
+
+func TestBatchImageDeploymentTemplatesExposeRuntimeFlags(t *testing.T) {
+	read := func(relativePath string) string {
+		t.Helper()
+		body, err := os.ReadFile(filepath.Join("..", "..", "..", relativePath))
+		require.NoError(t, err)
+		return string(body)
+	}
+
+	zeabur := read("deploy/zeabur.template.yaml")
+	require.Contains(t, zeabur, "BATCH_IMAGE_QUEUE_ENABLED:\n            default: \"true\"")
+	require.Contains(t, zeabur, "BATCH_IMAGE_ENABLED:\n            default: \"true\"")
+
+	for _, path := range []string{"deploy/docker-compose.yml", "deploy/docker-compose.server.yml"} {
+		compose := read(path)
+		require.Contains(t, compose, "BATCH_IMAGE_QUEUE_ENABLED=${BATCH_IMAGE_QUEUE_ENABLED:-false}")
+		require.Contains(t, compose, "BATCH_IMAGE_ENABLED=${BATCH_IMAGE_ENABLED:-false}")
+	}
+
+	envExample := read("deploy/.env.example")
+	require.Contains(t, envExample, "BATCH_IMAGE_QUEUE_ENABLED=false")
+	require.Contains(t, envExample, "BATCH_IMAGE_ENABLED=false")
+
+	configExample := read("deploy/config.example.yaml")
+	require.Contains(t, configExample, "batch_image:")
+	require.Contains(t, configExample, "queue_enabled: false")
+	require.Contains(t, configExample, "enabled: false")
+}
+
 func TestLoadIdempotencyConfigFromEnv(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	t.Setenv("IDEMPOTENCY_OBSERVE_ONLY", "false")

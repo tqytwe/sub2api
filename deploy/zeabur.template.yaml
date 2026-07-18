@@ -26,6 +26,8 @@ spec:
 
     Async image tasks use the persisted `/data/image-task-results` directory by default, so `/v1/images/generations/async` and `/v1/images/edits/async` work without external S3/R2 storage.
 
+    Durable Batch Image uses Redis workers. The template starts the queue and API, but submissions remain unavailable until an administrator configures an eligible Gemini API-key account, model mapping, group permissions, and image pricing.
+
     After deploy, open your domain — you should land on the login page, not the setup wizard.
 
     Default admin email comes from the `ADMIN_EMAIL` variable. Check Sub2API runtime logs for the admin password if you did not set `ADMIN_PASSWORD` manually.
@@ -178,6 +180,10 @@ spec:
             default: "24"
           IMAGE_STORAGE_MAX_DOWNLOAD_BYTES:
             default: "33554432"
+          BATCH_IMAGE_QUEUE_ENABLED:
+            default: "true"
+          BATCH_IMAGE_ENABLED:
+            default: "true"
           ADMIN_EMAIL:
             default: ${ADMIN_EMAIL}
           JWT_SECRET:

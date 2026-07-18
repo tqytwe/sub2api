@@ -90,6 +90,7 @@ type BatchImagePublicService struct {
 	Pricing           BatchImagePricingResolver
 	BillingRepo       UsageBillingRepository
 	AuthCache         APIKeyAuthCacheInvalidator
+	Runtime           BatchImageRuntimeReadiness
 	Config            *config.Config
 }
 
@@ -181,7 +182,7 @@ type BatchImageItemsQuery struct {
 	Cursor string
 }
 
-func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRepository, groupRepo GroupRepository, userGroupRateRepo UserGroupRateRepository, queue BatchImageQueue, pricing *BatchImageModelPricingResolver, billingRepo UsageBillingRepository, authCache APIKeyAuthCacheInvalidator, cfg *config.Config) *BatchImagePublicService {
+func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRepository, groupRepo GroupRepository, userGroupRateRepo UserGroupRateRepository, queue BatchImageQueue, pricing *BatchImageModelPricingResolver, billingRepo UsageBillingRepository, authCache APIKeyAuthCacheInvalidator, runtime *BatchImageRuntimeState, cfg *config.Config) *BatchImagePublicService {
 	return &BatchImagePublicService{
 		Repo:              repo,
 		AccountRepo:       accountRepo,
@@ -192,6 +193,7 @@ func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRe
 		Pricing:           pricing,
 		BillingRepo:       billingRepo,
 		AuthCache:         authCache,
+		Runtime:           runtime,
 		Config:            cfg,
 	}
 }
@@ -199,6 +201,9 @@ func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRe
 func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOwner, req BatchImageSubmitRequest, idempotencyKey string) (*BatchImagePublicBatch, error) {
 	if !s.enabled() {
 		return nil, ErrBatchImageDisabled
+	}
+	if s.Runtime == nil || s.Runtime.RequireReady(ctx) != nil {
+		return nil, ErrBatchImageRuntimeNotReady
 	}
 	normalized, err := s.validateSubmitRequest(req)
 	if err != nil {
@@ -616,14 +621,20 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 	if !s.enabled() {
 		return nil, ErrBatchImageDisabled
 	}
+	if s.Runtime == nil || s.Runtime.RequireReady(ctx) != nil {
+		return nil, ErrBatchImageRuntimeNotReady
+	}
 	if s.Pricing == nil {
-		return nil, ErrBatchImageSettlementPricingMissing
+		return nil, ErrBatchImageModelPricingNotReady
 	}
 	if err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {
 		return nil, err
 	}
 
 	modelsByProvider := make(map[string]map[string]struct{})
+	hasCompatibleAccount := false
+	hasMappedModel := false
+	hasPricedModel := false
 	for _, providerName := range batchImageProviderSelectionOrder("") {
 		provider, ok := s.ProviderRegistry.Get(providerName)
 		if !ok || provider == nil {
@@ -638,13 +649,16 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 			if !account.IsSchedulable() || !provider.SupportsAccount(&account) {
 				continue
 			}
+			hasCompatibleAccount = true
 			for _, model := range batchImageModelsFromAccountMapping(&account) {
-				if _, err := s.Pricing.BatchImageUnitPrice(ctx, &BatchImageJob{Provider: providerName, Model: model}); err != nil {
-					continue
-				}
 				if !account.IsModelSupported(model) {
 					continue
 				}
+				hasMappedModel = true
+				if _, err := s.Pricing.BatchImageUnitPrice(ctx, &BatchImageJob{Provider: providerName, Model: model}); err != nil {
+					continue
+				}
+				hasPricedModel = true
 				if modelsByProvider[providerName] == nil {
 					modelsByProvider[providerName] = make(map[string]struct{})
 				}
@@ -666,6 +680,18 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 				Object:   "image.batch.model",
 				Provider: providerName,
 			})
+		}
+	}
+	if len(out) == 0 {
+		switch {
+		case !hasCompatibleAccount:
+			return nil, ErrBatchImageNoAccountAvailable
+		case !hasMappedModel:
+			return nil, ErrBatchImageNoModelAvailable
+		case !hasPricedModel:
+			return nil, ErrBatchImageModelPricingNotReady
+		default:
+			return nil, ErrBatchImageNoModelAvailable
 		}
 	}
 	return &BatchImagePublicModelsResponse{Object: "list", Data: out}, nil

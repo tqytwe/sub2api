@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -49,6 +50,7 @@ type ImageStudioWorkerRuntime struct {
 	startOnce sync.Once
 	stopOnce  sync.Once
 	wg        sync.WaitGroup
+	running   atomic.Bool
 }
 
 func NewImageStudioWorkerRuntime(
@@ -86,6 +88,7 @@ func (r *ImageStudioWorkerRuntime) Start() {
 		return
 	}
 	r.startOnce.Do(func() {
+		r.running.Store(true)
 		for i := 0; i < r.opts.WorkerCount; i++ {
 			r.wg.Add(1)
 			go r.workerLoop(i)
@@ -100,7 +103,12 @@ func (r *ImageStudioWorkerRuntime) Stop() {
 	r.stopOnce.Do(func() {
 		r.cancel()
 		r.wg.Wait()
+		r.running.Store(false)
 	})
+}
+
+func (r *ImageStudioWorkerRuntime) Running() bool {
+	return r != nil && r.running.Load()
 }
 
 func (r *ImageStudioWorkerRuntime) workerLoop(workerIndex int) {

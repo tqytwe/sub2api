@@ -52,6 +52,7 @@ func TestBatchImageMVPFlow(t *testing.T) {
 		ProviderRegistry: registry,
 		Pricing:          pricing,
 		BillingRepo:      billing,
+		Runtime:          &fakeBatchImageRuntimeReadiness{},
 		Config:           cfg,
 	}
 	processor := &BatchImagePipelineProcessor{

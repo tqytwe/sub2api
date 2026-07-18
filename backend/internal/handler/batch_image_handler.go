@@ -47,7 +47,16 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 		batchImageError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, got)
+	writeBatchImageAccepted(c, got)
+}
+
+func writeBatchImageAccepted(c *gin.Context, batch *service.BatchImagePublicBatch) {
+	if c == nil || batch == nil {
+		return
+	}
+	c.Header("Location", "/v1/images/batches/"+batch.ID)
+	c.Header("Retry-After", "5")
+	c.JSON(http.StatusAccepted, batch)
 }
 
 func (h *BatchImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, req *service.BatchImageSubmitRequest) bool {

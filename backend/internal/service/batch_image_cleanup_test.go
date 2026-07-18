@@ -143,6 +143,18 @@ func TestBatchImageCleanupService_InputOutputAndWorker(t *testing.T) {
 	})
 }
 
+func TestBatchImageCleanupService_StartsWhileAPIIsDisabledAndQueueDrains(t *testing.T) {
+	svc, _, _ := newTestBatchImageCleanupService()
+	svc.Config.BatchImage.Enabled = false
+	svc.Config.BatchImage.QueueEnabled = true
+	svc.Config.BatchImage.CleanupIntervalMinutes = 60
+
+	svc.Start()
+	t.Cleanup(svc.Stop)
+
+	require.NotNil(t, svc.cancel)
+}
+
 func TestBatchImageSettlementOutputExpiration(t *testing.T) {
 	repo := newFakeBatchImageRepository()
 	job := testSettlingBatchImageJob("imgbatch_expire")

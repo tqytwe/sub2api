@@ -25,6 +25,27 @@ func TestBatchImageQueue_DuplicateEnqueueReturnsAlreadyQueued(t *testing.T) {
 	require.True(t, errors.Is(err, service.ErrBatchImageAlreadyQueued))
 }
 
+func TestBatchImageQueue_StatsReportsReadyDelayedAndActive(t *testing.T) {
+	ctx := context.Background()
+	queue, _ := newBatchImageQueueTest(t)
+	require.NoError(t, queue.rdb.LPush(ctx, queue.readyKey, "imgbatch_ready_1", "imgbatch_ready_2").Err())
+	require.NoError(t, queue.rdb.ZAdd(ctx, queue.delayedKey, redis.Z{
+		Score:  float64(time.Now().Add(time.Minute).UnixMilli()),
+		Member: "imgbatch_delayed",
+	}).Err())
+	require.NoError(t, queue.rdb.ZAdd(ctx, queue.activeKey, redis.Z{
+		Score:  float64(time.Now().UnixMilli()),
+		Member: "imgbatch_active",
+	}).Err())
+
+	stats, err := queue.Stats(ctx)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(2), stats.Ready)
+	require.Equal(t, int64(1), stats.Delayed)
+	require.Equal(t, int64(1), stats.Active)
+}
+
 func TestBatchImageQueue_RequeueAfterMovesJobFromActiveToDelayed(t *testing.T) {
 	ctx := context.Background()
 	queue, _ := newBatchImageQueueTest(t)
