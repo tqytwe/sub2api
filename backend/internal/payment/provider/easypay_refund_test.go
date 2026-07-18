@@ -36,7 +36,7 @@ func TestNormalizeEasyPayAPIBase(t *testing.T) {
 	}
 }
 
-func TestEasyPayRefundNormalizesAPIBaseAndSendsOutTradeNoOnly(t *testing.T) {
+func TestEasyPayRefundNormalizesAPIBaseAndSendsTradeNoFirst(t *testing.T) {
 	t.Parallel()
 
 	var gotPath string
@@ -73,21 +73,21 @@ func TestEasyPayRefundNormalizesAPIBaseAndSendsOutTradeNoOnly(t *testing.T) {
 		t.Fatalf("refund act query = %q, want refund", gotQuery.Get("act"))
 	}
 	for key, want := range map[string]string{
-		"pid":          "pid-1",
-		"key":          "pkey-1",
-		"out_trade_no": "out-456",
-		"money":        "1.50",
+		"pid":      "pid-1",
+		"key":      "pkey-1",
+		"trade_no": "trade-123",
+		"money":    "1.50",
 	} {
 		if got := gotForm.Get(key); got != want {
 			t.Fatalf("form[%s] = %q, want %q (form=%v)", key, got, want, gotForm)
 		}
 	}
-	if got := gotForm.Get("trade_no"); got != "" {
-		t.Fatalf("form[trade_no] = %q, want empty (form=%v)", got, gotForm)
+	if got := gotForm.Get("out_trade_no"); got != "" {
+		t.Fatalf("form[out_trade_no] = %q, want empty (form=%v)", got, gotForm)
 	}
 }
 
-func TestEasyPayRefundRetriesWithTradeNoWhenOutTradeNoNotFound(t *testing.T) {
+func TestEasyPayRefundRetriesWithOutTradeNoWhenTradeNoNotFound(t *testing.T) {
 	t.Parallel()
 
 	var gotForms []url.Values
@@ -120,23 +120,23 @@ func TestEasyPayRefundRetriesWithTradeNoWhenOutTradeNoNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Refund returned error: %v", err)
 	}
-	if resp == nil || resp.Status != payment.ProviderStatusSuccess || resp.RefundID != "trade-123" {
-		t.Fatalf("Refund response = %+v, want success with trade refund id", resp)
+	if resp == nil || resp.Status != payment.ProviderStatusSuccess || resp.RefundID != "out-456" {
+		t.Fatalf("Refund response = %+v, want success with out trade refund id", resp)
 	}
 	if len(gotForms) != 2 {
 		t.Fatalf("refund attempts = %d, want 2", len(gotForms))
 	}
-	if got := gotForms[0].Get("out_trade_no"); got != "out-456" {
-		t.Fatalf("first form[out_trade_no] = %q, want out-456 (form=%v)", got, gotForms[0])
+	if got := gotForms[0].Get("trade_no"); got != "trade-123" {
+		t.Fatalf("first form[trade_no] = %q, want trade-123 (form=%v)", got, gotForms[0])
 	}
-	if got := gotForms[0].Get("trade_no"); got != "" {
-		t.Fatalf("first form[trade_no] = %q, want empty (form=%v)", got, gotForms[0])
+	if got := gotForms[0].Get("out_trade_no"); got != "" {
+		t.Fatalf("first form[out_trade_no] = %q, want empty (form=%v)", got, gotForms[0])
 	}
-	if got := gotForms[1].Get("trade_no"); got != "trade-123" {
-		t.Fatalf("second form[trade_no] = %q, want trade-123 (form=%v)", got, gotForms[1])
+	if got := gotForms[1].Get("out_trade_no"); got != "out-456" {
+		t.Fatalf("second form[out_trade_no] = %q, want out-456 (form=%v)", got, gotForms[1])
 	}
-	if got := gotForms[1].Get("out_trade_no"); got != "" {
-		t.Fatalf("second form[out_trade_no] = %q, want empty (form=%v)", got, gotForms[1])
+	if got := gotForms[1].Get("trade_no"); got != "" {
+		t.Fatalf("second form[trade_no] = %q, want empty (form=%v)", got, gotForms[1])
 	}
 }
 
