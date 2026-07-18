@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 
@@ -22,10 +23,11 @@ import (
 )
 
 type AsyncImageHandler struct {
-	tasks       *service.ImageTaskService
-	openAI      *OpenAIGatewayHandler
-	assetReader service.ImageAssetReader
-	execute     func(platform string, c *gin.Context)
+	tasks        *service.ImageTaskService
+	openAI       *OpenAIGatewayHandler
+	assetReader  service.ImageAssetReader
+	imageResults *service.OpenAIImageResultService
+	execute      func(platform string, c *gin.Context)
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorage service.ImageStorage) *AsyncImageHandler {
@@ -34,6 +36,20 @@ func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGateway
 		h.assetReader = reader
 	}
 	h.execute = h.executeWithGateway
+	return h
+}
+
+func ProvideAsyncImageHandler(
+	tasks *service.ImageTaskService,
+	openAI *OpenAIGatewayHandler,
+	imageStorage service.ImageStorage,
+	imageResults *service.OpenAIImageResultService,
+) *AsyncImageHandler {
+	h := NewAsyncImageHandler(tasks, openAI, imageStorage)
+	h.imageResults = imageResults
+	if openAI != nil && openAI.gatewayService != nil {
+		openAI.gatewayService.SetOpenAIImageResultService(imageResults)
+	}
 	return h
 }
 
@@ -208,6 +224,36 @@ func (h *AsyncImageHandler) GetAsset(c *gin.Context) {
 	}
 	defer func() { _ = reader.Close() }()
 	c.Header("Cache-Control", "private, max-age=86400")
+	c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
+}
+
+func (h *AsyncImageHandler) GetResult(c *gin.Context) {
+	if h == nil || h.imageResults == nil || !h.imageResults.Enabled() {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image result not found")
+		return
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.UserID <= 0 || apiKey.ID <= 0 {
+		imageTaskError(c, service.ErrImageTaskForbidden)
+		return
+	}
+	index, err := strconv.Atoi(strings.TrimSpace(c.Param("index")))
+	if err != nil || index < 0 {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image result not found")
+		return
+	}
+	reader, contentType, err := h.imageResults.Open(
+		c.Request.Context(),
+		service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID},
+		c.Param("result_id"),
+		index,
+	)
+	if err != nil {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image result not found")
+		return
+	}
+	defer func() { _ = reader.Close() }()
+	c.Header("Cache-Control", "private, no-store")
 	c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
 }
 

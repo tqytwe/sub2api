@@ -38,6 +38,26 @@ type asyncImageMemoryAssetStore struct {
 	err         error
 }
 
+type asyncImageResultMemoryStore struct {
+	record *service.OpenAIImageResultRecord
+}
+
+func (s *asyncImageResultMemoryStore) Save(_ context.Context, record *service.OpenAIImageResultRecord, _ time.Duration) error {
+	cloned := *record
+	cloned.Assets = append([]service.OpenAIImageResultAsset(nil), record.Assets...)
+	s.record = &cloned
+	return nil
+}
+
+func (s *asyncImageResultMemoryStore) Get(_ context.Context, id string) (*service.OpenAIImageResultRecord, error) {
+	if s.record == nil || s.record.ID != id {
+		return nil, service.ErrOpenAIImageResultNotFound
+	}
+	cloned := *s.record
+	cloned.Assets = append([]service.OpenAIImageResultAsset(nil), s.record.Assets...)
+	return &cloned, nil
+}
+
 func (s *asyncImageMemoryAssetStore) Save(_ context.Context, _ string, _ string, _ []byte) (string, error) {
 	return "", nil
 }
@@ -204,6 +224,44 @@ func TestAsyncImageHandlerGetAssetRequiresTaskOwner(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
 	require.Equal(t, "image-bytes", w.Body.String())
+
+	apiKeyID = 10
+	w = httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestAsyncImageHandlerGetResultRequiresAPIKeyOwner(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := &asyncImageResultMemoryStore{record: &service.OpenAIImageResultRecord{
+		ID:        "imgres_owned",
+		UserID:    7,
+		APIKeyID:  9,
+		ExpiresAt: time.Now().Add(time.Hour).Unix(),
+		Assets: []service.OpenAIImageResultAsset{{
+			Key:         "images/results/imgres_owned-0.png",
+			ContentType: "image/png",
+		}},
+	}}
+	assets := &asyncImageMemoryAssetStore{data: []byte("private-image"), contentType: "image/png"}
+	results := service.NewOpenAIImageResultService(store, assets, assets, "images/", time.Hour)
+	h := &AsyncImageHandler{imageResults: results}
+
+	router := gin.New()
+	apiKeyID := int64(9)
+	router.Use(func(c *gin.Context) {
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{ID: apiKeyID, UserID: 7})
+		c.Next()
+	})
+	router.GET("/v1/images/results/:result_id/:index", h.GetResult)
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/images/results/imgres_owned/0", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "private, no-store", w.Header().Get("Cache-Control"))
+	require.Equal(t, "image/png", w.Header().Get("Content-Type"))
+	require.Equal(t, "private-image", w.Body.String())
 
 	apiKeyID = 10
 	w = httptest.NewRecorder()

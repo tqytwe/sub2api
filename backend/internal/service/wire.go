@@ -537,6 +537,23 @@ func ProvideImageTaskService(store ImageTaskStore, storage ImageStorage, cfg *co
 	return NewImageTaskServiceWithUploader(store, uploader, defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
+func ProvideOpenAIImageResultService(
+	store OpenAIImageResultStore,
+	storage ImageStorage,
+	cfg *config.Config,
+) *OpenAIImageResultService {
+	reader, _ := storage.(ImageAssetReader)
+	ttl := 24 * time.Hour
+	if cfg != nil && cfg.ImageStorage.PresignExpiry > 0 {
+		ttl = time.Duration(cfg.ImageStorage.PresignExpiry) * time.Hour
+	}
+	prefix := ""
+	if cfg != nil {
+		prefix = cfg.ImageStorage.Prefix
+	}
+	return NewOpenAIImageResultService(store, storage, reader, prefix, ttl)
+}
+
 // ProvideBackupService creates and starts BackupService
 func ProvideBackupService(
 	settingRepo SettingRepository,
@@ -683,6 +700,7 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
 	NewOpenAIGatewayService,
 	ProvideImageTaskService,
+	ProvideOpenAIImageResultService,
 	ProvideBatchImageModelPricingResolver,
 	NewBatchImageRuntimeState,
 	NewImageRuntimesHealthService,

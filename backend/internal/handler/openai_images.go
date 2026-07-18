@@ -70,10 +70,31 @@ func (h *OpenAIGatewayHandler) Images(c *gin.Context) {
 
 	parsed, err := h.gatewayService.ParseOpenAIImagesRequest(c, body)
 	if err != nil {
-		h.errorResponse(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
+		h.handleStreamingAwareErrorWithCode(
+			c,
+			openAIImagesValidationErrorStatus(err),
+			"invalid_request_error",
+			openAIImagesValidationErrorCode(err),
+			err.Error(),
+			false,
+			false,
+		)
 		return
 	}
 	requestModel := parsed.Model
+	if strings.EqualFold(strings.TrimSpace(parsed.ResponseFormat), "url") &&
+		!h.gatewayService.OpenAIImageResultStorageReady() {
+		h.handleStreamingAwareErrorWithCode(
+			c,
+			http.StatusServiceUnavailable,
+			"api_error",
+			"IMAGE_RESULT_STORAGE_UNAVAILABLE",
+			"image result storage is unavailable",
+			false,
+			false,
+		)
+		return
+	}
 
 	reqLog = reqLog.With(
 		zap.String("model", requestModel),
@@ -439,4 +460,17 @@ func openAIImagesValidationErrorStatus(err error) int {
 		return http.StatusRequestEntityTooLarge
 	}
 	return http.StatusBadRequest
+}
+
+func openAIImagesValidationErrorCode(err error) string {
+	switch {
+	case errors.Is(err, service.ErrImagePromptRequired):
+		return "IMAGE_PROMPT_REQUIRED"
+	case errors.Is(err, service.ErrImageCountOutOfRange):
+		return "IMAGE_COUNT_OUT_OF_RANGE"
+	case errors.Is(err, service.ErrImageMultiStreamUnsupported):
+		return "IMAGE_MULTI_STREAM_UNSUPPORTED"
+	default:
+		return ""
+	}
 }
