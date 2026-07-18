@@ -2,7 +2,7 @@
 
 > 状态：active
 > 当前验证基线：`upstream/main@d4b9797ff72024960a035cf22fdd8f213e149169`
-> 对应合并提交：`sync/upstream-20260718` 待合入 `play/main` 后回填 merge commit
+> 对应合并提交：`play/main@8eb8ca51565c226b4790f66b07a916311c976145`
 > 最后核验：2026-07-18
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
