@@ -666,38 +666,181 @@ func parseOpenAICompatibleImageStudioPayloads(ctx context.Context, respBody []by
 			B64JSON string `json:"b64_json"`
 		} `json:"data"`
 	}
+	var jsonErr error
 	if err := json.Unmarshal(respBody, &parsed); err != nil {
-		return nil, err
-	}
-	out := make([]service.ImageStudioImagePayload, 0, len(parsed.Data))
-	for _, item := range parsed.Data {
-		switch {
-		case item.B64JSON != "":
-			data, err := base64.StdEncoding.DecodeString(item.B64JSON)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: "image/png"})
-		case item.URL != "":
-			if strings.HasPrefix(item.URL, "data:") {
-				data, ct, err := service.DecodeImageStudioDataURL(item.URL)
+		jsonErr = err
+	} else {
+		out := make([]service.ImageStudioImagePayload, 0, len(parsed.Data))
+		for _, item := range parsed.Data {
+			switch {
+			case item.B64JSON != "":
+				data, err := base64.StdEncoding.DecodeString(item.B64JSON)
+				if err != nil {
+					return nil, err
+				}
+				out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: "image/png"})
+			case item.URL != "":
+				if strings.HasPrefix(item.URL, "data:") {
+					data, ct, err := service.DecodeImageStudioDataURL(item.URL)
+					if err != nil {
+						return nil, err
+					}
+					out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
+					continue
+				}
+				data, ct, err := service.FetchImageStudioRemoteURL(ctx, item.URL)
 				if err != nil {
 					return nil, err
 				}
 				out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
-				continue
 			}
-			data, ct, err := service.FetchImageStudioRemoteURL(ctx, item.URL)
-			if err != nil {
-				return nil, err
-			}
-			out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
+		}
+		if len(out) > 0 {
+			return out, nil
 		}
 	}
-	if len(out) == 0 {
-		return parseGeminiImageStudioPayloads(ctx, respBody)
+	responsesOut, err := parseOpenAIResponsesImageStudioPayloads(respBody)
+	if err != nil {
+		return nil, err
+	}
+	if len(responsesOut) > 0 {
+		return responsesOut, nil
+	}
+	if jsonErr != nil {
+		return nil, jsonErr
+	}
+	return parseGeminiImageStudioPayloads(ctx, respBody)
+}
+
+func parseOpenAIResponsesImageStudioPayloads(respBody []byte) ([]service.ImageStudioImagePayload, error) {
+	out := make([]service.ImageStudioImagePayload, 0)
+	seen := make(map[string]struct{})
+	appendPayload := func(raw []byte) error {
+		raw = bytes.TrimSpace(raw)
+		if len(raw) == 0 || bytes.Equal(raw, []byte("[DONE]")) || !gjson.ValidBytes(raw) {
+			return nil
+		}
+		return appendOpenAIResponsesImageStudioPayload(&out, seen, gjson.ParseBytes(raw))
+	}
+	if err := appendPayload(respBody); err != nil {
+		return nil, err
+	}
+	for _, raw := range openAIResponsesImageStudioSSEData(respBody) {
+		if err := appendPayload(raw); err != nil {
+			return nil, err
+		}
 	}
 	return out, nil
+}
+
+func openAIResponsesImageStudioSSEData(respBody []byte) [][]byte {
+	lines := strings.Split(strings.ReplaceAll(string(respBody), "\r\n", "\n"), "\n")
+	out := make([][]byte, 0)
+	current := make([]string, 0)
+	flush := func() {
+		if len(current) == 0 {
+			return
+		}
+		out = append(out, []byte(strings.Join(current, "\n")))
+		current = current[:0]
+	}
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" {
+			flush()
+			continue
+		}
+		if data, ok := strings.CutPrefix(trimmed, "data:"); ok {
+			current = append(current, strings.TrimSpace(data))
+		}
+	}
+	flush()
+	return out
+}
+
+func appendOpenAIResponsesImageStudioPayload(
+	out *[]service.ImageStudioImagePayload,
+	seen map[string]struct{},
+	root gjson.Result,
+) error {
+	switch root.Get("type").String() {
+	case "response.output_item.done":
+		return appendOpenAIResponsesImageStudioItem(out, seen, root.Get("item"))
+	case "response.completed", "response.done":
+		if err := appendOpenAIResponsesImageStudioItems(out, seen, root.Get("response.output")); err != nil {
+			return err
+		}
+		return appendOpenAIResponsesImageStudioItems(out, seen, root.Get("output"))
+	default:
+		if err := appendOpenAIResponsesImageStudioItems(out, seen, root.Get("response.output")); err != nil {
+			return err
+		}
+		return appendOpenAIResponsesImageStudioItems(out, seen, root.Get("output"))
+	}
+}
+
+func appendOpenAIResponsesImageStudioItems(
+	out *[]service.ImageStudioImagePayload,
+	seen map[string]struct{},
+	items gjson.Result,
+) error {
+	var parseErr error
+	items.ForEach(func(_, item gjson.Result) bool {
+		if err := appendOpenAIResponsesImageStudioItem(out, seen, item); err != nil {
+			parseErr = err
+			return false
+		}
+		return true
+	})
+	return parseErr
+}
+
+func appendOpenAIResponsesImageStudioItem(
+	out *[]service.ImageStudioImagePayload,
+	seen map[string]struct{},
+	item gjson.Result,
+) error {
+	if !item.Exists() || item.Get("type").String() != "image_generation_call" {
+		return nil
+	}
+	result := strings.TrimSpace(item.Get("result").String())
+	if result == "" {
+		return nil
+	}
+	if _, ok := seen[result]; ok {
+		return nil
+	}
+	seen[result] = struct{}{}
+	if strings.HasPrefix(strings.ToLower(result), "data:") {
+		data, ct, err := service.DecodeImageStudioDataURL(result)
+		if err != nil {
+			return err
+		}
+		*out = append(*out, service.ImageStudioImagePayload{Data: data, ContentType: ct})
+		return nil
+	}
+	data, err := base64.StdEncoding.DecodeString(result)
+	if err != nil {
+		return err
+	}
+	*out = append(*out, service.ImageStudioImagePayload{
+		Data:        data,
+		ContentType: openAIResponsesImageStudioContentType(item.Get("output_format").String()),
+	})
+	return nil
+}
+
+func openAIResponsesImageStudioContentType(format string) string {
+	switch strings.ToLower(strings.TrimSpace(format)) {
+	case "jpg", "jpeg":
+		return "image/jpeg"
+	case "webp":
+		return "image/webp"
+	case "gif":
+		return "image/gif"
+	default:
+		return "image/png"
+	}
 }
 
 func parseGeminiImageStudioPayloads(_ context.Context, respBody []byte) ([]service.ImageStudioImagePayload, error) {

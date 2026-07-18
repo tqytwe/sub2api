@@ -1026,6 +1026,47 @@ func TestImageStudioPersistingCheckpointStopsAfterThreeClaims(t *testing.T) {
 	require.Nil(t, settled.Items[0].CheckpointActualCost)
 }
 
+func TestImageStudioSettleFailedJobUsesFirstItemErrorMessage(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewImageStudioRepository(client, integrationDB)
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("image-studio-failed-summary-%s@example.com", uuid.NewString()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	cleanupImageStudioJobsForUser(t, user.ID)
+	job := integrationImageStudioJob(user.ID, 1)
+	job.Model = "gpt-image-2"
+	require.NoError(t, repo.CreatePendingJob(ctx, job, integrationImageStudioItems(job), nil))
+
+	now := time.Now().UTC()
+	claimed, err := repo.ClaimNextJob(ctx, "worker-summary", now, time.Minute)
+	require.NoError(t, err)
+	require.NotNil(t, claimed)
+	item, err := repo.ClaimNextItem(ctx, job.ID, "worker-summary", now)
+	require.NoError(t, err)
+	require.NotNil(t, item)
+	require.NoError(t, repo.CompleteItem(
+		ctx,
+		job.ID,
+		item.ID,
+		"worker-summary",
+		service.ImageStudioItemStatusFailed,
+		nil,
+		"OpenAI image response contained no generated image output",
+		nil,
+		now.Add(time.Second),
+	))
+
+	settled, err := repo.SettleJob(ctx, job.ID, "worker-summary", now.Add(2*time.Second), nil)
+
+	require.NoError(t, err)
+	require.Equal(t, service.ImageStudioJobStatusFailed, settled.Status)
+	require.Equal(t, "OpenAI image response contained no generated image output", settled.ErrorMessage)
+	require.NotEqual(t, "all image outputs failed", settled.ErrorMessage)
+}
+
 func TestImageStudioConcurrentClaimsRespectPerUserRunningLimit(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

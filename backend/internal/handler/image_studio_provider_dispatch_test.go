@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -45,6 +46,20 @@ func (s *imageStudioGatewayCostStub) Images(c *gin.Context) {
 }
 
 func (s *imageStudioGatewayCostStub) GrokImages(c *gin.Context) {
+	s.Images(c)
+}
+
+type imageStudioGatewayResponsesSSEStub struct {
+	capturedCost float64
+	body         string
+}
+
+func (s *imageStudioGatewayResponsesSSEStub) Images(c *gin.Context) {
+	service.RecordImageStudioManagedBillingCost(c.Request.Context(), s.capturedCost)
+	c.Data(http.StatusOK, "text/event-stream", []byte(s.body))
+}
+
+func (s *imageStudioGatewayResponsesSSEStub) GrokImages(c *gin.Context) {
 	s.Images(c)
 }
 
@@ -173,6 +188,52 @@ func TestImageStudioGatewayUsesManagedBillingCaptureAsAuthoritativeCost(t *testi
 	require.InDelta(t, 0.25, actualCost, 0.000001)
 }
 
+func TestImageStudioGatewayAcceptsOpenAIResponsesSSEOutput(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	imageB64 := base64.StdEncoding.EncodeToString(realImageStudioPNGFixture(t))
+	handler := &ImageStudioHandler{gateway: &imageStudioGatewayResponsesSSEStub{
+		capturedCost: 0.31,
+		body: strings.Join([]string{
+			`event: response.output_item.done`,
+			`data: {"type":"response.output_item.done","item":{"type":"image_generation_call","result":"` + imageB64 + `","output_format":"png"}}`,
+			``,
+			`event: response.completed`,
+			`data: {"type":"response.completed","response":{"output":[],"usage":{"input_tokens":3,"output_tokens":5}}}`,
+			``,
+			`data: [DONE]`,
+			``,
+		}, "\n"),
+	}}
+	apiKey := &service.APIKey{
+		ID:     22,
+		UserID: 10,
+		Key:    "sk-test-redacted",
+		User:   &service.User{ID: 10},
+		Group: &service.Group{
+			ID:                   30,
+			Platform:             service.PlatformOpenAI,
+			AllowImageGeneration: true,
+		},
+	}
+
+	images, actualCost, err := handler.invokeGatewayImagesOnce(
+		context.Background(),
+		apiKey,
+		&service.ImageStudioWorkerRequest{
+			Platform:    service.PlatformOpenAI,
+			Endpoint:    "/v1/images/generations",
+			ContentType: "application/json",
+			Body:        []byte(`{"model":"gpt-image-2","prompt":"draw","n":1}`),
+		},
+	)
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, "image/png", images[0].ContentType)
+	require.NotEmpty(t, images[0].Data)
+	require.InDelta(t, 0.31, actualCost, 0.000001)
+}
+
 func TestParseGeminiImageStudioPayloadsExtractsInlineImages(t *testing.T) {
 	raw := []byte(`{
 		"candidates":[{
@@ -205,6 +266,43 @@ func TestParseOpenAICompatibleImageStudioPayloadsAcceptsGeminiInlineData(t *test
 		}],
 		"usage":{"total_cost":0.2}
 	}`)
+
+	images, err := parseOpenAICompatibleImageStudioPayloads(context.Background(), raw)
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, "image/png", images[0].ContentType)
+	require.NotEmpty(t, images[0].Data)
+}
+
+func TestParseOpenAICompatibleImageStudioPayloadsAcceptsResponsesOutputItemDone(t *testing.T) {
+	raw := []byte(strings.Join([]string{
+		`event: response.output_item.done`,
+		`data: {"type":"response.output_item.done","item":{"type":"image_generation_call","result":"` + base64.StdEncoding.EncodeToString(realImageStudioPNGFixture(t)) + `","output_format":"png"}}`,
+		``,
+		`event: response.completed`,
+		`data: {"type":"response.completed","response":{"output":[]}}`,
+		``,
+		`data: [DONE]`,
+		``,
+	}, "\n"))
+
+	images, err := parseOpenAICompatibleImageStudioPayloads(context.Background(), raw)
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, "image/png", images[0].ContentType)
+	require.NotEmpty(t, images[0].Data)
+}
+
+func TestParseOpenAICompatibleImageStudioPayloadsAcceptsResponsesCompletedOutput(t *testing.T) {
+	raw := []byte(strings.Join([]string{
+		`event: response.completed`,
+		`data: {"type":"response.completed","response":{"output":[{"type":"image_generation_call","result":"` + base64.StdEncoding.EncodeToString(realImageStudioPNGFixture(t)) + `","output_format":"png"}]}}`,
+		``,
+		`data: [DONE]`,
+		``,
+	}, "\n"))
 
 	images, err := parseOpenAICompatibleImageStudioPayloads(context.Background(), raw)
 
