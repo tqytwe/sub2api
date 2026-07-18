@@ -104,69 +104,77 @@ onMounted(loadStatus)
 
 <template>
   <AppLayout>
-    <div class="gw-page space-y-6 pb-10">
-      <div>
-        <p class="gw-eyebrow">{{ t('checkin.eyebrow') }}</p>
-        <h1 class="gw-title">{{ t('checkin.title') }}</h1>
-      </div>
+    <div class="gw-page gw-workspace pb-10">
+      <section class="gw-hero-panel">
+        <div class="gw-hero-grid">
+          <div>
+            <p class="gw-eyebrow">{{ t('checkin.eyebrow') }}</p>
+            <h1 class="gw-title">{{ t('checkin.title') }}</h1>
+            <p v-if="status?.enabled" class="gw-subtitle">
+              {{ t('checkin.rewardHint', { amount: status.reward_amount.toFixed(2) }) }}
+            </p>
+          </div>
 
-      <div class="gw-hub-balance text-center">
-        <p class="gw-balance-label">{{ t('checkin.balanceLabel') }}</p>
-        <p class="gw-balance-value">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
-        <p v-if="status?.streak_count" class="gw-subtitle mt-2">
-          {{ t('checkin.streak', { days: status.streak_count }) }}
-        </p>
-        <p v-if="status?.enabled" class="gw-subtitle">
-          {{ t('checkin.rewardHint', { amount: status.reward_amount.toFixed(2) }) }}
-        </p>
-        <p v-if="status?.recharge_boost_active" class="gw-buff mt-2 inline-flex">
-          {{ t('checkin.boostActive', { mult: status.boost_checkin_multiplier || 2 }) }}
-        </p>
-      </div>
+          <div class="gw-hub-balance">
+            <p class="gw-balance-label">{{ t('checkin.balanceLabel') }}</p>
+            <p class="gw-balance-value">${{ user?.balance?.toFixed(2) || '0.00' }}</p>
+            <p v-if="status?.streak_count" class="gw-subtitle mt-2">
+              {{ t('checkin.streak', { days: status.streak_count }) }}
+            </p>
+            <p v-if="status?.recharge_boost_active" class="gw-buff mt-2 inline-flex">
+              {{ t('checkin.boostActive', { mult: status.boost_checkin_multiplier || 2 }) }}
+            </p>
+          </div>
+        </div>
+      </section>
 
-      <div v-if="status?.next_milestone_days" class="gw-quest-banner">
-        {{ t('checkin.nextMilestone', { days: status.next_milestone_days, bonus: (status.next_milestone_bonus || 0).toFixed(2) }) }}
-      </div>
+      <div class="gw-detail-grid">
+        <div class="gw-panel">
+          <div v-if="loading" class="gw-polling text-center py-6">
+            {{ t('models.loading') }}
+          </div>
+          <div v-else-if="!status?.enabled" class="gw-subtitle text-center py-6">
+            {{ t('checkin.disabled') }}
+          </div>
+          <div v-else class="space-y-4">
+            <p class="gw-subtitle">
+              {{ t('checkin.serverDate', { date: status.server_date }) }}
+            </p>
+            <p v-if="status.checked_in_today" class="text-sm font-medium" style="color: var(--gw-ok)">
+              {{ t('checkin.alreadyDone') }}
+            </p>
+            <button
+              type="button"
+              class="gw-btn gw-btn-primary w-full"
+              :disabled="!canCheckIn"
+              @click="handleCheckin"
+            >
+              {{
+                submitting
+                  ? t('checkin.submitting')
+                  : status.checked_in_today
+                    ? t('checkin.doneButton')
+                    : t('checkin.button')
+              }}
+            </button>
+          </div>
+        </div>
 
-      <div v-if="status?.can_makeup" class="gw-panel">
-        <p class="gw-subtitle">{{ t('checkin.makeupHint', { date: status.makeup_date }) }}</p>
-        <div class="mt-3 flex flex-wrap gap-2">
-          <button type="button" class="gw-btn gw-btn-primary" :disabled="!canMakeup" @click="handleMakeup">
-            {{ makingUp ? t('checkin.makeupSubmitting') : t('checkin.makeupButton') }}
-          </button>
-          <button type="button" class="gw-btn gw-btn-secondary" @click="goPurchase">{{ t('checkin.rechargeCta') }}</button>
-        </div>
-      </div>
+        <aside class="gw-workspace">
+          <div v-if="status?.next_milestone_days" class="gw-quest-banner">
+            {{ t('checkin.nextMilestone', { days: status.next_milestone_days, bonus: (status.next_milestone_bonus || 0).toFixed(2) }) }}
+          </div>
 
-      <div class="gw-panel">
-        <div v-if="loading" class="gw-polling text-center py-6">
-          {{ t('models.loading') }}
-        </div>
-        <div v-else-if="!status?.enabled" class="gw-subtitle text-center py-6">
-          {{ t('checkin.disabled') }}
-        </div>
-        <div v-else class="space-y-4">
-          <p class="gw-subtitle">
-            {{ t('checkin.serverDate', { date: status.server_date }) }}
-          </p>
-          <p v-if="status.checked_in_today" class="text-sm font-medium" style="color: var(--gw-ok)">
-            {{ t('checkin.alreadyDone') }}
-          </p>
-          <button
-            type="button"
-            class="gw-btn gw-btn-primary w-full"
-            :disabled="!canCheckIn"
-            @click="handleCheckin"
-          >
-            {{
-              submitting
-                ? t('checkin.submitting')
-                : status.checked_in_today
-                  ? t('checkin.doneButton')
-                  : t('checkin.button')
-            }}
-          </button>
-        </div>
+          <div v-if="status?.can_makeup" class="gw-panel">
+            <p class="gw-subtitle">{{ t('checkin.makeupHint', { date: status.makeup_date }) }}</p>
+            <div class="mt-3 flex flex-wrap gap-2">
+              <button type="button" class="gw-btn gw-btn-primary" :disabled="!canMakeup" @click="handleMakeup">
+                {{ makingUp ? t('checkin.makeupSubmitting') : t('checkin.makeupButton') }}
+              </button>
+              <button type="button" class="gw-btn gw-btn-secondary" @click="goPurchase">{{ t('checkin.rechargeCta') }}</button>
+            </div>
+          </div>
+        </aside>
       </div>
     </div>
   </AppLayout>

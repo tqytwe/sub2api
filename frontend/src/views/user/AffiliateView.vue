@@ -86,12 +86,12 @@ onMounted(() => {
 
 <template>
   <AppLayout>
-    <div class="gw-page gw-page--wide space-y-6 pb-10">
-      <div>
+    <div class="gw-page gw-page--wide gw-workspace pb-10">
+      <section class="gw-hero-panel">
         <p class="gw-eyebrow">{{ t('affiliate.eyebrow') }}</p>
         <h1 class="gw-title">{{ t('affiliate.title') }}</h1>
         <p class="gw-subtitle">{{ t('affiliate.description') }}</p>
-      </div>
+      </section>
 
       <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
 
@@ -119,60 +119,63 @@ onMounted(() => {
           </div>
         </div>
 
-        <div class="gw-panel">
-          <div class="grid gap-4 md:grid-cols-2">
-            <div class="gw-field">
-              <span class="gw-field-label">{{ t('affiliate.yourCode') }}</span>
-              <div class="gw-code-row">
-                <code>{{ detail.aff_code }}</code>
-                <button type="button" class="gw-btn gw-btn-secondary" @click="copyCode">
-                  <Icon name="copy" size="sm" />
-                  <span>{{ t('affiliate.copyCode') }}</span>
-                </button>
+        <div class="gw-detail-grid">
+          <div class="gw-panel">
+            <div class="grid gap-4 md:grid-cols-2">
+              <div class="gw-field">
+                <span class="gw-field-label">{{ t('affiliate.yourCode') }}</span>
+                <div class="gw-code-row">
+                  <code>{{ detail.aff_code }}</code>
+                  <button type="button" class="gw-btn gw-btn-secondary" @click="copyCode">
+                    <Icon name="copy" size="sm" />
+                    <span>{{ t('affiliate.copyCode') }}</span>
+                  </button>
+                </div>
+              </div>
+              <div class="gw-field">
+                <span class="gw-field-label">{{ t('affiliate.inviteLink') }}</span>
+                <div class="gw-code-row">
+                  <code>{{ inviteLink }}</code>
+                  <button type="button" class="gw-btn gw-btn-secondary" @click="copyInviteLink">
+                    <Icon name="copy" size="sm" />
+                    <span>{{ t('affiliate.copyLink') }}</span>
+                  </button>
+                </div>
               </div>
             </div>
-            <div class="gw-field">
-              <span class="gw-field-label">{{ t('affiliate.inviteLink') }}</span>
-              <div class="gw-code-row">
-                <code>{{ inviteLink }}</code>
-                <button type="button" class="gw-btn gw-btn-secondary" @click="copyInviteLink">
-                  <Icon name="copy" size="sm" />
-                  <span>{{ t('affiliate.copyLink') }}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="gw-tips">
-            <p class="gw-section-title text-base">{{ t('affiliate.tips.title') }}</p>
-            <ul class="mt-2 space-y-1 gw-subtitle text-sm">
-              <li>1. {{ t('affiliate.tips.line1') }}</li>
-              <li>2. {{ t('affiliate.tips.line2', { rate: `${formattedRebateRate}%` }) }}</li>
-              <li>3. {{ t('affiliate.tips.line3') }}</li>
-              <li v-if="detail.aff_frozen_quota > 0">4. {{ t('affiliate.tips.line4') }}</li>
-            </ul>
-          </div>
-        </div>
 
-        <div class="gw-panel">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h3 class="gw-section-title">{{ t('affiliate.transfer.title') }}</h3>
-              <p class="gw-subtitle">{{ t('affiliate.transfer.description') }}</p>
+            <div class="gw-tips">
+              <p class="gw-section-title text-base">{{ t('affiliate.tips.title') }}</p>
+              <ul class="mt-2 space-y-1 gw-subtitle text-sm">
+                <li>1. {{ t('affiliate.tips.line1') }}</li>
+                <li>2. {{ t('affiliate.tips.line2', { rate: `${formattedRebateRate}%` }) }}</li>
+                <li>3. {{ t('affiliate.tips.line3') }}</li>
+                <li v-if="detail.aff_frozen_quota > 0">4. {{ t('affiliate.tips.line4') }}</li>
+              </ul>
             </div>
-            <button
-              type="button"
-              class="gw-btn gw-btn-primary"
-              :disabled="transferring || detail.aff_quota <= 0"
-              @click="transferQuota"
-            >
-              <Icon v-if="transferring" name="refresh" size="sm" class="animate-spin" />
-              <Icon v-else name="dollar" size="sm" />
-              <span>{{ transferring ? t('affiliate.transfer.transferring') : t('affiliate.transfer.button') }}</span>
-            </button>
           </div>
-          <p v-if="detail.aff_quota <= 0" class="mt-3 text-sm" style="color: var(--gw-warn)">
-            {{ t('affiliate.transfer.empty') }}
-          </p>
+
+          <div class="gw-panel">
+            <div class="flex flex-col gap-3 sm:items-start">
+              <div>
+                <h3 class="gw-section-title">{{ t('affiliate.transfer.title') }}</h3>
+                <p class="gw-subtitle">{{ t('affiliate.transfer.description') }}</p>
+              </div>
+              <button
+                type="button"
+                class="gw-btn gw-btn-primary"
+                :disabled="transferring || detail.aff_quota <= 0"
+                @click="transferQuota"
+              >
+                <Icon v-if="transferring" name="refresh" size="sm" class="animate-spin" />
+                <Icon v-else name="dollar" size="sm" />
+                <span>{{ transferring ? t('affiliate.transfer.transferring') : t('affiliate.transfer.button') }}</span>
+              </button>
+            </div>
+            <p v-if="detail.aff_quota <= 0" class="mt-3 text-sm" style="color: var(--gw-warn)">
+              {{ t('affiliate.transfer.empty') }}
+            </p>
+          </div>
         </div>
 
         <div class="gw-panel">
