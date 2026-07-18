@@ -188,5 +188,7 @@ describe('admin AccountsView usage windows hint', () => {
     expect(wrapper.findAll('[data-test="usage-windows-hint"]').some(node =>
       node.text().includes('此倍率由上游站点针对当前 API Key 自行声明')
     )).toBe(true)
+    const columns = wrapper.getComponent(DataTableStub).props('columns') as Array<{ key: string; sortable: boolean }>
+    expect(columns.find(column => column.key === 'upstream_billing_rate')?.sortable).toBe(true)
   })
 })

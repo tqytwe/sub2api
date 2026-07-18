@@ -171,6 +171,7 @@ func RequireGroupAssignment(settingService *service.SettingService, writeError G
 			return
 		}
 		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonAPIKeyGroupUnassigned)
+		MarkIngressRejected(c, IngressRejectGroupUnassigned)
 		effectiveWriter := writeError
 		if value, exists := c.Get(string(ContextKeyGatewayErrorWriter)); exists {
 			if protocolWriter, ok := value.(GatewayErrorWriter); ok && protocolWriter != nil {

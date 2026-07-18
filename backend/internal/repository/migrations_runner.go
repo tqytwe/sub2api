@@ -170,8 +170,11 @@ func applyMigrationsFS(ctx context.Context, db *sql.DB, fsys fs.FS) (retErr erro
 	}
 	defer func() {
 		// 无论迁移是否成功，都要释放锁。
-		// 使用 context.Background() 确保即使原 ctx 已取消也能释放锁。
-		if err := pgAdvisoryUnlock(context.Background(), conn); err != nil {
+		// 独立超时确保原 ctx 取消后仍会尝试释放，但数据库链路异常不会
+		// 无限阻塞进程退出。
+		unlockCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := pgAdvisoryUnlock(unlockCtx, conn); err != nil {
 			retErr = errors.Join(retErr, err)
 		}
 	}()
