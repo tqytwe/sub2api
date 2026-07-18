@@ -624,6 +624,25 @@ type UserSubscription struct {
 	Group *Group `json:"group,omitempty"`
 }
 
+type SubscriptionPurchaseOrder struct {
+	ID                  int64      `json:"id"`
+	OutTradeNo          string     `json:"out_trade_no"`
+	PaymentType         string     `json:"payment_type"`
+	PaymentTradeNo      string     `json:"payment_trade_no,omitempty"`
+	Amount              float64    `json:"amount"`
+	PayAmount           float64    `json:"pay_amount"`
+	Currency            string     `json:"currency"`
+	Status              string     `json:"status"`
+	PlanID              *int64     `json:"plan_id,omitempty"`
+	SubscriptionGroupID *int64     `json:"subscription_group_id,omitempty"`
+	SubscriptionDays    *int       `json:"subscription_days,omitempty"`
+	PaidAt              *time.Time `json:"paid_at,omitempty"`
+	CompletedAt         *time.Time `json:"completed_at,omitempty"`
+	CreatedAt           time.Time  `json:"created_at"`
+	AuditAction         string     `json:"audit_action,omitempty"`
+	AuditAt             *time.Time `json:"audit_at,omitempty"`
+}
+
 // AdminUserSubscription 是管理员接口使用的订阅 DTO（包含分配信息/备注等字段）。
 // 注意：普通用户接口不得返回 assigned_by/assigned_at/notes/assigned_by_user 等管理员字段。
 type AdminUserSubscription struct {
@@ -633,7 +652,8 @@ type AdminUserSubscription struct {
 	AssignedAt time.Time `json:"assigned_at"`
 	Notes      string    `json:"notes"`
 
-	AssignedByUser *User `json:"assigned_by_user,omitempty"`
+	AssignedByUser *User                      `json:"assigned_by_user,omitempty"`
+	PurchaseOrder  *SubscriptionPurchaseOrder `json:"purchase_order,omitempty"`
 }
 
 type BulkAssignResult struct {

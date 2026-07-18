@@ -2,16 +2,23 @@ package repository
 
 import (
 	"context"
+	"regexp"
+	"strconv"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/group"
+	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
+	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/schema/mixins"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
+	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+
+	"entgo.io/ent/dialect/sql"
 )
 
 type userSubscriptionRepository struct {
@@ -180,7 +187,11 @@ func (r *userSubscriptionRepository) ListByUserID(ctx context.Context, userID in
 	if err != nil {
 		return nil, err
 	}
-	return userSubscriptionEntitiesToService(subs), nil
+	result := userSubscriptionEntitiesToService(subs)
+	if err := r.attachSubscriptionPurchaseOrders(ctx, result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func (r *userSubscriptionRepository) ListActiveByUserID(ctx context.Context, userID int64) ([]service.UserSubscription, error) {
@@ -220,7 +231,11 @@ func (r *userSubscriptionRepository) ListByGroupID(ctx context.Context, groupID 
 		return nil, nil, err
 	}
 
-	return userSubscriptionEntitiesToService(subs), paginationResultFromTotal(int64(total), params), nil
+	result := userSubscriptionEntitiesToService(subs)
+	if err := r.attachSubscriptionPurchaseOrders(ctx, result); err != nil {
+		return nil, nil, err
+	}
+	return result, paginationResultFromTotal(int64(total), params), nil
 }
 
 func (r *userSubscriptionRepository) List(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]service.UserSubscription, *pagination.PaginationResult, error) {
@@ -316,6 +331,9 @@ func (r *userSubscriptionRepository) List(ctx context.Context, params pagination
 		if err := r.attachUserSubscriptionRelations(ctx, result); err != nil {
 			return nil, nil, err
 		}
+	}
+	if err := r.attachSubscriptionPurchaseOrders(ctx, result); err != nil {
+		return nil, nil, err
 	}
 
 	return result, paginationResultFromTotal(int64(total), params), nil
@@ -534,6 +552,131 @@ func (r *userSubscriptionRepository) DeleteByGroupID(ctx context.Context, groupI
 	client := clientFromContext(ctx, r.client)
 	n, err := client.UserSubscription.Delete().Where(usersubscription.GroupIDEQ(groupID)).Exec(ctx)
 	return int64(n), err
+}
+
+var subscriptionPaymentOrderNotePattern = regexp.MustCompile(`(?m)^\s*payment order\s+(\d+)\s*$`)
+
+func (r *userSubscriptionRepository) attachSubscriptionPurchaseOrders(ctx context.Context, subs []service.UserSubscription) error {
+	if len(subs) == 0 {
+		return nil
+	}
+
+	orderIDBySubIndex := make(map[int]int64, len(subs))
+	orderIDs := make([]int64, 0, len(subs))
+	for i := range subs {
+		orderID, ok := subscriptionPaymentOrderIDFromNotes(subs[i].Notes)
+		if !ok {
+			continue
+		}
+		orderIDBySubIndex[i] = orderID
+		orderIDs = append(orderIDs, orderID)
+	}
+	if len(orderIDs) == 0 {
+		return nil
+	}
+
+	client := clientFromContext(ctx, r.client)
+	orders, err := client.PaymentOrder.Query().
+		Where(
+			paymentorder.IDIn(uniqueInt64s(orderIDs)...),
+			paymentorder.OrderTypeEQ(payment.OrderTypeSubscription),
+		).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+
+	orderByID := make(map[int64]*dbent.PaymentOrder, len(orders))
+	orderIDStrings := make([]string, 0, len(orders))
+	seenOrderIDStrings := make(map[string]struct{}, len(orders))
+	for _, order := range orders {
+		orderByID[order.ID] = order
+		orderIDString := strconv.FormatInt(order.ID, 10)
+		if _, ok := seenOrderIDStrings[orderIDString]; ok {
+			continue
+		}
+		seenOrderIDStrings[orderIDString] = struct{}{}
+		orderIDStrings = append(orderIDStrings, orderIDString)
+	}
+
+	auditByOrderID, err := r.paymentSubscriptionAuditByOrderID(ctx, orderIDStrings)
+	if err != nil {
+		return err
+	}
+
+	for i, orderID := range orderIDBySubIndex {
+		order := orderByID[orderID]
+		if order == nil || order.UserID != subs[i].UserID || order.SubscriptionGroupID == nil || *order.SubscriptionGroupID != subs[i].GroupID {
+			continue
+		}
+		var auditAction string
+		var auditAt *time.Time
+		if audit := auditByOrderID[order.ID]; audit != nil {
+			auditAction = audit.Action
+			auditAt = &audit.CreatedAt
+		}
+		subs[i].PurchaseOrder = &service.SubscriptionPurchaseOrder{
+			ID:                  order.ID,
+			OutTradeNo:          order.OutTradeNo,
+			PaymentType:         order.PaymentType,
+			PaymentTradeNo:      order.PaymentTradeNo,
+			Amount:              order.Amount,
+			PayAmount:           order.PayAmount,
+			Currency:            service.PaymentOrderCurrency(order),
+			Status:              order.Status,
+			PlanID:              order.PlanID,
+			SubscriptionGroupID: order.SubscriptionGroupID,
+			SubscriptionDays:    order.SubscriptionDays,
+			PaidAt:              order.PaidAt,
+			CompletedAt:         order.CompletedAt,
+			CreatedAt:           order.CreatedAt,
+			AuditAction:         auditAction,
+			AuditAt:             auditAt,
+		}
+	}
+	return nil
+}
+
+func (r *userSubscriptionRepository) paymentSubscriptionAuditByOrderID(ctx context.Context, orderIDStrings []string) (map[int64]*dbent.PaymentAuditLog, error) {
+	out := make(map[int64]*dbent.PaymentAuditLog, len(orderIDStrings))
+	if len(orderIDStrings) == 0 {
+		return out, nil
+	}
+
+	client := clientFromContext(ctx, r.client)
+	audits, err := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDIn(orderIDStrings...),
+			paymentauditlog.ActionIn("SUBSCRIPTION_ASSIGNED", "SUBSCRIPTION_SUCCESS"),
+		).
+		Order(paymentauditlog.ByCreatedAt(sql.OrderDesc())).
+		All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, audit := range audits {
+		orderID, err := strconv.ParseInt(audit.OrderID, 10, 64)
+		if err != nil {
+			continue
+		}
+		if _, exists := out[orderID]; exists {
+			continue
+		}
+		out[orderID] = audit
+	}
+	return out, nil
+}
+
+func subscriptionPaymentOrderIDFromNotes(notes string) (int64, bool) {
+	match := subscriptionPaymentOrderNotePattern.FindStringSubmatch(notes)
+	if len(match) != 2 {
+		return 0, false
+	}
+	orderID, err := strconv.ParseInt(match[1], 10, 64)
+	if err != nil || orderID <= 0 {
+		return 0, false
+	}
+	return orderID, true
 }
 
 func (r *userSubscriptionRepository) attachUserSubscriptionRelations(ctx context.Context, subs []service.UserSubscription) error {
