@@ -189,6 +189,22 @@ describe('decidePaymentLaunch', () => {
     expect(decision.paymentState.qrCode).toBe('https://pay.example.com/qr/session')
   })
 
+  it('keeps desktop WeChat on QR flow when popup mode also includes a pay_url', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_url: 'https://api.xunhupay.com/pay/payment.html?hash=mobile-url',
+      qr_code: 'weixin://wxpay/bizpayurl?pr=desktop-order',
+      payment_mode: 'popup',
+    }), {
+      visibleMethod: 'wxpay',
+      orderType: 'balance',
+      isMobile: false,
+    })
+
+    expect(decision.kind).toBe('qr_waiting')
+    expect(decision.paymentState.payUrl).toBe('https://api.xunhupay.com/pay/payment.html?hash=mobile-url')
+    expect(decision.paymentState.qrCode).toBe('weixin://wxpay/bizpayurl?pr=desktop-order')
+  })
+
   it('returns wechat oauth launch when backend requires in-app authorization', () => {
     const decision = decidePaymentLaunch(createOrderResult({
       result_type: 'oauth_required',
