@@ -154,7 +154,7 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.text()).not.toContain('payment.qr.scanAlipay')
   })
 
-  it('actively verifies a stuck pending order and settles it when upstream confirms payment', async () => {
+  it('actively verifies a stuck pending Alipay order and settles it when upstream confirms payment', async () => {
     pollOrderStatus.mockResolvedValue(orderFactory('PENDING'))
     verifyOrder.mockResolvedValue({
       data: orderFactory('COMPLETED'),
@@ -164,6 +164,37 @@ describe('PaymentStatusPanel', () => {
       props: {
         orderId: 42,
         qrCode: 'https://pay.example.com/qr/42',
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'alipay',
+        orderType: 'balance',
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+    await vi.advanceTimersByTimeAsync(3000)
+    await flushPromises()
+
+    expect(pollOrderStatus).toHaveBeenCalledWith(42)
+    expect(verifyOrder).toHaveBeenCalledWith('sub2_20260420abcd1234')
+    expect(wrapper.text()).toContain('payment.result.success')
+    expect(wrapper.emitted('success')).toHaveLength(1)
+  })
+
+  it('still actively verifies a stuck pending WeChat order', async () => {
+    pollOrderStatus.mockResolvedValue(orderFactory('PENDING'))
+    verifyOrder.mockResolvedValue({
+      data: orderFactory('COMPLETED'),
+    })
+
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: 'weixin://wxpay/bizpayurl?pr=42',
         expiresAt: '2099-01-01T12:30:00Z',
         paymentType: 'wxpay',
         orderType: 'balance',
@@ -179,7 +210,6 @@ describe('PaymentStatusPanel', () => {
     await vi.advanceTimersByTimeAsync(3000)
     await flushPromises()
 
-    expect(pollOrderStatus).toHaveBeenCalledWith(42)
     expect(verifyOrder).toHaveBeenCalledWith('sub2_20260420abcd1234')
     expect(wrapper.text()).toContain('payment.result.success')
     expect(wrapper.emitted('success')).toHaveLength(1)

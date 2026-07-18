@@ -163,6 +163,10 @@ function reopenPopup() {
   }
 }
 
+function shouldVerifyPendingOrder(): boolean {
+  return isAlipay.value || isWxpay.value
+}
+
 async function renderQR() {
   await nextTick()
   if (!qrCanvas.value || !qrUrl.value) return
@@ -213,7 +217,7 @@ async function pollStatus() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
-  if (!isWxpay.value) return order
+  if (!shouldVerifyPendingOrder()) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
   const normalizedStatus = normalizeOrderStatus(order.status)
