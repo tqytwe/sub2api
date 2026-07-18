@@ -231,6 +231,10 @@ function isSuccessStatus(status: string | null | undefined): boolean {
   return isPaymentSuccessStatus(status)
 }
 
+function shouldVerifyPendingOrder(): boolean {
+  return isAlipay.value || isWxpay.value
+}
+
 function reopenPopup() {
   if (props.payUrl) {
     const win = window.open(props.payUrl, 'paymentPopup', getPaymentPopupFeatures())
@@ -256,7 +260,7 @@ async function renderQR() {
 }
 
 async function tryRecoverPendingOrder(order: PaymentOrder): Promise<PaymentOrder> {
-  if (!isWxpay.value) return order
+  if (!shouldVerifyPendingOrder()) return order
   const outTradeNo = String(order.out_trade_no || '').trim()
   if (!outTradeNo) return order
   const normalizedStatus = normalizeOrderStatus(order.status)
