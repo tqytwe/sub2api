@@ -139,163 +139,179 @@ onMounted(load)
     </header>
 
     <main class="play-main arena-competitive-main">
-      <p class="play-eyebrow">{{ t('play.arena.eyebrow') }}</p>
-      <h1 class="play-title">{{ t('play.arena.title') }}</h1>
-      <p class="play-subtitle">{{ t('play.arena.subtitle') }}</p>
-
-      <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-      <div v-else-if="!monthlyCurrent?.enabled && !dailyCurrent?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
-      <template v-else>
-        <div class="arena-rpg-tabs">
-          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
-            {{ t('arena.rpg.tabDaily') }}
-          </button>
-          <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
-            {{ t('arena.rpg.tabMonthly') }}
-          </button>
-        </div>
-
-        <p v-if="periodLabel" class="arena-period-pill">{{ t('arena.period', { name: periodLabel }) }}</p>
-
-        <section class="arena-hero-grid">
-          <div class="arena-season-panel">
-            <p class="arena-panel-label">{{ t('arena.competitive.mySeason') }}</p>
-            <div class="arena-season-rank">
-              {{ selectedRank ? `#${selectedRank}` : t('arena.competitive.noRank') }}
-            </div>
-            <p v-if="selectedRank" class="arena-season-copy">
-              {{ t('arena.myStats', { rank: selectedRank, tokens: formatTokens(selectedTokenSum) }) }}
-            </p>
-            <p v-if="selectedGap" class="arena-season-copy">
-              {{ t('arena.gapToPrev', { gap: formatTokens(selectedGap) }) }}
-            </p>
-            <div class="arena-season-meter" aria-label="rank progress">
-              <span :style="{ width: `${rankProgressPercent}%` }" />
-            </div>
-            <div class="arena-season-stats">
-              <span>{{ rewardStatus }}</span>
-              <span>{{ t('arena.competitive.topRange') }}</span>
-            </div>
-            <div v-if="monthlyCurrent?.recharge_boost_active || monthlyCurrent?.campaign_active" class="arena-buff-row">
-              <span v-if="monthlyCurrent?.recharge_boost_active" class="arena-buff">
-                {{ t('arena.boostActive', { mult: monthlyCurrent.arena_score_multiplier || 1.5 }) }}
-              </span>
-              <span v-if="monthlyCurrent?.campaign_active" class="arena-buff">{{ t('arena.rpg.campaignBuff') }}</span>
-            </div>
-          </div>
-
-          <div class="arena-reward-panel">
-            <p class="arena-panel-label">{{ t('arena.competitive.rewardTitle') }}</p>
-            <ul>
-              <li>{{ t('arena.competitive.rewardRuleRanked') }}</li>
-              <li>{{ t('arena.competitive.rewardRuleSettle') }}</li>
-              <li>{{ t('arena.competitive.rewardRuleEnergy') }}</li>
-            </ul>
-          </div>
-        </section>
-
-        <section v-if="quests?.enabled" class="arena-level-card">
-          <div class="arena-rpg-level">
+      <div class="play-workspace">
+        <section class="play-hero-panel">
+          <div class="play-hero-grid">
             <div>
-              <p class="text-sm text-gray-500">{{ t('arena.rpg.season') }} · {{ periodLabel }}</p>
-              <p class="text-lg font-semibold">
-                {{ t('arena.rpg.level', { level: quests.level }) }}
-                <span class="text-sm font-normal text-gray-500">· {{ t('arena.rpg.farmer') }}</span>
-              </p>
+              <p class="play-eyebrow">{{ t('play.arena.eyebrow') }}</p>
+              <h1 class="play-title">{{ t('play.arena.title') }}</h1>
+              <p class="play-subtitle">{{ t('play.arena.subtitle') }}</p>
+              <p v-if="periodLabel" class="arena-period-pill">{{ t('arena.period', { name: periodLabel }) }}</p>
             </div>
-            <p class="text-sm text-gray-600 dark:text-dark-300">
-              {{ t('arena.rpg.energyGap', { gap: quests.energy_to_next_level.toLocaleString() }) }}
-            </p>
-          </div>
-          <div class="arena-rpg-xp-bar">
-            <div class="arena-rpg-xp-fill" :style="{ width: `${xpPercent}%` }" />
-          </div>
-        </section>
 
-        <section v-if="podiumRows.length" class="play-section">
-          <h2 class="play-section-title">{{ t('arena.competitive.podium') }}</h2>
-          <div class="arena-podium">
-            <article
-              v-for="row in podiumRows"
-              :key="row.user_id"
-              class="arena-podium-card"
-              :class="[`tone-${toneForRank(row.rank)}`, { champion: row.rank === 1 }]"
-            >
-              <div class="arena-podium-rank">#{{ row.rank }}</div>
-              <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" size-class="h-10 w-10" />
-              <strong>{{ formatTokens(row.token_sum) }}</strong>
-              <span>{{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}</span>
-            </article>
-          </div>
-        </section>
-
-        <section class="play-section">
-          <h2 class="play-section-title">{{ t('arena.leaderboard') }}</h2>
-          <div v-if="rankRows.length" class="arena-rank-list">
-            <div
-              v-for="row in rankRows"
-              :key="row.user_id"
-              class="arena-rank-row"
-              :class="{ current: isCurrentRank(row) }"
-            >
-              <span class="arena-rank-number">#{{ row.rank }}</span>
-              <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
-              <span class="arena-rank-tokens">{{ formatTokens(row.token_sum) }} tokens</span>
-              <span class="arena-rank-reward">
-                {{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}
-              </span>
-            </div>
-          </div>
-          <div v-else-if="!leaderboardRows.length" class="play-note">{{ t('arena.empty') }}</div>
-        </section>
-
-        <section v-if="quests?.enabled && quests.tasks?.length" class="play-section">
-          <h2 class="play-section-title">{{ t('arena.rpg.dailyQuests') }}</h2>
-          <div class="arena-quest-grid">
-            <div
-              v-for="task in quests.tasks"
-              :key="task.key"
-              class="arena-quest-card"
-              :class="{ done: task.completed }"
-            >
-              <div>
-                <p>{{ questLabel(task.key) }}</p>
-                <span>{{ task.completed ? t('arena.competitive.questDone') : t('arena.rpg.go') }}</span>
+            <div class="play-action-panel">
+              <div class="arena-rpg-tabs">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
+                  {{ t('arena.rpg.tabDaily') }}
+                </button>
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
+                  {{ t('arena.rpg.tabMonthly') }}
+                </button>
               </div>
-              <strong>{{ t('arena.competitive.questEnergy', { energy: task.energy }) }}</strong>
-              <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="arena-quest-link">
-                {{ t('arena.rpg.go') }}
-              </router-link>
+              <p class="play-note m-0">{{ rewardStatus }}</p>
             </div>
           </div>
         </section>
 
-        <section v-if="showSeedGuide" class="arena-field-card arena-seed-guide">
-          <h2 class="play-section-title">{{ t('arena.rpg.seedTitle') }}</h2>
-          <ol>
-            <li>{{ t('arena.rpg.seedStep1') }}</li>
-            <li>{{ t('arena.rpg.seedStep2') }}</li>
-            <li>{{ t('arena.rpg.seedStep3') }}</li>
-          </ol>
-        </section>
+        <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
+        <div v-else-if="!monthlyCurrent?.enabled && !dailyCurrent?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
+        <template v-else>
+          <section class="arena-hero-grid">
+            <div class="arena-season-panel">
+              <p class="arena-panel-label">{{ t('arena.competitive.mySeason') }}</p>
+              <div class="arena-season-rank">
+                {{ selectedRank ? `#${selectedRank}` : t('arena.competitive.noRank') }}
+              </div>
+              <p v-if="selectedRank" class="arena-season-copy">
+                {{ t('arena.myStats', { rank: selectedRank, tokens: formatTokens(selectedTokenSum) }) }}
+              </p>
+              <p v-if="selectedGap" class="arena-season-copy">
+                {{ t('arena.gapToPrev', { gap: formatTokens(selectedGap) }) }}
+              </p>
+              <div class="arena-season-meter" aria-label="rank progress">
+                <span :style="{ width: `${rankProgressPercent}%` }" />
+              </div>
+              <div class="arena-season-stats">
+                <span>{{ rewardStatus }}</span>
+                <span>{{ t('arena.competitive.topRange') }}</span>
+              </div>
+              <div v-if="monthlyCurrent?.recharge_boost_active || monthlyCurrent?.campaign_active" class="arena-buff-row">
+                <span v-if="monthlyCurrent?.recharge_boost_active" class="arena-buff">
+                  {{ t('arena.boostActive', { mult: monthlyCurrent.arena_score_multiplier || 1.5 }) }}
+                </span>
+                <span v-if="monthlyCurrent?.campaign_active" class="arena-buff">{{ t('arena.rpg.campaignBuff') }}</span>
+              </div>
+            </div>
 
-        <section v-if="steps.length" class="play-section">
-          <h2 class="play-section-title">{{ t('play.howItWorks') }}</h2>
-          <ol class="play-steps">
-            <li v-for="(step, idx) in steps" :key="idx">{{ step }}</li>
-          </ol>
-        </section>
+            <div class="arena-reward-panel">
+              <p class="arena-panel-label">{{ t('arena.competitive.rewardTitle') }}</p>
+              <ul>
+                <li>{{ t('arena.competitive.rewardRuleRanked') }}</li>
+                <li>{{ t('arena.competitive.rewardRuleSettle') }}</li>
+                <li>{{ t('arena.competitive.rewardRuleEnergy') }}</li>
+              </ul>
+            </div>
+          </section>
 
-        <section v-if="rules.length" class="play-section">
-          <h2 class="play-section-title">{{ t('play.arena.rulesTitle') }}</h2>
-          <ul class="play-rules">
-            <li v-for="(rule, idx) in rules" :key="idx">{{ rule }}</li>
-          </ul>
-        </section>
-      </template>
+          <div class="play-detail-grid">
+            <div class="play-content-panel">
+              <section v-if="podiumRows.length" class="play-section">
+                <h2 class="play-section-title">{{ t('arena.competitive.podium') }}</h2>
+                <div class="arena-podium">
+                  <article
+                    v-for="row in podiumRows"
+                    :key="row.user_id"
+                    class="arena-podium-card"
+                    :class="[`tone-${toneForRank(row.rank)}`, { champion: row.rank === 1 }]"
+                  >
+                    <div class="arena-podium-rank">#{{ row.rank }}</div>
+                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" size-class="h-10 w-10" />
+                    <strong>{{ formatTokens(row.token_sum) }}</strong>
+                    <span>{{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}</span>
+                  </article>
+                </div>
+              </section>
 
-      <div v-if="!authStore.isAuthenticated" class="play-actions">
-        <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.arena.ctaGuest') }}</router-link>
+              <section class="play-section mb-0">
+                <h2 class="play-section-title">{{ t('arena.leaderboard') }}</h2>
+                <div v-if="rankRows.length" class="arena-rank-list">
+                  <div
+                    v-for="row in rankRows"
+                    :key="row.user_id"
+                    class="arena-rank-row"
+                    :class="{ current: isCurrentRank(row) }"
+                  >
+                    <span class="arena-rank-number">#{{ row.rank }}</span>
+                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
+                    <span class="arena-rank-tokens">{{ formatTokens(row.token_sum) }} tokens</span>
+                    <span class="arena-rank-reward">
+                      {{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}
+                    </span>
+                  </div>
+                </div>
+                <div v-else-if="!leaderboardRows.length" class="play-note">{{ t('arena.empty') }}</div>
+              </section>
+            </div>
+
+            <aside class="play-workspace">
+              <section v-if="quests?.enabled" class="arena-level-card">
+                <div class="arena-rpg-level">
+                  <div>
+                    <p class="text-sm text-gray-500">{{ t('arena.rpg.season') }} · {{ periodLabel }}</p>
+                    <p class="text-lg font-semibold">
+                      {{ t('arena.rpg.level', { level: quests.level }) }}
+                      <span class="text-sm font-normal text-gray-500">· {{ t('arena.rpg.farmer') }}</span>
+                    </p>
+                  </div>
+                  <p class="text-sm text-gray-600 dark:text-dark-300">
+                    {{ t('arena.rpg.energyGap', { gap: quests.energy_to_next_level.toLocaleString() }) }}
+                  </p>
+                </div>
+                <div class="arena-rpg-xp-bar">
+                  <div class="arena-rpg-xp-fill" :style="{ width: `${xpPercent}%` }" />
+                </div>
+              </section>
+
+              <section v-if="quests?.enabled && quests.tasks?.length" class="play-section">
+                <h2 class="play-section-title">{{ t('arena.rpg.dailyQuests') }}</h2>
+                <div class="arena-quest-grid">
+                  <div
+                    v-for="task in quests.tasks"
+                    :key="task.key"
+                    class="arena-quest-card"
+                    :class="{ done: task.completed }"
+                  >
+                    <div>
+                      <p>{{ questLabel(task.key) }}</p>
+                      <span>{{ task.completed ? t('arena.competitive.questDone') : t('arena.rpg.go') }}</span>
+                    </div>
+                    <strong>{{ t('arena.competitive.questEnergy', { energy: task.energy }) }}</strong>
+                    <router-link v-if="!task.completed && task.cta_route" :to="task.cta_route" class="arena-quest-link">
+                      {{ t('arena.rpg.go') }}
+                    </router-link>
+                  </div>
+                </div>
+              </section>
+
+              <section v-if="showSeedGuide" class="arena-field-card arena-seed-guide">
+                <h2 class="play-section-title">{{ t('arena.rpg.seedTitle') }}</h2>
+                <ol>
+                  <li>{{ t('arena.rpg.seedStep1') }}</li>
+                  <li>{{ t('arena.rpg.seedStep2') }}</li>
+                  <li>{{ t('arena.rpg.seedStep3') }}</li>
+                </ol>
+              </section>
+
+              <section v-if="steps.length" class="play-section">
+                <h2 class="play-section-title">{{ t('play.howItWorks') }}</h2>
+                <ol class="play-steps">
+                  <li v-for="(step, idx) in steps" :key="idx">{{ step }}</li>
+                </ol>
+              </section>
+
+              <section v-if="rules.length" class="play-section mb-0">
+                <h2 class="play-section-title">{{ t('play.arena.rulesTitle') }}</h2>
+                <ul class="play-rules">
+                  <li v-for="(rule, idx) in rules" :key="idx">{{ rule }}</li>
+                </ul>
+              </section>
+            </aside>
+          </div>
+        </template>
+
+        <div v-if="!authStore.isAuthenticated" class="play-actions">
+          <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.arena.ctaGuest') }}</router-link>
+        </div>
       </div>
     </main>
 
@@ -304,10 +320,6 @@ onMounted(load)
 </template>
 
 <style scoped>
-.arena-competitive-main {
-  max-width: 1120px;
-}
-
 .arena-period-pill {
   display: inline-flex;
   align-items: center;

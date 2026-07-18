@@ -249,7 +249,7 @@ onBeforeUnmount(() => {
       {{ t('imageStudio.disabled') }}
     </div>
 
-    <div v-else class="mx-auto max-w-[1440px]">
+    <div v-else class="w-full max-w-none">
       <div class="mb-4 lg:hidden">
         <h1 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('imageStudio.title') }}</h1>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('imageStudio.workspaceSubtitle') }}</p>
