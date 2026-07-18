@@ -202,7 +202,8 @@
 }
 
 .public-page-header {
-  max-width: 1100px;
+  width: 100%;
+  max-width: 1440px;
   margin: 0 auto;
   padding: 24px 32px 0;
   display: flex;
@@ -1472,9 +1473,80 @@
 }
 
 .play-main {
-  max-width: 760px;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
-  padding: 56px 32px 120px;
+  padding: 32px 32px 120px;
+}
+
+.play-workspace {
+  display: grid;
+  gap: 18px;
+}
+
+.play-hero-panel,
+.play-content-panel,
+.play-action-panel,
+.play-side-panel {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+}
+
+.play-hero-panel {
+  padding: 24px;
+}
+
+.play-content-panel,
+.play-action-panel,
+.play-side-panel {
+  padding: 20px;
+}
+
+.play-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: stretch;
+}
+
+.play-detail-grid,
+.play-two-column-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.play-four-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.play-mini-stat {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+  padding: 14px;
+}
+
+.play-mini-label {
+  display: block;
+  margin-bottom: 6px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.play-mini-value {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--ink);
 }
 
 .play-eyebrow {
@@ -1682,5 +1754,30 @@
   .play-main {
     padding-left: 20px;
     padding-right: 20px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .play-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(320px, 0.42fr);
+  }
+
+  .play-two-column-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .play-detail-grid {
+    grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
+  }
+}
+
+@media (min-width: 1536px) {
+  .play-main {
+    padding-left: 40px;
+    padding-right: 40px;
+  }
+
+  .play-detail-grid {
+    grid-template-columns: minmax(0, 1.55fr) minmax(360px, 0.65fr);
   }
 }

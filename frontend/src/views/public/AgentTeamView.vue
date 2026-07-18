@@ -191,153 +191,172 @@ onMounted(loadTeam)
     </header>
 
     <main class="play-main agent-team-main">
-      <p class="play-eyebrow">{{ t('play.agentTeam.eyebrow') }}</p>
-      <h1 class="play-title">{{ t('play.agentTeam.title') }}</h1>
-      <p class="play-subtitle">{{ t('play.agentTeam.subtitle') }}</p>
-      <p class="play-intro">{{ t('play.agentTeam.intro') }}</p>
-
-      <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-      <div v-else-if="!teamMe?.enabled" class="play-note">{{ t('agentTeam.disabled') }}</div>
-      <div v-else-if="!authStore.isAuthenticated" class="play-actions">
-        <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.agentTeam.ctaGuest') }}</router-link>
-      </div>
-      <div v-else-if="teamMe.team" class="play-section">
-        <div class="agent-team-header">
-          <div>
-            <p class="agent-team-kicker">Agent Team</p>
-            <h2 class="play-section-title">{{ teamMe.team.name }}</h2>
+      <div class="play-workspace">
+        <section class="play-hero-panel">
+          <div class="play-hero-grid">
+            <div>
+              <p class="play-eyebrow">{{ t('play.agentTeam.eyebrow') }}</p>
+              <h1 class="play-title">{{ t('play.agentTeam.title') }}</h1>
+              <p class="play-subtitle">{{ t('play.agentTeam.subtitle') }}</p>
+              <p class="play-intro">{{ t('play.agentTeam.intro') }}</p>
+            </div>
+            <div v-if="teamMe?.team" class="play-action-panel">
+              <p class="agent-panel-label">{{ t('agentTeam.teamRecord') }}</p>
+              <div class="agent-team-pool">${{ formatMoney(teamMe.team.estimated_pool) }}</div>
+              <p>{{ teamMe.team.member_count }} {{ t('agentTeam.membersUnit') }}</p>
+            </div>
           </div>
-          <span class="agent-pill">{{ teamMe.team.member_count }} {{ t('agentTeam.membersUnit') }}</span>
-        </div>
+        </section>
 
-        <div class="agent-dashboard">
-          <section class="agent-team-score-panel">
-            <p class="agent-panel-label">{{ t('agentTeam.teamRecord') }}</p>
-            <div class="agent-team-pool">${{ formatMoney(teamMe.team.estimated_pool) }}</div>
-            <p>{{ t('agentTeam.rewardRuleDetail') }}</p>
-            <div class="agent-tier-track">
-              <span
-                v-for="tier in currentRewardTiers"
-                :key="`${tier.threshold}-${tier.rate}`"
-                :class="{ active: tierReached(tier.threshold) }"
-              >
-                ${{ formatMoney(tier.threshold) }} · {{ (Number(tier.rate) * 100).toFixed(0) }}%
-                <small>{{ tierReached(tier.threshold) ? t('agentTeam.tierReached') : t('agentTeam.tierLocked') }}</small>
-              </span>
+        <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
+        <div v-else-if="!teamMe?.enabled" class="play-note">{{ t('agentTeam.disabled') }}</div>
+        <div v-else-if="!authStore.isAuthenticated" class="play-actions">
+          <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.agentTeam.ctaGuest') }}</router-link>
+        </div>
+        <template v-else-if="teamMe.team">
+          <section class="play-content-panel">
+            <div class="agent-team-header">
+              <div>
+                <p class="agent-team-kicker">Agent Team</p>
+                <h2 class="play-section-title">{{ teamMe.team.name }}</h2>
+              </div>
+              <span class="agent-pill">{{ teamMe.team.member_count }} {{ t('agentTeam.membersUnit') }}</span>
+            </div>
+
+            <div class="agent-dashboard">
+              <section class="agent-team-score-panel">
+                <p class="agent-panel-label">{{ t('agentTeam.teamRecord') }}</p>
+                <div class="agent-team-pool">${{ formatMoney(teamMe.team.estimated_pool) }}</div>
+                <p>{{ t('agentTeam.rewardRuleDetail') }}</p>
+                <div class="agent-tier-track">
+                  <span
+                    v-for="tier in currentRewardTiers"
+                    :key="`${tier.threshold}-${tier.rate}`"
+                    :class="{ active: tierReached(tier.threshold) }"
+                  >
+                    ${{ formatMoney(tier.threshold) }} · {{ (Number(tier.rate) * 100).toFixed(0) }}%
+                    <small>{{ tierReached(tier.threshold) ? t('agentTeam.tierReached') : t('agentTeam.tierLocked') }}</small>
+                  </span>
+                </div>
+              </section>
+
+              <section class="agent-next-tier-panel">
+                <p class="agent-panel-label">{{ t('agentTeam.nextTierTitle') }}</p>
+                <strong v-if="nextThreshold > 0">{{ t('agentTeam.moreToNextTier', { amount: nextTierGap.toFixed(2) }) }}</strong>
+                <strong v-else>{{ t('agentTeam.currentTier', { rate: rewardRatePct.toFixed(0) }) }}</strong>
+                <span v-if="nextThreshold > 0">
+                  {{ t('agentTeam.nextTier', { amount: nextTierGap.toFixed(2), threshold: nextThreshold.toFixed(2) }) }}
+                </span>
+                <span>{{ t('agentTeam.rewardRule', { cap: formatMoney(teamMe.team.reward_cap) }) }}</span>
+              </section>
             </div>
           </section>
 
-          <section class="agent-next-tier-panel">
-            <p class="agent-panel-label">{{ t('agentTeam.nextTierTitle') }}</p>
-            <strong v-if="nextThreshold > 0">{{ t('agentTeam.moreToNextTier', { amount: nextTierGap.toFixed(2) }) }}</strong>
-            <strong v-else>{{ t('agentTeam.currentTier', { rate: rewardRatePct.toFixed(0) }) }}</strong>
-            <span v-if="nextThreshold > 0">
-              {{ t('agentTeam.nextTier', { amount: nextTierGap.toFixed(2), threshold: nextThreshold.toFixed(2) }) }}
-            </span>
-            <span>{{ t('agentTeam.rewardRule', { cap: formatMoney(teamMe.team.reward_cap) }) }}</span>
+          <div class="play-detail-grid">
+            <section class="play-content-panel">
+              <h3 class="play-section-title">{{ t('agentTeam.contributionsTitle') }}</h3>
+              <p v-if="teamSpend <= 0" class="play-intro text-sm">
+                {{ t('agentTeam.memberUsageEmpty') }}
+              </p>
+              <div v-else class="agent-member-board">
+                <article
+                  v-for="(member, index) in sortedMembers"
+                  :key="member.user_id"
+                  class="agent-member-card"
+                  :class="[`tone-${toneForIndex(index)}`, { current: member.user_id === authStore.user?.id }]"
+                >
+                  <div class="agent-member-main">
+                    <span class="agent-rank-number">#{{ index + 1 }}</span>
+                    <PlayUserAvatar :name="member.display_name" :avatar-url="member.avatar_url" />
+                    <span v-if="member.user_id === teamMe.team.captain_id" class="agent-captain-badge">
+                      {{ t('agentTeam.captainBadge') }}
+                    </span>
+                  </div>
+                  <div class="agent-member-metrics">
+                    <strong>${{ formatMoney(member.spend) }}</strong>
+                    <span>{{ t('agentTeam.memberTokens', { tokens: formatTokens(member.token_sum) }) }} · {{ member.spend_pct ?? 0 }}%</span>
+                    <span>{{ t('agentTeam.memberEstimatedReward', { reward: formatMoney(member.estimated_reward) }) }}</span>
+                    <div class="agent-member-bar">
+                      <span :style="{ width: `${member.spend_pct ?? 0}%` }" />
+                    </div>
+                    <div v-if="isCaptain && member.user_id !== authStore.user?.id" class="agent-member-actions">
+                      <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleTransfer(member.user_id)">
+                        {{ t('agentTeam.transfer') }}
+                      </button>
+                      <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleRemove(member.user_id)">
+                        {{ t('agentTeam.remove') }}
+                      </button>
+                    </div>
+                  </div>
+                </article>
+              </div>
+            </section>
+
+            <aside class="play-workspace">
+              <section v-if="isCaptain" class="agent-invite-card">
+                <p class="agent-panel-label">{{ t('agentTeam.inviteCodeLabel') }}</p>
+                <div class="agent-invite-row">
+                  <code>{{ teamMe.team.invite_code }}</code>
+                  <button type="button" class="play-btn play-btn-secondary" @click="copyCombinedInviteLink">
+                    {{ t('agentTeam.copyInviteCode') }}
+                  </button>
+                </div>
+              </section>
+
+              <section class="play-section">
+                <h3 class="play-section-title">{{ t('agentTeam.settlementHistory') }}</h3>
+                <p v-if="settlements.length === 0" class="play-intro">{{ t('agentTeam.noSettlements') }}</p>
+                <div v-else class="agent-settlement-list">
+                  <article v-for="record in settlements" :key="record.settlement.id" class="agent-settlement-card">
+                    <div class="agent-settlement-head">
+                      <strong>{{ record.settlement.period_start.slice(0, 7) }}</strong>
+                      <span class="agent-status-pill" :class="`status-${record.settlement.status}`">
+                        {{ settlementStatusLabel(record.settlement.status) }}
+                      </span>
+                      <span>${{ formatMoney(record.settlement.pool_amount) }}</span>
+                    </div>
+                    <div class="agent-allocation-list">
+                      <span v-for="allocation in record.allocations" :key="allocation.id">
+                        {{ allocation.display_name || memberDisplayName(allocation.user_id) }}
+                        · {{ t('agentTeam.allocationLine', {
+                          contribution: formatMoney(allocation.contribution),
+                          ratio: (Number(allocation.ratio) * 100).toFixed(1),
+                          reward: formatMoney(allocation.reward_amount),
+                          status: payoutStatusLabel(allocation.payout_status),
+                        }) }}
+                      </span>
+                    </div>
+                  </article>
+                </div>
+              </section>
+
+              <div class="flex justify-end">
+                <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleLeave">
+                  {{ t('agentTeam.leave') }}
+                </button>
+              </div>
+            </aside>
+          </div>
+        </template>
+        <div v-else class="play-two-column-grid">
+          <section class="play-content-panel">
+            <label class="mb-2 block text-sm font-medium">{{ t('agentTeam.createLabel') }}</label>
+            <div class="flex gap-2">
+              <input v-model="teamName" type="text" class="input flex-1" :placeholder="t('agentTeam.createPlaceholder')" />
+              <button type="button" class="play-btn play-btn-primary" :disabled="submitting" @click="handleCreate">
+                {{ t('agentTeam.createButton') }}
+              </button>
+            </div>
           </section>
-        </div>
-
-        <section v-if="isCaptain" class="agent-invite-card">
-          <p class="agent-panel-label">{{ t('agentTeam.inviteCodeLabel') }}</p>
-          <div class="agent-invite-row">
-            <code>{{ teamMe.team.invite_code }}</code>
-            <button type="button" class="play-btn play-btn-secondary" @click="copyCombinedInviteLink">
-              {{ t('agentTeam.copyInviteCode') }}
-            </button>
-          </div>
-        </section>
-
-        <section class="play-section">
-          <h3 class="play-section-title">{{ t('agentTeam.contributionsTitle') }}</h3>
-          <p v-if="teamSpend <= 0" class="play-intro text-sm">
-            {{ t('agentTeam.memberUsageEmpty') }}
-          </p>
-          <div v-else class="agent-member-board">
-            <article
-              v-for="(member, index) in sortedMembers"
-              :key="member.user_id"
-              class="agent-member-card"
-              :class="[`tone-${toneForIndex(index)}`, { current: member.user_id === authStore.user?.id }]"
-            >
-              <div class="agent-member-main">
-                <span class="agent-rank-number">#{{ index + 1 }}</span>
-                <PlayUserAvatar :name="member.display_name" :avatar-url="member.avatar_url" />
-                <span v-if="member.user_id === teamMe.team.captain_id" class="agent-captain-badge">
-                  {{ t('agentTeam.captainBadge') }}
-                </span>
-              </div>
-              <div class="agent-member-metrics">
-                <strong>${{ formatMoney(member.spend) }}</strong>
-                <span>{{ t('agentTeam.memberTokens', { tokens: formatTokens(member.token_sum) }) }} · {{ member.spend_pct ?? 0 }}%</span>
-                <span>{{ t('agentTeam.memberEstimatedReward', { reward: formatMoney(member.estimated_reward) }) }}</span>
-                <div class="agent-member-bar">
-                  <span :style="{ width: `${member.spend_pct ?? 0}%` }" />
-                </div>
-                <div v-if="isCaptain && member.user_id !== authStore.user?.id" class="agent-member-actions">
-                  <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleTransfer(member.user_id)">
-                    {{ t('agentTeam.transfer') }}
-                  </button>
-                  <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleRemove(member.user_id)">
-                    {{ t('agentTeam.remove') }}
-                  </button>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
-
-        <div class="flex justify-end">
-          <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleLeave">
-            {{ t('agentTeam.leave') }}
-          </button>
-        </div>
-
-        <section class="play-section">
-          <h3 class="play-section-title">{{ t('agentTeam.settlementHistory') }}</h3>
-          <p v-if="settlements.length === 0" class="play-intro">{{ t('agentTeam.noSettlements') }}</p>
-          <div v-else class="agent-settlement-list">
-            <article v-for="record in settlements" :key="record.settlement.id" class="agent-settlement-card">
-              <div class="agent-settlement-head">
-                <strong>{{ record.settlement.period_start.slice(0, 7) }}</strong>
-                <span class="agent-status-pill" :class="`status-${record.settlement.status}`">
-                  {{ settlementStatusLabel(record.settlement.status) }}
-                </span>
-                <span>${{ formatMoney(record.settlement.pool_amount) }}</span>
-              </div>
-              <div class="agent-allocation-list">
-                <span v-for="allocation in record.allocations" :key="allocation.id">
-                  {{ allocation.display_name || memberDisplayName(allocation.user_id) }}
-                  · {{ t('agentTeam.allocationLine', {
-                    contribution: formatMoney(allocation.contribution),
-                    ratio: (Number(allocation.ratio) * 100).toFixed(1),
-                    reward: formatMoney(allocation.reward_amount),
-                    status: payoutStatusLabel(allocation.payout_status),
-                  }) }}
-                </span>
-              </div>
-            </article>
-          </div>
-        </section>
-      </div>
-      <div v-else class="play-section space-y-6">
-        <div>
-          <label class="mb-2 block text-sm font-medium">{{ t('agentTeam.createLabel') }}</label>
-          <div class="flex gap-2">
-            <input v-model="teamName" type="text" class="input flex-1" :placeholder="t('agentTeam.createPlaceholder')" />
-            <button type="button" class="play-btn play-btn-primary" :disabled="submitting" @click="handleCreate">
-              {{ t('agentTeam.createButton') }}
-            </button>
-          </div>
-        </div>
-        <div>
-          <label class="mb-2 block text-sm font-medium">{{ t('agentTeam.joinLabel') }}</label>
-          <div class="flex gap-2">
-            <input v-model="inviteCode" type="text" class="input flex-1" :placeholder="t('agentTeam.joinPlaceholder')" />
-            <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleJoin">
-              {{ t('agentTeam.joinButton') }}
-            </button>
-          </div>
+          <section class="play-content-panel">
+            <label class="mb-2 block text-sm font-medium">{{ t('agentTeam.joinLabel') }}</label>
+            <div class="flex gap-2">
+              <input v-model="inviteCode" type="text" class="input flex-1" :placeholder="t('agentTeam.joinPlaceholder')" />
+              <button type="button" class="play-btn play-btn-secondary" :disabled="submitting" @click="handleJoin">
+                {{ t('agentTeam.joinButton') }}
+              </button>
+            </div>
+          </section>
         </div>
       </div>
     </main>
@@ -347,10 +366,6 @@ onMounted(loadTeam)
 </template>
 
 <style scoped>
-.agent-team-main {
-  max-width: 1120px;
-}
-
 .agent-team-header {
   display: flex;
   align-items: flex-start;

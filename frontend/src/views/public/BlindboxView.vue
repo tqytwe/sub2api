@@ -196,73 +196,101 @@ watch(
     </header>
 
     <main class="play-main">
-      <p class="play-eyebrow">{{ t('play.blindbox.eyebrow') }}</p>
-      <h1 class="play-title">{{ t('play.blindbox.title') }}</h1>
-      <p class="play-subtitle">{{ t('play.blindbox.subtitle') }}</p>
-      <p class="play-intro">{{ t('play.blindbox.intro') }}</p>
+      <div class="play-workspace">
+        <section class="play-hero-panel">
+          <div class="play-hero-grid">
+            <div>
+              <p class="play-eyebrow">{{ t('play.blindbox.eyebrow') }}</p>
+              <h1 class="play-title">{{ t('play.blindbox.title') }}</h1>
+              <p class="play-subtitle">{{ t('play.blindbox.subtitle') }}</p>
+              <p class="play-intro">{{ t('play.blindbox.intro') }}</p>
+            </div>
 
-      <div v-if="authStore.isAuthenticated" class="play-section space-y-4">
-        <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-        <div v-else-if="statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</div>
-        <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
-        <template v-else-if="!prizePool">
-          <div class="play-note">{{ t('blindbox.unavailable') }}</div>
-          <button type="button" class="play-btn play-btn-primary" disabled>
-            {{ t('blindbox.openButton') }}
-          </button>
-        </template>
-        <template v-else>
-          <p class="play-intro">
-            {{ t('blindbox.costHint', { cost: status.cost_amount.toFixed(2), opens: status.opens_today, limit: status.daily_limit }) }}
-          </p>
-          <button type="button" class="play-btn play-btn-primary" :disabled="!canOpen" @click="handleOpen">
-            {{ opening ? t('blindbox.opening') : t('blindbox.openButton') }}
-          </button>
-          <p v-if="lastResult" class="play-note">
-            {{ t('blindbox.lastResult', { reward: lastResult.reward_amount.toFixed(2), net: lastResult.net_amount.toFixed(2) }) }}
-          </p>
-        </template>
-      </div>
+            <div class="play-action-panel">
+              <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
+              <div v-if="authStore.isAuthenticated" class="space-y-4">
+                <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
+                <div v-else-if="statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</div>
+                <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
+                <template v-else-if="!prizePool">
+                  <div class="play-note">{{ t('blindbox.unavailable') }}</div>
+                  <button type="button" class="play-btn play-btn-primary" disabled>
+                    {{ t('blindbox.openButton') }}
+                  </button>
+                </template>
+                <template v-else>
+                  <p class="play-intro">
+                    {{ t('blindbox.costHint', { cost: status.cost_amount.toFixed(2), opens: status.opens_today, limit: status.daily_limit }) }}
+                  </p>
+                  <button type="button" class="play-btn play-btn-primary w-full" :disabled="!canOpen" @click="handleOpen">
+                    {{ opening ? t('blindbox.opening') : t('blindbox.openButton') }}
+                  </button>
+                  <p v-if="lastResult" class="play-note">
+                    {{ t('blindbox.lastResult', { reward: lastResult.reward_amount.toFixed(2), net: lastResult.net_amount.toFixed(2) }) }}
+                  </p>
+                </template>
+              </div>
 
-      <div class="play-actions">
-        <router-link
-          v-if="!authStore.isAuthenticated && featureEnabled"
-          to="/register"
-          class="play-btn play-btn-primary"
-        >
-          {{ t('play.blindbox.ctaGuest') }}
-        </router-link>
-      </div>
+              <div v-else class="play-actions">
+                <router-link
+                  v-if="featureEnabled"
+                  to="/register"
+                  class="play-btn play-btn-primary"
+                >
+                  {{ t('play.blindbox.ctaGuest') }}
+                </router-link>
+              </div>
+            </div>
+          </div>
+        </section>
 
-      <div class="play-section play-prize-section">
-        <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
-        <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
-        <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
-        <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
-        <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>
-        <ul v-else-if="prizePool" class="play-prize-grid">
-          <li
-            v-for="(tier, index) in prizePool.tiers"
-            :key="`${prizePool.version}-${index}`"
-            class="play-prize-tier"
-          >
-            <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
-            <span class="play-prize-rate">{{ formatProbability(tier.weight) }}</span>
-          </li>
-        </ul>
-      </div>
+        <section class="play-four-stat-grid" aria-label="blindbox status">
+          <div class="play-mini-stat">
+            <span class="play-mini-label">{{ t('blindbox.prizePoolTitle') }}</span>
+            <span class="play-mini-value">{{ prizePool?.tiers.length ?? 0 }}</span>
+          </div>
+          <div class="play-mini-stat">
+            <span class="play-mini-label">{{ t('blindbox.openButton') }}</span>
+            <span class="play-mini-value">{{ status?.opens_today ?? 0 }}/{{ status?.daily_limit ?? 0 }}</span>
+          </div>
+          <div class="play-mini-stat">
+            <span class="play-mini-label">{{ t('blindbox.recentWinsTitle') }}</span>
+            <span class="play-mini-value">{{ recentWins.length }}</span>
+          </div>
+        </section>
 
-      <div class="play-section">
-        <h2 class="play-section-title">{{ t('blindbox.recentWinsTitle') }}</h2>
-        <p v-if="recentWinsFailed" class="play-note">{{ t('blindbox.recentWinsUnavailable') }}</p>
-        <p v-else-if="recentWins.length === 0" class="play-note">{{ t('blindbox.recentWinsPlaceholder') }}</p>
-        <ul v-else class="play-wins-list">
-          <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
-            <span class="play-win-user">{{ win.user }}</span>
-            <span class="play-win-reward">+${{ win.reward.toFixed(2) }}</span>
-            <span class="play-win-when">{{ formatWinWhen(win.when) }}</span>
-          </li>
-        </ul>
+        <div class="play-two-column-grid">
+          <section class="play-content-panel play-prize-section">
+            <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
+            <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
+            <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
+            <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
+            <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>
+            <ul v-else-if="prizePool" class="play-prize-grid">
+              <li
+                v-for="(tier, index) in prizePool.tiers"
+                :key="`${prizePool.version}-${index}`"
+                class="play-prize-tier"
+              >
+                <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
+                <span class="play-prize-rate">{{ formatProbability(tier.weight) }}</span>
+              </li>
+            </ul>
+          </section>
+
+          <section class="play-content-panel">
+            <h2 class="play-section-title">{{ t('blindbox.recentWinsTitle') }}</h2>
+            <p v-if="recentWinsFailed" class="play-note">{{ t('blindbox.recentWinsUnavailable') }}</p>
+            <p v-else-if="recentWins.length === 0" class="play-note">{{ t('blindbox.recentWinsPlaceholder') }}</p>
+            <ul v-else class="play-wins-list">
+              <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
+                <span class="play-win-user">{{ win.user }}</span>
+                <span class="play-win-reward">+${{ win.reward.toFixed(2) }}</span>
+                <span class="play-win-when">{{ formatWinWhen(win.when) }}</span>
+              </li>
+            </ul>
+          </section>
+        </div>
       </div>
     </main>
 

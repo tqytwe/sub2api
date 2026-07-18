@@ -84,46 +84,84 @@ onMounted(loadQuiz)
     </header>
 
     <main class="play-main">
-      <p class="play-eyebrow">{{ t('play.quizQuest.eyebrow') }}</p>
-      <h1 class="play-title">{{ t('play.quizQuest.title') }}</h1>
-      <p class="play-subtitle">{{ t('play.quizQuest.subtitle') }}</p>
-
-      <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-      <div v-else-if="!quiz?.enabled" class="play-note">{{ t('quiz.disabled') }}</div>
-      <div v-else-if="quiz.already_submitted" class="play-section">
-        <p class="play-intro">
-          {{ t('quiz.done', { score: quiz.previous_score || 0, total: quiz.previous_total || 0, reward: (quiz.previous_reward || 0).toFixed(2) }) }}
-        </p>
-      </div>
-      <div v-else-if="!authStore.isAuthenticated" class="play-actions">
-        <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
-      </div>
-      <div v-else class="play-section space-y-6">
-        <p class="play-intro">
-          {{ t('quiz.rewardHint', { amount: quiz.reward_per_correct.toFixed(2) }) }}
-        </p>
-        <div
-          v-for="(q, idx) in quiz.questions"
-          :key="q.id"
-          class="rounded-xl border border-gray-200 p-4 dark:border-dark-600"
-        >
-          <p class="mb-3 font-medium text-gray-900 dark:text-white">
-            {{ idx + 1 }}. {{ q.prompt }}
-          </p>
-          <div class="space-y-2">
-            <label
-              v-for="(opt, optIdx) in q.options"
-              :key="optIdx"
-              class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-dark-200"
-            >
-              <input v-model="choices[q.id]" type="radio" :value="optIdx" />
-              <span>{{ opt }}</span>
-            </label>
+      <div class="play-workspace">
+        <section class="play-hero-panel">
+          <div class="play-hero-grid">
+            <div>
+              <p class="play-eyebrow">{{ t('play.quizQuest.eyebrow') }}</p>
+              <h1 class="play-title">{{ t('play.quizQuest.title') }}</h1>
+              <p class="play-subtitle">{{ t('play.quizQuest.subtitle') }}</p>
+            </div>
+            <div class="play-action-panel">
+              <h2 class="play-section-title">{{ t('nav.quizQuest') }}</h2>
+              <p v-if="quiz?.enabled" class="play-intro">
+                {{ t('quiz.rewardHint', { amount: quiz.reward_per_correct.toFixed(2) }) }}
+              </p>
+              <p v-else class="play-note">{{ loading ? t('models.loading') : t('quiz.disabled') }}</p>
+              <div v-if="!authStore.isAuthenticated && quiz?.enabled" class="play-actions">
+                <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
+              </div>
+            </div>
           </div>
+        </section>
+
+        <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
+        <div v-else-if="!quiz?.enabled" class="play-note">{{ t('quiz.disabled') }}</div>
+        <div v-else class="play-detail-grid">
+          <section class="play-content-panel">
+            <div v-if="quiz.already_submitted">
+              <p class="play-intro">
+                {{ t('quiz.done', { score: quiz.previous_score || 0, total: quiz.previous_total || 0, reward: (quiz.previous_reward || 0).toFixed(2) }) }}
+              </p>
+            </div>
+            <div v-else-if="!authStore.isAuthenticated" class="play-actions">
+              <router-link to="/register" class="play-btn play-btn-primary">{{ t('play.quizQuest.ctaGuest') }}</router-link>
+            </div>
+            <div v-else class="space-y-6">
+              <div
+                v-for="(q, idx) in quiz.questions"
+                :key="q.id"
+                class="rounded-xl border border-gray-200 p-4 dark:border-dark-600"
+              >
+                <p class="mb-3 font-medium text-gray-900 dark:text-white">
+                  {{ idx + 1 }}. {{ q.prompt }}
+                </p>
+                <div class="space-y-2">
+                  <label
+                    v-for="(opt, optIdx) in q.options"
+                    :key="optIdx"
+                    class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-dark-200"
+                  >
+                    <input v-model="choices[q.id]" type="radio" :value="optIdx" />
+                    <span>{{ opt }}</span>
+                  </label>
+                </div>
+              </div>
+              <button type="button" class="play-btn play-btn-primary" :disabled="!canSubmit" @click="handleSubmit">
+                {{ submitting ? t('quiz.submitting') : t('quiz.submit') }}
+              </button>
+            </div>
+          </section>
+
+          <aside class="play-side-panel">
+            <h2 class="play-section-title">{{ t('play.howItWorks') }}</h2>
+            <div class="play-four-stat-grid">
+              <div class="play-mini-stat">
+                <span class="play-mini-label">{{ t('nav.quizQuest') }}</span>
+                <span class="play-mini-value">{{ quiz.questions.length }}</span>
+              </div>
+              <div class="play-mini-stat">
+                <span class="play-mini-label">{{ t('quiz.submit') }}</span>
+                <span class="play-mini-value">{{ Object.keys(choices).length }}/{{ quiz.questions.length }}</span>
+              </div>
+            </div>
+            <p class="play-note mt-4">
+              {{ quiz.already_submitted
+                ? t('quiz.done', { score: quiz.previous_score || 0, total: quiz.previous_total || 0, reward: (quiz.previous_reward || 0).toFixed(2) })
+                : t('quiz.rewardHint', { amount: quiz.reward_per_correct.toFixed(2) }) }}
+            </p>
+          </aside>
         </div>
-        <button type="button" class="play-btn play-btn-primary" :disabled="!canSubmit" @click="handleSubmit">
-          {{ submitting ? t('quiz.submitting') : t('quiz.submit') }}
-        </button>
       </div>
     </main>
 

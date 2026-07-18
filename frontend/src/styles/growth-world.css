@@ -25,13 +25,35 @@
 }
 
 .gw-page {
-  max-width: 48rem;
+  width: 100%;
+  max-width: none;
   margin: 0 auto;
   color: var(--gw-ink);
 }
 
 .gw-page--wide {
-  max-width: 56rem;
+  max-width: none;
+}
+
+.gw-workspace {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.gw-hero-panel {
+  border: 1px solid var(--gw-line);
+  border-radius: 14px;
+  background: var(--gw-card);
+  padding: 1.25rem 1.35rem;
+}
+
+.gw-hero-grid,
+.gw-detail-grid,
+.gw-two-column-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  align-items: start;
 }
 
 @keyframes gw-fade-up {
@@ -318,6 +340,26 @@
   background: var(--gw-card);
   padding: 1rem 1.15rem;
   animation: gw-fade-up 0.45s ease both;
+}
+
+@media (min-width: 1024px) {
+  .gw-hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(20rem, 0.36fr);
+  }
+
+  .gw-detail-grid {
+    grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.65fr);
+  }
+
+  .gw-two-column-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1536px) {
+  .gw-detail-grid {
+    grid-template-columns: minmax(0, 1.6fr) minmax(24rem, 0.65fr);
+  }
 }
 
 .gw-quest-banner {
