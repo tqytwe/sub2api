@@ -641,6 +641,55 @@ func TestFrontendServer_Middleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, assetWriter.Code)
 		assert.Equal(t, staticAssetsCacheControl, assetWriter.Header().Get("Cache-Control"))
 	})
+
+	t.Run("missing_assets_return_404_no_store_instead_of_index_html", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(server.Middleware())
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/assets/old-route-DeadBeef.js", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusNotFound, w.Code)
+		assert.Equal(t, "no-store", w.Header().Get("Cache-Control"))
+		assert.NotContains(t, w.Body.String(), "<!doctype html>")
+		assert.NotContains(t, w.Header().Get("Content-Type"), "text/html")
+	})
+
+	t.Run("serves_preserved_asset_from_override_dir_when_not_embedded", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+		overrideDir := t.TempDir()
+		server.overrideDir = overrideDir
+		require.NoError(t, os.MkdirAll(filepath.Join(overrideDir, "assets"), 0755))
+		require.NoError(t, os.WriteFile(
+			filepath.Join(overrideDir, "assets", "old-route-DeadBeef.js"),
+			[]byte("console.log('old route chunk')"),
+			0644,
+		))
+
+		router := gin.New()
+		router.Use(server.Middleware())
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/assets/old-route-DeadBeef.js", nil)
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+		assert.Contains(t, w.Body.String(), "old route chunk")
+		assert.NotContains(t, w.Header().Get("Content-Type"), "text/html")
+	})
 }
 
 func TestEmbeddedFrontendBypassesBareVideoAPIRoutes(t *testing.T) {
