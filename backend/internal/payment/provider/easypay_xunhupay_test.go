@@ -84,6 +84,44 @@ func TestXunhuPayCreatePaymentUsesPaymentDoEndpoint(t *testing.T) {
 	}
 }
 
+func TestXunhuPayCreatePaymentAcceptsNumericOpenID(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{
+			"openid": 201906185160,
+			"url": "https://api.xunhupay.com/pay/payment.html?id=1",
+			"url_qrcode": "weixin://wxpay/bizpayurl?pr=numeric-openid",
+			"errcode": 0,
+			"errmsg": "success!"
+		}`))
+	}))
+	defer server.Close()
+
+	provider := newTestXunhuPay(t, server.URL)
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:     "sub2_xh_numeric",
+		Amount:      "1.01",
+		PaymentType: payment.TypeWxpay,
+		Subject:     "Jisudeng Recharge",
+		NotifyURL:   "https://merchant.example.com/api/v1/payment/webhook/easypay",
+		ReturnURL:   "https://merchant.example.com/payment/result",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment returned error: %v", err)
+	}
+	if resp.TradeNo != "201906185160" {
+		t.Fatalf("trade no = %q, want numeric openid string", resp.TradeNo)
+	}
+	if resp.QRCode != "weixin://wxpay/bizpayurl?pr=numeric-openid" {
+		t.Fatalf("qrcode = %q", resp.QRCode)
+	}
+	if resp.PayURL == "" {
+		t.Fatal("pay url is empty")
+	}
+}
+
 func TestXunhuPayVerifyNotificationUsesTradeOrderID(t *testing.T) {
 	t.Parallel()
 
