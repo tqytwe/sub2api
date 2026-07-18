@@ -268,7 +268,7 @@ func (e *EasyPay) createXunhuPayPayment(ctx context.Context, req payment.CreateP
 		return nil, fmt.Errorf("xunhupay create HTTP %d: %s", status, summarizeEasyPayResponse(body))
 	}
 	var resp struct {
-		OpenID    string `json:"openid"`
+		OpenID    any    `json:"openid"`
 		URL       string `json:"url"`
 		URLQRCode string `json:"url_qrcode"`
 		ErrCode   any    `json:"errcode"`
@@ -285,7 +285,7 @@ func (e *EasyPay) createXunhuPayPayment(ctx context.Context, req payment.CreateP
 		return nil, fmt.Errorf("xunhupay error: %s", msg)
 	}
 	payURL := strings.TrimSpace(resp.URL)
-	return &payment.CreatePaymentResponse{TradeNo: strings.TrimSpace(resp.OpenID), PayURL: payURL, QRCode: strings.TrimSpace(resp.URLQRCode)}, nil
+	return &payment.CreatePaymentResponse{TradeNo: xunhuPayStringValue(resp.OpenID), PayURL: payURL, QRCode: strings.TrimSpace(resp.URLQRCode)}, nil
 }
 
 // resolveURLs returns (notifyURL, returnURL) preferring request values,
@@ -781,6 +781,23 @@ func xunhuPaySign(params map[string]string, pkey string) string {
 
 func xunhuPayVerifySign(params map[string]string, pkey string, hash string) bool {
 	return hmac.Equal([]byte(xunhuPaySign(params, pkey)), []byte(hash))
+}
+
+func xunhuPayStringValue(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(v)
+	case float64:
+		return strconv.FormatFloat(v, 'f', -1, 64)
+	case int:
+		return strconv.Itoa(v)
+	case json.Number:
+		return strings.TrimSpace(v.String())
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
 }
 
 func xunhuPayErrCodeIsSuccess(code any) bool {
