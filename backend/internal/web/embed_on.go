@@ -89,7 +89,7 @@ func (s *FrontendServer) Middleware() gin.HandlerFunc {
 		path := c.Request.URL.Path
 
 		// Skip API routes
-		if shouldBypassEmbeddedFrontend(path) {
+		if shouldBypassEmbeddedFrontendRequest(c.Request) {
 			c.Next()
 			return
 		}
@@ -317,7 +317,7 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
 
-		if shouldBypassEmbeddedFrontend(path) {
+		if shouldBypassEmbeddedFrontendRequest(c.Request) {
 			c.Next()
 			return
 		}
@@ -388,6 +388,28 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/alpha/search" ||
 		strings.HasPrefix(trimmed, "/images/") ||
 		strings.HasPrefix(trimmed, "/videos/")
+}
+
+func shouldBypassEmbeddedFrontendRequest(r *http.Request) bool {
+	if r == nil {
+		return true
+	}
+	if strings.TrimSpace(r.URL.Path) == "/models" && isFrontendHTMLNavigation(r) {
+		return false
+	}
+	return shouldBypassEmbeddedFrontend(r.URL.Path)
+}
+
+func isFrontendHTMLNavigation(r *http.Request) bool {
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		return false
+	}
+	if r.Header.Get("Authorization") != "" ||
+		r.Header.Get("x-api-key") != "" ||
+		r.Header.Get("x-goog-api-key") != "" {
+		return false
+	}
+	return strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
 }
 
 func serveIndexHTML(c *gin.Context, fsys fs.FS) {
