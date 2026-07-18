@@ -25,8 +25,9 @@ Sub2API has a built-in payment system that enables user self-service top-up with
 | **Alipay (Direct)** | Desktop QR code, mobile Alipay redirect | Direct integration with Alipay Open Platform, returning desktop QR codes and mobile WAP/app launch links |
 | **WeChat Pay (Direct)** | Native QR, H5, MP/JSAPI Pay | Direct integration with WeChat Pay APIv3 with environment-aware routing |
 | **Stripe** | Card, Alipay, WeChat Pay, Link, etc. | International payments, multi-currency support |
+| **Airwallex** | Airwallex hosted payment page | International/business payment acceptance with multi-currency settlement |
 
-> Alipay/WeChat Pay direct and EasyPay can both exist as backend provider instances, but the frontend always exposes only two visible buttons: `Alipay` and `WeChat Pay`. Admins choose exactly one source for each visible method: direct or EasyPay. Direct channels connect to payment APIs directly with lower fees; EasyPay aggregates through third-party platforms with easier setup.
+> Alipay/WeChat Pay direct and EasyPay can both exist as backend provider instances. The frontend `Alipay` and `WeChat Pay` buttons each route to the single source selected by the admin: direct or EasyPay. `Stripe` and `Airwallex` are dedicated visible methods and can appear separately when enabled and backed by an available provider instance. Direct channels connect to payment APIs directly with lower fees; EasyPay aggregates through third-party platforms with easier setup.
 
 > **EasyPay Provider Recommendations**: Both options below are third-party aggregators compatible with the EasyPay protocol. Pick based on the funding channel and settlement currency you need:
 >
@@ -71,6 +72,8 @@ The current payment UX keeps the frontend method list unified and does not expos
 
 - **Alipay**: when enabled, this button must be routed to either `Alipay (Direct)` or `EasyPay Alipay`
 - **WeChat Pay**: when enabled, this button must be routed to either `WeChat Pay (Direct)` or `EasyPay WeChat`
+- **Stripe**: shown as a dedicated visible method routed to an enabled Stripe instance
+- **Airwallex**: shown as a dedicated visible method routed to an enabled Airwallex instance
 - Each visible method can route to only one source at a time
 - If a visible method is enabled without a selected source, the frontend will not expose that method
 
@@ -154,6 +157,20 @@ International payment platform supporting multiple payment methods and currencie
 | **Publishable Key** | Stripe publishable key (`pk_live_...` or `pk_test_...`) | Yes |
 | **Webhook Secret** | Stripe Webhook signing secret (`whsec_...`) | Yes |
 
+### Airwallex
+
+International/business payment acceptance through the Airwallex hosted payment page. Configure the Webhook endpoint in the Airwallex dashboard.
+
+| Parameter | Description | Required |
+|-----------|-------------|----------|
+| **Client ID** | Airwallex Client ID | Yes |
+| **API Key** | Airwallex API Key | Yes |
+| **Webhook Secret** | Airwallex Webhook signing secret | Yes |
+| **API Base** | `https://api.airwallex.com/api/v1` or sandbox `https://api-demo.airwallex.com/api/v1` | Yes |
+| **Country Code** | Two-letter ISO country/region code, default `CN` | Yes |
+| **Currency** | Payment currency, default `CNY` | Yes |
+| **Account ID** | Required for multi-account keys; optional for single-account scoped keys | No |
+
 ---
 
 ## Provider Instance Management
@@ -195,8 +212,9 @@ When adding a provider, the system auto-generates callback URLs from your site d
 | **Alipay (Direct)** | `https://your-domain.com/api/v1/payment/webhook/alipay` |
 | **WeChat Pay (Direct)** | `https://your-domain.com/api/v1/payment/webhook/wxpay` |
 | **Stripe** | `https://your-domain.com/api/v1/payment/webhook/stripe` |
+| **Airwallex** | `https://your-domain.com/api/v1/payment/webhook/airwallex` |
 
-> Replace `your-domain.com` with your actual domain. For EasyPay / Alipay / WeChat Pay, the callback URL is auto-filled when adding the provider — no manual configuration needed.
+> Replace `your-domain.com` with your actual domain. For EasyPay / Alipay / WeChat Pay, the callback URL is auto-filled when adding the provider — no manual configuration needed. Stripe and Airwallex Webhook endpoints must be configured in their provider dashboards.
 
 ### Stripe Webhook Setup
 
@@ -205,6 +223,13 @@ When adding a provider, the system auto-generates callback URLs from your site d
 3. Add an endpoint with the callback URL
 4. Subscribe to events: `payment_intent.succeeded`, `payment_intent.payment_failed`
 5. Copy the generated Webhook Secret (`whsec_...`) to your provider configuration
+
+### Airwallex Webhook Setup
+
+1. Log in to the Airwallex dashboard
+2. Add a Webhook endpoint using `https://your-domain.com/api/v1/payment/webhook/airwallex`
+3. Subscribe to payment intent events such as `payment_intent.succeeded` and `payment_intent.cancelled`
+4. Copy the Webhook Secret to your provider configuration
 
 ### Important Notes
 
@@ -231,13 +256,14 @@ User selects amount and payment method
   ├─ EasyPay     → QR code / H5 redirect
   ├─ Alipay      → Desktop QR payload (Face-to-Face preferred, Website Pay fallback) / mobile Alipay redirect
   ├─ WeChat Pay  → Desktop Native QR / non-WeChat H5 / in-WeChat JSAPI
-  └─ Stripe      → Payment Element (card/Alipay/WeChat/etc.)
+  ├─ Stripe      → Payment Element (card/Alipay/WeChat/etc.)
+  └─ Airwallex   → Hosted payment page
        │
        ▼
   Webhook callback verified → Order PAID
        │
        ▼
-  Auto top-up to user balance → Order COMPLETED
+  Auto top-up to user balance (RECHARGING) → Order COMPLETED
 ```
 
 ### Order Status Reference
@@ -246,13 +272,17 @@ User selects amount and payment method
 |--------|-------------|
 | `PENDING` | Waiting for user to complete payment |
 | `PAID` | Payment confirmed, awaiting balance credit |
+| `RECHARGING` | Payment confirmed and balance/subscription fulfillment is running |
 | `COMPLETED` | Balance credited successfully |
 | `EXPIRED` | Timed out without payment |
 | `CANCELLED` | Cancelled by user |
 | `FAILED` | Balance credit failed, admin can retry |
 | `REFUND_REQUESTED` | Refund requested |
 | `REFUNDING` | Refund in progress |
+| `REFUND_PENDING` | Provider accepted the refund but final settlement is still pending |
+| `PARTIALLY_REFUNDED` | Partial refund completed |
 | `REFUNDED` | Refund completed |
+| `REFUND_FAILED` | Provider refund or post-refund balance rollback failed; admin can query or retry |
 
 ### Timeout and Fallback
 
@@ -271,7 +301,7 @@ If you previously used [Sub2ApiPay](https://github.com/touwaeriol/sub2apipay) as
 | Aspect | Sub2ApiPay | Built-in Payment |
 |--------|-----------|-----------------|
 | Deployment | Separate service (Next.js + PostgreSQL) | Built into Sub2API, no extra deployment |
-| Payment Methods | EasyPay, Alipay, WeChat, Stripe | Same |
+| Payment Methods | EasyPay, Alipay, WeChat, Stripe | EasyPay, Alipay, WeChat, Stripe, Airwallex |
 | Configuration | Environment variables + separate admin UI | Unified in Sub2API admin dashboard |
 | Top-up Integration | Via Admin API callback | Internal processing, more reliable |
 | Subscription Plans | Supported | Not yet (planned) |
