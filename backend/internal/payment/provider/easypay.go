@@ -392,15 +392,15 @@ func (e *EasyPay) refundAttempts(req payment.RefundRequest) []easyPayRefundAttem
 		"pid": e.config["pid"], "key": e.config["pkey"], "money": req.Amount,
 	}
 	var attempts []easyPayRefundAttempt
-	if orderID := strings.TrimSpace(req.OrderID); orderID != "" {
-		params := cloneStringMap(base)
-		params["out_trade_no"] = orderID
-		attempts = append(attempts, easyPayRefundAttempt{params: params, refundID: orderID})
-	}
 	if tradeNo := strings.TrimSpace(req.TradeNo); tradeNo != "" {
 		params := cloneStringMap(base)
 		params["trade_no"] = tradeNo
 		attempts = append(attempts, easyPayRefundAttempt{params: params, refundID: tradeNo})
+	}
+	if orderID := strings.TrimSpace(req.OrderID); orderID != "" {
+		params := cloneStringMap(base)
+		params["out_trade_no"] = orderID
+		attempts = append(attempts, easyPayRefundAttempt{params: params, refundID: orderID})
 	}
 	return attempts
 }
