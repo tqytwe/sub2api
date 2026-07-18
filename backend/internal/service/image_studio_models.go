@@ -116,7 +116,7 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 
 	candidates := defaultImageModelIDsForPlatform(platform)
 	if s.gateway != nil && apiKey.GroupID != nil {
-		if mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, ""); len(mapped) > 0 {
+		if mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, platform); len(mapped) > 0 {
 			candidates = mapped
 		}
 	}

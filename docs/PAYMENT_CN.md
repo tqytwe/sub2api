@@ -25,8 +25,9 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | **支付宝官方** | 桌面二维码扫码、移动端支付宝跳转 | 直接对接支付宝开放平台，桌面端返回二维码，移动端返回 WAP/唤起链接 |
 | **微信官方** | Native 扫码、H5、公众号/JSAPI 支付 | 直接对接微信支付 APIv3，按终端环境自动分流 |
 | **Stripe** | 银行卡、支付宝、微信支付、Link 等 | 国际支付，支持多币种 |
+| **Airwallex（空中云汇）** | Airwallex 托管支付页 | 国际/企业收款，支持多币种和企业账户结算 |
 
-> 支付宝官方 / 微信官方与易支付可以同时作为后台服务商实例存在，但前台始终只展示 `支付宝`、`微信支付` 两个可见按钮。管理员需要分别为这两个按钮选择唯一支付来源：官方或易支付。官方渠道直接对接 API，资金直达商户账户，手续费更低；易支付通过第三方平台聚合，接入门槛更低。
+> 支付宝官方 / 微信官方与易支付可以同时作为后台服务商实例存在，前台的 `支付宝`、`微信支付` 两个可见按钮会统一路由到管理员选择的唯一来源：官方或易支付。`Stripe` 和 `Airwallex` 是独立可见支付方式，启用并配置可用实例后可在前台单独展示。官方渠道直接对接 API，资金直达商户账户，手续费更低；易支付通过第三方平台聚合，接入门槛更低。
 
 > **易支付服务商推荐**：以下两家均为兼容易支付协议的第三方聚合支付，按资金通道与结算方式选择：
 >
@@ -71,6 +72,8 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 
 - **支付宝**：后台启用后，需要额外指定该按钮路由到 `支付宝官方` 或 `易支付支付宝`
 - **微信支付**：后台启用后，需要额外指定该按钮路由到 `微信官方` 或 `易支付微信`
+- **Stripe**：作为独立可见支付方式展示，路由到启用的 Stripe 实例
+- **Airwallex**：作为独立可见支付方式展示，路由到启用的 Airwallex 实例
 - 同一个可见支付方式在同一时刻只能路由到一个来源
 - 支付来源未选择时，即使对应按钮被开启，前台也不会暴露该支付方式
 
@@ -154,6 +157,20 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | **Publishable Key** | Stripe 可公开密钥（`pk_live_...` 或 `pk_test_...`） | 是 |
 | **Webhook Secret** | Stripe Webhook 签名密钥（`whsec_...`） | 是 |
 
+### Airwallex（空中云汇）
+
+国际/企业收款平台，通过 Airwallex 托管支付页完成支付，Webhook 在空中云汇后台配置。
+
+| 参数 | 说明 | 必填 |
+|------|------|------|
+| **Client ID** | Airwallex Client ID | 是 |
+| **API Key** | Airwallex API Key | 是 |
+| **Webhook Secret** | Airwallex Webhook 签名密钥 | 是 |
+| **API Base** | `https://api.airwallex.com/api/v1` 或沙箱 `https://api-demo.airwallex.com/api/v1` | 是 |
+| **国家/地区代码** | 两位 ISO 国家/地区代码，默认 `CN` | 是 |
+| **币种** | 支付币种，默认 `CNY` | 是 |
+| **Account ID** | 多账户密钥需要填写；单账户 scoped key 可留空 | 否 |
+
 ---
 
 ## 服务商实例管理
@@ -195,8 +212,9 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | **支付宝官方** | `https://your-domain.com/api/v1/payment/webhook/alipay` |
 | **微信官方** | `https://your-domain.com/api/v1/payment/webhook/wxpay` |
 | **Stripe** | `https://your-domain.com/api/v1/payment/webhook/stripe` |
+| **Airwallex** | `https://your-domain.com/api/v1/payment/webhook/airwallex` |
 
-> 将 `your-domain.com` 替换为你的实际域名。EasyPay / 支付宝 / 微信的回调地址在添加服务商时自动填入，无需手动配置。
+> 将 `your-domain.com` 替换为你的实际域名。EasyPay / 支付宝 / 微信的回调地址在添加服务商时自动填入，无需手动配置。Stripe / Airwallex 的 Webhook 需要在对应平台后台配置。
 
 ### Stripe Webhook 设置
 
@@ -205,6 +223,13 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 3. 添加端点，填写回调地址
 4. 订阅事件：`payment_intent.succeeded`、`payment_intent.payment_failed`
 5. 将生成的 Webhook Secret（`whsec_...`）填入服务商配置
+
+### Airwallex Webhook 设置
+
+1. 登录 Airwallex 后台
+2. 配置 Webhook 端点，填写 `https://your-domain.com/api/v1/payment/webhook/airwallex`
+3. 订阅 `payment_intent.succeeded`、`payment_intent.cancelled` 等支付意图事件
+4. 将 Webhook Secret 填入服务商配置
 
 ### 注意事项
 
@@ -231,13 +256,14 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
   ├─ EasyPay    → 扫码 / H5 跳转
   ├─ 支付宝官方  → 桌面扫码单（当面付优先，电脑网站支付回退）/ 移动端支付宝跳转
   ├─ 微信官方    → 桌面 Native 扫码 / 非微信 H5 / 微信内 JSAPI
-  └─ Stripe     → Payment Element（银行卡/支付宝/微信等）
+  ├─ Stripe     → Payment Element（银行卡/支付宝/微信等）
+  └─ Airwallex  → 托管支付页
        │
        ▼
   支付回调验签 → 订单 PAID
        │
        ▼
-  自动充值到用户余额 → 订单 COMPLETED
+  自动充值到用户余额（RECHARGING）→ 订单 COMPLETED
 ```
 
 ### 订单状态说明
@@ -246,13 +272,17 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 |------|------|
 | `PENDING` | 待支付，等待用户完成支付 |
 | `PAID` | 已支付，等待充值到账 |
+| `RECHARGING` | 已支付，系统正在发放余额或订阅权益 |
 | `COMPLETED` | 已完成，余额已到账 |
 | `EXPIRED` | 已过期，超时未支付 |
 | `CANCELLED` | 已取消，用户主动取消 |
 | `FAILED` | 充值失败，可管理员重试 |
 | `REFUND_REQUESTED` | 已申请退款 |
 | `REFUNDING` | 退款处理中 |
+| `REFUND_PENDING` | 上游已受理退款但尚未最终完成 |
+| `PARTIALLY_REFUNDED` | 已完成部分退款 |
 | `REFUNDED` | 已退款 |
+| `REFUND_FAILED` | 退款或退款后余额回滚失败，可管理员查询或重试 |
 
 ### 超时与兜底
 
@@ -271,7 +301,7 @@ Sub2API 内置支付系统，支持用户自助充值，无需部署独立的支
 | 对比项 | Sub2ApiPay | 内置支付 |
 |--------|-----------|---------|
 | 部署方式 | 独立服务（Next.js + PostgreSQL） | 内置于 Sub2API，无需额外部署 |
-| 支付方式 | EasyPay、支付宝、微信、Stripe | 相同 |
+| 支付方式 | EasyPay、支付宝、微信、Stripe | EasyPay、支付宝、微信、Stripe、Airwallex |
 | 配置方式 | 环境变量 + 独立管理后台 | Sub2API 管理后台内统一配置 |
 | 充值对接 | 通过 Admin API 回调 | 内部直接处理，更可靠 |
 | 订阅套餐 | 支持 | 暂不支持（计划中） |
