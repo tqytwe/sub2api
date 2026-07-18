@@ -2,9 +2,11 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/md5"
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -30,6 +32,11 @@ const (
 	signTypeMD5            = "MD5"
 	paymentModePopup       = "popup"
 	deviceMobile           = "mobile"
+	easyPayProtocolXunhu   = "xunhupay"
+	xunhuPayAPIVersion     = "1.1"
+	xunhuPayStatusPaid     = "OD"
+	xunhuPayStatusPending  = "WP"
+	xunhuPayStatusCanceled = "CD"
 )
 
 // EasyPay implements payment.Provider for the EasyPay aggregation platform.
@@ -74,6 +81,14 @@ func normalizeEasyPayAPIBase(apiBase string) string {
 		parsed.RawQuery = ""
 		parsed.Fragment = ""
 		parsed.RawPath = ""
+		switch strings.ToLower(parsed.Host) {
+		case "www.xunhupay.com", "xunhupay.com":
+			parsed.Host = "api.xunhupay.com"
+			parsed.Path = ""
+		case "admin.dpweixin.com", "www.dpweixin.com", "dpweixin.com":
+			parsed.Host = "api.dpweixin.com"
+			parsed.Path = ""
+		}
 		parsed.Path = trimEasyPayEndpointPath(parsed.Path)
 		return strings.TrimRight(parsed.String(), "/")
 	}
@@ -83,7 +98,7 @@ func normalizeEasyPayAPIBase(apiBase string) string {
 func trimEasyPayEndpointPath(path string) string {
 	path = strings.TrimRight(strings.TrimSpace(path), "/")
 	lower := strings.ToLower(path)
-	for _, endpoint := range []string{"/submit.php", "/mapi.php", "/api.php"} {
+	for _, endpoint := range []string{"/submit.php", "/mapi.php", "/api.php", "/payment/do.html", "/payment/query.html"} {
 		if strings.HasSuffix(lower, endpoint) {
 			return strings.TrimRight(path[:len(path)-len(endpoint)], "/")
 		}
@@ -122,6 +137,9 @@ func (e *EasyPay) MerchantIdentityMetadata() map[string]string {
 }
 
 func (e *EasyPay) CreatePayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
+	if e.usesXunhuPay() {
+		return e.createXunhuPayPayment(ctx, req)
+	}
 	// Payment mode determined by instance config, not payment type.
 	// "popup" → hosted page (submit.php); "qrcode"/default → API call (mapi.php).
 	mode := e.config["paymentMode"]
@@ -204,6 +222,72 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 	return &payment.CreatePaymentResponse{TradeNo: resp.TradeNo, PayURL: payURL, QRCode: resp.QRCode}, nil
 }
 
+func (e *EasyPay) usesXunhuPay() bool {
+	if e == nil {
+		return false
+	}
+	for _, key := range []string{"protocol", "apiProtocol", "gatewayProtocol"} {
+		switch strings.ToLower(strings.TrimSpace(e.config[key])) {
+		case easyPayProtocolXunhu, "xunhu", "hupijiao":
+			return true
+		}
+	}
+	base := strings.ToLower(strings.TrimSpace(e.config["apiBase"]))
+	return strings.Contains(base, "xunhupay.com") ||
+		strings.Contains(base, "dpweixin.com") ||
+		strings.Contains(base, "diypc.com.cn") ||
+		strings.Contains(base, "/payment/do.html") ||
+		strings.Contains(base, "/payment/query.html")
+}
+
+func (e *EasyPay) createXunhuPayPayment(ctx context.Context, req payment.CreatePaymentRequest) (*payment.CreatePaymentResponse, error) {
+	notifyURL, returnURL := e.resolveURLs(req)
+	params := map[string]string{
+		"version":        xunhuPayAPIVersion,
+		"appid":          e.config["pid"],
+		"trade_order_id": req.OrderID,
+		"total_fee":      req.Amount,
+		"title":          req.Subject,
+		"time":           strconv.FormatInt(time.Now().Unix(), 10),
+		"notify_url":     notifyURL,
+		"return_url":     returnURL,
+		"nonce_str":      xunhuPayNonce(),
+	}
+	for _, key := range []string{"callback_url", "plugins", "attach", "type", "wap_url", "wap_name"} {
+		if value := strings.TrimSpace(e.config[key]); value != "" {
+			params[key] = value
+		}
+	}
+	params["hash"] = xunhuPaySign(params, e.config["pkey"])
+
+	body, status, err := e.postJSONRaw(ctx, e.xunhuPayEndpoint("/payment/do.html"), params)
+	if err != nil {
+		return nil, fmt.Errorf("xunhupay create: %w", err)
+	}
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("xunhupay create HTTP %d: %s", status, summarizeEasyPayResponse(body))
+	}
+	var resp struct {
+		OpenID    string `json:"openid"`
+		URL       string `json:"url"`
+		URLQRCode string `json:"url_qrcode"`
+		ErrCode   any    `json:"errcode"`
+		ErrMsg    string `json:"errmsg"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("xunhupay parse: %w", err)
+	}
+	if !xunhuPayErrCodeIsSuccess(resp.ErrCode) {
+		msg := strings.TrimSpace(resp.ErrMsg)
+		if msg == "" {
+			msg = summarizeEasyPayResponse(body)
+		}
+		return nil, fmt.Errorf("xunhupay error: %s", msg)
+	}
+	payURL := strings.TrimSpace(resp.URL)
+	return &payment.CreatePaymentResponse{TradeNo: strings.TrimSpace(resp.OpenID), PayURL: payURL, QRCode: strings.TrimSpace(resp.URLQRCode)}, nil
+}
+
 // resolveURLs returns (notifyURL, returnURL) preferring request values,
 // falling back to instance config.
 func (e *EasyPay) resolveURLs(req payment.CreatePaymentRequest) (string, string) {
@@ -254,6 +338,9 @@ func (e *EasyPay) upstreamPaymentType(paymentType string) string {
 }
 
 func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.QueryOrderResponse, error) {
+	if e.usesXunhuPay() {
+		return e.queryXunhuPayOrder(ctx, tradeNo)
+	}
 	params := map[string]string{
 		"act": "order", "pid": e.config["pid"],
 		"key": e.config["pkey"], "out_trade_no": tradeNo,
@@ -321,7 +408,54 @@ func (e *EasyPay) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 	}, nil
 }
 
+func (e *EasyPay) queryXunhuPayOrder(ctx context.Context, tradeNo string) (*payment.QueryOrderResponse, error) {
+	params := map[string]string{
+		"appid":           e.config["pid"],
+		"out_trade_order": tradeNo,
+		"time":            strconv.FormatInt(time.Now().Unix(), 10),
+		"nonce_str":       xunhuPayNonce(),
+	}
+	params["hash"] = xunhuPaySign(params, e.config["pkey"])
+
+	body, status, err := e.postJSONRaw(ctx, e.xunhuPayEndpoint("/payment/query.html"), params)
+	if err != nil {
+		return nil, fmt.Errorf("xunhupay query: %w", err)
+	}
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		return nil, fmt.Errorf("xunhupay query HTTP %d: %s", status, summarizeEasyPayResponse(body))
+	}
+	var resp struct {
+		ErrCode any    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+		Data    struct {
+			Status        string `json:"status"`
+			OpenOrderID   string `json:"open_order_id"`
+			TradeOrderID  string `json:"trade_order_id"`
+			TransactionID string `json:"transaction_id"`
+			TotalFee      string `json:"total_fee"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, fmt.Errorf("xunhupay parse query: %w", err)
+	}
+	statusValue := payment.ProviderStatusPending
+	if xunhuPayErrCodeIsSuccess(resp.ErrCode) {
+		statusValue = xunhuPayProviderStatus(resp.Data.Status)
+	}
+	responseTradeNo := firstNonEmpty(resp.Data.TransactionID, resp.Data.OpenOrderID, resp.Data.TradeOrderID, tradeNo)
+	amount, _ := strconv.ParseFloat(resp.Data.TotalFee, 64)
+	return &payment.QueryOrderResponse{
+		TradeNo:  responseTradeNo,
+		Status:   statusValue,
+		Amount:   amount,
+		Metadata: e.MerchantIdentityMetadata(),
+	}, nil
+}
+
 func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[string]string) (*payment.PaymentNotification, error) {
+	if e.usesXunhuPay() {
+		return e.verifyXunhuPayNotification(rawBody)
+	}
 	values, err := url.ParseQuery(rawBody)
 	if err != nil {
 		return nil, fmt.Errorf("parse notify: %w", err)
@@ -354,6 +488,45 @@ func (e *EasyPay) VerifyNotification(_ context.Context, rawBody string, _ map[st
 	return &payment.PaymentNotification{
 		TradeNo: params["trade_no"], OrderID: params["out_trade_no"],
 		Amount: amount, Status: status, RawData: rawBody, Metadata: metadata,
+	}, nil
+}
+
+func (e *EasyPay) verifyXunhuPayNotification(rawBody string) (*payment.PaymentNotification, error) {
+	values, err := url.ParseQuery(rawBody)
+	if err != nil {
+		return nil, fmt.Errorf("parse xunhupay notify: %w", err)
+	}
+	params := make(map[string]string)
+	for k := range values {
+		params[k] = values.Get(k)
+	}
+	hash := params["hash"]
+	if hash == "" {
+		return nil, fmt.Errorf("missing hash")
+	}
+	if !xunhuPayVerifySign(params, e.config["pkey"], hash) {
+		return nil, fmt.Errorf("invalid signature")
+	}
+	status := payment.ProviderStatusFailed
+	if strings.EqualFold(params["status"], xunhuPayStatusPaid) {
+		status = payment.ProviderStatusSuccess
+	}
+	amount, _ := strconv.ParseFloat(params["total_fee"], 64)
+
+	metadata := e.MerchantIdentityMetadata()
+	if appID := strings.TrimSpace(params["appid"]); appID != "" {
+		if metadata == nil {
+			metadata = map[string]string{}
+		}
+		metadata["pid"] = appID
+	}
+	return &payment.PaymentNotification{
+		TradeNo:  firstNonEmpty(params["transaction_id"], params["open_order_id"]),
+		OrderID:  params["trade_order_id"],
+		Amount:   amount,
+		Status:   status,
+		RawData:  rawBody,
+		Metadata: metadata,
 	}, nil
 }
 
@@ -526,6 +699,40 @@ func (e *EasyPay) postRaw(ctx context.Context, endpoint string, params map[strin
 	return body, resp.StatusCode, nil
 }
 
+func (e *EasyPay) postJSONRaw(ctx context.Context, endpoint string, params map[string]string) ([]byte, int, error) {
+	payload, err := json.Marshal(params)
+	if err != nil {
+		return nil, 0, err
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return nil, 0, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	client := e.httpClient
+	if client == nil {
+		client = &http.Client{Timeout: easypayHTTPTimeout}
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxEasypayResponseSize))
+	if err != nil {
+		return nil, resp.StatusCode, err
+	}
+	return body, resp.StatusCode, nil
+}
+
+func (e *EasyPay) xunhuPayEndpoint(path string) string {
+	base := e.apiBase()
+	if base == "" {
+		return path
+	}
+	return strings.TrimRight(base, "/") + path
+}
+
 func easyPaySign(params map[string]string, pkey string) string {
 	keys := make([]string, 0, len(params))
 	for k, v := range params {
@@ -549,4 +756,73 @@ func easyPaySign(params map[string]string, pkey string) string {
 
 func easyPayVerifySign(params map[string]string, pkey string, sign string) bool {
 	return hmac.Equal([]byte(easyPaySign(params, pkey)), []byte(sign))
+}
+
+func xunhuPaySign(params map[string]string, pkey string) string {
+	keys := make([]string, 0, len(params))
+	for k, v := range params {
+		if k == "hash" || v == "" {
+			continue
+		}
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var buf strings.Builder
+	for i, k := range keys {
+		if i > 0 {
+			_ = buf.WriteByte('&')
+		}
+		_, _ = buf.WriteString(k + "=" + params[k])
+	}
+	_, _ = buf.WriteString(pkey)
+	hash := md5.Sum([]byte(buf.String()))
+	return hex.EncodeToString(hash[:])
+}
+
+func xunhuPayVerifySign(params map[string]string, pkey string, hash string) bool {
+	return hmac.Equal([]byte(xunhuPaySign(params, pkey)), []byte(hash))
+}
+
+func xunhuPayErrCodeIsSuccess(code any) bool {
+	switch v := code.(type) {
+	case float64:
+		return int(v) == 0
+	case int:
+		return v == 0
+	case string:
+		n, err := strconv.Atoi(strings.TrimSpace(v))
+		return err == nil && n == 0
+	default:
+		return false
+	}
+}
+
+func xunhuPayProviderStatus(status string) string {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case xunhuPayStatusPaid:
+		return payment.ProviderStatusPaid
+	case xunhuPayStatusPending:
+		return payment.ProviderStatusPending
+	case xunhuPayStatusCanceled:
+		return payment.ProviderStatusFailed
+	default:
+		return payment.ProviderStatusPending
+	}
+}
+
+func xunhuPayNonce() string {
+	var b [16]byte
+	if _, err := rand.Read(b[:]); err != nil {
+		return strconv.FormatInt(time.Now().UnixNano(), 36)
+	}
+	return hex.EncodeToString(b[:])
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }

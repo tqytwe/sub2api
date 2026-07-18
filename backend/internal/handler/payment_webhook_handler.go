@@ -151,7 +151,10 @@ func extractOutTradeNo(rawBody, providerKey string) string {
 	case payment.TypeEasyPay, payment.TypeAlipay:
 		values, err := url.ParseQuery(rawBody)
 		if err == nil {
-			return values.Get("out_trade_no")
+			if outTradeNo := strings.TrimSpace(values.Get("out_trade_no")); outTradeNo != "" {
+				return outTradeNo
+			}
+			return strings.TrimSpace(values.Get("trade_order_id"))
 		}
 	case payment.TypeAirwallex:
 		var payload struct {
