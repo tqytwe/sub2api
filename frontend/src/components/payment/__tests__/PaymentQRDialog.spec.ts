@@ -175,4 +175,31 @@ describe('PaymentQRDialog currency display', () => {
     expect(wrapper.text()).toContain('payment.result.success')
     expect(wrapper.emitted('success')).toHaveLength(1)
   })
+
+  it('renders hosted XunhuPay QR image URLs directly instead of encoding another QR', async () => {
+    const wrapper = mount(PaymentQRDialog, {
+      props: {
+        show: false,
+        orderId: 42,
+        qrCode: 'https://api.xunhupay.com/qrcode/42.png',
+        expiresAt: '2099-01-01T10:30:00Z',
+        paymentType: 'wxpay',
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            props: ['show'],
+            template: '<div v-if="show"><slot /><slot name="footer" /></div>',
+          },
+          Icon: true,
+        },
+      },
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    expect(wrapper.find('img[src="https://api.xunhupay.com/qrcode/42.png"]').exists()).toBe(true)
+    expect(toCanvas).not.toHaveBeenCalled()
+  })
 })

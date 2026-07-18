@@ -5,7 +5,13 @@
         {{ qrUrl ? scanTitle : t('payment.qr.payInNewWindow') }}
       </h2>
       <div v-if="qrUrl" class="rounded-2xl bg-white p-6 shadow-lg dark:bg-dark-800">
-        <canvas ref="qrCanvas" class="mx-auto"></canvas>
+        <img
+          v-if="hostedQRImageUrl"
+          :src="hostedQRImageUrl"
+          alt=""
+          class="mx-auto h-64 w-64 object-contain"
+        />
+        <canvas v-else ref="qrCanvas" class="mx-auto"></canvas>
       </div>
       <!-- Scan prompt for QR code -->
       <p v-if="qrUrl && !expired && scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">
@@ -43,6 +49,7 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import { useAppStore } from '@/stores'
 import { isBuiltInAlipayMethod, isBuiltInWxpayMethod } from '@/components/payment/providerConfig'
 import { isPaymentFailureStatus, isPaymentSuccessStatus } from '@/components/payment/orderUtils'
+import { getHostedQRCodeImageUrl } from '@/components/payment/qrDisplay'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
@@ -73,6 +80,7 @@ const countdownDisplay = computed(() => {
 
 const isAlipay = computed(() => isBuiltInAlipayMethod(paymentType.value))
 const isWxpay = computed(() => isBuiltInWxpayMethod(paymentType.value))
+const hostedQRImageUrl = computed(() => getHostedQRCodeImageUrl(qrUrl.value))
 
 const scanTitle = computed(() => {
   if (isAlipay.value) return t('payment.qr.scanAlipay')
@@ -94,7 +102,7 @@ function getLogoForType(): string | null {
 
 async function renderQR() {
   await nextTick()
-  if (!qrCanvas.value || !qrUrl.value) return
+  if (!qrCanvas.value || !qrUrl.value || hostedQRImageUrl.value) return
 
   // Use medium error correction to support logo overlay while keeping QR code scannable
   const logoSrc = getLogoForType()

@@ -189,7 +189,7 @@ describe('decidePaymentLaunch', () => {
     expect(decision.paymentState.qrCode).toBe('https://pay.example.com/qr/session')
   })
 
-  it('keeps desktop WeChat on QR flow when popup mode also includes a pay_url', () => {
+  it('honors desktop WeChat popup mode when a QR code is also present', () => {
     const decision = decidePaymentLaunch(createOrderResult({
       pay_url: 'https://api.xunhupay.com/pay/payment.html?hash=mobile-url',
       qr_code: 'weixin://wxpay/bizpayurl?pr=desktop-order',
@@ -200,7 +200,7 @@ describe('decidePaymentLaunch', () => {
       isMobile: false,
     })
 
-    expect(decision.kind).toBe('qr_waiting')
+    expect(decision.kind).toBe('redirect_waiting')
     expect(decision.paymentState.payUrl).toBe('https://api.xunhupay.com/pay/payment.html?hash=mobile-url')
     expect(decision.paymentState.qrCode).toBe('weixin://wxpay/bizpayurl?pr=desktop-order')
   })
