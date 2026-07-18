@@ -1775,6 +1775,28 @@ export interface UserSubscription {
   expires_at: string | null
   user?: User
   group?: Group
+  assigned_at?: string
+  notes?: string
+  purchase_order?: SubscriptionPurchaseOrder | null
+}
+
+export interface SubscriptionPurchaseOrder {
+  id: number
+  out_trade_no: string
+  payment_type: string
+  payment_trade_no?: string
+  amount: number
+  pay_amount: number
+  currency?: string
+  status: string
+  plan_id?: number
+  subscription_group_id?: number
+  subscription_days?: number
+  paid_at?: string
+  completed_at?: string
+  created_at: string
+  audit_action?: string
+  audit_at?: string
 }
 
 export interface SubscriptionProgress {

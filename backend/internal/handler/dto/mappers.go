@@ -755,6 +755,31 @@ func UserSubscriptionFromServiceAdmin(sub *service.UserSubscription) *AdminUserS
 		AssignedAt:       sub.AssignedAt,
 		Notes:            sub.Notes,
 		AssignedByUser:   UserFromServiceShallow(sub.AssignedByUser),
+		PurchaseOrder:    SubscriptionPurchaseOrderFromService(sub.PurchaseOrder),
+	}
+}
+
+func SubscriptionPurchaseOrderFromService(order *service.SubscriptionPurchaseOrder) *SubscriptionPurchaseOrder {
+	if order == nil {
+		return nil
+	}
+	return &SubscriptionPurchaseOrder{
+		ID:                  order.ID,
+		OutTradeNo:          order.OutTradeNo,
+		PaymentType:         order.PaymentType,
+		PaymentTradeNo:      order.PaymentTradeNo,
+		Amount:              order.Amount,
+		PayAmount:           order.PayAmount,
+		Currency:            order.Currency,
+		Status:              order.Status,
+		PlanID:              order.PlanID,
+		SubscriptionGroupID: order.SubscriptionGroupID,
+		SubscriptionDays:    order.SubscriptionDays,
+		PaidAt:              order.PaidAt,
+		CompletedAt:         order.CompletedAt,
+		CreatedAt:           order.CreatedAt,
+		AuditAction:         order.AuditAction,
+		AuditAt:             order.AuditAt,
 	}
 }
 
