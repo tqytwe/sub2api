@@ -3,6 +3,7 @@ package admin
 import (
 	"strconv"
 	"strings"
+	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -13,6 +14,24 @@ import (
 
 type adminArenaSettleRequest struct {
 	PeriodID int64 `json:"period_id"`
+}
+
+type adminPlayCampaignRequest struct {
+	Name    string                    `json:"name"`
+	StartAt time.Time                 `json:"start_at"`
+	EndAt   time.Time                 `json:"end_at"`
+	Rules   service.PlayCampaignRules `json:"rules"`
+	Enabled bool                      `json:"enabled"`
+}
+
+type adminPlayCampaignDTO struct {
+	ID        int64                     `json:"id"`
+	Name      string                    `json:"name"`
+	StartAt   string                    `json:"start_at"`
+	EndAt     string                    `json:"end_at"`
+	Rules     service.PlayCampaignRules `json:"rules"`
+	Enabled   bool                      `json:"enabled"`
+	CreatedAt string                    `json:"created_at"`
 }
 
 type adminArenaSettleResultDTO struct {
@@ -227,6 +246,74 @@ func (h *AdminPlayHandler) ArenaLeaderboard(c *gin.Context) {
 	response.Success(c, out)
 }
 
+func (h *AdminPlayHandler) ListCampaigns(c *gin.Context) {
+	campaigns, err := h.playService.ListAdminCampaigns(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminPlayCampaignDTOs(campaigns))
+}
+
+func (h *AdminPlayHandler) CreateCampaign(c *gin.Context) {
+	var req adminPlayCampaignRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid campaign request"))
+		return
+	}
+	created, err := h.playService.CreateAdminCampaign(c.Request.Context(), service.PlayCampaign{
+		Name:    req.Name,
+		StartAt: req.StartAt,
+		EndAt:   req.EndAt,
+		Rules:   req.Rules,
+		Enabled: req.Enabled,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminPlayCampaignDTO(*created))
+}
+
+func (h *AdminPlayHandler) UpdateCampaign(c *gin.Context) {
+	id := parsePositiveInt64(c.Param("id"))
+	if id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid campaign id"))
+		return
+	}
+	var req adminPlayCampaignRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid campaign request"))
+		return
+	}
+	updated, err := h.playService.UpdateAdminCampaign(c.Request.Context(), service.PlayCampaign{
+		ID:      id,
+		Name:    req.Name,
+		StartAt: req.StartAt,
+		EndAt:   req.EndAt,
+		Rules:   req.Rules,
+		Enabled: req.Enabled,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminPlayCampaignDTO(*updated))
+}
+
+func (h *AdminPlayHandler) DeleteCampaign(c *gin.Context) {
+	id := parsePositiveInt64(c.Param("id"))
+	if id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid campaign id"))
+		return
+	}
+	if err := h.playService.DeleteAdminCampaign(c.Request.Context(), id); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
+}
+
 func (h *AdminPlayHandler) GetTeamRewardSettings(c *gin.Context) {
 	response.Success(c, h.playService.GetTeamRewardSettings(c.Request.Context()))
 }
@@ -366,6 +453,26 @@ func toAdminTeamListDTO(list *service.PlayAdminTeamList) adminTeamListDTO {
 		out.Items = append(out.Items, toAdminTeamListItemDTO(item))
 	}
 	return out
+}
+
+func toAdminPlayCampaignDTOs(items []service.PlayCampaign) []adminPlayCampaignDTO {
+	out := make([]adminPlayCampaignDTO, 0, len(items))
+	for _, item := range items {
+		out = append(out, toAdminPlayCampaignDTO(item))
+	}
+	return out
+}
+
+func toAdminPlayCampaignDTO(item service.PlayCampaign) adminPlayCampaignDTO {
+	return adminPlayCampaignDTO{
+		ID:        item.ID,
+		Name:      item.Name,
+		StartAt:   item.StartAt.Format("2006-01-02T15:04:05Z07:00"),
+		EndAt:     item.EndAt.Format("2006-01-02T15:04:05Z07:00"),
+		Rules:     item.Rules,
+		Enabled:   item.Enabled,
+		CreatedAt: item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
 }
 
 func toAdminTeamListItemDTO(item service.PlayAdminTeamListItem) adminTeamListItemDTO {
