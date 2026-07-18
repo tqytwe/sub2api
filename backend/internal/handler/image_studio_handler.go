@@ -624,6 +624,10 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 		return nil, 0, err
 	}
 	if rec.Code >= 400 {
+		respBody, _ := io.ReadAll(rec.Body)
+		if message := safeImageStudioGatewayErrorMessage(respBody); message != "" {
+			return nil, 0, fmt.Errorf("image generation provider request failed with status %d: %s", rec.Code, message)
+		}
 		return nil, 0, fmt.Errorf("image generation provider request failed with status %d", rec.Code)
 	}
 	respBody, _ := io.ReadAll(rec.Body)
@@ -631,6 +635,33 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 		return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, parseGeminiImageStudioPayloads)
 	}
 	return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, parseOpenAICompatibleImageStudioPayloads)
+}
+
+func safeImageStudioGatewayErrorMessage(respBody []byte) string {
+	message := strings.TrimSpace(service.ExtractUpstreamErrorMessage(respBody))
+	if message == "" {
+		return ""
+	}
+	message = service.SanitizeUpstreamErrorMessage(message)
+	lower := strings.ToLower(message)
+	for _, marker := range []string{
+		"authorization",
+		"bearer ",
+		"sk-",
+		"api_key",
+		"apikey",
+		"access_token",
+		"refresh_token",
+		"prompt=",
+	} {
+		if strings.Contains(lower, marker) {
+			return ""
+		}
+	}
+	if len(message) > 240 {
+		message = strings.TrimSpace(message[:240]) + "..."
+	}
+	return message
 }
 
 func (h *ImageStudioHandler) parseImageStudioGatewayResponse(

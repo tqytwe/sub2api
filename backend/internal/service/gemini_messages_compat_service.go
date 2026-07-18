@@ -1704,6 +1704,10 @@ func sanitizeUpstreamErrorMessage(msg string) string {
 	return sensitiveQueryParamRegex.ReplaceAllString(msg, `$1***`)
 }
 
+func SanitizeUpstreamErrorMessage(msg string) string {
+	return sanitizeUpstreamErrorMessage(msg)
+}
+
 func (s *GeminiMessagesCompatService) writeGeminiMappedError(c *gin.Context, account *Account, upstreamStatus int, upstreamRequestID string, body []byte) error {
 	MarkResponseCommitted(c)
 	upstreamMsg := strings.TrimSpace(extractUpstreamErrorMessage(body))
