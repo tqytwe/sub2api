@@ -1560,7 +1560,23 @@ func (r *imageStudioRepository) SettleJob(
 	}
 	var errMsg any
 	if status == service.ImageStudioJobStatusFailed {
-		errMsg = "all image outputs failed"
+		var firstItemErr sql.NullString
+		err := tx.QueryRowContext(ctx, `
+			SELECT error
+			FROM image_studio_items
+			WHERE job_id = $1::uuid
+			  AND status = 'failed'
+			  AND NULLIF(BTRIM(error), '') IS NOT NULL
+			ORDER BY sort_order ASC, created_at ASC, id ASC
+			LIMIT 1`, jobID).Scan(&firstItemErr)
+		switch {
+		case err == nil && firstItemErr.Valid && strings.TrimSpace(firstItemErr.String) != "":
+			errMsg = strings.TrimSpace(firstItemErr.String)
+		case err == nil || errors.Is(err, sql.ErrNoRows):
+			errMsg = "all image outputs failed"
+		default:
+			return nil, err
+		}
 	}
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE image_studio_jobs
