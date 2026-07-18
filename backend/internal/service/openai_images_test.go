@@ -447,6 +447,60 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGrokImageModels(t *t
 	}
 }
 
+func TestOpenAIGatewayServiceImagesRoutesGeminiImageModelToNativeEndpoint(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"gemini-3.1-flash-image-preview","prompt":"draw a red circle","size":"1792x1024","n":1}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"gemini-native-rid"}},
+		Body: io.NopCloser(strings.NewReader(`{
+			"candidates":[{"content":{"parts":[
+				{"text":"done"},
+				{"inlineData":{"mimeType":"image/jpeg","data":"ZmFrZS1qcGVn"}}
+			]}}]
+		}`)),
+	}}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+
+	result, err := svc.ForwardImages(
+		context.Background(),
+		c,
+		&Account{
+			ID:       42,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeAPIKey,
+			Credentials: map[string]any{
+				"api_key":  "sk-test",
+				"base_url": "https://byteclaude.io/v1",
+			},
+		},
+		body,
+		parsed,
+		"",
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, "https://byteclaude.io/v1beta/models/gemini-3.1-flash-image-preview:generateContent", upstream.lastReq.URL.String())
+	require.Equal(t, "Bearer sk-test", upstream.lastReq.Header.Get("Authorization"))
+	require.Equal(t, "draw a red circle", gjson.GetBytes(upstream.lastBody, "contents.0.parts.0.text").String())
+	require.Equal(t, "TEXT", gjson.GetBytes(upstream.lastBody, "generationConfig.responseModalities.0").String())
+	require.Equal(t, "IMAGE", gjson.GetBytes(upstream.lastBody, "generationConfig.responseModalities.1").String())
+	require.False(t, gjson.GetBytes(upstream.lastBody, "size").Exists())
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Equal(t, "ZmFrZS1qcGVn", gjson.Get(rec.Body.String(), "data.0.b64_json").String())
+	require.Equal(t, "gemini-3.1-flash-image-preview", result.UpstreamModel)
+	require.Equal(t, "/v1beta/models/gemini-3.1-flash-image-preview:generateContent", result.UpstreamEndpoint)
+	require.Equal(t, 1, result.ImageCount)
+}
+
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_JSONEditURLs(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	body := []byte(`{

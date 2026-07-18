@@ -349,3 +349,37 @@ func TestImageStudioGatewayDoesNotReturnSensitiveUpstreamErrorBody(t *testing.T)
 	require.NotContains(t, err.Error(), prompt)
 	require.LessOrEqual(t, len(err.Error()), 128)
 }
+
+func TestImageStudioGatewayReturnsSafeUpstreamErrorSummary(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := &ImageStudioHandler{gateway: &imageStudioGatewayErrorStub{
+		status: http.StatusBadRequest,
+		body:   `{"error":{"message":"not supported model for image generation, only imagen models are supported"}}`,
+	}}
+	apiKey := &service.APIKey{
+		ID:     22,
+		UserID: 10,
+		Key:    "sk-test-redacted",
+		User:   &service.User{ID: 10},
+		Group: &service.Group{
+			ID:                   30,
+			Platform:             service.PlatformOpenAI,
+			AllowImageGeneration: true,
+		},
+	}
+
+	_, _, err := handler.invokeGatewayImagesOnce(
+		context.Background(),
+		apiKey,
+		&service.ImageStudioWorkerRequest{
+			Platform:    service.PlatformOpenAI,
+			Endpoint:    "/v1/images/generations",
+			ContentType: "application/json",
+			Body:        []byte(`{"model":"gemini-3.1-flash-image-preview","prompt":"draw","n":1}`),
+		},
+	)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "status 400")
+	require.Contains(t, err.Error(), "only imagen models are supported")
+}

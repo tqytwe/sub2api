@@ -503,13 +503,18 @@ func isGrokImageGenerationModel(model string) bool {
 
 func validateOpenAIImagesModel(model string) error {
 	model = strings.TrimSpace(model)
-	if isOpenAIImageGenerationModel(model) {
+	if isOpenAIImageGenerationModel(model) || isGeminiOpenAICompatibleImageModel(model) {
 		return nil
 	}
 	if model == "" {
 		return fmt.Errorf("images endpoint requires an image model")
 	}
 	return fmt.Errorf("images endpoint requires an image model, got %q", model)
+}
+
+func isGeminiOpenAICompatibleImageModel(model string) bool {
+	capability, ok := ResolveImageStudioModelCapability(model)
+	return ok && capability.Platform == PlatformGemini
 }
 
 func normalizeOpenAIImagesEndpointPath(path string) string {
@@ -612,10 +617,13 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
 	}
+	upstreamModel := account.GetMappedModel(requestModel)
+	if isGeminiOpenAICompatibleImageModel(upstreamModel) {
+		return s.forwardOpenAICompatibleGeminiImageAPIKey(ctx, c, account, parsed, requestModel, upstreamModel)
+	}
 	if err := validateOpenAIImagesModel(requestModel); err != nil {
 		return nil, err
 	}
-	upstreamModel := account.GetMappedModel(requestModel)
 	if err := validateOpenAIImagesModel(upstreamModel); err != nil {
 		return nil, err
 	}
@@ -761,6 +769,147 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 	}
 }
 
+func (s *OpenAIGatewayService) forwardOpenAICompatibleGeminiImageAPIKey(
+	ctx context.Context,
+	c *gin.Context,
+	account *Account,
+	parsed *OpenAIImagesRequest,
+	requestModel string,
+	upstreamModel string,
+) (*OpenAIForwardResult, error) {
+	startTime := time.Now()
+	if parsed == nil {
+		return nil, fmt.Errorf("parsed images request is required")
+	}
+	upstreamBody, err := buildOpenAICompatibleGeminiImageBody(ctx, parsed)
+	if err != nil {
+		return nil, err
+	}
+	upstreamCtx, releaseUpstreamCtx := detachStreamUpstreamContext(ctx, false)
+	defer releaseUpstreamCtx()
+
+	token, _, err := s.GetAccessToken(upstreamCtx, account)
+	if err != nil {
+		return nil, err
+	}
+	upstreamReq, err := s.buildOpenAICompatibleGeminiImageRequest(upstreamCtx, c, account, upstreamBody, token, upstreamModel)
+	if err != nil {
+		return nil, err
+	}
+	proxyURL := ""
+	if account.ProxyID != nil && account.Proxy != nil {
+		proxyURL = account.Proxy.URL()
+	}
+	upstreamStart := time.Now()
+	resp, err := s.httpUpstream.Do(upstreamReq, proxyURL, account.ID, account.Concurrency)
+	SetOpsLatencyMs(c, OpsUpstreamLatencyMsKey, time.Since(upstreamStart).Milliseconds())
+	if err != nil {
+		safeErr := sanitizeUpstreamErrorMessage(err.Error())
+		setOpsUpstreamError(c, 0, safeErr, "")
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			Platform:           account.Platform,
+			AccountID:          account.ID,
+			AccountName:        account.Name,
+			UpstreamStatusCode: 0,
+			UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
+			Kind:               "request_error",
+			Message:            safeErr,
+		})
+		return nil, fmt.Errorf("upstream request failed: %s", safeErr)
+	}
+	if resp.StatusCode >= 400 {
+		respBody := s.readUpstreamErrorBody(resp)
+		_ = resp.Body.Close()
+		resp.Body = io.NopCloser(bytes.NewReader(respBody))
+		upstreamMsg := sanitizeUpstreamErrorMessage(strings.TrimSpace(extractUpstreamErrorMessage(respBody)))
+		setOpsUpstreamError(c, resp.StatusCode, upstreamMsg, "")
+		appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+			Platform:           account.Platform,
+			AccountID:          account.ID,
+			AccountName:        account.Name,
+			UpstreamStatusCode: resp.StatusCode,
+			UpstreamRequestID:  resp.Header.Get("x-request-id"),
+			UpstreamURL:        safeUpstreamURL(upstreamReq.URL.String()),
+			Kind:               "error",
+			Message:            upstreamMsg,
+		})
+		return s.handleOpenAIImagesErrorResponse(upstreamCtx, resp, c, account, upstreamModel)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("read gemini image response: %w", err)
+	}
+	openAIRespBody, imageCount, err := convertGeminiNativeImageResponseToOpenAIImages(respBody)
+	if err != nil {
+		return nil, err
+	}
+	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
+	c.Data(http.StatusOK, "application/json", openAIRespBody)
+	return &OpenAIForwardResult{
+		RequestID:        resp.Header.Get("x-request-id"),
+		Usage:            OpenAIUsage{},
+		Model:            strings.TrimSpace(parsed.Model),
+		UpstreamModel:    upstreamModel,
+		UpstreamEndpoint: openAICompatibleGeminiImageEndpoint(upstreamModel),
+		Stream:           false,
+		ResponseHeaders:  resp.Header.Clone(),
+		Duration:         time.Since(startTime),
+		ImageCount:       imageCount,
+		ImageSize:        parsed.SizeTier,
+		ImageInputSize:   parsed.Size,
+	}, nil
+}
+
+func (s *OpenAIGatewayService) buildOpenAICompatibleGeminiImageRequest(
+	ctx context.Context,
+	c *gin.Context,
+	account *Account,
+	body []byte,
+	token string,
+	model string,
+) (*http.Request, error) {
+	baseURL := account.GetOpenAIBaseURL()
+	if strings.TrimSpace(baseURL) == "" {
+		baseURL = "https://api.openai.com"
+	}
+	validatedURL, err := s.validateUpstreamBaseURL(baseURL)
+	if err != nil {
+		return nil, err
+	}
+	targetURL := buildOpenAICompatibleGeminiImageURL(validatedURL, model)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(WithHTTPUpstreamProfile(req.Context(), HTTPUpstreamProfileOpenAI))
+	authHeaders, err := s.buildOpenAIAuthenticationHeaders(ctx, account, token)
+	if err != nil {
+		return nil, fmt.Errorf("build openai authentication headers: %w", err)
+	}
+	for key, values := range authHeaders {
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+	for key, values := range c.Request.Header {
+		if !openaiPassthroughAllowedHeaders[strings.ToLower(key)] {
+			continue
+		}
+		for _, value := range values {
+			req.Header.Add(key, value)
+		}
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if customUA := account.GetOpenAIUserAgent(); customUA != "" {
+		req.Header.Set("User-Agent", customUA)
+	}
+	account.ApplyHeaderOverrides(req.Header)
+	SetActualOpenAIUpstreamEndpoint(c, openAICompatibleGeminiImageEndpoint(model))
+	return req, nil
+}
+
 func (s *OpenAIGatewayService) buildOpenAIImagesRequest(
 	ctx context.Context,
 	c *gin.Context,
@@ -824,6 +973,121 @@ func (s *OpenAIGatewayService) buildOpenAIImagesRequest(
 
 func buildOpenAIImagesURL(base string, endpoint string) string {
 	return buildOpenAIEndpointURL(base, endpoint)
+}
+
+func buildOpenAICompatibleGeminiImageBody(ctx context.Context, parsed *OpenAIImagesRequest) ([]byte, error) {
+	if parsed == nil {
+		return nil, fmt.Errorf("parsed images request is required")
+	}
+	parts := []map[string]any{{"text": strings.TrimSpace(parsed.Prompt)}}
+	for _, upload := range parsed.Uploads {
+		if len(upload.Data) == 0 {
+			continue
+		}
+		contentType := strings.TrimSpace(upload.ContentType)
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+		parts = append(parts, map[string]any{
+			"inlineData": map[string]string{
+				"mimeType": contentType,
+				"data":     base64.StdEncoding.EncodeToString(upload.Data),
+			},
+		})
+	}
+	for _, rawURL := range parsed.InputImageURLs {
+		rawURL = strings.TrimSpace(rawURL)
+		if rawURL == "" {
+			continue
+		}
+		data, contentType, err := DecodeImageStudioDataURL(rawURL)
+		if err != nil {
+			data, contentType, err = FetchImageStudioRemoteURL(ctx, rawURL)
+		}
+		if err != nil {
+			return nil, err
+		}
+		parts = append(parts, map[string]any{
+			"inlineData": map[string]string{
+				"mimeType": contentType,
+				"data":     base64.StdEncoding.EncodeToString(data),
+			},
+		})
+	}
+	payload := map[string]any{
+		"contents": []map[string]any{{
+			"parts": parts,
+		}},
+		"generationConfig": map[string]any{
+			"responseModalities": []string{"TEXT", "IMAGE"},
+		},
+	}
+	return json.Marshal(payload)
+}
+
+func convertGeminiNativeImageResponseToOpenAIImages(respBody []byte) ([]byte, int, error) {
+	data := make([]map[string]any, 0)
+	appendInline := func(inline gjson.Result) {
+		if !inline.Exists() {
+			return
+		}
+		b64 := strings.TrimSpace(inline.Get("data").String())
+		if b64 == "" {
+			return
+		}
+		item := map[string]any{"b64_json": b64}
+		if mimeType := strings.TrimSpace(inline.Get("mimeType").String()); mimeType != "" {
+			item["mime_type"] = mimeType
+		}
+		data = append(data, item)
+	}
+	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inlineData").ForEach(func(_, candidate gjson.Result) bool {
+		candidate.ForEach(func(_, inline gjson.Result) bool {
+			appendInline(inline)
+			return true
+		})
+		return true
+	})
+	gjson.GetBytes(respBody, "candidates.#.content.parts.#.inline_data").ForEach(func(_, candidate gjson.Result) bool {
+		candidate.ForEach(func(_, inline gjson.Result) bool {
+			appendInline(inline)
+			return true
+		})
+		return true
+	})
+	if len(data) == 0 {
+		return nil, 0, fmt.Errorf("gemini image response contained no image data")
+	}
+	out, err := json.Marshal(map[string]any{
+		"created": time.Now().Unix(),
+		"data":    data,
+	})
+	if err != nil {
+		return nil, 0, err
+	}
+	return out, len(data), nil
+}
+
+func buildOpenAICompatibleGeminiImageURL(base string, model string) string {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	for _, suffix := range []string{
+		"/v1/images/generations",
+		"/v1/images/edits",
+		"/images/generations",
+		"/images/edits",
+		"/v1",
+	} {
+		if strings.HasSuffix(base, suffix) {
+			base = strings.TrimRight(strings.TrimSuffix(base, suffix), "/")
+			break
+		}
+	}
+	return base + openAICompatibleGeminiImageEndpoint(model)
+}
+
+func openAICompatibleGeminiImageEndpoint(model string) string {
+	model = strings.TrimPrefix(strings.TrimSpace(model), "models/")
+	return "/v1beta/models/" + model + ":generateContent"
 }
 
 func rewriteOpenAIImagesModel(body []byte, contentType string, model string) ([]byte, string, error) {
