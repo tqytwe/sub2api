@@ -86,13 +86,78 @@
       </div>
 
       <!-- Empty state -->
-      <div v-else-if="history.length === 0" class="py-8 text-center">
+      <div v-else-if="history.length === 0 && subscriptionHistory.length === 0" class="py-8 text-center">
         <p class="text-sm text-gray-500">{{ t('admin.users.noBalanceHistory') }}</p>
       </div>
 
       <!-- History list -->
       <div v-else class="max-h-[28rem] space-y-3 overflow-y-auto">
+        <template v-if="isSubscriptionFilter">
+          <div
+            v-for="item in subscriptionHistory"
+            :key="`subscription-${item.id}`"
+            class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex min-w-0 items-start gap-3">
+                <div class="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-purple-100 dark:bg-purple-900/30">
+                  <Icon name="badge" size="sm" class="text-purple-600 dark:text-purple-400" />
+                </div>
+                <div class="min-w-0">
+                  <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
+                    {{ subscriptionGroupName(item) }}
+                  </p>
+                  <p class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
+                    {{ t('admin.users.subscriptionValidity') }}:
+                    {{ formatDateTime(item.starts_at) }} - {{ formatDateTime(item.expires_at) }}
+                  </p>
+                  <p
+                    v-if="item.purchase_order"
+                    class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
+                  >
+                    {{ t('admin.users.subscriptionOrder') }} #{{ item.purchase_order.id }}
+                    <span v-if="item.purchase_order.out_trade_no">· {{ item.purchase_order.out_trade_no }}</span>
+                  </p>
+                  <p
+                    v-if="item.purchase_order"
+                    class="mt-0.5 text-xs text-gray-500 dark:text-dark-400"
+                  >
+                    {{ t('admin.users.subscriptionPayment') }}:
+                    {{ formatPaymentMethod(item.purchase_order.payment_type) }}
+                    · {{ formatSubscriptionPayAmount(item) }}
+                    <span v-if="item.purchase_order.paid_at">
+                      · {{ t('admin.users.subscriptionPaidAt') }} {{ formatDateTime(item.purchase_order.paid_at) }}
+                    </span>
+                  </p>
+                  <p
+                    v-if="item.purchase_order?.audit_action"
+                    class="mt-0.5 text-xs text-gray-400 dark:text-dark-500"
+                  >
+                    {{ item.purchase_order.audit_action }}
+                    <span v-if="item.purchase_order.audit_at">· {{ formatDateTime(item.purchase_order.audit_at) }}</span>
+                  </p>
+                  <p
+                    v-else-if="item.notes"
+                    class="mt-0.5 text-xs text-gray-400 dark:text-dark-500"
+                    :title="item.notes"
+                  >
+                    {{ item.notes.length > 60 ? item.notes.substring(0, 55) + '...' : item.notes }}
+                  </p>
+                </div>
+              </div>
+              <div class="flex-shrink-0 text-right">
+                <p class="text-sm font-semibold text-purple-600 dark:text-purple-400">
+                  {{ formatSubscriptionDays(item) }}
+                </p>
+                <p class="text-xs text-gray-400 dark:text-dark-500">
+                  {{ item.status }}
+                </p>
+              </div>
+            </div>
+          </div>
+        </template>
         <div
+          v-else
           v-for="item in history"
           :key="item.id"
           class="rounded-xl border border-gray-200 bg-white p-4 dark:border-dark-600 dark:bg-dark-800"
@@ -176,7 +241,8 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { adminAPI, type BalanceHistoryItem } from '@/api/admin'
 import { formatDateTime } from '@/utils/format'
-import type { AdminUser } from '@/types'
+import { currencySymbol } from '@/components/payment/currency'
+import type { AdminUser, UserSubscription } from '@/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -186,6 +252,7 @@ const emit = defineEmits(['close', 'deposit', 'withdraw'])
 const { t } = useI18n()
 
 const history = ref<BalanceHistoryItem[]>([])
+const subscriptionHistory = ref<UserSubscription[]>([])
 const loading = ref(false)
 const currentPage = ref(1)
 const total = ref(0)
@@ -193,7 +260,8 @@ const totalRecharged = ref(0)
 const pageSize = 15
 const typeFilter = ref('')
 
-const totalPages = computed(() => Math.ceil(total.value / pageSize) || 1)
+const isSubscriptionFilter = computed(() => typeFilter.value === 'subscription')
+const totalPages = computed(() => isSubscriptionFilter.value ? 1 : Math.ceil(total.value / pageSize) || 1)
 
 // Type filter options
 const typeOptions = computed(() => [
@@ -219,6 +287,15 @@ const loadHistory = async (page: number) => {
   loading.value = true
   currentPage.value = page
   try {
+    if (isSubscriptionFilter.value) {
+      const res = await adminAPI.subscriptions.listByUser(props.user.id)
+      subscriptionHistory.value = res || []
+      history.value = []
+      total.value = subscriptionHistory.value.length
+      return
+    }
+
+    subscriptionHistory.value = []
     const res = await adminAPI.users.getUserBalanceHistory(
       props.user.id,
       page,
@@ -233,6 +310,32 @@ const loadHistory = async (page: number) => {
   } finally {
     loading.value = false
   }
+}
+
+const subscriptionGroupName = (item: UserSubscription) => item.group?.name || `#${item.group_id}`
+
+const formatPaymentMethod = (paymentType?: string) => {
+  if (!paymentType) return '-'
+  return t(`payment.methods.${paymentType}`, paymentType)
+}
+
+const formatSubscriptionPayAmount = (item: UserSubscription) => {
+  const order = item.purchase_order
+  if (!order) return '-'
+  return `${currencySymbol(order.currency)}${Number(order.pay_amount || 0).toFixed(2)}`
+}
+
+const formatSubscriptionDays = (item: UserSubscription) => {
+  const days = item.purchase_order?.subscription_days || calculateSubscriptionDays(item.starts_at, item.expires_at)
+  return days > 0 ? t('admin.users.subscriptionDays', { days }) : '-'
+}
+
+const calculateSubscriptionDays = (startsAt?: string | null, expiresAt?: string | null) => {
+  if (!startsAt || !expiresAt) return 0
+  const start = new Date(startsAt).getTime()
+  const end = new Date(expiresAt).getTime()
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return 0
+  return Math.round((end - start) / (24 * 60 * 60 * 1000))
 }
 
 // Helper: check if admin type

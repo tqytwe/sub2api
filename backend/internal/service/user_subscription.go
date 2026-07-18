@@ -30,6 +30,26 @@ type UserSubscription struct {
 	User           *User
 	Group          *Group
 	AssignedByUser *User
+	PurchaseOrder  *SubscriptionPurchaseOrder
+}
+
+type SubscriptionPurchaseOrder struct {
+	ID                  int64
+	OutTradeNo          string
+	PaymentType         string
+	PaymentTradeNo      string
+	Amount              float64
+	PayAmount           float64
+	Currency            string
+	Status              string
+	PlanID              *int64
+	SubscriptionGroupID *int64
+	SubscriptionDays    *int
+	PaidAt              *time.Time
+	CompletedAt         *time.Time
+	CreatedAt           time.Time
+	AuditAction         string
+	AuditAt             *time.Time
 }
 
 func (s *UserSubscription) IsActive() bool {
