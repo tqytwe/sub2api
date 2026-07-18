@@ -5,7 +5,13 @@
       <!-- QR Code mode -->
       <template v-if="qrUrl">
         <div class="rounded-2xl bg-white p-4 shadow-sm dark:bg-dark-800">
-          <canvas ref="qrCanvas" class="mx-auto"></canvas>
+          <img
+            v-if="hostedQRImageUrl"
+            :src="hostedQRImageUrl"
+            alt=""
+            class="mx-auto h-[220px] w-[220px] object-contain"
+          />
+          <canvas v-else ref="qrCanvas" class="mx-auto"></canvas>
         </div>
         <p v-if="scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">
           {{ scanHint }}
@@ -83,6 +89,7 @@ import { getPaymentPopupFeatures, isBuiltInAlipayMethod, isBuiltInWxpayMethod } 
 import type { PaymentOrder } from '@/types/payment'
 import { currencySymbol } from '@/components/payment/currency'
 import { isPaymentFailureStatus, isPaymentSuccessStatus, normalizeOrderStatus } from '@/components/payment/orderUtils'
+import { getHostedQRCodeImageUrl } from '@/components/payment/qrDisplay'
 import QRCode from 'qrcode'
 import alipayIcon from '@/assets/icons/alipay.svg'
 import wxpayIcon from '@/assets/icons/wxpay.svg'
@@ -125,6 +132,7 @@ const VERIFY_RETRY_MAX_ATTEMPTS = 6
 
 const isAlipay = computed(() => isBuiltInAlipayMethod(props.paymentType))
 const isWxpay = computed(() => isBuiltInWxpayMethod(props.paymentType))
+const hostedQRImageUrl = computed(() => getHostedQRCodeImageUrl(qrUrl.value))
 
 const dialogTitle = computed(() => {
   if (success.value) return t('payment.result.success')
@@ -169,7 +177,7 @@ function shouldVerifyPendingOrder(): boolean {
 
 async function renderQR() {
   await nextTick()
-  if (!qrCanvas.value || !qrUrl.value) return
+  if (!qrCanvas.value || !qrUrl.value || hostedQRImageUrl.value) return
   const logoSrc = getLogoForType()
   await QRCode.toCanvas(qrCanvas.value, qrUrl.value, {
     width: 220,

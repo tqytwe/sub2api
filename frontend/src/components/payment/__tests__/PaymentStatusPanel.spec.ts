@@ -214,4 +214,26 @@ describe('PaymentStatusPanel', () => {
     expect(wrapper.text()).toContain('payment.result.success')
     expect(wrapper.emitted('success')).toHaveLength(1)
   })
+
+  it('renders hosted XunhuPay QR image URLs directly instead of encoding another QR', async () => {
+    const wrapper = mount(PaymentStatusPanel, {
+      props: {
+        orderId: 42,
+        qrCode: 'https://api.xunhupay.com/qrcode/42.png',
+        expiresAt: '2099-01-01T12:30:00Z',
+        paymentType: 'wxpay',
+        orderType: 'balance',
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    await flushPromises()
+
+    expect(wrapper.find('img[src="https://api.xunhupay.com/qrcode/42.png"]').exists()).toBe(true)
+    expect(toCanvas).not.toHaveBeenCalled()
+  })
 })

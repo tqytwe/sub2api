@@ -204,10 +204,9 @@ export function decidePaymentLaunch(
   const effectiveMobile = (context.forceQRCode && visibleMethod === 'alipay')
     ? false
     : context.isMobile
-  const hasDesktopWechatQr = visibleMethod === 'wxpay' && !effectiveMobile && !!baseState.qrCode
-  const prefersRedirect = !hasDesktopWechatQr && (normalizedPaymentMode === 'redirect'
-    || normalizedPaymentMode === 'popup'
-    || (effectiveMobile && !!baseState.payUrl))
+  const explicitlyRedirects = normalizedPaymentMode === 'redirect' || normalizedPaymentMode === 'popup'
+  const hasDesktopWechatQr = !explicitlyRedirects && visibleMethod === 'wxpay' && !effectiveMobile && !!baseState.qrCode
+  const prefersRedirect = explicitlyRedirects || (!hasDesktopWechatQr && effectiveMobile && !!baseState.payUrl)
   const prefersQr = hasDesktopWechatQr
     || normalizedPaymentMode === 'qrcode'
     || normalizedPaymentMode === 'native'
