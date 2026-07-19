@@ -2,10 +2,12 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { computed, ref } from 'vue'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ImageStudioView from '@/views/user/ImageStudioView.vue'
+import type { ImageStudioJob } from '@/api/imageStudio'
 
 const state = vi.hoisted(() => ({
   generate: vi.fn(),
   refreshJobs: vi.fn(),
+  ensureGalleryLoaded: vi.fn(),
 }))
 
 function workspaceStub() {
@@ -19,6 +21,7 @@ function workspaceStub() {
   const expertPrompt = ref('')
   const expertOpen = ref(false)
   const activeJobCount = ref(0)
+  const latestJob = ref<ImageStudioJob | null>(null)
   const mode = ref<'create' | 'edit'>('create')
   const supportsCreate = ref(true)
   const supportsEdit = ref(true)
@@ -60,6 +63,8 @@ function workspaceStub() {
     referenceUploads: ref([]),
     uploadingReferences: computed(() => false),
     editReferencesReady: computed(() => mode.value === 'create'),
+    referenceSlotCount: computed(() => 0),
+    readyReferenceCount: computed(() => 0),
     maxReferenceImages: ref(4),
     apiKeyId: ref(8),
     apiKeys: ref([{ id: 8, name: 'Images' }]),
@@ -90,6 +95,7 @@ function workspaceStub() {
     activeJobs: ref([]),
     galleryError: ref(''),
     galleryLoading: ref(false),
+    galleryLoaded: ref(false),
     galleryPage: ref(1),
     galleryPageSize: 12,
     galleryTotal: ref(0),
@@ -97,7 +103,7 @@ function workspaceStub() {
     errorMsg: ref(''),
     autoCleanup: ref(false),
     showFirstWin: ref(false),
-    latestJob: ref(null),
+    latestJob,
     activeJobCount,
     atActiveJobLimit: computed(() => activeJobCount.value >= 2),
     cancelingJobIds: ref(new Set<string>()),
@@ -131,6 +137,7 @@ function workspaceStub() {
     onAspectChange: vi.fn(),
     onTierChange: vi.fn(),
     refreshJobs: state.refreshJobs,
+    ensureGalleryLoaded: state.ensureGalleryLoaded,
   }
 }
 
@@ -174,11 +181,19 @@ function mountView() {
   })
 }
 
+async function openWorksTab(wrapper: ReturnType<typeof mountView>) {
+  const worksButton = wrapper.findAll('button').find((button) => button.text() === '作品库')
+  expect(worksButton).toBeTruthy()
+  await worksButton!.trigger('click')
+  await flushPromises()
+}
+
 describe('ImageStudioView prompt UX', () => {
   beforeEach(() => {
     workspace = workspaceStub()
     state.generate.mockReset()
     state.refreshJobs.mockReset()
+    state.ensureGalleryLoaded.mockReset()
   })
 
   it('shows code-point counters and inline errors without native UTF-16 maxlength clipping', async () => {
@@ -251,6 +266,29 @@ describe('ImageStudioView prompt UX', () => {
     Object.defineProperty(input.element, 'files', { configurable: true, value: [file] })
     await input.trigger('change')
     expect(workspace.addReferenceFiles).toHaveBeenCalledWith([file])
+  })
+
+  it('keeps completed works out of the create tab until the works library is opened', async () => {
+    workspace.latestJob.value = {
+      id: 'job-latest',
+      template_id: 'free-create',
+      size: '1024x1024',
+      count: 1,
+      status: 'completed',
+      estimated_cost: 0.1,
+      created_at: '2026-07-16T00:00:00Z',
+      assets: [{ id: 'asset-latest', sort_order: 0 }],
+    }
+    const wrapper = mountView()
+
+    expect(wrapper.find('image-studio-gallery-stub').exists()).toBe(false)
+
+    const worksButton = wrapper.findAll('button').find((button) => button.text() === '作品库')
+    expect(worksButton).toBeTruthy()
+    await worksButton!.trigger('click')
+
+    expect(state.ensureGalleryLoaded).toHaveBeenCalled()
+    expect(wrapper.find('image-studio-gallery-stub').exists()).toBe(true)
   })
 
   it('disables model operations that are not supported', async () => {
@@ -331,7 +369,7 @@ describe('ImageStudioView prompt UX', () => {
     expect(wrapper.text()).toContain('GPT Image 2 · 生图专用')
   })
 
-  it('switches to works only after polling starts and returns to create on failure', async () => {
+  it('keeps create active while polling and opens works only by user action', async () => {
     let finish!: (value: boolean) => void
     state.generate.mockReturnValue(new Promise<boolean>((resolve) => { finish = resolve }))
     workspace.userPrompt.value = 'valid prompt'
@@ -344,6 +382,11 @@ describe('ImageStudioView prompt UX', () => {
 
     workspace.polling.value = true
     await flushPromises()
+    expect(tabs[0].classes()).toContain('bg-white')
+    expect(tabs[2].classes()).not.toContain('bg-white')
+
+    await tabs[2].trigger('click')
+    expect(state.ensureGalleryLoaded).toHaveBeenCalled()
     expect(tabs[2].classes()).toContain('bg-white')
 
     workspace.polling.value = false
@@ -364,6 +407,7 @@ describe('ImageStudioView prompt UX', () => {
   it('shows a retryable gallery error instead of the empty state', async () => {
     workspace.galleryError.value = 'Gallery service unavailable.'
     const wrapper = mountView()
+    await openWorksTab(wrapper)
 
     expect(wrapper.text()).toContain('Gallery service unavailable.')
     expect(wrapper.text()).not.toContain('imageStudio.galleryEmpty')
@@ -371,7 +415,7 @@ describe('ImageStudioView prompt UX', () => {
     expect(state.refreshJobs).toHaveBeenCalledTimes(1)
   })
 
-  it('keeps a successful result visible when a background gallery refresh fails', () => {
+  it('keeps a successful result visible when a background gallery refresh fails', async () => {
     workspace.jobs.value = [{
       id: 'job-1',
       template_id: 'commerce-white',
@@ -384,6 +428,7 @@ describe('ImageStudioView prompt UX', () => {
     }]
     workspace.galleryError.value = 'Gallery service unavailable.'
     const wrapper = mountView()
+    await openWorksTab(wrapper)
 
     expect(wrapper.find('image-studio-gallery-stub').exists()).toBe(true)
     expect(wrapper.find('[data-testid="retry-gallery"]').exists()).toBe(false)
@@ -416,6 +461,7 @@ describe('ImageStudioView prompt UX', () => {
     workspace.galleryPages.value = 3
     workspace.galleryTotal.value = 25
     const wrapper = mountView()
+    await openWorksTab(wrapper)
 
     expect(wrapper.text()).toContain('imageStudio.pageStatus')
     await wrapper.get('button[aria-label="imageStudio.previousPage"]').trigger('click')
@@ -425,7 +471,7 @@ describe('ImageStudioView prompt UX', () => {
     expect(state.refreshJobs).toHaveBeenCalledWith(3)
   })
 
-  it('does not present a second-page job as the latest featured result', () => {
+  it('does not present a second-page job as the latest featured result', async () => {
     workspace.jobs.value = [{
       id: 'job-page-2',
       template_id: 'commerce-white',
@@ -441,13 +487,14 @@ describe('ImageStudioView prompt UX', () => {
     workspace.galleryPages.value = 3
 
     const wrapper = mountView()
-	const galleries = wrapper.findAll('image-studio-gallery-stub')
+    await openWorksTab(wrapper)
+    const galleries = wrapper.findAll('image-studio-gallery-stub')
 
-	expect(galleries).toHaveLength(1)
-	expect(galleries[0].attributes('featured')).not.toBe('true')
+    expect(galleries).toHaveLength(1)
+    expect(galleries[0].attributes('featured')).not.toBe('true')
   })
 
-  it('renders active jobs separately while keeping all 12 history entries on page one', () => {
+  it('renders active jobs first while keeping all 12 history entries on page one', async () => {
     workspace.activeJobs.value = [{
       id: 'job-active',
       template_id: 'commerce-white',
@@ -472,16 +519,17 @@ describe('ImageStudioView prompt UX', () => {
     workspace.galleryTotal.value = 12
 
     const wrapper = mountView()
+    await openWorksTab(wrapper)
     const galleries = wrapper.findAllComponents({ name: 'ImageStudioGallery' })
 
-    expect(galleries).toHaveLength(2)
-    expect(galleries[0].props('jobs')).toHaveLength(1)
+    expect(galleries).toHaveLength(1)
+    expect(galleries[0].props('jobs')).toHaveLength(13)
     expect(galleries[0].props('jobs')[0].id).toBe('job-active')
-    expect(galleries[0].props('featured')).toBe(true)
-    expect(galleries[1].props('jobs')).toHaveLength(12)
+    expect(galleries[0].props('jobs').slice(1)).toHaveLength(12)
+    expect(galleries[0].props('featured')).not.toBe(true)
   })
 
-  it('renders only the exact 12 history entries on later pages', () => {
+  it('renders active jobs plus the exact 12 history entries on later pages', async () => {
     workspace.activeJobs.value = [{
       id: 'job-active',
       template_id: 'commerce-white',
@@ -507,10 +555,13 @@ describe('ImageStudioView prompt UX', () => {
     workspace.galleryTotal.value = 25
 
     const wrapper = mountView()
+    await openWorksTab(wrapper)
     const galleries = wrapper.findAllComponents({ name: 'ImageStudioGallery' })
 
     expect(galleries).toHaveLength(1)
-    expect(galleries[0].props('jobs')).toHaveLength(12)
+    expect(galleries[0].props('jobs')).toHaveLength(13)
+    expect(galleries[0].props('jobs')[0].id).toBe('job-active')
+    expect(galleries[0].props('jobs').slice(1)).toHaveLength(12)
     expect(galleries[0].props('featured')).not.toBe(true)
   })
 

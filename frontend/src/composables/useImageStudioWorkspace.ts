@@ -122,6 +122,7 @@ export function useImageStudioWorkspace() {
   const activeJobs = ref<ImageStudioJob[]>([])
   const galleryError = ref('')
   const galleryLoading = ref(false)
+  const galleryLoaded = ref(false)
   const galleryPage = ref(1)
   const galleryPageSize = 12
   const galleryTotal = ref(0)
@@ -235,20 +236,26 @@ export function useImageStudioWorkspace() {
   const uploadingReferences = computed(() =>
     referenceUploads.value.some((item) => item.status === 'uploading'),
   )
+  const activeReferenceUploads = computed(() =>
+    referenceUploads.value.filter((item) => item.status !== 'failed'),
+  )
+  const readyReferenceUploads = computed(() =>
+    referenceUploads.value.filter((item) => item.status === 'ready' && !!item.referenceId),
+  )
+  const referenceSlotCount = computed(() => activeReferenceUploads.value.length)
+  const readyReferenceCount = computed(() => readyReferenceUploads.value.length)
   const editReferencesReady = computed(() =>
     mode.value === 'create'
     || (
       supportsEdit.value
-      && referenceUploads.value.length > 0
-      && referenceUploads.value.length <= maxReferenceImages.value
-      && referenceUploads.value.every((item) => item.status === 'ready' && !!item.referenceId)
+      && !uploadingReferences.value
+      && readyReferenceCount.value > 0
+      && readyReferenceCount.value <= maxReferenceImages.value
     ),
   )
   const estimateReferenceIds = computed(() => (
     mode.value === 'edit'
-      ? referenceUploads.value.flatMap((item) => (
-          item.status === 'ready' && item.referenceId ? [item.referenceId] : []
-        ))
+      ? readyReferenceUploads.value.map((item) => item.referenceId as string)
       : []
   ))
 
@@ -335,6 +342,7 @@ export function useImageStudioWorkspace() {
     latestJob.value = null
     galleryError.value = ''
     galleryLoading.value = false
+    galleryLoaded.value = false
     galleryPage.value = 1
     galleryTotal.value = 0
     galleryPages.value = 0
@@ -528,11 +536,7 @@ export function useImageStudioWorkspace() {
     normalizeOutputCompression(model)
     applyInputFidelityDefault(model, mode.value)
     ensureSupportedMode()
-    if (referenceUploads.value.length > maxReferenceImages.value) {
-      const removed = referenceUploads.value.slice(maxReferenceImages.value)
-      discardReferenceUploads(removed)
-      referenceUploads.value = referenceUploads.value.slice(0, maxReferenceImages.value)
-    }
+    trimReferenceUploadsToLimit()
   }
 
   function applyQuickStart() {
@@ -654,7 +658,7 @@ export function useImageStudioWorkspace() {
 
   function currentSubmissionSnapshot(): ImageStudioSubmittedPrompt {
     const referenceIds = mode.value === 'edit'
-      ? referenceUploads.value.flatMap((item) => item.referenceId ? [item.referenceId] : [])
+      ? readyReferenceUploads.value.map((item) => item.referenceId as string)
       : []
     return {
       userPrompt: userPrompt.value,
@@ -733,6 +737,27 @@ export function useImageStudioWorkspace() {
 
   function discardReferenceUploads(items: ImageStudioReferenceUpload[]) {
     for (const item of items) discardReferenceUpload(item)
+  }
+
+  function trimReferenceUploadsToLimit() {
+    const kept: ImageStudioReferenceUpload[] = []
+    const removed: ImageStudioReferenceUpload[] = []
+    let activeCount = 0
+    for (const item of referenceUploads.value) {
+      if (item.status === 'failed') {
+        kept.push(item)
+        continue
+      }
+      if (activeCount < maxReferenceImages.value) {
+        activeCount += 1
+        kept.push(item)
+        continue
+      }
+      removed.push(item)
+    }
+    if (!removed.length) return
+    discardReferenceUploads(removed)
+    referenceUploads.value = kept
   }
 
   function settleSubmissionReferences(
@@ -814,7 +839,7 @@ export function useImageStudioWorkspace() {
       errorMsg.value = t('imageStudio.operationUnsupported')
       return
     }
-    const available = Math.max(0, maxReferenceImages.value - referenceUploads.value.length)
+    const available = Math.max(0, maxReferenceImages.value - referenceSlotCount.value)
     const accepted = files.slice(0, available)
     if (accepted.length < files.length) {
       errorMsg.value = t('imageStudio.referenceLimit')
@@ -1011,17 +1036,6 @@ export function useImageStudioWorkspace() {
     return incomingTime > currentTime
   }
 
-  function featureHistoryJob(listedJobs: ImageStudioJob[], page: number) {
-    if (page !== 1) return
-    const candidate = listedJobs.find((job) => (
-      (job.status === 'completed' || job.status === 'partial')
-      && !!job.assets?.length
-    ))
-    if (!candidate) return
-    const merged = jobs.value.find((job) => job.id === candidate.id) ?? candidate
-    if (shouldFeatureJob(merged, 0)) latestJob.value = merged
-  }
-
   async function handleTerminalJob(
     job: ImageStudioJob,
     submittedUserId: number | null,
@@ -1112,7 +1126,7 @@ export function useImageStudioWorkspace() {
         if (isCurrentSession(scope) && pollControllers.get(jobId) === controller) {
           pollControllers.delete(jobId)
           setPollingJob(jobId, false)
-          void refreshJobs()
+          if (galleryLoaded.value) void refreshJobs()
         }
       }
     })()
@@ -1131,12 +1145,11 @@ export function useImageStudioWorkspace() {
       if (!isCurrentSession(scope) || requestId !== galleryRequestSequence) return
       mergeJobList(result.jobs)
       for (const job of result.jobs) {
+        if (!isImageStudioJobActive(job)) continue
         upsertActiveJob(job)
-        if (isImageStudioJobActive(job)) {
-          startPollingJob(job.id, jobSubmissionSequences.get(job.id) ?? 0, scope)
-        }
+        startPollingJob(job.id, jobSubmissionSequences.get(job.id) ?? 0, scope)
       }
-      featureHistoryJob(result.jobs, requestedPage)
+      galleryLoaded.value = true
       galleryPage.value = result.page
       galleryTotal.value = result.total
       galleryPages.value = result.pages
@@ -1149,6 +1162,11 @@ export function useImageStudioWorkspace() {
         galleryLoading.value = false
       }
     }
+  }
+
+  async function ensureGalleryLoaded(page = 1) {
+    if (galleryLoaded.value && galleryPage.value === page) return
+    await refreshJobs(page)
   }
 
   async function restoreActiveJobs(scope = sessionScope()) {
@@ -1174,7 +1192,7 @@ export function useImageStudioWorkspace() {
     errorMsg.value = ''
     capabilitiesLoading.value = true
     capabilityError.value = ''
-    void refreshJobs(isRefresh ? galleryPage.value : 1, scope)
+    if (isRefresh && galleryLoaded.value) void refreshJobs(galleryPage.value, scope)
     void restoreActiveJobs(scope)
     try {
       const [tpl, capabilityResult, activeKeyPage, hub] = await Promise.all([
@@ -1244,10 +1262,8 @@ export function useImageStudioWorkspace() {
     if (nextMode === 'create') {
       discardReferenceUploads(referenceUploads.value)
       referenceUploads.value = []
-    } else if (referenceUploads.value.length > maxReferenceImages.value) {
-      const removed = referenceUploads.value.slice(maxReferenceImages.value)
-      discardReferenceUploads(removed)
-      referenceUploads.value = referenceUploads.value.slice(0, maxReferenceImages.value)
+    } else if (referenceSlotCount.value > maxReferenceImages.value) {
+      trimReferenceUploadsToLimit()
     }
   })
   watch(draftUserId, (nextUserId) => {
@@ -1460,7 +1476,7 @@ export function useImageStudioWorkspace() {
     } finally {
       if (isCurrentSession(scope)) {
         generating.value = false
-        void refreshJobs()
+        if (galleryLoaded.value) void refreshJobs()
       }
     }
   }
@@ -1586,6 +1602,8 @@ export function useImageStudioWorkspace() {
     referenceUploads,
     uploadingReferences,
     editReferencesReady,
+    referenceSlotCount,
+    readyReferenceCount,
     maxReferenceImages,
     loadingModels,
     loadingEstimate,
@@ -1596,6 +1614,7 @@ export function useImageStudioWorkspace() {
     activeJobs,
     galleryError,
     galleryLoading,
+    galleryLoaded,
     galleryPage,
     galleryPageSize,
     galleryTotal,
@@ -1641,6 +1660,7 @@ export function useImageStudioWorkspace() {
     removeJob,
     onAspectChange,
     onTierChange,
+    ensureGalleryLoaded,
     refreshJobs,
     load,
   }

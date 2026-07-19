@@ -153,6 +153,22 @@ describe('ImageStudioGallery', () => {
     expect(wrapper.emitted('regenerate')?.[0]).toEqual([failedJob])
   })
 
+  it('lets users delete terminal jobs even when the gallery is featured', async () => {
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true)
+    const wrapper = mount(ImageStudioGallery, {
+      props: { jobs: [managedAssetJob], featured: true },
+      global: {
+        plugins: [createPinia()],
+        stubs: { Icon: true },
+      },
+    })
+
+    await wrapper.get('button[aria-label="imageStudio.delete"]').trigger('click')
+
+    expect(wrapper.emitted('delete')?.[0]).toEqual(['job-managed'])
+    confirm.mockRestore()
+  })
+
   it('does not assign a protected managed asset URL directly to an image', () => {
     fetchImageStudioAssetBlobMock.mockReturnValue(new Promise(() => {}))
 
