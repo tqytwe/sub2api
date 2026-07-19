@@ -60,15 +60,21 @@ type UsageService struct {
 	userRepo             UserRepository
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	balanceLedger        *BalanceLedgerService
 }
 
 // NewUsageService 创建使用统计服务实例
-func NewUsageService(usageRepo UsageLogRepository, userRepo UserRepository, entClient *dbent.Client, authCacheInvalidator APIKeyAuthCacheInvalidator) *UsageService {
+func NewUsageService(usageRepo UsageLogRepository, userRepo UserRepository, entClient *dbent.Client, authCacheInvalidator APIKeyAuthCacheInvalidator, balanceLedger ...*BalanceLedgerService) *UsageService {
+	var ledger *BalanceLedgerService
+	if len(balanceLedger) > 0 {
+		ledger = balanceLedger[0]
+	}
 	return &UsageService{
 		usageRepo:            usageRepo,
 		userRepo:             userRepo,
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
+		balanceLedger:        ledger,
 	}
 }
 
@@ -124,7 +130,11 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 	// 扣除用户余额
 	balanceUpdated := false
 	if inserted && req.ActualCost > 0 {
-		if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -req.ActualCost); err != nil {
+		if s.balanceLedger != nil {
+			if err := s.applyUsageChargeLedgerDelta(txCtx, usageLog); err != nil {
+				return nil, fmt.Errorf("update user balance: %w", err)
+			}
+		} else if err := s.userRepo.UpdateBalance(txCtx, req.UserID, -req.ActualCost); err != nil {
 			return nil, fmt.Errorf("update user balance: %w", err)
 		}
 		balanceUpdated = true
@@ -139,6 +149,45 @@ func (s *UsageService) Create(ctx context.Context, req CreateUsageLogRequest) (*
 	s.invalidateUsageCaches(ctx, req.UserID, balanceUpdated)
 
 	return usageLog, nil
+}
+
+func (s *UsageService) applyUsageChargeLedgerDelta(ctx context.Context, usageLog *UsageLog) error {
+	if usageLog == nil || usageLog.ID <= 0 || usageLog.UserID <= 0 || usageLog.ActualCost <= 0 {
+		return nil
+	}
+	var createdAt *time.Time
+	if !usageLog.CreatedAt.IsZero() {
+		createdAt = &usageLog.CreatedAt
+	}
+	_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+		UserID:         usageLog.UserID,
+		BalanceDelta:   -usageLog.ActualCost,
+		SourceType:     BalanceFlowTypeUsageCharge,
+		SourceID:       fmt.Sprintf("%d", usageLog.ID),
+		IdempotencyKey: fmt.Sprintf("usage_log:%d", usageLog.ID),
+		ActorType:      BalanceLedgerActorSystem,
+		Description:    "API 消耗扣费",
+		BalancePolicy:  BalanceLedgerPolicyAllowOverdraft,
+		CreatedAt:      createdAt,
+		Metadata: map[string]any{
+			"usage_log_id":      usageLog.ID,
+			"request_id":        usageLog.RequestID,
+			"api_key_id":        usageLog.APIKeyID,
+			"account_id":        usageLog.AccountID,
+			"model":             usageLog.Model,
+			"input_tokens":      usageLog.InputTokens,
+			"output_tokens":     usageLog.OutputTokens,
+			"total_cost":        usageLog.TotalCost,
+			"actual_cost":       usageLog.ActualCost,
+			"rate_multiplier":   usageLog.RateMultiplier,
+			"billing_type":      usageLog.BillingType,
+			"request_type":      usageLog.RequestType,
+			"billing_mode":      usageLog.BillingMode,
+			"subscription_id":   usageLog.SubscriptionID,
+			"cache_read_tokens": usageLog.CacheReadTokens,
+		},
+	})
+	return err
 }
 
 func (s *UsageService) invalidateUsageCaches(ctx context.Context, userID int64, balanceUpdated bool) {

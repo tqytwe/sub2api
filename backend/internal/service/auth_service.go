@@ -79,6 +79,7 @@ type AuthService struct {
 	affiliateService      *AffiliateService
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
+	balanceLedger         *BalanceLedgerService
 }
 
 type DefaultSubscriptionAssigner interface {
@@ -107,7 +108,12 @@ func NewAuthService(
 	defaultSubAssigner DefaultSubscriptionAssigner,
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	balanceLedger ...*BalanceLedgerService,
 ) *AuthService {
+	var ledger *BalanceLedgerService
+	if len(balanceLedger) > 0 {
+		ledger = balanceLedger[0]
+	}
 	return &AuthService{
 		entClient:             entClient,
 		userRepo:              userRepo,
@@ -122,6 +128,7 @@ func NewAuthService(
 		affiliateService:      affiliateService,
 		defaultSubAssigner:    defaultSubAssigner,
 		userPlatformQuotaRepo: userPlatformQuotaRepo,
+		balanceLedger:         ledger,
 	}
 }
 

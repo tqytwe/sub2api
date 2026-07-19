@@ -2463,7 +2463,7 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 	redeemRepo := &oauthPendingFlowRedeemCodeRepo{client: client}
 	var promoService *service.PromoService
 	if options.promoRepo != nil {
-		promoService = service.NewPromoService(options.promoRepo, userRepo, nil, client, nil)
+		promoService = service.NewPromoService(options.promoRepo, userRepo, nil, client, nil, nil)
 	}
 	var emailService *service.EmailService
 	if options.emailCache != nil {

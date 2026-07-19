@@ -349,6 +349,23 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	}
 	baseCredited, _ := paymentOrderRechargeBaseCredited(o)
 	redeemCtx := ContextSkipRedeemAffiliate(ctx)
+	redeemCtx = ContextWithBalanceLedgerSource(redeemCtx, BalanceLedgerSourceOverride{
+		SourceType:     BalanceFlowTypePaymentRecharge,
+		SourceID:       strconv.FormatInt(o.ID, 10),
+		IdempotencyKey: fmt.Sprintf("payment_order:%d", o.ID),
+		ActorType:      BalanceLedgerActorSystem,
+		Description:    "订单充值",
+		Metadata: map[string]any{
+			"order_id":         o.ID,
+			"out_trade_no":     o.OutTradeNo,
+			"payment_trade_no": o.PaymentTradeNo,
+			"payment_type":     o.PaymentType,
+			"pay_amount":       o.PayAmount,
+			"amount":           o.Amount,
+			"recharge_code":    o.RechargeCode,
+			"status":           o.Status,
+		},
+	})
 	if baseCredited >= 0 {
 		redeemCtx = ContextWithRechargeTotalRechargedDelta(redeemCtx, baseCredited)
 	}
