@@ -517,7 +517,7 @@ function formatCreatedAt(value: string) {
             <Icon name="xCircle" size="sm" :class="{ 'animate-pulse': cancelingJobIds?.has(job.id) }" />
           </button>
           <button
-            v-if="!isFeatured && isImageStudioJobTerminal(job)"
+            v-if="isImageStudioJobTerminal(job)"
             type="button"
             class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 dark:hover:text-red-300"
             :title="t('imageStudio.delete')"
