@@ -505,7 +505,59 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_RejectsNonImageModel(t *te
 
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsAgnesImageModel(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024"}`)
+
+	for _, model := range []string{
+		"agnes-image-2.1-flash",
+		"agnes-image-2.0-flash",
+	} {
+		t.Run(model, func(t *testing.T) {
+			body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw a cat","size":"1024x1024"}`, model))
+
+			req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = req
+
+			svc := &OpenAIGatewayService{}
+			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+			require.NoError(t, err)
+			require.NotNil(t, parsed)
+			require.Equal(t, model, parsed.Model)
+			require.Equal(t, OpenAIImagesCapabilityNative, parsed.RequiredCapability)
+		})
+	}
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_RejectsNonImageAgnesModels(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, model := range []string{
+		"agnes-1.5-flash",
+		"agnes-2.0-flash",
+		"agnes-image-3.0-flash",
+		"agnes-video-v2.0",
+	} {
+		t.Run(model, func(t *testing.T) {
+			body := []byte(fmt.Sprintf(`{"model":%q,"prompt":"draw a cat","size":"1024x1024"}`, model))
+
+			req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = req
+
+			svc := &OpenAIGatewayService{}
+			parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+			require.Nil(t, parsed)
+			require.ErrorContains(t, err, `images endpoint requires an image model`)
+		})
+	}
+}
+
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGenericOpenAICompatibleImageModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"flux-pro-image","prompt":"draw a cat","size":"1024x1024"}`)
 
 	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
@@ -517,8 +569,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsAgnesImageModel(t *t
 	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
 	require.NoError(t, err)
 	require.NotNil(t, parsed)
-	require.Equal(t, "agnes-image-2.1-flash", parsed.Model)
-	require.Equal(t, OpenAIImagesCapabilityNative, parsed.RequiredCapability)
+	require.Equal(t, "flux-pro-image", parsed.Model)
 }
 
 func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnesPayload(t *testing.T) {
@@ -574,23 +625,82 @@ func TestRewriteAdaptedOpenAIImagesBodyPreservesAgnesExtraBodyResponseFormat(t *
 	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
 }
 
-func TestRewriteAdaptedOpenAIImagesBodyRejectsAgnesEdits(t *testing.T) {
+func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnes20Payload(t *testing.T) {
+	body := []byte(`{"model":"agnes-image-2.0-flash","prompt":"draw a cat","size":"1024x768","ratio":"1:1","response_format":"b64_json"}`)
 	parsed := &OpenAIImagesRequest{
-		Endpoint: openAIImagesEditsEndpoint,
-		Model:    "agnes-image-2.1-flash",
-		Size:     "1024x1024",
+		Endpoint:       openAIImagesGenerationsEndpoint,
+		ContentType:    "application/json",
+		Model:          "agnes-image-2.0-flash",
+		Prompt:         "draw a cat",
+		Size:           "1024x768",
+		ResponseFormat: "b64_json",
+	}
+
+	rewritten, contentType, handled, err := rewriteAdaptedOpenAIImagesBody(
+		body,
+		"application/json",
+		parsed,
+		"agnes-image-2.0-flash",
+	)
+
+	require.NoError(t, err)
+	require.True(t, handled)
+	require.Equal(t, "application/json", contentType)
+	require.Equal(t, "agnes-image-2.0-flash", gjson.GetBytes(rewritten, "model").String())
+	require.Equal(t, "1024x768", gjson.GetBytes(rewritten, "size").String())
+	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(rewritten, "ratio").Exists())
+	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+}
+
+func TestRewriteAdaptedOpenAIImagesBodyPreservesAgnes20ExtraBodyResponseFormat(t *testing.T) {
+	body := []byte(`{"model":"agnes-image-2.0-flash","prompt":"draw","size":"1K","response_format":"url","extra_body":{"response_format":"b64_json"}}`)
+	parsed := &OpenAIImagesRequest{
+		Endpoint:    openAIImagesGenerationsEndpoint,
+		ContentType: "application/json",
+		Model:       "agnes-image-2.0-flash",
+		Prompt:      "draw",
+		Size:        "1K",
 	}
 
 	rewritten, _, handled, err := rewriteAdaptedOpenAIImagesBody(
-		[]byte(`{"model":"agnes-image-2.1-flash","prompt":"edit","size":"1024x1024"}`),
+		body,
 		"application/json",
 		parsed,
-		"agnes-image-2.1-flash",
+		"agnes-image-2.0-flash",
 	)
 
-	require.Nil(t, rewritten)
+	require.NoError(t, err)
 	require.True(t, handled)
-	require.ErrorIs(t, err, ErrImageStudioOperationNotSupported)
+	require.Equal(t, defaultImageStudioSize, gjson.GetBytes(rewritten, "size").String())
+	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+}
+
+func TestRewriteAdaptedOpenAIImagesBodyRejectsAgnesEdits(t *testing.T) {
+	for _, model := range []string{
+		"agnes-image-2.1-flash",
+		"agnes-image-2.0-flash",
+	} {
+		t.Run(model, func(t *testing.T) {
+			parsed := &OpenAIImagesRequest{
+				Endpoint: openAIImagesEditsEndpoint,
+				Model:    model,
+				Size:     "1024x1024",
+			}
+
+			rewritten, _, handled, err := rewriteAdaptedOpenAIImagesBody(
+				[]byte(fmt.Sprintf(`{"model":%q,"prompt":"edit","size":"1024x1024"}`, model)),
+				"application/json",
+				parsed,
+				model,
+			)
+
+			require.Nil(t, rewritten)
+			require.True(t, handled)
+			require.ErrorIs(t, err, ErrImageStudioOperationNotSupported)
+		})
+	}
 }
 
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGrokImageModels(t *testing.T) {

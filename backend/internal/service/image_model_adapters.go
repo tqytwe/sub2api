@@ -12,7 +12,8 @@ import (
 
 const (
 	imageModelAdapterAgnesID = "agnes"
-	agnesImageFlashModelID   = "agnes-image-2.1-flash"
+	agnesImage20FlashModelID = "agnes-image-2.0-flash"
+	agnesImage21FlashModelID = "agnes-image-2.1-flash"
 )
 
 type imageModelAdapter interface {
@@ -86,7 +87,12 @@ func (agnesImageModelAdapter) ID() string {
 }
 
 func (agnesImageModelAdapter) Matches(model string) bool {
-	return strings.EqualFold(strings.TrimSpace(model), agnesImageFlashModelID)
+	switch strings.ToLower(strings.TrimSpace(model)) {
+	case agnesImage20FlashModelID, agnesImage21FlashModelID:
+		return true
+	default:
+		return false
+	}
 }
 
 func (agnesImageModelAdapter) ResolveCapability(model string) (ImageStudioModelCapabilities, bool) {
@@ -94,6 +100,19 @@ func (agnesImageModelAdapter) ResolveCapability(model string) (ImageStudioModelC
 		return ImageStudioModelCapabilities{}, false
 	}
 	model = strings.ToLower(strings.TrimSpace(model))
+	if model == agnesImage20FlashModelID {
+		return ImageStudioModelCapabilities{
+			Platform:           PlatformOpenAI,
+			ProviderID:         imageModelAdapterAgnesID,
+			ProfileID:          imageModelAdapterAgnesID + ":" + model + ":v1",
+			Revision:           imageStudioCapabilityRevision,
+			Operations:         []string{"create"},
+			SizingKind:         "fixed",
+			SupportedSizes:     agnesImage20StudioSizes(),
+			MaxReferenceImages: 0,
+			DefaultSize:        defaultImageStudioSize,
+		}, true
+	}
 	return ImageStudioModelCapabilities{
 		Platform:              PlatformOpenAI,
 		ProviderID:            imageModelAdapterAgnesID,
@@ -123,16 +142,21 @@ func (a agnesImageModelAdapter) BuildImageStudioPayload(
 	if operation != "create" || len(referenceIDs) > 0 {
 		return "", nil, true, ErrImageStudioOperationNotSupported
 	}
-	agnesSize, ratio := agnesImageStudioSizeAndRatio(size, req.Aspect, req.Tier)
+	model = strings.ToLower(strings.TrimSpace(model))
 	payload := map[string]any{
-		"model":  strings.ToLower(strings.TrimSpace(model)),
+		"model":  model,
 		"prompt": prompt,
 		"n":      count,
-		"size":   agnesSize,
-		"ratio":  ratio,
 		"extra_body": map[string]any{
 			"response_format": "b64_json",
 		},
+	}
+	if model == agnesImage20FlashModelID {
+		payload["size"] = normalizeAgnesImage20Size(size)
+	} else {
+		agnesSize, ratio := agnesImageStudioSizeAndRatio(size, req.Aspect, req.Tier)
+		payload["size"] = agnesSize
+		payload["ratio"] = ratio
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
@@ -160,41 +184,75 @@ func (a agnesImageModelAdapter) RewriteOpenAIImagesBody(
 	if err == nil && strings.EqualFold(mediaType, "multipart/form-data") {
 		return nil, "", true, ErrImageStudioOperationNotSupported
 	}
-	ratio := strings.TrimSpace(gjson.GetBytes(body, "ratio").String())
-	if !agnesImageRatioAllowed(ratio) {
-		ratio = ""
-	}
-	agnesSize, inferredRatio := agnesImageStudioSizeAndRatio(parsed.Size, ratio, "")
-	if ratio == "" {
-		ratio = inferredRatio
-	}
 	out, err := sjson.SetBytes(body, "model", strings.ToLower(strings.TrimSpace(upstreamModel)))
 	if err != nil {
 		return nil, "", true, fmt.Errorf("rewrite agnes image model: %w", err)
 	}
-	out, err = sjson.SetBytes(out, "size", agnesSize)
-	if err != nil {
-		return nil, "", true, fmt.Errorf("rewrite agnes image size: %w", err)
+	if strings.EqualFold(strings.TrimSpace(upstreamModel), agnesImage20FlashModelID) {
+		out, err = sjson.SetBytes(out, "size", normalizeAgnesImage20Size(parsed.Size))
+		if err != nil {
+			return nil, "", true, fmt.Errorf("rewrite agnes image size: %w", err)
+		}
+		if gjson.GetBytes(out, "ratio").Exists() {
+			out, err = sjson.DeleteBytes(out, "ratio")
+			if err != nil {
+				return nil, "", true, fmt.Errorf("remove agnes 2.0 ratio: %w", err)
+			}
+		}
+	} else {
+		ratio := strings.TrimSpace(gjson.GetBytes(body, "ratio").String())
+		if !agnesImageRatioAllowed(ratio) {
+			ratio = ""
+		}
+		agnesSize, inferredRatio := agnesImageStudioSizeAndRatio(parsed.Size, ratio, "")
+		if ratio == "" {
+			ratio = inferredRatio
+		}
+		out, err = sjson.SetBytes(out, "size", agnesSize)
+		if err != nil {
+			return nil, "", true, fmt.Errorf("rewrite agnes image size: %w", err)
+		}
+		out, err = sjson.SetBytes(out, "ratio", ratio)
+		if err != nil {
+			return nil, "", true, fmt.Errorf("rewrite agnes image ratio: %w", err)
+		}
 	}
-	out, err = sjson.SetBytes(out, "ratio", ratio)
+	out, err = moveOpenAIImagesResponseFormatToExtraBody(out)
 	if err != nil {
-		return nil, "", true, fmt.Errorf("rewrite agnes image ratio: %w", err)
+		return nil, "", true, err
 	}
+	return out, contentType, true, nil
+}
+
+func agnesImage20StudioSizes() []string {
+	return []string{defaultImageStudioSize}
+}
+
+func normalizeAgnesImage20Size(size string) string {
+	size = strings.TrimSpace(size)
+	if size == "" || normalizeAgnesImageTier(size) != "" {
+		return defaultImageStudioSize
+	}
+	return size
+}
+
+func moveOpenAIImagesResponseFormatToExtraBody(out []byte) ([]byte, error) {
+	var err error
 	if extraFormat := strings.TrimSpace(gjson.GetBytes(out, "extra_body.response_format").String()); extraFormat == "" {
 		if format := strings.TrimSpace(gjson.GetBytes(out, "response_format").String()); format != "" {
 			out, err = sjson.SetBytes(out, "extra_body.response_format", format)
 			if err != nil {
-				return nil, "", true, fmt.Errorf("rewrite agnes image response_format: %w", err)
+				return nil, fmt.Errorf("rewrite agnes image response_format: %w", err)
 			}
 		}
 	}
 	if gjson.GetBytes(out, "response_format").Exists() {
 		out, err = sjson.DeleteBytes(out, "response_format")
 		if err != nil {
-			return nil, "", true, fmt.Errorf("remove agnes top-level response_format: %w", err)
+			return nil, fmt.Errorf("remove agnes top-level response_format: %w", err)
 		}
 	}
-	return out, contentType, true, nil
+	return out, nil
 }
 
 func agnesImageStudioSizeAndRatio(size, aspect, tier string) (string, string) {
