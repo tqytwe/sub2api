@@ -160,6 +160,7 @@ type SystemSettings struct {
 	// User sidebar — Play growth features (opt-in via public settings)
 	PublicModelsEnabled  bool `json:"public_models_enabled"`
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
+	NextChatEnabled      bool `json:"nextchat_enabled"`
 	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled     bool `json:"play_arena_enabled"`
 	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
@@ -350,6 +351,7 @@ type PublicSettings struct {
 	PlayQuizEnabled      bool `json:"play_quiz_enabled"`
 	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
+	NextChatEnabled      bool `json:"nextchat_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`

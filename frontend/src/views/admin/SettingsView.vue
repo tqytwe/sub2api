@@ -6014,6 +6014,13 @@
           <div class="divide-y divide-gray-100 dark:divide-dark-700">
             <div class="flex items-center justify-between px-6 py-4">
               <div>
+                <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.aiCreation') }}</label>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.nextChatHint') }}</p>
+              </div>
+              <Toggle v-model="form.nextchat_enabled" />
+            </div>
+            <div class="flex items-center justify-between px-6 py-4">
+              <div>
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ t('nav.imageStudio') }}</label>
                 <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.settings.features.userSidebar.imageStudioHint') }}</p>
               </div>
@@ -8640,6 +8647,7 @@ const form = reactive<SettingsForm>({
   public_models_enabled: true,
   // User sidebar — Play growth features
   image_studio_enabled: false,
+  nextchat_enabled: false,
   play_checkin_enabled: false,
   play_arena_enabled: false,
   play_blindbox_enabled: false,
@@ -10044,6 +10052,7 @@ async function saveSettings() {
       available_channels_enabled: form.available_channels_enabled,
       public_models_enabled: form.public_models_enabled,
       image_studio_enabled: form.image_studio_enabled,
+      nextchat_enabled: form.nextchat_enabled,
       play_checkin_enabled: form.play_checkin_enabled,
       play_arena_enabled: form.play_arena_enabled,
       play_blindbox_enabled: form.play_blindbox_enabled,

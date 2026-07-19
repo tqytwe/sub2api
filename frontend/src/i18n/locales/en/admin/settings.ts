@@ -43,6 +43,7 @@ export default {
         userSidebar: {
           title: 'User Sidebar',
           description: 'Control growth-world entries in the logged-in user sidebar. Jisudeng Play never shows channel items to end users.',
+          nextChatHint: 'AI Creation at /ai (managed NextChat launch)',
           imageStudioHint: 'Image Studio at /image-studio',
           checkinHint: 'Daily check-in and Play Hub card',
           arenaHint: 'Token Farm at /arena',

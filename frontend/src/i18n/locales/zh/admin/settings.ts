@@ -43,6 +43,7 @@ export default {
         userSidebar: {
           title: '用户侧栏',
           description: '控制登录用户在侧边栏看到的玩法福利分组（玩法中枢、签到、农场等）。极速蹬不向普通用户展示「可用渠道 / 渠道状态」。',
+          nextChatHint: 'AI 创作 /ai（NextChat 托管入口）',
           imageStudioHint: '图像工作室 /image-studio',
           checkinHint: '每日签到与玩法中枢签到卡片',
           arenaHint: 'Token 农场 /arena',

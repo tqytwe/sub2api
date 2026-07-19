@@ -349,6 +349,7 @@ func (h *SettingHandler) GetSettings(c *gin.Context) {
 		AffiliateEnabled: settings.AffiliateEnabled,
 
 		ImageStudioEnabled:   settings.ImageStudioEnabled,
+		NextChatEnabled:      settings.NextChatEnabled,
 		PlayCheckinEnabled:   settings.PlayCheckinEnabled,
 		PlayArenaEnabled:     settings.PlayArenaEnabled,
 		PlayBlindboxEnabled:  settings.PlayBlindboxEnabled,

@@ -95,6 +95,7 @@ type Config struct {
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
+	NextChat                NextChatConfig                `mapstructure:"nextchat"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageAsync              ImageAsyncConfig              `mapstructure:"image_async"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
@@ -178,6 +179,13 @@ type IdempotencyConfig struct {
 	CleanupIntervalSeconds int `mapstructure:"cleanup_interval_seconds"`
 	// CleanupBatchSize 每次清理的最大记录数。
 	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+type NextChatConfig struct {
+	PublicURL             string `mapstructure:"public_url"`
+	LaunchTokenTTLSeconds int    `mapstructure:"launch_token_ttl_seconds"`
+	SessionTTLSeconds     int    `mapstructure:"session_ttl_seconds"`
+	ExchangeSecret        string `mapstructure:"exchange_secret"`
 }
 
 type BatchImageConfig struct {
@@ -1700,6 +1708,9 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Gateway.UserMessageQueue.Mode = ""
 	}
 
+	cfg.NextChat.PublicURL = strings.TrimRight(strings.TrimSpace(cfg.NextChat.PublicURL), "/")
+	cfg.NextChat.ExchangeSecret = strings.TrimSpace(cfg.NextChat.ExchangeSecret)
+
 	// Auto-generate TOTP encryption key if not set (32 bytes = 64 hex chars for AES-256)
 	cfg.Totp.EncryptionKey = strings.TrimSpace(cfg.Totp.EncryptionKey)
 	if cfg.Totp.EncryptionKey == "" {
@@ -2167,6 +2178,11 @@ func setDefaults() {
 	viper.SetDefault("idempotency.max_stored_response_len", 64*1024)
 	viper.SetDefault("idempotency.cleanup_interval_seconds", 60)
 	viper.SetDefault("idempotency.cleanup_batch_size", 500)
+
+	viper.SetDefault("nextchat.public_url", "/ai")
+	viper.SetDefault("nextchat.launch_token_ttl_seconds", 120)
+	viper.SetDefault("nextchat.session_ttl_seconds", 604800)
+	viper.SetDefault("nextchat.exchange_secret", "")
 
 	// Gateway
 	viper.SetDefault("gateway.response_header_timeout", 600) // 600秒(10分钟)等待上游响应头，LLM高负载时可能排队较久
@@ -2966,6 +2982,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Idempotency.CleanupBatchSize <= 0 {
 		return fmt.Errorf("idempotency.cleanup_batch_size must be positive")
+	}
+	if c.NextChat.LaunchTokenTTLSeconds <= 0 {
+		return fmt.Errorf("nextchat.launch_token_ttl_seconds must be positive")
+	}
+	if c.NextChat.SessionTTLSeconds <= 0 {
+		return fmt.Errorf("nextchat.session_ttl_seconds must be positive")
 	}
 	if c.Gateway.MaxBodySize <= 0 {
 		return fmt.Errorf("gateway.max_body_size must be positive")
