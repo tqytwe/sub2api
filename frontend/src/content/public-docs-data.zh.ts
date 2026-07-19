@@ -47,9 +47,9 @@ const PUBLIC_DOC_CONTENT_ZH_SOURCE: PublicDocCategoryContent[] = [
       },
       {
         id: 'text-to-image-api',
-        title: "GPT / Grok 图片生成 API",
+        title: "图片生成 API",
         summary: "真实 API 地址、单张/多张生成、prompt、保存与网页显示",
-        html: `<p class="docs-lead">极速蹬当前图片生成主要使用 <strong>GPT 图片模型</strong> 和 <strong>Grok 图片模型</strong>。短耗时测试可直接调用 Images API；生产长耗时生成建议使用异步任务，避免同步长连接 524。</p>
+        html: `<p class="docs-lead">极速蹬图片生成使用 OpenAI 兼容的 Images API，支持 GPT、Grok、Agnes 和 Gemini 等分组可见的图片模型。短耗时测试可直接调用同步 Images API；生产长耗时生成建议使用异步任务，避免同步长连接 524。</p>
 <pre><code>POST https://api.jisudeng.com/v1/images/generations
 POST https://api.jisudeng.com/v1/images/edits
 POST https://api.jisudeng.com/v1/images/generations/async
@@ -69,12 +69,14 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 Content-Type: application/json</code></pre>
 <p>也兼容 <code>x-api-key</code> 和 <code>x-goog-api-key</code>。不要把 Key 放到 URL 的 <code>key</code> / <code>api_key</code> 参数里。</p>
 
-<h2>可用模型</h2>
-<ul>
-  <li>GPT：<code>gpt-image-2</code>、<code>gpt-image-1.5</code>、<code>gpt-image-1</code>。不传 <code>model</code> 时默认 <code>gpt-image-2</code>。</li>
-  <li>Grok：<code>grok-imagine</code>、<code>grok-imagine-image-quality</code>、<code>grok-imagine-image</code>、<code>grok-imagine-edit</code>。Grok 必须传 <code>model</code>。</li>
-</ul>
-<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。</p>
+	<h2>可用模型</h2>
+	<ul>
+	  <li>GPT：<code>gpt-image-2</code>、<code>gpt-image-1.5</code>、<code>gpt-image-1</code>。不传 <code>model</code> 时默认 <code>gpt-image-2</code>。</li>
+	  <li>Grok：<code>grok-imagine</code>、<code>grok-imagine-image-quality</code>、<code>grok-imagine-image</code>、<code>grok-imagine-edit</code>。Grok 必须传 <code>model</code>。</li>
+	  <li>Agnes：<code>agnes-image-2.1-flash</code>、<code>agnes-image-2.0-flash</code>。</li>
+	  <li>Gemini：<code>gemini-3.1-flash-image-preview</code>。</li>
+	</ul>
+	<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。不是所有名字里带 image 的模型都一定能提交到 Images API；如果模型属于文本、视频或尚未接入的图片能力，接口会在创建任务前返回 <code>400 invalid_request_error</code>。</p>
 
 <p class="docs-tip">单个大尺寸请求或预计超过 60-90 秒的生成请优先使用 Gateway 单请求异步；多个 prompt 的持久任务请使用 Batch Image。同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 <code>524</code>；后台可能已经生成成功并计费，但调用方连接已经断开。</p>
 
@@ -401,14 +403,30 @@ curl https://api.jisudeng.com/v1/images/batches/{id}/download \\
         id: 'async-image-tasks',
         title: "异步图片任务",
         summary: "202 提交、任务轮询、结果存储 URL 与失败返回契约",
-        html: `<p class="docs-lead">异步图片任务适合耗时较长的 GPT / Grok 生成与编辑请求。提交接口立即返回任务 ID，客户端按建议间隔轮询，不需要保持一条长 HTTP 连接。</p>
+        html: `<p class="docs-lead">异步图片任务适合耗时较长的 GPT、Grok、Agnes、Gemini 生成与编辑请求。提交接口立即返回任务 ID，客户端按建议间隔轮询，不需要保持一条长 HTTP 连接。</p>
 <pre class="docs-endpoint-list"><code>POST https://api.jisudeng.com/v1/images/generations/async
 POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
-<p class="docs-tip">异步任务使用加密请求信封、Redis 持久队列和有界 worker。生产需要同时启用 <code>IMAGE_STORAGE_ENABLED=true</code>、<code>IMAGE_ASYNC_QUEUE_ENABLED=true</code> 和 <code>IMAGE_ASYNC_ENABLED=true</code>，并为 Redis 配置持久卷、AOF <code>appendonly yes</code> 和 <code>appendfsync everysec</code>；运行时健康检查只能确认 Redis 可访问。API 关闭时返回 404；API 已开但 Redis/worker 未就绪时返回 <code>503 IMAGE_ASYNC_NOT_READY</code>，不会创建任务。</p>
+	<p class="docs-tip">异步任务使用加密请求信封、Redis 持久队列、RustFS/S3 结果存储和有界 worker。极速蹬生产使用 <code>https://api.jisudeng.com</code> 接收任务，完成图片写入 <code>image-task-results</code> bucket 的 <code>images/</code> 前缀，并通过 <code>https://jisu.zeabur.app</code> 返回带签名查询参数的临时下载 URL。API 关闭时返回 404；API 已开但 Redis/worker 未就绪时返回 <code>503 IMAGE_ASYNC_NOT_READY</code>，不会创建任务。</p>
+	<h2>生产存储配置</h2>
+	<p>极速蹬当前生产异步生图使用 RustFS/S3 后端，关键环境变量如下。访问密钥只配置在服务端环境变量中，不会写入文档、客户端代码或请求示例。</p>
+	<pre><code>IMAGE_STORAGE_ENABLED=true
+IMAGE_STORAGE_BACKEND=s3
+IMAGE_STORAGE_ENDPOINT=https://jisu.zeabur.app
+IMAGE_STORAGE_BUCKET=image-task-results
+IMAGE_STORAGE_PREFIX=images/
+IMAGE_STORAGE_FORCE_PATH_STYLE=true
+IMAGE_STORAGE_REGION=us-east-1
+IMAGE_STORAGE_PRESIGN_EXPIRY_HOURS=24
+IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=33554432
 
-<h2>提交任务</h2>
-<p>请求体与同步生成或编辑接口相同。提交成功返回 <code>202 Accepted</code>，响应头同时包含 <code>Location</code> 和建议轮询间隔 <code>Retry-After: 3</code>。首次提交建议携带 <code>Idempotency-Key</code>；网络失败重试同一请求时复用该 key。Key 最多 255 字节，超长返回 <code>400 IMAGE_TASK_IDEMPOTENCY_KEY_INVALID</code>，不会创建任务或入队。</p>
+IMAGE_ASYNC_QUEUE_ENABLED=true
+IMAGE_ASYNC_ENABLED=true
+IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
+	<p class="docs-tip">异步结果有两层 24 小时边界：预签 URL 24 小时过期，RustFS 生命周期规则按 1 天清理 <code>image-task-results</code> bucket 内对象。结果 URL 是临时交付地址，不要当作永久对象存储。</p>
+
+	<h2>提交任务</h2>
+	<p>请求体与同步生成或编辑接口相同。提交成功返回 <code>202 Accepted</code>，响应体里的 <code>poll_url</code> 是稳定轮询地址；标准响应也会设置 <code>Location</code> 和建议轮询间隔 <code>Retry-After: 3</code>，如果客户端或代理层未暴露这些响应头，直接按 <code>poll_url</code> 轮询即可。首次提交建议携带 <code>Idempotency-Key</code>；网络失败重试同一请求时复用该 key。Key 最多 255 字节，超长返回 <code>400 IMAGE_TASK_IDEMPOTENCY_KEY_INVALID</code>，不会创建任务或入队。</p>
 <pre><code>curl -i https://api.jisudeng.com/v1/images/generations/async \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
@@ -454,7 +472,7 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 }</code></pre>
 
 <h3>已完成</h3>
-<p>生成结果会先转存到结果存储，默认返回受 API Key 鉴权保护的 <code>/v1/images/task-assets/...</code> 地址；<code>image_url</code> 是第一张图片的便捷字段。异步结果不会把大段 <code>b64_json</code> 存入任务记录。</p>
+	<p>生成结果会先转存到结果存储；本地部署默认返回受 API Key 鉴权保护的 <code>/v1/images/task-assets/...</code> 地址，极速蹬生产返回 RustFS/S3 预签 URL，例如 <code>https://jisu.zeabur.app/image-task-results/images/imgtask_0123456789abcdef-0.png</code> 后跟签名查询参数。<code>image_url</code> 是第一张图片的便捷字段。异步结果不会把大段 <code>b64_json</code> 存入任务记录。</p>
 <pre><code>{
   "task_id": "imgtask_0123456789abcdef",
   "object": "image.generation.task",
@@ -771,7 +789,7 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
         id: 'image-studio',
         title: "图像工作室",
         summary: "模板向导 · 生成前估价 · 图库 · 与每日任务联动",
-        html: `<p class="docs-lead">图像工作室面向<strong>不会写 prompt</strong>的用户：选意图 → 选模板 → 填描述 → 确认费用后生成。开发者批量调用请直接使用 GPT/Grok 图片生成 API，不需要进入图像工作室。</p>
+        html: `<p class="docs-lead">图像工作室面向<strong>不会写 prompt</strong>的用户：选意图 → 选模板 → 填描述 → 确认费用后生成。开发者批量调用请直接使用图片生成 API，不需要进入图像工作室。</p>
 
 <h2>入口</h2>
 <ul>
@@ -817,7 +835,7 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   <li><code>POST /api/v1/image-studio/generate</code>（异步 job，前端轮询）</li>
   <li><code>GET /api/v1/image-studio/jobs</code> / <code>DELETE .../jobs/:id</code></li>
 </ul>
-<p class="docs-tip">需开启 <code>image_studio_enabled</code>。开发者直调请看 <a href="/docs?cat=deploy&amp;page=text-to-image-api">GPT / Grok 图片生成 API</a>；一次多张使用同步 Images 的 <code>n=1-10</code>，多个 prompt 的持久任务使用 <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image</a>。</p>`,
+<p class="docs-tip">需开启 <code>image_studio_enabled</code>。开发者直调请看 <a href="/docs?cat=deploy&amp;page=text-to-image-api">图片生成 API</a>；一次多张使用同步 Images 的 <code>n=1-10</code>，多个 prompt 的持久任务使用 <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image</a>。</p>`,
       },
       {
         id: 'token-farm',
