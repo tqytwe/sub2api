@@ -56,6 +56,23 @@ func TestValidateImageStudioPrompt(t *testing.T) {
 	require.ErrorIs(t, validateImageStudioPrompt(strings.Repeat("😀", 8001)), ErrImageStudioPromptTooLong)
 }
 
+func TestBuildImageStudioPromptKeepsUserSubjectPrimary(t *testing.T) {
+	tpl := ImageStudioTemplate{
+		PromptTemplate: "Professional product photo, {{subject}}, pure white background RGB 255, centered, no text, no watermark",
+	}
+
+	got := buildImageStudioPrompt(tpl, ImageStudioGenerateRequest{
+		UserPrompt:  "OpenAI PlusX2",
+		AccentColor: "#1C76BA",
+	})
+
+	require.Contains(t, got, "Primary subject: OpenAI PlusX2")
+	require.Contains(t, got, "must be about this subject")
+	require.Contains(t, got, "no unrelated text")
+	require.NotContains(t, got, ", no text,")
+	require.Contains(t, got, "accent color #1C76BA")
+}
+
 func TestNormalizeImageStudioPromptReferenceRequiresAPositivePair(t *testing.T) {
 	id := int64(123)
 	version := 4

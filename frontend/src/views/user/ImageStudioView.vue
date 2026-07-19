@@ -46,18 +46,18 @@ const recipes = ref<PromptCreationRecipe[]>(listPromptRecipes())
 
 const templateOptions = computed(() => flattenImageStudioTemplates(workspace.catalog.value))
 
-const featuredJobs = computed<ImageStudioJob[]>(() => {
-  if (workspace.galleryPage.value !== 1) return []
-  if (workspace.activeJobs.value.length) return workspace.activeJobs.value
-  return workspace.latestJob.value ? [workspace.latestJob.value] : []
-})
-
-const historyJobs = computed(() => {
-  const excludedIds = new Set([
-    ...workspace.activeJobs.value.map((job) => job.id),
-    ...featuredJobs.value.map((job) => job.id),
-  ])
-  return workspace.jobs.value.filter((job) => !excludedIds.has(job.id))
+const worksJobs = computed<ImageStudioJob[]>(() => {
+  const seen = new Set<string>()
+  const out: ImageStudioJob[] = []
+  const add = (job: ImageStudioJob | null | undefined) => {
+    if (!job || seen.has(job.id)) return
+    seen.add(job.id)
+    out.push(job)
+  }
+  workspace.activeJobs.value.forEach(add)
+  add(workspace.latestJob.value)
+  workspace.jobs.value.forEach(add)
+  return out
 })
 
 const selectedTemplateDescription = computed(() =>
@@ -144,6 +144,15 @@ function selectReferenceFiles(event: Event) {
   input.value = ''
 }
 
+function switchStudioView(view: StudioMode) {
+  mobileView.value = view
+  if (view === 'works') {
+    void workspace.ensureGalleryLoaded()
+  } else if (view === 'recipes') {
+    recipes.value = listPromptRecipes()
+  }
+}
+
 function changeGalleryPage(page: number) {
   const lastPage = Math.max(1, workspace.galleryPages.value)
   if (workspace.galleryLoading.value || page < 1 || page > lastPage) return
@@ -203,13 +212,6 @@ function toggleExpertSettings(event: Event) {
 }
 
 watch(
-  () => workspace.polling.value,
-  (value) => {
-    if (value) mobileView.value = 'works'
-  },
-  { flush: 'sync' },
-)
-watch(
   () => workspace.errorMsg.value,
   (value) => {
     if (value) mobileView.value = 'create'
@@ -260,7 +262,7 @@ onBeforeUnmount(() => {
           type="button"
           class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
           :class="mobileView === 'create' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-          @click="mobileView = 'create'"
+          @click="switchStudioView('create')"
         >
           {{ t('imageStudio.createTab') }}
         </button>
@@ -268,7 +270,7 @@ onBeforeUnmount(() => {
           type="button"
           class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
           :class="mobileView === 'prompts' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-          @click="mobileView = 'prompts'"
+          @click="switchStudioView('prompts')"
         >
           选提示词
         </button>
@@ -276,7 +278,7 @@ onBeforeUnmount(() => {
           type="button"
           class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
           :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-          @click="mobileView = 'works'"
+          @click="switchStudioView('works')"
         >
           作品库
         </button>
@@ -284,7 +286,7 @@ onBeforeUnmount(() => {
           type="button"
           class="rounded-lg px-3 py-2.5 text-sm font-semibold transition"
           :class="mobileView === 'recipes' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-          @click="mobileView = 'recipes'; recipes = listPromptRecipes()"
+          @click="switchStudioView('recipes')"
         >
           创作配方
         </button>
@@ -308,7 +310,7 @@ onBeforeUnmount(() => {
               type="button"
               class="rounded-lg px-4 py-2 text-sm font-semibold transition"
               :class="mobileView === 'create' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-              @click="mobileView = 'create'"
+              @click="switchStudioView('create')"
             >
               创作
             </button>
@@ -316,7 +318,7 @@ onBeforeUnmount(() => {
               type="button"
               class="rounded-lg px-4 py-2 text-sm font-semibold transition"
               :class="mobileView === 'prompts' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-              @click="mobileView = 'prompts'"
+              @click="switchStudioView('prompts')"
             >
               选提示词
             </button>
@@ -324,7 +326,7 @@ onBeforeUnmount(() => {
               type="button"
               class="rounded-lg px-4 py-2 text-sm font-semibold transition"
               :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-              @click="mobileView = 'works'"
+              @click="switchStudioView('works')"
             >
               作品库
             </button>
@@ -332,7 +334,7 @@ onBeforeUnmount(() => {
               type="button"
               class="rounded-lg px-4 py-2 text-sm font-semibold transition"
               :class="mobileView === 'recipes' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
-              @click="mobileView = 'recipes'; recipes = listPromptRecipes()"
+              @click="switchStudioView('recipes')"
             >
               创作配方
             </button>
@@ -575,11 +577,11 @@ onBeforeUnmount(() => {
                 <div class="flex items-center justify-between gap-3">
                   <span class="input-label mb-0">{{ t('imageStudio.referenceImages') }}</span>
                   <span class="text-xs text-gray-400 dark:text-gray-500">
-                    {{ workspace.referenceUploads.value.length }} / {{ workspace.maxReferenceImages.value }}
+                    {{ workspace.readyReferenceCount.value }} / {{ workspace.maxReferenceImages.value }}
                   </span>
                 </div>
                 <label
-                  v-if="workspace.referenceUploads.value.length < workspace.maxReferenceImages.value"
+                  v-if="workspace.referenceSlotCount.value < workspace.maxReferenceImages.value"
                   class="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-4 py-3 text-sm font-medium text-gray-600 transition hover:border-primary-400 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-900 dark:text-gray-300"
                 >
                   <Icon name="upload" size="sm" />
@@ -869,35 +871,81 @@ onBeforeUnmount(() => {
         >
           <header class="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <div>
-              <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.latestResult') }}</h2>
-              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('imageStudio.latestResultHint') }}</p>
+              <h2 class="text-base font-semibold text-gray-900 dark:text-white">
+                {{ mobileView === 'works' ? t('imageStudio.recentWorks') : t('imageStudio.templatePreview') }}
+              </h2>
+              <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {{ mobileView === 'works' ? t('imageStudio.latestResultHint') : selectedTemplateDescription }}
+              </p>
             </div>
-            <span v-if="workspace.activeJobCount.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
+            <span v-if="mobileView === 'works' && workspace.galleryLoading.value" class="inline-flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
+              <span class="h-3.5 w-3.5 animate-spin rounded-full border border-current border-t-transparent" />
+              {{ t('models.loading') }}
+            </span>
+            <span v-else-if="workspace.activeJobCount.value" class="inline-flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400">
               <span class="h-2 w-2 animate-pulse rounded-full bg-current" />
               {{ t('imageStudio.activeJobs', { count: workspace.activeJobCount.value, max: 2 }) }}
             </span>
           </header>
 
           <div class="p-4 sm:p-5">
-            <ImageStudioGallery
-              v-if="featuredJobs.length"
-              :jobs="featuredJobs"
-              :canceling-job-ids="workspace.cancelingJobIds.value"
-              featured
-              @preview="workspace.openPreview"
-              @cancel="workspace.cancelJob"
-              @delete="workspace.removeJob"
-              @regenerate="reuseJob"
-            />
+            <template v-if="mobileView === 'works'">
+              <ImageStudioGallery
+                v-if="worksJobs.length"
+                :jobs="worksJobs"
+                :canceling-job-ids="workspace.cancelingJobIds.value"
+                @preview="workspace.openPreview"
+                @cancel="workspace.cancelJob"
+                @delete="workspace.removeJob"
+                @regenerate="reuseJob"
+              />
 
-            <div v-else-if="workspace.galleryError.value && !historyJobs.length" class="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 text-center dark:border-red-900/60 dark:bg-red-950/30">
-              <Icon name="exclamationCircle" class="text-red-500 dark:text-red-300" />
-              <p class="mt-3 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">{{ workspace.galleryError.value }}</p>
-              <button data-testid="retry-gallery" type="button" class="btn btn-secondary mt-4" @click="workspace.refreshJobs()">
-                <Icon name="refresh" size="sm" />
-                {{ t('imageStudio.retryGallery') }}
-              </button>
-            </div>
+              <div v-else-if="workspace.galleryError.value" class="flex min-h-[320px] flex-col items-center justify-center rounded-xl border border-red-200 bg-red-50 px-6 text-center dark:border-red-900/60 dark:bg-red-950/30">
+                <Icon name="exclamationCircle" class="text-red-500 dark:text-red-300" />
+                <p class="mt-3 max-w-md text-sm leading-6 text-red-700 dark:text-red-300">{{ workspace.galleryError.value }}</p>
+                <button data-testid="retry-gallery" type="button" class="btn btn-secondary mt-4" @click="workspace.refreshJobs()">
+                  <Icon name="refresh" size="sm" />
+                  {{ t('imageStudio.retryGallery') }}
+                </button>
+              </div>
+
+              <div v-else class="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center text-sm text-gray-500 dark:border-dark-600 dark:bg-dark-900 dark:text-gray-400">
+                {{ workspace.galleryLoading.value ? t('models.loading') : t('imageStudio.galleryEmpty') }}
+              </div>
+
+              <nav
+                v-if="workspace.galleryPages.value > 1"
+                class="mt-4 flex items-center justify-center gap-3 border-t border-gray-100 pt-4 dark:border-dark-700"
+                :aria-label="t('imageStudio.pagination')"
+              >
+                <button
+                  type="button"
+                  class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-primary-300"
+                  :disabled="workspace.galleryLoading.value || workspace.galleryPage.value <= 1"
+                  :title="t('imageStudio.previousPage')"
+                  :aria-label="t('imageStudio.previousPage')"
+                  @click="changeGalleryPage(workspace.galleryPage.value - 1)"
+                >
+                  <Icon name="chevronLeft" size="sm" />
+                </button>
+                <span class="min-w-24 text-center text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300">
+                  {{ t('imageStudio.pageStatus', {
+                    page: workspace.galleryPage.value,
+                    pages: workspace.galleryPages.value,
+                  }) }}
+                </span>
+                <button
+                  type="button"
+                  class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-primary-300"
+                  :disabled="workspace.galleryLoading.value || workspace.galleryPage.value >= workspace.galleryPages.value"
+                  :title="t('imageStudio.nextPage')"
+                  :aria-label="t('imageStudio.nextPage')"
+                  @click="changeGalleryPage(workspace.galleryPage.value + 1)"
+                >
+                  <Icon name="chevronRight" size="sm" />
+                </button>
+              </nav>
+            </template>
 
             <div v-else-if="selectedTemplatePreview" class="relative overflow-hidden rounded-xl bg-gray-100 dark:bg-dark-900">
               <img :src="selectedTemplatePreview" :alt="workspace.labelFor(workspace.selectedTemplate.value?.label)" class="max-h-[62vh] min-h-72 w-full object-cover" />
@@ -911,60 +959,6 @@ onBeforeUnmount(() => {
             <div v-else class="flex min-h-[420px] items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 px-6 text-center text-sm text-gray-500 dark:border-dark-600 dark:bg-dark-900 dark:text-gray-400">
               {{ t('imageStudio.galleryEmpty') }}
             </div>
-          </div>
-
-          <div
-            v-if="historyJobs.length || workspace.galleryPages.value > 1 || workspace.galleryLoading.value"
-            class="border-t border-gray-100 px-4 py-5 sm:px-5 dark:border-dark-700"
-          >
-            <div class="mb-4 flex items-center justify-between gap-3">
-              <h2 class="font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.recentWorks') }}</h2>
-              <span class="inline-flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-                <span v-if="workspace.galleryLoading.value" class="h-3.5 w-3.5 animate-spin rounded-full border border-current border-t-transparent" />
-                {{ t('imageStudio.recentWorksCount', { count: workspace.galleryTotal.value }) }}
-              </span>
-            </div>
-            <ImageStudioGallery
-              v-if="historyJobs.length"
-              :jobs="historyJobs"
-              :canceling-job-ids="workspace.cancelingJobIds.value"
-              @preview="workspace.openPreview"
-              @cancel="workspace.cancelJob"
-              @delete="workspace.removeJob"
-              @regenerate="reuseJob"
-            />
-            <nav
-              v-if="workspace.galleryPages.value > 1"
-              class="mt-4 flex items-center justify-center gap-3 border-t border-gray-100 pt-4 dark:border-dark-700"
-              :aria-label="t('imageStudio.pagination')"
-            >
-              <button
-                type="button"
-                class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-primary-300"
-                :disabled="workspace.galleryLoading.value || workspace.galleryPage.value <= 1"
-                :title="t('imageStudio.previousPage')"
-                :aria-label="t('imageStudio.previousPage')"
-                @click="changeGalleryPage(workspace.galleryPage.value - 1)"
-              >
-                <Icon name="chevronLeft" size="sm" />
-              </button>
-              <span class="min-w-24 text-center text-xs font-medium tabular-nums text-gray-600 dark:text-gray-300">
-                {{ t('imageStudio.pageStatus', {
-                  page: workspace.galleryPage.value,
-                  pages: workspace.galleryPages.value,
-                }) }}
-              </span>
-              <button
-                type="button"
-                class="btn-icon grid h-9 w-9 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 hover:text-primary-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-gray-400 dark:hover:bg-dark-700 dark:hover:text-primary-300"
-                :disabled="workspace.galleryLoading.value || workspace.galleryPage.value >= workspace.galleryPages.value"
-                :title="t('imageStudio.nextPage')"
-                :aria-label="t('imageStudio.nextPage')"
-                @click="changeGalleryPage(workspace.galleryPage.value + 1)"
-              >
-                <Icon name="chevronRight" size="sm" />
-              </button>
-            </nav>
           </div>
         </section>
       </div>
