@@ -2,6 +2,8 @@ package admin
 
 import (
 	"context"
+	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -654,8 +656,39 @@ func (s *stubAdminService) ExpireRedeemCode(ctx context.Context, id int64) (*ser
 	return &code, nil
 }
 
-func (s *stubAdminService) GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, codeType string) ([]service.RedeemCode, int64, float64, error) {
-	return s.redeems, int64(len(s.redeems)), 100.0, nil
+func (s *stubAdminService) GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, flowType string) (*service.AdminBalanceFlowHistory, error) {
+	items := make([]service.AdminBalanceFlowItem, 0, len(s.redeems))
+	for i := range s.redeems {
+		items = append(items, service.AdminBalanceFlowItem{
+			ID:           fmt.Sprintf("redeem_code:%d", s.redeems[i].ID),
+			Type:         s.redeems[i].Type,
+			SourceType:   "redeem_codes",
+			SourceID:     strconv.FormatInt(s.redeems[i].ID, 10),
+			Amount:       s.redeems[i].Value,
+			BalanceDelta: s.redeems[i].Value,
+			OccurredAt:   s.redeems[i].CreatedAt,
+			Reference:    s.redeems[i].Code,
+			Notes:        s.redeems[i].Notes,
+			Confidence:   "high",
+		})
+	}
+	return &service.AdminBalanceFlowHistory{
+		Items:    items,
+		Total:    int64(len(items)),
+		Page:     page,
+		PageSize: pageSize,
+		Pages:    1,
+		Summary: service.AdminBalanceFlowSummary{
+			RechargeTotal: 100,
+		},
+	}, nil
+}
+
+func (s *stubAdminService) GetUserBalanceReconciliation(ctx context.Context, userID int64) (*service.AdminBalanceReconciliation, error) {
+	return &service.AdminBalanceReconciliation{
+		CurrentBalance: 100,
+		Recent:         []service.AdminBalanceFlowItem{},
+	}, nil
 }
 
 func (s *stubAdminService) UpdateGroupSortOrders(ctx context.Context, updates []service.GroupSortOrderUpdate) error {
