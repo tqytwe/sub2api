@@ -84,7 +84,7 @@ function aspectShapeStyle(aspectId: string) {
     </fieldset>
     <fieldset class="min-w-0">
       <legend class="input-label">{{ t('imageStudio.tier') }}</legend>
-      <div class="grid min-h-11 grid-cols-3 gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900">
+      <div class="grid min-h-11 grid-cols-4 gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900">
         <button
           v-for="item in capabilities?.tiers || []"
           :key="item.id"

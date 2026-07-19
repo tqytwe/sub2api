@@ -503,6 +503,96 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_RejectsNonImageModel(t *te
 	require.ErrorContains(t, err, `images endpoint requires an image model, got "gpt-5.4"`)
 }
 
+func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsAgnesImageModel(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024"}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = req
+
+	svc := &OpenAIGatewayService{}
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+	require.NotNil(t, parsed)
+	require.Equal(t, "agnes-image-2.1-flash", parsed.Model)
+	require.Equal(t, OpenAIImagesCapabilityNative, parsed.RequiredCapability)
+}
+
+func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnesPayload(t *testing.T) {
+	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024","response_format":"b64_json"}`)
+	parsed := &OpenAIImagesRequest{
+		Endpoint:       openAIImagesGenerationsEndpoint,
+		ContentType:    "application/json",
+		Model:          "agnes-image-2.1-flash",
+		Prompt:         "draw a cat",
+		Size:           "1024x1024",
+		ResponseFormat: "b64_json",
+	}
+
+	rewritten, contentType, handled, err := rewriteAdaptedOpenAIImagesBody(
+		body,
+		"application/json",
+		parsed,
+		"agnes-image-2.1-flash",
+	)
+
+	require.NoError(t, err)
+	require.True(t, handled)
+	require.Equal(t, "application/json", contentType)
+	require.Equal(t, "agnes-image-2.1-flash", gjson.GetBytes(rewritten, "model").String())
+	require.Equal(t, "1K", gjson.GetBytes(rewritten, "size").String())
+	require.Equal(t, "1:1", gjson.GetBytes(rewritten, "ratio").String())
+	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+}
+
+func TestRewriteAdaptedOpenAIImagesBodyPreservesAgnesExtraBodyResponseFormat(t *testing.T) {
+	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw","size":"3072x1728","ratio":"16:9","response_format":"url","extra_body":{"response_format":"b64_json"}}`)
+	parsed := &OpenAIImagesRequest{
+		Endpoint:    openAIImagesGenerationsEndpoint,
+		ContentType: "application/json",
+		Model:       "agnes-image-2.1-flash",
+		Prompt:      "draw",
+		Size:        "3072x1728",
+	}
+
+	rewritten, _, handled, err := rewriteAdaptedOpenAIImagesBody(
+		body,
+		"application/json",
+		parsed,
+		"agnes-image-2.1-flash",
+	)
+
+	require.NoError(t, err)
+	require.True(t, handled)
+	require.Equal(t, "3K", gjson.GetBytes(rewritten, "size").String())
+	require.Equal(t, "16:9", gjson.GetBytes(rewritten, "ratio").String())
+	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+}
+
+func TestRewriteAdaptedOpenAIImagesBodyRejectsAgnesEdits(t *testing.T) {
+	parsed := &OpenAIImagesRequest{
+		Endpoint: openAIImagesEditsEndpoint,
+		Model:    "agnes-image-2.1-flash",
+		Size:     "1024x1024",
+	}
+
+	rewritten, _, handled, err := rewriteAdaptedOpenAIImagesBody(
+		[]byte(`{"model":"agnes-image-2.1-flash","prompt":"edit","size":"1024x1024"}`),
+		"application/json",
+		parsed,
+		"agnes-image-2.1-flash",
+	)
+
+	require.Nil(t, rewritten)
+	require.True(t, handled)
+	require.ErrorIs(t, err, ErrImageStudioOperationNotSupported)
+}
+
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGrokImageModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

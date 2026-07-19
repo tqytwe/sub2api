@@ -63,6 +63,7 @@ export interface ImageStudioModelOption {
   id: string
   display_name: string
   platform?: 'openai' | 'grok' | (string & {})
+  provider_id?: string
   capability_profile_id?: string
   capability_revision?: string
   operations?: Array<'create' | 'edit' | (string & {})>

@@ -735,6 +735,17 @@ func buildImageStudioProviderPayload(
 	}
 	switch platform {
 	case PlatformOpenAI:
+		if endpoint, body, handled, err := buildAdaptedImageStudioProviderPayload(
+			operation,
+			model,
+			prompt,
+			size,
+			count,
+			req,
+			referenceIDs,
+		); handled || err != nil {
+			return endpoint, body, err
+		}
 		payload["size"] = size
 		if IsGPTImageGenerationModel(model) {
 			// Inline output lets the durable worker checkpoint before object storage.

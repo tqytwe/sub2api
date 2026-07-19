@@ -505,7 +505,9 @@ func applyOpenAIImagesDefaults(req *OpenAIImagesRequest) {
 }
 
 func isOpenAIImageGenerationModel(model string) bool {
-	return IsGPTImageGenerationModel(model) || isGrokImageGenerationModel(model)
+	return IsGPTImageGenerationModel(model) ||
+		isGrokImageGenerationModel(model) ||
+		isRegisteredOpenAICompatibleImageModel(model)
 }
 
 // IsGPTImageGenerationModel identifies the GPT native image-generation model family.
@@ -978,7 +980,13 @@ func (s *OpenAIGatewayService) forwardOpenAIImagesAPIKey(
 		parsed.Endpoint,
 		account.Type,
 	)
-	forwardBody, forwardContentType, err := rewriteOpenAIImagesModel(body, parsed.ContentType, upstreamModel)
+	forwardBody, forwardContentType, handled, err := rewriteAdaptedOpenAIImagesBody(body, parsed.ContentType, parsed, upstreamModel)
+	if err != nil {
+		return nil, err
+	}
+	if !handled {
+		forwardBody, forwardContentType, err = rewriteOpenAIImagesModel(body, parsed.ContentType, upstreamModel)
+	}
 	if err != nil {
 		return nil, err
 	}
