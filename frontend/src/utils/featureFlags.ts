@@ -149,6 +149,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: '图像工作室',
   }),
+  nextChat: defineFlag({
+    key: 'nextchat_enabled',
+    mode: 'opt-in',
+    label: 'AI 创作',
+  }),
   publicModels: defineFlag({
     key: 'public_models_enabled',
     mode: 'opt-in',

@@ -413,11 +413,18 @@ export default {
     }
   },
 
+  nextChatLaunch: {
+    title: '正在进入 AI 创作',
+    loading: '正在为当前账号创建安全会话...',
+    failed: 'AI 创作暂时无法打开，请稍后重试。'
+  },
+
   // Navigation
   nav: {
     dashboard: '仪表盘',
     announcements: '公告',
     apiKeys: 'API 密钥',
+    aiCreation: 'AI 创作',
     batchImage: '批量生图',
     imageStudio: '图像工作室',
     promptSquare: '提示词广场',

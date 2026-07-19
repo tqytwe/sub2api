@@ -245,6 +245,7 @@ export interface PublicSettings {
   play_quiz_enabled: boolean
   play_agent_team_enabled: boolean
   image_studio_enabled: boolean
+  nextchat_enabled: boolean
   service_quota_enabled: boolean
   affiliate_enabled: boolean
   allow_user_view_error_requests?: boolean

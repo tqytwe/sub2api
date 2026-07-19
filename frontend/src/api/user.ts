@@ -19,6 +19,12 @@ import type {
   PlatformQuotasResponse,
 } from '@/types'
 
+export interface NextChatLaunchResponse {
+  launch_url: string
+  expires_at: string
+  ttl_seconds: number
+}
+
 /**
  * Get current user profile
  * @returns User profile data
@@ -194,6 +200,11 @@ export async function getMyPlatformQuotas(): Promise<PlatformQuotasResponse> {
   return data
 }
 
+export async function launchNextChat(): Promise<NextChatLaunchResponse> {
+  const { data } = await apiClient.post<NextChatLaunchResponse>('/nextchat/launch')
+  return data
+}
+
 export const userAPI = {
   getProfile,
   updateProfile,
@@ -210,6 +221,7 @@ export const userAPI = {
   getAffiliateDetail,
   transferAffiliateQuota,
   getMyPlatformQuotas,
+  launchNextChat,
 }
 
 export default userAPI

@@ -393,6 +393,9 @@ func (r *apiKeyRepository) apiKeyListByUserIDQuery(userID int64, filters service
 			apikey.KeyContainsFold(filters.Search),
 		))
 	}
+	if filters.ExcludeNamePrefix != "" {
+		q = q.Where(apikey.Not(apikey.NameHasPrefix(filters.ExcludeNamePrefix)))
+	}
 	if filters.Status != "" {
 		q = q.Where(apikey.StatusEQ(filters.Status))
 	}

@@ -56,6 +56,12 @@ declare module 'vue-router' {
     requiresRiskControl?: boolean
 
     /**
+     * Whether this route requires the NextChat launch switch to be enabled
+     * @default false
+     */
+    requiresNextChat?: boolean
+
+    /**
      * i18n key for the page title
      */
     titleKey?: string

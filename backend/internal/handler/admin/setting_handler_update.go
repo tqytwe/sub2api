@@ -313,6 +313,7 @@ type UpdateSettingsRequest struct {
 
 	// User sidebar — Play growth features
 	ImageStudioEnabled   *bool `json:"image_studio_enabled"`
+	NextChatEnabled      *bool `json:"nextchat_enabled"`
 	PlayCheckinEnabled   *bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled     *bool `json:"play_arena_enabled"`
 	PlayBlindboxEnabled  *bool `json:"play_blindbox_enabled"`
@@ -1624,6 +1625,12 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 			}
 			return previousSettings.ImageStudioEnabled
 		}(),
+		NextChatEnabled: func() bool {
+			if req.NextChatEnabled != nil {
+				return *req.NextChatEnabled
+			}
+			return previousSettings.NextChatEnabled
+		}(),
 		PlayCheckinEnabled: func() bool {
 			if req.PlayCheckinEnabled != nil {
 				return *req.PlayCheckinEnabled
@@ -2039,6 +2046,7 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 
 		PublicModelsEnabled:  updatedSettings.PublicModelsEnabled,
 		ImageStudioEnabled:   updatedSettings.ImageStudioEnabled,
+		NextChatEnabled:      updatedSettings.NextChatEnabled,
 		PlayCheckinEnabled:   updatedSettings.PlayCheckinEnabled,
 		PlayArenaEnabled:     updatedSettings.PlayArenaEnabled,
 		PlayBlindboxEnabled:  updatedSettings.PlayBlindboxEnabled,

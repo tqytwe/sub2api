@@ -105,6 +105,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		PlayQuizEnabled:      settings.PlayQuizEnabled,
 		PlayAgentTeamEnabled: settings.PlayAgentTeamEnabled,
 		ImageStudioEnabled:   settings.ImageStudioEnabled,
+		NextChatEnabled:      settings.NextChatEnabled,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 

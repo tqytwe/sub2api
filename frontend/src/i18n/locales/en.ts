@@ -413,11 +413,18 @@ export default {
     }
   },
 
+  nextChatLaunch: {
+    title: 'Opening AI Creation',
+    loading: 'Creating a secure session for your account...',
+    failed: 'AI Creation is unavailable right now. Please try again later.'
+  },
+
   // Navigation
   nav: {
     dashboard: 'Dashboard',
     announcements: 'Announcements',
     apiKeys: 'API Keys',
+    aiCreation: 'AI Creation',
     batchImage: 'Batch Images',
     imageStudio: 'Image Studio',
     promptSquare: 'Prompt Library',

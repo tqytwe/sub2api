@@ -788,6 +788,7 @@ const flagPlayBlindbox = makeSidebarFlag(FeatureFlags.playBlindbox)
 const flagPlayQuiz = makeSidebarFlag(FeatureFlags.playQuiz)
 const flagPlayAgentTeam = makeSidebarFlag(FeatureFlags.playAgentTeam)
 const flagImageStudio = makeSidebarFlag(FeatureFlags.imageStudio)
+const flagNextChat = makeSidebarFlag(FeatureFlags.nextChat)
 const flagAffiliate = makeSidebarFlag(FeatureFlags.affiliate)
 const flagRiskControl = makeSidebarFlag(FeatureFlags.riskControl)
 const flagOpsMonitoring = () => adminSettingsStore.opsMonitoringEnabled
@@ -835,7 +836,7 @@ function buildGrowthNavChildren(): NavItem[] {
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
-// 条目顺序：密钥 → 图像工作室 → 用量 → 订阅/支付 → 玩法福利 → 资料。
+// 条目顺序：密钥 → AI 创作 → 图像工作室 → 用量 → 订阅/支付 → 玩法福利 → 资料。
 // 极速蹬不向普通用户展示渠道相关入口（可用渠道/渠道状态），运维请走管理后台。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
@@ -845,6 +846,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   items.push(
     { path: '/models', label: t('nav.modelsAndPricing'), icon: PriceTagIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
+    { path: '/ai', label: t('nav.aiCreation'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagNextChat },
     { path: '/image-studio', label: t('nav.imageStudio'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagImageStudio },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },

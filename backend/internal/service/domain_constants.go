@@ -409,6 +409,7 @@ const (
 	SettingKeyPlayTeamSharedRewardStartMonth  = "play_team_shared_reward_start_month"
 	SettingKeyPlayCampaignsEnabled            = "play_campaigns_enabled"
 	SettingKeyImageStudioEnabled              = "image_studio_enabled"
+	SettingKeyNextChatEnabled                 = "nextchat_enabled"
 	SettingKeyPlayDailyQuestsEnabled          = "play_daily_quests_enabled"
 	SettingKeyPlayDailyArenaEnabled           = "play_daily_arena_enabled"
 	SettingKeyPlayDailyQuests                 = "play_daily_quests"

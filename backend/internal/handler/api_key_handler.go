@@ -88,6 +88,7 @@ func (h *APIKeyHandler) List(c *gin.Context) {
 		filters.Search = search
 	}
 	filters.Status = c.Query("status")
+	filters.ExcludeNamePrefix = service.NextChatManagedAPIKeyNamePrefix
 	if groupIDStr := c.Query("group_id"); groupIDStr != "" {
 		gid, err := strconv.ParseInt(groupIDStr, 10, 64)
 		if err == nil {
@@ -130,7 +131,7 @@ func (h *APIKeyHandler) GetByID(c *gin.Context) {
 	}
 
 	// 验证所有权
-	if key.UserID != subject.UserID {
+	if key.UserID != subject.UserID || service.IsNextChatManagedAPIKeyName(key.Name) {
 		response.NotFound(c, "API key not found")
 		return
 	}
@@ -204,6 +205,16 @@ func (h *APIKeyHandler) Update(c *gin.Context) {
 		return
 	}
 
+	existing, err := h.apiKeyService.GetByID(c.Request.Context(), keyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if existing.UserID != subject.UserID || service.IsNextChatManagedAPIKeyName(existing.Name) {
+		response.NotFound(c, "API key not found")
+		return
+	}
+
 	svcReq := service.UpdateAPIKeyRequest{
 		IPWhitelist:         req.IPWhitelist,
 		IPBlacklist:         req.IPBlacklist,
@@ -258,6 +269,16 @@ func (h *APIKeyHandler) Delete(c *gin.Context) {
 	keyID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
 		response.BadRequest(c, "Invalid key ID")
+		return
+	}
+
+	key, err := h.apiKeyService.GetByID(c.Request.Context(), keyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if key.UserID != subject.UserID || service.IsNextChatManagedAPIKeyName(key.Name) {
+		response.NotFound(c, "API key not found")
 		return
 	}
 

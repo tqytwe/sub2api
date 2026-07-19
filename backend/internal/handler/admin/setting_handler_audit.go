@@ -528,6 +528,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	if before.ImageStudioEnabled != after.ImageStudioEnabled {
 		changed = append(changed, "image_studio_enabled")
 	}
+	if before.NextChatEnabled != after.NextChatEnabled {
+		changed = append(changed, "nextchat_enabled")
+	}
 	if before.PlayCheckinEnabled != after.PlayCheckinEnabled {
 		changed = append(changed, "play_checkin_enabled")
 	}

@@ -342,6 +342,7 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	// Play growth user sidebar switches
 	updates[SettingKeyPublicModelsEnabled] = strconv.FormatBool(settings.PublicModelsEnabled)
 	updates[SettingKeyImageStudioEnabled] = strconv.FormatBool(settings.ImageStudioEnabled)
+	updates[SettingKeyNextChatEnabled] = strconv.FormatBool(settings.NextChatEnabled)
 	updates[SettingKeyPlayCheckinEnabled] = strconv.FormatBool(settings.PlayCheckinEnabled)
 	updates[SettingKeyPlayArenaEnabled] = strconv.FormatBool(settings.PlayArenaEnabled)
 	updates[SettingKeyPlayBlindboxEnabled] = strconv.FormatBool(settings.PlayBlindboxEnabled)
