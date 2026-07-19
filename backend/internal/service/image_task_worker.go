@@ -291,6 +291,24 @@ func (r *ImageTaskWorkerRuntime) runHeartbeat(
 		}
 		cancelTask()
 	}
+	heartbeat := func() bool {
+		if err := r.queue.Heartbeat(ctx, taskID); err != nil && ctx.Err() == nil {
+			fail(err)
+			return false
+		}
+		if err := r.tasks.Heartbeat(ctx, taskID); err != nil && ctx.Err() == nil {
+			fail(err)
+			return false
+		}
+		if err := lock.Refresh(ctx, r.opts.JobLockTTL); err != nil && ctx.Err() == nil {
+			fail(err)
+			return false
+		}
+		return true
+	}
+	if !heartbeat() {
+		return
+	}
 	for {
 		select {
 		case <-ctx.Done():
@@ -298,16 +316,7 @@ func (r *ImageTaskWorkerRuntime) runHeartbeat(
 		case <-stop:
 			return
 		case <-ticker.C:
-			if err := r.queue.Heartbeat(ctx, taskID); err != nil && ctx.Err() == nil {
-				fail(err)
-				return
-			}
-			if err := r.tasks.Heartbeat(ctx, taskID); err != nil && ctx.Err() == nil {
-				fail(err)
-				return
-			}
-			if err := lock.Refresh(ctx, r.opts.JobLockTTL); err != nil && ctx.Err() == nil {
-				fail(err)
+			if !heartbeat() {
 				return
 			}
 		}
