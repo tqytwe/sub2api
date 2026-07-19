@@ -296,6 +296,14 @@ WHERE user_id = $2`, thawed, userID)
 }
 
 func (r *affiliateRepository) TransferQuotaToBalance(ctx context.Context, userID int64) (float64, float64, error) {
+	return r.transferQuotaToBalance(ctx, userID, nil)
+}
+
+func (r *affiliateRepository) TransferQuotaToBalanceWithLedger(ctx context.Context, userID int64, ledger service.BalanceLedgerApplier) (float64, float64, error) {
+	return r.transferQuotaToBalance(ctx, userID, ledger)
+}
+
+func (r *affiliateRepository) transferQuotaToBalance(ctx context.Context, userID int64, ledger service.BalanceLedgerApplier) (float64, float64, error) {
 	var transferred float64
 	var newBalance float64
 
@@ -349,52 +357,70 @@ FROM cleared`, userID)
 			return service.ErrAffiliateQuotaEmpty
 		}
 
-		affected, err := txClient.User.Update().
-			Where(user.IDEQ(userID)).
-			AddBalance(transferred).
-			AddTotalRecharged(transferred).
-			Save(txCtx)
-		if err != nil {
-			return fmt.Errorf("credit user balance by affiliate quota: %w", err)
-		}
-		if affected == 0 {
-			return service.ErrUserNotFound
-		}
-
-		newBalance, err = queryUserBalance(txCtx, txClient, userID)
-		if err != nil {
-			return err
-		}
-
 		snapshot, err := queryAffiliateTransferSnapshot(txCtx, txClient, userID)
 		if err != nil {
 			return err
 		}
 
-		if _, err = txClient.ExecContext(txCtx, `
-INSERT INTO user_affiliate_ledger (
-    user_id,
-    action,
-    amount,
-    source_user_id,
-    balance_after,
-    aff_quota_after,
-    aff_frozen_quota_after,
-    aff_history_quota_after,
-    created_at,
-    updated_at
-)
-VALUES ($1, 'transfer', $2, NULL, $3, $4, $5, $6, NOW(), NOW())`,
-			userID,
-			transferred,
-			snapshot.BalanceAfter,
-			snapshot.AvailableQuotaAfter,
-			snapshot.FrozenQuotaAfter,
-			snapshot.HistoryQuotaAfter,
-		); err != nil {
-			return fmt.Errorf("insert affiliate transfer ledger: %w", err)
+		if ledger == nil {
+			affected, err := txClient.User.Update().
+				Where(user.IDEQ(userID)).
+				AddBalance(transferred).
+				AddTotalRecharged(transferred).
+				Save(txCtx)
+			if err != nil {
+				return fmt.Errorf("credit user balance by affiliate quota: %w", err)
+			}
+			if affected == 0 {
+				return service.ErrUserNotFound
+			}
+
+			newBalance, err = queryUserBalance(txCtx, txClient, userID)
+			if err != nil {
+				return err
+			}
+
+			snapshot.BalanceAfter = newBalance
+			if _, err = insertAffiliateTransferLedger(txCtx, txClient, userID, transferred, &snapshot.BalanceAfter, snapshot); err != nil {
+				return err
+			}
+			return nil
 		}
 
+		transferLedgerID, err := insertAffiliateTransferLedger(txCtx, txClient, userID, transferred, nil, snapshot)
+		if err != nil {
+			return err
+		}
+		transaction, err := ledger.ApplyDelta(txCtx, service.BalanceLedgerApplyInput{
+			UserID:         userID,
+			BalanceDelta:   transferred,
+			SourceType:     "affiliate_balance",
+			SourceID:       fmt.Sprintf("%d", transferLedgerID),
+			IdempotencyKey: fmt.Sprintf("affiliate_transfer:%d", transferLedgerID),
+			ActorType:      service.BalanceLedgerActorUser,
+			ActorUserID:    &userID,
+			Description:    "返利余额转入",
+			Metadata: map[string]any{
+				"affiliate_ledger_id":         transferLedgerID,
+				"aff_quota_after":             snapshot.AvailableQuotaAfter,
+				"aff_frozen_quota_after":      snapshot.FrozenQuotaAfter,
+				"aff_history_quota_after":     snapshot.HistoryQuotaAfter,
+				"transferred_affiliate_quota": transferred,
+			},
+		})
+		if err != nil {
+			return fmt.Errorf("apply affiliate balance ledger delta: %w", err)
+		}
+		if transaction.BalanceAfter == nil {
+			return fmt.Errorf("affiliate balance ledger transaction missing balance_after")
+		}
+		newBalance = *transaction.BalanceAfter
+		if err := adjustAffiliateTransferTotalRecharged(txCtx, txClient, userID, transferred); err != nil {
+			return err
+		}
+		if err := updateAffiliateTransferBalanceAfter(txCtx, txClient, transferLedgerID, newBalance); err != nil {
+			return err
+		}
 		return nil
 	})
 	if err != nil {
@@ -1012,6 +1038,88 @@ LIMIT 1`, userID)
 		return nil, err
 	}
 	return &snapshot, rows.Err()
+}
+
+func insertAffiliateTransferLedger(ctx context.Context, client affiliateQueryExecer, userID int64, amount float64, balanceAfter *float64, snapshot *affiliateTransferSnapshot) (int64, error) {
+	var balanceAfterArg any
+	if balanceAfter != nil {
+		balanceAfterArg = *balanceAfter
+	}
+	rows, err := client.QueryContext(ctx, `
+INSERT INTO user_affiliate_ledger (
+    user_id,
+    action,
+    amount,
+    source_user_id,
+    balance_after,
+    aff_quota_after,
+    aff_frozen_quota_after,
+    aff_history_quota_after,
+    created_at,
+    updated_at
+)
+VALUES ($1, 'transfer', $2, NULL, $3, $4, $5, $6, NOW(), NOW())
+RETURNING id`,
+		userID,
+		amount,
+		balanceAfterArg,
+		snapshot.AvailableQuotaAfter,
+		snapshot.FrozenQuotaAfter,
+		snapshot.HistoryQuotaAfter,
+	)
+	if err != nil {
+		return 0, fmt.Errorf("insert affiliate transfer ledger: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
+		return 0, fmt.Errorf("insert affiliate transfer ledger returned no id")
+	}
+	var id int64
+	if err := rows.Scan(&id); err != nil {
+		return 0, err
+	}
+	return id, rows.Err()
+}
+
+func updateAffiliateTransferBalanceAfter(ctx context.Context, client affiliateQueryExecer, ledgerID int64, balanceAfter float64) error {
+	result, err := client.ExecContext(ctx, `
+UPDATE user_affiliate_ledger
+SET balance_after = $1,
+    updated_at = NOW()
+WHERE id = $2 AND action = 'transfer'`, balanceAfter, ledgerID)
+	if err != nil {
+		return fmt.Errorf("update affiliate transfer balance snapshot: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return fmt.Errorf("affiliate transfer ledger not found: %d", ledgerID)
+	}
+	return nil
+}
+
+func adjustAffiliateTransferTotalRecharged(ctx context.Context, client affiliateQueryExecer, userID int64, amount float64) error {
+	result, err := client.ExecContext(ctx, `
+UPDATE users
+SET total_recharged = GREATEST(total_recharged + $1, 0),
+    updated_at = NOW()
+WHERE id = $2 AND deleted_at IS NULL`, amount, userID)
+	if err != nil {
+		return fmt.Errorf("update total recharged after affiliate transfer: %w", err)
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return service.ErrUserNotFound
+	}
+	return nil
 }
 
 func nullableFloat64Ptr(v sql.NullFloat64) *float64 {

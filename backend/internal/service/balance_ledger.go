@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
@@ -37,6 +38,11 @@ var (
 
 type balanceLedgerCacheInvalidator interface {
 	InvalidateUserBalance(ctx context.Context, userID int64) error
+}
+
+type balanceLedgerSQLRunner interface {
+	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
 type BalanceLedgerService struct {
@@ -103,6 +109,25 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 		return nil, err
 	}
 
+	if entTx := dbent.TxFromContext(ctx); entTx != nil {
+		transaction, changed, err := s.applyDeltaWithRunner(ctx, entTx.Client(), normalized)
+		if err != nil {
+			return nil, err
+		}
+		if changed {
+			entTx.OnCommit(func(next dbent.Committer) dbent.Committer {
+				return dbent.CommitFunc(func(commitCtx context.Context, tx *dbent.Tx) error {
+					if err := next.Commit(commitCtx, tx); err != nil {
+						return err
+					}
+					s.invalidateBalanceCachesAfterCommit(ctx, normalized.UserID)
+					return nil
+				})
+			})
+		}
+		return transaction, nil
+	}
+
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, fmt.Errorf("begin balance ledger tx: %w", err)
@@ -114,58 +139,16 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 		}
 	}()
 
-	existing, err := selectBalanceTransactionForIdempotency(ctx, tx, normalized.UserID, normalized.IdempotencyKey)
+	transaction, changed, err := s.applyDeltaWithRunner(ctx, tx, normalized)
 	if err != nil {
 		return nil, err
 	}
-	if existing != nil {
-		if existing.SourceType != normalized.SourceType || existing.SourceID != normalized.SourceID {
-			return nil, ErrBalanceLedgerIdempotencyConflict
-		}
+	if !changed {
 		if err := tx.Commit(); err != nil {
 			return nil, fmt.Errorf("commit balance ledger replay tx: %w", err)
 		}
 		committed = true
-		return existing, nil
-	}
-
-	var beforeBalance, beforeFrozen float64
-	if err := tx.QueryRowContext(ctx, `
-SELECT balance::double precision, COALESCE(frozen_balance, 0)::double precision
-FROM users
-WHERE id = $1 AND deleted_at IS NULL
-FOR UPDATE`, normalized.UserID).Scan(&beforeBalance, &beforeFrozen); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ErrUserNotFound
-		}
-		return nil, fmt.Errorf("lock user balance: %w", err)
-	}
-
-	afterBalance, actualBalanceDelta, err := applyBalanceLedgerPolicy(beforeBalance, normalized.BalanceDelta, normalized.BalancePolicy)
-	if err != nil {
-		return nil, err
-	}
-	afterFrozen, actualFrozenDelta, err := applyBalanceLedgerPolicy(beforeFrozen, normalized.FrozenDelta, normalized.FrozenPolicy)
-	if err != nil {
-		return nil, err
-	}
-	normalized.BalanceDelta = actualBalanceDelta
-	normalized.FrozenDelta = actualFrozenDelta
-
-	if _, err := tx.ExecContext(ctx, `
-UPDATE users
-SET balance = $1, frozen_balance = $2, updated_at = NOW()
-WHERE id = $3 AND deleted_at IS NULL`, afterBalance, afterFrozen, normalized.UserID); err != nil {
-		return nil, fmt.Errorf("update user balance: %w", err)
-	}
-
-	createdAt := s.now().UTC()
-	if normalized.CreatedAt != nil {
-		createdAt = normalized.CreatedAt.UTC()
-	}
-	transaction, err := insertBalanceTransaction(ctx, tx, normalized, beforeBalance, afterBalance, beforeFrozen, afterFrozen, createdAt)
-	if err != nil {
-		return nil, err
+		return transaction, nil
 	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit balance ledger tx: %w", err)
@@ -176,6 +159,59 @@ WHERE id = $3 AND deleted_at IS NULL`, afterBalance, afterFrozen, normalized.Use
 		s.invalidateBalanceCachesAfterCommit(ctx, normalized.UserID)
 	}
 	return transaction, nil
+}
+
+func (s *BalanceLedgerService) applyDeltaWithRunner(ctx context.Context, runner balanceLedgerSQLRunner, normalized BalanceLedgerApplyInput) (*BalanceTransaction, bool, error) {
+	existing, err := selectBalanceTransactionForIdempotency(ctx, runner, normalized.UserID, normalized.IdempotencyKey)
+	if err != nil {
+		return nil, false, err
+	}
+	if existing != nil {
+		if existing.SourceType != normalized.SourceType || existing.SourceID != normalized.SourceID {
+			return nil, false, ErrBalanceLedgerIdempotencyConflict
+		}
+		return existing, false, nil
+	}
+
+	var beforeBalance, beforeFrozen float64
+	if err := queryOneBalanceLedger(ctx, runner, `
+SELECT balance::double precision, COALESCE(frozen_balance, 0)::double precision
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE`, []any{normalized.UserID}, &beforeBalance, &beforeFrozen); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, false, ErrUserNotFound
+		}
+		return nil, false, fmt.Errorf("lock user balance: %w", err)
+	}
+
+	afterBalance, actualBalanceDelta, err := applyBalanceLedgerPolicy(beforeBalance, normalized.BalanceDelta, normalized.BalancePolicy)
+	if err != nil {
+		return nil, false, err
+	}
+	afterFrozen, actualFrozenDelta, err := applyBalanceLedgerPolicy(beforeFrozen, normalized.FrozenDelta, normalized.FrozenPolicy)
+	if err != nil {
+		return nil, false, err
+	}
+	normalized.BalanceDelta = actualBalanceDelta
+	normalized.FrozenDelta = actualFrozenDelta
+
+	if _, err := runner.ExecContext(ctx, `
+UPDATE users
+SET balance = $1, frozen_balance = $2, updated_at = NOW()
+WHERE id = $3 AND deleted_at IS NULL`, afterBalance, afterFrozen, normalized.UserID); err != nil {
+		return nil, false, fmt.Errorf("update user balance: %w", err)
+	}
+
+	createdAt := s.now().UTC()
+	if normalized.CreatedAt != nil {
+		createdAt = normalized.CreatedAt.UTC()
+	}
+	transaction, err := insertBalanceTransaction(ctx, runner, normalized, beforeBalance, afterBalance, beforeFrozen, afterFrozen, createdAt)
+	if err != nil {
+		return nil, false, err
+	}
+	return transaction, normalized.BalanceDelta != 0 || normalized.FrozenDelta != 0, nil
 }
 
 func normalizeBalanceLedgerInput(input BalanceLedgerApplyInput) (BalanceLedgerApplyInput, error) {
@@ -231,8 +267,8 @@ func applyBalanceLedgerPolicy(before, delta float64, policy string) (float64, fl
 	}
 }
 
-func selectBalanceTransactionForIdempotency(ctx context.Context, tx *sql.Tx, userID int64, key string) (*BalanceTransaction, error) {
-	row := tx.QueryRowContext(ctx, `
+func selectBalanceTransactionForIdempotency(ctx context.Context, runner balanceLedgerSQLRunner, userID int64, key string) (*BalanceTransaction, error) {
+	transaction, err := queryBalanceTransaction(ctx, runner, `
 SELECT
 	id,
 	user_id,
@@ -254,7 +290,6 @@ SELECT
 	created_at
 FROM balance_transactions
 WHERE user_id = $1 AND idempotency_key = $2`, userID, key)
-	transaction, err := scanBalanceTransaction(row.Scan)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -266,7 +301,7 @@ WHERE user_id = $1 AND idempotency_key = $2`, userID, key)
 
 func insertBalanceTransaction(
 	ctx context.Context,
-	tx *sql.Tx,
+	runner balanceLedgerSQLRunner,
 	input BalanceLedgerApplyInput,
 	beforeBalance, afterBalance, beforeFrozen, afterFrozen float64,
 	createdAt time.Time,
@@ -275,7 +310,7 @@ func insertBalanceTransaction(
 	if err != nil {
 		return nil, ErrBalanceLedgerInvalidInput.WithCause(err)
 	}
-	row := tx.QueryRowContext(ctx, `
+	transaction, err := queryBalanceTransaction(ctx, runner, `
 INSERT INTO balance_transactions (
 	user_id,
 	balance_delta,
@@ -334,11 +369,53 @@ RETURNING
 		input.Confidence,
 		createdAt,
 	)
-	transaction, err := scanBalanceTransaction(row.Scan)
 	if err != nil {
 		return nil, fmt.Errorf("insert balance transaction: %w", err)
 	}
 	return transaction, nil
+}
+
+func queryBalanceTransaction(ctx context.Context, runner balanceLedgerSQLRunner, query string, args ...any) (*BalanceTransaction, error) {
+	rows, err := runner.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, err
+		}
+		return nil, sql.ErrNoRows
+	}
+	transaction, err := scanBalanceTransaction(rows.Scan)
+	if err != nil {
+		return nil, err
+	}
+	if rows.Next() {
+		return nil, ErrBalanceLedgerInvalidInput
+	}
+	return transaction, rows.Err()
+}
+
+func queryOneBalanceLedger(ctx context.Context, runner balanceLedgerSQLRunner, query string, args []any, dest ...any) error {
+	rows, err := runner.QueryContext(ctx, query, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		return sql.ErrNoRows
+	}
+	if err := rows.Scan(dest...); err != nil {
+		return err
+	}
+	if rows.Next() {
+		return ErrBalanceLedgerInvalidInput
+	}
+	return rows.Err()
 }
 
 func scanBalanceTransaction(scan func(dest ...any) error) (*BalanceTransaction, error) {

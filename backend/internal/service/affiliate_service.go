@@ -116,6 +116,14 @@ type AffiliateRepository interface {
 	GetAffiliateUserOverview(ctx context.Context, userID int64) (*AffiliateUserOverview, error)
 }
 
+type BalanceLedgerApplier interface {
+	ApplyDelta(ctx context.Context, input BalanceLedgerApplyInput) (*BalanceTransaction, error)
+}
+
+type AffiliateBalanceLedgerTransferRepository interface {
+	TransferQuotaToBalanceWithLedger(ctx context.Context, userID int64, ledger BalanceLedgerApplier) (float64, float64, error)
+}
+
 type AffiliateTeamJoiner interface {
 	JoinInviterActiveTeam(ctx context.Context, inviterID, inviteeUserID int64) (bool, error)
 }
@@ -214,14 +222,20 @@ type AffiliateService struct {
 	settingService       *SettingService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCacheService  *BillingCacheService
+	balanceLedger        *BalanceLedgerService
 }
 
-func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AffiliateService {
+func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService, balanceLedger ...*BalanceLedgerService) *AffiliateService {
+	var ledger *BalanceLedgerService
+	if len(balanceLedger) > 0 {
+		ledger = balanceLedger[0]
+	}
 	svc := &AffiliateService{
 		repo:                 repo,
 		settingService:       settingService,
 		authCacheInvalidator: authCacheInvalidator,
 		billingCacheService:  billingCacheService,
+		balanceLedger:        ledger,
 	}
 	if joiner, ok := repo.(AffiliateTeamJoiner); ok {
 		svc.teamJoiner = joiner
@@ -454,7 +468,20 @@ func (s *AffiliateService) TransferAffiliateQuota(ctx context.Context, userID in
 		return 0, 0, infraerrors.ServiceUnavailable("SERVICE_UNAVAILABLE", "affiliate service unavailable")
 	}
 
-	transferred, balance, err := s.repo.TransferQuotaToBalance(ctx, userID)
+	var (
+		transferred float64
+		balance     float64
+		err         error
+	)
+	if s.balanceLedger != nil {
+		if ledgerRepo, ok := s.repo.(AffiliateBalanceLedgerTransferRepository); ok {
+			transferred, balance, err = ledgerRepo.TransferQuotaToBalanceWithLedger(ctx, userID, s.balanceLedger)
+		} else {
+			transferred, balance, err = s.repo.TransferQuotaToBalance(ctx, userID)
+		}
+	} else {
+		transferred, balance, err = s.repo.TransferQuotaToBalance(ctx, userID)
+	}
 	if err != nil {
 		return 0, 0, err
 	}

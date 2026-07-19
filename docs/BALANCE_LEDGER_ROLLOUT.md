@@ -1,0 +1,95 @@
+# Balance Ledger Rollout
+
+## Goal
+
+All future mutations of `users.balance` and `users.frozen_balance` should go
+through `BalanceLedgerService.ApplyDelta()`, so the balance update and the
+`balance_transactions` row are committed atomically and cache invalidation runs
+only after commit.
+
+## Current P1 Slice
+
+Implemented in this rollout:
+
+- `BalanceLedgerService.ApplyDelta()` reuses an existing ent transaction from
+  context when present; otherwise it opens and commits its own SQL transaction.
+- `/admin/users/:id/balance-history` prefers `balance_transactions` when the
+  user has matching ledger rows, and falls back to the P0 legacy union only when
+  the new ledger has no matching rows.
+- Admin balance adjustments create the legacy `redeem_codes` audit row and the
+  unified balance transaction in the same transaction.
+- Normal balance redeem codes use `ApplyDelta()` with source
+  `balance` / `redeem_code:<id>`.
+- Payment balance fulfillment still reuses redeem-code redemption, but overrides
+  the ledger source to `payment_recharge` / `payment_order:<id>`.
+- Promo-code grants use `ApplyDelta()` with source `promo_bonus`.
+- Affiliate quota transfers use `ApplyDelta()` with source `affiliate_balance`;
+  the legacy `user_affiliate_ledger` transfer row remains as the business audit
+  source and is linked by `source_id`.
+- Auth-source first-bind balance grants use `ApplyDelta()` with source
+  `auth_first_bind_grant`.
+- The legacy synchronous `UsageService.Create()` charge path uses
+  `ApplyDelta()` with source `usage_charge` and `allow_overdraft` policy.
+- Play balance grants use `ApplyDelta()` from the shared grant path, covering
+  check-in, makeup check-in, quiz, blindbox net change, arena settlement, daily
+  arena settlement, and team shared rewards. `team_affiliate_bonus` remains a
+  non-balance idempotency/affiliate-quota record.
+- `balance_ledger_direct_write_guard_test.go` fails if a new direct
+  balance/frozen-balance writer appears outside the audited allowlist.
+
+## Remaining Direct Writers
+
+These paths still need dedicated migration PRs before the rollout is complete:
+
+- User creation/update default balance snapshots in
+  `backend/internal/repository/user_repo.go`.
+- API usage billing and overdraft behavior in
+  `backend/internal/repository/user_repo.go`,
+  `backend/internal/repository/usage_billing_repo.go`, and
+  `backend/internal/service/gateway_usage_billing.go`.
+- Refund deduction, rollback, and reversal paths in
+  `backend/internal/service/payment_refund.go`.
+- Batch Image and Image Studio hold/capture/release flows in
+  `backend/internal/repository/usage_billing_repo.go`.
+- Legacy repository fallback methods:
+  `UpdateBalance`, `DeductBalance`, and `ApplyRedeemBalanceAdjustment`.
+
+## Source Type Rules
+
+- `payment_recharge`: paid balance orders.
+- `balance`: normal user redeem-code balance grants.
+- `admin_balance`: admin balance adjustment, with notes preserved in metadata.
+- `promo_bonus`: promo-code balance grants.
+- `affiliate_balance`: affiliate quota transfer to available balance.
+- `auth_first_bind_grant`: auth-source first-bind default balance grant.
+- `usage_charge`: API request balance charge.
+- `refund`: provider refund balance deduction.
+- `reversal`: rollback/reversal of a prior balance operation.
+- Play sources are kept as their existing source values:
+  `checkin`, `checkin_makeup`, `quiz`, `blindbox`, `arena_settlement`,
+  `arena_daily_settlement`, and `team_shared_reward`.
+
+## Backfill Rules
+
+- Backfill scripts must be idempotent, batchable, and dry-run capable.
+- Do not invent historical `balance_before` / `balance_after` values when the
+  source table does not contain reliable snapshots.
+- Use stable idempotency keys. For already-defined P0 sources, keep the existing
+  keys where possible:
+  `payment_order:<id>`, `redeem_code:<id>`, `promo_code_usage:<id>`,
+  `play_reward:<id>`, `usage_log:<id>`, and `payment_refund:<id>`.
+- Low-confidence signup/default-balance records must use `estimated` or
+  `needs_review`.
+
+## Verification
+
+For every rollout PR:
+
+```bash
+go test ./internal/service -run 'Test(AdminBalanceFlow|BalanceLedger|Redeem|Promo|Play)'
+go test ./migrations -run 'TestBalanceTransactions'
+make test
+GOFLAGS=-buildvcs=false make build
+./scripts/check-fork-integrity.sh
+git diff --check
+```

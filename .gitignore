@@ -151,6 +151,7 @@ docs/*
 !docs/BATCH_IMAGE_MVP.md
 !docs/growth-analytics.md
 !docs/ASYNC_IMAGE_TASKS.md
+!docs/BALANCE_LEDGER_ROLLOUT.md
 !docs/legal/
 !docs/legal/*.md
 !docs/archive/

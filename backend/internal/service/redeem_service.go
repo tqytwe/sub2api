@@ -142,6 +142,7 @@ type RedeemService struct {
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	affiliateService     *AffiliateService
+	balanceLedger        *BalanceLedgerService
 }
 
 // NewRedeemService 创建兑换码服务实例
@@ -154,6 +155,7 @@ func NewRedeemService(
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
 	affiliateService *AffiliateService,
+	balanceLedger *BalanceLedgerService,
 ) *RedeemService {
 	redeemUserRepo, _ := userRepo.(RedeemUserAdjustmentRepository)
 	return &RedeemService{
@@ -166,6 +168,7 @@ func NewRedeemService(
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
 		affiliateService:     affiliateService,
+		balanceLedger:        balanceLedger,
 	}
 }
 
@@ -457,7 +460,11 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	switch redeemCode.Type {
 	case RedeemTypeBalance:
 		amount := redeemCode.Value
-		if amount < 0 {
+		if s.balanceLedger != nil {
+			if err := s.applyRedeemBalanceLedgerDelta(txCtx, userID, redeemCode, amount); err != nil {
+				return nil, fmt.Errorf("update user balance: %w", err)
+			}
+		} else if amount < 0 {
 			if s.redeemUserRepo == nil {
 				return nil, errors.New("user repository does not support atomic redeem balance adjustments")
 			}
@@ -528,6 +535,102 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	return redeemCode, nil
+}
+
+func (s *RedeemService) applyRedeemBalanceLedgerDelta(ctx context.Context, userID int64, redeemCode *RedeemCode, amount float64) error {
+	source := BalanceLedgerSourceOverride{
+		SourceType:     "balance",
+		SourceID:       fmt.Sprintf("%d", redeemCode.ID),
+		IdempotencyKey: fmt.Sprintf("redeem_code:%d", redeemCode.ID),
+		ActorType:      BalanceLedgerActorUser,
+		ActorUserID:    &userID,
+		Description:    "兑换码充值",
+		Metadata: map[string]any{
+			"redeem_code_id": redeemCode.ID,
+			"code":           redeemCode.Code,
+			"redeem_type":    redeemCode.Type,
+			"value":          redeemCode.Value,
+		},
+	}
+	if amount < 0 {
+		source.Description = "兑换码余额扣减"
+		source.BalancePolicy = BalanceLedgerPolicyClampZero
+	}
+	if override, ok := BalanceLedgerSourceFromContext(ctx); ok {
+		source = mergeBalanceLedgerSourceOverride(source, override)
+	}
+	_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+		UserID:         userID,
+		BalanceDelta:   amount,
+		SourceType:     source.SourceType,
+		SourceID:       source.SourceID,
+		IdempotencyKey: source.IdempotencyKey,
+		ActorType:      source.ActorType,
+		ActorUserID:    source.ActorUserID,
+		Description:    source.Description,
+		Metadata:       source.Metadata,
+		BalancePolicy:  source.BalancePolicy,
+		FrozenPolicy:   source.FrozenPolicy,
+		CreatedAt:      source.CreatedAt,
+	})
+	if err != nil {
+		return err
+	}
+	if amount > 0 {
+		totalRechargedDelta, ok := RechargeTotalRechargedDeltaFromContext(ctx)
+		if !ok {
+			totalRechargedDelta = amount
+		}
+		if totalRechargedDelta > 0 {
+			if adjuster, ok := s.userRepo.(balanceLedgerTotalRechargedAdjuster); ok {
+				if err := adjuster.AdjustTotalRecharged(ctx, userID, totalRechargedDelta); err != nil {
+					return fmt.Errorf("update total recharged: %w", err)
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func mergeBalanceLedgerSourceOverride(base BalanceLedgerSourceOverride, override BalanceLedgerSourceOverride) BalanceLedgerSourceOverride {
+	if override.SourceType != "" {
+		base.SourceType = override.SourceType
+	}
+	if override.SourceID != "" {
+		base.SourceID = override.SourceID
+	}
+	if override.IdempotencyKey != "" {
+		base.IdempotencyKey = override.IdempotencyKey
+	}
+	if override.ActorType != "" {
+		base.ActorType = override.ActorType
+	}
+	if override.ActorUserID != nil {
+		base.ActorUserID = override.ActorUserID
+	}
+	if override.Description != "" {
+		base.Description = override.Description
+	}
+	if override.BalancePolicy != "" {
+		base.BalancePolicy = override.BalancePolicy
+	}
+	if override.FrozenPolicy != "" {
+		base.FrozenPolicy = override.FrozenPolicy
+	}
+	if override.CreatedAt != nil {
+		base.CreatedAt = override.CreatedAt
+	}
+	if len(override.Metadata) > 0 {
+		metadata := make(map[string]any, len(base.Metadata)+len(override.Metadata))
+		for k, v := range base.Metadata {
+			metadata[k] = v
+		}
+		for k, v := range override.Metadata {
+			metadata[k] = v
+		}
+		base.Metadata = metadata
+	}
+	return base
 }
 
 // invalidateRedeemCaches 失效兑换相关的缓存

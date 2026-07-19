@@ -18,6 +18,7 @@ type PlayService struct {
 	settingService     *SettingService
 	affiliateService   *AffiliateService
 	entClient          *dbent.Client
+	balanceLedger      *BalanceLedgerService
 	blindboxDrawSource func(max int64) (int64, error)
 }
 
@@ -28,7 +29,12 @@ func NewPlayService(
 	settingService *SettingService,
 	affiliateService *AffiliateService,
 	entClient *dbent.Client,
+	balanceLedger ...*BalanceLedgerService,
 ) *PlayService {
+	var ledger *BalanceLedgerService
+	if len(balanceLedger) > 0 {
+		ledger = balanceLedger[0]
+	}
 	return &PlayService{
 		repo:               repo,
 		userRepo:           userRepo,
@@ -36,6 +42,7 @@ func NewPlayService(
 		settingService:     settingService,
 		affiliateService:   affiliateService,
 		entClient:          entClient,
+		balanceLedger:      ledger,
 		blindboxDrawSource: cryptoBlindboxDrawSource,
 	}
 }
@@ -186,10 +193,56 @@ func (s *PlayService) grantBalanceInTx(
 		return err
 	}
 
+	if s.balanceLedger != nil {
+		if err := s.applyPlayBalanceLedgerDelta(txCtx, userID, amount, source, idempotencyKey, detail); err != nil {
+			return fmt.Errorf("update balance: %w", err)
+		}
+		return nil
+	}
 	if err := s.repo.UpdatePlayBalance(txCtx, userID, amount); err != nil {
 		return fmt.Errorf("update balance: %w", err)
 	}
 	return nil
+}
+
+func (s *PlayService) applyPlayBalanceLedgerDelta(ctx context.Context, userID int64, amount float64, source string, idempotencyKey string, detail map[string]any) error {
+	metadata := make(map[string]any, len(detail)+1)
+	for k, v := range detail {
+		metadata[k] = v
+	}
+	metadata["play_reward_idempotency_key"] = idempotencyKey
+	_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+		UserID:         userID,
+		BalanceDelta:   amount,
+		SourceType:     source,
+		SourceID:       idempotencyKey,
+		IdempotencyKey: idempotencyKey,
+		ActorType:      BalanceLedgerActorSystem,
+		Description:    playBalanceLedgerDescription(source),
+		Metadata:       metadata,
+	})
+	return err
+}
+
+func playBalanceLedgerDescription(source string) string {
+	switch source {
+	case PlayRewardSourceCheckin:
+		return "签到奖励"
+	case PlayRewardSourceCheckinMakeup:
+		return "补签奖励"
+	case PlayRewardSourceQuiz:
+		return "答题奖励"
+	case PlayRewardSourceBlindbox:
+		return "盲盒净变动"
+	case PlayRewardSourceArenaSettlement:
+		return "竞技场结算"
+	case PlayRewardSourceArenaDaily:
+		return "日榜竞技场结算"
+	case PlayRewardSourceTeamSharedReward:
+		return "组队共享奖励"
+	default:
+		return "玩法奖励"
+	}
 }
 
 func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayArenaCurrent, error) {

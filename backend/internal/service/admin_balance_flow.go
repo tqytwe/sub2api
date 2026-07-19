@@ -438,6 +438,39 @@ filtered AS (
 )
 `
 
+const adminBalanceTransactionFlowCTE = `
+WITH filtered AS (
+	SELECT
+		('balance_transaction:' || bt.id::text) AS flow_id,
+		bt.id AS sort_id,
+		bt.source_type::text AS type,
+		'balance_transactions'::text AS source_type,
+		bt.source_id::text AS source_id,
+		bt.balance_delta::double precision AS amount,
+		bt.balance_delta::double precision AS balance_delta,
+		bt.frozen_delta::double precision AS frozen_delta,
+		bt.balance_before::double precision AS balance_before,
+		bt.balance_after::double precision AS balance_after,
+		bt.frozen_before::double precision AS frozen_before,
+		bt.frozen_after::double precision AS frozen_after,
+		bt.created_at AS occurred_at,
+		bt.description::text AS description,
+		bt.actor_type::text AS actor_type,
+		bt.actor_user_id AS actor_user_id,
+		bt.source_type::text AS related_object_type,
+		bt.source_id::text AS related_object_id,
+		bt.idempotency_key::text AS reference,
+		COALESCE(bt.metadata->>'notes', '')::text AS notes,
+		bt.metadata AS metadata,
+		TRUE AS affects_balance,
+		bt.source_type IN ('payment_recharge', 'balance', 'admin_balance') AND bt.balance_delta > 0 AS is_recharge,
+		bt.confidence::text AS confidence
+	FROM balance_transactions bt
+	WHERE bt.user_id = $1
+	  AND ($2 = '' OR bt.source_type = $2)
+)
+`
+
 func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, flowType string) (*AdminBalanceFlowHistory, error) {
 	if userID <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_INPUT", "user_id must be greater than 0")
@@ -445,11 +478,15 @@ func (s *adminServiceImpl) GetUserBalanceHistory(ctx context.Context, userID int
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
 	flowType = strings.TrimSpace(flowType)
 
-	summary, total, err := s.getAdminBalanceFlowSummary(ctx, userID, flowType)
+	flowCTE, err := s.adminBalanceFlowQuerySource(ctx, userID, flowType)
 	if err != nil {
 		return nil, err
 	}
-	items, err := s.listAdminBalanceFlowItems(ctx, userID, flowType, params)
+	summary, total, err := s.getAdminBalanceFlowSummary(ctx, userID, flowType, flowCTE)
+	if err != nil {
+		return nil, err
+	}
+	items, err := s.listAdminBalanceFlowItems(ctx, userID, flowType, params, flowCTE)
 	if err != nil {
 		return nil, err
 	}
@@ -471,7 +508,11 @@ func (s *adminServiceImpl) GetUserBalanceReconciliation(ctx context.Context, use
 	if userID <= 0 {
 		return nil, infraerrors.BadRequest("INVALID_INPUT", "user_id must be greater than 0")
 	}
-	summary, _, err := s.getAdminBalanceFlowSummary(ctx, userID, "")
+	flowCTE, err := s.adminBalanceFlowQuerySource(ctx, userID, "")
+	if err != nil {
+		return nil, err
+	}
+	summary, _, err := s.getAdminBalanceFlowSummary(ctx, userID, "", flowCTE)
 	if err != nil {
 		return nil, err
 	}
@@ -479,7 +520,7 @@ func (s *adminServiceImpl) GetUserBalanceReconciliation(ctx context.Context, use
 	if err != nil {
 		return nil, err
 	}
-	recent, err := s.listAdminBalanceFlowItems(ctx, userID, "", pagination.PaginationParams{Page: 1, PageSize: 20})
+	recent, err := s.listAdminBalanceFlowItems(ctx, userID, "", pagination.PaginationParams{Page: 1, PageSize: 20}, flowCTE)
 	if err != nil {
 		return nil, err
 	}
@@ -509,7 +550,55 @@ func (s *adminServiceImpl) GetUserBalanceReconciliation(ctx context.Context, use
 	}, nil
 }
 
-func (s *adminServiceImpl) getAdminBalanceFlowSummary(ctx context.Context, userID int64, flowType string) (AdminBalanceFlowSummary, int64, error) {
+func (s *adminServiceImpl) adminBalanceFlowQuerySource(ctx context.Context, userID int64, flowType string) (string, error) {
+	if s == nil || s.entClient == nil {
+		return adminBalanceFlowCTE, nil
+	}
+	rows, err := s.entClient.QueryContext(ctx, `SELECT to_regclass('public.balance_transactions') IS NOT NULL`)
+	if err != nil {
+		return "", err
+	}
+	var exists bool
+	if rows.Next() {
+		if err := rows.Scan(&exists); err != nil {
+			_ = rows.Close()
+			return "", err
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return "", err
+	}
+	if !exists {
+		return adminBalanceFlowCTE, nil
+	}
+
+	rows, err = s.entClient.QueryContext(ctx, `
+SELECT EXISTS (
+	SELECT 1
+	FROM balance_transactions
+	WHERE user_id = $1
+	  AND ($2 = '' OR source_type = $2)
+)`, userID, flowType)
+	if err != nil {
+		return "", err
+	}
+	var hasRows bool
+	if rows.Next() {
+		if err := rows.Scan(&hasRows); err != nil {
+			_ = rows.Close()
+			return "", err
+		}
+	}
+	if err := rows.Close(); err != nil {
+		return "", err
+	}
+	if hasRows {
+		return adminBalanceTransactionFlowCTE, nil
+	}
+	return adminBalanceFlowCTE, nil
+}
+
+func (s *adminServiceImpl) getAdminBalanceFlowSummary(ctx context.Context, userID int64, flowType string, flowCTE string) (AdminBalanceFlowSummary, int64, error) {
 	if s == nil || s.entClient == nil {
 		return AdminBalanceFlowSummary{}, 0, nil
 	}
@@ -517,7 +606,7 @@ func (s *adminServiceImpl) getAdminBalanceFlowSummary(ctx context.Context, userI
 	if err != nil {
 		return AdminBalanceFlowSummary{}, 0, err
 	}
-	query := adminBalanceFlowCTE + `
+	query := flowCTE + `
 SELECT
 	COUNT(*)::bigint,
 	COALESCE(SUM(CASE WHEN balance_delta > 0 THEN balance_delta ELSE 0 END), 0)::double precision,
@@ -547,11 +636,11 @@ FROM filtered`
 	return summary, total, nil
 }
 
-func (s *adminServiceImpl) listAdminBalanceFlowItems(ctx context.Context, userID int64, flowType string, params pagination.PaginationParams) ([]AdminBalanceFlowItem, error) {
+func (s *adminServiceImpl) listAdminBalanceFlowItems(ctx context.Context, userID int64, flowType string, params pagination.PaginationParams, flowCTE string) ([]AdminBalanceFlowItem, error) {
 	if s == nil || s.entClient == nil {
 		return []AdminBalanceFlowItem{}, nil
 	}
-	query := adminBalanceFlowCTE + `
+	query := flowCTE + `
 SELECT
 	flow_id,
 	type,
