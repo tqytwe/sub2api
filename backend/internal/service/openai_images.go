@@ -525,13 +525,21 @@ func isGrokImageGenerationModel(model string) bool {
 
 func validateOpenAIImagesModel(model string) error {
 	model = strings.TrimSpace(model)
-	if isOpenAIImageGenerationModel(model) || isGeminiOpenAICompatibleImageModel(model) {
+	if isOpenAIImagesEndpointModel(model) || isGeminiOpenAICompatibleImageModel(model) {
 		return nil
 	}
 	if model == "" {
 		return fmt.Errorf("images endpoint requires an image model")
 	}
 	return fmt.Errorf("images endpoint requires an image model, got %q", model)
+}
+
+func isOpenAIImagesEndpointModel(model string) bool {
+	if isOpenAIImageGenerationModel(model) {
+		return true
+	}
+	capability, ok := ResolveImageStudioModelCapability(model)
+	return ok && capability.Platform == PlatformOpenAI
 }
 
 func isGeminiOpenAICompatibleImageModel(model string) bool {

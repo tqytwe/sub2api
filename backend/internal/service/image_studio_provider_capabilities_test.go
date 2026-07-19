@@ -65,6 +65,19 @@ func TestResolveImageStudioProviderCapabilityUsesProviderSpecificProfiles(t *tes
 	require.Empty(t, agnes.SupportedInputFidelities)
 	require.False(t, agnes.SupportsTransparency)
 	require.Equal(t, 0, agnes.MaxReferenceImages)
+
+	agnes20, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "agnes-image-2.0-flash")
+	require.True(t, ok)
+	require.Equal(t, PlatformOpenAI, agnes20.Platform)
+	require.Equal(t, "agnes", agnes20.ProviderID)
+	require.Equal(t, "agnes:agnes-image-2.0-flash:v1", agnes20.ProfileID)
+	require.Equal(t, []string{"create"}, agnes20.Operations)
+	require.Equal(t, "fixed", agnes20.SizingKind)
+	require.Equal(t, []string{"1024x1024"}, agnes20.SupportedSizes)
+	require.Empty(t, agnes20.SupportedAspectRatios)
+	require.Empty(t, agnes20.SupportedResolutions)
+	require.False(t, agnes20.SupportsTransparency)
+	require.Equal(t, 0, agnes20.MaxReferenceImages)
 }
 
 func TestResolveImageStudioProviderCapabilityGPTImage2VariantsInheritBaseProfile(t *testing.T) {
@@ -123,6 +136,11 @@ func TestResolveImageStudioModelCapabilityInfersModelFamilyWithoutTransportPlatf
 			platform: PlatformOpenAI,
 			profile:  "agnes:agnes-image-2.1-flash:v1",
 		},
+		{
+			model:    "agnes-image-2.0-flash",
+			platform: PlatformOpenAI,
+			profile:  "agnes:agnes-image-2.0-flash:v1",
+		},
 	}
 
 	for _, tt := range tests {
@@ -141,6 +159,10 @@ func TestResolveImageStudioModelCapabilityRejectsNonImageModels(t *testing.T) {
 		"text-embedding-3-large",
 		"gemini-3.1-pro",
 		"claude-opus-4-1",
+		"agnes-1.5-flash",
+		"agnes-2.0-flash",
+		"agnes-image-3.0-flash",
+		"agnes-video-v2.0",
 	} {
 		t.Run(model, func(t *testing.T) {
 			_, ok := ResolveImageStudioModelCapability(model)
@@ -160,6 +182,9 @@ func TestResolveImageStudioProviderCapabilityRejectsCrossPlatformModels(t *testi
 	require.False(t, ok)
 
 	_, ok = ResolveImageStudioProviderCapability(PlatformGemini, "agnes-image-2.1-flash")
+	require.False(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability(PlatformGemini, "agnes-image-2.0-flash")
 	require.False(t, ok)
 
 	_, ok = ResolveImageStudioProviderCapability("anthropic", "gpt-image-2")
@@ -257,4 +282,11 @@ func TestValidateImageStudioProviderOptions(t *testing.T) {
 	require.ErrorIs(t, ValidateImageStudioProviderOptions(agnes, "create", ImageStudioGenerateRequest{
 		Style: "vivid",
 	}), ErrImageStudioStyleNotSupported)
+
+	agnes20, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "agnes-image-2.0-flash")
+	require.True(t, ok)
+	require.NoError(t, ValidateImageStudioProviderOptions(agnes20, "create", ImageStudioGenerateRequest{}))
+	require.ErrorIs(t, ValidateImageStudioProviderOptions(agnes20, "edit", ImageStudioGenerateRequest{
+		ReferenceIDs: []string{"one"},
+	}), ErrImageStudioOperationNotSupported)
 }

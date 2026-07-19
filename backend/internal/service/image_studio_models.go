@@ -22,6 +22,7 @@ var imageStudioModelPreference = []string{
 	"gpt-image-1.5",
 	"gpt-image-1",
 	"agnes-image-2.1-flash",
+	"agnes-image-2.0-flash",
 	"gemini-3.1-flash-image",
 	"gemini-3.1-flash-image-preview",
 	"gemini-2.5-flash-image",
