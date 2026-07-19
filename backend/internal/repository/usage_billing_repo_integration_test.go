@@ -80,6 +80,58 @@ func TestUsageBillingRepositoryApply_DeduplicatesBalanceBilling(t *testing.T) {
 	require.Equal(t, 1, dedupCount)
 }
 
+func TestUsageBillingRepositoryApply_WithLedgerWritesUsageCharge(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	ledger := service.NewBalanceLedgerService(integrationDB, nil, nil)
+	repo := NewUsageBillingRepositoryWithLedger(client, integrationDB, ledger)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("usage-billing-ledger-%s@example.com", uuid.NewString()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-usage-billing-ledger-" + uuid.NewString(),
+		Name:   "billing-ledger",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name: "usage-billing-ledger-account-" + uuid.NewString(),
+		Type: service.AccountTypeAPIKey,
+	})
+
+	requestID := uuid.NewString()
+	cmd := &service.UsageBillingCommand{
+		RequestID:          requestID,
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		AccountID:          account.ID,
+		AccountType:        service.AccountTypeAPIKey,
+		Model:              "gpt-ledger",
+		BalanceCost:        1.25,
+		RequestPayloadHash: "payload-ledger",
+	}
+
+	result1, err := repo.Apply(ctx, cmd)
+	require.NoError(t, err)
+	require.True(t, result1.Applied)
+	require.NotNil(t, result1.NewBalance)
+	require.InDelta(t, 98.75, *result1.NewBalance, 0.000001)
+
+	result2, err := repo.Apply(ctx, cmd)
+	require.NoError(t, err)
+	require.False(t, result2.Applied)
+
+	requireUserBalanceAndFrozen(t, ctx, user.ID, 98.75, 0)
+	row := requireBalanceTransaction(t, ctx, user.ID, "usage_charge", fmt.Sprintf("usage_billing:%d:%s", apiKey.ID, requestID))
+	require.InDelta(t, -1.25, row.balanceDelta, 0.000001)
+	require.InDelta(t, 100, row.balanceBefore, 0.000001)
+	require.InDelta(t, 98.75, row.balanceAfter, 0.000001)
+	require.Contains(t, row.metadata, `"request_id": "`+requestID+`"`)
+	require.Contains(t, row.metadata, `"api_key_id": `+fmt.Sprint(apiKey.ID))
+}
+
 func TestUsageBillingRepositoryApply_RejectsCrossUserCharge(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)
@@ -397,6 +449,68 @@ func TestBatchImageSettlementPersistsRealBalanceLifecycle(t *testing.T) {
 	})
 }
 
+func TestUsageBillingRepositoryBatchImageHold_WithLedgerWritesFrozenLifecycle(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	ledger := service.NewBalanceLedgerService(integrationDB, nil, nil)
+	repo := NewUsageBillingRepositoryWithLedger(client, integrationDB, ledger)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-image-ledger-%s@example.com", uuid.NewString()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-batch-image-ledger-" + uuid.NewString(),
+		Name:   "batch-image-ledger",
+	})
+	batchID := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	holdID := service.BatchImageHoldRequestID(batchID)
+	hash := "batch-ledger-" + uuid.NewString()
+
+	reserved, err := repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:          holdID,
+		HoldRequestID:      holdID,
+		CaptureRequestID:   service.BatchImageCaptureRequestID(batchID),
+		ReleaseRequestID:   service.BatchImageReleaseRequestID(batchID),
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		BatchID:            batchID,
+		HoldAmount:         10,
+		RequestPayloadHash: hash,
+	})
+	require.NoError(t, err)
+	require.True(t, reserved.Applied)
+	requireUserBalanceAndFrozen(t, ctx, user.ID, 90, 10)
+
+	captured, err := repo.CaptureBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:          service.BatchImageCaptureRequestID(batchID),
+		HoldRequestID:      holdID,
+		CaptureRequestID:   service.BatchImageCaptureRequestID(batchID),
+		ReleaseRequestID:   service.BatchImageReleaseRequestID(batchID),
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		BatchID:            batchID,
+		HoldAmount:         10,
+		ActualAmount:       6,
+		RequestPayloadHash: hash,
+	})
+	require.NoError(t, err)
+	require.True(t, captured.Applied)
+	requireUserBalanceAndFrozen(t, ctx, user.ID, 94, 0)
+
+	holdRow := requireBalanceTransaction(t, ctx, user.ID, "image_balance_hold", fmt.Sprintf("image_balance_hold:%d:%s", apiKey.ID, holdID))
+	require.InDelta(t, -10, holdRow.balanceDelta, 0.000001)
+	require.InDelta(t, 10, holdRow.frozenDelta, 0.000001)
+	require.Contains(t, holdRow.metadata, `"batch_id": "`+batchID+`"`)
+
+	captureRow := requireBalanceTransaction(t, ctx, user.ID, "image_balance_capture", fmt.Sprintf("image_balance_capture:%d:%s", apiKey.ID, service.BatchImageCaptureRequestID(batchID)))
+	require.InDelta(t, 4, captureRow.balanceDelta, 0.000001)
+	require.InDelta(t, -10, captureRow.frozenDelta, 0.000001)
+	require.Contains(t, captureRow.metadata, `"actual_amount": 6`)
+}
+
 func requireUserBalanceAndFrozen(t *testing.T, ctx context.Context, userID int64, wantBalance, wantFrozen float64) {
 	t.Helper()
 	var balance, frozen float64
@@ -407,6 +521,53 @@ func requireUserBalanceAndFrozen(t *testing.T, ctx context.Context, userID int64
 	`, userID).Scan(&balance, &frozen))
 	require.InDelta(t, wantBalance, balance, 0.000001)
 	require.InDelta(t, wantFrozen, frozen, 0.000001)
+}
+
+type balanceTransactionAssertionRow struct {
+	balanceDelta  float64
+	balanceBefore float64
+	balanceAfter  float64
+	frozenDelta   float64
+	frozenBefore  float64
+	frozenAfter   float64
+	metadata      string
+}
+
+func requireBalanceTransaction(t *testing.T, ctx context.Context, userID int64, sourceType, idempotencyKey string) balanceTransactionAssertionRow {
+	t.Helper()
+	var row balanceTransactionAssertionRow
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		SELECT
+			balance_delta::double precision,
+			COALESCE(balance_before, 0)::double precision,
+			COALESCE(balance_after, 0)::double precision,
+			frozen_delta::double precision,
+			COALESCE(frozen_before, 0)::double precision,
+			COALESCE(frozen_after, 0)::double precision,
+			metadata::text
+		FROM balance_transactions
+		WHERE user_id = $1
+		  AND source_type = $2
+		  AND idempotency_key = $3
+	`, userID, sourceType, idempotencyKey).Scan(
+		&row.balanceDelta,
+		&row.balanceBefore,
+		&row.balanceAfter,
+		&row.frozenDelta,
+		&row.frozenBefore,
+		&row.frozenAfter,
+		&row.metadata,
+	))
+	var count int
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		SELECT COUNT(*)
+		FROM balance_transactions
+		WHERE user_id = $1
+		  AND source_type = $2
+		  AND idempotency_key = $3
+	`, userID, sourceType, idempotencyKey).Scan(&count))
+	require.Equal(t, 1, count)
+	return row
 }
 
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
