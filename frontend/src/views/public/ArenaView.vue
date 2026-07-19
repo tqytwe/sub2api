@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
+import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, {
   type PlayArenaCurrent,
@@ -35,6 +36,7 @@ const dailyCurrent = ref<PlayArenaCurrent | null>(null)
 const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
 const dailyBoard = ref<PlayArenaLeaderboard | null>(null)
 const quests = ref<PlayQuestToday | null>(null)
+const arenaCelebrationDismissed = ref(false)
 
 const current = computed(() => (tab.value === 'daily' ? dailyCurrent.value : monthlyCurrent.value))
 const leaderboard = computed(() => (tab.value === 'daily' ? dailyBoard.value : monthlyBoard.value))
@@ -50,6 +52,12 @@ const rankRows = computed(() => leaderboardRows.value.filter(row => row.rank > 3
 const selectedTokenSum = computed(() => current.value?.display_token_sum ?? current.value?.token_sum ?? 0)
 const selectedRank = computed(() => current.value?.rank ?? null)
 const selectedGap = computed(() => current.value?.tokens_to_prev_rank ?? 0)
+const selectedEstimatedReward = computed(() => current.value?.estimated_reward ?? 0)
+const showArenaSettlementCelebration = computed(() =>
+  !arenaCelebrationDismissed.value &&
+  current.value?.period?.status === 'settled' &&
+  selectedEstimatedReward.value > 0,
+)
 const rankProgressPercent = computed(() => {
   if (!selectedTokenSum.value || !selectedGap.value) return selectedRank.value ? 100 : 0
   return Math.max(6, Math.min(100, Math.round((selectedTokenSum.value / (selectedTokenSum.value + selectedGap.value)) * 100)))
@@ -81,11 +89,45 @@ function formatTokens(value?: number) {
   return (value ?? 0).toLocaleString()
 }
 
+function formatMoney(value?: number) {
+  return (value ?? 0).toFixed(2)
+}
+
 function toneForRank(rank: number): RankTone {
   if (rank === 1) return 'gold'
   if (rank === 2) return 'silver'
   if (rank === 3) return 'bronze'
   return 'standard'
+}
+
+function arenaCelebrationKey() {
+  const period = current.value?.period
+  return period?.id ? `play-arena-settled:${tab.value}:${period.id}` : ''
+}
+
+function syncArenaCelebrationSeen() {
+  const key = arenaCelebrationKey()
+  if (!key) {
+    arenaCelebrationDismissed.value = false
+    return
+  }
+  try {
+    arenaCelebrationDismissed.value = window.sessionStorage.getItem(key) === '1'
+  } catch {
+    arenaCelebrationDismissed.value = false
+  }
+}
+
+function dismissArenaCelebration() {
+  const key = arenaCelebrationKey()
+  if (key) {
+    try {
+      window.sessionStorage.setItem(key, '1')
+    } catch {
+      // Ignore storage failures; closing the overlay for this view is enough.
+    }
+  }
+  arenaCelebrationDismissed.value = true
 }
 
 function isCurrentRank(row: PlayArenaScore) {
@@ -114,6 +156,7 @@ async function load() {
     monthlyBoard.value = mBoard
     dailyBoard.value = dBoard
     quests.value = q
+    syncArenaCelebrationSeen()
     if (q?.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
       trackQuestCompleteOnce('api_call')
     }
@@ -129,6 +172,7 @@ async function load() {
 }
 
 onMounted(load)
+watch([tab, current], syncArenaCelebrationSeen)
 </script>
 
 <template>
@@ -185,6 +229,9 @@ onMounted(load)
                 <span>{{ rewardStatus }}</span>
                 <span>{{ t('arena.competitive.topRange') }}</span>
               </div>
+              <p v-if="selectedEstimatedReward > 0" class="arena-estimated-reward">
+                {{ t('arena.estimatedReward', { amount: formatMoney(selectedEstimatedReward) }) }}
+              </p>
               <div v-if="monthlyCurrent?.recharge_boost_active || monthlyCurrent?.campaign_active" class="arena-buff-row">
                 <span v-if="monthlyCurrent?.recharge_boost_active" class="arena-buff">
                   {{ t('arena.boostActive', { mult: monthlyCurrent.arena_score_multiplier || 1.5 }) }}
@@ -200,6 +247,11 @@ onMounted(load)
                 <li>{{ t('arena.competitive.rewardRuleSettle') }}</li>
                 <li>{{ t('arena.competitive.rewardRuleEnergy') }}</li>
               </ul>
+              <div class="arena-formula-panel">
+                <strong>{{ t('arena.competitive.formulaTitle') }}</strong>
+                <span>{{ t('arena.competitive.formulaRank') }}</span>
+                <span>{{ t('arena.competitive.formulaBoost') }}</span>
+              </div>
             </div>
           </section>
 
@@ -315,6 +367,18 @@ onMounted(load)
       </div>
     </main>
 
+    <RewardCelebrationOverlay
+      :open="showArenaSettlementCelebration"
+      :title="t('arena.competitive.settlementCelebrationTitle')"
+      :amount="`$${formatMoney(selectedEstimatedReward)}`"
+      :subtitle="t('arena.competitive.settlementCelebrationSubtitle')"
+      :details="[rewardStatus, t('arena.competitive.formulaRank')]"
+      color-key="gold"
+      variant="settlement"
+      :secondary-label="t('arena.competitive.viewDetails')"
+      @close="dismissArenaCelebration"
+      @secondary="dismissArenaCelebration"
+    />
     <SupportFloatingCard />
   </div>
 </template>
@@ -499,6 +563,29 @@ onMounted(load)
 
 .arena-rank-row.current {
   box-shadow: inset 3px 0 0 #1f7a5b;
+}
+
+.arena-estimated-reward {
+  margin: 12px 0 0;
+  border-radius: 8px;
+  background: rgba(31, 122, 91, 0.1);
+  padding: 10px 12px;
+  color: #1f7a5b;
+  font-weight: 700;
+}
+
+.arena-formula-panel {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.arena-formula-panel strong {
+  color: var(--text);
 }
 
 .arena-quest-grid {

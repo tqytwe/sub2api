@@ -32,6 +32,22 @@ func TestDefaultBlindboxPoolIsApprovedPool(t *testing.T) {
 	}, pool.Tiers)
 }
 
+func TestDefaultVIPBlindboxPoolsUseApprovedV0ToV5Pools(t *testing.T) {
+	pools := defaultVIPBlindboxPools()
+
+	require.Len(t, pools, 6)
+	previousExpected := -1.0
+	for tier, item := range pools {
+		require.Equal(t, tier, item.Tier)
+		require.NoError(t, ValidateBlindboxPool(item.Pool))
+		require.GreaterOrEqual(t, item.Pool.ExpectedReward(), previousExpected)
+		previousExpected = item.Pool.ExpectedReward()
+	}
+	require.Equal(t, "season-1-v1", pools[0].Pool.Version)
+	require.Equal(t, "season-1-vip-v5", pools[5].Pool.Version)
+	require.InDelta(t, 0.495035, pools[5].Pool.ExpectedReward(), 1e-9)
+}
+
 func TestBlindboxPoolExpectedReward(t *testing.T) {
 	pool := defaultBlindboxPool()
 

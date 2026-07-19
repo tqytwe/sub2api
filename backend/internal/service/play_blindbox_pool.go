@@ -46,6 +46,139 @@ func defaultBlindboxPool() PlayBlindboxPool {
 	}
 }
 
+func defaultVIPBlindboxPools() []PlayVIPBlindboxPool {
+	return []PlayVIPBlindboxPool{
+		{Tier: 0, Pool: defaultBlindboxPool()},
+		{Tier: 1, Pool: PlayBlindboxPool{
+			Version: "season-1-vip-v1",
+			Cost:    0.5,
+			RTPCap:  0.92,
+			Tiers: []PlayBlindboxTier{
+				{Amount: 0.05, Weight: 3895},
+				{Amount: 0.20, Weight: 3000},
+				{Amount: 0.50, Weight: 1900},
+				{Amount: 1, Weight: 805},
+				{Amount: 3, Weight: 300},
+				{Amount: 10, Weight: 90},
+				{Amount: 20, Weight: 10},
+			},
+		}},
+		{Tier: 2, Pool: PlayBlindboxPool{
+			Version: "season-1-vip-v2",
+			Cost:    0.5,
+			RTPCap:  0.94,
+			Tiers: []PlayBlindboxTier{
+				{Amount: 0.05, Weight: 3710},
+				{Amount: 0.20, Weight: 3000},
+				{Amount: 0.50, Weight: 2050},
+				{Amount: 1, Weight: 840},
+				{Amount: 3, Weight: 300},
+				{Amount: 10, Weight: 90},
+				{Amount: 20, Weight: 10},
+			},
+		}},
+		{Tier: 3, Pool: PlayBlindboxPool{
+			Version: "season-1-vip-v3",
+			Cost:    0.5,
+			RTPCap:  0.96,
+			Tiers: []PlayBlindboxTier{
+				{Amount: 0.05, Weight: 3570},
+				{Amount: 0.20, Weight: 3000},
+				{Amount: 0.50, Weight: 2150},
+				{Amount: 1, Weight: 870},
+				{Amount: 3, Weight: 310},
+				{Amount: 10, Weight: 90},
+				{Amount: 20, Weight: 10},
+			},
+		}},
+		{Tier: 4, Pool: PlayBlindboxPool{
+			Version: "season-1-vip-v4",
+			Cost:    0.5,
+			RTPCap:  0.98,
+			Tiers: []PlayBlindboxTier{
+				{Amount: 0.05, Weight: 3434},
+				{Amount: 0.20, Weight: 3000},
+				{Amount: 0.50, Weight: 2250},
+				{Amount: 1, Weight: 900},
+				{Amount: 3, Weight: 315},
+				{Amount: 10, Weight: 91},
+				{Amount: 20, Weight: 10},
+			},
+		}},
+		{Tier: 5, Pool: PlayBlindboxPool{
+			Version: "season-1-vip-v5",
+			Cost:    0.5,
+			RTPCap:  1,
+			Tiers: []PlayBlindboxTier{
+				{Amount: 0.05, Weight: 3307},
+				{Amount: 0.20, Weight: 3000},
+				{Amount: 0.50, Weight: 2350},
+				{Amount: 1, Weight: 920},
+				{Amount: 3, Weight: 320},
+				{Amount: 10, Weight: 93},
+				{Amount: 20, Weight: 10},
+			},
+		}},
+	}
+}
+
+func resolveVIPBlindboxPool(base PlayBlindboxPool, vip PlayVIPStatus) PlayBlindboxPool {
+	for _, item := range resolveVIPBlindboxPools(base) {
+		if item.Tier == vip.Tier {
+			return cloneBlindboxPoolValue(item.Pool)
+		}
+	}
+	return cloneBlindboxPoolValue(base)
+}
+
+func resolveNextVIPBlindboxPool(base PlayBlindboxPool, vip PlayVIPStatus) *PlayBlindboxPool {
+	if vip.NextTier <= vip.Tier {
+		return nil
+	}
+	for _, item := range resolveVIPBlindboxPools(base) {
+		if item.Tier == vip.NextTier {
+			next := cloneBlindboxPoolValue(item.Pool)
+			return &next
+		}
+	}
+	return nil
+}
+
+func resolveVIPBlindboxPools(base PlayBlindboxPool) []PlayVIPBlindboxPool {
+	if blindboxPoolsEquivalent(base, defaultBlindboxPool()) {
+		return defaultVIPBlindboxPools()
+	}
+	pools := make([]PlayVIPBlindboxPool, 0, len(defaultPlayVIPTiers()))
+	for _, tier := range defaultPlayVIPTiers() {
+		pools = append(pools, PlayVIPBlindboxPool{
+			Tier: tier.Tier,
+			Pool: cloneBlindboxPoolValue(base),
+		})
+	}
+	return pools
+}
+
+func cloneBlindboxPoolValue(pool PlayBlindboxPool) PlayBlindboxPool {
+	pool.Tiers = append([]PlayBlindboxTier(nil), pool.Tiers...)
+	return pool
+}
+
+func blindboxPoolsEquivalent(a, b PlayBlindboxPool) bool {
+	if a.Version != b.Version ||
+		math.Abs(a.Cost-b.Cost) > 1e-12 ||
+		math.Abs(a.RTPCap-b.RTPCap) > 1e-12 ||
+		len(a.Tiers) != len(b.Tiers) {
+		return false
+	}
+	for i := range a.Tiers {
+		if math.Abs(a.Tiers[i].Amount-b.Tiers[i].Amount) > 1e-12 ||
+			a.Tiers[i].Weight != b.Tiers[i].Weight {
+			return false
+		}
+	}
+	return true
+}
+
 func (p PlayBlindboxPool) ExpectedReward() float64 {
 	var weightedReward float64
 	for _, tier := range p.Tiers {

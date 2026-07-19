@@ -19,14 +19,33 @@ import (
 
 func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*PlayBlindboxStatus, error) {
 	rt := s.GetRuntime(ctx)
+	vip := resolveVIPStatus(0, rt.VIPTiers)
+	if rt.BlindboxEnabled && userID > 0 {
+		resolvedVIP, err := s.resolveBlindboxVIPStatus(ctx, userID, rt)
+		if err != nil {
+			return nil, err
+		}
+		vip = resolvedVIP
+	}
+	pool := resolveVIPBlindboxPool(rt.BlindboxPool, vip)
+	nextPool := resolveNextVIPBlindboxPool(rt.BlindboxPool, vip)
 	now := s.serverNow()
 	date := s.serverDate(now)
 	out := &PlayBlindboxStatus{
-		Enabled:      rt.BlindboxEnabled,
-		CostAmount:   rt.BlindboxPool.Cost,
-		BlindboxPool: rt.BlindboxPool,
-		DailyLimit:   rt.BlindboxDailyLimit,
-		ServerDate:   date.Format("2006-01-02"),
+		Enabled:        rt.BlindboxEnabled,
+		CostAmount:     pool.Cost,
+		BlindboxPool:   pool,
+		CurrentPool:    pool,
+		NextPool:       nextPool,
+		VIPTier:        vip,
+		ExpectedReward: pool.ExpectedReward(),
+		PoolVersion:    pool.Version,
+		RTPCap:         pool.RTPCap,
+		DailyLimit:     rt.BlindboxDailyLimit,
+		ServerDate:     date.Format("2006-01-02"),
+	}
+	if nextPool != nil {
+		out.NextExpectedReward = nextPool.ExpectedReward()
 	}
 	out.EffectiveLimit = rt.BlindboxDailyLimit
 	if !rt.BlindboxEnabled || userID <= 0 {
@@ -61,12 +80,16 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	if !rt.BlindboxEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	pool := rt.BlindboxPool
+	vip, err := s.resolveBlindboxVIPStatus(ctx, userID, rt)
+	if err != nil {
+		return nil, err
+	}
+	pool := resolveVIPBlindboxPool(rt.BlindboxPool, vip)
 	if err := ValidateBlindboxPool(pool); err != nil {
 		return nil, fmt.Errorf("blindbox pool not configured: %w", err)
 	}
 	cost := pool.Cost
-	idempotencyKey, err := scopeBlindboxIdempotencyKey(userID, idempotencyKey)
+	idempotencyKey, err = scopeBlindboxIdempotencyKey(userID, idempotencyKey)
 	if err != nil {
 		return nil, err
 	}
@@ -113,12 +136,17 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	}
 
 	if err := s.grantBalanceInTx(txCtx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, map[string]any{
-		"open_date":     dateKey,
-		"cost_amount":   cost,
-		"reward_amount": reward,
-		"net_amount":    net,
-		"pool_version":  pool.Version,
-		"open_source":   openSource,
+		"open_date":       dateKey,
+		"cost_amount":     cost,
+		"reward_amount":   reward,
+		"net_amount":      net,
+		"pool_version":    pool.Version,
+		"open_source":     openSource,
+		"vip_tier":        float64(vip.Tier),
+		"vip_label":       vip.Label,
+		"vip_color_key":   vip.ColorKey,
+		"expected_reward": pool.ExpectedReward(),
+		"rtp_cap":         pool.RTPCap,
 	}, func(txCtx context.Context) error {
 		return s.repo.InsertBlindboxOpenRecord(txCtx, PlayBlindboxOpenRecord{
 			UserID:         userID,
@@ -140,14 +168,32 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	}
 
 	return &PlayBlindboxOpenResult{
-		CostAmount:   cost,
-		RewardAmount: reward,
-		NetAmount:    net,
-		OpensToday:   opens + 1,
-		ServerDate:   dateKey,
-		PoolVersion:  pool.Version,
-		OpenSource:   openSource,
+		CostAmount:     cost,
+		RewardAmount:   reward,
+		NetAmount:      net,
+		OpensToday:     opens + 1,
+		ServerDate:     dateKey,
+		PoolVersion:    pool.Version,
+		OpenSource:     openSource,
+		VIPTier:        vip,
+		ExpectedReward: pool.ExpectedReward(),
+		RTPCap:         pool.RTPCap,
 	}, nil
+}
+
+func (s *PlayService) resolveBlindboxVIPStatus(ctx context.Context, userID int64, rt PlayRuntime) (PlayVIPStatus, error) {
+	vip := resolveVIPStatus(0, rt.VIPTiers)
+	if userID <= 0 || s.userRepo == nil {
+		return vip, nil
+	}
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return vip, err
+	}
+	if user == nil {
+		return vip, nil
+	}
+	return resolveVIPStatus(user.TotalRecharged, rt.VIPTiers), nil
 }
 
 func scopeBlindboxIdempotencyKey(userID int64, raw string) (string, error) {

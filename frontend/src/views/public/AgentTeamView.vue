@@ -6,6 +6,7 @@ import { useAppStore } from '@/stores/app'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
+import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, { type PlayTeamMe, type PlayTeamSettlementRecord } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
@@ -24,6 +25,7 @@ const teamMe = ref<PlayTeamMe | null>(null)
 const teamName = ref('')
 const inviteCode = ref('')
 const settlements = ref<PlayTeamSettlementRecord[]>([])
+const teamCelebrationDismissed = ref(false)
 
 const isCaptain = computed(
   () => teamMe.value?.team && authStore.user?.id === teamMe.value.team.captain_id,
@@ -37,6 +39,33 @@ const sortedMembers = computed(() => {
   return [...members].sort((a, b) => Number(b.spend) - Number(a.spend))
 })
 const currentRewardTiers = computed(() => teamMe.value?.team?.reward_tiers ?? [])
+const paidCelebration = computed(() => {
+  const userID = authStore.user?.id
+  if (!userID) return null
+  for (const record of settlements.value) {
+    const allocation = record.allocations.find(item => item.user_id === userID && item.payout_status === 'paid')
+    if (allocation) return { record, allocation }
+  }
+  return null
+})
+const showTeamCelebration = computed(() => Boolean(paidCelebration.value) && !teamCelebrationDismissed.value)
+const teamCelebrationAmount = computed(() => formatMoney(paidCelebration.value?.allocation.reward_amount))
+const teamCelebrationDetails = computed(() => {
+  const context = paidCelebration.value
+  if (!context) return []
+  return [
+    t('agentTeam.poolStatus', {
+      pool: formatMoney(context.record.settlement.pool_amount),
+      status: settlementStatusLabel(context.record.settlement.status),
+    }),
+    t('agentTeam.allocationLine', {
+      contribution: formatMoney(context.allocation.contribution),
+      ratio: (Number(context.allocation.ratio) * 100).toFixed(1),
+      reward: formatMoney(context.allocation.reward_amount),
+      status: payoutStatusLabel(context.allocation.payout_status),
+    }),
+  ]
+})
 
 function formatMoney(value: string | number | undefined) {
   return Number(value ?? 0).toFixed(2)
@@ -69,6 +98,36 @@ function tierReached(threshold: string) {
   return teamSpend.value >= Number(threshold)
 }
 
+function teamCelebrationKey() {
+  const allocationID = paidCelebration.value?.allocation.id
+  return allocationID ? `play-team-paid:${allocationID}` : ''
+}
+
+function syncTeamCelebrationSeen() {
+  const key = teamCelebrationKey()
+  if (!key) {
+    teamCelebrationDismissed.value = false
+    return
+  }
+  try {
+    teamCelebrationDismissed.value = window.sessionStorage.getItem(key) === '1'
+  } catch {
+    teamCelebrationDismissed.value = false
+  }
+}
+
+function dismissTeamCelebration() {
+  const key = teamCelebrationKey()
+  if (key) {
+    try {
+      window.sessionStorage.setItem(key, '1')
+    } catch {
+      // Ignore storage failures; closing the overlay for this view is enough.
+    }
+  }
+  teamCelebrationDismissed.value = true
+}
+
 async function loadTeam() {
   if (!authStore.isAuthenticated) {
     teamMe.value = { enabled: false }
@@ -79,6 +138,7 @@ async function loadTeam() {
   try {
     teamMe.value = await playAPI.getTeamMe()
     settlements.value = teamMe.value?.team ? await playAPI.getTeamSettlements() : []
+    syncTeamCelebrationSeen()
   } catch {
     teamMe.value = null
   } finally {
@@ -228,6 +288,12 @@ onMounted(loadTeam)
                 <p class="agent-panel-label">{{ t('agentTeam.teamRecord') }}</p>
                 <div class="agent-team-pool">${{ formatMoney(teamMe.team.estimated_pool) }}</div>
                 <p>{{ t('agentTeam.rewardRuleDetail') }}</p>
+                <div class="agent-formula-panel">
+                  <strong>{{ t('agentTeam.formulaTitle') }}</strong>
+                  <span>{{ t('agentTeam.poolFormula') }}</span>
+                  <span>{{ t('agentTeam.memberFormula') }}</span>
+                  <span>{{ t('agentTeam.settlementSnapshotRule') }}</span>
+                </div>
                 <div class="agent-tier-track">
                   <span
                     v-for="tier in currentRewardTiers"
@@ -361,6 +427,18 @@ onMounted(loadTeam)
       </div>
     </main>
 
+    <RewardCelebrationOverlay
+      :open="showTeamCelebration"
+      :title="t('agentTeam.paidCelebrationTitle')"
+      :amount="`$${teamCelebrationAmount}`"
+      :subtitle="t('agentTeam.settlementSnapshotRule')"
+      :details="teamCelebrationDetails"
+      color-key="gold"
+      variant="settlement"
+      :secondary-label="t('agentTeam.settlementHistory')"
+      @close="dismissTeamCelebration"
+      @secondary="dismissTeamCelebration"
+    />
     <SupportFloatingCard />
   </div>
 </template>
@@ -442,6 +520,20 @@ onMounted(loadTeam)
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 16px;
+}
+
+.agent-formula-panel {
+  display: grid;
+  gap: 6px;
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.agent-formula-panel strong {
+  color: var(--text);
 }
 
 .agent-tier-track span {

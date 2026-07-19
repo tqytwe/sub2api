@@ -80,6 +80,11 @@ const messages: Record<string, string> = {
   'agentTeam.nextTier': '再消费 ${amount} 达到 ${threshold} 档位',
   'agentTeam.rewardRule': '按成员实际消费比例分配，次月自动结算，每队每月上限 ${cap}',
   'agentTeam.rewardRuleDetail': '共享奖池按成员实际消费比例分配给成员；队长负责邀请和管理，不独占共享奖池。',
+  'agentTeam.formulaTitle': '奖励怎么算',
+  'agentTeam.poolFormula': '团队奖池 = 团队月消费 × 当前达标比例，且不超过封顶。',
+  'agentTeam.memberFormula': '个人预计奖励 = 个人消费 / 团队总消费 × 团队奖池。',
+  'agentTeam.settlementSnapshotRule': '最终以月结快照为准，预计值会随成员贡献变化。',
+  'agentTeam.paidCelebrationTitle': '本期团队奖励已到账',
   'agentTeam.teamRecord': '本月团队战绩',
   'agentTeam.nextTierTitle': '下一档',
   'agentTeam.moreToNextTier': '再消费 ${amount}',
@@ -187,11 +192,11 @@ describe('AgentTeamView competitive layout', () => {
           reward_rate: '0.08',
           pool_amount: '70.82',
           cap_amount: '88.00',
-          status: 'processing',
+          status: 'completed',
         },
         allocations: [
           { id: 1, settlement_id: 7, user_id: 101, contribution: '368.20', ratio: '0.42', reward_amount: '29.74', payout_status: 'processing' },
-          { id: 2, settlement_id: 7, user_id: 103, contribution: '178.90', ratio: '0.20', reward_amount: '14.16', payout_status: 'failed' },
+          { id: 2, settlement_id: 7, user_id: 103, contribution: '178.90', ratio: '0.20', reward_amount: '14.16', payout_status: 'paid' },
         ],
       },
     ])
@@ -203,11 +208,14 @@ describe('AgentTeamView competitive layout', () => {
 
     expect(wrapper.find('.agent-team-score-panel').text()).toContain('$70.82')
     expect(wrapper.text()).toContain('队长负责邀请和管理，不独占共享奖池')
+    expect(wrapper.text()).toContain('团队奖池 = 团队月消费 × 当前达标比例')
+    expect(wrapper.text()).toContain('个人预计奖励 = 个人消费 / 团队总消费 × 团队奖池')
     expect(wrapper.findAll('.agent-member-card')).toHaveLength(4)
     expect(wrapper.find('.agent-member-card.tone-gold').text()).toContain('QuoRem')
     expect(wrapper.find('.agent-member-card.current').text()).toContain('你')
-    expect(wrapper.text()).toContain('结算中')
+    expect(wrapper.text()).toContain('已完成')
     expect(wrapper.text()).toContain('发放中')
-    expect(wrapper.text()).toContain('发放失败')
+    expect(wrapper.text()).toContain('已到账')
+    expect(wrapper.find('.reward-celebration-overlay').text()).toContain('$14.16')
   })
 })

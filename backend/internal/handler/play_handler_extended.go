@@ -9,21 +9,35 @@ import (
 )
 
 type playBlindboxStatusDTO struct {
-	Enabled             bool                 `json:"enabled"`
-	CostAmount          float64              `json:"cost_amount"`
-	Pool                *playBlindboxPoolDTO `json:"pool,omitempty"`
-	DailyLimit          int                  `json:"daily_limit"`
-	EffectiveLimit      int                  `json:"effective_limit,omitempty"`
-	OpensToday          int                  `json:"opens_today"`
-	CanOpen             bool                 `json:"can_open"`
-	ServerDate          string               `json:"server_date"`
-	RechargeBoostActive bool                 `json:"recharge_boost_active,omitempty"`
-	CampaignActive      bool                 `json:"campaign_active,omitempty"`
+	Enabled             bool                  `json:"enabled"`
+	CostAmount          float64               `json:"cost_amount"`
+	Pool                *playBlindboxPoolDTO  `json:"pool,omitempty"`
+	CurrentPool         *playBlindboxPoolDTO  `json:"current_pool,omitempty"`
+	NextPool            *playBlindboxPoolDTO  `json:"next_pool,omitempty"`
+	VIPTier             service.PlayVIPStatus `json:"vip_tier"`
+	ExpectedReward      float64               `json:"expected_reward,omitempty"`
+	NextExpectedReward  float64               `json:"next_expected_reward,omitempty"`
+	PoolVersion         string                `json:"pool_version,omitempty"`
+	RTPCap              float64               `json:"rtp_cap,omitempty"`
+	DailyLimit          int                   `json:"daily_limit"`
+	EffectiveLimit      int                   `json:"effective_limit,omitempty"`
+	OpensToday          int                   `json:"opens_today"`
+	CanOpen             bool                  `json:"can_open"`
+	ServerDate          string                `json:"server_date"`
+	RechargeBoostActive bool                  `json:"recharge_boost_active,omitempty"`
+	CampaignActive      bool                  `json:"campaign_active,omitempty"`
 }
 
 type playBlindboxPoolResponseDTO struct {
-	Enabled bool                `json:"enabled"`
-	Pool    playBlindboxPoolDTO `json:"pool"`
+	Enabled            bool                  `json:"enabled"`
+	Pool               playBlindboxPoolDTO   `json:"pool"`
+	CurrentPool        playBlindboxPoolDTO   `json:"current_pool"`
+	NextPool           *playBlindboxPoolDTO  `json:"next_pool,omitempty"`
+	VIPTier            service.PlayVIPStatus `json:"vip_tier"`
+	ExpectedReward     float64               `json:"expected_reward,omitempty"`
+	NextExpectedReward float64               `json:"next_expected_reward,omitempty"`
+	PoolVersion        string                `json:"pool_version,omitempty"`
+	RTPCap             float64               `json:"rtp_cap,omitempty"`
 }
 
 type playBlindboxPoolDTO struct {
@@ -39,13 +53,16 @@ type playBlindboxPoolTierDTO struct {
 }
 
 type playBlindboxOpenResultDTO struct {
-	CostAmount   float64 `json:"cost_amount"`
-	RewardAmount float64 `json:"reward_amount"`
-	NetAmount    float64 `json:"net_amount"`
-	OpensToday   int     `json:"opens_today"`
-	ServerDate   string  `json:"server_date"`
-	PoolVersion  string  `json:"pool_version"`
-	OpenSource   string  `json:"open_source"`
+	CostAmount     float64               `json:"cost_amount"`
+	RewardAmount   float64               `json:"reward_amount"`
+	NetAmount      float64               `json:"net_amount"`
+	OpensToday     int                   `json:"opens_today"`
+	ServerDate     string                `json:"server_date"`
+	PoolVersion    string                `json:"pool_version"`
+	OpenSource     string                `json:"open_source"`
+	VIPTier        service.PlayVIPStatus `json:"vip_tier"`
+	ExpectedReward float64               `json:"expected_reward,omitempty"`
+	RTPCap         float64               `json:"rtp_cap,omitempty"`
 }
 
 type playBlindboxRecentWinDTO struct {
@@ -159,6 +176,13 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 		Enabled:             status.Enabled,
 		CostAmount:          status.CostAmount,
 		Pool:                toPlayBlindboxPoolDTOPtr(status.BlindboxPool),
+		CurrentPool:         toPlayBlindboxPoolDTOPtr(status.CurrentPool),
+		NextPool:            toOptionalPlayBlindboxPoolDTO(status.NextPool),
+		VIPTier:             status.VIPTier,
+		ExpectedReward:      status.ExpectedReward,
+		NextExpectedReward:  status.NextExpectedReward,
+		PoolVersion:         status.PoolVersion,
+		RTPCap:              status.RTPCap,
 		DailyLimit:          status.DailyLimit,
 		EffectiveLimit:      status.EffectiveLimit,
 		OpensToday:          status.OpensToday,
@@ -176,8 +200,15 @@ func (h *PlayHandler) BlindboxPool(c *gin.Context) {
 		return
 	}
 	response.Success(c, playBlindboxPoolResponseDTO{
-		Enabled: status.Enabled,
-		Pool:    toPlayBlindboxPoolDTO(status.BlindboxPool),
+		Enabled:            status.Enabled,
+		Pool:               toPlayBlindboxPoolDTO(status.BlindboxPool),
+		CurrentPool:        toPlayBlindboxPoolDTO(status.CurrentPool),
+		NextPool:           toOptionalPlayBlindboxPoolDTO(status.NextPool),
+		VIPTier:            status.VIPTier,
+		ExpectedReward:     status.ExpectedReward,
+		NextExpectedReward: status.NextExpectedReward,
+		PoolVersion:        status.PoolVersion,
+		RTPCap:             status.RTPCap,
 	})
 }
 
@@ -193,13 +224,16 @@ func (h *PlayHandler) BlindboxOpen(c *gin.Context) {
 		return
 	}
 	response.Success(c, playBlindboxOpenResultDTO{
-		CostAmount:   result.CostAmount,
-		RewardAmount: result.RewardAmount,
-		NetAmount:    result.NetAmount,
-		OpensToday:   result.OpensToday,
-		ServerDate:   result.ServerDate,
-		PoolVersion:  result.PoolVersion,
-		OpenSource:   result.OpenSource,
+		CostAmount:     result.CostAmount,
+		RewardAmount:   result.RewardAmount,
+		NetAmount:      result.NetAmount,
+		OpensToday:     result.OpensToday,
+		ServerDate:     result.ServerDate,
+		PoolVersion:    result.PoolVersion,
+		OpenSource:     result.OpenSource,
+		VIPTier:        result.VIPTier,
+		ExpectedReward: result.ExpectedReward,
+		RTPCap:         result.RTPCap,
 	})
 }
 
@@ -222,6 +256,13 @@ func toPlayBlindboxPoolDTO(pool service.PlayBlindboxPool) playBlindboxPoolDTO {
 func toPlayBlindboxPoolDTOPtr(pool service.PlayBlindboxPool) *playBlindboxPoolDTO {
 	out := toPlayBlindboxPoolDTO(pool)
 	return &out
+}
+
+func toOptionalPlayBlindboxPoolDTO(pool *service.PlayBlindboxPool) *playBlindboxPoolDTO {
+	if pool == nil {
+		return nil
+	}
+	return toPlayBlindboxPoolDTOPtr(*pool)
 }
 
 func (h *PlayHandler) BlindboxRecent(c *gin.Context) {

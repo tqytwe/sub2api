@@ -180,6 +180,77 @@ func TestBlindboxOpenUsesConfiguredPoolAndPersistsAudit(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestBlindboxStatusSelectsCurrentAndNextVIPBlindboxPools(t *testing.T) {
+	pool := defaultBlindboxPool()
+	poolJSON, err := json.Marshal(pool)
+	require.NoError(t, err)
+
+	settings := NewSettingService(&blindboxOpenSettingRepo{values: map[string]string{
+		SettingKeyPlayBlindboxEnabled:    "true",
+		SettingKeyPlayBlindboxPoolJSON:   string(poolJSON),
+		SettingKeyPlayBlindboxDailyLimit: "5",
+	}}, nil)
+	repo := &blindboxOpenRepo{}
+	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 10, TotalRecharged: 200}}
+	svc := NewPlayService(repo, userRepo, nil, settings, nil, nil)
+
+	status, err := svc.GetBlindboxStatus(context.Background(), 42)
+
+	require.NoError(t, err)
+	require.Equal(t, 3, status.VIPTier.Tier)
+	require.Equal(t, "V3", status.VIPTier.Label)
+	require.Equal(t, "season-1-vip-v3", status.BlindboxPool.Version)
+	require.Equal(t, status.BlindboxPool, status.CurrentPool)
+	require.NotNil(t, status.NextPool)
+	require.Equal(t, "season-1-vip-v4", status.NextPool.Version)
+	require.InDelta(t, status.BlindboxPool.ExpectedReward(), status.ExpectedReward, 1e-12)
+	require.Equal(t, status.BlindboxPool.Version, status.PoolVersion)
+	require.Equal(t, status.BlindboxPool.RTPCap, status.RTPCap)
+}
+
+func TestBlindboxOpenUsesVIPPoolAndReturnsCelebrationContext(t *testing.T) {
+	pool := defaultBlindboxPool()
+	poolJSON, err := json.Marshal(pool)
+	require.NoError(t, err)
+
+	settings := NewSettingService(&blindboxOpenSettingRepo{values: map[string]string{
+		SettingKeyPlayBlindboxEnabled:    "true",
+		SettingKeyPlayBlindboxPoolJSON:   string(poolJSON),
+		SettingKeyPlayBlindboxDailyLimit: "10",
+	}}, nil)
+	repo := &blindboxOpenRepo{lockedBalance: 2}
+	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 2, TotalRecharged: 1000}}
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	driver := entsql.OpenDB(dialect.Postgres, db)
+	client := dbent.NewClient(dbent.Driver(driver))
+	t.Cleanup(func() { _ = client.Close() })
+
+	svc := NewPlayService(repo, userRepo, nil, settings, nil, client)
+	svc.blindboxDrawSource = func(max int64) (int64, error) {
+		require.Equal(t, blindboxWeightTotal, max)
+		return max - 1, nil
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	result, err := svc.OpenBlindbox(context.Background(), 42, "vip-pool-open")
+
+	require.NoError(t, err)
+	require.Equal(t, 5, result.VIPTier.Tier)
+	require.Equal(t, "V5", result.VIPTier.Label)
+	require.Equal(t, "season-1-vip-v5", result.PoolVersion)
+	require.Equal(t, "season-1-vip-v5", repo.records[0].PoolVersion)
+	require.Equal(t, "V5", repo.ledgerEntries[0].Detail["vip_label"])
+	require.Equal(t, float64(5), repo.ledgerEntries[0].Detail["vip_tier"])
+	require.Equal(t, result.ExpectedReward, repo.ledgerEntries[0].Detail["expected_reward"])
+	require.Equal(t, result.RTPCap, repo.ledgerEntries[0].Detail["rtp_cap"])
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestBlindboxIdempotencyKeyIsHashedAndScopedByUser(t *testing.T) {
 	const raw = " shared-client-key "
 	first, err := scopeBlindboxIdempotencyKey(42, raw)

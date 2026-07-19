@@ -7,6 +7,7 @@ import { extractApiErrorCode } from '@/utils/apiError'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
+import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import playAPI, {
   type PlayBlindboxOpenResult,
   type PlayBlindboxPool,
@@ -26,6 +27,7 @@ const statusLoadFailed = ref(false)
 const status = ref<PlayBlindboxStatus | null>(null)
 const publicPool = ref<PlayBlindboxPoolResponse | null>(null)
 const lastResult = ref<PlayBlindboxOpenResult | null>(null)
+const celebrationOpen = ref(false)
 const recentWins = ref<PlayBlindboxRecentWin[]>([])
 const recentWinsFailed = ref(false)
 let statusRequestID = 0
@@ -69,9 +71,22 @@ const featureEnabled = computed(() =>
 
 const prizePool = computed<PlayBlindboxPool | null>(() => {
   if (!featureEnabled.value) return null
-  const pool = authStore.isAuthenticated ? status.value?.pool : publicPool.value?.pool
+  const pool = authStore.isAuthenticated
+    ? status.value?.current_pool ?? status.value?.pool
+    : publicPool.value?.current_pool ?? publicPool.value?.pool
   return isValidPool(pool) ? pool : null
 })
+
+const vipPool = computed(() => status.value?.vip_tier ?? publicPool.value?.vip_tier ?? null)
+const nextPool = computed(() => status.value?.next_pool ?? publicPool.value?.next_pool ?? null)
+const currentExpectedReward = computed(() =>
+  status.value?.expected_reward ??
+  publicPool.value?.expected_reward ??
+  (prizePool.value ? expectedReward(prizePool.value) : 0),
+)
+const poolVersion = computed(() => status.value?.pool_version ?? publicPool.value?.pool_version ?? prizePool.value?.version ?? '')
+const currentRTPCap = computed(() => status.value?.rtp_cap ?? publicPool.value?.rtp_cap ?? prizePool.value?.rtp_cap ?? 0)
+const nextExpectedReward = computed(() => status.value?.next_expected_reward ?? publicPool.value?.next_expected_reward ?? (nextPool.value ? expectedReward(nextPool.value) : 0))
 
 const canOpen = computed(
   () =>
@@ -95,12 +110,43 @@ function formatPrizeAmount(amount: number): string {
   })
 }
 
+function formatMoney(amount: number | undefined): string {
+  return (amount ?? 0).toFixed(2)
+}
+
+function expectedReward(pool: PlayBlindboxPool): number {
+  return pool.tiers.reduce((total, tier) => total + tier.amount * (tier.weight / 10_000), 0)
+}
+
 function formatWinWhen(iso: string): string {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
+
+const celebrationVariant = computed(() => {
+  if (!lastResult.value) return 'standard'
+  return lastResult.value.reward_amount >= Math.max(lastResult.value.cost_amount * 2, 3)
+    ? 'jackpot'
+    : 'standard'
+})
+
+const celebrationDetails = computed(() => {
+  if (!lastResult.value) return []
+  return [
+    lastResult.value.pool_version,
+    t('blindbox.celebrationNet', {
+      cost: formatMoney(lastResult.value.cost_amount),
+      net: formatMoney(lastResult.value.net_amount),
+    }),
+    t('blindbox.celebrationPool', {
+      pool: lastResult.value.pool_version,
+      opens: lastResult.value.opens_today,
+      limit: status.value?.effective_limit ?? status.value?.daily_limit ?? 0,
+    }),
+  ]
+})
 
 async function loadRecentWins() {
   recentWinsFailed.value = false
@@ -151,6 +197,7 @@ async function handleOpen() {
   opening.value = true
   try {
     lastResult.value = await playAPI.openBlindbox(`blindbox-${Date.now()}`)
+    celebrationOpen.value = true
     appStore.showSuccess(
       t('blindbox.success', {
         reward: lastResult.value.reward_amount.toFixed(2),
@@ -222,7 +269,30 @@ watch(
                   <p class="play-intro">
                     {{ t('blindbox.costHint', { cost: status.cost_amount.toFixed(2), opens: status.opens_today, limit: status.daily_limit }) }}
                   </p>
-                  <button type="button" class="play-btn play-btn-primary w-full" :disabled="!canOpen" @click="handleOpen">
+                  <div v-if="vipPool && prizePool" class="blindbox-vip-pool">
+                    <div>
+                      <span class="blindbox-vip-label">{{ vipPool.label }}</span>
+                      <strong>{{ t('blindbox.vipPoolTitle') }}</strong>
+                    </div>
+                    <p>{{ t('blindbox.currentPool', { pool: poolVersion }) }}</p>
+                    <code>{{ poolVersion }}</code>
+                    <p>{{ t('blindbox.expectedReward', { amount: formatMoney(currentExpectedReward), rtp: Math.round(currentRTPCap * 100) }) }}</p>
+                    <p v-if="nextPool && vipPool.amount_to_next">
+                      {{ t('blindbox.nextPoolHint', {
+                        amount: formatMoney(vipPool.amount_to_next),
+                        label: vipPool.next_label ?? `V${vipPool.next_tier}`,
+                        pool: nextPool.version,
+                        reward: formatMoney(nextExpectedReward),
+                      }) }}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    class="play-btn play-btn-primary w-full"
+                    :class="{ 'blindbox-opening': opening }"
+                    :disabled="!canOpen"
+                    @click="handleOpen"
+                  >
                     {{ opening ? t('blindbox.opening') : t('blindbox.openButton') }}
                   </button>
                   <p v-if="lastResult" class="play-note">
@@ -294,6 +364,80 @@ watch(
       </div>
     </main>
 
+    <RewardCelebrationOverlay
+      :open="celebrationOpen && !!lastResult"
+      :title="t('blindbox.celebrationTitle')"
+      :amount="`$${formatMoney(lastResult?.reward_amount)}`"
+      :subtitle="t('blindbox.celebrationSubtitle')"
+      :details="celebrationDetails"
+      :vip-label="lastResult?.vip_tier?.label ?? vipPool?.label ?? ''"
+      :color-key="lastResult?.vip_tier?.color_key ?? vipPool?.color_key ?? 'neutral'"
+      :variant="celebrationVariant"
+      :primary-label="t('blindbox.openAgain')"
+      :secondary-label="t('blindbox.viewPool')"
+      @close="celebrationOpen = false"
+      @primary="() => { celebrationOpen = false; void handleOpen() }"
+      @secondary="celebrationOpen = false"
+    />
     <SupportFloatingCard />
   </div>
 </template>
+
+<style scoped>
+.blindbox-vip-pool {
+  display: grid;
+  gap: 7px;
+  border: 1px solid rgba(31, 122, 91, 0.22);
+  border-radius: 8px;
+  background: rgba(31, 122, 91, 0.08);
+  padding: 12px;
+  color: var(--text);
+}
+
+.blindbox-vip-pool div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.blindbox-vip-pool p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.blindbox-vip-label {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  border-radius: 999px;
+  background: #1f7a5b;
+  color: #fff;
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.blindbox-opening {
+  animation: blindbox-button-shake 0.42s ease-in-out infinite;
+}
+
+@keyframes blindbox-button-shake {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-2px);
+  }
+  75% {
+    transform: translateX(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blindbox-opening {
+    animation: none;
+  }
+}
+</style>

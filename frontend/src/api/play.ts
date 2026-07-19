@@ -61,6 +61,13 @@ export interface PlayBlindboxStatus {
   enabled: boolean
   cost_amount: number
   pool?: PlayBlindboxPool
+  current_pool?: PlayBlindboxPool
+  next_pool?: PlayBlindboxPool
+  vip_tier?: PlayVIPStatus
+  expected_reward?: number
+  next_expected_reward?: number
+  pool_version?: string
+  rtp_cap?: number
   daily_limit: number
   effective_limit?: number
   opens_today: number
@@ -85,6 +92,13 @@ export interface PlayBlindboxPool {
 export interface PlayBlindboxPoolResponse {
   enabled: boolean
   pool: PlayBlindboxPool
+  current_pool?: PlayBlindboxPool
+  next_pool?: PlayBlindboxPool
+  vip_tier?: PlayVIPStatus
+  expected_reward?: number
+  next_expected_reward?: number
+  pool_version?: string
+  rtp_cap?: number
 }
 
 export interface PlayBlindboxOpenResult {
@@ -95,6 +109,9 @@ export interface PlayBlindboxOpenResult {
   server_date: string
   pool_version: string
   open_source: string
+  vip_tier?: PlayVIPStatus
+  expected_reward?: number
+  rtp_cap?: number
 }
 
 export interface PlayBlindboxRecentWin {
