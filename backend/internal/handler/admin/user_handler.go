@@ -458,10 +458,10 @@ func (h *UserHandler) GetUserUsage(c *gin.Context) {
 	response.Success(c, stats)
 }
 
-// GetBalanceHistory handles getting user's balance/concurrency change history
+// GetBalanceHistory handles getting user's balance funds flow history
 // GET /api/v1/admin/users/:id/balance-history
 // Query params:
-//   - type: filter by record type (balance, affiliate_balance, admin_balance, concurrency, admin_concurrency, subscription)
+//   - type: optional flow type/source filter (payment_recharge, balance, admin_balance, checkin, quiz, usage_charge, refund, ...)
 func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 	if err != nil {
@@ -470,33 +470,32 @@ func (h *UserHandler) GetBalanceHistory(c *gin.Context) {
 	}
 
 	page, pageSize := response.ParsePagination(c)
-	codeType := c.Query("type")
+	flowType := c.Query("type")
 
-	codes, total, totalRecharged, err := h.adminService.GetUserBalanceHistory(c.Request.Context(), userID, page, pageSize, codeType)
+	history, err := h.adminService.GetUserBalanceHistory(c.Request.Context(), userID, page, pageSize, flowType)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	// Convert to admin DTO (includes notes field for admin visibility)
-	out := make([]dto.AdminRedeemCode, 0, len(codes))
-	for i := range codes {
-		out = append(out, *dto.RedeemCodeFromServiceAdmin(&codes[i]))
+	response.Success(c, history)
+}
+
+// GetBalanceReconciliation handles getting user's balance reconciliation report.
+// GET /api/v1/admin/users/:id/balance-reconciliation
+func (h *UserHandler) GetBalanceReconciliation(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		response.BadRequest(c, "Invalid user ID")
+		return
 	}
 
-	// Custom response with total_recharged alongside pagination
-	pages := int((total + int64(pageSize) - 1) / int64(pageSize))
-	if pages < 1 {
-		pages = 1
+	result, err := h.adminService.GetUserBalanceReconciliation(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
-	response.Success(c, gin.H{
-		"items":           out,
-		"total":           total,
-		"page":            page,
-		"page_size":       pageSize,
-		"pages":           pages,
-		"total_recharged": totalRecharged,
-	})
+	response.Success(c, result)
 }
 
 // ReplaceGroupRequest represents the request to replace a user's exclusive group
