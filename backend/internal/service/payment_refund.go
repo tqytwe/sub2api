@@ -292,7 +292,7 @@ func (s *PaymentService) ExecuteRefund(ctx context.Context, p *RefundPlan) (*Ref
 		// Skip balance deduction on retry if previous attempt already deducted
 		// but failed to roll back (REFUND_ROLLBACK_FAILED in audit log).
 		if !s.hasAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED") {
-			if err := s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
+			if err := s.deductRefundBalance(ctx, p); err != nil {
 				s.restoreStatus(ctx, p)
 				return nil, fmt.Errorf("deduction: %w", err)
 			}
@@ -489,7 +489,7 @@ func (s *PaymentService) applyRefundFinalDeduction(ctx context.Context, p *Refun
 		return nil
 	}
 	if p.DeductionType == payment.DeductionTypeBalance && p.BalanceToDeduct > 0 {
-		if err := s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
+		if err := s.deductRefundBalance(ctx, p); err != nil {
 			return fmt.Errorf("deduction: %w", err)
 		}
 	}
@@ -580,7 +580,7 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit refund completion tx: %w", err)
 	}
-	s.writeAuditLog(ctx, p.OrderID, "REFUND_SUCCESS", "admin", map[string]any{"refundAmount": p.RefundAmount, "reason": p.Reason, "balanceDeducted": p.BalanceToDeduct, "force": p.Force})
+	s.writeAuditLog(ctx, p.OrderID, "REFUND_SUCCESS", "admin", map[string]any{"refundAmount": p.RefundAmount, "reason": p.Reason, "balanceDeducted": p.BalanceToDeduct, "force": p.Force, "ledgerDeductKey": p.LedgerDeductKey})
 	return &RefundResult{Success: true, BalanceDeducted: p.BalanceToDeduct, SubDaysDeducted: p.SubDaysToDeduct}, nil
 }
 
@@ -638,6 +638,8 @@ func (s *PaymentService) markRefundPending(ctx context.Context, p *RefundPlan, r
 		"balanceRolledBack":   balanceDeducted,
 		"subDaysRolledBack":   subDaysDeducted,
 		"deductionRollbackOK": rollbackOK,
+		"ledgerDeductKey":     p.LedgerDeductKey,
+		"ledgerRollbackKey":   p.LedgerRollbackKey,
 	}
 	s.writeAuditLog(ctx, p.OrderID, "REFUND_PENDING", "admin", detail)
 
@@ -657,9 +659,9 @@ func refundResponseID(resp *payment.RefundResponse) string {
 
 func (s *PaymentService) RollbackRefund(ctx context.Context, p *RefundPlan, gErr error) bool {
 	if p.DeductionType == payment.DeductionTypeBalance && p.BalanceToDeduct > 0 {
-		if err := s.userRepo.UpdateBalance(ContextWithRechargeTotalRechargedDelta(ctx, 0), p.Order.UserID, p.BalanceToDeduct); err != nil {
+		if err := s.rollbackRefundBalance(ctx, p, gErr); err != nil {
 			slog.Error("[CRITICAL] rollback failed", "orderID", p.OrderID, "amount", p.BalanceToDeduct, "error", err)
-			s.writeAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED", "admin", map[string]any{"gatewayError": psErrMsg(gErr), "rollbackError": psErrMsg(err), "balanceDeducted": p.BalanceToDeduct})
+			s.writeAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED", "admin", map[string]any{"gatewayError": psErrMsg(gErr), "rollbackError": psErrMsg(err), "balanceDeducted": p.BalanceToDeduct, "ledgerDeductKey": p.LedgerDeductKey, "ledgerRollbackKey": p.LedgerRollbackKey})
 			return false
 		}
 	}
@@ -671,6 +673,98 @@ func (s *PaymentService) RollbackRefund(ctx context.Context, p *RefundPlan, gErr
 		}
 	}
 	return true
+}
+
+func (s *PaymentService) deductRefundBalance(ctx context.Context, p *RefundPlan) error {
+	if p == nil || p.Order == nil || p.BalanceToDeduct <= 0 {
+		return nil
+	}
+	if s != nil && s.balanceLedger != nil {
+		if strings.TrimSpace(p.LedgerDeductKey) == "" {
+			p.LedgerDeductKey = fmt.Sprintf("payment_refund:%d:deduct:%d", p.OrderID, time.Now().UTC().UnixNano())
+		}
+		sourceID := refundLedgerSourceID(p.LedgerDeductKey, p.OrderID)
+		_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+			UserID:         p.Order.UserID,
+			BalanceDelta:   -p.BalanceToDeduct,
+			SourceType:     BalanceFlowTypeRefund,
+			SourceID:       sourceID,
+			IdempotencyKey: p.LedgerDeductKey,
+			ActorType:      BalanceLedgerActorAdmin,
+			Description:    "退款扣回",
+			Metadata: map[string]any{
+				"order_id":          p.OrderID,
+				"out_trade_no":      strings.TrimSpace(p.Order.OutTradeNo),
+				"payment_trade_no":  strings.TrimSpace(p.Order.PaymentTradeNo),
+				"refund_amount":     p.RefundAmount,
+				"gateway_amount":    p.GatewayAmount,
+				"balance_deducted":  p.BalanceToDeduct,
+				"reason":            strings.TrimSpace(p.Reason),
+				"force":             p.Force,
+				"deduction_type":    p.DeductionType,
+				"source_id":         sourceID,
+				"ledger_deduct_key": p.LedgerDeductKey,
+			},
+			BalancePolicy: BalanceLedgerPolicyAllowOverdraft,
+		})
+		return err
+	}
+	return s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct)
+}
+
+func (s *PaymentService) rollbackRefundBalance(ctx context.Context, p *RefundPlan, gErr error) error {
+	if p == nil || p.Order == nil || p.BalanceToDeduct <= 0 {
+		return nil
+	}
+	if s != nil && s.balanceLedger != nil {
+		if strings.TrimSpace(p.LedgerRollbackKey) == "" {
+			if strings.TrimSpace(p.LedgerDeductKey) != "" {
+				p.LedgerRollbackKey = p.LedgerDeductKey + ":reversal"
+			} else {
+				p.LedgerRollbackKey = fmt.Sprintf("payment_refund:%d:rollback:%d", p.OrderID, time.Now().UTC().UnixNano())
+			}
+		}
+		sourceID := refundLedgerSourceID(p.LedgerRollbackKey, p.OrderID)
+		_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+			UserID:         p.Order.UserID,
+			BalanceDelta:   p.BalanceToDeduct,
+			SourceType:     "reversal",
+			SourceID:       sourceID,
+			IdempotencyKey: p.LedgerRollbackKey,
+			ActorType:      BalanceLedgerActorAdmin,
+			Description:    "退款失败回滚",
+			Metadata: map[string]any{
+				"order_id":            p.OrderID,
+				"out_trade_no":        strings.TrimSpace(p.Order.OutTradeNo),
+				"payment_trade_no":    strings.TrimSpace(p.Order.PaymentTradeNo),
+				"refund_amount":       p.RefundAmount,
+				"gateway_amount":      p.GatewayAmount,
+				"balance_rolled_back": p.BalanceToDeduct,
+				"reason":              strings.TrimSpace(p.Reason),
+				"gateway_error":       psErrMsg(gErr),
+				"force":               p.Force,
+				"deduction_type":      p.DeductionType,
+				"source_id":           sourceID,
+				"ledger_deduct_key":   p.LedgerDeductKey,
+				"ledger_rollback_key": p.LedgerRollbackKey,
+			},
+			BalancePolicy: BalanceLedgerPolicyAllowOverdraft,
+		})
+		return err
+	}
+	return s.userRepo.UpdateBalance(ContextWithRechargeTotalRechargedDelta(ctx, 0), p.Order.UserID, p.BalanceToDeduct)
+}
+
+func refundLedgerSourceID(key string, orderID int64) string {
+	sourceID := strings.TrimSpace(key)
+	sourceID = strings.TrimPrefix(sourceID, "payment_refund:")
+	if sourceID == "" {
+		return strconv.FormatInt(orderID, 10)
+	}
+	if len(sourceID) > 128 {
+		return sourceID[:128]
+	}
+	return sourceID
 }
 
 func (s *PaymentService) restoreStatus(ctx context.Context, p *RefundPlan) {

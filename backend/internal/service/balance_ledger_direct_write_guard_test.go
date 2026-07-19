@@ -19,18 +19,18 @@ var balanceLedgerDirectWritePatterns = []*regexp.Regexp{
 }
 
 var balanceLedgerAllowedDirectWriteFiles = map[string]string{
-	"repository/affiliate_repo.go":     "affiliate quota transfer is still a legacy balance writer",
+	"repository/affiliate_repo.go":     "affiliate quota transfer keeps a nil-ledger legacy fallback",
 	"repository/play_repo_extended.go": "play balance grant fallback remains for nil-ledger tests and compatibility",
-	"repository/usage_billing_repo.go": "usage and image hold/capture/release paths need a dedicated migration",
+	"repository/usage_billing_repo.go": "ledger-aware production path migrated; direct SQL remains only as nil-ledger legacy fallback",
 	"repository/user_repo.go":          "legacy user balance repository methods and create/update snapshots remain",
 	"service/admin_user.go":            "admin balance adjustment keeps a nil-ledger legacy fallback",
-	"service/auth_oauth_first_bind.go": "OAuth first-bind default grant needs a dedicated migration",
+	"service/auth_oauth_first_bind.go": "OAuth first-bind default grant keeps a nil-ledger legacy fallback",
 	"service/balance_ledger.go":        "the unified ledger service is the only intended direct user-balance writer",
-	"service/gateway_usage_billing.go": "gateway usage billing still calls legacy balance writers",
-	"service/payment_refund.go":        "refund deduction and rollback need a dedicated migration",
+	"service/gateway_usage_billing.go": "gateway post-usage direct deduction remains only as nil-repository degraded fallback",
+	"service/payment_refund.go":        "refund deduction and rollback keep nil-ledger legacy fallbacks",
 	"service/promo_service.go":         "promo service keeps a nil-ledger legacy fallback",
 	"service/redeem_service.go":        "redeem service keeps a nil-ledger legacy fallback",
-	"service/usage_service.go":         "legacy usage charging path needs a dedicated migration",
+	"service/usage_service.go":         "legacy usage service charge keeps a nil-ledger fallback",
 	"service/user_service.go":          "legacy public balance wrapper remains while callers migrate",
 }
 
