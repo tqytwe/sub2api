@@ -10,6 +10,7 @@ import (
 type BatchImageWorkerRuntime struct {
 	worker          *BatchImageWorker
 	billingRecovery *BatchImageBillingRecoveryService
+	state           *BatchImageRuntimeState
 	cfg             *config.Config
 
 	mu     sync.Mutex
@@ -18,7 +19,11 @@ type BatchImageWorkerRuntime struct {
 }
 
 func NewBatchImageWorkerRuntime(worker *BatchImageWorker, cfg *config.Config) *BatchImageWorkerRuntime {
-	return &BatchImageWorkerRuntime{worker: worker, cfg: cfg}
+	return NewBatchImageWorkerRuntimeWithState(worker, nil, cfg)
+}
+
+func NewBatchImageWorkerRuntimeWithState(worker *BatchImageWorker, state *BatchImageRuntimeState, cfg *config.Config) *BatchImageWorkerRuntime {
+	return &BatchImageWorkerRuntime{worker: worker, state: state, cfg: cfg}
 }
 
 func ProvideBatchImageWorkerRuntime(
@@ -29,6 +34,7 @@ func ProvideBatchImageWorkerRuntime(
 	usageLogRepo UsageLogRepository,
 	pricing *BatchImageModelPricingResolver,
 	authCache APIKeyAuthCacheInvalidator,
+	state *BatchImageRuntimeState,
 	cfg *config.Config,
 ) *BatchImageWorkerRuntime {
 	processor := &BatchImagePipelineProcessor{
@@ -48,7 +54,7 @@ func ProvideBatchImageWorkerRuntime(
 			Config:       cfg,
 		},
 	}
-	runtime := NewBatchImageWorkerRuntime(NewBatchImageWorker(queue, processor, NewBatchImageWorkerOptionsFromConfig(cfg)), cfg)
+	runtime := NewBatchImageWorkerRuntimeWithState(NewBatchImageWorker(queue, processor, NewBatchImageWorkerOptionsFromConfig(cfg)), state, cfg)
 	runtime.billingRecovery = &BatchImageBillingRecoveryService{
 		Repo:       repo,
 		Billing:    billingRepo,
@@ -75,6 +81,9 @@ func (r *BatchImageWorkerRuntime) Start() {
 	done := make(chan struct{})
 	r.cancel = cancel
 	r.done = done
+	if r.state != nil {
+		r.state.SetWorkerRunning(true)
+	}
 
 	var wg sync.WaitGroup
 	wg.Add(4)
@@ -130,6 +139,9 @@ func (r *BatchImageWorkerRuntime) Stop() {
 	}
 	if done != nil {
 		<-done
+	}
+	if r.state != nil {
+		r.state.SetWorkerRunning(false)
 	}
 }
 

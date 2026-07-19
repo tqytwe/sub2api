@@ -1246,3 +1246,23 @@ image_storage:
   presign_expiry_hours: 24
   # 当上游返回的是图片 url 时，下载该图片再转存的字节上限（默认 32MB）
   max_download_bytes: 33554432
+  # 临时链接过期后，删除底层对象的扫描周期与单次上限
+  cleanup_interval_seconds: 60
+  cleanup_batch_size: 100
+
+# =============================================================================
+# Durable Batch Image (持久化异步批量生图)
+# =============================================================================
+# 通用默认关闭。上线时先开启 queue_enabled，让 worker 恢复和排空存量任务；
+# 完成 Gemini API Key 账号、模型映射、分组权限和价格预检后，再开启 enabled
+# 接受新的 POST /v1/images/batches 提交。
+batch_image:
+  queue_enabled: false
+  enabled: false
+
+# Gateway 单请求异步 Images。通用默认关闭；queue_enabled 可在 enabled=false
+# 时继续恢复和排空存量任务。enabled=true 时要求图片存储和 Redis worker 都就绪。
+image_async:
+  queue_enabled: false
+  enabled: false
+  worker_count: 4

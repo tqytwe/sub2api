@@ -568,7 +568,8 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 		e.UseCase = &useCase.String
 	}
 	if groupIDs != nil {
-		e.GroupIDs = append([]int64(nil), groupIDs...)
+		e.GroupIDs = make([]int64, len(groupIDs))
+		copy(e.GroupIDs, groupIDs)
 	}
 	if officialSource.Valid {
 		e.OfficialSource = officialSource.String

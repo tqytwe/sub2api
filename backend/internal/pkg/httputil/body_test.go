@@ -78,6 +78,30 @@ func TestReadRequestBodyWithPrealloc_DecodesGzip(t *testing.T) {
 	}
 }
 
+func TestReadRequestBodyWithPrealloc_StripsUTF8BOMFromJSONAfterDecompression(t *testing.T) {
+	var buf bytes.Buffer
+	gw := gzip.NewWriter(&buf)
+	if _, err := gw.Write(append([]byte{0xef, 0xbb, 0xbf}, []byte(samplePayload)...)); err != nil {
+		t.Fatalf("gzip write: %v", err)
+	}
+	if err := gw.Close(); err != nil {
+		t.Fatalf("gzip close: %v", err)
+	}
+
+	req := newRequestWithBody(t, buf.Bytes(), "gzip")
+	req.Header.Set("Content-Type", "application/json; charset=utf-8")
+	got, err := ReadRequestBodyWithPrealloc(req)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(got) != samplePayload {
+		t.Fatalf("body mismatch: got %q", got)
+	}
+	if req.ContentLength != int64(len(samplePayload)) {
+		t.Fatalf("ContentLength not updated after BOM removal: %d", req.ContentLength)
+	}
+}
+
 func TestReadRequestBodyWithPrealloc_DecodesDeflate(t *testing.T) {
 	var buf bytes.Buffer
 	zw := zlib.NewWriter(&buf)

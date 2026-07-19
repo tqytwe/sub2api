@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -50,7 +51,7 @@ func ReadRequestBodyWithPrealloc(req *http.Request) ([]byte, error) {
 
 	enc := strings.ToLower(strings.TrimSpace(req.Header.Get("Content-Encoding")))
 	if enc == "" || enc == "identity" {
-		return raw, nil
+		return normalizeReadRequestBody(req, raw), nil
 	}
 
 	decoded, err := decompressRequestBody(enc, raw)
@@ -60,9 +61,27 @@ func ReadRequestBodyWithPrealloc(req *http.Request) ([]byte, error) {
 
 	req.Header.Del("Content-Encoding")
 	req.Header.Del("Content-Length")
+	decoded = normalizeReadRequestBody(req, decoded)
 	req.ContentLength = int64(len(decoded))
 
 	return decoded, nil
+}
+
+func normalizeReadRequestBody(req *http.Request, body []byte) []byte {
+	if req == nil || len(body) < jsonUTF8BOMLen {
+		return body
+	}
+	mediaType, _, err := mime.ParseMediaType(req.Header.Get("Content-Type"))
+	if err != nil {
+		return body
+	}
+	mediaType = strings.ToLower(strings.TrimSpace(mediaType))
+	if mediaType != "application/json" && !strings.HasSuffix(mediaType, "+json") {
+		return body
+	}
+	body = trimUTF8BOM(body)
+	req.ContentLength = int64(len(body))
+	return body
 }
 
 // ReadLenientJSONRequestBodyWithPrealloc reads a request body and normalizes

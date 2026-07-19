@@ -65,9 +65,12 @@ var (
 	ErrBatchImageInsufficientBalance        = infraerrors.New(http.StatusPaymentRequired, "BATCH_IMAGE_INSUFFICIENT_BALANCE", "insufficient balance for batch image hold")
 
 	ErrBatchImageDisabled                   = infraerrors.New(http.StatusNotFound, "BATCH_IMAGE_DISABLED", "batch image API is disabled")
+	ErrBatchImageRuntimeNotReady            = infraerrors.New(http.StatusServiceUnavailable, "BATCH_IMAGE_NOT_READY", "batch image runtime is not ready")
 	ErrBatchImageGroupDisabled              = infraerrors.New(http.StatusForbidden, "BATCH_IMAGE_GROUP_DISABLED", "batch image API is disabled for this group")
 	ErrBatchImageInvalidModel               = infraerrors.New(http.StatusBadRequest, "BATCH_IMAGE_INVALID_MODEL", "batch image model is required")
 	ErrBatchImageNoAccountAvailable         = infraerrors.New(http.StatusBadGateway, "BATCH_IMAGE_NO_ACCOUNT_AVAILABLE", "no compatible batch image account is available")
+	ErrBatchImageNoModelAvailable           = infraerrors.New(http.StatusServiceUnavailable, "BATCH_IMAGE_NO_MODEL_AVAILABLE", "no compatible batch image model is available")
+	ErrBatchImageModelPricingNotReady       = infraerrors.New(http.StatusServiceUnavailable, "BATCH_IMAGE_PRICING_NOT_READY", "batch image model pricing is not ready")
 	ErrBatchImageInvalidItems               = infraerrors.New(http.StatusBadRequest, "BATCH_IMAGE_INVALID_ITEMS", "batch image items are invalid")
 	ErrBatchImageDuplicateCustomIDInRequest = infraerrors.New(http.StatusBadRequest, "BATCH_IMAGE_DUPLICATE_CUSTOM_ID", "batch image custom ids must be unique")
 	ErrBatchImagePromptTooLong              = infraerrors.New(http.StatusBadRequest, "BATCH_IMAGE_PROMPT_TOO_LONG", "batch image prompt is too long")
@@ -78,6 +81,7 @@ var (
 	ErrBatchImageProviderSubmitFailed       = infraerrors.New(http.StatusBadGateway, "BATCH_IMAGE_PROVIDER_SUBMIT_FAILED", "batch image provider submit failed")
 	ErrBatchImageQueueFailed                = infraerrors.New(http.StatusBadGateway, "BATCH_IMAGE_QUEUE_FAILED", "batch image queue failed")
 	ErrBatchImageIdempotencyConflict        = infraerrors.New(http.StatusConflict, "BATCH_IMAGE_IDEMPOTENCY_CONFLICT", "idempotency key reused with different batch image request")
+	ErrBatchImageIdempotencyKeyInvalid      = infraerrors.New(http.StatusBadRequest, "BATCH_IMAGE_IDEMPOTENCY_KEY_INVALID", "Idempotency-Key must be between 1 and 255 bytes")
 	ErrBatchImageCancelFailed               = infraerrors.New(http.StatusBadGateway, "BATCH_IMAGE_CANCEL_FAILED", "batch image cancel failed")
 	ErrBatchImageVertexGCSBucketMissing     = infraerrors.New(http.StatusBadGateway, "BATCH_IMAGE_VERTEX_GCS_BUCKET_MISSING", "Vertex managed GCS bucket is not configured")
 
@@ -115,10 +119,11 @@ type BatchImageJob struct {
 	GCSInputURI       *string
 	GCSOutputURI      *string
 
-	ItemCount      int
-	SuccessCount   int
-	FailCount      int
-	CancelledCount int
+	ItemCount        int
+	SuccessCount     int
+	OutputImageCount int
+	FailCount        int
+	CancelledCount   int
 
 	EstimatedCost           float64
 	HoldAmount              *float64
@@ -174,10 +179,11 @@ type CreateBatchImageJobParams struct {
 	GCSInputURI       *string
 	GCSOutputURI      *string
 
-	ItemCount      int
-	SuccessCount   int
-	FailCount      int
-	CancelledCount int
+	ItemCount        int
+	SuccessCount     int
+	OutputImageCount int
+	FailCount        int
+	CancelledCount   int
 
 	EstimatedCost           float64
 	HoldAmount              *float64
@@ -260,8 +266,9 @@ type BatchImageJobFilter struct {
 }
 
 type BatchImageCounts struct {
-	SuccessCount int
-	FailCount    int
+	SuccessCount     int
+	OutputImageCount int
+	FailCount        int
 }
 
 type UpdateBatchImageJobProviderSubmitParams struct {
@@ -376,7 +383,7 @@ func CanTransitionBatchImageJob(from, to string) bool {
 			(from == BatchImageJobStatusCompleted || from == BatchImageJobStatusFailed || from == BatchImageJobStatusCancelled)
 	}
 	if to == BatchImageJobStatusFailed {
-		return true
+		return from != BatchImageJobStatusSettling
 	}
 
 	allowed := map[string]map[string]struct{}{
@@ -411,4 +418,14 @@ func CanTransitionBatchImageJob(from, to string) bool {
 	}
 	_, ok := allowed[from][to]
 	return ok
+}
+
+func CanTransitionBatchImageJobWithOptions(from, to string, opts BatchImageTransitionOptions) bool {
+	if CanTransitionBatchImageJob(from, to) {
+		return true
+	}
+	return from == BatchImageJobStatusSettling &&
+		to == BatchImageJobStatusFailed &&
+		opts.EventType == "settlement_retry_exhausted" &&
+		batchImageDerefString(opts.ErrorCode) == "SETTLEMENT_BILLING_RETRY_EXHAUSTED"
 }

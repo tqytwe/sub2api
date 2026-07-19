@@ -41,14 +41,14 @@ export const jisudengHomeEn = {
     body1:
       'We forward your requests to upstream models exactly as specified — no distillation, compression, or silent model swaps.',
     body2:
-      'Prompts live in memory only for one response cycle, then are released. No logs, no database, no training, no third-party sharing.',
+      'Synchronous request bodies are not logged and are released after the response. Async and Batch jobs keep only the encrypted or access-controlled data required for recovery until retention cleanup. No training or analytics-ad sharing.',
     verifyLink: 'See how to verify in usage logs →',
     pledges: {
-      p1: 'Private · Burn after read',
+      p1: 'Private · Minimal retention',
       p2: 'Faithful · Byte-for-byte',
       p3: 'Transparent · Official rates',
       p4: 'Fast · Sub-100ms routing',
-      d1: 'Request bodies are not logged or stored. Released from memory when the response completes.',
+      d1: 'Synchronous request bodies are not logged or persisted. Async jobs retain only recovery data under encryption or access controls until scheduled cleanup.',
       d2: 'Upstream responses forwarded byte-for-byte. No prompt rewriting or silent model substitution.',
       d3: 'Billing uses official upstream rates multiplied only by the published multiplier on the pricing page.',
       d4: 'Routing completes in sub-100ms. First-token latency matches direct upstream access.'
@@ -67,7 +67,7 @@ export const jisudengHomeEn = {
     imageTag: 'IMAGE API',
     imageTitle: 'One sentence, one image.',
     imageLede:
-      'Full gpt-image-2 support. Text-to-image and image editing share one key. OpenAI-compatible — point base_url here.',
+      'Synchronous Images handles generation, edits, and multiple outputs; single-request async avoids long connections, while Batch runs durable multi-prompt jobs.',
     featuresTag: 'WHY US',
     featuresTitle: 'Less friction, more flow.',
     codeTag: '3-MINUTE SETUP',
@@ -81,7 +81,7 @@ export const jisudengHomeEn = {
     items: [
       {
         q: 'Do you store my prompts?',
-        a: 'No. Request bodies are not written to logs or databases. They exist in memory only for the duration of a single response.'
+        a: 'Synchronous request bodies are not logged or persisted and are released after the response. Async and Batch jobs keep the minimum required request data encrypted or access-controlled until retention cleanup.'
       },
       {
         q: 'How do I know I get the model I asked for?',
@@ -108,7 +108,7 @@ export const jisudengHomeEn = {
   image: {
     model: 'gpt-image-2',
     badge: 'NEW',
-    desc: 'Two endpoints: generations and edits. Up to 20 MiB per multipart field.',
+    desc: 'Synchronous n=1-10, single-request async, and multi-prompt Batch have distinct APIs. Up to 20 MiB per multipart field.',
     caps: ['Text-to-image', 'Image-to-image', 'Multi-reference', 'Style transfer'],
     docLink: 'Image API docs',
     promptLabel: 'PROMPT',

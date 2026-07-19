@@ -153,6 +153,8 @@ func buildImageStudioHoldCommand(job *ImageStudioJob, requestID string, actualAm
 	return &BatchImageBalanceHoldCommand{
 		RequestID:           requestID,
 		HoldRequestID:       holdID,
+		CaptureRequestID:    ImageStudioCaptureRequestID(job.ID),
+		ReleaseRequestID:    ImageStudioReleaseRequestID(job.ID),
 		APIKeyID:            *job.APIKeyID,
 		UserID:              job.UserID,
 		BatchID:             job.ID,

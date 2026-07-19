@@ -168,6 +168,17 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 	return h
 }
 
+func ProvideOpsHandler(
+	opsService *service.OpsService,
+	health *service.ImageRuntimesHealthService,
+	imageStudioWorker *ImageStudioWorkerRuntime,
+	imageStudioService *service.ImageStudioService,
+) *admin.OpsHandler {
+	health.SetImageStudioRuntime(imageStudioWorker)
+	health.SetImageStudioFeature(imageStudioService)
+	return admin.NewOpsHandler(opsService, health)
+}
+
 // ProvideHandlers creates the Handlers struct
 func ProvideHandlers(
 	authHandler *AuthHandler,
@@ -239,7 +250,7 @@ var ProviderSet = wire.NewSet(
 	NewPaymentHandler,
 	NewPaymentWebhookHandler,
 	NewAvailableChannelHandler,
-	NewAsyncImageHandler,
+	ProvideAsyncImageHandler,
 	ProvideBatchImageHandler,
 	NewPlayHandler,
 	NewImageStudioHandler,
@@ -264,7 +275,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewRedeemHandler,
 	admin.NewPromoHandler,
 	ProvideAdminSettingHandler,
-	admin.NewOpsHandler,
+	ProvideOpsHandler,
 	ProvideSystemHandler,
 	admin.NewSubscriptionHandler,
 	admin.NewUsageHandler,

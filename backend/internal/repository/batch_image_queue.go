@@ -58,6 +58,32 @@ end
 return 0
 `)
 
+var batchImageAckWithLockScript = redis.NewScript(`
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+redis.call("ZREM", KEYS[2], ARGV[2])
+redis.call("ZREM", KEYS[3], ARGV[2])
+redis.call("DEL", KEYS[4])
+redis.call("DEL", KEYS[1])
+return 1
+`)
+
+var batchImageRequeueWithLockScript = redis.NewScript(`
+if redis.call("GET", KEYS[1]) ~= ARGV[1] then
+  return 0
+end
+redis.call("ZREM", KEYS[2], ARGV[2])
+redis.call("ZREM", KEYS[3], ARGV[2])
+if tonumber(ARGV[3]) <= 0 then
+  redis.call("LPUSH", KEYS[4], ARGV[2])
+else
+  redis.call("ZADD", KEYS[3], ARGV[3], ARGV[2])
+end
+redis.call("DEL", KEYS[1])
+return 1
+`)
+
 // batchImageReserveScript 原子地从 ready 弹出并写入 active zset。
 // BRPop + ZAdd 两步方案在两步之间进程崩溃时 job 会脱离所有队列结构，
 // 且 inflight 去重键（默认 7 天）会挡住所有重新入队。
@@ -178,6 +204,31 @@ func (q *batchImageQueue) Enqueue(ctx context.Context, batchID string) error {
 	return nil
 }
 
+func (q *batchImageQueue) Ping(ctx context.Context) error {
+	if q == nil || q.rdb == nil {
+		return redis.ErrClosed
+	}
+	return q.rdb.Ping(ctx).Err()
+}
+
+func (q *batchImageQueue) Stats(ctx context.Context) (service.BatchImageQueueStats, error) {
+	if q == nil || q.rdb == nil {
+		return service.BatchImageQueueStats{}, redis.ErrClosed
+	}
+	pipe := q.rdb.Pipeline()
+	ready := pipe.LLen(ctx, q.readyKey)
+	delayed := pipe.ZCard(ctx, q.delayedKey)
+	active := pipe.ZCard(ctx, q.activeKey)
+	if _, err := pipe.Exec(ctx); err != nil {
+		return service.BatchImageQueueStats{}, err
+	}
+	return service.BatchImageQueueStats{
+		Ready:   ready.Val(),
+		Delayed: delayed.Val(),
+		Active:  active.Val(),
+	}, nil
+}
+
 func (q *batchImageQueue) Reserve(ctx context.Context, blockTimeout time.Duration) (service.ReservedBatchImageJob, error) {
 	deadline := time.Now().Add(blockTimeout)
 	for {
@@ -263,10 +314,21 @@ func (q *batchImageQueue) Heartbeat(ctx context.Context, batchID string) error {
 	}
 	// XX：只刷新已存在的 active 成员。无条件 ZAdd 会在 Ack/Requeue 之后的
 	// 竞态心跳里把幽灵成员塞回 active zset。
-	return q.rdb.ZAddXX(ctx, q.activeKey, redis.Z{
-		Score:  float64(time.Now().UnixMilli()),
-		Member: batchID,
-	}).Err()
+	updated, err := q.rdb.ZAddArgs(ctx, q.activeKey, redis.ZAddArgs{
+		XX: true,
+		Ch: true,
+		Members: []redis.Z{{
+			Score:  float64(time.Now().UnixMilli()),
+			Member: batchID,
+		}},
+	}).Result()
+	if err != nil {
+		return err
+	}
+	if updated == 0 {
+		return service.ErrBatchImageLeaseLost
+	}
+	return nil
 }
 
 func (q *batchImageQueue) MoveDueDelayedToReady(ctx context.Context, limit int) (int, error) {
@@ -306,7 +368,16 @@ func (q *batchImageQueue) TryAcquireJobLock(ctx context.Context, batchID string,
 	if !ok {
 		return nil, false, nil
 	}
-	return &batchImageRedisJobLock{rdb: q.rdb, key: key, token: token}, true, nil
+	return &batchImageRedisJobLock{
+		rdb:         q.rdb,
+		key:         key,
+		token:       token,
+		batchID:     batchID,
+		activeKey:   q.activeKey,
+		delayedKey:  q.delayedKey,
+		readyKey:    q.readyKey,
+		inflightKey: q.inflightKey(batchID),
+	}, true, nil
 }
 
 func (q *batchImageQueue) inflightKey(batchID string) string {
@@ -318,9 +389,14 @@ func (q *batchImageQueue) lockKey(batchID string) string {
 }
 
 type batchImageRedisJobLock struct {
-	rdb   *redis.Client
-	key   string
-	token string
+	rdb         *redis.Client
+	key         string
+	token       string
+	batchID     string
+	activeKey   string
+	delayedKey  string
+	readyKey    string
+	inflightKey string
 }
 
 func (l *batchImageRedisJobLock) Release(ctx context.Context) error {
@@ -338,10 +414,60 @@ func (l *batchImageRedisJobLock) Refresh(ctx context.Context, ttl time.Duration)
 	if ttl <= 0 {
 		ttl = defaultBatchImageJobLockTTL
 	}
-	return batchImageRefreshLockScript.Run(ctx, l.rdb, []string{l.key}, l.token, ttl.Milliseconds()).Err()
+	refreshed, err := batchImageRefreshLockScript.Run(ctx, l.rdb, []string{l.key}, l.token, ttl.Milliseconds()).Int()
+	if err != nil {
+		return err
+	}
+	if refreshed == 0 {
+		return service.ErrBatchImageLeaseLost
+	}
+	return nil
 }
 
-var _ service.BatchImageJobLockRefresher = (*batchImageRedisJobLock)(nil)
+func (l *batchImageRedisJobLock) Ack(ctx context.Context) error {
+	if l == nil || l.rdb == nil || !service.IsValidBatchImageID(l.batchID) {
+		return service.ErrBatchImageLeaseLost
+	}
+	applied, err := batchImageAckWithLockScript.Run(
+		ctx,
+		l.rdb,
+		[]string{l.key, l.activeKey, l.delayedKey, l.inflightKey},
+		l.token,
+		l.batchID,
+	).Int()
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		return service.ErrBatchImageLeaseLost
+	}
+	return nil
+}
+
+func (l *batchImageRedisJobLock) RequeueAfter(ctx context.Context, delay time.Duration) error {
+	if l == nil || l.rdb == nil || !service.IsValidBatchImageID(l.batchID) {
+		return service.ErrBatchImageLeaseLost
+	}
+	dueAt := int64(0)
+	if delay > 0 {
+		dueAt = time.Now().Add(delay).UnixMilli()
+	}
+	applied, err := batchImageRequeueWithLockScript.Run(
+		ctx,
+		l.rdb,
+		[]string{l.key, l.activeKey, l.delayedKey, l.readyKey},
+		l.token,
+		l.batchID,
+		dueAt,
+	).Int()
+	if err != nil {
+		return err
+	}
+	if applied == 0 {
+		return service.ErrBatchImageLeaseLost
+	}
+	return nil
+}
 
 func newBatchImageLockToken() (string, error) {
 	var b [16]byte

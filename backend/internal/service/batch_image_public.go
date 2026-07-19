@@ -90,6 +90,7 @@ type BatchImagePublicService struct {
 	Pricing           BatchImagePricingResolver
 	BillingRepo       UsageBillingRepository
 	AuthCache         APIKeyAuthCacheInvalidator
+	Runtime           BatchImageRuntimeReadiness
 	Config            *config.Config
 }
 
@@ -106,24 +107,25 @@ type BatchImagePricingSnapshot struct {
 }
 
 type BatchImagePublicBatch struct {
-	ID              string   `json:"id"`
-	Object          string   `json:"object"`
-	TaskName        string   `json:"task_name"`
-	ParentBatchID   *string  `json:"parent_batch_id,omitempty"`
-	Status          string   `json:"status"`
-	Model           string   `json:"model"`
-	Provider        string   `json:"provider"`
-	ItemCount       int      `json:"item_count"`
-	SuccessCount    int      `json:"success_count"`
-	FailCount       int      `json:"fail_count"`
-	EstimatedCost   float64  `json:"estimated_cost"`
-	HoldAmount      float64  `json:"hold_amount"`
-	ActualCost      *float64 `json:"actual_cost"`
-	CreatedAt       int64    `json:"created_at"`
-	SubmittedAt     *int64   `json:"submitted_at"`
-	SettledAt       *int64   `json:"settled_at"`
-	DownloadedAt    *int64   `json:"downloaded_at,omitempty"`
-	OutputDeletedAt *int64   `json:"output_deleted_at,omitempty"`
+	ID               string   `json:"id"`
+	Object           string   `json:"object"`
+	TaskName         string   `json:"task_name"`
+	ParentBatchID    *string  `json:"parent_batch_id,omitempty"`
+	Status           string   `json:"status"`
+	Model            string   `json:"model"`
+	Provider         string   `json:"provider"`
+	ItemCount        int      `json:"item_count"`
+	SuccessCount     int      `json:"success_count"`
+	OutputImageCount int      `json:"output_image_count"`
+	FailCount        int      `json:"fail_count"`
+	EstimatedCost    float64  `json:"estimated_cost"`
+	HoldAmount       float64  `json:"hold_amount"`
+	ActualCost       *float64 `json:"actual_cost"`
+	CreatedAt        int64    `json:"created_at"`
+	SubmittedAt      *int64   `json:"submitted_at"`
+	SettledAt        *int64   `json:"settled_at"`
+	DownloadedAt     *int64   `json:"downloaded_at,omitempty"`
+	OutputDeletedAt  *int64   `json:"output_deleted_at,omitempty"`
 }
 
 type BatchImagePublicItem struct {
@@ -181,7 +183,7 @@ type BatchImageItemsQuery struct {
 	Cursor string
 }
 
-func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRepository, groupRepo GroupRepository, userGroupRateRepo UserGroupRateRepository, queue BatchImageQueue, pricing *BatchImageModelPricingResolver, billingRepo UsageBillingRepository, authCache APIKeyAuthCacheInvalidator, cfg *config.Config) *BatchImagePublicService {
+func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRepository, groupRepo GroupRepository, userGroupRateRepo UserGroupRateRepository, queue BatchImageQueue, pricing *BatchImageModelPricingResolver, billingRepo UsageBillingRepository, authCache APIKeyAuthCacheInvalidator, runtime *BatchImageRuntimeState, cfg *config.Config) *BatchImagePublicService {
 	return &BatchImagePublicService{
 		Repo:              repo,
 		AccountRepo:       accountRepo,
@@ -192,6 +194,7 @@ func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRe
 		Pricing:           pricing,
 		BillingRepo:       billingRepo,
 		AuthCache:         authCache,
+		Runtime:           runtime,
 		Config:            cfg,
 	}
 }
@@ -199,6 +202,13 @@ func NewBatchImagePublicService(repo BatchImageRepository, accountRepo AccountRe
 func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOwner, req BatchImageSubmitRequest, idempotencyKey string) (*BatchImagePublicBatch, error) {
 	if !s.enabled() {
 		return nil, ErrBatchImageDisabled
+	}
+	if s.Runtime == nil || s.Runtime.RequireReady(ctx) != nil {
+		return nil, ErrBatchImageRuntimeNotReady
+	}
+	idempotencyKey = strings.TrimSpace(idempotencyKey)
+	if len(idempotencyKey) > 255 {
+		return nil, ErrBatchImageIdempotencyKeyInvalid
 	}
 	normalized, err := s.validateSubmitRequest(req)
 	if err != nil {
@@ -210,23 +220,11 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		return nil, err
 	}
 	requestHash := HashBatchImageSubmitRequest(normalized)
-	idempotencyKey = strings.TrimSpace(idempotencyKey)
 	if idempotencyKey != "" {
-		existing, err := s.Repo.GetBatchImageJobByIdempotencyKey(ctx, owner.UserID, owner.APIKeyID, idempotencyKey)
-		if err == nil {
-			if batchImageDerefString(existing.RequestHash) != requestHash {
-				return nil, ErrBatchImageIdempotencyConflict
-			}
-			if existing.Status == BatchImageJobStatusSubmitted && s.Queue != nil {
-				if enqueueErr := s.Queue.Enqueue(ctx, existing.BatchID); enqueueErr != nil && !errors.Is(enqueueErr, ErrBatchImageAlreadyQueued) {
-					_ = s.Repo.RecordBatchImageJobSubmitFailure(ctx, existing.BatchID, "QUEUE_FAILED", sanitizeBatchImagePublicMessage(enqueueErr.Error()), false)
-					return nil, ErrBatchImageQueueFailed
-				}
-			}
-			return BatchImageJobToPublic(existing), nil
-		}
-		if !errors.Is(err, ErrBatchImageJobNotFound) {
+		if existing, found, err := s.findIdempotentBatch(ctx, owner, idempotencyKey, requestHash); err != nil {
 			return nil, err
+		} else if found {
+			return existing, nil
 		}
 	}
 
@@ -283,6 +281,13 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		RequestHash:             batchImageStringPtr(requestHash),
 	})
 	if err != nil {
+		if idempotencyKey != "" && errors.Is(err, ErrBatchImageJobExists) {
+			if existing, found, replayErr := s.findIdempotentBatch(ctx, owner, idempotencyKey, requestHash); replayErr != nil {
+				return nil, replayErr
+			} else if found {
+				return existing, nil
+			}
+		}
 		return nil, err
 	}
 	if err := reserveBatchImageBalanceHold(ctx, s.BillingRepo, job, requestHash); err != nil {
@@ -397,6 +402,31 @@ func (s *BatchImagePublicService) Submit(ctx context.Context, owner BatchImageOw
 		return nil, err
 	}
 	return BatchImageJobToPublic(created), nil
+}
+
+func (s *BatchImagePublicService) findIdempotentBatch(
+	ctx context.Context,
+	owner BatchImageOwner,
+	idempotencyKey string,
+	requestHash string,
+) (*BatchImagePublicBatch, bool, error) {
+	existing, err := s.Repo.GetBatchImageJobByIdempotencyKey(ctx, owner.UserID, owner.APIKeyID, idempotencyKey)
+	if err != nil {
+		if errors.Is(err, ErrBatchImageJobNotFound) {
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	if batchImageDerefString(existing.RequestHash) != requestHash {
+		return nil, false, ErrBatchImageIdempotencyConflict
+	}
+	if existing.Status == BatchImageJobStatusSubmitted && s.Queue != nil {
+		if enqueueErr := s.Queue.Enqueue(ctx, existing.BatchID); enqueueErr != nil && !errors.Is(enqueueErr, ErrBatchImageAlreadyQueued) {
+			_ = s.Repo.RecordBatchImageJobSubmitFailure(ctx, existing.BatchID, "QUEUE_FAILED", sanitizeBatchImagePublicMessage(enqueueErr.Error()), false)
+			return nil, false, ErrBatchImageQueueFailed
+		}
+	}
+	return BatchImageJobToPublic(existing), true, nil
 }
 
 func (s *BatchImagePublicService) releaseFailedSubmitHold(ctx context.Context, job *BatchImageJob, requestHash string) error {
@@ -616,14 +646,20 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 	if !s.enabled() {
 		return nil, ErrBatchImageDisabled
 	}
+	if s.Runtime == nil || s.Runtime.RequireReady(ctx) != nil {
+		return nil, ErrBatchImageRuntimeNotReady
+	}
 	if s.Pricing == nil {
-		return nil, ErrBatchImageSettlementPricingMissing
+		return nil, ErrBatchImageModelPricingNotReady
 	}
 	if err := s.ensureGroupAllowsBatchImage(ctx, owner.GroupID); err != nil {
 		return nil, err
 	}
 
 	modelsByProvider := make(map[string]map[string]struct{})
+	hasCompatibleAccount := false
+	hasMappedModel := false
+	hasPricedModel := false
 	for _, providerName := range batchImageProviderSelectionOrder("") {
 		provider, ok := s.ProviderRegistry.Get(providerName)
 		if !ok || provider == nil {
@@ -638,13 +674,16 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 			if !account.IsSchedulable() || !provider.SupportsAccount(&account) {
 				continue
 			}
+			hasCompatibleAccount = true
 			for _, model := range batchImageModelsFromAccountMapping(&account) {
-				if _, err := s.Pricing.BatchImageUnitPrice(ctx, &BatchImageJob{Provider: providerName, Model: model}); err != nil {
-					continue
-				}
 				if !account.IsModelSupported(model) {
 					continue
 				}
+				hasMappedModel = true
+				if _, err := s.Pricing.BatchImageUnitPrice(ctx, &BatchImageJob{Provider: providerName, Model: model}); err != nil {
+					continue
+				}
+				hasPricedModel = true
 				if modelsByProvider[providerName] == nil {
 					modelsByProvider[providerName] = make(map[string]struct{})
 				}
@@ -666,6 +705,18 @@ func (s *BatchImagePublicService) ListModels(ctx context.Context, owner BatchIma
 				Object:   "image.batch.model",
 				Provider: providerName,
 			})
+		}
+	}
+	if len(out) == 0 {
+		switch {
+		case !hasCompatibleAccount:
+			return nil, ErrBatchImageNoAccountAvailable
+		case !hasMappedModel:
+			return nil, ErrBatchImageNoModelAvailable
+		case !hasPricedModel:
+			return nil, ErrBatchImageModelPricingNotReady
+		default:
+			return nil, ErrBatchImageNoModelAvailable
 		}
 	}
 	return &BatchImagePublicModelsResponse{Object: "list", Data: out}, nil
@@ -797,6 +848,13 @@ func (s *BatchImagePublicService) validateSubmitRequest(req BatchImageSubmitRequ
 	if req.ResponseMimeType == "" {
 		req.ResponseMimeType = s.defaultResponseMimeType()
 	}
+	if !strings.EqualFold(req.ResponseMimeType, defaultBatchImageResponseMime) {
+		return req, ErrBatchImageInvalidItems
+	}
+	req.ResponseMimeType = defaultBatchImageResponseMime
+	if req.AspectRatio != "" && !isSupportedBatchImageAspectRatio(req.AspectRatio) {
+		return req, ErrBatchImageInvalidItems
+	}
 	if req.ImageSize == "" {
 		req.ImageSize = s.defaultImageSize()
 	}
@@ -920,6 +978,15 @@ func batchImageRepeatSuffixWidth(count int) int {
 	return len(strconv.Itoa(count))
 }
 
+func isSupportedBatchImageAspectRatio(value string) bool {
+	switch strings.TrimSpace(value) {
+	case "1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9":
+		return true
+	default:
+		return false
+	}
+}
+
 func maxBatchImageReferenceImagesForModel(model string) int {
 	model = strings.ToLower(strings.TrimSpace(model))
 	if strings.Contains(model, "pro-image") {
@@ -985,7 +1052,7 @@ func (s *BatchImagePublicService) ensureGroupAllowsBatchImage(ctx context.Contex
 	if err != nil || group == nil {
 		return ErrBatchImageSettlementPricingMissing
 	}
-	if !group.AllowBatchImageGeneration {
+	if !group.AllowImageGeneration || !group.AllowBatchImageGeneration {
 		return ErrBatchImageGroupDisabled
 	}
 	if group.Platform != PlatformGemini {
@@ -1007,7 +1074,7 @@ func (s *BatchImagePublicService) resolvePricingSnapshot(ctx context.Context, ow
 		if err != nil || group == nil {
 			return nil, ErrBatchImageSettlementPricingMissing
 		}
-		if !group.AllowBatchImageGeneration {
+		if !group.AllowImageGeneration || !group.AllowBatchImageGeneration {
 			return nil, ErrBatchImageGroupDisabled
 		}
 		groupDefaultMultiplier := group.RateMultiplier
@@ -1160,24 +1227,25 @@ func BatchImageJobToPublic(job *BatchImageJob) *BatchImagePublicBatch {
 		holdAmount = *job.HoldAmount
 	}
 	return &BatchImagePublicBatch{
-		ID:              job.BatchID,
-		Object:          "image.batch",
-		TaskName:        batchImagePublicTaskName(job),
-		ParentBatchID:   job.ParentBatchID,
-		Status:          PublicBatchImageStatus(job.Status),
-		Model:           job.Model,
-		Provider:        job.Provider,
-		ItemCount:       job.ItemCount,
-		SuccessCount:    job.SuccessCount,
-		FailCount:       job.FailCount,
-		EstimatedCost:   job.EstimatedCost,
-		HoldAmount:      holdAmount,
-		ActualCost:      job.ActualCost,
-		CreatedAt:       job.CreatedAt.Unix(),
-		SubmittedAt:     batchImageUnixPtr(job.SubmittedAt),
-		SettledAt:       batchImageUnixPtr(job.SettledAt),
-		DownloadedAt:    batchImageUnixPtr(job.DownloadedAt),
-		OutputDeletedAt: batchImageUnixPtr(job.OutputDeletedAt),
+		ID:               job.BatchID,
+		Object:           "image.batch",
+		TaskName:         batchImagePublicTaskName(job),
+		ParentBatchID:    job.ParentBatchID,
+		Status:           PublicBatchImageStatus(job.Status),
+		Model:            job.Model,
+		Provider:         job.Provider,
+		ItemCount:        job.ItemCount,
+		SuccessCount:     job.SuccessCount,
+		OutputImageCount: job.OutputImageCount,
+		FailCount:        job.FailCount,
+		EstimatedCost:    job.EstimatedCost,
+		HoldAmount:       holdAmount,
+		ActualCost:       job.ActualCost,
+		CreatedAt:        job.CreatedAt.Unix(),
+		SubmittedAt:      batchImageUnixPtr(job.SubmittedAt),
+		SettledAt:        batchImageUnixPtr(job.SettledAt),
+		DownloadedAt:     batchImageUnixPtr(job.DownloadedAt),
+		OutputDeletedAt:  batchImageUnixPtr(job.OutputDeletedAt),
 	}
 }
 

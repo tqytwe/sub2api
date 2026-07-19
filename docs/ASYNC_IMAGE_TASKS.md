@@ -1,192 +1,181 @@
-# Asynchronous Image Tasks
+# Gateway 单请求异步图片任务
 
-Asynchronous image tasks let clients submit long-running OpenAI-compatible image requests without keeping one HTTP connection open. This avoids proxy/CDN response timeouts such as Cloudflare 524 while preserving the existing image routing, billing, moderation, concurrency, and failover behavior.
+> 状态：active
+> 最后核验：2026-07-18
 
-## Endpoints
+Gateway async 让客户端提交一个 OpenAI-compatible Images 请求后立即获得任务 ID，不需要保持长 HTTP 连接。它适合 GPT/Grok 长耗时生成与编辑；多个 prompt 的持久批任务应使用 `/v1/images/batches`。
 
-The authenticated gateway exposes both `/v1` paths and their existing no-prefix aliases:
+## 路由
 
 ```text
 POST /v1/images/generations/async
 POST /v1/images/edits/async
 GET  /v1/images/tasks/{task_id}
+GET  /v1/images/task-assets/{path}
 ```
 
-The aliases are `/images/generations/async`, `/images/edits/async`, and `/images/tasks/{task_id}`.
+提交使用 API Key，body 与同步生成/编辑接口一致。流式请求不接受异步提交。
 
-Only OpenAI and Grok groups are supported. Requests use the same JSON or multipart payload as the corresponding synchronous endpoint. Streaming image requests are rejected because a polled task returns one final JSON result.
+## 运行时
 
-## Enabling the feature (result storage)
+请求不再由无界进程内 goroutine 执行。当前实现：
 
-Asynchronous image tasks are **disabled by default** and gated on result storage. When the switch is off, the async endpoints return `404` and never create a task or write to Redis. This is deliberate: without offloading, large `b64_json` results (several MB each, e.g. `gpt-image-1`) would accumulate in Redis and exhaust its memory.
+- 加密持久化请求信封
+- Redis ready/active 队列
+- 可配置有界 worker
+- 原子提交和用户/API Key 范围的幂等映射
+- active lease、心跳和锁续期
+- queued -> processing 和 processing -> terminal 使用 Redis CAS，迟到写入不能覆盖终态
+- 租约或 job lock 丢失会取消正在执行的 provider 请求，不 ACK、不伪造失败结算
+- 服务重启后继续处理 queued 任务
+- 崩溃前已进入 processing 的任务明确转 failed，不重放可能已经计费的上游请求
+- worker 重新加载 API Key、用户、分组和订阅上下文；订阅恢复失败直接终止，不回退余额计费
+- worker 使用 task ID 作为稳定 request/client request ID，防止重试产生多份计费关联
+- worker 内部强制使用 Base64，再把结果一次性转存到 task asset storage
+- terminal 记录清除加密请求信封，只保留结果、错误和必要审计元数据
 
-For single-instance Zeabur/Docker deployments, use the local persistent data volume:
+Redis 队列的重启恢复以持久卷和 AOF 为前提。官方 Docker Compose 与 Zeabur 模板已启用
+`appendonly yes`、`appendfsync everysec` 并挂载 Redis 数据卷；使用外部 Redis 时必须
+配置等价持久化。运行时健康检查只能确认 Redis 可访问，不能替外部托管服务证明其
+持久化策略。
 
-```yaml
-image_storage:
-  enabled: true
-  backend: "local"
-  local_dir: ""                       # empty -> DATA_DIR/image-task-results
-  local_url_prefix: "/v1/images/task-assets/"
-  prefix: "images/"
-  max_download_bytes: 33554432
-```
+## 启用
 
-Equivalent environment variables:
+通用部署默认关闭。生产需要：
 
 ```text
 IMAGE_STORAGE_ENABLED=true
 IMAGE_STORAGE_BACKEND=local
-IMAGE_STORAGE_LOCAL_DIR=
-IMAGE_STORAGE_LOCAL_URL_PREFIX=/v1/images/task-assets/
-IMAGE_STORAGE_PREFIX=images/
-IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=33554432
+IMAGE_ASYNC_QUEUE_ENABLED=true
+IMAGE_ASYNC_ENABLED=true
+IMAGE_ASYNC_WORKER_COUNT=4
 ```
 
-With `backend: local`, completed images are stored under the instance data volume and returned as authenticated `/v1/images/task-assets/...` URLs. The same API key that submitted the task must be used to download the asset.
+`IMAGE_ASYNC_ENABLED=true` 要求 queue 和图片存储同时启用，否则配置校验失败。
 
-For multi-replica deployments or CDN distribution, configure an S3-compatible object store (AWS S3, Cloudflare R2, Aliyun OSS, MinIO, …):
-
-```yaml
-image_storage:
-  enabled: true
-  backend: "s3"
-  endpoint: "https://<account_id>.r2.cloudflarestorage.com"  # AWS official S3 can leave empty
-  region: "auto"
-  bucket: "my-images"
-  access_key_id: "..."
-  secret_access_key: "..."
-  prefix: "images/"
-  force_path_style: false          # MinIO/path-style buckets set true
-  public_base_url: ""              # set to return public_base_url/key直链; empty → presigned URL
-  presign_expiry_hours: 24         # presigned link TTL when public_base_url is empty
-  max_download_bytes: 33554432     # cap when re-hosting an upstream image URL (32MB)
-```
-
-S3 environment variables:
+允许：
 
 ```text
-IMAGE_STORAGE_ENABLED=true
-IMAGE_STORAGE_BACKEND=s3
-IMAGE_STORAGE_ENDPOINT=https://<account_id>.r2.cloudflarestorage.com
-IMAGE_STORAGE_REGION=auto
-IMAGE_STORAGE_BUCKET=my-images
-IMAGE_STORAGE_ACCESS_KEY_ID=...
-IMAGE_STORAGE_SECRET_ACCESS_KEY=...
-IMAGE_STORAGE_PREFIX=images/
-IMAGE_STORAGE_FORCE_PATH_STYLE=false
-IMAGE_STORAGE_PUBLIC_BASE_URL=
-IMAGE_STORAGE_PRESIGN_EXPIRY_HOURS=24
-IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=33554432
+IMAGE_ASYNC_ENABLED=false
+IMAGE_ASYNC_QUEUE_ENABLED=true
 ```
 
-Production readiness check:
+用于停止新提交、继续恢复和排空存量任务。
+
+状态含义：
+
+- API 未启用：提交返回 `404 not_found_error`
+- API 已启用但 Redis、队列或 worker 未就绪：`503 IMAGE_ASYNC_NOT_READY`
+- 未就绪时不创建任务、不执行上游调用
+
+管理员可调用：
+
+```text
+GET /api/v1/admin/ops/image-runtimes/health
+```
+
+查看 Gateway async 的开关、存储、Redis、worker、ready/active backlog 和最近错误，不暴露凭据。
+
+## 提交与幂等
 
 ```bash
 curl -i https://api.jisudeng.com/v1/images/generations/async \
-  -H 'Authorization: Bearer sk-...' \
-  -H 'Content-Type: application/json' \
-  -d '{"model":"gpt-image-2","prompt":"async smoke test","size":"1024x1024","n":1}'
-```
-
-The expected submit response is `202 Accepted` with `task_id` and `poll_url`. A `404` body with `async image tasks are not enabled` means `IMAGE_STORAGE_ENABLED` is not true, or `IMAGE_STORAGE_BACKEND=s3` was selected without complete bucket/access key/secret credentials.
-
-Use the async endpoints for production image requests that may take longer than 60-90 seconds. Synchronous `/v1/images/generations` calls can still finish upstream after a CDN/Cloudflare `524`, which means the dashboard may show a successful generated image while the caller only received a timeout. Retrying the synchronous request can create duplicate paid generations.
-
-When a task completes, each generated image is stored through the selected backend and the result is rewritten to a compact form: `data[].url` points at the stored image and `b64_json` is removed. Only this small JSON is stored in Redis. If storage fails, the task is marked `failed` rather than persisting the raw base64.
-
-To support a different storage backend, implement the `service.ImageStorage` interface (`Save(ctx, key, contentType, data) (url, error)`) and provide it in place of the built-in local/S3 implementations.
-
-## Submit a task
-
-```bash
-curl -i https://api.jisudeng.com/v1/images/generations/async \
-  -H 'Authorization: Bearer sk-...' \
-  -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \
+  -H "Content-Type: application/json" \
+  -H "Idempotency-Key: image-task-20260718-001" \
   -d '{
-    "model": "gpt-image-1",
-    "prompt": "A lighthouse during a winter storm",
-    "size": "1536x1024"
+    "model": "gpt-image-2",
+    "prompt": "暴风雪中的灯塔，电影感，横向构图",
+    "size": "1536x1024",
+    "n": 2,
+    "response_format": "url"
   }'
 ```
 
-The server stores the initial task in Redis and responds with `202 Accepted`:
+成功返回 `202 Accepted`：
 
 ```json
 {
   "id": "imgtask_0123456789abcdef",
   "task_id": "imgtask_0123456789abcdef",
   "object": "image.generation.task",
-  "status": "processing",
-  "created_at": 1784092800,
-  "expires_at": 1784179200,
+  "status": "queued",
+  "created_at": 1784160000,
+  "expires_at": 1784246400,
   "poll_url": "/v1/images/tasks/imgtask_0123456789abcdef"
 }
 ```
 
-`Location` contains the polling path and `Retry-After: 3` provides the recommended polling interval.
+响应头：
 
-## Poll a task
+```text
+Location: /v1/images/tasks/imgtask_0123456789abcdef
+Retry-After: 3
+Cache-Control: no-store
+```
 
-Use the same API key that submitted the task:
+`Idempotency-Key` 最多 255 字节。超长时返回
+`400 IMAGE_TASK_IDEMPOTENCY_KEY_INVALID`，不会创建任务或入队。同 owner、
+同 `Idempotency-Key`、同请求返回已有任务，并设置
+`Idempotent-Replayed: true`；同 key 不同请求返回
+`409 IMAGE_TASK_IDEMPOTENCY_CONFLICT`。
+
+同步接口的请求校验契约同样适用于异步提交：空白 prompt 返回
+`400 IMAGE_PROMPT_REQUIRED`，非法 `response_format` 返回
+`400 IMAGE_RESPONSE_FORMAT_INVALID`，且都发生在任务创建和入队之前。
+
+## 轮询
+
+必须使用提交任务时的同一把 API Key：
 
 ```bash
 curl https://api.jisudeng.com/v1/images/tasks/imgtask_0123456789abcdef \
-  -H 'Authorization: Bearer sk-...'
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"
 ```
 
-While work is in progress:
+状态机：
+
+```text
+queued -> processing -> completed
+                     -> failed
+```
+
+`queued` 和 `processing` 响应带 `Retry-After: 3`。
+
+恢复规则是保守的：`queued` 尚未调用 provider，可以在重启后继续执行；一旦任务已
+进入 `processing`，平台无法证明崩溃前的上游请求是否已经成功或计费，因此恢复时会
+转为 `failed`，错误码为 `IMAGE_TASK_RECOVERY_UNAVAILABLE`，不会自动重放。
+
+## 结果
+
+worker 内部把生成请求规范化为 Base64，完成后把每张图片写入结果存储。Redis 任务记录只保存紧凑 URL，不保存大段 Base64。
 
 ```json
 {
-  "id": "imgtask_0123456789abcdef",
-  "task_id": "imgtask_0123456789abcdef",
-  "object": "image.generation.task",
-  "status": "processing",
-  "created_at": 1784092800,
-  "expires_at": 1784179200
-}
-```
-
-On success, `result` mirrors the synchronous image API body, except each image has been offloaded to result storage: `data[].url` points at the stored image and `b64_json` is stripped (so both URL and base64 upstream formats end up as compact stored links):
-
-```json
-{
-  "id": "imgtask_0123456789abcdef",
   "task_id": "imgtask_0123456789abcdef",
   "object": "image.generation.task",
   "status": "completed",
   "http_status": 200,
-  "image_url": "https://...",
+  "image_url": "/v1/images/task-assets/images/imgtask_0123456789abcdef-0.png",
   "result": {
-    "created": 1784092923,
-    "data": [{"url": "https://..."}]
+    "created": 1784160123,
+    "data": [
+      {"url": "/v1/images/task-assets/images/imgtask_0123456789abcdef-0.png"},
+      {"url": "/v1/images/task-assets/images/imgtask_0123456789abcdef-1.png"}
+    ]
   },
-  "created_at": 1784092800,
-  "completed_at": 1784092923,
-  "expires_at": 1784179323
+  "completed_at": 1784160123,
+  "expires_at": 1784246523
 }
 ```
 
-For URL responses, `image_url` mirrors the first `data[].url` for simple clients. On failure, the task reaches `failed` and exposes the original OpenAI-compatible error object where available:
+task asset 必须使用同一把 API Key 下载。其他 Key 和未知任务均返回 404，避免泄露任务存在性。
 
-```json
-{
-  "id": "imgtask_0123456789abcdef",
-  "task_id": "imgtask_0123456789abcdef",
-  "object": "image.generation.task",
-  "status": "failed",
-  "http_status": 502,
-  "error": {
-    "type": "api_error",
-    "message": "Upstream request failed"
-  },
-  "created_at": 1784092800,
-  "completed_at": 1784092923,
-  "expires_at": 1784179323
-}
-```
+结果存储失败时任务转 failed，不回退把 Base64 写入 Redis。
 
-Successful submit and poll responses include `Cache-Control: no-store`, preventing a CDN from caching the `processing` state. Tasks and results expire 24 hours after their latest state update. A task executes for at most 30 minutes.
+## 关闭与回滚
 
-Task ownership is scoped to both user and API key. Unknown task IDs and IDs owned by another key both return `404`, avoiding task-existence disclosure. Polling remains available when the completed generation used the key's remaining balance; normal authentication, disabled-key, user, IP, and group checks still apply.
+1. 先设置 `IMAGE_ASYNC_ENABLED=false` 停止新提交。
+2. 保持 `IMAGE_ASYNC_QUEUE_ENABLED=true`，等待 ready/active backlog 归零。
+3. 确认无 processing 任务后再关闭 queue。
+4. 结果仍在保留期内时保持图片存储可读。

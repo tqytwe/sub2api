@@ -96,7 +96,8 @@ echo "Checking fork registry and static invariants..."
 
 for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
-  FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010; do
+  FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
+  FORK-IMAGE-011; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -122,6 +123,17 @@ check_contains "FORK-IMAGE-004" "mobile support overlay hidden" "frontend/src/ro
 for asset in ecom-white-bg.webp xhs-cover.webp free-create.webp; do
   check_file "FORK-IMAGE-004" "template asset $asset" "frontend/public/image-studio/templates/$asset"
 done
+
+check_file "FORK-IMAGE-011" "Gateway async Redis queue" "backend/internal/repository/image_task_queue.go"
+check_contains "FORK-IMAGE-011" "image task terminal CAS" "backend/internal/service/image_task.go" "SaveIfStatus"
+check_contains "FORK-IMAGE-011" "image task lease loss" "backend/internal/service/image_task.go" "ErrImageTaskLeaseLost"
+check_contains "FORK-IMAGE-011" "private Images result URL" "backend/internal/service/openai_images.go" "IMAGE_RESULT_STORAGE_UNAVAILABLE"
+check_contains "FORK-IMAGE-011" "Batch runtime readiness error" "backend/internal/service/batch_image.go" "BATCH_IMAGE_NOT_READY"
+check_contains "FORK-IMAGE-011" "admin image runtimes route" "backend/internal/server/routes/admin.go" 'ops.GET("/image-runtimes/health"'
+check_contains "FORK-IMAGE-011" "public Images API docs" "frontend/src/content/public-docs-data.zh.ts" "/v1/images/results/{result_id}/{index}"
+check_contains "FORK-IMAGE-011" "Zeabur Redis AOF persistence" "deploy/zeabur.template.yaml" "--appendonly yes --appendfsync everysec"
+check_contains "FORK-IMAGE-011" "Zeabur persistent data path" "deploy/zeabur.template.yaml" "persistent /data"
+check_not_contains "FORK-IMAGE-011" "Zeabur stale app data path removed" "deploy/zeabur.template.yaml" "persistent /app/data"
 
 check_file "FORK-PRICING-005" "model catalog service" "backend/internal/service/model_catalog_service.go"
 check_contains "FORK-PRICING-005" "explicit catalog group IDs" "backend/internal/service/model_catalog_types.go" 'GroupIDs                []int64    `json:"group_ids"`'
@@ -198,6 +210,7 @@ MIGRATIONS=(
   200_prompt_library_seed.sql
   201_prompt_library_public_seed.sql
   202_prompt_library_generic_cover_cleanup.sql
+  203_batch_image_owner_idempotency.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -226,6 +239,8 @@ run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
+run_check "FORK-IMAGE-011" "Images async, URL and Batch runtime unit tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service ./internal/handler -run 'TestImageTask|TestImageRuntimesHealthGatewayAsync|TestAsyncImage|TestOpenAIImageResultServiceRewriteAndEnforceAPIKeyOwnership|TestOpenAIGatewayServiceForwardImages_(APIKeyStreamingURLStoresCompletedImage|OAuthStreamingTransformsEvents|StreamURLRequiresStorageBeforeUpstream)|TestBatchImage(RuntimeState|WorkerRuntime|ProviderRegistryFromConfig|PublicService_Submit)'"
 
 echo
 echo "Running protected frontend behaviors..."

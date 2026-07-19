@@ -13,6 +13,7 @@ var ErrUsageBillingRequestIDRequired = errors.New("usage billing request_id is r
 var ErrUsageBillingRequestConflict = errors.New("usage billing request fingerprint conflict")
 var ErrUsageBillingOwnershipMismatch = errors.New("usage billing user does not own api key or subscription")
 var ErrUsageBillingHoldNotFound = errors.New("usage billing hold request was not reserved")
+var ErrUsageBillingHoldTerminalConflict = errors.New("usage billing hold was already captured or released")
 var ErrImageStudioBillingReconciliationPersistence = errors.New("persist image studio billing reconciliation")
 
 // UsageBillingCommand describes one billable request that must be applied at most once.
@@ -127,6 +128,8 @@ type UsageBillingApplyResult struct {
 type BatchImageBalanceHoldCommand struct {
 	RequestID           string
 	HoldRequestID       string
+	CaptureRequestID    string
+	ReleaseRequestID    string
 	APIKeyID            int64
 	RequestFingerprint  string
 	RequestPayloadHash  string
@@ -143,7 +146,25 @@ func (c *BatchImageBalanceHoldCommand) Normalize() {
 	}
 	c.RequestID = strings.TrimSpace(c.RequestID)
 	c.HoldRequestID = strings.TrimSpace(c.HoldRequestID)
+	c.CaptureRequestID = strings.TrimSpace(c.CaptureRequestID)
+	c.ReleaseRequestID = strings.TrimSpace(c.ReleaseRequestID)
 	c.BatchID = strings.TrimSpace(c.BatchID)
+	switch {
+	case strings.HasPrefix(c.HoldRequestID, batchImageHoldRequestPrefix):
+		if c.CaptureRequestID == "" {
+			c.CaptureRequestID = BatchImageCaptureRequestID(c.BatchID)
+		}
+		if c.ReleaseRequestID == "" {
+			c.ReleaseRequestID = BatchImageReleaseRequestID(c.BatchID)
+		}
+	case strings.HasPrefix(c.HoldRequestID, imageStudioHoldRequestPrefix):
+		if c.CaptureRequestID == "" {
+			c.CaptureRequestID = ImageStudioCaptureRequestID(c.BatchID)
+		}
+		if c.ReleaseRequestID == "" {
+			c.ReleaseRequestID = ImageStudioReleaseRequestID(c.BatchID)
+		}
+	}
 	if strings.TrimSpace(c.RequestFingerprint) == "" {
 		c.RequestFingerprint = buildBatchImageBalanceHoldFingerprint(c)
 	}

@@ -49,6 +49,7 @@ export interface BatchImageJob {
   provider: string
   item_count: number
   success_count: number
+  output_image_count?: number
   fail_count: number
   estimated_cost: number
   hold_amount: number

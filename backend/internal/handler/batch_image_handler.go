@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -30,8 +32,8 @@ func NewBatchImageHandler(service *service.BatchImagePublicService, download *se
 
 func (h *BatchImageHandler) Submit(c *gin.Context) {
 	var req service.BatchImageSubmitRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		batchImageError(c, service.ErrBatchImageInvalidItems)
+	if err := bindBatchImageSubmitRequest(c, &req); err != nil {
+		writeBatchImageSubmitBindError(c, err)
 		return
 	}
 	owner, ok := batchImageOwnerFromContext(c)
@@ -47,7 +49,57 @@ func (h *BatchImageHandler) Submit(c *gin.Context) {
 		batchImageError(c, err)
 		return
 	}
-	c.JSON(http.StatusOK, got)
+	writeBatchImageAccepted(c, got)
+}
+
+func bindBatchImageSubmitRequest(c *gin.Context, req *service.BatchImageSubmitRequest) error {
+	if c == nil || c.Request == nil || req == nil {
+		return errors.New("batch image request is unavailable")
+	}
+	body, err := pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
+	if err != nil {
+		return err
+	}
+	if len(bytes.TrimSpace(body)) == 0 {
+		return errors.New("batch image request body is empty")
+	}
+	return json.Unmarshal(body, req)
+}
+
+func writeBatchImageSubmitBindError(c *gin.Context, err error) {
+	if maxErr, ok := extractMaxBytesError(err); ok {
+		batchImageError(c, infraerrors.New(
+			http.StatusRequestEntityTooLarge,
+			"BATCH_IMAGE_REQUEST_TOO_LARGE",
+			buildBodyTooLargeMessage(maxErr.Limit),
+		))
+		return
+	}
+	var syntaxErr *json.SyntaxError
+	var typeErr *json.UnmarshalTypeError
+	if errors.As(err, &syntaxErr) || errors.As(err, &typeErr) ||
+		strings.Contains(strings.ToLower(err.Error()), "request body is empty") {
+		batchImageError(c, infraerrors.New(
+			http.StatusBadRequest,
+			"BATCH_IMAGE_INVALID_JSON",
+			"batch image request body must be valid JSON",
+		))
+		return
+	}
+	batchImageError(c, infraerrors.New(
+		http.StatusBadRequest,
+		"BATCH_IMAGE_REQUEST_DECODE_FAILED",
+		"batch image request body could not be decoded",
+	))
+}
+
+func writeBatchImageAccepted(c *gin.Context, batch *service.BatchImagePublicBatch) {
+	if c == nil || batch == nil {
+		return
+	}
+	c.Header("Location", "/v1/images/batches/"+batch.ID)
+	c.Header("Retry-After", "5")
+	c.JSON(http.StatusAccepted, batch)
 }
 
 func (h *BatchImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, req *service.BatchImageSubmitRequest) bool {

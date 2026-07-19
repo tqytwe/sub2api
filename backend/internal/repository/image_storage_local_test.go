@@ -34,3 +34,16 @@ func TestLocalImageStorageRejectsTraversalKeys(t *testing.T) {
 	_, _, err = store.Open(context.Background(), `..\secret.png`)
 	require.Error(t, err)
 }
+
+func TestLocalImageStorageDeleteRemovesStoredAsset(t *testing.T) {
+	store, err := NewLocalImageStorage(t.TempDir(), "/v1/images/task-assets/")
+	require.NoError(t, err)
+	key := "images/results/imgres_delete-0.png"
+	_, err = store.Save(context.Background(), key, "image/png", []byte("png-bytes"))
+	require.NoError(t, err)
+
+	require.NoError(t, store.Delete(context.Background(), key))
+	_, _, err = store.Open(context.Background(), key)
+	require.Error(t, err)
+	require.NoError(t, store.Delete(context.Background(), key), "delete must be idempotent")
+}

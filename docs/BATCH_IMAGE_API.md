@@ -1,239 +1,185 @@
-# 多张 / 批量生图调用
+# Batch Image 持久批任务 API
 
 > 状态：active
 > 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=batch-image-api`
-> API Key：`https://www.jisudeng.com/keys`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-17
+> 最后核验：2026-07-18
 
-## 当前口径
+## 产品边界
 
-极速蹬当前面向用户的图片生成主要是 GPT 图片生成和 Grok 图片生成。批量或多 prompt 场景建议优先使用异步生成接口，避免同步长连接在 CDN/Cloudflare 后面超时：
+Batch Image 是多 prompt、可恢复、可取消、可下载的持久批任务。首发生产通道是 Gemini API Batch。
+
+它不等同于：
+
+- 同步 Images：`POST /v1/images/generations`、`POST /v1/images/edits`
+- 单请求异步：`POST /v1/images/generations/async`、`POST /v1/images/edits/async`
+- 图像工作室：JWT 登录页面、模板、估价和图库
+
+Batch 与前两者使用 API Key；图像工作室使用登录 JWT。
+
+## 路由
 
 ```text
-POST https://api.jisudeng.com/v1/images/generations/async
-GET  https://api.jisudeng.com/v1/images/tasks/{task_id}
+GET    /v1/images/batches/models
+POST   /v1/images/batches
+GET    /v1/images/batches
+GET    /v1/images/batches/{id}
+GET    /v1/images/batches/{id}/items
+GET    /v1/images/batches/{id}/items/{custom_id}/content
+GET    /v1/images/batches/{id}/download
+POST   /v1/images/batches/{id}/cancel
+DELETE /v1/images/batches/{id}/outputs
+DELETE /v1/images/batches/{id}
 ```
 
-常见两种批量方式：
+## 提交前预检
 
-| 方式 | 怎么做 | 适合场景 |
-|------|--------|----------|
-| 一次请求多张 | 异步提交，设置 `n`，例如 `n: 4`，再轮询任务结果 | 同一个 prompt 出多张备选图 |
-| 多个 prompt 批量跑 | 每个 prompt 提交一个异步任务，限制并发并轮询 `/v1/images/tasks/{task_id}` | 商品图、封面、头像、素材批处理 |
-
-短耗时本地测试仍可调用 `https://api.jisudeng.com/v1/images/generations`。生产批量任务不要靠把同步请求 timeout 调到 180/300 秒来等待，因为中间层可能先返回 `524`，而后台上游生成仍可能成功。不要把 API Key 放到 URL 参数里。
-
-设置 `n > 1` 时，同一响应的 `data` 数组包含实际返回的全部图片；保存和展示时
-必须遍历 `data[]`，不能只读取 `data[0]`。
-
-完整异步任务契约见 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。
-
-## 一次请求生成多张
-
-下面的同步示例只适合短耗时调试。生产批量生成请把相同 body 提交到
-`/v1/images/generations/async`，拿到 `task_id` 后轮询 `/v1/images/tasks/{task_id}`，
-避免同步长连接 524。
+每次创建任务前，必须用准备提交的同一把 API Key 调用：
 
 ```bash
-curl https://api.jisudeng.com/v1/images/generations \
+curl https://api.jisudeng.com/v1/images/batches/models \
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"
+```
+
+预检同时检查：
+
+- Batch API 是否接受新提交
+- Redis、队列和 worker 是否就绪
+- Key 所属分组是否允许图片生成和 Batch 图片生成
+- 是否存在可调度的 Gemini API Key 账号
+- 是否存在模型映射
+- 是否存在图片价格
+
+常见不可用原因：
+
+| 错误码 | 含义 |
+|---|---|
+| `BATCH_IMAGE_DISABLED` | 平台停止新提交；历史列表、预览和下载仍可读取 |
+| `BATCH_IMAGE_NOT_READY` | Redis、队列或 worker 运行时异常 |
+| `BATCH_IMAGE_GROUP_DISABLED` | 分组未开启 Batch 图片生成 |
+| `BATCH_IMAGE_INVALID_MODEL` | 模型不在预检返回列表中 |
+| 账号/价格错误 | 管理员尚未完成账号、模型映射或定价配置 |
+
+## 提交契约
+
+成功提交返回：
+
+- HTTP `202 Accepted`
+- `Location: /v1/images/batches/{id}`
+- `Retry-After`
+- Batch 任务对象
+
+强烈建议首次提交生成稳定 `Idempotency-Key`。未提供该请求头时仍可提交，但网络失败或超时后的重复请求可能创建多个任务。提供后，重试相同请求必须复用原 key；请求内容改变时使用新 key。
+
+```bash
+curl -i https://api.jisudeng.com/v1/images/batches \
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-image-2",
-    "prompt": "电商白底主图：一双白色运动鞋，居中摆放，柔和棚拍光，高清真实摄影",
-    "size": "1024x1024",
-    "n": 4,
-    "response_format": "b64_json"
-  }' \
-  -o multi-response.json
+  -H "Idempotency-Key: batch-product-20260718-001" \
+  --data-binary @batch-request.json
 ```
 
-保存所有图片：
+## 5 张示例
 
-```bash
-mkdir -p outputs
-jq -r '.data[].b64_json' multi-response.json | nl -w1 -s' ' | while read -r index b64; do
-  printf '%s' "$b64" | base64 -d > "outputs/shoe-${index}.png"
-done
-```
-
-Grok 分组写法一样，只改模型：
+需要 5 张时使用 5 个独立 items：
 
 ```json
 {
-  "model": "grok-imagine",
-  "prompt": "未来感跑车海报，夜晚城市，霓虹光，高对比，电影质感",
-  "n": 4,
-  "response_format": "b64_json"
+  "model": "gemini-3.1-flash-image-preview",
+  "task_name": "商品主图 5 张",
+  "image_size": "1K",
+  "response_mime_type": "image/png",
+  "items": [
+    {"custom_id": "img_001", "prompt": "白色运动鞋，电商白底主图，柔光"},
+    {"custom_id": "img_002", "prompt": "黑色机械键盘，俯拍，高清细节"},
+    {"custom_id": "img_003", "prompt": "透明香水瓶，棚拍，干净阴影"},
+    {"custom_id": "img_004", "prompt": "银色智能手表，深色背景，边缘光"},
+    {"custom_id": "img_005", "prompt": "夏日冰咖啡，浅色社媒封面，标题留白"}
+  ]
 }
 ```
 
-## 多个 prompt 批量跑
+## 10 张示例
 
-生产多 prompt 批量跑建议每个 prompt 提交一个异步任务，并限制并发。下面同步脚本只适合本地短耗时验证。
-
-准备 `prompts.txt`，一行一个 prompt：
-
-```text
-电商白底主图：白色运动鞋，柔光，干净阴影
-电商白底主图：黑色机械键盘，俯拍，高清细节
-社媒封面：夏日冰咖啡，浅色背景，标题留白
-游戏头像：银发机甲角色，蓝色边缘光，半身像
-```
-
-批量生成并保存：
+需要 10 张时使用 10 个独立 items。可从一行一个 prompt 的文件构造：
 
 ```bash
-mkdir -p batch-outputs
-i=1
-while IFS= read -r prompt || [ -n "$prompt" ]; do
-  [ -z "$prompt" ] && continue
-
-  jq -n --arg prompt "$prompt" '{
-    model: "gpt-image-2",
-    prompt: $prompt,
-    size: "1024x1024",
-    n: 1,
-    response_format: "b64_json"
-  }' > "batch-outputs/request-${i}.json"
-
-  curl https://api.jisudeng.com/v1/images/generations \
-    -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \
-    -H "Content-Type: application/json" \
-    -d @"batch-outputs/request-${i}.json" \
-    -o "batch-outputs/response-${i}.json"
-
-  jq -r '.data[0].b64_json' "batch-outputs/response-${i}.json" \
-    | base64 -d > "batch-outputs/image-${i}.png"
-
-  i=$((i + 1))
-done < prompts.txt
+jq -Rn '
+  [inputs | select(length > 0)]
+  | to_entries
+  | {
+      model: "gemini-3.1-flash-image-preview",
+      task_name: "批量素材 10 张",
+      image_size: "1K",
+      response_mime_type: "image/png",
+      items: map({
+        custom_id: ("img_" + (.key + 1 | tostring)),
+        prompt: .value
+      })
+    }
+' prompts-10.txt > batch-10.json
 ```
 
-要用 Grok，把脚本里的 `model: "gpt-image-2"` 改成：
+`output_count` 是同一 prompt 重复生成数量：
 
-```text
-model: "grok-imagine"
-```
+- 默认 1
+- 单 item 最多 4
+- 每任务最多 200 张
+- 不要使用单 item `output_count=5` 或 `output_count=10`
 
-## 每个 prompt 生成多张
+系统会把 `output_count` 展开成真实图片任务项，不依赖上游单次返回多图。
 
-如果每行 prompt 要出 3 张，把请求里的 `n` 改成 3，并保存每条响应里的所有图片：
+## 查询、明细和下载
 
 ```bash
-mkdir -p batch-outputs
-i=1
-while IFS= read -r prompt || [ -n "$prompt" ]; do
-  [ -z "$prompt" ] && continue
+curl https://api.jisudeng.com/v1/images/batches/{id} \
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"
 
-  jq -n --arg prompt "$prompt" '{
-    model: "gpt-image-2",
-    prompt: $prompt,
-    size: "1024x1024",
-    n: 3,
-    response_format: "b64_json"
-  }' > "batch-outputs/request-${i}.json"
+curl https://api.jisudeng.com/v1/images/batches/{id}/items \
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"
 
-  curl https://api.jisudeng.com/v1/images/generations \
-    -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \
-    -H "Content-Type: application/json" \
-    -d @"batch-outputs/request-${i}.json" \
-    -o "batch-outputs/response-${i}.json"
-
-  jq -r '.data[].b64_json' "batch-outputs/response-${i}.json" | nl -w1 -s' ' | while read -r j b64; do
-    printf '%s' "$b64" | base64 -d > "batch-outputs/image-${i}-${j}.png"
-  done
-
-  i=$((i + 1))
-done < prompts.txt
+curl https://api.jisudeng.com/v1/images/batches/{id}/download \
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \
+  -o batch-results.zip
 ```
 
-## Node.js 批量保存
+建议轮询间隔：
 
-```js
-import fs from "node:fs"
+- `queued`：60-120 秒
+- 连续 3 次仍为 `queued`：停止主动高频轮询，保留恢复记录
+- `running`：约 60 秒
+- `processing_results`：20-45 秒
 
-const apiKey = "sk-xxxxxxxxxxxxxxx"
-const prompts = [
-  "电商白底主图：白色运动鞋，柔光，干净阴影",
-  "社媒封面：夏日冰咖啡，浅色背景，标题留白",
-  "游戏头像：银发机甲角色，蓝色边缘光，半身像",
-]
+预览按需加载，不应为列表自动批量下载图片内容。
 
-fs.mkdirSync("batch-outputs", { recursive: true })
+## 部分失败和重试
 
-for (let i = 0; i < prompts.length; i++) {
-  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-image-2",
-      prompt: prompts[i],
-      size: "1024x1024",
-      n: 2,
-      response_format: "b64_json",
-    }),
-  })
+- 只重试失败 items
+- 不得重复提交已经成功的 `custom_id`
+- 重试前再次调用 `/v1/images/batches/models`
+- 恢复记录至少保存 batch ID、模型、输出目录、状态/明细/下载 URL、custom ID 到 prompt 的映射
+- 恢复记录和日志不得包含 API Key 或参考图 Base64
 
-  const json = await res.json()
-  json.data.forEach((item, j) => {
-    fs.writeFileSync(
-      `batch-outputs/image-${i + 1}-${j + 1}.png`,
-      Buffer.from(item.b64_json, "base64"),
-    )
-  })
-}
-```
+## 取消、结算和清理
 
-## 网页批量显示
+- `POST /v1/images/batches/{id}/cancel` 请求取消上游任务
+- 已索引成功的图片按 `output_image_count` 结算；`success_count` 表示成功 item 数，`output_image_count` 表示实际可下载图片数
+- 未成功部分释放冻结余额
+- `DELETE /outputs` 删除输出但保留任务与结算记录
+- `DELETE /{id}` 删除符合状态约束的任务记录
+- 输出有保留期，完成后应及时下载 ZIP
 
-本地测试时可以把返回的 base64 直接塞进 `<img>`：
+## 生产启用
 
-```html
-<div id="grid" style="display:grid;grid-template-columns:repeat(2,180px);gap:12px;"></div>
-<script>
-async function run() {
-  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer sk-xxxxxxxxxxxxxxx",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-image-2",
-      prompt: "小红书封面：夏日柠檬气泡水，浅色背景，标题留白",
-      size: "1024x1536",
-      n: 4,
-      response_format: "b64_json"
-    })
-  })
-  const json = await res.json()
-  document.querySelector("#grid").innerHTML = json.data.map((item) => {
-    const src = item.url || `data:image/png;base64,${item.b64_json}`
-    return `<img src="${src}" style="width:180px;border-radius:10px;" />`
-  }).join("")
-}
-run()
-</script>
-```
+通用默认保持关闭。两阶段上线：
 
-正式网站不要把 API Key 暴露在前端，请让你的后端调用极速蹬 API，再把图片结果返回给浏览器。
+Redis 必须使用持久卷并启用 AOF；官方 Docker Compose 与 Zeabur 模板已配置
+`appendonly yes` 和 `appendfsync everysec`。外部 Redis 若没有等价持久化，服务重启
+或节点故障时 ready/delayed/active lease 无法保证恢复，不能称为持久 Batch。
 
-## 批量调用注意事项
+1. 先部署代码并设置 `BATCH_IMAGE_QUEUE_ENABLED=true`、`BATCH_IMAGE_ENABLED=false`，让 worker 恢复或排空存量任务。
+2. 配置 Gemini API Key 账号、模型映射、分组 `allow_image_generation` / `allow_batch_image_generation` 和图片价格。
+3. 使用目标生产 Key 调用 `/v1/images/batches/models`，确认预检通过。
+4. 设置 `BATCH_IMAGE_ENABLED=true` 开放新提交。
 
-- 每张图都会计费，`n=4` 就是 4 张。
-- 大批量脚本建议按顺序跑，遇到 `429` 时等待几秒再重试。
-- 图片建议用 `response_format: "b64_json"`，保存和展示都最稳定。
-- prompt 中有换行或引号时，用 `jq -n --arg prompt "$prompt"` 生成 JSON，别手拼字符串。
-- API Key 只放请求头：`Authorization: Bearer sk-...`。
-
-## 相关页面
-
-- API Key：`https://www.jisudeng.com/keys`
-- 模型与价格：`https://www.jisudeng.com/models`
-- 单张生成完整说明：[GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md)
-- 图像工作室：`https://www.jisudeng.com/image-studio`
+回滚时先关闭 `BATCH_IMAGE_ENABLED`，保持 queue/worker 排空和结算存量任务；确认无活跃任务和冻结余额后再关闭队列。

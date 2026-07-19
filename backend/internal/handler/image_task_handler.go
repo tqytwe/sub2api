@@ -6,12 +6,16 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"strconv"
 	"strings"
-	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	pkghttputil "github.com/Wei-Shaw/sub2api/internal/pkg/httputil"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -22,10 +26,22 @@ import (
 )
 
 type AsyncImageHandler struct {
-	tasks       *service.ImageTaskService
-	openAI      *OpenAIGatewayHandler
-	assetReader service.ImageAssetReader
-	execute     func(platform string, c *gin.Context)
+	tasks         *service.ImageTaskService
+	openAI        *OpenAIGatewayHandler
+	assetReader   service.ImageAssetReader
+	imageResults  *service.OpenAIImageResultService
+	apiKeys       imageTaskAPIKeyLoader
+	subscriptions imageTaskSubscriptionLoader
+	runtime       *service.ImageTaskWorkerRuntime
+	execute       func(platform string, c *gin.Context)
+}
+
+type imageTaskAPIKeyLoader interface {
+	GetByID(ctx context.Context, id int64) (*service.APIKey, error)
+}
+
+type imageTaskSubscriptionLoader interface {
+	GetActiveSubscription(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorage service.ImageStorage) *AsyncImageHandler {
@@ -34,6 +50,29 @@ func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGateway
 		h.assetReader = reader
 	}
 	h.execute = h.executeWithGateway
+	return h
+}
+
+func ProvideAsyncImageHandler(
+	tasks *service.ImageTaskService,
+	openAI *OpenAIGatewayHandler,
+	imageStorage service.ImageStorage,
+	imageResults *service.OpenAIImageResultService,
+	apiKeys *service.APIKeyService,
+	subscriptions *service.SubscriptionService,
+	queue service.ImageTaskQueue,
+	runtimeState *service.ImageTaskRuntimeState,
+	cfg *config.Config,
+) *AsyncImageHandler {
+	h := NewAsyncImageHandler(tasks, openAI, imageStorage)
+	h.imageResults = imageResults
+	h.apiKeys = apiKeys
+	h.subscriptions = subscriptions
+	if openAI != nil && openAI.gatewayService != nil {
+		openAI.gatewayService.SetOpenAIImageResultService(imageResults)
+	}
+	h.runtime = service.NewImageTaskWorkerRuntime(queue, tasks, h, runtimeState, cfg)
+	h.runtime.Start()
 	return h
 }
 
@@ -49,6 +88,15 @@ func (h *AsyncImageHandler) enabled() bool {
 func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	if !h.enabled() {
 		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "async image tasks are not enabled")
+		return
+	}
+	runtime := h.tasks.RuntimeSnapshot(c.Request.Context())
+	if !runtime.APIEnabled {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "async image tasks are not enabled")
+		return
+	}
+	if !runtime.Ready {
+		imageTaskError(c, service.ErrImageTaskNotReady)
 		return
 	}
 	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
@@ -68,7 +116,7 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		imageTaskJSONError(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
 		return
 	}
-	if h == nil || h.tasks == nil || h.execute == nil {
+	if h == nil || h.tasks == nil {
 		imageTaskError(c, service.ErrImageTaskUnavailable)
 		return
 	}
@@ -91,17 +139,35 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		return
 	}
 	if err := h.validateRequest(c, platform, body); err != nil {
-		imageTaskJSONError(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", err.Error())
+		code := openAIImagesValidationErrorCode(err)
+		if code == "" {
+			code = "invalid_request_error"
+		}
+		imageTaskJSONTypedError(c, openAIImagesValidationErrorStatus(err), "invalid_request_error", code, err.Error())
 		return
 	}
 	if !h.checkSecurityAuditBeforeSubmit(c, apiKey, platform, body) {
 		return
 	}
 
-	taskCtx, recorder, cancel := newAsyncImageContext(c, body, h.tasks.ExecutionTimeout())
-	task, err := h.tasks.Create(c.Request.Context(), service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID})
+	task, replayed, err := h.tasks.Submit(c.Request.Context(), service.ImageTaskSubmission{
+		Owner:    service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID},
+		Platform: platform,
+		Envelope: service.ImageTaskRequestEnvelope{
+			Method:      c.Request.Method,
+			Path:        strings.TrimSuffix(c.Request.URL.Path, "/async"),
+			ContentType: c.GetHeader("Content-Type"),
+			Headers: map[string]string{
+				"Accept":              c.GetHeader("Accept"),
+				"User-Agent":          c.GetHeader("User-Agent"),
+				"X-Request-ID":        c.GetHeader("X-Request-ID"),
+				"X-Client-Request-ID": c.GetHeader("X-Client-Request-ID"),
+			},
+			Body: body,
+		},
+		IdempotencyKey: c.GetHeader("Idempotency-Key"),
+	})
 	if err != nil {
-		cancel()
 		imageTaskError(c, err)
 		return
 	}
@@ -110,6 +176,9 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	c.Header("Location", pollURL)
 	c.Header("Retry-After", "3")
+	if replayed {
+		c.Header("Idempotent-Replayed", "true")
+	}
 	c.JSON(http.StatusAccepted, gin.H{
 		"id":         task.ID,
 		"task_id":    task.TaskID,
@@ -120,7 +189,6 @@ func (h *AsyncImageHandler) Submit(c *gin.Context) {
 		"poll_url":   pollURL,
 	})
 
-	go h.run(task.ID, platform, taskCtx, recorder, cancel)
 }
 
 func (h *AsyncImageHandler) checkSecurityAuditBeforeSubmit(c *gin.Context, apiKey *service.APIKey, platform string, body []byte) bool {
@@ -175,7 +243,7 @@ func (h *AsyncImageHandler) Get(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "no-store")
-	if task.Status == service.ImageTaskStatusProcessing {
+	if task.Status == service.ImageTaskStatusQueued || task.Status == service.ImageTaskStatusProcessing {
 		c.Header("Retry-After", "3")
 	}
 	c.JSON(http.StatusOK, task)
@@ -208,6 +276,36 @@ func (h *AsyncImageHandler) GetAsset(c *gin.Context) {
 	}
 	defer func() { _ = reader.Close() }()
 	c.Header("Cache-Control", "private, max-age=86400")
+	c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
+}
+
+func (h *AsyncImageHandler) GetResult(c *gin.Context) {
+	if h == nil || h.imageResults == nil || !h.imageResults.Enabled() {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image result not found")
+		return
+	}
+	apiKey, ok := middleware2.GetAPIKeyFromContext(c)
+	if !ok || apiKey == nil || apiKey.UserID <= 0 || apiKey.ID <= 0 {
+		imageTaskError(c, service.ErrImageTaskForbidden)
+		return
+	}
+	index, err := strconv.Atoi(strings.TrimSpace(c.Param("index")))
+	if err != nil || index < 0 {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image result not found")
+		return
+	}
+	reader, contentType, err := h.imageResults.Open(
+		c.Request.Context(),
+		service.ImageTaskOwner{UserID: apiKey.UserID, APIKeyID: apiKey.ID},
+		c.Param("result_id"),
+		index,
+	)
+	if err != nil {
+		imageTaskJSONError(c, http.StatusNotFound, "not_found_error", "image result not found")
+		return
+	}
+	defer func() { _ = reader.Close() }()
+	c.Header("Cache-Control", "private, no-store")
 	c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
 }
 
@@ -247,61 +345,204 @@ func (h *AsyncImageHandler) executeWithGateway(platform string, c *gin.Context) 
 	h.openAI.Images(c)
 }
 
-func (h *AsyncImageHandler) run(taskID, platform string, taskCtx *gin.Context, recorder *httptest.ResponseRecorder, cancel context.CancelFunc) {
-	defer cancel()
+func (h *AsyncImageHandler) ProcessImageTask(ctx context.Context, taskID string) (err error) {
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			logger.L().Error("image_task.execution_panicked", zap.String("task_id", taskID), zap.Any("panic", recovered))
-			h.failTask(taskID, http.StatusInternalServerError, imageTaskErrorPayload("api_error", "image generation task panicked"))
+			err = h.failTask(ctx, taskID, http.StatusInternalServerError, imageTaskErrorPayload("api_error", "image generation task panicked"))
 		}
 	}()
 
-	h.execute(platform, taskCtx)
-	body := bytes.TrimSpace(recorder.Body.Bytes())
-	if err := taskCtx.Request.Context().Err(); err != nil && len(body) == 0 {
-		h.failTask(taskID, http.StatusGatewayTimeout, imageTaskErrorPayload("timeout_error", "image generation task timed out"))
-		return
+	task, envelope, err := h.tasks.RequestEnvelope(ctx, taskID)
+	if err != nil {
+		logger.L().Error("image_task.request_recovery_failed", zap.String("task_id", taskID), zap.Error(err))
+		return h.failTask(ctx, taskID, http.StatusInternalServerError, imageTaskErrorCodePayload("IMAGE_TASK_RECOVERY_UNAVAILABLE", "image task request could not be recovered"))
+	}
+	if task.Status == service.ImageTaskStatusCompleted || task.Status == service.ImageTaskStatusFailed {
+		return nil
+	}
+	apiKey, err := h.reloadImageTaskAPIKey(ctx, task)
+	if err != nil {
+		return h.failTask(ctx, taskID, http.StatusForbidden, imageTaskErrorCodePayload("IMAGE_TASK_AUTH_INVALID", err.Error()))
+	}
+	requestBody := envelope.Body
+	contentType := envelope.ContentType
+	if task.Platform == service.PlatformOpenAI {
+		requestBody, contentType, err = forceAsyncImageBase64(envelope.ContentType, envelope.Body)
+		if err != nil {
+			return h.failTask(ctx, taskID, http.StatusBadRequest, imageTaskErrorPayload("invalid_request_error", err.Error()))
+		}
+	}
+	taskCtx, recorder, cancel, err := h.newWorkerImageContext(ctx, taskID, apiKey, envelope, contentType, requestBody)
+	if err != nil {
+		return h.failTask(ctx, taskID, http.StatusServiceUnavailable, imageTaskErrorCodePayload("IMAGE_TASK_SUBSCRIPTION_UNAVAILABLE", err.Error()))
+	}
+	defer cancel()
+
+	h.execute(task.Platform, taskCtx)
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	responseBody := bytes.TrimSpace(recorder.Body.Bytes())
+	if err := taskCtx.Request.Context().Err(); err != nil && len(responseBody) == 0 {
+		return h.failTask(ctx, taskID, http.StatusGatewayTimeout, imageTaskErrorPayload("timeout_error", "image generation task timed out"))
 	}
 	statusCode := recorder.Code
 	if statusCode == 0 {
 		statusCode = http.StatusOK
 	}
 	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
-		if len(body) == 0 || !json.Valid(body) {
-			h.failTask(taskID, http.StatusBadGateway, imageTaskErrorPayload("api_error", "upstream returned an invalid image response"))
-			return
+		if len(responseBody) == 0 || !json.Valid(responseBody) {
+			return h.failTask(ctx, taskID, http.StatusBadGateway, imageTaskErrorPayload("api_error", "upstream returned an invalid image response"))
 		}
-		if err := h.tasks.Complete(context.Background(), taskID, statusCode, json.RawMessage(body)); err != nil {
+		if err := h.tasks.Complete(ctx, taskID, statusCode, json.RawMessage(responseBody)); err != nil {
 			logger.L().Error("image_task.complete_store_failed", zap.String("task_id", taskID), zap.Error(err))
+			return err
 		}
-		return
+		return nil
 	}
-	h.failTask(taskID, statusCode, extractImageTaskError(body))
+	return h.failTask(ctx, taskID, statusCode, extractImageTaskError(responseBody))
 }
 
-func (h *AsyncImageHandler) failTask(taskID string, statusCode int, taskErr json.RawMessage) {
-	if err := h.tasks.Fail(context.Background(), taskID, statusCode, taskErr); err != nil {
+func (h *AsyncImageHandler) failTask(ctx context.Context, taskID string, statusCode int, taskErr json.RawMessage) error {
+	if err := h.tasks.Fail(ctx, taskID, statusCode, taskErr); err != nil {
 		logger.L().Error("image_task.failure_store_failed", zap.String("task_id", taskID), zap.Error(err))
+		return err
+	}
+	return nil
+}
+
+func (h *AsyncImageHandler) newWorkerImageContext(
+	ctx context.Context,
+	taskID string,
+	apiKey *service.APIKey,
+	envelope *service.ImageTaskRequestEnvelope,
+	contentType string,
+	body []byte,
+) (*gin.Context, *httptest.ResponseRecorder, context.CancelFunc, error) {
+	executionCtx, cancel := context.WithTimeout(ctx, h.tasks.ExecutionTimeout())
+	executionCtx = context.WithValue(executionCtx, ctxkey.UserID, apiKey.UserID)
+	executionCtx = context.WithValue(executionCtx, ctxkey.RequestID, taskID)
+	executionCtx = context.WithValue(executionCtx, ctxkey.ClientRequestID, taskID)
+	request := httptest.NewRequest(envelope.Method, envelope.Path, bytes.NewReader(body)).WithContext(executionCtx)
+	request.Header.Set("Content-Type", contentType)
+	for key, value := range envelope.Headers {
+		if strings.TrimSpace(value) != "" {
+			request.Header.Set(key, value)
+		}
+	}
+	request.Header.Set("X-Request-ID", taskID)
+	request.Header.Set("X-Client-Request-ID", taskID)
+	recorder := httptest.NewRecorder()
+	taskCtx, _ := gin.CreateTestContext(recorder)
+	taskCtx.Request = request
+	taskCtx.Set(string(middleware2.ContextKeyAPIKey), apiKey)
+	taskCtx.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{
+		UserID:      apiKey.UserID,
+		Concurrency: apiKey.User.Concurrency,
+	})
+	taskCtx.Set(string(middleware2.ContextKeyUserRole), apiKey.User.Role)
+	if apiKey.Group != nil && apiKey.Group.IsSubscriptionType() {
+		if h.subscriptions == nil {
+			cancel()
+			return nil, nil, func() {}, errors.New("subscription service is unavailable")
+		}
+		subscription, err := h.subscriptions.GetActiveSubscription(executionCtx, apiKey.UserID, apiKey.Group.ID)
+		if err != nil || subscription == nil {
+			cancel()
+			return nil, nil, func() {}, errors.New("active subscription could not be restored")
+		}
+		taskCtx.Set(string(middleware2.ContextKeySubscription), subscription)
+	}
+	taskCtx.Set(securityAuditCompletedContextKey, true)
+	return taskCtx, recorder, cancel, nil
+}
+
+func (h *AsyncImageHandler) reloadImageTaskAPIKey(ctx context.Context, task *service.ImageTaskRecord) (*service.APIKey, error) {
+	if h == nil || h.apiKeys == nil || task == nil {
+		return nil, errors.New("API key service is unavailable")
+	}
+	apiKey, err := h.apiKeys.GetByID(ctx, task.APIKeyID)
+	if err != nil {
+		return nil, errors.New("API key no longer exists")
+	}
+	if apiKey == nil || apiKey.User == nil || apiKey.Group == nil ||
+		apiKey.UserID != task.UserID || !apiKey.IsActive() || apiKey.IsExpired() || !apiKey.User.IsActive() ||
+		!service.GroupAllowsImageGeneration(apiKey.Group) {
+		return nil, errors.New("API key is no longer eligible for image generation")
+	}
+	if apiKey.Group.Platform != task.Platform {
+		return nil, errors.New("API key image platform changed after submission")
+	}
+	return apiKey, nil
+}
+
+func (h *AsyncImageHandler) Stop() {
+	if h != nil && h.runtime != nil {
+		h.runtime.Stop()
 	}
 }
 
-func newAsyncImageContext(c *gin.Context, body []byte, timeoutDuration time.Duration) (*gin.Context, *httptest.ResponseRecorder, context.CancelFunc) {
-	base := context.WithoutCancel(c.Request.Context())
-	executionCtx, cancel := context.WithTimeout(base, timeoutDuration)
-	request := c.Request.Clone(executionCtx)
-	request.Body = io.NopCloser(bytes.NewReader(body))
-	request.GetBody = func() (io.ReadCloser, error) {
-		return io.NopCloser(bytes.NewReader(body)), nil
-	}
-	request.ContentLength = int64(len(body))
-	request.URL.Path = strings.TrimSuffix(request.URL.Path, "/async")
+func (h *AsyncImageHandler) Running() bool {
+	return h != nil && h.runtime != nil && h.runtime.Running()
+}
 
-	taskCtx := c.Copy()
-	recorder := httptest.NewRecorder()
-	recorderCtx, _ := gin.CreateTestContext(recorder)
-	taskCtx.Writer = recorderCtx.Writer
-	taskCtx.Request = request
-	return taskCtx, recorder, cancel
+func forceAsyncImageBase64(contentType string, body []byte) ([]byte, string, error) {
+	if !isMultipartImagesContentType(contentType) {
+		var request map[string]any
+		if err := json.Unmarshal(body, &request); err != nil {
+			return nil, "", err
+		}
+		request["response_format"] = "b64_json"
+		request["stream"] = false
+		rewritten, err := json.Marshal(request)
+		return rewritten, contentType, err
+	}
+
+	_, params, err := mime.ParseMediaType(contentType)
+	if err != nil {
+		return nil, "", err
+	}
+	boundary := params["boundary"]
+	if boundary == "" {
+		return nil, "", errors.New("multipart boundary is required")
+	}
+	reader := multipart.NewReader(bytes.NewReader(body), boundary)
+	var rewritten bytes.Buffer
+	writer := multipart.NewWriter(&rewritten)
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, "", err
+		}
+		if part.FormName() == "response_format" || part.FormName() == "stream" {
+			_ = part.Close()
+			continue
+		}
+		target, err := writer.CreatePart(part.Header)
+		if err != nil {
+			_ = part.Close()
+			return nil, "", err
+		}
+		if _, err := io.Copy(target, part); err != nil {
+			_ = part.Close()
+			return nil, "", err
+		}
+		_ = part.Close()
+	}
+	if err := writer.WriteField("response_format", "b64_json"); err != nil {
+		return nil, "", err
+	}
+	if err := writer.WriteField("stream", "false"); err != nil {
+		return nil, "", err
+	}
+	if err := writer.Close(); err != nil {
+		return nil, "", err
+	}
+	return rewritten.Bytes(), writer.FormDataContentType(), nil
 }
 
 func asyncImageRequestStreams(contentType string, body []byte) bool {
@@ -351,6 +592,11 @@ func imageTaskErrorPayload(errorType, message string) json.RawMessage {
 	return data
 }
 
+func imageTaskErrorCodePayload(code, message string) json.RawMessage {
+	data, _ := json.Marshal(gin.H{"type": "api_error", "code": code, "message": message})
+	return data
+}
+
 func imageTaskError(c *gin.Context, err error) {
 	status := infraerrors.Code(err)
 	code := infraerrors.Reason(err)
@@ -365,6 +611,10 @@ func imageTaskError(c *gin.Context, err error) {
 }
 
 func imageTaskJSONError(c *gin.Context, status int, code, message string) {
+	imageTaskJSONTypedError(c, status, code, code, message)
+}
+
+func imageTaskJSONTypedError(c *gin.Context, status int, errorType, code, message string) {
 	c.Header("Cache-Control", "no-store")
-	c.JSON(status, gin.H{"error": gin.H{"type": code, "code": code, "message": message}})
+	c.JSON(status, gin.H{"error": gin.H{"type": errorType, "code": code, "message": message}})
 }

@@ -434,6 +434,7 @@ type OpenAIGatewayService struct {
 	codexModelsManifestCache            codexModelsManifestCache
 	openaiCompatSessionResponses        sync.Map
 	openaiCompatAnthropicDigestSessions sync.Map
+	openAIImageResults                  *OpenAIImageResultService
 }
 
 // NewOpenAIGatewayService creates a new OpenAIGatewayService
@@ -505,6 +506,16 @@ func NewOpenAIGatewayService(
 	}
 	svc.logOpenAIWSModeBootstrap()
 	return svc
+}
+
+func (s *OpenAIGatewayService) SetOpenAIImageResultService(results *OpenAIImageResultService) {
+	if s != nil {
+		s.openAIImageResults = results
+	}
+}
+
+func (s *OpenAIGatewayService) OpenAIImageResultStorageReady() bool {
+	return s != nil && s.openAIImageResults != nil && s.openAIImageResults.Enabled()
 }
 
 // ResolveChannelMapping 解析渠道级模型映射（代理到 ChannelService）

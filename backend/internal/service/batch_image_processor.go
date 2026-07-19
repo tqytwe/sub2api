@@ -218,9 +218,10 @@ func (p *BatchImageProviderProcessor) indexAndSettle(ctx context.Context, job *B
 	if err := p.Repo.TransitionBatchImageJobStatus(ctx, job.BatchID, BatchImageJobStatusSettling, BatchImageTransitionOptions{
 		EventType: "indexing_completed",
 		EventPayload: map[string]any{
-			"success_count": result.SuccessCount,
-			"fail_count":    result.FailCount,
-			"total_count":   result.TotalCount,
+			"success_count":      result.SuccessCount,
+			"output_image_count": result.OutputImageCount,
+			"fail_count":         result.FailCount,
+			"total_count":        result.TotalCount,
 		},
 	}); err != nil {
 		return BatchImageProcessResult{}, err
@@ -274,9 +275,10 @@ func isBatchImageProcessorDoneStatus(status string) bool {
 }
 
 type BatchImageIndexResult struct {
-	SuccessCount int
-	FailCount    int
-	TotalCount   int
+	SuccessCount     int
+	OutputImageCount int
+	FailCount        int
+	TotalCount       int
 }
 
 type BatchImageResultIndexer struct {
@@ -350,6 +352,7 @@ func (i *BatchImageResultIndexer) Index(ctx context.Context, job *BatchImageJob,
 			item.MimeType = batchImageOptionalStringPtr(parsed.MimeType)
 			item.FileExtension = batchImageOptionalStringPtr(parsed.FileExtension)
 			result.SuccessCount++
+			result.OutputImageCount += parsed.ImageCount
 		} else {
 			item.ErrorCode = batchImageOptionalStringPtr(parsed.ErrorCode)
 			item.ErrorMessage = batchImageOptionalStringPtr(parsed.ErrorMessage)
@@ -411,8 +414,9 @@ func (i *BatchImageResultIndexer) Index(ctx context.Context, job *BatchImageJob,
 		}
 	}
 	if err := i.Repo.ReplaceBatchImageItemsForJob(ctx, job.BatchID, items, BatchImageCounts{
-		SuccessCount: result.SuccessCount,
-		FailCount:    result.FailCount,
+		SuccessCount:     result.SuccessCount,
+		OutputImageCount: result.OutputImageCount,
+		FailCount:        result.FailCount,
 	}); err != nil {
 		return nil, err
 	}

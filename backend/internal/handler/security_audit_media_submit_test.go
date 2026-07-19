@@ -8,7 +8,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -71,7 +70,7 @@ func blockingHandlerPromptEngine() *handlerPromptEngine {
 func TestAsyncImagePromptGuardRunsBeforeTaskCreation(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := &asyncImageMemoryStore{tasks: map[string]*service.ImageTaskRecord{}}
-	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	tasks, _ := newAsyncImageQueuedTestService(store)
 	engine := blockingHandlerPromptEngine()
 	openAI := &OpenAIGatewayHandler{securityAuditCoordinator: securityaudit.NewCoordinator(nil, engine)}
 	h := &AsyncImageHandler{tasks: tasks, openAI: openAI}
@@ -99,21 +98,10 @@ func TestAsyncImagePromptGuardRunsBeforeTaskCreation(t *testing.T) {
 func TestAsyncImageSuccessfulPrecheckIsNotRepeatedByDetachedExecution(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	store := &asyncImageMemoryStore{tasks: map[string]*service.ImageTaskRecord{}}
-	tasks := service.NewImageTaskServiceWithUploader(store, nil, time.Hour, time.Minute)
+	tasks, _ := newAsyncImageQueuedTestService(store)
 	engine := &handlerPromptEngine{mode: securityaudit.ModeBlocking, decision: &securityaudit.PromptDecision{Kind: securityaudit.DecisionAllow, AllowNextStage: true}}
 	openAI := &OpenAIGatewayHandler{securityAuditCoordinator: securityaudit.NewCoordinator(nil, engine)}
 	h := &AsyncImageHandler{tasks: tasks, openAI: openAI}
-	var executionMu sync.Mutex
-	repeatedDecision := false
-	h.execute = func(_ string, c *gin.Context) {
-		apiKey, _ := middleware2.GetAPIKeyFromContext(c)
-		subject, _ := middleware2.GetAuthSubjectFromContext(c)
-		decision := openAI.checkSecurityAudit(c, nil, apiKey, subject, service.ContentModerationProtocolOpenAIImages, "gpt-image-2", []byte(`{"prompt":"must not rescan"}`))
-		executionMu.Lock()
-		repeatedDecision = decision != nil
-		executionMu.Unlock()
-		c.JSON(http.StatusOK, gin.H{"created": 1, "data": []any{}})
-	}
 
 	router := gin.New()
 	router.Use(securityAuditMediaTestMiddleware)
@@ -123,21 +111,27 @@ func TestAsyncImageSuccessfulPrecheckIsNotRepeatedByDetachedExecution(t *testing
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, request)
 	require.Equal(t, http.StatusAccepted, recorder.Code)
-	require.Eventually(t, func() bool {
-		store.mu.RLock()
-		defer store.mu.RUnlock()
-		for _, task := range store.tasks {
-			if task.Status == service.ImageTaskStatusCompleted {
-				return true
-			}
-		}
-		return false
-	}, time.Second, 10*time.Millisecond)
+
+	groupID := int64(3)
+	apiKey := &service.APIKey{
+		ID: 9, UserID: 7, User: &service.User{ID: 7, Role: "user", Concurrency: 2},
+		GroupID: &groupID, Group: &service.Group{ID: groupID, Platform: service.PlatformOpenAI, AllowImageGeneration: true},
+	}
+	workerContext, _, cancel, err := h.newWorkerImageContext(
+		context.Background(),
+		"imgtask_security_audit",
+		apiKey,
+		&service.ImageTaskRequestEnvelope{Method: http.MethodPost, Path: "/v1/images/generations"},
+		"application/json",
+		[]byte(`{"model":"gpt-image-2","prompt":"must not rescan"}`),
+	)
+	require.NoError(t, err)
+	defer cancel()
+	subject, _ := middleware2.GetAuthSubjectFromContext(workerContext)
+	decision := openAI.checkSecurityAudit(workerContext, nil, apiKey, subject, service.ContentModerationProtocolOpenAIImages, "gpt-image-2", []byte(`{"prompt":"must not rescan"}`))
+	require.Nil(t, decision)
 	evaluated, _, _ := engine.snapshot()
 	require.Equal(t, 1, evaluated)
-	executionMu.Lock()
-	require.False(t, repeatedDecision)
-	executionMu.Unlock()
 }
 
 func TestBatchImagePromptGuardRunsBeforePersistenceOrBilling(t *testing.T) {

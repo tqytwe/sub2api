@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: Sub2API
 spec:
-  description: AI API Gateway — auto-setup with persistent /app/data
+  description: AI API Gateway — auto-setup with persistent /data
   icon: https://raw.githubusercontent.com/Wei-Shaw/sub2api/main/frontend/public/favicon.ico
   tags:
     - API
@@ -22,9 +22,11 @@ spec:
 
     This template deploys Sub2API with PostgreSQL and Redis.
 
-    **Important:** `/app/data` is persisted so `config.yaml` survives restarts (fixes the setup wizard loop).
+    **Important:** `/data` is persisted so `config.yaml`, local image results, and cleanup state survive restarts.
 
-    Async image tasks use the persisted `/data/image-task-results` directory by default, so `/v1/images/generations/async` and `/v1/images/edits/async` work without external S3/R2 storage.
+    Async image tasks use the persisted `/data/image-task-results` directory and the persisted Redis AOF queue by default, so `/v1/images/generations/async` and `/v1/images/edits/async` work without external S3/R2 storage.
+
+    Durable Batch Image uses Redis workers. The template starts workers with new submissions disabled; after an administrator configures an eligible Gemini API-key account, model mapping, group permissions, and image pricing, explicitly set `BATCH_IMAGE_ENABLED=true`.
 
     After deploy, open your domain — you should land on the login page, not the setup wizard.
 
@@ -86,7 +88,7 @@ spec:
             default: ${PASSWORD}
             expose: true
           REDIS_ARGS:
-            default: --requirepass ${REDIS_PASSWORD}
+            default: --requirepass ${REDIS_PASSWORD} --save 60 1 --appendonly yes --appendfsync everysec
           REDIS_HOST:
             default: ${CONTAINER_HOSTNAME}
             expose: true
@@ -178,6 +180,20 @@ spec:
             default: "24"
           IMAGE_STORAGE_MAX_DOWNLOAD_BYTES:
             default: "33554432"
+          IMAGE_STORAGE_CLEANUP_INTERVAL_SECONDS:
+            default: "60"
+          IMAGE_STORAGE_CLEANUP_BATCH_SIZE:
+            default: "100"
+          IMAGE_ASYNC_QUEUE_ENABLED:
+            default: "true"
+          IMAGE_ASYNC_ENABLED:
+            default: "true"
+          IMAGE_ASYNC_WORKER_COUNT:
+            default: "4"
+          BATCH_IMAGE_QUEUE_ENABLED:
+            default: "true"
+          BATCH_IMAGE_ENABLED:
+            default: "false"
           ADMIN_EMAIL:
             default: ${ADMIN_EMAIL}
           JWT_SECRET:

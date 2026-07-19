@@ -39,6 +39,11 @@
         @exit-fullscreen="exitFullscreen"
       />
 
+      <OpsImageRuntimeHealth
+        v-if="opsEnabled && !(loading && !hasLoadedOnce)"
+        :refresh-token="dashboardRefreshToken"
+      />
+
       <!-- Row: Concurrency + Throughput -->
       <div v-if="opsEnabled && !(loading && !hasLoadedOnce)" class="grid grid-cols-1 gap-6 lg:grid-cols-4">
         <div class="lg:col-span-1 min-h-[360px]">
@@ -166,6 +171,7 @@ import OpsSwitchRateTrendChart from './components/OpsSwitchRateTrendChart.vue'
 import OpsAlertEventsCard from './components/OpsAlertEventsCard.vue'
 import OpsOpenAITokenStatsCard from './components/OpsOpenAITokenStatsCard.vue'
 import OpsSystemLogTable from './components/OpsSystemLogTable.vue'
+import OpsImageRuntimeHealth from './components/OpsImageRuntimeHealth.vue'
 import OpsRequestDetailsModal, { type OpsRequestDetailsPreset } from './components/OpsRequestDetailsModal.vue'
 import OpsSettingsDialog from './components/OpsSettingsDialog.vue'
 import OpsAlertRulesCard from './components/OpsAlertRulesCard.vue'

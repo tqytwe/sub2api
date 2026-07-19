@@ -5,7 +5,7 @@
 > API Key：`https://www.jisudeng.com/keys`
 > 模型与价格：`https://www.jisudeng.com/models`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-17
+> 最后核验：2026-07-18
 
 ## 现在怎么用
 
@@ -16,7 +16,8 @@ POST https://api.jisudeng.com/v1/images/generations
 POST https://api.jisudeng.com/v1/images/edits
 ```
 
-生产里的长耗时图片生成（例如 `gpt-image-2`、大尺寸、批量、多 prompt、预计超过 60-90 秒）请优先使用异步接口：
+生产里的单个长耗时图片请求（例如 `gpt-image-2`、大尺寸、预计超过 60-90 秒）
+请优先使用 Gateway 单请求异步接口：
 
 ```text
 POST https://api.jisudeng.com/v1/images/generations/async
@@ -24,7 +25,11 @@ POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}
 ```
 
-同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 `524`。把客户端超时从 180 秒调到 300 秒不能避免中间层超时；上游完成后后台仍可能记录成功和扣费，但客户端连接已经断开。异步接口会先返回 `202 task_id`，再由客户端轮询结果，适合生产稳定接入。
+同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 `524`。把客户端超时从
+180 秒调到 300 秒不能避免中间层超时；上游完成后后台仍可能记录成功和扣费，但
+客户端连接已经断开。异步接口会先返回 `202 task_id`，再由客户端轮询结果，适合
+生产稳定接入。多个 prompt、需要持久恢复/取消/ZIP 下载的任务使用
+`/v1/images/batches`，不要把单请求异步当作 Batch。
 
 可用模型以你的 API Key 所属分组为准，常用模型是：
 
@@ -60,26 +65,49 @@ GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `mode
 
 ### 同步 URL 返回
 
-请求使用 `"response_format": "url"` 时，每张图片位于 `data[].url`。不同
-上游可能返回临时公网 URL 或 data URL，客户端都应按 URL 字段读取并及时保存：
+请求使用 `"response_format": "url"` 时，网关先把图片写入私有结果存储，再在
+`data[].url` 返回同 API Key 鉴权的临时平台扩展 URL：
+`/v1/images/results/{result_id}/{index}`。响应同时包含 `expires_at`。
+存储不可用时返回 `503 IMAGE_RESULT_STORAGE_UNAVAILABLE`，不回退伪装成 data URL：
 
 ```json
 {
   "created": 1784160000,
   "data": [
-    { "url": "https://example.com/generated/image.png" }
-  ]
+    {
+      "url": "/v1/images/results/imgres_012345/0",
+      "expires_at": 1784246400,
+      "size": "1254x1254"
+    }
+  ],
+  "requested_size": "1024x1024",
+  "model": "gpt-image-2",
+  "upstream_model": "gpt-image-2-codex"
 }
 ```
+
+请求 `size` 是生成档位，网关不强制拉伸或裁剪。`requested_size` 保留请求值，
+每张 `data[].size` 是实际像素尺寸。
+
+临时 URL 到期后，访问元数据会失效，后台清理器会继续根据独立清理索引删除底层
+本地卷或 S3/R2 对象；服务重启不会遗失待清理记录。对象删除失败时保留记录并在
+后续周期重试。运维可通过 `IMAGE_STORAGE_CLEANUP_INTERVAL_SECONDS` 调整扫描间隔，
+通过 `IMAGE_STORAGE_CLEANUP_BATCH_SIZE` 调整每轮上限，默认分别为 60 秒和 100 条。
+
+流式请求使用 `"stream": true, "response_format": "url"` 时，网关会在连接上游前
+预检私有结果存储。`*.partial_image` 事件只携带 `b64_json` 预览，不返回 URL；
+`*.completed` 事件写入完整图片后返回 `/v1/images/results/{result_id}/{index}`、
+`result_id` 和 `expires_at`，不会返回 data URL 或完整 Base64。存储未就绪时在 SSE
+开始前返回 `503 IMAGE_RESULT_STORAGE_UNAVAILABLE`。
 
 ### 异步任务返回
 
 长耗时请求应提交到 `/v1/images/generations/async` 或
 `/v1/images/edits/async`，先收到 `202` 和 `task_id`，再轮询
-`/v1/images/tasks/{task_id}`。processing、completed 和 failed 的完整契约见
-[异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖服务端结果存储；生产部署设置
-`IMAGE_STORAGE_ENABLED=true` 即可使用默认本地持久卷存储。只有显式选择
-`IMAGE_STORAGE_BACKEND=s3` 时才需要 bucket/access key/secret。
+`/v1/images/tasks/{task_id}`。queued、processing、completed 和 failed 的完整契约见
+[异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖图片存储、Redis 持久队列和
+有界 worker；生产同时设置 `IMAGE_STORAGE_ENABLED=true`、
+`IMAGE_ASYNC_QUEUE_ENABLED=true` 和 `IMAGE_ASYNC_ENABLED=true`。
 
 ## 准备 API Key
 
@@ -151,6 +179,9 @@ jq -r '.data[0].b64_json' grok-response.json | base64 -d > grok-image.png
 
 ## 一次生成多张
 
+`n` 正式支持 1-10。对不接受上游多图字段的 Responses/Gemini 兼容路径，网关会
+删除不兼容字段并执行多个 `n=1` 子请求。`stream=true` 只允许 `n=1`。
+
 把 `n` 改成需要的张数即可，例如一次出 4 张：
 
 ```bash
@@ -176,11 +207,16 @@ jq -r '.data[].b64_json' multi-response.json | nl -w1 -s' ' | while read -r inde
 done
 ```
 
-计费按实际图片张数计算。`n=4` 就是 4 张图，不是 1 次请求只算 1 张。
+部分子请求失败但至少一张成功时，响应包含 `requested_n`、`completed_n` 和
+`failed_n`，只按实际成功图片结算。全部失败时返回标准错误。
+
+计费按实际图片张数计算。`n=4` 最多请求 4 张图，不是 1 次请求只算 1 张。
 
 ## 多个 prompt 批量生成
 
-当前 GPT/Grok 图片生成的批量用法，是对同一个接口循环提交多个 prompt。先准备 `prompts.txt`：
+短任务可以对同步接口循环提交多个 prompt；需要持久恢复、失败项重试和 ZIP 下载时，
+应使用 [Batch Image 持久批任务](./BATCH_IMAGE_API.md)。同步循环示例先准备
+`prompts.txt`：
 
 ```text
 电商白底图：黑色无线耳机，柔光，干净阴影
@@ -390,9 +426,9 @@ jq -r '.data[0].b64_json' edit-response.json | base64 -d > edited.png
 |------|------|
 | `model` | GPT 用 `gpt-image-2`；Grok 用 `grok-imagine` |
 | `prompt` | 图片描述，生成和编辑都放这里 |
-| `n` | 输出张数，默认 1；多张就填 2、4 等 |
-| `size` | GPT 常用 `1024x1024`、`1024x1536`、`1536x1024`；Grok 会用于站内计费分档 |
-| `response_format` | 推荐 `b64_json`，方便保存和直接显示 |
+| `n` | 输出张数 1-10，默认 1；流式请求只允许 1 |
+| `size` | 请求生成档位；响应用 `requested_size` 和每张实际 `size` 区分请求与真实像素 |
+| `response_format` | `b64_json` 返回 Base64；`url` 返回同 API Key 鉴权的私有临时 URL |
 | `quality` | 支持的上游会透传，如 `standard`、`high` |
 | `background` | 支持的上游会透传，如 `auto`、`transparent` |
 | `output_format` | 支持的上游会透传，如 `png`、`jpeg`、`webp` |
@@ -403,7 +439,9 @@ jq -r '.data[0].b64_json' edit-response.json | base64 -d > edited.png
 
 | HTTP | 场景 |
 |------|------|
-| `400 invalid_request_error` | JSON 写错、请求体为空、`n <= 0`、编辑接口缺少图片 |
+| `400 IMAGE_PROMPT_REQUIRED` | prompt 为空白；在选择账号和调用上游前返回 |
+| `400 IMAGE_RESPONSE_FORMAT_INVALID` | `response_format` 不是 `b64_json` 或 `url` |
+| `400 invalid_request_error` | JSON 写错、`n` 不在 1-10、流式多图、编辑接口缺少图片 |
 | `401 API_KEY_REQUIRED / INVALID_API_KEY` | 没传 Key、Key 写错或已失效 |
 | `403 permission_error` | Key 所属分组没有开启图片生成 |
 | `404 not_found_error` | Key 所属分组不是 GPT/OpenAI 或 Grok 图片分组 |
@@ -420,5 +458,5 @@ https://api.jisudeng.com/v1/images/generations
 https://api.jisudeng.com/v1/images/edits
 ```
 
-需要多个 prompt 批量生成时，看 [多张 / 批量生图调用](./BATCH_IMAGE_API.md)。
+需要多个 prompt 批量生成时，看 [Batch Image 持久批任务](./BATCH_IMAGE_API.md)。
 需要避免长连接超时时，看 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。

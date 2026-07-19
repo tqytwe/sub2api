@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"strings"
 	"time"
 
@@ -23,6 +24,8 @@ type S3ImageStorage struct {
 }
 
 var _ service.ImageStorage = (*S3ImageStorage)(nil)
+var _ service.ImageAssetReader = (*S3ImageStorage)(nil)
+var _ service.ImageAssetDeleter = (*S3ImageStorage)(nil)
 
 // NewS3ImageStorage 依据配置构造 S3 图片存储（调用方应先确认 cfg.Active()）。
 func NewS3ImageStorage(ctx context.Context, cfg *config.ImageStorageConfig) (*S3ImageStorage, error) {
@@ -77,4 +80,34 @@ func (s *S3ImageStorage) Save(ctx context.Context, key, contentType string, data
 		return "", fmt.Errorf("presign url: %w", err)
 	}
 	return result.URL, nil
+}
+
+func (s *S3ImageStorage) Open(ctx context.Context, key string) (io.ReadCloser, string, error) {
+	finish := servertiming.ObserveDependency(ctx, "s3")
+	result, err := s.client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	})
+	finish()
+	if err != nil {
+		return nil, "", fmt.Errorf("S3 GetObject: %w", err)
+	}
+	contentType := "application/octet-stream"
+	if result.ContentType != nil && strings.TrimSpace(*result.ContentType) != "" {
+		contentType = strings.TrimSpace(*result.ContentType)
+	}
+	return result.Body, contentType, nil
+}
+
+func (s *S3ImageStorage) Delete(ctx context.Context, key string) error {
+	finish := servertiming.ObserveDependency(ctx, "s3")
+	_, err := s.client.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	})
+	finish()
+	if err != nil {
+		return fmt.Errorf("S3 DeleteObject: %w", err)
+	}
+	return nil
 }

@@ -714,7 +714,11 @@ Simple Mode is designed for individual developers or internal teams who want qui
 
 ## Asynchronous Image Tasks
 
-Long-running OpenAI/Grok image generation and editing can be submitted through `/v1/images/generations/async` or `/v1/images/edits/async`, then polled at `/v1/images/tasks/{task_id}` without holding a CDN connection open. Enable result storage with `IMAGE_STORAGE_ENABLED=true`; the default local backend stores completed images on the persisted data volume and serves authenticated `/v1/images/task-assets/...` URLs. S3/R2 is optional for multi-replica or CDN deployments. See [Asynchronous Image Tasks](docs/ASYNC_IMAGE_TASKS.md) for setup, request, response, and verification examples.
+Long-running OpenAI/Grok image generation and editing can be submitted through `/v1/images/generations/async` or `/v1/images/edits/async`, then polled at `/v1/images/tasks/{task_id}` without holding a CDN connection open. Production requires `IMAGE_STORAGE_ENABLED=true`, `IMAGE_ASYNC_QUEUE_ENABLED=true`, and `IMAGE_ASYNC_ENABLED=true`; the default local backend stores completed images on the persisted data volume and serves authenticated `/v1/images/task-assets/...` URLs. S3/R2 is optional for multi-replica or CDN deployments. See [Asynchronous Image Tasks](docs/ASYNC_IMAGE_TASKS.md) for setup, request, response, and verification examples.
+
+Synchronous Images supports `n=1..10`. Multiple-prompt durable jobs use `/v1/images/batches`; the Batch API can be stopped with `BATCH_IMAGE_ENABLED=false` while `BATCH_IMAGE_QUEUE_ENABLED=true` keeps workers draining and settling existing jobs. See [Batch Image API](docs/BATCH_IMAGE_API.md).
+
+Durable image queues require Redis AOF plus a persistent Redis data volume. The included Docker Compose and Zeabur definitions enable `appendonly yes` with `appendfsync everysec`; external Redis deployments must provide equivalent persistence.
 
 ---
 

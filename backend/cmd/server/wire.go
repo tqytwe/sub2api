@@ -93,7 +93,9 @@ func provideCleanup(
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
 	batchImageCleanup *service.BatchImageCleanupService,
+	openAIImageResults *service.OpenAIImageResultService,
 	batchImageWorker *service.BatchImageWorkerRuntime,
+	asyncImageWorker *handler.AsyncImageHandler,
 	imageStudioWorker *handler.ImageStudioWorkerRuntime,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
@@ -225,9 +227,21 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"OpenAIImageResultService", func() error {
+				if openAIImageResults != nil {
+					openAIImageResults.Stop()
+				}
+				return nil
+			}},
 			{"BatchImageWorkerRuntime", func() error {
 				if batchImageWorker != nil {
 					batchImageWorker.Stop()
+				}
+				return nil
+			}},
+			{"AsyncImageWorkerRuntime", func() error {
+				if asyncImageWorker != nil {
+					asyncImageWorker.Stop()
 				}
 				return nil
 			}},

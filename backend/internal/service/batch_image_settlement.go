@@ -64,13 +64,14 @@ type BatchImageSettlementService struct {
 }
 
 type BatchImageSettlementResult struct {
-	BatchID        string
-	SuccessCount   int
-	FailCount      int
-	ActualCost     float64
-	ManifestHash   string
-	RequestID      string
-	AlreadySettled bool
+	BatchID          string
+	SuccessCount     int
+	OutputImageCount int
+	FailCount        int
+	ActualCost       float64
+	ManifestHash     string
+	RequestID        string
+	AlreadySettled   bool
 }
 
 func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string) (*BatchImageSettlementResult, error) {
@@ -84,16 +85,20 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 
 	manifestHash := BuildBatchImageSettlementManifestHash(job)
 	result := &BatchImageSettlementResult{
-		BatchID:      job.BatchID,
-		SuccessCount: job.SuccessCount,
-		FailCount:    job.FailCount,
-		ManifestHash: manifestHash,
-		RequestID:    BatchImageCaptureRequestID(job.BatchID),
+		BatchID:          job.BatchID,
+		SuccessCount:     job.SuccessCount,
+		OutputImageCount: job.OutputImageCount,
+		FailCount:        job.FailCount,
+		ManifestHash:     manifestHash,
+		RequestID:        BatchImageCaptureRequestID(job.BatchID),
 	}
 	if job.ActualCost != nil {
 		result.ActualCost = *job.ActualCost
 	}
 	if job.Status == BatchImageJobStatusCompleted {
+		if err := s.recordUsageLog(ctx, job, result.ActualCost, result.RequestID, batchImageSettlementLogTime(job, time.Now())); err != nil {
+			return nil, ErrBatchImageSettlementBillingFailed.WithCause(err)
+		}
 		result.AlreadySettled = true
 		return result, nil
 	}
@@ -111,9 +116,11 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 	if isBatchImageSettlementRetryExhausted(job) {
 		return nil, s.failExhaustedSettlement(ctx, job, "settlement retry limit reached: "+batchImageDerefString(job.LastErrorCode))
 	}
-	if job.SuccessCount < 0 || job.FailCount < 0 || job.ItemCount < 0 || job.SuccessCount+job.FailCount > job.ItemCount {
+	if job.SuccessCount < 0 || job.OutputImageCount < 0 || job.FailCount < 0 || job.ItemCount < 0 ||
+		job.SuccessCount+job.FailCount > job.ItemCount ||
+		job.OutputImageCount < job.SuccessCount {
 		if failErr := s.recordSettlementFailure(ctx, job, "SETTLEMENT_INVALID_COUNTS",
-			fmt.Sprintf("success=%d fail=%d item_count=%d", job.SuccessCount, job.FailCount, job.ItemCount)); failErr != nil {
+			fmt.Sprintf("success=%d output_images=%d fail=%d item_count=%d", job.SuccessCount, job.OutputImageCount, job.FailCount, job.ItemCount)); failErr != nil {
 			return nil, failErr
 		}
 		return nil, ErrBatchImageSettlementInvalidCounts
@@ -135,7 +142,7 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 		}
 		return nil, err
 	}
-	actualCost := float64(job.SuccessCount) * unitPrice
+	actualCost := float64(job.OutputImageCount) * unitPrice
 	result.ActualCost = actualCost
 	holdAmount := job.EstimatedCost
 	if job.HoldAmount != nil {
@@ -159,6 +166,16 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 	s.invalidateAuthCache(ctx, job.UserID)
 
 	now := time.Now()
+	if err := s.recordUsageLog(ctx, job, actualCost, result.RequestID, now); err != nil {
+		msg := truncateBatchImageMessage(err.Error(), batchImageMaxErrorMessageLength)
+		if _, recordErr := s.Repo.SetBatchImageJobSettlementFailed(ctx, job.BatchID, "USAGE_LOG_PERSIST_FAILED", msg); recordErr != nil {
+			logger.L().Warn("batch_image.usage_log_failure_record_failed",
+				zap.String("batch_id", job.BatchID),
+				zap.Error(recordErr),
+			)
+		}
+		return nil, ErrBatchImageSettlementBillingFailed.WithCause(err)
+	}
 	outputExpiresAt := now.Add(s.outputRetentionAfterTerminal())
 	if err := s.Repo.MarkBatchImageJobSettled(ctx, MarkBatchImageJobSettledParams{
 		BatchID:         job.BatchID,
@@ -167,17 +184,21 @@ func (s *BatchImageSettlementService) Settle(ctx context.Context, batchID string
 		Now:             &now,
 		OutputExpiresAt: &outputExpiresAt,
 		EventPayload: map[string]any{
-			"batch_id":      job.BatchID,
-			"request_id":    result.RequestID,
-			"success_count": job.SuccessCount,
-			"fail_count":    job.FailCount,
-			"actual_cost":   actualCost,
-			"manifest_hash": manifestHash,
+			"batch_id":           job.BatchID,
+			"request_id":         result.RequestID,
+			"success_count":      job.SuccessCount,
+			"output_image_count": job.OutputImageCount,
+			"fail_count":         job.FailCount,
+			"actual_cost":        actualCost,
+			"manifest_hash":      manifestHash,
 		},
 	}); err != nil {
+		if errors.Is(err, ErrBatchImageAlreadySettled) {
+			result.AlreadySettled = true
+			return result, nil
+		}
 		return nil, err
 	}
-	s.recordUsageLog(ctx, job, actualCost, result.RequestID, now)
 
 	return result, nil
 }
@@ -249,14 +270,14 @@ func (s *BatchImageSettlementService) failExhaustedSettlement(ctx context.Contex
 	return ErrBatchImageSettlementBillingFailed
 }
 
-func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *BatchImageJob, actualCost float64, requestID string, createdAt time.Time) {
+func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *BatchImageJob, actualCost float64, requestID string, createdAt time.Time) error {
 	if s == nil || s.UsageLogRepo == nil || job == nil || job.APIKeyID == nil || job.AccountID == nil {
-		return
+		return nil
 	}
 	billingMode := string(BillingModeImage)
 	accountRateMultiplier := job.AccountRateMultiplier
 	inboundEndpoint := "/v1/images/batches"
-	upstreamEndpoint := "vertex:batchPredictionJobs"
+	upstreamEndpoint := batchImageUsageUpstreamEndpoint(job.Provider)
 	imageSize := "1K"
 	usageLog := &UsageLog{
 		UserID:                job.UserID,
@@ -267,7 +288,7 @@ func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *B
 		RequestedModel:        job.Model,
 		InboundEndpoint:       &inboundEndpoint,
 		UpstreamEndpoint:      &upstreamEndpoint,
-		ImageCount:            job.SuccessCount,
+		ImageCount:            job.OutputImageCount,
 		ImageOutputCost:       actualCost,
 		TotalCost:             actualCost,
 		ActualCost:            actualCost,
@@ -279,7 +300,37 @@ func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *B
 		ImageSize:             &imageSize,
 		CreatedAt:             createdAt,
 	}
-	writeUsageLogBestEffort(ctx, s.UsageLogRepo, usageLog, "service.batch_image_settlement")
+	usageCtx, cancel := detachedBillingContext(ctx)
+	defer cancel()
+	if _, err := s.UsageLogRepo.Create(usageCtx, usageLog); err != nil {
+		return err
+	}
+	return nil
+}
+
+func batchImageSettlementLogTime(job *BatchImageJob, fallback time.Time) time.Time {
+	if job != nil {
+		for _, candidate := range []*time.Time{job.SettledAt, job.FinishedAt} {
+			if candidate != nil && !candidate.IsZero() {
+				return *candidate
+			}
+		}
+		if !job.UpdatedAt.IsZero() {
+			return job.UpdatedAt
+		}
+	}
+	return fallback
+}
+
+func batchImageUsageUpstreamEndpoint(provider string) string {
+	switch strings.TrimSpace(provider) {
+	case BatchImageProviderGeminiAPI:
+		return "gemini:batchGenerateContent"
+	case BatchImageProviderVertex:
+		return "vertex:batchPredictionJobs"
+	default:
+		return "batch_image:" + strings.TrimSpace(provider)
+	}
 }
 
 func (s *BatchImageSettlementService) invalidateAuthCache(ctx context.Context, userID int64) {
@@ -324,6 +375,7 @@ func BuildBatchImageSettlementManifestHash(job *BatchImageJob) string {
 		batchImageDerefString(job.ProviderJobName),
 		batchImageDerefString(job.ProviderOutputRef),
 		strconv.Itoa(job.SuccessCount),
+		strconv.Itoa(job.OutputImageCount),
 		strconv.Itoa(job.FailCount),
 		strconv.Itoa(job.ItemCount),
 	}
@@ -366,6 +418,16 @@ func (p *BatchImagePipelineProcessor) Process(ctx context.Context, batchID strin
 		}
 		return BatchImageProcessResult{Terminal: true}, nil
 	}
+	if job.Status == BatchImageJobStatusCompleted && p.SettlementService != nil {
+		if _, err := p.SettlementService.Settle(ctx, batchID); err != nil {
+			delay := p.RetryDelay
+			if delay <= 0 {
+				delay = batchImageSettlementRetryDelay
+			}
+			return BatchImageProcessResult{RequeueAfter: delay}, nil
+		}
+		return BatchImageProcessResult{Terminal: true}, nil
+	}
 	return p.ProviderProcessor.Process(ctx, batchID)
 }
 
@@ -373,6 +435,6 @@ func (r *BatchImageSettlementResult) String() string {
 	if r == nil {
 		return ""
 	}
-	return fmt.Sprintf("batch_id=%s success=%d fail=%d actual_cost=%0.10f already_settled=%t",
-		r.BatchID, r.SuccessCount, r.FailCount, r.ActualCost, r.AlreadySettled)
+	return fmt.Sprintf("batch_id=%s success=%d output_images=%d fail=%d actual_cost=%0.10f already_settled=%t",
+		r.BatchID, r.SuccessCount, r.OutputImageCount, r.FailCount, r.ActualCost, r.AlreadySettled)
 }

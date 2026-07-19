@@ -135,7 +135,7 @@ func (s *BatchImageCleanupService) RunOnce(ctx context.Context, now time.Time) (
 }
 
 func (s *BatchImageCleanupService) Start() {
-	if s == nil || s.Repo == nil || s.Config == nil || !s.Config.BatchImage.Enabled || s.cleanupInterval() <= 0 {
+	if s == nil || s.Repo == nil || s.Config == nil || !s.Config.BatchImage.QueueEnabled || s.cleanupInterval() <= 0 {
 		return
 	}
 	s.mu.Lock()
@@ -144,10 +144,11 @@ func (s *BatchImageCleanupService) Start() {
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
 	s.cancel = cancel
-	s.done = make(chan struct{})
+	s.done = done
 	go func() {
-		defer close(s.done)
+		defer close(done)
 		ticker := time.NewTicker(s.cleanupInterval())
 		defer ticker.Stop()
 		for {

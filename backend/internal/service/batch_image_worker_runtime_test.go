@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -29,12 +30,15 @@ func TestBatchImageWorkerRuntime_QueueDisabledDoesNotStart(t *testing.T) {
 func TestBatchImageWorkerRuntime_QueueEnabledStartsAndStops(t *testing.T) {
 	queue := &blockingBatchImageRuntimeQueue{}
 	processor := &fakeBatchImageProcessor{}
-	runtime := NewBatchImageWorkerRuntime(
+	cfg := &config.Config{BatchImage: config.BatchImageConfig{QueueEnabled: true}}
+	state := NewBatchImageRuntimeState(queue, &batchImageRuntimeDatabase{}, cfg)
+	runtime := NewBatchImageWorkerRuntimeWithState(
 		NewBatchImageWorker(queue, processor, BatchImageWorkerOptions{
 			DelayedPollInterval: time.Hour,
 			RecoveryInterval:    time.Hour,
 		}),
-		&config.Config{BatchImage: config.BatchImageConfig{QueueEnabled: true}},
+		state,
+		cfg,
 	)
 
 	runtime.Start()
@@ -42,14 +46,80 @@ func TestBatchImageWorkerRuntime_QueueEnabledStartsAndStops(t *testing.T) {
 	require.Eventually(t, func() bool {
 		return runtime.Running() && queue.reserveCalls.Load() > 0
 	}, time.Second, 10*time.Millisecond)
+	require.NoError(t, state.RequireReady(context.Background()))
 	require.Empty(t, processor.processed)
 	require.NotPanics(t, runtime.Stop)
 	require.False(t, runtime.Running())
+	require.ErrorIs(t, state.RequireReady(context.Background()), ErrBatchImageRuntimeNotReady)
 	require.NotPanics(t, runtime.Stop)
+}
+
+func TestBatchImageRuntimeState_RequiresHealthyRedis(t *testing.T) {
+	queue := &blockingBatchImageRuntimeQueue{}
+	cfg := &config.Config{BatchImage: config.BatchImageConfig{QueueEnabled: true}}
+	state := NewBatchImageRuntimeState(queue, &batchImageRuntimeDatabase{}, cfg)
+	state.SetWorkerRunning(true)
+	queue.pingErr = errors.New("redis unavailable")
+
+	err := state.RequireReady(context.Background())
+
+	require.ErrorIs(t, err, ErrBatchImageRuntimeNotReady)
+	require.Equal(t, "redis unavailable", state.LastError())
+
+	queue.pingErr = nil
+	require.NoError(t, state.RequireReady(context.Background()))
+}
+
+func TestBatchImageRuntimeState_RequiresHealthyPostgreSQL(t *testing.T) {
+	queue := &blockingBatchImageRuntimeQueue{}
+	database := &batchImageRuntimeDatabase{pingErr: errors.New("postgres unavailable")}
+	cfg := &config.Config{BatchImage: config.BatchImageConfig{QueueEnabled: true}}
+	state := NewBatchImageRuntimeState(queue, database, cfg)
+	state.SetWorkerRunning(true)
+
+	err := state.RequireReady(context.Background())
+
+	require.ErrorIs(t, err, ErrBatchImageRuntimeNotReady)
+	require.Equal(t, "postgres unavailable", state.LastError())
+
+	database.pingErr = nil
+	require.NoError(t, state.RequireReady(context.Background()))
+}
+
+func TestBatchImageRuntimeState_SnapshotIncludesQueueState(t *testing.T) {
+	queue := &blockingBatchImageRuntimeQueue{
+		stats: BatchImageQueueStats{Ready: 3, Delayed: 2, Active: 1},
+	}
+	cfg := &config.Config{BatchImage: config.BatchImageConfig{
+		Enabled:      true,
+		QueueEnabled: true,
+	}}
+	state := NewBatchImageRuntimeState(queue, &batchImageRuntimeDatabase{}, cfg)
+	state.SetWorkerRunning(true)
+
+	got := state.Snapshot(context.Background())
+
+	require.True(t, got.Enabled)
+	require.True(t, got.QueueEnabled)
+	require.True(t, got.DatabaseReady)
+	require.True(t, got.RedisReady)
+	require.True(t, got.WorkerRunning)
+	require.True(t, got.Ready)
+	require.Equal(t, BatchImageQueueStats{Ready: 3, Delayed: 2, Active: 1}, got.Queue)
+}
+
+type batchImageRuntimeDatabase struct {
+	pingErr error
+}
+
+func (d *batchImageRuntimeDatabase) PingContext(context.Context) error {
+	return d.pingErr
 }
 
 type blockingBatchImageRuntimeQueue struct {
 	reserveCalls atomic.Int64
+	pingErr      error
+	stats        BatchImageQueueStats
 }
 
 func (q *blockingBatchImageRuntimeQueue) Enqueue(context.Context, string) error {
@@ -84,4 +154,12 @@ func (q *blockingBatchImageRuntimeQueue) RecoverStaleActive(context.Context, tim
 
 func (q *blockingBatchImageRuntimeQueue) TryAcquireJobLock(context.Context, string, time.Duration) (BatchImageJobLock, bool, error) {
 	return nil, false, nil
+}
+
+func (q *blockingBatchImageRuntimeQueue) Ping(context.Context) error {
+	return q.pingErr
+}
+
+func (q *blockingBatchImageRuntimeQueue) Stats(context.Context) (BatchImageQueueStats, error) {
+	return q.stats, q.pingErr
 }

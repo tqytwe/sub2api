@@ -62,13 +62,27 @@ func TestBatchImageWorker_RequeuesWhenJobLockNotAcquired(t *testing.T) {
 	processor := &fakeBatchImageProcessor{}
 	worker := NewBatchImageWorker(queue, processor, BatchImageWorkerOptions{LockConflictDelay: 3 * time.Second})
 
-	// 锁冲突必须按冲突延迟重新入队；直接丢弃会让 job 滞留 active zset，
-	// 要等 StaleActiveAfter（默认 10 分钟）才被恢复。
 	require.NoError(t, worker.RunOnce(context.Background()))
 	require.Empty(t, processor.processed)
-	require.Len(t, queue.requeued, 1)
-	require.Equal(t, 3*time.Second, queue.requeued[0].delay)
+	require.Empty(t, queue.requeued)
 	require.Empty(t, queue.acked)
+}
+
+func TestBatchImageWorker_CancelsProcessorWhenLeaseIsLost(t *testing.T) {
+	queue := newFakeBatchImageQueue("imgbatch_worker_lease_lost")
+	queue.refreshErr = ErrBatchImageLeaseLost
+	processor := &blockingBatchImageProcessor{started: make(chan struct{})}
+	worker := NewBatchImageWorker(queue, processor, BatchImageWorkerOptions{
+		JobLockTTL:       3 * time.Second,
+		StaleActiveAfter: 3 * time.Second,
+	})
+
+	err := worker.RunOnce(context.Background())
+
+	require.ErrorIs(t, err, ErrBatchImageLeaseLost)
+	require.True(t, processor.canceled)
+	require.Empty(t, queue.acked)
+	require.Empty(t, queue.requeued)
 }
 
 func TestNewBatchImageWorkerOptionsFromConfig_UsesFiniteReserveTimeout(t *testing.T) {
@@ -83,6 +97,7 @@ type fakeBatchImageQueue struct {
 	acked        []string
 	requeued     []fakeBatchImageRequeue
 	releaseCount int
+	refreshErr   error
 }
 
 type fakeBatchImageRequeue struct {
@@ -131,16 +146,52 @@ func (q *fakeBatchImageQueue) TryAcquireJobLock(context.Context, string, time.Du
 	if !q.lockAcquired {
 		return nil, false, nil
 	}
-	return fakeBatchImageLock{release: func() { q.releaseCount++ }}, true, nil
+	return fakeBatchImageLock{
+		refresh: func() error { return q.refreshErr },
+		ack: func() {
+			q.acked = append(q.acked, q.reserved.BatchID)
+		},
+		requeue: func(delay time.Duration) {
+			q.requeued = append(q.requeued, fakeBatchImageRequeue{
+				batchID: q.reserved.BatchID,
+				delay:   delay,
+			})
+		},
+		release: func() { q.releaseCount++ },
+	}, true, nil
 }
 
 type fakeBatchImageLock struct {
+	refresh func() error
+	ack     func()
+	requeue func(time.Duration)
 	release func()
 }
 
 func (l fakeBatchImageLock) Release(context.Context) error {
 	if l.release != nil {
 		l.release()
+	}
+	return nil
+}
+
+func (l fakeBatchImageLock) Refresh(context.Context, time.Duration) error {
+	if l.refresh != nil {
+		return l.refresh()
+	}
+	return nil
+}
+
+func (l fakeBatchImageLock) Ack(context.Context) error {
+	if l.ack != nil {
+		l.ack()
+	}
+	return nil
+}
+
+func (l fakeBatchImageLock) RequeueAfter(_ context.Context, delay time.Duration) error {
+	if l.requeue != nil {
+		l.requeue(delay)
 	}
 	return nil
 }
@@ -154,4 +205,16 @@ type fakeBatchImageProcessor struct {
 func (p *fakeBatchImageProcessor) Process(_ context.Context, batchID string) (BatchImageProcessResult, error) {
 	p.processed = append(p.processed, batchID)
 	return p.result, p.err
+}
+
+type blockingBatchImageProcessor struct {
+	started  chan struct{}
+	canceled bool
+}
+
+func (p *blockingBatchImageProcessor) Process(ctx context.Context, _ string) (BatchImageProcessResult, error) {
+	close(p.started)
+	<-ctx.Done()
+	p.canceled = true
+	return BatchImageProcessResult{}, ctx.Err()
 }
