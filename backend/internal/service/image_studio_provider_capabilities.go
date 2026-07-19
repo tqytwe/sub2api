@@ -218,6 +218,7 @@ func isGenericOpenAICompatibleImageModel(model string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(model))
 	normalized = strings.TrimPrefix(normalized, "models/")
 	if normalized == "" ||
+		strings.HasPrefix(normalized, "agnes-") ||
 		strings.Contains(normalized, "embedding") ||
 		strings.Contains(normalized, "moderation") ||
 		strings.Contains(normalized, "rerank") {

@@ -219,6 +219,38 @@ func TestImageStudioCreatePendingJobBuildsAgnesAdapterPayload(t *testing.T) {
 	}
 }
 
+func TestImageStudioCreatePendingJobBuildsAgnes20AdapterPayload(t *testing.T) {
+	repo := &imageStudioCreateRepoStub{}
+	encryptor := &imageStudioEncryptorStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		encryptor,
+		PlatformOpenAI,
+		[]string{"agnes-image-2.0-flash"},
+	)
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "square launch artwork",
+		Size:       "1024x1024",
+		Count:      1,
+		Model:      "agnes-image-2.0-flash",
+		APIKeyID:   20,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, PlatformOpenAI, gjson.Get(encryptor.plaintext, "platform").String())
+	require.Equal(t, "create", gjson.Get(encryptor.plaintext, "operation").String())
+	require.Equal(t, "agnes:agnes-image-2.0-flash:v1", gjson.Get(encryptor.plaintext, "capability_profile_id").String())
+	require.Equal(t, openAIImagesGenerationsEndpoint, gjson.Get(encryptor.plaintext, "endpoint").String())
+	require.Equal(t, "agnes-image-2.0-flash", gjson.Get(encryptor.plaintext, "body.model").String())
+	require.Equal(t, "1024x1024", gjson.Get(encryptor.plaintext, "body.size").String())
+	require.Equal(t, "b64_json", gjson.Get(encryptor.plaintext, "body.extra_body.response_format").String())
+	require.False(t, gjson.Get(encryptor.plaintext, "body.ratio").Exists())
+	require.False(t, gjson.Get(encryptor.plaintext, "body.response_format").Exists())
+}
+
 func TestImageStudioCreatePendingJobMapsAgnes3KTo4KBilling(t *testing.T) {
 	repo := &imageStudioCreateRepoStub{}
 	svc := newImageStudioProviderCreateServiceForTest(
@@ -305,6 +337,31 @@ func TestImageStudioBuildWorkerRequestPreservesAgnesAdapterPayload(t *testing.T)
 	require.Equal(t, "3K", gjson.GetBytes(req.Body, "size").String())
 	require.Equal(t, "16:9", gjson.GetBytes(req.Body, "ratio").String())
 	require.Equal(t, "b64_json", gjson.GetBytes(req.Body, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(req.Body, "response_format").Exists())
+}
+
+func TestImageStudioBuildWorkerRequestPreservesAgnes20AdapterPayload(t *testing.T) {
+	svc := &ImageStudioService{}
+	decrypted := `{
+		"platform":"openai",
+		"operation":"create",
+		"capability_profile_id":"agnes:agnes-image-2.0-flash:v1",
+		"capability_revision":"` + imageStudioCapabilityRevision + `",
+		"endpoint":"/v1/images/generations",
+		"body":{"model":"agnes-image-2.0-flash","prompt":"draw","n":1,"size":"1024x1024","extra_body":{"response_format":"b64_json"}}
+	}`
+
+	req, err := svc.BuildWorkerRequest(context.Background(), &ImageStudioJob{Model: "agnes-image-2.0-flash"}, decrypted)
+
+	require.NoError(t, err)
+	require.Equal(t, PlatformOpenAI, req.Platform)
+	require.Equal(t, "create", req.Operation)
+	require.Equal(t, openAIImagesGenerationsEndpoint, req.Endpoint)
+	require.Equal(t, "application/json", req.ContentType)
+	require.Equal(t, "agnes-image-2.0-flash", gjson.GetBytes(req.Body, "model").String())
+	require.Equal(t, "1024x1024", gjson.GetBytes(req.Body, "size").String())
+	require.Equal(t, "b64_json", gjson.GetBytes(req.Body, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(req.Body, "ratio").Exists())
 	require.False(t, gjson.GetBytes(req.Body, "response_format").Exists())
 }
 
