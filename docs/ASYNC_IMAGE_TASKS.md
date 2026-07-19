@@ -1,9 +1,9 @@
 # Gateway 单请求异步图片任务
 
 > 状态：active
-> 最后核验：2026-07-18
+> 最后核验：2026-07-20
 
-Gateway async 让客户端提交一个 OpenAI-compatible Images 请求后立即获得任务 ID，不需要保持长 HTTP 连接。它适合 GPT/Grok 长耗时生成与编辑；多个 prompt 的持久批任务应使用 `/v1/images/batches`。
+Gateway async 让客户端提交一个 OpenAI-compatible Images 请求后立即获得任务 ID，不需要保持长 HTTP 连接。它适合 GPT、Grok、Agnes、Gemini 等图片模型的长耗时生成与编辑；多个 prompt 的持久批任务应使用 `/v1/images/batches`。
 
 ## 路由
 
@@ -41,15 +41,41 @@ Redis 队列的重启恢复以持久卷和 AOF 为前提。官方 Docker Compose
 
 ## 启用
 
-通用部署默认关闭。生产需要：
+通用部署默认关闭。本地或单实例部署可以使用持久本地目录：
 
 ```text
 IMAGE_STORAGE_ENABLED=true
 IMAGE_STORAGE_BACKEND=local
+IMAGE_STORAGE_LOCAL_DIR=/data/image-task-results
+IMAGE_STORAGE_LOCAL_URL_PREFIX=/v1/images/task-assets/
 IMAGE_ASYNC_QUEUE_ENABLED=true
 IMAGE_ASYNC_ENABLED=true
 IMAGE_ASYNC_WORKER_COUNT=4
 ```
+
+极速蹬当前生产使用 RustFS/S3 结果存储，公开侧可确认的关键配置是：
+
+```text
+IMAGE_STORAGE_ENABLED=true
+IMAGE_STORAGE_BACKEND=s3
+IMAGE_STORAGE_ENDPOINT=https://jisu.zeabur.app
+IMAGE_STORAGE_BUCKET=image-task-results
+IMAGE_STORAGE_PREFIX=images/
+IMAGE_STORAGE_FORCE_PATH_STYLE=true
+IMAGE_STORAGE_REGION=us-east-1
+IMAGE_STORAGE_PRESIGN_EXPIRY_HOURS=24
+IMAGE_STORAGE_MAX_DOWNLOAD_BYTES=33554432
+
+IMAGE_ASYNC_QUEUE_ENABLED=true
+IMAGE_ASYNC_ENABLED=true
+IMAGE_ASYNC_WORKER_COUNT=4
+```
+
+RustFS/S3 访问密钥只配置在服务端环境变量中，不写入文档、客户端代码或请求示例。
+
+极速蹬生产的完成结果通常返回 `https://jisu.zeabur.app/image-task-results/images/...`
+形式的 RustFS/S3 预签 URL。预签 URL 24 小时过期，RustFS 生命周期规则按 1 天清理
+`image-task-results` bucket 内对象；结果 URL 是临时交付地址，不是永久对象存储。
 
 `IMAGE_ASYNC_ENABLED=true` 要求 queue 和图片存储同时启用，否则配置校验失败。
 
@@ -68,14 +94,6 @@ IMAGE_ASYNC_QUEUE_ENABLED=true
 - API 已启用但 Redis、队列或 worker 未就绪：`503 IMAGE_ASYNC_NOT_READY`
 - 未就绪时不创建任务、不执行上游调用
 
-管理员可调用：
-
-```text
-GET /api/v1/admin/ops/image-runtimes/health
-```
-
-查看 Gateway async 的开关、存储、Redis、worker、ready/active backlog 和最近错误，不暴露凭据。
-
 ## 提交与幂等
 
 ```bash
@@ -92,7 +110,7 @@ curl -i https://api.jisudeng.com/v1/images/generations/async \
   }'
 ```
 
-成功返回 `202 Accepted`：
+成功返回 `202 Accepted`。响应体里的 `poll_url` 是稳定轮询地址：
 
 ```json
 {
@@ -106,7 +124,8 @@ curl -i https://api.jisudeng.com/v1/images/generations/async \
 }
 ```
 
-响应头：
+标准响应会设置以下响应头；如果客户端或代理层没有暴露这些 header，直接按响应体
+`poll_url` 轮询即可：
 
 ```text
 Location: /v1/images/tasks/imgtask_0123456789abcdef
@@ -140,7 +159,8 @@ queued -> processing -> completed
                      -> failed
 ```
 
-`queued` 和 `processing` 响应带 `Retry-After: 3`。
+`queued` 和 `processing` 标准响应会设置 `Retry-After: 3`；如果客户端或代理层没有暴露
+这个 header，建议按 3 秒左右轮询并自行退避。
 
 恢复规则是保守的：`queued` 尚未调用 provider，可以在重启后继续执行；一旦任务已
 进入 `processing`，平台无法证明崩溃前的上游请求是否已经成功或计费，因此恢复时会
@@ -148,7 +168,7 @@ queued -> processing -> completed
 
 ## 结果
 
-worker 内部把生成请求规范化为 Base64，完成后把每张图片写入结果存储。Redis 任务记录只保存紧凑 URL，不保存大段 Base64。
+worker 内部把生成请求规范化为 Base64，完成后把每张图片写入结果存储。Redis 任务记录只保存紧凑 URL，不保存大段 Base64。本地存储返回 `/v1/images/task-assets/...`，极速蹬生产 RustFS/S3 存储返回 `https://jisu.zeabur.app/image-task-results/images/...` 形式的 24 小时预签 URL。
 
 ```json
 {

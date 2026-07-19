@@ -1,15 +1,15 @@
-# GPT / Grok 图片生成 API
+# 图片生成 API
 
 > 状态：active
 > 网站入口：`https://www.jisudeng.com/docs?cat=deploy&page=text-to-image-api`
 > API Key：`https://www.jisudeng.com/keys`
 > 模型与价格：`https://www.jisudeng.com/models`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-18
+> 最后核验：2026-07-20
 
 ## 现在怎么用
 
-极速蹬当前对外主推的是 GPT 图片生成和 Grok 图片生成，开发者直接调用 OpenAI 兼容的 Images API。短耗时测试可以使用同步接口：
+极速蹬图片生成使用 OpenAI 兼容的 Images API，支持 GPT、Grok、Agnes 和 Gemini 等分组可见的图片模型。短耗时测试可以使用同步接口：
 
 ```text
 POST https://api.jisudeng.com/v1/images/generations
@@ -41,9 +41,11 @@ grok-imagine
 grok-imagine-image-quality
 grok-imagine-image
 grok-imagine-edit
+agnes-image-2.1-flash
+gemini-3.1-flash-image-preview
 ```
 
-GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `model`，通常直接填 `grok-imagine` 即可，网关会在图像生成端点规范化到 Grok 图片模型。
+GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `model`，通常直接填 `grok-imagine` 即可，网关会在图像生成端点规范化到 Grok 图片模型。不是所有名字里带 `image` 的模型都一定能提交到 Images API；如果模型属于文本、视频或尚未接入的图片能力，接口会在创建任务前返回 `400 invalid_request_error`。
 
 ## 三类返回契约
 
@@ -107,13 +109,15 @@ GPT 分组不传 `model` 时默认走 `gpt-image-2`。Grok 分组必须传 `mode
 `/v1/images/tasks/{task_id}`。queued、processing、completed 和 failed 的完整契约见
 [异步图片任务](./ASYNC_IMAGE_TASKS.md)。该能力依赖图片存储、Redis 持久队列和
 有界 worker；生产同时设置 `IMAGE_STORAGE_ENABLED=true`、
-`IMAGE_ASYNC_QUEUE_ENABLED=true` 和 `IMAGE_ASYNC_ENABLED=true`。
+`IMAGE_ASYNC_QUEUE_ENABLED=true`、`IMAGE_ASYNC_ENABLED=true` 和
+`IMAGE_ASYNC_WORKER_COUNT=4`。极速蹬生产结果写入 RustFS/S3 的
+`image-task-results/images/`，通过 `https://jisu.zeabur.app` 返回 24 小时预签 URL。
 
 ## 准备 API Key
 
 1. 打开 `https://www.jisudeng.com/keys`。
 2. 创建或选择一把绑定到 GPT/OpenAI 图像分组或 Grok 图像分组的 API Key。
-3. 在 `https://www.jisudeng.com/models` 确认这把 Key 所属分组能看到 `gpt-image-*` 或 `grok-imagine*` 图片模型。
+3. 在 `https://www.jisudeng.com/models` 确认这把 Key 所属分组能看到可提交到 Images API 的图片模型，例如 `gpt-image-*`、`grok-imagine*`、`agnes-image-2.1-flash` 或 `gemini-3.1-flash-image-preview`。
 4. 调用时把 Key 放在请求头里，不要放 URL 参数里。
 
 推荐认证头：
