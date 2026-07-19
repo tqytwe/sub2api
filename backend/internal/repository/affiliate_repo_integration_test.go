@@ -100,6 +100,77 @@ LIMIT 1`, u.ID)
 	require.InDelta(t, 12.34, historyAfter, 1e-9)
 }
 
+func TestAffiliateRepository_TransferQuotaToBalanceWithLedger_WritesUnifiedLedger(t *testing.T) {
+	ctx := context.Background()
+	tx := testEntTx(t)
+	txCtx := dbent.NewTxContext(ctx, tx)
+	client := tx.Client()
+
+	repo := NewAffiliateRepository(client, integrationDB)
+	ledgerRepo, ok := repo.(service.AffiliateBalanceLedgerTransferRepository)
+	require.True(t, ok)
+	ledgerSvc := service.NewBalanceLedgerService(integrationDB, nil, nil)
+
+	u := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("affiliate-ledger-transfer-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Role:         service.RoleUser,
+		Status:       service.StatusActive,
+		Balance:      2.0,
+		Concurrency:  5,
+	})
+
+	affCode := fmt.Sprintf("AFL%09d", time.Now().UnixNano()%1_000_000_000)
+	_, err := client.ExecContext(txCtx, `
+INSERT INTO user_affiliates (user_id, aff_code, aff_quota, aff_history_quota, created_at, updated_at)
+VALUES ($1, $2, $3, $3, NOW(), NOW())`, u.ID, affCode, 6.25)
+	require.NoError(t, err)
+
+	transferred, balance, err := ledgerRepo.TransferQuotaToBalanceWithLedger(txCtx, u.ID, ledgerSvc)
+	require.NoError(t, err)
+	require.InDelta(t, 6.25, transferred, 1e-9)
+	require.InDelta(t, 8.25, balance, 1e-9)
+
+	var (
+		balanceDelta   float64
+		balanceBefore  float64
+		balanceAfter   float64
+		sourceID       string
+		idempotencyKey string
+		legacyAfter    float64
+	)
+	rows, err := client.QueryContext(txCtx, `
+SELECT bt.balance_delta::double precision,
+       bt.balance_before::double precision,
+       bt.balance_after::double precision,
+       bt.source_id,
+       bt.idempotency_key,
+       ual.balance_after::double precision
+FROM balance_transactions bt
+JOIN user_affiliate_ledger ual ON ual.id::text = bt.source_id
+WHERE bt.user_id = $1
+  AND bt.source_type = 'affiliate_balance'
+  AND ual.action = 'transfer'
+	LIMIT 1`, u.ID)
+	require.NoError(t, err)
+	require.True(t, rows.Next(), "expected affiliate balance transaction")
+	require.NoError(t, rows.Scan(&balanceDelta, &balanceBefore, &balanceAfter, &sourceID, &idempotencyKey, &legacyAfter))
+	require.InDelta(t, 6.25, balanceDelta, 1e-9)
+	require.InDelta(t, 2.0, balanceBefore, 1e-9)
+	require.InDelta(t, 8.25, balanceAfter, 1e-9)
+	require.Equal(t, "affiliate_transfer:"+sourceID, idempotencyKey)
+	require.InDelta(t, 8.25, legacyAfter, 1e-9)
+	require.NoError(t, rows.Err())
+	require.NoError(t, rows.Close())
+
+	affQuota := querySingleFloat(t, txCtx, client,
+		"SELECT aff_quota::double precision FROM user_affiliates WHERE user_id = $1", u.ID)
+	require.InDelta(t, 0.0, affQuota, 1e-9)
+	totalRecharged := querySingleFloat(t, txCtx, client,
+		"SELECT total_recharged::double precision FROM users WHERE id = $1", u.ID)
+	require.InDelta(t, 6.25, totalRecharged, 1e-9)
+}
+
 // TestAffiliateRepository_AccrueQuota_ReusesOuterTransaction guards the
 // cross-layer tx propagation invariant: when AccrueQuota is called with a ctx
 // that already carries a transaction (via dbent.NewTxContext), repo.withTx

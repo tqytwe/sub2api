@@ -492,6 +492,10 @@ func (s *adminServiceImpl) BatchUpdateLimits(ctx context.Context, userIDs []int6
 }
 
 func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error) {
+	if s.balanceLedger != nil {
+		return s.updateUserBalanceWithLedger(ctx, userID, balance, operation, notes)
+	}
+
 	user, err := s.userRepo.GetByID(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -555,6 +559,107 @@ func (s *adminServiceImpl) UpdateUserBalance(ctx context.Context, userID int64, 
 	}
 
 	return user, nil
+}
+
+func (s *adminServiceImpl) updateUserBalanceWithLedger(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error) {
+	if s.entClient == nil {
+		return nil, ErrBalanceLedgerUnavailable
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin balance adjustment transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	txClient := tx.Client()
+
+	var delta float64
+	switch operation {
+	case "set":
+		current, err := queryAdminUserBalanceForUpdate(txCtx, txClient, userID)
+		if err != nil {
+			return nil, err
+		}
+		delta = balance - current
+	case "add":
+		delta = balance
+	case "subtract":
+		delta = -balance
+	default:
+		return nil, fmt.Errorf("invalid balance operation: %s", operation)
+	}
+
+	if delta != 0 {
+		code, err := GenerateRedeemCode()
+		if err != nil {
+			return nil, fmt.Errorf("generate adjustment redeem code: %w", err)
+		}
+		adjustmentRecord := &RedeemCode{
+			Code:   code,
+			Type:   AdjustmentTypeAdminBalance,
+			Value:  delta,
+			Status: StatusUsed,
+			UsedBy: &userID,
+			Notes:  notes,
+		}
+		now := time.Now()
+		adjustmentRecord.UsedAt = &now
+		if err := s.redeemCodeRepo.Create(txCtx, adjustmentRecord); err != nil {
+			return nil, fmt.Errorf("create balance adjustment record: %w", err)
+		}
+		description := "管理员增加余额"
+		if delta < 0 {
+			description = "管理员扣减余额"
+		}
+		if _, err := s.balanceLedger.ApplyDelta(txCtx, BalanceLedgerApplyInput{
+			UserID:         userID,
+			BalanceDelta:   delta,
+			SourceType:     "admin_balance",
+			SourceID:       fmt.Sprintf("%d", adjustmentRecord.ID),
+			IdempotencyKey: fmt.Sprintf("redeem_code:%d", adjustmentRecord.ID),
+			ActorType:      BalanceLedgerActorAdmin,
+			Description:    description,
+			Metadata: map[string]any{
+				"redeem_code_id": adjustmentRecord.ID,
+				"code":           adjustmentRecord.Code,
+				"operation":      operation,
+				"notes":          notes,
+			},
+		}); err != nil {
+			return nil, fmt.Errorf("apply balance ledger delta: %w", err)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit balance adjustment transaction: %w", err)
+	}
+	if delta > 0 {
+		s.tryAccrueAffiliateRebateForAdminRecharge(ctx, userID, operation, balance)
+	}
+	return s.userRepo.GetByID(ctx, userID)
+}
+
+func queryAdminUserBalanceForUpdate(ctx context.Context, client *dbent.Client, userID int64) (float64, error) {
+	rows, err := client.QueryContext(ctx, `
+SELECT balance::double precision
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE`, userID)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return 0, err
+		}
+		return 0, ErrUserNotFound
+	}
+	var balance float64
+	if err := rows.Scan(&balance); err != nil {
+		return 0, err
+	}
+	return balance, rows.Err()
 }
 
 func (s *adminServiceImpl) tryAccrueAffiliateRebateForAdminRecharge(ctx context.Context, userID int64, operation string, amount float64) {

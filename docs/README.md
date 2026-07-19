@@ -27,6 +27,7 @@
 | [Growth / Play](./GROWTH_PLAY.md) | `active` | 当前功能、开关、路由和短期 backlog | Growth 维护者 | 2026-07-15 |
 | [增长埋点](./growth-analytics.md) | `active` | 当前埋点和指标口径 | Growth 维护者 | 2026-07-15 |
 | [模型与价格](./MODEL_PRICING_CN.md) | `active` | 模型目录、参考价和实际计费关系 | 计费维护者 | 2026-07-15 |
+| [余额账本治理](./BALANCE_LEDGER_ROLLOUT.md) | `active` | 统一资金流水、回填和剩余直写迁移边界 | 计费维护者 | 2026-07-20 |
 | [批量图像 MVP](./BATCH_IMAGE_MVP.md) | `reference` | Batch provider、内部生命周期与运维参考 | API 维护者 | 2026-07-18 |
 | [支付配置（中文）](./PAYMENT_CN.md) | `reference` | 上游内置支付配置 | 支付维护者 | 2026-07-15 |
 | [Payment configuration](./PAYMENT.md) | `reference` | Upstream payment configuration | 支付维护者 | 2026-07-15 |

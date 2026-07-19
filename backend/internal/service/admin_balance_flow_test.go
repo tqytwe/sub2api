@@ -23,6 +23,7 @@ func TestAdminBalanceFlowHistoryReturnsPlayRewardsAndBlindboxDetails(t *testing.
 	userID := int64(301)
 	now := time.Date(2026, 7, 19, 10, 30, 0, 0, time.UTC)
 
+	expectBalanceTransactionsProbe(mock, userID, "", true, false)
 	mock.ExpectQuery(regexp.QuoteMeta("SELECT balance::double precision, COALESCE(frozen_balance, 0)::double precision")).
 		WithArgs(userID).
 		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(1.0, 0.0))
@@ -73,6 +74,45 @@ func TestAdminBalanceFlowHistoryReturnsPlayRewardsAndBlindboxDetails(t *testing.
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestAdminBalanceFlowHistoryPrefersBalanceTransactions(t *testing.T) {
+	t.Parallel()
+
+	client, mock, cleanup := newAdminBalanceFlowMockClient(t)
+	defer cleanup()
+
+	userID := int64(302)
+	now := time.Date(2026, 7, 20, 9, 0, 0, 0, time.UTC)
+
+	expectBalanceTransactionsProbe(mock, userID, "", true, true)
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT balance::double precision, COALESCE(frozen_balance, 0)::double precision")).
+		WithArgs(userID).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(2.0, 0.0))
+	mock.ExpectQuery("(?s)WITH filtered AS .*FROM balance_transactions.*COUNT\\(\\*\\)::bigint").
+		WithArgs(userID, "").
+		WillReturnRows(sqlmock.NewRows([]string{"count", "total_in", "total_out", "net_delta", "recharge_total"}).
+			AddRow(int64(1), 1.0, 0.0, 1.0, 1.0))
+	mock.ExpectQuery("(?s)WITH filtered AS .*FROM balance_transactions.*SELECT\\s+flow_id,\\s+type,\\s+source_type").
+		WithArgs(userID, "", 0, 15).
+		WillReturnRows(adminBalanceFlowRows().AddRow(
+			"balance_transaction:99", "payment_recharge", "balance_transactions", "77",
+			1.0, 1.0, 0.0, 1.0, 2.0, 0.0, 0.0, now,
+			"订单充值", "system", nil, "payment_recharge", "77", "payment_order:77",
+			"", `{"order_id":77}`, "high",
+		))
+
+	svc := &adminServiceImpl{entClient: client}
+	got, err := svc.GetUserBalanceHistory(context.Background(), userID, 1, 15, "")
+	require.NoError(t, err)
+	require.Len(t, got.Items, 1)
+	require.Equal(t, "payment_recharge", got.Items[0].Type)
+	require.Equal(t, "balance_transactions", got.Items[0].SourceType)
+	require.Equal(t, "77", got.Items[0].SourceID)
+	require.Equal(t, 1.0, *got.Items[0].BalanceBefore)
+	require.Equal(t, 2.0, *got.Items[0].BalanceAfter)
+	require.Equal(t, 1.0, got.Summary.RechargeTotal)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestAdminBalanceFlowCTEContracts(t *testing.T) {
 	t.Parallel()
 
@@ -92,6 +132,16 @@ func newAdminBalanceFlowMockClient(t *testing.T) (*dbent.Client, sqlmock.Sqlmock
 	return client, mock, func() {
 		_ = client.Close()
 		_ = db.Close()
+	}
+}
+
+func expectBalanceTransactionsProbe(mock sqlmock.Sqlmock, userID int64, flowType string, tableExists bool, hasRows bool) {
+	mock.ExpectQuery(regexp.QuoteMeta("SELECT to_regclass('public.balance_transactions') IS NOT NULL")).
+		WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(tableExists))
+	if tableExists {
+		mock.ExpectQuery("(?s)SELECT EXISTS \\(\\s+SELECT 1\\s+FROM balance_transactions").
+			WithArgs(userID, flowType).
+			WillReturnRows(sqlmock.NewRows([]string{"exists"}).AddRow(hasRows))
 	}
 }
 

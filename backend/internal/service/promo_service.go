@@ -29,6 +29,7 @@ type PromoService struct {
 	billingCacheService  *BillingCacheService
 	entClient            *dbent.Client
 	authCacheInvalidator APIKeyAuthCacheInvalidator
+	balanceLedger        *BalanceLedgerService
 }
 
 // NewPromoService 创建优惠码服务实例
@@ -38,6 +39,7 @@ func NewPromoService(
 	billingCacheService *BillingCacheService,
 	entClient *dbent.Client,
 	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	balanceLedger *BalanceLedgerService,
 ) *PromoService {
 	return &PromoService{
 		promoRepo:            promoRepo,
@@ -45,6 +47,7 @@ func NewPromoService(
 		billingCacheService:  billingCacheService,
 		entClient:            entClient,
 		authCacheInvalidator: authCacheInvalidator,
+		balanceLedger:        balanceLedger,
 	}
 }
 
@@ -123,11 +126,6 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 		return ErrPromoCodeAlreadyUsed
 	}
 
-	// 增加用户余额
-	if err := s.userRepo.UpdateBalance(txCtx, userID, promoCode.BonusAmount); err != nil {
-		return fmt.Errorf("update user balance: %w", err)
-	}
-
 	// 创建使用记录
 	usage := &PromoCodeUsage{
 		PromoCodeID: promoCode.ID,
@@ -137,6 +135,15 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 	}
 	if err := s.promoRepo.CreateUsage(txCtx, usage); err != nil {
 		return fmt.Errorf("create usage record: %w", err)
+	}
+
+	// 增加用户余额
+	if s.balanceLedger != nil {
+		if err := s.applyPromoBalanceLedgerDelta(txCtx, userID, promoCode, usage); err != nil {
+			return fmt.Errorf("update user balance: %w", err)
+		}
+	} else if err := s.userRepo.UpdateBalance(txCtx, userID, promoCode.BonusAmount); err != nil {
+		return fmt.Errorf("update user balance: %w", err)
 	}
 
 	// 增加使用次数
@@ -159,6 +166,36 @@ func (s *PromoService) ApplyPromoCode(ctx context.Context, userID int64, code st
 		}()
 	}
 
+	return nil
+}
+
+func (s *PromoService) applyPromoBalanceLedgerDelta(ctx context.Context, userID int64, promoCode *PromoCode, usage *PromoCodeUsage) error {
+	_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+		UserID:         userID,
+		BalanceDelta:   promoCode.BonusAmount,
+		SourceType:     BalanceFlowTypePromoBonus,
+		SourceID:       fmt.Sprintf("%d", usage.ID),
+		IdempotencyKey: fmt.Sprintf("promo_code_usage:%d", usage.ID),
+		ActorType:      BalanceLedgerActorUser,
+		ActorUserID:    &userID,
+		Description:    "优惠码奖励",
+		Metadata: map[string]any{
+			"promo_code_usage_id": usage.ID,
+			"promo_code_id":       promoCode.ID,
+			"code":                promoCode.Code,
+			"bonus_amount":        promoCode.BonusAmount,
+		},
+	})
+	if err != nil {
+		return err
+	}
+	if promoCode.BonusAmount > 0 {
+		if adjuster, ok := s.userRepo.(balanceLedgerTotalRechargedAdjuster); ok {
+			if err := adjuster.AdjustTotalRecharged(ctx, userID, promoCode.BonusAmount); err != nil {
+				return fmt.Errorf("update total recharged: %w", err)
+			}
+		}
+	}
 	return nil
 }
 

@@ -1,0 +1,110 @@
+package service
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/DATA-DOG/go-sqlmock"
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/stretchr/testify/require"
+
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+)
+
+type usageServiceLedgerLogRepoStub struct {
+	UsageLogRepository
+	inserted  bool
+	id        int64
+	createdAt time.Time
+}
+
+func (r *usageServiceLedgerLogRepoStub) Create(_ context.Context, log *UsageLog) (bool, error) {
+	log.ID = r.id
+	log.CreatedAt = r.createdAt
+	return r.inserted, nil
+}
+
+type usageServiceLedgerUserRepoStub struct {
+	UserRepository
+	updateBalanceCalls int
+}
+
+func (r *usageServiceLedgerUserRepoStub) GetByID(_ context.Context, id int64) (*User, error) {
+	return &User{ID: id}, nil
+}
+
+func (r *usageServiceLedgerUserRepoStub) UpdateBalance(context.Context, int64, float64) error {
+	r.updateBalanceCalls++
+	return nil
+}
+
+func TestUsageServiceCreateWritesUsageChargeBalanceLedger(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+	client := dbent.NewClient(dbent.Driver(entsql.OpenDB(dialect.Postgres, db)))
+	defer func() { _ = client.Close() }()
+
+	createdAt := time.Date(2026, 7, 20, 9, 0, 0, 0, time.UTC)
+	usageRepo := &usageServiceLedgerLogRepoStub{inserted: true, id: 501, createdAt: createdAt}
+	userRepo := &usageServiceLedgerUserRepoStub{}
+	ledger := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt.Add(time.Second) }}
+	svc := NewUsageService(usageRepo, userRepo, client, nil, ledger)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "usage_log:501").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(5.0, 0.0))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
+		WithArgs(4.25, 0.0, int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WithArgs(
+			int64(42),
+			-0.75,
+			5.0,
+			4.25,
+			0.0,
+			0.0,
+			0.0,
+			"usage_charge",
+			"501",
+			"usage_log:501",
+			"system",
+			nil,
+			"API 消耗扣费",
+			sqlmock.AnyArg(),
+			false,
+			"high",
+			createdAt,
+		).
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(8001), int64(42), -0.75, 5.0, 4.25, 0.0, 0.0, 0.0,
+			"usage_charge", "501", "usage_log:501", "system", nil,
+			"API 消耗扣费", `{"usage_log_id":501}`, false, "high", createdAt,
+		))
+	mock.ExpectCommit()
+
+	got, err := svc.Create(context.Background(), CreateUsageLogRequest{
+		UserID:         42,
+		APIKeyID:       7,
+		AccountID:      9,
+		RequestID:      "req-usage-ledger",
+		Model:          "gpt-test",
+		InputTokens:    10,
+		OutputTokens:   12,
+		TotalCost:      1.5,
+		ActualCost:     0.75,
+		RateMultiplier: 0.5,
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(501), got.ID)
+	require.Zero(t, userRepo.updateBalanceCalls)
+	require.NoError(t, mock.ExpectationsWereMet())
+}

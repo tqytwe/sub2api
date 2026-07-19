@@ -78,7 +78,24 @@ ON CONFLICT (user_id, provider_type, grant_reason) DO NOTHING`,
 	}
 
 	if providerDefaults.Balance != 0 {
-		if err := client.User.UpdateOneID(userID).AddBalance(providerDefaults.Balance).Exec(ctx); err != nil {
+		if s.balanceLedger != nil {
+			if _, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+				UserID:         userID,
+				BalanceDelta:   providerDefaults.Balance,
+				SourceType:     "auth_first_bind_grant",
+				SourceID:       strings.TrimSpace(providerType),
+				IdempotencyKey: fmt.Sprintf("auth_first_bind:%d:%s", userID, strings.TrimSpace(providerType)),
+				ActorType:      BalanceLedgerActorSystem,
+				Description:    "认证源首绑赠送",
+				Metadata: map[string]any{
+					"provider_type": strings.TrimSpace(providerType),
+					"grant_reason":  "first_bind",
+					"balance":       providerDefaults.Balance,
+				},
+			}); err != nil {
+				return fmt.Errorf("apply first bind balance default: %w", err)
+			}
+		} else if err := client.User.UpdateOneID(userID).AddBalance(providerDefaults.Balance).Exec(ctx); err != nil {
 			return fmt.Errorf("apply first bind balance default: %w", err)
 		}
 	}
