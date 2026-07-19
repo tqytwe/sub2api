@@ -16,6 +16,8 @@ var ErrImageStudioQualityNotSupported = infraerrors.BadRequest(
 	"image quality is not supported for the selected model",
 )
 
+const ImageStudioTier3K = "3K"
+
 type ImageStudioLocalizedLabel struct {
 	Zh string `json:"zh"`
 	En string `json:"en"`
@@ -55,6 +57,7 @@ var imageStudioAspectCatalog = []ImageStudioAspectOption{
 var imageStudioTierCatalog = []ImageStudioTierOption{
 	{ID: ImageBillingSize1K, Label: ImageStudioLocalizedLabel{Zh: "标准 1K", En: "Standard 1K"}},
 	{ID: ImageBillingSize2K, Label: ImageStudioLocalizedLabel{Zh: "高清 2K", En: "HD 2K"}},
+	{ID: ImageStudioTier3K, Label: ImageStudioLocalizedLabel{Zh: "精细 3K", En: "Fine 3K"}},
 	{ID: ImageBillingSize4K, Label: ImageStudioLocalizedLabel{Zh: "超清 4K", En: "Ultra 4K"}},
 }
 
@@ -62,26 +65,31 @@ var imageStudioSizeMatrix = map[string]map[string]string{
 	"1:1": {
 		ImageBillingSize1K: "1024x1024",
 		ImageBillingSize2K: "2048x2048",
+		ImageStudioTier3K:  "3072x3072",
 		ImageBillingSize4K: "4096x4096",
 	},
 	"2:3": {
 		ImageBillingSize1K: "1024x1536",
 		ImageBillingSize2K: "2048x3072",
+		ImageStudioTier3K:  "2160x3240",
 		ImageBillingSize4K: "4096x6144",
 	},
 	"3:2": {
 		ImageBillingSize1K: "1536x1024",
 		ImageBillingSize2K: "3072x2048",
+		ImageStudioTier3K:  "3240x2160",
 		ImageBillingSize4K: "6144x4096",
 	},
 	"9:16": {
 		ImageBillingSize1K: "1024x1792",
 		ImageBillingSize2K: "2048x3584",
+		ImageStudioTier3K:  "1728x3072",
 		ImageBillingSize4K: "4096x7168",
 	},
 	"16:9": {
 		ImageBillingSize1K: "1792x1024",
 		ImageBillingSize2K: "3584x2048",
+		ImageStudioTier3K:  "3072x1728",
 		ImageBillingSize4K: "3840x2160",
 	},
 }

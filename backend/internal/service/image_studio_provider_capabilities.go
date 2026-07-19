@@ -43,6 +43,7 @@ type ImageStudioOutputCompressionCapability struct {
 
 type ImageStudioModelCapabilities struct {
 	Platform                 string                                  `json:"platform,omitempty"`
+	ProviderID               string                                  `json:"provider_id,omitempty"`
 	ProfileID                string                                  `json:"capability_profile_id,omitempty"`
 	Revision                 string                                  `json:"capability_revision,omitempty"`
 	Operations               []string                                `json:"operations,omitempty"`
@@ -79,6 +80,9 @@ func ResolveImageStudioModelCapability(model string) (ImageStudioModelCapabiliti
 	if capability, ok := resolveOpenAIImageStudioCapability(model); ok {
 		return capability, true
 	}
+	if capability, ok := resolveAdaptedImageStudioCapability(model); ok {
+		return capability, true
+	}
 	if capability, ok := resolveGeminiImageStudioCapability(model); ok {
 		return capability, true
 	}
@@ -96,7 +100,10 @@ func ResolveImageStudioProviderCapability(platform, model string) (ImageStudioMo
 	model = strings.ToLower(strings.TrimSpace(model))
 	switch platform {
 	case PlatformOpenAI:
-		return resolveOpenAIImageStudioCapability(model)
+		if capability, ok := resolveOpenAIImageStudioCapability(model); ok {
+			return capability, true
+		}
+		return resolveAdaptedImageStudioCapability(model)
 	case PlatformGemini:
 		return resolveGeminiImageStudioCapability(model)
 	case PlatformGrok:
@@ -276,7 +283,8 @@ func imageStudioSizesThroughTier(maxTier string) []string {
 	maxRank := map[string]int{
 		ImageBillingSize1K: 1,
 		ImageBillingSize2K: 2,
-		ImageBillingSize4K: 3,
+		ImageStudioTier3K:  3,
+		ImageBillingSize4K: 4,
 	}[maxTier]
 	out := make([]string, 0, len(imageStudioAspectCatalog)*maxRank)
 	for _, aspect := range imageStudioAspectCatalog {
@@ -285,7 +293,8 @@ func imageStudioSizesThroughTier(maxTier string) []string {
 			if map[string]int{
 				ImageBillingSize1K: 1,
 				ImageBillingSize2K: 2,
-				ImageBillingSize4K: 3,
+				ImageStudioTier3K:  3,
+				ImageBillingSize4K: 4,
 			}[tier.ID] > maxRank {
 				continue
 			}

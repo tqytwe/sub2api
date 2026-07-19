@@ -1124,7 +1124,16 @@ func (s *AntigravityGatewayService) extractImageInputSize(body []byte) string {
 	}
 
 	if req.GenerationConfig != nil && req.GenerationConfig.ImageConfig != nil {
-		return strings.TrimSpace(req.GenerationConfig.ImageConfig.ImageSize)
+		switch strings.ToUpper(strings.TrimSpace(req.GenerationConfig.ImageConfig.ImageSize)) {
+		case ImageBillingSize1K:
+			return ImageBillingSize1K
+		case ImageBillingSize2K:
+			return ImageBillingSize2K
+		case ImageBillingSize4K:
+			return ImageBillingSize4K
+		default:
+			return ""
+		}
 	}
 
 	return ""
