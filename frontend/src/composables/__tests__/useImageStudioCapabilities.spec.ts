@@ -8,10 +8,12 @@ const mockCapabilities: ImageStudioCapabilities = {
   tiers: [
     { id: '1K', label: { zh: '1K', en: '1K' } },
     { id: '2K', label: { zh: '2K', en: '2K' } },
+    { id: '3K', label: { zh: '3K', en: '3K' } },
   ],
   size_options: [
     { aspect: '1:1', tier: '1K', size: '1024x1024', billing_tier: '1K' },
     { aspect: '1:1', tier: '2K', size: '2048x2048', billing_tier: '2K' },
+    { aspect: '1:1', tier: '3K', size: '3072x3072', billing_tier: '4K' },
   ],
 }
 
@@ -42,6 +44,23 @@ describe('useImageStudioCapabilities', () => {
     }))
     const hd = caps.selectableOptions.value.find((opt) => opt.size === '2048x2048')
     expect(hd?.disabled).toBe(true)
+  })
+
+  it('enables 3K only when the selected model supports the Agnes size', () => {
+    const capabilities = ref(mockCapabilities)
+    const generic = useImageStudioCapabilities(() => capabilities.value, () => ({
+      id: 'gpt-image-2',
+      display_name: 'GPT Image 2',
+      supported_sizes: ['1024x1024', '2048x2048'],
+    }))
+    const agnes = useImageStudioCapabilities(() => capabilities.value, () => ({
+      id: 'agnes-image-2.1-flash',
+      display_name: 'Agnes Image 2.1 Flash',
+      supported_sizes: ['1024x1024', '2048x2048', '3072x3072'],
+    }))
+
+    expect(generic.selectableOptions.value.find((opt) => opt.tier === '3K')?.disabled).toBe(true)
+    expect(agnes.selectableOptions.value.find((opt) => opt.tier === '3K')?.disabled).toBe(false)
   })
 
   it('does not invent a default size before capabilities are available', () => {

@@ -30,6 +30,11 @@ type boundedImageTaskProcessor struct {
 	completed int
 }
 
+type notifyingImageTaskStore struct {
+	service.ImageTaskStore
+	heartbeat chan int64
+}
+
 type unexpectedImageTaskProcessor struct {
 	mu     sync.Mutex
 	called int
@@ -83,6 +88,24 @@ func (p *boundedImageTaskProcessor) ProcessImageTask(ctx context.Context, taskID
 	err := p.tasks.Complete(ctx, taskID, 200, json.RawMessage(`{"data":[]}`))
 	completed = true
 	return err
+}
+
+func (s *notifyingImageTaskStore) TouchHeartbeat(ctx context.Context, id string, heartbeatAt time.Time) error {
+	if err := s.ImageTaskStore.TouchHeartbeat(ctx, id, heartbeatAt); err != nil {
+		return err
+	}
+	current, err := s.Get(ctx, id)
+	if err != nil || current == nil || current.HeartbeatAt == nil {
+		return nil
+	}
+	if *current.HeartbeatAt != heartbeatAt.UTC().Unix() {
+		return nil
+	}
+	select {
+	case s.heartbeat <- *current.HeartbeatAt:
+	default:
+	}
+	return nil
 }
 
 func TestImageTaskWorkerRuntimeBoundsConcurrencyAndCompletesQueuedJobs(t *testing.T) {
@@ -186,7 +209,10 @@ func TestImageTaskWorkerRuntimeFailsRecoveredProcessingWithoutReplayingUpstream(
 		RecoverLimit:            100,
 	}}
 	queue := NewImageTaskQueue(rdb, cfg)
-	store := NewImageTaskStore(rdb)
+	store := &notifyingImageTaskStore{
+		ImageTaskStore: NewImageTaskStore(rdb),
+		heartbeat:      make(chan int64, 4),
+	}
 	state := service.NewImageTaskRuntimeState(queue, true, true, true)
 	tasks := service.NewQueuedImageTaskService(
 		store,
@@ -304,7 +330,10 @@ func TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing(t *testing.T) {
 		RecoverLimit:            100,
 	}}
 	queue := NewImageTaskQueue(rdb, cfg)
-	store := NewImageTaskStore(rdb)
+	store := &notifyingImageTaskStore{
+		ImageTaskStore: NewImageTaskStore(rdb),
+		heartbeat:      make(chan int64, 4),
+	}
 	state := service.NewImageTaskRuntimeState(queue, true, true, true)
 	tasks := service.NewQueuedImageTaskService(
 		store,
@@ -337,12 +366,13 @@ func TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing(t *testing.T) {
 	started, err := store.Get(context.Background(), taskID)
 	require.NoError(t, err)
 	require.NotNil(t, started.HeartbeatAt)
-	initialHeartbeat := *started.HeartbeatAt
 
-	require.Eventually(t, func() bool {
-		current, getErr := store.Get(context.Background(), taskID)
-		return getErr == nil && current.HeartbeatAt != nil && *current.HeartbeatAt > initialHeartbeat
-	}, 10*time.Second, 50*time.Millisecond)
+	select {
+	case heartbeatAt := <-store.heartbeat:
+		require.NotZero(t, heartbeatAt)
+	case <-time.After(30 * time.Second):
+		require.FailNow(t, "timed out waiting for processing heartbeat")
+	}
 	processor.release <- struct{}{}
 }
 

@@ -18,6 +18,10 @@ func TestResolveImageStudioSizeFromAspectTier(t *testing.T) {
 	size, err = ResolveImageStudioSize("9:16", "4K", "")
 	require.NoError(t, err)
 	require.Equal(t, "4096x7168", size)
+
+	size, err = ResolveImageStudioSize("16:9", "3K", "")
+	require.NoError(t, err)
+	require.Equal(t, "3072x1728", size)
 }
 
 func TestResolveImageStudioSizeSupportsLegacyAspectAliases(t *testing.T) {
@@ -41,9 +45,10 @@ func TestResolveImageStudioSizeFromRaw(t *testing.T) {
 
 func TestListImageStudioCapabilities(t *testing.T) {
 	caps := ListImageStudioCapabilities()
-	require.Len(t, caps.SizeOptions, 15)
+	require.Len(t, caps.SizeOptions, 20)
 	require.NotEmpty(t, caps.Aspects)
 	require.NotEmpty(t, caps.Tiers)
+	require.Contains(t, []string{caps.Tiers[0].ID, caps.Tiers[1].ID, caps.Tiers[2].ID, caps.Tiers[3].ID}, "3K")
 	require.Equal(t, []string{"1:1", "2:3", "3:2", "9:16", "16:9"}, []string{
 		caps.Aspects[0].ID,
 		caps.Aspects[1].ID,
@@ -51,6 +56,25 @@ func TestListImageStudioCapabilities(t *testing.T) {
 		caps.Aspects[3].ID,
 		caps.Aspects[4].ID,
 	})
+	var found3K bool
+	for _, option := range caps.SizeOptions {
+		if option.Aspect == "16:9" && option.Tier == "3K" {
+			found3K = true
+			require.Equal(t, "3072x1728", option.Size)
+			require.Equal(t, ImageBillingSize4K, option.BillingTier)
+		}
+	}
+	require.True(t, found3K)
+}
+
+func TestClassifyImageBillingTierMaps3KTo4K(t *testing.T) {
+	tier, ok := ClassifyImageBillingTier("3K")
+	require.True(t, ok)
+	require.Equal(t, ImageBillingSize4K, tier)
+
+	tier, ok = ClassifyImageBillingTier("3072x1728")
+	require.True(t, ok)
+	require.Equal(t, ImageBillingSize4K, tier)
 }
 
 func TestInferImageStudioAspectTierIsDeterministic(t *testing.T) {

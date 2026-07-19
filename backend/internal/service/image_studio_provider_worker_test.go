@@ -175,6 +175,76 @@ func TestImageStudioCreatePendingJobKeepsOpenAICompatibleTransportForGeminiModel
 	require.False(t, gjson.Get(encryptor.plaintext, "body.contents").Exists())
 }
 
+func TestImageStudioCreatePendingJobBuildsAgnesAdapterPayload(t *testing.T) {
+	repo := &imageStudioCreateRepoStub{}
+	encryptor := &imageStudioEncryptorStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		encryptor,
+		PlatformOpenAI,
+		[]string{"agnes-image-2.1-flash"},
+	)
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "square launch artwork",
+		Size:       "1024x1024",
+		Aspect:     "1:1",
+		Tier:       "1K",
+		Count:      1,
+		Model:      "agnes-image-2.1-flash",
+		APIKeyID:   20,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, PlatformOpenAI, gjson.Get(encryptor.plaintext, "platform").String())
+	require.Equal(t, "create", gjson.Get(encryptor.plaintext, "operation").String())
+	require.Equal(t, "agnes:agnes-image-2.1-flash:v1", gjson.Get(encryptor.plaintext, "capability_profile_id").String())
+	require.Equal(t, openAIImagesGenerationsEndpoint, gjson.Get(encryptor.plaintext, "endpoint").String())
+	require.Equal(t, "agnes-image-2.1-flash", gjson.Get(encryptor.plaintext, "body.model").String())
+	require.Equal(t, "1K", gjson.Get(encryptor.plaintext, "body.size").String())
+	require.Equal(t, "1:1", gjson.Get(encryptor.plaintext, "body.ratio").String())
+	require.Equal(t, "b64_json", gjson.Get(encryptor.plaintext, "body.extra_body.response_format").String())
+	require.False(t, gjson.Get(encryptor.plaintext, "body.response_format").Exists())
+	for _, field := range []string{
+		"body.quality",
+		"body.background",
+		"body.output_format",
+		"body.output_compression",
+		"body.input_fidelity",
+		"body.style",
+	} {
+		require.False(t, gjson.Get(encryptor.plaintext, field).Exists(), field)
+	}
+}
+
+func TestImageStudioCreatePendingJobMapsAgnes3KTo4KBilling(t *testing.T) {
+	repo := &imageStudioCreateRepoStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		&imageStudioEncryptorStub{},
+		PlatformOpenAI,
+		[]string{"agnes-image-2.1-flash"},
+	)
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "wide launch artwork",
+		Size:       "3072x1728",
+		Aspect:     "16:9",
+		Tier:       "3K",
+		Count:      1,
+		Model:      "agnes-image-2.1-flash",
+		APIKeyID:   20,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, "3072x1728", job.Size)
+	require.Equal(t, ImageBillingSize4K, normalizeStudioImageSize(job.Size))
+}
+
 func TestImageStudioBuildWorkerRequestRejectsPinnedProfileDrift(t *testing.T) {
 	svc := &ImageStudioService{}
 	decrypted := `{
@@ -211,6 +281,31 @@ func TestImageStudioBuildWorkerRequestKeepsOpenAICompatibleTransportForGeminiMod
 	require.Equal(t, openAIImagesGenerationsEndpoint, req.Endpoint)
 	require.Equal(t, "application/json", req.ContentType)
 	require.Equal(t, "gemini-3.1-flash-image", gjson.GetBytes(req.Body, "model").String())
+}
+
+func TestImageStudioBuildWorkerRequestPreservesAgnesAdapterPayload(t *testing.T) {
+	svc := &ImageStudioService{}
+	decrypted := `{
+		"platform":"openai",
+		"operation":"create",
+		"capability_profile_id":"agnes:agnes-image-2.1-flash:v1",
+		"capability_revision":"` + imageStudioCapabilityRevision + `",
+		"endpoint":"/v1/images/generations",
+		"body":{"model":"agnes-image-2.1-flash","prompt":"draw","n":1,"size":"3K","ratio":"16:9","extra_body":{"response_format":"b64_json"}}
+	}`
+
+	req, err := svc.BuildWorkerRequest(context.Background(), &ImageStudioJob{Model: "agnes-image-2.1-flash"}, decrypted)
+
+	require.NoError(t, err)
+	require.Equal(t, PlatformOpenAI, req.Platform)
+	require.Equal(t, "create", req.Operation)
+	require.Equal(t, openAIImagesGenerationsEndpoint, req.Endpoint)
+	require.Equal(t, "application/json", req.ContentType)
+	require.Equal(t, "agnes-image-2.1-flash", gjson.GetBytes(req.Body, "model").String())
+	require.Equal(t, "3K", gjson.GetBytes(req.Body, "size").String())
+	require.Equal(t, "16:9", gjson.GetBytes(req.Body, "ratio").String())
+	require.Equal(t, "b64_json", gjson.GetBytes(req.Body, "extra_body.response_format").String())
+	require.False(t, gjson.GetBytes(req.Body, "response_format").Exists())
 }
 
 func TestImageStudioBuildWorkerRequestKeepsLegacyPayloadCompatible(t *testing.T) {

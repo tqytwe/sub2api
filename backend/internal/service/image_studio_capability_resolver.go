@@ -13,6 +13,9 @@ func allImageStudioCatalogSizes() []string {
 			continue
 		}
 		for _, tier := range imageStudioTierCatalog {
+			if tier.ID == ImageStudioTier3K {
+				continue
+			}
 			size, ok := tiers[tier.ID]
 			if !ok || strings.TrimSpace(size) == "" {
 				continue
@@ -22,6 +25,22 @@ func allImageStudioCatalogSizes() []string {
 			}
 			seen[size] = struct{}{}
 			out = append(out, size)
+		}
+	}
+	return out
+}
+
+func agnesImageStudioSizes() []string {
+	out := make([]string, 0, len(imageStudioAspectCatalog)*len(imageStudioTierCatalog))
+	for _, aspect := range imageStudioAspectCatalog {
+		tiers, ok := imageStudioSizeMatrix[aspect.ID]
+		if !ok {
+			continue
+		}
+		for _, tier := range []string{ImageBillingSize1K, ImageBillingSize2K, ImageStudioTier3K, ImageBillingSize4K} {
+			if size := strings.TrimSpace(tiers[tier]); size != "" {
+				out = append(out, size)
+			}
 		}
 	}
 	return out

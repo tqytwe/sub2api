@@ -76,6 +76,7 @@ func TestListImageModelsForAPIKey_UsesOpenAIPlatformMappingsForOpenAICompatibleI
 				"gpt-5.2",
 				"text-embedding-3-large",
 				"gpt-image-2",
+				"agnes-image-2.1-flash",
 				"gemini-3.1-flash-image",
 				"imagen-4.0-generate-preview",
 				"flux-pro-image",
@@ -102,6 +103,7 @@ func TestListImageModelsForAPIKey_UsesOpenAIPlatformMappingsForOpenAICompatibleI
 	require.Equal(t, PlatformOpenAI, resolver.seenPlatform)
 	require.Equal(t, []string{
 		"gpt-image-2",
+		"agnes-image-2.1-flash",
 		"gemini-3.1-flash-image",
 		"flux-pro-image",
 		"imagen-4.0-generate-preview",
