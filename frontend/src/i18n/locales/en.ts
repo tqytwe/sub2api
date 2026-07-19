@@ -270,9 +270,12 @@ export default {
     saved: 'Saved successfully',
     deleted: 'Deleted successfully',
     cancel: 'Cancel',
+    apply: 'Apply',
+    clear: 'Clear',
     delete: 'Delete',
     edit: 'Edit',
     create: 'Create',
+    creating: 'Creating...',
     update: 'Update',
     confirm: 'Confirm',
     reset: 'Reset',
@@ -319,8 +322,11 @@ export default {
     copyFailed: 'Failed to copy',
     verifying: 'Verifying...',
     processing: 'Processing...',
+    sending: 'Sending...',
+    tryAgain: 'Try again',
     contactSupport: 'Contact Support',
     add: 'Add',
+    required: 'Required',
     invalidEmail: 'Please enter a valid email address',
     optional: 'optional',
     selectOption: 'Select an option',
@@ -827,6 +833,7 @@ export default {
     editKey: 'Edit API Key',
     deleteKey: 'Delete API Key',
     deleteConfirmMessage: "Are you sure you want to delete '{name}'? This action cannot be undone.",
+    id: 'ID',
     apiKey: 'API Key',
     group: 'Group',
     currentConcurrency: 'Current Concurrency',
@@ -866,6 +873,7 @@ export default {
     total: 'Last 30d',
     quota: 'Quota',
     lastUsedAt: 'Last Used',
+    lastUsedIP: 'Last Used IP',
     useKey: 'Use Key',
     useKeyModal: {
       title: 'Use API Key',
@@ -874,10 +882,16 @@ export default {
       copy: 'Copy',
       copied: 'Copied',
       note: 'These environment variables will be active in the current terminal session. For permanent configuration, add them to ~/.bashrc, ~/.zshrc, or the appropriate configuration file.',
+      claudeSettingsHint: 'User-level persistent configuration. Do not commit this file containing your API key to a project repository.',
       noGroupTitle: 'Please assign a group first',
       noGroupDescription: 'This API key has not been assigned to a group. Please click the group column in the key list to assign one before viewing the configuration.',
       openai: {
         description: 'Add the following configuration files to your Codex CLI config directory.',
+        authModeTitle: 'Codex authentication mode',
+        authModeDescription: 'Compatibility mode keeps the existing setup for older Codex clients. API Key Mode authorizes the client-side image executor.',
+        authModeLegacy: 'Compatibility mode',
+        authModeApiKey: 'API Key Mode',
+        authModeApiKeyRestartNotice: 'After saving this configuration, completely quit and restart Codex Desktop or CLI, then create a new task so the client can rebuild its tool registry.',
         configTomlHint: 'Make sure the following content is at the beginning of the config.toml file',
         note: 'Make sure the config directory exists. macOS/Linux users can run mkdir -p ~/.codex to create it.',
         noteWindows: 'Press Win+R and enter %userprofile%\\.codex to open the config directory. Create it manually if it does not exist.',
@@ -887,6 +901,7 @@ export default {
         geminiCli: 'Gemini CLI',
         codexCli: 'Codex CLI',
         codexCliWs: 'Codex CLI (WebSocket)',
+        grokCli: 'Grok CLI',
         opencode: 'OpenCode',
       },
       antigravity: {
@@ -900,6 +915,18 @@ export default {
         description: 'Add the following environment variables to your terminal profile or run directly in terminal to configure Gemini CLI access.',
         modelComment: 'If you have Gemini 3 access, you can use: gemini-3-pro-preview',
         note: 'These environment variables will be active in the current terminal session. For permanent configuration, add them to ~/.bashrc, ~/.zshrc, or the appropriate configuration file.',
+      },
+      grok: {
+        description: 'Configure Grok Build, Claude Code, Codex, or OpenCode to send requests through your Sub2API Grok group.',
+        claudeDescription: 'Configure Claude Code to send Messages API traffic through your Sub2API Grok group.',
+        codexDescription: 'Configure Codex to send Responses API traffic through your Sub2API Grok group.',
+        configTomlHint: 'Back up an existing config.toml before merging this model entry. Run grok inspect after saving to verify the effective configuration.',
+        codexConfigTomlHint: 'Back up an existing config.toml before merging this provider configuration.',
+        note: 'Save the file as ~/.grok/config.toml, then run grok inspect and select grok from /model.',
+        noteWindows: 'Save the file as %USERPROFILE%\\.grok\\config.toml, then run grok inspect and select grok from /model.',
+        claudeNote: 'Choose one method: run the terminal commands for the current session, or save settings.json for user-level persistent configuration.',
+        codexNote: 'Save config.toml under ~/.codex and set SUB2API_API_KEY before starting Codex.',
+        codexNoteWindows: 'Save config.toml under %USERPROFILE%\\.codex and set SUB2API_API_KEY in PowerShell before starting Codex.',
       },
       opencode: {
         title: 'OpenCode Example',
@@ -1057,6 +1084,9 @@ export default {
     imageCount: 'Image count',
     imageBillingSize: 'Billing size',
     imageInputSize: 'Input size',
+    imageInputTokens: 'Image Input Tokens',
+    imageInputTokenPrice: 'Image Input Price',
+    imageInputCost: 'Image Input Cost',
     imageOutputSize: 'Output size',
     imageOutputTokens: 'Image Output Tokens',
     imageOutputTokenPrice: 'Image Output Price',
@@ -1118,7 +1148,7 @@ export default {
       detailAccuracy: 'Accuracy',
       detailCoordinates: 'Coordinates',
     },
-    tabs: { usage: 'Usage', errors: 'Error Requests' },
+    tabs: { usage: 'Usage', errors: 'Error Requests', ranking: 'User Ranking' },
     errors: {
       time: 'Time', model: 'Model', endpoint: 'Endpoint', status: 'Status',
       category: 'Category', platform: 'Platform', message: 'Message',
@@ -1151,7 +1181,8 @@ export default {
     providers: {
       openai: 'OpenAI',
       anthropic: 'Anthropic',
-      gemini: 'Gemini'
+      gemini: 'Gemini',
+      grok: 'Grok'
     },
     extraModelsHeader: 'Extra Models',
     extraModelsEmpty: 'No extra models',
@@ -2113,9 +2144,11 @@ export default {
       leaveEmptyToKeep: 'Leave empty to keep current password',
       generatePassword: 'Generate random password',
       copyPassword: 'Copy password',
+      passwordCopied: 'Password copied',
       creating: 'Creating...',
       updating: 'Updating...',
       form: {
+        roleLabel: 'Role',
         rpmLimit: 'Requests Per Minute (RPM)',
         rpmLimitPlaceholder: '0 = unlimited',
         rpmLimitHint: 'Max requests per minute for this user; 0 = unlimited. Acts as a fallback only when the group has no rpm_limit set.'
@@ -2374,6 +2407,10 @@ export default {
       createGroup: 'Create Group',
       editGroup: 'Edit Group',
       deleteGroup: 'Delete Group',
+      duplicate: 'Duplicate',
+      duplicating: 'Duplicating...',
+      duplicateSuccess: 'Duplicated group "{name}"',
+      duplicateFailed: 'Failed to duplicate group',
       sortOrder: 'Sort',
       columnSettings: 'Column Settings',
       sortOrderHint: 'Drag groups to adjust display order, groups at the top will be displayed first',
@@ -2394,6 +2431,7 @@ export default {
         rpmOverrideHint: 'Per-user RPM cap in this group; empty = group default; 0 = unlimited',
         rateDefault: 'default',
         rpmDefault: 'default',
+        id: 'ID',
         type: 'Type',
         accounts: 'Accounts',
         capacity: 'Capacity',
@@ -2528,6 +2566,9 @@ export default {
         batchGeminiOnlyHint: 'Batch image generation is currently available only for Gemini groups.',
         modeHint: 'By default, image billing uses image price × current effective group multiplier. Independent mode uses image price × image multiplier.',
         finalPricePreview: 'Final per-image price preview',
+        notConfigured: 'Not configured'
+      },
+      videoPricing: {
         notConfigured: 'Not configured'
       },
       webSearchPricing: {
@@ -2785,6 +2826,8 @@ export default {
       deleteError: 'Failed to delete channel',
       nameRequired: 'Please enter a channel name',
       duplicateModels: 'Model "{0}" appears in multiple pricing entries',
+      emptyModelsInPricing: 'Platform "{platform}" has a pricing entry with no models',
+      noGroupsSelected: 'Select at least one group for platform "{platform}" first',
       modelConflict: "Model patterns '{model1}' and '{model2}' conflict: overlapping match range. Model names are matched case-insensitively, so an existing entry already covers all case variants — no need to add the variant separately.",
       mappingConflict: "Mapping source patterns '{model1}' and '{model2}' conflict: overlapping match range. Source patterns are matched case-insensitively, so an existing entry already covers all case variants.",
       intervalValidation: {
@@ -2838,6 +2881,7 @@ export default {
         cacheReadPrice: 'Cache Read',
         cacheWritePriceShort: 'Cache W',
         cacheReadPriceShort: 'Cache R',
+        imageInputPrice: 'Image Input',
         imageTokenPrice: 'Image Output',
         imageOutputPrice: 'Image Output Price',
         pricePlaceholder: 'Default',
@@ -3198,6 +3242,11 @@ export default {
       createTitle: 'Create Channel Monitor',
       editTitle: 'Edit Channel Monitor',
       runNow: 'Run Now',
+      duplicate: 'Duplicate',
+      duplicating: 'Duplicating...',
+      duplicateSuccess: 'Duplicated monitor "{name}"',
+      duplicateFailed: 'Failed to duplicate monitor',
+      duplicateKeyUnavailable: 'API Key decryption failed. Re-edit this monitor with a fresh key before duplicating it.',
       runSuccess: 'Check completed',
       runFailed: 'Check failed',
       apiKeyDecryptFailed: 'API Key decryption failed. Please re-edit this monitor with a fresh key.',
@@ -3625,6 +3674,18 @@ export default {
         noPeakRate: 'Peak rate: disabled',
         effectiveRate: 'Current rate: {value}x',
         updatedAt: 'Updated: {value}',
+        nextProbeAt: 'Next probe: {value}',
+        lastDetectedRate: 'Last detected rate: {value}x',
+        lastDetectedAt: 'Last detected: {value}',
+        elapsedSince: 'Elapsed: {value}',
+        justNow: 'less than 1 minute',
+        minutesAgo: '{count} minutes',
+        hoursAgo: '{count} hours',
+        daysAgo: '{count} days',
+        accountProbeState: 'Automatic detection for this account:',
+        globalProbeState: 'Global probe switch:',
+        enabled: 'On',
+        disabled: 'Off',
         settingsSaved: 'Upstream rate probe settings saved',
         settingsFailed: 'Failed to save upstream rate probe settings',
         probeFailed: 'Failed to probe upstream rate',
@@ -3632,6 +3693,13 @@ export default {
         batchLimit: 'Probe up to 20 accounts at a time',
         batchCompleted: 'Finished probing {count} account(s)',
         batchPartial: 'Rate probe partially completed: {success} succeeded, {failed} failed'
+      },
+      grokCustomBaseUrl: {
+        title: 'Grok custom upstream URL',
+        hint: 'Only changes the API forwarding endpoint for Grok OAuth. Authorization and token refresh are unchanged.',
+        placeholder: 'e.g. https://api.x.ai/v1',
+        required: 'Please enter a Grok custom upstream URL',
+        invalid: 'Grok custom upstream URL must start with http:// or https://'
       },
       allPrivacyModes: 'All Privacy States',
       privacyUnset: 'Unset',
@@ -3755,6 +3823,9 @@ export default {
       testConnection: 'Test Connection',
       reAuthorize: 'Re-Authorize',
       refreshToken: 'Refresh Token',
+      duplicateAccount: 'Duplicate Account',
+      duplicateSuccess: 'Duplicated account "{name}"',
+      duplicateFailed: 'Failed to duplicate account',
       noAccountsYet: 'No accounts yet',
       createFirstAccount: 'Create your first account to start using AI services.',
       tokenRefreshed: 'Token refreshed successfully',
@@ -3774,6 +3845,7 @@ export default {
         disableScheduling: 'Disable Scheduling',
         resetStatus: 'Reset Status',
         refreshToken: 'Refresh Token',
+        probeUpstreamBilling: 'Probe Billing Rates',
         resetStatusSuccess: 'Successfully reset {count} account(s) status',
         refreshTokenSuccess: 'Successfully refreshed {count} account(s) token',
         partialSuccess: 'Partially completed: {success} succeeded, {failed} failed'
@@ -3860,6 +3932,12 @@ export default {
       openai: {
         baseUrlHint: 'Leave default for official OpenAI API',
         apiKeyHint: 'Your OpenAI API Key',
+        longContextBilling: 'Long-context billing',
+        longContextBillingDesc:
+          'When enabled, OpenAI long-context requests use the upstream long-context billing rules. Disable to keep standard text billing.',
+        planType: 'Subscription Plan',
+        planTypeDesc: 'Manually override this OpenAI OAuth account plan for scheduling and usage-window display.',
+        planTypeClear: 'Clear override',
         oauthPassthrough: 'Auto passthrough (auth only)',
         oauthPassthroughDesc:
           'When enabled, this OpenAI account uses automatic passthrough: the gateway forwards request/response as-is and only swaps auth, while keeping billing/concurrency/audit and necessary safety filtering.',
@@ -3976,6 +4054,8 @@ export default {
       supportsAllModels: '(supports all models)',
       requestModel: 'Request model',
       actualModel: 'Actual model',
+      fromModel: 'Source model',
+      toModel: 'Target model',
       addMapping: 'Add Mapping',
       mappingExists: 'Mapping for {model} already exists',
       wildcardOnlyAtEnd: 'Wildcard * can only be at the end',
@@ -4034,6 +4114,12 @@ export default {
         bulkDisableHint: 'Saving will disable header override and clear existing configuration on the selected accounts.',
         bulkReplaceHint: 'Saving will replace the existing header override configuration on all selected accounts with the rows below.',
         bulkEmptyRows: 'Add at least one header row before saving, or turn the toggle off to clear existing configuration.',
+        importJson: 'Import JSON',
+        copyJson: 'Copy JSON',
+        importJsonApply: 'Apply import',
+        importJsonCancel: 'Cancel',
+        importJsonHint: 'Supports a key-value JSON object. Import replaces the current header list.',
+        importJsonInvalid: 'Header JSON format is invalid',
         invalidName: 'Invalid header name (only letters, digits and !#$%&\'*+-.^_`|~ are allowed)',
         blockedName: 'This header cannot be overridden (auth and connection-control headers are managed by the system)',
         duplicateName: 'Duplicate header name (matching is case-insensitive)',
@@ -4158,6 +4244,9 @@ export default {
       updating: 'Updating...',
       accountCreated: 'Account created successfully',
       accountUpdated: 'Account updated successfully',
+      messages: {
+        accountCreated: 'Account created successfully'
+      },
       failedToCreate: 'Failed to create account',
       failedToUpdate: 'Failed to update account',
       pleaseSelectStatus: 'Please select a valid account status',
@@ -4274,6 +4363,10 @@ export default {
           },
           // Refresh Token auth
           refreshTokenAuth: 'Manual RT Input',
+          mobileRefreshTokenAuth: 'Mobile RT',
+          accessTokenAuth: 'Access Token',
+          agentIdentityAuth: 'Agent Identity',
+          agentIdentityInvalid: 'Invalid Agent Identity import content',
           refreshTokenDesc: 'Enter your existing OpenAI Refresh Token(s). Supports batch input (one per line). The system will automatically validate and create accounts.',
           refreshTokenPlaceholder: 'Paste your OpenAI Refresh Token...\nSupports multiple, one per line',
           codexSessionAuth: 'Codex JSON / AT Batch Input',
@@ -4334,6 +4427,7 @@ export default {
           missingExchangeParams: 'Missing authorization code, state, or OAuth session',
           failedToExchangeCode: 'Failed to exchange Grok authorization code',
           failedToValidateRT: 'Failed to validate Grok refresh token',
+          failedToConvertSSO: 'Failed to convert Grok SSO cookie',
           oauthOnlyHint: 'Initial Grok support is OAuth subscription-backed Responses API text and reasoning traffic only.'
         },
         // Gemini specific
@@ -4653,6 +4747,8 @@ export default {
         grokLastStatus: 'Status {status}',
         grokLastProbe: 'Probe {time}',
         grokLastHeadersSeen: 'Headers {time}',
+        grokFreeQuota24hHint: 'Grok free quota 24-hour rolling window',
+        grokWeeklyUsage: 'Weekly usage {percent}%',
         passiveSampled: 'Passive',
         activeQuery: 'Query'
       },
@@ -5177,11 +5273,26 @@ export default {
       billingModeToken: 'Token',
       billingModePerRequest: 'Per Request',
       billingModeImage: 'Image',
+      billingModeVideo: 'Video',
       allBillingModes: 'All Billing Modes',
       ipAddress: 'IP',
       clickToViewBalance: 'Click to view balance history',
       failedToLoadUser: 'Failed to load user info',
       userDeletedBadge: 'Deleted',
+      tokenRanking: {
+        subtitle: 'Per-user token usage for the current filters and time range',
+        rowHint: "Click to view this user's usage details",
+        userCount: '{count} users',
+        columns: {
+          user: 'User',
+          requests: 'Requests',
+          inputTokens: 'Input Tokens',
+          outputTokens: 'Output Tokens',
+          cacheTokens: 'Cache Tokens',
+          totalTokens: 'Total Tokens',
+          cost: 'Cost'
+        }
+      },
       cleanup: {
         button: 'Cleanup',
         title: 'Cleanup Usage Records',
@@ -5246,6 +5357,43 @@ export default {
       loadingText: 'loading',
       ready: 'ready',
       autoRefreshRemaining: 'Remaining {seconds}s',
+      imageRuntimes: {
+        title: 'Image Runtimes',
+        checkedAt: 'Checked: {time}',
+        refresh: 'Refresh image runtimes',
+        loadFailed: 'Failed to load image runtime status',
+        names: {
+          gatewayAsync: 'Gateway Async',
+          batch: 'Batch Image',
+          imageStudio: 'Image Studio'
+        },
+        states: {
+          ready: 'Ready',
+          draining: 'Submissions paused, draining',
+          disabled: 'Disabled',
+          notReady: 'Not ready'
+        },
+        checks: {
+          api: 'API switch',
+          storage: 'Storage',
+          database: 'Database',
+          queue: 'Queue',
+          redis: 'Redis',
+          worker: 'Worker'
+        },
+        backlog: {
+          ready: 'Ready',
+          delayed: 'Delayed',
+          active: 'Active'
+        },
+        oldestTask: 'Oldest active task',
+        metrics: {
+          staleHolds: 'Stale balance holds',
+          settlementRetries: 'Settlement retries',
+          providerFailures: 'Provider failures',
+          cleanupPending: 'Results pending cleanup'
+        }
+      },
       systemLogs: {
         title: 'System Logs',
         description: 'Newest logs are shown first. Filter, search, and clean up by condition.',
@@ -5484,6 +5632,7 @@ export default {
         typeUpstream: 'Upstream',
         typeRequest: 'Request',
         typeAuth: 'Auth',
+        typeAccountAuth: 'Account Auth',
         typeRouting: 'Routing',
         typeInternal: 'Internal',
         endpoint: 'Endpoint',
@@ -5509,6 +5658,7 @@ export default {
         phase: {
           request: 'Request',
           auth: 'Auth',
+          account_auth: 'Account Auth',
           routing: 'Routing',
           upstream: 'Upstream',
           network: 'Network',
@@ -5822,6 +5972,16 @@ export default {
         showAdvancedDeveloperSettings: 'Show advanced developer settings (Distributed Lock)',
         advancedSettingsSummary: 'Advanced settings (Distributed Lock)',
         evalIntervalHint: 'How often the evaluator runs. Keeping the default is recommended.',
+        metricThresholds: 'Metric Thresholds',
+        metricThresholdsHint: 'Configure alert thresholds for metrics, values exceeding thresholds will be displayed in red',
+        slaMinPercent: 'SLA Minimum Percentage',
+        slaMinPercentHint: 'SLA below this value will be displayed in red (default: 99.5%)',
+        ttftP99MaxMs: 'TTFT P99 Maximum (ms)',
+        ttftP99MaxMsHint: 'TTFT P99 above this value will be displayed in red (default: 500ms)',
+        requestErrorRateMaxPercent: 'Request Error Rate Maximum (%)',
+        requestErrorRateMaxPercentHint: 'Request error rate above this value will be displayed in red (default: 5%)',
+        upstreamErrorRateMaxPercent: 'Upstream Error Rate Maximum (%)',
+        upstreamErrorRateMaxPercentHint: 'Upstream error rate above this value will be displayed in red (default: 5%)',
         validation: {
           title: 'Please fix the following issues',
           invalid: 'Invalid settings',
@@ -6039,6 +6199,15 @@ export default {
         backup: 'Backup',
         payment: 'Payment',
       },
+      security: {
+        stepUp: 'Step-up 2FA for Sensitive Operations',
+        stepUpHint: 'When enabled, sensitive operations (account/proxy export, backup creation and download, S3 config changes, promoting admins) require a recent TOTP verification (valid for 15 minutes). Your own account must have 2FA enabled before turning this on; turning it off also requires step-up verification.',
+        stepUpEnableRequiresTotp: 'Enable 2FA (TOTP) for your own account in Profile before turning on step-up verification.',
+        sessionBinding: 'Session IP/UA Binding',
+        sessionBindingHint: 'Bind login sessions to the client IP and User-Agent. Any change immediately invalidates the session and forces re-login, raising the bar for stolen-credential reuse.',
+        auditRetention: 'Audit Log Retention (days)',
+        auditRetentionHint: 'Audit logs older than this are cleaned up automatically. Set to 0 to keep them forever (manual clear only).'
+      },
       features: {
         channelMonitor: {
           title: 'Channel Monitor',
@@ -6105,6 +6274,8 @@ export default {
           enabledHint: 'When off, the affiliate menu is hidden, the aff parameter is ignored at signup, and new recharges generate no rebate. Existing rebate balances can still be transferred.',
           rebateRate: 'Global Rebate Rate',
           rebateRateHint: 'Default percentage given back to the inviter on recharges (0-100, e.g. 10 = 10%).',
+          adminRechargeRebate: 'Rebate Admin Deposits',
+          adminRechargeRebateHint: 'When enabled, balance added through User Management > Deposit generates affiliate rebates. Setting a balance or withdrawing funds does not.',
           freezeHours: 'Rebate Freeze Period (hours)',
           freezeHoursDesc: 'New rebates will be frozen for this period before becoming available for withdrawal. 0 = no freeze.',
           durationDays: 'Rebate Duration (days)',
@@ -6361,6 +6532,16 @@ export default {
         description: 'Control API Key scheduling behavior',
         allowUngroupedKey: 'Allow Ungrouped Key Scheduling',
         allowUngroupedKeyHint: 'When disabled, API Keys not assigned to any group cannot make requests (403 Forbidden). Keep disabled to ensure all Keys belong to a specific group.'
+      },
+      upstreamBillingProbe: {
+        title: 'Upstream Rate Auto Detection',
+        description: 'Periodically retrieve billing rates declared by upstream Sub2API sites connected to OpenAI API keys.',
+        enabled: 'Enable global auto detection',
+        enabledHint: 'When enabled, scheduled detection runs only for accounts that also enable automatic detection. Disabling stops all scheduled detection; manual detection remains available.',
+        intervalMinutes: 'Detection interval (minutes)',
+        intervalHint: 'Range: 5–1440 minutes. A successful result remains valid for two detection intervals.',
+        saved: 'Upstream rate auto detection settings saved',
+        saveFailed: 'Failed to save upstream rate auto detection settings'
       },
       gatewayForwarding: {
         title: 'Request Forwarding',
@@ -7166,6 +7347,11 @@ export default {
         stickyWeightedDescription: 'When enabled, previous_response_id and session_hash affinity are scored by the advanced scheduler. When disabled, sticky accounts keep the legacy hard-hit behavior.',
         subscriptionPriorityTitle: 'Subscription priority',
         subscriptionPriorityDescription: 'When enabled, the scheduler scores ChatGPT subscription accounts first and falls back to non-subscription accounts only if no subscription slot can be acquired.',
+        lowRatePriorityTitle: 'Prefer lower rates',
+        lowRatePriorityDescription: 'When enabled, accounts with lower billing rates are preferred. If rates are equal, account priority, current load, and other scheduling factors are considered. This switch is ignored when the experimental scheduler is enabled.',
+        oauthRateTitle: 'OAuth scheduling reference rate',
+        oauthRatePriorityDescription: 'When a group contains both API Key and OAuth accounts, this rate is used to order OAuth accounts alongside probed API Key billing rates.',
+        oauthRateWeightedDescription: 'When a group contains both API Key and OAuth accounts, this rate is used for OAuth accounts when calculating the billing-rate score.',
         weightsTitle: 'Scheduler weight overrides',
         weightsDescription: 'Blank values use config/environment values; when config is not set, built-in defaults apply. Non-blank page settings take priority.',
         defaultPlaceholder: 'config/default: {value}',
@@ -7178,7 +7364,8 @@ export default {
         resetWeight: 'Reset window',
         quotaHeadroomWeight: 'Quota headroom',
         previousResponseWeight: 'previous_response sticky',
-        sessionStickyWeight: 'session_hash sticky'
+        sessionStickyWeight: 'session_hash sticky',
+        upstreamCostWeight: 'Billing rate'
       },
       usageRecords: {
         title: 'Usage Records',
@@ -7371,7 +7558,33 @@ export default {
     restartRequired: 'Please restart the service to apply the update',
     restartNow: 'Restart Now',
     restarting: 'Restarting...',
-    retry: 'Retry'
+    retry: 'Retry',
+    rollback: 'Version Rollback',
+    rollbackSelectVersion: 'Select a version to roll back to (last 3 versions)',
+    rollbackConfirm: 'Roll back to {version}',
+    rollbackWarning:
+      'Rollback downloads the selected version and replaces the current binary. A service restart is required afterwards.',
+    rollingBack: 'Rolling back...',
+    rollbackComplete: 'Rollback Complete',
+    rollbackFailed: 'Rollback Failed',
+    manualRollbackCommand: 'Manual rollback',
+    copyCommand: 'Copy',
+    copied: 'Copied',
+    noRollbackVersions: 'No versions available for rollback',
+    loadVersionsFailed: 'Failed to load versions',
+    rollbackSourceHint: 'Online rollback is not available for source builds',
+    deployScript: 'Script',
+    deployDocker: 'Docker',
+    dockerEditCompose: 'Edit the image tag in docker-compose.yml',
+    dockerRecreate: 'Recreate the container'
+  },
+
+  stepUp: {
+    title: 'Two-Factor Verification Required',
+    hint: 'Enter the 6-digit code from your authenticator app to continue this sensitive operation.',
+    verifyFailed: 'Verification failed, please try again',
+    notEnabled: 'This operation requires two-factor authentication. Please enable TOTP in your profile first.',
+    adminApiKeyForbidden: 'Admin API keys cannot perform this operation. Use a two-factor verified admin session.'
   },
 
   // Recharge / Subscription Page
@@ -7860,8 +8073,12 @@ export default {
       deletePlanConfirm: 'Are you sure you want to delete this plan?',
       originalPrice: 'Original Price',
       price: 'Price',
+      currency: 'Currency Label',
+      currencyPlaceholder: 'e.g. USD / NZD / CNY',
+      currencyHint: 'Display-only 3-letter ISO currency code shown next to the price; leave empty to hide, does not affect billing',
       subscriptionCnyPayPreview: 'CNY channel charge preview: {amount}',
       subscriptionCnyPayPreviewWithFee: '({feeRate}% fee included: {total})',
+      validity: 'Validity',
       validityDays: 'Validity (days)',
       validityUnit: 'Validity Unit',
       sortOrder: 'Sort Order',
@@ -7900,6 +8117,7 @@ export default {
       selectGroup: 'Select a group',
       groupRequired: 'Please select a subscription group',
       priceRequired: 'Price must be greater than 0',
+      validityRequired: 'Validity must be greater than 0',
       validityDaysRequired: 'Validity days must be greater than 0',
       groupMissing: 'Missing',
       groupInfo: 'Group Info',

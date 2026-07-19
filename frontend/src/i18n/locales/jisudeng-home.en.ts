@@ -111,6 +111,7 @@ export const jisudengHomeEn = {
     desc: 'Synchronous n=1-10, single-request async, and multi-prompt Batch have distinct APIs. Up to 20 MiB per multipart field.',
     caps: ['Text-to-image', 'Image-to-image', 'Multi-reference', 'Style transfer'],
     docLink: 'Image API docs',
+    studioCta: 'Try a free image',
     promptLabel: 'PROMPT',
     promptText: 'A shiba inu in cyberpunk Tokyo rain, neon lights',
     statusGen: 'Generating',
