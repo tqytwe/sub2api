@@ -146,6 +146,7 @@
 202_prompt_library_generic_cover_cleanup.sql
 203_batch_image_owner_idempotency.sql
 205_vip_recharge_bonus_snapshot.sql
+206_vip_recharge_legacy_tiers_backfill.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
