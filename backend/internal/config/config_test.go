@@ -108,6 +108,29 @@ func TestLoadImageStorageCleanupDefaultsAndOverrides(t *testing.T) {
 	require.Equal(t, 25, cfg.ImageStorage.CleanupBatchSize)
 }
 
+func TestLoadImageStorageS3FieldsFromEnv(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("IMAGE_STORAGE_ENABLED", "true")
+	t.Setenv("IMAGE_STORAGE_BACKEND", "s3")
+	t.Setenv("IMAGE_STORAGE_ENDPOINT", "https://rustfs.example.com")
+	t.Setenv("IMAGE_STORAGE_BUCKET", "image-task-results")
+	t.Setenv("IMAGE_STORAGE_ACCESS_KEY_ID", "image-task-user")
+	t.Setenv("IMAGE_STORAGE_SECRET_ACCESS_KEY", "image-task-secret")
+	t.Setenv("IMAGE_STORAGE_LOCAL_DIR", "/data/image-task-results")
+	t.Setenv("IMAGE_STORAGE_PUBLIC_BASE_URL", "https://assets.example.com/image-task-results")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.True(t, cfg.ImageStorage.Active())
+	require.Equal(t, "s3", cfg.ImageStorage.BackendOrDefault())
+	require.Equal(t, "https://rustfs.example.com", cfg.ImageStorage.Endpoint)
+	require.Equal(t, "image-task-results", cfg.ImageStorage.Bucket)
+	require.Equal(t, "image-task-user", cfg.ImageStorage.AccessKeyID)
+	require.Equal(t, "image-task-secret", cfg.ImageStorage.SecretAccessKey)
+	require.Equal(t, "/data/image-task-results", cfg.ImageStorage.LocalDir)
+	require.Equal(t, "https://assets.example.com/image-task-results", cfg.ImageStorage.PublicBaseURL)
+}
+
 func TestLoadDefaultSchedulingConfig(t *testing.T) {
 	resetViperWithJWTSecret(t)
 
