@@ -10,6 +10,7 @@ import { useAuthStore, useAppStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import { formatScaled } from '@/utils/pricing'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 import '@/styles/public-pages.css'
 
 const { t, te } = useI18n()
@@ -152,7 +153,7 @@ onMounted(() => {
         <p class="models-eyebrow-app">MODELS</p>
         <div class="models-title-row">
           <h1 class="models-title-app">{{ t('models.title') }}</h1>
-          <span v-if="showVipBadge" class="models-vip-badge">
+          <span v-if="showVipBadge" :class="vipTierBadgeClass(vip?.color_key)">
             {{ t('models.vipBadge', { label: vip?.label ?? 'VIP' }) }}
           </span>
         </div>

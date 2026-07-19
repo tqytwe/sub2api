@@ -59,6 +59,31 @@
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.creditedAmount') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ order.order_type === 'balance' ? '$' + order.amount.toFixed(2) : formatGatewayAmount(order.amount) }}</span>
             </div>
+            <div v-if="rechargeSnapshot" class="space-y-2 border-t border-gray-200 pt-3 dark:border-dark-600">
+              <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ t('payment.orders.rechargeSnapshot') }}</p>
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.baseCredited') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ formatUSD(rechargeSnapshot.base_credited) }}</span>
+              </div>
+              <div v-if="rechargeSnapshot.current_vip" class="flex items-center justify-between gap-3">
+                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.vipApplied') }}</span>
+                <span :class="vipTierBadgeClass(rechargeSnapshot.current_vip.color_key)">
+                  {{ rechargeSnapshot.current_vip.label }}
+                </span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.vipRechargeBonus') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">+{{ formatPct(rechargeSnapshot.vip_bonus_pct) }}%</span>
+              </div>
+              <div v-if="(rechargeSnapshot.campaign_bonus_pct ?? 0) > 0" class="flex justify-between">
+                <span class="text-gray-500 dark:text-gray-400">{{ t('payment.campaignRechargeBonus') }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">+{{ formatPct(rechargeSnapshot.campaign_bonus_pct) }}%</span>
+              </div>
+              <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.orders.creditedAmount') }}</span>
+                <span class="font-bold text-green-600 dark:text-green-400">{{ formatUSD(rechargeSnapshot.credited_amount ?? (hasAmountFields(order) ? order.amount : 0)) }}</span>
+              </div>
+            </div>
             <div v-if="hasPaymentType(order)" class="flex justify-between">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(order.payment_type), normalizedOrderPaymentType(order.payment_type)) }}</span>
@@ -109,9 +134,10 @@ import {
 import { usePaymentStore } from '@/stores/payment'
 import { paymentAPI } from '@/api/payment'
 import type { PublicOrderVerifyResult } from '@/api/payment'
-import type { OrderStatus, PaymentOrder } from '@/types/payment'
+import type { OrderStatus, PaymentOrder, RechargeSnapshot } from '@/types/payment'
 import { formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import { normalizePaymentMethodForDisplay, paymentMethodI18nKey } from './paymentUx'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -184,12 +210,24 @@ const statusTitle = computed(() => {
   return t('payment.result.failed')
 })
 
+const rechargeSnapshot = computed(() => getRechargeSnapshot(order.value))
+
 function normalizedOrderPaymentType(paymentType: string): string {
   return normalizePaymentMethodForDisplay(paymentType || '') || paymentType || ''
 }
 
 function formatGatewayAmount(value: number): string {
   return formatPaymentAmount(value, currency.value, localeCode.value)
+}
+
+function formatUSD(value: number | undefined): string {
+  const amount = Number.isFinite(value ?? NaN) ? value ?? 0 : 0
+  return `$${amount.toFixed(2)}`
+}
+
+function formatPct(value: number | undefined): string {
+  const pct = Number.isFinite(value ?? NaN) ? value ?? 0 : 0
+  return Number.isInteger(pct) ? String(pct) : pct.toFixed(2)
 }
 
 function setResolvedOrder(nextOrder: ResolvedOrder | null): void {
@@ -209,6 +247,13 @@ function hasAmountFields(nextOrder: ResolvedOrder | null): nextOrder is PaymentO
 
 function hasPaymentType(nextOrder: ResolvedOrder | null): nextOrder is PaymentOrder {
   return !!nextOrder && 'payment_type' in nextOrder && typeof nextOrder.payment_type === 'string' && nextOrder.payment_type.trim() !== ''
+}
+
+function getRechargeSnapshot(nextOrder: ResolvedOrder | null): RechargeSnapshot | null {
+  if (!nextOrder || !('recharge_snapshot' in nextOrder)) return null
+  const snapshot = nextOrder.recharge_snapshot
+  if (!snapshot || typeof snapshot !== 'object') return null
+  return snapshot
 }
 
 function normalizeOrderStatus(status: string | null | undefined): string {

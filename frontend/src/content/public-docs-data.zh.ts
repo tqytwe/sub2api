@@ -27,7 +27,7 @@ const PUBLIC_DOC_CONTENT_ZH_SOURCE: PublicDocCategoryContent[] = [
 <h2>第 1 步 · 注册账号</h2>
 <p>访问首页右上角 <code>登录 / 注册</code>，使用邮箱注册。新用户默认为 <strong>V0</strong>，可在 <a href="/play">玩法中枢</a> 查看 VIP 进度。</p>
 <h2>第 2 步 · 充值（可选）</h2>
-<p>侧边栏 <code>充值</code> 选择金额完成支付。充值成功后会累加 VIP 累计金额，并可能触发 <strong>24h 充值加成</strong>（签到双倍、盲盒额外次数等，需管理员开启）。</p>
+<p>侧边栏 <code>充值</code> 选择金额完成支付。充值成功后，基础到账金额会累加到 VIP 进度，当前等级还能带来充值到账加赠，并可能触发 <strong>24h 充值加成</strong>（签到双倍、盲盒额外次数等，需管理员开启）。</p>
 <h2>第 3 步 · 创建 API Key</h2>
 <p>控制台 <code>API 密钥</code> → <code>新建</code> → 选择<strong>服务分组</strong>（决定可用模型与倍率）→ 命名保存。Key 仅展示一次，请立即复制。</p>
 <h2>第 4 步 · 发起请求</h2>
@@ -529,33 +529,34 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   {
     id: 'recharge-vip',
     title: "充值与 VIP",
-    description: "VIP 分级 · 享受折扣 · 充值流程 · 签到奖励",
+    description: "VIP 分级 · 充值到账加赠 · 充值流程 · 签到奖励",
     pages: [
       {
         id: 'vip-levels',
         title: "VIP 分级体系",
-        summary: "4 档会员等级、对应折扣与省钱直观对照",
-        html: `<p class="docs-lead">按 <strong>累计充值</strong> 自动升级，档位永久保留。权益在 Play 中枢与模型页展示，计费引擎仍按分组倍率 × 上游单价扣费。</p>
+        summary: "V0-V5 六档会员等级、充值加赠与升级规则",
+        html: `<p class="docs-lead">按 <strong>基础到账累计</strong> 自动升级，档位永久保留。VIP 不改变 API 计费公式，只影响余额充值到账加赠；本单按充值前 VIP 等级计算，充值成功升级后下一单生效。</p>
 
 <h2>升级规则</h2>
 <ul>
-  <li>每次充值成功自动累加累计金额，达到阈值即时升级</li>
+  <li>支付订单成功后，<strong>基础到账金额</strong>计入 VIP 累计，达到阈值即时升级</li>
   <li>档位<strong>永久保留</strong>，不会因消费或时间降级</li>
-  <li>玩法奖励（签到、盲盒、Arena）不计入 VIP 累计</li>
+  <li>VIP 加赠、活动加赠、签到、盲盒、兑换码和管理员加款不计入 VIP 累计</li>
+  <li>退款成功后，会按订单快照回退对应的基础到账累计，避免退款后累计虚高</li>
 </ul>
 
 <h2>在哪里查看</h2>
 <ul>
   <li><strong>玩法中枢</strong>（/play）— VIP 卡片与权益列表</li>
   <li><strong>模型页</strong>（/models）— V1+ 显示 VIP 徽章</li>
-  <li><strong>充值页</strong> — 首充 / 余额低提醒与充值联动玩法</li>
+  <li><strong>充值页</strong> — 当前 VIP、基础到账、VIP 加赠、活动加赠与预计到账</li>
 </ul>`,
       },
       {
         id: 'how-to-recharge',
         title: "充值流程",
-        summary: "4 种支付方式、几分钟完成充值、即刻到账",
-        html: `<p class="docs-lead">充值的钱会 1:1 进入你的账户余额,既可用于后续按量计费的所有调用,又会自动累加到 VIP 升级进度里。</p>
+        summary: "支付金额、基础到账、VIP 加赠与活动加赠如何计算",
+        html: `<p class="docs-lead">充值会先按后台基础倍率换算成基础到账金额，再叠加当前 VIP 加赠和活动加赠。API 扣费仍按模型价格与分组倍率计算，不因 VIP 降价。</p>
 
 <h2>支持的支付方式</h2>
 <ul>
@@ -569,9 +570,25 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 <ol>
   <li>从侧边栏点 <strong>"充值"</strong> 进入充值页</li>
   <li>输入想充值的金额(最低 $1)→ 选择喜欢的支付方式</li>
-  <li>按提示完成支付,通常 5-30 秒内到账</li>
+  <li>确认页面上的当前 VIP、基础到账、VIP 加赠、活动加赠和预计到账后，按提示完成支付</li>
 </ol>
 <p>支付成功后,首页会自动弹出一张<strong>纸张小票</strong> — 上面有订单号、金额、支付时间。可以拖动它放到屏幕喜欢的位置,双击就能关上。</p>
+
+<h2>到账示例</h2>
+<p>假设你当前是 <strong>V3</strong>，VIP 加赠为 <strong>+6%</strong>，运营活动加赠为 <strong>+5%</strong>，基础倍率为 <strong>1.00</strong>：</p>
+<div class="docs-table-wrap">
+<table class="docs-table">
+<thead><tr><th>项目</th><th>示例</th><th>说明</th></tr></thead>
+<tbody>
+<tr><td>支付金额</td><td>$100.00</td><td>你实际提交给支付网关的金额，手续费和限额仍按此口径校验</td></tr>
+<tr><td>基础到账</td><td>$100.00</td><td>$100.00 × 基础倍率 1.00，也是本单计入 VIP 累计和邀请返利的基数</td></tr>
+<tr><td>VIP 加赠</td><td>+$6.00</td><td>$100.00 × 6%，按下单前 VIP 等级计算</td></tr>
+<tr><td>活动加赠</td><td>+$5.00</td><td>$100.00 × 5%，如无活动则为 0</td></tr>
+<tr><td>预计到账</td><td>$111.00</td><td>$100.00 × (1 + 6% + 5%)，四舍五入到 2 位</td></tr>
+</tbody>
+</table>
+</div>
+<p class="docs-tip">如果这笔充值让你从 V3 升到 V4，本单仍按 V3 的 +6% 计算；升级后的 V4 加赠从下一笔充值开始生效。</p>
 
 <h2>没看到到账?</h2>
 <p>如果支付了但 1 分钟还没看到余额变化:</p>
@@ -624,28 +641,30 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 
 <h2>常见问题</h2>
 <ul>
-  <li><strong>签到余额能升 VIP 吗？</strong> — 不能，VIP 只看累计充值。</li>
+  <li><strong>签到余额能升 VIP 吗？</strong> — 不能，VIP 只看支付订单的基础到账累计。</li>
   <li><strong>与 VIP 档位关系？</strong> — VIP 提供模型页徽章、盲盒/Arena 等玩法权益，不改变签到基础金额（除非运营单独配置活动）。</li>
 </ul>`,
       },
       {
         id: 'discount-examples',
-        title: "Play 权益一览",
-        summary: "VIP 档位能解锁什么 · 玩法中枢怎么串联",
-        html: `<p class="docs-lead">本站 VIP <strong>不改变计费公式</strong>（仍按上游单价 × 分组倍率），而是解锁身份标识与 Play 玩法权益。下面按实际代码行为说明。</p>
+        title: "Play 权益与充值加赠",
+        summary: "VIP 充值加赠怎么生效 · 玩法中枢怎么串联",
+        html: `<p class="docs-lead">VIP <strong>不改变 API 计费公式</strong>（仍按上游单价 × 分组倍率），也不会让订单少付钱。VIP 只影响余额充值成功后额外到账多少，并配合 Play 中枢展示身份与玩法权益。</p>
 
-<h2>VIP 档位权益（默认配置）</h2>
-<div class="docs-table-wrap">
-<table class="docs-table">
-<thead><tr><th>档位</th><th>累计充值</th><th>权益</th></tr></thead>
-<tbody>
-<tr><td>V0</td><td>$0</td><td>基础功能</td></tr>
-<tr><td>V1</td><td>$50</td><td>模型页 VIP 徽章</td></tr>
-<tr><td>V2</td><td>$200</td><td>+ 盲盒奖池升级标识</td></tr>
-<tr><td>V3</td><td>$500</td><td>+ Arena 结算加成 · 邀请返利 +5%</td></tr>
-</tbody>
-</table>
-</div>
+<h2>VIP 加赠怎么生效</h2>
+<ul>
+  <li>每笔余额充值创建订单时，系统读取<strong>充值前</strong>的 VIP 等级并写入订单快照</li>
+  <li>默认加赠为 V0 0%、V1 2%、V2 4%、V3 6%、V4 8%、V5 10%，实际以后台动态配置为准</li>
+  <li>活动加赠与 VIP 加赠按加法叠加，但会在付款页、支付结果页和订单详情中分开展示</li>
+  <li>订单创建后即使后台配置变化，本单也按快照完成入账</li>
+</ul>
+
+<h2>VIP 不影响什么</h2>
+<ul>
+  <li>不改变 API 扣费公式；模型消耗仍按上游 usage、模型价格和分组倍率计算</li>
+  <li>不改变订阅订单价格</li>
+  <li>不改变支付网关实付金额、手续费、每日限额或通道校验</li>
+</ul>
 
 <h2>Play 中枢（/play）聚合能力</h2>
 <ul>
@@ -670,20 +689,29 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
       {
         id: 'faq',
         title: "常见问题",
-        summary: "VIP 与充值最常被问到的 8 个问题",
+        summary: "VIP 与充值最常被问到的问题",
         html: `<p class="docs-lead">下面汇总充值、VIP 与 Play 玩法最常见的问题。</p>
 
 <h2>会员等级会过期吗?</h2>
 <p>不会。达到某档位后永久保留，不会因长时间未使用而降级。</p>
 
-<h2>VIP 会打折计费吗?</h2>
-<p><strong>不会。</strong> VIP 提供模型页徽章、盲盒/Arena/邀请返利等 Play 权益。API 扣费仍按 <code>上游单价 × 分组倍率</code>，与 VIP 档位无关。</p>
+<h2>本单充值升级后，能立刻享受新等级加赠吗?</h2>
+<p>不能。本单按<strong>充值前</strong> VIP 等级计算加赠；充值成功后如果升级，新等级从下一笔充值订单开始生效。</p>
 
-<h2>赠送的余额能升 VIP 吗?</h2>
-<p>不能。只有<strong>真实充值</strong>计入 VIP 累计。签到、盲盒、活动赠送不算。</p>
+<h2>VIP 是否影响 API 扣费?</h2>
+<p><strong>不会。</strong> VIP 不改变 API 扣费公式，也不会改变订阅价格。API 扣费仍按 <code>上游 usage × 模型价格 × 分组倍率</code>，与 VIP 档位无关。</p>
+
+<h2>赠送余额能升 VIP 吗?</h2>
+<p>不能。只有支付订单里的<strong>基础到账金额</strong>计入 VIP 累计。VIP 加赠、活动加赠、签到、盲盒、兑换码和管理员加款都不计入。</p>
+
+<h2>退款后 VIP 累计怎么处理?</h2>
+<p>退款成功后，系统按订单快照回退对应的基础到账累计；用户余额扣减则按本单最终到账余额处理。</p>
+
+<h2>为什么到账金额比支付金额多?</h2>
+<p>订单详情会显示充值快照：支付金额、基础到账、当时使用的 VIP、VIP 加赠、活动加赠和最终到账。用户可以据此解释“为什么到账这么多”。</p>
 
 <h2>充值加成与活动能叠加吗?</h2>
-<p>可以。Recharge Boost（24h）与 Campaign 活动规则（充值加赠、盲盒额外次数、Arena 倍率）在代码层可叠加，具体以 Hub 展示为准。</p>
+<p>可以。VIP 加赠与 Campaign 活动加赠按加法叠加；多活动同时生效时，活动充值加赠沿用当前实现取最高值，具体以付款页和 Hub 展示为准。</p>
 
 <h2>玩法开关关闭怎么办?</h2>
 <p>签到、Arena、盲盒、Quiz、Team 均有独立 Admin 开关。关闭后对应入口隐藏或 Hub 显示「暂未开启」引导。</p>

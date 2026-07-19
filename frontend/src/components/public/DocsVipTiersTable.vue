@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { fetchPublicVIPTiers, type PublicVIPTier } from '@/api/publicVipTiers'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 
 const { t, locale } = useI18n()
 const loading = ref(true)
@@ -24,6 +25,12 @@ function formatRecharge(amount: number) {
     return locale.value === 'zh' ? '$0（新用户默认）' : '$0 (new users)'
   }
   return `$${amount.toLocaleString()}`
+}
+
+function formatBonus(pct: number | undefined) {
+  const value = Number(pct ?? 0)
+  const formatted = Number.isInteger(value) ? String(value) : value.toFixed(2)
+  return `+${formatted}%`
 }
 
 onMounted(async () => {
@@ -51,15 +58,17 @@ const hasTiers = computed(() => tiers.value.length > 0)
           <tr>
             <th>{{ t('docs.vipTiers.colTier') }}</th>
             <th>{{ t('docs.vipTiers.colRecharge') }}</th>
+            <th>{{ t('docs.vipTiers.colRechargeBonus') }}</th>
             <th>{{ t('docs.vipTiers.colPerks') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="tier in tiers" :key="tier.tier">
             <td>
-              <span class="docs-tier" :class="`docs-tier-${tier.tier}`">{{ tier.label }}</span>
+              <span :class="vipTierBadgeClass(tier.color_key)">{{ tier.label }}</span>
             </td>
             <td>{{ formatRecharge(tier.min_recharge) }}</td>
+            <td>{{ formatBonus(tier.recharge_bonus_pct) }}</td>
             <td>{{ formatPerks(tier.perks) }}</td>
           </tr>
         </tbody>

@@ -217,6 +217,8 @@ export interface PlayTeamSettlementRecord {
 export interface PlayVIPStatus {
   tier: number
   label: string
+  recharge_bonus_pct: number
+  color_key: string
   perks?: string[]
   next_tier?: number
   next_label?: string

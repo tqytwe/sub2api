@@ -60,6 +60,12 @@
           <div v-if="row.amount !== row.pay_amount" class="text-xs text-gray-500">
             {{ t('payment.orders.creditedAmount') }}: {{ creditedAmountSymbol }}{{ row.amount.toFixed(2) }}
           </div>
+          <div v-if="row.recharge_snapshot" class="mt-0.5 flex flex-wrap items-center gap-1 text-xs text-gray-500">
+            <span :class="vipTierBadgeClass(row.recharge_snapshot.current_vip?.color_key)">
+              {{ row.recharge_snapshot.current_vip?.label ?? 'V0' }}
+            </span>
+            <span>+{{ formatPct((row.recharge_snapshot.vip_bonus_pct ?? 0) + (row.recharge_snapshot.campaign_bonus_pct ?? 0)) }}%</span>
+          </div>
         </div>
       </template>
 
@@ -144,6 +150,7 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { statusBadgeClass, canRefund, formatOrderDateTime } from '@/components/payment/orderUtils'
 import { currencySymbol } from '@/components/payment/currency'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 
 const { t } = useI18n()
 
@@ -172,6 +179,10 @@ const creditedAmountSymbol = currencySymbol('USD')
 
 function paymentAmountSymbol(order: PaymentOrder): string {
   return currencySymbol(order.currency)
+}
+
+function formatPct(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null

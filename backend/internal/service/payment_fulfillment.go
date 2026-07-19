@@ -347,7 +347,12 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	case redeemActionRedeem:
 		// Code exists but unused — skip creation, proceed to redeem
 	}
-	if _, err := s.redeemService.Redeem(ContextSkipRedeemAffiliate(ctx), o.UserID, o.RechargeCode); err != nil {
+	baseCredited, _ := paymentOrderRechargeBaseCredited(o)
+	redeemCtx := ContextSkipRedeemAffiliate(ctx)
+	if baseCredited >= 0 {
+		redeemCtx = ContextWithRechargeTotalRechargedDelta(redeemCtx, baseCredited)
+	}
+	if _, err := s.redeemService.Redeem(redeemCtx, o.UserID, o.RechargeCode); err != nil {
 		return fmt.Errorf("redeem balance: %w", err)
 	}
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
@@ -707,7 +712,10 @@ func affiliateRebateBaseAmount(o *dbent.PaymentOrder) float64 {
 		return 0
 	}
 	switch o.OrderType {
-	case payment.OrderTypeBalance, payment.OrderTypeSubscription:
+	case payment.OrderTypeBalance:
+		baseAmount, _ := paymentOrderRechargeBaseCredited(o)
+		return baseAmount
+	case payment.OrderTypeSubscription:
 		return o.Amount
 	default:
 		return 0

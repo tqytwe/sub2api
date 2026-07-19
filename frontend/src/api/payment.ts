@@ -11,7 +11,8 @@ import type {
   CheckoutInfoResponse,
   CreateOrderRequest,
   CreateOrderResult,
-  PaymentOrder
+  PaymentOrder,
+  RechargeSnapshot
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -21,6 +22,14 @@ export interface PublicOrderVerifyResult {
   paid: boolean
   created_at: string
   expires_at: string
+  id?: number
+  amount?: number
+  pay_amount?: number
+  fee_rate?: number
+  currency?: string
+  payment_type?: string
+  order_type?: string
+  recharge_snapshot?: RechargeSnapshot
 }
 
 export const paymentAPI = {

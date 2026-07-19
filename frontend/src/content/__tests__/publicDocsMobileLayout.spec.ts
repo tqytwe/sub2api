@@ -37,4 +37,15 @@ describe('public docs mobile layout contracts', () => {
       /\.docs-prose pre\.docs-endpoint-list code\s*\{[^}]*white-space:\s*pre-wrap;[^}]*overflow-wrap:\s*anywhere;[^}]*word-break:\s*break-word;/s,
     )
   })
+
+  it('keeps recharge VIP docs on the balance bonus wording', () => {
+    expect(publicDocsData).toContain('VIP 分级 · 充值到账加赠')
+    expect(publicDocsData).toContain('V0-V5 六档会员等级')
+    expect(publicDocsData).toContain('VIP 不改变 API 计费公式，只影响余额充值到账加赠')
+    expect(publicDocsData).toContain('本单按充值前 VIP 等级计算')
+    expect(publicDocsData).not.toContain('VIP 分级 · 享受折扣')
+    expect(publicDocsData).not.toContain('4 档会员等级')
+    expect(publicDocsData).not.toContain('充值的钱会 1:1')
+    expect(publicDocsData).not.toContain('折扣永久生效')
+  })
 })

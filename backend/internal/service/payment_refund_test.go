@@ -360,6 +360,70 @@ func TestFinishRefundSuccessStatusesFinalize(t *testing.T) {
 	}
 }
 
+func TestFinishRefundSuccessAdjustsTotalRechargedFromRechargeSnapshot(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("refund-total-recharged@example.com").
+		SetPasswordHash("hash").
+		SetUsername("refund-total-recharged").
+		Save(ctx)
+	require.NoError(t, err)
+
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(110).
+		SetPayAmount(100).
+		SetFeeRate(0).
+		SetRechargeCode("REFUND-TOTAL-RECHARGED").
+		SetOutTradeNo("sub2_refund_total_recharged").
+		SetPaymentType(payment.TypeStripe).
+		SetPaymentTradeNo("pi_refund_total_recharged").
+		SetOrderType(payment.OrderTypeBalance).
+		SetStatus(OrderStatusRefunding).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetPaidAt(time.Now()).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		SetRechargeSnapshot(map[string]any{
+			"base_credited":   100,
+			"credited_amount": 110,
+		}).
+		Save(ctx)
+	require.NoError(t, err)
+
+	var adjustedDelta float64
+	userRepo := &mockUserRepo{}
+	userRepo.adjustTotalRechargedFn = func(_ context.Context, id int64, delta float64) error {
+		require.Equal(t, user.ID, id)
+		adjustedDelta += delta
+		return nil
+	}
+	svc := &PaymentService{entClient: client, userRepo: userRepo}
+	plan := &RefundPlan{
+		OrderID:         order.ID,
+		Order:           order,
+		RefundAmount:    55,
+		GatewayAmount:   50,
+		Reason:          "partial final success",
+		DeductionType:   payment.DeductionTypeBalance,
+		BalanceToDeduct: 55,
+	}
+
+	result, err := svc.finishRefund(ctx, plan, &payment.RefundResponse{Status: payment.ProviderStatusSuccess})
+	require.NoError(t, err)
+	require.True(t, result.Success)
+	require.Equal(t, -50.0, adjustedDelta)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusPartiallyRefunded, reloaded.Status)
+	require.Equal(t, 55.0, reloaded.RefundAmount)
+}
+
 func TestQueryAndFinalizeRefundFinalizesProviderStatuses(t *testing.T) {
 	for _, tc := range []struct {
 		name       string

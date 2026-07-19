@@ -18,7 +18,7 @@ func TestPublicVIPTiersHandler(t *testing.T) {
 
 	repo := &settingHandlerPublicRepoStub{
 		values: map[string]string{
-			service.SettingKeyPlayVIPTiers: `[{"tier":0,"label":"V0","min_recharge":0},{"tier":1,"label":"V1","min_recharge":50,"perks":["models_vip_tag"]}]`,
+			service.SettingKeyPlayVIPTiers: `[{"tier":0,"label":"V0","min_recharge":0,"recharge_bonus_pct":0,"color_key":"neutral"},{"tier":1,"label":"V1","min_recharge":50,"recharge_bonus_pct":2,"color_key":"emerald","perks":["models_vip_tag"]}]`,
 		},
 	}
 	settingSvc := service.NewSettingService(repo, nil)
@@ -42,4 +42,6 @@ func TestPublicVIPTiersHandler(t *testing.T) {
 	require.True(t, body.Data.Enabled)
 	require.Len(t, body.Data.Tiers, 2)
 	require.Equal(t, "V1", body.Data.Tiers[1].Label)
+	require.Equal(t, 2.0, body.Data.Tiers[1].RechargeBonusPct)
+	require.Equal(t, "emerald", body.Data.Tiers[1].ColorKey)
 }

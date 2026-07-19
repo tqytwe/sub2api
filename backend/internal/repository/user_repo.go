@@ -741,13 +741,40 @@ func (r *userRepository) UpdateBalance(ctx context.Context, id int64, amount flo
 	update := client.User.Update().Where(dbuser.IDEQ(id)).AddBalance(amount)
 	// Track cumulative recharge amount for percentage-based notifications
 	if amount > 0 {
-		update = update.AddTotalRecharged(amount)
+		totalRechargedDelta, ok := service.RechargeTotalRechargedDeltaFromContext(ctx)
+		if !ok {
+			totalRechargedDelta = amount
+		}
+		if totalRechargedDelta > 0 {
+			update = update.AddTotalRecharged(totalRechargedDelta)
+		}
 	}
 	n, err := update.Save(ctx)
 	if err != nil {
 		return translatePersistenceError(err, service.ErrUserNotFound, nil)
 	}
 	if n == 0 {
+		return service.ErrUserNotFound
+	}
+	return nil
+}
+
+func (r *userRepository) AdjustTotalRecharged(ctx context.Context, id int64, delta float64) error {
+	const updateSQL = `
+		UPDATE users
+		SET total_recharged = GREATEST(total_recharged + $1, 0), updated_at = NOW()
+		WHERE id = $2 AND deleted_at IS NULL
+	`
+	client := clientFromContext(ctx, r.client)
+	result, err := client.ExecContext(ctx, updateSQL, delta, id)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
 		return service.ErrUserNotFound
 	}
 	return nil

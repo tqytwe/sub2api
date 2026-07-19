@@ -36,13 +36,15 @@ type playCampaignSummaryDTO struct {
 }
 
 type playVIPStatusDTO struct {
-	Tier            int      `json:"tier"`
-	Label           string   `json:"label"`
-	Perks           []string `json:"perks,omitempty"`
-	NextTier        int      `json:"next_tier,omitempty"`
-	NextLabel       string   `json:"next_label,omitempty"`
-	NextMinRecharge float64  `json:"next_min_recharge,omitempty"`
-	AmountToNext    float64  `json:"amount_to_next,omitempty"`
+	Tier             int      `json:"tier"`
+	Label            string   `json:"label"`
+	RechargeBonusPct float64  `json:"recharge_bonus_pct"`
+	ColorKey         string   `json:"color_key"`
+	Perks            []string `json:"perks,omitempty"`
+	NextTier         int      `json:"next_tier,omitempty"`
+	NextLabel        string   `json:"next_label,omitempty"`
+	NextMinRecharge  float64  `json:"next_min_recharge,omitempty"`
+	AmountToNext     float64  `json:"amount_to_next,omitempty"`
 }
 
 type playHubSummaryDTO struct {
@@ -198,12 +200,14 @@ func toPlayVIPStatusDTO(v *service.PlayVIPStatus) *playVIPStatusDTO {
 		return nil
 	}
 	return &playVIPStatusDTO{
-		Tier:            v.Tier,
-		Label:           v.Label,
-		Perks:           v.Perks,
-		NextTier:        v.NextTier,
-		NextLabel:       v.NextLabel,
-		NextMinRecharge: v.NextMinRecharge,
-		AmountToNext:    v.AmountToNext,
+		Tier:             v.Tier,
+		Label:            v.Label,
+		RechargeBonusPct: v.RechargeBonusPct,
+		ColorKey:         v.ColorKey,
+		Perks:            v.Perks,
+		NextTier:         v.NextTier,
+		NextLabel:        v.NextLabel,
+		NextMinRecharge:  v.NextMinRecharge,
+		AmountToNext:     v.AmountToNext,
 	}
 }

@@ -564,12 +564,46 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 		fs = OrderStatusPartiallyRefunded
 	}
 	now := time.Now()
-	_, err := s.entClient.PaymentOrder.UpdateOneID(p.OrderID).SetStatus(fs).SetRefundAmount(p.RefundAmount).SetRefundReason(p.Reason).SetRefundAt(now).SetForceRefund(p.Force).Save(ctx)
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin refund completion tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	_, err = tx.Client().PaymentOrder.UpdateOneID(p.OrderID).SetStatus(fs).SetRefundAmount(p.RefundAmount).SetRefundReason(p.Reason).SetRefundAt(now).SetForceRefund(p.Force).Save(txCtx)
 	if err != nil {
 		return nil, fmt.Errorf("mark refund: %w", err)
 	}
+	if err := s.adjustTotalRechargedForRefund(txCtx, p); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit refund completion tx: %w", err)
+	}
 	s.writeAuditLog(ctx, p.OrderID, "REFUND_SUCCESS", "admin", map[string]any{"refundAmount": p.RefundAmount, "reason": p.Reason, "balanceDeducted": p.BalanceToDeduct, "force": p.Force})
 	return &RefundResult{Success: true, BalanceDeducted: p.BalanceToDeduct, SubDaysDeducted: p.SubDaysToDeduct}, nil
+}
+
+type paymentTotalRechargedAdjuster interface {
+	AdjustTotalRecharged(ctx context.Context, id int64, delta float64) error
+}
+
+func (s *PaymentService) adjustTotalRechargedForRefund(ctx context.Context, p *RefundPlan) error {
+	if s == nil || p == nil || p.Order == nil || p.Order.OrderType != payment.OrderTypeBalance {
+		return nil
+	}
+	delta := paymentOrderRefundTotalRechargedDelta(p.Order, p.RefundAmount)
+	if delta == 0 {
+		return nil
+	}
+	adjuster, ok := s.userRepo.(paymentTotalRechargedAdjuster)
+	if !ok {
+		return nil
+	}
+	if err := adjuster.AdjustTotalRecharged(ctx, p.Order.UserID, delta); err != nil {
+		return fmt.Errorf("adjust refund total_recharged: %w", err)
+	}
+	return nil
 }
 
 func (s *PaymentService) markRefundPending(ctx context.Context, p *RefundPlan, resp *payment.RefundResponse) (*RefundResult, error) {
@@ -623,7 +657,7 @@ func refundResponseID(resp *payment.RefundResponse) string {
 
 func (s *PaymentService) RollbackRefund(ctx context.Context, p *RefundPlan, gErr error) bool {
 	if p.DeductionType == payment.DeductionTypeBalance && p.BalanceToDeduct > 0 {
-		if err := s.userRepo.UpdateBalance(ctx, p.Order.UserID, p.BalanceToDeduct); err != nil {
+		if err := s.userRepo.UpdateBalance(ContextWithRechargeTotalRechargedDelta(ctx, 0), p.Order.UserID, p.BalanceToDeduct); err != nil {
 			slog.Error("[CRITICAL] rollback failed", "orderID", p.OrderID, "amount", p.BalanceToDeduct, "error", err)
 			s.writeAuditLog(ctx, p.OrderID, "REFUND_ROLLBACK_FAILED", "admin", map[string]any{"gatewayError": psErrMsg(gErr), "rollbackError": psErrMsg(err), "balanceDeducted": p.BalanceToDeduct})
 			return false

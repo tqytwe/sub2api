@@ -326,6 +326,73 @@ describe('PaymentView subscription confirmation amounts', () => {
   })
 })
 
+describe('PaymentView recharge quote preview', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+    routeState.path = '/purchase'
+    routeState.query = {}
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset()
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    bridgeInvoke.mockReset()
+    window.localStorage.clear()
+  })
+
+  it('shows VIP bonus, campaign bonus, base credit, and estimated credit', async () => {
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({
+      balance_recharge_multiplier: 1,
+      recharge_quote: {
+        base_credited: 0,
+        credited_amount: 0,
+        current_vip: {
+          tier: 3,
+          label: 'V3',
+          recharge_bonus_pct: 6,
+          color_key: 'indigo',
+        },
+        vip_bonus_pct: 6,
+        campaign_bonus_pct: 5,
+      },
+    }))
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: {
+            template: '<div><slot /></div>',
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 100)
+    await flushPromises()
+
+    const text = wrapper.text()
+    expect(text).toContain('payment.baseCredited')
+    expect(text).toContain('$100.00')
+    expect(text).toContain('payment.currentVip')
+    expect(text).toContain('V3')
+    expect(text).toContain('payment.vipRechargeBonus')
+    expect(text).toContain('+6%')
+    expect(text).toContain('payment.campaignRechargeBonus')
+    expect(text).toContain('+5%')
+    expect(text).toContain('payment.expectedCreditedBalance')
+    expect(text).toContain('$111.00')
+    expect(text).toContain('payment.rechargeBonusNote')
+  })
+})
+
 describe('PaymentView payment recovery', () => {
   beforeEach(() => {
     vi.useRealTimers()
