@@ -73,7 +73,7 @@ Content-Type: application/json</code></pre>
 	<ul>
 	  <li>GPT：<code>gpt-image-2</code>、<code>gpt-image-1.5</code>、<code>gpt-image-1</code>。不传 <code>model</code> 时默认 <code>gpt-image-2</code>。</li>
 	  <li>Grok：<code>grok-imagine</code>、<code>grok-imagine-image-quality</code>、<code>grok-imagine-image</code>、<code>grok-imagine-edit</code>。Grok 必须传 <code>model</code>。</li>
-	  <li>Agnes：<code>agnes-image-2.1-flash</code>。</li>
+	  <li>Agnes：<code>agnes-image-2.1-flash</code>、<code>agnes-image-2.0-flash</code>。</li>
 	  <li>Gemini：<code>gemini-3.1-flash-image-preview</code>。</li>
 	</ul>
 	<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。不是所有名字里带 image 的模型都一定能提交到 Images API；如果模型属于文本、视频或尚未接入的图片能力，接口会在创建任务前返回 <code>400 invalid_request_error</code>。</p>
