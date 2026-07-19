@@ -26,3 +26,16 @@ func TestAffiliateRecordQueriesUseLedgerAuditFields(t *testing.T) {
 	require.NotContains(t, content, "parseAffiliateRebateAmount")
 	require.NotContains(t, content, `"current_balance": "u.balance"`)
 }
+
+func TestAffiliateDefaultTeamJoinSQLUsesOnlyActiveInviterTeam(t *testing.T) {
+	query := strings.Join(strings.Fields(affiliateDefaultTeamJoinSQL), " ")
+
+	require.Contains(t, query, "JOIN play_teams t ON t.id = m.team_id")
+	require.Contains(t, query, "m.user_id = $1")
+	require.Contains(t, query, "m.left_at IS NULL")
+	require.Contains(t, query, "t.archived_at IS NULL")
+	require.Contains(t, query, "INSERT INTO play_team_members (team_id, user_id)")
+	require.Contains(t, query, "ON CONFLICT DO NOTHING")
+	require.Contains(t, query, "INSERT INTO play_team_events")
+	require.NotContains(t, query, "invite_code")
+}

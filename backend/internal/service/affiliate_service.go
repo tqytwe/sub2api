@@ -116,6 +116,10 @@ type AffiliateRepository interface {
 	GetAffiliateUserOverview(ctx context.Context, userID int64) (*AffiliateUserOverview, error)
 }
 
+type AffiliateTeamJoiner interface {
+	JoinInviterActiveTeam(ctx context.Context, inviterID, inviteeUserID int64) (bool, error)
+}
+
 // AffiliateAdminFilter 列表筛选条件
 type AffiliateAdminFilter struct {
 	Search   string
@@ -206,18 +210,23 @@ type AffiliateUserOverview struct {
 
 type AffiliateService struct {
 	repo                 AffiliateRepository
+	teamJoiner           AffiliateTeamJoiner
 	settingService       *SettingService
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCacheService  *BillingCacheService
 }
 
 func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService) *AffiliateService {
-	return &AffiliateService{
+	svc := &AffiliateService{
 		repo:                 repo,
 		settingService:       settingService,
 		authCacheInvalidator: authCacheInvalidator,
 		billingCacheService:  billingCacheService,
 	}
+	if joiner, ok := repo.(AffiliateTeamJoiner); ok {
+		svc.teamJoiner = joiner
+	}
+	return svc
 }
 
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.
@@ -308,7 +317,26 @@ func (s *AffiliateService) BindInviterByCode(ctx context.Context, userID int64, 
 	if !bound {
 		return ErrAffiliateAlreadyBound
 	}
+	s.joinInviterActiveTeam(ctx, inviterSummary.UserID, userID)
 	return nil
+}
+
+func (s *AffiliateService) joinInviterActiveTeam(ctx context.Context, inviterID, inviteeUserID int64) {
+	if s == nil || s.teamJoiner == nil {
+		return
+	}
+	if s.settingService == nil || !s.settingService.GetPlayRuntime(ctx).AgentTeamEnabled {
+		return
+	}
+	if _, err := s.teamJoiner.JoinInviterActiveTeam(ctx, inviterID, inviteeUserID); err != nil {
+		logger.LegacyPrintf(
+			"service.affiliate",
+			"[Affiliate] Failed to auto-join inviter active team: inviter_id=%d invitee_user_id=%d err=%v",
+			inviterID,
+			inviteeUserID,
+			err,
+		)
+	}
 }
 
 func (s *AffiliateService) AccrueInviteRebate(ctx context.Context, inviteeUserID int64, baseRechargeAmount float64) (float64, error) {

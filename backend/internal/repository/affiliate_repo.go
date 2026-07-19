@@ -50,6 +50,39 @@ LEFT JOIN (
 WHERE ua.user_id = $1
 LIMIT 1`
 
+const affiliateDefaultTeamJoinSQL = `
+WITH inviter_team AS (
+	SELECT m.team_id
+	FROM play_team_members m
+	JOIN play_teams t ON t.id = m.team_id
+	WHERE m.user_id = $1
+	  AND m.left_at IS NULL
+	  AND t.archived_at IS NULL
+	ORDER BY m.joined_at ASC, m.id ASC
+	LIMIT 1
+),
+inserted_member AS (
+	INSERT INTO play_team_members (team_id, user_id)
+	SELECT team_id, $2
+	FROM inviter_team
+	ON CONFLICT DO NOTHING
+	RETURNING team_id
+)
+INSERT INTO play_team_events (
+	team_id,
+	actor_user_id,
+	subject_user_id,
+	event_type,
+	detail
+)
+SELECT
+	team_id,
+	$2,
+	$2,
+	$3,
+	jsonb_build_object('source', 'affiliate_invite', 'inviter_user_id', $1)
+FROM inserted_member`
+
 type affiliateQueryExecer interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 	ExecContext(ctx context.Context, query string, args ...any) (sql.Result, error)
@@ -112,6 +145,36 @@ func (r *affiliateRepository) BindInviter(ctx context.Context, userID, inviterID
 		return false, err
 	}
 	return bound, nil
+}
+
+func (r *affiliateRepository) JoinInviterActiveTeam(ctx context.Context, inviterID, inviteeUserID int64) (bool, error) {
+	if inviterID <= 0 || inviteeUserID <= 0 || inviterID == inviteeUserID {
+		return false, nil
+	}
+
+	joined := false
+	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		res, err := txClient.ExecContext(
+			txCtx,
+			affiliateDefaultTeamJoinSQL,
+			inviterID,
+			inviteeUserID,
+			service.PlayTeamEventMemberJoined,
+		)
+		if err != nil {
+			return fmt.Errorf("join inviter active team: %w", err)
+		}
+		affected, err := res.RowsAffected()
+		if err != nil {
+			return fmt.Errorf("join inviter active team rows affected: %w", err)
+		}
+		joined = affected > 0
+		return nil
+	})
+	if err != nil {
+		return false, err
+	}
+	return joined, nil
 }
 
 func (r *affiliateRepository) AccrueQuota(ctx context.Context, inviterID, inviteeUserID int64, amount float64, freezeHours int, sourceOrderID *int64) (bool, error) {
