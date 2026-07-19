@@ -573,7 +573,7 @@ func (s *adminServiceImpl) updateUserBalanceWithLedger(ctx context.Context, user
 	txCtx := dbent.NewTxContext(ctx, tx)
 	txClient := tx.Client()
 
-	delta := balance
+	var delta float64
 	switch operation {
 	case "set":
 		current, err := queryAdminUserBalanceForUpdate(txCtx, txClient, userID)
