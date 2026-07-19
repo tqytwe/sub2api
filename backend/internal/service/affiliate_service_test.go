@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"math"
 	"testing"
 
@@ -128,4 +129,103 @@ func TestIsValidAffiliateCodeFormat(t *testing.T) {
 			require.Equal(t, tc.want, isValidAffiliateCodeFormat(tc.in))
 		})
 	}
+}
+
+type affiliateBindRepoStub struct {
+	AffiliateRepository
+	self        *AffiliateSummary
+	inviter     *AffiliateSummary
+	bindResult  bool
+	joinErr     error
+	bindCalls   [][2]int64
+	joinCalls   [][2]int64
+	lookupCodes []string
+}
+
+func (r *affiliateBindRepoStub) EnsureUserAffiliate(_ context.Context, userID int64) (*AffiliateSummary, error) {
+	if r.self != nil && r.self.UserID == userID {
+		return r.self, nil
+	}
+	if r.inviter != nil && r.inviter.UserID == userID {
+		return r.inviter, nil
+	}
+	return &AffiliateSummary{UserID: userID}, nil
+}
+
+func (r *affiliateBindRepoStub) GetAffiliateByCode(_ context.Context, code string) (*AffiliateSummary, error) {
+	r.lookupCodes = append(r.lookupCodes, code)
+	if r.inviter == nil {
+		return nil, ErrAffiliateProfileNotFound
+	}
+	return r.inviter, nil
+}
+
+func (r *affiliateBindRepoStub) BindInviter(_ context.Context, userID, inviterID int64) (bool, error) {
+	r.bindCalls = append(r.bindCalls, [2]int64{userID, inviterID})
+	return r.bindResult, nil
+}
+
+func (r *affiliateBindRepoStub) JoinInviterActiveTeam(_ context.Context, inviterID, inviteeUserID int64) (bool, error) {
+	r.joinCalls = append(r.joinCalls, [2]int64{inviterID, inviteeUserID})
+	return r.joinErr == nil, r.joinErr
+}
+
+func newEnabledAffiliateService(repo *affiliateBindRepoStub) *AffiliateService {
+	settings := NewSettingService(&settingRepoStub{values: map[string]string{
+		SettingKeyAffiliateEnabled:     "true",
+		SettingKeyPlayAgentTeamEnabled: "true",
+	}}, nil)
+	return NewAffiliateService(repo, settings, nil, nil)
+}
+
+func TestBindInviterByCodeJoinsInviterActiveTeam(t *testing.T) {
+	t.Parallel()
+
+	repo := &affiliateBindRepoStub{
+		self:       &AffiliateSummary{UserID: 51},
+		inviter:    &AffiliateSummary{UserID: 50, AffCode: "XRFP2MCTF4DS"},
+		bindResult: true,
+	}
+	svc := newEnabledAffiliateService(repo)
+
+	require.NoError(t, svc.BindInviterByCode(context.Background(), 51, " xrfp2mctf4ds "))
+
+	require.Equal(t, []string{"XRFP2MCTF4DS"}, repo.lookupCodes)
+	require.Equal(t, [][2]int64{{51, 50}}, repo.bindCalls)
+	require.Equal(t, [][2]int64{{50, 51}}, repo.joinCalls)
+}
+
+func TestBindInviterByCodeKeepsAffiliateBindingWhenTeamJoinFails(t *testing.T) {
+	t.Parallel()
+
+	repo := &affiliateBindRepoStub{
+		self:       &AffiliateSummary{UserID: 51},
+		inviter:    &AffiliateSummary{UserID: 50, AffCode: "XRFP2MCTF4DS"},
+		bindResult: true,
+		joinErr:    errors.New("team unavailable"),
+	}
+	svc := newEnabledAffiliateService(repo)
+
+	require.NoError(t, svc.BindInviterByCode(context.Background(), 51, "XRFP2MCTF4DS"))
+	require.Equal(t, [][2]int64{{51, 50}}, repo.bindCalls)
+	require.Equal(t, [][2]int64{{50, 51}}, repo.joinCalls)
+}
+
+func TestBindInviterByCodeSkipsTeamJoinWhenAgentTeamDisabled(t *testing.T) {
+	t.Parallel()
+
+	repo := &affiliateBindRepoStub{
+		self:       &AffiliateSummary{UserID: 51},
+		inviter:    &AffiliateSummary{UserID: 50, AffCode: "XRFP2MCTF4DS"},
+		bindResult: true,
+	}
+	settings := NewSettingService(&settingRepoStub{values: map[string]string{
+		SettingKeyAffiliateEnabled:     "true",
+		SettingKeyPlayAgentTeamEnabled: "false",
+	}}, nil)
+	svc := NewAffiliateService(repo, settings, nil, nil)
+
+	require.NoError(t, svc.BindInviterByCode(context.Background(), 51, "XRFP2MCTF4DS"))
+	require.Equal(t, [][2]int64{{51, 50}}, repo.bindCalls)
+	require.Empty(t, repo.joinCalls)
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  buildRegisterInviteLink,
   clearAffiliateReferralCode,
   clearOAuthAffiliateCode,
   loadAffiliateReferralCode,
@@ -44,5 +45,11 @@ describe('oauthAffiliate', () => {
 
     clearAffiliateReferralCode()
     expect(loadAffiliateReferralCode()).toBe('')
+  })
+
+  it('builds register links that carry both affiliate and team codes', () => {
+    expect(buildRegisterInviteLink('XRFP2MCTF4DS', '8895eab6')).toBe(
+      `${window.location.origin}/register?ref=XRFP2MCTF4DS&team=8895EAB6`
+    )
   })
 })

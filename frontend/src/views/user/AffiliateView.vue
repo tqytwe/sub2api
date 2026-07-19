@@ -4,12 +4,14 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import userAPI from '@/api/user'
+import { getTeamMe } from '@/api/play'
 import type { UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { buildRegisterInviteLink } from '@/utils/oauthAffiliate'
 import '@/styles/growth-world.css'
 
 const { t } = useI18n()
@@ -20,11 +22,11 @@ const { copyToClipboard } = useClipboard()
 const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
+const teamInviteCode = ref('')
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
-  if (typeof window === 'undefined') return `/register?aff=${encodeURIComponent(detail.value.aff_code)}`
-  return `${window.location.origin}/register?aff=${encodeURIComponent(detail.value.aff_code)}`
+  return buildRegisterInviteLink(detail.value.aff_code, teamInviteCode.value)
 })
 
 const formattedRebateRate = computed(() => {
@@ -49,6 +51,15 @@ async function loadAffiliateDetail(silent = false): Promise<void> {
     if (!silent) {
       loading.value = false
     }
+  }
+}
+
+async function loadTeamInviteCode(): Promise<void> {
+  try {
+    const me = await getTeamMe()
+    teamInviteCode.value = me.team?.invite_code || ''
+  } catch {
+    teamInviteCode.value = ''
   }
 }
 
@@ -81,6 +92,7 @@ async function transferQuota(): Promise<void> {
 
 onMounted(() => {
   void loadAffiliateDetail()
+  void loadTeamInviteCode()
 })
 </script>
 
