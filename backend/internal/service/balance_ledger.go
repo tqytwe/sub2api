@@ -92,12 +92,15 @@ type BalanceTransaction struct {
 }
 
 func NewBalanceLedgerService(db *sql.DB, authCacheInvalidator APIKeyAuthCacheInvalidator, balanceCacheInvalidator *BillingCacheService) *BalanceLedgerService {
-	return &BalanceLedgerService{
-		db:                      db,
-		authCacheInvalidator:    authCacheInvalidator,
-		balanceCacheInvalidator: balanceCacheInvalidator,
-		now:                     time.Now,
+	svc := &BalanceLedgerService{
+		db:                   db,
+		authCacheInvalidator: authCacheInvalidator,
+		now:                  time.Now,
 	}
+	if balanceCacheInvalidator != nil {
+		svc.balanceCacheInvalidator = balanceCacheInvalidator
+	}
+	return svc
 }
 
 func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedgerApplyInput) (*BalanceTransaction, error) {
@@ -159,6 +162,25 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 		s.invalidateBalanceCachesAfterCommit(ctx, normalized.UserID)
 	}
 	return transaction, nil
+}
+
+func (s *BalanceLedgerService) ApplyDeltaInSQLTx(ctx context.Context, tx *sql.Tx, input BalanceLedgerApplyInput) (*BalanceTransaction, error) {
+	if s == nil || tx == nil {
+		return nil, ErrBalanceLedgerUnavailable
+	}
+	normalized, err := normalizeBalanceLedgerInput(input)
+	if err != nil {
+		return nil, err
+	}
+	transaction, _, err := s.applyDeltaWithRunner(ctx, tx, normalized)
+	return transaction, err
+}
+
+func (s *BalanceLedgerService) InvalidateUserBalanceCaches(ctx context.Context, userID int64) {
+	if s == nil || userID <= 0 {
+		return
+	}
+	s.invalidateBalanceCachesAfterCommit(ctx, userID)
 }
 
 func (s *BalanceLedgerService) applyDeltaWithRunner(ctx context.Context, runner balanceLedgerSQLRunner, normalized BalanceLedgerApplyInput) (*BalanceTransaction, bool, error) {

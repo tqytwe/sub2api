@@ -122,17 +122,19 @@ type OrderListParams struct {
 }
 
 type RefundPlan struct {
-	OrderID         int64
-	Order           *dbent.PaymentOrder
-	RefundAmount    float64
-	GatewayAmount   float64
-	Reason          string
-	Force           bool
-	DeductBalance   bool
-	DeductionType   string
-	BalanceToDeduct float64
-	SubDaysToDeduct int
-	SubscriptionID  int64
+	OrderID           int64
+	Order             *dbent.PaymentOrder
+	RefundAmount      float64
+	GatewayAmount     float64
+	Reason            string
+	Force             bool
+	DeductBalance     bool
+	DeductionType     string
+	BalanceToDeduct   float64
+	SubDaysToDeduct   int
+	SubscriptionID    int64
+	LedgerDeductKey   string
+	LedgerRollbackKey string
 }
 
 type RefundResult struct {
@@ -187,14 +189,18 @@ type PaymentService struct {
 	configService            *PaymentConfigService
 	userRepo                 UserRepository
 	groupRepo                GroupRepository
+	balanceLedger            *BalanceLedgerService
 	resumeService            *PaymentResumeService
 	affiliateService         *AffiliateService
 	notificationEmailService *NotificationEmailService
 	playService              *PlayService
 }
 
-func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService) *PaymentService {
+func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, balanceLedger ...*BalanceLedgerService) *PaymentService {
 	svc := &PaymentService{entClient: entClient, registry: registry, loadBalancer: newVisibleMethodLoadBalancer(loadBalancer, configService), redeemService: redeemService, subscriptionSvc: subscriptionSvc, configService: configService, userRepo: userRepo, groupRepo: groupRepo, affiliateService: affiliateService}
+	if len(balanceLedger) > 0 {
+		svc.balanceLedger = balanceLedger[0]
+	}
 	svc.resumeService = psNewPaymentResumeService(configService)
 	return svc
 }

@@ -30,6 +30,15 @@ Implemented in this rollout:
   `auth_first_bind_grant`.
 - The legacy synchronous `UsageService.Create()` charge path uses
   `ApplyDelta()` with source `usage_charge` and `allow_overdraft` policy.
+- Gateway/API usage billing now injects the ledger-aware repository; balance
+  charges use `usage_charge` with request/api-key metadata and the
+  `allow_overdraft` policy.
+- Batch Image and Image Studio hold/capture/release flows use
+  `ApplyDelta()` with `image_balance_hold`, `image_balance_capture`, and
+  `image_balance_release`, updating available and frozen balances atomically.
+- Provider refund balance deduction and gateway-failure rollback use
+  `ApplyDelta()` with sources `refund` and `reversal`; audit logs include the
+  ledger keys for lookup.
 - Play balance grants use `ApplyDelta()` from the shared grant path, covering
   check-in, makeup check-in, quiz, blindbox net change, arena settlement, daily
   arena settlement, and team shared rewards. `team_affiliate_bonus` remains a
@@ -43,14 +52,10 @@ These paths still need dedicated migration PRs before the rollout is complete:
 
 - User creation/update default balance snapshots in
   `backend/internal/repository/user_repo.go`.
-- API usage billing and overdraft behavior in
-  `backend/internal/repository/user_repo.go`,
-  `backend/internal/repository/usage_billing_repo.go`, and
-  `backend/internal/service/gateway_usage_billing.go`.
-- Refund deduction, rollback, and reversal paths in
-  `backend/internal/service/payment_refund.go`.
-- Batch Image and Image Studio hold/capture/release flows in
-  `backend/internal/repository/usage_billing_repo.go`.
+- Legacy nil-ledger fallback paths in
+  `backend/internal/repository/usage_billing_repo.go`,
+  `backend/internal/service/gateway_usage_billing.go`, and migrated services.
+  Production wiring should keep the ledger-aware repository/service injected.
 - Legacy repository fallback methods:
   `UpdateBalance`, `DeductBalance`, and `ApplyRedeemBalanceAdjustment`.
 
@@ -63,6 +68,11 @@ These paths still need dedicated migration PRs before the rollout is complete:
 - `affiliate_balance`: affiliate quota transfer to available balance.
 - `auth_first_bind_grant`: auth-source first-bind default balance grant.
 - `usage_charge`: API request balance charge.
+- `image_balance_hold`: Image Studio/Batch Image available balance moved into
+  frozen balance before work starts.
+- `image_balance_capture`: Image Studio/Batch Image final settlement from a
+  prior hold.
+- `image_balance_release`: Image Studio/Batch Image hold release.
 - `refund`: provider refund balance deduction.
 - `reversal`: rollback/reversal of a prior balance operation.
 - Play sources are kept as their existing source values:
@@ -80,6 +90,9 @@ These paths still need dedicated migration PRs before the rollout is complete:
   `play_reward:<id>`, `usage_log:<id>`, and `payment_refund:<id>`.
 - Low-confidence signup/default-balance records must use `estimated` or
   `needs_review`.
+- Historical Image Studio/Batch Image frozen-balance lifecycle rows are not
+  backfilled unless a reliable hold/capture/release source and snapshots are
+  available; do not reconstruct them from current balances.
 
 ## Verification
 

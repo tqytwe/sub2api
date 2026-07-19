@@ -16,7 +16,8 @@ import (
 )
 
 type usageBillingRepository struct {
-	db *sql.DB
+	db            *sql.DB
+	balanceLedger *service.BalanceLedgerService
 }
 
 const imageStudioBillingReconciliationTimeout = 5 * time.Second
@@ -37,6 +38,10 @@ func usageBillingTransactionFromContext(ctx context.Context) *sql.Tx {
 
 func NewUsageBillingRepository(_ *dbent.Client, sqlDB *sql.DB) service.UsageBillingRepository {
 	return &usageBillingRepository{db: sqlDB}
+}
+
+func NewUsageBillingRepositoryWithLedger(_ *dbent.Client, sqlDB *sql.DB, balanceLedger *service.BalanceLedgerService) service.UsageBillingRepository {
+	return &usageBillingRepository{db: sqlDB, balanceLedger: balanceLedger}
 }
 
 func (r *usageBillingRepository) Apply(ctx context.Context, cmd *service.UsageBillingCommand) (*service.UsageBillingApplyResult, error) {
@@ -120,6 +125,9 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 		return nil, err
 	}
 	tx = nil
+	if result.Applied && r.balanceLedger != nil && cmd.BalanceCost > 0 && cmd.UserID > 0 {
+		r.balanceLedger.InvalidateUserBalanceCaches(ctx, cmd.UserID)
+	}
 	return result, nil
 }
 
@@ -468,14 +476,23 @@ func (r *usageBillingRepository) claimUsageBillingRequest(ctx context.Context, t
 }
 
 func (r *usageBillingRepository) ReserveBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
+	if r.balanceLedger != nil {
+		return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationReserve, r.reserveBatchImageBalanceWithLedger)
+	}
 	return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationReserve, reserveUsageBillingBatchImageBalance)
 }
 
 func (r *usageBillingRepository) CaptureBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
+	if r.balanceLedger != nil {
+		return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationCapture, r.captureBatchImageBalanceWithLedger)
+	}
 	return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationCapture, captureUsageBillingBatchImageBalance)
 }
 
 func (r *usageBillingRepository) ReleaseBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
+	if r.balanceLedger != nil {
+		return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationRelease, r.releaseBatchImageBalanceWithLedger)
+	}
 	return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationRelease, releaseUsageBillingBatchImageBalance)
 }
 
@@ -525,6 +542,9 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 		return nil, err
 	}
 	tx = nil
+	if result != nil && result.Applied && r.balanceLedger != nil && cmd.UserID > 0 {
+		r.balanceLedger.InvalidateUserBalanceCaches(ctx, cmd.UserID)
+	}
 	return result, nil
 }
 
@@ -618,12 +638,25 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	if cmd.BalanceCost > 0 {
-		newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
-		if err != nil {
-			return err
+		if r.balanceLedger != nil {
+			transaction, err := r.deductUsageBillingBalanceWithLedger(ctx, tx, cmd)
+			if err != nil {
+				return err
+			}
+			if transaction.BalanceAfter != nil {
+				result.NewBalance = transaction.BalanceAfter
+			}
+			if transaction.BalanceBefore != nil {
+				result.BalanceOverdrafted = *transaction.BalanceBefore < cmd.BalanceCost
+			}
+		} else {
+			newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, cmd.BalanceCost)
+			if err != nil {
+				return err
+			}
+			result.NewBalance = &newBalance
+			result.BalanceOverdrafted = !sufficient
 		}
-		result.NewBalance = &newBalance
-		result.BalanceOverdrafted = !sufficient
 	}
 
 	if cmd.APIKeyQuotaCost > 0 {
@@ -712,6 +745,50 @@ func incrementUsageBillingSubscription(ctx context.Context, tx *sql.Tx, subscrip
 	return service.ErrSubscriptionNotFound
 }
 
+func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand) (*service.BalanceTransaction, error) {
+	if r == nil || r.balanceLedger == nil {
+		return nil, service.ErrBalanceLedgerUnavailable
+	}
+	transaction, err := r.balanceLedger.ApplyDeltaInSQLTx(ctx, tx, service.BalanceLedgerApplyInput{
+		UserID:         cmd.UserID,
+		BalanceDelta:   -cmd.BalanceCost,
+		SourceType:     "usage_charge",
+		SourceID:       strings.TrimSpace(cmd.RequestID),
+		IdempotencyKey: usageBillingBalanceLedgerKey(cmd.APIKeyID, cmd.RequestID),
+		ActorType:      service.BalanceLedgerActorSystem,
+		Description:    "API 消耗扣费",
+		Metadata: map[string]any{
+			"request_id":            strings.TrimSpace(cmd.RequestID),
+			"api_key_id":            cmd.APIKeyID,
+			"account_id":            cmd.AccountID,
+			"subscription_id":       cmd.SubscriptionID,
+			"account_type":          strings.TrimSpace(cmd.AccountType),
+			"model":                 strings.TrimSpace(cmd.Model),
+			"service_tier":          strings.TrimSpace(cmd.ServiceTier),
+			"reasoning_effort":      strings.TrimSpace(cmd.ReasoningEffort),
+			"billing_type":          cmd.BillingType,
+			"actual_cost":           cmd.ActualCost,
+			"balance_cost":          cmd.BalanceCost,
+			"input_tokens":          cmd.InputTokens,
+			"output_tokens":         cmd.OutputTokens,
+			"cache_creation_tokens": cmd.CacheCreationTokens,
+			"cache_read_tokens":     cmd.CacheReadTokens,
+			"image_count":           cmd.ImageCount,
+			"media_type":            strings.TrimSpace(cmd.MediaType),
+			"request_payload_hash":  strings.TrimSpace(cmd.RequestPayloadHash),
+		},
+		BalancePolicy: service.BalanceLedgerPolicyAllowOverdraft,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return transaction, nil
+}
+
+func usageBillingBalanceLedgerKey(apiKeyID int64, requestID string) string {
+	return fmt.Sprintf("usage_billing:%d:%s", apiKeyID, strings.TrimSpace(requestID))
+}
+
 func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, amount float64) (float64, bool, error) {
 	var newBalance float64
 	err := tx.QueryRowContext(ctx, `
@@ -742,6 +819,121 @@ func deductUsageBillingBalance(ctx context.Context, tx *sql.Tx, userID int64, am
 		return 0, false, err
 	}
 	return newBalance, false, nil
+}
+
+func (r *usageBillingRepository) reserveBatchImageBalanceWithLedger(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
+	if cmd.HoldAmount <= 0 {
+		return &service.BatchImageBalanceHoldResult{}, nil
+	}
+	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, "image_balance_hold", -cmd.HoldAmount, cmd.HoldAmount, "图片余额预留", service.BalanceLedgerPolicyRejectNegative)
+	if errors.Is(err, service.ErrBalanceLedgerInsufficientBalance) {
+		return nil, service.ErrBatchImageInsufficientBalance
+	}
+	if err != nil {
+		return nil, err
+	}
+	return batchImageBalanceHoldResultFromLedger(transaction), nil
+}
+
+func (r *usageBillingRepository) captureBatchImageBalanceWithLedger(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
+	if cmd.HoldAmount <= 0 && cmd.ActualAmount <= 0 {
+		return &service.BatchImageBalanceHoldResult{}, nil
+	}
+	if cmd.ActualAmount-cmd.HoldAmount > 0.00000001 && !cmd.AllowBalanceOverage {
+		return nil, service.ErrBatchImageSettlementCostExceedsHold
+	}
+	balanceDelta := 0.0
+	if cmd.HoldAmount > cmd.ActualAmount {
+		balanceDelta = cmd.HoldAmount - cmd.ActualAmount
+	} else if cmd.ActualAmount > cmd.HoldAmount {
+		balanceDelta = -(cmd.ActualAmount - cmd.HoldAmount)
+	}
+	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, "image_balance_capture", balanceDelta, -cmd.HoldAmount, "图片费用结算", service.BalanceLedgerPolicyAllowOverdraft)
+	if errors.Is(err, service.ErrBalanceLedgerInsufficientBalance) {
+		if exists, existsErr := userExistsForBilling(ctx, tx, cmd.UserID); existsErr != nil {
+			return nil, existsErr
+		} else if !exists {
+			return nil, service.ErrUserNotFound
+		}
+		return nil, errors.New("batch image frozen balance is insufficient")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return batchImageBalanceHoldResultFromLedger(transaction), nil
+}
+
+func (r *usageBillingRepository) releaseBatchImageBalanceWithLedger(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
+	if cmd.HoldAmount <= 0 {
+		return &service.BatchImageBalanceHoldResult{}, nil
+	}
+	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, "image_balance_release", cmd.HoldAmount, -cmd.HoldAmount, "图片预留释放", service.BalanceLedgerPolicyRejectNegative)
+	if errors.Is(err, service.ErrBalanceLedgerInsufficientBalance) {
+		if exists, existsErr := userExistsForBilling(ctx, tx, cmd.UserID); existsErr != nil {
+			return nil, existsErr
+		} else if !exists {
+			return nil, service.ErrUserNotFound
+		}
+		return nil, errors.New("batch image frozen balance is insufficient")
+	}
+	if err != nil {
+		return nil, err
+	}
+	return batchImageBalanceHoldResultFromLedger(transaction), nil
+}
+
+func (r *usageBillingRepository) applyBatchImageBalanceLedgerDelta(
+	ctx context.Context,
+	tx *sql.Tx,
+	cmd *service.BatchImageBalanceHoldCommand,
+	sourceType string,
+	balanceDelta float64,
+	frozenDelta float64,
+	description string,
+	balancePolicy string,
+) (*service.BalanceTransaction, error) {
+	if r == nil || r.balanceLedger == nil {
+		return nil, service.ErrBalanceLedgerUnavailable
+	}
+	return r.balanceLedger.ApplyDeltaInSQLTx(ctx, tx, service.BalanceLedgerApplyInput{
+		UserID:         cmd.UserID,
+		BalanceDelta:   balanceDelta,
+		FrozenDelta:    frozenDelta,
+		SourceType:     sourceType,
+		SourceID:       strings.TrimSpace(cmd.BatchID),
+		IdempotencyKey: batchImageBalanceLedgerKey(sourceType, cmd.APIKeyID, cmd.RequestID),
+		ActorType:      service.BalanceLedgerActorSystem,
+		Description:    description,
+		Metadata: map[string]any{
+			"request_id":            strings.TrimSpace(cmd.RequestID),
+			"hold_request_id":       strings.TrimSpace(cmd.HoldRequestID),
+			"capture_request_id":    strings.TrimSpace(cmd.CaptureRequestID),
+			"release_request_id":    strings.TrimSpace(cmd.ReleaseRequestID),
+			"api_key_id":            cmd.APIKeyID,
+			"batch_id":              strings.TrimSpace(cmd.BatchID),
+			"hold_amount":           cmd.HoldAmount,
+			"actual_amount":         cmd.ActualAmount,
+			"allow_balance_overage": cmd.AllowBalanceOverage,
+			"request_payload_hash":  strings.TrimSpace(cmd.RequestPayloadHash),
+			"request_fingerprint":   strings.TrimSpace(cmd.RequestFingerprint),
+		},
+		BalancePolicy: balancePolicy,
+		FrozenPolicy:  service.BalanceLedgerPolicyRejectNegative,
+	})
+}
+
+func batchImageBalanceLedgerKey(sourceType string, apiKeyID int64, requestID string) string {
+	return fmt.Sprintf("%s:%d:%s", strings.TrimSpace(sourceType), apiKeyID, strings.TrimSpace(requestID))
+}
+
+func batchImageBalanceHoldResultFromLedger(transaction *service.BalanceTransaction) *service.BatchImageBalanceHoldResult {
+	result := &service.BatchImageBalanceHoldResult{}
+	if transaction == nil {
+		return result
+	}
+	result.NewBalance = transaction.BalanceAfter
+	result.FrozenBalance = transaction.FrozenAfter
+	return result
 }
 
 func reserveUsageBillingBatchImageBalance(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {

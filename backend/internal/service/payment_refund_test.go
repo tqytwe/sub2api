@@ -4,10 +4,12 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
@@ -479,6 +481,113 @@ func TestQueryAndFinalizeRefundUnsupportedProviderReturnsClearError(t *testing.T
 	require.Nil(t, result)
 	require.Error(t, err)
 	require.Equal(t, "REFUND_QUERY_UNSUPPORTED", infraerrors.Reason(err))
+}
+
+func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
+	ctx := context.Background()
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 7, 20, 9, 0, 0, 0, time.UTC)
+	svc := &PaymentService{
+		balanceLedger: &BalanceLedgerService{
+			db:  db,
+			now: func() time.Time { return createdAt },
+		},
+	}
+	plan := &RefundPlan{
+		OrderID:           42,
+		Order:             &dbent.PaymentOrder{ID: 42, UserID: 7, OutTradeNo: "out-42", PaymentTradeNo: "trade-42"},
+		RefundAmount:      15,
+		GatewayAmount:     14,
+		Reason:            "provider refund",
+		Force:             true,
+		DeductionType:     payment.DeductionTypeBalance,
+		BalanceToDeduct:   12,
+		LedgerDeductKey:   "payment_refund:42:deduct:attempt-1",
+		LedgerRollbackKey: "",
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(7), "payment_refund:42:deduct:attempt-1").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(20.0, 0.0))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
+		WithArgs(8.0, 0.0, int64(7)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WithArgs(
+			int64(7),
+			-12.0,
+			20.0,
+			8.0,
+			0.0,
+			0.0,
+			0.0,
+			"refund",
+			"42:deduct:attempt-1",
+			"payment_refund:42:deduct:attempt-1",
+			"admin",
+			nil,
+			"退款扣回",
+			sqlmock.AnyArg(),
+			false,
+			"high",
+			createdAt,
+		).
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9101), int64(7), -12.0, 20.0, 8.0, 0.0, 0.0, 0.0,
+			"refund", "42:deduct:attempt-1", "payment_refund:42:deduct:attempt-1", "admin", nil,
+			"退款扣回", `{"order_id":42}`, false, "high", createdAt,
+		))
+	mock.ExpectCommit()
+
+	require.NoError(t, svc.deductRefundBalance(ctx, plan))
+	require.Equal(t, "payment_refund:42:deduct:attempt-1", plan.LedgerDeductKey)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(7), "payment_refund:42:deduct:attempt-1:reversal").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(8.0, 0.0))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
+		WithArgs(20.0, 0.0, int64(7)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WithArgs(
+			int64(7),
+			12.0,
+			8.0,
+			20.0,
+			0.0,
+			0.0,
+			0.0,
+			"reversal",
+			"42:deduct:attempt-1:reversal",
+			"payment_refund:42:deduct:attempt-1:reversal",
+			"admin",
+			nil,
+			"退款失败回滚",
+			sqlmock.AnyArg(),
+			false,
+			"high",
+			createdAt,
+		).
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9102), int64(7), 12.0, 8.0, 20.0, 0.0, 0.0, 0.0,
+			"reversal", "42:deduct:attempt-1:reversal", "payment_refund:42:deduct:attempt-1:reversal", "admin", nil,
+			"退款失败回滚", `{"order_id":42}`, false, "high", createdAt,
+		))
+	mock.ExpectCommit()
+
+	require.NoError(t, svc.rollbackRefundBalance(ctx, plan, errors.New("gateway unavailable")))
+	require.Equal(t, "payment_refund:42:deduct:attempt-1:reversal", plan.LedgerRollbackKey)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func createPendingRefundOrderForTest(t *testing.T, ctx context.Context, client *dbent.Client, suffix string) *dbent.PaymentOrder {

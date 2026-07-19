@@ -387,6 +387,9 @@ const typeOptions = computed(() => [
   { value: 'arena_settlement', label: t('admin.users.typeArenaSettlement') },
   { value: 'arena_daily_settlement', label: t('admin.users.typeArenaDailySettlement') },
   { value: 'usage_charge', label: t('admin.users.typeUsageCharge') },
+  { value: 'image_balance_hold', label: t('admin.users.typeImageBalanceHold') },
+  { value: 'image_balance_capture', label: t('admin.users.typeImageBalanceCapture') },
+  { value: 'image_balance_release', label: t('admin.users.typeImageBalanceRelease') },
   { value: 'refund', label: t('admin.users.typeRefund') },
   { value: 'promo_bonus', label: t('admin.users.typePromoBonus') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
@@ -487,6 +490,9 @@ const typeLabelKeys: Record<string, string> = {
   arena_settlement: 'admin.users.typeArenaSettlement',
   arena_daily_settlement: 'admin.users.typeArenaDailySettlement',
   usage_charge: 'admin.users.typeUsageCharge',
+  image_balance_hold: 'admin.users.typeImageBalanceHold',
+  image_balance_capture: 'admin.users.typeImageBalanceCapture',
+  image_balance_release: 'admin.users.typeImageBalanceRelease',
   refund: 'admin.users.typeRefund',
   reversal: 'admin.users.typeReversal',
   promo_bonus: 'admin.users.typePromoBonus',
@@ -541,7 +547,8 @@ const confidenceLabel = (confidence?: string) => {
 
 const iconName = (item: BalanceHistoryItem) => {
   if (item.type === 'payment_recharge' || item.type === 'balance' || item.type === 'admin_balance' || item.type === 'affiliate_balance') return 'dollar'
-  if (item.type === 'usage_charge' || item.type === 'refund') return 'arrowDown'
+  if (item.type === 'usage_charge' || item.type === 'refund' || item.type === 'image_balance_hold' || item.type === 'image_balance_capture') return 'arrowDown'
+  if (item.type === 'image_balance_release') return 'arrowUp'
   if (item.type === 'blindbox' || item.type === 'promo_bonus') return 'gift'
   if (item.type === 'team_shared_reward') return 'users'
   if (item.type.includes('arena')) return 'badge'
