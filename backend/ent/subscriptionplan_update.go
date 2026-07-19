@@ -202,6 +202,34 @@ func (_u *SubscriptionPlanUpdate) SetNillableProductName(v *string) *Subscriptio
 	return _u
 }
 
+// SetCoverImageURL sets the "cover_image_url" field.
+func (_u *SubscriptionPlanUpdate) SetCoverImageURL(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetCoverImageURL(v)
+	return _u
+}
+
+// SetNillableCoverImageURL sets the "cover_image_url" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableCoverImageURL(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetCoverImageURL(*v)
+	}
+	return _u
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (_u *SubscriptionPlanUpdate) SetDetailDescription(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetDetailDescription(v)
+	return _u
+}
+
+// SetNillableDetailDescription sets the "detail_description" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableDetailDescription(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetDetailDescription(*v)
+	}
+	return _u
+}
+
 // SetForSale sets the "for_sale" field.
 func (_u *SubscriptionPlanUpdate) SetForSale(v bool) *SubscriptionPlanUpdate {
 	_u.mutation.SetForSale(v)
@@ -365,6 +393,12 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ProductName(); ok {
 		_spec.SetField(subscriptionplan.FieldProductName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CoverImageURL(); ok {
+		_spec.SetField(subscriptionplan.FieldCoverImageURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DetailDescription(); ok {
+		_spec.SetField(subscriptionplan.FieldDetailDescription, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
@@ -572,6 +606,34 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableProductName(v *string) *Subscrip
 	return _u
 }
 
+// SetCoverImageURL sets the "cover_image_url" field.
+func (_u *SubscriptionPlanUpdateOne) SetCoverImageURL(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetCoverImageURL(v)
+	return _u
+}
+
+// SetNillableCoverImageURL sets the "cover_image_url" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableCoverImageURL(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetCoverImageURL(*v)
+	}
+	return _u
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (_u *SubscriptionPlanUpdateOne) SetDetailDescription(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetDetailDescription(v)
+	return _u
+}
+
+// SetNillableDetailDescription sets the "detail_description" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableDetailDescription(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetDetailDescription(*v)
+	}
+	return _u
+}
+
 // SetForSale sets the "for_sale" field.
 func (_u *SubscriptionPlanUpdateOne) SetForSale(v bool) *SubscriptionPlanUpdateOne {
 	_u.mutation.SetForSale(v)
@@ -765,6 +827,12 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ProductName(); ok {
 		_spec.SetField(subscriptionplan.FieldProductName, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CoverImageURL(); ok {
+		_spec.SetField(subscriptionplan.FieldCoverImageURL, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.DetailDescription(); ok {
+		_spec.SetField(subscriptionplan.FieldDetailDescription, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)

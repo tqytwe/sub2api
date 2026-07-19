@@ -19,6 +19,7 @@ const i18n = createI18n({
           rate: "Rate",
           unlimited: "Unlimited",
         },
+        renewNow: "Renew",
         subscribeNow: "Subscribe now",
       },
     },
@@ -33,9 +34,12 @@ const mountPlanCard = (groupPlatform: string) =>
         group_id: 10,
         group_platform: groupPlatform,
         name: "Pro",
+        product_name: "GPT Pro Workbench",
+        cover_image_url: "/assets/plans/pro.webp",
+        detail_description: "Long product copy",
         price: 10,
         amount: 1000,
-        features: [],
+        features: ["Priority models"],
         rate_multiplier: 1,
         validity_days: 30,
         validity_unit: "day",
@@ -61,5 +65,46 @@ describe("SubscriptionPlanCard", () => {
     expect(text).toContain("Claude");
     expect(text).toContain("Gemini");
     expect(text).toContain("Imagen");
+  });
+
+  it("renders product storefront fields and separates detail click from subscribe click", async () => {
+    const wrapper = mountPlanCard("openai");
+
+    expect(wrapper.text()).toContain("GPT Pro Workbench");
+    expect(wrapper.find('[data-test="plan-cover-image"]').attributes("src")).toBe("/assets/plans/pro.webp");
+
+    await wrapper.find('[data-test="plan-detail-trigger"]').trigger("click");
+    expect(wrapper.emitted("details")?.[0]).toBeTruthy();
+    expect(wrapper.emitted("select")).toBeUndefined();
+
+    await wrapper.find('[data-test="plan-subscribe-button"]').trigger("click");
+    expect(wrapper.emitted("select")?.[0]).toBeTruthy();
+  });
+
+  it("shows a platform-colored placeholder when the plan has no cover image", () => {
+    const wrapper = mount(SubscriptionPlanCard, {
+      props: {
+        plan: {
+          id: 2,
+          group_id: 10,
+          group_platform: "openai",
+          name: "Basic",
+          price: 5,
+          features: [],
+          rate_multiplier: 1,
+          validity_days: 30,
+          validity_unit: "day",
+          for_sale: true,
+          sort_order: 1,
+          cover_image_url: "",
+          detail_description: "",
+          product_name: "",
+        },
+      },
+      global: { plugins: [i18n, createPinia()] },
+    });
+
+    expect(wrapper.find('[data-test="plan-cover-placeholder"]').exists()).toBe(true);
+    expect(wrapper.find('[data-test="plan-cover-image"]').exists()).toBe(false);
   });
 });

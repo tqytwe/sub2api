@@ -69,6 +69,8 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		ValidityUnit       string   `json:"validity_unit"`
 		Features           string   `json:"features"`
 		ProductName        string   `json:"product_name"`
+		CoverImageURL      string   `json:"cover_image_url"`
+		DetailDescription  string   `json:"detail_description"`
 		ForSale            bool     `json:"for_sale"`
 		SortOrder          int      `json:"sort_order"`
 	}
@@ -84,7 +86,8 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			Name: p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
-			ProductName: p.ProductName, ForSale: p.ForSale, SortOrder: p.SortOrder,
+			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
+			ForSale: p.ForSale, SortOrder: p.SortOrder,
 		})
 	}
 	response.Success(c, result)
@@ -137,7 +140,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 			Name:        p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
-			ProductName: p.ProductName,
+			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
 		})
 	}
 
@@ -197,6 +200,8 @@ type checkoutPlan struct {
 	ValidityUnit       string   `json:"validity_unit"`
 	Features           []string `json:"features"`
 	ProductName        string   `json:"product_name"`
+	CoverImageURL      string   `json:"cover_image_url"`
+	DetailDescription  string   `json:"detail_description"`
 }
 
 // parseFeatures splits a newline-separated features string into a string slice.

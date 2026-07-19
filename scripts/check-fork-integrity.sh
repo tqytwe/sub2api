@@ -213,6 +213,7 @@ MIGRATIONS=(
   203_batch_image_owner_idempotency.sql
   205_vip_recharge_bonus_snapshot.sql
   206_vip_recharge_legacy_tiers_backfill.sql
+  207_subscription_plan_product_display.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

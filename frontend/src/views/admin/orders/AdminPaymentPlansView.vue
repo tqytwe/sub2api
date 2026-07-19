@@ -11,8 +11,24 @@
 
       <!-- Plans Table -->
       <DataTable :columns="planColumns" :data="plans" :loading="plansLoading">
+        <template #cell-cover_image_url="{ value, row }">
+          <div class="h-12 w-20 overflow-hidden rounded-md border border-gray-200 bg-gray-50 dark:border-dark-600 dark:bg-dark-800">
+            <img
+              v-if="value"
+              :src="value"
+              :alt="row.product_name || row.name"
+              class="h-full w-full object-cover"
+            />
+            <div v-else class="flex h-full w-full items-center justify-center text-[10px] font-medium text-gray-400 dark:text-dark-400">
+              {{ t('payment.admin.noCover') }}
+            </div>
+          </div>
+        </template>
         <template #cell-name="{ value, row }">
-          <span class="text-sm font-medium" :class="getPlanNameClass(row.group_id)">{{ value }}</span>
+          <div class="min-w-0">
+            <span class="block truncate text-sm font-medium" :class="getPlanNameClass(row.group_id)">{{ row.product_name || value }}</span>
+            <span v-if="row.product_name" class="block truncate text-xs text-gray-400 dark:text-dark-400">{{ value }}</span>
+          </div>
         </template>
         <template #cell-group_id="{ value }">
           <span v-if="isGroupMissing(value)" class="text-sm">
@@ -139,6 +155,7 @@ const deletingPlanId = ref<number | null>(null)
 
 const planColumns = computed((): Column[] => [
   { key: 'id', label: 'ID' },
+  { key: 'cover_image_url', label: t('payment.admin.coverImage') },
   { key: 'name', label: t('payment.admin.planName') },
   { key: 'group_id', label: t('payment.admin.group') },
   { key: 'price', label: t('payment.admin.price') },

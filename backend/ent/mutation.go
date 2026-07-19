@@ -38287,32 +38287,34 @@ func (m *SettingMutation) ResetEdge(name string) error {
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.
 type SubscriptionPlanMutation struct {
 	config
-	op                Op
-	typ               string
-	id                *int64
-	group_id          *int64
-	addgroup_id       *int64
-	name              *string
-	description       *string
-	price             *float64
-	addprice          *float64
-	original_price    *float64
-	addoriginal_price *float64
-	currency          *string
-	validity_days     *int
-	addvalidity_days  *int
-	validity_unit     *string
-	features          *string
-	product_name      *string
-	for_sale          *bool
-	sort_order        *int
-	addsort_order     *int
-	created_at        *time.Time
-	updated_at        *time.Time
-	clearedFields     map[string]struct{}
-	done              bool
-	oldValue          func(context.Context) (*SubscriptionPlan, error)
-	predicates        []predicate.SubscriptionPlan
+	op                 Op
+	typ                string
+	id                 *int64
+	group_id           *int64
+	addgroup_id        *int64
+	name               *string
+	description        *string
+	price              *float64
+	addprice           *float64
+	original_price     *float64
+	addoriginal_price  *float64
+	currency           *string
+	validity_days      *int
+	addvalidity_days   *int
+	validity_unit      *string
+	features           *string
+	product_name       *string
+	cover_image_url    *string
+	detail_description *string
+	for_sale           *bool
+	sort_order         *int
+	addsort_order      *int
+	created_at         *time.Time
+	updated_at         *time.Time
+	clearedFields      map[string]struct{}
+	done               bool
+	oldValue           func(context.Context) (*SubscriptionPlan, error)
+	predicates         []predicate.SubscriptionPlan
 }
 
 var _ ent.Mutation = (*SubscriptionPlanMutation)(nil)
@@ -38867,6 +38869,78 @@ func (m *SubscriptionPlanMutation) ResetProductName() {
 	m.product_name = nil
 }
 
+// SetCoverImageURL sets the "cover_image_url" field.
+func (m *SubscriptionPlanMutation) SetCoverImageURL(s string) {
+	m.cover_image_url = &s
+}
+
+// CoverImageURL returns the value of the "cover_image_url" field in the mutation.
+func (m *SubscriptionPlanMutation) CoverImageURL() (r string, exists bool) {
+	v := m.cover_image_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoverImageURL returns the old "cover_image_url" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldCoverImageURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoverImageURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoverImageURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoverImageURL: %w", err)
+	}
+	return oldValue.CoverImageURL, nil
+}
+
+// ResetCoverImageURL resets all changes to the "cover_image_url" field.
+func (m *SubscriptionPlanMutation) ResetCoverImageURL() {
+	m.cover_image_url = nil
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (m *SubscriptionPlanMutation) SetDetailDescription(s string) {
+	m.detail_description = &s
+}
+
+// DetailDescription returns the value of the "detail_description" field in the mutation.
+func (m *SubscriptionPlanMutation) DetailDescription() (r string, exists bool) {
+	v := m.detail_description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDetailDescription returns the old "detail_description" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldDetailDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDetailDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDetailDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDetailDescription: %w", err)
+	}
+	return oldValue.DetailDescription, nil
+}
+
+// ResetDetailDescription resets all changes to the "detail_description" field.
+func (m *SubscriptionPlanMutation) ResetDetailDescription() {
+	m.detail_description = nil
+}
+
 // SetForSale sets the "for_sale" field.
 func (m *SubscriptionPlanMutation) SetForSale(b bool) {
 	m.for_sale = &b
@@ -39065,7 +39139,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 16)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -39095,6 +39169,12 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.product_name != nil {
 		fields = append(fields, subscriptionplan.FieldProductName)
+	}
+	if m.cover_image_url != nil {
+		fields = append(fields, subscriptionplan.FieldCoverImageURL)
+	}
+	if m.detail_description != nil {
+		fields = append(fields, subscriptionplan.FieldDetailDescription)
 	}
 	if m.for_sale != nil {
 		fields = append(fields, subscriptionplan.FieldForSale)
@@ -39136,6 +39216,10 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.Features()
 	case subscriptionplan.FieldProductName:
 		return m.ProductName()
+	case subscriptionplan.FieldCoverImageURL:
+		return m.CoverImageURL()
+	case subscriptionplan.FieldDetailDescription:
+		return m.DetailDescription()
 	case subscriptionplan.FieldForSale:
 		return m.ForSale()
 	case subscriptionplan.FieldSortOrder:
@@ -39173,6 +39257,10 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldFeatures(ctx)
 	case subscriptionplan.FieldProductName:
 		return m.OldProductName(ctx)
+	case subscriptionplan.FieldCoverImageURL:
+		return m.OldCoverImageURL(ctx)
+	case subscriptionplan.FieldDetailDescription:
+		return m.OldDetailDescription(ctx)
 	case subscriptionplan.FieldForSale:
 		return m.OldForSale(ctx)
 	case subscriptionplan.FieldSortOrder:
@@ -39259,6 +39347,20 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProductName(v)
+		return nil
+	case subscriptionplan.FieldCoverImageURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoverImageURL(v)
+		return nil
+	case subscriptionplan.FieldDetailDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDetailDescription(v)
 		return nil
 	case subscriptionplan.FieldForSale:
 		v, ok := value.(bool)
@@ -39438,6 +39540,12 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldProductName:
 		m.ResetProductName()
+		return nil
+	case subscriptionplan.FieldCoverImageURL:
+		m.ResetCoverImageURL()
+		return nil
+	case subscriptionplan.FieldDetailDescription:
+		m.ResetDetailDescription()
 		return nil
 	case subscriptionplan.FieldForSale:
 		m.ResetForSale()
