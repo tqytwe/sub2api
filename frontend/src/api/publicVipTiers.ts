@@ -4,6 +4,8 @@ export interface PublicVIPTier {
   tier: number
   label: string
   min_recharge: number
+  recharge_bonus_pct: number
+  color_key: string
   perks?: string[]
 }
 

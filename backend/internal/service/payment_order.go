@@ -55,11 +55,20 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	orderAmount := req.Amount
 	limitAmount := req.Amount
+	var rechargeQuote *PaymentRechargeQuote
 	if plan != nil {
 		orderAmount = plan.Price
 		limitAmount = plan.Price
 	} else if req.OrderType == payment.OrderTypeBalance {
-		orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
+		rechargeQuote, err = s.buildRechargeQuoteForUser(ctx, user, req.Amount, cfg.BalanceRechargeMultiplier)
+		if err != nil {
+			return nil, fmt.Errorf("build recharge quote: %w", err)
+		}
+		if rechargeQuote != nil {
+			orderAmount = rechargeQuote.CreditedAmount
+		} else {
+			orderAmount = calculateCreditedBalance(req.Amount, cfg.BalanceRechargeMultiplier)
+		}
 	}
 	feeRate := cfg.RechargeFeeRate
 	methodCurrency := payment.DefaultPaymentCurrency
@@ -100,7 +109,7 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	if oauthResp != nil {
 		return oauthResp, nil
 	}
-	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel)
+	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel, rechargeQuote)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +158,7 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 	return plan, nil
 }
 
-func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection) (*dbent.PaymentOrder, error) {
+func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection, rechargeQuote *PaymentRechargeQuote) (*dbent.PaymentOrder, error) {
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -205,6 +214,9 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	}
 	if providerSnapshot != nil {
 		b.SetProviderSnapshot(providerSnapshot)
+	}
+	if rechargeQuote != nil {
+		b.SetRechargeSnapshot(rechargeQuote.Snapshot())
 	}
 	if plan != nil {
 		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
@@ -721,26 +733,27 @@ func classifyCreatePaymentError(req CreateOrderRequest, providerKey string, err 
 
 func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection, pr *payment.CreatePaymentResponse, resultType payment.CreatePaymentResultType) *CreateOrderResponse {
 	return &CreateOrderResponse{
-		OrderID:      order.ID,
-		Amount:       order.Amount,
-		PayAmount:    payAmount,
-		FeeRate:      order.FeeRate,
-		Status:       OrderStatusPending,
-		ResultType:   resultType,
-		PaymentType:  req.PaymentType,
-		OutTradeNo:   order.OutTradeNo,
-		PayURL:       pr.PayURL,
-		QRCode:       pr.QRCode,
-		ClientSecret: pr.ClientSecret,
-		IntentID:     pr.IntentID,
-		Currency:     pr.Currency,
-		CountryCode:  pr.CountryCode,
-		PaymentEnv:   pr.PaymentEnv,
-		OAuth:        pr.OAuth,
-		JSAPI:        pr.JSAPI,
-		JSAPIPayload: pr.JSAPI,
-		ExpiresAt:    order.ExpiresAt,
-		PaymentMode:  sel.PaymentMode,
+		OrderID:          order.ID,
+		Amount:           order.Amount,
+		PayAmount:        payAmount,
+		FeeRate:          order.FeeRate,
+		Status:           OrderStatusPending,
+		ResultType:       resultType,
+		PaymentType:      req.PaymentType,
+		OutTradeNo:       order.OutTradeNo,
+		PayURL:           pr.PayURL,
+		QRCode:           pr.QRCode,
+		ClientSecret:     pr.ClientSecret,
+		IntentID:         pr.IntentID,
+		Currency:         pr.Currency,
+		CountryCode:      pr.CountryCode,
+		PaymentEnv:       pr.PaymentEnv,
+		OAuth:            pr.OAuth,
+		JSAPI:            pr.JSAPI,
+		JSAPIPayload:     pr.JSAPI,
+		RechargeSnapshot: paymentOrderRechargeSnapshot(order),
+		ExpiresAt:        order.ExpiresAt,
+		PaymentMode:      sel.PaymentMode,
 	}
 }
 

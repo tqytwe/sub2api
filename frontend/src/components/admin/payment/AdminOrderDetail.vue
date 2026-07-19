@@ -68,6 +68,50 @@
       </div>
 
       <div
+        v-if="order.recharge_snapshot"
+        class="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20"
+      >
+        <h4 class="mb-2 text-sm font-semibold text-blue-700 dark:text-blue-300">
+          {{ t('payment.orders.rechargeSnapshot') }}
+        </h4>
+        <div class="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <span class="text-blue-600 dark:text-blue-300">{{ t('payment.baseCredited') }}:</span>
+            <span class="ml-1 font-medium text-blue-800 dark:text-blue-100">
+              {{ creditedAmountSymbol }}{{ (order.recharge_snapshot.base_credited ?? 0).toFixed(2) }}
+            </span>
+          </div>
+          <div>
+            <span class="text-blue-600 dark:text-blue-300">{{ t('payment.orders.vipApplied') }}:</span>
+            <span
+              :class="['ml-1', vipTierBadgeClass(order.recharge_snapshot.current_vip?.color_key)]"
+            >
+              {{ order.recharge_snapshot.current_vip?.label ?? 'V0' }}
+            </span>
+          </div>
+          <div>
+            <span class="text-blue-600 dark:text-blue-300">{{ t('payment.vipRechargeBonus') }}:</span>
+            <span class="ml-1 font-medium text-blue-800 dark:text-blue-100">
+              +{{ formatPct(order.recharge_snapshot.vip_bonus_pct ?? 0) }}%
+            </span>
+          </div>
+          <div v-if="order.recharge_snapshot.campaign_bonus_pct">
+            <span class="text-blue-600 dark:text-blue-300">{{ t('payment.campaignRechargeBonus') }}:</span>
+            <span class="ml-1 font-medium text-blue-800 dark:text-blue-100">
+              +{{ formatPct(order.recharge_snapshot.campaign_bonus_pct ?? 0) }}%
+            </span>
+          </div>
+          <div>
+            <span class="text-blue-600 dark:text-blue-300">{{ t('payment.expectedCreditedBalance') }}:</span>
+            <span class="ml-1 font-medium text-blue-800 dark:text-blue-100">
+              {{ creditedAmountSymbol }}{{ (order.recharge_snapshot.credited_amount ?? order.amount).toFixed(2) }}
+            </span>
+          </div>
+        </div>
+        <p class="mt-2 text-xs text-blue-700 dark:text-blue-200">{{ t('payment.rechargeBonusNote') }}</p>
+      </div>
+
+      <div
         v-if="order.refund_amount"
         class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800 dark:bg-red-900/20"
       >
@@ -120,6 +164,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import type { PaymentOrder } from '@/types/payment'
 import { statusBadgeClass, canRefund as canRefundStatus, formatOrderDateTime } from '@/components/payment/orderUtils'
 import { currencySymbol } from '@/components/payment/currency'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 
 const { t } = useI18n()
 
@@ -161,5 +206,9 @@ function canRefund(order: PaymentOrder): boolean {
 
 function formatDateTime(dateStr: string): string {
   return formatOrderDateTime(dateStr)
+}
+
+function formatPct(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 </script>

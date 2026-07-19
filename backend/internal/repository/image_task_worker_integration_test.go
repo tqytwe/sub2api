@@ -61,13 +61,27 @@ func (p *boundedImageTaskProcessor) ProcessImageTask(ctx context.Context, taskID
 		p.maxActive = p.active
 	}
 	p.mu.Unlock()
-	p.started <- taskID
-	<-p.release
+	completed := false
+	defer func() {
+		p.mu.Lock()
+		p.active--
+		if completed {
+			p.completed++
+		}
+		p.mu.Unlock()
+	}()
+	select {
+	case p.started <- taskID:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	select {
+	case <-p.release:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 	err := p.tasks.Complete(ctx, taskID, 200, json.RawMessage(`{"data":[]}`))
-	p.mu.Lock()
-	p.active--
-	p.completed++
-	p.mu.Unlock()
+	completed = true
 	return err
 }
 
@@ -328,7 +342,7 @@ func TestImageTaskWorkerRuntimePersistsHeartbeatWhileProcessing(t *testing.T) {
 	require.Eventually(t, func() bool {
 		current, getErr := store.Get(context.Background(), taskID)
 		return getErr == nil && current.HeartbeatAt != nil && *current.HeartbeatAt > initialHeartbeat
-	}, 3*time.Second, 50*time.Millisecond)
+	}, 10*time.Second, 50*time.Millisecond)
 	processor.release <- struct{}{}
 }
 

@@ -9,6 +9,7 @@ Sub2API has a built-in payment system that enables user self-service top-up with
 - [Supported Payment Methods](#supported-payment-methods)
 - [Quick Start](#quick-start)
 - [System Settings](#system-settings)
+- [Balance Recharge Credit Calculation](#balance-recharge-credit-calculation)
 - [Provider Configuration](#provider-configuration)
 - [Provider Instance Management](#provider-instance-management)
 - [Webhook Configuration](#webhook-configuration)
@@ -102,6 +103,29 @@ Prevents users from repeatedly creating and canceling orders:
 |---------|-------------|
 | **Help Image** | Customer service QR code or help image (supports upload) |
 | **Help Text** | Instructions displayed on the payment page |
+
+---
+
+## Balance Recharge Credit Calculation
+
+Balance recharge orders separate the payment amount sent to the provider from the balance credited to the user:
+
+| Field / Concept | Meaning |
+|-----------------|---------|
+| `pay_amount` | Gateway payment amount after any payment fee; provider validation, daily limits, and channel limits use this payment-side value |
+| Input amount | User-entered recharge amount before fee |
+| Base credited | `input_amount * payment_balance_recharge_multiplier`, rounded to 2 decimals |
+| VIP bonus | Current VIP recharge bonus at order creation time; clamped to `0-10%` |
+| Campaign bonus | Active Play campaign recharge bonus; when multiple campaigns apply, the highest campaign bonus is used |
+| `amount` | Final balance credited: `base_credited * (1 + vip_bonus_pct/100 + campaign_bonus_pct/100)`, rounded to 2 decimals |
+
+VIP does not change the API billing formula, reduce the gateway payment amount, or change subscription prices. It only adds extra balance when a balance recharge order is credited. The current order uses the VIP tier before this recharge; if the recharge upgrades the user, the new tier applies from the next order.
+
+Each balance recharge order stores `payment_orders.recharge_snapshot` with the quote used at creation time: input amount, base credited amount, recharge multiplier, current VIP tier, VIP bonus, campaign bonus, campaign IDs, final credited amount, total recharged before the order, and whether an upgrade applies to the next order. Fulfillment and user-facing order details must explain historical orders from this snapshot, not from the current settings.
+
+`users.total_recharged` increases only by `base_credited`. VIP bonuses, campaign bonuses, check-ins, redeem codes, and admin balance grants do not increase VIP progress. Affiliate rebates for balance recharge orders also use `base_credited` as their base, so recharge bonuses do not compound referral payouts.
+
+On successful refunds, the user balance rollback uses the final credited amount, while VIP progress rolls back by the snapshot base credited amount, proportionally for partial refunds. Legacy orders without a snapshot fall back to their stored order amount for compatibility.
 
 ---
 
@@ -248,6 +272,7 @@ User selects amount and payment method
        ▼
   Create Order (PENDING)
   ├─ Validate amount range, pending order count, daily limit
+  ├─ Build recharge quote and snapshot for balance orders
   ├─ Load balance to select provider instance
   └─ Call provider to get payment info
        │
@@ -263,7 +288,9 @@ User selects amount and payment method
   Webhook callback verified → Order PAID
        │
        ▼
-  Auto top-up to user balance (RECHARGING) → Order COMPLETED
+  Auto credit final balance amount (RECHARGING)
+  ├─ Increase total_recharged by base credited amount only
+  └─ Order COMPLETED
 ```
 
 ### Order Status Reference

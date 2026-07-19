@@ -25,6 +25,7 @@ import (
 type mockUserRepo struct {
 	updateBalanceErr        error
 	updateBalanceFn         func(ctx context.Context, id int64, amount float64) error
+	adjustTotalRechargedFn  func(ctx context.Context, id int64, delta float64) error
 	deductBalanceFn         func(ctx context.Context, id int64, amount float64) error
 	getByIDUser             *User
 	getByIDErr              error
@@ -188,6 +189,12 @@ func (m *mockUserRepo) UpdateBalance(ctx context.Context, id int64, amount float
 		return m.updateBalanceFn(ctx, id, amount)
 	}
 	return m.updateBalanceErr
+}
+func (m *mockUserRepo) AdjustTotalRecharged(ctx context.Context, id int64, delta float64) error {
+	if m.adjustTotalRechargedFn != nil {
+		return m.adjustTotalRechargedFn(ctx, id, delta)
+	}
+	return nil
 }
 func (m *mockUserRepo) UpdateUserLastActiveAt(_ context.Context, userID int64, activeAt time.Time) error {
 	m.updateLastActiveUserIDs = append(m.updateLastActiveUserIDs, userID)

@@ -71,12 +71,29 @@
                   <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
                   <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
                 </div>
-                <div v-if="balanceRechargeMultiplier !== 1" class="flex justify-between" :class="{ 'border-t border-gray-200 pt-2 dark:border-dark-600': feeRate <= 0 }">
-                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.creditedBalance') }}</span>
-                  <span class="text-gray-900 dark:text-white">${{ creditedAmount.toFixed(2) }}</span>
+                <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.baseCredited') }}</span>
+                  <span class="text-gray-900 dark:text-white">${{ baseCreditedAmount.toFixed(2) }}</span>
                 </div>
-                <p v-if="balanceRechargeMultiplier !== 1" class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
+                <div class="flex items-center justify-between gap-3">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.currentVip') }}</span>
+                  <span :class="vipTierBadgeClass(currentVIP?.color_key)">{{ currentVIP?.label ?? 'V0' }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.vipRechargeBonus') }}</span>
+                  <span class="text-gray-900 dark:text-white">+{{ formatPct(vipBonusPct) }}%</span>
+                </div>
+                <div v-if="campaignBonusPct > 0" class="flex justify-between">
+                  <span class="text-gray-500 dark:text-gray-400">{{ t('payment.campaignRechargeBonus') }}</span>
+                  <span class="text-gray-900 dark:text-white">+{{ formatPct(campaignBonusPct) }}%</span>
+                </div>
+                <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                  <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.expectedCreditedBalance') }}</span>
+                  <span class="text-lg font-bold text-green-600 dark:text-green-400">${{ creditedAmount.toFixed(2) }}</span>
+                </div>
+                <p class="border-t border-gray-200 pt-2 text-xs text-gray-500 dark:border-dark-600 dark:text-gray-400">
                   {{ t('payment.rechargeRatePreview', { usd: balanceRechargeMultiplier.toFixed(2) }) }}
+                  {{ t('payment.rechargeBonusNote') }}
                 </p>
               </div>
             </div>
@@ -287,6 +304,7 @@ import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'
 import { buildPaymentErrorToastMessage, describePaymentScenarioError } from './paymentUx'
 import { hasWechatResumeQuery, parseWechatResumeRoute, stripWechatResumeQuery } from './paymentWechatResume'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 
 const i18n = useI18n()
 const { t } = i18n
@@ -516,7 +534,14 @@ const subscriptionUsdToCnyRate = computed(() => {
   const rate = checkout.value.subscription_usd_to_cny_rate
   return Number.isFinite(rate) && rate > 0 ? rate : 0
 })
-const creditedAmount = computed(() => Math.round((validAmount.value * balanceRechargeMultiplier.value) * 100) / 100)
+const rechargeQuote = computed(() => checkout.value.recharge_quote)
+const currentVIP = computed(() => rechargeQuote.value?.current_vip)
+const vipBonusPct = computed(() => normalizeBonusPct(rechargeQuote.value?.vip_bonus_pct ?? currentVIP.value?.recharge_bonus_pct ?? 0))
+const campaignBonusPct = computed(() => normalizeBonusPct(rechargeQuote.value?.campaign_bonus_pct ?? 0))
+const baseCreditedAmount = computed(() => roundUSD(validAmount.value * balanceRechargeMultiplier.value))
+const creditedAmount = computed(() =>
+  roundUSD(baseCreditedAmount.value * (1 + (vipBonusPct.value + campaignBonusPct.value) / 100))
+)
 
 // Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
 const planGridClass = computed(() => {
@@ -576,6 +601,20 @@ function roundPaymentAmount(value: number, currency: string): number {
   if (!Number.isFinite(value)) return 0
   const factor = 10 ** currencyFractionDigits(currency)
   return Math.round(value * factor) / factor
+}
+
+function roundUSD(value: number): number {
+  if (!Number.isFinite(value)) return 0
+  return Math.round(value * 100) / 100
+}
+
+function normalizeBonusPct(value: number | undefined): number {
+  if (!Number.isFinite(value ?? NaN) || (value ?? 0) <= 0) return 0
+  return Math.round((value ?? 0) * 100) / 100
+}
+
+function formatPct(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(2)
 }
 
 function ceilPaymentAmount(value: number, currency: string): number {

@@ -9,6 +9,7 @@ import { resolveCampaignDisplayName } from '@/utils/playCampaign'
 import { useAuthStore } from '@/stores/auth'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import { trackGrowthEvent } from '@/utils/growthAnalytics'
+import { vipTierBadgeClass } from '@/utils/vipColors'
 import '@/styles/growth-world.css'
 
 const { t, locale } = useI18n()
@@ -263,7 +264,10 @@ onMounted(load)
                 <div class="min-w-0">
                   <p class="gw-balance-label">{{ t('playHub.vipTitle') }}</p>
                   <div class="mt-2 flex flex-wrap items-center gap-2">
-                    <span class="gw-buff">{{ vip.label }}</span>
+                    <span :class="vipTierBadgeClass(vip.color_key)">{{ vip.label }}</span>
+                    <span class="gw-buff">
+                      {{ t('playHub.vipRechargeBonus', { pct: vip.recharge_bonus_pct ?? 0 }) }}
+                    </span>
                     <span class="gw-subtitle mt-0">
                       {{ t('playHub.vipRecharged', { amount: (hub?.growth.total_recharged ?? 0).toFixed(2) }) }}
                     </span>

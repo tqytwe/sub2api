@@ -76,9 +76,41 @@ export interface CheckoutInfoResponse {
   stripe_publishable_key: string
   /** When true, Alipay payments on mobile always show the QR code instead of redirecting */
   alipay_force_qrcode?: boolean
+  recharge_quote?: RechargeQuote
 }
 
 // ==================== Orders ====================
+
+export interface VIPStatus {
+  tier: number
+  label: string
+  recharge_bonus_pct: number
+  color_key: string
+  perks?: string[]
+  next_tier?: number
+  next_label?: string
+  next_min_recharge?: number
+  amount_to_next?: number
+}
+
+export interface RechargeSnapshot {
+  schema_version?: number
+  input_amount?: number
+  balance_recharge_multiplier?: number
+  base_credited?: number
+  current_vip?: VIPStatus
+  vip_bonus_pct?: number
+  campaign_bonus_pct?: number
+  campaign_ids?: number[]
+  effective_bonus_pct?: number
+  effective_credit_multiplier?: number
+  credited_amount?: number
+  total_recharged_before?: number
+  total_recharged_after_base?: number
+  vip_upgrade_applies_next_order?: boolean
+}
+
+export type RechargeQuote = RechargeSnapshot
 
 export interface PaymentOrder {
   id: number
@@ -102,6 +134,7 @@ export interface PaymentOrder {
   refund_request_reason?: string
   plan_id?: number
   provider_instance_id?: string
+  recharge_snapshot?: RechargeSnapshot
 }
 
 // ==================== Plans & Channels ====================
@@ -217,6 +250,7 @@ export interface CreateOrderResult {
   oauth?: WechatOAuthInfo
   jsapi?: WechatJSAPIPayload
   jsapi_payload?: WechatJSAPIPayload
+  recharge_snapshot?: RechargeSnapshot
 }
 
 export interface DashboardStats {

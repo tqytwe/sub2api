@@ -64,6 +64,36 @@ func (s *PlayService) ListAdminCampaigns(ctx context.Context) ([]PlayCampaign, e
 	return s.repo.ListAdminCampaigns(ctx)
 }
 
+func (s *PlayService) ResolveRechargeCampaignBonus(ctx context.Context) (float64, []int64, error) {
+	if s == nil || s.repo == nil {
+		return 0, nil, nil
+	}
+	rt := s.GetRuntime(ctx)
+	if !rt.CampaignsEnabled {
+		return 0, nil, nil
+	}
+	campaigns, err := s.repo.ListActiveCampaigns(ctx, s.serverNow())
+	if err != nil {
+		return 0, nil, err
+	}
+	var bonus float64
+	var ids []int64
+	for _, campaign := range campaigns {
+		if campaign.Rules.RechargeBonusPct <= 0 {
+			continue
+		}
+		if campaign.Rules.RechargeBonusPct > bonus {
+			bonus = campaign.Rules.RechargeBonusPct
+			ids = []int64{campaign.ID}
+			continue
+		}
+		if campaign.Rules.RechargeBonusPct == bonus {
+			ids = append(ids, campaign.ID)
+		}
+	}
+	return bonus, ids, nil
+}
+
 func (s *PlayService) CreateAdminCampaign(ctx context.Context, campaign PlayCampaign) (*PlayCampaign, error) {
 	if err := validateAdminPlayCampaign(&campaign); err != nil {
 		return nil, err

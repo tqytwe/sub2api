@@ -211,6 +211,7 @@ MIGRATIONS=(
   201_prompt_library_public_seed.sql
   202_prompt_library_generic_cover_cleanup.sql
   203_batch_image_owner_idempotency.sql
+  205_vip_recharge_bonus_snapshot.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
