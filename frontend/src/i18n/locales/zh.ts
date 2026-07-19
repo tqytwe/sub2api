@@ -270,9 +270,12 @@ export default {
     saved: '保存成功',
     deleted: '删除成功',
     cancel: '取消',
+    apply: '应用',
+    clear: '清除',
     delete: '删除',
     edit: '编辑',
     create: '创建',
+    creating: '创建中...',
     update: '更新',
     confirm: '确认',
     reset: '重置',
@@ -319,8 +322,11 @@ export default {
     copyFailed: '复制失败',
     verifying: '验证中...',
     processing: '处理中...',
+    sending: '发送中...',
+    tryAgain: '重试',
     contactSupport: '联系客服',
     add: '添加',
+    required: '必填',
     invalidEmail: '请输入有效的邮箱地址',
     optional: '可选',
     selectOption: '请选择',
@@ -826,6 +832,7 @@ export default {
     editKey: '编辑密钥',
     deleteKey: '删除密钥',
     deleteConfirmMessage: "确定要删除 '{name}' 吗？此操作无法撤销。",
+    id: 'ID',
     apiKey: 'API 密钥',
     group: '分组',
     currentConcurrency: '当前并发',
@@ -865,6 +872,7 @@ export default {
     total: '近30天',
     quota: '额度',
     lastUsedAt: '上次使用时间',
+    lastUsedIP: '最近使用 IP',
     useKey: '使用密钥',
     useKeyModal: {
       title: '使用 API 密钥',
@@ -872,11 +880,17 @@ export default {
       copy: '复制',
       copied: '已复制',
       note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。',
+      claudeSettingsHint: '用户级持久配置。此文件包含 API 密钥，请勿提交到项目仓库。',
       noGroupTitle: '请先分配分组',
       noGroupDescription:
         '此 API 密钥尚未分配分组，请先在密钥列表中点击分组列进行分配，然后才能查看使用配置。',
       openai: {
         description: '将以下配置文件添加到 Codex CLI 配置目录中。',
+        authModeTitle: 'Codex 认证模式',
+        authModeDescription: '兼容模式保留旧版 Codex 配置；API Key Mode 用于授权客户端图片执行器。',
+        authModeLegacy: '兼容模式',
+        authModeApiKey: 'API Key Mode',
+        authModeApiKeyRestartNotice: '保存此配置后，必须完全退出并重启 Codex Desktop 或 CLI，然后新建 task，让客户端重新构建工具注册表。',
         configTomlHint: '请确保以下内容位于 config.toml 文件的开头部分',
         note: '请确保配置目录存在。macOS/Linux 用户可运行 mkdir -p ~/.codex 创建目录。',
         noteWindows:
@@ -887,6 +901,7 @@ export default {
         geminiCli: 'Gemini CLI',
         codexCli: 'Codex CLI',
         codexCliWs: 'Codex CLI (WebSocket)',
+        grokCli: 'Grok CLI',
         opencode: 'OpenCode'
       },
       antigravity: {
@@ -903,6 +918,18 @@ export default {
           '将以下环境变量添加到您的终端配置文件或直接在终端中运行，以配置 Gemini CLI 访问。',
         modelComment: '如果你有 Gemini 3 权限可以填：gemini-3-pro-preview',
         note: '这些环境变量将在当前终端会话中生效。如需永久配置，请将其添加到 ~/.bashrc、~/.zshrc 或相应的配置文件中。'
+      },
+      grok: {
+        description: '配置 Grok Build、Claude Code、Codex 或 OpenCode，让请求通过当前 Sub2API Grok 分组发送。',
+        claudeDescription: '配置 Claude Code，让 Messages API 请求通过当前 Sub2API Grok 分组发送。',
+        codexDescription: '配置 Codex，让 Responses API 请求通过当前 Sub2API Grok 分组发送。',
+        configTomlHint: '如已有 config.toml，请先备份再合并此模型配置。保存后运行 grok inspect 验证生效配置。',
+        codexConfigTomlHint: '如已有 config.toml，请先备份再合并此服务商配置。',
+        note: '保存为 ~/.grok/config.toml，然后运行 grok inspect，并在 /model 中选择 grok。',
+        noteWindows: '保存为 %USERPROFILE%\\.grok\\config.toml，然后运行 grok inspect，并在 /model 中选择 grok。',
+        claudeNote: '二选一即可：终端命令仅在当前会话生效；保存 settings.json 可作为用户级持久配置。',
+        codexNote: '将 config.toml 保存到 ~/.codex，并在启动 Codex 前设置 SUB2API_API_KEY。',
+        codexNoteWindows: '将 config.toml 保存到 %USERPROFILE%\\.codex，并在 PowerShell 中设置 SUB2API_API_KEY 后启动 Codex。'
       },
       opencode: {
         title: 'OpenCode 配置示例',
@@ -1061,6 +1088,9 @@ export default {
     imageCount: '图片张数',
     imageBillingSize: '计费尺寸',
     imageInputSize: '输入尺寸',
+    imageInputTokens: '图片输入 Token',
+    imageInputTokenPrice: '图片输入单价',
+    imageInputCost: '图片输入费用',
     imageOutputSize: '输出尺寸',
     imageOutputTokens: '图片输出 Token',
     imageOutputTokenPrice: '图片输出单价',
@@ -1122,7 +1152,7 @@ export default {
       detailAccuracy: '定位精度',
       detailCoordinates: '坐标',
     },
-    tabs: { usage: '用量明细', errors: '错误请求' },
+    tabs: { usage: '用量明细', errors: '错误请求', ranking: '用户排行' },
     errors: {
       time: '时间', model: '模型', endpoint: '端点', status: '状态码',
       category: '分类', platform: '平台', message: '错误信息',
@@ -1155,7 +1185,8 @@ export default {
     providers: {
       openai: 'OpenAI',
       anthropic: 'Anthropic',
-      gemini: 'Gemini'
+      gemini: 'Gemini',
+      grok: 'Grok'
     },
     extraModelsHeader: '附加模型',
     extraModelsEmpty: '无附加模型',
@@ -2138,6 +2169,7 @@ export default {
       leaveEmptyToKeep: '留空则保持原密码不变',
       generatePassword: '生成随机密码',
       copyPassword: '复制密码',
+      passwordCopied: '密码已复制',
       creating: '创建中...',
       updating: '更新中...',
       columns: {
@@ -2426,6 +2458,10 @@ export default {
       createGroup: '创建分组',
       editGroup: '编辑分组',
       deleteGroup: '删除分组',
+      duplicate: '复制',
+      duplicating: '复制中...',
+      duplicateSuccess: '已复制分组「{name}」',
+      duplicateFailed: '复制分组失败',
       sortOrder: '排序',
       columnSettings: '列设置',
       sortOrderHint: '拖拽分组调整显示顺序，排在前面的分组会优先显示',
@@ -2443,6 +2479,7 @@ export default {
         rateDefault: '默认',
         rpmDefault: '默认',
         exclusive: '独占',
+        id: 'ID',
         type: '类型',
         priority: '优先级',
         apiKeys: 'API 密钥数',
@@ -2609,6 +2646,9 @@ export default {
         batchGeminiOnlyHint: '批量生图当前仅支持 Gemini 分组。',
         modeHint: '默认关闭独立倍率时，图片费用 = 图片价格 × 当前分组有效倍率；开启独立倍率后，图片费用 = 图片价格 × 生图独立倍率。',
         finalPricePreview: '最终单张价格预览',
+        notConfigured: '未配置'
+      },
+      videoPricing: {
         notConfigured: '未配置'
       },
       webSearchPricing: {
@@ -2860,6 +2900,8 @@ export default {
       deleteError: '删除渠道失败',
       nameRequired: '请输入渠道名称',
       duplicateModels: '模型「{0}」在多个定价条目中重复',
+      emptyModelsInPricing: '平台「{platform}」存在未填写模型的定价条目',
+      noGroupsSelected: '请先为平台「{platform}」选择至少一个分组',
       modelConflict: "模型模式 '{model1}' 和 '{model2}' 冲突：匹配范围重叠。模型名称按大小写不敏感匹配，已有条目已覆盖其所有大小写变体，无需重复添加。",
       mappingConflict: "模型映射源 '{model1}' 和 '{model2}' 冲突：匹配范围重叠。源模式按大小写不敏感匹配，已有条目已覆盖其所有大小写变体。",
       intervalValidation: {
@@ -2913,6 +2955,7 @@ export default {
         cacheReadPrice: '缓存读取',
         cacheWritePriceShort: '缓存写',
         cacheReadPriceShort: '缓存读',
+        imageInputPrice: '图片输入',
         imageTokenPrice: '图片输出',
         imageOutputPrice: '图片输出价格',
         pricePlaceholder: '默认',
@@ -3273,6 +3316,11 @@ export default {
       createTitle: '新增渠道监控',
       editTitle: '编辑渠道监控',
       runNow: '立即检测',
+      duplicate: '复制',
+      duplicating: '复制中...',
+      duplicateSuccess: '已复制监控「{name}」',
+      duplicateFailed: '复制监控失败',
+      duplicateKeyUnavailable: 'API Key 解密失败，无法复制此监控。请重新编辑该监控并填入新的 Key 后再试。',
       runSuccess: '检测完成',
       runFailed: '检测失败',
       apiKeyDecryptFailed: 'API Key 解密失败，请重新编辑该监控并填入新的 Key',
@@ -3654,6 +3702,18 @@ export default {
         noPeakRate: '高峰倍率：未启用',
         effectiveRate: '当前倍率：{value}x',
         updatedAt: '更新时间：{value}',
+        nextProbeAt: '下一次探测：{value}',
+        lastDetectedRate: '上次探测倍率：{value}x',
+        lastDetectedAt: '上次探测时间：{value}',
+        elapsedSince: '已过去：{value}',
+        justNow: '不足 1 分钟',
+        minutesAgo: '{count} 分钟',
+        hoursAgo: '{count} 小时',
+        daysAgo: '{count} 天',
+        accountProbeState: '当前账号自动检测：',
+        globalProbeState: '全局探测开关：',
+        enabled: '打开',
+        disabled: '关闭',
         settingsSaved: '上游倍率探测设置已保存',
         settingsFailed: '保存上游倍率探测设置失败',
         probeFailed: '探测上游倍率失败',
@@ -3661,6 +3721,13 @@ export default {
         batchLimit: '每次最多探测 20 个账号',
         batchCompleted: '已完成 {count} 个账号的倍率探测',
         batchPartial: '倍率探测部分完成：成功 {success} 个，失败 {failed} 个'
+      },
+      grokCustomBaseUrl: {
+        title: 'Grok 自定义转发地址',
+        hint: '仅改写 Grok OAuth 的 API 转发端点，不影响授权和令牌刷新。',
+        placeholder: '例如：https://api.x.ai/v1',
+        required: '请输入 Grok 自定义转发地址',
+        invalid: 'Grok 自定义转发地址必须以 http:// 或 https:// 开头'
       },
       allPrivacyModes: '全部Privacy状态',
       privacyUnset: '未设置',
@@ -3741,6 +3808,9 @@ export default {
       testConnection: '测试连接',
       reAuthorize: '重新授权',
       refreshToken: '刷新令牌',
+      duplicateAccount: '复制账号',
+      duplicateSuccess: '已复制账号「{name}」',
+      duplicateFailed: '复制账号失败',
       noAccountsYet: '暂无账号',
       createFirstAccount: '添加 AI 平台账号以开始使用 API 网关。',
       tokenRefreshed: 'Token 刷新成功',
@@ -3861,6 +3931,8 @@ export default {
         grokLastStatus: '状态 {status}',
         grokLastProbe: '探测 {time}',
         grokLastHeadersSeen: '响应头 {time}',
+        grokFreeQuota24hHint: 'Grok 免费额度 24 小时滚动窗口',
+        grokWeeklyUsage: '周用量 {percent}%',
         passiveSampled: '被动采样',
         activeQuery: '查询'
       },
@@ -3949,6 +4021,7 @@ export default {
         disableScheduling: '批量停止调度',
         resetStatus: '批量重置状态',
         refreshToken: '批量刷新令牌',
+        probeUpstreamBilling: '批量探测倍率',
         resetStatusSuccess: '已成功重置 {count} 个账号状态',
         refreshTokenSuccess: '已成功刷新 {count} 个账号令牌',
         partialSuccess: '操作部分完成：{success} 成功，{failed} 失败'
@@ -4036,6 +4109,12 @@ export default {
       openai: {
         baseUrlHint: '留空使用官方 OpenAI API',
         apiKeyHint: '您的 OpenAI API Key',
+        longContextBilling: '长上下文计费',
+        longContextBillingDesc:
+          '开启后，OpenAI 长上下文请求会按上游声明的长上下文价格规则计费；关闭则保持普通文本计费。',
+        planType: '订阅档位',
+        planTypeDesc: '手动覆盖该 OpenAI OAuth 账号的订阅档位，用于调度和用量窗口展示。',
+        planTypeClear: '清空覆盖',
         oauthPassthrough: '自动透传（仅替换认证）',
         oauthPassthroughDesc:
           '开启后，该 OpenAI 账号将自动透传请求与响应，仅替换认证并保留计费/并发/审计及必要安全过滤；如遇兼容性问题可随时关闭回滚。',
@@ -4146,6 +4225,8 @@ export default {
       supportsAllModels: '（支持所有模型）',
       requestModel: '请求模型',
       actualModel: '实际模型',
+      fromModel: '源模型',
+      toModel: '目标模型',
       addMapping: '添加映射',
       mappingExists: '模型 {model} 的映射已存在',
       wildcardOnlyAtEnd: '通配符 * 只能放在末尾',
@@ -4200,6 +4281,12 @@ export default {
         bulkDisableHint: '保存后将关闭所选账号的请求头覆写并清空已有配置。',
         bulkReplaceHint: '保存后将用下方配置整体替换所选账号已有的请求头覆写配置。',
         bulkEmptyRows: '请至少添加一行请求头再保存；如需清空已有配置，请关闭上方开关。',
+        importJson: '导入 JSON',
+        copyJson: '复制 JSON',
+        importJsonApply: '应用导入',
+        importJsonCancel: '取消',
+        importJsonHint: '支持 key-value 形式的 JSON 对象，导入会替换当前请求头列表。',
+        importJsonInvalid: '请求头 JSON 格式不正确',
         invalidName: '请求头名称格式不正确（仅允许字母、数字和 !#$%&\'*+-.^_`|~ 字符）',
         blockedName: '该请求头不允许覆写（认证头与连接控制头由系统管理）',
         duplicateName: '存在重复的请求头名称（匹配不区分大小写）',
@@ -4324,6 +4411,9 @@ export default {
       updating: '更新中...',
       accountCreated: '账号创建成功',
       accountUpdated: '账号更新成功',
+      messages: {
+        accountCreated: '账号创建成功'
+      },
       failedToCreate: '创建账号失败',
       failedToUpdate: '更新账号失败',
       pleaseSelectStatus: '请选择有效的账号状态',
@@ -4434,6 +4524,10 @@ export default {
           },
           // Refresh Token auth
           refreshTokenAuth: '手动输入 RT',
+          mobileRefreshTokenAuth: '移动端 RT',
+          accessTokenAuth: 'Access Token',
+          agentIdentityAuth: 'Agent Identity',
+          agentIdentityInvalid: 'Agent Identity 导入内容格式不正确',
           refreshTokenDesc: '输入您已有的 OpenAI Refresh Token，支持批量输入（每行一个），系统将自动验证并创建账号。',
           refreshTokenPlaceholder: '粘贴您的 OpenAI Refresh Token...\n支持多个，每行一个',
           codexSessionAuth: 'Codex JSON / AT 批量输入',
@@ -4494,6 +4588,7 @@ export default {
           missingExchangeParams: '缺少授权码、state 或 OAuth 会话',
           failedToExchangeCode: 'Grok 授权码兑换失败',
           failedToValidateRT: '验证 Grok refresh token 失败',
+          failedToConvertSSO: 'Grok SSO Cookie 转换失败',
           oauthOnlyHint: '首版 Grok 支持仅包含 OAuth 订阅的 Responses API 文本/推理转发。'
         },
         // Gemini specific
@@ -5327,11 +5422,26 @@ export default {
       billingModeToken: '按量',
       billingModePerRequest: '按次',
       billingModeImage: '按次(图片)',
+      billingModeVideo: '按次(视频)',
       allBillingModes: '全部计费模式',
       ipAddress: 'IP',
       clickToViewBalance: '点击查看充值记录',
       failedToLoadUser: '加载用户信息失败',
       userDeletedBadge: '已删除',
+      tokenRanking: {
+        subtitle: '按当前筛选与时间范围统计每个用户的 Token 用量',
+        rowHint: '点击查看该用户的用量明细',
+        userCount: '共 {count} 位用户',
+        columns: {
+          user: '用户',
+          requests: '请求数',
+          inputTokens: '输入 Token',
+          outputTokens: '输出 Token',
+          cacheTokens: '缓存 Token',
+          totalTokens: '总 Token',
+          cost: '费用'
+        }
+      },
       cleanup: {
         button: '清理',
         title: '清理使用记录',
@@ -5396,6 +5506,43 @@ export default {
       loadingText: '加载中...',
       ready: '就绪',
       autoRefreshRemaining: '剩余 {seconds}s',
+      imageRuntimes: {
+        title: '图片运行时',
+        checkedAt: '检查时间：{time}',
+        refresh: '刷新图片运行时',
+        loadFailed: '加载图片运行时状态失败',
+        names: {
+          gatewayAsync: 'Gateway 异步',
+          batch: 'Batch Image',
+          imageStudio: '图像工作室'
+        },
+        states: {
+          ready: '就绪',
+          draining: '暂停提交，处理中',
+          disabled: '已关闭',
+          notReady: '未就绪'
+        },
+        checks: {
+          api: 'API 开关',
+          storage: '存储',
+          database: '数据库',
+          queue: '队列',
+          redis: 'Redis',
+          worker: 'Worker'
+        },
+        backlog: {
+          ready: '待处理',
+          delayed: '延迟',
+          active: '执行中'
+        },
+        oldestTask: '最老活动任务',
+        metrics: {
+          staleHolds: '陈旧余额冻结',
+          settlementRetries: '结算重试',
+          providerFailures: 'Provider 失败',
+          cleanupPending: '待清理结果'
+        }
+      },
       systemLogs: {
         title: '系统日志',
         description: '优先显示最新日志，可按条件筛选、搜索和清理。',
@@ -5634,6 +5781,7 @@ export default {
         typeUpstream: '上游',
         typeRequest: '请求',
         typeAuth: '认证',
+        typeAccountAuth: '账号认证',
         typeRouting: '路由',
         typeInternal: '内部',
         endpoint: '端点',
@@ -5659,6 +5807,7 @@ export default {
         phase: {
           request: '请求',
           auth: '认证',
+          account_auth: '账号认证',
           routing: '路由',
           upstream: '上游',
           network: '网络',
@@ -5972,6 +6121,16 @@ export default {
         showAdvancedDeveloperSettings: '显示高级开发者设置 (Distributed Lock)',
         advancedSettingsSummary: '高级设置 (分布式锁)',
         evalIntervalHint: '检测任务的执行频率，建议保持默认。',
+        metricThresholds: '指标阈值配置',
+        metricThresholdsHint: '配置各项指标的告警阈值，超出阈值时将以红色显示',
+        slaMinPercent: 'SLA最低百分比',
+        slaMinPercentHint: 'SLA低于此值时显示为红色（默认：99.5%）',
+        ttftP99MaxMs: 'TTFT P99最大值（毫秒）',
+        ttftP99MaxMsHint: 'TTFT P99高于此值时显示为红色（默认：500ms）',
+        requestErrorRateMaxPercent: '请求错误率最大值（%）',
+        requestErrorRateMaxPercentHint: '请求错误率高于此值时显示为红色（默认：5%）',
+        upstreamErrorRateMaxPercent: '上游错误率最大值（%）',
+        upstreamErrorRateMaxPercentHint: '上游错误率高于此值时显示为红色（默认：5%）',
         validation: {
           title: '请先修正以下问题',
           invalid: '设置不合法',
@@ -6190,6 +6349,15 @@ export default {
         backup: '数据备份',
         payment: '支付设置',
       },
+      security: {
+        stepUp: '敏感操作二次验证 (step-up 2FA)',
+        stepUpHint: '开启后，账号/代理导出、备份创建与下载、S3 配置修改、提升管理员等敏感操作需要先完成 TOTP 二次验证（15 分钟内有效）。开启前需本人已启用 2FA；关闭该开关本身也需要二次验证。',
+        stepUpEnableRequiresTotp: '开启敏感操作二次验证前，请先在个人资料中为当前账号启用 2FA (TOTP)。',
+        sessionBinding: '会话 IP/UA 绑定',
+        sessionBindingHint: '将登录会话与客户端 IP 和 User-Agent 绑定，任一变化即强制该会话失效并需重新登录（提升被盗凭证的利用门槛）。',
+        auditRetention: '操作日志保留天数',
+        auditRetentionHint: '超过该天数的操作日志将被自动清理；填 0 表示永久保留（仅支持手动清空）。'
+      },
       features: {
         channelMonitor: {
           title: '渠道监控',
@@ -6256,6 +6424,8 @@ export default {
           enabledHint: '关闭后用户菜单中的邀请页面入口隐藏、注册时忽略邀请码、新充值不再产生返利。已有返利额度仍可转入余额。',
           rebateRate: '全局返利比例',
           rebateRateHint: '充值后返给邀请人的默认比例（0-100%，例如填写 10 表示返利 10%）。',
+          adminRechargeRebate: '管理员充值参与返利',
+          adminRechargeRebateHint: '开启后，通过“用户管理 > 充值”增加的余额会产生邀请返利；设置余额和扣款不参与返利。',
           freezeHours: '返利冻结期（小时）',
           freezeHoursDesc: '新产生的返利将在冻结期内无法提现。0 = 不冻结。',
           durationDays: '返利有效期（天）',
@@ -6506,6 +6676,16 @@ export default {
         description: '控制 API Key 的调度行为',
         allowUngroupedKey: '允许未分组 Key 调度',
         allowUngroupedKeyHint: '关闭后，未分配到任何分组的 API Key 将无法发起请求（返回 403）。建议保持关闭以确保所有 Key 都归属明确的分组。'
+      },
+      upstreamBillingProbe: {
+        title: '上游倍率自动探测',
+        description: '定期获取 OpenAI API Key 所连接上游 Sub2API 站点声明的计费倍率。',
+        enabled: '启用全局自动探测',
+        enabledHint: '开启后，仅对账号自身已启用自动检测的账号执行定时探测；关闭后停止所有定时探测，手动探测不受影响。',
+        intervalMinutes: '探测周期（分钟）',
+        intervalHint: '范围 5–1440 分钟。成功探测结果的有效期为两个探测周期。',
+        saved: '上游倍率自动探测设置已保存',
+        saveFailed: '保存上游倍率自动探测设置失败'
       },
       gatewayForwarding: {
         title: '请求转发行为',
@@ -7312,6 +7492,11 @@ export default {
         stickyWeightedDescription: '开启后 previous_response_id 和 session_hash 粘性进入高级调度打分；关闭时仍按旧逻辑硬命中粘性账号。',
         subscriptionPriorityTitle: '订阅优先',
         subscriptionPriorityDescription: '开启后先在 ChatGPT 订阅账号池中按权值选取；订阅池拿不到席位时再回退到非订阅账号池。',
+        lowRatePriorityTitle: '低倍率优先',
+        lowRatePriorityDescription: '开启后优先选择计费倍率较低的账号；倍率相同时，再比较账号优先级和当前负载等。启用实验调度策略后，此开关不生效。',
+        oauthRateTitle: 'OAuth 调度参考倍率',
+        oauthRatePriorityDescription: '同一分组同时包含 API Key 和 OAuth 账号时，OAuth 账号按此倍率与已探测的 API Key 计费倍率一起排序。',
+        oauthRateWeightedDescription: '同一分组同时包含 API Key 和 OAuth 账号时，计算“计费倍率”得分时，OAuth 账号按此倍率参与计算。',
         weightsTitle: '调度权值覆盖',
         weightsDescription: '留空时使用配置/环境变量值；配置未设置时使用内置默认值。页面非空设置优先。',
         defaultPlaceholder: '配置/默认：{value}',
@@ -7324,7 +7509,8 @@ export default {
         resetWeight: '重置窗口',
         quotaHeadroomWeight: '额度余量',
         previousResponseWeight: 'previous_response 粘性',
-        sessionStickyWeight: 'session_hash 粘性'
+        sessionStickyWeight: 'session_hash 粘性',
+        upstreamCostWeight: '计费倍率'
       },
       usageRecords: {
         title: '使用记录',
@@ -7517,7 +7703,32 @@ export default {
     restartRequired: '请重启服务以应用更新',
     restartNow: '立即重启',
     restarting: '正在重启...',
-    retry: '重试'
+    retry: '重试',
+    rollback: '版本回退',
+    rollbackSelectVersion: '选择要回退到的版本（近 3 个版本）',
+    rollbackConfirm: '回退到 {version}',
+    rollbackWarning: '回退将下载所选版本并替换当前程序，完成后需重启服务',
+    rollingBack: '正在回退...',
+    rollbackComplete: '回退完成',
+    rollbackFailed: '回退失败',
+    manualRollbackCommand: '手动回退方式',
+    copyCommand: '复制',
+    copied: '已复制',
+    noRollbackVersions: '暂无可回退的版本',
+    loadVersionsFailed: '获取版本列表失败',
+    rollbackSourceHint: '源码构建不支持在线回退',
+    deployScript: '脚本部署',
+    deployDocker: 'Docker',
+    dockerEditCompose: '修改 docker-compose.yml 中的镜像版本',
+    dockerRecreate: '重新创建容器'
+  },
+
+  stepUp: {
+    title: '需要二次验证',
+    hint: '请输入身份验证器应用中的 6 位验证码以继续此敏感操作。',
+    verifyFailed: '验证失败，请重试',
+    notEnabled: '此操作需要开启二次验证，请先在个人资料中启用 TOTP。',
+    adminApiKeyForbidden: '管理 API Key 无法执行此操作，请使用已通过二次验证的管理员会话。'
   },
 
   // Recharge / Subscription Page
@@ -8038,8 +8249,12 @@ export default {
       deletePlanConfirm: '确定要删除此套餐吗？',
       originalPrice: '原价',
       price: '价格',
+      currency: '币种标注',
+      currencyPlaceholder: '如 USD / NZD / CNY',
+      currencyHint: '仅用于价格展示的 ISO 三字母币种码，留空不展示，不影响实际扣款',
       subscriptionCnyPayPreview: 'CNY 通道实扣预览：{amount}',
       subscriptionCnyPayPreviewWithFee: '（含 {feeRate}% 手续费：{total}）',
+      validity: '有效期',
       validityDays: '有效期（天）',
       validityUnit: '有效期单位',
       sortOrder: '排序',
@@ -8078,6 +8293,7 @@ export default {
       selectGroup: '请选择分组',
       groupRequired: '请选择订阅分组',
       priceRequired: '价格必须大于 0',
+      validityRequired: '有效期必须大于 0',
       validityDaysRequired: '有效期天数必须大于 0',
       groupMissing: '缺失',
       groupInfo: '分组信息',

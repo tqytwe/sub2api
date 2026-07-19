@@ -377,6 +377,7 @@ export const jisudengPagesEn = {
     promptPlaceholder: 'e.g. matte black wireless earbuds',
     promptRequired: 'Describe the image you want to create',
     promptTooLong: 'Prompt must be 8000 characters or fewer',
+    promptReferenceUnavailable: 'The prompt reference has expired. Please select it again from the prompt library.',
     optional: 'Optional',
     mode: 'Creation mode',
     createMode: 'Text to image',
