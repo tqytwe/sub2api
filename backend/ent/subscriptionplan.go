@@ -37,6 +37,10 @@ type SubscriptionPlan struct {
 	Features string `json:"features,omitempty"`
 	// ProductName holds the value of the "product_name" field.
 	ProductName string `json:"product_name,omitempty"`
+	// CoverImageURL holds the value of the "cover_image_url" field.
+	CoverImageURL string `json:"cover_image_url,omitempty"`
+	// DetailDescription holds the value of the "detail_description" field.
+	DetailDescription string `json:"detail_description,omitempty"`
 	// ForSale holds the value of the "for_sale" field.
 	ForSale bool `json:"for_sale,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
@@ -59,7 +63,7 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName:
+		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldCoverImageURL, subscriptionplan.FieldDetailDescription:
 			values[i] = new(sql.NullString)
 		case subscriptionplan.FieldCreatedAt, subscriptionplan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -144,6 +148,18 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field product_name", values[i])
 			} else if value.Valid {
 				_m.ProductName = value.String
+			}
+		case subscriptionplan.FieldCoverImageURL:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field cover_image_url", values[i])
+			} else if value.Valid {
+				_m.CoverImageURL = value.String
+			}
+		case subscriptionplan.FieldDetailDescription:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field detail_description", values[i])
+			} else if value.Valid {
+				_m.DetailDescription = value.String
 			}
 		case subscriptionplan.FieldForSale:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -236,6 +252,12 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("product_name=")
 	builder.WriteString(_m.ProductName)
+	builder.WriteString(", ")
+	builder.WriteString("cover_image_url=")
+	builder.WriteString(_m.CoverImageURL)
+	builder.WriteString(", ")
+	builder.WriteString("detail_description=")
+	builder.WriteString(_m.DetailDescription)
 	builder.WriteString(", ")
 	builder.WriteString("for_sale=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ForSale))

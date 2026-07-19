@@ -57,6 +57,12 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("product_name").
 			MaxLen(100).
 			Default(""),
+		field.String("cover_image_url").
+			SchemaType(map[string]string{dialect.Postgres: "text"}).
+			Default(""),
+		field.String("detail_description").
+			SchemaType(map[string]string{dialect.Postgres: "text"}).
+			Default(""),
 		field.Bool("for_sale").
 			Default(true),
 		field.Int("sort_order").

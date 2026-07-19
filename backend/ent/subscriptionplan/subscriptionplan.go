@@ -33,6 +33,10 @@ const (
 	FieldFeatures = "features"
 	// FieldProductName holds the string denoting the product_name field in the database.
 	FieldProductName = "product_name"
+	// FieldCoverImageURL holds the string denoting the cover_image_url field in the database.
+	FieldCoverImageURL = "cover_image_url"
+	// FieldDetailDescription holds the string denoting the detail_description field in the database.
+	FieldDetailDescription = "detail_description"
 	// FieldForSale holds the string denoting the for_sale field in the database.
 	FieldForSale = "for_sale"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
@@ -58,6 +62,8 @@ var Columns = []string{
 	FieldValidityUnit,
 	FieldFeatures,
 	FieldProductName,
+	FieldCoverImageURL,
+	FieldDetailDescription,
 	FieldForSale,
 	FieldSortOrder,
 	FieldCreatedAt,
@@ -95,6 +101,10 @@ var (
 	DefaultProductName string
 	// ProductNameValidator is a validator for the "product_name" field. It is called by the builders before save.
 	ProductNameValidator func(string) error
+	// DefaultCoverImageURL holds the default value on creation for the "cover_image_url" field.
+	DefaultCoverImageURL string
+	// DefaultDetailDescription holds the default value on creation for the "detail_description" field.
+	DefaultDetailDescription string
 	// DefaultForSale holds the default value on creation for the "for_sale" field.
 	DefaultForSale bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
@@ -163,6 +173,16 @@ func ByFeatures(opts ...sql.OrderTermOption) OrderOption {
 // ByProductName orders the results by the product_name field.
 func ByProductName(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProductName, opts...).ToFunc()
+}
+
+// ByCoverImageURL orders the results by the cover_image_url field.
+func ByCoverImageURL(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCoverImageURL, opts...).ToFunc()
+}
+
+// ByDetailDescription orders the results by the detail_description field.
+func ByDetailDescription(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDetailDescription, opts...).ToFunc()
 }
 
 // ByForSale orders the results by the for_sale field.
