@@ -526,6 +526,49 @@ describe('useImageStudioWorkspace prompt UX', () => {
     )
   })
 
+  it('ignores failed reference uploads for slots and submits ready references', async () => {
+    vi.spyOn(URL, 'createObjectURL')
+      .mockReturnValueOnce('blob:reference-failed')
+      .mockReturnValueOnce('blob:reference-ready')
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    mocks.uploadReference
+      .mockRejectedValueOnce({ message: 'invalid image studio reference image' })
+      .mockResolvedValueOnce({
+        id: 'ref-ready',
+        filename: 'ready.png',
+        content_type: 'image/png',
+        byte_size: 4,
+        expires_at: '2026-07-23T00:00:00Z',
+      })
+    const { workspace } = await mountWorkspace()
+    workspace.mode.value = 'edit'
+    workspace.userPrompt.value = 'edit the usable reference'
+
+    await workspace.addReferenceFiles([
+      new File(['bad'], 'broken.png', { type: 'image/png' }),
+    ])
+    expect(workspace.referenceUploads.value).toMatchObject([{
+      status: 'failed',
+      referenceId: undefined,
+    }])
+    expect(workspace.editReferencesReady.value).toBe(false)
+
+    await workspace.addReferenceFiles([
+      new File(['ok'], 'ready.png', { type: 'image/png' }),
+    ])
+
+    expect(workspace.referenceUploads.value.map((item) => item.status)).toEqual(['failed', 'ready'])
+    expect(workspace.editReferencesReady.value).toBe(true)
+    await expect(workspace.generate()).resolves.toBe(true)
+    expect(mocks.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        mode: 'edit',
+        reference_ids: ['ref-ready'],
+      }),
+      expect.any(String),
+    )
+  })
+
   it('submits only capability-valid advanced image options and resets them across model changes', async () => {
     const { workspace } = await mountWorkspace()
     workspace.availableModels.value = [{
@@ -1146,10 +1189,32 @@ describe('useImageStudioWorkspace prompt UX', () => {
     expect(getStudioPendingJobId()).toBe('job-1')
   })
 
+  it('does not load gallery history during the initial workspace load', async () => {
+    const { workspace } = await mountWorkspace()
+
+    expect(mocks.listJobs).not.toHaveBeenCalled()
+    expect(workspace.galleryLoaded.value).toBe(false)
+    expect(workspace.jobs.value).toEqual([])
+    expect(workspace.latestJob.value).toBeNull()
+  })
+
+  it('loads gallery history only when the works library is opened', async () => {
+    const { workspace } = await mountWorkspace()
+    mocks.listJobs.mockResolvedValueOnce(jobPage([completedJob()]))
+
+    await workspace.ensureGalleryLoaded()
+
+    expect(mocks.listJobs).toHaveBeenCalledWith(1, 12)
+    expect(workspace.galleryLoaded.value).toBe(true)
+    expect(workspace.jobs.value.map((job) => job.id)).toEqual(['job-1'])
+    expect(workspace.latestJob.value).toBeNull()
+  })
+
   it('surfaces gallery loading errors and clears them after retry', async () => {
     mocks.listJobs.mockRejectedValueOnce({ message: 'Gallery service unavailable.' })
     const { workspace } = await mountWorkspace()
 
+    await workspace.ensureGalleryLoaded()
     expect(workspace.galleryError.value).toBe('Gallery service unavailable.')
 
     mocks.listJobs.mockResolvedValueOnce(jobPage())
@@ -1157,13 +1222,15 @@ describe('useImageStudioWorkspace prompt UX', () => {
     expect(workspace.galleryError.value).toBe('')
   })
 
-  it('does not let the first gallery request block workspace bootstrapping', async () => {
+  it('does not let an explicit gallery request block workspace bootstrapping', async () => {
     let resolveGallery!: (value: ReturnType<typeof jobPage>) => void
     mocks.listJobs.mockReturnValueOnce(new Promise((resolve) => {
       resolveGallery = resolve
     }))
 
     const { workspace } = await mountWorkspace()
+    void workspace.ensureGalleryLoaded()
+    await flushPromises()
 
     expect(workspace.bootstrapping.value).toBe(false)
     expect(workspace.galleryLoading.value).toBe(true)
@@ -1220,7 +1287,7 @@ describe('useImageStudioWorkspace prompt UX', () => {
     expect(workspace.jobs.value.map((job) => job.id)).toEqual(['job-page-2'])
   })
 
-  it('features the first displayable terminal job from page one without success side effects', async () => {
+  it('keeps history jobs in the gallery instead of featuring them as the latest result', async () => {
     localStorage.setItem('image_studio_draft:v1:user:42', JSON.stringify({
       version: 1,
       userId: 42,
@@ -1252,10 +1319,15 @@ describe('useImageStudioWorkspace prompt UX', () => {
       completedJobWithId('job-later-history'),
     ]))
 
-    await workspace.refreshJobs(1)
+    await workspace.ensureGalleryLoaded()
 
-    expect(workspace.latestJob.value?.id).toBe('job-featured-history')
-    expect(workspace.latestJob.value?.status).toBe('partial')
+    expect(workspace.latestJob.value).toBeNull()
+    expect(workspace.jobs.value.map((job) => job.id)).toEqual([
+      'job-failed',
+      'job-empty',
+      'job-featured-history',
+      'job-later-history',
+    ])
     expect(mocks.trackGrowthEvent).not.toHaveBeenCalled()
     expect(mocks.trackQuestCompleteOnce).not.toHaveBeenCalled()
     expect(mocks.markStudioFirstWin).not.toHaveBeenCalled()
@@ -1278,6 +1350,7 @@ describe('useImageStudioWorkspace prompt UX', () => {
     mocks.poll.mockReturnValueOnce(new Promise(() => {}))
 
     const { workspace } = await mountWorkspace()
+    await workspace.refreshJobs(2)
     await flushPromises()
 
     expect(workspace.activeJobs.value.map((job) => job.id)).toEqual(['job-active'])

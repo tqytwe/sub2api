@@ -250,37 +250,61 @@ export async function getUserUsageStats(
   return data
 }
 
-/**
- * Balance history item returned from the API
- */
+export interface BalanceFlowSummary {
+  current_balance: number
+  frozen_balance: number
+  total_in: number
+  total_out: number
+  net_delta: number
+  recharge_total: number
+}
+
 export interface BalanceHistoryItem {
-  id: number
-  code: string
+  id: string
   type: string
-  value: number
-  status: string
-  used_by: number | null
-  used_at: string | null
-  created_at: string
-  group_id: number | null
-  validity_days: number
+  source_type: string
+  source_id?: string
+  amount: number
+  balance_delta: number
+  frozen_delta: number
+  balance_before?: number | null
+  balance_after?: number | null
+  frozen_before?: number | null
+  frozen_after?: number | null
+  occurred_at: string
+  description: string
+  actor_type: string
+  actor_user_id?: number | null
+  related_object_type?: string
+  related_object_id?: string
+  reference?: string
   notes: string
-  user?: { id: number; email: string } | null
-  group?: { id: number; name: string } | null
+  metadata?: Record<string, any>
+  confidence: string
 }
 
-// Balance history response extends pagination with total_recharged summary
 export interface BalanceHistoryResponse extends PaginatedResponse<BalanceHistoryItem> {
-  total_recharged: number
+  summary: BalanceFlowSummary
+}
+
+export interface BalanceReconciliationResponse {
+  current_balance: number
+  current_frozen: number
+  ledger_balance_sum: number
+  ledger_frozen_sum: number
+  balance_difference: number
+  frozen_difference: number
+  recent: BalanceHistoryItem[]
+  warnings: string[]
 }
 
 /**
- * Get user's balance/concurrency change history
+ * Get user's balance funds flow history
  * @param id - User ID
  * @param page - Page number
  * @param pageSize - Items per page
- * @param type - Optional type filter (balance, affiliate_balance, admin_balance, concurrency, admin_concurrency, subscription)
- * @returns Paginated balance history with total_recharged
+ * @param type - Optional flow type/source filter
+ * @returns Paginated balance flow with summary
  */
 export async function getUserBalanceHistory(
   id: number,
@@ -293,6 +317,13 @@ export async function getUserBalanceHistory(
   const { data } = await apiClient.get<BalanceHistoryResponse>(
     `/admin/users/${id}/balance-history`,
     { params }
+  )
+  return data
+}
+
+export async function getUserBalanceReconciliation(id: number): Promise<BalanceReconciliationResponse> {
+  const { data } = await apiClient.get<BalanceReconciliationResponse>(
+    `/admin/users/${id}/balance-reconciliation`
   )
   return data
 }
@@ -412,6 +443,7 @@ export const usersAPI = {
   getUserApiKeys,
   getUserUsageStats,
   getUserBalanceHistory,
+  getUserBalanceReconciliation,
   replaceGroup,
   bindUserAuthIdentity,
   getPlatformQuotas,

@@ -2095,11 +2095,25 @@ func buildImageStudioPrompt(tpl ImageStudioTemplate, req ImageStudioGenerateRequ
 		return strings.TrimSpace(*req.ExpertPrompt)
 	}
 	subject := strings.TrimSpace(req.UserPrompt)
-	prompt := strings.ReplaceAll(tpl.PromptTemplate, "{{subject}}", subject)
+	templatePrompt := strings.ReplaceAll(tpl.PromptTemplate, "{{subject}}", subject)
+	templatePrompt = softenImageStudioTextConstraint(templatePrompt)
+	prompt := strings.Join([]string{
+		"Primary subject: " + subject + ". The image must be about this subject, not a generic substitute. If the subject includes a brand name, product name, title, UI text, or membership wording, preserve that text only where it belongs to the subject.",
+		"Template direction: " + templatePrompt,
+	}, " ")
 	if accent := strings.TrimSpace(req.AccentColor); accent != "" {
 		prompt += ", accent color " + accent
 	}
 	return prompt
+}
+
+func softenImageStudioTextConstraint(prompt string) string {
+	replacer := strings.NewReplacer(
+		"no text", "no unrelated text",
+		"No text", "No unrelated text",
+		"NO TEXT", "NO UNRELATED TEXT",
+	)
+	return replacer.Replace(prompt)
 }
 
 func validateImageStudioPrompt(prompt string) error {

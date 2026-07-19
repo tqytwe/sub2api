@@ -3,6 +3,7 @@ import { mount, flushPromises } from '@vue/test-utils'
 
 const apiMocks = vi.hoisted(() => ({
   getUserBalanceHistory: vi.fn(),
+  getUserBalanceReconciliation: vi.fn(),
   listByUserSubscriptions: vi.fn(),
 }))
 
@@ -10,6 +11,7 @@ vi.mock('@/api/admin', () => ({
   adminAPI: {
     users: {
       getUserBalanceHistory: apiMocks.getUserBalanceHistory,
+      getUserBalanceReconciliation: apiMocks.getUserBalanceReconciliation,
     },
     subscriptions: {
       listByUser: apiMocks.listByUserSubscriptions,
@@ -31,7 +33,7 @@ vi.mock('@/components/common/BaseDialog.vue', () => ({
   default: {
     name: 'BaseDialog',
     props: ['show', 'title', 'width'],
-    template: '<div v-if="show"><slot /></div>',
+    template: '<div v-if="show"><h2>{{ title }}</h2><slot /></div>',
   },
 }))
 
@@ -76,12 +78,94 @@ const user = {
 beforeEach(() => {
   vi.clearAllMocks()
   apiMocks.getUserBalanceHistory.mockResolvedValue({
-    items: [],
-    total: 0,
+    items: [
+      {
+        id: 'play_reward:12',
+        type: 'blindbox',
+        source_type: 'play_reward_ledger',
+        source_id: '12',
+        amount: 0,
+        balance_delta: 0,
+        frozen_delta: 0,
+        balance_before: null,
+        balance_after: null,
+        frozen_before: null,
+        frozen_after: null,
+        occurred_at: '2026-07-19T10:00:00Z',
+        description: '盲盒净变动',
+        actor_type: 'system',
+        actor_user_id: null,
+        related_object_type: 'play_blindbox_open',
+        related_object_id: '88',
+        reference: 'blindbox:1024:2026-07-19',
+        notes: '',
+        metadata: {
+          blindbox_open_id: 88,
+          cost_amount: 0.5,
+          reward_amount: 0.5,
+          net_amount: 0,
+        },
+        confidence: 'high',
+      },
+      {
+        id: 'play_reward:11',
+        type: 'quiz',
+        source_type: 'play_reward_ledger',
+        source_id: '11',
+        amount: 0.5,
+        balance_delta: 0.5,
+        frozen_delta: 0,
+        balance_before: null,
+        balance_after: null,
+        frozen_before: null,
+        frozen_after: null,
+        occurred_at: '2026-07-19T09:55:00Z',
+        description: '答题奖励',
+        actor_type: 'system',
+        actor_user_id: null,
+        related_object_type: 'play_reward_ledger',
+        related_object_id: '11',
+        reference: 'quiz:1024:2026-07-19',
+        notes: '',
+        metadata: { attempt_date: '2026-07-19' },
+        confidence: 'high',
+      },
+      {
+        id: 'play_reward:10',
+        type: 'checkin',
+        source_type: 'play_reward_ledger',
+        source_id: '10',
+        amount: 0.5,
+        balance_delta: 0.5,
+        frozen_delta: 0,
+        balance_before: null,
+        balance_after: null,
+        frozen_before: null,
+        frozen_after: null,
+        occurred_at: '2026-07-19T09:50:00Z',
+        description: '签到奖励',
+        actor_type: 'system',
+        actor_user_id: null,
+        related_object_type: 'play_reward_ledger',
+        related_object_id: '10',
+        reference: 'checkin:1024:2026-07-19',
+        notes: '',
+        metadata: { checkin_date: '2026-07-19' },
+        confidence: 'high',
+      },
+    ],
+    total: 3,
     page: 1,
     page_size: 15,
     pages: 1,
-    total_recharged: 0,
+    summary: {
+      current_balance: 1,
+      frozen_balance: 0,
+      total_in: 1,
+      total_out: 0,
+      net_delta: 1,
+      recharge_total: 0,
+    },
   })
   apiMocks.listByUserSubscriptions.mockResolvedValue([
     {
@@ -114,10 +198,46 @@ beforeEach(() => {
       },
     },
   ])
+  apiMocks.getUserBalanceReconciliation.mockResolvedValue({
+    current_balance: 1,
+    current_frozen: 0,
+    ledger_balance_sum: 1,
+    ledger_frozen_sum: 0,
+    balance_difference: 0,
+    frozen_difference: 0,
+    recent: [],
+    warnings: [],
+  })
 })
 
 describe('UserBalanceHistoryModal', () => {
-  it('uses user subscriptions instead of redeem balance history when filtering subscription records', async () => {
+  it('renders balance flow summary, reward rows, and expandable blindbox details', async () => {
+    const wrapper = mount(UserBalanceHistoryModal, {
+      props: { show: false, user: user as any },
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    expect(apiMocks.getUserBalanceHistory).toHaveBeenCalledWith(1024, 1, 15, undefined)
+    expect(wrapper.html()).toContain('admin.users.balanceHistoryTitle')
+    expect(wrapper.text()).toContain('$1.00')
+    expect(wrapper.text()).toContain('+$0.50')
+    expect(wrapper.text()).toContain('blindbox:1024:2026-07-19')
+    expect(wrapper.text()).toContain('quiz:1024:2026-07-19')
+    expect(wrapper.text()).toContain('checkin:1024:2026-07-19')
+
+    const details = wrapper.findAll('button[title="admin.users.flowDetails"]')
+    expect(details.length).toBeGreaterThan(0)
+    await details[0].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('cost_amount')
+    expect(wrapper.text()).toContain('reward_amount')
+    expect(wrapper.html()).toContain('text-emerald-600')
+  })
+
+  it('uses user subscriptions instead of balance flow when filtering subscription records', async () => {
     const wrapper = mount(UserBalanceHistoryModal, {
       props: { show: false, user: user as any },
     })

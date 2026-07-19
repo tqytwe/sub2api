@@ -24,10 +24,10 @@ type AdminService interface {
 	GetUserAPIKeys(ctx context.Context, userID int64, page, pageSize int, sortBy, sortOrder string) ([]APIKey, int64, error)
 	GetUserUsageStats(ctx context.Context, userID int64, period string) (any, error)
 	GetUserRPMStatus(ctx context.Context, userID int64) (*UserRPMStatus, error)
-	// GetUserBalanceHistory returns paginated balance/concurrency change records for a user.
-	// codeType is optional - pass empty string to return all types.
-	// Also returns totalRecharged (sum of all positive balance top-ups).
-	GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, codeType string) ([]RedeemCode, int64, float64, error)
+	// GetUserBalanceHistory returns paginated balance/funds flow records for a user.
+	// flowType is optional - pass empty string to return all balance-affecting types.
+	GetUserBalanceHistory(ctx context.Context, userID int64, page, pageSize int, flowType string) (*AdminBalanceFlowHistory, error)
+	GetUserBalanceReconciliation(ctx context.Context, userID int64) (*AdminBalanceReconciliation, error)
 	BindUserAuthIdentity(ctx context.Context, userID int64, input AdminBindAuthIdentityInput) (*AdminBoundAuthIdentity, error)
 
 	// Group management
