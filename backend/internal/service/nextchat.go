@@ -37,11 +37,17 @@ func (s *APIKeyService) IssueNextChatManagedSession(ctx context.Context, userID 
 	if err != nil {
 		return nil, err
 	}
-	if key == nil {
-		groupID, groupErr := s.pickNextChatGroupID(ctx, userID)
-		if groupErr != nil {
-			return nil, groupErr
+	groupID, groupErr := s.pickNextChatGroupID(ctx, userID)
+	if groupErr != nil {
+		return nil, groupErr
+	}
+	if key != nil {
+		key, err = s.realignNextChatManagedKeyGroup(ctx, key, userID, groupID)
+		if err != nil {
+			return nil, err
 		}
+	}
+	if key == nil {
 		key, err = s.Create(ctx, userID, CreateAPIKeyRequest{
 			Name:    NextChatManagedAPIKeyName,
 			GroupID: groupID,
@@ -90,12 +96,80 @@ func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, user
 }
 
 func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (*int64, error) {
-	groups, err := s.GetAvailableGroups(ctx, userID)
+	groups, err := s.getNextChatUserOwnedKeyGroups(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	if len(groups) == 0 {
+	if len(groups) == 0 && s.userRepo != nil && s.groupRepo != nil && s.userSubRepo != nil {
+		groups, err = s.GetAvailableGroups(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return pickPreferredNextChatGroupID(groups), nil
+}
+
+func (s *APIKeyService) getNextChatUserOwnedKeyGroups(ctx context.Context, userID int64) ([]Group, error) {
+	lister, ok := s.apiKeyRepo.(apiKeyAllByUserIDLister)
+	if !ok {
 		return nil, nil
+	}
+	keys, err := lister.ListAllByUserID(ctx, userID, APIKeyListFilters{Status: StatusActive})
+	if err != nil {
+		return nil, fmt.Errorf("list user api key groups: %w", err)
+	}
+	groupByID := make(map[int64]Group)
+	missingGroupIDs := make(map[int64]struct{})
+	for i := range keys {
+		key := &keys[i]
+		if IsNextChatManagedAPIKeyName(key.Name) || key.GroupID == nil || *key.GroupID <= 0 {
+			continue
+		}
+		if key.Group != nil && key.Group.ID == *key.GroupID && key.Group.IsActive() {
+			groupByID[*key.GroupID] = *key.Group
+			continue
+		}
+		missingGroupIDs[*key.GroupID] = struct{}{}
+	}
+	if len(missingGroupIDs) > 0 && s.groupRepo != nil {
+		groups, listErr := s.groupRepo.ListActive(ctx)
+		if listErr != nil {
+			return nil, fmt.Errorf("list active groups: %w", listErr)
+		}
+		for _, group := range groups {
+			if _, needed := missingGroupIDs[group.ID]; needed {
+				groupByID[group.ID] = group
+			}
+		}
+	}
+	out := make([]Group, 0, len(groupByID))
+	for _, group := range groupByID {
+		out = append(out, group)
+	}
+	return out, nil
+}
+
+func (s *APIKeyService) realignNextChatManagedKeyGroup(ctx context.Context, key *APIKey, userID int64, groupID *int64) (*APIKey, error) {
+	if key == nil || groupID == nil || sameAPIKeyGroupID(key.GroupID, groupID) {
+		return key, nil
+	}
+	if key.UserID != userID {
+		return nil, ErrInsufficientPerms
+	}
+
+	updated := *key
+	updated.GroupID = groupID
+	if err := s.apiKeyRepo.Update(ctx, &updated); err != nil {
+		return nil, fmt.Errorf("realign nextchat managed api key group: %w", err)
+	}
+	s.InvalidateAuthCacheByKey(ctx, updated.Key)
+	s.compileAPIKeyIPRules(&updated)
+	return &updated, nil
+}
+
+func pickPreferredNextChatGroupID(groups []Group) *int64 {
+	if len(groups) == 0 {
+		return nil
 	}
 	sort.SliceStable(groups, func(i, j int) bool {
 		if groups[i].SortOrder != groups[j].SortOrder {
@@ -107,9 +181,16 @@ func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (
 		switch strings.ToLower(strings.TrimSpace(groups[i].Platform)) {
 		case PlatformOpenAI, PlatformGrok:
 			id := groups[i].ID
-			return &id, nil
+			return &id
 		}
 	}
 	id := groups[0].ID
-	return &id, nil
+	return &id
+}
+
+func sameAPIKeyGroupID(a, b *int64) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
 }
