@@ -104,6 +104,16 @@ func ProductName(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldProductName, v))
 }
 
+// CoverImageURL applies equality check predicate on the "cover_image_url" field. It's identical to CoverImageURLEQ.
+func CoverImageURL(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldCoverImageURL, v))
+}
+
+// DetailDescription applies equality check predicate on the "detail_description" field. It's identical to DetailDescriptionEQ.
+func DetailDescription(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldDetailDescription, v))
+}
+
 // ForSale applies equality check predicate on the "for_sale" field. It's identical to ForSaleEQ.
 func ForSale(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldForSale, v))
@@ -682,6 +692,136 @@ func ProductNameEqualFold(v string) predicate.SubscriptionPlan {
 // ProductNameContainsFold applies the ContainsFold predicate on the "product_name" field.
 func ProductNameContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldProductName, v))
+}
+
+// CoverImageURLEQ applies the EQ predicate on the "cover_image_url" field.
+func CoverImageURLEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldCoverImageURL, v))
+}
+
+// CoverImageURLNEQ applies the NEQ predicate on the "cover_image_url" field.
+func CoverImageURLNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldCoverImageURL, v))
+}
+
+// CoverImageURLIn applies the In predicate on the "cover_image_url" field.
+func CoverImageURLIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldCoverImageURL, vs...))
+}
+
+// CoverImageURLNotIn applies the NotIn predicate on the "cover_image_url" field.
+func CoverImageURLNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldCoverImageURL, vs...))
+}
+
+// CoverImageURLGT applies the GT predicate on the "cover_image_url" field.
+func CoverImageURLGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldCoverImageURL, v))
+}
+
+// CoverImageURLGTE applies the GTE predicate on the "cover_image_url" field.
+func CoverImageURLGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldCoverImageURL, v))
+}
+
+// CoverImageURLLT applies the LT predicate on the "cover_image_url" field.
+func CoverImageURLLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldCoverImageURL, v))
+}
+
+// CoverImageURLLTE applies the LTE predicate on the "cover_image_url" field.
+func CoverImageURLLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldCoverImageURL, v))
+}
+
+// CoverImageURLContains applies the Contains predicate on the "cover_image_url" field.
+func CoverImageURLContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldCoverImageURL, v))
+}
+
+// CoverImageURLHasPrefix applies the HasPrefix predicate on the "cover_image_url" field.
+func CoverImageURLHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldCoverImageURL, v))
+}
+
+// CoverImageURLHasSuffix applies the HasSuffix predicate on the "cover_image_url" field.
+func CoverImageURLHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldCoverImageURL, v))
+}
+
+// CoverImageURLEqualFold applies the EqualFold predicate on the "cover_image_url" field.
+func CoverImageURLEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldCoverImageURL, v))
+}
+
+// CoverImageURLContainsFold applies the ContainsFold predicate on the "cover_image_url" field.
+func CoverImageURLContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldCoverImageURL, v))
+}
+
+// DetailDescriptionEQ applies the EQ predicate on the "detail_description" field.
+func DetailDescriptionEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldDetailDescription, v))
+}
+
+// DetailDescriptionNEQ applies the NEQ predicate on the "detail_description" field.
+func DetailDescriptionNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldDetailDescription, v))
+}
+
+// DetailDescriptionIn applies the In predicate on the "detail_description" field.
+func DetailDescriptionIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldDetailDescription, vs...))
+}
+
+// DetailDescriptionNotIn applies the NotIn predicate on the "detail_description" field.
+func DetailDescriptionNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldDetailDescription, vs...))
+}
+
+// DetailDescriptionGT applies the GT predicate on the "detail_description" field.
+func DetailDescriptionGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldDetailDescription, v))
+}
+
+// DetailDescriptionGTE applies the GTE predicate on the "detail_description" field.
+func DetailDescriptionGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldDetailDescription, v))
+}
+
+// DetailDescriptionLT applies the LT predicate on the "detail_description" field.
+func DetailDescriptionLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldDetailDescription, v))
+}
+
+// DetailDescriptionLTE applies the LTE predicate on the "detail_description" field.
+func DetailDescriptionLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldDetailDescription, v))
+}
+
+// DetailDescriptionContains applies the Contains predicate on the "detail_description" field.
+func DetailDescriptionContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldDetailDescription, v))
+}
+
+// DetailDescriptionHasPrefix applies the HasPrefix predicate on the "detail_description" field.
+func DetailDescriptionHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldDetailDescription, v))
+}
+
+// DetailDescriptionHasSuffix applies the HasSuffix predicate on the "detail_description" field.
+func DetailDescriptionHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldDetailDescription, v))
+}
+
+// DetailDescriptionEqualFold applies the EqualFold predicate on the "detail_description" field.
+func DetailDescriptionEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldDetailDescription, v))
+}
+
+// DetailDescriptionContainsFold applies the ContainsFold predicate on the "detail_description" field.
+func DetailDescriptionContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldDetailDescription, v))
 }
 
 // ForSaleEQ applies the EQ predicate on the "for_sale" field.

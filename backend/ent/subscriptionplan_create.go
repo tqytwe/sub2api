@@ -138,6 +138,34 @@ func (_c *SubscriptionPlanCreate) SetNillableProductName(v *string) *Subscriptio
 	return _c
 }
 
+// SetCoverImageURL sets the "cover_image_url" field.
+func (_c *SubscriptionPlanCreate) SetCoverImageURL(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetCoverImageURL(v)
+	return _c
+}
+
+// SetNillableCoverImageURL sets the "cover_image_url" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableCoverImageURL(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetCoverImageURL(*v)
+	}
+	return _c
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (_c *SubscriptionPlanCreate) SetDetailDescription(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetDetailDescription(v)
+	return _c
+}
+
+// SetNillableDetailDescription sets the "detail_description" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableDetailDescription(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetDetailDescription(*v)
+	}
+	return _c
+}
+
 // SetForSale sets the "for_sale" field.
 func (_c *SubscriptionPlanCreate) SetForSale(v bool) *SubscriptionPlanCreate {
 	_c.mutation.SetForSale(v)
@@ -253,6 +281,14 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultProductName
 		_c.mutation.SetProductName(v)
 	}
+	if _, ok := _c.mutation.CoverImageURL(); !ok {
+		v := subscriptionplan.DefaultCoverImageURL
+		_c.mutation.SetCoverImageURL(v)
+	}
+	if _, ok := _c.mutation.DetailDescription(); !ok {
+		v := subscriptionplan.DefaultDetailDescription
+		_c.mutation.SetDetailDescription(v)
+	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		v := subscriptionplan.DefaultForSale
 		_c.mutation.SetForSale(v)
@@ -319,6 +355,12 @@ func (_c *SubscriptionPlanCreate) check() error {
 		if err := subscriptionplan.ProductNameValidator(v); err != nil {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.CoverImageURL(); !ok {
+		return &ValidationError{Name: "cover_image_url", err: errors.New(`ent: missing required field "SubscriptionPlan.cover_image_url"`)}
+	}
+	if _, ok := _c.mutation.DetailDescription(); !ok {
+		return &ValidationError{Name: "detail_description", err: errors.New(`ent: missing required field "SubscriptionPlan.detail_description"`)}
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		return &ValidationError{Name: "for_sale", err: errors.New(`ent: missing required field "SubscriptionPlan.for_sale"`)}
@@ -398,6 +440,14 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ProductName(); ok {
 		_spec.SetField(subscriptionplan.FieldProductName, field.TypeString, value)
 		_node.ProductName = value
+	}
+	if value, ok := _c.mutation.CoverImageURL(); ok {
+		_spec.SetField(subscriptionplan.FieldCoverImageURL, field.TypeString, value)
+		_node.CoverImageURL = value
+	}
+	if value, ok := _c.mutation.DetailDescription(); ok {
+		_spec.SetField(subscriptionplan.FieldDetailDescription, field.TypeString, value)
+		_node.DetailDescription = value
 	}
 	if value, ok := _c.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
@@ -614,6 +664,30 @@ func (u *SubscriptionPlanUpsert) SetProductName(v string) *SubscriptionPlanUpser
 // UpdateProductName sets the "product_name" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateProductName() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldProductName)
+	return u
+}
+
+// SetCoverImageURL sets the "cover_image_url" field.
+func (u *SubscriptionPlanUpsert) SetCoverImageURL(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldCoverImageURL, v)
+	return u
+}
+
+// UpdateCoverImageURL sets the "cover_image_url" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateCoverImageURL() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldCoverImageURL)
+	return u
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (u *SubscriptionPlanUpsert) SetDetailDescription(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldDetailDescription, v)
+	return u
+}
+
+// UpdateDetailDescription sets the "detail_description" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateDetailDescription() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldDetailDescription)
 	return u
 }
 
@@ -876,6 +950,34 @@ func (u *SubscriptionPlanUpsertOne) SetProductName(v string) *SubscriptionPlanUp
 func (u *SubscriptionPlanUpsertOne) UpdateProductName() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateProductName()
+	})
+}
+
+// SetCoverImageURL sets the "cover_image_url" field.
+func (u *SubscriptionPlanUpsertOne) SetCoverImageURL(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetCoverImageURL(v)
+	})
+}
+
+// UpdateCoverImageURL sets the "cover_image_url" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateCoverImageURL() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateCoverImageURL()
+	})
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (u *SubscriptionPlanUpsertOne) SetDetailDescription(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetDetailDescription(v)
+	})
+}
+
+// UpdateDetailDescription sets the "detail_description" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateDetailDescription() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateDetailDescription()
 	})
 }
 
@@ -1311,6 +1413,34 @@ func (u *SubscriptionPlanUpsertBulk) SetProductName(v string) *SubscriptionPlanU
 func (u *SubscriptionPlanUpsertBulk) UpdateProductName() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateProductName()
+	})
+}
+
+// SetCoverImageURL sets the "cover_image_url" field.
+func (u *SubscriptionPlanUpsertBulk) SetCoverImageURL(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetCoverImageURL(v)
+	})
+}
+
+// UpdateCoverImageURL sets the "cover_image_url" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateCoverImageURL() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateCoverImageURL()
+	})
+}
+
+// SetDetailDescription sets the "detail_description" field.
+func (u *SubscriptionPlanUpsertBulk) SetDetailDescription(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetDetailDescription(v)
+	})
+}
+
+// UpdateDetailDescription sets the "detail_description" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateDetailDescription() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateDetailDescription()
 	})
 }
 

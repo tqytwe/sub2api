@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import PlanEditDialog from '../PlanEditDialog.vue'
+import type { SubscriptionPlan } from '@/types/payment'
+
+const createPlanMock = vi.hoisted(() => vi.fn())
+const updatePlanMock = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
@@ -21,17 +25,25 @@ vi.mock('@/stores/app', () => ({
 
 vi.mock('@/api/admin/payment', () => ({
   adminPaymentAPI: {
-    createPlan: vi.fn(),
-    updatePlan: vi.fn(),
+    createPlan: createPlanMock,
+    updatePlan: updatePlanMock,
   },
 }))
 
-function mountDialog(paymentConfig: Record<string, unknown> | null) {
+function mountDialog(paymentConfig: Record<string, unknown> | null, plan: SubscriptionPlan | null = null) {
   return mount(PlanEditDialog, {
     props: {
       show: true,
-      plan: null,
-      groups: [],
+      plan,
+      groups: plan
+        ? [{
+            id: plan.group_id,
+            name: 'OpenAI Pro',
+            platform: 'openai',
+            rate_multiplier: 1,
+            subscription_type: 'subscription',
+          }]
+        : [],
       paymentConfig,
     },
     global: {
@@ -43,6 +55,11 @@ function mountDialog(paymentConfig: Record<string, unknown> | null) {
         Select: true,
         Icon: true,
         GroupBadge: true,
+        ImageUpload: {
+          props: ['modelValue'],
+          emits: ['update:modelValue'],
+          template: '<button class="image-upload-stub" type="button" @click="$emit(\'update:modelValue\', \'data:image/png;base64,QUJD\')">upload</button>',
+        },
       },
     },
   })
@@ -73,5 +90,40 @@ describe('PlanEditDialog subscription CNY payment preview', () => {
 
     expect(wrapper.text()).not.toContain('preview')
     expect(wrapper.text()).not.toContain('¥71.43')
+  })
+})
+
+describe('PlanEditDialog product display fields', () => {
+  it('saves product name, cover image URL, uploaded cover image, and detail description', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog(null, {
+      id: 7,
+      group_id: 3,
+      name: 'Starter',
+      description: 'Short copy',
+      price: 9.99,
+      original_price: 0,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      features: ['Priority models'],
+      product_name: '',
+      cover_image_url: '',
+      detail_description: '',
+      for_sale: true,
+      sort_order: 1,
+    })
+
+    await wrapper.find('[data-test="plan-product-name"]').setValue('GPT Pro Workbench')
+    await wrapper.find('[data-test="plan-cover-image-url"]').setValue('/assets/plans/pro.webp')
+    await wrapper.find('.image-upload-stub').trigger('click')
+    await wrapper.find('[data-test="plan-detail-description"]').setValue('Line one\nLine two')
+    await wrapper.find('form').trigger('submit')
+
+    expect(updatePlanMock).toHaveBeenCalledWith(7, expect.objectContaining({
+      product_name: 'GPT Pro Workbench',
+      cover_image_url: 'data:image/png;base64,QUJD',
+      detail_description: 'Line one\nLine two',
+    }))
   })
 })

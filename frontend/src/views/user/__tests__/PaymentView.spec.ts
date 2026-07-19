@@ -141,6 +141,9 @@ function checkoutInfoWithPlansFixture(options: {
     sort_order: 1,
     for_sale: true,
     group_name: 'OpenAI',
+    product_name: '',
+    cover_image_url: '',
+    detail_description: '',
     ...options.plan,
   }
 
@@ -323,6 +326,68 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(text).toContain(fee)
     expect(text).toContain(total)
     expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
+  })
+})
+
+describe('PaymentView subscription product details', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+    routeState.path = '/purchase'
+    routeState.query = { tab: 'subscription' }
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset()
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    bridgeInvoke.mockReset()
+    window.localStorage.clear()
+  })
+
+  it('opens a product detail dialog from the card and then enters the existing subscription confirmation flow', async () => {
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoWithPlansFixture({
+      plan: {
+        product_name: 'GPT Pro Workbench',
+        cover_image_url: '/assets/plans/pro.webp',
+        detail_description: 'Line one\nLine two',
+        features: ['Priority models'],
+      },
+    }))
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: {
+            template: '<div><slot /></div>',
+          },
+          SubscriptionPlanCard: {
+            props: ['plan'],
+            template: '<button data-test="open-details" @click="$emit(\'details\', plan)">open details</button>',
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    await wrapper.find('[data-test="open-details"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('GPT Pro Workbench')
+    expect(wrapper.text()).toContain('Line one')
+    expect(wrapper.text()).toContain('Line two')
+    expect(wrapper.text()).toContain('Priority models')
+
+    await wrapper.find('[data-test="plan-detail-subscribe"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('payment.createOrder')
+    expect(wrapper.text()).toContain(formatPaymentAmount(128, 'CNY'))
   })
 })
 

@@ -1,7 +1,7 @@
 <template>
   <BaseDialog :show="show" :title="plan ? t('payment.admin.editPlan') : t('payment.admin.createPlan')" width="wide" @close="emit('close')">
     <form id="plan-form" @submit.prevent="handleSavePlan" class="space-y-4">
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label class="input-label">{{ t('payment.admin.planName') }} <span class="text-red-500">*</span></label>
           <input v-model="planForm.name" type="text" class="input" required />
@@ -34,7 +34,58 @@
       </div>
 
       <div><label class="input-label">{{ t('payment.admin.planDescription') }} <span class="text-red-500">*</span></label><textarea v-model="planForm.description" rows="2" class="input" required></textarea></div>
-      <div class="grid grid-cols-2 gap-4">
+
+      <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <div class="mb-4">
+          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.productDisplay') }}</h3>
+        </div>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="input-label">{{ t('payment.admin.productName') }}</label>
+            <input
+              v-model="planForm.product_name"
+              data-test="plan-product-name"
+              type="text"
+              class="input"
+              :placeholder="t('payment.admin.productNamePlaceholder')"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.coverImageUrl') }}</label>
+            <input
+              v-model="planForm.cover_image_url"
+              data-test="plan-cover-image-url"
+              type="text"
+              class="input"
+              :placeholder="t('payment.admin.coverImageUrlPlaceholder')"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.coverImageUpload') }}</label>
+            <ImageUpload
+              v-model="planForm.cover_image_url"
+              mode="image"
+              size="md"
+              :max-size="300 * 1024"
+              :upload-label="t('payment.admin.coverImageUpload')"
+              :remove-label="t('common.delete')"
+              :hint="t('payment.admin.coverImageHint')"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.detailDescription') }}</label>
+            <textarea
+              v-model="planForm.detail_description"
+              data-test="plan-detail-description"
+              rows="5"
+              class="input"
+              :placeholder="t('payment.admin.detailDescriptionPlaceholder')"
+            ></textarea>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label class="input-label">{{ t('payment.admin.price') }} <span class="text-red-500">*</span></label>
           <input v-model.number="planForm.price" type="number" step="0.01" min="0.01" class="input" required />
@@ -47,11 +98,11 @@
         </div>
         <div><label class="input-label">{{ t('payment.admin.originalPrice') }}</label><input v-model.number="planForm.original_price" type="number" step="0.01" min="0" class="input" /></div>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div><label class="input-label">{{ t('payment.admin.validity') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.validity_days" type="number" min="1" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="text-red-500">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
       </div>
-      <div class="grid grid-cols-2 gap-4">
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
         <div>
           <label class="input-label">{{ t('payment.admin.currency') }}</label>
@@ -104,6 +155,7 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
+import ImageUpload from '@/components/common/ImageUpload.vue'
 import { platformTextClass } from '@/utils/platformColors'
 
 const props = defineProps<{
@@ -122,7 +174,21 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const saving = ref(false)
-const planForm = reactive({ name: '', group_id: null as number | null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+const planForm = reactive({
+  name: '',
+  group_id: null as number | null,
+  description: '',
+  product_name: '',
+  cover_image_url: '',
+  detail_description: '',
+  price: 0,
+  original_price: 0,
+  currency: '',
+  validity_days: 30,
+  validity_unit: 'days',
+  sort_order: 0,
+  for_sale: true,
+})
 const planFeaturesText = ref('')
 
 const validityUnitOptions = computed(() => [
@@ -175,13 +241,41 @@ const subscriptionCnyPreview = computed(() => {
 watch(() => props.show, (visible) => {
   if (!visible) return
   if (props.plan) {
-    Object.assign(planForm, { name: props.plan.name, group_id: props.plan.group_id, description: props.plan.description, price: props.plan.price, original_price: props.plan.original_price || 0, currency: props.plan.currency || '', validity_days: props.plan.validity_days, validity_unit: props.plan.validity_unit || 'days', sort_order: props.plan.sort_order || 0, for_sale: props.plan.for_sale })
+    Object.assign(planForm, {
+      name: props.plan.name,
+      group_id: props.plan.group_id,
+      description: props.plan.description,
+      product_name: props.plan.product_name || '',
+      cover_image_url: props.plan.cover_image_url || '',
+      detail_description: props.plan.detail_description || '',
+      price: props.plan.price,
+      original_price: props.plan.original_price || 0,
+      currency: props.plan.currency || '',
+      validity_days: props.plan.validity_days,
+      validity_unit: props.plan.validity_unit || 'days',
+      sort_order: props.plan.sort_order || 0,
+      for_sale: props.plan.for_sale,
+    })
     planFeaturesText.value = (props.plan.features || []).join('\n')
   } else {
-    Object.assign(planForm, { name: '', group_id: null, description: '', price: 0, original_price: 0, currency: '', validity_days: 30, validity_unit: 'days', sort_order: 0, for_sale: true })
+    Object.assign(planForm, {
+      name: '',
+      group_id: null,
+      description: '',
+      product_name: '',
+      cover_image_url: '',
+      detail_description: '',
+      price: 0,
+      original_price: 0,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      sort_order: 0,
+      for_sale: true,
+    })
     planFeaturesText.value = ''
   }
-})
+}, { immediate: true })
 
 /** Build request payload with snake_case keys matching backend JSON tags */
 function buildPlanPayload() {
@@ -190,6 +284,9 @@ function buildPlanPayload() {
     name: planForm.name,
     group_id: planForm.group_id,
     description: planForm.description,
+    product_name: planForm.product_name.trim(),
+    cover_image_url: planForm.cover_image_url.trim(),
+    detail_description: planForm.detail_description.trim(),
     price: planForm.price,
     original_price: planForm.original_price || 0,
     currency: planForm.currency.trim().toUpperCase(),
