@@ -70,6 +70,11 @@ type PlayBlindboxOpenRecord struct {
 	OpenSource     string
 }
 
+type PlayVIPBlindboxPool struct {
+	Tier int              `json:"tier"`
+	Pool PlayBlindboxPool `json:"pool"`
+}
+
 type PlayCheckinStatus struct {
 	Enabled                bool
 	CheckedInToday         bool
@@ -96,6 +101,13 @@ type PlayBlindboxStatus struct {
 	Enabled             bool
 	CostAmount          float64
 	BlindboxPool        PlayBlindboxPool
+	CurrentPool         PlayBlindboxPool
+	NextPool            *PlayBlindboxPool
+	VIPTier             PlayVIPStatus
+	ExpectedReward      float64
+	NextExpectedReward  float64
+	PoolVersion         string
+	RTPCap              float64
 	DailyLimit          int
 	EffectiveLimit      int
 	OpensToday          int
@@ -106,13 +118,16 @@ type PlayBlindboxStatus struct {
 }
 
 type PlayBlindboxOpenResult struct {
-	CostAmount   float64
-	RewardAmount float64
-	NetAmount    float64
-	OpensToday   int
-	ServerDate   string
-	PoolVersion  string
-	OpenSource   string
+	CostAmount     float64
+	RewardAmount   float64
+	NetAmount      float64
+	OpensToday     int
+	ServerDate     string
+	PoolVersion    string
+	OpenSource     string
+	VIPTier        PlayVIPStatus
+	ExpectedReward float64
+	RTPCap         float64
 }
 
 // PlayBlindboxRecentWin is a privacy-masked public feed row for recent opens.

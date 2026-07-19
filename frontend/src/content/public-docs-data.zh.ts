@@ -678,6 +678,14 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   <li><strong>限时活动</strong> — 充值加赠、盲盒额外次数、Arena 倍率（Campaign 引擎）</li>
 </ul>
 
+<h2>Token 农场 / Arena 奖励怎么算</h2>
+<p>Token 农场奖励按排行榜结算，不按 VIP 或活动倍率直接放大奖励金额。用户的有效 API Token 消耗进入日榜/月榜；结算时按排名命中固定奖励档，例如默认月榜第 1 名 $50、Top 3 $20、Top 10 $5。</p>
+<p class="docs-tip">Recharge Boost 与 Campaign 的 Arena 倍率只影响展示积分和排名竞争，不直接把结算奖励金额乘大。最终到账以结算快照和 Play reward ledger 为准。</p>
+
+<h2>Agent Team 奖励怎么算</h2>
+<p>Agent Team 奖励先算团队池，再按成员贡献比例分配：<strong>团队奖池 = 团队月消费 × 当前达标比例</strong>，并受每队每月封顶限制；<strong>个人奖励 = 个人消费 / 团队总消费 × 团队奖池</strong>。</p>
+<p>默认档位为 $20→2%、$100→3%、$500→4%、$2000→5%，默认封顶 $250。页面展示的是实时预计值，最终以月结快照为准。</p>
+
 <h2>充值联动</h2>
 <p>充值成功后可能触发：</p>
 <ul>
@@ -723,21 +731,30 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
         id: 'blindbox-rewards',
         title: "盲盒玩法",
         summary: "扣费开箱 · 随机返余额 · 每日次数上限",
-        html: `<p class="docs-lead">盲盒是 Play 域的随机奖励玩法：消耗少量余额开箱，随机返还更高或更低的 balance。与对标站「充值送盲盒」不同，<strong>本站默认是余额扣费开箱</strong>。</p>
+        html: `<p class="docs-lead">盲盒是 Play 域的随机奖励玩法：消耗少量余额开箱，按当前用户的 <strong>VIP 专属奖池</strong> 随机返还 balance。与对标站「充值送盲盒」不同，<strong>本站默认是余额扣费开箱</strong>。</p>
 
 <h2>基本规则（默认配置）</h2>
 <ul>
   <li>每次开箱扣费 <strong>$0.50</strong>（<code>play_blindbox_cost</code>）</li>
   <li>每日上限 <strong>10 次</strong>（<code>play_blindbox_daily_limit</code>）</li>
-  <li>随机返奖档位：$0.05 / $0.20 / $0.50 / $1.00 / $2.00（加权概率）</li>
+  <li>随机返奖档位：$0.05 / $0.20 / $0.50 / $1.00 / $3.00 / $10.00 / $20.00（加权概率）</li>
   <li>净收益 = 返奖 − 扣费，直接写入余额</li>
 </ul>
+
+<h2>VIP 专属奖池</h2>
+<ul>
+  <li>V0 使用基础奖池，默认预计回报约 $0.45</li>
+  <li>V1-V5 使用对应 VIP 奖池版本，逐级提高高奖项权重，V5 默认预计回报约 $0.495</li>
+  <li>页面展示当前 VIP、当前奖池、下一档奖池、预计回报和距下一档差额</li>
+  <li>中奖记录保存 <code>pool_version</code>，因此配置变化后仍能解释历史开箱按哪个奖池抽</li>
+</ul>
+<p class="docs-tip">VIP 奖池升级不保证稳赚；所有概率、成本和 RTP 上限都会在页面展示，最终以服务端抽奖记录为准。</p>
 
 <h2>加成与上限</h2>
 <ul>
   <li><strong>充值 Boost 24h</strong> — 额外每日开箱次数</li>
   <li><strong>限时活动 Campaign</strong> — 可配置 <code>blindbox_extra_opens</code></li>
-  <li><strong>V2+ VIP</strong> — 展示「盲盒奖池升级」权益标识</li>
+  <li><strong>VIP</strong> — 使用当前等级对应的 VIP 专属奖池</li>
 </ul>
 
 <h2>入口</h2>
@@ -745,8 +762,8 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 
 <h2>API</h2>
 <ul>
-  <li><code>GET /api/v1/play/blindbox/status</code> — 今日次数、是否可开</li>
-  <li><code>POST /api/v1/play/blindbox/open</code> — 开箱（支持幂等键）</li>
+  <li><code>GET /api/v1/play/blindbox/status</code> — 今日次数、是否可开、当前/下一 VIP 奖池、预计回报</li>
+  <li><code>POST /api/v1/play/blindbox/open</code> — 开箱（支持幂等键），返回中奖金额、净收益、VIP 与奖池版本</li>
 </ul>
 <p class="docs-tip">需管理员开启 <code>play_blindbox_enabled</code>。概率与扣费可在 Settings 调整。</p>`,
       },
@@ -813,6 +830,14 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   <li><strong>日榜</strong> — 当日有效 Token 消耗排名；Top 10 次日自动发放小额余额奖励（日预算上限 $50）</li>
   <li><strong>月榜</strong> — 赛季周期排名；Admin 调用 <code>POST /admin/play/arena/settle</code> 结算大奖</li>
   <li>展示「距上一名还差 X tokens」与 Recharge Boost / Campaign Buff 倍率</li>
+</ul>
+
+<h2>结算奖励口径</h2>
+<ul>
+  <li>奖励按结算时排名命中固定金额档，不按 VIP 额外倍增</li>
+  <li>默认月榜：第 1 名 $50、Top 3 $20、Top 10 $5</li>
+  <li>默认日榜：第 1 名 $0.5、Top 3 $0.2、Top 10 $0.1</li>
+  <li>活动倍率只影响展示积分和排名，不直接把奖励金额乘大</li>
 </ul>
 
 <h2>每日任务（能量 → 等级，纯展示）</h2>

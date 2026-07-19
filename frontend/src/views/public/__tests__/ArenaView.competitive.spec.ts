@@ -68,6 +68,13 @@ const messages: Record<string, string> = {
   'arena.competitive.rewardRuleRanked': '奖励发给排行榜上榜用户，按有效 API Token 消耗统计。',
   'arena.competitive.rewardRuleSettle': '月榜在周期结束后结算；日榜用于即时反馈与小额活动。',
   'arena.competitive.rewardRuleEnergy': '每日任务能量用于等级/进度展示，不等同于余额到账。',
+  'arena.competitive.formulaTitle': '结算口径',
+  'arena.competitive.formulaRank': '最终奖励按结算时排名匹配固定金额。',
+  'arena.competitive.formulaBoost': '充值/活动倍率只影响展示积分和排名，不直接倍增奖励金额。',
+  'arena.estimatedReward': '当前名次预计 API 余额奖励：${amount}',
+  'arena.competitive.settlementCelebrationTitle': '本期奖励已结算',
+  'arena.competitive.settlementCelebrationSubtitle': '奖励已按结算快照到账。',
+  'arena.competitive.viewDetails': '查看明细',
   'arena.competitive.rewardZone': '奖励区',
   'arena.competitive.keepClimbing': '继续追榜',
   'arena.competitive.topRange': 'Top 10 发放范围',
@@ -122,6 +129,7 @@ function mountView() {
 
 describe('ArenaView competitive layout', () => {
   beforeEach(() => {
+    window.sessionStorage.clear()
     getArenaCurrentMock.mockResolvedValue({
       enabled: true,
       period: period(),
@@ -129,6 +137,7 @@ describe('ArenaView competitive layout', () => {
       display_token_sum: 653910,
       rank: 5,
       tokens_to_prev_rank: 37310,
+      estimated_reward: 5,
     })
     getArenaDailyCurrentMock.mockResolvedValue({
       enabled: true,
@@ -177,7 +186,37 @@ describe('ArenaView competitive layout', () => {
     expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('Mira Studio')
     expect(wrapper.text()).toContain('奖励发给排行榜上榜用户')
     expect(wrapper.text()).toContain('每日任务能量用于等级/进度展示，不等同于余额到账')
+    expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
+    expect(wrapper.text()).toContain('充值/活动倍率只影响展示积分和排名，不直接倍增奖励金额')
     expect(wrapper.find('.arena-rank-row.current').text()).toContain('你')
     expect(wrapper.findAll('.arena-quest-card')).toHaveLength(2)
+  })
+
+  it('shows the settlement celebration once per settled period', async () => {
+    getArenaCurrentMock.mockResolvedValue({
+      enabled: true,
+      period: { ...period(), status: 'settled' },
+      token_sum: 653910,
+      display_token_sum: 653910,
+      rank: 5,
+      tokens_to_prev_rank: 37310,
+      estimated_reward: 5,
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.find('.reward-celebration-overlay').text()).toContain('$5.00')
+
+    await wrapper.get('.reward-close').trigger('click')
+    await flushPromises()
+
+    expect(window.sessionStorage.getItem('play-arena-settled:monthly:1')).toBe('1')
+    expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
+
+    const again = mountView()
+    await flushPromises()
+
+    expect(again.find('.reward-celebration-overlay').exists()).toBe(false)
   })
 })

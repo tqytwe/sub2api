@@ -90,6 +90,25 @@ function configuredStatus() {
     enabled: true,
     cost_amount: 0.5,
     pool: configuredPool,
+    current_pool: configuredPool,
+    next_pool: {
+      ...configuredPool,
+      version: 'season-1-vip-v4',
+      rtp_cap: 0.98,
+    },
+    vip_tier: {
+      tier: 3,
+      label: 'V3',
+      recharge_bonus_pct: 6,
+      color_key: 'indigo',
+      amount_to_next: 300,
+      next_label: 'V4',
+      next_tier: 4,
+    },
+    expected_reward: 0.45,
+    next_expected_reward: 0.485,
+    pool_version: 'season-1-vip-v3',
+    rtp_cap: 0.96,
     daily_limit: 3,
     effective_limit: 3,
     opens_today: 0,
@@ -222,6 +241,38 @@ describe('BlindboxView', () => {
     expect(getBlindboxStatusMock).toHaveBeenCalledTimes(2)
   })
 
+  it('shows the VIP pool upgrade context and celebration after a successful open', async () => {
+    authState.isAuthenticated = true
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock.mockResolvedValue({
+      cost_amount: 0.5,
+      reward_amount: 3,
+      net_amount: 2.5,
+      opens_today: 1,
+      server_date: '2026-07-16',
+      pool_version: 'season-1-vip-v3',
+      open_source: 'paid',
+      vip_tier: configuredStatus().vip_tier,
+      expected_reward: 0.45,
+      rtp_cap: 0.96,
+    })
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('blindbox.vipPoolTitle')
+    expect(wrapper.text()).toContain('V3')
+    expect(wrapper.text()).toContain('season-1-vip-v3')
+
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    const celebration = wrapper.find('.reward-celebration-overlay')
+    expect(celebration.exists()).toBe(true)
+    expect(celebration.text()).toContain('V3')
+    expect(celebration.text()).toContain('$3.00')
+    expect(celebration.text()).toContain('season-1-vip-v3')
+  })
+
   it('loads the public pool when an authenticated user signs out', async () => {
     authState.isAuthenticated = true
     getBlindboxStatusMock.mockResolvedValue(configuredStatus())
@@ -289,12 +340,12 @@ describe('BlindboxView', () => {
     expect(wrapper.text()).not.toContain('blindbox.recentWinsPlaceholder')
   })
 
-  it('does not claim that VIP tiers can upgrade the prize pool', () => {
-    expect(jisudengPagesZh.blindbox.prizePoolNote).not.toMatch(/VIP|升级奖池/)
-    expect(jisudengPagesEn.blindbox.prizePoolNote).not.toMatch(/VIP|upgrade/i)
-    expect(jisudengPagesZh.playHub.vipPerks.blindbox_pool_upgrade).toContain('暂未启用')
-    expect(jisudengPagesEn.playHub.vipPerks.blindbox_pool_upgrade).toMatch(/not active/i)
-    expect(jisudengPagesZh.docs.vipTiers.perks.blindbox_pool_upgrade).toContain('暂未启用')
-    expect(jisudengPagesEn.docs.vipTiers.perks.blindbox_pool_upgrade).toMatch(/not active/i)
+  it('uses active VIP blindbox pool copy instead of the previous placeholder', () => {
+    expect(jisudengPagesZh.blindbox.prizePoolNote).toMatch(/VIP|奖池/)
+    expect(jisudengPagesEn.blindbox.prizePoolNote).toMatch(/VIP|pool/i)
+    expect(jisudengPagesZh.playHub.vipPerks.blindbox_pool_upgrade).not.toContain('暂未启用')
+    expect(jisudengPagesEn.playHub.vipPerks.blindbox_pool_upgrade).not.toMatch(/not active/i)
+    expect(jisudengPagesZh.docs.vipTiers.perks.blindbox_pool_upgrade).not.toContain('暂未启用')
+    expect(jisudengPagesEn.docs.vipTiers.perks.blindbox_pool_upgrade).not.toMatch(/not active/i)
   })
 })
