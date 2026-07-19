@@ -144,15 +144,12 @@ func (w *BatchImageWorker) RunOnce(ctx context.Context) error {
 
 	lock, ok, err := w.queue.TryAcquireJobLock(ctx, reserved.BatchID, w.opts.JobLockTTL)
 	if err != nil {
-		if requeueErr := w.queue.RequeueAfter(ctx, reserved.BatchID, w.opts.LockConflictDelay); requeueErr != nil {
-			return requeueErr
-		}
 		return err
 	}
 	if !ok {
-		// 锁被其他实例持有：按冲突延迟重新入队。直接丢弃会让 job 滞留在
-		// active zset，最早要等 StaleActiveAfter 才被恢复，造成分钟级停摆。
-		return w.queue.RequeueAfter(ctx, reserved.BatchID, w.opts.LockConflictDelay)
+		// Duplicate ready entries can race with the current owner. The current
+		// owner is responsible for the single active member and its final ACK.
+		return nil
 	}
 	defer func() {
 		_ = lock.Release(ctx)
@@ -162,31 +159,34 @@ func (w *BatchImageWorker) RunOnce(ctx context.Context) error {
 	// job 重投给其他 worker，并对支持续期的锁实现延长锁 TTL。
 	hbStop := make(chan struct{})
 	hbDone := make(chan struct{})
-	go w.runJobHeartbeat(ctx, reserved.BatchID, lock, hbStop, hbDone)
+	hbErr := make(chan error, 1)
+	processCtx, cancelProcess := context.WithCancel(ctx)
+	defer cancelProcess()
+	go w.runJobHeartbeat(processCtx, reserved.BatchID, lock, cancelProcess, hbStop, hbDone, hbErr)
 
-	result, err := w.processor.Process(ctx, reserved.BatchID)
+	result, err := w.processor.Process(processCtx, reserved.BatchID)
 	close(hbStop)
 	<-hbDone
+	select {
+	case leaseErr := <-hbErr:
+		return leaseErr
+	default:
+	}
 	if err != nil {
 		logger.L().Warn("batch_image.worker_process_failed",
 			zap.String("batch_id", reserved.BatchID),
 			zap.Error(err),
 		)
-		return w.queue.RequeueAfter(ctx, reserved.BatchID, w.opts.ErrorRetryDelay)
+		return lock.RequeueAfter(ctx, w.opts.ErrorRetryDelay)
 	}
 	if result.Terminal {
-		return w.queue.Ack(ctx, reserved.BatchID)
+		return lock.Ack(ctx)
 	}
 	delay := result.RequeueAfter
 	if delay <= 0 {
 		delay = w.opts.DefaultRequeueDelay
 	}
-	return w.queue.RequeueAfter(ctx, reserved.BatchID, delay)
-}
-
-// BatchImageJobLockRefresher 是可选的锁续期能力；由具体锁实现按需提供。
-type BatchImageJobLockRefresher interface {
-	Refresh(ctx context.Context, ttl time.Duration) error
+	return lock.RequeueAfter(ctx, delay)
 }
 
 func (w *BatchImageWorker) heartbeatInterval() time.Duration {
@@ -201,10 +201,25 @@ func (w *BatchImageWorker) heartbeatInterval() time.Duration {
 	return interval
 }
 
-func (w *BatchImageWorker) runJobHeartbeat(ctx context.Context, batchID string, lock BatchImageJobLock, stop <-chan struct{}, done chan<- struct{}) {
+func (w *BatchImageWorker) runJobHeartbeat(
+	ctx context.Context,
+	batchID string,
+	lock BatchImageJobLock,
+	cancelProcess context.CancelFunc,
+	stop <-chan struct{},
+	done chan<- struct{},
+	result chan<- error,
+) {
 	defer close(done)
 	ticker := time.NewTicker(w.heartbeatInterval())
 	defer ticker.Stop()
+	fail := func(err error) {
+		select {
+		case result <- err:
+		default:
+		}
+		cancelProcess()
+	}
 	for {
 		select {
 		case <-stop:
@@ -212,19 +227,21 @@ func (w *BatchImageWorker) runJobHeartbeat(ctx context.Context, batchID string, 
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if err := lock.Refresh(ctx, w.opts.JobLockTTL); err != nil && ctx.Err() == nil {
+				logger.L().Warn("batch_image.worker_heartbeat_failed",
+					zap.String("batch_id", batchID),
+					zap.Error(err),
+				)
+				fail(err)
+				return
+			}
 			if err := w.queue.Heartbeat(ctx, batchID); err != nil && ctx.Err() == nil {
 				logger.L().Warn("batch_image.worker_heartbeat_failed",
 					zap.String("batch_id", batchID),
 					zap.Error(err),
 				)
-			}
-			if refresher, ok := lock.(BatchImageJobLockRefresher); ok {
-				if err := refresher.Refresh(ctx, w.opts.JobLockTTL); err != nil && ctx.Err() == nil {
-					logger.L().Warn("batch_image.worker_lock_refresh_failed",
-						zap.String("batch_id", batchID),
-						zap.Error(err),
-					)
-				}
+				fail(err)
+				return
 			}
 		}
 	}

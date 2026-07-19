@@ -28,6 +28,7 @@ func TestCanTransitionBatchImageJob(t *testing.T) {
 		{name: "completed_to_output_deleted", from: BatchImageJobStatusCompleted, to: BatchImageJobStatusOutputDeleted, want: true},
 		{name: "failed_to_output_deleted", from: BatchImageJobStatusFailed, to: BatchImageJobStatusOutputDeleted, want: true},
 		{name: "cancelled_to_output_deleted", from: BatchImageJobStatusCancelled, to: BatchImageJobStatusOutputDeleted, want: true},
+		{name: "settling_to_failed_invalid", from: BatchImageJobStatusSettling, to: BatchImageJobStatusFailed, want: false},
 		{name: "created_to_running_invalid", from: BatchImageJobStatusCreated, to: BatchImageJobStatusRunning, want: false},
 		{name: "completed_to_running_invalid", from: BatchImageJobStatusCompleted, to: BatchImageJobStatusRunning, want: false},
 		{name: "output_deleted_to_failed_invalid", from: BatchImageJobStatusOutputDeleted, to: BatchImageJobStatusFailed, want: false},
@@ -38,6 +39,25 @@ func TestCanTransitionBatchImageJob(t *testing.T) {
 			require.Equal(t, tt.want, CanTransitionBatchImageJob(tt.from, tt.to))
 		})
 	}
+}
+
+func TestCanTransitionBatchImageJobWithOptionsAllowsOnlyControlledSettlementExhaustion(t *testing.T) {
+	require.True(t, CanTransitionBatchImageJobWithOptions(
+		BatchImageJobStatusSettling,
+		BatchImageJobStatusFailed,
+		BatchImageTransitionOptions{
+			EventType: "settlement_retry_exhausted",
+			ErrorCode: batchImageStringPtr("SETTLEMENT_BILLING_RETRY_EXHAUSTED"),
+		},
+	))
+	require.False(t, CanTransitionBatchImageJobWithOptions(
+		BatchImageJobStatusSettling,
+		BatchImageJobStatusFailed,
+		BatchImageTransitionOptions{
+			EventType: "job_failed",
+			ErrorCode: batchImageStringPtr("SETTLEMENT_BILLING_RETRY_EXHAUSTED"),
+		},
+	))
 }
 
 func TestIsTerminalBatchImageJobStatus(t *testing.T) {

@@ -26,9 +26,46 @@ export default {
       result: 'Result',
       noData: 'No data.',
       loadingText: 'loading',
-      ready: 'ready',
-      autoRefreshRemaining: 'Remaining {seconds}s',
-      systemLogs: {
+	      ready: 'ready',
+	      autoRefreshRemaining: 'Remaining {seconds}s',
+	      imageRuntimes: {
+	        title: 'Image Runtimes',
+	        checkedAt: 'Checked: {time}',
+	        refresh: 'Refresh image runtimes',
+	        loadFailed: 'Failed to load image runtime status',
+	        names: {
+	          gatewayAsync: 'Gateway Async',
+	          batch: 'Batch Image',
+	          imageStudio: 'Image Studio'
+	        },
+	        states: {
+	          ready: 'Ready',
+	          draining: 'Submissions paused, draining',
+	          disabled: 'Disabled',
+	          notReady: 'Not ready'
+	        },
+	        checks: {
+	          api: 'API switch',
+	          storage: 'Storage',
+	          database: 'Database',
+	          queue: 'Queue',
+	          redis: 'Redis',
+	          worker: 'Worker'
+	        },
+	        backlog: {
+	          ready: 'Ready',
+	          delayed: 'Delayed',
+	          active: 'Active'
+	        },
+	        oldestTask: 'Oldest active task',
+	        metrics: {
+	          staleHolds: 'Stale balance holds',
+	          settlementRetries: 'Settlement retries',
+	          providerFailures: 'Provider failures',
+	          cleanupPending: 'Results pending cleanup'
+	        }
+	      },
+	      systemLogs: {
         title: 'System Logs',
         description: 'Newest logs are shown first. Filter, search, and clean up by condition.',
         queue: 'Queue',

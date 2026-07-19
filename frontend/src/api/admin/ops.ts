@@ -284,6 +284,50 @@ export interface OpsJobHeartbeat {
   updated_at: string
 }
 
+export interface OpsImageRuntimeBacklog {
+  ready: number
+  delayed: number
+  active: number
+}
+
+export interface OpsImageRuntimeTask {
+  id: string
+  status: string
+  created_at: string
+}
+
+export interface OpsImageRuntimeError {
+  code?: string
+  message: string
+  created_at: string
+}
+
+export interface OpsImageRuntimeComponentHealth {
+  enabled: boolean
+  ready: boolean
+  storage: string
+  storage_ready: boolean
+  queue: string
+  queue_enabled: boolean
+  database_ready: boolean
+  redis_ready: boolean
+  worker_running: boolean
+  backlog: OpsImageRuntimeBacklog
+  oldest_task?: OpsImageRuntimeTask
+  recent_error?: OpsImageRuntimeError
+  stale_balance_holds?: number
+  settlement_retries?: number
+  provider_failures?: number
+  result_cleanup_pending?: number
+}
+
+export interface OpsImageRuntimesHealth {
+  gateway_async: OpsImageRuntimeComponentHealth
+  batch: OpsImageRuntimeComponentHealth
+  image_studio: OpsImageRuntimeComponentHealth
+  checked_at: string
+}
+
 export interface PlatformConcurrencyInfo {
   platform: string
   current_in_use: number
@@ -1283,6 +1327,11 @@ export async function getSystemLogSinkHealth(): Promise<OpsSystemLogSinkHealth> 
   return data
 }
 
+export async function getImageRuntimesHealth(): Promise<OpsImageRuntimesHealth> {
+  const { data } = await apiClient.get<OpsImageRuntimesHealth>('/admin/ops/image-runtimes/health')
+  return data
+}
+
 // Advanced settings (DB-backed)
 export async function getAdvancedSettings(): Promise<OpsAdvancedSettings> {
   const { data } = await apiClient.get<OpsAdvancedSettings>('/admin/ops/advanced-settings')
@@ -1355,7 +1404,8 @@ export const opsAPI = {
   updateMetricThresholds,
   listSystemLogs,
   cleanupSystemLogs,
-  getSystemLogSinkHealth
+  getSystemLogSinkHealth,
+  getImageRuntimesHealth
 }
 
 export default opsAPI

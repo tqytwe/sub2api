@@ -167,7 +167,7 @@ func (p *VertexBatchImageProvider) Name() string {
 }
 
 func (p *VertexBatchImageProvider) SupportsAccount(account *Account) bool {
-	if account == nil || account.Platform != PlatformGemini || account.Type != AccountTypeServiceAccount {
+	if p == nil || !p.opts.Enabled || account == nil || account.Platform != PlatformGemini || account.Type != AccountTypeServiceAccount {
 		return false
 	}
 	_, err := parseVertexServiceAccountKey(account)
@@ -175,6 +175,9 @@ func (p *VertexBatchImageProvider) SupportsAccount(account *Account) bool {
 }
 
 func (p *VertexBatchImageProvider) Submit(ctx context.Context, job *BatchImageJob, account *Account, input BatchImageInput) (*BatchProviderJob, error) {
+	if p == nil || !p.opts.Enabled {
+		return nil, ErrBatchImageProviderUnsupportedAccount
+	}
 	if err := p.validateAccount(account); err != nil {
 		return nil, err
 	}
@@ -186,6 +189,10 @@ func (p *VertexBatchImageProvider) Submit(ctx context.Context, job *BatchImageJo
 	}
 	if input.Model == "" && job != nil {
 		input.Model = job.Model
+	}
+	upstreamModel := strings.TrimSpace(account.GetMappedModel(input.Model))
+	if upstreamModel == "" {
+		return nil, batchImageProviderInputError("mapped model is required")
 	}
 
 	jsonl, err := BuildVertexBatchJSONL(input)
@@ -214,14 +221,14 @@ func (p *VertexBatchImageProvider) Submit(ctx context.Context, job *BatchImageJo
 	}
 	location := strings.TrimSpace(p.opts.Location)
 	if location == "" {
-		location = account.VertexLocation(input.Model)
+		location = account.VertexLocation(upstreamModel)
 	}
 
 	req := VertexCreateBatchPredictionJobRequest{
 		ProjectID:      projectID,
 		Location:       location,
 		DisplayName:    vertexBatchDisplayName(input),
-		Model:          NormalizeVertexBatchModelPath(input.Model),
+		Model:          NormalizeVertexBatchModelPath(upstreamModel),
 		InputConfig:    VertexBatchInputConfig{InstancesFormat: "jsonl", GCSSource: VertexBatchGCSSource{URIs: []string{refs.InputURI}}},
 		OutputConfig:   VertexBatchOutputConfig{PredictionsFormat: "jsonl", GCSDestination: VertexBatchGCSDestination{OutputURIPrefix: refs.OutputPrefixURI}},
 		InstanceConfig: &VertexBatchInstanceConfig{KeyField: "key"},
@@ -551,6 +558,7 @@ func NormalizeVertexBatchModelPath(model string) string {
 	if strings.HasPrefix(model, "publishers/") || strings.HasPrefix(model, "projects/") {
 		return model
 	}
+	model = strings.TrimPrefix(model, "models/")
 	return "publishers/google/models/" + model
 }
 

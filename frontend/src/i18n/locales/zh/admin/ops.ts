@@ -26,9 +26,46 @@ export default {
       result: '结果',
       noData: '暂无数据',
       loadingText: '加载中...',
-      ready: '就绪',
-      autoRefreshRemaining: '剩余 {seconds}s',
-      systemLogs: {
+	      ready: '就绪',
+	      autoRefreshRemaining: '剩余 {seconds}s',
+	      imageRuntimes: {
+	        title: '图片运行时',
+	        checkedAt: '检查时间：{time}',
+	        refresh: '刷新图片运行时',
+	        loadFailed: '加载图片运行时状态失败',
+	        names: {
+	          gatewayAsync: 'Gateway 异步',
+	          batch: 'Batch Image',
+	          imageStudio: '图像工作室'
+	        },
+	        states: {
+	          ready: '就绪',
+	          draining: '暂停提交，处理中',
+	          disabled: '已关闭',
+	          notReady: '未就绪'
+	        },
+	        checks: {
+	          api: 'API 开关',
+	          storage: '存储',
+	          database: '数据库',
+	          queue: '队列',
+	          redis: 'Redis',
+	          worker: 'Worker'
+	        },
+	        backlog: {
+	          ready: '待处理',
+	          delayed: '延迟',
+	          active: '执行中'
+	        },
+	        oldestTask: '最老活动任务',
+	        metrics: {
+	          staleHolds: '陈旧余额冻结',
+	          settlementRetries: '结算重试',
+	          providerFailures: 'Provider 失败',
+	          cleanupPending: '待清理结果'
+	        }
+	      },
+	      systemLogs: {
         title: '系统日志',
         description: '优先显示最新日志，可按条件筛选、搜索和清理。',
         queue: '队列',

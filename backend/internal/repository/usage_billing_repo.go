@@ -468,20 +468,29 @@ func (r *usageBillingRepository) claimUsageBillingRequest(ctx context.Context, t
 }
 
 func (r *usageBillingRepository) ReserveBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
-	return r.applyBatchImageBalanceHold(ctx, cmd, reserveUsageBillingBatchImageBalance)
+	return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationReserve, reserveUsageBillingBatchImageBalance)
 }
 
 func (r *usageBillingRepository) CaptureBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
-	return r.applyBatchImageBalanceHold(ctx, cmd, captureUsageBillingBatchImageBalance)
+	return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationCapture, captureUsageBillingBatchImageBalance)
 }
 
 func (r *usageBillingRepository) ReleaseBatchImageBalance(ctx context.Context, cmd *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error) {
-	return r.applyBatchImageBalanceHold(ctx, cmd, releaseUsageBillingBatchImageBalance)
+	return r.applyBatchImageBalanceHold(ctx, cmd, balanceHoldOperationRelease, releaseUsageBillingBatchImageBalance)
 }
+
+type balanceHoldOperation int
+
+const (
+	balanceHoldOperationReserve balanceHoldOperation = iota
+	balanceHoldOperationCapture
+	balanceHoldOperationRelease
+)
 
 func (r *usageBillingRepository) applyBatchImageBalanceHold(
 	ctx context.Context,
 	cmd *service.BatchImageBalanceHoldCommand,
+	operation balanceHoldOperation,
 	apply func(context.Context, *sql.Tx, *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error),
 ) (_ *service.BatchImageBalanceHoldResult, err error) {
 	if cmd == nil {
@@ -495,7 +504,7 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 		return nil, service.ErrUsageBillingRequestIDRequired
 	}
 	if tx := usageBillingTransactionFromContext(ctx); tx != nil {
-		return r.applyBatchImageBalanceHoldTx(ctx, tx, cmd, apply)
+		return r.applyBatchImageBalanceHoldTx(ctx, tx, cmd, operation, apply)
 	}
 
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -507,7 +516,7 @@ func (r *usageBillingRepository) applyBatchImageBalanceHold(
 			_ = tx.Rollback()
 		}
 	}()
-	result, err := r.applyBatchImageBalanceHoldTx(ctx, tx, cmd, apply)
+	result, err := r.applyBatchImageBalanceHoldTx(ctx, tx, cmd, operation, apply)
 	if err != nil {
 		return nil, err
 	}
@@ -523,10 +532,16 @@ func (r *usageBillingRepository) applyBatchImageBalanceHoldTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	cmd *service.BatchImageBalanceHoldCommand,
+	operation balanceHoldOperation,
 	apply func(context.Context, *sql.Tx, *service.BatchImageBalanceHoldCommand) (*service.BatchImageBalanceHoldResult, error),
 ) (*service.BatchImageBalanceHoldResult, error) {
 	if err := validateUsageBillingOwnership(ctx, tx, cmd.APIKeyID, cmd.UserID); err != nil {
 		return nil, err
+	}
+	if operation != balanceHoldOperationReserve {
+		if err := lockBalanceHoldClaim(ctx, tx, cmd); err != nil {
+			return nil, err
+		}
 	}
 	applied, err := r.claimUsageBillingRequest(ctx, tx, cmd.RequestID, cmd.APIKeyID, cmd.RequestFingerprint)
 	if err != nil {
@@ -534,6 +549,22 @@ func (r *usageBillingRepository) applyBatchImageBalanceHoldTx(
 	}
 	if !applied {
 		return &service.BatchImageBalanceHoldResult{Applied: false}, nil
+	}
+	if operation != balanceHoldOperationReserve {
+		oppositeRequestID := cmd.ReleaseRequestID
+		if operation == balanceHoldOperationRelease {
+			oppositeRequestID = cmd.CaptureRequestID
+		}
+		if strings.TrimSpace(oppositeRequestID) == "" {
+			return nil, service.ErrUsageBillingHoldTerminalConflict
+		}
+		claimed, err := batchImageHoldClaimExists(ctx, tx, oppositeRequestID, cmd.APIKeyID)
+		if err != nil {
+			return nil, err
+		}
+		if claimed {
+			return nil, service.ErrUsageBillingHoldTerminalConflict
+		}
 	}
 	result, err := apply(ctx, tx, cmd)
 	if err != nil {
@@ -544,6 +575,39 @@ func (r *usageBillingRepository) applyBatchImageBalanceHoldTx(
 	}
 	result.Applied = true
 	return result, nil
+}
+
+func lockBalanceHoldClaim(ctx context.Context, tx *sql.Tx, cmd *service.BatchImageBalanceHoldCommand) error {
+	holdRequestID := strings.TrimSpace(cmd.HoldRequestID)
+	if holdRequestID == "" {
+		holdRequestID = service.BatchImageHoldRequestID(cmd.BatchID)
+	}
+	var exists int
+	err := tx.QueryRowContext(ctx, `
+		SELECT 1
+		FROM usage_billing_dedup
+		WHERE request_id = $1 AND api_key_id = $2
+		FOR UPDATE
+	`, holdRequestID, cmd.APIKeyID).Scan(&exists)
+	if err == nil {
+		return nil
+	}
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	err = tx.QueryRowContext(ctx, `
+		SELECT 1
+		FROM usage_billing_dedup_archive
+		WHERE request_id = $1 AND api_key_id = $2
+		FOR UPDATE
+	`, holdRequestID, cmd.APIKeyID).Scan(&exists)
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrUsageBillingHoldNotFound
+	}
+	return err
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {

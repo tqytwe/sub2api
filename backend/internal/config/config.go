@@ -96,6 +96,7 @@ type Config struct {
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
+	ImageAsync              ImageAsyncConfig              `mapstructure:"image_async"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
 }
 
@@ -229,24 +230,42 @@ type BatchImageConfig struct {
 	VertexGCSBaseURL             string `mapstructure:"vertex_gcs_base_url"`
 }
 
+type ImageAsyncConfig struct {
+	Enabled                 bool   `mapstructure:"enabled"`
+	QueueEnabled            bool   `mapstructure:"queue_enabled"`
+	WorkerCount             int    `mapstructure:"worker_count"`
+	QueueReadyKey           string `mapstructure:"queue_ready_key"`
+	QueueActiveKey          string `mapstructure:"queue_active_key"`
+	IdempotencyKeyPrefix    string `mapstructure:"idempotency_key_prefix"`
+	JobLockKeyPrefix        string `mapstructure:"job_lock_key_prefix"`
+	ReserveTimeoutSeconds   int    `mapstructure:"reserve_timeout_seconds"`
+	JobLockTTLSeconds       int    `mapstructure:"job_lock_ttl_seconds"`
+	HeartbeatSeconds        int    `mapstructure:"heartbeat_seconds"`
+	StaleActiveAfterSeconds int    `mapstructure:"stale_active_after_seconds"`
+	RecoveryIntervalSeconds int    `mapstructure:"recovery_interval_seconds"`
+	RecoverLimit            int    `mapstructure:"recover_limit"`
+}
+
 // ImageStorageConfig 配置异步图片任务结果的临时持久化。
 // Enabled 同时作为异步图片任务功能的总开关：未启用时异步生图接口整体禁用，
 // 避免把上游返回的大 base64 结果塞进 Redis。
 type ImageStorageConfig struct {
-	Enabled         bool   `mapstructure:"enabled"`
-	Backend         string `mapstructure:"backend"`  // local / s3 / auto；默认 local
-	Endpoint        string `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
-	Region          string `mapstructure:"region"`   // R2 用 "auto"
-	Bucket          string `mapstructure:"bucket"`
-	AccessKeyID     string `mapstructure:"access_key_id"`
-	SecretAccessKey string `mapstructure:"secret_access_key"`
-	Prefix          string `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
-	ForcePathStyle  bool   `mapstructure:"force_path_style"`     // MinIO/路径风格桶
-	PublicBaseURL   string `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
-	LocalDir        string `mapstructure:"local_dir"`            // local 后端目录；为空时使用 data_dir/image-task-results
-	LocalURLPrefix  string `mapstructure:"local_url_prefix"`     // local 返回 URL 前缀
-	PresignExpiry   int    `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
-	MaxDownloadByte int64  `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
+	Enabled                bool   `mapstructure:"enabled"`
+	Backend                string `mapstructure:"backend"`  // local / s3 / auto；默认 local
+	Endpoint               string `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
+	Region                 string `mapstructure:"region"`   // R2 用 "auto"
+	Bucket                 string `mapstructure:"bucket"`
+	AccessKeyID            string `mapstructure:"access_key_id"`
+	SecretAccessKey        string `mapstructure:"secret_access_key"`
+	Prefix                 string `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
+	ForcePathStyle         bool   `mapstructure:"force_path_style"`     // MinIO/路径风格桶
+	PublicBaseURL          string `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
+	LocalDir               string `mapstructure:"local_dir"`            // local 后端目录；为空时使用 data_dir/image-task-results
+	LocalURLPrefix         string `mapstructure:"local_url_prefix"`     // local 返回 URL 前缀
+	PresignExpiry          int    `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
+	MaxDownloadByte        int64  `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
+	CleanupIntervalSeconds int    `mapstructure:"cleanup_interval_seconds"`
+	CleanupBatchSize       int    `mapstructure:"cleanup_batch_size"`
 }
 
 func (c *ImageStorageConfig) BackendOrDefault() string {
@@ -2013,6 +2032,19 @@ func setDefaults() {
 	viper.SetDefault("batch_image.vertex_output_retention_hours", 72)
 	viper.SetDefault("batch_image.vertex_batch_prediction_base_url", "")
 	viper.SetDefault("batch_image.vertex_gcs_base_url", "")
+	viper.SetDefault("image_async.enabled", false)
+	viper.SetDefault("image_async.queue_enabled", false)
+	viper.SetDefault("image_async.worker_count", 4)
+	viper.SetDefault("image_async.queue_ready_key", "image_task:queue:ready")
+	viper.SetDefault("image_async.queue_active_key", "image_task:queue:active")
+	viper.SetDefault("image_async.idempotency_key_prefix", "image_task:idem:")
+	viper.SetDefault("image_async.job_lock_key_prefix", "image_task:lock:")
+	viper.SetDefault("image_async.reserve_timeout_seconds", 5)
+	viper.SetDefault("image_async.job_lock_ttl_seconds", 300)
+	viper.SetDefault("image_async.heartbeat_seconds", 30)
+	viper.SetDefault("image_async.stale_active_after_seconds", 600)
+	viper.SetDefault("image_async.recovery_interval_seconds", 60)
+	viper.SetDefault("image_async.recover_limit", 100)
 
 	// Image storage (async image task result offload)
 	viper.SetDefault("image_storage.enabled", false)
@@ -2023,6 +2055,8 @@ func setDefaults() {
 	viper.SetDefault("image_storage.local_url_prefix", "/v1/images/task-assets/")
 	viper.SetDefault("image_storage.presign_expiry_hours", 24)
 	viper.SetDefault("image_storage.max_download_bytes", 33554432)
+	viper.SetDefault("image_storage.cleanup_interval_seconds", 60)
+	viper.SetDefault("image_storage.cleanup_batch_size", 100)
 
 	// Ops (vNext)
 	viper.SetDefault("ops.enabled", true)
@@ -2744,6 +2778,53 @@ func (c *Config) Validate() error {
 		}
 		if c.BatchImage.VertexOutputRetentionHours <= 0 {
 			return fmt.Errorf("batch_image.vertex_output_retention_hours must be positive")
+		}
+	}
+	if c.ImageAsync.Enabled && !c.ImageAsync.QueueEnabled {
+		return fmt.Errorf("image_async.enabled requires image_async.queue_enabled")
+	}
+	if c.ImageStorage.Enabled &&
+		(c.ImageStorage.CleanupIntervalSeconds <= 0 || c.ImageStorage.CleanupBatchSize <= 0) {
+		return fmt.Errorf("image_storage cleanup interval and batch size must be positive")
+	}
+	if c.ImageAsync.Enabled && !c.ImageStorage.Active() {
+		return fmt.Errorf("image_async.enabled requires active image_storage")
+	}
+	if c.ImageAsync.QueueEnabled {
+		if !c.ImageStorage.Active() {
+			return fmt.Errorf("image_async.queue_enabled requires active image_storage")
+		}
+		if !c.Totp.EncryptionKeyConfigured {
+			return fmt.Errorf("image_async.queue_enabled requires a fixed totp.encryption_key")
+		}
+		if c.ImageAsync.WorkerCount <= 0 {
+			return fmt.Errorf("image_async.worker_count must be positive")
+		}
+		if strings.TrimSpace(c.ImageAsync.QueueReadyKey) == "" {
+			return fmt.Errorf("image_async.queue_ready_key must not be empty")
+		}
+		if strings.TrimSpace(c.ImageAsync.QueueActiveKey) == "" {
+			return fmt.Errorf("image_async.queue_active_key must not be empty")
+		}
+		if strings.TrimSpace(c.ImageAsync.IdempotencyKeyPrefix) == "" {
+			return fmt.Errorf("image_async.idempotency_key_prefix must not be empty")
+		}
+		if strings.TrimSpace(c.ImageAsync.JobLockKeyPrefix) == "" {
+			return fmt.Errorf("image_async.job_lock_key_prefix must not be empty")
+		}
+		if c.ImageAsync.ReserveTimeoutSeconds <= 0 ||
+			c.ImageAsync.JobLockTTLSeconds <= 0 ||
+			c.ImageAsync.HeartbeatSeconds <= 0 ||
+			c.ImageAsync.StaleActiveAfterSeconds <= 0 ||
+			c.ImageAsync.RecoveryIntervalSeconds <= 0 ||
+			c.ImageAsync.RecoverLimit <= 0 {
+			return fmt.Errorf("image_async queue timings and limits must be positive")
+		}
+		if c.ImageAsync.HeartbeatSeconds >= c.ImageAsync.StaleActiveAfterSeconds {
+			return fmt.Errorf("image_async.heartbeat_seconds must be less than image_async.stale_active_after_seconds")
+		}
+		if c.ImageAsync.HeartbeatSeconds >= c.ImageAsync.JobLockTTLSeconds {
+			return fmt.Errorf("image_async.heartbeat_seconds must be less than image_async.job_lock_ttl_seconds")
 		}
 	}
 	if c.Dashboard.Enabled {

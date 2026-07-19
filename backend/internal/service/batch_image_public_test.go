@@ -17,12 +17,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const testBatchImageIdempotencyKey = "batch-image-test-request"
+
 func TestBatchImagePublicService_Submit(t *testing.T) {
 	ctx := context.Background()
 
 	t.Run("rejects when disabled", func(t *testing.T) {
 		svc, _, _, _, _ := newTestBatchImagePublicService(false)
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageDisabled)
 	})
 
@@ -30,9 +32,35 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
 		svc.Runtime = &fakeBatchImageRuntimeReadiness{err: ErrBatchImageRuntimeNotReady}
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 
 		require.ErrorIs(t, err, ErrBatchImageRuntimeNotReady)
+		require.Empty(t, repo.jobs)
+		require.Empty(t, queue.enqueued)
+		require.Empty(t, gemini.submits)
+		require.Empty(t, svc.BillingRepo.(*fakeBatchImageBillingRepo).reserves)
+	})
+
+	t.Run("accepts request without idempotency key", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+
+		got, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), " \t ")
+
+		require.NoError(t, err)
+		require.NotEmpty(t, got.ID)
+		require.Len(t, repo.jobs, 1)
+		require.Nil(t, repo.jobs[got.ID].IdempotencyKey)
+		require.Equal(t, []string{got.ID}, queue.enqueued)
+		require.Len(t, gemini.submits, 1)
+		require.Len(t, svc.BillingRepo.(*fakeBatchImageBillingRepo).reserves, 1)
+	})
+
+	t.Run("rejects oversized idempotency key", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), strings.Repeat("k", 256))
+
+		require.ErrorIs(t, err, ErrBatchImageIdempotencyKeyInvalid)
 		require.Empty(t, repo.jobs)
 		require.Empty(t, queue.enqueued)
 		require.Empty(t, gemini.submits)
@@ -42,7 +70,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 	t.Run("accepts valid request stores refs and enqueues once", func(t *testing.T) {
 		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
 
-		got, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		got, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 		require.Equal(t, "image.batch", got.Object)
 		require.Equal(t, "queued", got.Status)
@@ -90,7 +118,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 				})
 			}
 
-			got, err := svc.Submit(ctx, testBatchImageOwner(), request, "")
+			got, err := svc.Submit(ctx, testBatchImageOwner(), request, testBatchImageIdempotencyKey)
 
 			require.NoError(t, err)
 			require.Equal(t, itemCount, got.ItemCount)
@@ -122,7 +150,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		userRate := 0.5
 		svc.UserGroupRateRepo = &publicBatchImageUserGroupRateRepo{rates: map[int64]*float64{groupID: &userRate}}
 
-		got, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+		got, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 		require.InDelta(t, 0.25, got.EstimatedCost, 1e-12)
 
@@ -156,7 +184,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 			},
 		}}
 
-		got, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+		got, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 		require.InDelta(t, 0.134, got.EstimatedCost, 1e-12)
 
@@ -171,7 +199,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
 		svc.Pricing = &fakeBatchImagePricingResolver{err: ErrBatchImageSettlementPricingMissing}
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageSettlementPricingMissing)
 		require.Empty(t, repo.jobs)
 		require.Empty(t, queue.enqueued)
@@ -192,7 +220,29 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 			},
 		}}
 
-		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
+		require.ErrorIs(t, err, ErrBatchImageGroupDisabled)
+		require.Empty(t, repo.jobs)
+		require.Empty(t, queue.enqueued)
+		require.Empty(t, gemini.submits)
+	})
+
+	t.Run("group image generation disabled rejects before provider submit", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+		groupID := int64(7)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
+			groupID: {
+				ID:                           groupID,
+				Platform:                     PlatformGemini,
+				RateMultiplier:               1,
+				AllowImageGeneration:         false,
+				AllowBatchImageGeneration:    true,
+				BatchImageDiscountMultiplier: 0.5,
+				BatchImageHoldMultiplier:     0.6,
+			},
+		}}
+
+		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageGroupDisabled)
 		require.Empty(t, repo.jobs)
 		require.Empty(t, queue.enqueued)
@@ -203,7 +253,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
 		groupID := int64(404)
 
-		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID}, validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageSettlementPricingMissing)
 		require.Empty(t, repo.jobs)
 		require.Empty(t, queue.enqueued)
@@ -216,7 +266,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		req.Items[0].CustomID = ""
 		req.Items[1].CustomID = ""
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 		require.Len(t, gemini.submits, 1)
 		require.Equal(t, "item_000001", gemini.submits[0].Items[0].CustomID)
@@ -230,7 +280,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 			{CustomID: "cover", Prompt: "hero", OutputCount: 3, ReferenceImages: []BatchImageReferenceInput{{MimeType: "image/png", Data: []byte("ref")}}},
 		}
 
-		got, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		got, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 		require.Equal(t, 3, got.ItemCount)
 		require.InDelta(t, 0.375, got.EstimatedCost, 1e-12)
@@ -258,6 +308,8 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 			{name: "prompt_too_long", mutate: func(r *BatchImageSubmitRequest) { r.Items[0].Prompt = strings.Repeat("x", 9) }, want: ErrBatchImagePromptTooLong},
 			{name: "unsupported_provider", mutate: func(r *BatchImageSubmitRequest) { r.Provider = "other" }, want: ErrBatchImageUnsupportedProvider},
 			{name: "vertex_rejects_2k", mutate: func(r *BatchImageSubmitRequest) { r.Provider = BatchImageProviderVertex; r.ImageSize = "2K" }, want: ErrBatchImageInvalidItems},
+			{name: "unsupported_response_mime", mutate: func(r *BatchImageSubmitRequest) { r.ResponseMimeType = "image/jpeg" }, want: ErrBatchImageInvalidItems},
+			{name: "unsupported_aspect_ratio", mutate: func(r *BatchImageSubmitRequest) { r.AspectRatio = "7:5" }, want: ErrBatchImageInvalidItems},
 			{name: "too_many_outputs_per_item", mutate: func(r *BatchImageSubmitRequest) {
 				r.Items[0].OutputCount = 5
 			}, want: ErrBatchImageInvalidItems},
@@ -283,7 +335,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 				req := validBatchImageSubmitRequest()
 				tt.mutate(&req)
 
-				_, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+				_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 				require.ErrorIs(t, err, tt.want)
 			})
 		}
@@ -294,7 +346,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		req := validBatchImageSubmitRequest()
 		req.Items = append(req.Items, BatchImageSubmitItem{CustomID: "too_many", Prompt: "x"})
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageInvalidItems)
 	})
 
@@ -305,7 +357,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		req.Items[0].OutputCount = 2
 		req.Items[1].OutputCount = 2
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageTooManyOutputImages)
 	})
 
@@ -323,7 +375,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 			{MimeType: "image/png", Data: []byte("4")},
 		}
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageTooManyReferenceImages)
 	})
 
@@ -336,7 +388,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		req.Items[0].ReferenceImages = []BatchImageReferenceInput{{MimeType: "image/png", Data: []byte("123")}}
 		req.Items[1].ReferenceImages = []BatchImageReferenceInput{{MimeType: "image/png", Data: []byte("456")}}
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageReferenceImagesTooLarge)
 	})
 
@@ -345,7 +397,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		req := validBatchImageSubmitRequest()
 		req.Provider = BatchImageProviderVertex
 
-		got, err := svc.Submit(ctx, testBatchImageOwner(), req, "")
+		got, err := svc.Submit(ctx, testBatchImageOwner(), req, testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 		require.Equal(t, BatchImageProviderVertex, got.Provider)
 		require.Empty(t, gemini.submits)
@@ -357,7 +409,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		billing := &fakeBatchImageBillingRepo{err: ErrBatchImageInsufficientBalance}
 		svc.BillingRepo = billing
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageInsufficientBalance)
 		require.Empty(t, queue.enqueued)
 		require.Empty(t, gemini.submits)
@@ -376,7 +428,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		gemini.submitErr = errors.New("projects/secret-provider-job failed")
 		billing := svc.BillingRepo.(*fakeBatchImageBillingRepo)
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageProviderSubmitFailed)
 		require.Empty(t, queue.enqueued)
 		require.Len(t, billing.reserves, 1)
@@ -397,7 +449,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		billing := svc.BillingRepo.(*fakeBatchImageBillingRepo)
 		billing.releaseErr = errors.New("billing database timeout")
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageBillingHoldFailed)
 		require.Len(t, billing.reserves, 1)
 		require.Len(t, billing.releases, 1)
@@ -414,7 +466,7 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		queue.err = errors.New("redis unavailable")
 		billing := svc.BillingRepo.(*fakeBatchImageBillingRepo)
 
-		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		_, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.ErrorIs(t, err, ErrBatchImageQueueFailed)
 		require.Len(t, billing.reserves, 1)
 		require.Empty(t, billing.releases)
@@ -453,9 +505,39 @@ func TestBatchImagePublicService_Submit(t *testing.T) {
 		require.NotEmpty(t, first.ID)
 	})
 
+	t.Run("concurrent idempotency insert returns winning batch without billing twice", func(t *testing.T) {
+		svc, repo, queue, gemini, _ := newTestBatchImagePublicService(true)
+		req := validBatchImageSubmitRequest()
+		normalized, err := svc.validateSubmitRequest(req)
+		require.NoError(t, err)
+		requestHash := HashBatchImageSubmitRequest(normalized)
+		apiKeyID := testBatchImageOwner().APIKeyID
+		key := "racing-client-key"
+		repo.createErr = ErrBatchImageJobExists
+		repo.jobs["imgbatch_winner"] = &BatchImageJob{
+			BatchID:        "imgbatch_winner",
+			UserID:         testBatchImageOwner().UserID,
+			APIKeyID:       &apiKeyID,
+			Provider:       BatchImageProviderGeminiAPI,
+			Model:          req.Model,
+			Status:         BatchImageJobStatusSubmitted,
+			IdempotencyKey: &key,
+			RequestHash:    &requestHash,
+			CreatedAt:      time.Now(),
+		}
+
+		got, err := svc.Submit(ctx, testBatchImageOwner(), req, key)
+
+		require.NoError(t, err)
+		require.Equal(t, "imgbatch_winner", got.ID)
+		require.Empty(t, svc.BillingRepo.(*fakeBatchImageBillingRepo).reserves)
+		require.Empty(t, gemini.submits)
+		require.Equal(t, []string{"imgbatch_winner"}, queue.enqueued)
+	})
+
 	t.Run("public response does not expose internals", func(t *testing.T) {
 		svc, _, _, _, _ := newTestBatchImagePublicService(true)
-		got, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), "")
+		got, err := svc.Submit(ctx, testBatchImageOwner(), validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 		require.NoError(t, err)
 
 		body, err := json.Marshal(got)
@@ -629,6 +711,22 @@ func TestBatchImagePublicService_ListModels(t *testing.T) {
 		groupID := int64(7)
 		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
 			groupID: {ID: groupID, AllowBatchImageGeneration: false},
+		}}
+
+		_, err := svc.ListModels(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID})
+		require.ErrorIs(t, err, ErrBatchImageGroupDisabled)
+	})
+
+	t.Run("rejects when group disables image generation", func(t *testing.T) {
+		svc, _, _, _, _ := newTestBatchImagePublicService(true)
+		groupID := int64(7)
+		svc.GroupRepo = &publicBatchImageGroupRepo{groups: map[int64]*Group{
+			groupID: {
+				ID:                        groupID,
+				Platform:                  PlatformGemini,
+				AllowImageGeneration:      false,
+				AllowBatchImageGeneration: true,
+			},
 		}}
 
 		_, err := svc.ListModels(ctx, BatchImageOwner{UserID: 11, APIKeyID: 22, GroupID: &groupID})

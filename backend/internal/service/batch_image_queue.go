@@ -13,6 +13,7 @@ var (
 	ErrBatchImageQueueEmpty          = infraerrors.New(http.StatusNotFound, "BATCH_IMAGE_QUEUE_EMPTY", "batch image queue is empty")
 	ErrBatchImageAlreadyQueued       = infraerrors.New(http.StatusConflict, "BATCH_IMAGE_ALREADY_QUEUED", "batch image job is already queued")
 	ErrBatchImageLockNotAcquired     = infraerrors.New(http.StatusConflict, "BATCH_IMAGE_LOCK_NOT_ACQUIRED", "batch image job lock was not acquired")
+	ErrBatchImageLeaseLost           = infraerrors.New(http.StatusConflict, "BATCH_IMAGE_LEASE_LOST", "batch image worker lease was lost")
 	ErrInvalidBatchImageQueuePayload = infraerrors.New(http.StatusBadRequest, "BATCH_IMAGE_QUEUE_INVALID_PAYLOAD", "invalid batch image queue payload")
 )
 
@@ -22,6 +23,9 @@ type ReservedBatchImageJob struct {
 
 type BatchImageJobLock interface {
 	Release(ctx context.Context) error
+	Refresh(ctx context.Context, ttl time.Duration) error
+	Ack(ctx context.Context) error
+	RequeueAfter(ctx context.Context, delay time.Duration) error
 }
 
 type BatchImageQueue interface {

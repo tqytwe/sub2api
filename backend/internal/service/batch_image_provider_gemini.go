@@ -43,8 +43,14 @@ type GeminiBatchJob struct {
 	State    string               `json:"state"`
 	Dest     *GeminiBatchDest     `json:"dest"`
 	Response *GeminiBatchResponse `json:"response"`
+	Metadata *GeminiBatchMetadata `json:"metadata"`
 	Error    *GeminiBatchError    `json:"error"`
 	Raw      map[string]any       `json:"-"`
+}
+
+type GeminiBatchMetadata struct {
+	State  string               `json:"state"`
+	Output *GeminiBatchResponse `json:"output"`
 }
 
 type GeminiBatchDest struct {
@@ -63,6 +69,82 @@ type GeminiBatchError struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
 	Status  string `json:"status"`
+}
+
+func (r *GeminiBatchResponse) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		ResponsesFile       string          `json:"responsesFile"`
+		ResponsesFileSnake  string          `json:"responses_file"`
+		InlinedResponses    json.RawMessage `json:"inlinedResponses"`
+		InlinedResponsesAlt json.RawMessage `json:"inlined_responses"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	r.ResponsesFile = wire.ResponsesFile
+	r.ResponsesFileSnake = wire.ResponsesFileSnake
+	r.InlinedResponses = decodeGeminiInlineResponses(wire.InlinedResponses)
+	r.InlinedResponsesAlt = decodeGeminiInlineResponses(wire.InlinedResponsesAlt)
+	return nil
+}
+
+func decodeGeminiInlineResponses(raw json.RawMessage) []any {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return nil
+	}
+	var direct []any
+	if json.Unmarshal(raw, &direct) == nil {
+		return direct
+	}
+	var wrapped struct {
+		Responses    []any `json:"inlinedResponses"`
+		ResponsesAlt []any `json:"inlined_responses"`
+	}
+	if json.Unmarshal(raw, &wrapped) == nil {
+		if len(wrapped.Responses) > 0 {
+			return wrapped.Responses
+		}
+		if len(wrapped.ResponsesAlt) > 0 {
+			return wrapped.ResponsesAlt
+		}
+	}
+	var object map[string]any
+	if json.Unmarshal(raw, &object) == nil && len(object) > 0 {
+		return []any{object}
+	}
+	return nil
+}
+
+func (e *GeminiBatchError) UnmarshalJSON(data []byte) error {
+	var wire struct {
+		Code    json.RawMessage `json:"code"`
+		Message string          `json:"message"`
+		Status  string          `json:"status"`
+	}
+	if err := json.Unmarshal(data, &wire); err != nil {
+		return err
+	}
+	e.Code = geminiBatchErrorCode(wire.Code)
+	e.Message = wire.Message
+	e.Status = wire.Status
+	return nil
+}
+
+func geminiBatchErrorCode(raw json.RawMessage) string {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || bytes.Equal(raw, []byte("null")) {
+		return ""
+	}
+	var text string
+	if json.Unmarshal(raw, &text) == nil {
+		return strings.TrimSpace(text)
+	}
+	var number json.Number
+	if json.Unmarshal(raw, &number) == nil {
+		return strings.TrimSpace(number.String())
+	}
+	return ""
 }
 
 type GeminiAPIBatchImageProvider struct {
@@ -101,6 +183,10 @@ func (p *GeminiAPIBatchImageProvider) Submit(ctx context.Context, job *BatchImag
 	if input.Model == "" && job != nil {
 		input.Model = job.Model
 	}
+	upstreamModel := normalizeGeminiBatchModelName(account.GetMappedModel(input.Model))
+	if upstreamModel == "" {
+		return nil, batchImageProviderInputError("mapped model is required")
+	}
 
 	jsonl, err := BuildGeminiBatchJSONL(input)
 	if err != nil {
@@ -120,7 +206,7 @@ func (p *GeminiAPIBatchImageProvider) Submit(ctx context.Context, job *BatchImag
 		return nil, geminiProviderError("GEMINI_INVALID_RESPONSE", "Gemini upload response is missing file name", nil)
 	}
 
-	batch, err := p.client.CreateBatch(ctx, apiKey, input.Model, uploaded.Name, displayName)
+	batch, err := p.client.CreateBatch(ctx, apiKey, upstreamModel, uploaded.Name, displayName)
 	if err != nil {
 		return nil, mapGeminiClientError(err)
 	}
@@ -266,7 +352,13 @@ type geminiFileData struct {
 }
 
 type geminiGenerationConfig struct {
-	ResponseModalities []string `json:"responseModalities"`
+	ResponseModalities []string           `json:"responseModalities"`
+	ImageConfig        *geminiImageConfig `json:"imageConfig,omitempty"`
+}
+
+type geminiImageConfig struct {
+	AspectRatio string `json:"aspectRatio,omitempty"`
+	ImageSize   string `json:"imageSize,omitempty"`
 }
 
 func BuildGeminiBatchJSONL(input BatchImageInput) ([]byte, error) {
@@ -299,8 +391,13 @@ func BuildGeminiBatchJSONL(input BatchImageInput) ([]byte, error) {
 			return nil, err
 		}
 
-		// TODO(batch-image): add response_mime_type/aspect_ratio/image_size once the
-		// Gemini batch image REST shape is stabilized for those options.
+		imageConfig := &geminiImageConfig{
+			AspectRatio: strings.TrimSpace(input.AspectRatio),
+			ImageSize:   strings.TrimSpace(input.ImageSize),
+		}
+		if imageConfig.AspectRatio == "" && imageConfig.ImageSize == "" {
+			imageConfig = nil
+		}
 		line := geminiJSONLLine{
 			Key: customID,
 			Request: geminiGenerateRequest{
@@ -309,6 +406,7 @@ func BuildGeminiBatchJSONL(input BatchImageInput) ([]byte, error) {
 				}},
 				GenerationConfig: geminiGenerationConfig{
 					ResponseModalities: []string{"TEXT", "IMAGE"},
+					ImageConfig:        imageConfig,
 				},
 			},
 		}
@@ -346,8 +444,10 @@ func batchImageGeminiParts(prompt string, refs []BatchImageReference) ([]geminiP
 }
 
 func mapGeminiBatchState(batch *GeminiBatchJob) *BatchProviderStatus {
-	state := strings.TrimSpace(batch.State)
+	state := geminiBatchState(batch)
 	normalized := strings.ToUpper(state)
+	normalized = strings.TrimPrefix(normalized, "JOB_STATE_")
+	normalized = strings.TrimPrefix(normalized, "BATCH_STATE_")
 	status := &BatchProviderStatus{
 		RawState:              state,
 		InternalState:         BatchProviderStateRunning,
@@ -355,22 +455,22 @@ func mapGeminiBatchState(batch *GeminiBatchJob) *BatchProviderStatus {
 	}
 
 	switch normalized {
-	case "JOB_STATE_PENDING", "JOB_STATE_QUEUED":
+	case "PENDING", "QUEUED":
 		status.InternalState = BatchProviderStateQueued
-	case "JOB_STATE_RUNNING":
+	case "RUNNING":
 		status.InternalState = BatchProviderStateRunning
-	case "JOB_STATE_SUCCEEDED":
+	case "SUCCEEDED":
 		status.InternalState = BatchProviderStateSucceeded
 		status.Done = true
-	case "JOB_STATE_FAILED":
+	case "FAILED":
 		status.InternalState = BatchProviderStateFailed
 		status.Done = true
 		status.ErrorCode = "GEMINI_BATCH_FAILED"
-	case "JOB_STATE_CANCELLED":
+	case "CANCELLED":
 		status.InternalState = BatchProviderStateCancelled
 		status.Done = true
 		status.ErrorCode = "GEMINI_BATCH_CANCELLED"
-	case "JOB_STATE_EXPIRED":
+	case "EXPIRED":
 		status.InternalState = BatchProviderStateExpired
 		status.Done = true
 		status.ErrorCode = "GEMINI_BATCH_EXPIRED"
@@ -393,6 +493,19 @@ func mapGeminiBatchState(batch *GeminiBatchJob) *BatchProviderStatus {
 	return status
 }
 
+func geminiBatchState(batch *GeminiBatchJob) string {
+	if batch == nil {
+		return ""
+	}
+	if state := strings.TrimSpace(batch.State); state != "" {
+		return state
+	}
+	if batch.Metadata != nil {
+		return strings.TrimSpace(batch.Metadata.State)
+	}
+	return ""
+}
+
 func geminiBatchOutputRef(batch *GeminiBatchJob) string {
 	if batch == nil {
 		return ""
@@ -413,13 +526,28 @@ func geminiBatchOutputRef(batch *GeminiBatchJob) string {
 			return v
 		}
 	}
+	if batch.Metadata != nil && batch.Metadata.Output != nil {
+		if v := strings.TrimSpace(batch.Metadata.Output.ResponsesFile); v != "" {
+			return v
+		}
+		if v := strings.TrimSpace(batch.Metadata.Output.ResponsesFileSnake); v != "" {
+			return v
+		}
+	}
 	return ""
 }
 
 func geminiBatchHasInlineResults(batch *GeminiBatchJob) bool {
-	return batch != nil &&
-		batch.Response != nil &&
-		(len(batch.Response.InlinedResponses) > 0 || len(batch.Response.InlinedResponsesAlt) > 0)
+	if batch == nil {
+		return false
+	}
+	if batch.Response != nil &&
+		(len(batch.Response.InlinedResponses) > 0 || len(batch.Response.InlinedResponsesAlt) > 0) {
+		return true
+	}
+	return batch.Metadata != nil &&
+		batch.Metadata.Output != nil &&
+		(len(batch.Metadata.Output.InlinedResponses) > 0 || len(batch.Metadata.Output.InlinedResponsesAlt) > 0)
 }
 
 func geminiProviderError(reason, message string, cause error) error {
@@ -527,6 +655,10 @@ func (c *GeminiBatchHTTPClient) UploadJSONL(ctx context.Context, apiKey string, 
 }
 
 func (c *GeminiBatchHTTPClient) CreateBatch(ctx context.Context, apiKey string, model string, fileName string, displayName string) (*GeminiBatchJob, error) {
+	model = normalizeGeminiBatchModelName(model)
+	if model == "" {
+		return nil, batchImageProviderInputError("model is required")
+	}
 	body := map[string]any{
 		"batch": map[string]any{
 			"displayName": displayName,
@@ -536,13 +668,18 @@ func (c *GeminiBatchHTTPClient) CreateBatch(ctx context.Context, apiKey string, 
 		},
 	}
 	payload, _ := json.Marshal(body)
-	path := fmt.Sprintf("/v1beta/models/%s:batchGenerateContent", url.PathEscape(strings.TrimSpace(model)))
+	path := fmt.Sprintf("/v1beta/models/%s:batchGenerateContent", url.PathEscape(model))
 	req, err := c.newRequest(ctx, http.MethodPost, path, apiKey, bytes.NewReader(payload))
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return c.doBatchJob(req)
+}
+
+func normalizeGeminiBatchModelName(model string) string {
+	model = strings.Trim(strings.TrimSpace(model), "/")
+	return strings.TrimPrefix(model, "models/")
 }
 
 func (c *GeminiBatchHTTPClient) GetBatch(ctx context.Context, apiKey string, batchName string) (*GeminiBatchJob, error) {
@@ -579,7 +716,7 @@ func (c *GeminiBatchHTTPClient) DownloadFile(ctx context.Context, apiKey string,
 		downloadURL = strings.TrimSpace(metadata.DownloadURL)
 	}
 	if downloadURL == "" {
-		downloadURL = c.baseURL + "/v1beta/" + strings.TrimLeft(fileName, "/") + ":download"
+		downloadURL = c.baseURL + "/download/v1beta/" + strings.TrimLeft(fileName, "/") + ":download?alt=media"
 	}
 	// 纵深加固：downloadUri 来自上游响应，跟随前校验目标 host，
 	// 防止异常/被劫持的响应把带 api key 的请求带到任意主机。
@@ -621,6 +758,14 @@ func (c *GeminiBatchHTTPClient) doBatchJob(req *http.Request) (*GeminiBatchJob, 
 	var job GeminiBatchJob
 	if err := c.doJSON(req, &job); err != nil {
 		return nil, err
+	}
+	if job.Metadata != nil {
+		if state := strings.TrimSpace(job.Metadata.State); state != "" {
+			job.State = state
+		}
+		if job.Response == nil && job.Metadata.Output != nil {
+			job.Response = job.Metadata.Output
+		}
 	}
 	job.Raw = map[string]any{}
 	return &job, nil

@@ -45,10 +45,11 @@ func NewDefaultBatchImageProviderRegistry() *BatchImageProviderRegistry {
 }
 
 func NewBatchImageProviderRegistryFromConfig(cfg *config.Config) *BatchImageProviderRegistry {
-	return NewBatchImageProviderRegistry(
-		NewGeminiAPIBatchImageProvider(nil),
-		NewVertexBatchImageProviderFromConfig(cfg, nil, nil, nil),
-	)
+	providers := []BatchImageProvider{NewGeminiAPIBatchImageProvider(nil)}
+	if cfg != nil && cfg.BatchImage.VertexEnabled {
+		providers = append(providers, NewVertexBatchImageProviderFromConfig(cfg, nil, nil, nil))
+	}
+	return NewBatchImageProviderRegistry(providers...)
 }
 
 func (r *BatchImageProviderRegistry) Get(provider string) (BatchImageProvider, bool) {

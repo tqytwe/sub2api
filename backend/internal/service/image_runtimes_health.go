@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/redis/go-redis/v9"
 )
 
 type RuntimeRunning interface {
@@ -16,6 +15,10 @@ type RuntimeRunning interface {
 
 type RuntimeEnabled interface {
 	IsEnabled(ctx context.Context) bool
+}
+
+type RuntimeStorageHealth interface {
+	StorageHealth(ctx context.Context) error
 }
 
 type ImageRuntimeBacklog struct {
@@ -43,6 +46,7 @@ type ImageRuntimeComponentHealth struct {
 	StorageReady         bool                     `json:"storage_ready"`
 	Queue                string                   `json:"queue"`
 	QueueEnabled         bool                     `json:"queue_enabled"`
+	DatabaseReady        bool                     `json:"database_ready"`
 	RedisReady           bool                     `json:"redis_ready"`
 	WorkerRunning        bool                     `json:"worker_running"`
 	Backlog              ImageRuntimeBacklog      `json:"backlog"`
@@ -63,7 +67,6 @@ type ImageRuntimesHealth struct {
 
 type ImageRuntimesHealthService struct {
 	db                 *sql.DB
-	redis              *redis.Client
 	cfg                *config.Config
 	batch              *BatchImageRuntimeState
 	imageTask          *ImageTaskService
@@ -71,10 +74,9 @@ type ImageRuntimesHealthService struct {
 	imageStudioFeature RuntimeEnabled
 }
 
-func NewImageRuntimesHealthService(db *sql.DB, redisClient *redis.Client, cfg *config.Config, batch *BatchImageRuntimeState, imageTask *ImageTaskService) *ImageRuntimesHealthService {
+func NewImageRuntimesHealthService(db *sql.DB, cfg *config.Config, batch *BatchImageRuntimeState, imageTask *ImageTaskService) *ImageRuntimesHealthService {
 	return &ImageRuntimesHealthService{
 		db:        db,
-		redis:     redisClient,
 		cfg:       cfg,
 		batch:     batch,
 		imageTask: imageTask,
@@ -108,29 +110,53 @@ func (s *ImageRuntimesHealthService) GetImageRuntimesHealth(ctx context.Context)
 }
 
 func (s *ImageRuntimesHealthService) gatewayAsyncHealth(ctx context.Context) ImageRuntimeComponentHealth {
-	active := s.cfg.ImageStorage.Active() && s.imageTask != nil && s.imageTask.Enabled()
-	redisReady := s.redis != nil && s.redis.Ping(ctx).Err() == nil
-	return ImageRuntimeComponentHealth{
-		Enabled:       active,
-		Ready:         active && redisReady,
-		Storage:       s.cfg.ImageStorage.BackendOrDefault(),
-		StorageReady:  s.cfg.ImageStorage.Active(),
-		Queue:         "legacy_in_process",
-		QueueEnabled:  false,
-		RedisReady:    redisReady,
-		WorkerRunning: false,
+	runtime := ImageTaskRuntimeSnapshot{}
+	if s.imageTask != nil {
+		runtime = s.imageTask.RuntimeSnapshot(ctx)
 	}
+	health := ImageRuntimeComponentHealth{
+		Enabled:       runtime.APIEnabled,
+		Ready:         runtime.Ready,
+		Storage:       s.cfg.ImageStorage.BackendOrDefault(),
+		StorageReady:  runtime.StorageReady,
+		Queue:         "redis",
+		QueueEnabled:  runtime.QueueEnabled,
+		RedisReady:    runtime.RedisReady,
+		WorkerRunning: runtime.WorkerRunning,
+		Backlog: ImageRuntimeBacklog{
+			Ready:  runtime.Queue.Ready,
+			Active: runtime.Queue.Active,
+		},
+	}
+	if runtime.LastError != "" && runtime.LastErrorAt != nil {
+		health.RecentError = &ImageRuntimeErrorHealth{
+			Message:   runtime.LastError,
+			CreatedAt: *runtime.LastErrorAt,
+		}
+	}
+	if runtime.Queue.OldestTask != nil {
+		health.OldestTask = &ImageRuntimeTaskHealth{
+			ID:        runtime.Queue.OldestTask.ID,
+			Status:    runtime.Queue.OldestTask.Status,
+			CreatedAt: runtime.Queue.OldestTask.CreatedAt,
+		}
+	}
+	return health
 }
 
 func (s *ImageRuntimesHealthService) batchHealth(ctx context.Context) ImageRuntimeComponentHealth {
-	runtime := s.batch.Snapshot(ctx)
+	runtime := BatchImageRuntimeSnapshot{}
+	if s.batch != nil {
+		runtime = s.batch.Snapshot(ctx)
+	}
 	health := ImageRuntimeComponentHealth{
 		Enabled:       runtime.Enabled,
 		Ready:         runtime.Ready,
-		Storage:       "provider_managed",
-		StorageReady:  true,
+		Storage:       "postgresql_and_provider_managed",
+		StorageReady:  runtime.DatabaseReady,
 		Queue:         "redis",
 		QueueEnabled:  runtime.QueueEnabled,
+		DatabaseReady: runtime.DatabaseReady,
 		RedisReady:    runtime.RedisReady,
 		WorkerRunning: runtime.WorkerRunning,
 		Backlog: ImageRuntimeBacklog{
@@ -153,16 +179,36 @@ func (s *ImageRuntimesHealthService) imageStudioHealth(ctx context.Context) Imag
 	dbReady := s.db != nil && s.db.PingContext(ctx) == nil
 	workerRunning := s.imageStudio != nil && s.imageStudio.Running()
 	enabled := s.imageStudioFeature != nil && s.imageStudioFeature.IsEnabled(ctx)
+	storageReady := false
+	if checker, ok := s.imageStudioFeature.(RuntimeStorageHealth); ok && checker != nil {
+		storageReady = checker.StorageHealth(ctx) == nil
+	}
 	health := ImageRuntimeComponentHealth{
 		Enabled:       enabled,
-		Ready:         enabled && dbReady && workerRunning,
-		Storage:       "postgresql_private_assets",
-		StorageReady:  dbReady,
+		Ready:         enabled && dbReady && storageReady && workerRunning,
+		Storage:       "local_private_assets",
+		StorageReady:  storageReady,
 		Queue:         "postgresql_leases",
 		QueueEnabled:  true,
+		DatabaseReady: dbReady,
 		WorkerRunning: workerRunning,
 	}
-	s.loadImageStudioDatabaseHealth(ctx, &health)
+	if !storageReady {
+		health.RecentError = &ImageRuntimeErrorHealth{
+			Message:   "image studio asset storage is not writable",
+			CreatedAt: time.Now().UTC(),
+		}
+	}
+	if dbReady {
+		if err := s.loadImageStudioDatabaseHealth(ctx, &health); err != nil {
+			health.DatabaseReady = false
+			health.Ready = false
+			health.RecentError = &ImageRuntimeErrorHealth{
+				Message:   "image studio database health query failed",
+				CreatedAt: time.Now().UTC(),
+			}
+		}
+	}
 	return health
 }
 
@@ -192,18 +238,51 @@ func (s *ImageRuntimesHealthService) loadBatchDatabaseHealth(ctx context.Context
 	}
 	_ = s.db.QueryRowContext(ctx, `
 		SELECT
-			COUNT(*) FILTER (
-				WHERE hold_amount IS NOT NULL
-				  AND settled_at IS NULL
-				  AND updated_at < $1
-			),
-			COUNT(*) FILTER (
-				WHERE status = 'settling' AND retry_count > 0
-			),
-			COUNT(*) FILTER (
-				WHERE status = 'failed'
-				  AND COALESCE(last_error_code, '') LIKE 'PROVIDER_%'
-			),
+				COUNT(*) FILTER (
+					WHERE hold_amount IS NOT NULL
+					  AND hold_amount > 0
+					  AND settled_at IS NULL
+					  AND updated_at < $1
+					  AND (
+						status NOT IN ('completed', 'failed', 'cancelled', 'output_deleted')
+						OR COALESCE(last_error_code, '') LIKE '%\_RELEASE\_FAILED' ESCAPE '\'
+					  )
+				),
+				COUNT(*) FILTER (
+					WHERE status = 'settling' AND retry_count > 0
+				),
+				COUNT(*) FILTER (
+					WHERE status = 'failed'
+					  AND (
+						COALESCE(last_error_code, '') LIKE 'PROVIDER\_%' ESCAPE '\'
+						OR COALESCE(last_error_code, '') LIKE 'GEMINI\_%' ESCAPE '\'
+						OR COALESCE(last_error_code, '') LIKE 'VERTEX\_%' ESCAPE '\'
+						OR (
+							provider_job_name IS NOT NULL
+							AND (
+								COALESCE(last_error_code, '') ~ '^[0-9]{3}$'
+								OR COALESCE(last_error_code, '') IN (
+									'CANCELLED',
+									'UNKNOWN',
+									'INVALID_ARGUMENT',
+									'DEADLINE_EXCEEDED',
+									'NOT_FOUND',
+									'ALREADY_EXISTS',
+									'PERMISSION_DENIED',
+									'RESOURCE_EXHAUSTED',
+									'FAILED_PRECONDITION',
+									'ABORTED',
+									'OUT_OF_RANGE',
+									'UNIMPLEMENTED',
+									'INTERNAL',
+									'UNAVAILABLE',
+									'DATA_LOSS',
+									'UNAUTHENTICATED'
+								)
+							)
+						  )
+					  )
+				),
 			COUNT(*) FILTER (
 				WHERE output_deleted_at IS NULL
 				  AND output_expires_at IS NOT NULL
@@ -235,9 +314,9 @@ func (s *ImageRuntimesHealthService) loadBatchDatabaseHealth(ctx context.Context
 	}
 }
 
-func (s *ImageRuntimesHealthService) loadImageStudioDatabaseHealth(ctx context.Context, health *ImageRuntimeComponentHealth) {
+func (s *ImageRuntimesHealthService) loadImageStudioDatabaseHealth(ctx context.Context, health *ImageRuntimeComponentHealth) error {
 	if s.db == nil || health == nil {
-		return
+		return nil
 	}
 	var oldestID, oldestStatus sql.NullString
 	var oldestCreatedAt sql.NullTime
@@ -247,6 +326,9 @@ func (s *ImageRuntimesHealthService) loadImageStudioDatabaseHealth(ctx context.C
 		WHERE status IN ('pending', 'running')
 		ORDER BY created_at ASC
 		LIMIT 1`).Scan(&oldestID, &oldestStatus, &oldestCreatedAt)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
 	if err == nil && oldestID.Valid && oldestCreatedAt.Valid {
 		health.OldestTask = &ImageRuntimeTaskHealth{
 			ID:        oldestID.String,
@@ -254,11 +336,13 @@ func (s *ImageRuntimesHealthService) loadImageStudioDatabaseHealth(ctx context.C
 			CreatedAt: oldestCreatedAt.Time.UTC(),
 		}
 	}
-	_ = s.db.QueryRowContext(ctx, `
-		SELECT
-			COUNT(*) FILTER (WHERE status = 'pending'),
-			COUNT(*) FILTER (WHERE status = 'running')
-		FROM image_studio_jobs`).Scan(&health.Backlog.Ready, &health.Backlog.Active)
+	if err := s.db.QueryRowContext(ctx, `
+			SELECT
+				COUNT(*) FILTER (WHERE status = 'pending'),
+				COUNT(*) FILTER (WHERE status = 'running')
+			FROM image_studio_jobs`).Scan(&health.Backlog.Ready, &health.Backlog.Active); err != nil {
+		return err
+	}
 
 	var message sql.NullString
 	var createdAt sql.NullTime
@@ -268,10 +352,14 @@ func (s *ImageRuntimesHealthService) loadImageStudioDatabaseHealth(ctx context.C
 		WHERE error_message IS NOT NULL AND btrim(error_message) <> ''
 		ORDER BY COALESCE(finished_at, created_at) DESC
 		LIMIT 1`).Scan(&message, &createdAt)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
 	if err == nil && message.Valid && createdAt.Valid {
 		health.RecentError = &ImageRuntimeErrorHealth{
 			Message:   sanitizeBatchImagePublicMessage(message.String),
 			CreatedAt: createdAt.Time.UTC(),
 		}
 	}
+	return nil
 }

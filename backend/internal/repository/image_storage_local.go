@@ -22,6 +22,7 @@ type LocalImageStorage struct {
 
 var _ service.ImageStorage = (*LocalImageStorage)(nil)
 var _ service.ImageAssetReader = (*LocalImageStorage)(nil)
+var _ service.ImageAssetDeleter = (*LocalImageStorage)(nil)
 
 func NewLocalImageStorage(root, urlPrefix string) (*LocalImageStorage, error) {
 	root = strings.TrimSpace(root)
@@ -75,6 +76,18 @@ func (s *LocalImageStorage) Open(_ context.Context, key string) (io.ReadCloser, 
 		contentType = "application/octet-stream"
 	}
 	return file, contentType, nil
+}
+
+func (s *LocalImageStorage) Delete(_ context.Context, key string) error {
+	cleanKey, err := cleanLocalImageKey(key)
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(s.root, filepath.FromSlash(cleanKey))
+	if err := os.Remove(target); err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("delete local image: %w", err)
+	}
+	return nil
 }
 
 func cleanLocalImageKey(raw string) (string, error) {

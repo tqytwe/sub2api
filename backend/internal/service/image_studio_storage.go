@@ -1,6 +1,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -22,6 +24,37 @@ func NewImageStudioAssetStore(dataDir string) *ImageStudioAssetStore {
 		_ = os.Chmod(root, 0o700)
 	}
 	return &ImageStudioAssetStore{root: root}
+}
+
+func (s *ImageStudioAssetStore) StorageHealth(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if s == nil || strings.TrimSpace(s.root) == "" {
+		return errors.New("image studio asset storage is unavailable")
+	}
+	if err := os.MkdirAll(s.root, 0o700); err != nil {
+		return err
+	}
+	probe, err := os.CreateTemp(s.root, ".image-studio-health-*")
+	if err != nil {
+		return err
+	}
+	probePath := probe.Name()
+	defer func() {
+		_ = probe.Close()
+		_ = os.Remove(probePath)
+	}()
+	if err := probe.Chmod(0o600); err != nil {
+		return err
+	}
+	if _, err := probe.Write([]byte("ok")); err != nil {
+		return err
+	}
+	if err := probe.Sync(); err != nil {
+		return err
+	}
+	return probe.Close()
 }
 
 func (s *ImageStudioAssetStore) Save(userID int64, assetID, contentType string, data []byte) (string, error) {

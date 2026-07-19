@@ -685,7 +685,7 @@
         </div>
 
 	        <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-100">
-	          取消任务会请求上游取消；已被系统索引为成功的图片仍会按成功项结算扣费，其余冻结金额会释放。
+	          取消任务会请求上游取消；已被系统索引为成功的图片仍会按成功图片数结算扣费，其余冻结金额会释放。
 	        </div>
 	        <div v-if="submitting" class="rounded-lg border border-sky-200 bg-sky-50 p-3 text-sm leading-6 text-sky-800 dark:border-sky-800 dark:bg-sky-950/30 dark:text-sky-100">
 	          正在创建上游批量任务，通常需要几秒，请不要重复提交。
@@ -755,9 +755,12 @@ import { useAppStore } from '@/stores/app'
 import { keysAPI } from '@/api'
 import {
   batchImageAvailabilityIssue,
+  buildBatchImageSubmitItems,
   createBatchImageIdempotencyKey,
+  normalizeBatchImageOutputCount,
   resolveBatchImageSubmissionAttempt,
   type BatchImageSubmissionAttempt,
+  uniqueBatchImageCustomID,
 } from '@/utils/batchImageSubmission'
 import {
   cancelBatchImageJob,
@@ -1033,25 +1036,11 @@ const endpointBase = computed(() => {
 const selectedModelReferenceLimit = computed(() => referenceImageLimitForModel(form.model))
 
 const estimatedOutputCount = computed(() =>
-  promptRows.value.reduce((sum, row) => sum + normalizeOutputCount(row.output_count), 0),
+  promptRows.value.reduce((sum, row) => sum + normalizeBatchImageOutputCount(row.output_count), 0),
 )
 
 const parsedItems = computed<BatchImageSubmitItem[]>(() => {
-  const used = new Set<string>()
-  return promptRows.value
-    .map((row, index) => {
-      const customID = uniqueCustomID(row.custom_id || `img_${String(index + 1).padStart(3, '0')}`, used, index)
-      const item: BatchImageSubmitItem = { custom_id: customID, prompt: row.prompt.trim() }
-      const outputCount = normalizeOutputCount(row.output_count)
-      if (outputCount > 1) {
-        item.output_count = outputCount
-      }
-      if (row.reference_images.length) {
-        item.reference_images = row.reference_images
-      }
-      return item
-    })
-    .filter(item => item.prompt)
+  return buildBatchImageSubmitItems(promptRows.value)
 })
 
 function referenceImageLimitForModel(model: string) {
@@ -1117,7 +1106,7 @@ API 调用规范：
 - 不要把参考图 base64 写入最终回复、日志或公开文件。恢复记录中只保存参考图文件名、用途、数量和请求 JSON 文件路径；若请求 JSON 文件包含 base64，应保存在用户指定输出目录且不要提交到仓库。
 - output_count 表示同一 prompt 和参考图重复生成几张，默认 1，每条最多 4；这不是依赖 Gemini 单次请求返回多图，而是系统展开成多个真实任务项。提交前必须确认预计输出图总数不超过 200，超过就拆分成多组任务。绝不能因为参考图附件有更高的内部保护阈值，就提交会生成超过 200 张图的任务。
 - 需要 5 张时使用 5 个独立 items，需要 10 张时使用 10 个独立 items；不要使用单 item 的 output_count=5 或 output_count=10。
-- 每次首次提交生成一个 Idempotency-Key；网络失败或超时后重试同一请求时必须复用该 key，只有请求内容改变时才生成新 key。
+- 控制台会为首次提交自动生成 Idempotency-Key；API 客户端强烈建议同样携带。网络失败或超时后重试同一请求时复用该 key，只有请求内容改变时才生成新 key。
 - 当前对用户的批量生图计费仍按成功输出图片数量结算，不单独对参考图加价。可以向用户说明：参考图会产生少量上游输入 token 和临时存储成本，且会随 output_count 重复计算；页面显示的冻结/结算金额按输出图片数量计算。
 - 提交成功后，必须立刻在输出目录写入本地恢复记录，例如 batch-image-resume.json。不要在恢复记录里保存 API Key。
 - 恢复记录至少包含：endpoint、task_name、batch_id、model、output_dir、request_file、submitted_at、last_status、status_url、items_url、download_url、prompt_count、expected_output_count，以及可用于失败重试的 custom_id 到 prompt 映射或请求 JSON 文件路径。
@@ -1127,37 +1116,19 @@ API 调用规范：
 - 任务完成后报告任务名、任务 id、成功数、失败数、实际扣费和保存路径。
 - 只下载成功图片。部分失败时，先展示失败 custom_id、错误码、错误来源和简要原因。
 - 重试只能重试失败项，不能重复提交已成功项。若历史任务没有保存失败项 prompt，必须告诉用户无法自动重试，并询问用户是否提供原 prompt。
-- 取消任务前必须提醒：已被系统索引为成功的图片仍会按成功项结算扣费，其余冻结金额会释放。
+- 取消任务前必须提醒：已被系统索引为成功的图片仍会按成功图片数结算扣费，其余冻结金额会释放。
 - 图片预览按需加载；不要为了查看列表自动批量加载图片内容。`)
 
 function joinEndpointPath(base: string, path: string): string {
   return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
 
-function uniqueCustomID(raw: string, used: Set<string>, index: number): string {
-  const base = raw.replace(/[^\w.-]+/g, '_').replace(/^_+|_+$/g, '') || `img_${String(index + 1).padStart(3, '0')}`
-  let candidate = base
-  let suffix = 2
-  while (used.has(candidate)) {
-    candidate = `${base}_${suffix}`
-    suffix += 1
-  }
-  used.add(candidate)
-  return candidate
-}
-
-function normalizeOutputCount(value: unknown): number {
-  const parsed = Math.floor(Number(value || 1))
-  if (!Number.isFinite(parsed)) return 1
-  return Math.min(BATCH_IMAGE_MAX_OUTPUTS_PER_ITEM, Math.max(1, parsed))
-}
-
 function addPromptRow() {
   const prompt = promptDraft.value.trim()
   if (!prompt) return
-  const outputCount = normalizeOutputCount(outputCountDraft.value)
+  const outputCount = normalizeBatchImageOutputCount(outputCountDraft.value)
   const used = new Set(promptRows.value.map(row => row.custom_id))
-  const customID = uniqueCustomID(customIdDraft.value || `img_${String(promptRows.value.length + 1).padStart(3, '0')}`, used, promptRows.value.length)
+  const customID = uniqueBatchImageCustomID(customIdDraft.value || `img_${String(promptRows.value.length + 1).padStart(3, '0')}`, used, promptRows.value.length)
   promptRows.value = [
     ...promptRows.value,
     {
@@ -2489,7 +2460,7 @@ function batchImageText(key: BatchImageTextKey) {
     submitted: '批量任务已提交',
     submitFailed: '提交失败',
     refreshFailed: '刷新失败',
-    cancelConfirm: '取消会请求上游取消；已被系统索引为成功的图片仍会按成功项结算扣费，其余冻结金额会释放。确定取消吗？',
+    cancelConfirm: '取消会请求上游取消；已被系统索引为成功的图片仍会按成功图片数结算扣费，其余冻结金额会释放。确定取消吗？',
     cancelled: '已请求取消任务',
     cancelFailed: '取消失败',
     batchDownloadStarted: '已开始下载选中的任务',

@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -29,6 +30,12 @@ type ImageAssetReader interface {
 	Open(ctx context.Context, key string) (io.ReadCloser, string, error)
 }
 
+// ImageAssetDeleter is implemented by storage backends that can roll back
+// partially written image results.
+type ImageAssetDeleter interface {
+	Delete(ctx context.Context, key string) error
+}
+
 // ImageResultUploader 是 ImageStorage 的上层编排器（与具体厂商无关）：
 // 把上游生图响应里的每张图片（b64_json 解码 / url 下载）转存到结果存储，
 // 并把响应结果改写为只含短链接的紧凑 JSON，从而避免大 base64 落 Redis。
@@ -37,6 +44,7 @@ type ImageResultUploader struct {
 	httpClient       *http.Client
 	prefix           string
 	maxDownloadBytes int64
+	validateURL      func(string) (string, error)
 }
 
 // NewImageResultUploader 构造一个 uploader；storage 为 nil 时 Rewrite 直接透传。
@@ -52,49 +60,87 @@ func NewImageResultUploader(storage ImageStorage, prefix string, maxDownloadByte
 		httpClient:       httpClient,
 		prefix:           prefix,
 		maxDownloadBytes: maxDownloadBytes,
+		validateURL:      validateImageStudioRemoteURL,
 	}
 }
 
 func defaultImageDownloadHTTPClient() *http.Client {
-	return &http.Client{Timeout: 60 * time.Second}
+	client := newImageStudioRemoteHTTPClient()
+	client.Timeout = 60 * time.Second
+	return client
 }
 
 // Rewrite 将 result（上游生图响应 JSON）里的每张图片转存到对象存储，
 // 返回改写后的紧凑结果（data[i].url 指向结果存储，b64_json 被移除）。
 // 任一图片转存失败即返回 error（调用方据此将任务标记为失败，绝不把大 blob 落 Redis）。
 func (u *ImageResultUploader) Rewrite(ctx context.Context, taskID string, result json.RawMessage) (json.RawMessage, error) {
+	out, _, err := u.rewrite(ctx, taskID, result)
+	return out, err
+}
+
+func (u *ImageResultUploader) RewriteWithRollback(
+	ctx context.Context,
+	taskID string,
+	result json.RawMessage,
+) (json.RawMessage, func(), error) {
+	out, storedKeys, err := u.rewrite(ctx, taskID, result)
+	if err != nil {
+		return nil, nil, err
+	}
+	var once sync.Once
+	rollback := func() {
+		once.Do(func() {
+			_ = deleteImageAssets(context.WithoutCancel(ctx), u.storage, storedKeys)
+		})
+	}
+	return out, rollback, nil
+}
+
+func (u *ImageResultUploader) rewrite(
+	ctx context.Context,
+	taskID string,
+	result json.RawMessage,
+) (json.RawMessage, []string, error) {
 	if u == nil || u.storage == nil {
-		return result, nil
+		return result, nil, nil
 	}
 	var top map[string]json.RawMessage
 	if err := json.Unmarshal(result, &top); err != nil {
-		return nil, fmt.Errorf("parse image response: %w", err)
+		return nil, nil, fmt.Errorf("parse image response: %w", err)
 	}
 	rawData, ok := top["data"]
 	if !ok {
 		// 没有 data 数组（结构不符合预期），保持原样返回，交由上层决定。
-		return result, nil
+		return result, nil, nil
 	}
 	var items []map[string]json.RawMessage
 	if err := json.Unmarshal(rawData, &items); err != nil {
-		return nil, fmt.Errorf("parse image response data: %w", err)
+		return nil, nil, fmt.Errorf("parse image response data: %w", err)
 	}
 	if len(items) == 0 {
-		return result, nil
+		return result, nil, nil
+	}
+	storedKeys := make([]string, 0, len(items))
+	rollback := func() {
+		_ = deleteImageAssets(context.WithoutCancel(ctx), u.storage, storedKeys)
 	}
 	for i, item := range items {
 		data, contentType, err := u.fetchImageBytes(ctx, item)
 		if err != nil {
-			return nil, fmt.Errorf("image %d: %w", i, err)
+			rollback()
+			return nil, nil, fmt.Errorf("image %d: %w", i, err)
 		}
 		key := u.buildKey(taskID, i, contentType)
 		url, err := u.storage.Save(ctx, key, contentType, data)
 		if err != nil {
-			return nil, fmt.Errorf("image %d: store image result: %w", i, err)
+			rollback()
+			return nil, nil, fmt.Errorf("image %d: store image result: %w", i, err)
 		}
+		storedKeys = append(storedKeys, key)
 		urlRaw, err := json.Marshal(url)
 		if err != nil {
-			return nil, fmt.Errorf("image %d: encode url: %w", i, err)
+			rollback()
+			return nil, nil, fmt.Errorf("image %d: encode url: %w", i, err)
 		}
 		item["url"] = urlRaw
 		delete(item, "b64_json")
@@ -102,14 +148,30 @@ func (u *ImageResultUploader) Rewrite(ctx context.Context, taskID string, result
 	}
 	newData, err := json.Marshal(items)
 	if err != nil {
-		return nil, fmt.Errorf("encode image response data: %w", err)
+		rollback()
+		return nil, nil, fmt.Errorf("encode image response data: %w", err)
 	}
 	top["data"] = newData
 	out, err := json.Marshal(top)
 	if err != nil {
-		return nil, fmt.Errorf("encode image response: %w", err)
+		rollback()
+		return nil, nil, fmt.Errorf("encode image response: %w", err)
 	}
-	return out, nil
+	return out, storedKeys, nil
+}
+
+func deleteImageAssets(ctx context.Context, storage ImageStorage, keys []string) error {
+	deleter, ok := storage.(ImageAssetDeleter)
+	if !ok || deleter == nil || len(keys) == 0 {
+		return nil
+	}
+	var joined error
+	for _, key := range keys {
+		if err := deleter.Delete(ctx, key); err != nil {
+			joined = errors.Join(joined, err)
+		}
+	}
+	return joined
 }
 
 func (u *ImageResultUploader) fetchImageBytes(ctx context.Context, item map[string]json.RawMessage) ([]byte, string, error) {
@@ -137,7 +199,15 @@ func (u *ImageResultUploader) fetchImageBytes(ctx context.Context, item map[stri
 }
 
 func (u *ImageResultUploader) download(ctx context.Context, rawURL string) ([]byte, string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
+	validatedURL := strings.TrimSpace(rawURL)
+	if u.validateURL != nil {
+		var err error
+		validatedURL, err = u.validateURL(validatedURL)
+		if err != nil {
+			return nil, "", fmt.Errorf("validate image download url: %w", err)
+		}
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, validatedURL, nil)
 	if err != nil {
 		return nil, "", fmt.Errorf("build download request: %w", err)
 	}

@@ -8,6 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -47,6 +49,8 @@ func TestGeminiProvider_MissingAPIKeyRejected(t *testing.T) {
 
 func TestBuildGeminiBatchJSONL_WritesValidLinesAndPreservesCustomID(t *testing.T) {
 	input := validGeminiBatchInput()
+	input.AspectRatio = "16:9"
+	input.ImageSize = "1K"
 	input.Items = append(input.Items, BatchImageInputItem{CustomID: "cover_002", Prompt: "Second prompt"})
 
 	jsonl, err := BuildGeminiBatchJSONL(input)
@@ -56,6 +60,13 @@ func TestBuildGeminiBatchJSONL_WritesValidLinesAndPreservesCustomID(t *testing.T
 	require.Len(t, lines, 2)
 	requireJSONLLine(t, lines[0], "cover_001", "A clean product hero image")
 	requireJSONLLine(t, lines[1], "cover_002", "Second prompt")
+	var got map[string]any
+	require.NoError(t, json.Unmarshal([]byte(lines[0]), &got))
+	config := got["request"].(map[string]any)["generationConfig"].(map[string]any)
+	require.Equal(t, map[string]any{
+		"aspectRatio": "16:9",
+		"imageSize":   "1K",
+	}, config["imageConfig"])
 }
 
 func TestBuildGeminiBatchJSONL_RejectsDuplicateCustomIDs(t *testing.T) {
@@ -118,6 +129,39 @@ func TestGeminiProvider_SubmitUploadsJSONLThenCreatesBatch(t *testing.T) {
 	require.NotContains(t, string(client.uploadedJSONL), "sk-secret")
 }
 
+func TestGeminiProvider_SubmitUsesAccountMappedUpstreamModel(t *testing.T) {
+	client := &fakeGeminiBatchClient{}
+	provider := NewGeminiAPIBatchImageProvider(client)
+	account := geminiAPIKeyAccount("sk-secret")
+	account.Credentials["model_mapping"] = map[string]any{
+		"public-image-model": "gemini-3.1-flash-image-preview",
+	}
+	input := validGeminiBatchInput()
+	input.Model = "public-image-model"
+
+	_, err := provider.Submit(context.Background(), nil, account, input)
+
+	require.NoError(t, err)
+	require.Equal(t, "gemini-3.1-flash-image-preview", client.createdModel)
+	require.Equal(t, "public-image-model", input.Model)
+}
+
+func TestGeminiProvider_SubmitNormalizesModelsPrefixFromAccountMapping(t *testing.T) {
+	client := &fakeGeminiBatchClient{}
+	provider := NewGeminiAPIBatchImageProvider(client)
+	account := geminiAPIKeyAccount("sk-secret")
+	account.Credentials["model_mapping"] = map[string]any{
+		"public-image-model": "models/gemini-3.1-flash-image-preview",
+	}
+	input := validGeminiBatchInput()
+	input.Model = "public-image-model"
+
+	_, err := provider.Submit(context.Background(), nil, account, input)
+
+	require.NoError(t, err)
+	require.Equal(t, "gemini-3.1-flash-image-preview", client.createdModel)
+}
+
 func TestGeminiProvider_GetMapsStates(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -128,8 +172,11 @@ func TestGeminiProvider_GetMapsStates(t *testing.T) {
 		wantCode  string
 	}{
 		{name: "running", job: &GeminiBatchJob{Name: "batches/1", State: "JOB_STATE_RUNNING"}, wantState: BatchProviderStateRunning},
+		{name: "developer_api_running", job: &GeminiBatchJob{Name: "batches/1", State: "BATCH_STATE_RUNNING"}, wantState: BatchProviderStateRunning},
 		{name: "succeeded_dest_fileName", job: &GeminiBatchJob{Name: "batches/1", State: "JOB_STATE_SUCCEEDED", Dest: &GeminiBatchDest{FileName: "files/out"}}, wantState: BatchProviderStateSucceeded, wantDone: true, wantRef: "files/out"},
+		{name: "developer_api_succeeded", job: &GeminiBatchJob{Name: "batches/1", State: "BATCH_STATE_SUCCEEDED", Dest: &GeminiBatchDest{FileName: "files/out"}}, wantState: BatchProviderStateSucceeded, wantDone: true, wantRef: "files/out"},
 		{name: "failed", job: &GeminiBatchJob{Name: "batches/1", State: "JOB_STATE_FAILED", Error: &GeminiBatchError{Code: "BAD_PROMPT", Message: "bad prompt"}}, wantState: BatchProviderStateFailed, wantDone: true, wantCode: "BAD_PROMPT"},
+		{name: "developer_api_failed", job: &GeminiBatchJob{Name: "batches/1", State: "BATCH_STATE_FAILED", Error: &GeminiBatchError{Code: "13", Message: "provider failed"}}, wantState: BatchProviderStateFailed, wantDone: true, wantCode: "13"},
 		{name: "cancelled", job: &GeminiBatchJob{Name: "batches/1", State: "JOB_STATE_CANCELLED"}, wantState: BatchProviderStateCancelled, wantDone: true, wantCode: "GEMINI_BATCH_CANCELLED"},
 		{name: "expired", job: &GeminiBatchJob{Name: "batches/1", State: "JOB_STATE_EXPIRED"}, wantState: BatchProviderStateExpired, wantDone: true, wantCode: "GEMINI_BATCH_EXPIRED"},
 	}
@@ -146,6 +193,88 @@ func TestGeminiProvider_GetMapsStates(t *testing.T) {
 			require.NotContains(t, got.ErrorMessage, "sk-secret")
 		})
 	}
+}
+
+func TestGeminiBatchHTTPClient_ParsesDeveloperAPIOperationMetadata(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, http.MethodGet, r.Method)
+		require.Equal(t, "/v1beta/batches/job-123", r.URL.Path)
+		require.Equal(t, "sk-test", r.Header.Get("x-goog-api-key"))
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"name":"batches/job-123",
+			"metadata":{
+				"state":"BATCH_STATE_SUCCEEDED",
+				"output":{"responsesFile":"files/output-jsonl"}
+			}
+		}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewGeminiBatchHTTPClient(server.URL, server.Client())
+	job, err := client.GetBatch(context.Background(), "sk-test", "batches/job-123")
+
+	require.NoError(t, err)
+	require.Equal(t, "batches/job-123", job.Name)
+	require.Equal(t, "BATCH_STATE_SUCCEEDED", job.State)
+	require.Equal(t, "files/output-jsonl", geminiBatchOutputRef(job))
+}
+
+func TestGeminiBatchHTTPClient_ParsesNumericOperationErrorCode(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{
+			"name":"batches/job-123",
+			"metadata":{"state":"BATCH_STATE_FAILED"},
+			"error":{"code":13,"message":"internal provider failure","status":"INTERNAL"}
+		}`)
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewGeminiBatchHTTPClient(server.URL, server.Client())
+	job, err := client.GetBatch(context.Background(), "sk-test", "batches/job-123")
+
+	require.NoError(t, err)
+	require.NotNil(t, job.Error)
+	require.Equal(t, "13", job.Error.Code)
+	status := mapGeminiBatchState(job)
+	require.Equal(t, BatchProviderStateFailed, status.InternalState)
+	require.True(t, status.Done)
+	require.Equal(t, "13", status.ErrorCode)
+}
+
+func TestGeminiBatchHTTPClient_DownloadFileUsesMediaDownloadEndpointFallback(t *testing.T) {
+	var requestedPaths []string
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "sk-test", r.Header.Get("x-goog-api-key"))
+		requestedPaths = append(requestedPaths, r.URL.RequestURI())
+		switch r.URL.Path {
+		case "/v1beta/files/output-jsonl":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"name":"files/output-jsonl","mimeType":"application/jsonl"}`)
+		case "/download/v1beta/files/output-jsonl:download":
+			require.Equal(t, "media", r.URL.Query().Get("alt"))
+			w.Header().Set("Content-Type", "application/jsonl")
+			_, _ = io.WriteString(w, "{\"key\":\"item-1\"}\n")
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewGeminiBatchHTTPClient(server.URL, server.Client())
+	reader, contentType, err := client.DownloadFile(context.Background(), "sk-test", "files/output-jsonl")
+	require.NoError(t, err)
+	defer func() { _ = reader.Close() }()
+	body, err := io.ReadAll(reader)
+	require.NoError(t, err)
+
+	require.Equal(t, "application/jsonl", contentType)
+	require.Equal(t, "{\"key\":\"item-1\"}\n", string(body))
+	require.Equal(t, []string{
+		"/v1beta/files/output-jsonl",
+		"/download/v1beta/files/output-jsonl:download?alt=media",
+	}, requestedPaths)
 }
 
 func TestGeminiProvider_GetExtractsResponsesFileReference(t *testing.T) {
@@ -291,6 +420,7 @@ type fakeGeminiBatchClient struct {
 	downloadErr         error
 	deleteErr           error
 	uploadedJSONL       []byte
+	createdModel        string
 	createdFile         string
 	cancelledBatch      string
 	downloadedFile      string
@@ -314,8 +444,9 @@ func (f *fakeGeminiBatchClient) UploadJSONL(_ context.Context, apiKey string, _ 
 	return &GeminiUploadedFile{Name: "files/input-jsonl"}, nil
 }
 
-func (f *fakeGeminiBatchClient) CreateBatch(_ context.Context, _ string, _ string, fileName string, _ string) (*GeminiBatchJob, error) {
+func (f *fakeGeminiBatchClient) CreateBatch(_ context.Context, _ string, model string, fileName string, _ string) (*GeminiBatchJob, error) {
 	f.calls = append(f.calls, "create")
+	f.createdModel = model
 	f.createdFile = fileName
 	if f.createErr != nil {
 		return nil, f.createErr

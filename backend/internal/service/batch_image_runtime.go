@@ -11,8 +11,9 @@ import (
 // BatchImageRuntimeState is shared by the public API, worker runtime, and
 // operations health endpoint so readiness cannot drift between components.
 type BatchImageRuntimeState struct {
-	cfg   *config.Config
-	queue BatchImageQueue
+	cfg      *config.Config
+	queue    BatchImageQueue
+	database BatchImageDatabaseHealthChecker
 
 	mu            sync.RWMutex
 	workerRunning bool
@@ -23,6 +24,7 @@ type BatchImageRuntimeState struct {
 type BatchImageRuntimeSnapshot struct {
 	Enabled       bool                 `json:"enabled"`
 	QueueEnabled  bool                 `json:"queue_enabled"`
+	DatabaseReady bool                 `json:"database_ready"`
 	RedisReady    bool                 `json:"redis_ready"`
 	WorkerRunning bool                 `json:"worker_running"`
 	Ready         bool                 `json:"ready"`
@@ -31,12 +33,23 @@ type BatchImageRuntimeSnapshot struct {
 	LastErrorAt   *time.Time           `json:"last_error_at,omitempty"`
 }
 
-func NewBatchImageRuntimeState(queue BatchImageQueue, cfg *config.Config) *BatchImageRuntimeState {
-	return &BatchImageRuntimeState{cfg: cfg, queue: queue}
+type BatchImageDatabaseHealthChecker interface {
+	PingContext(ctx context.Context) error
+}
+
+func NewBatchImageRuntimeState(queue BatchImageQueue, database BatchImageDatabaseHealthChecker, cfg *config.Config) *BatchImageRuntimeState {
+	return &BatchImageRuntimeState{cfg: cfg, queue: queue, database: database}
 }
 
 func (s *BatchImageRuntimeState) RequireReady(ctx context.Context) error {
 	if s == nil || s.cfg == nil || !s.cfg.BatchImage.QueueEnabled || !s.WorkerRunning() {
+		return ErrBatchImageRuntimeNotReady
+	}
+	if s.database == nil {
+		return ErrBatchImageRuntimeNotReady
+	}
+	if err := s.database.PingContext(ctx); err != nil {
+		s.RecordError(err)
 		return ErrBatchImageRuntimeNotReady
 	}
 	checker, ok := s.queue.(BatchImageQueueHealthChecker)
@@ -106,9 +119,26 @@ func (s *BatchImageRuntimeState) Snapshot(ctx context.Context) BatchImageRuntime
 	}
 	s.mu.RUnlock()
 
+	if s.database != nil {
+		if err := s.database.PingContext(ctx); err == nil {
+			snapshot.DatabaseReady = true
+		} else {
+			s.RecordError(err)
+			snapshot.LastError = sanitizeBatchImagePublicMessage(err.Error())
+			now := time.Now().UTC()
+			snapshot.LastErrorAt = &now
+		}
+	}
 	checker, checkerOK := s.queue.(BatchImageQueueHealthChecker)
-	if checkerOK && checker != nil && checker.Ping(ctx) == nil {
-		snapshot.RedisReady = true
+	if checkerOK && checker != nil {
+		if err := checker.Ping(ctx); err == nil {
+			snapshot.RedisReady = true
+		} else {
+			s.RecordError(err)
+			snapshot.LastError = sanitizeBatchImagePublicMessage(err.Error())
+			now := time.Now().UTC()
+			snapshot.LastErrorAt = &now
+		}
 	}
 	if statsReader, ok := s.queue.(BatchImageQueueStatsReader); ok && statsReader != nil {
 		stats, err := statsReader.Stats(ctx)
@@ -119,6 +149,6 @@ func (s *BatchImageRuntimeState) Snapshot(ctx context.Context) BatchImageRuntime
 			snapshot.Queue = stats
 		}
 	}
-	snapshot.Ready = snapshot.Enabled && snapshot.QueueEnabled && snapshot.RedisReady && snapshot.WorkerRunning
+	snapshot.Ready = snapshot.Enabled && snapshot.QueueEnabled && snapshot.DatabaseReady && snapshot.RedisReady && snapshot.WorkerRunning
 	return snapshot
 }

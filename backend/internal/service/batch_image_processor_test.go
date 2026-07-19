@@ -93,7 +93,7 @@ func TestParseBatchImageResultLine_RejectsMissingCustomIDAndDoesNotLeakData(t *t
 
 func TestBatchImageResultIndexer_WritesCountsAndReplacesItems(t *testing.T) {
 	output := strings.Join([]string{
-		`{"key":"ok","response":{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/png","data":"` + batchImageTestData + `"}}]}}]}}`,
+		`{"key":"ok","response":{"candidates":[{"content":{"parts":[{"inlineData":{"mimeType":"image/png","data":"` + batchImageTestData + `"}},{"inlineData":{"mimeType":"image/png","data":"` + batchImageTestData + `"}}]}}]}}`,
 		`{"key":"bad","error":{"code":"SAFETY","message":"blocked by safety policy"}}`,
 	}, "\n") + "\n"
 	repo := newFakeBatchImageRepository()
@@ -105,13 +105,14 @@ func TestBatchImageResultIndexer_WritesCountsAndReplacesItems(t *testing.T) {
 	require.NoError(t, err)
 	require.True(t, provider.openResultCalled)
 	require.Equal(t, 1, result.SuccessCount)
+	require.Equal(t, 2, result.OutputImageCount)
 	require.Equal(t, 1, result.FailCount)
 	require.Equal(t, 2, result.TotalCount)
 	require.Equal(t, 1, repo.replaceCalls)
 	require.Len(t, repo.items[job.BatchID], 2)
 	require.Equal(t, BatchImageItemStatusSuccess, repo.items[job.BatchID][0].Status)
 	require.Equal(t, BatchImageItemStatusFailed, repo.items[job.BatchID][1].Status)
-	require.Equal(t, BatchImageCounts{SuccessCount: 1, FailCount: 1}, repo.counts[job.BatchID])
+	require.Equal(t, BatchImageCounts{SuccessCount: 1, OutputImageCount: 2, FailCount: 1}, repo.counts[job.BatchID])
 	require.NotContains(t, fmt.Sprintf("%+v", repo.items[job.BatchID]), batchImageTestData)
 
 	// 重新索引时与现有 custom_id 集对账：未知的 "ok2" 被丢弃，
@@ -121,6 +122,7 @@ func TestBatchImageResultIndexer_WritesCountsAndReplacesItems(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 2, result.TotalCount)
 	require.Equal(t, 0, result.SuccessCount)
+	require.Equal(t, 0, result.OutputImageCount)
 	require.Equal(t, 2, result.FailCount)
 	require.Len(t, repo.items[job.BatchID], 2)
 	gotIDs := []string{repo.items[job.BatchID][0].CustomID, repo.items[job.BatchID][1].CustomID}
@@ -281,7 +283,7 @@ func TestBatchImageProviderProcessor_StatusFlow(t *testing.T) {
 		require.Equal(t, BatchImageJobStatusSettling, repo.jobs["imgbatch_flow"].Status)
 		require.Equal(t, "files/output", batchImageDerefString(repo.jobs["imgbatch_flow"].ProviderOutputRef))
 		require.Equal(t, []string{BatchImageJobStatusIndexing, BatchImageJobStatusSettling}, repo.transitions["imgbatch_flow"])
-		require.Equal(t, BatchImageCounts{SuccessCount: 1}, repo.counts["imgbatch_flow"])
+		require.Equal(t, BatchImageCounts{SuccessCount: 1, OutputImageCount: 1}, repo.counts["imgbatch_flow"])
 	})
 
 	t.Run("failed provider marks job failed", func(t *testing.T) {
@@ -386,6 +388,7 @@ type fakeBatchImageRepository struct {
 	transitions   map[string][]string
 	events        map[string][]string
 	transitionErr error
+	createErr     error
 	replaceCalls  int
 }
 
@@ -400,6 +403,9 @@ func newFakeBatchImageRepository() *fakeBatchImageRepository {
 }
 
 func (r *fakeBatchImageRepository) CreateBatchImageJob(_ context.Context, params CreateBatchImageJobParams) (*BatchImageJob, error) {
+	if r.createErr != nil {
+		return nil, r.createErr
+	}
 	job := &BatchImageJob{
 		BatchID:                 params.BatchID,
 		UserID:                  params.UserID,
@@ -517,7 +523,7 @@ func (r *fakeBatchImageRepository) TransitionBatchImageJobStatus(_ context.Conte
 	if !ok {
 		return ErrBatchImageJobNotFound
 	}
-	if !CanTransitionBatchImageJob(job.Status, toStatus) {
+	if !CanTransitionBatchImageJobWithOptions(job.Status, toStatus, opts) {
 		return ErrBatchImageInvalidTransition
 	}
 	if r.transitionErr != nil {
@@ -599,6 +605,11 @@ func (r *fakeBatchImageRepository) RecordBatchImageJobSubmitFailure(_ context.Co
 	if !ok {
 		return ErrBatchImageJobNotFound
 	}
+	if job.Status != BatchImageJobStatusCreated &&
+		job.Status != BatchImageJobStatusUploading &&
+		job.Status != BatchImageJobStatusSubmitted {
+		return nil
+	}
 	if markFailed {
 		job.Status = BatchImageJobStatusFailed
 	}
@@ -644,6 +655,12 @@ func (r *fakeBatchImageRepository) SetBatchImageJobSettlementFailed(_ context.Co
 	if !ok {
 		return 0, ErrBatchImageJobNotFound
 	}
+	if job.Status != BatchImageJobStatusSettling {
+		if job.Status == BatchImageJobStatusCompleted {
+			return 0, ErrBatchImageAlreadySettled
+		}
+		return 0, ErrBatchImageSettlementInvalidStatus
+	}
 	job.LastErrorCode = batchImageStringPtr(code)
 	job.LastErrorMessage = batchImageOptionalStringPtr(message)
 	job.RetryCount++
@@ -680,6 +697,7 @@ func (r *fakeBatchImageRepository) ReplaceBatchImageItemsForJob(_ context.Contex
 	r.counts[batchID] = counts
 	if job, ok := r.jobs[batchID]; ok {
 		job.SuccessCount = counts.SuccessCount
+		job.OutputImageCount = counts.OutputImageCount
 		job.FailCount = counts.FailCount
 		job.ItemCount = len(copied)
 	}

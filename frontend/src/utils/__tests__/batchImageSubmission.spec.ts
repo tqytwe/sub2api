@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  resolveBatchImageSubmissionAttempt,
   batchImageAvailabilityIssue,
+  buildBatchImageSubmitItems,
+  normalizeBatchImageOutputCount,
+  resolveBatchImageSubmissionAttempt,
 } from '../batchImageSubmission'
 
 describe('batch image submission idempotency', () => {
@@ -40,5 +42,34 @@ describe('batch image availability errors', () => {
     expect(batchImageAvailabilityIssue({ code: 'BATCH_IMAGE_NO_ACCOUNT_AVAILABLE' })).toBe('noCompatibleAccount')
     expect(batchImageAvailabilityIssue({ code: 'BATCH_IMAGE_NO_MODEL_AVAILABLE' })).toBe('noModelsHint')
     expect(batchImageAvailabilityIssue({ code: 'BATCH_IMAGE_PRICING_NOT_READY' })).toBe('pricingMissing')
+  })
+})
+
+describe('batch image item construction', () => {
+  it.each([5, 10])('builds %i requested images as independent items', (count) => {
+    const items = buildBatchImageSubmitItems(
+      Array.from({ length: count }, (_, index) => ({
+        custom_id: `image_${index + 1}`,
+        prompt: `prompt ${index + 1}`,
+      })),
+    )
+
+    expect(items).toHaveLength(count)
+    expect(new Set(items.map(item => item.custom_id)).size).toBe(count)
+    expect(items.every(item => item.output_count === undefined)).toBe(true)
+  })
+
+  it('normalizes per-item output count and duplicate custom ids', () => {
+    const items = buildBatchImageSubmitItems([
+      { custom_id: 'same id', prompt: 'one', output_count: 10 },
+      { custom_id: 'same id', prompt: 'two', output_count: 0 },
+      { custom_id: 'ignored', prompt: '  ' },
+    ])
+
+    expect(items).toEqual([
+      { custom_id: 'same_id', prompt: 'one', output_count: 4 },
+      { custom_id: 'same_id_2', prompt: 'two' },
+    ])
+    expect(normalizeBatchImageOutputCount(Number.NaN)).toBe(1)
   })
 })

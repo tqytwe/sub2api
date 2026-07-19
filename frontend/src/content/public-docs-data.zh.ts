@@ -76,7 +76,7 @@ Content-Type: application/json</code></pre>
 </ul>
 <p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。</p>
 
-<p class="docs-tip">大尺寸、批量、多 prompt 或预计超过 60-90 秒的图片生成请优先使用异步接口。同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 <code>524</code>；后台可能已经生成成功并计费，但调用方连接已经断开。</p>
+<p class="docs-tip">单个大尺寸请求或预计超过 60-90 秒的生成请优先使用 Gateway 单请求异步；多个 prompt 的持久任务请使用 Batch Image。同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 <code>524</code>；后台可能已经生成成功并计费，但调用方连接已经断开。</p>
 
 <h2>三类返回契约</h2>
 <h3>同步 Base64 返回</h3>
@@ -90,16 +90,37 @@ Content-Type: application/json</code></pre>
 }</code></pre>
 
 <h3>同步 URL 返回</h3>
-<p>请求使用 <code>"response_format": "url"</code> 时，每张图片位于 <code>data[].url</code>。不同上游可能返回临时公网 URL 或 data URL，客户端都应按 URL 字段读取并及时保存。</p>
+<p>请求使用 <code>"response_format": "url"</code> 时，每张图片位于 <code>data[].url</code>。网关会先把图片写入私有结果存储，再返回同 API Key 鉴权的临时平台扩展 URL：<code>/v1/images/results/{result_id}/{index}</code> 和 <code>expires_at</code>。它不是 data URL，也不是永久公网地址；存储不可用时返回 <code>503 IMAGE_RESULT_STORAGE_UNAVAILABLE</code>。</p>
+<p>流式 URL 请求会在 SSE 开始前预检结果存储：<code>*.partial_image</code> 只返回 <code>b64_json</code> 预览，<code>*.completed</code> 才返回临时 URL、<code>result_id</code> 和 <code>expires_at</code>，不会把 data URL 当作最终 URL。</p>
 <pre><code>{
   "created": 1784160000,
   "data": [
-    {"url": "https://example.com/generated/image.png"}
+    {
+      "url": "/v1/images/results/imgres_012345/0",
+      "expires_at": 1784246400,
+      "size": "1254x1254"
+    }
+  ],
+  "requested_size": "1024x1024",
+  "model": "gpt-image-2",
+  "upstream_model": "gpt-image-2-codex"
+}</code></pre>
+<p>必须使用生成请求的同一把 API Key 下载临时 URL。请求 <code>size</code> 是生成档位；网关不会强制拉伸或裁剪，<code>requested_size</code> 保留请求值，每张 <code>data[].size</code> 是实际像素尺寸。</p>
+
+<h3>多图部分成功</h3>
+<p><code>n</code> 正式支持 1-10。非流式多图会按上游能力原生提交或拆成多个 <code>n=1</code> 子请求；至少一张成功时返回成功图片和完成统计，只按实际成功结果结算：</p>
+<pre><code>{
+  "requested_n": 4,
+  "completed_n": 3,
+  "failed_n": 1,
+  "data": [
+    {"b64_json": "...", "size": "1254x1254"}
   ]
 }</code></pre>
+<p><code>stream=true</code> 仅支持 <code>n=1</code>；<code>stream=true &amp;&amp; n&gt;1</code> 返回 400。</p>
 
 <h3>异步任务返回</h3>
-<p>长耗时请求应提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。生产只需启用结果存储，默认使用本机持久卷；完整 processing / completed / failed 契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
+<p>长耗时请求应提交到 <code>/v1/images/generations/async</code> 或 <code>/v1/images/edits/async</code>，先收到 <code>202</code> 和 <code>task_id</code>，再轮询 <code>/v1/images/tasks/{task_id}</code>。请求会加密写入 Redis 持久队列，由有界 worker 处理；重启后只继续尚未调用 provider 的 queued 任务，processing 任务不会自动重放。完整契约见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</p>
 
 <h2>单张生成</h2>
 <pre><code>curl https://api.jisudeng.com/v1/images/generations \\
@@ -244,9 +265,9 @@ json.data.forEach((item, index) =&gt; {
 <tbody>
 <tr><td><code>model</code></td><td>GPT 用 <code>gpt-image-2</code>；Grok 用 <code>grok-imagine</code></td></tr>
 <tr><td><code>prompt</code></td><td>图片描述，生成和编辑都放这里</td></tr>
-<tr><td><code>n</code></td><td>输出张数，默认 1；多张就填 2、4 等</td></tr>
-<tr><td><code>size</code></td><td>GPT 常用 <code>1024x1024</code>、<code>1024x1536</code>、<code>1536x1024</code>；Grok 会用于站内计费分档</td></tr>
-<tr><td><code>response_format</code></td><td>推荐 <code>b64_json</code>，方便保存和直接显示</td></tr>
+<tr><td><code>n</code></td><td>输出张数 1-10，默认 1；流式请求只允许 1</td></tr>
+<tr><td><code>size</code></td><td>请求生成档位，不保证强制输出像素；响应看 <code>requested_size</code> 与每张实际 <code>size</code></td></tr>
+<tr><td><code>response_format</code></td><td><code>b64_json</code> 返回 Base64；<code>url</code> 返回平台私有临时 URL</td></tr>
 <tr><td><code>images</code></td><td>编辑接口的参考图 URL 数组</td></tr>
 <tr><td><code>image</code> / <code>image[]</code></td><td>multipart 编辑接口的本地图片字段</td></tr>
 </tbody>
@@ -255,7 +276,9 @@ json.data.forEach((item, index) =&gt; {
 
 <h2>常见错误</h2>
 <ul>
-  <li><code>400 invalid_request_error</code> — JSON 写错、请求体为空、<code>n &lt;= 0</code>、编辑接口缺少图片</li>
+  <li><code>400 IMAGE_PROMPT_REQUIRED</code> — prompt 为空白，在选账号和调用上游前返回</li>
+  <li><code>400 IMAGE_RESPONSE_FORMAT_INVALID</code> — <code>response_format</code> 不是 <code>b64_json</code> 或 <code>url</code></li>
+  <li><code>400 invalid_request_error</code> — JSON 写错、<code>n</code> 不在 1-10、流式多图、编辑接口缺少图片</li>
   <li><code>401 API_KEY_REQUIRED / INVALID_API_KEY</code> — Key 缺失或无效</li>
   <li><code>403 permission_error</code> — Key 所属分组没有开启图片生成</li>
   <li><code>404 not_found_error</code> — Key 所属分组不是 GPT/OpenAI 或 Grok 图片分组</li>
@@ -263,153 +286,116 @@ json.data.forEach((item, index) =&gt; {
   <li><code>429</code> — Key、用户、分组、账号或上游限流</li>
   <li><code>502 upstream_error</code> — 上游异常或没有返回有效图片</li>
 </ul>
+<p class="docs-tip">JSON 请求会兼容剥离可选 UTF-8 BOM。Windows PowerShell 写出的 BOM JSON 可以直接用 <code>curl --data-binary @request.json</code> 提交，但仍建议保存为 UTF-8 without BOM，便于其他工具链处理。</p>
 
 <h2>和图像工作室的区别</h2>
 <ul>
   <li><strong>API 生成</strong>：开发者直调 <code>/v1/images/generations</code>，Base URL 是 <code>https://api.jisudeng.com</code>，自己保存和展示图片。</li>
   <li><strong>图像工作室</strong>：打开 <a href="/image-studio">/image-studio</a> 手动生成，站内负责模板、估价、异步 job 和图库。</li>
-  <li><strong>批量调用</strong>：多个 prompt 或一次多张，见 <a href="/docs?cat=deploy&amp;page=batch-image-api">多张 / 批量生图调用</a>。</li>
-  <li><strong>异步调用</strong>：避免长连接超时，见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</li>
+  <li><strong>一次多张</strong>：一次多张使用同步 Images 的 <code>n=1-10</code>；流式只支持 <code>n=1</code>。</li>
+  <li><strong>多个 prompt</strong>：多个 prompt 使用 Batch Image，见 <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image 持久批任务</a>。</li>
+  <li><strong>单请求异步</strong>：避免一个 Images 请求占用长连接，见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</li>
 </ul>`,
       },
       {
         id: 'batch-image-api',
-        title: "多张 / 批量生图调用",
-        summary: "同一个 GPT/Grok 图片接口：n 多张、多 prompt 批量跑、保存本地",
-        html: `<p class="docs-lead">批量调用 GPT/Grok 图片生成时，生产环境优先使用异步 Images API。常见方式有两种：同一个 prompt 设置 <code>n</code> 一次出多张；多个 prompt 分别提交异步任务并轮询结果。</p>
-<pre><code>POST https://api.jisudeng.com/v1/images/generations/async
-GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
+        title: "Batch Image 持久批任务",
+        summary: "Gemini 多 prompt 批任务：预检、202 提交、轮询、失败重试和 ZIP 下载",
+        html: `<p class="docs-lead">Batch Image 用于多个 prompt、可恢复、可取消、可下载的持久批任务。首发通道是 Gemini API Batch；它和同步 Images 的 <code>n</code>、单请求异步 <code>/generations/async</code> 是三套不同能力。</p>
+<pre class="docs-endpoint-list"><code>GET  https://api.jisudeng.com/v1/images/batches/models
+POST https://api.jisudeng.com/v1/images/batches
+GET  https://api.jisudeng.com/v1/images/batches
+GET  https://api.jisudeng.com/v1/images/batches/{id}
+GET  https://api.jisudeng.com/v1/images/batches/{id}/items
+GET  https://api.jisudeng.com/v1/images/batches/{id}/items/{custom_id}/content
+GET  https://api.jisudeng.com/v1/images/batches/{id}/download
+POST https://api.jisudeng.com/v1/images/batches/{id}/cancel
+DELETE https://api.jisudeng.com/v1/images/batches/{id}/outputs
+DELETE https://api.jisudeng.com/v1/images/batches/{id}</code></pre>
 
-<h2>两种批量方式</h2>
-<div class="docs-table-wrap">
-<table class="docs-table">
-<thead><tr><th>方式</th><th>怎么做</th><th>适合场景</th></tr></thead>
-<tbody>
-<tr><td>一次请求多张</td><td>异步提交，设置 <code>n</code>，例如 <code>n: 4</code>，再轮询任务结果</td><td>同一个 prompt 出多张备选图</td></tr>
-<tr><td>多个 prompt 批量跑</td><td>每个 prompt 提交一个异步任务，限制并发并轮询 <code>/v1/images/tasks/{task_id}</code></td><td>商品图、封面、头像、素材批处理</td></tr>
-</tbody>
-</table>
-</div>
-<p class="docs-tip">短耗时本地测试仍可调用同步 <code>/v1/images/generations</code>。生产批量任务不要靠把同步请求 timeout 调到 180/300 秒来等待，因为中间层可能先返回 <code>524</code>，而后台上游生成仍可能成功。不要把 API Key 放到 URL 参数里。</p>
+<h2>先做模型预检</h2>
+<p>每次创建任务前，必须使用准备提交的同一把 API Key 调用：</p>
+<pre><code>curl https://api.jisudeng.com/v1/images/batches/models \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"</code></pre>
+<p>只有预检返回的模型才可提交。预检会同时检查平台开关、Redis 队列、worker、分组权限、可调度 Gemini API Key 账号、模型映射和图片价格。</p>
+<ul>
+  <li><code>BATCH_IMAGE_DISABLED</code>：平台暂不接受新 Batch 提交；历史列表、预览和下载仍可读取。</li>
+  <li><code>BATCH_IMAGE_NOT_READY</code>：Redis、队列或 worker 运行时异常，稍后重试或联系管理员。</li>
+  <li>分组未开、无账号、无模型、缺少价格：按错误信息修正 Key 所属分组或管理员配置。</li>
+</ul>
 
-<h2>一次请求生成多张</h2>
-<p>下面的同步示例只适合短耗时调试。生产批量生成请把相同 body 提交到 <code>/v1/images/generations/async</code>，拿到 <code>task_id</code> 后轮询 <code>/v1/images/tasks/{task_id}</code>。</p>
-<pre><code>curl https://api.jisudeng.com/v1/images/generations \\
+<h2>提交 5 张</h2>
+<p>生成 5 张时使用 <strong>5 个独立 items</strong>。每个 item 的 <code>custom_id</code> 必须唯一：</p>
+<pre><code>curl -i https://api.jisudeng.com/v1/images/batches \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: batch-product-20260718-001" \\
   -d '{
-    "model": "gpt-image-2",
-    "prompt": "电商白底主图：一双白色运动鞋，居中摆放，柔和棚拍光，高清真实摄影",
-    "size": "1024x1024",
-    "n": 4,
-    "response_format": "b64_json"
-  }' \\
-  -o multi-response.json</code></pre>
-<pre><code>mkdir -p outputs
-jq -r '.data[].b64_json' multi-response.json | nl -w1 -s' ' | while read -r index b64; do
-  printf '%s' "$b64" | base64 -d &gt; "outputs/shoe-$index.png"
-done</code></pre>
+    "model": "gemini-3.1-flash-image-preview",
+    "task_name": "商品主图 5 张",
+    "image_size": "1K",
+    "response_mime_type": "image/png",
+    "items": [
+      {"custom_id":"img_001","prompt":"白色运动鞋，电商白底主图，柔光"},
+      {"custom_id":"img_002","prompt":"黑色机械键盘，俯拍，高清细节"},
+      {"custom_id":"img_003","prompt":"透明香水瓶，棚拍，干净阴影"},
+      {"custom_id":"img_004","prompt":"银色智能手表，深色背景，边缘光"},
+      {"custom_id":"img_005","prompt":"夏日冰咖啡，浅色社媒封面，标题留白"}
+    ]
+  }'</code></pre>
+<p>成功返回 <code>202 Accepted</code>，响应头含 <code>Location</code> 和 <code>Retry-After</code>。网络超时后重试同一请求必须复用原 <code>Idempotency-Key</code>；请求内容改变时使用新 key。</p>
 
-<h2>多个 prompt 批量跑</h2>
-<p>准备 <code>prompts.txt</code>，一行一个 prompt：</p>
-<pre><code>电商白底主图：白色运动鞋，柔光，干净阴影
-电商白底主图：黑色机械键盘，俯拍，高清细节
-社媒封面：夏日冰咖啡，浅色背景，标题留白
-游戏头像：银发机甲角色，蓝色边缘光，半身像</code></pre>
-<p>批量生成并保存：</p>
-<pre><code>mkdir -p batch-outputs
-i=1
-while IFS= read -r prompt || [ -n "$prompt" ]; do
-  [ -z "$prompt" ] &amp;&amp; continue
+<h2>提交 10 张</h2>
+<p>生成 10 张同样使用 <strong>10 个独立 items</strong>。可以用 <code>jq</code> 从 prompt 文件构造：</p>
+<pre><code>jq -Rn '
+  [inputs | select(length &gt; 0)]
+  | to_entries
+  | {
+      model: "gemini-3.1-flash-image-preview",
+      task_name: "批量素材 10 张",
+      image_size: "1K",
+      response_mime_type: "image/png",
+      items: map({
+        custom_id: ("img_" + (.key + 1 | tostring)),
+        prompt: .value
+      })
+    }
+' prompts-10.txt &gt; batch-10.json
 
-  jq -n --arg prompt "$prompt" '{
-    model: "gpt-image-2",
-    prompt: $prompt,
-    size: "1024x1024",
-    n: 1,
-    response_format: "b64_json"
-  }' &gt; "batch-outputs/request-$i.json"
+curl -i https://api.jisudeng.com/v1/images/batches \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: batch-10-20260718-001" \\
+  --data-binary @batch-10.json</code></pre>
+<p class="docs-tip"><code>output_count</code> 表示同一 prompt 重复生成几张，默认 1，<strong>单 item 最多 4</strong>；每任务最多 200 张。不要用单 item 的 <code>output_count=5</code> 或 <code>output_count=10</code>。</p>
 
-  curl https://api.jisudeng.com/v1/images/generations \\
-    -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
-    -H "Content-Type: application/json" \\
-    -d @"batch-outputs/request-$i.json" \\
-    -o "batch-outputs/response-$i.json"
+<h2>轮询与下载</h2>
+<pre><code>curl https://api.jisudeng.com/v1/images/batches/{id} \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"
 
-  jq -r '.data[0].b64_json' "batch-outputs/response-$i.json" \\
-    | base64 -d &gt; "batch-outputs/image-$i.png"
+curl https://api.jisudeng.com/v1/images/batches/{id}/items \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"
 
-  i=$((i + 1))
-done &lt; prompts.txt</code></pre>
-<p>要用 Grok，把脚本里的 <code>model: "gpt-image-2"</code> 改成 <code>model: "grok-imagine"</code>。</p>
+curl https://api.jisudeng.com/v1/images/batches/{id}/download \\
+  -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
+  -o batch-results.zip</code></pre>
+<p>queued 状态建议 60-120 秒轮询一次，running 状态约 60 秒一次，接近完成时可缩短到 20-45 秒。只重试失败 items，不要重新提交已经成功的 custom_id。</p>
 
-<h2>每个 prompt 生成多张</h2>
-<p>每行 prompt 出 3 张时，把请求里的 <code>n</code> 改成 3，再保存每条响应里的所有图片：</p>
-<pre><code>jq -r '.data[].b64_json' "batch-outputs/response-$i.json" | nl -w1 -s' ' | while read -r j b64; do
-  printf '%s' "$b64" | base64 -d &gt; "batch-outputs/image-$i-$j.png"
-done</code></pre>
+<h2>取消、清理与保留</h2>
+<ul>
+  <li>取消：<code>POST /v1/images/batches/{id}/cancel</code>。已索引成功的图片按 <code>output_image_count</code> 结算，其余冻结金额释放；<code>success_count</code> 表示成功 item 数。</li>
+  <li>删除输出：<code>DELETE /v1/images/batches/{id}/outputs</code>，保留任务记录和结算信息。</li>
+  <li>删除记录：<code>DELETE /v1/images/batches/{id}</code>，只允许删除符合状态约束的任务。</li>
+  <li>输出有保留期；完成后应及时下载 ZIP，不要把平台临时结果当永久对象存储。</li>
+</ul>
 
-<h2>Node.js 批量保存</h2>
-<pre><code>import fs from "node:fs"
-
-const apiKey = "sk-xxxxxxxxxxxxxxx"
-const prompts = [
-  "电商白底主图：白色运动鞋，柔光，干净阴影",
-  "社媒封面：夏日冰咖啡，浅色背景，标题留白",
-  "游戏头像：银发机甲角色，蓝色边缘光，半身像",
-]
-
-fs.mkdirSync("batch-outputs", { recursive: true })
-
-for (let i = 0; i &lt; prompts.length; i++) {
-  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: "Bearer " + apiKey,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-image-2",
-      prompt: prompts[i],
-      size: "1024x1024",
-      n: 2,
-      response_format: "b64_json",
-    }),
-  })
-
-  const json = await res.json()
-  json.data.forEach((item, j) =&gt; {
-    fs.writeFileSync("batch-outputs/image-" + (i + 1) + "-" + (j + 1) + ".png", Buffer.from(item.b64_json, "base64"))
-  })
-}</code></pre>
-
-<h2>网页批量显示</h2>
-<pre><code>&lt;div id="grid" style="display:grid;grid-template-columns:repeat(2,180px);gap:12px;"&gt;&lt;/div&gt;
-&lt;script&gt;
-async function run() {
-  const res = await fetch("https://api.jisudeng.com/v1/images/generations", {
-    method: "POST",
-    headers: {
-      "Authorization": "Bearer sk-xxxxxxxxxxxxxxx",
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: "gpt-image-2",
-      prompt: "小红书封面：夏日柠檬气泡水，浅色背景，标题留白",
-      size: "1024x1536",
-      n: 4,
-      response_format: "b64_json"
-    })
-  })
-  const json = await res.json()
-  document.querySelector("#grid").innerHTML = json.data.map(function(item) {
-    const src = item.url || ("data:image/png;base64," + item.b64_json)
-    return '&lt;img src="' + src + '" style="width:180px;border-radius:10px;" /&gt;'
-  }).join("")
-}
-run()
-&lt;/script&gt;</code></pre>
-<p class="docs-tip">正式网站不要把 API Key 暴露在前端，请让你的后端调用极速蹬 API，再把图片结果返回给浏览器。</p>`,
+<h2>四条产品边界</h2>
+<ul>
+  <li><strong>同步 Images</strong>：API Key，短请求，<code>/v1/images/generations</code> 和 <code>/v1/images/edits</code>。</li>
+  <li><strong>Gateway 单请求异步</strong>：API Key，一个 Images 请求进入 Redis 队列，使用 <code>/generations/async</code> 或 <code>/edits/async</code>。</li>
+  <li><strong>Batch Image</strong>：API Key，多个 prompt 的持久批任务，使用 <code>/v1/images/batches</code>。</li>
+  <li><strong>图像工作室</strong>：登录 JWT 页面接口，模板、估价、图库，不使用 API Key 直调。</li>
+</ul>`,
       },
       {
         id: 'async-image-tasks',
@@ -419,13 +405,14 @@ run()
 <pre class="docs-endpoint-list"><code>POST https://api.jisudeng.com/v1/images/generations/async
 POST https://api.jisudeng.com/v1/images/edits/async
 GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
-<p class="docs-tip">异步任务依赖结果存储。生产设置 <code>IMAGE_STORAGE_ENABLED=true</code> 后默认使用服务器持久卷保存临时图片结果；只有显式选择 <code>IMAGE_STORAGE_BACKEND=s3</code> 时才需要 S3/R2 凭证。功能未启用时，上述接口返回 <code>404 not_found_error</code>，不会创建任务。</p>
+<p class="docs-tip">异步任务使用加密请求信封、Redis 持久队列和有界 worker。生产需要同时启用 <code>IMAGE_STORAGE_ENABLED=true</code>、<code>IMAGE_ASYNC_QUEUE_ENABLED=true</code> 和 <code>IMAGE_ASYNC_ENABLED=true</code>，并为 Redis 配置持久卷、AOF <code>appendonly yes</code> 和 <code>appendfsync everysec</code>；运行时健康检查只能确认 Redis 可访问。API 关闭时返回 404；API 已开但 Redis/worker 未就绪时返回 <code>503 IMAGE_ASYNC_NOT_READY</code>，不会创建任务。</p>
 
 <h2>提交任务</h2>
-<p>请求体与同步生成或编辑接口相同。提交成功返回 <code>202 Accepted</code>，响应头同时包含 <code>Location</code> 和建议轮询间隔 <code>Retry-After: 3</code>。</p>
+<p>请求体与同步生成或编辑接口相同。提交成功返回 <code>202 Accepted</code>，响应头同时包含 <code>Location</code> 和建议轮询间隔 <code>Retry-After: 3</code>。首次提交建议携带 <code>Idempotency-Key</code>；网络失败重试同一请求时复用该 key。Key 最多 255 字节，超长返回 <code>400 IMAGE_TASK_IDEMPOTENCY_KEY_INVALID</code>，不会创建任务或入队。</p>
 <pre><code>curl -i https://api.jisudeng.com/v1/images/generations/async \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx" \\
   -H "Content-Type: application/json" \\
+  -H "Idempotency-Key: image-task-20260718-001" \\
   -d '{
     "model": "gpt-image-2",
     "prompt": "暴风雪中的灯塔，电影感，横向构图",
@@ -436,16 +423,26 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   "id": "imgtask_0123456789abcdef",
   "task_id": "imgtask_0123456789abcdef",
   "object": "image.generation.task",
-  "status": "processing",
+  "status": "queued",
   "created_at": 1784160000,
   "expires_at": 1784246400,
   "poll_url": "/v1/images/tasks/imgtask_0123456789abcdef"
 }</code></pre>
+<p class="docs-tip">同步接口的请求校验契约同样适用于异步提交：空白 prompt 返回 <code>400 IMAGE_PROMPT_REQUIRED</code>，非法 <code>response_format</code> 返回 <code>400 IMAGE_RESPONSE_FORMAT_INVALID</code>，且都发生在任务创建和入队之前。</p>
 
 <h2>轮询任务</h2>
 <p>必须使用提交任务时的同一把 API Key：</p>
 <pre><code>curl https://api.jisudeng.com/v1/images/tasks/imgtask_0123456789abcdef \\
   -H "Authorization: Bearer sk-xxxxxxxxxxxxxxx"</code></pre>
+
+<h3>排队中</h3>
+<pre><code>{
+  "task_id": "imgtask_0123456789abcdef",
+  "object": "image.generation.task",
+  "status": "queued",
+  "created_at": 1784160000,
+  "expires_at": 1784246400
+}</code></pre>
 
 <h3>处理中</h3>
 <pre><code>{
@@ -467,8 +464,8 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   "result": {
     "created": 1784160123,
     "data": [
-      {"url": "https://cdn.example.com/images/first.png"},
-      {"url": "https://cdn.example.com/images/second.png"}
+      {"url": "/v1/images/task-assets/images/imgtask_0123456789abcdef-0.png"},
+      {"url": "/v1/images/task-assets/images/imgtask_0123456789abcdef-1.png"}
     ]
   },
   "created_at": 1784160000,
@@ -490,6 +487,7 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   "completed_at": 1784160123,
   "expires_at": 1784246523
 }</code></pre>
+<p>queued 任务会在服务重启后继续处理；崩溃前已经进入 processing 的任务会转为 failed，并返回 <code>IMAGE_TASK_RECOVERY_UNAVAILABLE</code>。平台不会重放可能已经计费的上游请求。</p>
 <p>成功提交和成功轮询响应都带 <code>Cache-Control: no-store</code>。未知任务 ID 与其他 API Key 拥有的任务都返回 404，避免泄露任务是否存在。</p>`,
       },
       {
@@ -774,7 +772,7 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
   <li><code>POST /api/v1/image-studio/generate</code>（异步 job，前端轮询）</li>
   <li><code>GET /api/v1/image-studio/jobs</code> / <code>DELETE .../jobs/:id</code></li>
 </ul>
-<p class="docs-tip">需开启 <code>image_studio_enabled</code>。开发者直调请看 <a href="/docs?cat=deploy&amp;page=text-to-image-api">GPT / Grok 图片生成 API</a>；多 prompt 或一次多张请看 <a href="/docs?cat=deploy&amp;page=batch-image-api">多张 / 批量生图调用</a>。</p>`,
+<p class="docs-tip">需开启 <code>image_studio_enabled</code>。开发者直调请看 <a href="/docs?cat=deploy&amp;page=text-to-image-api">GPT / Grok 图片生成 API</a>；一次多张使用同步 Images 的 <code>n=1-10</code>，多个 prompt 的持久任务使用 <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image</a>。</p>`,
       },
       {
         id: 'token-farm',

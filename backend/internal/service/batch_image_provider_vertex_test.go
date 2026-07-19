@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
@@ -21,6 +22,27 @@ func TestBatchImageProviderRegistry_ReturnsVertex(t *testing.T) {
 	provider, ok := registry.Get(BatchImageProviderVertex)
 	require.True(t, ok)
 	require.Equal(t, BatchImageProviderVertex, provider.Name())
+}
+
+func TestBatchImageProviderRegistryFromConfigOmitsDisabledVertex(t *testing.T) {
+	registry := NewBatchImageProviderRegistryFromConfig(&config.Config{
+		BatchImage: config.BatchImageConfig{VertexEnabled: false},
+	})
+
+	_, ok := registry.Get(BatchImageProviderVertex)
+
+	require.False(t, ok)
+}
+
+func TestVertexBatchImageProviderRejectsAccountWhenDisabled(t *testing.T) {
+	provider := NewVertexBatchImageProvider(
+		VertexBatchImageProviderOptions{Enabled: false},
+		&fakeVertexBatchClient{},
+		&fakeVertexObjectStore{},
+		&fakeGeminiTokenCache{token: "token"},
+	)
+
+	require.False(t, provider.SupportsAccount(vertexServiceAccount()))
 }
 
 func TestVertexProvider_SupportsOnlyGeminiServiceAccount(t *testing.T) {
@@ -40,7 +62,7 @@ func TestVertexProvider_MissingServiceAccountRejected(t *testing.T) {
 }
 
 func TestVertexProvider_MissingManagedGCSBucketRejected(t *testing.T) {
-	provider := NewVertexBatchImageProvider(VertexBatchImageProviderOptions{ProjectID: "proj", Environment: "test"}, &fakeVertexBatchClient{}, &fakeVertexObjectStore{}, &fakeGeminiTokenCache{token: "token"})
+	provider := NewVertexBatchImageProvider(VertexBatchImageProviderOptions{Enabled: true, ProjectID: "proj", Environment: "test"}, &fakeVertexBatchClient{}, &fakeVertexObjectStore{}, &fakeGeminiTokenCache{token: "token"})
 	_, err := provider.Submit(context.Background(), nil, vertexServiceAccount(), validVertexBatchInput())
 	require.Error(t, err)
 	require.Equal(t, "VERTEX_MANAGED_GCS_BUCKET_MISSING", infraerrors.Reason(err))
@@ -101,6 +123,7 @@ func TestBuildVertexBatchJSONL_WritesReferenceImages(t *testing.T) {
 
 func TestNormalizeVertexBatchModelPath(t *testing.T) {
 	require.Equal(t, "publishers/google/models/gemini-3.1-flash-image", NormalizeVertexBatchModelPath("gemini-3.1-flash-image"))
+	require.Equal(t, "publishers/google/models/gemini-3.1-flash-image", NormalizeVertexBatchModelPath("models/gemini-3.1-flash-image"))
 	require.Equal(t, "publishers/google/models/gemini-2.5-flash-image", NormalizeVertexBatchModelPath("publishers/google/models/gemini-2.5-flash-image"))
 	require.Equal(t, "projects/p/locations/global/models/m", NormalizeVertexBatchModelPath("projects/p/locations/global/models/m"))
 }
@@ -135,6 +158,39 @@ func TestVertexProvider_SubmitUploadsJSONLAndCreatesBatchPredictionJob(t *testin
 	require.NotContains(t, string(vertexClient.createdPayloadForAssert(t)), "encryptionSpec")
 	require.NotContains(t, got.ProviderInputRef+got.ProviderOutputRef+got.ProviderJobName, "A clean product hero image")
 	require.NotContains(t, string(store.uploadedJSONL), "private_key")
+}
+
+func TestVertexProvider_SubmitUsesAccountMappedUpstreamModel(t *testing.T) {
+	vertexClient := &fakeVertexBatchClient{}
+	provider := newTestVertexProvider(vertexClient, &fakeVertexObjectStore{})
+	account := vertexServiceAccount()
+	account.Credentials["model_mapping"] = map[string]any{
+		"public-image-model": "gemini-3.1-flash-image-preview",
+	}
+	input := validVertexBatchInput()
+	input.Model = "public-image-model"
+
+	_, err := provider.Submit(context.Background(), nil, account, input)
+
+	require.NoError(t, err)
+	require.Equal(t, "publishers/google/models/gemini-3.1-flash-image-preview", vertexClient.createdReq.Model)
+	require.Equal(t, "public-image-model", input.Model)
+}
+
+func TestVertexProvider_SubmitNormalizesModelsPrefixFromAccountMapping(t *testing.T) {
+	vertexClient := &fakeVertexBatchClient{}
+	provider := newTestVertexProvider(vertexClient, &fakeVertexObjectStore{})
+	account := vertexServiceAccount()
+	account.Credentials["model_mapping"] = map[string]any{
+		"public-image-model": "models/gemini-3.1-flash-image-preview",
+	}
+	input := validVertexBatchInput()
+	input.Model = "public-image-model"
+
+	_, err := provider.Submit(context.Background(), nil, account, input)
+
+	require.NoError(t, err)
+	require.Equal(t, "publishers/google/models/gemini-3.1-flash-image-preview", vertexClient.createdReq.Model)
 }
 
 func TestVertexProvider_GetMapsStates(t *testing.T) {
@@ -291,6 +347,7 @@ func requireVertexJSONLLine(t *testing.T, line, wantKey, wantPrompt string) {
 
 func newTestVertexProvider(client *fakeVertexBatchClient, store *fakeVertexObjectStore) *VertexBatchImageProvider {
 	return NewVertexBatchImageProvider(VertexBatchImageProviderOptions{
+		Enabled:          true,
 		ProjectID:        "proj",
 		Location:         "global",
 		ManagedGCSBucket: "managed-bucket",

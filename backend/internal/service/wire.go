@@ -526,7 +526,26 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthC
 // 图片结果持久化是异步图片任务的启用前提：本地持久卷或 S3 兼容存储均可。
 // 未启用或显式 S3 后端凭证不全时，handler 返回 404，不创建任务、不写 Redis，
 // 从而避免大 base64 结果撑爆 Redis。
-func ProvideImageTaskService(store ImageTaskStore, storage ImageStorage, cfg *config.Config) *ImageTaskService {
+func ProvideImageTaskRuntimeState(queue ImageTaskQueue, cfg *config.Config) *ImageTaskRuntimeState {
+	if cfg == nil {
+		return NewImageTaskRuntimeState(queue, false, false, false)
+	}
+	return NewImageTaskRuntimeState(
+		queue,
+		cfg.ImageAsync.Enabled,
+		cfg.ImageAsync.QueueEnabled,
+		cfg.ImageStorage.Active(),
+	)
+}
+
+func ProvideImageTaskService(
+	store ImageTaskStore,
+	queue ImageTaskQueue,
+	storage ImageStorage,
+	encryptor SecretEncryptor,
+	runtime *ImageTaskRuntimeState,
+	cfg *config.Config,
+) *ImageTaskService {
 	if !cfg.ImageStorage.Active() {
 		if cfg.ImageStorage.Enabled {
 			logger.L().Warn("image_storage.enabled is true but async image storage is not available; async image tasks are disabled")
@@ -534,7 +553,7 @@ func ProvideImageTaskService(store ImageTaskStore, storage ImageStorage, cfg *co
 		return NewImageTaskService(store)
 	}
 	uploader := NewImageResultUploader(storage, cfg.ImageStorage.Prefix, cfg.ImageStorage.MaxDownloadByte, nil)
-	return NewImageTaskServiceWithUploader(store, uploader, defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
+	return NewQueuedImageTaskService(store, queue, uploader, encryptor, runtime, defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
 func ProvideOpenAIImageResultService(
@@ -551,7 +570,19 @@ func ProvideOpenAIImageResultService(
 	if cfg != nil {
 		prefix = cfg.ImageStorage.Prefix
 	}
-	return NewOpenAIImageResultService(store, storage, reader, prefix, ttl)
+	svc := NewOpenAIImageResultService(store, storage, reader, prefix, ttl)
+	if cfg != nil {
+		svc.ConfigureCleanup(
+			time.Duration(cfg.ImageStorage.CleanupIntervalSeconds)*time.Second,
+			cfg.ImageStorage.CleanupBatchSize,
+		)
+	}
+	svc.Start()
+	return svc
+}
+
+func ProvideBatchImageRuntimeState(queue BatchImageQueue, db *sql.DB, cfg *config.Config) *BatchImageRuntimeState {
+	return NewBatchImageRuntimeState(queue, db, cfg)
 }
 
 // ProvideBackupService creates and starts BackupService
@@ -699,10 +730,11 @@ var ProviderSet = wire.NewSet(
 	NewGatewayService,
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
 	NewOpenAIGatewayService,
+	ProvideImageTaskRuntimeState,
 	ProvideImageTaskService,
 	ProvideOpenAIImageResultService,
 	ProvideBatchImageModelPricingResolver,
-	NewBatchImageRuntimeState,
+	ProvideBatchImageRuntimeState,
 	NewImageRuntimesHealthService,
 	NewBatchImagePublicService,
 	NewBatchImageDownloadService,

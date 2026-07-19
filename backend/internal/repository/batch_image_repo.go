@@ -250,12 +250,35 @@ WHERE batch_id = $1`, params.BatchID, params.ProviderJobName, params.ProviderInp
 }
 
 func (r *batchImageRepository) RecordBatchImageJobSubmitFailure(ctx context.Context, batchID, code, message string, markFailed bool) error {
+	if r.db == nil {
+		return r.recordBatchImageJobSubmitFailureWithSQL(ctx, r.sql, batchID, code, message, markFailed)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	if err := r.recordBatchImageJobSubmitFailureWithSQL(ctx, tx, batchID, code, message, markFailed); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *batchImageRepository) recordBatchImageJobSubmitFailureWithSQL(
+	ctx context.Context,
+	sqlq batchImageSQLExecutor,
+	batchID, code, message string,
+	markFailed bool,
+) error {
 	now := time.Now()
 	statusSQL := "status"
 	if markFailed {
 		statusSQL = "'failed'"
 	}
-	_, err := r.sql.ExecContext(ctx, `
+	res, err := sqlq.ExecContext(ctx, `
 UPDATE batch_image_jobs
 SET status = `+statusSQL+`,
     last_error_code = $2,
@@ -263,15 +286,29 @@ SET status = `+statusSQL+`,
     finished_at = CASE WHEN `+statusSQL+` = 'failed' AND finished_at IS NULL THEN $4 ELSE finished_at END,
     updated_at = $4,
     version = version + 1
-WHERE batch_id = $1`, batchID, code, message, now)
+WHERE batch_id = $1
+  AND status IN ('created', 'uploading', 'submitted')`, batchID, code, message, now)
 	if err != nil {
 		return err
+	}
+	affected, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		var current string
+		if err := sqlq.QueryRowContext(ctx, `SELECT status FROM batch_image_jobs WHERE batch_id = $1`, batchID).Scan(&current); err != nil {
+			return translatePersistenceError(err, service.ErrBatchImageJobNotFound, nil)
+		}
+		// A concurrent cancel, processor transition, or settlement owns the newer
+		// state. Late submit diagnostics must never rewrite it.
+		return nil
 	}
 	eventType := "submit_failed"
 	if !markFailed {
 		eventType = "queue_failed"
 	}
-	return appendBatchImageEventWithSQL(ctx, r.sql, batchID, eventType, map[string]any{"error_code": code})
+	return appendBatchImageEventWithSQL(ctx, sqlq, batchID, eventType, map[string]any{"error_code": code})
 }
 
 func (r *batchImageRepository) MarkBatchImageJobSettled(ctx context.Context, params service.MarkBatchImageJobSettledParams) error {
@@ -337,19 +374,56 @@ WHERE batch_id = $1
 }
 
 func (r *batchImageRepository) SetBatchImageJobSettlementFailed(ctx context.Context, batchID, code, message string) (int, error) {
+	if r.db == nil {
+		return r.setBatchImageJobSettlementFailedWithSQL(ctx, r.sql, batchID, code, message)
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		_ = tx.Rollback()
+	}()
+	retryCount, err := r.setBatchImageJobSettlementFailedWithSQL(ctx, tx, batchID, code, message)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return retryCount, nil
+}
+
+func (r *batchImageRepository) setBatchImageJobSettlementFailedWithSQL(
+	ctx context.Context,
+	sqlq batchImageSQLExecutor,
+	batchID, code, message string,
+) (int, error) {
 	var retryCount int
-	err := r.sql.QueryRowContext(ctx, `
+	err := sqlq.QueryRowContext(ctx, `
 UPDATE batch_image_jobs
 SET last_error_code = $2,
     last_error_message = $3,
     retry_count = retry_count + 1,
     updated_at = $4
 WHERE batch_id = $1
+  AND status = 'settling'
 RETURNING retry_count`, batchID, code, message, time.Now()).Scan(&retryCount)
 	if err != nil {
-		return 0, translatePersistenceError(err, service.ErrBatchImageJobNotFound, nil)
+		if err != sql.ErrNoRows {
+			return 0, err
+		}
+		job, getErr := scanBatchImageJob(sqlq.QueryRowContext(ctx, batchImageJobSelectSQL+" WHERE batch_id = $1", batchID))
+		if getErr != nil {
+			return 0, translatePersistenceError(getErr, service.ErrBatchImageJobNotFound, nil)
+		}
+		if job.Status == service.BatchImageJobStatusCompleted {
+			return 0, service.ErrBatchImageAlreadySettled
+		}
+		return 0, service.ErrBatchImageSettlementInvalidStatus
 	}
-	return retryCount, appendBatchImageEventWithSQL(ctx, r.sql, batchID, "settlement_failed", map[string]any{
+	return retryCount, appendBatchImageEventWithSQL(ctx, sqlq, batchID, "settlement_failed", map[string]any{
 		"error_code": code,
 	})
 }
@@ -359,7 +433,7 @@ func (r *batchImageRepository) transitionBatchImageJobStatusWithSQL(ctx context.
 	if err := sqlq.QueryRowContext(ctx, `SELECT status FROM batch_image_jobs WHERE batch_id = $1 FOR UPDATE`, batchID).Scan(&current); err != nil {
 		return translatePersistenceError(err, service.ErrBatchImageJobNotFound, nil)
 	}
-	if !service.CanTransitionBatchImageJob(current, toStatus) {
+	if !service.CanTransitionBatchImageJobWithOptions(current, toStatus, opts) {
 		return service.ErrBatchImageInvalidTransition
 	}
 
@@ -479,9 +553,10 @@ func (r *batchImageRepository) replaceBatchImageItemsForJobWithSQL(ctx context.C
 	_, err = sqlq.ExecContext(ctx, `
 UPDATE batch_image_jobs
 SET success_count = $2,
-    fail_count = $3,
-    updated_at = $4
-WHERE batch_id = $1`, batchID, counts.SuccessCount, counts.FailCount, time.Now())
+    output_image_count = $3,
+    fail_count = $4,
+    updated_at = $5
+WHERE batch_id = $1`, batchID, counts.SuccessCount, counts.OutputImageCount, counts.FailCount, time.Now())
 	return err
 }
 
@@ -744,7 +819,7 @@ func createBatchImageJobWithSQL(ctx context.Context, sqlq batchImageSQLExecutor,
 INSERT INTO batch_image_jobs (
     batch_id, user_id, api_key_id, account_id, provider, model, task_name, parent_batch_id, status,
     provider_job_name, provider_input_ref, provider_output_ref, gcs_input_uri, gcs_output_uri,
-    item_count, success_count, fail_count, cancelled_count,
+    item_count, success_count, output_image_count, fail_count, cancelled_count,
     estimated_cost, hold_amount, actual_cost,
     base_unit_price, group_rate_multiplier, account_rate_multiplier,
     batch_discount_multiplier, hold_multiplier, billable_unit_price, hold_unit_price,
@@ -754,18 +829,18 @@ INSERT INTO batch_image_jobs (
 ) VALUES (
     $1, $2, $3, $4, $5, $6, $7, $8, $9,
     $10, $11, $12, $13, $14,
-    $15, $16, $17, $18,
-    $19, $20, $21,
-    $22, $23, $24,
-    $25, $26, $27, $28,
-    $29,
-    $30, $31,
-    $32, $33, $34, $35, $36
+    $15, $16, $17, $18, $19,
+    $20, $21, $22,
+    $23, $24, $25,
+    $26, $27, $28, $29,
+    $30,
+    $31, $32,
+    $33, $34, $35, $36, $37
 )
 RETURNING `+batchImageJobColumns,
 		params.BatchID, params.UserID, params.APIKeyID, params.AccountID, params.Provider, params.Model, params.TaskName, params.ParentBatchID, params.Status,
 		params.ProviderJobName, params.ProviderInputRef, params.ProviderOutputRef, params.GCSInputURI, params.GCSOutputURI,
-		params.ItemCount, params.SuccessCount, params.FailCount, params.CancelledCount,
+		params.ItemCount, params.SuccessCount, params.OutputImageCount, params.FailCount, params.CancelledCount,
 		params.EstimatedCost, params.HoldAmount, params.ActualCost,
 		params.BaseUnitPrice, params.GroupRateMultiplier, params.AccountRateMultiplier,
 		params.BatchDiscountMultiplier, params.HoldMultiplier, params.BillableUnitPrice, params.HoldUnitPrice,
@@ -818,7 +893,7 @@ type rowScanner interface {
 const batchImageJobColumns = `
 id, batch_id, user_id, api_key_id, account_id, provider, model, task_name, parent_batch_id, status,
 provider_job_name, provider_input_ref, provider_output_ref, gcs_input_uri, gcs_output_uri,
-item_count, success_count, fail_count, cancelled_count,
+item_count, success_count, output_image_count, fail_count, cancelled_count,
 estimated_cost, hold_amount, actual_cost,
 base_unit_price, group_rate_multiplier, account_rate_multiplier,
 batch_discount_multiplier, hold_multiplier, billable_unit_price, hold_unit_price,
@@ -845,7 +920,7 @@ func scanBatchImageJob(row rowScanner) (*service.BatchImageJob, error) {
 	err := row.Scan(
 		&job.ID, &job.BatchID, &job.UserID, &apiKeyID, &accountID, &job.Provider, &job.Model, &job.TaskName, &parentBatchID, &job.Status,
 		&providerJobName, &providerInputRef, &providerOutputRef, &gcsInputURI, &gcsOutputURI,
-		&job.ItemCount, &job.SuccessCount, &job.FailCount, &job.CancelledCount,
+		&job.ItemCount, &job.SuccessCount, &job.OutputImageCount, &job.FailCount, &job.CancelledCount,
 		&job.EstimatedCost, &holdAmount, &actualCost,
 		&job.BaseUnitPrice, &job.GroupRateMultiplier, &job.AccountRateMultiplier,
 		&job.BatchDiscountMultiplier, &job.HoldMultiplier, &job.BillableUnitPrice, &job.HoldUnitPrice,

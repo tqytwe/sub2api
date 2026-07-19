@@ -7,9 +7,12 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 )
 
 var (
@@ -36,13 +39,26 @@ type OpenAIImageResultStore interface {
 	Get(ctx context.Context, id string) (*OpenAIImageResultRecord, error)
 }
 
+type OpenAIImageResultCleanupStore interface {
+	ListExpired(ctx context.Context, before time.Time, limit int) ([]*OpenAIImageResultRecord, error)
+	Delete(ctx context.Context, id string) error
+}
+
 type OpenAIImageResultService struct {
-	store   OpenAIImageResultStore
-	storage ImageStorage
-	reader  ImageAssetReader
-	prefix  string
-	ttl     time.Duration
-	now     func() time.Time
+	store           OpenAIImageResultStore
+	cleanupStore    OpenAIImageResultCleanupStore
+	storage         ImageStorage
+	reader          ImageAssetReader
+	uploader        *ImageResultUploader
+	prefix          string
+	ttl             time.Duration
+	cleanupInterval time.Duration
+	cleanupBatch    int
+	now             func() time.Time
+
+	mu     sync.Mutex
+	cancel context.CancelFunc
+	done   chan struct{}
 }
 
 func NewOpenAIImageResultService(
@@ -55,18 +71,135 @@ func NewOpenAIImageResultService(
 	if ttl <= 0 {
 		ttl = 24 * time.Hour
 	}
+	cleanupStore, _ := store.(OpenAIImageResultCleanupStore)
 	return &OpenAIImageResultService{
-		store:   store,
-		storage: storage,
-		reader:  reader,
-		prefix:  strings.TrimSpace(prefix),
-		ttl:     ttl,
-		now:     time.Now,
+		store:           store,
+		cleanupStore:    cleanupStore,
+		storage:         storage,
+		reader:          reader,
+		uploader:        NewImageResultUploader(storage, "", 0, nil),
+		prefix:          strings.TrimSpace(prefix),
+		ttl:             ttl,
+		cleanupInterval: time.Minute,
+		cleanupBatch:    100,
+		now:             time.Now,
 	}
 }
 
 func (s *OpenAIImageResultService) Enabled() bool {
 	return s != nil && s.store != nil && s.storage != nil && s.reader != nil
+}
+
+func (s *OpenAIImageResultService) ConfigureCleanup(interval time.Duration, batchSize int) {
+	if s == nil {
+		return
+	}
+	if interval > 0 {
+		s.cleanupInterval = interval
+	}
+	if batchSize > 0 {
+		s.cleanupBatch = batchSize
+	}
+}
+
+func (s *OpenAIImageResultService) Start() {
+	if s == nil || !s.Enabled() || s.cleanupStore == nil {
+		return
+	}
+	if _, ok := s.storage.(ImageAssetDeleter); !ok {
+		return
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.cancel != nil {
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	s.cancel = cancel
+	s.done = make(chan struct{})
+	go s.runCleanup(ctx, s.done)
+}
+
+func (s *OpenAIImageResultService) Stop() {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	cancel := s.cancel
+	done := s.done
+	s.cancel = nil
+	s.done = nil
+	s.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+	if done != nil {
+		<-done
+	}
+}
+
+func (s *OpenAIImageResultService) CleanupExpiredOnce(ctx context.Context) (int, error) {
+	if s == nil || s.cleanupStore == nil {
+		return 0, nil
+	}
+	if _, ok := s.storage.(ImageAssetDeleter); !ok {
+		return 0, ErrOpenAIImageResultStorageUnavailable
+	}
+	limit := s.cleanupBatch
+	if limit <= 0 {
+		limit = 100
+	}
+	records, err := s.cleanupStore.ListExpired(ctx, s.now().UTC(), limit)
+	if err != nil {
+		return 0, err
+	}
+	cleaned := 0
+	var joined error
+	for _, record := range records {
+		if record == nil || strings.TrimSpace(record.ID) == "" {
+			continue
+		}
+		keys := make([]string, 0, len(record.Assets))
+		for _, asset := range record.Assets {
+			if key := strings.TrimSpace(asset.Key); key != "" {
+				keys = append(keys, key)
+			}
+		}
+		if err := deleteImageAssets(ctx, s.storage, keys); err != nil {
+			joined = errors.Join(joined, fmt.Errorf("delete image result %s assets: %w", record.ID, err))
+			continue
+		}
+		if err := s.cleanupStore.Delete(ctx, record.ID); err != nil {
+			joined = errors.Join(joined, fmt.Errorf("delete image result %s metadata: %w", record.ID, err))
+			continue
+		}
+		cleaned++
+	}
+	return cleaned, joined
+}
+
+func (s *OpenAIImageResultService) runCleanup(ctx context.Context, done chan<- struct{}) {
+	defer close(done)
+	run := func() {
+		if _, err := s.CleanupExpiredOnce(ctx); err != nil && ctx.Err() == nil {
+			logger.L().Warn("openai_image_result.cleanup_failed", zap.Error(err))
+		}
+	}
+	run()
+	interval := s.cleanupInterval
+	if interval <= 0 {
+		interval = time.Minute
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			run()
+		}
+	}
 }
 
 func (s *OpenAIImageResultService) Rewrite(
@@ -93,9 +226,24 @@ func (s *OpenAIImageResultService) Rewrite(
 	now := s.now().UTC()
 	resultID := "imgres_" + strings.ReplaceAll(uuid.NewString(), "-", "")
 	expiresAt := now.Add(s.ttl).Unix()
-	uploader := NewImageResultUploader(s.storage, "", 0, nil)
+	uploader := s.uploader
+	if uploader == nil {
+		uploader = NewImageResultUploader(s.storage, "", 0, nil)
+	}
 	assets := make([]OpenAIImageResultAsset, 0, len(items))
+	committed := false
+	defer func() {
+		if committed {
+			return
+		}
+		keys := make([]string, 0, len(assets))
+		for _, asset := range assets {
+			keys = append(keys, asset.Key)
+		}
+		_ = deleteImageAssets(context.WithoutCancel(ctx), s.storage, keys)
+	}()
 	baseURL := "/images/results/"
+	firstActualSize := ""
 	if strings.HasPrefix(strings.TrimSpace(requestPath), "/v1/") {
 		baseURL = "/v1/images/results/"
 	}
@@ -109,6 +257,12 @@ func (s *OpenAIImageResultService) Rewrite(
 		if _, err := s.storage.Save(ctx, key, contentType, data); err != nil {
 			return nil, fmt.Errorf("image %d: store image result: %w", index, err)
 		}
+		if actualSize := detectOpenAIImageBytesSize(data); actualSize != "" {
+			item["size"], _ = json.Marshal(actualSize)
+			if firstActualSize == "" {
+				firstActualSize = actualSize
+			}
+		}
 		assets = append(assets, OpenAIImageResultAsset{Key: key, ContentType: contentType})
 		urlRaw, _ := json.Marshal(fmt.Sprintf("%s%s/%d", baseURL, resultID, index))
 		expiresRaw, _ := json.Marshal(expiresAt)
@@ -118,6 +272,20 @@ func (s *OpenAIImageResultService) Rewrite(
 		items[index] = item
 	}
 
+	dataRaw, err := json.Marshal(items)
+	if err != nil {
+		return nil, err
+	}
+	response["data"] = dataRaw
+	response["result_id"], _ = json.Marshal(resultID)
+	response["expires_at"], _ = json.Marshal(expiresAt)
+	if firstActualSize != "" {
+		response["size"], _ = json.Marshal(firstActualSize)
+	}
+	rewritten, err := json.Marshal(response)
+	if err != nil {
+		return nil, err
+	}
 	record := &OpenAIImageResultRecord{
 		ID:        resultID,
 		UserID:    owner.UserID,
@@ -129,17 +297,7 @@ func (s *OpenAIImageResultService) Rewrite(
 	if err := s.store.Save(ctx, record, s.ttl); err != nil {
 		return nil, ErrOpenAIImageResultStorageUnavailable
 	}
-	dataRaw, err := json.Marshal(items)
-	if err != nil {
-		return nil, err
-	}
-	response["data"] = dataRaw
-	response["result_id"], _ = json.Marshal(resultID)
-	response["expires_at"], _ = json.Marshal(expiresAt)
-	rewritten, err := json.Marshal(response)
-	if err != nil {
-		return nil, err
-	}
+	committed = true
 	return rewritten, nil
 }
 

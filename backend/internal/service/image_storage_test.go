@@ -40,6 +40,27 @@ func (f *fakeImageStorage) Save(_ context.Context, key, contentType string, data
 	return "https://cdn.test/" + key, nil
 }
 
+type rollbackImageStorage struct {
+	saved     []savedImage
+	deleted   []string
+	saveCalls int
+	failAt    int
+}
+
+func (f *rollbackImageStorage) Save(_ context.Context, key, contentType string, data []byte) (string, error) {
+	f.saveCalls++
+	if f.failAt > 0 && f.saveCalls == f.failAt {
+		return "", errors.New("bucket unreachable")
+	}
+	f.saved = append(f.saved, savedImage{key: key, contentType: contentType, data: append([]byte(nil), data...)})
+	return "https://cdn.test/" + key, nil
+}
+
+func (f *rollbackImageStorage) Delete(_ context.Context, key string) error {
+	f.deleted = append(f.deleted, key)
+	return nil
+}
+
 func TestImageResultUploaderRewritesB64JSON(t *testing.T) {
 	storage := &fakeImageStorage{}
 	uploader := NewImageResultUploader(storage, "images/", 0, nil)
@@ -74,7 +95,8 @@ func TestImageResultUploaderRewritesURL(t *testing.T) {
 	defer upstream.Close()
 
 	storage := &fakeImageStorage{}
-	uploader := NewImageResultUploader(storage, "images/", 0, nil)
+	uploader := NewImageResultUploader(storage, "images/", 0, upstream.Client())
+	uploader.validateURL = func(raw string) (string, error) { return raw, nil }
 
 	result := json.RawMessage(`{"created":1,"data":[{"url":"` + upstream.URL + `/pic.png"}]}`)
 	out, err := uploader.Rewrite(context.Background(), "imgtask_xyz", result)
@@ -91,6 +113,23 @@ func TestImageResultUploaderRewritesURL(t *testing.T) {
 	require.JSONEq(t, `"https://cdn.test/images/imgtask_xyz-0.png"`, string(parsed.Data[0]["url"]))
 }
 
+func TestImageResultUploaderRejectsPrivateOrInsecureImageURL(t *testing.T) {
+	storage := &fakeImageStorage{}
+	uploader := NewImageResultUploader(storage, "images/", 0, nil)
+
+	for _, rawURL := range []string{
+		"http://example.com/image.png",
+		"https://127.0.0.1/image.png",
+		"https://localhost/image.png",
+		"https://user@example.com/image.png",
+	} {
+		result := json.RawMessage(`{"data":[{"url":"` + rawURL + `"}]}`)
+		_, err := uploader.Rewrite(context.Background(), "imgtask_ssrf", result)
+		require.ErrorContains(t, err, "validate image download url", rawURL)
+	}
+	require.Empty(t, storage.saved)
+}
+
 func TestImageResultUploaderPropagatesStorageError(t *testing.T) {
 	storage := &fakeImageStorage{err: errors.New("bucket unreachable")}
 	uploader := NewImageResultUploader(storage, "images/", 0, nil)
@@ -101,6 +140,20 @@ func TestImageResultUploaderPropagatesStorageError(t *testing.T) {
 	_, err := uploader.Rewrite(context.Background(), "imgtask_err", result)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "bucket unreachable")
+}
+
+func TestImageResultUploaderRollsBackPartialWrites(t *testing.T) {
+	storage := &rollbackImageStorage{failAt: 2}
+	uploader := NewImageResultUploader(storage, "images/", 0, nil)
+
+	first := base64.StdEncoding.EncodeToString(pngBytes)
+	second := base64.StdEncoding.EncodeToString(append([]byte(nil), pngBytes...))
+	result := json.RawMessage(`{"data":[{"b64_json":"` + first + `"},{"b64_json":"` + second + `"}]}`)
+
+	_, err := uploader.Rewrite(context.Background(), "imgtask_partial", result)
+
+	require.ErrorContains(t, err, "bucket unreachable")
+	require.Equal(t, []string{"images/imgtask_partial-0.png"}, storage.deleted)
 }
 
 func TestImageResultUploaderNilStoragePassthrough(t *testing.T) {

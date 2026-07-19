@@ -1,6 +1,6 @@
 # Batch Image MVP
 
-> 当前 GPT/Grok 对外批量调用文档见 [多张 / 批量生图调用](./BATCH_IMAGE_API.md)。本文只保留 Gemini 异步批量任务的上游能力、内部生命周期与运维参考。
+> 当前公开接入文档见 [Batch Image 持久批任务](./BATCH_IMAGE_API.md)。本文只保留 Gemini 异步批量任务的 provider 能力、内部生命周期与运维参考。
 
 Sub2API Batch Image MVP provides asynchronous Gemini image batch generation through a unified API surface backed by Redis workers, PostgreSQL state, and provider-specific batch backends.
 
@@ -14,13 +14,16 @@ API users do not see Gemini file names, Vertex job names, GCS paths, signed URLs
 ## API Routes
 
 ```text
+GET    /v1/images/batches/models
 POST   /v1/images/batches
+GET    /v1/images/batches
 GET    /v1/images/batches/{id}
 GET    /v1/images/batches/{id}/items
 GET    /v1/images/batches/{id}/items/{custom_id}/content
 GET    /v1/images/batches/{id}/download
 POST   /v1/images/batches/{id}/cancel
 DELETE /v1/images/batches/{id}/outputs
+DELETE /v1/images/batches/{id}
 ```
 
 Submit request:
@@ -67,6 +70,10 @@ Submit request:
 - Per prompt item: up to 4 output images.
 - Per batch job: up to 200 expected output images after expansion. This is the hard generated-output cap for a single job; clients and Codex skills must split larger workloads before submission.
 - The output-image limit intentionally matches the default ZIP item limit so newly submitted jobs are always downloadable as one ZIP by item count. ZIP byte size is still capped separately by `max_download_bytes_per_request`.
+
+成功提交返回 `202 Accepted`、`Location`、`Retry-After` 和任务对象。客户端应先调用
+`GET /v1/images/batches/models` 完成运行时、分组、账号、映射和价格预检，并为首次
+提交生成稳定 `Idempotency-Key`。
 
 Public batch response:
 

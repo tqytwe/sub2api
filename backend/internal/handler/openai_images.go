@@ -470,6 +470,8 @@ func openAIImagesValidationErrorCode(err error) string {
 		return "IMAGE_COUNT_OUT_OF_RANGE"
 	case errors.Is(err, service.ErrImageMultiStreamUnsupported):
 		return "IMAGE_MULTI_STREAM_UNSUPPORTED"
+	case errors.Is(err, service.ErrImageResponseFormatInvalid):
+		return "IMAGE_RESPONSE_FORMAT_INVALID"
 	default:
 		return ""
 	}

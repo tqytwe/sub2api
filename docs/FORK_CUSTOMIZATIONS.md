@@ -21,6 +21,7 @@
 | `FORK-PUBLIC-008` | 公共页面与可见性 | active | integrity 脚本 + Go 测试 |
 | `FORK-MIGRATION-009` | 自定义数据库迁移 | active | 完整文件名清单检查 |
 | `FORK-BILLING-010` | 计费归属与充值联动 | active | integrity 脚本 + Go 测试 |
+| `FORK-IMAGE-011` | Images API、Gateway async 与 Batch 运行时 | active | integrity 脚本 + Go/Vitest/集成测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -56,6 +57,17 @@
 - 关键位置：`backend/internal/server/routes/image_studio.go`、`backend/internal/service/image_studio*.go`、`frontend/src/views/user/ImageStudioView.vue`、`frontend/src/composables/useImageStudioWorkspace.ts`。
 - 冲突策略：网关和计费可吸收上游修复；Prompt 隐私、幂等、任务所有权、持久 job/item、checkpoint、余额预占、引用图私有化、capability 路由、模板字段、规范比例和工作台 UI 不得回退。
 - 验证：image studio Go unit/integration tests、真实 PostgreSQL recovery/billing/reference/outbox tests 和前端 gallery/size/workspace tests；线上完成双任务生成、刷新与重启恢复、部分成功、取消、编辑、高级设置、缩略图、分页、ZIP、删除和失败重试。
+
+## FORK-IMAGE-011 Images API、Gateway async 与 Batch 运行时
+
+- 产品目的：为开发者提供行为可预测的同步 Images、单请求异步 Gateway 和多 prompt 持久 Batch，并让管理员直接看到三套图片运行时是否真正就绪。
+- 不变量：JSON 接受可选 UTF-8 BOM，空 prompt 在账号选择和上游调用前返回 `400 IMAGE_PROMPT_REQUIRED`；同步 `n=1..10`，不兼容多图字段的通道拆成多个 `n=1` 子请求并按实际成功图片结算，流式只允许 `n=1`；`response_format=url` 必须写入私有结果存储并返回同 API Key 鉴权临时 URL，流式 partial 只返回 Base64 预览、completed 返回临时 URL，存储不可用时返回 `503 IMAGE_RESULT_STORAGE_UNAVAILABLE`；响应公开请求模型、上游模型、请求尺寸和解码后的实际尺寸，不拉伸或伪造 usage。
+- Gateway async 不变量：加密请求信封进入 Redis ready/active 队列，由有界 worker 执行；固定加密密钥、owner 范围幂等、queued/processing/terminal Redis CAS、lease/lock 心跳、租约丢失取消上游、终态清除请求信封；worker 使用 task ID 作为稳定请求/计费 ID，订阅上下文恢复失败必须 fail-closed，不能回退余额计费；重启只恢复 queued，无法证明安全的 processing 明确失败。
+- Batch 不变量：`BATCH_IMAGE_ENABLED=true` 只有在 PostgreSQL、Redis、队列和 worker 同时就绪时才接受新提交；允许 API 关闭但 queue 继续排空和结算；列表在关闭时仍可读，models 预检区分全局关闭、运行时异常、分组、账号、模型和价格；`Idempotency-Key` 可选，提供时按 owner 唯一并检测请求冲突，提交返回 `202`、`Location`、`Retry-After`；单 item 最多 4、单任务最多 200，5/10 张使用独立 items；Vertex 开关关闭时不得进入 provider registry。
+- 运行与文档：`GET /api/v1/admin/ops/image-runtimes/health` 返回 Gateway async、Batch、Image Studio 的存储、数据库、Redis、worker、backlog、最老任务和最近错误；公开 `/docs`、Batch 控制台说明、维护文档和首页 CTA 必须与真实路由及认证边界一致。
+- 关键位置：`backend/internal/service/openai_images*.go`、`backend/internal/service/image_task*.go`、`backend/internal/repository/image_task_*.go`、`backend/internal/service/batch_image*.go`、`backend/internal/service/image_runtimes_health.go`、`frontend/src/content/public-docs-data.zh.ts`、`frontend/src/views/user/BatchImageGuideView.vue`。
+- 冲突策略：可吸收上游 Images 和队列实现改进，但不得恢复 data URL 伪装、无界 goroutine、半开启运行时、非原子终态、错误订阅计费或文档与生产能力不一致。
+- 验证：同步 Images、URL 所有权/过期、流式 URL、Gateway async CAS/lease/recovery、Batch readiness/provider/idempotency 的单元与真实 PostgreSQL/Redis 集成测试，公开文档/首页/Batch 前端测试；生产按 queue 先开、API 后开的两阶段流程提交真实 5 张和 10 张 Gemini Batch。
 
 ## FORK-PRICING-005 模型目录和价格优先级
 
@@ -132,6 +144,7 @@
 200_prompt_library_seed.sql
 201_prompt_library_public_seed.sql
 202_prompt_library_generic_cover_cleanup.sql
+203_batch_image_owner_idempotency.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

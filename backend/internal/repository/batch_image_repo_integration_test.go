@@ -50,6 +50,72 @@ func TestBatchImageRepository_CreateJobAndDuplicates(t *testing.T) {
 	require.True(t, errors.Is(err, service.ErrBatchImageJobExists))
 }
 
+func TestBatchImageRepository_IdempotencyKeyIsUniquePerOwner(t *testing.T) {
+	ctx := context.Background()
+	tx := testTx(t)
+	repo := newBatchImageRepositoryWithSQL(tx)
+	apiKeyID := int64(2002)
+	idempotencyKey := "same-client-request"
+	requestHash := "same-request-hash"
+
+	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+		BatchID:        batchImageTestID(t, "idem-a"),
+		UserID:         1001,
+		APIKeyID:       &apiKeyID,
+		Provider:       service.BatchImageProviderGeminiAPI,
+		Model:          "gemini-2.5-flash-image",
+		ItemCount:      1,
+		IdempotencyKey: &idempotencyKey,
+		RequestHash:    &requestHash,
+	})
+	require.NoError(t, err)
+
+	otherAPIKeyID := int64(2003)
+	_, err = repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+		BatchID:        batchImageTestID(t, "idem-c"),
+		UserID:         1002,
+		APIKeyID:       &otherAPIKeyID,
+		Provider:       service.BatchImageProviderGeminiAPI,
+		Model:          "gemini-2.5-flash-image",
+		ItemCount:      1,
+		IdempotencyKey: &idempotencyKey,
+		RequestHash:    &requestHash,
+	})
+	require.NoError(t, err, "different owners must be able to reuse the same idempotency key")
+
+	_, err = repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+		BatchID:        batchImageTestID(t, "idem-b"),
+		UserID:         1001,
+		APIKeyID:       &apiKeyID,
+		Provider:       service.BatchImageProviderGeminiAPI,
+		Model:          "gemini-2.5-flash-image",
+		ItemCount:      1,
+		IdempotencyKey: &idempotencyKey,
+		RequestHash:    &requestHash,
+	})
+
+	require.ErrorIs(t, err, service.ErrBatchImageJobExists)
+}
+
+func TestBatchImageRepository_AllowsMultipleJobsWithoutIdempotencyKey(t *testing.T) {
+	ctx := context.Background()
+	tx := testTx(t)
+	repo := newBatchImageRepositoryWithSQL(tx)
+	apiKeyID := int64(2004)
+
+	for _, suffix := range []string{"optional-idem-a", "optional-idem-b"} {
+		_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+			BatchID:   batchImageTestID(t, suffix),
+			UserID:    1003,
+			APIKeyID:  &apiKeyID,
+			Provider:  service.BatchImageProviderGeminiAPI,
+			Model:     "gemini-2.5-flash-image",
+			ItemCount: 1,
+		})
+		require.NoError(t, err)
+	}
+}
+
 func TestBatchImageRepository_InvalidProvider(t *testing.T) {
 	tx := testTx(t)
 	repo := newBatchImageRepositoryWithSQL(tx)
@@ -224,9 +290,9 @@ func TestBatchImageRepository_ReplaceBatchImageItemsForJob(t *testing.T) {
 	require.NoError(t, err)
 
 	err = repo.ReplaceBatchImageItemsForJob(ctx, batchID, []service.CreateBatchImageItemParams{
-		{CustomID: "new-ok", Status: service.BatchImageItemStatusSuccess, SourceLineNumber: &lineOne, ImageCount: 1},
+		{CustomID: "new-ok", Status: service.BatchImageItemStatusSuccess, SourceLineNumber: &lineOne, ImageCount: 2},
 		{CustomID: "new-fail", Status: service.BatchImageItemStatusFailed, SourceLineNumber: &lineTwo, ErrorCode: batchImageTestStringPtr("SAFETY_BLOCKED")},
-	}, service.BatchImageCounts{SuccessCount: 1, FailCount: 1})
+	}, service.BatchImageCounts{SuccessCount: 1, OutputImageCount: 2, FailCount: 1})
 	require.NoError(t, err)
 
 	items, err := repo.ListBatchImageItems(ctx, batchID, service.BatchImageItemFilter{})
@@ -238,6 +304,7 @@ func TestBatchImageRepository_ReplaceBatchImageItemsForJob(t *testing.T) {
 	job, err := repo.GetBatchImageJobByBatchID(ctx, batchID)
 	require.NoError(t, err)
 	require.Equal(t, 1, job.SuccessCount)
+	require.Equal(t, 2, job.OutputImageCount)
 	require.Equal(t, 1, job.FailCount)
 }
 
@@ -264,6 +331,7 @@ func TestBatchImageRepository_MarkBatchImageJobSettled(t *testing.T) {
 		ProviderOutputRef: &outputRef,
 		ItemCount:         3,
 		SuccessCount:      2,
+		OutputImageCount:  2,
 		FailCount:         1,
 	})
 	require.NoError(t, err)
@@ -319,6 +387,76 @@ func TestBatchImageRepository_SetBatchImageJobSettlementFailed(t *testing.T) {
 	require.Equal(t, "SETTLEMENT_BILLING_FAILED", batchImageDerefTest(job.LastErrorCode))
 	require.Equal(t, "temporary", batchImageDerefTest(job.LastErrorMessage))
 	require.Equal(t, 1, job.RetryCount)
+}
+
+func TestBatchImageRepository_SetBatchImageJobSettlementFailedPreservesTerminalStatus(t *testing.T) {
+	ctx := context.Background()
+	tx := testTx(t)
+	repo := newBatchImageRepositoryWithSQL(tx)
+
+	for _, status := range []string{
+		service.BatchImageJobStatusCompleted,
+		service.BatchImageJobStatusCancelled,
+		service.BatchImageJobStatusFailed,
+	} {
+		t.Run(status, func(t *testing.T) {
+			batchID := batchImageTestID(t, "settlement-terminal-"+status)
+			_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+				BatchID:   batchID,
+				UserID:    1001,
+				Provider:  service.BatchImageProviderGeminiAPI,
+				Model:     "gemini-image",
+				Status:    status,
+				ItemCount: 1,
+			})
+			require.NoError(t, err)
+
+			_, err = repo.SetBatchImageJobSettlementFailed(
+				ctx,
+				batchID,
+				"SETTLEMENT_BILLING_FAILED",
+				"late concurrent failure",
+			)
+
+			if status == service.BatchImageJobStatusCompleted {
+				require.ErrorIs(t, err, service.ErrBatchImageAlreadySettled)
+			} else {
+				require.ErrorIs(t, err, service.ErrBatchImageSettlementInvalidStatus)
+			}
+			job, getErr := repo.GetBatchImageJobByBatchID(ctx, batchID)
+			require.NoError(t, getErr)
+			require.Equal(t, status, job.Status)
+			require.Zero(t, job.RetryCount)
+			require.Nil(t, job.LastErrorCode)
+			require.Nil(t, job.LastErrorMessage)
+		})
+	}
+}
+
+func TestBatchImageRepository_RecordSubmitFailurePreservesTerminalStatus(t *testing.T) {
+	ctx := context.Background()
+	tx := testTx(t)
+	repo := newBatchImageRepositoryWithSQL(tx)
+	batchID := batchImageTestID(t, "submit-failure-terminal")
+
+	_, err := repo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+		BatchID:   batchID,
+		UserID:    1001,
+		Provider:  service.BatchImageProviderGeminiAPI,
+		Model:     "gemini-image",
+		Status:    service.BatchImageJobStatusCancelled,
+		ItemCount: 1,
+	})
+	require.NoError(t, err)
+
+	err = repo.RecordBatchImageJobSubmitFailure(ctx, batchID, "PROVIDER_SUBMIT_FAILED", "late failure", true)
+	require.NoError(t, err)
+
+	job, err := repo.GetBatchImageJobByBatchID(ctx, batchID)
+	require.NoError(t, err)
+	require.Equal(t, service.BatchImageJobStatusCancelled, job.Status)
+	require.Nil(t, job.LastErrorCode)
+	require.Nil(t, job.LastErrorMessage)
 }
 
 func TestBatchImageRepository_AppendEvent(t *testing.T) {

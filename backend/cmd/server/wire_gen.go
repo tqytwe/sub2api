@@ -288,18 +288,20 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentService, registry)
 	availableChannelHandler := handler.NewAvailableChannelHandler(channelService, apiKeyService, settingService)
 	imageTaskStore := repository.NewImageTaskStore(redisClient)
+	imageTaskQueue := repository.NewImageTaskQueue(redisClient, configConfig)
+	imageTaskRuntimeState := service.ProvideImageTaskRuntimeState(imageTaskQueue, configConfig)
 	openAIImageResultStore := repository.NewOpenAIImageResultStore(redisClient)
 	imageStorage, err := repository.ProvideImageStorage(configConfig)
 	if err != nil {
 		return nil, err
 	}
-	imageTaskService := service.ProvideImageTaskService(imageTaskStore, imageStorage, configConfig)
+	imageTaskService := service.ProvideImageTaskService(imageTaskStore, imageTaskQueue, imageStorage, secretEncryptor, imageTaskRuntimeState, configConfig)
 	openAIImageResultService := service.ProvideOpenAIImageResultService(openAIImageResultStore, imageStorage, configConfig)
-	asyncImageHandler := handler.ProvideAsyncImageHandler(imageTaskService, openAIGatewayHandler, imageStorage, openAIImageResultService)
+	asyncImageHandler := handler.ProvideAsyncImageHandler(imageTaskService, openAIGatewayHandler, imageStorage, openAIImageResultService, apiKeyService, subscriptionService, imageTaskQueue, imageTaskRuntimeState, configConfig)
 	batchImageRepository := repository.NewBatchImageRepository(db)
 	batchImageQueue := repository.NewBatchImageQueue(redisClient, configConfig)
 	batchImageModelPricingResolver := service.ProvideBatchImageModelPricingResolver(modelPricingResolver)
-	batchImageRuntimeState := service.NewBatchImageRuntimeState(batchImageQueue, configConfig)
+	batchImageRuntimeState := service.ProvideBatchImageRuntimeState(batchImageQueue, db, configConfig)
 	batchImagePublicService := service.NewBatchImagePublicService(batchImageRepository, accountRepository, groupRepository, userGroupRateRepository, batchImageQueue, batchImageModelPricingResolver, usageBillingRepository, apiKeyAuthCacheInvalidator, batchImageRuntimeState, configConfig)
 	batchImageDownloadLimiter := repository.NewBatchImageDownloadLimiter(redisClient, configConfig)
 	batchImageDownloadService := service.NewBatchImageDownloadService(batchImageRepository, accountRepository, batchImageDownloadLimiter, configConfig)
@@ -332,7 +334,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	subscriptionExpiryService := service.ProvideSubscriptionExpiryService(userSubscriptionRepository, settingRepository, notificationEmailService, leaderLockCache, db)
 	batchImageWorkerRuntime := service.ProvideBatchImageWorkerRuntime(batchImageRepository, accountRepository, batchImageQueue, usageBillingRepository, usageLogRepository, batchImageModelPricingResolver, apiKeyAuthCacheInvalidator, batchImageRuntimeState, configConfig)
 	imageStudioWorkerRuntime := handler.ProvideImageStudioWorkerRuntime(imageStudioService, imageStudioHandler)
-	imageRuntimesHealthService := service.NewImageRuntimesHealthService(db, redisClient, configConfig, batchImageRuntimeState, imageTaskService)
+	imageRuntimesHealthService := service.NewImageRuntimesHealthService(db, configConfig, batchImageRuntimeState, imageTaskService)
 	imageRuntimesHealthService.SetImageStudioRuntime(imageStudioWorkerRuntime)
 	imageRuntimesHealthService.SetImageStudioFeature(imageStudioService)
 	opsHandler.SetImageRuntimesHealthProvider(imageRuntimesHealthService)
@@ -343,7 +345,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	playGrowthRunner := service.ProvidePlayGrowthRunner(playService, imageStudioService, leaderLockCache, db)
 	publicHomeStatsRepository := repository.NewPublicHomeStatsRepository(db)
 	publicHomeStatsService := service.NewPublicHomeStatsService(publicHomeStatsRepository)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, batchImageWorkerRuntime, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, auditLogService, promptService)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, auditLogService, promptService)
 	application := &Application{
 		Server:      httpServer,
 		PromptAudit: promptService,
@@ -392,7 +394,9 @@ func provideCleanup(
 	usageCleanup *service.UsageCleanupService,
 	idempotencyCleanup *service.IdempotencyCleanupService,
 	batchImageCleanup *service.BatchImageCleanupService,
+	openAIImageResults *service.OpenAIImageResultService,
 	batchImageWorker *service.BatchImageWorkerRuntime,
+	asyncImageWorker *handler.AsyncImageHandler,
 	imageStudioWorker *handler.ImageStudioWorkerRuntime,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
@@ -523,9 +527,21 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"OpenAIImageResultService", func() error {
+				if openAIImageResults != nil {
+					openAIImageResults.Stop()
+				}
+				return nil
+			}},
 			{"BatchImageWorkerRuntime", func() error {
 				if batchImageWorker != nil {
 					batchImageWorker.Stop()
+				}
+				return nil
+			}},
+			{"AsyncImageWorkerRuntime", func() error {
+				if asyncImageWorker != nil {
+					asyncImageWorker.Stop()
 				}
 				return nil
 			}},

@@ -205,6 +205,210 @@ func TestUsageBillingRepositoryReserveBatchImageBalance_RejectsCrossUserCharge(t
 	require.Zero(t, dedupCount)
 }
 
+func TestUsageBillingRepositoryBatchImageHoldAllowsOnlyOneTerminalOutcome(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewUsageBillingRepository(client, integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-image-terminal-hold-%s@example.com", uuid.NewString()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-batch-image-terminal-hold-" + uuid.NewString(),
+		Name:   "batch-image-terminal-hold",
+	})
+
+	reserve := func(batchID string, amount float64) {
+		t.Helper()
+		_, err := repo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+			RequestID:          service.BatchImageHoldRequestID(batchID),
+			HoldRequestID:      service.BatchImageHoldRequestID(batchID),
+			APIKeyID:           apiKey.ID,
+			UserID:             user.ID,
+			BatchID:            batchID,
+			HoldAmount:         amount,
+			RequestPayloadHash: "request-" + batchID,
+		})
+		require.NoError(t, err)
+	}
+
+	batchA := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	batchB := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+	reserve(batchA, 10)
+	reserve(batchB, 20)
+	requireUserBalanceAndFrozen(t, ctx, user.ID, 70, 30)
+
+	_, err := repo.CaptureBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:          service.BatchImageCaptureRequestID(batchA),
+		HoldRequestID:      service.BatchImageHoldRequestID(batchA),
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		BatchID:            batchA,
+		HoldAmount:         10,
+		ActualAmount:       6,
+		RequestPayloadHash: "settlement-" + batchA,
+	})
+	require.NoError(t, err)
+	requireUserBalanceAndFrozen(t, ctx, user.ID, 74, 20)
+
+	_, err = repo.ReleaseBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+		RequestID:          service.BatchImageReleaseRequestID(batchA),
+		HoldRequestID:      service.BatchImageHoldRequestID(batchA),
+		APIKeyID:           apiKey.ID,
+		UserID:             user.ID,
+		BatchID:            batchA,
+		HoldAmount:         10,
+		RequestPayloadHash: "request-" + batchA,
+	})
+	require.Error(t, err)
+	requireUserBalanceAndFrozen(t, ctx, user.ID, 74, 20)
+}
+
+func TestBatchImageSettlementPersistsRealBalanceLifecycle(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	billingRepo := NewUsageBillingRepository(client, integrationDB)
+	batchRepo := NewBatchImageRepository(integrationDB)
+
+	user := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("batch-image-settlement-%s@example.com", uuid.NewString()),
+		PasswordHash: "hash",
+		Balance:      100,
+	})
+	apiKey := mustCreateApiKey(t, client, &service.APIKey{
+		UserID: user.ID,
+		Key:    "sk-batch-image-settlement-" + uuid.NewString(),
+		Name:   "batch-image-settlement",
+	})
+	account := mustCreateAccount(t, client, &service.Account{
+		Name:        "batch-image-settlement-" + uuid.NewString(),
+		Platform:    service.PlatformGemini,
+		Type:        service.AccountTypeAPIKey,
+		Schedulable: true,
+	})
+
+	t.Run("capture charges successful images and releases the remainder", func(t *testing.T) {
+		batchID := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+		holdID := service.BatchImageHoldRequestID(batchID)
+		requestHash := "request-" + uuid.NewString()
+		holdAmount := 10.0
+		apiKeyID := apiKey.ID
+		accountID := account.ID
+		_, err := batchRepo.CreateBatchImageJob(ctx, service.CreateBatchImageJobParams{
+			BatchID:                 batchID,
+			UserID:                  user.ID,
+			APIKeyID:                &apiKeyID,
+			AccountID:               &accountID,
+			Provider:                service.BatchImageProviderGeminiAPI,
+			Model:                   "gemini-2.5-flash-image",
+			Status:                  service.BatchImageJobStatusSettling,
+			ItemCount:               5,
+			SuccessCount:            3,
+			OutputImageCount:        3,
+			FailCount:               2,
+			EstimatedCost:           6,
+			HoldAmount:              &holdAmount,
+			BillableUnitPrice:       2,
+			PricingSnapshotVersion:  1,
+			GroupRateMultiplier:     1,
+			AccountRateMultiplier:   1,
+			BatchDiscountMultiplier: 1,
+			HoldMultiplier:          1,
+			HoldID:                  &holdID,
+			RequestHash:             &requestHash,
+		})
+		require.NoError(t, err)
+
+		reserved, err := billingRepo.ReserveBatchImageBalance(ctx, &service.BatchImageBalanceHoldCommand{
+			RequestID:          holdID,
+			HoldRequestID:      holdID,
+			APIKeyID:           apiKey.ID,
+			UserID:             user.ID,
+			BatchID:            batchID,
+			HoldAmount:         holdAmount,
+			RequestPayloadHash: requestHash,
+		})
+		require.NoError(t, err)
+		require.True(t, reserved.Applied)
+		requireUserBalanceAndFrozen(t, ctx, user.ID, 90, 10)
+
+		settlement := &service.BatchImageSettlementService{
+			Repo:        batchRepo,
+			BillingRepo: billingRepo,
+			Pricing:     &service.BatchImageModelPricingResolver{},
+		}
+		result, err := settlement.Settle(ctx, batchID)
+		require.NoError(t, err)
+		require.InDelta(t, 6, result.ActualCost, 0.000001)
+		requireUserBalanceAndFrozen(t, ctx, user.ID, 94, 0)
+
+		job, err := batchRepo.GetBatchImageJobByBatchID(ctx, batchID)
+		require.NoError(t, err)
+		require.Equal(t, service.BatchImageJobStatusCompleted, job.Status)
+		require.NotNil(t, job.ActualCost)
+		require.InDelta(t, 6, *job.ActualCost, 0.000001)
+
+		replayed, err := settlement.Settle(ctx, batchID)
+		require.NoError(t, err)
+		require.True(t, replayed.AlreadySettled)
+		requireUserBalanceAndFrozen(t, ctx, user.ID, 94, 0)
+	})
+
+	t.Run("release restores the full hold idempotently", func(t *testing.T) {
+		batchID := "imgbatch_" + strings.ReplaceAll(uuid.NewString(), "-", "")
+		holdID := service.BatchImageHoldRequestID(batchID)
+		holdAmount := 8.0
+		requestHash := "request-" + uuid.NewString()
+
+		reserve := &service.BatchImageBalanceHoldCommand{
+			RequestID:          holdID,
+			HoldRequestID:      holdID,
+			APIKeyID:           apiKey.ID,
+			UserID:             user.ID,
+			BatchID:            batchID,
+			HoldAmount:         holdAmount,
+			RequestPayloadHash: requestHash,
+		}
+		_, err := billingRepo.ReserveBatchImageBalance(ctx, reserve)
+		require.NoError(t, err)
+		requireUserBalanceAndFrozen(t, ctx, user.ID, 86, 8)
+
+		release := &service.BatchImageBalanceHoldCommand{
+			RequestID:          service.BatchImageReleaseRequestID(batchID),
+			HoldRequestID:      holdID,
+			APIKeyID:           apiKey.ID,
+			UserID:             user.ID,
+			BatchID:            batchID,
+			HoldAmount:         holdAmount,
+			RequestPayloadHash: requestHash,
+		}
+		first, err := billingRepo.ReleaseBatchImageBalance(ctx, release)
+		require.NoError(t, err)
+		require.True(t, first.Applied)
+		requireUserBalanceAndFrozen(t, ctx, user.ID, 94, 0)
+
+		second, err := billingRepo.ReleaseBatchImageBalance(ctx, release)
+		require.NoError(t, err)
+		require.False(t, second.Applied)
+		requireUserBalanceAndFrozen(t, ctx, user.ID, 94, 0)
+	})
+}
+
+func requireUserBalanceAndFrozen(t *testing.T, ctx context.Context, userID int64, wantBalance, wantFrozen float64) {
+	t.Helper()
+	var balance, frozen float64
+	require.NoError(t, integrationDB.QueryRowContext(ctx, `
+		SELECT balance, frozen_balance
+		FROM users
+		WHERE id = $1
+	`, userID).Scan(&balance, &frozen))
+	require.InDelta(t, wantBalance, balance, 0.000001)
+	require.InDelta(t, wantFrozen, frozen, 0.000001)
+}
+
 func TestUsageBillingRepositoryApply_DeduplicatesSubscriptionBilling(t *testing.T) {
 	ctx := context.Background()
 	client := testEntClient(t)

@@ -380,6 +380,13 @@ func NewImageStudioService(
 	}
 }
 
+func (s *ImageStudioService) StorageHealth(ctx context.Context) error {
+	if s == nil || s.assetStore == nil {
+		return errors.New("image studio asset storage is unavailable")
+	}
+	return s.assetStore.StorageHealth(ctx)
+}
+
 func (s *ImageStudioService) IsEnabled(ctx context.Context) bool {
 	if s.playService == nil {
 		return false

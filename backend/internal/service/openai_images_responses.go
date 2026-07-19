@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -22,6 +23,7 @@ import (
 
 type openAIResponsesImageResult struct {
 	Result        string
+	SourceURL     string
 	RevisedPrompt string
 	OutputFormat  string
 	Size          string
@@ -238,9 +240,7 @@ func buildOpenAIImagesStreamPartialPayload(
 	payload, _ = sjson.SetBytes(payload, "created_at", createdAt)
 	payload, _ = sjson.SetBytes(payload, "partial_image_index", partialImageIndex)
 	payload, _ = sjson.SetBytes(payload, "b64_json", b64)
-	if strings.EqualFold(strings.TrimSpace(responseFormat), "url") {
-		payload, _ = sjson.SetBytes(payload, "url", "data:"+openAIImageOutputMIMEType(meta.OutputFormat)+";base64,"+b64)
-	}
+	_ = responseFormat
 	if meta.Background != "" {
 		payload, _ = sjson.SetBytes(payload, "background", meta.Background)
 	}
@@ -270,12 +270,11 @@ func buildOpenAIImagesStreamCompletedPayload(
 		createdAt = time.Now().Unix()
 	}
 
-	payload := []byte(`{"type":"","created_at":0,"b64_json":""}`)
+	payload := []byte(`{"type":"","created_at":0}`)
 	payload, _ = sjson.SetBytes(payload, "type", eventType)
 	payload, _ = sjson.SetBytes(payload, "created_at", createdAt)
-	payload, _ = sjson.SetBytes(payload, "b64_json", img.Result)
-	if strings.EqualFold(strings.TrimSpace(responseFormat), "url") {
-		payload, _ = sjson.SetBytes(payload, "url", "data:"+openAIImageOutputMIMEType(img.OutputFormat)+";base64,"+img.Result)
+	if !strings.EqualFold(strings.TrimSpace(responseFormat), "url") {
+		payload, _ = sjson.SetBytes(payload, "b64_json", img.Result)
 	}
 	if img.Background != "" {
 		payload, _ = sjson.SetBytes(payload, "background", img.Background)
@@ -294,6 +293,63 @@ func buildOpenAIImagesStreamCompletedPayload(
 	}
 	if len(usageRaw) > 0 && gjson.ValidBytes(usageRaw) {
 		payload, _ = sjson.SetRawBytes(payload, "usage", usageRaw)
+	}
+	return payload
+}
+
+type openAIImagesStreamStoredResult struct {
+	URL       string `json:"url"`
+	ExpiresAt int64  `json:"expires_at"`
+	Size      string `json:"size"`
+	ResultID  string `json:"-"`
+}
+
+func (s *OpenAIGatewayService) storeOpenAIImagesStreamResults(
+	c *gin.Context,
+	results []openAIResponsesImageResult,
+	createdAt int64,
+	usageRaw []byte,
+	firstMeta openAIResponsesImageResult,
+) ([]openAIImagesStreamStoredResult, error) {
+	if !s.OpenAIImageResultStorageReady() {
+		return nil, ErrOpenAIImageResultStorageUnavailable
+	}
+	owner, ok := openAIImageResultOwner(c)
+	if !ok {
+		return nil, ErrOpenAIImageResultStorageUnavailable
+	}
+	responseBody, err := buildOpenAIImagesAPIResponse(results, createdAt, usageRaw, firstMeta, "b64_json")
+	if err != nil {
+		return nil, err
+	}
+	storageCtx, cancel := context.WithTimeout(context.WithoutCancel(c.Request.Context()), 2*time.Minute)
+	defer cancel()
+	rewritten, err := s.openAIImageResults.Rewrite(storageCtx, owner, c.Request.URL.Path, responseBody)
+	if err != nil {
+		return nil, err
+	}
+	var response struct {
+		ResultID string                           `json:"result_id"`
+		Data     []openAIImagesStreamStoredResult `json:"data"`
+	}
+	if err := json.Unmarshal(rewritten, &response); err != nil {
+		return nil, err
+	}
+	if len(response.Data) != len(results) {
+		return nil, fmt.Errorf("stored image result count mismatch")
+	}
+	for i := range response.Data {
+		response.Data[i].ResultID = response.ResultID
+	}
+	return response.Data, nil
+}
+
+func applyOpenAIImagesStreamStoredResult(payload []byte, stored openAIImagesStreamStoredResult) []byte {
+	payload, _ = sjson.SetBytes(payload, "url", stored.URL)
+	payload, _ = sjson.SetBytes(payload, "expires_at", stored.ExpiresAt)
+	payload, _ = sjson.SetBytes(payload, "result_id", stored.ResultID)
+	if strings.TrimSpace(stored.Size) != "" {
+		payload, _ = sjson.SetBytes(payload, "size", stored.Size)
 	}
 	return payload
 }
@@ -939,7 +995,9 @@ func buildOpenAIImagesAPIResponse(
 	}
 	for _, img := range results {
 		item := []byte(`{}`)
-		if format == "url" {
+		if strings.TrimSpace(img.SourceURL) != "" {
+			item, _ = sjson.SetBytes(item, "url", img.SourceURL)
+		} else if format == "url" {
 			item, _ = sjson.SetBytes(item, "url", "data:"+openAIImageOutputMIMEType(img.OutputFormat)+";base64,"+img.Result)
 		} else {
 			item, _ = sjson.SetBytes(item, "b64_json", img.Result)
@@ -1305,6 +1363,9 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthNonStreamingResponse(
 	if err != nil {
 		return usage, imageCount, imageOutputSizes, err
 	}
+	if rewrittenSizes := collectOpenAIResponseImageOutputSizesFromJSONBytes(responseBody); len(rewrittenSizes) > 0 {
+		imageOutputSizes = rewrittenSizes
+	}
 	responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	c.Data(resp.StatusCode, "application/json; charset=utf-8", responseBody)
 	return usage, imageCount, imageOutputSizes, nil
@@ -1442,12 +1503,25 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 				return
 			}
 			eventName := streamPrefix + ".completed"
-			for _, img := range finalResults {
+			var storedResults []openAIImagesStreamStoredResult
+			if format == "url" {
+				storedResults, extractErr = s.storeOpenAIImagesStreamResults(c, finalResults, createdAt, usageRaw, streamMeta)
+				if extractErr != nil {
+					s.tryWriteOpenAIImagesStreamEvent(c, flusher, &clientDisconnected, &lastDownstreamWriteAt, "error", buildOpenAIImagesStreamErrorBody("failed to store generated image result"))
+					processDataErr = extractErr
+					processDataDone = true
+					return
+				}
+			}
+			for index, img := range finalResults {
 				key := openAIResponsesImageResultKey("", img)
 				if _, exists := emitted[key]; exists {
 					continue
 				}
 				payload := buildOpenAIImagesStreamCompletedPayload(eventName, img, format, createdAt, usageRaw)
+				if format == "url" {
+					payload = applyOpenAIImagesStreamStoredResult(payload, storedResults[index])
+				}
 				emitted[key] = struct{}{}
 				s.tryWriteOpenAIImagesStreamEvent(c, flusher, &clientDisconnected, &lastDownstreamWriteAt, eventName, payload)
 			}
@@ -1498,12 +1572,24 @@ func (s *OpenAIGatewayService) handleOpenAIImagesOAuthStreamingResponse(
 				mergeOpenAIResponsesImageMeta(&finalResults[i], streamMeta)
 			}
 			reconcileOpenAIResponsesImageResultSizes(finalResults, nil)
-			for _, img := range finalResults {
+			var storedResults []openAIImagesStreamStoredResult
+			if format == "url" {
+				var err error
+				storedResults, err = s.storeOpenAIImagesStreamResults(c, finalResults, createdAt, nil, streamMeta)
+				if err != nil {
+					s.tryWriteOpenAIImagesStreamEvent(c, flusher, &clientDisconnected, &lastDownstreamWriteAt, "error", buildOpenAIImagesStreamErrorBody("failed to store generated image result"))
+					return err
+				}
+			}
+			for index, img := range finalResults {
 				key := openAIResponsesImageResultKey("", img)
 				if _, exists := emitted[key]; exists {
 					continue
 				}
 				payload := buildOpenAIImagesStreamCompletedPayload(eventName, img, format, createdAt, nil)
+				if format == "url" {
+					payload = applyOpenAIImagesStreamStoredResult(payload, storedResults[index])
+				}
 				emitted[key] = struct{}{}
 				s.tryWriteOpenAIImagesStreamEvent(c, flusher, &clientDisconnected, &lastDownstreamWriteAt, eventName, payload)
 			}

@@ -83,7 +83,7 @@ func TestBatchImageMVPFlow(t *testing.T) {
 		Config:           cfg,
 	}
 
-	submitted, err := publicSvc.Submit(ctx, owner, validBatchImageSubmitRequest(), "")
+	submitted, err := publicSvc.Submit(ctx, owner, validBatchImageSubmitRequest(), testBatchImageIdempotencyKey)
 	require.NoError(t, err)
 	require.Equal(t, "image.batch", submitted.Object)
 	require.True(t, strings.HasPrefix(submitted.ID, "imgbatch_"))
@@ -106,7 +106,7 @@ func TestBatchImageMVPFlow(t *testing.T) {
 	require.False(t, indexProcess.Terminal)
 	require.Equal(t, time.Millisecond, indexProcess.RequeueAfter)
 	require.Equal(t, BatchImageJobStatusSettling, repo.jobs[submitted.ID].Status)
-	require.Equal(t, BatchImageCounts{SuccessCount: 1, FailCount: 1}, repo.counts[submitted.ID])
+	require.Equal(t, BatchImageCounts{SuccessCount: 1, OutputImageCount: 1, FailCount: 1}, repo.counts[submitted.ID])
 
 	settleProcess, err := processor.Process(ctx, submitted.ID)
 	require.NoError(t, err)
