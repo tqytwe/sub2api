@@ -366,6 +366,7 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 	catalogSvc := NewModelCatalogService(&nextChatModelCatalogRepoStub{entries: []SiteModelCatalogEntry{
 		{ModelName: "gpt-4o-mini", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 1},
 		{ModelName: "grok-4-fast", Platform: PlatformGrok, VisibleAuth: true, SortOrder: 2},
+		{ModelName: "claude-fable-5", Platform: PlatformAnthropic, VisibleAuth: true, SortOrder: 3, GroupIDs: []int64{grokGroupID}},
 	}}, nil, nil, nil, nil, apiKeySvc)
 
 	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 3)
@@ -380,6 +381,7 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 	require.Equal(t, []string{"gpt-4o-mini"}, collectNextChatModelNames(models.Groups[0].Models))
 	require.Equal(t, grokGroupID, models.Groups[1].ID)
 	require.Equal(t, []string{"grok-4-fast"}, collectNextChatModelNames(models.Groups[1].Models))
+	require.NotContains(t, collectNextChatModelNames(models.Groups[1].Models), "claude-fable-5")
 	require.Equal(t, "gpt-4o-mini", models.DefaultModel)
 }
 

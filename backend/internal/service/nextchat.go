@@ -385,6 +385,9 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 				if !ok {
 					continue
 				}
+				if !nextChatModelPlatformMatchesGroup(row.Platform, out.Groups[groupIndex].Platform) {
+					continue
+				}
 				if seen[rowGroup.ID] == nil {
 					seen[rowGroup.ID] = make(map[string]struct{})
 				}
@@ -433,6 +436,37 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 	}
 
 	return out, nil
+}
+
+func nextChatModelPlatformMatchesGroup(modelPlatform, groupPlatform string) bool {
+	model := normalizeNextChatModelPlatform(modelPlatform)
+	group := normalizeNextChatModelPlatform(groupPlatform)
+	if model == "" || group == "" {
+		return true
+	}
+	if model == group {
+		return true
+	}
+	return group == PlatformAntigravity && (model == PlatformAnthropic || model == PlatformGemini)
+}
+
+func normalizeNextChatModelPlatform(platform string) string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case "", "—":
+		return ""
+	case "openai":
+		return PlatformOpenAI
+	case "anthropic", "claude":
+		return PlatformAnthropic
+	case "gemini", "google":
+		return PlatformGemini
+	case "grok", "xai":
+		return PlatformGrok
+	case "antigravity":
+		return PlatformAntigravity
+	default:
+		return strings.ToLower(strings.TrimSpace(platform))
+	}
 }
 
 func (s *APIKeyService) realignNextChatManagedKeyGroup(ctx context.Context, key *APIKey, userID int64, groupID *int64) (*APIKey, error) {
