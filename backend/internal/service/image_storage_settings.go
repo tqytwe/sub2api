@@ -258,6 +258,9 @@ func (s *ImageStorageSettingService) toImageStorageConfig(ctx context.Context, i
 		SecretAccessKey: in.SecretAccessKey,
 		ForcePathStyle:  in.ForcePathStyle,
 	}
+	if cfg.Backend == "" || cfg.Backend == "auto" {
+		cfg.Backend = "s3"
+	}
 
 	if in.ReuseBackupS3 {
 		backupCfg, err := s.backupCredentials(ctx)

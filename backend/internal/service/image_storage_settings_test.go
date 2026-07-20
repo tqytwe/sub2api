@@ -233,6 +233,19 @@ func TestImageStorageSettingsIncompleteStaysDisabled(t *testing.T) {
 	require.Empty(t, *built, "no client is built from an incomplete configuration")
 }
 
+func TestImageStorageSettingsExplicitLocalBackendCanEnableWithoutS3Credentials(t *testing.T) {
+	svc, _, built := newImageStorageFixture(t, config.ImageStorageConfig{})
+	ctx := context.Background()
+
+	_, err := svc.Update(ctx, ImageStorageSettings{Enabled: true, Backend: "local"})
+	require.NoError(t, err)
+
+	_, enabled := svc.resolve()
+	require.True(t, enabled)
+	require.Len(t, *built, 1)
+	require.Equal(t, "local", (*built)[0].Backend)
+}
+
 // Deployments that already enabled the feature through config.yaml must keep
 // working after the setting moves into the database.
 func TestImageStorageSettingsFallBackToConfigFile(t *testing.T) {
