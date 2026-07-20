@@ -153,6 +153,7 @@ var ProviderSet = wire.NewSet(
 
 	// Image storage (async image task result offload)
 	ProvideImageStorage,
+	ProvideImageStorageFactory,
 
 	// HTTP service ports (DI Strategy A: return interface directly)
 	NewTurnstileVerifier,
@@ -209,6 +210,37 @@ func ProvideImageStorage(cfg *config.Config) (service.ImageStorage, error) {
 		return NewLocalImageStorage(localDir, cfg.ImageStorage.LocalURLPrefix)
 	default:
 		return nil, fmt.Errorf("unsupported image_storage.backend %q", cfg.ImageStorage.Backend)
+	}
+}
+
+// ProvideImageStorageFactory 提供按需构造对象存储客户端的工厂。
+//
+// 这里返回工厂而不是实例：异步生图的开关与凭证可以在后台随时改动，客户端必须能在
+// 设置保存后重建，而不是在启动时定死一份。
+func ProvideImageStorageFactory(appCfg *config.Config) service.ImageStorageFactory {
+	return func(ctx context.Context, cfg *config.ImageStorageConfig) (service.ImageStorage, error) {
+		if cfg == nil || !cfg.Enabled {
+			return nil, nil
+		}
+		switch cfg.BackendOrDefault() {
+		case "s3":
+			if !cfg.S3Configured() {
+				return nil, nil
+			}
+			return NewS3ImageStorage(ctx, cfg)
+		case "local":
+			localDir := cfg.LocalDir
+			if localDir == "" {
+				dataDir := "./data"
+				if appCfg != nil && appCfg.Pricing.DataDir != "" {
+					dataDir = appCfg.Pricing.DataDir
+				}
+				localDir = filepath.Join(dataDir, "image-task-results")
+			}
+			return NewLocalImageStorage(localDir, cfg.LocalURLPrefix)
+		default:
+			return nil, fmt.Errorf("unsupported image_storage.backend %q", cfg.Backend)
+		}
 	}
 }
 

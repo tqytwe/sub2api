@@ -1,9 +1,12 @@
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
+import splitAdminEn from './en/admin'
+import splitBatchImageEn from './en/batchImage'
+import splitCommonEn from './en/common'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 
-export default {
+const messages = {
   batchImageGuide: {
     title: 'Batch Image Generation',
     description: 'Submit multiple prompts in one job and download the generated images when complete'
@@ -8212,3 +8215,26 @@ export default {
   },
 
 }
+
+type LocaleNode = Record<string, unknown>
+
+function isLocaleNode(value: unknown): value is LocaleNode {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeLocaleMessages<T extends LocaleNode>(base: T, updates: LocaleNode): T {
+  const merged: LocaleNode = { ...base }
+  for (const [key, value] of Object.entries(updates)) {
+    const current = merged[key]
+    merged[key] = isLocaleNode(current) && isLocaleNode(value)
+      ? mergeLocaleMessages(current, value)
+      : value
+  }
+  return merged as T
+}
+
+export default mergeLocaleMessages(messages, {
+  ...splitCommonEn,
+  ...splitBatchImageEn,
+  admin: splitAdminEn,
+})

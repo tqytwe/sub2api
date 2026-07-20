@@ -20,6 +20,16 @@ type imageTaskMemoryStore struct {
 	getErr  error
 }
 
+type imageTaskPlainEncryptor struct{}
+
+func (imageTaskPlainEncryptor) Encrypt(value string) (string, error) {
+	return value, nil
+}
+
+func (imageTaskPlainEncryptor) Decrypt(value string) (string, error) {
+	return value, nil
+}
+
 func (s *imageTaskMemoryStore) Save(_ context.Context, task *ImageTaskRecord, ttl time.Duration) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -181,6 +191,38 @@ func TestImageTaskServicePersistsProcessingHeartbeat(t *testing.T) {
 
 	require.NotNil(t, store.task.HeartbeatAt)
 	require.Greater(t, *store.task.HeartbeatAt, startedAt)
+}
+
+func TestImageTaskServiceRuntimeSnapshotUsesResolverStorageReadiness(t *testing.T) {
+	ctx := context.Background()
+	queue := &duplicateReservationImageTaskQueue{}
+	runtime := NewImageTaskRuntimeState(queue, true, true, false)
+	storageReady := false
+	svc := NewQueuedImageTaskServiceWithResolver(
+		&imageTaskMemoryStore{},
+		queue,
+		func() (*ImageResultUploader, bool) {
+			return nil, storageReady
+		},
+		imageTaskPlainEncryptor{},
+		runtime,
+		time.Hour,
+		time.Minute,
+	)
+
+	snapshot := svc.RuntimeSnapshot(ctx)
+	require.False(t, snapshot.StorageReady)
+	require.False(t, snapshot.Ready)
+
+	storageReady = true
+	runtime.SetWorkerRunning(true)
+
+	snapshot = svc.RuntimeSnapshot(ctx)
+	require.True(t, snapshot.StorageReady)
+	require.True(t, snapshot.RedisReady)
+	require.True(t, snapshot.WorkerRunning)
+	require.True(t, snapshot.Ready)
+	require.True(t, svc.SubmissionReady(ctx))
 }
 
 func TestImageTaskServiceTerminalStateIsImmutable(t *testing.T) {
