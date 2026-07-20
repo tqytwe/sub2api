@@ -3,7 +3,7 @@
 > 状态：active
 > 适用分支：`play/main`
 > 生产环境：Zeabur / `https://www.jisudeng.com/`
-> 最后核验：2026-07-17
+> 最后核验：2026-07-20
 
 ## 分支模型
 

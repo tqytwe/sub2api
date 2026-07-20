@@ -247,6 +247,12 @@ func (s *ImageTaskRuntimeState) Snapshot(ctx context.Context) ImageTaskRuntimeSn
 	return snapshot
 }
 
+// ImageStorageResolver reports the currently effective object-storage binding.
+// It exists so the async image feature can be switched on and off from the admin
+// UI without a restart: the wiring below is fixed at startup, but the answer to
+// "is object storage configured right now" is re-read (and cached) per call.
+type ImageStorageResolver func() (uploader *ImageResultUploader, enabled bool)
+
 type ImageTaskService struct {
 	store            ImageTaskStore
 	queue            ImageTaskQueue
@@ -254,6 +260,7 @@ type ImageTaskService struct {
 	encryptor        SecretEncryptor
 	runtime          *ImageTaskRuntimeState
 	enabled          bool
+	resolve          ImageStorageResolver
 	ttl              time.Duration
 	executionTimeout time.Duration
 }
@@ -298,24 +305,75 @@ func NewQueuedImageTaskService(
 	return s
 }
 
+// NewImageTaskServiceWithResolver 构造一个由 resolver 决定启用状态的服务：
+// 开关与凭证来自后台设置，保存后立即生效，无需重启。
+func NewImageTaskServiceWithResolver(store ImageTaskStore, resolve ImageStorageResolver, ttl, executionTimeout time.Duration) *ImageTaskService {
+	s := NewImageTaskServiceWithOptions(store, ttl, executionTimeout)
+	s.resolve = resolve
+	return s
+}
+
+func NewQueuedImageTaskServiceWithResolver(
+	store ImageTaskStore,
+	queue ImageTaskQueue,
+	resolve ImageStorageResolver,
+	encryptor SecretEncryptor,
+	runtime *ImageTaskRuntimeState,
+	ttl, executionTimeout time.Duration,
+) *ImageTaskService {
+	s := NewImageTaskServiceWithResolver(store, resolve, ttl, executionTimeout)
+	s.queue = queue
+	s.encryptor = encryptor
+	s.runtime = runtime
+	return s
+}
+
+// current 返回当前生效的 uploader 与启用状态。
+// 注入了 resolver 时以 resolver 为准（后台设置可热切换），否则回落到构造时固定的值。
+func (s *ImageTaskService) current() (*ImageResultUploader, bool) {
+	if s == nil {
+		return nil, false
+	}
+	if s.resolve != nil {
+		return s.resolve()
+	}
+	return s.uploader, s.enabled
+}
+
 // Enabled 表示异步图片任务功能是否可用（总开关 + 凭证齐全）。
 // 关闭时 handler 直接返回 404，不创建任务、不写 Redis。
 func (s *ImageTaskService) Enabled() bool {
-	return s != nil && s.enabled && s.store != nil
+	if s == nil || s.store == nil {
+		return false
+	}
+	_, enabled := s.current()
+	return enabled
+}
+
+// Pollable 表示已创建的任务能否被查询。
+// 比 Enabled 弱：只要 store 可用即可，从而在功能被关掉后仍能取回进行中的任务结果。
+func (s *ImageTaskService) Pollable() bool {
+	return s != nil && s.store != nil
 }
 
 func (s *ImageTaskService) SubmissionReady(ctx context.Context) bool {
 	if s == nil || !s.Enabled() || s.queue == nil || s.encryptor == nil || s.runtime == nil {
 		return false
 	}
-	return s.runtime.Snapshot(ctx).Ready
+	return s.RuntimeSnapshot(ctx).Ready
 }
 
 func (s *ImageTaskService) RuntimeSnapshot(ctx context.Context) ImageTaskRuntimeSnapshot {
 	if s == nil || s.runtime == nil {
 		return ImageTaskRuntimeSnapshot{}
 	}
-	return s.runtime.Snapshot(ctx)
+	snapshot := s.runtime.Snapshot(ctx)
+	if s.resolve != nil {
+		_, storageReady := s.current()
+		snapshot.StorageReady = storageReady
+		snapshot.Ready = snapshot.APIEnabled && snapshot.QueueEnabled && snapshot.StorageReady && snapshot.RedisReady && snapshot.WorkerRunning
+	}
+	return snapshot
 }
 
 func (s *ImageTaskService) ExecutionTimeout() time.Duration {
@@ -512,8 +570,8 @@ func (s *ImageTaskService) Complete(ctx context.Context, id string, statusCode i
 		return s.Fail(ctx, id, http.StatusBadGateway, imageTaskErrorJSON("api_error", "upstream returned a non-JSON image response"))
 	}
 	var rollback func()
-	if s.uploader != nil {
-		rewritten, cleanup, err := s.uploader.RewriteWithRollback(ctx, id, result)
+	if uploader, _ := s.current(); uploader != nil {
+		rewritten, cleanup, err := uploader.RewriteWithRollback(ctx, id, result)
 		if err != nil {
 			// 转存失败不回退存 base64，避免大 blob 撑爆 Redis：直接把任务标记为失败。
 			logger.L().Error("image_task.offload_failed", zap.String("task_id", id), zap.Error(err))

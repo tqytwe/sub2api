@@ -39,6 +39,14 @@ Redis 队列的重启恢复以持久卷和 AOF 为前提。官方 Docker Compose
 配置等价持久化。运行时健康检查只能确认 Redis 可访问，不能替外部托管服务证明其
 持久化策略。
 
+## 后台对象存储配置
+
+管理员可在 **Admin → Backup → Async image object storage** 保存异步生图对象存储配置。保存后下一次请求会重建对象存储客户端，不需要重启容器。
+
+该配置可以复用备份 S3 的端点、区域和密钥，只为图片保留独立 bucket/prefix；备份继续走 `backups/`，图片走 `images/`。关闭开关后停止新提交，但已接收任务仍可继续轮询，避免在途任务被困住。启用 step-up 2FA 时，保存该配置同样需要二次验证。
+
+后台设置优先于 `config.yaml`。如果后台从未保存过配置，则继续沿用 `image_storage` 配置块，因此升级前已经通过环境变量或配置文件开启的部署不会被打断。
+
 ## 启用
 
 通用部署默认关闭。本地或单实例部署可以使用持久本地目录：
@@ -93,6 +101,22 @@ IMAGE_ASYNC_QUEUE_ENABLED=true
 - API 未启用：提交返回 `404 not_found_error`
 - API 已启用但 Redis、队列或 worker 未就绪：`503 IMAGE_ASYNC_NOT_READY`
 - 未就绪时不创建任务、不执行上游调用
+
+## 排查：开启后仍返回 404
+
+`404 async image tasks are not enabled` 表示 `image_storage` 没解析成可用配置，功能保持关闭。路由本身仍然存在，404 来自 handler 的启用门禁，不是路径没有注册。
+
+先检查启动日志：
+
+```text
+WARN image_storage.enabled is true but object storage is not fully configured; async image tasks are disabled  missing_keys=[...]
+```
+
+`missing_keys` 会列出加载配置时为空的字段。
+
+v0.1.161 之前的版本如果只通过环境变量提供 `IMAGE_STORAGE_ENDPOINT`、`_BUCKET`、`_ACCESS_KEY_ID`、`_SECRET_ACCESS_KEY` 和 `_PUBLIC_BASE_URL`，可能会因为默认键未注册而被 viper 静默丢弃。受影响版本的临时办法是把 `image_storage` 配置块也写进 `/app/data/config.yaml`；升级后这些环境变量已注册默认值，可正常覆盖。
+
+另外两类 404 与存储无关：API Key 所属分组必须是 OpenAI 或 Grok 平台；任务只能用提交时同一把 API Key 轮询，同一用户的另一把 key 轮询也会按设计返回 `image task not found`。
 
 ## 提交与幂等
 
