@@ -141,5 +141,5 @@ git diff --check
 
 ### 交付 commit
 
-- 状态：未开始
-- commit：尚未生成
+- 状态：进行中
+- CP1 实现 commit：`89561e39a`（`feat(play): add controlled admin team member repair`）
