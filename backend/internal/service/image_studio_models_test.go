@@ -140,6 +140,73 @@ func TestListImageModelsForAPIKey_DoesNotLeakOtherPlatformMappingsIntoOpenAIGrou
 	require.Nil(t, models)
 }
 
+func TestListImageModelsForAPIKey_DoesNotUseProviderDefaultsWhenGatewayHasNoMappedModels(t *testing.T) {
+	groupID := int64(8)
+	resolver := &imageStudioModelResolverStub{}
+	svc := &ImageStudioService{gateway: resolver}
+
+	models, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformGrok,
+			AllowImageGeneration: true,
+		},
+	})
+
+	require.ErrorIs(t, err, ErrImageStudioNoImageModels)
+	require.Equal(t, PlatformGrok, resolver.seenPlatform)
+	require.Nil(t, models)
+}
+
+func TestListImageModelsForAPIKey_RejectsUnknownPlatformInsteadOfOpenAIFallback(t *testing.T) {
+	groupID := int64(8)
+	resolver := &imageStudioModelResolverStub{
+		modelsByPlatform: map[string][]string{
+			PlatformOpenAI: {"gpt-image-2"},
+			"krio":         {"gpt-image-2"},
+		},
+	}
+	svc := &ImageStudioService{gateway: resolver}
+
+	models, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             "krio",
+			AllowImageGeneration: true,
+		},
+	})
+
+	require.ErrorIs(t, err, ErrImageStudioNoImageModels)
+	require.Empty(t, resolver.seenPlatform)
+	require.Nil(t, models)
+}
+
+func TestListImageModelsForAPIKey_CustomModelsListEnabledEmptyFailsClosed(t *testing.T) {
+	groupID := int64(8)
+	resolver := &imageStudioModelResolverStub{
+		models: []string{"gpt-image-2"},
+	}
+	svc := &ImageStudioService{gateway: resolver}
+
+	models, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
+		GroupID: &groupID,
+		Group: &Group{
+			ID:                   groupID,
+			Platform:             PlatformOpenAI,
+			AllowImageGeneration: true,
+			ModelsListConfig: GroupModelsListConfig{
+				Enabled: true,
+			},
+		},
+	})
+
+	require.ErrorIs(t, err, ErrImageStudioNoImageModels)
+	require.Equal(t, PlatformOpenAI, resolver.seenPlatform)
+	require.Nil(t, models)
+}
+
 func TestListImageModelsForAPIKey_UsesProviderDefaultsWhenGroupHasNoMapping(t *testing.T) {
 	groupID := int64(9)
 	svc := &ImageStudioService{}

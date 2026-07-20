@@ -18,6 +18,7 @@ type ModelCatalogService struct {
 	billingService *BillingService
 	settingService *SettingService
 	apiKeyService  *APIKeyService
+	modelResolver  NextChatAvailableModelResolver
 	syncRunner     *ModelPricingSyncRunner
 }
 
@@ -29,6 +30,7 @@ func NewModelCatalogService(
 	billingService *BillingService,
 	settingService *SettingService,
 	apiKeyService *APIKeyService,
+	modelResolver NextChatAvailableModelResolver,
 ) *ModelCatalogService {
 	svc := &ModelCatalogService{
 		repo:           repo,
@@ -37,6 +39,7 @@ func NewModelCatalogService(
 		billingService: billingService,
 		settingService: settingService,
 		apiKeyService:  apiKeyService,
+		modelResolver:  modelResolver,
 	}
 	svc.syncRunner = NewModelPricingSyncRunner(svc)
 	return svc

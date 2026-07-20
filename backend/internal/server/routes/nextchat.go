@@ -18,6 +18,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -26,6 +27,12 @@ import (
 )
 
 const nextChatLaunchTokenKeyPrefix = "nextchat:launch:"
+
+const (
+	nextChatImageStudioInternalAPIPrefix = "/api/v1/image-studio/"
+	nextChatImageStudioBFFAPIPrefix      = "/api/v1/nextchat/image-studio/"
+	nextChatImageStudioAssetRetention    = 24 * time.Hour
+)
 
 type nextChatSessionIssuer interface {
 	IssueNextChatManagedSession(ctx context.Context, userID int64) (*service.NextChatManagedSession, error)
@@ -42,6 +49,11 @@ type nextChatWorkspaceIdentityProvider interface {
 
 type nextChatWorkspaceModelProvider interface {
 	GetNextChatWorkspaceModels(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceModels, error)
+}
+
+type nextChatPromptProvider interface {
+	ListPublic(ctx context.Context, filter service.PromptListFilter, userID *int64) ([]service.PublicPrompt, *pagination.PaginationResult, error)
+	GetPublic(ctx context.Context, id int64, userID *int64) (*service.PublicPrompt, error)
 }
 
 type nextChatImageStudioBFFHandler interface {
@@ -86,12 +98,13 @@ func RegisterNextChatRoutes(
 	jwtAuth middleware.JWTAuthMiddleware,
 	apiKeyService *service.APIKeyService,
 	modelCatalogService *service.ModelCatalogService,
+	promptProvider nextChatPromptProvider,
 	imageStudio nextChatImageStudioBFFHandler,
 	settingService *service.SettingService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) {
-	registerNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, imageStudio, settingService, cfg, redisClient)
+	registerNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, promptProvider, imageStudio, settingService, cfg, redisClient)
 }
 
 func registerNextChatRoutes(
@@ -99,6 +112,7 @@ func registerNextChatRoutes(
 	jwtAuth middleware.JWTAuthMiddleware,
 	issuer nextChatSessionIssuer,
 	modelProvider nextChatWorkspaceModelProvider,
+	promptProvider nextChatPromptProvider,
 	imageStudio nextChatImageStudioBFFHandler,
 	gate nextChatFeatureGate,
 	cfg *config.Config,
@@ -113,7 +127,7 @@ func registerNextChatRoutes(
 			handleNextChatBootstrap(c, issuer, modelProvider, gate, cfg)
 		})
 		nextchat.GET("/prompts", func(c *gin.Context) {
-			handleNextChatPrompts(c, gate, cfg)
+			handleNextChatPrompts(c, promptProvider, gate, cfg)
 		})
 		nextchat.POST("/group", func(c *gin.Context) {
 			handleNextChatGroupSwitch(c, issuer, modelProvider, gate, cfg)
@@ -142,10 +156,10 @@ func registerNextChatImageStudioRoutes(
 	studio := nextchat.Group("/image-studio")
 	{
 		studio.GET("/models", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, imageStudio.Models)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, true, imageStudio.Models)
 		})
 		studio.GET("/estimate", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, imageStudio.Estimate)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, true, imageStudio.Estimate)
 		})
 		studio.POST(
 			"/generate",
@@ -158,38 +172,38 @@ func registerNextChatImageStudioRoutes(
 			"/references",
 			middleware.RequestBodyLimit(handler.ImageStudioReferenceRequestBodyLimit),
 			func(c *gin.Context) {
-				handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.UploadReference)
+				handleNextChatImageStudioUploadReference(c, imageStudio, gate, cfg)
 			},
 		)
 		studio.DELETE("/references/:id", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.DeleteReference)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.DeleteReference)
 		})
 		studio.GET("/jobs/active", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.ActiveJob)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.ActiveJob)
 		})
 		studio.GET("/jobs", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.ListJobs)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.ListJobs)
 		})
 		studio.GET("/jobs/:id", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.GetJob)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.GetJob)
 		})
 		studio.GET("/jobs/:id/download", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.JobDownload)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.JobDownload)
 		})
 		studio.POST("/jobs/:id/cancel", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.CancelJob)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.CancelJob)
 		})
 		studio.DELETE("/jobs/:id", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.DeleteJob)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.DeleteJob)
 		})
 		studio.GET("/assets/:id/thumbnail", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.AssetThumbnail)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.AssetThumbnail)
 		})
 		studio.GET("/assets/:id/content", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.AssetContent)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.AssetContent)
 		})
 		studio.GET("/assets/:id/download", func(c *gin.Context) {
-			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.AssetDownload)
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.AssetDownload)
 		})
 	}
 }
@@ -200,9 +214,14 @@ func handleNextChatImageStudio(
 	gate nextChatFeatureGate,
 	cfg *config.Config,
 	forceAPIKeyQuery bool,
+	rewriteJSON bool,
 	handle func(*gin.Context),
 ) {
 	if !prepareNextChatImageStudioBFF(c, gate, cfg, forceAPIKeyQuery) {
+		return
+	}
+	if rewriteJSON {
+		rewriteNextChatImageStudioJSONResponse(c, handle)
 		return
 	}
 	handle(c)
@@ -235,7 +254,106 @@ func handleNextChatImageStudioGenerate(
 	c.Request.Body = io.NopCloser(bytes.NewReader(raw))
 	c.Request.ContentLength = int64(len(raw))
 	c.Request.Header.Set("Content-Type", "application/json")
-	imageStudio.Generate(c)
+	rewriteNextChatImageStudioJSONResponse(c, imageStudio.Generate)
+}
+
+func handleNextChatImageStudioUploadReference(
+	c *gin.Context,
+	imageStudio nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if !prepareNextChatImageStudioBFF(c, gate, cfg, false) {
+		return
+	}
+	c.Request = c.Request.WithContext(
+		service.WithImageStudioReferenceTTL(c.Request.Context(), nextChatImageStudioAssetRetention),
+	)
+	rewriteNextChatImageStudioJSONResponse(c, imageStudio.UploadReference)
+}
+
+type nextChatImageStudioJSONRewriteWriter struct {
+	gin.ResponseWriter
+	body        bytes.Buffer
+	status      int
+	wroteHeader bool
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) WriteHeader(code int) {
+	if w.wroteHeader {
+		return
+	}
+	w.status = code
+	w.wroteHeader = true
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) WriteHeaderNow() {
+	if w.wroteHeader {
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Write(data []byte) (int, error) {
+	w.WriteHeaderNow()
+	return w.body.Write(data)
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) WriteString(data string) (int, error) {
+	w.WriteHeaderNow()
+	return w.body.WriteString(data)
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Status() int {
+	if w.status != 0 {
+		return w.status
+	}
+	return http.StatusOK
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Size() int {
+	return w.body.Len()
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Written() bool {
+	return w.wroteHeader
+}
+
+func rewriteNextChatImageStudioJSONResponse(c *gin.Context, handle func(*gin.Context)) {
+	if c == nil || handle == nil {
+		return
+	}
+	originalWriter := c.Writer
+	recorder := &nextChatImageStudioJSONRewriteWriter{ResponseWriter: originalWriter}
+	c.Writer = recorder
+	handle(c)
+	c.Writer = originalWriter
+
+	if !recorder.Written() {
+		return
+	}
+	body := recorder.body.Bytes()
+	if shouldRewriteNextChatImageStudioJSON(originalWriter.Header().Get("Content-Type"), body) {
+		body = []byte(strings.ReplaceAll(
+			string(body),
+			nextChatImageStudioInternalAPIPrefix,
+			nextChatImageStudioBFFAPIPrefix,
+		))
+	}
+	originalWriter.WriteHeader(recorder.Status())
+	if len(body) > 0 {
+		_, _ = originalWriter.Write(body)
+	}
+}
+
+func shouldRewriteNextChatImageStudioJSON(contentType string, body []byte) bool {
+	if len(body) == 0 || !strings.Contains(string(body), nextChatImageStudioInternalAPIPrefix) {
+		return false
+	}
+	if strings.Contains(strings.ToLower(contentType), "json") {
+		return true
+	}
+	return json.Valid(body)
 }
 
 func prepareNextChatImageStudioBFF(
@@ -347,6 +465,7 @@ func handleNextChatBootstrap(
 
 func handleNextChatPrompts(
 	c *gin.Context,
+	promptProvider nextChatPromptProvider,
 	gate nextChatFeatureGate,
 	cfg *config.Config,
 ) {
@@ -354,10 +473,36 @@ func handleNextChatPrompts(
 		response.NotFound(c, "NextChat is disabled")
 		return
 	}
-	if _, _, ok := requireNextChatBFFSession(c, cfg); !ok {
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
 		return
 	}
-	response.Success(c, service.BuildNextChatPromptCatalog())
+	response.Success(c, buildNextChatPromptCatalog(c.Request.Context(), promptProvider, userID))
+}
+
+func buildNextChatPromptCatalog(ctx context.Context, promptProvider nextChatPromptProvider, userID int64) service.NextChatPromptCatalog {
+	if promptProvider == nil {
+		return service.BuildNextChatPromptCatalog()
+	}
+	userIDPtr := &userID
+	rows, _, err := promptProvider.ListPublic(ctx, service.PromptListFilter{
+		Sort:       "featured",
+		Pagination: pagination.PaginationParams{Page: 1, PageSize: 48},
+	}, userIDPtr)
+	if err != nil || len(rows) == 0 {
+		return service.BuildNextChatPromptCatalog()
+	}
+	prompts := make([]service.PublicPrompt, 0, len(rows))
+	for _, row := range rows {
+		prompt := row
+		if strings.TrimSpace(prompt.PromptText) == "" {
+			if detail, detailErr := promptProvider.GetPublic(ctx, row.ID, userIDPtr); detailErr == nil && detail != nil {
+				prompt = *detail
+			}
+		}
+		prompts = append(prompts, prompt)
+	}
+	return service.BuildNextChatPromptCatalogFromPublicPrompts(prompts)
 }
 
 func handleNextChatGroupSwitch(

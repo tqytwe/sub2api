@@ -109,6 +109,17 @@ func (s *nextChatModelCatalogRepoStub) ListCatalog(_ context.Context, filter Cat
 	return out, nil
 }
 
+type nextChatAvailableModelResolverStub struct {
+	modelsByGroup map[int64][]string
+}
+
+func (s *nextChatAvailableModelResolverStub) GetAvailableModels(_ context.Context, groupID *int64, _ string) []string {
+	if s == nil || groupID == nil {
+		return nil
+	}
+	return append([]string(nil), s.modelsByGroup[*groupID]...)
+}
+
 func TestIssueNextChatManagedSessionReusesExistingManagedKey(t *testing.T) {
 	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
 		{ID: 1, UserID: 42, Name: "normal key", Key: "sk-normal", Status: StatusActive},
@@ -180,8 +191,51 @@ func TestIssueNextChatManagedSessionCreatesHiddenKeyFromExistingUserKeyGroup(t *
 	require.Equal(t, existingGroupID, *repo.created[0].GroupID)
 }
 
-func TestIssueNextChatManagedSessionRealignsReusableManagedKeyGroup(t *testing.T) {
-	oldGroupID := int64(2)
+func TestIssueNextChatManagedSessionKeepsReusableManagedKeySelectableGroup(t *testing.T) {
+	currentGroupID := int64(2)
+	otherGroupID := int64(7)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "openai user key",
+			Key:     "sk-user-openai",
+			Status:  StatusActive,
+			GroupID: &otherGroupID,
+			Group:   &Group{ID: otherGroupID, Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+		},
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    "grok user key",
+			Key:     "sk-user-grok",
+			Status:  StatusActive,
+			GroupID: &currentGroupID,
+			Group:   &Group{ID: currentGroupID, Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
+		},
+		{
+			ID:      3,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &currentGroupID,
+			Group:   &Group{ID: currentGroupID, Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
+		},
+	}}
+	svc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, &config.Config{})
+
+	session, err := svc.IssueNextChatManagedSession(context.Background(), 42)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(3), session.KeyID)
+	require.Equal(t, "sk-managed", session.APIKey)
+	require.Empty(t, repo.created)
+	require.Empty(t, repo.updated)
+}
+
+func TestIssueNextChatManagedSessionRealignsReusableManagedKeyInvalidGroup(t *testing.T) {
+	staleGroupID := int64(2)
 	desiredGroupID := int64(7)
 	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
 		{
@@ -199,8 +253,8 @@ func TestIssueNextChatManagedSessionRealignsReusableManagedKeyGroup(t *testing.T
 			Name:    NextChatManagedAPIKeyName,
 			Key:     "sk-managed",
 			Status:  StatusActive,
-			GroupID: &oldGroupID,
-			Group:   &Group{ID: oldGroupID, Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+			GroupID: &staleGroupID,
+			Group:   &Group{ID: staleGroupID, Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
 		},
 	}}
 	svc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, &config.Config{})
@@ -214,6 +268,29 @@ func TestIssueNextChatManagedSessionRealignsReusableManagedKeyGroup(t *testing.T
 	require.Len(t, repo.updated, 1)
 	require.NotNil(t, repo.updated[0].GroupID)
 	require.Equal(t, desiredGroupID, *repo.updated[0].GroupID)
+}
+
+func TestIssueNextChatManagedSessionClearsReusableManagedKeyWhenNoSelectableGroups(t *testing.T) {
+	staleGroupID := int64(2)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &staleGroupID,
+			Group:   &Group{ID: staleGroupID, Platform: PlatformOpenAI, Status: StatusActive},
+		},
+	}}
+	svc := NewAPIKeyService(repo, nil, nil, nil, nil, nil, &config.Config{})
+
+	session, err := svc.IssueNextChatManagedSession(context.Background(), 42)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(2), session.KeyID)
+	require.Len(t, repo.updated, 1)
+	require.Nil(t, repo.updated[0].GroupID)
 }
 
 func TestGetNextChatWorkspaceIdentityReturnsUserAndManagedKeySummary(t *testing.T) {
@@ -367,7 +444,10 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 		{ModelName: "gpt-4o-mini", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 1},
 		{ModelName: "grok-4-fast", Platform: PlatformGrok, VisibleAuth: true, SortOrder: 2},
 		{ModelName: "claude-fable-5", Platform: PlatformAnthropic, VisibleAuth: true, SortOrder: 3, GroupIDs: []int64{grokGroupID}},
-	}}, nil, nil, nil, nil, apiKeySvc)
+	}}, nil, nil, nil, nil, apiKeySvc, &nextChatAvailableModelResolverStub{modelsByGroup: map[int64][]string{
+		openAIGroupID: []string{"gpt-4o-mini"},
+		grokGroupID:   []string{"grok-4-fast"},
+	}})
 
 	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 3)
 
@@ -383,6 +463,317 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 	require.Equal(t, []string{"grok-4-fast"}, collectNextChatModelNames(models.Groups[1].Models))
 	require.NotContains(t, collectNextChatModelNames(models.Groups[1].Models), "claude-fable-5")
 	require.Equal(t, "gpt-4o-mini", models.DefaultModel)
+}
+
+func TestGetNextChatWorkspaceModelsUsesCurrentGroupDefaultModel(t *testing.T) {
+	openAIGroupID := int64(7)
+	grokGroupID := int64(8)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "openai user key",
+			Key:     "sk-user-openai",
+			Status:  StatusActive,
+			GroupID: &openAIGroupID,
+			Group:   &Group{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+		},
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    "grok user key",
+			Key:     "sk-user-grok",
+			Status:  StatusActive,
+			GroupID: &grokGroupID,
+			Group:   &Group{ID: grokGroupID, Name: "Grok backup", Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
+		},
+		{
+			ID:      3,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &grokGroupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+		{ID: grokGroupID, Name: "Grok backup", Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
+	}}
+	apiKeySvc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
+	catalogSvc := NewModelCatalogService(&nextChatModelCatalogRepoStub{entries: []SiteModelCatalogEntry{
+		{ModelName: "gpt-4o-mini", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 1},
+		{ModelName: "grok-4-fast", Platform: PlatformGrok, VisibleAuth: true, SortOrder: 2},
+	}}, nil, nil, nil, nil, apiKeySvc, &nextChatAvailableModelResolverStub{modelsByGroup: map[int64][]string{
+		openAIGroupID: []string{"gpt-4o-mini"},
+		grokGroupID:   []string{"grok-4-fast"},
+	}})
+
+	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 3)
+
+	require.NoError(t, err)
+	require.Equal(t, "grok-4-fast", models.DefaultModel)
+	require.False(t, models.Groups[0].IsCurrent)
+	require.True(t, models.Groups[1].IsCurrent)
+	require.Equal(t, PlatformGrok, models.Groups[1].Models[0].Platform)
+}
+
+func TestGetNextChatWorkspaceModelsDoesNotFallbackToCatalogWithoutMappedModels(t *testing.T) {
+	grokGroupID := int64(8)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "grok user key",
+			Key:     "sk-user-grok",
+			Status:  StatusActive,
+			GroupID: &grokGroupID,
+			Group:   &Group{ID: grokGroupID, Name: "Grok backup", Platform: PlatformGrok, Status: StatusActive, SortOrder: 1},
+		},
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &grokGroupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{ID: grokGroupID, Name: "Grok backup", Platform: PlatformGrok, Status: StatusActive, SortOrder: 1},
+	}}
+	apiKeySvc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
+	catalogSvc := NewModelCatalogService(&nextChatModelCatalogRepoStub{entries: []SiteModelCatalogEntry{
+		{ModelName: "grok-4-fast", Platform: PlatformGrok, VisibleAuth: true, SortOrder: 1},
+	}}, nil, nil, nil, nil, apiKeySvc, &nextChatAvailableModelResolverStub{modelsByGroup: map[int64][]string{
+		grokGroupID: nil,
+	}})
+
+	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 2)
+
+	require.NoError(t, err)
+	require.Len(t, models.Groups, 1)
+	require.Empty(t, models.Groups[0].Models)
+	require.Empty(t, models.DefaultModel)
+}
+
+func TestGetNextChatWorkspaceModelsDoesNotUseOtherGroupDefaultWhenCurrentGroupEmpty(t *testing.T) {
+	openAIGroupID := int64(7)
+	grokGroupID := int64(8)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "openai user key",
+			Key:     "sk-user-openai",
+			Status:  StatusActive,
+			GroupID: &openAIGroupID,
+			Group:   &Group{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+		},
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    "grok user key",
+			Key:     "sk-user-grok",
+			Status:  StatusActive,
+			GroupID: &grokGroupID,
+			Group:   &Group{ID: grokGroupID, Name: "Grok empty", Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
+		},
+		{
+			ID:      3,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &grokGroupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+		{ID: grokGroupID, Name: "Grok empty", Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
+	}}
+	apiKeySvc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
+	catalogSvc := NewModelCatalogService(&nextChatModelCatalogRepoStub{entries: []SiteModelCatalogEntry{
+		{ModelName: "gpt-4o-mini", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 1},
+	}}, nil, nil, nil, nil, apiKeySvc, &nextChatAvailableModelResolverStub{modelsByGroup: map[int64][]string{
+		openAIGroupID: []string{"gpt-4o-mini"},
+		grokGroupID:   nil,
+	}})
+
+	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 3)
+
+	require.NoError(t, err)
+	require.Empty(t, models.DefaultModel)
+	require.True(t, models.Groups[1].IsCurrent)
+	require.Empty(t, models.Groups[1].Models)
+	require.Equal(t, []string{"gpt-4o-mini"}, collectNextChatModelNames(models.Groups[0].Models))
+}
+
+func TestGetNextChatWorkspaceModelsAppliesGroupCustomModelsList(t *testing.T) {
+	openAIGroupID := int64(7)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "openai user key",
+			Key:     "sk-user-openai",
+			Status:  StatusActive,
+			GroupID: &openAIGroupID,
+			Group: &Group{
+				ID:       openAIGroupID,
+				Name:     "OpenAI limited",
+				Platform: PlatformOpenAI,
+				Status:   StatusActive,
+				ModelsListConfig: GroupModelsListConfig{
+					Enabled: true,
+					Models:  []string{"gpt-4o-mini"},
+				},
+			},
+		},
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &openAIGroupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{
+			ID:       openAIGroupID,
+			Name:     "OpenAI limited",
+			Platform: PlatformOpenAI,
+			Status:   StatusActive,
+			ModelsListConfig: GroupModelsListConfig{
+				Enabled: true,
+				Models:  []string{"gpt-4o-mini"},
+			},
+		},
+	}}
+	apiKeySvc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
+	catalogSvc := NewModelCatalogService(&nextChatModelCatalogRepoStub{entries: []SiteModelCatalogEntry{
+		{ModelName: "gpt-4o-mini", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 1},
+		{ModelName: "gpt-5.4", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 2},
+	}}, nil, nil, nil, nil, apiKeySvc, &nextChatAvailableModelResolverStub{modelsByGroup: map[int64][]string{
+		openAIGroupID: []string{"gpt-5.4", "gpt-4o-mini"},
+	}})
+
+	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 2)
+
+	require.NoError(t, err)
+	require.Equal(t, []string{"gpt-4o-mini"}, collectNextChatModelNames(models.Groups[0].Models))
+	require.Equal(t, "gpt-4o-mini", models.DefaultModel)
+	require.NotContains(t, collectNextChatModelNames(models.Groups[0].Models), "gpt-5.4")
+}
+
+func TestGetNextChatWorkspaceModelsCustomModelsListEnabledEmptyFailsClosed(t *testing.T) {
+	openAIGroupID := int64(7)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "openai user key",
+			Key:     "sk-user-openai",
+			Status:  StatusActive,
+			GroupID: &openAIGroupID,
+			Group: &Group{
+				ID:       openAIGroupID,
+				Name:     "OpenAI empty whitelist",
+				Platform: PlatformOpenAI,
+				Status:   StatusActive,
+				ModelsListConfig: GroupModelsListConfig{
+					Enabled: true,
+				},
+			},
+		},
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &openAIGroupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{
+			ID:       openAIGroupID,
+			Name:     "OpenAI empty whitelist",
+			Platform: PlatformOpenAI,
+			Status:   StatusActive,
+			ModelsListConfig: GroupModelsListConfig{
+				Enabled: true,
+			},
+		},
+	}}
+	apiKeySvc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
+	catalogSvc := NewModelCatalogService(&nextChatModelCatalogRepoStub{entries: []SiteModelCatalogEntry{
+		{ModelName: "claude-fable-5", Platform: PlatformAnthropic, VisibleAuth: true, SortOrder: 1},
+		{ModelName: "gpt-4o-mini", Platform: PlatformOpenAI, VisibleAuth: true, SortOrder: 2},
+	}}, nil, nil, nil, nil, apiKeySvc, &nextChatAvailableModelResolverStub{modelsByGroup: map[int64][]string{
+		openAIGroupID: []string{"gpt-4o-mini", "claude-fable-5"},
+	}})
+
+	models, err := catalogSvc.GetNextChatWorkspaceModels(context.Background(), 42, 2)
+
+	require.NoError(t, err)
+	require.Empty(t, models.Groups[0].Models)
+	require.Empty(t, models.DefaultModel)
+}
+
+func TestNextChatWorkspaceModelMetadataDoesNotBorrowBillingDataAcrossGroups(t *testing.T) {
+	openAIGroupID := int64(7)
+	grokGroupID := int64(8)
+	borrowedInputPrice := 0.42
+	metadata := buildNextChatWorkspaceModelMetadata([]MyModelPricingRow{
+		{
+			Name:                "gpt-4o-mini",
+			Platform:            PlatformOpenAI,
+			Channel:             "billing-channel-from-other-group",
+			EffectiveInputPrice: &borrowedInputPrice,
+			SortOrder:           9,
+			Groups:              []MyModelPricingGroup{{ID: openAIGroupID, Name: "OpenAI main"}},
+		},
+	})
+
+	sameGroup := metadata.lookup(openAIGroupID, PlatformOpenAI, "gpt-4o-mini")
+	otherGroup := metadata.lookup(grokGroupID, PlatformOpenAI, "gpt-4o-mini")
+
+	require.Equal(t, "billing-channel-from-other-group", sameGroup.channel)
+	require.NotNil(t, sameGroup.effectiveInputPrice)
+	require.Empty(t, otherGroup.channel)
+	require.Nil(t, otherGroup.effectiveInputPrice)
+	require.Zero(t, otherGroup.sortOrder)
+}
+
+func TestBuildNextChatPromptCatalogFromPublicPromptsUsesPublishedLibraryContent(t *testing.T) {
+	catalog := BuildNextChatPromptCatalogFromPublicPrompts([]PublicPrompt{
+		{
+			ID:          88,
+			Title:       "爆款短视频脚本",
+			Description: "把商品卖点改写成短视频脚本",
+			Purpose:     "marketing",
+			Version:     3,
+			PromptText:  "请根据商品卖点输出 30 秒短视频脚本。",
+		},
+	})
+
+	require.Equal(t, []NextChatPrompt{
+		{
+			ID:          "prompt-88-v3",
+			Title:       "爆款短视频脚本",
+			Description: "把商品卖点改写成短视频脚本",
+			Content:     "请根据商品卖点输出 30 秒短视频脚本。",
+			Category:    "marketing",
+		},
+	}, catalog.ChatPrompts)
+	require.NotEmpty(t, catalog.ImageTemplates.Intents)
 }
 
 func collectNextChatModelNames(models []NextChatWorkspaceModel) []string {

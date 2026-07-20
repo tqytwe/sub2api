@@ -50,7 +50,10 @@ const (
 	ImageStudioReferenceMaxPendingBytes int64 = 80 << 20
 
 	imageStudioUntrackedObjectGrace = time.Hour
+	imageStudioReferenceDefaultTTL  = 7 * 24 * time.Hour
 )
+
+type imageStudioReferenceTTLContextKey struct{}
 
 var (
 	ErrImageStudioDisabled                     = infraerrors.BadRequest("IMAGE_STUDIO_DISABLED", "image studio is disabled")
@@ -96,6 +99,25 @@ func ValidateImageStudioAPIKey(apiKey *APIKey) error {
 		return ErrImageStudioAPIKey
 	}
 	return nil
+}
+
+func WithImageStudioReferenceTTL(ctx context.Context, ttl time.Duration) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ttl <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, imageStudioReferenceTTLContextKey{}, ttl)
+}
+
+func ImageStudioReferenceTTL(ctx context.Context) time.Duration {
+	if ctx != nil {
+		if ttl, ok := ctx.Value(imageStudioReferenceTTLContextKey{}).(time.Duration); ok && ttl > 0 {
+			return ttl
+		}
+	}
+	return imageStudioReferenceDefaultTTL
 }
 
 type ImageStudioAsset struct {
@@ -427,7 +449,7 @@ func (s *ImageStudioService) CreateReference(
 	if err != nil {
 		return nil, err
 	}
-	expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+	expiresAt := time.Now().UTC().Add(ImageStudioReferenceTTL(ctx))
 	reference := &ImageStudioReference{
 		ID:               referenceID,
 		UserID:           userID,
@@ -552,7 +574,7 @@ func (s *ImageStudioService) Estimate(
 	}
 	referenceIDs = normalizeImageStudioReferenceIDs(referenceIDs)
 	if len(referenceIDs) > 0 {
-		capability, ok := ResolveImageStudioModelCapability(resolvedModel)
+		capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, resolvedModel)
 		if !ok {
 			return nil, ErrImageStudioProviderNotSupported
 		}
@@ -884,7 +906,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
-	capability, ok := ResolveImageStudioModelCapability(resolvedModel)
+	capability, ok := ResolveImageStudioProviderCapability(platform, resolvedModel)
 	if !ok {
 		return nil, "", ErrImageStudioProviderNotSupported
 	}
@@ -892,7 +914,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
-	if err := s.ValidateQualityForModel(resolvedModel, req.Quality); err != nil {
+	if err := s.ValidateQualityForModel(apiKey, resolvedModel, req.Quality); err != nil {
 		return nil, "", err
 	}
 	providedReferenceCount := 0
@@ -1300,7 +1322,7 @@ func (s *ImageStudioService) BuildWorkerRequest(ctx context.Context, job *ImageS
 			return nil, err
 		}
 	}
-	capability, ok := ResolveImageStudioModelCapability(model)
+	capability, ok := ResolveImageStudioProviderCapability(platform, model)
 	if !ok {
 		return nil, ErrImageStudioProviderNotSupported
 	}

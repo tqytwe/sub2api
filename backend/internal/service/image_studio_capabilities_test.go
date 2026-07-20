@@ -120,6 +120,18 @@ func TestResolveModelCapabilitiesUsesAPIKeyProviderAndModelFamily(t *testing.T) 
 	require.Equal(t, []string{"jpeg"}, grok.SupportedOutputFormats)
 	require.Empty(t, grok.SupportedBackgrounds)
 	require.False(t, grok.SupportsTransparency)
+
+	mismatchedGrok := svc.ResolveModelCapabilities(&APIKey{
+		Group: &Group{Platform: PlatformGrok},
+	}, "gpt-image-2")
+	require.Empty(t, mismatchedGrok.Platform)
+	require.Empty(t, mismatchedGrok.SupportedSizes)
+
+	unknown := svc.ResolveModelCapabilities(&APIKey{
+		Group: &Group{Platform: "krio"},
+	}, "gpt-image-2")
+	require.Empty(t, unknown.Platform)
+	require.Empty(t, unknown.SupportedSizes)
 }
 
 func TestValidateSizeForModelUsesDenialCache(t *testing.T) {
@@ -132,9 +144,10 @@ func TestValidateSizeForModelUsesDenialCache(t *testing.T) {
 
 func TestValidateQualityForModel(t *testing.T) {
 	svc := &ImageStudioService{capabilityCache: NewImageStudioCapabilityCache()}
-	require.NoError(t, svc.ValidateQualityForModel("gpt-image-2", "high"))
-	require.NoError(t, svc.ValidateQualityForModel("gpt-image-2", ""))
-	require.ErrorIs(t, svc.ValidateQualityForModel("grok-imagine-image", "high"), ErrImageStudioQualityNotSupported)
+	require.NoError(t, svc.ValidateQualityForModel(nil, "gpt-image-2", "high"))
+	require.NoError(t, svc.ValidateQualityForModel(nil, "gpt-image-2", ""))
+	require.ErrorIs(t, svc.ValidateQualityForModel(&APIKey{Group: &Group{Platform: PlatformGrok}}, "grok-imagine-image", "high"), ErrImageStudioQualityNotSupported)
+	require.ErrorIs(t, svc.ValidateQualityForModel(&APIKey{Group: &Group{Platform: "krio"}}, "gpt-image-2", "high"), ErrImageStudioProviderNotSupported)
 }
 
 func TestRecordGenerateFailure(t *testing.T) {

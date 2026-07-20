@@ -103,7 +103,16 @@ func ResolveImageStudioProviderCapability(platform, model string) (ImageStudioMo
 		if capability, ok := resolveOpenAIImageStudioCapability(model); ok {
 			return capability, true
 		}
-		return resolveAdaptedImageStudioCapability(model)
+		if capability, ok := resolveAdaptedImageStudioCapability(model); ok {
+			return capability, true
+		}
+		if capability, ok := resolveGeminiImageStudioCapability(model); ok {
+			return capability, true
+		}
+		if !isGrokImageGenerationModel(model) && isGenericOpenAICompatibleImageModel(model) {
+			return resolveGenericOpenAICompatibleImageStudioCapability(model), true
+		}
+		return ImageStudioModelCapabilities{}, false
 	case PlatformGemini:
 		return resolveGeminiImageStudioCapability(model)
 	case PlatformGrok:
