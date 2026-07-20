@@ -42,6 +42,36 @@ type NextChatWorkspaceIdentity struct {
 	APIKey NextChatWorkspaceAPIKey `json:"managed_api_key"`
 }
 
+type NextChatWorkspaceModel struct {
+	ID                   string   `json:"id"`
+	Name                 string   `json:"name"`
+	DisplayName          string   `json:"display_name"`
+	Platform             string   `json:"platform,omitempty"`
+	Channel              string   `json:"channel,omitempty"`
+	UseCase              string   `json:"use_case,omitempty"`
+	SortOrder            int      `json:"sort_order"`
+	EffectiveInputPrice  *float64 `json:"effective_input_price,omitempty"`
+	EffectiveOutputPrice *float64 `json:"effective_output_price,omitempty"`
+}
+
+type NextChatWorkspaceGroup struct {
+	ID             int64                    `json:"id"`
+	Name           string                   `json:"name"`
+	Description    string                   `json:"description,omitempty"`
+	Platform       string                   `json:"platform,omitempty"`
+	RateMultiplier float64                  `json:"rate_multiplier"`
+	SortOrder      int                      `json:"sort_order"`
+	IsCurrent      bool                     `json:"is_current"`
+	Models         []NextChatWorkspaceModel `json:"models"`
+}
+
+type NextChatWorkspaceModels struct {
+	Source          string                   `json:"source"`
+	DefaultModel    string                   `json:"default_model"`
+	SelectedGroupID *int64                   `json:"selected_group_id,omitempty"`
+	Groups          []NextChatWorkspaceGroup `json:"groups"`
+}
+
 type NextChatPrompt struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
@@ -147,6 +177,42 @@ func (s *APIKeyService) GetNextChatWorkspaceIdentity(ctx context.Context, userID
 	return out, nil
 }
 
+func (s *APIKeyService) SetNextChatManagedKeyGroup(ctx context.Context, userID, apiKeyID, groupID int64) (*NextChatWorkspaceIdentity, error) {
+	if s == nil || s.apiKeyRepo == nil {
+		return nil, fmt.Errorf("nextchat managed key service is not configured")
+	}
+	if userID <= 0 || apiKeyID <= 0 || groupID <= 0 {
+		return nil, ErrInsufficientPerms
+	}
+	key, err := s.GetByID(ctx, apiKeyID)
+	if err != nil {
+		return nil, fmt.Errorf("get nextchat managed api key: %w", err)
+	}
+	if key.UserID != userID || !IsNextChatManagedAPIKeyName(key.Name) || !key.IsActive() || key.IsExpired() {
+		return nil, ErrInsufficientPerms
+	}
+	groups, err := s.GetNextChatSelectableGroups(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	allowed := false
+	for _, group := range groups {
+		if group.ID == groupID {
+			allowed = true
+			break
+		}
+	}
+	if !allowed {
+		return nil, ErrInsufficientPerms
+	}
+
+	key, err = s.realignNextChatManagedKeyGroup(ctx, key, userID, &groupID)
+	if err != nil {
+		return nil, err
+	}
+	return s.GetNextChatWorkspaceIdentity(ctx, userID, key.ID)
+}
+
 func BuildNextChatPromptCatalog() NextChatPromptCatalog {
 	return NextChatPromptCatalog{
 		ChatPrompts: []NextChatPrompt{
@@ -202,6 +268,14 @@ func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, user
 }
 
 func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (*int64, error) {
+	groups, err := s.GetNextChatSelectableGroups(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return pickPreferredNextChatGroupID(groups), nil
+}
+
+func (s *APIKeyService) GetNextChatSelectableGroups(ctx context.Context, userID int64) ([]Group, error) {
 	groups, err := s.getNextChatUserOwnedKeyGroups(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -212,7 +286,13 @@ func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (
 			return nil, err
 		}
 	}
-	return pickPreferredNextChatGroupID(groups), nil
+	sort.SliceStable(groups, func(i, j int) bool {
+		if groups[i].SortOrder != groups[j].SortOrder {
+			return groups[i].SortOrder < groups[j].SortOrder
+		}
+		return groups[i].ID < groups[j].ID
+	})
+	return groups, nil
 }
 
 func (s *APIKeyService) getNextChatUserOwnedKeyGroups(ctx context.Context, userID int64) ([]Group, error) {
@@ -252,6 +332,106 @@ func (s *APIKeyService) getNextChatUserOwnedKeyGroups(ctx context.Context, userI
 	for _, group := range groupByID {
 		out = append(out, group)
 	}
+	return out, nil
+}
+
+func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, userID, apiKeyID int64) (*NextChatWorkspaceModels, error) {
+	if s == nil || s.apiKeyService == nil {
+		return nil, fmt.Errorf("nextchat workspace model service is not configured")
+	}
+	if userID <= 0 || apiKeyID <= 0 {
+		return nil, ErrInsufficientPerms
+	}
+
+	identity, err := s.apiKeyService.GetNextChatWorkspaceIdentity(ctx, userID, apiKeyID)
+	if err != nil {
+		return nil, err
+	}
+	selectableGroups, err := s.apiKeyService.GetNextChatSelectableGroups(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	pricing, err := s.ListMyPricing(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+
+	groupIndexByID := make(map[int64]int, len(selectableGroups))
+	out := &NextChatWorkspaceModels{
+		Source:          "/v1/models",
+		SelectedGroupID: identity.APIKey.GroupID,
+		Groups:          make([]NextChatWorkspaceGroup, 0, len(selectableGroups)),
+	}
+	for _, group := range selectableGroups {
+		g := NextChatWorkspaceGroup{
+			ID:             group.ID,
+			Name:           group.Name,
+			Description:    group.Description,
+			Platform:       group.Platform,
+			RateMultiplier: group.RateMultiplier,
+			SortOrder:      group.SortOrder,
+			IsCurrent:      identity.APIKey.GroupID != nil && *identity.APIKey.GroupID == group.ID,
+			Models:         []NextChatWorkspaceModel{},
+		}
+		out.Groups = append(out.Groups, g)
+		groupIndexByID[group.ID] = len(out.Groups) - 1
+	}
+
+	if pricing != nil {
+		seen := make(map[int64]map[string]struct{})
+		for _, row := range pricing.Models {
+			for _, rowGroup := range row.Groups {
+				groupIndex, ok := groupIndexByID[rowGroup.ID]
+				if !ok {
+					continue
+				}
+				if seen[rowGroup.ID] == nil {
+					seen[rowGroup.ID] = make(map[string]struct{})
+				}
+				if _, exists := seen[rowGroup.ID][row.Name]; exists {
+					continue
+				}
+				seen[rowGroup.ID][row.Name] = struct{}{}
+				displayName := row.Name
+				if row.Platform != "" {
+					displayName = fmt.Sprintf("%s · %s", row.Name, row.Platform)
+				}
+				out.Groups[groupIndex].Models = append(out.Groups[groupIndex].Models, NextChatWorkspaceModel{
+					ID:                   row.Name,
+					Name:                 row.Name,
+					DisplayName:          displayName,
+					Platform:             row.Platform,
+					Channel:              row.Channel,
+					UseCase:              row.UseCase,
+					SortOrder:            row.SortOrder,
+					EffectiveInputPrice:  row.EffectiveInputPrice,
+					EffectiveOutputPrice: row.EffectiveOutputPrice,
+				})
+			}
+		}
+	}
+
+	for i := range out.Groups {
+		sort.SliceStable(out.Groups[i].Models, func(a, b int) bool {
+			left, right := out.Groups[i].Models[a], out.Groups[i].Models[b]
+			if left.SortOrder != right.SortOrder {
+				return left.SortOrder < right.SortOrder
+			}
+			return left.Name < right.Name
+		})
+		if out.DefaultModel == "" && out.Groups[i].IsCurrent && len(out.Groups[i].Models) > 0 {
+			out.DefaultModel = out.Groups[i].Models[0].Name
+		}
+	}
+	if out.DefaultModel == "" {
+		for _, group := range out.Groups {
+			if len(group.Models) > 0 {
+				out.DefaultModel = group.Models[0].Name
+				break
+			}
+		}
+	}
+
 	return out, nil
 }
 
