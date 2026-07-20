@@ -74,6 +74,9 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	settlement service.PlayTeamSettlement,
 	allocations []service.PlayTeamRewardAllocation,
 ) (*service.PlayTeamSettlement, bool, error) {
+	if dbent.TxFromContext(ctx) != nil {
+		return r.createTeamRewardSnapshot(ctx, r.sqlExec(ctx), settlement, allocations)
+	}
 	if r.client == nil {
 		return nil, false, fmt.Errorf("create team reward snapshot: ent client missing")
 	}
@@ -83,10 +86,29 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	}
 	defer func() { _ = tx.Rollback() }()
 	txCtx := dbent.NewTxContext(ctx, tx)
-	exec := r.sqlExec(txCtx)
+	snapshot, created, err := r.createTeamRewardSnapshot(
+		txCtx,
+		r.sqlExec(txCtx),
+		settlement,
+		allocations,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, fmt.Errorf("commit team reward snapshot tx: %w", err)
+	}
+	return snapshot, created, nil
+}
 
+func (r *playRepository) createTeamRewardSnapshot(
+	ctx context.Context,
+	exec sqlExecutor,
+	settlement service.PlayTeamSettlement,
+	allocations []service.PlayTeamRewardAllocation,
+) (*service.PlayTeamSettlement, bool, error) {
 	var settlementID int64
-	err = scanSingleRow(txCtx, exec, `
+	err := scanSingleRow(ctx, exec, `
 		INSERT INTO play_team_settlements (
 			team_id, period_start, window_start, window_end, team_spend,
 			reached_threshold, reward_rate, pool_amount, cap_amount, status
@@ -106,7 +128,7 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	}, &settlementID)
 	if errors.Is(err, sql.ErrNoRows) {
 		existing, getErr := getTeamRewardSettlementByTeamPeriod(
-			txCtx,
+			ctx,
 			exec,
 			settlement.TeamID,
 			settlement.PeriodStart,
@@ -117,9 +139,6 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 		if existing == nil {
 			return nil, false, fmt.Errorf("team reward settlement conflict without existing row")
 		}
-		if err := tx.Commit(); err != nil {
-			return nil, false, fmt.Errorf("commit existing team reward snapshot tx: %w", err)
-		}
 		return existing, false, nil
 	}
 	if err != nil {
@@ -127,7 +146,7 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	}
 
 	for _, allocation := range allocations {
-		if _, err := exec.ExecContext(txCtx, `
+		if _, err := exec.ExecContext(ctx, `
 			INSERT INTO play_team_reward_allocations (
 				settlement_id, user_id, contribution, ratio, reward_amount,
 				payout_status, idempotency_key
@@ -144,11 +163,62 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 			return nil, false, fmt.Errorf("insert team reward allocation: %w", err)
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, false, fmt.Errorf("commit team reward snapshot tx: %w", err)
+	created, err := getTeamRewardSettlementByID(ctx, exec, settlementID)
+	if err != nil {
+		return nil, false, err
 	}
-	created, err := r.GetTeamRewardSettlement(ctx, settlementID)
-	return created, true, err
+	return created, true, nil
+}
+
+func (r *playRepository) WithTeamRewardSnapshotLock(
+	ctx context.Context,
+	teamID int64,
+	fn func(context.Context) error,
+) error {
+	if fn == nil {
+		return nil
+	}
+	if dbent.TxFromContext(ctx) != nil {
+		if err := r.lockTeamRewardSnapshot(ctx, teamID); err != nil {
+			return err
+		}
+		return fn(ctx)
+	}
+	if r.client == nil {
+		return fmt.Errorf("team reward snapshot lock: ent client missing")
+	}
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin team reward snapshot lock tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := r.lockTeamRewardSnapshot(txCtx, teamID); err != nil {
+		return err
+	}
+	if err := fn(txCtx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit team reward snapshot lock tx: %w", err)
+	}
+	return nil
+}
+
+func (r *playRepository) lockTeamRewardSnapshot(ctx context.Context, teamID int64) error {
+	var lockedID int64
+	err := scanSingleRow(ctx, r.sqlExec(ctx), `
+		SELECT id
+		FROM play_teams
+		WHERE id = $1
+		FOR UPDATE`, []any{teamID}, &lockedID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrPlayTeamNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock team reward snapshot: %w", err)
+	}
+	return nil
 }
 
 func (r *playRepository) GetTeamRewardSettlement(

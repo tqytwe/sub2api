@@ -20,7 +20,7 @@ func TestAdminBlindboxPoolGetAndPut(t *testing.T) {
 	repo := newAdminBlindboxSettingRepo(approvedAdminBlindboxPool())
 	settingService := service.NewSettingService(repo, nil)
 	playService := service.NewPlayService(nil, nil, nil, settingService, nil, nil)
-	handler := NewAdminPlayHandler(playService)
+	handler := NewAdminPlayHandler(playService, nil, nil)
 	router := gin.New()
 	router.GET("/api/v1/admin/play/blindbox/pool", handler.GetBlindboxPool)
 	router.PUT("/api/v1/admin/play/blindbox/pool", handler.UpdateBlindboxPool)
@@ -68,7 +68,7 @@ func TestAdminBlindboxPoolRejectsInvalidUpdateWithoutChangingStoredValue(t *test
 	repo := newAdminBlindboxSettingRepo(approvedAdminBlindboxPool())
 	settingService := service.NewSettingService(repo, nil)
 	playService := service.NewPlayService(nil, nil, nil, settingService, nil, nil)
-	handler := NewAdminPlayHandler(playService)
+	handler := NewAdminPlayHandler(playService, nil, nil)
 	router := gin.New()
 	router.PUT("/api/v1/admin/play/blindbox/pool", handler.UpdateBlindboxPool)
 
@@ -94,7 +94,7 @@ func TestAdminBlindboxPoolPutReturnsSavedValueWithoutPostCommitRead(t *testing.T
 	repo.getMultipleErr = errors.New("post-commit reads are unavailable")
 	settingService := service.NewSettingService(repo, nil)
 	playService := service.NewPlayService(nil, nil, nil, settingService, nil, nil)
-	handler := NewAdminPlayHandler(playService)
+	handler := NewAdminPlayHandler(playService, nil, nil)
 	router := gin.New()
 	router.PUT("/api/v1/admin/play/blindbox/pool", handler.UpdateBlindboxPool)
 

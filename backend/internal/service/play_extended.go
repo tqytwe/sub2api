@@ -728,7 +728,7 @@ func (s *PlayService) leaveAndMaybeArchiveTeam(ctx context.Context, userID int64
 			ActorUserID:   userID,
 			SubjectUserID: userID,
 			Type:          PlayTeamEventArchived,
-			Detail:        map[string]any{"reason": "last_member_left"},
+			Detail:        map[string]any{"reason_code": "last_member_left"},
 		}); err != nil {
 			return err
 		}

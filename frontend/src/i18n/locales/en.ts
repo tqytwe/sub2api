@@ -7640,7 +7640,14 @@ const messages = {
     hint: 'Enter the 6-digit code from your authenticator app to continue this sensitive operation.',
     verifyFailed: 'Verification failed, please try again',
     notEnabled: 'This operation requires two-factor authentication. Please enable TOTP in your profile first.',
-    adminApiKeyForbidden: 'Admin API keys cannot perform this operation. Use a two-factor verified admin session.'
+    adminApiKeyForbidden: 'Admin API keys cannot perform this operation. Use a two-factor verified admin session.',
+    errors: {
+      TOTP_INVALID_CODE: 'Invalid verification code. Try again.',
+      TOTP_TOO_MANY_ATTEMPTS: 'Too many verification attempts. Try again later.',
+      TOTP_NOT_ENABLED: 'TOTP verification is not enabled for this system.',
+      TOTP_NOT_SETUP: 'TOTP is not set up for this account. Enable it in your profile first.',
+      TOTP_SETUP_EXPIRED: 'The TOTP setup session expired. Start the setup again.',
+    },
   },
 
   // Recharge / Subscription Page

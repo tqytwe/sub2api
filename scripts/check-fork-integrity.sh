@@ -115,6 +115,12 @@ check_not_contains "FORK-NAV-002" "user sidebar excludes monitor route" "fronten
 check_contains "FORK-PLAY-003" "Play Hub API route" "backend/internal/server/routes/play.go" "authenticated.GET(\"/play/hub\""
 check_contains "FORK-PLAY-003" "Play runtime is fail-closed" "backend/internal/service/setting_play_runtime.go" "return PlayRuntime{}"
 check_file "FORK-PLAY-003" "Play Hub view" "frontend/src/views/user/PlayHubView.vue"
+check_contains "FORK-PLAY-003" "admin team repair candidate route" "backend/internal/server/routes/admin.go" 'play.GET("/teams/:id/member-candidates"'
+check_contains "FORK-PLAY-003" "admin team repair write route" "backend/internal/server/routes/admin.go" 'play.POST("/teams/:id/members"'
+check_contains "FORK-PLAY-003" "admin team event route" "backend/internal/server/routes/admin.go" 'play.GET("/teams/:id/events"'
+check_file "FORK-PLAY-003" "admin team repair service" "backend/internal/service/play_admin_team_repair.go"
+check_contains "FORK-PLAY-003" "Chinese admin team repair locale" "frontend/src/i18n/locales/zh/admin/playOps.ts" "memberRepair:"
+check_contains "FORK-PLAY-003" "English admin team repair locale" "frontend/src/i18n/locales/en/admin/playOps.ts" "memberRepair:"
 
 check_contains "FORK-IMAGE-004" "required prompt error" "backend/internal/service/image_studio.go" "IMAGE_STUDIO_PROMPT_REQUIRED"
 check_regex "FORK-IMAGE-004" "prompt hash is private" "backend/internal/service/image_studio.go" 'PromptHash[[:space:]]+string[[:space:]]+`json:"-"`'
@@ -243,6 +249,8 @@ run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
+run_check "FORK-PLAY-003" "admin team repair unit and route tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler/admin ./internal/server/routes -run '^(TestAdminTeamRepair|TestAdminTeamMemberCandidatePreview|TestAdminPlayTeamRepairRoutesContract|TestTeamRewardSnapshotLock|TestTeamSettlementSnapshotReusesOuterTransaction)'"
 run_check "FORK-IMAGE-011" "Images async, URL and Batch runtime unit tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service ./internal/handler -run 'TestImageTask|TestImageRuntimesHealthGatewayAsync|TestAsyncImage|TestOpenAIImageResultServiceRewriteAndEnforceAPIKeyOwnership|TestOpenAIGatewayServiceForwardImages_(APIKeyStreamingURLStoresCompletedImage|OAuthStreamingTransformsEvents|StreamURLRequiresStorageBeforeUpstream)|TestBatchImage(RuntimeState|WorkerRuntime|ProviderRegistryFromConfig|PublicService_Submit)'"
 
@@ -255,6 +263,12 @@ run_check "FORK-NAV-002/FORK-IMAGE-004" "sidebar and Image Studio tests" \
     src/components/imageStudio/__tests__/ImageStudioSizePicker.spec.ts \
     src/composables/__tests__/useImageStudioCapabilities.spec.ts \
     src/utils/__tests__/imageStudioWorkspace.spec.ts
+run_check "FORK-PLAY-003" "admin team repair and bilingual Play Ops tests" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/api/__tests__/admin.play.teamRepair.spec.ts \
+    src/views/admin/__tests__/PlayOpsView.spec.ts \
+    src/i18n/locales/adminPlayOpsParity.spec.ts \
+    src/i18n/__tests__/bilingualProductUi.spec.ts
 
 echo
 if [[ "$FAIL" -ne 0 ]]; then
