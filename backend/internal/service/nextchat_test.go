@@ -200,6 +200,59 @@ func TestIssueNextChatManagedSessionRealignsReusableManagedKeyGroup(t *testing.T
 	require.Equal(t, desiredGroupID, *repo.updated[0].GroupID)
 }
 
+func TestGetNextChatWorkspaceIdentityReturnsUserAndManagedKeySummary(t *testing.T) {
+	groupID := int64(7)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    NextChatManagedAPIKeyName,
+			Key:     "sk-managed",
+			Status:  StatusActive,
+			GroupID: &groupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{
+		ID:            42,
+		Username:      "tester",
+		Email:         "tester@example.com",
+		AvatarURL:     "/avatar.png",
+		Balance:       12.5,
+		FrozenBalance: 1.5,
+		Status:        StatusActive,
+	}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{ID: groupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive},
+	}}
+	svc := NewAPIKeyService(repo, userRepo, groupRepo, nil, nil, nil, &config.Config{})
+
+	identity, err := svc.GetNextChatWorkspaceIdentity(context.Background(), 42, 2)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(42), identity.User.ID)
+	require.Equal(t, "tester", identity.User.Username)
+	require.Equal(t, 12.5, identity.User.Balance)
+	require.Equal(t, int64(2), identity.APIKey.ID)
+	require.Equal(t, NextChatManagedAPIKeyName, identity.APIKey.Name)
+	require.NotNil(t, identity.APIKey.GroupID)
+	require.Equal(t, groupID, *identity.APIKey.GroupID)
+	require.Equal(t, "OpenAI main", identity.APIKey.GroupName)
+	require.Equal(t, PlatformOpenAI, identity.APIKey.GroupPlatform)
+}
+
+func TestGetNextChatWorkspaceIdentityRejectsNonManagedKey(t *testing.T) {
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{ID: 2, UserID: 42, Name: "normal key", Key: "sk-user", Status: StatusActive},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	svc := NewAPIKeyService(repo, userRepo, nil, nil, nil, nil, &config.Config{})
+
+	identity, err := svc.GetNextChatWorkspaceIdentity(context.Background(), 42, 2)
+
+	require.Nil(t, identity)
+	require.ErrorIs(t, err, ErrInsufficientPerms)
+}
+
 func filterNextChatAPIKeyRepoKeys(userID int64, keys []APIKey, filters APIKeyListFilters) []APIKey {
 	result := make([]APIKey, 0, len(keys))
 	search := strings.ToLower(filters.Search)

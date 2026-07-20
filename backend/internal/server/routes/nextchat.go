@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,15 @@ type nextChatSessionIssuer interface {
 
 type nextChatFeatureGate interface {
 	IsNextChatEnabled(ctx context.Context) bool
+}
+
+type nextChatWorkspaceIdentityProvider interface {
+	GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error)
+}
+
+type nextChatPublicSettingsProvider interface {
+	GetPublicSettings(ctx context.Context) (*service.PublicSettings, error)
+	GetFrontendURL(ctx context.Context) string
 }
 
 type nextChatLaunchTokenRecord struct {
@@ -66,6 +76,12 @@ func registerNextChatRoutes(
 		nextchat.POST("/session", func(c *gin.Context) {
 			handleNextChatSessionExchange(c, issuer, gate, cfg, redisClient)
 		})
+		nextchat.GET("/bootstrap", func(c *gin.Context) {
+			handleNextChatBootstrap(c, issuer, gate, cfg)
+		})
+		nextchat.GET("/prompts", func(c *gin.Context) {
+			handleNextChatPrompts(c, gate, cfg)
+		})
 	}
 
 	authenticated := nextchat.Group("")
@@ -75,6 +91,90 @@ func registerNextChatRoutes(
 			handleNextChatLaunch(c, gate, cfg, redisClient)
 		})
 	}
+}
+
+func handleNextChatBootstrap(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
+	if !ok || identityProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat bootstrap service is unavailable")
+		return
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+
+	identity, err := identityProvider.GetNextChatWorkspaceIdentity(c.Request.Context(), userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	settings, err := getNextChatPublicSettings(c.Request.Context(), gate)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	returnURL := firstNonEmptyNextChat(getNextChatFrontendURL(c.Request.Context(), gate), "https://www.jisudeng.com")
+	rechargeURL := firstNonEmptyNextChat(
+		settings.BalanceLowNotifyRechargeURL,
+		settings.PurchaseSubscriptionURL,
+		joinNextChatURL(returnURL, "/payment"),
+	)
+
+	response.Success(c, gin.H{
+		"user":            identity.User,
+		"managed_api_key": identity.APIKey,
+		"brand": gin.H{
+			"site_name":      firstNonEmptyNextChat(settings.SiteName, "极速蹬"),
+			"site_logo":      settings.SiteLogo,
+			"workspace_name": "极速蹬 AI 工作台",
+		},
+		"features": gin.H{
+			"chat":           true,
+			"image_studio":   settings.ImageStudioEnabled,
+			"prompts":        true,
+			"history_export": true,
+			"cloud_sync":     false,
+		},
+		"models": gin.H{
+			"source":        "/v1/models",
+			"default_model": "",
+		},
+		"urls": gin.H{
+			"return_url":   returnURL,
+			"recharge_url": rechargeURL,
+			"profile_url":  joinNextChatURL(returnURL, "/profile"),
+		},
+		"retention": gin.H{
+			"text_session_days": 7,
+			"image_asset_hours": 24,
+			"server_chat_log":   false,
+		},
+	})
+}
+
+func handleNextChatPrompts(
+	c *gin.Context,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	if _, _, ok := requireNextChatBFFSession(c, cfg); !ok {
+		return
+	}
+	response.Success(c, service.BuildNextChatPromptCatalog())
 }
 
 func handleNextChatLaunch(
@@ -199,6 +299,62 @@ func handleNextChatSessionExchange(
 		"api_key_id": session.KeyID,
 		"expires_at": expiresAt,
 	})
+}
+
+func requireNextChatBFFSession(c *gin.Context, cfg *config.Config) (int64, int64, bool) {
+	if !validNextChatExchangeSecret(c.GetHeader("X-NextChat-Secret"), cfg) {
+		response.Unauthorized(c, "Invalid NextChat exchange secret")
+		return 0, 0, false
+	}
+	userID, err := strconv.ParseInt(strings.TrimSpace(c.GetHeader("X-NextChat-User-ID")), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "X-NextChat-User-ID is required")
+		return 0, 0, false
+	}
+	apiKeyID, err := strconv.ParseInt(strings.TrimSpace(c.GetHeader("X-NextChat-API-Key-ID")), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "X-NextChat-API-Key-ID is required")
+		return 0, 0, false
+	}
+	return userID, apiKeyID, true
+}
+
+func getNextChatPublicSettings(ctx context.Context, gate nextChatFeatureGate) (*service.PublicSettings, error) {
+	provider, ok := gate.(nextChatPublicSettingsProvider)
+	if !ok {
+		return &service.PublicSettings{SiteName: "极速蹬", NextChatEnabled: true}, nil
+	}
+	settings, err := provider.GetPublicSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return settings, nil
+}
+
+func getNextChatFrontendURL(ctx context.Context, gate nextChatFeatureGate) string {
+	provider, ok := gate.(nextChatPublicSettingsProvider)
+	if !ok {
+		return ""
+	}
+	return provider.GetFrontendURL(ctx)
+}
+
+func firstNonEmptyNextChat(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func joinNextChatURL(base, path string) string {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	path = "/" + strings.TrimLeft(strings.TrimSpace(path), "/")
+	if base == "" {
+		return path
+	}
+	return base + path
 }
 
 func randomNextChatLaunchToken() (string, error) {

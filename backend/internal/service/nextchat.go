@@ -20,6 +20,41 @@ type NextChatManagedSession struct {
 	KeyID  int64  `json:"key_id"`
 }
 
+type NextChatWorkspaceUser struct {
+	ID            int64   `json:"id"`
+	Username      string  `json:"username,omitempty"`
+	Email         string  `json:"email,omitempty"`
+	AvatarURL     string  `json:"avatar_url,omitempty"`
+	Balance       float64 `json:"balance"`
+	FrozenBalance float64 `json:"frozen_balance"`
+}
+
+type NextChatWorkspaceAPIKey struct {
+	ID            int64  `json:"id"`
+	Name          string `json:"name"`
+	GroupID       *int64 `json:"group_id,omitempty"`
+	GroupName     string `json:"group_name,omitempty"`
+	GroupPlatform string `json:"group_platform,omitempty"`
+}
+
+type NextChatWorkspaceIdentity struct {
+	User   NextChatWorkspaceUser   `json:"user"`
+	APIKey NextChatWorkspaceAPIKey `json:"managed_api_key"`
+}
+
+type NextChatPrompt struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	Description string `json:"description,omitempty"`
+	Content     string `json:"content"`
+	Category    string `json:"category,omitempty"`
+}
+
+type NextChatPromptCatalog struct {
+	ChatPrompts    []NextChatPrompt   `json:"chat_prompts"`
+	ImageTemplates ImageStudioCatalog `json:"image_templates"`
+}
+
 func IsNextChatManagedAPIKeyName(name string) bool {
 	return strings.HasPrefix(strings.TrimSpace(name), NextChatManagedAPIKeyNamePrefix)
 }
@@ -61,6 +96,77 @@ func (s *APIKeyService) IssueNextChatManagedSession(ctx context.Context, userID 
 		APIKey: key.Key,
 		KeyID:  key.ID,
 	}, nil
+}
+
+func (s *APIKeyService) GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*NextChatWorkspaceIdentity, error) {
+	if s == nil || s.userRepo == nil || s.apiKeyRepo == nil {
+		return nil, fmt.Errorf("nextchat workspace identity service is not configured")
+	}
+	if userID <= 0 || apiKeyID <= 0 {
+		return nil, ErrInsufficientPerms
+	}
+
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("get nextchat user: %w", err)
+	}
+	key, err := s.GetByID(ctx, apiKeyID)
+	if err != nil {
+		return nil, fmt.Errorf("get nextchat managed api key: %w", err)
+	}
+	if key.UserID != userID || !IsNextChatManagedAPIKeyName(key.Name) || !key.IsActive() || key.IsExpired() {
+		return nil, ErrInsufficientPerms
+	}
+
+	group := key.Group
+	if group == nil && key.GroupID != nil && *key.GroupID > 0 && s.groupRepo != nil {
+		if got, groupErr := s.groupRepo.GetByID(ctx, *key.GroupID); groupErr == nil {
+			group = got
+		}
+	}
+
+	out := &NextChatWorkspaceIdentity{
+		User: NextChatWorkspaceUser{
+			ID:            user.ID,
+			Username:      user.Username,
+			Email:         user.Email,
+			AvatarURL:     user.AvatarURL,
+			Balance:       user.Balance,
+			FrozenBalance: user.FrozenBalance,
+		},
+		APIKey: NextChatWorkspaceAPIKey{
+			ID:      key.ID,
+			Name:    key.Name,
+			GroupID: key.GroupID,
+		},
+	}
+	if group != nil {
+		out.APIKey.GroupName = group.Name
+		out.APIKey.GroupPlatform = group.Platform
+	}
+	return out, nil
+}
+
+func BuildNextChatPromptCatalog() NextChatPromptCatalog {
+	return NextChatPromptCatalog{
+		ChatPrompts: []NextChatPrompt{
+			{
+				ID:          "general-assistant",
+				Title:       "通用助手",
+				Description: "日常问答、写作、分析和总结",
+				Content:     "你是极速蹬 AI 工作台里的专业助手。请用清晰、准确、可执行的方式回答用户问题。",
+				Category:    "chat",
+			},
+			{
+				ID:          "ecommerce-copy",
+				Title:       "电商文案",
+				Description: "商品卖点、标题、详情页和投放文案",
+				Content:     "请根据用户给出的商品信息，输出适合电商场景的标题、核心卖点、详情页结构和可直接使用的营销文案。",
+				Category:    "ecommerce",
+			},
+		},
+		ImageTemplates: defaultImageStudioCatalog(),
+	}
 }
 
 func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, userID int64) (*APIKey, error) {
