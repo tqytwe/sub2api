@@ -109,12 +109,12 @@ func modelPricingSettingService(multiplier string) *SettingService {
 
 func TestModelCatalogService_ListPublicPricingFailsClosed(t *testing.T) {
 	t.Run("no guest-visible models", func(t *testing.T) {
-		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{}, nil, nil, nil, nil, nil)
+		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{}, nil, nil, nil, nil, nil, nil)
 		require.Empty(t, svc.ListPublicPricing(context.Background()))
 	})
 
 	t.Run("catalog query error", func(t *testing.T) {
-		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{err: errors.New("database unavailable")}, nil, nil, nil, nil, nil)
+		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{err: errors.New("database unavailable")}, nil, nil, nil, nil, nil, nil)
 		require.Empty(t, svc.ListPublicPricing(context.Background()))
 	})
 }
@@ -150,7 +150,7 @@ func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch
 			InputPrice:          &explicitSiteAIn,
 		},
 	}}
-	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("0.8"), nil)
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("0.8"), nil, nil)
 
 	resp, err := svc.ListMyPricing(context.Background(), 4)
 
@@ -210,7 +210,7 @@ func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testin
 		OfficialInputPrice:  &officialIn,
 		OfficialOutputPrice: &officialOut,
 	}}}
-	svc := NewModelCatalogService(repo, channelService, nil, nil, modelPricingSettingService("0.8"), apiKeyService)
+	svc := NewModelCatalogService(repo, channelService, nil, nil, modelPricingSettingService("0.8"), apiKeyService, nil)
 
 	resp, err := svc.ListMyPricing(context.Background(), 4)
 
@@ -262,7 +262,7 @@ func TestModelCatalogService_ListMyPricingUsesSiteBaseForActualKeyGroupWithoutCh
 		OutputPrice: &siteOut,
 		BillingMode: string(BillingModeToken),
 	}}}
-	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService)
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService, nil)
 
 	resp, err := svc.ListMyPricing(context.Background(), 4)
 
@@ -303,7 +303,7 @@ func TestModelCatalogService_ExplicitCatalogGroupsOverridePlatformMatching(t *te
 		InputPrice:  &siteIn,
 		OutputPrice: &siteOut,
 	}}}
-	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService)
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService, nil)
 
 	resp, err := svc.ListMyPricing(context.Background(), 4)
 
@@ -342,7 +342,7 @@ func TestModelCatalogService_ExplicitCatalogGroupUsesAvailableGroupWithoutKey(t 
 		InputPrice:  &siteIn,
 		OutputPrice: &siteOut,
 	}}}
-	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService)
+	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService, nil)
 
 	resp, err := svc.ListMyPricing(context.Background(), 2)
 

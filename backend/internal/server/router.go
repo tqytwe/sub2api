@@ -59,6 +59,7 @@ func SetupRouter(
 	settingService *service.SettingService,
 	dashboardService *service.DashboardService,
 	modelCatalogService *service.ModelCatalogService,
+	promptLibraryService *service.PromptLibraryService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) *gin.Engine {
@@ -127,7 +128,7 @@ func SetupRouter(
 	}
 
 	// 注册路由
-	registerRoutes(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, dashboardService, modelCatalogService, cfg, redisClient)
+	registerRoutes(r, handlers, jwtAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, dashboardService, modelCatalogService, promptLibraryService, cfg, redisClient)
 
 	return r
 }
@@ -147,6 +148,7 @@ func registerRoutes(
 	settingService *service.SettingService,
 	dashboardService *service.DashboardService,
 	modelCatalogService *service.ModelCatalogService,
+	promptLibraryService *service.PromptLibraryService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) {
@@ -161,7 +163,7 @@ func registerRoutes(
 	routes.RegisterUserRoutes(v1, h, jwtAuth, auditLog, settingService)
 	routes.RegisterAdminRoutes(v1, h, adminAuth, auditLog, stepUpAuth, settingService)
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, cfg)
-	routes.RegisterNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, h.ImageStudio, settingService, cfg, redisClient)
+	routes.RegisterNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, promptLibraryService, h.ImageStudio, settingService, cfg, redisClient)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)

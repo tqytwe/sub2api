@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -118,11 +119,38 @@ func (s nextChatRouteModelProviderStub) GetNextChatWorkspaceModels(_ context.Con
 	}, nil
 }
 
+type nextChatRoutePromptProviderStub struct {
+	list       []service.PublicPrompt
+	detailByID map[int64]service.PublicPrompt
+}
+
+func (s *nextChatRoutePromptProviderStub) ListPublic(_ context.Context, filter service.PromptListFilter, _ *int64) ([]service.PublicPrompt, *pagination.PaginationResult, error) {
+	pageSize := filter.Pagination.PageSize
+	if pageSize <= 0 || pageSize > len(s.list) {
+		pageSize = len(s.list)
+	}
+	return append([]service.PublicPrompt(nil), s.list[:pageSize]...), &pagination.PaginationResult{
+		Total:    int64(len(s.list)),
+		Page:     filter.Pagination.Page,
+		PageSize: filter.Pagination.PageSize,
+		Pages:    1,
+	}, nil
+}
+
+func (s *nextChatRoutePromptProviderStub) GetPublic(_ context.Context, id int64, _ *int64) (*service.PublicPrompt, error) {
+	prompt, ok := s.detailByID[id]
+	if !ok {
+		return nil, nil
+	}
+	return &prompt, nil
+}
+
 type nextChatRouteImageStudioStub struct {
 	modelsUserID  int64
 	modelsAPIKey  int64
 	generateUser  int64
 	generateInput service.ImageStudioGenerateRequest
+	referenceTTL  time.Duration
 }
 
 func (s *nextChatRouteImageStudioStub) Models(c *gin.Context) {
@@ -160,22 +188,42 @@ func (s *nextChatRouteImageStudioStub) Generate(c *gin.Context) {
 			"retain_days": s.generateInput.RetainDays,
 		},
 		"async": true,
-		"poll":  "/api/v1/nextchat/image-studio/jobs/job-nextchat",
+		"poll":  "/api/v1/image-studio/jobs/job-nextchat",
 	})
 }
 
-func (s *nextChatRouteImageStudioStub) Estimate(c *gin.Context)        { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) UploadReference(c *gin.Context) { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) Estimate(c *gin.Context) { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) UploadReference(c *gin.Context) {
+	s.referenceTTL = service.ImageStudioReferenceTTL(c.Request.Context())
+	response.Success(c, gin.H{})
+}
 func (s *nextChatRouteImageStudioStub) DeleteReference(c *gin.Context) { response.Success(c, gin.H{}) }
 func (s *nextChatRouteImageStudioStub) ActiveJob(c *gin.Context)       { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) ListJobs(c *gin.Context)        { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) GetJob(c *gin.Context)          { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) JobDownload(c *gin.Context)     { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) CancelJob(c *gin.Context)       { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) DeleteJob(c *gin.Context)       { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) AssetThumbnail(c *gin.Context)  { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) AssetContent(c *gin.Context)    { response.Success(c, gin.H{}) }
-func (s *nextChatRouteImageStudioStub) AssetDownload(c *gin.Context)   { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) ListJobs(c *gin.Context) {
+	response.Success(c, gin.H{
+		"jobs": []gin.H{
+			{
+				"id": "job-nextchat",
+				"assets": []gin.H{
+					{
+						"id":            "asset-nextchat",
+						"url":           "/api/v1/image-studio/assets/asset-nextchat/content",
+						"preview_url":   "/api/v1/image-studio/assets/asset-nextchat/content",
+						"thumbnail_url": "/api/v1/image-studio/assets/asset-nextchat/thumbnail",
+						"download_url":  "/api/v1/image-studio/assets/asset-nextchat/download",
+					},
+				},
+			},
+		},
+	})
+}
+func (s *nextChatRouteImageStudioStub) GetJob(c *gin.Context)         { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) JobDownload(c *gin.Context)    { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) CancelJob(c *gin.Context)      { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) DeleteJob(c *gin.Context)      { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) AssetThumbnail(c *gin.Context) { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) AssetContent(c *gin.Context)   { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) AssetDownload(c *gin.Context)  { response.Success(c, gin.H{}) }
 
 type nextChatRouteEnvelope struct {
 	Code    int             `json:"code"`
@@ -253,6 +301,18 @@ func newNextChatRouteTestRouterWithImageStudio(
 	cfg *config.Config,
 	rdb *redis.Client,
 ) *gin.Engine {
+	return newNextChatRouteTestRouterWithPromptProvider(t, gate, issuer, nil, imageStudio, cfg, rdb)
+}
+
+func newNextChatRouteTestRouterWithPromptProvider(
+	t *testing.T,
+	gate nextChatRouteGateStub,
+	issuer nextChatSessionIssuer,
+	promptProvider nextChatPromptProvider,
+	imageStudio nextChatImageStudioBFFHandler,
+	cfg *config.Config,
+	rdb *redis.Client,
+) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -266,7 +326,7 @@ func newNextChatRouteTestRouterWithImageStudio(
 		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 42, Concurrency: 1})
 		c.Next()
 	})
-	registerNextChatRoutes(v1, auth, issuer, nextChatRouteModelProviderStub{}, imageStudio, gate, cfg, rdb)
+	registerNextChatRoutes(v1, auth, issuer, nextChatRouteModelProviderStub{}, promptProvider, imageStudio, gate, cfg, rdb)
 	return router
 }
 
@@ -586,6 +646,37 @@ func TestNextChatImageStudioGenerateForcesManagedKeyAndOneDayRetention(t *testin
 	require.NotNil(t, imageStudio.generateInput.RetainDays)
 	require.Equal(t, 1, *imageStudio.generateInput.RetainDays)
 	require.NotContains(t, recorder.Body.String(), "999")
+	require.Contains(t, recorder.Body.String(), "/api/v1/nextchat/image-studio/jobs/job-nextchat")
+	require.NotContains(t, recorder.Body.String(), "/api/v1/image-studio/jobs/job-nextchat")
+}
+
+func TestNextChatImageStudioReferenceUploadForcesOneDayRetention(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	imageStudio := &nextChatRouteImageStudioStub{}
+	router := newNextChatRouteTestRouterWithImageStudio(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, imageStudio, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/image-studio/references", "server-secret", 42, 123, `{}`)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.Equal(t, 24*time.Hour, imageStudio.referenceTTL)
+}
+
+func TestNextChatImageStudioRewritesNestedAssetURLs(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	imageStudio := &nextChatRouteImageStudioStub{}
+	router := newNextChatRouteTestRouterWithImageStudio(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, imageStudio, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/image-studio/jobs", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "/api/v1/nextchat/image-studio/assets/asset-nextchat/content")
+	require.Contains(t, recorder.Body.String(), "/api/v1/nextchat/image-studio/assets/asset-nextchat/thumbnail")
+	require.Contains(t, recorder.Body.String(), "/api/v1/nextchat/image-studio/assets/asset-nextchat/download")
+	require.NotContains(t, recorder.Body.String(), "/api/v1/image-studio/assets/asset-nextchat")
 }
 
 func TestNextChatPromptsHideInternalImagePromptTemplate(t *testing.T) {
@@ -603,4 +694,48 @@ func TestNextChatPromptsHideInternalImagePromptTemplate(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), "ecom-white-bg")
 	require.NotContains(t, recorder.Body.String(), "Professional product photo")
 	require.NotContains(t, recorder.Body.String(), "prompt_template")
+}
+
+func TestNextChatPromptsUsePublicPromptLibraryWhenAvailable(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		list: []service.PublicPrompt{
+			{
+				ID:          88,
+				Title:       "爆款短视频脚本",
+				Description: "把商品卖点改写成短视频脚本",
+				Purpose:     "marketing",
+				Version:     3,
+			},
+		},
+		detailByID: map[int64]service.PublicPrompt{
+			88: {
+				ID:          88,
+				Title:       "爆款短视频脚本",
+				Description: "把商品卖点改写成短视频脚本",
+				Purpose:     "marketing",
+				Version:     3,
+				PromptText:  "请根据商品卖点输出 30 秒短视频脚本。",
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/prompts", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatPromptsResponse](t, recorder)
+	require.Equal(t, []service.NextChatPrompt{
+		{
+			ID:          "prompt-88-v3",
+			Title:       "爆款短视频脚本",
+			Description: "把商品卖点改写成短视频脚本",
+			Content:     "请根据商品卖点输出 30 秒短视频脚本。",
+			Category:    "marketing",
+		},
+	}, got.ChatPrompts)
+	require.NotEmpty(t, got.ImageTemplates.Intents)
+	require.NotContains(t, recorder.Body.String(), "通用助手")
 }

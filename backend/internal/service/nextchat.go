@@ -72,6 +72,10 @@ type NextChatWorkspaceModels struct {
 	Groups          []NextChatWorkspaceGroup `json:"groups"`
 }
 
+type NextChatAvailableModelResolver interface {
+	GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string
+}
+
 type NextChatPrompt struct {
 	ID          string `json:"id"`
 	Title       string `json:"title"`
@@ -102,17 +106,23 @@ func (s *APIKeyService) IssueNextChatManagedSession(ctx context.Context, userID 
 	if err != nil {
 		return nil, err
 	}
-	groupID, groupErr := s.pickNextChatGroupID(ctx, userID)
-	if groupErr != nil {
-		return nil, groupErr
-	}
 	if key != nil {
-		key, err = s.realignNextChatManagedKeyGroup(ctx, key, userID, groupID)
+		groups, groupErr := s.GetNextChatSelectableGroups(ctx, userID)
+		if groupErr != nil {
+			return nil, groupErr
+		}
+		if !shouldKeepNextChatManagedKeyGroup(key.GroupID, groups) {
+			key, err = s.realignNextChatManagedKeyGroup(ctx, key, userID, pickPreferredNextChatGroupID(groups))
+		}
 		if err != nil {
 			return nil, err
 		}
 	}
 	if key == nil {
+		groupID, groupErr := s.pickNextChatGroupID(ctx, userID)
+		if groupErr != nil {
+			return nil, groupErr
+		}
 		key, err = s.Create(ctx, userID, CreateAPIKeyRequest{
 			Name:    NextChatManagedAPIKeyName,
 			GroupID: groupID,
@@ -233,6 +243,47 @@ func BuildNextChatPromptCatalog() NextChatPromptCatalog {
 		},
 		ImageTemplates: defaultImageStudioCatalog(),
 	}
+}
+
+func BuildNextChatPromptCatalogFromPublicPrompts(prompts []PublicPrompt) NextChatPromptCatalog {
+	catalog := BuildNextChatPromptCatalog()
+	chatPrompts := make([]NextChatPrompt, 0, len(prompts))
+	for _, prompt := range prompts {
+		nextChatPrompt, ok := nextChatPromptFromPublicPrompt(prompt)
+		if ok {
+			chatPrompts = append(chatPrompts, nextChatPrompt)
+		}
+	}
+	if len(chatPrompts) > 0 {
+		catalog.ChatPrompts = chatPrompts
+	}
+	return catalog
+}
+
+func nextChatPromptFromPublicPrompt(prompt PublicPrompt) (NextChatPrompt, bool) {
+	content := strings.TrimSpace(prompt.PromptText)
+	title := strings.TrimSpace(prompt.Title)
+	if content == "" || title == "" {
+		return NextChatPrompt{}, false
+	}
+	id := fmt.Sprintf("prompt-%d", prompt.ID)
+	if prompt.Version > 0 {
+		id = fmt.Sprintf("%s-v%d", id, prompt.Version)
+	}
+	category := strings.TrimSpace(prompt.Purpose)
+	if category == "" {
+		category = strings.TrimSpace(prompt.Subject)
+	}
+	if category == "" {
+		category = strings.TrimSpace(prompt.Style)
+	}
+	return NextChatPrompt{
+		ID:          id,
+		Title:       title,
+		Description: strings.TrimSpace(prompt.Description),
+		Content:     content,
+		Category:    category,
+	}, true
 }
 
 func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, userID int64) (*APIKey, error) {
@@ -356,7 +407,6 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 		return nil, err
 	}
 
-	groupIndexByID := make(map[int64]int, len(selectableGroups))
 	out := &NextChatWorkspaceModels{
 		Source:          "/v1/models",
 		SelectedGroupID: identity.APIKey.GroupID,
@@ -374,43 +424,33 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 			Models:         []NextChatWorkspaceModel{},
 		}
 		out.Groups = append(out.Groups, g)
-		groupIndexByID[group.ID] = len(out.Groups) - 1
 	}
 
+	metadata := nextChatWorkspaceModelMetadata{}
 	if pricing != nil {
-		seen := make(map[int64]map[string]struct{})
-		for _, row := range pricing.Models {
-			for _, rowGroup := range row.Groups {
-				groupIndex, ok := groupIndexByID[rowGroup.ID]
-				if !ok {
-					continue
-				}
-				if !nextChatModelPlatformMatchesGroup(row.Platform, out.Groups[groupIndex].Platform) {
-					continue
-				}
-				if seen[rowGroup.ID] == nil {
-					seen[rowGroup.ID] = make(map[string]struct{})
-				}
-				if _, exists := seen[rowGroup.ID][row.Name]; exists {
-					continue
-				}
-				seen[rowGroup.ID][row.Name] = struct{}{}
-				displayName := row.Name
-				if row.Platform != "" {
-					displayName = fmt.Sprintf("%s · %s", row.Name, row.Platform)
-				}
-				out.Groups[groupIndex].Models = append(out.Groups[groupIndex].Models, NextChatWorkspaceModel{
-					ID:                   row.Name,
-					Name:                 row.Name,
-					DisplayName:          displayName,
-					Platform:             row.Platform,
-					Channel:              row.Channel,
-					UseCase:              row.UseCase,
-					SortOrder:            row.SortOrder,
-					EffectiveInputPrice:  row.EffectiveInputPrice,
-					EffectiveOutputPrice: row.EffectiveOutputPrice,
-				})
+		metadata = buildNextChatWorkspaceModelMetadata(pricing.Models)
+	}
+	for groupIndex := range out.Groups {
+		group := &out.Groups[groupIndex]
+		sourceGroup := selectableGroups[groupIndex]
+		availableModels := []string{}
+		if s.modelResolver != nil {
+			availableModels = s.modelResolver.GetAvailableModels(ctx, &group.ID, group.Platform)
+		}
+		availableModels = filterNextChatWorkspaceModelsForGroup(sourceGroup, availableModels)
+		seen := make(map[string]struct{}, len(availableModels))
+		for _, modelID := range availableModels {
+			modelID = strings.TrimSpace(modelID)
+			if modelID == "" {
+				continue
 			}
+			normalizedModelID := strings.ToLower(modelID)
+			if _, exists := seen[normalizedModelID]; exists {
+				continue
+			}
+			seen[normalizedModelID] = struct{}{}
+			meta := metadata.lookup(group.ID, group.Platform, modelID)
+			group.Models = append(group.Models, buildNextChatWorkspaceModel(group.Platform, modelID, meta))
 		}
 	}
 
@@ -426,16 +466,130 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 			out.DefaultModel = out.Groups[i].Models[0].Name
 		}
 	}
-	if out.DefaultModel == "" {
-		for _, group := range out.Groups {
-			if len(group.Models) > 0 {
-				out.DefaultModel = group.Models[0].Name
-				break
-			}
-		}
-	}
 
 	return out, nil
+}
+
+func filterNextChatWorkspaceModelsForGroup(group Group, availableModels []string) []string {
+	if !group.ModelsListConfig.Enabled {
+		return availableModels
+	}
+	if len(availableModels) == 0 {
+		return nil
+	}
+	allowed := make([]string, 0, len(availableModels))
+	for _, model := range availableModels {
+		model = strings.TrimSpace(model)
+		if model == "" {
+			continue
+		}
+		allowed = append(allowed, model)
+	}
+	if len(allowed) == 0 {
+		return nil
+	}
+
+	seen := make(map[string]struct{}, len(group.ModelsListConfig.Models))
+	out := make([]string, 0, len(group.ModelsListConfig.Models))
+	for _, model := range group.ModelsListConfig.Models {
+		model = strings.TrimSpace(model)
+		if model == "" || !nextChatWorkspaceModelAllowedByPatterns(allowed, model) {
+			continue
+		}
+		seenKey := strings.ToLower(model)
+		if _, ok := seen[seenKey]; ok {
+			continue
+		}
+		seen[seenKey] = struct{}{}
+		out = append(out, model)
+	}
+	return out
+}
+
+func nextChatWorkspaceModelAllowedByPatterns(availablePatterns []string, model string) bool {
+	for _, pattern := range availablePatterns {
+		if pattern == model {
+			return true
+		}
+		if strings.HasSuffix(pattern, "*") && strings.HasPrefix(model, strings.TrimSuffix(pattern, "*")) {
+			return true
+		}
+	}
+	return false
+}
+
+type nextChatWorkspaceModelMetadata struct {
+	byGroupModel map[nextChatWorkspaceGroupModelKey]nextChatWorkspaceModelMeta
+}
+
+type nextChatWorkspaceGroupModelKey struct {
+	groupID int64
+	model   string
+}
+
+type nextChatWorkspaceModelMeta struct {
+	platform             string
+	channel              string
+	useCase              string
+	sortOrder            int
+	effectiveInputPrice  *float64
+	effectiveOutputPrice *float64
+}
+
+func buildNextChatWorkspaceModelMetadata(rows []MyModelPricingRow) nextChatWorkspaceModelMetadata {
+	metadata := nextChatWorkspaceModelMetadata{
+		byGroupModel: make(map[nextChatWorkspaceGroupModelKey]nextChatWorkspaceModelMeta),
+	}
+	for _, row := range rows {
+		model := strings.ToLower(strings.TrimSpace(row.Name))
+		if model == "" {
+			continue
+		}
+		meta := nextChatWorkspaceModelMeta{
+			platform:             row.Platform,
+			channel:              row.Channel,
+			useCase:              row.UseCase,
+			sortOrder:            row.SortOrder,
+			effectiveInputPrice:  row.EffectiveInputPrice,
+			effectiveOutputPrice: row.EffectiveOutputPrice,
+		}
+		for _, group := range row.Groups {
+			metadata.byGroupModel[nextChatWorkspaceGroupModelKey{groupID: group.ID, model: model}] = meta
+		}
+	}
+	return metadata
+}
+
+func (m nextChatWorkspaceModelMetadata) lookup(groupID int64, groupPlatform, modelID string) nextChatWorkspaceModelMeta {
+	model := strings.ToLower(strings.TrimSpace(modelID))
+	if meta, ok := m.byGroupModel[nextChatWorkspaceGroupModelKey{groupID: groupID, model: model}]; ok {
+		if nextChatModelPlatformMatchesGroup(meta.platform, groupPlatform) {
+			return meta
+		}
+	}
+	return nextChatWorkspaceModelMeta{}
+}
+
+func buildNextChatWorkspaceModel(groupPlatform, modelID string, meta nextChatWorkspaceModelMeta) NextChatWorkspaceModel {
+	platform := strings.TrimSpace(groupPlatform)
+	if platform == "" {
+		platform = meta.platform
+	}
+	displayName := modelID
+	if platform != "" {
+		displayName = fmt.Sprintf("%s · %s", modelID, platform)
+	}
+	return NextChatWorkspaceModel{
+		ID:                   modelID,
+		Name:                 modelID,
+		DisplayName:          displayName,
+		Platform:             platform,
+		Channel:              meta.channel,
+		UseCase:              meta.useCase,
+		SortOrder:            meta.sortOrder,
+		EffectiveInputPrice:  meta.effectiveInputPrice,
+		EffectiveOutputPrice: meta.effectiveOutputPrice,
+	}
 }
 
 func nextChatModelPlatformMatchesGroup(modelPlatform, groupPlatform string) bool {
@@ -469,8 +623,23 @@ func normalizeNextChatModelPlatform(platform string) string {
 	}
 }
 
+func shouldKeepNextChatManagedKeyGroup(groupID *int64, groups []Group) bool {
+	if groupID == nil {
+		return len(groups) == 0
+	}
+	if len(groups) == 0 {
+		return false
+	}
+	for _, group := range groups {
+		if group.ID == *groupID {
+			return true
+		}
+	}
+	return false
+}
+
 func (s *APIKeyService) realignNextChatManagedKeyGroup(ctx context.Context, key *APIKey, userID int64, groupID *int64) (*APIKey, error) {
-	if key == nil || groupID == nil || sameAPIKeyGroupID(key.GroupID, groupID) {
+	if key == nil || sameAPIKeyGroupID(key.GroupID, groupID) {
 		return key, nil
 	}
 	if key.UserID != userID {
