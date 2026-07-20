@@ -76,7 +76,17 @@ func TestAsyncImageEnablesWithoutRestart(t *testing.T) {
 	settings := service.NewImageStorageSettingService(repo, passthroughEncryptor{}, backup, factory, config.ImageStorageConfig{})
 
 	store := &asyncImageMemoryStore{tasks: make(map[string]*service.ImageTaskRecord)}
-	tasks := service.NewImageTaskServiceWithResolver(store, settings.Resolver(), time.Hour, time.Minute)
+	queue := &asyncImageMemoryQueue{
+		store:  store,
+		active: make(map[string]bool),
+		idem: make(map[string]struct {
+			taskID string
+			hash   string
+		}),
+	}
+	runtimeState := service.NewImageTaskRuntimeState(queue, true, true, true)
+	runtimeState.SetWorkerRunning(true)
+	tasks := service.NewQueuedImageTaskServiceWithResolver(store, queue, settings.Resolver(), asyncImagePlainEncryptor{}, runtimeState, time.Hour, time.Minute)
 
 	h := &AsyncImageHandler{tasks: tasks}
 	h.execute = func(_ string, c *gin.Context) {
