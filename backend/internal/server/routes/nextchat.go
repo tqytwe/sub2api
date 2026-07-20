@@ -312,11 +312,12 @@ func handleNextChatBootstrap(
 		response.ErrorFrom(c, err)
 		return
 	}
-	returnURL := firstNonEmptyNextChat(getNextChatFrontendURL(c.Request.Context(), gate), "https://www.jisudeng.com")
+	siteURL := firstNonEmptyNextChat(getNextChatFrontendURL(c.Request.Context(), gate), "https://www.jisudeng.com")
+	returnURL := joinNextChatURL(siteURL, "/dashboard")
 	rechargeURL := firstNonEmptyNextChat(
 		settings.BalanceLowNotifyRechargeURL,
 		settings.PurchaseSubscriptionURL,
-		joinNextChatURL(returnURL, "/payment"),
+		joinNextChatURL(siteURL, "/purchase"),
 	)
 
 	response.Success(c, gin.H{
@@ -338,7 +339,7 @@ func handleNextChatBootstrap(
 		"urls": gin.H{
 			"return_url":   returnURL,
 			"recharge_url": rechargeURL,
-			"profile_url":  joinNextChatURL(returnURL, "/profile"),
+			"profile_url":  joinNextChatURL(siteURL, "/profile"),
 		},
 		"retention": gin.H{
 			"text_session_days": 7,
