@@ -314,11 +314,7 @@ func handleNextChatBootstrap(
 	}
 	siteURL := firstNonEmptyNextChat(getNextChatFrontendURL(c.Request.Context(), gate), "https://www.jisudeng.com")
 	returnURL := joinNextChatURL(siteURL, "/dashboard")
-	rechargeURL := firstNonEmptyNextChat(
-		settings.BalanceLowNotifyRechargeURL,
-		settings.PurchaseSubscriptionURL,
-		joinNextChatURL(siteURL, "/purchase"),
-	)
+	rechargeURL := joinNextChatURL(siteURL, "/purchase")
 
 	response.Success(c, gin.H{
 		"user":            identity.User,

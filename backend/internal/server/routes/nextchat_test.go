@@ -476,7 +476,7 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.Equal(t, int64(8), got.Models.Groups[1].ID)
 	require.Equal(t, "grok-4-fast", got.Models.Groups[1].Models[0].Name)
 	require.Equal(t, "https://www.jisudeng.com/dashboard", got.URLs.ReturnURL)
-	require.Equal(t, "https://www.jisudeng.com/payment", got.URLs.RechargeURL)
+	require.Equal(t, "https://www.jisudeng.com/purchase", got.URLs.RechargeURL)
 	require.Equal(t, 7, got.Retention.TextSessionDays)
 	require.Equal(t, 24, got.Retention.ImageAssetHours)
 	require.False(t, got.Retention.ServerChatLog)
@@ -504,6 +504,29 @@ func TestNextChatBootstrapDefaultsReturnAndRechargeToConsolePages(t *testing.T) 
 	require.Equal(t, "https://www.jisudeng.com/dashboard", got.URLs.ReturnURL)
 	require.Equal(t, "https://www.jisudeng.com/purchase", got.URLs.RechargeURL)
 	require.Equal(t, "https://www.jisudeng.com/profile", got.URLs.ProfileURL)
+}
+
+func TestNextChatBootstrapIgnoresLegacyRechargeSetting(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{
+		enabled:     true,
+		frontendURL: "https://www.jisudeng.com",
+		settings: &service.PublicSettings{
+			SiteName:                    "极速蹬",
+			NextChatEnabled:             true,
+			BalanceLowNotifyRechargeURL: "https://jisuodeng.zeabur.app",
+			PurchaseSubscriptionURL:     "https://www.jisudeng.com/payment",
+		},
+	}, &nextChatRouteIssuerStub{}, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/bootstrap", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatBootstrapResponse](t, recorder)
+	require.Equal(t, "https://www.jisudeng.com/dashboard", got.URLs.ReturnURL)
+	require.Equal(t, "https://www.jisudeng.com/purchase", got.URLs.RechargeURL)
 }
 
 func TestNextChatGroupSwitchUpdatesManagedKeyGroup(t *testing.T) {
