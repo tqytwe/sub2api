@@ -22,7 +22,7 @@
 | 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
 | CP6：服务器验证 | 进行中 | CP1 已通过；CP2 至 CP5 尚未开始 |
-| CP7：审查与合并 | 未开始 | 等待 CP1 服务器验证全部通过 |
+| CP7：审查与合并 | 进行中 | CP1 PR #82 已创建，等待 GitHub CI |
 | CP8：部署证明 | 未开始 | 等待 CP1 非 rebase 合入 `play/main` |
 | CP9：最终本地浏览器验收 | 未开始 | 由用户本地电脑完成，不能由服务器测试替代 |
 
@@ -38,7 +38,7 @@
 | 规格审查 | 已通过 | 已修复软删除候选、不可变快照并发、锁顺序、事件脱敏、系统原因码、中文状态和陈旧候选问题；最终逐条复审无剩余规格缺口 |
 | 代码质量审查 | 已通过 | 已修复中文页面透出后端英文 `message`、提取 blocker 常量、单次捕获 `now`、补仓储 SQL 测试、刷新弹窗时间边界；复审无未解决问题 |
 | 完整验证 | 已通过 | 定向测试、真实 PostgreSQL integration、`make test`、构建、Fork integrity 和 `git diff --check` 全部退出码为 0 |
-| PR / GitHub CI | 未开始 | 尚未提交、推送或创建 PR |
+| PR / GitHub CI | 进行中 | PR #82 已创建并以 `play/main` 为目标，等待 GitHub CI |
 | 部署核对 | 未开始 | 尚未合入 `play/main` |
 | 本地浏览器验收 | 未开始 | 部署后由用户以管理员身份检查中英文及浅色/深色 |
 
@@ -143,3 +143,5 @@ git diff --check
 
 - 状态：进行中
 - CP1 实现 commit：`89561e39a`（`feat(play): add controlled admin team member repair`）
+- CP1 验证记录 commit：`5b4262e1c`（`docs(play): record CP1 validation checkpoint`）
+- PR：`#82`，目标分支 `play/main`
