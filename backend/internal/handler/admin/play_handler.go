@@ -1,12 +1,15 @@
 package admin
 
 import (
+	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +17,14 @@ import (
 
 type adminArenaSettleRequest struct {
 	PeriodID int64 `json:"period_id"`
+}
+
+type adminTeamMemberRepairRequest struct {
+	UserID               int64      `json:"user_id"`
+	Operation            string     `json:"operation"`
+	EffectiveAt          *time.Time `json:"effective_at"`
+	Reason               string     `json:"reason"`
+	ExpectedSourceTeamID *int64     `json:"expected_source_team_id"`
 }
 
 type adminPlayCampaignRequest struct {
@@ -159,10 +170,20 @@ type adminTeamRewardAllocationDTO struct {
 // AdminPlayHandler serves admin play operations.
 type AdminPlayHandler struct {
 	playService *service.PlayService
+	totpService *service.TotpService
+	userService *service.UserService
 }
 
-func NewAdminPlayHandler(playService *service.PlayService) *AdminPlayHandler {
-	return &AdminPlayHandler{playService: playService}
+func NewAdminPlayHandler(
+	playService *service.PlayService,
+	totpService *service.TotpService,
+	userService *service.UserService,
+) *AdminPlayHandler {
+	return &AdminPlayHandler{
+		playService: playService,
+		totpService: totpService,
+		userService: userService,
+	}
 }
 
 // GetBlindboxPool returns the effective editable blindbox pool.
@@ -403,6 +424,149 @@ func (h *AdminPlayHandler) GetTeamSettlements(c *gin.Context) {
 		return
 	}
 	response.Success(c, toAdminTeamSettlementRecordDTOs(detail.Settlements))
+}
+
+func (h *AdminPlayHandler) ListTeamMemberCandidates(c *gin.Context) {
+	teamID := parsePositiveInt64(c.Param("id"))
+	if teamID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team id"))
+		return
+	}
+	var effectiveAt *time.Time
+	if raw := strings.TrimSpace(c.Query("effective_at")); raw != "" {
+		parsed, err := time.Parse(time.RFC3339, raw)
+		if err != nil {
+			response.ErrorFrom(c, infraerrors.BadRequest("PLAY_TEAM_EFFECTIVE_AT_INVALID", "invalid effective time"))
+			return
+		}
+		effectiveAt = &parsed
+	}
+	result, err := h.playService.ListAdminTeamMemberCandidates(c.Request.Context(), service.PlayAdminTeamMemberCandidateQuery{
+		TargetTeamID: teamID,
+		Query:        c.Query("q"),
+		Operation:    c.Query("operation"),
+		EffectiveAt:  effectiveAt,
+		Limit:        parsePositiveInt(c.Query("limit"), 20),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AdminPlayHandler) AddOrMoveTeamMember(c *gin.Context) {
+	teamID := parsePositiveInt64(c.Param("id"))
+	if teamID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team id"))
+		return
+	}
+	idempotencyKey, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if idempotencyKey == "" {
+		response.ErrorFrom(c, infraerrors.BadRequest("IDEMPOTENCY_KEY_REQUIRED", "Idempotency-Key header is required"))
+		return
+	}
+	c.Request.Header.Set("Idempotency-Key", idempotencyKey)
+	var req adminTeamMemberRepairRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team member repair request"))
+		return
+	}
+	req.Operation = strings.ToLower(strings.TrimSpace(req.Operation))
+	req.Reason = strings.TrimSpace(req.Reason)
+	if req.UserID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid user id"))
+		return
+	}
+	if req.Operation != service.AdminTeamMemberOperationAdd && req.Operation != service.AdminTeamMemberOperationMove {
+		response.ErrorFrom(c, service.ErrPlayAdminTeamInvalidOperation)
+		return
+	}
+	reasonLen := len([]rune(req.Reason))
+	if reasonLen < 10 || reasonLen > 500 {
+		response.ErrorFrom(c, service.ErrPlayAdminTeamReasonInvalid)
+		return
+	}
+	middleware.SetAuditAction(c, adminTeamMemberAuditAction(req.Operation))
+	auditExtra := map[string]any{
+		"target_team_id": teamID,
+		"target_user_id": req.UserID,
+		"operation":      req.Operation,
+		"reason_code":    service.PlayTeamEventReasonAdminManualMembershipRepair,
+	}
+	if req.ExpectedSourceTeamID != nil && *req.ExpectedSourceTeamID > 0 {
+		auditExtra["source_team_id"] = *req.ExpectedSourceTeamID
+	}
+	if req.EffectiveAt != nil {
+		auditExtra["effective_at"] = req.EffectiveAt.Format(time.RFC3339Nano)
+	}
+	middleware.SetAuditExtra(c, auditExtra)
+	if req.Operation == service.AdminTeamMemberOperationMove || req.EffectiveAt != nil {
+		if c.GetString("auth_method") == service.AuditAuthMethodAdminAPIKey {
+			_ = middleware.EnforceStepUpAlways(c, h.totpService, h.userService)
+			return
+		}
+		if h.totpService == nil || h.userService == nil {
+			response.ErrorFrom(c, infraerrors.Unauthorized("UNAUTHORIZED", "Authorization required"))
+			return
+		}
+		if !middleware.EnforceStepUpAlways(c, h.totpService, h.userService) {
+			return
+		}
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.ErrorFrom(c, infraerrors.Unauthorized("UNAUTHORIZED", "Authorization required"))
+		return
+	}
+
+	input := service.AdminTeamMemberRepairInput{
+		TargetTeamID:         teamID,
+		UserID:               req.UserID,
+		ActorUserID:          subject.UserID,
+		Operation:            req.Operation,
+		EffectiveAt:          req.EffectiveAt,
+		Reason:               req.Reason,
+		ExpectedSourceTeamID: req.ExpectedSourceTeamID,
+	}
+	executeAdminIdempotentJSON(
+		c,
+		fmt.Sprintf("admin:play:team-member-repair:%d", teamID),
+		input,
+		24*time.Hour,
+		func(ctx context.Context) (any, error) {
+			return h.playService.RepairAdminTeamMember(ctx, input)
+		},
+	)
+}
+
+func adminTeamMemberAuditAction(operation string) string {
+	if operation == service.AdminTeamMemberOperationMove {
+		return service.AuditActionAdminPlayTeamMemberMove
+	}
+	return service.AuditActionAdminPlayTeamMemberAdd
+}
+
+func (h *AdminPlayHandler) ListTeamEvents(c *gin.Context) {
+	teamID := parsePositiveInt64(c.Param("id"))
+	if teamID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team id"))
+		return
+	}
+	events, err := h.playService.ListAdminTeamEvents(
+		c.Request.Context(),
+		teamID,
+		parsePositiveInt(c.Query("limit"), 100),
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, events)
 }
 
 func (h *AdminPlayHandler) RetryTeamRewardSettlement(c *gin.Context) {

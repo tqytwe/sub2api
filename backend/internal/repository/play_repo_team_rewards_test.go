@@ -177,6 +177,94 @@ func TestTeamSettlementSnapshotRollsBackSettlementWhenAllocationInsertFails(t *t
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestTeamRewardSnapshotLockUsesTransactionAndLocksTeamRow(t *testing.T) {
+	db, mock, client := newTeamRewardRepositoryTestClient(t)
+	repo := &playRepository{client: client, sql: db}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(`(?is)SELECT id.*FROM play_teams.*WHERE id = \$1.*FOR UPDATE`).
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectCommit()
+
+	callbackCalled := false
+	err := repo.WithTeamRewardSnapshotLock(context.Background(), 7, func(ctx context.Context) error {
+		callbackCalled = true
+		require.NotNil(t, dbent.TxFromContext(ctx))
+		return nil
+	})
+
+	require.NoError(t, err)
+	require.True(t, callbackCalled)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestTeamSettlementSnapshotReusesOuterTransaction(t *testing.T) {
+	db, mock, client := newTeamRewardRepositoryTestClient(t)
+	repo := &playRepository{client: client, sql: db}
+	periodStart := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	windowStart := time.Date(2026, time.May, 31, 16, 0, 0, 0, time.UTC)
+	windowEnd := time.Date(2026, time.June, 30, 16, 0, 0, 0, time.UTC)
+
+	mock.ExpectBegin()
+	tx, err := client.Tx(context.Background())
+	require.NoError(t, err)
+	txCtx := dbent.NewTxContext(context.Background(), tx)
+	mock.ExpectQuery(`(?is)INSERT INTO play_team_settlements .* RETURNING id`).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(42)))
+	mock.ExpectExec(`(?is)INSERT INTO play_team_reward_allocations`).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectQuery(`(?is)SELECT.*FROM play_team_settlements.*WHERE id = \$1`).
+		WithArgs(int64(42)).
+		WillReturnRows(teamSettlementRows().
+			AddRow(
+				int64(42),
+				int64(7),
+				periodStart,
+				windowStart,
+				windowEnd,
+				"30.00000000",
+				"20.00000000",
+				"0.02000000",
+				"0.60000000",
+				"250.00000000",
+				service.PlayTeamSettlementStatusPending,
+				nil,
+				nil,
+				nil,
+			))
+
+	got, created, err := repo.CreateTeamRewardSnapshot(
+		txCtx,
+		service.PlayTeamSettlement{
+			TeamID:           7,
+			PeriodStart:      periodStart,
+			WindowStart:      windowStart,
+			WindowEnd:        windowEnd,
+			TeamSpend:        decimal.NewFromInt(30),
+			ReachedThreshold: decimal.NewFromInt(20),
+			RewardRate:       decimal.RequireFromString("0.02"),
+			PoolAmount:       decimal.RequireFromString("0.6"),
+			CapAmount:        decimal.NewFromInt(250),
+		},
+		[]service.PlayTeamRewardAllocation{{
+			UserID:         11,
+			Contribution:   decimal.NewFromInt(30),
+			Ratio:          decimal.NewFromInt(1),
+			RewardAmount:   decimal.RequireFromString("0.6"),
+			PayoutStatus:   service.PlayTeamRewardAllocationStatusPending,
+			IdempotencyKey: "team_reward:7:2026-06:11",
+		}},
+	)
+
+	require.NoError(t, err)
+	require.True(t, created)
+	require.Equal(t, int64(42), got.ID)
+	mock.ExpectCommit()
+	require.NoError(t, tx.Commit())
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func newTeamRewardRepositoryTestClient(
 	t *testing.T,
 ) (*sql.DB, sqlmock.Sqlmock, *dbent.Client) {

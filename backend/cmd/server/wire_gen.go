@@ -287,7 +287,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentHandler := admin.NewPaymentHandler(paymentService, paymentConfigService)
 	affiliateHandler := admin.NewAffiliateHandler(affiliateService, adminService)
 	complianceHandler := admin.NewComplianceHandler(settingService)
-	adminPlayHandler := admin.NewAdminPlayHandler(playService)
+	adminPlayHandler := admin.NewAdminPlayHandler(playService, totpService, userService)
 	modelCatalogService := service.NewModelCatalogService(modelCatalogRepository, channelService, pricingService, billingService, settingService, apiKeyService, gatewayService)
 	modelCatalogHandler := admin.NewModelCatalogHandler(modelCatalogService)
 	auditLogRepository := repository.NewAuditLogRepository(db)

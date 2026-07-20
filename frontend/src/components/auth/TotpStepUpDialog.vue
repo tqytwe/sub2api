@@ -72,12 +72,13 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { totpAPI } from '@/api'
 import type { StepUpController } from '@/composables/useStepUp'
+import { extractApiErrorCode } from '@/utils/apiError'
 
 const props = defineProps<{
   controller: StepUpController
 }>()
 
-const { t } = useI18n()
+const { t, te } = useI18n()
 const appStore = useAppStore()
 
 const verifying = ref(false)
@@ -115,10 +116,19 @@ async function submit(otp: string) {
     props.controller.onVerified()
   } catch (err: any) {
     verifying.value = false
-    appStore.showError(err?.message || t('stepUp.verifyFailed'))
+    appStore.showError(localizedStepUpError(err))
     resetInputs()
     nextTick(() => inputRefs.value[0]?.focus())
   }
+}
+
+function localizedStepUpError(error: unknown) {
+  const code = extractApiErrorCode(error)
+  if (code) {
+    const key = `stepUp.errors.${code}`
+    if (te(key)) return t(key)
+  }
+  return t('stepUp.verifyFailed')
 }
 
 function resetInputs() {

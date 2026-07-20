@@ -215,6 +215,8 @@ type teamSettlementRepo struct {
 
 	contributions       []TeamContribution
 	contributionCalls   int
+	snapshotLockCalls   int
+	snapshotLockHeld    bool
 	windowStart         time.Time
 	windowEnd           time.Time
 	createCalls         int
@@ -226,6 +228,17 @@ type teamSettlementRepo struct {
 	claimedUsers        []int64
 	ledgerEntries       []PlayRewardLedgerEntry
 	balances            map[int64]decimal.Decimal
+}
+
+func (r *teamSettlementRepo) WithTeamRewardSnapshotLock(
+	ctx context.Context,
+	_ int64,
+	fn func(context.Context) error,
+) error {
+	r.snapshotLockCalls++
+	r.snapshotLockHeld = true
+	defer func() { r.snapshotLockHeld = false }()
+	return fn(ctx)
 }
 
 func newTeamSettlementRepo() *teamSettlementRepo {
@@ -242,6 +255,9 @@ func (r *teamSettlementRepo) ListTeamRewardContributions(
 	start time.Time,
 	end time.Time,
 ) ([]TeamContribution, error) {
+	if !r.snapshotLockHeld {
+		panic("team reward contributions must be read while the team snapshot lock is held")
+	}
 	r.contributionCalls++
 	r.windowStart = start
 	r.windowEnd = end
@@ -267,6 +283,9 @@ func (r *teamSettlementRepo) CreateTeamRewardSnapshot(
 	settlement PlayTeamSettlement,
 	allocations []PlayTeamRewardAllocation,
 ) (*PlayTeamSettlement, bool, error) {
+	if !r.snapshotLockHeld {
+		panic("team reward snapshot must be created while the team snapshot lock is held")
+	}
 	r.createCalls++
 	if r.settlement != nil {
 		copy := *r.settlement

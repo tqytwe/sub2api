@@ -45,6 +45,11 @@ func TestPromptLibraryImportBodiesAreOmittedFromAudit(t *testing.T) {
 	}
 }
 
+func TestAdminTeamRepairBodyIsOmittedFromAudit(t *testing.T) {
+	_, ok := auditBodyOmittedRoutes["POST /api/v1/admin/play/teams/:id/members"]
+	require.True(t, ok, "team repair reasons may contain embedded credentials and must not be persisted")
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog
