@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -8,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/handler"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -34,6 +37,28 @@ type nextChatFeatureGate interface {
 
 type nextChatWorkspaceIdentityProvider interface {
 	GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error)
+	SetNextChatManagedKeyGroup(ctx context.Context, userID, apiKeyID, groupID int64) (*service.NextChatWorkspaceIdentity, error)
+}
+
+type nextChatWorkspaceModelProvider interface {
+	GetNextChatWorkspaceModels(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceModels, error)
+}
+
+type nextChatImageStudioBFFHandler interface {
+	Models(c *gin.Context)
+	Estimate(c *gin.Context)
+	Generate(c *gin.Context)
+	UploadReference(c *gin.Context)
+	DeleteReference(c *gin.Context)
+	ActiveJob(c *gin.Context)
+	ListJobs(c *gin.Context)
+	GetJob(c *gin.Context)
+	JobDownload(c *gin.Context)
+	CancelJob(c *gin.Context)
+	DeleteJob(c *gin.Context)
+	AssetThumbnail(c *gin.Context)
+	AssetContent(c *gin.Context)
+	AssetDownload(c *gin.Context)
 }
 
 type nextChatPublicSettingsProvider interface {
@@ -52,21 +77,29 @@ type nextChatExchangeRequest struct {
 	LaunchToken string `json:"launch_token"`
 }
 
+type nextChatGroupSwitchRequest struct {
+	GroupID int64 `json:"group_id"`
+}
+
 func RegisterNextChatRoutes(
 	v1 *gin.RouterGroup,
 	jwtAuth middleware.JWTAuthMiddleware,
 	apiKeyService *service.APIKeyService,
+	modelCatalogService *service.ModelCatalogService,
+	imageStudio nextChatImageStudioBFFHandler,
 	settingService *service.SettingService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) {
-	registerNextChatRoutes(v1, jwtAuth, apiKeyService, settingService, cfg, redisClient)
+	registerNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, imageStudio, settingService, cfg, redisClient)
 }
 
 func registerNextChatRoutes(
 	v1 *gin.RouterGroup,
 	jwtAuth middleware.JWTAuthMiddleware,
 	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	imageStudio nextChatImageStudioBFFHandler,
 	gate nextChatFeatureGate,
 	cfg *config.Config,
 	redisClient *redis.Client,
@@ -77,11 +110,15 @@ func registerNextChatRoutes(
 			handleNextChatSessionExchange(c, issuer, gate, cfg, redisClient)
 		})
 		nextchat.GET("/bootstrap", func(c *gin.Context) {
-			handleNextChatBootstrap(c, issuer, gate, cfg)
+			handleNextChatBootstrap(c, issuer, modelProvider, gate, cfg)
 		})
 		nextchat.GET("/prompts", func(c *gin.Context) {
 			handleNextChatPrompts(c, gate, cfg)
 		})
+		nextchat.POST("/group", func(c *gin.Context) {
+			handleNextChatGroupSwitch(c, issuer, modelProvider, gate, cfg)
+		})
+		registerNextChatImageStudioRoutes(nextchat, imageStudio, gate, cfg)
 	}
 
 	authenticated := nextchat.Group("")
@@ -93,9 +130,156 @@ func registerNextChatRoutes(
 	}
 }
 
+func registerNextChatImageStudioRoutes(
+	nextchat *gin.RouterGroup,
+	imageStudio nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if imageStudio == nil {
+		return
+	}
+	studio := nextchat.Group("/image-studio")
+	{
+		studio.GET("/models", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, imageStudio.Models)
+		})
+		studio.GET("/estimate", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, imageStudio.Estimate)
+		})
+		studio.POST(
+			"/generate",
+			middleware.RequestBodyLimit(handler.ImageStudioGenerateRequestBodyLimit),
+			func(c *gin.Context) {
+				handleNextChatImageStudioGenerate(c, imageStudio, gate, cfg)
+			},
+		)
+		studio.POST(
+			"/references",
+			middleware.RequestBodyLimit(handler.ImageStudioReferenceRequestBodyLimit),
+			func(c *gin.Context) {
+				handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.UploadReference)
+			},
+		)
+		studio.DELETE("/references/:id", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.DeleteReference)
+		})
+		studio.GET("/jobs/active", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.ActiveJob)
+		})
+		studio.GET("/jobs", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.ListJobs)
+		})
+		studio.GET("/jobs/:id", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.GetJob)
+		})
+		studio.GET("/jobs/:id/download", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.JobDownload)
+		})
+		studio.POST("/jobs/:id/cancel", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.CancelJob)
+		})
+		studio.DELETE("/jobs/:id", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.DeleteJob)
+		})
+		studio.GET("/assets/:id/thumbnail", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.AssetThumbnail)
+		})
+		studio.GET("/assets/:id/content", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.AssetContent)
+		})
+		studio.GET("/assets/:id/download", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, imageStudio.AssetDownload)
+		})
+	}
+}
+
+func handleNextChatImageStudio(
+	c *gin.Context,
+	_ nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	forceAPIKeyQuery bool,
+	handle func(*gin.Context),
+) {
+	if !prepareNextChatImageStudioBFF(c, gate, cfg, forceAPIKeyQuery) {
+		return
+	}
+	handle(c)
+}
+
+func handleNextChatImageStudioGenerate(
+	c *gin.Context,
+	imageStudio nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	_, apiKeyID, ok := prepareNextChatImageStudioBFFSession(c, gate, cfg)
+	if !ok {
+		return
+	}
+	var req service.ImageStudioGenerateRequest
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	req.APIKeyID = apiKeyID
+	retainDays := 1
+	req.RetainDays = &retainDays
+	raw, err := json.Marshal(req)
+	if err != nil {
+		response.InternalError(c, "Failed to prepare image studio request")
+		return
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(raw))
+	c.Request.ContentLength = int64(len(raw))
+	c.Request.Header.Set("Content-Type", "application/json")
+	imageStudio.Generate(c)
+}
+
+func prepareNextChatImageStudioBFF(
+	c *gin.Context,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	forceAPIKeyQuery bool,
+) bool {
+	_, apiKeyID, ok := prepareNextChatImageStudioBFFSession(c, gate, cfg)
+	if !ok {
+		return false
+	}
+	if forceAPIKeyQuery {
+		query := c.Request.URL.Query()
+		query.Set("api_key_id", strconv.FormatInt(apiKeyID, 10))
+		c.Request.URL.RawQuery = query.Encode()
+	}
+	return true
+}
+
+func prepareNextChatImageStudioBFFSession(
+	c *gin.Context,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) (int64, int64, bool) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return 0, 0, false
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return 0, 0, false
+	}
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      userID,
+		Concurrency: 1,
+	})
+	return userID, apiKeyID, true
+}
+
 func handleNextChatBootstrap(
 	c *gin.Context,
 	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
 	gate nextChatFeatureGate,
 	cfg *config.Config,
 ) {
@@ -114,6 +298,11 @@ func handleNextChatBootstrap(
 	}
 
 	identity, err := identityProvider.GetNextChatWorkspaceIdentity(c.Request.Context(), userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, apiKeyID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -145,10 +334,7 @@ func handleNextChatBootstrap(
 			"history_export": true,
 			"cloud_sync":     false,
 		},
-		"models": gin.H{
-			"source":        "/v1/models",
-			"default_model": "",
-		},
+		"models": workspaceModels,
 		"urls": gin.H{
 			"return_url":   returnURL,
 			"recharge_url": rechargeURL,
@@ -175,6 +361,47 @@ func handleNextChatPrompts(
 		return
 	}
 	response.Success(c, service.BuildNextChatPromptCatalog())
+}
+
+func handleNextChatGroupSwitch(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
+	if !ok || identityProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat group switch service is unavailable")
+		return
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	var req nextChatGroupSwitchRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID <= 0 {
+		response.BadRequest(c, "group_id is required")
+		return
+	}
+	identity, err := identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), userID, apiKeyID, req.GroupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"managed_api_key": identity.APIKey,
+		"models":          workspaceModels,
+	})
 }
 
 func handleNextChatLaunch(
@@ -337,6 +564,16 @@ func getNextChatFrontendURL(ctx context.Context, gate nextChatFeatureGate) strin
 		return ""
 	}
 	return provider.GetFrontendURL(ctx)
+}
+
+func getNextChatWorkspaceModels(ctx context.Context, provider nextChatWorkspaceModelProvider, userID, apiKeyID int64) (*service.NextChatWorkspaceModels, error) {
+	if provider == nil {
+		return &service.NextChatWorkspaceModels{
+			Source: "/v1/models",
+			Groups: []service.NextChatWorkspaceGroup{},
+		}, nil
+	}
+	return provider.GetNextChatWorkspaceModels(ctx, userID, apiKeyID)
 }
 
 func firstNonEmptyNextChat(values ...string) string {

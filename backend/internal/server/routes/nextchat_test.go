@@ -43,8 +43,10 @@ func (s nextChatRouteGateStub) GetFrontendURL(context.Context) string {
 }
 
 type nextChatRouteIssuerStub struct {
-	calls  int
-	userID int64
+	calls          int
+	userID         int64
+	selectedGroup  int64
+	switchRequests []int64
 }
 
 func (s *nextChatRouteIssuerStub) IssueNextChatManagedSession(_ context.Context, userID int64) (*service.NextChatManagedSession, error) {
@@ -58,6 +60,10 @@ func (s *nextChatRouteIssuerStub) IssueNextChatManagedSession(_ context.Context,
 }
 
 func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error) {
+	groupID := s.selectedGroup
+	if groupID == 0 {
+		groupID = 7
+	}
 	return &service.NextChatWorkspaceIdentity{
 		User: service.NextChatWorkspaceUser{
 			ID:       userID,
@@ -68,11 +74,108 @@ func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context
 		APIKey: service.NextChatWorkspaceAPIKey{
 			ID:            apiKeyID,
 			Name:          service.NextChatManagedAPIKeyName,
+			GroupID:       &groupID,
 			GroupName:     "OpenAI main",
 			GroupPlatform: service.PlatformOpenAI,
 		},
 	}, nil
 }
+
+func (s *nextChatRouteIssuerStub) SetNextChatManagedKeyGroup(_ context.Context, userID, apiKeyID, groupID int64) (*service.NextChatWorkspaceIdentity, error) {
+	s.switchRequests = append(s.switchRequests, groupID)
+	s.selectedGroup = groupID
+	return s.GetNextChatWorkspaceIdentity(context.Background(), userID, apiKeyID)
+}
+
+type nextChatRouteModelProviderStub struct{}
+
+func (s nextChatRouteModelProviderStub) GetNextChatWorkspaceModels(_ context.Context, _ int64, _ int64) (*service.NextChatWorkspaceModels, error) {
+	g1 := int64(7)
+	g2 := int64(8)
+	return &service.NextChatWorkspaceModels{
+		Source:          "/v1/models",
+		DefaultModel:    "gpt-4o-mini",
+		SelectedGroupID: &g1,
+		Groups: []service.NextChatWorkspaceGroup{
+			{
+				ID:        g1,
+				Name:      "OpenAI main",
+				Platform:  service.PlatformOpenAI,
+				IsCurrent: true,
+				Models: []service.NextChatWorkspaceModel{
+					{ID: "gpt-4o-mini", Name: "gpt-4o-mini", DisplayName: "gpt-4o-mini"},
+				},
+			},
+			{
+				ID:       g2,
+				Name:     "Grok backup",
+				Platform: service.PlatformGrok,
+				Models: []service.NextChatWorkspaceModel{
+					{ID: "grok-4-fast", Name: "grok-4-fast", DisplayName: "grok-4-fast"},
+				},
+			},
+		},
+	}, nil
+}
+
+type nextChatRouteImageStudioStub struct {
+	modelsUserID  int64
+	modelsAPIKey  int64
+	generateUser  int64
+	generateInput service.ImageStudioGenerateRequest
+}
+
+func (s *nextChatRouteImageStudioStub) Models(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	apiKeyID, _ := strconv.ParseInt(c.Query("api_key_id"), 10, 64)
+	s.modelsUserID = subject.UserID
+	s.modelsAPIKey = apiKeyID
+	response.Success(c, gin.H{
+		"models": []service.ImageStudioModelOption{
+			{ID: "gpt-image-1.5", DisplayName: "GPT Image 1.5"},
+		},
+	})
+}
+
+func (s *nextChatRouteImageStudioStub) Generate(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	s.generateUser = subject.UserID
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(&s.generateInput); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	response.Success(c, gin.H{
+		"job": gin.H{
+			"id":          "job-nextchat",
+			"api_key_id":  s.generateInput.APIKeyID,
+			"retain_days": s.generateInput.RetainDays,
+		},
+		"async": true,
+		"poll":  "/api/v1/nextchat/image-studio/jobs/job-nextchat",
+	})
+}
+
+func (s *nextChatRouteImageStudioStub) Estimate(c *gin.Context)        { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) UploadReference(c *gin.Context) { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) DeleteReference(c *gin.Context) { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) ActiveJob(c *gin.Context)       { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) ListJobs(c *gin.Context)        { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) GetJob(c *gin.Context)          { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) JobDownload(c *gin.Context)     { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) CancelJob(c *gin.Context)       { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) DeleteJob(c *gin.Context)       { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) AssetThumbnail(c *gin.Context)  { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) AssetContent(c *gin.Context)    { response.Success(c, gin.H{}) }
+func (s *nextChatRouteImageStudioStub) AssetDownload(c *gin.Context)   { response.Success(c, gin.H{}) }
 
 type nextChatRouteEnvelope struct {
 	Code    int             `json:"code"`
@@ -104,10 +207,8 @@ type nextChatBootstrapResponse struct {
 		CloudSync     bool `json:"cloud_sync"`
 		HistoryExport bool `json:"history_export"`
 	} `json:"features"`
-	Models struct {
-		Source string `json:"source"`
-	} `json:"models"`
-	URLs struct {
+	Models service.NextChatWorkspaceModels `json:"models"`
+	URLs   struct {
 		ReturnURL   string `json:"return_url"`
 		RechargeURL string `json:"recharge_url"`
 		ProfileURL  string `json:"profile_url"`
@@ -141,6 +242,17 @@ func newNextChatRouteTestRouter(
 	cfg *config.Config,
 	rdb *redis.Client,
 ) *gin.Engine {
+	return newNextChatRouteTestRouterWithImageStudio(t, gate, issuer, nil, cfg, rdb)
+}
+
+func newNextChatRouteTestRouterWithImageStudio(
+	t *testing.T,
+	gate nextChatRouteGateStub,
+	issuer nextChatSessionIssuer,
+	imageStudio nextChatImageStudioBFFHandler,
+	cfg *config.Config,
+	rdb *redis.Client,
+) *gin.Engine {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -154,7 +266,7 @@ func newNextChatRouteTestRouter(
 		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 42, Concurrency: 1})
 		c.Next()
 	})
-	registerNextChatRoutes(v1, auth, issuer, gate, cfg, rdb)
+	registerNextChatRoutes(v1, auth, issuer, nextChatRouteModelProviderStub{}, imageStudio, gate, cfg, rdb)
 	return router
 }
 
@@ -202,6 +314,23 @@ func postNextChatSession(router *gin.Engine, secret, token string) *httptest.Res
 func getNextChatBFF(router *gin.Engine, path, secret string, userID, apiKeyID int64) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, path, nil)
+	if secret != "" {
+		req.Header.Set("X-NextChat-Secret", secret)
+	}
+	if userID > 0 {
+		req.Header.Set("X-NextChat-User-ID", strconv.FormatInt(userID, 10))
+	}
+	if apiKeyID > 0 {
+		req.Header.Set("X-NextChat-API-Key-ID", strconv.FormatInt(apiKeyID, 10))
+	}
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func postNextChatBFF(router *gin.Engine, path, secret string, userID, apiKeyID int64, body string) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
 	if secret != "" {
 		req.Header.Set("X-NextChat-Secret", secret)
 	}
@@ -341,6 +470,11 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.True(t, got.Features.ImageStudio)
 	require.False(t, got.Features.CloudSync)
 	require.Equal(t, "/v1/models", got.Models.Source)
+	require.Len(t, got.Models.Groups, 2)
+	require.Equal(t, int64(7), got.Models.Groups[0].ID)
+	require.Equal(t, "gpt-4o-mini", got.Models.Groups[0].Models[0].Name)
+	require.Equal(t, int64(8), got.Models.Groups[1].ID)
+	require.Equal(t, "grok-4-fast", got.Models.Groups[1].Models[0].Name)
 	require.Equal(t, "https://www.jisudeng.com", got.URLs.ReturnURL)
 	require.Equal(t, "https://www.jisudeng.com/payment", got.URLs.RechargeURL)
 	require.Equal(t, 7, got.Retention.TextSessionDays)
@@ -348,6 +482,65 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.False(t, got.Retention.ServerChatLog)
 	require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
 	require.NotContains(t, recorder.Body.String(), `"api_key"`)
+}
+
+func TestNextChatGroupSwitchUpdatesManagedKeyGroup(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/group", "server-secret", 42, 123, `{"group_id":8}`)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[struct {
+		ManagedAPIKey service.NextChatWorkspaceAPIKey `json:"managed_api_key"`
+		Models        service.NextChatWorkspaceModels `json:"models"`
+	}](t, recorder)
+	require.Equal(t, []int64{8}, issuer.switchRequests)
+	require.NotNil(t, got.ManagedAPIKey.GroupID)
+	require.Equal(t, int64(8), *got.ManagedAPIKey.GroupID)
+	require.Equal(t, "/v1/models", got.Models.Source)
+	require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
+}
+
+func TestNextChatImageStudioModelsUsesBFFIdentity(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	imageStudio := &nextChatRouteImageStudioStub{}
+	router := newNextChatRouteTestRouterWithImageStudio(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, imageStudio, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/image-studio/models", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.Equal(t, int64(42), imageStudio.modelsUserID)
+	require.Equal(t, int64(123), imageStudio.modelsAPIKey)
+	require.Contains(t, recorder.Body.String(), "gpt-image-1.5")
+}
+
+func TestNextChatImageStudioGenerateForcesManagedKeyAndOneDayRetention(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	imageStudio := &nextChatRouteImageStudioStub{}
+	router := newNextChatRouteTestRouterWithImageStudio(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, imageStudio, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/image-studio/generate", "server-secret", 42, 123, `{
+		"template_id":"free-create",
+		"user_prompt":"draw a clean product photo",
+		"api_key_id":999,
+		"retain_days":7,
+		"count":1
+	}`)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.Equal(t, int64(42), imageStudio.generateUser)
+	require.Equal(t, int64(123), imageStudio.generateInput.APIKeyID)
+	require.NotNil(t, imageStudio.generateInput.RetainDays)
+	require.Equal(t, 1, *imageStudio.generateInput.RetainDays)
+	require.NotContains(t, recorder.Body.String(), "999")
 }
 
 func TestNextChatPromptsHideInternalImagePromptTemplate(t *testing.T) {
