@@ -92,7 +92,7 @@
               </label>
               <div class="flex items-center justify-between gap-3 text-sm">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recalcStatus') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ userSettings?.recalc_status || '-' }}</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ recalcStatusLabel(userSettings?.recalc_status) }}</span>
               </div>
               <button type="submit" class="btn btn-primary inline-flex items-center justify-center gap-2" :disabled="userSettingsSaving">
                 <Icon name="check" size="sm" />
@@ -591,6 +591,13 @@ function methodLabel(method: string) {
   const key = `admin.withdrawals.methods.${method}`
   const translated = t(key)
   return translated === key ? t('admin.withdrawals.method') : translated
+}
+
+function recalcStatusLabel(status?: string) {
+  if (!status) return '-'
+  const key = `admin.withdrawals.recalcStatuses.${status}`
+  const translated = t(key)
+  return translated === key ? t('admin.withdrawals.recalcStatuses.unknown') : translated
 }
 
 function statusClass(status: WithdrawalStatus) {

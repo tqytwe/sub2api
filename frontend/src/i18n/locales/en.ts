@@ -1873,6 +1873,11 @@ const messages = {
       disabledReason: 'Disabled reason',
       disabledReasonPlaceholder: 'Optional stable reason code or ops note',
       recalcStatus: 'Recompute status',
+      recalcStatuses: {
+        ready: 'Ready',
+        needs_review: 'Needs review',
+        unknown: 'Unknown status',
+      },
       userSettingsSaved: 'User withdrawal permissions saved',
       userSettingsSaveFailed: 'Failed to save user withdrawal permissions',
       batchTitle: 'Batch Permissions',
