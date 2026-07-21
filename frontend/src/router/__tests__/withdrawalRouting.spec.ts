@@ -29,4 +29,18 @@ describe('withdrawal route integration', () => {
       expect(enSource).toContain(text)
     }
   })
+
+  it('localizes admin withdrawal recompute status codes', () => {
+    const viewSource = readFileSync(resolve(process.cwd(), 'src/views/admin/AdminWithdrawalsView.vue'), 'utf8')
+    const zhSource = readFileSync(resolve(process.cwd(), 'src/i18n/locales/zh.ts'), 'utf8')
+    const enSource = readFileSync(resolve(process.cwd(), 'src/i18n/locales/en.ts'), 'utf8')
+
+    expect(viewSource).toContain('recalcStatusLabel(userSettings?.recalc_status)')
+    expect(viewSource).not.toContain("{{ userSettings?.recalc_status || '-' }}")
+    expect(zhSource).toContain("ready: '已通过复核'")
+    expect(zhSource).toContain("needs_review: '待复核'")
+    expect(zhSource).not.toContain('仅 ready 用户可开启提现')
+    expect(enSource).toContain("ready: 'Ready'")
+    expect(enSource).toContain("needs_review: 'Needs review'")
+  })
 })
