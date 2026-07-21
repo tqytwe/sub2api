@@ -121,6 +121,11 @@ check_contains "FORK-PLAY-003" "admin team event route" "backend/internal/server
 check_file "FORK-PLAY-003" "admin team repair service" "backend/internal/service/play_admin_team_repair.go"
 check_contains "FORK-PLAY-003" "Chinese admin team repair locale" "frontend/src/i18n/locales/zh/admin/playOps.ts" "memberRepair:"
 check_contains "FORK-PLAY-003" "English admin team repair locale" "frontend/src/i18n/locales/en/admin/playOps.ts" "memberRepair:"
+check_contains "FORK-PLAY-003" "daily arena reward summary route" "backend/internal/server/routes/play.go" 'play.GET("/arena/daily/reward-summary"'
+check_file "FORK-PLAY-003" "daily arena reward summary service" "backend/internal/service/play_daily_reward_summary.go"
+check_contains "FORK-PLAY-003" "daily arena summary API client" "frontend/src/api/play.ts" "getArenaDailyRewardSummary"
+check_contains "FORK-PLAY-003" "Chinese daily arena summary locale" "frontend/src/i18n/locales/jisudeng-pages.zh.ts" "dailySummary:"
+check_contains "FORK-PLAY-003" "English daily arena summary locale" "frontend/src/i18n/locales/jisudeng-pages.en.ts" "dailySummary:"
 
 check_contains "FORK-IMAGE-004" "required prompt error" "backend/internal/service/image_studio.go" "IMAGE_STUDIO_PROMPT_REQUIRED"
 check_regex "FORK-IMAGE-004" "prompt hash is private" "backend/internal/service/image_studio.go" 'PromptHash[[:space:]]+string[[:space:]]+`json:"-"`'
@@ -221,6 +226,9 @@ MIGRATIONS=(
   206_vip_recharge_legacy_tiers_backfill.sql
   207_balance_transactions.sql
   207_subscription_plan_product_display.sql
+  208_image_studio_asset_lifecycle.sql
+  208_image_studio_asset_lifecycle_indexes_notx.sql
+  209_play_arena_daily_reward_summary.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -251,6 +259,8 @@ run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
 run_check "FORK-PLAY-003" "admin team repair unit and route tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler/admin ./internal/server/routes -run '^(TestAdminTeamRepair|TestAdminTeamMemberCandidatePreview|TestAdminPlayTeamRepairRoutesContract|TestTeamRewardSnapshotLock|TestTeamSettlementSnapshotReusesOuterTransaction)'"
+run_check "FORK-PLAY-003" "daily arena reward summary tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler ./migrations -run '^(TestDailyArena|TestArenaPeriodQueriesExpose|TestArenaDailyRewardSummaryRoute|TestPlayArenaDailyRewardSummaryMigrationContract)'"
 run_check "FORK-IMAGE-011" "Images async, URL and Batch runtime unit tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service ./internal/handler -run 'TestImageTask|TestImageRuntimesHealthGatewayAsync|TestAsyncImage|TestOpenAIImageResultServiceRewriteAndEnforceAPIKeyOwnership|TestOpenAIGatewayServiceForwardImages_(APIKeyStreamingURLStoresCompletedImage|OAuthStreamingTransformsEvents|StreamURLRequiresStorageBeforeUpstream)|TestBatchImage(RuntimeState|WorkerRuntime|ProviderRegistryFromConfig|PublicService_Submit)'"
 
@@ -269,6 +279,9 @@ run_check "FORK-PLAY-003" "admin team repair and bilingual Play Ops tests" \
     src/views/admin/__tests__/PlayOpsView.spec.ts \
     src/i18n/locales/adminPlayOpsParity.spec.ts \
     src/i18n/__tests__/bilingualProductUi.spec.ts
+run_check "FORK-PLAY-003" "daily arena reward summary frontend test" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/views/public/__tests__/ArenaView.competitive.spec.ts
 
 echo
 if [[ "$FAIL" -ne 0 ]]; then

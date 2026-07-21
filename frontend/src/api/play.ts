@@ -57,6 +57,44 @@ export interface PlayArenaLeaderboard {
   rows: PlayArenaScore[]
 }
 
+export interface PlayArenaDailyRewardSummary {
+  enabled: boolean
+  recent?: PlayArenaDailyRecentRewardSummary
+  current?: PlayArenaDailyCurrentRewardEstimate
+}
+
+export interface PlayArenaDailyRecentRewardSummary {
+  period?: PlayArenaPeriod
+  settled_at?: string
+  paid_today: boolean
+  winners_count: number
+  total_amount: number
+  winners: PlayArenaDailyRewardWinner[]
+}
+
+export interface PlayArenaDailyRewardWinner {
+  rank: number
+  user_id: number
+  display_name: string
+  avatar_url?: string
+  token_sum: number
+  amount: number
+}
+
+export interface PlayArenaDailyCurrentRewardEstimate {
+  period?: PlayArenaPeriod
+  rows: PlayArenaDailyRewardEstimateRow[]
+}
+
+export interface PlayArenaDailyRewardEstimateRow {
+  rank: number
+  user_id: number
+  display_name: string
+  avatar_url?: string
+  token_sum: number
+  estimated_reward: number
+}
+
 export interface PlayBlindboxStatus {
   enabled: boolean
   cost_amount: number
@@ -371,6 +409,11 @@ export async function getArenaDailyLeaderboard(limit = 50): Promise<PlayArenaLea
   return data
 }
 
+export async function getArenaDailyRewardSummary(): Promise<PlayArenaDailyRewardSummary> {
+  const { data } = await apiClient.get<PlayArenaDailyRewardSummary>('/play/arena/daily/reward-summary')
+  return data
+}
+
 export async function getQuestsToday(): Promise<PlayQuestToday> {
   const { data } = await apiClient.get<PlayQuestToday>('/play/quests/today')
   return data
@@ -456,6 +499,7 @@ export const playAPI = {
   getArenaLeaderboard,
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
+  getArenaDailyRewardSummary,
   getQuestsToday,
   getBlindboxPool,
   getBlindboxStatus,

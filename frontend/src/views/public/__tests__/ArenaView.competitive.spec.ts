@@ -8,12 +8,14 @@ const {
   getArenaDailyCurrentMock,
   getArenaLeaderboardMock,
   getArenaDailyLeaderboardMock,
+  getArenaDailyRewardSummaryMock,
   getQuestsTodayMock,
 } = vi.hoisted(() => ({
   getArenaCurrentMock: vi.fn(),
   getArenaDailyCurrentMock: vi.fn(),
   getArenaLeaderboardMock: vi.fn(),
   getArenaDailyLeaderboardMock: vi.fn(),
+  getArenaDailyRewardSummaryMock: vi.fn(),
   getQuestsTodayMock: vi.fn(),
 }))
 
@@ -34,6 +36,7 @@ vi.mock('@/api/play', () => ({
     getArenaDailyCurrent: (...args: unknown[]) => getArenaDailyCurrentMock(...args),
     getArenaLeaderboard: (...args: unknown[]) => getArenaLeaderboardMock(...args),
     getArenaDailyLeaderboard: (...args: unknown[]) => getArenaDailyLeaderboardMock(...args),
+    getArenaDailyRewardSummary: (...args: unknown[]) => getArenaDailyRewardSummaryMock(...args),
     getQuestsToday: (...args: unknown[]) => getQuestsTodayMock(...args),
   },
 }))
@@ -52,6 +55,7 @@ const messages: Record<string, string> = {
   'arena.gapToPrev': '距上一名还差 {gap} tokens',
   'arena.leaderboard': '排行榜',
   'arena.empty': '暂无排行',
+  'arena.tokenValue': '{tokens} 枚代币',
   'arena.rpg.season': '赛季',
   'arena.rpg.level': 'Lv.{level}',
   'arena.rpg.farmer': '耕作者',
@@ -81,6 +85,20 @@ const messages: Record<string, string> = {
   'arena.competitive.noRank': '尚未上榜',
   'arena.competitive.podium': '前三名',
   'arena.competitive.questEnergy': '+{energy} 能量',
+  'arena.dailySummary.recentTitle': '最近发放',
+  'arena.dailySummary.currentTitle': '当前预估',
+  'arena.dailySummary.settledAt': '发放时间：{time}',
+  'arena.dailySummary.period': '结算周期：{period}',
+  'arena.dailySummary.currentPeriod': '当前周期：{period}',
+  'arena.dailySummary.paidToday': '今日已发放',
+  'arena.dailySummary.delayed': '非今日发放',
+  'arena.dailySummary.winners': '{count} 人获奖',
+  'arena.dailySummary.total': '合计 ${amount}',
+  'arena.dailySummary.noRecent': '暂无已结算日榜',
+  'arena.dailySummary.noEstimate': '当前暂无预估奖励',
+  'arena.dailySummary.rowReward': '预计 ${amount}',
+  'arena.dailySummary.winnerReward': '到账 ${amount}',
+  'arena.dailySummary.rankToken': '#{rank} · {tokens} 枚代币',
   'arena.quests.api_call': 'API 调用',
   'arena.quests.image_generate': '出图 1 张',
 }
@@ -130,6 +148,7 @@ function mountView() {
 describe('ArenaView competitive layout', () => {
   beforeEach(() => {
     window.sessionStorage.clear()
+    vi.clearAllMocks()
     getArenaCurrentMock.mockResolvedValue({
       enabled: true,
       period: period(),
@@ -165,6 +184,27 @@ describe('ArenaView competitive layout', () => {
         { rank: 3, user_id: 23, display_name: '你', token_sum: 12000 },
       ],
     })
+    getArenaDailyRewardSummaryMock.mockResolvedValue({
+      enabled: true,
+      recent: {
+        period: { ...period(), id: 31, name: '2026-07-16 日榜', status: 'settled' },
+        settled_at: '2026-07-17T00:08:00+08:00',
+        paid_today: false,
+        winners_count: 2,
+        total_amount: 0.7,
+        winners: [
+          { rank: 1, user_id: 21, display_name: 'Daily One', token_sum: 22000, amount: 0.5 },
+          { rank: 2, user_id: 22, display_name: 'Daily Two', token_sum: 18000, amount: 0.2 },
+        ],
+      },
+      current: {
+        period: { ...period(), id: 32, name: '2026-07-17 日榜' },
+        rows: [
+          { rank: 1, user_id: 23, display_name: '你', token_sum: 12000, estimated_reward: 0.5 },
+          { rank: 2, user_id: 24, display_name: 'Current Two', token_sum: 9000, estimated_reward: 0.2 },
+        ],
+      },
+    })
     getQuestsTodayMock.mockResolvedValue({
       enabled: true,
       energy: 30,
@@ -190,6 +230,25 @@ describe('ArenaView competitive layout', () => {
     expect(wrapper.text()).toContain('充值/活动倍率只影响展示积分和排名，不直接倍增奖励金额')
     expect(wrapper.find('.arena-rank-row.current').text()).toContain('你')
     expect(wrapper.findAll('.arena-quest-card')).toHaveLength(2)
+  })
+
+  it('renders daily recent payout and current estimate without labeling yesterday as today', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.arena-rpg-tab').trigger('click')
+    await flushPromises()
+
+    expect(getArenaDailyRewardSummaryMock).toHaveBeenCalledOnce()
+    expect(wrapper.text()).toContain('最近发放')
+    expect(wrapper.text()).toContain('当前预估')
+    expect(wrapper.text()).toContain('结算周期：2026-07-16 日榜')
+    expect(wrapper.text()).toContain('非今日发放')
+    expect(wrapper.text()).toContain('2 人获奖')
+    expect(wrapper.text()).toContain('合计 $0.70')
+    expect(wrapper.text()).toContain('到账 $0.50')
+    expect(wrapper.text()).toContain('预计 $0.50')
+    expect(wrapper.text()).not.toContain('今日排名')
   })
 
   it('shows the settlement celebration once per settled period', async () => {

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"strconv"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -83,6 +84,15 @@ func (h *PlayHandler) ArenaDailyLeaderboard(c *gin.Context) {
 	response.Success(c, out)
 }
 
+func (h *PlayHandler) ArenaDailyRewardSummary(c *gin.Context) {
+	summary, err := h.playService.GetDailyArenaRewardSummary(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toPlayArenaDailyRewardSummaryDTO(summary))
+}
+
 func toPlayArenaCurrentDTO(current *service.PlayArenaCurrent) playArenaCurrentDTO {
 	if current == nil {
 		return playArenaCurrentDTO{}
@@ -102,6 +112,58 @@ func toPlayArenaCurrentDTO(current *service.PlayArenaCurrent) playArenaCurrentDT
 		out.Period = toPlayArenaPeriodDTO(current.Period)
 	}
 	return out
+}
+
+func toPlayArenaDailyRewardSummaryDTO(summary *service.PlayArenaDailyRewardSummary) playArenaDailyRewardSummaryDTO {
+	if summary == nil {
+		return playArenaDailyRewardSummaryDTO{}
+	}
+	out := playArenaDailyRewardSummaryDTO{Enabled: summary.Enabled}
+	if summary.Recent != nil {
+		out.Recent = &playArenaDailyRecentRewardSummaryDTO{
+			Period:       toPlayArenaPeriodDTO(summary.Recent.Period),
+			SettledAt:    formatOptionalPlayTime(summary.Recent.SettledAt),
+			PaidToday:    summary.Recent.PaidToday,
+			WinnersCount: summary.Recent.WinnersCount,
+			TotalAmount:  summary.Recent.TotalAmount,
+			Winners:      make([]playArenaDailyRewardWinnerDTO, 0, len(summary.Recent.Winners)),
+		}
+		for _, row := range summary.Recent.Winners {
+			out.Recent.Winners = append(out.Recent.Winners, playArenaDailyRewardWinnerDTO{
+				Rank:        row.Rank,
+				UserID:      row.UserID,
+				DisplayName: row.DisplayName,
+				AvatarURL:   row.AvatarURL,
+				TokenSum:    row.TokenSum,
+				Amount:      row.Amount,
+			})
+		}
+	}
+	if summary.Current != nil {
+		out.Current = &playArenaDailyCurrentRewardEstimateDTO{
+			Period: toPlayArenaPeriodDTO(summary.Current.Period),
+			Rows:   make([]playArenaDailyRewardEstimateDTO, 0, len(summary.Current.Rows)),
+		}
+		for _, row := range summary.Current.Rows {
+			out.Current.Rows = append(out.Current.Rows, playArenaDailyRewardEstimateDTO{
+				Rank:            row.Rank,
+				UserID:          row.UserID,
+				DisplayName:     row.DisplayName,
+				AvatarURL:       row.AvatarURL,
+				TokenSum:        row.TokenSum,
+				EstimatedReward: row.EstimatedReward,
+			})
+		}
+	}
+	return out
+}
+
+func formatOptionalPlayTime(t *time.Time) *string {
+	if t == nil {
+		return nil
+	}
+	formatted := t.Format("2006-01-02T15:04:05Z07:00")
+	return &formatted
 }
 
 func toPlayQuestTodayDTO(q *service.PlayQuestToday) playQuestTodayDTO {
