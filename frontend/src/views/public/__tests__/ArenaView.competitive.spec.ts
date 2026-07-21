@@ -163,6 +163,7 @@ describe('ArenaView competitive layout', () => {
       period: { ...period(), name: '2026-07-17 日榜' },
       token_sum: 12000,
       rank: 3,
+      estimated_reward: 0.2,
     })
     getArenaLeaderboardMock.mockResolvedValue({
       enabled: true,
@@ -218,25 +219,38 @@ describe('ArenaView competitive layout', () => {
     })
   })
 
-  it('renders podium, reward rules, current user highlight, and quest cards', async () => {
+  it('defaults to the daily board with recent payout, estimate, and quest cards', async () => {
     const wrapper = mountView()
     await flushPromises()
 
+    expect(wrapper.find('.arena-rpg-tab.active').text()).toContain('日榜')
     expect(wrapper.findAll('.arena-podium-card')).toHaveLength(3)
-    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('Mira Studio')
+    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('Daily One')
     expect(wrapper.text()).toContain('奖励发给排行榜上榜用户')
     expect(wrapper.text()).toContain('每日任务能量用于等级/进度展示，不等同于余额到账')
-    expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
+    expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$0.20')
     expect(wrapper.text()).toContain('充值/活动倍率只影响展示积分和排名，不直接倍增奖励金额')
-    expect(wrapper.find('.arena-rank-row.current').text()).toContain('你')
+    expect(wrapper.text()).toContain('最近发放')
+    expect(wrapper.text()).toContain('当前预估')
     expect(wrapper.findAll('.arena-quest-card')).toHaveLength(2)
+  })
+
+  it('keeps the monthly board available from the tab switch', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.findAll('.arena-rpg-tab')[1].trigger('click')
+    await flushPromises()
+
+    expect(wrapper.find('.arena-rpg-tab.active').text()).toContain('月榜')
+    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('Mira Studio')
+    expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
+    expect(wrapper.find('.arena-rank-row.current').text()).toContain('你')
+    expect(wrapper.text()).not.toContain('最近发放')
   })
 
   it('renders daily recent payout and current estimate without labeling yesterday as today', async () => {
     const wrapper = mountView()
-    await flushPromises()
-
-    await wrapper.get('.arena-rpg-tab').trigger('click')
     await flushPromises()
 
     expect(getArenaDailyRewardSummaryMock).toHaveBeenCalledOnce()
@@ -251,7 +265,7 @@ describe('ArenaView competitive layout', () => {
     expect(wrapper.text()).not.toContain('今日排名')
   })
 
-  it('shows the settlement celebration once per settled period', async () => {
+  it('shows the monthly settlement celebration once after switching to the settled monthly period', async () => {
     getArenaCurrentMock.mockResolvedValue({
       enabled: true,
       period: { ...period(), status: 'settled' },
@@ -265,6 +279,11 @@ describe('ArenaView competitive layout', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
+
+    await wrapper.findAll('.arena-rpg-tab')[1].trigger('click')
+    await flushPromises()
+
     expect(wrapper.find('.reward-celebration-overlay').text()).toContain('$5.00')
 
     await wrapper.get('.reward-close').trigger('click')
@@ -274,6 +293,9 @@ describe('ArenaView competitive layout', () => {
     expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
 
     const again = mountView()
+    await flushPromises()
+
+    await again.findAll('.arena-rpg-tab')[1].trigger('click')
     await flushPromises()
 
     expect(again.find('.reward-celebration-overlay').exists()).toBe(false)
