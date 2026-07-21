@@ -284,6 +284,6 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 
 ### 交付 commit
 
-- 状态：未开始
-- CP2 实现 commit：尚未创建
+- 状态：进行中
+- CP2 实现 commit：`5dc5afb80`（`feat(play): add wallet transparency`）
 - PR：尚未创建
