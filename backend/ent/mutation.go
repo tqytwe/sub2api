@@ -38287,34 +38287,38 @@ func (m *SettingMutation) ResetEdge(name string) error {
 // SubscriptionPlanMutation represents an operation that mutates the SubscriptionPlan nodes in the graph.
 type SubscriptionPlanMutation struct {
 	config
-	op                 Op
-	typ                string
-	id                 *int64
-	group_id           *int64
-	addgroup_id        *int64
-	name               *string
-	description        *string
-	price              *float64
-	addprice           *float64
-	original_price     *float64
-	addoriginal_price  *float64
-	currency           *string
-	validity_days      *int
-	addvalidity_days   *int
-	validity_unit      *string
-	features           *string
-	product_name       *string
-	cover_image_url    *string
-	detail_description *string
-	for_sale           *bool
-	sort_order         *int
-	addsort_order      *int
-	created_at         *time.Time
-	updated_at         *time.Time
-	clearedFields      map[string]struct{}
-	done               bool
-	oldValue           func(context.Context) (*SubscriptionPlan, error)
-	predicates         []predicate.SubscriptionPlan
+	op                  Op
+	typ                 string
+	id                  *int64
+	group_id            *int64
+	addgroup_id         *int64
+	name                *string
+	description         *string
+	price               *float64
+	addprice            *float64
+	original_price      *float64
+	addoriginal_price   *float64
+	currency            *string
+	validity_days       *int
+	addvalidity_days    *int
+	validity_unit       *string
+	features            *string
+	product_name        *string
+	cover_image_url     *string
+	detail_description  *string
+	storefront_platform *string
+	storefront_category *string
+	storefront_featured *bool
+	storefront_badge    *string
+	for_sale            *bool
+	sort_order          *int
+	addsort_order       *int
+	created_at          *time.Time
+	updated_at          *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*SubscriptionPlan, error)
+	predicates          []predicate.SubscriptionPlan
 }
 
 var _ ent.Mutation = (*SubscriptionPlanMutation)(nil)
@@ -38941,6 +38945,150 @@ func (m *SubscriptionPlanMutation) ResetDetailDescription() {
 	m.detail_description = nil
 }
 
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (m *SubscriptionPlanMutation) SetStorefrontPlatform(s string) {
+	m.storefront_platform = &s
+}
+
+// StorefrontPlatform returns the value of the "storefront_platform" field in the mutation.
+func (m *SubscriptionPlanMutation) StorefrontPlatform() (r string, exists bool) {
+	v := m.storefront_platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorefrontPlatform returns the old "storefront_platform" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldStorefrontPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorefrontPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorefrontPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorefrontPlatform: %w", err)
+	}
+	return oldValue.StorefrontPlatform, nil
+}
+
+// ResetStorefrontPlatform resets all changes to the "storefront_platform" field.
+func (m *SubscriptionPlanMutation) ResetStorefrontPlatform() {
+	m.storefront_platform = nil
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (m *SubscriptionPlanMutation) SetStorefrontCategory(s string) {
+	m.storefront_category = &s
+}
+
+// StorefrontCategory returns the value of the "storefront_category" field in the mutation.
+func (m *SubscriptionPlanMutation) StorefrontCategory() (r string, exists bool) {
+	v := m.storefront_category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorefrontCategory returns the old "storefront_category" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldStorefrontCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorefrontCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorefrontCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorefrontCategory: %w", err)
+	}
+	return oldValue.StorefrontCategory, nil
+}
+
+// ResetStorefrontCategory resets all changes to the "storefront_category" field.
+func (m *SubscriptionPlanMutation) ResetStorefrontCategory() {
+	m.storefront_category = nil
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (m *SubscriptionPlanMutation) SetStorefrontFeatured(b bool) {
+	m.storefront_featured = &b
+}
+
+// StorefrontFeatured returns the value of the "storefront_featured" field in the mutation.
+func (m *SubscriptionPlanMutation) StorefrontFeatured() (r bool, exists bool) {
+	v := m.storefront_featured
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorefrontFeatured returns the old "storefront_featured" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldStorefrontFeatured(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorefrontFeatured is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorefrontFeatured requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorefrontFeatured: %w", err)
+	}
+	return oldValue.StorefrontFeatured, nil
+}
+
+// ResetStorefrontFeatured resets all changes to the "storefront_featured" field.
+func (m *SubscriptionPlanMutation) ResetStorefrontFeatured() {
+	m.storefront_featured = nil
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (m *SubscriptionPlanMutation) SetStorefrontBadge(s string) {
+	m.storefront_badge = &s
+}
+
+// StorefrontBadge returns the value of the "storefront_badge" field in the mutation.
+func (m *SubscriptionPlanMutation) StorefrontBadge() (r string, exists bool) {
+	v := m.storefront_badge
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorefrontBadge returns the old "storefront_badge" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldStorefrontBadge(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorefrontBadge is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorefrontBadge requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorefrontBadge: %w", err)
+	}
+	return oldValue.StorefrontBadge, nil
+}
+
+// ResetStorefrontBadge resets all changes to the "storefront_badge" field.
+func (m *SubscriptionPlanMutation) ResetStorefrontBadge() {
+	m.storefront_badge = nil
+}
+
 // SetForSale sets the "for_sale" field.
 func (m *SubscriptionPlanMutation) SetForSale(b bool) {
 	m.for_sale = &b
@@ -39139,7 +39287,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 20)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -39175,6 +39323,18 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.detail_description != nil {
 		fields = append(fields, subscriptionplan.FieldDetailDescription)
+	}
+	if m.storefront_platform != nil {
+		fields = append(fields, subscriptionplan.FieldStorefrontPlatform)
+	}
+	if m.storefront_category != nil {
+		fields = append(fields, subscriptionplan.FieldStorefrontCategory)
+	}
+	if m.storefront_featured != nil {
+		fields = append(fields, subscriptionplan.FieldStorefrontFeatured)
+	}
+	if m.storefront_badge != nil {
+		fields = append(fields, subscriptionplan.FieldStorefrontBadge)
 	}
 	if m.for_sale != nil {
 		fields = append(fields, subscriptionplan.FieldForSale)
@@ -39220,6 +39380,14 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.CoverImageURL()
 	case subscriptionplan.FieldDetailDescription:
 		return m.DetailDescription()
+	case subscriptionplan.FieldStorefrontPlatform:
+		return m.StorefrontPlatform()
+	case subscriptionplan.FieldStorefrontCategory:
+		return m.StorefrontCategory()
+	case subscriptionplan.FieldStorefrontFeatured:
+		return m.StorefrontFeatured()
+	case subscriptionplan.FieldStorefrontBadge:
+		return m.StorefrontBadge()
 	case subscriptionplan.FieldForSale:
 		return m.ForSale()
 	case subscriptionplan.FieldSortOrder:
@@ -39261,6 +39429,14 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldCoverImageURL(ctx)
 	case subscriptionplan.FieldDetailDescription:
 		return m.OldDetailDescription(ctx)
+	case subscriptionplan.FieldStorefrontPlatform:
+		return m.OldStorefrontPlatform(ctx)
+	case subscriptionplan.FieldStorefrontCategory:
+		return m.OldStorefrontCategory(ctx)
+	case subscriptionplan.FieldStorefrontFeatured:
+		return m.OldStorefrontFeatured(ctx)
+	case subscriptionplan.FieldStorefrontBadge:
+		return m.OldStorefrontBadge(ctx)
 	case subscriptionplan.FieldForSale:
 		return m.OldForSale(ctx)
 	case subscriptionplan.FieldSortOrder:
@@ -39361,6 +39537,34 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDetailDescription(v)
+		return nil
+	case subscriptionplan.FieldStorefrontPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorefrontPlatform(v)
+		return nil
+	case subscriptionplan.FieldStorefrontCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorefrontCategory(v)
+		return nil
+	case subscriptionplan.FieldStorefrontFeatured:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorefrontFeatured(v)
+		return nil
+	case subscriptionplan.FieldStorefrontBadge:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorefrontBadge(v)
 		return nil
 	case subscriptionplan.FieldForSale:
 		v, ok := value.(bool)
@@ -39546,6 +39750,18 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldDetailDescription:
 		m.ResetDetailDescription()
+		return nil
+	case subscriptionplan.FieldStorefrontPlatform:
+		m.ResetStorefrontPlatform()
+		return nil
+	case subscriptionplan.FieldStorefrontCategory:
+		m.ResetStorefrontCategory()
+		return nil
+	case subscriptionplan.FieldStorefrontFeatured:
+		m.ResetStorefrontFeatured()
+		return nil
+	case subscriptionplan.FieldStorefrontBadge:
+		m.ResetStorefrontBadge()
 		return nil
 	case subscriptionplan.FieldForSale:
 		m.ResetForSale()

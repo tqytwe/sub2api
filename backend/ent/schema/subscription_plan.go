@@ -63,6 +63,17 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("detail_description").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),
+		field.String("storefront_platform").
+			MaxLen(50).
+			Default(""),
+		field.String("storefront_category").
+			MaxLen(50).
+			Default(""),
+		field.Bool("storefront_featured").
+			Default(false),
+		field.String("storefront_badge").
+			MaxLen(64).
+			Default(""),
 		field.Bool("for_sale").
 			Default(true),
 		field.Int("sort_order").
@@ -82,5 +93,8 @@ func (SubscriptionPlan) Indexes() []ent.Index {
 	return []ent.Index{
 		index.Fields("group_id"),
 		index.Fields("for_sale"),
+		index.Fields("storefront_platform"),
+		index.Fields("storefront_category"),
+		index.Fields("storefront_featured"),
 	}
 }

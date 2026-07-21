@@ -37,6 +37,14 @@ const (
 	FieldCoverImageURL = "cover_image_url"
 	// FieldDetailDescription holds the string denoting the detail_description field in the database.
 	FieldDetailDescription = "detail_description"
+	// FieldStorefrontPlatform holds the string denoting the storefront_platform field in the database.
+	FieldStorefrontPlatform = "storefront_platform"
+	// FieldStorefrontCategory holds the string denoting the storefront_category field in the database.
+	FieldStorefrontCategory = "storefront_category"
+	// FieldStorefrontFeatured holds the string denoting the storefront_featured field in the database.
+	FieldStorefrontFeatured = "storefront_featured"
+	// FieldStorefrontBadge holds the string denoting the storefront_badge field in the database.
+	FieldStorefrontBadge = "storefront_badge"
 	// FieldForSale holds the string denoting the for_sale field in the database.
 	FieldForSale = "for_sale"
 	// FieldSortOrder holds the string denoting the sort_order field in the database.
@@ -64,6 +72,10 @@ var Columns = []string{
 	FieldProductName,
 	FieldCoverImageURL,
 	FieldDetailDescription,
+	FieldStorefrontPlatform,
+	FieldStorefrontCategory,
+	FieldStorefrontFeatured,
+	FieldStorefrontBadge,
 	FieldForSale,
 	FieldSortOrder,
 	FieldCreatedAt,
@@ -105,6 +117,20 @@ var (
 	DefaultCoverImageURL string
 	// DefaultDetailDescription holds the default value on creation for the "detail_description" field.
 	DefaultDetailDescription string
+	// DefaultStorefrontPlatform holds the default value on creation for the "storefront_platform" field.
+	DefaultStorefrontPlatform string
+	// StorefrontPlatformValidator is a validator for the "storefront_platform" field. It is called by the builders before save.
+	StorefrontPlatformValidator func(string) error
+	// DefaultStorefrontCategory holds the default value on creation for the "storefront_category" field.
+	DefaultStorefrontCategory string
+	// StorefrontCategoryValidator is a validator for the "storefront_category" field. It is called by the builders before save.
+	StorefrontCategoryValidator func(string) error
+	// DefaultStorefrontFeatured holds the default value on creation for the "storefront_featured" field.
+	DefaultStorefrontFeatured bool
+	// DefaultStorefrontBadge holds the default value on creation for the "storefront_badge" field.
+	DefaultStorefrontBadge string
+	// StorefrontBadgeValidator is a validator for the "storefront_badge" field. It is called by the builders before save.
+	StorefrontBadgeValidator func(string) error
 	// DefaultForSale holds the default value on creation for the "for_sale" field.
 	DefaultForSale bool
 	// DefaultSortOrder holds the default value on creation for the "sort_order" field.
@@ -183,6 +209,26 @@ func ByCoverImageURL(opts ...sql.OrderTermOption) OrderOption {
 // ByDetailDescription orders the results by the detail_description field.
 func ByDetailDescription(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDetailDescription, opts...).ToFunc()
+}
+
+// ByStorefrontPlatform orders the results by the storefront_platform field.
+func ByStorefrontPlatform(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStorefrontPlatform, opts...).ToFunc()
+}
+
+// ByStorefrontCategory orders the results by the storefront_category field.
+func ByStorefrontCategory(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStorefrontCategory, opts...).ToFunc()
+}
+
+// ByStorefrontFeatured orders the results by the storefront_featured field.
+func ByStorefrontFeatured(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStorefrontFeatured, opts...).ToFunc()
+}
+
+// ByStorefrontBadge orders the results by the storefront_badge field.
+func ByStorefrontBadge(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldStorefrontBadge, opts...).ToFunc()
 }
 
 // ByForSale orders the results by the for_sale field.

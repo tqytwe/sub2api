@@ -114,6 +114,26 @@ func DetailDescription(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldDetailDescription, v))
 }
 
+// StorefrontPlatform applies equality check predicate on the "storefront_platform" field. It's identical to StorefrontPlatformEQ.
+func StorefrontPlatform(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontPlatform, v))
+}
+
+// StorefrontCategory applies equality check predicate on the "storefront_category" field. It's identical to StorefrontCategoryEQ.
+func StorefrontCategory(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontCategory, v))
+}
+
+// StorefrontFeatured applies equality check predicate on the "storefront_featured" field. It's identical to StorefrontFeaturedEQ.
+func StorefrontFeatured(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontFeatured, v))
+}
+
+// StorefrontBadge applies equality check predicate on the "storefront_badge" field. It's identical to StorefrontBadgeEQ.
+func StorefrontBadge(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontBadge, v))
+}
+
 // ForSale applies equality check predicate on the "for_sale" field. It's identical to ForSaleEQ.
 func ForSale(v bool) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldForSale, v))
@@ -822,6 +842,211 @@ func DetailDescriptionEqualFold(v string) predicate.SubscriptionPlan {
 // DetailDescriptionContainsFold applies the ContainsFold predicate on the "detail_description" field.
 func DetailDescriptionContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldDetailDescription, v))
+}
+
+// StorefrontPlatformEQ applies the EQ predicate on the "storefront_platform" field.
+func StorefrontPlatformEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformNEQ applies the NEQ predicate on the "storefront_platform" field.
+func StorefrontPlatformNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformIn applies the In predicate on the "storefront_platform" field.
+func StorefrontPlatformIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldStorefrontPlatform, vs...))
+}
+
+// StorefrontPlatformNotIn applies the NotIn predicate on the "storefront_platform" field.
+func StorefrontPlatformNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldStorefrontPlatform, vs...))
+}
+
+// StorefrontPlatformGT applies the GT predicate on the "storefront_platform" field.
+func StorefrontPlatformGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformGTE applies the GTE predicate on the "storefront_platform" field.
+func StorefrontPlatformGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformLT applies the LT predicate on the "storefront_platform" field.
+func StorefrontPlatformLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformLTE applies the LTE predicate on the "storefront_platform" field.
+func StorefrontPlatformLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformContains applies the Contains predicate on the "storefront_platform" field.
+func StorefrontPlatformContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformHasPrefix applies the HasPrefix predicate on the "storefront_platform" field.
+func StorefrontPlatformHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformHasSuffix applies the HasSuffix predicate on the "storefront_platform" field.
+func StorefrontPlatformHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformEqualFold applies the EqualFold predicate on the "storefront_platform" field.
+func StorefrontPlatformEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldStorefrontPlatform, v))
+}
+
+// StorefrontPlatformContainsFold applies the ContainsFold predicate on the "storefront_platform" field.
+func StorefrontPlatformContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldStorefrontPlatform, v))
+}
+
+// StorefrontCategoryEQ applies the EQ predicate on the "storefront_category" field.
+func StorefrontCategoryEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryNEQ applies the NEQ predicate on the "storefront_category" field.
+func StorefrontCategoryNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryIn applies the In predicate on the "storefront_category" field.
+func StorefrontCategoryIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldStorefrontCategory, vs...))
+}
+
+// StorefrontCategoryNotIn applies the NotIn predicate on the "storefront_category" field.
+func StorefrontCategoryNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldStorefrontCategory, vs...))
+}
+
+// StorefrontCategoryGT applies the GT predicate on the "storefront_category" field.
+func StorefrontCategoryGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryGTE applies the GTE predicate on the "storefront_category" field.
+func StorefrontCategoryGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryLT applies the LT predicate on the "storefront_category" field.
+func StorefrontCategoryLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryLTE applies the LTE predicate on the "storefront_category" field.
+func StorefrontCategoryLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryContains applies the Contains predicate on the "storefront_category" field.
+func StorefrontCategoryContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryHasPrefix applies the HasPrefix predicate on the "storefront_category" field.
+func StorefrontCategoryHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryHasSuffix applies the HasSuffix predicate on the "storefront_category" field.
+func StorefrontCategoryHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryEqualFold applies the EqualFold predicate on the "storefront_category" field.
+func StorefrontCategoryEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldStorefrontCategory, v))
+}
+
+// StorefrontCategoryContainsFold applies the ContainsFold predicate on the "storefront_category" field.
+func StorefrontCategoryContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldStorefrontCategory, v))
+}
+
+// StorefrontFeaturedEQ applies the EQ predicate on the "storefront_featured" field.
+func StorefrontFeaturedEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontFeatured, v))
+}
+
+// StorefrontFeaturedNEQ applies the NEQ predicate on the "storefront_featured" field.
+func StorefrontFeaturedNEQ(v bool) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldStorefrontFeatured, v))
+}
+
+// StorefrontBadgeEQ applies the EQ predicate on the "storefront_badge" field.
+func StorefrontBadgeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeNEQ applies the NEQ predicate on the "storefront_badge" field.
+func StorefrontBadgeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeIn applies the In predicate on the "storefront_badge" field.
+func StorefrontBadgeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldStorefrontBadge, vs...))
+}
+
+// StorefrontBadgeNotIn applies the NotIn predicate on the "storefront_badge" field.
+func StorefrontBadgeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldStorefrontBadge, vs...))
+}
+
+// StorefrontBadgeGT applies the GT predicate on the "storefront_badge" field.
+func StorefrontBadgeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeGTE applies the GTE predicate on the "storefront_badge" field.
+func StorefrontBadgeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeLT applies the LT predicate on the "storefront_badge" field.
+func StorefrontBadgeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeLTE applies the LTE predicate on the "storefront_badge" field.
+func StorefrontBadgeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeContains applies the Contains predicate on the "storefront_badge" field.
+func StorefrontBadgeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeHasPrefix applies the HasPrefix predicate on the "storefront_badge" field.
+func StorefrontBadgeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeHasSuffix applies the HasSuffix predicate on the "storefront_badge" field.
+func StorefrontBadgeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeEqualFold applies the EqualFold predicate on the "storefront_badge" field.
+func StorefrontBadgeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldStorefrontBadge, v))
+}
+
+// StorefrontBadgeContainsFold applies the ContainsFold predicate on the "storefront_badge" field.
+func StorefrontBadgeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldStorefrontBadge, v))
 }
 
 // ForSaleEQ applies the EQ predicate on the "for_sale" field.

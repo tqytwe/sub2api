@@ -230,6 +230,62 @@ func (_u *SubscriptionPlanUpdate) SetNillableDetailDescription(v *string) *Subsc
 	return _u
 }
 
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (_u *SubscriptionPlanUpdate) SetStorefrontPlatform(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetStorefrontPlatform(v)
+	return _u
+}
+
+// SetNillableStorefrontPlatform sets the "storefront_platform" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableStorefrontPlatform(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetStorefrontPlatform(*v)
+	}
+	return _u
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (_u *SubscriptionPlanUpdate) SetStorefrontCategory(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetStorefrontCategory(v)
+	return _u
+}
+
+// SetNillableStorefrontCategory sets the "storefront_category" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableStorefrontCategory(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetStorefrontCategory(*v)
+	}
+	return _u
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (_u *SubscriptionPlanUpdate) SetStorefrontFeatured(v bool) *SubscriptionPlanUpdate {
+	_u.mutation.SetStorefrontFeatured(v)
+	return _u
+}
+
+// SetNillableStorefrontFeatured sets the "storefront_featured" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableStorefrontFeatured(v *bool) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetStorefrontFeatured(*v)
+	}
+	return _u
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (_u *SubscriptionPlanUpdate) SetStorefrontBadge(v string) *SubscriptionPlanUpdate {
+	_u.mutation.SetStorefrontBadge(v)
+	return _u
+}
+
+// SetNillableStorefrontBadge sets the "storefront_badge" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableStorefrontBadge(v *string) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetStorefrontBadge(*v)
+	}
+	return _u
+}
+
 // SetForSale sets the "for_sale" field.
 func (_u *SubscriptionPlanUpdate) SetForSale(v bool) *SubscriptionPlanUpdate {
 	_u.mutation.SetForSale(v)
@@ -334,6 +390,21 @@ func (_u *SubscriptionPlanUpdate) check() error {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.StorefrontPlatform(); ok {
+		if err := subscriptionplan.StorefrontPlatformValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_platform", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_platform": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StorefrontCategory(); ok {
+		if err := subscriptionplan.StorefrontCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_category", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_category": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StorefrontBadge(); ok {
+		if err := subscriptionplan.StorefrontBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_badge", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_badge": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -399,6 +470,18 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.DetailDescription(); ok {
 		_spec.SetField(subscriptionplan.FieldDetailDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorefrontPlatform(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontPlatform, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorefrontCategory(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorefrontFeatured(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontFeatured, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StorefrontBadge(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontBadge, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
@@ -634,6 +717,62 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableDetailDescription(v *string) *Su
 	return _u
 }
 
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (_u *SubscriptionPlanUpdateOne) SetStorefrontPlatform(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetStorefrontPlatform(v)
+	return _u
+}
+
+// SetNillableStorefrontPlatform sets the "storefront_platform" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableStorefrontPlatform(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetStorefrontPlatform(*v)
+	}
+	return _u
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (_u *SubscriptionPlanUpdateOne) SetStorefrontCategory(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetStorefrontCategory(v)
+	return _u
+}
+
+// SetNillableStorefrontCategory sets the "storefront_category" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableStorefrontCategory(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetStorefrontCategory(*v)
+	}
+	return _u
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (_u *SubscriptionPlanUpdateOne) SetStorefrontFeatured(v bool) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetStorefrontFeatured(v)
+	return _u
+}
+
+// SetNillableStorefrontFeatured sets the "storefront_featured" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableStorefrontFeatured(v *bool) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetStorefrontFeatured(*v)
+	}
+	return _u
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (_u *SubscriptionPlanUpdateOne) SetStorefrontBadge(v string) *SubscriptionPlanUpdateOne {
+	_u.mutation.SetStorefrontBadge(v)
+	return _u
+}
+
+// SetNillableStorefrontBadge sets the "storefront_badge" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableStorefrontBadge(v *string) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetStorefrontBadge(*v)
+	}
+	return _u
+}
+
 // SetForSale sets the "for_sale" field.
 func (_u *SubscriptionPlanUpdateOne) SetForSale(v bool) *SubscriptionPlanUpdateOne {
 	_u.mutation.SetForSale(v)
@@ -751,6 +890,21 @@ func (_u *SubscriptionPlanUpdateOne) check() error {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.StorefrontPlatform(); ok {
+		if err := subscriptionplan.StorefrontPlatformValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_platform", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_platform": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StorefrontCategory(); ok {
+		if err := subscriptionplan.StorefrontCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_category", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_category": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.StorefrontBadge(); ok {
+		if err := subscriptionplan.StorefrontBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_badge", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_badge": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -833,6 +987,18 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.DetailDescription(); ok {
 		_spec.SetField(subscriptionplan.FieldDetailDescription, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorefrontPlatform(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontPlatform, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorefrontCategory(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontCategory, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.StorefrontFeatured(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontFeatured, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.StorefrontBadge(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontBadge, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)

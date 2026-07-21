@@ -41,6 +41,14 @@ type SubscriptionPlan struct {
 	CoverImageURL string `json:"cover_image_url,omitempty"`
 	// DetailDescription holds the value of the "detail_description" field.
 	DetailDescription string `json:"detail_description,omitempty"`
+	// StorefrontPlatform holds the value of the "storefront_platform" field.
+	StorefrontPlatform string `json:"storefront_platform,omitempty"`
+	// StorefrontCategory holds the value of the "storefront_category" field.
+	StorefrontCategory string `json:"storefront_category,omitempty"`
+	// StorefrontFeatured holds the value of the "storefront_featured" field.
+	StorefrontFeatured bool `json:"storefront_featured,omitempty"`
+	// StorefrontBadge holds the value of the "storefront_badge" field.
+	StorefrontBadge string `json:"storefront_badge,omitempty"`
 	// ForSale holds the value of the "for_sale" field.
 	ForSale bool `json:"for_sale,omitempty"`
 	// SortOrder holds the value of the "sort_order" field.
@@ -57,13 +65,13 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case subscriptionplan.FieldForSale:
+		case subscriptionplan.FieldStorefrontFeatured, subscriptionplan.FieldForSale:
 			values[i] = new(sql.NullBool)
 		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
 		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldCoverImageURL, subscriptionplan.FieldDetailDescription:
+		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldCoverImageURL, subscriptionplan.FieldDetailDescription, subscriptionplan.FieldStorefrontPlatform, subscriptionplan.FieldStorefrontCategory, subscriptionplan.FieldStorefrontBadge:
 			values[i] = new(sql.NullString)
 		case subscriptionplan.FieldCreatedAt, subscriptionplan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -160,6 +168,30 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field detail_description", values[i])
 			} else if value.Valid {
 				_m.DetailDescription = value.String
+			}
+		case subscriptionplan.FieldStorefrontPlatform:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field storefront_platform", values[i])
+			} else if value.Valid {
+				_m.StorefrontPlatform = value.String
+			}
+		case subscriptionplan.FieldStorefrontCategory:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field storefront_category", values[i])
+			} else if value.Valid {
+				_m.StorefrontCategory = value.String
+			}
+		case subscriptionplan.FieldStorefrontFeatured:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field storefront_featured", values[i])
+			} else if value.Valid {
+				_m.StorefrontFeatured = value.Bool
+			}
+		case subscriptionplan.FieldStorefrontBadge:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field storefront_badge", values[i])
+			} else if value.Valid {
+				_m.StorefrontBadge = value.String
 			}
 		case subscriptionplan.FieldForSale:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -258,6 +290,18 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("detail_description=")
 	builder.WriteString(_m.DetailDescription)
+	builder.WriteString(", ")
+	builder.WriteString("storefront_platform=")
+	builder.WriteString(_m.StorefrontPlatform)
+	builder.WriteString(", ")
+	builder.WriteString("storefront_category=")
+	builder.WriteString(_m.StorefrontCategory)
+	builder.WriteString(", ")
+	builder.WriteString("storefront_featured=")
+	builder.WriteString(fmt.Sprintf("%v", _m.StorefrontFeatured))
+	builder.WriteString(", ")
+	builder.WriteString("storefront_badge=")
+	builder.WriteString(_m.StorefrontBadge)
 	builder.WriteString(", ")
 	builder.WriteString("for_sale=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ForSale))

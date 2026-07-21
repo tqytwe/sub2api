@@ -215,6 +215,7 @@ MIGRATIONS=(
   206_vip_recharge_legacy_tiers_backfill.sql
   207_balance_transactions.sql
   207_subscription_plan_product_display.sql
+  208_subscription_plan_storefront.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

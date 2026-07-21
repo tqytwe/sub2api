@@ -166,6 +166,62 @@ func (_c *SubscriptionPlanCreate) SetNillableDetailDescription(v *string) *Subsc
 	return _c
 }
 
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (_c *SubscriptionPlanCreate) SetStorefrontPlatform(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetStorefrontPlatform(v)
+	return _c
+}
+
+// SetNillableStorefrontPlatform sets the "storefront_platform" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableStorefrontPlatform(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetStorefrontPlatform(*v)
+	}
+	return _c
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (_c *SubscriptionPlanCreate) SetStorefrontCategory(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetStorefrontCategory(v)
+	return _c
+}
+
+// SetNillableStorefrontCategory sets the "storefront_category" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableStorefrontCategory(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetStorefrontCategory(*v)
+	}
+	return _c
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (_c *SubscriptionPlanCreate) SetStorefrontFeatured(v bool) *SubscriptionPlanCreate {
+	_c.mutation.SetStorefrontFeatured(v)
+	return _c
+}
+
+// SetNillableStorefrontFeatured sets the "storefront_featured" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableStorefrontFeatured(v *bool) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetStorefrontFeatured(*v)
+	}
+	return _c
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (_c *SubscriptionPlanCreate) SetStorefrontBadge(v string) *SubscriptionPlanCreate {
+	_c.mutation.SetStorefrontBadge(v)
+	return _c
+}
+
+// SetNillableStorefrontBadge sets the "storefront_badge" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableStorefrontBadge(v *string) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetStorefrontBadge(*v)
+	}
+	return _c
+}
+
 // SetForSale sets the "for_sale" field.
 func (_c *SubscriptionPlanCreate) SetForSale(v bool) *SubscriptionPlanCreate {
 	_c.mutation.SetForSale(v)
@@ -289,6 +345,22 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultDetailDescription
 		_c.mutation.SetDetailDescription(v)
 	}
+	if _, ok := _c.mutation.StorefrontPlatform(); !ok {
+		v := subscriptionplan.DefaultStorefrontPlatform
+		_c.mutation.SetStorefrontPlatform(v)
+	}
+	if _, ok := _c.mutation.StorefrontCategory(); !ok {
+		v := subscriptionplan.DefaultStorefrontCategory
+		_c.mutation.SetStorefrontCategory(v)
+	}
+	if _, ok := _c.mutation.StorefrontFeatured(); !ok {
+		v := subscriptionplan.DefaultStorefrontFeatured
+		_c.mutation.SetStorefrontFeatured(v)
+	}
+	if _, ok := _c.mutation.StorefrontBadge(); !ok {
+		v := subscriptionplan.DefaultStorefrontBadge
+		_c.mutation.SetStorefrontBadge(v)
+	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		v := subscriptionplan.DefaultForSale
 		_c.mutation.SetForSale(v)
@@ -361,6 +433,33 @@ func (_c *SubscriptionPlanCreate) check() error {
 	}
 	if _, ok := _c.mutation.DetailDescription(); !ok {
 		return &ValidationError{Name: "detail_description", err: errors.New(`ent: missing required field "SubscriptionPlan.detail_description"`)}
+	}
+	if _, ok := _c.mutation.StorefrontPlatform(); !ok {
+		return &ValidationError{Name: "storefront_platform", err: errors.New(`ent: missing required field "SubscriptionPlan.storefront_platform"`)}
+	}
+	if v, ok := _c.mutation.StorefrontPlatform(); ok {
+		if err := subscriptionplan.StorefrontPlatformValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_platform", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_platform": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.StorefrontCategory(); !ok {
+		return &ValidationError{Name: "storefront_category", err: errors.New(`ent: missing required field "SubscriptionPlan.storefront_category"`)}
+	}
+	if v, ok := _c.mutation.StorefrontCategory(); ok {
+		if err := subscriptionplan.StorefrontCategoryValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_category", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_category": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.StorefrontFeatured(); !ok {
+		return &ValidationError{Name: "storefront_featured", err: errors.New(`ent: missing required field "SubscriptionPlan.storefront_featured"`)}
+	}
+	if _, ok := _c.mutation.StorefrontBadge(); !ok {
+		return &ValidationError{Name: "storefront_badge", err: errors.New(`ent: missing required field "SubscriptionPlan.storefront_badge"`)}
+	}
+	if v, ok := _c.mutation.StorefrontBadge(); ok {
+		if err := subscriptionplan.StorefrontBadgeValidator(v); err != nil {
+			return &ValidationError{Name: "storefront_badge", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.storefront_badge": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.ForSale(); !ok {
 		return &ValidationError{Name: "for_sale", err: errors.New(`ent: missing required field "SubscriptionPlan.for_sale"`)}
@@ -448,6 +547,22 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.DetailDescription(); ok {
 		_spec.SetField(subscriptionplan.FieldDetailDescription, field.TypeString, value)
 		_node.DetailDescription = value
+	}
+	if value, ok := _c.mutation.StorefrontPlatform(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontPlatform, field.TypeString, value)
+		_node.StorefrontPlatform = value
+	}
+	if value, ok := _c.mutation.StorefrontCategory(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontCategory, field.TypeString, value)
+		_node.StorefrontCategory = value
+	}
+	if value, ok := _c.mutation.StorefrontFeatured(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontFeatured, field.TypeBool, value)
+		_node.StorefrontFeatured = value
+	}
+	if value, ok := _c.mutation.StorefrontBadge(); ok {
+		_spec.SetField(subscriptionplan.FieldStorefrontBadge, field.TypeString, value)
+		_node.StorefrontBadge = value
 	}
 	if value, ok := _c.mutation.ForSale(); ok {
 		_spec.SetField(subscriptionplan.FieldForSale, field.TypeBool, value)
@@ -688,6 +803,54 @@ func (u *SubscriptionPlanUpsert) SetDetailDescription(v string) *SubscriptionPla
 // UpdateDetailDescription sets the "detail_description" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateDetailDescription() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldDetailDescription)
+	return u
+}
+
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (u *SubscriptionPlanUpsert) SetStorefrontPlatform(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldStorefrontPlatform, v)
+	return u
+}
+
+// UpdateStorefrontPlatform sets the "storefront_platform" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateStorefrontPlatform() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldStorefrontPlatform)
+	return u
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (u *SubscriptionPlanUpsert) SetStorefrontCategory(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldStorefrontCategory, v)
+	return u
+}
+
+// UpdateStorefrontCategory sets the "storefront_category" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateStorefrontCategory() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldStorefrontCategory)
+	return u
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (u *SubscriptionPlanUpsert) SetStorefrontFeatured(v bool) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldStorefrontFeatured, v)
+	return u
+}
+
+// UpdateStorefrontFeatured sets the "storefront_featured" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateStorefrontFeatured() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldStorefrontFeatured)
+	return u
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (u *SubscriptionPlanUpsert) SetStorefrontBadge(v string) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldStorefrontBadge, v)
+	return u
+}
+
+// UpdateStorefrontBadge sets the "storefront_badge" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateStorefrontBadge() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldStorefrontBadge)
 	return u
 }
 
@@ -978,6 +1141,62 @@ func (u *SubscriptionPlanUpsertOne) SetDetailDescription(v string) *Subscription
 func (u *SubscriptionPlanUpsertOne) UpdateDetailDescription() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateDetailDescription()
+	})
+}
+
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (u *SubscriptionPlanUpsertOne) SetStorefrontPlatform(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontPlatform(v)
+	})
+}
+
+// UpdateStorefrontPlatform sets the "storefront_platform" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateStorefrontPlatform() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontPlatform()
+	})
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (u *SubscriptionPlanUpsertOne) SetStorefrontCategory(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontCategory(v)
+	})
+}
+
+// UpdateStorefrontCategory sets the "storefront_category" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateStorefrontCategory() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontCategory()
+	})
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (u *SubscriptionPlanUpsertOne) SetStorefrontFeatured(v bool) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontFeatured(v)
+	})
+}
+
+// UpdateStorefrontFeatured sets the "storefront_featured" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateStorefrontFeatured() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontFeatured()
+	})
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (u *SubscriptionPlanUpsertOne) SetStorefrontBadge(v string) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontBadge(v)
+	})
+}
+
+// UpdateStorefrontBadge sets the "storefront_badge" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateStorefrontBadge() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontBadge()
 	})
 }
 
@@ -1441,6 +1660,62 @@ func (u *SubscriptionPlanUpsertBulk) SetDetailDescription(v string) *Subscriptio
 func (u *SubscriptionPlanUpsertBulk) UpdateDetailDescription() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateDetailDescription()
+	})
+}
+
+// SetStorefrontPlatform sets the "storefront_platform" field.
+func (u *SubscriptionPlanUpsertBulk) SetStorefrontPlatform(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontPlatform(v)
+	})
+}
+
+// UpdateStorefrontPlatform sets the "storefront_platform" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateStorefrontPlatform() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontPlatform()
+	})
+}
+
+// SetStorefrontCategory sets the "storefront_category" field.
+func (u *SubscriptionPlanUpsertBulk) SetStorefrontCategory(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontCategory(v)
+	})
+}
+
+// UpdateStorefrontCategory sets the "storefront_category" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateStorefrontCategory() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontCategory()
+	})
+}
+
+// SetStorefrontFeatured sets the "storefront_featured" field.
+func (u *SubscriptionPlanUpsertBulk) SetStorefrontFeatured(v bool) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontFeatured(v)
+	})
+}
+
+// UpdateStorefrontFeatured sets the "storefront_featured" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateStorefrontFeatured() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontFeatured()
+	})
+}
+
+// SetStorefrontBadge sets the "storefront_badge" field.
+func (u *SubscriptionPlanUpsertBulk) SetStorefrontBadge(v string) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetStorefrontBadge(v)
+	})
+}
+
+// UpdateStorefrontBadge sets the "storefront_badge" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateStorefrontBadge() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateStorefrontBadge()
 	})
 }
 

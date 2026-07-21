@@ -36,25 +36,33 @@ func TestCreatePlanStoresProductDisplayFields(t *testing.T) {
 	svc := NewPaymentConfigService(client, nil, nil)
 
 	plan, err := svc.CreatePlan(context.Background(), CreatePlanRequest{
-		GroupID:           1,
-		Name:              "Pro Monthly",
-		Description:       "Short storefront copy",
-		Price:             19.99,
-		Currency:          "USD",
-		ValidityDays:      30,
-		ValidityUnit:      "days",
-		Features:          "Priority models\nHigher quota",
-		ProductName:       "GPT Pro Workbench",
-		CoverImageURL:     "/assets/plans/pro.webp",
-		DetailDescription: "Line one\nLine two",
-		ForSale:           true,
-		SortOrder:         10,
+		GroupID:            1,
+		Name:               "Pro Monthly",
+		Description:        "Short storefront copy",
+		Price:              19.99,
+		Currency:           "USD",
+		ValidityDays:       30,
+		ValidityUnit:       "days",
+		Features:           "Priority models\nHigher quota",
+		ProductName:        "GPT Pro Workbench",
+		CoverImageURL:      "/assets/plans/pro.webp",
+		DetailDescription:  "Line one\nLine two",
+		StorefrontPlatform: "openai",
+		StorefrontCategory: "pro",
+		StorefrontFeatured: true,
+		StorefrontBadge:    "热销",
+		ForSale:            true,
+		SortOrder:          10,
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, "GPT Pro Workbench", plan.ProductName)
 	require.Equal(t, "/assets/plans/pro.webp", plan.CoverImageURL)
 	require.Equal(t, "Line one\nLine two", plan.DetailDescription)
+	require.Equal(t, "openai", plan.StorefrontPlatform)
+	require.Equal(t, "pro", plan.StorefrontCategory)
+	require.True(t, plan.StorefrontFeatured)
+	require.Equal(t, "热销", plan.StorefrontBadge)
 }
 
 func TestUpdatePlanPatchesProductDisplayFields(t *testing.T) {
@@ -75,14 +83,44 @@ func TestUpdatePlanPatchesProductDisplayFields(t *testing.T) {
 	productName := "Starter Product"
 	coverImageURL := "data:image/png;base64,QUJD"
 	detailDescription := "Detailed storefront copy"
+	storefrontPlatform := "anthropic"
+	storefrontCategory := "daily"
+	storefrontFeatured := true
+	storefrontBadge := "日卡"
 	updated, err := svc.UpdatePlan(context.Background(), plan.ID, UpdatePlanRequest{
-		ProductName:       &productName,
-		CoverImageURL:     &coverImageURL,
-		DetailDescription: &detailDescription,
+		ProductName:        &productName,
+		CoverImageURL:      &coverImageURL,
+		DetailDescription:  &detailDescription,
+		StorefrontPlatform: &storefrontPlatform,
+		StorefrontCategory: &storefrontCategory,
+		StorefrontFeatured: &storefrontFeatured,
+		StorefrontBadge:    &storefrontBadge,
 	})
 	require.NoError(t, err)
 
 	require.Equal(t, productName, updated.ProductName)
 	require.Equal(t, coverImageURL, updated.CoverImageURL)
 	require.Equal(t, detailDescription, updated.DetailDescription)
+	require.Equal(t, storefrontPlatform, updated.StorefrontPlatform)
+	require.Equal(t, storefrontCategory, updated.StorefrontCategory)
+	require.True(t, updated.StorefrontFeatured)
+	require.Equal(t, storefrontBadge, updated.StorefrontBadge)
+}
+
+func TestCreatePlanInfersStorefrontCategory(t *testing.T) {
+	client := newPaymentConfigPlansTestClient(t)
+	svc := NewPaymentConfigService(client, nil, nil)
+
+	plan, err := svc.CreatePlan(context.Background(), CreatePlanRequest{
+		GroupID:      1,
+		Name:         "OpenAI 日卡",
+		Description:  "Short copy",
+		Price:        2.99,
+		ValidityDays: 1,
+		ValidityUnit: "days",
+		ForSale:      true,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, "daily", plan.StorefrontCategory)
 }

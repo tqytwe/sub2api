@@ -71,6 +71,10 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		ProductName        string   `json:"product_name"`
 		CoverImageURL      string   `json:"cover_image_url"`
 		DetailDescription  string   `json:"detail_description"`
+		StorefrontPlatform string   `json:"storefront_platform"`
+		StorefrontCategory string   `json:"storefront_category"`
+		StorefrontFeatured bool     `json:"storefront_featured"`
+		StorefrontBadge    string   `json:"storefront_badge"`
 		ForSale            bool     `json:"for_sale"`
 		SortOrder          int      `json:"sort_order"`
 	}
@@ -87,6 +91,8 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
 			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
+			StorefrontPlatform: p.StorefrontPlatform, StorefrontCategory: p.StorefrontCategory,
+			StorefrontFeatured: p.StorefrontFeatured, StorefrontBadge: p.StorefrontBadge,
 			ForSale: p.ForSale, SortOrder: p.SortOrder,
 		})
 	}
@@ -141,6 +147,8 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
 			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
+			StorefrontPlatform: p.StorefrontPlatform, StorefrontCategory: p.StorefrontCategory,
+			StorefrontFeatured: p.StorefrontFeatured, StorefrontBadge: p.StorefrontBadge,
 		})
 	}
 
@@ -202,6 +210,10 @@ type checkoutPlan struct {
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`
 	DetailDescription  string   `json:"detail_description"`
+	StorefrontPlatform string   `json:"storefront_platform"`
+	StorefrontCategory string   `json:"storefront_category"`
+	StorefrontFeatured bool     `json:"storefront_featured"`
+	StorefrontBadge    string   `json:"storefront_badge"`
 }
 
 // parseFeatures splits a newline-separated features string into a string slice.
