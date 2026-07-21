@@ -573,7 +573,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGenericOpenAICompati
 }
 
 func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnesPayload(t *testing.T) {
-	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024","response_format":"b64_json"}`)
+	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024","response_format":"b64_json","output_format":"png","extra_body":{"output_format":"png"}}`)
 	parsed := &OpenAIImagesRequest{
 		Endpoint:       openAIImagesGenerationsEndpoint,
 		ContentType:    "application/json",
@@ -598,6 +598,8 @@ func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnesPayload(t *testing.T) {
 	require.Equal(t, "1:1", gjson.GetBytes(rewritten, "ratio").String())
 	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
 	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+	require.False(t, gjson.GetBytes(rewritten, "output_format").Exists())
+	require.False(t, gjson.GetBytes(rewritten, "extra_body.output_format").Exists())
 }
 
 func TestRewriteAdaptedOpenAIImagesBodyPreservesAgnesExtraBodyResponseFormat(t *testing.T) {
@@ -626,7 +628,7 @@ func TestRewriteAdaptedOpenAIImagesBodyPreservesAgnesExtraBodyResponseFormat(t *
 }
 
 func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnes20Payload(t *testing.T) {
-	body := []byte(`{"model":"agnes-image-2.0-flash","prompt":"draw a cat","size":"1024x768","ratio":"1:1","response_format":"b64_json"}`)
+	body := []byte(`{"model":"agnes-image-2.0-flash","prompt":"draw a cat","size":"1024x768","ratio":"1:1","response_format":"b64_json","output_format":"png"}`)
 	parsed := &OpenAIImagesRequest{
 		Endpoint:       openAIImagesGenerationsEndpoint,
 		ContentType:    "application/json",
@@ -651,6 +653,7 @@ func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnes20Payload(t *testing.T) {
 	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
 	require.False(t, gjson.GetBytes(rewritten, "ratio").Exists())
 	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+	require.False(t, gjson.GetBytes(rewritten, "output_format").Exists())
 }
 
 func TestRewriteAdaptedOpenAIImagesBodyPreservesAgnes20ExtraBodyResponseFormat(t *testing.T) {
