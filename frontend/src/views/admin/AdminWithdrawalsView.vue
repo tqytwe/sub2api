@@ -29,15 +29,15 @@
             </label>
             <label class="grid gap-1 text-sm">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.minimumAmount') }}</span>
-              <input v-model.trim="settingsForm.minimum_amount" class="input" inputmode="decimal" placeholder="10.00" />
+              <input v-model.trim="settingsForm.minimum_amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
             </label>
             <label class="grid gap-1 text-sm">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dailyLimit') }}</span>
-              <input v-model.trim="settingsForm.daily_limit_amount" class="input" inputmode="decimal" placeholder="500.00" />
+              <input v-model.trim="settingsForm.daily_limit_amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="500" />
             </label>
             <label class="grid gap-1 text-sm">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dualReview') }}</span>
-              <input v-model.trim="settingsForm.double_review_threshold" class="input" inputmode="decimal" placeholder="100.00" />
+              <input v-model.trim="settingsForm.double_review_threshold" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="100" />
             </label>
             <div class="text-sm">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.rewardMaturityHours') }}</p>
@@ -49,7 +49,7 @@
             </div>
             <div class="flex items-end md:col-span-2">
               <button type="submit" class="btn btn-primary inline-flex w-full items-center justify-center gap-2" :disabled="settingsSaving">
-                <Icon name="save" size="sm" />
+                <Icon name="check" size="sm" />
                 {{ settingsSaving ? t('admin.withdrawals.saving') : t('admin.withdrawals.saveSettings') }}
               </button>
             </div>
@@ -79,11 +79,11 @@
               <div class="grid gap-3 sm:grid-cols-2">
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.minimumOverride') }}</span>
-                  <input v-model.trim="userSettingsForm.minimum_amount_override" class="input" inputmode="decimal" placeholder="10.00" />
+                  <input v-model.trim="userSettingsForm.minimum_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
                 </label>
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dailyLimitOverride') }}</span>
-                  <input v-model.trim="userSettingsForm.daily_limit_amount_override" class="input" inputmode="decimal" placeholder="500.00" />
+                  <input v-model.trim="userSettingsForm.daily_limit_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="500" />
                 </label>
               </div>
               <label class="grid gap-1 text-sm">
@@ -95,7 +95,7 @@
                 <span class="font-medium text-gray-900 dark:text-white">{{ userSettings?.recalc_status || '-' }}</span>
               </div>
               <button type="submit" class="btn btn-primary inline-flex items-center justify-center gap-2" :disabled="userSettingsSaving">
-                <Icon name="save" size="sm" />
+                <Icon name="check" size="sm" />
                 {{ userSettingsSaving ? t('admin.withdrawals.saving') : t('admin.withdrawals.saveUser') }}
               </button>
             </form>
@@ -116,11 +116,11 @@
               <div class="grid gap-3 sm:grid-cols-2">
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.minimumOverride') }}</span>
-                  <input v-model.trim="batchForm.minimum_amount_override" class="input" inputmode="decimal" placeholder="10.00" />
+                  <input v-model.trim="batchForm.minimum_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
                 </label>
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dailyLimitOverride') }}</span>
-                  <input v-model.trim="batchForm.daily_limit_amount_override" class="input" inputmode="decimal" placeholder="500.00" />
+                  <input v-model.trim="batchForm.daily_limit_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="500" />
                 </label>
               </div>
               <label class="grid gap-1 text-sm">
@@ -128,7 +128,7 @@
                 <input v-model.trim="batchForm.disabled_reason" class="input" :placeholder="t('admin.withdrawals.disabledReasonPlaceholder')" />
               </label>
               <button type="submit" class="btn btn-secondary inline-flex items-center justify-center gap-2" :disabled="batchSaving">
-                <Icon name="save" size="sm" />
+                <Icon name="check" size="sm" />
                 {{ batchSaving ? t('admin.withdrawals.saving') : t('admin.withdrawals.batchSave') }}
               </button>
             </form>
@@ -350,7 +350,7 @@
               <div class="grid gap-3 sm:grid-cols-2">
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.paidAmount') }}</span>
-                  <input v-model.trim="payoutForm.paid_amount" class="input" inputmode="decimal" placeholder="10.00" />
+                  <input v-model.trim="payoutForm.paid_amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
                 </label>
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.paidCurrency') }}</span>
@@ -429,6 +429,7 @@ import type {
   WithdrawalRequestPage,
   WithdrawalStatus,
 } from '@/api/wallet'
+import { normalizeWithdrawalWholeAmount } from '@/api/wallet'
 
 const { t, locale } = useI18n()
 const appStore = useAppStore()
@@ -466,9 +467,9 @@ const query = reactive({
 
 const settingsForm = reactive({
   global_enabled: false,
-  minimum_amount: '10.00',
-  daily_limit_amount: '500.00',
-  double_review_threshold: '100.00',
+  minimum_amount: '10',
+  daily_limit_amount: '500',
+  double_review_threshold: '100',
 })
 
 const userSettingsForm = reactive({
@@ -548,6 +549,30 @@ function parsePositiveID(raw: string) {
   return Number.isInteger(value) && value > 0 ? value : 0
 }
 
+function wholeAmountInput(raw: string) {
+  const normalized = normalizeWithdrawalWholeAmount(raw)
+  return /^[1-9]\d*$/.test(normalized) ? normalized : ''
+}
+
+function applyWholeAmountInput(raw: string | number | undefined) {
+  return wholeAmountInput(String(raw ?? ''))
+}
+
+function requireWholeAmount(raw: string) {
+  const normalized = wholeAmountInput(raw)
+  if (!normalized) {
+    appStore.showError(t('admin.withdrawals.validation.integerAmountRequired'))
+    return null
+  }
+  return normalized
+}
+
+function optionalWholeAmount(raw: string) {
+  const value = raw.trim()
+  if (!value) return undefined
+  return requireWholeAmount(value)
+}
+
 function parseBatchUserIDs(raw: string) {
   const chunks = raw.split(/[\s,;，；]+/).filter(Boolean)
   if (!chunks.length) return []
@@ -599,23 +624,23 @@ function showWithdrawalError(err: unknown, fallbackKey = 'admin.withdrawals.load
 function applySystemSettings(settings: AdminWithdrawalSystemSettings) {
   systemSettings.value = settings
   settingsForm.global_enabled = settings.global_enabled
-  settingsForm.minimum_amount = String(settings.minimum_amount)
-  settingsForm.daily_limit_amount = String(settings.daily_limit_amount)
-  settingsForm.double_review_threshold = String(settings.double_review_threshold)
+  settingsForm.minimum_amount = applyWholeAmountInput(settings.minimum_amount)
+  settingsForm.daily_limit_amount = applyWholeAmountInput(settings.daily_limit_amount)
+  settingsForm.double_review_threshold = applyWholeAmountInput(settings.double_review_threshold)
 }
 
 function applyUserSettings(settings: AdminUserWithdrawalSettings) {
   userSettings.value = settings
   userSettingsForm.user_id = String(settings.user_id)
   userSettingsForm.enabled = settings.enabled
-  userSettingsForm.minimum_amount_override = settings.minimum_amount_override ? String(settings.minimum_amount_override) : ''
-  userSettingsForm.daily_limit_amount_override = settings.daily_limit_amount_override ? String(settings.daily_limit_amount_override) : ''
+  userSettingsForm.minimum_amount_override = settings.minimum_amount_override ? applyWholeAmountInput(settings.minimum_amount_override) : ''
+  userSettingsForm.daily_limit_amount_override = settings.daily_limit_amount_override ? applyWholeAmountInput(settings.daily_limit_amount_override) : ''
   userSettingsForm.disabled_reason = settings.disabled_reason || ''
 }
 
 function applyActiveWithdrawal(next: WithdrawalRequest) {
   activeWithdrawal.value = next
-  payoutForm.paid_amount = next.paid_amount || next.amount || ''
+  payoutForm.paid_amount = applyWholeAmountInput(next.paid_amount || next.amount || '')
   payoutForm.paid_currency = (next.paid_currency || next.payout_currency || 'USD') as WithdrawalCurrency
   payoutForm.payout_fx_rate = next.payout_fx_rate || '1.00'
   payoutForm.external_txn_id = next.external_txn_id || ''
@@ -644,13 +669,17 @@ async function loadSettings() {
 }
 
 async function saveSystemSettings() {
+  const minimumAmount = requireWholeAmount(settingsForm.minimum_amount)
+  const dailyLimitAmount = requireWholeAmount(settingsForm.daily_limit_amount)
+  const doubleReviewThreshold = requireWholeAmount(settingsForm.double_review_threshold)
+  if (!minimumAmount || !dailyLimitAmount || !doubleReviewThreshold) return
   settingsSaving.value = true
   try {
     applySystemSettings(await adminWithdrawalsAPI.updateSettings({
       global_enabled: settingsForm.global_enabled,
-      minimum_amount: settingsForm.minimum_amount,
-      daily_limit_amount: settingsForm.daily_limit_amount,
-      double_review_threshold: settingsForm.double_review_threshold,
+      minimum_amount: minimumAmount,
+      daily_limit_amount: dailyLimitAmount,
+      double_review_threshold: doubleReviewThreshold,
     }))
     appStore.showSuccess(t('admin.withdrawals.settingsSaved'))
   } catch (err) {
@@ -682,12 +711,15 @@ async function saveUserSettings() {
     appStore.showError(t('admin.withdrawals.validation.userIdRequired'))
     return
   }
+  const minimumOverride = optionalWholeAmount(userSettingsForm.minimum_amount_override)
+  const dailyLimitOverride = optionalWholeAmount(userSettingsForm.daily_limit_amount_override)
+  if (minimumOverride === null || dailyLimitOverride === null) return
   userSettingsSaving.value = true
   try {
     applyUserSettings(await adminWithdrawalsAPI.updateUserSettings(userID, {
       enabled: userSettingsForm.enabled,
-      minimum_amount_override: userSettingsForm.minimum_amount_override || undefined,
-      daily_limit_amount_override: userSettingsForm.daily_limit_amount_override || undefined,
+      minimum_amount_override: minimumOverride,
+      daily_limit_amount_override: dailyLimitOverride,
       disabled_reason: userSettingsForm.disabled_reason,
     }))
     appStore.showSuccess(t('admin.withdrawals.userSettingsSaved'))
@@ -708,13 +740,16 @@ async function saveBatchSettings() {
     appStore.showError(t('admin.withdrawals.validation.batchUserIdsRequired'))
     return
   }
+  const minimumOverride = optionalWholeAmount(batchForm.minimum_amount_override)
+  const dailyLimitOverride = optionalWholeAmount(batchForm.daily_limit_amount_override)
+  if (minimumOverride === null || dailyLimitOverride === null) return
   batchSaving.value = true
   try {
     const result = await adminWithdrawalsAPI.batchUpdateUserSettings({
       user_ids: ids,
       enabled: batchForm.enabled === 'true',
-      minimum_amount_override: batchForm.minimum_amount_override || undefined,
-      daily_limit_amount_override: batchForm.daily_limit_amount_override || undefined,
+      minimum_amount_override: minimumOverride,
+      daily_limit_amount_override: dailyLimitOverride,
       disabled_reason: batchForm.disabled_reason,
     })
     appStore.showSuccess(t('admin.withdrawals.batchSettingsSaved', { count: result.affected }))
@@ -828,11 +863,13 @@ async function markActivePaid() {
     appStore.showError(t('admin.withdrawals.validation.paidFieldsRequired'))
     return
   }
+  const paidAmount = requireWholeAmount(payoutForm.paid_amount)
+  if (!paidAmount) return
   paidActionLoading.value = true
   try {
     const paidAt = payoutForm.paid_at ? new Date(payoutForm.paid_at).toISOString() : undefined
     applyActiveWithdrawal(await adminWithdrawalsAPI.markPaid(activeWithdrawal.value.id, {
-      paid_amount: payoutForm.paid_amount,
+      paid_amount: paidAmount,
       paid_currency: payoutForm.paid_currency,
       payout_fx_rate: payoutForm.payout_fx_rate || '1.00',
       external_txn_id: payoutForm.external_txn_id,

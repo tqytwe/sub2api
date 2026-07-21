@@ -566,7 +566,6 @@ const messages = {
       newRequest: '新建提现申请',
       minimumAmount: '最低提现金额',
       remainingDaily: '今日剩余额度',
-      dualReview: '双人审核阈值',
       amount: '提现金额',
       submitting: '提交中...',
       requestWithdrawal: '申请提现',
@@ -609,11 +608,12 @@ const messages = {
       },
       validation: {
         accountRequired: '请填写收款人和收款账号',
+        integerAmountRequired: '提现金额必须为整数',
         unavailable: '当前条件不满足，无法提交提现申请',
       },
       errors: {
         WITHDRAWAL_UNAVAILABLE: '提现服务暂不可用',
-        WITHDRAWAL_INVALID_AMOUNT: '提现金额必须为两位小数',
+        WITHDRAWAL_INVALID_AMOUNT: '提现金额必须为整数',
         WITHDRAWAL_INVALID_INPUT: '提现请求参数不正确',
         WITHDRAWAL_DISABLED: '当前账号未开启提现',
         WITHDRAWAL_INSUFFICIENT_WITHDRAWABLE: '可提现余额不足',
@@ -1973,6 +1973,7 @@ const messages = {
         userIdRequired: '请输入有效用户 ID',
         batchUserIdsRequired: '请输入至少一个用户 ID',
         invalidUserIds: '用户 ID 列表包含无效内容',
+        integerAmountRequired: '金额必须为整数',
         rejectReasonRequired: '请输入拒绝原因',
         paidFieldsRequired: '请填写实际金额、币种和外部流水号',
       },
@@ -1984,7 +1985,7 @@ const messages = {
       },
       errors: {
         WITHDRAWAL_UNAVAILABLE: '提现服务暂不可用',
-        WITHDRAWAL_INVALID_AMOUNT: '金额必须为两位小数',
+        WITHDRAWAL_INVALID_AMOUNT: '金额必须为整数',
         WITHDRAWAL_INVALID_INPUT: '提现参数不正确',
         WITHDRAWAL_DISABLED: '该用户未开启提现',
         WITHDRAWAL_INSUFFICIENT_WITHDRAWABLE: '可提现余额不足',

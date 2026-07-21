@@ -97,7 +97,6 @@ const messages: Record<string, string> = {
   'wallet.withdrawals.newRequest': '新建提现申请',
   'wallet.withdrawals.minimumAmount': '最低提现金额',
   'wallet.withdrawals.remainingDaily': '今日剩余额度',
-  'wallet.withdrawals.dualReview': '双人审核阈值',
   'wallet.withdrawals.amount': '提现金额',
   'wallet.withdrawals.submitting': '提交中...',
   'wallet.withdrawals.requestWithdrawal': '申请提现',
@@ -133,6 +132,7 @@ const messages: Record<string, string> = {
   'wallet.withdrawals.disabledReasons.disabled': '当前账号暂不可提现',
   'wallet.withdrawals.disabledReasons.unknown': '当前暂不可提现',
   'wallet.withdrawals.validation.accountRequired': '请填写收款人和收款账号',
+  'wallet.withdrawals.validation.integerAmountRequired': '提现金额必须为整数',
   'wallet.withdrawals.validation.unavailable': '当前条件不满足',
   'wallet.pageInfo': '第 {page} / {pages} 页',
   'wallet.loading': '加载中...',
@@ -223,7 +223,6 @@ describe('WalletView', () => {
       daily_limit_amount: '500.00',
       daily_used_amount: '0.00',
       remaining_daily_amount: '500.00',
-      double_review_threshold: '100.00',
     })
     getWithdrawalAccountMock.mockReset().mockResolvedValue(null)
     getWithdrawalsMock.mockReset().mockResolvedValue({
@@ -261,6 +260,7 @@ describe('WalletView', () => {
     expect(wrapper.text()).toContain('申请提现')
     expect(wrapper.text()).toContain('收款账户')
     expect(wrapper.text()).toContain('最低提现金额')
+    expect(wrapper.text()).not.toContain('双人审核阈值')
     const transactionRows = wrapper.get('tbody').html()
     expect(transactionRows).not.toContain('metadata')
     expect(transactionRows).not.toContain('source_id')

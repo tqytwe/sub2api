@@ -5,6 +5,7 @@ import type {
   WithdrawalRequestPage,
   WithdrawalStatus,
 } from '../wallet'
+import { normalizeWithdrawalWholeAmount } from '../wallet'
 
 export interface AdminWithdrawalListQuery {
   status?: WithdrawalStatus | 'all'
@@ -74,6 +75,30 @@ export interface AdminWithdrawalMarkPaidInput {
 
 export type AdminWithdrawalSensitivePayout = Record<string, unknown>
 
+function normalizeOptionalWholeAmount(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined
+  return normalizeWithdrawalWholeAmount(value)
+}
+
+function normalizeSystemSettingsInput(input: AdminWithdrawalSystemSettingsInput): AdminWithdrawalSystemSettingsInput {
+  return {
+    ...input,
+    minimum_amount: normalizeOptionalWholeAmount(input.minimum_amount),
+    daily_limit_amount: normalizeOptionalWholeAmount(input.daily_limit_amount),
+    double_review_threshold: normalizeOptionalWholeAmount(input.double_review_threshold),
+  }
+}
+
+function normalizeUserSettingsInput(input: AdminUserWithdrawalSettingsInput): AdminUserWithdrawalSettingsInput {
+  return {
+    ...input,
+    minimum_amount_override: normalizeOptionalWholeAmount(input.minimum_amount_override),
+    minimum_override: normalizeOptionalWholeAmount(input.minimum_override),
+    daily_limit_amount_override: normalizeOptionalWholeAmount(input.daily_limit_amount_override),
+    daily_limit_override: normalizeOptionalWholeAmount(input.daily_limit_override),
+  }
+}
+
 export async function list(query: AdminWithdrawalListQuery = {}): Promise<WithdrawalRequestPage> {
   const { data } = await apiClient.get<WithdrawalRequestPage>('/admin/withdrawals', { params: query })
   return data
@@ -90,7 +115,7 @@ export async function getSettings(): Promise<AdminWithdrawalSystemSettings> {
 }
 
 export async function updateSettings(input: AdminWithdrawalSystemSettingsInput): Promise<AdminWithdrawalSystemSettings> {
-  const { data } = await apiClient.put<AdminWithdrawalSystemSettings>('/admin/withdrawals/settings', input)
+  const { data } = await apiClient.put<AdminWithdrawalSystemSettings>('/admin/withdrawals/settings', normalizeSystemSettingsInput(input))
   return data
 }
 
@@ -100,12 +125,15 @@ export async function getUserSettings(userID: number): Promise<AdminUserWithdraw
 }
 
 export async function updateUserSettings(userID: number, input: AdminUserWithdrawalSettingsInput): Promise<AdminUserWithdrawalSettings> {
-  const { data } = await apiClient.put<AdminUserWithdrawalSettings>(`/admin/withdrawals/users/${userID}/settings`, input)
+  const { data } = await apiClient.put<AdminUserWithdrawalSettings>(`/admin/withdrawals/users/${userID}/settings`, normalizeUserSettingsInput(input))
   return data
 }
 
 export async function batchUpdateUserSettings(input: AdminBatchUserWithdrawalSettingsInput): Promise<AdminBatchUserWithdrawalSettingsResult> {
-  const { data } = await apiClient.post<AdminBatchUserWithdrawalSettingsResult>('/admin/withdrawals/user-settings/batch', input)
+  const { data } = await apiClient.post<AdminBatchUserWithdrawalSettingsResult>('/admin/withdrawals/user-settings/batch', {
+    ...normalizeUserSettingsInput(input),
+    user_ids: input.user_ids,
+  })
   return data
 }
 
@@ -125,7 +153,10 @@ export async function getSensitivePayout(id: number): Promise<AdminWithdrawalSen
 }
 
 export async function markPaid(id: number, input: AdminWithdrawalMarkPaidInput): Promise<WithdrawalRequest> {
-  const { data } = await apiClient.post<WithdrawalRequest>(`/admin/withdrawals/${id}/mark-paid`, input)
+  const { data } = await apiClient.post<WithdrawalRequest>(`/admin/withdrawals/${id}/mark-paid`, {
+    ...input,
+    paid_amount: normalizeWithdrawalWholeAmount(input.paid_amount),
+  })
   return data
 }
 
