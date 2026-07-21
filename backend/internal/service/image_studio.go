@@ -1952,28 +1952,49 @@ func errStringForImageStudio(err error) string {
 }
 
 func (s *ImageStudioService) OpenAssetContent(ctx context.Context, userID int64, assetID string) ([]byte, string, error) {
+	data, contentType, _, err := s.openAssetContent(ctx, userID, assetID)
+	return data, contentType, err
+}
+
+func (s *ImageStudioService) OpenAssetDownload(ctx context.Context, userID int64, assetID string) ([]byte, string, string, error) {
+	data, contentType, asset, err := s.openAssetContent(ctx, userID, assetID)
+	if err != nil {
+		return nil, "", "", err
+	}
+	filenameContentType := asset.ContentType
+	if filenameContentType == "" && !strings.HasPrefix(contentType, "http") {
+		filenameContentType = contentType
+	}
+	filename := strings.TrimSpace(asset.Filename)
+	if filename == "" {
+		filename = imageStudioAssetFilename(asset.ID, filenameContentType)
+	}
+	return data, contentType, filename, nil
+}
+
+func (s *ImageStudioService) openAssetContent(ctx context.Context, userID int64, assetID string) ([]byte, string, *ImageStudioAsset, error) {
 	asset, err := s.repo.GetAsset(ctx, userID, assetID)
 	if err != nil {
-		return nil, "", err
+		return nil, "", nil, err
 	}
 	if imageStudioAssetExpired(asset, time.Now().UTC()) {
-		return nil, "", ErrImageStudioAssetExpired
+		return nil, "", nil, ErrImageStudioAssetExpired
 	}
 	if asset.StorageKey != "" && s.assetStore != nil {
 		data, err := s.assetStore.Read(asset.StorageKey)
 		if err != nil {
-			return nil, "", ErrImageStudioAssetUnavailable.WithCause(err)
+			return nil, "", nil, ErrImageStudioAssetUnavailable.WithCause(err)
 		}
 		ct := asset.ContentType
 		if ct == "" {
 			ct = "image/png"
 		}
-		return data, ct, nil
+		return data, ct, asset, nil
 	}
 	if asset.URL != "" {
-		return nil, asset.URL, nil
+		return nil, asset.URL, asset, nil
 	}
-	return nil, "", ErrImageStudioAssetNotFound
+	return nil, "", nil, ErrImageStudioAssetNotFound
 }
 
 func (s *ImageStudioService) DeleteJob(ctx context.Context, userID int64, jobID string) error {
