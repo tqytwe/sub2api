@@ -2,9 +2,10 @@
 
 > 状态：active
 > 当前阶段：阶段三 / CP3
-> 当前结论：CP2 已通过；CP3 已从最新 `origin/play/main` 独立 worktree 开始，RED、GREEN、规格/代码质量审查和服务器完整验证已通过，等待 PR/CI。
+> 当前结论：CP2 已通过；CP3 代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
 > CP3 基线：`origin/play/main@e4aa4efe54b97154ca8b7d933b05866d69e827f5`
-> 审查分支：`feat/token-farm-reward-summary-20260721`
+> CP3 功能分支：`feat/token-farm-reward-summary-20260721`
+> CP3 部署记录分支：`docs/token-farm-reward-summary-cp3-deploy-20260721`
 > 工作树：`/home/dell/worktrees/sub2api-token-farm-reward-summary-20260721`
 > 最后更新：2026-07-21
 
@@ -18,13 +19,13 @@
 |---|---|---|
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
 | 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
-| 阶段三：代币农场最近发放与当前预估 / CP3 | 进行中 | 服务器完整验证已通过；仍需 PR/CI、部署证明和本地浏览器验收 |
+| 阶段三：代币农场最近发放与当前预估 / CP3 | 等待本地验收 | 代码、PR/CI、合并和部署证明已完成；等待用户本地浏览器验收 |
 | 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
 | CP6：服务器验证 | 进行中 | CP1、CP2 已通过；CP3 本地完整服务器验证已通过；CP4-CP5 未开始 |
-| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已全绿，并以非 rebase merge commit 合入 `play/main`；CP3 等待 PR/CI |
-| CP8：部署证明 | 进行中 | CP1 已通过；CP2 merge commit `6531cb83dde134bccbde139220bd29e3623e36d7` 已由 Zeabur 部署到 production 并完成 live proof；后续阶段未开始 |
-| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2 已通过；CP3-CP5 仍须逐阶段验收 |
+| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已通过；CP3 PR #87 已全绿，并以非 rebase merge commit 合入 `play/main`；CP4-CP5 未开始 |
+| CP8：部署证明 | 进行中 | CP1、CP2 已通过；CP3 merge commit `c8756db428e26cbced218f9256aaecaa54eca1d4` 已由 Zeabur 部署到 production 并完成 live API/资产 proof；CP4-CP5 未开始 |
+| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2 已通过；CP3 等待用户本地浏览器验收；CP4-CP5 未开始 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -348,9 +349,9 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 | 规格审查 | 已通过 | 已复审不改写旧流水、不暴露邮箱、最近发放不等同今日榜、当前周期文案、settled_at 回填和 reward ledger 总额口径 |
 | 代码质量审查 | 已通过 | 已复审 i18n、DTO、SQL fallback、排序/截断、测试隔离和 fork integrity 保护；lint/typecheck/build 通过 |
 | 完整验证 | 已通过 | 聚焦验证、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部通过 |
-| PR / GitHub CI | 未开始 | 待创建 PR 到 `play/main` |
-| 部署核对 | 未开始 | 等 PR 合并后核对 Zeabur deployment、健康、API、迁移和前端资产 |
-| 本地浏览器验收 | 未开始 | 部署证明通过后，等待用户本地浏览器检查游客/普通用户中文英文、浅色深色和日榜面板 |
+| PR / GitHub CI | 已通过 | PR #87 全部 GitHub checks 通过：backend-security、frontend-security、Documentation、Protected behavior；以 merge commit、非 rebase 合入 `play/main` |
+| 部署核对 | 已通过 | Zeabur deployment `5535370977` 成功部署 CP3 merge commit `c8756db428e26cbced218f9256aaecaa54eca1d4`；健康、公开 API、隐私形状和前端资产均已核对 |
+| 本地浏览器验收 | 等待本地验收 | 等待用户本地浏览器检查游客/普通用户中文英文、浅色深色和日榜面板 |
 
 ### 基线与计划变更范围
 
@@ -415,9 +416,10 @@ git diff --check
 
 ### 数据库与 API 对账
 
-- 状态：已通过（本地自动化范围）
+- 状态：已通过（本地自动化范围）；生产 live API 已通过，生产直连 SQL 对账未执行
 - 自动化已覆盖：最近发放总金额等于日榜奖励流水汇总；最多返回 10 名脱敏获奖者，但 `winners_count` 和 `total_amount` 统计全量流水；历史缺失 rank/token 时按 period 时间窗查询排行榜回补；route contract 确认公开 GET 不触发 JWT，响应不包含 `email` 字段或邮箱明文。
-- 仍需部署后按生产数据库/API 再核对 `play_reward_ledger.source='arena_daily_settlement'` 与 summary 返回总额一致。
+- 生产 live API：`GET https://www.jisudeng.com/api/v1/play/arena/daily/reward-summary` 返回 200；`code=0`、`enabled=true`、recent period `2026-07-20`、current period `2026-07-21`、`winners_count=10`、返回 winners 10 名、current estimate 10 行；响应不包含邮箱字段或邮箱明文。
+- 当前服务器环境没有生产 `DATABASE_URL` 或 PG 凭据，因此未执行生产直连 SQL 对账。生产 API 的最近发放数据来自 `play_reward_ledger` 查询路径；独立 SQL 汇总仍需在有生产 DB 凭据时补做，不作为本地浏览器验收的替代。
 
 ### 中文与英文检查
 
@@ -438,11 +440,15 @@ git diff --check
 
 ### 剩余风险
 
-- PR/CI、部署证明和用户本地浏览器验收尚未完成。
-- CP3 未部署并通过本地验收前，不得开始 CP4。
+- 用户本地浏览器验收尚未完成。
+- 生产直连 SQL 汇总对账未执行，原因是当前服务器环境没有生产 DB 凭据；本地自动化已经覆盖 reward ledger 汇总一致，生产 live API 已证明迁移和公开查询路径可用。
+- CP3 未通过用户本地浏览器验收前，不得开始 CP4。
 
 ### 交付 commit
 
 - 状态：已通过
-- 实现 commit：本提交（`feat(play): add daily arena reward summary`）
-- PR：待创建
+- 实现 commit：`10ea15649f04e1101a9c321e1fac3ebd9434942e`（`feat(play): add daily arena reward summary`）
+- PR：`#87`，目标分支 `play/main`
+- 合并 commit：`c8756db428e26cbced218f9256aaecaa54eca1d4`
+- Zeabur deployment：`5535370977`，状态 `success`
+- 生产前端资源：`index-DKNZxRRJ.js`、`ArenaView-DpAW9DeC.js`、`jisudeng-pages.zh-7vuuOAtE.js`、`zh-CSxqxLU2.js`、`en-B7u3TFCS.js`
