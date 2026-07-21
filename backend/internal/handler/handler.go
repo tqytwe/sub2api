@@ -41,6 +41,7 @@ type AdminHandlers struct {
 	Affiliate              *admin.AffiliateHandler
 	Compliance             *admin.ComplianceHandler
 	Play                   *admin.AdminPlayHandler
+	Withdrawal             *admin.WithdrawalHandler
 	ModelCatalog           *admin.ModelCatalogHandler
 	AuditLog               *admin.AuditLogHandler
 	PromptLibrary          *admin.PromptLibraryHandler

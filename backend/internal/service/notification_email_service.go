@@ -27,6 +27,11 @@ const (
 	NotificationEmailEventSubscriptionExpiryReminder  = "subscription.expiry_reminder"
 	NotificationEmailEventBalanceLow                  = "balance.low"
 	NotificationEmailEventBalanceRechargeSuccess      = "balance.recharge_success"
+	NotificationEmailEventWithdrawalSubmitted         = "withdrawal.submitted"
+	NotificationEmailEventWithdrawalCanceled          = "withdrawal.canceled"
+	NotificationEmailEventWithdrawalApproved          = "withdrawal.approved"
+	NotificationEmailEventWithdrawalRejected          = "withdrawal.rejected"
+	NotificationEmailEventWithdrawalPaid              = "withdrawal.paid"
 	NotificationEmailEventAccountQuotaAlert           = "account.quota_alert"
 	NotificationEmailEventContentModerationViolation  = "content_moderation.violation_notice"
 	NotificationEmailEventContentModerationDisabled   = "content_moderation.account_disabled"
@@ -1028,6 +1033,11 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventSubscriptionExpiryReminder,
 	NotificationEmailEventBalanceLow,
 	NotificationEmailEventBalanceRechargeSuccess,
+	NotificationEmailEventWithdrawalSubmitted,
+	NotificationEmailEventWithdrawalCanceled,
+	NotificationEmailEventWithdrawalApproved,
+	NotificationEmailEventWithdrawalRejected,
+	NotificationEmailEventWithdrawalPaid,
 	NotificationEmailEventAccountQuotaAlert,
 	NotificationEmailEventContentModerationViolation,
 	NotificationEmailEventContentModerationDisabled,
@@ -1092,6 +1102,46 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 		Category:     "billing",
 		Optional:     false,
 		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "recharge_amount", "current_balance", "order_id"),
+	},
+	NotificationEmailEventWithdrawalSubmitted: {
+		Event:        NotificationEmailEventWithdrawalSubmitted,
+		Label:        "Withdrawal submitted",
+		Description:  "Sent after a user submits a withdrawal request.",
+		Category:     "withdrawal",
+		Optional:     false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "withdrawal_id", "withdrawal_amount", "withdrawal_status", "payout_currency"),
+	},
+	NotificationEmailEventWithdrawalCanceled: {
+		Event:        NotificationEmailEventWithdrawalCanceled,
+		Label:        "Withdrawal canceled",
+		Description:  "Sent after a user cancels a withdrawal request.",
+		Category:     "withdrawal",
+		Optional:     false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "withdrawal_id", "withdrawal_amount", "withdrawal_status", "payout_currency"),
+	},
+	NotificationEmailEventWithdrawalApproved: {
+		Event:        NotificationEmailEventWithdrawalApproved,
+		Label:        "Withdrawal approved",
+		Description:  "Sent after a withdrawal request is approved and waits for offline payout.",
+		Category:     "withdrawal",
+		Optional:     false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "withdrawal_id", "withdrawal_amount", "withdrawal_status", "payout_currency"),
+	},
+	NotificationEmailEventWithdrawalRejected: {
+		Event:        NotificationEmailEventWithdrawalRejected,
+		Label:        "Withdrawal rejected",
+		Description:  "Sent after an administrator rejects a withdrawal request.",
+		Category:     "withdrawal",
+		Optional:     false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "withdrawal_id", "withdrawal_amount", "withdrawal_status", "payout_currency"),
+	},
+	NotificationEmailEventWithdrawalPaid: {
+		Event:        NotificationEmailEventWithdrawalPaid,
+		Label:        "Withdrawal paid",
+		Description:  "Sent after an administrator marks an offline withdrawal payout as paid.",
+		Category:     "withdrawal",
+		Optional:     false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...), "withdrawal_id", "withdrawal_amount", "withdrawal_status", "payout_currency", "external_txn_id"),
 	},
 	NotificationEmailEventAccountQuotaAlert: {
 		Event:       NotificationEmailEventAccountQuotaAlert,
@@ -1289,7 +1339,139 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 <p>{{recipient_name}}，您好：</p>
 <p>您的余额充值 <strong>${{recharge_amount}}</strong> 已完成。</p>
 <p>当前余额：<strong>${{current_balance}}</strong></p>
-			<p>订单号：{{order_id}}</p>`),
+				<p>订单号：{{order_id}}</p>`),
+		},
+	},
+	NotificationEmailEventWithdrawalSubmitted: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Withdrawal request submitted",
+			HTML: notificationEmailCard("#0f766e", "Withdrawal submitted", `
+<p>Hello {{recipient_name}},</p>
+<p>Your withdrawal request has been submitted and is waiting for review.</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Request ID</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>Amount</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>Status</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>Payout currency</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 提现申请已提交",
+			HTML: notificationEmailCard("#0f766e", "提现申请已提交", `
+<p>{{recipient_name}}，您好：</p>
+<p>您的提现申请已提交，正在等待审核。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>申请编号</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>提现金额</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>当前状态</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>收款币种</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+	},
+	NotificationEmailEventWithdrawalCanceled: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Withdrawal request canceled",
+			HTML: notificationEmailCard("#64748b", "Withdrawal canceled", `
+<p>Hello {{recipient_name}},</p>
+<p>Your withdrawal request has been canceled and the frozen amount has been restored.</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Request ID</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>Amount</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>Status</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>Payout currency</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 提现申请已取消",
+			HTML: notificationEmailCard("#64748b", "提现申请已取消", `
+<p>{{recipient_name}}，您好：</p>
+<p>您的提现申请已取消，冻结金额已原路恢复。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>申请编号</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>提现金额</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>当前状态</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>收款币种</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+	},
+	NotificationEmailEventWithdrawalApproved: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Withdrawal request approved",
+			HTML: notificationEmailCard("#2563eb", "Withdrawal approved", `
+<p>Hello {{recipient_name}},</p>
+<p>Your withdrawal request has been approved and is waiting for offline payout registration.</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Request ID</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>Amount</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>Status</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>Payout currency</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 提现申请已通过",
+			HTML: notificationEmailCard("#2563eb", "提现申请已通过", `
+<p>{{recipient_name}}，您好：</p>
+<p>您的提现申请已通过审核，正在等待线下打款登记。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>申请编号</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>提现金额</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>当前状态</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>收款币种</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+	},
+	NotificationEmailEventWithdrawalRejected: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Withdrawal request rejected",
+			HTML: notificationEmailCard("#dc2626", "Withdrawal rejected", `
+<p>Hello {{recipient_name}},</p>
+<p>Your withdrawal request was rejected and the frozen amount has been restored.</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Request ID</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>Amount</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>Status</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>Payout currency</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 提现申请未通过",
+			HTML: notificationEmailCard("#dc2626", "提现申请未通过", `
+<p>{{recipient_name}}，您好：</p>
+<p>您的提现申请未通过审核，冻结金额已原路恢复。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>申请编号</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>提现金额</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>当前状态</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>收款币种</td><td>{{payout_currency}}</td></tr>
+</table>`),
+		},
+	},
+	NotificationEmailEventWithdrawalPaid: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] Withdrawal paid",
+			HTML: notificationEmailCard("#16a34a", "Withdrawal paid", `
+<p>Hello {{recipient_name}},</p>
+<p>Your withdrawal has been marked as paid by the platform.</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Request ID</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>Amount</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>Status</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>Payout currency</td><td>{{payout_currency}}</td></tr>
+  <tr><td>External transaction ID</td><td>{{external_txn_id}}</td></tr>
+</table>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] 提现已打款",
+			HTML: notificationEmailCard("#16a34a", "提现已打款", `
+<p>{{recipient_name}}，您好：</p>
+<p>您的提现申请已完成线下打款登记。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>申请编号</td><td>{{withdrawal_id}}</td></tr>
+  <tr><td>提现金额</td><td>${{withdrawal_amount}}</td></tr>
+  <tr><td>当前状态</td><td>{{withdrawal_status}}</td></tr>
+  <tr><td>收款币种</td><td>{{payout_currency}}</td></tr>
+  <tr><td>外部流水号</td><td>{{external_txn_id}}</td></tr>
+</table>`),
 		},
 	},
 	NotificationEmailEventAccountQuotaAlert: {

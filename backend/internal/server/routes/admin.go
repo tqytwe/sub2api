@@ -116,12 +116,31 @@ func RegisterAdminRoutes(
 
 		registerAdminPlayRoutes(admin, h)
 
+		registerWithdrawalRoutes(admin, h, stepUpAuth)
+
 		registerModelCatalogRoutes(admin, h)
 
 		registerAdminPromptLibraryRoutes(admin, h)
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerWithdrawalRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
+	withdrawals := admin.Group("/withdrawals")
+	{
+		withdrawals.GET("", h.Admin.Withdrawal.List)
+		withdrawals.GET("/settings", h.Admin.Withdrawal.GetSettings)
+		withdrawals.PUT("/settings", h.Admin.Withdrawal.UpdateSettings)
+		withdrawals.POST("/user-settings/batch", h.Admin.Withdrawal.BatchUpdateUserSettings)
+		withdrawals.GET("/users/:id/settings", h.Admin.Withdrawal.GetUserSettings)
+		withdrawals.PUT("/users/:id/settings", h.Admin.Withdrawal.UpdateUserSettings)
+		withdrawals.GET("/:id", h.Admin.Withdrawal.Get)
+		withdrawals.POST("/:id/approve", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.Approve)
+		withdrawals.POST("/:id/reject", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.Reject)
+		withdrawals.GET("/:id/payout-sensitive", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.GetSensitivePayout)
+		withdrawals.POST("/:id/mark-paid", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.MarkPaid)
 	}
 }
 

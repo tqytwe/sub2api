@@ -38,6 +38,14 @@ const (
 	AuditActionAuditLogClear           = "admin.audit_log.clear"
 	AuditActionAdminPlayTeamMemberAdd  = "admin.play.team_member.add"
 	AuditActionAdminPlayTeamMemberMove = "admin.play.team_member.move"
+	AuditActionWithdrawalAccountUpdate = "user.withdrawal.account.update"
+	AuditActionWithdrawalSubmit        = "user.withdrawal.submit"
+	AuditActionWithdrawalCancel        = "user.withdrawal.cancel"
+	AuditActionAdminWithdrawalApprove  = "admin.withdrawal.approve"
+	AuditActionAdminWithdrawalReject   = "admin.withdrawal.reject"
+	AuditActionAdminWithdrawalRead     = "admin.withdrawal.payout_sensitive.read"
+	AuditActionAdminWithdrawalPaid     = "admin.withdrawal.paid"
+	AuditActionAdminWithdrawalSettings = "admin.withdrawal.settings.update"
 )
 
 // AuditLog 一条管理面操作审计记录。

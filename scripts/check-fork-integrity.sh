@@ -231,6 +231,7 @@ MIGRATIONS=(
   209_play_arena_daily_reward_summary.sql
   210_subscription_plan_storefront.sql
   210_withdrawable_entitlements.sql
+  211_withdrawals.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -244,6 +245,13 @@ check_contains "FORK-BILLING-010" "recharge completion grants Play boost" "backe
 check_file "FORK-BILLING-010" "withdrawable entitlement recompute command" "backend/cmd/recompute-withdrawable-entitlements/main.go"
 check_file "FORK-BILLING-010" "withdrawable entitlement recompute script" "backend/scripts/recompute-withdrawable-entitlements.sh"
 check_contains "FORK-BILLING-010" "image release restores consumed entitlements" "backend/internal/repository/usage_billing_repo.go" "restore_ledger_key"
+check_file "FORK-BILLING-010" "withdrawal service" "backend/internal/service/withdrawal.go"
+check_contains "FORK-BILLING-010" "user withdrawal create route" "backend/internal/server/routes/user.go" 'wallet.POST("/withdrawals"'
+check_contains "FORK-BILLING-010" "admin withdrawal payout route" "backend/internal/server/routes/admin.go" 'withdrawals.POST("/:id/mark-paid"'
+check_contains "FORK-BILLING-010" "admin withdrawal step-up route" "backend/internal/server/routes/admin.go" 'withdrawals.GET("/:id/payout-sensitive", gin.HandlerFunc(stepUpAuth)'
+check_file "FORK-BILLING-010" "admin withdrawals view" "frontend/src/views/admin/AdminWithdrawalsView.vue"
+check_contains "FORK-BILLING-010" "Chinese withdrawal management locale" "frontend/src/i18n/locales/zh.ts" "提现管理"
+check_contains "FORK-BILLING-010" "English withdrawal management locale" "frontend/src/i18n/locales/en.ts" "Withdrawals"
 
 run_check "DOCS" "local links and document index" node "$ROOT/scripts/check-doc-links.mjs"
 

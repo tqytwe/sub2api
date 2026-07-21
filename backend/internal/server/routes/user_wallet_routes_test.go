@@ -34,6 +34,13 @@ func TestUserWalletRoutesContract(t *testing.T) {
 	for _, route := range []string{
 		"GET /api/v1/user/wallet/summary",
 		"GET /api/v1/user/wallet/transactions",
+		"GET /api/v1/user/wallet/withdrawals/availability",
+		"GET /api/v1/user/wallet/withdrawal-account",
+		"PUT /api/v1/user/wallet/withdrawal-account",
+		"GET /api/v1/user/wallet/withdrawals",
+		"POST /api/v1/user/wallet/withdrawals",
+		"GET /api/v1/user/wallet/withdrawals/:id",
+		"POST /api/v1/user/wallet/withdrawals/:id/cancel",
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing route: %s", route)
@@ -42,6 +49,9 @@ func TestUserWalletRoutesContract(t *testing.T) {
 	for _, path := range []string{
 		"/api/v1/user/wallet/summary",
 		"/api/v1/user/wallet/transactions",
+		"/api/v1/user/wallet/withdrawals/availability",
+		"/api/v1/user/wallet/withdrawal-account",
+		"/api/v1/user/wallet/withdrawals",
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, path, nil)

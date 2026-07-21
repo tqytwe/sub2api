@@ -16,9 +16,11 @@ const (
 	withdrawableEntitlementStatusActive   = "active"
 	withdrawableEntitlementStatusConsumed = "consumed"
 
-	withdrawableAllocationGrant   = "grant"
-	withdrawableAllocationConsume = "consume"
-	withdrawableAllocationRestore = "restore"
+	withdrawableAllocationGrant    = "grant"
+	withdrawableAllocationConsume  = "consume"
+	withdrawableAllocationRestore  = "restore"
+	withdrawableAllocationFreeze   = "freeze"
+	withdrawableAllocationUnfreeze = "unfreeze"
 
 	withdrawableRewardMaturityDelay = 72 * time.Hour
 )

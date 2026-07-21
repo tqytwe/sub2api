@@ -41,6 +41,13 @@ func RegisterUserRoutes(
 			{
 				wallet.GET("/summary", h.Wallet.Summary)
 				wallet.GET("/transactions", h.Wallet.Transactions)
+				wallet.GET("/withdrawals/availability", h.Wallet.WithdrawalAvailability)
+				wallet.GET("/withdrawal-account", h.Wallet.GetWithdrawalAccount)
+				wallet.PUT("/withdrawal-account", h.Wallet.UpdateWithdrawalAccount)
+				wallet.GET("/withdrawals", h.Wallet.ListWithdrawals)
+				wallet.POST("/withdrawals", h.Wallet.CreateWithdrawal)
+				wallet.GET("/withdrawals/:id", h.Wallet.GetWithdrawal)
+				wallet.POST("/withdrawals/:id/cancel", h.Wallet.CancelWithdrawal)
 			}
 
 			// 通知邮箱管理
