@@ -59,4 +59,47 @@ describe('admin withdrawals API', () => {
     expect(put).toHaveBeenCalledWith('/admin/withdrawals/users/7/settings', { enabled: true, daily_limit_override: '200' })
     expect(post).toHaveBeenCalledWith('/admin/withdrawals/user-settings/batch', { user_ids: [7, 8], enabled: false, minimum_amount_override: '10' })
   })
+
+  it('runs per-user withdrawable review through controlled admin endpoints', async () => {
+    post.mockResolvedValueOnce({
+      data: {
+        mode: 'dry_run',
+        generated_at: '2026-07-21T12:00:00Z',
+        user: {
+          user_id: 7,
+          status: 'ready',
+          ledger_balance: '10.00000000',
+          computed_withdrawable_balance: '10.00000000',
+          computed_pending_balance: '0.00000000',
+          computed_entitlement_balance: '10.00000000',
+          transaction_count: 1,
+          eligible_grant_count: 1,
+          anomalies: [],
+        },
+      },
+    })
+    post.mockResolvedValueOnce({
+      data: {
+        mode: 'execute',
+        generated_at: '2026-07-21T12:01:00Z',
+        user: {
+          user_id: 7,
+          status: 'ready',
+          ledger_balance: '10.00000000',
+          computed_withdrawable_balance: '10.00000000',
+          computed_pending_balance: '0.00000000',
+          computed_entitlement_balance: '10.00000000',
+          transaction_count: 1,
+          eligible_grant_count: 1,
+          anomalies: [],
+        },
+      },
+    })
+
+    await adminWithdrawalsAPI.dryRunUserRecompute(7)
+    await adminWithdrawalsAPI.executeUserRecompute(7)
+
+    expect(post).toHaveBeenCalledWith('/admin/withdrawals/users/7/recompute')
+    expect(post).toHaveBeenCalledWith('/admin/withdrawals/users/7/recompute/execute')
+  })
 })

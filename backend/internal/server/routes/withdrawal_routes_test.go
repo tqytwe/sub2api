@@ -17,7 +17,7 @@ func TestAdminWithdrawalRoutesContractAndSensitiveStepUp(t *testing.T) {
 	router := gin.New()
 	handlers := &handler.Handlers{
 		Admin: &handler.AdminHandlers{
-			Withdrawal: adminhandler.NewWithdrawalHandler(nil),
+			Withdrawal: adminhandler.NewWithdrawalHandler(nil, nil),
 		},
 	}
 	stepUp := servermiddleware.StepUpAuthMiddleware(func(c *gin.Context) {
@@ -36,6 +36,8 @@ func TestAdminWithdrawalRoutesContractAndSensitiveStepUp(t *testing.T) {
 		"POST /api/v1/admin/withdrawals/user-settings/batch",
 		"GET /api/v1/admin/withdrawals/users/:id/settings",
 		"PUT /api/v1/admin/withdrawals/users/:id/settings",
+		"POST /api/v1/admin/withdrawals/users/:id/recompute",
+		"POST /api/v1/admin/withdrawals/users/:id/recompute/execute",
 		"GET /api/v1/admin/withdrawals/:id",
 		"POST /api/v1/admin/withdrawals/:id/approve",
 		"POST /api/v1/admin/withdrawals/:id/reject",
@@ -54,6 +56,7 @@ func TestAdminWithdrawalRoutesContractAndSensitiveStepUp(t *testing.T) {
 		{http.MethodPost, "/api/v1/admin/withdrawals/12/reject"},
 		{http.MethodGet, "/api/v1/admin/withdrawals/12/payout-sensitive"},
 		{http.MethodPost, "/api/v1/admin/withdrawals/12/mark-paid"},
+		{http.MethodPost, "/api/v1/admin/withdrawals/users/12/recompute/execute"},
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(tc.method, tc.path, nil)

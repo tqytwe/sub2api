@@ -14,7 +14,8 @@ import (
 )
 
 type WithdrawalHandler struct {
-	withdrawalService *service.WithdrawalService
+	withdrawalService            *service.WithdrawalService
+	withdrawableRecomputeService *service.WithdrawableRecomputeService
 }
 
 type adminWithdrawalSystemSettingsRequest struct {
@@ -61,8 +62,45 @@ type adminWithdrawalBatchUserSettingsResponse struct {
 	Affected int `json:"affected"`
 }
 
-func NewWithdrawalHandler(withdrawalService *service.WithdrawalService) *WithdrawalHandler {
-	return &WithdrawalHandler{withdrawalService: withdrawalService}
+type adminWithdrawalRecomputeResponse struct {
+	Mode        string                               `json:"mode"`
+	GeneratedAt time.Time                            `json:"generated_at"`
+	User        adminWithdrawalRecomputeUserResponse `json:"user"`
+}
+
+type adminWithdrawalRecomputeUserResponse struct {
+	UserID                      int64                                     `json:"user_id"`
+	Status                      string                                    `json:"status"`
+	LedgerBalance               string                                    `json:"ledger_balance"`
+	ComputedWithdrawableBalance string                                    `json:"computed_withdrawable_balance"`
+	ComputedPendingBalance      string                                    `json:"computed_pending_balance"`
+	ComputedEntitlementBalance  string                                    `json:"computed_entitlement_balance"`
+	TransactionCount            int                                       `json:"transaction_count"`
+	EligibleGrantCount          int                                       `json:"eligible_grant_count"`
+	Anomalies                   []adminWithdrawalRecomputeAnomalyResponse `json:"anomalies"`
+	Batches                     []adminWithdrawalRecomputeBatchResponse   `json:"batches,omitempty"`
+}
+
+type adminWithdrawalRecomputeBatchResponse struct {
+	SourceTransactionID int64     `json:"source_transaction_id"`
+	SourceType          string    `json:"source_type"`
+	SourceID            string    `json:"source_id"`
+	OriginalAmount      string    `json:"original_amount"`
+	RemainingAmount     string    `json:"remaining_amount"`
+	ConsumedAmount      string    `json:"consumed_amount"`
+	AvailableAt         time.Time `json:"available_at"`
+}
+
+type adminWithdrawalRecomputeAnomalyResponse struct {
+	Code    string            `json:"code"`
+	Details map[string]string `json:"details,omitempty"`
+}
+
+func NewWithdrawalHandler(withdrawalService *service.WithdrawalService, withdrawableRecomputeService *service.WithdrawableRecomputeService) *WithdrawalHandler {
+	return &WithdrawalHandler{
+		withdrawalService:            withdrawalService,
+		withdrawableRecomputeService: withdrawableRecomputeService,
+	}
 }
 
 func (h *WithdrawalHandler) List(c *gin.Context) {
@@ -185,6 +223,48 @@ func (h *WithdrawalHandler) UpdateUserSettings(c *gin.Context) {
 		"enabled":        settings.Enabled,
 	})
 	response.Success(c, settings)
+}
+
+func (h *WithdrawalHandler) DryRunUserRecompute(c *gin.Context) {
+	h.recomputeUser(c, false)
+}
+
+func (h *WithdrawalHandler) ExecuteUserRecompute(c *gin.Context) {
+	h.recomputeUser(c, true)
+}
+
+func (h *WithdrawalHandler) recomputeUser(c *gin.Context, execute bool) {
+	userID, err := parseAdminWithdrawalIDParam(c, "id")
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if h.withdrawableRecomputeService == nil {
+		response.ErrorFrom(c, service.ErrWithdrawalUnavailable)
+		return
+	}
+	report, err := h.withdrawableRecomputeService.Recompute(c.Request.Context(), service.WithdrawableRecomputeOptions{
+		Execute: execute,
+		UserID:  userID,
+		Limit:   1,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if len(report.Users) == 0 {
+		response.ErrorFrom(c, service.ErrUserNotFound)
+		return
+	}
+	userReport := report.Users[0]
+	middleware.SetAuditExtra(c, map[string]any{
+		"result":               report.Mode,
+		"target_user_id":       userID,
+		"recompute_status":     userReport.Status,
+		"anomaly_count":        len(userReport.Anomalies),
+		"eligible_grant_count": userReport.EligibleGrantCount,
+	})
+	response.Success(c, adminWithdrawalRecomputeResponseFromReport(report, userReport))
 }
 
 func (h *WithdrawalHandler) BatchUpdateUserSettings(c *gin.Context) {
@@ -407,4 +487,88 @@ func firstStringPtr(values ...*string) *string {
 		}
 	}
 	return nil
+}
+
+func adminWithdrawalRecomputeResponseFromReport(report *service.WithdrawableRecomputeReport, user service.WithdrawableRecomputeUserReport) adminWithdrawalRecomputeResponse {
+	anomalies := make([]adminWithdrawalRecomputeAnomalyResponse, 0, len(user.Anomalies))
+	for _, raw := range user.Anomalies {
+		anomalies = append(anomalies, adminWithdrawalRecomputeAnomalyFromRaw(raw))
+	}
+	batches := make([]adminWithdrawalRecomputeBatchResponse, 0, len(user.Batches))
+	for _, batch := range user.Batches {
+		batches = append(batches, adminWithdrawalRecomputeBatchResponse{
+			SourceTransactionID: batch.SourceTransactionID,
+			SourceType:          batch.SourceType,
+			SourceID:            batch.SourceID,
+			OriginalAmount:      batch.OriginalAmount.StringFixed(8),
+			RemainingAmount:     batch.RemainingAmount.StringFixed(8),
+			ConsumedAmount:      batch.ConsumedAmount.StringFixed(8),
+			AvailableAt:         batch.AvailableAt,
+		})
+	}
+	return adminWithdrawalRecomputeResponse{
+		Mode:        report.Mode,
+		GeneratedAt: report.GeneratedAt,
+		User: adminWithdrawalRecomputeUserResponse{
+			UserID:                      user.UserID,
+			Status:                      user.Status,
+			LedgerBalance:               user.LedgerBalance.StringFixed(8),
+			ComputedWithdrawableBalance: user.ComputedWithdrawableBalance.StringFixed(8),
+			ComputedPendingBalance:      user.ComputedPendingBalance.StringFixed(8),
+			ComputedEntitlementBalance:  user.ComputedEntitlementBalance.StringFixed(8),
+			TransactionCount:            user.TransactionCount,
+			EligibleGrantCount:          user.EligibleGrantCount,
+			Anomalies:                   anomalies,
+			Batches:                     batches,
+		},
+	}
+}
+
+func adminWithdrawalRecomputeAnomalyFromRaw(raw string) adminWithdrawalRecomputeAnomalyResponse {
+	raw = strings.TrimSpace(raw)
+	switch {
+	case raw == "existing withdrawable entitlements require manual review before execute":
+		return adminWithdrawalRecomputeAnomalyResponse{Code: "existing_entitlements"}
+	case strings.HasPrefix(raw, "transaction ") && strings.Contains(raw, " confidence is "):
+		txID, rest := splitAdminWithdrawalRecomputeTransaction(raw)
+		return adminWithdrawalRecomputeAnomalyResponse{
+			Code:    "transaction_confidence",
+			Details: map[string]string{"transaction_id": txID, "confidence": strings.TrimSpace(strings.TrimPrefix(rest, "confidence is "))},
+		}
+	case strings.HasPrefix(raw, "transaction ") && strings.Contains(raw, " missing reliable balance_before"):
+		txID, _ := splitAdminWithdrawalRecomputeTransaction(raw)
+		return adminWithdrawalRecomputeAnomalyResponse{
+			Code:    "missing_balance_before",
+			Details: map[string]string{"transaction_id": txID},
+		}
+	case strings.HasPrefix(raw, "transaction ") && strings.Contains(raw, " could restore only "):
+		txID, rest := splitAdminWithdrawalRecomputeTransaction(raw)
+		return adminWithdrawalRecomputeAnomalyResponse{
+			Code:    "restore_mismatch",
+			Details: map[string]string{"transaction_id": txID, "detail": rest},
+		}
+	case raw == "computed entitlement balance exceeds current balance":
+		return adminWithdrawalRecomputeAnomalyResponse{Code: "entitlement_exceeds_balance"}
+	case strings.HasPrefix(raw, "ledger replay balance ") && strings.Contains(raw, " does not match users.balance "):
+		details := strings.TrimPrefix(raw, "ledger replay balance ")
+		parts := strings.SplitN(details, " does not match users.balance ", 2)
+		if len(parts) == 2 {
+			return adminWithdrawalRecomputeAnomalyResponse{
+				Code:    "replay_balance_mismatch",
+				Details: map[string]string{"ledger_balance": strings.TrimSpace(parts[0]), "user_balance": strings.TrimSpace(parts[1])},
+			}
+		}
+		return adminWithdrawalRecomputeAnomalyResponse{Code: "replay_balance_mismatch"}
+	default:
+		return adminWithdrawalRecomputeAnomalyResponse{Code: "unknown"}
+	}
+}
+
+func splitAdminWithdrawalRecomputeTransaction(raw string) (string, string) {
+	rest := strings.TrimSpace(strings.TrimPrefix(raw, "transaction "))
+	parts := strings.SplitN(rest, " ", 2)
+	if len(parts) != 2 {
+		return "", ""
+	}
+	return parts[0], strings.TrimSpace(parts[1])
 }
