@@ -94,6 +94,98 @@
                 <span class="text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recalcStatus') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ recalcStatusLabel(userSettings?.recalc_status) }}</span>
               </div>
+              <div class="rounded border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-700 dark:bg-dark-800/60">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.recomputeTitle') }}</h3>
+                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeHint') }}</p>
+                  </div>
+                  <div class="flex shrink-0 flex-wrap gap-2">
+                    <button type="button" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5" :disabled="!activeUserID || recomputeLoading || recomputeExecuting" @click="runUserRecomputeDryRun">
+                      <Icon name="search" size="xs" />
+                      {{ recomputeLoading ? t('admin.withdrawals.recomputing') : t('admin.withdrawals.runRecomputeCheck') }}
+                    </button>
+                    <button type="button" class="btn btn-primary btn-sm inline-flex items-center gap-1.5" :disabled="!canExecuteRecompute || recomputeExecuting" @click="showRecomputeExecuteDialog = true">
+                      <Icon name="shield" size="xs" />
+                      {{ recomputeExecuting ? t('admin.withdrawals.executingRecompute') : t('admin.withdrawals.writeRecomputeResult') }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="recomputeReport" class="mt-4 space-y-3">
+                  <div class="grid gap-3 sm:grid-cols-2">
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeMode') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ recomputeModeLabel(recomputeReport.mode) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeGeneratedAt') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatDateTime(recomputeReport.generated_at) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeLedgerBalance') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.ledger_balance) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeWithdrawable') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_withdrawable_balance) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputePending') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_pending_balance) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeEntitlement') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_entitlement_balance) }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeTransactions') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ recomputeReport.user.transaction_count }}</p>
+                    </div>
+                    <div>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeEligibleGrants') }}</p>
+                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ recomputeReport.user.eligible_grant_count }}</p>
+                    </div>
+                  </div>
+
+                  <div v-if="recomputeReport.user.anomalies.length" class="rounded border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+                    <p class="text-xs font-semibold text-amber-800 dark:text-amber-200">{{ t('admin.withdrawals.recomputeAnomalies') }}</p>
+                    <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-amber-800 dark:text-amber-100">
+                      <li v-for="(anomaly, index) in recomputeReport.user.anomalies" :key="`${anomaly.code}-${index}`">
+                        {{ recomputeAnomalyLabel(anomaly) }}
+                      </li>
+                    </ul>
+                  </div>
+                  <div v-else class="rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                    {{ t('admin.withdrawals.recomputeReadyHint') }}
+                  </div>
+
+                  <div v-if="(recomputeReport.user.batches || []).length" class="overflow-x-auto rounded border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
+                    <table class="min-w-full divide-y divide-gray-100 text-xs dark:divide-dark-700">
+                      <thead class="bg-gray-50 text-left text-gray-500 dark:bg-dark-800 dark:text-gray-400">
+                        <tr>
+                          <th class="px-3 py-2">{{ t('admin.withdrawals.recomputeSourceTransaction') }}</th>
+                          <th class="px-3 py-2">{{ t('admin.withdrawals.recomputeSource') }}</th>
+                          <th class="px-3 py-2 text-right">{{ t('admin.withdrawals.recomputeOriginal') }}</th>
+                          <th class="px-3 py-2 text-right">{{ t('admin.withdrawals.recomputeRemaining') }}</th>
+                          <th class="px-3 py-2 text-right">{{ t('admin.withdrawals.recomputeConsumed') }}</th>
+                          <th class="px-3 py-2">{{ t('admin.withdrawals.recomputeAvailableAt') }}</th>
+                        </tr>
+                      </thead>
+                      <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
+                        <tr v-for="batch in recomputeReport.user.batches" :key="batch.source_transaction_id">
+                          <td class="px-3 py-2">#{{ batch.source_transaction_id }}</td>
+                          <td class="px-3 py-2">{{ recomputeSourceLabel(batch.source_type) }}</td>
+                          <td class="px-3 py-2 text-right tabular-nums">{{ formatMoney(batch.original_amount) }}</td>
+                          <td class="px-3 py-2 text-right tabular-nums">{{ formatMoney(batch.remaining_amount) }}</td>
+                          <td class="px-3 py-2 text-right tabular-nums">{{ formatMoney(batch.consumed_amount) }}</td>
+                          <td class="px-3 py-2 whitespace-nowrap">{{ formatDateTime(batch.available_at) }}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
               <button type="submit" class="btn btn-primary inline-flex items-center justify-center gap-2" :disabled="userSettingsSaving">
                 <Icon name="check" size="sm" />
                 {{ userSettingsSaving ? t('admin.withdrawals.saving') : t('admin.withdrawals.saveUser') }}
@@ -408,6 +500,15 @@
         </aside>
       </div>
     </div>
+    <ConfirmDialog
+      :show="showRecomputeExecuteDialog"
+      :title="t('admin.withdrawals.recomputeExecuteTitle')"
+      :message="t('admin.withdrawals.recomputeExecuteMessage')"
+      :confirm-text="t('admin.withdrawals.writeRecomputeResult')"
+      :cancel-text="t('common.cancel')"
+      @confirm="executeUserRecompute"
+      @cancel="showRecomputeExecuteDialog = false"
+    />
   </AppLayout>
 </template>
 
@@ -418,7 +519,10 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import { extractI18nErrorMessage } from '@/utils/apiError'
+import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import adminWithdrawalsAPI, {
+  type AdminWithdrawalRecomputeAnomaly,
+  type AdminWithdrawalRecomputeResponse,
   type AdminUserWithdrawalSettings,
   type AdminWithdrawalSensitivePayout,
   type AdminWithdrawalSystemSettings,
@@ -451,12 +555,16 @@ const settingsSaving = ref(false)
 const userSettingsLoading = ref(false)
 const userSettingsSaving = ref(false)
 const batchSaving = ref(false)
+const recomputeLoading = ref(false)
+const recomputeExecuting = ref(false)
 const reviewActionLoading = ref(false)
 const sensitiveLoading = ref(false)
 const paidActionLoading = ref(false)
+const showRecomputeExecuteDialog = ref(false)
 
 const systemSettings = ref<AdminWithdrawalSystemSettings | null>(null)
 const userSettings = ref<AdminUserWithdrawalSettings | null>(null)
+const recomputeReport = ref<AdminWithdrawalRecomputeResponse | null>(null)
 const activeWithdrawal = ref<WithdrawalRequest | null>(null)
 const sensitivePayout = ref<AdminWithdrawalSensitivePayout | null>(null)
 
@@ -510,6 +618,12 @@ const withdrawalPage = ref<WithdrawalRequestPage>({
 
 const canReview = computed(() => {
   return activeWithdrawal.value?.status === 'pending_review' || activeWithdrawal.value?.status === 'second_review'
+})
+
+const activeUserID = computed(() => parsePositiveID(userSettingsForm.user_id))
+
+const canExecuteRecompute = computed(() => {
+  return recomputeReport.value?.user.status === 'ready' && recomputeReport.value.user.user_id === activeUserID.value
 })
 
 const sensitiveEntries = computed(() => {
@@ -598,6 +712,24 @@ function recalcStatusLabel(status?: string) {
   const key = `admin.withdrawals.recalcStatuses.${status}`
   const translated = t(key)
   return translated === key ? t('admin.withdrawals.recalcStatuses.unknown') : translated
+}
+
+function recomputeModeLabel(mode: string) {
+  const key = `admin.withdrawals.recomputeModes.${mode}`
+  const translated = t(key)
+  return translated === key ? t('admin.withdrawals.recomputeModes.unknown') : translated
+}
+
+function recomputeSourceLabel(source: string) {
+  const key = `admin.withdrawals.recomputeSources.${source}`
+  const translated = t(key)
+  return translated === key ? t('admin.withdrawals.recomputeSources.unknown') : translated
+}
+
+function recomputeAnomalyLabel(anomaly: AdminWithdrawalRecomputeAnomaly) {
+  const key = `admin.withdrawals.recomputeAnomalyCodes.${anomaly.code}`
+  const translated = t(key, anomaly.details || {})
+  return translated === key ? t('admin.withdrawals.recomputeAnomalyCodes.unknown') : translated
 }
 
 function statusClass(status: WithdrawalStatus) {
@@ -702,6 +834,7 @@ async function loadUserSettings() {
     appStore.showError(t('admin.withdrawals.validation.userIdRequired'))
     return
   }
+  recomputeReport.value = null
   userSettingsLoading.value = true
   try {
     applyUserSettings(await adminWithdrawalsAPI.getUserSettings(userID))
@@ -709,6 +842,42 @@ async function loadUserSettings() {
     showWithdrawalError(err)
   } finally {
     userSettingsLoading.value = false
+  }
+}
+
+async function runUserRecomputeDryRun() {
+  const userID = parsePositiveID(userSettingsForm.user_id)
+  if (!userID) {
+    appStore.showError(t('admin.withdrawals.validation.userIdRequired'))
+    return
+  }
+  recomputeLoading.value = true
+  try {
+    recomputeReport.value = await adminWithdrawalsAPI.dryRunUserRecompute(userID)
+    appStore.showSuccess(t(recomputeReport.value.user.status === 'ready' ? 'admin.withdrawals.recomputeCheckReady' : 'admin.withdrawals.recomputeCheckNeedsReview'))
+  } catch (err) {
+    showWithdrawalError(err, 'admin.withdrawals.recomputeFailed')
+  } finally {
+    recomputeLoading.value = false
+  }
+}
+
+async function executeUserRecompute() {
+  const userID = parsePositiveID(userSettingsForm.user_id)
+  if (!userID) {
+    appStore.showError(t('admin.withdrawals.validation.userIdRequired'))
+    return
+  }
+  showRecomputeExecuteDialog.value = false
+  recomputeExecuting.value = true
+  try {
+    recomputeReport.value = await adminWithdrawalsAPI.executeUserRecompute(userID)
+    applyUserSettings(await adminWithdrawalsAPI.getUserSettings(userID))
+    appStore.showSuccess(t(recomputeReport.value.user.status === 'ready' ? 'admin.withdrawals.recomputeExecutedReady' : 'admin.withdrawals.recomputeExecutedNeedsReview'))
+  } catch (err) {
+    showWithdrawalError(err, 'admin.withdrawals.recomputeFailed')
+  } finally {
+    recomputeExecuting.value = false
   }
 }
 

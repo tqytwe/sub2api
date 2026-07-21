@@ -59,6 +59,40 @@ export interface AdminBatchUserWithdrawalSettingsResult {
   affected: number
 }
 
+export interface AdminWithdrawalRecomputeAnomaly {
+  code: string
+  details?: Record<string, string>
+}
+
+export interface AdminWithdrawalRecomputeBatch {
+  source_transaction_id: number
+  source_type: string
+  source_id: string
+  original_amount: string
+  remaining_amount: string
+  consumed_amount: string
+  available_at: string
+}
+
+export interface AdminWithdrawalRecomputeUserReport {
+  user_id: number
+  status: string
+  ledger_balance: string
+  computed_withdrawable_balance: string
+  computed_pending_balance: string
+  computed_entitlement_balance: string
+  transaction_count: number
+  eligible_grant_count: number
+  anomalies: AdminWithdrawalRecomputeAnomaly[]
+  batches?: AdminWithdrawalRecomputeBatch[]
+}
+
+export interface AdminWithdrawalRecomputeResponse {
+  mode: 'dry_run' | 'execute'
+  generated_at: string
+  user: AdminWithdrawalRecomputeUserReport
+}
+
 export interface AdminWithdrawalActionInput {
   note?: string
   reason?: string
@@ -137,6 +171,16 @@ export async function batchUpdateUserSettings(input: AdminBatchUserWithdrawalSet
   return data
 }
 
+export async function dryRunUserRecompute(userID: number): Promise<AdminWithdrawalRecomputeResponse> {
+  const { data } = await apiClient.post<AdminWithdrawalRecomputeResponse>(`/admin/withdrawals/users/${userID}/recompute`)
+  return data
+}
+
+export async function executeUserRecompute(userID: number): Promise<AdminWithdrawalRecomputeResponse> {
+  const { data } = await apiClient.post<AdminWithdrawalRecomputeResponse>(`/admin/withdrawals/users/${userID}/recompute/execute`)
+  return data
+}
+
 export async function approve(id: number, input: AdminWithdrawalActionInput = {}): Promise<WithdrawalRequest> {
   const { data } = await apiClient.post<WithdrawalRequest>(`/admin/withdrawals/${id}/approve`, input)
   return data
@@ -168,6 +212,8 @@ export default {
   getUserSettings,
   updateUserSettings,
   batchUpdateUserSettings,
+  dryRunUserRecompute,
+  executeUserRecompute,
   approve,
   reject,
   getSensitivePayout,

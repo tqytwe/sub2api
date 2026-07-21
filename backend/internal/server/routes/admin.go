@@ -136,6 +136,8 @@ func registerWithdrawalRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepU
 		withdrawals.POST("/user-settings/batch", h.Admin.Withdrawal.BatchUpdateUserSettings)
 		withdrawals.GET("/users/:id/settings", h.Admin.Withdrawal.GetUserSettings)
 		withdrawals.PUT("/users/:id/settings", h.Admin.Withdrawal.UpdateUserSettings)
+		withdrawals.POST("/users/:id/recompute", h.Admin.Withdrawal.DryRunUserRecompute)
+		withdrawals.POST("/users/:id/recompute/execute", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.ExecuteUserRecompute)
 		withdrawals.GET("/:id", h.Admin.Withdrawal.Get)
 		withdrawals.POST("/:id/approve", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.Approve)
 		withdrawals.POST("/:id/reject", gin.HandlerFunc(stepUpAuth), h.Admin.Withdrawal.Reject)
