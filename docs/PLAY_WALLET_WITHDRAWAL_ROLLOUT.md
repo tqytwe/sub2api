@@ -1,10 +1,10 @@
 # Play、钱包与提现交付检查点
 
 > 状态：active
-> 当前阶段：阶段二 / CP2
-> 当前结论：等待本地验收（CP1 已通过；CP2 代码、PR/CI、合并和生产部署证明已完成，等待用户本地浏览器验收；CP3 未开始）
+> 当前阶段：阶段三 / CP3
+> 当前结论：CP2 已通过（CP1、CP2 均已完成 PR/CI、部署证明和用户本地浏览器验收；下一步从最新 `origin/play/main` 创建 CP3 独立 worktree）
 > CP2 功能部署基线：`origin/play/main@6531cb83dde134bccbde139220bd29e3623e36d7`
-> 审查分支：`docs/play-wallet-transparency-cp2-deploy-20260721`
+> 审查分支：`docs/play-wallet-transparency-cp2-acceptance-20260721`
 > 工作树：`/home/dell/worktrees/sub2api-play-wallet-transparency-20260721`
 > 最后更新：2026-07-21
 
@@ -17,14 +17,14 @@
 | 阶段或检查点 | 状态 | 当前门禁 |
 |---|---|---|
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
-| 阶段二：战队奖励与余额透明度 / CP2 | 等待本地验收 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并和生产部署证明已通过；等待用户本地浏览器验收 |
-| 阶段三：代币农场最近发放与当前预估 / CP3 | 未开始 | 依赖 CP2 |
+| 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
+| 阶段三：代币农场最近发放与当前预估 / CP3 | 未开始 | CP2 已通过；下一步创建独立 worktree 后开始 RED 检查点 |
 | 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
 | CP6：服务器验证 | 进行中 | CP1 已通过；CP2 本地完整服务器验证、GitHub CI 保护检查、构建和部署后 API/资产复核均已通过；后续阶段未开始 |
 | CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已全绿，并以非 rebase merge commit 合入 `play/main`；后续阶段未开始 |
 | CP8：部署证明 | 进行中 | CP1 已通过；CP2 merge commit `6531cb83dde134bccbde139220bd29e3623e36d7` 已由 Zeabur 部署到 production 并完成 live proof；后续阶段未开始 |
-| CP9：最终本地浏览器验收 | 进行中 | CP1 已通过；CP2 等待用户本地浏览器检查中文/英文、浅色/深色、钱包和战队透明度 |
+| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2 已通过；CP3-CP5 仍须逐阶段验收 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -162,7 +162,7 @@ git diff --check
 | 完整验证 | 已通过 | 聚焦验证、PostgreSQL 对账、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh`、`git diff --check` 全部通过 |
 | PR / GitHub CI | 已通过 | PR #83 全部 GitHub checks 通过：backend-security、frontend-security、Documentation、Protected behavior |
 | 部署核对 | 已通过 | Zeabur deployment `5533768058` 成功部署 CP2 merge commit `6531cb83dde134bccbde139220bd29e3623e36d7`；健康、路由保护和前端资产均已核对 |
-| 本地浏览器验收 | 等待本地验收 | 等待用户在本地浏览器检查普通用户与管理员中文/英文、浅色/深色及钱包/战队数据闭环；CP3 在此之前不开始 |
+| 本地浏览器验收 | 已通过 | 用户于 2026-07-21 确认普通用户钱包、Agent Team、管理员 Play Ops 的中文/英文、浅色/深色本地浏览器验收通过 |
 
 ### 基线与计划变更范围
 
@@ -306,7 +306,7 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 - 新增 `nav.wallet`、`wallet.*`、`agentTeam.personalShare`、管理员成员最近奖励字段均同时覆盖中文和英文。
 - 钱包来源、方向、任务预留变动、分页、空状态、加载失败和表头均走 i18n。
 - `adminPlayOpsParity`、`navLocaleKeys`、`localesMessageCompile` 已通过；中文钱包和 Play Ops 组件测试无英文 key 回退。
-- 生产浏览器中文/英文、浅色/深色仍属于部署后本地验收。
+- 用户于 2026-07-21 完成本地浏览器验收；验收覆盖普通用户钱包、Agent Team、管理员 Play Ops、中文/英文与浅色/深色。
 
 ### 审查发现与修复
 
@@ -320,16 +320,18 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 
 ### 剩余风险
 
-- CP2 仍等待用户本地浏览器验收；未完成前最终状态只能写“代码和部署已完成，等待本地浏览器验收”。
-- CP3 必须等待 CP2 本地浏览器验收通过后才能开始。
+- CP2 没有未解决的交付门禁。
+- CP3 必须从最新 `origin/play/main` 创建独立 worktree，并重新经过 RED、GREEN、审查、验证、PR、部署和本地验收。
 - CP2 不启用提现能力，不改变 `frozen_balance` 现有任务预留语义；CP4/CP5 需独立处理可提现权益与提现冻结。
 
 ### 交付 commit
 
-- 状态：等待本地验收
+- 状态：已通过
 - CP2 实现 commit：`5dc5afb80`（`feat(play): add wallet transparency`）
 - CP2 本地验证记录 commit：`8408a12d3`（`docs(play): record CP2 local validation`）
 - CP2 CI 安全补修 commit：`e8d4acf9f`（`fix(frontend): update axios for audit gate`）
 - PR：`#83`，目标分支 `play/main`
 - 合并 commit：`6531cb83dde134bccbde139220bd29e3623e36d7`
 - Zeabur deployment：`5533768058`，状态 `success`
+- CP2 部署记录 commit：`39de5dd19`（`docs(play): record CP2 deployment checkpoint`）
+- CP2 验收记录 commit：本提交（`docs(play): record CP2 local acceptance`）
