@@ -387,6 +387,32 @@ describe('API Client', () => {
       expect(localStorage.getItem('auth_token')).toBe('account-a-access')
       expect(localStorage.getItem('refresh_token')).toBe('account-a-refresh')
     })
+
+    it('/auth/refresh 的旧 token 401 不能清除已轮换的新 token', async () => {
+      localStorage.setItem('auth_token', 'new-access')
+      localStorage.setItem('refresh_token', 'new-refresh')
+
+      const adapter = vi.fn().mockRejectedValue({
+        response: {
+          status: 401,
+          data: { code: 401, message: 'invalid refresh token', reason: 'REFRESH_TOKEN_INVALID' },
+        },
+        config: {
+          url: '/auth/refresh',
+          data: JSON.stringify({ refresh_token: 'old-refresh' }),
+          headers: { Authorization: 'Bearer old-access' },
+        },
+        code: 'ERR_BAD_REQUEST',
+      })
+      apiClient.defaults.adapter = adapter
+
+      await expect(apiClient.post('/auth/refresh', { refresh_token: 'old-refresh' })).rejects.toEqual(
+        expect.objectContaining({ code: 'AUTH_SESSION_CHANGED' })
+      )
+
+      expect(localStorage.getItem('auth_token')).toBe('new-access')
+      expect(localStorage.getItem('refresh_token')).toBe('new-refresh')
+    })
   })
 
   // --- 网络错误 ---

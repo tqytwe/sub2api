@@ -230,6 +230,24 @@ describe('useAuthStore', () => {
       expect(store.user?.id).toBe(99)
       expect(JSON.parse(localStorage.getItem('auth_user') || '{}').id).toBe(99)
     })
+
+    it('定时刷新前发现 localStorage 已轮换 token 时不再提交旧 refresh token', async () => {
+      mockLogin.mockResolvedValueOnce(fakeAuthResponse)
+      mockGetCurrentUser.mockResolvedValue({ data: fakeUser })
+      const store = useAuthStore()
+
+      await store.login({ email: 'test@example.com', password: '123456' })
+
+      localStorage.setItem('auth_token', 'interceptor-rotated-access')
+      localStorage.setItem('refresh_token', 'interceptor-rotated-refresh')
+      localStorage.setItem('token_expires_at', String(Date.now() + 7_200_000))
+
+      await vi.advanceTimersByTimeAsync(3_480_000)
+
+      expect(mockRefreshToken).not.toHaveBeenCalled()
+      expect(store.token).toBe('interceptor-rotated-access')
+      expect(localStorage.getItem('refresh_token')).toBe('interceptor-rotated-refresh')
+    })
   })
 
   // --- checkAuth ---
