@@ -60,6 +60,7 @@ var auditExtraAllowedKeys = map[string]struct{}{
 	"matched_count": {}, "snapshot_max_id": {}, "filter_hash": {}, "confirm": {},
 	"target_team_id": {}, "target_user_id": {}, "source_team_id": {},
 	"operation": {}, "effective_at": {}, "reason_code": {},
+	"withdrawal_request_id": {}, "withdrawal_status": {}, "paid_currency": {},
 }
 
 // SetAuditExtra adds allowlisted, scalar details to the current audit entry.
@@ -111,15 +112,16 @@ func truncateAuditExtraString(value string, limit int) string {
 
 // auditSensitiveReads 需要审计的敏感 GET 读取（method+FullPath → 动作名）。
 var auditSensitiveReads = map[string]string{
-	"GET /api/v1/admin/accounts/data":             "admin.accounts.export",
-	"GET /api/v1/admin/proxies/data":              "admin.proxies.export",
-	"GET /api/v1/admin/redeem-codes/export":       "admin.redeem_codes.export",
-	"GET /api/v1/admin/backups/:id/download-url":  "admin.backups.download",
-	"GET /api/v1/admin/settings/admin-api-key":    "admin.admin_api_key.read",
-	"GET /api/v1/admin/users/:id/api-keys":        "admin.users.api_keys.read",
-	"GET /api/v1/admin/groups/:id/api-keys":       "admin.groups.api_keys.read",
-	"GET /api/v1/admin/backups/s3-config":         "admin.backups.s3_config.read",
-	"GET /api/v1/admin/data-management/s3/config": "admin.data_management.s3_config.read",
+	"GET /api/v1/admin/accounts/data":                    "admin.accounts.export",
+	"GET /api/v1/admin/proxies/data":                     "admin.proxies.export",
+	"GET /api/v1/admin/redeem-codes/export":              "admin.redeem_codes.export",
+	"GET /api/v1/admin/backups/:id/download-url":         "admin.backups.download",
+	"GET /api/v1/admin/settings/admin-api-key":           "admin.admin_api_key.read",
+	"GET /api/v1/admin/users/:id/api-keys":               "admin.users.api_keys.read",
+	"GET /api/v1/admin/groups/:id/api-keys":              "admin.groups.api_keys.read",
+	"GET /api/v1/admin/backups/s3-config":                "admin.backups.s3_config.read",
+	"GET /api/v1/admin/data-management/s3/config":        "admin.data_management.s3_config.read",
+	"GET /api/v1/admin/withdrawals/:id/payout-sensitive": service.AuditActionAdminWithdrawalRead,
 }
 
 // auditActionOverrides 变更类请求的动作名精确映射（未命中时自动推导）。
@@ -129,6 +131,9 @@ var auditActionOverrides = map[string]string{
 	"POST /api/v1/auth/register":                              service.AuditActionRegister,
 	"POST /api/v1/auth/refresh":                               service.AuditActionTokenRefresh,
 	"POST /api/v1/user/totp/step-up":                          service.AuditActionStepUpVerify,
+	"PUT /api/v1/user/wallet/withdrawal-account":              service.AuditActionWithdrawalAccountUpdate,
+	"POST /api/v1/user/wallet/withdrawals":                    service.AuditActionWithdrawalSubmit,
+	"POST /api/v1/user/wallet/withdrawals/:id/cancel":         service.AuditActionWithdrawalCancel,
 	"POST /api/v1/admin/audit-logs/clear":                     service.AuditActionAuditLogClear,
 	"POST /api/v1/admin/accounts/data":                        "admin.accounts.import",
 	"POST /api/v1/admin/backups":                              "admin.backups.create",
@@ -143,12 +148,19 @@ var auditActionOverrides = map[string]string{
 	"POST /api/v1/admin/prompt-audit/events/batch-delete":     "admin.prompt_audit.events.batch_delete",
 	"POST /api/v1/admin/prompt-audit/events/delete-preview":   "admin.prompt_audit.events.delete_preview",
 	"POST /api/v1/admin/prompt-audit/events/delete-by-filter": "admin.prompt_audit.events.filter_delete",
+	"PUT /api/v1/admin/withdrawals/settings":                  service.AuditActionAdminWithdrawalSettings,
+	"PUT /api/v1/admin/withdrawals/users/:id/settings":        service.AuditActionAdminWithdrawalSettings,
+	"POST /api/v1/admin/withdrawals/user-settings/batch":      service.AuditActionAdminWithdrawalSettings,
+	"POST /api/v1/admin/withdrawals/:id/approve":              service.AuditActionAdminWithdrawalApprove,
+	"POST /api/v1/admin/withdrawals/:id/reject":               service.AuditActionAdminWithdrawalReject,
+	"POST /api/v1/admin/withdrawals/:id/mark-paid":            service.AuditActionAdminWithdrawalPaid,
 }
 
 // auditBodyOmittedRoutes 请求体几乎整体由凭证构成的路由（如整块粘贴 auth JSON 的导入接口）。
 // 这类 body 的凭证内嵌在普通字符串值里，键级脱敏无法覆盖，整体不入库。
 var auditBodyOmittedRoutes = map[string]struct{}{
 	"POST /api/v1/admin/accounts/import/codex-session":        {},
+	"PUT /api/v1/user/wallet/withdrawal-account":              {},
 	"POST /api/v1/admin/play/teams/:id/members":               {},
 	"POST /api/v1/admin/prompts/import-jobs":                  {},
 	"POST /api/v1/admin/prompts/import-items/:id/approve":     {},

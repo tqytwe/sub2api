@@ -35,6 +35,7 @@ import riskControlAPI from './riskControl'
 import adminComplianceAPI from './compliance'
 import adminPlayAPI from './play'
 import auditAPI from './audit'
+import adminWithdrawalsAPI from './withdrawals'
 
 /**
  * Unified admin API object for convenient access
@@ -71,7 +72,8 @@ export const adminAPI = {
   riskControl: riskControlAPI,
   compliance: adminComplianceAPI,
   play: adminPlayAPI,
-  audit: auditAPI
+  audit: auditAPI,
+  withdrawals: adminWithdrawalsAPI
 }
 
 export {
@@ -106,7 +108,8 @@ export {
   riskControlAPI,
   adminComplianceAPI,
   adminPlayAPI,
-  auditAPI
+  auditAPI,
+  adminWithdrawalsAPI
 }
 
 export default adminAPI
@@ -119,3 +122,11 @@ export type { BackupAgentHealth, DataManagementConfig } from './dataManagement'
 export type { TLSFingerprintProfile, CreateProfileRequest, UpdateProfileRequest } from './tlsFingerprintProfile'
 export type { ContentModerationConfig, ContentModerationLog, ModerationMode } from './riskControl'
 export type { PlayBlindboxPool, PlayBlindboxPoolTier } from './play'
+export type {
+  AdminWithdrawalListQuery,
+  AdminWithdrawalSystemSettings,
+  AdminWithdrawalSystemSettingsInput,
+  AdminUserWithdrawalSettings,
+  AdminUserWithdrawalSettingsInput,
+  AdminWithdrawalMarkPaidInput,
+} from './withdrawals'

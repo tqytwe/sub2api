@@ -73,6 +73,12 @@ type BalanceLedgerApplyInput struct {
 	WithdrawablePolicy     string
 	WithdrawalFrozenPolicy string
 	CreatedAt              *time.Time
+	// SkipWithdrawableEntitlementEffects lets higher-level workflows that
+	// manage entitlement batches themselves record the user-balance deltas
+	// without also consuming/restoring entitlement rows. CP5 withdrawals use it
+	// to freeze exact mature batches instead of treating a pending withdrawal as
+	// a normal spend.
+	SkipWithdrawableEntitlementEffects bool
 }
 
 type BalanceTransaction struct {
@@ -225,7 +231,7 @@ func (s *BalanceLedgerService) applyDeltaWithRunner(ctx context.Context, runner 
 	if sums, sumErr := selectWithdrawableEntitlementSums(ctx, runner, normalized.UserID, nowUTC); sumErr != nil {
 		return nil, false, fmt.Errorf("sync withdrawable entitlement maturity: %w", sumErr)
 	} else {
-		before.Withdrawable = decimalMin(before.Balance, decimalMax(decimal.Zero, sums.Mature.Sub(before.WithdrawalFrozen)))
+		before.Withdrawable = decimalMin(before.Balance, decimalMax(decimal.Zero, sums.Mature))
 	}
 
 	balanceDelta := decimalFromLedgerFloat(normalized.BalanceDelta)
@@ -258,7 +264,7 @@ func (s *BalanceLedgerService) applyDeltaWithRunner(ctx context.Context, runner 
 	if err != nil {
 		return nil, false, err
 	}
-	maxWithdrawable := decimalMax(decimal.Zero, afterBalance.Sub(afterWithdrawalFrozen))
+	maxWithdrawable := decimalMax(decimal.Zero, afterBalance)
 	if afterWithdrawable.GreaterThan(maxWithdrawable.Add(decimal.RequireFromString("0.00000001"))) {
 		return nil, false, ErrBalanceLedgerInvalidInput.WithMetadata(map[string]string{"field": "withdrawable_balance"})
 	}
@@ -436,6 +442,9 @@ func planWithdrawableLedgerEffects(
 	asOf time.Time,
 ) (withdrawableLedgerEffects, error) {
 	effects := withdrawableLedgerEffects{}
+	if input.SkipWithdrawableEntitlementEffects {
+		return effects, nil
+	}
 	if actualBalanceDelta.IsPositive() {
 		restoreKey := withdrawableRestoreSourceKey(input)
 		if restoreKey != "" {

@@ -33,6 +33,7 @@ const (
 	WalletPublicSourceAdminAdjustment = "admin_adjustment"
 	WalletPublicSourcePromotion       = "promotion"
 	WalletPublicSourceSubscription    = "subscription"
+	WalletPublicSourceWithdrawal      = "withdrawal"
 	WalletPublicSourceOther           = "other"
 )
 
@@ -58,14 +59,18 @@ type WalletSummary struct {
 }
 
 type WalletTransaction struct {
-	ID           int64           `json:"id"`
-	Source       string          `json:"source"`
-	Direction    string          `json:"direction"`
-	BalanceDelta decimal.Decimal `json:"balance_delta"`
-	FrozenDelta  decimal.Decimal `json:"frozen_delta"`
-	BalanceAfter decimal.Decimal `json:"balance_after"`
-	FrozenAfter  decimal.Decimal `json:"frozen_after"`
-	CreatedAt    time.Time       `json:"created_at"`
+	ID                    int64           `json:"id"`
+	Source                string          `json:"source"`
+	Direction             string          `json:"direction"`
+	BalanceDelta          decimal.Decimal `json:"balance_delta"`
+	FrozenDelta           decimal.Decimal `json:"frozen_delta"`
+	WithdrawableDelta     decimal.Decimal `json:"withdrawable_delta"`
+	WithdrawalFrozenDelta decimal.Decimal `json:"withdrawal_frozen_delta"`
+	BalanceAfter          decimal.Decimal `json:"balance_after"`
+	FrozenAfter           decimal.Decimal `json:"frozen_after"`
+	WithdrawableAfter     decimal.Decimal `json:"withdrawable_after"`
+	WithdrawalFrozenAfter decimal.Decimal `json:"withdrawal_frozen_after"`
+	CreatedAt             time.Time       `json:"created_at"`
 }
 
 type WalletTransactionQuery struct {
@@ -112,10 +117,10 @@ SELECT
 				  AND we.status = 'active'
 				  AND we.remaining_amount > 0
 				  AND we.available_at <= NOW()
-			), 0) - COALESCE(u.withdrawal_frozen_balance, 0),
-			0
-		)
-	)::text AS withdrawable_balance,
+				), 0),
+				0
+			)
+		)::text AS withdrawable_balance,
 	COALESCE((
 		SELECT SUM(we.remaining_amount)
 		FROM withdrawable_entitlements we
@@ -241,8 +246,11 @@ func (s *WalletService) listTransactions(ctx context.Context, userID int64, sour
 	limitArg := len(args) - 1
 	offsetArg := len(args)
 	query := `
-SELECT id, source_type, balance_delta::text, frozen_delta::text,
-       COALESCE(balance_after, 0)::text, COALESCE(frozen_after, 0)::text, created_at
+	SELECT id, source_type, balance_delta::text, frozen_delta::text,
+	       withdrawable_delta::text, withdrawal_frozen_delta::text,
+	       COALESCE(balance_after, 0)::text, COALESCE(frozen_after, 0)::text,
+	       COALESCE(withdrawable_after, 0)::text, COALESCE(withdrawal_frozen_after, 0)::text,
+	       created_at
 FROM balance_transactions
 WHERE user_id = $1
 ORDER BY created_at DESC, id DESC`
@@ -318,14 +326,18 @@ func walletSourceConditionSQL(start int, sourceFilter walletSourceFilter) (strin
 
 func scanWalletTransaction(rows *sql.Rows) (WalletTransaction, error) {
 	var item WalletTransaction
-	var rawSource, balanceDelta, frozenDelta, balanceAfter, frozenAfter string
+	var rawSource, balanceDelta, frozenDelta, withdrawableDelta, withdrawalFrozenDelta, balanceAfter, frozenAfter, withdrawableAfter, withdrawalFrozenAfter string
 	if err := rows.Scan(
 		&item.ID,
 		&rawSource,
 		&balanceDelta,
 		&frozenDelta,
+		&withdrawableDelta,
+		&withdrawalFrozenDelta,
 		&balanceAfter,
 		&frozenAfter,
+		&withdrawableAfter,
+		&withdrawalFrozenAfter,
 		&item.CreatedAt,
 	); err != nil {
 		return WalletTransaction{}, fmt.Errorf("scan wallet transaction: %w", err)
@@ -337,11 +349,23 @@ func scanWalletTransaction(rows *sql.Rows) (WalletTransaction, error) {
 	if item.FrozenDelta, err = decimal.NewFromString(frozenDelta); err != nil {
 		return WalletTransaction{}, fmt.Errorf("parse wallet frozen delta: %w", err)
 	}
+	if item.WithdrawableDelta, err = decimal.NewFromString(withdrawableDelta); err != nil {
+		return WalletTransaction{}, fmt.Errorf("parse wallet withdrawable delta: %w", err)
+	}
+	if item.WithdrawalFrozenDelta, err = decimal.NewFromString(withdrawalFrozenDelta); err != nil {
+		return WalletTransaction{}, fmt.Errorf("parse wallet withdrawal frozen delta: %w", err)
+	}
 	if item.BalanceAfter, err = decimal.NewFromString(balanceAfter); err != nil {
 		return WalletTransaction{}, fmt.Errorf("parse wallet balance after: %w", err)
 	}
 	if item.FrozenAfter, err = decimal.NewFromString(frozenAfter); err != nil {
 		return WalletTransaction{}, fmt.Errorf("parse wallet frozen after: %w", err)
+	}
+	if item.WithdrawableAfter, err = decimal.NewFromString(withdrawableAfter); err != nil {
+		return WalletTransaction{}, fmt.Errorf("parse wallet withdrawable after: %w", err)
+	}
+	if item.WithdrawalFrozenAfter, err = decimal.NewFromString(withdrawalFrozenAfter); err != nil {
+		return WalletTransaction{}, fmt.Errorf("parse wallet withdrawal frozen after: %w", err)
 	}
 	item.Source = WalletPublicSourceForRaw(rawSource)
 	item.Direction = walletDirection(item.BalanceDelta, item.FrozenDelta)
@@ -389,6 +413,8 @@ func WalletPublicSourceForRaw(raw string) string {
 		return WalletPublicSourcePromotion
 	case "subscription", "subscription_refund", "user_subscription":
 		return WalletPublicSourceSubscription
+	case WithdrawalLedgerSourceSubmit, WithdrawalLedgerSourceCancel, WithdrawalLedgerSourceReject, WithdrawalLedgerSourcePaid:
+		return WalletPublicSourceWithdrawal
 	default:
 		if strings.Contains(source, "image") || strings.Contains(source, "batch_image") {
 			return WalletPublicSourceImageTask
@@ -432,6 +458,8 @@ func walletRawSourceFilter(publicSource string) (walletSourceFilter, error) {
 		return walletIncludeRawSources("promo_bonus", "promo_code", "promotion", "auth_first_bind_grant"), nil
 	case WalletPublicSourceSubscription:
 		return walletIncludeRawSources("subscription", "subscription_refund", "user_subscription"), nil
+	case WalletPublicSourceWithdrawal:
+		return walletIncludeRawSources(WithdrawalLedgerSourceSubmit, WithdrawalLedgerSourceCancel, WithdrawalLedgerSourceReject, WithdrawalLedgerSourcePaid), nil
 	case WalletPublicSourceOther:
 		return walletSourceFilter{
 			rawTypes:         walletKnownRawSourceTypes(),
@@ -487,5 +515,9 @@ func walletKnownRawSourceTypes() []string {
 		"subscription",
 		"subscription_refund",
 		"user_subscription",
+		WithdrawalLedgerSourceSubmit,
+		WithdrawalLedgerSourceCancel,
+		WithdrawalLedgerSourceReject,
+		WithdrawalLedgerSourcePaid,
 	}
 }

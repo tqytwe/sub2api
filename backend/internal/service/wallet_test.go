@@ -55,17 +55,21 @@ func TestWalletTransactionsReturnSafePublicDTOAndSourceFilters(t *testing.T) {
 	mock.ExpectQuery(`(?s)SELECT COUNT\(\*\).*FROM balance_transactions`).
 		WithArgs(int64(7), "team_shared_reward").
 		WillReturnRows(sqlmock.NewRows([]string{"count"}).AddRow(int64(1)))
-	mock.ExpectQuery(`(?s)SELECT.*id.*source_type.*balance_delta.*frozen_delta.*balance_after.*frozen_after.*created_at.*FROM balance_transactions`).
+	mock.ExpectQuery(`(?s)SELECT.*id.*source_type.*balance_delta.*frozen_delta.*withdrawable_delta.*withdrawal_frozen_delta.*balance_after.*frozen_after.*withdrawable_after.*withdrawal_frozen_after.*created_at.*FROM balance_transactions`).
 		WithArgs(int64(7), "team_shared_reward", 20, 0).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"id",
 			"source_type",
 			"balance_delta",
 			"frozen_delta",
+			"withdrawable_delta",
+			"withdrawal_frozen_delta",
 			"balance_after",
 			"frozen_after",
+			"withdrawable_after",
+			"withdrawal_frozen_after",
 			"created_at",
-		}).AddRow(int64(88), "team_shared_reward", "12.34000000", "0.00000000", "58.34000000", "0.00000000", createdAt))
+		}).AddRow(int64(88), "team_shared_reward", "12.34000000", "0.00000000", "12.34000000", "0.00000000", "58.34000000", "0.00000000", "58.34000000", "0.00000000", createdAt))
 
 	svc := NewWalletService(db)
 	page, err := svc.ListTransactions(context.Background(), 7, WalletTransactionQuery{
@@ -82,6 +86,7 @@ func TestWalletTransactionsReturnSafePublicDTOAndSourceFilters(t *testing.T) {
 	require.Equal(t, WalletPublicSourceTeamReward, item.Source)
 	require.Equal(t, WalletDirectionCredit, item.Direction)
 	require.Equal(t, "12.34000000", item.BalanceDelta.StringFixed(8))
+	require.Equal(t, "12.34000000", item.WithdrawableDelta.StringFixed(8))
 	require.Equal(t, "58.34000000", item.BalanceAfter.StringFixed(8))
 
 	raw, err := json.Marshal(page)
@@ -119,5 +124,7 @@ func TestWalletSourceFiltersCoverImageAliasesAndOtherExcludesKnownSources(t *tes
 	require.Equal(t, WalletPublicSourceRefund, WalletPublicSourceForRaw("reversal"))
 	require.Equal(t, WalletPublicSourcePromotion, WalletPublicSourceForRaw("auth_first_bind_grant"))
 	require.Equal(t, WalletPublicSourceSubscription, WalletPublicSourceForRaw("user_subscription"))
+	require.Equal(t, WalletPublicSourceWithdrawal, WalletPublicSourceForRaw(WithdrawalLedgerSourceSubmit))
+	require.Equal(t, WalletPublicSourceWithdrawal, WalletPublicSourceForRaw(WithdrawalLedgerSourcePaid))
 	require.Equal(t, WalletPublicSourceOther, WalletPublicSourceForRaw("legacy_manual_adjustment"))
 }
