@@ -552,4 +552,5 @@ git diff --check
 
 ### 交付 commit
 
-- 本地实现 commit：`390aa608b`
+- 本地实现 commit：`611569fb4`
+- PR / 合并 commit：待 CP7 回填。
