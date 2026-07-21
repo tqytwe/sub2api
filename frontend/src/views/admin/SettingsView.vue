@@ -5568,40 +5568,239 @@
                 </button>
               </div>
 
-              <!-- Contact Info -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.site.contactInfo") }}
-                </label>
-                <input
-                  v-model="form.contact_info"
-                  type="text"
-                  class="input"
-                  :placeholder="t('admin.settings.site.contactInfoPlaceholder')"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.site.contactInfoHint") }}
-                </p>
-              </div>
+              <!-- Support Contact Manager -->
+              <div class="rounded-xl border border-gray-200 bg-gray-50/70 p-4 dark:border-dark-700 dark:bg-dark-900/50">
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 class="text-sm font-semibold text-gray-900 dark:text-white">
+                      {{ localText("客服联系方式管理器", "Support contact manager") }}
+                    </h3>
+                    <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
+                      {{ localText("前台、登录页、悬浮客服和 NextChat 会读取同一份公开配置；主推二维码最多 2 个。", "Frontend, auth pages, floating support, and NextChat read the same public config; at most 2 primary QR contacts.") }}
+                    </p>
+                  </div>
+                  <span
+                    class="rounded-md px-2 py-1 text-xs font-medium"
+                    :class="primarySupportContactCount > 2 ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : 'bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300'"
+                  >
+                    {{ localText("主推", "Primary") }} {{ primarySupportContactCount }}/2
+                  </span>
+                </div>
 
-              <!-- Doc URL -->
-              <div>
-                <label
-                  class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-                >
-                  {{ t("admin.settings.site.docUrl") }}
-                </label>
-                <input
-                  v-model="form.doc_url"
-                  type="url"
-                  class="input font-mono text-sm"
-                  :placeholder="t('admin.settings.site.docUrlPlaceholder')"
-                />
-                <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
-                  {{ t("admin.settings.site.docUrlHint") }}
-                </p>
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {{ localText("面板标题", "Panel title") }}
+                    </label>
+                    <input
+                      v-model="form.support_contact.title"
+                      type="text"
+                      class="input text-sm"
+                      :placeholder="defaultSupportContactTitle"
+                    />
+                  </div>
+                  <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                      {{ localText("面板说明", "Panel subtitle") }}
+                    </label>
+                    <input
+                      v-model="form.support_contact.subtitle"
+                      type="text"
+                      class="input text-sm"
+                      :placeholder="defaultSupportContactSubtitle"
+                    />
+                  </div>
+                </div>
+
+                <div v-if="supportContactMethods.length === 0" class="mt-4 rounded-lg border border-dashed border-gray-300 bg-white p-5 text-center text-sm text-gray-500 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300">
+                  {{ localText("还没有联系人，建议先添加微信和 QQ 两个主推二维码。", "No contacts yet. Start with WeChat and QQ as the two primary QR contacts.") }}
+                </div>
+
+                <div v-else class="mt-4 space-y-3">
+                  <div
+                    v-for="(contact, index) in supportContactMethods"
+                    :key="contact.id || index"
+                    class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800"
+                  >
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                      <div class="flex flex-wrap items-center gap-2">
+                        <select
+                          v-model="contact.type"
+                          class="input h-9 w-32 text-sm"
+                          @change="applySupportContactTypeDefaults(contact)"
+                        >
+                          <option
+                            v-for="option in supportContactTypeOptions"
+                            :key="option.value"
+                            :value="option.value"
+                          >
+                            {{ option.label }}
+                          </option>
+                        </select>
+                        <span class="text-xs text-gray-400 dark:text-dark-400">
+                          #{{ index + 1 }}
+                        </span>
+                      </div>
+                      <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                          <Toggle v-model="contact.enabled" />
+                          <span>{{ localText("启用", "Enabled") }}</span>
+                        </div>
+                        <div class="flex items-center gap-2 text-xs text-gray-600 dark:text-gray-300">
+                          <Toggle v-model="contact.primary" />
+                          <span>{{ localText("主推", "Primary") }}</span>
+                        </div>
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          :disabled="index === 0"
+                          @click="moveSupportContact(index, -1)"
+                        >
+                          <Icon name="arrowUp" size="xs" />
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm"
+                          :disabled="index === supportContactMethods.length - 1"
+                          @click="moveSupportContact(index, 1)"
+                        >
+                          <Icon name="arrowDown" size="xs" />
+                        </button>
+                        <button
+                          type="button"
+                          class="btn btn-secondary btn-sm text-red-600 hover:text-red-700 dark:text-red-400"
+                          @click="removeSupportContact(index)"
+                        >
+                          <Icon name="trash" size="xs" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div class="mt-4 grid gap-3 md:grid-cols-2">
+                      <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {{ localText("显示名称", "Label") }}
+                        </label>
+                        <input v-model="contact.label" type="text" class="input text-sm" />
+                      </div>
+                      <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {{ localText("账号 / 展示值", "Account / display value") }}
+                        </label>
+                        <input
+                          v-model="contact.value"
+                          type="text"
+                          class="input font-mono text-sm"
+                          :placeholder="localText('例如 tqytwemx / 123456789 / @support', 'e.g. tqytwemx / 123456789 / @support')"
+                        />
+                      </div>
+                      <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {{ localText("复制内容", "Copy value") }}
+                        </label>
+                        <input
+                          v-model="contact.copy_value"
+                          type="text"
+                          class="input font-mono text-sm"
+                          :placeholder="localText('留空则复制展示值', 'Empty uses display value')"
+                        />
+                      </div>
+                      <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {{ localText("跳转链接", "Open URL") }}
+                        </label>
+                        <input
+                          v-model="contact.url"
+                          type="text"
+                          class="input font-mono text-sm"
+                          placeholder="https:// / mailto: / /path"
+                        />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {{ localText("描述", "Description") }}
+                        </label>
+                        <input
+                          v-model="contact.description"
+                          type="text"
+                          class="input text-sm"
+                          :placeholder="localText('例如 推荐优先添加微信', 'e.g. Recommended first contact')"
+                        />
+                      </div>
+                      <div class="md:col-span-2">
+                        <label class="mb-2 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                          {{ localText("二维码图片", "QR image") }}
+                        </label>
+                        <ImageUpload
+                          v-model="contact.qr_image"
+                          mode="image"
+                          size="sm"
+                          :upload-label="t('admin.settings.site.uploadImage')"
+                          :remove-label="t('admin.settings.site.remove')"
+                          :hint="localText('支持上传 300KB 内图片，或在下方填写 https/CDN/R2/站内图片路径。', 'Upload an image up to 300KB, or paste an HTTPS/CDN/R2/site-relative image URL below.')"
+                          :max-size="300 * 1024"
+                        />
+                        <input
+                          v-model="contact.qr_image"
+                          type="text"
+                          class="input mt-2 font-mono text-xs"
+                          placeholder="data:image/png;base64,... / https://... / /uploads/qr.png"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="mt-4 flex flex-wrap gap-2">
+                  <button type="button" class="btn btn-secondary btn-sm" @click="addSupportContact('wechat')">
+                    <Icon name="plus" size="xs" class="mr-1" />
+                    {{ localText("添加微信", "Add WeChat") }}
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" @click="addSupportContact('qq')">
+                    <Icon name="plus" size="xs" class="mr-1" />
+                    {{ localText("添加 QQ", "Add QQ") }}
+                  </button>
+                  <button type="button" class="btn btn-secondary btn-sm" @click="addSupportContact('custom')">
+                    <Icon name="plus" size="xs" class="mr-1" />
+                    {{ localText("添加其他", "Add another") }}
+                  </button>
+                </div>
+
+                <details class="mt-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-dark-700 dark:bg-dark-800">
+                  <summary class="cursor-pointer text-xs font-medium text-gray-600 dark:text-gray-300">
+                    {{ localText("兼容旧字段 contact_info / doc_url", "Legacy fallback fields contact_info / doc_url") }}
+                  </summary>
+                  <div class="mt-3 grid gap-3 md:grid-cols-2">
+                    <div>
+                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        {{ t("admin.settings.site.contactInfo") }}
+                      </label>
+                      <input
+                        v-model="form.contact_info"
+                        type="text"
+                        class="input text-sm"
+                        :placeholder="t('admin.settings.site.contactInfoPlaceholder')"
+                      />
+                      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {{ localText("仅当新客服配置为空时作为兜底。", "Used only when the structured support config is empty.") }}
+                      </p>
+                    </div>
+                    <div>
+                      <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">
+                        {{ t("admin.settings.site.docUrl") }}
+                      </label>
+                      <input
+                        v-model="form.doc_url"
+                        type="url"
+                        class="input font-mono text-sm"
+                        :placeholder="t('admin.settings.site.docUrlPlaceholder')"
+                      />
+                      <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        {{ t("admin.settings.site.docUrlHint") }}
+                      </p>
+                    </div>
+                  </div>
+                </details>
               </div>
 
               <!-- Site Logo Upload -->
@@ -7766,6 +7965,9 @@ import type {
   LoginAgreementDocument,
   NotifyEmailEntry,
   Proxy,
+  SupportContactConfig,
+  SupportContactMethod,
+  SupportContactType,
 } from "@/types";
 import type { ProviderInstance } from "@/types/payment";
 import AppLayout from "@/components/layout/AppLayout.vue";
@@ -7796,6 +7998,7 @@ import { affiliatesAPI, type AffiliateAdminEntry, type SimpleUser as AffiliateSi
 import { extractApiErrorMessage, extractI18nErrorMessage } from "@/utils/apiError";
 import { useAppStore } from "@/stores";
 import { useAdminSettingsStore } from "@/stores/adminSettings";
+import { defaultSupportContactSubtitle, defaultSupportContactTitle, normalizeSupportContactConfig } from "@/utils/supportContact";
 import { normalizeVisibleMethod } from "@/components/payment/paymentFlow";
 import {
   isRegistrationEmailSuffixDomainValid,
@@ -8467,6 +8670,14 @@ type SettingsForm = Omit<
   default_platform_quotas: DefaultPlatformQuotasMap;
 };
 
+function defaultSupportContactConfig(): SupportContactConfig {
+  return {
+    title: defaultSupportContactTitle,
+    subtitle: defaultSupportContactSubtitle,
+    contacts: [],
+  };
+}
+
 const form = reactive<SettingsForm>({
   registration_enabled: true,
   email_verify_enabled: false,
@@ -8500,6 +8711,7 @@ const form = reactive<SettingsForm>({
   api_base_url: "",
   contact_info: "",
   doc_url: "",
+  support_contact: defaultSupportContactConfig(),
   home_content: "",
   backend_mode_enabled: false,
   hide_ccs_import_button: false,
@@ -8720,6 +8932,174 @@ const form = reactive<SettingsForm>({
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
+
+const supportContactTypeOptions = computed(() => [
+  { value: "wechat", label: localText("微信", "WeChat") },
+  { value: "qq", label: "QQ" },
+  { value: "telegram", label: "Telegram" },
+  { value: "email", label: localText("邮箱", "Email") },
+  { value: "docs", label: localText("文档", "Docs") },
+  { value: "custom", label: localText("自定义", "Custom") },
+]);
+
+const supportContactMethods = computed(() => ensureSupportContactConfig().contacts);
+const primarySupportContactCount = computed(() =>
+  supportContactMethods.value.filter((contact) => contact.primary).length,
+);
+
+function ensureSupportContactConfig(): SupportContactConfig {
+  if (!form.support_contact) {
+    form.support_contact = defaultSupportContactConfig();
+  }
+  if (!Array.isArray(form.support_contact.contacts)) {
+    form.support_contact.contacts = [];
+  }
+  if (!form.support_contact.title) {
+    form.support_contact.title = defaultSupportContactTitle;
+  }
+  if (!form.support_contact.subtitle) {
+    form.support_contact.subtitle = defaultSupportContactSubtitle;
+  }
+  return form.support_contact;
+}
+
+function defaultSupportContactLabel(type: string): string {
+  switch (type) {
+    case "wechat":
+      return localText("微信客服", "WeChat Support");
+    case "qq":
+      return localText("QQ 客服", "QQ Support");
+    case "telegram":
+      return "Telegram";
+    case "email":
+      return localText("邮箱", "Email");
+    case "docs":
+      return localText("文档", "Docs");
+    default:
+      return localText("客服", "Support");
+  }
+}
+
+function defaultSupportContactDescription(type: string): string {
+  switch (type) {
+    case "wechat":
+      return localText("推荐优先添加微信", "Recommended first contact");
+    case "qq":
+      return localText("适合快速复制 QQ 号添加", "Copy QQ number to add support");
+    case "telegram":
+      return localText("可填写 @username 或完整链接", "Use @username or a full link");
+    case "email":
+      return localText("适合账单、工单等异步问题", "For billing or async support");
+    case "docs":
+      return localText("常见问题和接入文档", "Guides and documentation");
+    default:
+      return "";
+  }
+}
+
+function createSupportContact(type: SupportContactType | string = "wechat"): SupportContactMethod {
+  const normalizedType = (type || "custom") as SupportContactType;
+  const sortOrder = ensureSupportContactConfig().contacts.length + 1;
+  return {
+    id: `${normalizedType}-${Date.now()}-${sortOrder}`,
+    type: normalizedType,
+    label: defaultSupportContactLabel(normalizedType),
+    value: "",
+    copy_value: "",
+    url: normalizedType === "docs" ? form.doc_url || "" : "",
+    qr_image: "",
+    description: defaultSupportContactDescription(normalizedType),
+    primary: ["wechat", "qq"].includes(normalizedType) && primarySupportContactCount.value < 2,
+    enabled: true,
+    sort_order: sortOrder,
+  };
+}
+
+function addSupportContact(type: SupportContactType | string = "wechat"): void {
+  const config = ensureSupportContactConfig();
+  if (config.contacts.length >= 20) {
+    appStore.showError(localText("最多只能配置 20 个客服联系方式。", "You can configure at most 20 support contacts."));
+    return;
+  }
+  config.contacts.push(createSupportContact(type));
+  syncSupportContactSortOrder();
+}
+
+function removeSupportContact(index: number): void {
+  ensureSupportContactConfig().contacts.splice(index, 1);
+  syncSupportContactSortOrder();
+}
+
+function moveSupportContact(index: number, direction: -1 | 1): void {
+  const contacts = ensureSupportContactConfig().contacts;
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= contacts.length) return;
+  const current = contacts[index];
+  contacts[index] = contacts[targetIndex];
+  contacts[targetIndex] = current;
+  syncSupportContactSortOrder();
+}
+
+function applySupportContactTypeDefaults(contact: SupportContactMethod): void {
+  contact.type = (contact.type || "custom") as SupportContactType;
+  if (!contact.label.trim()) {
+    contact.label = defaultSupportContactLabel(contact.type);
+  }
+  if (!contact.description.trim()) {
+    contact.description = defaultSupportContactDescription(contact.type);
+  }
+  if (contact.type === "docs" && !contact.url.trim() && form.doc_url.trim()) {
+    contact.url = form.doc_url.trim();
+  }
+}
+
+function syncSupportContactSortOrder(): void {
+  ensureSupportContactConfig().contacts.forEach((contact, index) => {
+    contact.sort_order = index + 1;
+  });
+}
+
+function normalizeAdminSupportContactConfig(
+  config?: SupportContactConfig | null,
+  legacyContactInfo = "",
+  legacyDocUrl = "",
+): SupportContactConfig {
+  const normalized = normalizeSupportContactConfig(config, legacyContactInfo, legacyDocUrl);
+  normalized.contacts = normalized.contacts.map((contact, index) => ({
+    ...contact,
+    enabled: contact.enabled !== false,
+    sort_order: index + 1,
+  }));
+  return normalized;
+}
+
+function normalizeSupportContactForSubmit(): SupportContactConfig {
+  const config = ensureSupportContactConfig();
+  const contacts = config.contacts
+    .map((contact, index) => ({
+      ...contact,
+      id: contact.id.trim() || `${contact.type || "custom"}-${index + 1}`,
+      type: (contact.type || "custom").trim().toLowerCase(),
+      label: contact.label.trim() || defaultSupportContactLabel(contact.type),
+      value: contact.value.trim(),
+      copy_value: contact.copy_value.trim(),
+      url: contact.url.trim(),
+      qr_image: contact.qr_image.trim(),
+      description: contact.description.trim(),
+      primary: Boolean(contact.primary),
+      enabled: contact.enabled !== false,
+      sort_order: index + 1,
+    }))
+    .filter((contact) =>
+      contact.value || contact.copy_value || contact.url || contact.qr_image,
+    );
+
+  return {
+    title: config.title.trim() || defaultSupportContactTitle,
+    subtitle: config.subtitle.trim() || defaultSupportContactSubtitle,
+    contacts,
+  };
+}
 
 type OpenAIAdvancedSchedulerOverrideKey =
   | "openai_advanced_scheduler_lb_top_k"
@@ -9624,6 +10004,11 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    form.support_contact = normalizeAdminSupportContactConfig(
+      settings.support_contact,
+      settings.contact_info || "",
+      settings.doc_url || "",
+    );
     if (!form.claude_oauth_system_prompt_blocks?.trim()) {
       form.claude_oauth_system_prompt_blocks =
         defaultClaudeOAuthSystemPromptBlocks;
@@ -9972,6 +10357,17 @@ async function saveSettings() {
     // Optional URL fields: auto-clear invalid values so they don't cause backend 400 errors
     if (!isValidHttpUrl(form.frontend_url)) form.frontend_url = "";
     if (!isValidHttpUrl(form.doc_url)) form.doc_url = "";
+    const supportContactPayload = normalizeSupportContactForSubmit();
+    if (supportContactPayload.contacts.filter((contact) => contact.primary).length > 2) {
+      appStore.showError(
+        localText(
+          "主推客服最多只能选择 2 个，请取消多余的主推项后再保存。",
+          "At most 2 support contacts can be primary. Disable the extra primary contacts before saving.",
+        ),
+      );
+      return;
+    }
+    form.support_contact = supportContactPayload;
     syncWeChatConnectMode();
     const wechatStoredMode = deriveWeChatConnectStoredMode(
       form.wechat_connect_open_enabled,
@@ -10027,6 +10423,7 @@ async function saveSettings() {
       api_base_url: form.api_base_url,
       contact_info: form.contact_info,
       doc_url: form.doc_url,
+      support_contact: supportContactPayload,
       home_content: form.home_content,
       backend_mode_enabled: form.backend_mode_enabled,
       hide_ccs_import_button: form.hide_ccs_import_button,
@@ -10314,6 +10711,11 @@ async function saveSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    form.support_contact = normalizeAdminSupportContactConfig(
+      updated.support_contact,
+      updated.contact_info || "",
+      updated.doc_url || "",
+    );
     Object.assign(authSourceDefaults, buildAuthSourceDefaultsState(updated));
     form.default_platform_quotas = normalizePlatformQuotasMap(updated.default_platform_quotas);
     registrationEmailSuffixWhitelistTags.value =

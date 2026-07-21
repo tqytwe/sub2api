@@ -450,6 +450,7 @@ func handleNextChatBootstrap(
 	returnURL := joinNextChatURL(siteURL, "/dashboard")
 	rechargeURL := joinNextChatURL(siteURL, "/purchase")
 
+	c.Header("Cache-Control", "no-store")
 	response.Success(c, gin.H{
 		"user":            identity.User,
 		"managed_api_key": identity.APIKey,
@@ -471,6 +472,7 @@ func handleNextChatBootstrap(
 			"recharge_url": rechargeURL,
 			"profile_url":  joinNextChatURL(siteURL, "/profile"),
 		},
+		"support_contact": settings.SupportContact,
 		"retention": gin.H{
 			"text_session_days":     7,
 			"image_job_days":        7,

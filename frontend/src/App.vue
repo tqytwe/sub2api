@@ -128,8 +128,8 @@ onMounted(async () => {
     // If setup endpoint fails, assume normal mode and continue
   }
 
-  // Load public settings into appStore (will be cached for other components)
-  await appStore.fetchPublicSettings()
+  // Injected settings avoid first-paint flash; force one live refresh so support/contact changes are not stale.
+  await appStore.fetchPublicSettings(true)
 
   // Re-resolve document title now that site settings are available
   updateDocumentTitle()

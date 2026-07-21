@@ -299,7 +299,8 @@ type nextChatBootstrapResponse struct {
 		RechargeURL string `json:"recharge_url"`
 		ProfileURL  string `json:"profile_url"`
 	} `json:"urls"`
-	Retention struct {
+	SupportContact service.SupportContactConfig `json:"support_contact"`
+	Retention      struct {
 		TextSessionDays     int  `json:"text_session_days"`
 		ImageJobDays        int  `json:"image_job_days"`
 		ImageAssetHours     int  `json:"image_asset_hours"`
@@ -579,6 +580,23 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 			NextChatEnabled:             true,
 			ImageStudioEnabled:          true,
 			BalanceLowNotifyRechargeURL: "https://www.jisudeng.com/payment",
+			SupportContact: service.SupportContactConfig{
+				Title:    "联系客服",
+				Subtitle: "登录或充值问题都可以联系人工客服",
+				Contacts: []service.SupportContactMethod{
+					{
+						ID:        "wechat-main",
+						Type:      "wechat",
+						Label:     "微信客服",
+						Value:     "tqytwemx",
+						CopyValue: "tqytwemx",
+						QRImage:   "/uploads/wechat.png",
+						Primary:   true,
+						Enabled:   true,
+						SortOrder: 1,
+					},
+				},
+			},
 		},
 	}, &nextChatRouteIssuerStub{}, &config.Config{
 		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
@@ -587,6 +605,7 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	recorder := getNextChatBFF(router, "/api/v1/nextchat/bootstrap", "server-secret", 42, 123)
 
 	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	require.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
 	got := decodeNextChatRouteResponse[nextChatBootstrapResponse](t, recorder)
 	require.Equal(t, int64(42), got.User.ID)
 	require.Equal(t, "tester", got.User.Username)
@@ -605,6 +624,10 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.Equal(t, "grok-4-fast", got.Models.Groups[1].Models[0].Name)
 	require.Equal(t, "https://www.jisudeng.com/dashboard", got.URLs.ReturnURL)
 	require.Equal(t, "https://www.jisudeng.com/purchase", got.URLs.RechargeURL)
+	require.Equal(t, "联系客服", got.SupportContact.Title)
+	require.Len(t, got.SupportContact.Contacts, 1)
+	require.Equal(t, "wechat", got.SupportContact.Contacts[0].Type)
+	require.Equal(t, "/uploads/wechat.png", got.SupportContact.Contacts[0].QRImage)
 	require.Equal(t, 7, got.Retention.TextSessionDays)
 	require.Equal(t, 7, got.Retention.ImageJobDays)
 	require.Equal(t, 24, got.Retention.ImageAssetHours)

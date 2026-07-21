@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
-import { useClipboard } from '@/composables/useClipboard'
+import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import '@/styles/support-floating.css'
 
 const props = withDefaults(defineProps<{
@@ -16,7 +16,6 @@ const OFFSET_KEY = 'support_fab_offset'
 
 const { t } = useI18n()
 const appStore = useAppStore()
-const { copied, copyToClipboard } = useClipboard()
 
 const panelOpen = ref(false)
 const isDragging = ref(false)
@@ -24,7 +23,7 @@ const isPeek = ref(false)
 const fabRef = ref<HTMLElement | null>(null)
 const offset = ref({ x: 0, y: 0 })
 
-const qqNumber = computed(() => appStore.contactInfo?.trim() || '160482913')
+const hasSupportContact = computed(() => appStore.supportContact.contacts.length > 0)
 
 const fabStyle = computed(() => {
   if (!offset.value.x && !offset.value.y) return undefined
@@ -37,6 +36,7 @@ let peekTimer: number | null = null
 let peekHideTimer: number | null = null
 let dragStart = { x: 0, y: 0, ox: 0, oy: 0 }
 let moved = false
+let lastSupportRefreshAt = 0
 
 function restoreOffset() {
   try {
@@ -83,20 +83,26 @@ function clearPeekTimers() {
   peekHideTimer = null
 }
 
+async function refreshSupportContactIfNeeded() {
+  const now = Date.now()
+  if (now - lastSupportRefreshAt < 30_000) return
+  lastSupportRefreshAt = now
+  await appStore.fetchPublicSettings(true)
+}
+
 function togglePanel() {
   if (moved) {
     moved = false
     return
   }
   panelOpen.value = !panelOpen.value
+  if (panelOpen.value) {
+    void refreshSupportContactIfNeeded()
+  }
 }
 
 function closePanel() {
   panelOpen.value = false
-}
-
-async function copyQQ() {
-  await copyToClipboard(qqNumber.value, t('support.copiedToast'))
 }
 
 function onPointerDown(event: PointerEvent) {
@@ -143,6 +149,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div
+    v-if="hasSupportContact"
     ref="fabRef"
     class="support-fab"
     :class="{ 'is-open': panelOpen, 'support-fab--mobile-hidden': props.hideOnMobile }"
@@ -151,26 +158,13 @@ onBeforeUnmount(() => {
     <Transition name="support-pop">
       <div v-if="panelOpen" class="support-panel" role="dialog" aria-modal="true">
         <button type="button" class="support-close" :aria-label="t('common.close')" @click="closePanel">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M6 6l12 12M18 6L6 18" />
-          </svg>
+          <span aria-hidden="true">×</span>
         </button>
-        <p class="support-eyebrow">{{ t('support.eyebrow') }}</p>
-        <p class="support-lead">{{ t('support.lead') }}</p>
-        <div class="support-qq">
-          <span class="support-qq-label">{{ t('support.qqLabel') }}</span>
-          <div class="support-qq-row">
-            <span class="support-qq-number">{{ qqNumber }}</span>
-            <button
-              type="button"
-              class="support-copy"
-              :class="{ 'is-done': copied }"
-              @click="copyQQ"
-            >
-              {{ copied ? t('support.copied') : t('support.copy') }}
-            </button>
-          </div>
-        </div>
+        <SupportContactPanel
+          v-if="hasSupportContact"
+          :config="appStore.supportContact"
+          compact
+        />
       </div>
     </Transition>
 

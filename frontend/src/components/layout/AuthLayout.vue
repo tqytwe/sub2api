@@ -41,17 +41,11 @@
 
           <p v-if="asideMode === 'register'" class="aside-fineprint">{{ t('authAside.fineprintRegister') }}</p>
 
-          <div v-if="contactQQ" class="aside-support">
-            <div class="aside-support-head">
-              <span class="aside-support-dot" />
-              <span class="aside-support-eyebrow">{{ t('support.eyebrow') }}</span>
-            </div>
-            <p class="aside-support-lead">{{ t('support.lead') }}</p>
-            <button type="button" class="aside-support-qqline" @click="copyQQ">
-              <span class="aside-support-qqlabel">{{ t('support.qqLabel') }}</span>
-              <span class="aside-support-qq">{{ contactQQ }}</span>
-            </button>
-          </div>
+          <SupportContactPanel
+            class="aside-support"
+            :config="appStore.supportContact"
+            compact
+          />
         </aside>
 
         <div class="auth-card-wrap">
@@ -81,9 +75,9 @@
 import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
-import { useClipboard } from '@/composables/useClipboard'
 import { sanitizeUrl } from '@/utils/url'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import '@/styles/auth-layout-jisudeng.css'
 import '@/styles/public-pages.css'
 
@@ -96,7 +90,6 @@ const props = withDefaults(
 
 const { t } = useI18n()
 const appStore = useAppStore()
-const { copyToClipboard } = useClipboard()
 
 const siteName = computed(() => appStore.siteName || 'Sub2API')
 const siteLogo = computed(() =>
@@ -111,7 +104,6 @@ const siteSubtitle = computed(() => {
 })
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
 const currentYear = computed(() => new Date().getFullYear())
-const contactQQ = computed(() => appStore.contactInfo?.trim() || '')
 
 const pledges = computed(() => {
   if (props.asideMode === 'register') {
@@ -125,12 +117,7 @@ const pledges = computed(() => {
   return [t('authAside.pledge1'), t('authAside.pledge2'), t('authAside.pledge3')]
 })
 
-async function copyQQ() {
-  if (!contactQQ.value) return
-  await copyToClipboard(contactQQ.value, t('support.copiedToast'))
-}
-
 onMounted(() => {
-  appStore.fetchPublicSettings()
+  appStore.fetchPublicSettings(true)
 })
 </script>

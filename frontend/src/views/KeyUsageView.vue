@@ -127,6 +127,12 @@
         </div>
       </div>
 
+      <SupportContactPanel
+        class="mx-auto mb-12 max-w-xl"
+        :config="appStore.supportContact"
+        compact
+      />
+
       <!-- Results Container -->
       <div v-if="showResults">
         <!-- Loading Skeleton -->
@@ -421,6 +427,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
+import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { buildGatewayUrl } from '@/api/client'
 import { formatDateLocalInput } from '@/utils/format'

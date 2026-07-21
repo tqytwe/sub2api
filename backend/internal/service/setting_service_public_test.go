@@ -169,6 +169,47 @@ func TestSettingService_GetPublicSettings_FallsBackToConfigForWeChatOAuthCapabil
 	require.False(t, settings.WeChatOAuthMobileEnabled)
 }
 
+func TestSettingService_GetPublicSettings_ExposesSanitizedSupportContact(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeySupportContactConfig: `{
+				"title":"联系客服",
+				"subtitle":"登录、充值或 API 问题都可以联系人工客服",
+				"contacts":[
+					{"id":"wechat-main","type":"wechat","label":"微信客服","value":"tqytwemx","copy_value":"tqytwemx","qr_image":"/uploads/wechat.png","primary":true,"enabled":true,"sort_order":2},
+					{"id":"disabled-qq","type":"qq","label":"QQ客服","value":"1570539180","enabled":false,"sort_order":1}
+				]
+			}`,
+		},
+	}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "联系客服", settings.SupportContact.Title)
+	require.Len(t, settings.SupportContact.Contacts, 1)
+	require.Equal(t, "wechat-main", settings.SupportContact.Contacts[0].ID)
+	require.Equal(t, "wechat", settings.SupportContact.Contacts[0].Type)
+	require.Equal(t, "/uploads/wechat.png", settings.SupportContact.Contacts[0].QRImage)
+}
+
+func TestSettingService_GetPublicSettings_BuildsSupportContactFromLegacyFields(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeyContactInfo: "1570539180 微信：tqytwemx",
+			SettingKeyDocURL:      "https://docs.example.com",
+		},
+	}, &config.Config{})
+
+	settings, err := svc.GetPublicSettings(context.Background())
+	require.NoError(t, err)
+	require.Equal(t, "联系客服", settings.SupportContact.Title)
+	require.Len(t, settings.SupportContact.Contacts, 2)
+	require.Equal(t, "legacy-contact", settings.SupportContact.Contacts[0].ID)
+	require.Equal(t, "1570539180 微信：tqytwemx", settings.SupportContact.Contacts[0].CopyValue)
+	require.Equal(t, "legacy-docs", settings.SupportContact.Contacts[1].ID)
+	require.Equal(t, "https://docs.example.com", settings.SupportContact.Contacts[1].URL)
+}
+
 func TestSettingService_GetFrameAncestorOrigins_UsesFrontendOrigin(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

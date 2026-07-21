@@ -79,6 +79,10 @@
   margin-bottom: 56px;
 }
 
+.contact-support-panel {
+  margin-bottom: 56px;
+}
+
 @media (min-width: 720px) {
   .contact-grid {
     grid-template-columns: repeat(3, 1fr);
