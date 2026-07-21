@@ -113,6 +113,56 @@ func TestImageStudioDownloadJobArchiveIncludesLocalAndExternalOriginalAssets(t *
 	}
 }
 
+func TestImageStudioDownloadJobArchiveRejectsExpiredOrPurgedAssets(t *testing.T) {
+	now := time.Now().UTC()
+	expiredAt := now.Add(-time.Minute)
+	purgedAt := now.Add(-time.Second)
+	tests := []struct {
+		name  string
+		asset ImageStudioAsset
+	}{
+		{
+			name: "expired",
+			asset: ImageStudioAsset{
+				ID:          "asset-expired",
+				SortOrder:   0,
+				ContentType: "image/png",
+				ExpiresAt:   &expiredAt,
+			},
+		},
+		{
+			name: "purged",
+			asset: ImageStudioAsset{
+				ID:          "asset-purged",
+				SortOrder:   0,
+				ContentType: "image/png",
+				PurgedAt:    &purgedAt,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			store := NewImageStudioAssetStore(t.TempDir())
+			storageKey, err := store.Save(10, tt.asset.ID, "image/png", []byte("original"))
+			require.NoError(t, err)
+			asset := tt.asset
+			asset.StorageKey = storageKey
+			repo := &imageStudioArchiveRepoStub{job: &ImageStudioJob{
+				ID:     "job-expired-archive",
+				UserID: 10,
+				Status: ImageStudioJobStatusCompleted,
+				Assets: []ImageStudioAsset{asset},
+			}}
+			svc := &ImageStudioService{repo: repo, assetStore: store}
+
+			_, _, err = svc.OpenJobArchive(context.Background(), 10, "job-expired-archive")
+
+			require.ErrorIs(t, err, ErrImageStudioAssetExpired)
+		})
+	}
+}
+
 func TestImageStudioDownloadJobArchiveFetchesExternalAssetsWithBoundedConcurrencyAndStableOrder(t *testing.T) {
 	assets := []ImageStudioAsset{
 		{ID: "asset-4", SortOrder: 4, URL: "https://example.invalid/4.png"},
