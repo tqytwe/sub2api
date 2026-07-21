@@ -46,17 +46,17 @@ describe('wallet withdrawal API', () => {
     })
   })
 
-  it('creates, lists, and cancels withdrawal requests using string amounts', async () => {
+  it('creates, lists, and cancels withdrawal requests using whole string amounts', async () => {
     get.mockResolvedValueOnce({ data: { items: [], total: 0, page: 1, page_size: 20, pages: 1 } })
-    post.mockResolvedValueOnce({ data: { id: 9, status: 'pending_review', amount: '12.50' } })
-    post.mockResolvedValueOnce({ data: { id: 9, status: 'canceled', amount: '12.50' } })
+    post.mockResolvedValueOnce({ data: { id: 9, status: 'pending_review', amount: '12' } })
+    post.mockResolvedValueOnce({ data: { id: 9, status: 'canceled', amount: '12' } })
 
     await getWithdrawals({ page: 1, page_size: 20 })
-    await createWithdrawal({ amount: '12.50' })
+    await createWithdrawal({ amount: '12.00' })
     await cancelWithdrawal(9)
 
     expect(get).toHaveBeenCalledWith('/user/wallet/withdrawals', { params: { page: 1, page_size: 20 } })
-    expect(post).toHaveBeenCalledWith('/user/wallet/withdrawals', { amount: '12.50' })
+    expect(post).toHaveBeenCalledWith('/user/wallet/withdrawals', { amount: '12' })
     expect(post).toHaveBeenCalledWith('/user/wallet/withdrawals/9/cancel')
   })
 })

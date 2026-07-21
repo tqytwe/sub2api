@@ -58,7 +58,7 @@ var (
 	ErrWithdrawalAccountEncryption        = infraerrors.InternalServer("WITHDRAWAL_ACCOUNT_ENCRYPTION", "withdrawal account encryption failed")
 )
 
-var withdrawalAmountPattern = regexp.MustCompile(`^[0-9]+(\.[0-9]{2})$`)
+var withdrawalAmountPattern = regexp.MustCompile(`^[0-9]+(\.0+)?$`)
 
 type WithdrawalService struct {
 	db           *sql.DB
@@ -268,6 +268,9 @@ func parseWithdrawalAmount(raw string) (decimal.Decimal, error) {
 	}
 	amount, err := decimal.NewFromString(raw)
 	if err != nil || !amount.IsPositive() {
+		return decimal.Zero, ErrWithdrawalInvalidAmount
+	}
+	if !amount.Equal(amount.Truncate(0)) {
 		return decimal.Zero, ErrWithdrawalInvalidAmount
 	}
 	return amount.Round(8), nil

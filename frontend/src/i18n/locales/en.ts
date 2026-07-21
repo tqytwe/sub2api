@@ -566,7 +566,6 @@ const messages = {
       newRequest: 'New Withdrawal Request',
       minimumAmount: 'Minimum Withdrawal',
       remainingDaily: 'Remaining daily limit',
-      dualReview: 'Dual Review threshold',
       amount: 'Withdrawal amount',
       submitting: 'Submitting...',
       requestWithdrawal: 'Request Withdrawal',
@@ -609,11 +608,12 @@ const messages = {
       },
       validation: {
         accountRequired: 'Enter the recipient and payout account',
+        integerAmountRequired: 'Withdrawal amount must be a whole number',
         unavailable: 'Current conditions do not allow a withdrawal request',
       },
       errors: {
         WITHDRAWAL_UNAVAILABLE: 'Withdrawal service is unavailable',
-        WITHDRAWAL_INVALID_AMOUNT: 'Withdrawal amount must use two decimal places',
+        WITHDRAWAL_INVALID_AMOUNT: 'Withdrawal amount must be a whole number',
         WITHDRAWAL_INVALID_INPUT: 'Withdrawal request is invalid',
         WITHDRAWAL_DISABLED: 'Withdrawals are disabled for this account',
         WITHDRAWAL_INSUFFICIENT_WITHDRAWABLE: 'Insufficient withdrawable balance',
@@ -1969,6 +1969,7 @@ const messages = {
         userIdRequired: 'Enter a valid user ID',
         batchUserIdsRequired: 'Enter at least one user ID',
         invalidUserIds: 'The user ID list contains invalid values',
+        integerAmountRequired: 'Amount must be a whole number',
         rejectReasonRequired: 'Enter a reject reason',
         paidFieldsRequired: 'Enter paid amount, currency, and external transaction ID',
       },
@@ -1980,7 +1981,7 @@ const messages = {
       },
       errors: {
         WITHDRAWAL_UNAVAILABLE: 'Withdrawal service is unavailable',
-        WITHDRAWAL_INVALID_AMOUNT: 'Amount must use two decimal places',
+        WITHDRAWAL_INVALID_AMOUNT: 'Amount must be a whole number',
         WITHDRAWAL_INVALID_INPUT: 'Withdrawal parameters are invalid',
         WITHDRAWAL_DISABLED: 'Withdrawals are disabled for this user',
         WITHDRAWAL_INSUFFICIENT_WITHDRAWABLE: 'Insufficient withdrawable balance',

@@ -232,6 +232,7 @@ MIGRATIONS=(
   210_subscription_plan_storefront.sql
   210_withdrawable_entitlements.sql
   211_withdrawals.sql
+  212_withdrawals_integer_amounts.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

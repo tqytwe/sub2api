@@ -41,3 +41,24 @@ func TestWithdrawalsCP5MigrationContract(t *testing.T) {
 	require.Contains(t, sql, "CREATE UNIQUE INDEX IF NOT EXISTS uq_withdrawal_requests_user_in_progress")
 	require.Contains(t, sql, "COMMENT ON TABLE withdrawal_requests")
 }
+
+func TestWithdrawalsIntegerAmountMigrationContract(t *testing.T) {
+	t.Parallel()
+
+	raw, err := os.ReadFile("212_withdrawals_integer_amounts.sql")
+	require.NoError(t, err)
+	sql := string(raw)
+
+	require.Contains(t, sql, "chk_withdrawal_system_integer_amounts")
+	require.Contains(t, sql, "minimum_amount = TRUNC(minimum_amount)")
+	require.Contains(t, sql, "daily_limit_amount = TRUNC(daily_limit_amount)")
+	require.Contains(t, sql, "double_review_threshold = TRUNC(double_review_threshold)")
+	require.Contains(t, sql, "chk_user_withdrawal_integer_overrides")
+	require.Contains(t, sql, "minimum_amount_override = TRUNC(minimum_amount_override)")
+	require.Contains(t, sql, "daily_limit_amount_override = TRUNC(daily_limit_amount_override)")
+	require.Contains(t, sql, "chk_withdrawal_request_integer_amount")
+	require.Contains(t, sql, "amount = TRUNC(amount)")
+	require.Contains(t, sql, "chk_withdrawal_paid_integer_amount")
+	require.Contains(t, sql, "paid_amount = TRUNC(paid_amount)")
+	require.Contains(t, sql, "NOT VALID")
+}

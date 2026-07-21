@@ -8,14 +8,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestParseWithdrawalAmountRequiresStringTwoDecimals(t *testing.T) {
+func TestParseWithdrawalAmountRequiresWholeUnits(t *testing.T) {
 	t.Parallel()
 
-	amount, err := parseWithdrawalAmount("10.50")
+	amount, err := parseWithdrawalAmount("10")
 	require.NoError(t, err)
-	require.Equal(t, "10.50000000", amount.StringFixed(8))
+	require.Equal(t, "10.00000000", amount.StringFixed(8))
 
-	for _, raw := range []string{"", "9", "10.001", "10.005", "-10.00", "abc"} {
+	amount, err = parseWithdrawalAmount("10.00")
+	require.NoError(t, err)
+	require.Equal(t, "10.00000000", amount.StringFixed(8))
+
+	for _, raw := range []string{"", "0", "10.50", "10.001", "10.005", "-10", "abc"} {
 		_, err := parseWithdrawalAmount(raw)
 		require.ErrorIs(t, err, ErrWithdrawalInvalidAmount, raw)
 	}
@@ -50,8 +54,8 @@ func TestWithdrawalFreezePlanUsesOnlyMatureEntitlementsFIFO(t *testing.T) {
 func TestWithdrawalApprovalStatusRequiresSecondDistinctReviewerAtThreshold(t *testing.T) {
 	t.Parallel()
 
-	low := decimal.RequireFromString("99.99")
-	threshold := decimal.RequireFromString("100.00")
+	low := decimal.RequireFromString("99")
+	threshold := decimal.RequireFromString("100")
 	status, err := withdrawalStatusAfterApproval(WithdrawalStatusPendingReview, low, threshold, 10, nil)
 	require.NoError(t, err)
 	require.Equal(t, WithdrawalStatusPayoutPending, status)

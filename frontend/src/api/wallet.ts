@@ -97,7 +97,6 @@ export interface WithdrawalAvailability {
   daily_limit_amount: string
   daily_used_amount: string
   remaining_daily_amount: string
-  double_review_threshold: string
 }
 
 export interface WithdrawalPayoutAccount {
@@ -178,6 +177,14 @@ export interface WithdrawalCreateInput {
   amount: string
 }
 
+export function normalizeWithdrawalWholeAmount(value: string): string {
+  const trimmed = value.trim()
+  const match = trimmed.match(/^(\d+)(?:\.0+)?$/)
+  if (!match) return trimmed
+  const normalized = match[1].replace(/^0+(?=\d)/, '')
+  return normalized
+}
+
 export async function getWithdrawalAvailability(): Promise<WithdrawalAvailability> {
   const { data } = await apiClient.get<WithdrawalAvailability>('/user/wallet/withdrawals/availability')
   return data
@@ -204,7 +211,10 @@ export async function getWithdrawal(id: number): Promise<WithdrawalRequest> {
 }
 
 export async function createWithdrawal(input: WithdrawalCreateInput): Promise<WithdrawalRequest> {
-  const { data } = await apiClient.post<WithdrawalRequest>('/user/wallet/withdrawals', input)
+  const { data } = await apiClient.post<WithdrawalRequest>('/user/wallet/withdrawals', {
+    ...input,
+    amount: normalizeWithdrawalWholeAmount(input.amount),
+  })
   return data
 }
 

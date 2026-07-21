@@ -87,7 +87,7 @@
                   {{ accountMessage }}
                 </p>
                 <button type="submit" class="btn btn-primary inline-flex items-center justify-center gap-2" :disabled="accountSaving">
-                  <Icon name="save" size="sm" />
+                  <Icon name="check" size="sm" />
                   {{ accountSaving ? t('wallet.withdrawals.savingAccount') : t('wallet.withdrawals.saveAccount') }}
                 </button>
               </form>
@@ -104,15 +104,11 @@
                   <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.remainingDaily') }}</dt>
                   <dd class="text-gray-900 dark:text-white">{{ formatMoney(availability?.remaining_daily_amount) }}</dd>
                 </div>
-                <div class="flex justify-between gap-3">
-                  <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.dualReview') }}</dt>
-                  <dd class="text-gray-900 dark:text-white">{{ formatMoney(availability?.double_review_threshold) }}</dd>
-                </div>
               </dl>
               <form class="mt-4 grid gap-3" @submit.prevent="submitWithdrawal">
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.amount') }}</span>
-                  <input v-model.trim="withdrawalAmount" class="input" inputmode="decimal" placeholder="10.00" autocomplete="off" />
+                  <input v-model.trim="withdrawalAmount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" autocomplete="off" />
                 </label>
                 <p v-if="withdrawalMessage" class="text-sm" :class="withdrawalMessageType === 'error' ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-600 dark:text-emerald-300'">
                   {{ withdrawalMessage }}
@@ -313,6 +309,7 @@ import {
   getWithdrawalAccount,
   getWithdrawalAvailability,
   getWithdrawals,
+  normalizeWithdrawalWholeAmount,
   updateWithdrawalAccount,
   type WalletDirection,
   type WalletSource,
@@ -531,9 +528,15 @@ async function submitWithdrawal() {
     withdrawalMessage.value = t('wallet.withdrawals.validation.unavailable')
     return
   }
+  const normalizedAmount = normalizeWithdrawalWholeAmount(withdrawalAmount.value)
+  if (!/^[1-9]\d*$/.test(normalizedAmount)) {
+    withdrawalMessageType.value = 'error'
+    withdrawalMessage.value = t('wallet.withdrawals.validation.integerAmountRequired')
+    return
+  }
   withdrawalSubmitting.value = true
   try {
-    const result = await createWithdrawal({ amount: withdrawalAmount.value })
+    const result = await createWithdrawal({ amount: normalizedAmount })
     withdrawalAmount.value = ''
     withdrawalMessageType.value = 'success'
     withdrawalMessage.value = t('wallet.withdrawals.submitSuccess')

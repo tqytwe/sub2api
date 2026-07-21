@@ -44,16 +44,15 @@ type withdrawalPayoutAccountDTO struct {
 }
 
 type withdrawalAvailabilityDTO struct {
-	GlobalEnabled         bool   `json:"global_enabled"`
-	UserEnabled           bool   `json:"user_enabled"`
-	CanApply              bool   `json:"can_apply"`
-	DisabledReason        string `json:"disabled_reason,omitempty"`
-	RecalcStatus          string `json:"recalc_status"`
-	MinimumAmount         string `json:"minimum_amount"`
-	DailyLimitAmount      string `json:"daily_limit_amount"`
-	DailyUsedAmount       string `json:"daily_used_amount"`
-	RemainingDailyAmount  string `json:"remaining_daily_amount"`
-	DoubleReviewThreshold string `json:"double_review_threshold"`
+	GlobalEnabled        bool   `json:"global_enabled"`
+	UserEnabled          bool   `json:"user_enabled"`
+	CanApply             bool   `json:"can_apply"`
+	DisabledReason       string `json:"disabled_reason,omitempty"`
+	RecalcStatus         string `json:"recalc_status"`
+	MinimumAmount        string `json:"minimum_amount"`
+	DailyLimitAmount     string `json:"daily_limit_amount"`
+	DailyUsedAmount      string `json:"daily_used_amount"`
+	RemainingDailyAmount string `json:"remaining_daily_amount"`
 }
 
 type withdrawalRequestDTO struct {
@@ -433,16 +432,15 @@ func toWalletTransactionPageDTO(page *service.WalletTransactionPage) walletTrans
 
 func toWithdrawalAvailabilityDTO(availability *service.WithdrawalAvailability) withdrawalAvailabilityDTO {
 	return withdrawalAvailabilityDTO{
-		GlobalEnabled:         availability.GlobalEnabled,
-		UserEnabled:           availability.UserEnabled,
-		CanApply:              availability.CanApply,
-		DisabledReason:        availability.DisabledReason,
-		RecalcStatus:          availability.RecalcStatus,
-		MinimumAmount:         availability.MinimumAmount.StringFixed(8),
-		DailyLimitAmount:      availability.DailyLimitAmount.StringFixed(8),
-		DailyUsedAmount:       availability.DailyUsedAmount.StringFixed(8),
-		RemainingDailyAmount:  availability.RemainingDailyAmount.StringFixed(8),
-		DoubleReviewThreshold: availability.DoubleReviewThreshold.StringFixed(8),
+		GlobalEnabled:        availability.GlobalEnabled,
+		UserEnabled:          availability.UserEnabled,
+		CanApply:             availability.CanApply,
+		DisabledReason:       availability.DisabledReason,
+		RecalcStatus:         availability.RecalcStatus,
+		MinimumAmount:        availability.MinimumAmount.StringFixed(8),
+		DailyLimitAmount:     availability.DailyLimitAmount.StringFixed(8),
+		DailyUsedAmount:      availability.DailyUsedAmount.StringFixed(8),
+		RemainingDailyAmount: availability.RemainingDailyAmount.StringFixed(8),
 	}
 }
 
