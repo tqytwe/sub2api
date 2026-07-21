@@ -148,6 +148,38 @@
                     </div>
                   </div>
 
+                  <div v-if="hasExistingEntitlementReview" class="rounded border p-3 text-xs" :class="existingEntitlementReviewClass">
+                    <div class="flex items-start gap-2">
+                      <Icon :name="existingEntitlementsVerified ? 'checkCircle' : 'exclamationTriangle'" size="sm" class="mt-0.5 shrink-0" />
+                      <div>
+                        <p class="font-semibold">
+                          {{ t(existingEntitlementsVerified ? 'admin.withdrawals.recomputeExistingVerified' : 'admin.withdrawals.recomputeExistingMismatch') }}
+                        </p>
+                        <p class="mt-1">
+                          {{ t(existingEntitlementsVerified ? 'admin.withdrawals.recomputeExistingVerifiedHint' : 'admin.withdrawals.recomputeExistingMismatchHint') }}
+                        </p>
+                      </div>
+                    </div>
+                    <dl class="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div>
+                        <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingBatchCount') }}</dt>
+                        <dd class="mt-0.5 font-semibold">{{ recomputeReport.user.existing_entitlement_count }}</dd>
+                      </div>
+                      <div>
+                        <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingEntitlement') }}</dt>
+                        <dd class="mt-0.5 font-semibold">{{ formatMoney(recomputeReport.user.existing_entitlement_balance) }}</dd>
+                      </div>
+                      <div>
+                        <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingWithdrawable') }}</dt>
+                        <dd class="mt-0.5 font-semibold">{{ formatMoney(recomputeReport.user.existing_withdrawable_balance) }}</dd>
+                      </div>
+                      <div>
+                        <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingPending') }}</dt>
+                        <dd class="mt-0.5 font-semibold">{{ formatMoney(recomputeReport.user.existing_pending_balance) }}</dd>
+                      </div>
+                    </dl>
+                  </div>
+
                   <div v-if="recomputeReport.user.anomalies.length" class="rounded border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
                     <p class="text-xs font-semibold text-amber-800 dark:text-amber-200">{{ t('admin.withdrawals.recomputeAnomalies') }}</p>
                     <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-amber-800 dark:text-amber-100">
@@ -624,6 +656,21 @@ const activeUserID = computed(() => parsePositiveID(userSettingsForm.user_id))
 
 const canExecuteRecompute = computed(() => {
   return recomputeReport.value?.user.status === 'ready' && recomputeReport.value.user.user_id === activeUserID.value
+})
+
+const hasExistingEntitlementReview = computed(() => {
+  return (recomputeReport.value?.user.existing_entitlement_count ?? 0) > 0
+})
+
+const existingEntitlementsVerified = computed(() => {
+  return Boolean(recomputeReport.value?.user.existing_entitlements_verified)
+})
+
+const existingEntitlementReviewClass = computed(() => {
+  if (existingEntitlementsVerified.value) {
+    return 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200'
+  }
+  return 'border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100'
 })
 
 const sensitiveEntries = computed(() => {

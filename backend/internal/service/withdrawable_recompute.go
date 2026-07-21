@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/shopspring/decimal"
@@ -39,16 +40,21 @@ type WithdrawableRecomputeReport struct {
 }
 
 type WithdrawableRecomputeUserReport struct {
-	UserID                      int64                        `json:"user_id"`
-	Status                      string                       `json:"status"`
-	LedgerBalance               decimal.Decimal              `json:"ledger_balance"`
-	ComputedWithdrawableBalance decimal.Decimal              `json:"computed_withdrawable_balance"`
-	ComputedPendingBalance      decimal.Decimal              `json:"computed_pending_balance"`
-	ComputedEntitlementBalance  decimal.Decimal              `json:"computed_entitlement_balance"`
-	TransactionCount            int                          `json:"transaction_count"`
-	EligibleGrantCount          int                          `json:"eligible_grant_count"`
-	Anomalies                   []string                     `json:"anomalies,omitempty"`
-	Batches                     []WithdrawableRecomputeBatch `json:"batches,omitempty"`
+	UserID                       int64                        `json:"user_id"`
+	Status                       string                       `json:"status"`
+	LedgerBalance                decimal.Decimal              `json:"ledger_balance"`
+	ComputedWithdrawableBalance  decimal.Decimal              `json:"computed_withdrawable_balance"`
+	ComputedPendingBalance       decimal.Decimal              `json:"computed_pending_balance"`
+	ComputedEntitlementBalance   decimal.Decimal              `json:"computed_entitlement_balance"`
+	ExistingEntitlementCount     int                          `json:"existing_entitlement_count"`
+	ExistingEntitlementsVerified bool                         `json:"existing_entitlements_verified"`
+	ExistingWithdrawableBalance  decimal.Decimal              `json:"existing_withdrawable_balance"`
+	ExistingPendingBalance       decimal.Decimal              `json:"existing_pending_balance"`
+	ExistingEntitlementBalance   decimal.Decimal              `json:"existing_entitlement_balance"`
+	TransactionCount             int                          `json:"transaction_count"`
+	EligibleGrantCount           int                          `json:"eligible_grant_count"`
+	Anomalies                    []string                     `json:"anomalies,omitempty"`
+	Batches                      []WithdrawableRecomputeBatch `json:"batches,omitempty"`
 }
 
 type WithdrawableRecomputeBatch struct {
@@ -87,6 +93,16 @@ type withdrawableRecomputeLocalAllocation struct {
 	BatchIndex  int
 	Amount      decimal.Decimal
 	AvailableAt time.Time
+}
+
+type withdrawableRecomputeExistingBatch struct {
+	Batch                  WithdrawableRecomputeBatch
+	WithdrawalFrozenAmount decimal.Decimal
+	Status                 string
+}
+
+type withdrawableRecomputeQueryer interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
 func NewWithdrawableRecomputeService(db *sql.DB) *WithdrawableRecomputeService {
@@ -249,10 +265,6 @@ func (s *WithdrawableRecomputeService) recomputeUser(ctx context.Context, userID
 		TransactionCount: len(transactions),
 		Batches:          make([]WithdrawableRecomputeBatch, 0),
 	}
-	if existingEntitlements > 0 {
-		report.Status = WithdrawableRecomputeStatusNeedsReview
-		report.Anomalies = append(report.Anomalies, "existing withdrawable entitlements require manual review before execute")
-	}
 
 	consumedByKey := map[string][]withdrawableRecomputeLocalAllocation{}
 	runningBalance := decimal.Zero
@@ -330,6 +342,13 @@ func (s *WithdrawableRecomputeService) recomputeUser(ctx context.Context, userID
 	if haveRunningBalance && !runningBalance.Equal(currentBalance) {
 		report.Status = WithdrawableRecomputeStatusNeedsReview
 		report.Anomalies = append(report.Anomalies, fmt.Sprintf("ledger replay balance %s does not match users.balance %s", decimalString(runningBalance), decimalString(currentBalance)))
+	}
+	if existingEntitlements > 0 {
+		existing, err := queryExistingWithdrawableRecomputeBatches(ctx, s.db, userID, false)
+		if err != nil {
+			return WithdrawableRecomputeUserReport{}, err
+		}
+		applyExistingWithdrawableEntitlementReview(&report, existing, asOf)
 	}
 	if report.Status != WithdrawableRecomputeStatusReady && len(report.Batches) == 0 {
 		report.Batches = nil
@@ -483,17 +502,16 @@ WHERE id = $1 AND deleted_at IS NULL
 FOR UPDATE`, report.UserID).Scan(&lockedUserID); err != nil {
 		return fmt.Errorf("lock withdrawable recompute user: %w", err)
 	}
-	var existing int64
-	if err := tx.QueryRowContext(ctx, `
-SELECT COUNT(*)::bigint
-FROM withdrawable_entitlements
-WHERE user_id = $1`, report.UserID).Scan(&existing); err != nil {
+	existing, err := queryExistingWithdrawableRecomputeBatches(ctx, tx, report.UserID, true)
+	if err != nil {
 		return fmt.Errorf("lock existing withdrawable entitlements: %w", err)
 	}
-	if existing > 0 && report.Status == WithdrawableRecomputeStatusReady {
-		return fmt.Errorf("existing withdrawable entitlements require manual review before execute")
+	if len(existing) > 0 && report.Status == WithdrawableRecomputeStatusReady {
+		if !withdrawableRecomputeExistingBatchesMatch(report.Batches, existing) {
+			return fmt.Errorf("existing withdrawable entitlements do not match recompute report")
+		}
 	}
-	if report.Status == WithdrawableRecomputeStatusReady {
+	if report.Status == WithdrawableRecomputeStatusReady && len(existing) == 0 {
 		for _, batch := range report.Batches {
 			if err := persistWithdrawableRecomputeBatch(ctx, tx, report.UserID, batch, generatedAt); err != nil {
 				return err
@@ -549,6 +567,173 @@ INSERT INTO withdrawable_recalculation_runs (
 	}
 	committed = true
 	return nil
+}
+
+func queryExistingWithdrawableRecomputeBatches(ctx context.Context, q withdrawableRecomputeQueryer, userID int64, lock bool) ([]withdrawableRecomputeExistingBatch, error) {
+	query := `
+SELECT
+	balance_transaction_id,
+	source_type,
+	source_id,
+	original_amount::text,
+	remaining_amount::text,
+	consumed_amount::text,
+	withdrawal_frozen_amount::text,
+	available_at,
+	status
+FROM withdrawable_entitlements
+WHERE user_id = $1
+ORDER BY COALESCE(balance_transaction_id, 0), id`
+	if lock {
+		query += `
+FOR UPDATE`
+	}
+	rows, err := q.QueryContext(ctx, query, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []withdrawableRecomputeExistingBatch
+	for rows.Next() {
+		var existing withdrawableRecomputeExistingBatch
+		var sourceTransactionID sql.NullInt64
+		var originalRaw, remainingRaw, consumedRaw, frozenRaw string
+		if err := rows.Scan(
+			&sourceTransactionID,
+			&existing.Batch.SourceType,
+			&existing.Batch.SourceID,
+			&originalRaw,
+			&remainingRaw,
+			&consumedRaw,
+			&frozenRaw,
+			&existing.Batch.AvailableAt,
+			&existing.Status,
+		); err != nil {
+			return nil, err
+		}
+		if sourceTransactionID.Valid {
+			existing.Batch.SourceTransactionID = sourceTransactionID.Int64
+		}
+		var err error
+		if existing.Batch.OriginalAmount, err = parseLedgerDecimal(originalRaw, "existing entitlement original amount"); err != nil {
+			return nil, err
+		}
+		if existing.Batch.RemainingAmount, err = parseLedgerDecimal(remainingRaw, "existing entitlement remaining amount"); err != nil {
+			return nil, err
+		}
+		if existing.Batch.ConsumedAmount, err = parseLedgerDecimal(consumedRaw, "existing entitlement consumed amount"); err != nil {
+			return nil, err
+		}
+		if existing.WithdrawalFrozenAmount, err = parseLedgerDecimal(frozenRaw, "existing entitlement withdrawal frozen amount"); err != nil {
+			return nil, err
+		}
+		existing.Batch.AvailableAt = existing.Batch.AvailableAt.UTC()
+		out = append(out, existing)
+	}
+	return out, rows.Err()
+}
+
+func applyExistingWithdrawableEntitlementReview(report *WithdrawableRecomputeUserReport, existing []withdrawableRecomputeExistingBatch, asOf time.Time) {
+	asOf = asOf.UTC()
+	report.ExistingEntitlementCount = len(existing)
+	for _, existingBatch := range existing {
+		if existingBatch.Status == "void" {
+			continue
+		}
+		current := existingBatch.Batch.RemainingAmount
+		if !current.IsPositive() {
+			continue
+		}
+		report.ExistingEntitlementBalance = report.ExistingEntitlementBalance.Add(current)
+		if existingBatch.Batch.AvailableAt.After(asOf) {
+			report.ExistingPendingBalance = report.ExistingPendingBalance.Add(current)
+		} else {
+			report.ExistingWithdrawableBalance = report.ExistingWithdrawableBalance.Add(current)
+		}
+	}
+	report.ExistingEntitlementBalance = clampDecimalScale(report.ExistingEntitlementBalance)
+	report.ExistingPendingBalance = clampDecimalScale(report.ExistingPendingBalance)
+	report.ExistingWithdrawableBalance = clampDecimalScale(report.ExistingWithdrawableBalance)
+
+	if len(existing) == 0 {
+		return
+	}
+	matched := withdrawableRecomputeExistingBatchesMatch(report.Batches, existing)
+	report.ExistingEntitlementsVerified = matched
+	if matched {
+		return
+	}
+	report.Status = WithdrawableRecomputeStatusNeedsReview
+	report.Anomalies = append(report.Anomalies, fmt.Sprintf(
+		"existing withdrawable entitlements do not match recompute report: existing_count=%d recompute_count=%d existing_total=%s recompute_total=%s",
+		len(existing),
+		len(report.Batches),
+		decimalString(report.ExistingEntitlementBalance),
+		decimalString(report.ComputedEntitlementBalance),
+	))
+}
+
+func withdrawableRecomputeExistingBatchesMatch(recomputed []WithdrawableRecomputeBatch, existing []withdrawableRecomputeExistingBatch) bool {
+	if len(recomputed) != len(existing) {
+		return false
+	}
+	recomputedSorted := append([]WithdrawableRecomputeBatch(nil), recomputed...)
+	existingSorted := append([]withdrawableRecomputeExistingBatch(nil), existing...)
+	sort.SliceStable(recomputedSorted, func(i, j int) bool {
+		return withdrawableRecomputeBatchLess(recomputedSorted[i], recomputedSorted[j])
+	})
+	sort.SliceStable(existingSorted, func(i, j int) bool {
+		return withdrawableRecomputeBatchLess(existingSorted[i].Batch, existingSorted[j].Batch)
+	})
+	for i, recomputedBatch := range recomputedSorted {
+		existingBatch := existingSorted[i]
+		if !existingBatch.WithdrawalFrozenAmount.IsZero() {
+			return false
+		}
+		expectedStatus := withdrawableEntitlementStatusActive
+		if !recomputedBatch.RemainingAmount.IsPositive() {
+			expectedStatus = withdrawableEntitlementStatusConsumed
+		}
+		if existingBatch.Status != expectedStatus {
+			return false
+		}
+		if existingBatch.Batch.SourceTransactionID != recomputedBatch.SourceTransactionID ||
+			existingBatch.Batch.SourceType != recomputedBatch.SourceType ||
+			existingBatch.Batch.SourceID != recomputedBatch.SourceID ||
+			!clampDecimalScale(existingBatch.Batch.OriginalAmount).Equal(clampDecimalScale(recomputedBatch.OriginalAmount)) ||
+			!clampDecimalScale(existingBatch.Batch.RemainingAmount).Equal(clampDecimalScale(recomputedBatch.RemainingAmount)) ||
+			!clampDecimalScale(existingBatch.Batch.ConsumedAmount).Equal(clampDecimalScale(recomputedBatch.ConsumedAmount)) ||
+			!existingBatch.Batch.AvailableAt.UTC().Equal(recomputedBatch.AvailableAt.UTC()) {
+			return false
+		}
+	}
+	return true
+}
+
+func withdrawableRecomputeBatchLess(a, b WithdrawableRecomputeBatch) bool {
+	if a.SourceTransactionID != b.SourceTransactionID {
+		return a.SourceTransactionID < b.SourceTransactionID
+	}
+	if a.SourceType != b.SourceType {
+		return a.SourceType < b.SourceType
+	}
+	if a.SourceID != b.SourceID {
+		return a.SourceID < b.SourceID
+	}
+	if !a.AvailableAt.UTC().Equal(b.AvailableAt.UTC()) {
+		return a.AvailableAt.UTC().Before(b.AvailableAt.UTC())
+	}
+	if !clampDecimalScale(a.OriginalAmount).Equal(clampDecimalScale(b.OriginalAmount)) {
+		return clampDecimalScale(a.OriginalAmount).LessThan(clampDecimalScale(b.OriginalAmount))
+	}
+	if !clampDecimalScale(a.RemainingAmount).Equal(clampDecimalScale(b.RemainingAmount)) {
+		return clampDecimalScale(a.RemainingAmount).LessThan(clampDecimalScale(b.RemainingAmount))
+	}
+	if !clampDecimalScale(a.ConsumedAmount).Equal(clampDecimalScale(b.ConsumedAmount)) {
+		return clampDecimalScale(a.ConsumedAmount).LessThan(clampDecimalScale(b.ConsumedAmount))
+	}
+	return false
 }
 
 func persistWithdrawableRecomputeBatch(ctx context.Context, tx *sql.Tx, userID int64, batch WithdrawableRecomputeBatch, createdAt time.Time) error {

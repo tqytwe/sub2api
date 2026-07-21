@@ -69,16 +69,21 @@ type adminWithdrawalRecomputeResponse struct {
 }
 
 type adminWithdrawalRecomputeUserResponse struct {
-	UserID                      int64                                     `json:"user_id"`
-	Status                      string                                    `json:"status"`
-	LedgerBalance               string                                    `json:"ledger_balance"`
-	ComputedWithdrawableBalance string                                    `json:"computed_withdrawable_balance"`
-	ComputedPendingBalance      string                                    `json:"computed_pending_balance"`
-	ComputedEntitlementBalance  string                                    `json:"computed_entitlement_balance"`
-	TransactionCount            int                                       `json:"transaction_count"`
-	EligibleGrantCount          int                                       `json:"eligible_grant_count"`
-	Anomalies                   []adminWithdrawalRecomputeAnomalyResponse `json:"anomalies"`
-	Batches                     []adminWithdrawalRecomputeBatchResponse   `json:"batches,omitempty"`
+	UserID                       int64                                     `json:"user_id"`
+	Status                       string                                    `json:"status"`
+	LedgerBalance                string                                    `json:"ledger_balance"`
+	ComputedWithdrawableBalance  string                                    `json:"computed_withdrawable_balance"`
+	ComputedPendingBalance       string                                    `json:"computed_pending_balance"`
+	ComputedEntitlementBalance   string                                    `json:"computed_entitlement_balance"`
+	ExistingEntitlementCount     int                                       `json:"existing_entitlement_count"`
+	ExistingEntitlementsVerified bool                                      `json:"existing_entitlements_verified"`
+	ExistingWithdrawableBalance  string                                    `json:"existing_withdrawable_balance"`
+	ExistingPendingBalance       string                                    `json:"existing_pending_balance"`
+	ExistingEntitlementBalance   string                                    `json:"existing_entitlement_balance"`
+	TransactionCount             int                                       `json:"transaction_count"`
+	EligibleGrantCount           int                                       `json:"eligible_grant_count"`
+	Anomalies                    []adminWithdrawalRecomputeAnomalyResponse `json:"anomalies"`
+	Batches                      []adminWithdrawalRecomputeBatchResponse   `json:"batches,omitempty"`
 }
 
 type adminWithdrawalRecomputeBatchResponse struct {
@@ -510,16 +515,21 @@ func adminWithdrawalRecomputeResponseFromReport(report *service.WithdrawableReco
 		Mode:        report.Mode,
 		GeneratedAt: report.GeneratedAt,
 		User: adminWithdrawalRecomputeUserResponse{
-			UserID:                      user.UserID,
-			Status:                      user.Status,
-			LedgerBalance:               user.LedgerBalance.StringFixed(8),
-			ComputedWithdrawableBalance: user.ComputedWithdrawableBalance.StringFixed(8),
-			ComputedPendingBalance:      user.ComputedPendingBalance.StringFixed(8),
-			ComputedEntitlementBalance:  user.ComputedEntitlementBalance.StringFixed(8),
-			TransactionCount:            user.TransactionCount,
-			EligibleGrantCount:          user.EligibleGrantCount,
-			Anomalies:                   anomalies,
-			Batches:                     batches,
+			UserID:                       user.UserID,
+			Status:                       user.Status,
+			LedgerBalance:                user.LedgerBalance.StringFixed(8),
+			ComputedWithdrawableBalance:  user.ComputedWithdrawableBalance.StringFixed(8),
+			ComputedPendingBalance:       user.ComputedPendingBalance.StringFixed(8),
+			ComputedEntitlementBalance:   user.ComputedEntitlementBalance.StringFixed(8),
+			ExistingEntitlementCount:     user.ExistingEntitlementCount,
+			ExistingEntitlementsVerified: user.ExistingEntitlementsVerified,
+			ExistingWithdrawableBalance:  user.ExistingWithdrawableBalance.StringFixed(8),
+			ExistingPendingBalance:       user.ExistingPendingBalance.StringFixed(8),
+			ExistingEntitlementBalance:   user.ExistingEntitlementBalance.StringFixed(8),
+			TransactionCount:             user.TransactionCount,
+			EligibleGrantCount:           user.EligibleGrantCount,
+			Anomalies:                    anomalies,
+			Batches:                      batches,
 		},
 	}
 }
@@ -529,6 +539,11 @@ func adminWithdrawalRecomputeAnomalyFromRaw(raw string) adminWithdrawalRecompute
 	switch {
 	case raw == "existing withdrawable entitlements require manual review before execute":
 		return adminWithdrawalRecomputeAnomalyResponse{Code: "existing_entitlements"}
+	case strings.HasPrefix(raw, "existing withdrawable entitlements do not match recompute report"):
+		return adminWithdrawalRecomputeAnomalyResponse{
+			Code:    "existing_entitlements_mismatch",
+			Details: parseAdminWithdrawalRecomputeKeyValueDetails(raw),
+		}
 	case strings.HasPrefix(raw, "transaction ") && strings.Contains(raw, " confidence is "):
 		txID, rest := splitAdminWithdrawalRecomputeTransaction(raw)
 		return adminWithdrawalRecomputeAnomalyResponse{
@@ -562,6 +577,29 @@ func adminWithdrawalRecomputeAnomalyFromRaw(raw string) adminWithdrawalRecompute
 	default:
 		return adminWithdrawalRecomputeAnomalyResponse{Code: "unknown"}
 	}
+}
+
+func parseAdminWithdrawalRecomputeKeyValueDetails(raw string) map[string]string {
+	_, details, ok := strings.Cut(raw, ":")
+	if !ok {
+		return nil
+	}
+	out := map[string]string{}
+	for _, field := range strings.Fields(details) {
+		key, value, ok := strings.Cut(field, "=")
+		if !ok {
+			continue
+		}
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(strings.Trim(value, ","))
+		if key != "" && value != "" {
+			out[key] = value
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
 }
 
 func splitAdminWithdrawalRecomputeTransaction(raw string) (string, string) {

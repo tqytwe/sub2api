@@ -81,6 +81,11 @@ export interface AdminWithdrawalRecomputeUserReport {
   computed_withdrawable_balance: string
   computed_pending_balance: string
   computed_entitlement_balance: string
+  existing_entitlement_count: number
+  existing_entitlements_verified: boolean
+  existing_withdrawable_balance: string
+  existing_pending_balance: string
+  existing_entitlement_balance: string
   transaction_count: number
   eligible_grant_count: number
   anomalies: AdminWithdrawalRecomputeAnomaly[]

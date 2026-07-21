@@ -72,6 +72,11 @@ describe('admin withdrawals API', () => {
           computed_withdrawable_balance: '10.00000000',
           computed_pending_balance: '0.00000000',
           computed_entitlement_balance: '10.00000000',
+          existing_entitlement_count: 1,
+          existing_entitlements_verified: true,
+          existing_withdrawable_balance: '10.00000000',
+          existing_pending_balance: '0.00000000',
+          existing_entitlement_balance: '10.00000000',
           transaction_count: 1,
           eligible_grant_count: 1,
           anomalies: [],
@@ -89,6 +94,11 @@ describe('admin withdrawals API', () => {
           computed_withdrawable_balance: '10.00000000',
           computed_pending_balance: '0.00000000',
           computed_entitlement_balance: '10.00000000',
+          existing_entitlement_count: 1,
+          existing_entitlements_verified: true,
+          existing_withdrawable_balance: '10.00000000',
+          existing_pending_balance: '0.00000000',
+          existing_entitlement_balance: '10.00000000',
           transaction_count: 1,
           eligible_grant_count: 1,
           anomalies: [],
@@ -96,10 +106,12 @@ describe('admin withdrawals API', () => {
       },
     })
 
-    await adminWithdrawalsAPI.dryRunUserRecompute(7)
-    await adminWithdrawalsAPI.executeUserRecompute(7)
+    const dryRun = await adminWithdrawalsAPI.dryRunUserRecompute(7)
+    const executed = await adminWithdrawalsAPI.executeUserRecompute(7)
 
     expect(post).toHaveBeenCalledWith('/admin/withdrawals/users/7/recompute')
     expect(post).toHaveBeenCalledWith('/admin/withdrawals/users/7/recompute/execute')
+    expect(dryRun.user.existing_entitlements_verified).toBe(true)
+    expect(executed.user.existing_entitlement_count).toBe(1)
   })
 })

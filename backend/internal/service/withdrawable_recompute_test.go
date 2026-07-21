@@ -58,6 +58,162 @@ func TestWithdrawableRecomputeDryRunMarksReadyFromHighConfidenceLedger(t *testin
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestWithdrawableRecomputeDryRunAcceptsMatchingExistingEntitlements(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	now := time.Date(2026, 7, 22, 2, 0, 0, 0, time.UTC)
+	firstGrantAt := now.Add(-24 * time.Hour)
+	secondGrantAt := now.Add(-time.Hour)
+	svc := &WithdrawableRecomputeService{db: db, now: func() time.Time { return now }}
+
+	mock.ExpectQuery("(?s)SELECT id\\s+FROM users").
+		WithArgs(int64(7), 500).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectQuery("(?s)SELECT\\s+COALESCE\\(u.balance").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "entitlement_count"}).AddRow("1.00000000", int64(2)))
+	mock.ExpectQuery("(?s)FROM balance_transactions\\s+WHERE user_id = \\$1").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"balance_delta",
+			"balance_before",
+			"balance_after",
+			"source_type",
+			"source_id",
+			"idempotency_key",
+			"metadata",
+			"confidence",
+			"created_at",
+		}).
+			AddRow(int64(23401), "0.50000000", "0.00000000", "0.50000000", PlayRewardSourceArenaDaily, "daily:1", "arena:7:1", `{}`, BalanceLedgerConfidenceHigh, firstGrantAt).
+			AddRow(int64(58987), "0.50000000", "0.50000000", "1.00000000", PlayRewardSourceArenaDaily, "daily:2", "arena:7:2", `{}`, BalanceLedgerConfidenceHigh, secondGrantAt))
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1").
+		WithArgs(int64(7)).
+		WillReturnRows(withdrawableRecomputeExistingEntitlementRows().
+			AddRow(int64(58987), PlayRewardSourceArenaDaily, "daily:2", "0.50000000", "0.50000000", "0.00000000", "0.00000000", secondGrantAt.Add(withdrawableRewardMaturityDelay), withdrawableEntitlementStatusActive).
+			AddRow(int64(23401), PlayRewardSourceArenaDaily, "daily:1", "0.50000000", "0.50000000", "0.00000000", "0.00000000", firstGrantAt.Add(withdrawableRewardMaturityDelay), withdrawableEntitlementStatusActive))
+
+	report, err := svc.Recompute(context.Background(), WithdrawableRecomputeOptions{UserID: 7})
+	require.NoError(t, err)
+	require.Equal(t, 1, report.ReadyUsers)
+	require.Equal(t, 0, report.NeedsReviewUsers)
+	user := report.Users[0]
+	require.Equal(t, WithdrawableRecomputeStatusReady, user.Status)
+	require.True(t, user.ExistingEntitlementsVerified)
+	require.Equal(t, 2, user.ExistingEntitlementCount)
+	require.Empty(t, user.Anomalies)
+	require.Equal(t, "0.00000000", user.ComputedWithdrawableBalance.StringFixed(8))
+	require.Equal(t, "1.00000000", user.ComputedPendingBalance.StringFixed(8))
+	require.Equal(t, "1.00000000", user.ExistingPendingBalance.StringFixed(8))
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithdrawableRecomputeExecuteSkipsDuplicateInsertForMatchingExistingEntitlements(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	now := time.Date(2026, 7, 22, 2, 0, 0, 0, time.UTC)
+	grantAt := now.Add(-24 * time.Hour)
+	svc := &WithdrawableRecomputeService{db: db, now: func() time.Time { return now }}
+
+	mock.ExpectQuery("(?s)SELECT id\\s+FROM users").
+		WithArgs(int64(7), 500).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectQuery("(?s)SELECT\\s+COALESCE\\(u.balance").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "entitlement_count"}).AddRow("0.50000000", int64(1)))
+	mock.ExpectQuery("(?s)FROM balance_transactions\\s+WHERE user_id = \\$1").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"balance_delta",
+			"balance_before",
+			"balance_after",
+			"source_type",
+			"source_id",
+			"idempotency_key",
+			"metadata",
+			"confidence",
+			"created_at",
+		}).AddRow(int64(23401), "0.50000000", "0.00000000", "0.50000000", PlayRewardSourceArenaDaily, "daily:1", "arena:7:1", `{}`, BalanceLedgerConfidenceHigh, grantAt))
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1").
+		WithArgs(int64(7)).
+		WillReturnRows(withdrawableRecomputeExistingEntitlementRows().
+			AddRow(int64(23401), PlayRewardSourceArenaDaily, "daily:1", "0.50000000", "0.50000000", "0.00000000", "0.00000000", grantAt.Add(withdrawableRewardMaturityDelay), withdrawableEntitlementStatusActive))
+	mock.ExpectBegin()
+	mock.ExpectQuery("(?s)SELECT id\\s+FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1.+FOR UPDATE").
+		WithArgs(int64(7)).
+		WillReturnRows(withdrawableRecomputeExistingEntitlementRows().
+			AddRow(int64(23401), PlayRewardSourceArenaDaily, "daily:1", "0.50000000", "0.50000000", "0.00000000", "0.00000000", grantAt.Add(withdrawableRewardMaturityDelay), withdrawableEntitlementStatusActive))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET withdrawable_balance = CASE WHEN \\$2 = 'ready'").
+		WithArgs("0.00000000", WithdrawableRecomputeStatusReady, now, int64(7)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("(?s)INSERT INTO withdrawable_recalculation_runs").
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	report, err := svc.Recompute(context.Background(), WithdrawableRecomputeOptions{UserID: 7, Execute: true})
+	require.NoError(t, err)
+	require.Equal(t, WithdrawableRecomputeModeExecute, report.Mode)
+	require.Equal(t, 1, report.ReadyUsers)
+	require.Equal(t, WithdrawableRecomputeStatusReady, report.Users[0].Status)
+	require.True(t, report.Users[0].ExistingEntitlementsVerified)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestWithdrawableRecomputeKeepsNeedsReviewWhenExistingEntitlementsMismatch(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	now := time.Date(2026, 7, 22, 2, 0, 0, 0, time.UTC)
+	grantAt := now.Add(-24 * time.Hour)
+	svc := &WithdrawableRecomputeService{db: db, now: func() time.Time { return now }}
+
+	mock.ExpectQuery("(?s)SELECT id\\s+FROM users").
+		WithArgs(int64(7), 500).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7)))
+	mock.ExpectQuery("(?s)SELECT\\s+COALESCE\\(u.balance").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"balance", "entitlement_count"}).AddRow("0.50000000", int64(1)))
+	mock.ExpectQuery("(?s)FROM balance_transactions\\s+WHERE user_id = \\$1").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id",
+			"balance_delta",
+			"balance_before",
+			"balance_after",
+			"source_type",
+			"source_id",
+			"idempotency_key",
+			"metadata",
+			"confidence",
+			"created_at",
+		}).AddRow(int64(23401), "0.50000000", "0.00000000", "0.50000000", PlayRewardSourceArenaDaily, "daily:1", "arena:7:1", `{}`, BalanceLedgerConfidenceHigh, grantAt))
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1").
+		WithArgs(int64(7)).
+		WillReturnRows(withdrawableRecomputeExistingEntitlementRows().
+			AddRow(int64(23401), PlayRewardSourceArenaDaily, "daily:1", "0.50000000", "0.25000000", "0.25000000", "0.00000000", grantAt.Add(withdrawableRewardMaturityDelay), withdrawableEntitlementStatusActive))
+
+	report, err := svc.Recompute(context.Background(), WithdrawableRecomputeOptions{UserID: 7})
+	require.NoError(t, err)
+	require.Equal(t, 0, report.ReadyUsers)
+	require.Equal(t, 1, report.NeedsReviewUsers)
+	require.False(t, report.Users[0].ExistingEntitlementsVerified)
+	require.Contains(t, report.Users[0].Anomalies[0], "existing withdrawable entitlements do not match recompute report")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestWithdrawableRecomputeMarksNeedsReviewWhenSnapshotsAreMissing(t *testing.T) {
 	t.Parallel()
 
@@ -94,6 +250,20 @@ func TestWithdrawableRecomputeMarksNeedsReviewWhenSnapshotsAreMissing(t *testing
 	require.Equal(t, 1, report.NeedsReviewUsers)
 	require.Contains(t, report.Users[0].Anomalies[0], "missing reliable balance_before")
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func withdrawableRecomputeExistingEntitlementRows() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{
+		"balance_transaction_id",
+		"source_type",
+		"source_id",
+		"original_amount",
+		"remaining_amount",
+		"consumed_amount",
+		"withdrawal_frozen_amount",
+		"available_at",
+		"status",
+	})
 }
 
 func TestWithdrawableRecomputeClampsNegativeUserBalanceToZeroWithdrawable(t *testing.T) {

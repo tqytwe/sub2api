@@ -31,6 +31,22 @@ func TestAdminWithdrawalRecomputeAnomalyFromRawUsesStableCodes(t *testing.T) {
 			},
 		},
 		{
+			name: "legacy existing entitlement guard",
+			raw:  "existing withdrawable entitlements require manual review before execute",
+			code: "existing_entitlements",
+		},
+		{
+			name: "existing entitlement mismatch",
+			raw:  "existing withdrawable entitlements do not match recompute report: existing_count=2 recompute_count=1 existing_total=1.00000000 recompute_total=0.50000000",
+			code: "existing_entitlements_mismatch",
+			details: map[string]string{
+				"existing_count":  "2",
+				"recompute_count": "1",
+				"existing_total":  "1.00000000",
+				"recompute_total": "0.50000000",
+			},
+		},
+		{
 			name:    "unknown raw anomaly",
 			raw:     "unexpected replay failure detail",
 			code:    "unknown",
