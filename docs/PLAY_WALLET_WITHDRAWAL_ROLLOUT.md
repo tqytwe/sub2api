@@ -2,9 +2,9 @@
 
 > 状态：active
 > 当前阶段：阶段二 / CP2
-> 当前结论：进行中（CP1 已部署并通过本地浏览器验收；CP2 本地实现、数据库对账、完整服务器验证和审查已通过，等待 PR/CI、部署和本地浏览器验收）
-> 生产基线：`origin/play/main@09e03463aac5e7626a3f0daaa09f9c8131cf049b`
-> 审查分支：`feat/play-wallet-transparency-20260721`
+> 当前结论：等待本地验收（CP1 已通过；CP2 代码、PR/CI、合并和生产部署证明已完成，等待用户本地浏览器验收；CP3 未开始）
+> CP2 功能部署基线：`origin/play/main@6531cb83dde134bccbde139220bd29e3623e36d7`
+> 审查分支：`docs/play-wallet-transparency-cp2-deploy-20260721`
 > 工作树：`/home/dell/worktrees/sub2api-play-wallet-transparency-20260721`
 > 最后更新：2026-07-21
 
@@ -17,14 +17,14 @@
 | 阶段或检查点 | 状态 | 当前门禁 |
 |---|---|---|
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
-| 阶段二：战队奖励与余额透明度 / CP2 | 进行中 | 本地实现、数据库对账、完整服务器验证和审查已通过；等待 PR/CI、部署和本地浏览器验收 |
+| 阶段二：战队奖励与余额透明度 / CP2 | 等待本地验收 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并和生产部署证明已通过；等待用户本地浏览器验收 |
 | 阶段三：代币农场最近发放与当前预估 / CP3 | 未开始 | 依赖 CP2 |
 | 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
-| CP6：服务器验证 | 进行中 | CP1 已通过；CP2 本地完整服务器验证已通过，等待 PR 合入后的部署侧复核 |
-| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 本地审查已完成，尚未进入 PR |
-| CP8：部署证明 | 进行中 | CP1 已通过；CP2 尚未部署 |
-| CP9：最终本地浏览器验收 | 进行中 | CP1 已通过；其余阶段仍须逐阶段验收 |
+| CP6：服务器验证 | 进行中 | CP1 已通过；CP2 本地完整服务器验证、GitHub CI 保护检查、构建和部署后 API/资产复核均已通过；后续阶段未开始 |
+| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已全绿，并以非 rebase merge commit 合入 `play/main`；后续阶段未开始 |
+| CP8：部署证明 | 进行中 | CP1 已通过；CP2 merge commit `6531cb83dde134bccbde139220bd29e3623e36d7` 已由 Zeabur 部署到 production 并完成 live proof；后续阶段未开始 |
+| CP9：最终本地浏览器验收 | 进行中 | CP1 已通过；CP2 等待用户本地浏览器检查中文/英文、浅色/深色、钱包和战队透明度 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -160,9 +160,9 @@ git diff --check
 | 规格审查 | 已通过 | 已修复审查发现的 `source=other` 漏筛未知历史来源、图片任务冻结流水筛选不一致、任务预留变动在钱包金额列不可见三项细节 |
 | 代码质量审查 | 已通过 | 钱包 DTO 不暴露 metadata、description、source_id、idempotency、actor/admin reason、邮箱或其他用户资料；Vue 用户文案走 i18n，中文页面无英文状态/按钮/空状态回退 |
 | 完整验证 | 已通过 | 聚焦验证、PostgreSQL 对账、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh`、`git diff --check` 全部通过 |
-| PR / GitHub CI | 未开始 | 等待服务器验证通过 |
-| 部署核对 | 未开始 | 等待非 rebase 合入 `play/main` |
-| 本地浏览器验收 | 未开始 | 部署后由用户检查普通用户与管理员中文/英文、浅色/深色及钱包/战队数据闭环 |
+| PR / GitHub CI | 已通过 | PR #83 全部 GitHub checks 通过：backend-security、frontend-security、Documentation、Protected behavior |
+| 部署核对 | 已通过 | Zeabur deployment `5533768058` 成功部署 CP2 merge commit `6531cb83dde134bccbde139220bd29e3623e36d7`；健康、路由保护和前端资产均已核对 |
+| 本地浏览器验收 | 等待本地验收 | 等待用户在本地浏览器检查普通用户与管理员中文/英文、浅色/深色及钱包/战队数据闭环；CP3 在此之前不开始 |
 
 ### 基线与计划变更范围
 
@@ -227,16 +227,57 @@ make test
 结果：通过；后端全量 Go 测试通过，golangci-lint 为 0 issues；前端 ESLint、
 vue-tsc 和 Vitest 全部通过；Vitest 为 239 个文件、1574 项测试。
 
+CI 安全补修：
+frontend-security 首轮发现 axios 新高危公告 GHSA-gcfj-64vw-6mp9。
+修复：升级 `frontend` 依赖 axios `1.16.0 -> 1.18.1`。
+验证：`CI=true npx -y pnpm@9.15.9 install --frozen-lockfile` 通过；
+`CI=true npx -y pnpm@9.15.9 audit --prod --audit-level=high --json`
+配合 `tools/check_pnpm_audit_exceptions.py` 通过，仅剩已有 xlsx 例外。
+
 GOFLAGS=-buildvcs=false make build
 结果：通过；后端二进制构建成功，前端 production build 成功。
-关键构建资源：WalletView-BQQ0SHVV.js、PlayOpsView-D_jqXWoZ.js、
-AgentTeamView-DjXrhMzi.js、zh-8NyoUD2n.js、en-DGxkFgof.js。
+关键构建资源：WalletView-Didu7ySV.js、PlayOpsView-DM7PaIbn.js、
+AgentTeamView-BnyP2EJb.js、zh-8NyoUD2n.js、en-DGxkFgof.js。
 
 ./scripts/check-fork-integrity.sh
 结果：通过；Fork integrity passed。
 
 git diff --check
 结果：通过。
+```
+
+GitHub CI 证据：
+
+```text
+PR：#83，目标分支 play/main
+head：e8d4acf9f6e67c75e26acd0168c0ec884fdb1a3d
+checks：backend-security = success；frontend-security = success；Documentation = success；Protected behavior = success
+合并方式：merge commit，非 rebase
+合并 commit：6531cb83dde134bccbde139220bd29e3623e36d7
+```
+
+生产部署核对：
+
+```text
+Zeabur deployment：5533768058
+environment：production
+sha：6531cb83dde134bccbde139220bd29e3623e36d7
+state：success
+target_url：https://zeabur.com/projects/6a51de14c2881a93656fa4c5/services/6a51ee2df04125ac9a34c28c/deployments/6a5f0f7de9e39c7397905a74?envID=6a51de14104975fcb46761c3
+
+https://www.jisudeng.com/health -> 200 application/json，{"status":"ok"}
+https://www.jisudeng.com/wallet -> 200 text/html
+https://www.jisudeng.com/admin/play-ops -> 200 text/html
+GET /api/v1/user/wallet/summary -> 401 application/json，UNAUTHORIZED
+GET /api/v1/user/wallet/transactions -> 401 application/json，UNAUTHORIZED
+GET /api/v1/play/teams/settlements -> 401 application/json，UNAUTHORIZED
+GET /api/v1/admin/play/teams/1/settlements -> 401 application/json，UNAUTHORIZED
+
+生产前端资源：index-CHOYH8ey.js、WalletView-Didu7ySV.js、PlayOpsView-DM7PaIbn.js、
+AgentTeamView-BnyP2EJb.js、zh-8NyoUD2n.js、en-DGxkFgof.js。
+WalletView 资源包含 `/user/wallet/summary`、`/user/wallet/transactions`
+和 `wallet.table.taskReservedChange`；zh/en 资源包含钱包、任务预留变动、
+待发放/已入账/Pending payout/Paid 等双语文案。
 ```
 
 ### 数据库与 API 对账
@@ -279,11 +320,16 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 
 ### 剩余风险
 
-- GitHub PR/CI、非 rebase 合入 `play/main`、Zeabur 部署核对和用户本地浏览器验收尚未完成。
+- CP2 仍等待用户本地浏览器验收；未完成前最终状态只能写“代码和部署已完成，等待本地浏览器验收”。
+- CP3 必须等待 CP2 本地浏览器验收通过后才能开始。
 - CP2 不启用提现能力，不改变 `frozen_balance` 现有任务预留语义；CP4/CP5 需独立处理可提现权益与提现冻结。
 
 ### 交付 commit
 
-- 状态：进行中
+- 状态：等待本地验收
 - CP2 实现 commit：`5dc5afb80`（`feat(play): add wallet transparency`）
-- PR：尚未创建
+- CP2 本地验证记录 commit：`8408a12d3`（`docs(play): record CP2 local validation`）
+- CP2 CI 安全补修 commit：`e8d4acf9f`（`fix(frontend): update axios for audit gate`）
+- PR：`#83`，目标分支 `play/main`
+- 合并 commit：`6531cb83dde134bccbde139220bd29e3623e36d7`
+- Zeabur deployment：`5533768058`，状态 `success`
