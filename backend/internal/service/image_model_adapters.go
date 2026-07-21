@@ -102,15 +102,19 @@ func (agnesImageModelAdapter) ResolveCapability(model string) (ImageStudioModelC
 	model = strings.ToLower(strings.TrimSpace(model))
 	if model == agnesImage20FlashModelID {
 		return ImageStudioModelCapabilities{
-			Platform:           PlatformOpenAI,
-			ProviderID:         imageModelAdapterAgnesID,
-			ProfileID:          imageModelAdapterAgnesID + ":" + model + ":v1",
-			Revision:           imageStudioCapabilityRevision,
-			Operations:         []string{"create"},
-			SizingKind:         "fixed",
-			SupportedSizes:     agnesImage20StudioSizes(),
-			MaxReferenceImages: 0,
-			DefaultSize:        defaultImageStudioSize,
+			Platform:              PlatformOpenAI,
+			ProviderID:            imageModelAdapterAgnesID,
+			ProfileID:             imageModelAdapterAgnesID + ":" + model + ":v1",
+			Revision:              imageStudioCapabilityRevision,
+			Operations:            []string{"create"},
+			SizingKind:            "aspect_resolution",
+			SupportedSizes:        agnesImageStudioSizes(),
+			SupportedAspectRatios: []string{"1:1", "2:3", "3:2", "9:16", "16:9"},
+			SupportedResolutions:  []string{"1k", "2k", "3k", "4k"},
+			MaxReferenceImages:    0,
+			DefaultSize:           defaultImageStudioSize,
+			DefaultAspectRatio:    "1:1",
+			DefaultResolution:     "1k",
 		}, true
 	}
 	return ImageStudioModelCapabilities{
@@ -226,10 +230,6 @@ func (a agnesImageModelAdapter) RewriteOpenAIImagesBody(
 		return nil, "", true, err
 	}
 	return out, contentType, true, nil
-}
-
-func agnesImage20StudioSizes() []string {
-	return []string{defaultImageStudioSize}
 }
 
 func normalizeAgnesImage20Size(size string) string {
