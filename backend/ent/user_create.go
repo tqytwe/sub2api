@@ -130,6 +130,62 @@ func (_c *UserCreate) SetNillableFrozenBalance(v *float64) *UserCreate {
 	return _c
 }
 
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (_c *UserCreate) SetWithdrawableBalance(v float64) *UserCreate {
+	_c.mutation.SetWithdrawableBalance(v)
+	return _c
+}
+
+// SetNillableWithdrawableBalance sets the "withdrawable_balance" field if the given value is not nil.
+func (_c *UserCreate) SetNillableWithdrawableBalance(v *float64) *UserCreate {
+	if v != nil {
+		_c.SetWithdrawableBalance(*v)
+	}
+	return _c
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (_c *UserCreate) SetWithdrawalFrozenBalance(v float64) *UserCreate {
+	_c.mutation.SetWithdrawalFrozenBalance(v)
+	return _c
+}
+
+// SetNillableWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field if the given value is not nil.
+func (_c *UserCreate) SetNillableWithdrawalFrozenBalance(v *float64) *UserCreate {
+	if v != nil {
+		_c.SetWithdrawalFrozenBalance(*v)
+	}
+	return _c
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (_c *UserCreate) SetWithdrawalRecalcStatus(v string) *UserCreate {
+	_c.mutation.SetWithdrawalRecalcStatus(v)
+	return _c
+}
+
+// SetNillableWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field if the given value is not nil.
+func (_c *UserCreate) SetNillableWithdrawalRecalcStatus(v *string) *UserCreate {
+	if v != nil {
+		_c.SetWithdrawalRecalcStatus(*v)
+	}
+	return _c
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (_c *UserCreate) SetWithdrawalRecalcCheckedAt(v time.Time) *UserCreate {
+	_c.mutation.SetWithdrawalRecalcCheckedAt(v)
+	return _c
+}
+
+// SetNillableWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field if the given value is not nil.
+func (_c *UserCreate) SetNillableWithdrawalRecalcCheckedAt(v *time.Time) *UserCreate {
+	if v != nil {
+		_c.SetWithdrawalRecalcCheckedAt(*v)
+	}
+	return _c
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_c *UserCreate) SetConcurrency(v int) *UserCreate {
 	_c.mutation.SetConcurrency(v)
@@ -612,6 +668,18 @@ func (_c *UserCreate) defaults() error {
 		v := user.DefaultFrozenBalance
 		_c.mutation.SetFrozenBalance(v)
 	}
+	if _, ok := _c.mutation.WithdrawableBalance(); !ok {
+		v := user.DefaultWithdrawableBalance
+		_c.mutation.SetWithdrawableBalance(v)
+	}
+	if _, ok := _c.mutation.WithdrawalFrozenBalance(); !ok {
+		v := user.DefaultWithdrawalFrozenBalance
+		_c.mutation.SetWithdrawalFrozenBalance(v)
+	}
+	if _, ok := _c.mutation.WithdrawalRecalcStatus(); !ok {
+		v := user.DefaultWithdrawalRecalcStatus
+		_c.mutation.SetWithdrawalRecalcStatus(v)
+	}
 	if _, ok := _c.mutation.Concurrency(); !ok {
 		v := user.DefaultConcurrency
 		_c.mutation.SetConcurrency(v)
@@ -696,6 +764,20 @@ func (_c *UserCreate) check() error {
 	}
 	if _, ok := _c.mutation.FrozenBalance(); !ok {
 		return &ValidationError{Name: "frozen_balance", err: errors.New(`ent: missing required field "User.frozen_balance"`)}
+	}
+	if _, ok := _c.mutation.WithdrawableBalance(); !ok {
+		return &ValidationError{Name: "withdrawable_balance", err: errors.New(`ent: missing required field "User.withdrawable_balance"`)}
+	}
+	if _, ok := _c.mutation.WithdrawalFrozenBalance(); !ok {
+		return &ValidationError{Name: "withdrawal_frozen_balance", err: errors.New(`ent: missing required field "User.withdrawal_frozen_balance"`)}
+	}
+	if _, ok := _c.mutation.WithdrawalRecalcStatus(); !ok {
+		return &ValidationError{Name: "withdrawal_recalc_status", err: errors.New(`ent: missing required field "User.withdrawal_recalc_status"`)}
+	}
+	if v, ok := _c.mutation.WithdrawalRecalcStatus(); ok {
+		if err := user.WithdrawalRecalcStatusValidator(v); err != nil {
+			return &ValidationError{Name: "withdrawal_recalc_status", err: fmt.Errorf(`ent: validator failed for field "User.withdrawal_recalc_status": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.Concurrency(); !ok {
 		return &ValidationError{Name: "concurrency", err: errors.New(`ent: missing required field "User.concurrency"`)}
@@ -803,6 +885,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.FrozenBalance(); ok {
 		_spec.SetField(user.FieldFrozenBalance, field.TypeFloat64, value)
 		_node.FrozenBalance = value
+	}
+	if value, ok := _c.mutation.WithdrawableBalance(); ok {
+		_spec.SetField(user.FieldWithdrawableBalance, field.TypeFloat64, value)
+		_node.WithdrawableBalance = value
+	}
+	if value, ok := _c.mutation.WithdrawalFrozenBalance(); ok {
+		_spec.SetField(user.FieldWithdrawalFrozenBalance, field.TypeFloat64, value)
+		_node.WithdrawalFrozenBalance = value
+	}
+	if value, ok := _c.mutation.WithdrawalRecalcStatus(); ok {
+		_spec.SetField(user.FieldWithdrawalRecalcStatus, field.TypeString, value)
+		_node.WithdrawalRecalcStatus = value
+	}
+	if value, ok := _c.mutation.WithdrawalRecalcCheckedAt(); ok {
+		_spec.SetField(user.FieldWithdrawalRecalcCheckedAt, field.TypeTime, value)
+		_node.WithdrawalRecalcCheckedAt = &value
 	}
 	if value, ok := _c.mutation.Concurrency(); ok {
 		_spec.SetField(user.FieldConcurrency, field.TypeInt, value)
@@ -1234,6 +1332,72 @@ func (u *UserUpsert) AddFrozenBalance(v float64) *UserUpsert {
 	return u
 }
 
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (u *UserUpsert) SetWithdrawableBalance(v float64) *UserUpsert {
+	u.Set(user.FieldWithdrawableBalance, v)
+	return u
+}
+
+// UpdateWithdrawableBalance sets the "withdrawable_balance" field to the value that was provided on create.
+func (u *UserUpsert) UpdateWithdrawableBalance() *UserUpsert {
+	u.SetExcluded(user.FieldWithdrawableBalance)
+	return u
+}
+
+// AddWithdrawableBalance adds v to the "withdrawable_balance" field.
+func (u *UserUpsert) AddWithdrawableBalance(v float64) *UserUpsert {
+	u.Add(user.FieldWithdrawableBalance, v)
+	return u
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (u *UserUpsert) SetWithdrawalFrozenBalance(v float64) *UserUpsert {
+	u.Set(user.FieldWithdrawalFrozenBalance, v)
+	return u
+}
+
+// UpdateWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field to the value that was provided on create.
+func (u *UserUpsert) UpdateWithdrawalFrozenBalance() *UserUpsert {
+	u.SetExcluded(user.FieldWithdrawalFrozenBalance)
+	return u
+}
+
+// AddWithdrawalFrozenBalance adds v to the "withdrawal_frozen_balance" field.
+func (u *UserUpsert) AddWithdrawalFrozenBalance(v float64) *UserUpsert {
+	u.Add(user.FieldWithdrawalFrozenBalance, v)
+	return u
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (u *UserUpsert) SetWithdrawalRecalcStatus(v string) *UserUpsert {
+	u.Set(user.FieldWithdrawalRecalcStatus, v)
+	return u
+}
+
+// UpdateWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field to the value that was provided on create.
+func (u *UserUpsert) UpdateWithdrawalRecalcStatus() *UserUpsert {
+	u.SetExcluded(user.FieldWithdrawalRecalcStatus)
+	return u
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (u *UserUpsert) SetWithdrawalRecalcCheckedAt(v time.Time) *UserUpsert {
+	u.Set(user.FieldWithdrawalRecalcCheckedAt, v)
+	return u
+}
+
+// UpdateWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field to the value that was provided on create.
+func (u *UserUpsert) UpdateWithdrawalRecalcCheckedAt() *UserUpsert {
+	u.SetExcluded(user.FieldWithdrawalRecalcCheckedAt)
+	return u
+}
+
+// ClearWithdrawalRecalcCheckedAt clears the value of the "withdrawal_recalc_checked_at" field.
+func (u *UserUpsert) ClearWithdrawalRecalcCheckedAt() *UserUpsert {
+	u.SetNull(user.FieldWithdrawalRecalcCheckedAt)
+	return u
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (u *UserUpsert) SetConcurrency(v int) *UserUpsert {
 	u.Set(user.FieldConcurrency, v)
@@ -1641,6 +1805,83 @@ func (u *UserUpsertOne) AddFrozenBalance(v float64) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateFrozenBalance() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateFrozenBalance()
+	})
+}
+
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (u *UserUpsertOne) SetWithdrawableBalance(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawableBalance(v)
+	})
+}
+
+// AddWithdrawableBalance adds v to the "withdrawable_balance" field.
+func (u *UserUpsertOne) AddWithdrawableBalance(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddWithdrawableBalance(v)
+	})
+}
+
+// UpdateWithdrawableBalance sets the "withdrawable_balance" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateWithdrawableBalance() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawableBalance()
+	})
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (u *UserUpsertOne) SetWithdrawalFrozenBalance(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawalFrozenBalance(v)
+	})
+}
+
+// AddWithdrawalFrozenBalance adds v to the "withdrawal_frozen_balance" field.
+func (u *UserUpsertOne) AddWithdrawalFrozenBalance(v float64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.AddWithdrawalFrozenBalance(v)
+	})
+}
+
+// UpdateWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateWithdrawalFrozenBalance() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawalFrozenBalance()
+	})
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (u *UserUpsertOne) SetWithdrawalRecalcStatus(v string) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawalRecalcStatus(v)
+	})
+}
+
+// UpdateWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateWithdrawalRecalcStatus() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawalRecalcStatus()
+	})
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (u *UserUpsertOne) SetWithdrawalRecalcCheckedAt(v time.Time) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawalRecalcCheckedAt(v)
+	})
+}
+
+// UpdateWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateWithdrawalRecalcCheckedAt() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawalRecalcCheckedAt()
+	})
+}
+
+// ClearWithdrawalRecalcCheckedAt clears the value of the "withdrawal_recalc_checked_at" field.
+func (u *UserUpsertOne) ClearWithdrawalRecalcCheckedAt() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearWithdrawalRecalcCheckedAt()
 	})
 }
 
@@ -2258,6 +2499,83 @@ func (u *UserUpsertBulk) AddFrozenBalance(v float64) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateFrozenBalance() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateFrozenBalance()
+	})
+}
+
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (u *UserUpsertBulk) SetWithdrawableBalance(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawableBalance(v)
+	})
+}
+
+// AddWithdrawableBalance adds v to the "withdrawable_balance" field.
+func (u *UserUpsertBulk) AddWithdrawableBalance(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddWithdrawableBalance(v)
+	})
+}
+
+// UpdateWithdrawableBalance sets the "withdrawable_balance" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateWithdrawableBalance() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawableBalance()
+	})
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (u *UserUpsertBulk) SetWithdrawalFrozenBalance(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawalFrozenBalance(v)
+	})
+}
+
+// AddWithdrawalFrozenBalance adds v to the "withdrawal_frozen_balance" field.
+func (u *UserUpsertBulk) AddWithdrawalFrozenBalance(v float64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.AddWithdrawalFrozenBalance(v)
+	})
+}
+
+// UpdateWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateWithdrawalFrozenBalance() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawalFrozenBalance()
+	})
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (u *UserUpsertBulk) SetWithdrawalRecalcStatus(v string) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawalRecalcStatus(v)
+	})
+}
+
+// UpdateWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateWithdrawalRecalcStatus() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawalRecalcStatus()
+	})
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (u *UserUpsertBulk) SetWithdrawalRecalcCheckedAt(v time.Time) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetWithdrawalRecalcCheckedAt(v)
+	})
+}
+
+// UpdateWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateWithdrawalRecalcCheckedAt() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateWithdrawalRecalcCheckedAt()
+	})
+}
+
+// ClearWithdrawalRecalcCheckedAt clears the value of the "withdrawal_recalc_checked_at" field.
+func (u *UserUpsertBulk) ClearWithdrawalRecalcCheckedAt() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearWithdrawalRecalcCheckedAt()
 	})
 }
 

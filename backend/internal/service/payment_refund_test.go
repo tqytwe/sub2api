@@ -514,19 +514,29 @@ func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(7)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(20.0, 0.0))
-	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
-		WithArgs(8.0, 0.0, int64(7)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("20.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 7, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount", "available_at"}))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("8.00000000", "0.00000000", "0.00000000", "0.00000000", int64(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
 		WithArgs(
 			int64(7),
-			-12.0,
-			20.0,
-			8.0,
-			0.0,
-			0.0,
-			0.0,
+			"-12.00000000",
+			"20.00000000",
+			"8.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
 			"refund",
 			"42:deduct:attempt-1",
 			"payment_refund:42:deduct:attempt-1",
@@ -540,6 +550,7 @@ func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
 		).
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(9101), int64(7), -12.0, 20.0, 8.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"refund", "42:deduct:attempt-1", "payment_refund:42:deduct:attempt-1", "admin", nil,
 			"退款扣回", `{"order_id":42}`, false, "high", createdAt,
 		))
@@ -554,19 +565,29 @@ func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(7)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(8.0, 0.0))
-	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
-		WithArgs(20.0, 0.0, int64(7)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("8.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 7, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectQuery("(?s)WITH consumed AS").
+		WithArgs(int64(7), "payment_refund:42:deduct:attempt-1").
+		WillReturnRows(sqlmock.NewRows([]string{"entitlement_id", "restorable_amount", "available_at"}))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("20.00000000", "0.00000000", "0.00000000", "0.00000000", int64(7)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
 		WithArgs(
 			int64(7),
-			12.0,
-			8.0,
-			20.0,
-			0.0,
-			0.0,
-			0.0,
+			"12.00000000",
+			"8.00000000",
+			"20.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
 			"reversal",
 			"42:deduct:attempt-1:reversal",
 			"payment_refund:42:deduct:attempt-1:reversal",
@@ -580,6 +601,7 @@ func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
 		).
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(9102), int64(7), 12.0, 8.0, 20.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"reversal", "42:deduct:attempt-1:reversal", "payment_refund:42:deduct:attempt-1:reversal", "admin", nil,
 			"退款失败回滚", `{"order_id":42}`, false, "high", createdAt,
 		))

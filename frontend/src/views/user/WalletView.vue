@@ -16,7 +16,7 @@
         {{ t('wallet.loadFailed') }}
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
         <section v-for="card in summaryCards" :key="card.label" class="card p-4">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ card.label }}</p>
           <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ card.value }}</p>
@@ -148,6 +148,9 @@ const transactionPage = ref<WalletTransactionPage>({
 
 const summaryCards = computed(() => [
   { label: t('wallet.available'), value: formatMoney(summary.value?.available_balance) },
+  { label: t('wallet.withdrawable'), value: formatMoney(summary.value?.withdrawable_balance) },
+  { label: t('wallet.pendingWithdrawable'), value: formatMoney(summary.value?.pending_withdrawable_balance) },
+  { label: t('wallet.withdrawalFrozen'), value: formatMoney(summary.value?.withdrawal_frozen_balance) },
   { label: t('wallet.taskReserved'), value: formatMoney(summary.value?.task_reserved_balance) },
   { label: t('wallet.totalCredits'), value: formatMoney(summary.value?.total_credits) },
   { label: t('wallet.totalDebits'), value: formatMoney(summary.value?.total_debits) },

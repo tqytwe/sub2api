@@ -153,12 +153,13 @@
 208_image_studio_asset_lifecycle_indexes_notx.sql
 209_play_arena_daily_reward_summary.sql
 210_subscription_plan_storefront.sql
+210_withdrawable_entitlements.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
 
 - 产品目的：防止 API Key、订阅或批量任务被错误归属到其他用户，同时让成功充值触发可选 Play boost。
-- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值。
+- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账。
 - 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`。
 - 冲突策略：上游支付状态机和安全修复必须合入；归属校验、真实计费优先级与充值后 Play 联动必须保留。
 - 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests；线上以测试订单检查余额到账和 boost 状态。

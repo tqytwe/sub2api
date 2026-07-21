@@ -46324,6 +46324,12 @@ type UserMutation struct {
 	addbalance                    *float64
 	frozen_balance                *float64
 	addfrozen_balance             *float64
+	withdrawable_balance          *float64
+	addwithdrawable_balance       *float64
+	withdrawal_frozen_balance     *float64
+	addwithdrawal_frozen_balance  *float64
+	withdrawal_recalc_status      *string
+	withdrawal_recalc_checked_at  *time.Time
 	concurrency                   *int
 	addconcurrency                *int
 	status                        *string
@@ -46826,6 +46832,203 @@ func (m *UserMutation) AddedFrozenBalance() (r float64, exists bool) {
 func (m *UserMutation) ResetFrozenBalance() {
 	m.frozen_balance = nil
 	m.addfrozen_balance = nil
+}
+
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (m *UserMutation) SetWithdrawableBalance(f float64) {
+	m.withdrawable_balance = &f
+	m.addwithdrawable_balance = nil
+}
+
+// WithdrawableBalance returns the value of the "withdrawable_balance" field in the mutation.
+func (m *UserMutation) WithdrawableBalance() (r float64, exists bool) {
+	v := m.withdrawable_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWithdrawableBalance returns the old "withdrawable_balance" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldWithdrawableBalance(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWithdrawableBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWithdrawableBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWithdrawableBalance: %w", err)
+	}
+	return oldValue.WithdrawableBalance, nil
+}
+
+// AddWithdrawableBalance adds f to the "withdrawable_balance" field.
+func (m *UserMutation) AddWithdrawableBalance(f float64) {
+	if m.addwithdrawable_balance != nil {
+		*m.addwithdrawable_balance += f
+	} else {
+		m.addwithdrawable_balance = &f
+	}
+}
+
+// AddedWithdrawableBalance returns the value that was added to the "withdrawable_balance" field in this mutation.
+func (m *UserMutation) AddedWithdrawableBalance() (r float64, exists bool) {
+	v := m.addwithdrawable_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWithdrawableBalance resets all changes to the "withdrawable_balance" field.
+func (m *UserMutation) ResetWithdrawableBalance() {
+	m.withdrawable_balance = nil
+	m.addwithdrawable_balance = nil
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (m *UserMutation) SetWithdrawalFrozenBalance(f float64) {
+	m.withdrawal_frozen_balance = &f
+	m.addwithdrawal_frozen_balance = nil
+}
+
+// WithdrawalFrozenBalance returns the value of the "withdrawal_frozen_balance" field in the mutation.
+func (m *UserMutation) WithdrawalFrozenBalance() (r float64, exists bool) {
+	v := m.withdrawal_frozen_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWithdrawalFrozenBalance returns the old "withdrawal_frozen_balance" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldWithdrawalFrozenBalance(ctx context.Context) (v float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWithdrawalFrozenBalance is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWithdrawalFrozenBalance requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWithdrawalFrozenBalance: %w", err)
+	}
+	return oldValue.WithdrawalFrozenBalance, nil
+}
+
+// AddWithdrawalFrozenBalance adds f to the "withdrawal_frozen_balance" field.
+func (m *UserMutation) AddWithdrawalFrozenBalance(f float64) {
+	if m.addwithdrawal_frozen_balance != nil {
+		*m.addwithdrawal_frozen_balance += f
+	} else {
+		m.addwithdrawal_frozen_balance = &f
+	}
+}
+
+// AddedWithdrawalFrozenBalance returns the value that was added to the "withdrawal_frozen_balance" field in this mutation.
+func (m *UserMutation) AddedWithdrawalFrozenBalance() (r float64, exists bool) {
+	v := m.addwithdrawal_frozen_balance
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWithdrawalFrozenBalance resets all changes to the "withdrawal_frozen_balance" field.
+func (m *UserMutation) ResetWithdrawalFrozenBalance() {
+	m.withdrawal_frozen_balance = nil
+	m.addwithdrawal_frozen_balance = nil
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (m *UserMutation) SetWithdrawalRecalcStatus(s string) {
+	m.withdrawal_recalc_status = &s
+}
+
+// WithdrawalRecalcStatus returns the value of the "withdrawal_recalc_status" field in the mutation.
+func (m *UserMutation) WithdrawalRecalcStatus() (r string, exists bool) {
+	v := m.withdrawal_recalc_status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWithdrawalRecalcStatus returns the old "withdrawal_recalc_status" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldWithdrawalRecalcStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWithdrawalRecalcStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWithdrawalRecalcStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWithdrawalRecalcStatus: %w", err)
+	}
+	return oldValue.WithdrawalRecalcStatus, nil
+}
+
+// ResetWithdrawalRecalcStatus resets all changes to the "withdrawal_recalc_status" field.
+func (m *UserMutation) ResetWithdrawalRecalcStatus() {
+	m.withdrawal_recalc_status = nil
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (m *UserMutation) SetWithdrawalRecalcCheckedAt(t time.Time) {
+	m.withdrawal_recalc_checked_at = &t
+}
+
+// WithdrawalRecalcCheckedAt returns the value of the "withdrawal_recalc_checked_at" field in the mutation.
+func (m *UserMutation) WithdrawalRecalcCheckedAt() (r time.Time, exists bool) {
+	v := m.withdrawal_recalc_checked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWithdrawalRecalcCheckedAt returns the old "withdrawal_recalc_checked_at" field's value of the User entity.
+// If the User object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMutation) OldWithdrawalRecalcCheckedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWithdrawalRecalcCheckedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWithdrawalRecalcCheckedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWithdrawalRecalcCheckedAt: %w", err)
+	}
+	return oldValue.WithdrawalRecalcCheckedAt, nil
+}
+
+// ClearWithdrawalRecalcCheckedAt clears the value of the "withdrawal_recalc_checked_at" field.
+func (m *UserMutation) ClearWithdrawalRecalcCheckedAt() {
+	m.withdrawal_recalc_checked_at = nil
+	m.clearedFields[user.FieldWithdrawalRecalcCheckedAt] = struct{}{}
+}
+
+// WithdrawalRecalcCheckedAtCleared returns if the "withdrawal_recalc_checked_at" field was cleared in this mutation.
+func (m *UserMutation) WithdrawalRecalcCheckedAtCleared() bool {
+	_, ok := m.clearedFields[user.FieldWithdrawalRecalcCheckedAt]
+	return ok
+}
+
+// ResetWithdrawalRecalcCheckedAt resets all changes to the "withdrawal_recalc_checked_at" field.
+func (m *UserMutation) ResetWithdrawalRecalcCheckedAt() {
+	m.withdrawal_recalc_checked_at = nil
+	delete(m.clearedFields, user.FieldWithdrawalRecalcCheckedAt)
 }
 
 // SetConcurrency sets the "concurrency" field.
@@ -48286,7 +48489,7 @@ func (m *UserMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UserMutation) Fields() []string {
-	fields := make([]string, 0, 24)
+	fields := make([]string, 0, 28)
 	if m.created_at != nil {
 		fields = append(fields, user.FieldCreatedAt)
 	}
@@ -48310,6 +48513,18 @@ func (m *UserMutation) Fields() []string {
 	}
 	if m.frozen_balance != nil {
 		fields = append(fields, user.FieldFrozenBalance)
+	}
+	if m.withdrawable_balance != nil {
+		fields = append(fields, user.FieldWithdrawableBalance)
+	}
+	if m.withdrawal_frozen_balance != nil {
+		fields = append(fields, user.FieldWithdrawalFrozenBalance)
+	}
+	if m.withdrawal_recalc_status != nil {
+		fields = append(fields, user.FieldWithdrawalRecalcStatus)
+	}
+	if m.withdrawal_recalc_checked_at != nil {
+		fields = append(fields, user.FieldWithdrawalRecalcCheckedAt)
 	}
 	if m.concurrency != nil {
 		fields = append(fields, user.FieldConcurrency)
@@ -48383,6 +48598,14 @@ func (m *UserMutation) Field(name string) (ent.Value, bool) {
 		return m.Balance()
 	case user.FieldFrozenBalance:
 		return m.FrozenBalance()
+	case user.FieldWithdrawableBalance:
+		return m.WithdrawableBalance()
+	case user.FieldWithdrawalFrozenBalance:
+		return m.WithdrawalFrozenBalance()
+	case user.FieldWithdrawalRecalcStatus:
+		return m.WithdrawalRecalcStatus()
+	case user.FieldWithdrawalRecalcCheckedAt:
+		return m.WithdrawalRecalcCheckedAt()
 	case user.FieldConcurrency:
 		return m.Concurrency()
 	case user.FieldStatus:
@@ -48440,6 +48663,14 @@ func (m *UserMutation) OldField(ctx context.Context, name string) (ent.Value, er
 		return m.OldBalance(ctx)
 	case user.FieldFrozenBalance:
 		return m.OldFrozenBalance(ctx)
+	case user.FieldWithdrawableBalance:
+		return m.OldWithdrawableBalance(ctx)
+	case user.FieldWithdrawalFrozenBalance:
+		return m.OldWithdrawalFrozenBalance(ctx)
+	case user.FieldWithdrawalRecalcStatus:
+		return m.OldWithdrawalRecalcStatus(ctx)
+	case user.FieldWithdrawalRecalcCheckedAt:
+		return m.OldWithdrawalRecalcCheckedAt(ctx)
 	case user.FieldConcurrency:
 		return m.OldConcurrency(ctx)
 	case user.FieldStatus:
@@ -48536,6 +48767,34 @@ func (m *UserMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetFrozenBalance(v)
+		return nil
+	case user.FieldWithdrawableBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWithdrawableBalance(v)
+		return nil
+	case user.FieldWithdrawalFrozenBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWithdrawalFrozenBalance(v)
+		return nil
+	case user.FieldWithdrawalRecalcStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWithdrawalRecalcStatus(v)
+		return nil
+	case user.FieldWithdrawalRecalcCheckedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWithdrawalRecalcCheckedAt(v)
 		return nil
 	case user.FieldConcurrency:
 		v, ok := value.(int)
@@ -48663,6 +48922,12 @@ func (m *UserMutation) AddedFields() []string {
 	if m.addfrozen_balance != nil {
 		fields = append(fields, user.FieldFrozenBalance)
 	}
+	if m.addwithdrawable_balance != nil {
+		fields = append(fields, user.FieldWithdrawableBalance)
+	}
+	if m.addwithdrawal_frozen_balance != nil {
+		fields = append(fields, user.FieldWithdrawalFrozenBalance)
+	}
 	if m.addconcurrency != nil {
 		fields = append(fields, user.FieldConcurrency)
 	}
@@ -48687,6 +48952,10 @@ func (m *UserMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedBalance()
 	case user.FieldFrozenBalance:
 		return m.AddedFrozenBalance()
+	case user.FieldWithdrawableBalance:
+		return m.AddedWithdrawableBalance()
+	case user.FieldWithdrawalFrozenBalance:
+		return m.AddedWithdrawalFrozenBalance()
 	case user.FieldConcurrency:
 		return m.AddedConcurrency()
 	case user.FieldBalanceNotifyThreshold:
@@ -48717,6 +48986,20 @@ func (m *UserMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddFrozenBalance(v)
+		return nil
+	case user.FieldWithdrawableBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWithdrawableBalance(v)
+		return nil
+	case user.FieldWithdrawalFrozenBalance:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWithdrawalFrozenBalance(v)
 		return nil
 	case user.FieldConcurrency:
 		v, ok := value.(int)
@@ -48757,6 +49040,9 @@ func (m *UserMutation) ClearedFields() []string {
 	if m.FieldCleared(user.FieldDeletedAt) {
 		fields = append(fields, user.FieldDeletedAt)
 	}
+	if m.FieldCleared(user.FieldWithdrawalRecalcCheckedAt) {
+		fields = append(fields, user.FieldWithdrawalRecalcCheckedAt)
+	}
 	if m.FieldCleared(user.FieldTotpSecretEncrypted) {
 		fields = append(fields, user.FieldTotpSecretEncrypted)
 	}
@@ -48788,6 +49074,9 @@ func (m *UserMutation) ClearField(name string) error {
 	switch name {
 	case user.FieldDeletedAt:
 		m.ClearDeletedAt()
+		return nil
+	case user.FieldWithdrawalRecalcCheckedAt:
+		m.ClearWithdrawalRecalcCheckedAt()
 		return nil
 	case user.FieldTotpSecretEncrypted:
 		m.ClearTotpSecretEncrypted()
@@ -48835,6 +49124,18 @@ func (m *UserMutation) ResetField(name string) error {
 		return nil
 	case user.FieldFrozenBalance:
 		m.ResetFrozenBalance()
+		return nil
+	case user.FieldWithdrawableBalance:
+		m.ResetWithdrawableBalance()
+		return nil
+	case user.FieldWithdrawalFrozenBalance:
+		m.ResetWithdrawalFrozenBalance()
+		return nil
+	case user.FieldWithdrawalRecalcStatus:
+		m.ResetWithdrawalRecalcStatus()
+		return nil
+	case user.FieldWithdrawalRecalcCheckedAt:
+		m.ResetWithdrawalRecalcCheckedAt()
 		return nil
 	case user.FieldConcurrency:
 		m.ResetConcurrency()

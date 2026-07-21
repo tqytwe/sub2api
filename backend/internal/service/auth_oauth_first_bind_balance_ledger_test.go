@@ -97,19 +97,26 @@ func TestApplyProviderDefaultSettingsOnFirstBindWritesBalanceLedger(t *testing.T
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(1.0, 0.0))
-	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
-		WithArgs(3.5, 0.0, int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("1.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("3.50000000", "0.00000000", "0.00000000", "0.00000000", int64(42)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
 		WithArgs(
 			int64(42),
-			2.5,
-			1.0,
-			3.5,
-			0.0,
-			0.0,
-			0.0,
+			"2.50000000",
+			"1.00000000",
+			"3.50000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
 			"auth_first_bind_grant",
 			"email",
 			"auth_first_bind:42:email",
@@ -123,6 +130,7 @@ func TestApplyProviderDefaultSettingsOnFirstBindWritesBalanceLedger(t *testing.T
 		).
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(7001), int64(42), 2.5, 1.0, 3.5, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"auth_first_bind_grant", "email", "auth_first_bind:42:email", "system", nil,
 			"认证源首绑赠送", `{"provider_type":"email","grant_reason":"first_bind","balance":2.5}`, false, "high", createdAt,
 		))

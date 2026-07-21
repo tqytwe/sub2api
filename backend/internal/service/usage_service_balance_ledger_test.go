@@ -60,19 +60,29 @@ func TestUsageServiceCreateWritesUsageChargeBalanceLedger(t *testing.T) {
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(5.0, 0.0))
-	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
-		WithArgs(4.25, 0.0, int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("5.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt.Add(time.Second), "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount", "available_at"}))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("4.25000000", "0.00000000", "0.00000000", "0.00000000", int64(42)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
 		WithArgs(
 			int64(42),
-			-0.75,
-			5.0,
-			4.25,
-			0.0,
-			0.0,
-			0.0,
+			"-0.75000000",
+			"5.00000000",
+			"4.25000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
 			"usage_charge",
 			"501",
 			"usage_log:501",
@@ -86,6 +96,7 @@ func TestUsageServiceCreateWritesUsageChargeBalanceLedger(t *testing.T) {
 		).
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(8001), int64(42), -0.75, 5.0, 4.25, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"usage_charge", "501", "usage_log:501", "system", nil,
 			"API 消耗扣费", `{"usage_log_id":501}`, false, "high", createdAt,
 		))

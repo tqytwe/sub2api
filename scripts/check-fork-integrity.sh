@@ -230,6 +230,7 @@ MIGRATIONS=(
   208_image_studio_asset_lifecycle_indexes_notx.sql
   209_play_arena_daily_reward_summary.sql
   210_subscription_plan_storefront.sql
+  210_withdrawable_entitlements.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -240,6 +241,9 @@ check_contains "FORK-BILLING-010" "API key ownership validation" "backend/intern
 check_contains "FORK-BILLING-010" "subscription ownership validation" "backend/internal/repository/usage_billing_repo.go" "validateUsageBillingSubscriptionOwnership"
 check_contains "FORK-BILLING-010" "sticky sessions are scoped by API key" "backend/internal/service/gateway_service.go" "scopeStickySessionSeed"
 check_contains "FORK-BILLING-010" "recharge completion grants Play boost" "backend/internal/service/payment_fulfillment.go" "GrantRechargeBoost"
+check_file "FORK-BILLING-010" "withdrawable entitlement recompute command" "backend/cmd/recompute-withdrawable-entitlements/main.go"
+check_file "FORK-BILLING-010" "withdrawable entitlement recompute script" "backend/scripts/recompute-withdrawable-entitlements.sh"
+check_contains "FORK-BILLING-010" "image release restores consumed entitlements" "backend/internal/repository/usage_billing_repo.go" "restore_ledger_key"
 
 run_check "DOCS" "local links and document index" node "$ROOT/scripts/check-doc-links.mjs"
 
@@ -258,6 +262,8 @@ run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
+run_check "FORK-BILLING-010" "withdrawable ledger and recompute tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./migrations -run '^(TestWithdrawable|TestBalanceLedgerGrantArenaDailyCreatesPendingWithdrawableEntitlement|TestBalanceLedgerImageHoldConsumesEntitlementsFIFOWithoutWithdrawalFrozen|TestBalanceLedgerReleaseRestoresOriginalConsumedEntitlementBatches)'"
 run_check "FORK-PLAY-003" "admin team repair unit and route tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler/admin ./internal/server/routes -run '^(TestAdminTeamRepair|TestAdminTeamMemberCandidatePreview|TestAdminPlayTeamRepairRoutesContract|TestTeamRewardSnapshotLock|TestTeamSettlementSnapshotReusesOuterTransaction)'"
 run_check "FORK-PLAY-003" "daily arena reward summary tests" \
@@ -283,6 +289,10 @@ run_check "FORK-PLAY-003" "admin team repair and bilingual Play Ops tests" \
 run_check "FORK-PLAY-003" "daily arena reward summary frontend test" \
   pnpm --dir "$ROOT/frontend" exec vitest run \
     src/views/public/__tests__/ArenaView.competitive.spec.ts
+run_check "FORK-BILLING-010" "wallet withdrawable transparency frontend tests" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/api/__tests__/wallet.spec.ts \
+    src/views/user/__tests__/WalletView.spec.ts
 
 echo
 if [[ "$FAIL" -ne 0 ]]; then

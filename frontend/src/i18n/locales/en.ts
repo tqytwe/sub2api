@@ -496,8 +496,11 @@ const messages = {
 
   wallet: {
     title: 'Wallet',
-    description: 'Review your balance, task reserves, and unified transaction history.',
+    description: 'Review your balance, withdrawable rights, task reserves, and unified transaction history.',
     available: 'Available Balance',
+    withdrawable: 'Withdrawable',
+    pendingWithdrawable: 'Pending Thaw',
+    withdrawalFrozen: 'Withdrawal Frozen',
     taskReserved: 'Task Reserved',
     totalCredits: 'Total Credits',
     totalDebits: 'Total Debits',

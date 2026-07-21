@@ -22,6 +22,9 @@ export type WalletDirection = 'credit' | 'debit' | 'neutral'
 
 export interface WalletSummary {
   available_balance: string
+  withdrawable_balance: string
+  pending_withdrawable_balance: string
+  withdrawal_frozen_balance: string
   task_reserved_balance: string
   total_credits: string
   total_debits: string

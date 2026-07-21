@@ -13,6 +13,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
+	"github.com/shopspring/decimal"
 )
 
 const (
@@ -53,42 +54,59 @@ type BalanceLedgerService struct {
 }
 
 type BalanceLedgerApplyInput struct {
-	UserID         int64
-	BalanceDelta   float64
-	FrozenDelta    float64
-	SourceType     string
-	SourceID       string
-	IdempotencyKey string
-	ActorType      string
-	ActorUserID    *int64
-	Description    string
-	Metadata       map[string]any
-	IsBackfilled   bool
-	Confidence     string
-	BalancePolicy  string
-	FrozenPolicy   string
-	CreatedAt      *time.Time
+	UserID                 int64
+	BalanceDelta           float64
+	FrozenDelta            float64
+	WithdrawableDelta      float64
+	WithdrawalFrozenDelta  float64
+	SourceType             string
+	SourceID               string
+	IdempotencyKey         string
+	ActorType              string
+	ActorUserID            *int64
+	Description            string
+	Metadata               map[string]any
+	IsBackfilled           bool
+	Confidence             string
+	BalancePolicy          string
+	FrozenPolicy           string
+	WithdrawablePolicy     string
+	WithdrawalFrozenPolicy string
+	CreatedAt              *time.Time
 }
 
 type BalanceTransaction struct {
-	ID             int64          `json:"id"`
-	UserID         int64          `json:"user_id"`
-	BalanceDelta   float64        `json:"balance_delta"`
-	BalanceBefore  *float64       `json:"balance_before,omitempty"`
-	BalanceAfter   *float64       `json:"balance_after,omitempty"`
-	FrozenDelta    float64        `json:"frozen_delta"`
-	FrozenBefore   *float64       `json:"frozen_before,omitempty"`
-	FrozenAfter    *float64       `json:"frozen_after,omitempty"`
-	SourceType     string         `json:"source_type"`
-	SourceID       string         `json:"source_id"`
-	IdempotencyKey string         `json:"idempotency_key"`
-	ActorType      string         `json:"actor_type"`
-	ActorUserID    *int64         `json:"actor_user_id,omitempty"`
-	Description    string         `json:"description"`
-	Metadata       map[string]any `json:"metadata,omitempty"`
-	IsBackfilled   bool           `json:"is_backfilled"`
-	Confidence     string         `json:"confidence"`
-	CreatedAt      time.Time      `json:"created_at"`
+	ID                     int64          `json:"id"`
+	UserID                 int64          `json:"user_id"`
+	BalanceDelta           float64        `json:"balance_delta"`
+	BalanceBefore          *float64       `json:"balance_before,omitempty"`
+	BalanceAfter           *float64       `json:"balance_after,omitempty"`
+	FrozenDelta            float64        `json:"frozen_delta"`
+	FrozenBefore           *float64       `json:"frozen_before,omitempty"`
+	FrozenAfter            *float64       `json:"frozen_after,omitempty"`
+	WithdrawableDelta      float64        `json:"withdrawable_delta"`
+	WithdrawableBefore     *float64       `json:"withdrawable_before,omitempty"`
+	WithdrawableAfter      *float64       `json:"withdrawable_after,omitempty"`
+	WithdrawalFrozenDelta  float64        `json:"withdrawal_frozen_delta"`
+	WithdrawalFrozenBefore *float64       `json:"withdrawal_frozen_before,omitempty"`
+	WithdrawalFrozenAfter  *float64       `json:"withdrawal_frozen_after,omitempty"`
+	SourceType             string         `json:"source_type"`
+	SourceID               string         `json:"source_id"`
+	IdempotencyKey         string         `json:"idempotency_key"`
+	ActorType              string         `json:"actor_type"`
+	ActorUserID            *int64         `json:"actor_user_id,omitempty"`
+	Description            string         `json:"description"`
+	Metadata               map[string]any `json:"metadata,omitempty"`
+	IsBackfilled           bool           `json:"is_backfilled"`
+	Confidence             string         `json:"confidence"`
+	CreatedAt              time.Time      `json:"created_at"`
+}
+
+type balanceLedgerUserState struct {
+	Balance          decimal.Decimal
+	Frozen           decimal.Decimal
+	Withdrawable     decimal.Decimal
+	WithdrawalFrozen decimal.Decimal
 }
 
 func NewBalanceLedgerService(db *sql.DB, authCacheInvalidator APIKeyAuthCacheInvalidator, balanceCacheInvalidator *BillingCacheService) *BalanceLedgerService {
@@ -158,7 +176,7 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 	}
 	committed = true
 
-	if normalized.BalanceDelta != 0 || normalized.FrozenDelta != 0 {
+	if changed {
 		s.invalidateBalanceCachesAfterCommit(ctx, normalized.UserID)
 	}
 	return transaction, nil
@@ -195,45 +213,91 @@ func (s *BalanceLedgerService) applyDeltaWithRunner(ctx context.Context, runner 
 		return existing, false, nil
 	}
 
-	var beforeBalance, beforeFrozen float64
-	if err := queryOneBalanceLedger(ctx, runner, `
-SELECT balance::double precision, COALESCE(frozen_balance, 0)::double precision
-FROM users
-WHERE id = $1 AND deleted_at IS NULL
-FOR UPDATE`, []any{normalized.UserID}, &beforeBalance, &beforeFrozen); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, false, ErrUserNotFound
-		}
-		return nil, false, fmt.Errorf("lock user balance: %w", err)
-	}
-
-	afterBalance, actualBalanceDelta, err := applyBalanceLedgerPolicy(beforeBalance, normalized.BalanceDelta, normalized.BalancePolicy)
-	if err != nil {
-		return nil, false, err
-	}
-	afterFrozen, actualFrozenDelta, err := applyBalanceLedgerPolicy(beforeFrozen, normalized.FrozenDelta, normalized.FrozenPolicy)
-	if err != nil {
-		return nil, false, err
-	}
-	normalized.BalanceDelta = actualBalanceDelta
-	normalized.FrozenDelta = actualFrozenDelta
-
-	if _, err := runner.ExecContext(ctx, `
-UPDATE users
-SET balance = $1, frozen_balance = $2, updated_at = NOW()
-WHERE id = $3 AND deleted_at IS NULL`, afterBalance, afterFrozen, normalized.UserID); err != nil {
-		return nil, false, fmt.Errorf("update user balance: %w", err)
-	}
-
-	createdAt := s.now().UTC()
+	nowUTC := s.now().UTC()
+	createdAt := nowUTC
 	if normalized.CreatedAt != nil {
 		createdAt = normalized.CreatedAt.UTC()
 	}
-	transaction, err := insertBalanceTransaction(ctx, runner, normalized, beforeBalance, afterBalance, beforeFrozen, afterFrozen, createdAt)
+	before, err := selectBalanceLedgerUserState(ctx, runner, normalized.UserID)
 	if err != nil {
 		return nil, false, err
 	}
-	return transaction, normalized.BalanceDelta != 0 || normalized.FrozenDelta != 0, nil
+	if sums, sumErr := selectWithdrawableEntitlementSums(ctx, runner, normalized.UserID, nowUTC); sumErr != nil {
+		return nil, false, fmt.Errorf("sync withdrawable entitlement maturity: %w", sumErr)
+	} else {
+		before.Withdrawable = decimalMin(before.Balance, decimalMax(decimal.Zero, sums.Mature.Sub(before.WithdrawalFrozen)))
+	}
+
+	balanceDelta := decimalFromLedgerFloat(normalized.BalanceDelta)
+	frozenDelta := decimalFromLedgerFloat(normalized.FrozenDelta)
+	withdrawalFrozenDelta := decimalFromLedgerFloat(normalized.WithdrawalFrozenDelta)
+
+	afterBalance, actualBalanceDelta, err := applyBalanceLedgerPolicyDecimal(before.Balance, balanceDelta, normalized.BalancePolicy)
+	if err != nil {
+		return nil, false, err
+	}
+	afterFrozen, actualFrozenDelta, err := applyBalanceLedgerPolicyDecimal(before.Frozen, frozenDelta, normalized.FrozenPolicy)
+	if err != nil {
+		return nil, false, err
+	}
+	afterWithdrawalFrozen, actualWithdrawalFrozenDelta, err := applyBalanceLedgerPolicyDecimal(before.WithdrawalFrozen, withdrawalFrozenDelta, normalized.WithdrawalFrozenPolicy)
+	if err != nil {
+		return nil, false, err
+	}
+	normalized.BalanceDelta = decimalToLedgerFloat(actualBalanceDelta)
+	normalized.FrozenDelta = decimalToLedgerFloat(actualFrozenDelta)
+	normalized.WithdrawalFrozenDelta = decimalToLedgerFloat(actualWithdrawalFrozenDelta)
+
+	effects, err := planWithdrawableLedgerEffects(ctx, runner, normalized, before, actualBalanceDelta, createdAt, nowUTC)
+	if err != nil {
+		return nil, false, err
+	}
+	inputWithdrawableDelta := decimalFromLedgerFloat(normalized.WithdrawableDelta)
+	totalWithdrawableDelta := inputWithdrawableDelta.Add(effects.WithdrawableDelta)
+	afterWithdrawable, actualWithdrawableDelta, err := applyBalanceLedgerPolicyDecimal(before.Withdrawable, totalWithdrawableDelta, normalized.WithdrawablePolicy)
+	if err != nil {
+		return nil, false, err
+	}
+	maxWithdrawable := decimalMax(decimal.Zero, afterBalance.Sub(afterWithdrawalFrozen))
+	if afterWithdrawable.GreaterThan(maxWithdrawable.Add(decimal.RequireFromString("0.00000001"))) {
+		return nil, false, ErrBalanceLedgerInvalidInput.WithMetadata(map[string]string{"field": "withdrawable_balance"})
+	}
+	normalized.WithdrawableDelta = decimalToLedgerFloat(actualWithdrawableDelta)
+
+	if _, err := runner.ExecContext(ctx, `
+UPDATE users
+SET balance = $1,
+    frozen_balance = $2,
+    withdrawable_balance = $3,
+    withdrawal_frozen_balance = $4,
+    updated_at = NOW()
+WHERE id = $5 AND deleted_at IS NULL`,
+		decimalString(afterBalance),
+		decimalString(afterFrozen),
+		decimalString(afterWithdrawable),
+		decimalString(afterWithdrawalFrozen),
+		normalized.UserID,
+	); err != nil {
+		return nil, false, fmt.Errorf("update user balance: %w", err)
+	}
+
+	transaction, err := insertBalanceTransaction(ctx, runner, normalized, before, balanceLedgerUserState{
+		Balance:          afterBalance,
+		Frozen:           afterFrozen,
+		Withdrawable:     afterWithdrawable,
+		WithdrawalFrozen: afterWithdrawalFrozen,
+	}, createdAt)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := applyWithdrawableLedgerEffects(ctx, runner, normalized, transaction.ID, effects, createdAt); err != nil {
+		return nil, false, err
+	}
+	changed := normalized.BalanceDelta != 0 ||
+		normalized.FrozenDelta != 0 ||
+		normalized.WithdrawableDelta != 0 ||
+		normalized.WithdrawalFrozenDelta != 0
+	return transaction, changed, nil
 }
 
 func normalizeBalanceLedgerInput(input BalanceLedgerApplyInput) (BalanceLedgerApplyInput, error) {
@@ -245,6 +309,8 @@ func normalizeBalanceLedgerInput(input BalanceLedgerApplyInput) (BalanceLedgerAp
 	input.Confidence = strings.TrimSpace(input.Confidence)
 	input.BalancePolicy = strings.TrimSpace(input.BalancePolicy)
 	input.FrozenPolicy = strings.TrimSpace(input.FrozenPolicy)
+	input.WithdrawablePolicy = strings.TrimSpace(input.WithdrawablePolicy)
+	input.WithdrawalFrozenPolicy = strings.TrimSpace(input.WithdrawalFrozenPolicy)
 	if input.UserID <= 0 || input.SourceType == "" || input.IdempotencyKey == "" {
 		return BalanceLedgerApplyInput{}, ErrBalanceLedgerInvalidInput
 	}
@@ -259,6 +325,12 @@ func normalizeBalanceLedgerInput(input BalanceLedgerApplyInput) (BalanceLedgerAp
 	}
 	if input.FrozenPolicy == "" {
 		input.FrozenPolicy = BalanceLedgerPolicyRejectNegative
+	}
+	if input.WithdrawablePolicy == "" {
+		input.WithdrawablePolicy = BalanceLedgerPolicyRejectNegative
+	}
+	if input.WithdrawalFrozenPolicy == "" {
+		input.WithdrawalFrozenPolicy = BalanceLedgerPolicyRejectNegative
 	}
 	if input.Metadata == nil {
 		input.Metadata = map[string]any{}
@@ -289,6 +361,149 @@ func applyBalanceLedgerPolicy(before, delta float64, policy string) (float64, fl
 	}
 }
 
+func applyBalanceLedgerPolicyDecimal(before, delta decimal.Decimal, policy string) (decimal.Decimal, decimal.Decimal, error) {
+	before = clampDecimalScale(before)
+	delta = clampDecimalScale(delta)
+	after := clampDecimalScale(before.Add(delta))
+	switch policy {
+	case BalanceLedgerPolicyAllowOverdraft:
+		return after, delta, nil
+	case BalanceLedgerPolicyClampZero:
+		if after.IsNegative() {
+			return decimal.Zero, before.Neg(), nil
+		}
+		return after, delta, nil
+	case BalanceLedgerPolicyRejectNegative:
+		if after.LessThan(decimal.RequireFromString("-0.00000001")) {
+			return decimal.Zero, decimal.Zero, ErrBalanceLedgerInsufficientBalance
+		}
+		if after.Abs().LessThan(decimal.RequireFromString("0.00000001")) {
+			after = decimal.Zero
+		}
+		return after, delta, nil
+	default:
+		return decimal.Zero, decimal.Zero, ErrBalanceLedgerInvalidInput
+	}
+}
+
+func selectBalanceLedgerUserState(ctx context.Context, runner balanceLedgerSQLRunner, userID int64) (balanceLedgerUserState, error) {
+	var balanceRaw, frozenRaw, withdrawableRaw, withdrawalFrozenRaw string
+	if err := queryOneBalanceLedger(ctx, runner, `
+SELECT
+	balance::text,
+	COALESCE(frozen_balance, 0)::text,
+	COALESCE(withdrawable_balance, 0)::text,
+	COALESCE(withdrawal_frozen_balance, 0)::text
+FROM users
+WHERE id = $1 AND deleted_at IS NULL
+FOR UPDATE`, []any{userID}, &balanceRaw, &frozenRaw, &withdrawableRaw, &withdrawalFrozenRaw); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return balanceLedgerUserState{}, ErrUserNotFound
+		}
+		return balanceLedgerUserState{}, fmt.Errorf("lock user balance: %w", err)
+	}
+	balance, err := parseLedgerDecimal(balanceRaw, "balance")
+	if err != nil {
+		return balanceLedgerUserState{}, err
+	}
+	frozen, err := parseLedgerDecimal(frozenRaw, "frozen balance")
+	if err != nil {
+		return balanceLedgerUserState{}, err
+	}
+	withdrawable, err := parseLedgerDecimal(withdrawableRaw, "withdrawable balance")
+	if err != nil {
+		return balanceLedgerUserState{}, err
+	}
+	withdrawalFrozen, err := parseLedgerDecimal(withdrawalFrozenRaw, "withdrawal frozen balance")
+	if err != nil {
+		return balanceLedgerUserState{}, err
+	}
+	return balanceLedgerUserState{
+		Balance:          balance,
+		Frozen:           frozen,
+		Withdrawable:     withdrawable,
+		WithdrawalFrozen: withdrawalFrozen,
+	}, nil
+}
+
+func planWithdrawableLedgerEffects(
+	ctx context.Context,
+	runner balanceLedgerSQLRunner,
+	input BalanceLedgerApplyInput,
+	before balanceLedgerUserState,
+	actualBalanceDelta decimal.Decimal,
+	createdAt time.Time,
+	asOf time.Time,
+) (withdrawableLedgerEffects, error) {
+	effects := withdrawableLedgerEffects{}
+	if actualBalanceDelta.IsPositive() {
+		restoreKey := withdrawableRestoreSourceKey(input)
+		if restoreKey != "" {
+			consumed, err := selectConsumedAllocationsForRestore(ctx, runner, input.UserID, restoreKey)
+			if err != nil {
+				return effects, fmt.Errorf("select withdrawable restore allocations: %w", err)
+			}
+			restore := planWithdrawableRestore(actualBalanceDelta, consumed, asOf)
+			effects.Restore = restore
+			effects.RestoreFromKey = restoreKey
+			effects.WithdrawableDelta = effects.WithdrawableDelta.Add(restore.MatureWithdrawableAmount)
+			return effects, nil
+		}
+
+		policy := classifyWithdrawableGrant(input.SourceType, createdAt)
+		if policy.Eligible {
+			grant := withdrawableGrantPlan{
+				Amount:      actualBalanceDelta,
+				AvailableAt: policy.AvailableAt,
+				SourceType:  input.SourceType,
+				SourceID:    input.SourceID,
+			}
+			effects.Grant = &grant
+			if !policy.AvailableAt.After(asOf) {
+				effects.WithdrawableDelta = effects.WithdrawableDelta.Add(actualBalanceDelta)
+			}
+		}
+		return effects, nil
+	}
+
+	if actualBalanceDelta.IsNegative() {
+		entitlements, err := selectWithdrawableEntitlementSnapshots(ctx, runner, input.UserID)
+		if err != nil {
+			return effects, fmt.Errorf("select withdrawable entitlements: %w", err)
+		}
+		consume := planWithdrawableConsumption(before.Balance, actualBalanceDelta.Neg(), entitlements, asOf)
+		effects.Consume = consume
+		effects.WithdrawableDelta = effects.WithdrawableDelta.Sub(consume.MatureWithdrawableAmount)
+	}
+	return effects, nil
+}
+
+func applyWithdrawableLedgerEffects(
+	ctx context.Context,
+	runner balanceLedgerSQLRunner,
+	input BalanceLedgerApplyInput,
+	transactionID int64,
+	effects withdrawableLedgerEffects,
+	createdAt time.Time,
+) error {
+	if effects.Grant != nil {
+		if err := insertWithdrawableGrant(ctx, runner, input.UserID, transactionID, *effects.Grant, createdAt); err != nil {
+			return err
+		}
+	}
+	if len(effects.Consume.Allocations) > 0 {
+		if err := applyWithdrawableConsumption(ctx, runner, input.UserID, transactionID, effects.Consume, input.SourceType, input.SourceID, createdAt); err != nil {
+			return err
+		}
+	}
+	if len(effects.Restore.Allocations) > 0 {
+		if err := applyWithdrawableRestore(ctx, runner, input.UserID, transactionID, effects.Restore, input.SourceType, input.SourceID, effects.RestoreFromKey, createdAt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func selectBalanceTransactionForIdempotency(ctx context.Context, runner balanceLedgerSQLRunner, userID int64, key string) (*BalanceTransaction, error) {
 	transaction, err := queryBalanceTransaction(ctx, runner, `
 SELECT
@@ -300,6 +515,12 @@ SELECT
 	frozen_delta::double precision,
 	frozen_before::double precision,
 	frozen_after::double precision,
+	withdrawable_delta::double precision,
+	withdrawable_before::double precision,
+	withdrawable_after::double precision,
+	withdrawal_frozen_delta::double precision,
+	withdrawal_frozen_before::double precision,
+	withdrawal_frozen_after::double precision,
 	source_type,
 	source_id,
 	idempotency_key,
@@ -325,7 +546,8 @@ func insertBalanceTransaction(
 	ctx context.Context,
 	runner balanceLedgerSQLRunner,
 	input BalanceLedgerApplyInput,
-	beforeBalance, afterBalance, beforeFrozen, afterFrozen float64,
+	before balanceLedgerUserState,
+	after balanceLedgerUserState,
 	createdAt time.Time,
 ) (*BalanceTransaction, error) {
 	metadataRaw, err := json.Marshal(input.Metadata)
@@ -341,6 +563,12 @@ INSERT INTO balance_transactions (
 	frozen_delta,
 	frozen_before,
 	frozen_after,
+	withdrawable_delta,
+	withdrawable_before,
+	withdrawable_after,
+	withdrawal_frozen_delta,
+	withdrawal_frozen_before,
+	withdrawal_frozen_after,
 	source_type,
 	source_id,
 	idempotency_key,
@@ -352,7 +580,7 @@ INSERT INTO balance_transactions (
 	confidence,
 	created_at
 ) VALUES (
-	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14::jsonb, $15, $16, $17
+	$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20::jsonb, $21, $22, $23
 )
 RETURNING
 	id,
@@ -363,6 +591,12 @@ RETURNING
 	frozen_delta::double precision,
 	frozen_before::double precision,
 	frozen_after::double precision,
+	withdrawable_delta::double precision,
+	withdrawable_before::double precision,
+	withdrawable_after::double precision,
+	withdrawal_frozen_delta::double precision,
+	withdrawal_frozen_before::double precision,
+	withdrawal_frozen_after::double precision,
 	source_type,
 	source_id,
 	idempotency_key,
@@ -374,12 +608,18 @@ RETURNING
 	confidence,
 	created_at`,
 		input.UserID,
-		input.BalanceDelta,
-		beforeBalance,
-		afterBalance,
-		input.FrozenDelta,
-		beforeFrozen,
-		afterFrozen,
+		decimalString(decimalFromLedgerFloat(input.BalanceDelta)),
+		decimalString(before.Balance),
+		decimalString(after.Balance),
+		decimalString(decimalFromLedgerFloat(input.FrozenDelta)),
+		decimalString(before.Frozen),
+		decimalString(after.Frozen),
+		decimalString(decimalFromLedgerFloat(input.WithdrawableDelta)),
+		decimalString(before.Withdrawable),
+		decimalString(after.Withdrawable),
+		decimalString(decimalFromLedgerFloat(input.WithdrawalFrozenDelta)),
+		decimalString(before.WithdrawalFrozen),
+		decimalString(after.WithdrawalFrozen),
 		input.SourceType,
 		input.SourceID,
 		input.IdempotencyKey,
@@ -442,12 +682,14 @@ func queryOneBalanceLedger(ctx context.Context, runner balanceLedgerSQLRunner, q
 
 func scanBalanceTransaction(scan func(dest ...any) error) (*BalanceTransaction, error) {
 	var (
-		transaction                             BalanceTransaction
-		balanceBefore, balanceAfter             sql.NullFloat64
-		frozenBefore, frozenAfter               sql.NullFloat64
-		actorUserID                             sql.NullInt64
-		sourceID, actorType, description        sql.NullString
-		idempotencyKey, metadataRaw, confidence sql.NullString
+		transaction                                   BalanceTransaction
+		balanceBefore, balanceAfter                   sql.NullFloat64
+		frozenBefore, frozenAfter                     sql.NullFloat64
+		withdrawableBefore, withdrawableAfter         sql.NullFloat64
+		withdrawalFrozenBefore, withdrawalFrozenAfter sql.NullFloat64
+		actorUserID                                   sql.NullInt64
+		sourceID, actorType, description              sql.NullString
+		idempotencyKey, metadataRaw, confidence       sql.NullString
 	)
 	if err := scan(
 		&transaction.ID,
@@ -458,6 +700,12 @@ func scanBalanceTransaction(scan func(dest ...any) error) (*BalanceTransaction, 
 		&transaction.FrozenDelta,
 		&frozenBefore,
 		&frozenAfter,
+		&transaction.WithdrawableDelta,
+		&withdrawableBefore,
+		&withdrawableAfter,
+		&transaction.WithdrawalFrozenDelta,
+		&withdrawalFrozenBefore,
+		&withdrawalFrozenAfter,
 		&transaction.SourceType,
 		&sourceID,
 		&idempotencyKey,
@@ -475,6 +723,10 @@ func scanBalanceTransaction(scan func(dest ...any) error) (*BalanceTransaction, 
 	transaction.BalanceAfter = float64PtrFromNull(balanceAfter)
 	transaction.FrozenBefore = float64PtrFromNull(frozenBefore)
 	transaction.FrozenAfter = float64PtrFromNull(frozenAfter)
+	transaction.WithdrawableBefore = float64PtrFromNull(withdrawableBefore)
+	transaction.WithdrawableAfter = float64PtrFromNull(withdrawableAfter)
+	transaction.WithdrawalFrozenBefore = float64PtrFromNull(withdrawalFrozenBefore)
+	transaction.WithdrawalFrozenAfter = float64PtrFromNull(withdrawalFrozenAfter)
 	transaction.SourceID = stringOrEmpty(sourceID)
 	transaction.IdempotencyKey = stringOrEmpty(idempotencyKey)
 	transaction.ActorType = stringOrDefault(actorType, BalanceLedgerActorSystem)
