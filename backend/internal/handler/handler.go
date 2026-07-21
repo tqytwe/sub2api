@@ -67,6 +67,7 @@ type Handlers struct {
 	AsyncImage       *AsyncImageHandler
 	BatchImage       *BatchImageHandler
 	Play             *PlayHandler
+	Wallet           *WalletHandler
 	ImageStudio      *ImageStudioHandler
 	ModelPricing     *ModelPricingHandler
 	PromptLibrary    *PromptLibraryHandler

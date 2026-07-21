@@ -135,16 +135,20 @@ type adminTeamSummaryDTO struct {
 }
 
 type adminTeamMemberDTO struct {
-	UserID          int64  `json:"user_id"`
-	DisplayName     string `json:"display_name"`
-	Email           string `json:"email,omitempty"`
-	AvatarURL       string `json:"avatar_url,omitempty"`
-	JoinedAt        string `json:"joined_at"`
-	TokenSum        int64  `json:"token_sum"`
-	TokenPct        int    `json:"token_pct"`
-	Spend           string `json:"spend"`
-	SpendPct        int    `json:"spend_pct"`
-	EstimatedReward string `json:"estimated_reward"`
+	UserID                int64   `json:"user_id"`
+	DisplayName           string  `json:"display_name"`
+	Email                 string  `json:"email,omitempty"`
+	AvatarURL             string  `json:"avatar_url,omitempty"`
+	JoinedAt              string  `json:"joined_at"`
+	TokenSum              int64   `json:"token_sum"`
+	TokenPct              int     `json:"token_pct"`
+	Spend                 string  `json:"spend"`
+	SpendPct              int     `json:"spend_pct"`
+	EstimatedReward       string  `json:"estimated_reward"`
+	LatestSettlementMonth string  `json:"latest_settlement_month,omitempty"`
+	LatestActualReward    string  `json:"latest_actual_reward,omitempty"`
+	LatestPayoutStatus    string  `json:"latest_payout_status,omitempty"`
+	LatestPaidAt          *string `json:"latest_paid_at,omitempty"`
 }
 
 type adminTeamSettlementRecordDTO struct {
@@ -729,17 +733,30 @@ func toAdminTeamSummaryDTO(team *service.PlayTeamSummary) *adminTeamSummaryDTO {
 		RewardTiers:      team.RewardTiers,
 	}
 	for _, member := range team.Members {
+		var latestPaidAt *string
+		if member.LatestPaidAt != nil {
+			value := member.LatestPaidAt.Format("2006-01-02T15:04:05Z07:00")
+			latestPaidAt = &value
+		}
+		latestActualReward := ""
+		if member.LatestSettlementMonth != "" || member.LatestPayoutStatus != "" {
+			latestActualReward = member.LatestActualReward.StringFixed(8)
+		}
 		out.Members = append(out.Members, adminTeamMemberDTO{
-			UserID:          member.UserID,
-			DisplayName:     member.DisplayName,
-			Email:           member.Email,
-			AvatarURL:       member.AvatarURL,
-			JoinedAt:        member.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
-			TokenSum:        member.TokenSum,
-			TokenPct:        member.TokenPct,
-			Spend:           member.Spend.StringFixed(8),
-			SpendPct:        member.SpendPct,
-			EstimatedReward: member.EstimatedReward.StringFixed(8),
+			UserID:                member.UserID,
+			DisplayName:           member.DisplayName,
+			Email:                 member.Email,
+			AvatarURL:             member.AvatarURL,
+			JoinedAt:              member.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
+			TokenSum:              member.TokenSum,
+			TokenPct:              member.TokenPct,
+			Spend:                 member.Spend.StringFixed(8),
+			SpendPct:              member.SpendPct,
+			EstimatedReward:       member.EstimatedReward.StringFixed(8),
+			LatestSettlementMonth: member.LatestSettlementMonth,
+			LatestActualReward:    latestActualReward,
+			LatestPayoutStatus:    member.LatestPayoutStatus,
+			LatestPaidAt:          latestPaidAt,
 		})
 	}
 	return out

@@ -262,6 +262,17 @@
                     <span>{{ t('admin.playOps.memberTokensLine', { tokens: formatNumber(member.token_sum), pct: member.spend_pct }) }}</span>
                     <span>{{ t('admin.playOps.memberEstimated') }} {{ formatMoney(member.estimated_reward) }}</span>
                   </div>
+                  <div class="mt-2 grid gap-1 text-xs text-gray-500 sm:grid-cols-2">
+                    <span>{{ t('admin.playOps.memberJoinedAt') }} {{ formatDateTime(member.joined_at) }}</span>
+                    <span v-if="member.latest_payout_status">
+                      {{ t('admin.playOps.latestActualReward') }}
+                      {{ formatMoney(member.latest_actual_reward) }}
+                      · {{ payoutStatusLabel(member.latest_payout_status) }}
+                    </span>
+                    <span v-else>{{ t('admin.playOps.latestActualReward') }} {{ t('admin.playOps.noLatestReward') }}</span>
+                    <span v-if="member.latest_settlement_month">{{ member.latest_settlement_month }}</span>
+                    <span v-if="member.latest_paid_at">{{ t('admin.playOps.latestPaidAt') }} {{ formatDateTime(member.latest_paid_at) }}</span>
+                  </div>
                 </div>
               </div>
             </div>

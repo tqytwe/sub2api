@@ -37,6 +37,12 @@ func RegisterUserRoutes(
 			user.GET("/api-keys/:id/usage/daily", h.Usage.GetMyAPIKeyDailyUsage)
 			user.GET("/platform-quotas", h.User.GetMyPlatformQuotas)
 
+			wallet := user.Group("/wallet")
+			{
+				wallet.GET("/summary", h.Wallet.Summary)
+				wallet.GET("/transactions", h.Wallet.Transactions)
+			}
+
 			// 通知邮箱管理
 			notifyEmail := user.Group("/notify-email")
 			{

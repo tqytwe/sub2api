@@ -50,8 +50,17 @@ func TestTeamMembershipQueriesOnlyReturnActiveRows(t *testing.T) {
 		now := time.Now()
 		mock.ExpectQuery(`(?s)FROM play_team_members m.*JOIN play_teams t.*m\.team_id = \$1.*m\.left_at IS NULL.*t\.archived_at IS NULL`).
 			WithArgs(int64(11)).
-			WillReturnRows(sqlmock.NewRows([]string{"user_id", "username", "email", "avatar_url", "joined_at"}).
-				AddRow(int64(7), "USER", "captain@example.com", "", now))
+			WillReturnRows(sqlmock.NewRows([]string{
+				"user_id",
+				"username",
+				"email",
+				"avatar_url",
+				"joined_at",
+				"latest_settlement_month",
+				"latest_actual_reward",
+				"latest_payout_status",
+				"paid_at",
+			}).AddRow(int64(7), "USER", "captain@example.com", "", now, "", "0.00000000", "", nil))
 
 		members, err := repo.ListTeamMembers(context.Background(), 11)
 		require.NoError(t, err)
