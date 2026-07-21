@@ -31,7 +31,7 @@ function readStringList(key: string): string[] {
 }
 
 const loading = ref(true)
-const tab = ref<BoardTab>('monthly')
+const tab = ref<BoardTab>('daily')
 const monthlyCurrent = ref<PlayArenaCurrent | null>(null)
 const dailyCurrent = ref<PlayArenaCurrent | null>(null)
 const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
