@@ -31,6 +31,12 @@
             {{ t('usage.emptyGuide.ctaDocs') }}
           </a>
         </div>
+        <SupportContactPanel
+          class="mt-5"
+          :config="appStore.supportContact"
+          compact
+          :show-header="false"
+        />
         <div class="mt-6 overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-dark-600 dark:bg-dark-800">
           <p class="border-b border-gray-200 px-4 py-2 text-xs font-medium uppercase tracking-wide text-gray-500 dark:border-dark-600 dark:text-gray-400">
             {{ t('usage.emptyGuide.exampleTitle') }}
@@ -262,6 +268,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Select, { type SelectOption } from '@/components/common/Select.vue'
 import DateRangePicker from '@/components/common/DateRangePicker.vue'
+import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import UsageStatsCards from '@/components/admin/usage/UsageStatsCards.vue'
 import UsageTable from '@/components/admin/usage/UsageTable.vue'
 import ModelDistributionChart from '@/components/charts/ModelDistributionChart.vue'

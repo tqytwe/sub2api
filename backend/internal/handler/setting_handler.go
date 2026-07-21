@@ -43,6 +43,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		return
 	}
 
+	c.Header("Cache-Control", "no-store")
 	response.Success(c, dto.PublicSettings{
 		RegistrationEnabled:              settings.RegistrationEnabled,
 		EmailVerifyEnabled:               settings.EmailVerifyEnabled,
@@ -65,6 +66,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		APIBaseURL:                       settings.APIBaseURL,
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
+		SupportContact:                   settings.SupportContact,
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,

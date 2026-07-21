@@ -5,7 +5,7 @@
 
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Toast, ToastType, PublicSettings } from '@/types'
+import type { Toast, ToastType, PublicSettings, SupportContactConfig } from '@/types'
 import { i18n } from '@/i18n'
 import {
   checkUpdates as checkUpdatesAPI,
@@ -13,6 +13,7 @@ import {
   type ReleaseInfo
 } from '@/api/admin/system'
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
+import { emptySupportContactConfig, normalizeSupportContactConfig, supportContactDocsUrl } from '@/utils/supportContact'
 
 export const useAppStore = defineStore('app', () => {
   // ==================== State ====================
@@ -32,6 +33,7 @@ export const useAppStore = defineStore('app', () => {
   const contactInfo = ref<string>('')
   const apiBaseUrl = ref<string>('')
   const docUrl = ref<string>('')
+  const supportContact = ref<SupportContactConfig>(emptySupportContactConfig())
   const cachedPublicSettings = ref<PublicSettings | null>(null)
   let publicSettingsRequest: Promise<PublicSettings | null> | null = null
 
@@ -289,18 +291,27 @@ export const useAppStore = defineStore('app', () => {
   /**
    * Apply settings to store state (internal helper to avoid code duplication)
    */
-  function applySettings(config: PublicSettings): void {
-    if (typeof window !== 'undefined') {
-      window.__APP_CONFIG__ = { ...config }
+  function applySettings(config: PublicSettings): PublicSettings {
+    const normalizedSupportContact = normalizeSupportContactConfig(config.support_contact, config.contact_info || '', config.doc_url || '')
+    const effectiveDocUrl = supportContactDocsUrl(normalizedSupportContact) || config.doc_url || ''
+    const effectiveConfig: PublicSettings = {
+      ...config,
+      doc_url: effectiveDocUrl,
+      support_contact: normalizedSupportContact,
     }
-    cachedPublicSettings.value = config
+    if (typeof window !== 'undefined') {
+      window.__APP_CONFIG__ = { ...effectiveConfig }
+    }
+    cachedPublicSettings.value = effectiveConfig
     siteName.value = config.site_name || 'Sub2API'
     siteLogo.value = config.site_logo || ''
     siteVersion.value = config.version || ''
     contactInfo.value = config.contact_info || ''
     apiBaseUrl.value = config.api_base_url || ''
-    docUrl.value = config.doc_url || ''
+    docUrl.value = effectiveDocUrl
+    supportContact.value = normalizedSupportContact
     publicSettingsLoaded.value = true
+    return { ...effectiveConfig }
   }
 
   /**
@@ -316,8 +327,7 @@ export const useAppStore = defineStore('app', () => {
 
     // Check for injected config from server (eliminates flash)
     if (!publicSettingsLoaded.value && !force && window.__APP_CONFIG__) {
-      applySettings(window.__APP_CONFIG__)
-      return Promise.resolve(window.__APP_CONFIG__)
+      return Promise.resolve(applySettings(window.__APP_CONFIG__))
     }
 
     // Return cached data if available and not forcing refresh
@@ -341,6 +351,7 @@ export const useAppStore = defineStore('app', () => {
         api_base_url: apiBaseUrl.value,
         contact_info: contactInfo.value,
         doc_url: docUrl.value,
+        support_contact: supportContact.value,
         home_content: '',
         hide_ccs_import_button: false,
         payment_enabled: false,
@@ -392,8 +403,7 @@ export const useAppStore = defineStore('app', () => {
 
     const request = apiRequest
       .then((data) => {
-        applySettings(data)
-        return data
+        return applySettings(data)
       })
       .catch((error) => {
         console.error('Failed to fetch public settings:', error)
@@ -449,6 +459,7 @@ export const useAppStore = defineStore('app', () => {
     contactInfo,
     apiBaseUrl,
     docUrl,
+    supportContact,
     cachedPublicSettings,
 
     // Version state
