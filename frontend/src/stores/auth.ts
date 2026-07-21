@@ -199,10 +199,42 @@ export const useAuthStore = defineStore('auth', () => {
     scheduleTokenRefreshAt(expiresAtMs)
   }
 
+  function syncStoredTokensBeforeRefresh(): boolean {
+    const storedAccessToken = localStorage.getItem(AUTH_TOKEN_KEY)
+    const storedRefreshToken = localStorage.getItem(REFRESH_TOKEN_KEY)
+    if (storedAccessToken === token.value && storedRefreshToken === refreshTokenValue.value) {
+      return false
+    }
+
+    if (!storedAccessToken || !storedRefreshToken) {
+      clearAuth({ preservePendingAuthSession: pendingAuthSession.value !== null })
+      return true
+    }
+
+    token.value = storedAccessToken
+    refreshTokenValue.value = storedRefreshToken
+
+    const storedExpiresAt = localStorage.getItem(TOKEN_EXPIRES_AT_KEY)
+    const expiresAtMs = storedExpiresAt ? Number.parseInt(storedExpiresAt, 10) : Number.NaN
+    if (Number.isFinite(expiresAtMs)) {
+      tokenExpiresAt.value = expiresAtMs
+      if (expiresAtMs > Date.now() + TOKEN_REFRESH_BUFFER) {
+        scheduleTokenRefreshAt(expiresAtMs)
+        return true
+      }
+    }
+
+    return false
+  }
+
   /**
    * Perform the actual token refresh
    */
   async function performTokenRefresh(): Promise<void> {
+    if (syncStoredTokensBeforeRefresh()) {
+      return
+    }
+
     const refreshTokenAtStart = refreshTokenValue.value
     const accessTokenAtStart = token.value
     const generationAtStart = sessionGeneration

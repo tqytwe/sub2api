@@ -33,6 +33,27 @@ let isRefreshing = false
 // Queue of requests waiting for token refresh
 let refreshSubscribers: Array<(token: string, sourceRefreshToken: string) => void> = []
 
+function getRefreshTokenFromRequestData(data: unknown): string {
+  if (!data) return ''
+
+  if (typeof data === 'string') {
+    try {
+      const parsed = JSON.parse(data) as Record<string, unknown>
+      const token = parsed?.refresh_token
+      return typeof token === 'string' ? token : ''
+    } catch {
+      return ''
+    }
+  }
+
+  if (typeof data === 'object' && !Array.isArray(data)) {
+    const token = (data as Record<string, unknown>).refresh_token
+    return typeof token === 'string' ? token : ''
+  }
+
+  return ''
+}
+
 /**
  * Subscribe to token refresh completion
  */
@@ -298,6 +319,21 @@ apiClient.interceptors.response.use(
               message: 'Session expired. Please log in again.'
             })
           }
+        }
+
+        const staleAuthRefreshToken =
+          url.includes('/auth/refresh') ? getRefreshTokenFromRequestData(originalRequest.data) : ''
+        const currentRefreshToken = localStorage.getItem('refresh_token')
+        if (
+          staleAuthRefreshToken &&
+          currentRefreshToken &&
+          currentRefreshToken !== staleAuthRefreshToken
+        ) {
+          return Promise.reject({
+            status: 401,
+            code: 'AUTH_SESSION_CHANGED',
+            message: 'Authentication session changed. Please retry the request.'
+          })
         }
 
         // No refresh token or is auth endpoint - clear auth and redirect
