@@ -3,7 +3,7 @@
 > 状态：active
 > 当前验证基线：`upstream/main@e625ce3b3b3b955b7c3afc93221f7c5f0ae55aa8`
 > 对应合并提交：待本同步 PR 合入 `play/main` 后回填
-> 最后核验：2026-07-20
+> 最后核验：2026-07-21
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -149,6 +149,8 @@
 206_vip_recharge_legacy_tiers_backfill.sql
 207_balance_transactions.sql
 207_subscription_plan_product_display.sql
+208_image_studio_asset_lifecycle.sql
+208_image_studio_asset_lifecycle_indexes_notx.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

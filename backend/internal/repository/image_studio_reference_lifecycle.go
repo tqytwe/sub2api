@@ -196,4 +196,5 @@ var (
 	_ service.ImageStudioJobReferenceStorageRepository = (*imageStudioRepository)(nil)
 	_ service.ImageStudioReferenceCleanupRepository    = (*imageStudioRepository)(nil)
 	_ service.ImageStudioReferenceLifecycleRepository  = (*imageStudioRepository)(nil)
+	_ service.ImageStudioAssetPurgeRepository          = (*imageStudioRepository)(nil)
 )

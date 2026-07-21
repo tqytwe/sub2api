@@ -120,11 +120,27 @@ func (s nextChatRouteModelProviderStub) GetNextChatWorkspaceModels(_ context.Con
 }
 
 type nextChatRoutePromptProviderStub struct {
-	list       []service.PublicPrompt
-	detailByID map[int64]service.PublicPrompt
+	list          []service.PublicPrompt
+	detailByID    map[int64]service.PublicPrompt
+	filters       []service.PromptListFilter
+	favoriteCalls []nextChatRoutePromptFavoriteCall
+	useCalls      []nextChatRoutePromptUseCall
+	useByID       map[int64]service.PromptUseResult
+}
+
+type nextChatRoutePromptFavoriteCall struct {
+	promptID int64
+	userID   int64
+	favorite bool
+}
+
+type nextChatRoutePromptUseCall struct {
+	promptID int64
+	userID   int64
 }
 
 func (s *nextChatRoutePromptProviderStub) ListPublic(_ context.Context, filter service.PromptListFilter, _ *int64) ([]service.PublicPrompt, *pagination.PaginationResult, error) {
+	s.filters = append(s.filters, filter)
 	pageSize := filter.Pagination.PageSize
 	if pageSize <= 0 || pageSize > len(s.list) {
 		pageSize = len(s.list)
@@ -143,6 +159,28 @@ func (s *nextChatRoutePromptProviderStub) GetPublic(_ context.Context, id int64,
 		return nil, nil
 	}
 	return &prompt, nil
+}
+
+func (s *nextChatRoutePromptProviderStub) SetFavorite(_ context.Context, promptID, userID int64, favorite bool) (bool, error) {
+	s.favoriteCalls = append(s.favoriteCalls, nextChatRoutePromptFavoriteCall{
+		promptID: promptID,
+		userID:   userID,
+		favorite: favorite,
+	})
+	return favorite, nil
+}
+
+func (s *nextChatRoutePromptProviderStub) UsePrompt(_ context.Context, promptID, userID int64) (*service.PromptUseResult, error) {
+	s.useCalls = append(s.useCalls, nextChatRoutePromptUseCall{
+		promptID: promptID,
+		userID:   userID,
+	})
+	if s.useByID != nil {
+		if result, ok := s.useByID[promptID]; ok {
+			return &result, nil
+		}
+	}
+	return &service.PromptUseResult{PromptID: promptID, PromptText: "prompt text"}, nil
 }
 
 type nextChatRouteImageStudioStub struct {
@@ -262,15 +300,29 @@ type nextChatBootstrapResponse struct {
 		ProfileURL  string `json:"profile_url"`
 	} `json:"urls"`
 	Retention struct {
-		TextSessionDays int  `json:"text_session_days"`
-		ImageAssetHours int  `json:"image_asset_hours"`
-		ServerChatLog   bool `json:"server_chat_log"`
+		TextSessionDays     int  `json:"text_session_days"`
+		ImageJobDays        int  `json:"image_job_days"`
+		ImageAssetHours     int  `json:"image_asset_hours"`
+		ImageReferenceHours int  `json:"image_reference_hours"`
+		ServerChatLog       bool `json:"server_chat_log"`
 	} `json:"retention"`
 }
 
 type nextChatPromptsResponse struct {
 	ChatPrompts    []service.NextChatPrompt   `json:"chat_prompts"`
 	ImageTemplates service.ImageStudioCatalog `json:"image_templates"`
+}
+
+type nextChatPromptListResponse struct {
+	Items    []service.PublicPrompt `json:"items"`
+	Total    int64                  `json:"total"`
+	Page     int                    `json:"page"`
+	PageSize int                    `json:"page_size"`
+}
+
+type nextChatPromptFavoriteResponse struct {
+	PromptID  int64 `json:"prompt_id"`
+	Favorited bool  `json:"favorited"`
 }
 
 func newNextChatRouteRedis(t *testing.T) (*miniredis.Miniredis, *redis.Client) {
@@ -391,6 +443,22 @@ func postNextChatBFF(router *gin.Engine, path, secret string, userID, apiKeyID i
 	recorder := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	if secret != "" {
+		req.Header.Set("X-NextChat-Secret", secret)
+	}
+	if userID > 0 {
+		req.Header.Set("X-NextChat-User-ID", strconv.FormatInt(userID, 10))
+	}
+	if apiKeyID > 0 {
+		req.Header.Set("X-NextChat-API-Key-ID", strconv.FormatInt(apiKeyID, 10))
+	}
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func deleteNextChatBFF(router *gin.Engine, path, secret string, userID, apiKeyID int64) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodDelete, path, nil)
 	if secret != "" {
 		req.Header.Set("X-NextChat-Secret", secret)
 	}
@@ -538,7 +606,9 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.Equal(t, "https://www.jisudeng.com/dashboard", got.URLs.ReturnURL)
 	require.Equal(t, "https://www.jisudeng.com/purchase", got.URLs.RechargeURL)
 	require.Equal(t, 7, got.Retention.TextSessionDays)
+	require.Equal(t, 7, got.Retention.ImageJobDays)
 	require.Equal(t, 24, got.Retention.ImageAssetHours)
+	require.Equal(t, 24, got.Retention.ImageReferenceHours)
 	require.False(t, got.Retention.ServerChatLog)
 	require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
 	require.NotContains(t, recorder.Body.String(), `"api_key"`)
@@ -625,7 +695,7 @@ func TestNextChatImageStudioModelsUsesBFFIdentity(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), "gpt-image-1.5")
 }
 
-func TestNextChatImageStudioGenerateForcesManagedKeyAndOneDayRetention(t *testing.T) {
+func TestNextChatImageStudioGenerateForcesManagedKeyWithoutFrontendRetention(t *testing.T) {
 	_, rdb := newNextChatRouteRedis(t)
 	imageStudio := &nextChatRouteImageStudioStub{}
 	router := newNextChatRouteTestRouterWithImageStudio(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, imageStudio, &config.Config{
@@ -643,8 +713,7 @@ func TestNextChatImageStudioGenerateForcesManagedKeyAndOneDayRetention(t *testin
 	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
 	require.Equal(t, int64(42), imageStudio.generateUser)
 	require.Equal(t, int64(123), imageStudio.generateInput.APIKeyID)
-	require.NotNil(t, imageStudio.generateInput.RetainDays)
-	require.Equal(t, 1, *imageStudio.generateInput.RetainDays)
+	require.Nil(t, imageStudio.generateInput.RetainDays)
 	require.NotContains(t, recorder.Body.String(), "999")
 	require.Contains(t, recorder.Body.String(), "/api/v1/nextchat/image-studio/jobs/job-nextchat")
 	require.NotContains(t, recorder.Body.String(), "/api/v1/image-studio/jobs/job-nextchat")
@@ -738,4 +807,198 @@ func TestNextChatPromptsUsePublicPromptLibraryWhenAvailable(t *testing.T) {
 	}, got.ChatPrompts)
 	require.NotEmpty(t, got.ImageTemplates.Intents)
 	require.NotContains(t, recorder.Body.String(), "通用助手")
+}
+
+func TestNextChatImagePromptsListUsesManagedSessionIdentity(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		list: []service.PublicPrompt{
+			{
+				ID:                   88,
+				Title:                "电商主图",
+				Description:          "白底商品图",
+				Purpose:              "image",
+				Version:              3,
+				Sizes:                []string{"1024x1024"},
+				ReferenceRequirement: service.PromptReferenceOptional,
+				Favorited:            true,
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/image-prompts?q=product&favorite=true&reference=optional&page=2&page_size=12", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatPromptListResponse](t, recorder)
+	require.Equal(t, int64(1), got.Total)
+	require.Equal(t, int64(88), got.Items[0].ID)
+	require.Len(t, promptProvider.filters, 1)
+	require.Equal(t, "product", promptProvider.filters[0].Query)
+	require.True(t, promptProvider.filters[0].FavoritedOnly)
+	require.True(t, promptProvider.filters[0].ImageOnly)
+	require.Equal(t, service.PromptReferenceOptional, promptProvider.filters[0].ReferenceRequirement)
+	require.Equal(t, 2, promptProvider.filters[0].Pagination.Page)
+	require.Equal(t, 12, promptProvider.filters[0].Pagination.PageSize)
+}
+
+func TestNextChatImagePromptDetailFavoriteAndUse(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		detailByID: map[int64]service.PublicPrompt{
+			88: {
+				ID:         88,
+				Title:      "电商主图",
+				PromptText: "生成白底商品主图",
+				Version:    3,
+				Models:     []string{"gpt-image-2"},
+				Sizes:      []string{"1024x1024"},
+			},
+		},
+		useByID: map[int64]service.PromptUseResult{
+			88: {
+				PromptID:   88,
+				Version:    3,
+				Title:      "电商主图",
+				PromptText: "生成白底商品主图",
+				Sizes:      []string{"1024x1024"},
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	detailRecorder := getNextChatBFF(router, "/api/v1/nextchat/image-prompts/88", "server-secret", 42, 123)
+	favoriteRecorder := postNextChatBFF(router, "/api/v1/nextchat/image-prompts/88/favorite", "server-secret", 42, 123, "")
+	unfavoriteRecorder := deleteNextChatBFF(router, "/api/v1/nextchat/image-prompts/88/favorite", "server-secret", 42, 123)
+	useRecorder := postNextChatBFF(router, "/api/v1/nextchat/image-prompts/88/use", "server-secret", 42, 123, "")
+
+	require.Equal(t, http.StatusOK, detailRecorder.Code, detailRecorder.Body.String())
+	detail := decodeNextChatRouteResponse[service.PublicPrompt](t, detailRecorder)
+	require.Equal(t, "生成白底商品主图", detail.PromptText)
+	require.Equal(t, http.StatusOK, favoriteRecorder.Code, favoriteRecorder.Body.String())
+	require.Equal(t, http.StatusOK, unfavoriteRecorder.Code, unfavoriteRecorder.Body.String())
+	favorite := decodeNextChatRouteResponse[nextChatPromptFavoriteResponse](t, favoriteRecorder)
+	unfavorite := decodeNextChatRouteResponse[nextChatPromptFavoriteResponse](t, unfavoriteRecorder)
+	require.True(t, favorite.Favorited)
+	require.False(t, unfavorite.Favorited)
+	require.Equal(t, []nextChatRoutePromptFavoriteCall{
+		{promptID: 88, userID: 42, favorite: true},
+		{promptID: 88, userID: 42, favorite: false},
+	}, promptProvider.favoriteCalls)
+	require.Equal(t, http.StatusOK, useRecorder.Code, useRecorder.Body.String())
+	used := decodeNextChatRouteResponse[service.PromptUseResult](t, useRecorder)
+	require.Equal(t, "生成白底商品主图", used.PromptText)
+	require.Equal(t, []nextChatRoutePromptUseCall{{promptID: 88, userID: 42}}, promptProvider.useCalls)
+}
+
+func TestNextChatImagePromptUseAcceptsPurposeOnlyImagePrompt(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		detailByID: map[int64]service.PublicPrompt{
+			88: {
+				ID:         88,
+				Title:      "图片创意",
+				PromptText: "生成一张创意海报。",
+				Purpose:    "image",
+				Version:    1,
+			},
+		},
+		useByID: map[int64]service.PromptUseResult{
+			88: {
+				PromptID:   88,
+				Version:    1,
+				Title:      "图片创意",
+				Purpose:    "image",
+				PromptText: "生成一张创意海报。",
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/image-prompts/88/use", "server-secret", 42, 123, "")
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	used := decodeNextChatRouteResponse[service.PromptUseResult](t, recorder)
+	require.Equal(t, "image", used.Purpose)
+	require.Equal(t, []nextChatRoutePromptUseCall{{promptID: 88, userID: 42}}, promptProvider.useCalls)
+}
+
+func TestNextChatImagePromptDetailRejectsChatPrompt(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		detailByID: map[int64]service.PublicPrompt{
+			77: {
+				ID:         77,
+				Title:      "通用助手",
+				PromptText: "请清晰回答。",
+				Purpose:    "marketing",
+				Version:    1,
+				Models:     []string{"gpt-4o-mini"},
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/image-prompts/77", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusNotFound, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "image prompt")
+}
+
+func TestNextChatImagePromptFavoriteRejectsChatPrompt(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		detailByID: map[int64]service.PublicPrompt{
+			77: {
+				ID:         77,
+				Title:      "通用助手",
+				PromptText: "请清晰回答。",
+				Purpose:    "marketing",
+				Version:    1,
+				Models:     []string{"gpt-4o-mini"},
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/image-prompts/77/favorite", "server-secret", 42, 123, "")
+
+	require.Equal(t, http.StatusNotFound, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "image prompt")
+	require.Empty(t, promptProvider.favoriteCalls)
+}
+
+func TestNextChatImagePromptUseRejectsChatPromptBeforeSideEffects(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	promptProvider := &nextChatRoutePromptProviderStub{
+		detailByID: map[int64]service.PublicPrompt{
+			77: {
+				ID:         77,
+				Title:      "通用助手",
+				PromptText: "请清晰回答。",
+				Purpose:    "marketing",
+				Version:    1,
+				Models:     []string{"gpt-4o-mini"},
+			},
+		},
+	}
+	router := newNextChatRouteTestRouterWithPromptProvider(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, promptProvider, nil, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/image-prompts/77/use", "server-secret", 42, 123, "")
+
+	require.Equal(t, http.StatusNotFound, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "image prompt")
+	require.Empty(t, promptProvider.useCalls)
 }

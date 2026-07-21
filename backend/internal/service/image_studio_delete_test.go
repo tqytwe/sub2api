@@ -12,12 +12,15 @@ import (
 
 type imageStudioDeleteRepoStub struct {
 	ImageStudioRepository
-	deleteJobFn        func(context.Context, int64, string) ([]string, error)
-	listExpiredFn      func(context.Context, time.Time) ([]string, error)
-	listKeysFn         func(context.Context, string) ([]string, error)
-	deleteExpiredFn    func(context.Context, time.Time) (int64, error)
-	pendingDeleteKeys  []string
-	deleteFailureCalls int
+	deleteJobFn          func(context.Context, int64, string) ([]string, error)
+	listExpiredFn        func(context.Context, time.Time) ([]string, error)
+	listKeysFn           func(context.Context, string) ([]string, error)
+	deleteExpiredFn      func(context.Context, time.Time) (int64, error)
+	pendingDeleteKeys    []string
+	deleteFailureCalls   int
+	assetPurgeCandidates []ImageStudioAssetPurgeCandidate
+	listAssetPurgeCalled bool
+	markPurgedIDs        []string
 }
 
 type imageStudioObjectReconciliationRepoStub struct {
@@ -70,6 +73,24 @@ func (s *imageStudioDeleteRepoStub) AcknowledgeObjectDeletion(_ context.Context,
 func (s *imageStudioDeleteRepoStub) RecordObjectDeletionFailure(context.Context, string, error) error {
 	s.deleteFailureCalls++
 	return nil
+}
+
+func (s *imageStudioDeleteRepoStub) ListExpiredAssetsForPurge(
+	context.Context,
+	time.Time,
+	int,
+) ([]ImageStudioAssetPurgeCandidate, error) {
+	s.listAssetPurgeCalled = true
+	return append([]ImageStudioAssetPurgeCandidate(nil), s.assetPurgeCandidates...), nil
+}
+
+func (s *imageStudioDeleteRepoStub) MarkAssetsPurged(
+	_ context.Context,
+	assetIDs []string,
+	_ time.Time,
+) (int64, error) {
+	s.markPurgedIDs = append(s.markPurgedIDs, assetIDs...)
+	return int64(len(assetIDs)), nil
 }
 
 func TestImageStudioDeleteJobPreservesAssetsWhenUserDoesNotOwnJob(t *testing.T) {
@@ -184,6 +205,62 @@ func TestImageStudioPurgeExpiredJobsKeepsOutboxWhenObjectDeleteFails(t *testing.
 	require.True(t, deleteCalled)
 	require.Equal(t, []string{"../invalid.png"}, repo.pendingDeleteKeys)
 	require.Equal(t, 2, repo.deleteFailureCalls)
+}
+
+func TestImageStudioPurgeExpiredJobsSkipsAssetBytePurgeByDefault(t *testing.T) {
+	store := NewImageStudioAssetStore(t.TempDir())
+	key, err := store.Save(42, "asset-live", "image/png", []byte("image"))
+	require.NoError(t, err)
+	repo := &imageStudioDeleteRepoStub{
+		assetPurgeCandidates: []ImageStudioAssetPurgeCandidate{{
+			ID:          "asset-live",
+			StorageKeys: []string{key},
+		}},
+		deleteExpiredFn: func(context.Context, time.Time) (int64, error) {
+			return 0, nil
+		},
+	}
+	svc := &ImageStudioService{repo: repo, assetStore: store}
+
+	deleted, err := svc.PurgeExpiredJobs(context.Background(), time.Now())
+
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	require.False(t, repo.listAssetPurgeCalled)
+	require.Empty(t, repo.markPurgedIDs)
+	_, err = store.Read(key)
+	require.NoError(t, err)
+}
+
+func TestImageStudioPurgeExpiredJobsPurgesAssetBytesWhenEnabled(t *testing.T) {
+	store := NewImageStudioAssetStore(t.TempDir())
+	key, err := store.Save(42, "asset-expired", "image/png", []byte("image"))
+	require.NoError(t, err)
+	repo := &imageStudioDeleteRepoStub{
+		assetPurgeCandidates: []ImageStudioAssetPurgeCandidate{{
+			ID:          "asset-expired",
+			StorageKeys: []string{key},
+		}},
+		deleteExpiredFn: func(context.Context, time.Time) (int64, error) {
+			return 0, nil
+		},
+	}
+	svc := &ImageStudioService{
+		repo:       repo,
+		assetStore: store,
+		settingService: NewSettingService(&imageStudioSettingRepoStub{values: map[string]string{
+			SettingKeyImageStudioAssetPurgeEnabled: "true",
+		}}, nil),
+	}
+
+	deleted, err := svc.PurgeExpiredJobs(context.Background(), time.Now())
+
+	require.NoError(t, err)
+	require.Zero(t, deleted)
+	require.True(t, repo.listAssetPurgeCalled)
+	require.Equal(t, []string{"asset-expired"}, repo.markPurgedIDs)
+	_, err = store.Read(key)
+	require.Error(t, err)
 }
 
 func TestImageStudioReconcileUntrackedObjectsDeletesOnlyOldOrphans(t *testing.T) {
