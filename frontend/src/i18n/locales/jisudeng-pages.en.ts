@@ -309,6 +309,7 @@ export const jisudengPagesEn = {
     removed: 'Member removed',
     settlementHistory: 'Settlement history',
     noSettlements: 'No monthly settlements yet',
+    personalShare: 'Personal share',
     poolStatus: 'Pool ${pool} · {status}',
     allocationLine: 'Contribution ${contribution} · {ratio}% · reward ${reward} · {status}',
     status: {

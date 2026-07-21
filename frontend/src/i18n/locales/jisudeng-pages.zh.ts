@@ -316,6 +316,7 @@ export const jisudengPagesZh = {
     removed: '成员已移除',
     settlementHistory: '结算历史',
     noSettlements: '暂无已生成的月度结算',
+    personalShare: '个人分成',
     poolStatus: '奖池 ${pool} · {status}',
     allocationLine: '贡献 ${contribution} · {ratio}% · 奖励 ${reward} · {status}',
     status: {

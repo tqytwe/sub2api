@@ -8,13 +8,22 @@ import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import playAPI, { type PlayTeamMe, type PlayTeamSettlementRecord } from '@/api/play'
+import playAPI, { type PlayTeamMe, type PlayTeamSettlementHistoryRecord, type PlayTeamSettlementRecord } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
 import '@/styles/public-pages.css'
 
 type RankTone = 'gold' | 'silver' | 'bronze' | 'standard'
 
-const { t } = useI18n()
+interface SettlementAllocationView {
+  key: string
+  label: string
+  contribution: string
+  ratio: string
+  reward: string
+  payoutStatus: string
+}
+
+const { t, locale } = useI18n()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const { copyToClipboard } = useClipboard()
@@ -24,7 +33,7 @@ const submitting = ref(false)
 const teamMe = ref<PlayTeamMe | null>(null)
 const teamName = ref('')
 const inviteCode = ref('')
-const settlements = ref<PlayTeamSettlementRecord[]>([])
+const settlements = ref<PlayTeamSettlementHistoryRecord[]>([])
 const teamCelebrationDismissed = ref(false)
 
 const isCaptain = computed(
@@ -43,36 +52,63 @@ const paidCelebration = computed(() => {
   const userID = authStore.user?.id
   if (!userID) return null
   for (const record of settlements.value) {
+    if (isUserSettlementRecord(record)) {
+      if (record.payout_status === 'paid') {
+        return {
+          key: `user-settlement:${record.settlement_id}`,
+          poolAmount: record.pool_amount,
+          settlementStatus: record.settlement_status,
+          contribution: record.personal_contribution,
+          ratio: record.personal_ratio,
+          reward: record.personal_reward,
+          payoutStatus: record.payout_status,
+        }
+      }
+      continue
+    }
     const allocation = record.allocations.find(item => item.user_id === userID && item.payout_status === 'paid')
-    if (allocation) return { record, allocation }
+    if (allocation) {
+      return {
+        key: `legacy-allocation:${allocation.id}`,
+        poolAmount: record.settlement.pool_amount,
+        settlementStatus: record.settlement.status,
+        contribution: allocation.contribution,
+        ratio: allocation.ratio,
+        reward: allocation.reward_amount,
+        payoutStatus: allocation.payout_status,
+      }
+    }
   }
   return null
 })
 const showTeamCelebration = computed(() => Boolean(paidCelebration.value) && !teamCelebrationDismissed.value)
-const teamCelebrationAmount = computed(() => formatMoney(paidCelebration.value?.allocation.reward_amount))
+const teamCelebrationAmount = computed(() => formatMoney(paidCelebration.value?.reward))
 const teamCelebrationDetails = computed(() => {
   const context = paidCelebration.value
   if (!context) return []
   return [
     t('agentTeam.poolStatus', {
-      pool: formatMoney(context.record.settlement.pool_amount),
-      status: settlementStatusLabel(context.record.settlement.status),
+      pool: formatMoney(context.poolAmount),
+      status: settlementStatusLabel(context.settlementStatus),
     }),
     t('agentTeam.allocationLine', {
-      contribution: formatMoney(context.allocation.contribution),
-      ratio: (Number(context.allocation.ratio) * 100).toFixed(1),
-      reward: formatMoney(context.allocation.reward_amount),
-      status: payoutStatusLabel(context.allocation.payout_status),
+      contribution: formatMoney(context.contribution),
+      ratio: (Number(context.ratio) * 100).toFixed(1),
+      reward: formatMoney(context.reward),
+      status: payoutStatusLabel(context.payoutStatus),
     }),
   ]
 })
 
 function formatMoney(value: string | number | undefined) {
-  return Number(value ?? 0).toFixed(2)
+  return new Intl.NumberFormat(locale?.value, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(Number(value ?? 0))
 }
 
 function formatTokens(value?: number) {
-  return (value ?? 0).toLocaleString()
+  return (value ?? 0).toLocaleString(locale?.value)
 }
 
 function toneForIndex(index: number): RankTone {
@@ -82,11 +118,11 @@ function toneForIndex(index: number): RankTone {
   return 'standard'
 }
 
-function settlementStatusLabel(status: PlayTeamSettlementRecord['settlement']['status']) {
+function settlementStatusLabel(status: string) {
   return t(`agentTeam.status.${status}`)
 }
 
-function payoutStatusLabel(status: PlayTeamSettlementRecord['allocations'][number]['payout_status']) {
+function payoutStatusLabel(status: string) {
   return t(`agentTeam.payout.${status}`)
 }
 
@@ -99,8 +135,48 @@ function tierReached(threshold: string) {
 }
 
 function teamCelebrationKey() {
-  const allocationID = paidCelebration.value?.allocation.id
-  return allocationID ? `play-team-paid:${allocationID}` : ''
+  return paidCelebration.value?.key ? `play-team-paid:${paidCelebration.value.key}` : ''
+}
+
+function isUserSettlementRecord(record: PlayTeamSettlementHistoryRecord): record is Exclude<PlayTeamSettlementHistoryRecord, PlayTeamSettlementRecord> {
+  return 'settlement_id' in record
+}
+
+function settlementKey(record: PlayTeamSettlementHistoryRecord) {
+  return isUserSettlementRecord(record) ? `user:${record.settlement_id}` : `team:${record.settlement.id}`
+}
+
+function settlementMonth(record: PlayTeamSettlementHistoryRecord) {
+  return isUserSettlementRecord(record) ? record.settlement_month : record.settlement.period_start.slice(0, 7)
+}
+
+function settlementStatus(record: PlayTeamSettlementHistoryRecord) {
+  return isUserSettlementRecord(record) ? record.settlement_status : record.settlement.status
+}
+
+function settlementPool(record: PlayTeamSettlementHistoryRecord) {
+  return isUserSettlementRecord(record) ? record.pool_amount : record.settlement.pool_amount
+}
+
+function settlementAllocations(record: PlayTeamSettlementHistoryRecord): SettlementAllocationView[] {
+  if (isUserSettlementRecord(record)) {
+    return [{
+      key: `self:${record.settlement_id}`,
+      label: t('agentTeam.personalShare'),
+      contribution: record.personal_contribution,
+      ratio: record.personal_ratio,
+      reward: record.personal_reward,
+      payoutStatus: record.payout_status,
+    }]
+  }
+  return record.allocations.map(allocation => ({
+    key: String(allocation.id),
+    label: allocation.display_name || memberDisplayName(allocation.user_id),
+    contribution: allocation.contribution,
+    ratio: allocation.ratio,
+    reward: allocation.reward_amount,
+    payoutStatus: allocation.payout_status,
+  }))
 }
 
 function syncTeamCelebrationSeen() {
@@ -373,22 +449,22 @@ onMounted(loadTeam)
                 <h3 class="play-section-title">{{ t('agentTeam.settlementHistory') }}</h3>
                 <p v-if="settlements.length === 0" class="play-intro">{{ t('agentTeam.noSettlements') }}</p>
                 <div v-else class="agent-settlement-list">
-                  <article v-for="record in settlements" :key="record.settlement.id" class="agent-settlement-card">
+                  <article v-for="record in settlements" :key="settlementKey(record)" class="agent-settlement-card">
                     <div class="agent-settlement-head">
-                      <strong>{{ record.settlement.period_start.slice(0, 7) }}</strong>
-                      <span class="agent-status-pill" :class="`status-${record.settlement.status}`">
-                        {{ settlementStatusLabel(record.settlement.status) }}
+                      <strong>{{ settlementMonth(record) }}</strong>
+                      <span class="agent-status-pill" :class="`status-${settlementStatus(record)}`">
+                        {{ settlementStatusLabel(settlementStatus(record)) }}
                       </span>
-                      <span>${{ formatMoney(record.settlement.pool_amount) }}</span>
+                      <span>${{ formatMoney(settlementPool(record)) }}</span>
                     </div>
                     <div class="agent-allocation-list">
-                      <span v-for="allocation in record.allocations" :key="allocation.id">
-                        {{ allocation.display_name || memberDisplayName(allocation.user_id) }}
+                      <span v-for="allocation in settlementAllocations(record)" :key="allocation.key">
+                        {{ allocation.label }}
                         · {{ t('agentTeam.allocationLine', {
                           contribution: formatMoney(allocation.contribution),
                           ratio: (Number(allocation.ratio) * 100).toFixed(1),
-                          reward: formatMoney(allocation.reward_amount),
-                          status: payoutStatusLabel(allocation.payout_status),
+                          reward: formatMoney(allocation.reward),
+                          status: payoutStatusLabel(allocation.payoutStatus),
                         }) }}
                       </span>
                     </div>

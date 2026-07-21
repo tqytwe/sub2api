@@ -155,6 +155,10 @@ export interface PlayTeamMember {
   spend: string
   spend_pct: number
   estimated_reward: string
+  latest_settlement_month?: string
+  latest_actual_reward?: string
+  latest_payout_status?: 'pending' | 'processing' | 'paid' | 'failed'
+  latest_paid_at?: string
 }
 
 export interface TeamRewardTier {
@@ -230,6 +234,23 @@ export interface PlayTeamSettlementRecord {
   settlement: PlayTeamSettlement
   allocations: PlayTeamRewardAllocation[]
 }
+
+export interface PlayUserTeamSettlementRecord {
+  settlement_id: number
+  team_id: number
+  team_name: string
+  settlement_month: string
+  team_spend: string
+  pool_amount: string
+  settlement_status: PlayTeamSettlement['status']
+  personal_contribution: string
+  personal_ratio: string
+  personal_reward: string
+  payout_status: PlayTeamRewardAllocation['payout_status']
+  paid_at?: string
+}
+
+export type PlayTeamSettlementHistoryRecord = PlayTeamSettlementRecord | PlayUserTeamSettlementRecord
 
 export interface PlayVIPStatus {
   tier: number
@@ -420,8 +441,8 @@ export async function removeTeamMember(targetUserId: number): Promise<void> {
   await apiClient.post('/play/teams/remove', { target_user_id: targetUserId })
 }
 
-export async function getTeamSettlements(): Promise<PlayTeamSettlementRecord[]> {
-  const { data } = await apiClient.get<PlayTeamSettlementRecord[]>('/play/teams/settlements')
+export async function getTeamSettlements(): Promise<PlayTeamSettlementHistoryRecord[]> {
+  const { data } = await apiClient.get<PlayTeamSettlementHistoryRecord[]>('/play/teams/settlements')
   return data ?? []
 }
 

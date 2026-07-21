@@ -467,6 +467,47 @@ func (r *playRepository) ListTeamRewardAllocations(
 	return result, nil
 }
 
+func (r *playRepository) ListUserTeamRewardSettlements(
+	ctx context.Context,
+	userID int64,
+	limit int,
+) (result []service.PlayUserTeamSettlementRecord, err error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT s.id, s.team_id, t.name, s.period_start, s.window_start, s.window_end,
+		       s.team_spend::text, s.reached_threshold::text, s.reward_rate::text,
+		       s.pool_amount::text, s.cap_amount::text, s.status, s.last_error,
+		       s.processing_started_at, s.completed_at,
+		       a.id, a.settlement_id, a.user_id, a.contribution::text, a.ratio::text,
+		       a.reward_amount::text, a.payout_status, a.paid_at, a.last_error
+		FROM play_team_reward_allocations a
+		JOIN play_team_settlements s ON s.id = a.settlement_id
+		JOIN play_teams t ON t.id = s.team_id
+		WHERE a.user_id = $1
+		  AND a.reward_amount > 0
+		ORDER BY s.period_start DESC, a.id DESC
+		LIMIT $2`, userID, normalizeTeamRewardListLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list user team reward settlements: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	for rows.Next() {
+		record, scanErr := scanUserTeamRewardSettlementRecord(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		result = append(result, *record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user team reward settlements: %w", err)
+	}
+	return result, nil
+}
+
 func listTeamRewardSettlements(
 	ctx context.Context,
 	exec sqlExecutor,
@@ -653,6 +694,91 @@ func scanTeamRewardAllocation(scan rowScanner) (*service.PlayTeamRewardAllocatio
 	}
 	allocation.LastError = lastError.String
 	return &allocation, nil
+}
+
+func scanUserTeamRewardSettlementRecord(scan rowScanner) (*service.PlayUserTeamSettlementRecord, error) {
+	var record service.PlayUserTeamSettlementRecord
+	var (
+		teamSpend     string
+		threshold     string
+		rate          string
+		pool          string
+		capAmount     string
+		settleError   sql.NullString
+		processingAt  sql.NullTime
+		completedAt   sql.NullTime
+		contribution  string
+		ratio         string
+		reward        string
+		paidAt        sql.NullTime
+		allocationErr sql.NullString
+	)
+	if err := scan.Scan(
+		&record.Settlement.ID,
+		&record.Settlement.TeamID,
+		&record.TeamName,
+		&record.Settlement.PeriodStart,
+		&record.Settlement.WindowStart,
+		&record.Settlement.WindowEnd,
+		&teamSpend,
+		&threshold,
+		&rate,
+		&pool,
+		&capAmount,
+		&record.Settlement.Status,
+		&settleError,
+		&processingAt,
+		&completedAt,
+		&record.Allocation.ID,
+		&record.Allocation.SettlementID,
+		&record.Allocation.UserID,
+		&contribution,
+		&ratio,
+		&reward,
+		&record.Allocation.PayoutStatus,
+		&paidAt,
+		&allocationErr,
+	); err != nil {
+		return nil, fmt.Errorf("scan user team reward settlement: %w", err)
+	}
+	settlementValues := []*decimal.Decimal{
+		&record.Settlement.TeamSpend,
+		&record.Settlement.ReachedThreshold,
+		&record.Settlement.RewardRate,
+		&record.Settlement.PoolAmount,
+		&record.Settlement.CapAmount,
+	}
+	for i, raw := range []string{teamSpend, threshold, rate, pool, capAmount} {
+		parsed, parseErr := decimal.NewFromString(raw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse user team reward settlement decimal: %w", parseErr)
+		}
+		*settlementValues[i] = parsed
+	}
+	allocationValues := []*decimal.Decimal{
+		&record.Allocation.Contribution,
+		&record.Allocation.Ratio,
+		&record.Allocation.RewardAmount,
+	}
+	for i, raw := range []string{contribution, ratio, reward} {
+		parsed, parseErr := decimal.NewFromString(raw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse user team reward allocation decimal: %w", parseErr)
+		}
+		*allocationValues[i] = parsed
+	}
+	record.Settlement.LastError = settleError.String
+	if processingAt.Valid {
+		record.Settlement.ProcessingStartedAt = &processingAt.Time
+	}
+	if completedAt.Valid {
+		record.Settlement.CompletedAt = &completedAt.Time
+	}
+	if paidAt.Valid {
+		record.Allocation.PaidAt = &paidAt.Time
+	}
+	record.Allocation.LastError = allocationErr.String
+	return &record, nil
 }
 
 func requireRowsAffected(result sql.Result, operation string) error {

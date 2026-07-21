@@ -167,16 +167,20 @@ type PlayQuizSubmitResult struct {
 }
 
 type PlayTeamMember struct {
-	UserID          int64
-	DisplayName     string
-	Email           string
-	AvatarURL       string
-	JoinedAt        time.Time
-	TokenSum        int64
-	TokenPct        int
-	Spend           decimal.Decimal
-	SpendPct        int
-	EstimatedReward decimal.Decimal
+	UserID                int64
+	DisplayName           string
+	Email                 string
+	AvatarURL             string
+	JoinedAt              time.Time
+	TokenSum              int64
+	TokenPct              int
+	Spend                 decimal.Decimal
+	SpendPct              int
+	EstimatedReward       decimal.Decimal
+	LatestSettlementMonth string
+	LatestActualReward    decimal.Decimal
+	LatestPayoutStatus    string
+	LatestPaidAt          *time.Time
 }
 
 type PlayTeamSummary struct {
@@ -459,6 +463,7 @@ type PlayRepository interface {
 	ListTeamRewardSettlementsByTeam(ctx context.Context, teamID int64, limit int) ([]PlayTeamSettlement, error)
 	ListTeamRewardSettlements(ctx context.Context, limit int) ([]PlayTeamSettlement, error)
 	ListTeamRewardAllocations(ctx context.Context, settlementID int64) ([]PlayTeamRewardAllocation, error)
+	ListUserTeamRewardSettlements(ctx context.Context, userID int64, limit int) ([]PlayUserTeamSettlementRecord, error)
 	GetTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamDB, error)
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	CountAdminTeams(ctx context.Context) (total int, active int, err error)
@@ -565,6 +570,12 @@ type PlayTeamRewardAllocation struct {
 type PlayTeamSettlementRecord struct {
 	Settlement  PlayTeamSettlement         `json:"settlement"`
 	Allocations []PlayTeamRewardAllocation `json:"allocations"`
+}
+
+type PlayUserTeamSettlementRecord struct {
+	Settlement PlayTeamSettlement       `json:"settlement"`
+	TeamName   string                   `json:"team_name"`
+	Allocation PlayTeamRewardAllocation `json:"allocation"`
 }
 
 type PlayTeamRewardSettings struct {

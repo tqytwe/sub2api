@@ -76,6 +76,10 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.memberRepair.cancel': '取消',
       'admin.playOps.memberRepair.successAdded': '成员已添加',
       'admin.playOps.memberRepair.loadFailed': '加载候选用户失败',
+      'admin.playOps.memberJoinedAt': '加入时间',
+      'admin.playOps.latestActualReward': '最近实际奖励',
+      'admin.playOps.latestPaidAt': '入账时间',
+      'admin.playOps.noLatestReward': '暂无实际奖励',
       'admin.playOps.eventsTitle': '事件时间线',
       'admin.playOps.eventsLoadFailed': '加载战队事件失败',
       'admin.playOps.loadFailed': '加载玩法运营数据失败',
@@ -107,6 +111,10 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.memberRepair.cancel': 'Cancel',
       'admin.playOps.memberRepair.successAdded': 'Member added',
       'admin.playOps.memberRepair.loadFailed': 'Failed to load candidate users',
+      'admin.playOps.memberJoinedAt': 'Joined',
+      'admin.playOps.latestActualReward': 'Latest actual reward',
+      'admin.playOps.latestPaidAt': 'Credited at',
+      'admin.playOps.noLatestReward': 'No actual reward yet',
       'admin.playOps.eventsTitle': 'Event timeline',
       'admin.playOps.eventsLoadFailed': 'Failed to load team events',
       'admin.playOps.loadFailed': 'Failed to load Play Ops data',
@@ -642,6 +650,49 @@ describe('PlayOpsView campaigns', () => {
     expect(wrapper.text()).toContain('按工单证据修复成员关系')
     expect(wrapper.text()).toContain('生效时间：')
     expect(wrapper.text()).toContain('战队变更：#8 → #9')
+  })
+
+  it('shows joined time and latest actual reward fields for admin team members', async () => {
+    listTeams.mockResolvedValue({
+      items: [{ id: 9, name: '目标战队', member_count: 1 }],
+      total: 1,
+      page: 1,
+      page_size: 20,
+    })
+    getTeam.mockResolvedValue({
+      team: {
+        id: 9,
+        name: '目标战队',
+        invite_code: 'TEAM9',
+        members: [{
+          user_id: 42,
+          display_name: '测试成员',
+          email: 'member-42@example.com',
+          joined_at: '2026-07-03T08:00:00+08:00',
+          token_sum: 1200,
+          spend_pct: 40,
+          spend: '88.00000000',
+          estimated_reward: '4.40000000',
+          latest_settlement_month: '2026-06',
+          latest_actual_reward: '3.25000000',
+          latest_payout_status: 'paid',
+          latest_paid_at: '2026-07-02T09:30:00+08:00',
+        }],
+      },
+      settlements: [],
+      created_at: '2026-07-01T00:00:00Z',
+    })
+    listTeamEvents.mockResolvedValue([])
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('加入时间')
+    expect(wrapper.text()).toContain('2026/7/3')
+    expect(wrapper.text()).toContain('最近实际奖励')
+    expect(wrapper.text()).toContain('$3.25')
+    expect(wrapper.text()).toContain('已入账')
+    expect(wrapper.text()).toContain('入账时间')
   })
 
   it('keeps team details available when the event timeline fails to load', async () => {
