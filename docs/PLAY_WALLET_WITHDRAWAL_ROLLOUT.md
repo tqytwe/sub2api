@@ -1,11 +1,11 @@
 # Play、钱包与提现交付检查点
 
 > 状态：active
-> 当前阶段：阶段四 / CP4
-> 当前结论：CP1、CP2、CP3 已通过用户本地验收；CP3 后续日榜默认入口 hotfix 已合入并完成部署证明；CP4 可提现权益账务基础代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
-> CP4 基线：`origin/play/main@725916689571325cef5ccacb2e8ddc7c4961de07`
-> CP4 功能分支：`feat/play-withdrawable-ledger-cp4-20260721`
-> 工作树：`/home/dell/worktrees/sub2api-play-withdrawable-cp4-20260721`
+> 当前阶段：阶段五 / CP5
+> 当前结论：CP1、CP2、CP3、CP4 已通过用户本地验收；CP5 提现权限、申请、审核与线下打款代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
+> CP5 基线：`origin/play/main@3da334ddcacb10bae2a64a4a707381c57697837b`
+> CP5 功能分支：`feat/play-withdrawals-cp5-20260721`
+> 工作树：`/home/dell/worktrees/sub2api-play-withdrawals-cp5-20260721`
 > 最后更新：2026-07-21
 
 本文档只记录已经取得证据的状态。允许状态仅为：
@@ -19,12 +19,12 @@
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
 | 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
 | 阶段三：代币农场最近发放与当前预估 / CP3 | 已通过 | 代码、PR/CI、合并、部署证明、用户本地验收均已通过；进入 CP4 前已补默认进入日榜 hotfix |
-| 阶段四：可提现权益账务基础 / CP4 | 等待本地验收 | 代码、审查、服务器验证、PR/CI、合并和部署证明已通过；等待用户本地浏览器验收，提现总开关仍保持关闭，未进入 CP5 |
-| 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
-| CP6：服务器验证 | 进行中 | CP1、CP2、CP3 已通过；CP4 本地完整验证和 GitHub CI 均已通过；CP5 未开始 |
-| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已通过；CP3 PR #87 与默认日榜 hotfix PR #92 已合入；CP4 PR #94 已全绿并以 merge commit 合入 |
-| CP8：部署证明 | 进行中 | CP1、CP2、CP3 已通过；默认日榜 hotfix deployment `6a5f4bbbe9e39c7397906c09` 已成功；CP4 live 健康、API 保护和前端资产 proof 已通过 |
-| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2、CP3 已通过；CP4 等待用户本地浏览器验收；CP5 未开始 |
+| 阶段四：可提现权益账务基础 / CP4 | 已通过 | 代码、审查、服务器验证、PR/CI、合并、部署证明和用户本地浏览器验收均已通过；提现总开关保持关闭 |
+| 阶段五：提现权限、申请、审核与线下打款 / CP5 | 等待本地验收 | 代码、审查、服务器验证、PR/CI、合并和部署证明已通过；等待用户本地浏览器验收，提现总开关仍默认关闭 |
+| CP6：服务器验证 | 已通过 | CP1-CP5 本地定向测试、完整 `make test`、`GOFLAGS=-buildvcs=false make build`、fork integrity 和 `git diff --check` 均已通过 |
+| CP7：审查与合并 | 已通过 | CP1 PR #82、CP2 PR #83、CP3 PR #87、默认日榜 hotfix PR #92、CP4 PR #94、CP5 PR #96 均已全绿并以非 rebase merge 合入 |
+| CP8：部署证明 | 已通过 | CP1-CP5 均已完成 live 健康、API 保护和前端资产 proof；CP5 merge commit `00968312a3b842ac11966a9c9fba85c52dcbeb3c` 的 Zeabur 检查成功 |
+| CP9：最终本地浏览器验收 | 等待本地验收 | CP1、CP2、CP3、CP4 已通过；CP5 等待用户本地浏览器验收 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -466,7 +466,7 @@ git diff --check
 | 完整验证 | 已通过 | targeted、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部退出码 0 |
 | PR / GitHub CI | 已通过 | PR #94 四项 GitHub checks 全绿：backend-security、frontend-security、Documentation、Protected behavior；以 merge commit、非 rebase 合入 `play/main` |
 | 部署核对 | 已通过 | `origin/play/main@1cb415ca5b849c1a11d24fc93fc5229931b0f2e0` 已上线；健康、钱包 API 保护、前端入口、钱包 chunk 和中英文资源均已核对 |
-| 本地浏览器验收 | 等待本地验收 | 等待用户本地浏览器检查普通用户钱包中文/英文、浅色/深色、可提现/待解冻/提现冻结/任务预留展示 |
+| 本地浏览器验收 | 已通过 | 用户于 2026-07-21 确认 CP4 本地浏览器验收通过 |
 
 ### 基线与计划变更范围
 
@@ -548,7 +548,7 @@ git diff --check
 
 ### 剩余风险
 
-- 用户本地浏览器验收尚未完成，CP4 状态只能写“代码和部署已完成，等待本地浏览器验收”。
+- 用户本地浏览器验收已由用户在 2026-07-21 确认通过。
 - 生产数据库 dry-run / invariant 仍需要具备生产 `DATABASE_URL` 的环境执行；当前服务器环境没有该变量，且文档不保存凭据。
 - 提现申请、审核、收款账户加密、单审/双审和线下打款均属于 CP5，当前未实现，提现总开关保持关闭。
 
@@ -560,3 +560,121 @@ git diff --check
 - 合并 commit：`1cb415ca5b849c1a11d24fc93fc5229931b0f2e0`
 - 生产前端资源：`index-BlY4jKv4.js`、`WalletView-DvrqYkEx.js`、`zh-D8MW4Uzr.js`、`en-_FFos_rT.js`
 - 生产 live proof：`/health` 返回 200 `{"status":"ok"}`；`/api/v1/user/wallet/summary` 未登录返回 401 `UNAUTHORIZED`；上述 CP4 资产均返回 200。
+
+## CP5 提现权限、申请、审核与线下打款
+
+### 检查点状态
+
+| 节点 | 状态 | 证据或剩余工作 |
+|---|---|---|
+| 需求对照检查点 | 已通过 | 已实现总开关、默认限额、ready 用户启用限制、收款账户、提现申请/取消、管理员队列、单审/双审、拒绝/取消恢复、线下打款登记、审计脱敏和双语界面 |
+| RED 失败测试检查点 | 已通过 | 新增提现 API、路由、迁移、账务冻结、审批和钱包/管理员前端测试后，基线缺少提现 service、routes、migration 和前端入口，按预期失败 |
+| GREEN 实现检查点 | 已通过 | 后端提现 service、权益锁定/恢复、迁移、用户钱包提现页、管理员 `/admin/withdrawals`、通知邮件和中英文资源均已实现并通过聚焦测试 |
+| 规格审查 | 已通过 | 已复审默认关闭、最低 `$10`、上海自然日 `$500`、`$100` 双人审核、72 小时成熟、单进行中申请、禁止自审、管理员 API Key 禁止敏感动作和敏感请求体不入通用审计 |
+| 代码质量审查 | 已通过 | 已复审事务锁、decimal/`NUMERIC(20,8)`、HTTP 金额字符串、未导出加密快照字段、前端 fallback 翻译和 fork integrity 保护；未发现需阻断合并的问题 |
+| 完整验证 | 已通过 | targeted、`pnpm --dir frontend typecheck`、`pnpm --dir frontend build`、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部退出码 0 |
+| PR / GitHub CI | 已通过 | PR #96 四项 GitHub checks 全绿：Protected behavior、Documentation、backend-security、frontend-security；以 merge commit、非 rebase 合入 `play/main` |
+| 部署核对 | 已通过 | `origin/play/main@00968312a3b842ac11966a9c9fba85c52dcbeb3c` 已上线；Zeabur、前后端安全检查通过；健康、API 保护、前端入口、提现 chunk 和中英文资源均已核对 |
+| 本地浏览器验收 | 等待本地验收 | 等待用户本地浏览器覆盖中文/英文、浅色/深色、用户钱包收款账户/申请/取消/历史、管理员权限设置/审核/敏感资料读取/线下打款闭环 |
+
+### 基线与计划变更范围
+
+- 基线 commit：`3da334ddcacb10bae2a64a4a707381c57697837b`
+- 后端：新增 `withdrawal_system_settings`、`user_withdrawal_settings`、`withdrawal_payout_accounts`、`withdrawal_requests`、`withdrawal_status_events` 和 `withdrawal_request_entitlements`；提现资金在提交时原子减少余额和可提现权益、增加 `withdrawal_frozen_balance`，取消或拒绝恢复原权益批次，打款后消耗锁定权益。
+- 用户 API：新增收款账户读取/修改、提现可用性、提现申请列表/详情/创建/取消；用户钱包继续只返回本人安全 DTO。
+- 管理员 API：新增提现队列、详情、规则、单用户/批量权限、批准、拒绝、敏感收款资料读取和标记已打款；审批、拒绝、读取完整资料和打款登记均要求 JWT 管理员 TOTP step-up。
+- 前端：`/wallet` 增加收款账户、申请提现、提现记录和状态历史；新增 `/admin/withdrawals` 专用管理页；管理侧菜单新增“提现管理”。
+- 双语：用户钱包和管理员提现管理全部新增中文/英文文案，错误码由前端按当前 locale 翻译，中文环境不显示英文 fallback。
+- Fork 保护：更新 `FORK-BILLING-010` 和 `scripts/check-fork-integrity.sh`，保护提现迁移、service、routes、管理员页面和双语资源。
+
+### 已观察 RED 证据
+
+```text
+go test -count=1 ./internal/server/routes ./internal/handler ./internal/handler/admin ./internal/service -run 'Test(AdminWithdrawal|UserWallet|WithdrawalsCP5|ParseWithdrawal|WithdrawalFreeze|WithdrawalApproval|WithdrawalAccountMask|BalanceLedgerWithdrawal)'
+结果：基线失败，缺少 admin withdrawal handler、user withdrawal routes、withdrawal service、冻结/审批账务和钱包提现 DTO。
+
+pnpm --dir frontend test:run src/api/__tests__/wallet.withdrawals.spec.ts src/api/__tests__/admin.withdrawals.spec.ts src/router/__tests__/withdrawalRouting.spec.ts src/views/user/__tests__/WalletView.spec.ts
+结果：基线失败，缺少 wallet/admin withdrawal API、管理员提现路由和钱包提现界面。
+```
+
+### 当前 GREEN 证据
+
+```text
+pnpm --dir frontend test:run src/api/__tests__/wallet.withdrawals.spec.ts src/api/__tests__/admin.withdrawals.spec.ts src/router/__tests__/withdrawalRouting.spec.ts src/views/user/__tests__/WalletView.spec.ts
+结果：4 个文件、7 项测试通过。
+
+go test -count=1 ./internal/server/routes ./internal/handler ./internal/handler/admin ./internal/service -run 'Test(AdminWithdrawal|UserWallet|WithdrawalsCP5|ParseWithdrawal|WithdrawalFreeze|WithdrawalApproval|WithdrawalAccountMask|BalanceLedgerWithdrawal)'
+结果：通过。
+
+go test -count=1 ./internal/service ./migrations -run 'Test(WithdrawalsCP5|ParseWithdrawal|WithdrawalFreeze|WithdrawalApproval|WithdrawalAccountMask|BalanceLedgerWithdrawal)'
+结果：通过。
+
+pnpm --dir frontend typecheck
+结果：通过。
+
+pnpm --dir frontend build
+结果：通过。
+```
+
+### 完整验证
+
+```text
+make test
+结果：通过；全量 Go 测试、golangci-lint、前端 ESLint、vue-tsc 和 Vitest 全部通过；Vitest 为 242 个文件、1592 项测试。
+
+GOFLAGS=-buildvcs=false make build
+结果：通过；后端 server 构建成功，前端 production build 成功。
+关键构建资源：index-DS6mjZ16.js、AdminWithdrawalsView-CbNuKKTf.js、WalletView-_NUtp3SO.js、zh-BX8JNAEW.js、en-BHi7F07V.js。
+
+./scripts/check-fork-integrity.sh
+结果：通过；新增提现 migration、withdrawal service、用户提现 route、管理员打款 route、step-up route、管理员提现页面和中英文提现管理 locale 保护。
+
+git diff --check
+结果：通过。
+```
+
+### 数据库 / API 对账
+
+- 状态：已通过（本地自动化 + live API 保护范围）
+- 迁移测试确认 CP5 提现系统表、状态约束、金额两位小数约束、当前收款账户唯一索引、ready 用户启用触发器和提现权益锁定表可创建。
+- 账务测试确认提交提现时原子执行余额减少、可提现权益减少、提现冻结增加，并锁定具体成熟权益批次。
+- 取消和拒绝测试确认提现冻结减少、余额与可提现权益恢复，并恢复原锁定权益批次。
+- 审批测试确认 `$100` 以下进入打款待处理，达到 `$100` 进入二审；第二名不同管理员审核后进入打款待处理；管理员不能审核自己的提现。
+- 打款测试确认仅 `payout_pending` 可标记 paid，重复打款被状态机阻断，线下打款保存实际金额、币种、汇率、外部流水号和时间。
+- 生产 `GET /api/v1/user/wallet/withdrawals/availability` 未登录返回 `401 UNAUTHORIZED`，`GET /api/v1/user/wallet/withdrawals` 未登录返回 `401 UNAUTHORIZED`，`GET /api/v1/admin/withdrawals/settings` 未登录返回 `401 UNAUTHORIZED`。
+- 生产 `POST /api/v1/admin/withdrawals/1/approve`、`POST /api/v1/admin/withdrawals/1/reject`、`POST /api/v1/admin/withdrawals/1/mark-paid` 未登录均返回 `401 UNAUTHORIZED`；当前无生产管理员凭据，未执行生产真实提现写入。
+- 当前环境无生产 `DATABASE_URL`，未执行生产直连 DB invariant；线上功能证明以 Zeabur 成功、健康接口、受保护 API 路由和前端资产为准。
+
+### 中文与英文检查
+
+- 状态：已通过（本地自动化 + 生产资产范围）
+- 用户钱包中文包含“申请提现、收款账户、提现记录、提现冻结、待解冻、任务预留”；英文包含 `Withdrawal request`、`Payout account`、`Withdrawal Frozen`、`Offline Payout` 等对应概念。
+- 管理员中文包含“提现管理、提现规则、用户提现权限、提现队列、完整收款资料、线下打款”；英文包含 `Withdrawals`、`Withdrawal rules`、`User withdrawal permissions`、`Sensitive payout details`、`Offline Payout`。
+- 前端 API 和页面对未知状态/方式/敏感字段使用当前 locale fallback，避免中文界面显示英文状态 key。
+- 生产资产 `zh-BX8JNAEW.js` 包含“提现管理、申请提现、提现冻结、收款账户、线下打款”；`en-BHi7F07V.js` 包含 `Withdrawals`、`Withdrawal Frozen`、`Payout account`、`Offline Payout`。
+
+### 审查发现与修复
+
+- 敏感收款资料只保存 AES 加密正文和掩码；普通用户接口与管理员列表/详情均不返回完整资料，完整资料只走 step-up 后的 `payout-sensitive` 接口。
+- `accountSnapshotEncrypted` 和 `accountEncrypted` 为 Go 未导出字段，不会被 JSON 序列化到普通响应。
+- 新提现冻结使用 `withdrawal_frozen_balance`，没有复用图片任务 `frozen_balance`。
+- 金额解析要求 HTTP 请求金额为字符串且提现金额必须两位小数；内部账务和数据库使用 decimal / `NUMERIC(20,8)`。
+- 通知邮件失败在异步路径记录日志，不回滚提现状态机。
+- 管理员审批、拒绝、读取完整收款资料和标记打款均走 step-up route；管理员 API Key 不满足 JWT step-up 上下文。
+
+### 剩余风险
+
+- 用户本地浏览器验收尚未完成，CP5 状态只能写“代码和部署已完成，等待本地浏览器验收”。
+- 提现总开关仍默认关闭；仅在用户完成本地验收并选定白名单测试用户后，才能灰度开启。
+- 当前未保存或使用生产管理员凭据，因此没有在生产执行真实提现申请、审批或打款写入。
+- 生产 DB 直连 invariant 仍需要具备生产 `DATABASE_URL` 的环境执行；当前文档不保存凭据。
+
+### 交付 commit
+
+- 本地实现 commit：`476e1cb71552067f8eaa8f535846352be08c1f88`
+- PR：#96
+- 合并 commit：`00968312a3b842ac11966a9c9fba85c52dcbeb3c`
+- GitHub PR checks：Protected behavior、Documentation、backend-security、frontend-security 均 success。
+- merge commit checks：Zeabur、backend-security、frontend-security 均 success。
+- 生产前端资源：`index-DS6mjZ16.js`、`AdminWithdrawalsView-CbNuKKTf.js`、`WalletView-_NUtp3SO.js`、`zh-BX8JNAEW.js`、`en-BHi7F07V.js`
+- 生产 live proof：`/health` 返回 200 `{"status":"ok"}`；新增用户和管理员提现 API 未登录返回 401；上述 CP5 资产均返回 200。
