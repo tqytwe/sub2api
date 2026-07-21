@@ -1,30 +1,30 @@
 # Play、钱包与提现交付检查点
 
 > 状态：active
-> 当前阶段：阶段一 / CP1
-> 当前结论：进行中（服务器验证已通过，等待 PR、CI、部署和本地浏览器验收）
-> 生产基线：`origin/play/main@633cf432fad6e266f477e128f9608950591959e1`
-> 审查分支：`feat/play-wallet-withdrawal-20260720`
-> 工作树：`/home/dell/worktrees/sub2api-play-wallet-withdrawal-20260720`
-> 最后更新：2026-07-20
+> 当前阶段：阶段二 / CP2
+> 当前结论：进行中（CP1 已部署并通过本地浏览器验收；CP2 本地实现、数据库对账、完整服务器验证和审查已通过，等待 PR/CI、部署和本地浏览器验收）
+> 生产基线：`origin/play/main@09e03463aac5e7626a3f0daaa09f9c8131cf049b`
+> 审查分支：`feat/play-wallet-transparency-20260721`
+> 工作树：`/home/dell/worktrees/sub2api-play-wallet-transparency-20260721`
+> 最后更新：2026-07-21
 
 本文档只记录已经取得证据的状态。允许状态仅为：
 `未开始 / 进行中 / 已通过 / 失败 / 阻塞 / 等待本地验收`。
-阶段一部署并完成本地浏览器验收前，阶段二至五不得开始。
+当前阶段部署并完成本地浏览器验收前，不得开始依赖它的下一阶段。
 
 ## 总览
 
 | 阶段或检查点 | 状态 | 当前门禁 |
 |---|---|---|
-| 阶段一：管理员手动修复战队成员 / CP1 | 进行中 | PR、GitHub CI、部署和本地浏览器验收 |
-| 阶段二：战队奖励与余额透明度 / CP2 | 未开始 | 依赖 CP1 部署并通过本地浏览器验收 |
+| 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
+| 阶段二：战队奖励与余额透明度 / CP2 | 进行中 | 本地实现、数据库对账、完整服务器验证和审查已通过；等待 PR/CI、部署和本地浏览器验收 |
 | 阶段三：代币农场最近发放与当前预估 / CP3 | 未开始 | 依赖 CP2 |
 | 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
-| CP6：服务器验证 | 进行中 | CP1 已通过；CP2 至 CP5 尚未开始 |
-| CP7：审查与合并 | 进行中 | CP1 PR #82 已创建，等待 GitHub CI |
-| CP8：部署证明 | 未开始 | 等待 CP1 非 rebase 合入 `play/main` |
-| CP9：最终本地浏览器验收 | 未开始 | 由用户本地电脑完成，不能由服务器测试替代 |
+| CP6：服务器验证 | 进行中 | CP1 已通过；CP2 本地完整服务器验证已通过，等待 PR 合入后的部署侧复核 |
+| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 本地审查已完成，尚未进入 PR |
+| CP8：部署证明 | 进行中 | CP1 已通过；CP2 尚未部署 |
+| CP9：最终本地浏览器验收 | 进行中 | CP1 已通过；其余阶段仍须逐阶段验收 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -38,9 +38,9 @@
 | 规格审查 | 已通过 | 已修复软删除候选、不可变快照并发、锁顺序、事件脱敏、系统原因码、中文状态和陈旧候选问题；最终逐条复审无剩余规格缺口 |
 | 代码质量审查 | 已通过 | 已修复中文页面透出后端英文 `message`、提取 blocker 常量、单次捕获 `now`、补仓储 SQL 测试、刷新弹窗时间边界；复审无未解决问题 |
 | 完整验证 | 已通过 | 定向测试、真实 PostgreSQL integration、`make test`、构建、Fork integrity 和 `git diff --check` 全部退出码为 0 |
-| PR / GitHub CI | 进行中 | PR #82 已创建并以 `play/main` 为目标，等待 GitHub CI |
-| 部署核对 | 未开始 | 尚未合入 `play/main` |
-| 本地浏览器验收 | 未开始 | 部署后由用户以管理员身份检查中英文及浅色/深色 |
+| PR / GitHub CI | 已通过 | PR #82 的 GitHub CI 全绿并以非 rebase 方式合入 `play/main` |
+| 部署核对 | 已通过 | Zeabur deployment `5528554772` 成功部署 merge commit `09e03463aac5e7626a3f0daaa09f9c8131cf049b`；健康、路由与双语前端资产均已核对 |
+| 本地浏览器验收 | 已通过 | 用户于 2026-07-21 确认管理员中文/英文、浅色/深色及实际添加/移动闭环通过 |
 
 ### 基线与变更范围
 
@@ -136,12 +136,154 @@ git diff --check
 
 ### 剩余风险
 
-- PR CI、生产部署和本地浏览器验收尚未执行。
-- 本地浏览器验收前，CP1 不能标记为“已通过”，阶段二不能开始。
+- CP1 没有未解决的交付门禁。
+- 后续钱包与提现阶段不得以 CP1 的验收证据替代各自的数据对账、部署证明和本地浏览器验收。
 
 ### 交付 commit
 
-- 状态：进行中
+- 状态：已通过
 - CP1 实现 commit：`89561e39a`（`feat(play): add controlled admin team member repair`）
 - CP1 验证记录 commit：`5b4262e1c`（`docs(play): record CP1 validation checkpoint`）
 - PR：`#82`，目标分支 `play/main`
+- 合并 commit：`09e03463aac5e7626a3f0daaa09f9c8131cf049b`
+- Zeabur deployment：`5528554772`，状态 `success`
+
+## CP2 战队奖励与余额透明度
+
+### 检查点状态
+
+| 节点 | 状态 | 证据或剩余工作 |
+|---|---|---|
+| 需求对照检查点 | 已通过 | 已对照 CP2 要求完成：管理员队伍透明度、用户 Agent Team 本人结算、用户钱包汇总/流水、安全 DTO、统一流水复用、双语来源/状态/分页/空状态 |
+| RED 失败测试检查点 | 已通过 | 在临时基线 worktree `09e03463...` 套入新增钱包后端测试，`go test -count=1 ./internal/service -run TestWallet` 按预期失败，缺少 `NewWalletService`、`WalletTransactionQuery` 和来源映射 |
+| GREEN 实现检查点 | 已通过 | 钱包服务/handler/路由、用户结算隐私 DTO、管理员成员最近奖励字段、前端 `/wallet`、Agent Team 和 Play Ops 展示均已实现；聚焦 Go/Vitest/i18n 测试通过 |
+| 规格审查 | 已通过 | 已修复审查发现的 `source=other` 漏筛未知历史来源、图片任务冻结流水筛选不一致、任务预留变动在钱包金额列不可见三项细节 |
+| 代码质量审查 | 已通过 | 钱包 DTO 不暴露 metadata、description、source_id、idempotency、actor/admin reason、邮箱或其他用户资料；Vue 用户文案走 i18n，中文页面无英文状态/按钮/空状态回退 |
+| 完整验证 | 已通过 | 聚焦验证、PostgreSQL 对账、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh`、`git diff --check` 全部通过 |
+| PR / GitHub CI | 未开始 | 等待服务器验证通过 |
+| 部署核对 | 未开始 | 等待非 rebase 合入 `play/main` |
+| 本地浏览器验收 | 未开始 | 部署后由用户检查普通用户与管理员中文/英文、浅色/深色及钱包/战队数据闭环 |
+
+### 基线与计划变更范围
+
+- 基线 commit：`09e03463aac5e7626a3f0daaa09f9c8131cf049b`
+- 后端：新增用户钱包汇总与安全流水 API；用户战队结算改为仅返回本人分配；管理员战队成员补充最近一期实际奖励、状态和入账时间。
+- 前端：新增 `/wallet` 页面和导航；Agent Team 显示结算月份、团队奖励池、个人分成、状态和入账时间；Play Ops 显示加入时间和最近一期实际奖励。
+- 数据库：阶段二不新建余额账；直接读取统一 `balance_transactions`，并与战队结算/分配记录三方对账。
+- 双语：所有新增状态、来源、筛选、金额方向、日期、空状态、分页与错误回退同时覆盖中文和英文。
+
+### 需求对照结论
+
+- 现有管理员完整余额流水继续复用，不重复建设。
+- 用户钱包 DTO 不返回 `metadata`、内部描述、来源 ID、幂等键、管理员/操作者信息、邮箱、可信度或内部原因。
+- 用户战队结算只能查询当前用户自己的 allocation，不能继续把全队成员分配明细返回给普通用户。
+- 金额和日期由前端按当前 locale 格式化，中文界面不得出现硬编码英文状态或固定英文金额格式。
+- CP2 部署并完成本地浏览器验收前，CP3 保持未开始。
+- 钱包来源筛选使用稳定公开分类；未知历史来源落入“其他”，图片任务相关 `image_balance_*` 流水归入“图片任务”。
+- `frozen_balance` 在 CP2 只作为“任务预留”展示，不与后续 CP4/CP5 的可提现冻结概念混用。
+
+### 测试命令与结果
+
+RED 证据：
+
+```text
+临时 worktree：/home/dell/worktrees/sub2api-cp2-red-check-*，基线 09e03463aac5e7626a3f0daaa09f9c8131cf049b
+命令：go test -count=1 ./internal/service -run TestWallet
+结果：失败，退出码 1。
+关键失败：undefined: NewWalletService、undefined: WalletTransactionQuery、undefined: WalletPublicSourceTeamReward、
+undefined: walletRawSourceFilter、undefined: WalletPublicSourceOther。
+结论：CP2 基线缺少用户钱包服务、查询模型和公开来源映射。
+```
+
+GREEN 聚焦证据：
+
+```text
+go test -count=1 ./internal/service -run 'TestWallet|TestUserTeamRewardSettlements'
+go test -count=1 ./internal/server/routes -run 'TestUserWalletRoutesContract'
+go test -count=1 ./internal/handler -run 'Test.*Team|Test.*Wallet|TestPlay'
+go test -count=1 ./internal/repository -run 'TestTeamReward|Test.*Team'
+go test -count=1 ./cmd/server
+结果：全部通过。
+
+pnpm vitest run \
+  src/api/__tests__/wallet.spec.ts \
+  src/router/__tests__/walletRouting.spec.ts \
+  src/views/user/__tests__/WalletView.spec.ts \
+  src/views/public/__tests__/AgentTeamView.competitive.spec.ts \
+  src/views/admin/__tests__/PlayOpsView.spec.ts \
+  src/i18n/__tests__/navLocaleKeys.spec.ts \
+  src/i18n/locales/adminPlayOpsParity.spec.ts \
+  src/i18n/__tests__/localesMessageCompile.spec.ts
+结果：8 个文件、29 项测试通过。
+
+pnpm vitest run src/views/user/__tests__/WalletView.spec.ts src/i18n/__tests__/localesMessageCompile.spec.ts
+结果：2 个文件、3 项测试通过；覆盖任务预留冻结变动文案。
+```
+
+完整服务器验证证据：
+
+```text
+make test
+结果：通过；后端全量 Go 测试通过，golangci-lint 为 0 issues；前端 ESLint、
+vue-tsc 和 Vitest 全部通过；Vitest 为 239 个文件、1574 项测试。
+
+GOFLAGS=-buildvcs=false make build
+结果：通过；后端二进制构建成功，前端 production build 成功。
+关键构建资源：WalletView-BQQ0SHVV.js、PlayOpsView-D_jqXWoZ.js、
+AgentTeamView-DjXrhMzi.js、zh-8NyoUD2n.js、en-DGxkFgof.js。
+
+./scripts/check-fork-integrity.sh
+结果：通过；Fork integrity passed。
+
+git diff --check
+结果：通过。
+```
+
+### 数据库与 API 对账
+
+- 状态：已通过（本地临时 PostgreSQL）
+- 对账数据使用 `users`、`balance_transactions`、`play_team_settlements`、`play_team_reward_allocations` 和 `play_teams` 最小真实表结构。
+- 对账结果：
+
+```text
+wallet_summary: passed = t
+available = 18.50000000, reserved = 3.25000000, credits = 26.00000000, debits = 7.50000000, tx_count = 3
+
+user_settlements_privacy: passed = t
+records = 2026-06:old team:paid, 2026-07:new team:processing
+
+admin_member_latest_reward: passed = t
+user_id = 11, month = 2026-07, reward_amount = 4.00000000, payout_status = processing
+
+team_reward_ledger_reconciliation: passed = t
+paid_allocations = 15.00000000, ledger_rewards = 15.00000000
+```
+
+### 中文与英文检查
+
+- 状态：已通过（本地自动化范围）
+- 新增 `nav.wallet`、`wallet.*`、`agentTeam.personalShare`、管理员成员最近奖励字段均同时覆盖中文和英文。
+- 钱包来源、方向、任务预留变动、分页、空状态、加载失败和表头均走 i18n。
+- `adminPlayOpsParity`、`navLocaleKeys`、`localesMessageCompile` 已通过；中文钱包和 Play Ops 组件测试无英文 key 回退。
+- 生产浏览器中文/英文、浅色/深色仍属于部署后本地验收。
+
+### 审查发现与修复
+
+- 用户钱包只读取本人 `balance_transactions`，返回安全 DTO；不暴露内部 metadata、管理员原因、邮箱或其他用户信息。
+- `source=other` 已改为排除所有已知公开来源后的剩余流水，避免未知历史来源在“全部”里显示为其他但筛选不到。
+- 图片任务来源补齐 `image_balance_hold`、`image_balance_capture`、`image_balance_release`，并保留 `image` 兜底匹配。
+- 钱包金额列新增“任务预留变动”，避免可用余额转冻结时净变化为 0 而用户看不到预留变化。
+- 用户 Agent Team 结算接口改为按 `allocation.user_id` 返回本人历史记录，兼容旧数组结构但新 DTO 不返回其他成员明细。
+- 管理员队伍成员补充加入时间、最近一期实际奖励、发放状态和入账时间。
+- 复用现有管理员完整余额流水，不新建管理员流水系统。
+
+### 剩余风险
+
+- GitHub PR/CI、非 rebase 合入 `play/main`、Zeabur 部署核对和用户本地浏览器验收尚未完成。
+- CP2 不启用提现能力，不改变 `frozen_balance` 现有任务预留语义；CP4/CP5 需独立处理可提现权益与提现冻结。
+
+### 交付 commit
+
+- 状态：未开始
+- CP2 实现 commit：尚未创建
+- PR：尚未创建

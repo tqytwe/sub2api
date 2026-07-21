@@ -289,12 +289,11 @@ func (s *PlayService) ListUserTeamRewardSettlements(
 	ctx context.Context,
 	userID int64,
 	limit int,
-) ([]PlayTeamSettlementRecord, error) {
-	team, err := s.repo.GetUserTeam(ctx, userID)
-	if err != nil || team == nil {
-		return nil, err
+) ([]PlayUserTeamSettlementRecord, error) {
+	if userID <= 0 {
+		return nil, ErrUserNotFound
 	}
-	return s.listTeamRewardSettlementRecords(ctx, team.ID, limit)
+	return s.repo.ListUserTeamRewardSettlements(ctx, userID, limit)
 }
 
 func (s *PlayService) ListAdminTeamRewardSettlements(

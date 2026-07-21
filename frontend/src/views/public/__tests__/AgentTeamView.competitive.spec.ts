@@ -104,6 +104,7 @@ const messages: Record<string, string> = {
   'agentTeam.removeConfirm': '确认移除？',
   'agentTeam.settlementHistory': '结算历史',
   'agentTeam.noSettlements': '暂无已生成的月度结算',
+  'agentTeam.personalShare': '个人分成',
   'agentTeam.poolStatus': '奖池 ${pool} · {status}',
   'agentTeam.allocationLine': '贡献 ${contribution} · {ratio}% · 奖励 ${reward} · {status}',
   'agentTeam.status.pending': '待结算',
@@ -217,5 +218,33 @@ describe('AgentTeamView competitive layout', () => {
     expect(wrapper.text()).toContain('发放中')
     expect(wrapper.text()).toContain('已到账')
     expect(wrapper.find('.reward-celebration-overlay').text()).toContain('$14.16')
+  })
+
+  it('renders only the current user settlement allocation from the privacy-safe DTO', async () => {
+    getTeamSettlementsMock.mockResolvedValueOnce([
+      {
+        settlement_id: 7,
+        team_id: 1,
+        team_name: '星火小队',
+        settlement_month: '2026-07',
+        team_spend: '885.20000000',
+        pool_amount: '70.82000000',
+        settlement_status: 'completed',
+        personal_contribution: '178.90000000',
+        personal_ratio: '0.20000000',
+        personal_reward: '14.16000000',
+        payout_status: 'paid',
+        paid_at: '2026-08-02T03:00:00Z',
+      },
+    ])
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('2026-07')
+    expect(wrapper.text()).toContain('已到账')
+    expect(wrapper.text()).toContain('14.16')
+    expect(wrapper.text()).not.toContain('QuoRem · 贡献')
+    expect(wrapper.html()).not.toContain('email')
   })
 })
