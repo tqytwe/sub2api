@@ -22,6 +22,28 @@ export interface FetchOptions {
   signal?: AbortSignal
 }
 
+export type SupportContactType = 'wechat' | 'qq' | 'telegram' | 'email' | 'docs' | 'custom'
+
+export interface SupportContactMethod {
+  id: string
+  type: SupportContactType | string
+  label: string
+  value: string
+  copy_value: string
+  url: string
+  qr_image: string
+  description: string
+  primary: boolean
+  enabled: boolean
+  sort_order: number
+}
+
+export interface SupportContactConfig {
+  title: string
+  subtitle: string
+  contacts: SupportContactMethod[]
+}
+
 // ==================== Notification Types ====================
 
 /** Notification email entry with enable/disable and verification state.
@@ -208,6 +230,7 @@ export interface PublicSettings {
   api_base_url: string
   contact_info: string
   doc_url: string
+  support_contact?: SupportContactConfig
   home_content: string
   hide_ccs_import_button: boolean
   payment_enabled: boolean

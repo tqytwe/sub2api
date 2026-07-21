@@ -123,7 +123,11 @@
 
           <!-- Dropdown Menu -->
           <transition name="dropdown">
-            <div v-if="dropdownOpen" class="dropdown right-0 mt-2 w-56">
+            <div
+              v-if="dropdownOpen"
+              class="dropdown right-0 mt-2"
+              :class="hasSupportContact ? 'w-80' : 'w-56'"
+            >
               <!-- User Info -->
               <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700">
                 <div class="text-sm font-medium text-gray-900 dark:text-white">
@@ -176,29 +180,20 @@
 
               </div>
 
-              <!-- Contact Support (only show if configured) -->
-              <div
-                v-if="contactInfo"
-                class="border-t border-gray-100 px-4 py-2.5 dark:border-dark-700"
-              >
-                <div class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                  <svg
-                    class="h-3.5 w-3.5 flex-shrink-0"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    stroke-width="1.5"
-                  >
-                    <path
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                      d="M20.25 8.511c.884.284 1.5 1.128 1.5 2.097v4.286c0 1.136-.847 2.1-1.98 2.193-.34.027-.68.052-1.02.072v3.091l-3-3c-1.354 0-2.694-.055-4.02-.163a2.115 2.115 0 01-.825-.242m9.345-8.334a2.126 2.126 0 00-.476-.095 48.64 48.64 0 00-8.048 0c-1.131.094-1.976 1.057-1.976 2.192v4.286c0 .837.46 1.58 1.155 1.951m9.345-8.334V6.637c0-1.621-1.152-3.026-2.76-3.235A48.455 48.455 0 0011.25 3c-2.115 0-4.198.137-6.24.402-1.608.209-2.76 1.614-2.76 3.235v6.226c0 1.621 1.152 3.026 2.76 3.235.577.075 1.157.14 1.74.194V21l4.155-4.155"
-                    />
-                  </svg>
-                  <span>{{ t('common.contactSupport') }}:</span>
-                  <span class="font-medium text-gray-700 dark:text-gray-300">{{
-                    contactInfo
-                  }}</span>
+              <div v-if="hasSupportContact" class="border-t border-gray-100 py-1 dark:border-dark-700">
+                <button type="button" class="dropdown-item w-full justify-between" @click="toggleSupportPanel">
+                  <span class="flex items-center gap-2">
+                    <Icon name="chat" size="sm" />
+                    {{ t('common.contactSupport') }}
+                  </span>
+                  <Icon :name="supportPanelExpanded ? 'chevronUp' : 'chevronDown'" size="xs" />
+                </button>
+                <div v-if="supportPanelExpanded" class="px-3 pb-3 pt-2">
+                  <SupportContactPanel
+                    :config="appStore.supportContact"
+                    compact
+                    :show-header="false"
+                  />
                 </div>
               </div>
 
@@ -252,8 +247,10 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import ThemeSwitcher from '@/components/common/ThemeSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
+import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
+import { enabledSupportContacts } from '@/utils/supportContact'
 
 const router = useRouter()
 const route = useRoute()
@@ -265,9 +262,10 @@ const onboardingStore = useOnboardingStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
+const supportPanelExpanded = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
-const contactInfo = computed(() => appStore.contactInfo)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
+const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
 const avatarUrl = computed(() => user.value?.avatar_url?.trim() || '')
 const availableBalance = computed(() => Number(user.value?.balance || 0))
 const frozenBalance = computed(() => Number(user.value?.frozen_balance || 0))
@@ -276,6 +274,7 @@ const balanceAvailableText = computed(() => t('common.availableBalance') === 'co
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
+let lastSupportRefreshAt = 0
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -338,10 +337,28 @@ function toggleMobileSidebar() {
 
 function toggleDropdown() {
   dropdownOpen.value = !dropdownOpen.value
+  if (!dropdownOpen.value) {
+    supportPanelExpanded.value = false
+  }
 }
 
 function closeDropdown() {
   dropdownOpen.value = false
+  supportPanelExpanded.value = false
+}
+
+function refreshSupportContactIfNeeded() {
+  const now = Date.now()
+  if (now - lastSupportRefreshAt < 30_000) return
+  lastSupportRefreshAt = now
+  void appStore.fetchPublicSettings(true)
+}
+
+function toggleSupportPanel() {
+  supportPanelExpanded.value = !supportPanelExpanded.value
+  if (supportPanelExpanded.value) {
+    refreshSupportContactIfNeeded()
+  }
 }
 
 async function handleLogout() {

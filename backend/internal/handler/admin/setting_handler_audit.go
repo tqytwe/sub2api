@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"log/slog"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -292,6 +293,9 @@ func diffSettings(before *service.SystemSettings, after *service.SystemSettings,
 	}
 	if before.DocURL != after.DocURL {
 		changed = append(changed, "doc_url")
+	}
+	if req.SupportContact != nil && supportContactChanged(before.SupportContact, after.SupportContact) {
+		changed = append(changed, "support_contact_config")
 	}
 	if before.HomeContent != after.HomeContent {
 		changed = append(changed, "home_content")
@@ -797,4 +801,13 @@ func stringSetting(value *string, fallback string) string {
 		return fallback
 	}
 	return *value
+}
+
+func supportContactChanged(before, after service.SupportContactConfig) bool {
+	beforeJSON, beforeErr := json.Marshal(before)
+	afterJSON, afterErr := json.Marshal(after)
+	if beforeErr != nil || afterErr != nil {
+		return beforeErr != afterErr
+	}
+	return string(beforeJSON) != string(afterJSON)
 }

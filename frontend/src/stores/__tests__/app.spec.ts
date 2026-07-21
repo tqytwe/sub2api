@@ -3,6 +3,7 @@ import { setActivePinia, createPinia } from 'pinia'
 import { useAppStore } from '@/stores/app'
 import { getPublicSettings } from '@/api/auth'
 import type { PublicSettings } from '@/types'
+import { emptySupportContactConfig } from '@/utils/supportContact'
 
 function createDeferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void
@@ -32,6 +33,7 @@ function createPublicSettings(overrides: Partial<PublicSettings> = {}): PublicSe
     api_base_url: '',
     contact_info: '',
     doc_url: '',
+    support_contact: emptySupportContactConfig(),
     home_content: '',
     hide_ccs_import_button: false,
     payment_enabled: false,

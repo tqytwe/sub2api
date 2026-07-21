@@ -73,6 +73,7 @@ func TestSettingHandler_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t 
 	h.GetPublicSettings(c)
 
 	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
 
 	var resp struct {
 		Code int `json:"code"`

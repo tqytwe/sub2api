@@ -132,9 +132,9 @@
 
 .support-panel {
   position: relative;
-  width: 288px;
-  padding: 22px 22px 20px;
-  border-radius: 18px;
+  width: min(420px, calc(100vw - 32px));
+  padding: 16px;
+  border-radius: 14px;
   border: 1px solid var(--line);
   background: var(--bg);
   box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.28);
@@ -152,6 +152,8 @@
   border: 1px solid transparent;
   background: transparent;
   color: var(--ink-3);
+  font-size: 18px;
+  line-height: 1;
   cursor: pointer;
   transition: color 0.16s ease, background 0.16s ease;
 }

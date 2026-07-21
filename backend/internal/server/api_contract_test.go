@@ -794,6 +794,14 @@ func TestAPIContracts(t *testing.T) {
 					"forwarded_client_ip_headers": [],
 					"contact_info": "support",
 					"doc_url": "https://docs.example.com",
+					"support_contact": {
+						"title": "联系客服",
+						"subtitle": "登录、注册、充值、API 或模型调用问题都可以联系人工客服",
+						"contacts": [
+							{"id":"legacy-contact","type":"custom","label":"客服联系方式","value":"support","copy_value":"support","url":"","qr_image":"","description":"","primary":false,"enabled":true,"sort_order":1},
+							{"id":"legacy-docs","type":"docs","label":"文档链接","value":"https://docs.example.com","copy_value":"","url":"https://docs.example.com","qr_image":"","description":"","primary":false,"enabled":true,"sort_order":2}
+						]
+					},
 					"auth_source_default_email_balance": 0,
 					"auth_source_default_email_concurrency": 5,
 					"auth_source_default_email_subscriptions": [],
@@ -1114,6 +1122,11 @@ func TestAPIContracts(t *testing.T) {
 					"forwarded_client_ip_headers": [],
 					"contact_info": "",
 					"doc_url": "",
+					"support_contact": {
+						"title": "联系客服",
+						"subtitle": "登录、注册、充值、API 或模型调用问题都可以联系人工客服",
+						"contacts": []
+					},
 					"home_content": "",
 					"hide_ccs_import_button": false,
 					"purchase_subscription_enabled": false,

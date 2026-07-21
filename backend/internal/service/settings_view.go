@@ -137,6 +137,8 @@ type SystemSettings struct {
 	APIBaseURL                  string
 	ContactInfo                 string
 	DocURL                      string
+	SupportContact              SupportContactConfig
+	SupportContactProvided      bool
 	HomeContent                 string
 	HideCcsImportButton         bool
 	PurchaseSubscriptionEnabled bool
@@ -308,6 +310,7 @@ type PublicSettings struct {
 	APIBaseURL                       string
 	ContactInfo                      string
 	DocURL                           string
+	SupportContact                   SupportContactConfig
 	HomeContent                      string
 	HideCcsImportButton              bool
 
