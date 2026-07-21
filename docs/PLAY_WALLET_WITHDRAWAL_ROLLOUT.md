@@ -2,10 +2,12 @@
 
 > 状态：active
 > 当前阶段：阶段五 / CP5
-> 当前结论：CP1、CP2、CP3、CP4 已通过用户本地验收；CP5 提现权限、申请、审核与线下打款代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
+> 当前结论：CP1、CP2、CP3、CP4 已通过用户本地验收；CP5 提现权限、申请、审核与线下打款，以及资金管理、充值退回、赠送分类补充代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
 > CP5 基线：`origin/play/main@3da334ddcacb10bae2a64a4a707381c57697837b`
 > CP5 功能分支：`feat/play-withdrawals-cp5-20260721`
 > 工作树：`/home/dell/worktrees/sub2api-play-withdrawals-cp5-20260721`
+> CP5 资金管理补充基线：`origin/play/main@90e7d6d56e444d2ed6419e792a1522d2bb1ff283`
+> CP5 资金管理补充 PR：#104 / merge commit `881205f49e88f33981aa6939d2e42057aeb20e22`
 > 最后更新：2026-07-21
 
 本文档只记录已经取得证据的状态。允许状态仅为：
@@ -20,10 +22,10 @@
 | 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
 | 阶段三：代币农场最近发放与当前预估 / CP3 | 已通过 | 代码、PR/CI、合并、部署证明、用户本地验收均已通过；进入 CP4 前已补默认进入日榜 hotfix |
 | 阶段四：可提现权益账务基础 / CP4 | 已通过 | 代码、审查、服务器验证、PR/CI、合并、部署证明和用户本地浏览器验收均已通过；提现总开关保持关闭 |
-| 阶段五：提现权限、申请、审核与线下打款 / CP5 | 等待本地验收 | 代码、审查、服务器验证、PR/CI、合并和部署证明已通过；等待用户本地浏览器验收，提现总开关仍默认关闭 |
-| CP6：服务器验证 | 已通过 | CP1-CP5 本地定向测试、完整 `make test`、`GOFLAGS=-buildvcs=false make build`、fork integrity 和 `git diff --check` 均已通过 |
-| CP7：审查与合并 | 已通过 | CP1 PR #82、CP2 PR #83、CP3 PR #87、默认日榜 hotfix PR #92、CP4 PR #94、CP5 PR #96 均已全绿并以非 rebase merge 合入 |
-| CP8：部署证明 | 已通过 | CP1-CP5 均已完成 live 健康、API 保护和前端资产 proof；CP5 merge commit `00968312a3b842ac11966a9c9fba85c52dcbeb3c` 的 Zeabur 检查成功 |
+| 阶段五：提现权限、申请、审核与线下打款 / CP5 | 等待本地验收 | 代码、审查、服务器验证、PR/CI、合并和部署证明已通过；资金管理、充值退回与赠送分类补充也已部署；等待用户本地浏览器验收，提现总开关仍默认关闭 |
+| CP6：服务器验证 | 已通过 | CP1-CP5 本地定向测试、完整 `make test`、`GOFLAGS=-buildvcs=false make build`、fork integrity、`go test -tags=unit ./...` 和 `git diff --check` 均已通过 |
+| CP7：审查与合并 | 已通过 | CP1 PR #82、CP2 PR #83、CP3 PR #87、默认日榜 hotfix PR #92、CP4 PR #94、CP5 PR #96 和 CP5 资金管理补充 PR #104 均已全绿并以非 rebase merge 合入 |
+| CP8：部署证明 | 已通过 | CP1-CP5 均已完成 live 健康、API 保护和前端资产 proof；CP5 merge commit `00968312a3b842ac11966a9c9fba85c52dcbeb3c` 与资金管理补充 merge commit `881205f49e88f33981aa6939d2e42057aeb20e22` 的 Zeabur 检查成功 |
 | CP9：最终本地浏览器验收 | 等待本地验收 | CP1、CP2、CP3、CP4 已通过；CP5 等待用户本地浏览器验收 |
 
 ## CP1 管理员手动修复战队成员
@@ -678,3 +680,91 @@ git diff --check
 - merge commit checks：Zeabur、backend-security、frontend-security 均 success。
 - 生产前端资源：`index-DS6mjZ16.js`、`AdminWithdrawalsView-CbNuKKTf.js`、`WalletView-_NUtp3SO.js`、`zh-BX8JNAEW.js`、`en-BHi7F07V.js`
 - 生产 live proof：`/health` 返回 200 `{"status":"ok"}`；新增用户和管理员提现 API 未登录返回 401；上述 CP5 资产均返回 200。
+
+## CP5 补充：资金管理、充值退回与赠送分类
+
+### 检查点状态
+
+| 节点 | 状态 | 证据或剩余工作 |
+|---|---|---|
+| 需求对照检查点 | 已通过 | 奖励提现继续在 `/admin/withdrawals`；真实线上/线下充值的未消费余额走 `/wallet` 充值退回和 `/admin/funds` 管理；赠送、首 30、兑换码赠送默认不可提现也不可退 |
+| RED 失败测试检查点 | 已通过 | 新增资金退回、赠送、首 30 分类、钱包展示、管理员资金管理路由和双语测试后，基线缺少 `balance_fund_batches`、`fund_refund_requests`、管理员资金页和用户充值退回入口 |
+| GREEN 实现检查点 | 已通过 | 新增迁移 213、资金批次 service、用户充值退回 API、管理员资金管理 API、`/admin/funds` 页面、钱包“可退充值/赠送余额/退回冻结”展示和中英文资源 |
+| 规格审查 | 已通过 | 已确认充值退回与奖励提现分离，真实充值可退未消费整数部分，赠送不可退；历史首 30 分类必须通过页面/API preview/execute，不直接改数据库 |
+| 代码质量审查 | 已通过 | 补修余额流水 source 映射使用 `balance_fund_batches.source_kind`；分类执行锁源流水并使用 `ON CONFLICT DO NOTHING`，避免重复/并发写 allocation |
+| 完整验证 | 已通过 | `make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh`、`go test -tags=unit ./...`、`govulncheck ./...` 和 `git diff --check` 全部通过 |
+| PR / GitHub CI | 已通过 | PR #104 四项检查全绿：Protected behavior、Documentation、backend-security、frontend-security；以 merge commit、非 rebase 合入 `play/main` |
+| 部署核对 | 已通过 | `origin/play/main@881205f49e88f33981aa6939d2e42057aeb20e22` 已上线；Zeabur、前后端安全检查通过；健康、API 保护、前端入口、资金/钱包/提现 chunk 和中英文资源均已核对 |
+| 本地浏览器验收 | 等待本地验收 | 等待用户本地浏览器覆盖中文/英文、浅色/深色、用户充值退回申请、管理员资金退回审核/赠送/首 30 分类、提现管理仍独立和窄屏不溢出 |
+
+### 基线与变更范围
+
+- 基线 commit：`90e7d6d56e444d2ed6419e792a1522d2bb1ff283`
+- 后端：新增 `balance_fund_batches`、`balance_fund_allocations`、`fund_refund_requests`、用户资金退回 API 与管理员资金管理 API；资金批次从统一 `balance_transactions` 派生，不暴露内部 metadata。
+- 前端：用户 `/wallet` 增加充值退回表单、退回历史、可退充值、赠送余额、退回冻结；管理员新增 `/admin/funds/refunds`、`/admin/funds/grants`、`/admin/funds/classification`；侧边栏分离“资金管理”和“奖励提现”。
+- 双语：所有新状态、来源、错误码、按钮、表单校验、空状态和成功提示均加入中文与英文；中文环境不得显示英文 fallback。
+- 安全：管理员资金敏感操作要求 JWT 管理员 TOTP step-up，管理员 API Key 禁止；敏感请求体不进入通用审计。
+
+### 验证记录
+
+```text
+go test ./internal/service -run 'TestWallet|TestFreezeFundRefundBatch' -count=1
+结果：通过。
+
+go test ./internal/server/middleware ./internal/service ./internal/handler ./internal/handler/admin ./internal/server/routes -run 'TestWallet|TestBalanceLedger|TestWithdrawable|TestUserWalletRoutesContract|TestAdminFundRoutesContract|TestAdminWithdrawalRoutesContract|TestFreezeFundRefundBatch|TestFundManagement|TestEnforceStepUp|TestFundManagementAudit'
+结果：通过。
+
+pnpm -C frontend exec vitest run src/api/__tests__/admin.funds.spec.ts src/router/__tests__/fundManagementRouting.spec.ts src/router/__tests__/withdrawalRouting.spec.ts src/api/__tests__/wallet.withdrawals.spec.ts src/views/user/__tests__/WalletView.spec.ts
+结果：通过。
+
+govulncheck ./...
+结果：通过；`golang.org/x/text` 已升级到修复 GO-2026-5970 的版本，0 个可达漏洞。
+
+make test
+结果：通过；后端测试、golangci-lint、前端 ESLint、vue-tsc 和 Vitest 全部通过；Vitest 为 244 个文件、1600 项测试。
+
+GOFLAGS=-buildvcs=false make build
+结果：通过；后端 server 构建成功，前端 production build 成功。
+
+./scripts/check-fork-integrity.sh
+结果：通过；新增迁移 213 已加入 fork 保护。
+
+go test -tags=unit ./...
+结果：通过；补充覆盖 `TestRefundBalanceLedgerWritesDeductAndRollbackTransactions` 的资金批次扣回/恢复查询。
+
+git diff --check
+结果：通过。
+```
+
+### 数据库 / API 对账
+
+- 状态：已通过（本地自动化 + live API 保护范围）
+- 迁移测试确认资金批次、allocation 和资金退回请求表可创建，并与统一余额流水关联。
+- 账务测试确认消费按资金批次扣减，退回冻结不混用图片任务 `frozen_balance`，取消/拒绝/打款按原批次恢复或完成。
+- 生产 `GET /api/v1/user/wallet/summary`、`GET /api/v1/user/wallet/refund-requests` 未登录返回 `401 UNAUTHORIZED`。
+- 生产 `GET /api/v1/admin/funds/refund-requests`、`GET /api/v1/admin/funds/classifications/signup-gift-30/preview` 未登录返回 `401 UNAUTHORIZED`。
+- 当前环境无生产 `DATABASE_URL`，未执行生产直连 DB invariant；线上证明以 Zeabur 成功、健康接口、受保护 API 路由和前端资产为准。
+
+### 中文与英文检查
+
+- 状态：已通过（本地自动化 + 生产资产范围）
+- 生产 `zh-DW50GWe6.js` 包含“充值退回、资金管理、可退充值、赠送余额、退回冻结、任务预留”等新增概念。
+- 生产 `en-cT18kv8j.js` 包含 `Recharge return`、`Fund Management`、`Refundable recharge`、`Gift balance`、`Refund frozen`、`Task reserve` 等对应概念。
+- 生产 `index-BLoQb2Zh.js` 已引用 `AdminFundsView-Cg9yQ_Jl.js`、`WalletView-DN0k1fyR.js`、`AdminWithdrawalsView-BDZRmrNn.js`。
+
+### 剩余风险
+
+- 用户本地浏览器验收尚未完成，CP5 状态只能写“代码和部署已完成，等待本地浏览器验收”。
+- 需要用户用真实管理员账号在页面里检查首 30 分类 preview/execute、赠送、充值退回审核、提现管理分离和窄屏文字不溢出。
+- 当前未保存或使用生产管理员凭据，因此没有在生产执行真实资金退回、赠送或分类写入。
+
+### 交付 commit
+
+- 实现 commit：`b3b80736abf8231b39ca17bfc54ab6644c0a4ee2`
+- 依赖安全修复 commit：`ba5a0e99e5617cc0d90558b2c497df8aad290363`
+- Unit 测试修复 commit：`53589e768553800ec46edc2c4d8ae41bdd64ad57`
+- PR：#104
+- 合并 commit：`881205f49e88f33981aa6939d2e42057aeb20e22`
+- Zeabur deployment：`6a5fefcee9e39c7397908738`，状态 `success`
+- 生产前端资源：`index-BLoQb2Zh.js`、`AdminFundsView-Cg9yQ_Jl.js`、`WalletView-DN0k1fyR.js`、`AdminWithdrawalsView-BDZRmrNn.js`、`zh-DW50GWe6.js`、`en-cT18kv8j.js`
+- 生产 live proof：`/health` 返回 200 `{"status":"ok"}`；`/wallet`、`/admin/funds`、`/admin/withdrawals` 返回 200 HTML；新增用户和管理员资金 API 未登录返回 401；上述资产均返回 200。
