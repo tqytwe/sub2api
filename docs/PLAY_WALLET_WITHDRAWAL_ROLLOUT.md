@@ -2,7 +2,7 @@
 
 > 状态：active
 > 当前阶段：阶段四 / CP4
-> 当前结论：CP1、CP2、CP3 已通过用户本地验收；CP3 后续日榜默认入口 hotfix 已合入并完成部署证明；CP4 可提现权益账务基础本地代码、审查和服务器验证已通过，等待 PR/CI、部署证明和本地浏览器验收。
+> 当前结论：CP1、CP2、CP3 已通过用户本地验收；CP3 后续日榜默认入口 hotfix 已合入并完成部署证明；CP4 可提现权益账务基础代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
 > CP4 基线：`origin/play/main@725916689571325cef5ccacb2e8ddc7c4961de07`
 > CP4 功能分支：`feat/play-withdrawable-ledger-cp4-20260721`
 > 工作树：`/home/dell/worktrees/sub2api-play-withdrawable-cp4-20260721`
@@ -19,12 +19,12 @@
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
 | 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
 | 阶段三：代币农场最近发放与当前预估 / CP3 | 已通过 | 代码、PR/CI、合并、部署证明、用户本地验收均已通过；进入 CP4 前已补默认进入日榜 hotfix |
-| 阶段四：可提现权益账务基础 / CP4 | 进行中 | 本地代码、审查和服务器验证已通过；等待 PR/CI、部署证明和本地浏览器验收，提现总开关仍保持关闭，未进入 CP5 |
+| 阶段四：可提现权益账务基础 / CP4 | 等待本地验收 | 代码、审查、服务器验证、PR/CI、合并和部署证明已通过；等待用户本地浏览器验收，提现总开关仍保持关闭，未进入 CP5 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
-| CP6：服务器验证 | 进行中 | CP1、CP2、CP3 已通过；CP4 本地完整验证已通过，待 PR 后由 GitHub CI 复核；CP5 未开始 |
-| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已通过；CP3 PR #87 与默认日榜 hotfix PR #92 已合入；CP4 待提交 PR |
-| CP8：部署证明 | 进行中 | CP1、CP2、CP3 已通过；默认日榜 hotfix deployment `6a5f4bbbe9e39c7397906c09` 已成功；CP4 未部署 |
-| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2、CP3 已通过；CP4-CP5 未开始本地浏览器验收 |
+| CP6：服务器验证 | 进行中 | CP1、CP2、CP3 已通过；CP4 本地完整验证和 GitHub CI 均已通过；CP5 未开始 |
+| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已通过；CP3 PR #87 与默认日榜 hotfix PR #92 已合入；CP4 PR #94 已全绿并以 merge commit 合入 |
+| CP8：部署证明 | 进行中 | CP1、CP2、CP3 已通过；默认日榜 hotfix deployment `6a5f4bbbe9e39c7397906c09` 已成功；CP4 live 健康、API 保护和前端资产 proof 已通过 |
+| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2、CP3 已通过；CP4 等待用户本地浏览器验收；CP5 未开始 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -464,9 +464,9 @@ git diff --check
 | 规格审查 | 已通过 | 已逐项审查权益来源白名单、消费 FIFO、退款恢复原 allocation、72 小时成熟、图片冻结隔离和重算策略；未发现需要进入 CP5 的内容 |
 | 代码质量审查 | 已通过 | 已审查 SQL 事务顺序、decimal 精度、错误边界和前端双语；补修纯可提现变更缓存失效与负余额重算显示边界 |
 | 完整验证 | 已通过 | targeted、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部退出码 0 |
-| PR / GitHub CI | 未开始 | CP4 仍在本地实现分支 |
-| 部署核对 | 未开始 | CP4 未部署 |
-| 本地浏览器验收 | 未开始 | CP4 未到本地浏览器验收门 |
+| PR / GitHub CI | 已通过 | PR #94 四项 GitHub checks 全绿：backend-security、frontend-security、Documentation、Protected behavior；以 merge commit、非 rebase 合入 `play/main` |
+| 部署核对 | 已通过 | `origin/play/main@1cb415ca5b849c1a11d24fc93fc5229931b0f2e0` 已上线；健康、钱包 API 保护、前端入口、钱包 chunk 和中英文资源均已核对 |
+| 本地浏览器验收 | 等待本地验收 | 等待用户本地浏览器检查普通用户钱包中文/英文、浅色/深色、可提现/待解冻/提现冻结/任务预留展示 |
 
 ### 基线与计划变更范围
 
@@ -522,18 +522,20 @@ git diff --check
 
 ### 数据库 / API 对账
 
-- 状态：已通过（本地自动化范围）
+- 状态：已通过（本地自动化 + live API 保护范围）
 - 迁移测试确认 `users`、`balance_transactions`、`withdrawable_entitlements`、`withdrawable_entitlement_allocations` 和 `withdrawable_recalculation_runs` 字段与约束可创建。
 - 账本测试确认返利转余额立即可提，农场日榜/月榜和 Agent Team 共享奖励 72 小时后可提，签到、答题、盲盒、充值、赠送和未知来源默认不生成可提现权益。
 - 消费测试确认先扣不可提现余额，不足部分按 `available_at,id` FIFO 消耗权益批次。
 - 回滚测试确认 refund/release 通过原始 ledger key 恢复原交易实际消耗的权益批次。
 - 不变量测试确认权益不超过余额、批次汇总一致、提现冻结汇总一致、图片来源不会写 `withdrawal_frozen_delta`。
+- 生产 `GET /api/v1/user/wallet/summary` 未登录返回 `401` 和稳定错误码 `UNAUTHORIZED`，证明路由存在且受认证保护；当前环境无生产 `DATABASE_URL`，未执行生产 DB invariant。
 
 ### 中文与英文检查
 
-- 状态：已通过（本地自动化范围）
+- 状态：已通过（本地自动化 + 生产资产范围）
 - 钱包新增概念 `可提现 / 待解冻 / 提现冻结 / 任务预留` 与英文 `Withdrawable / Pending Thaw / Withdrawal Frozen / Task Reserved` 已加入 `zh.ts` 和 `en.ts`。
 - 钱包组件测试覆盖中文标签渲染；locale 编译测试通过。
+- 生产资产 `WalletView-DvrqYkEx.js` 包含 `withdrawable_balance`、`pending_withdrawable_balance`、`withdrawal_frozen_balance`、`task_reserved_balance`；`zh-D8MW4Uzr.js` 和 `en-_FFos_rT.js` 均包含新增钱包概念。
 - CP4 未新增提现申请、审核、收款账户或管理员提现页文案，避免提前进入 CP5。
 
 ### 审查发现与修复
@@ -546,11 +548,15 @@ git diff --check
 
 ### 剩余风险
 
-- CP4 尚未提交 PR、未跑 GitHub CI、未部署到 production。
-- 生产数据库 dry-run / invariant 需要在 CP4 部署后用生产 `DATABASE_URL` 执行；当前服务器环境仍不在文档中保存凭据。
+- 用户本地浏览器验收尚未完成，CP4 状态只能写“代码和部署已完成，等待本地浏览器验收”。
+- 生产数据库 dry-run / invariant 仍需要具备生产 `DATABASE_URL` 的环境执行；当前服务器环境没有该变量，且文档不保存凭据。
 - 提现申请、审核、收款账户加密、单审/双审和线下打款均属于 CP5，当前未实现，提现总开关保持关闭。
 
 ### 交付 commit
 
 - 本地实现 commit：`611569fb4`
-- PR / 合并 commit：待 CP7 回填。
+- 文档回填 commit：`3417fb329`
+- PR：#94
+- 合并 commit：`1cb415ca5b849c1a11d24fc93fc5229931b0f2e0`
+- 生产前端资源：`index-BlY4jKv4.js`、`WalletView-DvrqYkEx.js`、`zh-D8MW4Uzr.js`、`en-_FFos_rT.js`
+- 生产 live proof：`/health` 返回 200 `{"status":"ok"}`；`/api/v1/user/wallet/summary` 未登录返回 401 `UNAUTHORIZED`；上述 CP4 资产均返回 200。
