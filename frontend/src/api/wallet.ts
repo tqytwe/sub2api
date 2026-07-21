@@ -17,6 +17,7 @@ export type WalletSource =
   | 'promotion'
   | 'subscription'
   | 'withdrawal'
+  | 'gift'
   | 'other'
 
 export type WalletDirection = 'credit' | 'debit' | 'neutral'
@@ -25,6 +26,14 @@ export interface WalletSummary {
   available_balance: string
   withdrawable_balance: string
   pending_withdrawable_balance: string
+  refundable_recharge_balance: string
+  online_recharge_balance: string
+  offline_recharge_balance: string
+  gift_balance: string
+  signup_gift_balance: string
+  ops_gift_balance: string
+  refund_frozen_balance: string
+  unclassified_balance: string
   withdrawal_frozen_balance: string
   task_reserved_balance: string
   total_credits: string
@@ -173,6 +182,60 @@ export interface WithdrawalRequestQuery {
   page_size?: number
 }
 
+export type FundRefundType = 'online_recharge_refund' | 'offline_recharge_refund'
+export type FundRefundStatus = 'pending_review' | 'payout_pending' | 'paid' | 'rejected' | 'canceled'
+
+export interface FundRefundRequest {
+  id: number
+  request_no: string
+  user_id?: number
+  user_email?: string
+  request_type: FundRefundType
+  amount: string
+  currency: string
+  status: FundRefundStatus
+  reason?: string
+  admin_note?: string
+  payout_method?: WithdrawalPayoutMethod | string
+  payout_currency?: WithdrawalCurrency | string
+  payout_account_mask?: string
+  payout_recipient_name_mask?: string
+  approved_by?: number
+  approved_at?: string
+  rejected_by?: number
+  rejected_at?: string
+  rejected_reason?: string
+  canceled_at?: string
+  paid_by?: number
+  paid_at?: string
+  paid_amount?: string
+  paid_currency?: string
+  payout_fx_rate?: string
+  external_txn_id?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface FundRefundRequestPage {
+  items: FundRefundRequest[]
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export interface FundRefundRequestQuery {
+  status?: FundRefundStatus | 'all'
+  page?: number
+  page_size?: number
+}
+
+export interface FundRefundCreateInput {
+  request_type: FundRefundType
+  amount: string
+  reason?: string
+}
+
 export interface WithdrawalCreateInput {
   amount: string
 }
@@ -221,5 +284,29 @@ export async function createWithdrawal(input: WithdrawalCreateInput): Promise<Wi
 export async function cancelWithdrawal(id: number, note?: string): Promise<WithdrawalRequest> {
   const path = `/user/wallet/withdrawals/${id}/cancel`
   const { data } = note ? await apiClient.post<WithdrawalRequest>(path, { note }) : await apiClient.post<WithdrawalRequest>(path)
+  return data
+}
+
+export async function getFundRefundRequests(query: FundRefundRequestQuery = {}): Promise<FundRefundRequestPage> {
+  const { data } = await apiClient.get<FundRefundRequestPage>('/user/wallet/refund-requests', { params: query })
+  return data
+}
+
+export async function getFundRefundRequest(id: number): Promise<FundRefundRequest> {
+  const { data } = await apiClient.get<FundRefundRequest>(`/user/wallet/refund-requests/${id}`)
+  return data
+}
+
+export async function createFundRefundRequest(input: FundRefundCreateInput): Promise<FundRefundRequest> {
+  const { data } = await apiClient.post<FundRefundRequest>('/user/wallet/refund-requests', {
+    ...input,
+    amount: normalizeWithdrawalWholeAmount(input.amount),
+  })
+  return data
+}
+
+export async function cancelFundRefundRequest(id: number, note?: string): Promise<FundRefundRequest> {
+  const path = `/user/wallet/refund-requests/${id}/cancel`
+  const { data } = note ? await apiClient.post<FundRefundRequest>(path, { note }) : await apiClient.post<FundRefundRequest>(path)
   return data
 }

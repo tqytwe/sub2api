@@ -13,6 +13,9 @@ const {
   updateWithdrawalAccountMock,
   createWithdrawalMock,
   cancelWithdrawalMock,
+  getFundRefundRequestsMock,
+  createFundRefundRequestMock,
+  cancelFundRefundRequestMock,
 } = vi.hoisted(() => ({
   getWalletSummaryMock: vi.fn(),
   getWalletTransactionsMock: vi.fn(),
@@ -23,6 +26,9 @@ const {
   updateWithdrawalAccountMock: vi.fn(),
   createWithdrawalMock: vi.fn(),
   cancelWithdrawalMock: vi.fn(),
+  getFundRefundRequestsMock: vi.fn(),
+  createFundRefundRequestMock: vi.fn(),
+  cancelFundRefundRequestMock: vi.fn(),
 }))
 
 vi.mock('@/api/wallet', () => ({
@@ -35,6 +41,10 @@ vi.mock('@/api/wallet', () => ({
   updateWithdrawalAccount: (...args: unknown[]) => updateWithdrawalAccountMock(...args),
   createWithdrawal: (...args: unknown[]) => createWithdrawalMock(...args),
   cancelWithdrawal: (...args: unknown[]) => cancelWithdrawalMock(...args),
+  getFundRefundRequests: (...args: unknown[]) => getFundRefundRequestsMock(...args),
+  createFundRefundRequest: (...args: unknown[]) => createFundRefundRequestMock(...args),
+  cancelFundRefundRequest: (...args: unknown[]) => cancelFundRefundRequestMock(...args),
+  normalizeWithdrawalWholeAmount: (value: string) => value.trim().replace(/\.0+$/, ''),
 }))
 
 const messages: Record<string, string> = {
@@ -42,8 +52,11 @@ const messages: Record<string, string> = {
   'wallet.description': '查看余额、任务预留和统一流水。',
   'wallet.available': '可用余额',
   'wallet.withdrawable': '可提现',
+  'wallet.refundableRecharge': '可退充值',
+  'wallet.giftBalance': '赠送余额',
   'wallet.pendingWithdrawable': '待解冻',
   'wallet.withdrawalFrozen': '提现冻结',
+  'wallet.refundFrozen': '退回冻结',
   'wallet.taskReserved': '任务预留',
   'wallet.totalCredits': '累计入账',
   'wallet.totalDebits': '累计扣减',
@@ -78,6 +91,43 @@ const messages: Record<string, string> = {
   'wallet.table.taskReservedChange': '任务预留变动',
   'wallet.table.withdrawalFrozenChange': '提现冻结变动',
   'wallet.table.withdrawableChange': '可提现变动',
+  'wallet.summaryHints.withdrawable': '仅包含奖励类可提现权益',
+  'wallet.summaryHints.refundableRecharge': '真实充值未消费部分可申请退回',
+  'wallet.summaryHints.giftBalance': '赠送余额可消费，默认不可提现或退回',
+  'wallet.refunds.title': '充值退回',
+  'wallet.refunds.description': '真实充值和线下充值的未消费部分可从这里申请退回。',
+  'wallet.refunds.availableTitle': '可退金额',
+  'wallet.refunds.onlineRecharge': '在线充值',
+  'wallet.refunds.offlineRecharge': '线下充值',
+  'wallet.refunds.frozen': '退回冻结',
+  'wallet.refunds.newRequest': '新建退回申请',
+  'wallet.refunds.type': '退回类型',
+  'wallet.refunds.types.online_recharge_refund': '在线充值退回',
+  'wallet.refunds.types.offline_recharge_refund': '线下充值退回',
+  'wallet.refunds.amount': '退回金额',
+  'wallet.refunds.reason': '退回原因',
+  'wallet.refunds.reasonPlaceholder': '请说明退回原因',
+  'wallet.refunds.submit': '提交退回申请',
+  'wallet.refunds.submitting': '提交中...',
+  'wallet.refunds.history': '退回记录',
+  'wallet.refunds.requestCount': '共 {count} 笔退回申请',
+  'wallet.refunds.empty': '暂无退回申请',
+  'wallet.refunds.paidAt': '打款时间',
+  'wallet.refunds.cancel': '取消申请',
+  'wallet.refunds.canceling': '取消中...',
+  'wallet.refunds.statusLabel': '退回状态',
+  'wallet.refunds.status.pending_review': '待审核',
+  'wallet.refunds.status.payout_pending': '待线下打款',
+  'wallet.refunds.status.paid': '已打款',
+  'wallet.refunds.status.rejected': '已拒绝',
+  'wallet.refunds.status.canceled': '已取消',
+  'wallet.refunds.validation.accountRequired': '请先设置收款账户',
+  'wallet.refunds.validation.integerAmountRequired': '退回金额必须为整数',
+  'wallet.refunds.validation.amountTooLarge': '退回金额超过可退余额',
+  'wallet.refunds.submitSuccess': '退回申请已提交',
+  'wallet.refunds.submitFailed': '提交退回申请失败',
+  'wallet.refunds.cancelSuccess': '退回申请已取消',
+  'wallet.refunds.cancelFailed': '取消退回申请失败',
   'wallet.withdrawals.requestTitle': '申请提现',
   'wallet.withdrawals.payoutAccount': '收款账户',
   'wallet.withdrawals.accountReady': '已设置',
@@ -170,6 +220,14 @@ describe('WalletView', () => {
       available_balance: '42.50000000',
       withdrawable_balance: '12.00000000',
       pending_withdrawable_balance: '4.50000000',
+      refundable_recharge_balance: '25.00000000',
+      online_recharge_balance: '20.00000000',
+      offline_recharge_balance: '5.00000000',
+      gift_balance: '10.00000000',
+      signup_gift_balance: '7.50000000',
+      ops_gift_balance: '2.50000000',
+      refund_frozen_balance: '3.00000000',
+      unclassified_balance: '4.50000000',
       withdrawal_frozen_balance: '1.25000000',
       task_reserved_balance: '3.25000000',
       total_credits: '100.00000000',
@@ -236,6 +294,15 @@ describe('WalletView', () => {
     updateWithdrawalAccountMock.mockReset()
     createWithdrawalMock.mockReset()
     cancelWithdrawalMock.mockReset()
+    getFundRefundRequestsMock.mockReset().mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 10,
+      pages: 1,
+    })
+    createFundRefundRequestMock.mockReset()
+    cancelFundRefundRequestMock.mockReset()
   })
 
   it('renders localized wallet balances and safe transaction rows', async () => {
@@ -247,10 +314,19 @@ describe('WalletView', () => {
     expect(wrapper.text()).toContain('US$42.50')
     expect(wrapper.text()).toContain('可提现')
     expect(wrapper.text()).toContain('US$12.00')
+    expect(wrapper.text()).toContain('可退充值')
+    expect(wrapper.text()).toContain('US$25.00')
+    expect(wrapper.text()).toContain('赠送余额')
+    expect(wrapper.text()).toContain('US$10.00')
     expect(wrapper.text()).toContain('待解冻')
     expect(wrapper.text()).toContain('US$4.50')
     expect(wrapper.text()).toContain('提现冻结')
     expect(wrapper.text()).toContain('US$1.25')
+    expect(wrapper.text()).toContain('退回冻结')
+    expect(wrapper.text()).toContain('US$3.00')
+    expect(wrapper.text()).toContain('充值退回')
+    expect(wrapper.text()).toContain('在线充值')
+    expect(wrapper.text()).toContain('线下充值')
     expect(wrapper.text()).toContain('任务预留')
     expect(wrapper.text()).toContain('战队奖励')
     expect(wrapper.text()).toContain('入账')

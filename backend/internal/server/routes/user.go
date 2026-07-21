@@ -48,6 +48,10 @@ func RegisterUserRoutes(
 				wallet.POST("/withdrawals", h.Wallet.CreateWithdrawal)
 				wallet.GET("/withdrawals/:id", h.Wallet.GetWithdrawal)
 				wallet.POST("/withdrawals/:id/cancel", h.Wallet.CancelWithdrawal)
+				wallet.GET("/refund-requests", h.Fund.ListRefunds)
+				wallet.POST("/refund-requests", h.Fund.CreateRefund)
+				wallet.GET("/refund-requests/:id", h.Fund.GetRefund)
+				wallet.POST("/refund-requests/:id/cancel", h.Fund.CancelRefund)
 			}
 
 			// 通知邮箱管理

@@ -50,6 +50,27 @@ func TestAdminTeamRepairBodyIsOmittedFromAudit(t *testing.T) {
 	require.True(t, ok, "team repair reasons may contain embedded credentials and must not be persisted")
 }
 
+func TestFundManagementAuditRoutesHaveStableActionsAndOmitBodies(t *testing.T) {
+	expectedActions := map[string]string{
+		"POST /api/v1/user/wallet/refund-requests":                        service.AuditActionFundRefundSubmit,
+		"POST /api/v1/user/wallet/refund-requests/:id/cancel":             service.AuditActionFundRefundCancel,
+		"POST /api/v1/admin/funds/refund-requests/:id/approve":            service.AuditActionAdminFundRefundApprove,
+		"POST /api/v1/admin/funds/refund-requests/:id/reject":             service.AuditActionAdminFundRefundReject,
+		"POST /api/v1/admin/funds/refund-requests/:id/mark-paid":          service.AuditActionAdminFundRefundPaid,
+		"POST /api/v1/admin/funds/gifts":                                  service.AuditActionAdminFundGiftGrant,
+		"POST /api/v1/admin/funds/offline-recharges":                      service.AuditActionAdminFundOfflineRecharge,
+		"POST /api/v1/admin/funds/classifications/signup-gift-30/execute": service.AuditActionAdminFundClassifyExecute,
+	}
+	for route, action := range expectedActions {
+		require.Equal(t, action, auditActionOverrides[route])
+		_, omitted := auditBodyOmittedRoutes[route]
+		require.Truef(t, omitted, "%s must not persist payout notes, reasons, or external refs", route)
+	}
+
+	require.Equal(t, service.AuditActionAdminFundRefundRead, auditSensitiveReads["GET /api/v1/admin/funds/refund-requests/:id/payout-sensitive"])
+	require.Equal(t, service.AuditActionAdminFundClassifyPreview, auditSensitiveReads["GET /api/v1/admin/funds/classifications/signup-gift-30/preview"])
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog

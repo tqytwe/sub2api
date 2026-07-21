@@ -290,6 +290,7 @@ func TestBalanceLedgerAllowOverdraftDoesNotFailWithdrawableInvariant(t *testing.
 			"usage_charge", "req-overdraft", "usage:42:req-overdraft", "system", nil,
 			"API 消耗扣费", `{}`, false, "high", createdAt,
 		))
+	expectEmptyFundBatchConsumption(mock, 42)
 	mock.ExpectCommit()
 
 	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
@@ -408,6 +409,7 @@ func TestBalanceLedgerApplyDeltaKeepsCommitWhenCacheInvalidationFails(t *testing
 			"admin_balance", "1", "admin:42:1", "admin", nil,
 			"管理员增加余额", `{}`, false, "high", createdAt,
 		))
+	expectFundBatchGrant(mock, 42, 9002, "ops_gift", "admin_balance", "1", "1.00000000", false, createdAt)
 	mock.ExpectCommit()
 
 	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
@@ -519,6 +521,7 @@ func TestBalanceLedgerImageHoldConsumesEntitlementsFIFOWithoutWithdrawalFrozen(t
 		))
 	expectConsumeAllocation(mock, 42, 9202, 5001, "4.00000000", matureAt, "image_balance_hold", "batch-1", createdAt)
 	expectConsumeAllocation(mock, 42, 9202, 5002, "3.00000000", pendingAt, "image_balance_hold", "batch-1", createdAt)
+	expectEmptyFundBatchConsumption(mock, 42)
 	mock.ExpectCommit()
 
 	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
@@ -574,6 +577,7 @@ func TestBalanceLedgerReleaseRestoresOriginalConsumedEntitlementBatches(t *testi
 		))
 	expectRestoreAllocation(mock, 42, 9203, 5001, "4.00000000", matureAt, "image_balance_release", "batch-1", restoreKey, createdAt)
 	expectRestoreAllocation(mock, 42, 9203, 5002, "1.00000000", pendingAt, "image_balance_release", "batch-1", restoreKey, createdAt)
+	expectEmptyFundBatchRestore(mock, 42, restoreKey)
 	mock.ExpectCommit()
 
 	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
@@ -592,6 +596,60 @@ func TestBalanceLedgerReleaseRestoresOriginalConsumedEntitlementBatches(t *testi
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestBalanceLedgerPaymentRefundConsumesRechargeBeforeGiftFunds(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 7, 22, 9, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt }}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "payment_refund:77:deduct").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("20.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount", "available_at"}))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("8.00000000", "0.00000000", "0.00000000", "0.00000000", int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9401), int64(42), -12.0, 20.0, 8.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+			BalanceFlowTypeRefund, "77", "payment_refund:77:deduct", "admin", nil,
+			"退款扣回", `{"order_id":77}`, false, "high", createdAt,
+		))
+	mock.ExpectQuery("(?s)FROM balance_fund_batches\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(42), int64(77), true).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "source_kind", "remaining_amount"}).
+			AddRow(int64(7002), FundSourceKindOnlineRecharge, "10.00000000").
+			AddRow(int64(7001), FundSourceKindOpsGift, "30.00000000"))
+	expectFundBatchConsumption(mock, 42, 9401, 7002, "10.00000000", BalanceFlowTypeRefund, "77", createdAt)
+	expectFundBatchConsumption(mock, 42, 9401, 7001, "2.00000000", BalanceFlowTypeRefund, "77", createdAt)
+	mock.ExpectCommit()
+
+	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
+		UserID:         42,
+		BalanceDelta:   -12,
+		SourceType:     BalanceFlowTypeRefund,
+		SourceID:       "77",
+		IdempotencyKey: "payment_refund:77:deduct",
+		ActorType:      BalanceLedgerActorAdmin,
+		Description:    "退款扣回",
+		Metadata:       map[string]any{"order_id": int64(77)},
+	})
+	require.NoError(t, err)
+	require.Equal(t, -12.0, got.BalanceDelta)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func expectConsumeAllocation(mock sqlmock.Sqlmock, userID int64, transactionID int64, entitlementID int64, amount string, availableAt time.Time, sourceType string, sourceID string, createdAt time.Time) {
 	mock.ExpectExec("(?s)UPDATE withdrawable_entitlements\\s+SET remaining_amount = remaining_amount -").
 		WithArgs(amount, entitlementID, userID).
@@ -607,5 +665,35 @@ func expectRestoreAllocation(mock sqlmock.Sqlmock, userID int64, transactionID i
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectExec("(?s)INSERT INTO withdrawable_entitlement_allocations").
 		WithArgs(userID, entitlementID, transactionID, "restore", amount, availableAt, sourceType, sourceID, sqlmock.AnyArg(), createdAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+}
+
+func expectEmptyFundBatchConsumption(mock sqlmock.Sqlmock, userID int64) {
+	mock.ExpectQuery("(?s)FROM balance_fund_batches\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(userID, int64(0), false).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "source_kind", "remaining_amount"}))
+}
+
+func expectEmptyFundBatchRestore(mock sqlmock.Sqlmock, userID int64, restoreKey string) {
+	mock.ExpectQuery("(?s)WITH consumed AS \\(\\s+SELECT bfa.batch_id").
+		WithArgs(userID, restoreKey).
+		WillReturnRows(sqlmock.NewRows([]string{"batch_id", "restorable_amount"}))
+}
+
+func expectFundBatchGrant(mock sqlmock.Sqlmock, userID int64, transactionID int64, kind string, sourceType string, sourceID string, amount string, refundable bool, createdAt time.Time) {
+	mock.ExpectQuery("(?s)INSERT INTO balance_fund_batches").
+		WithArgs(userID, transactionID, nil, kind, sourceType, sourceID, amount, refundable, createdAt, sqlmock.AnyArg(), createdAt).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(7001)))
+	mock.ExpectExec("(?s)INSERT INTO balance_fund_allocations").
+		WithArgs(userID, int64(7001), transactionID, "grant", amount, sourceType, sourceID, sqlmock.AnyArg(), createdAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+}
+
+func expectFundBatchConsumption(mock sqlmock.Sqlmock, userID int64, transactionID int64, batchID int64, amount string, sourceType string, sourceID string, createdAt time.Time) {
+	mock.ExpectExec("(?s)UPDATE balance_fund_batches\\s+SET remaining_amount = remaining_amount -").
+		WithArgs(amount, batchID, userID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("(?s)INSERT INTO balance_fund_allocations").
+		WithArgs(userID, batchID, transactionID, "consume", amount, sourceType, sourceID, sqlmock.AnyArg(), createdAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
 }

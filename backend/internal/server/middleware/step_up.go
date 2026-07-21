@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -97,7 +98,7 @@ func EnforceStepUpAlways(
 func enforceStepUp(c *gin.Context, grantChecker stepUpGrantChecker, userReader stepUpUserReader, settings stepUpSettingReader) bool {
 	// 功能开关关闭时直接放行（含 admin API key），恢复门控引入前的行为。
 	// settings 为 nil 时保持门控（fail-closed）：正常装配不会出现 nil。
-	if settings != nil && !settings.IsStepUpEnabled(c.Request.Context()) {
+	if !stepUpAlwaysRequired(c) && settings != nil && !settings.IsStepUpEnabled(c.Request.Context()) {
 		return true
 	}
 
@@ -138,4 +139,17 @@ func enforceStepUp(c *gin.Context, grantChecker stepUpGrantChecker, userReader s
 	}
 
 	return true
+}
+
+func stepUpAlwaysRequired(c *gin.Context) bool {
+	if c == nil || c.Request == nil {
+		return false
+	}
+	path := strings.TrimSpace(c.FullPath())
+	if path == "" {
+		path = c.Request.URL.Path
+	}
+	path = strings.TrimPrefix(path, "/api/v1")
+	return strings.HasPrefix(path, "/admin/withdrawals/") ||
+		strings.HasPrefix(path, "/admin/funds/")
 }

@@ -110,6 +110,14 @@ type walletSummaryDTO struct {
 	AvailableBalance           string  `json:"available_balance"`
 	WithdrawableBalance        string  `json:"withdrawable_balance"`
 	PendingWithdrawableBalance string  `json:"pending_withdrawable_balance"`
+	RefundableRechargeBalance  string  `json:"refundable_recharge_balance"`
+	OnlineRechargeBalance      string  `json:"online_recharge_balance"`
+	OfflineRechargeBalance     string  `json:"offline_recharge_balance"`
+	GiftBalance                string  `json:"gift_balance"`
+	SignupGiftBalance          string  `json:"signup_gift_balance"`
+	OpsGiftBalance             string  `json:"ops_gift_balance"`
+	RefundFrozenBalance        string  `json:"refund_frozen_balance"`
+	UnclassifiedBalance        string  `json:"unclassified_balance"`
 	WithdrawalFrozenBalance    string  `json:"withdrawal_frozen_balance"`
 	TaskReservedBalance        string  `json:"task_reserved_balance"`
 	TotalCredits               string  `json:"total_credits"`
@@ -394,6 +402,14 @@ func toWalletSummaryDTO(summary *service.WalletSummary) walletSummaryDTO {
 		AvailableBalance:           summary.AvailableBalance.StringFixed(8),
 		WithdrawableBalance:        summary.WithdrawableBalance.StringFixed(8),
 		PendingWithdrawableBalance: summary.PendingWithdrawableBalance.StringFixed(8),
+		RefundableRechargeBalance:  summary.RefundableRechargeBalance.StringFixed(8),
+		OnlineRechargeBalance:      summary.OnlineRechargeBalance.StringFixed(8),
+		OfflineRechargeBalance:     summary.OfflineRechargeBalance.StringFixed(8),
+		GiftBalance:                summary.GiftBalance.StringFixed(8),
+		SignupGiftBalance:          summary.SignupGiftBalance.StringFixed(8),
+		OpsGiftBalance:             summary.OpsGiftBalance.StringFixed(8),
+		RefundFrozenBalance:        summary.RefundFrozenBalance.StringFixed(8),
+		UnclassifiedBalance:        summary.UnclassifiedBalance.StringFixed(8),
 		WithdrawalFrozenBalance:    summary.WithdrawalFrozenBalance.StringFixed(8),
 		TaskReservedBalance:        summary.TaskReservedBalance.StringFixed(8),
 		TotalCredits:               summary.TotalCredits.StringFixed(8),

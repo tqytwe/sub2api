@@ -904,7 +904,20 @@ const adminNavItems = computed((): NavItem[] => {
     { path: '/admin/dashboard', label: t('nav.dashboard'), icon: DashboardIcon },
     { path: '/admin/ops', label: t('nav.ops'), icon: ChartIcon, featureFlag: flagOpsMonitoring },
     { path: '/admin/play-ops', label: t('nav.playOps'), icon: GiftIcon, hideInSimpleMode: true },
-    { path: '/admin/withdrawals', label: t('nav.withdrawals'), icon: CreditCardIcon, hideInSimpleMode: true },
+    {
+      path: '/admin/funds',
+      label: t('nav.fundManagement'),
+      icon: CreditCardIcon,
+      hideInSimpleMode: true,
+      expandOnly: true,
+      children: [
+        { path: '/admin/orders', label: t('nav.rechargeOrders'), icon: OrderIcon, featureFlag: flagAdminPayment },
+        { path: '/admin/funds/refunds', label: t('nav.refundRequests'), icon: CreditCardIcon },
+        { path: '/admin/withdrawals', label: t('nav.rewardWithdrawals'), icon: CreditCardIcon },
+        { path: '/admin/funds/grants', label: t('nav.giftBalance'), icon: GiftIcon },
+        { path: '/admin/funds/classification', label: t('nav.historicalGiftReview'), icon: ChartIcon },
+      ],
+    },
     { path: '/admin/users', label: t('nav.users'), icon: UsersIcon, hideInSimpleMode: true },
     { path: '/admin/groups', label: t('nav.groups'), icon: FolderIcon, hideInSimpleMode: true },
     {
@@ -1028,7 +1041,7 @@ function isActive(path: string): boolean {
 
 function isGroupActive(item: NavItem): boolean {
   if (!item.children) return false
-  return item.children.some(child => route.path === child.path)
+  return route.path === item.path || item.children.some(child => route.path === child.path)
 }
 
 function isGroupExpanded(item: NavItem): boolean {

@@ -140,6 +140,28 @@ func TestEnforceStepUpDisabledSkipsAllChecks(t *testing.T) {
 	})
 }
 
+func TestEnforceStepUpDisabledStillProtectsMandatoryFundAndWithdrawalRoutes(t *testing.T) {
+	disabled := stubStepUpSettingReader{enabled: false}
+
+	for _, path := range []string{
+		"/api/v1/admin/funds/gifts",
+		"/api/v1/admin/withdrawals/12/approve",
+	} {
+		t.Run(path, func(t *testing.T) {
+			c, rec := newStepUpTestContext(t)
+			c.Request = httptest.NewRequest(http.MethodPost, path, nil)
+			c.Set("auth_method", service.AuditAuthMethodAdminAPIKey)
+
+			ok := enforceStepUp(c, stubStepUpGrantChecker{granted: true}, stubStepUpUserReader{user: &service.User{TotpEnabled: true}}, disabled)
+
+			require.False(t, ok)
+			require.True(t, c.IsAborted())
+			require.Equal(t, http.StatusForbidden, rec.Code)
+			require.Contains(t, rec.Body.String(), "STEP_UP_ADMIN_API_KEY_FORBIDDEN")
+		})
+	}
+}
+
 // settings 为 nil 时保持门控（fail-closed），避免装配缺陷静默关闭安全控制。
 func TestEnforceStepUpNilSettingsFailsClosed(t *testing.T) {
 	c, rec := newStepUpTestContext(t)

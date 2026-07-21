@@ -16,6 +16,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 	router := gin.New()
 	handlers := &handler.Handlers{
 		Wallet: handler.NewWalletHandler(nil),
+		Fund:   handler.NewFundHandler(nil),
 	}
 	RegisterUserRoutes(
 		router.Group("/api/v1"),
@@ -41,6 +42,10 @@ func TestUserWalletRoutesContract(t *testing.T) {
 		"POST /api/v1/user/wallet/withdrawals",
 		"GET /api/v1/user/wallet/withdrawals/:id",
 		"POST /api/v1/user/wallet/withdrawals/:id/cancel",
+		"GET /api/v1/user/wallet/refund-requests",
+		"POST /api/v1/user/wallet/refund-requests",
+		"GET /api/v1/user/wallet/refund-requests/:id",
+		"POST /api/v1/user/wallet/refund-requests/:id/cancel",
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing route: %s", route)
@@ -52,6 +57,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 		"/api/v1/user/wallet/withdrawals/availability",
 		"/api/v1/user/wallet/withdrawal-account",
 		"/api/v1/user/wallet/withdrawals",
+		"/api/v1/user/wallet/refund-requests",
 	} {
 		recorder := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, path, nil)

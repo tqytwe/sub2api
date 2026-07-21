@@ -34,6 +34,7 @@ const (
 	WalletPublicSourcePromotion       = "promotion"
 	WalletPublicSourceSubscription    = "subscription"
 	WalletPublicSourceWithdrawal      = "withdrawal"
+	WalletPublicSourceGift            = "gift"
 	WalletPublicSourceOther           = "other"
 )
 
@@ -50,6 +51,14 @@ type WalletSummary struct {
 	AvailableBalance           decimal.Decimal `json:"available_balance"`
 	WithdrawableBalance        decimal.Decimal `json:"withdrawable_balance"`
 	PendingWithdrawableBalance decimal.Decimal `json:"pending_withdrawable_balance"`
+	RefundableRechargeBalance  decimal.Decimal `json:"refundable_recharge_balance"`
+	OnlineRechargeBalance      decimal.Decimal `json:"online_recharge_balance"`
+	OfflineRechargeBalance     decimal.Decimal `json:"offline_recharge_balance"`
+	GiftBalance                decimal.Decimal `json:"gift_balance"`
+	SignupGiftBalance          decimal.Decimal `json:"signup_gift_balance"`
+	OpsGiftBalance             decimal.Decimal `json:"ops_gift_balance"`
+	RefundFrozenBalance        decimal.Decimal `json:"refund_frozen_balance"`
+	UnclassifiedBalance        decimal.Decimal `json:"unclassified_balance"`
 	WithdrawalFrozenBalance    decimal.Decimal `json:"withdrawal_frozen_balance"`
 	TaskReservedBalance        decimal.Decimal `json:"task_reserved_balance"`
 	TotalCredits               decimal.Decimal `json:"total_credits"`
@@ -81,8 +90,10 @@ type WalletTransactionQuery struct {
 
 type walletSourceFilter struct {
 	rawTypes         []string
+	fundKinds        []string
 	containsPatterns []string
 	exclude          bool
+	excludeFundKinds []string
 }
 
 type WalletTransactionPage struct {
@@ -175,7 +186,26 @@ GROUP BY u.id, u.balance, u.frozen_balance, u.withdrawal_frozen_balance`, userID
 	if last.Valid {
 		summary.LastTransactionAt = &last.Time
 	}
+	if err := s.attachFundBreakdown(ctx, userID, &summary); err != nil {
+		return nil, err
+	}
 	return &summary, nil
+}
+
+func (s *WalletService) attachFundBreakdown(ctx context.Context, userID int64, summary *WalletSummary) error {
+	breakdown, err := NewFundManagementService(s.db, nil, nil).GetWalletBreakdown(ctx, userID)
+	if err != nil {
+		return err
+	}
+	summary.RefundableRechargeBalance = breakdown.RefundableRechargeBalance
+	summary.OnlineRechargeBalance = breakdown.OnlineRechargeBalance
+	summary.OfflineRechargeBalance = breakdown.OfflineRechargeBalance
+	summary.GiftBalance = breakdown.GiftBalance
+	summary.SignupGiftBalance = breakdown.SignupGiftBalance
+	summary.OpsGiftBalance = breakdown.OpsGiftBalance
+	summary.RefundFrozenBalance = breakdown.RefundFrozenBalance
+	summary.UnclassifiedBalance = breakdown.UnclassifiedBalance
+	return nil
 }
 
 func (s *WalletService) ListTransactions(ctx context.Context, userID int64, query WalletTransactionQuery) (*WalletTransactionPage, error) {
@@ -227,8 +257,11 @@ func (s *WalletService) countTransactions(ctx context.Context, userID int64, sou
 	args := append([]any{userID}, filterArgs...)
 	query := `
 SELECT COUNT(*)::bigint
-FROM balance_transactions
-WHERE user_id = $1`
+FROM balance_transactions bt
+LEFT JOIN balance_fund_batches bfb
+  ON bfb.user_id = bt.user_id
+ AND bfb.balance_transaction_id = bt.id
+WHERE bt.user_id = $1`
 	if condition != "" {
 		query += "\n  AND " + condition
 	}
@@ -246,14 +279,18 @@ func (s *WalletService) listTransactions(ctx context.Context, userID int64, sour
 	limitArg := len(args) - 1
 	offsetArg := len(args)
 	query := `
-	SELECT id, source_type, balance_delta::text, frozen_delta::text,
+	SELECT bt.id, bt.source_type, COALESCE(bfb.source_kind, '') AS fund_source_kind,
+	       bt.balance_delta::text, bt.frozen_delta::text,
 	       withdrawable_delta::text, withdrawal_frozen_delta::text,
-	       COALESCE(balance_after, 0)::text, COALESCE(frozen_after, 0)::text,
-	       COALESCE(withdrawable_after, 0)::text, COALESCE(withdrawal_frozen_after, 0)::text,
-	       created_at
-FROM balance_transactions
-WHERE user_id = $1
-ORDER BY created_at DESC, id DESC`
+	       COALESCE(bt.balance_after, 0)::text, COALESCE(bt.frozen_after, 0)::text,
+	       COALESCE(bt.withdrawable_after, 0)::text, COALESCE(bt.withdrawal_frozen_after, 0)::text,
+	       bt.created_at
+FROM balance_transactions bt
+LEFT JOIN balance_fund_batches bfb
+  ON bfb.user_id = bt.user_id
+ AND bfb.balance_transaction_id = bt.id
+WHERE bt.user_id = $1
+ORDER BY bt.created_at DESC, bt.id DESC`
 	if condition != "" {
 		query = strings.Replace(query, "\nORDER BY", "\n  AND "+condition+"\nORDER BY", 1)
 	}
@@ -289,47 +326,74 @@ func walletSourceFilterSQL(start int, sourceTypes []string) (string, []any) {
 }
 
 func walletSourceConditionSQL(start int, sourceFilter walletSourceFilter) (string, []any) {
-	if len(sourceFilter.rawTypes) == 0 && len(sourceFilter.containsPatterns) == 0 {
+	if len(sourceFilter.rawTypes) == 0 && len(sourceFilter.fundKinds) == 0 && len(sourceFilter.containsPatterns) == 0 && len(sourceFilter.excludeFundKinds) == 0 {
 		return "", nil
 	}
-	if len(sourceFilter.rawTypes) == 1 && len(sourceFilter.containsPatterns) == 0 && !sourceFilter.exclude {
-		return fmt.Sprintf("source_type = $%d", start), []any{sourceFilter.rawTypes[0]}
-	}
-	parts := make([]string, 0, 1+len(sourceFilter.containsPatterns))
+	includeParts := make([]string, 0, 2+len(sourceFilter.containsPatterns))
+	excludeParts := make([]string, 0, 2+len(sourceFilter.containsPatterns))
 	args := make([]any, 0, len(sourceFilter.rawTypes)+len(sourceFilter.containsPatterns))
 	if len(sourceFilter.rawTypes) > 0 {
 		filter, filterArgs := walletSourceFilterSQL(start, sourceFilter.rawTypes)
-		operator := "IN"
 		if sourceFilter.exclude {
-			operator = "NOT IN"
+			excludeParts = append(excludeParts, "bt.source_type NOT IN ("+filter+")")
+		} else if len(sourceFilter.rawTypes) == 1 {
+			includeParts = append(includeParts, "bt.source_type = "+filter)
+		} else {
+			includeParts = append(includeParts, "bt.source_type IN ("+filter+")")
 		}
-		parts = append(parts, "source_type "+operator+" ("+filter+")")
+		args = append(args, filterArgs...)
+	}
+	if len(sourceFilter.fundKinds) > 0 {
+		filter, filterArgs := walletSourceFilterSQL(start+len(args), sourceFilter.fundKinds)
+		if sourceFilter.exclude {
+			excludeParts = append(excludeParts, "(bfb.source_kind IS NULL OR bfb.source_kind NOT IN ("+filter+"))")
+		} else if len(sourceFilter.fundKinds) == 1 {
+			includeParts = append(includeParts, "bfb.source_kind = "+filter)
+		} else {
+			includeParts = append(includeParts, "bfb.source_kind IN ("+filter+")")
+		}
 		args = append(args, filterArgs...)
 	}
 	for _, pattern := range sourceFilter.containsPatterns {
-		operator := "LIKE"
 		if sourceFilter.exclude {
-			operator = "NOT LIKE"
+			excludeParts = append(excludeParts, fmt.Sprintf("LOWER(bt.source_type) NOT LIKE $%d", start+len(args)))
+		} else {
+			includeParts = append(includeParts, fmt.Sprintf("LOWER(bt.source_type) LIKE $%d", start+len(args)))
 		}
-		parts = append(parts, fmt.Sprintf("LOWER(source_type) %s $%d", operator, start+len(args)))
 		args = append(args, "%"+strings.ToLower(pattern)+"%")
 	}
-	joiner := " OR "
-	if sourceFilter.exclude {
-		joiner = " AND "
+	if len(sourceFilter.excludeFundKinds) > 0 {
+		filter, filterArgs := walletSourceFilterSQL(start+len(args), sourceFilter.excludeFundKinds)
+		excludeParts = append(excludeParts, "(bfb.source_kind IS NULL OR bfb.source_kind NOT IN ("+filter+"))")
+		args = append(args, filterArgs...)
 	}
-	if len(parts) == 1 {
-		return parts[0], args
+	conditions := make([]string, 0, 2)
+	if len(includeParts) > 0 {
+		if len(includeParts) == 1 {
+			conditions = append(conditions, includeParts[0])
+		} else {
+			conditions = append(conditions, "("+strings.Join(includeParts, " OR ")+")")
+		}
 	}
-	return "(" + strings.Join(parts, joiner) + ")", args
+	if len(excludeParts) > 0 {
+		conditions = append(conditions, strings.Join(excludeParts, " AND "))
+	}
+	if len(conditions) == 0 {
+		return "", args
+	}
+	if len(conditions) == 1 {
+		return conditions[0], args
+	}
+	return "(" + strings.Join(conditions, " AND ") + ")", args
 }
 
 func scanWalletTransaction(rows *sql.Rows) (WalletTransaction, error) {
 	var item WalletTransaction
-	var rawSource, balanceDelta, frozenDelta, withdrawableDelta, withdrawalFrozenDelta, balanceAfter, frozenAfter, withdrawableAfter, withdrawalFrozenAfter string
+	var rawSource, fundSourceKind, balanceDelta, frozenDelta, withdrawableDelta, withdrawalFrozenDelta, balanceAfter, frozenAfter, withdrawableAfter, withdrawalFrozenAfter string
 	if err := rows.Scan(
 		&item.ID,
 		&rawSource,
+		&fundSourceKind,
 		&balanceDelta,
 		&frozenDelta,
 		&withdrawableDelta,
@@ -367,7 +431,7 @@ func scanWalletTransaction(rows *sql.Rows) (WalletTransaction, error) {
 	if item.WithdrawalFrozenAfter, err = decimal.NewFromString(withdrawalFrozenAfter); err != nil {
 		return WalletTransaction{}, fmt.Errorf("parse wallet withdrawal frozen after: %w", err)
 	}
-	item.Source = WalletPublicSourceForRaw(rawSource)
+	item.Source = WalletPublicSourceForRawWithFundKind(rawSource, fundSourceKind)
 	item.Direction = walletDirection(item.BalanceDelta, item.FrozenDelta)
 	return item, nil
 }
@@ -385,10 +449,22 @@ func walletDirection(balanceDelta, frozenDelta decimal.Decimal) string {
 }
 
 func WalletPublicSourceForRaw(raw string) string {
+	return WalletPublicSourceForRawWithFundKind(raw, "")
+}
+
+func WalletPublicSourceForRawWithFundKind(raw string, fundKind string) string {
+	switch strings.ToLower(strings.TrimSpace(fundKind)) {
+	case FundSourceKindOnlineRecharge, FundSourceKindOfflineRecharge:
+		return WalletPublicSourceRecharge
+	case FundSourceKindSignupGift, FundSourceKindOpsGift, FundSourceKindCompensation:
+		return WalletPublicSourceGift
+	}
 	source := strings.ToLower(strings.TrimSpace(raw))
 	switch source {
-	case "payment_recharge", "recharge", "payment_balance":
+	case "payment_recharge", "recharge", "payment_balance", FundLedgerSourceOfflineRecharge:
 		return WalletPublicSourceRecharge
+	case FundLedgerSourceOpsGift, FundLedgerSourceSignupGift, FundLedgerSourceCompensation, "auth_first_bind_grant":
+		return WalletPublicSourceGift
 	case "balance", "redeem", "redeem_code":
 		return WalletPublicSourceRedeem
 	case "affiliate_balance", "affiliate_transfer", "user_affiliate_ledger":
@@ -405,11 +481,11 @@ func WalletPublicSourceForRaw(raw string) string {
 		return WalletPublicSourceBlindBox
 	case "usage_charge", "usage_log", "api_usage":
 		return WalletPublicSourceUsage
-	case "refund", "payment_refund", "reversal":
+	case "refund", "payment_refund", "reversal", FundRefundLedgerSourceSubmit, FundRefundLedgerSourceCancel, FundRefundLedgerSourceReject, FundRefundLedgerSourcePaid:
 		return WalletPublicSourceRefund
 	case "admin_balance", "admin_adjustment":
 		return WalletPublicSourceAdminAdjustment
-	case "promo_bonus", "promo_code", "promotion", "auth_first_bind_grant":
+	case "promo_bonus", "promo_code", "promotion":
 		return WalletPublicSourcePromotion
 	case "subscription", "subscription_refund", "user_subscription":
 		return WalletPublicSourceSubscription
@@ -428,7 +504,15 @@ func walletRawSourceFilter(publicSource string) (walletSourceFilter, error) {
 	case "", "all":
 		return walletSourceFilter{}, nil
 	case WalletPublicSourceRecharge:
-		return walletIncludeRawSources("payment_recharge", "payment_balance", "recharge"), nil
+		return walletIncludeRawSourcesAndFundKinds(
+			[]string{"payment_recharge", "payment_balance", "recharge", FundLedgerSourceOfflineRecharge},
+			[]string{FundSourceKindOnlineRecharge, FundSourceKindOfflineRecharge},
+		), nil
+	case WalletPublicSourceGift:
+		return walletIncludeRawSourcesAndFundKinds(
+			[]string{FundLedgerSourceOpsGift, FundLedgerSourceSignupGift, FundLedgerSourceCompensation, "auth_first_bind_grant"},
+			[]string{FundSourceKindSignupGift, FundSourceKindOpsGift, FundSourceKindCompensation},
+		), nil
 	case WalletPublicSourceRedeem:
 		return walletIncludeRawSources("balance", "redeem", "redeem_code"), nil
 	case WalletPublicSourceAffiliate:
@@ -451,11 +535,13 @@ func walletRawSourceFilter(publicSource string) (walletSourceFilter, error) {
 			containsPatterns: []string{"image"},
 		}, nil
 	case WalletPublicSourceRefund:
-		return walletIncludeRawSources("refund", "payment_refund", "reversal"), nil
+		return walletIncludeRawSources("refund", "payment_refund", "reversal", FundRefundLedgerSourceSubmit, FundRefundLedgerSourceCancel, FundRefundLedgerSourceReject, FundRefundLedgerSourcePaid), nil
 	case WalletPublicSourceAdminAdjustment:
-		return walletIncludeRawSources("admin_balance", "admin_adjustment"), nil
+		filter := walletIncludeRawSources("admin_balance", "admin_adjustment")
+		filter.excludeFundKinds = []string{FundSourceKindSignupGift, FundSourceKindOpsGift, FundSourceKindCompensation}
+		return filter, nil
 	case WalletPublicSourcePromotion:
-		return walletIncludeRawSources("promo_bonus", "promo_code", "promotion", "auth_first_bind_grant"), nil
+		return walletIncludeRawSources("promo_bonus", "promo_code", "promotion"), nil
 	case WalletPublicSourceSubscription:
 		return walletIncludeRawSources("subscription", "subscription_refund", "user_subscription"), nil
 	case WalletPublicSourceWithdrawal:
@@ -475,11 +561,20 @@ func walletIncludeRawSources(rawTypes ...string) walletSourceFilter {
 	return walletSourceFilter{rawTypes: rawTypes}
 }
 
+func walletIncludeRawSourcesAndFundKinds(rawTypes []string, fundKinds []string) walletSourceFilter {
+	return walletSourceFilter{rawTypes: rawTypes, fundKinds: fundKinds}
+}
+
 func walletKnownRawSourceTypes() []string {
 	return []string{
 		"payment_recharge",
 		"payment_balance",
 		"recharge",
+		FundLedgerSourceOfflineRecharge,
+		FundLedgerSourceOpsGift,
+		FundLedgerSourceSignupGift,
+		FundLedgerSourceCompensation,
+		"auth_first_bind_grant",
 		"balance",
 		"redeem",
 		"redeem_code",
@@ -506,12 +601,15 @@ func walletKnownRawSourceTypes() []string {
 		"refund",
 		"payment_refund",
 		"reversal",
+		FundRefundLedgerSourceSubmit,
+		FundRefundLedgerSourceCancel,
+		FundRefundLedgerSourceReject,
+		FundRefundLedgerSourcePaid,
 		"admin_balance",
 		"admin_adjustment",
 		"promo_bonus",
 		"promo_code",
 		"promotion",
-		"auth_first_bind_grant",
 		"subscription",
 		"subscription_refund",
 		"user_subscription",

@@ -1,10 +1,10 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div class="min-w-0 space-y-6 overflow-x-hidden">
+      <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
           <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ t('wallet.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('wallet.description') }}</p>
+          <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('wallet.description') }}</p>
         </div>
         <button type="button" class="btn btn-secondary inline-flex items-center gap-2 self-start" :disabled="loading" @click="loadWallet">
           <Icon name="refresh" size="sm" :class="{ 'animate-spin': loading }" />
@@ -12,26 +12,136 @@
         </button>
       </div>
 
-      <div v-if="loadError" class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+      <div v-if="loadError" class="break-words rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
         {{ t('wallet.loadFailed') }}
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
-        <section v-for="card in summaryCards" :key="card.label" class="card p-4">
+      <div class="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-6">
+        <section v-for="card in summaryCards" :key="card.label" class="card min-w-0 p-4">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ card.label }}</p>
-          <p class="mt-2 text-2xl font-semibold text-gray-900 dark:text-white">{{ card.value }}</p>
+          <p class="mt-2 break-words text-2xl font-semibold text-gray-900 dark:text-white">{{ card.value }}</p>
+          <p v-if="card.hint" class="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">{{ card.hint }}</p>
         </section>
       </div>
 
-      <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
-        <section class="card">
+      <section class="card min-w-0 overflow-hidden">
+        <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('wallet.refunds.title') }}</h2>
+          <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.description') }}</p>
+        </div>
+        <div class="grid min-w-0 gap-4 p-5 xl:grid-cols-[minmax(0,360px)_minmax(0,1fr)]">
+          <div class="grid min-w-0 gap-3">
+            <div class="min-w-0 rounded border border-gray-100 p-4 dark:border-dark-700">
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('wallet.refunds.availableTitle') }}</p>
+              <dl class="mt-3 grid gap-2 text-sm">
+                <div class="flex justify-between gap-3">
+                  <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.onlineRecharge') }}</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{{ formatMoney(summary?.online_recharge_balance) }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.offlineRecharge') }}</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{{ formatMoney(summary?.offline_recharge_balance) }}</dd>
+                </div>
+                <div class="flex justify-between gap-3">
+                  <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.frozen') }}</dt>
+                  <dd class="font-medium text-gray-900 dark:text-white">{{ formatMoney(summary?.refund_frozen_balance) }}</dd>
+                </div>
+              </dl>
+            </div>
+
+            <form class="min-w-0 rounded border border-gray-100 p-4 dark:border-dark-700" @submit.prevent="submitFundRefund">
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('wallet.refunds.newRequest') }}</p>
+              <div class="mt-3 grid gap-3">
+                <label class="grid gap-1 text-sm">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.type') }}</span>
+                  <select v-model="refundForm.request_type" class="input">
+                    <option value="online_recharge_refund">{{ t('wallet.refunds.types.online_recharge_refund') }}</option>
+                    <option value="offline_recharge_refund">{{ t('wallet.refunds.types.offline_recharge_refund') }}</option>
+                  </select>
+                </label>
+                <label class="grid gap-1 text-sm">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.amount') }}</span>
+                  <input v-model.trim="refundForm.amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" autocomplete="off" />
+                </label>
+                <label class="grid gap-1 text-sm">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.reason') }}</span>
+                  <textarea v-model.trim="refundForm.reason" class="input min-h-[84px] resize-y" :placeholder="t('wallet.refunds.reasonPlaceholder')" />
+                </label>
+                <p v-if="refundMessage" class="text-sm" :class="refundMessageType === 'error' ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-600 dark:text-emerald-300'">
+                  {{ refundMessage }}
+                </p>
+                <button type="submit" class="btn btn-primary inline-flex items-center justify-center gap-2" :disabled="!canSubmitFundRefund || refundSubmitting">
+                  <Icon name="creditCard" size="sm" />
+                  {{ refundSubmitting ? t('wallet.refunds.submitting') : t('wallet.refunds.submit') }}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <div class="min-w-0 overflow-hidden rounded border border-gray-100 dark:border-dark-700">
+            <div class="flex min-w-0 flex-col gap-3 border-b border-gray-100 px-4 py-3 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
+              <div class="min-w-0">
+                <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('wallet.refunds.history') }}</p>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.requestCount', { count: refundPage.total }) }}</p>
+              </div>
+              <button type="button" class="btn btn-secondary btn-sm" :disabled="loading" @click="loadWallet">
+                {{ t('common.refresh') }}
+              </button>
+            </div>
+            <div class="divide-y divide-gray-100 dark:divide-dark-700">
+              <div v-for="item in refundPage.items" :key="item.id" class="min-w-0 p-4">
+                <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div class="min-w-0">
+                    <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ item.request_no }}</p>
+                    <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ refundTypeLabel(item.request_type) }} · {{ formatDateTime(item.created_at) }}</p>
+                  </div>
+                  <span class="inline-flex self-start rounded-full px-2 py-0.5 text-xs font-medium" :class="fundRefundStatusClass(item.status)">
+                    {{ fundRefundStatusLabel(item.status) }}
+                  </span>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.amount') }}</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ formatMoney(item.amount) }}</p>
+                  </div>
+                  <div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.refunds.paidAt') }}</p>
+                    <p class="font-medium text-gray-900 dark:text-white">{{ formatDateTime(item.paid_at) }}</p>
+                  </div>
+                </div>
+                <p v-if="item.rejected_reason" class="mt-2 break-words text-sm text-rose-600 dark:text-rose-300">{{ item.rejected_reason }}</p>
+                <button v-if="isFundRefundCancelable(item.status)" type="button" class="btn btn-danger btn-sm mt-3" :disabled="refundActionID === item.id" @click="cancelFundRefund(item.id)">
+                  {{ refundActionID === item.id ? t('wallet.refunds.canceling') : t('wallet.refunds.cancel') }}
+                </button>
+              </div>
+              <div v-if="!refundPage.items.length" class="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                {{ loading ? t('wallet.loading') : t('wallet.refunds.empty') }}
+              </div>
+            </div>
+            <div class="flex flex-col gap-3 border-t border-gray-100 px-4 py-3 text-sm dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
+              <span class="text-gray-500 dark:text-gray-400">{{ t('wallet.pageInfo', { page: refundPage.page, pages: refundPage.pages }) }}</span>
+              <div class="flex gap-2">
+                <button type="button" class="btn btn-secondary btn-sm" :disabled="refundPage.page <= 1 || loading" @click="changeRefundPage(refundPage.page - 1)">
+                  {{ t('common.previous') }}
+                </button>
+                <button type="button" class="btn btn-secondary btn-sm" :disabled="refundPage.page >= refundPage.pages || loading" @click="changeRefundPage(refundPage.page + 1)">
+                  {{ t('common.next') }}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
+        <section class="card min-w-0 overflow-hidden">
           <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('wallet.withdrawals.requestTitle') }}</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ withdrawalAvailabilityText }}</p>
+            <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ withdrawalAvailabilityText }}</p>
           </div>
-          <div class="grid gap-4 p-5 md:grid-cols-2">
-            <div class="rounded border border-gray-100 p-4 dark:border-dark-700">
-              <div class="flex items-center justify-between gap-3">
+          <div class="grid min-w-0 gap-4 p-5 md:grid-cols-2">
+            <div class="min-w-0 rounded border border-gray-100 p-4 dark:border-dark-700">
+              <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('wallet.withdrawals.payoutAccount') }}</p>
                 <span v-if="payoutAccount" class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200">
                   {{ t('wallet.withdrawals.accountReady') }}
@@ -47,15 +157,15 @@
                 </div>
                 <div class="flex justify-between gap-3">
                   <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.accountMask') }}</dt>
-                  <dd class="text-right text-gray-900 dark:text-white">{{ payoutAccount.account_mask }}</dd>
+                  <dd class="min-w-0 break-words text-right text-gray-900 dark:text-white">{{ payoutAccount.account_mask }}</dd>
                 </div>
                 <div class="flex justify-between gap-3">
                   <dt class="text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.recipientMask') }}</dt>
-                  <dd class="text-right text-gray-900 dark:text-white">{{ payoutAccount.recipient_name_mask || '-' }}</dd>
+                  <dd class="min-w-0 break-words text-right text-gray-900 dark:text-white">{{ payoutAccount.recipient_name_mask || '-' }}</dd>
                 </div>
               </dl>
 
-              <form class="mt-4 grid gap-3" @submit.prevent="savePayoutAccount">
+              <form class="mt-4 grid min-w-0 gap-3" @submit.prevent="savePayoutAccount">
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.method') }}</span>
                   <select v-model="accountForm.method" class="input">
@@ -93,7 +203,7 @@
               </form>
             </div>
 
-            <div class="rounded border border-gray-100 p-4 dark:border-dark-700">
+            <div class="min-w-0 rounded border border-gray-100 p-4 dark:border-dark-700">
               <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('wallet.withdrawals.newRequest') }}</p>
               <dl class="mt-3 grid gap-2 text-sm">
                 <div class="flex justify-between gap-3">
@@ -105,7 +215,7 @@
                   <dd class="text-gray-900 dark:text-white">{{ formatMoney(availability?.remaining_daily_amount) }}</dd>
                 </div>
               </dl>
-              <form class="mt-4 grid gap-3" @submit.prevent="submitWithdrawal">
+              <form class="mt-4 grid min-w-0 gap-3" @submit.prevent="submitWithdrawal">
                 <label class="grid gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.amount') }}</span>
                   <input v-model.trim="withdrawalAmount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" autocomplete="off" />
@@ -122,7 +232,7 @@
           </div>
         </section>
 
-        <section class="card">
+        <section class="card min-w-0 overflow-hidden">
           <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('wallet.withdrawals.historyTitle') }}</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
@@ -130,13 +240,13 @@
             </p>
           </div>
           <div class="divide-y divide-gray-100 dark:divide-dark-700">
-            <div v-for="item in withdrawalPage.items" :key="item.id" class="p-4">
-              <div class="flex items-start justify-between gap-3">
+            <div v-for="item in withdrawalPage.items" :key="item.id" class="min-w-0 p-4">
+              <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div class="min-w-0">
                   <p class="truncate text-sm font-semibold text-gray-900 dark:text-white">{{ item.request_no }}</p>
                   <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ formatDateTime(item.created_at) }}</p>
                 </div>
-                <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="withdrawalStatusClass(item.status)">
+                <span class="inline-flex self-start rounded-full px-2 py-0.5 text-xs font-medium" :class="withdrawalStatusClass(item.status)">
                   {{ withdrawalStatusLabel(item.status) }}
                 </span>
               </div>
@@ -163,7 +273,7 @@
               {{ loading ? t('wallet.loading') : t('wallet.withdrawals.empty') }}
             </div>
           </div>
-          <div class="flex items-center justify-between border-t border-gray-100 px-5 py-4 text-sm dark:border-dark-700">
+          <div class="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 text-sm dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
             <span class="text-gray-500 dark:text-gray-400">{{ t('wallet.pageInfo', { page: withdrawalPage.page, pages: withdrawalPage.pages }) }}</span>
             <div class="flex gap-2">
               <button type="button" class="btn btn-secondary btn-sm" :disabled="withdrawalPage.page <= 1 || loading" @click="changeWithdrawalPage(withdrawalPage.page - 1)">
@@ -177,27 +287,27 @@
         </section>
       </div>
 
-      <section v-if="activeWithdrawal" class="card">
+      <section v-if="activeWithdrawal" class="card min-w-0 overflow-hidden">
         <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('wallet.withdrawals.statusHistory') }}</h2>
           <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ activeWithdrawal.request_no }}</p>
         </div>
-        <div class="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
-          <div>
+        <div class="grid min-w-0 gap-3 p-5 md:grid-cols-2 xl:grid-cols-4">
+          <div class="min-w-0">
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.amount') }}</p>
-            <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ formatMoney(activeWithdrawal.amount) }}</p>
+            <p class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ formatMoney(activeWithdrawal.amount) }}</p>
           </div>
-          <div>
+          <div class="min-w-0">
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.statusLabel') }}</p>
-            <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ withdrawalStatusLabel(activeWithdrawal.status) }}</p>
+            <p class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ withdrawalStatusLabel(activeWithdrawal.status) }}</p>
           </div>
-          <div>
+          <div class="min-w-0">
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.accountMask') }}</p>
-            <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_account_mask }}</p>
+            <p class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_account_mask }}</p>
           </div>
-          <div>
+          <div class="min-w-0">
             <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('wallet.withdrawals.paidAt') }}</p>
-            <p class="mt-1 font-semibold text-gray-900 dark:text-white">{{ formatDateTime(activeWithdrawal.paid_at) }}</p>
+            <p class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ formatDateTime(activeWithdrawal.paid_at) }}</p>
           </div>
         </div>
         <ol class="space-y-3 px-5 pb-5">
@@ -214,9 +324,9 @@
         </ol>
       </section>
 
-      <section class="card">
-        <div class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
-          <div>
+      <section class="card min-w-0 overflow-hidden">
+        <div class="flex min-w-0 flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between">
+          <div class="min-w-0">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('wallet.transactions') }}</h2>
             <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
               {{ t('wallet.transactionCount', { count: transactionPage.total }) }}
@@ -232,8 +342,8 @@
           </label>
         </div>
 
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-100 text-sm dark:divide-dark-700">
+        <div class="max-w-full min-w-0 overflow-x-auto">
+          <table class="min-w-[720px] divide-y divide-gray-100 text-sm dark:divide-dark-700">
             <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800 dark:text-gray-400">
               <tr>
                 <th class="px-4 py-3">{{ t('wallet.table.time') }}</th>
@@ -246,10 +356,10 @@
             <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
               <tr v-for="item in transactionPage.items" :key="item.id">
                 <td class="whitespace-nowrap px-4 py-3 text-gray-600 dark:text-gray-300">{{ formatDateTime(item.created_at) }}</td>
-                <td class="px-4 py-3 text-gray-900 dark:text-white">{{ t(`wallet.source.${item.source}`) }}</td>
+                <td class="px-4 py-3 text-gray-900 dark:text-white">{{ walletSourceLabel(item.source) }}</td>
                 <td class="px-4 py-3">
                   <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="directionClass(item.direction)">
-                    {{ t(`wallet.direction.${item.direction}`) }}
+                    {{ walletDirectionLabel(item.direction) }}
                   </span>
                 </td>
                 <td class="px-4 py-3 text-right tabular-nums" :class="amountClass(item.direction)">
@@ -301,8 +411,11 @@ import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import {
+  cancelFundRefundRequest,
   cancelWithdrawal,
+  createFundRefundRequest,
   createWithdrawal,
+  getFundRefundRequests,
   getWalletSummary,
   getWalletTransactions,
   getWithdrawal,
@@ -311,6 +424,9 @@ import {
   getWithdrawals,
   normalizeWithdrawalWholeAmount,
   updateWithdrawalAccount,
+  type FundRefundRequestPage,
+  type FundRefundStatus,
+  type FundRefundType,
   type WalletDirection,
   type WalletSource,
   type WalletSummary,
@@ -339,6 +455,7 @@ const sourceOptions: WalletSource[] = [
   'usage',
   'image_task',
   'refund',
+  'gift',
   'admin_adjustment',
   'promotion',
   'subscription',
@@ -362,6 +479,10 @@ const accountMessage = ref('')
 const accountMessageType = ref<'success' | 'error'>('success')
 const withdrawalMessage = ref('')
 const withdrawalMessageType = ref<'success' | 'error'>('success')
+const refundSubmitting = ref(false)
+const refundActionID = ref<number | null>(null)
+const refundMessage = ref('')
+const refundMessageType = ref<'success' | 'error'>('success')
 
 const accountForm = reactive({
   method: 'alipay' as WithdrawalPayoutMethod,
@@ -369,6 +490,12 @@ const accountForm = reactive({
   recipient_name: '',
   account: '',
   bank_name: '',
+})
+
+const refundForm = reactive({
+  request_type: 'online_recharge_refund' as FundRefundType,
+  amount: '',
+  reason: '',
 })
 
 const transactionPage = ref<WalletTransactionPage>({
@@ -387,14 +514,23 @@ const withdrawalPage = ref<WithdrawalRequestPage>({
   pages: 1,
 })
 
+const refundPage = ref<FundRefundRequestPage>({
+  items: [],
+  total: 0,
+  page: 1,
+  page_size: 10,
+  pages: 1,
+})
+
 const summaryCards = computed(() => [
   { label: t('wallet.available'), value: formatMoney(summary.value?.available_balance) },
-  { label: t('wallet.withdrawable'), value: formatMoney(summary.value?.withdrawable_balance) },
+  { label: t('wallet.withdrawable'), value: formatMoney(summary.value?.withdrawable_balance), hint: t('wallet.summaryHints.withdrawable') },
+  { label: t('wallet.refundableRecharge'), value: formatMoney(summary.value?.refundable_recharge_balance), hint: t('wallet.summaryHints.refundableRecharge') },
+  { label: t('wallet.giftBalance'), value: formatMoney(summary.value?.gift_balance), hint: t('wallet.summaryHints.giftBalance') },
   { label: t('wallet.pendingWithdrawable'), value: formatMoney(summary.value?.pending_withdrawable_balance) },
   { label: t('wallet.withdrawalFrozen'), value: formatMoney(summary.value?.withdrawal_frozen_balance) },
+  { label: t('wallet.refundFrozen'), value: formatMoney(summary.value?.refund_frozen_balance) },
   { label: t('wallet.taskReserved'), value: formatMoney(summary.value?.task_reserved_balance) },
-  { label: t('wallet.totalCredits'), value: formatMoney(summary.value?.total_credits) },
-  { label: t('wallet.totalDebits'), value: formatMoney(summary.value?.total_debits) },
 ])
 
 const withdrawalAvailabilityText = computed(() => {
@@ -405,6 +541,15 @@ const withdrawalAvailabilityText = computed(() => {
 
 const canSubmitWithdrawal = computed(() => {
   return Boolean(availability.value?.can_apply && payoutAccount.value && withdrawalAmount.value.trim() && !withdrawalSubmitting.value)
+})
+
+const selectedRefundableBalance = computed(() => {
+  if (refundForm.request_type === 'offline_recharge_refund') return Number(summary.value?.offline_recharge_balance || 0)
+  return Number(summary.value?.online_recharge_balance || 0)
+})
+
+const canSubmitFundRefund = computed(() => {
+  return Boolean(payoutAccount.value && refundForm.amount.trim() && selectedRefundableBalance.value > 0 && !refundSubmitting.value)
 })
 
 function formatMoney(value: string | number | undefined) {
@@ -492,6 +637,41 @@ function isCancelable(status: WithdrawalStatus) {
   return status === 'pending_review' || status === 'second_review'
 }
 
+function fundRefundStatusClass(status: FundRefundStatus) {
+  if (status === 'paid') return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-200'
+  if (status === 'rejected' || status === 'canceled') return 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+  if (status === 'payout_pending') return 'bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-200'
+  return 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-200'
+}
+
+function fundRefundStatusLabel(status: string) {
+  const key = `wallet.refunds.status.${status}`
+  const translated = t(key)
+  return translated === key ? t('wallet.refunds.statusLabel') : translated
+}
+
+function refundTypeLabel(type: string) {
+  const key = `wallet.refunds.types.${type}`
+  const translated = t(key)
+  return translated === key ? t('wallet.refunds.type') : translated
+}
+
+function walletSourceLabel(source: string) {
+  const key = `wallet.source.${source}`
+  const translated = t(key)
+  return translated === key ? t('wallet.source.other') : translated
+}
+
+function walletDirectionLabel(direction: string) {
+  const key = `wallet.direction.${direction}`
+  const translated = t(key)
+  return translated === key ? t('wallet.direction.neutral') : translated
+}
+
+function isFundRefundCancelable(status: FundRefundStatus) {
+  return status === 'pending_review'
+}
+
 async function savePayoutAccount() {
   accountMessage.value = ''
   if (!accountForm.recipient_name || !accountForm.account) {
@@ -550,6 +730,59 @@ async function submitWithdrawal() {
   }
 }
 
+async function submitFundRefund() {
+  refundMessage.value = ''
+  if (!payoutAccount.value) {
+    refundMessageType.value = 'error'
+    refundMessage.value = t('wallet.refunds.validation.accountRequired')
+    return
+  }
+  const normalizedAmount = normalizeWithdrawalWholeAmount(refundForm.amount)
+  if (!/^[1-9]\d*$/.test(normalizedAmount)) {
+    refundMessageType.value = 'error'
+    refundMessage.value = t('wallet.refunds.validation.integerAmountRequired')
+    return
+  }
+  if (Number(normalizedAmount) > selectedRefundableBalance.value) {
+    refundMessageType.value = 'error'
+    refundMessage.value = t('wallet.refunds.validation.amountTooLarge')
+    return
+  }
+  refundSubmitting.value = true
+  try {
+    await createFundRefundRequest({
+      request_type: refundForm.request_type,
+      amount: normalizedAmount,
+      reason: refundForm.reason,
+    })
+    refundForm.amount = ''
+    refundForm.reason = ''
+    refundMessageType.value = 'success'
+    refundMessage.value = t('wallet.refunds.submitSuccess')
+    await loadWallet()
+  } catch {
+    refundMessageType.value = 'error'
+    refundMessage.value = t('wallet.refunds.submitFailed')
+  } finally {
+    refundSubmitting.value = false
+  }
+}
+
+async function cancelFundRefund(id: number) {
+  refundActionID.value = id
+  try {
+    await cancelFundRefundRequest(id)
+    refundMessageType.value = 'success'
+    refundMessage.value = t('wallet.refunds.cancelSuccess')
+    await loadWallet()
+  } catch {
+    refundMessageType.value = 'error'
+    refundMessage.value = t('wallet.refunds.cancelFailed')
+  } finally {
+    refundActionID.value = null
+  }
+}
+
 async function cancelRequest(id: number) {
   withdrawalActionID.value = id
   try {
@@ -577,7 +810,7 @@ async function loadWallet() {
   loading.value = true
   loadError.value = false
   try {
-    const [nextSummary, nextTransactions, nextAvailability, nextAccount, nextWithdrawals] = await Promise.all([
+    const [nextSummary, nextTransactions, nextAvailability, nextAccount, nextWithdrawals, nextRefunds] = await Promise.all([
       getWalletSummary(),
       getWalletTransactions({
         source: sourceFilter.value,
@@ -590,12 +823,17 @@ async function loadWallet() {
         page: withdrawalPage.value.page,
         page_size: withdrawalPage.value.page_size,
       }),
+      getFundRefundRequests({
+        page: refundPage.value.page,
+        page_size: refundPage.value.page_size,
+      }),
     ])
     summary.value = nextSummary
     transactionPage.value = nextTransactions
     availability.value = nextAvailability
     payoutAccount.value = nextAccount
     withdrawalPage.value = nextWithdrawals
+    refundPage.value = nextRefunds
   } catch {
     loadError.value = true
   } finally {
@@ -617,6 +855,12 @@ async function changePage(page: number) {
 async function changeWithdrawalPage(page: number) {
   if (page < 1 || page > withdrawalPage.value.pages) return
   withdrawalPage.value = { ...withdrawalPage.value, page }
+  await loadWallet()
+}
+
+async function changeRefundPage(page: number) {
+  if (page < 1 || page > refundPage.value.pages) return
+  refundPage.value = { ...refundPage.value, page }
   await loadWallet()
 }
 

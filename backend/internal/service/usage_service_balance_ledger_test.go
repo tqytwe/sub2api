@@ -100,6 +100,7 @@ func TestUsageServiceCreateWritesUsageChargeBalanceLedger(t *testing.T) {
 			"usage_charge", "501", "usage_log:501", "system", nil,
 			"API 消耗扣费", `{"usage_log_id":501}`, false, "high", createdAt,
 		))
+	expectEmptyFundBatchConsumption(mock, 42)
 	mock.ExpectCommit()
 
 	got, err := svc.Create(context.Background(), CreateUsageLogRequest{
