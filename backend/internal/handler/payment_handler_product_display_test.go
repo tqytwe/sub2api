@@ -46,6 +46,10 @@ func TestCheckoutPlanJSONIncludesProductDisplayFields(t *testing.T) {
 		"features": ["Priority models"],
 		"product_name": "GPT Pro Workbench",
 		"cover_image_url": "/assets/plans/pro.webp",
-		"detail_description": "Long copy"
+		"detail_description": "Long copy",
+		"storefront_platform": "",
+		"storefront_category": "",
+		"storefront_featured": false,
+		"storefront_badge": ""
 	}`, string(body))
 }
