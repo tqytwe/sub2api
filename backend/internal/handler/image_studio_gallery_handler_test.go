@@ -168,6 +168,32 @@ func TestImageStudioMediaHandlersUseConsistentPrivateCacheControl(t *testing.T) 
 	}
 }
 
+func TestImageStudioAssetDownloadUsesStoredFilename(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	store := service.NewImageStudioAssetStore(t.TempDir())
+	originalKey, err := store.Save(42, imageStudioGalleryAssetID, "image/webp", []byte("webp"))
+	require.NoError(t, err)
+	asset := &service.ImageStudioAsset{
+		ID:          imageStudioGalleryAssetID,
+		StorageKey:  originalKey,
+		ContentType: "image/webp",
+		Filename:    "campaign-cover.webp",
+	}
+	repo := &imageStudioGalleryHandlerRepoStub{asset: asset}
+	handler := newImageStudioGalleryHandlerForTest(t, repo, store)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/assets/"+imageStudioGalleryAssetID+"/download", nil)
+	ctx.Params = gin.Params{{Key: "id", Value: imageStudioGalleryAssetID}}
+	ctx.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 42})
+
+	handler.AssetDownload(ctx)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, "attachment; filename=\"campaign-cover.webp\"", recorder.Header().Get("Content-Disposition"))
+	require.Equal(t, "image/webp", recorder.Header().Get("Content-Type"))
+}
+
 func newImageStudioGalleryHandlerForTest(
 	t *testing.T,
 	repo service.ImageStudioRepository,
