@@ -1388,6 +1388,24 @@ func buildPromptWhere(
 		args = append(args, value)
 		parts = append(parts, fmt.Sprintf("$%d = ANY(v.sizes)", len(args)))
 	}
+	if filter.ImageOnly {
+		args = append(args, pq.Array(service.NextChatImagePromptModelIDs()))
+		modelIDArg := len(args)
+		args = append(args, pq.Array(service.NextChatImagePromptModelLikePatterns()))
+		modelPatternArg := len(args)
+		parts = append(parts, fmt.Sprintf(
+			"(LOWER(v.purpose) IN ('image', 'image_studio', 'image-studio') OR "+
+				"COALESCE(array_length(v.sizes, 1), 0) > 0 OR "+
+				"v.reference_requirement <> 'none' OR v.requires_reference OR "+
+				"v.models && $%d::text[] OR "+
+				"EXISTS (SELECT 1 FROM unnest(v.models) AS image_model "+
+				"WHERE LOWER(BTRIM(image_model)) NOT LIKE 'agnes-%%' "+
+				"AND LOWER(BTRIM(image_model)) NOT LIKE 'models/agnes-%%' "+
+				"AND LOWER(BTRIM(image_model)) LIKE ANY($%d::text[])))",
+			modelIDArg,
+			modelPatternArg,
+		))
+	}
 	if filter.ReferenceRequirement != "" {
 		args = append(args, filter.ReferenceRequirement)
 		parts = append(parts, fmt.Sprintf("v.reference_requirement = $%d", len(args)))

@@ -118,7 +118,8 @@ func imageStudioJobRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
 		"id", "user_id", "template_id", "prompt_id", "prompt_version", "prompt_hash", "request_payload_encrypted",
 		"model", "quality", "size", "count", "status", "estimated_cost", "actual_cost",
-		"api_key_id", "hold_amount", "hold_id", "success_count", "fail_count",
+		"api_key_id", "group_id", "platform", "capability_profile_id", "capability_revision",
+		"hold_amount", "hold_id", "success_count", "fail_count",
 		"error_message", "created_at", "expires_at", "cancel_requested_at", "started_at",
 		"finished_at", "heartbeat_at", "lease_owner", "lease_expires_at",
 	})
@@ -128,7 +129,7 @@ func imageStudioJobRow(id string, userID int64) []driver.Value {
 	return []driver.Value{
 		id, userID, "free-create", nil, nil, "hash", "",
 		"gpt-image-1", "standard", "1024x1024", 1, service.ImageStudioJobStatusRunning,
-		0.08, nil, nil, nil, "", 0, 0, nil, time.Now().UTC(),
+		0.08, nil, nil, nil, "", "", "", nil, "", 0, 0, nil, time.Now().UTC(),
 		nil, nil, nil, nil, nil, "", nil,
 	}
 }
@@ -137,7 +138,7 @@ func imageStudioAssetRows() *sqlmock.Rows {
 	return sqlmock.NewRows([]string{
 		"job_id", "id", "url", "sort_order", "storage_key", "content_type", "byte_size",
 		"width", "height", "thumbnail_storage_key", "thumbnail_content_type",
-		"thumbnail_byte_size",
+		"thumbnail_byte_size", "filename", "expires_at", "purged_at",
 	})
 }
 

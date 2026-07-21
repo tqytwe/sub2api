@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
@@ -186,6 +187,120 @@ func TestImageStudioOpenAssetThumbnailRejectsMissingDerivative(t *testing.T) {
 	_, _, err := svc.OpenAssetThumbnail(context.Background(), 42, "asset-original-only")
 
 	require.ErrorIs(t, err, ErrImageStudioAssetNotFound)
+}
+
+func TestImageStudioOpenAssetContentRejectsExpiredAsset(t *testing.T) {
+	expiresAt := time.Now().UTC().Add(-time.Minute)
+	svc := &ImageStudioService{
+		repo: &imageStudioGalleryRepoStub{asset: &ImageStudioAsset{
+			ID:         "asset-expired",
+			StorageKey: "42/original.png",
+			ExpiresAt:  &expiresAt,
+		}},
+		assetStore: NewImageStudioAssetStore(t.TempDir()),
+	}
+
+	_, _, err := svc.OpenAssetContent(context.Background(), 42, "asset-expired")
+
+	require.ErrorIs(t, err, ErrImageStudioAssetExpired)
+}
+
+func TestImageStudioOpenAssetContentReportsPurgedAssetAsExpired(t *testing.T) {
+	purgedAt := time.Now().UTC().Add(-time.Minute)
+	svc := &ImageStudioService{
+		repo: &imageStudioGalleryRepoStub{asset: &ImageStudioAsset{
+			ID:       "asset-purged",
+			PurgedAt: &purgedAt,
+		}},
+		assetStore: NewImageStudioAssetStore(t.TempDir()),
+	}
+
+	_, _, err := svc.OpenAssetContent(context.Background(), 42, "asset-purged")
+
+	require.ErrorIs(t, err, ErrImageStudioAssetExpired)
+}
+
+func TestImageStudioOpenAssetContentReportsStorageFailureAsUnavailable(t *testing.T) {
+	svc := &ImageStudioService{
+		repo: &imageStudioGalleryRepoStub{asset: &ImageStudioAsset{
+			ID:         "asset-unavailable",
+			StorageKey: "../invalid.png",
+		}},
+		assetStore: NewImageStudioAssetStore(t.TempDir()),
+	}
+
+	_, _, err := svc.OpenAssetContent(context.Background(), 42, "asset-unavailable")
+
+	require.ErrorIs(t, err, ErrImageStudioAssetUnavailable)
+}
+
+func TestImageStudioListJobsPageAnnotatesAssetAvailability(t *testing.T) {
+	expiresAt := time.Now().UTC().Add(time.Hour)
+	repo := &imageStudioGalleryRepoStub{
+		total: 1,
+		jobs: []ImageStudioJob{{
+			ID:     "job-available",
+			Status: ImageStudioJobStatusCompleted,
+			Assets: []ImageStudioAsset{{
+				ID:          "asset-available",
+				StorageKey:  "10/original.png",
+				ContentType: "image/png",
+				ByteSize:    123,
+				Filename:    "image-studio-asset-available.png",
+				ExpiresAt:   &expiresAt,
+			}},
+		}},
+	}
+	svc := &ImageStudioService{
+		repo:           repo,
+		settingService: newImageStudioEnabledSettingService(),
+	}
+	svc.playService = NewPlayService(nil, nil, nil, svc.settingService, nil, nil)
+
+	jobs, _, err := svc.ListJobsPage(context.Background(), 10, 1, 12)
+
+	require.NoError(t, err)
+	require.Equal(t, "available", jobs[0].Assets[0].Availability)
+	require.Equal(t, "image-studio-asset-available.png", jobs[0].Assets[0].Filename)
+	require.Equal(t, "/api/v1/image-studio/assets/asset-available/content", jobs[0].Assets[0].URL)
+	require.Equal(t, "/api/v1/image-studio/assets/asset-available/download", jobs[0].Assets[0].DownloadURL)
+}
+
+func TestImageStudioListJobsPageDoesNotAdvertiseExpiredAssetLinks(t *testing.T) {
+	expiresAt := time.Now().UTC().Add(-time.Minute)
+	repo := &imageStudioGalleryRepoStub{
+		total: 1,
+		jobs: []ImageStudioJob{{
+			ID:     "job-expired",
+			Status: ImageStudioJobStatusCompleted,
+			Assets: []ImageStudioAsset{{
+				ID:                  "asset-expired",
+				URL:                 "https://cdn.example/old.png",
+				PreviewURL:          "https://cdn.example/old-preview.png",
+				DownloadURL:         "https://cdn.example/old-download.png",
+				ThumbnailURL:        "https://cdn.example/old-thumb.png",
+				StorageKey:          "10/original.png",
+				ThumbnailStorageKey: "10/thumb.png",
+				ContentType:         "image/png",
+				ExpiresAt:           &expiresAt,
+			}},
+		}},
+	}
+	svc := &ImageStudioService{
+		repo:           repo,
+		settingService: newImageStudioEnabledSettingService(),
+	}
+	svc.playService = NewPlayService(nil, nil, nil, svc.settingService, nil, nil)
+
+	jobs, _, err := svc.ListJobsPage(context.Background(), 10, 1, 12)
+
+	require.NoError(t, err)
+	asset := jobs[0].Assets[0]
+	require.Equal(t, "expired", asset.Availability)
+	require.Empty(t, asset.URL)
+	require.Empty(t, asset.PreviewURL)
+	require.Empty(t, asset.DownloadURL)
+	require.Empty(t, asset.ThumbnailURL)
 }
 
 func newImageStudioEnabledSettingService() *SettingService {

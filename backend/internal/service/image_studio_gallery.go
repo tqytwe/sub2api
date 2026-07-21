@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"strings"
+	"time"
 )
 
 func (s *ImageStudioService) ListJobsPage(
@@ -28,9 +29,10 @@ func (s *ImageStudioService) ListJobsPage(
 	}
 	for i := range jobs {
 		s.enrichJobAssets(&jobs[i])
+		now := time.Now().UTC()
 		for j := range jobs[i].Assets {
 			asset := &jobs[i].Assets[j]
-			if strings.TrimSpace(asset.ThumbnailStorageKey) != "" {
+			if !imageStudioAssetExpired(asset, now) && strings.TrimSpace(asset.ThumbnailStorageKey) != "" {
 				asset.ThumbnailURL = "/api/v1/image-studio/assets/" + asset.ID + "/thumbnail"
 			}
 		}
@@ -47,12 +49,15 @@ func (s *ImageStudioService) OpenAssetThumbnail(
 	if err != nil {
 		return nil, "", err
 	}
+	if imageStudioAssetExpired(asset, time.Now().UTC()) {
+		return nil, "", ErrImageStudioAssetExpired
+	}
 	if s.assetStore == nil || strings.TrimSpace(asset.ThumbnailStorageKey) == "" {
 		return nil, "", ErrImageStudioAssetNotFound
 	}
 	data, err := s.assetStore.Read(asset.ThumbnailStorageKey)
 	if err != nil {
-		return nil, "", err
+		return nil, "", ErrImageStudioAssetUnavailable.WithCause(err)
 	}
 	contentType := strings.TrimSpace(asset.ThumbnailContentType)
 	if contentType == "" {

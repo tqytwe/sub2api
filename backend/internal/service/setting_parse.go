@@ -195,14 +195,15 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),
 
 		// Play growth user sidebar (Jisudeng Play ships enabled; admin can disable)
-		SettingKeyPublicModelsEnabled:  "true",
-		SettingKeyImageStudioEnabled:   "true",
-		SettingKeyNextChatEnabled:      "false",
-		SettingKeyPlayCheckinEnabled:   "true",
-		SettingKeyPlayArenaEnabled:     "true",
-		SettingKeyPlayBlindboxEnabled:  "true",
-		SettingKeyPlayQuizEnabled:      "true",
-		SettingKeyPlayAgentTeamEnabled: "true",
+		SettingKeyPublicModelsEnabled:          "true",
+		SettingKeyImageStudioEnabled:           "true",
+		SettingKeyImageStudioAssetPurgeEnabled: "false",
+		SettingKeyNextChatEnabled:              "false",
+		SettingKeyPlayCheckinEnabled:           "true",
+		SettingKeyPlayArenaEnabled:             "true",
+		SettingKeyPlayBlindboxEnabled:          "true",
+		SettingKeyPlayQuizEnabled:              "true",
+		SettingKeyPlayAgentTeamEnabled:         "true",
 
 		// 风控中心功能（默认关闭，显式启用）
 		SettingKeyRiskControlEnabled: "false",

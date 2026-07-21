@@ -54,6 +54,8 @@ type nextChatWorkspaceModelProvider interface {
 type nextChatPromptProvider interface {
 	ListPublic(ctx context.Context, filter service.PromptListFilter, userID *int64) ([]service.PublicPrompt, *pagination.PaginationResult, error)
 	GetPublic(ctx context.Context, id int64, userID *int64) (*service.PublicPrompt, error)
+	SetFavorite(ctx context.Context, promptID, userID int64, favorite bool) (bool, error)
+	UsePrompt(ctx context.Context, promptID, userID int64) (*service.PromptUseResult, error)
 }
 
 type nextChatImageStudioBFFHandler interface {
@@ -128,6 +130,21 @@ func registerNextChatRoutes(
 		})
 		nextchat.GET("/prompts", func(c *gin.Context) {
 			handleNextChatPrompts(c, promptProvider, gate, cfg)
+		})
+		nextchat.GET("/image-prompts", func(c *gin.Context) {
+			handleNextChatImagePrompts(c, promptProvider, gate, cfg)
+		})
+		nextchat.GET("/image-prompts/:id", func(c *gin.Context) {
+			handleNextChatImagePrompt(c, promptProvider, gate, cfg)
+		})
+		nextchat.POST("/image-prompts/:id/favorite", func(c *gin.Context) {
+			handleNextChatImagePromptFavorite(c, promptProvider, gate, cfg, true)
+		})
+		nextchat.DELETE("/image-prompts/:id/favorite", func(c *gin.Context) {
+			handleNextChatImagePromptFavorite(c, promptProvider, gate, cfg, false)
+		})
+		nextchat.POST("/image-prompts/:id/use", func(c *gin.Context) {
+			handleNextChatImagePromptUse(c, promptProvider, gate, cfg)
 		})
 		nextchat.POST("/group", func(c *gin.Context) {
 			handleNextChatGroupSwitch(c, issuer, modelProvider, gate, cfg)
@@ -244,8 +261,7 @@ func handleNextChatImageStudioGenerate(
 		return
 	}
 	req.APIKeyID = apiKeyID
-	retainDays := 1
-	req.RetainDays = &retainDays
+	req.RetainDays = nil
 	raw, err := json.Marshal(req)
 	if err != nil {
 		response.InternalError(c, "Failed to prepare image studio request")
@@ -456,9 +472,11 @@ func handleNextChatBootstrap(
 			"profile_url":  joinNextChatURL(siteURL, "/profile"),
 		},
 		"retention": gin.H{
-			"text_session_days": 7,
-			"image_asset_hours": 24,
-			"server_chat_log":   false,
+			"text_session_days":     7,
+			"image_job_days":        7,
+			"image_asset_hours":     24,
+			"image_reference_hours": 24,
+			"server_chat_log":       false,
 		},
 	})
 }
@@ -478,6 +496,164 @@ func handleNextChatPrompts(
 		return
 	}
 	response.Success(c, buildNextChatPromptCatalog(c.Request.Context(), promptProvider, userID))
+}
+
+func handleNextChatImagePrompts(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	userIDPtr := &userID
+	rows, result, err := promptProvider.ListPublic(c.Request.Context(), service.PromptListFilter{
+		Query:                c.Query("q"),
+		Purpose:              c.Query("purpose"),
+		Style:                c.Query("style"),
+		Subject:              c.Query("subject"),
+		Model:                c.Query("model"),
+		Size:                 c.Query("size"),
+		ReferenceRequirement: nextChatPromptReferenceRequirement(c.Query("reference")),
+		ImageOnly:            true,
+		Featured:             nextChatOptionalBool(c.Query("featured")),
+		FavoritedOnly:        nextChatBoolQuery(c.Query("favorite")),
+		Sort:                 c.DefaultQuery("sort", "featured"),
+		Pagination:           pagination.PaginationParams{Page: page, PageSize: pageSize},
+	}, userIDPtr)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, rows, result.Total, result.Page, result.PageSize)
+}
+
+func handleNextChatImagePrompt(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	id, ok := nextChatPromptPathID(c)
+	if !ok {
+		return
+	}
+	prompt, err := promptProvider.GetPublic(c.Request.Context(), id, &userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if prompt == nil || !service.IsNextChatPublicImagePrompt(*prompt) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	response.Success(c, prompt)
+}
+
+func handleNextChatImagePromptFavorite(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	favorite bool,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	id, ok := nextChatPromptPathID(c)
+	if !ok {
+		return
+	}
+	prompt, err := promptProvider.GetPublic(c.Request.Context(), id, &userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if prompt == nil || !service.IsNextChatPublicImagePrompt(*prompt) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	state, err := promptProvider.SetFavorite(c.Request.Context(), id, userID, favorite)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"prompt_id": id, "favorited": state})
+}
+
+func handleNextChatImagePromptUse(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	id, ok := nextChatPromptPathID(c)
+	if !ok {
+		return
+	}
+	prompt, err := promptProvider.GetPublic(c.Request.Context(), id, &userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if prompt == nil || !service.IsNextChatPublicImagePrompt(*prompt) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	result, err := promptProvider.UsePrompt(c.Request.Context(), id, userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if result == nil || !nextChatPromptUseResultIsImage(result) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	response.Success(c, result)
 }
 
 func buildNextChatPromptCatalog(ctx context.Context, promptProvider nextChatPromptProvider, userID int64) service.NextChatPromptCatalog {
@@ -503,6 +679,67 @@ func buildNextChatPromptCatalog(ctx context.Context, promptProvider nextChatProm
 		prompts = append(prompts, prompt)
 	}
 	return service.BuildNextChatPromptCatalogFromPublicPrompts(prompts)
+}
+
+func nextChatPromptPathID(c *gin.Context) (int64, bool) {
+	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid prompt id")
+		return 0, false
+	}
+	return id, true
+}
+
+func nextChatPromptReferenceRequirement(raw string) service.PromptReferenceRequirement {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case string(service.PromptReferenceNone):
+		return service.PromptReferenceNone
+	case string(service.PromptReferenceOptional):
+		return service.PromptReferenceOptional
+	case string(service.PromptReferenceRequired):
+		return service.PromptReferenceRequired
+	default:
+		return ""
+	}
+}
+
+func nextChatPromptUseResultIsImage(result *service.PromptUseResult) bool {
+	if result == nil {
+		return false
+	}
+	if len(result.Sizes) > 0 || result.RequiresReference {
+		return true
+	}
+	if requirement := strings.TrimSpace(string(result.ReferenceRequirement)); requirement != "" && requirement != string(service.PromptReferenceNone) {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(result.Purpose)) {
+	case "image", "image_studio", "image-studio":
+		return true
+	}
+	for _, model := range result.Models {
+		if _, ok := service.ResolveImageStudioModelCapability(model); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func nextChatOptionalBool(raw string) *bool {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	value := nextChatBoolQuery(raw)
+	return &value
+}
+
+func nextChatBoolQuery(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
 }
 
 func handleNextChatGroupSwitch(
