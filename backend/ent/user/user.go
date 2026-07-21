@@ -31,6 +31,14 @@ const (
 	FieldBalance = "balance"
 	// FieldFrozenBalance holds the string denoting the frozen_balance field in the database.
 	FieldFrozenBalance = "frozen_balance"
+	// FieldWithdrawableBalance holds the string denoting the withdrawable_balance field in the database.
+	FieldWithdrawableBalance = "withdrawable_balance"
+	// FieldWithdrawalFrozenBalance holds the string denoting the withdrawal_frozen_balance field in the database.
+	FieldWithdrawalFrozenBalance = "withdrawal_frozen_balance"
+	// FieldWithdrawalRecalcStatus holds the string denoting the withdrawal_recalc_status field in the database.
+	FieldWithdrawalRecalcStatus = "withdrawal_recalc_status"
+	// FieldWithdrawalRecalcCheckedAt holds the string denoting the withdrawal_recalc_checked_at field in the database.
+	FieldWithdrawalRecalcCheckedAt = "withdrawal_recalc_checked_at"
 	// FieldConcurrency holds the string denoting the concurrency field in the database.
 	FieldConcurrency = "concurrency"
 	// FieldStatus holds the string denoting the status field in the database.
@@ -202,6 +210,10 @@ var Columns = []string{
 	FieldRole,
 	FieldBalance,
 	FieldFrozenBalance,
+	FieldWithdrawableBalance,
+	FieldWithdrawalFrozenBalance,
+	FieldWithdrawalRecalcStatus,
+	FieldWithdrawalRecalcCheckedAt,
 	FieldConcurrency,
 	FieldStatus,
 	FieldUsername,
@@ -262,6 +274,14 @@ var (
 	DefaultBalance float64
 	// DefaultFrozenBalance holds the default value on creation for the "frozen_balance" field.
 	DefaultFrozenBalance float64
+	// DefaultWithdrawableBalance holds the default value on creation for the "withdrawable_balance" field.
+	DefaultWithdrawableBalance float64
+	// DefaultWithdrawalFrozenBalance holds the default value on creation for the "withdrawal_frozen_balance" field.
+	DefaultWithdrawalFrozenBalance float64
+	// DefaultWithdrawalRecalcStatus holds the default value on creation for the "withdrawal_recalc_status" field.
+	DefaultWithdrawalRecalcStatus string
+	// WithdrawalRecalcStatusValidator is a validator for the "withdrawal_recalc_status" field. It is called by the builders before save.
+	WithdrawalRecalcStatusValidator func(string) error
 	// DefaultConcurrency holds the default value on creation for the "concurrency" field.
 	DefaultConcurrency int
 	// DefaultStatus holds the default value on creation for the "status" field.
@@ -338,6 +358,26 @@ func ByBalance(opts ...sql.OrderTermOption) OrderOption {
 // ByFrozenBalance orders the results by the frozen_balance field.
 func ByFrozenBalance(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFrozenBalance, opts...).ToFunc()
+}
+
+// ByWithdrawableBalance orders the results by the withdrawable_balance field.
+func ByWithdrawableBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWithdrawableBalance, opts...).ToFunc()
+}
+
+// ByWithdrawalFrozenBalance orders the results by the withdrawal_frozen_balance field.
+func ByWithdrawalFrozenBalance(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWithdrawalFrozenBalance, opts...).ToFunc()
+}
+
+// ByWithdrawalRecalcStatus orders the results by the withdrawal_recalc_status field.
+func ByWithdrawalRecalcStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWithdrawalRecalcStatus, opts...).ToFunc()
+}
+
+// ByWithdrawalRecalcCheckedAt orders the results by the withdrawal_recalc_checked_at field.
+func ByWithdrawalRecalcCheckedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldWithdrawalRecalcCheckedAt, opts...).ToFunc()
 }
 
 // ByConcurrency orders the results by the concurrency field.

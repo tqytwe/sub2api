@@ -33,6 +33,14 @@ type User struct {
 	Balance float64 `json:"balance,omitempty"`
 	// FrozenBalance holds the value of the "frozen_balance" field.
 	FrozenBalance float64 `json:"frozen_balance,omitempty"`
+	// WithdrawableBalance holds the value of the "withdrawable_balance" field.
+	WithdrawableBalance float64 `json:"withdrawable_balance,omitempty"`
+	// WithdrawalFrozenBalance holds the value of the "withdrawal_frozen_balance" field.
+	WithdrawalFrozenBalance float64 `json:"withdrawal_frozen_balance,omitempty"`
+	// WithdrawalRecalcStatus holds the value of the "withdrawal_recalc_status" field.
+	WithdrawalRecalcStatus string `json:"withdrawal_recalc_status,omitempty"`
+	// WithdrawalRecalcCheckedAt holds the value of the "withdrawal_recalc_checked_at" field.
+	WithdrawalRecalcCheckedAt *time.Time `json:"withdrawal_recalc_checked_at,omitempty"`
 	// Concurrency holds the value of the "concurrency" field.
 	Concurrency int `json:"concurrency,omitempty"`
 	// Status holds the value of the "status" field.
@@ -239,13 +247,13 @@ func (*User) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case user.FieldTotpEnabled, user.FieldBalanceNotifyEnabled:
 			values[i] = new(sql.NullBool)
-		case user.FieldBalance, user.FieldFrozenBalance, user.FieldBalanceNotifyThreshold, user.FieldTotalRecharged:
+		case user.FieldBalance, user.FieldFrozenBalance, user.FieldWithdrawableBalance, user.FieldWithdrawalFrozenBalance, user.FieldBalanceNotifyThreshold, user.FieldTotalRecharged:
 			values[i] = new(sql.NullFloat64)
 		case user.FieldID, user.FieldConcurrency, user.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
-		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldTotpSecretEncrypted, user.FieldSignupSource, user.FieldBalanceNotifyThresholdType, user.FieldBalanceNotifyExtraEmails:
+		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldWithdrawalRecalcStatus, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldTotpSecretEncrypted, user.FieldSignupSource, user.FieldBalanceNotifyThresholdType, user.FieldBalanceNotifyExtraEmails:
 			values[i] = new(sql.NullString)
-		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldTotpEnabledAt, user.FieldLastLoginAt, user.FieldLastActiveAt:
+		case user.FieldCreatedAt, user.FieldUpdatedAt, user.FieldDeletedAt, user.FieldWithdrawalRecalcCheckedAt, user.FieldTotpEnabledAt, user.FieldLastLoginAt, user.FieldLastActiveAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -316,6 +324,31 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field frozen_balance", values[i])
 			} else if value.Valid {
 				_m.FrozenBalance = value.Float64
+			}
+		case user.FieldWithdrawableBalance:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field withdrawable_balance", values[i])
+			} else if value.Valid {
+				_m.WithdrawableBalance = value.Float64
+			}
+		case user.FieldWithdrawalFrozenBalance:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field withdrawal_frozen_balance", values[i])
+			} else if value.Valid {
+				_m.WithdrawalFrozenBalance = value.Float64
+			}
+		case user.FieldWithdrawalRecalcStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field withdrawal_recalc_status", values[i])
+			} else if value.Valid {
+				_m.WithdrawalRecalcStatus = value.String
+			}
+		case user.FieldWithdrawalRecalcCheckedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field withdrawal_recalc_checked_at", values[i])
+			} else if value.Valid {
+				_m.WithdrawalRecalcCheckedAt = new(time.Time)
+				*_m.WithdrawalRecalcCheckedAt = value.Time
 			}
 		case user.FieldConcurrency:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -549,6 +582,20 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("frozen_balance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.FrozenBalance))
+	builder.WriteString(", ")
+	builder.WriteString("withdrawable_balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WithdrawableBalance))
+	builder.WriteString(", ")
+	builder.WriteString("withdrawal_frozen_balance=")
+	builder.WriteString(fmt.Sprintf("%v", _m.WithdrawalFrozenBalance))
+	builder.WriteString(", ")
+	builder.WriteString("withdrawal_recalc_status=")
+	builder.WriteString(_m.WithdrawalRecalcStatus)
+	builder.WriteString(", ")
+	if v := _m.WithdrawalRecalcCheckedAt; v != nil {
+		builder.WriteString("withdrawal_recalc_checked_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("concurrency=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Concurrency))

@@ -20,18 +20,24 @@ func TestWalletSummaryReadsUserBalanceAndUnifiedLedgerTotals(t *testing.T) {
 		WithArgs(int64(7)).
 		WillReturnRows(sqlmock.NewRows([]string{
 			"available_balance",
+			"withdrawable_balance",
+			"pending_withdrawable_balance",
+			"withdrawal_frozen_balance",
 			"task_reserved_balance",
 			"total_credits",
 			"total_debits",
 			"transaction_count",
 			"last_transaction_at",
-		}).AddRow("42.50000000", "3.25000000", "100.00000000", "57.50000000", int64(5), createdAt))
+		}).AddRow("42.50000000", "12.00000000", "4.50000000", "1.25000000", "3.25000000", "100.00000000", "57.50000000", int64(5), createdAt))
 
 	svc := NewWalletService(db)
 	summary, err := svc.GetSummary(context.Background(), 7)
 
 	require.NoError(t, err)
 	require.Equal(t, "42.50000000", summary.AvailableBalance.StringFixed(8))
+	require.Equal(t, "12.00000000", summary.WithdrawableBalance.StringFixed(8))
+	require.Equal(t, "4.50000000", summary.PendingWithdrawableBalance.StringFixed(8))
+	require.Equal(t, "1.25000000", summary.WithdrawalFrozenBalance.StringFixed(8))
 	require.Equal(t, "3.25000000", summary.TaskReservedBalance.StringFixed(8))
 	require.Equal(t, "100.00000000", summary.TotalCredits.StringFixed(8))
 	require.Equal(t, "57.50000000", summary.TotalDebits.StringFixed(8))

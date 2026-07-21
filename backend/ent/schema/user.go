@@ -52,6 +52,19 @@ func (User) Fields() []ent.Field {
 		field.Float("frozen_balance").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0),
+		field.Float("withdrawable_balance").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Default(0),
+		field.Float("withdrawal_frozen_balance").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
+			Default(0),
+		field.String("withdrawal_recalc_status").
+			MaxLen(24).
+			Default("needs_review"),
+		field.Time("withdrawal_recalc_checked_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 		field.Int("concurrency").
 			Default(5),
 		field.String("status").

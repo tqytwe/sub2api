@@ -895,6 +895,26 @@ func (r *usageBillingRepository) applyBatchImageBalanceLedgerDelta(
 	if r == nil || r.balanceLedger == nil {
 		return nil, service.ErrBalanceLedgerUnavailable
 	}
+	metadata := map[string]any{
+		"request_id":            strings.TrimSpace(cmd.RequestID),
+		"hold_request_id":       strings.TrimSpace(cmd.HoldRequestID),
+		"capture_request_id":    strings.TrimSpace(cmd.CaptureRequestID),
+		"release_request_id":    strings.TrimSpace(cmd.ReleaseRequestID),
+		"api_key_id":            cmd.APIKeyID,
+		"batch_id":              strings.TrimSpace(cmd.BatchID),
+		"hold_amount":           cmd.HoldAmount,
+		"actual_amount":         cmd.ActualAmount,
+		"allow_balance_overage": cmd.AllowBalanceOverage,
+		"request_payload_hash":  strings.TrimSpace(cmd.RequestPayloadHash),
+		"request_fingerprint":   strings.TrimSpace(cmd.RequestFingerprint),
+	}
+	if sourceType != "image_balance_hold" && balanceDelta > 0 {
+		holdRequestID := strings.TrimSpace(cmd.HoldRequestID)
+		if holdRequestID == "" {
+			holdRequestID = service.BatchImageHoldRequestID(cmd.BatchID)
+		}
+		metadata["restore_ledger_key"] = batchImageBalanceLedgerKey("image_balance_hold", cmd.APIKeyID, holdRequestID)
+	}
 	return r.balanceLedger.ApplyDeltaInSQLTx(ctx, tx, service.BalanceLedgerApplyInput{
 		UserID:         cmd.UserID,
 		BalanceDelta:   balanceDelta,
@@ -904,21 +924,9 @@ func (r *usageBillingRepository) applyBatchImageBalanceLedgerDelta(
 		IdempotencyKey: batchImageBalanceLedgerKey(sourceType, cmd.APIKeyID, cmd.RequestID),
 		ActorType:      service.BalanceLedgerActorSystem,
 		Description:    description,
-		Metadata: map[string]any{
-			"request_id":            strings.TrimSpace(cmd.RequestID),
-			"hold_request_id":       strings.TrimSpace(cmd.HoldRequestID),
-			"capture_request_id":    strings.TrimSpace(cmd.CaptureRequestID),
-			"release_request_id":    strings.TrimSpace(cmd.ReleaseRequestID),
-			"api_key_id":            cmd.APIKeyID,
-			"batch_id":              strings.TrimSpace(cmd.BatchID),
-			"hold_amount":           cmd.HoldAmount,
-			"actual_amount":         cmd.ActualAmount,
-			"allow_balance_overage": cmd.AllowBalanceOverage,
-			"request_payload_hash":  strings.TrimSpace(cmd.RequestPayloadHash),
-			"request_fingerprint":   strings.TrimSpace(cmd.RequestFingerprint),
-		},
-		BalancePolicy: balancePolicy,
-		FrozenPolicy:  service.BalanceLedgerPolicyRejectNegative,
+		Metadata:       metadata,
+		BalancePolicy:  balancePolicy,
+		FrozenPolicy:   service.BalanceLedgerPolicyRejectNegative,
 	})
 }
 

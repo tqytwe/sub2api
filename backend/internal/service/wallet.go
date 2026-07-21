@@ -46,12 +46,15 @@ type WalletService struct {
 }
 
 type WalletSummary struct {
-	AvailableBalance    decimal.Decimal `json:"available_balance"`
-	TaskReservedBalance decimal.Decimal `json:"task_reserved_balance"`
-	TotalCredits        decimal.Decimal `json:"total_credits"`
-	TotalDebits         decimal.Decimal `json:"total_debits"`
-	TransactionCount    int64           `json:"transaction_count"`
-	LastTransactionAt   *time.Time      `json:"last_transaction_at,omitempty"`
+	AvailableBalance           decimal.Decimal `json:"available_balance"`
+	WithdrawableBalance        decimal.Decimal `json:"withdrawable_balance"`
+	PendingWithdrawableBalance decimal.Decimal `json:"pending_withdrawable_balance"`
+	WithdrawalFrozenBalance    decimal.Decimal `json:"withdrawal_frozen_balance"`
+	TaskReservedBalance        decimal.Decimal `json:"task_reserved_balance"`
+	TotalCredits               decimal.Decimal `json:"total_credits"`
+	TotalDebits                decimal.Decimal `json:"total_debits"`
+	TransactionCount           int64           `json:"transaction_count"`
+	LastTransactionAt          *time.Time      `json:"last_transaction_at,omitempty"`
 }
 
 type WalletTransaction struct {
@@ -99,6 +102,29 @@ func (s *WalletService) GetSummary(ctx context.Context, userID int64) (*WalletSu
 	rows := s.db.QueryRowContext(ctx, `
 SELECT
 	COALESCE(u.balance, 0)::text AS available_balance,
+	LEAST(
+		COALESCE(u.balance, 0),
+		GREATEST(
+			COALESCE((
+				SELECT SUM(we.remaining_amount)
+				FROM withdrawable_entitlements we
+				WHERE we.user_id = u.id
+				  AND we.status = 'active'
+				  AND we.remaining_amount > 0
+				  AND we.available_at <= NOW()
+			), 0) - COALESCE(u.withdrawal_frozen_balance, 0),
+			0
+		)
+	)::text AS withdrawable_balance,
+	COALESCE((
+		SELECT SUM(we.remaining_amount)
+		FROM withdrawable_entitlements we
+		WHERE we.user_id = u.id
+		  AND we.status = 'active'
+		  AND we.remaining_amount > 0
+		  AND we.available_at > NOW()
+	), 0)::text AS pending_withdrawable_balance,
+	COALESCE(u.withdrawal_frozen_balance, 0)::text AS withdrawal_frozen_balance,
 	COALESCE(u.frozen_balance, 0)::text AS task_reserved_balance,
 	COALESCE(SUM(CASE WHEN bt.balance_delta > 0 THEN bt.balance_delta ELSE 0 END), 0)::text AS total_credits,
 	COALESCE(SUM(CASE WHEN bt.balance_delta < 0 THEN -bt.balance_delta ELSE 0 END), 0)::text AS total_debits,
@@ -108,12 +134,12 @@ FROM users u
 LEFT JOIN balance_transactions bt ON bt.user_id = u.id
 WHERE u.id = $1
   AND u.deleted_at IS NULL
-GROUP BY u.id, u.balance, u.frozen_balance`, userID)
+GROUP BY u.id, u.balance, u.frozen_balance, u.withdrawal_frozen_balance`, userID)
 
 	var summary WalletSummary
-	var available, reserved, credits, debits string
+	var available, withdrawable, pendingWithdrawable, withdrawalFrozen, reserved, credits, debits string
 	var last sql.NullTime
-	if err := rows.Scan(&available, &reserved, &credits, &debits, &summary.TransactionCount, &last); err != nil {
+	if err := rows.Scan(&available, &withdrawable, &pendingWithdrawable, &withdrawalFrozen, &reserved, &credits, &debits, &summary.TransactionCount, &last); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrUserNotFound
 		}
@@ -122,6 +148,15 @@ GROUP BY u.id, u.balance, u.frozen_balance`, userID)
 	var err error
 	if summary.AvailableBalance, err = decimal.NewFromString(available); err != nil {
 		return nil, fmt.Errorf("parse wallet available balance: %w", err)
+	}
+	if summary.WithdrawableBalance, err = decimal.NewFromString(withdrawable); err != nil {
+		return nil, fmt.Errorf("parse wallet withdrawable balance: %w", err)
+	}
+	if summary.PendingWithdrawableBalance, err = decimal.NewFromString(pendingWithdrawable); err != nil {
+		return nil, fmt.Errorf("parse wallet pending withdrawable balance: %w", err)
+	}
+	if summary.WithdrawalFrozenBalance, err = decimal.NewFromString(withdrawalFrozen); err != nil {
+		return nil, fmt.Errorf("parse wallet withdrawal frozen balance: %w", err)
 	}
 	if summary.TaskReservedBalance, err = decimal.NewFromString(reserved); err != nil {
 		return nil, fmt.Errorf("parse wallet task reserved balance: %w", err)

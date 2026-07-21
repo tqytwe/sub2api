@@ -496,8 +496,11 @@ const messages = {
 
   wallet: {
     title: '钱包',
-    description: '查看余额、任务预留和统一流水。',
+    description: '查看余额、可提现权益、任务预留和统一流水。',
     available: '可用余额',
+    withdrawable: '可提现',
+    pendingWithdrawable: '待解冻',
+    withdrawalFrozen: '提现冻结',
     taskReserved: '任务预留',
     totalCredits: '累计入账',
     totalDebits: '累计扣减',

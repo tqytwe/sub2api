@@ -1,12 +1,11 @@
 # Play、钱包与提现交付检查点
 
 > 状态：active
-> 当前阶段：阶段三 / CP3
-> 当前结论：CP2 已通过；CP3 代码、PR/CI、合并和部署证明已完成，等待用户本地浏览器验收。
-> CP3 基线：`origin/play/main@e4aa4efe54b97154ca8b7d933b05866d69e827f5`
-> CP3 功能分支：`feat/token-farm-reward-summary-20260721`
-> CP3 部署记录分支：`docs/token-farm-reward-summary-cp3-deploy-20260721`
-> 工作树：`/home/dell/worktrees/sub2api-token-farm-reward-summary-20260721`
+> 当前阶段：阶段四 / CP4
+> 当前结论：CP1、CP2、CP3 已通过用户本地验收；CP3 后续日榜默认入口 hotfix 已合入并完成部署证明；CP4 可提现权益账务基础本地代码、审查和服务器验证已通过，等待 PR/CI、部署证明和本地浏览器验收。
+> CP4 基线：`origin/play/main@725916689571325cef5ccacb2e8ddc7c4961de07`
+> CP4 功能分支：`feat/play-withdrawable-ledger-cp4-20260721`
+> 工作树：`/home/dell/worktrees/sub2api-play-withdrawable-cp4-20260721`
 > 最后更新：2026-07-21
 
 本文档只记录已经取得证据的状态。允许状态仅为：
@@ -19,13 +18,13 @@
 |---|---|---|
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
 | 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
-| 阶段三：代币农场最近发放与当前预估 / CP3 | 等待本地验收 | 代码、PR/CI、合并和部署证明已完成；等待用户本地浏览器验收 |
-| 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
+| 阶段三：代币农场最近发放与当前预估 / CP3 | 已通过 | 代码、PR/CI、合并、部署证明、用户本地验收均已通过；进入 CP4 前已补默认进入日榜 hotfix |
+| 阶段四：可提现权益账务基础 / CP4 | 进行中 | 本地代码、审查和服务器验证已通过；等待 PR/CI、部署证明和本地浏览器验收，提现总开关仍保持关闭，未进入 CP5 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
-| CP6：服务器验证 | 进行中 | CP1、CP2 已通过；CP3 本地完整服务器验证已通过；CP4-CP5 未开始 |
-| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已通过；CP3 PR #87 已全绿，并以非 rebase merge commit 合入 `play/main`；CP4-CP5 未开始 |
-| CP8：部署证明 | 进行中 | CP1、CP2 已通过；CP3 merge commit `c8756db428e26cbced218f9256aaecaa54eca1d4` 已由 Zeabur 部署到 production 并完成 live API/资产 proof；CP4-CP5 未开始 |
-| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2 已通过；CP3 等待用户本地浏览器验收；CP4-CP5 未开始 |
+| CP6：服务器验证 | 进行中 | CP1、CP2、CP3 已通过；CP4 本地完整验证已通过，待 PR 后由 GitHub CI 复核；CP5 未开始 |
+| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已通过；CP3 PR #87 与默认日榜 hotfix PR #92 已合入；CP4 待提交 PR |
+| CP8：部署证明 | 进行中 | CP1、CP2、CP3 已通过；默认日榜 hotfix deployment `6a5f4bbbe9e39c7397906c09` 已成功；CP4 未部署 |
+| CP9：最终本地浏览器验收 | 进行中 | CP1、CP2、CP3 已通过；CP4-CP5 未开始本地浏览器验收 |
 
 ## CP1 管理员手动修复战队成员
 
@@ -351,7 +350,7 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 | 完整验证 | 已通过 | 聚焦验证、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部通过 |
 | PR / GitHub CI | 已通过 | PR #87 全部 GitHub checks 通过：backend-security、frontend-security、Documentation、Protected behavior；以 merge commit、非 rebase 合入 `play/main` |
 | 部署核对 | 已通过 | Zeabur deployment `5535370977` 成功部署 CP3 merge commit `c8756db428e26cbced218f9256aaecaa54eca1d4`；健康、公开 API、隐私形状和前端资产均已核对 |
-| 本地浏览器验收 | 等待本地验收 | 等待用户本地浏览器检查游客/普通用户中文英文、浅色深色和日榜面板 |
+| 本地浏览器验收 | 已通过 | 用户于 2026-07-21 确认 CP3 本地浏览器验收通过；进入 CP4 前另补默认进入日榜 hotfix |
 
 ### 基线与计划变更范围
 
@@ -440,9 +439,9 @@ git diff --check
 
 ### 剩余风险
 
-- 用户本地浏览器验收尚未完成。
+- 用户本地浏览器验收已由用户在 2026-07-21 确认通过。
 - 生产直连 SQL 汇总对账未执行，原因是当前服务器环境没有生产 DB 凭据；本地自动化已经覆盖 reward ledger 汇总一致，生产 live API 已证明迁移和公开查询路径可用。
-- CP3 未通过用户本地浏览器验收前，不得开始 CP4。
+- 进入 CP4 前补充的默认进入日榜 hotfix 已通过 PR #92 合入 `play/main`，merge commit `75cc64473be41b646bf32a8fd51f6df8e3581461`，Zeabur deployment `6a5f4bbbe9e39c7397906c09` 成功。
 
 ### 交付 commit
 
@@ -452,3 +451,106 @@ git diff --check
 - 合并 commit：`c8756db428e26cbced218f9256aaecaa54eca1d4`
 - Zeabur deployment：`5535370977`，状态 `success`
 - 生产前端资源：`index-DKNZxRRJ.js`、`ArenaView-DpAW9DeC.js`、`jisudeng-pages.zh-7vuuOAtE.js`、`zh-CSxqxLU2.js`、`en-B7u3TFCS.js`
+
+## CP4 可提现权益账务基础
+
+### 检查点状态
+
+| 节点 | 状态 | 证据或剩余工作 |
+|---|---|---|
+| 需求对照检查点 | 已通过 | CP4 只做账务基础，不开放提现申请/审核；`frozen_balance` 保持图片/任务预留，新增 `withdrawable_balance` 与 `withdrawal_frozen_balance` |
+| RED 失败测试检查点 | 已通过 | 新增迁移、wallet summary 和 withdrawable helper 测试后，后端按预期失败于缺少 `WithdrawableBalance` 字段与权益 helper |
+| GREEN 实现检查点 | 已通过 | 已实现 migration、四余额流水扩展、权益批次、allocation、钱包透明度、图片 release 恢复原 allocation、dry-run/execute 重算器和不变量检查 |
+| 规格审查 | 已通过 | 已逐项审查权益来源白名单、消费 FIFO、退款恢复原 allocation、72 小时成熟、图片冻结隔离和重算策略；未发现需要进入 CP5 的内容 |
+| 代码质量审查 | 已通过 | 已审查 SQL 事务顺序、decimal 精度、错误边界和前端双语；补修纯可提现变更缓存失效与负余额重算显示边界 |
+| 完整验证 | 已通过 | targeted、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部退出码 0 |
+| PR / GitHub CI | 未开始 | CP4 仍在本地实现分支 |
+| 部署核对 | 未开始 | CP4 未部署 |
+| 本地浏览器验收 | 未开始 | CP4 未到本地浏览器验收门 |
+
+### 基线与计划变更范围
+
+- 基线 commit：`725916689571325cef5ccacb2e8ddc7c4961de07`
+- 后端：扩展 `balance_transactions` 的可提现与提现冻结 before/after；新增 `withdrawable_entitlements`、`withdrawable_entitlement_allocations`、重算记录表；`BalanceLedgerService` 在同一事务内维护权益批次和 allocation。
+- 钱包：`/wallet` summary 增加可提现、待解冻、提现冻结、任务预留四个概念；用户流水仍只读本人安全 DTO。
+- 重算：新增 `backend/cmd/recompute-withdrawable-entitlements` 和 `backend/scripts/recompute-withdrawable-entitlements.sh`；默认 dry-run，`--execute` 才写入，`--check-invariants` 检查账务不变量。
+- 双语：钱包新增概念已加入中文和英文；提现申请、审核、收款账户仍属于 CP5，当前不暴露入口。
+
+### 已观察 RED 证据
+
+```text
+go test -count=1 ./internal/service ./migrations -run 'TestWithdrawable|TestWalletSummaryReadsUserBalanceAndUnifiedLedgerTotals'
+结果：失败，缺少 WalletSummary.WithdrawableBalance / PendingWithdrawableBalance / WithdrawalFrozenBalance，
+且缺少 classifyWithdrawableGrant、planWithdrawableConsumption、planWithdrawableRestore 等 helper。
+```
+
+### 当前 GREEN 证据
+
+```text
+go test -count=1 ./internal/service -run 'TestWithdrawable(Recompute|Invariant|Grant|Consumption|Restore)|TestBalanceLedger(GrantArenaDaily|ImageHoldConsumes|ReleaseRestores)'
+结果：通过。
+
+go test -count=1 ./internal/service -run 'TestUsageServiceCreateWritesUsageChargeBalanceLedger|TestRefundBalanceLedgerWritesDeductAndRollbackTransactions|TestAuth.*FirstBind|TestWithdrawable|TestBalanceLedger'
+结果：通过。
+
+go test -count=1 ./internal/service ./internal/repository ./migrations ./cmd/recompute-withdrawable-entitlements
+结果：通过；service 96.265s，repository 3.151s，migrations 0.042s，recompute cmd 无测试文件。
+
+pnpm --dir frontend exec vitest run src/api/__tests__/wallet.spec.ts src/views/user/__tests__/WalletView.spec.ts src/i18n/__tests__/localesMessageCompile.spec.ts
+结果：3 个文件、5 项测试通过。
+
+go test -count=1 ./internal/service -run 'TestBalanceLedgerApplyDeltaInvalidatesWhenOnlyWithdrawableChanges|TestWithdrawableRecomputeClampsNegativeUserBalanceToZeroWithdrawable|TestWithdrawable|TestBalanceLedger'
+结果：通过；补充验证纯可提现变更缓存失效和负余额重算边界。
+```
+
+### 完整验证
+
+```text
+make test
+结果：通过；全量 Go 测试通过，golangci-lint 0 issues，前端 ESLint、vue-tsc 和 Vitest 全部通过；Vitest 为 239 个文件、1586 项测试。
+
+GOFLAGS=-buildvcs=false make build
+结果：通过；后端 server 构建成功，前端 production build 成功。
+关键构建资源：index-BlY4jKv4.js、WalletView-DvrqYkEx.js、zh-D8MW4Uzr.js、en-_FFos_rT.js。
+
+./scripts/check-fork-integrity.sh
+结果：通过；新增 FORK-BILLING-010 的 withdrawable recompute 命令、脚本、图片 release 恢复 allocation 和钱包可提现透明度保护。
+
+git diff --check
+结果：通过。
+```
+
+### 数据库 / API 对账
+
+- 状态：已通过（本地自动化范围）
+- 迁移测试确认 `users`、`balance_transactions`、`withdrawable_entitlements`、`withdrawable_entitlement_allocations` 和 `withdrawable_recalculation_runs` 字段与约束可创建。
+- 账本测试确认返利转余额立即可提，农场日榜/月榜和 Agent Team 共享奖励 72 小时后可提，签到、答题、盲盒、充值、赠送和未知来源默认不生成可提现权益。
+- 消费测试确认先扣不可提现余额，不足部分按 `available_at,id` FIFO 消耗权益批次。
+- 回滚测试确认 refund/release 通过原始 ledger key 恢复原交易实际消耗的权益批次。
+- 不变量测试确认权益不超过余额、批次汇总一致、提现冻结汇总一致、图片来源不会写 `withdrawal_frozen_delta`。
+
+### 中文与英文检查
+
+- 状态：已通过（本地自动化范围）
+- 钱包新增概念 `可提现 / 待解冻 / 提现冻结 / 任务预留` 与英文 `Withdrawable / Pending Thaw / Withdrawal Frozen / Task Reserved` 已加入 `zh.ts` 和 `en.ts`。
+- 钱包组件测试覆盖中文标签渲染；locale 编译测试通过。
+- CP4 未新增提现申请、审核、收款账户或管理员提现页文案，避免提前进入 CP5。
+
+### 审查发现与修复
+
+- `frozen_balance` 只继续代表图片/任务预留；提现冻结独立使用 `withdrawal_frozen_balance` 和权益批次字段。
+- 所有新增可提现和提现冻结金额使用 `decimal` 与 `NUMERIC(20,8)`；HTTP 钱包金额继续用字符串。
+- 历史重算默认 dry-run；execute 仅对 `ready` 用户写入权益和 `withdrawable_balance`，异常用户标记 `needs_review`，不覆盖可提现余额。
+- 审查补修：纯可提现/提现冻结变更现在也触发余额缓存失效，避免后续 CP5 只冻结提现时缓存不更新。
+- 审查补修：历史重算遇到负余额异常用户时，`computed_withdrawable_balance` 显示为 0，并将用户标记为 `needs_review`。
+
+### 剩余风险
+
+- CP4 尚未提交 PR、未跑 GitHub CI、未部署到 production。
+- 生产数据库 dry-run / invariant 需要在 CP4 部署后用生产 `DATABASE_URL` 执行；当前服务器环境仍不在文档中保存凭据。
+- 提现申请、审核、收款账户加密、单审/双审和线下打款均属于 CP5，当前未实现，提现总开关保持关闭。
+
+### 交付 commit
+
+- 本地实现 commit：`611569fb4`
+- PR / 合并 commit：待 CP7 回填。

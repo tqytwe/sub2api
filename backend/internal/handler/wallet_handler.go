@@ -18,12 +18,15 @@ type WalletHandler struct {
 }
 
 type walletSummaryDTO struct {
-	AvailableBalance    string  `json:"available_balance"`
-	TaskReservedBalance string  `json:"task_reserved_balance"`
-	TotalCredits        string  `json:"total_credits"`
-	TotalDebits         string  `json:"total_debits"`
-	TransactionCount    int64   `json:"transaction_count"`
-	LastTransactionAt   *string `json:"last_transaction_at,omitempty"`
+	AvailableBalance           string  `json:"available_balance"`
+	WithdrawableBalance        string  `json:"withdrawable_balance"`
+	PendingWithdrawableBalance string  `json:"pending_withdrawable_balance"`
+	WithdrawalFrozenBalance    string  `json:"withdrawal_frozen_balance"`
+	TaskReservedBalance        string  `json:"task_reserved_balance"`
+	TotalCredits               string  `json:"total_credits"`
+	TotalDebits                string  `json:"total_debits"`
+	TransactionCount           int64   `json:"transaction_count"`
+	LastTransactionAt          *string `json:"last_transaction_at,omitempty"`
 }
 
 type walletTransactionDTO struct {
@@ -107,12 +110,15 @@ func toWalletSummaryDTO(summary *service.WalletSummary) walletSummaryDTO {
 		last = &value
 	}
 	return walletSummaryDTO{
-		AvailableBalance:    summary.AvailableBalance.StringFixed(8),
-		TaskReservedBalance: summary.TaskReservedBalance.StringFixed(8),
-		TotalCredits:        summary.TotalCredits.StringFixed(8),
-		TotalDebits:         summary.TotalDebits.StringFixed(8),
-		TransactionCount:    summary.TransactionCount,
-		LastTransactionAt:   last,
+		AvailableBalance:           summary.AvailableBalance.StringFixed(8),
+		WithdrawableBalance:        summary.WithdrawableBalance.StringFixed(8),
+		PendingWithdrawableBalance: summary.PendingWithdrawableBalance.StringFixed(8),
+		WithdrawalFrozenBalance:    summary.WithdrawalFrozenBalance.StringFixed(8),
+		TaskReservedBalance:        summary.TaskReservedBalance.StringFixed(8),
+		TotalCredits:               summary.TotalCredits.StringFixed(8),
+		TotalDebits:                summary.TotalDebits.StringFixed(8),
+		TransactionCount:           summary.TransactionCount,
+		LastTransactionAt:          last,
 	}
 }
 

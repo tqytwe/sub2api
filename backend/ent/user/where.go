@@ -95,6 +95,26 @@ func FrozenBalance(v float64) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldFrozenBalance, v))
 }
 
+// WithdrawableBalance applies equality check predicate on the "withdrawable_balance" field. It's identical to WithdrawableBalanceEQ.
+func WithdrawableBalance(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawableBalance, v))
+}
+
+// WithdrawalFrozenBalance applies equality check predicate on the "withdrawal_frozen_balance" field. It's identical to WithdrawalFrozenBalanceEQ.
+func WithdrawalFrozenBalance(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalRecalcStatus applies equality check predicate on the "withdrawal_recalc_status" field. It's identical to WithdrawalRecalcStatusEQ.
+func WithdrawalRecalcStatus(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcCheckedAt applies equality check predicate on the "withdrawal_recalc_checked_at" field. It's identical to WithdrawalRecalcCheckedAtEQ.
+func WithdrawalRecalcCheckedAt(v time.Time) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawalRecalcCheckedAt, v))
+}
+
 // Concurrency applies equality check predicate on the "concurrency" field. It's identical to ConcurrencyEQ.
 func Concurrency(v int) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldConcurrency, v))
@@ -578,6 +598,201 @@ func FrozenBalanceLT(v float64) predicate.User {
 // FrozenBalanceLTE applies the LTE predicate on the "frozen_balance" field.
 func FrozenBalanceLTE(v float64) predicate.User {
 	return predicate.User(sql.FieldLTE(FieldFrozenBalance, v))
+}
+
+// WithdrawableBalanceEQ applies the EQ predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawableBalance, v))
+}
+
+// WithdrawableBalanceNEQ applies the NEQ predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceNEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldWithdrawableBalance, v))
+}
+
+// WithdrawableBalanceIn applies the In predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldWithdrawableBalance, vs...))
+}
+
+// WithdrawableBalanceNotIn applies the NotIn predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceNotIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldWithdrawableBalance, vs...))
+}
+
+// WithdrawableBalanceGT applies the GT predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceGT(v float64) predicate.User {
+	return predicate.User(sql.FieldGT(FieldWithdrawableBalance, v))
+}
+
+// WithdrawableBalanceGTE applies the GTE predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceGTE(v float64) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldWithdrawableBalance, v))
+}
+
+// WithdrawableBalanceLT applies the LT predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceLT(v float64) predicate.User {
+	return predicate.User(sql.FieldLT(FieldWithdrawableBalance, v))
+}
+
+// WithdrawableBalanceLTE applies the LTE predicate on the "withdrawable_balance" field.
+func WithdrawableBalanceLTE(v float64) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldWithdrawableBalance, v))
+}
+
+// WithdrawalFrozenBalanceEQ applies the EQ predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalFrozenBalanceNEQ applies the NEQ predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceNEQ(v float64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalFrozenBalanceIn applies the In predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldWithdrawalFrozenBalance, vs...))
+}
+
+// WithdrawalFrozenBalanceNotIn applies the NotIn predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceNotIn(vs ...float64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldWithdrawalFrozenBalance, vs...))
+}
+
+// WithdrawalFrozenBalanceGT applies the GT predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceGT(v float64) predicate.User {
+	return predicate.User(sql.FieldGT(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalFrozenBalanceGTE applies the GTE predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceGTE(v float64) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalFrozenBalanceLT applies the LT predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceLT(v float64) predicate.User {
+	return predicate.User(sql.FieldLT(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalFrozenBalanceLTE applies the LTE predicate on the "withdrawal_frozen_balance" field.
+func WithdrawalFrozenBalanceLTE(v float64) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldWithdrawalFrozenBalance, v))
+}
+
+// WithdrawalRecalcStatusEQ applies the EQ predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusEQ(v string) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusNEQ applies the NEQ predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusNEQ(v string) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusIn applies the In predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldIn(FieldWithdrawalRecalcStatus, vs...))
+}
+
+// WithdrawalRecalcStatusNotIn applies the NotIn predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusNotIn(vs ...string) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldWithdrawalRecalcStatus, vs...))
+}
+
+// WithdrawalRecalcStatusGT applies the GT predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusGT(v string) predicate.User {
+	return predicate.User(sql.FieldGT(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusGTE applies the GTE predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusGTE(v string) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusLT applies the LT predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusLT(v string) predicate.User {
+	return predicate.User(sql.FieldLT(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusLTE applies the LTE predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusLTE(v string) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusContains applies the Contains predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusContains(v string) predicate.User {
+	return predicate.User(sql.FieldContains(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusHasPrefix applies the HasPrefix predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusHasPrefix(v string) predicate.User {
+	return predicate.User(sql.FieldHasPrefix(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusHasSuffix applies the HasSuffix predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusHasSuffix(v string) predicate.User {
+	return predicate.User(sql.FieldHasSuffix(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusEqualFold applies the EqualFold predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusEqualFold(v string) predicate.User {
+	return predicate.User(sql.FieldEqualFold(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcStatusContainsFold applies the ContainsFold predicate on the "withdrawal_recalc_status" field.
+func WithdrawalRecalcStatusContainsFold(v string) predicate.User {
+	return predicate.User(sql.FieldContainsFold(FieldWithdrawalRecalcStatus, v))
+}
+
+// WithdrawalRecalcCheckedAtEQ applies the EQ predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtEQ(v time.Time) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldWithdrawalRecalcCheckedAt, v))
+}
+
+// WithdrawalRecalcCheckedAtNEQ applies the NEQ predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtNEQ(v time.Time) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldWithdrawalRecalcCheckedAt, v))
+}
+
+// WithdrawalRecalcCheckedAtIn applies the In predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtIn(vs ...time.Time) predicate.User {
+	return predicate.User(sql.FieldIn(FieldWithdrawalRecalcCheckedAt, vs...))
+}
+
+// WithdrawalRecalcCheckedAtNotIn applies the NotIn predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtNotIn(vs ...time.Time) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldWithdrawalRecalcCheckedAt, vs...))
+}
+
+// WithdrawalRecalcCheckedAtGT applies the GT predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtGT(v time.Time) predicate.User {
+	return predicate.User(sql.FieldGT(FieldWithdrawalRecalcCheckedAt, v))
+}
+
+// WithdrawalRecalcCheckedAtGTE applies the GTE predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtGTE(v time.Time) predicate.User {
+	return predicate.User(sql.FieldGTE(FieldWithdrawalRecalcCheckedAt, v))
+}
+
+// WithdrawalRecalcCheckedAtLT applies the LT predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtLT(v time.Time) predicate.User {
+	return predicate.User(sql.FieldLT(FieldWithdrawalRecalcCheckedAt, v))
+}
+
+// WithdrawalRecalcCheckedAtLTE applies the LTE predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtLTE(v time.Time) predicate.User {
+	return predicate.User(sql.FieldLTE(FieldWithdrawalRecalcCheckedAt, v))
+}
+
+// WithdrawalRecalcCheckedAtIsNil applies the IsNil predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldWithdrawalRecalcCheckedAt))
+}
+
+// WithdrawalRecalcCheckedAtNotNil applies the NotNil predicate on the "withdrawal_recalc_checked_at" field.
+func WithdrawalRecalcCheckedAtNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldWithdrawalRecalcCheckedAt))
 }
 
 // ConcurrencyEQ applies the EQ predicate on the "concurrency" field.

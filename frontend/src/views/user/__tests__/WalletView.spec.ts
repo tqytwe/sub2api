@@ -17,6 +17,9 @@ const messages: Record<string, string> = {
   'wallet.title': '钱包',
   'wallet.description': '查看余额、任务预留和统一流水。',
   'wallet.available': '可用余额',
+  'wallet.withdrawable': '可提现',
+  'wallet.pendingWithdrawable': '待解冻',
+  'wallet.withdrawalFrozen': '提现冻结',
   'wallet.taskReserved': '任务预留',
   'wallet.totalCredits': '累计入账',
   'wallet.totalDebits': '累计扣减',
@@ -82,6 +85,9 @@ describe('WalletView', () => {
   beforeEach(() => {
     getWalletSummaryMock.mockReset().mockResolvedValue({
       available_balance: '42.50000000',
+      withdrawable_balance: '12.00000000',
+      pending_withdrawable_balance: '4.50000000',
+      withdrawal_frozen_balance: '1.25000000',
       task_reserved_balance: '3.25000000',
       total_credits: '100.00000000',
       total_debits: '57.50000000',
@@ -125,6 +131,12 @@ describe('WalletView', () => {
     expect(wrapper.text()).toContain('钱包')
     expect(wrapper.text()).toContain('可用余额')
     expect(wrapper.text()).toContain('US$42.50')
+    expect(wrapper.text()).toContain('可提现')
+    expect(wrapper.text()).toContain('US$12.00')
+    expect(wrapper.text()).toContain('待解冻')
+    expect(wrapper.text()).toContain('US$4.50')
+    expect(wrapper.text()).toContain('提现冻结')
+    expect(wrapper.text()).toContain('US$1.25')
     expect(wrapper.text()).toContain('任务预留')
     expect(wrapper.text()).toContain('战队奖励')
     expect(wrapper.text()).toContain('入账')

@@ -56,19 +56,26 @@ func TestBalanceLedgerApplyDeltaCommitsLedgerAndInvalidatesAfterCommit(t *testin
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(7.0, 1.0))
-	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
-		WithArgs(7.5, 1.25, int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("7.00000000", "1.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("7.50000000", "1.25000000", "0.00000000", "0.00000000", int64(42)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
 		WithArgs(
 			int64(42),
-			0.5,
-			7.0,
-			7.5,
-			0.25,
-			1.0,
-			1.25,
+			"0.50000000",
+			"7.00000000",
+			"7.50000000",
+			"0.25000000",
+			"1.00000000",
+			"1.25000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
+			"0.00000000",
 			"checkin",
 			"2026-07-19",
 			"checkin:42:2026-07-19",
@@ -82,6 +89,7 @@ func TestBalanceLedgerApplyDeltaCommitsLedgerAndInvalidatesAfterCommit(t *testin
 		).
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(9001), int64(42), 0.5, 7.0, 7.5, 0.25, 1.0, 1.25,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"checkin", "2026-07-19", "checkin:42:2026-07-19", "system", nil,
 			"签到奖励", `{"checkin_date":"2026-07-19"}`, false, "high", createdAt,
 		))
@@ -106,6 +114,59 @@ func TestBalanceLedgerApplyDeltaCommitsLedgerAndInvalidatesAfterCommit(t *testin
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestBalanceLedgerApplyDeltaInvalidatesWhenOnlyWithdrawableChanges(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	auth := &balanceLedgerAuthInvalidatorStub{}
+	cache := &balanceLedgerCacheInvalidatorStub{}
+	createdAt := time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{
+		db:                      db,
+		authCacheInvalidator:    auth,
+		balanceCacheInvalidator: cache,
+		now:                     func() time.Time { return createdAt },
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "withdrawable:42:manual-sync").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("10.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("10.00000000", "0.00000000", "1.00000000", "0.00000000", int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9003), int64(42), 0.0, 10.0, 10.0, 0.0, 0.0, 0.0,
+			1.0, 0.0, 1.0, 0.0, 0.0, 0.0,
+			"withdrawable_adjustment", "manual-sync", "withdrawable:42:manual-sync", "system", nil,
+			"可提现权益同步", `{}`, false, "high", createdAt,
+		))
+	mock.ExpectCommit()
+
+	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
+		UserID:             42,
+		WithdrawableDelta:  1,
+		SourceType:         "withdrawable_adjustment",
+		SourceID:           "manual-sync",
+		IdempotencyKey:     "withdrawable:42:manual-sync",
+		ActorType:          BalanceLedgerActorSystem,
+		Description:        "可提现权益同步",
+		WithdrawablePolicy: BalanceLedgerPolicyRejectNegative,
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(9003), got.ID)
+	require.Equal(t, []int64{42}, auth.userIDs)
+	require.Equal(t, []int64{42}, cache.userIDs)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestBalanceLedgerApplyDeltaReplaysExistingIdempotencyKey(t *testing.T) {
 	t.Parallel()
 
@@ -120,6 +181,7 @@ func TestBalanceLedgerApplyDeltaReplaysExistingIdempotencyKey(t *testing.T) {
 		WithArgs(int64(42), "quiz:42:2026-07-19").
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(8), int64(42), 0.5, 1.0, 1.5, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"quiz", "attempt-77", "quiz:42:2026-07-19", "system", nil,
 			"答题奖励", `{}`, false, "high", createdAt,
 		))
@@ -152,6 +214,7 @@ func TestBalanceLedgerApplyDeltaRejectsConflictingIdempotencyKey(t *testing.T) {
 		WithArgs(int64(42), "same-key").
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(8), int64(42), 1.0, 1.0, 2.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"checkin", "2026-07-19", "same-key", "system", nil,
 			"签到奖励", `{}`, false, "high", createdAt,
 		))
@@ -182,7 +245,8 @@ func TestBalanceLedgerApplyDeltaRejectsNegativeBalanceUnlessPolicyAllowsIt(t *te
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(0.25, 0.0))
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("0.25000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, time.Date(2026, 7, 19, 8, 0, 0, 0, time.UTC), "0.00000000", "0.00000000", "0.00000000")
 	mock.ExpectRollback()
 
 	_, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
@@ -193,6 +257,53 @@ func TestBalanceLedgerApplyDeltaRejectsNegativeBalanceUnlessPolicyAllowsIt(t *te
 		IdempotencyKey: "usage:42:req-1",
 	})
 	require.ErrorIs(t, err, ErrBalanceLedgerInsufficientBalance)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBalanceLedgerAllowOverdraftDoesNotFailWithdrawableInvariant(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 7, 19, 8, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt }}
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "usage:42:req-overdraft").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("0.25000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount", "available_at"}))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("-0.25000000", "0.00000000", "0.00000000", "0.00000000", int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9003), int64(42), -0.5, 0.25, -0.25, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+			"usage_charge", "req-overdraft", "usage:42:req-overdraft", "system", nil,
+			"API 消耗扣费", `{}`, false, "high", createdAt,
+		))
+	mock.ExpectCommit()
+
+	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
+		UserID:         42,
+		BalanceDelta:   -0.5,
+		SourceType:     "usage_charge",
+		SourceID:       "req-overdraft",
+		IdempotencyKey: "usage:42:req-overdraft",
+		BalancePolicy:  BalanceLedgerPolicyAllowOverdraft,
+		Description:    "API 消耗扣费",
+	})
+	require.NoError(t, err)
+	require.Equal(t, -0.25, *got.BalanceAfter)
+	require.Equal(t, 0.0, *got.WithdrawableAfter)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
@@ -231,6 +342,12 @@ func balanceTransactionRows() *sqlmock.Rows {
 		"frozen_delta",
 		"frozen_before",
 		"frozen_after",
+		"withdrawable_delta",
+		"withdrawable_before",
+		"withdrawable_after",
+		"withdrawal_frozen_delta",
+		"withdrawal_frozen_before",
+		"withdrawal_frozen_after",
 		"source_type",
 		"source_id",
 		"idempotency_key",
@@ -242,6 +359,21 @@ func balanceTransactionRows() *sqlmock.Rows {
 		"confidence",
 		"created_at",
 	})
+}
+
+func balanceLedgerUserStateRows() *sqlmock.Rows {
+	return sqlmock.NewRows([]string{
+		"balance",
+		"frozen_balance",
+		"withdrawable_balance",
+		"withdrawal_frozen_balance",
+	})
+}
+
+func expectWithdrawableSums(mock sqlmock.Sqlmock, userID int64, asOf time.Time, mature string, pending string, total string) {
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1").
+		WithArgs(userID, asOf).
+		WillReturnRows(sqlmock.NewRows([]string{"mature_amount", "pending_amount", "total_amount"}).AddRow(mature, pending, total))
 }
 
 func TestBalanceLedgerApplyDeltaKeepsCommitWhenCacheInvalidationFails(t *testing.T) {
@@ -264,13 +396,15 @@ func TestBalanceLedgerApplyDeltaKeepsCommitWhenCacheInvalidationFails(t *testing
 		WillReturnRows(balanceTransactionRows())
 	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
 		WithArgs(int64(42)).
-		WillReturnRows(sqlmock.NewRows([]string{"balance", "frozen_balance"}).AddRow(7.0, 0.0))
-	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1, frozen_balance = \\$2").
-		WithArgs(8.0, 0.0, int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("7.00000000", "0.00000000", "0.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "0.00000000", "0.00000000", "0.00000000")
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("8.00000000", "0.00000000", "0.00000000", "0.00000000", int64(42)).
 		WillReturnResult(sqlmock.NewResult(0, 1))
 	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
 		WillReturnRows(balanceTransactionRows().AddRow(
 			int64(9002), int64(42), 1.0, 7.0, 8.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
 			"admin_balance", "1", "admin:42:1", "admin", nil,
 			"管理员增加余额", `{}`, false, "high", createdAt,
 		))
@@ -289,4 +423,189 @@ func TestBalanceLedgerApplyDeltaKeepsCommitWhenCacheInvalidationFails(t *testing
 	require.Equal(t, int64(9002), got.ID)
 	require.Equal(t, []int64{42}, cache.userIDs)
 	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBalanceLedgerGrantArenaDailyCreatesPendingWithdrawableEntitlement(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt }}
+	availableAt := createdAt.Add(72 * time.Hour)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "arena_daily_settlement:77:42").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("10.00000000", "0.00000000", "1.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "1.00000000", "0.00000000", "1.00000000")
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("12.00000000", "0.00000000", "1.00000000", "0.00000000", int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9201), int64(42), 2.0, 10.0, 12.0, 0.0, 0.0, 0.0,
+			0.0, 1.0, 1.0, 0.0, 0.0, 0.0,
+			PlayRewardSourceArenaDaily, "arena_daily_settlement:77:42", "arena_daily_settlement:77:42", "system", nil,
+			"日榜竞技场结算", `{}`, false, "high", createdAt,
+		))
+	mock.ExpectQuery("(?s)INSERT INTO withdrawable_entitlements").
+		WithArgs(
+			int64(42),
+			int64(9201),
+			PlayRewardSourceArenaDaily,
+			"arena_daily_settlement:77:42",
+			"2.00000000",
+			availableAt,
+			createdAt,
+		).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}).AddRow(int64(3001)))
+	mock.ExpectExec("(?s)INSERT INTO withdrawable_entitlement_allocations").
+		WithArgs(int64(42), int64(3001), int64(9201), "grant", "2.00000000", availableAt, PlayRewardSourceArenaDaily, "arena_daily_settlement:77:42", sqlmock.AnyArg(), createdAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectCommit()
+
+	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
+		UserID:         42,
+		BalanceDelta:   2,
+		SourceType:     PlayRewardSourceArenaDaily,
+		SourceID:       "arena_daily_settlement:77:42",
+		IdempotencyKey: "arena_daily_settlement:77:42",
+		Description:    "日榜竞技场结算",
+	})
+	require.NoError(t, err)
+	require.NotNil(t, got.WithdrawableAfter)
+	require.Equal(t, 1.0, *got.WithdrawableAfter)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBalanceLedgerImageHoldConsumesEntitlementsFIFOWithoutWithdrawalFrozen(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 7, 21, 9, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt }}
+	matureAt := createdAt.Add(-time.Hour)
+	pendingAt := createdAt.Add(time.Hour)
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "image_balance_hold:7:req-hold").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("10.00000000", "0.00000000", "5.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "5.00000000", "4.00000000", "9.00000000")
+	mock.ExpectQuery("(?s)FROM withdrawable_entitlements\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(42)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "remaining_amount", "available_at"}).
+			AddRow(int64(5001), "4.00000000", matureAt).
+			AddRow(int64(5002), "5.00000000", pendingAt))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("2.00000000", "8.00000000", "1.00000000", "0.00000000", int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9202), int64(42), -8.0, 10.0, 2.0, 8.0, 0.0, 8.0,
+			-4.0, 5.0, 1.0, 0.0, 0.0, 0.0,
+			"image_balance_hold", "batch-1", "image_balance_hold:7:req-hold", "system", nil,
+			"图片余额预留", `{}`, false, "high", createdAt,
+		))
+	expectConsumeAllocation(mock, 42, 9202, 5001, "4.00000000", matureAt, "image_balance_hold", "batch-1", createdAt)
+	expectConsumeAllocation(mock, 42, 9202, 5002, "3.00000000", pendingAt, "image_balance_hold", "batch-1", createdAt)
+	mock.ExpectCommit()
+
+	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
+		UserID:         42,
+		BalanceDelta:   -8,
+		FrozenDelta:    8,
+		SourceType:     "image_balance_hold",
+		SourceID:       "batch-1",
+		IdempotencyKey: "image_balance_hold:7:req-hold",
+		Description:    "图片余额预留",
+	})
+	require.NoError(t, err)
+	require.Equal(t, 8.0, *got.FrozenAfter)
+	require.Equal(t, 0.0, *got.WithdrawalFrozenAfter)
+	require.Equal(t, -4.0, got.WithdrawableDelta)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestBalanceLedgerReleaseRestoresOriginalConsumedEntitlementBatches(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 7, 21, 10, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt }}
+	matureAt := createdAt.Add(-2 * time.Hour)
+	pendingAt := createdAt.Add(time.Hour)
+	restoreKey := "image_balance_hold:7:req-hold"
+
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "image_balance_release:7:req-release").
+		WillReturnRows(balanceTransactionRows())
+	mock.ExpectQuery("(?s)FROM users\\s+WHERE id = \\$1 AND deleted_at IS NULL\\s+FOR UPDATE").
+		WithArgs(int64(42)).
+		WillReturnRows(balanceLedgerUserStateRows().AddRow("2.00000000", "8.00000000", "1.00000000", "0.00000000"))
+	expectWithdrawableSums(mock, 42, createdAt, "1.00000000", "2.00000000", "3.00000000")
+	mock.ExpectQuery("(?s)WITH consumed AS").
+		WithArgs(int64(42), restoreKey).
+		WillReturnRows(sqlmock.NewRows([]string{"entitlement_id", "restorable_amount", "available_at"}).
+			AddRow(int64(5001), "4.00000000", matureAt).
+			AddRow(int64(5002), "3.00000000", pendingAt))
+	mock.ExpectExec("(?s)UPDATE users\\s+SET balance = \\$1,\\s+frozen_balance = \\$2,\\s+withdrawable_balance = \\$3,\\s+withdrawal_frozen_balance = \\$4").
+		WithArgs("7.00000000", "3.00000000", "5.00000000", "0.00000000", int64(42)).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectQuery("(?s)INSERT INTO balance_transactions").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9203), int64(42), 5.0, 2.0, 7.0, -5.0, 8.0, 3.0,
+			4.0, 1.0, 5.0, 0.0, 0.0, 0.0,
+			"image_balance_release", "batch-1", "image_balance_release:7:req-release", "system", nil,
+			"图片预留释放", `{}`, false, "high", createdAt,
+		))
+	expectRestoreAllocation(mock, 42, 9203, 5001, "4.00000000", matureAt, "image_balance_release", "batch-1", restoreKey, createdAt)
+	expectRestoreAllocation(mock, 42, 9203, 5002, "1.00000000", pendingAt, "image_balance_release", "batch-1", restoreKey, createdAt)
+	mock.ExpectCommit()
+
+	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
+		UserID:         42,
+		BalanceDelta:   5,
+		FrozenDelta:    -5,
+		SourceType:     "image_balance_release",
+		SourceID:       "batch-1",
+		IdempotencyKey: "image_balance_release:7:req-release",
+		Description:    "图片预留释放",
+		Metadata:       map[string]any{"restore_ledger_key": restoreKey},
+	})
+	require.NoError(t, err)
+	require.Equal(t, 4.0, got.WithdrawableDelta)
+	require.Equal(t, 0.0, *got.WithdrawalFrozenAfter)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func expectConsumeAllocation(mock sqlmock.Sqlmock, userID int64, transactionID int64, entitlementID int64, amount string, availableAt time.Time, sourceType string, sourceID string, createdAt time.Time) {
+	mock.ExpectExec("(?s)UPDATE withdrawable_entitlements\\s+SET remaining_amount = remaining_amount -").
+		WithArgs(amount, entitlementID, userID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("(?s)INSERT INTO withdrawable_entitlement_allocations").
+		WithArgs(userID, entitlementID, transactionID, "consume", amount, availableAt, sourceType, sourceID, sqlmock.AnyArg(), createdAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
+}
+
+func expectRestoreAllocation(mock sqlmock.Sqlmock, userID int64, transactionID int64, entitlementID int64, amount string, availableAt time.Time, sourceType string, sourceID string, restoreKey string, createdAt time.Time) {
+	mock.ExpectExec("(?s)UPDATE withdrawable_entitlements\\s+SET remaining_amount = remaining_amount \\+").
+		WithArgs(amount, entitlementID, userID).
+		WillReturnResult(sqlmock.NewResult(0, 1))
+	mock.ExpectExec("(?s)INSERT INTO withdrawable_entitlement_allocations").
+		WithArgs(userID, entitlementID, transactionID, "restore", amount, availableAt, sourceType, sourceID, sqlmock.AnyArg(), createdAt).
+		WillReturnResult(sqlmock.NewResult(1, 1))
 }

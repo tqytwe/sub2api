@@ -150,6 +150,82 @@ func (_u *UserUpdate) AddFrozenBalance(v float64) *UserUpdate {
 	return _u
 }
 
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (_u *UserUpdate) SetWithdrawableBalance(v float64) *UserUpdate {
+	_u.mutation.ResetWithdrawableBalance()
+	_u.mutation.SetWithdrawableBalance(v)
+	return _u
+}
+
+// SetNillableWithdrawableBalance sets the "withdrawable_balance" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableWithdrawableBalance(v *float64) *UserUpdate {
+	if v != nil {
+		_u.SetWithdrawableBalance(*v)
+	}
+	return _u
+}
+
+// AddWithdrawableBalance adds value to the "withdrawable_balance" field.
+func (_u *UserUpdate) AddWithdrawableBalance(v float64) *UserUpdate {
+	_u.mutation.AddWithdrawableBalance(v)
+	return _u
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (_u *UserUpdate) SetWithdrawalFrozenBalance(v float64) *UserUpdate {
+	_u.mutation.ResetWithdrawalFrozenBalance()
+	_u.mutation.SetWithdrawalFrozenBalance(v)
+	return _u
+}
+
+// SetNillableWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableWithdrawalFrozenBalance(v *float64) *UserUpdate {
+	if v != nil {
+		_u.SetWithdrawalFrozenBalance(*v)
+	}
+	return _u
+}
+
+// AddWithdrawalFrozenBalance adds value to the "withdrawal_frozen_balance" field.
+func (_u *UserUpdate) AddWithdrawalFrozenBalance(v float64) *UserUpdate {
+	_u.mutation.AddWithdrawalFrozenBalance(v)
+	return _u
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (_u *UserUpdate) SetWithdrawalRecalcStatus(v string) *UserUpdate {
+	_u.mutation.SetWithdrawalRecalcStatus(v)
+	return _u
+}
+
+// SetNillableWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableWithdrawalRecalcStatus(v *string) *UserUpdate {
+	if v != nil {
+		_u.SetWithdrawalRecalcStatus(*v)
+	}
+	return _u
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (_u *UserUpdate) SetWithdrawalRecalcCheckedAt(v time.Time) *UserUpdate {
+	_u.mutation.SetWithdrawalRecalcCheckedAt(v)
+	return _u
+}
+
+// SetNillableWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableWithdrawalRecalcCheckedAt(v *time.Time) *UserUpdate {
+	if v != nil {
+		_u.SetWithdrawalRecalcCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearWithdrawalRecalcCheckedAt clears the value of the "withdrawal_recalc_checked_at" field.
+func (_u *UserUpdate) ClearWithdrawalRecalcCheckedAt() *UserUpdate {
+	_u.mutation.ClearWithdrawalRecalcCheckedAt()
+	return _u
+}
+
 // SetConcurrency sets the "concurrency" field.
 func (_u *UserUpdate) SetConcurrency(v int) *UserUpdate {
 	_u.mutation.ResetConcurrency()
@@ -964,6 +1040,11 @@ func (_u *UserUpdate) check() error {
 			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "User.role": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.WithdrawalRecalcStatus(); ok {
+		if err := user.WithdrawalRecalcStatusValidator(v); err != nil {
+			return &ValidationError{Name: "withdrawal_recalc_status", err: fmt.Errorf(`ent: validator failed for field "User.withdrawal_recalc_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := user.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
@@ -1023,6 +1104,27 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedFrozenBalance(); ok {
 		_spec.AddField(user.FieldFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WithdrawableBalance(); ok {
+		_spec.SetField(user.FieldWithdrawableBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedWithdrawableBalance(); ok {
+		_spec.AddField(user.FieldWithdrawableBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WithdrawalFrozenBalance(); ok {
+		_spec.SetField(user.FieldWithdrawalFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedWithdrawalFrozenBalance(); ok {
+		_spec.AddField(user.FieldWithdrawalFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WithdrawalRecalcStatus(); ok {
+		_spec.SetField(user.FieldWithdrawalRecalcStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.WithdrawalRecalcCheckedAt(); ok {
+		_spec.SetField(user.FieldWithdrawalRecalcCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.WithdrawalRecalcCheckedAtCleared() {
+		_spec.ClearField(user.FieldWithdrawalRecalcCheckedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(user.FieldConcurrency, field.TypeInt, value)
@@ -1823,6 +1925,82 @@ func (_u *UserUpdateOne) SetNillableFrozenBalance(v *float64) *UserUpdateOne {
 // AddFrozenBalance adds value to the "frozen_balance" field.
 func (_u *UserUpdateOne) AddFrozenBalance(v float64) *UserUpdateOne {
 	_u.mutation.AddFrozenBalance(v)
+	return _u
+}
+
+// SetWithdrawableBalance sets the "withdrawable_balance" field.
+func (_u *UserUpdateOne) SetWithdrawableBalance(v float64) *UserUpdateOne {
+	_u.mutation.ResetWithdrawableBalance()
+	_u.mutation.SetWithdrawableBalance(v)
+	return _u
+}
+
+// SetNillableWithdrawableBalance sets the "withdrawable_balance" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableWithdrawableBalance(v *float64) *UserUpdateOne {
+	if v != nil {
+		_u.SetWithdrawableBalance(*v)
+	}
+	return _u
+}
+
+// AddWithdrawableBalance adds value to the "withdrawable_balance" field.
+func (_u *UserUpdateOne) AddWithdrawableBalance(v float64) *UserUpdateOne {
+	_u.mutation.AddWithdrawableBalance(v)
+	return _u
+}
+
+// SetWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field.
+func (_u *UserUpdateOne) SetWithdrawalFrozenBalance(v float64) *UserUpdateOne {
+	_u.mutation.ResetWithdrawalFrozenBalance()
+	_u.mutation.SetWithdrawalFrozenBalance(v)
+	return _u
+}
+
+// SetNillableWithdrawalFrozenBalance sets the "withdrawal_frozen_balance" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableWithdrawalFrozenBalance(v *float64) *UserUpdateOne {
+	if v != nil {
+		_u.SetWithdrawalFrozenBalance(*v)
+	}
+	return _u
+}
+
+// AddWithdrawalFrozenBalance adds value to the "withdrawal_frozen_balance" field.
+func (_u *UserUpdateOne) AddWithdrawalFrozenBalance(v float64) *UserUpdateOne {
+	_u.mutation.AddWithdrawalFrozenBalance(v)
+	return _u
+}
+
+// SetWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field.
+func (_u *UserUpdateOne) SetWithdrawalRecalcStatus(v string) *UserUpdateOne {
+	_u.mutation.SetWithdrawalRecalcStatus(v)
+	return _u
+}
+
+// SetNillableWithdrawalRecalcStatus sets the "withdrawal_recalc_status" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableWithdrawalRecalcStatus(v *string) *UserUpdateOne {
+	if v != nil {
+		_u.SetWithdrawalRecalcStatus(*v)
+	}
+	return _u
+}
+
+// SetWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field.
+func (_u *UserUpdateOne) SetWithdrawalRecalcCheckedAt(v time.Time) *UserUpdateOne {
+	_u.mutation.SetWithdrawalRecalcCheckedAt(v)
+	return _u
+}
+
+// SetNillableWithdrawalRecalcCheckedAt sets the "withdrawal_recalc_checked_at" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableWithdrawalRecalcCheckedAt(v *time.Time) *UserUpdateOne {
+	if v != nil {
+		_u.SetWithdrawalRecalcCheckedAt(*v)
+	}
+	return _u
+}
+
+// ClearWithdrawalRecalcCheckedAt clears the value of the "withdrawal_recalc_checked_at" field.
+func (_u *UserUpdateOne) ClearWithdrawalRecalcCheckedAt() *UserUpdateOne {
+	_u.mutation.ClearWithdrawalRecalcCheckedAt()
 	return _u
 }
 
@@ -2653,6 +2831,11 @@ func (_u *UserUpdateOne) check() error {
 			return &ValidationError{Name: "role", err: fmt.Errorf(`ent: validator failed for field "User.role": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.WithdrawalRecalcStatus(); ok {
+		if err := user.WithdrawalRecalcStatusValidator(v); err != nil {
+			return &ValidationError{Name: "withdrawal_recalc_status", err: fmt.Errorf(`ent: validator failed for field "User.withdrawal_recalc_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := user.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "User.status": %w`, err)}
@@ -2729,6 +2912,27 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 	}
 	if value, ok := _u.mutation.AddedFrozenBalance(); ok {
 		_spec.AddField(user.FieldFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WithdrawableBalance(); ok {
+		_spec.SetField(user.FieldWithdrawableBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedWithdrawableBalance(); ok {
+		_spec.AddField(user.FieldWithdrawableBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WithdrawalFrozenBalance(); ok {
+		_spec.SetField(user.FieldWithdrawalFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedWithdrawalFrozenBalance(); ok {
+		_spec.AddField(user.FieldWithdrawalFrozenBalance, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.WithdrawalRecalcStatus(); ok {
+		_spec.SetField(user.FieldWithdrawalRecalcStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.WithdrawalRecalcCheckedAt(); ok {
+		_spec.SetField(user.FieldWithdrawalRecalcCheckedAt, field.TypeTime, value)
+	}
+	if _u.mutation.WithdrawalRecalcCheckedAtCleared() {
+		_spec.ClearField(user.FieldWithdrawalRecalcCheckedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.Concurrency(); ok {
 		_spec.SetField(user.FieldConcurrency, field.TypeInt, value)
