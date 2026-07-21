@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { flushPromises, shallowMount } from '@vue/test-utils'
+import { flushPromises, mount, shallowMount } from '@vue/test-utils'
 import PaymentView from '../PaymentView.vue'
 import { PAYMENT_RECOVERY_STORAGE_KEY } from '@/components/payment/paymentFlow'
 import { formatPaymentAmount } from '@/components/payment/currency'
@@ -159,6 +159,36 @@ function checkoutInfoWithPlansFixture(options: {
       },
       plans: [plan],
     },
+  }
+}
+
+function subscriptionPlanFixture(id: number, overrides: Partial<SubscriptionPlan> = {}): SubscriptionPlan {
+  return {
+    id,
+    group_id: id,
+    name: `Plan ${id}`,
+    description: '',
+    price: 10,
+    original_price: 0,
+    validity_days: 30,
+    validity_unit: 'day',
+    rate_multiplier: 1,
+    daily_limit_usd: null,
+    weekly_limit_usd: null,
+    monthly_limit_usd: null,
+    features: [],
+    group_platform: 'openai',
+    sort_order: id,
+    for_sale: true,
+    group_name: 'OpenAI',
+    product_name: '',
+    cover_image_url: '',
+    detail_description: '',
+    storefront_platform: '',
+    storefront_category: '',
+    storefront_featured: false,
+    storefront_badge: '',
+    ...overrides,
   }
 }
 
@@ -357,7 +387,7 @@ describe('PaymentView subscription product details', () => {
       },
     }))
 
-    const wrapper = shallowMount(PaymentView, {
+    const wrapper = mount(PaymentView, {
       global: {
         stubs: {
           AppLayout: {
@@ -388,6 +418,82 @@ describe('PaymentView subscription product details', () => {
 
     expect(wrapper.text()).toContain('payment.createOrder')
     expect(wrapper.text()).toContain(formatPaymentAmount(128, 'CNY'))
+  })
+})
+
+describe('PaymentView subscription plan shelf', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+    routeState.path = '/purchase'
+    routeState.query = { tab: 'subscription' }
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset()
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    bridgeInvoke.mockReset()
+    window.localStorage.clear()
+  })
+
+  async function mountShelf(plans: SubscriptionPlan[]) {
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({ plans }))
+    const wrapper = mount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: {
+            template: '<div><slot /></div>',
+          },
+          SubscriptionPlanCard: {
+            props: ['plan'],
+            template: '<article data-test="plan-card">{{ plan.product_name || plan.name }}</article>',
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+    return wrapper
+  }
+
+  it('shows only featured plans by default when recommendations are configured', async () => {
+    const wrapper = await mountShelf([
+      subscriptionPlanFixture(1, { name: 'Regular' }),
+      subscriptionPlanFixture(2, { name: 'Featured A', storefront_featured: true }),
+      subscriptionPlanFixture(3, { name: 'Featured B', storefront_featured: true }),
+    ])
+
+    const cards = wrapper.findAll('[data-test="plan-card"]').map(card => card.text())
+    expect(cards).toEqual(['Featured A', 'Featured B'])
+  })
+
+  it('falls back to the first six plans when no recommendation is configured', async () => {
+    const plans = Array.from({ length: 8 }, (_, index) => subscriptionPlanFixture(index + 1))
+    const wrapper = await mountShelf(plans)
+
+    const cards = wrapper.findAll('[data-test="plan-card"]').map(card => card.text())
+    expect(cards).toEqual(['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4', 'Plan 5', 'Plan 6'])
+    expect(wrapper.text()).toContain('payment.planShelf.expandAll')
+  })
+
+  it('restores platform and category filters from query parameters', async () => {
+    routeState.query = {
+      plan_platform: 'openai',
+      plan_category: 'daily',
+    }
+    const wrapper = await mountShelf([
+      subscriptionPlanFixture(1, { name: 'OpenAI Daily', storefront_platform: 'openai', storefront_category: 'daily' }),
+      subscriptionPlanFixture(2, { name: 'OpenAI Pro', storefront_platform: 'openai', storefront_category: 'pro' }),
+      subscriptionPlanFixture(3, { name: 'Claude Daily', storefront_platform: 'anthropic', storefront_category: 'daily' }),
+    ])
+
+    const cards = wrapper.findAll('[data-test="plan-card"]').map(card => card.text())
+    expect(cards).toEqual(['OpenAI Daily'])
   })
 })
 

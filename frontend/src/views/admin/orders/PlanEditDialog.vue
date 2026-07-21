@@ -85,6 +85,55 @@
         </div>
       </div>
 
+      <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <div class="mb-4">
+          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.storefrontDisplay') }}</h3>
+        </div>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div>
+            <label class="input-label">{{ t('payment.admin.storefrontPlatform') }}</label>
+            <Select v-model="planForm.storefront_platform" :options="storefrontPlatformOptions" />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.storefrontCategory') }}</label>
+            <Select v-model="planForm.storefront_category" :options="storefrontCategoryOptions" />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.storefrontBadge') }}</label>
+            <input
+              v-model="planForm.storefront_badge"
+              data-test="plan-storefront-badge"
+              type="text"
+              maxlength="64"
+              class="input"
+              :placeholder="t('payment.admin.storefrontBadgePlaceholder')"
+            />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.storefrontFeatured') }}</label>
+            <button
+              type="button"
+              :class="[
+                'relative mt-2 inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
+                planForm.storefront_featured ? 'bg-primary-500' : 'bg-gray-300 dark:bg-dark-600'
+              ]"
+              @click="planForm.storefront_featured = !planForm.storefront_featured"
+            >
+              <span :class="[
+                'pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                planForm.storefront_featured ? 'translate-x-5' : 'translate-x-0'
+              ]" />
+            </button>
+          </div>
+        </div>
+        <div class="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-600 dark:bg-dark-800 dark:text-gray-300">
+          {{ storefrontPreviewText }}
+        </div>
+        <p v-if="storefrontPlatformMismatch" class="mt-2 text-xs text-amber-600 dark:text-amber-300">
+          {{ t('payment.admin.storefrontPlatformMismatchHint') }}
+        </p>
+      </div>
+
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
           <label class="input-label">{{ t('payment.admin.price') }} <span class="text-red-500">*</span></label>
@@ -181,6 +230,10 @@ const planForm = reactive({
   product_name: '',
   cover_image_url: '',
   detail_description: '',
+  storefront_platform: '',
+  storefront_category: 'pro',
+  storefront_featured: false,
+  storefront_badge: '',
   price: 0,
   original_price: 0,
   currency: '',
@@ -197,6 +250,24 @@ const validityUnitOptions = computed(() => [
   { value: 'months', label: t('payment.admin.months') },
 ])
 
+const storefrontPlatformOptions = computed(() => [
+  { value: 'openai', label: 'OpenAI' },
+  { value: 'anthropic', label: t('payment.planShelf.platforms.anthropic') },
+  { value: 'gemini', label: 'Gemini' },
+  { value: 'grok', label: 'Grok' },
+  { value: 'image', label: t('payment.planShelf.platforms.image') },
+  { value: 'team', label: t('payment.planShelf.platforms.team') },
+])
+
+const storefrontCategoryOptions = computed(() => [
+  { value: 'daily', label: t('payment.planShelf.categories.daily') },
+  { value: 'credit', label: t('payment.planShelf.categories.credit') },
+  { value: 'pro', label: t('payment.planShelf.categories.pro') },
+  { value: 'team', label: t('payment.planShelf.categories.team') },
+  { value: 'enterprise', label: t('payment.planShelf.categories.enterprise') },
+  { value: 'image', label: t('payment.planShelf.categories.image') },
+])
+
 const groupOptions = computed(() =>
   props.groups
     .filter(g => g.subscription_type === 'subscription')
@@ -211,6 +282,43 @@ const selectedGroupInfo = computed(() => {
   if (!planForm.group_id) return null
   return props.groups.find(g => g.id === planForm.group_id) || null
 })
+
+function groupPlatformForPlan(plan: SubscriptionPlan): string {
+  return plan.group_platform || props.groups.find(group => group.id === plan.group_id)?.platform || ''
+}
+
+function inferStorefrontCategory(plan: SubscriptionPlan): string {
+  const name = `${plan.product_name || ''} ${plan.name || ''}`.toLowerCase()
+  if (plan.validity_days === 1 || name.includes('日卡') || name.includes('daily')) return 'daily'
+  if (name.includes('团队') || name.includes('team')) return 'team'
+  if (name.includes('企业') || name.includes('enterprise')) return 'enterprise'
+  if (name.includes('额度') || name.includes('credit')) return 'credit'
+  if (name.includes('图片') || name.includes('image')) return 'image'
+  return 'pro'
+}
+
+function storefrontPlatformLabel(value: string): string {
+  const option = storefrontPlatformOptions.value.find(item => item.value === value)
+  return option?.label || value || '-'
+}
+
+function storefrontCategoryLabel(value: string): string {
+  const option = storefrontCategoryOptions.value.find(item => item.value === value)
+  return option?.label || value || '-'
+}
+
+const storefrontPreviewText = computed(() => t('payment.admin.storefrontPreview', {
+  platform: storefrontPlatformLabel(planForm.storefront_platform),
+  category: storefrontCategoryLabel(planForm.storefront_category),
+  featured: planForm.storefront_featured ? t('common.yes') : t('common.no'),
+  badge: planForm.storefront_badge.trim() || t('payment.admin.noBadge'),
+}))
+
+const storefrontPlatformMismatch = computed(() =>
+  !!selectedGroupInfo.value?.platform
+  && !!planForm.storefront_platform
+  && selectedGroupInfo.value.platform !== planForm.storefront_platform
+)
 
 function roundCnyAmount(value: number): number {
   return Math.round(value * 100) / 100
@@ -248,6 +356,10 @@ watch(() => props.show, (visible) => {
       product_name: props.plan.product_name || '',
       cover_image_url: props.plan.cover_image_url || '',
       detail_description: props.plan.detail_description || '',
+      storefront_platform: props.plan.storefront_platform || groupPlatformForPlan(props.plan),
+      storefront_category: props.plan.storefront_category || inferStorefrontCategory(props.plan),
+      storefront_featured: props.plan.storefront_featured === true,
+      storefront_badge: props.plan.storefront_badge || '',
       price: props.plan.price,
       original_price: props.plan.original_price || 0,
       currency: props.plan.currency || '',
@@ -265,6 +377,10 @@ watch(() => props.show, (visible) => {
       product_name: '',
       cover_image_url: '',
       detail_description: '',
+      storefront_platform: selectedGroupInfo.value?.platform || '',
+      storefront_category: 'pro',
+      storefront_featured: false,
+      storefront_badge: '',
       price: 0,
       original_price: 0,
       currency: '',
@@ -277,6 +393,14 @@ watch(() => props.show, (visible) => {
   }
 }, { immediate: true })
 
+watch(() => planForm.group_id, (newGroupId, oldGroupId) => {
+  const nextGroup = props.groups.find(group => group.id === newGroupId)
+  const previousGroup = props.groups.find(group => group.id === oldGroupId)
+  if (nextGroup?.platform && (!planForm.storefront_platform || planForm.storefront_platform === previousGroup?.platform)) {
+    planForm.storefront_platform = nextGroup.platform
+  }
+})
+
 /** Build request payload with snake_case keys matching backend JSON tags */
 function buildPlanPayload() {
   const features = planFeaturesText.value.split('\n').map(f => f.trim()).filter(Boolean).join('\n')
@@ -287,6 +411,10 @@ function buildPlanPayload() {
     product_name: planForm.product_name.trim(),
     cover_image_url: planForm.cover_image_url.trim(),
     detail_description: planForm.detail_description.trim(),
+    storefront_platform: planForm.storefront_platform.trim(),
+    storefront_category: planForm.storefront_category.trim(),
+    storefront_featured: planForm.storefront_featured,
+    storefront_badge: planForm.storefront_badge.trim(),
     price: planForm.price,
     original_price: planForm.original_price || 0,
     currency: planForm.currency.trim().toUpperCase(),

@@ -126,4 +126,71 @@ describe('PlanEditDialog product display fields', () => {
       detail_description: 'Line one\nLine two',
     }))
   })
+
+  it('saves storefront shelf fields with the plan payload', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog(null, {
+      id: 8,
+      group_id: 3,
+      name: 'Image Day Pass',
+      description: 'Short copy',
+      price: 4.99,
+      original_price: 0,
+      currency: '',
+      validity_days: 1,
+      validity_unit: 'days',
+      features: [],
+      product_name: '',
+      cover_image_url: '',
+      detail_description: '',
+      storefront_platform: 'image',
+      storefront_category: 'image',
+      storefront_featured: true,
+      storefront_badge: 'Hot',
+      for_sale: true,
+      sort_order: 1,
+    })
+
+    await wrapper.find('[data-test="plan-storefront-badge"]').setValue('Best Value')
+    await wrapper.find('form').trigger('submit')
+
+    expect(updatePlanMock).toHaveBeenCalledWith(8, expect.objectContaining({
+      storefront_platform: 'image',
+      storefront_category: 'image',
+      storefront_featured: true,
+      storefront_badge: 'Best Value',
+    }))
+  })
+
+  it('falls back to group platform when editing old plans without storefront platform', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog(null, {
+      id: 9,
+      group_id: 3,
+      name: 'Legacy OpenAI Pro',
+      description: 'Short copy',
+      price: 9.99,
+      original_price: 0,
+      currency: '',
+      validity_days: 30,
+      validity_unit: 'days',
+      features: [],
+      product_name: '',
+      cover_image_url: '',
+      detail_description: '',
+      storefront_platform: '',
+      storefront_category: '',
+      storefront_featured: false,
+      storefront_badge: '',
+      for_sale: true,
+      sort_order: 1,
+    })
+
+    await wrapper.find('form').trigger('submit')
+
+    expect(updatePlanMock).toHaveBeenCalledWith(9, expect.objectContaining({
+      storefront_platform: 'openai',
+      storefront_category: 'pro',
+    }))
+  })
 })

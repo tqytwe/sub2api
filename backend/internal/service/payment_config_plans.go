@@ -25,6 +25,33 @@ func normalizePlanCurrency(raw string) (string, error) {
 	return currency, nil
 }
 
+func inferPlanStorefrontCategory(name string, validityDays int) string {
+	normalizedName := strings.ToLower(strings.TrimSpace(name))
+	if validityDays == 1 || strings.Contains(normalizedName, "日卡") || strings.Contains(normalizedName, "daily") {
+		return "daily"
+	}
+	if strings.Contains(normalizedName, "团队") || strings.Contains(normalizedName, "team") {
+		return "team"
+	}
+	if strings.Contains(normalizedName, "企业") || strings.Contains(normalizedName, "enterprise") {
+		return "enterprise"
+	}
+	if strings.Contains(normalizedName, "额度") || strings.Contains(normalizedName, "credit") {
+		return "credit"
+	}
+	if strings.Contains(normalizedName, "图片") || strings.Contains(normalizedName, "image") {
+		return "image"
+	}
+	return "pro"
+}
+
+func normalizePlanStorefrontCategory(raw string, name string, validityDays int) string {
+	if trimmed := strings.TrimSpace(raw); trimmed != "" {
+		return trimmed
+	}
+	return inferPlanStorefrontCategory(name, validityDays)
+}
+
 // validatePlanRequired checks that all required fields for a plan are provided.
 func validatePlanRequired(name string, groupID int64, price float64, validityDays int, validityUnit string, originalPrice *float64) error {
 	if strings.TrimSpace(name) == "" {
@@ -145,6 +172,10 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 		SetPrice(req.Price).SetCurrency(currency).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
 		SetFeatures(req.Features).SetProductName(req.ProductName).
 		SetCoverImageURL(req.CoverImageURL).SetDetailDescription(req.DetailDescription).
+		SetStorefrontPlatform(strings.TrimSpace(req.StorefrontPlatform)).
+		SetStorefrontCategory(normalizePlanStorefrontCategory(req.StorefrontCategory, req.Name, req.ValidityDays)).
+		SetStorefrontFeatured(req.StorefrontFeatured).
+		SetStorefrontBadge(strings.TrimSpace(req.StorefrontBadge)).
 		SetForSale(req.ForSale).SetSortOrder(req.SortOrder)
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
@@ -199,6 +230,18 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	}
 	if req.DetailDescription != nil {
 		u.SetDetailDescription(*req.DetailDescription)
+	}
+	if req.StorefrontPlatform != nil {
+		u.SetStorefrontPlatform(strings.TrimSpace(*req.StorefrontPlatform))
+	}
+	if req.StorefrontCategory != nil {
+		u.SetStorefrontCategory(strings.TrimSpace(*req.StorefrontCategory))
+	}
+	if req.StorefrontFeatured != nil {
+		u.SetStorefrontFeatured(*req.StorefrontFeatured)
+	}
+	if req.StorefrontBadge != nil {
+		u.SetStorefrontBadge(strings.TrimSpace(*req.StorefrontBadge))
 	}
 	if req.ForSale != nil {
 		u.SetForSale(*req.ForSale)
