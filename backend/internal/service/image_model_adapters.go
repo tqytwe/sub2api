@@ -221,6 +221,10 @@ func (a agnesImageModelAdapter) RewriteOpenAIImagesBody(
 	if err != nil {
 		return nil, "", true, err
 	}
+	out, err = removeAgnesImageOutputFormat(out)
+	if err != nil {
+		return nil, "", true, err
+	}
 	return out, contentType, true, nil
 }
 
@@ -250,6 +254,23 @@ func moveOpenAIImagesResponseFormatToExtraBody(out []byte) ([]byte, error) {
 		out, err = sjson.DeleteBytes(out, "response_format")
 		if err != nil {
 			return nil, fmt.Errorf("remove agnes top-level response_format: %w", err)
+		}
+	}
+	return out, nil
+}
+
+func removeAgnesImageOutputFormat(out []byte) ([]byte, error) {
+	var err error
+	if gjson.GetBytes(out, "output_format").Exists() {
+		out, err = sjson.DeleteBytes(out, "output_format")
+		if err != nil {
+			return nil, fmt.Errorf("remove agnes top-level output_format: %w", err)
+		}
+	}
+	if gjson.GetBytes(out, "extra_body.output_format").Exists() {
+		out, err = sjson.DeleteBytes(out, "extra_body.output_format")
+		if err != nil {
+			return nil, fmt.Errorf("remove agnes extra_body output_format: %w", err)
 		}
 	}
 	return out, nil
