@@ -36,11 +36,13 @@ type PlayRechargeBoostStatus struct {
 }
 
 type PlayArenaPeriod struct {
-	ID      int64
-	Name    string
-	StartAt time.Time
-	EndAt   time.Time
-	Status  string
+	ID         int64
+	Name       string
+	StartAt    time.Time
+	EndAt      time.Time
+	Status     string
+	PeriodType string
+	SettledAt  *time.Time
 }
 
 type PlayArenaScoreRow struct {
@@ -50,6 +52,16 @@ type PlayArenaScoreRow struct {
 	Email       string
 	AvatarURL   string
 	TokenSum    int64
+}
+
+type PlayArenaDailyRewardLedgerRow struct {
+	UserID      int64
+	DisplayName string
+	AvatarURL   string
+	Amount      float64
+	Rank        int
+	TokenSum    int64
+	CreatedAt   time.Time
 }
 
 type PlayRewardLedgerEntry struct {
@@ -402,6 +414,44 @@ type PlayArenaSettlementResult struct {
 	TotalAwarded float64
 }
 
+type PlayArenaDailyRewardSummary struct {
+	Enabled bool
+	Recent  *PlayArenaDailyRecentRewardSummary
+	Current *PlayArenaDailyCurrentRewardEstimate
+}
+
+type PlayArenaDailyRecentRewardSummary struct {
+	Period       *PlayArenaPeriod
+	SettledAt    *time.Time
+	PaidToday    bool
+	WinnersCount int
+	TotalAmount  float64
+	Winners      []PlayArenaDailyRewardWinner
+}
+
+type PlayArenaDailyRewardWinner struct {
+	Rank        int
+	UserID      int64
+	DisplayName string
+	AvatarURL   string
+	TokenSum    int64
+	Amount      float64
+}
+
+type PlayArenaDailyCurrentRewardEstimate struct {
+	Period *PlayArenaPeriod
+	Rows   []PlayArenaDailyRewardEstimateRow
+}
+
+type PlayArenaDailyRewardEstimateRow struct {
+	Rank            int
+	UserID          int64
+	DisplayName     string
+	AvatarURL       string
+	TokenSum        int64
+	EstimatedReward float64
+}
+
 type PlayRepository interface {
 	HasCheckin(ctx context.Context, userID int64, date time.Time) (bool, error)
 	InsertCheckin(ctx context.Context, userID int64, date time.Time, reward float64, streakCount int) error
@@ -411,6 +461,8 @@ type PlayRepository interface {
 	EnsureMonthlyArenaPeriod(ctx context.Context, now time.Time) (*PlayArenaPeriod, error)
 	GetArenaPeriodByID(ctx context.Context, periodID int64) (*PlayArenaPeriod, error)
 	MarkArenaPeriodSettled(ctx context.Context, periodID int64) error
+	GetLatestSettledDailyArenaPeriod(ctx context.Context) (*PlayArenaPeriod, error)
+	ListArenaDailyRewardLedger(ctx context.Context, periodID int64) ([]PlayArenaDailyRewardLedgerRow, error)
 	ListArenaLeaderboard(ctx context.Context, start, end time.Time, limit int) ([]PlayArenaScoreRow, error)
 	GetUserArenaScore(ctx context.Context, userID int64, start, end time.Time) (tokenSum int64, rank int, err error)
 	GetArenaTokensToPrevRank(ctx context.Context, userID int64, start, end time.Time, rank int, tokenSum int64) (int64, error)

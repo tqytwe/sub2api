@@ -30,16 +30,19 @@ func (r *playRepository) GetCheckinStreakOnDate(ctx context.Context, userID int6
 func (r *playRepository) GetArenaPeriodByID(ctx context.Context, periodID int64) (*service.PlayArenaPeriod, error) {
 	exec := r.sqlExec(ctx)
 	var p service.PlayArenaPeriod
+	var periodType sql.NullString
+	var settledAt sql.NullTime
 	err := scanSingleRow(ctx, exec, `
-		SELECT id, name, start_at, end_at, status
+		SELECT id, name, start_at, end_at, status, COALESCE(period_type, 'monthly') AS period_type, settled_at
 		FROM play_arena_periods WHERE id = $1`, []any{periodID},
-		&p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status)
+		&p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status, &periodType, &settledAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get arena period: %w", err)
 	}
+	applyPlayArenaPeriodOptionalFields(&p, periodType, settledAt)
 	return &p, nil
 }
 
@@ -47,7 +50,9 @@ func (r *playRepository) MarkArenaPeriodSettled(ctx context.Context, periodID in
 	exec := r.sqlExec(ctx)
 	res, err := exec.ExecContext(ctx, `
 		UPDATE play_arena_periods
-		SET status = 'settled', updated_at = NOW()
+		SET status = 'settled',
+		    settled_at = COALESCE(settled_at, NOW()),
+		    updated_at = NOW()
 		WHERE id = $1 AND status = 'active'`, periodID)
 	if err != nil {
 		return fmt.Errorf("mark arena period settled: %w", err)

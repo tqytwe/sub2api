@@ -77,19 +77,22 @@ func (r *playRepository) GetUserDailyTokenSum(ctx context.Context, userID int64,
 func (r *playRepository) GetActiveArenaPeriodByType(ctx context.Context, now time.Time, periodType string) (*service.PlayArenaPeriod, error) {
 	exec := r.sqlExec(ctx)
 	var p service.PlayArenaPeriod
+	var scannedPeriodType sql.NullString
+	var settledAt sql.NullTime
 	err := scanSingleRow(ctx, exec, `
-		SELECT id, name, start_at, end_at, status
+		SELECT id, name, start_at, end_at, status, COALESCE(period_type, $2) AS period_type, settled_at
 		FROM play_arena_periods
 		WHERE status = 'active' AND period_type = $2
 		  AND start_at <= $1 AND end_at > $1
 		ORDER BY start_at DESC
-		LIMIT 1`, []any{now, periodType}, &p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status)
+		LIMIT 1`, []any{now, periodType}, &p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status, &scannedPeriodType, &settledAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get active arena period by type: %w", err)
 	}
+	applyPlayArenaPeriodOptionalFields(&p, scannedPeriodType, settledAt)
 	return &p, nil
 }
 

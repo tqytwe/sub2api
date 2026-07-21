@@ -224,8 +224,21 @@ func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64
 		}
 		idempotencyKey := "arena_daily_settlement:" + strconv.FormatInt(period.ID, 10) + ":" + strconv.FormatInt(row.UserID, 10)
 		if err := s.grantBalance(ctx, row.UserID, amount, PlayRewardSourceArenaDaily, idempotencyKey, map[string]any{
-			"period_id": period.ID,
+			"period_id":    period.ID,
+			"period_name":  period.Name,
+			"period_type":  "daily",
+			"period_start": period.StartAt.Format(time.RFC3339),
+			"period_end":   period.EndAt.Format(time.RFC3339),
+			"period": map[string]any{
+				"id":       period.ID,
+				"name":     period.Name,
+				"type":     "daily",
+				"start_at": period.StartAt.Format(time.RFC3339),
+				"end_at":   period.EndAt.Format(time.RFC3339),
+			},
 			"rank":      row.Rank,
+			"token":     row.TokenSum,
+			"token_sum": row.TokenSum,
 		}, nil); err != nil {
 			if errors.Is(err, ErrPlayRewardDuplicate) {
 				continue

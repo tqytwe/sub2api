@@ -2,10 +2,10 @@
 
 > 状态：active
 > 当前阶段：阶段三 / CP3
-> 当前结论：CP2 已通过（CP1、CP2 均已完成 PR/CI、部署证明和用户本地浏览器验收；下一步从最新 `origin/play/main` 创建 CP3 独立 worktree）
-> CP2 功能部署基线：`origin/play/main@6531cb83dde134bccbde139220bd29e3623e36d7`
-> 审查分支：`docs/play-wallet-transparency-cp2-acceptance-20260721`
-> 工作树：`/home/dell/worktrees/sub2api-play-wallet-transparency-20260721`
+> 当前结论：CP2 已通过；CP3 已从最新 `origin/play/main` 独立 worktree 开始，RED、GREEN、规格/代码质量审查和服务器完整验证已通过，等待 PR/CI。
+> CP3 基线：`origin/play/main@e4aa4efe54b97154ca8b7d933b05866d69e827f5`
+> 审查分支：`feat/token-farm-reward-summary-20260721`
+> 工作树：`/home/dell/worktrees/sub2api-token-farm-reward-summary-20260721`
 > 最后更新：2026-07-21
 
 本文档只记录已经取得证据的状态。允许状态仅为：
@@ -18,11 +18,11 @@
 |---|---|---|
 | 阶段一：管理员手动修复战队成员 / CP1 | 已通过 | PR、CI、部署证明及用户本地双语/主题/添加移动闭环均已通过 |
 | 阶段二：战队奖励与余额透明度 / CP2 | 已通过 | 本地实现、数据库对账、完整服务器验证、审查、PR/CI、合并、生产部署证明和用户本地浏览器验收均已通过 |
-| 阶段三：代币农场最近发放与当前预估 / CP3 | 未开始 | CP2 已通过；下一步创建独立 worktree 后开始 RED 检查点 |
+| 阶段三：代币农场最近发放与当前预估 / CP3 | 进行中 | 服务器完整验证已通过；仍需 PR/CI、部署证明和本地浏览器验收 |
 | 阶段四：可提现权益账务基础 / CP4 | 未开始 | 依赖 CP3 |
 | 阶段五：提现权限、申请、审核与线下打款 / CP5 | 未开始 | 依赖 CP4，且总开关保持关闭直至灰度条件满足 |
-| CP6：服务器验证 | 进行中 | CP1 已通过；CP2 本地完整服务器验证、GitHub CI 保护检查、构建和部署后 API/资产复核均已通过；后续阶段未开始 |
-| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已全绿，并以非 rebase merge commit 合入 `play/main`；后续阶段未开始 |
+| CP6：服务器验证 | 进行中 | CP1、CP2 已通过；CP3 本地完整服务器验证已通过；CP4-CP5 未开始 |
+| CP7：审查与合并 | 进行中 | CP1 已通过；CP2 PR #83 已全绿，并以非 rebase merge commit 合入 `play/main`；CP3 等待 PR/CI |
 | CP8：部署证明 | 进行中 | CP1 已通过；CP2 merge commit `6531cb83dde134bccbde139220bd29e3623e36d7` 已由 Zeabur 部署到 production 并完成 live proof；后续阶段未开始 |
 | CP9：最终本地浏览器验收 | 进行中 | CP1、CP2 已通过；CP3-CP5 仍须逐阶段验收 |
 
@@ -335,3 +335,114 @@ paid_allocations = 15.00000000, ledger_rewards = 15.00000000
 - Zeabur deployment：`5533768058`，状态 `success`
 - CP2 部署记录 commit：`39de5dd19`（`docs(play): record CP2 deployment checkpoint`）
 - CP2 验收记录 commit：本提交（`docs(play): record CP2 local acceptance`）
+
+## CP3 Token Farm 最近发放与当前预估
+
+### 检查点状态
+
+| 节点 | 状态 | 证据或剩余工作 |
+|---|---|---|
+| 需求对照检查点 | 已通过 | 已对照 CP3 要求完成：公开 reward-summary API、最近已结算日榜、当前日榜预估、`settled_at` 迁移、日榜发放 detail、历史缺失 detail 安全回补、隐私脱敏和双语前端面板 |
+| RED 失败测试检查点 | 已通过 | 新增后端 service/repository/migration 和前端 ArenaView 测试后，基线按预期失败，证明缺少 summary 类型、period `settled_at`、仓库方法、迁移文件和前端 API 调用 |
+| GREEN 实现检查点 | 已通过 | 后端聚焦测试和 ArenaView 聚焦测试已全部转绿；本地完整服务器验证已通过 |
+| 规格审查 | 已通过 | 已复审不改写旧流水、不暴露邮箱、最近发放不等同今日榜、当前周期文案、settled_at 回填和 reward ledger 总额口径 |
+| 代码质量审查 | 已通过 | 已复审 i18n、DTO、SQL fallback、排序/截断、测试隔离和 fork integrity 保护；lint/typecheck/build 通过 |
+| 完整验证 | 已通过 | 聚焦验证、`make test`、`GOFLAGS=-buildvcs=false make build`、`./scripts/check-fork-integrity.sh` 和 `git diff --check` 全部通过 |
+| PR / GitHub CI | 未开始 | 待创建 PR 到 `play/main` |
+| 部署核对 | 未开始 | 等 PR 合并后核对 Zeabur deployment、健康、API、迁移和前端资产 |
+| 本地浏览器验收 | 未开始 | 部署证明通过后，等待用户本地浏览器检查游客/普通用户中文英文、浅色深色和日榜面板 |
+
+### 基线与计划变更范围
+
+- 基线 commit：`e4aa4efe54b97154ca8b7d933b05866d69e827f5`
+- 后端：新增 `GET /api/v1/play/arena/daily/reward-summary`；period 模型和仓库查询补 `period_type`、`settled_at`；日榜结算写入 period/rank/token detail；最近发放从 `play_reward_ledger` 读取并用 period 时间窗回补历史缺失 rank/token。
+- 前端：`ArenaView` 日榜 tab 新增“最近发放”和“当前预估”面板；新增 API 类型和调用；新增中文/英文 `arena.dailySummary.*` 文案。
+- 数据库：新增 `209_play_arena_daily_reward_summary.sql`，给 `play_arena_periods` 增加 `settled_at`，历史 settled period 以 `updated_at` 尽力回填，并添加 daily settled 查询索引。
+- Fork 保护：`FORK-PLAY-003` 和 `FORK-MIGRATION-009` 增加 reward-summary 路由、服务、前端双语、迁移和聚焦测试保护。
+
+### 测试命令与结果
+
+RED 证据：
+
+```text
+go test -count=1 ./internal/service -run 'TestDailyArena'
+结果：失败，缺少 PlayArenaDailyRewardLedgerRow、PlayArenaPeriod.PeriodType/SettledAt 和 GetDailyArenaRewardSummary。
+
+go test -count=1 ./internal/repository -run 'TestDailyArenaRewardSummary|TestArenaPeriodQueriesExpose'
+结果：失败，缺少 GetLatestSettledDailyArenaPeriod、ListArenaDailyRewardLedger 和 period settled_at 字段。
+
+go test -count=1 ./migrations -run 'TestPlayArenaDailyRewardSummaryMigrationContract'
+结果：失败，209_play_arena_daily_reward_summary.sql 不存在。
+
+pnpm exec vitest run src/views/public/__tests__/ArenaView.competitive.spec.ts
+结果：失败，getArenaDailyRewardSummary 未被调用。
+```
+
+GREEN 聚焦证据：
+
+```text
+go test -count=1 ./internal/service ./internal/repository ./internal/handler ./migrations -run '^(TestDailyArena|TestArenaPeriodQueriesExpose|TestArenaDailyRewardSummaryRoute|TestPlayArenaDailyRewardSummaryMigrationContract)'
+结果：通过。
+
+pnpm exec vitest run src/views/public/__tests__/ArenaView.competitive.spec.ts
+结果：通过；3 项测试通过。
+```
+
+完整服务器验证证据：
+
+```text
+pnpm exec vitest run src/views/public/__tests__/ArenaView.competitive.spec.ts src/i18n/__tests__/localesMessageCompile.spec.ts
+结果：通过；2 个文件、5 项测试通过。
+
+pnpm exec vue-tsc --noEmit
+结果：通过。
+
+./scripts/check-fork-integrity.sh
+结果：通过；包含 CP3 reward-summary 后端、前端和迁移保护。
+
+make test
+结果：通过；后端全量 Go 测试通过，golangci-lint 为 0 issues；前端 ESLint、
+vue-tsc 和 Vitest 全部通过；Vitest 为 239 个文件、1575 项测试。
+
+GOFLAGS=-buildvcs=false make build
+结果：通过；后端二进制构建成功，前端 production build 成功。
+关键构建资源：ArenaView-DpAW9DeC.js、jisudeng-pages.zh-7vuuOAtE.js、
+zh-CSxqxLU2.js、en-B7u3TFCS.js。
+
+git diff --check
+结果：通过。
+```
+
+### 数据库与 API 对账
+
+- 状态：已通过（本地自动化范围）
+- 自动化已覆盖：最近发放总金额等于日榜奖励流水汇总；最多返回 10 名脱敏获奖者，但 `winners_count` 和 `total_amount` 统计全量流水；历史缺失 rank/token 时按 period 时间窗查询排行榜回补；route contract 确认公开 GET 不触发 JWT，响应不包含 `email` 字段或邮箱明文。
+- 仍需部署后按生产数据库/API 再核对 `play_reward_ledger.source='arena_daily_settlement'` 与 summary 返回总额一致。
+
+### 中文与英文检查
+
+- 状态：已通过（本地自动化范围）
+- 新增 `arena.dailySummary.*` 已覆盖中文和英文；Vue 新增面板无硬编码状态、按钮、错误或空状态文案。
+- 新增日榜面板和排行榜代币数量显示已接入 i18n；中文显示“枚代币”，英文显示 `tokens`，避免 CP3 新增可见区域出现英文单位泄漏。
+- 当前预估使用“当前周期 / Current period”，最近发放使用“结算周期 / Settlement period”，避免把昨日已结算榜标为今日排名。
+- `localesMessageCompile` 已通过；中英文浏览器验收仍属于部署后的本地验收门禁。
+
+### 审查发现与修复
+
+- 日榜结算新流水 detail 补齐 `period_id`、`period_name`、`period_type`、`period_start`、`period_end`、`period`、`rank`、`token` 和 `token_sum`。
+- 历史缺失字段只在 summary 读取时通过 period 时间窗回补，不改写旧 `play_reward_ledger`。
+- `paid_today` 按 Asia/Shanghai 自然日比较 `settled_at` 和服务器当前时间。
+- 公开 DTO 不返回邮箱；仓库内部只用邮箱生成脱敏 `display_name`。
+- 最近发放统计全量流水，展示最多 10 名获奖者；当前预估按配置奖励档位查询并展示最多 10 名。
+- `ArenaView` 原有排行榜行的硬编码 `tokens` 已改为 locale key，CP3 触达的中文日榜区域不再新增英文单位文案。
+
+### 剩余风险
+
+- PR/CI、部署证明和用户本地浏览器验收尚未完成。
+- CP3 未部署并通过本地验收前，不得开始 CP4。
+
+### 交付 commit
+
+- 状态：已通过
+- 实现 commit：本提交（`feat(play): add daily arena reward summary`）
+- PR：待创建

@@ -93,19 +93,22 @@ func (r *playRepository) InsertRewardLedger(ctx context.Context, entry service.P
 func (r *playRepository) GetActiveArenaPeriod(ctx context.Context, now time.Time) (*service.PlayArenaPeriod, error) {
 	exec := r.sqlExec(ctx)
 	var p service.PlayArenaPeriod
+	var periodType sql.NullString
+	var settledAt sql.NullTime
 	err := scanSingleRow(ctx, exec, `
-		SELECT id, name, start_at, end_at, status
+		SELECT id, name, start_at, end_at, status, COALESCE(period_type, 'monthly') AS period_type, settled_at
 		FROM play_arena_periods
 		WHERE status = 'active' AND period_type = 'monthly'
 		  AND start_at <= $1 AND end_at > $1
 		ORDER BY start_at DESC
-		LIMIT 1`, []any{now}, &p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status)
+		LIMIT 1`, []any{now}, &p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status, &periodType, &settledAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("get active arena period: %w", err)
 	}
+	applyPlayArenaPeriodOptionalFields(&p, periodType, settledAt)
 	return &p, nil
 }
 
