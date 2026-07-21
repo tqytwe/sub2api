@@ -111,20 +111,22 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 		return nil, ErrImageStudioImageNotAllowed
 	}
 
-	platform := PlatformOpenAI
-	if apiKey.Group != nil && strings.TrimSpace(apiKey.Group.Platform) != "" {
-		platform = apiKey.Group.Platform
+	platform, err := imageStudioListingPlatformForAPIKey(apiKey)
+	if err != nil {
+		return nil, err
 	}
 
 	candidates := defaultImageModelIDsForPlatform(platform)
 	if s.gateway != nil && apiKey.GroupID != nil {
-		if mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, platform); len(mapped) > 0 {
-			candidates = mapped
+		mapped := s.gateway.GetAvailableModels(ctx, apiKey.GroupID, platform)
+		if len(mapped) == 0 {
+			return nil, ErrImageStudioNoImageModels
 		}
+		candidates = mapped
 	}
 
-	models := filterImageGenerationModels(candidates)
-	if apiKey.Group != nil && apiKey.Group.CustomModelsListEnabled() {
+	models := filterImageGenerationModelsForPlatform(platform, candidates)
+	if apiKey.Group != nil && apiKey.Group.ModelsListConfig.Enabled {
 		models = filterImageModelsByCustomList(models, apiKey.Group.ModelsListConfig.Models)
 	}
 	models = sortImageStudioModels(models)
@@ -134,7 +136,23 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 	return models, nil
 }
 
-func filterImageGenerationModels(models []string) []string {
+func imageStudioListingPlatformForAPIKey(apiKey *APIKey) (string, error) {
+	if apiKey == nil || apiKey.Group == nil {
+		return "", ErrImageStudioProviderNotSupported
+	}
+	platform := strings.ToLower(strings.TrimSpace(apiKey.Group.Platform))
+	if platform == "" {
+		return "", ErrImageStudioProviderNotSupported
+	}
+	switch platform {
+	case PlatformOpenAI, PlatformGemini, PlatformGrok:
+		return platform, nil
+	default:
+		return "", ErrImageStudioProviderNotSupported
+	}
+}
+
+func filterImageGenerationModelsForPlatform(platform string, models []string) []string {
 	if len(models) == 0 {
 		return nil
 	}
@@ -145,7 +163,7 @@ func filterImageGenerationModels(models []string) []string {
 		if model == "" {
 			continue
 		}
-		if _, ok := ResolveImageStudioModelCapability(model); !ok {
+		if !imageStudioModelAllowedForPlatform(platform, model) {
 			continue
 		}
 		if _, ok := seen[model]; ok {
@@ -157,9 +175,19 @@ func filterImageGenerationModels(models []string) []string {
 	return out
 }
 
+func imageStudioModelAllowedForPlatform(platform, model string) bool {
+	platform = strings.ToLower(strings.TrimSpace(platform))
+	if platform == "" {
+		_, ok := ResolveImageStudioModelCapability(model)
+		return ok
+	}
+	_, ok := ResolveImageStudioProviderCapability(platform, model)
+	return ok
+}
+
 func filterImageModelsByCustomList(models, patterns []string) []string {
 	if len(patterns) == 0 {
-		return models
+		return nil
 	}
 	out := make([]string, 0, len(models))
 	seen := make(map[string]struct{}, len(models))

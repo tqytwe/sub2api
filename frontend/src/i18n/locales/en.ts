@@ -1,9 +1,12 @@
 import { jisudengHomeEn } from './jisudeng-home.en'
 import { jisudengPagesEn } from './jisudeng-pages.en'
+import splitAdminEn from './en/admin'
+import splitBatchImageEn from './en/batchImage'
+import splitCommonEn from './en/common'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 
-export default {
+const messages = {
   batchImageGuide: {
     title: 'Batch Image Generation',
     description: 'Submit multiple prompts in one job and download the generated images when complete'
@@ -431,6 +434,7 @@ export default {
     promptSquare: 'Prompt Library',
     promptManagement: 'Prompt Management',
     usage: 'Usage',
+    wallet: 'Wallet',
     redeem: 'Redeem',
     affiliate: 'Affiliate Rebates',
     affiliateManagement: 'Affiliate Rebates',
@@ -488,6 +492,53 @@ export default {
 	modelCatalog: 'Model Catalog',
     auditLogs: 'Audit Logs',
     auditlogs: 'Audit Logs',
+  },
+
+  wallet: {
+    title: 'Wallet',
+    description: 'Review your balance, task reserves, and unified transaction history.',
+    available: 'Available Balance',
+    taskReserved: 'Task Reserved',
+    totalCredits: 'Total Credits',
+    totalDebits: 'Total Debits',
+    transactions: 'Balance Transactions',
+    transactionCount: '{count} transactions',
+    sourceLabel: 'Source filter',
+    loading: 'Loading...',
+    empty: 'No balance transactions yet',
+    loadFailed: 'Failed to load wallet data',
+    pageInfo: 'Page {page} / {pages}',
+    table: {
+      time: 'Time',
+      source: 'Source',
+      direction: 'Direction',
+      amount: 'Amount',
+      balanceAfter: 'Balance After',
+      taskReservedChange: 'Task reserve change',
+    },
+    source: {
+      all: 'All Sources',
+      recharge: 'Recharge',
+      redeem: 'Redeem',
+      affiliate: 'Affiliate Rebate',
+      team_reward: 'Team Reward',
+      arena_reward: 'Farm Reward',
+      checkin: 'Check-in Reward',
+      quiz: 'Quiz Reward',
+      blind_box: 'Blind Box',
+      usage: 'Usage Charge',
+      image_task: 'Image Task',
+      refund: 'Refund',
+      admin_adjustment: 'Admin Adjustment',
+      promotion: 'Promotion',
+      subscription: 'Subscription',
+      other: 'Other',
+    },
+    direction: {
+      credit: 'Credit',
+      debit: 'Debit',
+      neutral: 'No Change',
+    },
   },
 
   // Auth
@@ -7637,7 +7688,14 @@ export default {
     hint: 'Enter the 6-digit code from your authenticator app to continue this sensitive operation.',
     verifyFailed: 'Verification failed, please try again',
     notEnabled: 'This operation requires two-factor authentication. Please enable TOTP in your profile first.',
-    adminApiKeyForbidden: 'Admin API keys cannot perform this operation. Use a two-factor verified admin session.'
+    adminApiKeyForbidden: 'Admin API keys cannot perform this operation. Use a two-factor verified admin session.',
+    errors: {
+      TOTP_INVALID_CODE: 'Invalid verification code. Try again.',
+      TOTP_TOO_MANY_ATTEMPTS: 'Too many verification attempts. Try again later.',
+      TOTP_NOT_ENABLED: 'TOTP verification is not enabled for this system.',
+      TOTP_NOT_SETUP: 'TOTP is not set up for this account. Enable it in your profile first.',
+      TOTP_SETUP_EXPIRED: 'The TOTP setup session expired. Start the setup again.',
+    },
   },
 
   // Recharge / Subscription Page
@@ -8259,3 +8317,26 @@ export default {
   },
 
 }
+
+type LocaleNode = Record<string, unknown>
+
+function isLocaleNode(value: unknown): value is LocaleNode {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeLocaleMessages<T extends LocaleNode>(base: T, updates: LocaleNode): T {
+  const merged: LocaleNode = { ...base }
+  for (const [key, value] of Object.entries(updates)) {
+    const current = merged[key]
+    merged[key] = isLocaleNode(current) && isLocaleNode(value)
+      ? mergeLocaleMessages(current, value)
+      : value
+  }
+  return merged as T
+}
+
+export default mergeLocaleMessages(messages, {
+  ...splitCommonEn,
+  ...splitBatchImageEn,
+  admin: splitAdminEn,
+})

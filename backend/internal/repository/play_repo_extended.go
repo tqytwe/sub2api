@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/shopspring/decimal"
 )
 
 func (r *playRepository) LockBlindboxOpenUser(ctx context.Context, userID int64) (float64, error) {
@@ -477,11 +478,24 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (res
 		       COALESCE(u.username, '') AS username,
 		       COALESCE(u.email, '') AS email,
 		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS avatar_url,
-		       m.joined_at
+		       m.joined_at,
+		       COALESCE(to_char(latest.period_start, 'YYYY-MM'), '') AS latest_settlement_month,
+		       COALESCE(latest.reward_amount, 0)::text AS latest_actual_reward,
+		       COALESCE(latest.payout_status, '') AS latest_payout_status,
+		       latest.paid_at
 		FROM play_team_members m
 		JOIN play_teams t ON t.id = m.team_id
 		JOIN users u ON u.id = m.user_id
 		LEFT JOIN user_avatars ua ON ua.user_id = m.user_id
+		LEFT JOIN LATERAL (
+			SELECT s.period_start, a.reward_amount, a.payout_status, a.paid_at
+			FROM play_team_reward_allocations a
+			JOIN play_team_settlements s ON s.id = a.settlement_id
+			WHERE s.team_id = m.team_id
+			  AND a.user_id = m.user_id
+			ORDER BY s.period_start DESC, a.id DESC
+			LIMIT 1
+		) latest ON TRUE
 		WHERE m.team_id = $1
 		  AND m.left_at IS NULL
 		  AND t.archived_at IS NULL
@@ -500,11 +514,39 @@ func (r *playRepository) ListTeamMembers(ctx context.Context, teamID int64) (res
 	for rows.Next() {
 		var m service.PlayTeamMember
 		var username, email string
-		if err := rows.Scan(&m.UserID, &username, &email, &m.AvatarURL, &m.JoinedAt); err != nil {
+		var latestMonth, latestReward, latestStatus sql.NullString
+		var latestPaidAt sql.NullTime
+		if err := rows.Scan(
+			&m.UserID,
+			&username,
+			&email,
+			&m.AvatarURL,
+			&m.JoinedAt,
+			&latestMonth,
+			&latestReward,
+			&latestStatus,
+			&latestPaidAt,
+		); err != nil {
 			return nil, fmt.Errorf("scan team member: %w", err)
 		}
 		m.DisplayName = service.PublicPlayDisplayName(username, email, m.UserID)
 		m.Email = email
+		if latestMonth.Valid {
+			m.LatestSettlementMonth = latestMonth.String
+		}
+		if latestStatus.Valid {
+			m.LatestPayoutStatus = latestStatus.String
+		}
+		if latestReward.Valid {
+			parsed, parseErr := decimal.NewFromString(latestReward.String)
+			if parseErr != nil {
+				return nil, fmt.Errorf("parse latest team member reward: %w", parseErr)
+			}
+			m.LatestActualReward = parsed
+		}
+		if latestPaidAt.Valid {
+			m.LatestPaidAt = &latestPaidAt.Time
+		}
 		out = append(out, m)
 	}
 	if err := rows.Err(); err != nil {

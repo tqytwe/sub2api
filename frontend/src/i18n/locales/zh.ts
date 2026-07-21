@@ -1,9 +1,12 @@
 import { jisudengHomeZh } from './jisudeng-home.zh'
 import { jisudengPagesZh } from './jisudeng-pages.zh'
+import splitAdminZh from './zh/admin'
+import splitBatchImageZh from './zh/batchImage'
+import splitCommonZh from './zh/common'
 import auditAdminZh from './zh/admin/audit'
 import promptAuditAdminZh from './zh/admin/promptAudit'
 
-export default {
+const messages = {
   batchImageGuide: {
     title: '图片批量生成',
     description: '一次提交多条提示词，任务完成后可统一下载图片结果'
@@ -431,6 +434,7 @@ export default {
     promptSquare: '提示词广场',
     promptManagement: '提示词管理',
     usage: '使用记录',
+    wallet: '钱包',
     redeem: '兑换',
     affiliate: '邀请返利',
     affiliateManagement: '邀请返利',
@@ -488,6 +492,53 @@ export default {
 	modelCatalog: '模型价目',
     auditLogs: '操作日志',
     auditlogs: '操作日志',
+  },
+
+  wallet: {
+    title: '钱包',
+    description: '查看余额、任务预留和统一流水。',
+    available: '可用余额',
+    taskReserved: '任务预留',
+    totalCredits: '累计入账',
+    totalDebits: '累计扣减',
+    transactions: '余额流水',
+    transactionCount: '共 {count} 条流水',
+    sourceLabel: '来源筛选',
+    loading: '加载中...',
+    empty: '暂无余额流水',
+    loadFailed: '加载钱包数据失败',
+    pageInfo: '第 {page} / {pages} 页',
+    table: {
+      time: '时间',
+      source: '来源',
+      direction: '方向',
+      amount: '金额',
+      balanceAfter: '变动后余额',
+      taskReservedChange: '任务预留变动',
+    },
+    source: {
+      all: '全部来源',
+      recharge: '充值',
+      redeem: '兑换',
+      affiliate: '邀请返利',
+      team_reward: '战队奖励',
+      arena_reward: '农场奖励',
+      checkin: '签到奖励',
+      quiz: '答题奖励',
+      blind_box: '盲盒',
+      usage: '用量扣费',
+      image_task: '图片任务',
+      refund: '退款',
+      admin_adjustment: '管理员调整',
+      promotion: '活动赠送',
+      subscription: '订阅',
+      other: '其他',
+    },
+    direction: {
+      credit: '入账',
+      debit: '扣减',
+      neutral: '无变化',
+    },
   },
 
   // Auth
@@ -7781,7 +7832,14 @@ export default {
     hint: '请输入身份验证器应用中的 6 位验证码以继续此敏感操作。',
     verifyFailed: '验证失败，请重试',
     notEnabled: '此操作需要开启二次验证，请先在个人资料中启用 TOTP。',
-    adminApiKeyForbidden: '管理 API Key 无法执行此操作，请使用已通过二次验证的管理员会话。'
+    adminApiKeyForbidden: '管理 API Key 无法执行此操作，请使用已通过二次验证的管理员会话。',
+    errors: {
+      TOTP_INVALID_CODE: '验证码错误，请重试。',
+      TOTP_TOO_MANY_ATTEMPTS: '验证尝试过多，请稍后再试。',
+      TOTP_NOT_ENABLED: '系统尚未启用 TOTP 验证。',
+      TOTP_NOT_SETUP: '当前账号尚未设置 TOTP，请先在个人资料中启用。',
+      TOTP_SETUP_EXPIRED: 'TOTP 设置会话已过期，请重新开始设置。',
+    },
   },
 
   // Recharge / Subscription Page
@@ -8427,3 +8485,26 @@ export default {
   },
 
 }
+
+type LocaleNode = Record<string, unknown>
+
+function isLocaleNode(value: unknown): value is LocaleNode {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function mergeLocaleMessages<T extends LocaleNode>(base: T, updates: LocaleNode): T {
+  const merged: LocaleNode = { ...base }
+  for (const [key, value] of Object.entries(updates)) {
+    const current = merged[key]
+    merged[key] = isLocaleNode(current) && isLocaleNode(value)
+      ? mergeLocaleMessages(current, value)
+      : value
+  }
+  return merged as T
+}
+
+export default mergeLocaleMessages(messages, {
+  ...splitCommonZh,
+  ...splitBatchImageZh,
+  admin: splitAdminZh,
+})

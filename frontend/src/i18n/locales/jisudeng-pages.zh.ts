@@ -176,6 +176,7 @@ export const jisudengPagesZh = {
     colRank: '排名',
     colUser: '用户',
     colTokens: 'Tokens',
+    tokenValue: '{tokens} 枚代币',
     empty: '暂无排行，开始使用 API 即可上榜。',
     competitive: {
       mySeason: '我的赛季状态',
@@ -196,6 +197,22 @@ export const jisudengPagesZh = {
       podium: '前三名',
       questDone: '已完成',
       questEnergy: '+{energy} 能量',
+    },
+    dailySummary: {
+      recentTitle: '最近发放',
+      currentTitle: '当前预估',
+      settledAt: '发放时间：{time}',
+      period: '结算周期：{period}',
+      currentPeriod: '当前周期：{period}',
+      paidToday: '今日已发放',
+      delayed: '非今日发放',
+      winners: '{count} 人获奖',
+      total: '合计 ${amount}',
+      noRecent: '暂无已结算日榜。',
+      noEstimate: '当前暂无预估奖励。',
+      rowReward: '预计 ${amount}',
+      winnerReward: '到账 ${amount}',
+      rankToken: '#{rank} · {tokens} 枚代币',
     },
     rpg: {
       season: '赛季',
@@ -316,6 +333,7 @@ export const jisudengPagesZh = {
     removed: '成员已移除',
     settlementHistory: '结算历史',
     noSettlements: '暂无已生成的月度结算',
+    personalShare: '个人分成',
     poolStatus: '奖池 ${pool} · {status}',
     allocationLine: '贡献 ${contribution} · {ratio}% · 奖励 ${reward} · {status}',
     status: {

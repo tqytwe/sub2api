@@ -12,6 +12,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/google/wire"
 	"github.com/redis/go-redis/v9"
+	"go.uber.org/zap"
 )
 
 // BuildInfo contains build information
@@ -521,6 +522,26 @@ func ProvideAPIKeyAuthCacheInvalidator(apiKeyService *APIKeyService) APIKeyAuthC
 	return apiKeyService
 }
 
+// ProvideImageStorageSettingService 构造异步生图对象存储的后台设置服务。
+//
+// config.yaml 里的 image_storage 作为回落：后台从未保存过设置时沿用它，
+// 使升级前已通过配置文件开启该功能的部署不被打断。
+func ProvideImageStorageSettingService(
+	settingRepo SettingRepository,
+	encryptor SecretEncryptor,
+	backup *BackupService,
+	factory ImageStorageFactory,
+	cfg *config.Config,
+) *ImageStorageSettingService {
+	if cfg.ImageStorage.Enabled && !cfg.ImageStorage.Active() {
+		// 列出具体缺失的键。若这些键其实已在环境变量里设过，说明它们没被读进来，
+		// 请确认 setDefaults 中已为其注册默认值（见 config.setEnvReachableDefaults）。
+		logger.L().Warn("image_storage.enabled is true in config but object storage is not fully configured; configure it in the admin UI or complete the config file",
+			zap.Strings("missing_keys", cfg.ImageStorage.MissingCredentialKeys()))
+	}
+	return NewImageStorageSettingService(settingRepo, encryptor, backup, factory, cfg.ImageStorage)
+}
+
 // ProvideImageTaskService 构造异步图片任务服务。
 //
 // 图片结果持久化是异步图片任务的启用前提：本地持久卷或 S3 兼容存储均可。
@@ -541,19 +562,18 @@ func ProvideImageTaskRuntimeState(queue ImageTaskQueue, cfg *config.Config) *Ima
 func ProvideImageTaskService(
 	store ImageTaskStore,
 	queue ImageTaskQueue,
-	storage ImageStorage,
+	settings *ImageStorageSettingService,
 	encryptor SecretEncryptor,
 	runtime *ImageTaskRuntimeState,
 	cfg *config.Config,
 ) *ImageTaskService {
-	if !cfg.ImageStorage.Active() {
-		if cfg.ImageStorage.Enabled {
-			logger.L().Warn("image_storage.enabled is true but async image storage is not available; async image tasks are disabled")
-		}
+	if settings == nil {
 		return NewImageTaskService(store)
 	}
-	uploader := NewImageResultUploader(storage, cfg.ImageStorage.Prefix, cfg.ImageStorage.MaxDownloadByte, nil)
-	return NewQueuedImageTaskService(store, queue, uploader, encryptor, runtime, defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
+	if cfg != nil && cfg.ImageStorage.Enabled && !cfg.ImageStorage.Active() {
+		logger.L().Warn("image_storage.enabled is true but async image storage is not available; async image tasks are disabled")
+	}
+	return NewQueuedImageTaskServiceWithResolver(store, queue, settings.Resolver(), encryptor, runtime, defaultImageTaskTTL, defaultImageTaskExecutionTimeout)
 }
 
 func ProvideOpenAIImageResultService(
@@ -661,8 +681,8 @@ func ProvideSettingService(settingRepo SettingRepository, groupRepo GroupReposit
 	svc := NewSettingService(settingRepo, cfg)
 	svc.SetDefaultSubscriptionGroupReader(groupRepo)
 	svc.SetProxyRepository(proxyRepo)
-	if err := svc.LoadAPIKeyACLTrustForwardedIPSetting(context.Background()); err != nil {
-		logger.LegacyPrintf("service.setting", "Warning: load api key acl forwarded ip setting failed: %v", err)
+	if err := svc.LoadForwardedClientIPSettings(context.Background()); err != nil {
+		logger.LegacyPrintf("service.setting", "Warning: load forwarded client IP settings failed: %v", err)
 	}
 	if err := svc.MigrateOpenAIAllowClaudeCodeCodexPluginSetting(context.Background()); err != nil {
 		logger.LegacyPrintf("service.setting", "Warning: migrate openai allow Claude Code Codex plugin setting failed: %v", err)
@@ -688,6 +708,72 @@ func ProvideBillingCacheService(
 	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
 }
 
+func ProvideAuthService(
+	entClient *dbent.Client,
+	userRepo UserRepository,
+	redeemRepo RedeemCodeRepository,
+	refreshTokenCache RefreshTokenCache,
+	cfg *config.Config,
+	settingService *SettingService,
+	emailService *EmailService,
+	turnstileService *TurnstileService,
+	emailQueueService *EmailQueueService,
+	promoService *PromoService,
+	defaultSubAssigner DefaultSubscriptionAssigner,
+	affiliateService *AffiliateService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	balanceLedger *BalanceLedgerService,
+) *AuthService {
+	return NewAuthService(
+		entClient,
+		userRepo,
+		redeemRepo,
+		refreshTokenCache,
+		cfg,
+		settingService,
+		emailService,
+		turnstileService,
+		emailQueueService,
+		promoService,
+		defaultSubAssigner,
+		affiliateService,
+		userPlatformQuotaRepo,
+		balanceLedger,
+	)
+}
+
+func ProvideUsageService(
+	usageRepo UsageLogRepository,
+	userRepo UserRepository,
+	entClient *dbent.Client,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	balanceLedger *BalanceLedgerService,
+) *UsageService {
+	return NewUsageService(usageRepo, userRepo, entClient, authCacheInvalidator, balanceLedger)
+}
+
+func ProvideAffiliateService(
+	repo AffiliateRepository,
+	settingService *SettingService,
+	authCacheInvalidator APIKeyAuthCacheInvalidator,
+	billingCacheService *BillingCacheService,
+	balanceLedger *BalanceLedgerService,
+) *AffiliateService {
+	return NewAffiliateService(repo, settingService, authCacheInvalidator, billingCacheService, balanceLedger)
+}
+
+func ProvidePlayService(
+	repo PlayRepository,
+	userRepo UserRepository,
+	channelService *ChannelService,
+	settingService *SettingService,
+	affiliateService *AffiliateService,
+	entClient *dbent.Client,
+	balanceLedger *BalanceLedgerService,
+) *PlayService {
+	return NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
+}
+
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
 func ProvideAPIKeyService(
 	apiKeyRepo APIKeyRepository,
@@ -709,7 +795,7 @@ func ProvideAPIKeyService(
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
-	NewAuthService,
+	ProvideAuthService,
 	NewUserService,
 	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
@@ -719,8 +805,9 @@ var ProviderSet = wire.NewSet(
 	NewProxyService,
 	NewRedeemService,
 	NewPromoService,
-	NewUsageService,
+	ProvideUsageService,
 	NewBalanceLedgerService,
+	NewWalletService,
 	NewDashboardService,
 	NewPublicHomeStatsService,
 	ProvidePricingService,
@@ -730,7 +817,9 @@ var ProviderSet = wire.NewSet(
 	NewAdminService,
 	NewGatewayService,
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
+	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
 	NewOpenAIGatewayService,
+	ProvideImageStorageSettingService,
 	ProvideImageTaskRuntimeState,
 	ProvideImageTaskService,
 	ProvideOpenAIImageResultService,
@@ -816,7 +905,7 @@ var ProviderSet = wire.NewSet(
 	NewChannelService,
 	NewModelPricingResolverWithCatalog,
 	NewContentModerationService,
-	NewAffiliateService,
+	ProvideAffiliateService,
 	ProvidePaymentConfigService,
 	ProvidePaymentService,
 	ProvidePaymentOrderExpiryService,
@@ -825,8 +914,9 @@ var ProviderSet = wire.NewSet(
 	ProvideChannelMonitorRunner,
 	NewChannelMonitorRequestTemplateService,
 	ProvideUserPlatformQuotaUsageFlusher,
-	NewPlayService,
+	ProvidePlayService,
 	NewModelCatalogService,
+	NewPromptLibraryService,
 	ProvideImageStudioService,
 	ProvidePlayGrowthRunner,
 )

@@ -9,6 +9,7 @@ import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, {
   type PlayArenaCurrent,
+  type PlayArenaDailyRewardSummary,
   type PlayArenaLeaderboard,
   type PlayArenaScore,
   type PlayQuestToday,
@@ -17,7 +18,7 @@ import '@/styles/public-pages.css'
 import '@/styles/arena-rpg.css'
 import { trackGrowthEvent, trackQuestCompleteOnce } from '@/utils/growthAnalytics'
 
-const { t, te } = useI18n()
+const { t, te, locale: currentLocaleRef } = useI18n()
 const authStore = useAuthStore()
 
 type BoardTab = 'daily' | 'monthly'
@@ -35,6 +36,7 @@ const monthlyCurrent = ref<PlayArenaCurrent | null>(null)
 const dailyCurrent = ref<PlayArenaCurrent | null>(null)
 const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
 const dailyBoard = ref<PlayArenaLeaderboard | null>(null)
+const dailyRewardSummary = ref<PlayArenaDailyRewardSummary | null>(null)
 const quests = ref<PlayQuestToday | null>(null)
 const arenaCelebrationDismissed = ref(false)
 
@@ -85,12 +87,29 @@ function questLabel(key: string) {
   return te(k) ? t(k) : key
 }
 
+const activeLocale = computed(() => (String(currentLocaleRef?.value ?? 'zh').startsWith('zh') ? 'zh-CN' : 'en-US'))
+
 function formatTokens(value?: number) {
-  return (value ?? 0).toLocaleString()
+  return new Intl.NumberFormat(activeLocale.value, { maximumFractionDigits: 0 }).format(value ?? 0)
 }
 
 function formatMoney(value?: number) {
-  return (value ?? 0).toFixed(2)
+  return new Intl.NumberFormat(activeLocale.value, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value ?? 0)
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(activeLocale.value, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 function toneForRank(rank: number): RankTone {
@@ -144,17 +163,19 @@ function switchTab(next: BoardTab) {
 async function load() {
   loading.value = true
   try {
-    const [mCur, dCur, mBoard, dBoard, q] = await Promise.all([
+    const [mCur, dCur, mBoard, dBoard, summary, q] = await Promise.all([
       playAPI.getArenaCurrent(),
       playAPI.getArenaDailyCurrent(),
       playAPI.getArenaLeaderboard(50),
       playAPI.getArenaDailyLeaderboard(50),
+      playAPI.getArenaDailyRewardSummary(),
       authStore.isAuthenticated ? playAPI.getQuestsToday() : Promise.resolve(null),
     ])
     monthlyCurrent.value = mCur
     dailyCurrent.value = dCur
     monthlyBoard.value = mBoard
     dailyBoard.value = dBoard
+    dailyRewardSummary.value = summary
     quests.value = q
     syncArenaCelebrationSeen()
     if (q?.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
@@ -165,6 +186,7 @@ async function load() {
     dailyCurrent.value = null
     monthlyBoard.value = null
     dailyBoard.value = null
+    dailyRewardSummary.value = null
     quests.value = null
   } finally {
     loading.value = false
@@ -255,6 +277,62 @@ watch([tab, current], syncArenaCelebrationSeen)
             </div>
           </section>
 
+          <section v-if="tab === 'daily'" class="arena-daily-summary-grid" aria-live="polite">
+            <div class="arena-daily-summary-panel">
+              <div class="arena-summary-heading">
+                <p class="arena-panel-label">{{ t('arena.dailySummary.recentTitle') }}</p>
+                <span v-if="dailyRewardSummary?.recent" class="arena-summary-badge">
+                  {{ t(dailyRewardSummary.recent.paid_today ? 'arena.dailySummary.paidToday' : 'arena.dailySummary.delayed') }}
+                </span>
+              </div>
+              <template v-if="dailyRewardSummary?.recent">
+                <div class="arena-summary-metrics">
+                  <strong>{{ t('arena.dailySummary.total', { amount: formatMoney(dailyRewardSummary.recent.total_amount) }) }}</strong>
+                  <span>{{ t('arena.dailySummary.winners', { count: dailyRewardSummary.recent.winners_count }) }}</span>
+                </div>
+                <p v-if="dailyRewardSummary.recent.period?.name" class="arena-season-copy">
+                  {{ t('arena.dailySummary.period', { period: dailyRewardSummary.recent.period.name }) }}
+                </p>
+                <p v-if="dailyRewardSummary.recent.settled_at" class="arena-season-copy">
+                  {{ t('arena.dailySummary.settledAt', { time: formatDateTime(dailyRewardSummary.recent.settled_at) }) }}
+                </p>
+                <div v-if="dailyRewardSummary.recent.winners.length" class="arena-summary-list">
+                  <div v-for="winner in dailyRewardSummary.recent.winners" :key="winner.user_id" class="arena-summary-row">
+                    <span class="arena-rank-number">#{{ winner.rank }}</span>
+                    <PlayUserAvatar :name="winner.display_name" :avatar-url="winner.avatar_url" />
+                    <span class="arena-rank-tokens">
+                      {{ t('arena.dailySummary.rankToken', { rank: winner.rank, tokens: formatTokens(winner.token_sum) }) }}
+                    </span>
+                    <strong>{{ t('arena.dailySummary.winnerReward', { amount: formatMoney(winner.amount) }) }}</strong>
+                  </div>
+                </div>
+              </template>
+              <p v-else class="play-note">{{ t('arena.dailySummary.noRecent') }}</p>
+            </div>
+
+            <div class="arena-daily-summary-panel">
+              <div class="arena-summary-heading">
+                <p class="arena-panel-label">{{ t('arena.dailySummary.currentTitle') }}</p>
+              </div>
+              <template v-if="dailyRewardSummary?.current?.rows?.length">
+                <p v-if="dailyRewardSummary.current.period?.name" class="arena-season-copy">
+                  {{ t('arena.dailySummary.currentPeriod', { period: dailyRewardSummary.current.period.name }) }}
+                </p>
+                <div class="arena-summary-list">
+                  <div v-for="row in dailyRewardSummary.current.rows" :key="row.user_id" class="arena-summary-row">
+                    <span class="arena-rank-number">#{{ row.rank }}</span>
+                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
+                    <span class="arena-rank-tokens">
+                      {{ t('arena.dailySummary.rankToken', { rank: row.rank, tokens: formatTokens(row.token_sum) }) }}
+                    </span>
+                    <strong>{{ t('arena.dailySummary.rowReward', { amount: formatMoney(row.estimated_reward) }) }}</strong>
+                  </div>
+                </div>
+              </template>
+              <p v-else class="play-note">{{ t('arena.dailySummary.noEstimate') }}</p>
+            </div>
+          </section>
+
           <div class="play-detail-grid">
             <div class="play-content-panel">
               <section v-if="podiumRows.length" class="play-section">
@@ -285,7 +363,7 @@ watch([tab, current], syncArenaCelebrationSeen)
                   >
                     <span class="arena-rank-number">#{{ row.rank }}</span>
                     <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
-                    <span class="arena-rank-tokens">{{ formatTokens(row.token_sum) }} tokens</span>
+                    <span class="arena-rank-tokens">{{ t('arena.tokenValue', { tokens: formatTokens(row.token_sum) }) }}</span>
                     <span class="arena-rank-reward">
                       {{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}
                     </span>
@@ -404,9 +482,17 @@ watch([tab, current], syncArenaCelebrationSeen)
   margin: 0 0 22px;
 }
 
+.arena-daily-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: 0 0 22px;
+}
+
 .arena-season-panel,
 .arena-reward-panel,
 .arena-level-card,
+.arena-daily-summary-panel,
 .arena-podium-card,
 .arena-rank-row,
 .arena-quest-card {
@@ -417,8 +503,58 @@ watch([tab, current], syncArenaCelebrationSeen)
 
 .arena-season-panel,
 .arena-reward-panel,
-.arena-level-card {
+.arena-level-card,
+.arena-daily-summary-panel {
   padding: 20px;
+}
+
+.arena-summary-heading,
+.arena-summary-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.arena-summary-badge {
+  border-radius: 999px;
+  background: rgba(31, 122, 91, 0.12);
+  padding: 6px 10px;
+  color: #1f7a5b;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.arena-summary-metrics strong {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 24px;
+}
+
+.arena-summary-metrics span {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.arena-summary-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.arena-summary-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.arena-summary-row strong {
+  color: #1f7a5b;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .arena-panel-label {
@@ -633,6 +769,7 @@ watch([tab, current], syncArenaCelebrationSeen)
 
 @media (max-width: 820px) {
   .arena-hero-grid,
+  .arena-daily-summary-grid,
   .arena-podium,
   .arena-quest-grid {
     grid-template-columns: 1fr;
@@ -643,7 +780,8 @@ watch([tab, current], syncArenaCelebrationSeen)
     min-height: auto;
   }
 
-  .arena-rank-row {
+  .arena-rank-row,
+  .arena-summary-row {
     grid-template-columns: 1fr;
     align-items: start;
   }

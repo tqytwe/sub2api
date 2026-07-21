@@ -99,6 +99,136 @@ export interface AdminPlayTeamDetail {
   settlements: PlayTeamSettlementRecord[]
 }
 
+export type AdminTeamMemberOperation = 'add' | 'move'
+
+export interface AdminTeamReference {
+  id: number
+  name: string
+  archived_at?: string
+}
+
+export interface AdminTeamMemberImpact {
+  effective_at: string
+  user_spend: string
+  source_spend_before: string
+  source_spend_after: string
+  source_pool_before: string
+  source_pool_after: string
+  target_spend_before: string
+  target_spend_after: string
+  target_pool_before: string
+  target_pool_after: string
+}
+
+export interface AdminTeamMemberCandidate {
+  user_id: number
+  email: string
+  username: string
+  display_name: string
+  status: string
+  current_team?: AdminTeamReference
+  current_joined_at?: string
+  is_captain: boolean
+  affiliate?: {
+    inviter_user_id: number
+    inviter_display_name: string
+  }
+  impact: AdminTeamMemberImpact
+  blockers: string[]
+  warnings: string[]
+}
+
+export interface AdminTeamMemberCandidateList {
+  items: AdminTeamMemberCandidate[]
+  effective_at: string
+}
+
+export interface AdminTeamMemberRepairInput {
+  user_id: number
+  operation: AdminTeamMemberOperation
+  effective_at?: string
+  reason: string
+  expected_source_team_id?: number
+}
+
+export interface AdminTeamMemberRepairResult {
+  status: 'added' | 'moved' | 'no_op'
+  team_id: number
+  user_id: number
+  source_team_id?: number
+  effective_at: string
+  warnings: string[]
+}
+
+export interface AdminTeamEvent {
+  id: number
+  team_id: number
+  actor_user_id: number
+  actor_display_name: string
+  subject_user_id?: number
+  subject_display_name?: string
+  event_type: string
+  detail: Record<string, unknown>
+  created_at: string
+}
+
+const teamMemberRepairOperationKeys = new Map<string, string>()
+
+function currentAdminID(): string | null {
+  try {
+    const rawUser = globalThis.localStorage?.getItem('auth_user')
+    if (!rawUser) return null
+    const user: unknown = JSON.parse(rawUser)
+    if (!user || typeof user !== 'object') return null
+    const id = (user as { id?: unknown }).id
+    return typeof id === 'number' && Number.isSafeInteger(id) && id > 0
+      ? String(id)
+      : null
+  } catch {
+    return null
+  }
+}
+
+function hashRepairPayload(input: AdminTeamMemberRepairInput): string {
+  const serialized = JSON.stringify(input)
+  let hash = 0x811c9dc5
+  for (let index = 0; index < serialized.length; index += 1) {
+    hash ^= serialized.charCodeAt(index)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0')
+}
+
+function teamMemberRepairOperationScope(
+  teamID: number,
+  input: AdminTeamMemberRepairInput,
+): { adminID: string; storageKey: string } | null {
+  const adminID = currentAdminID()
+  if (!adminID) return null
+  const payloadHash = hashRepairPayload(input)
+  return {
+    adminID,
+    storageKey: `sub2api:admin:play-team-repair:${adminID}:${teamID}:${input.user_id}:${payloadHash}`,
+  }
+}
+
+function storedTeamMemberRepairKey(storageKey: string): string | null {
+  try {
+    return globalThis.sessionStorage?.getItem(storageKey) ?? null
+  } catch {
+    return null
+  }
+}
+
+function storeTeamMemberRepairKey(storageKey: string, value: string | null): void {
+  try {
+    if (value) globalThis.sessionStorage?.setItem(storageKey, value)
+    else globalThis.sessionStorage?.removeItem(storageKey)
+  } catch {
+    // The in-memory map still protects retries while this page remains open.
+  }
+}
+
 export async function getTeamRewardSettings(): Promise<TeamRewardSettings> {
   const { data } = await apiClient.get<TeamRewardSettings>('/admin/play/team-rewards/settings')
   return data
@@ -162,6 +292,58 @@ export async function getTeamSettlements(id: number): Promise<PlayTeamSettlement
   return data ?? []
 }
 
+export async function listTeamMemberCandidates(
+  id: number,
+  params: {
+    q: string
+    operation: AdminTeamMemberOperation
+    effective_at?: string
+    limit?: number
+  },
+): Promise<AdminTeamMemberCandidateList> {
+  const { data } = await apiClient.get<AdminTeamMemberCandidateList>(
+    `/admin/play/teams/${id}/member-candidates`,
+    { params },
+  )
+  return data
+}
+
+export async function repairTeamMember(
+  id: number,
+  input: AdminTeamMemberRepairInput,
+): Promise<AdminTeamMemberRepairResult> {
+  const scope = teamMemberRepairOperationScope(id, input)
+  let idempotencyKey = scope
+    ? teamMemberRepairOperationKeys.get(scope.storageKey)
+      ?? storedTeamMemberRepairKey(scope.storageKey)
+    : null
+  if (!idempotencyKey) {
+    const requestID = globalThis.crypto?.randomUUID?.()
+      ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`
+    idempotencyKey = `play-team-repair-${scope?.adminID ?? 'unknown-admin'}-${id}-${input.user_id}-${requestID}`
+  }
+  if (scope) {
+    teamMemberRepairOperationKeys.set(scope.storageKey, idempotencyKey)
+    storeTeamMemberRepairKey(scope.storageKey, idempotencyKey)
+  }
+
+  const { data } = await apiClient.post<AdminTeamMemberRepairResult>(
+    `/admin/play/teams/${id}/members`,
+    input,
+    { headers: { 'Idempotency-Key': idempotencyKey } },
+  )
+  if (scope) {
+    teamMemberRepairOperationKeys.delete(scope.storageKey)
+    storeTeamMemberRepairKey(scope.storageKey, null)
+  }
+  return data
+}
+
+export async function listTeamEvents(id: number): Promise<AdminTeamEvent[]> {
+  const { data } = await apiClient.get<AdminTeamEvent[]>(`/admin/play/teams/${id}/events`)
+  return data ?? []
+}
+
 export const adminPlayAPI = {
   getBlindboxPool,
   updateBlindboxPool,
@@ -178,6 +360,9 @@ export const adminPlayAPI = {
   listTeams,
   getTeam,
   getTeamSettlements,
+  listTeamMemberCandidates,
+  repairTeamMember,
+  listTeamEvents,
 }
 
 export default adminPlayAPI

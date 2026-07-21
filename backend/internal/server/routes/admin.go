@@ -155,6 +155,9 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
 		play.GET("/teams", h.Admin.Play.ListTeams)
 		play.GET("/teams/:id", h.Admin.Play.GetTeam)
+		play.GET("/teams/:id/member-candidates", h.Admin.Play.ListTeamMemberCandidates)
+		play.POST("/teams/:id/members", h.Admin.Play.AddOrMoveTeamMember)
+		play.GET("/teams/:id/events", h.Admin.Play.ListTeamEvents)
 		play.GET("/teams/:id/settlements", h.Admin.Play.GetTeamSettlements)
 		play.GET("/team-rewards/settings", h.Admin.Play.GetTeamRewardSettings)
 		play.PUT("/team-rewards/settings", h.Admin.Play.UpdateTeamRewardSettings)
@@ -624,6 +627,12 @@ func registerBackupRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAut
 		// 修改 S3 目标可将数据库备份外泄——要求 step-up 2FA
 		backup.PUT("/s3-config", gin.HandlerFunc(stepUpAuth), h.Admin.Backup.UpdateS3Config)
 		backup.POST("/s3-config/test", h.Admin.Backup.TestS3Connection)
+
+		// 异步生图对象存储配置（与备份共用 S3 客户端，可直接复用备份凭证）
+		backup.GET("/image-storage", h.Admin.Backup.GetImageStorageConfig)
+		// 同 S3 配置：改写对象存储目标可将生成内容导向外部账号——要求 step-up 2FA
+		backup.PUT("/image-storage", gin.HandlerFunc(stepUpAuth), h.Admin.Backup.UpdateImageStorageConfig)
+		backup.POST("/image-storage/test", h.Admin.Backup.TestImageStorageConnection)
 
 		// 定时备份配置
 		backup.GET("/schedule", h.Admin.Backup.GetSchedule)

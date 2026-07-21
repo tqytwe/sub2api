@@ -16,6 +16,7 @@ import (
 	"mime/multipart"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
@@ -141,6 +142,23 @@ func TestImageStudioCreateReferencePersistsPrivateMetadata(t *testing.T) {
 	stored, err := store.Read(reference.StorageKey)
 	require.NoError(t, err)
 	require.Equal(t, imageData, stored)
+}
+
+func TestImageStudioCreateReferenceUsesContextTTLOverride(t *testing.T) {
+	repo := &imageStudioReferenceRepoStub{}
+	store := NewImageStudioAssetStore(t.TempDir())
+	svc := newImageStudioReferenceServiceForTest(repo, &imageStudioEncryptorStub{}, &imageStudioCreateBillingStub{})
+	svc.assetStore = store
+	imageData := encodeImageStudioReferencePNG(t, 2, 2)
+	ctx := WithImageStudioReferenceTTL(context.Background(), 24*time.Hour)
+	before := time.Now().UTC().Add(23 * time.Hour)
+
+	reference, err := svc.CreateReference(ctx, 10, "reference.png", "image/png", imageData)
+
+	require.NoError(t, err)
+	require.NotNil(t, reference.ExpiresAt)
+	require.True(t, reference.ExpiresAt.After(before), reference.ExpiresAt.String())
+	require.True(t, reference.ExpiresAt.Before(time.Now().UTC().Add(25*time.Hour)), reference.ExpiresAt.String())
 }
 
 func TestImageStudioCreateReferenceDeletesPrivateObjectWhenMetadataWriteFails(t *testing.T) {

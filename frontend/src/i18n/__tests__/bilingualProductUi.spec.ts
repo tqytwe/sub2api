@@ -50,12 +50,15 @@ function productUiTemplates(): string[] {
 }
 
 describe('极速蹬正式界面语言', () => {
-  it('只向用户提供简体中文', () => {
+  it('提供简体中文与英文，并保持中文为默认语言', () => {
     expect(availableLocales).toEqual([
       { code: 'zh', name: '简体中文', flag: '中' },
+      { code: 'en', name: 'English', flag: 'EN' },
     ])
-    expect(source('i18n/index.ts')).toContain("const DEFAULT_LOCALE: LocaleCode = 'zh'")
-    expect(source('i18n/index.ts')).toContain("setAttribute('lang', 'zh-CN')")
+    const i18nSource = source('i18n/index.ts')
+    expect(i18nSource).toContain("const DEFAULT_LOCALE: LocaleCode = 'zh'")
+    expect(i18nSource).toContain("if (saved === 'en' || saved === 'en-US') return 'en'")
+    expect(i18nSource).toContain("return locale === 'en' ? 'en' : 'zh-CN'")
   })
 
   it('产品界面不出现统一术语表中的英文名称', () => {

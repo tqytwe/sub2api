@@ -58,6 +58,8 @@ var auditExtraAllowedKeys = map[string]struct{}{
 	"http_status": {}, "latency_ms": {}, "token_applied": {}, "retryable": {},
 	"event_id": {}, "requested_count": {}, "deleted_events": {}, "deleted_jobs": {},
 	"matched_count": {}, "snapshot_max_id": {}, "filter_hash": {}, "confirm": {},
+	"target_team_id": {}, "target_user_id": {}, "source_team_id": {},
+	"operation": {}, "effective_at": {}, "reason_code": {},
 }
 
 // SetAuditExtra adds allowlisted, scalar details to the current audit entry.
@@ -147,6 +149,7 @@ var auditActionOverrides = map[string]string{
 // 这类 body 的凭证内嵌在普通字符串值里，键级脱敏无法覆盖，整体不入库。
 var auditBodyOmittedRoutes = map[string]struct{}{
 	"POST /api/v1/admin/accounts/import/codex-session":        {},
+	"POST /api/v1/admin/play/teams/:id/members":               {},
 	"POST /api/v1/admin/prompts/import-jobs":                  {},
 	"POST /api/v1/admin/prompts/import-items/:id/approve":     {},
 	"PUT /api/v1/admin/prompt-audit/config":                   {},

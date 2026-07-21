@@ -103,63 +103,72 @@ func (s *PlayService) settleTeamRewardMonth(
 	windowEnd := windowStart.AddDate(0, 1, 0)
 	periodStart := time.Date(localMonth.Year(), localMonth.Month(), 1, 0, 0, 0, 0, time.UTC)
 
-	existing, err := s.repo.GetTeamRewardSettlementByTeamPeriod(ctx, teamID, periodStart)
-	if err != nil {
-		return nil, err
-	}
-	if existing != nil {
-		return existing, nil
-	}
-
-	contributions, err := s.repo.ListTeamRewardContributions(ctx, teamID, windowStart, windowEnd)
-	if err != nil {
-		return nil, err
-	}
-	contributions = normalizeTeamContributions(contributions)
-	teamSpend := sumTeamContributions(contributions).Round(teamRewardAmountScale)
-	pool := resolveTeamRewardPool(teamSpend, cfg)
-	if !pool.IsPositive() {
-		return nil, nil
-	}
-
-	threshold, rate := reachedTeamRewardTier(teamSpend, cfg.Tiers)
-	rewardByUser, err := allocateTeamReward(pool, contributions)
-	if err != nil {
-		return nil, err
-	}
-	allocations := make([]PlayTeamRewardAllocation, 0, len(contributions))
-	periodKey := periodStart.Format("2006-01")
-	for _, contribution := range contributions {
-		reward := rewardByUser[contribution.UserID].Round(teamRewardAmountScale)
-		if !reward.IsPositive() {
-			continue
+	var snapshot *PlayTeamSettlement
+	err = s.repo.WithTeamRewardSnapshotLock(ctx, teamID, func(lockCtx context.Context) error {
+		existing, loadErr := s.repo.GetTeamRewardSettlementByTeamPeriod(lockCtx, teamID, periodStart)
+		if loadErr != nil {
+			return loadErr
 		}
-		allocations = append(allocations, PlayTeamRewardAllocation{
-			UserID:         contribution.UserID,
-			Contribution:   contribution.Amount.Round(teamRewardAmountScale),
-			Ratio:          contribution.Amount.Div(teamSpend).Round(teamRewardAmountScale),
-			RewardAmount:   reward,
-			PayoutStatus:   PlayTeamRewardAllocationStatusPending,
-			IdempotencyKey: fmt.Sprintf("team_reward:%d:%s:%d", teamID, periodKey, contribution.UserID),
-		})
-	}
-	if len(allocations) == 0 {
-		return nil, nil
-	}
+		if existing != nil {
+			snapshot = existing
+			return nil
+		}
 
-	settlement := PlayTeamSettlement{
-		TeamID:           teamID,
-		PeriodStart:      periodStart,
-		WindowStart:      windowStart,
-		WindowEnd:        windowEnd,
-		TeamSpend:        teamSpend,
-		ReachedThreshold: threshold.Round(teamRewardAmountScale),
-		RewardRate:       rate.Round(teamRewardAmountScale),
-		PoolAmount:       pool.Round(teamRewardAmountScale),
-		CapAmount:        cfg.Cap.Round(teamRewardAmountScale),
-		Status:           PlayTeamSettlementStatusPending,
-	}
-	snapshot, _, err := s.repo.CreateTeamRewardSnapshot(ctx, settlement, allocations)
+		contributions, loadErr := s.repo.ListTeamRewardContributions(lockCtx, teamID, windowStart, windowEnd)
+		if loadErr != nil {
+			return loadErr
+		}
+		contributions = normalizeTeamContributions(contributions)
+		teamSpend := sumTeamContributions(contributions).Round(teamRewardAmountScale)
+		pool := resolveTeamRewardPool(teamSpend, cfg)
+		if !pool.IsPositive() {
+			return nil
+		}
+
+		threshold, rate := reachedTeamRewardTier(teamSpend, cfg.Tiers)
+		rewardByUser, allocationErr := allocateTeamReward(pool, contributions)
+		if allocationErr != nil {
+			return allocationErr
+		}
+		allocations := make([]PlayTeamRewardAllocation, 0, len(contributions))
+		periodKey := periodStart.Format("2006-01")
+		for _, contribution := range contributions {
+			reward := rewardByUser[contribution.UserID].Round(teamRewardAmountScale)
+			if !reward.IsPositive() {
+				continue
+			}
+			allocations = append(allocations, PlayTeamRewardAllocation{
+				UserID:         contribution.UserID,
+				Contribution:   contribution.Amount.Round(teamRewardAmountScale),
+				Ratio:          contribution.Amount.Div(teamSpend).Round(teamRewardAmountScale),
+				RewardAmount:   reward,
+				PayoutStatus:   PlayTeamRewardAllocationStatusPending,
+				IdempotencyKey: fmt.Sprintf("team_reward:%d:%s:%d", teamID, periodKey, contribution.UserID),
+			})
+		}
+		if len(allocations) == 0 {
+			return nil
+		}
+
+		settlement := PlayTeamSettlement{
+			TeamID:           teamID,
+			PeriodStart:      periodStart,
+			WindowStart:      windowStart,
+			WindowEnd:        windowEnd,
+			TeamSpend:        teamSpend,
+			ReachedThreshold: threshold.Round(teamRewardAmountScale),
+			RewardRate:       rate.Round(teamRewardAmountScale),
+			PoolAmount:       pool.Round(teamRewardAmountScale),
+			CapAmount:        cfg.Cap.Round(teamRewardAmountScale),
+			Status:           PlayTeamSettlementStatusPending,
+		}
+		created, _, createErr := s.repo.CreateTeamRewardSnapshot(lockCtx, settlement, allocations)
+		if createErr != nil {
+			return createErr
+		}
+		snapshot = created
+		return nil
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -280,12 +289,11 @@ func (s *PlayService) ListUserTeamRewardSettlements(
 	ctx context.Context,
 	userID int64,
 	limit int,
-) ([]PlayTeamSettlementRecord, error) {
-	team, err := s.repo.GetUserTeam(ctx, userID)
-	if err != nil || team == nil {
-		return nil, err
+) ([]PlayUserTeamSettlementRecord, error) {
+	if userID <= 0 {
+		return nil, ErrUserNotFound
 	}
-	return s.listTeamRewardSettlementRecords(ctx, team.ID, limit)
+	return s.repo.ListUserTeamRewardSettlements(ctx, userID, limit)
 }
 
 func (s *PlayService) ListAdminTeamRewardSettlements(

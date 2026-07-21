@@ -74,6 +74,9 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	settlement service.PlayTeamSettlement,
 	allocations []service.PlayTeamRewardAllocation,
 ) (*service.PlayTeamSettlement, bool, error) {
+	if dbent.TxFromContext(ctx) != nil {
+		return r.createTeamRewardSnapshot(ctx, r.sqlExec(ctx), settlement, allocations)
+	}
 	if r.client == nil {
 		return nil, false, fmt.Errorf("create team reward snapshot: ent client missing")
 	}
@@ -83,10 +86,29 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	}
 	defer func() { _ = tx.Rollback() }()
 	txCtx := dbent.NewTxContext(ctx, tx)
-	exec := r.sqlExec(txCtx)
+	snapshot, created, err := r.createTeamRewardSnapshot(
+		txCtx,
+		r.sqlExec(txCtx),
+		settlement,
+		allocations,
+	)
+	if err != nil {
+		return nil, false, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, false, fmt.Errorf("commit team reward snapshot tx: %w", err)
+	}
+	return snapshot, created, nil
+}
 
+func (r *playRepository) createTeamRewardSnapshot(
+	ctx context.Context,
+	exec sqlExecutor,
+	settlement service.PlayTeamSettlement,
+	allocations []service.PlayTeamRewardAllocation,
+) (*service.PlayTeamSettlement, bool, error) {
 	var settlementID int64
-	err = scanSingleRow(txCtx, exec, `
+	err := scanSingleRow(ctx, exec, `
 		INSERT INTO play_team_settlements (
 			team_id, period_start, window_start, window_end, team_spend,
 			reached_threshold, reward_rate, pool_amount, cap_amount, status
@@ -106,7 +128,7 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	}, &settlementID)
 	if errors.Is(err, sql.ErrNoRows) {
 		existing, getErr := getTeamRewardSettlementByTeamPeriod(
-			txCtx,
+			ctx,
 			exec,
 			settlement.TeamID,
 			settlement.PeriodStart,
@@ -117,9 +139,6 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 		if existing == nil {
 			return nil, false, fmt.Errorf("team reward settlement conflict without existing row")
 		}
-		if err := tx.Commit(); err != nil {
-			return nil, false, fmt.Errorf("commit existing team reward snapshot tx: %w", err)
-		}
 		return existing, false, nil
 	}
 	if err != nil {
@@ -127,7 +146,7 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 	}
 
 	for _, allocation := range allocations {
-		if _, err := exec.ExecContext(txCtx, `
+		if _, err := exec.ExecContext(ctx, `
 			INSERT INTO play_team_reward_allocations (
 				settlement_id, user_id, contribution, ratio, reward_amount,
 				payout_status, idempotency_key
@@ -144,11 +163,62 @@ func (r *playRepository) CreateTeamRewardSnapshot(
 			return nil, false, fmt.Errorf("insert team reward allocation: %w", err)
 		}
 	}
-	if err := tx.Commit(); err != nil {
-		return nil, false, fmt.Errorf("commit team reward snapshot tx: %w", err)
+	created, err := getTeamRewardSettlementByID(ctx, exec, settlementID)
+	if err != nil {
+		return nil, false, err
 	}
-	created, err := r.GetTeamRewardSettlement(ctx, settlementID)
-	return created, true, err
+	return created, true, nil
+}
+
+func (r *playRepository) WithTeamRewardSnapshotLock(
+	ctx context.Context,
+	teamID int64,
+	fn func(context.Context) error,
+) error {
+	if fn == nil {
+		return nil
+	}
+	if dbent.TxFromContext(ctx) != nil {
+		if err := r.lockTeamRewardSnapshot(ctx, teamID); err != nil {
+			return err
+		}
+		return fn(ctx)
+	}
+	if r.client == nil {
+		return fmt.Errorf("team reward snapshot lock: ent client missing")
+	}
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin team reward snapshot lock tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := r.lockTeamRewardSnapshot(txCtx, teamID); err != nil {
+		return err
+	}
+	if err := fn(txCtx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit team reward snapshot lock tx: %w", err)
+	}
+	return nil
+}
+
+func (r *playRepository) lockTeamRewardSnapshot(ctx context.Context, teamID int64) error {
+	var lockedID int64
+	err := scanSingleRow(ctx, r.sqlExec(ctx), `
+		SELECT id
+		FROM play_teams
+		WHERE id = $1
+		FOR UPDATE`, []any{teamID}, &lockedID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrPlayTeamNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("lock team reward snapshot: %w", err)
+	}
+	return nil
 }
 
 func (r *playRepository) GetTeamRewardSettlement(
@@ -397,6 +467,47 @@ func (r *playRepository) ListTeamRewardAllocations(
 	return result, nil
 }
 
+func (r *playRepository) ListUserTeamRewardSettlements(
+	ctx context.Context,
+	userID int64,
+	limit int,
+) (result []service.PlayUserTeamSettlementRecord, err error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT s.id, s.team_id, t.name, s.period_start, s.window_start, s.window_end,
+		       s.team_spend::text, s.reached_threshold::text, s.reward_rate::text,
+		       s.pool_amount::text, s.cap_amount::text, s.status, s.last_error,
+		       s.processing_started_at, s.completed_at,
+		       a.id, a.settlement_id, a.user_id, a.contribution::text, a.ratio::text,
+		       a.reward_amount::text, a.payout_status, a.paid_at, a.last_error
+		FROM play_team_reward_allocations a
+		JOIN play_team_settlements s ON s.id = a.settlement_id
+		JOIN play_teams t ON t.id = s.team_id
+		WHERE a.user_id = $1
+		  AND a.reward_amount > 0
+		ORDER BY s.period_start DESC, a.id DESC
+		LIMIT $2`, userID, normalizeTeamRewardListLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list user team reward settlements: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	for rows.Next() {
+		record, scanErr := scanUserTeamRewardSettlementRecord(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		result = append(result, *record)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate user team reward settlements: %w", err)
+	}
+	return result, nil
+}
+
 func listTeamRewardSettlements(
 	ctx context.Context,
 	exec sqlExecutor,
@@ -583,6 +694,91 @@ func scanTeamRewardAllocation(scan rowScanner) (*service.PlayTeamRewardAllocatio
 	}
 	allocation.LastError = lastError.String
 	return &allocation, nil
+}
+
+func scanUserTeamRewardSettlementRecord(scan rowScanner) (*service.PlayUserTeamSettlementRecord, error) {
+	var record service.PlayUserTeamSettlementRecord
+	var (
+		teamSpend     string
+		threshold     string
+		rate          string
+		pool          string
+		capAmount     string
+		settleError   sql.NullString
+		processingAt  sql.NullTime
+		completedAt   sql.NullTime
+		contribution  string
+		ratio         string
+		reward        string
+		paidAt        sql.NullTime
+		allocationErr sql.NullString
+	)
+	if err := scan.Scan(
+		&record.Settlement.ID,
+		&record.Settlement.TeamID,
+		&record.TeamName,
+		&record.Settlement.PeriodStart,
+		&record.Settlement.WindowStart,
+		&record.Settlement.WindowEnd,
+		&teamSpend,
+		&threshold,
+		&rate,
+		&pool,
+		&capAmount,
+		&record.Settlement.Status,
+		&settleError,
+		&processingAt,
+		&completedAt,
+		&record.Allocation.ID,
+		&record.Allocation.SettlementID,
+		&record.Allocation.UserID,
+		&contribution,
+		&ratio,
+		&reward,
+		&record.Allocation.PayoutStatus,
+		&paidAt,
+		&allocationErr,
+	); err != nil {
+		return nil, fmt.Errorf("scan user team reward settlement: %w", err)
+	}
+	settlementValues := []*decimal.Decimal{
+		&record.Settlement.TeamSpend,
+		&record.Settlement.ReachedThreshold,
+		&record.Settlement.RewardRate,
+		&record.Settlement.PoolAmount,
+		&record.Settlement.CapAmount,
+	}
+	for i, raw := range []string{teamSpend, threshold, rate, pool, capAmount} {
+		parsed, parseErr := decimal.NewFromString(raw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse user team reward settlement decimal: %w", parseErr)
+		}
+		*settlementValues[i] = parsed
+	}
+	allocationValues := []*decimal.Decimal{
+		&record.Allocation.Contribution,
+		&record.Allocation.Ratio,
+		&record.Allocation.RewardAmount,
+	}
+	for i, raw := range []string{contribution, ratio, reward} {
+		parsed, parseErr := decimal.NewFromString(raw)
+		if parseErr != nil {
+			return nil, fmt.Errorf("parse user team reward allocation decimal: %w", parseErr)
+		}
+		*allocationValues[i] = parsed
+	}
+	record.Settlement.LastError = settleError.String
+	if processingAt.Valid {
+		record.Settlement.ProcessingStartedAt = &processingAt.Time
+	}
+	if completedAt.Valid {
+		record.Settlement.CompletedAt = &completedAt.Time
+	}
+	if paidAt.Valid {
+		record.Allocation.PaidAt = &paidAt.Time
+	}
+	record.Allocation.LastError = allocationErr.String
+	return &record, nil
 }
 
 func requireRowsAffected(result sql.Result, operation string) error {

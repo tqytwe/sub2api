@@ -208,24 +208,104 @@ func TestTeamPayoutRetryPaysOnlyFailedAllocationAndReconcilesExactly(t *testing.
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestUserTeamRewardSettlementsReturnOnlyCurrentUserAllocationAcrossTeams(t *testing.T) {
+	paidAt := time.Date(2026, 7, 5, 12, 0, 0, 0, time.UTC)
+	repo := newTeamSettlementRepo()
+	repo.userSettlementRecords = []PlayUserTeamSettlementRecord{
+		{
+			Settlement: PlayTeamSettlement{
+				ID:          41,
+				TeamID:      7,
+				PeriodStart: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				WindowStart: time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC),
+				WindowEnd:   time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+				TeamSpend:   decimal.RequireFromString("300.00000000"),
+				PoolAmount:  decimal.RequireFromString("15.00000000"),
+				Status:      PlayTeamSettlementStatusCompleted,
+			},
+			TeamName: "old team",
+			Allocation: PlayTeamRewardAllocation{
+				ID:           101,
+				SettlementID: 41,
+				UserID:       11,
+				Contribution: decimal.RequireFromString("120.00000000"),
+				Ratio:        decimal.RequireFromString("0.40000000"),
+				RewardAmount: decimal.RequireFromString("6.00000000"),
+				PayoutStatus: PlayTeamRewardAllocationStatusPaid,
+				PaidAt:       &paidAt,
+			},
+		},
+		{
+			Settlement: PlayTeamSettlement{
+				ID:          42,
+				TeamID:      9,
+				PeriodStart: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+				WindowStart: time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC),
+				WindowEnd:   time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
+				TeamSpend:   decimal.RequireFromString("500.00000000"),
+				PoolAmount:  decimal.RequireFromString("25.00000000"),
+				Status:      PlayTeamSettlementStatusProcessing,
+			},
+			TeamName: "new team",
+			Allocation: PlayTeamRewardAllocation{
+				ID:           102,
+				SettlementID: 42,
+				UserID:       11,
+				Contribution: decimal.RequireFromString("80.00000000"),
+				Ratio:        decimal.RequireFromString("0.16000000"),
+				RewardAmount: decimal.RequireFromString("4.00000000"),
+				PayoutStatus: PlayTeamRewardAllocationStatusProcessing,
+			},
+		},
+	}
+	svc := &PlayService{repo: repo}
+
+	records, err := svc.ListUserTeamRewardSettlements(context.Background(), 11, 24)
+
+	require.NoError(t, err)
+	require.Len(t, records, 2)
+	require.Equal(t, []int64{11, 11}, []int64{records[0].Allocation.UserID, records[1].Allocation.UserID})
+	require.Equal(t, "old team", records[0].TeamName)
+	require.Equal(t, "6.00000000", records[0].Allocation.RewardAmount.StringFixed(8))
+	require.Equal(t, &paidAt, records[0].Allocation.PaidAt)
+	require.Equal(t, int64(11), repo.userSettlementQueryUserID)
+	require.Equal(t, 24, repo.userSettlementQueryLimit)
+}
+
 type serviceAllocationAmounts map[int64]string
 
 type teamSettlementRepo struct {
 	PlayRepository
 
-	contributions       []TeamContribution
-	contributionCalls   int
-	windowStart         time.Time
-	windowEnd           time.Time
-	createCalls         int
-	settlement          *PlayTeamSettlement
-	allocations         []PlayTeamRewardAllocation
-	nextSettlementID    int64
-	nextAllocationID    int64
-	failPaidOnceForUser int64
-	claimedUsers        []int64
-	ledgerEntries       []PlayRewardLedgerEntry
-	balances            map[int64]decimal.Decimal
+	contributions             []TeamContribution
+	contributionCalls         int
+	snapshotLockCalls         int
+	snapshotLockHeld          bool
+	windowStart               time.Time
+	windowEnd                 time.Time
+	createCalls               int
+	settlement                *PlayTeamSettlement
+	allocations               []PlayTeamRewardAllocation
+	nextSettlementID          int64
+	nextAllocationID          int64
+	failPaidOnceForUser       int64
+	claimedUsers              []int64
+	ledgerEntries             []PlayRewardLedgerEntry
+	balances                  map[int64]decimal.Decimal
+	userSettlementRecords     []PlayUserTeamSettlementRecord
+	userSettlementQueryUserID int64
+	userSettlementQueryLimit  int
+}
+
+func (r *teamSettlementRepo) WithTeamRewardSnapshotLock(
+	ctx context.Context,
+	_ int64,
+	fn func(context.Context) error,
+) error {
+	r.snapshotLockCalls++
+	r.snapshotLockHeld = true
+	defer func() { r.snapshotLockHeld = false }()
+	return fn(ctx)
 }
 
 func newTeamSettlementRepo() *teamSettlementRepo {
@@ -242,6 +322,9 @@ func (r *teamSettlementRepo) ListTeamRewardContributions(
 	start time.Time,
 	end time.Time,
 ) ([]TeamContribution, error) {
+	if !r.snapshotLockHeld {
+		panic("team reward contributions must be read while the team snapshot lock is held")
+	}
 	r.contributionCalls++
 	r.windowStart = start
 	r.windowEnd = end
@@ -267,6 +350,9 @@ func (r *teamSettlementRepo) CreateTeamRewardSnapshot(
 	settlement PlayTeamSettlement,
 	allocations []PlayTeamRewardAllocation,
 ) (*PlayTeamSettlement, bool, error) {
+	if !r.snapshotLockHeld {
+		panic("team reward snapshot must be created while the team snapshot lock is held")
+	}
 	r.createCalls++
 	if r.settlement != nil {
 		copy := *r.settlement
@@ -410,6 +496,16 @@ func (r *teamSettlementRepo) RefreshTeamRewardSettlementStatus(
 	}
 	copy := *r.settlement
 	return &copy, nil
+}
+
+func (r *teamSettlementRepo) ListUserTeamRewardSettlements(
+	_ context.Context,
+	userID int64,
+	limit int,
+) ([]PlayUserTeamSettlementRecord, error) {
+	r.userSettlementQueryUserID = userID
+	r.userSettlementQueryLimit = limit
+	return append([]PlayUserTeamSettlementRecord(nil), r.userSettlementRecords...), nil
 }
 
 func (r *teamSettlementRepo) InsertRewardLedger(

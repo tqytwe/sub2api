@@ -50,7 +50,12 @@ const (
 	ImageStudioReferenceMaxPendingBytes int64 = 80 << 20
 
 	imageStudioUntrackedObjectGrace = time.Hour
+	imageStudioReferenceDefaultTTL  = 7 * 24 * time.Hour
+	imageStudioAssetDefaultTTL      = 24 * time.Hour
+	imageStudioAssetPurgeBatchSize  = 100
 )
+
+type imageStudioReferenceTTLContextKey struct{}
 
 var (
 	ErrImageStudioDisabled                     = infraerrors.BadRequest("IMAGE_STUDIO_DISABLED", "image studio is disabled")
@@ -62,6 +67,8 @@ var (
 	ErrImageStudioPromptRef                    = infraerrors.BadRequest("IMAGE_STUDIO_PROMPT_REFERENCE_INVALID", "prompt id and version must be provided together")
 	ErrImageStudioAPIKey                       = infraerrors.BadRequest("IMAGE_STUDIO_API_KEY_REQUIRED", "valid API key is required")
 	ErrImageStudioAssetNotFound                = infraerrors.NotFound("IMAGE_STUDIO_ASSET_NOT_FOUND", "image studio asset not found")
+	ErrImageStudioAssetExpired                 = infraerrors.New(http.StatusGone, "IMAGE_STUDIO_ASSET_EXPIRED", "image studio asset has expired")
+	ErrImageStudioAssetUnavailable             = infraerrors.New(http.StatusServiceUnavailable, "IMAGE_STUDIO_ASSET_UNAVAILABLE", "image studio asset is temporarily unavailable")
 	ErrImageStudioConcurrentJobLimit           = infraerrors.New(http.StatusConflict, "IMAGE_STUDIO_CONCURRENT_JOB_LIMIT", "at most two image studio jobs may be active")
 	ErrImageStudioBillingFailed                = infraerrors.New(http.StatusBadGateway, "IMAGE_STUDIO_BILLING_FAILED", "image studio billing failed")
 	ErrImageStudioInsufficientBalance          = infraerrors.New(http.StatusPaymentRequired, "IMAGE_STUDIO_INSUFFICIENT_BALANCE", "insufficient balance for image studio hold")
@@ -98,18 +105,41 @@ func ValidateImageStudioAPIKey(apiKey *APIKey) error {
 	return nil
 }
 
+func WithImageStudioReferenceTTL(ctx context.Context, ttl time.Duration) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if ttl <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, imageStudioReferenceTTLContextKey{}, ttl)
+}
+
+func ImageStudioReferenceTTL(ctx context.Context) time.Duration {
+	if ctx != nil {
+		if ttl, ok := ctx.Value(imageStudioReferenceTTLContextKey{}).(time.Duration); ok && ttl > 0 {
+			return ttl
+		}
+	}
+	return imageStudioReferenceDefaultTTL
+}
+
 type ImageStudioAsset struct {
-	ID          string `json:"id"`
-	URL         string `json:"url,omitempty"`
-	SortOrder   int    `json:"sort_order"`
-	ContentType string `json:"content_type,omitempty"`
-	ByteSize    int64  `json:"byte_size,omitempty"`
-	PreviewURL  string `json:"preview_url,omitempty"`
-	DownloadURL string `json:"download_url,omitempty"`
-	StorageKey  string `json:"-"`
-	Width       int    `json:"width,omitempty"`
-	Height      int    `json:"height,omitempty"`
-	AspectRatio string `json:"aspect_ratio,omitempty"`
+	ID           string     `json:"id"`
+	URL          string     `json:"url,omitempty"`
+	SortOrder    int        `json:"sort_order"`
+	ContentType  string     `json:"content_type,omitempty"`
+	ByteSize     int64      `json:"byte_size,omitempty"`
+	Filename     string     `json:"filename,omitempty"`
+	ExpiresAt    *time.Time `json:"expires_at,omitempty"`
+	PurgedAt     *time.Time `json:"purged_at,omitempty"`
+	Availability string     `json:"availability,omitempty"`
+	PreviewURL   string     `json:"preview_url,omitempty"`
+	DownloadURL  string     `json:"download_url,omitempty"`
+	StorageKey   string     `json:"-"`
+	Width        int        `json:"width,omitempty"`
+	Height       int        `json:"height,omitempty"`
+	AspectRatio  string     `json:"aspect_ratio,omitempty"`
 
 	ThumbnailURL         string `json:"thumbnail_url,omitempty"`
 	ThumbnailStorageKey  string `json:"-"`
@@ -126,6 +156,8 @@ type ImageStudioAssetRecord struct {
 	URL         string
 	Width       int
 	Height      int
+	Filename    string
+	ExpiresAt   *time.Time
 
 	ThumbnailStorageKey  string
 	ThumbnailContentType string
@@ -153,6 +185,10 @@ type ImageStudioJob struct {
 	EstimatedCost           float64                   `json:"estimated_cost"`
 	ActualCost              *float64                  `json:"actual_cost,omitempty"`
 	APIKeyID                *int64                    `json:"api_key_id,omitempty"`
+	GroupID                 *int64                    `json:"group_id,omitempty"`
+	Platform                string                    `json:"platform,omitempty"`
+	CapabilityProfileID     string                    `json:"capability_profile_id,omitempty"`
+	CapabilityRevision      string                    `json:"capability_revision,omitempty"`
 	HoldAmount              *float64                  `json:"hold_amount,omitempty"`
 	HoldID                  string                    `json:"-"`
 	SuccessCount            int                       `json:"success_count"`
@@ -304,6 +340,16 @@ type ImageStudioRepository interface {
 	SettleJob(ctx context.Context, jobID, leaseOwner string, now time.Time, settle func(context.Context, *ImageStudioJob, float64) error) (*ImageStudioJob, error)
 }
 
+type ImageStudioAssetPurgeCandidate struct {
+	ID          string
+	StorageKeys []string
+}
+
+type ImageStudioAssetPurgeRepository interface {
+	ListExpiredAssetsForPurge(ctx context.Context, before time.Time, limit int) ([]ImageStudioAssetPurgeCandidate, error)
+	MarkAssetsPurged(ctx context.Context, assetIDs []string, purgedAt time.Time) (int64, error)
+}
+
 type ImageStudioIdempotentJobRepository interface {
 	FindJobByIdempotency(
 		ctx context.Context,
@@ -427,7 +473,7 @@ func (s *ImageStudioService) CreateReference(
 	if err != nil {
 		return nil, err
 	}
-	expiresAt := time.Now().UTC().Add(7 * 24 * time.Hour)
+	expiresAt := time.Now().UTC().Add(ImageStudioReferenceTTL(ctx))
 	reference := &ImageStudioReference{
 		ID:               referenceID,
 		UserID:           userID,
@@ -552,7 +598,7 @@ func (s *ImageStudioService) Estimate(
 	}
 	referenceIDs = normalizeImageStudioReferenceIDs(referenceIDs)
 	if len(referenceIDs) > 0 {
-		capability, ok := ResolveImageStudioModelCapability(resolvedModel)
+		capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, resolvedModel)
 		if !ok {
 			return nil, ErrImageStudioProviderNotSupported
 		}
@@ -884,7 +930,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
-	capability, ok := ResolveImageStudioModelCapability(resolvedModel)
+	capability, ok := ResolveImageStudioProviderCapability(platform, resolvedModel)
 	if !ok {
 		return nil, "", ErrImageStudioProviderNotSupported
 	}
@@ -892,7 +938,7 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
-	if err := s.ValidateQualityForModel(resolvedModel, req.Quality); err != nil {
+	if err := s.ValidateQualityForModel(apiKey, resolvedModel, req.Quality); err != nil {
 		return nil, "", err
 	}
 	providedReferenceCount := 0
@@ -943,17 +989,6 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		}
 		est += inputCost
 	}
-	var expires *time.Time
-	if req.RetainDays != nil && *req.RetainDays == 0 {
-		expires = nil
-	} else {
-		days := 7
-		if req.RetainDays != nil && *req.RetainDays > 0 {
-			days = *req.RetainDays
-		}
-		t := time.Now().AddDate(0, 0, days)
-		expires = &t
-	}
 	job := &ImageStudioJob{
 		ID:                     uuid.NewString(),
 		UserID:                 userID,
@@ -966,7 +1001,10 @@ func (s *ImageStudioService) CreatePendingJob(ctx context.Context, userID int64,
 		Status:                 ImageStudioJobStatusPending,
 		EstimatedCost:          est,
 		APIKeyID:               &apiKey.ID,
-		ExpiresAt:              expires,
+		GroupID:                apiKey.GroupID,
+		Platform:               platform,
+		CapabilityProfileID:    capability.ProfileID,
+		CapabilityRevision:     capability.Revision,
 		IdempotencyKeyHash:     req.IdempotencyKeyHash,
 		IdempotencyFingerprint: req.IdempotencyFingerprint,
 	}
@@ -1141,6 +1179,7 @@ func (s *ImageStudioService) CompleteJob(ctx context.Context, userID int64, jobI
 			records := make([]ImageStudioAssetRecord, 0, len(images))
 			for i, img := range images {
 				assetID := uuid.NewString()
+				assetExpiresAt := time.Now().UTC().Add(imageStudioAssetDefaultTTL)
 				storageKey, saveErr := s.assetStore.Save(userID, assetID, img.ContentType, img.Data)
 				if saveErr != nil {
 					status = ImageStudioJobStatusFailed
@@ -1154,6 +1193,8 @@ func (s *ImageStudioService) CompleteJob(ctx context.Context, userID int64, jobI
 					ContentType: img.ContentType,
 					ByteSize:    int64(len(img.Data)),
 					SortOrder:   i,
+					Filename:    imageStudioAssetFilename(assetID, img.ContentType),
+					ExpiresAt:   &assetExpiresAt,
 				})
 			}
 			if status == ImageStudioJobStatusCompleted {
@@ -1300,7 +1341,7 @@ func (s *ImageStudioService) BuildWorkerRequest(ctx context.Context, job *ImageS
 			return nil, err
 		}
 	}
-	capability, ok := ResolveImageStudioModelCapability(model)
+	capability, ok := ResolveImageStudioProviderCapability(platform, model)
 	if !ok {
 		return nil, ErrImageStudioProviderNotSupported
 	}
@@ -1800,6 +1841,7 @@ func (s *ImageStudioService) CompleteWorkerItem(
 			return errors.New("image studio asset store unavailable")
 		}
 		assetID := item.ID
+		assetExpiresAt := now.UTC().Add(imageStudioAssetDefaultTTL)
 		derivative, err := buildImageStudioAssetDerivative(image.Data)
 		if err != nil {
 			return fmt.Errorf("failed to inspect generated image: %w", err)
@@ -1828,6 +1870,8 @@ func (s *ImageStudioService) CompleteWorkerItem(
 			SortOrder:            item.SortOrder,
 			Width:                derivative.Width,
 			Height:               derivative.Height,
+			Filename:             imageStudioAssetFilename(assetID, image.ContentType),
+			ExpiresAt:            &assetExpiresAt,
 			ThumbnailStorageKey:  thumbnailStorageKey,
 			ThumbnailContentType: derivative.ThumbnailContentType,
 			ThumbnailByteSize:    int64(len(derivative.ThumbnailData)),
@@ -1863,6 +1907,17 @@ func imageStudioActualCostWithinHold(job *ImageStudioJob, actualCost float64) fl
 		return perItemCap
 	}
 	return actualCost
+}
+
+func imageStudioAssetFilename(assetID, contentType string) string {
+	trimmed := strings.TrimSpace(assetID)
+	if len(trimmed) > 8 {
+		trimmed = trimmed[:8]
+	}
+	if trimmed == "" {
+		trimmed = "image"
+	}
+	return "image-studio-" + trimmed + extensionForContentType(contentType)
 }
 
 func (s *ImageStudioService) SettleJob(ctx context.Context, jobID, leaseOwner string, now time.Time) (*ImageStudioJob, error) {
@@ -1901,10 +1956,13 @@ func (s *ImageStudioService) OpenAssetContent(ctx context.Context, userID int64,
 	if err != nil {
 		return nil, "", err
 	}
+	if imageStudioAssetExpired(asset, time.Now().UTC()) {
+		return nil, "", ErrImageStudioAssetExpired
+	}
 	if asset.StorageKey != "" && s.assetStore != nil {
 		data, err := s.assetStore.Read(asset.StorageKey)
 		if err != nil {
-			return nil, "", err
+			return nil, "", ErrImageStudioAssetUnavailable.WithCause(err)
 		}
 		ct := asset.ContentType
 		if ct == "" {
@@ -1960,12 +2018,50 @@ func (s *ImageStudioService) PurgeExpiredJobs(ctx context.Context, now time.Time
 	if err := s.purgeExpiredUploadReferences(ctx, now); err != nil {
 		return 0, errors.Join(retryErr, err)
 	}
+	if s.settingService != nil && s.settingService.IsImageStudioAssetPurgeEnabled(ctx) {
+		_, err := s.PurgeExpiredAssets(ctx, now)
+		retryErr = errors.Join(retryErr, err)
+	}
 	deleted, err := s.repo.DeleteExpiredJobsBefore(ctx, now)
 	if err != nil {
 		return 0, errors.Join(retryErr, err)
 	}
 	retryErr = errors.Join(retryErr, s.retryPendingObjectDeletions(ctx))
 	return deleted, retryErr
+}
+
+func (s *ImageStudioService) PurgeExpiredAssets(ctx context.Context, now time.Time) (int64, error) {
+	repo, ok := s.repo.(ImageStudioAssetPurgeRepository)
+	if !ok || s.assetStore == nil {
+		return 0, nil
+	}
+	candidates, err := repo.ListExpiredAssetsForPurge(ctx, now, imageStudioAssetPurgeBatchSize)
+	if err != nil {
+		return 0, err
+	}
+	purgedIDs := make([]string, 0, len(candidates))
+	var purgeErr error
+	for _, candidate := range candidates {
+		if strings.TrimSpace(candidate.ID) == "" {
+			continue
+		}
+		var candidateErr error
+		for _, key := range candidate.StorageKeys {
+			if err := s.assetStore.Delete(key); err != nil {
+				candidateErr = errors.Join(candidateErr, err)
+			}
+		}
+		if candidateErr != nil {
+			purgeErr = errors.Join(purgeErr, candidateErr)
+			continue
+		}
+		purgedIDs = append(purgedIDs, candidate.ID)
+	}
+	if len(purgedIDs) == 0 {
+		return 0, purgeErr
+	}
+	n, err := repo.MarkAssetsPurged(ctx, purgedIDs, now.UTC())
+	return n, errors.Join(purgeErr, err)
 }
 
 func (s *ImageStudioService) retryPendingObjectDeletions(ctx context.Context) error {
@@ -2028,6 +2124,17 @@ func (s *ImageStudioService) enrichAsset(asset *ImageStudioAsset) {
 	if asset == nil {
 		return
 	}
+	if asset.Filename == "" {
+		asset.Filename = imageStudioAssetFilename(asset.ID, asset.ContentType)
+	}
+	asset.Availability = imageStudioAssetAvailability(asset, time.Now().UTC())
+	if imageStudioAssetExpired(asset, time.Now().UTC()) {
+		asset.URL = ""
+		asset.PreviewURL = ""
+		asset.DownloadURL = ""
+		asset.ThumbnailURL = ""
+		return
+	}
 	if strings.TrimSpace(asset.ThumbnailStorageKey) != "" {
 		asset.ThumbnailURL = "/api/v1/image-studio/assets/" + asset.ID + "/thumbnail"
 	}
@@ -2041,6 +2148,29 @@ func (s *ImageStudioService) enrichAsset(asset *ImageStudioAsset) {
 		asset.PreviewURL = asset.URL
 		asset.DownloadURL = asset.URL
 	}
+}
+
+func imageStudioAssetExpired(asset *ImageStudioAsset, now time.Time) bool {
+	if asset == nil {
+		return false
+	}
+	if asset.PurgedAt != nil {
+		return true
+	}
+	return asset.ExpiresAt != nil && !asset.ExpiresAt.After(now)
+}
+
+func imageStudioAssetAvailability(asset *ImageStudioAsset, now time.Time) string {
+	if asset == nil {
+		return ""
+	}
+	if imageStudioAssetExpired(asset, now) {
+		return "expired"
+	}
+	if strings.TrimSpace(asset.StorageKey) == "" && strings.TrimSpace(asset.URL) == "" {
+		return "unavailable"
+	}
+	return "available"
 }
 
 func (s *ImageStudioService) GetHubStatus(ctx context.Context, userID int64) (*ImageStudioHubStatus, error) {

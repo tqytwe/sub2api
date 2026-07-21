@@ -189,6 +189,15 @@ func TestResolveImageStudioProviderCapabilityRejectsCrossPlatformModels(t *testi
 
 	_, ok = ResolveImageStudioProviderCapability("anthropic", "gpt-image-2")
 	require.False(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability("krio", "gpt-image-2")
+	require.False(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability(PlatformOpenAI, "flux-pro-image")
+	require.True(t, ok)
+
+	_, ok = ResolveImageStudioProviderCapability(PlatformOpenAI, "gemini-3.1-flash-image")
+	require.True(t, ok)
 }
 
 func TestValidateImageStudioProviderOptions(t *testing.T) {

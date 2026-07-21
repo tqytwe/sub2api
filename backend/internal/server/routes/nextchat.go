@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -8,12 +9,16 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -23,12 +28,56 @@ import (
 
 const nextChatLaunchTokenKeyPrefix = "nextchat:launch:"
 
+const (
+	nextChatImageStudioInternalAPIPrefix = "/api/v1/image-studio/"
+	nextChatImageStudioBFFAPIPrefix      = "/api/v1/nextchat/image-studio/"
+	nextChatImageStudioAssetRetention    = 24 * time.Hour
+)
+
 type nextChatSessionIssuer interface {
 	IssueNextChatManagedSession(ctx context.Context, userID int64) (*service.NextChatManagedSession, error)
 }
 
 type nextChatFeatureGate interface {
 	IsNextChatEnabled(ctx context.Context) bool
+}
+
+type nextChatWorkspaceIdentityProvider interface {
+	GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error)
+	SetNextChatManagedKeyGroup(ctx context.Context, userID, apiKeyID, groupID int64) (*service.NextChatWorkspaceIdentity, error)
+}
+
+type nextChatWorkspaceModelProvider interface {
+	GetNextChatWorkspaceModels(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceModels, error)
+}
+
+type nextChatPromptProvider interface {
+	ListPublic(ctx context.Context, filter service.PromptListFilter, userID *int64) ([]service.PublicPrompt, *pagination.PaginationResult, error)
+	GetPublic(ctx context.Context, id int64, userID *int64) (*service.PublicPrompt, error)
+	SetFavorite(ctx context.Context, promptID, userID int64, favorite bool) (bool, error)
+	UsePrompt(ctx context.Context, promptID, userID int64) (*service.PromptUseResult, error)
+}
+
+type nextChatImageStudioBFFHandler interface {
+	Models(c *gin.Context)
+	Estimate(c *gin.Context)
+	Generate(c *gin.Context)
+	UploadReference(c *gin.Context)
+	DeleteReference(c *gin.Context)
+	ActiveJob(c *gin.Context)
+	ListJobs(c *gin.Context)
+	GetJob(c *gin.Context)
+	JobDownload(c *gin.Context)
+	CancelJob(c *gin.Context)
+	DeleteJob(c *gin.Context)
+	AssetThumbnail(c *gin.Context)
+	AssetContent(c *gin.Context)
+	AssetDownload(c *gin.Context)
+}
+
+type nextChatPublicSettingsProvider interface {
+	GetPublicSettings(ctx context.Context) (*service.PublicSettings, error)
+	GetFrontendURL(ctx context.Context) string
 }
 
 type nextChatLaunchTokenRecord struct {
@@ -42,21 +91,31 @@ type nextChatExchangeRequest struct {
 	LaunchToken string `json:"launch_token"`
 }
 
+type nextChatGroupSwitchRequest struct {
+	GroupID int64 `json:"group_id"`
+}
+
 func RegisterNextChatRoutes(
 	v1 *gin.RouterGroup,
 	jwtAuth middleware.JWTAuthMiddleware,
 	apiKeyService *service.APIKeyService,
+	modelCatalogService *service.ModelCatalogService,
+	promptProvider nextChatPromptProvider,
+	imageStudio nextChatImageStudioBFFHandler,
 	settingService *service.SettingService,
 	cfg *config.Config,
 	redisClient *redis.Client,
 ) {
-	registerNextChatRoutes(v1, jwtAuth, apiKeyService, settingService, cfg, redisClient)
+	registerNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, promptProvider, imageStudio, settingService, cfg, redisClient)
 }
 
 func registerNextChatRoutes(
 	v1 *gin.RouterGroup,
 	jwtAuth middleware.JWTAuthMiddleware,
 	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	promptProvider nextChatPromptProvider,
+	imageStudio nextChatImageStudioBFFHandler,
 	gate nextChatFeatureGate,
 	cfg *config.Config,
 	redisClient *redis.Client,
@@ -66,6 +125,31 @@ func registerNextChatRoutes(
 		nextchat.POST("/session", func(c *gin.Context) {
 			handleNextChatSessionExchange(c, issuer, gate, cfg, redisClient)
 		})
+		nextchat.GET("/bootstrap", func(c *gin.Context) {
+			handleNextChatBootstrap(c, issuer, modelProvider, gate, cfg)
+		})
+		nextchat.GET("/prompts", func(c *gin.Context) {
+			handleNextChatPrompts(c, promptProvider, gate, cfg)
+		})
+		nextchat.GET("/image-prompts", func(c *gin.Context) {
+			handleNextChatImagePrompts(c, promptProvider, gate, cfg)
+		})
+		nextchat.GET("/image-prompts/:id", func(c *gin.Context) {
+			handleNextChatImagePrompt(c, promptProvider, gate, cfg)
+		})
+		nextchat.POST("/image-prompts/:id/favorite", func(c *gin.Context) {
+			handleNextChatImagePromptFavorite(c, promptProvider, gate, cfg, true)
+		})
+		nextchat.DELETE("/image-prompts/:id/favorite", func(c *gin.Context) {
+			handleNextChatImagePromptFavorite(c, promptProvider, gate, cfg, false)
+		})
+		nextchat.POST("/image-prompts/:id/use", func(c *gin.Context) {
+			handleNextChatImagePromptUse(c, promptProvider, gate, cfg)
+		})
+		nextchat.POST("/group", func(c *gin.Context) {
+			handleNextChatGroupSwitch(c, issuer, modelProvider, gate, cfg)
+		})
+		registerNextChatImageStudioRoutes(nextchat, imageStudio, gate, cfg)
 	}
 
 	authenticated := nextchat.Group("")
@@ -75,6 +159,628 @@ func registerNextChatRoutes(
 			handleNextChatLaunch(c, gate, cfg, redisClient)
 		})
 	}
+}
+
+func registerNextChatImageStudioRoutes(
+	nextchat *gin.RouterGroup,
+	imageStudio nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if imageStudio == nil {
+		return
+	}
+	studio := nextchat.Group("/image-studio")
+	{
+		studio.GET("/models", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, true, imageStudio.Models)
+		})
+		studio.GET("/estimate", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, true, true, imageStudio.Estimate)
+		})
+		studio.POST(
+			"/generate",
+			middleware.RequestBodyLimit(handler.ImageStudioGenerateRequestBodyLimit),
+			func(c *gin.Context) {
+				handleNextChatImageStudioGenerate(c, imageStudio, gate, cfg)
+			},
+		)
+		studio.POST(
+			"/references",
+			middleware.RequestBodyLimit(handler.ImageStudioReferenceRequestBodyLimit),
+			func(c *gin.Context) {
+				handleNextChatImageStudioUploadReference(c, imageStudio, gate, cfg)
+			},
+		)
+		studio.DELETE("/references/:id", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.DeleteReference)
+		})
+		studio.GET("/jobs/active", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.ActiveJob)
+		})
+		studio.GET("/jobs", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.ListJobs)
+		})
+		studio.GET("/jobs/:id", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.GetJob)
+		})
+		studio.GET("/jobs/:id/download", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.JobDownload)
+		})
+		studio.POST("/jobs/:id/cancel", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.CancelJob)
+		})
+		studio.DELETE("/jobs/:id", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, true, imageStudio.DeleteJob)
+		})
+		studio.GET("/assets/:id/thumbnail", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.AssetThumbnail)
+		})
+		studio.GET("/assets/:id/content", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.AssetContent)
+		})
+		studio.GET("/assets/:id/download", func(c *gin.Context) {
+			handleNextChatImageStudio(c, imageStudio, gate, cfg, false, false, imageStudio.AssetDownload)
+		})
+	}
+}
+
+func handleNextChatImageStudio(
+	c *gin.Context,
+	_ nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	forceAPIKeyQuery bool,
+	rewriteJSON bool,
+	handle func(*gin.Context),
+) {
+	if !prepareNextChatImageStudioBFF(c, gate, cfg, forceAPIKeyQuery) {
+		return
+	}
+	if rewriteJSON {
+		rewriteNextChatImageStudioJSONResponse(c, handle)
+		return
+	}
+	handle(c)
+}
+
+func handleNextChatImageStudioGenerate(
+	c *gin.Context,
+	imageStudio nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	_, apiKeyID, ok := prepareNextChatImageStudioBFFSession(c, gate, cfg)
+	if !ok {
+		return
+	}
+	var req service.ImageStudioGenerateRequest
+	decoder := json.NewDecoder(c.Request.Body)
+	if err := decoder.Decode(&req); err != nil {
+		response.BadRequest(c, "Invalid request body")
+		return
+	}
+	req.APIKeyID = apiKeyID
+	req.RetainDays = nil
+	raw, err := json.Marshal(req)
+	if err != nil {
+		response.InternalError(c, "Failed to prepare image studio request")
+		return
+	}
+	c.Request.Body = io.NopCloser(bytes.NewReader(raw))
+	c.Request.ContentLength = int64(len(raw))
+	c.Request.Header.Set("Content-Type", "application/json")
+	rewriteNextChatImageStudioJSONResponse(c, imageStudio.Generate)
+}
+
+func handleNextChatImageStudioUploadReference(
+	c *gin.Context,
+	imageStudio nextChatImageStudioBFFHandler,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if !prepareNextChatImageStudioBFF(c, gate, cfg, false) {
+		return
+	}
+	c.Request = c.Request.WithContext(
+		service.WithImageStudioReferenceTTL(c.Request.Context(), nextChatImageStudioAssetRetention),
+	)
+	rewriteNextChatImageStudioJSONResponse(c, imageStudio.UploadReference)
+}
+
+type nextChatImageStudioJSONRewriteWriter struct {
+	gin.ResponseWriter
+	body        bytes.Buffer
+	status      int
+	wroteHeader bool
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) WriteHeader(code int) {
+	if w.wroteHeader {
+		return
+	}
+	w.status = code
+	w.wroteHeader = true
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) WriteHeaderNow() {
+	if w.wroteHeader {
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Write(data []byte) (int, error) {
+	w.WriteHeaderNow()
+	return w.body.Write(data)
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) WriteString(data string) (int, error) {
+	w.WriteHeaderNow()
+	return w.body.WriteString(data)
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Status() int {
+	if w.status != 0 {
+		return w.status
+	}
+	return http.StatusOK
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Size() int {
+	return w.body.Len()
+}
+
+func (w *nextChatImageStudioJSONRewriteWriter) Written() bool {
+	return w.wroteHeader
+}
+
+func rewriteNextChatImageStudioJSONResponse(c *gin.Context, handle func(*gin.Context)) {
+	if c == nil || handle == nil {
+		return
+	}
+	originalWriter := c.Writer
+	recorder := &nextChatImageStudioJSONRewriteWriter{ResponseWriter: originalWriter}
+	c.Writer = recorder
+	handle(c)
+	c.Writer = originalWriter
+
+	if !recorder.Written() {
+		return
+	}
+	body := recorder.body.Bytes()
+	if shouldRewriteNextChatImageStudioJSON(originalWriter.Header().Get("Content-Type"), body) {
+		body = []byte(strings.ReplaceAll(
+			string(body),
+			nextChatImageStudioInternalAPIPrefix,
+			nextChatImageStudioBFFAPIPrefix,
+		))
+	}
+	originalWriter.WriteHeader(recorder.Status())
+	if len(body) > 0 {
+		_, _ = originalWriter.Write(body)
+	}
+}
+
+func shouldRewriteNextChatImageStudioJSON(contentType string, body []byte) bool {
+	if len(body) == 0 || !strings.Contains(string(body), nextChatImageStudioInternalAPIPrefix) {
+		return false
+	}
+	if strings.Contains(strings.ToLower(contentType), "json") {
+		return true
+	}
+	return json.Valid(body)
+}
+
+func prepareNextChatImageStudioBFF(
+	c *gin.Context,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	forceAPIKeyQuery bool,
+) bool {
+	_, apiKeyID, ok := prepareNextChatImageStudioBFFSession(c, gate, cfg)
+	if !ok {
+		return false
+	}
+	if forceAPIKeyQuery {
+		query := c.Request.URL.Query()
+		query.Set("api_key_id", strconv.FormatInt(apiKeyID, 10))
+		c.Request.URL.RawQuery = query.Encode()
+	}
+	return true
+}
+
+func prepareNextChatImageStudioBFFSession(
+	c *gin.Context,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) (int64, int64, bool) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return 0, 0, false
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return 0, 0, false
+	}
+	c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{
+		UserID:      userID,
+		Concurrency: 1,
+	})
+	return userID, apiKeyID, true
+}
+
+func handleNextChatBootstrap(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
+	if !ok || identityProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat bootstrap service is unavailable")
+		return
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+
+	identity, err := identityProvider.GetNextChatWorkspaceIdentity(c.Request.Context(), userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	settings, err := getNextChatPublicSettings(c.Request.Context(), gate)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	siteURL := firstNonEmptyNextChat(getNextChatFrontendURL(c.Request.Context(), gate), "https://www.jisudeng.com")
+	returnURL := joinNextChatURL(siteURL, "/dashboard")
+	rechargeURL := joinNextChatURL(siteURL, "/purchase")
+
+	response.Success(c, gin.H{
+		"user":            identity.User,
+		"managed_api_key": identity.APIKey,
+		"brand": gin.H{
+			"site_name":      firstNonEmptyNextChat(settings.SiteName, "极速蹬"),
+			"site_logo":      settings.SiteLogo,
+			"workspace_name": "极速蹬 AI 工作台",
+		},
+		"features": gin.H{
+			"chat":           true,
+			"image_studio":   settings.ImageStudioEnabled,
+			"prompts":        true,
+			"history_export": true,
+			"cloud_sync":     false,
+		},
+		"models": workspaceModels,
+		"urls": gin.H{
+			"return_url":   returnURL,
+			"recharge_url": rechargeURL,
+			"profile_url":  joinNextChatURL(siteURL, "/profile"),
+		},
+		"retention": gin.H{
+			"text_session_days":     7,
+			"image_job_days":        7,
+			"image_asset_hours":     24,
+			"image_reference_hours": 24,
+			"server_chat_log":       false,
+		},
+	})
+}
+
+func handleNextChatPrompts(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	response.Success(c, buildNextChatPromptCatalog(c.Request.Context(), promptProvider, userID))
+}
+
+func handleNextChatImagePrompts(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	userIDPtr := &userID
+	rows, result, err := promptProvider.ListPublic(c.Request.Context(), service.PromptListFilter{
+		Query:                c.Query("q"),
+		Purpose:              c.Query("purpose"),
+		Style:                c.Query("style"),
+		Subject:              c.Query("subject"),
+		Model:                c.Query("model"),
+		Size:                 c.Query("size"),
+		ReferenceRequirement: nextChatPromptReferenceRequirement(c.Query("reference")),
+		ImageOnly:            true,
+		Featured:             nextChatOptionalBool(c.Query("featured")),
+		FavoritedOnly:        nextChatBoolQuery(c.Query("favorite")),
+		Sort:                 c.DefaultQuery("sort", "featured"),
+		Pagination:           pagination.PaginationParams{Page: page, PageSize: pageSize},
+	}, userIDPtr)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, rows, result.Total, result.Page, result.PageSize)
+}
+
+func handleNextChatImagePrompt(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	id, ok := nextChatPromptPathID(c)
+	if !ok {
+		return
+	}
+	prompt, err := promptProvider.GetPublic(c.Request.Context(), id, &userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if prompt == nil || !service.IsNextChatPublicImagePrompt(*prompt) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	response.Success(c, prompt)
+}
+
+func handleNextChatImagePromptFavorite(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	favorite bool,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	id, ok := nextChatPromptPathID(c)
+	if !ok {
+		return
+	}
+	prompt, err := promptProvider.GetPublic(c.Request.Context(), id, &userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if prompt == nil || !service.IsNextChatPublicImagePrompt(*prompt) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	state, err := promptProvider.SetFavorite(c.Request.Context(), id, userID, favorite)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"prompt_id": id, "favorited": state})
+}
+
+func handleNextChatImagePromptUse(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	if promptProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat image prompt service is unavailable")
+		return
+	}
+	id, ok := nextChatPromptPathID(c)
+	if !ok {
+		return
+	}
+	prompt, err := promptProvider.GetPublic(c.Request.Context(), id, &userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if prompt == nil || !service.IsNextChatPublicImagePrompt(*prompt) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	result, err := promptProvider.UsePrompt(c.Request.Context(), id, userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if result == nil || !nextChatPromptUseResultIsImage(result) {
+		response.NotFound(c, "NextChat image prompt not found")
+		return
+	}
+	response.Success(c, result)
+}
+
+func buildNextChatPromptCatalog(ctx context.Context, promptProvider nextChatPromptProvider, userID int64) service.NextChatPromptCatalog {
+	if promptProvider == nil {
+		return service.BuildNextChatPromptCatalog()
+	}
+	userIDPtr := &userID
+	rows, _, err := promptProvider.ListPublic(ctx, service.PromptListFilter{
+		Sort:       "featured",
+		Pagination: pagination.PaginationParams{Page: 1, PageSize: 48},
+	}, userIDPtr)
+	if err != nil || len(rows) == 0 {
+		return service.BuildNextChatPromptCatalog()
+	}
+	prompts := make([]service.PublicPrompt, 0, len(rows))
+	for _, row := range rows {
+		prompt := row
+		if strings.TrimSpace(prompt.PromptText) == "" {
+			if detail, detailErr := promptProvider.GetPublic(ctx, row.ID, userIDPtr); detailErr == nil && detail != nil {
+				prompt = *detail
+			}
+		}
+		prompts = append(prompts, prompt)
+	}
+	return service.BuildNextChatPromptCatalogFromPublicPrompts(prompts)
+}
+
+func nextChatPromptPathID(c *gin.Context) (int64, bool) {
+	id, err := strconv.ParseInt(strings.TrimSpace(c.Param("id")), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid prompt id")
+		return 0, false
+	}
+	return id, true
+}
+
+func nextChatPromptReferenceRequirement(raw string) service.PromptReferenceRequirement {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case string(service.PromptReferenceNone):
+		return service.PromptReferenceNone
+	case string(service.PromptReferenceOptional):
+		return service.PromptReferenceOptional
+	case string(service.PromptReferenceRequired):
+		return service.PromptReferenceRequired
+	default:
+		return ""
+	}
+}
+
+func nextChatPromptUseResultIsImage(result *service.PromptUseResult) bool {
+	if result == nil {
+		return false
+	}
+	if len(result.Sizes) > 0 || result.RequiresReference {
+		return true
+	}
+	if requirement := strings.TrimSpace(string(result.ReferenceRequirement)); requirement != "" && requirement != string(service.PromptReferenceNone) {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(result.Purpose)) {
+	case "image", "image_studio", "image-studio":
+		return true
+	}
+	for _, model := range result.Models {
+		if _, ok := service.ResolveImageStudioModelCapability(model); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func nextChatOptionalBool(raw string) *bool {
+	if strings.TrimSpace(raw) == "" {
+		return nil
+	}
+	value := nextChatBoolQuery(raw)
+	return &value
+}
+
+func nextChatBoolQuery(raw string) bool {
+	switch strings.ToLower(strings.TrimSpace(raw)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func handleNextChatGroupSwitch(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
+	if !ok || identityProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat group switch service is unavailable")
+		return
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	var req nextChatGroupSwitchRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID <= 0 {
+		response.BadRequest(c, "group_id is required")
+		return
+	}
+	identity, err := identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), userID, apiKeyID, req.GroupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"managed_api_key": identity.APIKey,
+		"models":          workspaceModels,
+	})
 }
 
 func handleNextChatLaunch(
@@ -199,6 +905,72 @@ func handleNextChatSessionExchange(
 		"api_key_id": session.KeyID,
 		"expires_at": expiresAt,
 	})
+}
+
+func requireNextChatBFFSession(c *gin.Context, cfg *config.Config) (int64, int64, bool) {
+	if !validNextChatExchangeSecret(c.GetHeader("X-NextChat-Secret"), cfg) {
+		response.Unauthorized(c, "Invalid NextChat exchange secret")
+		return 0, 0, false
+	}
+	userID, err := strconv.ParseInt(strings.TrimSpace(c.GetHeader("X-NextChat-User-ID")), 10, 64)
+	if err != nil || userID <= 0 {
+		response.BadRequest(c, "X-NextChat-User-ID is required")
+		return 0, 0, false
+	}
+	apiKeyID, err := strconv.ParseInt(strings.TrimSpace(c.GetHeader("X-NextChat-API-Key-ID")), 10, 64)
+	if err != nil || apiKeyID <= 0 {
+		response.BadRequest(c, "X-NextChat-API-Key-ID is required")
+		return 0, 0, false
+	}
+	return userID, apiKeyID, true
+}
+
+func getNextChatPublicSettings(ctx context.Context, gate nextChatFeatureGate) (*service.PublicSettings, error) {
+	provider, ok := gate.(nextChatPublicSettingsProvider)
+	if !ok {
+		return &service.PublicSettings{SiteName: "极速蹬", NextChatEnabled: true}, nil
+	}
+	settings, err := provider.GetPublicSettings(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return settings, nil
+}
+
+func getNextChatFrontendURL(ctx context.Context, gate nextChatFeatureGate) string {
+	provider, ok := gate.(nextChatPublicSettingsProvider)
+	if !ok {
+		return ""
+	}
+	return provider.GetFrontendURL(ctx)
+}
+
+func getNextChatWorkspaceModels(ctx context.Context, provider nextChatWorkspaceModelProvider, userID, apiKeyID int64) (*service.NextChatWorkspaceModels, error) {
+	if provider == nil {
+		return &service.NextChatWorkspaceModels{
+			Source: "/v1/models",
+			Groups: []service.NextChatWorkspaceGroup{},
+		}, nil
+	}
+	return provider.GetNextChatWorkspaceModels(ctx, userID, apiKeyID)
+}
+
+func firstNonEmptyNextChat(values ...string) string {
+	for _, value := range values {
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
+		}
+	}
+	return ""
+}
+
+func joinNextChatURL(base, path string) string {
+	base = strings.TrimRight(strings.TrimSpace(base), "/")
+	path = "/" + strings.TrimLeft(strings.TrimSpace(path), "/")
+	if base == "" {
+		return path
+	}
+	return base + path
 }
 
 func randomNextChatLaunchToken() (string, error) {

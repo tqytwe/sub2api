@@ -36,11 +36,13 @@ type PlayRechargeBoostStatus struct {
 }
 
 type PlayArenaPeriod struct {
-	ID      int64
-	Name    string
-	StartAt time.Time
-	EndAt   time.Time
-	Status  string
+	ID         int64
+	Name       string
+	StartAt    time.Time
+	EndAt      time.Time
+	Status     string
+	PeriodType string
+	SettledAt  *time.Time
 }
 
 type PlayArenaScoreRow struct {
@@ -50,6 +52,16 @@ type PlayArenaScoreRow struct {
 	Email       string
 	AvatarURL   string
 	TokenSum    int64
+}
+
+type PlayArenaDailyRewardLedgerRow struct {
+	UserID      int64
+	DisplayName string
+	AvatarURL   string
+	Amount      float64
+	Rank        int
+	TokenSum    int64
+	CreatedAt   time.Time
 }
 
 type PlayRewardLedgerEntry struct {
@@ -167,16 +179,20 @@ type PlayQuizSubmitResult struct {
 }
 
 type PlayTeamMember struct {
-	UserID          int64
-	DisplayName     string
-	Email           string
-	AvatarURL       string
-	JoinedAt        time.Time
-	TokenSum        int64
-	TokenPct        int
-	Spend           decimal.Decimal
-	SpendPct        int
-	EstimatedReward decimal.Decimal
+	UserID                int64
+	DisplayName           string
+	Email                 string
+	AvatarURL             string
+	JoinedAt              time.Time
+	TokenSum              int64
+	TokenPct              int
+	Spend                 decimal.Decimal
+	SpendPct              int
+	EstimatedReward       decimal.Decimal
+	LatestSettlementMonth string
+	LatestActualReward    decimal.Decimal
+	LatestPayoutStatus    string
+	LatestPaidAt          *time.Time
 }
 
 type PlayTeamSummary struct {
@@ -250,6 +266,10 @@ const (
 	PlayTeamEventCaptainTransferred = "captain_transferred"
 	PlayTeamEventMemberRemoved      = "member_removed"
 	PlayTeamEventArchived           = "team_archived"
+	PlayTeamEventAdminMemberAdded   = "admin_member_added"
+	PlayTeamEventAdminMemberMoved   = "admin_member_moved"
+
+	PlayTeamEventReasonAdminManualMembershipRepair = "admin_manual_membership_repair"
 )
 
 type PlayTeamEvent struct {
@@ -258,6 +278,120 @@ type PlayTeamEvent struct {
 	SubjectUserID int64
 	Type          string
 	Detail        map[string]any
+}
+
+const (
+	AdminTeamMemberOperationAdd  = "add"
+	AdminTeamMemberOperationMove = "move"
+
+	AdminTeamMemberRepairStatusAdded = "added"
+	AdminTeamMemberRepairStatusMoved = "moved"
+	AdminTeamMemberRepairStatusNoOp  = "no_op"
+
+	PlayAdminTeamWarningAlreadyInTarget          = "PLAY_TEAM_MEMBER_ALREADY_IN_TARGET"
+	PlayAdminTeamWarningSourceWillArchive        = "PLAY_TEAM_SOURCE_WILL_ARCHIVE"
+	PlayAdminTeamWarningArchivedMembershipRepair = "PLAY_TEAM_ARCHIVED_MEMBERSHIP_REPAIR"
+
+	PlayAdminTeamBlockerMoveRequired                 = "PLAY_TEAM_MEMBER_MOVE_REQUIRED"
+	PlayAdminTeamBlockerNoSource                     = "PLAY_TEAM_MEMBER_NO_SOURCE"
+	PlayAdminTeamBlockerCaptainTransferRequired      = "PLAY_TEAM_CAPTAIN_TRANSFER_REQUIRED"
+	PlayAdminTeamBlockerSettlementSnapshot           = "PLAY_TEAM_SETTLEMENT_SNAPSHOT_EXISTS"
+	PlayAdminTeamBlockerMembershipOverlap            = "PLAY_TEAM_MEMBERSHIP_OVERLAP"
+	PlayAdminTeamBlockerUserInactive                 = "PLAY_TEAM_MEMBER_USER_INACTIVE"
+	PlayAdminTeamBlockerEffectiveBeforeJoined        = "PLAY_TEAM_EFFECTIVE_BEFORE_SOURCE_JOINED"
+	PlayAdminTeamBlockerEffectiveBeforeTargetCreated = "PLAY_TEAM_EFFECTIVE_BEFORE_TARGET_CREATED"
+	PlayAdminTeamBlockerEffectiveBeforeUserCreated   = "PLAY_TEAM_EFFECTIVE_BEFORE_USER_CREATED"
+	PlayAdminTeamBlockerSourceHistoryConflict        = "PLAY_TEAM_SOURCE_HISTORY_CONFLICT"
+)
+
+// Backward-compatible alias kept for tests and callers that use the shorter name.
+const PlayAdminTeamWarningSourceArchived = PlayAdminTeamWarningSourceWillArchive
+
+type PlayAdminTeamReference struct {
+	ID         int64      `json:"id"`
+	Name       string     `json:"name"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+}
+
+type PlayAdminAffiliateReference struct {
+	InviterUserID      int64  `json:"inviter_user_id"`
+	InviterDisplayName string `json:"inviter_display_name"`
+}
+
+type PlayAdminTeamMemberImpact struct {
+	EffectiveAt       time.Time       `json:"effective_at"`
+	UserSpend         decimal.Decimal `json:"user_spend"`
+	SourceSpendBefore decimal.Decimal `json:"source_spend_before"`
+	SourceSpendAfter  decimal.Decimal `json:"source_spend_after"`
+	SourcePoolBefore  decimal.Decimal `json:"source_pool_before"`
+	SourcePoolAfter   decimal.Decimal `json:"source_pool_after"`
+	TargetSpendBefore decimal.Decimal `json:"target_spend_before"`
+	TargetSpendAfter  decimal.Decimal `json:"target_spend_after"`
+	TargetPoolBefore  decimal.Decimal `json:"target_pool_before"`
+	TargetPoolAfter   decimal.Decimal `json:"target_pool_after"`
+}
+
+type PlayAdminTeamMemberCandidate struct {
+	UserID              int64                        `json:"user_id"`
+	Email               string                       `json:"email"`
+	Username            string                       `json:"username"`
+	DisplayName         string                       `json:"display_name"`
+	Status              string                       `json:"status"`
+	CreatedAt           time.Time                    `json:"-"`
+	CurrentTeam         *PlayAdminTeamReference      `json:"current_team,omitempty"`
+	CurrentMembershipID int64                        `json:"-"`
+	CurrentJoinedAt     *time.Time                   `json:"current_joined_at,omitempty"`
+	IsCaptain           bool                         `json:"is_captain"`
+	Affiliate           *PlayAdminAffiliateReference `json:"affiliate,omitempty"`
+	Impact              PlayAdminTeamMemberImpact    `json:"impact"`
+	Blockers            []string                     `json:"blockers"`
+	Warnings            []string                     `json:"warnings"`
+}
+
+type PlayAdminTeamMemberCandidateQuery struct {
+	TargetTeamID int64
+	Query        string
+	Operation    string
+	EffectiveAt  *time.Time
+	Limit        int
+}
+
+type AdminTeamMemberCandidateQuery = PlayAdminTeamMemberCandidateQuery
+
+type PlayAdminTeamMemberCandidateList struct {
+	Items       []PlayAdminTeamMemberCandidate `json:"items"`
+	EffectiveAt time.Time                      `json:"effective_at"`
+}
+
+type AdminTeamMemberRepairInput struct {
+	TargetTeamID         int64
+	UserID               int64
+	ActorUserID          int64
+	Operation            string
+	EffectiveAt          *time.Time
+	Reason               string
+	ExpectedSourceTeamID *int64
+}
+
+type AdminTeamMemberRepairResult struct {
+	Status       string    `json:"status"`
+	TeamID       int64     `json:"team_id"`
+	UserID       int64     `json:"user_id"`
+	SourceTeamID *int64    `json:"source_team_id,omitempty"`
+	EffectiveAt  time.Time `json:"effective_at"`
+	Warnings     []string  `json:"warnings"`
+}
+
+type PlayAdminTeamEventRecord struct {
+	ID                 int64          `json:"id"`
+	TeamID             int64          `json:"team_id"`
+	ActorUserID        int64          `json:"actor_user_id"`
+	ActorDisplayName   string         `json:"actor_display_name"`
+	SubjectUserID      *int64         `json:"subject_user_id,omitempty"`
+	SubjectDisplayName string         `json:"subject_display_name,omitempty"`
+	Type               string         `json:"event_type"`
+	Detail             map[string]any `json:"detail"`
+	CreatedAt          time.Time      `json:"created_at"`
 }
 
 type PlayArenaCurrent struct {
@@ -280,6 +414,44 @@ type PlayArenaSettlementResult struct {
 	TotalAwarded float64
 }
 
+type PlayArenaDailyRewardSummary struct {
+	Enabled bool
+	Recent  *PlayArenaDailyRecentRewardSummary
+	Current *PlayArenaDailyCurrentRewardEstimate
+}
+
+type PlayArenaDailyRecentRewardSummary struct {
+	Period       *PlayArenaPeriod
+	SettledAt    *time.Time
+	PaidToday    bool
+	WinnersCount int
+	TotalAmount  float64
+	Winners      []PlayArenaDailyRewardWinner
+}
+
+type PlayArenaDailyRewardWinner struct {
+	Rank        int
+	UserID      int64
+	DisplayName string
+	AvatarURL   string
+	TokenSum    int64
+	Amount      float64
+}
+
+type PlayArenaDailyCurrentRewardEstimate struct {
+	Period *PlayArenaPeriod
+	Rows   []PlayArenaDailyRewardEstimateRow
+}
+
+type PlayArenaDailyRewardEstimateRow struct {
+	Rank            int
+	UserID          int64
+	DisplayName     string
+	AvatarURL       string
+	TokenSum        int64
+	EstimatedReward float64
+}
+
 type PlayRepository interface {
 	HasCheckin(ctx context.Context, userID int64, date time.Time) (bool, error)
 	InsertCheckin(ctx context.Context, userID int64, date time.Time, reward float64, streakCount int) error
@@ -289,6 +461,8 @@ type PlayRepository interface {
 	EnsureMonthlyArenaPeriod(ctx context.Context, now time.Time) (*PlayArenaPeriod, error)
 	GetArenaPeriodByID(ctx context.Context, periodID int64) (*PlayArenaPeriod, error)
 	MarkArenaPeriodSettled(ctx context.Context, periodID int64) error
+	GetLatestSettledDailyArenaPeriod(ctx context.Context) (*PlayArenaPeriod, error)
+	ListArenaDailyRewardLedger(ctx context.Context, periodID int64) ([]PlayArenaDailyRewardLedgerRow, error)
 	ListArenaLeaderboard(ctx context.Context, start, end time.Time, limit int) ([]PlayArenaScoreRow, error)
 	GetUserArenaScore(ctx context.Context, userID int64, start, end time.Time) (tokenSum int64, rank int, err error)
 	GetArenaTokensToPrevRank(ctx context.Context, userID int64, start, end time.Time, rank int, tokenSum int64) (int64, error)
@@ -302,16 +476,31 @@ type PlayRepository interface {
 	GetQuizAttempt(ctx context.Context, userID int64, date time.Time) (*PlayQuizAttemptDB, error)
 	InsertQuizAttempt(ctx context.Context, userID int64, date time.Time, score, total int, reward float64, answers map[string]any) error
 	GetUserTeam(ctx context.Context, userID int64) (*PlayTeamDB, error)
+	LockAdminTeamCandidateUser(ctx context.Context, userID int64) (*PlayAdminTeamMemberCandidate, error)
+	GetActiveTeamMembership(ctx context.Context, userID int64) (*PlayTeamMembershipDB, error)
 	LockActiveTeamMembership(ctx context.Context, userID int64) (*PlayTeamMembershipDB, error)
 	LockTeam(ctx context.Context, teamID int64) (*PlayTeamDB, error)
+	LockTeamForAdmin(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	CreateTeam(ctx context.Context, name string, captainUserID int64, inviteCode string) (*PlayTeamDB, error)
 	JoinTeam(ctx context.Context, teamID, userID int64) error
+	JoinTeamAt(ctx context.Context, teamID, userID int64, joinedAt time.Time) error
 	CountActiveTeamMembers(ctx context.Context, teamID int64) (int, error)
 	LeaveTeam(ctx context.Context, teamID, userID int64) error
+	CloseTeamMembershipAt(ctx context.Context, membershipID int64, leftAt time.Time) error
 	TransferTeamCaptain(ctx context.Context, teamID, captainUserID int64) error
 	RemoveTeamMember(ctx context.Context, teamID, userID int64) error
 	ArchiveTeam(ctx context.Context, teamID int64) error
+	ArchiveTeamAt(ctx context.Context, teamID int64, archivedAt time.Time) error
 	InsertTeamEvent(ctx context.Context, event PlayTeamEvent) error
+	ListAdminTeamEvents(ctx context.Context, teamID int64, limit int) ([]PlayAdminTeamEventRecord, error)
+	ListAdminTeamMemberCandidates(ctx context.Context, targetTeamID int64, query string, limit int) ([]PlayAdminTeamMemberCandidate, error)
+	HasTeamRewardSnapshotAt(ctx context.Context, teamIDs []int64, effectiveAt time.Time) (bool, error)
+	HasTeamMembershipOverlap(ctx context.Context, userID int64, effectiveAt time.Time, excludeMembershipID int64) (bool, error)
+	HasTeamCaptainChangeAfter(ctx context.Context, teamID int64, effectiveAt time.Time) (bool, error)
+	HasOtherTeamMembershipAfter(ctx context.Context, teamID, excludeMembershipID int64, effectiveAt time.Time) (bool, error)
+	GetAdminTeamSpend(ctx context.Context, teamID int64, start, end time.Time) (decimal.Decimal, error)
+	GetUserActualCost(ctx context.Context, userID int64, start, end time.Time) (decimal.Decimal, error)
+	WithTeamRewardSnapshotLock(ctx context.Context, teamID int64, fn func(context.Context) error) error
 	ListTeamRewardContributions(ctx context.Context, teamID int64, start, end time.Time) ([]TeamContribution, error)
 	GetTeamRewardSettlementByTeamPeriod(ctx context.Context, teamID int64, periodStart time.Time) (*PlayTeamSettlement, error)
 	CreateTeamRewardSnapshot(ctx context.Context, settlement PlayTeamSettlement, allocations []PlayTeamRewardAllocation) (*PlayTeamSettlement, bool, error)
@@ -326,6 +515,7 @@ type PlayRepository interface {
 	ListTeamRewardSettlementsByTeam(ctx context.Context, teamID int64, limit int) ([]PlayTeamSettlement, error)
 	ListTeamRewardSettlements(ctx context.Context, limit int) ([]PlayTeamSettlement, error)
 	ListTeamRewardAllocations(ctx context.Context, settlementID int64) ([]PlayTeamRewardAllocation, error)
+	ListUserTeamRewardSettlements(ctx context.Context, userID int64, limit int) ([]PlayUserTeamSettlementRecord, error)
 	GetTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamDB, error)
 	GetTeamByID(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	CountAdminTeams(ctx context.Context) (total int, active int, err error)
@@ -372,6 +562,8 @@ type PlayTeamDB struct {
 	Name          string
 	CaptainUserID int64
 	InviteCode    string
+	CreatedAt     time.Time
+	ArchivedAt    *time.Time
 }
 
 type PlayTeamMembershipDB struct {
@@ -430,6 +622,12 @@ type PlayTeamRewardAllocation struct {
 type PlayTeamSettlementRecord struct {
 	Settlement  PlayTeamSettlement         `json:"settlement"`
 	Allocations []PlayTeamRewardAllocation `json:"allocations"`
+}
+
+type PlayUserTeamSettlementRecord struct {
+	Settlement PlayTeamSettlement       `json:"settlement"`
+	TeamName   string                   `json:"team_name"`
+	Allocation PlayTeamRewardAllocation `json:"allocation"`
 }
 
 type PlayTeamRewardSettings struct {

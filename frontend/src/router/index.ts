@@ -345,6 +345,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/wallet',
+    name: 'Wallet',
+    component: () => import('@/views/user/WalletView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Wallet',
+      titleKey: 'wallet.title',
+      descriptionKey: 'wallet.description'
+    }
+  },
+  {
     path: '/redeem',
     name: 'Redeem',
     component: () => import('@/views/user/RedeemView.vue'),

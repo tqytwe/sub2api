@@ -37,12 +37,13 @@ func (r *imageStudioRepository) InsertJob(ctx context.Context, job *service.Imag
 	exec := r.sqlExec(ctx)
 	err := scanSingleRow(ctx, exec, `
 		INSERT INTO image_studio_jobs
-			(id, user_id, template_id, prompt_id, prompt_version, prompt_hash, model, quality, size, count, status, estimated_cost, api_key_id, expires_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+			(id, user_id, template_id, prompt_id, prompt_version, prompt_hash, model, quality, size, count, status, estimated_cost, api_key_id, group_id, platform, capability_profile_id, capability_revision, expires_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
 		RETURNING created_at`,
 		[]any{
 			job.ID, job.UserID, job.TemplateID, job.PromptID, job.PromptVersion, job.PromptHash,
-			job.Model, job.Quality, job.Size, job.Count, job.Status, job.EstimatedCost, job.APIKeyID, job.ExpiresAt,
+			job.Model, job.Quality, job.Size, job.Count, job.Status, job.EstimatedCost, job.APIKeyID,
+			job.GroupID, job.Platform, job.CapabilityProfileID, job.CapabilityRevision, job.ExpiresAt,
 		},
 		&job.CreatedAt)
 	if err != nil {
@@ -166,17 +167,20 @@ func (r *imageStudioRepository) createPendingJob(
 		INSERT INTO image_studio_jobs (
 			id, user_id, template_id, prompt_id, prompt_version, prompt_hash, request_payload_encrypted,
 			model, quality, size, count, status, estimated_cost, actual_cost,
-			api_key_id, hold_amount, hold_id, success_count, fail_count, expires_at,
+			api_key_id, group_id, platform, capability_profile_id, capability_revision,
+			hold_amount, hold_id, success_count, fail_count, expires_at,
 			idempotency_key_hash, idempotency_fingerprint
 		)
 		VALUES (
 			$1::uuid, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-			$15, $16, $17, $18, $19, $20, NULLIF($21, ''), NULLIF($22, '')
+			$15, $16, $17, $18, $19,
+			$20, $21, $22, $23, $24, NULLIF($25, ''), NULLIF($26, '')
 		)
 		RETURNING created_at`,
 		job.ID, job.UserID, job.TemplateID, job.PromptID, job.PromptVersion, job.PromptHash, job.RequestPayloadEncrypted,
 		job.Model, job.Quality, job.Size, job.Count, job.Status, job.EstimatedCost, job.ActualCost,
-		job.APIKeyID, job.HoldAmount, job.HoldID, job.SuccessCount, job.FailCount, job.ExpiresAt,
+		job.APIKeyID, job.GroupID, job.Platform, job.CapabilityProfileID, job.CapabilityRevision,
+		job.HoldAmount, job.HoldID, job.SuccessCount, job.FailCount, job.ExpiresAt,
 		job.IdempotencyKeyHash, job.IdempotencyFingerprint,
 	).Scan(&job.CreatedAt); err != nil {
 		return "", false, fmt.Errorf("insert durable image studio job: %w", err)
@@ -226,7 +230,19 @@ func (r *imageStudioRepository) UpdateJobResult(ctx context.Context, jobID strin
 	exec := r.sqlExec(ctx)
 	_, err := exec.ExecContext(ctx, `
 		UPDATE image_studio_jobs
-		SET status = $2, actual_cost = $3, error_message = NULLIF($4, '')
+		SET status = $2,
+		    actual_cost = $3,
+		    error_message = NULLIF($4, ''),
+		    finished_at = CASE
+		        WHEN $2 IN ('completed', 'partial', 'failed', 'cancelled')
+		        THEN COALESCE(finished_at, NOW())
+		        ELSE finished_at
+		    END,
+		    expires_at = CASE
+		        WHEN $2 IN ('completed', 'partial', 'failed', 'cancelled')
+		        THEN COALESCE(finished_at, NOW()) + INTERVAL '7 days'
+		        ELSE expires_at
+		    END
 		WHERE id = $1::uuid`, jobID, status, actualCost, errMsg)
 	if err != nil {
 		return fmt.Errorf("update image studio job: %w", err)
@@ -252,15 +268,17 @@ func (r *imageStudioRepository) InsertAssets(ctx context.Context, jobID string, 
 		if _, err := exec.ExecContext(ctx, `
 			INSERT INTO image_studio_assets (
 				id, job_id, url, sort_order, storage_key, content_type, byte_size,
-				width, height, thumbnail_storage_key, thumbnail_content_type, thumbnail_byte_size
+				width, height, thumbnail_storage_key, thumbnail_content_type, thumbnail_byte_size,
+				filename, expires_at
 			)
 			VALUES (
 				$1::uuid, $2::uuid, NULLIF($3, ''), $4, NULLIF($5, ''), NULLIF($6, ''), $7,
-				NULLIF($8, 0), NULLIF($9, 0), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, 0)
+				NULLIF($8, 0), NULLIF($9, 0), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, 0),
+				NULLIF($13, ''), COALESCE($14::timestamptz, NOW() + INTERVAL '24 hours')
 			)`,
 			id, jobID, url, asset.SortOrder, storageKey, asset.ContentType, asset.ByteSize,
 			asset.Width, asset.Height, asset.ThumbnailStorageKey, asset.ThumbnailContentType,
-			asset.ThumbnailByteSize); err != nil {
+			asset.ThumbnailByteSize, asset.Filename, asset.ExpiresAt); err != nil {
 			return fmt.Errorf("insert image studio asset: %w", err)
 		}
 	}
@@ -354,6 +372,9 @@ func (r *imageStudioRepository) GetAsset(ctx context.Context, userID int64, asse
 	var url sql.NullString
 	var storageKey sql.NullString
 	var contentType sql.NullString
+	var filename sql.NullString
+	var expiresAt sql.NullTime
+	var purgedAt sql.NullTime
 	var thumbnailStorageKey sql.NullString
 	var thumbnailContentType sql.NullString
 	err := scanSingleRow(ctx, exec, `
@@ -361,7 +382,7 @@ func (r *imageStudioRepository) GetAsset(ctx context.Context, userID int64, asse
 		       COALESCE(a.storage_key, ''), COALESCE(a.content_type, ''), COALESCE(a.byte_size, 0),
 		       COALESCE(a.width, 0), COALESCE(a.height, 0),
 		       COALESCE(a.thumbnail_storage_key, ''), COALESCE(a.thumbnail_content_type, ''),
-		       COALESCE(a.thumbnail_byte_size, 0)
+		       COALESCE(a.thumbnail_byte_size, 0), a.filename, a.expires_at, a.purged_at
 		FROM image_studio_assets a
 		JOIN image_studio_jobs j ON j.id = a.job_id
 		WHERE a.id = $1::uuid
@@ -370,7 +391,7 @@ func (r *imageStudioRepository) GetAsset(ctx context.Context, userID int64, asse
 		[]any{assetID, userID},
 		&asset.ID, &url, &asset.SortOrder, &storageKey, &contentType, &asset.ByteSize,
 		&asset.Width, &asset.Height, &thumbnailStorageKey, &thumbnailContentType,
-		&asset.ThumbnailByteSize)
+		&asset.ThumbnailByteSize, &filename, &expiresAt, &purgedAt)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, service.ErrImageStudioAssetNotFound
@@ -385,6 +406,15 @@ func (r *imageStudioRepository) GetAsset(ctx context.Context, userID int64, asse
 	}
 	if contentType.Valid {
 		asset.ContentType = contentType.String
+	}
+	if filename.Valid {
+		asset.Filename = filename.String
+	}
+	if expiresAt.Valid {
+		asset.ExpiresAt = &expiresAt.Time
+	}
+	if purgedAt.Valid {
+		asset.PurgedAt = &purgedAt.Time
 	}
 	if thumbnailStorageKey.Valid {
 		asset.ThumbnailStorageKey = thumbnailStorageKey.String
@@ -418,7 +448,7 @@ func (r *imageStudioRepository) listAssetsForJobIDs(
 		       COALESCE(a.storage_key, ''), COALESCE(a.content_type, ''), COALESCE(a.byte_size, 0),
 		       COALESCE(a.width, 0), COALESCE(a.height, 0),
 		       COALESCE(a.thumbnail_storage_key, ''), COALESCE(a.thumbnail_content_type, ''),
-		       COALESCE(a.thumbnail_byte_size, 0)
+		       COALESCE(a.thumbnail_byte_size, 0), a.filename, a.expires_at, a.purged_at
 		FROM image_studio_assets a
 		JOIN image_studio_jobs j ON j.id = a.job_id
 		WHERE a.job_id = ANY($1::uuid[])
@@ -436,12 +466,23 @@ func (r *imageStudioRepository) listAssetsForJobIDs(
 	for rows.Next() {
 		var jobID string
 		var a service.ImageStudioAsset
+		var filename sql.NullString
+		var expiresAt, purgedAt sql.NullTime
 		if err := rows.Scan(
 			&jobID, &a.ID, &a.URL, &a.SortOrder, &a.StorageKey, &a.ContentType, &a.ByteSize,
 			&a.Width, &a.Height, &a.ThumbnailStorageKey, &a.ThumbnailContentType,
-			&a.ThumbnailByteSize,
+			&a.ThumbnailByteSize, &filename, &expiresAt, &purgedAt,
 		); err != nil {
 			return nil, fmt.Errorf("scan image studio asset: %w", err)
+		}
+		if filename.Valid {
+			a.Filename = filename.String
+		}
+		if expiresAt.Valid {
+			a.ExpiresAt = &expiresAt.Time
+		}
+		if purgedAt.Valid {
+			a.PurgedAt = &purgedAt.Time
 		}
 		a.AspectRatio = imageStudioAssetAspectRatio(a.Width, a.Height)
 		out[jobID] = append(out[jobID], a)
@@ -1076,10 +1117,10 @@ func (r *imageStudioRepository) ClaimNextJob(
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE image_studio_jobs
 		SET status = 'running',
-		    started_at = COALESCE(started_at, $2),
-		    heartbeat_at = $2,
+		    started_at = COALESCE(started_at, $2::timestamptz),
+		    heartbeat_at = $2::timestamptz,
 		    lease_owner = $3,
-		    lease_expires_at = $4
+		    lease_expires_at = $4::timestamptz
 		WHERE id = $1::uuid`, jobID, now, leaseOwner, leaseExpiresAt); err != nil {
 		return nil, err
 	}
@@ -1096,9 +1137,9 @@ func (r *imageStudioRepository) ClaimNextJob(
 func (r *imageStudioRepository) HeartbeatJob(ctx context.Context, jobID, leaseOwner string, now time.Time, leaseDuration time.Duration) error {
 	res, err := r.sqlExec(ctx).ExecContext(ctx, `
 		UPDATE image_studio_jobs
-		SET heartbeat_at = $3, lease_expires_at = $4
+		SET heartbeat_at = $3::timestamptz, lease_expires_at = $4::timestamptz
 		WHERE id = $1::uuid AND status = 'running' AND lease_owner = $2
-		  AND lease_expires_at > $3`,
+		  AND lease_expires_at > $3::timestamptz`,
 		jobID, leaseOwner, now, now.Add(leaseDuration))
 	if err != nil {
 		return err
@@ -1225,7 +1266,7 @@ func (r *imageStudioRepository) CheckpointItem(
 			SET status = 'cancelled',
 			    actual_cost = $3,
 			    error = NULL,
-			    finished_at = $4,
+			    finished_at = $4::timestamptz,
 			    checkpoint_data = NULL,
 			    checkpoint_content_type = NULL,
 			    checkpoint_actual_cost = NULL
@@ -1402,15 +1443,17 @@ func (r *imageStudioRepository) CompleteItem(
 		if _, err := tx.ExecContext(ctx, `
 			INSERT INTO image_studio_assets (
 				id, job_id, url, sort_order, storage_key, content_type, byte_size,
-				width, height, thumbnail_storage_key, thumbnail_content_type, thumbnail_byte_size
+				width, height, thumbnail_storage_key, thumbnail_content_type, thumbnail_byte_size,
+				filename, expires_at
 			)
 			VALUES (
 				$1::uuid, $2::uuid, NULLIF($3, ''), $4, NULLIF($5, ''), NULLIF($6, ''), $7,
-				NULLIF($8, 0), NULLIF($9, 0), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, 0)
+				NULLIF($8, 0), NULLIF($9, 0), NULLIF($10, ''), NULLIF($11, ''), NULLIF($12, 0),
+				NULLIF($13, ''), COALESCE($14::timestamptz, NOW() + INTERVAL '24 hours')
 			)`,
 			asset.ID, jobID, asset.URL, asset.SortOrder, asset.StorageKey, asset.ContentType,
 			asset.ByteSize, asset.Width, asset.Height, asset.ThumbnailStorageKey,
-			asset.ThumbnailContentType, asset.ThumbnailByteSize); err != nil {
+			asset.ThumbnailContentType, asset.ThumbnailByteSize, asset.Filename, asset.ExpiresAt); err != nil {
 			return err
 		}
 		assetID = asset.ID
@@ -1418,7 +1461,7 @@ func (r *imageStudioRepository) CompleteItem(
 	res, err := tx.ExecContext(ctx, `
 		UPDATE image_studio_items
 		SET status = $3, actual_cost = $4, error = NULLIF($5, ''),
-		    asset_id = $6::uuid, finished_at = $7,
+		    asset_id = $6::uuid, finished_at = $7::timestamptz,
 		    checkpoint_data = NULL, checkpoint_content_type = NULL,
 		    checkpoint_actual_cost = NULL
 		WHERE id = $1::uuid AND job_id = $2::uuid
@@ -1475,27 +1518,29 @@ func (r *imageStudioRepository) RequestCancel(
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE image_studio_jobs
-			SET status = 'cancelled', cancel_requested_at = COALESCE(cancel_requested_at, $2),
-			    finished_at = COALESCE(finished_at, $2), lease_owner = NULL, lease_expires_at = NULL
+			SET status = 'cancelled', cancel_requested_at = COALESCE(cancel_requested_at, $2::timestamptz),
+			    finished_at = COALESCE(finished_at, $2::timestamptz),
+			    expires_at = COALESCE(finished_at, $2::timestamptz) + INTERVAL '7 days',
+			    lease_owner = NULL, lease_expires_at = NULL
 			WHERE id = $1::uuid`, jobID, now); err != nil {
 			return nil, err
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE image_studio_items
-			SET status = 'cancelled', finished_at = $2
+			SET status = 'cancelled', finished_at = $2::timestamptz
 			WHERE job_id = $1::uuid AND status IN ('pending', 'running')`, jobID, now); err != nil {
 			return nil, err
 		}
 	default:
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE image_studio_jobs
-			SET cancel_requested_at = COALESCE(cancel_requested_at, $2)
+			SET cancel_requested_at = COALESCE(cancel_requested_at, $2::timestamptz)
 			WHERE id = $1::uuid`, jobID, now); err != nil {
 			return nil, err
 		}
 		if _, err := tx.ExecContext(ctx, `
 			UPDATE image_studio_items
-			SET status = 'cancelled', finished_at = $2
+			SET status = 'cancelled', finished_at = $2::timestamptz
 			WHERE job_id = $1::uuid AND status = 'pending'`, jobID, now); err != nil {
 			return nil, err
 		}
@@ -1581,7 +1626,8 @@ func (r *imageStudioRepository) SettleJob(
 	if _, err := tx.ExecContext(ctx, `
 		UPDATE image_studio_jobs
 		SET status = $2, actual_cost = $3, success_count = $4, fail_count = $5,
-		    error_message = $6, finished_at = $7, heartbeat_at = $7,
+		    error_message = $6, finished_at = $7::timestamptz, heartbeat_at = $7::timestamptz,
+		    expires_at = $7::timestamptz + INTERVAL '7 days',
 		    lease_owner = NULL, lease_expires_at = NULL
 		WHERE id = $1::uuid`,
 		jobID, status, actualCost, successCount, failCount, errMsg, now); err != nil {
@@ -1596,6 +1642,7 @@ func (r *imageStudioRepository) SettleJob(
 const fullImageStudioJobSelect = `
 	SELECT id::text, user_id, template_id, prompt_id, prompt_version, prompt_hash, COALESCE(request_payload_encrypted, ''),
 	       model, quality, size, count, status, estimated_cost, actual_cost, api_key_id,
+	       group_id, COALESCE(platform, ''), COALESCE(capability_profile_id, ''), COALESCE(capability_revision, ''),
 	       hold_amount, COALESCE(hold_id, ''), success_count, fail_count, error_message,
 	       created_at, expires_at, cancel_requested_at, started_at, finished_at,
 	       heartbeat_at, COALESCE(lease_owner, ''), lease_expires_at
@@ -1608,13 +1655,14 @@ type imageStudioRowScanner interface {
 func scanFullImageStudioJob(_ context.Context, row imageStudioRowScanner) (*service.ImageStudioJob, error) {
 	var job service.ImageStudioJob
 	var actualCost, holdAmount sql.NullFloat64
-	var apiKeyID, promptID, promptVersion sql.NullInt64
+	var apiKeyID, promptID, promptVersion, groupID sql.NullInt64
 	var errMsg sql.NullString
 	var expiresAt, cancelAt, startedAt, finishedAt, heartbeatAt, leaseExpiresAt sql.NullTime
 	if err := row.Scan(
 		&job.ID, &job.UserID, &job.TemplateID, &promptID, &promptVersion, &job.PromptHash, &job.RequestPayloadEncrypted,
 		&job.Model, &job.Quality, &job.Size, &job.Count, &job.Status, &job.EstimatedCost,
-		&actualCost, &apiKeyID, &holdAmount, &job.HoldID, &job.SuccessCount, &job.FailCount,
+		&actualCost, &apiKeyID, &groupID, &job.Platform, &job.CapabilityProfileID, &job.CapabilityRevision,
+		&holdAmount, &job.HoldID, &job.SuccessCount, &job.FailCount,
 		&errMsg, &job.CreatedAt, &expiresAt, &cancelAt, &startedAt, &finishedAt,
 		&heartbeatAt, &job.LeaseOwner, &leaseExpiresAt,
 	); err != nil {
@@ -1628,6 +1676,9 @@ func scanFullImageStudioJob(_ context.Context, row imageStudioRowScanner) (*serv
 	}
 	if apiKeyID.Valid {
 		job.APIKeyID = &apiKeyID.Int64
+	}
+	if groupID.Valid {
+		job.GroupID = &groupID.Int64
 	}
 	if promptID.Valid {
 		job.PromptID = &promptID.Int64
@@ -1800,6 +1851,78 @@ func (r *imageStudioRepository) DeleteExpiredJobsBefore(ctx context.Context, bef
 	if err := tx.Commit(); err != nil {
 		return 0, fmt.Errorf("commit expired image studio job deletion: %w", err)
 	}
+	return n, nil
+}
+
+func (r *imageStudioRepository) ListExpiredAssetsForPurge(
+	ctx context.Context,
+	before time.Time,
+	limit int,
+) (result []service.ImageStudioAssetPurgeCandidate, err error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT a.id::text,
+		       COALESCE(a.storage_key, ''),
+		       COALESCE(a.thumbnail_storage_key, '')
+		FROM image_studio_assets a
+		WHERE a.expires_at IS NOT NULL
+		  AND a.expires_at <= $1
+		  AND a.purged_at IS NULL
+		  AND (
+		      NULLIF(BTRIM(COALESCE(a.storage_key, '')), '') IS NOT NULL
+		      OR NULLIF(BTRIM(COALESCE(a.thumbnail_storage_key, '')), '') IS NOT NULL
+		  )
+		ORDER BY a.expires_at ASC, a.id ASC
+		LIMIT $2`, before, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list expired image studio assets: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	out := make([]service.ImageStudioAssetPurgeCandidate, 0)
+	for rows.Next() {
+		var candidate service.ImageStudioAssetPurgeCandidate
+		var storageKey, thumbnailStorageKey string
+		if err := rows.Scan(&candidate.ID, &storageKey, &thumbnailStorageKey); err != nil {
+			return nil, fmt.Errorf("scan expired image studio asset: %w", err)
+		}
+		for _, key := range []string{storageKey, thumbnailStorageKey} {
+			if strings.TrimSpace(key) != "" {
+				candidate.StorageKeys = append(candidate.StorageKeys, key)
+			}
+		}
+		out = append(out, candidate)
+	}
+	return out, rows.Err()
+}
+
+func (r *imageStudioRepository) MarkAssetsPurged(
+	ctx context.Context,
+	assetIDs []string,
+	purgedAt time.Time,
+) (int64, error) {
+	if len(assetIDs) == 0 {
+		return 0, nil
+	}
+	res, err := r.sqlExec(ctx).ExecContext(ctx, `
+		UPDATE image_studio_assets
+		SET storage_key = NULL,
+		    thumbnail_storage_key = NULL,
+		    thumbnail_content_type = NULL,
+		    thumbnail_byte_size = NULL,
+		    purged_at = COALESCE(purged_at, $2)
+		WHERE id = ANY($1::uuid[])
+		  AND purged_at IS NULL`, pq.Array(assetIDs), purgedAt)
+	if err != nil {
+		return 0, fmt.Errorf("mark image studio assets purged: %w", err)
+	}
+	n, _ := res.RowsAffected()
 	return n, nil
 }
 

@@ -75,13 +75,24 @@ func isImageStudioSizeRelatedError(msg string) bool {
 	return false
 }
 
-func (s *ImageStudioService) ResolveModelCapabilities(_ *APIKey, model string) ImageStudioModelCapabilities {
-	capability, ok := ResolveImageStudioModelCapability(model)
+func (s *ImageStudioService) ResolveModelCapabilities(apiKey *APIKey, model string) ImageStudioModelCapabilities {
+	capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, model)
 	if !ok {
 		return ImageStudioModelCapabilities{}
 	}
 	capability.SupportedSizes = filterImageStudioSizesForModel(s, model, capability.SupportedSizes)
 	return capability
+}
+
+func resolveImageStudioCapabilitiesForAPIKey(apiKey *APIKey, model string) (ImageStudioModelCapabilities, bool) {
+	if apiKey != nil && apiKey.Group != nil {
+		platform := strings.ToLower(strings.TrimSpace(apiKey.Group.Platform))
+		if platform == "" {
+			platform = PlatformOpenAI
+		}
+		return ResolveImageStudioProviderCapability(platform, model)
+	}
+	return ResolveImageStudioModelCapability(model)
 }
 
 func filterImageStudioSizesForModel(s *ImageStudioService, model string, sizes []string) []string {
@@ -117,12 +128,21 @@ func (s *ImageStudioService) ValidateSizeForModel(apiKey *APIKey, model, size st
 	return ErrImageStudioSizeNotSupported
 }
 
-func (s *ImageStudioService) ValidateQualityForModel(model, quality string) error {
+func (s *ImageStudioService) ValidateQualityForModel(apiKey *APIKey, model, quality string) error {
 	quality = strings.TrimSpace(strings.ToLower(quality))
 	if quality == "" {
 		return nil
 	}
-	supported := inferImageStudioQualities(model)
+	var supported []string
+	if apiKey != nil && apiKey.Group != nil {
+		capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, model)
+		if !ok {
+			return ErrImageStudioProviderNotSupported
+		}
+		supported = capability.SupportedQualities
+	} else {
+		supported = inferImageStudioQualities(model)
+	}
 	if len(supported) == 0 {
 		return nil
 	}

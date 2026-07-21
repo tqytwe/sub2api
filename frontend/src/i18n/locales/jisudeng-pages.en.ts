@@ -169,6 +169,7 @@ export const jisudengPagesEn = {
     colRank: 'Rank',
     colUser: 'User',
     colTokens: 'Tokens',
+    tokenValue: '{tokens} tokens',
     empty: 'No rankings yet — start using the API to climb the board.',
     competitive: {
       mySeason: 'My season status',
@@ -189,6 +190,22 @@ export const jisudengPagesEn = {
       podium: 'Top three',
       questDone: 'Completed',
       questEnergy: '+{energy} energy',
+    },
+    dailySummary: {
+      recentTitle: 'Recent payout',
+      currentTitle: 'Current estimate',
+      settledAt: 'Paid at: {time}',
+      period: 'Settlement period: {period}',
+      currentPeriod: 'Current period: {period}',
+      paidToday: 'Paid today',
+      delayed: 'Not paid today',
+      winners: '{count} winners',
+      total: 'Total ${amount}',
+      noRecent: 'No settled daily board yet.',
+      noEstimate: 'No estimated rewards right now.',
+      rowReward: 'Est. ${amount}',
+      winnerReward: 'Credited ${amount}',
+      rankToken: '#{rank} · {tokens} tokens',
     },
     rpg: {
       season: 'Season',
@@ -309,6 +326,7 @@ export const jisudengPagesEn = {
     removed: 'Member removed',
     settlementHistory: 'Settlement history',
     noSettlements: 'No monthly settlements yet',
+    personalShare: 'Personal share',
     poolStatus: 'Pool ${pool} · {status}',
     allocationLine: 'Contribution ${contribution} · {ratio}% · reward ${reward} · {status}',
     status: {

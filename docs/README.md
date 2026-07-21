@@ -1,7 +1,7 @@
 # 项目文档索引
 
 > 状态：active
-> 最后核验：2026-07-16
+> 最后核验：2026-07-20
 > 维护规则：当前实现以代码和测试为准；未登记在本索引中的 `docs/` 文档不得作为项目依据。
 
 ## 状态定义
@@ -18,16 +18,17 @@
 | 文档 | 状态 | 用途 | 维护责任 | 最后核验 |
 |------|------|------|----------|----------|
 | [服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md) | `active` | 隔离开发、TDD、双审查、部署和本地浏览器验收 | 发布负责人 | 2026-07-16 |
-| [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-16 |
-| [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | 合并、验证、部署和回滚 | 发布负责人 | 2026-07-16 |
+| [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-20 |
+| [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | 合并、验证、部署和回滚 | 发布负责人 | 2026-07-20 |
 | [图像工作室](./IMAGE_STUDIO.md) | `active` | 当前产品行为、接口和运维不变量 | 图像工作室维护者 | 2026-07-18 |
 | [GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md) | `active` | 同步生成/编辑、`n=1-10`、实际尺寸和私有临时 URL | API 维护者 | 2026-07-18 |
 | [Batch Image 持久批任务](./BATCH_IMAGE_API.md) | `active` | Gemini 多 prompt 预检、提交、恢复、结算和下载 | API 维护者 | 2026-07-18 |
-| [异步图片任务](./ASYNC_IMAGE_TASKS.md) | `active` | 单请求异步队列、轮询、恢复边界和结果存储 | API 维护者 | 2026-07-18 |
+| [异步图片任务](./ASYNC_IMAGE_TASKS.md) | `active` | 单请求异步队列、轮询、恢复边界和结果存储 | API 维护者 | 2026-07-20 |
 | [Growth / Play](./GROWTH_PLAY.md) | `active` | 当前功能、开关、路由和短期 backlog | Growth 维护者 | 2026-07-15 |
 | [增长埋点](./growth-analytics.md) | `active` | 当前埋点和指标口径 | Growth 维护者 | 2026-07-15 |
 | [模型与价格](./MODEL_PRICING_CN.md) | `active` | 模型目录、参考价和实际计费关系 | 计费维护者 | 2026-07-15 |
 | [余额账本治理](./BALANCE_LEDGER_ROLLOUT.md) | `active` | 统一资金流水、回填和剩余直写迁移边界 | 计费维护者 | 2026-07-20 |
+| [Play、钱包与提现交付检查点](./PLAY_WALLET_WITHDRAWAL_ROLLOUT.md) | `active` | 分阶段门禁、验证证据、部署和本地浏览器验收状态 | Growth 与计费维护者 | 2026-07-20 |
 | [批量图像 MVP](./BATCH_IMAGE_MVP.md) | `reference` | Batch provider、内部生命周期与运维参考 | API 维护者 | 2026-07-18 |
 | [支付配置（中文）](./PAYMENT_CN.md) | `reference` | 上游内置支付配置 | 支付维护者 | 2026-07-15 |
 | [Payment configuration](./PAYMENT.md) | `reference` | Upstream payment configuration | 支付维护者 | 2026-07-15 |

@@ -8,7 +8,7 @@ import (
 )
 
 func TestSubscriptionPlanStorefrontMigrationContract(t *testing.T) {
-	content, err := FS.ReadFile("208_subscription_plan_storefront.sql")
+	content, err := FS.ReadFile("210_subscription_plan_storefront.sql")
 	require.NoError(t, err)
 
 	sql := normalizeMigrationSQL(string(content))

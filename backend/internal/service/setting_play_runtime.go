@@ -156,6 +156,17 @@ func (s *SettingService) GetPublicModelRateMultiplier(ctx context.Context) float
 	return mult
 }
 
+func (s *SettingService) IsImageStudioAssetPurgeEnabled(ctx context.Context) bool {
+	if s == nil || s.settingRepo == nil {
+		return false
+	}
+	vals, err := s.settingRepo.GetMultiple(ctx, []string{SettingKeyImageStudioAssetPurgeEnabled})
+	if err != nil {
+		return false
+	}
+	return vals[SettingKeyImageStudioAssetPurgeEnabled] == "true"
+}
+
 // GetBalanceRechargeMultiplier returns the configured payment balance credit multiplier.
 func (s *SettingService) GetBalanceRechargeMultiplier(ctx context.Context) float64 {
 	if s == nil || s.settingRepo == nil {

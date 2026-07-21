@@ -57,6 +57,44 @@ export interface PlayArenaLeaderboard {
   rows: PlayArenaScore[]
 }
 
+export interface PlayArenaDailyRewardSummary {
+  enabled: boolean
+  recent?: PlayArenaDailyRecentRewardSummary
+  current?: PlayArenaDailyCurrentRewardEstimate
+}
+
+export interface PlayArenaDailyRecentRewardSummary {
+  period?: PlayArenaPeriod
+  settled_at?: string
+  paid_today: boolean
+  winners_count: number
+  total_amount: number
+  winners: PlayArenaDailyRewardWinner[]
+}
+
+export interface PlayArenaDailyRewardWinner {
+  rank: number
+  user_id: number
+  display_name: string
+  avatar_url?: string
+  token_sum: number
+  amount: number
+}
+
+export interface PlayArenaDailyCurrentRewardEstimate {
+  period?: PlayArenaPeriod
+  rows: PlayArenaDailyRewardEstimateRow[]
+}
+
+export interface PlayArenaDailyRewardEstimateRow {
+  rank: number
+  user_id: number
+  display_name: string
+  avatar_url?: string
+  token_sum: number
+  estimated_reward: number
+}
+
 export interface PlayBlindboxStatus {
   enabled: boolean
   cost_amount: number
@@ -155,6 +193,10 @@ export interface PlayTeamMember {
   spend: string
   spend_pct: number
   estimated_reward: string
+  latest_settlement_month?: string
+  latest_actual_reward?: string
+  latest_payout_status?: 'pending' | 'processing' | 'paid' | 'failed'
+  latest_paid_at?: string
 }
 
 export interface TeamRewardTier {
@@ -230,6 +272,23 @@ export interface PlayTeamSettlementRecord {
   settlement: PlayTeamSettlement
   allocations: PlayTeamRewardAllocation[]
 }
+
+export interface PlayUserTeamSettlementRecord {
+  settlement_id: number
+  team_id: number
+  team_name: string
+  settlement_month: string
+  team_spend: string
+  pool_amount: string
+  settlement_status: PlayTeamSettlement['status']
+  personal_contribution: string
+  personal_ratio: string
+  personal_reward: string
+  payout_status: PlayTeamRewardAllocation['payout_status']
+  paid_at?: string
+}
+
+export type PlayTeamSettlementHistoryRecord = PlayTeamSettlementRecord | PlayUserTeamSettlementRecord
 
 export interface PlayVIPStatus {
   tier: number
@@ -350,6 +409,11 @@ export async function getArenaDailyLeaderboard(limit = 50): Promise<PlayArenaLea
   return data
 }
 
+export async function getArenaDailyRewardSummary(): Promise<PlayArenaDailyRewardSummary> {
+  const { data } = await apiClient.get<PlayArenaDailyRewardSummary>('/play/arena/daily/reward-summary')
+  return data
+}
+
 export async function getQuestsToday(): Promise<PlayQuestToday> {
   const { data } = await apiClient.get<PlayQuestToday>('/play/quests/today')
   return data
@@ -420,8 +484,8 @@ export async function removeTeamMember(targetUserId: number): Promise<void> {
   await apiClient.post('/play/teams/remove', { target_user_id: targetUserId })
 }
 
-export async function getTeamSettlements(): Promise<PlayTeamSettlementRecord[]> {
-  const { data } = await apiClient.get<PlayTeamSettlementRecord[]>('/play/teams/settlements')
+export async function getTeamSettlements(): Promise<PlayTeamSettlementHistoryRecord[]> {
+  const { data } = await apiClient.get<PlayTeamSettlementHistoryRecord[]>('/play/teams/settlements')
   return data ?? []
 }
 
@@ -435,6 +499,7 @@ export const playAPI = {
   getArenaLeaderboard,
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
+  getArenaDailyRewardSummary,
   getQuestsToday,
   getBlindboxPool,
   getBlindboxStatus,

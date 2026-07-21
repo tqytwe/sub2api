@@ -45,11 +45,13 @@ type playCheckinResultDTO struct {
 }
 
 type playArenaPeriodDTO struct {
-	ID      int64  `json:"id"`
-	Name    string `json:"name"`
-	StartAt string `json:"start_at"`
-	EndAt   string `json:"end_at"`
-	Status  string `json:"status"`
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	StartAt    string  `json:"start_at"`
+	EndAt      string  `json:"end_at"`
+	Status     string  `json:"status"`
+	PeriodType string  `json:"period_type,omitempty"`
+	SettledAt  *string `json:"settled_at,omitempty"`
 }
 
 type playArenaCurrentDTO struct {
@@ -77,6 +79,44 @@ type playArenaLeaderboardDTO struct {
 	Enabled bool                `json:"enabled"`
 	Period  *playArenaPeriodDTO `json:"period,omitempty"`
 	Rows    []playArenaScoreDTO `json:"rows"`
+}
+
+type playArenaDailyRewardSummaryDTO struct {
+	Enabled bool                                    `json:"enabled"`
+	Recent  *playArenaDailyRecentRewardSummaryDTO   `json:"recent,omitempty"`
+	Current *playArenaDailyCurrentRewardEstimateDTO `json:"current,omitempty"`
+}
+
+type playArenaDailyRecentRewardSummaryDTO struct {
+	Period       *playArenaPeriodDTO             `json:"period,omitempty"`
+	SettledAt    *string                         `json:"settled_at,omitempty"`
+	PaidToday    bool                            `json:"paid_today"`
+	WinnersCount int                             `json:"winners_count"`
+	TotalAmount  float64                         `json:"total_amount"`
+	Winners      []playArenaDailyRewardWinnerDTO `json:"winners"`
+}
+
+type playArenaDailyRewardWinnerDTO struct {
+	Rank        int     `json:"rank"`
+	UserID      int64   `json:"user_id"`
+	DisplayName string  `json:"display_name"`
+	AvatarURL   string  `json:"avatar_url,omitempty"`
+	TokenSum    int64   `json:"token_sum"`
+	Amount      float64 `json:"amount"`
+}
+
+type playArenaDailyCurrentRewardEstimateDTO struct {
+	Period *playArenaPeriodDTO               `json:"period,omitempty"`
+	Rows   []playArenaDailyRewardEstimateDTO `json:"rows"`
+}
+
+type playArenaDailyRewardEstimateDTO struct {
+	Rank            int     `json:"rank"`
+	UserID          int64   `json:"user_id"`
+	DisplayName     string  `json:"display_name"`
+	AvatarURL       string  `json:"avatar_url,omitempty"`
+	TokenSum        int64   `json:"token_sum"`
+	EstimatedReward float64 `json:"estimated_reward"`
 }
 
 type publicModelPlatformSection struct {
@@ -269,12 +309,19 @@ func toPlayArenaPeriodDTO(p *service.PlayArenaPeriod) *playArenaPeriodDTO {
 	if p == nil {
 		return nil
 	}
+	var settledAt *string
+	if p.SettledAt != nil {
+		formatted := p.SettledAt.Format("2006-01-02T15:04:05Z07:00")
+		settledAt = &formatted
+	}
 	return &playArenaPeriodDTO{
-		ID:      p.ID,
-		Name:    p.Name,
-		StartAt: p.StartAt.Format("2006-01-02T15:04:05Z07:00"),
-		EndAt:   p.EndAt.Format("2006-01-02T15:04:05Z07:00"),
-		Status:  p.Status,
+		ID:         p.ID,
+		Name:       p.Name,
+		StartAt:    p.StartAt.Format("2006-01-02T15:04:05Z07:00"),
+		EndAt:      p.EndAt.Format("2006-01-02T15:04:05Z07:00"),
+		Status:     p.Status,
+		PeriodType: p.PeriodType,
+		SettledAt:  settledAt,
 	}
 }
 

@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@d4b9797ff72024960a035cf22fdd8f213e149169`
-> 对应合并提交：`play/main@8eb8ca51565c226b4790f66b07a916311c976145`
-> 最后核验：2026-07-18
+> 当前验证基线：`upstream/main@e625ce3b3b3b955b7c3afc93221f7c5f0ae55aa8`
+> 对应合并提交：待本同步 PR 合入 `play/main` 后回填
+> 最后核验：2026-07-21
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -43,11 +43,11 @@
 
 ## FORK-PLAY-003 Growth / Play 系统
 
-- 产品目的：以签到、Arena、盲盒、答题、Agent Team、任务、活动和 Hub 提升激活与留存。
-- 不变量：`/api/v1/play/*`、`/api/v1/public/models`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。
-- 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/content/play-features.ts`。
+- 产品目的：以签到、Arena、盲盒、答题、Agent Team、任务、活动和 Hub 提升激活与留存，并为管理员提供受控、可审计的战队成员关系修复能力。
+- 不变量：`/api/v1/play/*`、`/api/v1/public/models`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 只能通过 period 时间窗安全回补，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
+- 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
 - 冲突策略：保留上游共享支付、用户与用量修复；Play 表、路由、设置和奖励账本不得被移除或绕过。
-- 验证：Play service tests、`public_growth_teaser_test.go`、相关前端 utils tests；线上逐项检查开关关闭和开启状态。
+- 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
 
 ## FORK-IMAGE-004 图像工作室
 
@@ -149,7 +149,10 @@
 206_vip_recharge_legacy_tiers_backfill.sql
 207_balance_transactions.sql
 207_subscription_plan_product_display.sql
-208_subscription_plan_storefront.sql
+208_image_studio_asset_lifecycle.sql
+208_image_studio_asset_lifecycle_indexes_notx.sql
+209_play_arena_daily_reward_summary.sql
+210_subscription_plan_storefront.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

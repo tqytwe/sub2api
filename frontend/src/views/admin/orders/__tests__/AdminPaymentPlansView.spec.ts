@@ -1,5 +1,6 @@
-import { describe, expect, it, vi } from 'vitest'
-import { flushPromises, shallowMount } from '@vue/test-utils'
+import { flushPromises, mount, shallowMount } from '@vue/test-utils'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
 import AdminPaymentPlansView from '../AdminPaymentPlansView.vue'
 
 const getPlansMock = vi.hoisted(() => vi.fn())
@@ -59,7 +60,7 @@ function plan(id: number, overrides: Record<string, unknown> = {}) {
     currency: '',
     validity_days: 30,
     validity_unit: 'days',
-    features: '',
+    features: [],
     product_name: '',
     cover_image_url: '',
     detail_description: '',
@@ -73,18 +74,64 @@ function plan(id: number, overrides: Record<string, unknown> = {}) {
   }
 }
 
-describe('AdminPaymentPlansView storefront operations', () => {
+function mountWithStubs(dataTableStub: Record<string, unknown>) {
+  return mount(AdminPaymentPlansView, {
+    global: {
+      stubs: {
+        AppLayout: { template: '<div><slot /></div>' },
+        DataTable: dataTableStub,
+        ConfirmDialog: true,
+        GroupBadge: true,
+        Icon: true,
+        PlanEditDialog: true,
+        Select: true,
+      },
+    },
+  })
+}
+
+describe('AdminPaymentPlansView', () => {
+  beforeEach(() => {
+    getPlansMock.mockReset()
+    updatePlanMock.mockReset().mockResolvedValue({})
+    getConfigMock.mockReset().mockResolvedValue({ data: {} })
+    getGroupsMock.mockReset().mockResolvedValue([])
+    showErrorMock.mockReset()
+    showSuccessMock.mockReset()
+  })
+
+  it('uses the configured currency symbol and keeps legacy prices in USD', async () => {
+    getPlansMock.mockResolvedValue({
+      data: [
+        plan(1, { name: 'CNY plan', price: 499, original_price: 599, currency: 'CNY' }),
+        plan(2, { name: 'Legacy plan', price: 10, currency: '' }),
+      ],
+    })
+
+    const wrapper = mountWithStubs({
+      props: ['data'],
+      template: `
+        <div>
+          <div v-for="row in data" :key="row.id">
+            <slot name="cell-price" :value="row.price" :row="row" />
+          </div>
+        </div>
+      `,
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('¥499.00CNY')
+    expect(wrapper.text()).toContain('¥599.00')
+    expect(wrapper.text()).toContain('$10.00')
+  })
+
   it('filters plans and sends batch storefront updates for selected rows', async () => {
-    getPlansMock.mockReset().mockResolvedValue({
+    getPlansMock.mockResolvedValue({
       data: [
         plan(1, { name: 'OpenAI Daily', storefront_category: 'daily' }),
         plan(2, { name: 'Claude Pro', storefront_platform: 'anthropic' }),
       ],
     })
-    updatePlanMock.mockReset().mockResolvedValue({})
-    getConfigMock.mockReset().mockResolvedValue({ data: {} })
-    getGroupsMock.mockReset().mockResolvedValue([])
-    showSuccessMock.mockReset()
 
     const wrapper = shallowMount(AdminPaymentPlansView, {
       global: {
@@ -124,14 +171,12 @@ describe('AdminPaymentPlansView storefront operations', () => {
   })
 
   it('falls back to group platform for old plans without storefront platform', async () => {
-    getPlansMock.mockReset().mockResolvedValue({
+    getPlansMock.mockResolvedValue({
       data: [
         plan(42, { name: 'Legacy Claude Plan', storefront_platform: '' }),
       ],
     })
-    updatePlanMock.mockReset().mockResolvedValue({})
-    getConfigMock.mockReset().mockResolvedValue({ data: {} })
-    getGroupsMock.mockReset().mockResolvedValue([
+    getGroupsMock.mockResolvedValue([
       { id: 42, name: 'Claude Group', platform: 'anthropic', rate_multiplier: 1, subscription_type: 'subscription' },
     ])
 

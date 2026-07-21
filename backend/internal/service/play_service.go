@@ -20,6 +20,7 @@ type PlayService struct {
 	entClient          *dbent.Client
 	balanceLedger      *BalanceLedgerService
 	blindboxDrawSource func(max int64) (int64, error)
+	now                func() time.Time
 }
 
 func NewPlayService(
@@ -55,6 +56,9 @@ func (s *PlayService) GetRuntime(ctx context.Context) PlayRuntime {
 }
 
 func (s *PlayService) serverNow() time.Time {
+	if s.now != nil {
+		return s.now()
+	}
 	return timezone.Now()
 }
 

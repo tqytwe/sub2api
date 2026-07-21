@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"time"
 
@@ -11,7 +12,7 @@ import (
 func (r *playRepository) ListExpiredActiveDailyArenaPeriods(ctx context.Context, now time.Time) (result []service.PlayArenaPeriod, err error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
-		SELECT id, name, start_at, end_at, status
+		SELECT id, name, start_at, end_at, status, COALESCE(period_type, 'daily') AS period_type, settled_at
 		FROM play_arena_periods
 		WHERE period_type = 'daily' AND status = 'active' AND end_at <= $1
 		ORDER BY end_at ASC`, now)
@@ -27,9 +28,12 @@ func (r *playRepository) ListExpiredActiveDailyArenaPeriods(ctx context.Context,
 	out := make([]service.PlayArenaPeriod, 0)
 	for rows.Next() {
 		var p service.PlayArenaPeriod
-		if err := rows.Scan(&p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status); err != nil {
+		var periodType sql.NullString
+		var settledAt sql.NullTime
+		if err := rows.Scan(&p.ID, &p.Name, &p.StartAt, &p.EndAt, &p.Status, &periodType, &settledAt); err != nil {
 			return nil, fmt.Errorf("scan expired daily arena period: %w", err)
 		}
+		applyPlayArenaPeriodOptionalFields(&p, periodType, settledAt)
 		out = append(out, p)
 	}
 	return out, rows.Err()

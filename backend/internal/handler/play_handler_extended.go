@@ -28,6 +28,21 @@ type playBlindboxStatusDTO struct {
 	CampaignActive      bool                  `json:"campaign_active,omitempty"`
 }
 
+type playUserTeamSettlementDTO struct {
+	SettlementID         int64   `json:"settlement_id"`
+	TeamID               int64   `json:"team_id"`
+	TeamName             string  `json:"team_name"`
+	SettlementMonth      string  `json:"settlement_month"`
+	TeamSpend            string  `json:"team_spend"`
+	PoolAmount           string  `json:"pool_amount"`
+	SettlementStatus     string  `json:"settlement_status"`
+	PersonalContribution string  `json:"personal_contribution"`
+	PersonalRatio        string  `json:"personal_ratio"`
+	PersonalReward       string  `json:"personal_reward"`
+	PayoutStatus         string  `json:"payout_status"`
+	PaidAt               *string `json:"paid_at,omitempty"`
+}
+
 type playBlindboxPoolResponseDTO struct {
 	Enabled            bool                  `json:"enabled"`
 	Pool               playBlindboxPoolDTO   `json:"pool"`
@@ -461,7 +476,33 @@ func (h *PlayHandler) TeamSettlements(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, records)
+	response.Success(c, toPlayUserTeamSettlementDTOs(records))
+}
+
+func toPlayUserTeamSettlementDTOs(records []service.PlayUserTeamSettlementRecord) []playUserTeamSettlementDTO {
+	out := make([]playUserTeamSettlementDTO, 0, len(records))
+	for _, record := range records {
+		var paidAt *string
+		if record.Allocation.PaidAt != nil {
+			value := record.Allocation.PaidAt.Format("2006-01-02T15:04:05Z07:00")
+			paidAt = &value
+		}
+		out = append(out, playUserTeamSettlementDTO{
+			SettlementID:         record.Settlement.ID,
+			TeamID:               record.Settlement.TeamID,
+			TeamName:             record.TeamName,
+			SettlementMonth:      record.Settlement.PeriodStart.Format("2006-01"),
+			TeamSpend:            record.Settlement.TeamSpend.StringFixed(8),
+			PoolAmount:           record.Settlement.PoolAmount.StringFixed(8),
+			SettlementStatus:     record.Settlement.Status,
+			PersonalContribution: record.Allocation.Contribution.StringFixed(8),
+			PersonalRatio:        record.Allocation.Ratio.StringFixed(8),
+			PersonalReward:       record.Allocation.RewardAmount.StringFixed(8),
+			PayoutStatus:         record.Allocation.PayoutStatus,
+			PaidAt:               paidAt,
+		})
+	}
+	return out
 }
 
 func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
