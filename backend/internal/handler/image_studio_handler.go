@@ -517,7 +517,7 @@ func (h *ImageStudioHandler) AssetDownload(c *gin.Context) {
 	if !ok {
 		return
 	}
-	data, contentType, err := h.studio.OpenAssetContent(c.Request.Context(), subject.UserID, assetID)
+	data, contentType, filename, err := h.studio.OpenAssetDownload(c.Request.Context(), subject.UserID, assetID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -530,18 +530,7 @@ func (h *ImageStudioHandler) AssetDownload(c *gin.Context) {
 	if contentType == "" {
 		contentType = "image/png"
 	}
-	ext := ".png"
-	switch contentType {
-	case "image/jpeg":
-		ext = ".jpg"
-	case "image/webp":
-		ext = ".webp"
-	}
-	filename := "image-studio"
-	if len(assetID) >= 8 {
-		filename += "-" + assetID[:8]
-	}
-	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s%s\"", filename, ext))
+	c.Header("Content-Disposition", imageStudioDownloadContentDisposition(filename))
 	c.Data(http.StatusOK, contentType, data)
 }
 
@@ -563,6 +552,33 @@ func (h *ImageStudioHandler) JobDownload(c *gin.Context) {
 	c.Header("Cache-Control", imageStudioPrivateCacheControl)
 	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", filename))
 	c.Data(http.StatusOK, "application/zip", data)
+}
+
+func imageStudioDownloadContentDisposition(filename string) string {
+	filename = strings.TrimSpace(filename)
+	if filename == "" {
+		filename = "image-studio.png"
+	}
+	var b strings.Builder
+	for _, r := range filename {
+		switch {
+		case r == '"' || r == '/' || r == '\\' || r == ':' || r == 0:
+			_ = b.WriteByte('_')
+		case r < 0x20 || r == 0x7f:
+			_ = b.WriteByte('_')
+		default:
+			_, _ = b.WriteRune(r)
+		}
+	}
+	out := strings.Trim(b.String(), ". ")
+	for strings.Contains(out, "..") {
+		out = strings.ReplaceAll(out, "..", "_")
+	}
+	out = strings.Trim(out, ". ")
+	if out == "" {
+		out = "image-studio.png"
+	}
+	return fmt.Sprintf("attachment; filename=\"%s\"", out)
 }
 
 func imageStudioGenerationCount(body string) int {

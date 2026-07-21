@@ -123,6 +123,12 @@ func (s *ImageStudioService) OpenJobArchive(ctx context.Context, userID int64, j
 	if len(assets) == 0 || len(assets) > imageStudioArchiveMaxAssets {
 		return nil, "", ErrImageStudioArchiveUnavailable
 	}
+	now := time.Now().UTC()
+	for i := range assets {
+		if imageStudioAssetExpired(&assets[i], now) {
+			return nil, "", ErrImageStudioAssetExpired
+		}
+	}
 	sort.SliceStable(assets, func(i, j int) bool { return assets[i].SortOrder < assets[j].SortOrder })
 	archiveAssets, err := s.readImageStudioArchiveAssets(archiveCtx, assets)
 	if err != nil {
