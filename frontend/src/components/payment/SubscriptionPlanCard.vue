@@ -5,6 +5,7 @@
       'group relative flex min-h-[420px] flex-col overflow-hidden rounded-lg border transition-all',
       'hover:-translate-y-0.5 hover:shadow-lg',
       borderClass,
+      featuredClass,
       'bg-white dark:bg-dark-800',
     ]"
   >
@@ -26,6 +27,10 @@
           class="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
         />
         <div
+          v-if="coverImageURL"
+          class="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition duration-700 group-hover:translate-x-full group-hover:opacity-100"
+        />
+        <div
           v-else
           data-test="plan-cover-placeholder"
           :class="['flex h-full w-full items-center justify-center px-5 text-center text-lg font-bold text-white', accentClass]"
@@ -35,6 +40,16 @@
         <div class="absolute left-3 top-3">
           <span class="rounded-md bg-white/85 px-2 py-1 text-xs font-semibold text-gray-700 shadow-sm ring-1 ring-black/5 backdrop-blur dark:bg-dark-900/75 dark:text-gray-100 dark:ring-white/10">
             {{ pLabel }}
+          </span>
+        </div>
+        <div v-if="storefrontBadges.length > 0" class="absolute right-3 top-3 flex max-w-[58%] flex-wrap justify-end gap-1">
+          <span
+            v-for="badge in storefrontBadges"
+            :key="badge"
+            data-test="plan-storefront-badge"
+            class="rounded-md bg-gray-900/80 px-2 py-1 text-xs font-semibold text-white shadow-sm ring-1 ring-white/20 backdrop-blur"
+          >
+            {{ badge }}
           </span>
         </div>
       </div>
@@ -149,20 +164,29 @@ const emit = defineEmits<{ select: [plan: SubscriptionPlan]; details: [plan: Sub
 const { t } = useI18n()
 
 const platform = computed(() => props.plan.group_platform || '')
+const storefrontPlatform = computed(() => props.plan.storefront_platform?.trim() || props.plan.group_platform || '')
 const displayName = computed(() => props.plan.product_name?.trim() || props.plan.name)
 const coverImageURL = computed(() => props.plan.cover_image_url?.trim() || '')
+const storefrontBadges = computed(() => {
+  const badges: string[] = []
+  if (props.plan.storefront_featured) badges.push(t('payment.planCard.featured'))
+  const badge = props.plan.storefront_badge?.trim()
+  if (badge && !badges.includes(badge)) badges.push(badge)
+  return badges
+})
 const isRenewal = computed(() =>
   props.activeSubscriptions?.some(s => s.group_id === props.plan.group_id && s.status === 'active') ?? false
 )
 
 // Derived color classes from central config
-const accentClass = computed(() => platformAccentBarClass(platform.value))
-const borderClass = computed(() => platformBorderClass(platform.value))
-const textClass = computed(() => platformTextClass(platform.value))
-const iconClass = computed(() => platformIconClass(platform.value))
-const btnClass = computed(() => platformButtonClass(platform.value))
-const discountClass = computed(() => platformDiscountClass(platform.value))
-const pLabel = computed(() => platformLabel(platform.value))
+const accentClass = computed(() => platformAccentBarClass(storefrontPlatform.value))
+const borderClass = computed(() => platformBorderClass(storefrontPlatform.value))
+const textClass = computed(() => platformTextClass(storefrontPlatform.value))
+const iconClass = computed(() => platformIconClass(storefrontPlatform.value))
+const btnClass = computed(() => platformButtonClass(storefrontPlatform.value))
+const discountClass = computed(() => platformDiscountClass(storefrontPlatform.value))
+const pLabel = computed(() => platformLabel(storefrontPlatform.value))
+const featuredClass = computed(() => props.plan.storefront_featured ? 'shadow-md ring-2 ring-primary-400/50 dark:ring-primary-500/40' : '')
 
 const discountText = computed(() => {
   if (!props.plan.original_price || props.plan.original_price <= 0) return ''

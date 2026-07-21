@@ -16,6 +16,7 @@ const i18n = createI18n({
         days: "days",
         models: "Models",
         planCard: {
+          featured: "Recommended",
           quota: "Quota",
           rate: "Rate",
           unlimited: "Unlimited",
@@ -81,6 +82,38 @@ describe("SubscriptionPlanCard", () => {
 
     await wrapper.find('[data-test="plan-subscribe-button"]').trigger("click");
     expect(wrapper.emitted("select")?.[0]).toBeTruthy();
+  });
+
+  it("shows storefront badges and uses the display platform when configured", () => {
+    const wrapper = mount(SubscriptionPlanCard, {
+      props: {
+        plan: {
+          id: 3,
+          group_id: 10,
+          group_platform: "openai",
+          storefront_platform: "image",
+          storefront_featured: true,
+          storefront_badge: "Hot",
+          name: "Image Pack",
+          price: 5,
+          features: [],
+          rate_multiplier: 1,
+          validity_days: 1,
+          validity_unit: "day",
+          for_sale: true,
+          sort_order: 1,
+          cover_image_url: "",
+          detail_description: "",
+          product_name: "",
+        },
+      },
+      global: { plugins: [i18n, createPinia()] },
+    });
+
+    const badges = wrapper.findAll('[data-test="plan-storefront-badge"]').map(node => node.text());
+    expect(badges).toContain("payment.planCard.featured");
+    expect(badges).toContain("Hot");
+    expect(wrapper.text()).toContain("图片");
   });
 
   it("shows a platform-colored placeholder when the plan has no cover image", () => {

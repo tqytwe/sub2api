@@ -1464,6 +1464,10 @@ var (
 		{Name: "product_name", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "cover_image_url", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "detail_description", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "storefront_platform", Type: field.TypeString, Size: 50, Default: ""},
+		{Name: "storefront_category", Type: field.TypeString, Size: 50, Default: ""},
+		{Name: "storefront_featured", Type: field.TypeBool, Default: false},
+		{Name: "storefront_badge", Type: field.TypeString, Size: 64, Default: ""},
 		{Name: "for_sale", Type: field.TypeBool, Default: true},
 		{Name: "sort_order", Type: field.TypeInt, Default: 0},
 		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
@@ -1483,7 +1487,22 @@ var (
 			{
 				Name:    "subscriptionplan_for_sale",
 				Unique:  false,
+				Columns: []*schema.Column{SubscriptionPlansColumns[17]},
+			},
+			{
+				Name:    "subscriptionplan_storefront_platform",
+				Unique:  false,
 				Columns: []*schema.Column{SubscriptionPlansColumns[13]},
+			},
+			{
+				Name:    "subscriptionplan_storefront_category",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionPlansColumns[14]},
+			},
+			{
+				Name:    "subscriptionplan_storefront_featured",
+				Unique:  false,
+				Columns: []*schema.Column{SubscriptionPlansColumns[15]},
 			},
 		},
 	}

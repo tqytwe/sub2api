@@ -229,6 +229,7 @@ MIGRATIONS=(
   208_image_studio_asset_lifecycle.sql
   208_image_studio_asset_lifecycle_indexes_notx.sql
   209_play_arena_daily_reward_summary.sql
+  210_subscription_plan_storefront.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

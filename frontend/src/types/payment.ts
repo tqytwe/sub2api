@@ -23,6 +23,9 @@ export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' 
 
 export type OrderType = 'balance' | 'subscription'
 
+export type PlanStorefrontPlatform = 'openai' | 'anthropic' | 'gemini' | 'grok' | 'image' | 'team' | ''
+export type PlanStorefrontCategory = 'daily' | 'credit' | 'pro' | 'team' | 'enterprise' | 'image' | ''
+
 // ==================== Configuration ====================
 
 export interface PaymentConfig {
@@ -166,6 +169,10 @@ export interface SubscriptionPlan {
   product_name?: string
   cover_image_url?: string
   detail_description?: string
+  storefront_platform?: PlanStorefrontPlatform | string
+  storefront_category?: PlanStorefrontCategory | string
+  storefront_featured?: boolean
+  storefront_badge?: string
   for_sale: boolean
   sort_order: number
 }

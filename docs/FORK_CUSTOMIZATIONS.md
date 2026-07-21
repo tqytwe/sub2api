@@ -152,6 +152,7 @@
 208_image_studio_asset_lifecycle.sql
 208_image_studio_asset_lifecycle_indexes_notx.sql
 209_play_arena_daily_reward_summary.sql
+210_subscription_plan_storefront.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
