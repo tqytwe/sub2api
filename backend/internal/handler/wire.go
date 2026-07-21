@@ -46,6 +46,7 @@ func ProvideAdminHandlers(
 	complianceHandler *admin.ComplianceHandler,
 	adminPlayHandler *admin.AdminPlayHandler,
 	withdrawalHandler *admin.WithdrawalHandler,
+	fundHandler *admin.FundHandler,
 	modelCatalogHandler *admin.ModelCatalogHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	promptLibraryHandler *admin.PromptLibraryHandler,
@@ -88,6 +89,7 @@ func ProvideAdminHandlers(
 		Compliance:             complianceHandler,
 		Play:                   adminPlayHandler,
 		Withdrawal:             withdrawalHandler,
+		Fund:                   fundHandler,
 		ModelCatalog:           modelCatalogHandler,
 		AuditLog:               auditLogHandler,
 		PromptLibrary:          promptLibraryHandler,
@@ -203,6 +205,7 @@ func ProvideHandlers(
 	batchImageHandler *BatchImageHandler,
 	playHandler *PlayHandler,
 	walletHandler *WalletHandler,
+	fundHandler *FundHandler,
 	imageStudioHandler *ImageStudioHandler,
 	modelPricingHandler *ModelPricingHandler,
 	promptLibraryHandler *PromptLibraryHandler,
@@ -230,10 +233,15 @@ func ProvideHandlers(
 		BatchImage:       batchImageHandler,
 		Play:             playHandler,
 		Wallet:           walletHandler,
+		Fund:             fundHandler,
 		ImageStudio:      imageStudioHandler,
 		ModelPricing:     modelPricingHandler,
 		PromptLibrary:    promptLibraryHandler,
 	}
+}
+
+func ProvideWalletHandler(walletService *service.WalletService, withdrawalService *service.WithdrawalService) *WalletHandler {
+	return NewWalletHandler(walletService, withdrawalService)
 }
 
 // ProviderSet is the Wire provider set for all handlers
@@ -257,7 +265,8 @@ var ProviderSet = wire.NewSet(
 	ProvideAsyncImageHandler,
 	ProvideBatchImageHandler,
 	NewPlayHandler,
-	NewWalletHandler,
+	ProvideWalletHandler,
+	NewFundHandler,
 	NewImageStudioHandler,
 	ProvideImageStudioWorkerRuntime,
 	NewModelPricingHandler,
@@ -299,6 +308,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewComplianceHandler,
 	admin.NewAdminPlayHandler,
 	admin.NewWithdrawalHandler,
+	admin.NewFundHandler,
 	admin.NewModelCatalogHandler,
 	admin.NewAuditLogHandler,
 	admin.NewPromptLibraryHandler,

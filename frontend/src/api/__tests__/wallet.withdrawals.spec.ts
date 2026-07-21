@@ -11,8 +11,11 @@ vi.mock('@/api/client', () => ({
 }))
 
 import {
+  cancelFundRefundRequest,
   cancelWithdrawal,
+  createFundRefundRequest,
   createWithdrawal,
+  getFundRefundRequests,
   getWithdrawalAccount,
   getWithdrawals,
   updateWithdrawalAccount,
@@ -58,5 +61,19 @@ describe('wallet withdrawal API', () => {
     expect(get).toHaveBeenCalledWith('/user/wallet/withdrawals', { params: { page: 1, page_size: 20 } })
     expect(post).toHaveBeenCalledWith('/user/wallet/withdrawals', { amount: '12' })
     expect(post).toHaveBeenCalledWith('/user/wallet/withdrawals/9/cancel')
+  })
+
+  it('creates, lists, and cancels recharge return requests using wallet endpoints', async () => {
+    get.mockResolvedValueOnce({ data: { items: [], total: 0, page: 1, page_size: 20, pages: 1 } })
+    post.mockResolvedValueOnce({ data: { id: 11, status: 'pending_review', amount: '30' } })
+    post.mockResolvedValueOnce({ data: { id: 11, status: 'canceled', amount: '30' } })
+
+    await getFundRefundRequests({ page: 1, page_size: 20 })
+    await createFundRefundRequest({ request_type: 'online_recharge_refund', amount: '30.00', reason: 'return unused recharge' })
+    await cancelFundRefundRequest(11)
+
+    expect(get).toHaveBeenCalledWith('/user/wallet/refund-requests', { params: { page: 1, page_size: 20 } })
+    expect(post).toHaveBeenCalledWith('/user/wallet/refund-requests', { request_type: 'online_recharge_refund', amount: '30', reason: 'return unused recharge' })
+    expect(post).toHaveBeenCalledWith('/user/wallet/refund-requests/11/cancel')
   })
 })

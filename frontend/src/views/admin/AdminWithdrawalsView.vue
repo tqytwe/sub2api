@@ -1,10 +1,10 @@
 <template>
   <AppLayout>
-    <div class="space-y-6">
-      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
+    <div class="min-w-0 space-y-6 overflow-x-hidden">
+      <div class="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div class="min-w-0">
           <h1 class="text-2xl font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.title') }}</h1>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.description') }}</p>
+          <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.description') }}</p>
         </div>
         <button type="button" class="btn btn-secondary inline-flex items-center gap-2 self-start" :disabled="loading" @click="refreshAll">
           <Icon name="refresh" size="sm" :class="{ 'animate-spin': loading }" />
@@ -12,43 +12,43 @@
         </button>
       </div>
 
-      <div v-if="loadError" class="rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+      <div v-if="loadError" class="break-words rounded border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
         {{ t('admin.withdrawals.loadFailed') }}
       </div>
 
-      <div class="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,420px)]">
-        <section class="card">
-          <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+      <div class="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
+        <section class="card min-w-0 overflow-hidden">
+          <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.settingsTitle') }}</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.settingsHint') }}</p>
+            <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.settingsHint') }}</p>
           </div>
-          <form class="grid gap-4 p-5 md:grid-cols-2 xl:grid-cols-4" @submit.prevent="saveSystemSettings">
-            <label class="flex items-center gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900">
+          <form class="grid min-w-0 gap-4 p-5 md:grid-cols-2 xl:grid-cols-4" @submit.prevent="saveSystemSettings">
+            <label class="flex min-w-0 items-center gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900">
               <input v-model="settingsForm.global_enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-              <span class="font-medium text-gray-700 dark:text-gray-200">{{ t('admin.withdrawals.globalEnabled') }}</span>
+              <span class="min-w-0 break-words font-medium text-gray-700 dark:text-gray-200">{{ t('admin.withdrawals.globalEnabled') }}</span>
             </label>
-            <label class="grid gap-1 text-sm">
+            <label class="grid min-w-0 gap-1 text-sm">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.minimumAmount') }}</span>
               <input v-model.trim="settingsForm.minimum_amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
             </label>
-            <label class="grid gap-1 text-sm">
+            <label class="grid min-w-0 gap-1 text-sm">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dailyLimit') }}</span>
               <input v-model.trim="settingsForm.daily_limit_amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="500" />
             </label>
-            <label class="grid gap-1 text-sm">
+            <label class="grid min-w-0 gap-1 text-sm">
               <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dualReview') }}</span>
               <input v-model.trim="settingsForm.double_review_threshold" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="100" />
             </label>
-            <div class="text-sm">
+            <div class="min-w-0 text-sm">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.rewardMaturityHours') }}</p>
-              <p class="mt-2 font-semibold text-gray-900 dark:text-white">{{ systemSettings?.reward_maturity_hours ?? '-' }}</p>
+              <p class="mt-2 break-words font-semibold text-gray-900 dark:text-white">{{ systemSettings?.reward_maturity_hours ?? '-' }}</p>
             </div>
-            <div class="text-sm">
+            <div class="min-w-0 text-sm">
               <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.updatedAt') }}</p>
-              <p class="mt-2 font-semibold text-gray-900 dark:text-white">{{ formatDateTime(systemSettings?.updated_at) }}</p>
+              <p class="mt-2 break-words font-semibold text-gray-900 dark:text-white">{{ formatDateTime(systemSettings?.updated_at) }}</p>
             </div>
-            <div class="flex items-end md:col-span-2">
-              <button type="submit" class="btn btn-primary inline-flex w-full items-center justify-center gap-2" :disabled="settingsSaving">
+            <div class="flex items-end md:col-span-2 xl:justify-end">
+              <button type="submit" class="btn btn-primary inline-flex w-full items-center justify-center gap-2 sm:w-auto sm:min-w-[10rem]" :disabled="settingsSaving">
                 <Icon name="check" size="sm" />
                 {{ settingsSaving ? t('admin.withdrawals.saving') : t('admin.withdrawals.saveSettings') }}
               </button>
@@ -56,102 +56,105 @@
           </form>
         </section>
 
-        <section class="card">
-          <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+        <section class="card min-w-0 overflow-hidden">
+          <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.userSettingsTitle') }}</h2>
-            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.userSettingsHint') }}</p>
+            <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.userSettingsHint') }}</p>
           </div>
-          <div class="space-y-5 p-5">
-            <form class="grid gap-3" @submit.prevent="saveUserSettings">
-              <div class="flex gap-2">
-                <label class="grid flex-1 gap-1 text-sm">
+          <div class="min-w-0 space-y-5 p-5">
+            <div class="min-w-0 rounded border border-blue-200 bg-blue-50 p-3 text-xs text-blue-800 dark:border-blue-900/60 dark:bg-blue-950/30 dark:text-blue-100">
+              <p class="break-words">{{ t('admin.withdrawals.withdrawableBalanceExplanation') }}</p>
+            </div>
+            <form class="grid min-w-0 gap-3" @submit.prevent="saveUserSettings">
+              <div class="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.userId') }}</span>
                   <input v-model.trim="userSettingsForm.user_id" class="input" inputmode="numeric" :placeholder="t('admin.withdrawals.userIdPlaceholder')" />
                 </label>
-                <button type="button" class="btn btn-secondary self-end" :disabled="userSettingsLoading" @click="loadUserSettings">
+                <button type="button" class="btn btn-secondary self-end justify-center whitespace-nowrap" :disabled="userSettingsLoading" @click="loadUserSettings">
                   {{ t('admin.withdrawals.loadUser') }}
                 </button>
               </div>
-              <label class="flex items-center gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900">
+              <label class="flex min-w-0 items-center gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900">
                 <input v-model="userSettingsForm.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
-                <span class="font-medium text-gray-700 dark:text-gray-200">{{ t('admin.withdrawals.enabled') }}</span>
+                <span class="min-w-0 break-words font-medium text-gray-700 dark:text-gray-200">{{ t('admin.withdrawals.enabled') }}</span>
               </label>
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label class="grid gap-1 text-sm">
+              <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.minimumOverride') }}</span>
                   <input v-model.trim="userSettingsForm.minimum_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
                 </label>
-                <label class="grid gap-1 text-sm">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dailyLimitOverride') }}</span>
                   <input v-model.trim="userSettingsForm.daily_limit_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="500" />
                 </label>
               </div>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.disabledReason') }}</span>
                 <input v-model.trim="userSettingsForm.disabled_reason" class="input" :placeholder="t('admin.withdrawals.disabledReasonPlaceholder')" />
               </label>
-              <div class="flex items-center justify-between gap-3 text-sm">
+              <div class="flex min-w-0 items-center justify-between gap-3 text-sm">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recalcStatus') }}</span>
-                <span class="font-medium text-gray-900 dark:text-white">{{ recalcStatusLabel(userSettings?.recalc_status) }}</span>
+                <span class="min-w-0 break-words text-right font-medium text-gray-900 dark:text-white">{{ recalcStatusLabel(userSettings?.recalc_status) }}</span>
               </div>
-              <div class="rounded border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-700 dark:bg-dark-800/60">
-                <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
+              <div class="min-w-0 overflow-hidden rounded border border-gray-200 bg-gray-50 p-3 text-sm dark:border-dark-700 dark:bg-dark-800/60">
+                <div class="grid min-w-0 gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start">
+                  <div class="min-w-0">
                     <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.recomputeTitle') }}</h3>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeHint') }}</p>
+                    <p class="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeHint') }}</p>
                   </div>
-                  <div class="flex shrink-0 flex-wrap gap-2">
-                    <button type="button" class="btn btn-secondary btn-sm inline-flex items-center gap-1.5" :disabled="!activeUserID || recomputeLoading || recomputeExecuting" @click="runUserRecomputeDryRun">
+                  <div class="grid w-full min-w-0 gap-2 sm:w-auto sm:grid-cols-2">
+                    <button type="button" class="btn btn-secondary btn-sm inline-flex items-center justify-center gap-1.5 whitespace-nowrap" :disabled="!activeUserID || recomputeLoading || recomputeExecuting" @click="runUserRecomputeDryRun">
                       <Icon name="search" size="xs" />
                       {{ recomputeLoading ? t('admin.withdrawals.recomputing') : t('admin.withdrawals.runRecomputeCheck') }}
                     </button>
-                    <button type="button" class="btn btn-primary btn-sm inline-flex items-center gap-1.5" :disabled="!canExecuteRecompute || recomputeExecuting" @click="showRecomputeExecuteDialog = true">
+                    <button type="button" class="btn btn-primary btn-sm inline-flex items-center justify-center gap-1.5 whitespace-nowrap" :disabled="!canExecuteRecompute || recomputeExecuting" @click="showRecomputeExecuteDialog = true">
                       <Icon name="shield" size="xs" />
                       {{ recomputeExecuting ? t('admin.withdrawals.executingRecompute') : t('admin.withdrawals.writeRecomputeResult') }}
                     </button>
                   </div>
                 </div>
 
-                <div v-if="recomputeReport" class="mt-4 space-y-3">
-                  <div class="grid gap-3 sm:grid-cols-2">
-                    <div>
+                <div v-if="recomputeReport" class="mt-4 min-w-0 space-y-3">
+                  <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeMode') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ recomputeModeLabel(recomputeReport.mode) }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ recomputeModeLabel(recomputeReport.mode) }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeGeneratedAt') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatDateTime(recomputeReport.generated_at) }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ formatDateTime(recomputeReport.generated_at) }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeLedgerBalance') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.ledger_balance) }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.ledger_balance) }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeWithdrawable') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_withdrawable_balance) }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_withdrawable_balance) }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputePending') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_pending_balance) }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_pending_balance) }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeEntitlement') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_entitlement_balance) }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ formatMoney(recomputeReport.user.computed_entitlement_balance) }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeTransactions') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ recomputeReport.user.transaction_count }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ recomputeReport.user.transaction_count }}</p>
                     </div>
-                    <div>
+                    <div class="min-w-0">
                       <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recomputeEligibleGrants') }}</p>
-                      <p class="mt-1 font-medium text-gray-900 dark:text-white">{{ recomputeReport.user.eligible_grant_count }}</p>
+                      <p class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ recomputeReport.user.eligible_grant_count }}</p>
                     </div>
                   </div>
 
-                  <div v-if="hasExistingEntitlementReview" class="rounded border p-3 text-xs" :class="existingEntitlementReviewClass">
-                    <div class="flex items-start gap-2">
+                  <div v-if="hasExistingEntitlementReview" class="min-w-0 break-words rounded border p-3 text-xs" :class="existingEntitlementReviewClass">
+                    <div class="flex min-w-0 items-start gap-2">
                       <Icon :name="existingEntitlementsVerified ? 'checkCircle' : 'exclamationTriangle'" size="sm" class="mt-0.5 shrink-0" />
-                      <div>
+                      <div class="min-w-0">
                         <p class="font-semibold">
                           {{ t(existingEntitlementsVerified ? 'admin.withdrawals.recomputeExistingVerified' : 'admin.withdrawals.recomputeExistingMismatch') }}
                         </p>
@@ -160,58 +163,58 @@
                         </p>
                       </div>
                     </div>
-                    <dl class="mt-3 grid gap-2 sm:grid-cols-2">
-                      <div>
+                    <dl class="mt-3 grid min-w-0 gap-2 sm:grid-cols-2">
+                      <div class="min-w-0">
                         <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingBatchCount') }}</dt>
-                        <dd class="mt-0.5 font-semibold">{{ recomputeReport.user.existing_entitlement_count }}</dd>
+                        <dd class="mt-0.5 break-words font-semibold">{{ recomputeReport.user.existing_entitlement_count }}</dd>
                       </div>
-                      <div>
+                      <div class="min-w-0">
                         <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingEntitlement') }}</dt>
-                        <dd class="mt-0.5 font-semibold">{{ formatMoney(recomputeReport.user.existing_entitlement_balance) }}</dd>
+                        <dd class="mt-0.5 break-words font-semibold">{{ formatMoney(recomputeReport.user.existing_entitlement_balance) }}</dd>
                       </div>
-                      <div>
+                      <div class="min-w-0">
                         <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingWithdrawable') }}</dt>
-                        <dd class="mt-0.5 font-semibold">{{ formatMoney(recomputeReport.user.existing_withdrawable_balance) }}</dd>
+                        <dd class="mt-0.5 break-words font-semibold">{{ formatMoney(recomputeReport.user.existing_withdrawable_balance) }}</dd>
                       </div>
-                      <div>
+                      <div class="min-w-0">
                         <dt class="opacity-75">{{ t('admin.withdrawals.recomputeExistingPending') }}</dt>
-                        <dd class="mt-0.5 font-semibold">{{ formatMoney(recomputeReport.user.existing_pending_balance) }}</dd>
+                        <dd class="mt-0.5 break-words font-semibold">{{ formatMoney(recomputeReport.user.existing_pending_balance) }}</dd>
                       </div>
                     </dl>
                   </div>
 
-                  <div v-if="recomputeReport.user.anomalies.length" class="rounded border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
+                  <div v-if="recomputeReport.user.anomalies.length" class="min-w-0 overflow-hidden rounded border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/60 dark:bg-amber-950/30">
                     <p class="text-xs font-semibold text-amber-800 dark:text-amber-200">{{ t('admin.withdrawals.recomputeAnomalies') }}</p>
-                    <ul class="mt-2 list-disc space-y-1 pl-4 text-xs text-amber-800 dark:text-amber-100">
-                      <li v-for="(anomaly, index) in recomputeReport.user.anomalies" :key="`${anomaly.code}-${index}`">
+                    <ul class="mt-2 min-w-0 list-disc space-y-1 pl-4 text-xs text-amber-800 dark:text-amber-100">
+                      <li v-for="(anomaly, index) in recomputeReport.user.anomalies" :key="`${anomaly.code}-${index}`" class="break-words [overflow-wrap:anywhere]">
                         {{ recomputeAnomalyLabel(anomaly) }}
                       </li>
                     </ul>
                   </div>
-                  <div v-else class="rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
+                  <div v-else class="break-words rounded border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
                     {{ t('admin.withdrawals.recomputeReadyHint') }}
                   </div>
 
-                  <div v-if="(recomputeReport.user.batches || []).length" class="overflow-x-auto rounded border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
-                    <table class="min-w-full divide-y divide-gray-100 text-xs dark:divide-dark-700">
+                  <div v-if="(recomputeReport.user.batches || []).length" class="max-w-full min-w-0 overflow-x-auto rounded border border-gray-200 bg-white dark:border-dark-700 dark:bg-dark-900">
+                    <table class="min-w-[560px] divide-y divide-gray-100 text-xs dark:divide-dark-700">
                       <thead class="bg-gray-50 text-left text-gray-500 dark:bg-dark-800 dark:text-gray-400">
                         <tr>
-                          <th class="px-3 py-2">{{ t('admin.withdrawals.recomputeSourceTransaction') }}</th>
-                          <th class="px-3 py-2">{{ t('admin.withdrawals.recomputeSource') }}</th>
-                          <th class="px-3 py-2 text-right">{{ t('admin.withdrawals.recomputeOriginal') }}</th>
-                          <th class="px-3 py-2 text-right">{{ t('admin.withdrawals.recomputeRemaining') }}</th>
-                          <th class="px-3 py-2 text-right">{{ t('admin.withdrawals.recomputeConsumed') }}</th>
-                          <th class="px-3 py-2">{{ t('admin.withdrawals.recomputeAvailableAt') }}</th>
+                          <th class="px-2 py-2">{{ t('admin.withdrawals.recomputeSourceTransaction') }}</th>
+                          <th class="px-2 py-2">{{ t('admin.withdrawals.recomputeSource') }}</th>
+                          <th class="px-2 py-2 text-right">{{ t('admin.withdrawals.recomputeOriginal') }}</th>
+                          <th class="px-2 py-2 text-right">{{ t('admin.withdrawals.recomputeRemaining') }}</th>
+                          <th class="px-2 py-2 text-right">{{ t('admin.withdrawals.recomputeConsumed') }}</th>
+                          <th class="px-2 py-2">{{ t('admin.withdrawals.recomputeAvailableAt') }}</th>
                         </tr>
                       </thead>
                       <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
                         <tr v-for="batch in recomputeReport.user.batches" :key="batch.source_transaction_id">
-                          <td class="px-3 py-2">#{{ batch.source_transaction_id }}</td>
-                          <td class="px-3 py-2">{{ recomputeSourceLabel(batch.source_type) }}</td>
-                          <td class="px-3 py-2 text-right tabular-nums">{{ formatMoney(batch.original_amount) }}</td>
-                          <td class="px-3 py-2 text-right tabular-nums">{{ formatMoney(batch.remaining_amount) }}</td>
-                          <td class="px-3 py-2 text-right tabular-nums">{{ formatMoney(batch.consumed_amount) }}</td>
-                          <td class="px-3 py-2 whitespace-nowrap">{{ formatDateTime(batch.available_at) }}</td>
+                          <td class="px-2 py-2 whitespace-nowrap">#{{ batch.source_transaction_id }}</td>
+                          <td class="px-2 py-2 break-words">{{ recomputeSourceLabel(batch.source_type) }}</td>
+                          <td class="px-2 py-2 text-right tabular-nums">{{ formatMoney(batch.original_amount) }}</td>
+                          <td class="px-2 py-2 text-right tabular-nums">{{ formatMoney(batch.remaining_amount) }}</td>
+                          <td class="px-2 py-2 text-right tabular-nums">{{ formatMoney(batch.consumed_amount) }}</td>
+                          <td class="px-2 py-2 whitespace-nowrap">{{ formatDateTime(batch.available_at) }}</td>
                         </tr>
                       </tbody>
                     </table>
@@ -224,30 +227,30 @@
               </button>
             </form>
 
-            <form class="grid gap-3 border-t border-gray-100 pt-5 dark:border-dark-700" @submit.prevent="saveBatchSettings">
+            <form class="grid min-w-0 gap-3 border-t border-gray-100 pt-5 dark:border-dark-700" @submit.prevent="saveBatchSettings">
               <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.batchTitle') }}</h3>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.userIds') }}</span>
                 <textarea v-model.trim="batchForm.user_ids" class="input min-h-20 resize-y" :placeholder="t('admin.withdrawals.userIdsPlaceholder')"></textarea>
               </label>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.statusLabel') }}</span>
                 <select v-model="batchForm.enabled" class="input">
                   <option value="true">{{ t('admin.withdrawals.enabled') }}</option>
                   <option value="false">{{ t('admin.withdrawals.disabled') }}</option>
                 </select>
               </label>
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label class="grid gap-1 text-sm">
+              <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.minimumOverride') }}</span>
                   <input v-model.trim="batchForm.minimum_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
                 </label>
-                <label class="grid gap-1 text-sm">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.dailyLimitOverride') }}</span>
                   <input v-model.trim="batchForm.daily_limit_amount_override" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="500" />
                 </label>
               </div>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.disabledReason') }}</span>
                 <input v-model.trim="batchForm.disabled_reason" class="input" :placeholder="t('admin.withdrawals.disabledReasonPlaceholder')" />
               </label>
@@ -260,16 +263,16 @@
         </section>
       </div>
 
-      <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_440px]">
-        <section class="card">
-          <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
-            <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-              <div>
+      <div class="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(0,440px)]">
+        <section class="card min-w-0 overflow-hidden">
+          <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+            <div class="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+              <div class="min-w-0">
                 <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.queueTitle') }}</h2>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.queueHint') }}</p>
+                <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.queueHint') }}</p>
               </div>
-              <form class="grid gap-2 sm:grid-cols-[160px_160px_auto_auto]" @submit.prevent="loadQueue">
-                <label class="grid gap-1 text-sm">
+              <form class="grid min-w-0 gap-2 sm:grid-cols-[160px_160px_auto_auto]" @submit.prevent="loadQueue">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.statusFilter') }}</span>
                   <select v-model="query.status" class="input">
                     <option v-for="status in statusOptions" :key="status" :value="status">
@@ -277,7 +280,7 @@
                     </option>
                   </select>
                 </label>
-                <label class="grid gap-1 text-sm">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.userIdFilter') }}</span>
                   <input v-model.trim="query.user_id" class="input" inputmode="numeric" :placeholder="t('admin.withdrawals.userIdPlaceholder')" />
                 </label>
@@ -291,7 +294,7 @@
             </div>
           </div>
 
-          <div class="overflow-x-auto">
+          <div class="max-w-full min-w-0 overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-100 text-sm dark:divide-dark-700">
               <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800 dark:text-gray-400">
                 <tr>
@@ -352,18 +355,18 @@
           </div>
         </section>
 
-        <aside class="space-y-6">
-          <section class="card">
-            <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+        <aside class="min-w-0 space-y-6">
+          <section class="card min-w-0 overflow-hidden">
+            <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.detailTitle') }}</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ activeWithdrawal ? activeWithdrawal.request_no : t('admin.withdrawals.detailHint') }}</p>
+              <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ activeWithdrawal ? activeWithdrawal.request_no : t('admin.withdrawals.detailHint') }}</p>
             </div>
             <div v-if="!activeWithdrawal" class="px-5 py-12 text-center text-sm text-gray-500 dark:text-gray-400">
               {{ t('admin.withdrawals.noSelection') }}
             </div>
-            <div v-else class="space-y-5 p-5">
-              <dl class="grid gap-3 text-sm sm:grid-cols-2">
-                <div>
+            <div v-else class="min-w-0 space-y-5 p-5">
+              <dl class="grid min-w-0 gap-3 text-sm sm:grid-cols-2">
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.statusLabel') }}</dt>
                   <dd class="mt-1">
                     <span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="statusClass(activeWithdrawal.status)">
@@ -371,112 +374,112 @@
                     </span>
                   </dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.amount') }}</dt>
-                  <dd class="mt-1 font-semibold text-gray-900 dark:text-white">{{ formatMoney(activeWithdrawal.amount, activeWithdrawal.currency) }}</dd>
+                  <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ formatMoney(activeWithdrawal.amount, activeWithdrawal.currency) }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.userId') }}</dt>
-                  <dd class="mt-1 font-semibold text-gray-900 dark:text-white">#{{ activeWithdrawal.user_id }}</dd>
+                  <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">#{{ activeWithdrawal.user_id }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.method') }}</dt>
-                  <dd class="mt-1 font-semibold text-gray-900 dark:text-white">{{ methodLabel(activeWithdrawal.payout_method) }}</dd>
+                  <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ methodLabel(activeWithdrawal.payout_method) }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.payoutCurrency') }}</dt>
-                  <dd class="mt-1 font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_currency }}</dd>
+                  <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_currency }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.accountMask') }}</dt>
                   <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_account_mask }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.recipientMask') }}</dt>
-                  <dd class="mt-1 font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_recipient_name_mask || '-' }}</dd>
+                  <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ activeWithdrawal.payout_recipient_name_mask || '-' }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.paidAt') }}</dt>
-                  <dd class="mt-1 font-semibold text-gray-900 dark:text-white">{{ formatDateTime(activeWithdrawal.paid_at) }}</dd>
+                  <dd class="mt-1 break-words font-semibold text-gray-900 dark:text-white">{{ formatDateTime(activeWithdrawal.paid_at) }}</dd>
                 </div>
               </dl>
 
-              <dl class="grid gap-3 border-t border-gray-100 pt-4 text-sm dark:border-dark-700 sm:grid-cols-2">
-                <div>
+              <dl class="grid min-w-0 gap-3 border-t border-gray-100 pt-4 text-sm dark:border-dark-700 sm:grid-cols-2">
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.firstApprovedBy') }}</dt>
-                  <dd class="mt-1 text-gray-900 dark:text-white">{{ activeWithdrawal.first_approved_by ? `#${activeWithdrawal.first_approved_by}` : '-' }}</dd>
+                  <dd class="mt-1 break-words text-gray-900 dark:text-white">{{ activeWithdrawal.first_approved_by ? `#${activeWithdrawal.first_approved_by}` : '-' }}</dd>
                 </div>
-                <div>
+                <div class="min-w-0">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.secondApprovedBy') }}</dt>
-                  <dd class="mt-1 text-gray-900 dark:text-white">{{ activeWithdrawal.second_approved_by ? `#${activeWithdrawal.second_approved_by}` : '-' }}</dd>
+                  <dd class="mt-1 break-words text-gray-900 dark:text-white">{{ activeWithdrawal.second_approved_by ? `#${activeWithdrawal.second_approved_by}` : '-' }}</dd>
                 </div>
-                <div v-if="activeWithdrawal.rejected_reason" class="sm:col-span-2">
+                <div v-if="activeWithdrawal.rejected_reason" class="min-w-0 sm:col-span-2">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.rejectedReason') }}</dt>
-                  <dd class="mt-1 text-gray-900 dark:text-white">{{ activeWithdrawal.rejected_reason }}</dd>
+                  <dd class="mt-1 break-words text-gray-900 dark:text-white">{{ activeWithdrawal.rejected_reason }}</dd>
                 </div>
               </dl>
             </div>
           </section>
 
-          <section v-if="activeWithdrawal" class="card">
-            <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+          <section v-if="activeWithdrawal" class="card min-w-0 overflow-hidden">
+            <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.reviewTitle') }}</h2>
             </div>
-            <div class="space-y-4 p-5">
-              <label class="grid gap-1 text-sm">
+            <div class="min-w-0 space-y-4 p-5">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.reviewNote') }}</span>
                 <textarea v-model.trim="reviewNote" class="input min-h-20 resize-y" :placeholder="t('admin.withdrawals.reviewNotePlaceholder')"></textarea>
               </label>
-              <div class="grid gap-2 sm:grid-cols-2">
+              <div class="grid min-w-0 gap-2 sm:grid-cols-2">
                 <button type="button" class="btn btn-primary inline-flex items-center justify-center gap-2" :disabled="reviewActionLoading || !canReview" @click="approveActive">
                   <Icon name="check" size="sm" />
                   {{ reviewActionLoading ? t('admin.withdrawals.approving') : t('admin.withdrawals.approve') }}
                 </button>
                 <button type="button" class="btn btn-danger inline-flex items-center justify-center gap-2" :disabled="reviewActionLoading || !canReview" @click="rejectActive">
-                  <Icon name="x" size="sm" />
+                  <Icon name="xCircle" size="sm" />
                   {{ reviewActionLoading ? t('admin.withdrawals.rejecting') : t('admin.withdrawals.reject') }}
                 </button>
               </div>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.rejectReason') }}</span>
                 <textarea v-model.trim="rejectReason" class="input min-h-20 resize-y" :placeholder="t('admin.withdrawals.rejectReasonPlaceholder')" maxlength="500"></textarea>
               </label>
             </div>
           </section>
 
-          <section v-if="activeWithdrawal" class="card">
-            <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+          <section v-if="activeWithdrawal" class="card min-w-0 overflow-hidden">
+            <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.sensitiveTitle') }}</h2>
-              <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.sensitiveHint') }}</p>
+              <p class="mt-1 break-words text-sm text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.sensitiveHint') }}</p>
             </div>
-            <div class="space-y-4 p-5">
+            <div class="min-w-0 space-y-4 p-5">
               <button type="button" class="btn btn-secondary inline-flex w-full items-center justify-center gap-2" :disabled="sensitiveLoading" @click="loadSensitivePayout">
                 <Icon name="eye" size="sm" />
                 {{ sensitiveLoading ? t('admin.withdrawals.readingSensitive') : t('admin.withdrawals.readSensitive') }}
               </button>
-              <dl v-if="sensitiveEntries.length" class="grid gap-3 text-sm">
-                <div v-for="entry in sensitiveEntries" :key="entry.key" class="rounded border border-gray-100 p-3 dark:border-dark-700">
+              <dl v-if="sensitiveEntries.length" class="grid min-w-0 gap-3 text-sm">
+                <div v-for="entry in sensitiveEntries" :key="entry.key" class="min-w-0 rounded border border-gray-100 p-3 dark:border-dark-700">
                   <dt class="text-xs text-gray-500 dark:text-gray-400">{{ sensitiveFieldLabel(entry.key) }}</dt>
                   <dd class="mt-1 break-words font-medium text-gray-900 dark:text-white">{{ entry.value }}</dd>
                 </div>
               </dl>
-              <div v-else class="rounded border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400">
+              <div v-else class="break-words rounded border border-dashed border-gray-200 px-4 py-6 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400">
                 {{ t('admin.withdrawals.sensitiveEmpty') }}
               </div>
             </div>
           </section>
 
-          <section v-if="activeWithdrawal" class="card">
-            <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+          <section v-if="activeWithdrawal" class="card min-w-0 overflow-hidden">
+            <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.payoutTitle') }}</h2>
             </div>
-            <form class="grid gap-3 p-5" @submit.prevent="markActivePaid">
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label class="grid gap-1 text-sm">
+            <form class="grid min-w-0 gap-3 p-5" @submit.prevent="markActivePaid">
+              <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.paidAmount') }}</span>
                   <input v-model.trim="payoutForm.paid_amount" class="input" inputmode="numeric" pattern="[0-9]*" placeholder="10" />
                 </label>
-                <label class="grid gap-1 text-sm">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.paidCurrency') }}</span>
                   <select v-model="payoutForm.paid_currency" class="input">
                     <option value="USD">USD</option>
@@ -484,21 +487,21 @@
                   </select>
                 </label>
               </div>
-              <div class="grid gap-3 sm:grid-cols-2">
-                <label class="grid gap-1 text-sm">
+              <div class="grid min-w-0 gap-3 sm:grid-cols-2">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.payoutFxRate') }}</span>
                   <input v-model.trim="payoutForm.payout_fx_rate" class="input" inputmode="decimal" placeholder="1.00" />
                 </label>
-                <label class="grid gap-1 text-sm">
+                <label class="grid min-w-0 gap-1 text-sm">
                   <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.paidAtOptional') }}</span>
                   <input v-model="payoutForm.paid_at" type="datetime-local" class="input" />
                 </label>
               </div>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.externalTxnId') }}</span>
                 <input v-model.trim="payoutForm.external_txn_id" class="input" :placeholder="t('admin.withdrawals.externalTxnIdPlaceholder')" />
               </label>
-              <label class="grid gap-1 text-sm">
+              <label class="grid min-w-0 gap-1 text-sm">
                 <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('admin.withdrawals.payoutNote') }}</span>
                 <textarea v-model.trim="payoutForm.note" class="input min-h-20 resize-y" :placeholder="t('admin.withdrawals.payoutNotePlaceholder')"></textarea>
               </label>
@@ -509,22 +512,22 @@
             </form>
           </section>
 
-          <section v-if="activeWithdrawal" class="card">
-            <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
+          <section v-if="activeWithdrawal" class="card min-w-0 overflow-hidden">
+            <div class="min-w-0 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.withdrawals.historyTitle') }}</h2>
             </div>
-            <ol class="space-y-3 p-5">
-              <li v-for="event in activeWithdrawal.events || []" :key="event.id" class="rounded border border-gray-100 p-3 text-sm dark:border-dark-700">
-                <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                  <span class="font-medium text-gray-900 dark:text-white">{{ statusLabel(event.status) }}</span>
-                  <span class="text-gray-500 dark:text-gray-400">{{ formatDateTime(event.created_at) }}</span>
+            <ol class="min-w-0 space-y-3 p-5">
+              <li v-for="event in activeWithdrawal.events || []" :key="event.id" class="min-w-0 rounded border border-gray-100 p-3 text-sm dark:border-dark-700">
+                <div class="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                  <span class="min-w-0 break-words font-medium text-gray-900 dark:text-white">{{ statusLabel(event.status) }}</span>
+                  <span class="break-words text-gray-500 dark:text-gray-400">{{ formatDateTime(event.created_at) }}</span>
                 </div>
-                <div class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <div class="mt-1 break-words text-xs text-gray-500 dark:text-gray-400">
                   {{ t('admin.withdrawals.eventActor') }}: {{ actorLabel(event.actor_type, event.actor_user_id) }}
                 </div>
-                <p v-if="event.note" class="mt-2 text-gray-700 dark:text-gray-200">{{ event.note }}</p>
+                <p v-if="event.note" class="mt-2 break-words text-gray-700 dark:text-gray-200">{{ event.note }}</p>
               </li>
-              <li v-if="!(activeWithdrawal.events || []).length" class="rounded border border-dashed border-gray-200 p-4 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400">
+              <li v-if="!(activeWithdrawal.events || []).length" class="break-words rounded border border-dashed border-gray-200 p-4 text-center text-sm text-gray-500 dark:border-dark-700 dark:text-gray-400">
                 {{ t('admin.withdrawals.noEvents') }}
               </li>
             </ol>

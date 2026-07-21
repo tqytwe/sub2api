@@ -870,6 +870,7 @@ var ProviderSet = wire.NewSet(
 	NewEmailService,
 	NewNotificationEmailService,
 	NewWithdrawalService,
+	NewFundManagementService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
 	NewSubscriptionService,

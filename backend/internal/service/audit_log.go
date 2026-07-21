@@ -47,6 +47,16 @@ const (
 	AuditActionAdminWithdrawalPaid      = "admin.withdrawal.paid"
 	AuditActionAdminWithdrawalSettings  = "admin.withdrawal.settings.update"
 	AuditActionAdminWithdrawalRecompute = "admin.withdrawal.recompute"
+	AuditActionFundRefundSubmit         = "user.fund_refund.submit"
+	AuditActionFundRefundCancel         = "user.fund_refund.cancel"
+	AuditActionAdminFundRefundApprove   = "admin.fund_refund.approve"
+	AuditActionAdminFundRefundReject    = "admin.fund_refund.reject"
+	AuditActionAdminFundRefundRead      = "admin.fund_refund.payout_sensitive.read"
+	AuditActionAdminFundRefundPaid      = "admin.fund_refund.paid"
+	AuditActionAdminFundGiftGrant       = "admin.fund.gift.grant"
+	AuditActionAdminFundOfflineRecharge = "admin.fund.offline_recharge.grant"
+	AuditActionAdminFundClassifyPreview = "admin.fund.classification.preview"
+	AuditActionAdminFundClassifyExecute = "admin.fund.classification.execute"
 )
 
 // AuditLog 一条管理面操作审计记录。

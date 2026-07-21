@@ -42,6 +42,7 @@ type AdminHandlers struct {
 	Compliance             *admin.ComplianceHandler
 	Play                   *admin.AdminPlayHandler
 	Withdrawal             *admin.WithdrawalHandler
+	Fund                   *admin.FundHandler
 	ModelCatalog           *admin.ModelCatalogHandler
 	AuditLog               *admin.AuditLogHandler
 	PromptLibrary          *admin.PromptLibraryHandler
@@ -69,6 +70,7 @@ type Handlers struct {
 	BatchImage       *BatchImageHandler
 	Play             *PlayHandler
 	Wallet           *WalletHandler
+	Fund             *FundHandler
 	ImageStudio      *ImageStudioHandler
 	ModelPricing     *ModelPricingHandler
 	PromptLibrary    *PromptLibraryHandler

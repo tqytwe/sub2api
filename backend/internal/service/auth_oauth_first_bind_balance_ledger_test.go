@@ -134,6 +134,7 @@ func TestApplyProviderDefaultSettingsOnFirstBindWritesBalanceLedger(t *testing.T
 			"auth_first_bind_grant", "email", "auth_first_bind:42:email", "system", nil,
 			"认证源首绑赠送", `{"provider_type":"email","grant_reason":"first_bind","balance":2.5}`, false, "high", createdAt,
 		))
+	expectFundBatchGrant(mock, 42, 7001, FundSourceKindSignupGift, "auth_first_bind_grant", "email", "2.50000000", false, createdAt)
 	mock.ExpectCommit()
 
 	require.NoError(t, svc.ApplyProviderDefaultSettingsOnFirstBind(context.Background(), 42, "email"))

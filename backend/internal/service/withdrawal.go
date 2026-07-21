@@ -834,6 +834,7 @@ func (s *WithdrawalService) AdminMarkPaid(ctx context.Context, input WithdrawalM
 		ActorUserID:                        &input.ActorUserID,
 		Description:                        "withdrawal marked paid",
 		SkipWithdrawableEntitlementEffects: true,
+		SkipFundBatchEffects:               true,
 	})
 	if err != nil {
 		return nil, err
@@ -1259,6 +1260,7 @@ func (s *WithdrawalService) freezeWithdrawalFunds(ctx context.Context, tx *sql.T
 		ActorUserID:                        &req.UserID,
 		Description:                        "withdrawal request submitted",
 		SkipWithdrawableEntitlementEffects: true,
+		SkipFundBatchEffects:               true,
 		CreatedAt:                          &createdAt,
 	})
 	if err != nil {
@@ -1294,6 +1296,7 @@ func (s *WithdrawalService) restoreWithdrawalFunds(ctx context.Context, tx *sql.
 		ActorUserID:                        actorUserID,
 		Description:                        "withdrawal request restored",
 		SkipWithdrawableEntitlementEffects: true,
+		SkipFundBatchEffects:               true,
 		CreatedAt:                          &createdAt,
 	})
 	if err != nil {

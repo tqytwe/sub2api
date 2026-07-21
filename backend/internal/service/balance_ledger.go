@@ -79,6 +79,10 @@ type BalanceLedgerApplyInput struct {
 	// to freeze exact mature batches instead of treating a pending withdrawal as
 	// a normal spend.
 	SkipWithdrawableEntitlementEffects bool
+	// SkipFundBatchEffects lets refund workflows lock exact recharge batches
+	// themselves instead of letting the generic spend priority consume gift or
+	// recharge batches automatically.
+	SkipFundBatchEffects bool
 }
 
 type BalanceTransaction struct {
@@ -297,6 +301,9 @@ WHERE id = $5 AND deleted_at IS NULL`,
 		return nil, false, err
 	}
 	if err := applyWithdrawableLedgerEffects(ctx, runner, normalized, transaction.ID, effects, createdAt); err != nil {
+		return nil, false, err
+	}
+	if err := applyFundBatchLedgerEffects(ctx, runner, normalized, transaction.ID, actualBalanceDelta, createdAt); err != nil {
 		return nil, false, err
 	}
 	changed := normalized.BalanceDelta != 0 ||

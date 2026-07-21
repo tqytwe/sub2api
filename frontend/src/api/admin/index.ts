@@ -36,6 +36,7 @@ import adminComplianceAPI from './compliance'
 import adminPlayAPI from './play'
 import auditAPI from './audit'
 import adminWithdrawalsAPI from './withdrawals'
+import adminFundsAPI from './funds'
 
 /**
  * Unified admin API object for convenient access
@@ -73,7 +74,8 @@ export const adminAPI = {
   compliance: adminComplianceAPI,
   play: adminPlayAPI,
   audit: auditAPI,
-  withdrawals: adminWithdrawalsAPI
+  withdrawals: adminWithdrawalsAPI,
+  funds: adminFundsAPI
 }
 
 export {
@@ -109,7 +111,8 @@ export {
   adminComplianceAPI,
   adminPlayAPI,
   auditAPI,
-  adminWithdrawalsAPI
+  adminWithdrawalsAPI,
+  adminFundsAPI
 }
 
 export default adminAPI
@@ -130,3 +133,10 @@ export type {
   AdminUserWithdrawalSettingsInput,
   AdminWithdrawalMarkPaidInput,
 } from './withdrawals'
+export type {
+  AdminFundRefundListQuery,
+  AdminFundGrantInput,
+  AdminOfflineRechargeInput,
+  AdminFundClassificationCandidate,
+  AdminFundClassificationPreview,
+} from './funds'

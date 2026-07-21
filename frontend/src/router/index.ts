@@ -608,6 +608,30 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/funds',
+    name: 'AdminFunds',
+    component: () => import('@/views/admin/AdminFundsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Fund Management',
+      titleKey: 'admin.funds.title',
+      descriptionKey: 'admin.funds.description'
+    }
+  },
+  {
+    path: '/admin/funds/:tab(refunds|grants|classification)',
+    name: 'AdminFundsTab',
+    component: () => import('@/views/admin/AdminFundsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Fund Management',
+      titleKey: 'admin.funds.title',
+      descriptionKey: 'admin.funds.description'
+    }
+  },
+  {
     path: '/admin/withdrawals',
     name: 'AdminWithdrawals',
     component: () => import('@/views/admin/AdminWithdrawalsView.vue'),

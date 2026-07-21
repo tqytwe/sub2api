@@ -50,6 +50,7 @@ func TestBalanceLedgerWithdrawalSubmitSkipsAutomaticEntitlementConsumption(t *te
 		ActorUserID:                        int64Ptr(42),
 		Description:                        "withdrawal request submitted",
 		SkipWithdrawableEntitlementEffects: true,
+		SkipFundBatchEffects:               true,
 	})
 	require.NoError(t, err)
 	require.Equal(t, -20.0, got.WithdrawableDelta)

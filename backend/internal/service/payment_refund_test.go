@@ -554,6 +554,9 @@ func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
 			"refund", "42:deduct:attempt-1", "payment_refund:42:deduct:attempt-1", "admin", nil,
 			"退款扣回", `{"order_id":42}`, false, "high", createdAt,
 		))
+	mock.ExpectQuery("(?s)FROM balance_fund_batches\\s+WHERE user_id = \\$1\\s+AND status = 'active'").
+		WithArgs(int64(7), int64(42), true).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "source_kind", "remaining_amount"}))
 	mock.ExpectCommit()
 
 	require.NoError(t, svc.deductRefundBalance(ctx, plan))
@@ -605,6 +608,7 @@ func TestRefundBalanceLedgerWritesDeductAndRollbackTransactions(t *testing.T) {
 			"reversal", "42:deduct:attempt-1:reversal", "payment_refund:42:deduct:attempt-1:reversal", "admin", nil,
 			"退款失败回滚", `{"order_id":42}`, false, "high", createdAt,
 		))
+	expectEmptyFundBatchRestore(mock, 7, "payment_refund:42:deduct:attempt-1")
 	mock.ExpectCommit()
 
 	require.NoError(t, svc.rollbackRefundBalance(ctx, plan, errors.New("gateway unavailable")))
