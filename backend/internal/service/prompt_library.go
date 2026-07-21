@@ -181,6 +181,9 @@ type PromptUseResult struct {
 	PromptID              int64                      `json:"prompt_id"`
 	Version               int                        `json:"version"`
 	Title                 string                     `json:"title"`
+	Purpose               string                     `json:"purpose"`
+	Style                 string                     `json:"style,omitempty"`
+	Subject               string                     `json:"subject,omitempty"`
 	PromptText            string                     `json:"prompt_text"`
 	Variables             map[string]any             `json:"variables"`
 	Models                []string                   `json:"models"`
@@ -258,6 +261,7 @@ type PromptListFilter struct {
 	Model                string
 	Size                 string
 	ReferenceRequirement PromptReferenceRequirement
+	ImageOnly            bool
 	Featured             *bool
 	FavoritedOnly        bool
 	Status               PromptStatus
@@ -461,6 +465,9 @@ func (s *PromptLibraryService) UsePrompt(ctx context.Context, promptID, userID i
 		PromptID:              prompt.ID,
 		Version:               prompt.PublishedVersion,
 		Title:                 prompt.TitleZH,
+		Purpose:               prompt.Purpose,
+		Style:                 prompt.Style,
+		Subject:               prompt.Subject,
 		PromptText:            prompt.PromptText,
 		Variables:             prompt.Variables,
 		Models:                prompt.Models,

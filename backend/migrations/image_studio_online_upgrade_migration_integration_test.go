@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 
 	dbmigrations "github.com/Wei-Shaw/sub2api/migrations"
 	"github.com/lib/pq"
@@ -26,6 +27,8 @@ var imageStudioOnlineUpgradeFiles = []string{
 	"196_image_studio_job_references.sql",
 	"197_image_studio_object_deletions.sql",
 	"198_image_studio_upload_slots.sql",
+	"208_image_studio_asset_lifecycle.sql",
+	"208_image_studio_asset_lifecycle_indexes_notx.sql",
 }
 
 func TestImageStudioOnlineMigrationsUpgradeLegacyPostgreSQL(t *testing.T) {
@@ -190,6 +193,8 @@ func TestImageStudioOnlineMigrationsUpgradeLegacyPostgreSQL(t *testing.T) {
 			"uq_image_studio_jobs_user_idempotency",
 			"idx_image_studio_items_job_status",
 			"idx_image_studio_jobs_user_created_id",
+			"idx_image_studio_assets_expiry_live",
+			"idx_image_studio_jobs_record_expiry",
 		} {
 			var valid, ready bool
 			require.NoError(t, db.QueryRowContext(ctx, `
@@ -202,6 +207,74 @@ func TestImageStudioOnlineMigrationsUpgradeLegacyPostgreSQL(t *testing.T) {
 			require.True(t, valid, index)
 			require.True(t, ready, index)
 		}
+	})
+
+	t.Run("backfills asset lifecycle without guessing legacy platform", func(t *testing.T) {
+		var completedCreatedAt, completedExpiresAt time.Time
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT created_at, expires_at
+			FROM image_studio_jobs
+			WHERE id = '00000000-0000-0000-0000-000000000103'`,
+		).Scan(&completedCreatedAt, &completedExpiresAt))
+		require.WithinDuration(t, completedCreatedAt.Add(7*24*time.Hour), completedExpiresAt, time.Second)
+
+		var failedFinishedAt, failedExpiresAt time.Time
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT finished_at, expires_at
+			FROM image_studio_jobs
+			WHERE id = '00000000-0000-0000-0000-000000000101'`,
+		).Scan(&failedFinishedAt, &failedExpiresAt))
+		require.WithinDuration(t, failedFinishedAt.Add(7*24*time.Hour), failedExpiresAt, time.Second)
+
+		var groupID sql.NullInt64
+		var platform, capabilityProfileID, capabilityRevision string
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT group_id, platform, capability_profile_id, capability_revision
+			FROM image_studio_jobs
+			WHERE id = '00000000-0000-0000-0000-000000000103'`,
+		).Scan(&groupID, &platform, &capabilityProfileID, &capabilityRevision))
+		require.False(t, groupID.Valid)
+		require.Empty(t, platform)
+		require.Empty(t, capabilityProfileID)
+		require.Empty(t, capabilityRevision)
+
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO image_studio_jobs (
+				id, user_id, template_id, size, status, request_payload_encrypted
+			)
+			VALUES (
+				'00000000-0000-0000-0000-000000000106',
+				1, 'active-after-lifecycle', '1024x1024', 'pending', 'ciphertext'
+			)`)
+		require.NoError(t, err)
+
+		var activeExpiresAt sql.NullTime
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT expires_at
+			FROM image_studio_jobs
+			WHERE id = '00000000-0000-0000-0000-000000000106'`,
+		).Scan(&activeExpiresAt))
+		require.False(t, activeExpiresAt.Valid)
+
+		var assetCreatedAt, assetExpiresAt time.Time
+		var purgedAt sql.NullTime
+		var filename sql.NullString
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT created_at, expires_at, purged_at, filename
+			FROM image_studio_assets
+			WHERE id = '00000000-0000-0000-0000-000000000201'`,
+		).Scan(&assetCreatedAt, &assetExpiresAt, &purgedAt, &filename))
+		require.WithinDuration(t, assetCreatedAt.Add(24*time.Hour), assetExpiresAt, time.Second)
+		require.False(t, purgedAt.Valid)
+		require.False(t, filename.Valid)
+
+		var purgeEnabled string
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT value
+			FROM settings
+			WHERE key = 'image_studio_asset_purge_enabled'`,
+		).Scan(&purgeEnabled))
+		require.Equal(t, "false", purgeEnabled)
 	})
 
 	t.Run("replaying phased migrations preserves validated constraints", func(t *testing.T) {
@@ -232,6 +305,27 @@ func TestImageStudioOnlineMigrationsUpgradeLegacyPostgreSQL(t *testing.T) {
 		}
 	})
 
+	t.Run("replaying asset lifecycle migration is idempotent", func(t *testing.T) {
+		applyImageStudioTransactionalMigration(t, ctx, db, "208_image_studio_asset_lifecycle.sql")
+
+		var activeExpiresAt sql.NullTime
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT expires_at
+			FROM image_studio_jobs
+			WHERE id = '00000000-0000-0000-0000-000000000106'`,
+		).Scan(&activeExpiresAt))
+		require.False(t, activeExpiresAt.Valid)
+
+		var purgeSettingCount int
+		require.NoError(t, db.QueryRowContext(ctx, `
+			SELECT COUNT(*)::int
+			FROM settings
+			WHERE key = 'image_studio_asset_purge_enabled'
+			  AND value = 'false'`,
+		).Scan(&purgeSettingCount))
+		require.Equal(t, 1, purgeSettingCount)
+	})
+
 	t.Run("replaying notx migrations preserves healthy index identities", func(t *testing.T) {
 		indexNames := []string{
 			"idx_image_studio_jobs_claim",
@@ -239,6 +333,8 @@ func TestImageStudioOnlineMigrationsUpgradeLegacyPostgreSQL(t *testing.T) {
 			"uq_image_studio_jobs_user_idempotency",
 			"idx_image_studio_items_job_status",
 			"idx_image_studio_jobs_user_created_id",
+			"idx_image_studio_assets_expiry_live",
+			"idx_image_studio_jobs_record_expiry",
 		}
 		before := make(map[string]int64, len(indexNames))
 		for _, indexName := range indexNames {
@@ -256,6 +352,12 @@ func TestImageStudioOnlineMigrationsUpgradeLegacyPostgreSQL(t *testing.T) {
 			ctx,
 			db,
 			"194_image_studio_asset_derivatives_indexes_notx.sql",
+		)
+		applyImageStudioNonTransactionalMigration(
+			t,
+			ctx,
+			db,
+			"208_image_studio_asset_lifecycle_indexes_notx.sql",
 		)
 
 		for _, indexName := range indexNames {
@@ -314,6 +416,13 @@ func bootstrapLegacyImageStudioSchema(t *testing.T, ctx context.Context, db *sql
 		CREATE TABLE users (
 			id BIGSERIAL PRIMARY KEY,
 			email VARCHAR(255) NOT NULL UNIQUE
+		);
+
+		CREATE TABLE settings (
+			id BIGSERIAL PRIMARY KEY,
+			key VARCHAR(100) NOT NULL UNIQUE,
+			value TEXT NOT NULL,
+			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 		);
 
 		CREATE TABLE image_studio_jobs (
@@ -413,16 +522,38 @@ func applyImageStudioOnlineUpgrade(t *testing.T, ctx context.Context, db *sql.DB
 			applyImageStudioPhasedMigration(t, ctx, db, name)
 			continue
 		}
-
-		tx, err := db.BeginTx(ctx, nil)
-		require.NoError(t, err, name)
-		_, err = tx.ExecContext(ctx, content)
-		if err != nil {
-			_ = tx.Rollback()
-			require.NoError(t, err, name)
-		}
-		require.NoError(t, tx.Commit(), name)
+		applyImageStudioTransactionalMigrationContent(t, ctx, db, name, content)
 	}
+}
+
+func applyImageStudioTransactionalMigration(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	name string,
+) {
+	t.Helper()
+	raw, err := dbmigrations.FS.ReadFile(name)
+	require.NoError(t, err, name)
+	applyImageStudioTransactionalMigrationContent(t, ctx, db, name, strings.TrimSpace(string(raw)))
+}
+
+func applyImageStudioTransactionalMigrationContent(
+	t *testing.T,
+	ctx context.Context,
+	db *sql.DB,
+	name string,
+	content string,
+) {
+	t.Helper()
+	tx, err := db.BeginTx(ctx, nil)
+	require.NoError(t, err, name)
+	_, err = tx.ExecContext(ctx, content)
+	if err != nil {
+		_ = tx.Rollback()
+		require.NoError(t, err, name)
+	}
+	require.NoError(t, tx.Commit(), name)
 }
 
 func applyImageStudioPhasedMigration(

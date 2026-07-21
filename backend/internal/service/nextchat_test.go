@@ -776,6 +776,27 @@ func TestBuildNextChatPromptCatalogFromPublicPromptsUsesPublishedLibraryContent(
 	require.NotEmpty(t, catalog.ImageTemplates.Intents)
 }
 
+func TestBuildNextChatPromptCatalogFromPublicPromptsSkipsImagePrompts(t *testing.T) {
+	catalog := BuildNextChatPromptCatalogFromPublicPrompts([]PublicPrompt{
+		{
+			ID:         89,
+			Title:      "白底商品主图",
+			Purpose:    "image",
+			Version:    1,
+			PromptText: "生成白底商品主图。",
+			Models:     []string{"gpt-image-2"},
+			Sizes:      []string{"1024x1024"},
+		},
+	})
+
+	titles := make([]string, 0, len(catalog.ChatPrompts))
+	for _, prompt := range catalog.ChatPrompts {
+		titles = append(titles, prompt.Title)
+	}
+	require.NotContains(t, titles, "白底商品主图")
+	require.NotEmpty(t, catalog.ImageTemplates.Intents)
+}
+
 func collectNextChatModelNames(models []NextChatWorkspaceModel) []string {
 	names := make([]string, 0, len(models))
 	for _, model := range models {

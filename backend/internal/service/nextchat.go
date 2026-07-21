@@ -261,6 +261,9 @@ func BuildNextChatPromptCatalogFromPublicPrompts(prompts []PublicPrompt) NextCha
 }
 
 func nextChatPromptFromPublicPrompt(prompt PublicPrompt) (NextChatPrompt, bool) {
+	if IsNextChatPublicImagePrompt(prompt) {
+		return NextChatPrompt{}, false
+	}
 	content := strings.TrimSpace(prompt.PromptText)
 	title := strings.TrimSpace(prompt.Title)
 	if content == "" || title == "" {
@@ -284,6 +287,55 @@ func nextChatPromptFromPublicPrompt(prompt PublicPrompt) (NextChatPrompt, bool) 
 		Content:     content,
 		Category:    category,
 	}, true
+}
+
+func IsNextChatPublicImagePrompt(prompt PublicPrompt) bool {
+	if len(prompt.Sizes) > 0 || prompt.RequiresReference {
+		return true
+	}
+	if requirement := strings.TrimSpace(string(prompt.ReferenceRequirement)); requirement != "" && requirement != string(PromptReferenceNone) {
+		return true
+	}
+	switch strings.ToLower(strings.TrimSpace(prompt.Purpose)) {
+	case "image", "image_studio", "image-studio":
+		return true
+	}
+	for _, model := range prompt.Models {
+		if _, ok := ResolveImageStudioModelCapability(model); ok {
+			return true
+		}
+	}
+	return false
+}
+
+func NextChatImagePromptModelIDs() []string {
+	out := make([]string, 0, len(imageStudioModelPreference))
+	for _, model := range imageStudioModelPreference {
+		if _, ok := ResolveImageStudioModelCapability(model); ok {
+			out = append(out, model)
+		}
+	}
+	return out
+}
+
+func NextChatImagePromptModelLikePatterns() []string {
+	return []string{
+		"gpt-image-%",
+		"models/gpt-image-%",
+		"grok-imagine%",
+		"models/grok-imagine%",
+		"imagen-%",
+		"imagen_%",
+		"models/imagen-%",
+		"models/imagen_%",
+		"%image%",
+		"%dall-e%",
+		"%stable-diffusion%",
+		"%sdxl%",
+		"%flux%",
+		"%recraft%",
+		"%midjourney%",
+	}
 }
 
 func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, userID int64) (*APIKey, error) {

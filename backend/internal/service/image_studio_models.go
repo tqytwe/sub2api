@@ -111,9 +111,9 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 		return nil, ErrImageStudioImageNotAllowed
 	}
 
-	platform, ok := imageStudioListingPlatformForAPIKey(apiKey)
-	if !ok {
-		return nil, ErrImageStudioNoImageModels
+	platform, err := imageStudioListingPlatformForAPIKey(apiKey)
+	if err != nil {
+		return nil, err
 	}
 
 	candidates := defaultImageModelIDsForPlatform(platform)
@@ -136,19 +136,19 @@ func (s *ImageStudioService) listImageModelsForAPIKey(ctx context.Context, apiKe
 	return models, nil
 }
 
-func imageStudioListingPlatformForAPIKey(apiKey *APIKey) (string, bool) {
+func imageStudioListingPlatformForAPIKey(apiKey *APIKey) (string, error) {
 	if apiKey == nil || apiKey.Group == nil {
-		return PlatformOpenAI, true
+		return "", ErrImageStudioProviderNotSupported
 	}
 	platform := strings.ToLower(strings.TrimSpace(apiKey.Group.Platform))
 	if platform == "" {
-		return PlatformOpenAI, true
+		return "", ErrImageStudioProviderNotSupported
 	}
 	switch platform {
 	case PlatformOpenAI, PlatformGemini, PlatformGrok:
-		return platform, true
+		return platform, nil
 	default:
-		return "", false
+		return "", ErrImageStudioProviderNotSupported
 	}
 }
 

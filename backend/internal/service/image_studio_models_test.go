@@ -159,7 +159,7 @@ func TestListImageModelsForAPIKey_DoesNotUseProviderDefaultsWhenGatewayHasNoMapp
 	require.Nil(t, models)
 }
 
-func TestListImageModelsForAPIKey_RejectsUnknownPlatformInsteadOfOpenAIFallback(t *testing.T) {
+func TestListImageModelsForAPIKey_RejectsMissingOrUnknownPlatformInsteadOfOpenAIFallback(t *testing.T) {
 	groupID := int64(8)
 	resolver := &imageStudioModelResolverStub{
 		modelsByPlatform: map[string][]string{
@@ -169,18 +169,49 @@ func TestListImageModelsForAPIKey_RejectsUnknownPlatformInsteadOfOpenAIFallback(
 	}
 	svc := &ImageStudioService{gateway: resolver}
 
-	models, err := svc.listImageModelsForAPIKey(context.Background(), &APIKey{
-		GroupID: &groupID,
-		Group: &Group{
-			ID:                   groupID,
-			Platform:             "krio",
-			AllowImageGeneration: true,
+	tests := []struct {
+		name string
+		key  *APIKey
+	}{
+		{
+			name: "unknown platform",
+			key: &APIKey{
+				GroupID: &groupID,
+				Group: &Group{
+					ID:                   groupID,
+					Platform:             "krio",
+					AllowImageGeneration: true,
+				},
+			},
 		},
-	})
+		{
+			name: "empty platform",
+			key: &APIKey{
+				GroupID: &groupID,
+				Group: &Group{
+					ID:                   groupID,
+					Platform:             "",
+					AllowImageGeneration: true,
+				},
+			},
+		},
+		{
+			name: "missing group",
+			key:  &APIKey{GroupID: &groupID},
+		},
+	}
 
-	require.ErrorIs(t, err, ErrImageStudioNoImageModels)
-	require.Empty(t, resolver.seenPlatform)
-	require.Nil(t, models)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolver.seenPlatform = ""
+
+			models, err := svc.listImageModelsForAPIKey(context.Background(), tt.key)
+
+			require.ErrorIs(t, err, ErrImageStudioProviderNotSupported)
+			require.Empty(t, resolver.seenPlatform)
+			require.Nil(t, models)
+		})
+	}
 }
 
 func TestListImageModelsForAPIKey_CustomModelsListEnabledEmptyFailsClosed(t *testing.T) {
