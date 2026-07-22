@@ -127,7 +127,7 @@
             <input v-model.number="giftForm.user_id" class="input" type="number" min="1" :placeholder="t('admin.funds.forms.userId')" />
             <input v-model.trim="giftForm.amount" class="input" inputmode="numeric" :placeholder="t('admin.funds.forms.amount')" />
             <textarea v-model.trim="giftForm.reason" class="input min-h-[96px]" :placeholder="t('admin.funds.forms.reason')" />
-            <button type="submit" class="btn btn-primary" :disabled="loading">{{ t('admin.funds.grants.submitGift') }}</button>
+            <button type="submit" class="btn btn-primary" data-testid="admin-funds-submit-gift" :disabled="loading">{{ t('admin.funds.grants.submitGift') }}</button>
           </div>
         </form>
 
@@ -180,7 +180,7 @@
         </div>
         <div class="grid min-w-0 gap-3 border-t border-gray-100 px-5 py-4 dark:border-dark-700 lg:grid-cols-[minmax(0,1fr)_auto]">
           <input v-model.trim="classificationReason" class="input" :placeholder="t('admin.funds.classification.reasonPlaceholder')" />
-          <button type="button" class="btn btn-primary" :disabled="!selectedTransactions.length || classificationReason.length < 10 || loading" @click="executeClassification">
+          <button type="button" class="btn btn-primary" data-testid="admin-funds-execute-classification" :disabled="loading" @click="executeClassification">
             {{ t('admin.funds.classification.execute', { count: selectedTransactions.length }) }}
           </button>
         </div>
@@ -193,6 +193,8 @@
         </div>
         <pre class="mt-4 max-h-80 overflow-auto rounded bg-gray-950 p-4 text-xs text-gray-100">{{ JSON.stringify(sensitivePayout, null, 2) }}</pre>
       </section>
+
+      <TotpStepUpDialog :controller="fundStepUp" />
     </div>
   </AppLayout>
 </template>
@@ -203,6 +205,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import {
   approveRefundRequest,
   executeSignupGift30,
@@ -216,6 +219,8 @@ import {
   type AdminFundClassificationPreview,
 } from '@/api/admin/funds'
 import type { FundRefundRequest, FundRefundRequestPage, FundRefundStatus } from '@/api/wallet'
+import { extractApiErrorCode } from '@/utils/apiError'
+import { isStepUpCancelled, useStepUp } from '@/composables/useStepUp'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -239,6 +244,7 @@ const actionReason = ref('')
 const selectedTransactions = ref<number[]>([])
 const classificationReason = ref('')
 const sensitivePayout = ref<Record<string, unknown> | null>(null)
+const fundStepUp = useStepUp()
 
 const refundQuery = reactive({
   status: 'all' as FundRefundStatus | 'all',
@@ -261,6 +267,56 @@ const classification = ref<AdminFundClassificationPreview>({ mode: 'preview', ge
 function showMessage(type: 'success' | 'error', text: string) {
   messageType.value = type
   message.value = text
+}
+
+function textLength(value: string) {
+  return Array.from(value.trim()).length
+}
+
+function isPositiveWholeAmount(value: string) {
+  return /^[1-9]\d*$/.test(value.trim())
+}
+
+function isPositiveUserID(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+}
+
+function validateReason(reason: string, min: number, max: number) {
+  const length = textLength(reason)
+  if (length < min) {
+    showMessage('error', t('admin.funds.validation.reasonTooShort', { min }))
+    return false
+  }
+  if (length > max) {
+    showMessage('error', t('admin.funds.validation.reasonTooLong', { max }))
+    return false
+  }
+  return true
+}
+
+function validateCreditForm(userID: unknown, amount: string, reason: string, reasonMin = 3) {
+  if (!isPositiveUserID(userID)) {
+    showMessage('error', t('admin.funds.validation.userRequired'))
+    return false
+  }
+  if (!isPositiveWholeAmount(amount)) {
+    showMessage('error', t('admin.funds.validation.wholeAmountRequired'))
+    return false
+  }
+  return validateReason(reason, reasonMin, 500)
+}
+
+function localizedFundError(error: unknown, fallback: string) {
+  const code = extractApiErrorCode(error)
+  if (!code) return fallback
+  const key = `admin.funds.errors.${code}`
+  const translated = t(key)
+  return translated === key ? fallback : translated
+}
+
+function handleFundActionError(error: unknown, fallback: string) {
+  if (isStepUpCancelled(error)) return
+  showMessage('error', localizedFundError(error, fallback))
 }
 
 function formatMoney(value: string | number | undefined) {
@@ -342,11 +398,11 @@ async function refreshAll() {
 async function approve(id: number) {
   actionID.value = id
   try {
-    await approveRefundRequest(id, { note: actionNote.value })
+    await fundStepUp.run(() => approveRefundRequest(id, { note: actionNote.value }))
     showMessage('success', t('admin.funds.messages.approved'))
     await loadRefunds()
-  } catch {
-    showMessage('error', t('admin.funds.messages.actionFailed'))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.actionFailed'))
   } finally {
     actionID.value = null
   }
@@ -355,12 +411,12 @@ async function approve(id: number) {
 async function reject(id: number) {
   actionID.value = id
   try {
-    await rejectRefundRequest(id, { reason: actionReason.value, note: actionNote.value })
+    await fundStepUp.run(() => rejectRefundRequest(id, { reason: actionReason.value, note: actionNote.value }))
     actionReason.value = ''
     showMessage('success', t('admin.funds.messages.rejected'))
     await loadRefunds()
-  } catch {
-    showMessage('error', t('admin.funds.messages.actionFailed'))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.actionFailed'))
   } finally {
     actionID.value = null
   }
@@ -369,19 +425,19 @@ async function reject(id: number) {
 async function markPaid(item: FundRefundRequest) {
   actionID.value = item.id
   try {
-    await markRefundPaid(item.id, {
+    await fundStepUp.run(() => markRefundPaid(item.id, {
       paid_amount: paidForm.paid_amount || item.amount,
       paid_currency: paidForm.paid_currency,
       payout_fx_rate: paidForm.payout_fx_rate || '1',
       external_txn_id: paidForm.external_txn_id,
       note: actionNote.value,
-    })
+    }))
     paidForm.external_txn_id = ''
     paidForm.paid_amount = ''
     showMessage('success', t('admin.funds.messages.paid'))
     await loadRefunds()
-  } catch {
-    showMessage('error', t('admin.funds.messages.actionFailed'))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.actionFailed'))
   } finally {
     actionID.value = null
   }
@@ -389,36 +445,38 @@ async function markPaid(item: FundRefundRequest) {
 
 async function loadSensitive(id: number) {
   try {
-    sensitivePayout.value = await getRefundSensitivePayout(id)
-  } catch {
-    showMessage('error', t('admin.funds.messages.sensitiveFailed'))
+    sensitivePayout.value = await fundStepUp.run(() => getRefundSensitivePayout(id))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.sensitiveFailed'))
   }
 }
 
 async function submitGift() {
+  if (!validateCreditForm(giftForm.user_id, giftForm.amount, giftForm.reason)) return
   loading.value = true
   try {
-    await grantGift({ user_id: Number(giftForm.user_id), amount: giftForm.amount, reason: giftForm.reason })
+    await fundStepUp.run(() => grantGift({ user_id: Number(giftForm.user_id), amount: giftForm.amount, reason: giftForm.reason }))
     giftForm.amount = ''
     giftForm.reason = ''
     showMessage('success', t('admin.funds.messages.giftGranted'))
-  } catch {
-    showMessage('error', t('admin.funds.messages.grantFailed'))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.grantFailed'))
   } finally {
     loading.value = false
   }
 }
 
 async function submitOfflineRecharge() {
+  if (!validateCreditForm(offlineForm.user_id, offlineForm.amount, offlineForm.reason)) return
   loading.value = true
   try {
-    await grantOfflineRecharge({ user_id: Number(offlineForm.user_id), amount: offlineForm.amount, external_ref: offlineForm.external_ref, reason: offlineForm.reason })
+    await fundStepUp.run(() => grantOfflineRecharge({ user_id: Number(offlineForm.user_id), amount: offlineForm.amount, external_ref: offlineForm.external_ref, reason: offlineForm.reason }))
     offlineForm.amount = ''
     offlineForm.external_ref = ''
     offlineForm.reason = ''
     showMessage('success', t('admin.funds.messages.offlineGranted'))
-  } catch {
-    showMessage('error', t('admin.funds.messages.grantFailed'))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.grantFailed'))
   } finally {
     loading.value = false
   }
@@ -437,15 +495,20 @@ async function loadClassification() {
 }
 
 async function executeClassification() {
+  if (!selectedTransactions.value.length) {
+    showMessage('error', t('admin.funds.validation.classificationSelectionRequired'))
+    return
+  }
+  if (!validateReason(classificationReason.value, 10, 500)) return
   loading.value = true
   try {
-    const result = await executeSignupGift30({ transaction_ids: selectedTransactions.value, reason: classificationReason.value })
+    const result = await fundStepUp.run(() => executeSignupGift30({ transaction_ids: selectedTransactions.value, reason: classificationReason.value }))
     showMessage('success', t('admin.funds.messages.classified', { count: result.affected_count }))
     selectedTransactions.value = []
     classificationReason.value = ''
     await loadClassification()
-  } catch {
-    showMessage('error', t('admin.funds.messages.classificationFailed'))
+  } catch (error) {
+    handleFundActionError(error, t('admin.funds.messages.classificationFailed'))
   } finally {
     loading.value = false
   }
