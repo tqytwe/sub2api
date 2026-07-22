@@ -11,6 +11,12 @@ const messages = {
     title: 'Batch Image Generation',
     description: 'Submit multiple prompts in one job and download the generated images when complete'
   },
+  marketplace: {
+    title: 'AI Model Marketplace',
+    status: {
+      unavailable: 'The marketplace is not available yet'
+    }
+  },
   // Home Page
   home: {
     viewOnGithub: 'View on GitHub',

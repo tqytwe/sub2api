@@ -378,6 +378,7 @@ type PublicSettings struct {
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+	MarketplaceEnabled       bool `json:"marketplace_enabled"`
 
 	PublicModelsEnabled  bool `json:"public_models_enabled"`
 	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`

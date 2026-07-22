@@ -3,23 +3,28 @@
 package service
 
 import (
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
 func TestMarketplaceFeatureDisabledError_StableReason(t *testing.T) {
-	syntheticAdapter := func(runtime MarketplaceRuntime) error {
-		if !runtime.Enabled {
-			return ErrMarketplaceFeatureDisabled
-		}
-		return nil
-	}
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Request = httptest.NewRequest(http.MethodGet, "/api/v1/marketplace/contracts", nil)
 
-	err := syntheticAdapter(MarketplaceRuntime{})
+	require.True(t, response.ErrorFrom(ctx, fmt.Errorf("marketplace gate: %w", ErrMarketplaceFeatureDisabled)))
+	require.Equal(t, http.StatusNotFound, recorder.Code)
 
-	require.Equal(t, http.StatusNotFound, infraerrors.Code(err))
-	require.Equal(t, "MARKETPLACE_FEATURE_DISABLED", infraerrors.Reason(err))
+	var body response.Response
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+	require.Equal(t, http.StatusNotFound, body.Code)
+	require.Equal(t, "MARKETPLACE_FEATURE_DISABLED", body.Reason)
 }

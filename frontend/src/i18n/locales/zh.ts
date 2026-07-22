@@ -11,6 +11,12 @@ const messages = {
     title: '图片批量生成',
     description: '一次提交多条提示词，任务完成后可统一下载图片结果'
   },
+  marketplace: {
+    title: 'AI 模型商城',
+    status: {
+      unavailable: '商城功能暂未开放'
+    }
+  },
   // Home Page
   home: {
     viewOnGithub: '在 GitHub 上查看',

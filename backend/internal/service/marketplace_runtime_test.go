@@ -61,3 +61,11 @@ func TestMarketplaceRuntime_ExplicitBoolean(t *testing.T) {
 		require.Equal(t, tt.want, svc.GetMarketplaceRuntime(context.Background()).Enabled)
 	}
 }
+
+func TestSettingService_InitializeDefaultSettings_DefaultsMarketplaceDisabled(t *testing.T) {
+	repo := &forwardedIPMigrationRepoStub{values: map[string]string{}}
+	svc := NewSettingService(repo, &config.Config{})
+
+	require.NoError(t, svc.InitializeDefaultSettings(context.Background()))
+	require.Equal(t, "false", repo.values[SettingKeyMarketplaceEnabled])
+}

@@ -205,9 +205,9 @@ check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/servic
 
 check_file "FORK-MARKETPLACE-013" "marketplace fail-closed runtime" "backend/internal/service/marketplace_runtime.go"
 check_file "FORK-MARKETPLACE-013" "marketplace stable errors" "backend/internal/service/marketplace_errors.go"
-check_contains "FORK-MARKETPLACE-013" "marketplace setting key" "backend/internal/service/domain_constants.go" 'SettingKeyMarketplaceEnabled = "marketplace_enabled"'
+check_regex "FORK-MARKETPLACE-013" "marketplace setting key" "backend/internal/service/domain_constants.go" '^[[:space:]]*SettingKeyMarketplaceEnabled[[:space:]]*=[[:space:]]*"marketplace_enabled"'
 check_contains "FORK-MARKETPLACE-013" "marketplace default is disabled" "backend/internal/service/setting_parse.go" 'SettingKeyMarketplaceEnabled: "false"'
-check_contains "FORK-MARKETPLACE-013" "public settings reads marketplace key" "backend/internal/service/setting_public.go" "SettingKeyMarketplaceEnabled"
+check_contains "FORK-MARKETPLACE-013" "public settings bulk reads marketplace key" "backend/internal/service/setting_public.go" "SettingKeyMarketplaceEnabled,"
 check_contains "FORK-MARKETPLACE-013" "public DTO exposes marketplace flag" "backend/internal/handler/dto/settings.go" 'MarketplaceEnabled'
 check_contains "FORK-MARKETPLACE-013" "public handler maps marketplace value" "backend/internal/handler/setting_handler.go" 'MarketplaceEnabled:'
 check_contains "FORK-MARKETPLACE-013" "frontend public settings type" "frontend/src/types/index.ts" 'marketplace_enabled: boolean'
@@ -216,7 +216,8 @@ check_contains "FORK-MARKETPLACE-013" "Chinese marketplace locale" "frontend/src
 check_contains "FORK-MARKETPLACE-013" "English marketplace locale" "frontend/src/i18n/locales/en.ts" "marketplace:"
 check_not_contains "FORK-MARKETPLACE-013" "generic settings update cannot write marketplace flag" "backend/internal/service/setting_update.go" "SettingKeyMarketplaceEnabled"
 check_not_contains "FORK-MARKETPLACE-013" "admin settings DTO excludes marketplace flag" "frontend/src/api/admin/settings.ts" "marketplace_enabled"
-check_not_contains "FORK-MARKETPLACE-013" "global domain roles exclude merchant" "backend/internal/domain/constants.go" "RoleMerchant"
+check_file "FORK-MARKETPLACE-013" "marketplace scope contract tests" "backend/internal/service/marketplace_scope_contract_test.go"
+check_contains "FORK-MARKETPLACE-013" "global role allowlist is exact" "backend/internal/service/admin_user.go" 'supportedGlobalUserRoles = [2]string{RoleUser, RoleAdmin}'
 check_not_contains "FORK-MARKETPLACE-013" "user schema does not default to merchant" "backend/ent/schema/user.go" 'Default("merchant")'
 
 MIGRATIONS=(
@@ -314,7 +315,7 @@ run_check "FORK-PLAY-003" "daily arena reward summary tests" \
 run_check "FORK-IMAGE-011" "Images async, URL and Batch runtime unit tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service ./internal/handler -run 'TestImageTask|TestImageRuntimesHealthGatewayAsync|TestAsyncImage|TestOpenAIImageResultServiceRewriteAndEnforceAPIKeyOwnership|TestOpenAIGatewayServiceForwardImages_(APIKeyStreamingURLStoresCompletedImage|OAuthStreamingTransformsEvents|StreamURLRequiresStorageBeforeUpstream)|TestBatchImage(RuntimeState|WorkerRuntime|ProviderRegistryFromConfig|PublicService_Submit)'"
 run_check "FORK-MARKETPLACE-013" "marketplace runtime, settings and error unit tests" \
-  bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/handler -run '^(TestMarketplace|TestSettingService_GetPublicSettings.*MarketplaceEnabled|TestSettingHandler_GetPublicSettings_ExposesMarketplaceEnabled)' && go test -count=1 ./internal/handler/dto -run '^TestPublicSettingsInjectionPayload_(ContainsMarketplaceEnabled|SchemaDoesNotDrift)$'"
+  bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/handler -run '^(TestMarketplace|TestSettingService_(GetPublicSettings.*Marketplace|InitializeDefaultSettings_DefaultsMarketplaceDisabled)|TestSettingHandler_GetPublicSettings_.*Marketplace)' && go test -count=1 ./internal/handler/dto -run '^TestPublicSettingsInjectionPayload_(ContainsMarketplaceEnabled|SchemaDoesNotDrift)$'"
 
 echo
 echo "Running protected frontend behaviors..."
