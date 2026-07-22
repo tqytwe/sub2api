@@ -104,13 +104,24 @@ func (s *adminServiceImpl) GetUserIncludeDeleted(ctx context.Context, id int64) 
 	return s.userRepo.GetByIDIncludeDeleted(ctx, id)
 }
 
+var supportedGlobalUserRoles = [2]string{RoleUser, RoleAdmin}
+
+func isSupportedGlobalUserRole(role string) bool {
+	for _, supported := range supportedGlobalUserRoles {
+		if role == supported {
+			return true
+		}
+	}
+	return false
+}
+
 // normalizeUserRole 校验并归一化角色输入。
 // 空字符串返回 fallback(未提供时的默认角色);非法值返回错误。
 func normalizeUserRole(role, fallback string) (string, error) {
 	if role == "" {
 		return fallback, nil
 	}
-	if role != RoleAdmin && role != RoleUser {
+	if !isSupportedGlobalUserRole(role) {
 		return "", fmt.Errorf("invalid role: %q (must be %s or %s)", role, RoleAdmin, RoleUser)
 	}
 	return role, nil

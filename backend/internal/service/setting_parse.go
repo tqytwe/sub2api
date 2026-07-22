@@ -191,6 +191,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		// Available channels feature (default disabled; opt-in)
 		SettingKeyAvailableChannelsEnabled: "false",
 
+		// AI model marketplace foundation (default disabled; read-only in CP1A)
+		SettingKeyMarketplaceEnabled: "false",
+
 		// Affiliate (邀请返利) feature (default disabled; opt-in)
 		SettingKeyAffiliateEnabled:              "false",
 		SettingKeyAffiliateAdminRechargeEnabled: strconv.FormatBool(AdminRechargeRebateEnabledDefault),

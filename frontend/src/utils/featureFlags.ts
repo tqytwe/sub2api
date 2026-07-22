@@ -104,6 +104,11 @@ export const FeatureFlags = {
     mode: 'opt-in',
     label: 'Available Channels',
   }),
+  marketplace: defineFlag({
+    key: 'marketplace_enabled',
+    mode: 'opt-in',
+    label: 'AI Model Marketplace',
+  }),
   payment: defineFlag({
     key: 'payment_enabled',
     mode: 'opt-out',

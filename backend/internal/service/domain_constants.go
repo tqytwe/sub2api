@@ -380,6 +380,7 @@ const (
 	// user-facing aggregate view. When false: user endpoint returns an empty list and the
 	// sidebar entry is hidden. Defaults to false (opt-in feature).
 	SettingKeyAvailableChannelsEnabled  = "available_channels_enabled"
+	SettingKeyMarketplaceEnabled        = "marketplace_enabled"
 	SettingKeyPublicModelsEnabled       = "public_models_enabled"
 	SettingKeyPublicModelRateMultiplier = "public_model_rate_multiplier"
 	SettingKeyPlayCheckinEnabled        = "play_checkin_enabled"

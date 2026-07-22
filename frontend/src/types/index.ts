@@ -261,6 +261,7 @@ export interface PublicSettings {
   channel_monitor_enabled: boolean
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
+  marketplace_enabled: boolean
   public_models_enabled: boolean
   play_checkin_enabled: boolean
   play_arena_enabled: boolean

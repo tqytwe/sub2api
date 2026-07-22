@@ -5,6 +5,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -16,7 +17,9 @@ import (
 )
 
 type settingHandlerPublicRepoStub struct {
-	values map[string]string
+	values            map[string]string
+	getMultipleErr    error
+	getMultipleErrKey map[string]error
 }
 
 func (s *settingHandlerPublicRepoStub) Get(ctx context.Context, key string) (*service.Setting, error) {
@@ -35,8 +38,14 @@ func (s *settingHandlerPublicRepoStub) Set(ctx context.Context, key, value strin
 }
 
 func (s *settingHandlerPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	if s.getMultipleErr != nil {
+		return nil, s.getMultipleErr
+	}
 	out := make(map[string]string, len(keys))
 	for _, key := range keys {
+		if err := s.getMultipleErrKey[key]; err != nil {
+			return nil, err
+		}
 		if value, ok := s.values[key]; ok {
 			out[key] = value
 		}
@@ -84,6 +93,62 @@ func TestSettingHandler_GetPublicSettings_ExposesForceEmailOnThirdPartySignup(t 
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
 	require.Equal(t, 0, resp.Code)
 	require.True(t, resp.Data.ForceEmailOnThirdPartySignup)
+}
+
+func TestSettingHandler_GetPublicSettings_ExposesMarketplaceEnabled(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "false", raw: "false", want: false},
+		{name: "true", raw: "true", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{
+				values: map[string]string{service.SettingKeyMarketplaceEnabled: tt.raw},
+			}, &config.Config{}), "test-version")
+
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+
+			h.GetPublicSettings(c)
+
+			require.Equal(t, http.StatusOK, recorder.Code)
+			require.Equal(t, "no-store", recorder.Header().Get("Cache-Control"))
+
+			var resp struct {
+				Code int `json:"code"`
+				Data struct {
+					MarketplaceEnabled bool `json:"marketplace_enabled"`
+				} `json:"data"`
+			}
+			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
+			require.Equal(t, 0, resp.Code)
+			require.Equal(t, tt.want, resp.Data.MarketplaceEnabled)
+		})
+	}
+}
+
+func TestSettingHandler_GetPublicSettings_MarketplaceBulkReadErrorReturnsServerError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{
+		values:         map[string]string{},
+		getMultipleErr: errors.New("database unavailable"),
+	}, &config.Config{}), "test-version")
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+
+	h.GetPublicSettings(c)
+
+	require.Equal(t, http.StatusInternalServerError, recorder.Code)
 }
 
 func TestSettingHandler_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
