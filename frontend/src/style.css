@@ -716,7 +716,8 @@
   }
 
   .skeleton {
-    @apply animate-pulse rounded bg-gray-200 dark:bg-dark-700;
+    /* design-governance-allow: continuous-motion - Skeleton pulse is motion-safe and reduced-motion users get a static placeholder. */
+    @apply motion-safe:animate-pulse motion-reduce:animate-none rounded bg-gray-200 dark:bg-dark-700;
   }
 
   /* ============ 分隔线 ============ */

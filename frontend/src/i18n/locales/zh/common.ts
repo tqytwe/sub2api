@@ -46,6 +46,8 @@ export default {
     inactive: '禁用',
     more: '更多',
     close: '关闭',
+    clearSearch: '清空搜索',
+    toggleSetting: '切换设置',
     toggleMenu: '切换菜单',
     userMenu: '用户菜单',
     pageNotFound: '页面不存在',
