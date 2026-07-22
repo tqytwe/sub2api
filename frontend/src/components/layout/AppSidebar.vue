@@ -911,7 +911,6 @@ const adminNavItems = computed((): NavItem[] => {
       hideInSimpleMode: true,
       expandOnly: true,
       children: [
-        { path: '/admin/orders', label: t('nav.rechargeOrders'), icon: OrderIcon, featureFlag: flagAdminPayment },
         { path: '/admin/funds/refunds', label: t('nav.refundRequests'), icon: CreditCardIcon },
         { path: '/admin/withdrawals', label: t('nav.rewardWithdrawals'), icon: CreditCardIcon },
         { path: '/admin/funds/grants', label: t('nav.giftBalance'), icon: GiftIcon },
@@ -973,7 +972,7 @@ const adminNavItems = computed((): NavItem[] => {
       featureFlag: flagAdminPayment,
       children: [
         { path: '/admin/orders/dashboard', label: t('nav.paymentDashboard'), icon: ChartIcon },
-        { path: '/admin/orders', label: t('nav.orderManagement'), icon: OrderIcon },
+        { path: '/admin/orders', label: t('nav.rechargeOrders'), icon: OrderIcon },
         { path: '/admin/orders/plans', label: t('nav.paymentPlans'), icon: CreditCardIcon },
       ],
     },

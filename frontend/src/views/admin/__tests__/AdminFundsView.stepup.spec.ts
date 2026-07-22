@@ -76,7 +76,7 @@ vi.mock('@/composables/useStepUp', () => ({
 const messages: Record<string, string> = {
   'admin.funds.title': '资金管理',
   'admin.funds.description': '统一处理充值退回、线下充值、赠送余额和历史赠金复核。',
-  'admin.funds.tabs.refunds': '退款申请',
+  'admin.funds.tabs.refunds': '余额退回申请',
   'admin.funds.tabs.grants': '赠送与线下充值',
   'admin.funds.tabs.classification': '历史赠金复核',
   'admin.funds.grants.giftTitle': '赠送余额',
