@@ -8,7 +8,7 @@
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
         <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
           <button v-for="tab in tabs" :key="tab.key"
-            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-all"
+            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
             :class="activeTab === tab.key ? 'bg-white text-gray-900 shadow dark:bg-dark-700 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
             @click="activeTab = tab.key">{{ tab.label }}</button>
         </div>
@@ -149,19 +149,19 @@
                       {{ planPeakRateLabel(selectedPlan) }}
                     </div>
                   </div>
-                  <div v-if="selectedPlan.daily_limit_usd != null">
+                  <div v-if="planLimitIsPositive(selectedPlan.daily_limit_usd)">
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.dailyLimit') }}</span>
                     <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${{ selectedPlan.daily_limit_usd }}</div>
                   </div>
-                  <div v-if="selectedPlan.weekly_limit_usd != null">
+                  <div v-if="planLimitIsPositive(selectedPlan.weekly_limit_usd)">
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.weeklyLimit') }}</span>
                     <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${{ selectedPlan.weekly_limit_usd }}</div>
                   </div>
-                  <div v-if="selectedPlan.monthly_limit_usd != null">
+                  <div v-if="planLimitIsPositive(selectedPlan.monthly_limit_usd)">
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.monthlyLimit') }}</span>
                     <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">${{ selectedPlan.monthly_limit_usd }}</div>
                   </div>
-                  <div v-if="selectedPlan.daily_limit_usd == null && selectedPlan.weekly_limit_usd == null && selectedPlan.monthly_limit_usd == null">
+                  <div v-if="!planHasAnyPositiveLimit(selectedPlan)">
                     <span class="text-xs text-gray-400 dark:text-gray-500">{{ t('payment.planCard.quota') }}</span>
                     <div class="text-lg font-semibold text-gray-800 dark:text-gray-200">{{ t('payment.planCard.unlimited') }}</div>
                   </div>
@@ -209,52 +209,42 @@
                 <div class="sticky top-3 z-20 rounded-lg border border-gray-200 bg-white/95 p-3 shadow-sm backdrop-blur dark:border-dark-700 dark:bg-dark-900/95">
                   <div class="flex gap-2 overflow-x-auto pb-1">
                     <button
-                      v-for="option in planPlatformOptions"
-                      :key="option.value"
+                      v-for="option in storefrontShelfOptions"
+                      :key="option.id"
                       type="button"
-                      :class="shelfPlatformButtonClass(option.value)"
-                      @click="selectPlanShelfPlatform(option.value)"
-                    >
-                      <span>{{ option.label }}</span>
-                      <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] dark:bg-white/10">{{ option.count }}</span>
-                    </button>
-                  </div>
-                  <div class="mt-2 flex gap-2 overflow-x-auto pb-1">
-                    <button
-                      v-for="option in planCategoryOptions"
-                      :key="option.value"
-                      type="button"
-                      :class="shelfCategoryButtonClass(option.value)"
-                      @click="selectPlanShelfCategory(option.value)"
+                      :class="storefrontShelfButtonClass(option.id)"
+                      @click="selectStorefrontShelf(option.id)"
                     >
                       <span>{{ option.label }}</span>
                       <span class="rounded-full bg-black/5 px-1.5 py-0.5 text-[10px] dark:bg-white/10">{{ option.count }}</span>
                     </button>
                   </div>
                   <div class="mt-2 flex items-center justify-between gap-3 text-xs text-gray-500 dark:text-dark-400">
-                    <span>{{ planShelfSummary }}</span>
-                    <button
-                      v-if="selectedPlanPlatform !== 'featured' || selectedPlanCategory !== 'all'"
-                      type="button"
-                      class="font-medium text-primary-600 hover:text-primary-700 dark:text-primary-400"
-                      @click="resetPlanShelfFilters"
-                    >
-                      {{ t('payment.planShelf.reset') }}
-                    </button>
+                    <span>{{ storefrontShelfSummary }}</span>
+                    <span v-if="currentStorefrontShelfTags.length > 0" class="flex flex-wrap justify-end gap-1">
+                      <span
+                        v-for="tag in currentStorefrontShelfTags"
+                        :key="tag.id"
+                        :class="['rounded px-1.5 py-0.5 text-[10px] font-semibold', storefrontTagBadgeClass(tag.tone)]"
+                      >
+                        {{ tag.label }}
+                      </span>
+                    </span>
                   </div>
                 </div>
-                <div v-if="filteredShelfPlans.length === 0" class="card py-16 text-center">
+                <div v-if="currentStorefrontShelfPlans.length === 0" class="card py-16 text-center">
                   <Icon name="gift" size="xl" class="mx-auto mb-3 text-gray-300 dark:text-dark-600" />
-                  <p class="text-gray-500 dark:text-gray-400">{{ planShelfEmptyText }}</p>
+                  <p class="text-gray-500 dark:text-gray-400">{{ storefrontShelfEmptyText }}</p>
                 </div>
-                <TransitionGroup v-else name="plan-shelf" tag="div" :class="planGridClass">
-                  <SubscriptionPlanCard v-for="plan in displayedShelfPlans" :key="plan.id" :plan="plan" :active-subscriptions="activeSubscriptions" @details="openPlanDetails" @select="selectPlan" />
-                </TransitionGroup>
-                <div v-if="canExpandShelfPlans" class="flex justify-center">
-                  <button type="button" class="btn btn-secondary" @click="plansExpanded = true">
-                    {{ t('payment.planShelf.expandAll', { count: filteredShelfPlans.length }) }}
-                  </button>
-                </div>
+                <SubscriptionPlanDecisionShelf
+                  v-else
+                  :plans="currentStorefrontShelfPlans"
+                  :tags="currentStorefrontShelfTags"
+                  :default-plan-id="currentStorefrontShelf?.default_plan_id"
+                  :active-subscriptions="activeSubscriptions"
+                  @details="openPlanDetails"
+                  @select="selectPlan"
+                />
               </template>
               <!-- Active subscriptions (compact, below plan list) -->
               <div v-if="activeSubscriptions.length > 0">
@@ -305,7 +295,7 @@
           <div class="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-dark-700 dark:bg-dark-900">
             <!-- Close button -->
             <button class="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-gray-200" @click="closeRenewalModal">
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              <Icon name="x" size="md" :stroke-width="2" />
             </button>
             <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">{{ t('payment.selectPlan') }}</h3>
             <div class="space-y-4">
@@ -321,7 +311,7 @@
         <div v-if="selectedPlanDetails" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" @click.self="closePlanDetails">
           <div class="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-900">
             <button class="absolute right-4 top-4 z-10 rounded-lg bg-white/90 p-1.5 text-gray-500 shadow transition-colors hover:bg-gray-100 hover:text-gray-800 dark:bg-dark-800/90 dark:text-gray-300 dark:hover:bg-dark-700" @click="closePlanDetails">
-              <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              <Icon name="x" size="md" :stroke-width="2" />
             </button>
             <div class="grid min-h-0 flex-1 overflow-auto md:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
               <div class="min-h-[220px] bg-gray-100 dark:bg-dark-800">
@@ -373,11 +363,11 @@
                     </div>
                     <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
                       <span class="text-xs text-gray-400 dark:text-dark-400">{{ t('payment.planCard.dailyLimit') }}</span>
-                      <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ selectedPlanDetails.daily_limit_usd != null ? '$' + selectedPlanDetails.daily_limit_usd : t('payment.planCard.unlimited') }}</div>
+                      <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ planLimitLabel(selectedPlanDetails.daily_limit_usd) }}</div>
                     </div>
                     <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
                       <span class="text-xs text-gray-400 dark:text-dark-400">{{ t('payment.planCard.monthlyLimit') }}</span>
-                      <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ selectedPlanDetails.monthly_limit_usd != null ? '$' + selectedPlanDetails.monthly_limit_usd : t('payment.planCard.unlimited') }}</div>
+                      <div class="mt-1 font-semibold text-gray-900 dark:text-white">{{ planLimitLabel(selectedPlanDetails.monthly_limit_usd) }}</div>
                     </div>
                   </div>
                   <div v-if="selectedPlanDetails.features.length > 0">
@@ -422,7 +412,7 @@ import { paymentAPI } from '@/api/payment'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
-import type { SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import type { PaymentStorefrontConfig, PaymentStorefrontShelf, PaymentStorefrontTag, SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -440,6 +430,7 @@ import {
 } from '@/components/payment/paymentFlow'
 import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, platformTextClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
+import SubscriptionPlanDecisionShelf from '@/components/payment/SubscriptionPlanDecisionShelf.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -688,29 +679,10 @@ const creditedAmount = computed(() =>
   roundUSD(baseCreditedAmount.value * (1 + (vipBonusPct.value + campaignBonusPct.value) / 100))
 )
 
-const PLAN_SHELF_VISIBLE_LIMIT = 6
-type PlanShelfPlatform = 'featured' | 'openai' | 'anthropic' | 'gemini' | 'grok' | 'image' | 'team' | 'all'
 type PlanShelfCategory = 'all' | 'daily' | 'credit' | 'pro' | 'team' | 'enterprise' | 'image'
 
-const selectedPlanPlatform = ref<PlanShelfPlatform>('featured')
-const selectedPlanCategory = ref<PlanShelfCategory>('all')
-const plansExpanded = ref(false)
-
-const platformShelfValues: PlanShelfPlatform[] = ['featured', 'openai', 'anthropic', 'gemini', 'grok', 'image', 'team', 'all']
+const selectedStorefrontShelfID = ref('')
 const categoryShelfValues: PlanShelfCategory[] = ['all', 'daily', 'credit', 'pro', 'team', 'enterprise', 'image']
-
-function normalizePlanShelfPlatform(value: unknown): PlanShelfPlatform {
-  const raw = Array.isArray(value) ? value[0] : value
-  const normalized = String(raw || '').trim().toLowerCase()
-  if (normalized === 'claude') return 'anthropic'
-  return platformShelfValues.includes(normalized as PlanShelfPlatform) ? normalized as PlanShelfPlatform : 'featured'
-}
-
-function normalizePlanShelfCategory(value: unknown): PlanShelfCategory {
-  const raw = Array.isArray(value) ? value[0] : value
-  const normalized = String(raw || '').trim().toLowerCase()
-  return categoryShelfValues.includes(normalized as PlanShelfCategory) ? normalized as PlanShelfCategory : 'all'
-}
 
 function inferPlanCategory(plan: SubscriptionPlan): PlanShelfCategory {
   const name = `${plan.product_name || ''} ${plan.name || ''}`.toLowerCase()
@@ -745,29 +717,18 @@ function planCategoryLabel(category: string): string {
   }
 }
 
-function planShelfPlatformLabel(platform: PlanShelfPlatform): string {
-  switch (platform) {
-    case 'featured': return t('payment.planShelf.platforms.featured')
-    case 'anthropic': return t('payment.planShelf.platforms.anthropic')
-    case 'image': return t('payment.planShelf.platforms.image')
-    case 'team': return t('payment.planShelf.platforms.team')
-    case 'all': return t('payment.planShelf.platforms.all')
-    default: return platformLabel(platform)
-  }
+function planLimitIsPositive(value: number | null | undefined): boolean {
+  return typeof value === 'number' && value > 0
 }
 
-function planMatchesShelfPlatform(plan: SubscriptionPlan, platform: PlanShelfPlatform): boolean {
-  if (platform === 'all') return true
-  if (platform === 'featured') return plan.storefront_featured === true
-  const displayPlatform = planDisplayPlatform(plan)
-  const category = planDisplayCategory(plan)
-  if (platform === 'team') return displayPlatform === 'team' || category === 'team' || category === 'enterprise'
-  if (platform === 'image') return displayPlatform === 'image' || category === 'image'
-  return displayPlatform === platform
+function planHasAnyPositiveLimit(plan: SubscriptionPlan): boolean {
+  return planLimitIsPositive(plan.daily_limit_usd)
+    || planLimitIsPositive(plan.weekly_limit_usd)
+    || planLimitIsPositive(plan.monthly_limit_usd)
 }
 
-function planMatchesShelfCategory(plan: SubscriptionPlan, category: PlanShelfCategory): boolean {
-  return category === 'all' || planDisplayCategory(plan) === category
+function planLimitLabel(value: number | null | undefined): string {
+  return planLimitIsPositive(value) ? `$${value}` : t('payment.planCard.unlimited')
 }
 
 const sortedShelfPlans = computed(() => [...checkout.value.plans].sort((a, b) => {
@@ -778,130 +739,186 @@ const sortedShelfPlans = computed(() => [...checkout.value.plans].sort((a, b) =>
   return bySort !== 0 ? bySort : a.id - b.id
 }))
 
-const featuredShelfPlans = computed(() => sortedShelfPlans.value.filter(plan => plan.storefront_featured === true))
+function defaultPlanIDForPlans(plans: SubscriptionPlan[]): number | null {
+  if (plans.length === 0) return null
+  const monthlyPlan = [...plans]
+    .filter(plan => planDisplayCategory(plan) !== 'daily' && plan.validity_days > 1)
+    .sort((a, b) => Math.abs(a.price - 30) - Math.abs(b.price - 30) || (a.sort_order || 0) - (b.sort_order || 0) || a.id - b.id)[0]
+  return (monthlyPlan || plans[0])?.id ?? null
+}
 
-const currentPlatformBasePlans = computed(() => {
-  if (selectedPlanPlatform.value === 'featured' && featuredShelfPlans.value.length === 0) {
-    return sortedShelfPlans.value
+function legacyStorefrontConfig(): PaymentStorefrontConfig {
+  const shelves: PaymentStorefrontShelf[] = []
+  const featuredPlans = sortedShelfPlans.value.filter(plan => plan.storefront_featured)
+  if (featuredPlans.length > 0) {
+    shelves.push({
+      id: 'featured',
+      label: t('payment.planShelf.defaults.featured'),
+      enabled: true,
+      sort_order: shelves.length + 1,
+      plan_ids: featuredPlans.map(plan => plan.id),
+      default_plan_id: defaultPlanIDForPlans(featuredPlans),
+    })
   }
-  if (selectedPlanPlatform.value === 'featured') {
-    return featuredShelfPlans.value
+  if (sortedShelfPlans.value.length > 0) {
+    shelves.push({
+      id: 'all',
+      label: t('payment.planShelf.defaults.all'),
+      enabled: true,
+      sort_order: shelves.length + 1,
+      plan_ids: sortedShelfPlans.value.map(plan => plan.id),
+      default_plan_id: defaultPlanIDForPlans(sortedShelfPlans.value),
+    })
   }
-  return sortedShelfPlans.value.filter(plan => planMatchesShelfPlatform(plan, selectedPlanPlatform.value))
-})
+  for (const category of ['daily', 'pro', 'credit', 'image', 'team', 'enterprise'] as PlanShelfCategory[]) {
+    const categoryPlans = sortedShelfPlans.value.filter(plan => planDisplayCategory(plan) === category)
+    if (categoryPlans.length === 0) continue
+    shelves.push({
+      id: category,
+      label: planCategoryLabel(category),
+      enabled: true,
+      sort_order: shelves.length + 1,
+      plan_ids: categoryPlans.map(plan => plan.id),
+      default_plan_id: defaultPlanIDForPlans(categoryPlans),
+    })
+  }
 
-const filteredShelfPlans = computed(() =>
-  currentPlatformBasePlans.value.filter(plan => planMatchesShelfCategory(plan, selectedPlanCategory.value))
-)
+  const featuredTagPlanIDs = featuredPlans.map(plan => plan.id)
+  const tags: PaymentStorefrontTag[] = featuredTagPlanIDs.length > 0
+    ? [{
+        id: 'featured',
+        label: t('payment.planCard.featured'),
+        tone: 'primary',
+        enabled: true,
+        sort_order: 1,
+        plan_ids: featuredTagPlanIDs,
+      }]
+    : []
+  const badgePlanIDs = new Map<string, number[]>()
+  for (const plan of sortedShelfPlans.value) {
+    const badge = plan.storefront_badge?.trim()
+    if (!badge) continue
+    badgePlanIDs.set(badge, [...(badgePlanIDs.get(badge) || []), plan.id])
+  }
+  Array.from(badgePlanIDs.entries()).sort(([a], [b]) => a.localeCompare(b)).forEach(([label, planIds]) => {
+    tags.push({
+      id: `badge-${tags.length + 1}`,
+      label,
+      tone: 'neutral',
+      enabled: true,
+      sort_order: tags.length + 1,
+      plan_ids: planIds,
+    })
+  })
+  return { shelves, tags }
+}
 
-const displayedShelfPlans = computed(() =>
-  plansExpanded.value ? filteredShelfPlans.value : filteredShelfPlans.value.slice(0, PLAN_SHELF_VISIBLE_LIMIT)
-)
+const storefrontConfig = computed<PaymentStorefrontConfig>(() => checkout.value.storefront_config || legacyStorefrontConfig())
 
-const canExpandShelfPlans = computed(() =>
-  !plansExpanded.value && filteredShelfPlans.value.length > PLAN_SHELF_VISIBLE_LIMIT
-)
+function plansForShelf(shelf: PaymentStorefrontShelf): SubscriptionPlan[] {
+  const idSet = new Set((shelf.plan_ids || []).map(Number))
+  return sortedShelfPlans.value.filter(plan => idSet.has(plan.id))
+}
 
-const planPlatformOptions = computed(() => platformShelfValues.map(value => {
-  const count = value === 'featured' && featuredShelfPlans.value.length === 0
-    ? sortedShelfPlans.value.length
-    : sortedShelfPlans.value.filter(plan => planMatchesShelfPlatform(plan, value)).length
-  return { value, label: planShelfPlatformLabel(value), count }
-}))
+const configuredStorefrontShelves = computed(() => (storefrontConfig.value.shelves || [])
+  .filter(shelf => shelf.enabled && plansForShelf(shelf).length > 0)
+  .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.label.localeCompare(b.label)))
 
-const planCategoryOptions = computed(() => categoryShelfValues.map(value => ({
-  value,
-  label: planCategoryLabel(value),
-  count: value === 'all'
-    ? currentPlatformBasePlans.value.length
-    : currentPlatformBasePlans.value.filter(plan => planMatchesShelfCategory(plan, value)).length,
+const storefrontShelves = computed(() => configuredStorefrontShelves.value.length > 0
+  ? configuredStorefrontShelves.value
+  : legacyStorefrontConfig().shelves)
+
+const storefrontShelfOptions = computed(() => storefrontShelves.value.map(shelf => ({
+  id: shelf.id,
+  label: shelf.label,
+  count: plansForShelf(shelf).length,
 })))
 
-const planShelfSummary = computed(() => {
-  const platform = planShelfPlatformLabel(selectedPlanPlatform.value)
-  const category = planCategoryLabel(selectedPlanCategory.value)
-  return t('payment.planShelf.summary', {
-    platform,
-    category,
-    count: filteredShelfPlans.value.length,
-    shown: displayedShelfPlans.value.length,
-  })
+const currentStorefrontShelf = computed(() =>
+  storefrontShelves.value.find(shelf => shelf.id === selectedStorefrontShelfID.value) || storefrontShelves.value[0] || null
+)
+
+const currentStorefrontShelfPlans = computed(() =>
+  currentStorefrontShelf.value ? plansForShelf(currentStorefrontShelf.value) : []
+)
+
+const currentStorefrontShelfTags = computed(() => {
+  const planIDs = new Set(currentStorefrontShelfPlans.value.map(plan => plan.id))
+  return (storefrontConfig.value.tags || [])
+    .filter(tag => tag.enabled && (tag.plan_ids || []).some(id => planIDs.has(Number(id))))
+    .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0) || a.label.localeCompare(b.label))
 })
 
-const planShelfEmptyText = computed(() => t('payment.planShelf.empty', {
-  platform: planShelfPlatformLabel(selectedPlanPlatform.value),
-  category: planCategoryLabel(selectedPlanCategory.value),
+const storefrontShelfSummary = computed(() => t('payment.planShelf.configSummary', {
+  shelf: currentStorefrontShelf.value?.label || '',
+  count: currentStorefrontShelfPlans.value.length,
 }))
 
-function shelfPlatformButtonClass(value: PlanShelfPlatform): string {
+const storefrontShelfEmptyText = computed(() => t('payment.planShelf.configEmpty', {
+  shelf: currentStorefrontShelf.value?.label || '',
+}))
+
+function storefrontShelfButtonClass(value: string): string {
   const base = 'inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-sm font-medium transition-colors'
-  if (selectedPlanPlatform.value !== value) {
+  if (selectedStorefrontShelfID.value !== value) {
     return `${base} border-gray-200 bg-white text-gray-600 hover:border-primary-300 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300 dark:hover:border-primary-500/60`
-  }
-  if (value !== 'featured' && value !== 'all') {
-    return `${base} ${platformBadgeClass(value)} shadow-sm`
   }
   return `${base} border-primary-500 bg-primary-50 text-primary-700 shadow-sm dark:border-primary-500/60 dark:bg-primary-500/10 dark:text-primary-300`
 }
 
-function shelfCategoryButtonClass(value: PlanShelfCategory): string {
-  const base = 'inline-flex h-8 shrink-0 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors'
-  return selectedPlanCategory.value === value
-    ? `${base} border-primary-500 bg-primary-50 text-primary-700 dark:border-primary-500/60 dark:bg-primary-500/10 dark:text-primary-300`
-    : `${base} border-gray-200 bg-white text-gray-500 hover:border-primary-300 hover:text-primary-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-400`
+function storefrontTagBadgeClass(tone: string | undefined): string {
+  switch ((tone || '').trim()) {
+    case 'primary': return 'bg-primary-100 text-primary-700 dark:bg-primary-500/15 dark:text-primary-300'
+    case 'success': return 'bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300'
+    case 'warning': return 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300'
+    case 'danger': return 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300'
+    case 'info': return 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300'
+    default: return 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300'
+  }
 }
 
-function selectPlanShelfPlatform(value: PlanShelfPlatform) {
-  if (selectedPlanPlatform.value === value) return
-  selectedPlanPlatform.value = value
-  plansExpanded.value = false
-}
-
-function selectPlanShelfCategory(value: PlanShelfCategory) {
-  if (selectedPlanCategory.value === value) return
-  selectedPlanCategory.value = value
-  plansExpanded.value = false
-}
-
-function resetPlanShelfFilters() {
-  selectedPlanPlatform.value = 'featured'
-  selectedPlanCategory.value = 'all'
-  plansExpanded.value = false
+function selectStorefrontShelf(value: string) {
+  if (selectedStorefrontShelfID.value === value) return
+  selectedStorefrontShelfID.value = value
 }
 
 function applyPlanShelfQuery() {
-  if (route.query.plan_platform || route.query.plan_category) {
+  if (route.query.plan_shelf || route.query.plan_platform || route.query.plan_category) {
     activeTab.value = 'subscription'
   }
-  selectedPlanPlatform.value = normalizePlanShelfPlatform(route.query.plan_platform)
-  selectedPlanCategory.value = normalizePlanShelfCategory(route.query.plan_category)
+  const raw = Array.isArray(route.query.plan_shelf) ? route.query.plan_shelf[0] : route.query.plan_shelf
+  selectedStorefrontShelfID.value = String(raw || '').trim()
 }
 
 function syncPlanShelfQuery() {
   const query = { ...route.query }
-  if (selectedPlanPlatform.value === 'featured') delete query.plan_platform
-  else query.plan_platform = selectedPlanPlatform.value
-  if (selectedPlanCategory.value === 'all') delete query.plan_category
-  else query.plan_category = selectedPlanCategory.value
+  delete query.plan_platform
+  delete query.plan_category
+  const firstShelfID = storefrontShelves.value[0]?.id || ''
+  if (!selectedStorefrontShelfID.value || selectedStorefrontShelfID.value === firstShelfID) delete query.plan_shelf
+  else query.plan_shelf = selectedStorefrontShelfID.value
 
-  const currentPlatform = Array.isArray(route.query.plan_platform) ? route.query.plan_platform[0] : route.query.plan_platform
-  const currentCategory = Array.isArray(route.query.plan_category) ? route.query.plan_category[0] : route.query.plan_category
-  const nextPlatform = selectedPlanPlatform.value === 'featured' ? undefined : selectedPlanPlatform.value
-  const nextCategory = selectedPlanCategory.value === 'all' ? undefined : selectedPlanCategory.value
-  if (currentPlatform === nextPlatform && currentCategory === nextCategory) return
+  const currentShelf = Array.isArray(route.query.plan_shelf) ? route.query.plan_shelf[0] : route.query.plan_shelf
+  const nextShelf = selectedStorefrontShelfID.value && selectedStorefrontShelfID.value !== firstShelfID
+    ? selectedStorefrontShelfID.value
+    : undefined
+  if (currentShelf === nextShelf && !route.query.plan_platform && !route.query.plan_category) return
 
   router.replace({ path: route.path, query }).catch(() => {})
 }
 
-watch([selectedPlanPlatform, selectedPlanCategory], () => {
-  syncPlanShelfQuery()
-})
+watch(storefrontShelfOptions, (options) => {
+  if (options.length === 0) {
+    selectedStorefrontShelfID.value = ''
+    return
+  }
+  if (!options.some(option => option.id === selectedStorefrontShelfID.value)) {
+    selectedStorefrontShelfID.value = options[0].id
+  }
+}, { immediate: true })
 
-// Adaptive grid: center single card, 2-col for 2 plans, 3-col for 3+
-const planGridClass = computed(() => {
-  const n = displayedShelfPlans.value.length
-  if (n <= 2) return 'grid grid-cols-1 gap-5 sm:grid-cols-2'
-  return 'grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3'
+watch(selectedStorefrontShelfID, () => {
+  syncPlanShelfQuery()
 })
 
 // Check if an amount fits a method's [min, max]. 0 = no limit.

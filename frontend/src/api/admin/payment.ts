@@ -9,7 +9,8 @@ import type {
   PaymentOrder,
   PaymentChannel,
   SubscriptionPlan,
-  ProviderInstance
+  ProviderInstance,
+  PaymentStorefrontConfig
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -167,6 +168,16 @@ export const adminPaymentAPI = {
   /** Delete a subscription plan */
   deletePlan(id: number) {
     return apiClient.delete(`/admin/payment/plans/${id}`)
+  },
+
+  /** Get storefront shelves and custom plan labels */
+  getStorefrontConfig() {
+    return apiClient.get<PaymentStorefrontConfig>('/admin/payment/storefront')
+  },
+
+  /** Update storefront shelves and custom plan labels */
+  updateStorefrontConfig(data: PaymentStorefrontConfig) {
+    return apiClient.put<PaymentStorefrontConfig>('/admin/payment/storefront', data)
   },
 
   // ==================== Provider Instances ====================

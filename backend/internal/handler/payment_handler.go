@@ -130,6 +130,11 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 
 	// Fetch plans with group info
 	plans, _ := h.configService.ListPlansForSale(ctx)
+	storefrontConfig, err := h.configService.GetPublicPaymentStorefrontConfig(ctx, plans)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 	groupInfo := h.configService.GetGroupInfoMap(ctx, plans)
 	planList := make([]checkoutPlan, 0, len(plans))
 	for _, p := range plans {
@@ -161,6 +166,7 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		BalanceRechargeMultiplier: cfg.BalanceRechargeMultiplier,
 		SubscriptionUSDToCNYRate:  cfg.SubscriptionUSDToCNYRate,
 		RechargeFeeRate:           cfg.RechargeFeeRate,
+		StorefrontConfig:          storefrontConfig,
 		HelpText:                  cfg.HelpText,
 		HelpImageURL:              cfg.HelpImageURL,
 		StripePublishableKey:      cfg.StripePublishableKey,
@@ -170,19 +176,20 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 }
 
 type checkoutInfoResponse struct {
-	Methods                   map[string]service.MethodLimits `json:"methods"`
-	GlobalMin                 float64                         `json:"global_min"`
-	GlobalMax                 float64                         `json:"global_max"`
-	Plans                     []checkoutPlan                  `json:"plans"`
-	BalanceDisabled           bool                            `json:"balance_disabled"`
-	BalanceRechargeMultiplier float64                         `json:"balance_recharge_multiplier"`
-	SubscriptionUSDToCNYRate  float64                         `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate           float64                         `json:"recharge_fee_rate"`
-	HelpText                  string                          `json:"help_text"`
-	HelpImageURL              string                          `json:"help_image_url"`
-	StripePublishableKey      string                          `json:"stripe_publishable_key"`
-	AlipayForceQRCode         bool                            `json:"alipay_force_qrcode"`
-	RechargeQuote             *service.PaymentRechargeQuote   `json:"recharge_quote,omitempty"`
+	Methods                   map[string]service.MethodLimits  `json:"methods"`
+	GlobalMin                 float64                          `json:"global_min"`
+	GlobalMax                 float64                          `json:"global_max"`
+	Plans                     []checkoutPlan                   `json:"plans"`
+	BalanceDisabled           bool                             `json:"balance_disabled"`
+	BalanceRechargeMultiplier float64                          `json:"balance_recharge_multiplier"`
+	SubscriptionUSDToCNYRate  float64                          `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate           float64                          `json:"recharge_fee_rate"`
+	StorefrontConfig          *service.PaymentStorefrontConfig `json:"storefront_config"`
+	HelpText                  string                           `json:"help_text"`
+	HelpImageURL              string                           `json:"help_image_url"`
+	StripePublishableKey      string                           `json:"stripe_publishable_key"`
+	AlipayForceQRCode         bool                             `json:"alipay_force_qrcode"`
+	RechargeQuote             *service.PaymentRechargeQuote    `json:"recharge_quote,omitempty"`
 }
 
 type checkoutPlan struct {

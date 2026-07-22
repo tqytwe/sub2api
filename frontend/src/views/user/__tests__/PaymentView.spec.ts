@@ -397,6 +397,10 @@ describe('PaymentView subscription product details', () => {
             props: ['plan'],
             template: '<button data-test="open-details" @click="$emit(\'details\', plan)">open details</button>',
           },
+          SubscriptionPlanDecisionShelf: {
+            props: ['plans'],
+            template: '<button data-test="open-details" @click="$emit(\'details\', plans[0])">open details</button>',
+          },
           Teleport: true,
           Transition: false,
         },
@@ -439,17 +443,23 @@ describe('PaymentView subscription plan shelf', () => {
     window.localStorage.clear()
   })
 
-  async function mountShelf(plans: SubscriptionPlan[]) {
-    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({ plans }))
+  async function mountShelf(plans: SubscriptionPlan[], checkout: Partial<CheckoutInfoResponse> = {}) {
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture({ plans, ...checkout }))
     const wrapper = mount(PaymentView, {
       global: {
         stubs: {
           AppLayout: {
             template: '<div><slot /></div>',
           },
-          SubscriptionPlanCard: {
-            props: ['plan'],
-            template: '<article data-test="plan-card">{{ plan.product_name || plan.name }}</article>',
+          SubscriptionPlanDecisionShelf: {
+            props: ['plans', 'tags', 'defaultPlanId'],
+            template: `
+              <section data-test="decision-shelf">
+                <article v-for="plan in plans" :key="plan.id" data-test="plan-card">{{ plan.product_name || plan.name }}</article>
+                <span data-test="default-plan">{{ defaultPlanId }}</span>
+                <span v-for="tag in tags" :key="tag.id" data-test="shelf-tag">{{ tag.label }}</span>
+              </section>
+            `,
           },
           Teleport: true,
           Transition: false,
@@ -472,28 +482,55 @@ describe('PaymentView subscription plan shelf', () => {
     expect(cards).toEqual(['Featured A', 'Featured B'])
   })
 
-  it('falls back to the first six plans when no recommendation is configured', async () => {
+  it('falls back to all plans when no recommendation is configured', async () => {
     const plans = Array.from({ length: 8 }, (_, index) => subscriptionPlanFixture(index + 1))
     const wrapper = await mountShelf(plans)
 
     const cards = wrapper.findAll('[data-test="plan-card"]').map(card => card.text())
-    expect(cards).toEqual(['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4', 'Plan 5', 'Plan 6'])
-    expect(wrapper.text()).toContain('payment.planShelf.expandAll')
+    expect(cards).toEqual(['Plan 1', 'Plan 2', 'Plan 3', 'Plan 4', 'Plan 5', 'Plan 6', 'Plan 7', 'Plan 8'])
+    expect(wrapper.text()).not.toContain('payment.planShelf.expandAll')
   })
 
-  it('restores platform and category filters from query parameters', async () => {
+  it('restores the configured shelf from query parameters', async () => {
     routeState.query = {
-      plan_platform: 'openai',
-      plan_category: 'daily',
+      plan_shelf: 'daily',
     }
     const wrapper = await mountShelf([
       subscriptionPlanFixture(1, { name: 'OpenAI Daily', storefront_platform: 'openai', storefront_category: 'daily' }),
       subscriptionPlanFixture(2, { name: 'OpenAI Pro', storefront_platform: 'openai', storefront_category: 'pro' }),
       subscriptionPlanFixture(3, { name: 'Claude Daily', storefront_platform: 'anthropic', storefront_category: 'daily' }),
-    ])
+    ], {
+      storefront_config: {
+        shelves: [
+          { id: 'monthly', label: '月卡', enabled: true, sort_order: 1, plan_ids: [2], default_plan_id: 2 },
+          { id: 'daily', label: '日卡', enabled: true, sort_order: 2, plan_ids: [1, 3], default_plan_id: 1 },
+        ],
+        tags: [],
+      },
+    })
 
     const cards = wrapper.findAll('[data-test="plan-card"]').map(card => card.text())
-    expect(cards).toEqual(['OpenAI Daily'])
+    expect(cards).toEqual(['OpenAI Daily', 'Claude Daily'])
+  })
+
+  it('passes configured default plan and labels to the decision shelf', async () => {
+    const wrapper = await mountShelf([
+      subscriptionPlanFixture(1, { name: 'Monthly 100', price: 100 }),
+      subscriptionPlanFixture(2, { name: 'Monthly 29.9', price: 29.9 }),
+    ], {
+      storefront_config: {
+        shelves: [
+          { id: 'monthly', label: '月卡', enabled: true, sort_order: 1, plan_ids: [1, 2], default_plan_id: 2 },
+        ],
+        tags: [
+          { id: 'best-value', label: '高性价比', tone: 'success', enabled: true, sort_order: 1, plan_ids: [2] },
+        ],
+      },
+    })
+
+    expect(wrapper.findAll('[data-test="plan-card"]').map(card => card.text())).toEqual(['Monthly 100', 'Monthly 29.9'])
+    expect(wrapper.find('[data-test="default-plan"]').text()).toBe('2')
+    expect(wrapper.find('[data-test="shelf-tag"]').text()).toBe('高性价比')
   })
 })
 

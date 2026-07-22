@@ -2,7 +2,7 @@
   <div
     data-test="subscription-plan-card"
     :class="[
-      'group relative flex min-h-[420px] flex-col overflow-hidden rounded-lg border transition-all',
+      'group relative flex min-h-[420px] flex-col overflow-hidden rounded-lg border transition-[border-color,box-shadow,transform]',
       'hover:-translate-y-0.5 hover:shadow-lg',
       borderClass,
       featuredClass,
@@ -67,7 +67,7 @@
           <div class="shrink-0 text-right">
             <div class="flex items-baseline gap-1">
               <span class="text-xs text-gray-400 dark:text-dark-500">{{ planCurrencySymbol }}</span>
-              <span :class="['text-2xl font-extrabold tracking-tight', textClass]">{{ plan.price }}</span>
+              <span :class="['text-2xl font-extrabold', textClass]">{{ plan.price }}</span>
               <span v-if="plan.currency" class="text-xs font-medium text-gray-400 dark:text-dark-500">{{ plan.currency }}</span>
             </div>
             <span class="text-[11px] text-gray-400 dark:text-dark-500">/ {{ validitySuffix }}</span>
@@ -88,19 +88,19 @@
             <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.peakRate') }}</span>
             <span class="text-right font-medium text-amber-700 dark:text-amber-300">{{ peakRateDisplay }}</span>
           </div>
-          <div v-if="plan.daily_limit_usd != null" class="flex items-center justify-between">
+          <div v-if="hasPositiveLimit(plan.daily_limit_usd)" class="flex items-center justify-between">
             <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.dailyLimit') }}</span>
             <span class="font-medium text-gray-700 dark:text-gray-300">${{ plan.daily_limit_usd }}</span>
           </div>
-          <div v-if="plan.weekly_limit_usd != null" class="flex items-center justify-between">
+          <div v-if="hasPositiveLimit(plan.weekly_limit_usd)" class="flex items-center justify-between">
             <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.weeklyLimit') }}</span>
             <span class="font-medium text-gray-700 dark:text-gray-300">${{ plan.weekly_limit_usd }}</span>
           </div>
-          <div v-if="plan.monthly_limit_usd != null" class="flex items-center justify-between">
+          <div v-if="hasPositiveLimit(plan.monthly_limit_usd)" class="flex items-center justify-between">
             <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.monthlyLimit') }}</span>
             <span class="font-medium text-gray-700 dark:text-gray-300">${{ plan.monthly_limit_usd }}</span>
           </div>
-          <div v-if="plan.daily_limit_usd == null && plan.weekly_limit_usd == null && plan.monthly_limit_usd == null" class="flex items-center justify-between">
+          <div v-if="!hasAnyPositiveLimit" class="flex items-center justify-between">
             <span class="text-gray-400 dark:text-dark-500">{{ t('payment.planCard.quota') }}</span>
             <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.planCard.unlimited') }}</span>
           </div>
@@ -118,9 +118,7 @@
         <!-- Features list (compact) -->
         <div v-if="plan.features.length > 0" class="mb-3 space-y-1">
           <div v-for="feature in featurePreview" :key="feature" class="flex items-start gap-1.5">
-            <svg :class="['mt-0.5 h-3.5 w-3.5 flex-shrink-0', iconClass]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
+            <Icon :class="['mt-0.5 flex-shrink-0', iconClass]" name="check" size="sm" :stroke-width="2.5" />
             <span class="text-xs text-gray-600 dark:text-gray-300">{{ feature }}</span>
           </div>
         </div>
@@ -132,7 +130,7 @@
       <button
         data-test="plan-subscribe-button"
         type="button"
-        :class="['w-full rounded-lg py-2.5 text-sm font-semibold transition-all active:scale-[0.98]', btnClass]"
+        :class="['w-full rounded-lg py-2.5 text-sm font-semibold transition-colors active:scale-[0.98]', btnClass]"
         @click="emit('select', plan)"
       >
         {{ isRenewal ? t('payment.renewNow') : t('payment.subscribeNow') }}
@@ -147,6 +145,7 @@ import { useI18n } from 'vue-i18n'
 import type { SubscriptionPlan } from '@/types/payment'
 import type { UserSubscription } from '@/types'
 import { useAppStore } from '@/stores/app'
+import Icon from '@/components/icons/Icon.vue'
 import { hasPeakRate as groupHasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { currencySymbol } from '@/components/payment/currency'
 import {
@@ -198,6 +197,16 @@ const rateDisplay = computed(() => {
   const rate = props.plan.rate_multiplier ?? 1
   return `×${Number(rate.toPrecision(10))}`
 })
+
+function hasPositiveLimit(value: number | null | undefined): boolean {
+  return typeof value === 'number' && value > 0
+}
+
+const hasAnyPositiveLimit = computed(() =>
+  hasPositiveLimit(props.plan.daily_limit_usd)
+  || hasPositiveLimit(props.plan.weekly_limit_usd)
+  || hasPositiveLimit(props.plan.monthly_limit_usd)
+)
 
 const appStore = useAppStore()
 const planCurrencySymbol = computed(() => currencySymbol(props.plan.currency || 'USD'))
