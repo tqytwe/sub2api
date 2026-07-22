@@ -26,6 +26,14 @@ const (
 	FundRefundStatusPaid          = "paid"
 	FundRefundStatusRejected      = "rejected"
 	FundRefundStatusCanceled      = "canceled"
+
+	fundRefundSubmitDescription    = "提交充值退回申请"
+	fundRefundPaidDescription      = "充值退回已打款"
+	fundRefundCancelDescription    = "取消充值退回，资金恢复"
+	fundRefundRejectDescription    = "驳回充值退回，资金恢复"
+	fundRefundRestoredDescription  = "充值退回资金恢复"
+	fundOpsGiftDescription         = "管理员赠送余额"
+	fundOfflineRechargeDescription = "线下充值到账"
 )
 
 var (
@@ -346,7 +354,7 @@ RETURNING id`, []any{requestNo, input.UserID, requestType, decimalString(amount)
 		IdempotencyKey:                     "fund_refund_submit:" + requestNo,
 		ActorType:                          BalanceLedgerActorUser,
 		ActorUserID:                        &input.UserID,
-		Description:                        "recharge refund request submitted",
+		Description:                        fundRefundSubmitDescription,
 		Metadata:                           map[string]any{"request_no": requestNo, "request_type": requestType},
 		SkipWithdrawableEntitlementEffects: true,
 		SkipFundBatchEffects:               true,
@@ -458,7 +466,7 @@ func (s *FundManagementService) AdminMarkRefundPaid(ctx context.Context, input F
 		IdempotencyKey:                     "fund_refund_paid:" + req.RequestNo,
 		ActorType:                          BalanceLedgerActorAdmin,
 		ActorUserID:                        &input.ActorUserID,
-		Description:                        "recharge refund marked paid",
+		Description:                        fundRefundPaidDescription,
 		Metadata:                           map[string]any{"request_no": req.RequestNo, "external_txn_id": strings.TrimSpace(input.ExternalTxnID)},
 		SkipWithdrawableEntitlementEffects: true,
 		SkipFundBatchEffects:               true,
@@ -515,7 +523,7 @@ func (s *FundManagementService) restoreRefundRequest(ctx context.Context, input 
 		IdempotencyKey:                     sourceType + ":" + req.RequestNo,
 		ActorType:                          actorType,
 		ActorUserID:                        &actorID,
-		Description:                        "recharge refund request restored",
+		Description:                        fundRefundRestoreDescription(sourceType),
 		Metadata:                           map[string]any{"request_no": req.RequestNo, "reason": strings.TrimSpace(input.Reason)},
 		SkipWithdrawableEntitlementEffects: true,
 		SkipFundBatchEffects:               true,
@@ -623,11 +631,22 @@ LIMIT $`+strconv.Itoa(len(args)-1)+` OFFSET $`+strconv.Itoa(len(args)), args...)
 }
 
 func (s *FundManagementService) GrantGift(ctx context.Context, input FundGrantInput) (*BalanceTransaction, error) {
-	return s.adminCreditUser(ctx, input.UserID, input.Amount, FundLedgerSourceOpsGift, "administrator gift balance", input.Reason, input.ActorUserID, "")
+	return s.adminCreditUser(ctx, input.UserID, input.Amount, FundLedgerSourceOpsGift, fundOpsGiftDescription, input.Reason, input.ActorUserID, "")
 }
 
 func (s *FundManagementService) GrantOfflineRecharge(ctx context.Context, input OfflineRechargeInput) (*BalanceTransaction, error) {
-	return s.adminCreditUser(ctx, input.UserID, input.Amount, FundLedgerSourceOfflineRecharge, "offline recharge confirmed", input.Reason, input.ActorUserID, input.ExternalRef)
+	return s.adminCreditUser(ctx, input.UserID, input.Amount, FundLedgerSourceOfflineRecharge, fundOfflineRechargeDescription, input.Reason, input.ActorUserID, input.ExternalRef)
+}
+
+func fundRefundRestoreDescription(sourceType string) string {
+	switch strings.TrimSpace(sourceType) {
+	case FundRefundLedgerSourceCancel:
+		return fundRefundCancelDescription
+	case FundRefundLedgerSourceReject:
+		return fundRefundRejectDescription
+	default:
+		return fundRefundRestoredDescription
+	}
 }
 
 func (s *FundManagementService) adminCreditUser(ctx context.Context, userID int64, rawAmount string, sourceType string, description string, reason string, actorUserID int64, externalRef string) (*BalanceTransaction, error) {
