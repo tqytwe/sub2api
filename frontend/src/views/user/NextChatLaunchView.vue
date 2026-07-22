@@ -1,21 +1,30 @@
 <template>
-  <div class="flex min-h-[60vh] items-center justify-center px-4">
-    <div class="w-full max-w-md text-center">
-      <div class="mx-auto grid h-12 w-12 place-items-center rounded-xl bg-primary-50 text-primary-600 dark:bg-primary-900/30 dark:text-primary-300">
-        <span class="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" aria-hidden="true"></span>
-      </div>
-      <h1 class="mt-5 text-lg font-semibold text-gray-900 dark:text-white">{{ t('nextChatLaunch.title') }}</h1>
-      <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ statusText }}</p>
-      <button
-        v-if="failed"
-        type="button"
-        class="btn btn-primary mt-5"
-        @click="startLaunch"
+  <AppLayout>
+    <div class="py-10">
+      <CompactStatusPanel
+        :title="t('nextChatLaunch.title')"
+        :description="statusText"
+        :tone="failed ? 'danger' : 'primary'"
+        :icon="failed ? 'exclamationCircle' : undefined"
+        :loading="!failed"
       >
-        {{ t('common.retry') }}
-      </button>
+        <template v-if="failed" #actions>
+          <button
+            type="button"
+            class="btn btn-primary"
+            @click="startLaunch"
+          >
+            <Icon name="refresh" size="md" />
+            {{ t('common.retry') }}
+          </button>
+          <router-link to="/dashboard" class="btn btn-secondary">
+            <Icon name="home" size="md" />
+            {{ t('home.goToDashboard') }}
+          </router-link>
+        </template>
+      </CompactStatusPanel>
     </div>
-  </div>
+  </AppLayout>
 </template>
 
 <script setup lang="ts">
@@ -23,6 +32,9 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { launchNextChat } from '@/api/user'
+import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
+import Icon from '@/components/icons/Icon.vue'
+import AppLayout from '@/components/layout/AppLayout.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()

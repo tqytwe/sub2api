@@ -5,6 +5,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { inflateSync } from "node:zlib";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const repoRoot = resolve(scriptPath, "../..");
@@ -286,6 +287,10 @@ const requiredEvidenceSections = [
   "## Evidence",
   "## Residual Risk"
 ];
+const MIN_VISUAL_ARTIFACT_WIDTH = 120;
+const MIN_VISUAL_ARTIFACT_HEIGHT = 90;
+const PNG_SIGNATURE = Buffer.from("89504e470d0a1a0a", "hex");
+let crcTable;
 
 function parseEvidenceManifest(content) {
   const match = content.match(
@@ -313,6 +318,156 @@ function validCheck(value) {
   );
 }
 
+function validArtifactMode(manifest) {
+  if (manifest.artifact_mode === "browser-capture") {
+    return manifest.commands.some((command) =>
+      /\b(?:playwright|browser|screenshot|recording|video)\b/i.test(command),
+    );
+  }
+  if (manifest.artifact_mode === "static-review-board") {
+    return manifest.residual_risks.some((risk) =>
+      /browser|screenshot|final acceptance|浏览器|截图|最终验收/i.test(risk),
+    );
+  }
+  return false;
+}
+
+function crc32(bytes) {
+  if (!crcTable) {
+    crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n += 1) {
+      let c = n;
+      for (let k = 0; k < 8; k += 1) {
+        c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+      }
+      crcTable[n] = c >>> 0;
+    }
+  }
+
+  let crc = 0xffffffff;
+  for (const byte of bytes) {
+    crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngBitsPerPixel(colorType, bitDepth) {
+  const channelsByType = new Map([
+    [0, 1],
+    [2, 3],
+    [3, 1],
+    [4, 2],
+    [6, 4]
+  ]);
+  const allowedDepths = new Map([
+    [0, new Set([1, 2, 4, 8, 16])],
+    [2, new Set([8, 16])],
+    [3, new Set([1, 2, 4, 8])],
+    [4, new Set([8, 16])],
+    [6, new Set([8, 16])]
+  ]);
+  const channels = channelsByType.get(colorType);
+  if (!channels || !allowedDepths.get(colorType)?.has(bitDepth)) return 0;
+  return channels * bitDepth;
+}
+
+function validatePngArtifact(bytes, artifact) {
+  if (!bytes.subarray(0, 8).equals(PNG_SIGNATURE)) {
+    return `artifact has an invalid media signature: ${artifact}`;
+  }
+  if (bytes.length < 45) {
+    return `artifact is too small to be a valid PNG: ${artifact}`;
+  }
+
+  let offset = 8;
+  let width = 0;
+  let height = 0;
+  let bitDepth = 0;
+  let colorType = 0;
+  let interlaceMethod = 0;
+  let seenIHDR = false;
+  let seenIDAT = false;
+  let seenIEND = false;
+  const idatChunks = [];
+
+  while (offset + 12 <= bytes.length) {
+    const length = bytes.readUInt32BE(offset);
+    const type = bytes.subarray(offset + 4, offset + 8).toString("ascii");
+    const dataStart = offset + 8;
+    const dataEnd = dataStart + length;
+    const crcOffset = dataEnd;
+    const nextOffset = crcOffset + 4;
+    if (nextOffset > bytes.length) {
+      return `artifact has an invalid PNG chunk length: ${artifact}`;
+    }
+    const expectedCrc = bytes.readUInt32BE(crcOffset);
+    const actualCrc = crc32(bytes.subarray(offset + 4, dataEnd));
+    if (actualCrc !== expectedCrc) {
+      return `artifact has an invalid PNG ${type} CRC: ${artifact}`;
+    }
+
+    if (!seenIHDR && type !== "IHDR") {
+      return `artifact PNG is missing a leading IHDR chunk: ${artifact}`;
+    }
+    if (type === "IHDR") {
+      if (seenIHDR || length !== 13) {
+        return `artifact has an invalid PNG IHDR chunk: ${artifact}`;
+      }
+      width = bytes.readUInt32BE(dataStart);
+      height = bytes.readUInt32BE(dataStart + 4);
+      bitDepth = bytes[dataStart + 8];
+      colorType = bytes[dataStart + 9];
+      const compressionMethod = bytes[dataStart + 10];
+      const filterMethod = bytes[dataStart + 11];
+      interlaceMethod = bytes[dataStart + 12];
+      if (
+        width < 1 ||
+        height < 1 ||
+        !pngBitsPerPixel(colorType, bitDepth) ||
+        compressionMethod !== 0 ||
+        filterMethod !== 0 ||
+        ![0, 1].includes(interlaceMethod)
+      ) {
+        return `artifact has unsupported PNG image metadata: ${artifact}`;
+      }
+      seenIHDR = true;
+    } else if (type === "IDAT") {
+      seenIDAT = true;
+      idatChunks.push(bytes.subarray(dataStart, dataEnd));
+    } else if (type === "IEND") {
+      if (length !== 0) return `artifact has an invalid PNG IEND chunk: ${artifact}`;
+      seenIEND = true;
+      if (nextOffset !== bytes.length) {
+        return `artifact has trailing bytes after PNG IEND: ${artifact}`;
+      }
+      break;
+    }
+    offset = nextOffset;
+  }
+
+  if (!seenIHDR || !seenIDAT || !seenIEND) {
+    return `artifact is not a complete PNG image: ${artifact}`;
+  }
+  if (width < MIN_VISUAL_ARTIFACT_WIDTH || height < MIN_VISUAL_ARTIFACT_HEIGHT) {
+    return `artifact dimensions are too small: ${artifact} (${width}x${height})`;
+  }
+
+  try {
+    const inflated = inflateSync(Buffer.concat(idatChunks));
+    if (interlaceMethod === 0) {
+      const bitsPerPixel = pngBitsPerPixel(colorType, bitDepth);
+      const expectedBytes = (Math.ceil((width * bitsPerPixel) / 8) + 1) * height;
+      if (inflated.length !== expectedBytes) {
+        return `artifact PNG pixel data length is invalid: ${artifact}`;
+      }
+    }
+  } catch {
+    return `artifact PNG pixel data cannot be decoded: ${artifact}`;
+  }
+
+  return "";
+}
+
 function validateArtifact(cwd, artifact) {
   if (
     typeof artifact !== "string" ||
@@ -331,9 +486,10 @@ function validateArtifact(cwd, artifact) {
   const extension = artifact.split(".").pop().toLowerCase();
   if (["png", "jpg", "jpeg", "webp", "gif", "mp4", "webm"].includes(extension)) {
     const bytes = readFileSync(fullPath);
+    if (extension === "png") {
+      return validatePngArtifact(bytes, artifact);
+    }
     const validSignature =
-      (extension === "png" &&
-        bytes.subarray(0, 8).equals(Buffer.from("89504e470d0a1a0a", "hex"))) ||
       ((extension === "jpg" || extension === "jpeg") &&
         bytes.subarray(0, 3).equals(Buffer.from("ffd8ff", "hex"))) ||
       (extension === "gif" && bytes.subarray(0, 4).toString() === "GIF8") ||
@@ -435,6 +591,7 @@ export function validateEvidenceRecords({
     );
     if (
       manifest.schema_version !== 1 ||
+      !validArtifactMode(manifest) ||
       invalidFields.length > 0 ||
       manifest.viewports.length < 2 ||
       !manifest.viewports.every((viewport) => /^\d{3,4}x\d{3,4}$/.test(viewport)) ||
@@ -453,7 +610,7 @@ export function validateEvidenceRecords({
         rule: "visual-evidence",
         message: "visual review manifest is incomplete",
         source:
-          `invalid fields: ${invalidFields.join(", ") || "checks/schema/viewports"}`
+          `invalid fields: ${invalidFields.join(", ") || "checks/schema/viewports/artifact_mode"}`
       });
       continue;
     }

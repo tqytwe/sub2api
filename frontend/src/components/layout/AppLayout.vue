@@ -8,7 +8,7 @@
 
     <!-- Main Content Area -->
     <div
-      class="relative min-h-screen transition-all duration-300"
+      class="relative min-h-screen transition-[margin] duration-300"
       :class="[sidebarCollapsed ? 'lg:ml-[72px]' : 'lg:ml-64']"
     >
       <!-- Header -->
@@ -16,7 +16,9 @@
 
       <!-- Main Content -->
       <main class="p-4 md:p-6 lg:p-8">
-        <slot />
+        <PageFrame :frame="routeFrame">
+          <slot />
+        </PageFrame>
       </main>
     </div>
 
@@ -35,12 +37,30 @@ import { useOnboardingStore } from '@/stores/onboarding'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import AppSidebar from './AppSidebar.vue'
 import AppHeader from './AppHeader.vue'
+import PageFrame from './PageFrame.vue'
+
+type AppFrame = 'compact' | 'reading' | 'form' | 'content' | 'workspace' | 'fluid'
+
+const validFrames = new Set<AppFrame>([
+  'compact',
+  'reading',
+  'form',
+  'content',
+  'workspace',
+  'fluid',
+])
 
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const route = useRoute()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
+const routeFrame = computed<AppFrame>(() => {
+  const frame = route.meta.frame
+  return typeof frame === 'string' && validFrames.has(frame as AppFrame)
+    ? frame as AppFrame
+    : 'content'
+})
 
 const { replayTour } = useOnboardingTour({
   storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',

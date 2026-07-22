@@ -36,8 +36,13 @@
           >
             <div class="toc-header">
               <span class="toc-title">{{ t('customPage.tableOfContents') }}</span>
-              <button class="toc-close-btn" @click="tocVisible = false">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+              <button
+                type="button"
+                class="toc-close-btn"
+                :aria-label="t('common.close')"
+                @click="tocVisible = false"
+              >
+                <Icon name="chevronLeft" size="sm" :stroke-width="2" />
               </button>
             </div>
             <nav class="toc-nav">
@@ -61,9 +66,11 @@
           <button
             v-show="!tocVisible && tocItems.length > 0"
             class="toc-toggle-btn"
+            type="button"
+            :aria-expanded="tocVisible"
             @click="tocVisible = true"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+            <Icon name="menu" size="sm" :stroke-width="2" />
             <span class="ml-1 text-xs">{{ t('customPage.tableOfContents') }}</span>
           </button>
 
@@ -375,6 +382,7 @@ onUnmounted(() => {
 
 <style scoped>
 .custom-page-layout {
+  /* design-governance-allow: page-shell-ownership - custom pages need contained height inside the workspace frame for iframe and markdown TOC surfaces. */
   @apply flex flex-col;
   height: calc(100vh - 64px - 4rem);
 }
@@ -439,8 +447,8 @@ onUnmounted(() => {
 
 .custom-embed-shell {
   @apply relative;
-  @apply h-full w-full overflow-hidden rounded-2xl;
-  @apply bg-gradient-to-b from-gray-50 to-white dark:from-dark-900 dark:to-dark-950;
+  @apply h-full w-full overflow-hidden rounded-lg;
+  @apply bg-gray-50 dark:bg-dark-900;
   @apply p-0;
 }
 

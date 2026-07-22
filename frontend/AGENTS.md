@@ -19,6 +19,8 @@
    浅色、深色、中英文和 reduced-motion。
 7. 新增 `../docs/visual-reviews/YYYY-MM-DD-<slug>.md`，使用仓库模板记录实际
    基线、修改后画面、状态与视口证据；没有视觉证据记录时门禁必须失败。
+   视觉产物必须声明 `artifact_mode`，真实 PNG 必须可解码；静态审查板不得冒充
+   浏览器截图，且必须留下最终浏览器验收风险。
 8. 运行 `pnpm design:check`、`pnpm lint:check`、`pnpm typecheck` 和相关测试。
 
 ## 硬性规则
@@ -49,5 +51,6 @@ design-governance-allow: <rule-name> - <具体原因>
 ```
 
 允许的 rule name 为 `inline-svg`、`transition-all`、`large-radius`、
-`page-shell-ownership`、`raw-color`、`focus-reset`、`decorative-gradient`。
+`page-shell-ownership`、`raw-color`、`focus-reset`、`decorative-gradient`、
+`continuous-motion`。
 例外必须属于品牌、图表、艺术构图或第三方支付等真实边界，并在代码审查中单独确认。
