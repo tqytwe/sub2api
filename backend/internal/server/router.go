@@ -173,6 +173,7 @@ func registerRoutes(
 	v1.GET("/public/home-stats", publicHomeStatsRoute())
 	v1.GET("/public/growth-teaser", handler.PublicGrowthTeaser(settingService, dashboardService, h.Play))
 	v1.GET("/public/vip-tiers", handler.PublicVIPTiers(settingService))
+	v1.GET("/announcement-assets/*filepath", h.Announcement.GetAsset)
 
 	handler.RegisterPageRoutes(v1, cfg.Pricing.DataDir, gin.HandlerFunc(jwtAuth), gin.HandlerFunc(adminAuth), settingService)
 }

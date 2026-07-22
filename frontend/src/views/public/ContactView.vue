@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore } from '@/stores'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
@@ -16,6 +16,9 @@ const backLabel = computed(() =>
   authStore.isAuthenticated ? t('contact.backDashboard') : t('contact.backHome')
 )
 
+onMounted(() => {
+  void appStore.fetchPublicSettings(true)
+})
 </script>
 
 <template>

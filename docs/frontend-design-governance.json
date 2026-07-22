@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "policy_status": {
+    "design_tokens_and_component_reuse": "enforced",
+    "incremental_visual_rules": "enforced",
+    "rendered_visual_evidence": "enforced",
+    "route_ui_contract_runtime": "planned",
+    "playwright_axe_ci": "planned"
+  },
+  "canonical_page_frames": {
+    "compact": 672,
+    "reading": 800,
+    "form": 960,
+    "content": 1152,
+    "workspace": 1600,
+    "fluid": null
+  },
+  "required_rule_names": [
+    "inline-svg",
+    "transition-all",
+    "large-radius",
+    "page-shell-ownership",
+    "raw-color",
+    "focus-reset",
+    "decorative-gradient",
+    "continuous-motion"
+  ],
+  "functional_icon_registry": [
+    "frontend/src/components/icons/Icon.vue",
+    "frontend/src/components/icons/index.ts"
+  ],
+  "token_files": [
+    "frontend/tailwind.config.js",
+    "frontend/src/style.css",
+    "frontend/src/styles/tokens.css"
+  ],
+  "visual_review_schema": 1
+}

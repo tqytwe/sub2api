@@ -22,3 +22,13 @@
 - 不为了验收启动 `go run serve`、`pnpm dev`，也不把 localhost 截图作为生产证据。
 - 不提交真实账号、密码、令牌、Cookie、连接串或包含这些内容的截图和日志。
 - 在脏工作区或并行开发环境中保留他人改动，不得重置、覆盖或清理不属于当前任务的修改。
+
+## 前端视觉改动
+
+- 修改 `frontend/` 下任何页面、组件、样式、图标或交互状态前，必须先读取
+  `frontend/AGENTS.md`、`docs/FRONTEND_DESIGN_SYSTEM.md` 和机器清单
+  `docs/frontend-design-governance.json`。
+- 视觉改动必须先检查现有页面、相邻页面和可复用组件，禁止只根据需求文字直接另起一套样式。
+- 任何可见界面改动必须新增一份 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`，
+  记录基线画面、复用决定、状态矩阵、视口和截图证据；只读代码不算完成视觉检查。
+- 提交前必须运行 `cd frontend && pnpm design:check`；适用时还要完成规范要求的截图、响应式、主题和交互状态检查。

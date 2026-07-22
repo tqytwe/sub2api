@@ -31,21 +31,25 @@
             <span class="brand-name">{{ siteName }}</span>
           </router-link>
           <nav class="header-nav">
-            <router-link to="/models" class="nav-link">{{ t('home.jisudeng.nav.models') }}</router-link>
-            <router-link to="/docs" class="nav-link">{{ t('home.jisudeng.nav.docs') }}</router-link>
-            <router-link to="/about" class="nav-link">{{ t('home.jisudeng.nav.about') }}</router-link>
-            <router-link to="/contact" class="nav-link">{{ t('home.jisudeng.nav.contact') }}</router-link>
+            <router-link
+              v-for="item in homePrimaryNavItems"
+              :key="item.key"
+              :to="item.to"
+              class="nav-link"
+            >
+              {{ t(item.labelKey) }}
+            </router-link>
           </nav>
         </div>
         <nav class="page-nav">
           <PublicPageToolbar />
           <template v-if="isAuthenticated">
-            <router-link v-if="isAdmin" to="/admin" class="nav-link">{{ t('home.jisudeng.nav.admin') }}</router-link>
-            <router-link :to="dashboardPath" class="nav-cta">{{ t('home.jisudeng.nav.console') }}</router-link>
+            <router-link v-if="isAdmin" :to="adminDashboardRoute" class="nav-link">{{ t('home.jisudeng.nav.admin') }}</router-link>
+            <router-link :to="dashboardRoute" class="nav-cta">{{ t('home.jisudeng.nav.console') }}</router-link>
           </template>
           <template v-else>
-            <router-link to="/login" class="nav-link">{{ t('home.jisudeng.nav.signIn') }}</router-link>
-            <router-link to="/register" class="nav-cta">{{ t('home.jisudeng.nav.signUp') }}</router-link>
+            <router-link :to="loginRoute" class="nav-link">{{ t('home.jisudeng.nav.signIn') }}</router-link>
+            <router-link :to="registerRoute" class="nav-cta">{{ t('home.jisudeng.nav.signUp') }}</router-link>
           </template>
         </nav>
       </div>
@@ -121,7 +125,7 @@
           <template v-else>{{ t('home.jisudeng.manifesto.title') }}</template>
         </h2>
         <div v-if="manifestoParts.keyword && showVerifyLink" class="integrity-check">
-          <router-link to="/about" class="integrity-verify-link">
+          <router-link :to="aboutRoute" class="integrity-verify-link">
             {{ t('home.jisudeng.manifesto.verifyLink') }}
           </router-link>
         </div>
@@ -208,7 +212,7 @@
             <ul class="img-caps">
               <li v-for="(cap, i) in imageCaps" :key="i" class="img-cap">{{ cap }}</li>
             </ul>
-            <router-link to="/docs?cat=deploy&page=text-to-image-api" class="img-doclink">
+            <router-link :to="imageDocsRoute" class="img-doclink">
               {{ t('home.jisudeng.image.docLink') }}
               <span class="img-doclink-arrow">→</span>
             </router-link>
@@ -322,7 +326,7 @@
         </div>
         <p class="onboard-foot">
           {{ t('home.jisudeng.onboard.docLink') }}
-          <router-link to="/docs?cat=tutorial&page=quick-start" class="onboard-foot-link">
+          <router-link :to="quickStartDocsRoute" class="onboard-foot-link">
             {{ t('home.jisudeng.onboard.docLinkCta') }}
           </router-link>
         </p>
@@ -460,6 +464,15 @@ import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { formatHomeStatsTimestamp } from '@/utils/homeLiveStats'
 import { sanitizeUrl } from '@/utils/url'
+import { enabledSupportContacts } from '@/utils/supportContact'
+import {
+  PUBLIC_ROUTE_NAMES,
+  authEntryRoute,
+  buildHomePrimaryNav,
+  dashboardEntryRoute,
+  docsTopicRoute,
+  imageStudioEntryRoute,
+} from '@/router/publicNavigation'
 
 const { t, tm, te, locale } = useI18n()
 const router = useRouter()
@@ -500,8 +513,19 @@ let whyTargetY = 0
 let fontEl: HTMLLinkElement | null = null
 
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
-const studioCtaLink = computed(() =>
-  authStore.isAuthenticated ? '/image-studio' : '/register?return=/image-studio',
+const isAuthenticated = computed(() => authStore.isAuthenticated)
+const isAdmin = computed(() => authStore.isAdmin)
+const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
+const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value))
+const adminDashboardRoute = { name: PUBLIC_ROUTE_NAMES.adminDashboard }
+const aboutRoute = { name: PUBLIC_ROUTE_NAMES.about }
+const loginRoute = authEntryRoute(false)
+const registerRoute = authEntryRoute(true)
+const imageDocsRoute = docsTopicRoute('deploy', 'text-to-image-api')
+const quickStartDocsRoute = docsTopicRoute('tutorial', 'quick-start')
+const dashboardRoute = computed(() => dashboardEntryRoute(isAdmin.value))
+const homePrimaryNavItems = computed(() =>
+  buildHomePrimaryNav(isAuthenticated.value).filter((item) => !item.requiresSupportContact || hasSupportContact.value),
 )
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
@@ -520,9 +544,6 @@ const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 )
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
-const isAuthenticated = computed(() => authStore.isAuthenticated)
-const isAdmin = computed(() => authStore.isAdmin)
-const dashboardPath = computed(() => (isAdmin.value ? '/admin' : '/dashboard'))
 const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
 const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
 
@@ -652,15 +673,15 @@ function onReveal() {
 }
 
 function goRegister() {
-  router.push('/register')
+  router.push(registerRoute)
 }
 
 function goStart() {
   if (isAuthenticated.value) {
-    router.push(dashboardPath.value)
+    router.push(dashboardRoute.value)
     return
   }
-  router.push(isGtmHome.value ? '/register' : '/login')
+  router.push(authEntryRoute(isGtmHome.value))
 }
 
 function openDocs() {

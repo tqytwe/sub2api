@@ -81,6 +81,9 @@ func (s *AnnouncementService) Create(ctx context.Context, input *CreateAnnouncem
 	if content == "" {
 		return nil, ErrAnnouncementContentRequired
 	}
+	if err := ValidateAnnouncementMarkdownContent(content); err != nil {
+		return nil, err
+	}
 
 	status := strings.TrimSpace(input.Status)
 	if status == "" {
@@ -150,6 +153,9 @@ func (s *AnnouncementService) Update(ctx context.Context, id int64, input *Updat
 		content := strings.TrimSpace(*input.Content)
 		if content == "" {
 			return nil, ErrAnnouncementContentRequired
+		}
+		if err := ValidateAnnouncementMarkdownContent(content); err != nil {
+			return nil, err
 		}
 		a.Content = content
 	}

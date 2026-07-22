@@ -24,7 +24,20 @@
 
 核验的 upstream commit：`<full commit>` / 不涉及上游同步
 
+## 前端视觉检查
+
+- [ ] 本 PR 不包含可见界面改动，或已先阅读 `frontend/AGENTS.md` 与
+      `docs/FRONTEND_DESIGN_SYSTEM.md`。
+- [ ] 已查看目标页面当前实际画面、至少一个同类型页面和相关共享组件。
+- [ ] 若包含可见改动，已新增结构化 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`
+      并提交真实的修改前后画面产物。
+- [ ] 已检查适用的 hover、active、focus、loading、disabled、empty、error 和 success。
+- [ ] 已检查适用的移动/桌面、浅色/深色、中英文、键盘和 reduced-motion。
+- [ ] 未新增平行页面框架、功能图标、按钮、表单、浮层或公告渲染体系。
+
 ## 自动化验证
+
+Design governance：
 
 定向测试：
 

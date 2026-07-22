@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          fetch-depth: 0
 
       - name: Set up Go
         uses: actions/setup-go@924ae3a1cded613372ab5595356fb5720e22ba16
@@ -44,7 +46,14 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm --dir frontend install --frozen-lockfile
 
+      - name: Verify frontend design governance
+        env:
+          DESIGN_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/play/main' }}
+        run: pnpm --dir frontend run design:verify
+
       - name: Check protected Fork behavior
+        env:
+          DESIGN_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/play/main' }}
         run: ./scripts/check-fork-integrity.sh
 
       - name: Run backend unit tests
@@ -52,12 +61,16 @@ jobs:
         run: go test -tags=unit ./...
 
       - name: Lint frontend
+        env:
+          DESIGN_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/play/main' }}
         run: pnpm --dir frontend run lint:check
 
       - name: Type-check frontend
         run: pnpm --dir frontend run typecheck
 
       - name: Run frontend tests
+        env:
+          DESIGN_BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/play/main' }}
         run: pnpm --dir frontend run test:run
 
       - name: Build frontend

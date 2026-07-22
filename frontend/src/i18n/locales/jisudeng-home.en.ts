@@ -3,6 +3,9 @@ export const jisudengHomeEn = {
   nav: {
     models: 'Models & Pricing',
     docs: 'Docs',
+    creation: 'AI Studio',
+    prompts: 'Prompts',
+    keyUsage: 'API Audit',
     about: 'About',
     contact: 'Contact',
     admin: 'Admin',
