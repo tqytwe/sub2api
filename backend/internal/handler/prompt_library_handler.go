@@ -164,6 +164,15 @@ type promptSitemapURLSet struct {
 	URLs    []promptSitemapURL `xml:"url"`
 }
 
+var promptSitemapStaticPaths = []string{
+	"/",
+	"/home",
+	"/models",
+	"/docs",
+	"/image-studio",
+	"/prompts",
+}
+
 func (h *PromptLibraryHandler) Sitemap(c *gin.Context) {
 	prompts := make([]service.PublicPrompt, 0)
 	for page := 1; ; page++ {
@@ -192,16 +201,15 @@ func (h *PromptLibraryHandler) Sitemap(c *gin.Context) {
 }
 
 func (h *PromptLibraryHandler) Robots(c *gin.Context) {
-	body := fmt.Sprintf(
-		"User-agent: *\nAllow: /prompts\nSitemap: %s/sitemap.xml\n",
-		promptRequestOrigin(c.Request),
-	)
-	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(body))
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildRobotsTxt(promptRequestOrigin(c.Request))))
 }
 
 func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([]byte, error) {
 	origin = strings.TrimRight(origin, "/")
-	urls := []promptSitemapURL{{Location: origin + "/prompts"}}
+	urls := make([]promptSitemapURL, 0, len(promptSitemapStaticPaths)+len(prompts))
+	for _, path := range promptSitemapStaticPaths {
+		urls = append(urls, promptSitemapURL{Location: origin + path})
+	}
 	for _, prompt := range prompts {
 		entry := promptSitemapURL{
 			Location: fmt.Sprintf("%s/prompts/%d", origin, prompt.ID),
@@ -219,6 +227,20 @@ func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([
 		return nil, err
 	}
 	return append([]byte(xml.Header), body...), nil
+}
+
+func buildRobotsTxt(origin string) string {
+	origin = strings.TrimRight(origin, "/")
+	return fmt.Sprintf(`User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /v1/
+Disallow: /v1beta/
+Disallow: /backend-api/
+Disallow: /admin/
+Disallow: /setup/
+Sitemap: %s/sitemap.xml
+`, origin)
 }
 
 func promptRequestOrigin(request *http.Request) string {
