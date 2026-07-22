@@ -23,6 +23,7 @@
 | `FORK-BILLING-010` | 计费归属与充值联动 | active | integrity 脚本 + Go 测试 |
 | `FORK-IMAGE-011` | Images API、Gateway async 与 Batch 运行时 | active | integrity 脚本 + Go/Vitest/集成测试 |
 | `FORK-UI-012` | 前端设计系统与视觉治理 | active | design governance 脚本 + lint/typecheck/视觉检查 |
+| `FORK-MARKETPLACE-013` | AI 模型商城关闭态基础 | active | integrity 脚本 + Go/Vitest 测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -110,6 +111,14 @@
 - 关键位置：`frontend/src/views/public/`、`frontend/src/content/public-docs-data.zh.ts`、`backend/internal/service/public_model_catalog.go`、`backend/internal/service/setting_public.go`。
 - 冲突策略：上游公共设置字段变更需要合并到 DTO 和前端类型，但极速蹬可见性语义优先。
 - 验证：public model/catalog、public settings 和 teaser tests；游客、登录用户、管理员三种身份线上检查。
+
+## FORK-MARKETPLACE-013 AI 模型商城关闭态基础
+
+- 产品目的：为后续多商家模型商城建立默认关闭、可审计演进的控制面基础，同时保持现有网关、钱包、角色和公开页面行为不变。
+- 不变量：`marketplace_enabled` 只通过既有 DB settings 读取，缺失、非法、读取失败或 service 未装配时一律关闭；公开 settings API 与 SSR 注入传递同一个布尔值；前端 `FeatureFlags.marketplace` 必须是 opt-in；中文和英文 `marketplace` 资源树递归对称且叶子非空；关闭态使用 404 `MARKETPLACE_FEATURE_DISABLED`；CP1A 不向通用管理员 settings 写入口暴露该字段，不增加第三个全局用户角色，不注册 Marketplace 业务路由，不触碰网关、钱包或计费。
+- 关键位置：`backend/internal/service/marketplace_runtime.go`、`backend/internal/service/marketplace_errors.go`、`backend/internal/service/setting_public.go`、`backend/internal/handler/setting_handler.go`、`frontend/src/utils/featureFlags.ts`、`frontend/src/i18n/locales/zh.ts`、`frontend/src/i18n/locales/en.ts`。
+- 冲突策略：上游 public settings 结构变化必须同步吸收，但不得把缺值解释为启用、把前端隐藏当作安全边界，或通过全局 `users.role` 表达商家身份。
+- 验证：Marketplace runtime、public settings/API/SSR、稳定错误码、FeatureFlags、双语资源测试和 Fork Integrity；CP1A 无可见页面，不需要视觉验收。
 
 ## FORK-MIGRATION-009 自定义数据库迁移
 

@@ -12,7 +12,8 @@ import (
 )
 
 type settingPublicRepoStub struct {
-	values map[string]string
+	values         map[string]string
+	getMultipleErr error
 }
 
 func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
@@ -31,6 +32,9 @@ func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) erro
 }
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	if s.getMultipleErr != nil {
+		return nil, s.getMultipleErr
+	}
 	out := make(map[string]string, len(keys))
 	for _, key := range keys {
 		if value, ok := s.values[key]; ok {
@@ -106,6 +110,54 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
 	require.True(t, settings.AllowUserViewErrorRequests)
+}
+
+func TestSettingService_GetPublicSettings_ExposesMarketplaceEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		present bool
+		want    bool
+	}{
+		{name: "missing", want: false},
+		{name: "false", raw: "false", present: true, want: false},
+		{name: "invalid", raw: "TRUE", present: true, want: false},
+		{name: "true", raw: "true", present: true, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := map[string]string{}
+			if tt.present {
+				values[SettingKeyMarketplaceEnabled] = tt.raw
+			}
+			svc := NewSettingService(&settingPublicRepoStub{values: values}, &config.Config{})
+
+			settings, err := svc.GetPublicSettings(context.Background())
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, settings.MarketplaceEnabled)
+		})
+	}
+}
+
+func TestSettingService_GetPublicSettingsForInjection_ExposesMarketplaceEnabled(t *testing.T) {
+	for _, enabled := range []bool{false, true} {
+		t.Run(map[bool]string{false: "false", true: "true"}[enabled], func(t *testing.T) {
+			svc := NewSettingService(&settingPublicRepoStub{
+				values: map[string]string{
+					SettingKeyMarketplaceEnabled: map[bool]string{false: "false", true: "true"}[enabled],
+				},
+			}, &config.Config{})
+
+			payload, err := svc.GetPublicSettingsForInjection(context.Background())
+
+			require.NoError(t, err)
+			injection, ok := payload.(*PublicSettingsInjectionPayload)
+			require.True(t, ok)
+			require.Equal(t, enabled, injection.MarketplaceEnabled)
+		})
+	}
 }
 
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {
