@@ -7,7 +7,8 @@
       :disabled="disabled"
       :aria-expanded="isOpen"
       :aria-haspopup="true"
-      aria-label="Select option"
+      :aria-label="ariaLabelText"
+      :aria-controls="isOpen ? listboxId : undefined"
       :class="[
         'select-trigger',
         isOpen && 'select-trigger-open',
@@ -49,6 +50,7 @@
         <div
           v-if="isOpen"
           ref="dropdownRef"
+          :id="listboxId"
           class="select-dropdown-portal"
           :class="[instanceId]"
           :style="dropdownStyle"
@@ -148,6 +150,7 @@ interface Props {
   creatable?: boolean
   creatablePrefix?: string
   clearable?: boolean
+  ariaLabel?: string
 }
 
 interface Emits {
@@ -183,6 +186,8 @@ const triggerRect = ref<DOMRect | null>(null)
 const placeholderText = computed(() => props.placeholder ?? t('common.selectOption'))
 const searchPlaceholderText = computed(() => props.searchPlaceholder ?? t('common.searchPlaceholder'))
 const emptyTextDisplay = computed(() => props.emptyText ?? t('common.noOptionsFound'))
+const ariaLabelText = computed(() => props.ariaLabel ?? placeholderText.value)
+const listboxId = `${instanceId}-listbox`
 
 const isSearchable = computed(() => {
   if (props.searchable === 'auto') return props.options.length > 5
@@ -456,12 +461,12 @@ onUnmounted(() => {
 <style scoped>
 .select-trigger {
   @apply flex w-full items-center justify-between gap-2;
-  @apply rounded-xl px-4 py-2.5 text-sm;
+  @apply rounded-lg px-4 py-2.5 text-sm;
   @apply bg-white dark:bg-dark-800;
   @apply border border-gray-200 dark:border-dark-600;
   @apply text-gray-900 dark:text-gray-100;
-  @apply transition-all duration-200;
-  @apply focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/30;
+  @apply transition-[background-color,border-color,box-shadow,color] duration-150;
+  @apply focus:border-primary-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/30;
   @apply hover:border-gray-300 dark:hover:border-dark-500;
   @apply cursor-pointer;
 }
@@ -488,7 +493,7 @@ onUnmounted(() => {
 
 .select-clear {
   @apply flex flex-shrink-0 cursor-pointer items-center justify-center;
-  @apply rounded text-gray-400 transition-colors;
+  @apply rounded-md text-gray-400 transition-[background-color,color] duration-150;
   @apply hover:text-gray-600 dark:hover:text-gray-200;
 }
 </style>
@@ -564,12 +569,26 @@ onUnmounted(() => {
 
 .select-dropdown-enter-active,
 .select-dropdown-leave-active {
-  transition: all 0.2s ease;
+  transition-duration: 0.15s;
+  transition-property: opacity, transform;
+  transition-timing-function: ease;
 }
 
 .select-dropdown-enter-from,
 .select-dropdown-leave-to {
   opacity: 0;
   transform: translateY(-8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .select-dropdown-enter-active,
+  .select-dropdown-leave-active {
+    transition-duration: 1ms;
+  }
+
+  .select-dropdown-enter-from,
+  .select-dropdown-leave-to {
+    transform: none;
+  }
 }
 </style>

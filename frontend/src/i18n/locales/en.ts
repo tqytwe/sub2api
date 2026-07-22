@@ -314,6 +314,8 @@ const messages = {
     inactive: 'Inactive',
     more: 'More',
     close: 'Close',
+    clearSearch: 'Clear search',
+    toggleSetting: 'Toggle setting',
     enabled: 'Enabled',
     disabled: 'Disabled',
 	    total: 'Total',

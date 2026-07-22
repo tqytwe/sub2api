@@ -46,6 +46,8 @@ export default {
     inactive: 'Inactive',
     more: 'More',
     close: 'Close',
+    clearSearch: 'Clear search',
+    toggleSetting: 'Toggle setting',
     toggleMenu: 'Toggle menu',
     userMenu: 'User menu',
     pageNotFound: 'Page not found',

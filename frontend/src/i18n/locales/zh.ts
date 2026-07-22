@@ -314,6 +314,8 @@ const messages = {
     inactive: '禁用',
     more: '更多',
     close: '关闭',
+    clearSearch: '清空搜索',
+    toggleSetting: '切换设置',
     enabled: '已启用',
     disabled: '已禁用',
 	    total: '总计',
