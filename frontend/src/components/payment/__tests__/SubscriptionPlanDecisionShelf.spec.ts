@@ -70,7 +70,7 @@ function planFixture(id: number, overrides: Partial<SubscriptionPlan> = {}): Sub
 }
 
 describe('SubscriptionPlanDecisionShelf', () => {
-  it('renders configured plans as a console grid without a spotlight hero', async () => {
+  it('renders configured plans as a storefront spotlight with a selectable plan list', async () => {
     const wrapper = mount(SubscriptionPlanDecisionShelf, {
       props: {
         plans: [
@@ -87,27 +87,31 @@ describe('SubscriptionPlanDecisionShelf', () => {
       },
     })
 
-    expect(wrapper.find('[data-test="plan-spotlight"]').exists()).toBe(false)
-    expect(wrapper.find('[data-test="plan-list-item"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="plan-spotlight"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="plan-list-item"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="plan-grid"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="plan-grid-card"]').exists()).toBe(false)
     expect(wrapper.html()).not.toContain('aspect-[16/9]')
-    expect(wrapper.html()).not.toContain('xl:grid-cols-[minmax(0,1fr)_minmax(380px,560px)]')
+    expect(wrapper.html()).toContain('2xl:h-80')
 
-    const cards = wrapper.findAll('[data-test="plan-grid-card"]')
-    expect(cards).toHaveLength(2)
-    expect(cards.map(card => card.text())).toEqual(
+    const listItems = wrapper.findAll('[data-test="plan-list-item"]')
+    expect(listItems).toHaveLength(2)
+    expect(listItems.map(item => item.text())).toEqual(
       expect.arrayContaining([
         expect.stringContaining('Monthly 100'),
         expect.stringContaining('Monthly 29.9'),
       ]),
     )
 
-    const defaultCard = cards.find(card => card.text().includes('Monthly 29.9'))
-    expect(defaultCard?.find('[data-test="plan-default-badge"]').exists()).toBe(true)
-    expect(defaultCard?.text()).toContain('高性价比')
-    expect(wrapper.findAll('[data-test="plan-cover-thumbnail"]')).toHaveLength(2)
+    expect(wrapper.find('[data-test="plan-spotlight"]').text()).toContain('Monthly 29.9')
+    expect(wrapper.find('[data-test="plan-spotlight"]').text()).toContain('高性价比')
+    expect(listItems[1].attributes('aria-pressed')).toBe('true')
 
-    await defaultCard?.find('[data-test="plan-grid-details"]').trigger('click')
-    await defaultCard?.find('[data-test="plan-grid-subscribe"]').trigger('click')
+    await listItems[0].trigger('click')
+    expect(wrapper.find('[data-test="plan-spotlight"]').text()).toContain('Monthly 100')
+
+    await wrapper.find('[data-test="plan-spotlight-details"]').trigger('click')
+    await wrapper.find('[data-test="plan-spotlight-subscribe"]').trigger('click')
     expect(wrapper.emitted('details')?.[0]).toBeTruthy()
     expect(wrapper.emitted('select')?.[0]).toBeTruthy()
   })
