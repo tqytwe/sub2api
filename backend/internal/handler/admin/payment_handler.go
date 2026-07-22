@@ -345,6 +345,38 @@ func (h *PaymentHandler) DeletePlan(c *gin.Context) {
 	response.Success(c, gin.H{"message": "deleted"})
 }
 
+// GetStorefrontConfig returns the configurable user-facing plan shelves and tags.
+// GET /api/v1/admin/payment/storefront
+func (h *PaymentHandler) GetStorefrontConfig(c *gin.Context) {
+	plans, err := h.configService.ListPlans(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	cfg, err := h.configService.GetPaymentStorefrontConfig(c.Request.Context(), plans)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+// UpdateStorefrontConfig updates the configurable user-facing plan shelves and tags.
+// PUT /api/v1/admin/payment/storefront
+func (h *PaymentHandler) UpdateStorefrontConfig(c *gin.Context) {
+	var req service.PaymentStorefrontConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	cfg, err := h.configService.UpdatePaymentStorefrontConfig(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
 // --- Provider Instances ---
 
 // ListProviders returns all payment provider instances.

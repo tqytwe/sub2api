@@ -16,10 +16,13 @@ const i18n = createI18n({
         days: "days",
         models: "Models",
         planCard: {
+          dailyLimit: "Daily limit",
           featured: "Recommended",
+          monthlyLimit: "Monthly limit",
           quota: "Quota",
           rate: "Rate",
           unlimited: "Unlimited",
+          weeklyLimit: "Weekly limit",
         },
         renewNow: "Renew",
         subscribeNow: "Subscribe now",
@@ -150,5 +153,19 @@ describe("SubscriptionPlanCard", () => {
     expect(cnyPlan).toContain("¥20CNY");
     expect(mountPlanCard("openai", { currency: "USD" }).text()).toContain("$10USD");
     expect(mountPlanCard("openai", { currency: "" }).text()).toContain("$10");
+  });
+
+  it("does not render zero quota limits as purchasable limits", () => {
+    const text = mountPlanCard("openai", {
+      daily_limit_usd: 0,
+      weekly_limit_usd: 0,
+      monthly_limit_usd: 249,
+    }).text();
+
+    expect(text).toContain("payment.planCard.monthlyLimit");
+    expect(text).toContain("$249");
+    expect(text).not.toContain("Daily limit$0");
+    expect(text).not.toContain("Weekly limit$0");
+    expect(text).not.toContain("$0");
   });
 });

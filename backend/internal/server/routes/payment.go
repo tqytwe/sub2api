@@ -98,6 +98,9 @@ func RegisterPaymentRoutes(
 			plans.DELETE("/:id", adminPaymentHandler.DeletePlan)
 		}
 
+		adminGroup.GET("/storefront", adminPaymentHandler.GetStorefrontConfig)
+		adminGroup.PUT("/storefront", adminPaymentHandler.UpdateStorefrontConfig)
+
 		// Provider Instances
 		providers := adminGroup.Group("/providers")
 		{

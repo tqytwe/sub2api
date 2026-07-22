@@ -25,6 +25,7 @@ export type OrderType = 'balance' | 'subscription'
 
 export type PlanStorefrontPlatform = 'openai' | 'anthropic' | 'gemini' | 'grok' | 'image' | 'team' | ''
 export type PlanStorefrontCategory = 'daily' | 'credit' | 'pro' | 'team' | 'enterprise' | 'image' | ''
+export type PaymentStorefrontTagTone = 'primary' | 'success' | 'warning' | 'danger' | 'info' | 'neutral'
 
 // ==================== Configuration ====================
 
@@ -74,6 +75,7 @@ export interface CheckoutInfoResponse {
   /** Subscription CNY conversion rate (1 USD = X CNY); 0 = disabled, plan price is charged as-is */
   subscription_usd_to_cny_rate: number
   recharge_fee_rate: number
+  storefront_config?: PaymentStorefrontConfig
   help_text: string
   help_image_url: string
   stripe_publishable_key: string
@@ -175,6 +177,29 @@ export interface SubscriptionPlan {
   storefront_badge?: string
   for_sale: boolean
   sort_order: number
+}
+
+export interface PaymentStorefrontShelf {
+  id: string
+  label: string
+  enabled: boolean
+  sort_order: number
+  plan_ids: number[]
+  default_plan_id?: number | null
+}
+
+export interface PaymentStorefrontTag {
+  id: string
+  label: string
+  tone: PaymentStorefrontTagTone | string
+  enabled: boolean
+  sort_order: number
+  plan_ids: number[]
+}
+
+export interface PaymentStorefrontConfig {
+  shelves: PaymentStorefrontShelf[]
+  tags: PaymentStorefrontTag[]
 }
 
 export interface PaymentChannel {

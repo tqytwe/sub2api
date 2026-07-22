@@ -43,6 +43,8 @@
         </div>
       </div>
 
+      <PlanStorefrontConfigPanel :plans="plans" />
+
       <!-- Plans Table -->
       <DataTable
         :columns="planColumns"
@@ -168,6 +170,7 @@ import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import PlanEditDialog from './PlanEditDialog.vue'
+import PlanStorefrontConfigPanel from './PlanStorefrontConfigPanel.vue'
 import { currencySymbol } from '@/components/payment/currency'
 import { platformBadgeClass, platformLabel, platformTextClass } from '@/utils/platformColors'
 
