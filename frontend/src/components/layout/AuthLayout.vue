@@ -118,6 +118,6 @@ const pledges = computed(() => {
 })
 
 onMounted(() => {
-  appStore.fetchPublicSettings(true)
+  void appStore.fetchPublicSettings()
 })
 </script>
