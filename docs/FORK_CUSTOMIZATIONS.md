@@ -37,10 +37,10 @@
 ## FORK-UI-012 前端设计系统与视觉治理
 
 - 产品目的：让公共页、认证页、用户控制台和管理员后台使用稳定的页面框架、功能图标、视觉 token、圆角、间距、交互状态与可访问性规则，防止新增页面继续复制平行组件和局部风格。
-- 不变量：任何 `frontend/` 可见改动必须先读取 `frontend/AGENTS.md` 和 [前端设计系统与视觉开发规范](./FRONTEND_DESIGN_SYSTEM.md)，查看当前画面和同类型实现，优先复用共享组件；功能图标统一走 `Icon.vue`；业务页面不得新增任意页面宽度、手写功能 SVG、散落色值、`transition-all`、超大圆角或无替代的焦点清除。艺术页和品牌场景例外必须带具体原因并接受单独审查。
+- 不变量：任何 `frontend/` 可见改动必须先读取 `frontend/AGENTS.md` 和 [前端设计系统与视觉开发规范](./FRONTEND_DESIGN_SYSTEM.md)，查看当前画面和同类型实现，先提交原型设计图片并明确改动边界，优先复用共享组件；功能图标统一走 `Icon.vue`；业务页面不得新增任意页面宽度、手写功能 SVG、散落色值、`transition-all`、超大圆角或无替代的焦点清除。艺术页和品牌场景例外必须带具体原因并接受单独审查。
 - 关键位置：`frontend/AGENTS.md`、`docs/FRONTEND_DESIGN_SYSTEM.md`、`docs/FRONTEND_EXPERIENCE_REMEDIATION_PLAN.md`、`docs/frontend-design-governance.json`、`docs/visual-reviews/`、`frontend/src/components/icons/Icon.vue`、`scripts/check-frontend-design-governance.mjs`、`scripts/check-frontend-design-governance.test.mjs`、`frontend/package.json`。
 - 冲突策略：吸收上游业务和可访问性修复，但新视觉实现必须映射到极速蹬语义规则；不得以“上游原样”或“历史页面已有”为理由继续扩散不一致。
-- 验证：`cd frontend && pnpm design:check`、`pnpm lint:check`、`pnpm typecheck`、相关 Vitest、production build，以及 `docs/visual-reviews/` 中可复核的 Playwright 前后截图、浅深色、中英文、响应式和 reduced-motion 记录。
+- 验证：`cd frontend && pnpm design:check`、`pnpm lint:check`、`pnpm typecheck`、相关 Vitest、production build，以及 `docs/visual-reviews/` 中可复核的原型设计图片、Playwright 前后截图、浅深色、中英文、响应式和 reduced-motion 记录。
 
 ## FORK-NAV-002 用户侧栏和 Growth 导航
 

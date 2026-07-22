@@ -119,6 +119,10 @@ check_contains "FORK-UI-012" "root agent rules require rendered UI review" "AGEN
 check_contains "FORK-UI-012" "verified frontend build runs design governance" "frontend/package.json" '"build:verified": "pnpm design:verify'
 check_contains "FORK-UI-012" "frontend lint runs design governance" "frontend/package.json" '"lint:check": "pnpm design:check'
 check_contains "FORK-UI-012" "frontend tests run design governance" "frontend/package.json" '"test:run": "pnpm design:check'
+check_contains "FORK-UI-012" "frontend visual changes require prototype images" "docs/FRONTEND_DESIGN_SYSTEM.md" "prototype_artifacts"
+check_contains "FORK-UI-012" "visual review template includes prototype artifacts" "docs/visual-reviews/TEMPLATE.md" "prototype_artifacts"
+check_contains "FORK-UI-012" "machine policy enforces prototype evidence" "docs/frontend-design-governance.json" '"prototype_visual_evidence": "enforced"'
+check_contains "FORK-UI-012" "design governance validates prototype artifacts" "scripts/check-frontend-design-governance.mjs" "prototype_artifacts"
 run_check "FORK-UI-012" "design governance self-tests" \
   node --test "$ROOT/scripts/check-frontend-design-governance.test.mjs"
 run_check "FORK-UI-012" "design governance command" \

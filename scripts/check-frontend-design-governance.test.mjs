@@ -185,6 +185,7 @@ test("visual evidence requires structured artifacts and file coverage", () => {
     const reviewDir = join(repo, "docs/visual-reviews");
     const assetDir = join(reviewDir, "assets");
     mkdirSync(assetDir, { recursive: true });
+    writeFileSync(join(assetDir, "prototype.png"), pngWithDimensions(320, 200));
     writeFileSync(join(assetDir, "before.png"), pngWithDimensions(320, 200));
     writeFileSync(join(assetDir, "after.png"), pngWithDimensions(320, 200));
 
@@ -193,6 +194,61 @@ test("visual evidence requires structured artifacts and file coverage", () => {
       join(repo, review),
       [
         "# Visual Review: Test",
+        "",
+        "<!-- visual-review-manifest",
+        JSON.stringify({
+          schema_version: 1,
+          changed_files: ["frontend/src/views/Test.vue"],
+          routes_or_surfaces: ["/test"],
+          languages_and_themes: ["zh-CN/light"],
+          states: ["default", "focus-visible"],
+          viewports: ["360x800", "1280x800"],
+          artifact_mode: "browser-capture",
+          prototype_artifacts: ["docs/visual-reviews/assets/prototype.png"],
+          baseline_artifacts: ["docs/visual-reviews/assets/before.png"],
+          updated_artifacts: ["docs/visual-reviews/assets/after.png"],
+          commands: ["playwright screenshot /test"],
+          checks: {
+            keyboard: { status: "passed" },
+            reduced_motion: { status: "passed" }
+          },
+          residual_risks: ["No known residual risk after local review."]
+        }),
+        "-->",
+        "",
+        "## Scope",
+        "Test route.",
+        "## Baseline",
+        "Existing route.",
+        "## Prototype",
+        "Design prototype image.",
+        "## Reuse Decision",
+        "Shared frame.",
+        "## State Coverage",
+        "Default and focus.",
+        "## Viewport Coverage",
+        "Mobile and desktop.",
+        "## Evidence",
+        "Artifacts above.",
+        "## Residual Risk",
+        "None found."
+      ].join("\n"),
+    );
+
+    assert.deepEqual(
+      validateEvidenceRecords({
+        repoRoot: repo,
+        visualFiles: ["frontend/src/views/Test.vue"],
+        evidenceFiles: [review]
+      }),
+      [],
+    );
+
+    const missingPrototype = "docs/visual-reviews/2026-07-21-missing-prototype.md";
+    writeFileSync(
+      join(repo, missingPrototype),
+      [
+        "# Visual Review: Missing Prototype",
         "",
         "<!-- visual-review-manifest",
         JSON.stringify({
@@ -218,6 +274,8 @@ test("visual evidence requires structured artifacts and file coverage", () => {
         "Test route.",
         "## Baseline",
         "Existing route.",
+        "## Prototype",
+        "Missing prototype artifact.",
         "## Reuse Decision",
         "Shared frame.",
         "## State Coverage",
@@ -230,14 +288,16 @@ test("visual evidence requires structured artifacts and file coverage", () => {
         "None found."
       ].join("\n"),
     );
-
-    assert.deepEqual(
-      validateEvidenceRecords({
-        repoRoot: repo,
-        visualFiles: ["frontend/src/views/Test.vue"],
-        evidenceFiles: [review]
-      }),
-      [],
+    const missingPrototypeViolations = validateEvidenceRecords({
+      repoRoot: repo,
+      visualFiles: ["frontend/src/views/Test.vue"],
+      evidenceFiles: [missingPrototype]
+    });
+    assert.ok(
+      missingPrototypeViolations.some((item) =>
+        item.message.includes("manifest is incomplete") &&
+        item.source.includes("prototype_artifacts"),
+      ),
     );
 
     writeFileSync(join(assetDir, "after.png"), fakePngWithDimensions(320, 200));

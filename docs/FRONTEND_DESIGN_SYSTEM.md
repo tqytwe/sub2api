@@ -14,9 +14,11 @@
 
 1. 打开并阅读目标页面、同类型页面和相关共享组件。
 2. 查看当前实际画面或已有截图，记录宽度、密度、层级和已有交互状态。
-3. 确认能否复用现有布局、图标、按钮、表单、表格、浮层和状态组件。
-4. 明确页面属于运营界面还是允许艺术表达的页面。
-5. 写出本次会影响的 default、hover、active、focus、loading、disabled、
+3. 在改代码前保存本次方案的原型设计图片。没有原型图、没有用户确认边界或
+   原型图与改动范围不一致时，不得进入实现。
+4. 确认能否复用现有布局、图标、按钮、表单、表格、浮层和状态组件。
+5. 明确页面属于运营界面还是允许艺术表达的页面。
+6. 写出本次会影响的 default、hover、active、focus、loading、disabled、
    empty、error、success 状态。
 
 视觉改动完成后必须保留可复核的前后对比。截图不是最终生产验收，但属于前端
@@ -24,8 +26,8 @@
 
 每次可见界面改动必须新增
 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`。记录必须包含目标路由、基线画面、
-实际复用的共享组件、状态矩阵、视口、前后截图或录像位置，以及未解决风险。
-模板占位符、只写“已检查”或只有代码链接不算有效证据。
+原型设计图片、实际复用的共享组件、状态矩阵、视口、前后截图或录像位置，以及
+未解决风险。模板占位符、只写“已检查”、只有代码链接或没有原型图片不算有效证据。
 
 ## 2. 视觉原则
 
@@ -236,13 +238,14 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 ## 15. 完成门禁
 
 当前已自动强制的是：治理文档存在、Git 基线可解析、增量反模式检查、真实视觉记录
-与修改前后产物。Route UI runtime、Playwright/axe CI 和组件状态自动探测仍按整改计划
-分阶段落地，不得在交付说明中写成已经完成。
+与原型图/修改前后产物。Route UI runtime、Playwright/axe CI 和组件状态自动探测仍按
+整改计划分阶段落地，不得在交付说明中写成已经完成。
 
 每个视觉任务必须确认：
 
 - 已读取本规范和 `frontend/AGENTS.md`。
 - 已查看当前画面、同类页面和共享组件。
+- 已在实现前保存原型设计图片，并在 visual review 的 `prototype_artifacts` 中引用。
 - 未新增平行图标、按钮、卡片、表单或弹窗体系。
 - 页面宽度、间距、圆角、颜色和排版符合规范。
 - 所有适用交互状态完整。
@@ -250,6 +253,8 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 - `pnpm design:check`、lint、typecheck、相关测试和 build 均通过。
 - 视觉风险较高时已完成 Playwright 前后截图和重叠检查。
 - 已新增并填写 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`。
+- visual review 必须包含 `## Prototype`，并声明至少一张真实可解码的
+  `prototype_artifacts` 图片；没有原型图的前端可见改动不得合入。
 - visual review 必须声明 `artifact_mode`。`browser-capture` 代表真实浏览器或
   Playwright 截图/录像；`static-review-board` 只能作为无浏览器环境下的开发辅助
   证据，必须在 residual risk 写明仍需浏览器截图或最终验收。

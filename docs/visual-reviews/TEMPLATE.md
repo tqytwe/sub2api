@@ -9,6 +9,9 @@
   "states": ["default", "hover", "focus-visible", "loading", "error"],
   "viewports": ["360x800", "1280x800"],
   "artifact_mode": "browser-capture",
+  "prototype_artifacts": [
+    "docs/visual-reviews/assets/replace-with-change-name/prototype-1280.png"
+  ],
   "baseline_artifacts": [
     "docs/visual-reviews/assets/replace-with-change-name/before-360.png"
   ],
@@ -35,6 +38,12 @@
 - Current behavior:
 - Baseline screenshot or recording:
 - Inconsistencies observed:
+
+## Prototype
+
+- Prototype design image:
+- Approval status:
+- Scope boundary:
 
 ## Reuse Decision
 
