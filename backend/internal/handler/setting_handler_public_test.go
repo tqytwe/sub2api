@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -123,4 +124,59 @@ func TestSettingHandler_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *
 	require.True(t, resp.Data.WeChatOAuthEnabled)
 	require.True(t, resp.Data.WeChatOAuthOpenEnabled)
 	require.True(t, resp.Data.WeChatOAuthMPEnabled)
+}
+
+func TestSettingHandler_GetPublicSettings_RewritesSupportContactDataURLQR(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{
+		values: map[string]string{
+			service.SettingKeySupportContactConfig: `{
+				"contacts":[
+					{"id":"wechat-main","type":"wechat","value":"wx","qr_image":"data:image/png;base64,aGk=","enabled":true}
+				]
+			}`,
+		},
+	}, &config.Config{}), "test-version")
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public", nil)
+
+	h.GetPublicSettings(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.NotContains(t, recorder.Body.String(), "data:image/png;base64")
+	var resp struct {
+		Data struct {
+			SupportContact service.SupportContactConfig `json:"support_contact"`
+		} `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &resp))
+	require.Equal(t, "/api/v1/settings/public/support-contact/qr/wechat-main", resp.Data.SupportContact.Contacts[0].QRImage)
+}
+
+func TestSettingHandler_GetPublicSupportContactQRCode_ServesDecodedImage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	h := NewSettingHandler(service.NewSettingService(&settingHandlerPublicRepoStub{
+		values: map[string]string{
+			service.SettingKeySupportContactConfig: `{
+				"contacts":[
+					{"id":"wechat-main","type":"wechat","value":"wx","qr_image":"data:image/png;base64,aGk=","enabled":true}
+				]
+			}`,
+		},
+	}, &config.Config{}), "test-version")
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Params = gin.Params{{Key: "id", Value: "wechat-main"}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/settings/public/support-contact/qr/wechat-main", nil)
+
+	h.GetPublicSupportContactQRCode(c)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, "image/png", recorder.Header().Get("Content-Type"))
+	require.True(t, strings.HasPrefix(recorder.Header().Get("Cache-Control"), "public"))
+	require.Equal(t, "hi", recorder.Body.String())
+	require.NotEmpty(t, recorder.Header().Get("ETag"))
 }
