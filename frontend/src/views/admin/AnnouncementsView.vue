@@ -174,9 +174,58 @@
           <input v-model="form.title" type="text" class="input" required />
         </div>
 
-        <div>
-          <label class="input-label">{{ t('admin.announcements.form.content') }}</label>
-          <textarea v-model="form.content" rows="6" class="input" required></textarea>
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <label class="input-label mb-0">{{ t('admin.announcements.form.content') }}</label>
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                v-for="action in markdownActions"
+                :key="action.key"
+                type="button"
+                class="btn btn-secondary btn-sm"
+                @click="insertMarkdown(action.before, action.after)"
+              >
+                {{ action.label }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary btn-sm"
+                :disabled="uploadingAsset"
+                @click="triggerAssetPicker"
+              >
+                <Icon name="upload" size="xs" class="mr-1" />
+                {{ uploadingAsset ? t('admin.announcements.form.uploadingImage') : t('admin.announcements.form.uploadImage') }}
+              </button>
+              <input
+                ref="assetInputRef"
+                type="file"
+                class="hidden"
+                accept="image/png,image/jpeg,image/webp,image/gif"
+                @change="handleAssetSelected"
+              />
+            </div>
+          </div>
+          <textarea
+            ref="contentTextareaRef"
+            v-model="form.content"
+            rows="9"
+            class="input"
+            required
+          ></textarea>
+          <p class="input-hint">{{ t('admin.announcements.form.contentHint') }}</p>
+          <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900/40">
+            <div class="mb-3 flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200">
+              <Icon name="eye" size="sm" />
+              {{ t('admin.announcements.form.preview') }}
+            </div>
+            <AnnouncementContent
+              v-if="form.content.trim()"
+              :content="form.content"
+            />
+            <p v-else class="text-sm text-gray-500 dark:text-dark-400">
+              {{ t('admin.announcements.form.previewEmpty') }}
+            </p>
+          </div>
         </div>
 
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -262,6 +311,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import Select from '@/components/common/Select.vue'
 import EmptyState from '@/components/common/EmptyState.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AnnouncementContent from '@/components/common/AnnouncementContent.vue'
 
 import AnnouncementTargetingEditor from '@/components/admin/announcements/AnnouncementTargetingEditor.vue'
 import AnnouncementReadStatusDialog from '@/components/admin/announcements/AnnouncementReadStatusDialog.vue'
@@ -305,6 +355,14 @@ const statusOptions = computed(() => [
 const notifyModeOptions = computed(() => [
   { value: 'silent', label: t('admin.announcements.notifyModeLabels.silent') },
   { value: 'popup', label: t('admin.announcements.notifyModeLabels.popup') }
+])
+
+const markdownActions = computed(() => [
+  { key: 'highlight', label: t('admin.announcements.form.highlight'), before: '==', after: '==' },
+  { key: 'info', label: t('admin.announcements.form.infoTone'), before: '::info[', after: ']' },
+  { key: 'success', label: t('admin.announcements.form.successTone'), before: '::success[', after: ']' },
+  { key: 'warning', label: t('admin.announcements.form.warningTone'), before: '::warning[', after: ']' },
+  { key: 'danger', label: t('admin.announcements.form.dangerTone'), before: '::danger[', after: ']' }
 ])
 
 const columns = computed<Column[]>(() => [
@@ -410,6 +468,9 @@ function handleSearch() {
 const showEditDialog = ref(false)
 const saving = ref(false)
 const editingAnnouncement = ref<Announcement | null>(null)
+const uploadingAsset = ref(false)
+const assetInputRef = ref<HTMLInputElement | null>(null)
+const contentTextareaRef = ref<HTMLTextAreaElement | null>(null)
 
 const isEditing = computed(() => !!editingAnnouncement.value)
 
@@ -473,6 +534,61 @@ function openEditDialog(row: Announcement) {
 function closeEdit() {
   showEditDialog.value = false
   editingAnnouncement.value = null
+}
+
+function triggerAssetPicker() {
+  assetInputRef.value?.click()
+}
+
+function insertAtContentCursor(text: string) {
+  const textarea = contentTextareaRef.value
+  if (!textarea) {
+    form.content += text
+    return
+  }
+  const start = textarea.selectionStart ?? form.content.length
+  const end = textarea.selectionEnd ?? form.content.length
+  form.content = `${form.content.slice(0, start)}${text}${form.content.slice(end)}`
+  requestAnimationFrame(() => {
+    textarea.focus()
+    const cursor = start + text.length
+    textarea.setSelectionRange(cursor, cursor)
+  })
+}
+
+function insertMarkdown(before: string, after: string) {
+  const textarea = contentTextareaRef.value
+  if (!textarea) {
+    insertAtContentCursor(`${before}${after}`)
+    return
+  }
+  const start = textarea.selectionStart ?? form.content.length
+  const end = textarea.selectionEnd ?? form.content.length
+  const selected = form.content.slice(start, end) || t('admin.announcements.form.sampleText')
+  form.content = `${form.content.slice(0, start)}${before}${selected}${after}${form.content.slice(end)}`
+  requestAnimationFrame(() => {
+    textarea.focus()
+    textarea.setSelectionRange(start + before.length, start + before.length + selected.length)
+  })
+}
+
+async function handleAssetSelected(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+
+  uploadingAsset.value = true
+  try {
+    const result = await adminAPI.announcements.uploadAsset(file)
+    insertAtContentCursor(`\n${result.markdown}\n`)
+    appStore.showSuccess(t('admin.announcements.form.imageUploaded'))
+  } catch (error: any) {
+    console.error('Failed to upload announcement asset:', error)
+    appStore.showError(error.response?.data?.detail || error.message || t('admin.announcements.form.imageUploadFailed'))
+  } finally {
+    uploadingAsset.value = false
+  }
 }
 
 function buildCreatePayload() {

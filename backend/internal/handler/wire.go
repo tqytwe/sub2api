@@ -96,6 +96,20 @@ func ProvideAdminHandlers(
 	}
 }
 
+func ProvideAnnouncementHandler(
+	announcementService *service.AnnouncementService,
+	assetService *service.AnnouncementAssetService,
+) *AnnouncementHandler {
+	return NewAnnouncementHandler(announcementService, assetService)
+}
+
+func ProvideAdminAnnouncementHandler(
+	announcementService *service.AnnouncementService,
+	assetService *service.AnnouncementAssetService,
+) *admin.AnnouncementHandler {
+	return admin.NewAnnouncementHandler(announcementService, assetService)
+}
+
 func ProvideGatewayHandler(
 	gatewayService *service.GatewayService,
 	openAIGatewayService *service.OpenAIGatewayService,
@@ -253,7 +267,7 @@ var ProviderSet = wire.NewSet(
 	NewUsageHandler,
 	NewRedeemHandler,
 	NewSubscriptionHandler,
-	NewAnnouncementHandler,
+	ProvideAnnouncementHandler,
 	NewChannelMonitorUserHandler,
 	ProvideGatewayHandler,
 	ProvideOpenAIGatewayHandler,
@@ -277,7 +291,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewUserHandler,
 	admin.NewGroupHandler,
 	admin.ProvideAccountHandler,
-	admin.NewAnnouncementHandler,
+	ProvideAdminAnnouncementHandler,
 	admin.NewDataManagementHandler,
 	admin.NewBackupHandler,
 	admin.NewOAuthHandler,

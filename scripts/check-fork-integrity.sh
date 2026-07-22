@@ -97,7 +97,7 @@ echo "Checking fork registry and static invariants..."
 for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
-  FORK-IMAGE-011; do
+  FORK-IMAGE-011 FORK-UI-012; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -106,6 +106,23 @@ if "$ROOT/scripts/check-jisudeng-branding.sh"; then
 else
   fail "FORK-BRAND-001" "branding protection script"
 fi
+
+check_file "FORK-UI-012" "frontend design system" "docs/FRONTEND_DESIGN_SYSTEM.md"
+check_file "FORK-UI-012" "frontend remediation plan" "docs/FRONTEND_EXPERIENCE_REMEDIATION_PLAN.md"
+check_file "FORK-UI-012" "machine-readable frontend policy" "docs/frontend-design-governance.json"
+check_file "FORK-UI-012" "frontend path-scoped agent rules" "frontend/AGENTS.md"
+check_file "FORK-UI-012" "visual review instructions" "docs/visual-reviews/README.md"
+check_file "FORK-UI-012" "visual review template" "docs/visual-reviews/TEMPLATE.md"
+check_file "FORK-UI-012" "design governance script" "scripts/check-frontend-design-governance.mjs"
+check_file "FORK-UI-012" "design governance tests" "scripts/check-frontend-design-governance.test.mjs"
+check_contains "FORK-UI-012" "root agent rules require rendered UI review" "AGENTS.md" "任何可见界面改动必须新增一份"
+check_contains "FORK-UI-012" "verified frontend build runs design governance" "frontend/package.json" '"build:verified": "pnpm design:verify'
+check_contains "FORK-UI-012" "frontend lint runs design governance" "frontend/package.json" '"lint:check": "pnpm design:check'
+check_contains "FORK-UI-012" "frontend tests run design governance" "frontend/package.json" '"test:run": "pnpm design:check'
+run_check "FORK-UI-012" "design governance self-tests" \
+  node --test "$ROOT/scripts/check-frontend-design-governance.test.mjs"
+run_check "FORK-UI-012" "design governance command" \
+  node "$ROOT/scripts/check-frontend-design-governance.mjs"
 
 check_contains "FORK-NAV-002" "Growth navigation group" "frontend/src/components/layout/AppSidebar.vue" "path: '/growth-group'"
 check_contains "FORK-NAV-002" "models navigation entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/models'"

@@ -78,7 +78,9 @@ describe('ProfileView', () => {
       global: {
         stubs: {
           AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<div data-testid="profile-shell"><slot /></div>' },
           StatCard: { template: '<div class="stat-card" />' },
+          SupportContactPanel: { template: '<div data-testid="support-contact-panel" />' },
           ProfileInfoCard: { template: '<div data-testid="profile-info-card" />' },
           ProfileBalanceNotifyCard: { template: '<div data-testid="profile-balance-notify-card" />' },
           ProfilePasswordForm: { template: '<div data-testid="profile-password-form" />' },
@@ -93,6 +95,7 @@ describe('ProfileView', () => {
     expect(wrapper.findAll('.stat-card')).toHaveLength(0)
     expect(wrapper.get('[data-testid="profile-shell"]').exists()).toBe(true)
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-info-card')
+    expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('support-contact-panel')
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-password-form')
     expect(wrapper.get('[data-testid="profile-shell"]').html()).toContain('profile-totp-card')
   })

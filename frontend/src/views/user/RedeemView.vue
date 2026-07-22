@@ -1,6 +1,6 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-2xl space-y-6">
+    <PageFrame frame="form" class="space-y-6">
       <!-- Current Balance Card -->
       <div class="card overflow-hidden">
         <div class="bg-gradient-to-br from-primary-500 to-primary-600 px-6 py-8 text-center">
@@ -335,7 +335,7 @@
           </div>
         </div>
       </div>
-    </div>
+    </PageFrame>
   </AppLayout>
 </template>
 
@@ -347,6 +347,7 @@ import { useAppStore } from '@/stores/app'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { redeemAPI, type RedeemHistoryItem } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import PageFrame from '@/components/layout/PageFrame.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime } from '@/utils/format'

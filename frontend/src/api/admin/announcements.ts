@@ -11,6 +11,13 @@ import type {
   UpdateAnnouncementRequest
 } from '@/types'
 
+export interface AnnouncementAssetUploadResponse {
+  url: string
+  markdown: string
+  content_type: string
+  byte_size: number
+}
+
 export async function list(
   page: number = 1,
   pageSize: number = 20,
@@ -51,6 +58,15 @@ export async function deleteAnnouncement(id: number): Promise<{ message: string 
   return data
 }
 
+export async function uploadAsset(file: File): Promise<AnnouncementAssetUploadResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const { data } = await apiClient.post<AnnouncementAssetUploadResponse>('/admin/announcements/assets', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  })
+  return data
+}
+
 export async function getReadStatus(
   id: number,
   page: number = 1,
@@ -80,6 +96,7 @@ const announcementsAPI = {
   create,
   update,
   delete: deleteAnnouncement,
+  uploadAsset,
   getReadStatus
 }
 

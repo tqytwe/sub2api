@@ -139,6 +139,10 @@ func ProvideOpenAIQuotaService(
 	return service
 }
 
+func ProvideAnnouncementAssetService(settings *ImageStorageSettingService) *AnnouncementAssetService {
+	return NewAnnouncementAssetService(settings)
+}
+
 func ProvideAccountUsageService(
 	accountRepo AccountRepository,
 	usageLogRepo UsageLogRepository,
@@ -821,6 +825,7 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
 	NewOpenAIGatewayService,
 	ProvideImageStorageSettingService,
+	ProvideAnnouncementAssetService,
 	ProvideImageTaskRuntimeState,
 	ProvideImageTaskService,
 	ProvideOpenAIImageResultService,

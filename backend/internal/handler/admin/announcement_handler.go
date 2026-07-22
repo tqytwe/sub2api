@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -17,13 +19,18 @@ import (
 // AnnouncementHandler handles admin announcement management
 type AnnouncementHandler struct {
 	announcementService *service.AnnouncementService
+	assetService        *service.AnnouncementAssetService
 }
 
 // NewAnnouncementHandler creates a new admin announcement handler
-func NewAnnouncementHandler(announcementService *service.AnnouncementService) *AnnouncementHandler {
-	return &AnnouncementHandler{
+func NewAnnouncementHandler(announcementService *service.AnnouncementService, assetService ...*service.AnnouncementAssetService) *AnnouncementHandler {
+	h := &AnnouncementHandler{
 		announcementService: announcementService,
 	}
+	if len(assetService) > 0 {
+		h.assetService = assetService[0]
+	}
+	return h
 }
 
 type CreateAnnouncementRequest struct {
@@ -140,6 +147,43 @@ func (h *AnnouncementHandler) Create(c *gin.Context) {
 	}
 
 	response.Success(c, dto.AnnouncementFromService(created))
+}
+
+// UploadAsset handles platform-hosted image uploads for announcement Markdown.
+// POST /api/v1/admin/announcements/assets
+func (h *AnnouncementHandler) UploadAsset(c *gin.Context) {
+	if h == nil || h.assetService == nil {
+		response.ErrorFrom(c, service.ErrAnnouncementAssetStorageUnavailable)
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.AnnouncementAssetMaxBytes+(256<<10))
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		response.BadRequest(c, "Invalid announcement image")
+		return
+	}
+	file, err := fileHeader.Open()
+	if err != nil {
+		response.BadRequest(c, "Invalid announcement image")
+		return
+	}
+	defer func() { _ = file.Close() }()
+	data, err := io.ReadAll(io.LimitReader(file, service.AnnouncementAssetMaxBytes+1))
+	if err != nil {
+		response.BadRequest(c, "Invalid announcement image")
+		return
+	}
+	if len(data) > service.AnnouncementAssetMaxBytes {
+		response.ErrorFrom(c, service.ErrAnnouncementAssetTooLarge)
+		return
+	}
+	contentType := fileHeader.Header.Get("Content-Type")
+	asset, err := h.assetService.Upload(c.Request.Context(), fileHeader.Filename, contentType, data)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, asset)
 }
 
 // Update handles updating an announcement

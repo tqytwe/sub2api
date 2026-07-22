@@ -58,6 +58,38 @@ func TestAnnouncementServiceCreateRejectsEqualStartEndTimes(t *testing.T) {
 	require.ErrorIs(t, err, ErrAnnouncementInvalidSchedule)
 }
 
+func TestAnnouncementServiceCreateAcceptsPlatformHostedAnnouncementImage(t *testing.T) {
+	repo := &announcementRepoStub{}
+	svc := NewAnnouncementService(repo, nil, nil, nil)
+
+	created, err := svc.Create(context.Background(), &CreateAnnouncementInput{
+		Title:   "公告",
+		Content: "请看图：![海报](/api/v1/announcement-assets/announcements/banner.png)\n\n==重点==",
+		Status:  AnnouncementStatusDraft,
+	})
+
+	require.NoError(t, err)
+	require.Contains(t, created.Content, "/api/v1/announcement-assets/announcements/banner.png")
+}
+
+func TestAnnouncementServiceCreateRejectsUnsafeMarkdownImagesAndHTML(t *testing.T) {
+	svc := NewAnnouncementService(&announcementRepoStub{}, nil, nil, nil)
+
+	for _, content := range []string{
+		`![external](https://example.com/banner.png)`,
+		`![external-route](https://evil.example/api/v1/announcement-assets/announcements/banner.png)`,
+		`![inline](data:image/png;base64,AAAA)`,
+		`<span style="color:red">red</span>`,
+	} {
+		_, err := svc.Create(context.Background(), &CreateAnnouncementInput{
+			Title:   "公告",
+			Content: content,
+			Status:  AnnouncementStatusDraft,
+		})
+		require.ErrorIs(t, err, ErrAnnouncementContentUnsafe)
+	}
+}
+
 func TestAnnouncementServiceUpdateRejectsEqualStartEndTimes(t *testing.T) {
 	repo := &announcementRepoStub{
 		item: &Announcement{

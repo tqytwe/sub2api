@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -15,13 +16,18 @@ import (
 // AnnouncementHandler handles user announcement operations
 type AnnouncementHandler struct {
 	announcementService *service.AnnouncementService
+	assetService        *service.AnnouncementAssetService
 }
 
 // NewAnnouncementHandler creates a new user announcement handler
-func NewAnnouncementHandler(announcementService *service.AnnouncementService) *AnnouncementHandler {
-	return &AnnouncementHandler{
+func NewAnnouncementHandler(announcementService *service.AnnouncementService, assetService ...*service.AnnouncementAssetService) *AnnouncementHandler {
+	h := &AnnouncementHandler{
 		announcementService: announcementService,
 	}
+	if len(assetService) > 0 {
+		h.assetService = assetService[0]
+	}
+	return h
 }
 
 // List handles listing announcements visible to current user
@@ -69,6 +75,23 @@ func (h *AnnouncementHandler) MarkRead(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "ok"})
+}
+
+// GetAsset serves platform-hosted announcement images.
+// GET /api/v1/announcement-assets/*filepath
+func (h *AnnouncementHandler) GetAsset(c *gin.Context) {
+	if h == nil || h.assetService == nil {
+		response.ErrorFrom(c, service.ErrAnnouncementAssetStorageUnavailable)
+		return
+	}
+	reader, contentType, err := h.assetService.Open(c.Request.Context(), c.Param("filepath"))
+	if err != nil {
+		response.NotFound(c, "Announcement asset not found")
+		return
+	}
+	defer func() { _ = reader.Close() }()
+	c.Header("Cache-Control", "public, max-age=86400")
+	c.DataFromReader(http.StatusOK, -1, contentType, reader, nil)
 }
 
 func parseBoolQuery(v string) bool {
