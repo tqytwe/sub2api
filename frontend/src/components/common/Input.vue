@@ -1,6 +1,6 @@
 <template>
   <div class="w-full">
-    <label v-if="label" :for="id" class="input-label mb-1.5 block">
+    <label v-if="label" :for="controlId" class="input-label mb-1.5 block">
       {{ label }}
       <span v-if="required" class="text-red-500">*</span>
     </label>
@@ -14,7 +14,7 @@
       </div>
 
       <input
-        :id="id"
+        :id="controlId"
         ref="inputRef"
         :type="type"
         :value="modelValue"
@@ -23,6 +23,8 @@
         :placeholder="placeholderText"
         :autocomplete="autocomplete"
         :readonly="readonly"
+        :aria-invalid="error ? 'true' : undefined"
+        :aria-describedby="describedBy"
         :class="[
           'input w-full transition-[background-color,border-color,box-shadow,color] duration-200',
           $slots.prefix ? 'pl-11' : '',
@@ -46,10 +48,10 @@
       </div>
     </div>
     <!-- Hint / Error Text -->
-    <p v-if="error" class="input-error-text mt-1.5">
+    <p v-if="error" :id="errorId" class="input-error-text mt-1.5">
       {{ error }}
     </p>
-    <p v-else-if="hint" class="input-hint mt-1.5">
+    <p v-else-if="hint" :id="hintId" class="input-hint mt-1.5">
       {{ hint }}
     </p>
   </div>
@@ -88,7 +90,16 @@ const emit = defineEmits<{
 }>()
 
 const inputRef = ref<HTMLInputElement | null>(null)
+const generatedId = `input-${Math.random().toString(36).slice(2, 9)}`
+const controlId = computed(() => props.id || generatedId)
+const hintId = computed(() => `${controlId.value}-hint`)
+const errorId = computed(() => `${controlId.value}-error`)
 const placeholderText = computed(() => props.placeholder || '')
+const describedBy = computed(() => {
+  if (props.error) return errorId.value
+  if (props.hint) return hintId.value
+  return undefined
+})
 
 const onInput = (event: Event) => {
   const value = (event.target as HTMLInputElement).value
