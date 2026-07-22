@@ -3,7 +3,7 @@
     class="lmspeed-badge-link"
     href="https://lmspeed.net/"
     target="_blank"
-    rel="noopener noreferrer"
+    rel="noopener noreferrer nofollow"
     aria-label="极速蹬已被 LMSpeed.net 收录"
   >
     <img

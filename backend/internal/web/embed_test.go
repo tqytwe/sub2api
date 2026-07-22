@@ -30,7 +30,7 @@ func TestInjectSiteTitle(t *testing.T) {
 
 		result := injectSiteTitle(html, settingsJSON)
 
-		assert.Contains(t, string(result), "<title>MyCustomSite</title>")
+		assert.Contains(t, string(result), "<title>MyCustomSite - AI API Gateway 与中文提示词库</title>")
 		assert.NotContains(t, string(result), "Sub2API")
 	})
 
@@ -98,7 +98,7 @@ func TestInjectSiteTitle(t *testing.T) {
 
 		result := injectSiteTitle(html, settingsJSON)
 
-		assert.Contains(t, string(result), "<title>A&amp;B</title>")
+		assert.Contains(t, string(result), "<title>A&amp;B - AI API Gateway 与中文提示词库</title>")
 	})
 
 	t.Run("preserves_rest_of_html", func(t *testing.T) {
@@ -110,7 +110,7 @@ func TestInjectSiteTitle(t *testing.T) {
 		assert.Contains(t, string(result), `<meta charset="UTF-8">`)
 		assert.Contains(t, string(result), `<script src="app.js"></script>`)
 		assert.Contains(t, string(result), `<div id="app"></div>`)
-		assert.Contains(t, string(result), "<title>TestSite</title>")
+		assert.Contains(t, string(result), "<title>TestSite - AI API Gateway 与中文提示词库</title>")
 	})
 }
 
@@ -528,6 +528,8 @@ func TestFrontendServer_Middleware(t *testing.T) {
 			"/antigravity/test",
 			"/setup/init",
 			"/health",
+			"/robots.txt",
+			"/sitemap.xml",
 			"/responses",
 			"/responses/compact",
 		}
@@ -892,6 +894,8 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 			"/antigravity/test",
 			"/setup/init",
 			"/health",
+			"/robots.txt",
+			"/sitemap.xml",
 			"/responses",
 			"/responses/compact",
 		}
