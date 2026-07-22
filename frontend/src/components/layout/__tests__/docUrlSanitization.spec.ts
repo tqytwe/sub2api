@@ -18,11 +18,11 @@ describe('doc_url sanitization', () => {
     expect(headerSource).toContain('sanitizeUrl(appStore.docUrl)')
   })
 
-  it('AppHeader exposes support as a contact route entry instead of embedding the panel', () => {
-    expect(headerSource).toContain("import { CONTACT_ROUTE } from '@/router/publicNavigation'")
-    expect(headerSource).toContain(':to="CONTACT_ROUTE"')
-    expect(headerSource).not.toContain('SupportContactPanel')
-    expect(headerSource).not.toContain('supportPanelExpanded')
+  it('AppHeader exposes support through the shared structured support panel', () => {
+    expect(headerSource).toContain("import SupportContactPanel from '@/components/common/SupportContactPanel.vue'")
+    expect(headerSource).toContain("import { enabledSupportContacts } from '@/utils/supportContact'")
+    expect(headerSource).toContain('supportPanelExpanded')
+    expect(headerSource).toContain(':config="appStore.supportContact"')
   })
 
   it('HomeView imports sanitizeUrl', () => {
