@@ -192,6 +192,26 @@ func TestSettingService_GetPublicSettings_ExposesSanitizedSupportContact(t *test
 	require.Equal(t, "/uploads/wechat.png", settings.SupportContact.Contacts[0].QRImage)
 }
 
+func TestSettingService_GetPublicSettingsForInjection_RewritesSupportContactDataURLQR(t *testing.T) {
+	svc := NewSettingService(&settingPublicRepoStub{
+		values: map[string]string{
+			SettingKeySupportContactConfig: `{
+				"contacts":[
+					{"id":"wechat-main","type":"wechat","value":"wx","qr_image":"data:image/png;base64,aGk=","enabled":true}
+				]
+			}`,
+		},
+	}, &config.Config{})
+
+	payload, err := svc.GetPublicSettingsForInjection(context.Background())
+
+	require.NoError(t, err)
+	injection, ok := payload.(*PublicSettingsInjectionPayload)
+	require.True(t, ok)
+	require.Len(t, injection.SupportContact.Contacts, 1)
+	require.Equal(t, "/api/v1/settings/public/support-contact/qr/wechat-main", injection.SupportContact.Contacts[0].QRImage)
+}
+
 func TestSettingService_GetPublicSettings_BuildsSupportContactFromLegacyFields(t *testing.T) {
 	svc := NewSettingService(&settingPublicRepoStub{
 		values: map[string]string{

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"html"
 	"net/http"
 	"strings"
@@ -66,7 +67,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		APIBaseURL:                       settings.APIBaseURL,
 		ContactInfo:                      settings.ContactInfo,
 		DocURL:                           settings.DocURL,
-		SupportContact:                   settings.SupportContact,
+		SupportContact:                   service.RewritePublicSupportContactQRImages(settings.SupportContact),
 		HomeContent:                      settings.HomeContent,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
@@ -115,6 +116,30 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 
 		AllowUserViewErrorRequests: settings.AllowUserViewErrorRequests,
 	})
+}
+
+// GetPublicSupportContactQRCode serves QR images that are stored as data URLs in
+// public support-contact settings. Public settings return this small URL instead
+// of embedding large base64 images into every page and settings response.
+// GET /api/v1/settings/public/support-contact/qr/:id
+func (h *SettingHandler) GetPublicSupportContactQRCode(c *gin.Context) {
+	asset, err := h.settingService.GetPublicSupportContactQRCode(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		if errors.Is(err, service.ErrSupportContactQRCodeNotFound) {
+			response.NotFound(c, "support contact QR image not found")
+			return
+		}
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	c.Header("Cache-Control", "public, max-age=300")
+	c.Header("ETag", asset.ETag)
+	if match := c.GetHeader("If-None-Match"); match == asset.ETag {
+		c.Status(http.StatusNotModified)
+		return
+	}
+	c.Data(http.StatusOK, asset.ContentType, asset.Data)
 }
 
 // UnsubscribeNotificationEmail handles optional notification email opt-outs.

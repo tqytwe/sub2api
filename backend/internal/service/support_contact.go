@@ -1,8 +1,11 @@
 package service
 
 import (
+	"context"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/url"
 	"sort"
@@ -17,7 +20,10 @@ const (
 	maxSupportContactTextLength   = 240
 	maxSupportContactDescLength   = 360
 	maxSupportContactImageLength  = 460 * 1024
+	publicSupportContactQRPrefix  = "/api/v1/settings/public/support-contact/qr/"
 )
+
+var ErrSupportContactQRCodeNotFound = errors.New("support contact QR image not found")
 
 var allowedSupportContactTypes = map[string]bool{
 	"wechat":   true,
@@ -48,6 +54,12 @@ type SupportContactMethod struct {
 	SortOrder   int    `json:"sort_order"`
 }
 
+type PublicSupportContactQRCode struct {
+	ContentType string
+	Data        []byte
+	ETag        string
+}
+
 func NormalizeSupportContactConfigForStorage(config SupportContactConfig) (SupportContactConfig, string, error) {
 	normalized, err := normalizeSupportContactConfig(config, true, true)
 	if err != nil {
@@ -76,6 +88,44 @@ func BuildPublicSupportContactConfig(raw, legacyContactInfo, legacyDocURL string
 		normalized = SupportContactConfig{}
 	}
 	return withLegacySupportContactFallback(normalized, legacyContactInfo, legacyDocURL)
+}
+
+func RewritePublicSupportContactQRImages(config SupportContactConfig) SupportContactConfig {
+	out := config
+	out.Contacts = append([]SupportContactMethod(nil), config.Contacts...)
+	for i := range out.Contacts {
+		if isSupportContactDataImage(out.Contacts[i].QRImage) {
+			out.Contacts[i].QRImage = publicSupportContactQRPrefix + url.PathEscape(out.Contacts[i].ID)
+		}
+	}
+	return out
+}
+
+func (s *SettingService) GetPublicSupportContactQRCode(ctx context.Context, id string) (PublicSupportContactQRCode, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return PublicSupportContactQRCode{}, ErrSupportContactQRCodeNotFound
+	}
+	settings, err := s.GetPublicSettings(ctx)
+	if err != nil {
+		return PublicSupportContactQRCode{}, err
+	}
+	for _, contact := range settings.SupportContact.Contacts {
+		if contact.ID != id {
+			continue
+		}
+		contentType, data, ok := decodeSupportContactDataImage(contact.QRImage)
+		if !ok {
+			return PublicSupportContactQRCode{}, ErrSupportContactQRCodeNotFound
+		}
+		sum := sha256.Sum256(data)
+		return PublicSupportContactQRCode{
+			ContentType: contentType,
+			Data:        data,
+			ETag:        fmt.Sprintf(`"%x"`, sum[:]),
+		}, nil
+	}
+	return PublicSupportContactQRCode{}, ErrSupportContactQRCodeNotFound
 }
 
 func parseSupportContactConfig(raw string) SupportContactConfig {
@@ -303,4 +353,41 @@ func isSafeSupportContactImage(raw string) bool {
 		return false
 	}
 	return strings.EqualFold(u.Scheme, "https") && u.Host != ""
+}
+
+func isSupportContactDataImage(raw string) bool {
+	lower := strings.ToLower(strings.TrimSpace(raw))
+	return strings.HasPrefix(lower, "data:image/png;base64,") ||
+		strings.HasPrefix(lower, "data:image/jpeg;base64,") ||
+		strings.HasPrefix(lower, "data:image/jpg;base64,") ||
+		strings.HasPrefix(lower, "data:image/webp;base64,") ||
+		strings.HasPrefix(lower, "data:image/gif;base64,")
+}
+
+func decodeSupportContactDataImage(raw string) (string, []byte, bool) {
+	trimmed := strings.TrimSpace(raw)
+	lower := strings.ToLower(trimmed)
+	contentType := ""
+	dataStart := 0
+	for prefix, normalizedContentType := range map[string]string{
+		"data:image/png;base64,":  "image/png",
+		"data:image/jpeg;base64,": "image/jpeg",
+		"data:image/jpg;base64,":  "image/jpeg",
+		"data:image/webp;base64,": "image/webp",
+		"data:image/gif;base64,":  "image/gif",
+	} {
+		if strings.HasPrefix(lower, prefix) {
+			contentType = normalizedContentType
+			dataStart = len(prefix)
+			break
+		}
+	}
+	if contentType == "" || dataStart <= 0 || dataStart >= len(trimmed) {
+		return "", nil, false
+	}
+	data, err := base64.StdEncoding.DecodeString(trimmed[dataStart:])
+	if err != nil || len(data) == 0 {
+		return "", nil, false
+	}
+	return contentType, data, true
 }
