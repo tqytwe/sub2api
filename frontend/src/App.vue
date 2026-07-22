@@ -7,6 +7,7 @@ import { resolveRouteDocumentTitle } from '@/router/title'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
+import { shouldProbeSetupStatusOnStartup } from '@/utils/startupChecks'
 
 const AdminComplianceDialog = defineAsyncComponent(() => import('@/components/admin/AdminComplianceDialog.vue'))
 const AnnouncementPopup = defineAsyncComponent(() => import('@/components/common/AnnouncementPopup.vue'))
@@ -122,22 +123,26 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   window.addEventListener('admin-compliance-required', onAdminComplianceRequired)
 
-  // Check if setup is needed
-  try {
-    const status = await getSetupStatus()
-    if (status.needs_setup && route.path !== '/setup') {
-      router.replace('/setup')
-      return
+  const hasInjectedPublicSettings = appStore.publicSettingsLoaded || Boolean(window.__APP_CONFIG__)
+  if (shouldProbeSetupStatusOnStartup(route.path, hasInjectedPublicSettings)) {
+    try {
+      const status = await getSetupStatus()
+      if (status.needs_setup) {
+        router.replace('/setup')
+        return
+      }
+    } catch {
+      // If setup endpoint fails, assume normal mode and continue
     }
-  } catch {
-    // If setup endpoint fails, assume normal mode and continue
   }
 
   // Injected settings avoid first-paint flash. In static/dev fallback, fetch once
   // without blocking route interaction or forcing a duplicate public-settings XHR.
-  void appStore.fetchPublicSettings().then(() => {
-    updateDocumentTitle()
-  })
+  if (!appStore.publicSettingsLoaded) {
+    void appStore.fetchPublicSettings().then(() => {
+      updateDocumentTitle()
+    })
+  }
 })
 </script>
 

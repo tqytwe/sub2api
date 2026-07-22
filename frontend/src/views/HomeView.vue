@@ -448,10 +448,9 @@
 
 <script setup lang="ts">
 import '@/styles/home-view.css'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DOMPurify from 'dompurify'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, useAppStore } from '@/stores'
 import HeroSphere from '@/components/home/HeroSphere.vue'
 import ChannelTV from '@/components/home/ChannelTV.vue'
@@ -465,6 +464,8 @@ import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { formatHomeStatsTimestamp } from '@/utils/homeLiveStats'
 import { sanitizeUrl } from '@/utils/url'
 import { enabledSupportContacts } from '@/utils/supportContact'
+import { isHomeContentUrl as isCustomHomeContentUrl, sanitizeHomeContent } from '@/utils/homeContent'
+import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
 import {
   PUBLIC_ROUTE_NAMES,
   authEntryRoute,
@@ -476,6 +477,7 @@ import {
 
 const { t, tm, te, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
@@ -544,8 +546,8 @@ const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 )
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
-const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
-const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
+const safeHomeContent = ref('')
+const isHomeContentUrl = computed(() => isCustomHomeContentUrl(homeContent.value))
 
 const isGtmHome = computed(() => te('home.jisudeng.hero.subtitle') && te('home.jisudeng.cta.register'))
 const heroSubtitle = computed(() => {
@@ -587,6 +589,33 @@ const anchorSections = computed(() => {
 
 const showBackToTop = ref(false)
 const activeAnchor = ref('manifesto')
+
+let sanitizeVersion = 0
+watch(
+  homeContent,
+  async (content) => {
+    const version = ++sanitizeVersion
+
+    if (!content.trim() || isCustomHomeContentUrl(content)) {
+      safeHomeContent.value = ''
+      return
+    }
+
+    try {
+      const sanitized = await sanitizeHomeContent(content)
+      if (version === sanitizeVersion) {
+        safeHomeContent.value = sanitized
+      }
+    } catch (error) {
+      if (recoverFromChunkLoadError(error, route.fullPath)) return
+      console.error('Failed to sanitize custom home content:', error)
+      if (version === sanitizeVersion) {
+        safeHomeContent.value = ''
+      }
+    }
+  },
+  { immediate: true }
+)
 
 const eyebrowBits = computed(() =>
   t('home.jisudeng.hero.eyebrow')
