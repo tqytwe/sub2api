@@ -1,141 +1,206 @@
 <template>
   <section
-    v-if="plans.length > 0"
+    v-if="spotlightPlan"
     data-test="subscription-decision-shelf"
-    class="space-y-3"
+    class="grid gap-5 xl:grid-cols-[minmax(360px,640px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(420px,690px)_minmax(0,1fr)]"
   >
-    <div
-      data-test="plan-grid"
-      class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
+    <article
+      data-test="plan-spotlight"
+      :class="[
+        'overflow-hidden rounded-lg border bg-white shadow-sm dark:bg-dark-800',
+        platformBorderClass(displayPlatform(spotlightPlan)),
+      ]"
     >
-      <article
-        v-for="plan in plans"
-        :key="plan.id"
-        data-test="plan-grid-card"
-        :class="planCardClass(plan)"
-      >
-        <div class="flex items-start gap-3">
-          <div
-            v-if="coverImageURL(plan)"
-            data-test="plan-cover-thumbnail"
-            class="h-16 w-24 shrink-0 overflow-hidden rounded-md border border-gray-100 bg-gray-50 dark:border-dark-700 dark:bg-dark-700"
+      <div class="relative h-56 overflow-hidden bg-gray-100 dark:bg-dark-700 sm:h-64 lg:h-72 2xl:h-80">
+        <img
+          v-if="coverImageURL(spotlightPlan)"
+          :src="coverImageURL(spotlightPlan)"
+          :alt="displayName(spotlightPlan)"
+          class="h-full w-full object-cover"
+        />
+        <div
+          v-else
+          :class="[
+            'flex h-full w-full items-center justify-center px-8 text-center text-3xl font-bold text-white',
+            platformAccentBarClass(displayPlatform(spotlightPlan)),
+          ]"
+        >
+          {{ displayName(spotlightPlan) }}
+        </div>
+        <div class="absolute left-4 top-4 flex flex-wrap gap-2">
+          <span :class="['rounded-md border px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur', platformBadgeClass(displayPlatform(spotlightPlan))]">
+            {{ platformLabel(displayPlatform(spotlightPlan)) }}
+          </span>
+          <span
+            v-for="badge in storefrontBadges(spotlightPlan)"
+            :key="badge"
+            data-test="plan-default-badge"
+            class="rounded-md bg-gray-900/80 px-2 py-1 text-xs font-semibold text-white shadow-sm ring-1 ring-white/20 backdrop-blur dark:bg-white/90 dark:text-gray-900"
           >
-            <img
-              :src="coverImageURL(plan)"
-              :alt="displayName(plan)"
-              class="h-full w-full object-cover"
-            />
-          </div>
-          <div
-            v-else
-            data-test="plan-cover-placeholder"
-            class="flex h-16 w-24 shrink-0 items-center justify-center rounded-md border border-gray-100 bg-gray-50 px-2 text-center text-sm font-semibold text-gray-500 dark:border-dark-700 dark:bg-dark-700 dark:text-dark-300"
-          >
-            {{ displayInitials(plan) }}
-          </div>
+            {{ badge }}
+          </span>
+        </div>
+      </div>
 
-          <div class="min-w-0 flex-1">
-            <div class="flex flex-wrap items-center gap-1.5">
-              <span :class="['rounded-md border px-2 py-0.5 text-xs font-semibold', platformBadgeClass(displayPlatform(plan))]">
-                {{ platformLabel(displayPlatform(plan)) }}
-              </span>
-              <span
-                v-if="isDefaultPlan(plan)"
-                data-test="plan-default-badge"
-                class="rounded-md border border-primary-200 bg-primary-50 px-2 py-0.5 text-xs font-semibold text-primary-700 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-300"
-              >
-                {{ t('payment.planCard.featured') }}
-              </span>
-              <span
-                v-for="badge in secondaryBadges(plan)"
-                :key="badge"
-                data-test="plan-storefront-badge"
-                class="rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300"
-              >
-                {{ badge }}
-              </span>
-            </div>
-            <h4 class="mt-2 line-clamp-2 text-base font-semibold leading-snug text-gray-900 dark:text-white">
-              {{ displayName(plan) }}
-            </h4>
-            <p v-if="displayName(plan) !== plan.name" class="mt-0.5 truncate text-xs text-gray-400 dark:text-dark-400">
-              {{ plan.name }}
-            </p>
-          </div>
+      <div class="space-y-5 p-5">
+        <div>
+          <h3 class="text-2xl font-bold leading-tight text-gray-900 dark:text-white">{{ displayName(spotlightPlan) }}</h3>
+          <p v-if="displayName(spotlightPlan) !== spotlightPlan.name" class="mt-1 text-sm text-gray-400 dark:text-dark-400">{{ spotlightPlan.name }}</p>
+          <p v-if="planSummary(spotlightPlan)" class="mt-2 line-clamp-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
+            {{ planSummary(spotlightPlan) }}
+          </p>
         </div>
 
-        <p v-if="planSummary(plan)" class="mt-3 line-clamp-2 text-sm leading-relaxed text-gray-500 dark:text-gray-400">
-          {{ planSummary(plan) }}
-        </p>
-
-        <div class="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-          <span v-if="plan.original_price" class="text-sm text-gray-400 line-through dark:text-dark-500">
-            {{ priceLabel(plan, plan.original_price) }}
+        <div class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span v-if="spotlightPlan.original_price" class="text-sm text-gray-400 line-through dark:text-dark-500">
+            {{ priceLabel(spotlightPlan, spotlightPlan.original_price) }}
           </span>
-          <span :class="['text-2xl font-bold tabular-nums', platformTextClass(displayPlatform(plan))]">
-            {{ priceLabel(plan, plan.price) }}
+          <span :class="['text-4xl font-extrabold tabular-nums', platformTextClass(displayPlatform(spotlightPlan))]">
+            {{ priceLabel(spotlightPlan, spotlightPlan.price) }}
           </span>
-          <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ planValidityLabel(plan) }}</span>
-          <span v-if="discountText(plan)" :class="['rounded px-1.5 py-0.5 text-xs font-semibold', platformDiscountClass(displayPlatform(plan))]">
-            {{ discountText(plan) }}
+          <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ planValidityLabel(spotlightPlan) }}</span>
+          <span v-if="discountText(spotlightPlan)" :class="['rounded px-1.5 py-0.5 text-xs font-semibold', platformDiscountClass(displayPlatform(spotlightPlan))]">
+            {{ discountText(spotlightPlan) }}
           </span>
         </div>
 
-        <div class="mt-4 grid grid-cols-2 gap-2">
+        <div class="grid gap-3 sm:grid-cols-2">
           <div
-            v-for="metric in planMetrics(plan)"
+            v-for="metric in planMetrics(spotlightPlan)"
             :key="metric.label"
-            data-test="plan-metric"
-            class="rounded-md bg-gray-50 px-3 py-2 dark:bg-dark-700/60"
+            class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700/50"
           >
             <p class="text-xs text-gray-400 dark:text-dark-400">{{ metric.label }}</p>
-            <p :class="['mt-1 truncate text-sm font-semibold tabular-nums', metric.emphasis ? platformTextClass(displayPlatform(plan)) : 'text-gray-900 dark:text-white']">
+            <p :class="['mt-1 text-2xl font-bold tabular-nums', metric.emphasis ? platformTextClass(displayPlatform(spotlightPlan)) : 'text-gray-900 dark:text-white']">
               {{ metric.value }}
             </p>
           </div>
         </div>
 
-        <ul v-if="featurePreview(plan).length > 0" class="mt-4 space-y-1.5">
-          <li
-            v-for="feature in featurePreview(plan)"
+        <div v-if="featurePreview(spotlightPlan).length > 0" class="space-y-2">
+          <div
+            v-for="feature in featurePreview(spotlightPlan)"
             :key="feature"
-            class="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-300"
+            class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300"
           >
-            <span class="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300 dark:bg-dark-500" />
-            <span class="line-clamp-1">{{ feature }}</span>
-          </li>
-        </ul>
+            <span :class="['mt-1.5 h-2 w-2 shrink-0 rounded-full', platformAccentBarClass(displayPlatform(spotlightPlan))]" />
+            <span>{{ feature }}</span>
+          </div>
+        </div>
 
-        <div class="mt-auto flex gap-2 pt-4">
+        <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]">
           <button
             type="button"
-            data-test="plan-grid-subscribe"
-            :class="['min-h-10 flex-1 rounded-md px-3 py-2 text-sm font-semibold transition-colors', platformButtonClass(displayPlatform(plan))]"
-            @click="emit('select', plan)"
+            data-test="plan-spotlight-subscribe"
+            :class="['rounded-lg px-4 py-3 text-sm font-semibold transition-colors', platformButtonClass(displayPlatform(spotlightPlan))]"
+            @click="emit('select', spotlightPlan)"
           >
-            {{ isRenewal(plan) ? t('payment.renewNow') : t('payment.subscribeNow') }}
+            {{ isRenewal(spotlightPlan) ? t('payment.renewNow') : t('payment.subscribeNow') }}
           </button>
           <button
             type="button"
-            data-test="plan-grid-details"
-            class="min-h-10 rounded-md border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-700 transition-colors hover:border-primary-300 hover:text-primary-600 dark:border-dark-600 dark:text-gray-200 dark:hover:border-primary-500/60 dark:hover:text-primary-300"
-            @click="emit('details', plan)"
+            data-test="plan-spotlight-details"
+            class="rounded-lg border border-gray-200 px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:border-primary-300 hover:text-primary-600 dark:border-dark-600 dark:text-gray-200 dark:hover:border-primary-500/60 dark:hover:text-primary-300"
+            @click="emit('details', spotlightPlan)"
           >
             {{ t('common.view') }}
           </button>
         </div>
-      </article>
+      </div>
+    </article>
+
+    <div class="min-w-0 space-y-3">
+      <div class="flex items-center justify-between gap-3 px-1">
+        <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.selectPlan') }}</h3>
+        <span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500 dark:bg-dark-700 dark:text-gray-300">{{ plans.length }}</span>
+      </div>
+      <div class="space-y-3 xl:max-h-[720px] xl:overflow-y-auto xl:pr-1">
+        <button
+          v-for="plan in plans"
+          :key="plan.id"
+          type="button"
+          data-test="plan-list-item"
+          :aria-pressed="plan.id === spotlightPlan.id"
+          :class="[
+            'grid w-full grid-cols-[88px_minmax(0,1fr)] gap-3 rounded-lg border bg-white p-3 text-left shadow-sm transition-colors dark:bg-dark-800 sm:grid-cols-[112px_minmax(0,1fr)_auto]',
+            plan.id === spotlightPlan.id
+              ? 'border-primary-400 ring-2 ring-primary-200 dark:border-primary-500/70 dark:ring-primary-500/20'
+              : 'border-gray-200 hover:border-primary-300 dark:border-dark-700 dark:hover:border-primary-500/60',
+          ]"
+          @click="spotlightPlanId = plan.id"
+        >
+          <div class="relative h-20 overflow-hidden rounded-md bg-gray-100 dark:bg-dark-700">
+            <img
+              v-if="coverImageURL(plan)"
+              :src="coverImageURL(plan)"
+              :alt="displayName(plan)"
+              class="h-full w-full object-cover"
+            />
+            <div
+              v-else
+              :class="['flex h-full w-full items-center justify-center px-2 text-center text-xs font-bold text-white', platformAccentBarClass(displayPlatform(plan))]"
+            >
+              {{ displayName(plan) }}
+            </div>
+          </div>
+
+          <div class="min-w-0">
+            <div class="mb-1 flex flex-wrap items-center gap-1.5">
+              <span :class="['rounded border px-1.5 py-0.5 text-[10px] font-semibold', platformBadgeClass(displayPlatform(plan))]">
+                {{ platformLabel(displayPlatform(plan)) }}
+              </span>
+              <span
+                v-for="badge in storefrontBadges(plan)"
+                :key="badge"
+                data-test="plan-storefront-badge"
+                class="rounded bg-gray-900 px-1.5 py-0.5 text-[10px] font-semibold text-white dark:bg-white dark:text-gray-900"
+              >
+                {{ badge }}
+              </span>
+            </div>
+            <h4 class="truncate text-base font-bold text-gray-900 dark:text-white">{{ displayName(plan) }}</h4>
+            <p v-if="planSummary(plan)" class="mt-1 line-clamp-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">{{ planSummary(plan) }}</p>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <span
+                v-for="chip in planChips(plan)"
+                :key="chip"
+                class="rounded-full bg-gray-100 px-2 py-1 text-[11px] font-medium text-gray-600 dark:bg-dark-700 dark:text-gray-300"
+              >
+                {{ chip }}
+              </span>
+            </div>
+          </div>
+
+          <div class="col-span-2 flex items-center justify-between gap-3 border-t border-gray-100 pt-3 dark:border-dark-700 sm:col-span-1 sm:block sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 sm:text-right">
+            <div>
+              <div :class="['text-xl font-extrabold tabular-nums', platformTextClass(displayPlatform(plan))]">{{ priceLabel(plan, plan.price) }}</div>
+              <div class="text-xs text-gray-400 dark:text-dark-400">/ {{ planValidityLabel(plan) }}</div>
+            </div>
+            <span
+              :class="[
+                'inline-flex h-8 items-center rounded-full px-3 text-xs font-semibold sm:mt-3',
+                plan.id === spotlightPlan.id
+                  ? platformButtonClass(displayPlatform(plan))
+                  : 'bg-gray-100 text-gray-600 dark:bg-dark-700 dark:text-gray-300',
+              ]"
+            >
+              {{ plan.id === spotlightPlan.id ? t('payment.planShelf.currentPreview') : t('common.view') }}
+            </span>
+          </div>
+        </button>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PaymentStorefrontTag, SubscriptionPlan } from '@/types/payment'
 import type { UserSubscription } from '@/types'
 import { currencySymbol } from '@/components/payment/currency'
 import {
+  platformAccentBarClass,
   platformBadgeClass,
   platformBorderClass,
   platformButtonClass,
@@ -153,7 +218,9 @@ const props = defineProps<{
 const emit = defineEmits<{ select: [plan: SubscriptionPlan]; details: [plan: SubscriptionPlan] }>()
 const { t } = useI18n()
 
-const recommendedPlan = computed(() => {
+const spotlightPlanId = ref<number | null>(null)
+
+const defaultSpotlightPlan = computed(() => {
   if (props.defaultPlanId != null) {
     const configuredPlan = props.plans.find(plan => plan.id === props.defaultPlanId)
     if (configuredPlan) return configuredPlan
@@ -163,6 +230,20 @@ const recommendedPlan = computed(() => {
     .sort((a, b) => a.price - b.price || (a.sort_order || 0) - (b.sort_order || 0) || a.id - b.id)
   return monthlyPlans[0] || props.plans[0] || null
 })
+
+const spotlightPlan = computed(() =>
+  props.plans.find(plan => plan.id === spotlightPlanId.value) || defaultSpotlightPlan.value
+)
+
+watch(
+  () => `${props.defaultPlanId ?? ''}:${props.plans.map(plan => plan.id).join(',')}`,
+  () => {
+    if (!props.plans.some(plan => plan.id === spotlightPlanId.value)) {
+      spotlightPlanId.value = defaultSpotlightPlan.value?.id ?? null
+    }
+  },
+  { immediate: true },
+)
 
 function displayName(plan: SubscriptionPlan): string {
   return plan.product_name?.trim() || plan.name
@@ -187,13 +268,6 @@ function storefrontBadges(plan: SubscriptionPlan): string[] {
     if (label && !badges.includes(label)) badges.push(label)
   }
   return badges
-}
-
-function secondaryBadges(plan: SubscriptionPlan): string[] {
-  const defaultLabel = t('payment.planCard.featured')
-  return storefrontBadges(plan)
-    .filter(badge => !isDefaultPlan(plan) || badge !== defaultLabel)
-    .slice(0, 3)
 }
 
 function planSummary(plan: SubscriptionPlan): string {
@@ -238,6 +312,16 @@ function planMetrics(plan: SubscriptionPlan): { label: string; value: string; em
   return items.slice(0, 4)
 }
 
+function planChips(plan: SubscriptionPlan): string[] {
+  const chips: string[] = []
+  if (hasPositiveLimit(plan.daily_limit_usd)) chips.push(`${t('payment.planCard.dailyLimit')} ${planLimitLabel(plan.daily_limit_usd)}`)
+  if (hasPositiveLimit(plan.weekly_limit_usd)) chips.push(`${t('payment.planCard.weeklyLimit')} ${planLimitLabel(plan.weekly_limit_usd)}`)
+  if (hasPositiveLimit(plan.monthly_limit_usd)) chips.push(`${t('payment.planCard.monthlyLimit')} ${planLimitLabel(plan.monthly_limit_usd)}`)
+  if (chips.length === 0) chips.push(t('payment.planCard.unlimited'))
+  chips.push(`x${Number((plan.rate_multiplier ?? 1).toPrecision(10))}`)
+  return chips.slice(0, 3)
+}
+
 function featurePreview(plan: SubscriptionPlan): string[] {
   const detailLines = plan.detail_description?.split('\n').map(line => line.trim()).filter(Boolean) || []
   return [...detailLines, ...(plan.features || [])].filter(Boolean).slice(0, 3)
@@ -257,23 +341,5 @@ function isDailyPlan(plan: SubscriptionPlan): boolean {
 
 function isRenewal(plan: SubscriptionPlan): boolean {
   return props.activeSubscriptions?.some(sub => sub.group_id === plan.group_id && sub.status === 'active') ?? false
-}
-
-function isDefaultPlan(plan: SubscriptionPlan): boolean {
-  return recommendedPlan.value?.id === plan.id
-}
-
-function displayInitials(plan: SubscriptionPlan): string {
-  return Array.from(displayName(plan).trim()).slice(0, 4).join('')
-}
-
-function planCardClass(plan: SubscriptionPlan): string[] {
-  return [
-    'flex min-h-[300px] flex-col rounded-lg border bg-white p-4 shadow-sm transition-[border-color,box-shadow,background-color] focus-within:ring-2 focus-within:ring-primary-500/20 dark:bg-dark-800',
-    platformBorderClass(displayPlatform(plan)),
-    isDefaultPlan(plan)
-      ? 'ring-2 ring-primary-200 dark:ring-primary-500/20'
-      : 'hover:border-primary-300 dark:hover:border-primary-500/60',
-  ]
 }
 </script>
