@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { applyLocaleFromRouteQuery } from '@/i18n'
+import { applyLocaleFromRouteQuery, ensureLocaleMessagesForPath } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -1072,6 +1072,7 @@ router.beforeEach(async (to, _from, next) => {
   navigationLoading.startNavigation()
 
   await applyLocaleFromRouteQuery(to.query)
+  await ensureLocaleMessagesForPath(to.path)
 
   const authStore = useAuthStore()
 
