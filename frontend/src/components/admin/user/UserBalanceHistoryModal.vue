@@ -235,13 +235,13 @@
                         <Icon :name="iconName(item)" size="xs" :class="iconTextClass(item)" />
                       </span>
                       <div class="min-w-0">
-                        <p class="truncate font-medium text-gray-900 dark:text-white">{{ flowTitle(item) }}</p>
-                        <p class="mt-0.5 truncate text-xs text-gray-500 dark:text-dark-400">{{ item.description || item.source_type }}</p>
+                        <p data-test="flow-title" class="truncate font-medium text-gray-900 dark:text-white">{{ flowTitle(item) }}</p>
+                        <p data-test="flow-description" class="mt-0.5 truncate text-xs text-gray-500 dark:text-dark-400">{{ flowDescription(item) }}</p>
                       </div>
                     </div>
                   </td>
                   <td class="px-4 py-3 text-right">
-                    <p :class="['font-semibold', amountClass(item.balance_delta)]">
+                    <p :class="['font-semibold tabular-nums', amountClass(item.balance_delta)]">
                       {{ formatSignedMoney(item.balance_delta) }}
                     </p>
                     <p v-if="item.frozen_delta" class="mt-1 text-xs text-gray-500 dark:text-dark-400">
@@ -249,8 +249,8 @@
                     </p>
                   </td>
                   <td class="px-4 py-3 text-xs text-gray-600 dark:text-dark-300">
-                    <p>{{ formatBalanceRange(item.balance_before, item.balance_after) }}</p>
-                    <p v-if="item.frozen_delta" class="mt-1 text-gray-500 dark:text-dark-400">
+                    <p data-test="flow-balance-range" class="whitespace-nowrap tabular-nums">{{ formatBalanceRange(item.balance_before, item.balance_after) }}</p>
+                    <p v-if="item.frozen_delta" class="mt-1 whitespace-nowrap tabular-nums text-gray-500 dark:text-dark-400">
                       {{ formatBalanceRange(item.frozen_before, item.frozen_after) }}
                     </p>
                   </td>
@@ -265,8 +265,8 @@
                   </td>
                   <td class="px-4 py-3">
                     <div class="flex items-start justify-between gap-2">
-                      <p class="min-w-0 flex-1 truncate text-xs text-gray-500 dark:text-dark-400" :title="item.notes || item.confidence">
-                        {{ item.notes || confidenceLabel(item.confidence) }}
+                      <p data-test="flow-notes" class="min-w-0 flex-1 truncate text-xs text-gray-500 dark:text-dark-400" :title="flowNotes(item) || item.confidence">
+                        {{ flowNotes(item) || confidenceLabel(item.confidence) }}
                       </p>
                       <button
                         v-if="hasDetails(item)"
@@ -288,7 +288,7 @@
                       </div>
                       <div v-if="item.source_type || item.source_id" class="min-w-0">
                         <span class="text-gray-400 dark:text-dark-500">{{ t('admin.users.flowSource') }}:</span>
-                        <span class="ml-1 break-all">{{ item.source_type }}{{ item.source_id ? ` #${item.source_id}` : '' }}</span>
+                        <span class="ml-1 break-all">{{ sourceLabel(item.source_type) }}{{ item.source_id ? ` #${item.source_id}` : '' }}</span>
                       </div>
                       <div v-if="item.reference" class="min-w-0">
                         <span class="text-gray-400 dark:text-dark-500">{{ t('admin.users.flowReference') }}:</span>
@@ -376,8 +376,13 @@ const totalPages = computed(() => isSubscriptionFilter.value ? 1 : Math.ceil(tot
 const typeOptions = computed(() => [
   { value: '', label: t('admin.users.allTypes') },
   { value: 'payment_recharge', label: t('admin.users.typePaymentRecharge') },
+  { value: 'offline_recharge', label: t('admin.users.typeOfflineRecharge') },
   { value: 'balance', label: t('admin.users.typeBalance') },
   { value: 'admin_balance', label: t('admin.users.typeAdminBalance') },
+  { value: 'ops_gift', label: t('admin.users.typeOpsGift') },
+  { value: 'signup_gift', label: t('admin.users.typeSignupGift') },
+  { value: 'auth_first_bind_grant', label: t('admin.users.typeAuthFirstBindGift') },
+  { value: 'compensation', label: t('admin.users.typeCompensation') },
   { value: 'affiliate_balance', label: t('admin.users.typeAffiliateBalance') },
   { value: 'checkin', label: t('admin.users.typeCheckin') },
   { value: 'checkin_makeup', label: t('admin.users.typeCheckinMakeup') },
@@ -391,10 +396,18 @@ const typeOptions = computed(() => [
   { value: 'image_balance_capture', label: t('admin.users.typeImageBalanceCapture') },
   { value: 'image_balance_release', label: t('admin.users.typeImageBalanceRelease') },
   { value: 'refund', label: t('admin.users.typeRefund') },
+  { value: 'fund_refund_submit', label: t('admin.users.typeFundRefundSubmit') },
+  { value: 'fund_refund_cancel', label: t('admin.users.typeFundRefundCancel') },
+  { value: 'fund_refund_reject', label: t('admin.users.typeFundRefundReject') },
+  { value: 'fund_refund_paid', label: t('admin.users.typeFundRefundPaid') },
   { value: 'promo_bonus', label: t('admin.users.typePromoBonus') },
   { value: 'concurrency', label: t('admin.users.typeConcurrency') },
   { value: 'admin_concurrency', label: t('admin.users.typeAdminConcurrency') },
   { value: 'subscription', label: t('admin.users.typeSubscription') },
+  { value: 'withdrawal_submit', label: t('admin.users.typeWithdrawalSubmit') },
+  { value: 'withdrawal_cancel', label: t('admin.users.typeWithdrawalCancel') },
+  { value: 'withdrawal_reject', label: t('admin.users.typeWithdrawalReject') },
+  { value: 'withdrawal_paid', label: t('admin.users.typeWithdrawalPaid') },
 ])
 
 watch(() => props.show, (v) => {
@@ -476,11 +489,25 @@ const calculateSubscriptionDays = (startsAt?: string | null, expiresAt?: string 
   return Math.round((end - start) / (24 * 60 * 60 * 1000))
 }
 
+const normalizeFlowType = (value?: string | null) => String(value || '').trim().toLowerCase()
+
 const typeLabelKeys: Record<string, string> = {
   payment_recharge: 'admin.users.typePaymentRecharge',
+  payment_balance: 'admin.users.typePaymentRecharge',
+  recharge: 'admin.users.typePaymentRecharge',
+  offline_recharge: 'admin.users.typeOfflineRecharge',
   balance: 'admin.users.typeBalance',
+  redeem: 'admin.users.typeBalance',
+  redeem_code: 'admin.users.typeBalance',
   admin_balance: 'admin.users.typeAdminBalance',
+  admin_adjustment: 'admin.users.typeAdminBalance',
+  ops_gift: 'admin.users.typeOpsGift',
+  signup_gift: 'admin.users.typeSignupGift',
+  auth_first_bind_grant: 'admin.users.typeAuthFirstBindGift',
+  compensation: 'admin.users.typeCompensation',
   affiliate_balance: 'admin.users.typeAffiliateBalance',
+  affiliate_transfer: 'admin.users.typeAffiliateBalance',
+  user_affiliate_ledger: 'admin.users.typeAffiliateBalance',
   checkin: 'admin.users.typeCheckin',
   checkin_makeup: 'admin.users.typeCheckinMakeup',
   checkin_milestone: 'admin.users.typeCheckinMilestone',
@@ -490,19 +517,92 @@ const typeLabelKeys: Record<string, string> = {
   arena_settlement: 'admin.users.typeArenaSettlement',
   arena_daily_settlement: 'admin.users.typeArenaDailySettlement',
   usage_charge: 'admin.users.typeUsageCharge',
+  usage_log: 'admin.users.typeUsageCharge',
+  api_usage: 'admin.users.typeUsageCharge',
+  image_task: 'admin.users.typeImageTask',
+  batch_image_task: 'admin.users.typeImageTask',
+  batch_image: 'admin.users.typeImageTask',
   image_balance_hold: 'admin.users.typeImageBalanceHold',
   image_balance_capture: 'admin.users.typeImageBalanceCapture',
   image_balance_release: 'admin.users.typeImageBalanceRelease',
   refund: 'admin.users.typeRefund',
+  payment_refund: 'admin.users.typeRefund',
   reversal: 'admin.users.typeReversal',
+  fund_refund_submit: 'admin.users.typeFundRefundSubmit',
+  fund_refund_cancel: 'admin.users.typeFundRefundCancel',
+  fund_refund_reject: 'admin.users.typeFundRefundReject',
+  fund_refund_paid: 'admin.users.typeFundRefundPaid',
   promo_bonus: 'admin.users.typePromoBonus',
+  promo_code: 'admin.users.typePromoBonus',
+  promotion: 'admin.users.typePromoBonus',
   concurrency: 'admin.users.typeConcurrency',
   admin_concurrency: 'admin.users.typeAdminConcurrency',
+  subscription: 'admin.users.typeSubscription',
+  subscription_refund: 'admin.users.typeSubscription',
+  user_subscription: 'admin.users.typeSubscription',
+  withdrawal_submit: 'admin.users.typeWithdrawalSubmit',
+  withdrawal_cancel: 'admin.users.typeWithdrawalCancel',
+  withdrawal_reject: 'admin.users.typeWithdrawalReject',
+  withdrawal_paid: 'admin.users.typeWithdrawalPaid',
+}
+
+const sourceLabelKeys: Record<string, string> = {
+  balance_transactions: 'admin.users.flowSourceBalanceTransactions',
+  payment_orders: 'admin.users.flowSourcePaymentOrders',
+  payment_order: 'admin.users.flowSourcePaymentOrders',
+  redeem_codes: 'admin.users.flowSourceRedeemCodes',
+  play_reward_ledger: 'admin.users.flowSourcePlayRewards',
+  play_blindbox_open: 'admin.users.flowSourceBlindboxOpen',
+  play_blindbox_opens: 'admin.users.flowSourceBlindboxOpen',
+  promo_code_usages: 'admin.users.flowSourcePromoCodeUsages',
+  usage_logs: 'admin.users.flowSourceUsageLogs',
+  payment_audit_logs: 'admin.users.flowSourcePaymentAuditLogs',
+  fund_refund_request: 'admin.users.flowSourceFundRefundRequest',
+  withdrawal_request: 'admin.users.flowSourceWithdrawalRequest',
+}
+
+const descriptionLabelKeys: Record<string, string> = {
+  'administrator gift balance': 'admin.users.flowDescriptionOpsGift',
+  'offline recharge confirmed': 'admin.users.flowDescriptionOfflineRecharge',
+  'recharge refund request submitted': 'admin.users.flowDescriptionFundRefundSubmit',
+  'recharge refund marked paid': 'admin.users.flowDescriptionFundRefundPaid',
+  'recharge refund request restored': 'admin.users.flowDescriptionFundRefundRestored',
+  'withdrawal request submitted': 'admin.users.flowDescriptionWithdrawalSubmit',
+  'withdrawal request restored': 'admin.users.flowDescriptionWithdrawalRestored',
+  'withdrawal marked paid': 'admin.users.flowDescriptionWithdrawalPaid',
 }
 
 const flowTitle = (item: BalanceHistoryItem) => {
-  const key = typeLabelKeys[item.type]
+  const key = typeLabelKeys[normalizeFlowType(item.type)]
   return key ? t(key) : item.type || t('common.unknown')
+}
+
+const sourceLabel = (source?: string | null) => {
+  const normalized = normalizeFlowType(source)
+  const key = typeLabelKeys[normalized] || sourceLabelKeys[normalized]
+  return key ? t(key) : source || '-'
+}
+
+const flowDescription = (item: BalanceHistoryItem) => {
+  const description = String(item.description || '').trim()
+  const key = descriptionLabelKeys[description.toLowerCase()]
+  if (key) return t(key)
+  return description || sourceLabel(item.source_type)
+}
+
+const metadataText = (item: BalanceHistoryItem, keys: string[]) => {
+  const metadata = item.metadata || {}
+  for (const key of keys) {
+    const value = metadata[key]
+    if (value == null) continue
+    const text = String(value).trim()
+    if (text) return text
+  }
+  return ''
+}
+
+const flowNotes = (item: BalanceHistoryItem) => {
+  return String(item.notes || '').trim() || metadataText(item, ['reason', 'note', 'admin_note'])
 }
 
 const formatMoney = (value?: number | null) => {
@@ -531,7 +631,8 @@ const formatBalanceRange = (before?: number | null, after?: number | null) => {
 const relatedObject = (item: BalanceHistoryItem) => {
   const type = item.related_object_type || item.source_type || '-'
   const id = item.related_object_id || item.source_id
-  return id ? `${type} #${id}` : type
+  const label = sourceLabel(type)
+  return id ? `${label} #${id}` : label
 }
 
 const actorLabel = (item: BalanceHistoryItem) => {
@@ -546,13 +647,14 @@ const confidenceLabel = (confidence?: string) => {
 }
 
 const iconName = (item: BalanceHistoryItem) => {
-  if (item.type === 'payment_recharge' || item.type === 'balance' || item.type === 'admin_balance' || item.type === 'affiliate_balance') return 'dollar'
-  if (item.type === 'usage_charge' || item.type === 'refund' || item.type === 'image_balance_hold' || item.type === 'image_balance_capture') return 'arrowDown'
-  if (item.type === 'image_balance_release') return 'arrowUp'
-  if (item.type === 'blindbox' || item.type === 'promo_bonus') return 'gift'
-  if (item.type === 'team_shared_reward') return 'users'
-  if (item.type.includes('arena')) return 'badge'
-  if (item.type === 'quiz') return 'questionCircle'
+  const type = normalizeFlowType(item.type)
+  if (['payment_recharge', 'payment_balance', 'recharge', 'offline_recharge', 'balance', 'redeem', 'redeem_code', 'admin_balance', 'admin_adjustment', 'affiliate_balance', 'affiliate_transfer'].includes(type)) return 'dollar'
+  if (['usage_charge', 'usage_log', 'api_usage', 'refund', 'payment_refund', 'fund_refund_submit', 'fund_refund_paid', 'withdrawal_submit', 'withdrawal_paid', 'image_balance_hold', 'image_balance_capture'].includes(type)) return 'arrowDown'
+  if (['reversal', 'fund_refund_cancel', 'fund_refund_reject', 'withdrawal_cancel', 'withdrawal_reject', 'image_balance_release'].includes(type)) return 'arrowUp'
+  if (['blindbox', 'promo_bonus', 'promo_code', 'promotion', 'ops_gift', 'signup_gift', 'auth_first_bind_grant', 'compensation'].includes(type)) return 'gift'
+  if (type === 'team_shared_reward') return 'users'
+  if (type.includes('arena')) return 'badge'
+  if (type === 'quiz') return 'questionCircle'
   return 'calendar'
 }
 

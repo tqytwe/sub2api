@@ -33,3 +33,15 @@ func TestFreezeFundRefundBatchKeepsFrozenBatchActive(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestFundManagementLedgerDescriptionsStayLocalized(t *testing.T) {
+	t.Parallel()
+
+	require.Equal(t, "管理员赠送余额", fundOpsGiftDescription)
+	require.Equal(t, "线下充值到账", fundOfflineRechargeDescription)
+	require.Equal(t, "提交充值退回申请", fundRefundSubmitDescription)
+	require.Equal(t, "充值退回已打款", fundRefundPaidDescription)
+	require.Equal(t, "取消充值退回，资金恢复", fundRefundRestoreDescription(FundRefundLedgerSourceCancel))
+	require.Equal(t, "驳回充值退回，资金恢复", fundRefundRestoreDescription(FundRefundLedgerSourceReject))
+	require.Equal(t, "充值退回资金恢复", fundRefundRestoreDescription("unexpected_source"))
+}
