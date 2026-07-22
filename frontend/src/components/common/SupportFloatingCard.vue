@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
+import Icon from '@/components/icons/Icon.vue'
 import '@/styles/support-floating.css'
 
 const props = withDefaults(defineProps<{
@@ -181,21 +182,7 @@ onBeforeUnmount(() => {
       @click="togglePanel"
     >
       <span class="support-trigger-orb">
-        <svg
-          class="support-trigger-icon"
-          viewBox="0 0 24 24"
-          width="20"
-          height="20"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        >
-          <path d="M4 12a8 8 0 0 1 16 0v5a3 3 0 0 1-3 3h-2" />
-          <rect x="3" y="11" width="4" height="6" rx="2" />
-          <rect x="17" y="11" width="4" height="6" rx="2" />
-        </svg>
+        <Icon name="chat" size="md" class="support-trigger-icon" />
       </span>
       <span class="support-trigger-text">{{ t('support.trigger') }}</span>
     </button>

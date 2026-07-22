@@ -6,13 +6,17 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc -b && vite build",
+    "build:verified": "pnpm design:verify && pnpm build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
-    "lint:check": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
+    "design:check": "node ../scripts/check-frontend-design-governance.mjs",
+    "design:test": "node --test ../scripts/check-frontend-design-governance.test.mjs",
+    "design:verify": "pnpm design:test && pnpm design:check",
+    "lint": "pnpm design:check && eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
+    "lint:check": "pnpm design:check && eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest",
-    "test:run": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test": "pnpm design:check && vitest",
+    "test:run": "pnpm design:check && vitest run",
+    "test:coverage": "pnpm design:check && vitest run --coverage"
   },
   "dependencies": {
     "@airwallex/components-sdk": "^1.30.2",

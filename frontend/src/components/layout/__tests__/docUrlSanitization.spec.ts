@@ -18,6 +18,13 @@ describe('doc_url sanitization', () => {
     expect(headerSource).toContain('sanitizeUrl(appStore.docUrl)')
   })
 
+  it('AppHeader exposes support as a contact route entry instead of embedding the panel', () => {
+    expect(headerSource).toContain("import { CONTACT_ROUTE } from '@/router/publicNavigation'")
+    expect(headerSource).toContain(':to="CONTACT_ROUTE"')
+    expect(headerSource).not.toContain('SupportContactPanel')
+    expect(headerSource).not.toContain('supportPanelExpanded')
+  })
+
   it('HomeView imports sanitizeUrl', () => {
     expect(homeViewSource).toContain("import { sanitizeUrl } from '@/utils/url'")
   })

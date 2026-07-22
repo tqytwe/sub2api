@@ -125,8 +125,7 @@
           <transition name="dropdown">
             <div
               v-if="dropdownOpen"
-              class="dropdown right-0 mt-2"
-              :class="hasSupportContact ? 'w-80' : 'w-56'"
+              class="dropdown right-0 mt-2 w-56"
             >
               <!-- User Info -->
               <div class="border-b border-gray-100 px-4 py-3 dark:border-dark-700">
@@ -181,20 +180,10 @@
               </div>
 
               <div v-if="hasSupportContact" class="border-t border-gray-100 py-1 dark:border-dark-700">
-                <button type="button" class="dropdown-item w-full justify-between" @click="toggleSupportPanel">
-                  <span class="flex items-center gap-2">
-                    <Icon name="chat" size="sm" />
-                    {{ t('common.contactSupport') }}
-                  </span>
-                  <Icon :name="supportPanelExpanded ? 'chevronUp' : 'chevronDown'" size="xs" />
-                </button>
-                <div v-if="supportPanelExpanded" class="px-3 pb-3 pt-2">
-                  <SupportContactPanel
-                    :config="appStore.supportContact"
-                    compact
-                    :show-header="false"
-                  />
-                </div>
+                <router-link :to="CONTACT_ROUTE" @click="closeDropdown" class="dropdown-item">
+                  <Icon name="chat" size="sm" />
+                  {{ t('common.contactSupport') }}
+                </router-link>
               </div>
 
               <div v-if="showOnboardingButton" class="border-t border-gray-100 py-1 dark:border-dark-700">
@@ -247,10 +236,10 @@ import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import ThemeSwitcher from '@/components/common/ThemeSwitcher.vue'
 import SubscriptionProgressMini from '@/components/common/SubscriptionProgressMini.vue'
 import AnnouncementBell from '@/components/common/AnnouncementBell.vue'
-import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { sanitizeUrl } from '@/utils/url'
 import { enabledSupportContacts } from '@/utils/supportContact'
+import { CONTACT_ROUTE } from '@/router/publicNavigation'
 
 const router = useRouter()
 const route = useRoute()
@@ -262,7 +251,6 @@ const onboardingStore = useOnboardingStore()
 
 const user = computed(() => authStore.user)
 const dropdownOpen = ref(false)
-const supportPanelExpanded = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
 const docUrl = computed(() => sanitizeUrl(appStore.docUrl))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
@@ -274,7 +262,6 @@ const balanceAvailableText = computed(() => t('common.availableBalance') === 'co
 const balanceFrozenText = computed(() => t('common.frozenBalance') === 'common.frozenBalance' ? '冻结金额' : t('common.frozenBalance'))
 const balanceTotalText = computed(() => t('common.totalBalance') === 'common.totalBalance' ? '总余额' : t('common.totalBalance'))
 const balanceFrozenLabel = computed(() => `${balanceFrozenText.value} ${formatHeaderMoney(frozenBalance.value)}`)
-let lastSupportRefreshAt = 0
 
 // 只在标准模式的管理员下显示新手引导按钮
 const showOnboardingButton = computed(() => {
@@ -337,28 +324,10 @@ function toggleMobileSidebar() {
 
 function toggleDropdown() {
   dropdownOpen.value = !dropdownOpen.value
-  if (!dropdownOpen.value) {
-    supportPanelExpanded.value = false
-  }
 }
 
 function closeDropdown() {
   dropdownOpen.value = false
-  supportPanelExpanded.value = false
-}
-
-function refreshSupportContactIfNeeded() {
-  const now = Date.now()
-  if (now - lastSupportRefreshAt < 30_000) return
-  lastSupportRefreshAt = now
-  void appStore.fetchPublicSettings(true)
-}
-
-function toggleSupportPanel() {
-  supportPanelExpanded.value = !supportPanelExpanded.value
-  if (supportPanelExpanded.value) {
-    refreshSupportContactIfNeeded()
-  }
 }
 
 async function handleLogout() {
