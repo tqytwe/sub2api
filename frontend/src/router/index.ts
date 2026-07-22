@@ -311,7 +311,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Dashboard',
       titleKey: 'dashboard.title',
       descriptionKey: 'dashboard.welcomeMessage',
-      frame: 'content'
+      frame: 'workspace'
     }
   },
   {
@@ -612,7 +612,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Admin Dashboard',
       titleKey: 'admin.dashboard.title',
       descriptionKey: 'admin.dashboard.description',
-      frame: 'content'
+      frame: 'workspace'
     }
   },
   {

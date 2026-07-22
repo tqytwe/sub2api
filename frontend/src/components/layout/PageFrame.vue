@@ -19,9 +19,7 @@ const props = withDefaults(defineProps<{
 
 .page-frame--compact,
 .page-frame--reading,
-.page-frame--form,
-.page-frame--content,
-.page-frame--workspace {
+.page-frame--form {
   margin-inline: auto;
 }
 
@@ -38,11 +36,11 @@ const props = withDefaults(defineProps<{
 }
 
 .page-frame--content {
-  max-width: 72rem;
+  max-width: none;
 }
 
 .page-frame--workspace {
-  max-width: 100rem;
+  max-width: none;
 }
 
 .page-frame--fluid {

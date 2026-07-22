@@ -45,8 +45,8 @@
 | compact | 672px | 回调、结果、短错误和单任务流程 |
 | reading | 800px | 文档、法律文本和公告详情 |
 | form | 960px | Profile、Redeem 和复杂表单 |
-| content | 1152px | Dashboard、Wallet、Payment 和默认页面 |
-| workspace | 1600px | 表格、运维、Play 和 Image Studio |
+| content | 无固定上限 | Wallet、Payment、默认控制台内容和普通业务页面 |
+| workspace | 无固定上限 | Dashboard、表格、运维、Play 和 Image Studio |
 | fluid | 无固定上限 | Home、NextChat 和真正全屏工作区 |
 
 页面 gutter 固定为：
@@ -57,7 +57,10 @@
 - 1200px 以上：32px
 
 页面根节点不得自行承担宽度、居中、背景、全屏高度或滚动。共享 Layout 和
-PageFrame 负责页面框架，页面只负责内容结构。
+PageFrame 负责页面框架，页面只负责内容结构。登录后的控制台、仪表盘、表格、
+支付、钱包和运营工作区必须使用侧栏右侧的可用宽度，只保留 Layout gutter；
+不得因为统一框架在宽屏上制造大面积左右空白。只有 `compact`、`reading` 和
+`form` 允许居中限宽。
 
 ### Route UI contract（迁移目标）
 
@@ -84,6 +87,8 @@ type RouteUIContract = {
 - Route host 负责生成 PageFrame、PageHeader、背景、gutter 和滚动容器。
 - 业务页面根节点禁止 `max-w-*`、`mx-auto`、`min-h-screen`、`h-screen` 和
   页面级 `overflow-y-auto`。
+- `content` 和 `workspace` 是控制台业务页的默认宽屏档位，不能设置固定
+  `max-width` 或 `margin-inline: auto`。
 - `fluid` 仅用于 Home、NextChat、画布和真正全屏工作区，不能成为逃生档位。
 - 迁移期旧 meta 由 resolver 兼容；resolver 落地后，新路由不得继续新增旧布尔开关。
 
