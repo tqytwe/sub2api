@@ -281,6 +281,7 @@ function isVisualFile(file) {
 const requiredEvidenceSections = [
   "## Scope",
   "## Baseline",
+  "## Prototype",
   "## Reuse Decision",
   "## State Coverage",
   "## Viewport Coverage",
@@ -581,6 +582,7 @@ export function validateEvidenceRecords({
       "languages_and_themes",
       "states",
       "viewports",
+      "prototype_artifacts",
       "baseline_artifacts",
       "updated_artifacts",
       "commands",
@@ -595,6 +597,9 @@ export function validateEvidenceRecords({
       invalidFields.length > 0 ||
       manifest.viewports.length < 2 ||
       !manifest.viewports.every((viewport) => /^\d{3,4}x\d{3,4}$/.test(viewport)) ||
+      !manifest.prototype_artifacts.some((artifact) =>
+        /\.(?:png|jpe?g|webp|gif)$/i.test(artifact),
+      ) ||
       !manifest.baseline_artifacts.some((artifact) =>
         /\.(?:png|jpe?g|webp|gif|mp4|webm)$/i.test(artifact),
       ) ||
@@ -616,6 +621,7 @@ export function validateEvidenceRecords({
     }
 
     const artifactErrors = [
+      ...manifest.prototype_artifacts,
       ...manifest.baseline_artifacts,
       ...manifest.updated_artifacts
     ]
@@ -663,6 +669,7 @@ function main() {
   );
   if (
     policy.schema_version !== 1 ||
+    policy.policy_status?.prototype_visual_evidence !== "enforced" ||
     JSON.stringify(policy.required_rule_names) !==
       JSON.stringify(REQUIRED_RULE_NAMES) ||
     rules.map((rule) => rule.name).join("\n") !== REQUIRED_RULE_NAMES.join("\n")
