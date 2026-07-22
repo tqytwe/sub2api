@@ -343,7 +343,14 @@
         </div>
 
         <div class="max-w-full min-w-0 overflow-x-auto">
-          <table class="min-w-[720px] divide-y divide-gray-100 text-sm dark:divide-dark-700">
+          <table class="w-full min-w-[820px] table-fixed divide-y divide-gray-100 text-sm dark:divide-dark-700">
+            <colgroup>
+              <col class="w-[180px]" />
+              <col class="w-[150px]" />
+              <col class="w-[110px]" />
+              <col />
+              <col class="w-[170px]" />
+            </colgroup>
             <thead class="bg-gray-50 text-left text-xs text-gray-500 dark:bg-dark-800 dark:text-gray-400">
               <tr>
                 <th class="px-4 py-3">{{ t('wallet.table.time') }}</th>
