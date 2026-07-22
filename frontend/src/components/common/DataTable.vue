@@ -50,10 +50,14 @@
         :key="resolveRowKey(row, index)"
         class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-900"
         :class="{
-          'cursor-pointer': clickableRows,
+          'cursor-pointer transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:hover:border-dark-600 dark:hover:bg-dark-800 dark:focus-visible:ring-offset-dark-950': clickableRows,
           'border-primary-300 bg-primary-50/40 dark:border-primary-700 dark:bg-primary-900/10': selectable && isRowSelected(row, index)
         }"
+        :role="clickableRows ? 'button' : undefined"
+        :tabindex="clickableRows ? 0 : undefined"
         @click="clickableRows && emit('rowClick', row)"
+        @keydown.enter="clickableRows && emit('rowClick', row)"
+        @keydown.space.prevent="clickableRows && emit('rowClick', row)"
       >
         <div class="space-y-3">
           <div v-if="selectable" class="flex justify-end">
@@ -124,13 +128,20 @@
             :class="[
               'sticky-header-cell py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-dark-400',
               getAdaptivePaddingClass(),
-              { 'cursor-pointer hover:bg-gray-100 dark:hover:bg-dark-700': column.sortable },
               getStickyColumnClass(column, index),
               column.class
             ]"
-            @click="column.sortable && handleSort(column.key)"
           >
-            <div :class="['flex items-center space-x-1', getHeaderContentAlignmentClass(column)]">
+            <button
+              v-if="column.sortable"
+              type="button"
+              :class="[
+                'group inline-flex w-full max-w-full items-center gap-1 rounded-md px-2 py-1 text-xs font-medium uppercase tracking-wider text-gray-500 duration-150 ease-out hover:bg-gray-100 hover:text-gray-900 active:bg-gray-200 dark:text-dark-400 dark:hover:bg-dark-700 dark:hover:text-white dark:active:bg-dark-600',
+                'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/60 focus-visible:ring-offset-2 focus-visible:ring-offset-gray-50 dark:focus-visible:ring-offset-dark-800',
+                getHeaderContentAlignmentClass(column)
+              ]"
+              @click="handleSort(column.key)"
+            >
               <slot
                 :name="`header-${column.key}`"
                 :column="column"
@@ -140,27 +151,31 @@
                 <span>{{ column.label }}</span>
               </slot>
               <span
-                v-if="column.sortable"
-                class="inline-flex h-5 w-4 flex-col items-center justify-center"
+                class="inline-flex h-5 w-4 flex-shrink-0 flex-col items-center justify-center"
                 aria-hidden="true"
               >
-                <svg
-                  class="h-2.5 w-2.5"
+                <Icon
+                  name="chevronUp"
+                  size="xs"
                   :class="getSortIndicatorClass(column.key, 'asc')"
-                  fill="currentColor"
-                  viewBox="0 0 10 10"
-                >
-                  <path d="M5 2L1.5 6.5h7L5 2z" />
-                </svg>
-                <svg
-                  class="-mt-0.5 h-2.5 w-2.5"
+                />
+                <Icon
+                  name="chevronDown"
+                  size="xs"
+                  class="-mt-1"
                   :class="getSortIndicatorClass(column.key, 'desc')"
-                  fill="currentColor"
-                  viewBox="0 0 10 10"
-                >
-                  <path d="M5 8L1.5 3.5h7L5 8z" />
-                </svg>
+                />
               </span>
+            </button>
+            <div v-else :class="['flex items-center space-x-1', getHeaderContentAlignmentClass(column)]">
+              <slot
+                :name="`header-${column.key}`"
+                :column="column"
+                :sort-key="sortKey"
+                :sort-order="sortOrder"
+              >
+                <span>{{ column.label }}</span>
+              </slot>
             </div>
           </th>
         </tr>
@@ -212,12 +227,15 @@
             :data-row-id="resolveRowKey(item.row, item.index)"
             :data-index="item.index"
             :ref="item.measure ? measureElement : undefined"
-            class="hover:bg-gray-50 dark:hover:bg-dark-800"
+            class="data-table-row"
             :class="{
-              'cursor-pointer': clickableRows,
+              'cursor-pointer hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500/60 dark:hover:bg-dark-800': clickableRows,
               'bg-primary-50/40 dark:bg-primary-900/10': selectable && isRowSelected(item.row, item.index)
             }"
+            :tabindex="clickableRows ? 0 : undefined"
             @click="clickableRows && emit('rowClick', item.row)"
+            @keydown.enter="clickableRows && emit('rowClick', item.row)"
+            @keydown.space.prevent="clickableRows && emit('rowClick', item.row)"
           >
             <td v-if="selectable" class="w-11 min-w-11 px-3 py-4 text-center">
               <input
