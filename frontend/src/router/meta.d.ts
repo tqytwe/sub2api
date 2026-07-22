@@ -78,5 +78,10 @@ declare module 'vue-router' {
 
     /** Hide the floating support trigger on compact tool layouts. */
     hideMobileSupport?: boolean
+
+    /**
+     * Semantic content frame owned by AppLayout/PageFrame.
+     */
+    frame?: 'compact' | 'reading' | 'form' | 'content' | 'workspace' | 'fluid'
   }
 }

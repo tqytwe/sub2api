@@ -61,4 +61,16 @@ describe('BaseDialog locale labels', () => {
     expect(document.activeElement).toBe(last)
     wrapper.unmount()
   })
+
+  it('keeps the shared body scroll lock while another dialog remains open', async () => {
+    const first = mountDialog('en', false, document.body)
+    const second = mountDialog('en', false, document.body)
+    await flushPromises()
+
+    expect(document.body.classList.contains('modal-open')).toBe(true)
+    first.unmount()
+    expect(document.body.classList.contains('modal-open')).toBe(true)
+    second.unmount()
+    expect(document.body.classList.contains('modal-open')).toBe(false)
+  })
 })

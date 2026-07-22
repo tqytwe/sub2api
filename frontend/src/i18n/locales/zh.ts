@@ -288,6 +288,8 @@ const messages = {
     import: '导入',
     actions: '操作',
     status: '状态',
+    show: '显示',
+    hide: '隐藏',
     name: '名称',
     email: '邮箱',
     password: '密码',
@@ -427,6 +429,7 @@ const messages = {
   nav: {
     dashboard: '仪表盘',
     announcements: '公告',
+    publicActions: '公共页面操作',
     apiKeys: 'API 密钥',
     aiCreation: 'AI 创作',
     batchImage: '批量生图',

@@ -172,6 +172,7 @@ describe('KeyUsageView daily detail', () => {
         stubs: {
           RouterLink: { template: '<a><slot /></a>' },
           LocaleSwitcher: true,
+          PublicContentLayout: { template: '<main><slot /></main>' },
           Icon: true,
         },
       },
@@ -216,6 +217,7 @@ describe('KeyUsageView daily detail', () => {
         stubs: {
           RouterLink: { template: '<a><slot /></a>' },
           LocaleSwitcher: true,
+          PublicContentLayout: { template: '<main><slot /></main>' },
           Icon: true,
         },
       },

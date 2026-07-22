@@ -65,6 +65,11 @@ function mountView() {
     global: {
       stubs: {
         AppLayout: { template: '<div><slot /></div>' },
+        PageFrame: { template: '<div><slot /></div>' },
+        CompactStatusPanel: {
+          props: ['title', 'description'],
+          template: '<section><h1>{{ title }}</h1><p>{{ description }}</p><slot name="details" /><slot name="actions" /><slot /></section>',
+        },
         Icon: true,
       },
     },

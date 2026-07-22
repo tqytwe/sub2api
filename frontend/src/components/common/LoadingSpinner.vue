@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-type SpinnerSize = 'sm' | 'md' | 'lg' | 'xl'
+type SpinnerSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl'
 type SpinnerColor = 'primary' | 'secondary' | 'white' | 'gray'
 
 interface Props {
@@ -29,6 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const sizeClasses = computed(() => {
   const sizes: Record<SpinnerSize, string> = {
+    xs: 'w-3 h-3 border',
     sm: 'w-4 h-4 border-2',
     md: 'w-8 h-8 border-2',
     lg: 'w-12 h-12 border-[3px]',
@@ -60,6 +61,12 @@ const colorClass = computed(() => {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
   }
 }
 </style>

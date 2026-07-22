@@ -1,8 +1,7 @@
 <template>
   <AppLayout>
-    <PageFrame
+    <div
       data-testid="profile-shell"
-      frame="form"
       class="space-y-6"
     >
       <ProfileInfoCard
@@ -30,14 +29,13 @@
       />
 
       <ProfileTotpCard />
-    </PageFrame>
+    </div>
   </AppLayout>
 </template>
 
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import PageFrame from '@/components/layout/PageFrame.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import ProfileBalanceNotifyCard from '@/components/user/profile/ProfileBalanceNotifyCard.vue'
 import ProfileInfoCard from '@/components/user/profile/ProfileInfoCard.vue'

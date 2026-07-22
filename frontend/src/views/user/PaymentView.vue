@@ -1,14 +1,14 @@
 <template>
   <AppLayout>
-    <div class="mx-auto max-w-7xl space-y-6">
+    <div class="space-y-6">
       <div v-if="loading" class="flex items-center justify-center py-20">
-        <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
+        <LoadingSpinner size="md" />
       </div>
       <template v-else>
         <!-- Tab Switcher (hide during payment and subscription confirm) -->
         <div v-if="tabs.length > 1 && paymentPhase === 'select' && !selectedPlan" class="flex space-x-1 rounded-xl bg-gray-100 p-1 dark:bg-dark-800">
           <button v-for="tab in tabs" :key="tab.key"
-            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors"
+            class="flex-1 rounded-lg px-4 py-2.5 text-sm font-medium transition-colors duration-150"
             :class="activeTab === tab.key ? 'bg-white text-gray-900 shadow dark:bg-dark-700 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
             @click="activeTab = tab.key">{{ tab.label }}</button>
         </div>
@@ -103,7 +103,7 @@
                 </div>
                 <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmit || submitting" @click="handleSubmitRecharge">
                   <span v-if="submitting" class="flex items-center justify-center gap-2">
-                    <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                    <LoadingSpinner size="sm" color="white" />
                     {{ t('common.processing') }}
                   </span>
                   <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}</span>
@@ -192,7 +192,7 @@
               </div>
               <button :class="['btn w-full py-3 text-base font-medium', paymentButtonClass]" :disabled="!canSubmitSubscription || submitting" @click="confirmSubscribe">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">
-                  <span class="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></span>
+                  <LoadingSpinner size="sm" color="white" />
                   {{ t('common.processing') }}
                 </span>
                 <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(subTotalAmount) }}</span>
@@ -294,7 +294,7 @@
         <div v-if="showRenewalModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" @click.self="closeRenewalModal">
           <div class="relative w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl dark:border-dark-700 dark:bg-dark-900">
             <!-- Close button -->
-            <button class="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-gray-200" @click="closeRenewalModal">
+            <button class="absolute right-4 top-4 rounded-lg p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-dark-700 dark:hover:text-gray-200" :aria-label="t('common.close')" @click="closeRenewalModal">
               <Icon name="x" size="md" :stroke-width="2" />
             </button>
             <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">{{ t('payment.selectPlan') }}</h3>
@@ -310,7 +310,7 @@
       <Transition name="modal">
         <div v-if="selectedPlanDetails" class="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm" @click.self="closePlanDetails">
           <div class="relative flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-900">
-            <button class="absolute right-4 top-4 z-10 rounded-lg bg-white/90 p-1.5 text-gray-500 shadow transition-colors hover:bg-gray-100 hover:text-gray-800 dark:bg-dark-800/90 dark:text-gray-300 dark:hover:bg-dark-700" @click="closePlanDetails">
+            <button class="absolute right-4 top-4 z-10 rounded-lg bg-white/90 p-1.5 text-gray-500 shadow transition-colors hover:bg-gray-100 hover:text-gray-800 dark:bg-dark-800/90 dark:text-gray-300 dark:hover:bg-dark-700" :aria-label="t('common.close')" @click="closePlanDetails">
               <Icon name="x" size="md" :stroke-width="2" />
             </button>
             <div class="grid min-h-0 flex-1 overflow-auto md:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
@@ -433,6 +433,7 @@ import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import SubscriptionPlanDecisionShelf from '@/components/payment/SubscriptionPlanDecisionShelf.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
 import type { PaymentMethodOption } from '@/components/payment/PaymentMethodSelector.vue'

@@ -288,6 +288,8 @@ const messages = {
     import: 'Import',
     actions: 'Actions',
     status: 'Status',
+    show: 'Show',
+    hide: 'Hide',
     name: 'Name',
     email: 'Email',
     password: 'Password',
@@ -427,6 +429,7 @@ const messages = {
   nav: {
     dashboard: 'Dashboard',
     announcements: 'Announcements',
+    publicActions: 'Public page actions',
     apiKeys: 'API Keys',
     aiCreation: 'AI Creation',
     batchImage: 'Batch Images',

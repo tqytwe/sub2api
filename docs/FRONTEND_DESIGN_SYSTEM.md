@@ -216,6 +216,8 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 ## 14. 组件所有权与变更规则
 
 - `PageFrame/PageHeader`：页面宽度、gutter、标题、滚动和 surface。
+- `CompactStatusPanel`：回调、支付结果、短错误、单任务流程的状态图标、说明、
+  详情区和操作区。
 - `Icon.vue`：全部功能图标。
 - `Button/Input/TextArea/Select`：控件尺寸、状态、错误和焦点。
 - `BaseDialog/Popover/Toast`：浮层、层级、焦点圈定和消息宣布。
@@ -243,3 +245,8 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 - `pnpm design:check`、lint、typecheck、相关测试和 build 均通过。
 - 视觉风险较高时已完成 Playwright 前后截图和重叠检查。
 - 已新增并填写 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`。
+- visual review 必须声明 `artifact_mode`。`browser-capture` 代表真实浏览器或
+  Playwright 截图/录像；`static-review-board` 只能作为无浏览器环境下的开发辅助
+  证据，必须在 residual risk 写明仍需浏览器截图或最终验收。
+- PNG 证据必须是真实可解码图片；门禁校验 PNG chunk、CRC、像素数据和最小尺寸，
+  禁止 1x1 占位图或只伪造 header 的假图。

@@ -15,6 +15,9 @@ import {
 import { getPublicSettings as fetchPublicSettingsAPI } from '@/api/auth'
 import { emptySupportContactConfig, normalizeSupportContactConfig, supportContactDocsUrl } from '@/utils/supportContact'
 
+const DEFAULT_SITE_NAME = '极速蹬'
+const UPSTREAM_DEFAULT_SITE_NAME = 'Sub2API'
+
 export const useAppStore = defineStore('app', () => {
   // ==================== State ====================
 
@@ -27,7 +30,7 @@ export const useAppStore = defineStore('app', () => {
   // Public settings cache state
   const publicSettingsLoaded = ref<boolean>(false)
   const publicSettingsLoading = ref<boolean>(false)
-  const siteName = ref<string>('Sub2API')
+  const siteName = ref<string>(DEFAULT_SITE_NAME)
   const siteLogo = ref<string>('')
   const siteVersion = ref<string>('')
   const contactInfo = ref<string>('')
@@ -293,9 +296,11 @@ export const useAppStore = defineStore('app', () => {
    */
   function applySettings(config: PublicSettings): PublicSettings {
     const normalizedSupportContact = normalizeSupportContactConfig(config.support_contact, config.contact_info || '', config.doc_url || '')
+    const normalizedSiteName = normalizePublicSiteName(config.site_name)
     const effectiveDocUrl = supportContactDocsUrl(normalizedSupportContact) || config.doc_url || ''
     const effectiveConfig: PublicSettings = {
       ...config,
+      site_name: normalizedSiteName,
       doc_url: effectiveDocUrl,
       support_contact: normalizedSupportContact,
     }
@@ -303,7 +308,7 @@ export const useAppStore = defineStore('app', () => {
       window.__APP_CONFIG__ = { ...effectiveConfig }
     }
     cachedPublicSettings.value = effectiveConfig
-    siteName.value = config.site_name || 'Sub2API'
+    siteName.value = normalizedSiteName
     siteLogo.value = config.site_logo || ''
     siteVersion.value = config.version || ''
     contactInfo.value = config.contact_info || ''
@@ -312,6 +317,11 @@ export const useAppStore = defineStore('app', () => {
     supportContact.value = normalizedSupportContact
     publicSettingsLoaded.value = true
     return { ...effectiveConfig }
+  }
+
+  function normalizePublicSiteName(value?: string): string {
+    const trimmed = value?.trim() || ''
+    return trimmed && trimmed !== UPSTREAM_DEFAULT_SITE_NAME ? trimmed : DEFAULT_SITE_NAME
   }
 
   /**
