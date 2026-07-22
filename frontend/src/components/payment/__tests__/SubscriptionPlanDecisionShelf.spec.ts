@@ -70,12 +70,12 @@ function planFixture(id: number, overrides: Partial<SubscriptionPlan> = {}): Sub
 }
 
 describe('SubscriptionPlanDecisionShelf', () => {
-  it('uses the configured default plan as the spotlight and renders custom labels', () => {
+  it('renders configured plans as a console grid without a spotlight hero', async () => {
     const wrapper = mount(SubscriptionPlanDecisionShelf, {
       props: {
         plans: [
-          planFixture(1, { name: 'Monthly 100', price: 100 }),
-          planFixture(2, { name: 'Monthly 29.9', price: 29.9 }),
+          planFixture(1, { name: 'Monthly 100', price: 100, cover_image_url: '/assets/plans/100.webp' }),
+          planFixture(2, { name: 'Monthly 29.9', price: 29.9, cover_image_url: '/assets/plans/29.webp' }),
         ],
         defaultPlanId: 2,
         tags: [
@@ -87,8 +87,28 @@ describe('SubscriptionPlanDecisionShelf', () => {
       },
     })
 
-    const spotlight = wrapper.find('[data-test="plan-spotlight"]')
-    expect(spotlight.text()).toContain('Monthly 29.9')
-    expect(spotlight.text()).toContain('高性价比')
+    expect(wrapper.find('[data-test="plan-spotlight"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="plan-list-item"]').exists()).toBe(false)
+    expect(wrapper.html()).not.toContain('aspect-[16/9]')
+    expect(wrapper.html()).not.toContain('xl:grid-cols-[minmax(0,1fr)_minmax(380px,560px)]')
+
+    const cards = wrapper.findAll('[data-test="plan-grid-card"]')
+    expect(cards).toHaveLength(2)
+    expect(cards.map(card => card.text())).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining('Monthly 100'),
+        expect.stringContaining('Monthly 29.9'),
+      ]),
+    )
+
+    const defaultCard = cards.find(card => card.text().includes('Monthly 29.9'))
+    expect(defaultCard?.find('[data-test="plan-default-badge"]').exists()).toBe(true)
+    expect(defaultCard?.text()).toContain('高性价比')
+    expect(wrapper.findAll('[data-test="plan-cover-thumbnail"]')).toHaveLength(2)
+
+    await defaultCard?.find('[data-test="plan-grid-details"]').trigger('click')
+    await defaultCard?.find('[data-test="plan-grid-subscribe"]').trigger('click')
+    expect(wrapper.emitted('details')?.[0]).toBeTruthy()
+    expect(wrapper.emitted('select')?.[0]).toBeTruthy()
   })
 })
