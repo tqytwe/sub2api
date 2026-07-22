@@ -4,11 +4,17 @@ import type { LocationQuery } from 'vue-router'
 type LocaleCode = 'en' | 'zh'
 
 type LocaleMessages = Record<string, unknown>
+type LocaleLoadScope = 'core' | 'full'
 
 const LOCALE_KEY = 'sub2api_locale'
 const DEFAULT_LOCALE: LocaleCode = 'zh'
 
-const localeLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
+const coreLocaleLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
+  en: () => import('./locales/en/core'),
+  zh: () => import('./locales/zh/core'),
+}
+
+const fullLocaleLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
   en: () => import('./locales/en'),
   zh: () => import('./locales/zh'),
 }
@@ -62,28 +68,52 @@ export const i18n = createI18n({
   warnHtmlMessage: false,
 })
 
-const loadedLocales = new Set<LocaleCode>()
+const loadedLocaleScopes = new Map<LocaleCode, Set<LocaleLoadScope>>()
 
-export async function loadLocaleMessages(locale: LocaleCode): Promise<void> {
-  if (loadedLocales.has(locale)) {
+function loadedScopesFor(locale: LocaleCode): Set<LocaleLoadScope> {
+  const existing = loadedLocaleScopes.get(locale)
+  if (existing) return existing
+  const next = new Set<LocaleLoadScope>()
+  loadedLocaleScopes.set(locale, next)
+  return next
+}
+
+export function localeScopeForPath(path: string): LocaleLoadScope {
+  if (path === '/' || path === '/home' || path === '/login' || path === '/register' || path === '/setup' || path === '/key-usage') {
+    return 'core'
+  }
+  return 'full'
+}
+
+export async function loadLocaleMessages(locale: LocaleCode, scope: LocaleLoadScope = 'core'): Promise<void> {
+  const loadedScopes = loadedScopesFor(locale)
+  if (loadedScopes.has('full') || loadedScopes.has(scope)) {
     return
   }
 
-  const loader = localeLoaders[locale]
+  const loader = scope === 'full' ? fullLocaleLoaders[locale] : coreLocaleLoaders[locale]
   const module = await loader()
   i18n.global.setLocaleMessage(locale, module.default)
-  loadedLocales.add(locale)
+  loadedScopes.add(scope)
+  if (scope === 'full') {
+    loadedScopes.add('core')
+  }
+}
+
+export async function ensureLocaleMessagesForPath(path: string, locale: LocaleCode = getLocale()): Promise<void> {
+  await loadLocaleMessages(locale, localeScopeForPath(path))
 }
 
 export async function initI18n(): Promise<void> {
   const fromURL = localeFromURL()
+  const path = typeof window === 'undefined' ? '/' : window.location.pathname
   if (fromURL) {
-    await loadLocaleMessages(fromURL)
+    await loadLocaleMessages(fromURL, localeScopeForPath(path))
     i18n.global.locale.value = fromURL
     localStorage.setItem(LOCALE_KEY, fromURL)
   } else {
     const current = getLocale()
-    await loadLocaleMessages(current)
+    await loadLocaleMessages(current, localeScopeForPath(path))
   }
   document.documentElement.setAttribute('lang', documentLanguage(getLocale()))
 }
@@ -101,7 +131,8 @@ export async function setLocale(locale: string): Promise<void> {
     return
   }
 
-  await loadLocaleMessages(normalized)
+  const path = typeof window === 'undefined' ? '/' : window.location.pathname
+  await loadLocaleMessages(normalized, localeScopeForPath(path))
   i18n.global.locale.value = normalized
   localStorage.setItem(LOCALE_KEY, normalized)
   document.documentElement.setAttribute('lang', documentLanguage(normalized))
