@@ -24,6 +24,7 @@ import (
 const (
 	// NonceHTMLPlaceholder is the placeholder for nonce in HTML script tags
 	NonceHTMLPlaceholder = "__CSP_NONCE_VALUE__"
+	seoTitleSuffix       = "AI API Gateway 与中文提示词库"
 )
 
 //go:embed all:dist
@@ -274,13 +275,17 @@ func safeImageURL(value string) string {
 	return trimmed
 }
 
-// injectSiteTitle replaces the static <title> in HTML with the configured site name.
+// injectSiteTitle replaces the static <title> in HTML with the configured site title.
 // This ensures the browser tab shows the correct title before JS executes.
 func injectSiteTitle(html, settingsJSON []byte) []byte {
 	var cfg struct {
 		SiteName string `json:"site_name"`
 	}
-	if err := json.Unmarshal(settingsJSON, &cfg); err != nil || cfg.SiteName == "" {
+	if err := json.Unmarshal(settingsJSON, &cfg); err != nil {
+		return html
+	}
+	siteName := strings.TrimSpace(cfg.SiteName)
+	if siteName == "" {
 		return html
 	}
 
@@ -291,12 +296,16 @@ func injectSiteTitle(html, settingsJSON []byte) []byte {
 		return html
 	}
 
-	newTitle := []byte("<title>" + htmlpkg.EscapeString(cfg.SiteName) + "</title>")
+	newTitle := []byte("<title>" + htmlpkg.EscapeString(buildSiteTitle(siteName)) + "</title>")
 	var buf bytes.Buffer
 	buf.Write(html[:titleStart])
 	buf.Write(newTitle)
 	buf.Write(html[titleEnd+len("</title>"):])
 	return buf.Bytes()
+}
+
+func buildSiteTitle(siteName string) string {
+	return strings.TrimSpace(siteName) + " - " + seoTitleSuffix
 }
 
 // replaceNoncePlaceholder replaces the nonce placeholder with actual nonce value
@@ -382,6 +391,8 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		strings.HasPrefix(trimmed, "/antigravity/") ||
 		strings.HasPrefix(trimmed, "/setup/") ||
 		trimmed == "/health" ||
+		trimmed == "/robots.txt" ||
+		trimmed == "/sitemap.xml" ||
 		trimmed == "/models" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||

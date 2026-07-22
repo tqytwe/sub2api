@@ -26,13 +26,17 @@ function isSafeImageUrl(value: string): boolean {
   }
 }
 
+function buildSiteTitle(siteName: string): string {
+  return `${siteName} - AI API Gateway 与中文提示词库`
+}
+
 function injectBranding(html: string, config: { site_name?: string; site_logo?: string }): string {
   let brandedHtml = html
   const siteName = config.site_name?.trim()
   if (siteName) {
     brandedHtml = brandedHtml.replace(
       /<title>[^<]*<\/title>/i,
-      `<title>${escapeHtml(siteName)} - AI API Gateway</title>`,
+      `<title>${escapeHtml(buildSiteTitle(siteName))}</title>`,
     )
   }
 
