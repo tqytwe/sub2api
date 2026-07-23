@@ -19,7 +19,7 @@ func TestBuildPromptLibrarySitemapContainsOnlyProvidedPublishedPrompts(t *testin
 	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts</loc>")
 	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts/12</loc>")
 	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts/34</loc>")
-	for _, path := range []string{"/", "/home", "/models", "/docs", "/image-studio"} {
+	for _, path := range []string{"/", "/home", "/models", "/docs", "/en/", "/en/models", "/en/docs", "/image-studio"} {
 		require.Contains(t, xml, "<loc>https://www.jisudeng.com"+path+"</loc>")
 	}
 	require.False(t, strings.Contains(xml, "source_url"))

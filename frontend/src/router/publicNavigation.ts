@@ -6,6 +6,9 @@ export const PUBLIC_ROUTE_NAMES = {
   contact: 'Contact',
   dashboard: 'Dashboard',
   docs: 'Docs',
+  englishDocs: 'EnglishDocs',
+  englishHome: 'EnglishHome',
+  englishModels: 'EnglishModels',
   imageStudio: 'ImageStudio',
   keyUsage: 'KeyUsage',
   login: 'Login',
@@ -51,6 +54,13 @@ export function imageStudioEntryRoute(isAuthenticated: boolean): RouteLocationRa
 export function docsTopicRoute(cat: string, page: string): RouteLocationRaw {
   return {
     name: PUBLIC_ROUTE_NAMES.docs,
+    query: { cat, page },
+  }
+}
+
+export function englishDocsTopicRoute(cat: string, page: string): RouteLocationRaw {
+  return {
+    name: PUBLIC_ROUTE_NAMES.englishDocs,
     query: { cat, page },
   }
 }

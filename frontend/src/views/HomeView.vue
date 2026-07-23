@@ -24,7 +24,7 @@
     <header class="page-header" :class="{ scrolled: headerScrolled }">
       <div class="page-container header-row">
         <div class="header-left">
-          <router-link to="/" class="brand">
+          <router-link :to="homeLogoRoute" class="brand">
             <span v-if="siteLogo" class="brand-mark" aria-hidden="true">
               <img :src="siteLogo" :alt="siteName" />
             </span>
@@ -87,7 +87,7 @@
             {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
             <span class="arrow">→</span>
           </button>
-          <button v-if="docUrl" type="button" class="cta-text" @click="openDocs">
+          <button v-if="docUrl || isEnglishPublicRoute" type="button" class="cta-text" @click="openDocs">
             {{ t('home.jisudeng.cta.docs') }}
             <span class="arrow-tiny">↗</span>
           </button>
@@ -431,7 +431,8 @@
         <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
         <LmspeedBadge />
         <span class="f-links">
-          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
+          <router-link v-if="isEnglishPublicRoute" :to="{ name: PUBLIC_ROUTE_NAMES.englishDocs }">{{ t('home.jisudeng.footer.docs') }}</router-link>
+          <a v-else-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
           <span class="f-copy">© {{ year }} {{ siteName }}</span>
         </span>
       </div>
@@ -472,6 +473,7 @@ import {
   buildHomePrimaryNav,
   dashboardEntryRoute,
   docsTopicRoute,
+  englishDocsTopicRoute,
   imageStudioEntryRoute,
 } from '@/router/publicNavigation'
 
@@ -517,17 +519,36 @@ let fontEl: HTMLLinkElement | null = null
 const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
+const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
 const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value))
 const adminDashboardRoute = { name: PUBLIC_ROUTE_NAMES.adminDashboard }
 const aboutRoute = { name: PUBLIC_ROUTE_NAMES.about }
 const loginRoute = authEntryRoute(false)
 const registerRoute = authEntryRoute(true)
-const imageDocsRoute = docsTopicRoute('deploy', 'text-to-image-api')
-const quickStartDocsRoute = docsTopicRoute('tutorial', 'quick-start')
+const homeLogoRoute = computed(() =>
+  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishHome } : { path: '/' },
+)
+const imageDocsRoute = computed(() =>
+  isEnglishPublicRoute.value
+    ? englishDocsTopicRoute('deploy', 'text-to-image-api')
+    : docsTopicRoute('deploy', 'text-to-image-api'),
+)
+const quickStartDocsRoute = computed(() =>
+  isEnglishPublicRoute.value
+    ? englishDocsTopicRoute('tutorial', 'quick-start')
+    : docsTopicRoute('tutorial', 'quick-start'),
+)
 const dashboardRoute = computed(() => dashboardEntryRoute(isAdmin.value))
 const homePrimaryNavItems = computed(() =>
-  buildHomePrimaryNav(isAuthenticated.value).filter((item) => !item.requiresSupportContact || hasSupportContact.value),
+  buildHomePrimaryNav(isAuthenticated.value)
+    .map((item) => {
+      if (!isEnglishPublicRoute.value) return item
+      if (item.key === 'models') return { ...item, to: { name: PUBLIC_ROUTE_NAMES.englishModels } }
+      if (item.key === 'docs') return { ...item, to: { name: PUBLIC_ROUTE_NAMES.englishDocs } }
+      return item
+    })
+    .filter((item) => !item.requiresSupportContact || hasSupportContact.value),
 )
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
@@ -714,6 +735,10 @@ function goStart() {
 }
 
 function openDocs() {
+  if (isEnglishPublicRoute.value) {
+    router.push({ name: PUBLIC_ROUTE_NAMES.englishDocs })
+    return
+  }
   if (docUrl.value) window.open(docUrl.value, '_blank', 'noopener')
 }
 
