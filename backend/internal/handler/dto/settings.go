@@ -138,6 +138,7 @@ type SystemSettings struct {
 	ContactInfo                 string                       `json:"contact_info"`
 	DocURL                      string                       `json:"doc_url"`
 	SupportContact              service.SupportContactConfig `json:"support_contact"`
+	APIOnboarding               service.APIOnboardingConfig  `json:"api_onboarding"`
 	HomeContent                 string                       `json:"home_content"`
 	HideCcsImportButton         bool                         `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled bool                         `json:"purchase_subscription_enabled"`
@@ -343,6 +344,7 @@ type PublicSettings struct {
 	ContactInfo                      string                       `json:"contact_info"`
 	DocURL                           string                       `json:"doc_url"`
 	SupportContact                   service.SupportContactConfig `json:"support_contact"`
+	APIOnboarding                    service.APIOnboardingConfig  `json:"api_onboarding"`
 	HomeContent                      string                       `json:"home_content"`
 	HideCcsImportButton              bool                         `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                         `json:"purchase_subscription_enabled"`

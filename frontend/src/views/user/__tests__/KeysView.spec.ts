@@ -11,22 +11,28 @@ const {
   getDashboardApiKeysUsage,
   getAvailableGroups,
   getUserGroupRates,
+  getCheckoutInfo,
   showError,
   showSuccess,
   copyToClipboard,
   isCurrentStep,
   nextStep,
+  routerPush,
+  authUser,
 } = vi.hoisted(() => ({
   listKeys: vi.fn(),
   getPublicSettings: vi.fn(),
   getDashboardApiKeysUsage: vi.fn(),
   getAvailableGroups: vi.fn(),
   getUserGroupRates: vi.fn(),
+  getCheckoutInfo: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   copyToClipboard: vi.fn(),
   isCurrentStep: vi.fn(),
   nextStep: vi.fn(),
+  routerPush: vi.fn(),
+  authUser: { value: { balance: 0 } as { balance: number } | null },
 }))
 
 const messages: Record<string, string> = {
@@ -35,6 +41,22 @@ const messages: Record<string, string> = {
   'common.refresh': 'Refresh',
   'common.status': 'Status',
   'keys.apiKey': 'API Key',
+  'keys.apiOnboarding.balanceHint': 'Current balance {balance}; recommended minimum is {required}.',
+  'keys.apiOnboarding.buyPlan': 'Buy Plan',
+  'keys.apiOnboarding.createKey': 'Create Key',
+  'keys.apiOnboarding.defaultBuyPlanDescription': 'Plans unlock subscription groups.',
+  'keys.apiOnboarding.defaultBuyPlanTitle': 'Subscribe to a plan',
+  'keys.apiOnboarding.defaultCreateDescription': 'Choose an available group and create a key.',
+  'keys.apiOnboarding.defaultCreateTitle': 'Create a stable key',
+  'keys.apiOnboarding.defaultDocsDescription': 'Review API base URL and model calls.',
+  'keys.apiOnboarding.defaultDocsTitle': 'Read setup docs',
+  'keys.apiOnboarding.defaultRechargeDescription': 'Top up first when balance is low.',
+  'keys.apiOnboarding.defaultRechargeTitle': 'Top up balance first',
+  'keys.apiOnboarding.openDocs': 'Open Docs',
+  'keys.apiOnboarding.recharge': 'Top Up',
+  'keys.apiOnboarding.recommendedGroup': 'Recommended group',
+  'keys.apiOnboarding.subtitle': 'Choose a group, top up, or subscribe before creating your first API key.',
+  'keys.apiOnboarding.title': 'Recommended setup',
   'keys.allGroups': 'All Groups',
   'keys.allStatus': 'All Status',
   'keys.columnSettings': 'Column Settings',
@@ -73,6 +95,9 @@ vi.mock('@/api', () => ({
     getAvailable: getAvailableGroups,
     getUserGroupRates,
   },
+  paymentAPI: {
+    getCheckoutInfo,
+  },
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -86,6 +111,20 @@ vi.mock('@/stores/onboarding', () => ({
   useOnboardingStore: () => ({
     isCurrentStep,
     nextStep,
+  }),
+}))
+
+vi.mock('@/stores/auth', () => ({
+  useAuthStore: () => ({
+    get user() {
+      return authUser.value
+    },
+  }),
+}))
+
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push: routerPush,
   }),
 }))
 
@@ -180,7 +219,7 @@ const DataTableStub = {
           <slot name="cell-last_used_ip" :value="row.last_used_ip" :row="row" />
         </div>
       </div>
-      <slot name="empty" />
+      <slot v-if="data.length === 0" name="empty" />
     </div>
   `,
 }
@@ -265,11 +304,14 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockReset()
     getAvailableGroups.mockReset()
     getUserGroupRates.mockReset()
+    getCheckoutInfo.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     copyToClipboard.mockReset()
     isCurrentStep.mockReset()
     nextStep.mockReset()
+    routerPush.mockReset()
+    authUser.value = { balance: 0 }
 
     listKeys.mockResolvedValue({
       items: [createApiKey()],
@@ -282,6 +324,7 @@ describe('user KeysView column settings', () => {
     getDashboardApiKeysUsage.mockResolvedValue({ stats: {} })
     getAvailableGroups.mockResolvedValue([])
     getUserGroupRates.mockResolvedValue({})
+    getCheckoutInfo.mockResolvedValue({ data: { plans: [] } })
     isCurrentStep.mockReturnValue(false)
   })
 
@@ -437,5 +480,170 @@ describe('user KeysView column settings', () => {
       },
       expect.objectContaining({ signal: expect.any(AbortSignal) })
     )
+  })
+
+  it('renders API onboarding from public settings in the empty state', async () => {
+    listKeys.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      pages: 0,
+    })
+    getAvailableGroups.mockResolvedValueOnce([
+      {
+        id: 42,
+        name: 'Claude Stable',
+        description: null,
+        platform: 'anthropic',
+        rate_multiplier: 1,
+        is_exclusive: false,
+        status: 'active',
+        subscription_type: 'token',
+        daily_limit_usd: null,
+        weekly_limit_usd: null,
+        monthly_limit_usd: null,
+        allow_image_generation: false,
+        allow_batch_image_generation: false,
+        image_rate_independent: false,
+        image_rate_multiplier: 1,
+        batch_image_discount_multiplier: 1,
+        batch_image_hold_multiplier: 1,
+        image_price_1k: null,
+        image_price_2k: null,
+        image_price_4k: null,
+        video_rate_independent: false,
+        video_rate_multiplier: 1,
+        video_price_480p: null,
+        video_price_720p: null,
+        video_price_1080p: null,
+        web_search_price_per_call: null,
+        peak_rate_enabled: false,
+        peak_start: '',
+        peak_end: '',
+        peak_rate_multiplier: 1,
+        claude_code_only: false,
+        fallback_group_id: null,
+        fallback_group_id_on_invalid_request: null,
+        require_oauth_only: false,
+        require_privacy_set: false,
+        created_at: '2026-07-23T00:00:00Z',
+        updated_at: '2026-07-23T00:00:00Z',
+      },
+    ])
+    getPublicSettings.mockResolvedValueOnce({
+      doc_url: '/docs',
+      api_onboarding: {
+        enabled: true,
+        title: 'Start with the right key',
+        subtitle: 'Pick the recommended group before creating your first key.',
+        items: [
+          {
+            id: 'starter',
+            title: 'Claude Stable Key',
+            description: 'Recommended for new users.',
+            badge: 'Starter',
+            enabled: true,
+            sort_order: 1,
+            group_id: 42,
+            plan_id: null,
+            min_balance: 0,
+            cta: 'create_key',
+            audience: 'new_users',
+          },
+        ],
+      },
+    })
+
+    const wrapper = await mountView()
+
+    expect(wrapper.get('[data-test="api-onboarding-panel"]').text()).toContain('Claude Stable Key')
+    await getButtonByText(wrapper, 'Create Key').trigger('click')
+    await nextTick()
+
+    const vm = wrapper.vm as unknown as {
+      showCreateModal: boolean
+      formData: { group_id: number | null }
+    }
+    expect(vm.showCreateModal).toBe(true)
+    expect(vm.formData.group_id).toBe(42)
+  })
+
+  it('routes onboarding recharge and plan CTAs to the purchase page', async () => {
+    listKeys.mockResolvedValueOnce({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      pages: 0,
+    })
+    getCheckoutInfo.mockResolvedValueOnce({
+      data: {
+        plans: [
+          {
+            id: 7,
+            group_id: 88,
+            name: 'Pro Monthly',
+            description: '',
+            price: 19,
+            validity_days: 30,
+            validity_unit: 'days',
+            features: [],
+            for_sale: true,
+            sort_order: 1,
+          },
+        ],
+      },
+    })
+    getPublicSettings.mockResolvedValueOnce({
+      doc_url: '/docs',
+      api_onboarding: {
+        enabled: true,
+        title: 'Recommended setup',
+        subtitle: '',
+        items: [
+          {
+            id: 'recharge',
+            title: 'Add balance',
+            description: '',
+            badge: '',
+            enabled: true,
+            sort_order: 1,
+            group_id: null,
+            plan_id: null,
+            min_balance: 0,
+            cta: 'recharge',
+            audience: 'new_users',
+          },
+          {
+            id: 'plan',
+            title: 'Buy Pro',
+            description: '',
+            badge: '',
+            enabled: true,
+            sort_order: 2,
+            group_id: null,
+            plan_id: 7,
+            min_balance: 0,
+            cta: 'buy_plan',
+            audience: 'new_users',
+          },
+        ],
+      },
+    })
+
+    const wrapper = await mountView()
+
+    await getButtonByText(wrapper, 'Top Up').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith({ path: '/purchase' })
+
+    await getButtonByText(wrapper, 'Buy Plan').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/purchase',
+      query: {
+        tab: 'subscription',
+        group: '88',
+      },
+    })
   })
 })
