@@ -29,16 +29,17 @@ onMounted(() => {
     </header>
 
     <main class="contact-main">
-      <p class="contact-eyebrow">{{ t('contact.eyebrow') }}</p>
-      <h1 class="contact-title">{{ t('contact.title') }}</h1>
-      <p class="contact-desc">{{ t('contact.desc') }}</p>
+      <div class="contact-copy">
+        <p class="contact-eyebrow">{{ t('contact.eyebrow') }}</p>
+        <h1 class="contact-title">{{ t('contact.title') }}</h1>
+        <p class="contact-desc">{{ t('contact.desc') }}</p>
+        <p class="contact-footnote">{{ t('contact.footnote') }}</p>
+      </div>
 
       <SupportContactPanel
         class="contact-support-panel"
         :config="appStore.supportContact"
       />
-
-      <p class="contact-footnote">{{ t('contact.footnote') }}</p>
     </main>
 
     <SupportFloatingCard />
