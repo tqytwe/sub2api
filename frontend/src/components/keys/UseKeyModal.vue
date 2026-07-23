@@ -229,7 +229,7 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
-import { buildLmspeedSpeedTestUrl } from '@/utils/lmspeed'
+import { buildLmspeedSpeedTestUrl, resolveLmspeedLocale } from '@/utils/lmspeed'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
@@ -261,7 +261,7 @@ interface FileConfig {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
 const copiedIndex = ref<number | null>(null)
@@ -493,6 +493,7 @@ const platformNote = computed(() => {
 const showPlatformNote = computed(() => activeClientTab.value !== 'opencode')
 
 const resolvedBaseUrl = computed(() => props.baseUrl || window.location.origin)
+const lmspeedLocale = computed(() => resolveLmspeedLocale(String(locale.value || '')))
 const canOpenLmspeedSpeedTest = computed(() =>
   Boolean(
     props.apiKey.trim() &&
@@ -506,7 +507,7 @@ function openLmspeedSpeedTest() {
   const url = buildLmspeedSpeedTestUrl({
     baseUrl: resolvedBaseUrl.value,
     apiKey: props.apiKey,
-    locale: 'zh',
+    locale: lmspeedLocale.value,
   })
   window.open(url, '_blank', 'noopener,noreferrer')
 }

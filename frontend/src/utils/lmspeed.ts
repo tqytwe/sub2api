@@ -19,8 +19,15 @@ export function normalizeLmspeedBaseUrl(baseUrl: string): string {
   return `${trimmed.replace(/\/v1$/i, '')}/v1`
 }
 
+export function resolveLmspeedLocale(appLocale: string | null | undefined): LmspeedLocale {
+  const normalized = appLocale?.trim().toLowerCase() ?? ''
+  if (normalized.startsWith('zh')) return 'zh'
+  if (normalized.startsWith('ru')) return 'ru'
+  return 'en'
+}
+
 export function buildLmspeedSpeedTestUrl(input: LmspeedSpeedTestUrlInput): string {
-  const url = new URL(LMSPEED_BASE_URL_BY_LOCALE[input.locale ?? 'zh'])
+  const url = new URL(LMSPEED_BASE_URL_BY_LOCALE[input.locale ?? 'en'])
   url.searchParams.set('baseUrl', normalizeLmspeedBaseUrl(input.baseUrl))
   url.searchParams.set('apiKey', input.apiKey.trim())
 

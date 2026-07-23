@@ -1,14 +1,16 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
-const { copyToClipboardMock } = vi.hoisted(() => ({
-  copyToClipboardMock: vi.fn().mockResolvedValue(true)
+const { copyToClipboardMock, i18nLocaleMock } = vi.hoisted(() => ({
+  copyToClipboardMock: vi.fn().mockResolvedValue(true),
+  i18nLocaleMock: { value: 'zh' }
 }))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string) => key
+    t: (key: string) => key,
+    locale: i18nLocaleMock
   })
 }))
 
@@ -21,6 +23,10 @@ vi.mock('@/composables/useClipboard', () => ({
 import UseKeyModal from '../UseKeyModal.vue'
 
 describe('UseKeyModal', () => {
+  beforeEach(() => {
+    i18nLocaleMock.value = 'zh'
+  })
+
   it('renders Grok Build and OpenCode setup for Grok groups', async () => {
     const wrapper = mount(UseKeyModal, {
       props: {
@@ -601,6 +607,46 @@ describe('UseKeyModal', () => {
       const parsed = new URL(openedUrl as string)
       expect(parsed.searchParams.get('baseUrl')).toBe('https://api.example.com/v1')
       expect(parsed.searchParams.get('apiKey')).toBe('sk-test/key with spaces')
+    } finally {
+      openSpy.mockRestore()
+    }
+  })
+
+  it('opens the English LMSpeed site when the app locale is English', async () => {
+    i18nLocaleMock.value = 'en'
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+    try {
+      const wrapper = mount(UseKeyModal, {
+        props: {
+          show: true,
+          apiKey: 'sk-test-en',
+          baseUrl: 'https://api.example.com',
+          platform: 'openai'
+        },
+        global: {
+          stubs: {
+            BaseDialog: {
+              template: '<div><slot /><slot name="footer" /></div>'
+            },
+            Icon: {
+              template: '<span />'
+            }
+          }
+        }
+      })
+
+      await wrapper.get('[data-testid="lmspeed-speed-test"]').trigger('click')
+
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:\/\/lmspeed\.net\/\?/),
+        '_blank',
+        'noopener,noreferrer'
+      )
+      const openedUrl = openSpy.mock.calls[0][0]
+      const parsed = new URL(openedUrl as string)
+      expect(parsed.pathname).toBe('/')
+      expect(parsed.searchParams.get('apiKey')).toBe('sk-test-en')
     } finally {
       openSpy.mockRestore()
     }
