@@ -58,6 +58,17 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
   })
 })
 
+describe('PROVIDER_CONFIG_FIELDS.easypay', () => {
+  it('adds API base guidance and currency config for KyrenPay-compatible methods', () => {
+    expect(findField('easypay', 'apiBase')?.hintKey).toBe('admin.settings.payment.field_easypayApiBaseHint')
+
+    const currency = findField('easypay', 'currency')
+    expect(currency?.defaultValue).toBe('CNY')
+    expect(currency?.hintKey).toBe('admin.settings.payment.field_paymentCurrencyHint')
+    expect(currency?.options).toBe(PAYMENT_CURRENCY_OPTIONS)
+  })
+})
+
 describe('EasyPay custom methods config', () => {
   it('parses customMethods from the JSON string stored in provider config', () => {
     expect(parseEasyPayCustomMethods(
