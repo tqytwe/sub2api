@@ -210,6 +210,37 @@ describe('PaymentProviderDialog payment guide', () => {
     expect(payload.supported_types).toEqual(['alipay', 'wxpay', 'ldc'])
   })
 
+  it('emits an empty EasyPay merchant display name when the admin clears it', async () => {
+    const provider = providerFactory({
+      provider_key: 'easypay',
+      name: 'EasyPay',
+      config: {
+        pid: 'pid-1',
+        apiBase: 'https://pay.example.com',
+        displayMerchantName: 'Old Merchant',
+        notifyUrl: 'https://example.com/api/v1/payment/webhook/easypay',
+        returnUrl: 'https://example.com/payment/result',
+      },
+      supported_types: ['alipay', 'wxpay'],
+      payment_mode: 'qrcode',
+    })
+    const wrapper = mountDialog({ editing: provider })
+
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+
+    const displayNameInput = wrapper
+      .findAll('input[type="text"]')
+      .find(input => (input.element as HTMLInputElement).value === 'Old Merchant')
+    if (!displayNameInput) throw new Error('displayMerchantName input not found')
+
+    await displayNameInput.setValue('')
+    await wrapper.find('form').trigger('submit.prevent')
+
+    const payload = wrapper.emitted('save')?.[0]?.[0] as { config: Record<string, string> }
+    expect(payload.config.displayMerchantName).toBe('')
+  })
+
   it('rejects custom EasyPay method types with built-in payment prefixes', async () => {
     const provider = providerFactory({
       provider_key: 'easypay',

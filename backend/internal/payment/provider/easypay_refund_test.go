@@ -252,13 +252,14 @@ func TestEasyPayCreatePaymentSendsConfiguredMoneyType(t *testing.T) {
 	defer server.Close()
 
 	provider, err := NewEasyPay("test-instance", map[string]string{
-		"pid":           "pid-1",
-		"pkey":          "pkey-1",
-		"apiBase":       server.URL + "/epay/mapi.php",
-		"notifyUrl":     "https://example.com/notify",
-		"returnUrl":     "https://example.com/return",
-		"currency":      "usd",
-		"customMethods": `[{"type":"paynow","upstreamType":"paynow","displayName":"PayNow"}]`,
+		"pid":                 "pid-1",
+		"pkey":                "pkey-1",
+		"apiBase":             server.URL + "/epay/mapi.php",
+		"notifyUrl":           "https://example.com/notify",
+		"returnUrl":           "https://example.com/return",
+		"currency":            "usd",
+		"displayMerchantName": "Jisudeng",
+		"customMethods":       `[{"type":"paynow","upstreamType":"paynow","displayName":"PayNow"}]`,
 	})
 	if err != nil {
 		t.Fatalf("NewEasyPay: %v", err)
@@ -278,12 +279,13 @@ func TestEasyPayCreatePaymentSendsConfiguredMoneyType(t *testing.T) {
 		t.Fatalf("path = %q, want /epay/mapi.php", gotPath)
 	}
 	for key, want := range map[string]string{
-		"pid":          "pid-1",
-		"type":         "paynow",
-		"out_trade_no": "sub2-paynow-1",
-		"money":        "9.99",
-		"money_type":   "USD",
-		"clientip":     "203.0.113.10",
+		"pid":                   "pid-1",
+		"type":                  "paynow",
+		"out_trade_no":          "sub2-paynow-1",
+		"money":                 "9.99",
+		"money_type":            "USD",
+		"display_merchant_name": "Jisudeng",
+		"clientip":              "203.0.113.10",
 	} {
 		if got := gotForm.Get(key); got != want {
 			t.Fatalf("form[%s] = %q, want %q (form=%v)", key, got, want, gotForm)
@@ -301,14 +303,15 @@ func TestEasyPayRedirectUsesKyrenEpayPathAndMoneyType(t *testing.T) {
 	t.Parallel()
 
 	provider, err := NewEasyPay("test-instance", map[string]string{
-		"pid":           "pid-1",
-		"pkey":          "pkey-1",
-		"apiBase":       "https://api.kyrenpay.com",
-		"notifyUrl":     "https://example.com/notify",
-		"returnUrl":     "https://example.com/return",
-		"paymentMode":   paymentModePopup,
-		"currency":      "HKD",
-		"customMethods": `[{"type":"paynow","upstreamType":"paynow","displayName":"PayNow"}]`,
+		"pid":                 "pid-1",
+		"pkey":                "pkey-1",
+		"apiBase":             "https://api.kyrenpay.com",
+		"notifyUrl":           "https://example.com/notify",
+		"returnUrl":           "https://example.com/return",
+		"paymentMode":         paymentModePopup,
+		"currency":            "HKD",
+		"displayMerchantName": "Jisudeng",
+		"customMethods":       `[{"type":"paynow","upstreamType":"paynow","displayName":"PayNow"}]`,
 	})
 	if err != nil {
 		t.Fatalf("NewEasyPay: %v", err)
@@ -335,6 +338,9 @@ func TestEasyPayRedirectUsesKyrenEpayPathAndMoneyType(t *testing.T) {
 	}
 	if got := payURL.Query().Get("money_type"); got != "HKD" {
 		t.Fatalf("pay url money_type = %q, want HKD", got)
+	}
+	if got := payURL.Query().Get("display_merchant_name"); got != "Jisudeng" {
+		t.Fatalf("pay url display_merchant_name = %q, want Jisudeng", got)
 	}
 	if resp.Currency != "HKD" {
 		t.Fatalf("response currency = %q, want HKD", resp.Currency)

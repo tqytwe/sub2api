@@ -53,7 +53,7 @@ type easyPayCustomMethod struct {
 }
 
 // NewEasyPay creates a new EasyPay provider.
-// config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay, currency
+// config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay, currency, displayMerchantName
 func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 	for _, k := range []string{"pid", "pkey", "apiBase", "notifyUrl", "returnUrl"} {
 		if strings.TrimSpace(config[k]) == "" {
@@ -192,6 +192,9 @@ func (e *EasyPay) createRedirectPayment(req payment.CreatePaymentRequest) (*paym
 	if moneyType := e.moneyTypeParam(); moneyType != "" {
 		params["money_type"] = moneyType
 	}
+	if displayMerchantName := e.displayMerchantNameParam(); displayMerchantName != "" {
+		params["display_merchant_name"] = displayMerchantName
+	}
 	if cid := e.resolveCID(paymentType); cid != "" {
 		params["cid"] = cid
 	}
@@ -221,6 +224,9 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 	}
 	if moneyType := e.moneyTypeParam(); moneyType != "" {
 		params["money_type"] = moneyType
+	}
+	if displayMerchantName := e.displayMerchantNameParam(); displayMerchantName != "" {
+		params["display_merchant_name"] = displayMerchantName
 	}
 	if cid := e.resolveCID(paymentType); cid != "" {
 		params["cid"] = cid
@@ -270,6 +276,16 @@ func (e *EasyPay) moneyTypeParam() string {
 		return ""
 	}
 	return currency
+}
+
+func (e *EasyPay) displayMerchantNameParam() string {
+	if e == nil {
+		return ""
+	}
+	if displayName := strings.TrimSpace(e.config["displayMerchantName"]); displayName != "" {
+		return displayName
+	}
+	return strings.TrimSpace(e.config["display_merchant_name"])
 }
 
 func (e *EasyPay) paymentCurrency() string {
