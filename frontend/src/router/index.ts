@@ -885,6 +885,32 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/proxies/risk',
+    name: 'AdminIPRisk',
+    component: () => import('@/views/admin/ProxiesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'IP Risk Detection',
+      titleKey: 'admin.ipRisk.title',
+      descriptionKey: 'admin.ipRisk.description',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/admin/proxies/actions',
+    name: 'AdminIPRiskActions',
+    component: () => import('@/views/admin/ProxiesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'IP Risk Actions',
+      titleKey: 'admin.ipRisk.actionsView.title',
+      descriptionKey: 'admin.ipRisk.actionsView.description',
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/admin/redeem',
     name: 'AdminRedeem',
     component: () => import('@/views/admin/RedeemView.vue'),

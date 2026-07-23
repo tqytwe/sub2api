@@ -95,3 +95,29 @@ func TestEmailOAuthAuto_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 		AffiliateCode:  "github-affiliate",
 	}}, recorder.registrations)
 }
+
+func TestEmailOAuthAutoIPRiskGateBlocksBeforeCreatingUser(t *testing.T) {
+	t.Parallel()
+
+	userRepo := &userRepoStub{nextID: 89}
+	recorder := &authIPRiskRecorderStub{gateErr: ErrIPRiskRegistrationBlocked}
+	svc := newEmailOAuthAutoAuthService(
+		userRepo,
+		map[string]string{SettingKeyRegistrationEnabled: "true"},
+		nil,
+	)
+	svc.SetIPRiskRecorder(recorder)
+
+	user, err := svc.createEmailOAuthUser(
+		context.Background(),
+		"blocked-oauth@example.test",
+		"blocked",
+		"github",
+		"",
+		"",
+	)
+	require.ErrorContains(t, err, "registration temporarily blocked")
+	require.Nil(t, user)
+	require.Empty(t, userRepo.created)
+	require.Equal(t, 1, recorder.gateCalls)
+}

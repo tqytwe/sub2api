@@ -57,7 +57,7 @@ func RegisterAdminRoutes(
 		// 代理管理
 		registerProxyRoutes(admin, h, stepUpAuth)
 
-		// IP 风险检测（CP1 只读 Shadow Mode）
+		// IP 风险检测、策略和可回滚处置
 		registerIPRiskRoutes(admin, h)
 
 		// 卡密管理
@@ -135,7 +135,22 @@ func RegisterAdminRoutes(
 func registerIPRiskRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	ipRisk := admin.Group("/ip-risk")
 	{
+		ipRisk.GET("/overview", h.Admin.IPRisk.GetOverview)
 		ipRisk.GET("/runtime", h.Admin.IPRisk.GetRuntime)
+		ipRisk.GET("/cases", h.Admin.IPRisk.ListCases)
+		ipRisk.GET("/cases/:id", h.Admin.IPRisk.GetCase)
+		ipRisk.POST("/cases/:id/actions/preview", h.Admin.IPRisk.PreviewAction)
+		ipRisk.POST("/cases/:id/actions", h.Admin.IPRisk.ExecuteAction)
+		ipRisk.POST("/scans", h.Admin.IPRisk.StartScan)
+		ipRisk.GET("/scans/:id", h.Admin.IPRisk.GetScan)
+		ipRisk.GET("/config", h.Admin.IPRisk.GetConfig)
+		ipRisk.PUT("/config", h.Admin.IPRisk.UpdateConfig)
+		ipRisk.GET("/policies", h.Admin.IPRisk.ListPolicies)
+		ipRisk.POST("/policies", h.Admin.IPRisk.CreatePolicy)
+		ipRisk.PUT("/policies/:id", h.Admin.IPRisk.UpdatePolicy)
+		ipRisk.DELETE("/policies/:id", h.Admin.IPRisk.DeletePolicy)
+		ipRisk.GET("/actions", h.Admin.IPRisk.ListActions)
+		ipRisk.POST("/actions/:id/rollback", h.Admin.IPRisk.RollbackAction)
 	}
 }
 

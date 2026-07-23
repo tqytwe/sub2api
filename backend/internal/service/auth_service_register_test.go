@@ -83,6 +83,8 @@ type authIPRiskRecorderStub struct {
 	registrationContextErr []error
 	loginUserIDs           []int64
 	err                    error
+	gateErr                error
+	gateCalls              int
 }
 
 func (s *authIPRiskRecorderStub) RecordRegistration(ctx context.Context, input IPRiskRegistrationInput) error {
@@ -94,6 +96,11 @@ func (s *authIPRiskRecorderStub) RecordRegistration(ctx context.Context, input I
 func (s *authIPRiskRecorderStub) RecordSuccessfulLogin(_ context.Context, userID int64) error {
 	s.loginUserIDs = append(s.loginUserIDs, userID)
 	return s.err
+}
+
+func (s *authIPRiskRecorderStub) CheckRegistrationAllowed(context.Context) error {
+	s.gateCalls++
+	return s.gateErr
 }
 
 func (s *userPlatformQuotaRepoStub) BulkInsertInitial(_ context.Context, records []UserPlatformQuotaRecord) error {
@@ -810,6 +817,67 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefa
 		InvitationCode: "invite-linuxdo",
 		AffiliateCode:  "affiliate-linuxdo",
 	}}, recorder.registrations)
+}
+
+func TestAuthServiceIPRiskGateBlocksEmailAndOAuthUserCreation(t *testing.T) {
+	t.Parallel()
+
+	t.Run("email registration", func(t *testing.T) {
+		repo := &userRepoStub{nextID: 71}
+		recorder := &authIPRiskRecorderStub{gateErr: ErrIPRiskRegistrationBlocked}
+		service := newAuthService(repo, map[string]string{
+			SettingKeyRegistrationEnabled: "true",
+		}, nil, nil)
+		service.SetIPRiskRecorder(recorder)
+
+		_, user, err := service.Register(context.Background(), "blocked-email@example.test", "password")
+		require.ErrorContains(t, err, "registration temporarily blocked")
+		require.Nil(t, user)
+		require.Empty(t, repo.created)
+		require.Equal(t, 1, recorder.gateCalls)
+	})
+
+	t.Run("legacy oauth first login", func(t *testing.T) {
+		repo := &userRepoStub{nextID: 72}
+		recorder := &authIPRiskRecorderStub{gateErr: ErrIPRiskRegistrationBlocked}
+		service := newAuthService(repo, map[string]string{
+			SettingKeyRegistrationEnabled: "true",
+		}, nil, nil)
+		service.SetIPRiskRecorder(recorder)
+
+		_, user, err := service.LoginOrRegisterOAuth(
+			context.Background(),
+			"blocked-legacy@linuxdo-connect.invalid",
+			"blocked-user",
+		)
+		require.ErrorContains(t, err, "registration temporarily blocked")
+		require.Nil(t, user)
+		require.Empty(t, repo.created)
+		require.Equal(t, 1, recorder.gateCalls)
+	})
+
+	t.Run("token pair oauth first login", func(t *testing.T) {
+		repo := &userRepoStub{nextID: 73}
+		recorder := &authIPRiskRecorderStub{gateErr: ErrIPRiskRegistrationBlocked}
+		service := newAuthService(repo, map[string]string{
+			SettingKeyRegistrationEnabled: "true",
+		}, nil, nil)
+		service.refreshTokenCache = &refreshTokenCacheStub{}
+		service.SetIPRiskRecorder(recorder)
+
+		_, user, err := service.LoginOrRegisterOAuthWithTokenPair(
+			context.Background(),
+			"blocked-token@linuxdo-connect.invalid",
+			"blocked-user",
+			"",
+			"",
+			"linuxdo",
+		)
+		require.ErrorContains(t, err, "registration temporarily blocked")
+		require.Nil(t, user)
+		require.Empty(t, repo.created)
+		require.Equal(t, 1, recorder.gateCalls)
+	})
 }
 
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantAgain(t *testing.T) {

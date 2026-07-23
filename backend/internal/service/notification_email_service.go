@@ -38,6 +38,7 @@ const (
 	NotificationEmailEventCyberPolicyNotice           = "content_moderation.cyber_policy_notice"
 	NotificationEmailEventOpsAlert                    = "ops.alert"
 	NotificationEmailEventOpsScheduledReport          = "ops.scheduled_report"
+	NotificationEmailEventIPRiskAlert                 = "ip_risk.alert"
 
 	notificationEmailTemplateKeyPrefix    = "notification_email_template:"
 	notificationEmailPreferenceKeyPrefix  = "notification_email_preference:"
@@ -1044,6 +1045,7 @@ var notificationEmailEventOrder = []string{
 	NotificationEmailEventCyberPolicyNotice,
 	NotificationEmailEventOpsAlert,
 	NotificationEmailEventOpsScheduledReport,
+	NotificationEmailEventIPRiskAlert,
 }
 
 var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
@@ -1201,6 +1203,16 @@ var notificationEmailEventDefinitions = map[string]NotificationEmailEventInfo{
 			),
 			append(append([]string{}, notificationEmailOpsSummaryPlaceholders...), "report_detail_display", "report_html")...,
 		),
+	},
+	NotificationEmailEventIPRiskAlert: {
+		Event:       NotificationEmailEventIPRiskAlert,
+		Label:       "IP risk alert",
+		Description: "Sent to verified administrator notification emails when an IP risk case first reaches or upgrades to a severe level.",
+		Category:    "admin",
+		Optional:    false,
+		Placeholders: append(append([]string{}, notificationEmailCommonPlaceholders...),
+			"case_id", "primary_ip", "primary_network", "risk_score", "risk_level",
+			"previous_risk_level", "signal_codes", "detected_at"),
 	},
 }
 
@@ -1616,6 +1628,36 @@ var notificationEmailOfficialTemplates = map[string]map[string]notificationEmail
 		notificationEmailLocaleChinese: {
 			Subject: "[运维报表] {{report_name}}",
 			HTML:    notificationEmailOpsScheduledReportTemplate(notificationEmailLocaleChinese),
+		},
+	},
+	NotificationEmailEventIPRiskAlert: {
+		notificationEmailDefaultLocale: {
+			Subject: "[{{site_name}}] IP risk alert - {{risk_level}} / {{risk_score}}",
+			HTML: notificationEmailCard("#dc2626", "IP risk alert", `
+<p>A registration-risk case has reached a severe level or upgraded.</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>Case ID</td><td>{{case_id}}</td></tr>
+  <tr><td>IP / network</td><td>{{primary_ip}} / {{primary_network}}</td></tr>
+  <tr><td>Risk</td><td>{{risk_level}} / {{risk_score}}</td></tr>
+  <tr><td>Previous notified level</td><td>{{previous_risk_level}}</td></tr>
+  <tr><td>Signals</td><td>{{signal_codes}}</td></tr>
+  <tr><td>Detected at</td><td>{{detected_at}}</td></tr>
+</table>
+<p>Please review the evidence and preview impact before taking action.</p>`),
+		},
+		notificationEmailLocaleChinese: {
+			Subject: "[{{site_name}}] IP 风险告警 - {{risk_level}} / {{risk_score}}",
+			HTML: notificationEmailCard("#dc2626", "IP 风险告警", `
+<p>一个注册风险案件首次达到严重等级，或风险等级再次升级。</p>
+<table style="width:100%;border-collapse:collapse;">
+  <tr><td>案件 ID</td><td>{{case_id}}</td></tr>
+  <tr><td>IP / 网段</td><td>{{primary_ip}} / {{primary_network}}</td></tr>
+  <tr><td>风险等级 / 分数</td><td>{{risk_level}} / {{risk_score}}</td></tr>
+  <tr><td>上次通知等级</td><td>{{previous_risk_level}}</td></tr>
+  <tr><td>命中信号</td><td>{{signal_codes}}</td></tr>
+  <tr><td>检测时间</td><td>{{detected_at}}</td></tr>
+</table>
+<p>请进入 IP 管理的风险检测页面查看证据，并在执行前预览影响范围。</p>`),
 		},
 	},
 }
