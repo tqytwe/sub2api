@@ -91,7 +91,7 @@
 ## FORK-DEPLOY-006 分支与 Zeabur 部署
 
 - 产品目的：极速蹬在服务器完成可复现开发与验证，从 `origin/play/main` 触发 Zeabur 构建，并由用户本地电脑完成生产验收。
-- 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；官方 Web 与 Android APK 必须能从 `www.jisudeng.com`、`chat.jisudeng.com`、Android WebView 的 `https://localhost` / `capacitor://localhost` 安全访问 `api.jisudeng.com`，不能要求用户手填后端地址；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
+- 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；官方 Web 与 Android APK 必须能从 `jisudeng.com`、`www.jisudeng.com`、Android WebView 的 `https://localhost` / `capacitor://localhost` 安全访问 `api.jisudeng.com`，不能要求用户手填后端地址；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
 - 关键位置：`AGENTS.md`、[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)、`scripts/push-github-and-deploy.sh`、`deploy/zeabur.template.yaml`、`deploy/config.example.yaml`、`backend/internal/server/middleware/cors.go`、`.cursor/rules/sub2api-server-only-verify.mdc`、[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md)。
 - 冲突策略：上游 Docker 文档只作为参考，不能改变极速蹬生产分支和验收入口。
 - 验证：服务器完整闸门、PR 单次 GitHub CI、Zeabur 部署 commit/健康状态、官方 Web/Android 来源的 CORS preflight，以及用户本地电脑的游客、普通用户、管理员生产浏览器验收；按风险补充浅色/深色和 API/数据库对账。

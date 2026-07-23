@@ -16,6 +16,7 @@ import {
   collectAddedLines,
   findRuleViolations,
   hasValidAllowance,
+  isSourceRuleFile,
   resolveBase,
   validateEvidenceRecords,
 } from "./check-frontend-design-governance.mjs";
@@ -177,6 +178,12 @@ test("each documented visual rule has an executable negative probe", () => {
     ),
     [],
   );
+});
+
+test("binary public downloads are evidence-only and not source-rule scanned", () => {
+  assert.equal(isSourceRuleFile("frontend/public/downloads/jisudengchat-android.apk"), false);
+  assert.equal(isSourceRuleFile("frontend/public/downloads/android-version.json"), true);
+  assert.equal(isSourceRuleFile("frontend/src/views/public/AndroidDownloadView.vue"), true);
 });
 
 test("visual evidence requires structured artifacts and file coverage", () => {

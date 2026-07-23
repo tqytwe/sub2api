@@ -8,6 +8,17 @@ describe('Jisudeng page locale contracts', () => {
     expect(jisudengPagesEn.imageStudio.subtitle).toBeTruthy()
   })
 
+  it('keeps Android download page copy complete in both locales', () => {
+    for (const locale of [jisudengPagesZh.androidDownload, jisudengPagesEn.androidDownload]) {
+      expect(locale.title).toBeTruthy()
+      expect(locale.downloadApk).toBeTruthy()
+      expect(locale.scanTitle).toBeTruthy()
+      expect(locale.packageInfo).toBeTruthy()
+      expect(locale.features).toHaveLength(4)
+      expect(locale.defaultNote).toBeTruthy()
+    }
+  })
+
   it('keeps prompt validation, saved-draft, and gallery retry copy in sync', () => {
     for (const locale of [jisudengPagesZh.imageStudio, jisudengPagesEn.imageStudio]) {
       expect(locale.promptTooLong).toContain('8000')

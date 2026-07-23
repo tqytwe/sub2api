@@ -1,0 +1,16 @@
+{
+  "platform": "android",
+  "version": "2.0.1",
+  "apkUrl": "/downloads/jisudengchat-android.apk",
+  "size": "6.3 MB",
+  "sha256": "1b56cdd1420884e6bca2628c61e5cefeea46d98c6a16a955cb8b1e9b6b6010c5",
+  "minAndroidVersion": "8.0",
+  "releaseDate": "2026-07-23",
+  "notes": [
+    "修复 Android 登录网络请求失败",
+    "平台账号登录、余额、分组和模型同步改用原生 HTTP",
+    "聊天和生图支持安卓本机保存"
+  ],
+  "versionCode": 20001,
+  "bytes": 6613345
+}

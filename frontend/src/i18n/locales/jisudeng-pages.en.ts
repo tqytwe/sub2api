@@ -49,6 +49,47 @@ export const jisudengPagesEn = {
     copied: 'Copied',
     copiedToast: 'Support QQ copied'
   },
+  androidDownload: {
+    metaTitle: 'Android Download',
+    eyebrow: 'JisudengChat Android',
+    title: 'Download the Jisudeng Android app',
+    lead: 'Sign in with your Jisudeng account to sync balance, groups, API keys, and model access. Chat and image generation are available on mobile, and generated images stay on your device.',
+    downloadApk: 'Download APK',
+    openWeb: 'Open web app',
+    qrAlt: 'JisudengChat Android APK download QR code',
+    scanTitle: 'Scan to download',
+    scanHint: 'Scan with an Android phone, or open this page in your mobile browser and tap download.',
+    manifestFailed: 'Version details could not be loaded. The download button still uses the official APK URL.',
+    version: 'Version',
+    size: 'Size',
+    minAndroid: 'Requires',
+    releaseDate: 'Release date',
+    defaultSize: 'About 7 MB',
+    unknown: 'Pending',
+    packageInfo: 'Package info',
+    viewManifest: 'View version file',
+    featureTitle: 'Platform features included',
+    features: [
+      {
+        title: 'Shared account login',
+        desc: 'Uses the same Jisudeng account system and syncs balance, groups, and model permissions after sign-in.'
+      },
+      {
+        title: 'Chat and model switching',
+        desc: 'Mobile input, session list, image upload, error states, and empty states are shaped for app use.'
+      },
+      {
+        title: 'Image generation and local gallery',
+        desc: 'Supports references, parameters, task progress, retry, and local storage. Generated images do not stay on the web server.'
+      },
+      {
+        title: 'Account and download progress',
+        desc: 'Balance, plans, order details, recharge, support, notifications, and download progress are available on mobile.'
+      }
+    ],
+    notesTitle: 'Release notes',
+    defaultNote: 'JisudengChat Android includes mobile chat, image generation, local gallery, account flows, signup and password recovery, native permissions, notifications, and branded launch assets.'
+  },
   about: {
     eyebrow: 'ABOUT',
     title: 'Why we are a real relay',
