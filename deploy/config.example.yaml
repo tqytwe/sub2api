@@ -95,8 +95,8 @@ cors:
   # 允许的来源列表。极速蹬 Fork 运行时也会放行一方 Web 与 Android WebView 来源，
   # 以便官方网页和 APK 访问 api.jisudeng.com。
   allowed_origins:
+    - "https://jisudeng.com"
     - "https://www.jisudeng.com"
-    - "https://chat.jisudeng.com"
     - "https://localhost"
     - "http://localhost"
     - "capacitor://localhost"
