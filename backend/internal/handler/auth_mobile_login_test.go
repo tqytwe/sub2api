@@ -83,9 +83,9 @@ func TestMobileAuthValidationMessagesFollowAcceptLanguage(t *testing.T) {
 			wantMessage: "请求参数无效",
 		},
 		{
-			name:         "english",
-			language:     "en-US,en;q=0.9",
-			wantContains: "Invalid request:",
+			name:        "english",
+			language:    "en-US,en;q=0.9",
+			wantMessage: "Invalid request",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -112,6 +112,48 @@ func TestMobileAuthValidationMessagesFollowAcceptLanguage(t *testing.T) {
 			if tc.wantContains != "" {
 				require.Contains(t, body["message"], tc.wantContains)
 			}
+		})
+	}
+}
+
+func TestMobileLoginInvalidCredentialsMessagesFollowAcceptLanguage(t *testing.T) {
+	handler, _ := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{})
+
+	for _, tc := range []struct {
+		name        string
+		language    string
+		wantMessage string
+	}{
+		{
+			name:        "default chinese",
+			wantMessage: "邮箱或密码错误",
+		},
+		{
+			name:        "english",
+			language:    "en-US,en;q=0.9",
+			wantMessage: "Invalid email or password",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/api/v1/auth/mobile/login",
+				bytes.NewBufferString(`{"email":"missing-mobile-user@example.com","password":"secret-123"}`),
+			)
+			req.Header.Set("Content-Type", "application/json")
+			if tc.language != "" {
+				req.Header.Set("Accept-Language", tc.language)
+			}
+			c.Request = req
+
+			handler.MobileLogin(c)
+
+			require.Equal(t, http.StatusUnauthorized, recorder.Code)
+			body := decodeJSONBody(t, recorder)
+			require.Equal(t, tc.wantMessage, body["message"])
+			require.Equal(t, "INVALID_CREDENTIALS", body["reason"])
 		})
 	}
 }
