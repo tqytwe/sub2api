@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>IP risk empty state alignment prototype</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+        background: #f7f7f5;
+        color: #172033;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        background:
+          linear-gradient(180deg, rgba(15, 23, 42, 0.025), transparent 180px),
+          #f7f7f5;
+      }
+
+      .page {
+        min-height: 100vh;
+        padding: 32px;
+      }
+
+      .eyebrow {
+        color: #667085;
+        font-size: 13px;
+        line-height: 20px;
+      }
+
+      h1 {
+        margin: 4px 0 20px;
+        font-size: 24px;
+        line-height: 32px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .summary-card,
+      .toolbar,
+      .panel {
+        border: 1px solid #dfe3e8;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .summary-card {
+        min-height: 92px;
+        padding: 16px;
+      }
+
+      .summary-card strong {
+        display: block;
+        margin-top: 12px;
+        font-size: 24px;
+      }
+
+      .toolbar {
+        height: 56px;
+        margin-bottom: 16px;
+      }
+
+      .workspace {
+        display: grid;
+        grid-template-columns: minmax(440px, 0.92fr) minmax(640px, 1.35fr);
+        gap: 16px;
+        min-height: 620px;
+      }
+
+      .panel {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .detail-panel {
+        position: relative;
+        flex-direction: row;
+      }
+
+      .panel-header {
+        min-height: 58px;
+        padding: 12px 16px;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .panel-header strong {
+        display: block;
+        font-size: 14px;
+      }
+
+      .panel-header span {
+        color: #667085;
+        font-size: 12px;
+      }
+
+      .empty {
+        display: flex;
+        min-height: 420px;
+        flex: 1;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        text-align: center;
+      }
+
+      .is-before .detail-empty {
+        flex: 0 0 auto;
+        padding: 0;
+        text-align: left;
+      }
+
+      .empty-copy {
+        max-width: 360px;
+      }
+
+      .shield {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        margin: 0 auto 12px;
+        place-items: center;
+        border-radius: 12px;
+        background: #ecfdf3;
+        color: #039855;
+        font-size: 22px;
+        font-weight: 700;
+      }
+
+      .empty-title {
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 22px;
+      }
+
+      .empty-hint {
+        margin-top: 4px;
+        color: #667085;
+        font-size: 13px;
+        line-height: 20px;
+      }
+
+      .detail-copy {
+        color: #667085;
+        font-size: 14px;
+        line-height: 22px;
+      }
+
+      .annotation {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        display: inline-flex;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: #eef4ff;
+        color: #175cd3;
+        font-size: 12px;
+      }
+
+      .is-before .annotation {
+        background: #fff4e5;
+        color: #b54708;
+      }
+
+      @media (max-width: 1100px) {
+        .summary {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="eyebrow">IP 管理 / 风险检测 / 空状态对齐原型</div>
+      <h1>风险检测工作台</h1>
+
+      <section class="summary" aria-label="风险概览">
+        <article class="summary-card"><span class="eyebrow">未处理风险</span><strong>0</strong></article>
+        <article class="summary-card"><span class="eyebrow">严重风险</span><strong>0</strong></article>
+        <article class="summary-card"><span class="eyebrow">临时阻止</span><strong>0</strong></article>
+        <article class="summary-card"><span class="eyebrow">待复核账号</span><strong>0</strong></article>
+      </section>
+
+      <div class="toolbar" aria-hidden="true"></div>
+
+      <section class="workspace">
+        <article class="panel">
+          <header class="panel-header">
+            <strong>风险事件列表</strong>
+            <span>共 0 个案件</span>
+          </header>
+          <div class="empty">
+            <div class="empty-copy">
+              <div class="shield">✓</div>
+              <div class="empty-title">当前没有待处理风险</div>
+              <div class="empty-hint">检测器会持续评估新注册和近期行为。</div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel detail-panel">
+          <div class="empty detail-empty">
+            <div class="empty-copy">
+              <div class="detail-copy">选择一个风险案件查看证据和关联账号</div>
+            </div>
+          </div>
+          <div class="annotation" id="annotation">修复后：占满详情列并水平、垂直居中</div>
+        </article>
+      </section>
+    </main>
+    <script>
+      const isBefore = new URLSearchParams(window.location.search).get("mode") === "before";
+      document.body.classList.toggle("is-before", isBefore);
+      if (isBefore) {
+        document.getElementById("annotation").textContent = "修复前：空状态只占文字宽度";
+      }
+    </script>
+  </body>
+</html>
