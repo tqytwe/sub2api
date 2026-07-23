@@ -169,6 +169,9 @@ var promptSitemapStaticPaths = []string{
 	"/home",
 	"/models",
 	"/docs",
+	"/en/",
+	"/en/models",
+	"/en/docs",
 	"/image-studio",
 	"/prompts",
 }

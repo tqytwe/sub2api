@@ -1,4 +1,6 @@
 /** 极速蹬公开页文案（about / contact / models / docs / support / auth） */
+import { jisudengAuthAsideZh } from './jisudeng-auth-aside.zh'
+
 export const jisudengPagesZh = {
   support: {
     trigger: '联系客服',
@@ -673,28 +675,5 @@ export const jisudengPagesZh = {
       },
     },
   },
-  authAside: {
-    siteSubtitleDefault: '最安全的大模型中转平台',
-    eyebrow: '隐私 · 透明 · 一念可达',
-    titleLogin: '一念之轻',
-    titleFaintLogin: '接万模之响',
-    pledge1: '不存请求体 · 不参与训练',
-    pledge2: '全链路 TLS · 全程可审计',
-    pledge3: '注册即开 · 秒级接入',
-    eyebrowRegister: '加入极速蹬 AI',
-    titleRegister: '即刻开通',
-    titleFaintRegister: '一念可达每一个模型',
-    pitchRegister:
-      '注册即送测试额度 · 上百个模型官方倍率聚合 · 5 分钟接入 Claude / GPT / Gemini。',
-    regPledge1: '注册即开 API · 无需审批 · 秒级接入',
-    regPledge2: '按 Token 计费 · 无月费 · 见账见量',
-    regPledge3: '邀请码 / 优惠码 · 充值赠送可叠加',
-    regPledge4: '请求体不落盘 · Apple 级隐私承诺',
-    fineprintRegister: '注册即代表同意《服务条款》与《隐私政策》。我们不会用你的提示词训练模型，也不会与任何第三方共享。',
-    backHome: '返回首页',
-    copyrightTagline: '让一念之间链接每个模型',
-    flowSrc: '提示词原文',
-    flowGw: '字节级直通',
-    flowUp: '官方上游'
-  }
+  authAside: jisudengAuthAsideZh,
 }

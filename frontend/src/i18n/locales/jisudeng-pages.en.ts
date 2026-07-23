@@ -1,4 +1,6 @@
 /** 极速蹬 public pages copy */
+import { jisudengAuthAsideEn } from './jisudeng-auth-aside.en'
+
 export const jisudengPagesEn = {
   support: {
     trigger: 'Contact support',
@@ -68,7 +70,7 @@ export const jisudengPagesEn = {
     qq: {
       name: 'QQ group',
       handle: '577938328',
-      desc: 'Chinese community discussion',
+      desc: 'Community discussion and support',
       cta: 'Open'
     },
     wechat: {
@@ -80,8 +82,8 @@ export const jisudengPagesEn = {
   },
   models: {
     backHome: '← Back home',
-    title: 'Models & pricing',
-    subtitle: 'Official and site base pricing (USD / 1M tokens) — guests see admin-curated models',
+    title: 'Models & Pricing',
+    subtitle: 'Compare DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API gateway.',
     subtitleAuth: 'Models visible to signed-in users, site base prices, and your group effective prices (USD / 1M)',
     searchPlaceholder: 'Search models or platforms…',
     loginPrompt: 'Register free to unlock the full model list and group-based billing rates',
@@ -666,27 +668,5 @@ export const jisudengPagesEn = {
       },
     },
   },
-  authAside: {
-    siteSubtitleDefault: 'The most privacy-focused LLM relay platform',
-    eyebrow: 'Privacy · Transparent · One thought away',
-    titleLogin: 'A light thought',
-    titleFaintLogin: 'Echoes every model',
-    pledge1: 'No request storage · No training',
-    pledge2: 'Full TLS · Fully auditable',
-    pledge3: 'Instant access · No approval',
-    eyebrowRegister: 'Join Jisu-Deng AI',
-    titleRegister: 'Open now',
-    titleFaintRegister: 'Every model, one thought away',
-    pitchRegister: 'Free credits on signup · Hundreds of models at official token rates · API key in minutes.',
-    regPledge1: 'Instant API · No approval',
-    regPledge2: 'Pay per token · No monthly fee',
-    regPledge3: 'Promo & invite codes stack',
-    regPledge4: 'Prompts never stored',
-    fineprintRegister: 'By registering you agree to our Terms and Privacy Policy.',
-    backHome: 'Back home',
-    copyrightTagline: 'One thought links every model',
-    flowSrc: 'Your prompt',
-    flowGw: 'Byte-perfect relay',
-    flowUp: 'Official upstream'
-  }
+  authAside: jisudengAuthAsideEn,
 }

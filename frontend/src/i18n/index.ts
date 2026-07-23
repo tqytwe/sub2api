@@ -34,6 +34,20 @@ function documentLanguage(locale: LocaleCode): string {
   return locale === 'en' ? 'en' : 'zh-CN'
 }
 
+function normalizeRoutePath(path: string): string {
+  const clean = path.trim().split('?')[0]?.split('#')[0] ?? '/'
+  if (clean === '/') return '/'
+  return clean.replace(/\/+$/, '') || '/'
+}
+
+export function localeFromPath(path: string): LocaleCode | null {
+  const normalized = normalizeRoutePath(path)
+  if (normalized === '/en' || normalized.startsWith('/en/')) {
+    return 'en'
+  }
+  return null
+}
+
 function localeFromURL(): LocaleCode | null {
   if (typeof window === 'undefined') return null
   const params = new URLSearchParams(window.location.search)
@@ -42,6 +56,11 @@ function localeFromURL(): LocaleCode | null {
 }
 
 function getDefaultLocale(): LocaleCode {
+  const fromPath = typeof window === 'undefined' ? null : localeFromPath(window.location.pathname)
+  if (fromPath) {
+    return fromPath
+  }
+
   const fromURL = localeFromURL()
   if (fromURL) {
     return fromURL
@@ -79,7 +98,8 @@ function loadedScopesFor(locale: LocaleCode): Set<LocaleLoadScope> {
 }
 
 export function localeScopeForPath(path: string): LocaleLoadScope {
-  if (path === '/' || path === '/home' || path === '/login' || path === '/register' || path === '/setup' || path === '/key-usage') {
+  const normalized = normalizeRoutePath(path)
+  if (normalized === '/' || normalized === '/home' || normalized === '/en' || normalized === '/login' || normalized === '/register' || normalized === '/setup' || normalized === '/key-usage') {
     return 'core'
   }
   return 'full'
@@ -105,9 +125,14 @@ export async function ensureLocaleMessagesForPath(path: string, locale: LocaleCo
 }
 
 export async function initI18n(): Promise<void> {
-  const fromURL = localeFromURL()
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
-  if (fromURL) {
+  const fromPath = localeFromPath(path)
+  const fromURL = localeFromURL()
+  if (fromPath) {
+    await loadLocaleMessages(fromPath, localeScopeForPath(path))
+    i18n.global.locale.value = fromPath
+    localStorage.setItem(LOCALE_KEY, fromPath)
+  } else if (fromURL) {
     await loadLocaleMessages(fromURL, localeScopeForPath(path))
     i18n.global.locale.value = fromURL
     localStorage.setItem(LOCALE_KEY, fromURL)
@@ -123,6 +148,15 @@ export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<v
   const value = Array.isArray(raw) ? raw[0] : raw
   if (typeof value !== 'string' || !value.trim()) return
   await setLocale(value.trim())
+}
+
+export async function applyLocaleFromRoute(path: string, query: LocationQuery): Promise<void> {
+  const fromPath = localeFromPath(path)
+  if (fromPath) {
+    await setLocale(fromPath)
+    return
+  }
+  await applyLocaleFromRouteQuery(query)
 }
 
 export async function setLocale(locale: string): Promise<void> {
@@ -150,7 +184,10 @@ export async function setLocale(locale: string): Promise<void> {
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  document.title = resolveRouteDocumentTitle(route, appStore.siteName, customMenuItems)
+  const { applyPublicRouteSeo } = await import('@/utils/routeSeo')
+  if (!applyPublicRouteSeo(route.path)) {
+    document.title = resolveRouteDocumentTitle(route, appStore.siteName, customMenuItems)
+  }
 }
 
 export function getLocale(): LocaleCode {

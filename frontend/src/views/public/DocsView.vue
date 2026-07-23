@@ -8,20 +8,28 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import DocsVipTiersTable from '@/components/public/DocsVipTiersTable.vue'
 import {
-  PUBLIC_DOC_CONTENT_ZH,
-  PUBLIC_DOC_TREE,
-  defaultDocPageForCategory,
-  findDocContent,
+  defaultDocPageForLocale,
+  findDocContentForLocale,
   normalizePublicDocLocation,
+  publicDocContentForLocale,
+  publicDocTreeForLocale,
 } from '@/content/public-docs'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
-const backTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/home'))
+const isEnglishDocsRoute = computed(() => route.path === '/en/docs' || route.path.startsWith('/en/docs/'))
+const docContent = computed(() => publicDocContentForLocale(locale.value))
+const docTree = computed(() => publicDocTreeForLocale(locale.value))
+const docsRouteName = computed(() => (isEnglishDocsRoute.value ? 'EnglishDocs' : 'Docs'))
+
+const backTarget = computed(() => {
+  if (authStore.isAuthenticated) return '/dashboard'
+  return isEnglishDocsRoute.value ? '/en' : '/home'
+})
 const backLabel = computed(() =>
   authStore.isAuthenticated ? t('docs.backDashboard') : t('contact.backHome'),
 )
@@ -39,11 +47,11 @@ const activePage = computed(() => {
 const isReaderMode = computed(() => !!activeCat.value && !!activePage.value)
 
 const activePageContent = computed(() =>
-  isReaderMode.value ? findDocContent(activeCat.value, activePage.value) : undefined,
+  isReaderMode.value ? findDocContentForLocale(locale.value, activeCat.value, activePage.value) : undefined,
 )
 
 const activeCategory = computed(() =>
-  PUBLIC_DOC_CONTENT_ZH.find((c) => c.id === activeCat.value),
+  docContent.value.find((c) => c.id === activeCat.value),
 )
 
 const expandedSections = ref<Set<string>>(new Set())
@@ -68,21 +76,21 @@ function isSectionOpen(catId: string) {
 }
 
 const categories = computed(() =>
-  PUBLIC_DOC_CONTENT_ZH.map((cat) => ({
+  docContent.value.map((cat) => ({
     key: cat.id,
     title: cat.title,
     desc: personalizeDocText(cat.description),
     pages: cat.pages.slice(0, 4).map((p) => p.title),
     moreCount: Math.max(0, cat.pages.length - 4),
     to: {
-      path: '/docs',
-      query: { cat: cat.id, page: defaultDocPageForCategory(cat.id) },
+      name: docsRouteName.value,
+      query: { cat: cat.id, page: defaultDocPageForLocale(locale.value, cat.id) },
     },
   })),
 )
 
 const flatPages = computed(() =>
-  PUBLIC_DOC_CONTENT_ZH.flatMap((cat) =>
+  docContent.value.flatMap((cat) =>
     cat.pages.map((page) => ({
       catId: cat.id,
       pageId: page.id,
@@ -141,7 +149,7 @@ const vipLevelsTailHtml = computed(() => {
 })
 
 function docLink(catId: string, pageId: string) {
-  return { path: '/docs', query: { cat: catId, page: pageId } }
+  return { name: docsRouteName.value, query: { cat: catId, page: pageId } }
 }
 
 function isActivePage(catId: string, pageId: string) {
@@ -149,11 +157,11 @@ function isActivePage(catId: string, pageId: string) {
 }
 
 function goToIndex() {
-  router.push({ path: '/docs' })
+  router.push({ name: docsRouteName.value })
 }
 
 function openCategory(catId: string) {
-  const page = defaultDocPageForCategory(catId)
+  const page = defaultDocPageForLocale(locale.value, catId)
   if (page) router.push(docLink(catId, page))
 }
 
@@ -166,15 +174,15 @@ watch(
     const normalized = normalizePublicDocLocation(cat, page)
     if (normalized.catId !== cat || normalized.pageId !== page) {
       router.replace({
-        path: '/docs',
+        name: docsRouteName.value,
         query: { cat: normalized.catId, page: normalized.pageId },
       })
       return
     }
-    if (page && findDocContent(cat, page)) return
-    const fallback = defaultDocPageForCategory(cat)
+    if (page && findDocContentForLocale(locale.value, cat, page)) return
+    const fallback = defaultDocPageForLocale(locale.value, cat)
     if (fallback) {
-      router.replace({ path: '/docs', query: { cat, page: fallback } })
+      router.replace({ name: docsRouteName.value, query: { cat, page: fallback } })
     }
   },
   { immediate: true },
@@ -229,7 +237,7 @@ const categoryIcons: Record<string, string> = {
         </button>
 
         <div
-          v-for="cat in PUBLIC_DOC_TREE"
+          v-for="cat in docTree"
           :key="cat.id"
           class="docs-sidebar-section"
         >
@@ -240,7 +248,7 @@ const categoryIcons: Record<string, string> = {
             @click="toggleSection(cat.id)"
           >
             <span class="docs-sidebar-section-title">
-              {{ PUBLIC_DOC_CONTENT_ZH.find((c) => c.id === cat.id)?.title ?? cat.id }}
+              {{ docContent.find((c) => c.id === cat.id)?.title ?? cat.id }}
             </span>
             <span
               class="docs-sidebar-section-chevron"
@@ -255,7 +263,7 @@ const categoryIcons: Record<string, string> = {
                 class="docs-sidebar-page"
                 :class="{ 'is-active': isActivePage(cat.id, page.id) }"
               >
-                {{ findDocContent(cat.id, page.id)?.title ?? page.id }}
+                {{ findDocContentForLocale(locale, cat.id, page.id)?.title ?? page.id }}
               </router-link>
             </li>
           </ul>

@@ -25,6 +25,11 @@ declare module 'vue-router' {
     title?: string
 
     /**
+     * Fully controlled document title, without appending the configured site name.
+     */
+    absoluteTitle?: string
+
+    /**
      * Optional breadcrumb items for navigation
      */
     breadcrumbs?: Array<{

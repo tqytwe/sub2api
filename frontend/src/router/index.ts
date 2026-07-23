@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { applyLocaleFromRouteQuery, ensureLocaleMessagesForPath } from '@/i18n'
+import { applyLocaleFromRoute, ensureLocaleMessagesForPath } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -16,6 +16,7 @@ import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { useTheme } from '@/composables/useTheme'
 import { recoverFromChunkLoadError } from './chunkRecovery'
+import { applyPublicRouteSeo } from '@/utils/routeSeo'
 
 const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
 
@@ -35,6 +36,39 @@ const routes: RouteRecordRaw[] = [
   },
 
   // ==================== Public Routes ====================
+  {
+    path: '/en',
+    name: 'EnglishHome',
+    component: () => import('@/views/HomeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Jisudeng',
+      absoluteTitle: 'Jisudeng: One OpenAI-Compatible API for Frontier AI Models',
+      frame: 'fluid'
+    }
+  },
+  {
+    path: '/en/models',
+    name: 'EnglishModels',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Models & Pricing',
+      absoluteTitle: 'AI Models API: DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini | Jisudeng',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/en/docs',
+    name: 'EnglishDocs',
+    component: () => import('@/views/public/DocsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Docs',
+      absoluteTitle: 'Jisudeng API Docs - OpenAI-Compatible Gateway Quickstart',
+      frame: 'workspace'
+    }
+  },
   {
     path: '/home',
     name: 'Home',
@@ -1071,7 +1105,7 @@ router.beforeEach(async (to, _from, next) => {
   // 开始导航加载状态
   navigationLoading.startNavigation()
 
-  await applyLocaleFromRouteQuery(to.query)
+  await applyLocaleFromRoute(to.path, to.query)
   await ensureLocaleMessagesForPath(to.path)
 
   const authStore = useAuthStore()
@@ -1089,7 +1123,9 @@ router.beforeEach(async (to, _from, next) => {
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  document.title = resolveRouteDocumentTitle(to, appStore.siteName, customMenuItems)
+  if (!applyPublicRouteSeo(to.path)) {
+    document.title = resolveRouteDocumentTitle(to, appStore.siteName, customMenuItems)
+  }
 
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true

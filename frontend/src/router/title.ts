@@ -28,6 +28,10 @@ export function resolveRouteDocumentTitle(
   siteName: string | undefined,
   customMenuItems: CustomMenuItem[] = [],
 ): string {
+  if (typeof route.meta.absoluteTitle === 'string' && route.meta.absoluteTitle.trim()) {
+    return route.meta.absoluteTitle.trim()
+  }
+
   const id = typeof route.params.id === 'string' ? route.params.id : ''
   const menuItem = route.name === 'CustomPage' && id
     ? customMenuItems.find((item) => item.id === id)

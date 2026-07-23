@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { localeScopeForPath } from '../index'
+import { localeFromPath, localeScopeForPath } from '../index'
 import enCore from '../locales/en/core'
 import zhCore from '../locales/zh/core'
 import enFull from '../locales/en'
@@ -17,6 +17,8 @@ describe('lazy locale loading scopes', () => {
   it.each([
     '/',
     '/home',
+    '/en',
+    '/en/',
     '/login',
     '/register',
     '/setup',
@@ -26,6 +28,8 @@ describe('lazy locale loading scopes', () => {
   })
 
   it.each([
+    '/en/models',
+    '/en/docs',
     '/dashboard',
     '/wallet',
     '/arena',
@@ -35,11 +39,23 @@ describe('lazy locale loading scopes', () => {
     expect(localeScopeForPath(path)).toBe('full')
   })
 
+  it('forces English only for the explicit /en route layer', () => {
+    expect(localeFromPath('/en')).toBe('en')
+    expect(localeFromPath('/en/')).toBe('en')
+    expect(localeFromPath('/en/models')).toBe('en')
+    expect(localeFromPath('/en/docs?cat=tutorial')).toBe('en')
+    expect(localeFromPath('/home')).toBeNull()
+    expect(localeFromPath('/models')).toBeNull()
+    expect(localeFromPath('/login')).toBeNull()
+  })
+
   it.each([
     ['zh', zhCore],
     ['en', enCore],
   ] as const)('%s core locale includes public entry copy without admin payload', (_locale, messages) => {
     expect(readPath(messages, 'auth.signIn')).toBeTruthy()
+    expect(readPath(messages, 'authAside.titleLogin')).toBeTruthy()
+    expect(readPath(messages, 'authAside.backHome')).toBeTruthy()
     expect(readPath(messages, 'home.jisudeng.nav.signIn')).toBeTruthy()
     expect(readPath(messages, 'home.jisudeng.registerBanner.signupCredit')).toBeTruthy()
     expect(readPath(messages, 'admin')).toBeUndefined()

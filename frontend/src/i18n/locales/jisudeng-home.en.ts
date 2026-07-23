@@ -16,11 +16,11 @@ export const jisudengHomeEn = {
   hero: {
     eyebrow: 'Privacy-first · No data resale · No model dilution',
     titleParts: {
-      brand: '极速蹬',
-      mid: 'AI',
-      tail: 'Gateway'
+      brand: 'Jisudeng:',
+      mid: 'One OpenAI-Compatible',
+      tail: 'API for Frontier AI Models'
     },
-    subtitle: 'One API key · Claude, GPT & Gemini · Pay per token · No subscription',
+    subtitle: 'Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API.',
     tagline: 'Register in minutes. Official token rates. Prompts never stored.',
     activeOn: 'WORKS WITH',
     perks: {
@@ -139,7 +139,7 @@ export const jisudengHomeEn = {
   features: {
     multiModel: {
       title: 'Multi-model hub',
-      desc: 'Claude, GPT, Gemini and more — one OpenAI-compatible endpoint. Switch models in one line.'
+      desc: 'DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more — one OpenAI-compatible endpoint. Switch models in one line.'
     },
     stable: {
       title: 'Reliable routing',

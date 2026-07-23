@@ -8,6 +8,7 @@ import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, 
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
 import { shouldProbeSetupStatusOnStartup } from '@/utils/startupChecks'
+import { applyPublicRouteSeo } from '@/utils/routeSeo'
 
 const AdminComplianceDialog = defineAsyncComponent(() => import('@/components/admin/AdminComplianceDialog.vue'))
 const AnnouncementPopup = defineAsyncComponent(() => import('@/components/common/AnnouncementPopup.vue'))
@@ -26,6 +27,10 @@ const shouldShowAdminComplianceDialog = computed(() =>
 const shouldShowAnnouncementPopup = computed(() => Boolean(announcementStore.currentPopup))
 
 function updateDocumentTitle() {
+  if (applyPublicRouteSeo(route.path)) {
+    return
+  }
+
   const customMenuItems = [
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),

@@ -149,6 +149,53 @@ func TestInjectSiteFavicon(t *testing.T) {
 	})
 }
 
+func TestInjectRouteSEO(t *testing.T) {
+	baseHTML := []byte(`<!doctype html><html lang="zh-CN"><head>
+<meta name="description" content="old description" />
+<link rel="canonical" href="https://www.jisudeng.com/" />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:title" content="old title" />
+<meta property="og:description" content="old og description" />
+<meta property="og:url" content="https://www.jisudeng.com/" />
+<meta name="twitter:title" content="old twitter title" />
+<meta name="twitter:description" content="old twitter description" />
+<link rel="alternate" hreflang="old" href="https://old.example/" />
+<title>Old title</title>
+</head><body></body></html>`)
+
+	t.Run("injects_english_route_metadata", func(t *testing.T) {
+		result := string(injectRouteSEO(baseHTML, "/en/models/"))
+
+		assert.Contains(t, result, `<html lang="en">`)
+		assert.Contains(t, result, `<title>AI Models API: DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini | Jisudeng</title>`)
+		assert.Contains(t, result, `<meta name="description" content="Compare model access and usage-based API rates for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng." />`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<meta property="og:locale" content="en_US" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/en/models" />`)
+		assert.Equal(t, 3, strings.Count(result, `rel="alternate"`))
+		assert.NotContains(t, result, "old.example")
+		assert.NotContains(t, result, "Chinese AI")
+		assert.NotContains(t, result, "China")
+	})
+
+	t.Run("keeps_chinese_route_metadata_on_chinese_paths", func(t *testing.T) {
+		result := string(injectRouteSEO(baseHTML, "/models"))
+
+		assert.Contains(t, result, `<html lang="zh-CN">`)
+		assert.Contains(t, result, `<title>极速蹬模型与价格 - AI API Gateway</title>`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
+	})
+
+	t.Run("returns_unchanged_for_non_public_routes", func(t *testing.T) {
+		result := injectRouteSEO(baseHTML, "/dashboard")
+
+		assert.Equal(t, string(baseHTML), string(result))
+	})
+}
+
 func TestReplaceNoncePlaceholder(t *testing.T) {
 	t.Run("replaces_single_placeholder", func(t *testing.T) {
 		html := []byte(`<script nonce="__CSP_NONCE_VALUE__">console.log('test');</script>`)
@@ -383,6 +430,50 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 
 		assert.Equal(t, http.StatusNotModified, w2.Code)
 		assert.Empty(t, w2.Body.String())
+	})
+
+	t.Run("uses_route_specific_etags_for_public_seo_html", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set(middleware.CSPNonceKey, "test-nonce")
+			c.Next()
+		})
+		router.Use(server.Middleware())
+
+		enWriter := httptest.NewRecorder()
+		enReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		router.ServeHTTP(enWriter, enReq)
+		enETag := enWriter.Header().Get("ETag")
+		require.NotEmpty(t, enETag)
+
+		zhWriter := httptest.NewRecorder()
+		zhReq := httptest.NewRequest(http.MethodGet, "/models", nil)
+		zhReq.Header.Set("Accept", "text/html")
+		router.ServeHTTP(zhWriter, zhReq)
+		zhETag := zhWriter.Header().Get("ETag")
+		require.NotEmpty(t, zhETag)
+		assert.NotEqual(t, enETag, zhETag)
+		assert.Contains(t, enWriter.Body.String(), `<html lang="en">`)
+		assert.Contains(t, zhWriter.Body.String(), `<html lang="zh-CN">`)
+
+		wrongETagWriter := httptest.NewRecorder()
+		wrongETagReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		wrongETagReq.Header.Set("If-None-Match", zhETag)
+		router.ServeHTTP(wrongETagWriter, wrongETagReq)
+		assert.Equal(t, http.StatusOK, wrongETagWriter.Code)
+
+		matchingETagWriter := httptest.NewRecorder()
+		matchingETagReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		matchingETagReq.Header.Set("If-None-Match", enETag)
+		router.ServeHTTP(matchingETagWriter, matchingETagReq)
+		assert.Equal(t, http.StatusNotModified, matchingETagWriter.Code)
 	})
 
 	t.Run("sets_cache_control_header", func(t *testing.T) {
