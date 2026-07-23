@@ -4,25 +4,25 @@ import { useI18n } from 'vue-i18n'
 import { fetchPublicVIPTiers, type PublicVIPTier } from '@/api/publicVipTiers'
 import { vipTierBadgeClass } from '@/utils/vipColors'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const loading = ref(true)
 const tiers = ref<PublicVIPTier[]>([])
 
 function formatPerks(perks: string[] | undefined) {
   if (!perks?.length) {
-    return locale.value === 'zh' ? '基础功能' : 'Base access'
+    return t('docs.vipTiers.baseAccess')
   }
   return perks
     .map((key) => {
       const i18nKey = `docs.vipTiers.perks.${key}`
       return t(i18nKey, key)
     })
-    .join(locale.value === 'zh' ? ' · ' : ' · ')
+    .join(' · ')
 }
 
 function formatRecharge(amount: number) {
   if (amount <= 0) {
-    return locale.value === 'zh' ? '$0（新用户默认）' : '$0 (new users)'
+    return t('docs.vipTiers.freeForNewUsers')
   }
   return `$${amount.toLocaleString()}`
 }

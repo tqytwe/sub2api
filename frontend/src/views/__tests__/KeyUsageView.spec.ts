@@ -3,8 +3,17 @@ import { flushPromises, mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
 import KeyUsageView from '../KeyUsageView.vue'
+import type { SupportContactConfig } from '@/types'
 
-const { showInfo, showSuccess, showError, fetchPublicSettings } = vi.hoisted(() => ({
+const { appState, showInfo, showSuccess, showError, fetchPublicSettings } = vi.hoisted(() => ({
+  appState: {
+    cachedPublicSettings: null as null | { site_name?: string; site_logo?: string; doc_url?: string },
+    siteName: 'Sub2API',
+    siteLogo: '',
+    docUrl: '',
+    supportContact: null as SupportContactConfig | null,
+    publicSettingsLoaded: true,
+  },
   showInfo: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn(),
@@ -70,6 +79,11 @@ const messages: Record<string, string> = {
   'home.switchToLight': 'Light',
   'home.switchToDark': 'Dark',
   'home.footer.allRightsReserved': 'All rights reserved.',
+  'common.copy': 'Copy',
+  'common.open': 'Open',
+  'common.copiedToClipboard': 'Copied to clipboard',
+  'common.copyFailed': 'Failed to copy',
+  'supportContactPanel.moreContacts': 'More contact methods',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -85,11 +99,12 @@ vi.mock('vue-i18n', async () => {
 
 vi.mock('@/stores', () => ({
   useAppStore: () => ({
-    cachedPublicSettings: null,
-    siteName: 'Sub2API',
-    siteLogo: '',
-    docUrl: '',
-    publicSettingsLoaded: true,
+    cachedPublicSettings: appState.cachedPublicSettings,
+    siteName: appState.siteName,
+    siteLogo: appState.siteLogo,
+    docUrl: appState.docUrl,
+    supportContact: appState.supportContact,
+    publicSettingsLoaded: appState.publicSettingsLoaded,
     fetchPublicSettings,
     showInfo,
     showSuccess,
@@ -103,6 +118,12 @@ describe('KeyUsageView daily detail', () => {
     showSuccess.mockReset()
     showError.mockReset()
     fetchPublicSettings.mockReset()
+    appState.cachedPublicSettings = null
+    appState.siteName = 'Sub2API'
+    appState.siteLogo = ''
+    appState.docUrl = ''
+    appState.supportContact = null
+    appState.publicSettingsLoaded = true
     localStorage.clear()
 
     Object.defineProperty(window, 'matchMedia', {
@@ -204,6 +225,75 @@ describe('KeyUsageView daily detail', () => {
     expect(text).toContain('30')
     expect(text).toContain('10')
     expect(text).toContain('$0.12')
+
+    wrapper.unmount()
+  })
+
+  it('localizes the public shell brand when English locale receives Chinese public settings', () => {
+    appState.cachedPublicSettings = {
+      site_name: '极速蹬',
+      site_logo: '',
+      doc_url: '',
+    }
+    appState.siteName = '极速蹬'
+
+    const wrapper = mount(KeyUsageView, {
+      global: {
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          LocaleSwitcher: true,
+          PublicContentLayout: {
+            props: ['siteName'],
+            template: '<main><strong data-testid="site-name">{{ siteName }}</strong><slot /></main>',
+          },
+          SupportContactPanel: true,
+          Icon: true,
+        },
+      },
+    })
+
+    expect(wrapper.get('[data-testid="site-name"]').text()).toBe('Jisudeng')
+    expect(wrapper.text()).not.toContain('极速蹬')
+
+    wrapper.unmount()
+  })
+
+  it('does not render Chinese support QR content on the English key-usage page', () => {
+    appState.supportContact = {
+      title: '联系客服',
+      subtitle: '登录、注册、充值、API 或模型调用问题都可以联系人工客服',
+      contacts: [
+        {
+          id: 'wechat',
+          type: 'wechat',
+          label: '微信服务群',
+          value: 'tqytwemx',
+          copy_value: 'tqytwemx',
+          url: '',
+          qr_image: '/uploads/wechat.png',
+          description: '推荐优先添加微信',
+          primary: true,
+          enabled: true,
+          sort_order: 1,
+        },
+      ],
+    }
+
+    const wrapper = mount(KeyUsageView, {
+      global: {
+        stubs: {
+          RouterLink: { template: '<a><slot /></a>' },
+          LocaleSwitcher: true,
+          PublicContentLayout: { template: '<main><slot /></main>' },
+          Icon: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Contact support')
+    expect(wrapper.text()).toContain('WeChat support group')
+    expect(wrapper.text()).not.toMatch(/[\u3400-\u9fff\uf900-\ufaff]/)
+    expect(wrapper.find('img[src="/uploads/wechat.png"]').exists()).toBe(false)
 
     wrapper.unmount()
   })

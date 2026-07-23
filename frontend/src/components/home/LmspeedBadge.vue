@@ -4,18 +4,24 @@
     href="https://lmspeed.net/"
     target="_blank"
     rel="noopener noreferrer nofollow"
-    aria-label="极速蹬已被 LMSpeed.net 收录"
+    :aria-label="t('home.jisudeng.footer.lmspeedBadgeAlt')"
   >
     <img
       class="lmspeed-badge-image"
       src="https://lmspeed.net/api/provider/claim-badge/2039?claim=2039-1kHJJSboOUMX0Au9G01tAaBWozH20jbC"
-      alt="极速蹬已被 LMSpeed.net 收录"
+      :alt="t('home.jisudeng.footer.lmspeedBadgeAlt')"
       width="190"
       height="64"
       decoding="async"
     />
   </a>
 </template>
+
+<script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+</script>
 
 <style scoped>
 .lmspeed-badge-link {

@@ -70,7 +70,7 @@
             </span>
           </template>
         </p>
-        <h1 class="hero-title">
+        <h1 class="hero-title" :class="{ 'hero-title--en': isEnglishPublicRoute }">
           <span class="hero-zh">
             <span class="hz-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
             <span class="hz-mid">{{ t('home.jisudeng.hero.titleParts.mid') }}</span>
@@ -107,7 +107,7 @@
           <li>Continue</li>
         </ul>
       </div>
-      <a class="hero-scroll-cue" href="#manifesto" aria-label="向下浏览">
+      <a class="hero-scroll-cue" href="#manifesto" :aria-label="t('home.jisudeng.anchors.scrollToContent')">
         <span class="scroll-track"><span class="scroll-dot" /></span>
       </a>
     </section>
@@ -646,7 +646,7 @@ const eyebrowBits = computed(() =>
     .split(/\s*·\s*/)
     .filter(Boolean)
     .map((part) => {
-      const m = part.match(/^(拒绝|NO\s|REFUSE\s)(.+)$/i)
+      const m = part.match(/^(\u62d2\u7edd|NO\s|REFUSE\s)(.+)$/i)
       return m ? { pre: m[1], obj: m[2] } : { text: part }
     })
 )
@@ -863,5 +863,54 @@ onBeforeUnmount(() => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.hero-title--en .hero-zh {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 6px;
+  width: min(1040px, calc(100vw - 48px));
+  white-space: normal;
+}
+
+.hero-title--en .hz-brand,
+.hero-title--en .hz-tail {
+  font-size: 88px;
+  letter-spacing: 0;
+  line-height: 0.96;
+}
+
+.hero-title--en .hz-mid {
+  font-size: 96px;
+  letter-spacing: 0;
+  line-height: 0.96;
+}
+
+@media (width >= 1600px) {
+  .hero-title--en .hz-brand,
+  .hero-title--en .hz-tail {
+    font-size: 104px;
+  }
+
+  .hero-title--en .hz-mid {
+    font-size: 112px;
+  }
+}
+
+@media (width <= 767px) {
+  .hero-title--en .hero-zh {
+    gap: 4px;
+    width: calc(100vw - 32px);
+  }
+
+  .hero-title--en .hz-brand,
+  .hero-title--en .hz-tail {
+    font-size: 42px;
+  }
+
+  .hero-title--en .hz-mid {
+    font-size: 48px;
+  }
 }
 </style>

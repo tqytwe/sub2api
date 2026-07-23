@@ -16,9 +16,9 @@ export const jisudengHomeEn = {
   hero: {
     eyebrow: 'Privacy-first · No data resale · No model dilution',
     titleParts: {
-      brand: 'Jisudeng:',
-      mid: 'One OpenAI-Compatible',
-      tail: 'API for Frontier AI Models'
+      brand: 'Jisudeng',
+      mid: 'One API',
+      tail: 'for AI models'
     },
     subtitle: 'Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API.',
     tagline: 'Register in minutes. Official token rates. Prompts never stored.',
@@ -170,7 +170,16 @@ export const jisudengHomeEn = {
     s3t: 'First API call',
     s3d: 'OpenAI-compatible SDK — change base_url and start calling',
     docLink: 'Prefer curl or raw HTTP?',
-    docLinkCta: 'Quick start docs'
+    docLinkCta: 'Quick start docs',
+    terminalAria: 'One-command setup terminal demo',
+    terminalTitle: 'bash — Jisudeng AI · one-command setup',
+    terminalEnv: 'Environment detected - Node 22 · OpenClaw installed',
+    terminalPasteKey: 'Paste API key › sk-••••••••••••',
+    terminalModel: 'Primary model › claude-opus-4-7',
+    terminalConfig: 'Config written to ~/.openclaw/openclaw.json',
+    terminalSelfCheck: 'Self-check passed - setup complete',
+    terminalIntroPrompt: 'openclaw "Introduce yourself"',
+    terminalIntroReply: 'Hi, I am your local AI assistant connected through Jisudeng. Ready to work.'
   },
   pricing: {
     lineA: 'Pay per token,',
@@ -185,7 +194,8 @@ export const jisudengHomeEn = {
   },
   footer: {
     tagline: 'AI API gateway',
-    docs: 'Documentation'
+    docs: 'Documentation',
+    lmspeedBadgeAlt: 'Jisudeng is listed on LMSpeed.net'
   },
   registerBanner: {
     signupCredit: 'Register now — get ${amount} free credits to test every model.',
@@ -202,6 +212,7 @@ export const jisudengHomeEn = {
     pricing: 'Pricing',
     faq: 'FAQ',
     closer: 'Start',
+    scrollToContent: 'Scroll to content',
     backToTop: 'Back to top'
   }
 }

@@ -180,6 +180,17 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.NotContains(t, result, "China")
 	})
 
+	t.Run("english_public_routes_do_not_emit_cjk_metadata", func(t *testing.T) {
+		for _, path := range []string{"/en", "/en/docs"} {
+			result := string(injectRouteSEO(baseHTML, path))
+
+			assert.Contains(t, result, `<html lang="en">`)
+			assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, result)
+			assert.NotContains(t, result, "Chinese AI")
+			assert.NotContains(t, result, "China")
+		}
+	})
+
 	t.Run("keeps_chinese_route_metadata_on_chinese_paths", func(t *testing.T) {
 		result := string(injectRouteSEO(baseHTML, "/models"))
 
