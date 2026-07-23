@@ -2,7 +2,11 @@ package service
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -712,6 +716,75 @@ func ProvideBillingCacheService(
 	return NewBillingCacheService(cache, userRepo, subRepo, apiKeyRepo, rpmCache, rateRepo, cfg, userPlatformQuotaRepo)
 }
 
+func ProvideIPRiskHasher(cfg *config.Config) *IPRiskHasher {
+	if cfg == nil {
+		return nil
+	}
+	if configured := strings.TrimSpace(cfg.IPRisk.HMACKey); configured != "" {
+		if decoded, err := hex.DecodeString(configured); err == nil && len(decoded) >= 32 {
+			return NewIPRiskHasher(decoded)
+		}
+		return NewIPRiskHasher([]byte(configured))
+	}
+	jwtSecret := strings.TrimSpace(cfg.JWT.Secret)
+	if jwtSecret == "" {
+		return nil
+	}
+	mac := hmac.New(sha256.New, []byte(jwtSecret))
+	_, _ = mac.Write([]byte("sub2api:ip-risk:hmac:v1"))
+	return NewIPRiskHasher(mac.Sum(nil))
+}
+
+func ProvideIPRiskRuntimeConfig(cfg *config.Config) IPRiskRuntimeConfig {
+	runtime := DefaultIPRiskRuntimeConfig()
+	if cfg == nil {
+		return runtime
+	}
+	runtime.Enabled = cfg.IPRisk.Enabled
+	runtime.ShadowMode = true
+	runtime.HistoricalBackfillEnabled = cfg.IPRisk.HistoricalBackfillEnabled
+	if cfg.IPRisk.IncrementalDelaySeconds > 0 {
+		runtime.IncrementalDelay = time.Duration(cfg.IPRisk.IncrementalDelaySeconds) * time.Second
+	}
+	if cfg.IPRisk.ReconcileIntervalMinutes > 0 {
+		runtime.ReconcileInterval = time.Duration(cfg.IPRisk.ReconcileIntervalMinutes) * time.Minute
+	}
+	if cfg.IPRisk.DailyScanIntervalHours > 0 {
+		runtime.DailyScanInterval = time.Duration(cfg.IPRisk.DailyScanIntervalHours) * time.Hour
+	}
+	if cfg.IPRisk.EventRetentionDays > 0 {
+		runtime.EventRetention = time.Duration(cfg.IPRisk.EventRetentionDays) * 24 * time.Hour
+	}
+	if cfg.IPRisk.CaseRetentionDays > 0 {
+		runtime.CaseRetention = time.Duration(cfg.IPRisk.CaseRetentionDays) * 24 * time.Hour
+	}
+	if cfg.IPRisk.HistoricalBackfillMaxDays > 0 {
+		runtime.HistoricalBackfillMaxRange = time.Duration(cfg.IPRisk.HistoricalBackfillMaxDays) * 24 * time.Hour
+	}
+	if cfg.IPRisk.ManualScanMaxDays > 0 {
+		runtime.ManualScanMaxRange = time.Duration(cfg.IPRisk.ManualScanMaxDays) * 24 * time.Hour
+	}
+	if cfg.IPRisk.RetentionBatchSize > 0 {
+		runtime.RetentionBatchSize = cfg.IPRisk.RetentionBatchSize
+	}
+	if cfg.IPRisk.EvaluationQueueCapacity > 0 {
+		runtime.EvaluationQueueCapacity = cfg.IPRisk.EvaluationQueueCapacity
+	}
+	return runtime
+}
+
+func ProvideIPRiskService(
+	repo IPRiskRepository,
+	lockCache LeaderLockCache,
+	db *sql.DB,
+	hasher *IPRiskHasher,
+	runtime IPRiskRuntimeConfig,
+) *IPRiskService {
+	svc := NewIPRiskService(repo, lockCache, db, hasher, runtime)
+	svc.Start()
+	return svc
+}
+
 func ProvideAuthService(
 	entClient *dbent.Client,
 	userRepo UserRepository,
@@ -727,8 +800,9 @@ func ProvideAuthService(
 	affiliateService *AffiliateService,
 	userPlatformQuotaRepo UserPlatformQuotaRepository,
 	balanceLedger *BalanceLedgerService,
+	ipRiskService *IPRiskService,
 ) *AuthService {
-	return NewAuthService(
+	svc := NewAuthService(
 		entClient,
 		userRepo,
 		redeemRepo,
@@ -744,6 +818,8 @@ func ProvideAuthService(
 		userPlatformQuotaRepo,
 		balanceLedger,
 	)
+	svc.SetIPRiskRecorder(ipRiskService)
+	return svc
 }
 
 func ProvideUsageService(
@@ -799,6 +875,9 @@ func ProvideAPIKeyService(
 // ProviderSet is the Wire provider set for all services
 var ProviderSet = wire.NewSet(
 	// Core services
+	ProvideIPRiskHasher,
+	ProvideIPRiskRuntimeConfig,
+	ProvideIPRiskService,
 	ProvideAuthService,
 	NewUserService,
 	ProvideAPIKeyService,

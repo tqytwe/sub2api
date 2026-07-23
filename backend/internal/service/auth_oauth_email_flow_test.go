@@ -401,6 +401,7 @@ func TestRollbackOAuthEmailAccountCreationPropagatesDeleteError(t *testing.T) {
 func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 	userRepo := &userRepoStub{nextID: 99}
 	quotaRepo := &userPlatformQuotaRepoStub{}
+	recorder := &authIPRiskRecorderStub{}
 
 	authService := newOAuthEmailFlowAuthService(
 		userRepo,
@@ -414,6 +415,7 @@ func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) 
 		&emailCacheStub{},
 		quotaRepo,
 	)
+	authService.SetIPRiskRecorder(recorder)
 
 	user := &User{
 		ID:           99,
@@ -426,9 +428,9 @@ func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) 
 	err := authService.FinalizeOAuthEmailAccount(
 		context.Background(),
 		user,
-		"",
+		"pending-invite",
 		"oidc",
-		"",
+		"pending-affiliate",
 	)
 
 	require.NoError(t, err)
@@ -447,4 +449,20 @@ func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) 
 	require.Equal(t, int64(99), anthropicRecord.UserID)
 	require.NotNil(t, anthropicRecord.DailyLimitUSD)
 	require.InDelta(t, 5.5, *anthropicRecord.DailyLimitUSD, 0.0001)
+	require.Empty(t, recorder.registrations, "transactional finalization must not record before commit")
+
+	authService.RecordCommittedOAuthRegistration(
+		context.Background(),
+		user,
+		"oidc",
+		"pending-invite",
+		"pending-affiliate",
+	)
+	require.Equal(t, []IPRiskRegistrationInput{{
+		UserID:         99,
+		Email:          "newuser@example.com",
+		SignupSource:   "oidc",
+		InvitationCode: "pending-invite",
+		AffiliateCode:  "pending-affiliate",
+	}}, recorder.registrations)
 }

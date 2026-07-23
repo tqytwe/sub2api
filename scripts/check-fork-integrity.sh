@@ -97,7 +97,7 @@ echo "Checking fork registry and static invariants..."
 for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
-  FORK-IMAGE-011 FORK-UI-012; do
+  FORK-IMAGE-011 FORK-UI-012 FORK-RISK-013; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -203,6 +203,20 @@ check_contains "FORK-DEPLOY-006" "make test runs the full frontend suite" "Makef
 check_contains "FORK-OAUTH-007" "shared OAuth cookie domain" "backend/internal/handler/auth_linuxdo_oauth.go" 'return ".jisudeng.com"'
 check_contains "FORK-OAUTH-007" "OAuth domain behavior test" "backend/internal/handler/auth_linuxdo_oauth_test.go" "TestOAuthCookieDomain"
 
+check_file "FORK-RISK-013" "IP risk scoring and privacy model" "backend/internal/service/ip_risk.go"
+check_file "FORK-RISK-013" "IP risk Shadow Mode runtime" "backend/internal/service/ip_risk_service.go"
+check_file "FORK-RISK-013" "IP risk raw SQL repository" "backend/internal/repository/ip_risk_repo.go"
+check_file "FORK-RISK-013" "IP risk admin runtime handler" "backend/internal/handler/admin/ip_risk_handler.go"
+check_contains "FORK-RISK-013" "admin runtime route remains read-only" "backend/internal/server/routes/admin.go" 'ipRisk.GET("/runtime"'
+check_not_contains "FORK-RISK-013" "CP1 exposes no IP risk write route" "backend/internal/server/routes/admin.go" "ipRisk.POST("
+check_not_contains "FORK-RISK-013" "CP1 exposes no IP risk update route" "backend/internal/server/routes/admin.go" "ipRisk.PUT("
+check_not_contains "FORK-RISK-013" "CP1 exposes no IP risk delete route" "backend/internal/server/routes/admin.go" "ipRisk.DELETE("
+check_contains "FORK-RISK-013" "Shadow Mode is hard-wired" "backend/internal/service/ip_risk_service.go" "runtimeCfg.ShadowMode = true"
+check_contains "FORK-RISK-013" "automatic registration blocking stays disabled" "backend/internal/service/ip_risk_service.go" "AutoBlockEnabled: false"
+check_not_contains "FORK-RISK-013" "config has no automatic-action switch" "backend/internal/config/config.go" "AutoBlockEnabled"
+check_contains "FORK-RISK-013" "exact and inferred evidence are separated" "backend/migrations/214_ip_risk_foundation.sql" "evidence_confidence"
+check_contains "FORK-RISK-013" "historical OAuth registration is excluded" "backend/internal/repository/ip_risk_repo.go" "path IN ('/api/v1/auth/register', '/api/v1/auth/mobile/register')"
+
 check_contains "FORK-PUBLIC-008" "public model route" "backend/internal/server/routes/play.go" 'v1.GET("/public/model-pricing"'
 check_file "FORK-PUBLIC-008" "public docs content" "frontend/src/content/public-docs-data.zh.ts"
 check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/service/domain_constants.go" "SettingKeyPublicModelsEnabled"
@@ -255,6 +269,7 @@ MIGRATIONS=(
   211_withdrawals.sql
   212_withdrawals_integer_amounts.sql
   213_fund_management_batches.sql
+  214_ip_risk_foundation.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -289,6 +304,8 @@ echo
 echo "Running protected backend behaviors..."
 run_check "FORK-OAUTH-007" "OAuth cookie domain unit test" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/handler -run '^TestOAuthCookieDomain$'"
+run_check "FORK-RISK-013" "IP risk Shadow Mode, privacy, auth capture and admin runtime tests" \
+  bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/repository ./internal/server/middleware ./internal/handler/admin ./internal/server/routes ./migrations -run 'IPRisk|RiskMetadata|RiskEvent|SuccessfulLoginForwardsRiskEvent'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \

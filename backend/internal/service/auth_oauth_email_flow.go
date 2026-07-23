@@ -12,6 +12,7 @@ import (
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
 func normalizeOAuthSignupSource(signupSource string) string {
@@ -484,4 +485,11 @@ func (s *AuthService) RecordSuccessfulLogin(ctx context.Context, userID int64) {
 		}
 	}
 	s.touchUserLogin(ctx, userID)
+	if s != nil && s.ipRiskRecorder != nil && userID > 0 {
+		writeCtx, cancel := detachedIPRiskRecordingContext(ctx)
+		defer cancel()
+		if err := s.ipRiskRecorder.RecordSuccessfulLogin(writeCtx, userID); err != nil {
+			logger.LegacyPrintf("service.auth", "[Auth] Failed to record successful login risk event: user_id=%d err=%v", userID, err)
+		}
+	}
 }

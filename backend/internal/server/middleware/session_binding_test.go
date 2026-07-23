@@ -6,14 +6,42 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSessionBindingContextAlsoInjectsIPRiskRequestMetadata(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	cfg := &config.Config{}
+	r := gin.New()
+	require.NoError(t, r.SetTrustedProxies(nil))
+	r.Use(RequestLogger())
+	r.Use(SessionBindingContext(cfg))
+	r.GET("/t", func(c *gin.Context) {
+		metadata := service.IPRiskRequestMetadataFromContext(c.Request.Context())
+		requestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string)
+		require.Equal(t, "203.0.113.8", metadata.ClientIP)
+		require.Equal(t, "risk-agent/1.0", metadata.UserAgent)
+		require.Equal(t, requestID, metadata.RequestID)
+		require.WithinDuration(t, time.Now().UTC(), metadata.OccurredAt, time.Second)
+		c.Status(204)
+	})
+
+	w := httptest.NewRecorder()
+	req := httptest.NewRequest("GET", "/t", nil)
+	req.RemoteAddr = "203.0.113.8:443"
+	req.Header.Set("User-Agent", "risk-agent/1.0")
+	r.ServeHTTP(w, req)
+	require.Equal(t, 204, w.Code)
+}
 
 func TestSessionBindingContextFollowsForwardedIPSwitch(t *testing.T) {
 	gin.SetMode(gin.TestMode)

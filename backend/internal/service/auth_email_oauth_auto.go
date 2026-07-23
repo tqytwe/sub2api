@@ -145,12 +145,12 @@ func (s *AuthService) loginOrRegisterVerifiedEmailOAuth(
 	} else {
 		user = s.applyOAuthSignupPromoCode(ctx, user, promoCode)
 	}
-	s.RecordSuccessfulLogin(ctx, user.ID)
 
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
 	if err != nil {
 		return nil, nil, fmt.Errorf("generate token pair: %w", err)
 	}
+	s.RecordSuccessfulLogin(ctx, user.ID)
 	return tokenPair, user, nil
 }
 
@@ -211,6 +211,7 @@ func (s *AuthService) createEmailOAuthUser(ctx context.Context, email, username,
 			return nil, ErrInvitationCodeInvalid
 		}
 	}
+	s.recordIPRiskRegistration(ctx, user, providerType, invitationCode, affiliateCode)
 	return user, nil
 }
 
