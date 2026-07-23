@@ -141,7 +141,7 @@ function globeRadius() {
 }
 
 function mainGlobeCenterY(c: CanvasCtx) {
-  return isMobile() ? c.h * 0.9 : c.h / 2
+  return isMobile() ? c.h * 0.9 : c.h * 1.2
 }
 
 function introRadius() {
