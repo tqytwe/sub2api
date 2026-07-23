@@ -73,7 +73,7 @@
               </button>
             </div>
           </div>
-          <button @click="showCreateModal = true" class="btn btn-primary" data-tour="keys-create-btn">
+          <button @click="openCreateModal()" class="btn btn-primary" data-tour="keys-create-btn">
             <Icon name="plus" size="md" class="mr-2" />
             {{ t('keys.createKey') }}
           </button>
@@ -422,12 +422,26 @@
           </template>
 
           <template #empty>
-            <EmptyState
-              :title="t('keys.noKeysYet')"
-              :description="t('keys.createFirstKey')"
-              :action-text="t('keys.createKey')"
-              @action="showCreateModal = true"
-            />
+            <div class="flex w-full flex-col items-center gap-5 text-left">
+              <APIOnboardingPanel
+                :config="publicSettings?.api_onboarding"
+                :groups="groups"
+                :plans="checkoutPlans"
+                :balance="userBalance"
+                :doc-url="publicSettings?.doc_url || ''"
+                :is-new-user="apiKeys.length === 0"
+                @create-key="openCreateModal"
+                @recharge="goRecharge"
+                @buy-plan="goBuyPlan"
+                @open-docs="openDocs"
+              />
+              <EmptyState
+                :title="t('keys.noKeysYet')"
+                :description="t('keys.createFirstKey')"
+                :action-text="t('keys.createKey')"
+                @action="openCreateModal()"
+              />
+            </div>
           </template>
         </DataTable>
       </template>
@@ -1119,13 +1133,15 @@
 <script setup lang="ts">
 	import { ref, reactive, computed, onMounted, onUnmounted, type ComponentPublicInstance } from 'vue'
 	import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 	import { useAppStore } from '@/stores/app'
+import { useAuthStore } from '@/stores/auth'
 	import { useOnboardingStore } from '@/stores/onboarding'
 	import { useClipboard } from '@/composables/useClipboard'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 
 const { t } = useI18n()
-import { keysAPI, authAPI, usageAPI, userGroupsAPI } from '@/api'
+import { keysAPI, authAPI, usageAPI, userGroupsAPI, paymentAPI } from '@/api'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import DataTable from '@/components/common/DataTable.vue'
@@ -1138,11 +1154,13 @@ import TablePageLayout from '@/components/layout/TablePageLayout.vue'
 	import Icon from '@/components/icons/Icon.vue'
 	import UseKeyModal from '@/components/keys/UseKeyModal.vue'
 	import EndpointPopover from '@/components/keys/EndpointPopover.vue'
+import APIOnboardingPanel from '@/components/keys/APIOnboardingPanel.vue'
 	import GroupBadge from '@/components/common/GroupBadge.vue'
 	import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 	import type { ApiKey, Group, PublicSettings, SubscriptionType, GroupPlatform, UpdateApiKeyRequest } from '@/types'
 import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
+import type { SubscriptionPlan } from '@/types/payment'
 import { formatDateTime } from '@/utils/format'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
@@ -1174,7 +1192,9 @@ interface GroupOption {
 }
 
 const appStore = useAppStore()
+const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
+const router = useRouter()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
 const allColumns = computed<Column[]>(() => [
@@ -1273,12 +1293,14 @@ const columns = computed<Column[]>(() =>
 
 const apiKeys = ref<ApiKey[]>([])
 const groups = ref<Group[]>([])
+const checkoutPlans = ref<SubscriptionPlan[]>([])
 const loading = ref(false)
 const submitting = ref(false)
 const now = ref(new Date())
 let resetTimer: ReturnType<typeof setInterval> | null = null
 const usageStats = ref<Record<string, BatchApiKeyUsageStats>>({})
 const userGroupRates = ref<Record<number, number>>({})
+const userBalance = computed(() => authStore.user?.balance ?? 0)
 
 const pagination = ref({
   page: 1,
@@ -1329,9 +1351,9 @@ const setGroupButtonRef = (keyId: number, el: Element | ComponentPublicInstance 
   }
 }
 
-const formData = ref({
+const createDefaultFormData = (groupId: number | null = null) => ({
   name: '',
-  group_id: null as number | null,
+  group_id: groupId,
   status: 'active' as 'active' | 'inactive',
   use_custom_key: false,
   custom_key: '',
@@ -1350,6 +1372,8 @@ const formData = ref({
   expiration_preset: '30' as '7' | '30' | '90' | 'custom',
   expiration_date: ''
 })
+
+const formData = ref(createDefaultFormData())
 
 // 自定义Key验证
 const customKeyError = computed(() => {
@@ -1529,6 +1553,48 @@ const loadPublicSettings = async () => {
   } catch (error) {
     console.error('Failed to load public settings:', error)
   }
+}
+
+const loadCheckoutInfo = async () => {
+  try {
+    const res = await paymentAPI.getCheckoutInfo()
+    checkoutPlans.value = res.data.plans || []
+  } catch (error) {
+    console.error('Failed to load checkout info for API onboarding:', error)
+    checkoutPlans.value = []
+  }
+}
+
+const openCreateModal = (groupId: number | null = null) => {
+  const normalizedGroupId = groupId && groups.value.some(group => group.id === groupId) ? groupId : null
+  selectedKey.value = null
+  showEditModal.value = false
+  formData.value = createDefaultFormData(normalizedGroupId)
+  showCreateModal.value = true
+}
+
+const goRecharge = () => {
+  router.push({ path: '/purchase' })
+}
+
+const goBuyPlan = (plan: SubscriptionPlan) => {
+  router.push({
+    path: '/purchase',
+    query: {
+      tab: 'subscription',
+      group: String(plan.group_id),
+    },
+  })
+}
+
+const openDocs = () => {
+  const url = publicSettings.value?.doc_url?.trim()
+  if (!url) return
+  if (/^https?:\/\//i.test(url)) {
+    window.open(url, '_blank', 'noopener,noreferrer')
+    return
+  }
+  router.push(url)
 }
 
 const openUseKeyModal = (key: ApiKey) => {
@@ -1786,25 +1852,7 @@ const closeModals = () => {
   showCreateModal.value = false
   showEditModal.value = false
   selectedKey.value = null
-  formData.value = {
-    name: '',
-    group_id: null,
-    status: 'active',
-    use_custom_key: false,
-    custom_key: '',
-    enable_ip_restriction: false,
-    ip_whitelist: '',
-    ip_blacklist: '',
-    enable_quota: false,
-    quota: null,
-    enable_rate_limit: false,
-    rate_limit_5h: null,
-    rate_limit_1d: null,
-    rate_limit_7d: null,
-    enable_expiration: false,
-    expiration_preset: '30',
-    expiration_date: ''
-  }
+  formData.value = createDefaultFormData()
 }
 
 // Show reset quota confirmation dialog
@@ -1946,6 +1994,7 @@ onMounted(() => {
   loadGroups()
   loadUserGroupRates()
   loadPublicSettings()
+  loadCheckoutInfo()
   document.addEventListener('click', closeGroupSelector)
   resetTimer = setInterval(() => { now.value = new Date() }, 60000)
 })
