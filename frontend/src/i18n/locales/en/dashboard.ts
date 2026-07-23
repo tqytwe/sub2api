@@ -157,6 +157,11 @@ export default {
       claudeSettingsHint: 'User-level persistent configuration. Do not commit this file containing your API key to a project repository.',
       noGroupTitle: 'Please assign a group first',
       noGroupDescription: 'This API key has not been assigned to a group. Please click the group column in the key list to assign one before viewing the configuration.',
+      lmspeed: {
+        title: 'LMSpeed Speed Test',
+        description: 'Open LMSpeed with this API address and key prefilled. The test consumes quota from this key.',
+        open: 'Open test',
+      },
       openai: {
         description: 'Add the following configuration files to your Codex CLI config directory.',
         authModeTitle: 'Codex authentication mode',

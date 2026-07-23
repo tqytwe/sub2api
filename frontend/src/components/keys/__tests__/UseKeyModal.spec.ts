@@ -561,4 +561,72 @@ describe('UseKeyModal', () => {
     expect(fable.options.thinking).toEqual({ type: 'adaptive' })
     expect(fable.options.thinking).not.toHaveProperty('budgetTokens')
   })
+
+  it('opens LMSpeed from the use-key modal without rendering the API key in an href', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+
+    try {
+      const wrapper = mount(UseKeyModal, {
+        props: {
+          show: true,
+          apiKey: 'sk-test/key with spaces',
+          baseUrl: 'https://api.example.com',
+          platform: 'openai'
+        },
+        global: {
+          stubs: {
+            BaseDialog: {
+              template: '<div><slot /><slot name="footer" /></div>'
+            },
+            Icon: {
+              template: '<span />'
+            }
+          }
+        }
+      })
+
+      expect(wrapper.text()).toContain('keys.useKeyModal.lmspeed.title')
+      expect(wrapper.find('a[href*="lmspeed.net"]').exists()).toBe(false)
+
+      await wrapper.get('[data-testid="lmspeed-speed-test"]').trigger('click')
+
+      expect(openSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/^https:\/\/lmspeed\.net\/zh\?/),
+        '_blank',
+        'noopener,noreferrer'
+      )
+      const openedUrl = openSpy.mock.calls[0][0]
+      expect(typeof openedUrl).toBe('string')
+
+      const parsed = new URL(openedUrl as string)
+      expect(parsed.searchParams.get('baseUrl')).toBe('https://api.example.com/v1')
+      expect(parsed.searchParams.get('apiKey')).toBe('sk-test/key with spaces')
+    } finally {
+      openSpy.mockRestore()
+    }
+  })
+
+  it('does not show the LMSpeed action for inactive keys', () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-inactive-test',
+        baseUrl: 'https://api.example.com',
+        apiKeyStatus: 'inactive',
+        platform: 'openai'
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            template: '<div><slot /><slot name="footer" /></div>'
+          },
+          Icon: {
+            template: '<span />'
+          }
+        }
+      }
+    })
+
+    expect(wrapper.find('[data-testid="lmspeed-speed-test"]').exists()).toBe(false)
+  })
 })

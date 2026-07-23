@@ -28,6 +28,34 @@
           {{ platformDescription }}
         </p>
 
+        <div
+          v-if="canOpenLmspeedSpeedTest"
+          class="flex flex-col gap-3 rounded-lg border border-blue-100 bg-blue-50 p-3 sm:flex-row sm:items-center sm:justify-between dark:border-blue-800 dark:bg-blue-900/20"
+        >
+          <div class="flex items-start gap-3">
+            <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white dark:bg-blue-500">
+              <Icon name="bolt" size="md" :stroke-width="2" />
+            </span>
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-blue-900 dark:text-blue-100">
+                {{ t('keys.useKeyModal.lmspeed.title') }}
+              </p>
+              <p class="mt-1 text-sm leading-5 text-blue-800 dark:text-blue-200">
+                {{ t('keys.useKeyModal.lmspeed.description') }}
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            data-testid="lmspeed-speed-test"
+            class="btn btn-primary flex-shrink-0 justify-center"
+            @click="openLmspeedSpeedTest"
+          >
+            <Icon name="externalLink" size="sm" class="mr-1.5" />
+            {{ t('keys.useKeyModal.lmspeed.open') }}
+          </button>
+        </div>
+
         <!-- Client Tabs -->
         <div v-if="clientTabs.length" class="overflow-x-auto border-b border-gray-200 dark:border-dark-700">
           <nav class="-mb-px flex min-w-max gap-4 sm:gap-6" aria-label="Client">
@@ -201,12 +229,14 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
+import { buildLmspeedSpeedTestUrl } from '@/utils/lmspeed'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
   show: boolean
   apiKey: string
   baseUrl: string
+  apiKeyStatus?: 'active' | 'inactive' | 'quota_exhausted' | 'expired' | null
   platform: GroupPlatform | null
   allowMessagesDispatch?: boolean
 }
@@ -461,6 +491,25 @@ const platformNote = computed(() => {
 })
 
 const showPlatformNote = computed(() => activeClientTab.value !== 'opencode')
+
+const resolvedBaseUrl = computed(() => props.baseUrl || window.location.origin)
+const canOpenLmspeedSpeedTest = computed(() =>
+  Boolean(
+    props.apiKey.trim() &&
+    resolvedBaseUrl.value.trim() &&
+    (props.apiKeyStatus == null || props.apiKeyStatus === 'active')
+  )
+)
+
+function openLmspeedSpeedTest() {
+  if (!canOpenLmspeedSpeedTest.value) return
+  const url = buildLmspeedSpeedTestUrl({
+    baseUrl: resolvedBaseUrl.value,
+    apiKey: props.apiKey,
+    locale: 'zh',
+  })
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
 
 const escapeHtml = (value: string) => value
   .replace(/&/g, '&amp;')
