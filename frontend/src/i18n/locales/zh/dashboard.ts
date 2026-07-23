@@ -157,6 +157,11 @@ export default {
       noGroupTitle: '请先分配分组',
       noGroupDescription:
         '此 API 密钥尚未分配分组，请先在密钥列表中点击分组列进行分配，然后才能查看使用配置。',
+      lmspeed: {
+        title: 'LMSpeed 测速',
+        description: '跳转到 LMSpeed 并自动填入 API 地址和当前 Key；测速会消耗该 Key 额度。',
+        open: '打开测速',
+      },
       openai: {
         description: '将以下配置文件添加到 Codex CLI 配置目录中。',
         authModeTitle: 'Codex 认证模式',
