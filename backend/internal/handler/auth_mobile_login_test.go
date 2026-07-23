@@ -116,6 +116,91 @@ func TestMobileAuthValidationMessagesFollowAcceptLanguage(t *testing.T) {
 	}
 }
 
+func TestMobileResetPasswordValidationMessagesFollowAcceptLanguage(t *testing.T) {
+	handler := &AuthHandler{}
+
+	for _, tc := range []struct {
+		name        string
+		language    string
+		wantMessage string
+	}{
+		{
+			name:        "default chinese",
+			wantMessage: "请求参数无效",
+		},
+		{
+			name:        "english",
+			language:    "en-US,en;q=0.9",
+			wantMessage: "Invalid request",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			req := httptest.NewRequest(
+				http.MethodPost,
+				"/api/v1/auth/mobile/reset-password",
+				bytes.NewBufferString(`{}`),
+			)
+			req.Header.Set("Content-Type", "application/json")
+			if tc.language != "" {
+				req.Header.Set("Accept-Language", tc.language)
+			}
+			c.Request = req
+
+			handler.MobileResetPassword(c)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			body := decodeJSONBody(t, recorder)
+			require.Equal(t, tc.wantMessage, body["message"])
+		})
+	}
+}
+
+func TestMobilePasswordResetErrorMessagesFollowAcceptLanguage(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		language    string
+		reason      string
+		wantMessage string
+	}{
+		{
+			name:        "invalid token chinese",
+			reason:      "INVALID_RESET_TOKEN",
+			wantMessage: "重置链接无效或已过期",
+		},
+		{
+			name:        "invalid token english",
+			language:    "en-US,en;q=0.9",
+			reason:      "INVALID_RESET_TOKEN",
+			wantMessage: "The reset link is invalid or expired.",
+		},
+		{
+			name:        "disabled chinese",
+			reason:      "PASSWORD_RESET_DISABLED",
+			wantMessage: "密码重置功能暂未开启",
+		},
+		{
+			name:        "disabled english",
+			language:    "en-US,en;q=0.9",
+			reason:      "PASSWORD_RESET_DISABLED",
+			wantMessage: "Password reset is not enabled.",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/mobile/reset-password", nil)
+			if tc.language != "" {
+				req.Header.Set("Accept-Language", tc.language)
+			}
+			c.Request = req
+
+			require.Equal(t, tc.wantMessage, authMobileErrorMessage(c, tc.reason))
+		})
+	}
+}
+
 func TestMobileLoginInvalidCredentialsMessagesFollowAcceptLanguage(t *testing.T) {
 	handler, _ := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{})
 

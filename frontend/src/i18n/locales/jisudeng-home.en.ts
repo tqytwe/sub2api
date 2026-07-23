@@ -8,6 +8,7 @@ export const jisudengHomeEn = {
     keyUsage: 'API Audit',
     about: 'About',
     contact: 'Contact',
+    androidApp: 'Android App',
     admin: 'Admin',
     console: 'Console',
     signIn: 'Sign in',

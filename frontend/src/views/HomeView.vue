@@ -43,6 +43,9 @@
         </div>
         <nav class="page-nav">
           <PublicPageToolbar />
+          <router-link :to="downloadRoute" class="nav-download">
+            {{ t('home.jisudeng.nav.androidApp') }}
+          </router-link>
           <template v-if="isAuthenticated">
             <router-link v-if="isAdmin" :to="adminDashboardRoute" class="nav-link">{{ t('home.jisudeng.nav.admin') }}</router-link>
             <router-link :to="dashboardRoute" class="nav-cta">{{ t('home.jisudeng.nav.console') }}</router-link>
@@ -439,6 +442,9 @@
     </footer>
 
     <div v-if="!isAuthenticated && showGuestStickyCta" class="home-sticky-cta">
+      <router-link :to="downloadRoute" class="home-sticky-download">
+        {{ t('home.jisudeng.nav.androidApp') }}
+      </router-link>
       <button type="button" class="cta-primary home-sticky-cta-btn" @click="goRegister">
         {{ t('home.jisudeng.cta.register') }}
         <span class="arrow">→</span>
@@ -527,6 +533,7 @@ const hasSupportContact = computed(() => enabledSupportContacts(appStore.support
 const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value))
 const adminDashboardRoute = { name: PUBLIC_ROUTE_NAMES.adminDashboard }
 const aboutRoute = { name: PUBLIC_ROUTE_NAMES.about }
+const downloadRoute = { name: PUBLIC_ROUTE_NAMES.androidDownload }
 const loginRoute = authEntryRoute(false)
 const registerRoute = authEntryRoute(true)
 const homeLogoRoute = computed(() =>

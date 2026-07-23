@@ -48,6 +48,47 @@ export const jisudengPagesZh = {
     copied: '已复制',
     copiedToast: '客服 QQ 已复制'
   },
+  androidDownload: {
+    metaTitle: 'Android 下载',
+    eyebrow: 'JisudengChat Android',
+    title: '下载极速蹬安卓 APP',
+    lead: '安装后使用极速蹬平台账号登录，自动同步余额、分组、API Key 和可用模型。聊天与生图在手机端完整可用，生成图片保存在本机。',
+    downloadApk: '下载 APK',
+    openWeb: '打开网页版',
+    qrAlt: 'JisudengChat Android APK 下载二维码',
+    scanTitle: '手机扫码下载',
+    scanHint: '使用安卓手机扫码，或在手机浏览器打开本页后点击下载。',
+    manifestFailed: '版本信息暂时读取失败，下载按钮仍会使用官方 APK 地址。',
+    version: '版本',
+    size: '大小',
+    minAndroid: '系统要求',
+    releaseDate: '发布日期',
+    defaultSize: '约 7 MB',
+    unknown: '待读取',
+    packageInfo: '安装包信息',
+    viewManifest: '查看版本文件',
+    featureTitle: '已接入平台能力',
+    features: [
+      {
+        title: '平台账号登录',
+        desc: '使用同一套极速蹬账号体系，登录后同步余额、分组和模型权限。'
+      },
+      {
+        title: '聊天与模型切换',
+        desc: '移动端输入区、会话列表、图片上传、错误状态和空状态按 APP 操作习惯整理。'
+      },
+      {
+        title: '生图与本机图库',
+        desc: '支持参考图、多参数、任务进度、失败重试和本机保存，生成图片不落到官网服务器。'
+      },
+      {
+        title: '账户与下载进度',
+        desc: '余额、套餐、订单明细、充值入口、客服入口、通知和下载进度都在手机端可用。'
+      }
+    ],
+    notesTitle: '版本说明',
+    defaultNote: 'JisudengChat Android 已补齐移动端聊天、生图、本机图库、账户、注册找回、权限、通知和品牌启动页。'
+  },
   about: {
     eyebrow: '关于 · 了解极速蹬',
     title: '为什么我们是真的中转',
