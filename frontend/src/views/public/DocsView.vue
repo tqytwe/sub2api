@@ -7,13 +7,8 @@ import { useAuthStore, useAppStore } from '@/stores'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import DocsVipTiersTable from '@/components/public/DocsVipTiersTable.vue'
-import {
-  defaultDocPageForLocale,
-  findDocContentForLocale,
-  normalizePublicDocLocation,
-  publicDocContentForLocale,
-  publicDocTreeForLocale,
-} from '@/content/public-docs'
+import { PUBLIC_DOC_TREE, normalizePublicDocLocation, type PublicDocLocale } from '@/content/public-docs-tree'
+import type { PublicDocCategoryContent, PublicDocPageContent } from '@/content/public-docs-data.zh'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -22,9 +17,46 @@ const authStore = useAuthStore()
 const appStore = useAppStore()
 
 const isEnglishDocsRoute = computed(() => route.path === '/en/docs' || route.path.startsWith('/en/docs/'))
-const docContent = computed(() => publicDocContentForLocale(locale.value))
-const docTree = computed(() => publicDocTreeForLocale(locale.value))
+const docLocale = computed<PublicDocLocale>(() => (locale.value === 'en' ? 'en' : 'zh'))
+const docContent = ref<PublicDocCategoryContent[]>([])
+const loadedDocLocale = ref<PublicDocLocale | null>(null)
+const docTree = PUBLIC_DOC_TREE
 const docsRouteName = computed(() => (isEnglishDocsRoute.value ? 'EnglishDocs' : 'Docs'))
+let docContentRequestId = 0
+
+const docContentReady = computed(
+  () => loadedDocLocale.value === docLocale.value && docContent.value.length > 0,
+)
+
+watch(
+  docLocale,
+  (nextLocale) => {
+    void loadDocContent(nextLocale)
+  },
+  { immediate: true },
+)
+
+async function loadDocContent(nextLocale: PublicDocLocale) {
+  const currentRequest = ++docContentRequestId
+  loadedDocLocale.value = null
+  docContent.value = []
+  const content =
+    nextLocale === 'en'
+      ? (await import('@/content/public-docs-data.en')).PUBLIC_DOC_CONTENT_EN
+      : (await import('@/content/public-docs-data.zh')).PUBLIC_DOC_CONTENT_ZH
+  if (currentRequest !== docContentRequestId) return
+  docContent.value = content
+  loadedDocLocale.value = nextLocale
+}
+
+function findLoadedDocContent(catId: string, pageId: string): PublicDocPageContent | undefined {
+  const cat = docContent.value.find((c) => c.id === catId)
+  return cat?.pages.find((p) => p.id === pageId)
+}
+
+function defaultLoadedDocPage(catId: string) {
+  return docContent.value.find((c) => c.id === catId)?.pages[0]?.id
+}
 
 const backTarget = computed(() => {
   if (authStore.isAuthenticated) return '/dashboard'
@@ -47,7 +79,7 @@ const activePage = computed(() => {
 const isReaderMode = computed(() => !!activeCat.value && !!activePage.value)
 
 const activePageContent = computed(() =>
-  isReaderMode.value ? findDocContentForLocale(locale.value, activeCat.value, activePage.value) : undefined,
+  isReaderMode.value ? findLoadedDocContent(activeCat.value, activePage.value) : undefined,
 )
 
 const activeCategory = computed(() =>
@@ -84,7 +116,7 @@ const categories = computed(() =>
     moreCount: Math.max(0, cat.pages.length - 4),
     to: {
       name: docsRouteName.value,
-      query: { cat: cat.id, page: defaultDocPageForLocale(locale.value, cat.id) },
+      query: { cat: cat.id, page: defaultLoadedDocPage(cat.id) },
     },
   })),
 )
@@ -122,13 +154,22 @@ const pageSummary = computed(() =>
   activePageContent.value?.summary ? personalizeDocText(activePageContent.value.summary) : '',
 )
 
+const DEFAULT_SOURCE_SITE_NAME_CODES = [0x672c, 0x7ad9] as const
+const SOURCE_BRAND_AI_RE = /\u968f\u60f3 AI/g
+const SOURCE_BRAND_RE = /\u968f\u60f3/g
+const SOURCE_SITE_RE = /\u672c\u7ad9/g
+
+function defaultSourceSiteName() {
+  return String.fromCharCode(...DEFAULT_SOURCE_SITE_NAME_CODES)
+}
+
 function personalizeDocText(raw: string) {
-  const siteName = appStore.siteName || '本站'
+  const siteName = appStore.siteName || defaultSourceSiteName()
   const baseUrl = (appStore.apiBaseUrl || window.location.origin).replace(/\/$/, '')
   return raw
-    .replace(/随想 AI/g, siteName)
-    .replace(/随想/g, siteName)
-    .replace(/本站/g, siteName)
+    .replace(SOURCE_BRAND_AI_RE, siteName)
+    .replace(SOURCE_BRAND_RE, siteName)
+    .replace(SOURCE_SITE_RE, siteName)
     .replace(/https:\/\/sui-xiang\.com/g, baseUrl)
     .replace(/https:\/\/your-host/g, baseUrl)
 }
@@ -161,13 +202,14 @@ function goToIndex() {
 }
 
 function openCategory(catId: string) {
-  const page = defaultDocPageForLocale(locale.value, catId)
+  const page = defaultLoadedDocPage(catId)
   if (page) router.push(docLink(catId, page))
 }
 
 watch(
-  () => route.query,
-  (query) => {
+  [() => route.query, docContentReady],
+  ([query, ready]) => {
+    if (!ready) return
     const cat = typeof query.cat === 'string' ? query.cat : ''
     if (!cat) return
     const page = typeof query.page === 'string' ? query.page : ''
@@ -179,8 +221,8 @@ watch(
       })
       return
     }
-    if (page && findDocContentForLocale(locale.value, cat, page)) return
-    const fallback = defaultDocPageForLocale(locale.value, cat)
+    if (page && findLoadedDocContent(cat, page)) return
+    const fallback = defaultLoadedDocPage(cat)
     if (fallback) {
       router.replace({ name: docsRouteName.value, query: { cat, page: fallback } })
     }
@@ -191,7 +233,7 @@ watch(
 const categoryIcons: Record<string, string> = {
   tutorial: '📘',
   'recharge-vip': '⭐',
-  about: '🛡️',
+  'about-us': '🛡️',
   'model-learning': '🧠',
   deploy: '🚀',
   tools: '🧰',
@@ -263,7 +305,7 @@ const categoryIcons: Record<string, string> = {
                 class="docs-sidebar-page"
                 :class="{ 'is-active': isActivePage(cat.id, page.id) }"
               >
-                {{ findDocContentForLocale(locale, cat.id, page.id)?.title ?? page.id }}
+                {{ findLoadedDocContent(cat.id, page.id)?.title ?? page.id }}
               </router-link>
             </li>
           </ul>

@@ -10,31 +10,15 @@ export { PUBLIC_DOC_CONTENT_EN, findDocContentEn, defaultDocPageIdEn } from './p
 
 import { PUBLIC_DOC_CONTENT_ZH, defaultDocPageId, findDocContent } from './public-docs-data.zh'
 import { PUBLIC_DOC_CONTENT_EN, defaultDocPageIdEn, findDocContentEn } from './public-docs-data.en'
-
-export interface PublicDocPage {
-  id: string
-}
-
-export interface PublicDocCategory {
-  id: string
-  categoryKey: string
-  pages: PublicDocPage[]
-}
-
-/** Route tree derived from doc content (single source of truth). */
-export const PUBLIC_DOC_TREE: PublicDocCategory[] = PUBLIC_DOC_CONTENT_ZH.map((cat) => ({
-  id: cat.id,
-  categoryKey: cat.id,
-  pages: cat.pages.map((p) => ({ id: p.id })),
-}))
-
-export const PUBLIC_DOC_TREE_EN: PublicDocCategory[] = PUBLIC_DOC_CONTENT_EN.map((cat) => ({
-  id: cat.id,
-  categoryKey: cat.id,
-  pages: cat.pages.map((p) => ({ id: p.id })),
-}))
-
-export type PublicDocLocale = 'en' | 'zh'
+export {
+  PUBLIC_DOC_TREE,
+  PUBLIC_DOC_TREE_EN,
+  normalizePublicDocLocation,
+  type PublicDocCategory,
+  type PublicDocLocale,
+  type PublicDocPage,
+} from './public-docs-tree'
+import { PUBLIC_DOC_TREE, PUBLIC_DOC_TREE_EN, type PublicDocLocale } from './public-docs-tree'
 
 export function publicDocContentForLocale(locale: PublicDocLocale | string) {
   return locale === 'en' ? PUBLIC_DOC_CONTENT_EN : PUBLIC_DOC_CONTENT_ZH
@@ -62,20 +46,4 @@ export function defaultDocPageForCategory(catId: string) {
 
 export function defaultDocPageForLocale(locale: PublicDocLocale | string, catId: string) {
   return locale === 'en' ? defaultDocPageIdEn(catId) : defaultDocPageId(catId)
-}
-
-const LEGACY_TUTORIAL_PAGE_CATEGORIES: Record<string, string> = {
-  'text-to-image-api': 'deploy',
-  'batch-image-api': 'deploy',
-  'async-image-tasks': 'deploy',
-}
-
-export function normalizePublicDocLocation(catId: string, pageId: string) {
-  if (catId === 'tutorial' && LEGACY_TUTORIAL_PAGE_CATEGORIES[pageId]) {
-    return {
-      catId: LEGACY_TUTORIAL_PAGE_CATEGORIES[pageId],
-      pageId,
-    }
-  }
-  return { catId, pageId }
 }
