@@ -12,9 +12,17 @@ import (
 
 var corsWarningOnce sync.Once
 
+var firstPartyClientOrigins = []string{
+	"https://www.jisudeng.com",
+	"https://chat.jisudeng.com",
+	"https://localhost",
+	"http://localhost",
+	"capacitor://localhost",
+}
+
 // CORS 跨域中间件
 func CORS(cfg config.CORSConfig) gin.HandlerFunc {
-	allowedOrigins := normalizeOrigins(cfg.AllowedOrigins)
+	allowedOrigins := normalizeOrigins(append(firstPartyClientOrigins, cfg.AllowedOrigins...))
 	allowAll := false
 	for _, origin := range allowedOrigins {
 		if origin == "*" {

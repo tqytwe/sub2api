@@ -229,6 +229,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Concurrency:  grantPlan.Concurrency,
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
+		SignupSource: "email",
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
