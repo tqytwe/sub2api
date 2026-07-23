@@ -74,7 +74,15 @@
           </template>
         </p>
         <h1 class="hero-title" :class="{ 'hero-title--en': isEnglishPublicRoute }">
-          <span class="hero-zh">
+          <span v-if="isEnglishPublicRoute" class="hero-en-title">
+            <span class="hero-en-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
+            {{ ' ' }}
+            <span class="hero-en-main">
+              {{ t('home.jisudeng.hero.titleParts.mid') }}
+              {{ t('home.jisudeng.hero.titleParts.tail') }}
+            </span>
+          </span>
+          <span v-else class="hero-zh">
             <span class="hz-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
             <span class="hz-mid">{{ t('home.jisudeng.hero.titleParts.mid') }}</span>
             <span class="hz-tail">{{ t('home.jisudeng.hero.titleParts.tail') }}</span>
@@ -880,52 +888,58 @@ onBeforeUnmount(() => {
   border: 0;
 }
 
-.hero-title--en .hero-zh {
+.hero-title--en .hero-en-title {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   justify-items: center;
-  gap: 6px;
-  width: min(1040px, calc(100vw - 48px));
+  gap: 10px;
+  width: min(980px, calc(100vw - 48px));
   white-space: normal;
+  text-align: center;
 }
 
-.hero-title--en .hz-brand,
-.hero-title--en .hz-tail {
-  font-size: 88px;
+.hero-title--en .hero-en-brand,
+.hero-title--en .hero-en-main {
+  display: block;
+  inline-size: 100%;
+  overflow-wrap: anywhere;
   letter-spacing: 0;
   line-height: 0.96;
 }
 
-.hero-title--en .hz-mid {
-  font-size: 96px;
-  letter-spacing: 0;
-  line-height: 0.96;
+.hero-title--en .hero-en-brand {
+  font-size: clamp(48px, 6.8vw, 96px);
+}
+
+.hero-title--en .hero-en-main {
+  width: min(100%, 13ch);
+  font-size: clamp(40px, 5.6vw, 80px);
+  text-wrap: balance;
 }
 
 @media (width >= 1600px) {
-  .hero-title--en .hz-brand,
-  .hero-title--en .hz-tail {
+  .hero-title--en .hero-en-brand {
     font-size: 104px;
   }
 
-  .hero-title--en .hz-mid {
-    font-size: 112px;
+  .hero-title--en .hero-en-main {
+    font-size: 88px;
   }
 }
 
 @media (width <= 767px) {
-  .hero-title--en .hero-zh {
-    gap: 4px;
+  .hero-title--en .hero-en-title {
+    gap: 6px;
     width: calc(100vw - 32px);
   }
 
-  .hero-title--en .hz-brand,
-  .hero-title--en .hz-tail {
-    font-size: 42px;
+  .hero-title--en .hero-en-brand {
+    font-size: clamp(36px, 10.5vw, 48px);
   }
 
-  .hero-title--en .hz-mid {
-    font-size: 48px;
+  .hero-title--en .hero-en-main {
+    width: min(100%, 12ch);
+    font-size: clamp(31px, 8.8vw, 42px);
   }
 }
 </style>
