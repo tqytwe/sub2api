@@ -129,6 +129,7 @@ var auditSensitiveReads = map[string]string{
 // auditActionOverrides 变更类请求的动作名精确映射（未命中时自动推导）。
 var auditActionOverrides = map[string]string{
 	"POST /api/v1/auth/login":                                         service.AuditActionLogin,
+	"POST /api/v1/auth/mobile/login":                                  service.AuditActionLogin,
 	"POST /api/v1/auth/login/2fa":                                     service.AuditActionLogin2FA,
 	"POST /api/v1/auth/register":                                      service.AuditActionRegister,
 	"POST /api/v1/auth/refresh":                                       service.AuditActionTokenRefresh,

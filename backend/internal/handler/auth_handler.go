@@ -69,6 +69,17 @@ type SendVerifyCodeResponse struct {
 	Countdown int    `json:"countdown"` // 倒计时秒数
 }
 
+func authMobileMessage(c *gin.Context, zh, en string) string {
+	if c == nil {
+		return zh
+	}
+	language := strings.ToLower(strings.TrimSpace(c.GetHeader("Accept-Language")))
+	if strings.HasPrefix(language, "en") {
+		return en
+	}
+	return zh
+}
+
 // LoginRequest represents the login request payload
 type LoginRequest struct {
 	Email          string `json:"email" binding:"required,email"`
@@ -188,6 +199,32 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	h.respondWithTokenPair(c, user)
 }
 
+// MobileRegister handles registration from the official Android app.
+// POST /api/v1/auth/mobile/register
+func (h *AuthHandler) MobileRegister(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request: "+err.Error()))
+		return
+	}
+
+	_, user, err := h.authService.RegisterWithVerification(
+		c.Request.Context(),
+		req.Email,
+		req.Password,
+		req.VerifyCode,
+		req.PromoCode,
+		req.InvitationCode,
+		req.AffCode,
+	)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	h.respondWithTokenPair(c, user)
+}
+
 // SendVerifyCode 发送邮箱验证码
 // POST /api/v1/auth/send-verify-code
 func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
@@ -215,6 +252,27 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	})
 }
 
+// MobileSendVerifyCode sends an email verification code from the official Android app.
+// POST /api/v1/auth/mobile/send-verify-code
+func (h *AuthHandler) MobileSendVerifyCode(c *gin.Context) {
+	var req SendVerifyCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request: "+err.Error()))
+		return
+	}
+
+	result, err := h.authService.SendVerifyCodeAsync(c.Request.Context(), req.Email, c.GetHeader("Accept-Language"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, SendVerifyCodeResponse{
+		Message:   authMobileMessage(c, "验证码已发送，请查收邮箱", "Verification code sent successfully"),
+		Countdown: result.Countdown,
+	})
+}
+
 // Login handles user login
 // POST /api/v1/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -230,6 +288,22 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	h.loginWithPassword(c, req)
+}
+
+// MobileLogin handles password login from the official Android app.
+// POST /api/v1/auth/mobile/login
+func (h *AuthHandler) MobileLogin(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request: "+err.Error()))
+		return
+	}
+
+	h.loginWithPassword(c, req)
+}
+
+func (h *AuthHandler) loginWithPassword(c *gin.Context, req LoginRequest) {
 	token, user, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -609,6 +683,36 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 
 	response.Success(c, ForgotPasswordResponse{
 		Message: "If your email is registered, you will receive a password reset link shortly.",
+	})
+}
+
+// MobileForgotPassword requests password reset from the official Android app.
+// POST /api/v1/auth/mobile/forgot-password
+func (h *AuthHandler) MobileForgotPassword(c *gin.Context) {
+	var req ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request: "+err.Error()))
+		return
+	}
+
+	frontendBaseURL := strings.TrimSpace(h.settingSvc.GetFrontendURL(c.Request.Context()))
+	if frontendBaseURL == "" {
+		slog.Error("frontend_url not configured in settings or config; cannot build password reset link")
+		response.InternalError(c, authMobileMessage(c, "密码重置功能暂未配置", "Password reset is not configured"))
+		return
+	}
+
+	if err := h.authService.RequestPasswordResetAsync(c.Request.Context(), req.Email, frontendBaseURL, c.GetHeader("Accept-Language")); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	response.Success(c, ForgotPasswordResponse{
+		Message: authMobileMessage(
+			c,
+			"如果该邮箱已注册，你将很快收到密码重置链接。",
+			"If your email is registered, you will receive a password reset link shortly.",
+		),
 	})
 }
 
