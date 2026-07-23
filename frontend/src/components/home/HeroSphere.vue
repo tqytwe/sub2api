@@ -140,6 +140,10 @@ function globeRadius() {
   return (base / 3) * 1.32
 }
 
+function mainGlobeCenterY(c: CanvasCtx) {
+  return isMobile() ? c.h * 0.9 : c.h / 2
+}
+
 function introRadius() {
   return Math.min(window.innerWidth, window.innerHeight) * 0.46
 }
@@ -264,11 +268,10 @@ function projectPoint(lon: number, lat: number) {
   }
 }
 
-function drawParticles(c: CanvasCtx, r: number, alpha: number) {
+function drawParticles(c: CanvasCtx, r: number, alpha: number, cy = c.h / 2) {
   if (alpha < 0.01 || !particles.length) return
-  const { ctx, w, h } = c
+  const { ctx, w } = c
   const cx = w / 2
-  const cy = h / 2
   const cosY = Math.cos((spin * Math.PI) / 180)
   const sinY = Math.sin((spin * Math.PI) / 180)
   const tilt = (-18 * Math.PI) / 180
@@ -384,8 +387,9 @@ function frame(ts: number) {
     c.ctx.clearRect(0, 0, c.w, c.h)
     if (elapsed >= PARTICLE_MS) {
       const appear = smoothstep((elapsed - PARTICLE_MS) / (SPIN_END + SPIN_START))
-      drawGlobe(c, c.w / 2, c.h / 2, globeRadius(), appear)
-      drawParticles(c, globeRadius(), 0.13 * (isMobile() ? 0.24 : 0.3) * appear)
+      const cy = mainGlobeCenterY(c)
+      drawGlobe(c, c.w / 2, cy, globeRadius(), appear)
+      drawParticles(c, globeRadius(), 0.13 * (isMobile() ? 0.24 : 0.3) * appear, cy)
     }
   }
 
