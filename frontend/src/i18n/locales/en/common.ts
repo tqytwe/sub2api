@@ -23,6 +23,7 @@ export default {
     status: 'Status',
     show: 'Show',
     hide: 'Hide',
+    open: 'Open',
     name: 'Name',
     email: 'Email',
     password: 'Password',
@@ -105,6 +106,10 @@ export default {
         withSuffix: '{time} to lift'
       }
     }
+  },
+
+  supportContactPanel: {
+    moreContacts: 'More contact methods',
   },
 
   adminCompliance: {

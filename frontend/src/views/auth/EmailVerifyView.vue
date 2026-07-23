@@ -176,6 +176,7 @@ import {
   storeTeamReferralCode,
   tryJoinTeamFromReferral,
 } from '@/utils/oauthAffiliate'
+import { localizedSiteName } from '@/utils/localizedPublicSettings'
 
 const { t, locale } = useI18n()
 
@@ -300,8 +301,7 @@ onMounted(async () => {
     const settings = await getPublicSettings()
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
-    const publicSiteName = settings.site_name?.trim() || ''
-    siteName.value = publicSiteName && publicSiteName !== 'Sub2API' ? publicSiteName : '极速蹬'
+    siteName.value = localizedSiteName(settings.site_name, locale.value)
     registrationEmailSuffixWhitelist.value = normalizeRegistrationEmailSuffixWhitelist(
       settings.registration_email_suffix_whitelist || []
     )
