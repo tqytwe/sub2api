@@ -783,7 +783,14 @@ func (r *ipRiskRepository) CreateIPRiskScan(
 	err := r.db.QueryRowContext(ctx, `
 INSERT INTO ip_risk_scans (
     scan_type, status, requested_by, range_start, range_end, started_at
-) VALUES ($1, $2, $3, $4, $5, CASE WHEN $2 = 'running' THEN NOW() ELSE NULL END)
+) VALUES (
+    $1,
+    $2::VARCHAR,
+    $3,
+    $4,
+    $5,
+    CASE WHEN $2::VARCHAR = 'running' THEN NOW() ELSE NULL END
+)
 RETURNING
     id, scan_type, status, requested_by, range_start, range_end,
     progress, candidate_count, case_count, inferred_event_count,

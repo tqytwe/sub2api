@@ -153,3 +153,44 @@ func TestIPRiskRepositoryChecksCompletedHistoricalBackfill(t *testing.T) {
 	require.True(t, completed)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestIPRiskRepositoryCreateScanPinsStatusParameterType(t *testing.T) {
+	t.Parallel()
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo := NewIPRiskRepository(db)
+	now := time.Date(2026, time.July, 23, 14, 0, 0, 0, time.UTC)
+	adminID := int64(42)
+
+	mock.ExpectQuery(`(?s)INSERT INTO ip_risk_scans.*\$2::VARCHAR.*CASE WHEN \$2::VARCHAR = 'running'`).
+		WithArgs(
+			string(service.IPRiskScanManual),
+			string(service.IPRiskScanPending),
+			&adminID,
+			now.Add(-24*time.Hour),
+			now,
+		).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "scan_type", "status", "requested_by", "range_start", "range_end",
+			"progress", "candidate_count", "case_count", "inferred_event_count",
+			"error_message", "started_at", "completed_at", "created_at", "updated_at",
+		}).AddRow(
+			int64(7), string(service.IPRiskScanManual), string(service.IPRiskScanPending),
+			adminID, now.Add(-24*time.Hour), now,
+			0, 0, 0, 0, "", nil, nil, now, now,
+		))
+
+	scan, err := repo.CreateIPRiskScan(context.Background(), &service.IPRiskScanCreate{
+		ScanType:    service.IPRiskScanManual,
+		Status:      service.IPRiskScanPending,
+		RequestedBy: &adminID,
+		RangeStart:  now.Add(-24 * time.Hour),
+		RangeEnd:    now,
+	})
+	require.NoError(t, err)
+	require.Equal(t, int64(7), scan.ID)
+	require.Equal(t, service.IPRiskScanPending, scan.Status)
+	require.NoError(t, mock.ExpectationsWereMet())
+}

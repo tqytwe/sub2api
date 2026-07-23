@@ -323,3 +323,108 @@ WHERE event_type = 'register' AND user_id = $1`,
 	require.NoError(t, err)
 	require.False(t, inserted, "historical inference must not replace exact evidence")
 }
+
+func TestIPRiskRepositoryManualScanLifecycleWithAdministrator(t *testing.T) {
+	ctx := context.Background()
+	repo := NewIPRiskRepository(integrationDB)
+	now := time.Now().UTC().Truncate(time.Second)
+	admin := mustCreateUser(t, integrationEntClient, &service.User{
+		Email: fmt.Sprintf("ip-risk-scan-admin-%d@example.test", now.UnixNano()),
+		Role:  service.RoleAdmin,
+	})
+
+	config, err := repo.GetIPRiskManagedConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, config.AutoBlockEnabled)
+
+	overview, err := repo.GetIPRiskOverview(ctx)
+	require.NoError(t, err)
+	require.NotNil(t, overview)
+
+	scan, err := repo.CreateIPRiskScan(ctx, &service.IPRiskScanCreate{
+		ScanType:    service.IPRiskScanManual,
+		Status:      service.IPRiskScanPending,
+		RequestedBy: &admin.ID,
+		RangeStart:  now.Add(-24 * time.Hour),
+		RangeEnd:    now,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, scan.ID)
+	require.NotNil(t, scan.RequestedBy)
+	require.Equal(t, admin.ID, *scan.RequestedBy)
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM ip_risk_scans WHERE id = $1`, scan.ID)
+	})
+
+	latest, err := repo.LatestIPRiskScan(ctx)
+	require.NoError(t, err)
+	require.Equal(t, scan.ID, latest.ID)
+
+	completedAt := now.Add(time.Second)
+	require.NoError(t, repo.UpdateIPRiskScan(ctx, scan.ID, &service.IPRiskScanUpdate{
+		Status:      service.IPRiskScanCompleted,
+		Progress:    100,
+		CompletedAt: &completedAt,
+	}))
+
+	stored, err := repo.GetIPRiskScan(ctx, scan.ID)
+	require.NoError(t, err)
+	require.Equal(t, service.IPRiskScanCompleted, stored.Status)
+	require.Equal(t, 100, stored.Progress)
+	require.NotNil(t, stored.CompletedAt)
+}
+
+func TestIPRiskServiceManualScanCompletesWithoutRuntimeDegradation(t *testing.T) {
+	ctx := context.Background()
+	repo := NewIPRiskRepository(integrationDB)
+	now := time.Now().UTC().Truncate(time.Second)
+	admin := mustCreateUser(t, integrationEntClient, &service.User{
+		Email: fmt.Sprintf("ip-risk-runtime-admin-%d@example.test", now.UnixNano()),
+		Role:  service.RoleAdmin,
+	})
+	runtimeConfig := service.DefaultIPRiskRuntimeConfig()
+	runtimeConfig.ReconcileInterval = time.Hour
+	runtimeConfig.DailyScanInterval = time.Hour
+	svc := service.NewIPRiskService(
+		repo,
+		nil,
+		integrationDB,
+		service.NewIPRiskHasher([]byte("integration-ip-risk-hmac-key-32b")),
+		runtimeConfig,
+	)
+	svc.Start()
+	t.Cleanup(svc.Stop)
+
+	scan, err := svc.StartScan(
+		ctx,
+		service.IPRiskScanManual,
+		now.Add(-time.Minute),
+		now,
+		&admin.ID,
+	)
+	require.NoError(t, err)
+	require.Equal(t, service.IPRiskScanPending, scan.Status)
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(context.Background(), `DELETE FROM ip_risk_scans WHERE id = $1`, scan.ID)
+	})
+
+	var completed *service.IPRiskScan
+	require.Eventually(t, func() bool {
+		stored, loadErr := repo.GetIPRiskScan(ctx, scan.ID)
+		if loadErr != nil {
+			return false
+		}
+		completed = stored
+		return stored.Status == service.IPRiskScanCompleted
+	}, 10*time.Second, 50*time.Millisecond)
+	require.NotNil(t, completed)
+	require.Empty(t, completed.ErrorMessage)
+	require.Equal(t, 100, completed.Progress)
+
+	runtime := svc.Runtime(ctx)
+	require.True(t, runtime.Started)
+	require.False(t, runtime.Degraded)
+	require.Empty(t, runtime.LastError)
+	require.NotNil(t, runtime.LastScan)
+	require.Equal(t, scan.ID, runtime.LastScan.ID)
+}
