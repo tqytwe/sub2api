@@ -1,7 +1,7 @@
 {
   "platform": "android",
   "version": "2.0.1",
-  "apkUrl": "/downloads/jisudengchat-android.apk",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.1-20001",
   "size": "6.3 MB",
   "sha256": "1b56cdd1420884e6bca2628c61e5cefeea46d98c6a16a955cb8b1e9b6b6010c5",
   "minAndroidVersion": "8.0",

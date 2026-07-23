@@ -17,7 +17,7 @@ describe('Android download route integration', () => {
     expect(navigationSource).toContain("androidDownload: 'AndroidDownload'")
     expect(navigationSource).toContain("labelKey: 'home.jisudeng.nav.androidApp'")
     expect(homeSource).toContain('class="nav-download"')
-    expect(downloadSource).toContain("const APK_PATH = '/downloads/jisudengchat-android.apk'")
+    expect(downloadSource).toContain("const APK_PATH = '/downloads/jisudengchat-android.apk?v=2.0.1-20001'")
     expect(downloadSource).toContain("const MANIFEST_PATH = '/downloads/android-version.json'")
   })
 })
