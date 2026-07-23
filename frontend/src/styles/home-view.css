@@ -107,6 +107,25 @@
 }
 
 @media (max-width: 767px) {
+  .home-page .brand {
+    flex: 0 0 auto;
+  }
+
+  .home-page .brand-name {
+    white-space: nowrap;
+  }
+
+  .home-page .hero-ctas .cta-text,
+  .home-page .active-on {
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(4px);
+  }
+
+  .home-page .active-on {
+    padding: 8px 12px;
+    border-radius: 999px;
+  }
+
   .nav-download {
     min-height: 34px;
     padding: 7px 11px;
