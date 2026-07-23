@@ -465,6 +465,7 @@ import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { formatHomeStatsTimestamp } from '@/utils/homeLiveStats'
 import { sanitizeUrl } from '@/utils/url'
 import { enabledSupportContacts } from '@/utils/supportContact'
+import { localizedSiteName, localizedSiteSubtitle } from '@/utils/localizedPublicSettings'
 import { isHomeContentUrl as isCustomHomeContentUrl, sanitizeHomeContent } from '@/utils/homeContent'
 import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
 import {
@@ -516,7 +517,9 @@ let whyTargetX = 0
 let whyTargetY = 0
 let fontEl: HTMLLinkElement | null = null
 
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
+const siteName = computed(() =>
+  localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, locale.value)
+)
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
 const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
@@ -556,12 +559,12 @@ const siteLogo = computed(() =>
     allowDataUrl: true
   })
 )
-const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
-
 const siteSubtitle = computed(() => {
-  const raw = appStore.cachedPublicSettings?.site_subtitle?.trim()
-  if (raw && raw !== UPSTREAM_SITE_SUBTITLE) return raw
-  return t('authAside.siteSubtitleDefault')
+  return localizedSiteSubtitle(
+    appStore.cachedPublicSettings?.site_subtitle,
+    locale.value,
+    t('authAside.siteSubtitleDefault'),
+  )
 })
 const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
