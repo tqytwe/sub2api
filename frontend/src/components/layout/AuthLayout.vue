@@ -43,7 +43,7 @@
 
           <SupportContactPanel
             class="aside-support"
-            :config="appStore.supportContact"
+            :config="supportContactConfig"
             compact
           />
         </aside>
@@ -76,6 +76,11 @@ import { computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { sanitizeUrl } from '@/utils/url'
+import {
+  localizedSiteName,
+  localizedSiteSubtitle,
+  localizedSupportContactConfig,
+} from '@/utils/localizedPublicSettings'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import SupportContactPanel from '@/components/common/SupportContactPanel.vue'
 import '@/styles/auth-layout-jisudeng.css'
@@ -88,20 +93,24 @@ const props = withDefaults(
   { asideMode: 'login' }
 )
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 
-const siteName = computed(() => appStore.siteName || '极速蹬')
+const siteName = computed(() => localizedSiteName(appStore.siteName, locale.value))
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.siteLogo || '', { allowRelative: true, allowDataUrl: true })
 )
-const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
 
 const siteSubtitle = computed(() => {
-  const raw = appStore.cachedPublicSettings?.site_subtitle?.trim()
-  if (raw && raw !== UPSTREAM_SITE_SUBTITLE) return raw
-  return t('authAside.siteSubtitleDefault')
+  return localizedSiteSubtitle(
+    appStore.cachedPublicSettings?.site_subtitle,
+    locale.value,
+    t('authAside.siteSubtitleDefault'),
+  )
 })
+const supportContactConfig = computed(() =>
+  localizedSupportContactConfig(appStore.supportContact, locale.value)
+)
 const settingsLoaded = computed(() => appStore.publicSettingsLoaded)
 const currentYear = computed(() => new Date().getFullYear())
 

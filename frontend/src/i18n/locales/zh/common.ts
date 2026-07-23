@@ -23,6 +23,7 @@ export default {
     status: '状态',
     show: '显示',
     hide: '隐藏',
+    open: '打开',
     name: '名称',
     email: '邮箱',
     password: '密码',
@@ -105,6 +106,10 @@ export default {
         withSuffix: '{time} 后解除'
       }
     }
+  },
+
+  supportContactPanel: {
+    moreContacts: '更多联系方式',
   },
 
   adminCompliance: {

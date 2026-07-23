@@ -341,6 +341,7 @@ import {
 } from '@/utils/oauthAffiliate'
 import type { LoginAgreementDocument } from '@/types'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
+import { localizedSiteName } from '@/utils/localizedPublicSettings'
 
 const { t, locale, te } = useI18n()
 const LOGIN_AGREEMENT_STORAGE_KEY = 'sub2api_login_agreement_consent'
@@ -503,8 +504,7 @@ onMounted(async () => {
     invitationCodeEnabled.value = settings.invitation_code_enabled
     turnstileEnabled.value = settings.turnstile_enabled
     turnstileSiteKey.value = settings.turnstile_site_key || ''
-    const publicSiteName = settings.site_name?.trim() || ''
-    siteName.value = publicSiteName && publicSiteName !== 'Sub2API' ? publicSiteName : '极速蹬'
+    siteName.value = localizedSiteName(settings.site_name, locale.value)
     linuxdoOAuthEnabled.value = settings.linuxdo_oauth_enabled
     wechatOAuthEnabled.value = isWeChatWebOAuthEnabled(settings)
     oidcOAuthEnabled.value = settings.oidc_oauth_enabled
