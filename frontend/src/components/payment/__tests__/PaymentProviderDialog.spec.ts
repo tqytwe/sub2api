@@ -206,6 +206,7 @@ describe('PaymentProviderDialog payment guide', () => {
       supported_types: string[]
     }
     expect(payload.config.customMethods).toBe('[{"type":"ldc","upstreamType":"epay","displayName":"LDC"}]')
+    expect(payload.config.currency).toBe('CNY')
     expect(payload.supported_types).toEqual(['alipay', 'wxpay', 'ldc'])
   })
 

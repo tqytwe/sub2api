@@ -187,6 +187,17 @@ func TestBuildPaymentOrderProviderSnapshot_IncludesProviderCurrency(t *testing.T
 	}, CreateOrderRequest{})
 	require.Equal(t, "USD", airwallexSnapshot["currency"])
 	require.Equal(t, "acct-78", airwallexSnapshot["merchant_id"])
+
+	easyPaySnapshot := buildPaymentOrderProviderSnapshot(&payment.InstanceSelection{
+		InstanceID:  "79",
+		ProviderKey: payment.TypeEasyPay,
+		Config: map[string]string{
+			"pid":      "easypay-79",
+			"currency": "hkd",
+		},
+	}, CreateOrderRequest{})
+	require.Equal(t, "HKD", easyPaySnapshot["currency"])
+	require.Equal(t, "easypay-79", easyPaySnapshot["merchant_id"])
 }
 
 func valueOrEmpty(v *string) string {

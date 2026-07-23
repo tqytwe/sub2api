@@ -53,7 +53,7 @@ type easyPayCustomMethod struct {
 }
 
 // NewEasyPay creates a new EasyPay provider.
-// config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay
+// config keys: pid, pkey, apiBase, notifyUrl, returnUrl, cid, cidAlipay, cidWxpay, currency
 func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 	for _, k := range []string{"pid", "pkey", "apiBase", "notifyUrl", "returnUrl"} {
 		if strings.TrimSpace(config[k]) == "" {
@@ -65,6 +65,16 @@ func NewEasyPay(instanceID string, config map[string]string) (*EasyPay, error) {
 		cfg[k] = v
 	}
 	cfg["apiBase"] = normalizeEasyPayAPIBase(cfg["apiBase"])
+	if err := validateEasyPayAPIBase(cfg["apiBase"]); err != nil {
+		return nil, err
+	}
+	if currency := strings.TrimSpace(cfg["currency"]); currency != "" {
+		normalized, err := payment.NormalizePaymentCurrency(currency)
+		if err != nil {
+			return nil, fmt.Errorf("easypay config invalid currency: %w", err)
+		}
+		cfg["currency"] = normalized
+	}
 	return &EasyPay{
 		instanceID: instanceID,
 		config:     cfg,
@@ -81,18 +91,36 @@ func normalizeEasyPayAPIBase(apiBase string) string {
 		parsed.RawQuery = ""
 		parsed.Fragment = ""
 		parsed.RawPath = ""
-		switch strings.ToLower(parsed.Host) {
+		host := strings.ToLower(parsed.Hostname())
+		switch host {
 		case "www.xunhupay.com", "xunhupay.com":
 			parsed.Host = "api.xunhupay.com"
 			parsed.Path = ""
 		case "admin.dpweixin.com", "www.dpweixin.com", "dpweixin.com":
 			parsed.Host = "api.dpweixin.com"
 			parsed.Path = ""
+		case "api.kyrenpay.com":
+			parsed.Path = trimEasyPayEndpointPath(parsed.Path)
+			if parsed.Path == "" {
+				parsed.Path = "/epay"
+			}
+			return strings.TrimRight(parsed.String(), "/")
 		}
 		parsed.Path = trimEasyPayEndpointPath(parsed.Path)
 		return strings.TrimRight(parsed.String(), "/")
 	}
 	return strings.TrimRight(trimEasyPayEndpointPath(base), "/")
+}
+
+func validateEasyPayAPIBase(apiBase string) error {
+	parsed, err := url.Parse(strings.TrimSpace(apiBase))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		return fmt.Errorf("easypay config apiBase must be an http(s) URL")
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("easypay config apiBase must use http or https")
+	}
+	return nil
 }
 
 func trimEasyPayEndpointPath(path string) string {
@@ -161,6 +189,9 @@ func (e *EasyPay) createRedirectPayment(req payment.CreatePaymentRequest) (*paym
 		"return_url": returnURL, "name": req.Subject,
 		"money": req.Amount,
 	}
+	if moneyType := e.moneyTypeParam(); moneyType != "" {
+		params["money_type"] = moneyType
+	}
 	if cid := e.resolveCID(paymentType); cid != "" {
 		params["cid"] = cid
 	}
@@ -175,7 +206,7 @@ func (e *EasyPay) createRedirectPayment(req payment.CreatePaymentRequest) (*paym
 		q.Set(k, v)
 	}
 	payURL := e.apiBase() + "/submit.php?" + q.Encode()
-	return &payment.CreatePaymentResponse{PayURL: payURL}, nil
+	return &payment.CreatePaymentResponse{PayURL: payURL, Currency: e.paymentCurrency()}, nil
 }
 
 // createAPIPayment calls mapi.php to get payurl/qrcode (existing behavior).
@@ -187,6 +218,9 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 		"out_trade_no": req.OrderID, "notify_url": notifyURL,
 		"return_url": returnURL, "name": req.Subject,
 		"money": req.Amount, "clientip": req.ClientIP,
+	}
+	if moneyType := e.moneyTypeParam(); moneyType != "" {
+		params["money_type"] = moneyType
 	}
 	if cid := e.resolveCID(paymentType); cid != "" {
 		params["cid"] = cid
@@ -219,7 +253,34 @@ func (e *EasyPay) createAPIPayment(ctx context.Context, req payment.CreatePaymen
 	if req.IsMobile && resp.PayURL2 != "" {
 		payURL = resp.PayURL2
 	}
-	return &payment.CreatePaymentResponse{TradeNo: resp.TradeNo, PayURL: payURL, QRCode: resp.QRCode}, nil
+	return &payment.CreatePaymentResponse{TradeNo: resp.TradeNo, PayURL: payURL, QRCode: resp.QRCode, Currency: e.paymentCurrency()}, nil
+}
+
+func (e *EasyPay) moneyTypeParam() string {
+	if e == nil {
+		return ""
+	}
+	for _, key := range []string{"money_type", "moneyType"} {
+		if value := strings.TrimSpace(e.config[key]); value != "" {
+			return value
+		}
+	}
+	currency := e.paymentCurrency()
+	if currency == "" || currency == payment.DefaultPaymentCurrency {
+		return ""
+	}
+	return currency
+}
+
+func (e *EasyPay) paymentCurrency() string {
+	if e == nil {
+		return payment.DefaultPaymentCurrency
+	}
+	currency, err := payment.NormalizePaymentCurrency(e.config["currency"])
+	if err != nil {
+		return payment.DefaultPaymentCurrency
+	}
+	return currency
 }
 
 func (e *EasyPay) usesXunhuPay() bool {
@@ -285,7 +346,7 @@ func (e *EasyPay) createXunhuPayPayment(ctx context.Context, req payment.CreateP
 		return nil, fmt.Errorf("xunhupay error: %s", msg)
 	}
 	payURL := strings.TrimSpace(resp.URL)
-	return &payment.CreatePaymentResponse{TradeNo: xunhuPayStringValue(resp.OpenID), PayURL: payURL, QRCode: strings.TrimSpace(resp.URLQRCode)}, nil
+	return &payment.CreatePaymentResponse{TradeNo: xunhuPayStringValue(resp.OpenID), PayURL: payURL, QRCode: strings.TrimSpace(resp.URLQRCode), Currency: e.paymentCurrency()}, nil
 }
 
 // resolveURLs returns (notifyURL, returnURL) preferring request values,

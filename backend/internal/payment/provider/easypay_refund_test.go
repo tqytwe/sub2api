@@ -24,6 +24,9 @@ func TestNormalizeEasyPayAPIBase(t *testing.T) {
 		{input: "https://zpayz.cn/submit.php", want: "https://zpayz.cn"},
 		{input: "https://zpayz.cn/api.php", want: "https://zpayz.cn"},
 		{input: "https://zpayz.cn/api.php?act=refund", want: "https://zpayz.cn"},
+		{input: "https://api.kyrenpay.com", want: "https://api.kyrenpay.com/epay"},
+		{input: "https://api.kyrenpay.com/epay", want: "https://api.kyrenpay.com/epay"},
+		{input: "https://api.kyrenpay.com/epay/mapi.php", want: "https://api.kyrenpay.com/epay"},
 		{input: "https://www.xunhupay.com/doc/api/pay.html", want: "https://api.xunhupay.com"},
 		{input: "https://xunhupay.com/doc/api/pay.html", want: "https://api.xunhupay.com"},
 		{input: "https://admin.dpweixin.com", want: "https://api.dpweixin.com"},
@@ -37,6 +40,21 @@ func TestNormalizeEasyPayAPIBase(t *testing.T) {
 				t.Fatalf("normalizeEasyPayAPIBase(%q) = %q, want %q", tt.input, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestEasyPayRejectsNonURLAPIBase(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewEasyPay("test-instance", map[string]string{
+		"pid":       "pid-1",
+		"pkey":      "pkey-1",
+		"apiBase":   "pid-1",
+		"notifyUrl": "https://example.com/notify",
+		"returnUrl": "https://example.com/return",
+	})
+	if err == nil || !strings.Contains(err.Error(), "apiBase must be an http(s) URL") {
+		t.Fatalf("NewEasyPay error = %v, want apiBase URL validation", err)
 	}
 }
 
@@ -214,6 +232,149 @@ func TestEasyPayCustomMethodsUseConfiguredUpstreamType(t *testing.T) {
 	}
 	if got := payURL.Query().Get("type"); got != "usdt" {
 		t.Fatalf("pay url type = %q, want usdt (%s)", got, resp.PayURL)
+	}
+}
+
+func TestEasyPayCreatePaymentSendsConfiguredMoneyType(t *testing.T) {
+	t.Parallel()
+
+	var gotPath string
+	var gotForm url.Values
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		if err := r.ParseForm(); err != nil {
+			t.Errorf("ParseForm: %v", err)
+		}
+		gotForm = r.PostForm
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"code":1,"msg":"ok","trade_no":"kyren-1","payurl":"https://payment.example.com/redirect"}`))
+	}))
+	defer server.Close()
+
+	provider, err := NewEasyPay("test-instance", map[string]string{
+		"pid":           "pid-1",
+		"pkey":          "pkey-1",
+		"apiBase":       server.URL + "/epay/mapi.php",
+		"notifyUrl":     "https://example.com/notify",
+		"returnUrl":     "https://example.com/return",
+		"currency":      "usd",
+		"customMethods": `[{"type":"paynow","upstreamType":"paynow","displayName":"PayNow"}]`,
+	})
+	if err != nil {
+		t.Fatalf("NewEasyPay: %v", err)
+	}
+
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:     "sub2-paynow-1",
+		Amount:      "9.99",
+		PaymentType: "paynow",
+		Subject:     "PayNow Order",
+		ClientIP:    "203.0.113.10",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment: %v", err)
+	}
+	if gotPath != "/epay/mapi.php" {
+		t.Fatalf("path = %q, want /epay/mapi.php", gotPath)
+	}
+	for key, want := range map[string]string{
+		"pid":          "pid-1",
+		"type":         "paynow",
+		"out_trade_no": "sub2-paynow-1",
+		"money":        "9.99",
+		"money_type":   "USD",
+		"clientip":     "203.0.113.10",
+	} {
+		if got := gotForm.Get(key); got != want {
+			t.Fatalf("form[%s] = %q, want %q (form=%v)", key, got, want, gotForm)
+		}
+	}
+	if gotForm.Get("sign") == "" || gotForm.Get("sign_type") != signTypeMD5 {
+		t.Fatalf("form missing signature fields: %v", gotForm)
+	}
+	if resp.Currency != "USD" {
+		t.Fatalf("response currency = %q, want USD", resp.Currency)
+	}
+}
+
+func TestEasyPayRedirectUsesKyrenEpayPathAndMoneyType(t *testing.T) {
+	t.Parallel()
+
+	provider, err := NewEasyPay("test-instance", map[string]string{
+		"pid":           "pid-1",
+		"pkey":          "pkey-1",
+		"apiBase":       "https://api.kyrenpay.com",
+		"notifyUrl":     "https://example.com/notify",
+		"returnUrl":     "https://example.com/return",
+		"paymentMode":   paymentModePopup,
+		"currency":      "HKD",
+		"customMethods": `[{"type":"paynow","upstreamType":"paynow","displayName":"PayNow"}]`,
+	})
+	if err != nil {
+		t.Fatalf("NewEasyPay: %v", err)
+	}
+
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:     "sub2-paynow-redirect",
+		Amount:      "9.99",
+		PaymentType: "paynow",
+		Subject:     "PayNow Redirect",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment: %v", err)
+	}
+	payURL, err := url.Parse(resp.PayURL)
+	if err != nil {
+		t.Fatalf("parse pay url: %v", err)
+	}
+	if payURL.Scheme != "https" || payURL.Host != "api.kyrenpay.com" || payURL.Path != "/epay/submit.php" {
+		t.Fatalf("pay url = %q, want https://api.kyrenpay.com/epay/submit.php", resp.PayURL)
+	}
+	if got := payURL.Query().Get("type"); got != "paynow" {
+		t.Fatalf("pay url type = %q, want paynow", got)
+	}
+	if got := payURL.Query().Get("money_type"); got != "HKD" {
+		t.Fatalf("pay url money_type = %q, want HKD", got)
+	}
+	if resp.Currency != "HKD" {
+		t.Fatalf("response currency = %q, want HKD", resp.Currency)
+	}
+}
+
+func TestEasyPayDefaultCurrencyOmitsMoneyType(t *testing.T) {
+	t.Parallel()
+
+	provider, err := NewEasyPay("test-instance", map[string]string{
+		"pid":         "pid-1",
+		"pkey":        "pkey-1",
+		"apiBase":     "https://pay.example.com",
+		"notifyUrl":   "https://example.com/notify",
+		"returnUrl":   "https://example.com/return",
+		"paymentMode": paymentModePopup,
+		"currency":    payment.DefaultPaymentCurrency,
+	})
+	if err != nil {
+		t.Fatalf("NewEasyPay: %v", err)
+	}
+
+	resp, err := provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:     "sub2-cny-redirect",
+		Amount:      "9.99",
+		PaymentType: payment.TypeAlipay,
+		Subject:     "CNY Redirect",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment: %v", err)
+	}
+	payURL, err := url.Parse(resp.PayURL)
+	if err != nil {
+		t.Fatalf("parse pay url: %v", err)
+	}
+	if got := payURL.Query().Get("money_type"); got != "" {
+		t.Fatalf("pay url money_type = %q, want empty", got)
+	}
+	if resp.Currency != payment.DefaultPaymentCurrency {
+		t.Fatalf("response currency = %q, want %s", resp.Currency, payment.DefaultPaymentCurrency)
 	}
 }
 
