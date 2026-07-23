@@ -44,9 +44,18 @@ describe('lazy locale loading scopes', () => {
     expect(localeFromPath('/en/')).toBe('en')
     expect(localeFromPath('/en/models')).toBe('en')
     expect(localeFromPath('/en/docs?cat=tutorial')).toBe('en')
-    expect(localeFromPath('/home')).toBeNull()
-    expect(localeFromPath('/models')).toBeNull()
-    expect(localeFromPath('/login')).toBeNull()
+  })
+
+  it('forces Chinese on public Chinese routes even after English route visits', () => {
+    expect(localeFromPath('/')).toBe('zh')
+    expect(localeFromPath('/home')).toBe('zh')
+    expect(localeFromPath('/models')).toBe('zh')
+    expect(localeFromPath('/docs')).toBe('zh')
+    expect(localeFromPath('/login')).toBe('zh')
+    expect(localeFromPath('/register')).toBe('zh')
+    expect(localeFromPath('/about')).toBe('zh')
+    expect(localeFromPath('/contact')).toBe('zh')
+    expect(localeFromPath('/dashboard')).toBeNull()
   })
 
   it.each([

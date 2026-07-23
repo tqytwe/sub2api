@@ -8,6 +8,18 @@ type LocaleLoadScope = 'core' | 'full'
 
 const LOCALE_KEY = 'sub2api_locale'
 const DEFAULT_LOCALE: LocaleCode = 'zh'
+const CHINESE_PUBLIC_LOCALE_PATHS = new Set([
+  '/',
+  '/home',
+  '/models',
+  '/docs',
+  '/login',
+  '/register',
+  '/about',
+  '/contact',
+  '/setup',
+  '/key-usage',
+])
 
 const coreLocaleLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
   en: () => import('./locales/en/core'),
@@ -44,6 +56,9 @@ export function localeFromPath(path: string): LocaleCode | null {
   const normalized = normalizeRoutePath(path)
   if (normalized === '/en' || normalized.startsWith('/en/')) {
     return 'en'
+  }
+  if (CHINESE_PUBLIC_LOCALE_PATHS.has(normalized)) {
+    return 'zh'
   }
   return null
 }
@@ -131,7 +146,6 @@ export async function initI18n(): Promise<void> {
   if (fromPath) {
     await loadLocaleMessages(fromPath, localeScopeForPath(path))
     i18n.global.locale.value = fromPath
-    localStorage.setItem(LOCALE_KEY, fromPath)
   } else if (fromURL) {
     await loadLocaleMessages(fromURL, localeScopeForPath(path))
     i18n.global.locale.value = fromURL
@@ -153,13 +167,23 @@ export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<v
 export async function applyLocaleFromRoute(path: string, query: LocationQuery): Promise<void> {
   const fromPath = localeFromPath(path)
   if (fromPath) {
-    await setLocale(fromPath)
+    await setLocale(fromPath, { persist: false })
     return
   }
-  await applyLocaleFromRouteQuery(query)
+  const raw = query.lang ?? query.locale
+  const value = Array.isArray(raw) ? raw[0] : raw
+  if (typeof value === 'string' && value.trim()) {
+    await setLocale(value.trim())
+    return
+  }
+
+  const saved = typeof localStorage === 'undefined' ? null : normalizeStoredLocale(localStorage.getItem(LOCALE_KEY))
+  if (saved && saved !== getLocale()) {
+    await setLocale(saved, { persist: false })
+  }
 }
 
-export async function setLocale(locale: string): Promise<void> {
+export async function setLocale(locale: string, options: { persist?: boolean } = {}): Promise<void> {
   const normalized = normalizeStoredLocale(locale) ?? (isLocaleCode(locale) ? locale : null)
   if (!normalized) {
     return
@@ -168,7 +192,9 @@ export async function setLocale(locale: string): Promise<void> {
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
   await loadLocaleMessages(normalized, localeScopeForPath(path))
   i18n.global.locale.value = normalized
-  localStorage.setItem(LOCALE_KEY, normalized)
+  if (options.persist !== false) {
+    localStorage.setItem(LOCALE_KEY, normalized)
+  }
   document.documentElement.setAttribute('lang', documentLanguage(normalized))
 
   const { resolveRouteDocumentTitle } = await import('@/router/title')
