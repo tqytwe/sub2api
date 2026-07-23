@@ -57,6 +57,9 @@ func RegisterAdminRoutes(
 		// 代理管理
 		registerProxyRoutes(admin, h, stepUpAuth)
 
+		// IP 风险检测（CP1 只读 Shadow Mode）
+		registerIPRiskRoutes(admin, h)
+
 		// 卡密管理
 		registerRedeemCodeRoutes(admin, h)
 
@@ -126,6 +129,13 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerIPRiskRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	ipRisk := admin.Group("/ip-risk")
+	{
+		ipRisk.GET("/runtime", h.Admin.IPRisk.GetRuntime)
 	}
 }
 

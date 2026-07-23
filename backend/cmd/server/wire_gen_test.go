@@ -94,6 +94,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // publicHomeStatsService
 		nil, // upstreamBillingProbe
 		nil, // auditLog
+		nil, // ipRisk
 		nil, // promptAudit
 	)
 

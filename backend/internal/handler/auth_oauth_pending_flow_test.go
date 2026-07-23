@@ -993,6 +993,8 @@ func TestExchangePendingOAuthCompletionInvitationRequiredFalseFalsePersistsDecis
 
 func TestCreateOIDCOAuthAccountCreatesUserBindsIdentityAndConsumesSession(t *testing.T) {
 	handler, client := newOAuthPendingFlowTestHandlerWithEmailVerification(t, false, "fresh@example.com", "246810")
+	riskRecorder := &oauthPendingFlowIPRiskRecorderStub{}
+	handler.authService.SetIPRiskRecorder(riskRecorder)
 	ctx := context.Background()
 
 	session, err := client.PendingAuthSession.Create().
@@ -1048,6 +1050,11 @@ func TestCreateOIDCOAuthAccountCreatesUserBindsIdentityAndConsumesSession(t *tes
 	storedSession, err := client.PendingAuthSession.Get(ctx, session.ID)
 	require.NoError(t, err)
 	require.NotNil(t, storedSession.ConsumedAt)
+	require.Equal(t, []service.IPRiskRegistrationInput{{
+		UserID:       createdUser.ID,
+		Email:        "fresh@example.com",
+		SignupSource: "oidc",
+	}}, riskRecorder.registrations)
 }
 
 func TestCreateOIDCOAuthAccountAppliesPromoCodeFromPendingSession(t *testing.T) {
@@ -1648,6 +1655,8 @@ func TestCreateOIDCOAuthAccountRollsBackPostBindFailureBeforeIdentityCanCommit(t
 			rejectDeleteWhileAuthIdentityExists: true,
 		},
 	})
+	riskRecorder := &oauthPendingFlowIPRiskRecorderStub{}
+	handler.authService.SetIPRiskRecorder(riskRecorder)
 	ctx := context.Background()
 
 	session, err := client.PendingAuthSession.Create().
@@ -1702,6 +1711,7 @@ func TestCreateOIDCOAuthAccountRollsBackPostBindFailureBeforeIdentityCanCommit(t
 	storedSession, err := client.PendingAuthSession.Get(ctx, session.ID)
 	require.NoError(t, err)
 	require.Nil(t, storedSession.ConsumedAt)
+	require.Empty(t, riskRecorder.registrations)
 }
 
 func TestBindOIDCOAuthLoginBindsExistingUserAndConsumesSession(t *testing.T) {
@@ -1771,6 +1781,88 @@ func TestBindOIDCOAuthLoginBindsExistingUserAndConsumesSession(t *testing.T) {
 	storedSession, err := client.PendingAuthSession.Get(ctx, session.ID)
 	require.NoError(t, err)
 	require.NotNil(t, storedSession.ConsumedAt)
+}
+
+func TestBindOIDCOAuthLoginDoesNotRecordSuccessfulLoginWhenTokenIssueFails(t *testing.T) {
+	handler, client := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
+		refreshTokenCache: &oauthPendingFlowRefreshTokenCacheStub{
+			storeErr: errors.New("refresh token storage unavailable"),
+		},
+	})
+	riskRecorder := &oauthPendingFlowIPRiskRecorderStub{}
+	handler.authService.SetIPRiskRecorder(riskRecorder)
+	ctx := context.Background()
+
+	passwordHash, err := handler.authService.HashPassword("secret-123")
+	require.NoError(t, err)
+	existingUser, err := client.User.Create().
+		SetEmail("token-failure-owner@example.com").
+		SetUsername("token-failure-owner").
+		SetPasswordHash(passwordHash).
+		SetRole(service.RoleUser).
+		SetStatus(service.StatusActive).
+		Save(ctx)
+	require.NoError(t, err)
+
+	session, err := client.PendingAuthSession.Create().
+		SetSessionToken("bind-login-token-failure-session-token").
+		SetIntent("adopt_existing_user_by_email").
+		SetProviderType("oidc").
+		SetProviderKey("https://issuer.example").
+		SetProviderSubject("oidc-bind-token-failure-123").
+		SetTargetUserID(existingUser.ID).
+		SetResolvedEmail(existingUser.Email).
+		SetBrowserSessionKey("bind-login-token-failure-browser-session-key").
+		SetUpstreamIdentityClaims(map[string]any{"username": "oidc_user"}).
+		SetRedirectTo("/profile").
+		SetExpiresAt(time.Now().UTC().Add(10 * time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	body := bytes.NewBufferString(`{"email":"token-failure-owner@example.com","password":"secret-123","adopt_display_name":false,"adopt_avatar":false}`)
+	recorder := httptest.NewRecorder()
+	ginCtx, _ := gin.CreateTestContext(recorder)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/oauth/oidc/bind-login", body)
+	req.Header.Set("Content-Type", "application/json")
+	req.AddCookie(&http.Cookie{Name: oauthPendingSessionCookieName, Value: encodeCookieValue(session.SessionToken)})
+	req.AddCookie(&http.Cookie{Name: oauthPendingBrowserCookieName, Value: encodeCookieValue("bind-login-token-failure-browser-session-key")})
+	ginCtx.Request = req
+
+	handler.BindOIDCOAuthLogin(ginCtx)
+
+	require.Equal(t, http.StatusInternalServerError, recorder.Code)
+	require.Empty(t, riskRecorder.loginUserIDs)
+	storedSession, err := client.PendingAuthSession.Get(ctx, session.ID)
+	require.NoError(t, err)
+	require.Nil(t, storedSession.ConsumedAt)
+}
+
+func TestVerifiedEmailOAuthDoesNotRecordSuccessfulLoginWhenTokenIssueFails(t *testing.T) {
+	handler, _ := newOAuthPendingFlowTestHandlerWithDependencies(t, oauthPendingFlowTestHandlerOptions{
+		refreshTokenCache: &oauthPendingFlowRefreshTokenCacheStub{
+			storeErr: errors.New("refresh token storage unavailable"),
+		},
+	})
+	riskRecorder := &oauthPendingFlowIPRiskRecorderStub{}
+	handler.authService.SetIPRiskRecorder(riskRecorder)
+
+	tokenPair, user, err := handler.authService.LoginOrRegisterVerifiedEmailOAuth(
+		context.Background(),
+		service.EmailOAuthIdentityInput{
+			ProviderType:    "oidc",
+			ProviderKey:     "https://issuer.example",
+			ProviderSubject: "oidc-token-failure-123",
+			Email:           "verified-token-failure@example.com",
+			EmailVerified:   true,
+			Username:        "verified-token-failure",
+		},
+	)
+
+	require.Error(t, err)
+	require.Nil(t, tokenPair)
+	require.Nil(t, user)
+	require.Len(t, riskRecorder.registrations, 1)
+	require.Empty(t, riskRecorder.loginUserIDs)
 }
 
 func TestBindOIDCOAuthLoginBlocksBackendModeBeforeTokenIssue(t *testing.T) {
@@ -2367,6 +2459,7 @@ type oauthPendingFlowTestHandlerOptions struct {
 	invitationEnabled  bool
 	emailVerifyEnabled bool
 	emailCache         service.EmailCache
+	refreshTokenCache  service.RefreshTokenCache
 	settingValues      map[string]string
 	promoRepo          service.PromoCodeRepository
 	defaultSubAssigner service.DefaultSubscriptionAssigner
@@ -2477,11 +2570,15 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 			},
 		}, options.emailCache)
 	}
+	refreshTokenCache := options.refreshTokenCache
+	if refreshTokenCache == nil {
+		refreshTokenCache = &oauthPendingFlowRefreshTokenCacheStub{}
+	}
 	authSvc := service.NewAuthService(
 		client,
 		userRepo,
 		redeemRepo,
-		&oauthPendingFlowRefreshTokenCacheStub{},
+		refreshTokenCache,
 		cfg,
 		settingSvc,
 		emailService,
@@ -2524,6 +2621,24 @@ func boolSettingValue(v bool) string {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+type oauthPendingFlowIPRiskRecorderStub struct {
+	registrations []service.IPRiskRegistrationInput
+	loginUserIDs  []int64
+}
+
+func (r *oauthPendingFlowIPRiskRecorderStub) RecordRegistration(
+	_ context.Context,
+	input service.IPRiskRegistrationInput,
+) error {
+	r.registrations = append(r.registrations, input)
+	return nil
+}
+
+func (r *oauthPendingFlowIPRiskRecorderStub) RecordSuccessfulLogin(_ context.Context, userID int64) error {
+	r.loginUserIDs = append(r.loginUserIDs, userID)
+	return nil
 }
 
 type oauthPendingFlowSettingRepoStub struct {
@@ -2650,7 +2765,9 @@ func (s *oauthPendingFlowSettingRepoStub) Delete(context.Context, string) error 
 	return nil
 }
 
-type oauthPendingFlowRefreshTokenCacheStub struct{}
+type oauthPendingFlowRefreshTokenCacheStub struct {
+	storeErr error
+}
 
 type oauthPendingFlowEmailCacheStub struct {
 	verificationCodes map[string]*service.VerificationCodeData
@@ -2717,7 +2834,7 @@ func (s *oauthPendingFlowEmailCacheStub) GetNotifyCodeUserRate(context.Context, 
 }
 
 func (s *oauthPendingFlowRefreshTokenCacheStub) StoreRefreshToken(context.Context, string, *service.RefreshTokenData, time.Duration) error {
-	return nil
+	return s.storeErr
 }
 
 func (s *oauthPendingFlowRefreshTokenCacheStub) GetRefreshToken(context.Context, string) (*service.RefreshTokenData, error) {

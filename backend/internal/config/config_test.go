@@ -52,6 +52,30 @@ func TestLoadHTTPIngressSafetyDefaults(t *testing.T) {
 	require.Equal(t, 16384, cfg.APIKeyAuth.InvalidAbuse.Capacity)
 }
 
+func TestLoadIPRiskShadowDefaults(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.True(t, cfg.IPRisk.Enabled)
+	require.Empty(t, cfg.IPRisk.HMACKey)
+	require.Equal(t, 10, cfg.IPRisk.IncrementalDelaySeconds)
+	require.Equal(t, 5, cfg.IPRisk.ReconcileIntervalMinutes)
+	require.Equal(t, 24, cfg.IPRisk.DailyScanIntervalHours)
+	require.Equal(t, 90, cfg.IPRisk.EventRetentionDays)
+	require.Equal(t, 365, cfg.IPRisk.CaseRetentionDays)
+	require.False(t, cfg.IPRisk.HistoricalBackfillEnabled)
+	require.Equal(t, 90, cfg.IPRisk.HistoricalBackfillMaxDays)
+	require.Equal(t, 90, cfg.IPRisk.ManualScanMaxDays)
+}
+
+func TestLoadIPRiskRejectsWeakDedicatedHMACKey(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("IP_RISK_HMAC_KEY", "too-short")
+
+	_, err := Load()
+	require.ErrorContains(t, err, "ip_risk.hmac_key must be at least 32 bytes")
+}
+
 func TestNormalizeForwardedClientIPHeaders(t *testing.T) {
 	headers, err := NormalizeForwardedClientIPHeaders([]string{
 		" x-cdn-client-ip ",

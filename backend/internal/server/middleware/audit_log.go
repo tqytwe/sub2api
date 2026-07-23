@@ -132,6 +132,7 @@ var auditActionOverrides = map[string]string{
 	"POST /api/v1/auth/mobile/login":                                  service.AuditActionLogin,
 	"POST /api/v1/auth/login/2fa":                                     service.AuditActionLogin2FA,
 	"POST /api/v1/auth/register":                                      service.AuditActionRegister,
+	"POST /api/v1/auth/mobile/register":                               service.AuditActionRegister,
 	"POST /api/v1/auth/refresh":                                       service.AuditActionTokenRefresh,
 	"POST /api/v1/user/totp/step-up":                                  service.AuditActionStepUpVerify,
 	"PUT /api/v1/user/wallet/withdrawal-account":                      service.AuditActionWithdrawalAccountUpdate,

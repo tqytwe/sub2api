@@ -960,6 +960,32 @@ ops:
   enabled: true
 
 # =============================================================================
+# IP Risk Detection (Shadow Mode)
+# IP 风险检测（影子模式）
+# =============================================================================
+ip_risk:
+  # Collect evidence and create explainable cases. CP1 executes no actions.
+  # 采集证据并生成可解释案件；CP1 不执行任何处置动作。
+  enabled: true
+  # Optional dedicated HMAC secret. When empty, a domain-separated key is
+  # derived from jwt.secret. Generate with: openssl rand -hex 32
+  # 可选独立 HMAC 密钥；为空时从 jwt.secret 做域隔离派生。
+  hmac_key: ""
+  incremental_delay_seconds: 10
+  reconcile_interval_minutes: 5
+  daily_scan_interval_hours: 24
+  event_retention_days: 90
+  case_retention_days: 365
+  # Historical auth.register inference is disabled by default and never
+  # participates in automatic-action eligibility.
+  # 历史 auth.register 推断默认关闭，且永不参与自动处置资格。
+  historical_backfill_enabled: false
+  historical_backfill_max_days: 90
+  manual_scan_max_days: 90
+  retention_batch_size: 5000
+  evaluation_queue_capacity: 4096
+
+# =============================================================================
 # JWT Configuration
 # JWT 配置
 # =============================================================================

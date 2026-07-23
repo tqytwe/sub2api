@@ -435,6 +435,13 @@ func (h *AuthHandler) completeEmailOAuthRegistration(c *gin.Context, provider st
 		response.ErrorFrom(c, infraerrors.InternalServer("PENDING_AUTH_BIND_APPLY_FAILED", "failed to consume pending oauth session").WithCause(err))
 		return
 	}
+	h.authService.RecordCommittedOAuthRegistration(
+		c.Request.Context(),
+		user,
+		strings.TrimSpace(session.ProviderType),
+		strings.TrimSpace(req.InvitationCode),
+		affiliateCode,
+	)
 	h.authService.ApplyOAuthSignupPromoCode(c.Request.Context(), user.ID, pendingOAuthPromoCode(session))
 	h.authService.RecordSuccessfulLogin(c.Request.Context(), user.ID)
 	clearCookies()
