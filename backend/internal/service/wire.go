@@ -779,8 +779,12 @@ func ProvideIPRiskService(
 	db *sql.DB,
 	hasher *IPRiskHasher,
 	runtime IPRiskRuntimeConfig,
+	alertNotifier *IPRiskAlertEmailNotifier,
+	auditRecorder *AuditLogService,
 ) *IPRiskService {
 	svc := NewIPRiskService(repo, lockCache, db, hasher, runtime)
+	svc.SetAlertNotifier(alertNotifier)
+	svc.SetAuditRecorder(auditRecorder)
 	svc.Start()
 	return svc
 }
@@ -953,6 +957,7 @@ var ProviderSet = wire.NewSet(
 	ProvideOpsScheduledReportService,
 	NewEmailService,
 	NewNotificationEmailService,
+	NewIPRiskAlertEmailNotifier,
 	NewWithdrawalService,
 	NewFundManagementService,
 	ProvideEmailQueueService,
