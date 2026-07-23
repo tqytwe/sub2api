@@ -188,6 +188,28 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 	return h
 }
 
+func ProvideIPRiskHandler(
+	core *service.IPRiskService,
+	adminService service.AdminService,
+	apiKeys service.APIKeyRepository,
+	invalidator service.APIKeyAuthCacheInvalidator,
+	hasher *service.IPRiskHasher,
+	totpService *service.TotpService,
+	userService *service.UserService,
+	repo service.IPRiskRepository,
+) *admin.IPRiskHandler {
+	return admin.NewIPRiskManagementHandler(
+		core,
+		adminService,
+		apiKeys,
+		invalidator,
+		hasher,
+		totpService,
+		userService,
+		repo,
+	)
+}
+
 func ProvideOpsHandler(
 	opsService *service.OpsService,
 	health *service.ImageRuntimesHealthService,
@@ -326,7 +348,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewWithdrawalHandler,
 	admin.NewFundHandler,
 	admin.NewModelCatalogHandler,
-	admin.NewIPRiskHandler,
+	ProvideIPRiskHandler,
 	admin.NewAuditLogHandler,
 	admin.NewPromptLibraryHandler,
 

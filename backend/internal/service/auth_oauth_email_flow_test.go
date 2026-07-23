@@ -466,3 +466,62 @@ func TestFinalizeOAuthEmailAccount_SnapshotsPlatformQuotaDefaults(t *testing.T) 
 		AffiliateCode:  "pending-affiliate",
 	}}, recorder.registrations)
 }
+
+func TestOAuthEmailRegistrationIPRiskGateBlocksBothCreationPaths(t *testing.T) {
+	t.Parallel()
+
+	for _, testCase := range []struct {
+		name string
+		run  func(*AuthService) error
+	}{
+		{
+			name: "locally verified oauth email",
+			run: func(service *AuthService) error {
+				_, _, err := service.RegisterOAuthEmailAccount(
+					context.Background(),
+					"blocked-local@example.test",
+					"password",
+					"123456",
+					"",
+					"oidc",
+				)
+				return err
+			},
+		},
+		{
+			name: "provider verified oauth email",
+			run: func(service *AuthService) error {
+				_, _, err := service.RegisterVerifiedOAuthEmailAccount(
+					context.Background(),
+					"blocked-provider@example.test",
+					"password",
+					"",
+					"github",
+				)
+				return err
+			},
+		},
+	} {
+		testCase := testCase
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			userRepo := &userRepoStub{nextID: 100}
+			recorder := &authIPRiskRecorderStub{gateErr: ErrIPRiskRegistrationBlocked}
+			service := newOAuthEmailFlowAuthService(
+				userRepo,
+				nil,
+				&refreshTokenCacheStub{},
+				map[string]string{SettingKeyRegistrationEnabled: "true"},
+				&emailCacheStub{},
+				nil,
+			)
+			service.SetIPRiskRecorder(recorder)
+
+			err := testCase.run(service)
+			require.ErrorContains(t, err, "registration temporarily blocked")
+			require.Empty(t, userRepo.created)
+			require.Equal(t, 1, recorder.gateCalls)
+		})
+	}
+}
