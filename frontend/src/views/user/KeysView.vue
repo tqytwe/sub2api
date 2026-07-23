@@ -1006,6 +1006,7 @@
     <UseKeyModal
       :show="showUseKeyModal"
       :api-key="selectedKey?.key || ''"
+      :api-key-name="selectedKey?.name || ''"
       :base-url="publicSettings?.api_base_url || ''"
       :api-key-status="selectedKey?.status || null"
       :platform="selectedKey?.group?.platform || null"

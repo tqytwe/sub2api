@@ -2,9 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
-const { copyToClipboardMock, i18nLocaleMock } = vi.hoisted(() => ({
+const { copyToClipboardMock, i18nLocaleMock, routerPushMock } = vi.hoisted(() => ({
   copyToClipboardMock: vi.fn().mockResolvedValue(true),
-  i18nLocaleMock: { value: 'zh' }
+  i18nLocaleMock: { value: 'zh' },
+  routerPushMock: vi.fn()
 }))
 
 vi.mock('vue-i18n', () => ({
@@ -20,11 +21,20 @@ vi.mock('@/composables/useClipboard', () => ({
   })
 }))
 
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push: routerPushMock
+  })
+}))
+
+import { consumeInternalSpeedTestPayload } from '@/utils/internalSpeedTest'
 import UseKeyModal from '../UseKeyModal.vue'
 
 describe('UseKeyModal', () => {
   beforeEach(() => {
     i18nLocaleMock.value = 'zh'
+    routerPushMock.mockReset()
+    sessionStorage.clear()
   })
 
   it('renders Grok Build and OpenCode setup for Grok groups', async () => {
@@ -568,88 +578,43 @@ describe('UseKeyModal', () => {
     expect(fable.options.thinking).not.toHaveProperty('budgetTokens')
   })
 
-  it('opens LMSpeed from the use-key modal without rendering the API key in an href', async () => {
+  it('opens the internal speed test without rendering the API key in href or third-party URL', async () => {
     const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-
-    try {
-      const wrapper = mount(UseKeyModal, {
-        props: {
-          show: true,
-          apiKey: 'sk-test/key with spaces',
-          baseUrl: 'https://api.example.com',
-          platform: 'openai'
-        },
-        global: {
-          stubs: {
-            BaseDialog: {
-              template: '<div><slot /><slot name="footer" /></div>'
-            },
-            Icon: {
-              template: '<span />'
-            }
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-test/key with spaces',
+        baseUrl: 'https://api.example.com',
+        platform: 'openai'
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            template: '<div><slot /><slot name="footer" /></div>'
+          },
+          Icon: {
+            template: '<span />'
           }
         }
-      })
+      }
+    })
 
-      expect(wrapper.text()).toContain('keys.useKeyModal.lmspeed.title')
-      expect(wrapper.find('a[href*="lmspeed.net"]').exists()).toBe(false)
-
-      await wrapper.get('[data-testid="lmspeed-speed-test"]').trigger('click')
-
-      expect(openSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^https:\/\/lmspeed\.net\/zh\?/),
-        '_blank',
-        'noopener,noreferrer'
-      )
-      const openedUrl = openSpy.mock.calls[0][0]
-      expect(typeof openedUrl).toBe('string')
-
-      const parsed = new URL(openedUrl as string)
-      expect(parsed.searchParams.get('baseUrl')).toBe('https://api.example.com/v1')
-      expect(parsed.searchParams.get('apiKey')).toBe('sk-test/key with spaces')
-    } finally {
-      openSpy.mockRestore()
+    expect(wrapper.text()).toContain('keys.useKeyModal.lmspeed.title')
+    expect(wrapper.find('a[href*="lmspeed.net"]').exists()).toBe(false)
+    for (const link of wrapper.findAll('a')) {
+      expect(link.attributes('href') || '').not.toContain('sk-test/key with spaces')
     }
-  })
 
-  it('opens the English LMSpeed site when the app locale is English', async () => {
-    i18nLocaleMock.value = 'en'
-    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    await wrapper.get('[data-testid="lmspeed-speed-test"]').trigger('click')
 
-    try {
-      const wrapper = mount(UseKeyModal, {
-        props: {
-          show: true,
-          apiKey: 'sk-test-en',
-          baseUrl: 'https://api.example.com',
-          platform: 'openai'
-        },
-        global: {
-          stubs: {
-            BaseDialog: {
-              template: '<div><slot /><slot name="footer" /></div>'
-            },
-            Icon: {
-              template: '<span />'
-            }
-          }
-        }
-      })
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(routerPushMock).toHaveBeenCalledWith({ name: 'KeySpeedTest' })
+    expect(consumeInternalSpeedTestPayload()).toMatchObject({
+      apiKey: 'sk-test/key with spaces',
+      baseUrl: 'https://api.example.com',
+    })
 
-      await wrapper.get('[data-testid="lmspeed-speed-test"]').trigger('click')
-
-      expect(openSpy).toHaveBeenCalledWith(
-        expect.stringMatching(/^https:\/\/lmspeed\.net\/\?/),
-        '_blank',
-        'noopener,noreferrer'
-      )
-      const openedUrl = openSpy.mock.calls[0][0]
-      const parsed = new URL(openedUrl as string)
-      expect(parsed.pathname).toBe('/')
-      expect(parsed.searchParams.get('apiKey')).toBe('sk-test-en')
-    } finally {
-      openSpy.mockRestore()
-    }
+    openSpy.mockRestore()
   })
 
   it('does not show the LMSpeed action for inactive keys', () => {

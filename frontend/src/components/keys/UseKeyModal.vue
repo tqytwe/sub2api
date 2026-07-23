@@ -51,7 +51,7 @@
             class="btn btn-primary flex-shrink-0 justify-center"
             @click="openLmspeedSpeedTest"
           >
-            <Icon name="externalLink" size="sm" class="mr-1.5" />
+            <Icon name="play" size="sm" class="mr-1.5" />
             {{ t('keys.useKeyModal.lmspeed.open') }}
           </button>
         </div>
@@ -226,15 +226,17 @@
 <script setup lang="ts">
 import { ref, computed, h, watch, type Component } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useClipboard } from '@/composables/useClipboard'
-import { buildLmspeedSpeedTestUrl, resolveLmspeedLocale } from '@/utils/lmspeed'
+import { saveInternalSpeedTestPayload } from '@/utils/internalSpeedTest'
 import type { GroupPlatform } from '@/types'
 
 interface Props {
   show: boolean
   apiKey: string
+  apiKeyName?: string
   baseUrl: string
   apiKeyStatus?: 'active' | 'inactive' | 'quota_exhausted' | 'expired' | null
   platform: GroupPlatform | null
@@ -261,7 +263,8 @@ interface FileConfig {
 const props = defineProps<Props>()
 const emit = defineEmits<Emits>()
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
+const router = useRouter()
 const { copyToClipboard: clipboardCopy } = useClipboard()
 
 const copiedIndex = ref<number | null>(null)
@@ -493,7 +496,6 @@ const platformNote = computed(() => {
 const showPlatformNote = computed(() => activeClientTab.value !== 'opencode')
 
 const resolvedBaseUrl = computed(() => props.baseUrl || window.location.origin)
-const lmspeedLocale = computed(() => resolveLmspeedLocale(String(locale.value || '')))
 const canOpenLmspeedSpeedTest = computed(() =>
   Boolean(
     props.apiKey.trim() &&
@@ -504,12 +506,13 @@ const canOpenLmspeedSpeedTest = computed(() =>
 
 function openLmspeedSpeedTest() {
   if (!canOpenLmspeedSpeedTest.value) return
-  const url = buildLmspeedSpeedTestUrl({
+  saveInternalSpeedTestPayload({
     baseUrl: resolvedBaseUrl.value,
     apiKey: props.apiKey,
-    locale: lmspeedLocale.value,
+    keyName: props.apiKeyName,
   })
-  window.open(url, '_blank', 'noopener,noreferrer')
+  emit('close')
+  router.push({ name: 'KeySpeedTest' })
 }
 
 const escapeHtml = (value: string) => value
