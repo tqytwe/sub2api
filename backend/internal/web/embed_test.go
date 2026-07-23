@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
@@ -159,6 +160,7 @@ func TestInjectRouteSEO(t *testing.T) {
 <meta property="og:url" content="https://www.jisudeng.com/" />
 <meta name="twitter:title" content="old twitter title" />
 <meta name="twitter:description" content="old twitter description" />
+<script type="application/ld+json" data-jisudeng-route-seo="true">{"name":"old"}</script>
 <link rel="alternate" hreflang="old" href="https://old.example/" />
 <title>Old title</title>
 </head><body></body></html>`)
@@ -167,10 +169,27 @@ func TestInjectRouteSEO(t *testing.T) {
 		result := string(injectRouteSEO(baseHTML, "/en/models/"))
 
 		assert.Contains(t, result, `<html lang="en">`)
-		assert.Contains(t, result, `<title>AI Models API: DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini | Jisudeng</title>`)
-		assert.Contains(t, result, `<meta name="description" content="Compare model access and usage-based API rates for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng." />`)
+		assert.Contains(t, result, `<title>DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng</title>`)
+		assert.Contains(t, result, `<meta name="description" content="Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng." />`)
+		assert.Contains(t, result, `<meta name="keywords" content="AI model API pricing, DeepSeek API pricing, Qwen API pricing, Kimi API pricing, GLM API pricing, Claude API, Gemini API, OpenAI-compatible models, usage-based billing" />`)
+		assert.Contains(t, result, `<meta name="author" content="Jisudeng" />`)
+		assert.Contains(t, result, `<meta name="format-detection" content="telephone=no,email=no,address=no" />`)
 		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<meta property="og:type" content="website" />`)
+		assert.Contains(t, result, `<meta property="og:site_name" content="Jisudeng" />`)
 		assert.Contains(t, result, `<meta property="og:locale" content="en_US" />`)
+		assert.Contains(t, result, `<meta property="og:image" content="https://www.jisudeng.com/logo.png" />`)
+		assert.Contains(t, result, `<meta name="twitter:card" content="summary" />`)
+		assert.Contains(t, result, `<meta name="twitter:site" content="@jisudeng" />`)
+		assert.Contains(t, result, `<meta name="twitter:creator" content="@jisudeng" />`)
+		assert.Contains(t, result, `<meta name="twitter:title" content="DeepSeek, Qwen, Kimi, GLM, GPT, Claude API Pricing | Jisudeng" />`)
+		assert.Contains(t, result, `<meta name="twitter:image" content="https://www.jisudeng.com/logo.png" />`)
+		assert.Contains(t, result, `<script type="application/ld+json" data-jisudeng-route-seo="true">`)
+		assert.Contains(t, result, `"@context":"https://schema.org"`)
+		assert.Contains(t, result, `"@type":"CollectionPage"`)
+		assert.Contains(t, result, `"headline":"DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng"`)
+		assert.Contains(t, result, `"inLanguage":"en"`)
+		assert.NotContains(t, result, `{"name":"old"}`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models" />`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/en/models" />`)
@@ -195,9 +214,19 @@ func TestInjectRouteSEO(t *testing.T) {
 		result := string(injectRouteSEO(baseHTML, "/models"))
 
 		assert.Contains(t, result, `<html lang="zh-CN">`)
-		assert.Contains(t, result, `<title>极速蹬模型与价格 - AI API Gateway</title>`)
+		assert.Contains(t, result, `<title>极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南</title>`)
+		assert.Contains(t, result, `<meta name="keywords" content="极速蹬模型价格, AI 模型目录, API 计费`)
+		assert.Contains(t, result, `<meta property="og:site_name" content="极速蹬" />`)
 		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/models" />`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
+	})
+
+	t.Run("uses_brand_name_for_website_entity", func(t *testing.T) {
+		result := string(injectRouteSEO(baseHTML, "/"))
+
+		assert.Contains(t, result, `"@type":"WebSite"`)
+		assert.Contains(t, result, `"name":"极速蹬"`)
+		assert.Contains(t, result, `"headline":"极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台"`)
 	})
 
 	t.Run("returns_unchanged_for_non_public_routes", func(t *testing.T) {
@@ -205,6 +234,32 @@ func TestInjectRouteSEO(t *testing.T) {
 
 		assert.Equal(t, string(baseHTML), string(result))
 	})
+}
+
+func TestPublicRouteSEOMetadataLengthBudgets(t *testing.T) {
+	for _, path := range []string{"/", "/home", "/models", "/docs", "/download/android", "/en", "/en/models", "/en/docs"} {
+		seo, ok := resolveRouteSEO(path)
+		require.True(t, ok, path)
+
+		twitterTitle := seo.TwitterTitle
+		if strings.TrimSpace(twitterTitle) == "" {
+			twitterTitle = seo.Title
+		}
+		twitterDescription := seo.TwitterDescription
+		if strings.TrimSpace(twitterDescription) == "" {
+			twitterDescription = seo.Description
+		}
+
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(seo.Title), 30, path+" title")
+		assert.LessOrEqual(t, utf8.RuneCountInString(seo.Title), 60, path+" title")
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(seo.Description), 120, path+" description")
+		assert.LessOrEqual(t, utf8.RuneCountInString(seo.Description), 160, path+" description")
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(twitterTitle), 50, path+" twitter:title")
+		assert.LessOrEqual(t, utf8.RuneCountInString(twitterTitle), 70, path+" twitter:title")
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(twitterDescription), 150, path+" twitter:description")
+		assert.LessOrEqual(t, utf8.RuneCountInString(twitterDescription), 200, path+" twitter:description")
+		assert.NotEmpty(t, strings.TrimSpace(seo.Keywords), path+" keywords")
+	}
 }
 
 func TestReplaceNoncePlaceholder(t *testing.T) {

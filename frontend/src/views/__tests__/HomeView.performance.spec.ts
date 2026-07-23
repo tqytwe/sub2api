@@ -29,6 +29,7 @@ const {
   },
   routeState: {
     fullPath: '/',
+    path: '/',
   },
   sanitizeHomeContentMock: vi.fn(),
   recoverFromChunkLoadErrorMock: vi.fn(),
@@ -56,10 +57,15 @@ vi.mock('vue-router', () => ({
 
 vi.mock('vue-i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('vue-i18n')>()
+  const copy: Record<string, string> = {
+    'home.jisudeng.hero.titleParts.brand': 'Jisudeng',
+    'home.jisudeng.hero.titleParts.mid': 'One API',
+    'home.jisudeng.hero.titleParts.tail': 'for AI models',
+  }
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string) => copy[key] ?? key,
       tm: () => [],
       te: () => true,
       locale: { value: 'zh' },
@@ -144,6 +150,7 @@ describe('HomeView startup chunk behavior', () => {
     authState.isAuthenticated = false
     authState.isAdmin = false
     routeState.fullPath = '/'
+    routeState.path = '/'
     sanitizeHomeContentMock.mockResolvedValue('')
     recoverFromChunkLoadErrorMock.mockReturnValue(false)
     fetchPublicSettingsMock.mockResolvedValue(null)
@@ -189,5 +196,30 @@ describe('HomeView startup chunk behavior', () => {
 
     expect(sanitizeHomeContentMock).not.toHaveBeenCalled()
     expect(wrapper.find('iframe').attributes('src')).toBe('https://example.com/home')
+  })
+
+  it('uses the Chinese title structure on /home', async () => {
+    routeState.fullPath = '/home'
+    routeState.path = '/home'
+
+    const wrapper = mountHomeView()
+    await flushPromises()
+
+    expect(wrapper.find('.hero-zh').exists()).toBe(true)
+    expect(wrapper.find('.hero-en-title').exists()).toBe(false)
+  })
+
+  it('uses a spaced English title structure only on /en routes', async () => {
+    routeState.fullPath = '/en'
+    routeState.path = '/en'
+
+    const wrapper = mountHomeView()
+    await flushPromises()
+
+    const title = wrapper.find('.hero-en-title')
+    expect(title.exists()).toBe(true)
+    expect(title.text()).toContain('Jisudeng')
+    expect(title.text()).toContain('One API for AI models')
+    expect(title.text()).not.toContain('JisudengOne')
   })
 })

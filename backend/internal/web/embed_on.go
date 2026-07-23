@@ -319,23 +319,44 @@ type routeSEOAlternate struct {
 }
 
 type routeSEO struct {
-	Title         string
-	Description   string
-	CanonicalPath string
-	Lang          string
-	OGLocale      string
-	Alternates    []routeSEOAlternate
+	Title              string
+	Description        string
+	TwitterTitle       string
+	TwitterDescription string
+	Keywords           string
+	CanonicalPath      string
+	Lang               string
+	OGLocale           string
+	OGType             string
+	SiteName           string
+	StructuredType     string
+	Alternates         []routeSEOAlternate
 }
 
 const routeSEOOrigin = "https://www.jisudeng.com"
 
+const (
+	routeSEOAuthor          = "Jisudeng"
+	routeSEOImage           = "https://www.jisudeng.com/logo.png"
+	routeSEOImageAlt        = "Jisudeng logo"
+	routeSEOFormatDetection = "telephone=no,email=no,address=no"
+	routeSEOTwitterCard     = "summary"
+	routeSEOTwitterHandle   = "@jisudeng"
+)
+
 var publicRouteSEO = map[string]routeSEO{
 	"/": {
-		Title:         "极速蹬 - AI API Gateway 与中文提示词库",
-		Description:   "极速蹬是面向开发者、团队和 AI 工具用户的 AI API Gateway，提供模型接口、中文提示词库、图像工作室和统一计费服务。",
-		CanonicalPath: "/",
-		Lang:          "zh-CN",
-		OGLocale:      "zh_CN",
+		Title:              "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+		Description:        "极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关，统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，支持公开价格、文档、图像生成、API Key 管理与按量计费。",
+		TwitterTitle:       "极速蹬 OpenAI兼容 API 网关 - DeepSeek、Qwen、Kimi、GLM 多模型统一接入",
+		TwitterDescription: "极速蹬统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，提供 OpenAI 兼容 API、公开模型价格、图像生成、API Key 管理、文档和按量计费服务，适合把现有 OpenAI SDK、AI 工具、自动化脚本和业务应用迁移到统一入口，并持续比较模型能力、调用权限与成本。",
+		Keywords:           "极速蹬, AI API Gateway, OpenAI 兼容 API, AI 模型接口, DeepSeek API, Qwen API, Kimi API, GLM API, Claude API, Gemini API, 图像生成 API, API Key, 模型价格",
+		CanonicalPath:      "/",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "website",
+		SiteName:           "极速蹬",
+		StructuredType:     "WebSite",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "zh-CN", Path: "/"},
 			{Hreflang: "en", Path: "/en/"},
@@ -343,11 +364,17 @@ var publicRouteSEO = map[string]routeSEO{
 		},
 	},
 	"/home": {
-		Title:         "极速蹬 - AI API Gateway 与中文提示词库",
-		Description:   "极速蹬是面向开发者、团队和 AI 工具用户的 AI API Gateway，提供模型接口、中文提示词库、图像工作室和统一计费服务。",
-		CanonicalPath: "/",
-		Lang:          "zh-CN",
-		OGLocale:      "zh_CN",
+		Title:              "极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台",
+		Description:        "极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关，统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，支持公开价格、文档、图像生成、API Key 管理与按量计费。",
+		TwitterTitle:       "极速蹬 OpenAI兼容 API 网关 - DeepSeek、Qwen、Kimi、GLM 多模型统一接入",
+		TwitterDescription: "极速蹬统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，提供 OpenAI 兼容 API、公开模型价格、图像生成、API Key 管理、文档和按量计费服务，适合把现有 OpenAI SDK、AI 工具、自动化脚本和业务应用迁移到统一入口，并持续比较模型能力、调用权限与成本。",
+		Keywords:           "极速蹬, AI API Gateway, OpenAI 兼容 API, AI 模型接口, DeepSeek API, Qwen API, Kimi API, GLM API, Claude API, Gemini API, 图像生成 API, API Key, 模型价格",
+		CanonicalPath:      "/",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "website",
+		SiteName:           "极速蹬",
+		StructuredType:     "WebSite",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "zh-CN", Path: "/"},
 			{Hreflang: "en", Path: "/en/"},
@@ -355,11 +382,17 @@ var publicRouteSEO = map[string]routeSEO{
 		},
 	},
 	"/models": {
-		Title:         "极速蹬模型与价格 - AI API Gateway",
-		Description:   "查看极速蹬公开模型目录、模型平台、用途分类与 USD / 1M tokens 计费参考，登录后可查看分组有效价格。",
-		CanonicalPath: "/models",
-		Lang:          "zh-CN",
-		OGLocale:      "zh_CN",
+		Title:              "极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南",
+		Description:        "查看极速蹬公开模型目录、模型平台、用途分类与 USD / 1M tokens 计费参考，覆盖 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，登录后可查看分组有效价格与调用权限，帮助开发者快速评估成本。",
+		TwitterTitle:       "极速蹬模型价格与 API 目录 - DeepSeek、Qwen、Kimi、GLM、Claude 多模型公开计费",
+		TwitterDescription: "查看极速蹬公开模型目录、模型平台、用途分类、USD / 1M tokens 计费参考和分组有效价格，覆盖 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等多模型 API 调用，帮助开发者快速评估成本、调用权限、模型能力与接入路径，并在登录后核对账号实际可用价格表。",
+		Keywords:           "极速蹬模型价格, AI 模型目录, API 计费, DeepSeek API 价格, Qwen API 价格, Kimi API 价格, GLM API 价格, Claude API, Gemini API, OpenAI 兼容接口",
+		CanonicalPath:      "/models",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "website",
+		SiteName:           "极速蹬",
+		StructuredType:     "CollectionPage",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "zh-CN", Path: "/models"},
 			{Hreflang: "en", Path: "/en/models"},
@@ -367,23 +400,51 @@ var publicRouteSEO = map[string]routeSEO{
 		},
 	},
 	"/docs": {
-		Title:         "极速蹬使用文档 - API 接入指南",
-		Description:   "阅读极速蹬 API Key、OpenAI 兼容接口、图片生成、异步任务、Batch Image 与计费说明。",
-		CanonicalPath: "/docs",
-		Lang:          "zh-CN",
-		OGLocale:      "zh_CN",
+		Title:              "极速蹬 API 文档 - OpenAI兼容接口、模型调用与计费指南",
+		Description:        "阅读极速蹬 API Key、OpenAI 兼容接口、模型选择、图片生成、异步任务、Batch Image、工具接入和计费说明，快速完成从注册到生产调用的配置。文档覆盖常见 SDK、命令行工具、环境安装与排障，适合开发者、团队和 AI 工具用户查阅。",
+		TwitterTitle:       "极速蹬 API 文档 - OpenAI兼容接口、模型调用、图像生成、Batch Image 与计费指南",
+		TwitterDescription: "阅读极速蹬 API 文档，完成 API Key、OpenAI 兼容接口、模型调用、图片生成、异步任务、Batch Image、工具接入、计费说明、SDK 配置和生产排障，帮助团队从注册、创建 Key、切换 base URL 到上线调用都能快速查到步骤、示例、权限说明、排障路径、上线检查和常见问题答案。",
+		Keywords:           "极速蹬文档, API 接入指南, OpenAI 兼容 SDK, API Key 设置, 图片生成 API, Batch Image, 异步图片任务, Claude Code, Codex CLI, Gemini CLI",
+		CanonicalPath:      "/docs",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "article",
+		SiteName:           "极速蹬",
+		StructuredType:     "CollectionPage",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "zh-CN", Path: "/docs"},
 			{Hreflang: "en", Path: "/en/docs"},
 			{Hreflang: "x-default", Path: "/en/docs"},
 		},
 	},
+	"/download/android": {
+		Title:              "JisudengChat Android 下载 - 极速蹬 AI 客户端与移动模型调用入口",
+		Description:        "下载 JisudengChat Android APK，使用极速蹬账号登录并同步余额、分组、API Key 和可用模型，在手机上查看账户状态、接入文档、模型调用入口和更新信息。页面提供版本号、安装包校验、下载说明与故障提示，适合已注册用户快速安装并开始移动端使用。",
+		TwitterTitle:       "JisudengChat Android 下载 - 极速蹬 AI 客户端、API Key 与模型调用入口",
+		TwitterDescription: "下载 JisudengChat Android APK，使用极速蹬账号登录并同步余额、分组、API Key、可用模型、接入文档、账户状态和更新信息。页面提供版本号、安装包校验、下载说明、更新提示和移动端入口，帮助已注册用户在手机上快速进入 AI 模型调用、账户查看、文档查询、移动测试与日常使用工作流。",
+		Keywords:           "JisudengChat Android, 极速蹬 APP, Android APK 下载, AI 客户端, API Key, 模型调用, 移动端 AI 工具",
+		CanonicalPath:      "/download/android",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "website",
+		SiteName:           "极速蹬",
+		StructuredType:     "CollectionPage",
+		Alternates: []routeSEOAlternate{
+			{Hreflang: "zh-CN", Path: "/download/android"},
+			{Hreflang: "x-default", Path: "/download/android"},
+		},
+	},
 	"/en": {
-		Title:         "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
-		Description:   "Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API.",
-		CanonicalPath: "/en/",
-		Lang:          "en",
-		OGLocale:      "en_US",
+		Title:              "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
+		Description:        "Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API with unified keys, public pricing, image APIs, billing, docs.",
+		TwitterDescription: "Jisudeng unifies DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more behind one OpenAI-compatible API, with public pricing, API docs, image generation, usage controls, and billing.",
+		Keywords:           "Jisudeng, OpenAI-compatible API, AI API gateway, DeepSeek API, Qwen API, Kimi API, GLM API, Claude API, Gemini API, model pricing, image generation API, API key",
+		CanonicalPath:      "/en/",
+		Lang:               "en",
+		OGLocale:           "en_US",
+		OGType:             "website",
+		SiteName:           "Jisudeng",
+		StructuredType:     "WebSite",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "en", Path: "/en/"},
 			{Hreflang: "zh-CN", Path: "/"},
@@ -391,11 +452,17 @@ var publicRouteSEO = map[string]routeSEO{
 		},
 	},
 	"/en/models": {
-		Title:         "AI Models API: DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini | Jisudeng",
-		Description:   "Compare model access and usage-based API rates for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng.",
-		CanonicalPath: "/en/models",
-		Lang:          "en",
-		OGLocale:      "en_US",
+		Title:              "DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng",
+		Description:        "Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng.",
+		TwitterTitle:       "DeepSeek, Qwen, Kimi, GLM, GPT, Claude API Pricing | Jisudeng",
+		TwitterDescription: "Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng, with docs and API key setup guidance.",
+		Keywords:           "AI model API pricing, DeepSeek API pricing, Qwen API pricing, Kimi API pricing, GLM API pricing, Claude API, Gemini API, OpenAI-compatible models, usage-based billing",
+		CanonicalPath:      "/en/models",
+		Lang:               "en",
+		OGLocale:           "en_US",
+		OGType:             "website",
+		SiteName:           "Jisudeng",
+		StructuredType:     "CollectionPage",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "en", Path: "/en/models"},
 			{Hreflang: "zh-CN", Path: "/models"},
@@ -403,11 +470,16 @@ var publicRouteSEO = map[string]routeSEO{
 		},
 	},
 	"/en/docs": {
-		Title:         "Jisudeng API Docs - OpenAI-Compatible Gateway Quickstart",
-		Description:   "Use Jisudeng with your existing OpenAI SDK. Change only your base URL and API key to access multiple frontier AI models.",
-		CanonicalPath: "/en/docs",
-		Lang:          "en",
-		OGLocale:      "en_US",
+		Title:              "Jisudeng API Docs: OpenAI-Compatible Gateway, Models, Images",
+		Description:        "Use Jisudeng with your existing OpenAI SDK. Change only the base URL and API key to access AI models, image APIs, tool setup guides, billing notes, and docs.",
+		TwitterDescription: "Use Jisudeng with your existing OpenAI SDK. Change only the base URL and API key to access AI models, image APIs, tool setup guides, billing notes, and production docs.",
+		Keywords:           "Jisudeng API docs, OpenAI-compatible SDK, API key setup, AI model API docs, image generation API, Batch Image API, Claude Code setup, Codex CLI setup, Gemini CLI setup",
+		CanonicalPath:      "/en/docs",
+		Lang:               "en",
+		OGLocale:           "en_US",
+		OGType:             "article",
+		SiteName:           "Jisudeng",
+		StructuredType:     "CollectionPage",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "en", Path: "/en/docs"},
 			{Hreflang: "zh-CN", Path: "/docs"},
@@ -452,12 +524,43 @@ func injectRouteSEO(html []byte, path string) []byte {
 	if !ok {
 		return html
 	}
+	twitterTitle := seo.TwitterTitle
+	if strings.TrimSpace(twitterTitle) == "" {
+		twitterTitle = seo.Title
+	}
+	twitterDescription := seo.TwitterDescription
+	if strings.TrimSpace(twitterDescription) == "" {
+		twitterDescription = seo.Description
+	}
+	ogType := seo.OGType
+	if strings.TrimSpace(ogType) == "" {
+		ogType = "website"
+	}
+	siteName := seo.SiteName
+	if strings.TrimSpace(siteName) == "" {
+		siteName = routeSEOAuthor
+	}
 
 	result := setHTMLLang(html, seo.Lang)
 	result = replaceTitleTag(result, seo.Title)
 	result = upsertHeadTag(result, "meta", func(tag string) bool {
 		return tagHasAttr(tag, "name", "description")
 	}, `<meta name="description" content="`+htmlpkg.EscapeString(seo.Description)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "keywords")
+	}, `<meta name="keywords" content="`+htmlpkg.EscapeString(seo.Keywords)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "author")
+	}, `<meta name="author" content="`+htmlpkg.EscapeString(routeSEOAuthor)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "format-detection")
+	}, `<meta name="format-detection" content="`+htmlpkg.EscapeString(routeSEOFormatDetection)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "property", "og:type")
+	}, `<meta property="og:type" content="`+htmlpkg.EscapeString(ogType)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "property", "og:site_name")
+	}, `<meta property="og:site_name" content="`+htmlpkg.EscapeString(siteName)+`" />`)
 	result = upsertHeadTag(result, "meta", func(tag string) bool {
 		return tagHasAttr(tag, "property", "og:title")
 	}, `<meta property="og:title" content="`+htmlpkg.EscapeString(seo.Title)+`" />`)
@@ -471,11 +574,32 @@ func injectRouteSEO(html []byte, path string) []byte {
 		return tagHasAttr(tag, "property", "og:locale")
 	}, `<meta property="og:locale" content="`+htmlpkg.EscapeString(seo.OGLocale)+`" />`)
 	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "property", "og:image")
+	}, `<meta property="og:image" content="`+htmlpkg.EscapeString(routeSEOImage)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "property", "og:image:alt")
+	}, `<meta property="og:image:alt" content="`+htmlpkg.EscapeString(routeSEOImageAlt)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "twitter:card")
+	}, `<meta name="twitter:card" content="`+htmlpkg.EscapeString(routeSEOTwitterCard)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "twitter:site")
+	}, `<meta name="twitter:site" content="`+htmlpkg.EscapeString(routeSEOTwitterHandle)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "twitter:creator")
+	}, `<meta name="twitter:creator" content="`+htmlpkg.EscapeString(routeSEOTwitterHandle)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
 		return tagHasAttr(tag, "name", "twitter:title")
-	}, `<meta name="twitter:title" content="`+htmlpkg.EscapeString(seo.Title)+`" />`)
+	}, `<meta name="twitter:title" content="`+htmlpkg.EscapeString(twitterTitle)+`" />`)
 	result = upsertHeadTag(result, "meta", func(tag string) bool {
 		return tagHasAttr(tag, "name", "twitter:description")
-	}, `<meta name="twitter:description" content="`+htmlpkg.EscapeString(seo.Description)+`" />`)
+	}, `<meta name="twitter:description" content="`+htmlpkg.EscapeString(twitterDescription)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "twitter:image")
+	}, `<meta name="twitter:image" content="`+htmlpkg.EscapeString(routeSEOImage)+`" />`)
+	result = upsertHeadTag(result, "meta", func(tag string) bool {
+		return tagHasAttr(tag, "name", "twitter:image:alt")
+	}, `<meta name="twitter:image:alt" content="`+htmlpkg.EscapeString(routeSEOImageAlt)+`" />`)
 	result = upsertHeadTag(result, "link", func(tag string) bool {
 		return tagHasAttr(tag, "rel", "canonical")
 	}, `<link rel="canonical" href="`+htmlpkg.EscapeString(absoluteRouteSEOURL(seo.CanonicalPath))+`" />`)
@@ -490,7 +614,72 @@ func injectRouteSEO(html []byte, path string) []byte {
 			htmlpkg.EscapeString(absoluteRouteSEOURL(alternate.Path)),
 		)))
 	}
+	result = upsertRouteSEOStructuredData(result, seo)
 	return result
+}
+
+func upsertRouteSEOStructuredData(html []byte, seo routeSEO) []byte {
+	result := removeRouteSEOStructuredData(html)
+	return injectBeforeHeadClose(result, []byte(`<script type="application/ld+json" data-jisudeng-route-seo="true">`+buildRouteSEOJSONLD(seo)+`</script>`))
+}
+
+func buildRouteSEOJSONLD(seo routeSEO) string {
+	structuredType := seo.StructuredType
+	if strings.TrimSpace(structuredType) == "" {
+		structuredType = "WebPage"
+	}
+	siteName := seo.SiteName
+	if strings.TrimSpace(siteName) == "" {
+		siteName = routeSEOAuthor
+	}
+	canonical := absoluteRouteSEOURL(seo.CanonicalPath)
+	structuredName := seo.Title
+	if structuredType == "WebSite" {
+		structuredName = siteName
+	}
+	graph := map[string]any{
+		"@context":    "https://schema.org",
+		"@type":       structuredType,
+		"name":        structuredName,
+		"headline":    seo.Title,
+		"description": seo.Description,
+		"url":         canonical,
+		"inLanguage":  seo.Lang,
+		"isPartOf": map[string]any{
+			"@type": "WebSite",
+			"name":  "Jisudeng",
+			"url":   routeSEOOrigin + "/",
+		},
+		"publisher": map[string]any{
+			"@type": "Organization",
+			"name":  siteName,
+			"url":   routeSEOOrigin + "/",
+			"logo": map[string]any{
+				"@type": "ImageObject",
+				"url":   routeSEOImage,
+			},
+		},
+	}
+	if structuredType == "WebSite" {
+		if seo.Lang == "zh-CN" {
+			graph["alternateName"] = []string{"极速蹬", "Jisudeng"}
+		} else {
+			graph["alternateName"] = []string{"Jisudeng"}
+		}
+		graph["mainEntity"] = map[string]any{
+			"@type":               "SoftwareApplication",
+			"name":                "Jisudeng",
+			"applicationCategory": "DeveloperApplication",
+			"operatingSystem":     "Web",
+			"description":         seo.Description,
+			"url":                 canonical,
+		}
+	}
+	payload, err := json.Marshal(graph)
+	if err != nil {
+		return "{}"
+	}
+	return string(payload)
 }
 
 func absoluteRouteSEOURL(path string) string {
@@ -580,6 +769,43 @@ func removeMatchingTags(html []byte, tagName string, match func(string) bool) []
 			buf.Write(html[cursor:end])
 		}
 		cursor = end
+	}
+	return buf.Bytes()
+}
+
+func removeRouteSEOStructuredData(html []byte) []byte {
+	token := []byte("<script")
+	closeToken := []byte("</script>")
+	var buf bytes.Buffer
+	cursor := 0
+	for cursor < len(html) {
+		idxOffset := bytes.Index(bytes.ToLower(html[cursor:]), token)
+		if idxOffset == -1 {
+			buf.Write(html[cursor:])
+			break
+		}
+		idx := cursor + idxOffset
+		openEndOffset := bytes.IndexByte(html[idx:], '>')
+		if openEndOffset == -1 {
+			buf.Write(html[cursor:])
+			break
+		}
+		openEnd := idx + openEndOffset + 1
+		tag := strings.ToLower(string(html[idx:openEnd]))
+		closeOffset := bytes.Index(bytes.ToLower(html[openEnd:]), closeToken)
+		if closeOffset == -1 {
+			buf.Write(html[cursor:openEnd])
+			cursor = openEnd
+			continue
+		}
+		blockEnd := openEnd + closeOffset + len(closeToken)
+		if tagHasAttr(tag, "type", "application/ld+json") && tagHasAttr(tag, "data-jisudeng-route-seo", "true") {
+			buf.Write(html[cursor:idx])
+			cursor = blockEnd
+			continue
+		}
+		buf.Write(html[cursor:blockEnd])
+		cursor = blockEnd
 	}
 	return buf.Bytes()
 }

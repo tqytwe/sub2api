@@ -44,8 +44,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import Icon from '@/components/icons/Icon.vue'
 import { setLocale, availableLocales } from '@/i18n'
+import { resolvePublicLocaleRoute } from '@/utils/publicLocaleRoute'
 
 const props = withDefaults(
   defineProps<{
@@ -55,6 +57,8 @@ const props = withDefaults(
 )
 
 const { locale } = useI18n()
+const route = useRoute()
+const router = useRouter()
 
 const isOpen = ref(false)
 const dropdownRef = ref<HTMLElement | null>(null)
@@ -98,13 +102,28 @@ function toggleDropdown() {
 }
 
 async function selectLocale(code: string) {
-  if (switching.value || code === currentLocaleCode.value) {
+  if (switching.value) {
     isOpen.value = false
     return
   }
+
+  const targetRoute =
+    props.variant === 'public' && (code === 'en' || code === 'zh')
+      ? resolvePublicLocaleRoute(code, route.path, route.query)
+      : null
+
+  if (!targetRoute && code === currentLocaleCode.value) {
+    isOpen.value = false
+    return
+  }
+
   switching.value = true
   try {
-    await setLocale(code)
+    if (targetRoute) {
+      await router.push(targetRoute)
+    } else {
+      await setLocale(code)
+    }
     isOpen.value = false
   } finally {
     switching.value = false

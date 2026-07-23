@@ -54,7 +54,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Models & Pricing',
-      absoluteTitle: 'AI Models API: DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini | Jisudeng',
+      absoluteTitle: 'DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng',
       frame: 'workspace'
     }
   },

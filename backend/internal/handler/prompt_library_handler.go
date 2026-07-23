@@ -166,7 +166,6 @@ type promptSitemapURLSet struct {
 
 var promptSitemapStaticPaths = []string{
 	"/",
-	"/home",
 	"/models",
 	"/docs",
 	"/en/",
