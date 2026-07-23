@@ -67,6 +67,28 @@ export const jisudengHomeEn = {
     computed: 'Snapshot generated {time}',
     stale: 'Showing cached or delayed data'
   },
+  lmspeedProof: {
+    tag: 'LMSPEED STATUS',
+    title: 'Third-party Speed and Status',
+    lede:
+      'Public LMSpeed proof for Jisudeng health checks, supported models, and recent tests. API-key speed tests stay inside this site.',
+    gridLabel: 'Jisudeng LMSpeed third-party status cards',
+    providerLink: 'View LMSpeed provider page',
+    items: {
+      health: {
+        label: 'Health Check',
+        alt: 'Jisudeng Health Check'
+      },
+      models: {
+        label: 'Supported Models',
+        alt: 'Jisudeng Supported Models'
+      },
+      recent: {
+        label: 'Recent Tests',
+        alt: 'Jisudeng Recent Tests'
+      }
+    }
+  },
   sections: {
     imageTag: 'IMAGE API',
     imageTitle: 'One sentence, one image.',
@@ -206,6 +228,7 @@ export const jisudengHomeEn = {
   anchors: {
     manifesto: 'Promise',
     stats: 'Stats',
+    lmspeed: 'Speed',
     image: 'Image',
     channels: 'Channels',
     features: 'Why us',
