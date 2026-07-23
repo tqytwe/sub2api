@@ -67,6 +67,27 @@ export const jisudengHomeZh = {
     computed: '快照生成于 {time}',
     stale: '当前显示缓存或滞后数据'
   },
+  lmspeedProof: {
+    tag: 'LMSPEED STATUS',
+    title: '第三方测速与状态',
+    lede: '公开展示 LMSpeed 对极速蹬的健康检查、模型支持与最近测试记录；真正带 Key 的测速仍在站内完成。',
+    gridLabel: '极速蹬 LMSpeed 第三方状态卡片',
+    providerLink: '查看 LMSpeed 供应商页面',
+    items: {
+      health: {
+        label: '健康检查',
+        alt: '极速蹬 健康检查'
+      },
+      models: {
+        label: '支持的模型',
+        alt: '极速蹬 支持的模型'
+      },
+      recent: {
+        label: '最近测试记录',
+        alt: '极速蹬 最近测试记录'
+      }
+    }
+  },
   sections: {
     imageTag: 'IMAGE API',
     imageTitle: '一句话，生成一张图。',
@@ -207,6 +228,7 @@ export const jisudengHomeZh = {
   anchors: {
     manifesto: '承诺',
     stats: '数据',
+    lmspeed: '测速',
     image: '图像',
     channels: '渠道',
     features: '优势',
