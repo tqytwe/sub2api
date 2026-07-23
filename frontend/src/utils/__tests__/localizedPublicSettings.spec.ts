@@ -80,8 +80,10 @@ describe('localized public settings', () => {
     expect(localized.subtitle).toBe('Login, signup, billing, API, and model-call issues can all be handled by support.')
     expect(localized.contacts[0]?.label).toBe('WeChat support group')
     expect(localized.contacts[0]?.description).toBe('Recommended first contact')
+    expect(localized.contacts[0]?.qr_image).toBe('')
     expect(localized.contacts[1]?.label).toBe('QQ support group')
     expect(localized.contacts[1]?.description).toBe('Quickly copy the QQ number to add support')
+    expect(localized.contacts[1]?.qr_image).toBe('')
     expect(copy).not.toMatch(/[\u3400-\u9fff\uf900-\ufaff]/)
   })
 
@@ -91,7 +93,9 @@ describe('localized public settings', () => {
     expect(localized.title).toBe('联系客服')
     expect(localized.subtitle).toBe('登录、注册、充值、API 或模型调用问题都可以联系人工客服')
     expect(localized.contacts[0]?.label).toBe('微信服务群')
+    expect(localized.contacts[0]?.qr_image).toBe('/uploads/wechat.png')
     expect(localized.contacts[1]?.description).toBe('适合快速复制 QQ 号添加')
+    expect(localized.contacts[1]?.qr_image).toBe('/uploads/qq.png')
   })
 
   it('localizes support contact type badges', () => {

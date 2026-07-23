@@ -178,7 +178,7 @@ describe('SupportContactPanel localized public settings', () => {
     const text = wrapper.text()
     expect(text).toContain('WeChat')
     expect(text).toContain('QQ')
-    expect(text).toContain('Copy')
+    expect(wrapper.find('[title="Copy"]').exists()).toBe(true)
     expect(text).not.toContain('微信')
     expect(text).not.toContain('复制')
   })

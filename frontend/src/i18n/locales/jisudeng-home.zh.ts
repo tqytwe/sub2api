@@ -170,7 +170,16 @@ export const jisudengHomeZh = {
     s3t: '发出第一次调用',
     s3d: 'OpenAI 兼容 SDK，改 base_url 即可开调',
     docLink: '想直接调 API?',
-    docLinkCta: '看接入文档'
+    docLinkCta: '看接入文档',
+    terminalAria: '一键接入终端演示动画',
+    terminalTitle: 'bash — 极速蹬 AI · 一键接入',
+    terminalEnv: '检测环境 — Node 22 · OpenClaw 已安装',
+    terminalPasteKey: '粘贴 API Key › sk-••••••••••••',
+    terminalModel: '主模型 › claude-opus-4-7',
+    terminalConfig: '配置写入 ~/.openclaw/openclaw.json',
+    terminalSelfCheck: '自检通过 — 接入完成',
+    terminalIntroPrompt: 'openclaw "介绍下你自己"',
+    terminalIntroReply: '你好，我是接入极速蹬 AI 的本地助手，随时可以开工。'
   },
   pricing: {
     lineA: '按 Token 计费，',
@@ -186,7 +195,8 @@ export const jisudengHomeZh = {
   },
   footer: {
     tagline: 'AI 中转站',
-    docs: '接入文档'
+    docs: '接入文档',
+    lmspeedBadgeAlt: '极速蹬已被 LMSpeed.net 收录'
   },
   registerBanner: {
     signupCredit: '现在注册 — 送 ${amount} 测试额度，全模型可试。',
@@ -203,6 +213,7 @@ export const jisudengHomeZh = {
     pricing: '计费',
     faq: '问答',
     closer: '开始',
+    scrollToContent: '向下浏览',
     backToTop: '回到顶部'
   }
 }

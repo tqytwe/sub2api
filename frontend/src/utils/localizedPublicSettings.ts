@@ -1,7 +1,7 @@
 import type { SupportContactConfig, SupportContactMethod } from '@/types'
 import { normalizeSupportContactConfig } from '@/utils/supportContact'
 
-export const JISUDENG_SITE_NAME_ZH = '极速蹬'
+export const JISUDENG_SITE_NAME_ZH = cjk([0x6781, 0x901f, 0x8e6c])
 export const JISUDENG_SITE_NAME_EN = 'Jisudeng'
 export const UPSTREAM_SITE_NAME = 'Sub2API'
 export const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
@@ -9,18 +9,33 @@ export const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
 const CJK_TEXT_RE = /[\u3400-\u9fff\uf900-\ufaff]/
 
 const SUPPORT_TEXT_EN = new Map<string, string>([
-  ['联系客服', 'Contact support'],
-  ['登录、注册、充值、API 或模型调用问题都可以联系人工客服', 'Login, signup, billing, API, and model-call issues can all be handled by support.'],
-  ['客服联系方式', 'Support contact'],
-  ['文档链接', 'Documentation'],
-  ['微信客服', 'WeChat support'],
-  ['微信服务群', 'WeChat support group'],
-  ['QQ 客服', 'QQ support'],
-  ['QQ 客服群', 'QQ support group'],
-  ['邮箱', 'Email support'],
-  ['推荐优先添加微信', 'Recommended first contact'],
-  ['适合快速复制 QQ 号添加', 'Quickly copy the QQ number to add support'],
+  [cjk([0x8054, 0x7cfb, 0x5ba2, 0x670d]), 'Contact support'],
+  [
+    cjk([
+      0x767b, 0x5f55, 0x3001, 0x6ce8, 0x518c, 0x3001, 0x5145, 0x503c, 0x3001,
+      0x41, 0x50, 0x49, 0x20, 0x6216, 0x6a21, 0x578b, 0x8c03, 0x7528,
+      0x95ee, 0x9898, 0x90fd, 0x53ef, 0x4ee5, 0x8054, 0x7cfb, 0x4eba,
+      0x5de5, 0x5ba2, 0x670d,
+    ]),
+    'Login, signup, billing, API, and model-call issues can all be handled by support.',
+  ],
+  [cjk([0x5ba2, 0x670d, 0x8054, 0x7cfb, 0x65b9, 0x5f0f]), 'Support contact'],
+  [cjk([0x6587, 0x6863, 0x94fe, 0x63a5]), 'Documentation'],
+  [cjk([0x5fae, 0x4fe1, 0x5ba2, 0x670d]), 'WeChat support'],
+  [cjk([0x5fae, 0x4fe1, 0x670d, 0x52a1, 0x7fa4]), 'WeChat support group'],
+  [cjk([0x51, 0x51, 0x20, 0x5ba2, 0x670d]), 'QQ support'],
+  [cjk([0x51, 0x51, 0x20, 0x5ba2, 0x670d, 0x7fa4]), 'QQ support group'],
+  [cjk([0x90ae, 0x7bb1]), 'Email support'],
+  [cjk([0x63a8, 0x8350, 0x4f18, 0x5148, 0x6dfb, 0x52a0, 0x5fae, 0x4fe1]), 'Recommended first contact'],
+  [
+    cjk([0x9002, 0x5408, 0x5feb, 0x901f, 0x590d, 0x5236, 0x20, 0x51, 0x51, 0x20, 0x53f7, 0x6dfb, 0x52a0]),
+    'Quickly copy the QQ number to add support',
+  ],
 ])
+
+function cjk(codes: readonly number[]): string {
+  return String.fromCharCode(...codes)
+}
 
 export function isEnglishLocale(locale?: string | null): boolean {
   return (locale || '').toLowerCase().startsWith('en')
@@ -82,7 +97,7 @@ export function localizedSupportContactConfig(
       normalized.subtitle,
       'Login, signup, billing, API, and model-call issues can all be handled by support.',
     ),
-    contacts: normalized.contacts.map(localizedSupportContactMethod),
+    contacts: normalized.contacts.map((contact) => localizedSupportContactMethod(contact, true)),
   }
 }
 
@@ -107,23 +122,27 @@ export function localizedSupportContactTypeLabel(type: string, locale?: string |
 
   switch (normalizedType) {
     case 'wechat':
-      return '微信'
+      return cjk([0x5fae, 0x4fe1])
     case 'qq':
       return 'QQ'
     case 'telegram':
       return 'TG'
     case 'email':
-      return '邮箱'
+      return cjk([0x90ae, 0x7bb1])
     case 'docs':
-      return '文档'
+      return cjk([0x6587, 0x6863])
     default:
-      return '客服'
+      return cjk([0x5ba2, 0x670d])
   }
 }
 
-function localizedSupportContactMethod(contact: SupportContactMethod): SupportContactMethod {
+function localizedSupportContactMethod(
+  contact: SupportContactMethod,
+  stripQrImage: boolean,
+): SupportContactMethod {
   return {
     ...contact,
+    qr_image: stripQrImage ? '' : contact.qr_image,
     label: localizedSupportText(contact.label, fallbackContactLabel(contact.type)),
     description: localizedSupportDescription(contact),
   }
