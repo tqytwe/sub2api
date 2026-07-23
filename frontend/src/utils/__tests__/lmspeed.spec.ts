@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildLmspeedSpeedTestUrl, normalizeLmspeedBaseUrl } from '@/utils/lmspeed'
+import { buildLmspeedSpeedTestUrl, normalizeLmspeedBaseUrl, resolveLmspeedLocale } from '@/utils/lmspeed'
 
 describe('lmspeed utils', () => {
   it.each([
@@ -27,6 +27,17 @@ describe('lmspeed utils', () => {
     expect(parsed.searchParams.has('modelId')).toBe(false)
   })
 
+  it('defaults to the English LMSpeed root when no locale is provided', () => {
+    const url = buildLmspeedSpeedTestUrl({
+      baseUrl: 'https://api.example.com',
+      apiKey: 'sk-test',
+    })
+
+    const parsed = new URL(url)
+    expect(parsed.origin).toBe('https://lmspeed.net')
+    expect(parsed.pathname).toBe('/')
+  })
+
   it('adds modelId only when provided', () => {
     const withModel = buildLmspeedSpeedTestUrl({
       baseUrl: 'https://api.example.com/v1',
@@ -41,5 +52,17 @@ describe('lmspeed utils', () => {
       modelId: '   ',
     })
     expect(new URL(withoutModel).searchParams.has('modelId')).toBe(false)
+  })
+
+  it.each([
+    ['zh', 'zh'],
+    ['zh-CN', 'zh'],
+    ['en', 'en'],
+    ['en-US', 'en'],
+    ['ru-RU', 'ru'],
+    ['fr-FR', 'en'],
+    [null, 'en'],
+  ] as const)('maps app locale %s to LMSpeed locale %s', (input, expected) => {
+    expect(resolveLmspeedLocale(input)).toBe(expected)
   })
 })
