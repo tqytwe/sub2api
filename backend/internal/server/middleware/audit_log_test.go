@@ -71,6 +71,14 @@ func TestFundManagementAuditRoutesHaveStableActionsAndOmitBodies(t *testing.T) {
 	require.Equal(t, service.AuditActionAdminFundClassifyPreview, auditSensitiveReads["GET /api/v1/admin/funds/classifications/signup-gift-30/preview"])
 }
 
+func TestIPRiskMobileRegistrationUsesCanonicalAuditAction(t *testing.T) {
+	require.Equal(
+		t,
+		service.AuditActionRegister,
+		auditActionOverrides["POST /api/v1/auth/mobile/register"],
+	)
+}
+
 type auditCaptureRepository struct {
 	mu   sync.Mutex
 	logs []*service.AuditLog

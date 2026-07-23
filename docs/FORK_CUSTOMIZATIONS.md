@@ -23,6 +23,7 @@
 | `FORK-BILLING-010` | 计费归属与充值联动 | active | integrity 脚本 + Go 测试 |
 | `FORK-IMAGE-011` | Images API、Gateway async 与 Batch 运行时 | active | integrity 脚本 + Go/Vitest/集成测试 |
 | `FORK-UI-012` | 前端设计系统与视觉治理 | active | design governance 脚本 + lint/typecheck/视觉检查 |
+| `FORK-RISK-013` | IP 风险检测与批量注册发现 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -103,6 +104,17 @@
 - 冲突策略：可以吸收上游 OAuth 安全修复，但必须保留域共享函数及测试。
 - 验证：`TestOAuthCookieDomain`，线上分别从 apex 与 `www` 发起/完成 OAuth。
 
+## FORK-RISK-013 IP 风险检测与批量注册发现
+
+- 产品目的：在现有 IP 管理域内，以注册 IP 为主信号，结合登录/API IP、UA 摘要、邮箱模板、邀请码/返利码和注册后行为，主动发现批量注册与异常账号簇，并保留可解释证据供管理员复核。
+- CP1 不变量：检测器只能运行在 Shadow Mode；可以采集精确注册/成功登录事件、推断历史邮箱注册、执行增量/校准/每日扫描并写入风险案件，但不得阻止注册、禁用用户、停用 API Key 或执行任何自动/人工处置。管理接口仅开放管理员只读 `GET /api/v1/admin/ip-risk/runtime`；`auto_block_enabled` 必须固定为 `false`。
+- 检测不变量：IPv4 按 `/32`、IPv6 按 `/64` 聚合发现；未来自动资格的 IPv6 目标只能是精确 `/128`，且目标 IP 自身至少有 5 个精确注册。注册和 UA 分档各自只取最高分；历史推断、白名单、已知共享网络以及单一注册聚集信号均不能获得自动资格。共享 API IP 只统计先在候选网络注册、随后从该网络调用 API 的关联新账号。
+- 隐私与保留：IP 使用 PostgreSQL `inet/cidr`；UA 保存规范化摘要和 HMAC；邮箱模板、邀请码、返利码只保存 HMAC 关联值，不保存原文。空 UA、空邀请码和空返利码不得产生可聚集 HMAC。原始事件默认保留 90 天，案件/扫描/处置审计结构默认保留 365 天。
+- 历史证据：只从成功的邮箱注册审计路径 `/api/v1/auth/register` 与 `/api/v1/auth/mobile/register` 推断，并与邮箱和用户创建时间匹配；OAuth 历史不回填。推断证据只供人工查看，不得进入自动动作资格或账号默认选择。
+- 关键位置：`backend/internal/service/ip_risk.go`、`backend/internal/service/ip_risk_service.go`、`backend/internal/repository/ip_risk_repo.go`、`backend/internal/handler/admin/ip_risk_handler.go`、`backend/internal/server/routes/admin.go`、`backend/migrations/214_ip_risk_foundation.sql`。
+- 冲突策略：可吸收上游认证、审计、IP 解析和后台任务改进，但不得丢失精确注册事件、证据置信度隔离、Shadow Mode 硬限制、隐私 HMAC、共享网络保护或管理员只读运行状态。
+- 验证：IP 风险 service/repository/middleware/auth/handler/route/migration 单元测试，真实 PostgreSQL 滑动窗口、`inet/cidr`、共享 API 新账号限定、原子案件写入和历史邮箱注册推断测试；CP1 合入后至少观察 24 小时再决定是否进入只读工作台 CP2。
+
 ## FORK-PUBLIC-008 公共页面与可见性
 
 - 产品目的：游客可浏览极速蹬首页、文档、模型价格和 Play 展示，登录用户看到与账号分组匹配的内容。
@@ -166,6 +178,7 @@
 211_withdrawals.sql
 212_withdrawals_integer_amounts.sql
 213_fund_management_batches.sql
+214_ip_risk_foundation.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

@@ -373,6 +373,19 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/keys/speed-test',
+    name: 'KeySpeedTest',
+    component: () => import('@/views/user/SpeedTestView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Speed Test',
+      titleKey: 'keys.speedTest.title',
+      descriptionKey: 'keys.speedTest.description',
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/batch-image',
     name: 'BatchImageGuide',
     alias: '/docs/batch-image',

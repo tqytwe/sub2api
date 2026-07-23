@@ -51,6 +51,8 @@ const maxTokenLength = 8192
 // refreshTokenPrefix is the prefix for refresh tokens to distinguish them from access tokens.
 const refreshTokenPrefix = "rt_"
 
+const ipRiskRecordingTimeout = 2 * time.Second
+
 // JWTClaims JWT载荷数据
 type JWTClaims struct {
 	UserID       int64  `json:"user_id"`
@@ -80,6 +82,7 @@ type AuthService struct {
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	balanceLedger         *BalanceLedgerService
+	ipRiskRecorder        IPRiskRecorder
 }
 
 type DefaultSubscriptionAssigner interface {
@@ -137,6 +140,68 @@ func (s *AuthService) EntClient() *dbent.Client {
 		return nil
 	}
 	return s.entClient
+}
+
+func (s *AuthService) SetIPRiskRecorder(recorder IPRiskRecorder) {
+	if s == nil {
+		return
+	}
+	s.ipRiskRecorder = recorder
+}
+
+func (s *AuthService) recordIPRiskRegistration(
+	ctx context.Context,
+	user *User,
+	signupSource,
+	invitationCode,
+	affiliateCode string,
+) {
+	if s == nil || s.ipRiskRecorder == nil || user == nil || user.ID <= 0 {
+		return
+	}
+	signupSource = strings.TrimSpace(signupSource)
+	if signupSource == "" {
+		signupSource = strings.TrimSpace(user.SignupSource)
+	}
+	if signupSource == "" {
+		signupSource = "email"
+	}
+	writeCtx, cancel := detachedIPRiskRecordingContext(ctx)
+	defer cancel()
+	if err := s.ipRiskRecorder.RecordRegistration(writeCtx, IPRiskRegistrationInput{
+		UserID:         user.ID,
+		Email:          user.Email,
+		SignupSource:   signupSource,
+		InvitationCode: invitationCode,
+		AffiliateCode:  affiliateCode,
+	}); err != nil {
+		logger.LegacyPrintf(
+			"service.auth",
+			"[Auth] Failed to record exact registration risk event: user_id=%d source=%s err=%v",
+			user.ID,
+			signupSource,
+			err,
+		)
+	}
+}
+
+func detachedIPRiskRecordingContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithTimeout(context.WithoutCancel(ctx), ipRiskRecordingTimeout)
+}
+
+// RecordCommittedOAuthRegistration records an OAuth-created user only after
+// the surrounding identity/session transaction has committed successfully.
+func (s *AuthService) RecordCommittedOAuthRegistration(
+	ctx context.Context,
+	user *User,
+	signupSource,
+	invitationCode,
+	affiliateCode string,
+) {
+	s.recordIPRiskRegistration(ctx, user, signupSource, invitationCode, affiliateCode)
 }
 
 // Register 用户注册，返回token和用户
@@ -275,6 +340,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			}
 		}
 	}
+
+	s.recordIPRiskRegistration(ctx, user, "email", invitationCode, affiliateCode)
 
 	// 生成token
 	token, err := s.GenerateToken(ctx, user)
@@ -500,7 +567,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 		username = string([]rune(username)[:100])
 	}
 
+	signupSource := ""
 	user, err := s.userRepo.GetByEmail(ctx, email)
+	created := false
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			// OAuth 首次登录视为注册（fail-close：settingService 未配置时不允许注册）
@@ -518,7 +587,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				return "", nil, fmt.Errorf("hash password: %w", err)
 			}
 
-			signupSource := inferLegacySignupSource(email)
+			signupSource = inferLegacySignupSource(email)
 			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 			var defaultRPMLimit int
 			if s.settingService != nil {
@@ -551,6 +620,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				}
 			} else {
 				user = newUser
+				created = true
 				s.postAuthUserBootstrap(ctx, user, signupSource, false)
 				s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 				// snapshot user × platform quota（fail-open）
@@ -572,6 +642,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 		if err := s.userRepo.Update(ctx, user); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to update username after oauth login: %v", err)
 		}
+	}
+	if created {
+		s.recordIPRiskRegistration(ctx, user, signupSource, "", "")
 	}
 	token, err := s.GenerateToken(ctx, user)
 	if err != nil {
@@ -767,6 +840,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 	}
 	if created {
 		user = s.applyOAuthSignupPromoCode(ctx, user, promoCode)
+		s.recordIPRiskRegistration(ctx, user, signupSource, invitationCode, affiliateCode)
 	}
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
 	if err != nil {

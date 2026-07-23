@@ -78,6 +78,24 @@ type userPlatformQuotaRepoStub struct {
 	bulkInsertErr   error
 }
 
+type authIPRiskRecorderStub struct {
+	registrations          []IPRiskRegistrationInput
+	registrationContextErr []error
+	loginUserIDs           []int64
+	err                    error
+}
+
+func (s *authIPRiskRecorderStub) RecordRegistration(ctx context.Context, input IPRiskRegistrationInput) error {
+	s.registrations = append(s.registrations, input)
+	s.registrationContextErr = append(s.registrationContextErr, ctx.Err())
+	return s.err
+}
+
+func (s *authIPRiskRecorderStub) RecordSuccessfulLogin(_ context.Context, userID int64) error {
+	s.loginUserIDs = append(s.loginUserIDs, userID)
+	return s.err
+}
+
 func (s *userPlatformQuotaRepoStub) BulkInsertInitial(_ context.Context, records []UserPlatformQuotaRecord) error {
 	cloned := make([]UserPlatformQuotaRecord, len(records))
 	copy(cloned, records)
@@ -299,6 +317,69 @@ func TestAuthService_Register_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 	require.Equal(t, int64(77), openaiRecord.UserID)
 	require.NotNil(t, openaiRecord.WeeklyLimitUSD)
 	require.InDelta(t, 12.34, *openaiRecord.WeeklyLimitUSD, 0.0001)
+}
+
+func TestAuthServiceRegisterRecordsExactRiskEventBestEffort(t *testing.T) {
+	repo := &userRepoStub{nextID: 77}
+	recorder := &authIPRiskRecorderStub{err: errors.New("risk repository unavailable")}
+	authService := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+	authService.SetIPRiskRecorder(recorder)
+	ctx := WithIPRiskRequestMetadata(context.Background(), IPRiskRequestMetadata{
+		ClientIP:   "203.0.113.8",
+		UserAgent:  "risk-test/1.0",
+		RequestID:  "register-risk-1",
+		OccurredAt: time.Date(2026, time.July, 23, 8, 0, 0, 0, time.UTC),
+	})
+
+	_, user, err := authService.RegisterWithVerification(
+		ctx,
+		"trial01@example.test",
+		"password",
+		"",
+		"",
+		"invitation-secret",
+		"affiliate-secret",
+	)
+	require.NoError(t, err, "risk recording must fail open")
+	require.NotNil(t, user)
+	require.Equal(t, []IPRiskRegistrationInput{{
+		UserID:         77,
+		Email:          "trial01@example.test",
+		SignupSource:   "email",
+		InvitationCode: "invitation-secret",
+		AffiliateCode:  "affiliate-secret",
+	}}, recorder.registrations)
+}
+
+func TestAuthServiceRecordSuccessfulLoginForwardsRiskEventBestEffort(t *testing.T) {
+	recorder := &authIPRiskRecorderStub{err: errors.New("risk repository unavailable")}
+	authService := newAuthService(&userRepoStub{}, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+	authService.SetIPRiskRecorder(recorder)
+
+	authService.RecordSuccessfulLogin(context.Background(), 42)
+	require.Equal(t, []int64{42}, recorder.loginUserIDs)
+}
+
+func TestAuthServiceIPRiskCommittedRegistrationDetachesCanceledRequestContext(t *testing.T) {
+	recorder := &authIPRiskRecorderStub{}
+	authService := newAuthService(&userRepoStub{}, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+	authService.SetIPRiskRecorder(recorder)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	authService.RecordCommittedOAuthRegistration(ctx, &User{
+		ID:           42,
+		Email:        "committed@example.test",
+		SignupSource: "oidc",
+	}, "oidc", "", "")
+
+	require.Equal(t, []error{nil}, recorder.registrationContextErr)
 }
 
 func TestAuthService_Register_DoesNotSnapshotOnDisabled(t *testing.T) {
@@ -691,6 +772,7 @@ func TestAuthService_Register_GrantOnSignupMergesSourceOverridesWithGlobalDefaul
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefaultsOnSignup(t *testing.T) {
 	repo := &userRepoStub{nextID: 61}
 	assigner := &defaultSubscriptionAssignerStub{}
+	recorder := &authIPRiskRecorderStub{}
 	service := newAuthService(repo, map[string]string{
 		SettingKeyRegistrationEnabled:                   "true",
 		SettingKeyDefaultSubscriptions:                  `[{"group_id":81,"validity_days":1}]`,
@@ -701,8 +783,16 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefa
 	}, nil, nil)
 	service.defaultSubAssigner = assigner
 	service.refreshTokenCache = &refreshTokenCacheStub{}
+	service.SetIPRiskRecorder(recorder)
 
-	tokenPair, user, err := service.LoginOrRegisterOAuthWithTokenPair(context.Background(), "linuxdo-123@linuxdo-connect.invalid", "linuxdo_user", "", "", "linuxdo")
+	tokenPair, user, err := service.LoginOrRegisterOAuthWithTokenPair(
+		context.Background(),
+		"linuxdo-123@linuxdo-connect.invalid",
+		"linuxdo_user",
+		"invite-linuxdo",
+		"affiliate-linuxdo",
+		"linuxdo",
+	)
 	require.NoError(t, err)
 	require.NotNil(t, tokenPair)
 	require.NotNil(t, user)
@@ -713,6 +803,13 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_UsesLinuxDoAuthSourceDefa
 	require.Len(t, assigner.calls, 1)
 	require.Equal(t, int64(22), assigner.calls[0].GroupID)
 	require.Equal(t, 14, assigner.calls[0].ValidityDays)
+	require.Equal(t, []IPRiskRegistrationInput{{
+		UserID:         61,
+		Email:          "linuxdo-123@linuxdo-connect.invalid",
+		SignupSource:   "linuxdo",
+		InvitationCode: "invite-linuxdo",
+		AffiliateCode:  "affiliate-linuxdo",
+	}}, recorder.registrations)
 }
 
 func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantAgain(t *testing.T) {
@@ -728,6 +825,7 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantA
 	}
 	repo := &userRepoStub{user: existing}
 	assigner := &defaultSubscriptionAssignerStub{}
+	recorder := &authIPRiskRecorderStub{}
 	service := newAuthService(repo, map[string]string{
 		SettingKeyRegistrationEnabled:                   "true",
 		SettingKeyAuthSourceDefaultLinuxDoBalance:       "21.75",
@@ -737,6 +835,7 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantA
 	}, nil, nil)
 	service.defaultSubAssigner = assigner
 	service.refreshTokenCache = &refreshTokenCacheStub{}
+	service.SetIPRiskRecorder(recorder)
 
 	tokenPair, user, err := service.LoginOrRegisterOAuthWithTokenPair(context.Background(), existing.Email, "linuxdo_user", "", "", "linuxdo")
 	require.NoError(t, err)
@@ -746,6 +845,30 @@ func TestAuthService_LoginOrRegisterOAuthWithTokenPair_ExistingUserDoesNotGrantA
 	require.Equal(t, 1, user.Concurrency)
 	require.Empty(t, repo.created)
 	require.Empty(t, assigner.calls)
+	require.Empty(t, recorder.registrations)
+}
+
+func TestAuthServiceLoginOrRegisterLegacyOAuthRecordsNewUserOnce(t *testing.T) {
+	repo := &userRepoStub{nextID: 62}
+	recorder := &authIPRiskRecorderStub{err: errors.New("risk repository unavailable")}
+	service := newAuthService(repo, map[string]string{
+		SettingKeyRegistrationEnabled: "true",
+	}, nil, nil)
+	service.SetIPRiskRecorder(recorder)
+
+	token, user, err := service.LoginOrRegisterOAuth(
+		context.Background(),
+		"legacy-123@linuxdo-connect.invalid",
+		"legacy_user",
+	)
+	require.NoError(t, err, "risk recording must fail open")
+	require.NotEmpty(t, token)
+	require.NotNil(t, user)
+	require.Equal(t, []IPRiskRegistrationInput{{
+		UserID:       62,
+		Email:        "legacy-123@linuxdo-connect.invalid",
+		SignupSource: "linuxdo",
+	}}, recorder.registrations)
 }
 
 // newAuthServiceWithDingTalkCfg 构建一个含完整 DingTalk config 的 AuthService，

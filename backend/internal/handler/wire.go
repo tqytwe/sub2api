@@ -48,6 +48,7 @@ func ProvideAdminHandlers(
 	withdrawalHandler *admin.WithdrawalHandler,
 	fundHandler *admin.FundHandler,
 	modelCatalogHandler *admin.ModelCatalogHandler,
+	ipRiskHandler *admin.IPRiskHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	promptLibraryHandler *admin.PromptLibraryHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
@@ -91,6 +92,7 @@ func ProvideAdminHandlers(
 		Withdrawal:             withdrawalHandler,
 		Fund:                   fundHandler,
 		ModelCatalog:           modelCatalogHandler,
+		IPRisk:                 ipRiskHandler,
 		AuditLog:               auditLogHandler,
 		PromptLibrary:          promptLibraryHandler,
 	}
@@ -324,6 +326,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewWithdrawalHandler,
 	admin.NewFundHandler,
 	admin.NewModelCatalogHandler,
+	admin.NewIPRiskHandler,
 	admin.NewAuditLogHandler,
 	admin.NewPromptLibraryHandler,
 

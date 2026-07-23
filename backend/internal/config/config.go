@@ -72,6 +72,7 @@ type Config struct {
 	Database                DatabaseConfig                `mapstructure:"database"`
 	Redis                   RedisConfig                   `mapstructure:"redis"`
 	Ops                     OpsConfig                     `mapstructure:"ops"`
+	IPRisk                  IPRiskConfig                  `mapstructure:"ip_risk"`
 	JWT                     JWTConfig                     `mapstructure:"jwt"`
 	Totp                    TotpConfig                    `mapstructure:"totp"`
 	LinuxDo                 LinuxDoConnectConfig          `mapstructure:"linuxdo_connect"`
@@ -1520,6 +1521,23 @@ type OpsAggregationConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
+// IPRiskConfig controls the shadow-only IP risk detector. CP1 intentionally
+// exposes no automatic-action switch.
+type IPRiskConfig struct {
+	Enabled                   bool   `mapstructure:"enabled"`
+	HMACKey                   string `mapstructure:"hmac_key" json:"-" yaml:"-"`
+	IncrementalDelaySeconds   int    `mapstructure:"incremental_delay_seconds"`
+	ReconcileIntervalMinutes  int    `mapstructure:"reconcile_interval_minutes"`
+	DailyScanIntervalHours    int    `mapstructure:"daily_scan_interval_hours"`
+	EventRetentionDays        int    `mapstructure:"event_retention_days"`
+	CaseRetentionDays         int    `mapstructure:"case_retention_days"`
+	HistoricalBackfillEnabled bool   `mapstructure:"historical_backfill_enabled"`
+	HistoricalBackfillMaxDays int    `mapstructure:"historical_backfill_max_days"`
+	ManualScanMaxDays         int    `mapstructure:"manual_scan_max_days"`
+	RetentionBatchSize        int    `mapstructure:"retention_batch_size"`
+	EvaluationQueueCapacity   int    `mapstructure:"evaluation_queue_capacity"`
+}
+
 type OpsMetricsCollectorCacheConfig struct {
 	Enabled bool          `mapstructure:"enabled"`
 	TTL     time.Duration `mapstructure:"ttl"`
@@ -1748,6 +1766,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 	}
 	cfg.Server.FrontendURL = strings.TrimSpace(cfg.Server.FrontendURL)
 	cfg.JWT.Secret = strings.TrimSpace(cfg.JWT.Secret)
+	cfg.IPRisk.HMACKey = strings.TrimSpace(cfg.IPRisk.HMACKey)
 	cfg.LinuxDo.ClientID = strings.TrimSpace(cfg.LinuxDo.ClientID)
 	cfg.LinuxDo.ClientSecret = strings.TrimSpace(cfg.LinuxDo.ClientSecret)
 	cfg.LinuxDo.AuthorizeURL = strings.TrimSpace(cfg.LinuxDo.AuthorizeURL)
@@ -2201,6 +2220,20 @@ func setDefaults() {
 	// TTL should be slightly larger than collection interval (1m) to maximize cross-replica cache hits.
 	viper.SetDefault("ops.metrics_collector_cache.ttl", 65*time.Second)
 
+	// IP risk detection (CP1 shadow-only).
+	viper.SetDefault("ip_risk.enabled", true)
+	viper.SetDefault("ip_risk.hmac_key", "")
+	viper.SetDefault("ip_risk.incremental_delay_seconds", 10)
+	viper.SetDefault("ip_risk.reconcile_interval_minutes", 5)
+	viper.SetDefault("ip_risk.daily_scan_interval_hours", 24)
+	viper.SetDefault("ip_risk.event_retention_days", 90)
+	viper.SetDefault("ip_risk.case_retention_days", 365)
+	viper.SetDefault("ip_risk.historical_backfill_enabled", false)
+	viper.SetDefault("ip_risk.historical_backfill_max_days", 90)
+	viper.SetDefault("ip_risk.manual_scan_max_days", 90)
+	viper.SetDefault("ip_risk.retention_batch_size", 5000)
+	viper.SetDefault("ip_risk.evaluation_queue_capacity", 4096)
+
 	// JWT
 	viper.SetDefault("jwt.secret", "")
 	viper.SetDefault("jwt.expire_hour", 24)
@@ -2619,6 +2652,44 @@ func (c *Config) Validate() error {
 	// 选择 bytes 而不是 rune 计数，确保二进制/随机串的长度语义更接近“熵”而非“字符数”。
 	if len([]byte(jwtSecret)) < 32 {
 		return fmt.Errorf("jwt.secret must be at least 32 bytes")
+	}
+	if c.IPRisk.Enabled {
+		if configured := strings.TrimSpace(c.IPRisk.HMACKey); configured != "" {
+			keyBytes := []byte(configured)
+			if decoded, decodeErr := hex.DecodeString(configured); decodeErr == nil {
+				keyBytes = decoded
+			}
+			if len(keyBytes) < 32 {
+				return fmt.Errorf("ip_risk.hmac_key must be at least 32 bytes")
+			}
+		}
+		if c.IPRisk.IncrementalDelaySeconds < 1 || c.IPRisk.IncrementalDelaySeconds > 60 {
+			return fmt.Errorf("ip_risk.incremental_delay_seconds must be between 1 and 60")
+		}
+		if c.IPRisk.ReconcileIntervalMinutes < 1 || c.IPRisk.ReconcileIntervalMinutes > 1440 {
+			return fmt.Errorf("ip_risk.reconcile_interval_minutes must be between 1 and 1440")
+		}
+		if c.IPRisk.DailyScanIntervalHours < 1 || c.IPRisk.DailyScanIntervalHours > 168 {
+			return fmt.Errorf("ip_risk.daily_scan_interval_hours must be between 1 and 168")
+		}
+		if c.IPRisk.EventRetentionDays < 1 || c.IPRisk.EventRetentionDays > 365 {
+			return fmt.Errorf("ip_risk.event_retention_days must be between 1 and 365")
+		}
+		if c.IPRisk.CaseRetentionDays < 1 || c.IPRisk.CaseRetentionDays > 3650 {
+			return fmt.Errorf("ip_risk.case_retention_days must be between 1 and 3650")
+		}
+		if c.IPRisk.HistoricalBackfillMaxDays < 1 || c.IPRisk.HistoricalBackfillMaxDays > 90 {
+			return fmt.Errorf("ip_risk.historical_backfill_max_days must be between 1 and 90")
+		}
+		if c.IPRisk.ManualScanMaxDays < 1 || c.IPRisk.ManualScanMaxDays > 90 {
+			return fmt.Errorf("ip_risk.manual_scan_max_days must be between 1 and 90")
+		}
+		if c.IPRisk.RetentionBatchSize < 100 || c.IPRisk.RetentionBatchSize > 50000 {
+			return fmt.Errorf("ip_risk.retention_batch_size must be between 100 and 50000")
+		}
+		if c.IPRisk.EvaluationQueueCapacity < 128 || c.IPRisk.EvaluationQueueCapacity > 100000 {
+			return fmt.Errorf("ip_risk.evaluation_queue_capacity must be between 128 and 100000")
+		}
 	}
 	switch c.Log.Level {
 	case "debug", "info", "warn", "error":

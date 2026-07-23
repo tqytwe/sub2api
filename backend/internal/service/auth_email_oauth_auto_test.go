@@ -50,6 +50,7 @@ func newEmailOAuthAutoAuthService(
 func TestEmailOAuthAuto_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 	userRepo := &userRepoStub{nextID: 88}
 	quotaRepo := &userPlatformQuotaRepoStub{}
+	recorder := &authIPRiskRecorderStub{}
 
 	svc := newEmailOAuthAutoAuthService(
 		userRepo,
@@ -59,14 +60,15 @@ func TestEmailOAuthAuto_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 		},
 		quotaRepo,
 	)
+	svc.SetIPRiskRecorder(recorder)
 
 	user, err := svc.createEmailOAuthUser(
 		context.Background(),
 		"newoauth@example.com",
 		"newoauth",
 		"github",
-		"", // invitationCode
-		"", // affiliateCode
+		"github-invite",
+		"github-affiliate",
 	)
 	require.NoError(t, err)
 	require.NotNil(t, user)
@@ -85,4 +87,11 @@ func TestEmailOAuthAuto_SnapshotsPlatformQuotaDefaults(t *testing.T) {
 	require.NotNil(t, geminiRecord, "expected gemini platform record")
 	require.NotNil(t, geminiRecord.MonthlyLimitUSD)
 	require.InDelta(t, 100.0, *geminiRecord.MonthlyLimitUSD, 0.0001)
+	require.Equal(t, []IPRiskRegistrationInput{{
+		UserID:         88,
+		Email:          "newoauth@example.com",
+		SignupSource:   "github",
+		InvitationCode: "github-invite",
+		AffiliateCode:  "github-affiliate",
+	}}, recorder.registrations)
 }
