@@ -190,6 +190,12 @@
       </div>
     </section>
 
+    <section id="lmspeed" class="lmspeed-proof-section section-block" :class="{ 'in-view': inView.lmspeed }">
+      <div class="page-container">
+        <LmspeedProviderProof />
+      </div>
+    </section>
+
     <section id="image" class="image-section" :class="{ 'in-view': inView.image }">
       <div class="page-container section-block">
         <div class="section-head">
@@ -464,6 +470,7 @@ import ChannelTV from '@/components/home/ChannelTV.vue'
 import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import LmspeedBadge from '@/components/home/LmspeedBadge.vue'
+import LmspeedProviderProof from '@/components/home/LmspeedProviderProof.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
@@ -604,6 +611,7 @@ const anchorSections = computed(() => {
   const sections = [
     { id: 'manifesto', label: t('home.jisudeng.anchors.manifesto') },
     { id: 'stats', label: t('home.jisudeng.anchors.stats') },
+    { id: 'lmspeed', label: t('home.jisudeng.anchors.lmspeed') },
     { id: 'image', label: t('home.jisudeng.anchors.image') },
     { id: 'channels', label: t('home.jisudeng.anchors.channels') },
     { id: 'features', label: t('home.jisudeng.anchors.features') },
