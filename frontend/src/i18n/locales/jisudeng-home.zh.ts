@@ -8,6 +8,7 @@ export const jisudengHomeZh = {
     keyUsage: 'API 查账',
     about: '了解极速蹬',
     contact: '联系我们',
+    androidApp: '下载 APP',
     admin: '管理后台',
     console: '控制台',
     signIn: '登录',

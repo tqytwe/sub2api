@@ -139,6 +139,10 @@ func authMobileErrorMessage(c *gin.Context, reason string) string {
 		return authMobileMessage(c, "服务暂时不可用，请稍后再试", "Service temporarily unavailable. Please try again later.")
 	case "BACKEND_MODE_ADMIN_ONLY":
 		return authMobileMessage(c, "系统维护中，请稍后再试", "System maintenance is in progress. Please try again later.")
+	case "PASSWORD_RESET_DISABLED":
+		return authMobileMessage(c, "密码重置功能暂未开启", "Password reset is not enabled.")
+	case "INVALID_RESET_TOKEN":
+		return authMobileMessage(c, "重置链接无效或已过期", "The reset link is invalid or expired.")
 	}
 	return ""
 }
@@ -812,6 +816,29 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 	response.Success(c, ResetPasswordResponse{
 		Message: "Your password has been reset successfully. You can now log in with your new password.",
+	})
+}
+
+// MobileResetPassword resets a password from the official Android app.
+// POST /api/v1/auth/mobile/reset-password
+func (h *AuthHandler) MobileResetPassword(c *gin.Context) {
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+
+	if err := h.authService.ResetPassword(c.Request.Context(), req.Email, req.Token, req.NewPassword); err != nil {
+		respondMobileAuthError(c, err)
+		return
+	}
+
+	response.Success(c, ResetPasswordResponse{
+		Message: authMobileMessage(
+			c,
+			"密码已重置，请使用新密码登录。",
+			"Your password has been reset successfully. You can now sign in with your new password.",
+		),
 	})
 }
 

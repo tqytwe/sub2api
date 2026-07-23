@@ -77,6 +77,9 @@ func RegisterAuthRoutes(
 		auth.POST("/reset-password", rateLimiter.LimitWithOptions("reset-password", 10, time.Minute, middleware.RateLimitOptions{
 			FailureMode: middleware.RateLimitFailClose,
 		}), h.Auth.ResetPassword)
+		auth.POST("/mobile/reset-password", rateLimiter.LimitWithOptions("mobile-reset-password", 10, time.Minute, middleware.RateLimitOptions{
+			FailureMode: middleware.RateLimitFailClose,
+		}), h.Auth.MobileResetPassword)
 		auth.GET("/oauth/linuxdo/start", h.Auth.LinuxDoOAuthStart)
 		auth.GET("/oauth/github/start", h.Auth.GitHubOAuthStart)
 		auth.GET("/oauth/github/callback", h.Auth.GitHubOAuthCallback)

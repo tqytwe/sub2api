@@ -1,0 +1,15 @@
+{
+  "platform": "android",
+  "version": "2.0.0",
+  "apkUrl": "/downloads/jisudengchat-android.apk",
+  "size": "6.3 MB",
+  "sha256": "75d59070422fbef40f6ae081f66a0ec53d7bb130f293f1a9528d5fc6b748a282",
+  "minAndroidVersion": "8.0",
+  "releaseDate": "2026-07-23",
+  "notes": [
+    "JisudengChat Android 全量补齐：平台账号登录、余额/分组/API Key/模型同步、移动端聊天、生图、本机图库、注册找回、权限、通知和下载进度",
+    "生成图片保存在用户手机本机。"
+  ],
+  "versionCode": 20000,
+  "bytes": 6613752
+}

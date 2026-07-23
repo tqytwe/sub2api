@@ -3,6 +3,7 @@ import type { RouteLocationRaw } from 'vue-router'
 export const PUBLIC_ROUTE_NAMES = {
   about: 'About',
   adminDashboard: 'AdminDashboard',
+  androidDownload: 'AndroidDownload',
   contact: 'Contact',
   dashboard: 'Dashboard',
   docs: 'Docs',
@@ -25,6 +26,7 @@ export type HomePrimaryNavKey =
   | 'keyUsage'
   | 'about'
   | 'contact'
+  | 'androidApp'
 
 export interface HomePrimaryNavItem {
   key: HomePrimaryNavKey
@@ -74,5 +76,6 @@ export function buildHomePrimaryNav(isAuthenticated: boolean): HomePrimaryNavIte
     { key: 'keyUsage', labelKey: 'home.jisudeng.nav.keyUsage', to: { name: PUBLIC_ROUTE_NAMES.keyUsage } },
     { key: 'about', labelKey: 'home.jisudeng.nav.about', to: { name: PUBLIC_ROUTE_NAMES.about } },
     { key: 'contact', labelKey: 'home.jisudeng.nav.contact', to: CONTACT_ROUTE, requiresSupportContact: true },
+    { key: 'androidApp', labelKey: 'home.jisudeng.nav.androidApp', to: { name: PUBLIC_ROUTE_NAMES.androidDownload } },
   ]
 }

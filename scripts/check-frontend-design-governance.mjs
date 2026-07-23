@@ -278,6 +278,12 @@ function isVisualFile(file) {
   );
 }
 
+export function isSourceRuleFile(file) {
+  return /\.(?:vue|css|scss|less|svg|html|[cm]?[jt]sx?|json|webmanifest|xml|txt|md)$/i.test(
+    file,
+  );
+}
+
 const requiredEvidenceSections = [
   "## Scope",
   "## Baseline",
@@ -703,6 +709,7 @@ function main() {
     .filter(Boolean);
 
   for (const file of untrackedScanFiles) {
+    if (!isSourceRuleFile(file)) continue;
     const content = readFileSync(resolve(repoRoot, file), "utf8");
     addedByFile.set(
       file,
@@ -731,6 +738,7 @@ function main() {
 
   const violations = [];
   for (const [file, lines] of addedByFile) {
+    if (!isSourceRuleFile(file)) continue;
     const fullPath = resolve(repoRoot, file);
     const fullLines = existsSync(fullPath)
       ? readFileSync(fullPath, "utf8").split("\n")

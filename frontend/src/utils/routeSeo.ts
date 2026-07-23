@@ -58,6 +58,17 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
       { hreflang: 'x-default', path: '/en/docs' },
     ],
   },
+  '/download/android': {
+    title: 'JisudengChat Android 下载 - 极速蹬',
+    description: '下载 JisudengChat Android APK，使用极速蹬平台账号登录并同步余额、分组、API Key 和可用模型。',
+    canonicalPath: '/download/android',
+    lang: 'zh-CN',
+    ogLocale: 'zh_CN',
+    alternates: [
+      { hreflang: 'zh-CN', path: '/download/android' },
+      { hreflang: 'x-default', path: '/download/android' },
+    ],
+  },
   '/en': {
     title: 'Jisudeng: One OpenAI-Compatible API for Frontier AI Models',
     description: 'Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API.',
