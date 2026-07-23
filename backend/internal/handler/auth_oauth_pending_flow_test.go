@@ -2375,6 +2375,7 @@ type oauthPendingFlowTestHandlerOptions struct {
 	totpCache          service.TotpCache
 	totpEncryptor      service.SecretEncryptor
 	userRepoOptions    oauthPendingFlowUserRepoOptions
+	configureConfig    func(*config.Config)
 }
 
 func newOAuthPendingFlowTestHandlerWithDependencies(
@@ -2441,6 +2442,9 @@ CREATE TABLE IF NOT EXISTS user_affiliates (
 			UserBalance:     0,
 			UserConcurrency: 1,
 		},
+	}
+	if options.configureConfig != nil {
+		options.configureConfig(cfg)
 	}
 	settingValues := map[string]string{
 		service.SettingKeyRegistrationEnabled:              "true",

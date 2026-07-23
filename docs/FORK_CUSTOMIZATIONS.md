@@ -90,10 +90,10 @@
 ## FORK-DEPLOY-006 分支与 Zeabur 部署
 
 - 产品目的：极速蹬在服务器完成可复现开发与验证，从 `origin/play/main` 触发 Zeabur 构建，并由用户本地电脑完成生产验收。
-- 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
-- 关键位置：`AGENTS.md`、[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)、`scripts/push-github-and-deploy.sh`、`deploy/zeabur.template.yaml`、`.cursor/rules/sub2api-server-only-verify.mdc`、[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md)。
+- 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；官方 Web 与 Android APK 必须能从 `www.jisudeng.com`、`chat.jisudeng.com`、Android WebView 的 `https://localhost` / `capacitor://localhost` 安全访问 `api.jisudeng.com`，不能要求用户手填后端地址；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
+- 关键位置：`AGENTS.md`、[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)、`scripts/push-github-and-deploy.sh`、`deploy/zeabur.template.yaml`、`deploy/config.example.yaml`、`backend/internal/server/middleware/cors.go`、`.cursor/rules/sub2api-server-only-verify.mdc`、[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md)。
 - 冲突策略：上游 Docker 文档只作为参考，不能改变极速蹬生产分支和验收入口。
-- 验证：服务器完整闸门、PR 单次 GitHub CI、Zeabur 部署 commit/健康状态，以及用户本地电脑的游客、普通用户、管理员生产浏览器验收；按风险补充浅色/深色和 API/数据库对账。
+- 验证：服务器完整闸门、PR 单次 GitHub CI、Zeabur 部署 commit/健康状态、官方 Web/Android 来源的 CORS preflight，以及用户本地电脑的游客、普通用户、管理员生产浏览器验收；按风险补充浅色/深色和 API/数据库对账。
 
 ## FORK-OAUTH-007 OAuth Cookie 域共享
 
@@ -171,10 +171,10 @@
 ## FORK-BILLING-010 计费归属与充值联动
 
 - 产品目的：防止 API Key、订阅或批量任务被错误归属到其他用户，同时让成功充值触发可选 Play boost。
-- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。
-- 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
+- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；NextChat Web 和 Android 只能通过登录用户 JWT 换取该用户名下的受管 API Key，并按用户允许分组返回模型/余额/API Key 权限，不能暴露其他用户密钥；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。
+- 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/server/routes/nextchat.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
 - 冲突策略：上游支付状态机和安全修复必须合入；归属校验、真实计费优先级与充值后 Play 联动必须保留。
-- 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests；线上以测试订单检查余额到账和 boost 状态。
+- 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以测试订单检查余额到账和 boost 状态。
 
 ## 更新规则
 

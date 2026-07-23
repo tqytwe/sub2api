@@ -89,9 +89,17 @@ run_mode: "standard"
 # 跨域资源共享 (CORS) 配置
 # =============================================================================
 cors:
-  # Allowed origins list. Leave empty to disable cross-origin requests.
-  # 允许的来源列表。留空则禁用跨域请求。
-  allowed_origins: []
+  # Allowed origins list. First-party Jisudeng Web and Android WebView origins
+  # are also allowed by the fork runtime so the official web app and APK can
+  # call api.jisudeng.com.
+  # 允许的来源列表。极速蹬 Fork 运行时也会放行一方 Web 与 Android WebView 来源，
+  # 以便官方网页和 APK 访问 api.jisudeng.com。
+  allowed_origins:
+    - "https://www.jisudeng.com"
+    - "https://chat.jisudeng.com"
+    - "https://localhost"
+    - "http://localhost"
+    - "capacitor://localhost"
   # Allow credentials (cookies/authorization headers). Cannot be used with "*".
   # 允许携带凭证（cookies/授权头）。不能与 "*" 通配符同时使用。
   allow_credentials: true

@@ -280,6 +280,11 @@ type nextChatSessionResponse struct {
 	KeyID  int64  `json:"api_key_id"`
 }
 
+type nextChatMobileBootstrapResponse struct {
+	nextChatBootstrapResponse
+	Session nextChatSessionResponse `json:"session"`
+}
+
 type nextChatBootstrapResponse struct {
 	User          service.NextChatWorkspaceUser   `json:"user"`
 	ManagedAPIKey service.NextChatWorkspaceAPIKey `json:"managed_api_key"`
@@ -412,6 +417,31 @@ func postNextChatLaunch(router *gin.Engine, authHeader string) *httptest.Respons
 	return recorder
 }
 
+func getNextChatMobileBootstrap(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/nextchat/mobile/bootstrap", nil)
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func postNextChatMobileGroup(router *gin.Engine, authHeader string, groupID int64) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/api/v1/nextchat/mobile/group",
+		strings.NewReader(`{"group_id":`+strconv.FormatInt(groupID, 10)+`}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
 func postNextChatSession(router *gin.Engine, secret, token string) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
 	body := `{"launch_token":"` + token + `"}`
@@ -491,6 +521,67 @@ func TestNextChatLaunchDisabledReturnsNotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, recorder.Code)
 	require.Contains(t, recorder.Body.String(), "NextChat is disabled")
+}
+
+func TestNextChatMobileBootstrapRequiresJWT(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{}, rdb)
+
+	recorder := getNextChatMobileBootstrap(router, "")
+
+	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+}
+
+func TestNextChatMobileBootstrapIssuesManagedSessionWithoutExchangeSecret(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{
+		enabled: true,
+		settings: &service.PublicSettings{
+			SiteName:           "极速蹬",
+			NextChatEnabled:    true,
+			ImageStudioEnabled: true,
+			SupportContact: service.SupportContactConfig{
+				Title: "客服",
+				Contacts: []service.SupportContactMethod{
+					{ID: "support", Type: "text", Label: "客服", Value: "@support", Enabled: true},
+				},
+			},
+		},
+	}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{
+			ExchangeSecret:        "server-secret",
+			SessionTTLSeconds:     3600,
+			LaunchTokenTTLSeconds: 60,
+		},
+	}, rdb)
+
+	recorder := getNextChatMobileBootstrap(router, "Bearer valid-user")
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	got := decodeNextChatRouteResponse[nextChatMobileBootstrapResponse](t, recorder)
+	require.Equal(t, int64(42), issuer.userID)
+	require.Equal(t, "sk-managed-nextchat", got.Session.APIKey)
+	require.Equal(t, int64(123), got.Session.KeyID)
+	require.Equal(t, service.NextChatManagedAPIKeyName, got.ManagedAPIKey.Name)
+	require.Equal(t, "tester@example.com", got.User.Email)
+	require.True(t, got.Features.Chat)
+	require.True(t, got.Features.ImageStudio)
+	require.NotEmpty(t, got.Models.Groups)
+}
+
+func TestNextChatMobileGroupSwitchUsesAuthenticatedManagedKey(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{}, rdb)
+
+	recorder := postNextChatMobileGroup(router, "Bearer valid-user", 8)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	got := decodeNextChatRouteResponse[nextChatMobileBootstrapResponse](t, recorder)
+	require.Equal(t, []int64{8}, issuer.switchRequests)
+	require.Equal(t, int64(8), *got.ManagedAPIKey.GroupID)
+	require.Equal(t, "sk-managed-nextchat", got.Session.APIKey)
 }
 
 func TestNextChatSessionRequiresExchangeSecret(t *testing.T) {
