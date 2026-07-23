@@ -118,7 +118,7 @@ Mobile coverage uses a 390px review board with the sticky download/register stri
 
 Updated artifact: `docs/visual-reviews/assets/android-download-entry/updated-android-download-entry.png`.
 
-The 2.0.1 hotfix keeps the same download-page layout and updates only the static Android package plus version manifest. The manifest now advertises `version=2.0.1`, `versionCode=20001`, and APK SHA256 `1b56cdd1420884e6bca2628c61e5cefeea46d98c6a16a955cb8b1e9b6b6010c5`. The bundled APK index still fixes `managedBackendBaseUrl` to `https://api.jisudeng.com` and `nextchatWebUrl` to `https://www.jisudeng.com`.
+The 2.0.1 hotfix keeps the same download-page layout and updates only the static Android package plus version manifest. The manifest now advertises `version=2.0.1`, `versionCode=20001`, APK SHA256 `1b56cdd1420884e6bca2628c61e5cefeea46d98c6a16a955cb8b1e9b6b6010c5`, and a versioned APK URL `/downloads/jisudengchat-android.apk?v=2.0.1-20001` so download buttons and QR scans bypass stale edge-cache entries. The bundled APK index still fixes `managedBackendBaseUrl` to `https://api.jisudeng.com` and `nextchatWebUrl` to `https://www.jisudeng.com`.
 
 Automated evidence is expected from design governance, typecheck, tests, production build, APK packaging, checksum verification, and live deployment probes.
 

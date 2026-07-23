@@ -367,13 +367,19 @@ WHERE EXISTS (
 	      AND k.created_at >= r.registered_at
 	      AND k.created_at <= r.registered_at + INTERVAL '30 minutes'
 )
-OR EXISTS (
-    SELECT 1
-    FROM usage_logs ul
-    WHERE ul.user_id = r.user_id
-      AND ul.created_at >= r.registered_at
-      AND ul.created_at <= r.registered_at + INTERVAL '30 minutes'
-)`,
+	OR EXISTS (
+	    SELECT 1
+	    FROM balance_fund_allocations allocation
+	    JOIN balance_fund_batches batch ON batch.id = allocation.batch_id
+	    WHERE allocation.user_id = r.user_id
+	      AND allocation.action = 'consume'
+	      AND batch.source_kind IN (
+	          'signup_gift', 'ops_gift', 'compensation',
+	          'redeem_gift', 'promotion_gift', 'unknown'
+	      )
+	      AND allocation.created_at >= r.registered_at
+	      AND allocation.created_at <= r.registered_at + INTERVAL '30 minutes'
+	)`,
 		network,
 		windowStart,
 		at,
@@ -410,7 +416,7 @@ WHERE u.deleted_at IS NULL
 		return nil, err
 	}
 
-	users, err := r.loadIPRiskRelatedUsers(ctx, network, windowStart, at)
+	users, err := r.loadIPRiskRelatedUsers(ctx, network, evidence.PrimaryIP, windowStart, at)
 	if err != nil {
 		return nil, err
 	}
@@ -431,24 +437,38 @@ WHERE u.deleted_at IS NULL
 func (r *ipRiskRepository) loadIPRiskRelatedUsers(
 	ctx context.Context,
 	network string,
+	primaryIP string,
 	start,
 	end time.Time,
 ) ([]service.IPRiskRelatedUserSnapshot, error) {
 	rows, err := r.db.QueryContext(ctx, `
-WITH registrations AS (
-    SELECT
-        user_id,
-        MIN(occurred_at) AS first_seen_at,
-        MAX(occurred_at) AS last_seen_at,
-        BOOL_OR(evidence_confidence = 'exact') AS has_exact,
-        COUNT(*) AS registration_count
+WITH registration_events AS (
+    SELECT user_id, ip_address, user_agent_hmac, evidence_confidence, occurred_at
     FROM auth_risk_events
     WHERE event_type = 'register'
       AND ip_network = $1::cidr
       AND occurred_at >= $2
       AND occurred_at <= $3
       AND user_id IS NOT NULL
-    GROUP BY user_id
+),
+shared_ua AS (
+    SELECT user_agent_hmac, COUNT(DISTINCT user_id) AS account_count
+    FROM registration_events
+    WHERE user_agent_hmac IS NOT NULL
+    GROUP BY user_agent_hmac
+),
+registrations AS (
+    SELECT
+        event.user_id,
+        MIN(event.occurred_at) AS first_seen_at,
+        MAX(event.occurred_at) AS last_seen_at,
+        BOOL_OR(event.evidence_confidence = 'exact') AS has_exact,
+        COUNT(*) AS registration_count,
+        COUNT(*) FILTER (WHERE event.ip_address = $4::inet) AS primary_ip_registration_count,
+        COALESCE(MAX(shared.account_count), 0) AS shared_ua_account_count
+    FROM registration_events event
+    LEFT JOIN shared_ua shared ON shared.user_agent_hmac = event.user_agent_hmac
+    GROUP BY event.user_id
 ),
 trusted_seen AS (
     SELECT
@@ -491,8 +511,10 @@ SELECT
     END AS recommended_selected,
     COALESCE(r.first_seen_at, ts.first_seen_at),
     COALESCE(r.last_seen_at, ts.last_seen_at),
-    COALESCE(r.registration_count, 0),
-    u.role,
+	    COALESCE(r.registration_count, 0),
+	    COALESCE(r.primary_ip_registration_count, 0),
+	    COALESCE(r.shared_ua_account_count, 0),
+	    u.role,
     u.status,
     COALESCE(u.total_recharged, 0)::double precision,
     u.created_at
@@ -508,6 +530,7 @@ ORDER BY recommended_selected DESC, COALESCE(r.last_seen_at, ts.last_seen_at) DE
 		network,
 		start.UTC(),
 		end.UTC(),
+		primaryIP,
 	)
 	if err != nil {
 		return nil, err
@@ -521,6 +544,8 @@ ORDER BY recommended_selected DESC, COALESCE(r.last_seen_at, ts.last_seen_at) DE
 			relationType      string
 			confidence        string
 			registrationCount int
+			primaryIPCount    int
+			sharedUACount     int
 			role              string
 			status            string
 			totalRecharged    float64
@@ -534,6 +559,8 @@ ORDER BY recommended_selected DESC, COALESCE(r.last_seen_at, ts.last_seen_at) DE
 			&item.FirstSeenAt,
 			&item.LastSeenAt,
 			&registrationCount,
+			&primaryIPCount,
+			&sharedUACount,
 			&role,
 			&status,
 			&totalRecharged,
@@ -544,11 +571,13 @@ ORDER BY recommended_selected DESC, COALESCE(r.last_seen_at, ts.last_seen_at) DE
 		item.RelationType = service.IPRiskUserRelation(relationType)
 		item.EvidenceConfidence = service.EvidenceConfidence(confidence)
 		item.Evidence = map[string]any{
-			"registration_count": registrationCount,
-			"role":               role,
-			"status":             status,
-			"total_recharged":    totalRecharged,
-			"account_created_at": createdAt.UTC(),
+			"registration_count":            registrationCount,
+			"primary_ip_registration_count": primaryIPCount,
+			"shared_ua_account_count":       sharedUACount,
+			"role":                          role,
+			"status":                        status,
+			"total_recharged":               totalRecharged,
+			"account_created_at":            createdAt.UTC(),
 		}
 		users = append(users, item)
 	}

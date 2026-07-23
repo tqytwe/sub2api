@@ -160,6 +160,104 @@ func TestIPRiskServiceEvaluateNetworkPersistsExplainableShadowCase(t *testing.T)
 	require.Equal(t, []string{"temporary_registration_block", "review_related_users"}, repo.cases[0].RecommendedActions)
 }
 
+func TestIPRiskServiceNotifiesOnlyOnFirstSevereLevelAndUpgrade(t *testing.T) {
+	t.Parallel()
+
+	repo := &ipRiskRepositoryStub{
+		evidence: &IPRiskCandidateSnapshot{
+			Evidence: IPRiskEvidence{
+				PrimaryIP:                  "203.0.113.8",
+				PrimaryNetwork:             "203.0.113.8/32",
+				PrimaryIPRegistrationCount: 10,
+				RegistrationCount24h:       10,
+				ExactRegistrationCount:     10,
+				MaxSharedUACount:           5,
+				EmailPatternAccountCount:   3,
+				AllKeyEvidenceExact:        true,
+			},
+			EvidenceConfidence: string(EvidenceConfidenceExact),
+		},
+	}
+	notifier := &ipRiskAlertNotifierStub{}
+	svc := NewIPRiskService(
+		repo,
+		nil,
+		nil,
+		NewIPRiskHasher([]byte("unit-test-ip-risk-key")),
+		DefaultIPRiskRuntimeConfig(),
+	)
+	svc.SetAlertNotifier(notifier)
+	detectedAt := time.Date(2026, time.July, 23, 8, 10, 0, 0, time.UTC)
+
+	first, err := svc.EvaluateNetwork(context.Background(), "203.0.113.8/32", detectedAt)
+	require.NoError(t, err)
+	require.Equal(t, RiskLevelSevere, first.Level)
+	require.Equal(t, []RiskLevel{RiskLevelSevere}, notifier.levels)
+	require.Equal(t, []RiskLevel{""}, notifier.previousLevels)
+
+	_, err = svc.EvaluateNetwork(context.Background(), "203.0.113.8/32", detectedAt.Add(time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, []RiskLevel{RiskLevelSevere}, notifier.levels)
+
+	repo.evidence.Evidence.SharedAPIIPUserCount = 3
+	upgraded, err := svc.EvaluateNetwork(context.Background(), "203.0.113.8/32", detectedAt.Add(2*time.Minute))
+	require.NoError(t, err)
+	require.Equal(t, RiskLevelCritical, upgraded.Level)
+	require.Equal(t, []RiskLevel{RiskLevelSevere, RiskLevelCritical}, notifier.levels)
+	require.Equal(t, []RiskLevel{"", RiskLevelSevere}, notifier.previousLevels)
+}
+
+func TestIPRiskServiceAutomaticBlockCreatesAuditedRollbackSafeAction(t *testing.T) {
+	t.Parallel()
+
+	repo := &ipRiskRepositoryStub{
+		evidence: &IPRiskCandidateSnapshot{
+			Evidence: IPRiskEvidence{
+				PrimaryIP:                  "203.0.113.8",
+				PrimaryNetwork:             "203.0.113.8/32",
+				PrimaryIPRegistrationCount: 10,
+				RegistrationCount24h:       10,
+				ExactRegistrationCount:     10,
+				MaxSharedUACount:           5,
+				SharedAPIIPUserCount:       3,
+				AllKeyEvidenceExact:        true,
+			},
+			EvidenceConfidence: string(EvidenceConfidenceExact),
+		},
+	}
+	recorder := &ipRiskAuditRecorderStub{}
+	svc := NewIPRiskService(
+		repo,
+		nil,
+		nil,
+		NewIPRiskHasher([]byte("unit-test-ip-risk-key")),
+		DefaultIPRiskRuntimeConfig(),
+	)
+	config := DefaultIPRiskManagedConfig()
+	config.AutoBlockEnabled = true
+	svc.ApplyManagedConfig(config)
+	svc.SetAuditRecorder(recorder)
+
+	assessment, err := svc.EvaluateNetwork(
+		context.Background(),
+		"203.0.113.8/32",
+		time.Date(2026, time.July, 23, 8, 10, 0, 0, time.UTC),
+	)
+	require.NoError(t, err)
+	require.True(t, assessment.AutoBlockEligible)
+	require.Len(t, repo.createdActions, 1)
+	require.Equal(t, "system", repo.createdActions[0].ActorType)
+	require.Len(t, repo.actionItems, 1)
+	require.Equal(t, "eligible", repo.actionItems[0].RollbackStatus)
+	require.Equal(t, string(IPPolicyBlockRegistration), repo.actionItems[0].AfterState["mode"])
+	require.Equal(t, "203.0.113.8", repo.actionItems[0].AfterState["exact_ip"])
+	require.Equal(t, 1, repo.completedActionResult["completed_items"])
+	require.Len(t, recorder.entries, 1)
+	require.Equal(t, AuditActionSystemIPRiskRegistrationBlock, recorder.entries[0].Action)
+	require.Equal(t, "system", recorder.entries[0].ActorRole)
+	require.Equal(t, 200, recorder.entries[0].StatusCode)
+}
+
 func TestIPRiskServiceDoesNotCreateCaseBelowMediumRisk(t *testing.T) {
 	t.Parallel()
 
@@ -503,8 +601,86 @@ func TestIPRiskRuntimeReportsAndClearsEventPersistenceFailure(t *testing.T) {
 	require.Empty(t, runtime.LastError)
 }
 
+func TestIPRiskRegistrationGateAppliesExplicitPoliciesWhileAutomaticBlockingIsDisabled(t *testing.T) {
+	t.Parallel()
+
+	repo := &ipRiskRepositoryStub{
+		policy: IPRiskPolicyMatch{RegistrationBlock: true},
+	}
+	svc := NewIPRiskService(
+		repo,
+		nil,
+		nil,
+		NewIPRiskHasher([]byte("unit-test-ip-risk-key")),
+		DefaultIPRiskRuntimeConfig(),
+	)
+	require.False(t, svc.Runtime(context.Background()).AutoBlockEnabled)
+
+	ctx := WithIPRiskRequestMetadata(context.Background(), IPRiskRequestMetadata{
+		ClientIP: "203.0.113.8",
+	})
+	require.ErrorIs(t, svc.CheckRegistrationAllowed(ctx), ErrIPRiskRegistrationBlocked)
+}
+
+func TestIPRiskRegistrationGateHonorsProtectionPoliciesAndFailsOpen(t *testing.T) {
+	t.Parallel()
+
+	ctx := WithIPRiskRequestMetadata(context.Background(), IPRiskRequestMetadata{
+		ClientIP: "2001:db8:7a4::19",
+	})
+	for _, match := range []IPRiskPolicyMatch{
+		{RegistrationBlock: true, Allowlisted: true},
+		{RegistrationBlock: true, KnownSharedNetwork: true},
+	} {
+		repo := &ipRiskRepositoryStub{policy: match}
+		svc := NewIPRiskService(
+			repo,
+			nil,
+			nil,
+			NewIPRiskHasher([]byte("unit-test-ip-risk-key")),
+			DefaultIPRiskRuntimeConfig(),
+		)
+		require.NoError(t, svc.CheckRegistrationAllowed(ctx))
+	}
+
+	repo := &ipRiskRepositoryStub{policyErr: errors.New("policy store unavailable")}
+	svc := NewIPRiskService(
+		repo,
+		nil,
+		nil,
+		NewIPRiskHasher([]byte("unit-test-ip-risk-key")),
+		DefaultIPRiskRuntimeConfig(),
+	)
+	require.NoError(t, svc.CheckRegistrationAllowed(ctx))
+	require.Contains(t, svc.Runtime(context.Background()).LastError, "policy store unavailable")
+}
+
 type ipRiskLeaderLockStub struct {
 	keys []string
+}
+
+type ipRiskAlertNotifierStub struct {
+	levels         []RiskLevel
+	previousLevels []RiskLevel
+}
+
+type ipRiskAuditRecorderStub struct {
+	entries []*AuditLog
+}
+
+func (s *ipRiskAuditRecorderStub) Record(entry *AuditLog) {
+	s.entries = append(s.entries, entry)
+}
+
+func (s *ipRiskAlertNotifierStub) NotifyIPRiskLevel(
+	_ context.Context,
+	_ *IPRiskCase,
+	assessment IPRiskAssessment,
+	previousLevel RiskLevel,
+) error {
+	s.levels = append(s.levels, assessment.Level)
+	s.previousLevels = append(s.previousLevels, previousLevel)
+	return nil
 }
 
 func (s *ipRiskLeaderLockStub) TryAcquireLeaderLock(
@@ -536,6 +712,11 @@ type ipRiskRepositoryStub struct {
 	terminalUpdateContextErr error
 	latestScan               *IPRiskScan
 	insertErr                error
+	policyErr                error
+	lastNotifiedLevel        RiskLevel
+	createdActions           []IPRiskActionCreate
+	actionItems              []IPRiskActionItemCreate
+	completedActionResult    map[string]any
 }
 
 func (r *ipRiskRepositoryStub) InsertAuthRiskEvent(_ context.Context, event *AuthRiskEvent) (bool, error) {
@@ -572,7 +753,7 @@ func (r *ipRiskRepositoryStub) LoadIPRiskCandidateSnapshot(_ context.Context, _ 
 }
 
 func (r *ipRiskRepositoryStub) MatchIPRiskPolicies(context.Context, string, string, time.Time) (IPRiskPolicyMatch, error) {
-	return r.policy, nil
+	return r.policy, r.policyErr
 }
 
 func (r *ipRiskRepositoryStub) UpsertIPRiskCase(_ context.Context, input *IPRiskCaseUpsert) (*IPRiskCase, error) {
@@ -581,7 +762,10 @@ func (r *ipRiskRepositoryStub) UpsertIPRiskCase(_ context.Context, input *IPRisk
 	clone.Users = append([]IPRiskRelatedUserSnapshot(nil), input.Users...)
 	clone.RecommendedActions = append([]string(nil), input.RecommendedActions...)
 	r.cases = append(r.cases, &clone)
-	return &IPRiskCase{ID: int64(len(r.cases)), Score: input.Score, Level: input.Level}, nil
+	return &IPRiskCase{
+		ID: int64(len(r.cases)), PrimaryIP: input.PrimaryIP, PrimaryNetwork: input.PrimaryNetwork,
+		Score: input.Score, Level: input.Level, LastDetectedAt: input.DetectedAt, Version: 1,
+	}, nil
 }
 
 func (r *ipRiskRepositoryStub) CreateIPRiskScan(context.Context, *IPRiskScanCreate) (*IPRiskScan, error) {
@@ -619,4 +803,129 @@ func (r *ipRiskRepositoryStub) LatestIPRiskScan(context.Context) (*IPRiskScan, e
 
 func (r *ipRiskRepositoryStub) HasCompletedIPRiskScan(context.Context, IPRiskScanType) (bool, error) {
 	return r.completedScan, nil
+}
+
+func (r *ipRiskRepositoryStub) GetIPRiskOverview(context.Context) (*IPRiskOverview, error) {
+	return &IPRiskOverview{}, nil
+}
+
+func (r *ipRiskRepositoryStub) ListIPRiskCases(context.Context, IPRiskCaseFilter) ([]IPRiskCaseSummary, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *ipRiskRepositoryStub) GetIPRiskCaseDetail(context.Context, int64) (*IPRiskCaseDetail, error) {
+	return nil, sql.ErrNoRows
+}
+
+func (r *ipRiskRepositoryStub) GetIPRiskManagedConfig(context.Context) (*IPRiskManagedConfig, error) {
+	return nil, ErrIPRiskConfigNotFound
+}
+
+func (r *ipRiskRepositoryStub) UpdateIPRiskManagedConfig(context.Context, IPRiskManagedConfig, int64) error {
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) ListIPRiskPolicies(context.Context) ([]IPRiskPolicy, error) {
+	return nil, nil
+}
+
+func (r *ipRiskRepositoryStub) CreateIPRiskPolicy(context.Context, IPRiskPolicyInput, *int64) (*IPRiskPolicy, error) {
+	return &IPRiskPolicy{ID: 1}, nil
+}
+
+func (r *ipRiskRepositoryStub) UpdateIPRiskPolicy(context.Context, int64, IPRiskPolicyInput) (*IPRiskPolicy, error) {
+	return &IPRiskPolicy{ID: 1}, nil
+}
+
+func (r *ipRiskRepositoryStub) DeleteIPRiskPolicy(context.Context, int64) error {
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) GetIPRiskScan(context.Context, int64) (*IPRiskScan, error) {
+	return &IPRiskScan{ID: 1}, nil
+}
+
+func (r *ipRiskRepositoryStub) ListIPRiskActions(context.Context, int, int) ([]IPRiskActionRecord, int64, error) {
+	return nil, 0, nil
+}
+
+func (r *ipRiskRepositoryStub) GetIPRiskAction(context.Context, int64) (*IPRiskActionRecord, error) {
+	return nil, sql.ErrNoRows
+}
+
+func (r *ipRiskRepositoryStub) CreateIPRiskAction(_ context.Context, input IPRiskActionCreate) (*IPRiskActionRecord, error) {
+	r.createdActions = append(r.createdActions, input)
+	return &IPRiskActionRecord{ID: int64(len(r.createdActions)), ActionType: input.ActionType}, nil
+}
+
+func (r *ipRiskRepositoryStub) AddIPRiskActionItem(_ context.Context, input IPRiskActionItemCreate) error {
+	r.actionItems = append(r.actionItems, input)
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) ReserveIPRiskActionItem(_ context.Context, input IPRiskActionItemCreate) (int64, error) {
+	input.Status = "pending"
+	input.RollbackStatus = "not_requested"
+	r.actionItems = append(r.actionItems, input)
+	return int64(len(r.actionItems)), nil
+}
+
+func (r *ipRiskRepositoryStub) FinalizeIPRiskActionItem(
+	_ context.Context,
+	itemID int64,
+	targetID *int64,
+	status,
+	errorMessage,
+	rollbackStatus string,
+) error {
+	index := int(itemID - 1)
+	if index < 0 || index >= len(r.actionItems) {
+		return errors.New("reserved action item not found")
+	}
+	r.actionItems[index].TargetID = targetID
+	r.actionItems[index].Status = status
+	r.actionItems[index].ErrorMessage = errorMessage
+	r.actionItems[index].RollbackStatus = rollbackStatus
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) CompleteIPRiskAction(_ context.Context, _ int64, _ string, result map[string]any, _ bool) error {
+	r.completedActionResult = result
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) MarkIPRiskActionRolledBack(context.Context, int64, string) error {
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) UpdateIPRiskCaseStatus(context.Context, int64, RiskCaseStatus) error {
+	return nil
+}
+
+func (r *ipRiskRepositoryStub) ClaimIPRiskNotification(_ context.Context, _ int64, level RiskLevel) (RiskLevel, bool, error) {
+	previous, claimed := r.claimIPRiskNotificationWithLevel(level)
+	return previous, claimed, nil
+}
+
+func (r *ipRiskRepositoryStub) claimIPRiskNotificationWithLevel(level RiskLevel) (RiskLevel, bool) {
+	ranks := map[RiskLevel]int{
+		RiskLevelLow:      1,
+		RiskLevelMedium:   2,
+		RiskLevelHigh:     3,
+		RiskLevelSevere:   4,
+		RiskLevelCritical: 5,
+	}
+	previous := r.lastNotifiedLevel
+	if ranks[level] <= ranks[previous] {
+		return previous, false
+	}
+	r.lastNotifiedLevel = level
+	return previous, true
+}
+
+func (r *ipRiskRepositoryStub) RestoreIPRiskNotification(_ context.Context, _ int64, claimedLevel, previousLevel RiskLevel) error {
+	if r.lastNotifiedLevel == claimedLevel {
+		r.lastNotifiedLevel = previousLevel
+	}
+	return nil
 }

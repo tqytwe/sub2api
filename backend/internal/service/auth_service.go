@@ -85,6 +85,10 @@ type AuthService struct {
 	ipRiskRecorder        IPRiskRecorder
 }
 
+type ipRiskRegistrationGate interface {
+	CheckRegistrationAllowed(ctx context.Context) error
+}
+
 type DefaultSubscriptionAssigner interface {
 	AssignOrExtendSubscription(ctx context.Context, input *AssignSubscriptionInput) (*UserSubscription, bool, error)
 }
@@ -192,6 +196,20 @@ func detachedIPRiskRecordingContext(ctx context.Context) (context.Context, conte
 	return context.WithTimeout(context.WithoutCancel(ctx), ipRiskRecordingTimeout)
 }
 
+func (s *AuthService) checkIPRiskRegistrationAllowed(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	gate, ok := s.ipRiskRecorder.(ipRiskRegistrationGate)
+	if !ok {
+		return nil
+	}
+	if err := gate.CheckRegistrationAllowed(ctx); err != nil {
+		return infraerrors.TooManyRequests("IP_REGISTRATION_BLOCKED", err.Error())
+	}
+	return nil
+}
+
 // RecordCommittedOAuthRegistration records an OAuth-created user only after
 // the surrounding identity/session transaction has committed successfully.
 func (s *AuthService) RecordCommittedOAuthRegistration(
@@ -214,6 +232,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return "", nil, ErrRegDisabled
+	}
+	if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
+		return "", nil, err
 	}
 
 	// 防止用户注册 LinuxDo OAuth 合成邮箱，避免第三方登录与本地账号发生碰撞。
@@ -576,6 +597,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 				return "", nil, ErrRegDisabled
 			}
+			if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
+				return "", nil, err
+			}
 
 			randomPassword, err := randomHexString(32)
 			if err != nil {
@@ -708,6 +732,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			// OAuth 首次登录视为注册
 			if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, signupSource)) {
 				return nil, nil, ErrRegDisabled
+			}
+			if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
+				return nil, nil, err
 			}
 
 			// 检查是否需要邀请码

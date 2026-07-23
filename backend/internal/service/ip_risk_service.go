@@ -214,6 +214,27 @@ type IPRiskRepository interface {
 	DeleteIPRiskRecordsBefore(ctx context.Context, cutoff time.Time, batchSize int) (int64, error)
 	LatestIPRiskScan(ctx context.Context) (*IPRiskScan, error)
 	HasCompletedIPRiskScan(ctx context.Context, scanType IPRiskScanType) (bool, error)
+	GetIPRiskOverview(ctx context.Context) (*IPRiskOverview, error)
+	ListIPRiskCases(ctx context.Context, filter IPRiskCaseFilter) ([]IPRiskCaseSummary, int64, error)
+	GetIPRiskCaseDetail(ctx context.Context, caseID int64) (*IPRiskCaseDetail, error)
+	GetIPRiskManagedConfig(ctx context.Context) (*IPRiskManagedConfig, error)
+	UpdateIPRiskManagedConfig(ctx context.Context, config IPRiskManagedConfig, actorID int64) error
+	ListIPRiskPolicies(ctx context.Context) ([]IPRiskPolicy, error)
+	CreateIPRiskPolicy(ctx context.Context, input IPRiskPolicyInput, sourceActionID *int64) (*IPRiskPolicy, error)
+	UpdateIPRiskPolicy(ctx context.Context, id int64, input IPRiskPolicyInput) (*IPRiskPolicy, error)
+	DeleteIPRiskPolicy(ctx context.Context, id int64) error
+	GetIPRiskScan(ctx context.Context, id int64) (*IPRiskScan, error)
+	ListIPRiskActions(ctx context.Context, page, pageSize int) ([]IPRiskActionRecord, int64, error)
+	GetIPRiskAction(ctx context.Context, id int64) (*IPRiskActionRecord, error)
+	CreateIPRiskAction(ctx context.Context, input IPRiskActionCreate) (*IPRiskActionRecord, error)
+	AddIPRiskActionItem(ctx context.Context, input IPRiskActionItemCreate) error
+	ReserveIPRiskActionItem(ctx context.Context, input IPRiskActionItemCreate) (int64, error)
+	FinalizeIPRiskActionItem(ctx context.Context, itemID int64, targetID *int64, status, errorMessage, rollbackStatus string) error
+	CompleteIPRiskAction(ctx context.Context, id int64, status string, result map[string]any, rollbackEligible bool) error
+	MarkIPRiskActionRolledBack(ctx context.Context, id int64, status string) error
+	UpdateIPRiskCaseStatus(ctx context.Context, id int64, status RiskCaseStatus) error
+	ClaimIPRiskNotification(ctx context.Context, caseID int64, level RiskLevel) (RiskLevel, bool, error)
+	RestoreIPRiskNotification(ctx context.Context, caseID int64, claimedLevel, previousLevel RiskLevel) error
 }
 
 type IPRiskRecorder interface {
@@ -289,9 +310,13 @@ type IPRiskService struct {
 	started atomic.Bool
 
 	stateMu          sync.RWMutex
+	configMu         sync.RWMutex
 	lastEvaluationAt *time.Time
 	lastError        string
 	lastEventError   string
+	autoBlockEnabled bool
+	alertNotifier    IPRiskAlertNotifier
+	auditRecorder    IPRiskAuditRecorder
 }
 
 func NewIPRiskService(
@@ -329,8 +354,8 @@ func NewIPRiskService(
 		runtimeCfg.EvaluationQueueCapacity = 4096
 	}
 
-	// CP1 is deliberately hard-wired to Shadow Mode. A later checkpoint may
-	// introduce action execution behind a separately reviewed provider.
+	// The persisted managed configuration owns automation. The migration
+	// defaults it off so a fresh deployment always starts in shadow mode.
 	runtimeCfg.ShadowMode = true
 	ctx, cancel := context.WithCancel(context.Background())
 	return &IPRiskService{
@@ -346,12 +371,103 @@ func NewIPRiskService(
 	}
 }
 
+type IPRiskAlertNotifier interface {
+	NotifyIPRiskLevel(ctx context.Context, riskCase *IPRiskCase, assessment IPRiskAssessment, previousLevel RiskLevel) error
+}
+
+type IPRiskAuditRecorder interface {
+	Record(entry *AuditLog)
+}
+
+func (s *IPRiskService) SetAlertNotifier(notifier IPRiskAlertNotifier) {
+	if s == nil {
+		return
+	}
+	s.configMu.Lock()
+	s.alertNotifier = notifier
+	s.configMu.Unlock()
+}
+
+func (s *IPRiskService) SetAuditRecorder(recorder IPRiskAuditRecorder) {
+	if s == nil {
+		return
+	}
+	s.configMu.Lock()
+	s.auditRecorder = recorder
+	s.configMu.Unlock()
+}
+
+func (s *IPRiskService) ApplyManagedConfig(config IPRiskManagedConfig) {
+	if s == nil {
+		return
+	}
+	s.configMu.Lock()
+	s.score = IPRiskConfig{
+		Registration10mThreshold:  config.Registration10mThreshold,
+		Registration10mScore:      config.Registration10mScore,
+		Registration1hThreshold:   config.Registration1hThreshold,
+		Registration1hScore:       config.Registration1hScore,
+		Registration24hThreshold:  config.Registration24hThreshold,
+		Registration24hScore:      config.Registration24hScore,
+		SharedUA3Threshold:        config.SharedUA3Threshold,
+		SharedUA3Score:            config.SharedUA3Score,
+		SharedUA5Threshold:        config.SharedUA5Threshold,
+		SharedUA5Score:            config.SharedUA5Score,
+		EmailPatternThreshold:     config.EmailPatternThreshold,
+		EmailPatternScore:         config.EmailPatternScore,
+		SharedAPIIPThreshold:      config.SharedAPIIPThreshold,
+		SharedAPIIPScore:          config.SharedAPIIPScore,
+		RapidBehaviorThreshold:    config.RapidBehaviorThreshold,
+		RapidBehaviorScore:        config.RapidBehaviorScore,
+		SharedSignupCodeThreshold: config.SharedSignupCodeThreshold,
+		SharedSignupCodeScore:     config.SharedSignupCodeScore,
+		TrustedAccountScore:       config.TrustedAccountScore,
+		AutoBlockScore:            config.AutoBlockScore,
+		AutoBlockMinRegistrations: config.AutoBlockMinRegistrations,
+		AutoBlockDuration:         time.Duration(config.AutoBlockDurationMinutes) * time.Minute,
+	}
+	s.autoBlockEnabled = config.AutoBlockEnabled
+	s.runtimeCfg.HistoricalBackfillEnabled = config.HistoricalBackfillEnabled
+	s.runtimeCfg.EventRetention = time.Duration(config.EventRetentionDays) * 24 * time.Hour
+	s.runtimeCfg.CaseRetention = time.Duration(config.CaseRetentionDays) * 24 * time.Hour
+	s.runtimeCfg.ShadowMode = !config.AutoBlockEnabled
+	s.configMu.Unlock()
+}
+
+func (s *IPRiskService) currentConfig() (IPRiskConfig, bool, bool) {
+	s.configMu.RLock()
+	defer s.configMu.RUnlock()
+	return s.score, s.autoBlockEnabled, s.runtimeCfg.ShadowMode
+}
+
+func (s *IPRiskService) LoadManagedConfig(ctx context.Context) error {
+	if s == nil || s.repo == nil {
+		return errors.New("ip risk service unavailable")
+	}
+	config, err := s.repo.GetIPRiskManagedConfig(ctx)
+	if errors.Is(err, ErrIPRiskConfigNotFound) || errors.Is(err, sql.ErrNoRows) {
+		config = func() *IPRiskManagedConfig {
+			value := DefaultIPRiskManagedConfig()
+			return &value
+		}()
+		err = nil
+	}
+	if err != nil {
+		return err
+	}
+	s.ApplyManagedConfig(*config)
+	return nil
+}
+
 func (s *IPRiskService) Start() {
 	if s == nil || !s.runtimeCfg.Enabled || s.repo == nil || s.hasher == nil {
 		return
 	}
 	if !s.started.CompareAndSwap(false, true) {
 		return
+	}
+	if err := s.LoadManagedConfig(s.ctx); err != nil {
+		s.setEvaluationState(time.Now().UTC(), "load managed config: "+err.Error())
 	}
 	workerCount := 2
 	if s.runtimeCfg.HistoricalBackfillEnabled {
@@ -508,7 +624,8 @@ func (s *IPRiskService) EvaluateNetwork(ctx context.Context, network string, det
 	snapshot.Evidence.Allowlisted = policies.Allowlisted
 	snapshot.Evidence.KnownSharedNetwork = policies.KnownSharedNetwork
 
-	assessment := CalculateIPRiskAssessment(s.score, snapshot.Evidence)
+	scoreConfig, autoBlockEnabled, shadowMode := s.currentConfig()
+	assessment := CalculateIPRiskAssessment(scoreConfig, snapshot.Evidence)
 	s.setEvaluationState(detectedAt, "")
 	if assessment.Score < 40 {
 		return &assessment, nil
@@ -525,7 +642,7 @@ func (s *IPRiskService) EvaluateNetwork(ctx context.Context, network string, det
 			confidence = "mixed"
 		}
 	}
-	_, err = s.repo.UpsertIPRiskCase(ctx, &IPRiskCaseUpsert{
+	riskCase, err := s.repo.UpsertIPRiskCase(ctx, &IPRiskCaseUpsert{
 		PrimaryIP:          snapshot.Evidence.PrimaryIP,
 		PrimaryNetwork:     snapshot.Evidence.PrimaryNetwork,
 		Score:              assessment.Score,
@@ -536,13 +653,153 @@ func (s *IPRiskService) EvaluateNetwork(ctx context.Context, network string, det
 		Users:              snapshot.Users,
 		RecommendedActions: recommendedIPRiskActions(assessment),
 		AutoBlockEligible:  assessment.AutoBlockEligible,
-		ShadowMode:         true,
+		ShadowMode:         shadowMode,
 		DetectedAt:         detectedAt,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("upsert ip risk case: %w", err)
 	}
+	if autoBlockEnabled && assessment.AutoBlockEligible && !policies.RegistrationBlock {
+		expiresAt := detectedAt.Add(assessment.AutoBlockDuration)
+		reason := fmt.Sprintf("automatic critical-risk registration block for case %d", riskCase.ID)
+		action, actionErr := s.repo.CreateIPRiskAction(ctx, IPRiskActionCreate{
+			CaseID:      &riskCase.ID,
+			CaseVersion: riskCase.Version,
+			ActionType:  RiskActionTemporaryRegistrationBan,
+			ActorType:   "system",
+			Reason:      reason,
+			ActionSnapshot: map[string]any{
+				"score":            assessment.Score,
+				"target":           assessment.AutoBlockTarget,
+				"duration_minutes": int(assessment.AutoBlockDuration / time.Minute),
+			},
+		})
+		if actionErr != nil {
+			return nil, fmt.Errorf("create automatic ip risk action: %w", actionErr)
+		}
+		itemID, itemErr := s.repo.ReserveIPRiskActionItem(ctx, IPRiskActionItemCreate{
+			ActionID:    action.ID,
+			TargetType:  "ip_policy",
+			TargetIP:    snapshot.Evidence.PrimaryIP,
+			BeforeState: map[string]any{"enabled": false},
+			AfterState: map[string]any{
+				"enabled":    true,
+				"mode":       string(IPPolicyBlockRegistration),
+				"ip_network": "",
+				"exact_ip":   snapshot.Evidence.PrimaryIP,
+				"reason":     reason,
+				"expires_at": expiresAt.UTC().Format(time.RFC3339Nano),
+			},
+		})
+		var policy *IPRiskPolicy
+		var policyErr error
+		if itemErr == nil {
+			policy, policyErr = s.repo.CreateIPRiskPolicy(ctx, IPRiskPolicyInput{
+				Mode:      IPPolicyBlockRegistration,
+				ExactIP:   snapshot.Evidence.PrimaryIP,
+				Reason:    reason,
+				Enabled:   true,
+				ExpiresAt: &expiresAt,
+			}, &action.ID)
+		} else {
+			policyErr = itemErr
+		}
+		var targetID *int64
+		if policy != nil {
+			targetID = &policy.ID
+		}
+		itemStatus := "completed"
+		if policyErr != nil {
+			itemStatus = "failed"
+		}
+		if itemErr == nil {
+			itemErr = s.repo.FinalizeIPRiskActionItem(
+				ctx,
+				itemID,
+				targetID,
+				itemStatus,
+				errorString(policyErr),
+				ipRiskActionItemRollbackStatus(itemStatus),
+			)
+		}
+		if itemErr != nil {
+			policyErr = errors.Join(policyErr, itemErr)
+			if policy != nil {
+				policyErr = errors.Join(policyErr, s.repo.DeleteIPRiskPolicy(ctx, policy.ID))
+			}
+		}
+		actionStatus := "completed"
+		completedItems := 1
+		failedItems := 0
+		if policyErr != nil {
+			actionStatus = "failed"
+			completedItems = 0
+			failedItems = 1
+		}
+		_ = s.repo.CompleteIPRiskAction(ctx, action.ID, actionStatus, map[string]any{
+			"policy_id": targetID, "completed_items": completedItems, "failed_items": failedItems,
+		}, policyErr == nil)
+		s.recordAutomaticBlockAudit(riskCase, action, assessment, actionStatus, policyErr)
+		if policyErr != nil {
+			return nil, fmt.Errorf("create automatic registration block: %w", policyErr)
+		}
+	}
+	s.configMu.RLock()
+	notifier := s.alertNotifier
+	s.configMu.RUnlock()
+	if notifier != nil && riskCase != nil && assessment.Score >= 80 {
+		previousLevel, claimed, claimErr := s.repo.ClaimIPRiskNotification(ctx, riskCase.ID, assessment.Level)
+		if claimErr != nil {
+			logger.LegacyPrintf("service.ip_risk", "[IPRisk] alert claim failed: case_id=%d err=%v", riskCase.ID, claimErr)
+		} else if claimed {
+			if notifyErr := notifier.NotifyIPRiskLevel(ctx, riskCase, assessment, previousLevel); notifyErr != nil {
+				if restoreErr := s.repo.RestoreIPRiskNotification(ctx, riskCase.ID, assessment.Level, previousLevel); restoreErr != nil {
+					notifyErr = errors.Join(notifyErr, restoreErr)
+				}
+				logger.LegacyPrintf("service.ip_risk", "[IPRisk] alert notification failed: case_id=%d err=%v", riskCase.ID, notifyErr)
+			}
+		}
+	}
 	return &assessment, nil
+}
+
+func (s *IPRiskService) recordAutomaticBlockAudit(
+	riskCase *IPRiskCase,
+	action *IPRiskActionRecord,
+	assessment IPRiskAssessment,
+	status string,
+	actionErr error,
+) {
+	if s == nil {
+		return
+	}
+	s.configMu.RLock()
+	recorder := s.auditRecorder
+	s.configMu.RUnlock()
+	if recorder == nil || riskCase == nil || action == nil {
+		return
+	}
+	statusCode := 200
+	if actionErr != nil {
+		statusCode = 500
+	}
+	recorder.Record(&AuditLog{
+		CreatedAt:  time.Now().UTC(),
+		ActorRole:  "system",
+		AuthMethod: "system",
+		Action:     AuditActionSystemIPRiskRegistrationBlock,
+		Method:     "SYSTEM",
+		Path:       "/internal/ip-risk/automatic-registration-block",
+		StatusCode: statusCode,
+		Extra: map[string]any{
+			"result":           status,
+			"case_id":          riskCase.ID,
+			"action_id":        action.ID,
+			"risk_score":       assessment.Score,
+			"risk_level":       string(assessment.Level),
+			"duration_minutes": int(assessment.AutoBlockDuration / time.Minute),
+		},
+	})
 }
 
 func recommendedIPRiskActions(assessment IPRiskAssessment) []string {
@@ -659,10 +916,11 @@ func (s *IPRiskService) RunScan(
 		}
 	}
 
+	scoreConfig, _, _ := s.currentConfig()
 	candidates, err := s.repo.ListIPRiskEvaluationCandidates(ctx, start, end, IPRiskRegistrationThresholds{
-		TenMinutes:      s.score.Registration10mThreshold,
-		OneHour:         s.score.Registration1hThreshold,
-		TwentyFourHours: s.score.Registration24hThreshold,
+		TenMinutes:      scoreConfig.Registration10mThreshold,
+		OneHour:         scoreConfig.Registration1hThreshold,
+		TwentyFourHours: scoreConfig.Registration24hThreshold,
 	})
 	if err != nil {
 		return fail(fmt.Errorf("list ip risk candidates: %w", err), 0, 0, 0, inferredCount)
@@ -712,6 +970,173 @@ func (s *IPRiskService) RunScan(
 	scan.CompletedAt = &completedAt
 	s.setEvaluationState(completedAt, "")
 	return scan, nil
+}
+
+func (s *IPRiskService) StartScan(
+	ctx context.Context,
+	scanType IPRiskScanType,
+	start,
+	end time.Time,
+	requestedBy *int64,
+) (*IPRiskScan, error) {
+	if s == nil || s.repo == nil {
+		return nil, errors.New("ip risk scanner unavailable")
+	}
+	start = start.UTC()
+	end = end.UTC()
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return nil, errors.New("invalid ip risk scan range")
+	}
+	if scanType == IPRiskScanManual && end.Sub(start) > s.runtimeCfg.ManualScanMaxRange {
+		return nil, fmt.Errorf("manual ip risk scan range exceeds %s", s.runtimeCfg.ManualScanMaxRange)
+	}
+	scan, err := s.repo.CreateIPRiskScan(ctx, &IPRiskScanCreate{
+		ScanType:    scanType,
+		Status:      IPRiskScanPending,
+		RequestedBy: requestedBy,
+		RangeStart:  start,
+		RangeEnd:    end,
+	})
+	if err != nil {
+		return nil, err
+	}
+	go func(scanID int64) {
+		runCtx, cancel := context.WithTimeout(s.ctx, 30*time.Minute)
+		defer cancel()
+		if err := s.runExistingScan(runCtx, scanID, scanType, start, end, requestedBy); err != nil {
+			logger.LegacyPrintf("service.ip_risk", "[IPRisk] async scan failed: scan_id=%d err=%v", scanID, err)
+		}
+	}(scan.ID)
+	return scan, nil
+}
+
+func (s *IPRiskService) runExistingScan(
+	ctx context.Context,
+	scanID int64,
+	scanType IPRiskScanType,
+	start,
+	end time.Time,
+	requestedBy *int64,
+) error {
+	owner := fmt.Sprintf("%d", time.Now().UnixNano())
+	release, acquired := tryAcquireSingletonLeaderLock(ctx, s.lockCache, s.db, ipRiskScanLeaderLockKey, owner, ipRiskScanLeaderLockTTL)
+	if !acquired {
+		completedAt := time.Now().UTC()
+		return s.repo.UpdateIPRiskScan(ctx, scanID, &IPRiskScanUpdate{
+			Status:       IPRiskScanFailed,
+			ErrorMessage: "ip risk scan is already running",
+			CompletedAt:  &completedAt,
+		})
+	}
+	defer release()
+	startedAt := time.Now().UTC()
+	if err := s.repo.UpdateIPRiskScan(ctx, scanID, &IPRiskScanUpdate{
+		Status:    IPRiskScanRunning,
+		StartedAt: &startedAt,
+	}); err != nil {
+		return err
+	}
+	inferredCount := 0
+	if scanType == IPRiskScanHistoricalBackfill {
+		value, err := s.InferHistoricalRegistrations(ctx, start, end)
+		inferredCount = value
+		if err != nil {
+			return s.failExistingScan(ctx, scanID, err, 0, 0, 0, inferredCount)
+		}
+	}
+	scoreConfig, _, _ := s.currentConfig()
+	candidates, err := s.repo.ListIPRiskEvaluationCandidates(ctx, start, end, IPRiskRegistrationThresholds{
+		TenMinutes:      scoreConfig.Registration10mThreshold,
+		OneHour:         scoreConfig.Registration1hThreshold,
+		TwentyFourHours: scoreConfig.Registration24hThreshold,
+	})
+	if err != nil {
+		return s.failExistingScan(ctx, scanID, err, 0, 0, 0, inferredCount)
+	}
+	caseCount := 0
+	for index, candidate := range candidates {
+		assessment, evaluateErr := s.EvaluateNetwork(ctx, candidate.Network, candidate.DetectedAt)
+		if evaluateErr != nil {
+			return s.failExistingScan(ctx, scanID, evaluateErr, len(candidates), index, caseCount, inferredCount)
+		}
+		if assessment != nil && assessment.Score >= 40 {
+			caseCount++
+		}
+		progress := 100
+		if len(candidates) > 0 {
+			progress = (index + 1) * 100 / len(candidates)
+		}
+		_ = s.repo.UpdateIPRiskScan(ctx, scanID, &IPRiskScanUpdate{
+			Status:             IPRiskScanRunning,
+			Progress:           progress,
+			CandidateCount:     len(candidates),
+			CaseCount:          caseCount,
+			InferredEventCount: inferredCount,
+			StartedAt:          &startedAt,
+		})
+	}
+	completedAt := time.Now().UTC()
+	return s.repo.UpdateIPRiskScan(ctx, scanID, &IPRiskScanUpdate{
+		Status:             IPRiskScanCompleted,
+		Progress:           100,
+		CandidateCount:     len(candidates),
+		CaseCount:          caseCount,
+		InferredEventCount: inferredCount,
+		StartedAt:          &startedAt,
+		CompletedAt:        &completedAt,
+	})
+}
+
+func (s *IPRiskService) failExistingScan(ctx context.Context, scanID int64, runErr error, candidateCount, processedCount, caseCount, inferredCount int) error {
+	completedAt := time.Now().UTC()
+	progress := 0
+	if candidateCount > 0 {
+		progress = processedCount * 100 / candidateCount
+	}
+	status := IPRiskScanFailed
+	if errors.Is(runErr, context.Canceled) {
+		status = IPRiskScanCanceled
+	}
+	updateCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	updateErr := s.repo.UpdateIPRiskScan(updateCtx, scanID, &IPRiskScanUpdate{
+		Status:             status,
+		Progress:           progress,
+		CandidateCount:     candidateCount,
+		CaseCount:          caseCount,
+		InferredEventCount: inferredCount,
+		ErrorMessage:       runErr.Error(),
+		CompletedAt:        &completedAt,
+	})
+	if updateErr != nil {
+		return errors.Join(runErr, updateErr)
+	}
+	return runErr
+}
+
+var ErrIPRiskRegistrationBlocked = errors.New("registration temporarily blocked for this IP")
+
+func (s *IPRiskService) CheckRegistrationAllowed(ctx context.Context) error {
+	if s == nil || s.repo == nil {
+		return nil
+	}
+	metadata := IPRiskRequestMetadataFromContext(ctx)
+	address, err := NormalizeIPRiskAddress(metadata.ClientIP)
+	if err != nil {
+		return nil
+	}
+	match, err := s.repo.MatchIPRiskPolicies(ctx, address.Exact, address.Network, time.Now().UTC())
+	if err != nil {
+		s.setEventPersistenceError("registration policy check: " + err.Error())
+		return nil
+	}
+	if match.Allowlisted || match.KnownSharedNetwork {
+		return nil
+	}
+	if match.RegistrationBlock {
+		return ErrIPRiskRegistrationBlocked
+	}
+	return nil
 }
 
 func (s *IPRiskService) InferHistoricalRegistrations(ctx context.Context, start, end time.Time) (int, error) {
@@ -770,10 +1195,11 @@ func (s *IPRiskService) InferHistoricalRegistrations(ctx context.Context, start,
 }
 
 func (s *IPRiskService) Runtime(ctx context.Context) IPRiskRuntime {
+	_, autoBlockEnabled, shadowMode := s.currentConfig()
 	runtime := IPRiskRuntime{
 		Enabled:          s != nil && s.runtimeCfg.Enabled,
-		ShadowMode:       true,
-		AutoBlockEnabled: false,
+		ShadowMode:       shadowMode,
+		AutoBlockEnabled: autoBlockEnabled,
 	}
 	if s == nil {
 		runtime.Degraded = true

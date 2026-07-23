@@ -1,6 +1,35 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3 border-b border-gray-200 dark:border-dark-700">
+      <nav class="flex overflow-x-auto" :aria-label="t('admin.ipRisk.workspaceTabs')">
+        <button
+          v-for="tab in workspaceTabs"
+          :key="tab.value"
+          type="button"
+          :class="[
+            '-mb-px inline-flex items-center whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium transition-colors',
+            activeTab === tab.value
+              ? 'border-primary-500 text-primary-600 dark:text-primary-400'
+              : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200',
+          ]"
+          @click="openWorkspaceTab(tab.value)"
+        >
+          <Icon :name="tab.icon" size="sm" class="mr-2" />
+          {{ tab.label }}
+          <span
+            v-if="tab.value === 'risk' && riskCount > 0"
+            class="ml-2 rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-red-700 dark:bg-red-950/50 dark:text-red-300"
+          >
+            {{ riskCount }}
+          </span>
+        </button>
+      </nav>
+      <div class="pb-2 text-xs text-gray-500 dark:text-gray-400 sm:pb-0">
+        {{ activeTabDescription }}
+      </div>
+    </div>
+
+    <TablePageLayout v-if="activeTab === 'resources'">
       <template #filters>
         <div class="flex flex-wrap items-center gap-3">
           <!-- Left: Search + Filters -->
@@ -365,6 +394,12 @@
         />
       </template>
     </TablePageLayout>
+
+    <IPRiskWorkbench
+      v-else-if="activeTab === 'risk'"
+      @overview="riskCount = $event"
+    />
+    <IPRiskActionsView v-else />
 
     <!-- Create Proxy Modal -->
     <BaseDialog
@@ -964,8 +999,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
 import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
@@ -988,10 +1024,47 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatDateTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
+import IPRiskWorkbench from '@/features/ip-risk/IPRiskWorkbench.vue'
+import IPRiskActionsView from '@/features/ip-risk/IPRiskActionsView.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const route = useRoute()
+const router = useRouter()
 const { copyToClipboard } = useClipboard()
+
+type WorkspaceTab = 'resources' | 'risk' | 'actions'
+
+const riskCount = ref(0)
+const activeTab = computed<WorkspaceTab>(() => {
+  if (route.name === 'AdminIPRiskActions') return 'actions'
+  if (route.name === 'AdminIPRisk') return 'risk'
+  return 'resources'
+})
+const workspaceTabs = computed(() => [
+  { value: 'resources' as const, label: t('admin.ipRisk.tabs.resources'), icon: 'server' as const },
+  { value: 'risk' as const, label: t('admin.ipRisk.tabs.risk'), icon: 'shield' as const },
+  { value: 'actions' as const, label: t('admin.ipRisk.tabs.actions'), icon: 'clipboard' as const },
+])
+const activeTabDescription = computed(() => t(`admin.ipRisk.tabDescriptions.${activeTab.value}`))
+
+function openWorkspaceTab(tab: WorkspaceTab) {
+  const names = {
+    resources: 'AdminProxies',
+    risk: 'AdminIPRisk',
+    actions: 'AdminIPRiskActions',
+  } as const
+  router.push({ name: names[tab] })
+}
+
+async function loadRiskCount() {
+  try {
+    const overview = await adminAPI.ipRisk.getOverview()
+    riskCount.value = overview.open_cases
+  } catch {
+    // The risk tab remains available and will surface the runtime error in-context.
+  }
+}
 
 const columns = computed<Column[]>(() => [
   { key: 'select', label: '', sortable: false },
@@ -2056,9 +2129,20 @@ function closeCopyMenu() {
 }
 
 onMounted(() => {
-  loadProxies()
-  loadBackupProxyOptions()
+  if (activeTab.value === 'resources') {
+    loadProxies()
+    loadBackupProxyOptions()
+  }
+  loadRiskCount()
   document.addEventListener('click', closeCopyMenu)
+})
+
+watch(activeTab, (tab) => {
+  if (tab === 'resources' && proxies.value.length === 0) {
+    loadProxies()
+    loadBackupProxyOptions()
+  }
+  loadRiskCount()
 })
 
 onUnmounted(() => {
