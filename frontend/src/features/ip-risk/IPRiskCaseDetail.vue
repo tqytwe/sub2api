@@ -296,7 +296,11 @@
     </footer>
   </section>
 
-  <div v-else class="flex min-h-[360px] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+  <div
+    v-else
+    data-testid="ip-risk-detail-empty"
+    class="flex min-h-[360px] flex-1 items-center justify-center px-6 text-center text-sm text-gray-500 dark:text-gray-400"
+  >
     {{ t('admin.ipRisk.selectCasePrompt') }}
   </div>
 </template>
