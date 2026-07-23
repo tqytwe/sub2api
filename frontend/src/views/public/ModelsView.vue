@@ -60,11 +60,6 @@ function formatTokenPrice(value: number | null | undefined): string {
   return formatScaled(value, 1_000_000)
 }
 
-function useCaseLabel(useCase: string): string {
-  const key = `models.previewUseCases.${useCase}`
-  return te(key) ? t(key) : t('models.previewUseCases.chat')
-}
-
 function groupBadge(g: { name: string; rate_multiplier: number }): string {
   return `${g.name} ×${g.rate_multiplier}`
 }
@@ -76,8 +71,7 @@ const filteredPublicRows = computed(() => {
   return rows.filter(
     (row) =>
       row.name.toLowerCase().includes(q) ||
-      row.platform.toLowerCase().includes(q) ||
-      useCaseLabel(row.use_case).toLowerCase().includes(q),
+      row.platform.toLowerCase().includes(q),
   )
 })
 
@@ -217,20 +211,24 @@ onMounted(() => {
     </header>
 
     <main class="models-main">
-      <p class="models-eyebrow">MODELS</p>
-      <div class="models-title-row">
-        <h1 class="models-title">{{ t('models.title') }}</h1>
-      </div>
-      <p class="models-subtitle">{{ t('models.subtitle') }}</p>
-      <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
-
-      <div class="models-auth-card">
-        <p>{{ t('models.loginPrompt') }}</p>
-        <div class="models-auth-actions">
-          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
-          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
+      <section class="models-hero">
+        <div class="models-hero-copy">
+          <p class="models-eyebrow">MODELS</p>
+          <div class="models-title-row">
+            <h1 class="models-title">{{ t('models.title') }}</h1>
+          </div>
+          <p class="models-subtitle">{{ t('models.subtitle') }}</p>
+          <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
         </div>
-      </div>
+
+        <div class="models-auth-card">
+          <p>{{ t('models.loginPrompt') }}</p>
+          <div class="models-auth-actions">
+            <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
+            <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
+          </div>
+        </div>
+      </section>
 
       <div class="models-toolbar">
         <input
@@ -251,22 +249,18 @@ onMounted(() => {
             <tr>
               <th>{{ t('models.columns.model') }}</th>
               <th>{{ t('models.columns.platform') }}</th>
-              <th>{{ t('models.columns.useCase') }}</th>
-              <th>{{ t('models.columns.officialInput') }}</th>
-              <th>{{ t('models.columns.officialOutput') }}</th>
-              <th>{{ t('models.columns.ourInput') }}</th>
-              <th>{{ t('models.columns.ourOutput') }}</th>
+              <th colspan="2" class="models-price-group-head models-price-group-head-official">{{ t('models.columns.officialPrice') }}</th>
+              <th colspan="2" class="models-price-group-head models-price-group-head-our">{{ t('models.columns.ourPrice') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="row in filteredPublicRows" :key="row.name">
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
-              <td>{{ useCaseLabel(row.use_case) }}</td>
-              <td>{{ formatTokenPrice(row.official_input_price) }}</td>
-              <td>{{ formatTokenPrice(row.official_output_price) }}</td>
-              <td class="models-cell-our">{{ formatTokenPrice(row.our_input_price) }}</td>
-              <td class="models-cell-our">{{ formatTokenPrice(row.our_output_price) }}</td>
+              <td class="models-price-official">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.official_input_price) }) }}</td>
+              <td class="models-price-official">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.official_output_price) }) }}</td>
+              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.our_input_price) }) }}</td>
+              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.our_output_price) }) }}</td>
             </tr>
           </tbody>
         </table>
