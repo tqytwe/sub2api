@@ -18,6 +18,7 @@
   "states": [
     "risk action dialog open",
     "step-up required",
+    "admin table sticky overlay coverage",
     "nested dialog keyboard ownership",
     "cancelled verification",
     "verification loading"
@@ -58,7 +59,7 @@
     },
     "reduced_motion": {
       "status": "passed",
-      "reason": "The repair changes DOM ownership and focus management only; the existing visual transitions and loading indicator are unchanged."
+      "reason": "The repair changes DOM ownership, focus management and overlay stacking only; the existing visual transitions and loading indicator are unchanged."
     }
   },
   "residual_risks": [
@@ -70,11 +71,11 @@
 
 ## Scope
 
-This repair covers the shared administrator TOTP step-up layer when it opens above an existing `BaseDialog`, with `/admin/proxies/risk` as the reported path. It does not change risk scoring, selected accounts, preview contents, execution permissions, TOTP verification rules or action results.
+This repair covers the shared administrator TOTP step-up layer when it opens above an existing `BaseDialog`, with `/admin/proxies/risk` and `/admin/users` as the reported paths. It does not change risk scoring, selected accounts, preview contents, execution permissions, TOTP verification rules or action results.
 
 ## Baseline
 
-`BaseDialog` correctly marks the application root as inert while its teleported modal is open. The TOTP component previously remained inside that inert application root. When a protected action requested step-up, both the background page and the nested verification UI could therefore become non-interactive.
+`BaseDialog` correctly marks the application root as inert while its teleported modal is open. The TOTP component previously remained inside that inert application root. When a protected action requested step-up, both the background page and the nested verification UI could therefore become non-interactive. A later user-management acceptance run exposed the related stacking case: the shared TOTP layer used `z-[60]`, while the admin data table sticky header and sticky header columns reserve `z-index: 200` and `220`, so the existing verification panel could be visually covered even though the controller opened.
 
 The baseline board recreates the blocked state with simulated IP and account information only.
 
@@ -88,12 +89,12 @@ This fix preserves the approved visual language and changes only the layer owner
 
 ## Reuse Decision
 
-The TOTP component now teleports to `body` and participates in the existing `useDialogAccessibility` stack. No parallel modal system, new button style, new icon family or new risk action flow is introduced.
+The TOTP component now teleports to `body`, participates in the existing `useDialogAccessibility` stack and sits above admin table sticky overlays. No parallel modal system, new button style, new icon family or new risk action flow is introduced.
 
 ## State Coverage
 
 - Default: the risk action dialog remains unchanged.
-- Step-up required: TOTP renders above the inert application root at the existing z-index.
+- Step-up required: TOTP renders above the inert application root and above admin table sticky headers/columns.
 - Keyboard: the TOTP layer owns focus, Tab trapping and Escape while it is topmost.
 - Cancel: closing TOTP restores focus to the underlying action dialog without unlocking the page prematurely.
 - Loading: verification continues to disable cancellation and input using the existing behavior.
@@ -105,7 +106,7 @@ The static board covers desktop and 390px mobile presentation. The component ret
 
 ## Evidence
 
-The updated boards show the existing TOTP appearance above the simulated risk workbench. Automated regression coverage mounts a real `BaseDialog` and the real TOTP component together, confirms the TOTP is outside the inert `#app`, and proves Escape cancels only the topmost verification layer.
+The updated boards show the existing TOTP appearance above the simulated risk workbench. Automated regression coverage mounts a real `BaseDialog` and the real TOTP component together, confirms the TOTP is outside the inert `#app`, confirms the elevated overlay class, and proves Escape cancels only the topmost verification layer.
 
 ## Residual Risk
 

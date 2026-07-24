@@ -175,6 +175,7 @@ async function enterTotp(app: HTMLElement, value = '123456') {
     '[role="dialog"][aria-labelledby^="totp-step-up-title-"]',
   )
   expect(dialog).not.toBeNull()
+  expect(dialog?.classList.contains('z-[1000]')).toBe(true)
   expect(app.contains(dialog)).toBe(false)
   expect((app as HTMLElement & { inert?: boolean }).inert).toBe(true)
 
