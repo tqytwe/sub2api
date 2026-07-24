@@ -169,6 +169,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 		// Replace nonce placeholder with actual nonce before serving
 		content := replaceNoncePlaceholder(cached.Content, nonce)
 		content = injectRouteSEO(content, path)
+		content = localizeEnglishHTMLShell(content, path)
 
 		c.Header("ETag", etag)
 		c.Header("Cache-Control", "no-cache") // Must revalidate
@@ -184,7 +185,9 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	settings, err := s.settings.GetPublicSettingsForInjection(ctx)
 	if err != nil {
 		// Fallback: serve without injection
-		c.Data(http.StatusOK, "text/html; charset=utf-8", injectRouteSEO(s.baseHTML, path))
+		content := injectRouteSEO(s.baseHTML, path)
+		content = localizeEnglishHTMLShell(content, path)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
 	}
@@ -192,7 +195,9 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	settingsJSON, err := json.Marshal(settings)
 	if err != nil {
 		// Fallback: serve without injection
-		c.Data(http.StatusOK, "text/html; charset=utf-8", injectRouteSEO(s.baseHTML, path))
+		content := injectRouteSEO(s.baseHTML, path)
+		content = localizeEnglishHTMLShell(content, path)
+		c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 		c.Abort()
 		return
 	}
@@ -203,6 +208,7 @@ func (s *FrontendServer) serveIndexHTML(c *gin.Context) {
 	// Replace nonce placeholder with actual nonce before serving
 	content := replaceNoncePlaceholder(rendered, nonce)
 	content = injectRouteSEO(content, path)
+	content = localizeEnglishHTMLShell(content, path)
 
 	cached = s.cache.Get()
 	if cached != nil {
@@ -227,6 +233,168 @@ func (s *FrontendServer) injectSettings(settingsJSON []byte) []byte {
 	result = injectSiteFavicon(result, settingsJSON)
 
 	return result
+}
+
+func localizeEnglishHTMLShell(html []byte, path string) []byte {
+	seo, ok := resolveRouteSEO(path)
+	if !ok || seo.Lang != "en" {
+		return html
+	}
+	result := localizeEnglishInjectedAppConfig(html)
+	result = bytes.ReplaceAll(result, []byte("极速蹬已被 LMSpeed.net 收录"), []byte("Jisudeng is listed on LMSpeed.net"))
+	return result
+}
+
+func localizeEnglishInjectedAppConfig(html []byte) []byte {
+	const prefix = `window.__APP_CONFIG__=`
+	start := bytes.Index(html, []byte(prefix))
+	if start == -1 {
+		return html
+	}
+	jsonStart := start + len(prefix)
+	endOffset := bytes.Index(html[jsonStart:], []byte(`;</script>`))
+	if endOffset == -1 {
+		return html
+	}
+	jsonEnd := jsonStart + endOffset
+
+	var cfg map[string]any
+	if err := json.Unmarshal(html[jsonStart:jsonEnd], &cfg); err != nil {
+		return html
+	}
+	sanitizeEnglishAppConfig(cfg)
+	localized, err := json.Marshal(cfg)
+	if err != nil {
+		return html
+	}
+
+	var buf bytes.Buffer
+	buf.Write(html[:jsonStart])
+	buf.Write(localized)
+	buf.Write(html[jsonEnd:])
+	return buf.Bytes()
+}
+
+func sanitizeEnglishAppConfig(cfg map[string]any) {
+	cfg["site_name"] = "Jisudeng"
+	cfg["site_subtitle"] = "One OpenAI-compatible API for AI models"
+	cfg["contact_info"] = "WeChat: tqytwemx"
+	cfg["login_agreement_documents"] = []any{}
+
+	if support, ok := cfg["support_contact"].(map[string]any); ok {
+		support["title"] = "Contact support"
+		support["subtitle"] = "Get help with login, billing, API keys, model access, and image generation."
+		if contacts, ok := support["contacts"].([]any); ok {
+			for _, raw := range contacts {
+				contact, ok := raw.(map[string]any)
+				if !ok {
+					continue
+				}
+				localizeEnglishSupportContact(contact)
+			}
+		}
+	}
+
+	if onboarding, ok := cfg["api_onboarding"].(map[string]any); ok {
+		onboarding["title"] = "Start using the Jisudeng API"
+		onboarding["subtitle"] = "Create an API key, choose an available group, and connect your code, client, or tools."
+		if items, ok := onboarding["items"].([]any); ok {
+			for index, raw := range items {
+				item, ok := raw.(map[string]any)
+				if !ok {
+					continue
+				}
+				localizeEnglishAPIOnboardingItem(item, index)
+			}
+		}
+	}
+
+	if items, ok := cfg["custom_menu_items"].([]any); ok {
+		for _, raw := range items {
+			item, ok := raw.(map[string]any)
+			if !ok {
+				continue
+			}
+			if url, _ := item["url"].(string); strings.Contains(url, "/docs") {
+				item["label"] = "Docs"
+			} else if label, _ := item["label"].(string); containsCJK(label) {
+				item["label"] = "Menu"
+			}
+		}
+	}
+
+	stripCJKStrings(cfg)
+}
+
+func localizeEnglishSupportContact(contact map[string]any) {
+	contactType, _ := contact["type"].(string)
+	switch strings.ToLower(contactType) {
+	case "wechat":
+		contact["label"] = "WeChat support"
+		contact["description"] = "Add WeChat for support"
+	case "qq":
+		contact["label"] = "QQ support"
+		contact["description"] = "Copy the QQ number for support"
+	case "telegram":
+		contact["label"] = "Telegram support"
+		contact["description"] = "Contact us on Telegram"
+	case "email":
+		contact["label"] = "Email support"
+		contact["description"] = "Email us for support"
+	case "docs":
+		contact["label"] = "Docs"
+		contact["description"] = "Read the documentation"
+	default:
+		contact["label"] = "Support"
+		contact["description"] = "Contact support"
+	}
+}
+
+func localizeEnglishAPIOnboardingItem(item map[string]any, index int) {
+	switch index {
+	case 0:
+		item["title"] = "Create a stable API key"
+		item["description"] = "Create an API key and select the recommended group. Copy it into Cherry Studio, NextChat, OpenCode, Cursor, or your own SDK client."
+		item["badge"] = "Start here"
+	case 1:
+		item["title"] = "Add balance"
+		item["description"] = "Add balance for usage-based API calls when you only need quick tests or light usage."
+		item["badge"] = "Usage-based"
+	default:
+		item["title"] = "Subscribe to a recommended plan"
+		item["description"] = "Subscribe for steadier access and group permissions when you plan to use the API long term."
+		item["badge"] = "Recommended"
+	}
+}
+
+func stripCJKStrings(value any) {
+	switch typed := value.(type) {
+	case map[string]any:
+		for key, child := range typed {
+			if text, ok := child.(string); ok && containsCJK(text) {
+				typed[key] = ""
+				continue
+			}
+			stripCJKStrings(child)
+		}
+	case []any:
+		for index, child := range typed {
+			if text, ok := child.(string); ok && containsCJK(text) {
+				typed[index] = ""
+				continue
+			}
+			stripCJKStrings(child)
+		}
+	}
+}
+
+func containsCJK(value string) bool {
+	for _, r := range value {
+		if (r >= 0x3400 && r <= 0x9fff) || (r >= 0xf900 && r <= 0xfaff) {
+			return true
+		}
+	}
+	return false
 }
 
 // injectSiteFavicon replaces the static favicon with a configured, browser-safe image URL.
@@ -1020,6 +1188,7 @@ func serveIndexHTML(c *gin.Context, fsys fs.FS) {
 	}
 
 	content = injectRouteSEO(content, c.Request.URL.Path)
+	content = localizeEnglishHTMLShell(content, c.Request.URL.Path)
 	c.Data(http.StatusOK, "text/html; charset=utf-8", content)
 	c.Abort()
 }
