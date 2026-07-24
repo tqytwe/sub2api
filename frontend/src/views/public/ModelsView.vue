@@ -389,38 +389,15 @@ onMounted(() => {
   text-align: center;
 }
 
-.models-family-note {
-  max-width: 52rem;
-  padding: 0.9rem 1rem;
-  border: 1px solid rgba(10, 10, 10, 0.1);
-  border-radius: 0.5rem;
-  background: rgba(255, 255, 255, 0.82);
-}
-
 .models-family-note h2 {
   margin: 0;
   font-size: 1rem;
   font-weight: 700;
-  color: #111827;
 }
 
 .models-family-note p {
   margin: 0.35rem 0 0;
-  color: #525252;
   line-height: 1.65;
-}
-
-:global(.dark) .models-family-note {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: rgba(23, 23, 23, 0.82);
-}
-
-:global(.dark) .models-family-note h2 {
-  color: #fafafa;
-}
-
-:global(.dark) .models-family-note p {
-  color: #d4d4d4;
 }
 
 .back-link {
