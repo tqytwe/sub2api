@@ -36,6 +36,7 @@
               :key="item.key"
               :to="item.to"
               class="nav-link"
+              :data-nav-key="item.key"
             >
               {{ t(item.labelKey) }}
             </router-link>
