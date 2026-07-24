@@ -59,6 +59,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/en/models/:family(deepseek|qwen|kimi|glm)',
+    name: 'EnglishModelFamily',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model pricing',
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/en/docs',
     name: 'EnglishDocs',
     component: () => import('@/views/public/DocsView.vue'),
@@ -257,6 +267,17 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/models',
     name: 'Models',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Models',
+      titleKey: 'models.title',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/models/:family(deepseek|qwen|kimi|glm)',
+    name: 'ModelFamily',
     component: () => import('@/views/public/ModelsView.vue'),
     meta: {
       requiresAuth: false,

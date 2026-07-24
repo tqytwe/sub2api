@@ -214,6 +214,28 @@ export const jisudengPagesEn = {
       code: 'Code & agents',
       image: 'Image generation',
     },
+    family: {
+      deepseek: {
+        title: 'DeepSeek API Pricing and Access',
+        subtitle: 'Compare DeepSeek model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to DeepSeek models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+      qwen: {
+        title: 'Qwen API Pricing and Access',
+        subtitle: 'Compare Qwen model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to Qwen models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+      kimi: {
+        title: 'Kimi API Pricing and Access',
+        subtitle: 'Compare Kimi model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to Kimi models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+      glm: {
+        title: 'GLM API Pricing and Access',
+        subtitle: 'Compare GLM model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to GLM models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+    },
     vipBadge: 'VIP {label}',
   },
   checkin: {

@@ -29,6 +29,7 @@ describe('lazy locale loading scopes', () => {
 
   it.each([
     '/en/models',
+    '/en/models/deepseek',
     '/en/docs',
     '/dashboard',
     '/wallet',
@@ -43,6 +44,7 @@ describe('lazy locale loading scopes', () => {
     expect(localeFromPath('/en')).toBe('en')
     expect(localeFromPath('/en/')).toBe('en')
     expect(localeFromPath('/en/models')).toBe('en')
+    expect(localeFromPath('/en/models/deepseek')).toBe('en')
     expect(localeFromPath('/en/docs?cat=tutorial')).toBe('en')
   })
 
@@ -50,6 +52,8 @@ describe('lazy locale loading scopes', () => {
     expect(localeFromPath('/')).toBe('zh')
     expect(localeFromPath('/home')).toBe('zh')
     expect(localeFromPath('/models')).toBe('zh')
+    expect(localeFromPath('/models/deepseek')).toBe('zh')
+    expect(localeFromPath('/models/qwen')).toBe('zh')
     expect(localeFromPath('/docs')).toBe('zh')
     expect(localeFromPath('/login')).toBe('zh')
     expect(localeFromPath('/register')).toBe('zh')

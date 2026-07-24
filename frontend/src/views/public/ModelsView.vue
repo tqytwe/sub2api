@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import publicAPI, { type PublicModelPricingRow } from '@/api/public'
@@ -14,6 +14,7 @@ import { vipTierBadgeClass } from '@/utils/vipColors'
 import '@/styles/public-pages.css'
 
 const { t, te } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
@@ -25,6 +26,27 @@ const authPricingEnabled = ref(true)
 const searchQuery = ref('')
 const vip = ref<PlayVIPStatus | null>(null)
 const emptyState = ref<'none' | 'disabled' | 'empty' | 'error' | 'not_deployed'>('none')
+
+type ModelFamilyKey = 'deepseek' | 'qwen' | 'kimi' | 'glm'
+
+const MODEL_FAMILY_ALIASES: Record<ModelFamilyKey, string[]> = {
+  deepseek: ['deepseek'],
+  qwen: ['qwen', 'qwq', 'qvq', 'tongyi', 'dashscope'],
+  kimi: ['kimi', 'moonshot'],
+  glm: ['glm', 'zhipu', 'z.ai', 'z-ai', 'bigmodel'],
+}
+
+const activeFamilyKey = computed<ModelFamilyKey | null>(() => {
+  const value = String(route.params.family ?? '').trim().toLowerCase()
+  if (value === 'deepseek' || value === 'qwen' || value === 'kimi' || value === 'glm') return value
+  return null
+})
+
+const hasFamilyFilter = computed(() => activeFamilyKey.value !== null)
+const familyTitle = computed(() => activeFamilyKey.value ? t(`models.family.${activeFamilyKey.value}.title`) : t('models.title'))
+const familySubtitle = computed(() => activeFamilyKey.value ? t(`models.family.${activeFamilyKey.value}.subtitle`) : t('models.subtitle'))
+const familyDescription = computed(() => activeFamilyKey.value ? t(`models.family.${activeFamilyKey.value}.description`) : '')
+const authPageSubtitle = computed(() => activeFamilyKey.value ? familySubtitle.value : t('models.subtitleAuth'))
 
 const isAuthMode = computed(() => authStore.isAuthenticated)
 
@@ -64,9 +86,16 @@ function groupBadge(g: { name: string; rate_multiplier: number }): string {
   return `${g.name} ×${g.rate_multiplier}`
 }
 
+function rowMatchesFamily(row: { name: string; platform: string; use_case?: string | null }): boolean {
+  const family = activeFamilyKey.value
+  if (!family) return true
+  const haystack = `${row.name} ${row.platform} ${row.use_case ?? ''}`.toLowerCase()
+  return MODEL_FAMILY_ALIASES[family].some((alias) => haystack.includes(alias))
+}
+
 const filteredPublicRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = publicRows.value
+  const rows = publicRows.value.filter(rowMatchesFamily)
   if (!q) return rows
   return rows.filter(
     (row) =>
@@ -77,7 +106,7 @@ const filteredPublicRows = computed(() => {
 
 const filteredAuthRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = authRows.value
+  const rows = authRows.value.filter(rowMatchesFamily)
   if (!q) return rows
   return rows.filter(
     (row) =>
@@ -146,12 +175,12 @@ onMounted(() => {
       <div>
         <p class="models-eyebrow-app">MODELS</p>
         <div class="models-title-row">
-          <h1 class="models-title-app">{{ t('models.title') }}</h1>
+          <h1 class="models-title-app">{{ familyTitle }}</h1>
           <span v-if="showVipBadge" :class="vipTierBadgeClass(vip?.color_key)">
             {{ t('models.vipBadge', { label: vip?.label ?? 'VIP' }) }}
           </span>
         </div>
-        <p class="models-subtitle-app">{{ t('models.subtitleAuth') }}</p>
+        <p class="models-subtitle-app">{{ authPageSubtitle }}</p>
         <p class="models-preview-note-app">{{ t('models.priceUnitNote') }}</p>
       </div>
 
@@ -215,9 +244,9 @@ onMounted(() => {
         <div class="models-hero-copy">
           <p class="models-eyebrow">MODELS</p>
           <div class="models-title-row">
-            <h1 class="models-title">{{ t('models.title') }}</h1>
+            <h1 class="models-title">{{ familyTitle }}</h1>
           </div>
-          <p class="models-subtitle">{{ t('models.subtitle') }}</p>
+          <p class="models-subtitle">{{ familySubtitle }}</p>
           <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
         </div>
 
@@ -238,6 +267,11 @@ onMounted(() => {
           :placeholder="t('models.searchPlaceholder')"
         />
       </div>
+
+      <section v-if="hasFamilyFilter" class="models-family-note">
+        <h2>{{ familyTitle }}</h2>
+        <p>{{ familyDescription }}</p>
+      </section>
 
       <div v-if="loading" class="models-state">{{ t('models.loading') }}</div>
       <div v-else-if="emptyState !== 'none'" class="models-state">{{ stateMessage }}</div>
@@ -353,6 +387,17 @@ onMounted(() => {
   padding: 2rem 0;
   color: #737373;
   text-align: center;
+}
+
+.models-family-note h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.models-family-note p {
+  margin: 0.35rem 0 0;
+  line-height: 1.65;
 }
 
 .back-link {

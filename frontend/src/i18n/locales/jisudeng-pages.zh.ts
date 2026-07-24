@@ -220,6 +220,28 @@ export const jisudengPagesZh = {
       code: '代码与 Agent',
       image: '图像生成',
     },
+    family: {
+      deepseek: {
+        title: 'DeepSeek API 价格与模型接入',
+        subtitle: '查看 DeepSeek 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 DeepSeek 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+      qwen: {
+        title: 'Qwen API 价格与模型接入',
+        subtitle: '查看 Qwen 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 Qwen 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+      kimi: {
+        title: 'Kimi API 价格与模型接入',
+        subtitle: '查看 Kimi 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 Kimi 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+      glm: {
+        title: 'GLM API 价格与模型接入',
+        subtitle: '查看 GLM 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 GLM 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+    },
     vipBadge: 'VIP {label}',
   },
   checkin: {
