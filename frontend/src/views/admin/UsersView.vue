@@ -780,9 +780,11 @@
       :show="showBulkUserActionDialog"
       :selected-ids="selectedIds"
       :action="bulkUserAction"
+      :step-up="bulkUserStepUp"
       @close="showBulkUserActionDialog = false"
       @completed="handleBulkUserActionCompleted"
     />
+    <TotpStepUpDialog :controller="bulkUserStepUp" />
     <UserPlatformQuotaModal
       :show="showPlatformQuotaModal"
       :user="platformQuotaUser"
@@ -832,14 +834,17 @@ import UserCreateModal from '@/components/admin/user/UserCreateModal.vue'
 import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import BulkEditUserModal from '@/components/admin/user/BulkEditUserModal.vue'
 import BulkUserActionDialog from '@/components/admin/user/BulkUserActionDialog.vue'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaModal.vue'
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
 import UserBalanceModal from '@/components/admin/user/UserBalanceModal.vue'
 import UserBalanceHistoryModal from '@/components/admin/user/UserBalanceHistoryModal.vue'
 import GroupReplaceModal from '@/components/admin/user/GroupReplaceModal.vue'
+import { useStepUp } from '@/composables/useStepUp'
 
 const appStore = useAppStore()
+const bulkUserStepUp = useStepUp()
 
 // Generate dynamic attribute columns from enabled definitions
 const attributeColumns = computed<Column[]>(() =>

@@ -230,7 +230,6 @@
     </template>
   </BaseDialog>
 
-  <TotpStepUpDialog :controller="stepUp" />
 </template>
 
 <script setup lang="ts">
@@ -239,10 +238,9 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
-import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import { isStepUpCancelled, useStepUp } from '@/composables/useStepUp'
+import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
 import type { IPRiskPolicy, IPRiskPolicyInput, IPPolicyMode, RiskConfig } from './types'
@@ -315,11 +313,13 @@ const ConfigPair = defineComponent({
   },
 })
 
-const props = defineProps<{ show: boolean }>()
+const props = defineProps<{
+  show: boolean
+  stepUp: StepUpController
+}>()
 const emit = defineEmits<{ (event: 'close'): void; (event: 'updated'): void }>()
 const { t } = useI18n()
 const appStore = useAppStore()
-const stepUp = useStepUp()
 const activeTab = ref<'detection' | 'policies'>('detection')
 const loading = ref(false)
 const savingConfig = ref(false)
@@ -381,7 +381,7 @@ async function saveConfig() {
   if (!config.value) return
   savingConfig.value = true
   try {
-    config.value = await stepUp.run(() => adminAPI.ipRisk.updateConfig(config.value!))
+    config.value = await props.stepUp.run(() => adminAPI.ipRisk.updateConfig(config.value!))
     appStore.showSuccess(t('admin.ipRisk.policyDialog.configSaved'))
     emit('updated')
   } catch (error) {
@@ -402,9 +402,9 @@ async function savePolicy() {
   }
   try {
     if (editingPolicyId.value) {
-      await stepUp.run(() => adminAPI.ipRisk.updatePolicy(editingPolicyId.value!, payload))
+      await props.stepUp.run(() => adminAPI.ipRisk.updatePolicy(editingPolicyId.value!, payload))
     } else {
-      await stepUp.run(() => adminAPI.ipRisk.createPolicy(payload))
+      await props.stepUp.run(() => adminAPI.ipRisk.createPolicy(payload))
     }
     appStore.showSuccess(t('admin.ipRisk.policyDialog.policySaved'))
     resetPolicyForm()
@@ -443,7 +443,7 @@ async function confirmDelete() {
   deletingPolicy.value = true
   const policyID = deleteTarget.value.id
   try {
-    await stepUp.run(() => adminAPI.ipRisk.deletePolicy(policyID))
+    await props.stepUp.run(() => adminAPI.ipRisk.deletePolicy(policyID))
     policies.value = policies.value.filter((item) => item.id !== policyID)
     appStore.showSuccess(t('admin.ipRisk.policyDialog.policyDeleted'))
     deleteTarget.value = null

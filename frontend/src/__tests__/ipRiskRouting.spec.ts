@@ -19,5 +19,8 @@ describe('IP risk workspace routing', () => {
     expect(viewSource).toContain('<TablePageLayout v-if="activeTab === \'resources\'">')
     expect(viewSource).toContain("risk: 'AdminIPRisk'")
     expect(viewSource).toContain("actions: 'AdminIPRiskActions'")
+    expect(viewSource).toContain('<TotpStepUpDialog :controller="ipRiskStepUp" />')
+    expect(viewSource).toContain(':step-up="ipRiskStepUp"')
+    expect(viewSource).toContain('<IPRiskActionsView v-else :step-up="ipRiskStepUp" />')
   })
 })
