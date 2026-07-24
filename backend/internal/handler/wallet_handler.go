@@ -129,6 +129,10 @@ type walletSummaryDTO struct {
 type walletTransactionDTO struct {
 	ID                    int64  `json:"id"`
 	Source                string `json:"source"`
+	SourceType            string `json:"source_type"`
+	SourceID              string `json:"source_id,omitempty"`
+	Description           string `json:"description,omitempty"`
+	Reason                string `json:"reason"`
 	Direction             string `json:"direction"`
 	BalanceDelta          string `json:"balance_delta"`
 	FrozenDelta           string `json:"frozen_delta"`
@@ -431,6 +435,10 @@ func toWalletTransactionPageDTO(page *service.WalletTransactionPage) walletTrans
 		out.Items = append(out.Items, walletTransactionDTO{
 			ID:                    item.ID,
 			Source:                item.Source,
+			SourceType:            item.SourceType,
+			SourceID:              item.SourceID,
+			Description:           item.Description,
+			Reason:                walletTransactionReason(item),
 			Direction:             item.Direction,
 			BalanceDelta:          item.BalanceDelta.StringFixed(8),
 			FrozenDelta:           item.FrozenDelta.StringFixed(8),
@@ -444,6 +452,16 @@ func toWalletTransactionPageDTO(page *service.WalletTransactionPage) walletTrans
 		})
 	}
 	return out
+}
+
+func walletTransactionReason(item service.WalletTransaction) string {
+	if strings.TrimSpace(item.Description) != "" {
+		return strings.TrimSpace(item.Description)
+	}
+	if strings.TrimSpace(item.SourceType) != "" {
+		return strings.TrimSpace(item.SourceType)
+	}
+	return strings.TrimSpace(item.Source)
 }
 
 func toWithdrawalAvailabilityDTO(availability *service.WithdrawalAvailability) withdrawalAvailabilityDTO {

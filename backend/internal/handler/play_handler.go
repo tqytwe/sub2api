@@ -2,9 +2,14 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"io"
+	"net/http"
 	"sort"
 	"strconv"
+	"strings"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -14,13 +19,24 @@ import (
 
 // PlayHandler serves play/engagement endpoints (check-in, arena, public models).
 type PlayHandler struct {
-	playService    *service.PlayService
-	billingService *service.BillingService
+	playService          *service.PlayService
+	billingService       *service.BillingService
+	feedbackAssetService *service.AnnouncementAssetService
 }
 
-func NewPlayHandler(playService *service.PlayService, billingService *service.BillingService) *PlayHandler {
-	return &PlayHandler{playService: playService, billingService: billingService}
+func NewPlayHandler(playService *service.PlayService, billingService *service.BillingService, feedbackAssetService ...*service.AnnouncementAssetService) *PlayHandler {
+	var assetService *service.AnnouncementAssetService
+	if len(feedbackAssetService) > 0 {
+		assetService = feedbackAssetService[0]
+	}
+	return &PlayHandler{playService: playService, billingService: billingService, feedbackAssetService: assetService}
 }
+
+const (
+	mobileFeedbackMaxRequestBytes = 8 << 20
+	mobileFeedbackMaxFileBytes    = service.AnnouncementAssetMaxBytes
+	mobileFeedbackMaxScreenshots  = 3
+)
 
 type playCheckinStatusDTO struct {
 	Enabled                bool    `json:"enabled"`
@@ -163,6 +179,125 @@ func (h *PlayHandler) PublicModelPricing(c *gin.Context) {
 	}
 	rows := h.playService.ListPublicModelPricing(c.Request.Context(), h.billingService)
 	response.Success(c, rows)
+}
+
+// SubmitMobileFeedback stores Android app feedback with optional screenshots.
+// POST /api/v1/play/mobile-feedback
+func (h *PlayHandler) SubmitMobileFeedback(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	if h.playService == nil {
+		response.ErrorFrom(c, service.ErrMobileFeedbackUnavailable)
+		return
+	}
+
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, mobileFeedbackMaxRequestBytes)
+	if err := c.Request.ParseMultipartForm(mobileFeedbackMaxRequestBytes); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "invalid feedback request"))
+		return
+	}
+
+	deviceInfo := map[string]any{}
+	if raw := strings.TrimSpace(c.PostForm("device_info")); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &deviceInfo); err != nil {
+			response.ErrorFrom(c, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "invalid device info"))
+			return
+		}
+	}
+
+	var groupID *int64
+	if raw := strings.TrimSpace(c.PostForm("group_id")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed <= 0 {
+			response.ErrorFrom(c, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "invalid group id"))
+			return
+		}
+		groupID = &parsed
+	}
+
+	screenshots, err := h.uploadMobileFeedbackScreenshots(c)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+
+	created, err := h.playService.CreateMobileFeedback(c.Request.Context(), subject.UserID, service.MobileFeedbackInput{
+		Title:          c.PostForm("title"),
+		Category:       c.PostForm("category"),
+		Content:        c.PostForm("content"),
+		AppVersion:     c.PostForm("app_version"),
+		Platform:       c.PostForm("platform"),
+		DeviceModel:    c.PostForm("device_model"),
+		AndroidVersion: c.PostForm("android_version"),
+		SystemVersion:  c.PostForm("system_version"),
+		GroupName:      c.PostForm("group_name"),
+		GroupID:        groupID,
+		BackendURL:     c.PostForm("backend_url"),
+		LastError:      c.PostForm("last_error"),
+		CrashLog:       c.PostForm("crash_log"),
+		DeviceInfo:     deviceInfo,
+		Screenshots:    screenshots,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Created(c, created)
+}
+
+func (h *PlayHandler) uploadMobileFeedbackScreenshots(c *gin.Context) ([]service.MobileFeedbackScreenshot, error) {
+	if c.Request.MultipartForm == nil || c.Request.MultipartForm.File == nil {
+		return []service.MobileFeedbackScreenshot{}, nil
+	}
+	files := c.Request.MultipartForm.File["screenshots"]
+	if len(files) == 0 {
+		return []service.MobileFeedbackScreenshot{}, nil
+	}
+	if len(files) > mobileFeedbackMaxScreenshots {
+		return nil, infraerrors.BadRequest("MOBILE_FEEDBACK_TOO_MANY_SCREENSHOTS", "too many screenshots")
+	}
+	if h.feedbackAssetService == nil {
+		return nil, service.ErrAnnouncementAssetStorageUnavailable
+	}
+
+	out := make([]service.MobileFeedbackScreenshot, 0, len(files))
+	for _, header := range files {
+		if header == nil {
+			continue
+		}
+		if header.Size > mobileFeedbackMaxFileBytes {
+			return nil, service.ErrAnnouncementAssetTooLarge
+		}
+		file, err := header.Open()
+		if err != nil {
+			return nil, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID_SCREENSHOT", "invalid screenshot")
+		}
+		data, readErr := io.ReadAll(io.LimitReader(file, mobileFeedbackMaxFileBytes+1))
+		closeErr := file.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		if len(data) > mobileFeedbackMaxFileBytes {
+			return nil, service.ErrAnnouncementAssetTooLarge
+		}
+		asset, err := h.feedbackAssetService.Upload(c.Request.Context(), header.Filename, header.Header.Get("Content-Type"), data)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, service.MobileFeedbackScreenshot{
+			URL:         asset.URL,
+			FileName:    header.Filename,
+			ContentType: asset.ContentType,
+			ByteSize:    asset.ByteSize,
+		})
+	}
+	return out, nil
 }
 
 // CheckinStatus returns today's check-in state for the current user.

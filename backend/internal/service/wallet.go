@@ -70,6 +70,9 @@ type WalletSummary struct {
 type WalletTransaction struct {
 	ID                    int64           `json:"id"`
 	Source                string          `json:"source"`
+	SourceType            string          `json:"source_type"`
+	SourceID              string          `json:"source_id,omitempty"`
+	Description           string          `json:"description,omitempty"`
 	Direction             string          `json:"direction"`
 	BalanceDelta          decimal.Decimal `json:"balance_delta"`
 	FrozenDelta           decimal.Decimal `json:"frozen_delta"`
@@ -279,7 +282,7 @@ func (s *WalletService) listTransactions(ctx context.Context, userID int64, sour
 	limitArg := len(args) - 1
 	offsetArg := len(args)
 	query := `
-	SELECT bt.id, bt.source_type, COALESCE(bfb.source_kind, '') AS fund_source_kind,
+		SELECT bt.id, bt.source_type, COALESCE(bt.source_id, ''), COALESCE(bt.description, ''), COALESCE(bfb.source_kind, '') AS fund_source_kind,
 	       bt.balance_delta::text, bt.frozen_delta::text,
 	       withdrawable_delta::text, withdrawal_frozen_delta::text,
 	       COALESCE(bt.balance_after, 0)::text, COALESCE(bt.frozen_after, 0)::text,
@@ -389,10 +392,12 @@ func walletSourceConditionSQL(start int, sourceFilter walletSourceFilter) (strin
 
 func scanWalletTransaction(rows *sql.Rows) (WalletTransaction, error) {
 	var item WalletTransaction
-	var rawSource, fundSourceKind, balanceDelta, frozenDelta, withdrawableDelta, withdrawalFrozenDelta, balanceAfter, frozenAfter, withdrawableAfter, withdrawalFrozenAfter string
+	var rawSource, sourceID, description, fundSourceKind, balanceDelta, frozenDelta, withdrawableDelta, withdrawalFrozenDelta, balanceAfter, frozenAfter, withdrawableAfter, withdrawalFrozenAfter string
 	if err := rows.Scan(
 		&item.ID,
 		&rawSource,
+		&sourceID,
+		&description,
 		&fundSourceKind,
 		&balanceDelta,
 		&frozenDelta,
@@ -432,6 +437,9 @@ func scanWalletTransaction(rows *sql.Rows) (WalletTransaction, error) {
 		return WalletTransaction{}, fmt.Errorf("parse wallet withdrawal frozen after: %w", err)
 	}
 	item.Source = WalletPublicSourceForRawWithFundKind(rawSource, fundSourceKind)
+	item.SourceType = rawSource
+	item.SourceID = sourceID
+	item.Description = description
 	item.Direction = walletDirection(item.BalanceDelta, item.FrozenDelta)
 	return item, nil
 }

@@ -65,6 +65,20 @@
           <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.completedAt') }}</p>
           <p class="text-sm text-gray-700 dark:text-gray-300">{{ formatDateTime(order.completed_at) }}</p>
         </div>
+        <div v-if="order.failed_at">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.failedAt') }}</p>
+          <p class="text-sm text-gray-700 dark:text-gray-300">{{ formatDateTime(order.failed_at) }}</p>
+        </div>
+      </div>
+
+      <div
+        v-if="order.failed_reason"
+        class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-900/40 dark:bg-red-900/20"
+      >
+        <h4 class="mb-1 text-sm font-semibold text-red-700 dark:text-red-300">
+          {{ t('payment.admin.failedReason') }}
+        </h4>
+        <p class="break-words text-sm text-red-700 dark:text-red-200">{{ order.failed_reason }}</p>
       </div>
 
       <div

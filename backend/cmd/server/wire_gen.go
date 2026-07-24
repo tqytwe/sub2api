@@ -327,7 +327,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	batchImageDownloadService := service.NewBatchImageDownloadService(batchImageRepository, accountRepository, batchImageDownloadLimiter, configConfig)
 	batchImageCleanupService := service.ProvideBatchImageCleanupService(batchImageRepository, accountRepository, configConfig)
 	batchImageHandler := handler.ProvideBatchImageHandler(batchImagePublicService, batchImageDownloadService, batchImageCleanupService, openAIGatewayHandler)
-	playHandler := handler.NewPlayHandler(playService, billingService)
+	playHandler := handler.NewPlayHandler(playService, billingService, announcementAssetService)
 	walletService := service.NewWalletService(db)
 	walletHandler := handler.ProvideWalletHandler(walletService, withdrawalService)
 	handlerFundHandler := handler.NewFundHandler(fundManagementService)

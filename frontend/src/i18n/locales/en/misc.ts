@@ -497,6 +497,8 @@ export default {
       subscriptionOrder: 'Subscription',
       paidAt: 'Paid At',
       completedAt: 'Completed At',
+      failedAt: 'Failed At',
+      failedReason: 'Failure Reason',
       expiresAt: 'Expires At',
       feeRate: 'Fee Rate',
       refund: 'Refund',

@@ -132,6 +132,8 @@ export interface PaymentOrder {
   expires_at: string
   paid_at?: string
   completed_at?: string
+  failed_at?: string
+  failed_reason?: string
   refund_amount: number
   refund_reason?: string
   refund_requested_at?: string

@@ -23,6 +23,7 @@ const paymentResultReturnPath = "/payment/result"
 const (
 	PaymentSourceHostedRedirect    = "hosted_redirect"
 	PaymentSourceWechatInAppResume = "wechat_in_app_resume"
+	PaymentSourceAndroidApp        = "android_app"
 
 	SettingPaymentVisibleMethodAlipaySource  = "payment_visible_method_alipay_source"
 	SettingPaymentVisibleMethodWxpaySource   = "payment_visible_method_wxpay_source"
@@ -143,6 +144,8 @@ func NormalizePaymentSource(source string) string {
 		return PaymentSourceHostedRedirect
 	case "wechat_in_app", "wxpay_resume", PaymentSourceWechatInAppResume:
 		return PaymentSourceWechatInAppResume
+	case "android", "android_native", PaymentSourceAndroidApp:
+		return PaymentSourceAndroidApp
 	default:
 		return strings.TrimSpace(strings.ToLower(source))
 	}
@@ -232,7 +235,7 @@ func visibleMethodSourceSettingKey(method string) string {
 	}
 }
 
-func CanonicalizeReturnURL(raw string, srcHost string, srcURL string) (string, error) {
+func CanonicalizeReturnURL(raw string, srcHost string, srcURL string, trustedHosts ...string) (string, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
 		return "", nil
@@ -251,15 +254,20 @@ func CanonicalizeReturnURL(raw string, srcHost string, srcURL string) (string, e
 	if parsed.Path != paymentResultReturnPath {
 		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must target the canonical internal payment result page")
 	}
-	if !allowedReturnURLHost(parsed.Host, srcHost, srcURL) {
+	if !allowedReturnURLHost(parsed.Host, srcHost, srcURL, trustedHosts...) {
 		return "", infraerrors.BadRequest("INVALID_RETURN_URL", "return_url must use the same host as the current site or browser origin")
 	}
 	return parsed.String(), nil
 }
 
-func allowedReturnURLHost(returnURLHost string, requestHost string, refererURL string) bool {
+func allowedReturnURLHost(returnURLHost string, requestHost string, refererURL string, trustedHosts ...string) bool {
 	if sameOriginHost(returnURLHost, requestHost) {
 		return true
+	}
+	for _, host := range trustedHosts {
+		if sameOriginHost(returnURLHost, host) {
+			return true
+		}
 	}
 
 	refererURL = strings.TrimSpace(refererURL)

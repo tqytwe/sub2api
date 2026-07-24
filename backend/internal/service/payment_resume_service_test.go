@@ -65,6 +65,7 @@ func TestNormalizePaymentSource(t *testing.T) {
 	}{
 		{name: "empty uses default", input: "", expect: PaymentSourceHostedRedirect},
 		{name: "wechat alias normalized", input: "wechat_in_app", expect: PaymentSourceWechatInAppResume},
+		{name: "android app alias normalized", input: "android_native", expect: PaymentSourceAndroidApp},
 		{name: "canonical value preserved", input: PaymentSourceWechatInAppResume, expect: PaymentSourceWechatInAppResume},
 	}
 
@@ -119,6 +120,23 @@ func TestCanonicalizeReturnURLAllowsConfiguredFrontendHost(t *testing.T) {
 	}
 	if got != "https://app.example.com/payment/result?from=checkout" {
 		t.Fatalf("CanonicalizeReturnURL = %q, want %q", got, "https://app.example.com/payment/result?from=checkout")
+	}
+}
+
+func TestCanonicalizeReturnURLAllowsTrustedAndroidHost(t *testing.T) {
+	t.Parallel()
+
+	got, err := CanonicalizeReturnURL(
+		"https://www.jisudeng.com/payment/result?from=android",
+		"api.jisudeng.com",
+		"",
+		"www.jisudeng.com",
+	)
+	if err != nil {
+		t.Fatalf("CanonicalizeReturnURL returned error: %v", err)
+	}
+	if got != "https://www.jisudeng.com/payment/result?from=android" {
+		t.Fatalf("CanonicalizeReturnURL = %q", got)
 	}
 }
 
