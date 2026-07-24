@@ -265,6 +265,9 @@ type UpdateSettingsRequest struct {
 	OpenAIAdvancedSchedulerWeightUpstreamCost          *string  `json:"openai_advanced_scheduler_weight_upstream_cost"`
 	OpenAIAdvancedSchedulerWeightPreviousResponse      *string  `json:"openai_advanced_scheduler_weight_previous_response"`
 	OpenAIAdvancedSchedulerWeightSessionSticky         *string  `json:"openai_advanced_scheduler_weight_session_sticky"`
+	BillingSurchargeEnabled                            *bool    `json:"billing_surcharge_enabled"`
+	BillingSurchargeMode                               *string  `json:"billing_surcharge_mode"`
+	BillingSurchargeValue                              *float64 `json:"billing_surcharge_value"`
 
 	// 余额不足提醒
 	BalanceLowNotifyEnabled         *bool                   `json:"balance_low_notify_enabled"`
@@ -1567,6 +1570,19 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OpenAIAdvancedSchedulerWeightUpstreamCost:     stringSetting(req.OpenAIAdvancedSchedulerWeightUpstreamCost, previousSettings.OpenAIAdvancedSchedulerWeightUpstreamCost),
 		OpenAIAdvancedSchedulerWeightPreviousResponse: stringSetting(req.OpenAIAdvancedSchedulerWeightPreviousResponse, previousSettings.OpenAIAdvancedSchedulerWeightPreviousResponse),
 		OpenAIAdvancedSchedulerWeightSessionSticky:    stringSetting(req.OpenAIAdvancedSchedulerWeightSessionSticky, previousSettings.OpenAIAdvancedSchedulerWeightSessionSticky),
+		BillingSurchargeEnabled: func() bool {
+			if req.BillingSurchargeEnabled != nil {
+				return *req.BillingSurchargeEnabled
+			}
+			return previousSettings.BillingSurchargeEnabled
+		}(),
+		BillingSurchargeMode: stringSetting(req.BillingSurchargeMode, previousSettings.BillingSurchargeMode),
+		BillingSurchargeValue: func() float64 {
+			if req.BillingSurchargeValue != nil {
+				return *req.BillingSurchargeValue
+			}
+			return previousSettings.BillingSurchargeValue
+		}(),
 		BalanceLowNotifyEnabled: func() bool {
 			if req.BalanceLowNotifyEnabled != nil {
 				return *req.BalanceLowNotifyEnabled
@@ -2024,6 +2040,9 @@ func (h *SettingHandler) UpdateSettings(c *gin.Context) {
 		OpenAIAdvancedSchedulerEffectiveWeightUpstreamCost:     updatedSettings.OpenAIAdvancedSchedulerEffectiveWeightUpstreamCost,
 		OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse: updatedSettings.OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse,
 		OpenAIAdvancedSchedulerEffectiveWeightSessionSticky:    updatedSettings.OpenAIAdvancedSchedulerEffectiveWeightSessionSticky,
+		BillingSurchargeEnabled:                                updatedSettings.BillingSurchargeEnabled,
+		BillingSurchargeMode:                                   updatedSettings.BillingSurchargeMode,
+		BillingSurchargeValue:                                  updatedSettings.BillingSurchargeValue,
 		BalanceLowNotifyEnabled:                                updatedSettings.BalanceLowNotifyEnabled,
 		BalanceLowNotifyThreshold:                              updatedSettings.BalanceLowNotifyThreshold,
 		BalanceLowNotifyRechargeURL:                            updatedSettings.BalanceLowNotifyRechargeURL,

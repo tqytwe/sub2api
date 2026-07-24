@@ -12,7 +12,10 @@ import (
 )
 
 type settingPublicRepoStub struct {
-	values map[string]string
+	values            map[string]string
+	getMultipleErr    error
+	getMultipleErrKey map[string]error
+	getMultipleCalls  [][]string
 }
 
 func (s *settingPublicRepoStub) Get(ctx context.Context, key string) (*Setting, error) {
@@ -31,8 +34,15 @@ func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) erro
 }
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
+	s.getMultipleCalls = append(s.getMultipleCalls, append([]string(nil), keys...))
+	if s.getMultipleErr != nil {
+		return nil, s.getMultipleErr
+	}
 	out := make(map[string]string, len(keys))
 	for _, key := range keys {
+		if err := s.getMultipleErrKey[key]; err != nil {
+			return nil, err
+		}
 		if value, ok := s.values[key]; ok {
 			out[key] = value
 		}
@@ -106,6 +116,107 @@ func TestSettingService_GetPublicSettings_ExposesAllowUserViewErrorRequests(t *t
 	settings, err := svc.GetPublicSettings(context.Background())
 	require.NoError(t, err)
 	require.True(t, settings.AllowUserViewErrorRequests)
+}
+
+func TestSettingService_GetPublicSettings_ExposesMarketplaceEnabled(t *testing.T) {
+	tests := []struct {
+		name    string
+		raw     string
+		present bool
+		want    bool
+	}{
+		{name: "missing", want: false},
+		{name: "false", raw: "false", present: true, want: false},
+		{name: "invalid", raw: "TRUE", present: true, want: false},
+		{name: "true", raw: "true", present: true, want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			values := map[string]string{}
+			if tt.present {
+				values[SettingKeyMarketplaceEnabled] = tt.raw
+			}
+			repo := &settingPublicRepoStub{
+				values: values,
+			}
+			svc := NewSettingService(repo, &config.Config{})
+
+			settings, err := svc.GetPublicSettings(context.Background())
+
+			require.NoError(t, err)
+			require.Equal(t, tt.want, settings.MarketplaceEnabled)
+			require.Len(t, repo.getMultipleCalls, 1)
+			require.Contains(t, repo.getMultipleCalls[0], SettingKeyMarketplaceEnabled)
+		})
+	}
+}
+
+func TestSettingService_GetPublicSettings_MarketplaceBulkReadErrorPropagatesWithoutRetry(t *testing.T) {
+	repoErr := errors.New("database unavailable")
+	repo := &settingPublicRepoStub{
+		values:         map[string]string{},
+		getMultipleErr: repoErr,
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	_, err := svc.GetPublicSettings(context.Background())
+
+	require.ErrorIs(t, err, repoErr)
+	require.Len(t, repo.getMultipleCalls, 1)
+	require.Contains(t, repo.getMultipleCalls[0], SettingKeyMarketplaceEnabled)
+}
+
+func TestSettingService_GetPublicSettings_MarketplaceReadCancellationPropagates(t *testing.T) {
+	repo := &settingPublicRepoStub{
+		values:         map[string]string{},
+		getMultipleErr: context.Canceled,
+	}
+	svc := NewSettingService(repo, &config.Config{})
+
+	_, err := svc.GetPublicSettings(context.Background())
+
+	require.ErrorIs(t, err, context.Canceled)
+	require.Len(t, repo.getMultipleCalls, 1)
+	require.Contains(t, repo.getMultipleCalls[0], SettingKeyMarketplaceEnabled)
+}
+
+func TestSettingService_GetPublicSettingsForInjection_ExposesMarketplaceEnabled(t *testing.T) {
+	tests := []struct {
+		name string
+		raw  string
+		want bool
+	}{
+		{name: "false", raw: "false", want: false},
+		{name: "true", raw: "true", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			svc := NewSettingService(&settingPublicRepoStub{
+				values: map[string]string{SettingKeyMarketplaceEnabled: tt.raw},
+			}, &config.Config{})
+
+			payload, err := svc.GetPublicSettingsForInjection(context.Background())
+
+			require.NoError(t, err)
+			injection, ok := payload.(*PublicSettingsInjectionPayload)
+			require.True(t, ok)
+			require.Equal(t, tt.want, injection.MarketplaceEnabled)
+		})
+	}
+}
+
+func TestSettingService_GetPublicSettingsForInjection_MarketplaceBulkReadErrorPropagates(t *testing.T) {
+	repoErr := errors.New("database unavailable")
+	svc := NewSettingService(&settingPublicRepoStub{
+		values:         map[string]string{},
+		getMultipleErr: repoErr,
+	}, &config.Config{})
+
+	_, err := svc.GetPublicSettingsForInjection(context.Background())
+
+	require.ErrorIs(t, err, repoErr)
 }
 
 func TestSettingService_GetPublicSettings_ExposesWeChatOAuthModeCapabilities(t *testing.T) {

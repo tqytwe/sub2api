@@ -12,6 +12,12 @@ const messages = {
     title: 'Batch Image Generation',
     description: 'Submit multiple prompts in one job and download the generated images when complete'
   },
+  marketplace: {
+    title: 'AI Model Marketplace',
+    status: {
+      unavailable: 'The marketplace is not available yet'
+    }
+  },
   // Home Page
   home: {
     viewOnGithub: 'View on GitHub',
@@ -3219,6 +3225,15 @@ const messages = {
         privacySetOnlyEnabled: 'Enabled — accounts with unset Privacy will be excluded',
         disabled: 'Disabled'
       },
+      surcharge: {
+        override: 'Override global fee',
+        enabled: 'Collect fee',
+        modeNone: 'No fee',
+        modePercent: 'Percent of charged cost',
+        modeAdditive: 'Add multiplier points',
+        valuePlaceholder: '0.003 / 0.05',
+        hint: '3‰ = 0.003, 万三 = 0.0003, +0.05 multiplier = 0.05'
+      },
       form: {
         name: 'Name',
         description: 'Description',
@@ -3482,7 +3497,7 @@ const messages = {
 
     modelCatalog: {
       title: 'Model Catalog',
-      description: 'Manage official prices, site base prices, visibility, and signed-in pricing groups. Effective price = site base × group multiplier.',
+      description: 'Manage official prices, site display prices, visibility, and pricing groups. Group display price = site display × group multiplier, for storefront display only.',
       searchPlaceholder: 'Search models…',
       platformFilter: 'Platform',
       sync: 'Refresh model data',
@@ -7009,7 +7024,7 @@ const messages = {
           title: 'Play Center',
           description: 'Opt-in engagement modules: check-in, token farm, blind box, quiz, and agent team.',
           publicModelsEnabled: 'Public model catalog',
-          publicModelsEnabledHint: 'Guests can browse official and site base pricing for guest-visible models at /models.',
+          publicModelsEnabledHint: 'Guests can browse official, site display, and group display prices for guest-visible models at /models.',
           checkinEnabled: 'Daily check-in',
           checkinEnabledHint: 'Shows the check-in page and sidebar entry.',
           checkinDailyReward: 'Check-in daily reward (balance)',

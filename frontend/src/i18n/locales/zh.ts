@@ -12,6 +12,12 @@ const messages = {
     title: '图片批量生成',
     description: '一次提交多条提示词，任务完成后可统一下载图片结果'
   },
+  marketplace: {
+    title: 'AI 模型商城',
+    status: {
+      unavailable: '商城功能暂未开放'
+    }
+  },
   // Home Page
   home: {
     viewOnGithub: '在 GitHub 上查看',
@@ -3258,6 +3264,15 @@ const messages = {
       accountsRateLimited: '限流:',
       accountsTotal: '总量:',
       accountsUnit: '个账号',
+      surcharge: {
+        override: '覆盖全局手续费',
+        enabled: '收取手续费',
+        modeNone: '不加收',
+        modePercent: '按原扣费比例',
+        modeAdditive: '倍率加点',
+        valuePlaceholder: '0.003 / 0.05',
+        hint: '3‰ 填 0.003，万三填 0.0003；倍率 +0.05 填 0.05'
+      },
       form: {
         name: '名称',
         description: '描述',
@@ -3556,7 +3571,7 @@ const messages = {
 
     modelCatalog: {
       title: '模型价目管理',
-      description: '统一管理官方价、本站基础售价、展示范围与登录价目分组；用户实付价 = 本站基础售价 × 分组倍率',
+      description: '统一管理官方价、本站展示价、展示范围与价目分组；分组展示价 = 本站展示价 × 分组倍率，仅影响前台展示',
       searchPlaceholder: '搜索模型…',
       platformFilter: '平台',
       sync: '刷新模型数据',
@@ -3620,7 +3635,7 @@ const messages = {
         sortOrder: '排序',
         visiblePublic: '游客可见',
         visibleAuth: '登录可见',
-        priceMode: '本站基础售价设置',
+        priceMode: '本站展示价设置',
         priceModeManual: '手工填写',
         priceModeMultiplier: '官方价 × 本站倍率',
         multiplier: '本站倍率',
@@ -7159,7 +7174,7 @@ const messages = {
           title: '玩法中心',
           description: '可选的用户运营模块：签到、Token 农场、盲盒、答题、Agent Team。',
           publicModelsEnabled: '公开模型目录',
-          publicModelsEnabledHint: '游客可在 /models 查看管理员勾选为「游客可见」的模型、官方价与本站基础售价。',
+          publicModelsEnabledHint: '游客可在 /models 查看管理员勾选为「游客可见」的模型、官方价、本站展示价与分组展示价。',
           checkinEnabled: '每日签到',
           checkinEnabledHint: '显示签到页与侧边栏入口。',
           checkinDailyReward: '签到奖励（余额）',

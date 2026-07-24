@@ -222,6 +222,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyChannelMonitorEnabled,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyAvailableChannelsEnabled,
+		SettingKeyMarketplaceEnabled,
 		SettingKeyPublicModelsEnabled,
 		SettingKeyPlayCheckinEnabled,
 		SettingKeyPlayArenaEnabled,
@@ -239,6 +240,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 	if err != nil {
 		return nil, fmt.Errorf("get public settings: %w", err)
 	}
+	marketplaceEnabled := settings[SettingKeyMarketplaceEnabled] == "true"
 
 	linuxDoEnabled := false
 	if raw, ok := settings[SettingKeyLinuxDoConnectEnabled]; ok {
@@ -343,6 +345,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
+		MarketplaceEnabled:       marketplaceEnabled,
 		PublicModelsEnabled:      settings[SettingKeyPublicModelsEnabled] == "true",
 		PlayCheckinEnabled:       settings[SettingKeyPlayCheckinEnabled] == "true",
 		PlayArenaEnabled:         settings[SettingKeyPlayArenaEnabled] == "true",
@@ -516,6 +519,7 @@ type PublicSettingsInjectionPayload struct {
 	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
 	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
 	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
+	MarketplaceEnabled                   bool `json:"marketplace_enabled"`
 	PublicModelsEnabled                  bool `json:"public_models_enabled"`
 	PlayCheckinEnabled                   bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled                     bool `json:"play_arena_enabled"`
@@ -591,6 +595,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
+		MarketplaceEnabled:                   settings.MarketplaceEnabled,
 		PublicModelsEnabled:                  settings.PublicModelsEnabled,
 		PlayCheckinEnabled:                   settings.PlayCheckinEnabled,
 		PlayArenaEnabled:                     settings.PlayArenaEnabled,

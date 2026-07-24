@@ -3,17 +3,11 @@ package service
 import (
 	"context"
 	"log/slog"
-	"strings"
-	"sync"
-	"time"
-
-	"golang.org/x/sync/singleflight"
 )
 
 // PricingSource 定价来源标识
 const (
 	PricingSourceChannel  = "channel"
-	PricingSourceCatalog  = "catalog"
 	PricingSourceLiteLLM  = "litellm"
 	PricingSourceFallback = "fallback"
 )
@@ -50,17 +44,7 @@ type ResolvedPricing struct {
 type ModelPricingResolver struct {
 	channelService *ChannelService
 	billingService *BillingService
-	catalogRepo    ModelCatalogRepository
-	catalogCache   sync.Map
-	catalogSF      singleflight.Group
 }
-
-type cachedCatalogPricing struct {
-	entry     *SiteModelCatalogEntry
-	expiresAt time.Time
-}
-
-const catalogPricingCacheTTL = 30 * time.Second
 
 // NewModelPricingResolver 创建定价解析器实例
 func NewModelPricingResolver(channelService *ChannelService, billingService *BillingService) *ModelPricingResolver {
@@ -70,13 +54,12 @@ func NewModelPricingResolver(channelService *ChannelService, billingService *Bil
 	}
 }
 
-// NewModelPricingResolverWithCatalog uses the site catalog as the default billing source.
-// The legacy BillingService path remains as a compatibility fallback for uncatalogued models.
+// NewModelPricingResolverWithCatalog keeps the legacy DI shape while treating
+// the site catalog as display-only. Runtime billing must not read catalog prices.
 func NewModelPricingResolverWithCatalog(channelService *ChannelService, billingService *BillingService, catalogRepo ModelCatalogRepository) *ModelPricingResolver {
 	return &ModelPricingResolver{
 		channelService: channelService,
 		billingService: billingService,
-		catalogRepo:    catalogRepo,
 	}
 }
 
@@ -132,7 +115,7 @@ func (r *ModelPricingResolver) Resolve(ctx context.Context, input PricingInput) 
 	return resolved
 }
 
-// resolveBasePricing prefers the site catalog and keeps the legacy source as a compatibility fallback.
+// resolveBasePricing uses upstream/LiteLLM pricing only. The site catalog is display-only.
 func (r *ModelPricingResolver) resolveBasePricing(ctx context.Context, model string) (*ModelPricing, string) {
 	var legacyPricing *ModelPricing
 	legacySource := PricingSourceFallback
@@ -146,93 +129,7 @@ func (r *ModelPricingResolver) resolveBasePricing(ctx context.Context, model str
 				"model", model, "error", err)
 		}
 	}
-	if entry := r.getCatalogEntry(ctx, model); entry != nil {
-		if pricing := modelPricingFromCatalog(entry, legacyPricing); pricing != nil {
-			return pricing, PricingSourceCatalog
-		}
-	}
 	return legacyPricing, legacySource
-}
-
-func (r *ModelPricingResolver) getCatalogEntry(ctx context.Context, model string) *SiteModelCatalogEntry {
-	if r == nil || r.catalogRepo == nil {
-		return nil
-	}
-	key := strings.ToLower(strings.TrimSpace(model))
-	if key == "" {
-		return nil
-	}
-	if cached, ok := r.catalogCache.Load(key); ok {
-		entry, valid := cached.(cachedCatalogPricing)
-		if valid {
-			if time.Now().Before(entry.expiresAt) {
-				return entry.entry
-			}
-		}
-		r.catalogCache.Delete(key)
-	}
-	value, err, _ := r.catalogSF.Do(key, func() (any, error) {
-		entry, lookupErr := r.catalogRepo.GetCatalogPricing(ctx, model)
-		if lookupErr != nil {
-			return nil, lookupErr
-		}
-		r.catalogCache.Store(key, cachedCatalogPricing{
-			entry:     entry,
-			expiresAt: time.Now().Add(catalogPricingCacheTTL),
-		})
-		return entry, nil
-	})
-	if err != nil {
-		slog.Warn("failed to load site catalog pricing", "model", model, "error", err)
-		return nil
-	}
-	entry, _ := value.(*SiteModelCatalogEntry)
-	return entry
-}
-
-func modelPricingFromCatalog(entry *SiteModelCatalogEntry, legacy *ModelPricing) *ModelPricing {
-	if entry == nil || (entry.BillingMode != "" && entry.BillingMode != string(BillingModeToken)) {
-		return nil
-	}
-	input := firstCatalogPrice(entry.InputPrice, entry.OfficialInputPrice)
-	output := firstCatalogPrice(entry.OutputPrice, entry.OfficialOutputPrice)
-	cacheRead := firstCatalogPrice(entry.CacheReadPrice, entry.OfficialCacheReadPrice)
-	cacheWrite := firstCatalogPrice(entry.CacheWritePrice, entry.OfficialCacheWritePrice)
-	if input == nil && output == nil && cacheRead == nil && cacheWrite == nil {
-		return nil
-	}
-	pricing := &ModelPricing{}
-	if legacy != nil {
-		cloned := *legacy
-		pricing = &cloned
-	}
-	if input != nil {
-		pricing.InputPricePerToken = *input
-	}
-	if output != nil {
-		pricing.OutputPricePerToken = *output
-	}
-	if cacheRead != nil {
-		pricing.CacheReadPricePerToken = *cacheRead
-		pricing.CacheReadPricePerTokenPriority = *cacheRead
-		pricing.SupportsCacheBreakdown = true
-	}
-	if cacheWrite != nil {
-		pricing.CacheCreationPricePerToken = *cacheWrite
-		pricing.CacheCreationPricePerTokenPriority = *cacheWrite
-		pricing.CacheCreation5mPrice = *cacheWrite
-		pricing.CacheCreation1hPrice = *cacheWrite
-		pricing.CacheCreationPriceExplicit = true
-		pricing.SupportsCacheBreakdown = true
-	}
-	return pricing
-}
-
-func firstCatalogPrice(sitePrice, officialPrice *float64) *float64 {
-	if sitePrice != nil {
-		return sitePrice
-	}
-	return officialPrice
 }
 
 // applyChannelOverrides 应用渠道定价覆盖

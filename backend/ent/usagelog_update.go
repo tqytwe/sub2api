@@ -521,6 +521,83 @@ func (_u *UsageLogUpdate) AddActualCost(v float64) *UsageLogUpdate {
 	return _u
 }
 
+// SetBillingSurchargeCost sets the "billing_surcharge_cost" field.
+func (_u *UsageLogUpdate) SetBillingSurchargeCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetBillingSurchargeCost()
+	_u.mutation.SetBillingSurchargeCost(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeCost sets the "billing_surcharge_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingSurchargeCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeCost(*v)
+	}
+	return _u
+}
+
+// AddBillingSurchargeCost adds value to the "billing_surcharge_cost" field.
+func (_u *UsageLogUpdate) AddBillingSurchargeCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddBillingSurchargeCost(v)
+	return _u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_u *UsageLogUpdate) SetBilledCost(v float64) *UsageLogUpdate {
+	_u.mutation.ResetBilledCost()
+	_u.mutation.SetBilledCost(v)
+	return _u
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBilledCost(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBilledCost(*v)
+	}
+	return _u
+}
+
+// AddBilledCost adds value to the "billed_cost" field.
+func (_u *UsageLogUpdate) AddBilledCost(v float64) *UsageLogUpdate {
+	_u.mutation.AddBilledCost(v)
+	return _u
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (_u *UsageLogUpdate) SetBillingSurchargeMode(v string) *UsageLogUpdate {
+	_u.mutation.SetBillingSurchargeMode(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeMode sets the "billing_surcharge_mode" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingSurchargeMode(v *string) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeMode(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (_u *UsageLogUpdate) SetBillingSurchargeValue(v float64) *UsageLogUpdate {
+	_u.mutation.ResetBillingSurchargeValue()
+	_u.mutation.SetBillingSurchargeValue(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeValue sets the "billing_surcharge_value" field if the given value is not nil.
+func (_u *UsageLogUpdate) SetNillableBillingSurchargeValue(v *float64) *UsageLogUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeValue(*v)
+	}
+	return _u
+}
+
+// AddBillingSurchargeValue adds value to the "billing_surcharge_value" field.
+func (_u *UsageLogUpdate) AddBillingSurchargeValue(v float64) *UsageLogUpdate {
+	_u.mutation.AddBillingSurchargeValue(v)
+	return _u
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_u *UsageLogUpdate) SetRateMultiplier(v float64) *UsageLogUpdate {
 	_u.mutation.ResetRateMultiplier()
@@ -1031,6 +1108,11 @@ func (_u *UsageLogUpdate) check() error {
 			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingSurchargeMode(); ok {
+		if err := usagelog.BillingSurchargeModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_surcharge_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_surcharge_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -1206,6 +1288,27 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedActualCost(); ok {
 		_spec.AddField(usagelog.FieldActualCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeCost(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingSurchargeCost(); ok {
+		_spec.AddField(usagelog.FieldBillingSurchargeCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BilledCost(); ok {
+		_spec.SetField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBilledCost(); ok {
+		_spec.AddField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeMode(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeValue(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingSurchargeValue(); ok {
+		_spec.AddField(usagelog.FieldBillingSurchargeValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1978,6 +2081,83 @@ func (_u *UsageLogUpdateOne) AddActualCost(v float64) *UsageLogUpdateOne {
 	return _u
 }
 
+// SetBillingSurchargeCost sets the "billing_surcharge_cost" field.
+func (_u *UsageLogUpdateOne) SetBillingSurchargeCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetBillingSurchargeCost()
+	_u.mutation.SetBillingSurchargeCost(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeCost sets the "billing_surcharge_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingSurchargeCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeCost(*v)
+	}
+	return _u
+}
+
+// AddBillingSurchargeCost adds value to the "billing_surcharge_cost" field.
+func (_u *UsageLogUpdateOne) AddBillingSurchargeCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddBillingSurchargeCost(v)
+	return _u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_u *UsageLogUpdateOne) SetBilledCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetBilledCost()
+	_u.mutation.SetBilledCost(v)
+	return _u
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBilledCost(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBilledCost(*v)
+	}
+	return _u
+}
+
+// AddBilledCost adds value to the "billed_cost" field.
+func (_u *UsageLogUpdateOne) AddBilledCost(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddBilledCost(v)
+	return _u
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (_u *UsageLogUpdateOne) SetBillingSurchargeMode(v string) *UsageLogUpdateOne {
+	_u.mutation.SetBillingSurchargeMode(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeMode sets the "billing_surcharge_mode" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingSurchargeMode(v *string) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeMode(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (_u *UsageLogUpdateOne) SetBillingSurchargeValue(v float64) *UsageLogUpdateOne {
+	_u.mutation.ResetBillingSurchargeValue()
+	_u.mutation.SetBillingSurchargeValue(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeValue sets the "billing_surcharge_value" field if the given value is not nil.
+func (_u *UsageLogUpdateOne) SetNillableBillingSurchargeValue(v *float64) *UsageLogUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeValue(*v)
+	}
+	return _u
+}
+
+// AddBillingSurchargeValue adds value to the "billing_surcharge_value" field.
+func (_u *UsageLogUpdateOne) AddBillingSurchargeValue(v float64) *UsageLogUpdateOne {
+	_u.mutation.AddBillingSurchargeValue(v)
+	return _u
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_u *UsageLogUpdateOne) SetRateMultiplier(v float64) *UsageLogUpdateOne {
 	_u.mutation.ResetRateMultiplier()
@@ -2501,6 +2681,11 @@ func (_u *UsageLogUpdateOne) check() error {
 			return &ValidationError{Name: "billing_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_mode": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingSurchargeMode(); ok {
+		if err := usagelog.BillingSurchargeModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_surcharge_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_surcharge_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.UserAgent(); ok {
 		if err := usagelog.UserAgentValidator(v); err != nil {
 			return &ValidationError{Name: "user_agent", err: fmt.Errorf(`ent: validator failed for field "UsageLog.user_agent": %w`, err)}
@@ -2693,6 +2878,27 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if value, ok := _u.mutation.AddedActualCost(); ok {
 		_spec.AddField(usagelog.FieldActualCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeCost(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingSurchargeCost(); ok {
+		_spec.AddField(usagelog.FieldBillingSurchargeCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BilledCost(); ok {
+		_spec.SetField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBilledCost(); ok {
+		_spec.AddField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeMode(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeValue(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingSurchargeValue(); ok {
+		_spec.AddField(usagelog.FieldBillingSurchargeValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)

@@ -264,6 +264,10 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse string
 	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string
 
+	BillingSurchargeEnabled bool
+	BillingSurchargeMode    string
+	BillingSurchargeValue   float64
+
 	// 余额不足提醒
 	BalanceLowNotifyEnabled     bool
 	BalanceLowNotifyThreshold   float64
@@ -347,6 +351,9 @@ type PublicSettings struct {
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
+
+	// AI model marketplace foundation (opt-in, read-only in CP1A)
+	MarketplaceEnabled bool `json:"marketplace_enabled"`
 
 	// Public models + Play growth features (opt-in via public settings)
 	PublicModelsEnabled  bool `json:"public_models_enabled"`

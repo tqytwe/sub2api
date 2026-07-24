@@ -4,6 +4,7 @@ package service
 
 import (
 	"context"
+	"math"
 	"testing"
 )
 
@@ -83,4 +84,57 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 			}
 		})
 	}
+}
+
+func TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost(t *testing.T) {
+	t.Parallel()
+
+	p := &postUsageBillingParams{
+		Cost: &CostBreakdown{TotalCost: 1.0, ActualCost: 0.25},
+		User: &User{ID: 1},
+		APIKey: &APIKey{
+			ID:    2,
+			Quota: 10,
+		},
+		Account:       &Account{ID: 3},
+		APIKeyService: apiKeyQuotaUpdaterStub{},
+		Surcharge: ApplyBillingSurcharge(
+			&CostBreakdown{TotalCost: 1.0, ActualCost: 0.25},
+			BillingSurchargeConfig{
+				Enabled: true,
+				Mode:    BillingSurchargeModeAdditiveMultiplier,
+				Value:   0.05,
+			},
+		),
+	}
+
+	cmd := buildUsageBillingCommandForContext(context.Background(), "req-surcharge", nil, p)
+	if cmd == nil {
+		t.Fatal("buildUsageBillingCommandForContext returned nil")
+	}
+	if cmd.ActualCost != 0.25 {
+		t.Fatalf("ActualCost = %v, want original 0.25", cmd.ActualCost)
+	}
+	if math.Abs(cmd.BillingSurchargeCost-0.05) > 1e-9 {
+		t.Fatalf("BillingSurchargeCost = %v, want 0.05", cmd.BillingSurchargeCost)
+	}
+	if math.Abs(cmd.BilledCost-0.30) > 1e-9 {
+		t.Fatalf("BilledCost = %v, want 0.30", cmd.BilledCost)
+	}
+	if math.Abs(cmd.BalanceCost-0.30) > 1e-9 {
+		t.Fatalf("BalanceCost = %v, want 0.30", cmd.BalanceCost)
+	}
+	if math.Abs(cmd.APIKeyQuotaCost-0.30) > 1e-9 {
+		t.Fatalf("APIKeyQuotaCost = %v, want 0.30", cmd.APIKeyQuotaCost)
+	}
+}
+
+type apiKeyQuotaUpdaterStub struct{}
+
+func (apiKeyQuotaUpdaterStub) UpdateQuotaUsed(context.Context, int64, float64) error {
+	return nil
+}
+
+func (apiKeyQuotaUpdaterStub) UpdateRateLimitUsage(context.Context, int64, float64) error {
+	return nil
 }

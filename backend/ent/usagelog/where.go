@@ -180,6 +180,26 @@ func ActualCost(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldActualCost, v))
 }
 
+// BillingSurchargeCost applies equality check predicate on the "billing_surcharge_cost" field. It's identical to BillingSurchargeCostEQ.
+func BillingSurchargeCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingSurchargeCost, v))
+}
+
+// BilledCost applies equality check predicate on the "billed_cost" field. It's identical to BilledCostEQ.
+func BilledCost(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBilledCost, v))
+}
+
+// BillingSurchargeMode applies equality check predicate on the "billing_surcharge_mode" field. It's identical to BillingSurchargeModeEQ.
+func BillingSurchargeMode(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeValue applies equality check predicate on the "billing_surcharge_value" field. It's identical to BillingSurchargeValueEQ.
+func BillingSurchargeValue(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingSurchargeValue, v))
+}
+
 // RateMultiplier applies equality check predicate on the "rate_multiplier" field. It's identical to RateMultiplierEQ.
 func RateMultiplier(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldRateMultiplier, v))
@@ -1428,6 +1448,191 @@ func ActualCostLT(v float64) predicate.UsageLog {
 // ActualCostLTE applies the LTE predicate on the "actual_cost" field.
 func ActualCostLTE(v float64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldLTE(FieldActualCost, v))
+}
+
+// BillingSurchargeCostEQ applies the EQ predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingSurchargeCost, v))
+}
+
+// BillingSurchargeCostNEQ applies the NEQ predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingSurchargeCost, v))
+}
+
+// BillingSurchargeCostIn applies the In predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingSurchargeCost, vs...))
+}
+
+// BillingSurchargeCostNotIn applies the NotIn predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingSurchargeCost, vs...))
+}
+
+// BillingSurchargeCostGT applies the GT predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingSurchargeCost, v))
+}
+
+// BillingSurchargeCostGTE applies the GTE predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingSurchargeCost, v))
+}
+
+// BillingSurchargeCostLT applies the LT predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingSurchargeCost, v))
+}
+
+// BillingSurchargeCostLTE applies the LTE predicate on the "billing_surcharge_cost" field.
+func BillingSurchargeCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingSurchargeCost, v))
+}
+
+// BilledCostEQ applies the EQ predicate on the "billed_cost" field.
+func BilledCostEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBilledCost, v))
+}
+
+// BilledCostNEQ applies the NEQ predicate on the "billed_cost" field.
+func BilledCostNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBilledCost, v))
+}
+
+// BilledCostIn applies the In predicate on the "billed_cost" field.
+func BilledCostIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBilledCost, vs...))
+}
+
+// BilledCostNotIn applies the NotIn predicate on the "billed_cost" field.
+func BilledCostNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBilledCost, vs...))
+}
+
+// BilledCostGT applies the GT predicate on the "billed_cost" field.
+func BilledCostGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBilledCost, v))
+}
+
+// BilledCostGTE applies the GTE predicate on the "billed_cost" field.
+func BilledCostGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBilledCost, v))
+}
+
+// BilledCostLT applies the LT predicate on the "billed_cost" field.
+func BilledCostLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBilledCost, v))
+}
+
+// BilledCostLTE applies the LTE predicate on the "billed_cost" field.
+func BilledCostLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBilledCost, v))
+}
+
+// BillingSurchargeModeEQ applies the EQ predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeNEQ applies the NEQ predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeNEQ(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeIn applies the In predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingSurchargeMode, vs...))
+}
+
+// BillingSurchargeModeNotIn applies the NotIn predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeNotIn(vs ...string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingSurchargeMode, vs...))
+}
+
+// BillingSurchargeModeGT applies the GT predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeGT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeGTE applies the GTE predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeGTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeLT applies the LT predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeLT(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeLTE applies the LTE predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeLTE(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeContains applies the Contains predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeContains(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContains(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeHasPrefix applies the HasPrefix predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeHasPrefix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasPrefix(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeHasSuffix applies the HasSuffix predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeHasSuffix(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldHasSuffix(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeEqualFold applies the EqualFold predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeEqualFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEqualFold(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeContainsFold applies the ContainsFold predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeContainsFold(v string) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldContainsFold(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeValueEQ applies the EQ predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldEQ(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueNEQ applies the NEQ predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueNEQ(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNEQ(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueIn applies the In predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldIn(FieldBillingSurchargeValue, vs...))
+}
+
+// BillingSurchargeValueNotIn applies the NotIn predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueNotIn(vs ...float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldNotIn(FieldBillingSurchargeValue, vs...))
+}
+
+// BillingSurchargeValueGT applies the GT predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueGT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGT(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueGTE applies the GTE predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueGTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldGTE(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueLT applies the LT predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueLT(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLT(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueLTE applies the LTE predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueLTE(v float64) predicate.UsageLog {
+	return predicate.UsageLog(sql.FieldLTE(FieldBillingSurchargeValue, v))
 }
 
 // RateMultiplierEQ applies the EQ predicate on the "rate_multiplier" field.

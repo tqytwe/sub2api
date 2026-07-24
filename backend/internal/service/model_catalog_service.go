@@ -59,6 +59,7 @@ func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicMod
 		return []PublicModelPricingRow{}
 	}
 
+	publicGroups, publicGroupsByPlatform := s.publicPricingGroups(ctx)
 	out := make([]PublicModelPricingRow, 0, len(entries))
 	for _, e := range entries {
 		name := e.ModelName
@@ -87,6 +88,72 @@ func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicMod
 			OurInputPrice:       ourIn,
 			OurOutputPrice:      ourOut,
 			RateMultiplier:      catalogEntryMultiplier(e),
+			Groups:              publicGroupPricesForCatalogEntry(e, publicGroups, publicGroupsByPlatform, ourIn, ourOut),
+		})
+	}
+	return out
+}
+
+func (s *ModelCatalogService) publicPricingGroups(ctx context.Context) ([]AvailableGroupRef, map[string][]AvailableGroupRef) {
+	if s == nil || s.channelService == nil || s.channelService.groupRepo == nil {
+		return nil, nil
+	}
+	groups, err := s.channelService.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, nil
+	}
+	refs := make([]AvailableGroupRef, 0, len(groups))
+	for _, g := range groups {
+		if g.ID <= 0 || g.Status != StatusActive {
+			continue
+		}
+		refs = append(refs, AvailableGroupRef{
+			ID:                 g.ID,
+			Name:               g.Name,
+			Platform:           g.Platform,
+			SubscriptionType:   g.SubscriptionType,
+			RateMultiplier:     g.RateMultiplier,
+			PeakRateEnabled:    g.PeakRateEnabled,
+			PeakStart:          g.PeakStart,
+			PeakEnd:            g.PeakEnd,
+			PeakRateMultiplier: g.PeakRateMultiplier,
+			IsExclusive:        g.IsExclusive,
+		})
+	}
+	sort.SliceStable(refs, func(i, j int) bool {
+		if refs[i].Platform != refs[j].Platform {
+			return refs[i].Platform < refs[j].Platform
+		}
+		if refs[i].Name != refs[j].Name {
+			return refs[i].Name < refs[j].Name
+		}
+		return refs[i].ID < refs[j].ID
+	})
+	return refs, groupRefsByPlatform(refs)
+}
+
+func publicGroupPricesForCatalogEntry(
+	entry SiteModelCatalogEntry,
+	publicGroups []AvailableGroupRef,
+	publicGroupsByPlatform map[string][]AvailableGroupRef,
+	siteIn, siteOut *float64,
+) []PublicModelPricingGroupPrice {
+	if len(publicGroups) == 0 {
+		return nil
+	}
+	groups := visibleGroupsForCatalogEntry(entry, publicGroups, publicGroupsByPlatform[strings.ToLower(strings.TrimSpace(entry.Platform))])
+	out := make([]PublicModelPricingGroupPrice, 0, len(groups))
+	for _, g := range groups {
+		mult := g.RateMultiplier
+		if mult <= 0 {
+			mult = 1
+		}
+		out = append(out, PublicModelPricingGroupPrice{
+			ID:                   g.ID,
+			Name:                 g.Name,
+			RateMultiplier:       mult,
+			EffectiveInputPrice:  scalePricePtr(siteIn, mult),
+			EffectiveOutputPrice: scalePricePtr(siteOut, mult),
 		})
 	}
 	return out
@@ -96,7 +163,7 @@ func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicMod
 func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (*MyModelPricingResponse, error) {
 	resp := &MyModelPricingResponse{
 		Models:             []MyModelPricingRow{},
-		RateMultiplierNote: "实付价 = 计费基础价（本站售价或渠道覆盖）× 分组倍率",
+		RateMultiplierNote: "分组展示价 = 本站展示价 × 分组倍率；仅用于前台展示，不作为上游或用户扣费依据",
 		Enabled:            false,
 	}
 	if s.settingService != nil && !s.settingService.GetAvailableChannelsRuntime(ctx).Enabled {

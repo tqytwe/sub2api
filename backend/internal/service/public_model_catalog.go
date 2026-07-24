@@ -16,14 +16,24 @@ type PublicCatalogModel struct {
 
 // PublicModelPricingRow is one model with official and site reference prices (USD per token).
 type PublicModelPricingRow struct {
-	Name                string   `json:"name"`
-	Platform            string   `json:"platform"`
-	UseCase             string   `json:"use_case"`
-	OfficialInputPrice  *float64 `json:"official_input_price"`
-	OfficialOutputPrice *float64 `json:"official_output_price"`
-	OurInputPrice       *float64 `json:"our_input_price"`
-	OurOutputPrice      *float64 `json:"our_output_price"`
-	RateMultiplier      float64  `json:"rate_multiplier"`
+	Name                string                         `json:"name"`
+	Platform            string                         `json:"platform"`
+	UseCase             string                         `json:"use_case"`
+	OfficialInputPrice  *float64                       `json:"official_input_price"`
+	OfficialOutputPrice *float64                       `json:"official_output_price"`
+	OurInputPrice       *float64                       `json:"our_input_price"`
+	OurOutputPrice      *float64                       `json:"our_output_price"`
+	RateMultiplier      float64                        `json:"rate_multiplier"`
+	Groups              []PublicModelPricingGroupPrice `json:"groups,omitempty"`
+}
+
+// PublicModelPricingGroupPrice is the guest-visible effective price for a group.
+type PublicModelPricingGroupPrice struct {
+	ID                   int64    `json:"id"`
+	Name                 string   `json:"name"`
+	RateMultiplier       float64  `json:"rate_multiplier"`
+	EffectiveInputPrice  *float64 `json:"effective_input_price"`
+	EffectiveOutputPrice *float64 `json:"effective_output_price"`
 }
 
 // PublicCatalogModels is the default lineup shown on /models when no channel pricing exists.

@@ -119,6 +119,39 @@ func TestModelCatalogService_ListPublicPricingFailsClosed(t *testing.T) {
 	})
 }
 
+func TestModelCatalogService_ListPublicPricingShowsGroupEffectivePrices(t *testing.T) {
+	siteIn, siteOut := 4e-6, 24e-6
+	officialIn, officialOut := 10e-6, 30e-6
+	codex := Group{ID: 2, Name: "Codex", Platform: PlatformOpenAI, RateMultiplier: 0.25, Status: StatusActive}
+	domestic := Group{ID: 14, Name: "国产分组", Platform: PlatformOpenAI, RateMultiplier: 0.05, Status: StatusActive}
+	channelService := NewChannelService(&modelPricingChannelRepoStub{channels: []Channel{{
+		ID:       1,
+		Name:     "primary",
+		Status:   StatusActive,
+		GroupIDs: []int64{codex.ID, domestic.ID},
+	}}}, &modelPricingGroupRepoStub{groups: []Group{codex, domestic}}, nil, nil)
+	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
+		ModelName:           "gpt-test",
+		Platform:            PlatformOpenAI,
+		VisiblePublic:       true,
+		GroupIDs:            []int64{domestic.ID},
+		OfficialInputPrice:  &officialIn,
+		OfficialOutputPrice: &officialOut,
+		InputPrice:          &siteIn,
+		OutputPrice:         &siteOut,
+	}}}
+	svc := NewModelCatalogService(repo, channelService, nil, nil, nil, nil, nil)
+
+	rows := svc.ListPublicPricing(context.Background())
+
+	require.Len(t, rows, 1)
+	require.Equal(t, "gpt-test", rows[0].Name)
+	require.Len(t, rows[0].Groups, 1)
+	require.Equal(t, domestic.ID, rows[0].Groups[0].ID)
+	require.InDelta(t, siteIn*domestic.RateMultiplier, *rows[0].Groups[0].EffectiveInputPrice, 1e-12)
+	require.InDelta(t, siteOut*domestic.RateMultiplier, *rows[0].Groups[0].EffectiveOutputPrice, 1e-12)
+}
+
 func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch(t *testing.T) {
 	officialAIn, officialAOut := 10e-6, 20e-6
 	officialBIn, officialBOut := 5e-6, 30e-6

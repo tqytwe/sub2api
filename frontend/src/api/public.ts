@@ -5,6 +5,14 @@
 import { apiClient } from './client'
 import type { UserAvailableChannel } from './channels'
 
+export interface PublicModelPricingGroupPrice {
+  id: number
+  name: string
+  rate_multiplier: number
+  effective_input_price: number | null
+  effective_output_price: number | null
+}
+
 export interface PublicModelPricingRow {
   name: string
   platform: string
@@ -14,6 +22,7 @@ export interface PublicModelPricingRow {
   our_input_price: number | null
   our_output_price: number | null
   rate_multiplier: number
+  groups?: PublicModelPricingGroupPrice[]
 }
 
 export async function getPublicModelPricing(options?: { signal?: AbortSignal }): Promise<PublicModelPricingRow[]> {

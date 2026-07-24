@@ -133,6 +133,9 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 	if input.RateMultiplier <= 0 {
 		return nil, errors.New("rate_multiplier must be > 0")
 	}
+	if err := validateBillingSurchargeConfig(input.BillingSurchargeOverrideEnabled, input.BillingSurchargeEnabled, input.BillingSurchargeMode, input.BillingSurchargeValue); err != nil {
+		return nil, err
+	}
 
 	platform := input.Platform
 	if platform == "" {
@@ -264,6 +267,10 @@ func (s *adminServiceImpl) CreateGroup(ctx context.Context, input *CreateGroupIn
 		Description:                     input.Description,
 		Platform:                        platform,
 		RateMultiplier:                  input.RateMultiplier,
+		BillingSurchargeOverrideEnabled: input.BillingSurchargeOverrideEnabled,
+		BillingSurchargeEnabled:         input.BillingSurchargeEnabled,
+		BillingSurchargeMode:            NormalizeBillingSurchargeMode(input.BillingSurchargeMode),
+		BillingSurchargeValue:           input.BillingSurchargeValue,
 		IsExclusive:                     input.IsExclusive,
 		Status:                          StatusActive,
 		SubscriptionType:                subscriptionType,
@@ -356,6 +363,20 @@ func normalizePrice(price *float64) *float64 {
 	return price
 }
 
+func validateBillingSurchargeConfig(overrideEnabled, enabled bool, mode string, value float64) error {
+	if value < 0 {
+		return errors.New("billing_surcharge_value must be >= 0")
+	}
+	normalizedMode := NormalizeBillingSurchargeMode(mode)
+	if enabled && normalizedMode == BillingSurchargeModeNone {
+		return errors.New("billing_surcharge_mode must be percent_on_charged_cost or additive_multiplier when enabled")
+	}
+	if !overrideEnabled {
+		return nil
+	}
+	return nil
+}
+
 // validateFallbackGroup 校验降级分组的有效性
 // currentGroupID: 当前分组 ID（新建时为 0）
 // fallbackGroupID: 降级分组 ID
@@ -445,6 +466,21 @@ func (s *adminServiceImpl) UpdateGroup(ctx context.Context, id int64, input *Upd
 			return nil, errors.New("rate_multiplier must be > 0")
 		}
 		group.RateMultiplier = *input.RateMultiplier
+	}
+	if input.BillingSurchargeOverrideEnabled != nil {
+		group.BillingSurchargeOverrideEnabled = *input.BillingSurchargeOverrideEnabled
+	}
+	if input.BillingSurchargeEnabled != nil {
+		group.BillingSurchargeEnabled = *input.BillingSurchargeEnabled
+	}
+	if input.BillingSurchargeMode != nil {
+		group.BillingSurchargeMode = NormalizeBillingSurchargeMode(*input.BillingSurchargeMode)
+	}
+	if input.BillingSurchargeValue != nil {
+		group.BillingSurchargeValue = *input.BillingSurchargeValue
+	}
+	if err := validateBillingSurchargeConfig(group.BillingSurchargeOverrideEnabled, group.BillingSurchargeEnabled, group.BillingSurchargeMode, group.BillingSurchargeValue); err != nil {
+		return nil, err
 	}
 	if input.IsExclusive != nil {
 		group.IsExclusive = *input.IsExclusive

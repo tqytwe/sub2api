@@ -105,6 +105,62 @@ func (_c *GroupCreate) SetNillableRateMultiplier(v *float64) *GroupCreate {
 	return _c
 }
 
+// SetBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field.
+func (_c *GroupCreate) SetBillingSurchargeOverrideEnabled(v bool) *GroupCreate {
+	_c.mutation.SetBillingSurchargeOverrideEnabled(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBillingSurchargeOverrideEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetBillingSurchargeOverrideEnabled(*v)
+	}
+	return _c
+}
+
+// SetBillingSurchargeEnabled sets the "billing_surcharge_enabled" field.
+func (_c *GroupCreate) SetBillingSurchargeEnabled(v bool) *GroupCreate {
+	_c.mutation.SetBillingSurchargeEnabled(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeEnabled sets the "billing_surcharge_enabled" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBillingSurchargeEnabled(v *bool) *GroupCreate {
+	if v != nil {
+		_c.SetBillingSurchargeEnabled(*v)
+	}
+	return _c
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (_c *GroupCreate) SetBillingSurchargeMode(v string) *GroupCreate {
+	_c.mutation.SetBillingSurchargeMode(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeMode sets the "billing_surcharge_mode" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBillingSurchargeMode(v *string) *GroupCreate {
+	if v != nil {
+		_c.SetBillingSurchargeMode(*v)
+	}
+	return _c
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (_c *GroupCreate) SetBillingSurchargeValue(v float64) *GroupCreate {
+	_c.mutation.SetBillingSurchargeValue(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeValue sets the "billing_surcharge_value" field if the given value is not nil.
+func (_c *GroupCreate) SetNillableBillingSurchargeValue(v *float64) *GroupCreate {
+	if v != nil {
+		_c.SetBillingSurchargeValue(*v)
+	}
+	return _c
+}
+
 // SetPeakRateEnabled sets the "peak_rate_enabled" field.
 func (_c *GroupCreate) SetPeakRateEnabled(v bool) *GroupCreate {
 	_c.mutation.SetPeakRateEnabled(v)
@@ -836,6 +892,22 @@ func (_c *GroupCreate) defaults() error {
 		v := group.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
 	}
+	if _, ok := _c.mutation.BillingSurchargeOverrideEnabled(); !ok {
+		v := group.DefaultBillingSurchargeOverrideEnabled
+		_c.mutation.SetBillingSurchargeOverrideEnabled(v)
+	}
+	if _, ok := _c.mutation.BillingSurchargeEnabled(); !ok {
+		v := group.DefaultBillingSurchargeEnabled
+		_c.mutation.SetBillingSurchargeEnabled(v)
+	}
+	if _, ok := _c.mutation.BillingSurchargeMode(); !ok {
+		v := group.DefaultBillingSurchargeMode
+		_c.mutation.SetBillingSurchargeMode(v)
+	}
+	if _, ok := _c.mutation.BillingSurchargeValue(); !ok {
+		v := group.DefaultBillingSurchargeValue
+		_c.mutation.SetBillingSurchargeValue(v)
+	}
 	if _, ok := _c.mutation.PeakRateEnabled(); !ok {
 		v := group.DefaultPeakRateEnabled
 		_c.mutation.SetPeakRateEnabled(v)
@@ -973,6 +1045,23 @@ func (_c *GroupCreate) check() error {
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "Group.rate_multiplier"`)}
+	}
+	if _, ok := _c.mutation.BillingSurchargeOverrideEnabled(); !ok {
+		return &ValidationError{Name: "billing_surcharge_override_enabled", err: errors.New(`ent: missing required field "Group.billing_surcharge_override_enabled"`)}
+	}
+	if _, ok := _c.mutation.BillingSurchargeEnabled(); !ok {
+		return &ValidationError{Name: "billing_surcharge_enabled", err: errors.New(`ent: missing required field "Group.billing_surcharge_enabled"`)}
+	}
+	if _, ok := _c.mutation.BillingSurchargeMode(); !ok {
+		return &ValidationError{Name: "billing_surcharge_mode", err: errors.New(`ent: missing required field "Group.billing_surcharge_mode"`)}
+	}
+	if v, ok := _c.mutation.BillingSurchargeMode(); ok {
+		if err := group.BillingSurchargeModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_surcharge_mode", err: fmt.Errorf(`ent: validator failed for field "Group.billing_surcharge_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.BillingSurchargeValue(); !ok {
+		return &ValidationError{Name: "billing_surcharge_value", err: errors.New(`ent: missing required field "Group.billing_surcharge_value"`)}
 	}
 	if _, ok := _c.mutation.PeakRateEnabled(); !ok {
 		return &ValidationError{Name: "peak_rate_enabled", err: errors.New(`ent: missing required field "Group.peak_rate_enabled"`)}
@@ -1146,6 +1235,22 @@ func (_c *GroupCreate) createSpec() (*Group, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(group.FieldRateMultiplier, field.TypeFloat64, value)
 		_node.RateMultiplier = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeOverrideEnabled(); ok {
+		_spec.SetField(group.FieldBillingSurchargeOverrideEnabled, field.TypeBool, value)
+		_node.BillingSurchargeOverrideEnabled = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeEnabled(); ok {
+		_spec.SetField(group.FieldBillingSurchargeEnabled, field.TypeBool, value)
+		_node.BillingSurchargeEnabled = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeMode(); ok {
+		_spec.SetField(group.FieldBillingSurchargeMode, field.TypeString, value)
+		_node.BillingSurchargeMode = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeValue(); ok {
+		_spec.SetField(group.FieldBillingSurchargeValue, field.TypeFloat64, value)
+		_node.BillingSurchargeValue = value
 	}
 	if value, ok := _c.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
@@ -1550,6 +1655,60 @@ func (u *GroupUpsert) UpdateRateMultiplier() *GroupUpsert {
 // AddRateMultiplier adds v to the "rate_multiplier" field.
 func (u *GroupUpsert) AddRateMultiplier(v float64) *GroupUpsert {
 	u.Add(group.FieldRateMultiplier, v)
+	return u
+}
+
+// SetBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field.
+func (u *GroupUpsert) SetBillingSurchargeOverrideEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldBillingSurchargeOverrideEnabled, v)
+	return u
+}
+
+// UpdateBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBillingSurchargeOverrideEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldBillingSurchargeOverrideEnabled)
+	return u
+}
+
+// SetBillingSurchargeEnabled sets the "billing_surcharge_enabled" field.
+func (u *GroupUpsert) SetBillingSurchargeEnabled(v bool) *GroupUpsert {
+	u.Set(group.FieldBillingSurchargeEnabled, v)
+	return u
+}
+
+// UpdateBillingSurchargeEnabled sets the "billing_surcharge_enabled" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBillingSurchargeEnabled() *GroupUpsert {
+	u.SetExcluded(group.FieldBillingSurchargeEnabled)
+	return u
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (u *GroupUpsert) SetBillingSurchargeMode(v string) *GroupUpsert {
+	u.Set(group.FieldBillingSurchargeMode, v)
+	return u
+}
+
+// UpdateBillingSurchargeMode sets the "billing_surcharge_mode" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBillingSurchargeMode() *GroupUpsert {
+	u.SetExcluded(group.FieldBillingSurchargeMode)
+	return u
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (u *GroupUpsert) SetBillingSurchargeValue(v float64) *GroupUpsert {
+	u.Set(group.FieldBillingSurchargeValue, v)
+	return u
+}
+
+// UpdateBillingSurchargeValue sets the "billing_surcharge_value" field to the value that was provided on create.
+func (u *GroupUpsert) UpdateBillingSurchargeValue() *GroupUpsert {
+	u.SetExcluded(group.FieldBillingSurchargeValue)
+	return u
+}
+
+// AddBillingSurchargeValue adds v to the "billing_surcharge_value" field.
+func (u *GroupUpsert) AddBillingSurchargeValue(v float64) *GroupUpsert {
+	u.Add(group.FieldBillingSurchargeValue, v)
 	return u
 }
 
@@ -2391,6 +2550,69 @@ func (u *GroupUpsertOne) AddRateMultiplier(v float64) *GroupUpsertOne {
 func (u *GroupUpsertOne) UpdateRateMultiplier() *GroupUpsertOne {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field.
+func (u *GroupUpsertOne) SetBillingSurchargeOverrideEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeOverrideEnabled(v)
+	})
+}
+
+// UpdateBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBillingSurchargeOverrideEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeOverrideEnabled()
+	})
+}
+
+// SetBillingSurchargeEnabled sets the "billing_surcharge_enabled" field.
+func (u *GroupUpsertOne) SetBillingSurchargeEnabled(v bool) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeEnabled(v)
+	})
+}
+
+// UpdateBillingSurchargeEnabled sets the "billing_surcharge_enabled" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBillingSurchargeEnabled() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeEnabled()
+	})
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (u *GroupUpsertOne) SetBillingSurchargeMode(v string) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeMode(v)
+	})
+}
+
+// UpdateBillingSurchargeMode sets the "billing_surcharge_mode" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBillingSurchargeMode() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeMode()
+	})
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (u *GroupUpsertOne) SetBillingSurchargeValue(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeValue(v)
+	})
+}
+
+// AddBillingSurchargeValue adds v to the "billing_surcharge_value" field.
+func (u *GroupUpsertOne) AddBillingSurchargeValue(v float64) *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddBillingSurchargeValue(v)
+	})
+}
+
+// UpdateBillingSurchargeValue sets the "billing_surcharge_value" field to the value that was provided on create.
+func (u *GroupUpsertOne) UpdateBillingSurchargeValue() *GroupUpsertOne {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeValue()
 	})
 }
 
@@ -3515,6 +3737,69 @@ func (u *GroupUpsertBulk) AddRateMultiplier(v float64) *GroupUpsertBulk {
 func (u *GroupUpsertBulk) UpdateRateMultiplier() *GroupUpsertBulk {
 	return u.Update(func(s *GroupUpsert) {
 		s.UpdateRateMultiplier()
+	})
+}
+
+// SetBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field.
+func (u *GroupUpsertBulk) SetBillingSurchargeOverrideEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeOverrideEnabled(v)
+	})
+}
+
+// UpdateBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBillingSurchargeOverrideEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeOverrideEnabled()
+	})
+}
+
+// SetBillingSurchargeEnabled sets the "billing_surcharge_enabled" field.
+func (u *GroupUpsertBulk) SetBillingSurchargeEnabled(v bool) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeEnabled(v)
+	})
+}
+
+// UpdateBillingSurchargeEnabled sets the "billing_surcharge_enabled" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBillingSurchargeEnabled() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeEnabled()
+	})
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (u *GroupUpsertBulk) SetBillingSurchargeMode(v string) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeMode(v)
+	})
+}
+
+// UpdateBillingSurchargeMode sets the "billing_surcharge_mode" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBillingSurchargeMode() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeMode()
+	})
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (u *GroupUpsertBulk) SetBillingSurchargeValue(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.SetBillingSurchargeValue(v)
+	})
+}
+
+// AddBillingSurchargeValue adds v to the "billing_surcharge_value" field.
+func (u *GroupUpsertBulk) AddBillingSurchargeValue(v float64) *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.AddBillingSurchargeValue(v)
+	})
+}
+
+// UpdateBillingSurchargeValue sets the "billing_surcharge_value" field to the value that was provided on create.
+func (u *GroupUpsertBulk) UpdateBillingSurchargeValue() *GroupUpsertBulk {
+	return u.Update(func(s *GroupUpsert) {
+		s.UpdateBillingSurchargeValue()
 	})
 }
 
