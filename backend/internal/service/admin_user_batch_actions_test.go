@@ -138,7 +138,37 @@ func TestAdminServicePreviewDisableSkipsAlreadyDisabled(t *testing.T) {
 	require.Equal(t, []int64{1}, batchTargetIDs(preview.EligibleUsers))
 	require.Equal(t, []int64{2}, batchTargetIDs(preview.ProtectedAdministrators))
 	require.Equal(t, []int64{3}, batchTargetIDs(preview.AlreadyDisabledUsers))
+	require.NotNil(t, preview.MissingUserIDs)
+	require.Empty(t, preview.MissingUserIDs)
 	require.Zero(t, preview.AffectedAPIKeys)
+
+	encoded, err := json.Marshal(preview)
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"missing_user_ids":[]`)
+}
+
+func TestAdminServiceExecuteBatchActionSerializesEmptyResultCollectionsAsArrays(t *testing.T) {
+	svc, _, _ := newBatchActionService()
+	input := UserBatchActionInput{
+		Action: UserBatchActionDisable, UserIDs: []int64{1}, Reason: "incident response",
+		ActorAdminID: 99,
+	}
+	preview, err := svc.PreviewUserBatchAction(context.Background(), input)
+	require.NoError(t, err)
+	input.ConfirmationToken = preview.ConfirmationToken
+
+	result, err := svc.ExecuteUserBatchAction(context.Background(), input)
+
+	require.NoError(t, err)
+	require.NotNil(t, result.SucceededUserIDs)
+	require.NotNil(t, result.Skipped)
+	require.NotNil(t, result.Failed)
+	require.Empty(t, result.Skipped)
+	require.Empty(t, result.Failed)
+	encoded, err := json.Marshal(result)
+	require.NoError(t, err)
+	require.Contains(t, string(encoded), `"skipped":[]`)
+	require.Contains(t, string(encoded), `"failed":[]`)
 }
 
 func TestAdminServiceExecuteDisableUsesPreviewAndContinuesAfterFailure(t *testing.T) {

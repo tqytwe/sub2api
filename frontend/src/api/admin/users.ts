@@ -263,7 +263,13 @@ export async function previewBatchAction(
     '/admin/users/batch-actions/preview',
     request
   )
-  return data
+  return {
+    ...data,
+    eligible_users: data.eligible_users ?? [],
+    protected_administrators: data.protected_administrators ?? [],
+    already_disabled_users: data.already_disabled_users ?? [],
+    missing_user_ids: data.missing_user_ids ?? [],
+  }
 }
 
 export async function executeBatchAction(
@@ -273,7 +279,12 @@ export async function executeBatchAction(
     '/admin/users/batch-actions',
     request
   )
-  return data
+  return {
+    ...data,
+    succeeded_user_ids: data.succeeded_user_ids ?? [],
+    skipped: data.skipped ?? [],
+    failed: data.failed ?? [],
+  }
 }
 
 /**

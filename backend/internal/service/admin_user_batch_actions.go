@@ -155,8 +155,11 @@ func (s *adminServiceImpl) ExecuteUserBatchAction(ctx context.Context, input Use
 	}
 
 	result := &UserBatchActionResult{
-		Action:         input.Action,
-		RequestedCount: preview.RequestedCount,
+		Action:           input.Action,
+		RequestedCount:   preview.RequestedCount,
+		SucceededUserIDs: make([]int64, 0),
+		Skipped:          make([]UserBatchActionResultItem, 0),
+		Failed:           make([]UserBatchActionResultItem, 0),
 	}
 	for _, target := range preview.ProtectedAdministrators {
 		result.Skipped = append(result.Skipped, UserBatchActionResultItem{
@@ -262,7 +265,13 @@ func (s *adminServiceImpl) buildUserBatchActionPreview(
 	userIDs []int64,
 ) (*UserBatchActionPreview, error) {
 	preview := &UserBatchActionPreview{
-		Action: action, RequestedCount: len(userIDs), RequiresStepUp: false,
+		Action:                  action,
+		RequestedCount:          len(userIDs),
+		EligibleUsers:           make([]UserBatchActionTarget, 0),
+		ProtectedAdministrators: make([]UserBatchActionTarget, 0),
+		AlreadyDisabledUsers:    make([]UserBatchActionTarget, 0),
+		MissingUserIDs:          make([]int64, 0),
+		RequiresStepUp:          false,
 	}
 	state := make([]string, 0, len(userIDs))
 	for _, userID := range userIDs {
