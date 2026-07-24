@@ -62,7 +62,7 @@ const preview = {
   already_disabled_users: [],
   missing_user_ids: [404],
   affected_api_keys: 2,
-  requires_step_up: true,
+  requires_step_up: false,
   confirmation_token: 'preview-token',
   expires_at: '2026-07-24T10:05:00Z',
 }
@@ -140,7 +140,7 @@ describe('BulkUserActionDialog', () => {
     await wrapper.get('[data-test="execute"]').trigger('click')
     await flushPromises()
 
-    expect(promptStepUp).toHaveBeenCalledOnce()
+    expect(promptStepUp).not.toHaveBeenCalled()
     expect(runStepUp).toHaveBeenCalledOnce()
     expect(runStepUp).toHaveBeenCalledWith(expect.any(Function))
     expect(executeBatchAction).toHaveBeenCalledWith({

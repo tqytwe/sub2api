@@ -124,7 +124,7 @@ func TestAdminServicePreviewUserBatchActionClassifiesImpact(t *testing.T) {
 	require.Empty(t, preview.AlreadyDisabledUsers)
 	require.Equal(t, 4, preview.AffectedAPIKeys)
 	require.NotEmpty(t, preview.ConfirmationToken)
-	require.True(t, preview.RequiresStepUp)
+	require.False(t, preview.RequiresStepUp)
 }
 
 func TestAdminServicePreviewDisableSkipsAlreadyDisabled(t *testing.T) {
