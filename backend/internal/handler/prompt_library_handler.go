@@ -154,25 +154,113 @@ func (h *PromptLibraryHandler) Report(c *gin.Context) {
 }
 
 type promptSitemapURL struct {
-	Location string `xml:"loc"`
-	Modified string `xml:"lastmod,omitempty"`
+	Location   string                   `xml:"loc"`
+	Modified   string                   `xml:"lastmod,omitempty"`
+	ChangeFreq string                   `xml:"changefreq,omitempty"`
+	Priority   string                   `xml:"priority,omitempty"`
+	Alternates []promptSitemapAlternate `xml:"xhtml:link,omitempty"`
+}
+
+type promptSitemapAlternate struct {
+	Rel      string `xml:"rel,attr"`
+	Hreflang string `xml:"hreflang,attr"`
+	Href     string `xml:"href,attr"`
 }
 
 type promptSitemapURLSet struct {
 	XMLName xml.Name           `xml:"urlset"`
 	XMLNS   string             `xml:"xmlns,attr"`
+	XHTML   string             `xml:"xmlns:xhtml,attr"`
 	URLs    []promptSitemapURL `xml:"url"`
 }
 
-var promptSitemapStaticPaths = []string{
-	"/",
-	"/models",
-	"/docs",
-	"/en/",
-	"/en/models",
-	"/en/docs",
-	"/image-studio",
-	"/prompts",
+type promptSitemapStaticPath struct {
+	Path       string
+	ChangeFreq string
+	Priority   string
+	Alternates []promptSitemapAlternatePath
+}
+
+type promptSitemapAlternatePath struct {
+	Hreflang string
+	Path     string
+}
+
+var promptSitemapStaticPaths = []promptSitemapStaticPath{
+	{
+		Path:       "/",
+		ChangeFreq: "daily",
+		Priority:   "1.00",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/"},
+			{Hreflang: "en", Path: "/en/"},
+			{Hreflang: "x-default", Path: "/en/"},
+		},
+	},
+	{
+		Path:       "/models",
+		ChangeFreq: "daily",
+		Priority:   "0.95",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/models"},
+			{Hreflang: "en", Path: "/en/models"},
+			{Hreflang: "x-default", Path: "/en/models"},
+		},
+	},
+	{
+		Path:       "/docs",
+		ChangeFreq: "weekly",
+		Priority:   "0.90",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/docs"},
+			{Hreflang: "en", Path: "/en/docs"},
+			{Hreflang: "x-default", Path: "/en/docs"},
+		},
+	},
+	{
+		Path:       "/en/",
+		ChangeFreq: "daily",
+		Priority:   "0.95",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/"},
+			{Hreflang: "zh-CN", Path: "/"},
+			{Hreflang: "x-default", Path: "/en/"},
+		},
+	},
+	{
+		Path:       "/en/models",
+		ChangeFreq: "daily",
+		Priority:   "0.90",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/models"},
+			{Hreflang: "zh-CN", Path: "/models"},
+			{Hreflang: "x-default", Path: "/en/models"},
+		},
+	},
+	{
+		Path:       "/en/docs",
+		ChangeFreq: "weekly",
+		Priority:   "0.85",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/docs"},
+			{Hreflang: "zh-CN", Path: "/docs"},
+			{Hreflang: "x-default", Path: "/en/docs"},
+		},
+	},
+	{Path: "/about", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
+		{Hreflang: "zh-CN", Path: "/about"},
+		{Hreflang: "x-default", Path: "/about"},
+	}},
+	{Path: "/contact", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
+		{Hreflang: "zh-CN", Path: "/contact"},
+		{Hreflang: "x-default", Path: "/contact"},
+	}},
+	{Path: "/download/android", ChangeFreq: "weekly", Priority: "0.55", Alternates: []promptSitemapAlternatePath{
+		{Hreflang: "zh-CN", Path: "/download/android"},
+		{Hreflang: "x-default", Path: "/download/android"},
+	}},
+	{Path: "/image-studio", ChangeFreq: "weekly", Priority: "0.70"},
+	{Path: "/prompts", ChangeFreq: "daily", Priority: "0.75"},
 }
 
 func (h *PromptLibraryHandler) Sitemap(c *gin.Context) {
@@ -206,15 +294,26 @@ func (h *PromptLibraryHandler) Robots(c *gin.Context) {
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildRobotsTxt(promptRequestOrigin(c.Request))))
 }
 
+func (h *PromptLibraryHandler) LLMSTxt(c *gin.Context) {
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSTxt(promptRequestOrigin(c.Request))))
+}
+
 func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([]byte, error) {
 	origin = strings.TrimRight(origin, "/")
 	urls := make([]promptSitemapURL, 0, len(promptSitemapStaticPaths)+len(prompts))
 	for _, path := range promptSitemapStaticPaths {
-		urls = append(urls, promptSitemapURL{Location: origin + path})
+		urls = append(urls, promptSitemapURL{
+			Location:   origin + path.Path,
+			ChangeFreq: path.ChangeFreq,
+			Priority:   path.Priority,
+			Alternates: promptSitemapAlternates(origin, path.Alternates),
+		})
 	}
 	for _, prompt := range prompts {
 		entry := promptSitemapURL{
-			Location: fmt.Sprintf("%s/prompts/%d", origin, prompt.ID),
+			Location:   fmt.Sprintf("%s/prompts/%d", origin, prompt.ID),
+			ChangeFreq: "weekly",
+			Priority:   "0.50",
 		}
 		if prompt.PublishedAt != nil {
 			entry.Modified = prompt.PublishedAt.UTC().Format(time.DateOnly)
@@ -223,12 +322,28 @@ func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([
 	}
 	body, err := xml.Marshal(promptSitemapURLSet{
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
+		XHTML: "http://www.w3.org/1999/xhtml",
 		URLs:  urls,
 	})
 	if err != nil {
 		return nil, err
 	}
 	return append([]byte(xml.Header), body...), nil
+}
+
+func promptSitemapAlternates(origin string, alternates []promptSitemapAlternatePath) []promptSitemapAlternate {
+	if len(alternates) == 0 {
+		return nil
+	}
+	links := make([]promptSitemapAlternate, 0, len(alternates))
+	for _, alternate := range alternates {
+		links = append(links, promptSitemapAlternate{
+			Rel:      "alternate",
+			Hreflang: alternate.Hreflang,
+			Href:     origin + alternate.Path,
+		})
+	}
+	return links
 }
 
 func buildRobotsTxt(origin string) string {
@@ -243,6 +358,38 @@ Disallow: /admin/
 Disallow: /setup/
 Sitemap: %s/sitemap.xml
 `, origin)
+}
+
+func buildLLMSTxt(origin string) string {
+	origin = strings.TrimRight(origin, "/")
+	return fmt.Sprintf(`# Jisudeng
+
+> Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API with unified keys, public model pricing, image APIs, billing, and docs.
+
+Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps users compare model access, review usage-based pricing, create API keys, connect existing OpenAI SDK clients, use image generation APIs, and read implementation docs from one site.
+
+## Key Links
+
+- English homepage: %s/en/
+- Model catalog and pricing: %s/en/models
+- API docs: %s/en/docs
+- Chinese homepage: %s/
+- 中文模型目录与价格: %s/models
+- 中文 API 文档: %s/docs
+- Support contact: %s/contact
+- Sitemap: %s/sitemap.xml
+
+## Core Topics
+
+- OpenAI-compatible API gateway
+- DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and other model access
+- Public model catalog, usage-based pricing, and account-specific effective pricing after login
+- API Key setup, base URL migration, SDK configuration, image generation, Batch Image, billing, and troubleshooting
+
+## 中文摘要
+
+极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成、API Key 管理和提示词库。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
+`, origin, origin, origin, origin, origin, origin, origin, origin)
 }
 
 func promptRequestOrigin(request *http.Request) string {
