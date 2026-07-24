@@ -28,6 +28,18 @@ const emptyState = ref<'none' | 'disabled' | 'empty' | 'error' | 'not_deployed'>
 
 const isAuthMode = computed(() => authStore.isAuthenticated)
 
+interface PublicDisplayPricingRow {
+  name: string
+  platform: string
+  use_case: string
+  official_input_price: number | null
+  official_output_price: number | null
+  group_name: string | null
+  rate_multiplier: number
+  effective_input_price: number | null
+  effective_output_price: number | null
+}
+
 const showVipBadge = computed(
   () => authStore.isAuthenticated && (vip.value?.perks?.includes('models_vip_tag') ?? false),
 )
@@ -71,12 +83,38 @@ function groupBadge(g: { name: string; rate_multiplier: number }): string {
 
 const filteredPublicRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = publicRows.value
+  const rows = publicRows.value.flatMap<PublicDisplayPricingRow>((row) => {
+    if (row.groups?.length) {
+      return row.groups.map((group) => ({
+        name: row.name,
+        platform: row.platform,
+        use_case: row.use_case,
+        official_input_price: row.official_input_price,
+        official_output_price: row.official_output_price,
+        group_name: group.name,
+        rate_multiplier: group.rate_multiplier,
+        effective_input_price: group.effective_input_price,
+        effective_output_price: group.effective_output_price,
+      }))
+    }
+    return [{
+      name: row.name,
+      platform: row.platform,
+      use_case: row.use_case,
+      official_input_price: row.official_input_price,
+      official_output_price: row.official_output_price,
+      group_name: null,
+      rate_multiplier: row.rate_multiplier,
+      effective_input_price: row.our_input_price,
+      effective_output_price: row.our_output_price,
+    }]
+  })
   if (!q) return rows
   return rows.filter(
     (row) =>
       row.name.toLowerCase().includes(q) ||
       row.platform.toLowerCase().includes(q) ||
+      (row.group_name ?? '').toLowerCase().includes(q) ||
       useCaseLabel(row.use_case).toLowerCase().includes(q),
   )
 })
@@ -254,19 +292,24 @@ onMounted(() => {
               <th>{{ t('models.columns.useCase') }}</th>
               <th>{{ t('models.columns.officialInput') }}</th>
               <th>{{ t('models.columns.officialOutput') }}</th>
+              <th>{{ t('models.columns.group') }}</th>
               <th>{{ t('models.columns.ourInput') }}</th>
               <th>{{ t('models.columns.ourOutput') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in filteredPublicRows" :key="row.name">
+            <tr v-for="(row, idx) in filteredPublicRows" :key="`${row.name}-${row.platform}-${row.group_name ?? idx}`">
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
               <td>{{ useCaseLabel(row.use_case) }}</td>
               <td>{{ formatTokenPrice(row.official_input_price) }}</td>
               <td>{{ formatTokenPrice(row.official_output_price) }}</td>
-              <td class="models-cell-our">{{ formatTokenPrice(row.our_input_price) }}</td>
-              <td class="models-cell-our">{{ formatTokenPrice(row.our_output_price) }}</td>
+              <td>
+                <span v-if="row.group_name" class="models-group-badge">{{ groupBadge({ name: row.group_name, rate_multiplier: row.rate_multiplier }) }}</span>
+                <span v-else>—</span>
+              </td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.effective_input_price) }}</td>
+              <td class="models-cell-our">{{ formatTokenPrice(row.effective_output_price) }}</td>
             </tr>
           </tbody>
         </table>

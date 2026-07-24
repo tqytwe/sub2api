@@ -28,6 +28,14 @@ const (
 	FieldDescription = "description"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
+	// FieldBillingSurchargeOverrideEnabled holds the string denoting the billing_surcharge_override_enabled field in the database.
+	FieldBillingSurchargeOverrideEnabled = "billing_surcharge_override_enabled"
+	// FieldBillingSurchargeEnabled holds the string denoting the billing_surcharge_enabled field in the database.
+	FieldBillingSurchargeEnabled = "billing_surcharge_enabled"
+	// FieldBillingSurchargeMode holds the string denoting the billing_surcharge_mode field in the database.
+	FieldBillingSurchargeMode = "billing_surcharge_mode"
+	// FieldBillingSurchargeValue holds the string denoting the billing_surcharge_value field in the database.
+	FieldBillingSurchargeValue = "billing_surcharge_value"
 	// FieldPeakRateEnabled holds the string denoting the peak_rate_enabled field in the database.
 	FieldPeakRateEnabled = "peak_rate_enabled"
 	// FieldPeakStart holds the string denoting the peak_start field in the database.
@@ -195,6 +203,10 @@ var Columns = []string{
 	FieldName,
 	FieldDescription,
 	FieldRateMultiplier,
+	FieldBillingSurchargeOverrideEnabled,
+	FieldBillingSurchargeEnabled,
+	FieldBillingSurchargeMode,
+	FieldBillingSurchargeValue,
 	FieldPeakRateEnabled,
 	FieldPeakStart,
 	FieldPeakEnd,
@@ -277,6 +289,16 @@ var (
 	NameValidator func(string) error
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
+	// DefaultBillingSurchargeOverrideEnabled holds the default value on creation for the "billing_surcharge_override_enabled" field.
+	DefaultBillingSurchargeOverrideEnabled bool
+	// DefaultBillingSurchargeEnabled holds the default value on creation for the "billing_surcharge_enabled" field.
+	DefaultBillingSurchargeEnabled bool
+	// DefaultBillingSurchargeMode holds the default value on creation for the "billing_surcharge_mode" field.
+	DefaultBillingSurchargeMode string
+	// BillingSurchargeModeValidator is a validator for the "billing_surcharge_mode" field. It is called by the builders before save.
+	BillingSurchargeModeValidator func(string) error
+	// DefaultBillingSurchargeValue holds the default value on creation for the "billing_surcharge_value" field.
+	DefaultBillingSurchargeValue float64
 	// DefaultPeakRateEnabled holds the default value on creation for the "peak_rate_enabled" field.
 	DefaultPeakRateEnabled bool
 	// DefaultPeakStart holds the default value on creation for the "peak_start" field.
@@ -387,6 +409,26 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByRateMultiplier orders the results by the rate_multiplier field.
 func ByRateMultiplier(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRateMultiplier, opts...).ToFunc()
+}
+
+// ByBillingSurchargeOverrideEnabled orders the results by the billing_surcharge_override_enabled field.
+func ByBillingSurchargeOverrideEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeOverrideEnabled, opts...).ToFunc()
+}
+
+// ByBillingSurchargeEnabled orders the results by the billing_surcharge_enabled field.
+func ByBillingSurchargeEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeEnabled, opts...).ToFunc()
+}
+
+// ByBillingSurchargeMode orders the results by the billing_surcharge_mode field.
+func ByBillingSurchargeMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeMode, opts...).ToFunc()
+}
+
+// ByBillingSurchargeValue orders the results by the billing_surcharge_value field.
+func ByBillingSurchargeValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeValue, opts...).ToFunc()
 }
 
 // ByPeakRateEnabled orders the results by the peak_rate_enabled field.

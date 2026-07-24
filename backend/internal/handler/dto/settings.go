@@ -241,6 +241,9 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerEffectiveWeightUpstreamCost     string  `json:"openai_advanced_scheduler_effective_weight_upstream_cost"`
 	OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse string  `json:"openai_advanced_scheduler_effective_weight_previous_response"`
 	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string  `json:"openai_advanced_scheduler_effective_weight_session_sticky"`
+	BillingSurchargeEnabled                                bool    `json:"billing_surcharge_enabled"`
+	BillingSurchargeMode                                   string  `json:"billing_surcharge_mode"`
+	BillingSurchargeValue                                  float64 `json:"billing_surcharge_value"`
 
 	// Payment configuration
 	PaymentEnabled                   bool     `json:"payment_enabled"`

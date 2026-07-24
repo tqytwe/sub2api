@@ -337,6 +337,62 @@ func (_c *UsageLogCreate) SetNillableActualCost(v *float64) *UsageLogCreate {
 	return _c
 }
 
+// SetBillingSurchargeCost sets the "billing_surcharge_cost" field.
+func (_c *UsageLogCreate) SetBillingSurchargeCost(v float64) *UsageLogCreate {
+	_c.mutation.SetBillingSurchargeCost(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeCost sets the "billing_surcharge_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingSurchargeCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingSurchargeCost(*v)
+	}
+	return _c
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (_c *UsageLogCreate) SetBilledCost(v float64) *UsageLogCreate {
+	_c.mutation.SetBilledCost(v)
+	return _c
+}
+
+// SetNillableBilledCost sets the "billed_cost" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBilledCost(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetBilledCost(*v)
+	}
+	return _c
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (_c *UsageLogCreate) SetBillingSurchargeMode(v string) *UsageLogCreate {
+	_c.mutation.SetBillingSurchargeMode(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeMode sets the "billing_surcharge_mode" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingSurchargeMode(v *string) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingSurchargeMode(*v)
+	}
+	return _c
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (_c *UsageLogCreate) SetBillingSurchargeValue(v float64) *UsageLogCreate {
+	_c.mutation.SetBillingSurchargeValue(v)
+	return _c
+}
+
+// SetNillableBillingSurchargeValue sets the "billing_surcharge_value" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableBillingSurchargeValue(v *float64) *UsageLogCreate {
+	if v != nil {
+		_c.SetBillingSurchargeValue(*v)
+	}
+	return _c
+}
+
 // SetRateMultiplier sets the "rate_multiplier" field.
 func (_c *UsageLogCreate) SetRateMultiplier(v float64) *UsageLogCreate {
 	_c.mutation.SetRateMultiplier(v)
@@ -717,6 +773,22 @@ func (_c *UsageLogCreate) defaults() {
 		v := usagelog.DefaultActualCost
 		_c.mutation.SetActualCost(v)
 	}
+	if _, ok := _c.mutation.BillingSurchargeCost(); !ok {
+		v := usagelog.DefaultBillingSurchargeCost
+		_c.mutation.SetBillingSurchargeCost(v)
+	}
+	if _, ok := _c.mutation.BilledCost(); !ok {
+		v := usagelog.DefaultBilledCost
+		_c.mutation.SetBilledCost(v)
+	}
+	if _, ok := _c.mutation.BillingSurchargeMode(); !ok {
+		v := usagelog.DefaultBillingSurchargeMode
+		_c.mutation.SetBillingSurchargeMode(v)
+	}
+	if _, ok := _c.mutation.BillingSurchargeValue(); !ok {
+		v := usagelog.DefaultBillingSurchargeValue
+		_c.mutation.SetBillingSurchargeValue(v)
+	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		v := usagelog.DefaultRateMultiplier
 		_c.mutation.SetRateMultiplier(v)
@@ -838,6 +910,23 @@ func (_c *UsageLogCreate) check() error {
 	}
 	if _, ok := _c.mutation.ActualCost(); !ok {
 		return &ValidationError{Name: "actual_cost", err: errors.New(`ent: missing required field "UsageLog.actual_cost"`)}
+	}
+	if _, ok := _c.mutation.BillingSurchargeCost(); !ok {
+		return &ValidationError{Name: "billing_surcharge_cost", err: errors.New(`ent: missing required field "UsageLog.billing_surcharge_cost"`)}
+	}
+	if _, ok := _c.mutation.BilledCost(); !ok {
+		return &ValidationError{Name: "billed_cost", err: errors.New(`ent: missing required field "UsageLog.billed_cost"`)}
+	}
+	if _, ok := _c.mutation.BillingSurchargeMode(); !ok {
+		return &ValidationError{Name: "billing_surcharge_mode", err: errors.New(`ent: missing required field "UsageLog.billing_surcharge_mode"`)}
+	}
+	if v, ok := _c.mutation.BillingSurchargeMode(); ok {
+		if err := usagelog.BillingSurchargeModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_surcharge_mode", err: fmt.Errorf(`ent: validator failed for field "UsageLog.billing_surcharge_mode": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.BillingSurchargeValue(); !ok {
+		return &ValidationError{Name: "billing_surcharge_value", err: errors.New(`ent: missing required field "UsageLog.billing_surcharge_value"`)}
 	}
 	if _, ok := _c.mutation.RateMultiplier(); !ok {
 		return &ValidationError{Name: "rate_multiplier", err: errors.New(`ent: missing required field "UsageLog.rate_multiplier"`)}
@@ -1013,6 +1102,22 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.ActualCost(); ok {
 		_spec.SetField(usagelog.FieldActualCost, field.TypeFloat64, value)
 		_node.ActualCost = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeCost(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeCost, field.TypeFloat64, value)
+		_node.BillingSurchargeCost = value
+	}
+	if value, ok := _c.mutation.BilledCost(); ok {
+		_spec.SetField(usagelog.FieldBilledCost, field.TypeFloat64, value)
+		_node.BilledCost = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeMode(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeMode, field.TypeString, value)
+		_node.BillingSurchargeMode = value
+	}
+	if value, ok := _c.mutation.BillingSurchargeValue(); ok {
+		_spec.SetField(usagelog.FieldBillingSurchargeValue, field.TypeFloat64, value)
+		_node.BillingSurchargeValue = value
 	}
 	if value, ok := _c.mutation.RateMultiplier(); ok {
 		_spec.SetField(usagelog.FieldRateMultiplier, field.TypeFloat64, value)
@@ -1654,6 +1759,72 @@ func (u *UsageLogUpsert) UpdateActualCost() *UsageLogUpsert {
 // AddActualCost adds v to the "actual_cost" field.
 func (u *UsageLogUpsert) AddActualCost(v float64) *UsageLogUpsert {
 	u.Add(usagelog.FieldActualCost, v)
+	return u
+}
+
+// SetBillingSurchargeCost sets the "billing_surcharge_cost" field.
+func (u *UsageLogUpsert) SetBillingSurchargeCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingSurchargeCost, v)
+	return u
+}
+
+// UpdateBillingSurchargeCost sets the "billing_surcharge_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingSurchargeCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingSurchargeCost)
+	return u
+}
+
+// AddBillingSurchargeCost adds v to the "billing_surcharge_cost" field.
+func (u *UsageLogUpsert) AddBillingSurchargeCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldBillingSurchargeCost, v)
+	return u
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (u *UsageLogUpsert) SetBilledCost(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldBilledCost, v)
+	return u
+}
+
+// UpdateBilledCost sets the "billed_cost" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBilledCost() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBilledCost)
+	return u
+}
+
+// AddBilledCost adds v to the "billed_cost" field.
+func (u *UsageLogUpsert) AddBilledCost(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldBilledCost, v)
+	return u
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (u *UsageLogUpsert) SetBillingSurchargeMode(v string) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingSurchargeMode, v)
+	return u
+}
+
+// UpdateBillingSurchargeMode sets the "billing_surcharge_mode" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingSurchargeMode() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingSurchargeMode)
+	return u
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (u *UsageLogUpsert) SetBillingSurchargeValue(v float64) *UsageLogUpsert {
+	u.Set(usagelog.FieldBillingSurchargeValue, v)
+	return u
+}
+
+// UpdateBillingSurchargeValue sets the "billing_surcharge_value" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateBillingSurchargeValue() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldBillingSurchargeValue)
+	return u
+}
+
+// AddBillingSurchargeValue adds v to the "billing_surcharge_value" field.
+func (u *UsageLogUpsert) AddBillingSurchargeValue(v float64) *UsageLogUpsert {
+	u.Add(usagelog.FieldBillingSurchargeValue, v)
 	return u
 }
 
@@ -2544,6 +2715,83 @@ func (u *UsageLogUpsertOne) AddActualCost(v float64) *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) UpdateActualCost() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetBillingSurchargeCost sets the "billing_surcharge_cost" field.
+func (u *UsageLogUpsertOne) SetBillingSurchargeCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingSurchargeCost(v)
+	})
+}
+
+// AddBillingSurchargeCost adds v to the "billing_surcharge_cost" field.
+func (u *UsageLogUpsertOne) AddBillingSurchargeCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBillingSurchargeCost(v)
+	})
+}
+
+// UpdateBillingSurchargeCost sets the "billing_surcharge_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingSurchargeCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingSurchargeCost()
+	})
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (u *UsageLogUpsertOne) SetBilledCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBilledCost(v)
+	})
+}
+
+// AddBilledCost adds v to the "billed_cost" field.
+func (u *UsageLogUpsertOne) AddBilledCost(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBilledCost(v)
+	})
+}
+
+// UpdateBilledCost sets the "billed_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBilledCost() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBilledCost()
+	})
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (u *UsageLogUpsertOne) SetBillingSurchargeMode(v string) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingSurchargeMode(v)
+	})
+}
+
+// UpdateBillingSurchargeMode sets the "billing_surcharge_mode" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingSurchargeMode() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingSurchargeMode()
+	})
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (u *UsageLogUpsertOne) SetBillingSurchargeValue(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingSurchargeValue(v)
+	})
+}
+
+// AddBillingSurchargeValue adds v to the "billing_surcharge_value" field.
+func (u *UsageLogUpsertOne) AddBillingSurchargeValue(v float64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBillingSurchargeValue(v)
+	})
+}
+
+// UpdateBillingSurchargeValue sets the "billing_surcharge_value" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateBillingSurchargeValue() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingSurchargeValue()
 	})
 }
 
@@ -3658,6 +3906,83 @@ func (u *UsageLogUpsertBulk) AddActualCost(v float64) *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) UpdateActualCost() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.UpdateActualCost()
+	})
+}
+
+// SetBillingSurchargeCost sets the "billing_surcharge_cost" field.
+func (u *UsageLogUpsertBulk) SetBillingSurchargeCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingSurchargeCost(v)
+	})
+}
+
+// AddBillingSurchargeCost adds v to the "billing_surcharge_cost" field.
+func (u *UsageLogUpsertBulk) AddBillingSurchargeCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBillingSurchargeCost(v)
+	})
+}
+
+// UpdateBillingSurchargeCost sets the "billing_surcharge_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingSurchargeCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingSurchargeCost()
+	})
+}
+
+// SetBilledCost sets the "billed_cost" field.
+func (u *UsageLogUpsertBulk) SetBilledCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBilledCost(v)
+	})
+}
+
+// AddBilledCost adds v to the "billed_cost" field.
+func (u *UsageLogUpsertBulk) AddBilledCost(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBilledCost(v)
+	})
+}
+
+// UpdateBilledCost sets the "billed_cost" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBilledCost() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBilledCost()
+	})
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (u *UsageLogUpsertBulk) SetBillingSurchargeMode(v string) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingSurchargeMode(v)
+	})
+}
+
+// UpdateBillingSurchargeMode sets the "billing_surcharge_mode" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingSurchargeMode() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingSurchargeMode()
+	})
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (u *UsageLogUpsertBulk) SetBillingSurchargeValue(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetBillingSurchargeValue(v)
+	})
+}
+
+// AddBillingSurchargeValue adds v to the "billing_surcharge_value" field.
+func (u *UsageLogUpsertBulk) AddBillingSurchargeValue(v float64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddBillingSurchargeValue(v)
+	})
+}
+
+// UpdateBillingSurchargeValue sets the "billing_surcharge_value" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateBillingSurchargeValue() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateBillingSurchargeValue()
 	})
 }
 

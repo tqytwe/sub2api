@@ -255,6 +255,9 @@ func (s *SettingService) InitializeDefaultSettings(ctx context.Context) error {
 		SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost:          "",
 		SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse:      "",
 		SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky:         "",
+		SettingKeyBillingSurchargeEnabled:                            "false",
+		SettingKeyBillingSurchargeMode:                               BillingSurchargeModeNone,
+		SettingKeyBillingSurchargeValue:                              "0",
 
 		SettingKeyAllowUserViewErrorRequests: "false",
 	}
@@ -877,6 +880,12 @@ func (s *SettingService) parseSettings(settings map[string]string) *SystemSettin
 	result.OpenAIAdvancedSchedulerWeightUpstreamCost = strings.TrimSpace(settings[SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost])
 	result.OpenAIAdvancedSchedulerWeightPreviousResponse = strings.TrimSpace(settings[SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse])
 	result.OpenAIAdvancedSchedulerWeightSessionSticky = strings.TrimSpace(settings[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky])
+	result.BillingSurchargeEnabled = settings[SettingKeyBillingSurchargeEnabled] == "true"
+	result.BillingSurchargeMode = NormalizeBillingSurchargeMode(settings[SettingKeyBillingSurchargeMode])
+	result.BillingSurchargeValue, _ = strconv.ParseFloat(strings.TrimSpace(settings[SettingKeyBillingSurchargeValue]), 64)
+	if result.BillingSurchargeValue < 0 || math.IsNaN(result.BillingSurchargeValue) || math.IsInf(result.BillingSurchargeValue, 0) {
+		result.BillingSurchargeValue = 0
+	}
 	result.OpenAIAdvancedSchedulerEffectiveLBTopK = s.openAIAdvancedSchedulerEffectiveLBTopK()
 	effectiveWeights := s.openAIAdvancedSchedulerEffectiveWeights()
 	result.OpenAIAdvancedSchedulerEffectiveWeightPriority = formatOpenAIAdvancedSchedulerFloat(effectiveWeights.Priority)

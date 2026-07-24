@@ -264,6 +264,10 @@ type SystemSettings struct {
 	OpenAIAdvancedSchedulerEffectiveWeightPreviousResponse string
 	OpenAIAdvancedSchedulerEffectiveWeightSessionSticky    string
 
+	BillingSurchargeEnabled bool
+	BillingSurchargeMode    string
+	BillingSurchargeValue   float64
+
 	// 余额不足提醒
 	BalanceLowNotifyEnabled     bool
 	BalanceLowNotifyThreshold   float64

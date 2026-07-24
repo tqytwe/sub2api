@@ -117,6 +117,69 @@ func (_u *GroupUpdate) AddRateMultiplier(v float64) *GroupUpdate {
 	return _u
 }
 
+// SetBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field.
+func (_u *GroupUpdate) SetBillingSurchargeOverrideEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetBillingSurchargeOverrideEnabled(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableBillingSurchargeOverrideEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeOverrideEnabled(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeEnabled sets the "billing_surcharge_enabled" field.
+func (_u *GroupUpdate) SetBillingSurchargeEnabled(v bool) *GroupUpdate {
+	_u.mutation.SetBillingSurchargeEnabled(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeEnabled sets the "billing_surcharge_enabled" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableBillingSurchargeEnabled(v *bool) *GroupUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeEnabled(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (_u *GroupUpdate) SetBillingSurchargeMode(v string) *GroupUpdate {
+	_u.mutation.SetBillingSurchargeMode(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeMode sets the "billing_surcharge_mode" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableBillingSurchargeMode(v *string) *GroupUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeMode(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (_u *GroupUpdate) SetBillingSurchargeValue(v float64) *GroupUpdate {
+	_u.mutation.ResetBillingSurchargeValue()
+	_u.mutation.SetBillingSurchargeValue(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeValue sets the "billing_surcharge_value" field if the given value is not nil.
+func (_u *GroupUpdate) SetNillableBillingSurchargeValue(v *float64) *GroupUpdate {
+	if v != nil {
+		_u.SetBillingSurchargeValue(*v)
+	}
+	return _u
+}
+
+// AddBillingSurchargeValue adds value to the "billing_surcharge_value" field.
+func (_u *GroupUpdate) AddBillingSurchargeValue(v float64) *GroupUpdate {
+	_u.mutation.AddBillingSurchargeValue(v)
+	return _u
+}
+
 // SetPeakRateEnabled sets the "peak_rate_enabled" field.
 func (_u *GroupUpdate) SetPeakRateEnabled(v bool) *GroupUpdate {
 	_u.mutation.SetPeakRateEnabled(v)
@@ -1183,6 +1246,11 @@ func (_u *GroupUpdate) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Group.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingSurchargeMode(); ok {
+		if err := group.BillingSurchargeModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_surcharge_mode", err: fmt.Errorf(`ent: validator failed for field "Group.billing_surcharge_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PeakStart(); ok {
 		if err := group.PeakStartValidator(v); err != nil {
 			return &ValidationError{Name: "peak_start", err: fmt.Errorf(`ent: validator failed for field "Group.peak_start": %w`, err)}
@@ -1251,6 +1319,21 @@ func (_u *GroupUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(group.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeOverrideEnabled(); ok {
+		_spec.SetField(group.FieldBillingSurchargeOverrideEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeEnabled(); ok {
+		_spec.SetField(group.FieldBillingSurchargeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeMode(); ok {
+		_spec.SetField(group.FieldBillingSurchargeMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeValue(); ok {
+		_spec.SetField(group.FieldBillingSurchargeValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingSurchargeValue(); ok {
+		_spec.AddField(group.FieldBillingSurchargeValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)
@@ -1877,6 +1960,69 @@ func (_u *GroupUpdateOne) SetNillableRateMultiplier(v *float64) *GroupUpdateOne 
 // AddRateMultiplier adds value to the "rate_multiplier" field.
 func (_u *GroupUpdateOne) AddRateMultiplier(v float64) *GroupUpdateOne {
 	_u.mutation.AddRateMultiplier(v)
+	return _u
+}
+
+// SetBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field.
+func (_u *GroupUpdateOne) SetBillingSurchargeOverrideEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetBillingSurchargeOverrideEnabled(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeOverrideEnabled sets the "billing_surcharge_override_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableBillingSurchargeOverrideEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeOverrideEnabled(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeEnabled sets the "billing_surcharge_enabled" field.
+func (_u *GroupUpdateOne) SetBillingSurchargeEnabled(v bool) *GroupUpdateOne {
+	_u.mutation.SetBillingSurchargeEnabled(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeEnabled sets the "billing_surcharge_enabled" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableBillingSurchargeEnabled(v *bool) *GroupUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeEnabled(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeMode sets the "billing_surcharge_mode" field.
+func (_u *GroupUpdateOne) SetBillingSurchargeMode(v string) *GroupUpdateOne {
+	_u.mutation.SetBillingSurchargeMode(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeMode sets the "billing_surcharge_mode" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableBillingSurchargeMode(v *string) *GroupUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeMode(*v)
+	}
+	return _u
+}
+
+// SetBillingSurchargeValue sets the "billing_surcharge_value" field.
+func (_u *GroupUpdateOne) SetBillingSurchargeValue(v float64) *GroupUpdateOne {
+	_u.mutation.ResetBillingSurchargeValue()
+	_u.mutation.SetBillingSurchargeValue(v)
+	return _u
+}
+
+// SetNillableBillingSurchargeValue sets the "billing_surcharge_value" field if the given value is not nil.
+func (_u *GroupUpdateOne) SetNillableBillingSurchargeValue(v *float64) *GroupUpdateOne {
+	if v != nil {
+		_u.SetBillingSurchargeValue(*v)
+	}
+	return _u
+}
+
+// AddBillingSurchargeValue adds value to the "billing_surcharge_value" field.
+func (_u *GroupUpdateOne) AddBillingSurchargeValue(v float64) *GroupUpdateOne {
+	_u.mutation.AddBillingSurchargeValue(v)
 	return _u
 }
 
@@ -2959,6 +3105,11 @@ func (_u *GroupUpdateOne) check() error {
 			return &ValidationError{Name: "name", err: fmt.Errorf(`ent: validator failed for field "Group.name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BillingSurchargeMode(); ok {
+		if err := group.BillingSurchargeModeValidator(v); err != nil {
+			return &ValidationError{Name: "billing_surcharge_mode", err: fmt.Errorf(`ent: validator failed for field "Group.billing_surcharge_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.PeakStart(); ok {
 		if err := group.PeakStartValidator(v); err != nil {
 			return &ValidationError{Name: "peak_start", err: fmt.Errorf(`ent: validator failed for field "Group.peak_start": %w`, err)}
@@ -3044,6 +3195,21 @@ func (_u *GroupUpdateOne) sqlSave(ctx context.Context) (_node *Group, err error)
 	}
 	if value, ok := _u.mutation.AddedRateMultiplier(); ok {
 		_spec.AddField(group.FieldRateMultiplier, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeOverrideEnabled(); ok {
+		_spec.SetField(group.FieldBillingSurchargeOverrideEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeEnabled(); ok {
+		_spec.SetField(group.FieldBillingSurchargeEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeMode(); ok {
+		_spec.SetField(group.FieldBillingSurchargeMode, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.BillingSurchargeValue(); ok {
+		_spec.SetField(group.FieldBillingSurchargeValue, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedBillingSurchargeValue(); ok {
+		_spec.AddField(group.FieldBillingSurchargeValue, field.TypeFloat64, value)
 	}
 	if value, ok := _u.mutation.PeakRateEnabled(); ok {
 		_spec.SetField(group.FieldPeakRateEnabled, field.TypeBool, value)

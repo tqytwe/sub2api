@@ -97,6 +97,22 @@ func (UsageLog) Fields() []ent.Field {
 		field.Float("actual_cost").
 			Default(0).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Float("billing_surcharge_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Comment("内部手续费金额；用户展示历史不使用"),
+		field.Float("billed_cost").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}).
+			Comment("实际扣款金额，等于 actual_cost + billing_surcharge_cost；0 表示历史记录未快照"),
+		field.String("billing_surcharge_mode").
+			MaxLen(32).
+			Default("none").
+			Comment("内部手续费模式快照"),
+		field.Float("billing_surcharge_value").
+			Default(0).
+			SchemaType(map[string]string{dialect.Postgres: "decimal(12,6)"}).
+			Comment("内部手续费值快照"),
 		field.Float("rate_multiplier").
 			Default(1).
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}),

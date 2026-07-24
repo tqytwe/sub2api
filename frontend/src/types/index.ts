@@ -527,6 +527,7 @@ export interface PaginationConfig {
 export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok'
 
 export type SubscriptionType = 'standard' | 'subscription'
+export type BillingSurchargeMode = 'none' | 'percent_on_charged_cost' | 'additive_multiplier'
 
 export interface OpenAIMessagesDispatchModelConfig {
   opus_mapped_model?: string
@@ -585,6 +586,11 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  billing_surcharge_override_enabled: boolean
+  billing_surcharge_enabled: boolean
+  billing_surcharge_mode: BillingSurchargeMode
+  billing_surcharge_value: number
+
   // 模型路由配置（仅管理员可见，内部信息）
   model_routing: Record<string, number[]> | null
   model_routing_enabled: boolean
@@ -679,6 +685,10 @@ export interface CreateGroupRequest {
   description?: string | null
   platform?: GroupPlatform
   rate_multiplier?: number
+  billing_surcharge_override_enabled?: boolean
+  billing_surcharge_enabled?: boolean
+  billing_surcharge_mode?: BillingSurchargeMode
+  billing_surcharge_value?: number
   is_exclusive?: boolean
   subscription_type?: SubscriptionType
   daily_limit_usd?: number | null
@@ -726,6 +736,10 @@ export interface UpdateGroupRequest {
   description?: string | null
   platform?: GroupPlatform
   rate_multiplier?: number
+  billing_surcharge_override_enabled?: boolean
+  billing_surcharge_enabled?: boolean
+  billing_surcharge_mode?: BillingSurchargeMode
+  billing_surcharge_value?: number
   is_exclusive?: boolean
   status?: 'active' | 'inactive'
   subscription_type?: SubscriptionType

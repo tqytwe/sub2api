@@ -165,7 +165,7 @@ check_not_contains "FORK-IMAGE-011" "Zeabur stale app data path removed" "deploy
 
 check_file "FORK-PRICING-005" "model catalog service" "backend/internal/service/model_catalog_service.go"
 check_contains "FORK-PRICING-005" "explicit catalog group IDs" "backend/internal/service/model_catalog_types.go" 'GroupIDs                []int64    `json:"group_ids"`'
-check_contains "FORK-PRICING-005" "site catalog price precedence" "backend/internal/service/model_pricing_resolver.go" "firstCatalogPrice"
+check_contains "FORK-PRICING-005" "site catalog price is display-only" "backend/internal/service/model_pricing_resolver.go" "site catalog as display-only"
 
 check_contains "FORK-DEPLOY-006" "deployment defaults to play/main" "scripts/push-github-and-deploy.sh" 'BRANCH="${1:-play/main}"'
 check_contains "FORK-DEPLOY-006" "deployment rejects main" "scripts/push-github-and-deploy.sh" 'if [[ "$BRANCH" == "main" ]]'
@@ -268,6 +268,7 @@ MIGRATIONS=(
   211_withdrawals.sql
   212_withdrawals_integer_amounts.sql
   213_fund_management_batches.sql
+  214_billing_surcharge_layer.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -303,7 +304,7 @@ echo "Running protected backend behaviors..."
 run_check "FORK-OAUTH-007" "OAuth cookie domain unit test" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/handler -run '^TestOAuthCookieDomain$'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceDoesNotAffectBilling|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
 run_check "FORK-BILLING-010" "withdrawable ledger and recompute tests" \
