@@ -3,9 +3,10 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import BulkUserActionDialog from '../BulkUserActionDialog.vue'
 
-const { previewBatchAction, executeBatchAction, runStepUp, showError } = vi.hoisted(() => ({
+const { previewBatchAction, executeBatchAction, promptStepUp, runStepUp, showError } = vi.hoisted(() => ({
   previewBatchAction: vi.fn(),
   executeBatchAction: vi.fn(),
+  promptStepUp: vi.fn(),
   runStepUp: vi.fn(async (action: () => Promise<unknown>) => action()),
   showError: vi.fn(),
 }))
@@ -69,7 +70,7 @@ const preview = {
 const stepUp = {
   visible: { value: false },
   blockedReason: { value: '' },
-  prompt: vi.fn(),
+  prompt: promptStepUp,
   onVerified: vi.fn(),
   onCancel: vi.fn(),
   run: runStepUp,
@@ -93,6 +94,7 @@ describe('BulkUserActionDialog', () => {
   beforeEach(() => {
     previewBatchAction.mockReset()
     executeBatchAction.mockReset()
+    promptStepUp.mockReset().mockResolvedValue(true)
     runStepUp.mockClear()
     showError.mockReset()
     previewBatchAction.mockResolvedValue(preview)
@@ -138,7 +140,9 @@ describe('BulkUserActionDialog', () => {
     await wrapper.get('[data-test="execute"]').trigger('click')
     await flushPromises()
 
+    expect(promptStepUp).toHaveBeenCalledOnce()
     expect(runStepUp).toHaveBeenCalledOnce()
+    expect(runStepUp).toHaveBeenCalledWith(expect.any(Function))
     expect(executeBatchAction).toHaveBeenCalledWith({
       action: 'delete',
       user_ids: [1, 2, 404],

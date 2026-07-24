@@ -16,6 +16,7 @@ const {
   showError,
   showSuccess,
   showWarning,
+  stepUpPrompt,
   stepUpRun,
   updateConfig,
 } = vi.hoisted(() => ({
@@ -28,6 +29,7 @@ const {
   showError: vi.fn(),
   showSuccess: vi.fn(),
   showWarning: vi.fn(),
+  stepUpPrompt: vi.fn(),
   stepUpRun: vi.fn(),
   updateConfig: vi.fn(),
 }))
@@ -58,7 +60,7 @@ vi.mock('@/composables/useStepUp', () => ({
   useStepUp: () => ({
     visible: { value: false },
     blockedReason: { value: '' },
-    prompt: vi.fn(),
+    prompt: stepUpPrompt,
     onVerified: vi.fn(),
     onCancel: vi.fn(),
     run: stepUpRun,
@@ -132,7 +134,7 @@ const detail = (): RiskCaseDetail => ({
 const stepUp = {
   visible: { value: false },
   blockedReason: { value: '' },
-  prompt: vi.fn(),
+  prompt: stepUpPrompt,
   onVerified: vi.fn(),
   onCancel: vi.fn(),
   run: stepUpRun,
@@ -203,6 +205,7 @@ describe('IP risk action flows', () => {
     showError.mockReset()
     showSuccess.mockReset()
     showWarning.mockReset()
+    stepUpPrompt.mockReset().mockResolvedValue(true)
     stepUpRun.mockReset().mockImplementation((action: () => Promise<unknown>) => action())
     updateConfig.mockReset()
   })
@@ -252,11 +255,9 @@ describe('IP risk action flows', () => {
     await buttonByText(wrapper, 'admin.ipRisk.actionDialog.confirmExecute').trigger('click')
     await flushPromises()
 
+    expect(stepUpPrompt).toHaveBeenCalledTimes(1)
     expect(stepUpRun).toHaveBeenCalledTimes(1)
-    expect(stepUpRun).toHaveBeenCalledWith(
-      expect.any(Function),
-      { promptBeforeAction: true },
-    )
+    expect(stepUpRun).toHaveBeenCalledWith(expect.any(Function))
     expect(executeAction).toHaveBeenCalledWith(7, expect.objectContaining({
       preview_token: 'preview-token',
     }))
@@ -345,11 +346,9 @@ describe('IP risk action flows', () => {
     await buttonByText(wrapper, 'admin.ipRisk.actionsView.confirmRollback').trigger('click')
     await flushPromises()
 
+    expect(stepUpPrompt).toHaveBeenCalledTimes(1)
     expect(stepUpRun).toHaveBeenCalledTimes(1)
-    expect(stepUpRun).toHaveBeenCalledWith(
-      expect.any(Function),
-      { promptBeforeAction: true },
-    )
+    expect(stepUpRun).toHaveBeenCalledWith(expect.any(Function))
     expect(rollbackAction).toHaveBeenCalledWith(90, 'restore only unchanged action state')
     expect(wrapper.text()).toContain('admin.ipRisk.actionsView.rollbackResult')
   })
@@ -376,11 +375,9 @@ describe('IP risk action flows', () => {
     await buttonByText(wrapper, 'admin.ipRisk.policyDialog.saveConfig').trigger('click')
     await flushPromises()
 
+    expect(stepUpPrompt).toHaveBeenCalledTimes(1)
     expect(stepUpRun).toHaveBeenCalledTimes(1)
-    expect(stepUpRun).toHaveBeenCalledWith(
-      expect.any(Function),
-      { promptBeforeAction: true },
-    )
+    expect(stepUpRun).toHaveBeenCalledWith(expect.any(Function))
     expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
       auto_block_score: 90,
       auto_block_duration_minutes: 30,

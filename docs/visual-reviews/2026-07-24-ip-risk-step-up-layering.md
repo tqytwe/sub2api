@@ -4,7 +4,11 @@
 {
   "schema_version": 1,
   "changed_files": [
-    "frontend/src/components/auth/TotpStepUpDialog.vue"
+    "frontend/src/components/auth/TotpStepUpDialog.vue",
+    "frontend/src/components/admin/user/BulkUserActionDialog.vue",
+    "frontend/src/features/ip-risk/IPRiskActionDialog.vue",
+    "frontend/src/features/ip-risk/IPRiskActionsView.vue",
+    "frontend/src/features/ip-risk/IPRiskPolicyDialog.vue"
   ],
   "routes_or_surfaces": [
     "/admin/proxies/risk",
@@ -20,6 +24,8 @@
     "step-up required",
     "admin table sticky overlay coverage",
     "nested dialog keyboard ownership",
+    "pre-execution TOTP prompt before destructive API calls",
+    "prompt cancellation returns to the original confirmation dialog",
     "cancelled verification",
     "verification loading"
   ],
@@ -71,11 +77,11 @@
 
 ## Scope
 
-This repair covers the shared administrator TOTP step-up layer when it opens above an existing `BaseDialog`, with `/admin/proxies/risk` and `/admin/users` as the reported paths. It does not change risk scoring, selected accounts, preview contents, execution permissions, TOTP verification rules or action results.
+This repair covers the shared administrator TOTP step-up layer when it opens above an existing `BaseDialog`, with `/admin/proxies/risk` and `/admin/users` as the reported paths. The follow-up adjustment moves proactive step-up prompts out of the parent dialog's executing/saving state: user batch actions, IP risk actions, risk action rollback, permanent blocking policy creation, and auto-block enablement now ask for TOTP first, then enter the irreversible API call. It does not change risk scoring, selected accounts, preview contents, execution permissions, TOTP verification rules or action results.
 
 ## Baseline
 
-`BaseDialog` correctly marks the application root as inert while its teleported modal is open. The TOTP component previously remained inside that inert application root. When a protected action requested step-up, both the background page and the nested verification UI could therefore become non-interactive. Later user-management acceptance runs exposed two related stacking cases: the shared TOTP layer first used `z-[60]`, while the admin data table sticky header and sticky header columns reserve `z-index: 200` and `220`; then `z-[1000]` appeared in the lazy component chunk but did not produce a matching Tailwind CSS rule in the deployed stylesheet. Both cases could leave the existing verification panel visually covered even though the controller opened.
+`BaseDialog` correctly marks the application root as inert while its teleported modal is open. The TOTP component previously remained inside that inert application root. When a protected action requested step-up, both the background page and the nested verification UI could therefore become non-interactive. Later user-management acceptance runs exposed two related stacking cases: the shared TOTP layer first used `z-[60]`, while the admin data table sticky header and sticky header columns reserve `z-index: 200` and `220`; then `z-[1000]` appeared in the lazy component chunk but did not produce a matching Tailwind CSS rule in the deployed stylesheet. Both cases could leave the existing verification panel visually covered even though the controller opened. A second production report showed the page still behaving as if it were waiting for step-up; the affected proactive flows were entering their parent dialog's executing or saving state before opening the TOTP controller, so cancellation or a hidden prompt could leave the original controls disabled until refresh.
 
 The baseline board recreates the blocked state with simulated IP and account information only.
 
@@ -89,14 +95,14 @@ This fix preserves the approved visual language and changes only the layer owner
 
 ## Reuse Decision
 
-The TOTP component now teleports to `body`, participates in the existing `useDialogAccessibility` stack and uses an explicit inline overlay z-index above admin table sticky overlays and onboarding layers. No parallel modal system, new button style, new icon family or new risk action flow is introduced.
+The TOTP component now teleports to `body`, participates in the existing `useDialogAccessibility` stack and uses an explicit inline overlay z-index above admin table sticky overlays and onboarding layers. Proactive step-up flows now call the existing page-owned controller before switching the parent dialog into executing/saving mode, then keep `stepUp.run()` for the backend `STEP_UP_REQUIRED` retry fallback. No parallel modal system, new button style, new icon family or new risk action flow is introduced.
 
 ## State Coverage
 
 - Default: the risk action dialog remains unchanged.
-- Step-up required: TOTP renders above the inert application root and above admin table sticky headers/columns.
+- Step-up required: TOTP renders above the inert application root and above admin table sticky headers/columns before the destructive API request starts.
 - Keyboard: the TOTP layer owns focus, Tab trapping and Escape while it is topmost.
-- Cancel: closing TOTP restores focus to the underlying action dialog without unlocking the page prematurely.
+- Cancel: closing TOTP restores focus to the underlying action dialog without leaving execute/save controls stuck.
 - Loading: verification continues to disable cancellation and input using the existing behavior.
 - Error: localized TOTP errors and input reset behavior are unchanged.
 
