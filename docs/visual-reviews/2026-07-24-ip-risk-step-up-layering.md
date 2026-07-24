@@ -75,7 +75,7 @@ This repair covers the shared administrator TOTP step-up layer when it opens abo
 
 ## Baseline
 
-`BaseDialog` correctly marks the application root as inert while its teleported modal is open. The TOTP component previously remained inside that inert application root. When a protected action requested step-up, both the background page and the nested verification UI could therefore become non-interactive. A later user-management acceptance run exposed the related stacking case: the shared TOTP layer used `z-[60]`, while the admin data table sticky header and sticky header columns reserve `z-index: 200` and `220`, so the existing verification panel could be visually covered even though the controller opened.
+`BaseDialog` correctly marks the application root as inert while its teleported modal is open. The TOTP component previously remained inside that inert application root. When a protected action requested step-up, both the background page and the nested verification UI could therefore become non-interactive. Later user-management acceptance runs exposed two related stacking cases: the shared TOTP layer first used `z-[60]`, while the admin data table sticky header and sticky header columns reserve `z-index: 200` and `220`; then `z-[1000]` appeared in the lazy component chunk but did not produce a matching Tailwind CSS rule in the deployed stylesheet. Both cases could leave the existing verification panel visually covered even though the controller opened.
 
 The baseline board recreates the blocked state with simulated IP and account information only.
 
@@ -89,7 +89,7 @@ This fix preserves the approved visual language and changes only the layer owner
 
 ## Reuse Decision
 
-The TOTP component now teleports to `body`, participates in the existing `useDialogAccessibility` stack and sits above admin table sticky overlays. No parallel modal system, new button style, new icon family or new risk action flow is introduced.
+The TOTP component now teleports to `body`, participates in the existing `useDialogAccessibility` stack and uses an explicit inline overlay z-index above admin table sticky overlays and onboarding layers. No parallel modal system, new button style, new icon family or new risk action flow is introduced.
 
 ## State Coverage
 
@@ -106,7 +106,7 @@ The static board covers desktop and 390px mobile presentation. The component ret
 
 ## Evidence
 
-The updated boards show the existing TOTP appearance above the simulated risk workbench. Automated regression coverage mounts a real `BaseDialog` and the real TOTP component together, confirms the TOTP is outside the inert `#app`, confirms the elevated overlay class, and proves Escape cancels only the topmost verification layer.
+The updated boards show the existing TOTP appearance above the simulated risk workbench. Automated regression coverage mounts a real `BaseDialog` and the real TOTP component together, confirms the TOTP is outside the inert `#app`, confirms the explicit elevated overlay z-index, and proves Escape cancels only the topmost verification layer.
 
 ## Residual Risk
 
