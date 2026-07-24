@@ -3,7 +3,8 @@
   <div
     v-if="controller.visible.value"
     ref="dialogRef"
-    class="fixed inset-0 z-[1000] overflow-y-auto"
+    class="fixed inset-0 overflow-y-auto"
+    style="z-index: 100000030"
     role="dialog"
     aria-modal="true"
     :aria-labelledby="dialogTitleId"
