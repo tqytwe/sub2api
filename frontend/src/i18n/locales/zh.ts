@@ -9001,6 +9001,8 @@ const messages = {
       subscriptionOrder: '订阅',
       paidAt: '支付时间',
       completedAt: '完成时间',
+      failedAt: '失败时间',
+      failedReason: '失败原因',
       expiresAt: '过期时间',
       feeRate: '手续费率',
       refund: '退款',
