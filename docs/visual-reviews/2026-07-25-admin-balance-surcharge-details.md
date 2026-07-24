@@ -10,7 +10,7 @@
   ],
   "routes_or_surfaces": ["/admin/users user balance history modal", "/admin/usage user balance history modal"],
   "languages_and_themes": ["zh-CN/light", "en-US/light"],
-  "states": ["default ledger table", "row with billing surcharge badge", "expanded row details"],
+  "states": ["default ledger table", "row with billing surcharge badge", "expanded row details", "Chinese localized metadata labels"],
   "viewports": ["390x844", "1440x900"],
   "artifact_mode": "static-review-board",
   "prototype_artifacts": [
@@ -24,6 +24,7 @@
   ],
   "commands": [
     "pnpm --dir frontend exec vitest run src/components/admin/user/__tests__/UserBalanceHistoryModal.spec.ts",
+    "go test -tags unit ./internal/service -run 'TestAPIKeyService_.*AuthCache|TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig|TestGatewayServiceSubscriptionBillingAppliesSurcharge|TestAPIKeyService_Rejects'",
     "pnpm --dir frontend typecheck",
     "pnpm --dir frontend design:check"
   ],
@@ -41,7 +42,7 @@
 
 - Routes: admin user balance history modal from user and usage management surfaces.
 - Roles: administrator only.
-- Languages and themes: Chinese and English copy for surcharge labels.
+- Languages and themes: Chinese and English copy for surcharge labels, surcharge mode values, and common usage metadata labels.
 
 ## Baseline
 
@@ -54,6 +55,7 @@
 - Prototype screenshot or recording: existing wallet ledger width contract board.
 - Interaction plan: move the details toggle into the type column, keep the row expansion pattern, and add a surcharge badge only when metadata contains a positive surcharge.
 - Design decision: use an extra-wide modal and horizontal table overflow rather than hiding operational columns.
+- Localization update: render common usage metadata labels and surcharge mode values through i18n so Chinese admin sessions do not show raw internal field names like `actual_cost` or `additive_multiplier`.
 
 ## Reuse Decision
 
@@ -64,6 +66,7 @@
 ## State Coverage
 
 - Default: rows without surcharge keep the existing title, description, notes, and metadata details.
+- Localized details: rows with surcharge show the mode as a translated label, while common usage metadata keys are translated and unknown keys remain visible as raw keys for debugging.
 - Hover and active: details toggle keeps existing button hover behavior.
 - Focus-visible and keyboard: the details toggle remains a button and is earlier in tab order.
 - Loading, disabled, empty, error and success: no state flow changed.

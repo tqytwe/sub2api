@@ -250,14 +250,18 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t 
 			Concurrency: 3,
 		},
 		Group: &Group{
-			ID:                    groupID,
-			Name:                  "openai",
-			Platform:              PlatformOpenAI,
-			Status:                StatusActive,
-			SubscriptionType:      SubscriptionTypeStandard,
-			RateMultiplier:        1,
-			AllowMessagesDispatch: true,
-			DefaultMappedModel:    "gpt-5.4",
+			ID:                              groupID,
+			Name:                            "openai",
+			Platform:                        PlatformOpenAI,
+			Status:                          StatusActive,
+			SubscriptionType:                SubscriptionTypeStandard,
+			RateMultiplier:                  1,
+			BillingSurchargeOverrideEnabled: true,
+			BillingSurchargeEnabled:         true,
+			BillingSurchargeMode:            BillingSurchargeModeAdditiveMultiplier,
+			BillingSurchargeValue:           0.1,
+			AllowMessagesDispatch:           true,
+			DefaultMappedModel:              "gpt-5.4",
 			MessagesDispatchModelConfig: OpenAIMessagesDispatchModelConfig{
 				OpusMappedModel:   "gpt-5.4-nano",
 				SonnetMappedModel: "gpt-5.3-codex",
@@ -276,6 +280,10 @@ func TestAPIKeyService_SnapshotRoundTrip_PreservesMessagesDispatchModelConfig(t 
 	require.Equal(t, apiKey.Name, roundTrip.Name)
 	require.NotNil(t, roundTrip.Group)
 	require.Equal(t, apiKey.Group.MessagesDispatchModelConfig, roundTrip.Group.MessagesDispatchModelConfig)
+	require.True(t, roundTrip.Group.BillingSurchargeOverrideEnabled)
+	require.True(t, roundTrip.Group.BillingSurchargeEnabled)
+	require.Equal(t, BillingSurchargeModeAdditiveMultiplier, roundTrip.Group.BillingSurchargeMode)
+	require.Equal(t, 0.1, roundTrip.Group.BillingSurchargeValue)
 }
 
 func TestAPIKeyService_GetByKey_IgnoresLegacyAuthCacheSnapshotWithoutMessagesDispatchConfig(t *testing.T) {

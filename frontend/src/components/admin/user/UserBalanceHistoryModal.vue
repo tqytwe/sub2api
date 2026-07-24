@@ -308,7 +308,7 @@
                       </div>
                       <div>
                         <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeMode') }}</span>
-                        <span class="font-semibold">{{ String(item.metadata?.billing_surcharge_mode || '-') }}</span>
+                        <span class="font-semibold">{{ billingSurchargeModeLabel(item.metadata?.billing_surcharge_mode) }}</span>
                       </div>
                       <div>
                         <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeValue') }}</span>
@@ -333,8 +333,8 @@
                         :key="`${item.id}-${key}`"
                         class="min-w-0"
                       >
-                        <span class="text-gray-400 dark:text-dark-500">{{ key }}:</span>
-                        <span class="ml-1 break-all">{{ formatDetailValue(value) }}</span>
+                        <span class="text-gray-400 dark:text-dark-500">{{ detailKeyLabel(key) }}:</span>
+                        <span class="ml-1 break-all" :class="detailValueClass(value)">{{ formatDetailValue(key, value) }}</span>
                       </div>
                     </div>
                   </td>
@@ -657,6 +657,11 @@ const hasBillingSurcharge = (item: BalanceHistoryItem) => {
   return metadataNumber(item, 'billing_surcharge_cost') > 0
 }
 
+const billingSurchargeModeLabel = (mode: unknown) => {
+  const value = String(mode || 'none').trim()
+  return t(`admin.users.billingSurchargeMode_${value}`, value || '-')
+}
+
 const formatMoney = (value?: number | null) => {
   const n = Number(value || 0)
   return `$${n.toFixed(2)}`
@@ -742,7 +747,16 @@ const detailEntries = (item: BalanceHistoryItem) => {
   })
 }
 
-const formatDetailValue = (value: unknown) => {
+const detailKeyLabel = (key: string) => {
+  return t(`admin.users.flowMetadata.${key}`, key)
+}
+
+const detailValueClass = (value: unknown) => {
+  return typeof value === 'object' && value !== null ? 'font-mono' : ''
+}
+
+const formatDetailValue = (key: string, value: unknown) => {
+  if (key === 'billing_surcharge_mode') return billingSurchargeModeLabel(value)
   if (typeof value === 'string') return value
   if (typeof value === 'number' || typeof value === 'boolean') return String(value)
   return JSON.stringify(value)

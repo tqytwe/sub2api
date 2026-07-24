@@ -242,7 +242,7 @@ describe('UserBalanceHistoryModal', () => {
     expect(wrapper.find('[data-test="billing-surcharge-details"]').exists()).toBe(true)
     expect(wrapper.text()).toContain('admin.users.billingSurchargeOriginalCost')
     expect(wrapper.text()).toContain('$0.012000')
-    expect(wrapper.text()).toContain('additive_multiplier')
+    expect(wrapper.text()).toContain('admin.users.billingSurchargeMode_additive_multiplier')
     expect(wrapper.text()).toContain('cost_amount')
     expect(wrapper.text()).toContain('reward_amount')
     expect(wrapper.html()).toContain('text-emerald-600')
