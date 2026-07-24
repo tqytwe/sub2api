@@ -210,6 +210,30 @@ func TestInjectRouteSEO(t *testing.T) {
 		}
 	})
 
+	t.Run("english_public_routes_localize_injected_shell_config", func(t *testing.T) {
+		html := []byte(`<!doctype html><html lang="zh-CN"><head><title>Old</title></head><body>
+<script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬","site_subtitle":"最安全的大模型中转平台","contact_info":"1570539180 微信：tqytwemx","login_agreement_documents":[{"id":"terms","title":"服务条款","content_md":"中文条款"}],"support_contact":{"title":"联系客服","subtitle":"登录、注册、充值、API 或模型调用问题都可以联系人工客服","contacts":[{"id":"legacy-contact","type":"wechat","label":"微信服务群","value":"tqytwemx","copy_value":"tqytwemx","url":"","qr_image":"/qr.png","description":"推荐优先添加微信","primary":true,"enabled":true,"sort_order":1},{"id":"telegram","type":"telegram","label":"TG","value":"Jisudeng","copy_value":"","url":"https://t.me/example","qr_image":"","description":"添加 @Jisudeng","primary":false,"enabled":true,"sort_order":2}]},"api_onboarding":{"enabled":true,"title":"开始接入极速蹬 API","subtitle":"按推荐步骤创建 Key","items":[{"id":"one","title":"创建稳定 Key","description":"创建后可以复制到客户端使用。","badge":"新手必做","enabled":true,"sort_order":1,"cta":"create_key","audience":"new_users"}]},"custom_menu_items":[{"id":"docs","label":"使用文档","url":"https://www.jisudeng.com/docs","visibility":"user","sort_order":0}]};</script>
+<noscript><img alt="极速蹬已被 LMSpeed.net 收录" /></noscript></body></html>`)
+
+		result := string(localizeEnglishHTMLShell(html, "/en/models"))
+
+		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, result)
+		assert.Contains(t, result, `"site_name":"Jisudeng"`)
+		assert.Contains(t, result, `"title":"Contact support"`)
+		assert.Contains(t, result, `"label":"WeChat support"`)
+		assert.Contains(t, result, `"title":"Start using the Jisudeng API"`)
+		assert.Contains(t, result, `"label":"Docs"`)
+		assert.Contains(t, result, `alt="Jisudeng is listed on LMSpeed.net"`)
+	})
+
+	t.Run("chinese_public_routes_keep_injected_shell_config", func(t *testing.T) {
+		html := []byte(`<html><head></head><body><script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬"};</script></body></html>`)
+
+		result := string(localizeEnglishHTMLShell(html, "/models"))
+
+		assert.Contains(t, result, `"site_name":"极速蹬"`)
+	})
+
 	t.Run("keeps_chinese_route_metadata_on_chinese_paths", func(t *testing.T) {
 		result := string(injectRouteSEO(baseHTML, "/models"))
 
