@@ -429,9 +429,6 @@ func (h *UserHandler) ExecuteBatchAction(c *gin.Context) {
 		response.ErrorFrom(c, service.ErrUserBatchActionPreviewInvalid)
 		return
 	}
-	if !middleware.EnforceStepUpAlways(c, h.totpService, h.userService) {
-		return
-	}
 	result, err := h.adminService.ExecuteUserBatchAction(c.Request.Context(), service.UserBatchActionInput{
 		Action: req.Action, UserIDs: req.UserIDs, Reason: req.Reason,
 		ConfirmationToken: req.ConfirmationToken, ActorAdminID: getAdminIDFromContext(c),

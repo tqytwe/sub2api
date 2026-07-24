@@ -89,7 +89,7 @@ const userPreview = {
   already_disabled_users: [],
   missing_user_ids: [],
   affected_api_keys: 1,
-  requires_step_up: true,
+  requires_step_up: false,
   confirmation_token: 'user-preview-token',
   expires_at: '2026-07-24T10:05:00Z',
 }
@@ -211,7 +211,7 @@ describe('admin page-level TOTP dialogs', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens an interactive TOTP dialog before sending a bulk user disable', async () => {
+  it('sends a bulk user disable without an interactive TOTP dialog', async () => {
     previewBatchAction.mockResolvedValue(userPreview)
     executeBatchAction.mockResolvedValue({
       action: 'disable',
@@ -254,11 +254,8 @@ describe('admin page-level TOTP dialogs', () => {
 
     expect(
       (wrapper.vm as unknown as { controller: ReturnType<typeof useStepUp> }).controller.visible.value,
-    ).toBe(true)
-    expect(executeBatchAction).not.toHaveBeenCalled()
-    await enterTotp(mounted.app)
-
-    expect(stepUp).toHaveBeenCalledWith('123456')
+    ).toBe(false)
+    expect(stepUp).not.toHaveBeenCalled()
     expect(executeBatchAction).toHaveBeenCalledTimes(1)
     expect(executeBatchAction).toHaveBeenLastCalledWith({
       action: 'disable',

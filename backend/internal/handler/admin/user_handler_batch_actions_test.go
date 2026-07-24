@@ -27,7 +27,7 @@ func TestUserHandlerPreviewBatchActionReturnsImpact(t *testing.T) {
 		},
 		MissingUserIDs:    []int64{404},
 		AffectedAPIKeys:   2,
-		RequiresStepUp:    true,
+			RequiresStepUp:    false,
 		ConfirmationToken: "preview-token",
 		ExpiresAt:         time.Date(2026, 7, 24, 10, 5, 0, 0, time.UTC),
 	}
@@ -76,9 +76,15 @@ func TestUserHandlerPreviewBatchActionRejectsMalformedRequest(t *testing.T) {
 	require.Empty(t, serviceStub.lastUserBatchPreviewInput.UserIDs)
 }
 
-func TestUserHandlerExecuteBatchActionRequiresStepUp(t *testing.T) {
+func TestUserHandlerExecuteBatchActionAcceptsPreviewTokenWithoutStepUp(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	serviceStub := newStubAdminService()
+	serviceStub.userBatchExecuteResult = &service.UserBatchActionResult{
+		Action:           service.UserBatchActionDisable,
+		Status:           service.UserBatchActionResultCompleted,
+		RequestedCount:   1,
+		SucceededUserIDs: []int64{1},
+	}
 	handler := NewUserHandler(serviceStub, nil, nil, nil, nil, nil, nil)
 	router := gin.New()
 	router.POST("/api/v1/admin/users/batch-actions", handler.ExecuteBatchAction)
@@ -92,8 +98,11 @@ func TestUserHandlerExecuteBatchActionRequiresStepUp(t *testing.T) {
 	request.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, request)
 
-	require.Equal(t, http.StatusUnauthorized, recorder.Code)
-	require.Empty(t, serviceStub.lastUserBatchExecuteInput.UserIDs)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Equal(t, service.UserBatchActionDisable, serviceStub.lastUserBatchExecuteInput.Action)
+	require.Equal(t, []int64{1}, serviceStub.lastUserBatchExecuteInput.UserIDs)
+	require.Equal(t, "confirmed abuse", serviceStub.lastUserBatchExecuteInput.Reason)
+	require.Equal(t, "preview-token", serviceStub.lastUserBatchExecuteInput.ConfirmationToken)
 }
 
 func TestUserHandlerExecuteBatchActionRejectsMissingPreviewToken(t *testing.T) {
