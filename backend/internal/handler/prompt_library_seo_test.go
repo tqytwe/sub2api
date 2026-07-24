@@ -21,7 +21,12 @@ func TestBuildPromptLibrarySitemapContainsOnlyProvidedPublishedPrompts(t *testin
 	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts</loc>")
 	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts/12</loc>")
 	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts/34</loc>")
-	for _, path := range []string{"/", "/models", "/docs", "/en/", "/en/models", "/en/docs", "/about", "/contact", "/download/android", "/image-studio"} {
+	for _, path := range []string{
+		"/", "/models", "/models/deepseek", "/models/qwen", "/models/kimi", "/models/glm",
+		"/docs", "/en/", "/en/models", "/en/models/deepseek", "/en/models/qwen",
+		"/en/models/kimi", "/en/models/glm", "/en/docs", "/about", "/contact",
+		"/download/android", "/image-studio",
+	} {
 		require.Contains(t, xml, "<loc>https://www.jisudeng.com"+path+"</loc>")
 	}
 	require.Contains(t, xml, `xmlns:xhtml="http://www.w3.org/1999/xhtml"`)
@@ -29,6 +34,8 @@ func TestBuildPromptLibrarySitemapContainsOnlyProvidedPublishedPrompts(t *testin
 	require.Contains(t, xml, `<priority>1.00</priority>`)
 	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models"></xhtml:link>`)
 	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek"></xhtml:link>`)
 	require.NotContains(t, xml, "<loc>https://www.jisudeng.com/home</loc>")
 	require.False(t, strings.Contains(xml, "source_url"))
 }
@@ -87,6 +94,10 @@ func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {
 	require.Contains(t, body, "# Jisudeng")
 	require.Contains(t, body, "Access DeepSeek, Qwen, Kimi, GLM")
 	require.Contains(t, body, "https://www.jisudeng.com/en/models")
+	require.Contains(t, body, "https://www.jisudeng.com/en/models/deepseek")
+	require.Contains(t, body, "https://www.jisudeng.com/en/models/qwen")
+	require.Contains(t, body, "https://www.jisudeng.com/en/models/kimi")
+	require.Contains(t, body, "https://www.jisudeng.com/en/models/glm")
 	require.Contains(t, body, "https://www.jisudeng.com/docs")
 	require.Contains(t, body, "## AI Search Reference Policy")
 	require.Contains(t, body, "## Common Questions")
