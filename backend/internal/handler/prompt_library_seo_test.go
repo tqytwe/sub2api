@@ -42,9 +42,16 @@ func TestBuildRobotsTxtAdvertisesSitemapAndKeepsPrivateAPIsOut(t *testing.T) {
 
 	require.Contains(t, robots, "User-agent: *")
 	require.Contains(t, robots, "Allow: /")
+	require.Contains(t, robots, "Allow: /llms.txt")
+	require.Contains(t, robots, "User-agent: OAI-SearchBot")
+	require.Contains(t, robots, "User-agent: PerplexityBot")
+	require.Contains(t, robots, "User-agent: Baiduspider")
+	require.Contains(t, robots, "Content-Signal: search=yes,ai-input=yes,ai-train=no,use=reference")
 	require.Contains(t, robots, "Disallow: /api/")
 	require.Contains(t, robots, "Disallow: /v1/")
+	require.Contains(t, robots, "User-agent: GPTBot\nDisallow: /")
 	require.Contains(t, robots, "Sitemap: https://www.jisudeng.com/sitemap.xml")
+	require.Contains(t, robots, "LLMs: https://www.jisudeng.com/llms.txt")
 }
 
 func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {
@@ -54,6 +61,9 @@ func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {
 	require.Contains(t, body, "Access DeepSeek, Qwen, Kimi, GLM")
 	require.Contains(t, body, "https://www.jisudeng.com/en/models")
 	require.Contains(t, body, "https://www.jisudeng.com/docs")
+	require.Contains(t, body, "## AI Search Reference Policy")
+	require.Contains(t, body, "## Common Questions")
+	require.Contains(t, body, "Chinese public routes are the default")
 	require.Contains(t, body, "中文摘要")
 	require.NotContains(t, body, "Chinese AI")
 	require.NotContains(t, body, "China")

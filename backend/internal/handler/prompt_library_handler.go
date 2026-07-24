@@ -348,8 +348,41 @@ func promptSitemapAlternates(origin string, alternates []promptSitemapAlternateP
 
 func buildRobotsTxt(origin string) string {
 	origin = strings.TrimRight(origin, "/")
-	return fmt.Sprintf(`User-agent: *
+	return fmt.Sprintf(`# Public search and AI answer engines may crawl public pages for discovery and reference.
+# Model training is not granted by this robots.txt policy.
+
+User-agent: Googlebot
 Allow: /
+
+User-agent: bingbot
+Allow: /
+
+User-agent: Baiduspider
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: GPTBot
+Disallow: /
+
+User-agent: Google-Extended
+Disallow: /
+
+User-agent: *
+Content-Signal: search=yes,ai-input=yes,ai-train=no,use=reference
+Allow: /
+Allow: /sitemap.xml
+Allow: /llms.txt
 Disallow: /api/
 Disallow: /v1/
 Disallow: /v1beta/
@@ -357,7 +390,8 @@ Disallow: /backend-api/
 Disallow: /admin/
 Disallow: /setup/
 Sitemap: %s/sitemap.xml
-`, origin)
+LLMs: %s/llms.txt
+`, origin, origin)
 }
 
 func buildLLMSTxt(origin string) string {
@@ -385,6 +419,26 @@ Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps
 - DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and other model access
 - Public model catalog, usage-based pricing, and account-specific effective pricing after login
 - API Key setup, base URL migration, SDK configuration, image generation, Batch Image, billing, and troubleshooting
+
+## AI Search Reference Policy
+
+- Public pages, the model catalog, docs, prompt pages, sitemap.xml, and llms.txt may be used for search indexing and answer references.
+- API routes, admin routes, setup routes, account pages, keys, billing records, and private user data are not public reference material.
+- Model training permission is not granted by this file.
+
+## Common Questions
+
+### What is Jisudeng?
+
+Jisudeng is an OpenAI-compatible AI API gateway that helps users access multiple AI models through one API base URL and one key system.
+
+### What can users compare before signing in?
+
+Users can review public model names, model families, docs, usage-based pricing references, image API notes, and setup guidance.
+
+### Which language should search engines use?
+
+Chinese public routes are the default for '/', '/models', and '/docs'. English content is served under '/en/', '/en/models', and '/en/docs'.
 
 ## 中文摘要
 
