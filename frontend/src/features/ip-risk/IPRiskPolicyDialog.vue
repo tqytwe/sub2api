@@ -143,7 +143,7 @@
             <input v-model="policyForm.enabled" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
             {{ t('common.enabled') }}
           </label>
-          <button type="button" class="btn btn-primary" :disabled="savingPolicy || !canSavePolicy" @click="savePolicy">
+          <button type="button" class="btn btn-primary" :disabled="stepUpPrompting || savingPolicy || !canSavePolicy" @click="savePolicy">
             {{ savingPolicy ? t('common.saving') : editingPolicyId ? t('common.update') : t('common.add') }}
           </button>
         </div>
@@ -189,10 +189,10 @@
 
     <template #footer>
       <div class="flex w-full justify-end gap-2">
-        <button type="button" class="btn btn-secondary" :disabled="savingConfig || savingPolicy" @click="close">
+        <button type="button" class="btn btn-secondary" :disabled="stepUpPrompting || savingConfig || savingPolicy" @click="close">
           {{ t('common.close') }}
         </button>
-        <button v-if="activeTab === 'detection'" type="button" class="btn btn-primary" :disabled="!config || savingConfig" @click="saveConfig">
+        <button v-if="activeTab === 'detection'" type="button" class="btn btn-primary" :disabled="stepUpPrompting || !config || savingConfig" @click="saveConfig">
           {{ savingConfig ? t('common.saving') : t('admin.ipRisk.policyDialog.saveConfig') }}
         </button>
       </div>
@@ -322,6 +322,7 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const activeTab = ref<'detection' | 'policies'>('detection')
 const loading = ref(false)
+const stepUpPrompting = ref(false)
 const savingConfig = ref(false)
 const savingPolicy = ref(false)
 const deletingPolicy = ref(false)
@@ -381,13 +382,18 @@ async function load() {
 
 async function saveConfig() {
   if (!config.value) return
+  const promptBeforeAction = !loadedAutoBlockEnabled.value && config.value.auto_block_enabled
+  if (promptBeforeAction) {
+    stepUpPrompting.value = true
+    try {
+      if (!await props.stepUp.prompt()) return
+    } finally {
+      stepUpPrompting.value = false
+    }
+  }
   savingConfig.value = true
   try {
-    const promptBeforeAction = !loadedAutoBlockEnabled.value && config.value.auto_block_enabled
-    config.value = await props.stepUp.run(
-      () => adminAPI.ipRisk.updateConfig(config.value!),
-      { promptBeforeAction },
-    )
+    config.value = await props.stepUp.run(() => adminAPI.ipRisk.updateConfig(config.value!))
     loadedAutoBlockEnabled.value = config.value.auto_block_enabled
     appStore.showSuccess(t('admin.ipRisk.policyDialog.configSaved'))
     emit('updated')
@@ -402,24 +408,26 @@ async function saveConfig() {
 
 async function savePolicy() {
   if (!canSavePolicy.value) return
-  savingPolicy.value = true
   const payload: IPRiskPolicyInput = {
     ...policyForm,
     expires_at: policyForm.expires_at ? new Date(policyForm.expires_at).toISOString() : null,
   }
   const promptBeforeAction =
     payload.mode === 'block_registration' && payload.expires_at === null
+  if (promptBeforeAction) {
+    stepUpPrompting.value = true
+    try {
+      if (!await props.stepUp.prompt()) return
+    } finally {
+      stepUpPrompting.value = false
+    }
+  }
+  savingPolicy.value = true
   try {
     if (editingPolicyId.value) {
-      await props.stepUp.run(
-        () => adminAPI.ipRisk.updatePolicy(editingPolicyId.value!, payload),
-        { promptBeforeAction },
-      )
+      await props.stepUp.run(() => adminAPI.ipRisk.updatePolicy(editingPolicyId.value!, payload))
     } else {
-      await props.stepUp.run(
-        () => adminAPI.ipRisk.createPolicy(payload),
-        { promptBeforeAction },
-      )
+      await props.stepUp.run(() => adminAPI.ipRisk.createPolicy(payload))
     }
     appStore.showSuccess(t('admin.ipRisk.policyDialog.policySaved'))
     resetPolicyForm()
@@ -483,7 +491,7 @@ function resetPolicyForm() {
 }
 
 function close() {
-  if (savingConfig.value || savingPolicy.value || deletingPolicy.value) return
+  if (stepUpPrompting.value || savingConfig.value || savingPolicy.value || deletingPolicy.value) return
   emit('close')
 }
 

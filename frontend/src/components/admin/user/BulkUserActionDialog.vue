@@ -6,7 +6,7 @@
     :close-on-click-outside="false"
     @close="close"
   >
-    <div class="space-y-5" :aria-busy="previewing || executing">
+    <div class="space-y-5" :aria-busy="previewing || prompting || executing">
       <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900/40">
         <div>
           <div class="font-medium text-gray-900 dark:text-white">
@@ -269,6 +269,7 @@ const snapshotUserIds = ref<number[]>([])
 const reason = ref('')
 const deleteConfirmation = ref('')
 const previewing = ref(false)
+const prompting = ref(false)
 const executing = ref(false)
 const preview = ref<UserBatchActionPreview | null>(null)
 const result = ref<UserBatchActionResult | null>(null)
@@ -282,6 +283,7 @@ const dialogTitle = computed(() =>
 const selectionTooLarge = computed(() => snapshotUserIds.value.length > MAX_BATCH_USER_IDS)
 const canPreview = computed(() =>
   !previewing.value
+  && !prompting.value
   && !executing.value
   && snapshotUserIds.value.length > 0
   && !selectionTooLarge.value
@@ -335,6 +337,7 @@ const hiddenPreviewUserCount = computed(() =>
 const deleteConfirmationPhrase = computed(() => `DELETE ${preview.value?.eligible_users.length || 0}`)
 const canExecute = computed(() =>
   !!preview.value
+  && !prompting.value
   && !executing.value
   && preview.value.eligible_users.length > 0
   && (props.action !== 'delete' || deleteConfirmation.value === deleteConfirmationPhrase.value)
@@ -364,6 +367,7 @@ watch(
     preview.value = null
     result.value = null
     previewing.value = false
+    prompting.value = false
     executing.value = false
   },
   { immediate: true }
@@ -394,6 +398,14 @@ const createPreview = async () => {
 
 const execute = async () => {
   if (!canExecute.value || !preview.value) return
+  if (preview.value.requires_step_up) {
+    prompting.value = true
+    try {
+      if (!await props.stepUp.prompt()) return
+    } finally {
+      prompting.value = false
+    }
+  }
   executing.value = true
   try {
     const execution = () => adminAPI.users.executeBatchAction({
@@ -402,9 +414,7 @@ const execute = async () => {
       reason: reason.value.trim(),
       confirmation_token: preview.value!.confirmation_token,
     })
-    result.value = await props.stepUp.run(execution, {
-      promptBeforeAction: preview.value.requires_step_up,
-    })
+    result.value = await props.stepUp.run(execution)
     emit('completed', result.value)
   } catch (error) {
     if (isStepUpCancelled(error)) return
@@ -423,7 +433,7 @@ const execute = async () => {
 }
 
 const close = () => {
-  if (previewing.value || executing.value) return
+  if (previewing.value || prompting.value || executing.value) return
   emit('close')
 }
 </script>

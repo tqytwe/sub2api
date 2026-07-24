@@ -115,8 +115,8 @@
     </div>
     <template #footer>
       <div class="flex justify-end gap-2">
-        <button type="button" class="btn btn-secondary" :disabled="rollingBack" @click="closeRollback">{{ t('common.cancel') }}</button>
-        <button type="button" class="btn btn-danger" :disabled="rollingBack || !rollbackReason.trim()" @click="rollback">
+        <button type="button" class="btn btn-secondary" :disabled="promptingRollback || rollingBack" @click="closeRollback">{{ t('common.cancel') }}</button>
+        <button type="button" class="btn btn-danger" :disabled="promptingRollback || rollingBack || !rollbackReason.trim()" @click="rollback">
           {{ rollingBack ? t('admin.ipRisk.actionsView.rollingBack') : t('admin.ipRisk.actionsView.confirmRollback') }}
         </button>
       </div>
@@ -151,6 +151,7 @@ const pageSize = ref(20)
 const total = ref(0)
 const rollbackTarget = ref<RiskActionRecord | null>(null)
 const rollbackReason = ref('')
+const promptingRollback = ref(false)
 const rollingBack = ref(false)
 const rollbackResult = ref<RiskActionRecord | null>(null)
 
@@ -188,18 +189,23 @@ function openRollback(action: RiskActionRecord) {
 }
 
 function closeRollback() {
-  if (rollingBack.value) return
+  if (promptingRollback.value || rollingBack.value) return
   rollbackTarget.value = null
   rollbackResult.value = null
 }
 
 async function rollback() {
   if (!rollbackTarget.value || !rollbackReason.value.trim()) return
+  promptingRollback.value = true
+  try {
+    if (!await props.stepUp.prompt()) return
+  } finally {
+    promptingRollback.value = false
+  }
   rollingBack.value = true
   try {
     rollbackResult.value = await props.stepUp.run(
       () => adminAPI.ipRisk.rollbackAction(rollbackTarget.value!.id, rollbackReason.value.trim()),
-      { promptBeforeAction: true },
     )
     appStore.showSuccess(t('admin.ipRisk.actionsView.rollbackCompleted'))
     await load()

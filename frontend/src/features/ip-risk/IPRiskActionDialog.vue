@@ -30,7 +30,7 @@
             id="ip-risk-action-type"
             v-model="form.action_type"
             :options="actionOptions"
-            :disabled="executing"
+            :disabled="prompting || executing"
             @change="resetPreview"
           />
         </div>
@@ -40,7 +40,7 @@
             id="ip-risk-duration"
             v-model="form.duration_minutes"
             :options="durationOptions"
-            :disabled="executing"
+            :disabled="prompting || executing"
             @change="resetPreview"
           />
         </div>
@@ -55,7 +55,7 @@
           maxlength="1000"
           class="input min-h-[96px] resize-y"
           :placeholder="t('admin.ipRisk.actionDialog.reasonPlaceholder')"
-          :disabled="executing"
+          :disabled="prompting || executing"
           @input="resetPreview"
         ></textarea>
         <div class="mt-1 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
@@ -75,7 +75,7 @@
           v-model.trim="permanentConfirmation"
           class="input font-mono"
           :placeholder="detail.case.primary_ip"
-          :disabled="executing"
+          :disabled="prompting || executing"
           autocomplete="off"
           @input="resetPreview"
         />
@@ -141,14 +141,14 @@
           {{ t('admin.ipRisk.actionDialog.previewRule') }}
         </div>
         <div class="flex gap-2">
-          <button type="button" class="btn btn-secondary" :disabled="previewing || executing" @click="close">
+          <button type="button" class="btn btn-secondary" :disabled="previewing || prompting || executing" @click="close">
             {{ t('common.cancel') }}
           </button>
           <button
             v-if="!preview"
             type="button"
             class="btn btn-primary"
-            :disabled="!canPreview || previewing"
+            :disabled="!canPreview || previewing || prompting"
             @click="createPreview"
           >
             <Icon name="eye" size="sm" class="mr-2" />
@@ -158,7 +158,7 @@
             v-else
             type="button"
             :class="isDestructive ? 'btn btn-danger' : 'btn btn-primary'"
-            :disabled="executing"
+            :disabled="prompting || executing"
             @click="execute"
           >
             <Icon name="shield" size="sm" class="mr-2" />
@@ -207,6 +207,7 @@ const emit = defineEmits<{
 const { t } = useI18n()
 const appStore = useAppStore()
 const previewing = ref(false)
+const prompting = ref(false)
 const executing = ref(false)
 const preview = ref<RiskActionPreview | null>(null)
 const result = ref<RiskActionRecord | null>(null)
@@ -276,6 +277,7 @@ watch(
     permanentConfirmation.value = ''
     preview.value = null
     result.value = null
+    prompting.value = false
   },
 )
 
@@ -313,6 +315,14 @@ async function createPreview() {
 
 async function execute() {
   if (!props.detail || !preview.value) return
+  if (preview.value.requires_step_up) {
+    prompting.value = true
+    try {
+      if (!await props.stepUp.prompt()) return
+    } finally {
+      prompting.value = false
+    }
+  }
   executing.value = true
   try {
     const input = {
@@ -321,7 +331,6 @@ async function execute() {
     }
     const record = await props.stepUp.run(
       () => adminAPI.ipRisk.executeAction(props.detail!.case.id, input),
-      { promptBeforeAction: preview.value.requires_step_up },
     )
     result.value = record
     emit('completed', record)
@@ -341,7 +350,7 @@ async function execute() {
 }
 
 function close() {
-  if (previewing.value || executing.value) return
+  if (previewing.value || prompting.value || executing.value) return
   emit('close')
 }
 </script>
