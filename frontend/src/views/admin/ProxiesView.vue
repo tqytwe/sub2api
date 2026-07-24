@@ -397,9 +397,10 @@
 
     <IPRiskWorkbench
       v-else-if="activeTab === 'risk'"
+      :step-up="ipRiskStepUp"
       @overview="riskCount = $event"
     />
-    <IPRiskActionsView v-else />
+    <IPRiskActionsView v-else :step-up="ipRiskStepUp" />
 
     <!-- Create Proxy Modal -->
     <BaseDialog
@@ -995,6 +996,7 @@
         </div>
       </template>
     </BaseDialog>
+    <TotpStepUpDialog :controller="ipRiskStepUp" />
   </AppLayout>
 </template>
 
@@ -1017,6 +1019,7 @@ import ImportDataModal from '@/components/admin/proxy/ImportDataModal.vue'
 import Select from '@/components/common/Select.vue'
 import ProxyAdBanner from '@/components/common/ProxyAdBanner.vue'
 import Icon from '@/components/icons/Icon.vue'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import PlatformTypeBadge from '@/components/common/PlatformTypeBadge.vue'
 import { useClipboard } from '@/composables/useClipboard'
 import { useSwipeSelect } from '@/composables/useSwipeSelect'
@@ -1026,12 +1029,14 @@ import { formatDateTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
 import IPRiskWorkbench from '@/features/ip-risk/IPRiskWorkbench.vue'
 import IPRiskActionsView from '@/features/ip-risk/IPRiskActionsView.vue'
+import { useStepUp } from '@/composables/useStepUp'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const route = useRoute()
 const router = useRouter()
 const { copyToClipboard } = useClipboard()
+const ipRiskStepUp = useStepUp()
 
 type WorkspaceTab = 'resources' | 'risk' | 'actions'
 

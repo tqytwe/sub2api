@@ -206,6 +206,7 @@
     :detail="detail"
     :selected-user-ids="selectedUserIds"
     :initial-action="initialAction"
+    :step-up="props.stepUp"
     @close="showActionDialog = false"
     @completed="handleActionCompleted"
     @stale="reloadSelectedCase"
@@ -213,6 +214,7 @@
 
   <IPRiskPolicyDialog
     :show="showPolicyDialog"
+    :step-up="props.stepUp"
     @close="showPolicyDialog = false"
     @updated="refreshAll"
   />
@@ -228,6 +230,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import type { StepUpController } from '@/composables/useStepUp'
 import IPRiskCaseDetail from './IPRiskCaseDetail.vue'
 import IPRiskActionDialog from './IPRiskActionDialog.vue'
 import IPRiskPolicyDialog from './IPRiskPolicyDialog.vue'
@@ -244,6 +247,9 @@ import type {
   RiskSignalCode,
 } from './types'
 
+const props = defineProps<{
+  stepUp: StepUpController
+}>()
 const emit = defineEmits<{ (event: 'overview', count: number): void }>()
 const { t } = useI18n()
 const appStore = useAppStore()

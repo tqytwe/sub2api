@@ -169,7 +169,6 @@
     </template>
   </BaseDialog>
 
-  <TotpStepUpDialog :controller="stepUp" />
 </template>
 
 <script setup lang="ts">
@@ -178,10 +177,9 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
-import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import { isStepUpCancelled, useStepUp } from '@/composables/useStepUp'
+import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
 import type {
@@ -197,6 +195,7 @@ const props = defineProps<{
   detail: RiskCaseDetail | null
   selectedUserIds: number[]
   initialAction?: RiskActionType
+  stepUp: StepUpController
 }>()
 
 const emit = defineEmits<{
@@ -207,7 +206,6 @@ const emit = defineEmits<{
 
 const { t } = useI18n()
 const appStore = useAppStore()
-const stepUp = useStepUp()
 const previewing = ref(false)
 const executing = ref(false)
 const preview = ref<RiskActionPreview | null>(null)
@@ -321,7 +319,9 @@ async function execute() {
       ...buildInput(),
       preview_token: preview.value.confirmation_token,
     }
-    const record = await stepUp.run(() => adminAPI.ipRisk.executeAction(props.detail!.case.id, input))
+    const record = await props.stepUp.run(() =>
+      adminAPI.ipRisk.executeAction(props.detail!.case.id, input),
+    )
     result.value = record
     emit('completed', record)
     appStore.showSuccess(t('admin.ipRisk.actionDialog.executed'))

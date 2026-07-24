@@ -66,16 +66,24 @@ const preview = {
   expires_at: '2026-07-24T10:05:00Z',
 }
 
+const stepUp = {
+  visible: { value: false },
+  blockedReason: { value: '' },
+  prompt: vi.fn(),
+  onVerified: vi.fn(),
+  onCancel: vi.fn(),
+  run: runStepUp,
+}
+
 const mountDialog = (action: 'disable' | 'delete' = 'delete') =>
   mount(BulkUserActionDialog, {
-    props: { show: true, selectedIds: [1, 2, 404], action },
+    props: { show: true, selectedIds: [1, 2, 404], action, stepUp },
     global: {
       stubs: {
         BaseDialog: {
           props: ['show', 'title'],
           template: '<div v-if="show"><div data-test="title">{{ title }}</div><slot /><slot name="footer" /></div>',
         },
-        TotpStepUpDialog: true,
         Icon: true,
       },
     },

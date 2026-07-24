@@ -3,35 +3,45 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import IPRiskActionDialog from '@/features/ip-risk/IPRiskActionDialog.vue'
 import IPRiskActionsView from '@/features/ip-risk/IPRiskActionsView.vue'
-import type { RiskCaseDetail } from '@/features/ip-risk/types'
+import IPRiskPolicyDialog from '@/features/ip-risk/IPRiskPolicyDialog.vue'
+import type { RiskCaseDetail, RiskConfig } from '@/features/ip-risk/types'
 
 const {
   executeAction,
+  getConfig,
   listActions,
+  listPolicies,
   previewAction,
   rollbackAction,
   showError,
   showSuccess,
   showWarning,
   stepUpRun,
+  updateConfig,
 } = vi.hoisted(() => ({
   executeAction: vi.fn(),
+  getConfig: vi.fn(),
   listActions: vi.fn(),
+  listPolicies: vi.fn(),
   previewAction: vi.fn(),
   rollbackAction: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   showWarning: vi.fn(),
   stepUpRun: vi.fn(),
+  updateConfig: vi.fn(),
 }))
 
 vi.mock('@/api/admin', () => ({
   adminAPI: {
     ipRisk: {
       executeAction,
+      getConfig,
       listActions,
+      listPolicies,
       previewAction,
       rollbackAction,
+      updateConfig,
     },
   },
 }))
@@ -119,6 +129,44 @@ const detail = (): RiskCaseDetail => ({
   actions: [],
 })
 
+const stepUp = {
+  visible: { value: false },
+  blockedReason: { value: '' },
+  prompt: vi.fn(),
+  onVerified: vi.fn(),
+  onCancel: vi.fn(),
+  run: stepUpRun,
+}
+
+const riskConfig = (): RiskConfig => ({
+  registration_10m_threshold: 3,
+  registration_10m_score: 25,
+  registration_1h_threshold: 5,
+  registration_1h_score: 35,
+  registration_24h_threshold: 10,
+  registration_24h_score: 45,
+  shared_ua_3_threshold: 3,
+  shared_ua_3_score: 15,
+  shared_ua_5_threshold: 5,
+  shared_ua_5_score: 20,
+  email_pattern_threshold: 3,
+  email_pattern_score: 15,
+  shared_api_ip_threshold: 3,
+  shared_api_ip_score: 25,
+  rapid_behavior_threshold: 3,
+  rapid_behavior_score: 15,
+  shared_signup_code_threshold: 3,
+  shared_signup_code_score: 10,
+  trusted_account_score: -15,
+  auto_block_score: 90,
+  auto_block_min_registrations: 5,
+  auto_block_duration_minutes: 30,
+  auto_block_enabled: false,
+  historical_backfill_enabled: true,
+  event_retention_days: 90,
+  case_retention_days: 365,
+})
+
 function mountActionDialog() {
   return mount(IPRiskActionDialog, {
     props: {
@@ -126,13 +174,13 @@ function mountActionDialog() {
       detail: detail(),
       selectedUserIds: [2],
       initialAction: 'disable_users',
+      stepUp,
     },
     global: {
       stubs: {
         BaseDialog: BaseDialogStub,
         Icon: true,
         Select: true,
-        TotpStepUpDialog: true,
       },
     },
   })
@@ -148,12 +196,15 @@ describe('IP risk action flows', () => {
   beforeEach(() => {
     executeAction.mockReset()
     listActions.mockReset()
+    getConfig.mockReset()
+    listPolicies.mockReset()
     previewAction.mockReset()
     rollbackAction.mockReset()
     showError.mockReset()
     showSuccess.mockReset()
     showWarning.mockReset()
     stepUpRun.mockReset().mockImplementation((action: () => Promise<unknown>) => action())
+    updateConfig.mockReset()
   })
 
   it('previews and executes a destructive action through step-up, preserving partial results', async () => {
@@ -274,12 +325,12 @@ describe('IP risk action flows', () => {
     })
 
     const wrapper = mount(IPRiskActionsView, {
+      props: { stepUp },
       global: {
         stubs: {
           BaseDialog: BaseDialogStub,
           Icon: true,
           Pagination: true,
-          TotpStepUpDialog: true,
         },
       },
     })
@@ -293,5 +344,33 @@ describe('IP risk action flows', () => {
     expect(stepUpRun).toHaveBeenCalledTimes(1)
     expect(rollbackAction).toHaveBeenCalledWith(90, 'restore only unchanged action state')
     expect(wrapper.text()).toContain('admin.ipRisk.actionsView.rollbackResult')
+  })
+
+  it('saves IP risk detection policy through the page-owned step-up controller', async () => {
+    getConfig.mockResolvedValue(riskConfig())
+    listPolicies.mockResolvedValue([])
+    updateConfig.mockResolvedValue(riskConfig())
+
+    const wrapper = mount(IPRiskPolicyDialog, {
+      props: { show: false, stepUp },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Icon: true,
+          Select: true,
+        },
+      },
+    })
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    await buttonByText(wrapper, 'admin.ipRisk.policyDialog.saveConfig').trigger('click')
+    await flushPromises()
+
+    expect(stepUpRun).toHaveBeenCalledTimes(1)
+    expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
+      auto_block_score: 90,
+      auto_block_duration_minutes: 30,
+    }))
   })
 })

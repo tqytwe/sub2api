@@ -232,18 +232,16 @@
     </template>
   </BaseDialog>
 
-  <TotpStepUpDialog :controller="stepUp" />
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import { isStepUpCancelled, useStepUp } from '@/composables/useStepUp'
+import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
 import type {
@@ -256,6 +254,7 @@ const props = defineProps<{
   show: boolean
   selectedIds: number[]
   action: UserBatchAction
+  stepUp: StepUpController
 }>()
 
 const emit = defineEmits<{
@@ -266,7 +265,6 @@ const emit = defineEmits<{
 const MAX_BATCH_USER_IDS = 500
 const { t } = useI18n()
 const appStore = useAppStore()
-const stepUp = useStepUp()
 const snapshotUserIds = ref<number[]>([])
 const reason = ref('')
 const deleteConfirmation = ref('')
@@ -404,7 +402,7 @@ const execute = async () => {
       reason: reason.value.trim(),
       confirmation_token: preview.value!.confirmation_token,
     })
-    result.value = await stepUp.run(execution)
+    result.value = await props.stepUp.run(execution)
     emit('completed', result.value)
   } catch (error) {
     if (isStepUpCancelled(error)) return

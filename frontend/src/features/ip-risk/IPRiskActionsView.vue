@@ -123,7 +123,6 @@
     </template>
   </BaseDialog>
 
-  <TotpStepUpDialog :controller="stepUp" />
 </template>
 
 <script setup lang="ts">
@@ -132,17 +131,18 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import { isStepUpCancelled, useStepUp } from '@/composables/useStepUp'
+import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
 import type { RiskActionRecord, RiskActionType } from './types'
 
+const props = defineProps<{
+  stepUp: StepUpController
+}>()
 const { t } = useI18n()
 const appStore = useAppStore()
-const stepUp = useStepUp()
 const actions = ref<RiskActionRecord[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -197,7 +197,7 @@ async function rollback() {
   if (!rollbackTarget.value || !rollbackReason.value.trim()) return
   rollingBack.value = true
   try {
-    rollbackResult.value = await stepUp.run(() =>
+    rollbackResult.value = await props.stepUp.run(() =>
       adminAPI.ipRisk.rollbackAction(rollbackTarget.value!.id, rollbackReason.value.trim()),
     )
     appStore.showSuccess(t('admin.ipRisk.actionsView.rollbackCompleted'))
