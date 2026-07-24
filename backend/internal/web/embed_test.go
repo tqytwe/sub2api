@@ -221,6 +221,18 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
 	})
 
+	t.Run("injects_about_and_contact_route_metadata", func(t *testing.T) {
+		about := string(injectRouteSEO(baseHTML, "/about"))
+		contact := string(injectRouteSEO(baseHTML, "/contact"))
+
+		assert.Contains(t, about, `<title>关于极速蹬 - OpenAI兼容 API 网关、模型目录与提示词库</title>`)
+		assert.Contains(t, about, `<link rel="canonical" href="https://www.jisudeng.com/about" />`)
+		assert.Contains(t, about, `"@type":"AboutPage"`)
+		assert.Contains(t, contact, `<title>联系极速蹬客服 - API、模型调用、充值、账号与接入支持入口</title>`)
+		assert.Contains(t, contact, `<link rel="canonical" href="https://www.jisudeng.com/contact" />`)
+		assert.Contains(t, contact, `"@type":"ContactPage"`)
+	})
+
 	t.Run("uses_brand_name_for_website_entity", func(t *testing.T) {
 		result := string(injectRouteSEO(baseHTML, "/"))
 
@@ -237,7 +249,7 @@ func TestInjectRouteSEO(t *testing.T) {
 }
 
 func TestPublicRouteSEOMetadataLengthBudgets(t *testing.T) {
-	for _, path := range []string{"/", "/home", "/models", "/docs", "/download/android", "/en", "/en/models", "/en/docs"} {
+	for _, path := range []string{"/", "/home", "/models", "/docs", "/download/android", "/about", "/contact", "/en", "/en/models", "/en/docs"} {
 		seo, ok := resolveRouteSEO(path)
 		require.True(t, ok, path)
 
@@ -687,6 +699,7 @@ func TestFrontendServer_Middleware(t *testing.T) {
 			"/health",
 			"/robots.txt",
 			"/sitemap.xml",
+			"/llms.txt",
 			"/responses",
 			"/responses/compact",
 		}
@@ -1053,6 +1066,7 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 			"/health",
 			"/robots.txt",
 			"/sitemap.xml",
+			"/llms.txt",
 			"/responses",
 			"/responses/compact",
 		}
