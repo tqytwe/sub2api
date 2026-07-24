@@ -1,8 +1,9 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
-import { ref } from 'vue'
+import { defineComponent, ref } from 'vue'
 import { describe, expect, it, vi } from 'vitest'
 
+import BaseDialog from '@/components/common/BaseDialog.vue'
 import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import type { StepUpController } from '@/composables/useStepUp'
 
@@ -54,7 +55,10 @@ function mountDialog(locale: 'zh' | 'en') {
   } as unknown as StepUpController
   return mount(TotpStepUpDialog, {
     props: { controller },
-    global: { plugins: [i18n] },
+    global: {
+      plugins: [i18n],
+      stubs: { Teleport: true },
+    },
   })
 }
 
@@ -95,6 +99,74 @@ describe('TotpStepUpDialog localized errors', () => {
 
     expect(showError).toHaveBeenCalledWith('验证失败，请重试')
     expect(showError).not.toHaveBeenCalledWith('backend English failure')
+    wrapper.unmount()
+  })
+})
+
+describe('TotpStepUpDialog layering', () => {
+  it('escapes the inert app root and owns keyboard input above an existing dialog', async () => {
+    document.body.innerHTML = '<div id="app"></div>'
+    const appRoot = document.getElementById('app') as HTMLElement & { inert?: boolean }
+    const baseClose = vi.fn()
+    const visible = ref(true)
+    const onCancel = vi.fn(() => {
+      visible.value = false
+    })
+    const controller = {
+      visible,
+      onVerified: vi.fn(),
+      onCancel,
+    } as unknown as StepUpController
+    const i18n = createI18n({
+      legacy: false,
+      locale: 'zh',
+      messages: {
+        zh: {
+          common: {
+            cancel: () => '取消',
+            close: () => '关闭',
+            verifying: () => '验证中',
+          },
+          stepUp: {
+            title: () => '需要二次验证',
+            hint: () => '请输入验证码',
+            verifyFailed: () => '验证失败，请重试',
+            errors: {},
+          },
+        },
+      },
+    })
+    const Harness = defineComponent({
+      components: { BaseDialog, TotpStepUpDialog },
+      setup: () => ({ baseClose, controller }),
+      template: `
+        <BaseDialog :show="true" title="风险处置" @close="baseClose">
+          <button type="button">底层处置操作</button>
+        </BaseDialog>
+        <TotpStepUpDialog :controller="controller" />
+      `,
+    })
+
+    const wrapper = mount(Harness, {
+      attachTo: appRoot,
+      global: { plugins: [i18n] },
+    })
+    await flushPromises()
+
+    const stepUpTitle = Array.from(document.body.querySelectorAll('h3'))
+      .find((element) => element.textContent?.includes('需要二次验证'))
+    expect(stepUpTitle).toBeTruthy()
+    expect(appRoot.inert).toBe(true)
+    expect(appRoot.contains(stepUpTitle!)).toBe(false)
+    expect(stepUpTitle!.closest('[role="dialog"]')?.getAttribute('tabindex')).toBe('-1')
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await flushPromises()
+
+    expect(onCancel).toHaveBeenCalledOnce()
+    expect(baseClose).not.toHaveBeenCalled()
+    expect(appRoot.inert).toBe(true)
+    expect(document.body.textContent).not.toContain('需要二次验证')
     wrapper.unmount()
   })
 })

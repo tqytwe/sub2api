@@ -1,5 +1,14 @@
 <template>
-  <div v-if="controller.visible.value" class="fixed inset-0 z-[60] overflow-y-auto">
+  <Teleport to="body">
+  <div
+    v-if="controller.visible.value"
+    ref="dialogRef"
+    class="fixed inset-0 z-[60] overflow-y-auto"
+    role="dialog"
+    aria-modal="true"
+    :aria-labelledby="dialogTitleId"
+    tabindex="-1"
+  >
     <div class="flex min-h-full items-center justify-center p-4">
       <div class="fixed inset-0 bg-black/50 transition-opacity" @click="handleCancel"></div>
 
@@ -10,7 +19,7 @@
               <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
             </svg>
           </div>
-          <h3 class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
+          <h3 :id="dialogTitleId" class="mt-4 text-xl font-semibold text-gray-900 dark:text-white">
             {{ t('stepUp.title') }}
           </h3>
           <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -64,15 +73,20 @@
       </div>
     </div>
   </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import { totpAPI } from '@/api'
 import type { StepUpController } from '@/composables/useStepUp'
+import { useDialogAccessibility } from '@/composables/useDialogAccessibility'
 import { extractApiErrorCode } from '@/utils/apiError'
+
+let dialogIdCounter = 0
+const dialogTitleId = `totp-step-up-title-${++dialogIdCounter}`
 
 const props = defineProps<{
   controller: StepUpController
@@ -85,6 +99,11 @@ const verifying = ref(false)
 const code = ref<string[]>(['', '', '', '', '', ''])
 const inputRefs = ref<(HTMLInputElement | null)[]>([])
 const hiddenOtpInputRef = ref<HTMLInputElement | null>(null)
+const dialogRef = ref<HTMLElement | null>(null)
+
+useDialogAccessibility(computed(() => props.controller.visible.value), dialogRef, {
+  onClose: handleCancel,
+})
 
 // Focus the first cell whenever the dialog opens.
 watch(

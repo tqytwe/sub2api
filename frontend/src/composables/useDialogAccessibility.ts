@@ -103,6 +103,7 @@ function canRestoreFocus(element: HTMLElement | null, stackStillOpen: boolean) {
 
 function isFocusable(element: HTMLElement) {
   if (element.getAttribute('aria-hidden') === 'true') return false
+  if (element.tabIndex < 0) return false
   const style = window.getComputedStyle(element)
   return style.visibility !== 'hidden' && style.display !== 'none'
 }

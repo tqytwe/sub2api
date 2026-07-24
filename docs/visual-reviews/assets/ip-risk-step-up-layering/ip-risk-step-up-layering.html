@@ -1,0 +1,477 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IP risk step-up layering review</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+        color: #172033;
+        background: #f4f5f7;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at 15% 12%, rgba(37, 99, 235, 0.07), transparent 30%),
+          #f4f5f7;
+      }
+
+      button,
+      input {
+        font: inherit;
+      }
+
+      .app {
+        display: grid;
+        grid-template-columns: 210px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        border-right: 1px solid #e2e6ec;
+        background: #fff;
+        padding: 24px 18px;
+      }
+
+      .brand {
+        margin-bottom: 28px;
+        font-size: 20px;
+        font-weight: 750;
+      }
+
+      .nav {
+        display: grid;
+        gap: 8px;
+      }
+
+      .nav div {
+        border-radius: 8px;
+        padding: 10px 12px;
+        color: #6b7280;
+        font-size: 14px;
+      }
+
+      .nav .active {
+        background: #f1f3f5;
+        color: #111827;
+        font-weight: 650;
+      }
+
+      .workspace {
+        padding: 28px;
+      }
+
+      .heading {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 18px;
+      }
+
+      .heading h1 {
+        margin: 0;
+        font-size: 22px;
+      }
+
+      .heading p {
+        margin: 6px 0 0;
+        color: #6b7280;
+        font-size: 13px;
+      }
+
+      .summary {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      .card {
+        min-height: 92px;
+        border: 1px solid #e2e6ec;
+        border-radius: 8px;
+        background: #fff;
+        padding: 15px;
+      }
+
+      .card span {
+        color: #6b7280;
+        font-size: 12px;
+      }
+
+      .card strong {
+        display: block;
+        margin-top: 9px;
+        font-size: 23px;
+      }
+
+      .workbench {
+        display: grid;
+        grid-template-columns: minmax(300px, 0.78fr) minmax(520px, 1.3fr);
+        min-height: 520px;
+        overflow: hidden;
+        border: 1px solid #e2e6ec;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .cases {
+        border-right: 1px solid #e2e6ec;
+      }
+
+      .panel-header {
+        border-bottom: 1px solid #e2e6ec;
+        padding: 15px 16px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .case {
+        border-bottom: 1px solid #edf0f3;
+        background: #fff8f7;
+        padding: 16px;
+      }
+
+      .case-line {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        border-radius: 999px;
+        background: #fee2e2;
+        padding: 3px 8px;
+        color: #b91c1c;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .ip {
+        margin-left: 8px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .case p {
+        margin: 12px 0 0;
+        color: #4b5563;
+        font-size: 13px;
+      }
+
+      .detail {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .detail-body {
+        flex: 1;
+        padding: 18px;
+      }
+
+      .alert {
+        border: 1px solid #f2c963;
+        border-radius: 8px;
+        background: #fffbeb;
+        padding: 12px;
+        color: #854d0e;
+        font-size: 13px;
+      }
+
+      .signals {
+        display: grid;
+        gap: 10px;
+        margin-top: 18px;
+      }
+
+      .signal {
+        display: flex;
+        justify-content: space-between;
+        border: 1px solid #e2e6ec;
+        border-radius: 8px;
+        padding: 13px;
+        font-size: 13px;
+      }
+
+      .signal b {
+        color: #dc2626;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        border-top: 1px solid #e2e6ec;
+        padding: 13px 16px;
+      }
+
+      .button {
+        border: 1px solid #cfd5dd;
+        border-radius: 7px;
+        background: #fff;
+        padding: 8px 14px;
+        color: #344054;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .button.danger {
+        border-color: #dc2626;
+        background: #dc2626;
+        color: #fff;
+      }
+
+      .layer {
+        position: fixed;
+        inset: 0;
+        z-index: 50;
+        display: grid;
+        place-items: center;
+        padding: 20px;
+        background: rgba(17, 24, 39, 0.53);
+      }
+
+      .before-note {
+        width: min(560px, 92vw);
+        border: 1px solid #fca5a5;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.96);
+        padding: 26px;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+        text-align: center;
+      }
+
+      .before-note strong {
+        display: block;
+        color: #b91c1c;
+        font-size: 20px;
+      }
+
+      .before-note p {
+        margin: 10px 0 0;
+        color: #667085;
+        font-size: 14px;
+        line-height: 1.7;
+      }
+
+      .totp {
+        position: relative;
+        z-index: 60;
+        width: min(448px, 92vw);
+        border: 1px solid #dfe3e8;
+        border-radius: 12px;
+        background: #fff;
+        padding: 28px;
+        box-shadow: 0 24px 70px rgba(15, 23, 42, 0.32);
+        text-align: center;
+      }
+
+      .lock {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        margin: 0 auto;
+        place-items: center;
+        border-radius: 999px;
+        background: #dbeafe;
+        color: #2563eb;
+        font-size: 23px;
+      }
+
+      .totp h2 {
+        margin: 15px 0 0;
+        font-size: 20px;
+      }
+
+      .totp p {
+        margin: 8px 0 22px;
+        color: #6b7280;
+        font-size: 14px;
+      }
+
+      .digits {
+        display: flex;
+        justify-content: center;
+        gap: 8px;
+      }
+
+      .digit {
+        width: 42px;
+        height: 48px;
+        border: 1px solid #cfd5dd;
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .cancel {
+        width: 100%;
+        margin-top: 24px;
+      }
+
+      .caption {
+        position: fixed;
+        right: 18px;
+        bottom: 14px;
+        z-index: 70;
+        border-radius: 999px;
+        background: rgba(17, 24, 39, 0.86);
+        padding: 7px 11px;
+        color: #fff;
+        font-size: 11px;
+      }
+
+      body.before .totp {
+        display: none;
+      }
+
+      body.after .before-note {
+        display: none;
+      }
+
+      @media (max-width: 700px) {
+        .app {
+          display: block;
+        }
+
+        .sidebar {
+          display: none;
+        }
+
+        .workspace {
+          padding: 16px;
+        }
+
+        .summary {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .workbench {
+          display: block;
+          min-height: 620px;
+        }
+
+        .cases {
+          display: none;
+        }
+
+        .detail-body {
+          padding: 14px;
+        }
+
+        .actions {
+          flex-wrap: wrap;
+        }
+
+        .totp {
+          padding: 24px 18px;
+        }
+
+        .digit {
+          width: 39px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <aside class="sidebar">
+        <div class="brand">极速蹬</div>
+        <div class="nav">
+          <div>仪表盘</div>
+          <div>用户管理</div>
+          <div>账号管理</div>
+          <div class="active">IP 管理</div>
+          <div>安全审计</div>
+          <div>系统设置</div>
+        </div>
+      </aside>
+      <main class="workspace">
+        <div class="heading">
+          <div>
+            <h1>IP 风险检测</h1>
+            <p>主动发现批量注册、共享 IP 和异常账号簇</p>
+          </div>
+        </div>
+        <div class="summary">
+          <div class="card"><span>未处理风险</span><strong>1</strong></div>
+          <div class="card"><span>严重风险</span><strong>1</strong></div>
+          <div class="card"><span>临时阻止</span><strong>0</strong></div>
+          <div class="card"><span>待复核账号</span><strong>5</strong></div>
+        </div>
+        <section class="workbench">
+          <div class="cases">
+            <div class="panel-header">风险事件列表</div>
+            <div class="case">
+              <div class="case-line">
+                <div><span class="badge">极高风险</span><span class="ip">203.0.113.8</span></div>
+                <strong>94</strong>
+              </div>
+              <p>5 个关联账号 · 12 分钟内集中注册</p>
+            </div>
+          </div>
+          <div class="detail">
+            <div class="panel-header">风险案件详情</div>
+            <div class="detail-body">
+              <div class="alert">建议临时阻止继续注册，并复核所选账号。</div>
+              <div class="signals">
+                <div class="signal"><span>24 小时集中注册</span><b>+45</b></div>
+                <div class="signal"><span>至少 5 个相同 UA</span><b>+20</b></div>
+                <div class="signal"><span>新账号共享 API IP</span><b>+25</b></div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="button">观察</button>
+              <button class="button">停用 Key</button>
+              <button class="button danger">禁用账号</button>
+              <button class="button">预览处置</button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="layer">
+      <div class="before-note">
+        <strong>页面已锁定，但二次验证层被困在 inert 根节点中</strong>
+        <p>用户能看到风险页面，却无法点击底层操作；验证层也无法获得鼠标和键盘事件，表现为“执行后卡住”。</p>
+      </div>
+      <section class="totp" aria-label="需要二次验证">
+        <div class="lock">⌑</div>
+        <h2>需要二次验证</h2>
+        <p>请输入管理员验证器中的 6 位验证码</p>
+        <div class="digits" aria-hidden="true">
+          <div class="digit"></div>
+          <div class="digit"></div>
+          <div class="digit"></div>
+          <div class="digit"></div>
+          <div class="digit"></div>
+          <div class="digit"></div>
+        </div>
+        <button class="button cancel">取消</button>
+      </section>
+    </div>
+    <div class="caption"></div>
+
+    <script>
+      const mode = new URLSearchParams(location.search).get("mode") === "before"
+        ? "before"
+        : "after";
+      document.body.classList.add(mode);
+      document.querySelector(".caption").textContent = mode === "before"
+        ? "Baseline · blocked nested step-up"
+        : "Updated · topmost interactive TOTP";
+    </script>
+  </body>
+</html>
