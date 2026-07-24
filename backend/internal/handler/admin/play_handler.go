@@ -35,6 +35,11 @@ type adminPlayCampaignRequest struct {
 	Enabled bool                      `json:"enabled"`
 }
 
+type adminMobileFeedbackUpdateRequest struct {
+	Status    string `json:"status"`
+	AdminNote string `json:"admin_note"`
+}
+
 type adminPlayCampaignDTO struct {
 	ID        int64                     `json:"id"`
 	Name      string                    `json:"name"`
@@ -392,6 +397,64 @@ func (h *AdminPlayHandler) Summary(c *gin.Context) {
 		MonthlyArenaRewardBudget: summary.MonthlyArenaRewardBudget,
 		DailyArenaRewardBudget:   summary.DailyArenaRewardBudget,
 	})
+}
+
+// ListMobileFeedback lists Android app feedback inside Play Ops.
+// GET /api/v1/admin/play/mobile-feedback
+func (h *AdminPlayHandler) ListMobileFeedback(c *gin.Context) {
+	page := parsePositiveInt(c.Query("page"), 1)
+	pageSize := parsePositiveInt(c.Query("page_size"), 20)
+	list, err := h.playService.ListAdminMobileFeedback(c.Request.Context(), service.MobileFeedbackListFilter{
+		Status:   c.Query("status"),
+		Query:    c.Query("q"),
+		Page:     page,
+		PageSize: pageSize,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, list)
+}
+
+// GetMobileFeedback returns one Android app feedback report.
+// GET /api/v1/admin/play/mobile-feedback/:id
+func (h *AdminPlayHandler) GetMobileFeedback(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid feedback id"))
+		return
+	}
+	item, err := h.playService.GetAdminMobileFeedback(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, item)
+}
+
+// UpdateMobileFeedback updates the handling state and admin note.
+// PATCH /api/v1/admin/play/mobile-feedback/:id
+func (h *AdminPlayHandler) UpdateMobileFeedback(c *gin.Context) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid feedback id"))
+		return
+	}
+	var req adminMobileFeedbackUpdateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid feedback update request"))
+		return
+	}
+	item, err := h.playService.UpdateAdminMobileFeedback(c.Request.Context(), id, service.MobileFeedbackUpdate{
+		Status:    req.Status,
+		AdminNote: req.AdminNote,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, item)
 }
 
 func (h *AdminPlayHandler) GetTeam(c *gin.Context) {

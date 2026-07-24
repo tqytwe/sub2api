@@ -167,13 +167,13 @@ func TestMobilePasswordResetErrorMessagesFollowAcceptLanguage(t *testing.T) {
 		{
 			name:        "invalid token chinese",
 			reason:      "INVALID_RESET_TOKEN",
-			wantMessage: "重置链接无效或已过期",
+			wantMessage: "验证码无效或已过期",
 		},
 		{
 			name:        "invalid token english",
 			language:    "en-US,en;q=0.9",
 			reason:      "INVALID_RESET_TOKEN",
-			wantMessage: "The reset link is invalid or expired.",
+			wantMessage: "The verification code is invalid or expired.",
 		},
 		{
 			name:        "disabled chinese",

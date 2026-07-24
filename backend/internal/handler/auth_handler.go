@@ -142,7 +142,13 @@ func authMobileErrorMessage(c *gin.Context, reason string) string {
 	case "PASSWORD_RESET_DISABLED":
 		return authMobileMessage(c, "密码重置功能暂未开启", "Password reset is not enabled.")
 	case "INVALID_RESET_TOKEN":
-		return authMobileMessage(c, "重置链接无效或已过期", "The reset link is invalid or expired.")
+		return authMobileMessage(c, "验证码无效或已过期", "The verification code is invalid or expired.")
+	case "INVALID_VERIFY_CODE":
+		return authMobileMessage(c, "验证码无效或已过期", "The verification code is invalid or expired.")
+	case "VERIFY_CODE_TOO_FREQUENT":
+		return authMobileMessage(c, "验证码发送过于频繁，请稍后再试", "Verification code requested too frequently. Please try again later.")
+	case "VERIFY_CODE_MAX_ATTEMPTS":
+		return authMobileMessage(c, "验证码错误次数过多，请重新获取验证码", "Too many verification attempts. Please request a new code.")
 	}
 	return ""
 }
@@ -720,7 +726,8 @@ type ForgotPasswordRequest struct {
 
 // ForgotPasswordResponse 忘记密码响应
 type ForgotPasswordResponse struct {
-	Message string `json:"message"`
+	Message   string `json:"message"`
+	Countdown int    `json:"countdown,omitempty"`
 }
 
 // ForgotPassword 请求密码重置
@@ -766,14 +773,8 @@ func (h *AuthHandler) MobileForgotPassword(c *gin.Context) {
 		return
 	}
 
-	frontendBaseURL := strings.TrimSpace(h.settingSvc.GetFrontendURL(c.Request.Context()))
-	if frontendBaseURL == "" {
-		slog.Error("frontend_url not configured in settings or config; cannot build password reset link")
-		response.InternalError(c, authMobileMessage(c, "密码重置功能暂未配置", "Password reset is not configured"))
-		return
-	}
-
-	if err := h.authService.RequestPasswordResetAsync(c.Request.Context(), req.Email, frontendBaseURL, c.GetHeader("Accept-Language")); err != nil {
+	result, err := h.authService.RequestPasswordResetCodeAsync(c.Request.Context(), req.Email, c.GetHeader("Accept-Language"))
+	if err != nil {
 		respondMobileAuthError(c, err)
 		return
 	}
@@ -781,16 +782,18 @@ func (h *AuthHandler) MobileForgotPassword(c *gin.Context) {
 	response.Success(c, ForgotPasswordResponse{
 		Message: authMobileMessage(
 			c,
-			"如果该邮箱已注册，你将很快收到密码重置链接。",
-			"If your email is registered, you will receive a password reset link shortly.",
+			"如果该邮箱已注册，你将很快收到验证码。",
+			"If your email is registered, you will receive a verification code shortly.",
 		),
+		Countdown: result.Countdown,
 	})
 }
 
 // ResetPasswordRequest 重置密码请求
 type ResetPasswordRequest struct {
 	Email       string `json:"email" binding:"required,email"`
-	Token       string `json:"token" binding:"required"`
+	Token       string `json:"token"`
+	VerifyCode  string `json:"verify_code"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 
@@ -805,6 +808,10 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	if strings.TrimSpace(req.Token) == "" {
+		response.BadRequest(c, "Invalid request: reset token is required")
 		return
 	}
 
@@ -828,7 +835,15 @@ func (h *AuthHandler) MobileResetPassword(c *gin.Context) {
 		return
 	}
 
-	if err := h.authService.ResetPassword(c.Request.Context(), req.Email, req.Token, req.NewPassword); err != nil {
+	var err error
+	if strings.TrimSpace(req.VerifyCode) != "" {
+		err = h.authService.ResetPasswordWithVerificationCode(c.Request.Context(), req.Email, req.VerifyCode, req.NewPassword)
+	} else if strings.TrimSpace(req.Token) != "" {
+		err = h.authService.ResetPassword(c.Request.Context(), req.Email, req.Token, req.NewPassword)
+	} else {
+		err = infraerrors.BadRequest("INVALID_VERIFY_CODE", "verification code is required")
+	}
+	if err != nil {
 		respondMobileAuthError(c, err)
 		return
 	}

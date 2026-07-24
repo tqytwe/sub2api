@@ -1502,6 +1502,44 @@ func (s *AuthService) RequestPasswordResetAsync(ctx context.Context, email, fron
 	return nil
 }
 
+// RequestPasswordResetCodeAsync sends a one-time email verification code for mobile password reset.
+// Security: Returns the same response regardless of whether the email exists (prevent user enumeration).
+func (s *AuthService) RequestPasswordResetCodeAsync(ctx context.Context, email string, locale ...string) (*SendVerifyCodeResult, error) {
+	if !s.IsPasswordResetEnabled(ctx) {
+		return nil, infraerrors.Forbidden("PASSWORD_RESET_DISABLED", "password reset is not enabled")
+	}
+	if s.emailQueueService == nil {
+		return nil, ErrServiceUnavailable
+	}
+
+	siteName, _, shouldProceed := s.preparePasswordReset(ctx, email, "")
+	if !shouldProceed {
+		return &SendVerifyCodeResult{Countdown: 60}, nil
+	}
+
+	if err := s.emailQueueService.EnqueueVerifyCode(email, siteName, firstEmailLocale(locale)); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to enqueue password reset code for %s: %v", email, err)
+		return nil, ErrServiceUnavailable
+	}
+
+	logger.LegacyPrintf("service.auth", "[Auth] Password reset code enqueued for: %s", email)
+	return &SendVerifyCodeResult{Countdown: 60}, nil
+}
+
+// ResetPasswordWithVerificationCode resets a password after consuming a mobile email code.
+func (s *AuthService) ResetPasswordWithVerificationCode(ctx context.Context, email, verifyCode, newPassword string) error {
+	if !s.IsPasswordResetEnabled(ctx) {
+		return infraerrors.Forbidden("PASSWORD_RESET_DISABLED", "password reset is not enabled")
+	}
+	if s.emailService == nil {
+		return ErrServiceUnavailable
+	}
+	if err := s.emailService.VerifyCode(ctx, email, verifyCode); err != nil {
+		return err
+	}
+	return s.updatePasswordAfterReset(ctx, email, newPassword)
+}
+
 // ResetPassword 重置密码
 // Security: Increments TokenVersion to invalidate all existing JWT tokens
 func (s *AuthService) ResetPassword(ctx context.Context, email, token, newPassword string) error {
@@ -1519,6 +1557,10 @@ func (s *AuthService) ResetPassword(ctx context.Context, email, token, newPasswo
 		return err
 	}
 
+	return s.updatePasswordAfterReset(ctx, email, newPassword)
+}
+
+func (s *AuthService) updatePasswordAfterReset(ctx context.Context, email, newPassword string) error {
 	// Get user
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {
