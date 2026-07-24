@@ -224,27 +224,19 @@ describe('admin page-level TOTP dialogs', () => {
     })
 
     const Harness = defineComponent({
-      components: { BulkUserActionDialog, TotpStepUpDialog },
-      setup() {
-        return { controller: useStepUp() }
-      },
+      components: { BulkUserActionDialog },
       template: `
         <BulkUserActionDialog
           :show="true"
           :selected-ids="[19]"
           action="disable"
-          :step-up="controller"
         />
-        <TotpStepUpDialog :controller="controller" />
       `,
     })
 
     const mounted = attach(Harness)
     wrapper = mounted.wrapper
     await flushPromises()
-    expect(wrapper.findComponent(BulkUserActionDialog).props('stepUp')).toBe(
-      (wrapper.vm as unknown as { controller: ReturnType<typeof useStepUp> }).controller,
-    )
     setInput('[data-test="reason"]', 'confirmed automated registration abuse')
     await nextTick()
     findButton('admin.users.bulkActions.preview').click()
@@ -252,9 +244,6 @@ describe('admin page-level TOTP dialogs', () => {
     findButton('admin.users.bulkActions.confirmDisable').click()
     await flushPromises()
 
-    expect(
-      (wrapper.vm as unknown as { controller: ReturnType<typeof useStepUp> }).controller.visible.value,
-    ).toBe(false)
     expect(stepUp).not.toHaveBeenCalled()
     expect(executeBatchAction).toHaveBeenCalledTimes(1)
     expect(executeBatchAction).toHaveBeenLastCalledWith({

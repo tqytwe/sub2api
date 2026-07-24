@@ -27,7 +27,6 @@
     "HMAC-signed preview token",
     "protected administrator skipped",
     "stale preview",
-    "step-up required",
     "execution partial success",
     "failed-user retry selection",
     "execution complete"
@@ -64,7 +63,7 @@
   "checks": {
     "keyboard": {
       "status": "passed",
-      "reason": "The implementation reuses BaseDialog and TotpStepUpDialog focus ownership, and component tests exercise the preview and step-up execution path."
+      "reason": "The implementation reuses BaseDialog focus ownership, and component tests exercise the preview and direct execution path without opening a TOTP prompt."
     },
     "reduced_motion": {
       "status": "passed",
@@ -73,7 +72,7 @@
   },
   "residual_risks": [
     "The prototype artifacts are browser-rendered static review boards, not authenticated product screenshots.",
-    "Final administrator acceptance must select users across pages, preview both actions, complete TOTP, and verify complete and partial-result states in the user's production browser."
+    "Final administrator acceptance must select users across pages, preview both actions, execute without a TOTP prompt, and verify complete and partial-result states in the user's production browser."
   ]
 }
 -->
@@ -83,7 +82,7 @@
 - Route: `/admin/users`.
 - Roles: administrator only.
 - Languages and themes: Chinese and English strings with existing light and dark semantic tokens.
-- Behavior: explicit cross-page user IDs only, maximum 500 users, HMAC-signed server-side preview, administrator protection, TOTP step-up, per-user execution results and retry-safe selection refresh.
+- Behavior: explicit cross-page user IDs only, maximum 500 users, HMAC-signed server-side preview, administrator protection, no TOTP prompt for user batch disable/delete, per-user execution results and retry-safe selection refresh.
 
 ## Baseline
 
@@ -102,8 +101,8 @@ The selected-state toolbar keeps the current operational density and adds two ad
 
 ## Reuse Decision
 
-- Reuse `AppLayout`, `TablePageLayout`, `DataTable`, `BaseDialog`, `TotpStepUpDialog`, `Icon`, buttons, inputs, badges, toast and `useTableSelection`.
-- Add one user-domain dialog component because preview, typed delete confirmation, TOTP and partial results are a coherent reusable flow.
+- Reuse `AppLayout`, `TablePageLayout`, `DataTable`, `BaseDialog`, `Icon`, buttons, inputs, badges, toast and `useTableSelection`.
+- Add one user-domain dialog component because preview, typed delete confirmation and partial results are a coherent reusable flow.
 - No design-system exception is required.
 
 ## State Coverage
@@ -115,7 +114,7 @@ The selected-state toolbar keeps the current operational density and adds two ad
 - Protected: administrators are listed as skipped and can never be executed.
 - Stale: a changed selection or server `409` invalidates the preview and asks for a new one.
 - Success and partial success: completed, skipped and failed IDs remain visible before the dialog closes; failed IDs stay selected after refresh for a direct retry.
-- Step-up: both destructive actions use the shared TOTP dialog before execution.
+- Step-up: user batch disable/delete execute directly after the signed impact preview; funds, role elevation and IP-risk sensitive actions keep their shared TOTP step-up flows.
 
 ## Viewport Coverage
 
