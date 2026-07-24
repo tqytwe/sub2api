@@ -132,30 +132,34 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 }
 
 type imageStudioBillingReconciliationCommand struct {
-	RequestID           string  `json:"request_id"`
-	APIKeyID            int64   `json:"api_key_id"`
-	UserID              int64   `json:"user_id"`
-	AccountID           int64   `json:"account_id"`
-	SubscriptionID      *int64  `json:"subscription_id,omitempty"`
-	AccountType         string  `json:"account_type,omitempty"`
-	Model               string  `json:"model,omitempty"`
-	ServiceTier         string  `json:"service_tier,omitempty"`
-	ReasoningEffort     string  `json:"reasoning_effort,omitempty"`
-	BillingType         int8    `json:"billing_type"`
-	InputTokens         int     `json:"input_tokens"`
-	OutputTokens        int     `json:"output_tokens"`
-	CacheCreationTokens int     `json:"cache_creation_tokens"`
-	CacheReadTokens     int     `json:"cache_read_tokens"`
-	ImageCount          int     `json:"image_count"`
-	MediaType           string  `json:"media_type,omitempty"`
-	ActualCost          float64 `json:"actual_cost"`
-	BalanceCost         float64 `json:"balance_cost"`
-	SubscriptionCost    float64 `json:"subscription_cost"`
-	APIKeyQuotaCost     float64 `json:"api_key_quota_cost"`
-	APIKeyRateLimitCost float64 `json:"api_key_rate_limit_cost"`
-	AccountQuotaCost    float64 `json:"account_quota_cost"`
-	RequestPayloadHash  string  `json:"request_payload_hash,omitempty"`
-	RequestFingerprint  string  `json:"request_fingerprint"`
+	RequestID             string  `json:"request_id"`
+	APIKeyID              int64   `json:"api_key_id"`
+	UserID                int64   `json:"user_id"`
+	AccountID             int64   `json:"account_id"`
+	SubscriptionID        *int64  `json:"subscription_id,omitempty"`
+	AccountType           string  `json:"account_type,omitempty"`
+	Model                 string  `json:"model,omitempty"`
+	ServiceTier           string  `json:"service_tier,omitempty"`
+	ReasoningEffort       string  `json:"reasoning_effort,omitempty"`
+	BillingType           int8    `json:"billing_type"`
+	InputTokens           int     `json:"input_tokens"`
+	OutputTokens          int     `json:"output_tokens"`
+	CacheCreationTokens   int     `json:"cache_creation_tokens"`
+	CacheReadTokens       int     `json:"cache_read_tokens"`
+	ImageCount            int     `json:"image_count"`
+	MediaType             string  `json:"media_type,omitempty"`
+	ActualCost            float64 `json:"actual_cost"`
+	BillingSurchargeCost  float64 `json:"billing_surcharge_cost,omitempty"`
+	BilledCost            float64 `json:"billed_cost,omitempty"`
+	BillingSurchargeMode  string  `json:"billing_surcharge_mode,omitempty"`
+	BillingSurchargeValue float64 `json:"billing_surcharge_value,omitempty"`
+	BalanceCost           float64 `json:"balance_cost"`
+	SubscriptionCost      float64 `json:"subscription_cost"`
+	APIKeyQuotaCost       float64 `json:"api_key_quota_cost"`
+	APIKeyRateLimitCost   float64 `json:"api_key_rate_limit_cost"`
+	AccountQuotaCost      float64 `json:"account_quota_cost"`
+	RequestPayloadHash    string  `json:"request_payload_hash,omitempty"`
+	RequestFingerprint    string  `json:"request_fingerprint"`
 }
 
 func marshalImageStudioBillingReconciliationCommand(cmd *service.UsageBillingCommand) ([]byte, error) {
@@ -163,30 +167,34 @@ func marshalImageStudioBillingReconciliationCommand(cmd *service.UsageBillingCom
 		return nil, errors.New("usage billing command is nil")
 	}
 	return json.Marshal(imageStudioBillingReconciliationCommand{
-		RequestID:           cmd.RequestID,
-		APIKeyID:            cmd.APIKeyID,
-		UserID:              cmd.UserID,
-		AccountID:           cmd.AccountID,
-		SubscriptionID:      cmd.SubscriptionID,
-		AccountType:         cmd.AccountType,
-		Model:               cmd.Model,
-		ServiceTier:         cmd.ServiceTier,
-		ReasoningEffort:     cmd.ReasoningEffort,
-		BillingType:         cmd.BillingType,
-		InputTokens:         cmd.InputTokens,
-		OutputTokens:        cmd.OutputTokens,
-		CacheCreationTokens: cmd.CacheCreationTokens,
-		CacheReadTokens:     cmd.CacheReadTokens,
-		ImageCount:          cmd.ImageCount,
-		MediaType:           cmd.MediaType,
-		ActualCost:          cmd.ActualCost,
-		BalanceCost:         cmd.BalanceCost,
-		SubscriptionCost:    cmd.SubscriptionCost,
-		APIKeyQuotaCost:     cmd.APIKeyQuotaCost,
-		APIKeyRateLimitCost: cmd.APIKeyRateLimitCost,
-		AccountQuotaCost:    cmd.AccountQuotaCost,
-		RequestPayloadHash:  cmd.RequestPayloadHash,
-		RequestFingerprint:  cmd.RequestFingerprint,
+		RequestID:             cmd.RequestID,
+		APIKeyID:              cmd.APIKeyID,
+		UserID:                cmd.UserID,
+		AccountID:             cmd.AccountID,
+		SubscriptionID:        cmd.SubscriptionID,
+		AccountType:           cmd.AccountType,
+		Model:                 cmd.Model,
+		ServiceTier:           cmd.ServiceTier,
+		ReasoningEffort:       cmd.ReasoningEffort,
+		BillingType:           cmd.BillingType,
+		InputTokens:           cmd.InputTokens,
+		OutputTokens:          cmd.OutputTokens,
+		CacheCreationTokens:   cmd.CacheCreationTokens,
+		CacheReadTokens:       cmd.CacheReadTokens,
+		ImageCount:            cmd.ImageCount,
+		MediaType:             cmd.MediaType,
+		ActualCost:            cmd.ActualCost,
+		BillingSurchargeCost:  cmd.BillingSurchargeCost,
+		BilledCost:            cmd.BilledCost,
+		BillingSurchargeMode:  cmd.BillingSurchargeMode,
+		BillingSurchargeValue: cmd.BillingSurchargeValue,
+		BalanceCost:           cmd.BalanceCost,
+		SubscriptionCost:      cmd.SubscriptionCost,
+		APIKeyQuotaCost:       cmd.APIKeyQuotaCost,
+		APIKeyRateLimitCost:   cmd.APIKeyRateLimitCost,
+		AccountQuotaCost:      cmd.AccountQuotaCost,
+		RequestPayloadHash:    cmd.RequestPayloadHash,
+		RequestFingerprint:    cmd.RequestFingerprint,
 	})
 }
 
@@ -396,30 +404,34 @@ func unmarshalImageStudioBillingReconciliationCommand(payload []byte) (*service.
 		return nil, err
 	}
 	cmd := &service.UsageBillingCommand{
-		RequestID:           stored.RequestID,
-		APIKeyID:            stored.APIKeyID,
-		UserID:              stored.UserID,
-		AccountID:           stored.AccountID,
-		SubscriptionID:      stored.SubscriptionID,
-		AccountType:         stored.AccountType,
-		Model:               stored.Model,
-		ServiceTier:         stored.ServiceTier,
-		ReasoningEffort:     stored.ReasoningEffort,
-		BillingType:         stored.BillingType,
-		InputTokens:         stored.InputTokens,
-		OutputTokens:        stored.OutputTokens,
-		CacheCreationTokens: stored.CacheCreationTokens,
-		CacheReadTokens:     stored.CacheReadTokens,
-		ImageCount:          stored.ImageCount,
-		MediaType:           stored.MediaType,
-		ActualCost:          stored.ActualCost,
-		BalanceCost:         stored.BalanceCost,
-		SubscriptionCost:    stored.SubscriptionCost,
-		APIKeyQuotaCost:     stored.APIKeyQuotaCost,
-		APIKeyRateLimitCost: stored.APIKeyRateLimitCost,
-		AccountQuotaCost:    stored.AccountQuotaCost,
-		RequestPayloadHash:  stored.RequestPayloadHash,
-		RequestFingerprint:  stored.RequestFingerprint,
+		RequestID:             stored.RequestID,
+		APIKeyID:              stored.APIKeyID,
+		UserID:                stored.UserID,
+		AccountID:             stored.AccountID,
+		SubscriptionID:        stored.SubscriptionID,
+		AccountType:           stored.AccountType,
+		Model:                 stored.Model,
+		ServiceTier:           stored.ServiceTier,
+		ReasoningEffort:       stored.ReasoningEffort,
+		BillingType:           stored.BillingType,
+		InputTokens:           stored.InputTokens,
+		OutputTokens:          stored.OutputTokens,
+		CacheCreationTokens:   stored.CacheCreationTokens,
+		CacheReadTokens:       stored.CacheReadTokens,
+		ImageCount:            stored.ImageCount,
+		MediaType:             stored.MediaType,
+		ActualCost:            stored.ActualCost,
+		BillingSurchargeCost:  stored.BillingSurchargeCost,
+		BilledCost:            stored.BilledCost,
+		BillingSurchargeMode:  stored.BillingSurchargeMode,
+		BillingSurchargeValue: stored.BillingSurchargeValue,
+		BalanceCost:           stored.BalanceCost,
+		SubscriptionCost:      stored.SubscriptionCost,
+		APIKeyQuotaCost:       stored.APIKeyQuotaCost,
+		APIKeyRateLimitCost:   stored.APIKeyRateLimitCost,
+		AccountQuotaCost:      stored.AccountQuotaCost,
+		RequestPayloadHash:    stored.RequestPayloadHash,
+		RequestFingerprint:    stored.RequestFingerprint,
 	}
 	cmd.Normalize()
 	if cmd.RequestID == "" || cmd.APIKeyID <= 0 || cmd.RequestFingerprint == "" {
@@ -758,24 +770,28 @@ func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context
 		ActorType:      service.BalanceLedgerActorSystem,
 		Description:    "API 消耗扣费",
 		Metadata: map[string]any{
-			"request_id":            strings.TrimSpace(cmd.RequestID),
-			"api_key_id":            cmd.APIKeyID,
-			"account_id":            cmd.AccountID,
-			"subscription_id":       cmd.SubscriptionID,
-			"account_type":          strings.TrimSpace(cmd.AccountType),
-			"model":                 strings.TrimSpace(cmd.Model),
-			"service_tier":          strings.TrimSpace(cmd.ServiceTier),
-			"reasoning_effort":      strings.TrimSpace(cmd.ReasoningEffort),
-			"billing_type":          cmd.BillingType,
-			"actual_cost":           cmd.ActualCost,
-			"balance_cost":          cmd.BalanceCost,
-			"input_tokens":          cmd.InputTokens,
-			"output_tokens":         cmd.OutputTokens,
-			"cache_creation_tokens": cmd.CacheCreationTokens,
-			"cache_read_tokens":     cmd.CacheReadTokens,
-			"image_count":           cmd.ImageCount,
-			"media_type":            strings.TrimSpace(cmd.MediaType),
-			"request_payload_hash":  strings.TrimSpace(cmd.RequestPayloadHash),
+			"request_id":              strings.TrimSpace(cmd.RequestID),
+			"api_key_id":              cmd.APIKeyID,
+			"account_id":              cmd.AccountID,
+			"subscription_id":         cmd.SubscriptionID,
+			"account_type":            strings.TrimSpace(cmd.AccountType),
+			"model":                   strings.TrimSpace(cmd.Model),
+			"service_tier":            strings.TrimSpace(cmd.ServiceTier),
+			"reasoning_effort":        strings.TrimSpace(cmd.ReasoningEffort),
+			"billing_type":            cmd.BillingType,
+			"actual_cost":             cmd.ActualCost,
+			"billing_surcharge_cost":  cmd.BillingSurchargeCost,
+			"billed_cost":             cmd.BilledCost,
+			"billing_surcharge_mode":  strings.TrimSpace(cmd.BillingSurchargeMode),
+			"billing_surcharge_value": cmd.BillingSurchargeValue,
+			"balance_cost":            cmd.BalanceCost,
+			"input_tokens":            cmd.InputTokens,
+			"output_tokens":           cmd.OutputTokens,
+			"cache_creation_tokens":   cmd.CacheCreationTokens,
+			"cache_read_tokens":       cmd.CacheReadTokens,
+			"image_count":             cmd.ImageCount,
+			"media_type":              strings.TrimSpace(cmd.MediaType),
+			"request_payload_hash":    strings.TrimSpace(cmd.RequestPayloadHash),
 		},
 		BalancePolicy: service.BalanceLedgerPolicyAllowOverdraft,
 	})

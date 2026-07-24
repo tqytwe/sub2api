@@ -35,7 +35,7 @@ func (r *resolverCatalogRepoStub) GetCatalogPricing(context.Context, string) (*S
 	return r.entry, nil
 }
 
-func TestResolve_SiteCatalogPriceWinsOverLegacyFallback(t *testing.T) {
+func TestResolve_SiteCatalogPriceDoesNotAffectBilling(t *testing.T) {
 	bs := newTestBillingServiceForResolver()
 	bs.fallbackPrices["claude-sonnet-4"].InputPricePerTokenPriority = 6e-6
 	bs.fallbackPrices["claude-sonnet-4"].LongContextInputThreshold = 200000
@@ -53,18 +53,18 @@ func TestResolve_SiteCatalogPriceWinsOverLegacyFallback(t *testing.T) {
 
 	resolved := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4"})
 
-	require.Equal(t, PricingSourceCatalog, resolved.Source)
+	require.Equal(t, PricingSourceLiteLLM, resolved.Source)
 	require.NotNil(t, resolved.BasePricing)
-	require.InDelta(t, siteInput, resolved.BasePricing.InputPricePerToken, 1e-12)
-	require.InDelta(t, siteOutput, resolved.BasePricing.OutputPricePerToken, 1e-12)
+	require.InDelta(t, 3e-6, resolved.BasePricing.InputPricePerToken, 1e-12)
+	require.InDelta(t, 15e-6, resolved.BasePricing.OutputPricePerToken, 1e-12)
 	require.InDelta(t, 6e-6, resolved.BasePricing.InputPricePerTokenPriority, 1e-12)
 	require.Equal(t, 200000, resolved.BasePricing.LongContextInputThreshold)
 	require.InDelta(t, 2.0, resolved.BasePricing.LongContextInputMultiplier, 1e-12)
-	require.Equal(t, 1, repo.calls)
+	require.Equal(t, 0, repo.calls)
 
 	second := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4"})
-	require.Equal(t, PricingSourceCatalog, second.Source)
-	require.Equal(t, 1, repo.calls, "catalog pricing should use the short-lived resolver cache")
+	require.Equal(t, PricingSourceLiteLLM, second.Source)
+	require.Equal(t, 0, repo.calls, "catalog display pricing must not be queried for billing")
 }
 
 func TestResolve_UncataloguedModelKeepsLegacyFallback(t *testing.T) {

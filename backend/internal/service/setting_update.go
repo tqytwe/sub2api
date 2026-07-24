@@ -79,6 +79,13 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	if err := s.normalizeOpenAIAdvancedSchedulerOverrides(settings); err != nil {
 		return nil, err
 	}
+	if settings.BillingSurchargeValue < 0 || math.IsNaN(settings.BillingSurchargeValue) || math.IsInf(settings.BillingSurchargeValue, 0) {
+		return nil, infraerrors.BadRequest("INVALID_BILLING_SURCHARGE_VALUE", "billing_surcharge_value must be >= 0")
+	}
+	settings.BillingSurchargeMode = NormalizeBillingSurchargeMode(settings.BillingSurchargeMode)
+	if settings.BillingSurchargeEnabled && settings.BillingSurchargeMode == BillingSurchargeModeNone {
+		return nil, infraerrors.BadRequest("INVALID_BILLING_SURCHARGE_MODE", "billing_surcharge_mode must be percent_on_charged_cost or additive_multiplier when enabled")
+	}
 	settings.PaymentVisibleMethodAlipaySource = alipaySource
 	settings.PaymentVisibleMethodWxpaySource = wxpaySource
 	settings.WeChatConnectAppID = strings.TrimSpace(settings.WeChatConnectAppID)
@@ -429,6 +436,9 @@ func (s *SettingService) buildSystemSettingsUpdates(ctx context.Context, setting
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightUpstreamCost] = settings.OpenAIAdvancedSchedulerWeightUpstreamCost
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightPreviousResponse] = settings.OpenAIAdvancedSchedulerWeightPreviousResponse
 	updates[SettingKeyOpenAIAdvancedSchedulerWeightSessionSticky] = settings.OpenAIAdvancedSchedulerWeightSessionSticky
+	updates[SettingKeyBillingSurchargeEnabled] = strconv.FormatBool(settings.BillingSurchargeEnabled)
+	updates[SettingKeyBillingSurchargeMode] = settings.BillingSurchargeMode
+	updates[SettingKeyBillingSurchargeValue] = strconv.FormatFloat(settings.BillingSurchargeValue, 'f', -1, 64)
 
 	// 余额、订阅到期与账号限额通知
 	updates[SettingKeyBalanceLowNotifyEnabled] = strconv.FormatBool(settings.BalanceLowNotifyEnabled)

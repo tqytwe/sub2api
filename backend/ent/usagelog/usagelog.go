@@ -64,6 +64,14 @@ const (
 	FieldTotalCost = "total_cost"
 	// FieldActualCost holds the string denoting the actual_cost field in the database.
 	FieldActualCost = "actual_cost"
+	// FieldBillingSurchargeCost holds the string denoting the billing_surcharge_cost field in the database.
+	FieldBillingSurchargeCost = "billing_surcharge_cost"
+	// FieldBilledCost holds the string denoting the billed_cost field in the database.
+	FieldBilledCost = "billed_cost"
+	// FieldBillingSurchargeMode holds the string denoting the billing_surcharge_mode field in the database.
+	FieldBillingSurchargeMode = "billing_surcharge_mode"
+	// FieldBillingSurchargeValue holds the string denoting the billing_surcharge_value field in the database.
+	FieldBillingSurchargeValue = "billing_surcharge_value"
 	// FieldRateMultiplier holds the string denoting the rate_multiplier field in the database.
 	FieldRateMultiplier = "rate_multiplier"
 	// FieldLongContextBillingApplied holds the string denoting the long_context_billing_applied field in the database.
@@ -181,6 +189,10 @@ var Columns = []string{
 	FieldCacheReadCost,
 	FieldTotalCost,
 	FieldActualCost,
+	FieldBillingSurchargeCost,
+	FieldBilledCost,
+	FieldBillingSurchargeMode,
+	FieldBillingSurchargeValue,
 	FieldRateMultiplier,
 	FieldLongContextBillingApplied,
 	FieldAccountRateMultiplier,
@@ -252,6 +264,16 @@ var (
 	DefaultTotalCost float64
 	// DefaultActualCost holds the default value on creation for the "actual_cost" field.
 	DefaultActualCost float64
+	// DefaultBillingSurchargeCost holds the default value on creation for the "billing_surcharge_cost" field.
+	DefaultBillingSurchargeCost float64
+	// DefaultBilledCost holds the default value on creation for the "billed_cost" field.
+	DefaultBilledCost float64
+	// DefaultBillingSurchargeMode holds the default value on creation for the "billing_surcharge_mode" field.
+	DefaultBillingSurchargeMode string
+	// BillingSurchargeModeValidator is a validator for the "billing_surcharge_mode" field. It is called by the builders before save.
+	BillingSurchargeModeValidator func(string) error
+	// DefaultBillingSurchargeValue holds the default value on creation for the "billing_surcharge_value" field.
+	DefaultBillingSurchargeValue float64
 	// DefaultRateMultiplier holds the default value on creation for the "rate_multiplier" field.
 	DefaultRateMultiplier float64
 	// DefaultLongContextBillingApplied holds the default value on creation for the "long_context_billing_applied" field.
@@ -415,6 +437,26 @@ func ByTotalCost(opts ...sql.OrderTermOption) OrderOption {
 // ByActualCost orders the results by the actual_cost field.
 func ByActualCost(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldActualCost, opts...).ToFunc()
+}
+
+// ByBillingSurchargeCost orders the results by the billing_surcharge_cost field.
+func ByBillingSurchargeCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeCost, opts...).ToFunc()
+}
+
+// ByBilledCost orders the results by the billed_cost field.
+func ByBilledCost(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBilledCost, opts...).ToFunc()
+}
+
+// ByBillingSurchargeMode orders the results by the billing_surcharge_mode field.
+func ByBillingSurchargeMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeMode, opts...).ToFunc()
+}
+
+// ByBillingSurchargeValue orders the results by the billing_surcharge_value field.
+func ByBillingSurchargeValue(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBillingSurchargeValue, opts...).ToFunc()
 }
 
 // ByRateMultiplier orders the results by the rate_multiplier field.

@@ -50,6 +50,18 @@ const authPageSubtitle = computed(() => activeFamilyKey.value ? familySubtitle.v
 
 const isAuthMode = computed(() => authStore.isAuthenticated)
 
+interface PublicDisplayPricingRow {
+  name: string
+  platform: string
+  use_case: string
+  official_input_price: number | null
+  official_output_price: number | null
+  group_name: string | null
+  rate_multiplier: number
+  effective_input_price: number | null
+  effective_output_price: number | null
+}
+
 const showVipBadge = computed(
   () => authStore.isAuthenticated && (vip.value?.perks?.includes('models_vip_tag') ?? false),
 )
@@ -95,12 +107,39 @@ function rowMatchesFamily(row: { name: string; platform: string; use_case?: stri
 
 const filteredPublicRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = publicRows.value.filter(rowMatchesFamily)
+  const rows = publicRows.value.filter(rowMatchesFamily).flatMap<PublicDisplayPricingRow>((row) => {
+    if (row.groups?.length) {
+      return row.groups.map((group) => ({
+        name: row.name,
+        platform: row.platform,
+        use_case: row.use_case,
+        official_input_price: row.official_input_price,
+        official_output_price: row.official_output_price,
+        group_name: group.name,
+        rate_multiplier: group.rate_multiplier,
+        effective_input_price: group.effective_input_price,
+        effective_output_price: group.effective_output_price,
+      }))
+    }
+    return [{
+      name: row.name,
+      platform: row.platform,
+      use_case: row.use_case,
+      official_input_price: row.official_input_price,
+      official_output_price: row.official_output_price,
+      group_name: null,
+      rate_multiplier: row.rate_multiplier,
+      effective_input_price: row.our_input_price,
+      effective_output_price: row.our_output_price,
+    }]
+  })
   if (!q) return rows
   return rows.filter(
     (row) =>
       row.name.toLowerCase().includes(q) ||
-      row.platform.toLowerCase().includes(q),
+      row.platform.toLowerCase().includes(q) ||
+      (row.group_name ?? '').toLowerCase().includes(q) ||
+      row.use_case.toLowerCase().includes(q),
   )
 })
 
@@ -283,18 +322,25 @@ onMounted(() => {
             <tr>
               <th>{{ t('models.columns.model') }}</th>
               <th>{{ t('models.columns.platform') }}</th>
+              <th>{{ t('models.columns.useCase') }}</th>
+              <th>{{ t('models.columns.group') }}</th>
               <th colspan="2" class="models-price-group-head models-price-group-head-official">{{ t('models.columns.officialPrice') }}</th>
               <th colspan="2" class="models-price-group-head models-price-group-head-our">{{ t('models.columns.ourPrice') }}</th>
             </tr>
           </thead>
           <tbody>
-            <tr v-for="row in filteredPublicRows" :key="row.name">
+            <tr v-for="(row, idx) in filteredPublicRows" :key="`${row.name}-${row.platform}-${row.group_name ?? idx}`">
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
+              <td>{{ row.use_case }}</td>
+              <td>
+                <span v-if="row.group_name" class="models-group-badge">{{ groupBadge({ name: row.group_name, rate_multiplier: row.rate_multiplier }) }}</span>
+                <span v-else>—</span>
+              </td>
               <td class="models-price-official">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.official_input_price) }) }}</td>
               <td class="models-price-official">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.official_output_price) }) }}</td>
-              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.our_input_price) }) }}</td>
-              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.our_output_price) }) }}</td>
+              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.effective_input_price) }) }}</td>
+              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.effective_output_price) }) }}</td>
             </tr>
           </tbody>
         </table>

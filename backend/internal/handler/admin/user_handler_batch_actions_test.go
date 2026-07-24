@@ -27,7 +27,7 @@ func TestUserHandlerPreviewBatchActionReturnsImpact(t *testing.T) {
 		},
 		MissingUserIDs:    []int64{404},
 		AffectedAPIKeys:   2,
-			RequiresStepUp:    false,
+		RequiresStepUp:    false,
 		ConfirmationToken: "preview-token",
 		ExpiresAt:         time.Date(2026, 7, 24, 10, 5, 0, 0, time.UTC),
 	}

@@ -45,6 +45,20 @@ func (Group) Fields() []ent.Field {
 		field.Float("rate_multiplier").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(10,4)"}).
 			Default(1.0),
+		field.Bool("billing_surcharge_override_enabled").
+			Default(false).
+			Comment("是否覆盖全局内部手续费配置"),
+		field.Bool("billing_surcharge_enabled").
+			Default(false).
+			Comment("是否启用分组内部手续费；仅影响实际扣款，不改变展示倍率"),
+		field.String("billing_surcharge_mode").
+			MaxLen(32).
+			Default("none").
+			Comment("内部手续费模式：none/percent_on_charged_cost/additive_multiplier"),
+		field.Float("billing_surcharge_value").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(12,6)"}).
+			Default(0).
+			Comment("内部手续费值；按模式解释"),
 		// 高峰时段倍率（added by migration 158）
 		field.Bool("peak_rate_enabled").
 			Default(false).

@@ -85,6 +85,26 @@ func RateMultiplier(v float64) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldRateMultiplier, v))
 }
 
+// BillingSurchargeOverrideEnabled applies equality check predicate on the "billing_surcharge_override_enabled" field. It's identical to BillingSurchargeOverrideEnabledEQ.
+func BillingSurchargeOverrideEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeOverrideEnabled, v))
+}
+
+// BillingSurchargeEnabled applies equality check predicate on the "billing_surcharge_enabled" field. It's identical to BillingSurchargeEnabledEQ.
+func BillingSurchargeEnabled(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeEnabled, v))
+}
+
+// BillingSurchargeMode applies equality check predicate on the "billing_surcharge_mode" field. It's identical to BillingSurchargeModeEQ.
+func BillingSurchargeMode(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeValue applies equality check predicate on the "billing_surcharge_value" field. It's identical to BillingSurchargeValueEQ.
+func BillingSurchargeValue(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeValue, v))
+}
+
 // PeakRateEnabled applies equality check predicate on the "peak_rate_enabled" field. It's identical to PeakRateEnabledEQ.
 func PeakRateEnabled(v bool) predicate.Group {
 	return predicate.Group(sql.FieldEQ(FieldPeakRateEnabled, v))
@@ -588,6 +608,131 @@ func RateMultiplierLT(v float64) predicate.Group {
 // RateMultiplierLTE applies the LTE predicate on the "rate_multiplier" field.
 func RateMultiplierLTE(v float64) predicate.Group {
 	return predicate.Group(sql.FieldLTE(FieldRateMultiplier, v))
+}
+
+// BillingSurchargeOverrideEnabledEQ applies the EQ predicate on the "billing_surcharge_override_enabled" field.
+func BillingSurchargeOverrideEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeOverrideEnabled, v))
+}
+
+// BillingSurchargeOverrideEnabledNEQ applies the NEQ predicate on the "billing_surcharge_override_enabled" field.
+func BillingSurchargeOverrideEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBillingSurchargeOverrideEnabled, v))
+}
+
+// BillingSurchargeEnabledEQ applies the EQ predicate on the "billing_surcharge_enabled" field.
+func BillingSurchargeEnabledEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeEnabled, v))
+}
+
+// BillingSurchargeEnabledNEQ applies the NEQ predicate on the "billing_surcharge_enabled" field.
+func BillingSurchargeEnabledNEQ(v bool) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBillingSurchargeEnabled, v))
+}
+
+// BillingSurchargeModeEQ applies the EQ predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeNEQ applies the NEQ predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeNEQ(v string) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeIn applies the In predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldBillingSurchargeMode, vs...))
+}
+
+// BillingSurchargeModeNotIn applies the NotIn predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeNotIn(vs ...string) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldBillingSurchargeMode, vs...))
+}
+
+// BillingSurchargeModeGT applies the GT predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeGT(v string) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeGTE applies the GTE predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeGTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeLT applies the LT predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeLT(v string) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeLTE applies the LTE predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeLTE(v string) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeContains applies the Contains predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeContains(v string) predicate.Group {
+	return predicate.Group(sql.FieldContains(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeHasPrefix applies the HasPrefix predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeHasPrefix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasPrefix(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeHasSuffix applies the HasSuffix predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeHasSuffix(v string) predicate.Group {
+	return predicate.Group(sql.FieldHasSuffix(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeEqualFold applies the EqualFold predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeEqualFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldEqualFold(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeModeContainsFold applies the ContainsFold predicate on the "billing_surcharge_mode" field.
+func BillingSurchargeModeContainsFold(v string) predicate.Group {
+	return predicate.Group(sql.FieldContainsFold(FieldBillingSurchargeMode, v))
+}
+
+// BillingSurchargeValueEQ applies the EQ predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldEQ(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueNEQ applies the NEQ predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueNEQ(v float64) predicate.Group {
+	return predicate.Group(sql.FieldNEQ(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueIn applies the In predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldIn(FieldBillingSurchargeValue, vs...))
+}
+
+// BillingSurchargeValueNotIn applies the NotIn predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueNotIn(vs ...float64) predicate.Group {
+	return predicate.Group(sql.FieldNotIn(FieldBillingSurchargeValue, vs...))
+}
+
+// BillingSurchargeValueGT applies the GT predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueGT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGT(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueGTE applies the GTE predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueGTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldGTE(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueLT applies the LT predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueLT(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLT(FieldBillingSurchargeValue, v))
+}
+
+// BillingSurchargeValueLTE applies the LTE predicate on the "billing_surcharge_value" field.
+func BillingSurchargeValueLTE(v float64) predicate.Group {
+	return predicate.Group(sql.FieldLTE(FieldBillingSurchargeValue, v))
 }
 
 // PeakRateEnabledEQ applies the EQ predicate on the "peak_rate_enabled" field.

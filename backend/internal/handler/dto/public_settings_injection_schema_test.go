@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPublicSettingsInjectionPayload_SchemaDoesNotDrift guarantees the SSR
@@ -50,6 +51,14 @@ func TestPublicSettingsInjectionPayload_SchemaDoesNotDrift(t *testing.T) {
 			"add the field to PublicSettingsInjectionPayload (and GetPublicSettingsForInjection), or "+
 			"document the exclusion in dtoOnlyFields with a reason.", strings.Join(missing, ", "))
 	}
+}
+
+func TestPublicSettingsInjectionPayload_ContainsMarketplaceEnabled(t *testing.T) {
+	injection := jsonTags(reflect.TypeOf(service.PublicSettingsInjectionPayload{}))
+	dtoKeys := jsonTags(reflect.TypeOf(PublicSettings{}))
+
+	require.Contains(t, injection, "marketplace_enabled")
+	require.Contains(t, dtoKeys, "marketplace_enabled")
 }
 
 func jsonTags(t reflect.Type) map[string]struct{} {

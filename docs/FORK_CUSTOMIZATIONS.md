@@ -15,7 +15,7 @@
 | `FORK-NAV-002` | 用户侧栏和 Growth 导航 | active | integrity 脚本 + AppSidebar 测试 |
 | `FORK-PLAY-003` | Growth / Play 系统 | active | integrity 脚本 + Go/Vitest 测试 |
 | `FORK-IMAGE-004` | 图像工作室 | active | integrity 脚本 + Go/Vitest 测试 |
-| `FORK-PRICING-005` | 模型目录和价格优先级 | active | integrity 脚本 + Go 测试 |
+| `FORK-PRICING-005` | 模型目录展示价和计费隔离 | active | integrity 脚本 + Go 测试 |
 | `FORK-DEPLOY-006` | 分支与 Zeabur 部署 | active | integrity 脚本 |
 | `FORK-OAUTH-007` | OAuth Cookie 域共享 | active | Go 测试 |
 | `FORK-PUBLIC-008` | 公共页面与可见性 | active | integrity 脚本 + Go 测试 |
@@ -23,6 +23,7 @@
 | `FORK-BILLING-010` | 计费归属与充值联动 | active | integrity 脚本 + Go 测试 |
 | `FORK-IMAGE-011` | Images API、Gateway async 与 Batch 运行时 | active | integrity 脚本 + Go/Vitest/集成测试 |
 | `FORK-UI-012` | 前端设计系统与视觉治理 | active | design governance 脚本 + lint/typecheck/视觉检查 |
+| `FORK-MARKETPLACE-013` | AI 模型商城关闭态基础 | active | integrity 脚本 + Go/Vitest 测试 |
 | `FORK-RISK-013` | IP 风险检测与批量注册发现 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 | `FORK-ADMIN-014` | 管理员用户批量处置 | active | Go/Vitest/API contract 测试 |
 
@@ -80,10 +81,10 @@
 - 冲突策略：可吸收上游 Images 和队列实现改进，但不得恢复 data URL 伪装、无界 goroutine、半开启运行时、非原子终态、错误订阅计费或文档与生产能力不一致。
 - 验证：同步 Images、URL 所有权/过期、流式 URL、Gateway async CAS/lease/recovery、Batch readiness/provider/idempotency 的单元与真实 PostgreSQL/Redis 集成测试，公开文档/首页/Batch 前端测试；生产按 queue 先开、API 后开的两阶段流程提交真实 5 张和 10 张 Gemini Batch。
 
-## FORK-PRICING-005 模型目录和价格优先级
+## FORK-PRICING-005 模型目录展示价和计费隔离
 
 - 产品目的：区分外部官方参考价、本站参考价和真实扣费价，并让模型绑定明确的业务分组。
-- 不变量：官方价只用于对比；本站价优先于 legacy catalog fallback；渠道价仍是已配置渠道的实际基础；分组或用户倍率生成实付价；`group_ids=NULL` 才允许按平台兼容匹配，非空数组只能进入指定分组；刷新官方价不得覆盖手工本站价或渠道价。
+- 不变量：官方价和本站价只用于目录展示/对比，不参与真实扣费解析；真实扣费来源仍是渠道价、LiteLLM/官方 billing catalog 和 legacy fallback；分组或用户倍率只应用在真实基础价上；`group_ids=NULL` 才允许按平台兼容匹配，非空数组只能进入指定分组；刷新官方价不得覆盖手工本站展示价或渠道价。
 - 接口与数据：`site_model_catalog`、`group_ids`、`official_*`、`GET /public/model-pricing`、登录价目和 Admin model catalog APIs。
 - 关键位置：`backend/internal/service/model_catalog*`、`backend/internal/service/model_pricing_resolver.go`、`backend/internal/repository/model_catalog_repo.go`、`frontend/src/views/public/ModelsView.vue`、`frontend/src/views/admin/ModelCatalogView.vue`。
 - 冲突策略：上游模型能力可合入，但不得将公开参考价重新接入扣费，也不得用 platform 猜测覆盖显式分组绑定。
@@ -134,6 +135,14 @@
 - 关键位置：`frontend/src/views/public/`、`frontend/src/content/public-docs-data.zh.ts`、`backend/internal/service/public_model_catalog.go`、`backend/internal/service/setting_public.go`。
 - 冲突策略：上游公共设置字段变更需要合并到 DTO 和前端类型，但极速蹬可见性语义优先。
 - 验证：public model/catalog、public settings 和 teaser tests；游客、登录用户、管理员三种身份线上检查。
+
+## FORK-MARKETPLACE-013 AI 模型商城关闭态基础
+
+- 产品目的：为后续多商家模型商城建立默认关闭、可审计演进的控制面基础，同时保持现有网关、钱包、角色和公开页面行为不变。
+- 不变量：`marketplace_enabled` 只通过既有 DB settings 读取；独立 Marketplace runtime 在缺失、非法、读取失败或 service 未装配时一律关闭；公开 settings 使用包含该键的单次批量查询，缺失或非法值映射为 `false`，批量 repository error 直接向 API/SSR 传播，不伪造成功响应；API 与 SSR 注入在成功读取时传递同一个布尔值；前端 `FeatureFlags.marketplace` 必须是 opt-in；中文和英文 `marketplace` 资源树递归对称且叶子非空；关闭态使用 404 `MARKETPLACE_FEATURE_DISABLED`；CP1A 不向通用管理员 settings 写入口暴露该字段，不增加第三个全局用户角色，不注册 Marketplace 业务路由，不触碰网关、钱包或计费。
+- 关键位置：`backend/internal/service/marketplace_runtime.go`、`backend/internal/service/marketplace_errors.go`、`backend/internal/service/setting_public.go`、`backend/internal/handler/setting_handler.go`、`frontend/src/utils/featureFlags.ts`、`frontend/src/i18n/locales/zh.ts`、`frontend/src/i18n/locales/en.ts`。
+- 冲突策略：上游 public settings 结构变化必须同步吸收，但不得把缺值解释为启用、把前端隐藏当作安全边界，或通过全局 `users.role` 表达商家身份。
+- 验证：Marketplace runtime、public settings/API/SSR、稳定错误码、FeatureFlags、双语资源测试和 Fork Integrity；CP1A 无可见页面，不需要视觉验收。
 
 ## FORK-MIGRATION-009 自定义数据库迁移
 
@@ -192,6 +201,8 @@
 213_fund_management_batches.sql
 214_ip_risk_foundation.sql
 215_ip_risk_management.sql
+216_mobile_feedback.sql
+217_billing_surcharge_layer.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

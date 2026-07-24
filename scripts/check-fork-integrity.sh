@@ -97,7 +97,7 @@ echo "Checking fork registry and static invariants..."
 for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
-  FORK-IMAGE-011 FORK-UI-012 FORK-RISK-013; do
+  FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013 FORK-RISK-013 FORK-ADMIN-014; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -169,7 +169,7 @@ check_not_contains "FORK-IMAGE-011" "Zeabur stale app data path removed" "deploy
 
 check_file "FORK-PRICING-005" "model catalog service" "backend/internal/service/model_catalog_service.go"
 check_contains "FORK-PRICING-005" "explicit catalog group IDs" "backend/internal/service/model_catalog_types.go" 'GroupIDs                []int64    `json:"group_ids"`'
-check_contains "FORK-PRICING-005" "site catalog price precedence" "backend/internal/service/model_pricing_resolver.go" "firstCatalogPrice"
+check_contains "FORK-PRICING-005" "site catalog price is display-only" "backend/internal/service/model_pricing_resolver.go" "site catalog as display-only"
 
 check_contains "FORK-DEPLOY-006" "deployment defaults to play/main" "scripts/push-github-and-deploy.sh" 'BRANCH="${1:-play/main}"'
 check_contains "FORK-DEPLOY-006" "deployment rejects main" "scripts/push-github-and-deploy.sh" 'if [[ "$BRANCH" == "main" ]]'
@@ -232,6 +232,23 @@ check_contains "FORK-PUBLIC-008" "public model route" "backend/internal/server/r
 check_file "FORK-PUBLIC-008" "public docs content" "frontend/src/content/public-docs-data.zh.ts"
 check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/service/domain_constants.go" "SettingKeyPublicModelsEnabled"
 
+check_file "FORK-MARKETPLACE-013" "marketplace fail-closed runtime" "backend/internal/service/marketplace_runtime.go"
+check_file "FORK-MARKETPLACE-013" "marketplace stable errors" "backend/internal/service/marketplace_errors.go"
+check_regex "FORK-MARKETPLACE-013" "marketplace setting key" "backend/internal/service/domain_constants.go" '^[[:space:]]*SettingKeyMarketplaceEnabled[[:space:]]*=[[:space:]]*"marketplace_enabled"'
+check_contains "FORK-MARKETPLACE-013" "marketplace default is disabled" "backend/internal/service/setting_parse.go" 'SettingKeyMarketplaceEnabled: "false"'
+check_contains "FORK-MARKETPLACE-013" "public settings bulk reads marketplace key" "backend/internal/service/setting_public.go" "SettingKeyMarketplaceEnabled,"
+check_contains "FORK-MARKETPLACE-013" "public DTO exposes marketplace flag" "backend/internal/handler/dto/settings.go" 'MarketplaceEnabled'
+check_contains "FORK-MARKETPLACE-013" "public handler maps marketplace value" "backend/internal/handler/setting_handler.go" 'MarketplaceEnabled:'
+check_contains "FORK-MARKETPLACE-013" "frontend public settings type" "frontend/src/types/index.ts" 'marketplace_enabled: boolean'
+check_contains "FORK-MARKETPLACE-013" "frontend opt-in marketplace flag" "frontend/src/utils/featureFlags.ts" "marketplace: defineFlag"
+check_contains "FORK-MARKETPLACE-013" "Chinese marketplace locale" "frontend/src/i18n/locales/zh.ts" "marketplace:"
+check_contains "FORK-MARKETPLACE-013" "English marketplace locale" "frontend/src/i18n/locales/en.ts" "marketplace:"
+check_not_contains "FORK-MARKETPLACE-013" "generic settings update cannot write marketplace flag" "backend/internal/service/setting_update.go" "SettingKeyMarketplaceEnabled"
+check_not_contains "FORK-MARKETPLACE-013" "admin settings DTO excludes marketplace flag" "frontend/src/api/admin/settings.ts" "marketplace_enabled"
+check_file "FORK-MARKETPLACE-013" "marketplace scope contract tests" "backend/internal/service/marketplace_scope_contract_test.go"
+check_contains "FORK-MARKETPLACE-013" "global role allowlist is exact" "backend/internal/service/admin_user.go" 'supportedGlobalUserRoles = [2]string{RoleUser, RoleAdmin}'
+check_not_contains "FORK-MARKETPLACE-013" "user schema does not default to merchant" "backend/ent/schema/user.go" 'Default("merchant")'
+
 MIGRATIONS=(
   170_play_foundation.sql
   171_play_extended.sql
@@ -282,6 +299,8 @@ MIGRATIONS=(
   213_fund_management_batches.sql
   214_ip_risk_foundation.sql
   215_ip_risk_management.sql
+  216_mobile_feedback.sql
+  217_billing_surcharge_layer.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -319,7 +338,7 @@ run_check "FORK-OAUTH-007" "OAuth cookie domain unit test" \
 run_check "FORK-RISK-013" "IP risk privacy, auth capture, workbench actions and rollback tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/repository ./internal/server/middleware ./internal/handler/admin ./internal/server/routes ./migrations -run 'IPRisk|RiskMetadata|RiskEvent|SuccessfulLoginForwardsRiskEvent'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceWinsOverLegacyFallback|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceDoesNotAffectBilling|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
 run_check "FORK-BILLING-010" "withdrawable ledger and recompute tests" \
@@ -330,6 +349,8 @@ run_check "FORK-PLAY-003" "daily arena reward summary tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler ./migrations -run '^(TestDailyArena|TestArenaPeriodQueriesExpose|TestArenaDailyRewardSummaryRoute|TestPlayArenaDailyRewardSummaryMigrationContract)'"
 run_check "FORK-IMAGE-011" "Images async, URL and Batch runtime unit tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service ./internal/handler -run 'TestImageTask|TestImageRuntimesHealthGatewayAsync|TestAsyncImage|TestOpenAIImageResultServiceRewriteAndEnforceAPIKeyOwnership|TestOpenAIGatewayServiceForwardImages_(APIKeyStreamingURLStoresCompletedImage|OAuthStreamingTransformsEvents|StreamURLRequiresStorageBeforeUpstream)|TestBatchImage(RuntimeState|WorkerRuntime|ProviderRegistryFromConfig|PublicService_Submit)'"
+run_check "FORK-MARKETPLACE-013" "marketplace runtime, settings and error unit tests" \
+  bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/handler -run '^(TestMarketplace|TestSettingService_(GetPublicSettings.*Marketplace|InitializeDefaultSettings_DefaultsMarketplaceDisabled)|TestSettingHandler_GetPublicSettings_.*Marketplace)' && go test -count=1 ./internal/handler/dto -run '^TestPublicSettingsInjectionPayload_(ContainsMarketplaceEnabled|SchemaDoesNotDrift)$'"
 
 echo
 echo "Running protected frontend behaviors..."
@@ -353,6 +374,10 @@ run_check "FORK-BILLING-010" "wallet withdrawable transparency frontend tests" \
   pnpm --dir "$ROOT/frontend" exec vitest run \
     src/api/__tests__/wallet.spec.ts \
     src/views/user/__tests__/WalletView.spec.ts
+run_check "FORK-MARKETPLACE-013" "marketplace feature flag and bilingual locale tests" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/utils/__tests__/featureFlags.spec.ts \
+    src/i18n/__tests__/marketplaceLocales.spec.ts
 run_check "FORK-RISK-013" "IP risk routes, scanning, preview, stale, partial and rollback frontend tests" \
   pnpm --dir "$ROOT/frontend" exec vitest run \
     src/__tests__/ipRiskRouting.spec.ts \
