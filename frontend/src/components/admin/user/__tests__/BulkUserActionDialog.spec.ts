@@ -3,11 +3,9 @@ import { flushPromises, mount } from '@vue/test-utils'
 
 import BulkUserActionDialog from '../BulkUserActionDialog.vue'
 
-const { previewBatchAction, executeBatchAction, promptStepUp, runStepUp, showError } = vi.hoisted(() => ({
+const { previewBatchAction, executeBatchAction, showError } = vi.hoisted(() => ({
   previewBatchAction: vi.fn(),
   executeBatchAction: vi.fn(),
-  promptStepUp: vi.fn(),
-  runStepUp: vi.fn(async (action: () => Promise<unknown>) => action()),
   showError: vi.fn(),
 }))
 
@@ -18,18 +16,6 @@ vi.mock('@/api/admin', () => ({
       executeBatchAction,
     },
   },
-}))
-
-vi.mock('@/composables/useStepUp', () => ({
-  useStepUp: () => ({
-    visible: { value: false },
-    blockedReason: { value: '' },
-    prompt: vi.fn(),
-    onVerified: vi.fn(),
-    onCancel: vi.fn(),
-    run: runStepUp,
-  }),
-  isStepUpCancelled: () => false,
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -67,18 +53,9 @@ const preview = {
   expires_at: '2026-07-24T10:05:00Z',
 }
 
-const stepUp = {
-  visible: { value: false },
-  blockedReason: { value: '' },
-  prompt: promptStepUp,
-  onVerified: vi.fn(),
-  onCancel: vi.fn(),
-  run: runStepUp,
-}
-
 const mountDialog = (action: 'disable' | 'delete' = 'delete') =>
   mount(BulkUserActionDialog, {
-    props: { show: true, selectedIds: [1, 2, 404], action, stepUp },
+    props: { show: true, selectedIds: [1, 2, 404], action },
     global: {
       stubs: {
         BaseDialog: {
@@ -94,8 +71,6 @@ describe('BulkUserActionDialog', () => {
   beforeEach(() => {
     previewBatchAction.mockReset()
     executeBatchAction.mockReset()
-    promptStepUp.mockReset().mockResolvedValue(true)
-    runStepUp.mockClear()
     showError.mockReset()
     previewBatchAction.mockResolvedValue(preview)
     executeBatchAction.mockResolvedValue({
@@ -112,7 +87,7 @@ describe('BulkUserActionDialog', () => {
     })
   })
 
-  it('requires a reason, previews protected users and executes through step-up', async () => {
+  it('requires a reason, previews protected users and executes without step-up', async () => {
     const wrapper = mountDialog()
 
     expect(wrapper.get('[data-test="preview"]').attributes('disabled')).toBeDefined()
@@ -140,9 +115,6 @@ describe('BulkUserActionDialog', () => {
     await wrapper.get('[data-test="execute"]').trigger('click')
     await flushPromises()
 
-    expect(promptStepUp).not.toHaveBeenCalled()
-    expect(runStepUp).toHaveBeenCalledOnce()
-    expect(runStepUp).toHaveBeenCalledWith(expect.any(Function))
     expect(executeBatchAction).toHaveBeenCalledWith({
       action: 'delete',
       user_ids: [1, 2, 404],

@@ -6,7 +6,7 @@
     :close-on-click-outside="false"
     @close="close"
   >
-    <div class="space-y-5" :aria-busy="previewing || prompting || executing">
+    <div class="space-y-5" :aria-busy="previewing || executing">
       <div class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-dark-700 dark:bg-dark-900/40">
         <div>
           <div class="font-medium text-gray-900 dark:text-white">
@@ -131,13 +131,6 @@
             </span>
           </div>
         </div>
-        <div v-if="preview.requires_step_up" class="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800/60 dark:bg-blue-950/30 dark:text-blue-200">
-          <div class="flex gap-2">
-            <Icon name="lock" size="sm" class="mt-0.5 shrink-0" />
-            <span>{{ t('admin.users.bulkActions.stepUpRequired') }}</span>
-          </div>
-        </div>
-
         <div v-if="action === 'delete'" class="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800/60 dark:bg-red-950/30">
           <label class="input-label text-red-800 dark:text-red-200" for="bulk-user-delete-confirmation">
             {{ t('admin.users.bulkActions.deleteConfirmationLabel', { phrase: deleteConfirmationPhrase }) }}
@@ -241,7 +234,6 @@ import BaseDialog from '@/components/common/BaseDialog.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { adminAPI } from '@/api/admin'
 import { useAppStore } from '@/stores/app'
-import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorCode, extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
 import type {
@@ -254,7 +246,6 @@ const props = defineProps<{
   show: boolean
   selectedIds: number[]
   action: UserBatchAction
-  stepUp: StepUpController
 }>()
 
 const emit = defineEmits<{
@@ -269,7 +260,6 @@ const snapshotUserIds = ref<number[]>([])
 const reason = ref('')
 const deleteConfirmation = ref('')
 const previewing = ref(false)
-const prompting = ref(false)
 const executing = ref(false)
 const preview = ref<UserBatchActionPreview | null>(null)
 const result = ref<UserBatchActionResult | null>(null)
@@ -283,7 +273,6 @@ const dialogTitle = computed(() =>
 const selectionTooLarge = computed(() => snapshotUserIds.value.length > MAX_BATCH_USER_IDS)
 const canPreview = computed(() =>
   !previewing.value
-  && !prompting.value
   && !executing.value
   && snapshotUserIds.value.length > 0
   && !selectionTooLarge.value
@@ -337,7 +326,6 @@ const hiddenPreviewUserCount = computed(() =>
 const deleteConfirmationPhrase = computed(() => `DELETE ${preview.value?.eligible_users.length || 0}`)
 const canExecute = computed(() =>
   !!preview.value
-  && !prompting.value
   && !executing.value
   && preview.value.eligible_users.length > 0
   && (props.action !== 'delete' || deleteConfirmation.value === deleteConfirmationPhrase.value)
@@ -367,7 +355,6 @@ watch(
     preview.value = null
     result.value = null
     previewing.value = false
-    prompting.value = false
     executing.value = false
   },
   { immediate: true }
@@ -398,26 +385,16 @@ const createPreview = async () => {
 
 const execute = async () => {
   if (!canExecute.value || !preview.value) return
-  if (preview.value.requires_step_up) {
-    prompting.value = true
-    try {
-      if (!await props.stepUp.prompt()) return
-    } finally {
-      prompting.value = false
-    }
-  }
   executing.value = true
   try {
-    const execution = () => adminAPI.users.executeBatchAction({
+    result.value = await adminAPI.users.executeBatchAction({
       action: props.action,
       user_ids: snapshotUserIds.value,
       reason: reason.value.trim(),
       confirmation_token: preview.value!.confirmation_token,
     })
-    result.value = await props.stepUp.run(execution)
     emit('completed', result.value)
   } catch (error) {
-    if (isStepUpCancelled(error)) return
     const code = extractApiErrorCode(error)
     if (code === 'USER_BATCH_ACTION_PREVIEW_STALE' || code === 'USER_BATCH_ACTION_PREVIEW_EXPIRED') {
       invalidatePreview()
@@ -433,7 +410,7 @@ const execute = async () => {
 }
 
 const close = () => {
-  if (previewing.value || prompting.value || executing.value) return
+  if (previewing.value || executing.value) return
   emit('close')
 }
 </script>

@@ -120,7 +120,7 @@ const BulkEditUserModalStub = {
 }
 
 const BulkUserActionDialogStub = {
-  props: ['show', 'selectedIds', 'action', 'stepUp'],
+  props: ['show', 'selectedIds', 'action'],
   emits: ['close', 'completed'],
   template: `
     <div v-if="show" data-test="bulk-action-dialog">
@@ -137,11 +137,6 @@ const BulkUserActionDialogStub = {
       })">completed</button>
     </div>
   `
-}
-
-const TotpStepUpDialogStub = {
-  props: ['controller'],
-  template: '<div data-test="bulk-step-up-dialog"></div>'
 }
 
 describe('admin UsersView', () => {
@@ -192,7 +187,6 @@ describe('admin UsersView', () => {
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
           BulkUserActionDialog: BulkUserActionDialogStub,
-          TotpStepUpDialog: TotpStepUpDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -280,7 +274,6 @@ describe('admin UsersView', () => {
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
           BulkUserActionDialog: BulkUserActionDialogStub,
-          TotpStepUpDialog: TotpStepUpDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -360,7 +353,6 @@ describe('admin UsersView', () => {
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
           BulkUserActionDialog: BulkUserActionDialogStub,
-          TotpStepUpDialog: TotpStepUpDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -421,7 +413,6 @@ describe('admin UsersView', () => {
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
           BulkUserActionDialog: BulkUserActionDialogStub,
-          TotpStepUpDialog: TotpStepUpDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -440,9 +431,7 @@ describe('admin UsersView', () => {
     await wrapper.get('[data-test="select-42"]').trigger('click')
 
     await wrapper.get('[data-test="bulk-disable-users"]').trigger('click')
-    expect(wrapper.findComponent(BulkUserActionDialogStub).props('stepUp')).toBe(
-      wrapper.findComponent(TotpStepUpDialogStub).props('controller')
-    )
+    expect(wrapper.find('[data-test="bulk-step-up-dialog"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="bulk-action-dialog-action"]').text()).toBe('disable')
     expect(wrapper.get('[data-test="bulk-action-dialog-ids"]').text()).toBe('42')
 
@@ -458,7 +447,7 @@ describe('admin UsersView', () => {
 
   it('keeps failed users selected after a partial result so they can be retried', async () => {
     const PartialBulkUserActionDialogStub = {
-      props: ['show', 'selectedIds', 'action', 'stepUp'],
+      props: ['show', 'selectedIds', 'action'],
       emits: ['completed'],
       template: `
         <div v-if="show" data-test="bulk-action-dialog">
@@ -493,7 +482,6 @@ describe('admin UsersView', () => {
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
           BulkUserActionDialog: PartialBulkUserActionDialogStub,
-          TotpStepUpDialog: TotpStepUpDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
