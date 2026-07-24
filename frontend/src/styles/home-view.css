@@ -90,6 +90,24 @@
   }
 }
 
+@media (min-width: 1280px) {
+  .home-page .page-header .header-row {
+    max-width: 1440px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1119px) {
+  .home-page .header-nav .nav-link[data-nav-key="about"] {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-page .header-nav {
+    display: none;
+  }
+}
+
 .dark .home-page .nav-download {
   border-color: var(--ink);
   background: transparent;
