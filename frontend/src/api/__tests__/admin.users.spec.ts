@@ -11,12 +11,16 @@ vi.mock('@/api/client', () => ({
 }))
 
 import {
+  executeBatchAction,
   batchUpdateLimits,
   bindUserAuthIdentity,
+  previewBatchAction,
   type AdminBindAuthIdentityRequest,
   type AdminBoundAuthIdentity,
   type BatchUpdateUserLimitsRequest,
   type BatchUpdateUserLimitsResponse,
+  type UserBatchActionPreview,
+  type UserBatchActionResult,
 } from '@/api/admin/users'
 
 type Assert<T extends true> = T
@@ -146,5 +150,58 @@ describe('admin users api auth identity binding', () => {
     expect(result).toEqual({ affected: 2 })
     expect(batchRequestContractExact).toBe(true)
     expect(batchResponseContractExact).toBe(true)
+  })
+
+  it('previews and executes explicit user batch actions with the same request snapshot', async () => {
+    const request = {
+      action: 'delete' as const,
+      user_ids: [4, 7],
+      reason: 'confirmed abuse',
+    }
+    const preview: UserBatchActionPreview = {
+      action: 'delete',
+      requested_count: 2,
+      eligible_users: [
+        {
+          id: 4,
+          email: 'four@example.test',
+          role: 'user',
+          status: 'active',
+          api_key_count: 3,
+        },
+      ],
+      protected_administrators: [
+        {
+          id: 7,
+          email: 'admin@example.test',
+          role: 'admin',
+          status: 'active',
+          api_key_count: 0,
+        },
+      ],
+      already_disabled_users: [],
+      missing_user_ids: [],
+      affected_api_keys: 3,
+      requires_step_up: true,
+      confirmation_token: 'preview-token',
+      expires_at: '2026-07-24T10:05:00Z',
+    }
+    const result: UserBatchActionResult = {
+      action: 'delete',
+      status: 'completed',
+      requested_count: 2,
+      succeeded_user_ids: [4],
+      skipped: [{ user_id: 7, email: 'admin@example.test', reason: 'protected_administrator' }],
+      failed: [],
+      affected_api_keys: 3,
+    }
+    post.mockResolvedValueOnce({ data: preview }).mockResolvedValueOnce({ data: result })
+
+    expect(await previewBatchAction(request)).toEqual(preview)
+    expect(post).toHaveBeenNthCalledWith(1, '/admin/users/batch-actions/preview', request)
+
+    const executeRequest = { ...request, confirmation_token: preview.confirmation_token }
+    expect(await executeBatchAction(executeRequest)).toEqual(result)
+    expect(post).toHaveBeenNthCalledWith(2, '/admin/users/batch-actions', executeRequest)
   })
 })

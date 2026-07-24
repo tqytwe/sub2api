@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>用户批量禁用与删除原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --page: #f7f8fa;
+      --panel: #ffffff;
+      --sunken: #f3f4f6;
+      --text: #111827;
+      --secondary: #4b5563;
+      --muted: #6b7280;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --primary-soft: #eff6ff;
+      --danger: #dc2626;
+      --danger-soft: #fef2f2;
+      --warning: #b45309;
+      --warning-soft: #fffbeb;
+      --success: #047857;
+      --success-soft: #ecfdf5;
+      --shadow: 0 22px 60px rgba(15, 23, 42, .18);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--page);
+      color: var(--text);
+      font-family: "Noto Sans SC", "Microsoft YaHei", sans-serif;
+      font-size: 14px;
+    }
+    button, input, textarea { font: inherit; }
+    .shell { min-height: 100vh; display: grid; grid-template-columns: 232px 1fr; }
+    .sidebar {
+      padding: 20px 14px;
+      border-right: 1px solid var(--border);
+      background: #fff;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 22px; font-weight: 700; }
+    .logo { width: 30px; height: 30px; border-radius: 8px; background: #111827; color: #fff; display: grid; place-items: center; }
+    .nav { display: grid; gap: 4px; color: var(--secondary); }
+    .nav div { padding: 10px 12px; border-radius: 8px; }
+    .nav .active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .main { padding: 30px 32px 60px; min-width: 0; }
+    .heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 22px; }
+    h1 { margin: 0; font-size: 24px; line-height: 32px; }
+    .sub { margin-top: 5px; color: var(--muted); }
+    .toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px 8px 0 0;
+      background: var(--panel);
+    }
+    .search {
+      min-width: 230px;
+      flex: 1;
+      height: 40px;
+      padding: 0 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      background: #fff;
+      color: var(--muted);
+    }
+    .btn {
+      height: 40px;
+      padding: 0 14px;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      background: #fff;
+      color: #374151;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      white-space: nowrap;
+    }
+    .btn.primary { border-color: var(--primary); background: var(--primary); color: #fff; }
+    .btn.danger { border-color: var(--danger); background: var(--danger); color: #fff; }
+    .btn.danger-outline { border-color: #fecaca; color: var(--danger); background: #fff; }
+    .selected { color: var(--primary); font-weight: 600; padding: 0 4px; }
+    .table-wrap { overflow: hidden; border: 1px solid var(--border); border-top: 0; border-radius: 0 0 8px 8px; background: #fff; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 13px 14px; border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
+    th { background: #f9fafb; color: var(--muted); font-size: 12px; font-weight: 600; }
+    td { color: var(--secondary); }
+    tr:last-child td { border-bottom: 0; }
+    .check { width: 17px; height: 17px; accent-color: var(--primary); }
+    .user { display: flex; align-items: center; gap: 10px; color: var(--text); font-weight: 600; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; background: #dbeafe; color: #1d4ed8; display: grid; place-items: center; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 3px 8px; font-size: 12px; font-weight: 600; }
+    .active-badge { background: var(--success-soft); color: var(--success); }
+    .admin-badge { background: #f3e8ff; color: #7e22ce; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+    .overlay { position: fixed; inset: 0; z-index: 10; background: rgba(15, 23, 42, .52); display: grid; place-items: center; padding: 24px; }
+    .dialog {
+      width: min(820px, calc(100vw - 48px));
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      border-radius: 12px;
+      background: #fff;
+      box-shadow: var(--shadow);
+    }
+    .dialog-head, .dialog-foot { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 22px; }
+    .dialog-head { border-bottom: 1px solid var(--border); }
+    .dialog-head h2 { margin: 0; font-size: 18px; line-height: 26px; }
+    .dialog-body { padding: 20px 22px; display: grid; gap: 18px; }
+    .dialog-foot { position: sticky; bottom: 0; border-top: 1px solid var(--border); background: #fff; }
+    .summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--sunken);
+    }
+    .summary strong { font-size: 16px; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    label { display: block; margin-bottom: 7px; font-weight: 600; color: #374151; }
+    textarea, .confirm-input {
+      width: 100%;
+      border: 1px solid #d1d5db;
+      border-radius: 7px;
+      padding: 10px 12px;
+      color: var(--text);
+      background: #fff;
+    }
+    textarea { min-height: 78px; resize: none; }
+    .preview-title { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .preview-title h3 { margin: 0; font-size: 15px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .metric { padding: 12px; border: 1px solid var(--border); border-radius: 8px; }
+    .metric span { color: var(--muted); font-size: 12px; }
+    .metric strong { display: block; margin-top: 6px; font-size: 22px; font-variant-numeric: tabular-nums; }
+    .notice { padding: 12px 14px; border: 1px solid; border-radius: 8px; line-height: 1.55; }
+    .notice.warning { border-color: #fde68a; background: var(--warning-soft); color: #92400e; }
+    .notice.danger { border-color: #fecaca; background: var(--danger-soft); color: #991b1b; }
+    .impact {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .impact-row { display: grid; grid-template-columns: 1fr auto; gap: 12px; padding: 11px 13px; border-bottom: 1px solid var(--border); }
+    .impact-row:last-child { border-bottom: 0; }
+    .impact-row span:last-child { color: var(--muted); }
+    .mobile-only { display: none; }
+    .prototype-label {
+      position: fixed;
+      right: 18px;
+      bottom: 16px;
+      z-index: 20;
+      padding: 7px 10px;
+      border-radius: 6px;
+      background: #111827;
+      color: #fff;
+      font-size: 11px;
+      letter-spacing: .02em;
+    }
+    @media (max-width: 700px) {
+      .shell { display: block; }
+      .sidebar { display: none; }
+      .main { padding: 16px 14px 80px; }
+      .heading { align-items: center; margin-bottom: 14px; }
+      h1 { font-size: 21px; }
+      .sub { display: none; }
+      .toolbar { gap: 8px; padding: 10px; }
+      .search { min-width: 100%; }
+      .toolbar .btn { flex: 1; padding: 0 9px; }
+      .toolbar .muted-action { display: none; }
+      .selected { width: 100%; }
+      .table-wrap { border: 0; background: transparent; overflow: visible; }
+      table, thead, tbody, tr, th, td { display: block; }
+      thead { display: none; }
+      tr { position: relative; margin-top: 10px; padding: 14px 14px 12px 45px; border: 1px solid var(--border); border-radius: 8px; background: #fff; }
+      tr:nth-child(n+4) { display: none; }
+      td { padding: 3px 0; border: 0; white-space: normal; }
+      td:first-child { position: absolute; left: 14px; top: 18px; }
+      td:nth-child(3)::before { content: "角色  "; color: var(--muted); }
+      td:nth-child(4)::before { content: "状态  "; color: var(--muted); }
+      td:nth-child(n+5) { display: none; }
+      .overlay { padding: 0; place-items: stretch; }
+      .dialog { width: 100%; max-height: 100vh; min-height: 100vh; border-radius: 0; }
+      .dialog-head, .dialog-foot { padding: 16px; }
+      .dialog-body { padding: 16px; gap: 16px; }
+      .summary { align-items: flex-start; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .dialog-foot { margin-top: auto; flex-direction: column-reverse; align-items: stretch; }
+      .dialog-foot > div { display: flex; gap: 8px; }
+      .dialog-foot .btn { flex: 1; }
+      .desktop-only { display: none; }
+      .mobile-only { display: block; }
+      .prototype-label { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand"><span class="logo">J</span><span>极速蹬管理后台</span></div>
+      <div class="nav">
+        <div>仪表盘</div>
+        <div class="active">用户管理</div>
+        <div>API Key 管理</div>
+        <div>IP 管理</div>
+        <div>操作审计</div>
+      </div>
+    </aside>
+    <main class="main">
+      <div class="heading">
+        <div>
+          <h1>用户管理</h1>
+          <div class="sub">管理用户状态、额度、分组和 API Key</div>
+        </div>
+        <button class="btn primary">＋ 创建用户</button>
+      </div>
+      <section class="toolbar">
+        <div class="search">搜索邮箱、用户名或用户 ID</div>
+        <button class="btn muted-action">角色：全部</button>
+        <button class="btn muted-action">状态：全部</button>
+        <span class="selected">已选择 8 人</span>
+        <button class="btn muted-action">设置限制</button>
+        <button class="btn" id="disable-button">⊘ 批量禁用</button>
+        <button class="btn danger-outline" id="delete-button">删除 批量删除</button>
+      </section>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th><input class="check" type="checkbox" checked></th><th>用户</th><th>角色</th><th>状态</th><th>余额</th><th>API Key</th><th>注册时间</th></tr>
+          </thead>
+          <tbody>
+            <tr><td><input class="check" type="checkbox" checked></td><td><span class="user"><span class="avatar">L</span>lin.001@example.test</span></td><td>普通用户</td><td><span class="badge active-badge"><span class="dot"></span>正常</span></td><td>$0.42</td><td>3</td><td>2026-07-24 09:12</td></tr>
+            <tr><td><input class="check" type="checkbox" checked></td><td><span class="user"><span class="avatar">L</span>lin.002@example.test</span></td><td>普通用户</td><td><span class="badge active-badge"><span class="dot"></span>正常</span></td><td>$0.00</td><td>1</td><td>2026-07-24 09:14</td></tr>
+            <tr><td><input class="check" type="checkbox" checked></td><td><span class="user"><span class="avatar">O</span>ops@example.test</span></td><td><span class="badge admin-badge">管理员</span></td><td><span class="badge active-badge"><span class="dot"></span>正常</span></td><td>$25.00</td><td>2</td><td>2025-12-08 18:30</td></tr>
+            <tr><td><input class="check" type="checkbox" checked></td><td><span class="user"><span class="avatar">L</span>lin.003@example.test</span></td><td>普通用户</td><td><span class="badge active-badge"><span class="dot"></span>正常</span></td><td>$0.18</td><td>2</td><td>2026-07-24 09:16</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="overlay" id="preview">
+    <section class="dialog" role="dialog" aria-modal="true" aria-labelledby="dialog-title">
+      <header class="dialog-head">
+        <div>
+          <h2 id="dialog-title">批量删除用户</h2>
+          <div class="hint">删除前先确认受影响账号和 API Key</div>
+        </div>
+        <button class="btn" aria-label="关闭">关闭</button>
+      </header>
+      <div class="dialog-body">
+        <div class="summary">
+          <div>
+            <strong>已选择 8 个用户</strong>
+            <div class="hint">管理员和状态已变化的用户会被安全跳过</div>
+          </div>
+          <span class="badge active-badge">影响预览已生成</span>
+        </div>
+
+        <div>
+          <label for="reason">处置原因</label>
+          <textarea id="reason">确认这些账号违反平台使用规则，批量删除并停用其全部 API Key。</textarea>
+          <div class="hint">原因将写入管理员审计日志，最多 1000 字。</div>
+        </div>
+
+        <section>
+          <div class="preview-title">
+            <h3>影响预览</h3>
+            <span class="hint">5 分钟内有效 · 数据变化后需重新预览</span>
+          </div>
+          <div class="metrics">
+            <div class="metric"><span>可删除用户</span><strong>6</strong></div>
+            <div class="metric"><span>受保护管理员</span><strong>1</strong></div>
+            <div class="metric"><span>不存在 / 已删除</span><strong>1</strong></div>
+            <div class="metric"><span>将删除 API Key</span><strong>11</strong></div>
+          </div>
+        </section>
+
+        <div class="notice warning">
+          <strong>1 个管理员账号已自动排除。</strong>
+          批量操作永远不会禁用或删除管理员；执行时会再次检查当前角色与状态。
+        </div>
+        <div class="impact">
+          <div class="impact-row"><span>lin.001@example.test</span><span>删除用户 · 3 个 Key</span></div>
+          <div class="impact-row"><span>lin.002@example.test</span><span>删除用户 · 1 个 Key</span></div>
+          <div class="impact-row"><span>ops@example.test</span><span>跳过 · 管理员保护</span></div>
+          <div class="impact-row"><span>其余 5 个选中用户</span><span>4 个可执行 · 1 个不存在</span></div>
+        </div>
+
+        <div class="notice danger">
+          <label for="confirmation">输入 <strong>DELETE 6</strong> 确认删除</label>
+          <input id="confirmation" class="confirm-input" value="DELETE 6">
+          <div class="hint">执行后用户和 Key 将软删除；操作需要管理员 TOTP 二次验证。</div>
+        </div>
+      </div>
+      <footer class="dialog-foot">
+        <span class="hint desktop-only">最多处理 500 个明确选择的用户，不支持按筛选条件全量删除。</span>
+        <div>
+          <button class="btn">取消</button>
+          <button class="btn danger">验证 TOTP 并删除 6 人</button>
+        </div>
+      </footer>
+    </section>
+  </div>
+  <div class="prototype-label">STATIC PROTOTYPE · FAKE USERS ONLY</div>
+  <script>
+    const params = new URLSearchParams(location.search)
+    const mode = params.get('mode') || 'preview'
+    if (mode === 'baseline') document.getElementById('preview').style.display = 'none'
+    if (mode === 'disable') {
+      document.getElementById('dialog-title').textContent = '批量禁用用户'
+      document.querySelector('.notice.danger').innerHTML =
+        '<strong>禁用后影响</strong><div class="hint">6 个正常用户将无法登录或继续调用 API；1 个已禁用用户和 1 个管理员会被跳过。操作需要管理员 TOTP 二次验证。</div>'
+      document.querySelector('.dialog-foot .danger').textContent = '验证 TOTP 并禁用 6 人'
+    }
+  </script>
+</body>
+</html>

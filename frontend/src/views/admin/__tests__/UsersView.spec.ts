@@ -119,6 +119,26 @@ const BulkEditUserModalStub = {
   `
 }
 
+const BulkUserActionDialogStub = {
+  props: ['show', 'selectedIds', 'action'],
+  emits: ['close', 'completed'],
+  template: `
+    <div v-if="show" data-test="bulk-action-dialog">
+      <span data-test="bulk-action-dialog-action">{{ action }}</span>
+      <span data-test="bulk-action-dialog-ids">{{ selectedIds.join(',') }}</span>
+      <button data-test="bulk-action-completed" @click="$emit('completed', {
+        action,
+        status: 'completed',
+        requested_count: selectedIds.length,
+        succeeded_user_ids: selectedIds,
+        skipped: [],
+        failed: [],
+        affected_api_keys: 0
+      })">completed</button>
+    </div>
+  `
+}
+
 describe('admin UsersView', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -166,6 +186,7 @@ describe('admin UsersView', () => {
           UserCreateModal: true,
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
+          BulkUserActionDialog: BulkUserActionDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -252,6 +273,7 @@ describe('admin UsersView', () => {
           UserCreateModal: true,
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
+          BulkUserActionDialog: BulkUserActionDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -330,6 +352,7 @@ describe('admin UsersView', () => {
           UserCreateModal: true,
           UserEditModal: true,
           BulkEditUserModal: BulkEditUserModalStub,
+          BulkUserActionDialog: BulkUserActionDialogStub,
           UserPlatformQuotaModal: true,
           UserApiKeysModal: true,
           UserAllowedGroupsModal: true,
@@ -368,5 +391,113 @@ describe('admin UsersView', () => {
     expect(wrapper.get('[data-test="row-order"]').text()).toBe('refreshed-page-two@example.com')
     expect(wrapper.find('[data-test="bulk-edit-limits"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
+  })
+
+  it('opens batch disable and delete for the explicit selected user IDs', async () => {
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          BulkEditUserModal: BulkEditUserModalStub,
+          BulkUserActionDialog: BulkUserActionDialogStub,
+          UserPlatformQuotaModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+    await flushPromises()
+
+    expect(wrapper.find('[data-test="bulk-disable-users"]').exists()).toBe(false)
+    expect(wrapper.find('[data-test="bulk-delete-users"]').exists()).toBe(false)
+    await wrapper.get('[data-test="select-42"]').trigger('click')
+
+    await wrapper.get('[data-test="bulk-disable-users"]').trigger('click')
+    expect(wrapper.get('[data-test="bulk-action-dialog-action"]').text()).toBe('disable')
+    expect(wrapper.get('[data-test="bulk-action-dialog-ids"]').text()).toBe('42')
+
+    await wrapper.get('[data-test="bulk-delete-users"]').trigger('click')
+    expect(wrapper.get('[data-test="bulk-action-dialog-action"]').text()).toBe('delete')
+
+    const callsBeforeCompleted = listUsers.mock.calls.length
+    await wrapper.get('[data-test="bulk-action-completed"]').trigger('click')
+    await flushPromises()
+    expect(listUsers.mock.calls.length).toBeGreaterThan(callsBeforeCompleted)
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
+  })
+
+  it('keeps failed users selected after a partial result so they can be retried', async () => {
+    const PartialBulkUserActionDialogStub = {
+      props: ['show', 'selectedIds', 'action'],
+      emits: ['completed'],
+      template: `
+        <div v-if="show" data-test="bulk-action-dialog">
+          <button data-test="bulk-action-partial" @click="$emit('completed', {
+            action,
+            status: 'partial',
+            requested_count: selectedIds.length,
+            succeeded_user_ids: [],
+            skipped: [],
+            failed: [{ user_id: 42, email: 'user@example.test', reason: 'operation_failed' }],
+            affected_api_keys: 0
+          })">partial</button>
+        </div>
+      `
+    }
+    const wrapper = mount(UsersView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          TablePageLayout: {
+            template: '<div><slot name="filters" /><slot name="table" /><slot name="pagination" /></div>'
+          },
+          DataTable: DataTableStub,
+          Pagination: true,
+          ConfirmDialog: true,
+          EmptyState: true,
+          GroupBadge: true,
+          Select: true,
+          UserAttributesConfigModal: true,
+          UserConcurrencyCell: true,
+          UserCreateModal: true,
+          UserEditModal: true,
+          BulkEditUserModal: BulkEditUserModalStub,
+          BulkUserActionDialog: PartialBulkUserActionDialogStub,
+          UserPlatformQuotaModal: true,
+          UserApiKeysModal: true,
+          UserAllowedGroupsModal: true,
+          UserBalanceModal: true,
+          UserBalanceHistoryModal: true,
+          GroupReplaceModal: true,
+          Icon: true,
+          Teleport: true
+        }
+      }
+    })
+    await flushPromises()
+    await wrapper.get('[data-test="select-42"]').trigger('click')
+    await wrapper.get('[data-test="bulk-disable-users"]').trigger('click')
+    await wrapper.get('[data-test="bulk-action-partial"]').trigger('click')
+    await flushPromises()
+
+    expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('42')
   })
 })

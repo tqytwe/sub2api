@@ -252,6 +252,26 @@
               {{ t('admin.users.bulkLimits.action', { count: selectedCount }) }}
             </button>
 
+            <button
+              v-if="selectedCount > 0"
+              class="btn btn-secondary flex-1 md:flex-initial"
+              data-test="bulk-disable-users"
+              @click="openBulkUserAction('disable')"
+            >
+              <Icon name="ban" size="md" class="mr-2" />
+              {{ t('admin.users.bulkActions.disableAction') }}
+            </button>
+
+            <button
+              v-if="selectedCount > 0"
+              class="btn btn-danger flex-1 md:flex-initial"
+              data-test="bulk-delete-users"
+              @click="openBulkUserAction('delete')"
+            >
+              <Icon name="trash" size="md" class="mr-2" />
+              {{ t('admin.users.bulkActions.deleteAction') }}
+            </button>
+
             <!-- Create User Button (full width on mobile, auto width on desktop) -->
             <button @click="showCreateModal = true" class="btn btn-primary flex-1 md:flex-initial">
               <Icon name="plus" size="md" class="mr-2" />
@@ -756,6 +776,13 @@
       @close="showBulkEditModal = false"
       @success="handleBulkLimitsSuccess"
     />
+    <BulkUserActionDialog
+      :show="showBulkUserActionDialog"
+      :selected-ids="selectedIds"
+      :action="bulkUserAction"
+      @close="showBulkUserActionDialog = false"
+      @completed="handleBulkUserActionCompleted"
+    />
     <UserPlatformQuotaModal
       :show="showPlatformQuotaModal"
       :user="platformQuotaUser"
@@ -784,7 +811,7 @@ const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
-import type { PlatformQuotaItem } from '@/api/admin/users'
+import type { PlatformQuotaItem, UserBatchAction, UserBatchActionResult } from '@/api/admin/users'
 import type { Column } from '@/components/common/types'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -804,6 +831,7 @@ import UserPlatformQuotaCell from '@/components/user/UserPlatformQuotaCell.vue'
 import UserCreateModal from '@/components/admin/user/UserCreateModal.vue'
 import UserEditModal from '@/components/admin/user/UserEditModal.vue'
 import BulkEditUserModal from '@/components/admin/user/BulkEditUserModal.vue'
+import BulkUserActionDialog from '@/components/admin/user/BulkUserActionDialog.vue'
 import UserPlatformQuotaModal from '@/components/admin/user/UserPlatformQuotaModal.vue'
 import UserApiKeysModal from '@/components/admin/user/UserApiKeysModal.vue'
 import UserAllowedGroupsModal from '@/components/admin/user/UserAllowedGroupsModal.vue'
@@ -1321,6 +1349,8 @@ const pagination = reactive({
 const showCreateModal = ref(false)
 const showEditModal = ref(false)
 const showBulkEditModal = ref(false)
+const showBulkUserActionDialog = ref(false)
+const bulkUserAction = ref<UserBatchAction>('disable')
 const showDeleteDialog = ref(false)
 const showApiKeysModal = ref(false)
 const showAttributesModal = ref(false)
@@ -1627,6 +1657,21 @@ const loadUsers = async () => {
 
 const handleBulkLimitsSuccess = async () => {
   clearSelection()
+  await loadUsers()
+}
+
+const openBulkUserAction = (action: UserBatchAction) => {
+  bulkUserAction.value = action
+  showBulkUserActionDialog.value = true
+}
+
+const handleBulkUserActionCompleted = async (result: UserBatchActionResult) => {
+  const failedUserIds = result.failed.map((item) => item.user_id)
+  if (failedUserIds.length > 0) {
+    setSelectedIds(failedUserIds)
+  } else {
+    clearSelection()
+  }
   await loadUsers()
 }
 

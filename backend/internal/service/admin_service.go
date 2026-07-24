@@ -6,6 +6,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
@@ -18,6 +19,8 @@ type AdminService interface {
 	CreateUser(ctx context.Context, input *CreateUserInput) (*User, error)
 	UpdateUser(ctx context.Context, id int64, input *UpdateUserInput) (*User, error)
 	DeleteUser(ctx context.Context, id int64) error
+	PreviewUserBatchAction(ctx context.Context, input UserBatchActionInput) (*UserBatchActionPreview, error)
+	ExecuteUserBatchAction(ctx context.Context, input UserBatchActionInput) (*UserBatchActionResult, error)
 	UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*User, error)
 	BatchUpdateConcurrency(ctx context.Context, userIDs []int64, value int, mode string) (int, error)
 	BatchUpdateLimits(ctx context.Context, userIDs []int64, concurrency, rpmLimit *int) (int, error)
@@ -619,6 +622,7 @@ type adminServiceImpl struct {
 	runtimeBlocker       AccountRuntimeBlocker
 	affiliateService     adminRechargeAffiliateAccruer
 	balanceLedger        *BalanceLedgerService
+	userBatchPreviewKey  []byte
 }
 
 type adminRechargeAffiliateAccruer interface {
@@ -651,6 +655,7 @@ func NewAdminService(
 	runtimeBlocker AccountRuntimeBlocker,
 	affiliateService *AffiliateService,
 	balanceLedger *BalanceLedgerService,
+	cfg *config.Config,
 ) AdminService {
 	return &adminServiceImpl{
 		userRepo:             userRepo,
@@ -675,5 +680,6 @@ func NewAdminService(
 		runtimeBlocker:       runtimeBlocker,
 		affiliateService:     affiliateService,
 		balanceLedger:        balanceLedger,
+		userBatchPreviewKey:  deriveUserBatchPreviewSigningKey(cfg),
 	}
 }

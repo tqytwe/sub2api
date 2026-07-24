@@ -57,6 +57,8 @@ const (
 	AuditActionAdminFundOfflineRecharge      = "admin.fund.offline_recharge.grant"
 	AuditActionAdminFundClassifyPreview      = "admin.fund.classification.preview"
 	AuditActionAdminFundClassifyExecute      = "admin.fund.classification.execute"
+	AuditActionAdminUsersBatchPreview        = "admin.users.batch_action.preview"
+	AuditActionAdminUsersBatchExecute        = "admin.users.batch_action.execute"
 	AuditActionSystemIPRiskRegistrationBlock = "system.ip_risk.registration_block"
 )
 
