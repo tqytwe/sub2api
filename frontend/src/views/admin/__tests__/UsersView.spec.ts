@@ -442,6 +442,7 @@ describe('admin UsersView', () => {
     await wrapper.get('[data-test="bulk-action-completed"]').trigger('click')
     await flushPromises()
     expect(listUsers.mock.calls.length).toBeGreaterThan(callsBeforeCompleted)
+    expect(wrapper.find('[data-test="bulk-action-dialog"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('')
   })
 
@@ -499,6 +500,7 @@ describe('admin UsersView', () => {
     await wrapper.get('[data-test="bulk-action-partial"]').trigger('click')
     await flushPromises()
 
+    expect(wrapper.find('[data-test="bulk-action-dialog"]').exists()).toBe(false)
     expect(wrapper.get('[data-test="selected-keys"]').text()).toBe('42')
   })
 })

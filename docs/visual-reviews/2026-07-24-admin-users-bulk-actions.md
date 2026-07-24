@@ -29,7 +29,8 @@
     "stale preview",
     "execution partial success",
     "failed-user retry selection",
-    "execution complete"
+    "execution complete",
+    "dialog closes after execution"
   ],
   "viewports": [
     "360x800",
@@ -72,7 +73,7 @@
   },
   "residual_risks": [
     "The prototype artifacts are browser-rendered static review boards, not authenticated product screenshots.",
-    "Final administrator acceptance must select users across pages, preview both actions, execute without a TOTP prompt, and verify complete and partial-result states in the user's production browser."
+    "Final administrator acceptance must select users across pages, preview both actions, execute without a TOTP prompt, and verify the dialog closes after complete and partial-result states in the user's production browser."
   ]
 }
 -->
@@ -82,7 +83,7 @@
 - Route: `/admin/users`.
 - Roles: administrator only.
 - Languages and themes: Chinese and English strings with existing light and dark semantic tokens.
-- Behavior: explicit cross-page user IDs only, maximum 500 users, HMAC-signed server-side preview, administrator protection, no TOTP prompt for user batch disable/delete, per-user execution results and retry-safe selection refresh.
+- Behavior: explicit cross-page user IDs only, maximum 500 users, HMAC-signed server-side preview, administrator protection, no TOTP prompt for user batch disable/delete, automatic dialog close after execution, per-user execution results and retry-safe selection refresh.
 
 ## Baseline
 
@@ -113,7 +114,7 @@ The selected-state toolbar keeps the current operational density and adds two ad
 - Loading: preview and execution buttons retain their labels and prevent duplicate requests.
 - Protected: administrators are listed as skipped and can never be executed.
 - Stale: a changed selection or server `409` invalidates the preview and asks for a new one.
-- Success and partial success: completed, skipped and failed IDs remain visible before the dialog closes; failed IDs stay selected after refresh for a direct retry.
+- Success and partial success: the dialog closes immediately after execution so the page is not blocked; failed IDs stay selected after refresh for a direct retry.
 - Step-up: user batch disable/delete execute directly after the signed impact preview; funds, role elevation and IP-risk sensitive actions keep their shared TOTP step-up flows.
 
 ## Viewport Coverage

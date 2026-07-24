@@ -1666,6 +1666,7 @@ const openBulkUserAction = (action: UserBatchAction) => {
 }
 
 const handleBulkUserActionCompleted = async (result: UserBatchActionResult) => {
+  showBulkUserActionDialog.value = false
   const failedUserIds = result.failed.map((item) => item.user_id)
   if (failedUserIds.length > 0) {
     setSelectedIds(failedUserIds)
