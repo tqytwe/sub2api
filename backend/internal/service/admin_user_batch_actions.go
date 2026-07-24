@@ -262,7 +262,7 @@ func (s *adminServiceImpl) buildUserBatchActionPreview(
 	userIDs []int64,
 ) (*UserBatchActionPreview, error) {
 	preview := &UserBatchActionPreview{
-		Action: action, RequestedCount: len(userIDs), RequiresStepUp: true,
+		Action: action, RequestedCount: len(userIDs), RequiresStepUp: false,
 	}
 	state := make([]string, 0, len(userIDs))
 	for _, userID := range userIDs {
