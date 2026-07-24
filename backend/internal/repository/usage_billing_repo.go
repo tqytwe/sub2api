@@ -772,6 +772,8 @@ func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context
 		Metadata: map[string]any{
 			"request_id":              strings.TrimSpace(cmd.RequestID),
 			"api_key_id":              cmd.APIKeyID,
+			"api_key_group_id":        cmd.APIKeyGroupID,
+			"api_key_group_name":      strings.TrimSpace(cmd.APIKeyGroupName),
 			"account_id":              cmd.AccountID,
 			"subscription_id":         cmd.SubscriptionID,
 			"account_type":            strings.TrimSpace(cmd.AccountType),

@@ -3031,6 +3031,8 @@ const messages = {
         account_id: 'Account ID',
         account_type: 'Account type',
         actual_cost: 'Original cost',
+        api_key_group_id: 'API Key group ID',
+        api_key_group_name: 'API Key group',
         api_key_id: 'API Key ID',
         balance_cost: 'Balance charge',
         billed_cost: 'Billed total',

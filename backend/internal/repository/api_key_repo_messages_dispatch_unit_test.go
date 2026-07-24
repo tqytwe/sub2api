@@ -34,7 +34,7 @@ func TestGroupEntityToService_PreservesMessagesDispatchModelConfig(t *testing.T)
 	require.Equal(t, group.MessagesDispatchModelConfig, got.MessagesDispatchModelConfig)
 }
 
-func TestAPIKeyRepository_GetByKeyForAuth_PreservesMessagesDispatchModelConfig_SQLite(t *testing.T) {
+func TestAPIKeyRepository_GetByKeyForAuth_PreservesSelectedGroupBillingConfig_SQLite(t *testing.T) {
 	repo, client := newAPIKeyRepoSQLite(t)
 	ctx := context.Background()
 	user := mustCreateAPIKeyRepoUser(t, ctx, client, "getbykey-auth-dispatch-unit@test.com")
@@ -45,6 +45,10 @@ func TestAPIKeyRepository_GetByKeyForAuth_PreservesMessagesDispatchModelConfig_S
 		SetStatus(service.StatusActive).
 		SetSubscriptionType(service.SubscriptionTypeStandard).
 		SetRateMultiplier(1).
+		SetBillingSurchargeOverrideEnabled(true).
+		SetBillingSurchargeEnabled(true).
+		SetBillingSurchargeMode(service.BillingSurchargeModeAdditiveMultiplier).
+		SetBillingSurchargeValue(0.05).
 		SetAllowMessagesDispatch(true).
 		SetDefaultMappedModel("gpt-5.4").
 		SetMessagesDispatchModelConfig(service.OpenAIMessagesDispatchModelConfig{
@@ -72,4 +76,16 @@ func TestAPIKeyRepository_GetByKeyForAuth_PreservesMessagesDispatchModelConfig_S
 	require.Equal(t, key.Name, got.Name)
 	require.NotNil(t, got.Group)
 	require.Equal(t, group.MessagesDispatchModelConfig, got.Group.MessagesDispatchModelConfig)
+	require.True(t, got.Group.BillingSurchargeOverrideEnabled)
+	require.True(t, got.Group.BillingSurchargeEnabled)
+	require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, got.Group.BillingSurchargeMode)
+	require.Equal(t, 0.05, got.Group.BillingSurchargeValue)
+
+	surcharge := service.ApplyBillingSurcharge(
+		&service.CostBreakdown{TotalCost: 1, ActualCost: 0.25},
+		service.ResolveGroupBillingSurcharge(got.Group, service.BillingSurchargeConfig{}),
+	)
+	require.True(t, surcharge.Enabled)
+	require.InDelta(t, 0.05, surcharge.SurchargeCost, 1e-12)
+	require.InDelta(t, 0.30, surcharge.BilledCost, 1e-12)
 }

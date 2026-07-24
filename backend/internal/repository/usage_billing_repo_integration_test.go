@@ -102,9 +102,12 @@ func TestUsageBillingRepositoryApply_WithLedgerWritesUsageCharge(t *testing.T) {
 	})
 
 	requestID := uuid.NewString()
+	groupID := int64(17)
 	cmd := &service.UsageBillingCommand{
 		RequestID:          requestID,
 		APIKeyID:           apiKey.ID,
+		APIKeyGroupID:      &groupID,
+		APIKeyGroupName:    "paid-group",
 		UserID:             user.ID,
 		AccountID:          account.ID,
 		AccountType:        service.AccountTypeAPIKey,
@@ -130,6 +133,8 @@ func TestUsageBillingRepositoryApply_WithLedgerWritesUsageCharge(t *testing.T) {
 	require.InDelta(t, 98.75, row.balanceAfter, 0.000001)
 	require.Contains(t, row.metadata, `"request_id": "`+requestID+`"`)
 	require.Contains(t, row.metadata, `"api_key_id": `+fmt.Sprint(apiKey.ID))
+	require.Contains(t, row.metadata, `"api_key_group_id": 17`)
+	require.Contains(t, row.metadata, `"api_key_group_name": "paid-group"`)
 }
 
 func TestUsageBillingRepositoryApply_RejectsCrossUserCharge(t *testing.T) {

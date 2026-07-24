@@ -3086,6 +3086,8 @@ const messages = {
         account_id: '账号 ID',
         account_type: '账号类型',
         actual_cost: '原始扣费',
+        api_key_group_id: 'API Key 分组 ID',
+        api_key_group_name: 'API Key 分组',
         api_key_id: 'API Key ID',
         balance_cost: '余额扣款',
         billed_cost: '实际扣款',

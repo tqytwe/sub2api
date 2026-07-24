@@ -105,6 +105,8 @@ beforeEach(() => {
           reward_amount: 0.5,
           net_amount: 0,
           actual_cost: 0.01,
+          api_key_group_id: 17,
+          api_key_group_name: 'paid-group',
           billing_surcharge_cost: 0.002,
           billed_cost: 0.012,
           billing_surcharge_mode: 'additive_multiplier',
@@ -243,6 +245,9 @@ describe('UserBalanceHistoryModal', () => {
     expect(wrapper.text()).toContain('admin.users.billingSurchargeOriginalCost')
     expect(wrapper.text()).toContain('$0.012000')
     expect(wrapper.text()).toContain('admin.users.billingSurchargeMode_additive_multiplier')
+    expect(wrapper.text()).toContain('admin.users.flowMetadata.api_key_group_id')
+    expect(wrapper.text()).toContain('admin.users.flowMetadata.api_key_group_name')
+    expect(wrapper.text()).toContain('paid-group')
     expect(wrapper.text()).toContain('cost_amount')
     expect(wrapper.text()).toContain('reward_amount')
     expect(wrapper.html()).toContain('text-emerald-600')

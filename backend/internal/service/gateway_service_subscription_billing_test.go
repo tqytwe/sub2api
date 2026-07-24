@@ -89,11 +89,17 @@ func TestBuildUsageBillingCommand_SubscriptionAppliesRateMultiplier(t *testing.T
 func TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost(t *testing.T) {
 	t.Parallel()
 
+	groupID := int64(7)
 	p := &postUsageBillingParams{
 		Cost: &CostBreakdown{TotalCost: 1.0, ActualCost: 0.25},
 		User: &User{ID: 1},
 		APIKey: &APIKey{
-			ID:    2,
+			ID:      2,
+			GroupID: &groupID,
+			Group: &Group{
+				ID:   groupID,
+				Name: "paid-group",
+			},
 			Quota: 10,
 		},
 		Account:       &Account{ID: 3},
@@ -126,6 +132,12 @@ func TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost(t 
 	}
 	if math.Abs(cmd.APIKeyQuotaCost-0.30) > 1e-9 {
 		t.Fatalf("APIKeyQuotaCost = %v, want 0.30", cmd.APIKeyQuotaCost)
+	}
+	if cmd.APIKeyGroupID == nil || *cmd.APIKeyGroupID != groupID {
+		t.Fatalf("APIKeyGroupID = %v, want %d", cmd.APIKeyGroupID, groupID)
+	}
+	if cmd.APIKeyGroupName != "paid-group" {
+		t.Fatalf("APIKeyGroupName = %q, want paid-group", cmd.APIKeyGroupName)
 	}
 }
 

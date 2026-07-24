@@ -320,6 +320,7 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		APIKeyID:              p.APIKey.ID,
 		UserID:                p.User.ID,
 		AccountID:             p.Account.ID,
+		APIKeyGroupID:         p.APIKey.GroupID,
 		AccountType:           p.Account.Type,
 		RequestPayloadHash:    strings.TrimSpace(p.RequestPayloadHash),
 		ActualCost:            p.Cost.ActualCost,
@@ -327,6 +328,9 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		BilledCost:            p.billedCost(),
 		BillingSurchargeMode:  p.Surcharge.Mode,
 		BillingSurchargeValue: p.Surcharge.Value,
+	}
+	if p.APIKey.Group != nil {
+		cmd.APIKeyGroupName = p.APIKey.Group.Name
 	}
 	if usageLog != nil {
 		cmd.Model = usageLog.Model
