@@ -2021,6 +2021,7 @@ const messages = {
         FUND_CLASSIFICATION_REASON_INVALID: '执行原因需为 10 到 500 个字符',
         USER_NOT_FOUND: '用户不存在',
         BALANCE_LEDGER_UNAVAILABLE: '余额流水服务暂不可用',
+        BALANCE_LEDGER_INSUFFICIENT_BALANCE: '余额不足：本次操作会使账户余额为负',
       },
     },
     playOps: {
