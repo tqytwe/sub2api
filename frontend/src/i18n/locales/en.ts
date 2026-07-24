@@ -2017,6 +2017,7 @@ const messages = {
         FUND_CLASSIFICATION_REASON_INVALID: 'Execution reason must be 10 to 500 characters',
         USER_NOT_FOUND: 'User not found',
         BALANCE_LEDGER_UNAVAILABLE: 'Balance ledger service is unavailable',
+        BALANCE_LEDGER_INSUFFICIENT_BALANCE: 'Insufficient balance: this operation would make the account balance negative',
       },
     },
     playOps: {
