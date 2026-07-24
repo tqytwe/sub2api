@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/require"
 )
 
@@ -320,6 +321,24 @@ func TestBalanceLedgerPolicyClampZeroUsesActualDelta(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, -0.25, after)
 	require.Equal(t, -0.5, delta)
+}
+
+func TestBalanceLedgerRejectNegativeAllowsPositiveCreditTowardNegativeBalance(t *testing.T) {
+	t.Parallel()
+
+	after, delta, err := applyBalanceLedgerPolicy(-50, 30, BalanceLedgerPolicyRejectNegative)
+	require.NoError(t, err)
+	require.Equal(t, -20.0, after)
+	require.Equal(t, 30.0, delta)
+
+	afterDecimal, deltaDecimal, err := applyBalanceLedgerPolicyDecimal(
+		decimal.RequireFromString("-50.00000000"),
+		decimal.RequireFromString("30.00000000"),
+		BalanceLedgerPolicyRejectNegative,
+	)
+	require.NoError(t, err)
+	require.Equal(t, "-20.00000000", afterDecimal.StringFixed(8))
+	require.Equal(t, "30.00000000", deltaDecimal.StringFixed(8))
 }
 
 func newBalanceLedgerSQLMock(t *testing.T) (*sql.DB, sqlmock.Sqlmock) {

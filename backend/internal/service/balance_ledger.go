@@ -362,7 +362,7 @@ func applyBalanceLedgerPolicy(before, delta float64, policy string) (float64, fl
 		}
 		return after, delta, nil
 	case BalanceLedgerPolicyRejectNegative:
-		if after < -0.00000001 {
+		if delta < 0 && after < -0.00000001 {
 			return 0, 0, ErrBalanceLedgerInsufficientBalance
 		}
 		if math.Abs(after) < 0.00000001 {
@@ -387,7 +387,7 @@ func applyBalanceLedgerPolicyDecimal(before, delta decimal.Decimal, policy strin
 		}
 		return after, delta, nil
 	case BalanceLedgerPolicyRejectNegative:
-		if after.LessThan(decimal.RequireFromString("-0.00000001")) {
+		if delta.IsNegative() && after.LessThan(decimal.RequireFromString("-0.00000001")) {
 			return decimal.Zero, decimal.Zero, ErrBalanceLedgerInsufficientBalance
 		}
 		if after.Abs().LessThan(decimal.RequireFromString("0.00000001")) {
