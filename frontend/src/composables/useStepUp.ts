@@ -64,6 +64,10 @@ export function stepUpBlockReason(err: unknown): string {
 
 export type StepUpController = ReturnType<typeof useStepUp>
 
+export interface StepUpRunOptions {
+  promptBeforeAction?: boolean
+}
+
 export function useStepUp() {
   const visible = ref(false)
   const blockedReason = ref<string>('')
@@ -89,6 +93,13 @@ export function useStepUp() {
     resolver = null
   }
 
+  async function requireVerification() {
+    const ok = await prompt()
+    if (!ok) {
+      throw new StepUpCancelledError()
+    }
+  }
+
   /**
    * Run a sensitive action. On STEP_UP_REQUIRED, prompt for a TOTP code and
    * retry once. STEP_UP_TOTP_NOT_ENABLED / admin-api-key errors are surfaced
@@ -96,7 +107,14 @@ export function useStepUp() {
    * cancels the prompt, a StepUpCancelledError is thrown so callers can
    * distinguish "user changed their mind" from real failures.
    */
-  async function run<T>(action: () => Promise<T>): Promise<T> {
+  async function run<T>(
+    action: () => Promise<T>,
+    options: StepUpRunOptions = {},
+  ): Promise<T> {
+    if (options.promptBeforeAction) {
+      await requireVerification()
+    }
+
     try {
       return await action()
     } catch (err) {
@@ -107,10 +125,7 @@ export function useStepUp() {
       if (!isStepUpRequired(err)) {
         throw err
       }
-      const ok = await prompt()
-      if (!ok) {
-        throw new StepUpCancelledError()
-      }
+      await requireVerification()
       // Retry once now that the session holds a step-up grant.
       return await action()
     }

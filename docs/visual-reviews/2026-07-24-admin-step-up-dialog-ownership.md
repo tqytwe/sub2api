@@ -1,16 +1,14 @@
-# Administrator Step-Up Dialog Ownership Visual Review
+# Administrator Step-Up Dialog Ownership and Trigger Visual Review
 
 <!-- visual-review-manifest
 {
   "schema_version": 1,
   "changed_files": [
     "frontend/src/components/admin/user/BulkUserActionDialog.vue",
+    "frontend/src/composables/useStepUp.ts",
     "frontend/src/features/ip-risk/IPRiskActionDialog.vue",
     "frontend/src/features/ip-risk/IPRiskActionsView.vue",
-    "frontend/src/features/ip-risk/IPRiskPolicyDialog.vue",
-    "frontend/src/features/ip-risk/IPRiskWorkbench.vue",
-    "frontend/src/views/admin/ProxiesView.vue",
-    "frontend/src/views/admin/UsersView.vue"
+    "frontend/src/features/ip-risk/IPRiskPolicyDialog.vue"
   ],
   "routes_or_surfaces": [
     "/admin/users",
@@ -28,9 +26,11 @@
     "IP risk action preview ready",
     "IP risk policy save and delete",
     "IP risk action rollback",
-    "step-up required",
+    "preview-declared step-up required",
+    "backend-declared step-up required",
     "verification loading",
     "verification cancelled",
+    "verified action submission",
     "verified action retry"
   ],
   "viewports": [
@@ -65,7 +65,7 @@
   "checks": {
     "keyboard": {
       "status": "passed",
-      "reason": "Real-component integration tests verify that the topmost TOTP dialog remains outside the inert application root, receives focusable six-digit inputs and returns control to the protected operation after verification."
+      "reason": "Real-component integration tests verify that preview-declared sensitive actions open the topmost TOTP dialog before any execution request, keep it outside the inert application root, expose six focusable inputs and submit the protected operation only after verification."
     },
     "reduced_motion": {
       "status": "passed",
@@ -84,13 +84,13 @@
 - Routes: `/admin/users`, `/admin/proxies/risk` and `/admin/proxies/actions`.
 - Roles: administrator only.
 - Languages and themes: existing Chinese and English strings with the current light and dark semantic tokens.
-- Behavior: move TOTP controller ownership to the page root and share it with user batch actions, IP risk actions, IP policies and action rollback.
+- Behavior: keep TOTP controller ownership at the page root and proactively open it when an action preview or policy transition declares step-up is required.
 
-No scoring rule, selected-account rule, preview payload, authorization requirement, TOTP verification rule or destructive-operation behavior changes in this repair.
+No scoring rule, selected-account rule, preview payload, backend authorization requirement or destructive-operation result changes in this repair.
 
 ## Baseline
 
-The user and IP risk workflows already used the approved dialogs, but each nested workflow created its own `useStepUp()` controller and rendered its own TOTP component. In the reported failure, the underlying page became inert while the expected six-digit verification panel did not become a reliable interactive top layer.
+The page-owned dialog repair made the TOTP layer interactive when a backend `STEP_UP_REQUIRED` response reached `useStepUp`, but production acceptance still reproduced a missing input panel. The remaining gap was trigger ownership: user and IP risk workflows waited for the execution request to fail before opening TOTP even though their preview response already declared `requires_step_up: true`.
 
 The baseline artifacts contain simulated IP addresses and `example.test` accounts only.
 
@@ -106,18 +106,20 @@ This change intentionally preserves all visible layout, copy, spacing, color and
 ## Reuse Decision
 
 - Reuse `AppLayout`, `BaseDialog`, `TotpStepUpDialog`, `useStepUp`, existing buttons, inputs, badges and semantic colors.
-- `UsersView` owns one controller for both batch disable and batch delete.
-- `ProxiesView` owns one controller shared by risk case actions, policy management and rollback history.
-- Child dialogs receive a typed `StepUpController` prop and no longer create parallel verification layers.
+- `UsersView` continues to own one controller for both batch disable and batch delete.
+- `ProxiesView` continues to own one controller shared by risk case actions, policy management and rollback history.
+- `useStepUp.run` now accepts `promptBeforeAction` while preserving the reactive `STEP_UP_REQUIRED` fallback.
+- User batch previews and IP risk action previews pass their server-declared `requires_step_up` value.
+- Rollback always prompts first; enabling automatic blocking and saving a permanent registration-block policy prompt before the request.
 - No design-system exception or new modal implementation is introduced.
 
 ## State Coverage
 
 - Default: user and IP management pages render exactly as before.
 - Preview: existing user and risk impact previews remain open while verification is requested.
-- Step-up required: the page-owned TOTP dialog teleports outside `#app`, above the inert application root.
+- Step-up required: preview-declared sensitive operations open the page-owned TOTP dialog before sending the execution request; backend `STEP_UP_REQUIRED` still opens the same dialog as a fallback.
 - Input: all six numeric cells remain focusable and auto-submit after the sixth digit.
-- Verified: the original operation retries once using the short-lived backend grant.
+- Verified: proactive flows send the operation for the first time only after verification; reactive fallback flows retry once using the short-lived backend grant.
 - Cancelled: the original operation stops without showing a generic failure toast.
 - Loading and error: existing disabled controls, localized verification errors and input reset behavior remain unchanged.
 - Policy and rollback: both use the same page-owned controller as risk case actions.
@@ -134,11 +136,13 @@ This change intentionally preserves all visible layout, copy, spacing, color and
 
 - Updated desktop and mobile artifacts show the approved interactive TOTP layer.
 - The new integration suite mounts real `BaseDialog`, `TotpStepUpDialog` and sensitive action components without mocking `useStepUp`.
-- It simulates a first request returning `403 STEP_UP_REQUIRED`, verifies `#app` is inert, verifies the TOTP dialog is outside `#app`, enters six digits, completes `totpAPI.stepUp` and confirms the original user/IP operation runs a second time.
-- Existing unit coverage also verifies policy save and rollback route through the injected controller.
+- It supplies previews with `requires_step_up: true`, verifies the execution API has not been called, verifies `#app` is inert, verifies the TOTP dialog is outside `#app`, enters six digits, completes `totpAPI.stepUp` and confirms the user/IP operation is sent exactly once afterward.
+- Composable coverage retains the backend `403 STEP_UP_REQUIRED` retry path.
+- Unit coverage verifies action execution, automatic-block enablement and rollback request proactive verification through the injected controller.
 
 ## Residual Risk
 
 - Static review boards cannot prove a live administrator secret or production session.
-- The remaining acceptance step is one authenticated local-browser execution using the administrator's current TOTP after the merged build is deployed.
+- Production acceptance on July 24, 2026 reproduced the missing prompt after the ownership-only repair; this follow-up specifically closes that trigger gap.
+- The remaining acceptance step is one authenticated local-browser execution using the administrator's current TOTP after the follow-up build is deployed.
 - Follow-up owner: user for final secret-bearing browser acceptance; engineering for any reproduced post-deploy issue.

@@ -197,8 +197,9 @@ async function rollback() {
   if (!rollbackTarget.value || !rollbackReason.value.trim()) return
   rollingBack.value = true
   try {
-    rollbackResult.value = await props.stepUp.run(() =>
-      adminAPI.ipRisk.rollbackAction(rollbackTarget.value!.id, rollbackReason.value.trim()),
+    rollbackResult.value = await props.stepUp.run(
+      () => adminAPI.ipRisk.rollbackAction(rollbackTarget.value!.id, rollbackReason.value.trim()),
+      { promptBeforeAction: true },
     )
     appStore.showSuccess(t('admin.ipRisk.actionsView.rollbackCompleted'))
     await load()

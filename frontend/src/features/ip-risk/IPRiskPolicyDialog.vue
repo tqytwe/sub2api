@@ -326,6 +326,7 @@ const savingConfig = ref(false)
 const savingPolicy = ref(false)
 const deletingPolicy = ref(false)
 const config = ref<RiskConfig | null>(null)
+const loadedAutoBlockEnabled = ref(false)
 const policies = ref<IPRiskPolicy[]>([])
 const editingPolicyId = ref<number | null>(null)
 const deleteTarget = ref<IPRiskPolicy | null>(null)
@@ -369,6 +370,7 @@ async function load() {
       adminAPI.ipRisk.listPolicies(),
     ])
     config.value = structuredClone(nextConfig)
+    loadedAutoBlockEnabled.value = nextConfig.auto_block_enabled
     policies.value = nextPolicies
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, t('admin.ipRisk.policyDialog.loadFailed')))
@@ -381,7 +383,12 @@ async function saveConfig() {
   if (!config.value) return
   savingConfig.value = true
   try {
-    config.value = await props.stepUp.run(() => adminAPI.ipRisk.updateConfig(config.value!))
+    const promptBeforeAction = !loadedAutoBlockEnabled.value && config.value.auto_block_enabled
+    config.value = await props.stepUp.run(
+      () => adminAPI.ipRisk.updateConfig(config.value!),
+      { promptBeforeAction },
+    )
+    loadedAutoBlockEnabled.value = config.value.auto_block_enabled
     appStore.showSuccess(t('admin.ipRisk.policyDialog.configSaved'))
     emit('updated')
   } catch (error) {
@@ -400,11 +407,19 @@ async function savePolicy() {
     ...policyForm,
     expires_at: policyForm.expires_at ? new Date(policyForm.expires_at).toISOString() : null,
   }
+  const promptBeforeAction =
+    payload.mode === 'block_registration' && payload.expires_at === null
   try {
     if (editingPolicyId.value) {
-      await props.stepUp.run(() => adminAPI.ipRisk.updatePolicy(editingPolicyId.value!, payload))
+      await props.stepUp.run(
+        () => adminAPI.ipRisk.updatePolicy(editingPolicyId.value!, payload),
+        { promptBeforeAction },
+      )
     } else {
-      await props.stepUp.run(() => adminAPI.ipRisk.createPolicy(payload))
+      await props.stepUp.run(
+        () => adminAPI.ipRisk.createPolicy(payload),
+        { promptBeforeAction },
+      )
     }
     appStore.showSuccess(t('admin.ipRisk.policyDialog.policySaved'))
     resetPolicyForm()
