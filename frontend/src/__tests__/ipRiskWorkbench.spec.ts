@@ -151,8 +151,18 @@ const CaseDetailStub = defineComponent({
   template: '<div data-testid="selected-users">{{ selectedUserIds.join(",") }}</div>',
 })
 
+const stepUp = {
+  visible: { value: false },
+  blockedReason: { value: '' },
+  prompt: vi.fn(),
+  onVerified: vi.fn(),
+  onCancel: vi.fn(),
+  run: vi.fn(),
+}
+
 function mountWorkbench() {
   return mount(IPRiskWorkbench, {
+    props: { stepUp },
     global: {
       stubs: {
         BaseDialog: {
