@@ -104,6 +104,11 @@ beforeEach(() => {
           cost_amount: 0.5,
           reward_amount: 0.5,
           net_amount: 0,
+          actual_cost: 0.01,
+          billing_surcharge_cost: 0.002,
+          billed_cost: 0.012,
+          billing_surcharge_mode: 'additive_multiplier',
+          billing_surcharge_value: 0.05,
         },
         confidence: 'high',
       },
@@ -226,12 +231,18 @@ describe('UserBalanceHistoryModal', () => {
     expect(wrapper.text()).toContain('blindbox:1024:2026-07-19')
     expect(wrapper.text()).toContain('quiz:1024:2026-07-19')
     expect(wrapper.text()).toContain('checkin:1024:2026-07-19')
+    expect(wrapper.find('[data-test="billing-surcharge-badge"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('$0.002000')
 
-    const details = wrapper.findAll('button[title="admin.users.flowDetails"]')
+    const details = wrapper.findAll('[data-test="flow-details-toggle"]')
     expect(details.length).toBeGreaterThan(0)
     await details[0].trigger('click')
     await flushPromises()
 
+    expect(wrapper.find('[data-test="billing-surcharge-details"]').exists()).toBe(true)
+    expect(wrapper.text()).toContain('admin.users.billingSurchargeOriginalCost')
+    expect(wrapper.text()).toContain('$0.012000')
+    expect(wrapper.text()).toContain('additive_multiplier')
     expect(wrapper.text()).toContain('cost_amount')
     expect(wrapper.text()).toContain('reward_amount')
     expect(wrapper.html()).toContain('text-emerald-600')
