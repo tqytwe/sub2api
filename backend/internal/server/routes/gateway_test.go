@@ -355,7 +355,7 @@ func TestGatewayRoutesGrokImagesAndVideosPathsAreRegistered(t *testing.T) {
 }
 
 func TestGatewayRoutesNonGrokVideosAreRejectedAtPlatformGate(t *testing.T) {
-	router := newGatewayRoutesTestRouter(service.PlatformOpenAI)
+	router := newGatewayRoutesTestRouter(service.PlatformAnthropic)
 
 	for _, tc := range []struct {
 		method string
@@ -380,6 +380,25 @@ func TestGatewayRoutesNonGrokVideosAreRejectedAtPlatformGate(t *testing.T) {
 		router.ServeHTTP(w, req)
 		require.Equal(t, http.StatusNotFound, w.Code, "method=%s path=%s", tc.method, tc.path)
 		require.Contains(t, w.Body.String(), "Videos API is not supported for this platform")
+	}
+}
+
+func TestGatewayRoutesAgnesVideoPathsAreRegisteredForOpenAIPlatform(t *testing.T) {
+	router := newGatewayRoutesTestRouter(service.PlatformOpenAI)
+	registered := map[string]bool{}
+	for _, route := range router.Routes() {
+		registered[route.Method+" "+route.Path] = true
+	}
+
+	for _, route := range []string{
+		"POST /v1/videos",
+		"GET /v1/agnesapi",
+		"GET /v1/videos/:request_id",
+		"POST /videos",
+		"GET /agnesapi",
+		"GET /videos/:request_id",
+	} {
+		require.True(t, registered[route], "%s should be registered", route)
 	}
 }
 
