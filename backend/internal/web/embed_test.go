@@ -200,7 +200,7 @@ func TestInjectRouteSEO(t *testing.T) {
 	})
 
 	t.Run("english_public_routes_do_not_emit_cjk_metadata", func(t *testing.T) {
-		for _, path := range []string{"/en", "/en/docs"} {
+		for _, path := range []string{"/en", "/en/docs", "/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm"} {
 			result := string(injectRouteSEO(baseHTML, path))
 
 			assert.Contains(t, result, `<html lang="en">`)
@@ -245,6 +245,21 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
 	})
 
+	t.Run("injects_model_family_route_metadata", func(t *testing.T) {
+		zh := string(injectRouteSEO(baseHTML, "/models/deepseek"))
+		en := string(injectRouteSEO(baseHTML, "/en/models/deepseek"))
+
+		assert.Contains(t, zh, `<html lang="zh-CN">`)
+		assert.Contains(t, zh, `<title>DeepSeek API 价格与模型接入 - 极速蹬多模型目录</title>`)
+		assert.Contains(t, zh, `<link rel="canonical" href="https://www.jisudeng.com/models/deepseek" />`)
+		assert.Contains(t, zh, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek" />`)
+		assert.Contains(t, en, `<html lang="en">`)
+		assert.Contains(t, en, `<title>DeepSeek API Pricing and Access | Jisudeng</title>`)
+		assert.Contains(t, en, `<link rel="canonical" href="https://www.jisudeng.com/en/models/deepseek" />`)
+		assert.Contains(t, en, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek" />`)
+		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, en)
+	})
+
 	t.Run("injects_about_and_contact_route_metadata", func(t *testing.T) {
 		about := string(injectRouteSEO(baseHTML, "/about"))
 		contact := string(injectRouteSEO(baseHTML, "/contact"))
@@ -273,7 +288,11 @@ func TestInjectRouteSEO(t *testing.T) {
 }
 
 func TestPublicRouteSEOMetadataLengthBudgets(t *testing.T) {
-	for _, path := range []string{"/", "/home", "/models", "/docs", "/download/android", "/about", "/contact", "/en", "/en/models", "/en/docs"} {
+	for _, path := range []string{
+		"/", "/home", "/models", "/models/deepseek", "/models/qwen", "/models/kimi", "/models/glm",
+		"/docs", "/download/android", "/about", "/contact", "/en", "/en/models",
+		"/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm", "/en/docs",
+	} {
 		seo, ok := resolveRouteSEO(path)
 		require.True(t, ok, path)
 

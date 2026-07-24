@@ -57,6 +57,9 @@ export function localeFromPath(path: string): LocaleCode | null {
   if (normalized === '/en' || normalized.startsWith('/en/')) {
     return 'en'
   }
+  if (normalized.startsWith('/models/')) {
+    return 'zh'
+  }
   if (CHINESE_PUBLIC_LOCALE_PATHS.has(normalized)) {
     return 'zh'
   }
