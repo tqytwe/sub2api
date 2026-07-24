@@ -210,19 +210,17 @@ describe('admin page-level TOTP dialogs', () => {
     document.body.innerHTML = ''
   })
 
-  it('opens an interactive TOTP dialog and retries a bulk user disable', async () => {
+  it('opens an interactive TOTP dialog before sending a bulk user disable', async () => {
     previewBatchAction.mockResolvedValue(userPreview)
-    executeBatchAction
-      .mockRejectedValueOnce({ status: 403, code: 'STEP_UP_REQUIRED' })
-      .mockResolvedValueOnce({
-        action: 'disable',
-        status: 'completed',
-        requested_count: 1,
-        succeeded_user_ids: [19],
-        skipped: [],
-        failed: [],
-        affected_api_keys: 1,
-      })
+    executeBatchAction.mockResolvedValue({
+      action: 'disable',
+      status: 'completed',
+      requested_count: 1,
+      succeeded_user_ids: [19],
+      skipped: [],
+      failed: [],
+      affected_api_keys: 1,
+    })
 
     const Harness = defineComponent({
       components: { BulkUserActionDialog, TotpStepUpDialog },
@@ -256,10 +254,11 @@ describe('admin page-level TOTP dialogs', () => {
     expect(
       (wrapper.vm as unknown as { controller: ReturnType<typeof useStepUp> }).controller.visible.value,
     ).toBe(true)
+    expect(executeBatchAction).not.toHaveBeenCalled()
     await enterTotp(mounted.app)
 
     expect(stepUp).toHaveBeenCalledWith('123456')
-    expect(executeBatchAction).toHaveBeenCalledTimes(2)
+    expect(executeBatchAction).toHaveBeenCalledTimes(1)
     expect(executeBatchAction).toHaveBeenLastCalledWith({
       action: 'disable',
       user_ids: [19],
@@ -268,7 +267,7 @@ describe('admin page-level TOTP dialogs', () => {
     })
   })
 
-  it('opens an interactive TOTP dialog and retries an IP risk action', async () => {
+  it('opens an interactive TOTP dialog before sending an IP risk action', async () => {
     previewRiskAction.mockResolvedValue({
       case_id: 7,
       case_version: 3,
@@ -287,20 +286,18 @@ describe('admin page-level TOTP dialogs', () => {
       expires_at: '2026-07-24T01:10:00Z',
       state_digest: 'risk-state-digest',
     })
-    executeRiskAction
-      .mockRejectedValueOnce({ status: 403, code: 'STEP_UP_REQUIRED' })
-      .mockResolvedValueOnce({
-        id: 90,
-        case_id: 7,
-        action_type: 'disable_users',
-        status: 'completed',
-        actor_type: 'admin',
-        actor_user_id: 42,
-        reason: 'confirmed clustered registrations',
-        rollback_status: 'eligible',
-        result: { completed_items: 1 },
-        created_at: '2026-07-24T01:05:00Z',
-      })
+    executeRiskAction.mockResolvedValue({
+      id: 90,
+      case_id: 7,
+      action_type: 'disable_users',
+      status: 'completed',
+      actor_type: 'admin',
+      actor_user_id: 42,
+      reason: 'confirmed clustered registrations',
+      rollback_status: 'eligible',
+      result: { completed_items: 1 },
+      created_at: '2026-07-24T01:05:00Z',
+    })
 
     const Harness = defineComponent({
       components: { IPRiskActionDialog, TotpStepUpDialog },
@@ -336,10 +333,11 @@ describe('admin page-level TOTP dialogs', () => {
     expect(
       (wrapper.vm as unknown as { controller: ReturnType<typeof useStepUp> }).controller.visible.value,
     ).toBe(true)
+    expect(executeRiskAction).not.toHaveBeenCalled()
     await enterTotp(mounted.app)
 
     expect(stepUp).toHaveBeenCalledWith('123456')
-    expect(executeRiskAction).toHaveBeenCalledTimes(2)
+    expect(executeRiskAction).toHaveBeenCalledTimes(1)
     expect(executeRiskAction).toHaveBeenLastCalledWith(7, expect.objectContaining({
       action_type: 'disable_users',
       user_ids: [19],

@@ -319,8 +319,9 @@ async function execute() {
       ...buildInput(),
       preview_token: preview.value.confirmation_token,
     }
-    const record = await props.stepUp.run(() =>
-      adminAPI.ipRisk.executeAction(props.detail!.case.id, input),
+    const record = await props.stepUp.run(
+      () => adminAPI.ipRisk.executeAction(props.detail!.case.id, input),
+      { promptBeforeAction: preview.value.requires_step_up },
     )
     result.value = record
     emit('completed', record)
