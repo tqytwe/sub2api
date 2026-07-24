@@ -204,4 +204,45 @@ describe('admin users api auth identity binding', () => {
     expect(await executeBatchAction(executeRequest)).toEqual(result)
     expect(post).toHaveBeenNthCalledWith(2, '/admin/users/batch-actions', executeRequest)
   })
+
+  it('normalizes nullable batch action collections from the API', async () => {
+    const request = {
+      action: 'disable' as const,
+      user_ids: [35, 37, 38],
+      reason: 'confirmed abuse',
+    }
+    const nullablePreview = {
+      action: 'disable',
+      requested_count: 3,
+      eligible_users: [{ id: 35, email: 'user@example.test', role: 'user', status: 'active', api_key_count: 0 }],
+      protected_administrators: null,
+      already_disabled_users: null,
+      missing_user_ids: null,
+      affected_api_keys: 0,
+      requires_step_up: false,
+      confirmation_token: 'preview-token',
+      expires_at: '2026-07-24T17:26:20Z',
+    } as unknown as UserBatchActionPreview
+    const nullableResult = {
+      action: 'disable',
+      status: 'completed',
+      requested_count: 3,
+      succeeded_user_ids: null,
+      skipped: null,
+      failed: null,
+      affected_api_keys: 0,
+    } as unknown as UserBatchActionResult
+    post.mockResolvedValueOnce({ data: nullablePreview }).mockResolvedValueOnce({ data: nullableResult })
+
+    await expect(previewBatchAction(request)).resolves.toMatchObject({
+      protected_administrators: [],
+      already_disabled_users: [],
+      missing_user_ids: [],
+    })
+    await expect(executeBatchAction({ ...request, confirmation_token: 'preview-token' })).resolves.toMatchObject({
+      succeeded_user_ids: [],
+      skipped: [],
+      failed: [],
+    })
+  })
 })
