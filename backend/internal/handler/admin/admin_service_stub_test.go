@@ -80,7 +80,13 @@ type stubAdminService struct {
 		sortOrder string
 		calls     int
 	}
-	mu sync.Mutex
+	lastUserBatchPreviewInput service.UserBatchActionInput
+	lastUserBatchExecuteInput service.UserBatchActionInput
+	userBatchPreviewResult    *service.UserBatchActionPreview
+	userBatchExecuteResult    *service.UserBatchActionResult
+	userBatchPreviewErr       error
+	userBatchExecuteErr       error
+	mu                        sync.Mutex
 }
 
 func newStubAdminService() *stubAdminService {
@@ -187,6 +193,16 @@ func (s *stubAdminService) UpdateUser(ctx context.Context, id int64, input *serv
 
 func (s *stubAdminService) DeleteUser(ctx context.Context, id int64) error {
 	return nil
+}
+
+func (s *stubAdminService) PreviewUserBatchAction(_ context.Context, input service.UserBatchActionInput) (*service.UserBatchActionPreview, error) {
+	s.lastUserBatchPreviewInput = input
+	return s.userBatchPreviewResult, s.userBatchPreviewErr
+}
+
+func (s *stubAdminService) ExecuteUserBatchAction(_ context.Context, input service.UserBatchActionInput) (*service.UserBatchActionResult, error) {
+	s.lastUserBatchExecuteInput = input
+	return s.userBatchExecuteResult, s.userBatchExecuteErr
 }
 
 func (s *stubAdminService) UpdateUserBalance(ctx context.Context, userID int64, balance float64, operation string, notes string) (*service.User, error) {

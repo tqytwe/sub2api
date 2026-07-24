@@ -24,6 +24,7 @@
 | `FORK-IMAGE-011` | Images API、Gateway async 与 Batch 运行时 | active | integrity 脚本 + Go/Vitest/集成测试 |
 | `FORK-UI-012` | 前端设计系统与视觉治理 | active | design governance 脚本 + lint/typecheck/视觉检查 |
 | `FORK-RISK-013` | IP 风险检测与批量注册发现 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
+| `FORK-ADMIN-014` | 管理员用户批量处置 | active | Go/Vitest/API contract 测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -117,6 +118,14 @@
 - 关键位置：`backend/internal/service/ip_risk.go`、`backend/internal/service/ip_risk_service.go`、`backend/internal/service/ip_risk_admin.go`、`backend/internal/repository/ip_risk_repo.go`、`backend/internal/repository/ip_risk_repo_admin.go`、`backend/internal/handler/admin/ip_risk_handler.go`、`backend/internal/server/routes/admin.go`、`backend/migrations/214_ip_risk_foundation.sql`、`backend/migrations/215_ip_risk_management.sql`、`frontend/src/features/ip-risk/`、`frontend/src/views/admin/ProxiesView.vue`。
 - 冲突策略：可吸收上游认证、审计、IP 解析和后台任务改进，但不得丢失精确注册事件、证据置信度隔离、迁移默认关闭自动化、隐私 HMAC、共享网络/白名单保护、preview/TOTP/管理员保护、安全回滚或 `/admin/proxies` 默认资源页。
 - 验证：IP 风险 service/repository/middleware/auth/handler/route/migration 单元测试，真实 PostgreSQL 滑动窗口、`inet/cidr`、共享 API 新账号限定、原子案件写入和历史邮箱注册推断测试；前端路由、筛选、默认选择、扫描轮询、preview、stale、TOTP、部分结果和回滚测试。生产启用自动阻止前仍必须完成至少 24 小时 Shadow 校准。
+
+## FORK-ADMIN-014 管理员用户批量处置
+
+- 产品目的：让管理员在用户管理页对明确选择的账号执行批量禁用或批量软删除，同时保留逐账号结果、误操作保护和可追溯审计。
+- 不变量：批量操作只接受最多 500 个明确用户 ID，并支持跨页选择；执行前必须填写原因并生成五分钟有效的服务端影响预览，预览令牌使用域隔离 HMAC 签名，用户状态或待删除 API Key 发生变化后必须返回 `USER_BATCH_ACTION_PREVIEW_STALE`。批量禁用和批量删除都必须通过管理员 JWT TOTP step-up；管理员账号永远受保护，已禁用或不存在的账号安全跳过。删除复用现有用户与 API Key 软删除事务，API Key 先去密钥化，操作完成后清理认证缓存。单个账号失败不得中断其余账号，前端必须展示完成、部分成功和失败结果，并保留失败账号选择以便重试。
+- 关键位置：`backend/internal/service/admin_user_batch_actions.go`、`backend/internal/handler/admin/user_handler.go`、`backend/internal/server/routes/admin.go`、`frontend/src/components/admin/user/BulkUserActionDialog.vue`、`frontend/src/views/admin/UsersView.vue`。
+- 冲突策略：可吸收上游用户管理和批量编辑改进，但不得绕过预览、TOTP、管理员保护、软删除、认证缓存失效、逐账号结果或审计原因。
+- 验证：`admin_user_batch_actions_test.go`、`user_handler_batch_actions_test.go`、`api_contract_test.go`、`admin.users.spec.ts`、`BulkUserActionDialog.spec.ts`、`UsersView.spec.ts`，以及前端 typecheck、lint、design governance、完整测试和 production build。
 
 ## FORK-PUBLIC-008 公共页面与可见性
 
