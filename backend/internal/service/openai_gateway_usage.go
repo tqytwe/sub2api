@@ -368,6 +368,11 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if quotaPlatform == "" {
 		quotaPlatform = PlatformFromAPIKey(apiKey)
 	}
+	globalSurcharge := BillingSurchargeConfig{}
+	if s.settingService != nil {
+		globalSurcharge = s.settingService.GetBillingSurchargeConfig(ctx)
+	}
+	surcharge := ApplyBillingSurcharge(cost, ResolveGroupBillingSurcharge(apiKey.Group, globalSurcharge))
 
 	billingErr := func() error {
 		_, err := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
@@ -381,6 +386,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			AccountRateMultiplier: accountRateMultiplier,
 			APIKeyService:         input.APIKeyService,
 			Platform:              quotaPlatform,
+			Surcharge:             surcharge,
 		}, s.billingDeps(), s.usageBillingRepo)
 		return err
 	}()

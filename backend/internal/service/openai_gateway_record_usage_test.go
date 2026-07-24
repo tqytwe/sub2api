@@ -808,6 +808,66 @@ func TestOpenAIGatewayServiceRecordUsage_BillingFingerprintIncludesRequestPayloa
 	require.Equal(t, payloadHash, billingRepo.lastCmd.RequestPayloadHash)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_AppliesSurchargeAfterGroupMultiplier(t *testing.T) {
+	usage := OpenAIUsage{InputTokens: 10, OutputTokens: 6, CacheReadInputTokens: 2}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	quotaSvc := &openAIRecordUsageAPIKeyQuotaStub{}
+	svc := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+	groupID := int64(17)
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "openai_surcharge_after_multiplier",
+			Usage:     usage,
+			Model:     "gpt-5.1",
+			Duration:  time.Second,
+		},
+		APIKey: &APIKey{
+			ID:      501,
+			Quota:   100,
+			GroupID: &groupID,
+			Group: &Group{
+				ID:                              groupID,
+				Name:                            "paid-group",
+				RateMultiplier:                  0.25,
+				BillingSurchargeOverrideEnabled: true,
+				BillingSurchargeEnabled:         true,
+				BillingSurchargeMode:            BillingSurchargeModeAdditiveMultiplier,
+				BillingSurchargeValue:           0.05,
+			},
+		},
+		User:          &User{ID: 601},
+		Account:       &Account{ID: 701},
+		APIKeyService: quotaSvc,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.NotNil(t, billingRepo.lastCmd)
+
+	expected := expectedOpenAICost(t, svc, "gpt-5.1", usage, 0.25)
+	expectedSurcharge := expected.TotalCost * 0.05
+	expectedBilled := expected.ActualCost + expectedSurcharge
+
+	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
+	require.InDelta(t, expected.ActualCost, billingRepo.lastCmd.ActualCost, 1e-12)
+	require.InDelta(t, expectedSurcharge, billingRepo.lastCmd.BillingSurchargeCost, 1e-12)
+	require.InDelta(t, expectedBilled, billingRepo.lastCmd.BilledCost, 1e-12)
+	require.InDelta(t, expectedBilled, billingRepo.lastCmd.BalanceCost, 1e-12)
+	require.InDelta(t, expectedBilled, billingRepo.lastCmd.APIKeyQuotaCost, 1e-12)
+	require.Equal(t, BillingSurchargeModeAdditiveMultiplier, billingRepo.lastCmd.BillingSurchargeMode)
+	require.InDelta(t, 0.05, billingRepo.lastCmd.BillingSurchargeValue, 1e-12)
+	require.NotNil(t, billingRepo.lastCmd.APIKeyGroupID)
+	require.Equal(t, groupID, *billingRepo.lastCmd.APIKeyGroupID)
+	require.Equal(t, "paid-group", billingRepo.lastCmd.APIKeyGroupName)
+}
+
 func TestOpenAIGatewayServiceRecordUsage_UsesFallbackRequestIDForBillingAndUsageLog(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{}
 	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
