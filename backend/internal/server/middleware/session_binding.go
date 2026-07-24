@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
@@ -25,7 +27,15 @@ func SessionBindingContext(cfg *config.Config) gin.HandlerFunc {
 			IP:        ip.GetSecurityClientIP(c, forwardedIPSettings.TrustForwardedIP),
 			UserAgent: userAgent,
 		}
-		c.Request = c.Request.WithContext(service.WithSessionBinding(c.Request.Context(), binding))
+		ctx := service.WithSessionBinding(c.Request.Context(), binding)
+		requestID, _ := ctx.Value(ctxkey.RequestID).(string)
+		ctx = service.WithIPRiskRequestMetadata(ctx, service.IPRiskRequestMetadata{
+			ClientIP:   binding.IP,
+			UserAgent:  binding.UserAgent,
+			RequestID:  requestID,
+			OccurredAt: time.Now().UTC(),
+		})
+		c.Request = c.Request.WithContext(ctx)
 		c.Next()
 	}
 }

@@ -8,6 +8,7 @@ export const jisudengHomeEn = {
     keyUsage: 'API Audit',
     about: 'About',
     contact: 'Contact',
+    androidApp: 'Android App',
     admin: 'Admin',
     console: 'Console',
     signIn: 'Sign in',
@@ -16,11 +17,11 @@ export const jisudengHomeEn = {
   hero: {
     eyebrow: 'Privacy-first · No data resale · No model dilution',
     titleParts: {
-      brand: '极速蹬',
-      mid: 'AI',
-      tail: 'Gateway'
+      brand: 'Jisudeng',
+      mid: 'One API',
+      tail: 'for AI models'
     },
-    subtitle: 'One API key · Claude, GPT & Gemini · Pay per token · No subscription',
+    subtitle: 'Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API.',
     tagline: 'Register in minutes. Official token rates. Prompts never stored.',
     activeOn: 'WORKS WITH',
     perks: {
@@ -65,6 +66,28 @@ export const jisudengHomeEn = {
     through: 'Latest operations sample ended {time}',
     computed: 'Snapshot generated {time}',
     stale: 'Showing cached or delayed data'
+  },
+  lmspeedProof: {
+    tag: 'LMSPEED STATUS',
+    title: 'Third-party Speed and Status',
+    lede:
+      'Public LMSpeed proof for Jisudeng health checks, supported models, and recent tests. API-key speed tests stay inside this site.',
+    gridLabel: 'Jisudeng LMSpeed third-party status cards',
+    providerLink: 'View LMSpeed provider page',
+    items: {
+      health: {
+        label: 'Health Check',
+        alt: 'Jisudeng Health Check'
+      },
+      models: {
+        label: 'Supported Models',
+        alt: 'Jisudeng Supported Models'
+      },
+      recent: {
+        label: 'Recent Tests',
+        alt: 'Jisudeng Recent Tests'
+      }
+    }
   },
   sections: {
     imageTag: 'IMAGE API',
@@ -139,7 +162,7 @@ export const jisudengHomeEn = {
   features: {
     multiModel: {
       title: 'Multi-model hub',
-      desc: 'Claude, GPT, Gemini and more — one OpenAI-compatible endpoint. Switch models in one line.'
+      desc: 'DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more — one OpenAI-compatible endpoint. Switch models in one line.'
     },
     stable: {
       title: 'Reliable routing',
@@ -170,7 +193,16 @@ export const jisudengHomeEn = {
     s3t: 'First API call',
     s3d: 'OpenAI-compatible SDK — change base_url and start calling',
     docLink: 'Prefer curl or raw HTTP?',
-    docLinkCta: 'Quick start docs'
+    docLinkCta: 'Quick start docs',
+    terminalAria: 'One-command setup terminal demo',
+    terminalTitle: 'bash — Jisudeng AI · one-command setup',
+    terminalEnv: 'Environment detected - Node 22 · OpenClaw installed',
+    terminalPasteKey: 'Paste API key › sk-••••••••••••',
+    terminalModel: 'Primary model › claude-opus-4-7',
+    terminalConfig: 'Config written to ~/.openclaw/openclaw.json',
+    terminalSelfCheck: 'Self-check passed - setup complete',
+    terminalIntroPrompt: 'openclaw "Introduce yourself"',
+    terminalIntroReply: 'Hi, I am your local AI assistant connected through Jisudeng. Ready to work.'
   },
   pricing: {
     lineA: 'Pay per token,',
@@ -185,7 +217,8 @@ export const jisudengHomeEn = {
   },
   footer: {
     tagline: 'AI API gateway',
-    docs: 'Documentation'
+    docs: 'Documentation',
+    lmspeedBadgeAlt: 'Jisudeng is listed on LMSpeed.net'
   },
   registerBanner: {
     signupCredit: 'Register now — get ${amount} free credits to test every model.',
@@ -195,6 +228,7 @@ export const jisudengHomeEn = {
   anchors: {
     manifesto: 'Promise',
     stats: 'Stats',
+    lmspeed: 'Speed',
     image: 'Image',
     channels: 'Channels',
     features: 'Why us',
@@ -202,6 +236,7 @@ export const jisudengHomeEn = {
     pricing: 'Pricing',
     faq: 'FAQ',
     closer: 'Start',
+    scrollToContent: 'Scroll to content',
     backToTop: 'Back to top'
   }
 }

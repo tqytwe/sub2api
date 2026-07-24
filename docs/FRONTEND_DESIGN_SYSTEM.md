@@ -14,9 +14,11 @@
 
 1. 打开并阅读目标页面、同类型页面和相关共享组件。
 2. 查看当前实际画面或已有截图，记录宽度、密度、层级和已有交互状态。
-3. 确认能否复用现有布局、图标、按钮、表单、表格、浮层和状态组件。
-4. 明确页面属于运营界面还是允许艺术表达的页面。
-5. 写出本次会影响的 default、hover、active、focus、loading、disabled、
+3. 在改代码前保存本次方案的原型设计图片。没有原型图、没有用户确认边界或
+   原型图与改动范围不一致时，不得进入实现。
+4. 确认能否复用现有布局、图标、按钮、表单、表格、浮层和状态组件。
+5. 明确页面属于运营界面还是允许艺术表达的页面。
+6. 写出本次会影响的 default、hover、active、focus、loading、disabled、
    empty、error、success 状态。
 
 视觉改动完成后必须保留可复核的前后对比。截图不是最终生产验收，但属于前端
@@ -24,8 +26,8 @@
 
 每次可见界面改动必须新增
 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`。记录必须包含目标路由、基线画面、
-实际复用的共享组件、状态矩阵、视口、前后截图或录像位置，以及未解决风险。
-模板占位符、只写“已检查”或只有代码链接不算有效证据。
+原型设计图片、实际复用的共享组件、状态矩阵、视口、前后截图或录像位置，以及
+未解决风险。模板占位符、只写“已检查”、只有代码链接或没有原型图片不算有效证据。
 
 ## 2. 视觉原则
 
@@ -45,8 +47,8 @@
 | compact | 672px | 回调、结果、短错误和单任务流程 |
 | reading | 800px | 文档、法律文本和公告详情 |
 | form | 960px | Profile、Redeem 和复杂表单 |
-| content | 1152px | Dashboard、Wallet、Payment 和默认页面 |
-| workspace | 1600px | 表格、运维、Play 和 Image Studio |
+| content | 无固定上限 | Wallet、Payment、默认控制台内容和普通业务页面 |
+| workspace | 无固定上限 | Dashboard、表格、运维、Play 和 Image Studio |
 | fluid | 无固定上限 | Home、NextChat 和真正全屏工作区 |
 
 页面 gutter 固定为：
@@ -57,7 +59,10 @@
 - 1200px 以上：32px
 
 页面根节点不得自行承担宽度、居中、背景、全屏高度或滚动。共享 Layout 和
-PageFrame 负责页面框架，页面只负责内容结构。
+PageFrame 负责页面框架，页面只负责内容结构。登录后的控制台、仪表盘、表格、
+支付、钱包和运营工作区必须使用侧栏右侧的可用宽度，只保留 Layout gutter；
+不得因为统一框架在宽屏上制造大面积左右空白。只有 `compact`、`reading` 和
+`form` 允许居中限宽。
 
 ### Route UI contract（迁移目标）
 
@@ -84,6 +89,8 @@ type RouteUIContract = {
 - Route host 负责生成 PageFrame、PageHeader、背景、gutter 和滚动容器。
 - 业务页面根节点禁止 `max-w-*`、`mx-auto`、`min-h-screen`、`h-screen` 和
   页面级 `overflow-y-auto`。
+- `content` 和 `workspace` 是控制台业务页的默认宽屏档位，不能设置固定
+  `max-width` 或 `margin-inline: auto`。
 - `fluid` 仅用于 Home、NextChat、画布和真正全屏工作区，不能成为逃生档位。
 - 迁移期旧 meta 由 resolver 兼容；resolver 落地后，新路由不得继续新增旧布尔开关。
 
@@ -216,6 +223,8 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 ## 14. 组件所有权与变更规则
 
 - `PageFrame/PageHeader`：页面宽度、gutter、标题、滚动和 surface。
+- `CompactStatusPanel`：回调、支付结果、短错误、单任务流程的状态图标、说明、
+  详情区和操作区。
 - `Icon.vue`：全部功能图标。
 - `Button/Input/TextArea/Select`：控件尺寸、状态、错误和焦点。
 - `BaseDialog/Popover/Toast`：浮层、层级、焦点圈定和消息宣布。
@@ -229,13 +238,14 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 ## 15. 完成门禁
 
 当前已自动强制的是：治理文档存在、Git 基线可解析、增量反模式检查、真实视觉记录
-与修改前后产物。Route UI runtime、Playwright/axe CI 和组件状态自动探测仍按整改计划
-分阶段落地，不得在交付说明中写成已经完成。
+与原型图/修改前后产物。Route UI runtime、Playwright/axe CI 和组件状态自动探测仍按
+整改计划分阶段落地，不得在交付说明中写成已经完成。
 
 每个视觉任务必须确认：
 
 - 已读取本规范和 `frontend/AGENTS.md`。
 - 已查看当前画面、同类页面和共享组件。
+- 已在实现前保存原型设计图片，并在 visual review 的 `prototype_artifacts` 中引用。
 - 未新增平行图标、按钮、卡片、表单或弹窗体系。
 - 页面宽度、间距、圆角、颜色和排版符合规范。
 - 所有适用交互状态完整。
@@ -243,3 +253,10 @@ Home、Play、Image Studio 可以覆盖 composition、media、display type 和 a
 - `pnpm design:check`、lint、typecheck、相关测试和 build 均通过。
 - 视觉风险较高时已完成 Playwright 前后截图和重叠检查。
 - 已新增并填写 `docs/visual-reviews/YYYY-MM-DD-<slug>.md`。
+- visual review 必须包含 `## Prototype`，并声明至少一张真实可解码的
+  `prototype_artifacts` 图片；没有原型图的前端可见改动不得合入。
+- visual review 必须声明 `artifact_mode`。`browser-capture` 代表真实浏览器或
+  Playwright 截图/录像；`static-review-board` 只能作为无浏览器环境下的开发辅助
+  证据，必须在 residual risk 写明仍需浏览器截图或最终验收。
+- PNG 证据必须是真实可解码图片；门禁校验 PNG chunk、CRC、像素数据和最小尺寸，
+  禁止 1x1 占位图或只伪造 header 的假图。

@@ -44,6 +44,30 @@ export interface SupportContactConfig {
   contacts: SupportContactMethod[]
 }
 
+export type APIOnboardingCTA = 'create_key' | 'recharge' | 'buy_plan' | 'open_docs'
+export type APIOnboardingAudience = 'new_users' | 'all_users'
+
+export interface APIOnboardingItem {
+  id: string
+  title: string
+  description: string
+  badge: string
+  enabled: boolean
+  sort_order: number
+  group_id?: number | null
+  plan_id?: number | null
+  min_balance?: number
+  cta: APIOnboardingCTA | string
+  audience: APIOnboardingAudience | string
+}
+
+export interface APIOnboardingConfig {
+  enabled: boolean
+  title: string
+  subtitle: string
+  items: APIOnboardingItem[]
+}
+
 // ==================== Notification Types ====================
 
 /** Notification email entry with enable/disable and verification state.
@@ -231,6 +255,7 @@ export interface PublicSettings {
   contact_info: string
   doc_url: string
   support_contact?: SupportContactConfig
+  api_onboarding?: APIOnboardingConfig
   home_content: string
   hide_ccs_import_button: boolean
   payment_enabled: boolean

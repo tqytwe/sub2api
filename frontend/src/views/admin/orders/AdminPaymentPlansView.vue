@@ -44,6 +44,7 @@
       </div>
 
       <PlanStorefrontConfigPanel :plans="plans" />
+      <APIOnboardingConfigPanel :plans="plans" :groups="groups" />
 
       <!-- Plans Table -->
       <DataTable
@@ -171,6 +172,7 @@ import Icon from '@/components/icons/Icon.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import PlanEditDialog from './PlanEditDialog.vue'
 import PlanStorefrontConfigPanel from './PlanStorefrontConfigPanel.vue'
+import APIOnboardingConfigPanel from './APIOnboardingConfigPanel.vue'
 import { currencySymbol } from '@/components/payment/currency'
 import { platformBadgeClass, platformLabel, platformTextClass } from '@/utils/platformColors'
 

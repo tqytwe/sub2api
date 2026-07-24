@@ -37,6 +37,7 @@ import adminPlayAPI from './play'
 import auditAPI from './audit'
 import adminWithdrawalsAPI from './withdrawals'
 import adminFundsAPI from './funds'
+import ipRiskAPI from './ipRisk'
 
 /**
  * Unified admin API object for convenient access
@@ -75,7 +76,8 @@ export const adminAPI = {
   play: adminPlayAPI,
   audit: auditAPI,
   withdrawals: adminWithdrawalsAPI,
-  funds: adminFundsAPI
+  funds: adminFundsAPI,
+  ipRisk: ipRiskAPI
 }
 
 export {
@@ -112,7 +114,8 @@ export {
   adminPlayAPI,
   auditAPI,
   adminWithdrawalsAPI,
-  adminFundsAPI
+  adminFundsAPI,
+  ipRiskAPI
 }
 
 export default adminAPI

@@ -30,6 +30,7 @@
     "360x800",
     "1280x820"
   ],
+  "artifact_mode": "static-review-board",
   "baseline_artifacts": [
     "docs/visual-reviews/assets/admin-fund-order-navigation/before-admin-fund-order-navigation.png"
   ],

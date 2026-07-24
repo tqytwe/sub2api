@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>导航个性化抽屉原型</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --line: #e5e7eb;
+      --line-strong: #d1d5db;
+      --ink: #111827;
+      --muted: #6b7280;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #059669;
+      --green-soft: #ecfdf5;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --rose: #e11d48;
+      --rose-soft: #fff1f2;
+      --violet: #7c3aed;
+      --shadow: 0 20px 48px rgba(15, 23, 42, .12);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 256px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .sidebar {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: #fff;
+      position: relative;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 68px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .logo {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 10px;
+      background: #111827;
+      color: #fff;
+      font-weight: 900;
+    }
+    .brand strong { display: block; font-size: 17px; }
+    .brand span { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+    .nav {
+      flex: 1;
+      padding: 14px 12px;
+      overflow: hidden;
+    }
+    .section-title {
+      padding: 7px 9px;
+      color: #9ca3af;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      margin-bottom: 4px;
+      padding: 0 10px;
+      border-radius: 8px;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .nav-item.active {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+    .nav-icon {
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      flex: none;
+      border-radius: 7px;
+      background: #f3f4f6;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .active .nav-icon { background: #dbeafe; color: var(--blue); }
+    .sidebar-footer {
+      padding: 12px;
+      border-top: 1px solid var(--line);
+    }
+    .personalize-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .main {
+      min-width: 0;
+      padding: 22px 28px;
+    }
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0; font-size: 24px; line-height: 1.25; }
+    .sub { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 14px;
+    }
+    .metric {
+      min-height: 118px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      box-shadow: 0 14px 34px rgba(15,23,42,.06);
+    }
+    .metric span { color: var(--muted); font-size: 12px; font-weight: 700; }
+    .metric strong { display: block; margin-top: 10px; font-size: 25px; }
+    .workspace-card {
+      min-height: 390px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fff;
+      padding: 16px;
+      box-shadow: 0 14px 34px rgba(15,23,42,.06);
+    }
+    .table {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1.4fr 1fr 1fr 100px;
+      min-height: 46px;
+      align-items: center;
+      border-bottom: 1px solid var(--line);
+      padding: 0 14px;
+      color: #4b5563;
+      font-size: 13px;
+    }
+    .row.head {
+      background: #f9fafb;
+      color: #6b7280;
+      font-weight: 800;
+    }
+    .row:last-child { border-bottom: 0; }
+    .drawer {
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      width: 456px;
+      background: #fff;
+      border-left: 1px solid var(--line);
+      box-shadow: var(--shadow);
+      display: flex;
+      flex-direction: column;
+    }
+    .drawer-head {
+      padding: 20px 20px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    .drawer-head h2 { margin: 0; font-size: 19px; }
+    .drawer-head p { margin: 6px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+    .drawer-body {
+      flex: 1;
+      overflow: auto;
+      padding: 16px 20px;
+    }
+    .drawer-footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 14px 20px;
+      border-top: 1px solid var(--line);
+      background: #fff;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      min-width: 92px;
+      height: 38px;
+      padding: 0 13px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: #374151;
+      font-size: 13px;
+      font-weight: 800;
+    }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .block { margin-bottom: 18px; }
+    .block-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 10px;
+    }
+    .block-title h3 { margin: 0; font-size: 14px; }
+    .block-title span { color: var(--muted); font-size: 12px; }
+    .list {
+      display: grid;
+      gap: 8px;
+    }
+    .drag-row {
+      display: grid;
+      grid-template-columns: 24px minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 9px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+    }
+    .drag-row.pinned {
+      border-color: #bfdbfe;
+      background: var(--blue-soft);
+    }
+    .drag-handle {
+      color: #9ca3af;
+      font-weight: 900;
+      text-align: center;
+    }
+    .row-title strong { display: block; font-size: 13px; }
+    .row-title span { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      height: 24px;
+      padding: 0 8px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 900;
+    }
+    .pill.neutral { background: #f3f4f6; color: #6b7280; }
+    .pill.warn { background: var(--amber-soft); color: var(--amber); }
+    .switch {
+      width: 38px;
+      height: 22px;
+      padding: 2px;
+      border-radius: 999px;
+      background: #d1d5db;
+    }
+    .switch.on { background: var(--blue); }
+    .knob {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      box-shadow: 0 1px 4px rgba(0,0,0,.18);
+    }
+    .switch.on .knob { margin-left: 16px; }
+    .note {
+      padding: 12px;
+      border: 1px solid #fde68a;
+      border-radius: 9px;
+      background: var(--amber-soft);
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .mode-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 14px;
+      padding: 4px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #f9fafb;
+    }
+    .mode-tabs div {
+      flex: 1;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 850;
+    }
+    .mode-tabs .active {
+      background: #fff;
+      color: var(--blue);
+      box-shadow: 0 1px 4px rgba(15,23,42,.08);
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">J</div>
+        <div>
+          <strong>极速蹬</strong>
+          <span>个人工作台</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <div class="section-title">常用</div>
+        <div class="nav-item active"><span class="nav-icon">D</span>仪表盘</div>
+        <div class="nav-item"><span class="nav-icon">K</span>API Keys</div>
+        <div class="nav-item"><span class="nav-icon">M</span>模型与价格</div>
+        <div class="nav-item"><span class="nav-icon">P</span>充值订阅</div>
+        <div class="section-title">更多</div>
+        <div class="nav-item"><span class="nav-icon">U</span>用量记录</div>
+        <div class="nav-item"><span class="nav-icon">I</span>图像工作室</div>
+        <div class="nav-item"><span class="nav-icon">G</span>玩法福利</div>
+        <div class="nav-item"><span class="nav-icon">S</span>个人资料</div>
+      </nav>
+      <div class="sidebar-footer">
+        <button class="personalize-btn">导航个性化</button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1>仪表盘</h1>
+          <p class="sub">导航仍保持当前结构；个性化通过侧栏底部工具入口打开，不占用菜单列表。</p>
+        </div>
+      </div>
+
+      <div class="dashboard">
+        <div class="metric"><span>账户余额</span><strong>$18.60</strong></div>
+        <div class="metric"><span>今日请求</span><strong>1,284</strong></div>
+        <div class="metric"><span>活跃 Key</span><strong>3</strong></div>
+        <div class="metric"><span>可用分组</span><strong>6</strong></div>
+      </div>
+
+      <section class="workspace-card">
+        <h2>最近使用</h2>
+        <p class="sub">用户可以把高频页面固定到“常用”，隐藏低频页面，拖拽调整顺序。</p>
+        <div class="table">
+          <div class="row head"><span>页面</span><span>最近访问</span><span>状态</span><span>动作</span></div>
+          <div class="row"><span>API Keys</span><span>今天 14:21</span><span>已固定</span><span>打开</span></div>
+          <div class="row"><span>充值订阅</span><span>昨天 22:08</span><span>常用</span><span>打开</span></div>
+          <div class="row"><span>图像工作室</span><span>3 天前</span><span>可隐藏</span><span>打开</span></div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="drawer">
+      <div class="drawer-head">
+        <h2>自定义导航</h2>
+        <p>这是侧栏附属设置，不是新的导航页面。第一版可先保存在当前浏览器，稳定后再同步到账号。</p>
+      </div>
+
+      <div class="drawer-body">
+        <div class="mode-tabs">
+          <div class="active">我的常用</div>
+          <div>全部菜单</div>
+          <div>管理员默认</div>
+        </div>
+
+        <section class="block">
+          <div class="block-title">
+            <h3>常用区排序</h3>
+            <span>拖拽手柄调整顺序</span>
+          </div>
+          <div class="list">
+            <div class="drag-row pinned">
+              <div class="drag-handle">::</div>
+              <div class="row-title"><strong>API Keys</strong><span>新用户接入最关键入口，建议保持可见。</span></div>
+              <span class="pill">固定</span>
+            </div>
+            <div class="drag-row">
+              <div class="drag-handle">::</div>
+              <div class="row-title"><strong>充值订阅</strong><span>余额不足时会从推荐卡跳转到这里。</span></div>
+              <span class="pill neutral">常用</span>
+            </div>
+            <div class="drag-row">
+              <div class="drag-handle">::</div>
+              <div class="row-title"><strong>模型与价格</strong><span>适合新用户先了解模型和计费。</span></div>
+              <span class="pill neutral">常用</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="block">
+          <div class="block-title">
+            <h3>显示与隐藏</h3>
+            <span>不会影响权限，只影响个人菜单</span>
+          </div>
+          <div class="list">
+            <div class="drag-row">
+              <div class="switch on"><div class="knob"></div></div>
+              <div class="row-title"><strong>图像工作室</strong><span>开启后出现在“更多”或“常用”。</span></div>
+              <span class="pill">显示</span>
+            </div>
+            <div class="drag-row">
+              <div class="switch"><div class="knob"></div></div>
+              <div class="row-title"><strong>玩法福利</strong><span>隐藏后仍可通过直接链接访问已授权页面。</span></div>
+              <span class="pill warn">隐藏</span>
+            </div>
+            <div class="drag-row">
+              <div class="switch on"><div class="knob"></div></div>
+              <div class="row-title"><strong>个人资料</strong><span>基础账户入口，不建议隐藏。</span></div>
+              <span class="pill">显示</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="note">
+          管理员后台可以配置全站默认菜单；普通用户只能调整自己的常用、排序、隐藏。权限、功能开关、管理员强制固定项优先级高于个人偏好。
+        </div>
+      </div>
+
+      <div class="drawer-footer">
+        <button class="btn">恢复默认</button>
+        <div>
+          <button class="btn">取消</button>
+          <button class="btn primary">保存个人偏好</button>
+        </div>
+      </div>
+    </aside>
+  </div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -29,11 +30,14 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import Icon from '@/components/icons/Icon.vue'
 import '@/components/prompt/prompt-library.css'
 import { applyPromptPageMetadata, clearPromptPageMetadata } from '@/utils/promptPageMetadata'
+import { isEnglishLocale } from '@/utils/localizedPublicSettings'
+import { setLocale } from '@/i18n'
 
 const route = useRoute()
 const router = useRouter()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const { t, locale } = useI18n()
 
 const filters = ref<PromptFiltersState>(readPromptFilters(route.query))
 const categories = ref<PromptCategory[]>([])
@@ -50,6 +54,16 @@ const busyIds = ref(new Set<string>())
 let queryTimer: ReturnType<typeof setTimeout> | null = null
 let requestId = 0
 
+const isEnglishPromptLocale = computed(() => isEnglishLocale(locale.value))
+type PromptQuickEntryKind = 'featured' | 'latest' | 'popular' | 'no-reference' | 'favorite'
+const promptQuickEntries: { key: PromptQuickEntryKind; labelKey: string }[] = [
+  { key: 'featured', labelKey: 'promptLibrary.quickFeatured' },
+  { key: 'latest', labelKey: 'promptLibrary.quickLatest' },
+  { key: 'popular', labelKey: 'promptLibrary.quickPopular' },
+  { key: 'no-reference', labelKey: 'promptLibrary.quickNoReference' },
+  { key: 'favorite', labelKey: 'promptLibrary.quickFavorite' },
+]
+
 function querySignature(value: Record<string, unknown>): string {
   return JSON.stringify(
     Object.entries(value)
@@ -59,6 +73,10 @@ function querySignature(value: Record<string, unknown>): string {
 }
 
 async function loadCategories() {
+  if (isEnglishPromptLocale.value) {
+    categories.value = []
+    return
+  }
   try {
     categories.value = await listPromptCategories()
   } catch {
@@ -67,6 +85,13 @@ async function loadCategories() {
 }
 
 async function loadPrompts() {
+  if (isEnglishPromptLocale.value) {
+    requestId += 1
+    loading.value = false
+    loadFailed.value = false
+    result.value = { items: [], total: 0, page: filters.value.page, page_size: 24, pages: 0 }
+    return
+  }
   const currentRequest = ++requestId
   loading.value = true
   loadFailed.value = false
@@ -148,7 +173,7 @@ async function handleFavorite(prompt: PromptSummary) {
       })
     }
   } catch {
-    appStore.showError('收藏操作失败，请稍后重试')
+    appStore.showError(t('promptLibrary.favoriteFailed'))
   } finally {
     busyIds.value.delete(prompt.id)
   }
@@ -158,9 +183,9 @@ async function handleCopy(prompt: PromptSummary) {
   try {
     const text = prompt.prompt_template || (await getPrompt(prompt.id)).prompt_template
     await copyPromptText(text)
-    appStore.showSuccess('提示词已复制')
+    appStore.showSuccess(t('promptLibrary.copySuccess'))
   } catch {
-    appStore.showError('复制失败，请手动选择提示词')
+    appStore.showError(t('promptLibrary.copyFailed'))
   }
 }
 
@@ -173,7 +198,12 @@ function goBack() {
     router.back()
     return
   }
-  void router.push('/home')
+  void router.push(isEnglishPromptLocale.value ? '/en' : '/home')
+}
+
+async function showCurrentPromptLibrary() {
+  await setLocale('zh')
+  await router.replace({ path: '/prompts', query: route.query })
 }
 
 async function handleUse(prompt: PromptSummary) {
@@ -189,7 +219,7 @@ async function handleUse(prompt: PromptSummary) {
   try {
     await openPromptInImageStudio(prompt.id, usePrompt, router)
   } catch {
-    appStore.showError('暂时无法用于创作，请稍后重试')
+    appStore.showError(t('promptLibrary.useFailed'))
   } finally {
     busyIds.value.delete(prompt.id)
   }
@@ -211,10 +241,23 @@ watch(
 
 watch(filters, scheduleUrlSync, { deep: true })
 
+watch(isEnglishPromptLocale, (isEnglish) => {
+  if (isEnglish) {
+    requestId += 1
+    loading.value = false
+    loadFailed.value = false
+    result.value = { items: [], total: 0, page: filters.value.page, page_size: 24, pages: 0 }
+    categories.value = []
+    return
+  }
+  void loadCategories()
+  void loadPrompts()
+})
+
 onMounted(() => {
   applyPromptPageMetadata({
-    title: '图像工作室 · 选提示词',
-    description: '在图像工作室内按用途、风格、主体、模型和尺寸查找提示词，并用于图像创作。',
+    title: t('promptLibrary.metaTitle'),
+    description: t('promptLibrary.metaDescription'),
     path: '/prompts',
     kind: 'square',
   })
@@ -231,85 +274,95 @@ onBeforeUnmount(() => {
   <div class="prompt-library-page">
     <header class="prompt-library-header">
       <div class="prompt-library-header-inner">
-        <button type="button" class="prompt-library-home-link" aria-label="返回上一页" @click="goBack">
+        <button type="button" class="prompt-library-home-link" :aria-label="t('promptLibrary.backAria')" @click="goBack">
           <Icon name="arrowLeft" size="sm" />
-          返回
+          {{ t('promptLibrary.back') }}
         </button>
         <PublicPageToolbar />
       </div>
     </header>
 
-    <main class="prompt-library-main">
+    <main v-if="isEnglishPromptLocale" class="prompt-library-main">
+      <section class="prompt-empty">
+        <Icon name="search" size="xl" />
+        <p class="prompt-library-eyebrow">{{ t('promptLibrary.englishPendingEyebrow') }}</p>
+        <h1>{{ t('promptLibrary.englishPendingTitle') }}</h1>
+        <p>{{ t('promptLibrary.englishPendingBody') }}</p>
+        <button
+          type="button"
+          class="prompt-primary-button"
+          @click="showCurrentPromptLibrary"
+        >
+          {{ t('promptLibrary.switchToDefaultLanguage') }}
+        </button>
+      </section>
+    </main>
+
+    <main v-else class="prompt-library-main">
       <section class="prompt-library-intro">
         <div>
-          <p class="prompt-library-eyebrow">图像工作室 · 提示词库</p>
-          <h1>选提示词</h1>
-          <p>按用途和画面特征找到可直接创作的提示词，查看示例效果后再带入图像工作室。</p>
+          <p class="prompt-library-eyebrow">{{ t('promptLibrary.eyebrow') }}</p>
+          <h1>{{ t('promptLibrary.title') }}</h1>
+          <p>{{ t('promptLibrary.description') }}</p>
         </div>
       </section>
 
-      <nav class="prompt-quick-links" aria-label="快捷入口">
+      <nav class="prompt-quick-links" :aria-label="t('promptLibrary.quickLinksAria')">
         <button
-          v-for="entry in [
-            { key: 'featured', label: '极速蹬精选' },
-            { key: 'latest', label: '最新收录' },
-            { key: 'popular', label: '热门使用' },
-            { key: 'no-reference', label: '无需参考图' },
-            { key: 'favorite', label: '我的收藏' },
-          ]"
+          v-for="entry in promptQuickEntries"
           :key="entry.key"
           type="button"
           class="prompt-quick-link"
-          :class="{ 'is-active': isQuickEntryActive(entry.key as 'featured' | 'latest' | 'popular' | 'no-reference' | 'favorite') }"
-          @click="applyQuickEntry(entry.key as 'featured' | 'latest' | 'popular' | 'no-reference' | 'favorite')"
+          :class="{ 'is-active': isQuickEntryActive(entry.key) }"
+          @click="applyQuickEntry(entry.key)"
         >
-          {{ entry.label }}
+          {{ t(entry.labelKey) }}
         </button>
       </nav>
 
       <PromptFilters v-model="filters" :categories="categories" @apply="syncFiltersToUrl" />
 
       <div class="prompt-result-bar">
-        <span>{{ loading ? '正在加载提示词' : `共找到 ${result.total} 条提示词` }}</span>
+        <span>{{ loading ? t('promptLibrary.loading') : t('promptLibrary.resultCount', { count: result.total }) }}</span>
         <label>
-          <span class="sr-only">排序方式</span>
+          <span class="sr-only">{{ t('promptLibrary.sortLabel') }}</span>
           <select
             :value="filters.sort"
-            aria-label="排序方式"
+            :aria-label="t('promptLibrary.sortLabel')"
             @change="filters = { ...filters, sort: ($event.target as HTMLSelectElement).value as PromptFiltersState['sort'], page: 1 }"
           >
-            <option value="featured">精选优先</option>
-            <option value="latest">最新收录</option>
-            <option value="popular">热门使用</option>
+            <option value="featured">{{ t('promptLibrary.sortFeatured') }}</option>
+            <option value="latest">{{ t('promptLibrary.sortLatest') }}</option>
+            <option value="popular">{{ t('promptLibrary.sortPopular') }}</option>
           </select>
         </label>
       </div>
 
-      <div v-if="loading" class="prompt-loading-grid" aria-label="正在加载">
+      <div v-if="loading" class="prompt-loading-grid" :aria-label="t('promptLibrary.loading')">
         <div v-for="index in 8" :key="index" class="prompt-loading-item"></div>
       </div>
 
       <section v-else-if="loadFailed" class="prompt-error">
         <Icon name="exclamationCircle" size="xl" />
-        <h2>提示词加载失败</h2>
-        <p>网络暂时不可用，请稍后重新加载。</p>
-        <button type="button" class="prompt-primary-button" @click="loadPrompts">重新加载</button>
+        <h2>{{ t('promptLibrary.loadFailedTitle') }}</h2>
+        <p>{{ t('promptLibrary.loadFailedBody') }}</p>
+        <button type="button" class="prompt-primary-button" @click="loadPrompts">{{ t('promptLibrary.reload') }}</button>
       </section>
 
       <section v-else-if="result.items.length === 0" class="prompt-empty">
         <Icon name="search" size="xl" />
-        <h2>没有找到匹配的提示词</h2>
-        <p>可以减少筛选条件，或换一个关键词再试。</p>
+        <h2>{{ t('promptLibrary.emptyTitle') }}</h2>
+        <p>{{ t('promptLibrary.emptyBody') }}</p>
         <button
           type="button"
           class="prompt-reset-button"
           @click="filters = { ...DEFAULT_PROMPT_FILTERS }"
         >
-          清除全部筛选
+          {{ t('promptLibrary.clearFilters') }}
         </button>
       </section>
 
-      <section v-else class="prompt-masonry" aria-label="提示词列表">
+      <section v-else class="prompt-masonry" :aria-label="t('promptLibrary.listAria')">
         <PromptCard
           v-for="prompt in result.items"
           :key="prompt.id"

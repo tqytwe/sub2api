@@ -69,6 +69,90 @@ type SendVerifyCodeResponse struct {
 	Countdown int    `json:"countdown"` // 倒计时秒数
 }
 
+func authMobileMessage(c *gin.Context, zh, en string) string {
+	if c == nil {
+		return zh
+	}
+	language := strings.ToLower(strings.TrimSpace(c.GetHeader("Accept-Language")))
+	if strings.HasPrefix(language, "en") {
+		return en
+	}
+	return zh
+}
+
+func respondMobileAuthError(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+
+	statusCode, status := infraerrors.ToHTTP(err)
+	message := authMobileErrorMessage(c, status.Reason)
+	if message == "" {
+		if statusCode >= 500 {
+			if c != nil && c.Request != nil {
+				slog.Error("mobile auth request failed",
+					"method", c.Request.Method,
+					"path", c.Request.URL.Path,
+					"reason", status.Reason,
+				)
+			}
+			message = authMobileMessage(c, "请求失败，请稍后再试", "Request failed. Please try again.")
+			response.ErrorWithDetails(c, statusCode, message, status.Reason, status.Metadata)
+			return true
+		}
+		response.ErrorFrom(c, err)
+		return true
+	}
+
+	if statusCode >= 500 && c != nil && c.Request != nil {
+		slog.Error("mobile auth request failed",
+			"method", c.Request.Method,
+			"path", c.Request.URL.Path,
+			"reason", status.Reason,
+		)
+	}
+	response.ErrorWithDetails(c, statusCode, message, status.Reason, status.Metadata)
+	return true
+}
+
+func authMobileErrorMessage(c *gin.Context, reason string) string {
+	switch strings.ToUpper(strings.TrimSpace(reason)) {
+	case "INVALID_CREDENTIALS":
+		return authMobileMessage(c, "邮箱或密码错误", "Invalid email or password")
+	case "USER_NOT_ACTIVE":
+		return authMobileMessage(c, "账号已被禁用，请联系客服", "Your account is disabled. Please contact support.")
+	case "EMAIL_EXISTS":
+		return authMobileMessage(c, "该邮箱已注册，请直接登录", "This email is already registered. Please sign in.")
+	case "EMAIL_RESERVED":
+		return authMobileMessage(c, "该邮箱暂不支持注册", "This email cannot be used for registration.")
+	case "EMAIL_VERIFY_REQUIRED":
+		return authMobileMessage(c, "请先完成邮箱验证码验证", "Please verify your email first.")
+	case "EMAIL_SUFFIX_NOT_ALLOWED":
+		return authMobileMessage(c, "该邮箱后缀暂不支持注册", "This email domain is not allowed.")
+	case "REGISTRATION_DISABLED":
+		return authMobileMessage(c, "当前暂不开放注册", "Registration is currently disabled.")
+	case "INVITATION_CODE_REQUIRED":
+		return authMobileMessage(c, "请填写邀请码", "Invitation code is required.")
+	case "INVITATION_CODE_INVALID":
+		return authMobileMessage(c, "邀请码无效或已被使用", "Invalid or used invitation code.")
+	case "SERVICE_UNAVAILABLE":
+		return authMobileMessage(c, "服务暂时不可用，请稍后再试", "Service temporarily unavailable. Please try again later.")
+	case "BACKEND_MODE_ADMIN_ONLY":
+		return authMobileMessage(c, "系统维护中，请稍后再试", "System maintenance is in progress. Please try again later.")
+	case "PASSWORD_RESET_DISABLED":
+		return authMobileMessage(c, "密码重置功能暂未开启", "Password reset is not enabled.")
+	case "INVALID_RESET_TOKEN":
+		return authMobileMessage(c, "验证码无效或已过期", "The verification code is invalid or expired.")
+	case "INVALID_VERIFY_CODE":
+		return authMobileMessage(c, "验证码无效或已过期", "The verification code is invalid or expired.")
+	case "VERIFY_CODE_TOO_FREQUENT":
+		return authMobileMessage(c, "验证码发送过于频繁，请稍后再试", "Verification code requested too frequently. Please try again later.")
+	case "VERIFY_CODE_MAX_ATTEMPTS":
+		return authMobileMessage(c, "验证码错误次数过多，请重新获取验证码", "Too many verification attempts. Please request a new code.")
+	}
+	return ""
+}
+
 // LoginRequest represents the login request payload
 type LoginRequest struct {
 	Email          string `json:"email" binding:"required,email"`
@@ -188,6 +272,32 @@ func (h *AuthHandler) Register(c *gin.Context) {
 	h.respondWithTokenPair(c, user)
 }
 
+// MobileRegister handles registration from the official Android app.
+// POST /api/v1/auth/mobile/register
+func (h *AuthHandler) MobileRegister(c *gin.Context) {
+	var req RegisterRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+
+	_, user, err := h.authService.RegisterWithVerification(
+		c.Request.Context(),
+		req.Email,
+		req.Password,
+		req.VerifyCode,
+		req.PromoCode,
+		req.InvitationCode,
+		req.AffCode,
+	)
+	if err != nil {
+		respondMobileAuthError(c, err)
+		return
+	}
+
+	h.respondWithTokenPair(c, user)
+}
+
 // SendVerifyCode 发送邮箱验证码
 // POST /api/v1/auth/send-verify-code
 func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
@@ -215,6 +325,27 @@ func (h *AuthHandler) SendVerifyCode(c *gin.Context) {
 	})
 }
 
+// MobileSendVerifyCode sends an email verification code from the official Android app.
+// POST /api/v1/auth/mobile/send-verify-code
+func (h *AuthHandler) MobileSendVerifyCode(c *gin.Context) {
+	var req SendVerifyCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+
+	result, err := h.authService.SendVerifyCodeAsync(c.Request.Context(), req.Email, c.GetHeader("Accept-Language"))
+	if err != nil {
+		respondMobileAuthError(c, err)
+		return
+	}
+
+	response.Success(c, SendVerifyCodeResponse{
+		Message:   authMobileMessage(c, "验证码已发送，请查收邮箱", "Verification code sent successfully"),
+		Countdown: result.Countdown,
+	})
+}
+
 // Login handles user login
 // POST /api/v1/auth/login
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -230,15 +361,35 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	h.loginWithPassword(c, req, response.ErrorFrom)
+}
+
+// MobileLogin handles password login from the official Android app.
+// POST /api/v1/auth/mobile/login
+func (h *AuthHandler) MobileLogin(c *gin.Context) {
+	var req LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+
+	h.loginWithPassword(c, req, respondMobileAuthError)
+}
+
+func (h *AuthHandler) loginWithPassword(c *gin.Context, req LoginRequest, respondError func(*gin.Context, error) bool) {
+	if respondError == nil {
+		respondError = response.ErrorFrom
+	}
+
 	token, user, err := h.authService.Login(c.Request.Context(), req.Email, req.Password)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		respondError(c, err)
 		return
 	}
 	_ = token // token 由 authService.Login 返回但此处由 respondWithTokenPair 重新生成
 
 	if err := h.ensureBackendModeAllowsUser(c.Request.Context(), user); err != nil {
-		response.ErrorFrom(c, err)
+		respondError(c, err)
 		return
 	}
 
@@ -575,7 +726,8 @@ type ForgotPasswordRequest struct {
 
 // ForgotPasswordResponse 忘记密码响应
 type ForgotPasswordResponse struct {
-	Message string `json:"message"`
+	Message   string `json:"message"`
+	Countdown int    `json:"countdown,omitempty"`
 }
 
 // ForgotPassword 请求密码重置
@@ -612,10 +764,36 @@ func (h *AuthHandler) ForgotPassword(c *gin.Context) {
 	})
 }
 
+// MobileForgotPassword requests password reset from the official Android app.
+// POST /api/v1/auth/mobile/forgot-password
+func (h *AuthHandler) MobileForgotPassword(c *gin.Context) {
+	var req ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+
+	result, err := h.authService.RequestPasswordResetCodeAsync(c.Request.Context(), req.Email, c.GetHeader("Accept-Language"))
+	if err != nil {
+		respondMobileAuthError(c, err)
+		return
+	}
+
+	response.Success(c, ForgotPasswordResponse{
+		Message: authMobileMessage(
+			c,
+			"如果该邮箱已注册，你将很快收到验证码。",
+			"If your email is registered, you will receive a verification code shortly.",
+		),
+		Countdown: result.Countdown,
+	})
+}
+
 // ResetPasswordRequest 重置密码请求
 type ResetPasswordRequest struct {
 	Email       string `json:"email" binding:"required,email"`
-	Token       string `json:"token" binding:"required"`
+	Token       string `json:"token"`
+	VerifyCode  string `json:"verify_code"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 
@@ -632,6 +810,10 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 		response.BadRequest(c, "Invalid request: "+err.Error())
 		return
 	}
+	if strings.TrimSpace(req.Token) == "" {
+		response.BadRequest(c, "Invalid request: reset token is required")
+		return
+	}
 
 	// Reset password
 	if err := h.authService.ResetPassword(c.Request.Context(), req.Email, req.Token, req.NewPassword); err != nil {
@@ -641,6 +823,37 @@ func (h *AuthHandler) ResetPassword(c *gin.Context) {
 
 	response.Success(c, ResetPasswordResponse{
 		Message: "Your password has been reset successfully. You can now log in with your new password.",
+	})
+}
+
+// MobileResetPassword resets a password from the official Android app.
+// POST /api/v1/auth/mobile/reset-password
+func (h *AuthHandler) MobileResetPassword(c *gin.Context) {
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+
+	var err error
+	if strings.TrimSpace(req.VerifyCode) != "" {
+		err = h.authService.ResetPasswordWithVerificationCode(c.Request.Context(), req.Email, req.VerifyCode, req.NewPassword)
+	} else if strings.TrimSpace(req.Token) != "" {
+		err = h.authService.ResetPassword(c.Request.Context(), req.Email, req.Token, req.NewPassword)
+	} else {
+		err = infraerrors.BadRequest("INVALID_VERIFY_CODE", "verification code is required")
+	}
+	if err != nil {
+		respondMobileAuthError(c, err)
+		return
+	}
+
+	response.Success(c, ResetPasswordResponse{
+		Message: authMobileMessage(
+			c,
+			"密码已重置，请使用新密码登录。",
+			"Your password has been reset successfully. You can now sign in with your new password.",
+		),
 	})
 }
 

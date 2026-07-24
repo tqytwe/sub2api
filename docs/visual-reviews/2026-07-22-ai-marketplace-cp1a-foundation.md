@@ -26,6 +26,10 @@
     "360x800",
     "1280x800"
   ],
+  "artifact_mode": "static-review-board",
+  "prototype_artifacts": [
+    "docs/visual-reviews/assets/ai-marketplace-cp1a-foundation/after-mobile.png"
+  ],
   "baseline_artifacts": [
     "docs/visual-reviews/assets/ai-marketplace-cp1a-foundation/before-mobile.png",
     "docs/visual-reviews/assets/ai-marketplace-cp1a-foundation/before-desktop.png"
@@ -67,6 +71,12 @@
 - Current behavior: there is no Marketplace page, sidebar item, public search surface, or admin switch.
 - Baseline screenshot or recording: the two baseline review boards record that no Marketplace locale contract or visible surface existed.
 - Inconsistencies observed: no visual inconsistency exists because the feature has no rendered UI.
+
+## Prototype
+
+- Prototype screenshot or recording: the mobile static contract review board captures the intended no-route checkpoint.
+- Interaction plan: no interaction is introduced in CP1A; a later checkpoint must review real route controls before enabling a visible surface.
+- Design decision: keep the feature hidden and locale-only until the Marketplace surface is explicitly approved.
 
 ## Reuse Decision
 

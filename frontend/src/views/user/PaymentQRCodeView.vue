@@ -1,39 +1,68 @@
 <template>
   <AppLayout>
-    <div class="mx-auto flex max-w-md flex-col items-center space-y-6 py-8">
-      <h2 class="text-xl font-semibold text-gray-900 dark:text-white">
-        {{ qrUrl ? scanTitle : t('payment.qr.payInNewWindow') }}
-      </h2>
-      <div v-if="qrUrl" class="rounded-2xl bg-white p-6 shadow-lg dark:bg-dark-800">
-        <img
-          v-if="hostedQRImageUrl"
-          :src="hostedQRImageUrl"
-          alt=""
-          class="mx-auto h-64 w-64 object-contain"
-        />
-        <canvas v-else ref="qrCanvas" class="mx-auto"></canvas>
-      </div>
-      <!-- Scan prompt for QR code -->
-      <p v-if="qrUrl && !expired && scanHint" class="text-center text-sm text-gray-500 dark:text-gray-400">
-        {{ scanHint }}
-      </p>
-      <div v-if="expired" class="text-center">
-        <p class="text-lg font-medium text-red-500">{{ t('payment.qr.expired') }}</p>
-        <button class="btn btn-primary mt-4" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
-      </div>
-      <div v-else class="text-center">
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ qrUrl ? t('payment.qr.expiresIn') : t('payment.qr.payInNewWindowHint') }}</p>
-        <p class="mt-1 text-2xl font-bold tabular-nums text-gray-900 dark:text-white">{{ countdownDisplay }}</p>
-        <p class="mt-2 text-sm text-gray-400 dark:text-gray-500">{{ t('payment.qr.waitingPayment') }}</p>
-      </div>
-      <a v-if="payUrl && !qrUrl && !expired" :href="payUrl" target="_blank" rel="noopener noreferrer"
-        class="btn btn-primary w-full py-3">
-        {{ t('payment.qr.openPayWindow') }}
-      </a>
-      <!-- Cancel button -->
-      <button v-if="!expired && orderId" class="btn btn-secondary w-full" :disabled="cancelling" @click="handleCancel">
-        {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
-      </button>
+    <div class="py-8">
+      <CompactStatusPanel
+        :title="qrUrl ? scanTitle : t('payment.qr.payInNewWindow')"
+        :description="expired ? t('payment.qr.expired') : scanHint || t('payment.qr.payInNewWindowHint')"
+        :tone="expired ? 'danger' : 'primary'"
+        :icon="expired ? 'exclamationCircle' : 'creditCard'"
+      >
+        <template #details>
+          <div v-if="qrUrl" class="flex justify-center">
+            <div class="rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800">
+              <img
+                v-if="hostedQRImageUrl"
+                :src="hostedQRImageUrl"
+                alt=""
+                class="h-64 w-64 object-contain"
+              />
+              <canvas v-else ref="qrCanvas"></canvas>
+            </div>
+          </div>
+          <div class="mt-4 text-center">
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              {{ qrUrl ? t('payment.qr.expiresIn') : t('payment.qr.payInNewWindowHint') }}
+            </p>
+            <p class="mt-1 text-2xl font-semibold tabular-nums text-gray-950 dark:text-white">
+              {{ countdownDisplay }}
+            </p>
+            <p v-if="!expired" class="mt-2 text-sm text-gray-400 dark:text-gray-500">
+              {{ t('payment.qr.waitingPayment') }}
+            </p>
+          </div>
+        </template>
+
+        <template #actions>
+          <button
+            v-if="expired"
+            class="btn btn-primary w-full sm:w-auto"
+            @click="router.push('/purchase')"
+          >
+            <Icon name="creditCard" size="md" />
+            {{ t('payment.result.backToRecharge') }}
+          </button>
+          <a
+            v-if="payUrl && !qrUrl && !expired"
+            :href="payUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-primary w-full sm:w-auto"
+          >
+            <Icon name="externalLink" size="md" />
+            {{ t('payment.qr.openPayWindow') }}
+          </a>
+          <button
+            v-if="!expired && orderId"
+            class="btn btn-secondary w-full sm:w-auto"
+            :disabled="cancelling"
+            @click="handleCancel"
+          >
+            <LoadingSpinner v-if="cancelling" size="sm" color="secondary" />
+            <Icon v-else name="xCircle" size="md" />
+            {{ cancelling ? t('common.processing') : t('payment.qr.cancelOrder') }}
+          </button>
+        </template>
+      </CompactStatusPanel>
     </div>
   </AppLayout>
 </template>
@@ -43,6 +72,9 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
+import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import Icon from '@/components/icons/Icon.vue'
 import { usePaymentStore } from '@/stores/payment'
 import { paymentAPI } from '@/api/payment'
 import { extractI18nErrorMessage } from '@/utils/apiError'

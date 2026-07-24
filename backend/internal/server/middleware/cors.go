@@ -12,9 +12,17 @@ import (
 
 var corsWarningOnce sync.Once
 
+var firstPartyClientOrigins = []string{
+	"https://jisudeng.com",
+	"https://www.jisudeng.com",
+	"https://localhost",
+	"http://localhost",
+	"capacitor://localhost",
+}
+
 // CORS 跨域中间件
 func CORS(cfg config.CORSConfig) gin.HandlerFunc {
-	allowedOrigins := normalizeOrigins(cfg.AllowedOrigins)
+	allowedOrigins := normalizeOrigins(append(firstPartyClientOrigins, cfg.AllowedOrigins...))
 	allowAll := false
 	for _, origin := range allowedOrigins {
 		if origin == "*" {
@@ -51,7 +59,7 @@ func CORS(cfg config.CORSConfig) gin.HandlerFunc {
 		allowedSet[origin] = struct{}{}
 	}
 	allowHeaders := []string{
-		"Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization",
+		"Content-Type", "Content-Length", "Accept-Encoding", "Accept-Language", "Content-Language", "X-CSRF-Token", "Authorization",
 		"accept", "origin", "Cache-Control", "X-Requested-With", "X-API-Key", "X-Admin-UI-Request", "X-User-UI-Request",
 	}
 	// OpenAI Node SDK 会发送 x-stainless-* 请求头，需在 CORS 中显式放行。

@@ -1,0 +1,741 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Key 新用户接入原型</title>
+  <style>
+    :root {
+      --bg: #f7f8f6;
+      --paper: #ffffff;
+      --muted: #667085;
+      --text: #111827;
+      --line: #dfe4ea;
+      --line-soft: #edf0f3;
+      --brand: #111827;
+      --green: #16a34a;
+      --green-bg: #ecfdf3;
+      --amber: #b45309;
+      --amber-bg: #fff7ed;
+      --blue: #2563eb;
+      --blue-bg: #eff6ff;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e9ece7;
+      color: var(--text);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .canvas {
+      width: 1920px;
+      height: 1080px;
+      margin: 0 auto;
+      background: var(--bg);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 204px 1fr;
+      grid-template-rows: 52px 1fr;
+    }
+
+    .sidebar {
+      grid-row: 1 / span 2;
+      background: #fff;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      height: 52px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line-soft);
+      font-weight: 700;
+    }
+
+    .logo {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      color: #ef4444;
+      font-weight: 800;
+      font-size: 12px;
+      background: #fff;
+    }
+
+    .nav {
+      padding: 14px 10px;
+      display: grid;
+      gap: 4px;
+      font-size: 13px;
+    }
+
+    .nav-item {
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 12px;
+      color: #344054;
+    }
+
+    .nav-item.active {
+      background: #f1f1ee;
+      color: #111827;
+      font-weight: 700;
+    }
+
+    .nav-icon {
+      width: 16px;
+      height: 16px;
+      border: 1.5px solid #7a8699;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .header {
+      grid-column: 2;
+      background: #fff;
+      border-bottom: 1px solid var(--line-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 26px 0 20px;
+    }
+
+    .header-title {
+      line-height: 1.2;
+    }
+
+    .header-title strong {
+      display: block;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .header-title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #344054;
+      font-size: 13px;
+    }
+
+    .wallet {
+      border: 1px solid var(--line);
+      background: #f8fafc;
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .avatar {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: #050505;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .main {
+      grid-column: 2;
+      padding: 26px;
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .filters {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .input, .select, .chip {
+      height: 36px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: #344054;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+
+    .input { width: 204px; color: #98a2b3; }
+    .select { width: 128px; justify-content: space-between; }
+    .chip { width: auto; height: 26px; font-size: 12px; gap: 6px; }
+
+    .btn-row { display: flex; gap: 10px; }
+
+    .btn {
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #344054;
+      padding: 0 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .btn.primary {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+    }
+
+    .quick {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1.05fr 1.2fr 0.95fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    .section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 26px;
+      font-weight: 750;
+      letter-spacing: 0;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 20px;
+    }
+
+    .steps {
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .step {
+      min-height: 88px;
+      padding: 14px;
+      border-right: 1px solid var(--line-soft);
+      background: #fff;
+    }
+
+    .step:last-child { border-right: 0; }
+
+    .step-number {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #111827;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .step strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .step span {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .group-list {
+      display: grid;
+      gap: 8px;
+    }
+
+    .group-row {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 12px;
+      align-items: start;
+      background: #fff;
+    }
+
+    .group-row.selected {
+      border-color: #86efac;
+      background: #fbfffd;
+    }
+
+    .group-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      height: 22px;
+      align-items: center;
+      border-radius: 7px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .badge.green { color: #047857; background: #ecfdf3; border-color: #bbf7d0; }
+    .badge.amber { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+    .badge.blue { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+    .badge.gray { color: #475467; background: #f8fafc; border-color: #e4e7ec; }
+
+    .group-copy {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 18px;
+    }
+
+    .selected-mark {
+      color: var(--green);
+      font-weight: 800;
+      font-size: 13px;
+      white-space: nowrap;
+    }
+
+    .side-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 14px;
+    }
+
+    .endpoint {
+      margin-top: 10px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 12px;
+    }
+
+    .endpoint-row {
+      display: grid;
+      grid-template-columns: 72px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 38px;
+      border-bottom: 1px solid var(--line-soft);
+      padding: 0 10px;
+    }
+
+    .endpoint-row:last-child { border-bottom: 0; }
+    .endpoint-label { color: var(--muted); }
+    .endpoint-code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: #101828; }
+
+    .mini-btn {
+      height: 24px;
+      border-radius: 6px;
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 0 8px;
+      display: inline-flex;
+      align-items: center;
+      color: #344054;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .cta-row {
+      margin-top: 12px;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .notice {
+      margin-top: 12px;
+      border-radius: 8px;
+      border: 1px solid #fed7aa;
+      background: var(--amber-bg);
+      color: var(--amber);
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .table-shell {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+
+    .table-head {
+      height: 48px;
+      display: grid;
+      grid-template-columns: 150px 180px 260px 120px 180px 120px 180px 1fr;
+      align-items: center;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+      color: #475467;
+      font-size: 12px;
+      background: #fbfcfd;
+    }
+
+    .empty {
+      height: 388px;
+      display: grid;
+      grid-template-columns: 0.86fr 1.14fr;
+      gap: 22px;
+      padding: 30px;
+      align-items: center;
+    }
+
+    .empty-main {
+      padding: 22px;
+      border: 1px dashed #cad3df;
+      border-radius: 8px;
+      background: #fcfcfd;
+      min-height: 238px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .empty-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      display: grid;
+      place-items: center;
+      margin-bottom: 14px;
+      color: #344054;
+      font-weight: 800;
+    }
+
+    .empty-main h3 {
+      margin: 0 0 8px;
+      font-size: 18px;
+      line-height: 26px;
+    }
+
+    .empty-help {
+      display: grid;
+      gap: 10px;
+    }
+
+    .help-row {
+      min-height: 66px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: grid;
+      grid-template-columns: 34px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 12px;
+      background: #fff;
+    }
+
+    .help-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: #f2f4f7;
+      color: #344054;
+      font-weight: 800;
+      font-size: 12px;
+    }
+
+    .help-row strong {
+      display: block;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .help-row span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .footer-bar {
+      height: 52px;
+      border-top: 1px solid var(--line-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 18px;
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .prototype-note {
+      position: absolute;
+      right: 26px;
+      bottom: 14px;
+      font-size: 11px;
+      color: #98a2b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">J</div>
+        <span>极速蹬</span>
+      </div>
+      <nav class="nav">
+        <div class="nav-item"><span class="nav-icon"></span>仪表盘</div>
+        <div class="nav-item"><span class="nav-icon"></span>模型与价格</div>
+        <div class="nav-item active"><span class="nav-icon"></span>API 密钥</div>
+        <div class="nav-item"><span class="nav-icon"></span>AI 创作</div>
+        <div class="nav-item"><span class="nav-icon"></span>图像工作室</div>
+        <div class="nav-item"><span class="nav-icon"></span>使用记录</div>
+        <div class="nav-item"><span class="nav-icon"></span>钱包</div>
+        <div class="nav-item"><span class="nav-icon"></span>充值/订阅</div>
+        <div class="nav-item"><span class="nav-icon"></span>我的订单</div>
+        <div class="nav-item"><span class="nav-icon"></span>兑换</div>
+        <div class="nav-item"><span class="nav-icon"></span>个人资料</div>
+        <div class="nav-item"><span class="nav-icon"></span>使用文档</div>
+      </nav>
+    </aside>
+
+    <header class="header">
+      <div class="header-title">
+        <strong>API 密钥</strong>
+        <span>管理您的 API 密钥和访问令牌</span>
+      </div>
+      <div class="header-actions">
+        <span>通知</span>
+        <span>中 简体中文</span>
+        <span>主题</span>
+        <span class="wallet">$988.30</span>
+        <div class="avatar">DE</div>
+        <span>dell<br />用户</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="filters">
+          <div class="input">搜索名称或 Key...</div>
+          <div class="select">全部分组 <span>⌄</span></div>
+          <div class="select">全部状态 <span>⌄</span></div>
+          <div class="chip">API 端点 默认 | https://api.jisudeng.com</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn">刷新</button>
+          <button class="btn">列设置</button>
+          <button class="btn primary">+ 创建密钥</button>
+        </div>
+      </div>
+
+      <section class="quick">
+        <div>
+          <div class="section-title">
+            <h2>API 接入快速开始</h2>
+            <span class="badge blue">新用户引导</span>
+          </div>
+          <p class="muted">第一次使用不需要先猜概念。先选择一个适合场景的服务分组，再创建 Key，最后复制 Endpoint 和示例请求。</p>
+          <div class="steps">
+            <div class="step">
+              <div class="step-number">1</div>
+              <strong>选择分组</strong>
+              <span>决定可用模型、价格倍率、调用协议。</span>
+            </div>
+            <div class="step">
+              <div class="step-number">2</div>
+              <strong>创建密钥</strong>
+              <span>Key 只展示一次，创建后立即复制。</span>
+            </div>
+            <div class="step">
+              <div class="step-number">3</div>
+              <strong>开始调用</strong>
+              <span>复制 Endpoint，查看示例或一键部署。</span>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-title">
+            <h2>推荐分组</h2>
+            <span class="muted">新 Key 默认绑定，可在创建时更换</span>
+          </div>
+          <div class="group-list">
+            <div class="group-row selected">
+              <div>
+                <div class="group-main">
+                  <span class="badge green">GPT 综合</span>
+                  <span class="badge green">0.65x</span>
+                  <span class="badge gray">聊天 / 代码 / 工具</span>
+                </div>
+                <div class="group-copy">推荐新用户先选：模型多、倍率低、适合 Claude Code / OpenAI 兼容客户端快速跑通。</div>
+              </div>
+              <div class="selected-mark">当前推荐</div>
+            </div>
+            <div class="group-row">
+              <div>
+                <div class="group-main">
+                  <span class="badge amber">Claude Max 20X</span>
+                  <span class="badge amber">1x</span>
+                  <span class="badge gray">长上下文 / 编程</span>
+                </div>
+                <div class="group-copy">适合已有 Claude 工作流的用户；价格、可用模型以模型与价格页为准。</div>
+              </div>
+              <button class="mini-btn">选择</button>
+            </div>
+            <div class="group-row">
+              <div>
+                <div class="group-main">
+                  <span class="badge green">图片生成</span>
+                  <span class="badge green">0.1x</span>
+                  <span class="badge gray">生图 API</span>
+                </div>
+                <div class="group-copy">只做图片生成时使用；文本聊天模型不会出现在这个分组里。</div>
+              </div>
+              <button class="mini-btn">选择</button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="side-card">
+          <div class="section-title">
+            <h2>接入信息</h2>
+            <span class="badge gray">统一入口</span>
+          </div>
+          <p class="muted">创建 Key 后，这里直接给你完整复制项，不需要去别处找 API Base。</p>
+          <div class="endpoint">
+            <div class="endpoint-row">
+              <span class="endpoint-label">Base URL</span>
+              <span class="endpoint-code">https://api.jisudeng.com</span>
+              <button class="mini-btn">复制</button>
+            </div>
+            <div class="endpoint-row">
+              <span class="endpoint-label">Chat</span>
+              <span class="endpoint-code">/v1/chat/completions</span>
+              <button class="mini-btn">示例</button>
+            </div>
+            <div class="endpoint-row">
+              <span class="endpoint-label">Models</span>
+              <span class="endpoint-code">/v1/models</span>
+              <button class="mini-btn">查看</button>
+            </div>
+          </div>
+          <div class="notice">Key 是扣费凭证；余额、模型价格和分组倍率会共同决定实际费用。</div>
+          <div class="cta-row">
+            <button class="btn primary">创建第一个 Key</button>
+            <button class="btn">使用文档</button>
+            <button class="btn">联系客服</button>
+          </div>
+        </aside>
+      </section>
+
+      <section class="table-shell">
+        <div class="table-head">
+          <span>名称</span>
+          <span>API 密钥</span>
+          <span>分组</span>
+          <span>当前并发</span>
+          <span>用量</span>
+          <span>状态</span>
+          <span>创建时间</span>
+          <span>操作</span>
+        </div>
+        <div class="empty">
+          <div class="empty-main">
+            <div class="empty-icon">KEY</div>
+            <h3>还没有 API Key</h3>
+            <p class="muted">这不是错误。新用户先看上面的接入向导，确认分组后创建第一个 Key；创建成功后表格会显示密钥、分组、用量和一键部署入口。</p>
+            <div class="cta-row">
+              <button class="btn primary">创建第一个 Key</button>
+              <button class="btn">先看模型与价格</button>
+            </div>
+          </div>
+          <div class="empty-help">
+            <div class="help-row">
+              <div class="help-icon">M</div>
+              <div>
+                <strong>模型与价格会按你的分组显示</strong>
+                <span>游客看到的是预览，登录后看到 Key 分组下真实可用模型和倍率。</span>
+              </div>
+              <button class="mini-btn">打开</button>
+            </div>
+            <div class="help-row">
+              <div class="help-icon">D</div>
+              <div>
+                <strong>文档从“复制即用”开始</strong>
+                <span>OpenAI 兼容、Claude Code、Codex、Cherry Studio 等入口统一说明。</span>
+              </div>
+              <button class="mini-btn">查看</button>
+            </div>
+            <div class="help-row">
+              <div class="help-icon">S</div>
+              <div>
+                <strong>遇到分组选择问题可直接联系客服</strong>
+                <span>客服信息读取同一份后台公开配置，不在各页面单独写死。</span>
+              </div>
+              <button class="mini-btn">联系</button>
+            </div>
+          </div>
+        </div>
+        <div class="footer-bar">
+          <span>显示 0 至 0 共 0 条结果</span>
+          <span>每页：20</span>
+        </div>
+      </section>
+    </main>
+    <div class="prototype-note">static prototype / no product code changed</div>
+  </div>
+</body>
+</html>

@@ -1,130 +1,119 @@
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-50 px-4 dark:bg-dark-900">
-    <div class="w-full max-w-md space-y-6">
-      <!-- Loading -->
-      <div v-if="loading" class="flex items-center justify-center py-20">
-        <div class="h-8 w-8 animate-spin rounded-full border-4 border-primary-500 border-t-transparent"></div>
-      </div>
-      <template v-else>
-        <!-- Status Icon -->
-        <div class="text-center">
-          <div v-if="isSuccess"
-            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-            <svg class="h-10 w-10 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"
-              stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
-          <div v-else-if="isPending"
-            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
-            <div class="h-10 w-10 animate-spin rounded-full border-4 border-yellow-500 border-t-transparent"></div>
-          </div>
-          <div v-else
-            class="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-            <svg class="h-10 w-10 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </div>
-          <h2 class="mt-4 text-2xl font-bold text-gray-900 dark:text-white">
-            {{ statusTitle }}
-          </h2>
-          <p v-if="isPending" class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-            {{ t('payment.result.processingHint') }}
-          </p>
-        </div>
-        <!-- Order Info -->
-        <div v-if="order" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
+  <PublicStatusLayout>
+    <CompactStatusPanel
+      v-if="loading"
+      :title="t('payment.result.processing')"
+      :description="t('payment.result.processingHint')"
+      tone="primary"
+      loading
+    />
+    <CompactStatusPanel
+      v-else
+      :title="statusTitle"
+      :description="resultDescription"
+      :tone="resultTone"
+      :icon="resultIcon"
+    >
+        <template v-if="order" #details>
           <div class="space-y-3 text-sm">
-            <div v-if="hasOrderId(order)" class="flex justify-between">
+            <div v-if="hasOrderId(order)" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">#{{ order.id }}</span>
             </div>
-            <div v-if="order.out_trade_no" class="flex justify-between">
+            <div v-if="order.out_trade_no" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderNo') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ order.out_trade_no }}</span>
+              <span class="min-w-0 break-all font-medium text-gray-900 dark:text-white">{{ order.out_trade_no }}</span>
             </div>
-            <div v-if="hasAmountFields(order)" class="flex justify-between">
+            <div v-if="hasAmountFields(order)" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.baseAmount') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(baseAmount) }}</span>
             </div>
-            <div v-if="hasAmountFields(order) && order.fee_rate > 0" class="flex justify-between">
+            <div v-if="hasAmountFields(order) && order.fee_rate > 0" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.fee') }} ({{ order.fee_rate }}%)</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(feeAmount) }}</span>
             </div>
-            <div v-if="hasAmountFields(order)" class="flex justify-between">
+            <div v-if="hasAmountFields(order)" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-              <span class="font-bold text-primary-600 dark:text-primary-400">{{ formatGatewayAmount(order.pay_amount) }}</span>
+              <span class="font-semibold text-primary-600 dark:text-primary-400">{{ formatGatewayAmount(order.pay_amount) }}</span>
             </div>
-            <div v-if="hasAmountFields(order) && order.amount !== order.pay_amount" class="flex justify-between">
+            <div v-if="hasAmountFields(order) && order.amount !== order.pay_amount" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.creditedAmount') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ order.order_type === 'balance' ? '$' + order.amount.toFixed(2) : formatGatewayAmount(order.amount) }}</span>
             </div>
             <div v-if="rechargeSnapshot" class="space-y-2 border-t border-gray-200 pt-3 dark:border-dark-600">
               <p class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ t('payment.orders.rechargeSnapshot') }}</p>
-              <div class="flex justify-between">
+              <div class="flex justify-between gap-4">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.baseCredited') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">{{ formatUSD(rechargeSnapshot.base_credited) }}</span>
               </div>
-              <div v-if="rechargeSnapshot.current_vip" class="flex items-center justify-between gap-3">
+              <div v-if="rechargeSnapshot.current_vip" class="flex items-center justify-between gap-4">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.vipApplied') }}</span>
                 <span :class="vipTierBadgeClass(rechargeSnapshot.current_vip.color_key)">
                   {{ rechargeSnapshot.current_vip.label }}
                 </span>
               </div>
-              <div class="flex justify-between">
+              <div class="flex justify-between gap-4">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.vipRechargeBonus') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">+{{ formatPct(rechargeSnapshot.vip_bonus_pct) }}%</span>
               </div>
-              <div v-if="(rechargeSnapshot.campaign_bonus_pct ?? 0) > 0" class="flex justify-between">
+              <div v-if="(rechargeSnapshot.campaign_bonus_pct ?? 0) > 0" class="flex justify-between gap-4">
                 <span class="text-gray-500 dark:text-gray-400">{{ t('payment.campaignRechargeBonus') }}</span>
                 <span class="font-medium text-gray-900 dark:text-white">+{{ formatPct(rechargeSnapshot.campaign_bonus_pct) }}%</span>
               </div>
-              <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+              <div class="flex justify-between gap-4 border-t border-gray-200 pt-2 dark:border-dark-600">
                 <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.orders.creditedAmount') }}</span>
-                <span class="font-bold text-green-600 dark:text-green-400">{{ formatUSD(rechargeSnapshot.credited_amount ?? (hasAmountFields(order) ? order.amount : 0)) }}</span>
+                <span class="font-semibold text-green-600 dark:text-green-400">{{ formatUSD(rechargeSnapshot.credited_amount ?? (hasAmountFields(order) ? order.amount : 0)) }}</span>
               </div>
             </div>
-            <div v-if="hasPaymentType(order)" class="flex justify-between">
+            <div v-if="hasPaymentType(order)" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
               <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(order.payment_type), normalizedOrderPaymentType(order.payment_type)) }}</span>
             </div>
-            <div class="flex justify-between">
+            <div class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.status') }}</span>
               <OrderStatusBadge :status="displayOrderStatus(order.status)" />
             </div>
           </div>
-        </div>
-        <!-- EasyPay return info (when no order loaded) -->
-        <div v-else-if="returnInfo" class="rounded-xl bg-white p-5 shadow-sm dark:bg-dark-800">
+        </template>
+
+        <template v-else-if="returnInfo" #details>
           <div class="space-y-3 text-sm">
-            <div v-if="returnInfo.outTradeNo" class="flex justify-between">
+            <div v-if="returnInfo?.outTradeNo" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.orderId') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ returnInfo.outTradeNo }}</span>
+              <span class="min-w-0 break-all font-medium text-gray-900 dark:text-white">{{ returnInfo?.outTradeNo }}</span>
             </div>
-            <div v-if="returnInfo.money" class="flex justify-between">
+            <div v-if="returnInfo?.money" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.payAmount') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(Number(returnInfo.money) || 0) }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ formatGatewayAmount(Number(returnInfo?.money) || 0) }}</span>
             </div>
-            <div v-if="returnInfo.type" class="flex justify-between">
+            <div v-if="returnInfo?.type" class="flex justify-between gap-4">
               <span class="text-gray-500 dark:text-gray-400">{{ t('payment.orders.paymentMethod') }}</span>
-              <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(returnInfo.type), normalizedOrderPaymentType(returnInfo.type)) }}</span>
+              <span class="font-medium text-gray-900 dark:text-white">{{ t(paymentMethodI18nKey(returnInfo?.type || ''), normalizedOrderPaymentType(returnInfo?.type || '')) }}</span>
             </div>
           </div>
-        </div>
-        <!-- Actions -->
-        <div class="flex gap-3">
-          <button class="btn btn-secondary flex-1" @click="router.push('/purchase')">{{ t('payment.result.backToRecharge') }}</button>
-          <button class="btn btn-primary flex-1" @click="router.push('/orders')">{{ t('payment.result.viewOrders') }}</button>
-        </div>
-      </template>
-    </div>
-  </div>
+        </template>
+
+        <template #actions>
+          <button class="btn btn-secondary flex-1" @click="router.push('/purchase')">
+            <Icon name="creditCard" size="md" />
+            {{ t('payment.result.backToRecharge') }}
+          </button>
+          <button class="btn btn-primary flex-1" @click="router.push('/orders')">
+            <Icon name="clipboard" size="md" />
+            {{ t('payment.result.viewOrders') }}
+          </button>
+        </template>
+    </CompactStatusPanel>
+  </PublicStatusLayout>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onBeforeUnmount, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
+import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
+import Icon from '@/components/icons/Icon.vue'
+import PublicStatusLayout from '@/components/layout/PublicStatusLayout.vue'
 import OrderStatusBadge from '@/components/payment/OrderStatusBadge.vue'
 import {
   PAYMENT_RECOVERY_STORAGE_KEY,
@@ -209,6 +198,23 @@ const statusTitle = computed(() => {
   }
   return t('payment.result.failed')
 })
+
+type ResultTone = 'success' | 'warning' | 'danger'
+type IconName = InstanceType<typeof Icon>['$props']['name']
+
+const resultTone = computed<ResultTone>(() => {
+  if (isSuccess.value) return 'success'
+  if (isPending.value) return 'warning'
+  return 'danger'
+})
+
+const resultIcon = computed<IconName>(() => {
+  if (isSuccess.value) return 'checkCircle'
+  if (isPending.value) return 'clock'
+  return 'xCircle'
+})
+
+const resultDescription = computed(() => (isPending.value ? t('payment.result.processingHint') : ''))
 
 const rechargeSnapshot = computed(() => getRechargeSnapshot(order.value))
 

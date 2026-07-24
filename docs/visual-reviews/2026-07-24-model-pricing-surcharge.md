@@ -13,6 +13,10 @@
   "languages_and_themes": ["zh-CN/light", "en-US/light"],
   "states": ["guest pricing table", "admin create group form", "admin edit group form"],
   "viewports": ["390x844", "1280x800"],
+  "artifact_mode": "static-review-board",
+  "prototype_artifacts": [
+    "docs/visual-reviews/assets/ai-marketplace-cp1a-foundation/after-mobile.png"
+  ],
   "baseline_artifacts": [
     "docs/visual-reviews/assets/ai-marketplace-cp1a-foundation/before-desktop.png"
   ],
@@ -44,6 +48,12 @@
 - Current behavior: logged-out pricing used official/base pricing only, and group editing had no internal surcharge controls.
 - Baseline screenshot or recording: existing marketplace foundation artifact.
 - Inconsistencies observed: logged-out pricing did not reflect configured group display prices.
+
+## Prototype
+
+- Prototype screenshot or recording: existing marketplace foundation mobile artifact reused as a static review board.
+- Interaction plan: no new navigation pattern; existing model table and admin group form controls are extended.
+- Design decision: keep the operational table dense and reuse native form controls rather than adding a new marketing-style pricing surface.
 
 ## Reuse Decision
 

@@ -1,0 +1,19 @@
+{
+  "platform": "android",
+  "version": "2.0.18-predeploy-fixes",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.18-predeploy-fixes-218",
+  "size": "6.4 MB",
+  "sha256": "2d6f169140efc1f37fd0dfd2230b77dab8ec5ace80baab62b50700a27455d626",
+  "minAndroidVersion": "8.0",
+  "releaseDate": "2026-07-24",
+  "notes": [
+    "修复 APP 内购买套餐时支付返回地址校验失败的问题",
+    "图库分栏支持全部、收藏、产品、海报真实切换，并新增收藏和本机标签操作",
+    "保存图片到系统相册时新增 APP 内成功提示，查看原图也可直接保存或分享",
+    "订单状态、支付方式和余额明细原因改为用户可读中文展示",
+    "聊天生成时不再强制滚到底，支持双击消息查看全文并复制、引用、删除",
+    "优化聊天表格、代码块和普通文本展示，减少默认回复里的多余排版符号"
+  ],
+  "versionCode": 218,
+  "bytes": 6644212
+}

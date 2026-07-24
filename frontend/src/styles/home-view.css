@@ -25,6 +25,100 @@
   background: #e7e5e4;
 }
 
+.nav-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 7px 13px;
+  border: 1px solid var(--ink);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+
+.nav-download:hover {
+  background: var(--ink);
+  color: var(--bg);
+  transform: translateY(-1px);
+}
+
+@media (min-width: 768px) {
+  .home-page .header-row,
+  .home-page .header-left,
+  .home-page .header-nav,
+  .home-page .page-nav {
+    min-width: 0;
+  }
+
+  .home-page .header-left,
+  .home-page .header-nav,
+  .home-page .page-nav {
+    flex-wrap: nowrap;
+  }
+
+  .home-page .header-row {
+    align-items: center;
+    gap: clamp(14px, 1.6vw, 24px);
+  }
+
+  .home-page .header-left {
+    gap: clamp(22px, 2.2vw, 36px);
+  }
+
+  .home-page .header-nav {
+    gap: clamp(14px, 1.25vw, 24px);
+  }
+
+  .home-page .page-nav {
+    gap: clamp(10px, 1vw, 18px);
+  }
+
+  .home-page .brand,
+  .home-page .brand-name,
+  .home-page .nav-link,
+  .home-page .nav-download,
+  .home-page .nav-cta {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 1280px) {
+  .home-page .page-header .header-row {
+    max-width: 1440px;
+  }
+}
+
+@media (min-width: 1024px) and (max-width: 1119px) {
+  .home-page .header-nav .nav-link[data-nav-key="about"] {
+    display: none;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .home-page .header-nav {
+    display: none;
+  }
+}
+
+.dark .home-page .nav-download {
+  border-color: var(--ink);
+  background: transparent;
+  color: var(--ink);
+}
+
+.dark .home-page .nav-download:hover {
+  background: var(--ink);
+  color: var(--bg);
+}
+
 .dark .home-page .cta-primary {
   color: #0a0a0a;
   background: #f5f5f4;
@@ -72,6 +166,31 @@
 }
 
 @media (max-width: 767px) {
+  .home-page .brand {
+    flex: 0 0 auto;
+  }
+
+  .home-page .brand-name {
+    white-space: nowrap;
+  }
+
+  .home-page .hero-ctas .cta-text,
+  .home-page .active-on {
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(4px);
+  }
+
+  .home-page .active-on {
+    padding: 8px 12px;
+    border-radius: 999px;
+  }
+
+  .nav-download {
+    min-height: 34px;
+    padding: 7px 11px;
+    font-size: 12px;
+  }
+
   .ctv-enter {
     flex: none;
     width: auto;
@@ -259,7 +378,9 @@
   }
 
   .home-sticky-cta {
-    display: block;
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    gap: 10px;
     position: fixed;
     left: 0;
     right: 0;
@@ -274,5 +395,23 @@
   .home-sticky-cta-btn {
     width: 100%;
     justify-content: center;
+  }
+
+  .home-sticky-download {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+    min-height: 44px;
+    padding: 11px 12px;
+    border: 1px solid var(--ink);
+    border-radius: 8px;
+    background: var(--bg);
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    white-space: nowrap;
   }
 }

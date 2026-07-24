@@ -235,6 +235,7 @@ func TestIsSensitiveProviderConfigField(t *testing.T) {
 		{"easypay", "pkey", true},
 		{"easypay", "pid", false},
 		{"easypay", "apiBase", false},
+		{"easypay", "currency", false},
 
 		// Airwallex
 		{payment.TypeAirwallex, "apiKey", true},
@@ -496,6 +497,15 @@ func TestUpdateProviderInstanceRejectsProtectedConfigChangesWhilePendingOrders(t
 			updateConfig:  map[string]string{"pid": "pid-updated"},
 			fieldName:     "pid",
 			wantValue:     "pid-test",
+		},
+		{
+			name:          "easypay currency",
+			providerKey:   payment.TypeEasyPay,
+			createConfig:  validEasyPayProviderConfig,
+			supportedType: []string{payment.TypeAlipay},
+			updateConfig:  map[string]string{"currency": "USD"},
+			fieldName:     "currency",
+			wantValue:     "CNY",
 		},
 		{
 			name:          "stripe currency",
@@ -760,6 +770,7 @@ func validEasyPayProviderConfig(t *testing.T) map[string]string {
 		"apiBase":   "https://pay.example.com",
 		"notifyUrl": "https://merchant.example.com/easypay/notify",
 		"returnUrl": "https://merchant.example.com/easypay/return",
+		"currency":  "CNY",
 	}
 }
 

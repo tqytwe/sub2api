@@ -541,6 +541,10 @@ type PlayRepository interface {
 	UpsertRechargeBoost(ctx context.Context, userID int64, expiresAt time.Time) error
 	GetActiveRechargeBoost(ctx context.Context, userID int64, now time.Time) (*time.Time, error)
 	HasCompletedBalanceRechargeSince(ctx context.Context, userID int64, since time.Time) (bool, error)
+	CreateMobileFeedback(ctx context.Context, record MobileFeedbackRecord) (*MobileFeedbackRecord, error)
+	ListAdminMobileFeedback(ctx context.Context, filter MobileFeedbackListFilter) ([]MobileFeedbackRecord, int64, error)
+	GetAdminMobileFeedback(ctx context.Context, id int64) (*MobileFeedbackRecord, error)
+	UpdateAdminMobileFeedback(ctx context.Context, id int64, status, adminNote string) (*MobileFeedbackRecord, error)
 }
 
 type PlayQuizQuestionDB struct {

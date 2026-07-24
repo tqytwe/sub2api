@@ -26,13 +26,17 @@ function isSafeImageUrl(value: string): boolean {
   }
 }
 
+function buildSiteTitle(siteName: string): string {
+  return `${siteName} - AI API Gateway 与中文提示词库`
+}
+
 function injectBranding(html: string, config: { site_name?: string; site_logo?: string }): string {
   let brandedHtml = html
   const siteName = config.site_name?.trim()
   if (siteName) {
     brandedHtml = brandedHtml.replace(
       /<title>[^<]*<\/title>/i,
-      `<title>${escapeHtml(siteName)} - AI API Gateway</title>`,
+      `<title>${escapeHtml(buildSiteTitle(siteName))}</title>`,
     )
   }
 
@@ -124,9 +128,43 @@ export default defineConfig(({ mode }) => {
               return 'vendor-vue'
             }
 
-            // UI 工具库（较大，单独分离）
-            if (id.includes('/@vueuse/') || id.includes('/xlsx/')) {
-              return 'vendor-ui'
+            // 常用运行时工具，首页会用到，保持轻量。
+            if (id.includes('/axios/') || id.includes('/decimal.js/')) {
+              return 'vendor-core'
+            }
+
+            // UI 工具库
+            if (id.includes('/@vueuse/')) {
+              return 'vendor-vueuse'
+            }
+
+            // 低频/重型能力按页面拆包，避免被 axios 等公共依赖带进首屏。
+            if (id.includes('/xlsx/')) {
+              return 'vendor-xlsx'
+            }
+            if (id.includes('/marked/') || id.includes('/dompurify/')) {
+              return 'vendor-markdown'
+            }
+            if (id.includes('/qrcode/')) {
+              return 'vendor-qrcode'
+            }
+            if (id.includes('/driver.js/')) {
+              return 'vendor-tour'
+            }
+            if (id.includes('/@airwallex/')) {
+              return 'vendor-airwallex'
+            }
+            if (id.includes('/file-saver/')) {
+              return 'vendor-download'
+            }
+            if (id.includes('/d3-geo/')) {
+              return 'vendor-map'
+            }
+            if (id.includes('/vue-draggable-plus/')) {
+              return 'vendor-dnd'
+            }
+            if (id.includes('/@tanstack/vue-virtual/')) {
+              return 'vendor-virtual'
             }
 
             // 图表库

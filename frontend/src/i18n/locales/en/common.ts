@@ -21,6 +21,9 @@ export default {
     import: 'Import',
     actions: 'Actions',
     status: 'Status',
+    show: 'Show',
+    hide: 'Hide',
+    open: 'Open',
     name: 'Name',
     email: 'Email',
     password: 'Password',
@@ -44,6 +47,8 @@ export default {
     inactive: 'Inactive',
     more: 'More',
     close: 'Close',
+    clearSearch: 'Clear search',
+    toggleSetting: 'Toggle setting',
     toggleMenu: 'Toggle menu',
     userMenu: 'User menu',
     pageNotFound: 'Page not found',
@@ -103,6 +108,10 @@ export default {
     }
   },
 
+  supportContactPanel: {
+    moreContacts: 'More contact methods',
+  },
+
   adminCompliance: {
     title: 'Deployment and Operation Compliance Acknowledgment',
     blockingNotice: 'Deployment and operation compliance acknowledgment is required before continuing to use the console.',
@@ -153,6 +162,7 @@ export default {
     dashboard: 'Dashboard',
     modelsAndPricing: 'Models & Pricing',
     announcements: 'Announcements',
+    publicActions: 'Public page actions',
     apiKeys: 'API Keys',
     batchImage: 'Batch Images',
     imageStudio: 'Image Studio',

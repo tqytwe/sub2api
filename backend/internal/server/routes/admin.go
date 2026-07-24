@@ -57,6 +57,9 @@ func RegisterAdminRoutes(
 		// 代理管理
 		registerProxyRoutes(admin, h, stepUpAuth)
 
+		// IP 风险检测、策略和可回滚处置
+		registerIPRiskRoutes(admin, h)
+
 		// 卡密管理
 		registerRedeemCodeRoutes(admin, h)
 
@@ -129,6 +132,28 @@ func RegisterAdminRoutes(
 	}
 }
 
+func registerIPRiskRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	ipRisk := admin.Group("/ip-risk")
+	{
+		ipRisk.GET("/overview", h.Admin.IPRisk.GetOverview)
+		ipRisk.GET("/runtime", h.Admin.IPRisk.GetRuntime)
+		ipRisk.GET("/cases", h.Admin.IPRisk.ListCases)
+		ipRisk.GET("/cases/:id", h.Admin.IPRisk.GetCase)
+		ipRisk.POST("/cases/:id/actions/preview", h.Admin.IPRisk.PreviewAction)
+		ipRisk.POST("/cases/:id/actions", h.Admin.IPRisk.ExecuteAction)
+		ipRisk.POST("/scans", h.Admin.IPRisk.StartScan)
+		ipRisk.GET("/scans/:id", h.Admin.IPRisk.GetScan)
+		ipRisk.GET("/config", h.Admin.IPRisk.GetConfig)
+		ipRisk.PUT("/config", h.Admin.IPRisk.UpdateConfig)
+		ipRisk.GET("/policies", h.Admin.IPRisk.ListPolicies)
+		ipRisk.POST("/policies", h.Admin.IPRisk.CreatePolicy)
+		ipRisk.PUT("/policies/:id", h.Admin.IPRisk.UpdatePolicy)
+		ipRisk.DELETE("/policies/:id", h.Admin.IPRisk.DeletePolicy)
+		ipRisk.GET("/actions", h.Admin.IPRisk.ListActions)
+		ipRisk.POST("/actions/:id/rollback", h.Admin.IPRisk.RollbackAction)
+	}
+}
+
 func registerFundRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	funds := admin.Group("/funds")
 	{
@@ -192,6 +217,9 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		play.GET("/summary", h.Admin.Play.Summary)
 		play.GET("/arena/leaderboard", h.Admin.Play.ArenaLeaderboard)
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
+		play.GET("/mobile-feedback", h.Admin.Play.ListMobileFeedback)
+		play.GET("/mobile-feedback/:id", h.Admin.Play.GetMobileFeedback)
+		play.PATCH("/mobile-feedback/:id", h.Admin.Play.UpdateMobileFeedback)
 		play.GET("/teams", h.Admin.Play.ListTeams)
 		play.GET("/teams/:id", h.Admin.Play.GetTeam)
 		play.GET("/teams/:id/member-candidates", h.Admin.Play.ListTeamMemberCandidates)
@@ -377,6 +405,8 @@ func registerUserManagementRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 		users.GET("/:id", h.Admin.User.GetByID)
 		users.POST("/:id/auth-identities", h.Admin.User.BindAuthIdentity)
 		users.POST("", h.Admin.User.Create)
+		users.POST("/batch-actions/preview", h.Admin.User.PreviewBatchAction)
+		users.POST("/batch-actions", h.Admin.User.ExecuteBatchAction)
 		users.PUT("/:id", h.Admin.User.Update)
 		users.DELETE("/:id", h.Admin.User.Delete)
 		users.POST("/:id/balance", h.Admin.User.UpdateBalance)

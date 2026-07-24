@@ -95,6 +95,13 @@ type UpdateBalanceRequest struct {
 	Notes     string  `json:"notes"`
 }
 
+type UserBatchActionRequest struct {
+	Action            service.UserBatchAction `json:"action" binding:"required,oneof=disable delete"`
+	UserIDs           []int64                 `json:"user_ids" binding:"required,min=1,max=500,dive,gt=0"`
+	Reason            string                  `json:"reason" binding:"required,max=1000"`
+	ConfirmationToken string                  `json:"confirmation_token"`
+}
+
 type BindUserAuthIdentityRequest struct {
 	ProviderType    string                              `json:"provider_type"`
 	ProviderKey     string                              `json:"provider_key"`
@@ -379,6 +386,67 @@ func (h *UserHandler) Delete(c *gin.Context) {
 	}
 
 	response.Success(c, gin.H{"message": "User deleted successfully"})
+}
+
+// PreviewBatchAction returns the current server-side impact before a destructive user operation.
+// POST /api/v1/admin/users/batch-actions/preview
+func (h *UserHandler) PreviewBatchAction(c *gin.Context) {
+	var req UserBatchActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	middleware.SetAuditAction(c, service.AuditActionAdminUsersBatchPreview)
+	preview, err := h.adminService.PreviewUserBatchAction(c.Request.Context(), service.UserBatchActionInput{
+		Action: req.Action, UserIDs: req.UserIDs, Reason: req.Reason,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	middleware.SetAuditExtra(c, map[string]any{
+		"operation":       string(req.Action),
+		"requested_count": preview.RequestedCount,
+		"matched_count":   len(preview.EligibleUsers),
+	})
+	response.Success(c, preview)
+}
+
+// ExecuteBatchAction revalidates a preview and applies the requested operation per user.
+// POST /api/v1/admin/users/batch-actions
+func (h *UserHandler) ExecuteBatchAction(c *gin.Context) {
+	var req UserBatchActionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	middleware.SetAuditAction(c, service.AuditActionAdminUsersBatchExecute)
+	middleware.SetAuditExtra(c, map[string]any{
+		"operation":       string(req.Action),
+		"requested_count": len(req.UserIDs),
+	})
+	if strings.TrimSpace(req.ConfirmationToken) == "" {
+		response.ErrorFrom(c, service.ErrUserBatchActionPreviewInvalid)
+		return
+	}
+	if !middleware.EnforceStepUpAlways(c, h.totpService, h.userService) {
+		return
+	}
+	result, err := h.adminService.ExecuteUserBatchAction(c.Request.Context(), service.UserBatchActionInput{
+		Action: req.Action, UserIDs: req.UserIDs, Reason: req.Reason,
+		ConfirmationToken: req.ConfirmationToken, ActorAdminID: getAdminIDFromContext(c),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	middleware.SetAuditExtra(c, map[string]any{
+		"operation":       string(req.Action),
+		"requested_count": result.RequestedCount,
+		"matched_count":   len(result.SucceededUserIDs),
+		"result":          result.Status,
+	})
+	response.Success(c, result)
 }
 
 // UpdateBalance handles updating user balance

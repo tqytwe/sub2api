@@ -51,6 +51,8 @@ const maxTokenLength = 8192
 // refreshTokenPrefix is the prefix for refresh tokens to distinguish them from access tokens.
 const refreshTokenPrefix = "rt_"
 
+const ipRiskRecordingTimeout = 2 * time.Second
+
 // JWTClaims JWT载荷数据
 type JWTClaims struct {
 	UserID       int64  `json:"user_id"`
@@ -80,6 +82,11 @@ type AuthService struct {
 	defaultSubAssigner    DefaultSubscriptionAssigner
 	userPlatformQuotaRepo UserPlatformQuotaRepository
 	balanceLedger         *BalanceLedgerService
+	ipRiskRecorder        IPRiskRecorder
+}
+
+type ipRiskRegistrationGate interface {
+	CheckRegistrationAllowed(ctx context.Context) error
 }
 
 type DefaultSubscriptionAssigner interface {
@@ -139,6 +146,82 @@ func (s *AuthService) EntClient() *dbent.Client {
 	return s.entClient
 }
 
+func (s *AuthService) SetIPRiskRecorder(recorder IPRiskRecorder) {
+	if s == nil {
+		return
+	}
+	s.ipRiskRecorder = recorder
+}
+
+func (s *AuthService) recordIPRiskRegistration(
+	ctx context.Context,
+	user *User,
+	signupSource,
+	invitationCode,
+	affiliateCode string,
+) {
+	if s == nil || s.ipRiskRecorder == nil || user == nil || user.ID <= 0 {
+		return
+	}
+	signupSource = strings.TrimSpace(signupSource)
+	if signupSource == "" {
+		signupSource = strings.TrimSpace(user.SignupSource)
+	}
+	if signupSource == "" {
+		signupSource = "email"
+	}
+	writeCtx, cancel := detachedIPRiskRecordingContext(ctx)
+	defer cancel()
+	if err := s.ipRiskRecorder.RecordRegistration(writeCtx, IPRiskRegistrationInput{
+		UserID:         user.ID,
+		Email:          user.Email,
+		SignupSource:   signupSource,
+		InvitationCode: invitationCode,
+		AffiliateCode:  affiliateCode,
+	}); err != nil {
+		logger.LegacyPrintf(
+			"service.auth",
+			"[Auth] Failed to record exact registration risk event: user_id=%d source=%s err=%v",
+			user.ID,
+			signupSource,
+			err,
+		)
+	}
+}
+
+func detachedIPRiskRecordingContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithTimeout(context.WithoutCancel(ctx), ipRiskRecordingTimeout)
+}
+
+func (s *AuthService) checkIPRiskRegistrationAllowed(ctx context.Context) error {
+	if s == nil {
+		return nil
+	}
+	gate, ok := s.ipRiskRecorder.(ipRiskRegistrationGate)
+	if !ok {
+		return nil
+	}
+	if err := gate.CheckRegistrationAllowed(ctx); err != nil {
+		return infraerrors.TooManyRequests("IP_REGISTRATION_BLOCKED", err.Error())
+	}
+	return nil
+}
+
+// RecordCommittedOAuthRegistration records an OAuth-created user only after
+// the surrounding identity/session transaction has committed successfully.
+func (s *AuthService) RecordCommittedOAuthRegistration(
+	ctx context.Context,
+	user *User,
+	signupSource,
+	invitationCode,
+	affiliateCode string,
+) {
+	s.recordIPRiskRegistration(ctx, user, signupSource, invitationCode, affiliateCode)
+}
+
 // Register 用户注册，返回token和用户
 func (s *AuthService) Register(ctx context.Context, email, password string) (string, *User, error) {
 	return s.RegisterWithVerification(ctx, email, password, "", "", "", "")
@@ -149,6 +232,9 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 	// 检查是否开放注册（默认关闭：settingService 未配置时不允许注册）
 	if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 		return "", nil, ErrRegDisabled
+	}
+	if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
+		return "", nil, err
 	}
 
 	// 防止用户注册 LinuxDo OAuth 合成邮箱，避免第三方登录与本地账号发生碰撞。
@@ -229,6 +315,7 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 		Concurrency:  grantPlan.Concurrency,
 		RPMLimit:     defaultRPMLimit,
 		Status:       StatusActive,
+		SignupSource: "email",
 	}
 
 	if err := s.userRepo.Create(ctx, user); err != nil {
@@ -274,6 +361,8 @@ func (s *AuthService) RegisterWithVerification(ctx context.Context, email, passw
 			}
 		}
 	}
+
+	s.recordIPRiskRegistration(ctx, user, "email", invitationCode, affiliateCode)
 
 	// 生成token
 	token, err := s.GenerateToken(ctx, user)
@@ -499,12 +588,17 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 		username = string([]rune(username)[:100])
 	}
 
+	signupSource := ""
 	user, err := s.userRepo.GetByEmail(ctx, email)
+	created := false
 	if err != nil {
 		if errors.Is(err, ErrUserNotFound) {
 			// OAuth 首次登录视为注册（fail-close：settingService 未配置时不允许注册）
 			if s.settingService == nil || !s.settingService.IsRegistrationEnabled(ctx) {
 				return "", nil, ErrRegDisabled
+			}
+			if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
+				return "", nil, err
 			}
 
 			randomPassword, err := randomHexString(32)
@@ -517,7 +611,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				return "", nil, fmt.Errorf("hash password: %w", err)
 			}
 
-			signupSource := inferLegacySignupSource(email)
+			signupSource = inferLegacySignupSource(email)
 			grantPlan := s.resolveSignupGrantPlan(ctx, signupSource)
 			var defaultRPMLimit int
 			if s.settingService != nil {
@@ -550,6 +644,7 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 				}
 			} else {
 				user = newUser
+				created = true
 				s.postAuthUserBootstrap(ctx, user, signupSource, false)
 				s.assignSubscriptions(ctx, user.ID, grantPlan.Subscriptions, "auto assigned by signup defaults")
 				// snapshot user × platform quota（fail-open）
@@ -571,6 +666,9 @@ func (s *AuthService) LoginOrRegisterOAuth(ctx context.Context, email, username 
 		if err := s.userRepo.Update(ctx, user); err != nil {
 			logger.LegacyPrintf("service.auth", "[Auth] Failed to update username after oauth login: %v", err)
 		}
+	}
+	if created {
+		s.recordIPRiskRegistration(ctx, user, signupSource, "", "")
 	}
 	token, err := s.GenerateToken(ctx, user)
 	if err != nil {
@@ -634,6 +732,9 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 			// OAuth 首次登录视为注册
 			if s.settingService == nil || (!s.settingService.IsRegistrationEnabled(ctx) && !s.canBypassRegistrationDisabledForOAuth(ctx, signupSource)) {
 				return nil, nil, ErrRegDisabled
+			}
+			if err := s.checkIPRiskRegistrationAllowed(ctx); err != nil {
+				return nil, nil, err
 			}
 
 			// 检查是否需要邀请码
@@ -766,6 +867,7 @@ func (s *AuthService) loginOrRegisterOAuthWithTokenPair(ctx context.Context, ema
 	}
 	if created {
 		user = s.applyOAuthSignupPromoCode(ctx, user, promoCode)
+		s.recordIPRiskRegistration(ctx, user, signupSource, invitationCode, affiliateCode)
 	}
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
 	if err != nil {
@@ -1400,6 +1502,44 @@ func (s *AuthService) RequestPasswordResetAsync(ctx context.Context, email, fron
 	return nil
 }
 
+// RequestPasswordResetCodeAsync sends a one-time email verification code for mobile password reset.
+// Security: Returns the same response regardless of whether the email exists (prevent user enumeration).
+func (s *AuthService) RequestPasswordResetCodeAsync(ctx context.Context, email string, locale ...string) (*SendVerifyCodeResult, error) {
+	if !s.IsPasswordResetEnabled(ctx) {
+		return nil, infraerrors.Forbidden("PASSWORD_RESET_DISABLED", "password reset is not enabled")
+	}
+	if s.emailQueueService == nil {
+		return nil, ErrServiceUnavailable
+	}
+
+	siteName, _, shouldProceed := s.preparePasswordReset(ctx, email, "")
+	if !shouldProceed {
+		return &SendVerifyCodeResult{Countdown: 60}, nil
+	}
+
+	if err := s.emailQueueService.EnqueueVerifyCode(email, siteName, firstEmailLocale(locale)); err != nil {
+		logger.LegacyPrintf("service.auth", "[Auth] Failed to enqueue password reset code for %s: %v", email, err)
+		return nil, ErrServiceUnavailable
+	}
+
+	logger.LegacyPrintf("service.auth", "[Auth] Password reset code enqueued for: %s", email)
+	return &SendVerifyCodeResult{Countdown: 60}, nil
+}
+
+// ResetPasswordWithVerificationCode resets a password after consuming a mobile email code.
+func (s *AuthService) ResetPasswordWithVerificationCode(ctx context.Context, email, verifyCode, newPassword string) error {
+	if !s.IsPasswordResetEnabled(ctx) {
+		return infraerrors.Forbidden("PASSWORD_RESET_DISABLED", "password reset is not enabled")
+	}
+	if s.emailService == nil {
+		return ErrServiceUnavailable
+	}
+	if err := s.emailService.VerifyCode(ctx, email, verifyCode); err != nil {
+		return err
+	}
+	return s.updatePasswordAfterReset(ctx, email, newPassword)
+}
+
 // ResetPassword 重置密码
 // Security: Increments TokenVersion to invalidate all existing JWT tokens
 func (s *AuthService) ResetPassword(ctx context.Context, email, token, newPassword string) error {
@@ -1417,6 +1557,10 @@ func (s *AuthService) ResetPassword(ctx context.Context, email, token, newPasswo
 		return err
 	}
 
+	return s.updatePasswordAfterReset(ctx, email, newPassword)
+}
+
+func (s *AuthService) updatePasswordAfterReset(ctx context.Context, email, newPassword string) error {
 	// Get user
 	user, err := s.userRepo.GetByEmail(ctx, email)
 	if err != nil {

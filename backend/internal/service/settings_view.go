@@ -315,6 +315,7 @@ type PublicSettings struct {
 	ContactInfo                      string
 	DocURL                           string
 	SupportContact                   SupportContactConfig
+	APIOnboarding                    APIOnboardingConfig
 	HomeContent                      string
 	HideCcsImportButton              bool
 

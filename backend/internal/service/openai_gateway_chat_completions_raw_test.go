@@ -560,6 +560,37 @@ func TestForwardAsRawChatCompletions_UpstreamRequestIgnoresClientCancel(t *testi
 	require.NoError(t, upstream.lastReq.Context().Err())
 }
 
+func TestForwardAsRawChatCompletions_InvalidNonStreamingSuccessStaysFailoverEligible(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"gpt-5.4","messages":[{"role":"user","content":"hello"}],"stream":false}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+
+	upstream := &httpUpstreamRecorder{resp: &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}, "x-request-id": []string{"rid_raw_invalid_success"}},
+		Body:       io.NopCloser(strings.NewReader("studio.\nnot json")),
+	}}
+	svc := &OpenAIGatewayService{
+		cfg:          rawChatCompletionsTestConfig(),
+		httpUpstream: upstream,
+	}
+
+	result, err := svc.forwardAsRawChatCompletions(context.Background(), c, rawChatCompletionsTestAccount(), body, "")
+
+	require.Nil(t, result)
+	require.False(t, c.Writer.Written(), "handler must be able to retry another account after a malformed 200")
+	require.Empty(t, rec.Body.String())
+	var failoverErr *UpstreamFailoverError
+	require.True(t, errors.As(err, &failoverErr))
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.Equal(t, "Upstream returned an invalid Chat Completions response", gjson.GetBytes(failoverErr.ResponseBody, "error.message").String())
+	require.NotContains(t, string(failoverErr.ResponseBody), "studio")
+}
+
 func TestForwardAsChatCompletions_UnknownResponsesSupportFallbackUsesVersionedChatURL(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -624,6 +655,127 @@ func TestEnsureOpenAIChatStreamUsage(t *testing.T) {
 	require.True(t, gjson.GetBytes(body, "stream_options.include_usage").Bool())
 }
 
+func TestBufferRawChatCompletionsRejectsNonJSONSuccessBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}, "x-request-id": []string{"rid_raw_plaintext"}},
+		Body:       io.NopCloser(strings.NewReader("studio.\nnot json")),
+	}
+	svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig()}
+
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.False(t, c.Writer.Written(), "invalid upstream success bodies must remain eligible for handler failover")
+	require.Empty(t, rec.Body.String())
+	var failoverErr *UpstreamFailoverError
+	require.True(t, errors.As(err, &failoverErr))
+	require.Equal(t, http.StatusBadGateway, failoverErr.StatusCode)
+	require.True(t, gjson.ValidBytes(failoverErr.ResponseBody))
+	require.Equal(t, "upstream_error", gjson.GetBytes(failoverErr.ResponseBody, "error.type").String())
+	require.Equal(t, "Upstream returned an invalid Chat Completions response", gjson.GetBytes(failoverErr.ResponseBody, "error.message").String())
+	require.NotContains(t, string(failoverErr.ResponseBody), "studio")
+}
+
+func TestBufferRawChatCompletionsRejectsJSONErrorSuccessWithoutLeakingSecrets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	const upstreamSecret = "sk-live-upstream-secret-1234567890abcdef"
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}, "x-request-id": []string{"rid_raw_json_error_secret"}},
+		Body:       io.NopCloser(strings.NewReader(`{"error":{"message":"invalid key ` + upstreamSecret + `","internal_token":"` + upstreamSecret + `"},"choices":null}`)),
+	}
+	cfg := rawChatCompletionsTestConfig()
+	cfg.Gateway.LogUpstreamErrorBody = true
+	cfg.Gateway.LogUpstreamErrorBodyMaxBytes = 4096
+	svc := &OpenAIGatewayService{cfg: cfg}
+
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.False(t, c.Writer.Written(), "invalid upstream success bodies must remain eligible for handler failover")
+	var failoverErr *UpstreamFailoverError
+	require.True(t, errors.As(err, &failoverErr))
+	require.Equal(t, "Upstream returned an invalid Chat Completions response", gjson.GetBytes(failoverErr.ResponseBody, "error.message").String())
+	require.NotContains(t, string(failoverErr.ResponseBody), upstreamSecret)
+	require.NotContains(t, rec.Body.String(), upstreamSecret)
+	require.Empty(t, c.GetString(OpsUpstreamErrorDetailKey))
+	eventsValue, ok := c.Get(OpsUpstreamErrorsKey)
+	require.True(t, ok)
+	events, ok := eventsValue.([]*OpsUpstreamErrorEvent)
+	require.True(t, ok)
+	require.NotEmpty(t, events)
+	require.Equal(t, "Upstream returned an invalid Chat Completions response", events[len(events)-1].Message)
+	require.Empty(t, events[len(events)-1].Detail)
+	require.NotContains(t, events[len(events)-1].Message, upstreamSecret)
+}
+
+func TestBufferRawChatCompletionsRejectsStreamingSuccessBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/event-stream"}, "x-request-id": []string{"rid_raw_sse_nonstream"}},
+		Body: io.NopCloser(strings.NewReader(strings.Join([]string{
+			`data: {"id":"chatcmpl_sse","object":"chat.completion.chunk","model":"gpt-5.4","choices":[{"index":0,"delta":{"content":"ok"}}]}`,
+			"",
+			"data: [DONE]",
+			"",
+		}, "\n"))),
+	}
+	svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig()}
+
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+
+	require.Error(t, err)
+	require.Nil(t, result)
+	require.False(t, c.Writer.Written(), "streaming body on a non-stream request must remain eligible for handler failover")
+	require.Empty(t, rec.Body.String())
+	var failoverErr *UpstreamFailoverError
+	require.True(t, errors.As(err, &failoverErr))
+	require.Equal(t, "Upstream returned a streaming response to a non-streaming request", gjson.GetBytes(failoverErr.ResponseBody, "error.message").String())
+	require.NotContains(t, string(failoverErr.ResponseBody), "data:")
+}
+
+func TestBufferRawChatCompletionsForcesJSONContentType(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := `{"id":"chatcmpl_text_plain_json","object":"chat.completion","model":"gpt-5.4","choices":[{"index":0,"message":{"role":"assistant","content":"ok"},"finish_reason":"stop"}],"usage":{"prompt_tokens":3,"completion_tokens":2,"total_tokens":5}}`
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	resp := &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"text/plain"}, "x-request-id": []string{"rid_raw_text_plain_json"}},
+		Body:       io.NopCloser(strings.NewReader(body)),
+	}
+	svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig()}
+
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 3, result.Usage.InputTokens)
+	require.Equal(t, 2, result.Usage.OutputTokens)
+	require.Equal(t, http.StatusOK, rec.Code)
+	require.Contains(t, rec.Header().Get("Content-Type"), "application/json")
+	require.JSONEq(t, body, rec.Body.String())
+}
+
 func TestBufferRawChatCompletions_RejectsOversizedResponse(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
@@ -638,7 +790,7 @@ func TestBufferRawChatCompletions_RejectsOversizedResponse(t *testing.T) {
 	svc := &OpenAIGatewayService{cfg: rawChatCompletionsTestConfig()}
 	svc.cfg.Gateway.UpstreamResponseReadMaxBytes = 3
 
-	result, err := svc.bufferRawChatCompletions(c, resp, "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
+	result, err := svc.bufferRawChatCompletions(c, resp, rawChatCompletionsTestAccount(), "gpt-5.4", "gpt-5.4", "gpt-5.4", nil, nil, time.Now())
 	require.ErrorIs(t, err, ErrUpstreamResponseBodyTooLarge)
 	require.Nil(t, result)
 	require.Equal(t, http.StatusBadGateway, rec.Code)

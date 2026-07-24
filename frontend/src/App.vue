@@ -1,14 +1,17 @@
 <script setup lang="ts">
 import { RouterView, useRouter, useRoute } from 'vue-router'
-import { onMounted, onBeforeUnmount, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, watch } from 'vue'
 import Toast from '@/components/common/Toast.vue'
 import NavigationProgress from '@/components/common/NavigationProgress.vue'
-import AdminComplianceDialog from '@/components/admin/AdminComplianceDialog.vue'
 import { resolveRouteDocumentTitle } from '@/router/title'
-import AnnouncementPopup from '@/components/common/AnnouncementPopup.vue'
 import { useAppStore, useAuthStore, useSubscriptionStore, useAnnouncementStore, useAdminComplianceStore, useAdminSettingsStore } from '@/stores'
 import { getSetupStatus } from '@/api/setup'
 import { updateFavicon } from '@/utils/branding'
+import { shouldProbeSetupStatusOnStartup } from '@/utils/startupChecks'
+import { applyPublicRouteSeo } from '@/utils/routeSeo'
+
+const AdminComplianceDialog = defineAsyncComponent(() => import('@/components/admin/AdminComplianceDialog.vue'))
+const AnnouncementPopup = defineAsyncComponent(() => import('@/components/common/AnnouncementPopup.vue'))
 
 const router = useRouter()
 const route = useRoute()
@@ -18,8 +21,16 @@ const subscriptionStore = useSubscriptionStore()
 const announcementStore = useAnnouncementStore()
 const adminComplianceStore = useAdminComplianceStore()
 const adminSettingsStore = useAdminSettingsStore()
+const shouldShowAdminComplianceDialog = computed(() =>
+  authStore.isAuthenticated && authStore.isAdmin && adminComplianceStore.shouldShow
+)
+const shouldShowAnnouncementPopup = computed(() => Boolean(announcementStore.currentPopup))
 
 function updateDocumentTitle() {
+  if (applyPublicRouteSeo(route.path)) {
+    return
+  }
+
   const customMenuItems = [
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
@@ -117,22 +128,26 @@ onBeforeUnmount(() => {
 onMounted(async () => {
   window.addEventListener('admin-compliance-required', onAdminComplianceRequired)
 
-  // Check if setup is needed
-  try {
-    const status = await getSetupStatus()
-    if (status.needs_setup && route.path !== '/setup') {
-      router.replace('/setup')
-      return
+  const hasInjectedPublicSettings = appStore.publicSettingsLoaded || Boolean(window.__APP_CONFIG__)
+  if (shouldProbeSetupStatusOnStartup(route.path, hasInjectedPublicSettings)) {
+    try {
+      const status = await getSetupStatus()
+      if (status.needs_setup) {
+        router.replace('/setup')
+        return
+      }
+    } catch {
+      // If setup endpoint fails, assume normal mode and continue
     }
-  } catch {
-    // If setup endpoint fails, assume normal mode and continue
   }
 
-  // Injected settings avoid first-paint flash; force one live refresh so support/contact changes are not stale.
-  await appStore.fetchPublicSettings(true)
-
-  // Re-resolve document title now that site settings are available
-  updateDocumentTitle()
+  // Injected settings avoid first-paint flash. In static/dev fallback, fetch once
+  // without blocking route interaction or forcing a duplicate public-settings XHR.
+  if (!appStore.publicSettingsLoaded) {
+    void appStore.fetchPublicSettings().then(() => {
+      updateDocumentTitle()
+    })
+  }
 })
 </script>
 
@@ -140,6 +155,6 @@ onMounted(async () => {
   <NavigationProgress />
   <RouterView />
   <Toast />
-  <AnnouncementPopup />
-  <AdminComplianceDialog />
+  <AnnouncementPopup v-if="shouldShowAnnouncementPopup" />
+  <AdminComplianceDialog v-if="shouldShowAdminComplianceDialog" />
 </template>

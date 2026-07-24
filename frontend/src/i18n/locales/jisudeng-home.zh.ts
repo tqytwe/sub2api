@@ -8,6 +8,7 @@ export const jisudengHomeZh = {
     keyUsage: 'API 查账',
     about: '了解极速蹬',
     contact: '联系我们',
+    androidApp: '下载 APP',
     admin: '管理后台',
     console: '控制台',
     signIn: '登录',
@@ -65,6 +66,27 @@ export const jisudengHomeZh = {
     through: '最近运营样本结束于 {time}',
     computed: '快照生成于 {time}',
     stale: '当前显示缓存或滞后数据'
+  },
+  lmspeedProof: {
+    tag: 'LMSPEED STATUS',
+    title: '第三方测速与状态',
+    lede: '公开展示 LMSpeed 对极速蹬的健康检查、模型支持与最近测试记录；真正带 Key 的测速仍在站内完成。',
+    gridLabel: '极速蹬 LMSpeed 第三方状态卡片',
+    providerLink: '查看 LMSpeed 供应商页面',
+    items: {
+      health: {
+        label: '健康检查',
+        alt: '极速蹬 健康检查'
+      },
+      models: {
+        label: '支持的模型',
+        alt: '极速蹬 支持的模型'
+      },
+      recent: {
+        label: '最近测试记录',
+        alt: '极速蹬 最近测试记录'
+      }
+    }
   },
   sections: {
     imageTag: 'IMAGE API',
@@ -170,7 +192,16 @@ export const jisudengHomeZh = {
     s3t: '发出第一次调用',
     s3d: 'OpenAI 兼容 SDK，改 base_url 即可开调',
     docLink: '想直接调 API?',
-    docLinkCta: '看接入文档'
+    docLinkCta: '看接入文档',
+    terminalAria: '一键接入终端演示动画',
+    terminalTitle: 'bash — 极速蹬 AI · 一键接入',
+    terminalEnv: '检测环境 — Node 22 · OpenClaw 已安装',
+    terminalPasteKey: '粘贴 API Key › sk-••••••••••••',
+    terminalModel: '主模型 › claude-opus-4-7',
+    terminalConfig: '配置写入 ~/.openclaw/openclaw.json',
+    terminalSelfCheck: '自检通过 — 接入完成',
+    terminalIntroPrompt: 'openclaw "介绍下你自己"',
+    terminalIntroReply: '你好，我是接入极速蹬 AI 的本地助手，随时可以开工。'
   },
   pricing: {
     lineA: '按 Token 计费，',
@@ -186,7 +217,8 @@ export const jisudengHomeZh = {
   },
   footer: {
     tagline: 'AI 中转站',
-    docs: '接入文档'
+    docs: '接入文档',
+    lmspeedBadgeAlt: '极速蹬已被 LMSpeed.net 收录'
   },
   registerBanner: {
     signupCredit: '现在注册 — 送 ${amount} 测试额度，全模型可试。',
@@ -196,6 +228,7 @@ export const jisudengHomeZh = {
   anchors: {
     manifesto: '承诺',
     stats: '数据',
+    lmspeed: '测速',
     image: '图像',
     channels: '渠道',
     features: '优势',
@@ -203,6 +236,7 @@ export const jisudengHomeZh = {
     pricing: '计费',
     faq: '问答',
     closer: '开始',
+    scrollToContent: '向下浏览',
     backToTop: '回到顶部'
   }
 }

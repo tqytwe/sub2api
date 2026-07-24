@@ -69,18 +69,59 @@ describe('DataTable', () => {
     await wrapper.vm.$nextTick()
 
     const nameHeader = wrapper.findAll('th')[0]
+    const nameSortButton = nameHeader.get('button[type="button"]')
     expect(nameHeader.find('[data-test="custom-name-header"]').exists()).toBe(true)
+    expect(nameSortButton.classes()).toContain('focus-visible:ring-2')
     expect(nameHeader.attributes('aria-sort')).toBe('ascending')
-    expect(nameHeader.findAll('svg')).toHaveLength(2)
-    expect(nameHeader.findAll('svg')[0].classes()).toContain('text-primary-600')
-    expect(nameHeader.findAll('svg')[1].classes()).toContain('text-gray-300')
+    expect(nameSortButton.findAll('svg')).toHaveLength(2)
+    expect(nameSortButton.findAll('svg')[0].classes()).toContain('text-primary-600')
+    expect(nameSortButton.findAll('svg')[1].classes()).toContain('text-gray-300')
 
-    await nameHeader.trigger('click')
+    await nameSortButton.trigger('click')
     await wrapper.vm.$nextTick()
 
     expect(nameHeader.attributes('aria-sort')).toBe('descending')
-    expect(nameHeader.findAll('svg')[0].classes()).toContain('text-gray-300')
-    expect(nameHeader.findAll('svg')[1].classes()).toContain('text-primary-600')
+    expect(nameSortButton.findAll('svg')[0].classes()).toContain('text-gray-300')
+    expect(nameSortButton.findAll('svg')[1].classes()).toContain('text-primary-600')
+  })
+
+  it('activates clickable desktop rows with keyboard without making plain rows focusable', async () => {
+    const data = [
+      { id: 1, name: 'One' },
+      { id: 2, name: 'Two' }
+    ]
+    const wrapper = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name' }],
+        data,
+        rowKey: 'id',
+        clickableRows: true
+      }
+    })
+
+    await wrapper.vm.$nextTick()
+
+    const row = wrapper.get('tbody tr[data-index="0"]')
+    expect(row.attributes('tabindex')).toBe('0')
+    expect(row.classes()).toContain('cursor-pointer')
+
+    await row.trigger('keydown.enter')
+    await row.trigger('keydown.space')
+
+    expect(wrapper.emitted('rowClick')?.map(([payload]) => payload)).toEqual([data[0], data[0]])
+
+    const plain = mount(DataTable, {
+      props: {
+        columns: [{ key: 'name', label: 'Name' }],
+        data,
+        rowKey: 'id'
+      }
+    })
+    await plain.vm.$nextTick()
+
+    const plainRow = plain.get('tbody tr[data-index="0"]')
+    expect(plainRow.attributes('tabindex')).toBeUndefined()
+    expect(plainRow.classes()).not.toContain('cursor-pointer')
   })
 
   it('renders every row with no virtual padding spacer for small datasets (virtualization off)', async () => {

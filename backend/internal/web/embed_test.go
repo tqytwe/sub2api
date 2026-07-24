@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/gin-gonic/gin"
@@ -30,7 +31,7 @@ func TestInjectSiteTitle(t *testing.T) {
 
 		result := injectSiteTitle(html, settingsJSON)
 
-		assert.Contains(t, string(result), "<title>MyCustomSite - AI API Gateway</title>")
+		assert.Contains(t, string(result), "<title>MyCustomSite - AI API Gateway 与中文提示词库</title>")
 		assert.NotContains(t, string(result), "Sub2API")
 	})
 
@@ -98,7 +99,7 @@ func TestInjectSiteTitle(t *testing.T) {
 
 		result := injectSiteTitle(html, settingsJSON)
 
-		assert.Contains(t, string(result), "<title>A&amp;B - AI API Gateway</title>")
+		assert.Contains(t, string(result), "<title>A&amp;B - AI API Gateway 与中文提示词库</title>")
 	})
 
 	t.Run("preserves_rest_of_html", func(t *testing.T) {
@@ -110,7 +111,7 @@ func TestInjectSiteTitle(t *testing.T) {
 		assert.Contains(t, string(result), `<meta charset="UTF-8">`)
 		assert.Contains(t, string(result), `<script src="app.js"></script>`)
 		assert.Contains(t, string(result), `<div id="app"></div>`)
-		assert.Contains(t, string(result), "<title>TestSite - AI API Gateway</title>")
+		assert.Contains(t, string(result), "<title>TestSite - AI API Gateway 与中文提示词库</title>")
 	})
 }
 
@@ -147,6 +148,173 @@ func TestInjectSiteFavicon(t *testing.T) {
 
 		assert.Contains(t, string(result), `a=1&amp;b=2`)
 	})
+}
+
+func TestInjectRouteSEO(t *testing.T) {
+	baseHTML := []byte(`<!doctype html><html lang="zh-CN"><head>
+<meta name="description" content="old description" />
+<link rel="canonical" href="https://www.jisudeng.com/" />
+<meta property="og:locale" content="zh_CN" />
+<meta property="og:title" content="old title" />
+<meta property="og:description" content="old og description" />
+<meta property="og:url" content="https://www.jisudeng.com/" />
+<meta name="twitter:title" content="old twitter title" />
+<meta name="twitter:description" content="old twitter description" />
+<script type="application/ld+json" data-jisudeng-route-seo="true">{"name":"old"}</script>
+<link rel="alternate" hreflang="old" href="https://old.example/" />
+<title>Old title</title>
+</head><body></body></html>`)
+
+	t.Run("injects_english_route_metadata", func(t *testing.T) {
+		result := string(injectRouteSEO(baseHTML, "/en/models/"))
+
+		assert.Contains(t, result, `<html lang="en">`)
+		assert.Contains(t, result, `<title>DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng</title>`)
+		assert.Contains(t, result, `<meta name="description" content="Compare model access, public API rates, and usage-based pricing for DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through Jisudeng." />`)
+		assert.Contains(t, result, `<meta name="keywords" content="AI model API pricing, DeepSeek API pricing, Qwen API pricing, Kimi API pricing, GLM API pricing, Claude API, Gemini API, OpenAI-compatible models, usage-based billing" />`)
+		assert.Contains(t, result, `<meta name="author" content="Jisudeng" />`)
+		assert.Contains(t, result, `<meta name="format-detection" content="telephone=no,email=no,address=no" />`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<meta property="og:type" content="website" />`)
+		assert.Contains(t, result, `<meta property="og:site_name" content="Jisudeng" />`)
+		assert.Contains(t, result, `<meta property="og:locale" content="en_US" />`)
+		assert.Contains(t, result, `<meta property="og:image" content="https://www.jisudeng.com/logo.png" />`)
+		assert.Contains(t, result, `<meta name="twitter:card" content="summary" />`)
+		assert.Contains(t, result, `<meta name="twitter:site" content="@jisudeng" />`)
+		assert.Contains(t, result, `<meta name="twitter:creator" content="@jisudeng" />`)
+		assert.Contains(t, result, `<meta name="twitter:title" content="DeepSeek, Qwen, Kimi, GLM, GPT, Claude API Pricing | Jisudeng" />`)
+		assert.Contains(t, result, `<meta name="twitter:image" content="https://www.jisudeng.com/logo.png" />`)
+		assert.Contains(t, result, `<script type="application/ld+json" data-jisudeng-route-seo="true">`)
+		assert.Contains(t, result, `"@context":"https://schema.org"`)
+		assert.Contains(t, result, `"@type":"CollectionPage"`)
+		assert.Contains(t, result, `"headline":"DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng"`)
+		assert.Contains(t, result, `"inLanguage":"en"`)
+		assert.NotContains(t, result, `{"name":"old"}`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/en/models" />`)
+		assert.Equal(t, 3, strings.Count(result, `rel="alternate"`))
+		assert.NotContains(t, result, "old.example")
+		assert.NotContains(t, result, "Chinese AI")
+		assert.NotContains(t, result, "China")
+	})
+
+	t.Run("english_public_routes_do_not_emit_cjk_metadata", func(t *testing.T) {
+		for _, path := range []string{"/en", "/en/docs", "/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm"} {
+			result := string(injectRouteSEO(baseHTML, path))
+
+			assert.Contains(t, result, `<html lang="en">`)
+			assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, result)
+			assert.NotContains(t, result, "Chinese AI")
+			assert.NotContains(t, result, "China")
+		}
+	})
+
+	t.Run("english_public_routes_localize_injected_shell_config", func(t *testing.T) {
+		html := []byte(`<!doctype html><html lang="zh-CN"><head><title>Old</title></head><body>
+<script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬","site_subtitle":"最安全的大模型中转平台","contact_info":"1570539180 微信：tqytwemx","login_agreement_documents":[{"id":"terms","title":"服务条款","content_md":"中文条款"}],"support_contact":{"title":"联系客服","subtitle":"登录、注册、充值、API 或模型调用问题都可以联系人工客服","contacts":[{"id":"legacy-contact","type":"wechat","label":"微信服务群","value":"tqytwemx","copy_value":"tqytwemx","url":"","qr_image":"/qr.png","description":"推荐优先添加微信","primary":true,"enabled":true,"sort_order":1},{"id":"telegram","type":"telegram","label":"TG","value":"Jisudeng","copy_value":"","url":"https://t.me/example","qr_image":"","description":"添加 @Jisudeng","primary":false,"enabled":true,"sort_order":2}]},"api_onboarding":{"enabled":true,"title":"开始接入极速蹬 API","subtitle":"按推荐步骤创建 Key","items":[{"id":"one","title":"创建稳定 Key","description":"创建后可以复制到客户端使用。","badge":"新手必做","enabled":true,"sort_order":1,"cta":"create_key","audience":"new_users"}]},"custom_menu_items":[{"id":"docs","label":"使用文档","url":"https://www.jisudeng.com/docs","visibility":"user","sort_order":0}]};</script>
+<noscript><img alt="极速蹬已被 LMSpeed.net 收录" /></noscript></body></html>`)
+
+		result := string(localizeEnglishHTMLShell(html, "/en/models"))
+
+		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, result)
+		assert.Contains(t, result, `"site_name":"Jisudeng"`)
+		assert.Contains(t, result, `"title":"Contact support"`)
+		assert.Contains(t, result, `"label":"WeChat support"`)
+		assert.Contains(t, result, `"title":"Start using the Jisudeng API"`)
+		assert.Contains(t, result, `"label":"Docs"`)
+		assert.Contains(t, result, `alt="Jisudeng is listed on LMSpeed.net"`)
+	})
+
+	t.Run("chinese_public_routes_keep_injected_shell_config", func(t *testing.T) {
+		html := []byte(`<html><head></head><body><script nonce="abc">window.__APP_CONFIG__={"site_name":"极速蹬"};</script></body></html>`)
+
+		result := string(localizeEnglishHTMLShell(html, "/models"))
+
+		assert.Contains(t, result, `"site_name":"极速蹬"`)
+	})
+
+	t.Run("keeps_chinese_route_metadata_on_chinese_paths", func(t *testing.T) {
+		result := string(injectRouteSEO(baseHTML, "/models"))
+
+		assert.Contains(t, result, `<html lang="zh-CN">`)
+		assert.Contains(t, result, `<title>极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南</title>`)
+		assert.Contains(t, result, `<meta name="keywords" content="极速蹬模型价格, AI 模型目录, API 计费`)
+		assert.Contains(t, result, `<meta property="og:site_name" content="极速蹬" />`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/models" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
+	})
+
+	t.Run("injects_model_family_route_metadata", func(t *testing.T) {
+		zh := string(injectRouteSEO(baseHTML, "/models/deepseek"))
+		en := string(injectRouteSEO(baseHTML, "/en/models/deepseek"))
+
+		assert.Contains(t, zh, `<html lang="zh-CN">`)
+		assert.Contains(t, zh, `<title>DeepSeek API 价格与模型接入 - 极速蹬多模型目录</title>`)
+		assert.Contains(t, zh, `<link rel="canonical" href="https://www.jisudeng.com/models/deepseek" />`)
+		assert.Contains(t, zh, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek" />`)
+		assert.Contains(t, en, `<html lang="en">`)
+		assert.Contains(t, en, `<title>DeepSeek API Pricing and Access | Jisudeng</title>`)
+		assert.Contains(t, en, `<link rel="canonical" href="https://www.jisudeng.com/en/models/deepseek" />`)
+		assert.Contains(t, en, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek" />`)
+		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, en)
+	})
+
+	t.Run("injects_about_and_contact_route_metadata", func(t *testing.T) {
+		about := string(injectRouteSEO(baseHTML, "/about"))
+		contact := string(injectRouteSEO(baseHTML, "/contact"))
+
+		assert.Contains(t, about, `<title>关于极速蹬 - OpenAI兼容 API 网关、模型目录与提示词库</title>`)
+		assert.Contains(t, about, `<link rel="canonical" href="https://www.jisudeng.com/about" />`)
+		assert.Contains(t, about, `"@type":"AboutPage"`)
+		assert.Contains(t, contact, `<title>联系极速蹬客服 - API、模型调用、充值、账号与接入支持入口</title>`)
+		assert.Contains(t, contact, `<link rel="canonical" href="https://www.jisudeng.com/contact" />`)
+		assert.Contains(t, contact, `"@type":"ContactPage"`)
+	})
+
+	t.Run("uses_brand_name_for_website_entity", func(t *testing.T) {
+		result := string(injectRouteSEO(baseHTML, "/"))
+
+		assert.Contains(t, result, `"@type":"WebSite"`)
+		assert.Contains(t, result, `"name":"极速蹬"`)
+		assert.Contains(t, result, `"headline":"极速蹬 - OpenAI兼容 AI API 网关与多模型服务平台"`)
+	})
+
+	t.Run("returns_unchanged_for_non_public_routes", func(t *testing.T) {
+		result := injectRouteSEO(baseHTML, "/dashboard")
+
+		assert.Equal(t, string(baseHTML), string(result))
+	})
+}
+
+func TestPublicRouteSEOMetadataLengthBudgets(t *testing.T) {
+	for _, path := range []string{
+		"/", "/home", "/models", "/models/deepseek", "/models/qwen", "/models/kimi", "/models/glm",
+		"/docs", "/download/android", "/about", "/contact", "/en", "/en/models",
+		"/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm", "/en/docs",
+	} {
+		seo, ok := resolveRouteSEO(path)
+		require.True(t, ok, path)
+
+		twitterTitle := seo.TwitterTitle
+		if strings.TrimSpace(twitterTitle) == "" {
+			twitterTitle = seo.Title
+		}
+		twitterDescription := seo.TwitterDescription
+		if strings.TrimSpace(twitterDescription) == "" {
+			twitterDescription = seo.Description
+		}
+
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(seo.Title), 30, path+" title")
+		assert.LessOrEqual(t, utf8.RuneCountInString(seo.Title), 60, path+" title")
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(seo.Description), 120, path+" description")
+		assert.LessOrEqual(t, utf8.RuneCountInString(seo.Description), 160, path+" description")
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(twitterTitle), 50, path+" twitter:title")
+		assert.LessOrEqual(t, utf8.RuneCountInString(twitterTitle), 70, path+" twitter:title")
+		assert.GreaterOrEqual(t, utf8.RuneCountInString(twitterDescription), 150, path+" twitter:description")
+		assert.LessOrEqual(t, utf8.RuneCountInString(twitterDescription), 200, path+" twitter:description")
+		assert.NotEmpty(t, strings.TrimSpace(seo.Keywords), path+" keywords")
+	}
 }
 
 func TestReplaceNoncePlaceholder(t *testing.T) {
@@ -385,6 +553,50 @@ func TestFrontendServer_ServeIndexHTML(t *testing.T) {
 		assert.Empty(t, w2.Body.String())
 	})
 
+	t.Run("uses_route_specific_etags_for_public_seo_html", func(t *testing.T) {
+		provider := &mockSettingsProvider{
+			settings: map[string]string{"test": "value"},
+		}
+
+		server, err := NewFrontendServer(provider)
+		require.NoError(t, err)
+
+		router := gin.New()
+		router.Use(func(c *gin.Context) {
+			c.Set(middleware.CSPNonceKey, "test-nonce")
+			c.Next()
+		})
+		router.Use(server.Middleware())
+
+		enWriter := httptest.NewRecorder()
+		enReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		router.ServeHTTP(enWriter, enReq)
+		enETag := enWriter.Header().Get("ETag")
+		require.NotEmpty(t, enETag)
+
+		zhWriter := httptest.NewRecorder()
+		zhReq := httptest.NewRequest(http.MethodGet, "/models", nil)
+		zhReq.Header.Set("Accept", "text/html")
+		router.ServeHTTP(zhWriter, zhReq)
+		zhETag := zhWriter.Header().Get("ETag")
+		require.NotEmpty(t, zhETag)
+		assert.NotEqual(t, enETag, zhETag)
+		assert.Contains(t, enWriter.Body.String(), `<html lang="en">`)
+		assert.Contains(t, zhWriter.Body.String(), `<html lang="zh-CN">`)
+
+		wrongETagWriter := httptest.NewRecorder()
+		wrongETagReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		wrongETagReq.Header.Set("If-None-Match", zhETag)
+		router.ServeHTTP(wrongETagWriter, wrongETagReq)
+		assert.Equal(t, http.StatusOK, wrongETagWriter.Code)
+
+		matchingETagWriter := httptest.NewRecorder()
+		matchingETagReq := httptest.NewRequest(http.MethodGet, "/en/models", nil)
+		matchingETagReq.Header.Set("If-None-Match", enETag)
+		router.ServeHTTP(matchingETagWriter, matchingETagReq)
+		assert.Equal(t, http.StatusNotModified, matchingETagWriter.Code)
+	})
+
 	t.Run("sets_cache_control_header", func(t *testing.T) {
 		provider := &mockSettingsProvider{
 			settings: map[string]string{"test": "value"},
@@ -528,6 +740,9 @@ func TestFrontendServer_Middleware(t *testing.T) {
 			"/antigravity/test",
 			"/setup/init",
 			"/health",
+			"/robots.txt",
+			"/sitemap.xml",
+			"/llms.txt",
 			"/responses",
 			"/responses/compact",
 		}
@@ -892,6 +1107,9 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 			"/antigravity/test",
 			"/setup/init",
 			"/health",
+			"/robots.txt",
+			"/sitemap.xml",
+			"/llms.txt",
 			"/responses",
 			"/responses/compact",
 		}

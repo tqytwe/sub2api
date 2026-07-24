@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -132,8 +133,19 @@ func windowTTLMillis(window time.Duration) int64 {
 func abortRateLimit(c *gin.Context) {
 	c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 		"error":   "rate limit exceeded",
-		"message": "Too many requests, please try again later",
+		"message": rateLimitMessage(c),
 	})
+}
+
+func rateLimitMessage(c *gin.Context) string {
+	if c == nil {
+		return "请求过于频繁，请稍后再试"
+	}
+	language := strings.ToLower(strings.TrimSpace(c.GetHeader("Accept-Language")))
+	if strings.HasPrefix(language, "en") {
+		return "Too many requests, please try again later"
+	}
+	return "请求过于频繁，请稍后再试"
 }
 
 func failureModeLabel(mode RateLimitFailureMode) string {

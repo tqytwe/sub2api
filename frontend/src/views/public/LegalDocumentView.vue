@@ -1,92 +1,79 @@
 <template>
-  <div class="min-h-screen bg-gray-50 text-gray-900 dark:bg-dark-950 dark:text-white">
-    <header class="border-b border-gray-200 bg-white/95 dark:border-dark-800 dark:bg-dark-900/95">
-      <div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <RouterLink to="/home" class="flex min-w-0 items-center gap-3">
-          <template v-if="settings">
-            <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-gray-200 dark:bg-dark-800 dark:ring-dark-700">
-              <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" />
-            </span>
-            <span class="truncate text-base font-semibold text-gray-950 dark:text-white">
-              {{ siteName }}
-            </span>
-          </template>
-          <template v-else>
-            <span class="h-10 w-10 flex-shrink-0 animate-pulse rounded-xl bg-gray-200 dark:bg-dark-700" aria-hidden="true"></span>
-            <span class="h-5 w-28 animate-pulse rounded bg-gray-200 dark:bg-dark-700" aria-hidden="true"></span>
-          </template>
-        </RouterLink>
-        <RouterLink
+  <PublicContentLayout
+    :site-name="siteName"
+    :site-logo="siteLogo"
+    :doc-url="docUrl"
+    frame="reading"
+  >
+    <template #actions>
+      <RouterLink
           to="/login"
           class="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-sm shadow-primary-600/20 transition hover:bg-primary-700"
         >
           {{ t('home.login') }}
-        </RouterLink>
+      </RouterLink>
+    </template>
+
+    <div v-if="loading" class="flex min-h-[320px] items-center justify-center">
+      <LoadingSpinner size="md" />
+    </div>
+
+    <section
+      v-else-if="loadError"
+      class="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
+    >
+      <h1 class="text-lg font-semibold">{{ t('legal.loadFailed') }}</h1>
+      <p class="mt-2 text-sm">{{ t('legal.retryLater') }}</p>
+    </section>
+
+    <section
+      v-else-if="!currentDocument"
+      class="rounded-lg border border-gray-200 bg-white p-6 dark:border-dark-700 dark:bg-dark-900"
+    >
+      <div class="flex items-start gap-3">
+        <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300">
+          <Icon name="document" size="sm" />
+        </span>
+        <div>
+          <h1 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('legal.notFound') }}</h1>
+          <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
+            {{ t('legal.notFoundDescription') }}
+          </p>
+        </div>
       </div>
-    </header>
+    </section>
 
-    <main class="mx-auto max-w-4xl px-4 py-8 sm:px-6 lg:py-10">
-      <div v-if="loading" class="flex min-h-[320px] items-center justify-center">
-        <div class="h-8 w-8 animate-spin rounded-full border-b-2 border-primary-600"></div>
-      </div>
-
-      <section
-        v-else-if="loadError"
-        class="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200"
-      >
-        <h1 class="text-lg font-semibold">{{ t('legal.loadFailed') }}</h1>
-        <p class="mt-2 text-sm">{{ t('legal.retryLater') }}</p>
-      </section>
-
-      <section
-        v-else-if="!currentDocument"
-        class="rounded-lg border border-gray-200 bg-white p-6 dark:border-dark-700 dark:bg-dark-900"
-      >
-        <div class="flex items-start gap-3">
-          <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md bg-gray-100 text-gray-600 dark:bg-dark-800 dark:text-dark-300">
-            <Icon name="document" size="sm" />
+    <article v-else>
+      <div class="mb-8 border-b border-gray-200 pb-6 dark:border-dark-700">
+        <div class="flex items-start gap-4">
+          <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
+            <Icon :name="documentIcon" size="md" />
           </span>
-          <div>
-            <h1 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('legal.notFound') }}</h1>
-            <p class="mt-2 text-sm leading-6 text-gray-600 dark:text-dark-300">
-              {{ t('legal.notFoundDescription') }}
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-primary-700 dark:text-primary-300">{{ documentTypeLabel }}</p>
+            <h1 class="mt-2 break-words text-2xl font-bold tracking-normal text-gray-950 dark:text-white sm:text-3xl">
+              {{ currentDocument.title }}
+            </h1>
+            <p v-if="updatedAt" class="mt-3 text-sm text-gray-500 dark:text-dark-400">
+              {{ t('legal.updatedAt', { date: updatedAt }) }}
             </p>
           </div>
         </div>
-      </section>
+      </div>
 
-      <article v-else>
-        <div class="mb-8 border-b border-gray-200 pb-6 dark:border-dark-700">
-          <div class="flex items-start gap-4">
-            <span class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-md bg-primary-50 text-primary-700 dark:bg-primary-500/10 dark:text-primary-300">
-              <Icon :name="documentIcon" size="md" />
-            </span>
-            <div class="min-w-0">
-              <p class="text-sm font-medium text-primary-700 dark:text-primary-300">{{ documentTypeLabel }}</p>
-              <h1 class="mt-2 break-words text-2xl font-bold tracking-normal text-gray-950 dark:text-white sm:text-3xl">
-                {{ currentDocument.title }}
-              </h1>
-              <p v-if="updatedAt" class="mt-3 text-sm text-gray-500 dark:text-dark-400">
-                {{ t('legal.updatedAt', { date: updatedAt }) }}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="hasContent"
-          class="legal-document-content"
-          v-html="renderedHtml"
-        ></div>
-        <div
-          v-else
-          class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-14 text-center text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-400"
-        >
-          {{ t('legal.empty') }}
-        </div>
-      </article>
-    </main>
-  </div>
+      <div
+        v-if="hasContent"
+        class="legal-document-content"
+        v-html="renderedHtml"
+      ></div>
+      <div
+        v-else
+        class="rounded-lg border border-dashed border-gray-300 bg-white px-6 py-14 text-center text-sm text-gray-500 dark:border-dark-700 dark:bg-dark-900 dark:text-dark-400"
+      >
+        {{ t('legal.empty') }}
+      </div>
+    </article>
+  </PublicContentLayout>
 </template>
 
 <script setup lang="ts">
@@ -96,6 +83,8 @@ import { marked } from 'marked'
 import DOMPurify from 'dompurify'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
+import PublicContentLayout from '@/components/layout/PublicContentLayout.vue'
 import { getLocale } from '@/i18n'
 import { sanitizeUrl } from '@/utils/url'
 import { useAppStore } from '@/stores/app'
@@ -120,11 +109,12 @@ marked.setOptions({
 const documentId = computed(() => String(route.params.documentId || ''))
 const isAdminComplianceDocument = computed(() => documentId.value === 'admin-compliance')
 const documents = computed(() => settings.value?.login_agreement_documents ?? [])
-const siteName = computed(() => settings.value?.site_name || 'Sub2API')
+const siteName = computed(() => settings.value?.site_name || '极速蹬')
 const siteLogo = computed(() => sanitizeUrl(settings.value?.site_logo || '', {
   allowRelative: true,
   allowDataUrl: true,
 }))
+const docUrl = computed(() => sanitizeUrl(settings.value?.doc_url || appStore.docUrl || ''))
 const updatedAt = computed(() =>
   isAdminComplianceDocument.value ? '' : settings.value?.login_agreement_updated_at || ''
 )

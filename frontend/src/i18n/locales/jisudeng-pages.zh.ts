@@ -1,5 +1,43 @@
 /** 极速蹬公开页文案（about / contact / models / docs / support / auth） */
+import { jisudengAuthAsideZh } from './jisudeng-auth-aside.zh'
+
 export const jisudengPagesZh = {
+  promptLibrary: {
+    back: '返回',
+    backAria: '返回上一页',
+    metaTitle: '图像工作室 · 选提示词',
+    metaDescription: '在图像工作室内按用途、风格、主体、模型和尺寸查找提示词，并用于图像创作。',
+    englishPendingEyebrow: '图像工作室 · 提示词库',
+    englishPendingTitle: '英文提示词库正在准备',
+    englishPendingBody: '当前提示词内容先以默认语言开放，英文内容审核完成后会单独开放。',
+    switchToDefaultLanguage: '查看当前提示词库',
+    eyebrow: '图像工作室 · 提示词库',
+    title: '选提示词',
+    description: '按用途和画面特征找到可直接创作的提示词，查看示例效果后再带入图像工作室。',
+    quickLinksAria: '快捷入口',
+    quickFeatured: '极速蹬精选',
+    quickLatest: '最新收录',
+    quickPopular: '热门使用',
+    quickNoReference: '无需参考图',
+    quickFavorite: '我的收藏',
+    loading: '正在加载提示词',
+    resultCount: '共找到 {count} 条提示词',
+    sortLabel: '排序方式',
+    sortFeatured: '精选优先',
+    sortLatest: '最新收录',
+    sortPopular: '热门使用',
+    loadFailedTitle: '提示词加载失败',
+    loadFailedBody: '网络暂时不可用，请稍后重新加载。',
+    reload: '重新加载',
+    emptyTitle: '没有找到匹配的提示词',
+    emptyBody: '可以减少筛选条件，或换一个关键词再试。',
+    clearFilters: '清除全部筛选',
+    listAria: '提示词列表',
+    favoriteFailed: '收藏操作失败，请稍后重试',
+    copySuccess: '提示词已复制',
+    copyFailed: '复制失败，请手动选择提示词',
+    useFailed: '暂时无法用于创作，请稍后重试',
+  },
   support: {
     trigger: '联系客服',
     title: '联系客服',
@@ -9,6 +47,47 @@ export const jisudengPagesZh = {
     copy: '复制',
     copied: '已复制',
     copiedToast: '客服 QQ 已复制'
+  },
+  androidDownload: {
+    metaTitle: 'Android 下载',
+    eyebrow: 'JisudengChat Android',
+    title: '下载极速蹬安卓 APP',
+    lead: '安装后使用极速蹬平台账号登录，自动同步余额、分组、API Key 和可用模型。聊天与生图在手机端完整可用，生成图片保存在本机。',
+    downloadApk: '下载 APK',
+    openWeb: '打开网页版',
+    qrAlt: 'JisudengChat Android APK 下载二维码',
+    scanTitle: '手机扫码下载',
+    scanHint: '使用安卓手机扫码，或在手机浏览器打开本页后点击下载。',
+    manifestFailed: '版本信息暂时读取失败，下载按钮仍会使用官方 APK 地址。',
+    version: '版本',
+    size: '大小',
+    minAndroid: '系统要求',
+    releaseDate: '发布日期',
+    defaultSize: '约 7 MB',
+    unknown: '待读取',
+    packageInfo: '安装包信息',
+    viewManifest: '查看版本文件',
+    featureTitle: '已接入平台能力',
+    features: [
+      {
+        title: '平台账号登录',
+        desc: '使用同一套极速蹬账号体系，登录后同步余额、分组和模型权限。'
+      },
+      {
+        title: '聊天与模型切换',
+        desc: '移动端输入区、会话列表、图片上传、错误状态和空状态按 APP 操作习惯整理。'
+      },
+      {
+        title: '生图与本机图库',
+        desc: '支持参考图、多参数、任务进度、失败重试和本机保存，生成图片不落到官网服务器。'
+      },
+      {
+        title: '账户与下载进度',
+        desc: '余额、套餐、订单明细、充值入口、客服入口、通知和下载进度都在手机端可用。'
+      }
+    ],
+    notesTitle: '版本说明',
+    defaultNote: 'JisudengChat Android 已补齐移动端聊天、生图、本机图库、账户、注册找回、权限、通知和品牌启动页。'
   },
   about: {
     eyebrow: '关于 · 了解极速蹬',
@@ -114,12 +193,18 @@ export const jisudengPagesZh = {
       output: '输出',
       officialInput: '官方输入',
       officialOutput: '官方输出',
+      officialPrice: '官方价格',
       ourInput: '本站展示输入',
       ourOutput: '本站展示输出',
+      ourPrice: '分组展示价',
       channelInput: '渠道输入',
       channelOutput: '渠道输出',
       effectiveInput: '分组展示输入',
       effectiveOutput: '分组展示输出',
+    },
+    priceKinds: {
+      input: '输入 {price}',
+      output: '输出 {price}',
     },
     noPricing: '暂无定价',
     previewTitle: '热门模型预览',
@@ -134,6 +219,28 @@ export const jisudengPagesZh = {
       reasoning: '复杂推理',
       code: '代码与 Agent',
       image: '图像生成',
+    },
+    family: {
+      deepseek: {
+        title: 'DeepSeek API 价格与模型接入',
+        subtitle: '查看 DeepSeek 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 DeepSeek 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+      qwen: {
+        title: 'Qwen API 价格与模型接入',
+        subtitle: '查看 Qwen 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 Qwen 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+      kimi: {
+        title: 'Kimi API 价格与模型接入',
+        subtitle: '查看 Kimi 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 Kimi 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
+      glm: {
+        title: 'GLM API 价格与模型接入',
+        subtitle: '查看 GLM 模型的公开价格、本站基础售价与 OpenAI 兼容接入入口。',
+        description: '本页聚合极速蹬公开可见的 GLM 模型、平台、官方价和本站基础售价，方便在注册前评估 USD / 1M tokens 成本、接入方式和后续分组实付价。',
+      },
     },
     vipBadge: 'VIP {label}',
   },
@@ -664,6 +771,8 @@ export const jisudengPagesZh = {
       colRecharge: '累计基础充值',
       colRechargeBonus: '充值加赠',
       colPerks: '权益',
+      baseAccess: '基础功能',
+      freeForNewUsers: '$0（新用户默认）',
       syncNote: 'VIP 累计只计算支付订单的基础到账金额，不含 VIP 加赠、活动加赠、签到或兑换码赠送。登录后可在玩法中枢查看当前档位与距下一档差额。',
       perks: {
         models_vip_tag: '模型页 VIP 标签',
@@ -673,28 +782,5 @@ export const jisudengPagesZh = {
       },
     },
   },
-  authAside: {
-    siteSubtitleDefault: '最安全的大模型中转平台',
-    eyebrow: '隐私 · 透明 · 一念可达',
-    titleLogin: '一念之轻',
-    titleFaintLogin: '接万模之响',
-    pledge1: '不存请求体 · 不参与训练',
-    pledge2: '全链路 TLS · 全程可审计',
-    pledge3: '注册即开 · 秒级接入',
-    eyebrowRegister: '加入极速蹬 AI',
-    titleRegister: '即刻开通',
-    titleFaintRegister: '一念可达每一个模型',
-    pitchRegister:
-      '注册即送测试额度 · 上百个模型官方倍率聚合 · 5 分钟接入 Claude / GPT / Gemini。',
-    regPledge1: '注册即开 API · 无需审批 · 秒级接入',
-    regPledge2: '按 Token 计费 · 无月费 · 见账见量',
-    regPledge3: '邀请码 / 优惠码 · 充值赠送可叠加',
-    regPledge4: '请求体不落盘 · Apple 级隐私承诺',
-    fineprintRegister: '注册即代表同意《服务条款》与《隐私政策》。我们不会用你的提示词训练模型，也不会与任何第三方共享。',
-    backHome: '返回首页',
-    copyrightTagline: '让一念之间链接每个模型',
-    flowSrc: '提示词原文',
-    flowGw: '字节级直通',
-    flowUp: '官方上游'
-  }
+  authAside: jisudengAuthAsideZh,
 }

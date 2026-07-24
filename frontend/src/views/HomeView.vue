@@ -24,7 +24,7 @@
     <header class="page-header" :class="{ scrolled: headerScrolled }">
       <div class="page-container header-row">
         <div class="header-left">
-          <router-link to="/" class="brand">
+          <router-link :to="homeLogoRoute" class="brand">
             <span v-if="siteLogo" class="brand-mark" aria-hidden="true">
               <img :src="siteLogo" :alt="siteName" />
             </span>
@@ -36,6 +36,7 @@
               :key="item.key"
               :to="item.to"
               class="nav-link"
+              :data-nav-key="item.key"
             >
               {{ t(item.labelKey) }}
             </router-link>
@@ -43,6 +44,9 @@
         </div>
         <nav class="page-nav">
           <PublicPageToolbar />
+          <router-link :to="downloadRoute" class="nav-download">
+            {{ t('home.jisudeng.nav.androidApp') }}
+          </router-link>
           <template v-if="isAuthenticated">
             <router-link v-if="isAdmin" :to="adminDashboardRoute" class="nav-link">{{ t('home.jisudeng.nav.admin') }}</router-link>
             <router-link :to="dashboardRoute" class="nav-cta">{{ t('home.jisudeng.nav.console') }}</router-link>
@@ -70,8 +74,16 @@
             </span>
           </template>
         </p>
-        <h1 class="hero-title">
-          <span class="hero-zh">
+        <h1 class="hero-title" :class="{ 'hero-title--en': isEnglishPublicRoute }">
+          <span v-if="isEnglishPublicRoute" class="hero-en-title">
+            <span class="hero-en-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
+            {{ ' ' }}
+            <span class="hero-en-main">
+              {{ t('home.jisudeng.hero.titleParts.mid') }}
+              {{ t('home.jisudeng.hero.titleParts.tail') }}
+            </span>
+          </span>
+          <span v-else class="hero-zh">
             <span class="hz-brand">{{ t('home.jisudeng.hero.titleParts.brand') }}</span>
             <span class="hz-mid">{{ t('home.jisudeng.hero.titleParts.mid') }}</span>
             <span class="hz-tail">{{ t('home.jisudeng.hero.titleParts.tail') }}</span>
@@ -87,7 +99,7 @@
             {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
             <span class="arrow">→</span>
           </button>
-          <button v-if="docUrl" type="button" class="cta-text" @click="openDocs">
+          <button v-if="docUrl || isEnglishPublicRoute" type="button" class="cta-text" @click="openDocs">
             {{ t('home.jisudeng.cta.docs') }}
             <span class="arrow-tiny">↗</span>
           </button>
@@ -107,7 +119,7 @@
           <li>Continue</li>
         </ul>
       </div>
-      <a class="hero-scroll-cue" href="#manifesto" aria-label="向下浏览">
+      <a class="hero-scroll-cue" href="#manifesto" :aria-label="t('home.jisudeng.anchors.scrollToContent')">
         <span class="scroll-track"><span class="scroll-dot" /></span>
       </a>
     </section>
@@ -184,6 +196,12 @@
           <span v-for="item in statsFreshness" :key="item">{{ item }}</span>
           <strong v-if="isStatsStale">{{ t('home.jisudeng.stats.stale') }}</strong>
         </div>
+      </div>
+    </section>
+
+    <section id="lmspeed" class="lmspeed-proof-section section-block" :class="{ 'in-view': inView.lmspeed }">
+      <div class="page-container">
+        <LmspeedProviderProof />
       </div>
     </section>
 
@@ -431,13 +449,17 @@
         <span class="f-brand">{{ siteName }} · {{ t('home.jisudeng.footer.tagline') }}</span>
         <LmspeedBadge />
         <span class="f-links">
-          <a v-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
+          <router-link v-if="isEnglishPublicRoute" :to="{ name: PUBLIC_ROUTE_NAMES.englishDocs }">{{ t('home.jisudeng.footer.docs') }}</router-link>
+          <a v-else-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
           <span class="f-copy">© {{ year }} {{ siteName }}</span>
         </span>
       </div>
     </footer>
 
     <div v-if="!isAuthenticated && showGuestStickyCta" class="home-sticky-cta">
+      <router-link :to="downloadRoute" class="home-sticky-download">
+        {{ t('home.jisudeng.nav.androidApp') }}
+      </router-link>
       <button type="button" class="cta-primary home-sticky-cta-btn" @click="goRegister">
         {{ t('home.jisudeng.cta.register') }}
         <span class="arrow">→</span>
@@ -448,16 +470,16 @@
 
 <script setup lang="ts">
 import '@/styles/home-view.css'
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import DOMPurify from 'dompurify'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, useAppStore } from '@/stores'
 import HeroSphere from '@/components/home/HeroSphere.vue'
 import ChannelTV from '@/components/home/ChannelTV.vue'
 import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import LmspeedBadge from '@/components/home/LmspeedBadge.vue'
+import LmspeedProviderProof from '@/components/home/LmspeedProviderProof.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import HomeStatOdometer from '@/components/home/HomeStatOdometer.vue'
 import { useHomeLiveStats } from '@/composables/useHomeLiveStats'
@@ -465,17 +487,22 @@ import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { formatHomeStatsTimestamp } from '@/utils/homeLiveStats'
 import { sanitizeUrl } from '@/utils/url'
 import { enabledSupportContacts } from '@/utils/supportContact'
+import { localizedSiteName, localizedSiteSubtitle } from '@/utils/localizedPublicSettings'
+import { isHomeContentUrl as isCustomHomeContentUrl, sanitizeHomeContent } from '@/utils/homeContent'
+import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
 import {
   PUBLIC_ROUTE_NAMES,
   authEntryRoute,
   buildHomePrimaryNav,
   dashboardEntryRoute,
   docsTopicRoute,
+  englishDocsTopicRoute,
   imageStudioEntryRoute,
 } from '@/router/publicNavigation'
 
 const { t, tm, te, locale } = useI18n()
 const router = useRouter()
+const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
@@ -512,20 +539,42 @@ let whyTargetX = 0
 let whyTargetY = 0
 let fontEl: HTMLLinkElement | null = null
 
-const siteName = computed(() => appStore.cachedPublicSettings?.site_name || appStore.siteName || '极速蹬')
+const siteName = computed(() =>
+  localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, locale.value)
+)
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
+const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
 const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value))
 const adminDashboardRoute = { name: PUBLIC_ROUTE_NAMES.adminDashboard }
 const aboutRoute = { name: PUBLIC_ROUTE_NAMES.about }
+const downloadRoute = { name: PUBLIC_ROUTE_NAMES.androidDownload }
 const loginRoute = authEntryRoute(false)
 const registerRoute = authEntryRoute(true)
-const imageDocsRoute = docsTopicRoute('deploy', 'text-to-image-api')
-const quickStartDocsRoute = docsTopicRoute('tutorial', 'quick-start')
+const homeLogoRoute = computed(() =>
+  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishHome } : { path: '/' },
+)
+const imageDocsRoute = computed(() =>
+  isEnglishPublicRoute.value
+    ? englishDocsTopicRoute('deploy', 'text-to-image-api')
+    : docsTopicRoute('deploy', 'text-to-image-api'),
+)
+const quickStartDocsRoute = computed(() =>
+  isEnglishPublicRoute.value
+    ? englishDocsTopicRoute('tutorial', 'quick-start')
+    : docsTopicRoute('tutorial', 'quick-start'),
+)
 const dashboardRoute = computed(() => dashboardEntryRoute(isAdmin.value))
 const homePrimaryNavItems = computed(() =>
-  buildHomePrimaryNav(isAuthenticated.value).filter((item) => !item.requiresSupportContact || hasSupportContact.value),
+  buildHomePrimaryNav(isAuthenticated.value)
+    .map((item) => {
+      if (!isEnglishPublicRoute.value) return item
+      if (item.key === 'models') return { ...item, to: { name: PUBLIC_ROUTE_NAMES.englishModels } }
+      if (item.key === 'docs') return { ...item, to: { name: PUBLIC_ROUTE_NAMES.englishDocs } }
+      return item
+    })
+    .filter((item) => !item.requiresSupportContact || hasSupportContact.value),
 )
 const siteLogo = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
@@ -533,19 +582,19 @@ const siteLogo = computed(() =>
     allowDataUrl: true
   })
 )
-const UPSTREAM_SITE_SUBTITLE = 'Subscription to API Conversion Platform'
-
 const siteSubtitle = computed(() => {
-  const raw = appStore.cachedPublicSettings?.site_subtitle?.trim()
-  if (raw && raw !== UPSTREAM_SITE_SUBTITLE) return raw
-  return t('authAside.siteSubtitleDefault')
+  return localizedSiteSubtitle(
+    appStore.cachedPublicSettings?.site_subtitle,
+    locale.value,
+    t('authAside.siteSubtitleDefault'),
+  )
 })
 const docUrl = computed(() =>
   sanitizeUrl(appStore.cachedPublicSettings?.doc_url || appStore.docUrl || '')
 )
 const homeContent = computed(() => appStore.cachedPublicSettings?.home_content || '')
-const safeHomeContent = computed(() => DOMPurify.sanitize(homeContent.value))
-const isHomeContentUrl = computed(() => /^https?:\/\//.test(homeContent.value.trim()))
+const safeHomeContent = ref('')
+const isHomeContentUrl = computed(() => isCustomHomeContentUrl(homeContent.value))
 
 const isGtmHome = computed(() => te('home.jisudeng.hero.subtitle') && te('home.jisudeng.cta.register'))
 const heroSubtitle = computed(() => {
@@ -571,6 +620,7 @@ const anchorSections = computed(() => {
   const sections = [
     { id: 'manifesto', label: t('home.jisudeng.anchors.manifesto') },
     { id: 'stats', label: t('home.jisudeng.anchors.stats') },
+    { id: 'lmspeed', label: t('home.jisudeng.anchors.lmspeed') },
     { id: 'image', label: t('home.jisudeng.anchors.image') },
     { id: 'channels', label: t('home.jisudeng.anchors.channels') },
     { id: 'features', label: t('home.jisudeng.anchors.features') },
@@ -588,12 +638,39 @@ const anchorSections = computed(() => {
 const showBackToTop = ref(false)
 const activeAnchor = ref('manifesto')
 
+let sanitizeVersion = 0
+watch(
+  homeContent,
+  async (content) => {
+    const version = ++sanitizeVersion
+
+    if (!content.trim() || isCustomHomeContentUrl(content)) {
+      safeHomeContent.value = ''
+      return
+    }
+
+    try {
+      const sanitized = await sanitizeHomeContent(content)
+      if (version === sanitizeVersion) {
+        safeHomeContent.value = sanitized
+      }
+    } catch (error) {
+      if (recoverFromChunkLoadError(error, route.fullPath)) return
+      console.error('Failed to sanitize custom home content:', error)
+      if (version === sanitizeVersion) {
+        safeHomeContent.value = ''
+      }
+    }
+  },
+  { immediate: true }
+)
+
 const eyebrowBits = computed(() =>
   t('home.jisudeng.hero.eyebrow')
     .split(/\s*·\s*/)
     .filter(Boolean)
     .map((part) => {
-      const m = part.match(/^(拒绝|NO\s|REFUSE\s)(.+)$/i)
+      const m = part.match(/^(\u62d2\u7edd|NO\s|REFUSE\s)(.+)$/i)
       return m ? { pre: m[1], obj: m[2] } : { text: part }
     })
 )
@@ -685,6 +762,10 @@ function goStart() {
 }
 
 function openDocs() {
+  if (isEnglishPublicRoute.value) {
+    router.push({ name: PUBLIC_ROUTE_NAMES.englishDocs })
+    return
+  }
   if (docUrl.value) window.open(docUrl.value, '_blank', 'noopener')
 }
 
@@ -806,5 +887,60 @@ onBeforeUnmount(() => {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+.hero-title--en .hero-en-title {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  gap: 10px;
+  width: min(980px, calc(100vw - 48px));
+  white-space: normal;
+  text-align: center;
+}
+
+.hero-title--en .hero-en-brand,
+.hero-title--en .hero-en-main {
+  display: block;
+  inline-size: 100%;
+  overflow-wrap: anywhere;
+  letter-spacing: 0;
+  line-height: 0.96;
+}
+
+.hero-title--en .hero-en-brand {
+  font-size: clamp(48px, 6.8vw, 96px);
+}
+
+.hero-title--en .hero-en-main {
+  width: min(100%, 13ch);
+  font-size: clamp(40px, 5.6vw, 80px);
+  text-wrap: balance;
+}
+
+@media (width >= 1600px) {
+  .hero-title--en .hero-en-brand {
+    font-size: 104px;
+  }
+
+  .hero-title--en .hero-en-main {
+    font-size: 88px;
+  }
+}
+
+@media (width <= 767px) {
+  .hero-title--en .hero-en-title {
+    gap: 6px;
+    width: calc(100vw - 32px);
+  }
+
+  .hero-title--en .hero-en-brand {
+    font-size: clamp(36px, 10.5vw, 48px);
+  }
+
+  .hero-title--en .hero-en-main {
+    width: min(100%, 12ch);
+    font-size: clamp(31px, 8.8vw, 42px);
+  }
 }
 </style>

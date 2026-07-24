@@ -1,0 +1,591 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>接入引导配置不新增导航原型</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7fb;
+      --panel: #ffffff;
+      --panel-soft: #f9fafb;
+      --line: #e5e7eb;
+      --line-strong: #d1d5db;
+      --ink: #111827;
+      --muted: #6b7280;
+      --blue: #2563eb;
+      --blue-soft: #eff6ff;
+      --green: #059669;
+      --green-soft: #ecfdf5;
+      --amber: #d97706;
+      --amber-soft: #fffbeb;
+      --rose: #e11d48;
+      --violet: #7c3aed;
+      --shadow: 0 18px 40px rgba(15, 23, 42, .08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      letter-spacing: 0;
+    }
+    .app {
+      display: grid;
+      grid-template-columns: 256px minmax(0, 1fr);
+      min-height: 100vh;
+    }
+    .sidebar {
+      display: flex;
+      min-height: 100vh;
+      flex-direction: column;
+      border-right: 1px solid var(--line);
+      background: #fff;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      height: 68px;
+      padding: 0 18px;
+      border-bottom: 1px solid var(--line);
+    }
+    .logo {
+      display: grid;
+      width: 38px;
+      height: 38px;
+      place-items: center;
+      border-radius: 10px;
+      background: #111827;
+      color: #fff;
+      font-weight: 800;
+    }
+    .brand strong { display: block; font-size: 17px; }
+    .brand span { display: block; margin-top: 2px; color: var(--muted); font-size: 12px; }
+    .nav {
+      flex: 1;
+      overflow: hidden;
+      padding: 14px 12px;
+    }
+    .nav-section { margin-bottom: 16px; }
+    .nav-title {
+      padding: 7px 9px;
+      color: #9ca3af;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 38px;
+      margin-bottom: 4px;
+      padding: 0 10px;
+      border-radius: 8px;
+      color: #374151;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .nav-item.active {
+      background: var(--blue-soft);
+      color: var(--blue);
+    }
+    .nav-item.child {
+      margin-left: 22px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #4b5563;
+    }
+    .nav-item.child.active {
+      color: var(--blue);
+      background: #eef2ff;
+    }
+    .nav-mark {
+      display: grid;
+      width: 22px;
+      height: 22px;
+      place-items: center;
+      flex: none;
+      border-radius: 7px;
+      background: #f3f4f6;
+      color: #6b7280;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .active .nav-mark { background: #dbeafe; color: var(--blue); }
+    .sidebar-note {
+      margin: 0 12px 14px;
+      padding: 10px 12px;
+      border: 1px dashed #f59e0b;
+      border-radius: 8px;
+      background: var(--amber-soft);
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .main {
+      min-width: 0;
+      padding: 22px 28px 28px;
+    }
+    .topbar {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+    }
+    h1 {
+      margin: 0;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+    .sub {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      height: 38px;
+      padding: 0 14px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: #374151;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .btn.primary {
+      border-color: var(--blue);
+      background: var(--blue);
+      color: #fff;
+      box-shadow: 0 10px 22px rgba(37, 99, 235, .2);
+    }
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+    }
+    .input {
+      height: 38px;
+      min-width: 210px;
+      flex: 1;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      padding: 0 12px;
+      color: #6b7280;
+      font-size: 13px;
+    }
+    .select {
+      width: 138px;
+      height: 38px;
+      border: 1px solid var(--line-strong);
+      border-radius: 8px;
+      background: #fff;
+      color: #4b5563;
+      padding: 0 12px;
+      font-size: 13px;
+    }
+    .shell {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(360px, .85fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .card {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .card-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 15px 16px;
+      border-bottom: 1px solid var(--line);
+    }
+    h2 {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.3;
+    }
+    .hint {
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 10px 12px 0;
+      background: #fff;
+    }
+    .tab {
+      height: 34px;
+      padding: 0 12px;
+      border: 1px solid transparent;
+      border-radius: 8px 8px 0 0;
+      color: #6b7280;
+      font-size: 13px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .tab.active {
+      border-color: var(--line);
+      border-bottom-color: #fff;
+      color: var(--blue);
+      background: #fff;
+    }
+    .section-body {
+      padding: 16px;
+    }
+    .rules {
+      display: grid;
+      gap: 12px;
+    }
+    .rule {
+      display: grid;
+      grid-template-columns: 42px minmax(0, 1fr) 160px;
+      gap: 12px;
+      align-items: start;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: var(--panel-soft);
+    }
+    .rule-icon {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      place-items: center;
+      border-radius: 9px;
+      color: #fff;
+      font-weight: 900;
+    }
+    .rule h3 {
+      margin: 0;
+      font-size: 14px;
+    }
+    .rule p {
+      margin: 5px 0 0;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 9px;
+    }
+    .chip {
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #fff;
+      border: 1px solid var(--line);
+      color: #4b5563;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .rule-actions {
+      display: grid;
+      gap: 7px;
+    }
+    .mini-select {
+      height: 32px;
+      border: 1px solid var(--line-strong);
+      border-radius: 7px;
+      background: #fff;
+      color: #374151;
+      padding: 0 9px;
+      font-size: 12px;
+    }
+    .preview-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .metric {
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 9px;
+      background: #fff;
+    }
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .metric strong {
+      display: block;
+      margin-top: 5px;
+      font-size: 18px;
+    }
+    .aside-card {
+      padding: 16px;
+    }
+    .flow {
+      display: grid;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    .flow-row {
+      display: grid;
+      grid-template-columns: 30px minmax(0, 1fr);
+      gap: 10px;
+      align-items: start;
+    }
+    .flow-num {
+      display: grid;
+      width: 30px;
+      height: 30px;
+      place-items: center;
+      border-radius: 8px;
+      background: #eef2ff;
+      color: #4338ca;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .flow-row strong {
+      display: block;
+      font-size: 13px;
+    }
+    .flow-row span {
+      display: block;
+      margin-top: 3px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .warning {
+      margin-top: 14px;
+      padding: 12px;
+      border: 1px solid #fde68a;
+      border-radius: 9px;
+      background: var(--amber-soft);
+      color: #92400e;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .preview {
+      display: grid;
+      gap: 10px;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 10px;
+      background: #111827;
+      color: #f9fafb;
+    }
+    .preview-card {
+      padding: 12px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 9px;
+      background: rgba(255,255,255,.06);
+    }
+    .preview-card strong { display: block; font-size: 13px; }
+    .preview-card span { display: block; margin-top: 4px; color: #cbd5e1; font-size: 12px; }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      height: 22px;
+      margin-left: 6px;
+      padding: 0 7px;
+      border-radius: 999px;
+      background: var(--green-soft);
+      color: var(--green);
+      font-size: 11px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="logo">J</div>
+        <div>
+          <strong>极速蹬</strong>
+          <span>管理后台</span>
+        </div>
+      </div>
+      <nav class="nav">
+        <div class="nav-section">
+          <div class="nav-item"><span class="nav-mark">D</span>仪表盘</div>
+          <div class="nav-item"><span class="nav-mark">U</span>用户管理</div>
+          <div class="nav-item"><span class="nav-mark">G</span>分组管理</div>
+          <div class="nav-item"><span class="nav-mark">C</span>渠道管理</div>
+          <div class="nav-item active"><span class="nav-mark">O</span>订单管理</div>
+          <div class="nav-item child">支付概览</div>
+          <div class="nav-item child">充值订单</div>
+          <div class="nav-item child active">套餐配置</div>
+          <div class="nav-item"><span class="nav-mark">A</span>公告管理</div>
+          <div class="nav-item"><span class="nav-mark">S</span>系统设置</div>
+        </div>
+      </nav>
+      <p class="sidebar-note">不新增“接入条件设置”导航项；规则配置吸附在现有套餐配置页内部。</p>
+    </aside>
+
+    <main class="main">
+      <div class="topbar">
+        <div>
+          <h1>套餐配置</h1>
+          <p class="sub">维护可售套餐、商城货架，以及新用户创建 Key 前看到的接入推荐规则。</p>
+        </div>
+        <div class="actions">
+          <button class="btn">刷新</button>
+          <button class="btn primary">保存全部配置</button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="input">搜索套餐 / 分组 / 推荐语</div>
+        <div class="select">平台：全部</div>
+        <div class="select">状态：在售</div>
+        <div class="select">推荐：全部</div>
+      </div>
+
+      <div class="shell">
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <h2>商城与接入推荐配置 <span class="tag">同一页面内管理</span></h2>
+              <p class="hint">保持后台左侧导航稳定，通过页内 Tab 管理相关配置。</p>
+            </div>
+            <button class="btn">预览用户页</button>
+          </div>
+
+          <div class="tabs">
+            <div class="tab">商城货架</div>
+            <div class="tab active">接入推荐规则</div>
+            <div class="tab">消费路径预览</div>
+          </div>
+
+          <div class="section-body">
+            <div class="rules">
+              <article class="rule">
+                <div class="rule-icon" style="background:#2563eb;">1</div>
+                <div>
+                  <h3>新手标准 API 推荐</h3>
+                  <p>面向未创建 Key 的用户，推荐默认文本分组；余额不足时主按钮切到充值。</p>
+                  <div class="chips">
+                    <span class="chip">绑定分组：OpenAI 标准</span>
+                    <span class="chip">要求：余额 ≥ 5</span>
+                    <span class="chip">CTA：充值并创建 Key</span>
+                  </div>
+                </div>
+                <div class="rule-actions">
+                  <div class="mini-select">优先级 1</div>
+                  <div class="mini-select">启用</div>
+                </div>
+              </article>
+
+              <article class="rule">
+                <div class="rule-icon" style="background:#059669;">2</div>
+                <div>
+                  <h3>订阅优先推荐</h3>
+                  <p>绑定一个在售套餐和一个可用分组；用户未订阅时不直接创建 Key，先引导购买套餐。</p>
+                  <div class="chips">
+                    <span class="chip">绑定套餐：Claude Pro 月卡</span>
+                    <span class="chip">绑定分组：Anthropic Pro</span>
+                    <span class="chip">CTA：购买套餐</span>
+                  </div>
+                </div>
+                <div class="rule-actions">
+                  <div class="mini-select">优先级 2</div>
+                  <div class="mini-select">启用</div>
+                </div>
+              </article>
+
+              <article class="rule">
+                <div class="rule-icon" style="background:#7c3aed;">3</div>
+                <div>
+                  <h3>图像生成推荐</h3>
+                  <p>仅在图像分组可用、图像工作室开启时展示；低余额用户进入充值或套餐货架。</p>
+                  <div class="chips">
+                    <span class="chip">绑定分组：Image Fast</span>
+                    <span class="chip">依赖：image_studio_enabled</span>
+                    <span class="chip">失效自动隐藏</span>
+                  </div>
+                </div>
+                <div class="rule-actions">
+                  <div class="mini-select">优先级 3</div>
+                  <div class="mini-select">启用</div>
+                </div>
+              </article>
+            </div>
+
+            <div class="preview-grid">
+              <div class="metric"><span>有效推荐</span><strong>3 条</strong></div>
+              <div class="metric"><span>缺余额改充值</span><strong>2 条</strong></div>
+              <div class="metric"><span>配置失效拦截</span><strong>0 条</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="card aside-card">
+          <h2>实现边界</h2>
+          <p class="hint">这块不是独立后台导航，而是套餐配置页里的增长/接入配置面板。</p>
+          <div class="flow">
+            <div class="flow-row">
+              <div class="flow-num">1</div>
+              <div>
+                <strong>管理员维护推荐规则</strong>
+                <span>选择分组、套餐、排序、文案、余额条件和 CTA。</span>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-num">2</div>
+              <div>
+                <strong>前台实时交叉校验</strong>
+                <span>读取可用分组、结算配置、用户余额、订阅状态，过滤掉不能执行的动作。</span>
+              </div>
+            </div>
+            <div class="flow-row">
+              <div class="flow-num">3</div>
+              <div>
+                <strong>用户创建 Key 前先被教育和转化</strong>
+                <span>低余额去充值，订阅型分组先买套餐，有资格才进入创建 Key。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="warning">保存前必须验证分组和套餐是否仍存在；已删除、下架、关闭的配置不能展示给用户。</div>
+
+          <div class="preview">
+            <div class="preview-card">
+              <strong>用户侧效果</strong>
+              <span>API Keys 空状态顶部出现“推荐接入路线”，但不改变原 Key 列表的主结构。</span>
+            </div>
+            <div class="preview-card">
+              <strong>后台侧效果</strong>
+              <span>仍从“订单管理 / 套餐配置”进入，不让左侧导航继续膨胀。</span>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

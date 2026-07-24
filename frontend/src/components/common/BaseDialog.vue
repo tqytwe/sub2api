@@ -43,17 +43,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, watch, onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
+import { useDialogAccessibility } from '@/composables/useDialogAccessibility'
 
 // 生成唯一ID以避免多个对话框时ID冲突
 let dialogIdCounter = 0
 const dialogId = `modal-title-${++dialogIdCounter}`
 
-// 焦点管理
 const dialogRef = ref<HTMLElement | null>(null)
-let previousActiveElement: HTMLElement | null = null
 
 type DialogWidth = 'narrow' | 'normal' | 'wide' | 'extra-wide' | 'full'
 
@@ -109,83 +108,8 @@ const handleClose = () => {
   }
 }
 
-const focusableSelector = [
-  'button:not([disabled])',
-  '[href]',
-  'input:not([disabled])',
-  'select:not([disabled])',
-  'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(', ')
-
-const focusableElements = () => {
-  if (!dialogRef.value) return []
-  return Array.from(dialogRef.value.querySelectorAll<HTMLElement>(focusableSelector))
-    .filter(element => element.getAttribute('aria-hidden') !== 'true')
-}
-
-const handleKeydown = (event: KeyboardEvent) => {
-  if (!props.show) return
-  if (props.closeOnEscape && event.key === 'Escape') {
-    emit('close')
-    return
-  }
-  if (event.key !== 'Tab' || !dialogRef.value) return
-
-  const focusable = focusableElements()
-  if (!focusable.length) {
-    event.preventDefault()
-    dialogRef.value.focus()
-    return
-  }
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  const active = document.activeElement
-  if (event.shiftKey && (active === first || !dialogRef.value.contains(active))) {
-    event.preventDefault()
-    last.focus()
-  } else if (!event.shiftKey && (active === last || !dialogRef.value.contains(active))) {
-    event.preventDefault()
-    first.focus()
-  }
-}
-
-// Prevent body scroll when modal is open and manage focus
-watch(
-  () => props.show,
-  async (isOpen) => {
-    if (isOpen) {
-      // 保存当前焦点元素
-      previousActiveElement = document.activeElement as HTMLElement
-      // 使用CSS类而不是直接操作style,更易于管理多个对话框
-      document.body.classList.add('modal-open')
-
-      // 等待DOM更新后设置焦点到对话框
-      await nextTick()
-      if (dialogRef.value) {
-        const firstFocusable = focusableElements()[0]
-        if (firstFocusable) firstFocusable.focus()
-        else dialogRef.value.focus()
-      }
-    } else {
-      document.body.classList.remove('modal-open')
-      // 恢复之前的焦点
-      if (previousActiveElement && typeof previousActiveElement.focus === 'function') {
-        previousActiveElement.focus()
-      }
-      previousActiveElement = null
-    }
-  },
-  { immediate: true }
-)
-
-onMounted(() => {
-  document.addEventListener('keydown', handleKeydown)
-})
-
-onUnmounted(() => {
-  document.removeEventListener('keydown', handleKeydown)
-  // 确保组件卸载时移除滚动锁定
-  document.body.classList.remove('modal-open')
+useDialogAccessibility(computed(() => props.show), dialogRef, {
+  closeOnEscape: props.closeOnEscape,
+  onClose: () => emit('close'),
 })
 </script>

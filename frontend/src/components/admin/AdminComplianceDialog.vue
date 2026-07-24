@@ -22,7 +22,13 @@
 
       <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
         <section class="min-h-[320px] max-h-[46vh] overflow-y-auto rounded-lg border border-gray-200 bg-white p-5 dark:border-dark-700 dark:bg-dark-900">
-          <div class="legal-document-content" v-html="renderedDocument"></div>
+          <div
+            v-if="documentLoading"
+            class="text-sm text-gray-500 dark:text-dark-400"
+          >
+            {{ t('common.loading') }}
+          </div>
+          <div v-else class="legal-document-content" v-html="renderedDocument"></div>
         </section>
 
         <aside class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 text-sm dark:border-dark-700 dark:bg-dark-900/60">
@@ -98,35 +104,28 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Input from '@/components/common/Input.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { useAdminComplianceStore, useAppStore, useAuthStore } from '@/stores'
-import { getLocale } from '@/i18n'
-import zhDocument from '../../../../docs/legal/admin-compliance.zh.md?raw'
-import enDocument from '../../../../docs/legal/admin-compliance.en.md?raw'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const complianceStore = useAdminComplianceStore()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 const typedPhrase = ref('')
 const attemptedSubmit = ref(false)
-
-marked.setOptions({
-  breaks: true,
-  gfm: true,
-})
+const renderedDocument = ref('')
+const documentLoading = ref(false)
+let documentLoadSeq = 0
 
 const visible = computed(() => authStore.isAuthenticated && authStore.isAdmin && complianceStore.shouldShow)
 const expectedPhrase = computed(() => complianceStore.expectedPhrase)
 const canSubmit = computed(() => typedPhrase.value.trim() === expectedPhrase.value)
-const currentDocument = computed(() => getLocale() === 'zh' ? zhDocument : enDocument)
+const currentLocale = computed(() => locale.value === 'en' ? 'en' : 'zh')
 const documentUrl = computed(() => {
-  if (getLocale() === 'zh') {
+  if (currentLocale.value === 'zh') {
     return complianceStore.status?.document_url_zh || 'https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.zh.md'
   }
   return complianceStore.status?.document_url_en || 'https://github.com/Wei-Shaw/sub2api/blob/main/docs/legal/admin-compliance.en.md'
@@ -137,11 +136,6 @@ const inputError = computed(() => {
   }
   return t('adminCompliance.inputMismatch')
 })
-const renderedDocument = computed(() => {
-  const html = marked.parse(currentDocument.value) as string
-  return DOMPurify.sanitize(html)
-})
-
 watch(expectedPhrase, () => {
   typedPhrase.value = ''
   attemptedSubmit.value = false
@@ -151,8 +145,41 @@ watch(visible, (isVisible) => {
   if (isVisible) {
     typedPhrase.value = ''
     attemptedSubmit.value = false
+    void loadRenderedDocument()
   }
 })
+
+watch(currentLocale, () => {
+  if (visible.value) {
+    void loadRenderedDocument()
+  }
+})
+
+async function loadRenderedDocument(): Promise<void> {
+  const seq = ++documentLoadSeq
+  documentLoading.value = true
+  try {
+    const [markedModule, purifierModule, documentModule] = await Promise.all([
+      import('marked'),
+      import('dompurify'),
+      currentLocale.value === 'zh'
+        ? import('../../../../docs/legal/admin-compliance.zh.md?raw')
+        : import('../../../../docs/legal/admin-compliance.en.md?raw'),
+    ])
+    markedModule.marked.setOptions({
+      breaks: true,
+      gfm: true,
+    })
+    const html = markedModule.marked.parse(documentModule.default) as string
+    if (seq === documentLoadSeq) {
+      renderedDocument.value = purifierModule.default.sanitize(html)
+    }
+  } finally {
+    if (seq === documentLoadSeq) {
+      documentLoading.value = false
+    }
+  }
+}
 
 function noop(): void {
   // 强制确认弹窗不允许通过关闭按钮绕过。

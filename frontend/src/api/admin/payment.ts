@@ -4,6 +4,7 @@
  */
 
 import { apiClient } from '../client'
+import type { APIOnboardingConfig } from '@/types'
 import type {
   DashboardStats,
   PaymentOrder,
@@ -178,6 +179,16 @@ export const adminPaymentAPI = {
   /** Update storefront shelves and custom plan labels */
   updateStorefrontConfig(data: PaymentStorefrontConfig) {
     return apiClient.put<PaymentStorefrontConfig>('/admin/payment/storefront', data)
+  },
+
+  /** Get API Key onboarding recommendation cards */
+  getAPIOnboardingConfig() {
+    return apiClient.get<APIOnboardingConfig>('/admin/payment/api-onboarding')
+  },
+
+  /** Update API Key onboarding recommendation cards */
+  updateAPIOnboardingConfig(data: APIOnboardingConfig) {
+    return apiClient.put<APIOnboardingConfig>('/admin/payment/api-onboarding', data)
   },
 
   // ==================== Provider Instances ====================

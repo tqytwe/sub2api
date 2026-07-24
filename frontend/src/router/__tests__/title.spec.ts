@@ -15,8 +15,8 @@ describe('resolveDocumentTitle', () => {
   })
 
   it('站点名为空时，回退默认站点名', () => {
-    expect(resolveDocumentTitle('Dashboard', '')).toBe('Dashboard | Sub2API')
-    expect(resolveDocumentTitle(undefined, '   ')).toBe('Sub2API')
+    expect(resolveDocumentTitle('Dashboard', '')).toBe('Dashboard | 极速蹬')
+    expect(resolveDocumentTitle(undefined, '   ')).toBe('极速蹬')
   })
 
   it('站点名变更时仅影响后续路由标题计算', () => {

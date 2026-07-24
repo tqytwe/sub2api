@@ -67,6 +67,22 @@ describe('useStepUp.run', () => {
     expect(stepUp.visible.value).toBe(false)
   })
 
+  it('can require verification before the sensitive action is sent', async () => {
+    const stepUp = useStepUp()
+    const action = vi.fn().mockResolvedValue('ok')
+
+    const promise = stepUp.run(action, { promptBeforeAction: true })
+
+    await vi.waitFor(() => expect(stepUp.visible.value).toBe(true))
+    expect(action).not.toHaveBeenCalled()
+
+    stepUp.onVerified()
+
+    await expect(promise).resolves.toBe('ok')
+    expect(action).toHaveBeenCalledTimes(1)
+    expect(stepUp.visible.value).toBe(false)
+  })
+
   it('throws a cancellation sentinel (not the original error) if the user cancels the prompt', async () => {
     const stepUp = useStepUp()
     const err = { status: 403, code: 'STEP_UP_REQUIRED' }

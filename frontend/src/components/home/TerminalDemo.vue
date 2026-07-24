@@ -3,13 +3,13 @@
     ref="rootRef"
     class="term"
     role="img"
-    aria-label="一键接入终端演示动画"
+    :aria-label="t('home.jisudeng.onboard.terminalAria')"
   >
     <div class="term-bar">
       <span class="term-dot term-dot-r" />
       <span class="term-dot term-dot-y" />
       <span class="term-dot term-dot-g" />
-      <span class="term-bar-title">bash — 极速蹬 AI · 一键接入</span>
+      <span class="term-bar-title">{{ t('home.jisudeng.onboard.terminalTitle') }}</span>
     </div>
     <div class="term-body">
       <div
@@ -29,7 +29,8 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 type LineKind = 'cmd' | 'ok' | 'ask' | 'out'
 
@@ -42,8 +43,9 @@ interface TermLine {
 }
 
 const emit = defineEmits<{ phase: [number] }>()
+const { t } = useI18n()
 
-const script: TermLine[] = [
+const script = computed<TermLine[]>(() => [
   {
     kind: 'cmd',
     text: 'curl -fsSL https://jisudeng.com/d/****** | bash',
@@ -51,20 +53,20 @@ const script: TermLine[] = [
     typed: true,
     pause: 750
   },
-  { kind: 'ok', text: '检测环境 — Node 22 · OpenClaw 已安装', phase: 2, pause: 460 },
-  { kind: 'ask', text: '粘贴 API Key › sk-••••••••••••', phase: 2, typed: true, pause: 520 },
-  { kind: 'ask', text: '主模型 › claude-opus-4-7', phase: 2, pause: 600 },
-  { kind: 'ok', text: '配置写入 ~/.openclaw/openclaw.json', phase: 2, pause: 400 },
-  { kind: 'ok', text: '自检通过 — 接入完成', phase: 2, pause: 950 },
-  { kind: 'cmd', text: 'openclaw "介绍下你自己"', phase: 3, typed: true, pause: 650 },
+  { kind: 'ok', text: t('home.jisudeng.onboard.terminalEnv'), phase: 2, pause: 460 },
+  { kind: 'ask', text: t('home.jisudeng.onboard.terminalPasteKey'), phase: 2, typed: true, pause: 520 },
+  { kind: 'ask', text: t('home.jisudeng.onboard.terminalModel'), phase: 2, pause: 600 },
+  { kind: 'ok', text: t('home.jisudeng.onboard.terminalConfig'), phase: 2, pause: 400 },
+  { kind: 'ok', text: t('home.jisudeng.onboard.terminalSelfCheck'), phase: 2, pause: 950 },
+  { kind: 'cmd', text: t('home.jisudeng.onboard.terminalIntroPrompt'), phase: 3, typed: true, pause: 650 },
   {
     kind: 'out',
-    text: '你好，我是接入极速蹬 AI 的本地助手，随时可以开工。',
+    text: t('home.jisudeng.onboard.terminalIntroReply'),
     phase: 3,
     typed: true,
     pause: 3000
   }
-]
+])
 
 const rootRef = ref<HTMLElement | null>(null)
 const lines = ref<{ kind: LineKind; text: string }[]>([])
@@ -83,7 +85,8 @@ function schedule(fn: () => void, ms: number) {
 function tick() {
   if (!running.value) return
 
-  if (step >= script.length) {
+  const activeScript = script.value
+  if (step >= activeScript.length) {
     schedule(() => {
       lines.value = []
       step = 0
@@ -95,7 +98,7 @@ function tick() {
     return
   }
 
-  const item = script[step]
+  const item = activeScript[step]
 
   if (charIdx === 0) {
     emit('phase', item.phase)
@@ -129,7 +132,7 @@ function setRunning(value: boolean) {
   if (timer) clearTimeout(timer)
   if (value) {
     charIdx = 0
-    if (step < script.length && lines.value.length > step) {
+    if (step < script.value.length && lines.value.length > step) {
       lines.value = lines.value.slice(0, step)
     }
     tick()

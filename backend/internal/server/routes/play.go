@@ -63,5 +63,6 @@ func RegisterPlayRoutes(
 		authenticated.GET("/play/hub", h.Play.Hub)
 		authenticated.GET("/play/quests/today", h.Play.QuestsToday)
 		authenticated.GET("/play/campaigns/active", h.Play.CampaignsActive)
+		authenticated.POST("/play/mobile-feedback", h.Play.SubmitMobileFeedback)
 	}
 }

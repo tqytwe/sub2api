@@ -103,6 +103,8 @@ func TestCORS_AllowedOrigin_HasAllowHeaders(t *testing.T) {
 			// 应设置 Allow-Headers、Allow-Methods 和 Max-Age
 			assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Headers"),
 				"允许的 origin 应收到 Allow-Headers")
+			assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Accept-Language")
+			assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Content-Language")
 			assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "X-Admin-UI-Request")
 			assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "X-User-UI-Request")
 			assert.NotEmpty(t, w.Header().Get("Access-Control-Allow-Methods"),
@@ -150,6 +152,35 @@ func TestCORS_PreflightAllowedOrigin_ReturnsNoContent(t *testing.T) {
 
 	assert.Equal(t, http.StatusNoContent, w.Code,
 		"允许的 origin 的 preflight 请求应返回 204")
+}
+
+func TestCORS_DefaultConfigAllowsFirstPartyWebAndAndroidOrigins(t *testing.T) {
+	middleware := CORS(config.CORSConfig{AllowCredentials: true})
+
+	for _, origin := range []string{
+		"https://jisudeng.com",
+		"https://www.jisudeng.com",
+		"https://localhost",
+		"http://localhost",
+		"capacitor://localhost",
+	} {
+		t.Run(origin, func(t *testing.T) {
+			w := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(w)
+			c.Request = httptest.NewRequest(http.MethodOptions, "/api/v1/auth/mobile/login", nil)
+			c.Request.Header.Set("Origin", origin)
+			c.Request.Header.Set("Access-Control-Request-Method", http.MethodPost)
+			c.Request.Header.Set("Access-Control-Request-Headers", "authorization,content-type,accept")
+
+			middleware(c)
+
+			assert.Equal(t, http.StatusNoContent, w.Code)
+			assert.Equal(t, origin, w.Header().Get("Access-Control-Allow-Origin"))
+			assert.Equal(t, "true", w.Header().Get("Access-Control-Allow-Credentials"))
+			assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Authorization")
+			assert.Contains(t, w.Header().Get("Access-Control-Allow-Headers"), "Accept-Language")
+		})
+	}
 }
 
 func TestCORS_WildcardOrigin_AllowsAny(t *testing.T) {

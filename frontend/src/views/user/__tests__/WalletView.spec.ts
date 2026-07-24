@@ -343,4 +343,14 @@ describe('WalletView', () => {
     expect(transactionRows).not.toContain('admin')
     expect(transactionRows).not.toContain('email')
   })
+
+  it('keeps the transaction ledger table full-width on desktop while scrollable on narrow screens', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const table = wrapper.get('table')
+    expect(table.classes()).toEqual(expect.arrayContaining(['w-full', 'min-w-[820px]', 'table-fixed']))
+    expect(table.classes()).not.toContain('min-w-[720px]')
+    expect(wrapper.get('colgroup').findAll('col')).toHaveLength(5)
+  })
 })

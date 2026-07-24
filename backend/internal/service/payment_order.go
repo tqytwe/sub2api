@@ -115,9 +115,13 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 	}
 	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
 	if err != nil {
+		reason := psErrMsg(err)
 		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
 			SetStatus(OrderStatusFailed).
+			SetFailedAt(time.Now()).
+			SetFailedReason(reason).
 			Save(ctx)
+		s.writeAuditLog(ctx, order.ID, "ORDER_CREATE_FAILED", "system", map[string]any{"reason": reason})
 		return nil, err
 	}
 	return resp, nil
@@ -307,6 +311,7 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		if merchantID := strings.TrimSpace(sel.Config["pid"]); merchantID != "" {
 			snapshot["merchant_id"] = merchantID
 		}
+		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
 	if providerKey == payment.TypeStripe {
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
@@ -409,6 +414,34 @@ func (s *PaymentService) usesOfficialWxpayVisibleMethod(ctx context.Context) boo
 	return inst.ProviderKey == payment.TypeWxpay
 }
 
+func (s *PaymentService) trustedPaymentReturnHosts(ctx context.Context, req CreateOrderRequest) []string {
+	if NormalizePaymentSource(req.PaymentSource) != PaymentSourceAndroidApp {
+		return nil
+	}
+	hosts := []string{"www.jisudeng.com", "jisudeng.com"}
+	if s != nil && s.configService != nil && s.configService.settingRepo != nil {
+		if raw, err := s.configService.settingRepo.GetValue(ctx, SettingKeyFrontendURL); err == nil {
+			if parsed, parseErr := url.Parse(strings.TrimSpace(raw)); parseErr == nil && parsed.Host != "" {
+				hosts = append(hosts, parsed.Host)
+			}
+		}
+	}
+	deduped := hosts[:0]
+	seen := make(map[string]struct{}, len(hosts))
+	for _, host := range hosts {
+		normalized := strings.ToLower(strings.TrimSpace(host))
+		if normalized == "" {
+			continue
+		}
+		if _, ok := seen[normalized]; ok {
+			continue
+		}
+		seen[normalized] = struct{}{}
+		deduped = append(deduped, normalized)
+	}
+	return deduped
+}
+
 func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.PaymentOrder, req CreateOrderRequest, cfg *PaymentConfig, limitAmount float64, payAmountStr string, payAmount float64, plan *dbent.SubscriptionPlan, sel *payment.InstanceSelection) (*CreateOrderResponse, error) {
 	prov, err := provider.CreateProvider(sel.ProviderKey, sel.InstanceID, sel.Config)
 	if err != nil {
@@ -427,7 +460,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 	}
 	subject := s.buildPaymentSubject(plan, limitAmount, cfg, sel)
 	outTradeNo := order.OutTradeNo
-	canonicalReturnURL, err := CanonicalizeReturnURL(req.ReturnURL, req.SrcHost, req.SrcURL)
+	canonicalReturnURL, err := CanonicalizeReturnURL(req.ReturnURL, req.SrcHost, req.SrcURL, s.trustedPaymentReturnHosts(ctx, req)...)
 	if err != nil {
 		return nil, err
 	}

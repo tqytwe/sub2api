@@ -55,6 +55,7 @@
     "1280x800",
     "1600x900"
   ],
+  "artifact_mode": "static-review-board",
   "baseline_artifacts": [
     "docs/visual-reviews/assets/support-contact-announcement-governance/before-contact-popover.png",
     "docs/visual-reviews/assets/support-contact-announcement-governance/before-admin-contact-text.png"

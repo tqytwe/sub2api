@@ -237,6 +237,127 @@ describe('UserBalanceHistoryModal', () => {
     expect(wrapper.html()).toContain('text-emerald-600')
   })
 
+  it('renders fund-management ledger types with localized labels and visible reasons', async () => {
+    apiMocks.getUserBalanceHistory.mockResolvedValueOnce({
+      items: [
+        {
+          id: 'balance_transaction:9002',
+          type: 'ops_gift',
+          source_type: 'balance_transactions',
+          source_id: '1024:1784728015759699561',
+          amount: 30,
+          balance_delta: 30,
+          frozen_delta: 0,
+          balance_before: 1,
+          balance_after: 31,
+          frozen_before: 0,
+          frozen_after: 0,
+          occurred_at: '2026-07-22T13:46:55Z',
+          description: 'administrator gift balance',
+          actor_type: 'admin',
+          actor_user_id: 1,
+          related_object_type: 'ops_gift',
+          related_object_id: '1024:1784728015759699561',
+          reference: 'ops_gift:1024:1784728015759699561',
+          notes: '',
+          metadata: { reason: '人工赠送新用户余额' },
+          confidence: 'high',
+        },
+        {
+          id: 'balance_transaction:9001',
+          type: 'offline_recharge',
+          source_type: 'balance_transactions',
+          source_id: 'wire-1001',
+          amount: 100,
+          balance_delta: 100,
+          frozen_delta: 0,
+          balance_before: 31,
+          balance_after: 131,
+          frozen_before: 0,
+          frozen_after: 0,
+          occurred_at: '2026-07-22T13:40:00Z',
+          description: 'offline recharge confirmed',
+          actor_type: 'admin',
+          actor_user_id: 1,
+          related_object_type: 'offline_recharge',
+          related_object_id: 'wire-1001',
+          reference: 'offline_recharge:wire-1001',
+          notes: '',
+          metadata: { reason: '线下转账到账', external_ref: 'wire-1001' },
+          confidence: 'high',
+        },
+        {
+          id: 'balance_transaction:9000',
+          type: 'fund_refund_reject',
+          source_type: 'balance_transactions',
+          source_id: 'FR202607220001',
+          amount: 30,
+          balance_delta: 30,
+          frozen_delta: 0,
+          balance_before: 1,
+          balance_after: 31,
+          frozen_before: 0,
+          frozen_after: 0,
+          occurred_at: '2026-07-22T13:30:00Z',
+          description: 'recharge refund request restored',
+          actor_type: 'admin',
+          actor_user_id: 1,
+          related_object_type: 'fund_refund_reject',
+          related_object_id: 'FR202607220001',
+          reference: 'fund_refund_reject:FR202607220001',
+          notes: '',
+          metadata: { reason: '资料不一致' },
+          confidence: 'high',
+        },
+      ],
+      total: 3,
+      page: 1,
+      page_size: 15,
+      pages: 1,
+      summary: {
+        current_balance: 131,
+        frozen_balance: 0,
+        total_in: 160,
+        total_out: 0,
+        net_delta: 160,
+        recharge_total: 100,
+      },
+    })
+
+    const wrapper = mount(UserBalanceHistoryModal, {
+      props: { show: false, user: user as any },
+    })
+
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+
+    const rowTitles = wrapper.findAll('[data-test="flow-title"]').map((node) => node.text())
+    const rowDescriptions = wrapper.findAll('[data-test="flow-description"]').map((node) => node.text())
+    const rowNotes = wrapper.findAll('[data-test="flow-notes"]').map((node) => node.text())
+
+    expect(rowTitles).toEqual([
+      'admin.users.typeOpsGift',
+      'admin.users.typeOfflineRecharge',
+      'admin.users.typeFundRefundReject',
+    ])
+    expect(rowDescriptions).toEqual([
+      'admin.users.flowDescriptionOpsGift',
+      'admin.users.flowDescriptionOfflineRecharge',
+      'admin.users.flowDescriptionFundRefundRestored',
+    ])
+    expect(rowNotes).toEqual(['人工赠送新用户余额', '线下转账到账', '资料不一致'])
+    expect(rowDescriptions).not.toContain('administrator gift balance')
+    expect(rowDescriptions).not.toContain('offline recharge confirmed')
+    expect(rowDescriptions).not.toContain('recharge refund request restored')
+    expect(wrapper.find('[data-test="type-filter"]').text()).toContain('admin.users.typeWithdrawalSubmit')
+    expect(wrapper.find('[data-test="flow-balance-range"]').classes()).toContain('whitespace-nowrap')
+
+    await wrapper.find('[data-test="type-filter"]').setValue('ops_gift')
+    await flushPromises()
+
+    expect(apiMocks.getUserBalanceHistory).toHaveBeenCalledWith(1024, 1, 15, 'ops_gift')
+  })
+
   it('uses user subscriptions instead of balance flow when filtering subscription records', async () => {
     const wrapper = mount(UserBalanceHistoryModal, {
       props: { show: false, user: user as any },

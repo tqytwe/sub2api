@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { applyLocaleFromRouteQuery } from '@/i18n'
+import { applyLocaleFromRoute, ensureLocaleMessagesForPath } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -16,6 +16,7 @@ import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
 import { useTheme } from '@/composables/useTheme'
 import { recoverFromChunkLoadError } from './chunkRecovery'
+import { applyPublicRouteSeo } from '@/utils/routeSeo'
 
 const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
 
@@ -36,12 +37,67 @@ const routes: RouteRecordRaw[] = [
 
   // ==================== Public Routes ====================
   {
+    path: '/en',
+    name: 'EnglishHome',
+    component: () => import('@/views/HomeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Jisudeng',
+      absoluteTitle: 'Jisudeng: One OpenAI-Compatible API for Frontier AI Models',
+      frame: 'fluid'
+    }
+  },
+  {
+    path: '/en/models',
+    name: 'EnglishModels',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Models & Pricing',
+      absoluteTitle: 'DeepSeek, Qwen, Kimi, GLM, Claude API Pricing | Jisudeng',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/en/models/:family(deepseek|qwen|kimi|glm)',
+    name: 'EnglishModelFamily',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model pricing',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/en/docs',
+    name: 'EnglishDocs',
+    component: () => import('@/views/public/DocsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Docs',
+      absoluteTitle: 'Jisudeng API Docs - OpenAI-Compatible Gateway Quickstart',
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/home',
     name: 'Home',
     component: () => import('@/views/HomeView.vue'),
     meta: {
       requiresAuth: false,
-      title: ''
+      title: '',
+      frame: 'fluid'
+    }
+  },
+  {
+    path: '/download/android',
+    name: 'AndroidDownload',
+    component: () => import('@/views/public/AndroidDownloadView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Android 下载',
+      titleKey: 'androidDownload.metaTitle',
+      frame: 'content'
     }
   },
   {
@@ -169,6 +225,7 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Key Usage',
+      frame: 'reading'
     }
   },
   {
@@ -187,7 +244,8 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'About',
-      titleKey: 'about.eyebrow'
+      titleKey: 'about.eyebrow',
+      frame: 'reading'
     }
   },
   {
@@ -197,7 +255,8 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Contact',
-      titleKey: 'contact.title'
+      titleKey: 'contact.title',
+      frame: 'reading'
     }
   },
   {
@@ -212,7 +271,19 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Models',
-      titleKey: 'models.title'
+      titleKey: 'models.title',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/models/:family(deepseek|qwen|kimi|glm)',
+    name: 'ModelFamily',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Models',
+      titleKey: 'models.title',
+      frame: 'workspace'
     }
   },
   {
@@ -222,7 +293,8 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: false,
       title: 'Docs',
-      titleKey: 'docs.title'
+      titleKey: 'docs.title',
+      frame: 'workspace'
     }
   },
   {
@@ -304,7 +376,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Dashboard',
       titleKey: 'dashboard.title',
-      descriptionKey: 'dashboard.welcomeMessage'
+      descriptionKey: 'dashboard.welcomeMessage',
+      frame: 'workspace'
     }
   },
   {
@@ -316,7 +389,21 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'API Keys',
       titleKey: 'keys.title',
-      descriptionKey: 'keys.description'
+      descriptionKey: 'keys.description',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/keys/speed-test',
+    name: 'KeySpeedTest',
+    component: () => import('@/views/user/SpeedTestView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: false,
+      title: 'Speed Test',
+      titleKey: 'keys.speedTest.title',
+      descriptionKey: 'keys.speedTest.description',
+      frame: 'workspace'
     }
   },
   {
@@ -329,7 +416,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Batch Image Guide',
       titleKey: 'batchImageGuide.title',
-      descriptionKey: 'batchImageGuide.description'
+      descriptionKey: 'batchImageGuide.description',
+      frame: 'workspace'
     }
   },
   {
@@ -341,7 +429,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Usage Records',
       titleKey: 'usage.title',
-      descriptionKey: 'usage.description'
+      descriptionKey: 'usage.description',
+      frame: 'workspace'
     }
   },
   {
@@ -353,7 +442,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Wallet',
       titleKey: 'wallet.title',
-      descriptionKey: 'wallet.description'
+      descriptionKey: 'wallet.description',
+      frame: 'content'
     }
   },
   {
@@ -365,7 +455,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Redeem Code',
       titleKey: 'redeem.title',
-      descriptionKey: 'redeem.description'
+      descriptionKey: 'redeem.description',
+      frame: 'form'
     }
   },
   {
@@ -380,6 +471,7 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'nav.aiCreation',
       hidePageHeader: true,
       hideMobileSupport: true,
+      frame: 'compact',
     },
   },
   {
@@ -393,6 +485,7 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'imageStudio.title',
       descriptionKey: 'imageStudio.subtitle',
       hideMobileSupport: true,
+      frame: 'workspace',
     },
   },
   {
@@ -406,6 +499,7 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'playHub.title',
       descriptionKey: 'playHub.subtitle',
       hidePageHeader: true,
+      frame: 'workspace',
     },
   },
   {
@@ -419,6 +513,7 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'checkin.title',
       descriptionKey: 'checkin.description',
       hidePageHeader: true,
+      frame: 'workspace',
     }
   },
   {
@@ -432,6 +527,7 @@ const routes: RouteRecordRaw[] = [
       titleKey: 'affiliate.title',
       descriptionKey: 'affiliate.description',
       hidePageHeader: true,
+      frame: 'workspace',
     }
   },
   {
@@ -443,7 +539,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Available Channels',
       titleKey: 'availableChannels.title',
-      descriptionKey: 'availableChannels.description'
+      descriptionKey: 'availableChannels.description',
+      frame: 'workspace'
     }
   },
   {
@@ -455,7 +552,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Profile',
       titleKey: 'profile.title',
-      descriptionKey: 'profile.description'
+      descriptionKey: 'profile.description',
+      frame: 'form'
     }
   },
   {
@@ -467,7 +565,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'My Subscriptions',
       titleKey: 'userSubscriptions.title',
-      descriptionKey: 'userSubscriptions.description'
+      descriptionKey: 'userSubscriptions.description',
+      frame: 'content'
     }
   },
   {
@@ -480,7 +579,8 @@ const routes: RouteRecordRaw[] = [
       title: 'Purchase Subscription',
       titleKey: 'nav.buySubscription',
       descriptionKey: 'purchase.description',
-      requiresPayment: true
+      requiresPayment: true,
+      frame: 'content'
     }
   },
   {
@@ -492,7 +592,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'My Orders',
       titleKey: 'nav.myOrders',
-      requiresPayment: true
+      requiresPayment: true,
+      frame: 'workspace'
     }
   },
   {
@@ -504,7 +605,9 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Payment',
       titleKey: 'payment.qr.scanToPay',
-      requiresPayment: true
+      requiresPayment: true,
+      hidePageHeader: true,
+      frame: 'compact'
     }
   },
   {
@@ -516,7 +619,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Payment Result',
       titleKey: 'payment.result.success',
-      requiresPayment: false
+      requiresPayment: false,
+      frame: 'compact'
     }
   },
   {
@@ -528,7 +632,9 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Stripe Payment',
       titleKey: 'payment.stripePay',
-      requiresPayment: false
+      requiresPayment: false,
+      hidePageHeader: true,
+      frame: 'compact'
     }
   },
   {
@@ -540,7 +646,9 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Airwallex Payment',
       titleKey: 'payment.airwallexPay',
-      requiresPayment: false
+      requiresPayment: false,
+      hidePageHeader: true,
+      frame: 'compact'
     }
   },
   {
@@ -551,7 +659,8 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       requiresAdmin: false,
       title: 'Payment',
-      requiresPayment: false
+      requiresPayment: false,
+      frame: 'compact'
     }
   },
   {
@@ -563,6 +672,7 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Custom Page',
       titleKey: 'customPage.title',
+      frame: 'workspace',
     }
   },
 
@@ -580,7 +690,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Admin Dashboard',
       titleKey: 'admin.dashboard.title',
-      descriptionKey: 'admin.dashboard.description'
+      descriptionKey: 'admin.dashboard.description',
+      frame: 'workspace'
     }
   },
   {
@@ -592,7 +703,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Ops Monitoring',
       titleKey: 'admin.ops.title',
-      descriptionKey: 'admin.ops.description'
+      descriptionKey: 'admin.ops.description',
+      frame: 'workspace'
     }
   },
   {
@@ -604,7 +716,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Play Ops',
       titleKey: 'admin.playOps.title',
-      descriptionKey: 'admin.playOps.description'
+      descriptionKey: 'admin.playOps.description',
+      frame: 'workspace'
     }
   },
   {
@@ -616,7 +729,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Fund Management',
       titleKey: 'admin.funds.title',
-      descriptionKey: 'admin.funds.description'
+      descriptionKey: 'admin.funds.description',
+      frame: 'workspace'
     }
   },
   {
@@ -628,7 +742,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Fund Management',
       titleKey: 'admin.funds.title',
-      descriptionKey: 'admin.funds.description'
+      descriptionKey: 'admin.funds.description',
+      frame: 'workspace'
     }
   },
   {
@@ -640,7 +755,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Withdrawals',
       titleKey: 'admin.withdrawals.title',
-      descriptionKey: 'admin.withdrawals.description'
+      descriptionKey: 'admin.withdrawals.description',
+      frame: 'workspace'
     }
   },
   {
@@ -652,7 +768,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Audit Logs',
       titleKey: 'admin.audit.title',
-      descriptionKey: 'admin.audit.description'
+      descriptionKey: 'admin.audit.description',
+      frame: 'workspace'
     }
   },
   {
@@ -664,7 +781,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'User Management',
       titleKey: 'admin.users.title',
-      descriptionKey: 'admin.users.description'
+      descriptionKey: 'admin.users.description',
+      frame: 'workspace'
     }
   },
   {
@@ -676,7 +794,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Group Management',
       titleKey: 'admin.groups.title',
-      descriptionKey: 'admin.groups.description'
+      descriptionKey: 'admin.groups.description',
+      frame: 'workspace'
     }
   },
   {
@@ -692,7 +811,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Channel Management',
       titleKey: 'admin.channels.title',
-      descriptionKey: 'admin.channels.description'
+      descriptionKey: 'admin.channels.description',
+      frame: 'workspace'
     }
   },
   {
@@ -704,7 +824,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Channel Monitor',
       titleKey: 'admin.channelMonitor.title',
-      descriptionKey: 'admin.channelMonitor.description'
+      descriptionKey: 'admin.channelMonitor.description',
+      frame: 'workspace'
     }
   },
   {
@@ -716,7 +837,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Model Catalog',
       titleKey: 'admin.modelCatalog.title',
-      descriptionKey: 'admin.modelCatalog.description'
+      descriptionKey: 'admin.modelCatalog.description',
+      frame: 'workspace'
     }
   },
   {
@@ -727,7 +849,8 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: true,
       requiresAdmin: false,
       title: 'Channel Status',
-      titleKey: 'nav.channelStatus'
+      titleKey: 'nav.channelStatus',
+      frame: 'workspace'
     }
   },
   {
@@ -739,7 +862,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Subscription Management',
       titleKey: 'admin.subscriptions.title',
-      descriptionKey: 'admin.subscriptions.description'
+      descriptionKey: 'admin.subscriptions.description',
+      frame: 'workspace'
     }
   },
   {
@@ -751,7 +875,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Account Management',
       titleKey: 'admin.accounts.title',
-      descriptionKey: 'admin.accounts.description'
+      descriptionKey: 'admin.accounts.description',
+      frame: 'workspace'
     }
   },
   {
@@ -763,7 +888,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Announcements',
       titleKey: 'admin.announcements.title',
-      descriptionKey: 'admin.announcements.description'
+      descriptionKey: 'admin.announcements.description',
+      frame: 'workspace'
     }
   },
   {
@@ -774,6 +900,7 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: true,
       requiresAdmin: true,
       title: '提示词管理',
+      frame: 'workspace',
     },
   },
   {
@@ -785,7 +912,34 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Proxy Management',
       titleKey: 'admin.proxies.title',
-      descriptionKey: 'admin.proxies.description'
+      descriptionKey: 'admin.proxies.description',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/admin/proxies/risk',
+    name: 'AdminIPRisk',
+    component: () => import('@/views/admin/ProxiesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'IP Risk Detection',
+      titleKey: 'admin.ipRisk.title',
+      descriptionKey: 'admin.ipRisk.description',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/admin/proxies/actions',
+    name: 'AdminIPRiskActions',
+    component: () => import('@/views/admin/ProxiesView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'IP Risk Actions',
+      titleKey: 'admin.ipRisk.actionsView.title',
+      descriptionKey: 'admin.ipRisk.actionsView.description',
+      frame: 'workspace'
     }
   },
   {
@@ -797,7 +951,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Redeem Code Management',
       titleKey: 'admin.redeem.title',
-      descriptionKey: 'admin.redeem.description'
+      descriptionKey: 'admin.redeem.description',
+      frame: 'workspace'
     }
   },
   {
@@ -809,7 +964,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Promo Code Management',
       titleKey: 'admin.promo.title',
-      descriptionKey: 'admin.promo.description'
+      descriptionKey: 'admin.promo.description',
+      frame: 'workspace'
     }
   },
   {
@@ -821,7 +977,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'System Settings',
       titleKey: 'admin.settings.title',
-      descriptionKey: 'admin.settings.description'
+      descriptionKey: 'admin.settings.description',
+      frame: 'workspace'
     }
   },
   {
@@ -834,7 +991,8 @@ const routes: RouteRecordRaw[] = [
       title: 'Risk Control',
       titleKey: 'admin.riskControl.title',
       descriptionKey: 'admin.riskControl.description',
-      requiresRiskControl: true
+      requiresRiskControl: true,
+      frame: 'workspace'
     }
   },
   {
@@ -847,7 +1005,8 @@ const routes: RouteRecordRaw[] = [
       title: '提示词审计',
       titleKey: 'admin.promptAudit.title',
       descriptionKey: 'admin.promptAudit.description',
-      requiresRiskControl: true
+      requiresRiskControl: true,
+      frame: 'workspace'
     }
   },
   {
@@ -859,7 +1018,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Usage Records',
       titleKey: 'admin.usage.title',
-      descriptionKey: 'admin.usage.description'
+      descriptionKey: 'admin.usage.description',
+      frame: 'workspace'
     }
   },
   {
@@ -875,7 +1035,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Affiliate Invite Records',
       titleKey: 'nav.affiliateInviteRecords',
-      descriptionKey: 'admin.affiliates.invitesDescription'
+      descriptionKey: 'admin.affiliates.invitesDescription',
+      frame: 'workspace'
     }
   },
   {
@@ -887,7 +1048,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Affiliate Rebate Records',
       titleKey: 'nav.affiliateRebateRecords',
-      descriptionKey: 'admin.affiliates.rebatesDescription'
+      descriptionKey: 'admin.affiliates.rebatesDescription',
+      frame: 'workspace'
     }
   },
   {
@@ -899,7 +1061,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Affiliate Transfer Records',
       titleKey: 'nav.affiliateTransferRecords',
-      descriptionKey: 'admin.affiliates.transfersDescription'
+      descriptionKey: 'admin.affiliates.transfersDescription',
+      frame: 'workspace'
     }
   },
 
@@ -914,7 +1077,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Payment Dashboard',
       titleKey: 'nav.paymentDashboard',
-      requiresPayment: true
+      requiresPayment: true,
+      frame: 'workspace'
     }
   },
   {
@@ -926,7 +1090,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Order Management',
       titleKey: 'nav.orderManagement',
-      requiresPayment: true
+      requiresPayment: true,
+      frame: 'workspace'
     }
   },
   {
@@ -938,7 +1103,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Subscription Plans',
       titleKey: 'nav.paymentPlans',
-      requiresPayment: true
+      requiresPayment: true,
+      frame: 'workspace'
     }
   },
 
@@ -978,7 +1144,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
@@ -1010,7 +1176,8 @@ router.beforeEach(async (to, _from, next) => {
   // 开始导航加载状态
   navigationLoading.startNavigation()
 
-  await applyLocaleFromRouteQuery(to.query)
+  await applyLocaleFromRoute(to.path, to.query)
+  await ensureLocaleMessagesForPath(to.path)
 
   const authStore = useAuthStore()
 
@@ -1027,7 +1194,9 @@ router.beforeEach(async (to, _from, next) => {
     ...(appStore.cachedPublicSettings?.custom_menu_items ?? []),
     ...(authStore.isAdmin ? adminSettingsStore.customMenuItems : []),
   ]
-  document.title = resolveRouteDocumentTitle(to, appStore.siteName, customMenuItems)
+  if (!applyPublicRouteSeo(to.path)) {
+    document.title = resolveRouteDocumentTitle(to, appStore.siteName, customMenuItems)
+  }
 
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true

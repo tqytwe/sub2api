@@ -259,6 +259,9 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
         AppLayout: {
           template: '<div><slot /></div>',
         },
+        PageFrame: {
+          template: '<section><slot /></section>',
+        },
         Teleport: true,
         Transition: false,
       },
@@ -393,6 +396,9 @@ describe('PaymentView subscription product details', () => {
           AppLayout: {
             template: '<div><slot /></div>',
           },
+          PageFrame: {
+            template: '<section><slot /></section>',
+          },
           SubscriptionPlanCard: {
             props: ['plan'],
             template: '<button data-test="open-details" @click="$emit(\'details\', plan)">open details</button>',
@@ -460,6 +466,13 @@ describe('PaymentView subscription plan shelf', () => {
                 <span v-for="tag in tags" :key="tag.id" data-test="shelf-tag">{{ tag.label }}</span>
               </section>
             `,
+          },
+          PageFrame: {
+            template: '<section><slot /></section>',
+          },
+          SubscriptionPlanCard: {
+            props: ['plan'],
+            template: '<article data-test="plan-card">{{ plan.product_name || plan.name }}</article>',
           },
           Teleport: true,
           Transition: false,
@@ -575,6 +588,9 @@ describe('PaymentView recharge quote preview', () => {
           AppLayout: {
             template: '<div><slot /></div>',
           },
+          PageFrame: {
+            template: '<section><slot /></section>',
+          },
           Teleport: true,
           Transition: false,
         },
@@ -661,6 +677,9 @@ describe('PaymentView payment recovery', () => {
         stubs: {
           AppLayout: {
             template: '<div><slot /></div>',
+          },
+          PageFrame: {
+            template: '<section><slot /></section>',
           },
           PaymentStatusPanel: {
             template: '<button data-test="payment-done" @click="$emit(\'done\')" />',

@@ -1,5 +1,44 @@
 /** 极速蹬 public pages copy */
+import { jisudengAuthAsideEn } from './jisudeng-auth-aside.en'
+
 export const jisudengPagesEn = {
+  promptLibrary: {
+    back: 'Back',
+    backAria: 'Go back',
+    metaTitle: 'Image Studio prompt library',
+    metaDescription: 'Find image prompts by use case and visual attributes.',
+    englishPendingEyebrow: 'Image Studio prompt library',
+    englishPendingTitle: 'English prompt library is being prepared',
+    englishPendingBody:
+      'The current prompt collection is available in the default language. The English collection will open after the content is reviewed.',
+    switchToDefaultLanguage: 'View current library',
+    eyebrow: 'Image Studio · Prompt library',
+    title: 'Choose a prompt',
+    description: 'Find ready-to-use prompts by use case and visual traits, preview examples, then send them to Image Studio.',
+    quickLinksAria: 'Quick entries',
+    quickFeatured: 'Jisudeng picks',
+    quickLatest: 'Latest',
+    quickPopular: 'Popular',
+    quickNoReference: 'No reference image',
+    quickFavorite: 'My favorites',
+    loading: 'Loading prompts',
+    resultCount: '{count} prompts found',
+    sortLabel: 'Sort order',
+    sortFeatured: 'Featured first',
+    sortLatest: 'Latest',
+    sortPopular: 'Popular',
+    loadFailedTitle: 'Failed to load prompts',
+    loadFailedBody: 'The network is temporarily unavailable. Please reload later.',
+    reload: 'Reload',
+    emptyTitle: 'No matching prompts',
+    emptyBody: 'Reduce filters or try another keyword.',
+    clearFilters: 'Clear all filters',
+    listAria: 'Prompt list',
+    favoriteFailed: 'Favorite action failed. Please try again.',
+    copySuccess: 'Prompt copied',
+    copyFailed: 'Copy failed. Please select the prompt manually.',
+    useFailed: 'Cannot use this prompt right now. Please try again.',
+  },
   support: {
     trigger: 'Contact support',
     title: 'Contact support',
@@ -10,10 +49,51 @@ export const jisudengPagesEn = {
     copied: 'Copied',
     copiedToast: 'Support QQ copied'
   },
+  androidDownload: {
+    metaTitle: 'Android Download',
+    eyebrow: 'JisudengChat Android',
+    title: 'Download the Jisudeng Android app',
+    lead: 'Sign in with your Jisudeng account to sync balance, groups, API keys, and model access. Chat and image generation are available on mobile, and generated images stay on your device.',
+    downloadApk: 'Download APK',
+    openWeb: 'Open web app',
+    qrAlt: 'JisudengChat Android APK download QR code',
+    scanTitle: 'Scan to download',
+    scanHint: 'Scan with an Android phone, or open this page in your mobile browser and tap download.',
+    manifestFailed: 'Version details could not be loaded. The download button still uses the official APK URL.',
+    version: 'Version',
+    size: 'Size',
+    minAndroid: 'Requires',
+    releaseDate: 'Release date',
+    defaultSize: 'About 7 MB',
+    unknown: 'Pending',
+    packageInfo: 'Package info',
+    viewManifest: 'View version file',
+    featureTitle: 'Platform features included',
+    features: [
+      {
+        title: 'Shared account login',
+        desc: 'Uses the same Jisudeng account system and syncs balance, groups, and model permissions after sign-in.'
+      },
+      {
+        title: 'Chat and model switching',
+        desc: 'Mobile input, session list, image upload, error states, and empty states are shaped for app use.'
+      },
+      {
+        title: 'Image generation and local gallery',
+        desc: 'Supports references, parameters, task progress, retry, and local storage. Generated images do not stay on the web server.'
+      },
+      {
+        title: 'Account and download progress',
+        desc: 'Balance, plans, order details, recharge, support, notifications, and download progress are available on mobile.'
+      }
+    ],
+    notesTitle: 'Release notes',
+    defaultNote: 'JisudengChat Android includes mobile chat, image generation, local gallery, account flows, signup and password recovery, native permissions, notifications, and branded launch assets.'
+  },
   about: {
     eyebrow: 'ABOUT',
     title: 'Why we are a real relay',
-    lede: 'This page explains what 极速蹬 does and does not do — with technical detail, not marketing fluff.',
+    lede: 'This page explains what Jisudeng does and does not do - with technical detail, not marketing fluff.',
     backHome: '← Back home',
     s1Title: 'Request bodies never stored',
     s1p1: 'Your prompts, messages, context, and uploaded images are never written to our database or logs.',
@@ -68,7 +148,7 @@ export const jisudengPagesEn = {
     qq: {
       name: 'QQ group',
       handle: '577938328',
-      desc: 'Chinese community discussion',
+      desc: 'Community discussion and support',
       cta: 'Open'
     },
     wechat: {
@@ -80,8 +160,8 @@ export const jisudengPagesEn = {
   },
   models: {
     backHome: '← Back home',
-    title: 'Models & pricing',
-    subtitle: 'Official, site display, and group display prices (USD / 1M tokens) — guests see admin-curated models',
+    title: 'Models & Pricing',
+    subtitle: 'Compare DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API gateway. Guests also see admin-configured public group display prices.',
     subtitleAuth: 'Models visible to signed-in users, site display prices, and your group display prices (USD / 1M)',
     searchPlaceholder: 'Search models or platforms…',
     loginPrompt: 'Register free to unlock the full model list and account display prices',
@@ -106,12 +186,18 @@ export const jisudengPagesEn = {
       output: 'Output',
       officialInput: 'Official in',
       officialOutput: 'Official out',
+      officialPrice: 'Official price',
       ourInput: 'Site display in',
       ourOutput: 'Site display out',
+      ourPrice: 'Group display price',
       channelInput: 'Channel in',
       channelOutput: 'Channel out',
       effectiveInput: 'Group display in',
       effectiveOutput: 'Group display out',
+    },
+    priceKinds: {
+      input: 'In {price}',
+      output: 'Out {price}',
     },
     noPricing: 'No pricing',
     previewTitle: 'Popular models preview',
@@ -127,6 +213,28 @@ export const jisudengPagesEn = {
       reasoning: 'Complex reasoning',
       code: 'Code & agents',
       image: 'Image generation',
+    },
+    family: {
+      deepseek: {
+        title: 'DeepSeek API Pricing and Access',
+        subtitle: 'Compare DeepSeek model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to DeepSeek models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+      qwen: {
+        title: 'Qwen API Pricing and Access',
+        subtitle: 'Compare Qwen model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to Qwen models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+      kimi: {
+        title: 'Kimi API Pricing and Access',
+        subtitle: 'Compare Kimi model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to Kimi models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
+      glm: {
+        title: 'GLM API Pricing and Access',
+        subtitle: 'Compare GLM model pricing, site base rates, and OpenAI-compatible API access.',
+        description: 'This page filters the public Jisudeng model catalog to GLM models so users can review model names, platforms, public rates, USD / 1M token pricing, docs, API key setup, and billing paths before signing in.',
+      },
     },
     vipBadge: 'VIP {label}',
   },
@@ -657,6 +765,8 @@ export const jisudengPagesEn = {
       colRecharge: 'Base recharge total',
       colRechargeBonus: 'Recharge bonus',
       colPerks: 'Perks',
+      baseAccess: 'Base access',
+      freeForNewUsers: '$0 (new users)',
       syncNote: 'VIP progress counts only the base credited amount from paid recharge orders, excluding VIP bonuses, campaign bonuses, check-ins, and code grants. See your tier and gap in the Play Hub after login.',
       perks: {
         models_vip_tag: 'VIP badge on models page',
@@ -666,27 +776,5 @@ export const jisudengPagesEn = {
       },
     },
   },
-  authAside: {
-    siteSubtitleDefault: 'The most privacy-focused LLM relay platform',
-    eyebrow: 'Privacy · Transparent · One thought away',
-    titleLogin: 'A light thought',
-    titleFaintLogin: 'Echoes every model',
-    pledge1: 'No request storage · No training',
-    pledge2: 'Full TLS · Fully auditable',
-    pledge3: 'Instant access · No approval',
-    eyebrowRegister: 'Join Jisu-Deng AI',
-    titleRegister: 'Open now',
-    titleFaintRegister: 'Every model, one thought away',
-    pitchRegister: 'Free credits on signup · Hundreds of models at official token rates · API key in minutes.',
-    regPledge1: 'Instant API · No approval',
-    regPledge2: 'Pay per token · No monthly fee',
-    regPledge3: 'Promo & invite codes stack',
-    regPledge4: 'Prompts never stored',
-    fineprintRegister: 'By registering you agree to our Terms and Privacy Policy.',
-    backHome: 'Back home',
-    copyrightTagline: 'One thought links every model',
-    flowSrc: 'Your prompt',
-    flowGw: 'Byte-perfect relay',
-    flowUp: 'Official upstream'
-  }
+  authAside: jisudengAuthAsideEn,
 }

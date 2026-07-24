@@ -55,6 +55,56 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export type UserBatchAction = 'disable' | 'delete'
+
+export interface UserBatchActionRequest {
+  action: UserBatchAction
+  user_ids: number[]
+  reason: string
+}
+
+export interface UserBatchActionExecuteRequest extends UserBatchActionRequest {
+  confirmation_token: string
+}
+
+export interface UserBatchActionTarget {
+  id: number
+  email: string
+  role: 'admin' | 'user'
+  status: 'active' | 'disabled'
+  api_key_count: number
+}
+
+export interface UserBatchActionPreview {
+  action: UserBatchAction
+  requested_count: number
+  eligible_users: UserBatchActionTarget[]
+  protected_administrators: UserBatchActionTarget[]
+  already_disabled_users: UserBatchActionTarget[]
+  missing_user_ids: number[]
+  affected_api_keys: number
+  requires_step_up: boolean
+  confirmation_token: string
+  expires_at: string
+}
+
+export interface UserBatchActionResultItem {
+  user_id: number
+  email?: string
+  reason: string
+  message?: string
+}
+
+export interface UserBatchActionResult {
+  action: UserBatchAction
+  status: 'completed' | 'partial' | 'failed'
+  requested_count: number
+  succeeded_user_ids: number[]
+  skipped: UserBatchActionResultItem[]
+  failed: UserBatchActionResultItem[]
+  affected_api_keys: number
+}
+
 /**
  * List all users with pagination
  * @param page - Page number (default: 1)
@@ -201,6 +251,26 @@ export async function batchUpdateLimits(
 ): Promise<BatchUpdateUserLimitsResponse> {
   const { data } = await apiClient.post<BatchUpdateUserLimitsResponse>(
     '/admin/users/batch-limits',
+    request
+  )
+  return data
+}
+
+export async function previewBatchAction(
+  request: UserBatchActionRequest
+): Promise<UserBatchActionPreview> {
+  const { data } = await apiClient.post<UserBatchActionPreview>(
+    '/admin/users/batch-actions/preview',
+    request
+  )
+  return data
+}
+
+export async function executeBatchAction(
+  request: UserBatchActionExecuteRequest
+): Promise<UserBatchActionResult> {
+  const { data } = await apiClient.post<UserBatchActionResult>(
+    '/admin/users/batch-actions',
     request
   )
   return data
@@ -439,6 +509,8 @@ export const usersAPI = {
   updateBalance,
   updateConcurrency,
   batchUpdateLimits,
+  previewBatchAction,
+  executeBatchAction,
   toggleStatus,
   getUserApiKeys,
   getUserUsageStats,

@@ -4,6 +4,7 @@
     "design_tokens_and_component_reuse": "enforced",
     "incremental_visual_rules": "enforced",
     "rendered_visual_evidence": "enforced",
+    "prototype_visual_evidence": "enforced",
     "route_ui_contract_runtime": "planned",
     "playwright_axe_ci": "planned"
   },

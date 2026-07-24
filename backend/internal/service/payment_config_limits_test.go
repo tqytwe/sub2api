@@ -220,6 +220,11 @@ func TestPcAggregateMethodCurrency(t *testing.T) {
 	currency, ok = svc.pcAggregateMethodCurrency([]*dbent.PaymentProviderInstance{easypay})
 	require.True(t, ok)
 	require.Equal(t, payment.DefaultPaymentCurrency, currency)
+
+	easypay.Config = `{"currency":"usd"}`
+	currency, ok = svc.pcAggregateMethodCurrency([]*dbent.PaymentProviderInstance{easypay})
+	require.True(t, ok)
+	require.Equal(t, "USD", currency)
 }
 
 func TestGetAvailableMethodLimitsOmitsMixedCurrencyMethod(t *testing.T) {

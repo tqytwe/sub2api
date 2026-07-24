@@ -2,7 +2,7 @@
   <section
     v-if="spotlightPlan"
     data-test="subscription-decision-shelf"
-    class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(380px,560px)]"
+    class="grid gap-5 xl:grid-cols-[minmax(360px,640px)_minmax(0,1fr)] 2xl:grid-cols-[minmax(420px,690px)_minmax(0,1fr)]"
   >
     <article
       data-test="plan-spotlight"
@@ -11,7 +11,7 @@
         platformBorderClass(displayPlatform(spotlightPlan)),
       ]"
     >
-      <div class="relative aspect-[16/9] overflow-hidden bg-gray-100 dark:bg-dark-700">
+      <div class="relative h-56 overflow-hidden bg-gray-100 dark:bg-dark-700 sm:h-64 lg:h-72 2xl:h-80">
         <img
           v-if="coverImageURL(spotlightPlan)"
           :src="coverImageURL(spotlightPlan)"
@@ -34,6 +34,7 @@
           <span
             v-for="badge in storefrontBadges(spotlightPlan)"
             :key="badge"
+            data-test="plan-default-badge"
             class="rounded-md bg-gray-900/80 px-2 py-1 text-xs font-semibold text-white shadow-sm ring-1 ring-white/20 backdrop-blur dark:bg-white/90 dark:text-gray-900"
           >
             {{ badge }}
@@ -54,7 +55,7 @@
           <span v-if="spotlightPlan.original_price" class="text-sm text-gray-400 line-through dark:text-dark-500">
             {{ priceLabel(spotlightPlan, spotlightPlan.original_price) }}
           </span>
-          <span :class="['text-4xl font-extrabold', platformTextClass(displayPlatform(spotlightPlan))]">
+          <span :class="['text-4xl font-extrabold tabular-nums', platformTextClass(displayPlatform(spotlightPlan))]">
             {{ priceLabel(spotlightPlan, spotlightPlan.price) }}
           </span>
           <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ planValidityLabel(spotlightPlan) }}</span>
@@ -70,7 +71,7 @@
             class="rounded-lg bg-gray-50 p-3 dark:bg-dark-700/50"
           >
             <p class="text-xs text-gray-400 dark:text-dark-400">{{ metric.label }}</p>
-            <p :class="['mt-1 text-2xl font-bold', metric.emphasis ? platformTextClass(displayPlatform(spotlightPlan)) : 'text-gray-900 dark:text-white']">
+            <p :class="['mt-1 text-2xl font-bold tabular-nums', metric.emphasis ? platformTextClass(displayPlatform(spotlightPlan)) : 'text-gray-900 dark:text-white']">
               {{ metric.value }}
             </p>
           </div>
@@ -91,7 +92,7 @@
           <button
             type="button"
             data-test="plan-spotlight-subscribe"
-            :class="['rounded-lg px-4 py-3 text-sm font-semibold transition-colors active:scale-[0.98]', platformButtonClass(displayPlatform(spotlightPlan))]"
+            :class="['rounded-lg px-4 py-3 text-sm font-semibold transition-colors', platformButtonClass(displayPlatform(spotlightPlan))]"
             @click="emit('select', spotlightPlan)"
           >
             {{ isRenewal(spotlightPlan) ? t('payment.renewNow') : t('payment.subscribeNow') }}
@@ -108,7 +109,7 @@
       </div>
     </article>
 
-    <div class="space-y-3">
+    <div class="min-w-0 space-y-3">
       <div class="flex items-center justify-between gap-3 px-1">
         <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.selectPlan') }}</h3>
         <span class="rounded-full bg-gray-100 px-2 py-1 text-xs font-medium text-gray-500 dark:bg-dark-700 dark:text-gray-300">{{ plans.length }}</span>
@@ -151,6 +152,7 @@
               <span
                 v-for="badge in storefrontBadges(plan)"
                 :key="badge"
+                data-test="plan-storefront-badge"
                 class="rounded bg-gray-900 px-1.5 py-0.5 text-[10px] font-semibold text-white dark:bg-white dark:text-gray-900"
               >
                 {{ badge }}
@@ -171,7 +173,7 @@
 
           <div class="col-span-2 flex items-center justify-between gap-3 border-t border-gray-100 pt-3 dark:border-dark-700 sm:col-span-1 sm:block sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0 sm:text-right">
             <div>
-              <div :class="['text-xl font-extrabold', platformTextClass(displayPlatform(plan))]">{{ priceLabel(plan, plan.price) }}</div>
+              <div :class="['text-xl font-extrabold tabular-nums', platformTextClass(displayPlatform(plan))]">{{ priceLabel(plan, plan.price) }}</div>
               <div class="text-xs text-gray-400 dark:text-dark-400">/ {{ planValidityLabel(plan) }}</div>
             </div>
             <span
@@ -219,7 +221,7 @@ const { t } = useI18n()
 const spotlightPlanId = ref<number | null>(null)
 
 const defaultSpotlightPlan = computed(() => {
-  if (props.defaultPlanId) {
+  if (props.defaultPlanId != null) {
     const configuredPlan = props.plans.find(plan => plan.id === props.defaultPlanId)
     if (configuredPlan) return configuredPlan
   }

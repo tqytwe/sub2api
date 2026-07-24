@@ -100,6 +100,8 @@ func RegisterPaymentRoutes(
 
 		adminGroup.GET("/storefront", adminPaymentHandler.GetStorefrontConfig)
 		adminGroup.PUT("/storefront", adminPaymentHandler.UpdateStorefrontConfig)
+		adminGroup.GET("/api-onboarding", adminPaymentHandler.GetAPIOnboardingConfig)
+		adminGroup.PUT("/api-onboarding", adminPaymentHandler.UpdateAPIOnboardingConfig)
 
 		// Provider Instances
 		providers := adminGroup.Group("/providers")

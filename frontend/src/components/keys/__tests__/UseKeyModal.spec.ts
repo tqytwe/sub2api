@@ -1,14 +1,17 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 
-const { copyToClipboardMock } = vi.hoisted(() => ({
-  copyToClipboardMock: vi.fn().mockResolvedValue(true)
+const { copyToClipboardMock, i18nLocaleMock, routerPushMock } = vi.hoisted(() => ({
+  copyToClipboardMock: vi.fn().mockResolvedValue(true),
+  i18nLocaleMock: { value: 'zh' },
+  routerPushMock: vi.fn()
 }))
 
 vi.mock('vue-i18n', () => ({
   useI18n: () => ({
-    t: (key: string) => key
+    t: (key: string) => key,
+    locale: i18nLocaleMock
   })
 }))
 
@@ -18,9 +21,22 @@ vi.mock('@/composables/useClipboard', () => ({
   })
 }))
 
+vi.mock('vue-router', () => ({
+  useRouter: () => ({
+    push: routerPushMock
+  })
+}))
+
+import { consumeInternalSpeedTestPayload } from '@/utils/internalSpeedTest'
 import UseKeyModal from '../UseKeyModal.vue'
 
 describe('UseKeyModal', () => {
+  beforeEach(() => {
+    i18nLocaleMock.value = 'zh'
+    routerPushMock.mockReset()
+    sessionStorage.clear()
+  })
+
   it('renders Grok Build and OpenCode setup for Grok groups', async () => {
     const wrapper = mount(UseKeyModal, {
       props: {
@@ -560,5 +576,68 @@ describe('UseKeyModal', () => {
     expect(fable.limit).toEqual({ context: 1048576, output: 128000 })
     expect(fable.options.thinking).toEqual({ type: 'adaptive' })
     expect(fable.options.thinking).not.toHaveProperty('budgetTokens')
+  })
+
+  it('opens the internal speed test without rendering the API key in href or third-party URL', async () => {
+    const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-test/key with spaces',
+        baseUrl: 'https://api.example.com',
+        platform: 'openai'
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            template: '<div><slot /><slot name="footer" /></div>'
+          },
+          Icon: {
+            template: '<span />'
+          }
+        }
+      }
+    })
+
+    expect(wrapper.text()).toContain('keys.useKeyModal.lmspeed.title')
+    expect(wrapper.find('a[href*="lmspeed.net"]').exists()).toBe(false)
+    for (const link of wrapper.findAll('a')) {
+      expect(link.attributes('href') || '').not.toContain('sk-test/key with spaces')
+    }
+
+    await wrapper.get('[data-testid="lmspeed-speed-test"]').trigger('click')
+
+    expect(openSpy).not.toHaveBeenCalled()
+    expect(routerPushMock).toHaveBeenCalledWith({ name: 'KeySpeedTest' })
+    expect(consumeInternalSpeedTestPayload()).toMatchObject({
+      apiKey: 'sk-test/key with spaces',
+      baseUrl: 'https://api.example.com',
+    })
+
+    openSpy.mockRestore()
+  })
+
+  it('does not show the LMSpeed action for inactive keys', () => {
+    const wrapper = mount(UseKeyModal, {
+      props: {
+        show: true,
+        apiKey: 'sk-inactive-test',
+        baseUrl: 'https://api.example.com',
+        apiKeyStatus: 'inactive',
+        platform: 'openai'
+      },
+      global: {
+        stubs: {
+          BaseDialog: {
+            template: '<div><slot /><slot name="footer" /></div>'
+          },
+          Icon: {
+            template: '<span />'
+          }
+        }
+      }
+    })
+
+    expect(wrapper.find('[data-testid="lmspeed-speed-test"]').exists()).toBe(false)
   })
 })

@@ -48,6 +48,7 @@ func ProvideAdminHandlers(
 	withdrawalHandler *admin.WithdrawalHandler,
 	fundHandler *admin.FundHandler,
 	modelCatalogHandler *admin.ModelCatalogHandler,
+	ipRiskHandler *admin.IPRiskHandler,
 	auditLogHandler *admin.AuditLogHandler,
 	promptLibraryHandler *admin.PromptLibraryHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
@@ -91,6 +92,7 @@ func ProvideAdminHandlers(
 		Withdrawal:             withdrawalHandler,
 		Fund:                   fundHandler,
 		ModelCatalog:           modelCatalogHandler,
+		IPRisk:                 ipRiskHandler,
 		AuditLog:               auditLogHandler,
 		PromptLibrary:          promptLibraryHandler,
 	}
@@ -184,6 +186,28 @@ func ProvideAdminSettingHandler(settingService *service.SettingService, emailSer
 	h.SetNotificationEmailService(notificationEmailService)
 	h.SetStepUpDeps(totpService, userService)
 	return h
+}
+
+func ProvideIPRiskHandler(
+	core *service.IPRiskService,
+	adminService service.AdminService,
+	apiKeys service.APIKeyRepository,
+	invalidator service.APIKeyAuthCacheInvalidator,
+	hasher *service.IPRiskHasher,
+	totpService *service.TotpService,
+	userService *service.UserService,
+	repo service.IPRiskRepository,
+) *admin.IPRiskHandler {
+	return admin.NewIPRiskManagementHandler(
+		core,
+		adminService,
+		apiKeys,
+		invalidator,
+		hasher,
+		totpService,
+		userService,
+		repo,
+	)
 }
 
 func ProvideOpsHandler(
@@ -324,6 +348,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewWithdrawalHandler,
 	admin.NewFundHandler,
 	admin.NewModelCatalogHandler,
+	ProvideIPRiskHandler,
 	admin.NewAuditLogHandler,
 	admin.NewPromptLibraryHandler,
 

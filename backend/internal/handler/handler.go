@@ -44,6 +44,7 @@ type AdminHandlers struct {
 	Withdrawal             *admin.WithdrawalHandler
 	Fund                   *admin.FundHandler
 	ModelCatalog           *admin.ModelCatalogHandler
+	IPRisk                 *admin.IPRiskHandler
 	AuditLog               *admin.AuditLogHandler
 	PromptLibrary          *admin.PromptLibraryHandler
 }

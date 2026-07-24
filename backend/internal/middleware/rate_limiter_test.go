@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -140,4 +141,56 @@ func TestRateLimiterSuccessAndLimit(t *testing.T) {
 	recorder = httptest.NewRecorder()
 	router.ServeHTTP(recorder, req)
 	require.Equal(t, http.StatusTooManyRequests, recorder.Code)
+}
+
+func TestRateLimiterMessagesFollowAcceptLanguage(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	originalRun := rateLimitRun
+	rateLimitRun = func(ctx context.Context, client *redis.Client, key string, windowMillis int64) (int64, bool, error) {
+		return 2, false, nil
+	}
+	t.Cleanup(func() {
+		rateLimitRun = originalRun
+	})
+
+	limiter := NewRateLimiter(redis.NewClient(&redis.Options{Addr: "127.0.0.1:1"}))
+
+	router := gin.New()
+	router.Use(limiter.Limit("test", 1, time.Second))
+	router.GET("/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	for _, tc := range []struct {
+		name        string
+		language    string
+		wantMessage string
+	}{
+		{
+			name:        "default chinese",
+			wantMessage: "请求过于频繁，请稍后再试",
+		},
+		{
+			name:        "english",
+			language:    "en-US,en;q=0.9",
+			wantMessage: "Too many requests, please try again later",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/test", nil)
+			req.RemoteAddr = "127.0.0.1:1234"
+			if tc.language != "" {
+				req.Header.Set("Accept-Language", tc.language)
+			}
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, req)
+
+			require.Equal(t, http.StatusTooManyRequests, recorder.Code)
+			var body map[string]string
+			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &body))
+			require.Equal(t, tc.wantMessage, body["message"])
+			require.Equal(t, "rate limit exceeded", body["error"])
+		})
+	}
 }

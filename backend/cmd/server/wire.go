@@ -117,6 +117,7 @@ func provideCleanup(
 	publicHomeStatsService *service.PublicHomeStatsService,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	auditLog *service.AuditLogService,
+	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
@@ -182,6 +183,12 @@ func provideCleanup(
 			{"AuditLogService", func() error {
 				if auditLog != nil {
 					auditLog.Stop()
+				}
+				return nil
+			}},
+			{"IPRiskService", func() error {
+				if ipRisk != nil {
+					ipRisk.Stop()
 				}
 				return nil
 			}},

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>API Key 商业化新手引导 V2</title>
+  <style>
+    :root {
+      --bg: #f7f8f6;
+      --paper: #fff;
+      --text: #111827;
+      --muted: #667085;
+      --line: #dfe4ea;
+      --soft: #edf0f3;
+      --brand: #111827;
+      --green: #047857;
+      --green-bg: #ecfdf3;
+      --blue: #1d4ed8;
+      --blue-bg: #eff6ff;
+      --amber: #92400e;
+      --amber-bg: #fff7ed;
+      --red: #b42318;
+      --red-bg: #fef3f2;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #e9ece7; color: var(--text); font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif; }
+
+    .canvas {
+      width: 1920px;
+      height: 1080px;
+      margin: 0 auto;
+      background: var(--bg);
+      display: grid;
+      grid-template-columns: 204px 1fr;
+      grid-template-rows: 52px 1fr;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .sidebar { grid-row: 1 / span 2; background: #fff; border-right: 1px solid var(--line); }
+    .brand { height: 52px; display: flex; align-items: center; gap: 12px; padding: 0 18px; border-bottom: 1px solid var(--soft); font-weight: 750; }
+    .logo { width: 30px; height: 30px; border-radius: 8px; border: 1px solid var(--line); display: grid; place-items: center; color: #ef4444; font-size: 12px; font-weight: 800; }
+    .nav { padding: 14px 10px; display: grid; gap: 4px; font-size: 13px; }
+    .nav-item { height: 34px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-radius: 8px; color: #344054; }
+    .nav-item.active { background: #f1f1ee; color: #111827; font-weight: 700; }
+    .nav-icon { width: 16px; height: 16px; border: 1.5px solid #7a8699; border-radius: 4px; }
+
+    .header { grid-column: 2; background: #fff; border-bottom: 1px solid var(--soft); display: flex; align-items: center; justify-content: space-between; padding: 0 26px 0 20px; }
+    .header strong { display: block; font-size: 16px; line-height: 20px; }
+    .header span { color: var(--muted); font-size: 12px; }
+    .header-actions { display: flex; align-items: center; gap: 12px; color: #344054; font-size: 13px; }
+    .wallet { border: 1px solid var(--line); background: #f8fafc; border-radius: 8px; padding: 6px 12px; font-weight: 750; color: #111827; }
+    .avatar { width: 28px; height: 28px; border-radius: 8px; background: #050505; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 750; }
+
+    .main { grid-column: 2; padding: 26px; min-width: 0; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+    .filters { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .input, .select, .chip { height: 36px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: #344054; display: flex; align-items: center; padding: 0 12px; font-size: 13px; }
+    .input { width: 204px; color: #98a2b3; }
+    .select { width: 128px; justify-content: space-between; }
+    .chip { height: 26px; font-size: 12px; color: #475467; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn { height: 36px; border-radius: 8px; border: 1px solid var(--line); background: #fff; color: #344054; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 650; white-space: nowrap; }
+    .btn.primary { background: var(--brand); color: #fff; border-color: var(--brand); }
+    .btn.green { background: #047857; color: #fff; border-color: #047857; }
+    .btn.disabled { color: #98a2b3; background: #f2f4f7; }
+
+    .guide {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: grid;
+      grid-template-columns: 1.1fr 1.45fr 0.9fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+
+    h2 { margin: 0; font-size: 18px; line-height: 26px; letter-spacing: 0; }
+    h3 { margin: 0; font-size: 15px; line-height: 22px; }
+    .muted { color: var(--muted); font-size: 13px; line-height: 20px; }
+    .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+    .pill { display: inline-flex; align-items: center; height: 24px; border-radius: 7px; border: 1px solid var(--line); padding: 0 8px; font-size: 12px; font-weight: 700; background: #fff; color: #475467; }
+    .pill.green { background: var(--green-bg); color: var(--green); border-color: #bbf7d0; }
+    .pill.blue { background: var(--blue-bg); color: var(--blue); border-color: #bfdbfe; }
+    .pill.amber { background: var(--amber-bg); color: var(--amber); border-color: #fed7aa; }
+    .pill.red { background: var(--red-bg); color: var(--red); border-color: #fecdca; }
+
+    .status-grid { margin-top: 16px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .stat { border: 1px solid var(--line); border-radius: 8px; padding: 12px; background: #fcfcfd; }
+    .stat span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 5px; }
+    .stat strong { font-size: 18px; line-height: 24px; }
+    .steps { margin-top: 14px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+    .step { min-height: 58px; display: grid; grid-template-columns: 26px 1fr; gap: 10px; padding: 12px; border-bottom: 1px solid var(--soft); }
+    .step:last-child { border-bottom: 0; }
+    .num { width: 24px; height: 24px; border-radius: 8px; background: #111827; color: #fff; display: grid; place-items: center; font-size: 12px; font-weight: 750; }
+    .step strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .step span { color: var(--muted); font-size: 12px; line-height: 18px; }
+
+    .use-tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+    .tab { height: 34px; border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 0 12px; display: flex; align-items: center; font-size: 13px; font-weight: 650; color: #475467; }
+    .tab.active { background: #111827; color: #fff; border-color: #111827; }
+    .recommend-list { display: grid; gap: 10px; }
+    .recommend {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 13px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 14px;
+      align-items: start;
+    }
+    .recommend.primary { border-color: #86efac; background: #fbfffd; }
+    .recommend.locked { background: #fffdfa; border-color: #fed7aa; }
+    .recommend.warn { background: #fcfcfd; border-style: dashed; }
+    .row-title { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+    .reason { color: #475467; font-size: 12px; line-height: 18px; margin-top: 4px; }
+    .source { color: #98a2b3; font-size: 11px; margin-top: 7px; }
+    .price { text-align: right; min-width: 160px; }
+    .price strong { display: block; font-size: 22px; line-height: 28px; }
+    .price span { display: block; color: var(--muted); font-size: 12px; margin-bottom: 9px; }
+    .mini-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+
+    .compat { border: 1px solid var(--line); border-radius: 8px; padding: 14px; background: #fcfcfd; }
+    .check-list { margin-top: 12px; display: grid; gap: 8px; }
+    .check { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 10px; display: grid; grid-template-columns: 24px 1fr; gap: 9px; align-items: start; }
+    .dot { width: 22px; height: 22px; border-radius: 999px; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+    .dot.ok { background: var(--green-bg); color: var(--green); }
+    .dot.warn { background: var(--amber-bg); color: var(--amber); }
+    .dot.bad { background: var(--red-bg); color: var(--red); }
+    .check strong { display: block; font-size: 12px; margin-bottom: 2px; }
+    .check span { color: var(--muted); font-size: 11px; line-height: 16px; }
+    .fallback { margin-top: 12px; border: 1px solid #fecdca; background: var(--red-bg); color: var(--red); border-radius: 8px; padding: 10px; font-size: 12px; line-height: 18px; }
+
+    .table-shell { border: 1px solid var(--line); border-radius: 8px; background: #fff; overflow: hidden; box-shadow: var(--shadow); }
+    .table-head { height: 48px; display: grid; grid-template-columns: 150px 180px 260px 120px 170px 120px 180px 1fr; align-items: center; padding: 0 18px; border-bottom: 1px solid var(--line); color: #475467; font-size: 12px; background: #fbfcfd; }
+    .empty { height: 330px; display: grid; grid-template-columns: 0.95fr 1.05fr; gap: 22px; padding: 28px; align-items: center; }
+    .empty-box { min-height: 210px; border: 1px dashed #cad3df; border-radius: 8px; background: #fcfcfd; padding: 22px; display: flex; flex-direction: column; justify-content: center; }
+    .empty-box h3 { font-size: 18px; line-height: 26px; margin-bottom: 8px; }
+    .flow { display: grid; gap: 10px; }
+    .flow-row { border: 1px solid var(--line); border-radius: 8px; min-height: 58px; display: grid; grid-template-columns: 34px 1fr auto; gap: 12px; align-items: center; padding: 12px; background: #fff; }
+    .flow-icon { width: 34px; height: 34px; border-radius: 8px; background: #f2f4f7; color: #344054; display: grid; place-items: center; font-weight: 800; font-size: 12px; }
+    .flow-row strong { display: block; font-size: 13px; margin-bottom: 3px; }
+    .flow-row span { color: var(--muted); font-size: 12px; }
+    .footer { height: 52px; border-top: 1px solid var(--soft); padding: 0 18px; display: flex; align-items: center; justify-content: space-between; font-size: 12px; color: var(--muted); }
+    .note { position: absolute; right: 26px; bottom: 12px; color: #98a2b3; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <aside class="sidebar">
+      <div class="brand"><div class="logo">J</div><span>极速蹬</span></div>
+      <nav class="nav">
+        <div class="nav-item"><span class="nav-icon"></span>仪表盘</div>
+        <div class="nav-item"><span class="nav-icon"></span>模型与价格</div>
+        <div class="nav-item active"><span class="nav-icon"></span>API 密钥</div>
+        <div class="nav-item"><span class="nav-icon"></span>AI 创作</div>
+        <div class="nav-item"><span class="nav-icon"></span>图像工作室</div>
+        <div class="nav-item"><span class="nav-icon"></span>使用记录</div>
+        <div class="nav-item"><span class="nav-icon"></span>钱包</div>
+        <div class="nav-item"><span class="nav-icon"></span>充值/订阅</div>
+        <div class="nav-item"><span class="nav-icon"></span>我的订单</div>
+        <div class="nav-item"><span class="nav-icon"></span>兑换</div>
+        <div class="nav-item"><span class="nav-icon"></span>个人资料</div>
+        <div class="nav-item"><span class="nav-icon"></span>使用文档</div>
+      </nav>
+    </aside>
+
+    <header class="header">
+      <div><strong>API 密钥</strong><span>管理您的 API 密钥和访问令牌</span></div>
+      <div class="header-actions">
+        <span>通知</span><span>中 简体中文</span><span>主题</span><span class="wallet">$0.00</span><div class="avatar">DE</div><span>dell<br />用户</span>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="topbar">
+        <div class="filters">
+          <div class="input">搜索名称或 Key...</div>
+          <div class="select">全部分组 <span>⌄</span></div>
+          <div class="select">全部状态 <span>⌄</span></div>
+          <div class="chip">API 端点 默认 | https://api.jisudeng.com</div>
+        </div>
+        <div class="btn-row">
+          <button class="btn">刷新</button>
+          <button class="btn">列设置</button>
+          <button class="btn primary">+ 创建密钥</button>
+        </div>
+      </div>
+
+      <section class="guide">
+        <div>
+          <div class="section-head">
+            <h2>API 接入向导</h2>
+            <span class="pill blue">后台推荐规则</span>
+          </div>
+          <p class="muted">新用户先决定使用方式，再完成消费动作。推荐由管理员维护，前端只展示当前账号能购买或能绑定的真实项目。</p>
+          <div class="status-grid">
+            <div class="stat"><span>当前余额</span><strong>$0.00</strong></div>
+            <div class="stat"><span>订阅状态</span><strong>暂无</strong></div>
+            <div class="stat"><span>可绑定分组</span><strong>3 个</strong></div>
+            <div class="stat"><span>推荐下一步</span><strong>先充值</strong></div>
+          </div>
+          <div class="steps">
+            <div class="step"><div class="num">1</div><div><strong>选择用途</strong><span>聊天/代码、Claude 工作流、图片生成走不同推荐。</span></div></div>
+            <div class="step"><div class="num">2</div><div><strong>完成消费</strong><span>按量分组先充值；订阅分组先买套餐解锁。</span></div></div>
+            <div class="step"><div class="num">3</div><div><strong>创建 Key</strong><span>创建成功后一次性复制 Key、Endpoint 和示例。</span></div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-head">
+            <h2>为你推荐</h2>
+            <span class="muted">规则命中：新用户 / 无余额 / 无订阅</span>
+          </div>
+          <div class="use-tabs">
+            <button class="tab active">通用 API</button>
+            <button class="tab">Claude Code</button>
+            <button class="tab">图片生成</button>
+            <button class="tab">先试一下</button>
+          </div>
+          <div class="recommend-list">
+            <article class="recommend primary">
+              <div>
+                <div class="row-title">
+                  <h3>通用 API 入门</h3>
+                  <span class="pill green">可直接创建</span>
+                  <span class="pill green">GPT 综合 0.65x</span>
+                  <span class="pill blue">管理员主推</span>
+                </div>
+                <div class="reason">为什么推荐：当前账号可绑定、倍率低、支持 OpenAI 兼容入口，适合先跑通 Claude Code / Codex / Cherry Studio。</div>
+                <div class="source">数据：推荐规则 #api-start → /groups/available 命中 group_id=18；余额为 0，所以主按钮变为充值并创建。</div>
+              </div>
+              <div class="price">
+                <strong>$10 起</strong>
+                <span>预计到账 $10.00+</span>
+                <div class="mini-actions">
+                  <button class="btn green">充值并创建 Key</button>
+                  <button class="btn">仅创建测试 Key</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="recommend locked">
+              <div>
+                <div class="row-title">
+                  <h3>Claude Max 高阶套餐</h3>
+                  <span class="pill amber">需先订阅</span>
+                  <span class="pill amber">Claude Max 20X</span>
+                  <span class="pill blue">默认套餐</span>
+                </div>
+                <div class="reason">为什么推荐：管理员把这个套餐设为 Claude Code 默认转化项；购买成功后，对应订阅分组才会出现在 Key 创建下拉框。</div>
+                <div class="source">数据：推荐规则 #claude-pro → /payment/checkout-info 命中 plan_id=42；未订阅时不直接创建 Key。</div>
+              </div>
+              <div class="price">
+                <strong>¥49</strong>
+                <span>/ 30 天</span>
+                <div class="mini-actions">
+                  <button class="btn primary">购买套餐解锁</button>
+                  <button class="btn">查看权益</button>
+                </div>
+              </div>
+            </article>
+
+            <article class="recommend">
+              <div>
+                <div class="row-title">
+                  <h3>图片生成专用</h3>
+                  <span class="pill green">可创建</span>
+                  <span class="pill green">图片生成 0.1x</span>
+                </div>
+                <div class="reason">为什么推荐：如果只做 Images API，用图片分组更清晰；普通聊天模型不会从这个分组返回，避免选错。</div>
+                <div class="source">余额不足时按钮优先引导充值；若后台关闭生图分组，整张卡自动隐藏。</div>
+              </div>
+              <div class="price">
+                <strong>$20</strong>
+                <span>建议测试额度</span>
+                <div class="mini-actions">
+                  <button class="btn">充值图片额度</button>
+                  <button class="btn">看文档</button>
+                </div>
+              </div>
+            </article>
+          </div>
+        </div>
+
+        <aside class="compat">
+          <div class="section-head">
+            <h2>兼容与兜底</h2>
+            <span class="pill green">实时校验</span>
+          </div>
+          <p class="muted">所有按钮都根据真实接口状态生成，避免展示一个创建不了的推荐。</p>
+          <div class="check-list">
+            <div class="check"><div class="dot ok">✓</div><div><strong>可用分组读取成功</strong><span>/groups/available 返回 3 个；只允许从这些分组直接创建 Key。</span></div></div>
+            <div class="check"><div class="dot ok">✓</div><div><strong>可售套餐读取成功</strong><span>/payment/checkout-info 返回 4 个；订阅型推荐走购买路径。</span></div></div>
+            <div class="check"><div class="dot warn">!</div><div><strong>推荐规则部分失效</strong><span>后台配置的 group_id=99 已不可见，前端自动隐藏并记录提示。</span></div></div>
+            <div class="check"><div class="dot ok">✓</div><div><strong>客服兜底可用</strong><span>客服入口来自统一 support_contact，不在 Key 页面写死。</span></div></div>
+          </div>
+          <div class="fallback">如果分组接口失败：不渲染空白下拉；显示“刷新分组 / 先购买套餐 / 联系客服”，创建按钮禁用并说明原因。</div>
+        </aside>
+      </section>
+
+      <section class="table-shell">
+        <div class="table-head">
+          <span>名称</span><span>API 密钥</span><span>分组</span><span>当前并发</span><span>用量</span><span>状态</span><span>创建时间</span><span>操作</span>
+        </div>
+        <div class="empty">
+          <div class="empty-box">
+            <h3>还没有 API Key</h3>
+            <p class="muted">完成上面的推荐动作后，这里会显示 Key、绑定分组、余额消耗和一键部署入口。Key 明文只显示一次，创建成功页会强制提醒复制。</p>
+            <div class="mini-actions" style="justify-content:flex-start;margin-top:14px">
+              <button class="btn green">充值并创建 Key</button>
+              <button class="btn primary">购买推荐套餐</button>
+              <button class="btn">联系客服</button>
+            </div>
+          </div>
+          <div class="flow">
+            <div class="flow-row"><div class="flow-icon">A</div><div><strong>按量消费路径</strong><span>充值余额 → 创建标准分组 Key → 按模型价格和分组倍率扣费。</span></div><button class="btn">充值</button></div>
+            <div class="flow-row"><div class="flow-icon">S</div><div><strong>订阅消费路径</strong><span>购买套餐 → 解锁订阅分组 → 创建绑定该分组的 Key。</span></div><button class="btn">订阅</button></div>
+            <div class="flow-row"><div class="flow-icon">D</div><div><strong>不会配置时</strong><span>复制 Endpoint 和示例，或打开文档/联系客服辅助完成接入。</span></div><button class="btn">文档</button></div>
+          </div>
+        </div>
+        <div class="footer"><span>显示 0 至 0 共 0 条结果</span><span>每页：20</span></div>
+      </section>
+    </main>
+
+    <div class="note">static prototype v2 / no product code changed</div>
+  </div>
+</body>
+</html>

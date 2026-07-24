@@ -97,7 +97,7 @@ echo "Checking fork registry and static invariants..."
 for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
-  FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013; do
+  FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013 FORK-RISK-013 FORK-ADMIN-014; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -119,6 +119,10 @@ check_contains "FORK-UI-012" "root agent rules require rendered UI review" "AGEN
 check_contains "FORK-UI-012" "verified frontend build runs design governance" "frontend/package.json" '"build:verified": "pnpm design:verify'
 check_contains "FORK-UI-012" "frontend lint runs design governance" "frontend/package.json" '"lint:check": "pnpm design:check'
 check_contains "FORK-UI-012" "frontend tests run design governance" "frontend/package.json" '"test:run": "pnpm design:check'
+check_contains "FORK-UI-012" "frontend visual changes require prototype images" "docs/FRONTEND_DESIGN_SYSTEM.md" "prototype_artifacts"
+check_contains "FORK-UI-012" "visual review template includes prototype artifacts" "docs/visual-reviews/TEMPLATE.md" "prototype_artifacts"
+check_contains "FORK-UI-012" "machine policy enforces prototype evidence" "docs/frontend-design-governance.json" '"prototype_visual_evidence": "enforced"'
+check_contains "FORK-UI-012" "design governance validates prototype artifacts" "scripts/check-frontend-design-governance.mjs" "prototype_artifacts"
 run_check "FORK-UI-012" "design governance self-tests" \
   node --test "$ROOT/scripts/check-frontend-design-governance.test.mjs"
 run_check "FORK-UI-012" "design governance command" \
@@ -199,6 +203,31 @@ check_contains "FORK-DEPLOY-006" "make test runs the full frontend suite" "Makef
 check_contains "FORK-OAUTH-007" "shared OAuth cookie domain" "backend/internal/handler/auth_linuxdo_oauth.go" 'return ".jisudeng.com"'
 check_contains "FORK-OAUTH-007" "OAuth domain behavior test" "backend/internal/handler/auth_linuxdo_oauth_test.go" "TestOAuthCookieDomain"
 
+check_file "FORK-RISK-013" "IP risk scoring and privacy model" "backend/internal/service/ip_risk.go"
+check_file "FORK-RISK-013" "IP risk runtime and automation gate" "backend/internal/service/ip_risk_service.go"
+check_file "FORK-RISK-013" "IP risk raw SQL repository" "backend/internal/repository/ip_risk_repo.go"
+check_file "FORK-RISK-013" "IP risk admin repository" "backend/internal/repository/ip_risk_repo_admin.go"
+check_file "FORK-RISK-013" "IP risk preview, action and rollback service" "backend/internal/service/ip_risk_admin.go"
+check_file "FORK-RISK-013" "IP risk management handler" "backend/internal/handler/admin/ip_risk_handler.go"
+check_file "FORK-RISK-013" "IP risk management migration" "backend/migrations/215_ip_risk_management.sql"
+check_file "FORK-RISK-013" "IP risk workbench" "frontend/src/features/ip-risk/IPRiskWorkbench.vue"
+check_contains "FORK-RISK-013" "risk overview route" "backend/internal/server/routes/admin.go" 'ipRisk.GET("/overview"'
+check_contains "FORK-RISK-013" "risk action preview route" "backend/internal/server/routes/admin.go" 'ipRisk.POST("/cases/:id/actions/preview"'
+check_contains "FORK-RISK-013" "risk action execution route" "backend/internal/server/routes/admin.go" 'ipRisk.POST("/cases/:id/actions"'
+check_contains "FORK-RISK-013" "risk rollback route" "backend/internal/server/routes/admin.go" 'ipRisk.POST("/actions/:id/rollback"'
+check_contains "FORK-RISK-013" "migration defaults automatic blocking off" "backend/migrations/215_ip_risk_management.sql" '"auto_block_enabled": false'
+check_contains "FORK-RISK-013" "automatic block is temporary" "backend/internal/service/ip_risk_service.go" "RiskActionTemporaryRegistrationBan"
+check_contains "FORK-RISK-013" "automatic block targets exact IP" "backend/internal/service/ip_risk_service.go" "ExactIP:   snapshot.Evidence.PrimaryIP"
+check_not_contains "FORK-RISK-013" "registration policy checks are not disabled with automation" "backend/internal/service/ip_risk_service.go" "if !autoBlockEnabled"
+check_contains "FORK-RISK-013" "preview tokens expire after five minutes" "backend/internal/service/ip_risk_admin.go" "Add(5 * time.Minute)"
+check_contains "FORK-RISK-013" "risk actions protect administrators" "backend/internal/service/ip_risk_admin.go" "administrator account is protected"
+check_contains "FORK-RISK-013" "risk actions cap users at 500" "backend/internal/service/ip_risk_admin.go" "more than 500 users"
+check_contains "FORK-RISK-013" "risk workbench default remains resource tab" "frontend/src/views/admin/ProxiesView.vue" "return 'resources'"
+check_contains "FORK-RISK-013" "risk route exists" "frontend/src/router/index.ts" "path: '/admin/proxies/risk'"
+check_contains "FORK-RISK-013" "risk action history route exists" "frontend/src/router/index.ts" "path: '/admin/proxies/actions'"
+check_contains "FORK-RISK-013" "exact and inferred evidence are separated" "backend/migrations/214_ip_risk_foundation.sql" "evidence_confidence"
+check_contains "FORK-RISK-013" "historical OAuth registration is excluded" "backend/internal/repository/ip_risk_repo.go" "path IN ('/api/v1/auth/register', '/api/v1/auth/mobile/register')"
+
 check_contains "FORK-PUBLIC-008" "public model route" "backend/internal/server/routes/play.go" 'v1.GET("/public/model-pricing"'
 check_file "FORK-PUBLIC-008" "public docs content" "frontend/src/content/public-docs-data.zh.ts"
 check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/service/domain_constants.go" "SettingKeyPublicModelsEnabled"
@@ -268,7 +297,10 @@ MIGRATIONS=(
   211_withdrawals.sql
   212_withdrawals_integer_amounts.sql
   213_fund_management_batches.sql
-  214_billing_surcharge_layer.sql
+  214_ip_risk_foundation.sql
+  215_ip_risk_management.sql
+  216_mobile_feedback.sql
+  217_billing_surcharge_layer.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -303,6 +335,8 @@ echo
 echo "Running protected backend behaviors..."
 run_check "FORK-OAUTH-007" "OAuth cookie domain unit test" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/handler -run '^TestOAuthCookieDomain$'"
+run_check "FORK-RISK-013" "IP risk privacy, auth capture, workbench actions and rollback tests" \
+  bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/service ./internal/repository ./internal/server/middleware ./internal/handler/admin ./internal/server/routes ./migrations -run 'IPRisk|RiskMetadata|RiskEvent|SuccessfulLoginForwardsRiskEvent'"
 run_check "FORK-IMAGE-004/FORK-PRICING-005" "Image Studio and pricing unit tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service -run '^(TestValidateImageStudioPrompt|TestDefaultImageStudioCatalogIncludesPreviewMetadata|TestResolveImageStudioSizeSupportsLegacyAspectAliases|TestInferImageStudioAspectTierIsDeterministic|TestModelCatalogService_.*|TestResolve_SiteCatalogPriceDoesNotAffectBilling|TestResolve_UncataloguedModelKeepsLegacyFallback|TestGenerateSessionHash_MetadataOverridesSessionContext|TestGenerateSessionHash_ResponsesInputDoesNotOverrideHigherPrioritySources)$'"
 run_check "FORK-BILLING-010" "billing ownership unit tests" \
@@ -344,6 +378,11 @@ run_check "FORK-MARKETPLACE-013" "marketplace feature flag and bilingual locale 
   pnpm --dir "$ROOT/frontend" exec vitest run \
     src/utils/__tests__/featureFlags.spec.ts \
     src/i18n/__tests__/marketplaceLocales.spec.ts
+run_check "FORK-RISK-013" "IP risk routes, scanning, preview, stale, partial and rollback frontend tests" \
+  pnpm --dir "$ROOT/frontend" exec vitest run \
+    src/__tests__/ipRiskRouting.spec.ts \
+    src/__tests__/ipRiskWorkbench.spec.ts \
+    src/__tests__/ipRiskActions.spec.ts
 
 echo
 if [[ "$FAIL" -ne 0 ]]; then

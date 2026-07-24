@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>创建密钥分组选择原型</title>
+  <style>
+    :root {
+      --bg: #f7f8f6;
+      --paper: #ffffff;
+      --muted: #667085;
+      --text: #111827;
+      --line: #dfe4ea;
+      --line-soft: #edf0f3;
+      --brand: #111827;
+      --green: #16a34a;
+      --amber: #b45309;
+      --blue: #2563eb;
+      --red: #dc2626;
+      --shadow: 0 18px 50px rgba(15, 23, 42, 0.16);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: #e9ece7;
+      color: var(--text);
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", Arial, sans-serif;
+    }
+
+    .canvas {
+      width: 1440px;
+      height: 980px;
+      margin: 0 auto;
+      background: var(--bg);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .top {
+      height: 52px;
+      background: #fff;
+      border-bottom: 1px solid var(--line-soft);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+    }
+
+    .title strong {
+      display: block;
+      font-size: 16px;
+      line-height: 20px;
+    }
+
+    .title span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .fake-page {
+      padding: 26px;
+    }
+
+    .toolbar {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 18px;
+    }
+
+    .input, .select {
+      height: 36px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      color: #98a2b3;
+      padding: 0 12px;
+      display: inline-flex;
+      align-items: center;
+      margin-right: 10px;
+      font-size: 13px;
+    }
+
+    .input { width: 220px; }
+    .select { width: 128px; justify-content: space-between; color: #344054; }
+
+    .btn {
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: #344054;
+      padding: 0 14px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .btn.primary {
+      background: var(--brand);
+      color: #fff;
+      border-color: var(--brand);
+    }
+
+    .table {
+      height: 720px;
+      border: 1px solid var(--line);
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      opacity: 0.35;
+    }
+
+    .row {
+      height: 64px;
+      border-bottom: 1px solid var(--line-soft);
+      display: grid;
+      grid-template-columns: 160px 190px 260px 140px 160px 120px 1fr;
+      align-items: center;
+      padding: 0 18px;
+      color: #667085;
+      font-size: 12px;
+    }
+
+    .overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.26);
+      display: grid;
+      place-items: center;
+    }
+
+    .modal {
+      width: 980px;
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--line);
+      overflow: hidden;
+    }
+
+    .modal-head {
+      height: 60px;
+      border-bottom: 1px solid var(--line);
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-head h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 26px;
+      letter-spacing: 0;
+    }
+
+    .close {
+      width: 32px;
+      height: 32px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      color: #667085;
+      background: #fff;
+    }
+
+    .modal-body {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      min-height: 610px;
+    }
+
+    .form {
+      padding: 20px;
+      border-right: 1px solid var(--line);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    label {
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      color: #344054;
+      margin-bottom: 7px;
+    }
+
+    .field {
+      height: 40px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 0 12px;
+      display: flex;
+      align-items: center;
+      color: #111827;
+      font-size: 14px;
+    }
+
+    .hint {
+      margin-top: 7px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .group-select {
+      border: 1px solid #86efac;
+      border-radius: 8px;
+      background: #fbfffd;
+      padding: 11px;
+    }
+
+    .group-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 7px;
+    }
+
+    .badge {
+      display: inline-flex;
+      height: 22px;
+      align-items: center;
+      border-radius: 7px;
+      padding: 0 8px;
+      font-size: 12px;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+
+    .green { color: #047857; background: #ecfdf3; border-color: #bbf7d0; }
+    .amber { color: #92400e; background: #fffbeb; border-color: #fde68a; }
+    .blue { color: #1d4ed8; background: #eff6ff; border-color: #bfdbfe; }
+    .gray { color: #475467; background: #f8fafc; border-color: #e4e7ec; }
+
+    .switch-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--line-soft);
+      padding-top: 14px;
+    }
+
+    .switch {
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background: #e4e7ec;
+      position: relative;
+    }
+
+    .switch::before {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      left: 2px;
+      top: 2px;
+      background: #fff;
+      border-radius: 999px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.18);
+    }
+
+    .help {
+      background: #fcfcfd;
+      padding: 20px;
+    }
+
+    .help h2 {
+      margin: 0 0 6px;
+      font-size: 18px;
+      line-height: 26px;
+    }
+
+    .help p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 20px;
+    }
+
+    .metric-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+
+    .metric span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-bottom: 5px;
+    }
+
+    .metric strong {
+      font-size: 15px;
+    }
+
+    .group-options {
+      margin-top: 16px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .option {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px;
+      background: #fff;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .option.selected {
+      border-color: #86efac;
+      background: #fbfffd;
+    }
+
+    .option-title {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .option small {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .check {
+      width: 24px;
+      height: 24px;
+      border-radius: 8px;
+      background: #16a34a;
+      color: #fff;
+      display: grid;
+      place-items: center;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .warning {
+      margin-top: 16px;
+      border: 1px solid #fed7aa;
+      background: #fff7ed;
+      color: #92400e;
+      border-radius: 8px;
+      padding: 11px 12px;
+      font-size: 12px;
+      line-height: 18px;
+    }
+
+    .modal-foot {
+      border-top: 1px solid var(--line);
+      height: 64px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 20px;
+      background: #fff;
+    }
+
+    .foot-note {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .prototype-note {
+      position: absolute;
+      right: 18px;
+      bottom: 12px;
+      font-size: 11px;
+      color: #98a2b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="canvas">
+    <div class="top">
+      <div class="title">
+        <strong>API 密钥</strong>
+        <span>管理您的 API 密钥和访问令牌</span>
+      </div>
+      <button class="btn primary">+ 创建密钥</button>
+    </div>
+
+    <div class="fake-page">
+      <div class="toolbar">
+        <div>
+          <span class="input">搜索名称或 Key...</span>
+          <span class="select">全部分组 <span>⌄</span></span>
+          <span class="select">全部状态 <span>⌄</span></span>
+        </div>
+        <div>
+          <button class="btn">刷新</button>
+          <button class="btn">列设置</button>
+        </div>
+      </div>
+      <div class="table">
+        <div class="row"><b>名称</b><b>API 密钥</b><b>分组</b><b>当前并发</b><b>用量</b><b>状态</b><b>操作</b></div>
+        <div class="row"><span>我的第一个 Key</span><span>sk-c38...8996</span><span>GPT 综合 0.65x</span><span>0</span><span>$0.0000</span><span>活跃</span><span>使用密钥 / 编辑</span></div>
+        <div class="row"><span>生图专用</span><span>sk-081...9f75</span><span>图片生成 0.1x</span><span>0</span><span>$29.9720</span><span>活跃</span><span>使用密钥 / 编辑</span></div>
+      </div>
+    </div>
+
+    <div class="overlay">
+      <section class="modal">
+        <div class="modal-head">
+          <h1>创建 API 密钥</h1>
+          <button class="close">×</button>
+        </div>
+
+        <div class="modal-body">
+          <div class="form">
+            <div>
+              <label>名称</label>
+              <div class="field">我的第一个 Key</div>
+              <div class="hint">建议用用途命名，例如 Claude Code、Cherry Studio、图片生成。</div>
+            </div>
+
+            <div>
+              <label>服务分组</label>
+              <div class="group-select">
+                <div class="group-top">
+                  <div>
+                    <span class="badge green">GPT 综合</span>
+                    <span class="badge green">0.65x</span>
+                  </div>
+                  <span class="badge blue">推荐新手</span>
+                </div>
+                <div class="hint">将绑定到这个 Key。决定可用模型、协议能力和计费倍率。</div>
+              </div>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <label>自定义 Key</label>
+                <div class="hint">默认由系统生成；只有迁移已有 Key 时才需要打开。</div>
+              </div>
+              <span class="switch"></span>
+            </div>
+
+            <div class="switch-row">
+              <div>
+                <label>IP 限制</label>
+                <div class="hint">上线后建议绑定服务器出口 IP；本地测试可先关闭。</div>
+              </div>
+              <span class="switch"></span>
+            </div>
+
+            <div>
+              <label>额度上限</label>
+              <div class="field">$ 0.00</div>
+              <div class="hint">0 表示不限制。新用户可以先填一个小额度做测试保护。</div>
+            </div>
+          </div>
+
+          <div class="help">
+            <h2>怎么选分组？</h2>
+            <p>分组不是普通标签，它会影响这个 Key 能调用哪些模型、按什么倍率扣费，以及是否支持图片/Claude/OpenAI 兼容协议。</p>
+
+            <div class="metric-grid">
+              <div class="metric">
+                <span>可用模型</span>
+                <strong>126 个</strong>
+              </div>
+              <div class="metric">
+                <span>计费倍率</span>
+                <strong>0.65x</strong>
+              </div>
+              <div class="metric">
+                <span>适合场景</span>
+                <strong>通用接入</strong>
+              </div>
+            </div>
+
+            <div class="group-options">
+              <div class="option selected">
+                <div>
+                  <div class="option-title">
+                    <span class="badge green">GPT 综合</span>
+                    <span class="badge green">0.65x</span>
+                    <span class="badge gray">OpenAI 兼容</span>
+                  </div>
+                  <small>推荐：先跑通聊天、代码、工具调用。适合 Claude Code / Codex / Cherry Studio 等入口。</small>
+                </div>
+                <span class="check">✓</span>
+              </div>
+
+              <div class="option">
+                <div>
+                  <div class="option-title">
+                    <span class="badge amber">Claude Max 20X</span>
+                    <span class="badge amber">1x</span>
+                    <span class="badge gray">长上下文</span>
+                  </div>
+                  <small>适合 Claude 工作流。若客户端必须使用 Claude 协议，再选择这个分组。</small>
+                </div>
+                <button class="btn">选择</button>
+              </div>
+
+              <div class="option">
+                <div>
+                  <div class="option-title">
+                    <span class="badge green">图片生成</span>
+                    <span class="badge green">0.1x</span>
+                    <span class="badge gray">Images API</span>
+                  </div>
+                  <small>仅用于生图 API。普通聊天模型不会从这个分组返回。</small>
+                </div>
+                <button class="btn">选择</button>
+              </div>
+            </div>
+
+            <div class="warning">保存前提示：Key 创建后密钥明文只显示一次；请立即复制并保存。分组后续可以更换，但会改变可用模型和计费表现。</div>
+          </div>
+        </div>
+
+        <div class="modal-foot">
+          <span class="foot-note">创建成功后自动打开“复制 Key + Endpoint + 示例请求”结果页。</span>
+          <div>
+            <button class="btn">取消</button>
+            <button class="btn primary">创建并复制接入信息</button>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="prototype-note">static prototype / no product code changed</div>
+  </div>
+</body>
+</html>

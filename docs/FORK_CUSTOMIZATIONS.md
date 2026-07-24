@@ -3,7 +3,7 @@
 > 状态：active
 > 当前验证基线：`upstream/main@e625ce3b3b3b955b7c3afc93221f7c5f0ae55aa8`
 > 对应合并提交：待本同步 PR 合入 `play/main` 后回填
-> 最后核验：2026-07-21
+> 最后核验：2026-07-23
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -24,6 +24,8 @@
 | `FORK-IMAGE-011` | Images API、Gateway async 与 Batch 运行时 | active | integrity 脚本 + Go/Vitest/集成测试 |
 | `FORK-UI-012` | 前端设计系统与视觉治理 | active | design governance 脚本 + lint/typecheck/视觉检查 |
 | `FORK-MARKETPLACE-013` | AI 模型商城关闭态基础 | active | integrity 脚本 + Go/Vitest 测试 |
+| `FORK-RISK-013` | IP 风险检测与批量注册发现 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
+| `FORK-ADMIN-014` | 管理员用户批量处置 | active | Go/Vitest/API contract 测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -38,10 +40,10 @@
 ## FORK-UI-012 前端设计系统与视觉治理
 
 - 产品目的：让公共页、认证页、用户控制台和管理员后台使用稳定的页面框架、功能图标、视觉 token、圆角、间距、交互状态与可访问性规则，防止新增页面继续复制平行组件和局部风格。
-- 不变量：任何 `frontend/` 可见改动必须先读取 `frontend/AGENTS.md` 和 [前端设计系统与视觉开发规范](./FRONTEND_DESIGN_SYSTEM.md)，查看当前画面和同类型实现，优先复用共享组件；功能图标统一走 `Icon.vue`；业务页面不得新增任意页面宽度、手写功能 SVG、散落色值、`transition-all`、超大圆角或无替代的焦点清除。艺术页和品牌场景例外必须带具体原因并接受单独审查。
+- 不变量：任何 `frontend/` 可见改动必须先读取 `frontend/AGENTS.md` 和 [前端设计系统与视觉开发规范](./FRONTEND_DESIGN_SYSTEM.md)，查看当前画面和同类型实现，先提交原型设计图片并明确改动边界，优先复用共享组件；功能图标统一走 `Icon.vue`；业务页面不得新增任意页面宽度、手写功能 SVG、散落色值、`transition-all`、超大圆角或无替代的焦点清除。艺术页和品牌场景例外必须带具体原因并接受单独审查。
 - 关键位置：`frontend/AGENTS.md`、`docs/FRONTEND_DESIGN_SYSTEM.md`、`docs/FRONTEND_EXPERIENCE_REMEDIATION_PLAN.md`、`docs/frontend-design-governance.json`、`docs/visual-reviews/`、`frontend/src/components/icons/Icon.vue`、`scripts/check-frontend-design-governance.mjs`、`scripts/check-frontend-design-governance.test.mjs`、`frontend/package.json`。
 - 冲突策略：吸收上游业务和可访问性修复，但新视觉实现必须映射到极速蹬语义规则；不得以“上游原样”或“历史页面已有”为理由继续扩散不一致。
-- 验证：`cd frontend && pnpm design:check`、`pnpm lint:check`、`pnpm typecheck`、相关 Vitest、production build，以及 `docs/visual-reviews/` 中可复核的 Playwright 前后截图、浅深色、中英文、响应式和 reduced-motion 记录。
+- 验证：`cd frontend && pnpm design:check`、`pnpm lint:check`、`pnpm typecheck`、相关 Vitest、production build，以及 `docs/visual-reviews/` 中可复核的原型设计图片、Playwright 前后截图、浅深色、中英文、响应式和 reduced-motion 记录。
 
 ## FORK-NAV-002 用户侧栏和 Growth 导航
 
@@ -91,10 +93,10 @@
 ## FORK-DEPLOY-006 分支与 Zeabur 部署
 
 - 产品目的：极速蹬在服务器完成可复现开发与验证，从 `origin/play/main` 触发 Zeabur 构建，并由用户本地电脑完成生产验收。
-- 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
-- 关键位置：`AGENTS.md`、[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)、`scripts/push-github-and-deploy.sh`、`deploy/zeabur.template.yaml`、`.cursor/rules/sub2api-server-only-verify.mdc`、[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md)。
+- 不变量：服务器使用隔离 Git worktree，业务行为执行 TDD 和逐任务规格/代码质量审查；测试、完整构建和 Fork integrity 全通过后才提交并先推送审查分支；完整 GitHub CI 只在目标为 `play/main` 的 PR 上执行一次，普通分支 push 和生产 push 不重复完整测试；确认后以非 rebase、非强推方式进入 `play/main`；只有 `origin/play/main` 触发 Zeabur；官方 Web 与 Android APK 必须能从 `jisudeng.com`、`www.jisudeng.com`、Android WebView 的 `https://localhost` / `capacitor://localhost` 安全访问 `api.jisudeng.com`，不能要求用户手填后端地址；部署 commit 和健康状态确认后，由用户本地电脑浏览器访问 `https://www.jisudeng.com/`，以游客、普通用户和管理员三种身份验收；禁止用本地服务、localhost 或服务器浏览器作为最终验收结论。
+- 关键位置：`AGENTS.md`、[服务器开发与生产验收流程](./DELIVERY_WORKFLOW.md)、`scripts/push-github-and-deploy.sh`、`deploy/zeabur.template.yaml`、`deploy/config.example.yaml`、`backend/internal/server/middleware/cors.go`、`.cursor/rules/sub2api-server-only-verify.mdc`、[上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md)。
 - 冲突策略：上游 Docker 文档只作为参考，不能改变极速蹬生产分支和验收入口。
-- 验证：服务器完整闸门、PR 单次 GitHub CI、Zeabur 部署 commit/健康状态，以及用户本地电脑的游客、普通用户、管理员生产浏览器验收；按风险补充浅色/深色和 API/数据库对账。
+- 验证：服务器完整闸门、PR 单次 GitHub CI、Zeabur 部署 commit/健康状态、官方 Web/Android 来源的 CORS preflight，以及用户本地电脑的游客、普通用户、管理员生产浏览器验收；按风险补充浅色/深色和 API/数据库对账。
 
 ## FORK-OAUTH-007 OAuth Cookie 域共享
 
@@ -103,6 +105,28 @@
 - 关键位置：`backend/internal/handler/auth_linuxdo_oauth.go`、`backend/internal/handler/auth_linuxdo_oauth_test.go`。
 - 冲突策略：可以吸收上游 OAuth 安全修复，但必须保留域共享函数及测试。
 - 验证：`TestOAuthCookieDomain`，线上分别从 apex 与 `www` 发起/完成 OAuth。
+
+## FORK-RISK-013 IP 风险检测与批量注册发现
+
+- 产品目的：在现有 IP 管理域内，以注册 IP 为主信号，结合登录/API IP、UA 摘要、邮箱模板、邀请码/返利码和注册后行为，主动发现批量注册与异常账号簇，并保留可解释证据供管理员复核。
+- 工作台不变量：`/admin/proxies` 默认仍进入 IP 资源，并通过 `/admin/proxies/risk` 和 `/admin/proxies/actions` 提供风险检测、证据、关联账号、扫描、策略、处置预览、TOTP、部分结果和安全回滚。所有状态修改必须先生成五分钟 preview token；案件版本或处置输入变化后返回 `risk_action_preview_stale`。单次最多 500 个账号，管理员账号永远受保护，可信老账号、充值账号、历史推断账号和已禁用账号不得默认批量选择。
+- 自动化不变量：迁移默认 `auto_block_enabled=false`，上线后先以 Shadow Mode 校准；启用后只允许满足精确证据、多信号族和最少注册数条件的严重案件自动创建 30 分钟注册阻止。自动动作只能针对精确 IP，IPv6 为 `/128`，只阻止继续注册，不阻止登录或正常 API 调用，不自动禁用已有账号、不停用 Key、不永久封禁。人工创建的显式注册阻止策略不依赖自动化开关，风险仓储失败时注册门控 fail-open。
+- 人工处置不变量：支持观察、共享网络、白名单、临时/永久阻止注册、停用 API Key、禁用账号、解决、忽略和回滚；启用自动阻止、永久阻止、禁用账号和回滚必须使用管理员 JWT TOTP step-up。案件动作默认只处理精确 IP；IPv6 `/64` 或其他 CIDR 必须由管理员在策略管理中明确创建。回滚只恢复仍保持本次操作写入状态的用户、Key、案件或 IP 策略，不覆盖后续管理员修改。
+- 检测不变量：IPv4 按 `/32`、IPv6 按 `/64` 聚合发现；未来自动资格的 IPv6 目标只能是精确 `/128`，且目标 IP 自身至少有 5 个精确注册。注册和 UA 分档各自只取最高分；历史推断、白名单、已知共享网络以及单一注册聚集信号均不能获得自动资格。共享 API IP 只统计先在候选网络注册、随后从该网络调用 API 的关联新账号。
+- 隐私与保留：IP 使用 PostgreSQL `inet/cidr`；UA 保存规范化摘要和 HMAC；邮箱模板、邀请码、返利码只保存 HMAC 关联值，不保存原文。空 UA、空邀请码和空返利码不得产生可聚集 HMAC。原始事件默认保留 90 天，案件/扫描/处置审计结构默认保留 365 天。
+- 历史证据：只从成功的邮箱注册审计路径 `/api/v1/auth/register` 与 `/api/v1/auth/mobile/register` 推断，并与邮箱和用户创建时间匹配；OAuth 历史不回填。推断证据只供人工查看，不得进入自动动作资格或账号默认选择。
+- 告警不变量：严重风险使用现有通知邮件基础设施；同一案件只在首次达到严重等级或等级升级时发送，发送失败恢复通知 claim，避免永久漏报或重复轰炸。
+- 关键位置：`backend/internal/service/ip_risk.go`、`backend/internal/service/ip_risk_service.go`、`backend/internal/service/ip_risk_admin.go`、`backend/internal/repository/ip_risk_repo.go`、`backend/internal/repository/ip_risk_repo_admin.go`、`backend/internal/handler/admin/ip_risk_handler.go`、`backend/internal/server/routes/admin.go`、`backend/migrations/214_ip_risk_foundation.sql`、`backend/migrations/215_ip_risk_management.sql`、`frontend/src/features/ip-risk/`、`frontend/src/views/admin/ProxiesView.vue`。
+- 冲突策略：可吸收上游认证、审计、IP 解析和后台任务改进，但不得丢失精确注册事件、证据置信度隔离、迁移默认关闭自动化、隐私 HMAC、共享网络/白名单保护、preview/TOTP/管理员保护、安全回滚或 `/admin/proxies` 默认资源页。
+- 验证：IP 风险 service/repository/middleware/auth/handler/route/migration 单元测试，真实 PostgreSQL 滑动窗口、`inet/cidr`、共享 API 新账号限定、原子案件写入和历史邮箱注册推断测试；前端路由、筛选、默认选择、扫描轮询、preview、stale、TOTP、部分结果和回滚测试。生产启用自动阻止前仍必须完成至少 24 小时 Shadow 校准。
+
+## FORK-ADMIN-014 管理员用户批量处置
+
+- 产品目的：让管理员在用户管理页对明确选择的账号执行批量禁用或批量软删除，同时保留逐账号结果、误操作保护和可追溯审计。
+- 不变量：批量操作只接受最多 500 个明确用户 ID，并支持跨页选择；执行前必须填写原因并生成五分钟有效的服务端影响预览，预览令牌使用域隔离 HMAC 签名，用户状态或待删除 API Key 发生变化后必须返回 `USER_BATCH_ACTION_PREVIEW_STALE`。批量禁用和批量删除都必须通过管理员 JWT TOTP step-up；管理员账号永远受保护，已禁用或不存在的账号安全跳过。删除复用现有用户与 API Key 软删除事务，API Key 先去密钥化，操作完成后清理认证缓存。单个账号失败不得中断其余账号，前端必须展示完成、部分成功和失败结果，并保留失败账号选择以便重试。
+- 关键位置：`backend/internal/service/admin_user_batch_actions.go`、`backend/internal/handler/admin/user_handler.go`、`backend/internal/server/routes/admin.go`、`frontend/src/components/admin/user/BulkUserActionDialog.vue`、`frontend/src/views/admin/UsersView.vue`。
+- 冲突策略：可吸收上游用户管理和批量编辑改进，但不得绕过预览、TOTP、管理员保护、软删除、认证缓存失效、逐账号结果或审计原因。
+- 验证：`admin_user_batch_actions_test.go`、`user_handler_batch_actions_test.go`、`api_contract_test.go`、`admin.users.spec.ts`、`BulkUserActionDialog.spec.ts`、`UsersView.spec.ts`，以及前端 typecheck、lint、design governance、完整测试和 production build。
 
 ## FORK-PUBLIC-008 公共页面与可见性
 
@@ -175,16 +199,19 @@
 211_withdrawals.sql
 212_withdrawals_integer_amounts.sql
 213_fund_management_batches.sql
-214_billing_surcharge_layer.sql
+214_ip_risk_foundation.sql
+215_ip_risk_management.sql
+216_mobile_feedback.sql
+217_billing_surcharge_layer.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
 
 - 产品目的：防止 API Key、订阅或批量任务被错误归属到其他用户，同时让成功充值触发可选 Play boost。
-- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。
-- 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
+- 不变量：扣费前验证 API Key 与用户归属；订阅扣费验证订阅所有者；余额冻结同样验证归属；NextChat Web 和 Android 只能通过登录用户 JWT 换取该用户名下的受管 API Key，并按用户允许分组返回模型/余额/API Key 权限，不能暴露其他用户密钥；粘性会话种子按 API Key 隔离；模型目录参考价不能覆盖真实渠道计费；支付订单完成后再授予 recharge boost，boost 失败不得回滚已完成充值；`frozen_balance` 只代表图片/任务预留，提现冻结必须写入独立 `withdrawal_frozen_balance`；可提现权益通过 `withdrawable_entitlements` 和 immutable allocation 流水对账；用户提现默认关闭，只有 ready 用户可启用；提现申请必须锁定成熟权益批次，取消、拒绝和退款必须恢复原批次；提现金额和提现规则金额必须为整数；充值退回必须走独立 `balance_fund_batches` / `fund_refund_requests` 批次和审核流程，真实线上/线下充值可退未消费整数部分，赠送/首 30/兑换码赠送默认不可提现也不可退；管理员审批、读取完整收款资料和线下打款登记必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止。
+- 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/server/routes/nextchat.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
 - 冲突策略：上游支付状态机和安全修复必须合入；归属校验、真实计费优先级与充值后 Play 联动必须保留。
-- 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests；线上以测试订单检查余额到账和 boost 状态。
+- 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以测试订单检查余额到账和 boost 状态。
 
 ## 更新规则
 

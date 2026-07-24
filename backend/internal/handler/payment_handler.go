@@ -515,6 +515,8 @@ type PublicOrderResult struct {
 	ExpiresAt           time.Time      `json:"expires_at"`
 	PaidAt              *time.Time     `json:"paid_at,omitempty"`
 	CompletedAt         *time.Time     `json:"completed_at,omitempty"`
+	FailedAt            *time.Time     `json:"failed_at,omitempty"`
+	FailedReason        *string        `json:"failed_reason,omitempty"`
 	RefundAmount        float64        `json:"refund_amount"`
 	RefundReason        *string        `json:"refund_reason,omitempty"`
 	RefundRequestedAt   *time.Time     `json:"refund_requested_at,omitempty"`
@@ -551,6 +553,8 @@ func buildPublicOrderResult(order *dbent.PaymentOrder) PublicOrderResult {
 		ExpiresAt:           order.ExpiresAt,
 		PaidAt:              order.PaidAt,
 		CompletedAt:         order.CompletedAt,
+		FailedAt:            order.FailedAt,
+		FailedReason:        order.FailedReason,
 		RefundAmount:        order.RefundAmount,
 		RefundReason:        order.RefundReason,
 		RefundRequestedAt:   order.RefundRequestedAt,
@@ -661,6 +665,8 @@ type PaymentOrderResult struct {
 	ExpiresAt           time.Time      `json:"expires_at"`
 	PaidAt              *time.Time     `json:"paid_at,omitempty"`
 	CompletedAt         *time.Time     `json:"completed_at,omitempty"`
+	FailedAt            *time.Time     `json:"failed_at,omitempty"`
+	FailedReason        *string        `json:"failed_reason,omitempty"`
 	RefundAmount        float64        `json:"refund_amount"`
 	RefundReason        *string        `json:"refund_reason,omitempty"`
 	RefundRequestedAt   *time.Time     `json:"refund_requested_at,omitempty"`
@@ -700,6 +706,8 @@ func sanitizePaymentOrderForResponse(order *dbent.PaymentOrder) *PaymentOrderRes
 		ExpiresAt:           order.ExpiresAt,
 		PaidAt:              order.PaidAt,
 		CompletedAt:         order.CompletedAt,
+		FailedAt:            order.FailedAt,
+		FailedReason:        order.FailedReason,
 		RefundAmount:        order.RefundAmount,
 		RefundReason:        order.RefundReason,
 		RefundRequestedAt:   order.RefundRequestedAt,

@@ -18,6 +18,7 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -157,6 +158,12 @@ func registerNextChatRoutes(
 	{
 		authenticated.POST("/launch", func(c *gin.Context) {
 			handleNextChatLaunch(c, gate, cfg, redisClient)
+		})
+		authenticated.GET("/mobile/bootstrap", func(c *gin.Context) {
+			handleNextChatMobileBootstrap(c, issuer, modelProvider, gate, cfg)
+		})
+		authenticated.POST("/mobile/group", func(c *gin.Context) {
+			handleNextChatMobileGroupSwitch(c, issuer, modelProvider, gate, cfg)
 		})
 	}
 }
@@ -421,37 +428,143 @@ func handleNextChatBootstrap(
 		response.NotFound(c, "NextChat is disabled")
 		return
 	}
-	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
-	if !ok || identityProvider == nil {
-		response.Error(c, http.StatusServiceUnavailable, "NextChat bootstrap service is unavailable")
-		return
-	}
 	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
 	if !ok {
 		return
 	}
 
-	identity, err := identityProvider.GetNextChatWorkspaceIdentity(c.Request.Context(), userID, apiKeyID)
+	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, userID, apiKeyID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, apiKeyID)
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, payload)
+}
+
+func handleNextChatMobileBootstrap(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	if issuer == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat session issuer is unavailable")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	settings, err := getNextChatPublicSettings(c.Request.Context(), gate)
+	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, session.UserID, session.KeyID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	siteURL := firstNonEmptyNextChat(getNextChatFrontendURL(c.Request.Context(), gate), "https://www.jisudeng.com")
+	payload["session"] = gin.H{
+		"user_id":    session.UserID,
+		"api_key":    session.APIKey,
+		"api_key_id": session.KeyID,
+		"expires_at": time.Now().UTC().Add(nextChatSessionTTL(cfg)),
+	}
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, payload)
+}
+
+func handleNextChatMobileGroupSwitch(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	if issuer == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat session issuer is unavailable")
+		return
+	}
+	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
+	if !ok || identityProvider == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat group switch service is unavailable")
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req nextChatGroupSwitchRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID <= 0 {
+		response.BadRequest(c, "group_id is required")
+		return
+	}
+	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if _, err := identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), subject.UserID, session.KeyID, req.GroupID); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, session.UserID, session.KeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	payload["session"] = gin.H{
+		"user_id":    session.UserID,
+		"api_key":    session.APIKey,
+		"api_key_id": session.KeyID,
+		"expires_at": time.Now().UTC().Add(nextChatSessionTTL(cfg)),
+	}
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, payload)
+}
+
+func buildNextChatBootstrapPayload(
+	ctx context.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	userID int64,
+	apiKeyID int64,
+) (gin.H, error) {
+	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
+	if !ok || identityProvider == nil {
+		return nil, infraerrors.ServiceUnavailable("NEXTCHAT_BOOTSTRAP_UNAVAILABLE", "NextChat bootstrap service is unavailable")
+	}
+	identity, err := identityProvider.GetNextChatWorkspaceIdentity(ctx, userID, apiKeyID)
+	if err != nil {
+		return nil, err
+	}
+	workspaceModels, err := getNextChatWorkspaceModels(ctx, modelProvider, userID, apiKeyID)
+	if err != nil {
+		return nil, err
+	}
+	settings, err := getNextChatPublicSettings(ctx, gate)
+	if err != nil {
+		return nil, err
+	}
+	siteURL := firstNonEmptyNextChat(getNextChatFrontendURL(ctx, gate), "https://www.jisudeng.com")
 	returnURL := joinNextChatURL(siteURL, "/dashboard")
 	rechargeURL := joinNextChatURL(siteURL, "/purchase")
 
-	c.Header("Cache-Control", "no-store")
-	response.Success(c, gin.H{
+	return gin.H{
 		"user":            identity.User,
 		"managed_api_key": identity.APIKey,
 		"brand": gin.H{
@@ -480,7 +593,7 @@ func handleNextChatBootstrap(
 			"image_reference_hours": 24,
 			"server_chat_log":       false,
 		},
-	})
+	}, nil
 }
 
 func handleNextChatPrompts(

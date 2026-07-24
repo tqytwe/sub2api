@@ -21,6 +21,9 @@ export default {
     import: '导入',
     actions: '操作',
     status: '状态',
+    show: '显示',
+    hide: '隐藏',
+    open: '打开',
     name: '名称',
     email: '邮箱',
     password: '密码',
@@ -44,6 +47,8 @@ export default {
     inactive: '禁用',
     more: '更多',
     close: '关闭',
+    clearSearch: '清空搜索',
+    toggleSetting: '切换设置',
     toggleMenu: '切换菜单',
     userMenu: '用户菜单',
     pageNotFound: '页面不存在',
@@ -103,6 +108,10 @@ export default {
     }
   },
 
+  supportContactPanel: {
+    moreContacts: '更多联系方式',
+  },
+
   adminCompliance: {
     title: '部署与运营合规确认',
     blockingNotice: '继续使用控制台前，须完成部署与运营合规确认。',
@@ -153,6 +162,7 @@ export default {
     dashboard: '仪表盘',
     modelsAndPricing: '模型与价格',
     announcements: '公告',
+    publicActions: '公共页面操作',
     apiKeys: 'API 密钥',
     batchImage: '批量生图',
     usage: '使用记录',

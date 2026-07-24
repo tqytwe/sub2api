@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import publicAPI, { type PublicModelPricingRow } from '@/api/public'
@@ -14,6 +14,7 @@ import { vipTierBadgeClass } from '@/utils/vipColors'
 import '@/styles/public-pages.css'
 
 const { t, te } = useI18n()
+const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const appStore = useAppStore()
@@ -25,6 +26,27 @@ const authPricingEnabled = ref(true)
 const searchQuery = ref('')
 const vip = ref<PlayVIPStatus | null>(null)
 const emptyState = ref<'none' | 'disabled' | 'empty' | 'error' | 'not_deployed'>('none')
+
+type ModelFamilyKey = 'deepseek' | 'qwen' | 'kimi' | 'glm'
+
+const MODEL_FAMILY_ALIASES: Record<ModelFamilyKey, string[]> = {
+  deepseek: ['deepseek'],
+  qwen: ['qwen', 'qwq', 'qvq', 'tongyi', 'dashscope'],
+  kimi: ['kimi', 'moonshot'],
+  glm: ['glm', 'zhipu', 'z.ai', 'z-ai', 'bigmodel'],
+}
+
+const activeFamilyKey = computed<ModelFamilyKey | null>(() => {
+  const value = String(route.params.family ?? '').trim().toLowerCase()
+  if (value === 'deepseek' || value === 'qwen' || value === 'kimi' || value === 'glm') return value
+  return null
+})
+
+const hasFamilyFilter = computed(() => activeFamilyKey.value !== null)
+const familyTitle = computed(() => activeFamilyKey.value ? t(`models.family.${activeFamilyKey.value}.title`) : t('models.title'))
+const familySubtitle = computed(() => activeFamilyKey.value ? t(`models.family.${activeFamilyKey.value}.subtitle`) : t('models.subtitle'))
+const familyDescription = computed(() => activeFamilyKey.value ? t(`models.family.${activeFamilyKey.value}.description`) : '')
+const authPageSubtitle = computed(() => activeFamilyKey.value ? familySubtitle.value : t('models.subtitleAuth'))
 
 const isAuthMode = computed(() => authStore.isAuthenticated)
 
@@ -72,18 +94,20 @@ function formatTokenPrice(value: number | null | undefined): string {
   return formatScaled(value, 1_000_000)
 }
 
-function useCaseLabel(useCase: string): string {
-  const key = `models.previewUseCases.${useCase}`
-  return te(key) ? t(key) : t('models.previewUseCases.chat')
-}
-
 function groupBadge(g: { name: string; rate_multiplier: number }): string {
   return `${g.name} ×${g.rate_multiplier}`
 }
 
+function rowMatchesFamily(row: { name: string; platform: string; use_case?: string | null }): boolean {
+  const family = activeFamilyKey.value
+  if (!family) return true
+  const haystack = `${row.name} ${row.platform} ${row.use_case ?? ''}`.toLowerCase()
+  return MODEL_FAMILY_ALIASES[family].some((alias) => haystack.includes(alias))
+}
+
 const filteredPublicRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = publicRows.value.flatMap<PublicDisplayPricingRow>((row) => {
+  const rows = publicRows.value.filter(rowMatchesFamily).flatMap<PublicDisplayPricingRow>((row) => {
     if (row.groups?.length) {
       return row.groups.map((group) => ({
         name: row.name,
@@ -115,13 +139,13 @@ const filteredPublicRows = computed(() => {
       row.name.toLowerCase().includes(q) ||
       row.platform.toLowerCase().includes(q) ||
       (row.group_name ?? '').toLowerCase().includes(q) ||
-      useCaseLabel(row.use_case).toLowerCase().includes(q),
+      row.use_case.toLowerCase().includes(q),
   )
 })
 
 const filteredAuthRows = computed(() => {
   const q = searchQuery.value.trim().toLowerCase()
-  const rows = authRows.value
+  const rows = authRows.value.filter(rowMatchesFamily)
   if (!q) return rows
   return rows.filter(
     (row) =>
@@ -190,12 +214,12 @@ onMounted(() => {
       <div>
         <p class="models-eyebrow-app">MODELS</p>
         <div class="models-title-row">
-          <h1 class="models-title-app">{{ t('models.title') }}</h1>
+          <h1 class="models-title-app">{{ familyTitle }}</h1>
           <span v-if="showVipBadge" :class="vipTierBadgeClass(vip?.color_key)">
             {{ t('models.vipBadge', { label: vip?.label ?? 'VIP' }) }}
           </span>
         </div>
-        <p class="models-subtitle-app">{{ t('models.subtitleAuth') }}</p>
+        <p class="models-subtitle-app">{{ authPageSubtitle }}</p>
         <p class="models-preview-note-app">{{ t('models.priceUnitNote') }}</p>
       </div>
 
@@ -255,20 +279,24 @@ onMounted(() => {
     </header>
 
     <main class="models-main">
-      <p class="models-eyebrow">MODELS</p>
-      <div class="models-title-row">
-        <h1 class="models-title">{{ t('models.title') }}</h1>
-      </div>
-      <p class="models-subtitle">{{ t('models.subtitle') }}</p>
-      <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
-
-      <div class="models-auth-card">
-        <p>{{ t('models.loginPrompt') }}</p>
-        <div class="models-auth-actions">
-          <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
-          <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
+      <section class="models-hero">
+        <div class="models-hero-copy">
+          <p class="models-eyebrow">MODELS</p>
+          <div class="models-title-row">
+            <h1 class="models-title">{{ familyTitle }}</h1>
+          </div>
+          <p class="models-subtitle">{{ familySubtitle }}</p>
+          <p class="models-preview-note">{{ t('models.priceUnitNote') }}</p>
         </div>
-      </div>
+
+        <div class="models-auth-card">
+          <p>{{ t('models.loginPrompt') }}</p>
+          <div class="models-auth-actions">
+            <router-link :to="guestPrimaryPath" class="models-btn models-btn-primary">{{ guestPrimaryIsRegister ? t('models.registerCta') : t('models.loginCta') }}</router-link>
+            <router-link :to="guestSecondaryPath" class="models-btn models-btn-secondary">{{ guestPrimaryIsRegister ? t('models.loginCta') : t('models.registerCta') }}</router-link>
+          </div>
+        </div>
+      </section>
 
       <div class="models-toolbar">
         <input
@@ -278,6 +306,11 @@ onMounted(() => {
           :placeholder="t('models.searchPlaceholder')"
         />
       </div>
+
+      <section v-if="hasFamilyFilter" class="models-family-note">
+        <h2>{{ familyTitle }}</h2>
+        <p>{{ familyDescription }}</p>
+      </section>
 
       <div v-if="loading" class="models-state">{{ t('models.loading') }}</div>
       <div v-else-if="emptyState !== 'none'" class="models-state">{{ stateMessage }}</div>
@@ -290,26 +323,24 @@ onMounted(() => {
               <th>{{ t('models.columns.model') }}</th>
               <th>{{ t('models.columns.platform') }}</th>
               <th>{{ t('models.columns.useCase') }}</th>
-              <th>{{ t('models.columns.officialInput') }}</th>
-              <th>{{ t('models.columns.officialOutput') }}</th>
               <th>{{ t('models.columns.group') }}</th>
-              <th>{{ t('models.columns.ourInput') }}</th>
-              <th>{{ t('models.columns.ourOutput') }}</th>
+              <th colspan="2" class="models-price-group-head models-price-group-head-official">{{ t('models.columns.officialPrice') }}</th>
+              <th colspan="2" class="models-price-group-head models-price-group-head-our">{{ t('models.columns.ourPrice') }}</th>
             </tr>
           </thead>
           <tbody>
             <tr v-for="(row, idx) in filteredPublicRows" :key="`${row.name}-${row.platform}-${row.group_name ?? idx}`">
               <td class="models-cell-name">{{ row.name }}</td>
               <td><span class="models-platform">{{ row.platform }}</span></td>
-              <td>{{ useCaseLabel(row.use_case) }}</td>
-              <td>{{ formatTokenPrice(row.official_input_price) }}</td>
-              <td>{{ formatTokenPrice(row.official_output_price) }}</td>
+              <td>{{ row.use_case }}</td>
               <td>
                 <span v-if="row.group_name" class="models-group-badge">{{ groupBadge({ name: row.group_name, rate_multiplier: row.rate_multiplier }) }}</span>
                 <span v-else>—</span>
               </td>
-              <td class="models-cell-our">{{ formatTokenPrice(row.effective_input_price) }}</td>
-              <td class="models-cell-our">{{ formatTokenPrice(row.effective_output_price) }}</td>
+              <td class="models-price-official">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.official_input_price) }) }}</td>
+              <td class="models-price-official">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.official_output_price) }) }}</td>
+              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.input', { price: formatTokenPrice(row.effective_input_price) }) }}</td>
+              <td class="models-cell-our models-price-our">{{ t('models.priceKinds.output', { price: formatTokenPrice(row.effective_output_price) }) }}</td>
             </tr>
           </tbody>
         </table>
@@ -402,6 +433,17 @@ onMounted(() => {
   padding: 2rem 0;
   color: #737373;
   text-align: center;
+}
+
+.models-family-note h2 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.models-family-note p {
+  margin: 0.35rem 0 0;
+  line-height: 1.65;
 }
 
 .back-link {

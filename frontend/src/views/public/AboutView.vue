@@ -1,19 +1,37 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { jisudengPagesZh } from '@/i18n/locales/jisudeng-pages.zh'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
+import { isEnglishLocale } from '@/utils/localizedPublicSettings'
 import '@/styles/about-view.css'
 import '@/styles/public-pages.css'
 
-const { t } = useI18n()
-const s5items = jisudengPagesZh.about.s5items
+const { t, tm, locale } = useI18n()
+
+const isEnglish = computed(() => isEnglishLocale(locale.value))
+const homeRoute = computed(() => (isEnglish.value ? '/en' : '/home'))
+const docsRoute = computed(() =>
+  isEnglish.value
+    ? { name: 'EnglishDocs', query: { cat: 'tutorial', page: 'quick-start' } }
+    : { name: 'Docs', query: { cat: 'tutorial', page: 'quick-start' } },
+)
+const vipRoute = computed(() =>
+  isEnglish.value
+    ? { name: 'EnglishDocs', query: { cat: 'recharge-vip', page: 'vip-levels' } }
+    : '/blindbox',
+)
+const contactRoute = computed(() => (isEnglish.value ? '/en' : '/contact'))
+const s5items = computed<string[]>(() => {
+  const value = tm('about.s5items') as unknown
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+})
 </script>
 
 <template>
   <div class="about-page">
     <header class="about-header public-page-header">
-      <router-link to="/home" class="back-link">{{ t('about.backHome') }}</router-link>
+      <router-link :to="homeRoute" class="back-link">{{ t('about.backHome') }}</router-link>
       <PublicPageToolbar />
     </header>
     <div class="about-header-intro">
@@ -35,9 +53,7 @@ const s5items = jisudengPagesZh.about.s5items
         <p class="about-section-num">02</p>
         <h2 class="about-section-title">{{ t('about.s2Title') }}</h2>
         <p>
-          每个 API Key 绑定一个<strong>服务分组</strong>，分组下面挂的是哪些上游通道、用的什么计费模式、哪个模型走哪条线，全部在
-          <code><router-link to="/available-channels">/available-channels</router-link></code>
-          透明列出。
+          {{ t('about.s2p1') }}
         </p>
         <p>{{ t('about.s2p2') }}</p>
         <p>{{ t('about.s2p3') }}</p>
@@ -91,9 +107,9 @@ const s5items = jisudengPagesZh.about.s5items
       <section class="about-cta">
         <p>{{ t('about.ctaLead') }}</p>
         <div class="about-cta-row">
-          <router-link to="/docs" class="about-cta-link">{{ t('about.ctaDocs') }}</router-link>
-          <router-link to="/blindbox" class="about-cta-link">{{ t('about.ctaVip') }}</router-link>
-          <router-link to="/contact" class="about-cta-link about-cta-link--ghost">{{ t('about.ctaContact') }}</router-link>
+          <router-link :to="docsRoute" class="about-cta-link">{{ t('about.ctaDocs') }}</router-link>
+          <router-link :to="vipRoute" class="about-cta-link">{{ t('about.ctaVip') }}</router-link>
+          <router-link :to="contactRoute" class="about-cta-link about-cta-link--ghost">{{ t('about.ctaContact') }}</router-link>
         </div>
       </section>
     </main>

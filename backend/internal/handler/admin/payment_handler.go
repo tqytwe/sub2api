@@ -377,6 +377,33 @@ func (h *PaymentHandler) UpdateStorefrontConfig(c *gin.Context) {
 	response.Success(c, cfg)
 }
 
+// GetAPIOnboardingConfig returns the configurable API Key onboarding cards.
+// GET /api/v1/admin/payment/api-onboarding
+func (h *PaymentHandler) GetAPIOnboardingConfig(c *gin.Context) {
+	cfg, err := h.configService.GetAPIOnboardingConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+// UpdateAPIOnboardingConfig updates API Key onboarding recommendation cards.
+// PUT /api/v1/admin/payment/api-onboarding
+func (h *PaymentHandler) UpdateAPIOnboardingConfig(c *gin.Context) {
+	var req service.APIOnboardingConfig
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	cfg, err := h.configService.UpdateAPIOnboardingConfig(c.Request.Context(), req)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
 // --- Provider Instances ---
 
 // ListProviders returns all payment provider instances.

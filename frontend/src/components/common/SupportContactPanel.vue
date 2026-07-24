@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores'
 import type { SupportContactConfig, SupportContactMethod } from '@/types'
 import Icon from '@/components/icons/Icon.vue'
 import {
   enabledSupportContacts,
-  normalizeSupportContactConfig,
   primaryQRCodeContacts,
   sanitizeSupportContactImage,
   supportContactActionUrl,
   supportContactCopyValue,
   supportContactDisplayValue,
 } from '@/utils/supportContact'
+import {
+  localizedSupportContactConfig,
+  localizedSupportContactTypeLabel,
+} from '@/utils/localizedPublicSettings'
 
 const props = withDefaults(defineProps<{
   config?: SupportContactConfig | null
@@ -23,8 +27,9 @@ const props = withDefaults(defineProps<{
   showHeader: true,
 })
 
+const { t, locale } = useI18n()
 const normalizedConfig = computed(() =>
-  normalizeSupportContactConfig(props.config)
+  localizedSupportContactConfig(props.config, locale.value)
 )
 const contacts = computed(() => enabledSupportContacts(normalizedConfig.value))
 const primaryContacts = computed(() => primaryQRCodeContacts(normalizedConfig.value))
@@ -35,20 +40,7 @@ const secondaryContacts = computed(() =>
 const hasContacts = computed(() => contacts.value.length > 0)
 
 function contactTypeLabel(type: string): string {
-  switch (type) {
-    case 'wechat':
-      return '微信'
-    case 'qq':
-      return 'QQ'
-    case 'telegram':
-      return 'TG'
-    case 'email':
-      return '邮箱'
-    case 'docs':
-      return '文档'
-    default:
-      return '客服'
-  }
+  return localizedSupportContactTypeLabel(type, locale.value)
 }
 
 function contactIconName(type: string): 'chat' | 'mail' | 'book' | 'link' {
@@ -85,9 +77,9 @@ function notifyCopyResult(copied: boolean): void {
     return
   }
   if (copied) {
-    appStore.showSuccess('已复制到剪贴板')
+    appStore.showSuccess(t('common.copiedToClipboard'))
   } else {
-    appStore.showError('复制失败')
+    appStore.showError(t('common.copyFailed'))
   }
 }
 
@@ -200,7 +192,7 @@ function fallbackCopyText(text: string): boolean {
             @click="copyContact(contact)"
           >
             <Icon name="copy" size="xs" class="mr-1" />
-            复制
+            {{ t('common.copy') }}
           </button>
           <button
             v-if="actionUrl(contact)"
@@ -209,7 +201,7 @@ function fallbackCopyText(text: string): boolean {
             @click="openContact(contact)"
           >
             <Icon name="externalLink" size="xs" class="mr-1" />
-            打开
+            {{ t('common.open') }}
           </button>
         </div>
       </article>
@@ -220,7 +212,7 @@ function fallbackCopyText(text: string): boolean {
         v-if="primaryContacts.length"
         class="mb-2 text-xs font-medium uppercase tracking-wide text-gray-400 dark:text-dark-500"
       >
-        更多联系方式
+        {{ t('supportContactPanel.moreContacts') }}
       </p>
       <div class="space-y-2">
         <div
@@ -258,7 +250,7 @@ function fallbackCopyText(text: string): boolean {
               v-if="supportContactCopyValue(contact)"
               type="button"
               class="btn-ghost btn-icon"
-              title="复制"
+              :title="t('common.copy')"
               @click="copyContact(contact)"
             >
               <Icon name="copy" size="sm" />
@@ -267,7 +259,7 @@ function fallbackCopyText(text: string): boolean {
               v-if="actionUrl(contact)"
               type="button"
               class="btn-ghost btn-icon"
-              title="打开"
+              :title="t('common.open')"
               @click="openContact(contact)"
             >
               <Icon name="externalLink" size="sm" />

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
@@ -210,7 +211,7 @@ func (s *OpenAIGatewayService) forwardAsRawChatCompletions(
 	if clientStream {
 		result, forwardErr = s.streamRawChatCompletions(c, resp, account, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime, len(body))
 	} else {
-		result, forwardErr = s.bufferRawChatCompletions(c, resp, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
+		result, forwardErr = s.bufferRawChatCompletions(c, resp, account, originalModel, billingModel, upstreamModel, reasoningEffort, serviceTier, startTime)
 	}
 	if result != nil {
 		addOpenAIUsage(&result.Usage, bridgeUsage)
@@ -405,6 +406,7 @@ func extractCCStreamUsage(payload string) *OpenAIUsage {
 func (s *OpenAIGatewayService) bufferRawChatCompletions(
 	c *gin.Context,
 	resp *http.Response,
+	account *Account,
 	originalModel string,
 	billingModel string,
 	upstreamModel string,
@@ -427,14 +429,15 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 		usage = parsedUsage
 	}
 
+	if err := validateRawChatCompletionsJSONResponse(respBody); err != nil {
+		message := rawChatCompletionsInvalidUpstreamMessage(respBody)
+		return nil, s.newRawChatCompletionsInvalidUpstreamFailoverError(c, resp, account, respBody, message)
+	}
+
 	if s.responseHeaderFilter != nil {
 		responseheaders.WriteFilteredHeaders(c.Writer.Header(), resp.Header, s.responseHeaderFilter)
 	}
-	if ct := resp.Header.Get("Content-Type"); ct != "" {
-		c.Writer.Header().Set("Content-Type", ct)
-	} else {
-		c.Writer.Header().Set("Content-Type", "application/json")
-	}
+	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
 	c.Writer.WriteHeader(http.StatusOK)
 	_, _ = c.Writer.Write(respBody)
 
@@ -449,6 +452,83 @@ func (s *OpenAIGatewayService) bufferRawChatCompletions(
 		Stream:          false,
 		Duration:        time.Since(startTime),
 	}, nil
+}
+
+func validateRawChatCompletionsJSONResponse(body []byte) error {
+	if !gjson.ValidBytes(body) {
+		return fmt.Errorf("invalid raw chat completions response: non-json body")
+	}
+	root := gjson.ParseBytes(body)
+	if !root.IsObject() {
+		return fmt.Errorf("invalid raw chat completions response: non-object body")
+	}
+	choices := gjson.GetBytes(body, "choices")
+	if !choices.Exists() || !choices.IsArray() {
+		return fmt.Errorf("invalid raw chat completions response: missing choices")
+	}
+	return nil
+}
+
+func rawChatCompletionsInvalidUpstreamMessage(body []byte) string {
+	if bodyHasSSEFraming(body) {
+		return "Upstream returned a streaming response to a non-streaming request"
+	}
+	return "Upstream returned an invalid Chat Completions response"
+}
+
+func (s *OpenAIGatewayService) newRawChatCompletionsInvalidUpstreamFailoverError(
+	c *gin.Context,
+	resp *http.Response,
+	account *Account,
+	_ []byte,
+	message string,
+) *UpstreamFailoverError {
+	message = sanitizeUpstreamErrorMessage(strings.TrimSpace(message))
+	if message == "" {
+		message = "Upstream returned an invalid Chat Completions response"
+	}
+	upstreamRequestID := ""
+	headers := http.Header{}
+	if resp != nil {
+		headers = resp.Header.Clone()
+		upstreamRequestID = strings.TrimSpace(resp.Header.Get("x-request-id"))
+	}
+
+	accountID := int64(0)
+	accountName := ""
+	platform := PlatformOpenAI
+	if account != nil {
+		accountID = account.ID
+		accountName = account.Name
+		platform = account.Platform
+	}
+
+	// Malformed 200 bodies are not trusted error payloads. Keep client and ops
+	// details generic so upstream text cannot leak API keys or private routing data.
+	detail := ""
+	setOpsUpstreamError(c, http.StatusBadGateway, message, detail)
+	appendOpsUpstreamError(c, OpsUpstreamErrorEvent{
+		Platform:           platform,
+		AccountID:          accountID,
+		AccountName:        accountName,
+		UpstreamStatusCode: http.StatusBadGateway,
+		UpstreamRequestID:  upstreamRequestID,
+		Kind:               "failover",
+		Message:            message,
+		Detail:             detail,
+	})
+
+	body, _ := json.Marshal(gin.H{
+		"error": gin.H{
+			"type":    "upstream_error",
+			"message": message,
+		},
+	})
+	return &UpstreamFailoverError{
+		StatusCode:      http.StatusBadGateway,
+		ResponseBody:    body,
+		ResponseHeaders: headers,
+	}
 }
 
 // buildOpenAIChatCompletionsURL 拼接上游 Chat Completions 端点 URL。
