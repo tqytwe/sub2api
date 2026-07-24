@@ -1,11 +1,13 @@
 package handler
 
 import (
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,6 +54,31 @@ func TestBuildRobotsTxtAdvertisesSitemapAndKeepsPrivateAPIsOut(t *testing.T) {
 	require.Contains(t, robots, "User-agent: GPTBot\nDisallow: /")
 	require.Contains(t, robots, "Sitemap: https://www.jisudeng.com/sitemap.xml")
 	require.Contains(t, robots, "LLMs: https://www.jisudeng.com/llms.txt")
+}
+
+func TestRobotsAndLLMSTxtUseRevalidationHeaders(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	handler := &PromptLibraryHandler{}
+
+	for _, tc := range []struct {
+		name     string
+		path     string
+		callFunc func(*gin.Context)
+	}{
+		{name: "robots", path: "/robots.txt", callFunc: handler.Robots},
+		{name: "llms", path: "/llms.txt", callFunc: handler.LLMSTxt},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(recorder)
+			c.Request = httptest.NewRequest(http.MethodGet, tc.path, nil)
+
+			tc.callFunc(c)
+
+			require.Equal(t, "no-cache, max-age=0, must-revalidate", recorder.Header().Get("Cache-Control"))
+			require.Equal(t, "index, follow", recorder.Header().Get("X-Robots-Tag"))
+		})
+	}
 }
 
 func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {

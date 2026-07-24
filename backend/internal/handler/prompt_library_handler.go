@@ -287,15 +287,23 @@ func (h *PromptLibraryHandler) Sitemap(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	setPromptSEOResponseHeaders(c)
 	c.Data(http.StatusOK, "application/xml; charset=utf-8", body)
 }
 
 func (h *PromptLibraryHandler) Robots(c *gin.Context) {
+	setPromptSEOResponseHeaders(c)
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildRobotsTxt(promptRequestOrigin(c.Request))))
 }
 
 func (h *PromptLibraryHandler) LLMSTxt(c *gin.Context) {
+	setPromptSEOResponseHeaders(c)
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSTxt(promptRequestOrigin(c.Request))))
+}
+
+func setPromptSEOResponseHeaders(c *gin.Context) {
+	c.Header("Cache-Control", "no-cache, max-age=0, must-revalidate")
+	c.Header("X-Robots-Tag", "index, follow")
 }
 
 func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([]byte, error) {
