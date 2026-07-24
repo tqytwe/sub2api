@@ -90,8 +90,12 @@ func RegisterGatewayRoutes(
 		})
 	}
 	videoStatusHandler := func(c *gin.Context) {
-		if getGroupPlatform(c) == service.PlatformGrok {
+		switch getGroupPlatform(c) {
+		case service.PlatformGrok:
 			h.OpenAIGateway.GrokVideoStatus(c)
+			return
+		case service.PlatformOpenAI:
+			h.OpenAIGateway.AgnesVideoStatus(c)
 			return
 		}
 		service.MarkOpsClientBusinessLimited(c, service.OpsClientBusinessLimitedReasonLocalFeatureGate)
@@ -215,6 +219,8 @@ func RegisterGatewayRoutes(
 		gateway.POST("/images/batches/:id/cancel", h.BatchImage.Cancel)
 		gateway.DELETE("/images/batches/:id", h.BatchImage.DeleteRecord)
 		gateway.DELETE("/images/batches/:id/outputs", h.BatchImage.DeleteOutputs)
+		gateway.POST("/videos", h.OpenAIGateway.AgnesVideoCreate)
+		gateway.GET("/agnesapi", h.OpenAIGateway.AgnesVideoStatus)
 		gateway.POST("/videos/generations", videoGenerationHandler)
 		gateway.POST("/videos/edits", videoEditHandler)
 		gateway.POST("/videos/extensions", videoExtensionHandler)
@@ -294,11 +300,13 @@ func RegisterGatewayRoutes(
 	r.GET("/images/task-assets/*filepath", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.GetAsset)
 	r.GET("/images/results/:result_id/:index", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.GetResult)
 	r.GET("/images/tasks/:task_id", openAIImagesErrorProtocol, bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.AsyncImage.Get)
+	r.POST("/videos", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.OpenAIGateway.AgnesVideoCreate)
 	r.POST("/videos/generations", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoGenerationHandler)
 	r.POST("/videos/edits", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoEditHandler)
 	r.POST("/videos/extensions", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoExtensionHandler)
 	r.GET("/videos/:request_id", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoStatusHandler)
 	r.GET("/videos/:request_id/content", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, videoContentHandler)
+	r.GET("/agnesapi", bodyLimit, clientRequestID, opsErrorLogger, endpointNorm, gin.HandlerFunc(apiKeyAuth), requireGroupOpenAI, h.OpenAIGateway.AgnesVideoStatus)
 
 	// Antigravity 模型列表
 	r.GET("/antigravity/models", gin.HandlerFunc(apiKeyAuth), requireGroupAnthropic, h.Gateway.AntigravityModels)
