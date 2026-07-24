@@ -1,5 +1,5 @@
 <template>
-  <BaseDialog :show="show" :title="t('admin.users.balanceHistoryTitle')" width="wide" :close-on-click-outside="true" :z-index="40" @close="$emit('close')">
+  <BaseDialog :show="show" :title="t('admin.users.balanceHistoryTitle')" width="extra-wide" :close-on-click-outside="true" :z-index="40" @close="$emit('close')">
     <div v-if="user" class="space-y-4">
       <div class="rounded-xl bg-gray-50 p-4 dark:bg-dark-700">
         <div class="flex items-center gap-3">
@@ -210,12 +210,12 @@
           </div>
         </template>
 
-        <div v-else class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-600">
-          <table class="min-w-full table-fixed divide-y divide-gray-200 text-sm dark:divide-dark-600">
+        <div v-else class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-600">
+          <table class="min-w-[76rem] table-fixed divide-y divide-gray-200 text-sm dark:divide-dark-600">
             <thead class="bg-gray-50 text-xs uppercase tracking-normal text-gray-500 dark:bg-dark-700 dark:text-dark-400">
               <tr>
                 <th class="w-36 px-4 py-3 text-left font-medium">{{ t('admin.users.flowColumnTime') }}</th>
-                <th class="w-44 px-4 py-3 text-left font-medium">{{ t('admin.users.flowColumnType') }}</th>
+                <th class="w-56 px-4 py-3 text-left font-medium">{{ t('admin.users.flowColumnType') }}</th>
                 <th class="w-32 px-4 py-3 text-right font-medium">{{ t('admin.users.flowColumnAmount') }}</th>
                 <th class="w-44 px-4 py-3 text-left font-medium">{{ t('admin.users.flowColumnBalance') }}</th>
                 <th class="w-44 px-4 py-3 text-left font-medium">{{ t('admin.users.flowColumnSource') }}</th>
@@ -231,12 +231,28 @@
                   </td>
                   <td class="px-4 py-3">
                     <div class="flex min-w-0 items-start gap-2">
+                      <button
+                        v-if="hasDetails(item)"
+                        class="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800 dark:border-dark-600 dark:text-dark-300 dark:hover:bg-dark-700 dark:hover:text-white"
+                        :title="t('admin.users.flowDetails')"
+                        data-test="flow-details-toggle"
+                        @click="toggleDetails(item.id)"
+                      >
+                        <Icon :name="expandedItemID === item.id ? 'chevronUp' : 'chevronDown'" size="xs" />
+                      </button>
                       <span :class="['mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg', iconBgClass(item)]">
                         <Icon :name="iconName(item)" size="xs" :class="iconTextClass(item)" />
                       </span>
                       <div class="min-w-0">
                         <p data-test="flow-title" class="truncate font-medium text-gray-900 dark:text-white">{{ flowTitle(item) }}</p>
                         <p data-test="flow-description" class="mt-0.5 truncate text-xs text-gray-500 dark:text-dark-400">{{ flowDescription(item) }}</p>
+                        <p
+                          v-if="hasBillingSurcharge(item)"
+                          class="mt-1 inline-flex items-center rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-medium text-amber-700 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300"
+                          data-test="billing-surcharge-badge"
+                        >
+                          {{ t('admin.users.billingSurchargeBadge') }} {{ formatPreciseMoney(metadataNumber(item, 'billing_surcharge_cost')) }}
+                        </p>
                       </div>
                     </div>
                   </td>
@@ -264,23 +280,41 @@
                     {{ actorLabel(item) }}
                   </td>
                   <td class="px-4 py-3">
-                    <div class="flex items-start justify-between gap-2">
-                      <p data-test="flow-notes" class="min-w-0 flex-1 truncate text-xs text-gray-500 dark:text-dark-400" :title="flowNotes(item) || item.confidence">
+                    <div>
+                      <p data-test="flow-notes" class="min-w-0 truncate text-xs text-gray-500 dark:text-dark-400" :title="flowNotes(item) || item.confidence">
                         {{ flowNotes(item) || confidenceLabel(item.confidence) }}
                       </p>
-                      <button
-                        v-if="hasDetails(item)"
-                        class="flex-shrink-0 rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:hover:bg-dark-700 dark:hover:text-gray-200"
-                        :title="t('admin.users.flowDetails')"
-                        @click="toggleDetails(item.id)"
-                      >
-                        <Icon :name="expandedItemID === item.id ? 'chevronUp' : 'chevronDown'" size="xs" />
-                      </button>
                     </div>
                   </td>
                 </tr>
                 <tr v-if="expandedItemID === item.id">
                   <td colspan="7" class="bg-gray-50 px-4 py-3 dark:bg-dark-700/60">
+                    <div
+                      v-if="hasBillingSurcharge(item)"
+                      class="mb-3 grid gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100 sm:grid-cols-2 lg:grid-cols-5"
+                      data-test="billing-surcharge-details"
+                    >
+                      <div>
+                        <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeOriginalCost') }}</span>
+                        <span class="font-semibold tabular-nums">{{ formatPreciseMoney(metadataNumber(item, 'actual_cost')) }}</span>
+                      </div>
+                      <div>
+                        <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeCost') }}</span>
+                        <span class="font-semibold tabular-nums">{{ formatPreciseMoney(metadataNumber(item, 'billing_surcharge_cost')) }}</span>
+                      </div>
+                      <div>
+                        <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeBilledCost') }}</span>
+                        <span class="font-semibold tabular-nums">{{ formatPreciseMoney(metadataNumber(item, 'billed_cost')) }}</span>
+                      </div>
+                      <div>
+                        <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeMode') }}</span>
+                        <span class="font-semibold">{{ String(item.metadata?.billing_surcharge_mode || '-') }}</span>
+                      </div>
+                      <div>
+                        <span class="block text-amber-600 dark:text-amber-300">{{ t('admin.users.billingSurchargeValue') }}</span>
+                        <span class="font-semibold tabular-nums">{{ String(item.metadata?.billing_surcharge_value ?? '-') }}</span>
+                      </div>
+                    </div>
                     <div class="grid gap-2 text-xs text-gray-600 dark:text-dark-300 sm:grid-cols-2 lg:grid-cols-3">
                       <div v-if="item.related_object_type || item.related_object_id" class="min-w-0">
                         <span class="text-gray-400 dark:text-dark-500">{{ t('admin.users.flowRelatedObject') }}:</span>
@@ -605,9 +639,32 @@ const flowNotes = (item: BalanceHistoryItem) => {
   return String(item.notes || '').trim() || metadataText(item, ['reason', 'note', 'admin_note'])
 }
 
+const billingSurchargeDetailKeys = new Set([
+  'actual_cost',
+  'billing_surcharge_cost',
+  'billed_cost',
+  'billing_surcharge_mode',
+  'billing_surcharge_value',
+])
+
+const metadataNumber = (item: BalanceHistoryItem, key: string) => {
+  const value = item.metadata?.[key]
+  const numberValue = typeof value === 'number' ? value : Number(value ?? 0)
+  return Number.isFinite(numberValue) ? numberValue : 0
+}
+
+const hasBillingSurcharge = (item: BalanceHistoryItem) => {
+  return metadataNumber(item, 'billing_surcharge_cost') > 0
+}
+
 const formatMoney = (value?: number | null) => {
   const n = Number(value || 0)
   return `$${n.toFixed(2)}`
+}
+
+const formatPreciseMoney = (value?: number | null) => {
+  const n = Number(value || 0)
+  return `$${n.toFixed(6)}`
 }
 
 const formatSignedMoney = (value?: number | null) => {
@@ -679,7 +736,10 @@ const hasDetails = (item: BalanceHistoryItem) => {
 }
 
 const detailEntries = (item: BalanceHistoryItem) => {
-  return Object.entries(item.metadata || {}).filter(([, value]) => value !== null && value !== undefined && value !== '')
+  return Object.entries(item.metadata || {}).filter(([key, value]) => {
+    if (hasBillingSurcharge(item) && billingSurchargeDetailKeys.has(key)) return false
+    return value !== null && value !== undefined && value !== ''
+  })
 }
 
 const formatDetailValue = (value: unknown) => {
