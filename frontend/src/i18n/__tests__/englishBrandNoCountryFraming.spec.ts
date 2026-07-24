@@ -20,6 +20,10 @@ describe('English brand copy', () => {
       flatten(PUBLIC_DOC_CONTENT_EN),
       flatten(resolvePublicRouteSeo('/en')),
       flatten(resolvePublicRouteSeo('/en/models')),
+      flatten(resolvePublicRouteSeo('/en/models/deepseek')),
+      flatten(resolvePublicRouteSeo('/en/models/qwen')),
+      flatten(resolvePublicRouteSeo('/en/models/kimi')),
+      flatten(resolvePublicRouteSeo('/en/models/glm')),
       flatten(resolvePublicRouteSeo('/en/docs')),
     ].join('\n')
 

@@ -208,6 +208,46 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		},
 	},
 	{
+		Path:       "/models/deepseek",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/models/deepseek"},
+			{Hreflang: "en", Path: "/en/models/deepseek"},
+			{Hreflang: "x-default", Path: "/en/models/deepseek"},
+		},
+	},
+	{
+		Path:       "/models/qwen",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/models/qwen"},
+			{Hreflang: "en", Path: "/en/models/qwen"},
+			{Hreflang: "x-default", Path: "/en/models/qwen"},
+		},
+	},
+	{
+		Path:       "/models/kimi",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/models/kimi"},
+			{Hreflang: "en", Path: "/en/models/kimi"},
+			{Hreflang: "x-default", Path: "/en/models/kimi"},
+		},
+	},
+	{
+		Path:       "/models/glm",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "zh-CN", Path: "/models/glm"},
+			{Hreflang: "en", Path: "/en/models/glm"},
+			{Hreflang: "x-default", Path: "/en/models/glm"},
+		},
+	},
+	{
 		Path:       "/docs",
 		ChangeFreq: "weekly",
 		Priority:   "0.90",
@@ -235,6 +275,46 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 			{Hreflang: "en", Path: "/en/models"},
 			{Hreflang: "zh-CN", Path: "/models"},
 			{Hreflang: "x-default", Path: "/en/models"},
+		},
+	},
+	{
+		Path:       "/en/models/deepseek",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/models/deepseek"},
+			{Hreflang: "zh-CN", Path: "/models/deepseek"},
+			{Hreflang: "x-default", Path: "/en/models/deepseek"},
+		},
+	},
+	{
+		Path:       "/en/models/qwen",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/models/qwen"},
+			{Hreflang: "zh-CN", Path: "/models/qwen"},
+			{Hreflang: "x-default", Path: "/en/models/qwen"},
+		},
+	},
+	{
+		Path:       "/en/models/kimi",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/models/kimi"},
+			{Hreflang: "zh-CN", Path: "/models/kimi"},
+			{Hreflang: "x-default", Path: "/en/models/kimi"},
+		},
+	},
+	{
+		Path:       "/en/models/glm",
+		ChangeFreq: "daily",
+		Priority:   "0.82",
+		Alternates: []promptSitemapAlternatePath{
+			{Hreflang: "en", Path: "/en/models/glm"},
+			{Hreflang: "zh-CN", Path: "/models/glm"},
+			{Hreflang: "x-default", Path: "/en/models/glm"},
 		},
 	},
 	{
@@ -414,6 +494,10 @@ Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps
 
 - English homepage: %s/en/
 - Model catalog and pricing: %s/en/models
+- DeepSeek pricing: %s/en/models/deepseek
+- Qwen pricing: %s/en/models/qwen
+- Kimi pricing: %s/en/models/kimi
+- GLM pricing: %s/en/models/glm
 - API docs: %s/en/docs
 - Chinese homepage: %s/
 - 中文模型目录与价格: %s/models
@@ -451,7 +535,7 @@ Chinese public routes are the default for '/', '/models', and '/docs'. English c
 ## 中文摘要
 
 极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成、API Key 管理和提示词库。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
-`, origin, origin, origin, origin, origin, origin, origin, origin)
+`, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
 }
 
 func promptRequestOrigin(request *http.Request) string {
