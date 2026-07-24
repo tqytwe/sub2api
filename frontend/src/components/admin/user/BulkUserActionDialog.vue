@@ -402,7 +402,9 @@ const execute = async () => {
       reason: reason.value.trim(),
       confirmation_token: preview.value!.confirmation_token,
     })
-    result.value = await props.stepUp.run(execution)
+    result.value = await props.stepUp.run(execution, {
+      promptBeforeAction: preview.value.requires_step_up,
+    })
     emit('completed', result.value)
   } catch (error) {
     if (isStepUpCancelled(error)) return

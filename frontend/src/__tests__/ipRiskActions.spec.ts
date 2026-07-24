@@ -253,6 +253,10 @@ describe('IP risk action flows', () => {
     await flushPromises()
 
     expect(stepUpRun).toHaveBeenCalledTimes(1)
+    expect(stepUpRun).toHaveBeenCalledWith(
+      expect.any(Function),
+      { promptBeforeAction: true },
+    )
     expect(executeAction).toHaveBeenCalledWith(7, expect.objectContaining({
       preview_token: 'preview-token',
     }))
@@ -342,6 +346,10 @@ describe('IP risk action flows', () => {
     await flushPromises()
 
     expect(stepUpRun).toHaveBeenCalledTimes(1)
+    expect(stepUpRun).toHaveBeenCalledWith(
+      expect.any(Function),
+      { promptBeforeAction: true },
+    )
     expect(rollbackAction).toHaveBeenCalledWith(90, 'restore only unchanged action state')
     expect(wrapper.text()).toContain('admin.ipRisk.actionsView.rollbackResult')
   })
@@ -364,13 +372,19 @@ describe('IP risk action flows', () => {
     await wrapper.setProps({ show: true })
     await flushPromises()
 
+    await wrapper.get('input[type="checkbox"]').setValue(true)
     await buttonByText(wrapper, 'admin.ipRisk.policyDialog.saveConfig').trigger('click')
     await flushPromises()
 
     expect(stepUpRun).toHaveBeenCalledTimes(1)
+    expect(stepUpRun).toHaveBeenCalledWith(
+      expect.any(Function),
+      { promptBeforeAction: true },
+    )
     expect(updateConfig).toHaveBeenCalledWith(expect.objectContaining({
       auto_block_score: 90,
       auto_block_duration_minutes: 30,
+      auto_block_enabled: true,
     }))
   })
 })
