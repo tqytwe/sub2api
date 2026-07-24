@@ -94,6 +94,10 @@ func (s *APIKeyRepoSuite) TestGetByKeyForAuth_PreservesMessagesDispatchModelConf
 		SetStatus(service.StatusActive).
 		SetSubscriptionType(service.SubscriptionTypeStandard).
 		SetRateMultiplier(1).
+		SetBillingSurchargeOverrideEnabled(true).
+		SetBillingSurchargeEnabled(true).
+		SetBillingSurchargeMode(service.BillingSurchargeModePercentOnChargedCost).
+		SetBillingSurchargeValue(0.003).
 		SetAllowMessagesDispatch(true).
 		SetDefaultMappedModel("gpt-5.4").
 		SetMessagesDispatchModelConfig(service.OpenAIMessagesDispatchModelConfig{
@@ -123,6 +127,10 @@ func (s *APIKeyRepoSuite) TestGetByKeyForAuth_PreservesMessagesDispatchModelConf
 	s.Require().Equal("gpt-5.4", got.Group.DefaultMappedModel)
 	s.Require().Equal("gpt-5.4-nano", got.Group.MessagesDispatchModelConfig.OpusMappedModel)
 	s.Require().Equal("gpt-5.4-nano", got.Group.MessagesDispatchModelConfig.ExactModelMappings["claude-sonnet-4.5"])
+	s.Require().True(got.Group.BillingSurchargeOverrideEnabled)
+	s.Require().True(got.Group.BillingSurchargeEnabled)
+	s.Require().Equal(service.BillingSurchargeModePercentOnChargedCost, got.Group.BillingSurchargeMode)
+	s.Require().Equal(0.003, got.Group.BillingSurchargeValue)
 }
 
 // --- Update ---
