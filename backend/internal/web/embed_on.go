@@ -434,6 +434,40 @@ var publicRouteSEO = map[string]routeSEO{
 			{Hreflang: "x-default", Path: "/download/android"},
 		},
 	},
+	"/about": {
+		Title:              "关于极速蹬 - OpenAI兼容 API 网关、模型目录与提示词库",
+		Description:        "了解极速蹬如何为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成、API Key 管理和提示词库，统一接入 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型，帮助快速评估能力、成本和上线路径。",
+		TwitterTitle:       "关于极速蹬 - OpenAI兼容 API 网关、模型价格、图像生成、API 文档与提示词库服务入口指南",
+		TwitterDescription: "了解极速蹬如何统一 DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型入口，提供 OpenAI 兼容 API、公开价格、API Key 管理、接入文档、图像生成和提示词库，帮助开发者、团队和 AI 工具用户更快完成模型选择、成本评估、测试接入、生产迁移与日常调用。",
+		Keywords:           "关于极速蹬, AI API 网关, OpenAI 兼容 API, 多模型服务, 模型价格, API 文档, 图像生成, 提示词库, DeepSeek API, Qwen API, Kimi API, GLM API",
+		CanonicalPath:      "/about",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "website",
+		SiteName:           "极速蹬",
+		StructuredType:     "AboutPage",
+		Alternates: []routeSEOAlternate{
+			{Hreflang: "zh-CN", Path: "/about"},
+			{Hreflang: "x-default", Path: "/about"},
+		},
+	},
+	"/contact": {
+		Title:              "联系极速蹬客服 - API、模型调用、充值、账号与接入支持入口",
+		Description:        "联系极速蹬客服获取登录注册、API Key、模型调用、充值支付、余额、分组权限、文档接入、图像生成、账号安全和故障排查支持。我们会帮助开发者和团队确认 OpenAI 兼容 API 接入路径、模型可用性、价格说明、调用示例、SDK 配置和上线问题。",
+		TwitterTitle:       "联系极速蹬客服 - API Key、模型调用、充值、账号、图像生成、API 文档与开发者接入支持入口",
+		TwitterDescription: "通过极速蹬客服入口获取登录注册、API Key、模型调用、充值支付、余额、分组权限、文档接入、图像生成、账号安全和故障排查支持。我们会围绕 OpenAI 兼容 API、DeepSeek、Qwen、Kimi、GLM、GPT、Claude、Gemini 等模型的可用性、价格说明、接入配置和上线问题提供帮助。",
+		Keywords:           "联系极速蹬, 极速蹬客服, API Key 支持, 模型调用支持, 充值支付支持, OpenAI 兼容 API 接入, 图像生成支持, 开发者支持",
+		CanonicalPath:      "/contact",
+		Lang:               "zh-CN",
+		OGLocale:           "zh_CN",
+		OGType:             "website",
+		SiteName:           "极速蹬",
+		StructuredType:     "ContactPage",
+		Alternates: []routeSEOAlternate{
+			{Hreflang: "zh-CN", Path: "/contact"},
+			{Hreflang: "x-default", Path: "/contact"},
+		},
+	},
 	"/en": {
 		Title:              "Jisudeng: One OpenAI-Compatible API for Frontier AI Models",
 		Description:        "Access DeepSeek, Qwen, Kimi, GLM, GPT, Claude, Gemini and more through one OpenAI-compatible API with unified keys, public pricing, image APIs, billing, docs.",
@@ -938,6 +972,7 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/health" ||
 		trimmed == "/robots.txt" ||
 		trimmed == "/sitemap.xml" ||
+		trimmed == "/llms.txt" ||
 		trimmed == "/models" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||
