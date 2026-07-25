@@ -1,19 +1,22 @@
 {
   "platform": "android",
-  "version": "2.0.18-predeploy-fixes",
-  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.18-predeploy-fixes-218",
+  "version": "2.0.20",
+  "versionCode": 220,
+  "packageName": "com.jisudeng.chat",
+  "signingCertificateSha256": "cd7abbd79daf6648a429ff34d7450b18cfb6b416e660b2f5169178e0a488627e",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.20-220",
   "size": "6.4 MB",
-  "sha256": "2d6f169140efc1f37fd0dfd2230b77dab8ec5ace80baab62b50700a27455d626",
+  "bytes": 6656383,
+  "sha256": "41afb819bc0a2a0256fe02b7d895c7f2ed2483c21f47ef4dcdb1223805b1425e",
   "minAndroidVersion": "8.0",
-  "releaseDate": "2026-07-24",
+  "releaseDate": "2026-07-25",
   "notes": [
-    "修复 APP 内购买套餐时支付返回地址校验失败的问题",
-    "图库分栏支持全部、收藏、产品、海报真实切换，并新增收藏和本机标签操作",
-    "保存图片到系统相册时新增 APP 内成功提示，查看原图也可直接保存或分享",
-    "订单状态、支付方式和余额明细原因改为用户可读中文展示",
-    "聊天生成时不再强制滚到底，支持双击消息查看全文并复制、引用、删除",
-    "优化聊天表格、代码块和普通文本展示，减少默认回复里的多余排版符号"
-  ],
-  "versionCode": 218,
-  "bytes": 6644212
+    "新增提示词广场，支持在 APP 内发现和复用优质提示词",
+    "新增聊天智能体专家库，便于按场景选择助手能力",
+    "生图支持单张详情与重试，并记住模型、分组、尺寸、清晰度、风格和数量",
+    "账户明细新增详情页，账户中心刷新失败时保留上次数据并提示部分同步失败",
+    "支付工具支持跳转，下载完成后可直接拉起安装",
+    "修复华为/HarmonyOS 语音输入，支持按住说话、松开发送、上滑取消",
+    "反馈截图自动压缩，生图任务显示完成数量，部分成功状态更清楚"
+  ]
 }

@@ -115,8 +115,11 @@ check_file "FORK-UI-012" "visual review instructions" "docs/visual-reviews/READM
 check_file "FORK-UI-012" "visual review template" "docs/visual-reviews/TEMPLATE.md"
 check_file "FORK-UI-012" "design governance script" "scripts/check-frontend-design-governance.mjs"
 check_file "FORK-UI-012" "design governance tests" "scripts/check-frontend-design-governance.test.mjs"
+check_file "FORK-DEPLOY-006" "Android release integrity script" "scripts/check-android-release-integrity.mjs"
+check_file "FORK-DEPLOY-006" "Android release integrity tests" "scripts/check-android-release-integrity.test.mjs"
 check_contains "FORK-UI-012" "root agent rules require rendered UI review" "AGENTS.md" "任何可见界面改动必须新增一份"
 check_contains "FORK-UI-012" "verified frontend build runs design governance" "frontend/package.json" '"build:verified": "pnpm design:verify'
+check_contains "FORK-DEPLOY-006" "verified frontend build checks Android release identity" "frontend/package.json" "pnpm android:release:check"
 check_contains "FORK-UI-012" "frontend lint runs design governance" "frontend/package.json" '"lint:check": "pnpm design:check'
 check_contains "FORK-UI-012" "frontend tests run design governance" "frontend/package.json" '"test:run": "pnpm design:check'
 check_contains "FORK-UI-012" "frontend visual changes require prototype images" "docs/FRONTEND_DESIGN_SYSTEM.md" "prototype_artifacts"
@@ -127,6 +130,10 @@ run_check "FORK-UI-012" "design governance self-tests" \
   node --test "$ROOT/scripts/check-frontend-design-governance.test.mjs"
 run_check "FORK-UI-012" "design governance command" \
   node "$ROOT/scripts/check-frontend-design-governance.mjs"
+run_check "FORK-DEPLOY-006" "Android release integrity self-tests" \
+  node --test "$ROOT/scripts/check-android-release-integrity.test.mjs"
+run_check "FORK-DEPLOY-006" "Android release package identity" \
+  node "$ROOT/scripts/check-android-release-integrity.mjs"
 
 check_contains "FORK-NAV-002" "Growth navigation group" "frontend/src/components/layout/AppSidebar.vue" "path: '/growth-group'"
 check_contains "FORK-NAV-002" "models navigation entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/models'"

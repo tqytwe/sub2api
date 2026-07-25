@@ -377,8 +377,7 @@ func newNextChatRouteTestRouterWithPromptProvider(
 	v1 := router.Group("/api/v1")
 	auth := middleware.JWTAuthMiddleware(func(c *gin.Context) {
 		if c.GetHeader("Authorization") != "Bearer valid-user" {
-			response.Unauthorized(c, "User not authenticated")
-			c.Abort()
+			middleware.AbortWithError(c, http.StatusUnauthorized, "UNAUTHORIZED", "User not authenticated")
 			return
 		}
 		c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 42, Concurrency: 1})
@@ -530,6 +529,21 @@ func TestNextChatMobileBootstrapRequiresJWT(t *testing.T) {
 	recorder := getNextChatMobileBootstrap(router, "")
 
 	require.Equal(t, http.StatusUnauthorized, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "登录已过期，请重新登录")
+	require.Contains(t, recorder.Body.String(), "UNAUTHORIZED")
+	require.NotContains(t, recorder.Body.String(), "User not authenticated")
+}
+
+func TestNextChatMobileBootstrapDisabledReturnsChineseMessage(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: false}, &nextChatRouteIssuerStub{}, &config.Config{}, rdb)
+
+	recorder := getNextChatMobileBootstrap(router, "Bearer valid-user")
+
+	require.Equal(t, http.StatusNotFound, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "服务暂时不可用，请稍后再试")
+	require.Contains(t, recorder.Body.String(), "NEXTCHAT_DISABLED")
+	require.NotContains(t, recorder.Body.String(), "NextChat is disabled")
 }
 
 func TestNextChatMobileBootstrapIssuesManagedSessionWithoutExchangeSecret(t *testing.T) {
@@ -582,6 +596,19 @@ func TestNextChatMobileGroupSwitchUsesAuthenticatedManagedKey(t *testing.T) {
 	require.Equal(t, []int64{8}, issuer.switchRequests)
 	require.Equal(t, int64(8), *got.ManagedAPIKey.GroupID)
 	require.Equal(t, "sk-managed-nextchat", got.Session.APIKey)
+}
+
+func TestNextChatMobileGroupSwitchInvalidInputReturnsChineseMessage(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{}, rdb)
+
+	recorder := postNextChatMobileGroup(router, "Bearer valid-user", 0)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "请求参数无效，请更新 APP 后重试")
+	require.Contains(t, recorder.Body.String(), "NEXTCHAT_GROUP_REQUIRED")
+	require.NotContains(t, recorder.Body.String(), "group_id is required")
 }
 
 func TestNextChatSessionRequiresExchangeSecret(t *testing.T) {

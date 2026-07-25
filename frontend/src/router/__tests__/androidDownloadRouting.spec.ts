@@ -9,6 +9,9 @@ describe('Android download route integration', () => {
     const navigationSource = readFileSync(resolve(process.cwd(), 'src/router/publicNavigation.ts'), 'utf8')
     const homeSource = readFileSync(resolve(process.cwd(), 'src/views/HomeView.vue'), 'utf8')
     const downloadSource = readFileSync(resolve(process.cwd(), 'src/views/public/AndroidDownloadView.vue'), 'utf8')
+    const manifest = JSON.parse(
+      readFileSync(resolve(process.cwd(), 'public/downloads/android-version.json'), 'utf8'),
+    ) as { apkUrl: string }
 
     expect(routerSource).toContain("path: '/download/android'")
     expect(routerSource).toContain("requiresAuth: false")
@@ -18,7 +21,7 @@ describe('Android download route integration', () => {
     expect(navigationSource).not.toContain("key: 'androidApp'")
     expect(navigationSource).not.toContain("labelKey: 'home.jisudeng.nav.androidApp'")
     expect(homeSource).toContain('class="nav-download"')
-    expect(downloadSource).toContain("const APK_PATH = '/downloads/jisudengchat-android.apk?v=2.0.18-predeploy-fixes-218'")
+    expect(downloadSource).toContain(`const APK_PATH = '${manifest.apkUrl}'`)
     expect(downloadSource).toContain("const MANIFEST_PATH = '/downloads/android-version.json'")
   })
 })

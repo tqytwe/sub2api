@@ -159,13 +159,70 @@ func registerNextChatRoutes(
 		authenticated.POST("/launch", func(c *gin.Context) {
 			handleNextChatLaunch(c, gate, cfg, redisClient)
 		})
-		authenticated.GET("/mobile/bootstrap", func(c *gin.Context) {
+	}
+
+	mobile := nextchat.Group("/mobile")
+	mobile.Use(middleware.GatewayErrorProtocol(nextChatMobileAuthErrorWriter), gin.HandlerFunc(jwtAuth))
+	{
+		mobile.GET("/bootstrap", func(c *gin.Context) {
 			handleNextChatMobileBootstrap(c, issuer, modelProvider, gate, cfg)
 		})
-		authenticated.POST("/mobile/group", func(c *gin.Context) {
+		mobile.POST("/group", func(c *gin.Context) {
 			handleNextChatMobileGroupSwitch(c, issuer, modelProvider, gate, cfg)
 		})
 	}
+}
+
+func nextChatMobileAuthErrorWriter(c *gin.Context, status int, code, message string) {
+	reason := strings.ToUpper(strings.TrimSpace(code))
+	mobileMessage := nextChatMobileErrorMessage(status, reason, message)
+	nextChatMobileError(c, status, reason, mobileMessage)
+}
+
+func nextChatMobileErrorFrom(c *gin.Context, err error) bool {
+	if err == nil {
+		return false
+	}
+	statusCode, status := infraerrors.ToHTTP(err)
+	nextChatMobileError(c, statusCode, status.Reason, nextChatMobileErrorMessage(statusCode, status.Reason, status.Message))
+	return true
+}
+
+func nextChatMobileError(c *gin.Context, status int, reason, message string) {
+	metadata := map[string]string{}
+	if requestID := strings.TrimSpace(c.Writer.Header().Get("X-Request-ID")); requestID != "" {
+		metadata["request_id"] = requestID
+	}
+	if len(metadata) == 0 {
+		metadata = nil
+	}
+	response.ErrorWithDetails(c, status, message, strings.ToUpper(strings.TrimSpace(reason)), metadata)
+}
+
+func nextChatMobileErrorMessage(status int, reason, _ string) string {
+	switch strings.ToUpper(strings.TrimSpace(reason)) {
+	case "UNAUTHORIZED", "INVALID_AUTH_HEADER", "EMPTY_TOKEN", "TOKEN_EXPIRED", "INVALID_TOKEN", "USER_NOT_FOUND", "TOKEN_REVOKED":
+		return "登录已过期，请重新登录"
+	case "USER_INACTIVE":
+		return "账号已被禁用，请联系客服"
+	case "NEXTCHAT_GROUP_REQUIRED":
+		return "请求参数无效，请更新 APP 后重试"
+	}
+	switch {
+	case status == http.StatusBadRequest:
+		return "请求参数无效，请更新 APP 后重试"
+	case status == http.StatusUnauthorized:
+		return "登录已过期，请重新登录"
+	case status == http.StatusForbidden:
+		return "当前账号无权限执行此操作"
+	case status == http.StatusNotFound:
+		return "服务暂时不可用，请稍后再试"
+	case status == http.StatusTooManyRequests:
+		return "请求过于频繁，请稍后再试"
+	case status >= http.StatusInternalServerError:
+		return "服务暂时不可用，请稍后再试"
+	}
+	return "同步失败，请稍后重试"
 }
 
 func registerNextChatImageStudioRoutes(
@@ -450,26 +507,26 @@ func handleNextChatMobileBootstrap(
 	cfg *config.Config,
 ) {
 	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
-		response.NotFound(c, "NextChat is disabled")
+		nextChatMobileError(c, http.StatusNotFound, "NEXTCHAT_DISABLED", "服务暂时不可用，请稍后再试")
 		return
 	}
 	if issuer == nil {
-		response.Error(c, http.StatusServiceUnavailable, "NextChat session issuer is unavailable")
+		nextChatMobileError(c, http.StatusServiceUnavailable, "NEXTCHAT_SESSION_UNAVAILABLE", "服务暂时不可用，请稍后再试")
 		return
 	}
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok || subject.UserID <= 0 {
-		response.Unauthorized(c, "User not authenticated")
+		nextChatMobileError(c, http.StatusUnauthorized, "UNAUTHORIZED", "登录已过期，请重新登录")
 		return
 	}
 	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		nextChatMobileErrorFrom(c, err)
 		return
 	}
 	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, session.UserID, session.KeyID)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		nextChatMobileErrorFrom(c, err)
 		return
 	}
 	payload["session"] = gin.H{
@@ -490,40 +547,40 @@ func handleNextChatMobileGroupSwitch(
 	cfg *config.Config,
 ) {
 	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
-		response.NotFound(c, "NextChat is disabled")
+		nextChatMobileError(c, http.StatusNotFound, "NEXTCHAT_DISABLED", "服务暂时不可用，请稍后再试")
 		return
 	}
 	if issuer == nil {
-		response.Error(c, http.StatusServiceUnavailable, "NextChat session issuer is unavailable")
+		nextChatMobileError(c, http.StatusServiceUnavailable, "NEXTCHAT_SESSION_UNAVAILABLE", "服务暂时不可用，请稍后再试")
 		return
 	}
 	identityProvider, ok := issuer.(nextChatWorkspaceIdentityProvider)
 	if !ok || identityProvider == nil {
-		response.Error(c, http.StatusServiceUnavailable, "NextChat group switch service is unavailable")
+		nextChatMobileError(c, http.StatusServiceUnavailable, "NEXTCHAT_GROUP_SWITCH_UNAVAILABLE", "服务暂时不可用，请稍后再试")
 		return
 	}
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok || subject.UserID <= 0 {
-		response.Unauthorized(c, "User not authenticated")
+		nextChatMobileError(c, http.StatusUnauthorized, "UNAUTHORIZED", "登录已过期，请重新登录")
 		return
 	}
 	var req nextChatGroupSwitchRequest
 	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID <= 0 {
-		response.BadRequest(c, "group_id is required")
+		nextChatMobileError(c, http.StatusBadRequest, "NEXTCHAT_GROUP_REQUIRED", "请求参数无效，请更新 APP 后重试")
 		return
 	}
 	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		nextChatMobileErrorFrom(c, err)
 		return
 	}
 	if _, err := identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), subject.UserID, session.KeyID, req.GroupID); err != nil {
-		response.ErrorFrom(c, err)
+		nextChatMobileErrorFrom(c, err)
 		return
 	}
 	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, session.UserID, session.KeyID)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		nextChatMobileErrorFrom(c, err)
 		return
 	}
 	payload["session"] = gin.H{
