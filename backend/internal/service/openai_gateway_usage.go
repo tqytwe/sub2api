@@ -379,6 +379,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		globalSurcharge = s.settingService.GetBillingSurchargeConfig(ctx)
 	}
 	surcharge := ApplyBillingSurcharge(cost, ResolveGroupBillingSurcharge(apiKey.Group, globalSurcharge))
+	applyUsageLogBillingSurchargeSnapshot(usageLog, surcharge)
 
 	billingErr := func() error {
 		_, err := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
