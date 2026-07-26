@@ -98,6 +98,10 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			sqlmock.AnyArg(), // account_stats_cost
 			sqlmock.AnyArg(), // session_id
 			createdAt,
+			log.BillingSurchargeCost,
+			log.BilledCost,
+			service.BillingSurchargeModeNone,
+			log.BillingSurchargeValue,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
 
@@ -188,6 +192,10 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			sqlmock.AnyArg(), // account_stats_cost
 			sqlmock.AnyArg(), // session_id
 			createdAt,
+			log.BillingSurchargeCost,
+			log.BilledCost,
+			service.BillingSurchargeModeNone,
+			log.BillingSurchargeValue,
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
 
@@ -250,6 +258,28 @@ func TestPrepareUsageLogInsert_ArgCountMatchesTypes(t *testing.T) {
 	})
 
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
+}
+
+func TestPrepareUsageLogInsert_PersistsBillingSurchargeSnapshot(t *testing.T) {
+	prepared := prepareUsageLogInsert(&service.UsageLog{
+		UserID:                1,
+		APIKeyID:              2,
+		AccountID:             3,
+		RequestID:             "req-surcharge-snapshot",
+		Model:                 "gpt-5",
+		RequestedModel:        "gpt-5",
+		ActualCost:            0.25,
+		BillingSurchargeCost:  0.05,
+		BilledCost:            0.30,
+		BillingSurchargeMode:  service.BillingSurchargeModeAdditiveMultiplier,
+		BillingSurchargeValue: 0.2,
+		CreatedAt:             time.Date(2025, 1, 5, 12, 0, 0, 0, time.UTC),
+	})
+
+	require.Equal(t, 0.05, prepared.args[len(prepared.args)-4])
+	require.Equal(t, 0.30, prepared.args[len(prepared.args)-3])
+	require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, prepared.args[len(prepared.args)-2])
+	require.Equal(t, 0.2, prepared.args[len(prepared.args)-1])
 }
 
 func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
@@ -830,6 +860,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{},
 			sql.NullString{},
 			now,
+			0.0,
+			0.0,
+			"none",
+			0.0,
 		}})
 		require.NoError(t, err)
 		require.Equal(t, 2, log.ImageCount)
@@ -905,6 +939,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_stats_cost
 			sql.NullString{},  // session_id
 			now,
+			0.0,
+			0.0,
+			"none",
+			0.0,
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
@@ -963,6 +1001,10 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_stats_cost
 			sql.NullString{},  // session_id
 			now,
+			0.0,
+			0.0,
+			"none",
+			0.0,
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
@@ -1021,10 +1063,18 @@ func TestScanUsageLogRequestTypeAndLegacyFallback(t *testing.T) {
 			sql.NullFloat64{}, // account_stats_cost
 			sql.NullString{},  // session_id
 			now,
+			0.05,
+			0.95,
+			service.BillingSurchargeModeAdditiveMultiplier,
+			0.1,
 		}})
 		require.NoError(t, err)
 		require.NotNil(t, log.ServiceTier)
 		require.Equal(t, "priority", *log.ServiceTier)
+		require.Equal(t, 0.05, log.BillingSurchargeCost)
+		require.Equal(t, 0.95, log.BilledCost)
+		require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, log.BillingSurchargeMode)
+		require.Equal(t, 0.1, log.BillingSurchargeValue)
 	})
 
 }
