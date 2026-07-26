@@ -1079,6 +1079,345 @@ var (
 			},
 		},
 	}
+	// MobileAssetsColumns holds the columns for the "mobile_assets" table.
+	MobileAssetsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeString, Size: 32},
+		{Name: "source", Type: field.TypeString, Size: 32},
+		{Name: "storage_key", Type: field.TypeString, Size: 1024},
+		{Name: "original_name", Type: field.TypeString, Size: 255},
+		{Name: "content_type", Type: field.TypeString, Size: 255},
+		{Name: "byte_size", Type: field.TypeInt64},
+		{Name: "sha256", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "status", Type: field.TypeString, Size: 32, Default: "uploading"},
+		{Name: "source_type", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "source_id", Type: field.TypeString, Nullable: true, Size: 128},
+		{Name: "metadata", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+	}
+	// MobileAssetsTable holds the schema information for the "mobile_assets" table.
+	MobileAssetsTable = &schema.Table{
+		Name:       "mobile_assets",
+		Columns:    MobileAssetsColumns,
+		PrimaryKey: []*schema.Column{MobileAssetsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobileasset_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileAssetsColumns[4], MobileAssetsColumns[1]},
+			},
+			{
+				Name:    "mobileasset_user_id_kind_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileAssetsColumns[4], MobileAssetsColumns[5], MobileAssetsColumns[1]},
+			},
+			{
+				Name:    "mobileasset_user_id_sha256",
+				Unique:  false,
+				Columns: []*schema.Column{MobileAssetsColumns[4], MobileAssetsColumns[11]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "deleted_at IS NULL AND sha256 IS NOT NULL",
+				},
+			},
+			{
+				Name:    "mobileasset_source_type_source_id",
+				Unique:  false,
+				Columns: []*schema.Column{MobileAssetsColumns[13], MobileAssetsColumns[14]},
+				Annotation: &entsql.IndexAnnotation{
+					Where: "source_type IS NOT NULL AND source_id IS NOT NULL",
+				},
+			},
+			{
+				Name:    "mobileasset_user_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileAssetsColumns[4], MobileAssetsColumns[12], MobileAssetsColumns[1]},
+			},
+			{
+				Name:    "mobileasset_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileAssetsColumns[3]},
+			},
+		},
+	}
+	// MobileDevicesColumns holds the columns for the "mobile_devices" table.
+	MobileDevicesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "installation_id", Type: field.TypeUUID, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "platform", Type: field.TypeString, Size: 16},
+		{Name: "push_provider", Type: field.TypeString, Size: 16, Default: "fcm"},
+		{Name: "token_ciphertext", Type: field.TypeString, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "token_hash", Type: field.TypeString, Size: 64},
+		{Name: "app_version", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "locale", Type: field.TypeString, Size: 32, Default: "zh-CN"},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "last_seen_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// MobileDevicesTable holds the schema information for the "mobile_devices" table.
+	MobileDevicesTable = &schema.Table{
+		Name:       "mobile_devices",
+		Columns:    MobileDevicesColumns,
+		PrimaryKey: []*schema.Column{MobileDevicesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobiledevice_user_id_installation_id",
+				Unique:  true,
+				Columns: []*schema.Column{MobileDevicesColumns[3], MobileDevicesColumns[4]},
+			},
+			{
+				Name:    "mobiledevice_token_hash",
+				Unique:  false,
+				Columns: []*schema.Column{MobileDevicesColumns[8]},
+			},
+			{
+				Name:    "mobiledevice_user_id_enabled_last_seen_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileDevicesColumns[3], MobileDevicesColumns[11], MobileDevicesColumns[12]},
+			},
+			{
+				Name:    "mobiledevice_revoked_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileDevicesColumns[13]},
+			},
+		},
+	}
+	// MobilePushDeliveriesColumns holds the columns for the "mobile_push_deliveries" table.
+	MobilePushDeliveriesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "outbox_id", Type: field.TypeInt64},
+		{Name: "device_id", Type: field.TypeUUID, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "pending"},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "last_error_code", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "available_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sent_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// MobilePushDeliveriesTable holds the schema information for the "mobile_push_deliveries" table.
+	MobilePushDeliveriesTable = &schema.Table{
+		Name:       "mobile_push_deliveries",
+		Columns:    MobilePushDeliveriesColumns,
+		PrimaryKey: []*schema.Column{MobilePushDeliveriesColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobilepushdelivery_outbox_id_device_id",
+				Unique:  true,
+				Columns: []*schema.Column{MobilePushDeliveriesColumns[3], MobilePushDeliveriesColumns[4]},
+			},
+			{
+				Name:    "mobilepushdelivery_outbox_id_status_available_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobilePushDeliveriesColumns[3], MobilePushDeliveriesColumns[5], MobilePushDeliveriesColumns[8]},
+			},
+			{
+				Name:    "mobilepushdelivery_device_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobilePushDeliveriesColumns[4], MobilePushDeliveriesColumns[1]},
+			},
+		},
+	}
+	// MobilePushOutboxColumns holds the columns for the "mobile_push_outbox" table.
+	MobilePushOutboxColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "dedupe_key_hash", Type: field.TypeString, Size: 64},
+		{Name: "event_type", Type: field.TypeString, Size: 64},
+		{Name: "source_type", Type: field.TypeString, Size: 64, Default: ""},
+		{Name: "source_id", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "title_zh", Type: field.TypeString, Size: 120},
+		{Name: "body_zh", Type: field.TypeString, Size: 300},
+		{Name: "data", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "status", Type: field.TypeString, Size: 16, Default: "pending"},
+		{Name: "attempts", Type: field.TypeInt, Default: 0},
+		{Name: "last_error_code", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "available_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "sent_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "claim_token", Type: field.TypeUUID, Nullable: true, SchemaType: map[string]string{"postgres": "uuid"}},
+		{Name: "lease_expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// MobilePushOutboxTable holds the schema information for the "mobile_push_outbox" table.
+	MobilePushOutboxTable = &schema.Table{
+		Name:       "mobile_push_outbox",
+		Columns:    MobilePushOutboxColumns,
+		PrimaryKey: []*schema.Column{MobilePushOutboxColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobilepushoutbox_dedupe_key_hash",
+				Unique:  true,
+				Columns: []*schema.Column{MobilePushOutboxColumns[4]},
+			},
+			{
+				Name:    "mobilepushoutbox_status_available_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobilePushOutboxColumns[11], MobilePushOutboxColumns[14]},
+			},
+			{
+				Name:    "mobilepushoutbox_lease_expires_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobilePushOutboxColumns[17]},
+			},
+			{
+				Name:    "mobilepushoutbox_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobilePushOutboxColumns[3], MobilePushOutboxColumns[1]},
+			},
+			{
+				Name:    "mobilepushoutbox_source_type_source_id",
+				Unique:  false,
+				Columns: []*schema.Column{MobilePushOutboxColumns[6], MobilePushOutboxColumns[7]},
+			},
+		},
+	}
+	// MobileSkillsColumns holds the columns for the "mobile_skills" table.
+	MobileSkillsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "slug", Type: field.TypeString, Unique: true, Size: 100},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"draft", "published", "offline"}, Default: "draft"},
+		{Name: "name_zh", Type: field.TypeString, Size: 120},
+		{Name: "description_zh", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "category", Type: field.TypeString, Size: 80, Default: ""},
+		{Name: "icon_url", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "cover_url", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "current_version", Type: field.TypeInt, Default: 1},
+		{Name: "published_version", Type: field.TypeInt, Nullable: true},
+		{Name: "featured", Type: field.TypeBool, Default: false},
+		{Name: "sort_order", Type: field.TypeInt, Default: 0},
+	}
+	// MobileSkillsTable holds the schema information for the "mobile_skills" table.
+	MobileSkillsTable = &schema.Table{
+		Name:       "mobile_skills",
+		Columns:    MobileSkillsColumns,
+		PrimaryKey: []*schema.Column{MobileSkillsColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobileskill_status_sort_order",
+				Unique:  false,
+				Columns: []*schema.Column{MobileSkillsColumns[4], MobileSkillsColumns[13]},
+			},
+			{
+				Name:    "mobileskill_category_status",
+				Unique:  false,
+				Columns: []*schema.Column{MobileSkillsColumns[7], MobileSkillsColumns[4]},
+			},
+			{
+				Name:    "mobileskill_featured_status",
+				Unique:  false,
+				Columns: []*schema.Column{MobileSkillsColumns[12], MobileSkillsColumns[4]},
+			},
+		},
+	}
+	// MobileSkillVersionsColumns holds the columns for the "mobile_skill_versions" table.
+	MobileSkillVersionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "version", Type: field.TypeInt},
+		{Name: "prompt_id", Type: field.TypeInt64},
+		{Name: "prompt_version", Type: field.TypeInt},
+		{Name: "system_prompt_override", Type: field.TypeString, Nullable: true, Size: 2147483647},
+		{Name: "input_schema", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "examples", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "tool_config", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "model_policy", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "consumption_note_zh", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "changelog_zh", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "skill_id", Type: field.TypeInt64},
+	}
+	// MobileSkillVersionsTable holds the schema information for the "mobile_skill_versions" table.
+	MobileSkillVersionsTable = &schema.Table{
+		Name:       "mobile_skill_versions",
+		Columns:    MobileSkillVersionsColumns,
+		PrimaryKey: []*schema.Column{MobileSkillVersionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "mobile_skill_versions_mobile_skills_versions",
+				Columns:    []*schema.Column{MobileSkillVersionsColumns[13]},
+				RefColumns: []*schema.Column{MobileSkillsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobileskillversion_skill_id_version",
+				Unique:  true,
+				Columns: []*schema.Column{MobileSkillVersionsColumns[13], MobileSkillVersionsColumns[3]},
+			},
+			{
+				Name:    "mobileskillversion_prompt_id_prompt_version",
+				Unique:  false,
+				Columns: []*schema.Column{MobileSkillVersionsColumns[4], MobileSkillVersionsColumns[5]},
+			},
+		},
+	}
+	// MobileTasksColumns holds the columns for the "mobile_tasks" table.
+	MobileTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"chat", "image", "file"}},
+		{Name: "operation", Type: field.TypeString, Size: 100},
+		{Name: "status", Type: field.TypeEnum, Enums: []string{"queued", "running", "streaming", "completed", "partial", "failed", "cancelled"}, Default: "queued"},
+		{Name: "progress", Type: field.TypeInt, Default: 0},
+		{Name: "parent_task_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "retry_of", Type: field.TypeUUID, Nullable: true},
+		{Name: "client_request_id", Type: field.TypeString, Size: 128},
+		{Name: "resource", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "artifacts", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "error", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "protocol_version", Type: field.TypeInt, Default: 1},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// MobileTasksTable holds the schema information for the "mobile_tasks" table.
+	MobileTasksTable = &schema.Table{
+		Name:       "mobile_tasks",
+		Columns:    MobileTasksColumns,
+		PrimaryKey: []*schema.Column{MobileTasksColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "mobiletask_user_id_client_request_id",
+				Unique:  true,
+				Columns: []*schema.Column{MobileTasksColumns[1], MobileTasksColumns[8]},
+			},
+			{
+				Name:    "mobiletask_user_id_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileTasksColumns[1], MobileTasksColumns[13]},
+			},
+			{
+				Name:    "mobiletask_user_id_kind_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileTasksColumns[1], MobileTasksColumns[2], MobileTasksColumns[13]},
+			},
+			{
+				Name:    "mobiletask_user_id_status_created_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileTasksColumns[1], MobileTasksColumns[4], MobileTasksColumns[13]},
+			},
+			{
+				Name:    "mobiletask_retry_of",
+				Unique:  false,
+				Columns: []*schema.Column{MobileTasksColumns[7]},
+			},
+			{
+				Name:    "mobiletask_parent_task_id",
+				Unique:  false,
+				Columns: []*schema.Column{MobileTasksColumns[6]},
+			},
+		},
+	}
 	// PaymentAuditLogsColumns holds the columns for the "payment_audit_logs" table.
 	PaymentAuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1959,6 +2298,48 @@ var (
 			},
 		},
 	}
+	// UserMobileSkillsColumns holds the columns for the "user_mobile_skills" table.
+	UserMobileSkillsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "user_id", Type: field.TypeInt64},
+		{Name: "installed_version", Type: field.TypeInt},
+		{Name: "pinned", Type: field.TypeBool, Default: false},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "skill_id", Type: field.TypeInt64},
+	}
+	// UserMobileSkillsTable holds the schema information for the "user_mobile_skills" table.
+	UserMobileSkillsTable = &schema.Table{
+		Name:       "user_mobile_skills",
+		Columns:    UserMobileSkillsColumns,
+		PrimaryKey: []*schema.Column{UserMobileSkillsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "user_mobile_skills_mobile_skills_user_installs",
+				Columns:    []*schema.Column{UserMobileSkillsColumns[7]},
+				RefColumns: []*schema.Column{MobileSkillsColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "usermobileskill_user_id_skill_id",
+				Unique:  true,
+				Columns: []*schema.Column{UserMobileSkillsColumns[3], UserMobileSkillsColumns[7]},
+			},
+			{
+				Name:    "usermobileskill_user_id_pinned_last_used_at",
+				Unique:  false,
+				Columns: []*schema.Column{UserMobileSkillsColumns[3], UserMobileSkillsColumns[5], UserMobileSkillsColumns[6]},
+			},
+			{
+				Name:    "usermobileskill_skill_id",
+				Unique:  false,
+				Columns: []*schema.Column{UserMobileSkillsColumns[7]},
+			},
+		},
+	}
 	// UserPlatformQuotasColumns holds the columns for the "user_platform_quotas" table.
 	UserPlatformQuotasColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -2116,6 +2497,13 @@ var (
 		GroupsTable,
 		IdempotencyRecordsTable,
 		IdentityAdoptionDecisionsTable,
+		MobileAssetsTable,
+		MobileDevicesTable,
+		MobilePushDeliveriesTable,
+		MobilePushOutboxTable,
+		MobileSkillsTable,
+		MobileSkillVersionsTable,
+		MobileTasksTable,
 		PaymentAuditLogsTable,
 		PaymentOrdersTable,
 		PaymentProviderInstancesTable,
@@ -2134,6 +2522,7 @@ var (
 		UserAllowedGroupsTable,
 		UserAttributeDefinitionsTable,
 		UserAttributeValuesTable,
+		UserMobileSkillsTable,
 		UserPlatformQuotasTable,
 		UserSubscriptionsTable,
 	}
@@ -2213,6 +2602,28 @@ func init() {
 	IdentityAdoptionDecisionsTable.Annotation = &entsql.Annotation{
 		Table: "identity_adoption_decisions",
 	}
+	MobileAssetsTable.Annotation = &entsql.Annotation{
+		Table: "mobile_assets",
+	}
+	MobileDevicesTable.Annotation = &entsql.Annotation{
+		Table: "mobile_devices",
+	}
+	MobilePushDeliveriesTable.Annotation = &entsql.Annotation{
+		Table: "mobile_push_deliveries",
+	}
+	MobilePushOutboxTable.Annotation = &entsql.Annotation{
+		Table: "mobile_push_outbox",
+	}
+	MobileSkillsTable.Annotation = &entsql.Annotation{
+		Table: "mobile_skills",
+	}
+	MobileSkillVersionsTable.ForeignKeys[0].RefTable = MobileSkillsTable
+	MobileSkillVersionsTable.Annotation = &entsql.Annotation{
+		Table: "mobile_skill_versions",
+	}
+	MobileTasksTable.Annotation = &entsql.Annotation{
+		Table: "mobile_tasks",
+	}
 	PaymentAuditLogsTable.Annotation = &entsql.Annotation{
 		Table: "payment_audit_logs",
 	}
@@ -2282,6 +2693,10 @@ func init() {
 	UserAttributeValuesTable.ForeignKeys[1].RefTable = UserAttributeDefinitionsTable
 	UserAttributeValuesTable.Annotation = &entsql.Annotation{
 		Table: "user_attribute_values",
+	}
+	UserMobileSkillsTable.ForeignKeys[0].RefTable = MobileSkillsTable
+	UserMobileSkillsTable.Annotation = &entsql.Annotation{
+		Table: "user_mobile_skills",
 	}
 	UserPlatformQuotasTable.ForeignKeys[0].RefTable = UsersTable
 	UserPlatformQuotasTable.Annotation = &entsql.Annotation{

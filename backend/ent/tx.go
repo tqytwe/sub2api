@@ -52,6 +52,20 @@ type Tx struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// MobileAsset is the client for interacting with the MobileAsset builders.
+	MobileAsset *MobileAssetClient
+	// MobileDevice is the client for interacting with the MobileDevice builders.
+	MobileDevice *MobileDeviceClient
+	// MobilePushDelivery is the client for interacting with the MobilePushDelivery builders.
+	MobilePushDelivery *MobilePushDeliveryClient
+	// MobilePushOutbox is the client for interacting with the MobilePushOutbox builders.
+	MobilePushOutbox *MobilePushOutboxClient
+	// MobileSkill is the client for interacting with the MobileSkill builders.
+	MobileSkill *MobileSkillClient
+	// MobileSkillVersion is the client for interacting with the MobileSkillVersion builders.
+	MobileSkillVersion *MobileSkillVersionClient
+	// MobileTask is the client for interacting with the MobileTask builders.
+	MobileTask *MobileTaskClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -88,6 +102,8 @@ type Tx struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserMobileSkill is the client for interacting with the UserMobileSkill builders.
+	UserMobileSkill *UserMobileSkillClient
 	// UserPlatformQuota is the client for interacting with the UserPlatformQuota builders.
 	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
@@ -242,6 +258,13 @@ func (tx *Tx) init() {
 	tx.Group = NewGroupClient(tx.config)
 	tx.IdempotencyRecord = NewIdempotencyRecordClient(tx.config)
 	tx.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(tx.config)
+	tx.MobileAsset = NewMobileAssetClient(tx.config)
+	tx.MobileDevice = NewMobileDeviceClient(tx.config)
+	tx.MobilePushDelivery = NewMobilePushDeliveryClient(tx.config)
+	tx.MobilePushOutbox = NewMobilePushOutboxClient(tx.config)
+	tx.MobileSkill = NewMobileSkillClient(tx.config)
+	tx.MobileSkillVersion = NewMobileSkillVersionClient(tx.config)
+	tx.MobileTask = NewMobileTaskClient(tx.config)
 	tx.PaymentAuditLog = NewPaymentAuditLogClient(tx.config)
 	tx.PaymentOrder = NewPaymentOrderClient(tx.config)
 	tx.PaymentProviderInstance = NewPaymentProviderInstanceClient(tx.config)
@@ -260,6 +283,7 @@ func (tx *Tx) init() {
 	tx.UserAllowedGroup = NewUserAllowedGroupClient(tx.config)
 	tx.UserAttributeDefinition = NewUserAttributeDefinitionClient(tx.config)
 	tx.UserAttributeValue = NewUserAttributeValueClient(tx.config)
+	tx.UserMobileSkill = NewUserMobileSkillClient(tx.config)
 	tx.UserPlatformQuota = NewUserPlatformQuotaClient(tx.config)
 	tx.UserSubscription = NewUserSubscriptionClient(tx.config)
 }

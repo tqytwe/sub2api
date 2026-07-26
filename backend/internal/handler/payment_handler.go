@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -49,40 +50,44 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	// Enrich plans with group platform for frontend color coding
-	type planWithPlatform struct {
-		ID                 int64    `json:"id"`
-		GroupID            int64    `json:"group_id"`
-		GroupPlatform      string   `json:"group_platform"`
-		GroupName          string   `json:"group_name"`
-		RateMultiplier     float64  `json:"rate_multiplier"`
-		PeakRateEnabled    bool     `json:"peak_rate_enabled"`
-		PeakStart          string   `json:"peak_start"`
-		PeakEnd            string   `json:"peak_end"`
-		PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
-		Name               string   `json:"name"`
-		Description        string   `json:"description"`
-		Price              float64  `json:"price"`
-		OriginalPrice      *float64 `json:"original_price,omitempty"`
-		Currency           string   `json:"currency,omitempty"`
-		ValidityDays       int      `json:"validity_days"`
-		ValidityUnit       string   `json:"validity_unit"`
-		Features           string   `json:"features"`
-		ProductName        string   `json:"product_name"`
-		CoverImageURL      string   `json:"cover_image_url"`
-		DetailDescription  string   `json:"detail_description"`
-		StorefrontPlatform string   `json:"storefront_platform"`
-		StorefrontCategory string   `json:"storefront_category"`
-		StorefrontFeatured bool     `json:"storefront_featured"`
-		StorefrontBadge    string   `json:"storefront_badge"`
-		ForSale            bool     `json:"for_sale"`
-		SortOrder          int      `json:"sort_order"`
-	}
-	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
-	result := make([]planWithPlatform, 0, len(plans))
+	response.Success(c, buildPaymentPlansForResponse(c.Request.Context(), h.configService, plans))
+}
+
+type paymentPlanResult struct {
+	ID                 int64    `json:"id"`
+	GroupID            int64    `json:"group_id"`
+	GroupPlatform      string   `json:"group_platform"`
+	GroupName          string   `json:"group_name"`
+	RateMultiplier     float64  `json:"rate_multiplier"`
+	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
+	PeakStart          string   `json:"peak_start"`
+	PeakEnd            string   `json:"peak_end"`
+	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Price              float64  `json:"price"`
+	OriginalPrice      *float64 `json:"original_price,omitempty"`
+	Currency           string   `json:"currency,omitempty"`
+	ValidityDays       int      `json:"validity_days"`
+	ValidityUnit       string   `json:"validity_unit"`
+	Features           string   `json:"features"`
+	ProductName        string   `json:"product_name"`
+	CoverImageURL      string   `json:"cover_image_url"`
+	DetailDescription  string   `json:"detail_description"`
+	StorefrontPlatform string   `json:"storefront_platform"`
+	StorefrontCategory string   `json:"storefront_category"`
+	StorefrontFeatured bool     `json:"storefront_featured"`
+	StorefrontBadge    string   `json:"storefront_badge"`
+	ForSale            bool     `json:"for_sale"`
+	SortOrder          int      `json:"sort_order"`
+}
+
+func buildPaymentPlansForResponse(ctx context.Context, configService *service.PaymentConfigService, plans []*dbent.SubscriptionPlan) []paymentPlanResult {
+	groupInfo := configService.GetGroupInfoMap(ctx, plans)
+	result := make([]paymentPlanResult, 0, len(plans))
 	for _, p := range plans {
 		gi := groupInfo[p.GroupID]
-		result = append(result, planWithPlatform{
+		result = append(result, paymentPlanResult{
 			ID: int64(p.ID), GroupID: p.GroupID,
 			GroupPlatform: gi.Platform, GroupName: gi.Name,
 			RateMultiplier: gi.RateMultiplier, PeakRateEnabled: gi.PeakRateEnabled,
@@ -96,7 +101,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			ForSale: p.ForSale, SortOrder: p.SortOrder,
 		})
 	}
-	response.Success(c, result)
+	return result
 }
 
 // GetCheckoutInfo returns all data the payment page needs in a single call:

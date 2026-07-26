@@ -854,8 +854,11 @@ func ProvidePlayService(
 	affiliateService *AffiliateService,
 	entClient *dbent.Client,
 	balanceLedger *BalanceLedgerService,
+	mobilePush *MobilePushService,
 ) *PlayService {
-	return NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
+	svc := NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
+	svc.SetMobilePushService(mobilePush)
+	return svc
 }
 
 // ProvideAPIKeyService wires APIKeyService and connects rate-limit cache invalidation.
@@ -882,6 +885,8 @@ var ProviderSet = wire.NewSet(
 	ProvideIPRiskHasher,
 	ProvideIPRiskRuntimeConfig,
 	ProvideIPRiskService,
+	NewMobilePushService,
+	ProvideMobilePushWorker,
 	ProvideAuthService,
 	NewUserService,
 	ProvideAPIKeyService,
@@ -1014,6 +1019,12 @@ var ProviderSet = wire.NewSet(
 	ProvideImageStudioService,
 	ProvidePlayGrowthRunner,
 )
+
+func ProvideMobilePushWorker(push *MobilePushService, cfg config.MobilePushConfig) *MobilePushWorker {
+	worker := NewMobilePushWorker(push, cfg.PollInterval, cfg.BatchSize)
+	worker.Start()
+	return worker
+}
 
 func ProvideImageStudioService(
 	repo ImageStudioRepository,

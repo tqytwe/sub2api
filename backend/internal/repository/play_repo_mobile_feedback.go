@@ -258,10 +258,25 @@ func (r *playRepository) GetAdminMobileFeedback(ctx context.Context, id int64) (
 func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64, status, adminNote string) (*service.MobileFeedbackRecord, error) {
 	exec := r.sqlExec(ctx)
 	record, err := scanMobileFeedbackRecordFromQuery(ctx, exec, `
-		UPDATE mobile_feedback
-		SET status = $2, admin_note = $3, updated_at = NOW()
-		WHERE id = $1
-		RETURNING
+		WITH previous AS (
+			SELECT admin_note
+			FROM mobile_feedback
+			WHERE id = $1
+			FOR UPDATE
+		), updated AS (
+			UPDATE mobile_feedback
+			SET status = $2, admin_note = $3, updated_at = NOW()
+			FROM previous
+			WHERE id = $1
+			RETURNING *
+		), support_message AS (
+			INSERT INTO mobile_feedback_messages (feedback_id, sender_type, content)
+			SELECT updated.id, 'support', $3
+			FROM updated, previous
+			WHERE $3 <> '' AND $3 IS DISTINCT FROM previous.admin_note
+			RETURNING id
+		)
+		SELECT
 			id,
 			user_id,
 			'' AS user_email,
@@ -284,13 +299,138 @@ func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64
 			screenshots,
 			admin_note,
 			created_at,
-			updated_at`,
+			updated_at
+		FROM updated`,
 		[]any{id, status, adminNote},
 	)
 	if err != nil {
 		return nil, err
 	}
 	return record, nil
+}
+
+func (r *playRepository) ListUserMobileFeedback(ctx context.Context, userID int64, filter service.MobileFeedbackListFilter) ([]service.MobileFeedbackRecord, int64, error) {
+	exec := r.sqlExec(ctx)
+	limit := filter.PageSize
+	offset := (filter.Page - 1) * filter.PageSize
+	var total int64
+	if err := scanSingleRow(ctx, exec, `
+		SELECT COUNT(*)
+		FROM mobile_feedback
+		WHERE user_id = $1 AND ($2 = '' OR status = $2)`,
+		[]any{userID, filter.Status}, &total); err != nil {
+		return nil, 0, fmt.Errorf("count user mobile feedback: %w", err)
+	}
+	rows, err := exec.QueryContext(ctx, `
+		SELECT id, user_id, '' AS user_email, '' AS user_name,
+		       title, category, content, status, app_version, platform,
+		       device_model, android_version, system_version, group_name,
+		       group_id, backend_url, last_error, crash_log, device_info,
+		       screenshots, admin_note, created_at, updated_at
+		FROM mobile_feedback
+		WHERE user_id = $1 AND ($2 = '' OR status = $2)
+		ORDER BY updated_at DESC, id DESC
+		LIMIT $3 OFFSET $4`, userID, filter.Status, limit, offset)
+	if err != nil {
+		return nil, 0, fmt.Errorf("list user mobile feedback: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]service.MobileFeedbackRecord, 0, limit)
+	for rows.Next() {
+		item, scanErr := scanMobileFeedbackRecord(rows)
+		if scanErr != nil {
+			return nil, 0, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("iterate user mobile feedback: %w", err)
+	}
+	return items, total, nil
+}
+
+func (r *playRepository) GetUserMobileFeedback(ctx context.Context, userID, id int64) (*service.MobileFeedbackRecord, error) {
+	return scanMobileFeedbackRecordFromQuery(ctx, r.sqlExec(ctx), `
+		SELECT id, user_id, '' AS user_email, '' AS user_name,
+		       title, category, content, status, app_version, platform,
+		       device_model, android_version, system_version, group_name,
+		       group_id, backend_url, last_error, crash_log, device_info,
+		       screenshots, admin_note, created_at, updated_at
+		FROM mobile_feedback
+		WHERE id = $1 AND user_id = $2`, []any{id, userID})
+}
+
+func (r *playRepository) ListMobileFeedbackMessages(ctx context.Context, userID, feedbackID int64) ([]service.MobileFeedbackMessage, error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT m.id, m.feedback_id, m.sender_type, m.content, m.created_at
+		FROM mobile_feedback_messages m
+		JOIN mobile_feedback f ON f.id = m.feedback_id
+		WHERE m.feedback_id = $1 AND f.user_id = $2
+		ORDER BY m.created_at ASC, m.id ASC`, feedbackID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("list mobile feedback messages: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	messages := make([]service.MobileFeedbackMessage, 0)
+	for rows.Next() {
+		var message service.MobileFeedbackMessage
+		if err := rows.Scan(&message.ID, &message.FeedbackID, &message.SenderType, &message.Content, &message.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan mobile feedback message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate mobile feedback messages: %w", err)
+	}
+	return messages, nil
+}
+
+func (r *playRepository) CreateUserMobileFeedbackMessage(ctx context.Context, userID, feedbackID int64, content string) (*service.MobileFeedbackMessage, error) {
+	var message service.MobileFeedbackMessage
+	err := scanSingleRow(ctx, r.sqlExec(ctx), `
+		WITH owned AS (
+			UPDATE mobile_feedback
+			SET status = CASE
+				WHEN status = 'handled' THEN 'new'
+				WHEN status = 'deferred' THEN 'viewed'
+				ELSE status
+			END,
+			updated_at = NOW()
+			WHERE id = $1 AND user_id = $2 AND status <> 'ignored'
+			RETURNING id
+		)
+		INSERT INTO mobile_feedback_messages (feedback_id, sender_type, content)
+		SELECT id, 'user', $3 FROM owned
+		RETURNING id, feedback_id, sender_type, content, created_at`,
+		[]any{feedbackID, userID, content},
+		&message.ID, &message.FeedbackID, &message.SenderType, &message.Content, &message.CreatedAt)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, service.ErrMobileFeedbackClosed
+		}
+		return nil, fmt.Errorf("create mobile feedback message: %w", err)
+	}
+	return &message, nil
+}
+
+func (r *playRepository) CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*service.MobileFeedbackRecord, error) {
+	record, err := scanMobileFeedbackRecordFromQuery(ctx, r.sqlExec(ctx), `
+		UPDATE mobile_feedback
+		SET status = 'ignored', updated_at = NOW()
+		WHERE id = $1 AND user_id = $2 AND status <> 'ignored'
+		RETURNING id, user_id, '' AS user_email, '' AS user_name,
+		          title, category, content, status, app_version, platform,
+		          device_model, android_version, system_version, group_name,
+		          group_id, backend_url, last_error, crash_log, device_info,
+		          screenshots, admin_note, created_at, updated_at`, []any{id, userID})
+	if err == nil {
+		return record, nil
+	}
+	if !errors.Is(err, service.ErrMobileFeedbackNotFound) {
+		return nil, err
+	}
+	// Closing an already closed ticket is intentionally idempotent.
+	return r.GetUserMobileFeedback(ctx, userID, id)
 }
 
 func scanMobileFeedbackRecordFromQuery(ctx context.Context, exec sqlExecutor, query string, args []any) (*service.MobileFeedbackRecord, error) {

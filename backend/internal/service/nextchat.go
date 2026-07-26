@@ -6,18 +6,29 @@ import (
 	"sort"
 	"strings"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 )
 
 const (
 	NextChatManagedAPIKeyNamePrefix = "[managed:nextchat]"
 	NextChatManagedAPIKeyName       = NextChatManagedAPIKeyNamePrefix + " AI 创作"
+	NextChatManagedChatAPIKeyName   = NextChatManagedAPIKeyNamePrefix + " Chat"
+	NextChatManagedImageAPIKeyName  = NextChatManagedAPIKeyNamePrefix + " Image"
+	NextChatSessionPurposeChat      = "chat"
+	NextChatSessionPurposeImage     = "image"
 )
 
 type NextChatManagedSession struct {
-	UserID int64  `json:"user_id"`
-	APIKey string `json:"api_key"`
-	KeyID  int64  `json:"key_id"`
+	UserID  int64  `json:"user_id"`
+	APIKey  string `json:"api_key"`
+	KeyID   int64  `json:"key_id"`
+	Purpose string `json:"purpose,omitempty"`
+}
+
+type NextChatManagedSessions struct {
+	Chat  NextChatManagedSession `json:"chat"`
+	Image NextChatManagedSession `json:"image"`
 }
 
 type NextChatWorkspaceUser struct {
@@ -102,7 +113,27 @@ func (s *SettingService) IsNextChatEnabled(ctx context.Context) bool {
 }
 
 func (s *APIKeyService) IssueNextChatManagedSession(ctx context.Context, userID int64) (*NextChatManagedSession, error) {
-	key, err := s.findReusableNextChatManagedKey(ctx, userID)
+	return s.IssueNextChatManagedSessionForPurpose(ctx, userID, NextChatSessionPurposeChat)
+}
+
+func (s *APIKeyService) IssueNextChatManagedSessions(ctx context.Context, userID int64) (*NextChatManagedSessions, error) {
+	chat, err := s.IssueNextChatManagedSessionForPurpose(ctx, userID, NextChatSessionPurposeChat)
+	if err != nil {
+		return nil, err
+	}
+	image, err := s.IssueNextChatManagedSessionForPurpose(ctx, userID, NextChatSessionPurposeImage)
+	if err != nil {
+		return nil, err
+	}
+	return &NextChatManagedSessions{Chat: *chat, Image: *image}, nil
+}
+
+func (s *APIKeyService) IssueNextChatManagedSessionForPurpose(ctx context.Context, userID int64, purpose string) (*NextChatManagedSession, error) {
+	purpose, keyName, err := normalizeNextChatSessionPurpose(purpose)
+	if err != nil {
+		return nil, err
+	}
+	key, err := s.findReusableNextChatManagedKeyForPurpose(ctx, userID, purpose)
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +155,7 @@ func (s *APIKeyService) IssueNextChatManagedSession(ctx context.Context, userID 
 			return nil, groupErr
 		}
 		key, err = s.Create(ctx, userID, CreateAPIKeyRequest{
-			Name:    NextChatManagedAPIKeyName,
+			Name:    keyName,
 			GroupID: groupID,
 		})
 		if err != nil {
@@ -132,10 +163,34 @@ func (s *APIKeyService) IssueNextChatManagedSession(ctx context.Context, userID 
 		}
 	}
 	return &NextChatManagedSession{
-		UserID: userID,
-		APIKey: key.Key,
-		KeyID:  key.ID,
+		UserID:  userID,
+		APIKey:  key.Key,
+		KeyID:   key.ID,
+		Purpose: purpose,
 	}, nil
+}
+
+func (s *APIKeyService) SetNextChatManagedSessionGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*NextChatWorkspaceIdentity, error) {
+	purpose, _, err := normalizeNextChatSessionPurpose(purpose)
+	if err != nil {
+		return nil, err
+	}
+	session, err := s.IssueNextChatManagedSessionForPurpose(ctx, userID, purpose)
+	if err != nil {
+		return nil, err
+	}
+	return s.SetNextChatManagedKeyGroup(ctx, userID, session.KeyID, groupID)
+}
+
+func normalizeNextChatSessionPurpose(purpose string) (string, string, error) {
+	switch strings.ToLower(strings.TrimSpace(purpose)) {
+	case "", NextChatSessionPurposeChat:
+		return NextChatSessionPurposeChat, NextChatManagedAPIKeyName, nil
+	case NextChatSessionPurposeImage:
+		return NextChatSessionPurposeImage, NextChatManagedImageAPIKeyName, nil
+	default:
+		return "", "", infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat or image")
+	}
 }
 
 func (s *APIKeyService) GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*NextChatWorkspaceIdentity, error) {
@@ -338,7 +393,7 @@ func NextChatImagePromptModelLikePatterns() []string {
 	}
 }
 
-func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, userID int64) (*APIKey, error) {
+func (s *APIKeyService) findReusableNextChatManagedKeyForPurpose(ctx context.Context, userID int64, purpose string) (*APIKey, error) {
 	if s == nil || s.apiKeyRepo == nil {
 		return nil, fmt.Errorf("api key service is not configured")
 	}
@@ -348,7 +403,7 @@ func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, user
 			return nil, fmt.Errorf("list managed api keys: %w", err)
 		}
 		for i := range keys {
-			if IsNextChatManagedAPIKeyName(keys[i].Name) && keys[i].IsActive() && !keys[i].IsExpired() {
+			if nextChatManagedKeyMatchesPurpose(keys[i].Name, purpose) && keys[i].IsActive() && !keys[i].IsExpired() {
 				return &keys[i], nil
 			}
 		}
@@ -363,11 +418,23 @@ func (s *APIKeyService) findReusableNextChatManagedKey(ctx context.Context, user
 		return nil, fmt.Errorf("search managed api keys: %w", err)
 	}
 	for i := range keys {
-		if IsNextChatManagedAPIKeyName(keys[i].Name) && keys[i].IsActive() && !keys[i].IsExpired() {
+		if nextChatManagedKeyMatchesPurpose(keys[i].Name, purpose) && keys[i].IsActive() && !keys[i].IsExpired() {
 			return &keys[i], nil
 		}
 	}
 	return nil, nil
+}
+
+func nextChatManagedKeyMatchesPurpose(name, purpose string) bool {
+	name = strings.TrimSpace(name)
+	switch purpose {
+	case NextChatSessionPurposeChat:
+		return name == NextChatManagedAPIKeyName || name == NextChatManagedChatAPIKeyName
+	case NextChatSessionPurposeImage:
+		return name == NextChatManagedImageAPIKeyName
+	default:
+		return false
+	}
 }
 
 func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (*int64, error) {

@@ -120,6 +120,7 @@ func provideCleanup(
 	auditLog *service.AuditLogService,
 	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
+	mobilePushWorker *service.MobilePushWorker,
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
 	return func() {
@@ -133,6 +134,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"MobilePushWorker", func() error {
+				if mobilePushWorker != nil {
+					mobilePushWorker.Stop()
+				}
+				return nil
+			}},
 			{"OpsIngressRejectAggregator", func() error {
 				if opsIngressReject != nil {
 					opsIngressReject.Stop()
