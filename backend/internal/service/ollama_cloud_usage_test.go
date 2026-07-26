@@ -691,6 +691,25 @@ func TestOllamaCloudUsageSessionEncryptionFailClosedAndWriteOnlyState(t *testing
 	require.ErrorContains(t, err, "cannot be decrypted")
 }
 
+func TestOllamaCloudUsageEgressPolicyBlocksSessionAndRefresh(t *testing.T) {
+	account := ollamaUsageAccount(7)
+	repo := &ollamaUsageTestRepo{upstreamBillingProbeAccountRepo: &upstreamBillingProbeAccountRepo{accounts: map[int64]*Account{7: account}}}
+	svc := newOllamaUsageTestService(t, repo, &ollamaUsageHTTPStub{}, &upstreamBillingProbeSettingRepo{}, true)
+	svc.egressEnabled = false
+
+	_, err := svc.SaveSession(context.Background(), 7, "wos-session=plaintext-secret")
+	require.ErrorIs(t, err, ErrOllamaCloudUsageEgressDisabled)
+	require.NotContains(t, account.Extra, OllamaCloudUsageSessionExtraKey)
+
+	_, err = svc.SetAutoRefresh(context.Background(), 7, true)
+	require.ErrorIs(t, err, ErrOllamaCloudUsageEgressDisabled)
+
+	account.Extra[OllamaCloudUsageSessionExtraKey] = "cipher:wos-session=plaintext-secret"
+	_, err = svc.Refresh(context.Background(), 7)
+	require.ErrorIs(t, err, ErrOllamaCloudUsageEgressDisabled)
+	require.NoError(t, svc.RunDue(context.Background()))
+}
+
 func TestOllamaCloudUsageGroupSharesAcrossPlatformsURLVariantsAndDynamicSiblings(t *testing.T) {
 	source := ollamaUsageAccount(71)
 	source.Credentials["api_key"] = "shared-key"

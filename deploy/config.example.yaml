@@ -176,6 +176,12 @@ security:
     # Allow skipping TLS verification for proxy probe (debug only)
     # 允许代理探测时跳过 TLS 证书验证（仅用于调试）
     insecure_skip_verify: false
+  # Allow optional features that send stored account session credentials or derived
+  # account identity headers to official upstream services outside the normal model gateway path.
+  # 允许可选功能把已保存账号会话凭据或派生账号身份头发送到普通模型网关以外的官方上游服务。
+  # Keep false unless OpenAI Live / Ollama Cloud Usage sync have been explicitly audited and approved.
+  # 未明确审计并批准 OpenAI Live / Ollama Cloud Usage 同步前保持 false。
+  account_session_egress_enabled: false
   proxy_fallback:
     # Allow auxiliary services (update check, pricing data) to fallback to direct
     # connection when proxy initialization fails. Does NOT affect AI gateway connections.

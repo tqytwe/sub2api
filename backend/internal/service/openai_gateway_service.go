@@ -1192,3 +1192,7 @@ func (s *OpenAIGatewayService) GetAccessToken(ctx context.Context, account *Acco
 		return "", "", fmt.Errorf("unsupported account type: %s", account.Type)
 	}
 }
+
+func (s *OpenAIGatewayService) liveEgressEnabled() bool {
+	return s != nil && config.AccountSessionEgressEnabled(s.cfg)
+}

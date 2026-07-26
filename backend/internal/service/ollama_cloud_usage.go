@@ -77,6 +77,9 @@ var (
 	ErrOllamaCloudUsageRefreshRateLimited = infraerrors.TooManyRequests(
 		"OLLAMA_CLOUD_USAGE_REFRESH_RATE_LIMITED", "Ollama Cloud usage can be refreshed manually once every 30 seconds",
 	)
+	ErrOllamaCloudUsageEgressDisabled = infraerrors.Forbidden(
+		"OLLAMA_CLOUD_USAGE_EGRESS_DISABLED", "Ollama Cloud usage sync is disabled by server security policy",
+	)
 	errOllamaCloudUsageUnauthorizedHTML = errors.New("settings HTML is a sign-in page")
 )
 
@@ -380,19 +383,20 @@ type OllamaCloudUsageService struct {
 	encryptor               SecretEncryptor
 	encryptionKeyConfigured bool
 
-	parentCtx    context.Context
-	parentCancel context.CancelFunc
-	wg           sync.WaitGroup
-	mu           sync.Mutex
-	started      bool
-	stopped      bool
-	cycleMu      sync.Mutex
-	refreshGroup singleflight.Group
-	refreshSlots chan struct{}
-	now          func() time.Time
-	lockCache    LeaderLockCache
-	db           *sql.DB
-	instanceID   string
+	parentCtx     context.Context
+	parentCancel  context.CancelFunc
+	wg            sync.WaitGroup
+	mu            sync.Mutex
+	started       bool
+	stopped       bool
+	cycleMu       sync.Mutex
+	refreshGroup  singleflight.Group
+	refreshSlots  chan struct{}
+	now           func() time.Time
+	lockCache     LeaderLockCache
+	db            *sql.DB
+	instanceID    string
+	egressEnabled bool
 }
 
 func NewOllamaCloudUsageService(
@@ -414,6 +418,7 @@ func NewOllamaCloudUsageService(
 		refreshSlots:            make(chan struct{}, ollamaCloudUsageConcurrency),
 		now:                     time.Now,
 		instanceID:              uuid.NewString(),
+		egressEnabled:           true,
 	}
 }
 
@@ -428,6 +433,7 @@ func ProvideOllamaCloudUsageService(
 ) *OllamaCloudUsageService {
 	keyConfigured := cfg != nil && cfg.Totp.EncryptionKeyConfigured
 	svc := NewOllamaCloudUsageService(accountRepo, httpUpstream, settingService, encryptor, keyConfigured)
+	svc.egressEnabled = config.AccountSessionEgressEnabled(cfg)
 	svc.lockCache = lockCache
 	svc.db = db
 	svc.Start()
@@ -609,6 +615,9 @@ func (s *OllamaCloudUsageService) SaveSession(ctx context.Context, accountID int
 	if s == nil || s.accountRepo == nil || s.encryptor == nil {
 		return nil, ErrOllamaCloudUsageUnavailable
 	}
+	if !s.egressEnabled {
+		return nil, ErrOllamaCloudUsageEgressDisabled
+	}
 	if !s.encryptionKeyConfigured {
 		return nil, ErrOllamaCloudUsageEncryptionKey
 	}
@@ -669,6 +678,9 @@ func (s *OllamaCloudUsageService) SetAutoRefresh(ctx context.Context, accountID 
 	if s == nil || s.accountRepo == nil {
 		return nil, ErrOllamaCloudUsageUnavailable
 	}
+	if enabled && !s.egressEnabled {
+		return nil, ErrOllamaCloudUsageEgressDisabled
+	}
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
 		return nil, err
@@ -693,6 +705,9 @@ func (s *OllamaCloudUsageService) SetAutoRefresh(ctx context.Context, accountID 
 }
 
 func (s *OllamaCloudUsageService) Refresh(ctx context.Context, accountID int64) (*OllamaCloudUsageState, error) {
+	if s == nil || !s.egressEnabled {
+		return nil, ErrOllamaCloudUsageEgressDisabled
+	}
 	settings, err := s.GetSettings(ctx)
 	if err != nil {
 		return nil, err
@@ -705,6 +720,9 @@ func (s *OllamaCloudUsageService) Refresh(ctx context.Context, accountID int64) 
 
 func (s *OllamaCloudUsageService) RunDue(ctx context.Context) error {
 	if s == nil || s.accountRepo == nil {
+		return nil
+	}
+	if !s.egressEnabled {
 		return nil
 	}
 	s.cycleMu.Lock()

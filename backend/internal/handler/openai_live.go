@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -33,7 +34,7 @@ func (h *OpenAIGatewayHandler) Live(c *gin.Context) {
 		h.errorResponse(c, http.StatusNotFound, "not_found_error", "Live is not supported for this platform")
 		return
 	}
-	if !liveEnabledForAPIKey(apiKey) {
+	if !h.liveEnabledForAPIKey(apiKey) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for this group")
 		return
 	}
@@ -196,7 +197,7 @@ func (h *OpenAIGatewayHandler) LiveSideband(c *gin.Context) {
 		h.errorResponse(c, http.StatusInternalServerError, "api_error", "User context not found")
 		return
 	}
-	if !liveEnabledForAPIKey(apiKey) {
+	if !h.liveEnabledForAPIKey(apiKey) {
 		h.errorResponse(c, http.StatusForbidden, "permission_error", "Live is not enabled for this group")
 		return
 	}
@@ -233,4 +234,10 @@ func liveEnabledForAPIKey(apiKey *service.APIKey) bool {
 		apiKey.Group != nil &&
 		apiKey.Group.Platform == service.PlatformOpenAI &&
 		apiKey.Group.AllowLive
+}
+
+func (h *OpenAIGatewayHandler) liveEnabledForAPIKey(apiKey *service.APIKey) bool {
+	return h != nil &&
+		config.AccountSessionEgressEnabled(h.cfg) &&
+		liveEnabledForAPIKey(apiKey)
 }
