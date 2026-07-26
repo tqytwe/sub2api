@@ -360,8 +360,11 @@ func TestProxyLiveSidebandForwardsTextAndBinary(t *testing.T) {
 	upstream := newLiveTestFrameConn()
 	dialer := &liveTestDialer{conn: upstream}
 	service := &OpenAIGatewayService{
-		accountRepo:               &liveTestAccountRepo{account: account},
-		cache:                     store,
+		accountRepo: &liveTestAccountRepo{account: account},
+		cache:       store,
+		cfg: &config.Config{Security: config.SecurityConfig{
+			AccountSessionEgressEnabled: true,
+		}},
 		openaiWSPassthroughDialer: dialer,
 		liveAttestationCipher:     attestationCipher,
 	}

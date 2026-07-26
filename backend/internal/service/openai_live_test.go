@@ -97,7 +97,9 @@ func TestValidateLiveCallRequestDoesNotRequireDelegation(t *testing.T) {
 func TestCreateUpstreamLiveCallPreservesSession(t *testing.T) {
 	upstream := &liveHTTPUpstreamStub{}
 	service := &OpenAIGatewayService{
-		cfg:          &config.Config{},
+		cfg: &config.Config{Security: config.SecurityConfig{
+			AccountSessionEgressEnabled: true,
+		}},
 		httpUpstream: upstream,
 	}
 	account := &Account{
@@ -140,6 +142,15 @@ func TestCreateUpstreamLiveCallPreservesSession(t *testing.T) {
 	require.Empty(t, upstream.request.Header.Get("OpenAI-Beta"))
 	require.Equal(t, HTTPUpstreamProfileOpenAI, HTTPUpstreamProfileFromContext(upstream.request.Context()))
 	require.True(t, HTTPUpstreamRedirectsDisabled(upstream.request.Context()))
+}
+
+func TestCreateUpstreamLiveCallBlockedWhenAccountSessionEgressDisabled(t *testing.T) {
+	service := &OpenAIGatewayService{cfg: &config.Config{}}
+	_, err := service.createUpstreamLiveCall(context.Background(), &Account{}, &LiveCallRequest{
+		SDP:     "v=offer\r\n",
+		Session: json.RawMessage(`{"model":"gpt-live-test"}`),
+	}, `{"v":1}`)
+	require.ErrorIs(t, err, ErrLiveUnavailable)
 }
 
 func TestLiveAttestationCipherRoundTripAndRejectsOtherInstanceKey(t *testing.T) {
