@@ -128,6 +128,7 @@ import type { UserSubscription } from '@/types'
 import { useAppStore } from '@/stores/app'
 import Icon from '@/components/icons/Icon.vue'
 import { hasPeakRate as groupHasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
+import { planValiditySuffix } from './validity'
 import { currencySymbol } from '@/components/payment/currency'
 import {
   platformBadgeClass,
@@ -213,10 +214,13 @@ const modelScopeLabels = computed(() => {
 const featurePreview = computed(() => props.plan.features.slice(0, 3))
 
 const validitySuffix = computed(() => {
-  const u = props.plan.validity_unit || 'day'
-  if (u === 'month') return t('payment.perMonth')
-  if (u === 'year') return t('payment.perYear')
-  return `${props.plan.validity_days}${t('payment.days')}`
+  const unit = String(props.plan.validity_unit || 'day').trim().toLowerCase().replace(/s$/, '')
+  if (unit === 'year') {
+    return props.plan.validity_days === 1
+      ? t('payment.perYear')
+      : `${props.plan.validity_days}${t('payment.years')}`
+  }
+  return planValiditySuffix(props.plan, t)
 })
 
 const displayInitials = computed(() => Array.from(displayName.value.trim()).slice(0, 4).join(''))

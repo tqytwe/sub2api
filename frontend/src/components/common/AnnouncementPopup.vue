@@ -2,7 +2,7 @@
   <Teleport to="body">
     <Transition name="popup-fade">
       <div
-        v-if="announcementStore.currentPopup"
+        v-if="displayedAnnouncement"
         class="fixed inset-0 z-[120] flex items-start justify-center overflow-y-auto bg-black/60 p-4 pt-[8vh] backdrop-blur-sm"
       >
         <section
@@ -10,7 +10,7 @@
           class="w-full max-w-[680px] overflow-hidden rounded-[12px] border border-gray-200 bg-white shadow-2xl dark:border-dark-700 dark:bg-dark-800"
           role="dialog"
           aria-modal="true"
-          :aria-label="announcementStore.currentPopup.title"
+          :aria-label="displayedAnnouncement.title"
           tabindex="-1"
           @click.stop
         >
@@ -26,18 +26,18 @@
             </div>
 
             <h2 class="mb-2 text-2xl font-bold leading-tight text-gray-900 dark:text-white">
-              {{ announcementStore.currentPopup.title }}
+              {{ displayedAnnouncement.title }}
             </h2>
 
             <div class="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-400">
               <Icon name="clock" size="sm" />
-              <time>{{ formatRelativeWithDateTime(announcementStore.currentPopup.created_at) }}</time>
+              <time>{{ formatRelativeWithDateTime(displayedAnnouncement.created_at) }}</time>
             </div>
           </header>
 
           <div class="max-h-[50vh] overflow-y-auto bg-white px-6 py-6 dark:bg-dark-800 sm:px-8 sm:py-8">
             <div class="border-l-4 border-gray-200 pl-5 dark:border-dark-600">
-              <AnnouncementContent :content="announcementStore.currentPopup.content" />
+              <AnnouncementContent class="markdown-body" :content="displayedAnnouncement.content" />
             </div>
           </div>
 
@@ -46,10 +46,11 @@
               <button
                 type="button"
                 @click="handleDismiss"
+                data-testid="announcement-popup-dismiss"
                 class="btn btn-primary inline-flex items-center justify-center gap-2"
               >
-                <Icon name="check" size="sm" :stroke-width="2.5" />
-                {{ t('announcements.markRead') }}
+                <Icon :name="preview ? 'x' : 'check'" size="sm" :stroke-width="2.5" />
+                {{ preview ? t('common.close') : t('announcements.markRead') }}
               </button>
             </div>
           </footer>
@@ -67,13 +68,35 @@ import { formatRelativeWithDateTime } from '@/utils/format'
 import { useDialogAccessibility } from '@/composables/useDialogAccessibility'
 import AnnouncementContent from '@/components/common/AnnouncementContent.vue'
 import Icon from '@/components/icons/Icon.vue'
+import type { Announcement, UserAnnouncement } from '@/types'
+
+type PreviewAnnouncement = Pick<Announcement | UserAnnouncement, 'title' | 'content' | 'created_at'>
+
+const props = withDefaults(defineProps<{
+  announcement?: PreviewAnnouncement | null
+  preview?: boolean
+}>(), {
+  announcement: null,
+  preview: false,
+})
+
+const emit = defineEmits<{
+  close: []
+}>()
 
 const { t } = useI18n()
 const announcementStore = useAnnouncementStore()
+const displayedAnnouncement = computed(() => (
+  props.preview ? props.announcement : announcementStore.currentPopup
+))
 const popupDialogRef = ref<HTMLElement | null>(null)
-const popupVisible = computed(() => Boolean(announcementStore.currentPopup))
+const popupVisible = computed(() => Boolean(displayedAnnouncement.value))
 
 function handleDismiss() {
+  if (props.preview) {
+    emit('close')
+    return
+  }
   announcementStore.dismissPopup()
 }
 

@@ -52,8 +52,10 @@ func ProvideAdminHandlers(
 	auditLogHandler *admin.AuditLogHandler,
 	promptLibraryHandler *admin.PromptLibraryHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
+	ollamaCloudUsage *service.OllamaCloudUsageService,
 ) *AdminHandlers {
 	accountHandler.SetUpstreamBillingProbeService(upstreamBillingProbe)
+	accountHandler.SetOllamaCloudUsageService(ollamaCloudUsage)
 	return &AdminHandlers{
 		Dashboard:              dashboardHandler,
 		User:                   userHandler,
@@ -282,6 +284,14 @@ func ProvideWalletHandler(walletService *service.WalletService, withdrawalServic
 	return NewWalletHandler(walletService, withdrawalService)
 }
 
+func ProvidePlayHandler(
+	playService *service.PlayService,
+	billingService *service.BillingService,
+	feedbackAssetService *service.AnnouncementAssetService,
+) *PlayHandler {
+	return NewPlayHandler(playService, billingService, feedbackAssetService)
+}
+
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
 	// Top-level handlers
@@ -302,7 +312,7 @@ var ProviderSet = wire.NewSet(
 	NewAvailableChannelHandler,
 	ProvideAsyncImageHandler,
 	ProvideBatchImageHandler,
-	NewPlayHandler,
+	ProvidePlayHandler,
 	ProvideWalletHandler,
 	NewFundHandler,
 	NewImageStudioHandler,

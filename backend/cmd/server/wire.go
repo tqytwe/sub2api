@@ -116,6 +116,7 @@ func provideCleanup(
 	playGrowthRunner *service.PlayGrowthRunner,
 	publicHomeStatsService *service.PublicHomeStatsService,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
+	ollamaCloudUsage *service.OllamaCloudUsageService,
 	auditLog *service.AuditLogService,
 	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
@@ -365,6 +366,12 @@ func provideCleanup(
 			{"UpstreamBillingProbeService", func() error {
 				if upstreamBillingProbe != nil {
 					upstreamBillingProbe.Stop()
+				}
+				return nil
+			}},
+			{"OllamaCloudUsageService", func() error {
+				if ollamaCloudUsage != nil {
+					ollamaCloudUsage.Stop()
 				}
 				return nil
 			}},
