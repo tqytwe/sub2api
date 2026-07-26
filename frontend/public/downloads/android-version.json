@@ -1,19 +1,20 @@
 {
   "platform": "android",
-  "version": "2.0.18-predeploy-fixes",
-  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.18-predeploy-fixes-218",
-  "size": "6.4 MB",
-  "sha256": "2d6f169140efc1f37fd0dfd2230b77dab8ec5ace80baab62b50700a27455d626",
+  "version": "2.0.36",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.36-236",
+  "size": "7.1 MB",
+  "sha256": "4ae903fc3266dcabb9f76b2f1c2a2cfeb14f29c9da9a47802d9195598df501f0",
   "minAndroidVersion": "8.0",
-  "releaseDate": "2026-07-24",
+  "releaseDate": "2026-07-26",
   "notes": [
-    "修复 APP 内购买套餐时支付返回地址校验失败的问题",
-    "图库分栏支持全部、收藏、产品、海报真实切换，并新增收藏和本机标签操作",
-    "保存图片到系统相册时新增 APP 内成功提示，查看原图也可直接保存或分享",
-    "订单状态、支付方式和余额明细原因改为用户可读中文展示",
-    "聊天生成时不再强制滚到底，支持双击消息查看全文并复制、引用、删除",
-    "优化聊天表格、代码块和普通文本展示，减少默认回复里的多余排版符号"
+    "新增素材库与系统分享文件上传",
+    "新增服务端技能中心与智能体提示词调用",
+    "新增跨设备任务历史、取消和重试",
+    "新增客服工单、脱敏网络诊断和支付查单闭环",
+    "聊天与生图分组模型保持完全独立"
   ],
-  "versionCode": 218,
-  "bytes": 6644212
+  "versionCode": 236,
+  "bytes": 7394527,
+  "packageName": "com.jisudeng.chat",
+  "signingCertificateSha256": "cd7abbd79daf6648a429ff34d7450b18cfb6b416e660b2f5169178e0a488627e"
 }
