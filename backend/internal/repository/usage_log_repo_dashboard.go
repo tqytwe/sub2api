@@ -49,7 +49,7 @@ func (r *usageLogRepository) GetUserStats(ctx context.Context, userID int64, sta
 		SELECT
 			COUNT(*) as total_requests,
 			COALESCE(SUM(input_tokens + output_tokens + cache_creation_tokens + cache_read_tokens), 0) as total_tokens,
-			COALESCE(SUM(actual_cost), 0) as total_cost,
+			COALESCE(SUM(` + usageLogChargedCostExpr + `), 0) as total_cost,
 			COALESCE(SUM(input_tokens), 0) as input_tokens,
 			COALESCE(SUM(output_tokens), 0) as output_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as cache_read_tokens
@@ -290,7 +290,7 @@ func (r *usageLogRepository) fillDashboardUsageStatsFromUsageLogs(ctx context.Co
 				cache_creation_tokens,
 				cache_read_tokens,
 				total_cost,
-				actual_cost,
+				` + usageLogChargedCostExpr + ` AS actual_cost,
 				COALESCE(account_stats_cost, total_cost) * COALESCE(account_rate_multiplier, 1) AS account_cost,
 				COALESCE(duration_ms, 0) AS duration_ms
 			FROM usage_logs
@@ -411,7 +411,7 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as total_cost,
-			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
+			COALESCE(SUM(` + usageLogChargedCostExpr + `), 0) as total_actual_cost,
 			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE user_id = $1
@@ -443,7 +443,7 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			COALESCE(SUM(cache_creation_tokens), 0) as today_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as today_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as today_cost,
-			COALESCE(SUM(actual_cost), 0) as today_actual_cost
+			COALESCE(SUM(` + usageLogChargedCostExpr + `), 0) as today_actual_cost
 		FROM usage_logs
 		WHERE user_id = $1 AND created_at >= $2
 	`
@@ -483,10 +483,10 @@ func (r *usageLogRepository) GetUserDashboardStats(ctx context.Context, userID i
 			` + usageLogEffectivePlatformExpr + ` as platform,
 			COUNT(*) as total_requests,
 			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens), 0) as total_tokens,
-			COALESCE(SUM(ul.actual_cost), 0) as total_actual_cost,
+			COALESCE(SUM(` + usageLogChargedCostExprUL + `), 0) as total_actual_cost,
 			COUNT(*) FILTER (WHERE ul.created_at >= $2) as today_requests,
 			COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens + ul.cache_read_tokens) FILTER (WHERE ul.created_at >= $2), 0) as today_tokens,
-			COALESCE(SUM(ul.actual_cost) FILTER (WHERE ul.created_at >= $2), 0) as today_actual_cost
+			COALESCE(SUM(` + usageLogChargedCostExprUL + `) FILTER (WHERE ul.created_at >= $2), 0) as today_actual_cost
 		FROM usage_logs ul
 		LEFT JOIN groups g ON g.id = ul.group_id
 		LEFT JOIN accounts a ON a.id = ul.account_id
@@ -563,7 +563,7 @@ func (r *usageLogRepository) GetAPIKeyDashboardStats(ctx context.Context, apiKey
 			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as total_cost,
-			COALESCE(SUM(actual_cost), 0) as total_actual_cost,
+			COALESCE(SUM(` + usageLogChargedCostExpr + `), 0) as total_actual_cost,
 			COALESCE(AVG(duration_ms), 0) as avg_duration_ms
 		FROM usage_logs
 		WHERE api_key_id = $1
@@ -595,7 +595,7 @@ func (r *usageLogRepository) GetAPIKeyDashboardStats(ctx context.Context, apiKey
 			COALESCE(SUM(cache_creation_tokens), 0) as today_cache_creation_tokens,
 			COALESCE(SUM(cache_read_tokens), 0) as today_cache_read_tokens,
 			COALESCE(SUM(total_cost), 0) as today_cost,
-			COALESCE(SUM(actual_cost), 0) as today_actual_cost
+			COALESCE(SUM(` + usageLogChargedCostExpr + `), 0) as today_actual_cost
 		FROM usage_logs
 		WHERE api_key_id = $1 AND created_at >= $2
 	`

@@ -546,7 +546,7 @@ func syncBalanceCacheAfterDeduction(ctx context.Context, p *postUsageBillingPara
 		}
 		return
 	}
-	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.Cost.ActualCost)
+	deps.billingCacheService.QueueDeductBalance(p.User.ID, p.billedCost())
 }
 
 // notifyBalanceLow sends balance low notification after deduction.
@@ -558,7 +558,8 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 			slog.Error("panic in notifyBalanceLow", "recover", r)
 		}
 	}()
-	if p.IsSubscriptionBill || p.Cost.ActualCost <= 0 || p.User == nil || deps.balanceNotifyService == nil {
+	billedCost := p.billedCost()
+	if p.IsSubscriptionBill || billedCost <= 0 || p.User == nil || deps.balanceNotifyService == nil {
 		slog.Debug("notifyBalanceLow: skipped",
 			"is_subscription", p.IsSubscriptionBill,
 			"actual_cost", p.Cost.ActualCost,
@@ -572,19 +573,19 @@ func notifyBalanceLow(p *postUsageBillingParams, deps *billingDeps, result *Usag
 	slog.Debug("notifyBalanceLow: calling CheckBalanceAfterDeduction",
 		"user_id", p.User.ID,
 		"old_balance", oldBalance,
-		"cost", p.Cost.ActualCost,
+		"cost", billedCost,
 		"notify_enabled", p.User.BalanceNotifyEnabled,
 		"threshold", p.User.BalanceNotifyThreshold,
 		"result_has_new_balance", result != nil && result.NewBalance != nil,
 	)
-	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, p.Cost.ActualCost)
+	deps.balanceNotifyService.CheckBalanceAfterDeduction(context.Background(), p.User, oldBalance, billedCost)
 }
 
 // resolveOldBalance returns the pre-deduction balance.
 // Prefers the DB transaction result (newBalance + cost) over snapshot.
 func resolveOldBalance(p *postUsageBillingParams, result *UsageBillingApplyResult) float64 {
 	if result != nil && result.NewBalance != nil {
-		return *result.NewBalance + p.Cost.ActualCost
+		return *result.NewBalance + p.billedCost()
 	}
 	// Legacy fallback: snapshot balance from request context
 	return p.User.Balance

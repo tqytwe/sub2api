@@ -11,6 +11,7 @@ const {
   getModelsListCandidates,
   getUsageSummary,
   getCapacitySummary,
+  getLiveCapability,
   showSuccess,
   showError
 } = vi.hoisted(() => ({
@@ -19,6 +20,7 @@ const {
   getModelsListCandidates: vi.fn(),
   getUsageSummary: vi.fn(),
   getCapacitySummary: vi.fn(),
+  getLiveCapability: vi.fn(),
   showSuccess: vi.fn(),
   showError: vi.fn()
 }))
@@ -31,7 +33,7 @@ vi.mock('@/api/admin', () => ({
       getModelsListCandidates,
       getUsageSummary,
       getCapacitySummary,
-      getLiveCapability: vi.fn(() => Promise.resolve({ supported: false })),
+      getLiveCapability,
       getAll: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
@@ -167,6 +169,7 @@ describe('GroupsView duplicate action', () => {
       getModelsListCandidates,
       getUsageSummary,
       getCapacitySummary,
+      getLiveCapability,
       showSuccess,
       showError
     ]) {
@@ -180,6 +183,7 @@ describe('GroupsView duplicate action', () => {
       page_size: 20,
       pages: 1
     })
+    getLiveCapability.mockResolvedValue({ supported: false })
     duplicateGroup.mockResolvedValue({
       ...sourceGroup,
       id: 43,
