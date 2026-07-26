@@ -136,9 +136,9 @@ func fetchAiHubMixPricing() ([]ExternalModelPrice, error) {
 	var body []byte
 	var err error
 	if filePath != "" {
-		body, err = os.ReadFile(filePath)
+		body, err = os.ReadFile(filePath) //nolint:gosec // Optional pricing fixture path is operator-provided.
 	} else {
-		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
+		req, reqErr := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil) //nolint:gosec // Optional pricing source URL is operator-provided.
 		if reqErr != nil {
 			return nil, fmt.Errorf("create AIHubMix request: %w", reqErr)
 		}

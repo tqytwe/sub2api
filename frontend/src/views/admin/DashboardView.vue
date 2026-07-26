@@ -218,6 +218,156 @@
 
         <!-- Quick Actions -->
         <div class="card p-4">
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="rounded-lg bg-emerald-100 p-2 dark:bg-emerald-900/30">
+                <Icon name="dollar" size="md" class="text-emerald-600 dark:text-emerald-400" :stroke-width="2" />
+              </div>
+              <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
+                {{ t('admin.dashboard.surchargeIncome') }}
+              </h2>
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary inline-flex items-center gap-2"
+              :disabled="surchargeLoading"
+              @click="loadBillingSurchargeReport(surchargePage)"
+            >
+              <Icon name="refresh" size="sm" />
+              {{ t('common.refresh') }}
+            </button>
+          </div>
+
+          <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.dashboard.todaySurcharge') }}
+              </p>
+              <p class="mt-1 text-lg font-bold text-emerald-600 dark:text-emerald-400">
+                ${{ formatCost(surchargeSummary?.today_surcharge_cost) }}
+              </p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.dashboard.rangeSurcharge') }}
+              </p>
+              <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                ${{ formatCost(surchargeSummary?.range_surcharge_cost) }}
+              </p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.dashboard.totalSurcharge') }}
+              </p>
+              <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                ${{ formatCost(surchargeSummary?.total_surcharge_cost) }}
+              </p>
+            </div>
+            <div class="rounded-lg bg-gray-50 p-3 dark:bg-dark-800/50">
+              <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                {{ t('admin.dashboard.surchargeRequests') }}
+              </p>
+              <p class="mt-1 text-lg font-bold text-gray-900 dark:text-white">
+                {{ formatNumber(surchargeSummary?.range_requests) }}
+              </p>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 dark:divide-dark-700">
+              <thead>
+                <tr>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.surchargeTime') }}
+                  </th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.surchargeUser') }}
+                  </th>
+                  <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.model') }}
+                  </th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.surchargeBase') }}
+                  </th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.surchargeFee') }}
+                  </th>
+                  <th class="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.surchargeBilled') }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-gray-100 dark:divide-dark-800">
+                <tr v-if="surchargeLoading">
+                  <td colspan="6" class="px-3 py-6 text-center">
+                    <LoadingSpinner size="sm" />
+                  </td>
+                </tr>
+                <template v-else>
+                  <tr
+                    v-for="item in surchargeItems"
+                    :key="item.id"
+                    class="hover:bg-gray-50 dark:hover:bg-dark-800/50"
+                  >
+                    <td class="whitespace-nowrap px-3 py-2 text-xs text-gray-500 dark:text-gray-400">
+                      {{ formatDateTime(item.created_at) }}
+                    </td>
+                    <td class="max-w-48 px-3 py-2 text-xs text-gray-900 dark:text-white">
+                      <span class="block truncate">{{ item.user_email || `#${item.user_id}` }}</span>
+                      <span class="block truncate text-gray-500 dark:text-gray-400">{{ item.api_key_name || `#${item.api_key_id}` }}</span>
+                    </td>
+                    <td class="max-w-56 px-3 py-2 text-xs text-gray-900 dark:text-white">
+                      <span class="block truncate">{{ item.model }}</span>
+                      <span class="block truncate text-gray-500 dark:text-gray-400">{{ item.group_name || '-' }}</span>
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right text-xs tabular-nums text-gray-500 dark:text-gray-400">
+                      ${{ formatCost(item.actual_cost) }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right text-xs font-semibold tabular-nums text-emerald-600 dark:text-emerald-400">
+                      ${{ formatCost(item.billing_surcharge_cost) }}
+                    </td>
+                    <td class="whitespace-nowrap px-3 py-2 text-right text-xs tabular-nums text-gray-900 dark:text-white">
+                      ${{ formatCost(item.billed_cost) }}
+                    </td>
+                  </tr>
+                </template>
+                <tr v-if="!surchargeLoading && !surchargeItems.length">
+                  <td colspan="6" class="px-3 py-6 text-center text-sm text-gray-500 dark:text-gray-400">
+                    {{ t('admin.dashboard.noSurchargeRecords') }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="mt-4 flex items-center justify-between gap-3">
+            <span class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('admin.dashboard.surchargePageInfo', { page: surchargePagination?.page || 1, pages: surchargePagination?.pages || 1 }) }}
+            </span>
+            <div class="flex items-center gap-2">
+              <button
+                type="button"
+                class="btn btn-secondary inline-flex items-center gap-1"
+                :disabled="surchargeLoading || (surchargePagination?.page || 1) <= 1"
+                @click="changeSurchargePage(-1)"
+              >
+                <Icon name="chevronLeft" size="sm" />
+                {{ t('admin.dashboard.prevPage') }}
+              </button>
+              <button
+                type="button"
+                class="btn btn-secondary inline-flex items-center gap-1"
+                :disabled="surchargeLoading || (surchargePagination?.page || 1) >= (surchargePagination?.pages || 1)"
+                @click="changeSurchargePage(1)"
+              >
+                {{ t('admin.dashboard.nextPage') }}
+                <Icon name="chevronRight" size="sm" />
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card p-4">
           <div class="mb-3 flex items-center justify-between">
             <h2 class="text-sm font-semibold text-gray-900 dark:text-white">
               {{ t('admin.dashboard.quickActions') }}
@@ -345,9 +495,12 @@ import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useAppStore } from '@/stores/app'
-
-const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
+import type {
+  BillingSurchargeDetail,
+  BillingSurchargeReportResponse,
+  BillingSurchargeSummary
+} from '@/api/admin/dashboard'
 import type {
   DashboardStats,
   TrendDataPoint,
@@ -375,6 +528,8 @@ import {
   Filler
 } from 'chart.js'
 import { Line } from 'vue-chartjs'
+
+const { t } = useI18n()
 
 // Register Chart.js components
 ChartJS.register(
@@ -405,10 +560,15 @@ const rankingItems = ref<UserSpendingRankingItem[]>([])
 const rankingTotalActualCost = ref(0)
 const rankingTotalRequests = ref(0)
 const rankingTotalTokens = ref(0)
+const surchargeReport = ref<BillingSurchargeReportResponse | null>(null)
+const surchargeLoading = ref(false)
+const surchargePage = ref(1)
 let chartLoadSeq = 0
 let usersTrendLoadSeq = 0
 let rankingLoadSeq = 0
+let surchargeLoadSeq = 0
 const rankingLimit = 12
+const surchargePageSize = 10
 
 // Helper function to format date in local timezone
 const formatLocalDate = (date: Date): string => {
@@ -435,6 +595,10 @@ const granularityOptions = computed(() => [
   { value: 'day', label: t('admin.dashboard.day') },
   { value: 'hour', label: t('admin.dashboard.hour') }
 ])
+
+const surchargeSummary = computed<BillingSurchargeSummary | null>(() => surchargeReport.value?.summary || null)
+const surchargeItems = computed<BillingSurchargeDetail[]>(() => surchargeReport.value?.items || [])
+const surchargePagination = computed(() => surchargeReport.value?.pagination || null)
 
 // Dark mode detection
 const isDarkMode = computed(() => {
@@ -611,6 +775,12 @@ const formatDuration = (ms: number): string => {
   return `${Math.round(ms)}ms`
 }
 
+const formatDateTime = (value: string): string => {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
+}
+
 const goToUserUsage = (item: UserSpendingRankingItem) => {
   void router.push({
     path: '/admin/usage',
@@ -732,11 +902,46 @@ const loadUserSpendingRanking = async () => {
   }
 }
 
+const loadBillingSurchargeReport = async (page = surchargePage.value) => {
+  const currentSeq = ++surchargeLoadSeq
+  surchargeLoading.value = true
+  try {
+    const response = await adminAPI.dashboard.getBillingSurchargeReport({
+      start_date: startDate.value,
+      end_date: endDate.value,
+      page,
+      page_size: surchargePageSize
+    })
+    if (currentSeq !== surchargeLoadSeq) return
+    surchargeReport.value = response
+    surchargePage.value = response.pagination?.page || page
+  } catch (error) {
+    if (currentSeq !== surchargeLoadSeq) return
+    console.error('Error loading billing surcharge report:', error)
+    surchargeReport.value = null
+  } finally {
+    if (currentSeq === surchargeLoadSeq) {
+      surchargeLoading.value = false
+    }
+  }
+}
+
+const changeSurchargePage = (delta: number) => {
+  const pagination = surchargePagination.value
+  const nextPage = Math.min(
+    Math.max((pagination?.page || surchargePage.value) + delta, 1),
+    pagination?.pages || 1
+  )
+  if (nextPage === surchargePage.value) return
+  void loadBillingSurchargeReport(nextPage)
+}
+
 const loadDashboardStats = async () => {
   await Promise.all([
     loadDashboardSnapshot(true),
     loadUsersTrend(),
-    loadUserSpendingRanking()
+    loadUserSpendingRanking(),
+    loadBillingSurchargeReport(1)
   ])
 }
 
@@ -744,7 +949,8 @@ const loadChartData = async () => {
   await Promise.all([
     loadDashboardSnapshot(false),
     loadUsersTrend(),
-    loadUserSpendingRanking()
+    loadUserSpendingRanking(),
+    loadBillingSurchargeReport(1)
   ])
 }
 

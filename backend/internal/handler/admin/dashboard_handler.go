@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/usagestats"
@@ -700,5 +701,75 @@ func (h *DashboardHandler) GetUserBreakdown(c *gin.Context) {
 		"users":      stats,
 		"start_date": startTime.Format("2006-01-02"),
 		"end_date":   endTime.Add(-24 * time.Hour).Format("2006-01-02"),
+	})
+}
+
+// GetBillingSurchargeReport handles admin surcharge income summary and details.
+// GET /api/v1/admin/dashboard/billing-surcharge
+func (h *DashboardHandler) GetBillingSurchargeReport(c *gin.Context) {
+	userTZ := c.Query("timezone")
+	now := timezone.NowInUserLocation(userTZ)
+	todayStart := timezone.StartOfDayInUserLocation(now, userTZ)
+	startTime := todayStart
+	endTime := todayStart.AddDate(0, 0, 1)
+
+	if raw := strings.TrimSpace(c.Query("start_date")); raw != "" {
+		parsed, err := timezone.ParseInUserLocation("2006-01-02", raw, userTZ)
+		if err != nil {
+			response.BadRequest(c, "Invalid start_date format, use YYYY-MM-DD")
+			return
+		}
+		startTime = parsed
+	}
+	if raw := strings.TrimSpace(c.Query("end_date")); raw != "" {
+		parsed, err := timezone.ParseInUserLocation("2006-01-02", raw, userTZ)
+		if err != nil {
+			response.BadRequest(c, "Invalid end_date format, use YYYY-MM-DD")
+			return
+		}
+		endTime = parsed.AddDate(0, 0, 1)
+	}
+	if !endTime.After(startTime) {
+		response.BadRequest(c, "end_date must be on or after start_date")
+		return
+	}
+
+	page := 1
+	if raw := strings.TrimSpace(c.Query("page")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 {
+			response.BadRequest(c, "Invalid page")
+			return
+		}
+		page = parsed
+	}
+	pageSize := 20
+	if raw := strings.TrimSpace(c.Query("page_size")); raw != "" {
+		parsed, err := strconv.Atoi(raw)
+		if err != nil || parsed < 1 || parsed > 200 {
+			response.BadRequest(c, "Invalid page_size")
+			return
+		}
+		pageSize = parsed
+	}
+
+	report, err := h.dashboardService.GetBillingSurchargeReport(
+		c.Request.Context(),
+		startTime,
+		endTime,
+		todayStart,
+		pagination.PaginationParams{Page: page, PageSize: pageSize},
+	)
+	if err != nil {
+		response.Error(c, 500, "Failed to get billing surcharge report")
+		return
+	}
+
+	response.Success(c, gin.H{
+		"summary":    report.Summary,
+		"items":      report.Items,
+		"pagination": report.Pagination,
+		"start_date": startTime.Format("2006-01-02"),
+		"end_date":   endTime.AddDate(0, 0, -1).Format("2006-01-02"),
 	})
 }

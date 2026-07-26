@@ -1,7 +1,11 @@
 // Package usagestats provides types for usage statistics and reporting.
 package usagestats
 
-import "time"
+import (
+	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
+)
 
 const (
 	ModelSourceRequested = "requested"
@@ -322,6 +326,46 @@ type BatchAPIKeyUsageStats struct {
 	APIKeyID        int64   `json:"api_key_id"`
 	TodayActualCost float64 `json:"today_actual_cost"`
 	TotalActualCost float64 `json:"total_actual_cost"`
+}
+
+// BillingSurchargeSummary summarizes internal surcharge income.
+type BillingSurchargeSummary struct {
+	TotalSurchargeCost float64 `json:"total_surcharge_cost"`
+	TodaySurchargeCost float64 `json:"today_surcharge_cost"`
+	RangeSurchargeCost float64 `json:"range_surcharge_cost"`
+	TotalBilledCost    float64 `json:"total_billed_cost"`
+	TodayBilledCost    float64 `json:"today_billed_cost"`
+	RangeBilledCost    float64 `json:"range_billed_cost"`
+	TotalRequests      int64   `json:"total_requests"`
+	TodayRequests      int64   `json:"today_requests"`
+	RangeRequests      int64   `json:"range_requests"`
+}
+
+// BillingSurchargeDetail is one usage row with a surcharge.
+type BillingSurchargeDetail struct {
+	ID                    int64     `json:"id"`
+	RequestID             string    `json:"request_id"`
+	UserID                int64     `json:"user_id"`
+	UserEmail             *string   `json:"user_email,omitempty"`
+	APIKeyID              int64     `json:"api_key_id"`
+	APIKeyName            *string   `json:"api_key_name,omitempty"`
+	AccountID             int64     `json:"account_id"`
+	GroupID               *int64    `json:"group_id,omitempty"`
+	GroupName             *string   `json:"group_name,omitempty"`
+	Model                 string    `json:"model"`
+	ActualCost            float64   `json:"actual_cost"`
+	BillingSurchargeCost  float64   `json:"billing_surcharge_cost"`
+	BilledCost            float64   `json:"billed_cost"`
+	BillingSurchargeMode  string    `json:"billing_surcharge_mode"`
+	BillingSurchargeValue float64   `json:"billing_surcharge_value"`
+	CreatedAt             time.Time `json:"created_at"`
+}
+
+// BillingSurchargeReport combines surcharge summaries and paginated detail rows.
+type BillingSurchargeReport struct {
+	Summary    BillingSurchargeSummary      `json:"summary"`
+	Items      []BillingSurchargeDetail     `json:"items"`
+	Pagination *pagination.PaginationResult `json:"pagination,omitempty"`
 }
 
 // AccountUsageHistory represents daily usage history for an account

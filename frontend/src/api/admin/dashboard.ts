@@ -307,6 +307,59 @@ export interface BatchApiKeysUsageResponse {
   stats: Record<string, BatchApiKeyUsageStats>
 }
 
+export interface BillingSurchargeSummary {
+  total_surcharge_cost: number
+  today_surcharge_cost: number
+  range_surcharge_cost: number
+  total_billed_cost: number
+  today_billed_cost: number
+  range_billed_cost: number
+  total_requests: number
+  today_requests: number
+  range_requests: number
+}
+
+export interface BillingSurchargeDetail {
+  id: number
+  request_id: string
+  user_id: number
+  user_email?: string
+  api_key_id: number
+  api_key_name?: string
+  account_id: number
+  group_id?: number
+  group_name?: string
+  model: string
+  actual_cost: number
+  billing_surcharge_cost: number
+  billed_cost: number
+  billing_surcharge_mode: string
+  billing_surcharge_value: number
+  created_at: string
+}
+
+export interface BillingSurchargePagination {
+  total: number
+  page: number
+  page_size: number
+  pages: number
+}
+
+export interface BillingSurchargeReportResponse {
+  summary: BillingSurchargeSummary
+  items: BillingSurchargeDetail[]
+  pagination: BillingSurchargePagination
+  start_date: string
+  end_date: string
+}
+
+export interface BillingSurchargeReportParams {
+  start_date?: string
+  end_date?: string
+  page?: number
+  page_size?: number
+}
+
 /**
  * Get batch usage stats for multiple API keys
  * @param apiKeyIds - Array of API key IDs
@@ -324,6 +377,16 @@ export async function getBatchApiKeysUsage(
   return data
 }
 
+export async function getBillingSurchargeReport(
+  params?: BillingSurchargeReportParams
+): Promise<BillingSurchargeReportResponse> {
+  const { data } = await apiClient.get<BillingSurchargeReportResponse>(
+    '/admin/dashboard/billing-surcharge',
+    { params }
+  )
+  return data
+}
+
 export const dashboardAPI = {
   getStats,
   getRealtimeMetrics,
@@ -335,7 +398,8 @@ export const dashboardAPI = {
   getUserUsageTrend,
   getUserSpendingRanking,
   getBatchUsersUsage,
-  getBatchApiKeysUsage
+  getBatchApiKeysUsage,
+  getBillingSurchargeReport
 }
 
 export default dashboardAPI

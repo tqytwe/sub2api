@@ -1919,7 +1919,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 // Priority: DATA_DIR env > explicit non-default path > /data (Zeabur) > /app/data (Docker) > configured/default.
 func ResolvePricingDataDir(configured string) string {
 	if dir := strings.TrimSpace(os.Getenv("DATA_DIR")); dir != "" {
-		_ = os.MkdirAll(dir, 0o755)
+		_ = os.MkdirAll(dir, 0o755) //nolint:gosec // DATA_DIR is an operator-controlled deployment data root.
 		return dir
 	}
 	configured = strings.TrimSpace(configured)
