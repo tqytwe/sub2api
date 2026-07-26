@@ -111,6 +111,16 @@ type CreateOrderResponse struct {
 	PaymentMode                   string                          `json:"payment_mode,omitempty"`
 	ResumeToken                   string                          `json:"resume_token,omitempty"`
 	AlipayMobilePrecreateDeepLink bool                            `json:"alipay_mobile_precreate_deep_link,omitempty"`
+	Launch                        *PaymentLaunch                  `json:"launch,omitempty"`
+	ReturnURL                     string                          `json:"return_url,omitempty"`
+	VerifyAfterMS                 int                             `json:"verify_after_ms,omitempty"`
+}
+
+type PaymentLaunch struct {
+	Type        string `json:"type"`
+	URL         string `json:"url,omitempty"`
+	FallbackURL string `json:"fallback_url,omitempty"`
+	Package     string `json:"package,omitempty"`
 }
 
 type OrderListParams struct {

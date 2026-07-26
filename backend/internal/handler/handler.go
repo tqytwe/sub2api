@@ -75,6 +75,11 @@ type Handlers struct {
 	ImageStudio      *ImageStudioHandler
 	ModelPricing     *ModelPricingHandler
 	PromptLibrary    *PromptLibraryHandler
+	MobileAsset      *MobileAssetHandler
+	MobileTask       *MobileTaskHandler
+	MobileSupport    *MobileSupportHandler
+	MobileDiagnostic *MobileDiagnosticHandler
+	MobileDevice     *MobileDeviceHandler
 }
 
 // BuildInfo contains build-time information

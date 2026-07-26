@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/handler/admin"
 	"github.com/Wei-Shaw/sub2api/internal/securityaudit"
@@ -249,6 +250,11 @@ func ProvideHandlers(
 	imageStudioHandler *ImageStudioHandler,
 	modelPricingHandler *ModelPricingHandler,
 	promptLibraryHandler *PromptLibraryHandler,
+	mobileAssetHandler *MobileAssetHandler,
+	mobileTaskHandler *MobileTaskHandler,
+	mobileSupportHandler *MobileSupportHandler,
+	mobileDiagnosticHandler *MobileDiagnosticHandler,
+	mobileDeviceHandler *MobileDeviceHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -277,6 +283,11 @@ func ProvideHandlers(
 		ImageStudio:      imageStudioHandler,
 		ModelPricing:     modelPricingHandler,
 		PromptLibrary:    promptLibraryHandler,
+		MobileAsset:      mobileAssetHandler,
+		MobileTask:       mobileTaskHandler,
+		MobileSupport:    mobileSupportHandler,
+		MobileDiagnostic: mobileDiagnosticHandler,
+		MobileDevice:     mobileDeviceHandler,
 	}
 }
 
@@ -290,6 +301,22 @@ func ProvidePlayHandler(
 	feedbackAssetService *service.AnnouncementAssetService,
 ) *PlayHandler {
 	return NewPlayHandler(playService, billingService, feedbackAssetService)
+}
+
+func ProvideMobileAssetHandler(db *sql.DB, storage service.MobileAssetStorage) *MobileAssetHandler {
+	return NewMobileAssetHandlerWithStorage(db, storage)
+}
+
+func ProvideMobileTaskHandler(db *sql.DB, push *service.MobilePushService) *MobileTaskHandler {
+	return NewMobileTaskHandlerWithPush(service.NewMobileTaskService(db), push)
+}
+
+func ProvideMobileSupportHandler(playService *service.PlayService) *MobileSupportHandler {
+	return NewMobileSupportHandler(playService)
+}
+
+func ProvideMobileDeviceHandler(pushService *service.MobilePushService) *MobileDeviceHandler {
+	return NewMobileDeviceHandler(pushService)
 }
 
 // ProviderSet is the Wire provider set for all handlers
@@ -319,6 +346,11 @@ var ProviderSet = wire.NewSet(
 	ProvideImageStudioWorkerRuntime,
 	NewModelPricingHandler,
 	NewPromptLibraryHandler,
+	ProvideMobileAssetHandler,
+	ProvideMobileTaskHandler,
+	ProvideMobileSupportHandler,
+	NewMobileDiagnosticHandler,
+	ProvideMobileDeviceHandler,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

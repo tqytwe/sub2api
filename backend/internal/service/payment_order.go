@@ -527,8 +527,35 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 	}
 	resp := buildCreateOrderResponse(order, req, payAmount, sel, pr, resultType)
 	resp.ResumeToken = resumeToken
+	resp.ReturnURL = providerReturnURL
+	resp.VerifyAfterMS = 1500
+	resp.Launch = buildPaymentLaunch(req.PaymentType, pr)
 	resp.AlipayMobilePrecreateDeepLink = providerReq.AlipayMobilePrecreate && strings.TrimSpace(pr.QRCode) != ""
 	return resp, nil
+}
+
+func buildPaymentLaunch(paymentType string, result *payment.CreatePaymentResponse) *PaymentLaunch {
+	if result == nil {
+		return nil
+	}
+	launch := &PaymentLaunch{URL: strings.TrimSpace(result.PayURL), FallbackURL: strings.TrimSpace(result.PayURL)}
+	switch {
+	case result.JSAPI != nil:
+		launch.Type = "jsapi"
+	case launch.URL != "":
+		launch.Type = "url"
+	case strings.TrimSpace(result.QRCode) != "":
+		launch.Type = "qr"
+	default:
+		return nil
+	}
+	switch payment.GetBasePaymentType(paymentType) {
+	case payment.TypeAlipay:
+		launch.Package = "com.eg.android.AlipayGphone"
+	case payment.TypeWxpay:
+		launch.Package = "com.tencent.mm"
+	}
+	return launch
 }
 
 func shouldUseAlipayMobilePrecreate(req CreateOrderRequest, cfg *PaymentConfig, sel *payment.InstanceSelection) bool {

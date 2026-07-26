@@ -19,8 +19,15 @@ type PlayService struct {
 	affiliateService   *AffiliateService
 	entClient          *dbent.Client
 	balanceLedger      *BalanceLedgerService
+	mobilePush         *MobilePushService
 	blindboxDrawSource func(max int64) (int64, error)
 	now                func() time.Time
+}
+
+func (s *PlayService) SetMobilePushService(push *MobilePushService) {
+	if s != nil {
+		s.mobilePush = push
+	}
 }
 
 func NewPlayService(
