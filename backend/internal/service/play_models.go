@@ -545,6 +545,11 @@ type PlayRepository interface {
 	ListAdminMobileFeedback(ctx context.Context, filter MobileFeedbackListFilter) ([]MobileFeedbackRecord, int64, error)
 	GetAdminMobileFeedback(ctx context.Context, id int64) (*MobileFeedbackRecord, error)
 	UpdateAdminMobileFeedback(ctx context.Context, id int64, status, adminNote string) (*MobileFeedbackRecord, error)
+	ListUserMobileFeedback(ctx context.Context, userID int64, filter MobileFeedbackListFilter) ([]MobileFeedbackRecord, int64, error)
+	GetUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
+	ListMobileFeedbackMessages(ctx context.Context, userID, feedbackID int64) ([]MobileFeedbackMessage, error)
+	CreateUserMobileFeedbackMessage(ctx context.Context, userID, feedbackID int64, content string) (*MobileFeedbackMessage, error)
+	CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
 }
 
 type PlayQuizQuestionDB struct {

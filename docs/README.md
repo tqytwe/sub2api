@@ -23,6 +23,7 @@
 | [前端全链路体验与性能基线报告](./PERFORMANCE_BASELINE_20260723.md) | `active` | 首页、登录、钱包、Play、支付和管理员入口的加载性能基线与优化优先级 | 前端维护者 | 2026-07-23 |
 | [Fork 定制登记](./FORK_CUSTOMIZATIONS.md) | `active` | 极速蹬定制的唯一权威登记表 | Fork 维护者 | 2026-07-20 |
 | [上游同步手册](./UPSTREAM_SYNC_PLAYBOOK.md) | `active` | 合并、验证、部署和回滚 | 发布负责人 | 2026-07-20 |
+| [复合路由组](./COMPOSITE_GROUPS.md) | `active` | 复合组路由、优先级与管理配置 | 平台维护者 | 2026-07-26 |
 | [图像工作室](./IMAGE_STUDIO.md) | `active` | 当前产品行为、接口和运维不变量 | 图像工作室维护者 | 2026-07-18 |
 | [GPT / Grok 图片生成 API](./IMAGE_GENERATION_API.md) | `active` | 同步生成/编辑、`n=1-10`、实际尺寸和私有临时 URL | API 维护者 | 2026-07-18 |
 | [Batch Image 持久批任务](./BATCH_IMAGE_API.md) | `active` | Gemini 多 prompt 预检、提交、恢复、结算和下载 | API 维护者 | 2026-07-18 |

@@ -93,9 +93,11 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // playGrowthRunner
 		nil, // publicHomeStatsService
 		nil, // upstreamBillingProbe
+		nil, // ollamaCloudUsage
 		nil, // auditLog
 		nil, // ipRisk
 		nil, // promptAudit
+		nil, // mobilePushWorker
 	)
 
 	require.NotPanics(t, func() {

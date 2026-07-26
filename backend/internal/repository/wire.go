@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent"
@@ -71,6 +72,7 @@ var ProviderSet = wire.NewSet(
 	NewAPIKeyRepository,
 	NewGroupRepository,
 	NewAdminGroupRepository,
+	NewCompositeModelRouteRepository,
 	NewAccountRepository,
 	NewAdminAccountRepository,
 	NewScheduledTestPlanRepository,   // 定时测试计划仓储
@@ -147,6 +149,9 @@ var ProviderSet = wire.NewSet(
 
 	// Encryptors
 	NewAESEncryptor,
+	ProvideMobilePushConfig,
+	ProvideMobilePushRepository,
+	ProvideMobilePushSender,
 
 	// Backup infrastructure
 	NewPgDumper,
@@ -155,6 +160,7 @@ var ProviderSet = wire.NewSet(
 	// Image storage (async image task result offload)
 	ProvideImageStorage,
 	ProvideImageStorageFactory,
+	ProvideMobileAssetStorage,
 
 	// HTTP service ports (DI Strategy A: return interface directly)
 	NewTurnstileVerifier,
@@ -174,6 +180,24 @@ var ProviderSet = wire.NewSet(
 	ProvideSQLDB,
 	ProvideRedis,
 )
+
+func ProvideMobilePushConfig() config.MobilePushConfig {
+	return config.LoadMobilePushConfigFromEnv().Normalized()
+}
+
+func ProvideMobilePushRepository(db *sql.DB, cfg config.MobilePushConfig) service.MobilePushRepository {
+	return NewMobilePushRepository(db, cfg.ClaimLease, cfg.MaxAttempts)
+}
+
+func ProvideMobilePushSender(cfg config.MobilePushConfig, appCfg *config.Config) (service.FCMSender, error) {
+	if cfg.HasAnyCredentialSetting() && (appCfg == nil || !appCfg.Totp.EncryptionKeyConfigured) {
+		return nil, fmt.Errorf("mobile push requires a persistent totp.encryption_key")
+	}
+	if err := cfg.ValidateCredentials(); err != nil {
+		return nil, err
+	}
+	return NewFCMHTTPSender(cfg, nil)
+}
 
 // ProvideEnt 为依赖注入提供 Ent 客户端。
 //
@@ -212,6 +236,21 @@ func ProvideImageStorage(cfg *config.Config) (service.ImageStorage, error) {
 	default:
 		return nil, fmt.Errorf("unsupported image_storage.backend %q", cfg.ImageStorage.Backend)
 	}
+}
+
+func ProvideMobileAssetStorage(cfg *config.Config) (service.MobileAssetStorage, error) {
+	storage, err := ProvideImageStorage(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if complete, ok := storage.(service.MobileAssetStorage); ok {
+		return complete, nil
+	}
+	dataDir := "./data"
+	if cfg != nil && strings.TrimSpace(cfg.Pricing.DataDir) != "" {
+		dataDir = cfg.Pricing.DataDir
+	}
+	return NewLocalImageStorage(filepath.Join(dataDir, "mobile-assets"), "")
 }
 
 // ProvideImageStorageFactory 提供按需构造对象存储客户端的工厂。

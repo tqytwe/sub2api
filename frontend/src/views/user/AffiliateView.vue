@@ -136,9 +136,9 @@ onMounted(() => {
             <div class="grid gap-4 md:grid-cols-2">
               <div class="gw-field">
                 <span class="gw-field-label">{{ t('affiliate.yourCode') }}</span>
-                <div class="gw-code-row">
-                  <code>{{ detail.aff_code }}</code>
-                  <button type="button" class="gw-btn gw-btn-secondary" @click="copyCode">
+                <div class="gw-code-row flex-col items-stretch sm:flex-row sm:items-center">
+                  <code class="min-w-0 break-all sm:flex-1 sm:truncate">{{ detail.aff_code }}</code>
+                  <button type="button" class="gw-btn gw-btn-secondary w-full sm:w-auto sm:shrink-0" @click="copyCode">
                     <Icon name="copy" size="sm" />
                     <span>{{ t('affiliate.copyCode') }}</span>
                   </button>
@@ -146,9 +146,9 @@ onMounted(() => {
               </div>
               <div class="gw-field">
                 <span class="gw-field-label">{{ t('affiliate.inviteLink') }}</span>
-                <div class="gw-code-row">
-                  <code>{{ inviteLink }}</code>
-                  <button type="button" class="gw-btn gw-btn-secondary" @click="copyInviteLink">
+                <div class="gw-code-row flex-col items-stretch sm:flex-row sm:items-center">
+                  <code class="min-w-0 break-all sm:flex-1 sm:truncate">{{ inviteLink }}</code>
+                  <button type="button" class="gw-btn gw-btn-secondary w-full sm:w-auto sm:shrink-0" @click="copyInviteLink">
                     <Icon name="copy" size="sm" />
                     <span>{{ t('affiliate.copyLink') }}</span>
                   </button>
@@ -220,3 +220,14 @@ onMounted(() => {
     </div>
   </AppLayout>
 </template>
+
+<style scoped>
+@media (width < 640px) {
+  .gw-code-row code {
+    overflow: visible;
+    overflow-wrap: anywhere;
+    text-overflow: clip;
+    white-space: normal;
+  }
+}
+</style>

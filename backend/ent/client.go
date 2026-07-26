@@ -10,6 +10,7 @@ import (
 	"reflect"
 
 	"github.com/Wei-Shaw/sub2api/ent/migrate"
+	"github.com/google/uuid"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -29,10 +30,18 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/mobileasset"
+	"github.com/Wei-Shaw/sub2api/ent/mobiledevice"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushdelivery"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushoutbox"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskill"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskillversion"
+	"github.com/Wei-Shaw/sub2api/ent/mobiletask"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -51,6 +60,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usermobileskill"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 
@@ -90,6 +100,8 @@ type Client struct {
 	ChannelMonitorHistory *ChannelMonitorHistoryClient
 	// ChannelMonitorRequestTemplate is the client for interacting with the ChannelMonitorRequestTemplate builders.
 	ChannelMonitorRequestTemplate *ChannelMonitorRequestTemplateClient
+	// CompositeModelRoute is the client for interacting with the CompositeModelRoute builders.
+	CompositeModelRoute *CompositeModelRouteClient
 	// ErrorPassthroughRule is the client for interacting with the ErrorPassthroughRule builders.
 	ErrorPassthroughRule *ErrorPassthroughRuleClient
 	// Group is the client for interacting with the Group builders.
@@ -98,6 +110,20 @@ type Client struct {
 	IdempotencyRecord *IdempotencyRecordClient
 	// IdentityAdoptionDecision is the client for interacting with the IdentityAdoptionDecision builders.
 	IdentityAdoptionDecision *IdentityAdoptionDecisionClient
+	// MobileAsset is the client for interacting with the MobileAsset builders.
+	MobileAsset *MobileAssetClient
+	// MobileDevice is the client for interacting with the MobileDevice builders.
+	MobileDevice *MobileDeviceClient
+	// MobilePushDelivery is the client for interacting with the MobilePushDelivery builders.
+	MobilePushDelivery *MobilePushDeliveryClient
+	// MobilePushOutbox is the client for interacting with the MobilePushOutbox builders.
+	MobilePushOutbox *MobilePushOutboxClient
+	// MobileSkill is the client for interacting with the MobileSkill builders.
+	MobileSkill *MobileSkillClient
+	// MobileSkillVersion is the client for interacting with the MobileSkillVersion builders.
+	MobileSkillVersion *MobileSkillVersionClient
+	// MobileTask is the client for interacting with the MobileTask builders.
+	MobileTask *MobileTaskClient
 	// PaymentAuditLog is the client for interacting with the PaymentAuditLog builders.
 	PaymentAuditLog *PaymentAuditLogClient
 	// PaymentOrder is the client for interacting with the PaymentOrder builders.
@@ -134,6 +160,8 @@ type Client struct {
 	UserAttributeDefinition *UserAttributeDefinitionClient
 	// UserAttributeValue is the client for interacting with the UserAttributeValue builders.
 	UserAttributeValue *UserAttributeValueClient
+	// UserMobileSkill is the client for interacting with the UserMobileSkill builders.
+	UserMobileSkill *UserMobileSkillClient
 	// UserPlatformQuota is the client for interacting with the UserPlatformQuota builders.
 	UserPlatformQuota *UserPlatformQuotaClient
 	// UserSubscription is the client for interacting with the UserSubscription builders.
@@ -163,10 +191,18 @@ func (c *Client) init() {
 	c.ChannelMonitorDailyRollup = NewChannelMonitorDailyRollupClient(c.config)
 	c.ChannelMonitorHistory = NewChannelMonitorHistoryClient(c.config)
 	c.ChannelMonitorRequestTemplate = NewChannelMonitorRequestTemplateClient(c.config)
+	c.CompositeModelRoute = NewCompositeModelRouteClient(c.config)
 	c.ErrorPassthroughRule = NewErrorPassthroughRuleClient(c.config)
 	c.Group = NewGroupClient(c.config)
 	c.IdempotencyRecord = NewIdempotencyRecordClient(c.config)
 	c.IdentityAdoptionDecision = NewIdentityAdoptionDecisionClient(c.config)
+	c.MobileAsset = NewMobileAssetClient(c.config)
+	c.MobileDevice = NewMobileDeviceClient(c.config)
+	c.MobilePushDelivery = NewMobilePushDeliveryClient(c.config)
+	c.MobilePushOutbox = NewMobilePushOutboxClient(c.config)
+	c.MobileSkill = NewMobileSkillClient(c.config)
+	c.MobileSkillVersion = NewMobileSkillVersionClient(c.config)
+	c.MobileTask = NewMobileTaskClient(c.config)
 	c.PaymentAuditLog = NewPaymentAuditLogClient(c.config)
 	c.PaymentOrder = NewPaymentOrderClient(c.config)
 	c.PaymentProviderInstance = NewPaymentProviderInstanceClient(c.config)
@@ -185,6 +221,7 @@ func (c *Client) init() {
 	c.UserAllowedGroup = NewUserAllowedGroupClient(c.config)
 	c.UserAttributeDefinition = NewUserAttributeDefinitionClient(c.config)
 	c.UserAttributeValue = NewUserAttributeValueClient(c.config)
+	c.UserMobileSkill = NewUserMobileSkillClient(c.config)
 	c.UserPlatformQuota = NewUserPlatformQuotaClient(c.config)
 	c.UserSubscription = NewUserSubscriptionClient(c.config)
 }
@@ -293,10 +330,18 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
+		CompositeModelRoute:           NewCompositeModelRouteClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		MobileAsset:                   NewMobileAssetClient(cfg),
+		MobileDevice:                  NewMobileDeviceClient(cfg),
+		MobilePushDelivery:            NewMobilePushDeliveryClient(cfg),
+		MobilePushOutbox:              NewMobilePushOutboxClient(cfg),
+		MobileSkill:                   NewMobileSkillClient(cfg),
+		MobileSkillVersion:            NewMobileSkillVersionClient(cfg),
+		MobileTask:                    NewMobileTaskClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
@@ -315,6 +360,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserMobileSkill:               NewUserMobileSkillClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
@@ -350,10 +396,18 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ChannelMonitorDailyRollup:     NewChannelMonitorDailyRollupClient(cfg),
 		ChannelMonitorHistory:         NewChannelMonitorHistoryClient(cfg),
 		ChannelMonitorRequestTemplate: NewChannelMonitorRequestTemplateClient(cfg),
+		CompositeModelRoute:           NewCompositeModelRouteClient(cfg),
 		ErrorPassthroughRule:          NewErrorPassthroughRuleClient(cfg),
 		Group:                         NewGroupClient(cfg),
 		IdempotencyRecord:             NewIdempotencyRecordClient(cfg),
 		IdentityAdoptionDecision:      NewIdentityAdoptionDecisionClient(cfg),
+		MobileAsset:                   NewMobileAssetClient(cfg),
+		MobileDevice:                  NewMobileDeviceClient(cfg),
+		MobilePushDelivery:            NewMobilePushDeliveryClient(cfg),
+		MobilePushOutbox:              NewMobilePushOutboxClient(cfg),
+		MobileSkill:                   NewMobileSkillClient(cfg),
+		MobileSkillVersion:            NewMobileSkillVersionClient(cfg),
+		MobileTask:                    NewMobileTaskClient(cfg),
 		PaymentAuditLog:               NewPaymentAuditLogClient(cfg),
 		PaymentOrder:                  NewPaymentOrderClient(cfg),
 		PaymentProviderInstance:       NewPaymentProviderInstanceClient(cfg),
@@ -372,6 +426,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		UserAllowedGroup:              NewUserAllowedGroupClient(cfg),
 		UserAttributeDefinition:       NewUserAttributeDefinitionClient(cfg),
 		UserAttributeValue:            NewUserAttributeValueClient(cfg),
+		UserMobileSkill:               NewUserMobileSkillClient(cfg),
 		UserPlatformQuota:             NewUserPlatformQuotaClient(cfg),
 		UserSubscription:              NewUserSubscriptionClient(cfg),
 	}, nil
@@ -407,12 +462,14 @@ func (c *Client) Use(hooks ...Hook) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.IdentityAdoptionDecision, c.MobileAsset, c.MobileDevice,
+		c.MobilePushDelivery, c.MobilePushOutbox, c.MobileSkill, c.MobileSkillVersion,
+		c.MobileTask, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserMobileSkill,
 		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Use(hooks...)
@@ -427,12 +484,14 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.AuthIdentity, c.AuthIdentityChannel, c.BatchImageEvent, c.BatchImageItem,
 		c.BatchImageJob, c.ChannelMonitor, c.ChannelMonitorDailyRollup,
 		c.ChannelMonitorHistory, c.ChannelMonitorRequestTemplate,
-		c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
-		c.IdentityAdoptionDecision, c.PaymentAuditLog, c.PaymentOrder,
-		c.PaymentProviderInstance, c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage,
-		c.Proxy, c.RedeemCode, c.SecuritySecret, c.Setting, c.SubscriptionPlan,
-		c.TLSFingerprintProfile, c.UsageCleanupTask, c.UsageLog, c.User,
-		c.UserAllowedGroup, c.UserAttributeDefinition, c.UserAttributeValue,
+		c.CompositeModelRoute, c.ErrorPassthroughRule, c.Group, c.IdempotencyRecord,
+		c.IdentityAdoptionDecision, c.MobileAsset, c.MobileDevice,
+		c.MobilePushDelivery, c.MobilePushOutbox, c.MobileSkill, c.MobileSkillVersion,
+		c.MobileTask, c.PaymentAuditLog, c.PaymentOrder, c.PaymentProviderInstance,
+		c.PendingAuthSession, c.PromoCode, c.PromoCodeUsage, c.Proxy, c.RedeemCode,
+		c.SecuritySecret, c.Setting, c.SubscriptionPlan, c.TLSFingerprintProfile,
+		c.UsageCleanupTask, c.UsageLog, c.User, c.UserAllowedGroup,
+		c.UserAttributeDefinition, c.UserAttributeValue, c.UserMobileSkill,
 		c.UserPlatformQuota, c.UserSubscription,
 	} {
 		n.Intercept(interceptors...)
@@ -470,6 +529,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.ChannelMonitorHistory.mutate(ctx, m)
 	case *ChannelMonitorRequestTemplateMutation:
 		return c.ChannelMonitorRequestTemplate.mutate(ctx, m)
+	case *CompositeModelRouteMutation:
+		return c.CompositeModelRoute.mutate(ctx, m)
 	case *ErrorPassthroughRuleMutation:
 		return c.ErrorPassthroughRule.mutate(ctx, m)
 	case *GroupMutation:
@@ -478,6 +539,20 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.IdempotencyRecord.mutate(ctx, m)
 	case *IdentityAdoptionDecisionMutation:
 		return c.IdentityAdoptionDecision.mutate(ctx, m)
+	case *MobileAssetMutation:
+		return c.MobileAsset.mutate(ctx, m)
+	case *MobileDeviceMutation:
+		return c.MobileDevice.mutate(ctx, m)
+	case *MobilePushDeliveryMutation:
+		return c.MobilePushDelivery.mutate(ctx, m)
+	case *MobilePushOutboxMutation:
+		return c.MobilePushOutbox.mutate(ctx, m)
+	case *MobileSkillMutation:
+		return c.MobileSkill.mutate(ctx, m)
+	case *MobileSkillVersionMutation:
+		return c.MobileSkillVersion.mutate(ctx, m)
+	case *MobileTaskMutation:
+		return c.MobileTask.mutate(ctx, m)
 	case *PaymentAuditLogMutation:
 		return c.PaymentAuditLog.mutate(ctx, m)
 	case *PaymentOrderMutation:
@@ -514,6 +589,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.UserAttributeDefinition.mutate(ctx, m)
 	case *UserAttributeValueMutation:
 		return c.UserAttributeValue.mutate(ctx, m)
+	case *UserMobileSkillMutation:
+		return c.UserMobileSkill.mutate(ctx, m)
 	case *UserPlatformQuotaMutation:
 		return c.UserPlatformQuota.mutate(ctx, m)
 	case *UserSubscriptionMutation:
@@ -2724,6 +2801,157 @@ func (c *ChannelMonitorRequestTemplateClient) mutate(ctx context.Context, m *Cha
 	}
 }
 
+// CompositeModelRouteClient is a client for the CompositeModelRoute schema.
+type CompositeModelRouteClient struct {
+	config
+}
+
+// NewCompositeModelRouteClient returns a client for the CompositeModelRoute from the given config.
+func NewCompositeModelRouteClient(c config) *CompositeModelRouteClient {
+	return &CompositeModelRouteClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `compositemodelroute.Hooks(f(g(h())))`.
+func (c *CompositeModelRouteClient) Use(hooks ...Hook) {
+	c.hooks.CompositeModelRoute = append(c.hooks.CompositeModelRoute, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `compositemodelroute.Intercept(f(g(h())))`.
+func (c *CompositeModelRouteClient) Intercept(interceptors ...Interceptor) {
+	c.inters.CompositeModelRoute = append(c.inters.CompositeModelRoute, interceptors...)
+}
+
+// Create returns a builder for creating a CompositeModelRoute entity.
+func (c *CompositeModelRouteClient) Create() *CompositeModelRouteCreate {
+	mutation := newCompositeModelRouteMutation(c.config, OpCreate)
+	return &CompositeModelRouteCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of CompositeModelRoute entities.
+func (c *CompositeModelRouteClient) CreateBulk(builders ...*CompositeModelRouteCreate) *CompositeModelRouteCreateBulk {
+	return &CompositeModelRouteCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *CompositeModelRouteClient) MapCreateBulk(slice any, setFunc func(*CompositeModelRouteCreate, int)) *CompositeModelRouteCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &CompositeModelRouteCreateBulk{err: fmt.Errorf("calling to CompositeModelRouteClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*CompositeModelRouteCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &CompositeModelRouteCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for CompositeModelRoute.
+func (c *CompositeModelRouteClient) Update() *CompositeModelRouteUpdate {
+	mutation := newCompositeModelRouteMutation(c.config, OpUpdate)
+	return &CompositeModelRouteUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *CompositeModelRouteClient) UpdateOne(_m *CompositeModelRoute) *CompositeModelRouteUpdateOne {
+	mutation := newCompositeModelRouteMutation(c.config, OpUpdateOne, withCompositeModelRoute(_m))
+	return &CompositeModelRouteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *CompositeModelRouteClient) UpdateOneID(id int64) *CompositeModelRouteUpdateOne {
+	mutation := newCompositeModelRouteMutation(c.config, OpUpdateOne, withCompositeModelRouteID(id))
+	return &CompositeModelRouteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for CompositeModelRoute.
+func (c *CompositeModelRouteClient) Delete() *CompositeModelRouteDelete {
+	mutation := newCompositeModelRouteMutation(c.config, OpDelete)
+	return &CompositeModelRouteDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *CompositeModelRouteClient) DeleteOne(_m *CompositeModelRoute) *CompositeModelRouteDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *CompositeModelRouteClient) DeleteOneID(id int64) *CompositeModelRouteDeleteOne {
+	builder := c.Delete().Where(compositemodelroute.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &CompositeModelRouteDeleteOne{builder}
+}
+
+// Query returns a query builder for CompositeModelRoute.
+func (c *CompositeModelRouteClient) Query() *CompositeModelRouteQuery {
+	return &CompositeModelRouteQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeCompositeModelRoute},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a CompositeModelRoute entity by its id.
+func (c *CompositeModelRouteClient) Get(ctx context.Context, id int64) (*CompositeModelRoute, error) {
+	return c.Query().Where(compositemodelroute.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *CompositeModelRouteClient) GetX(ctx context.Context, id int64) *CompositeModelRoute {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryGroup queries the group edge of a CompositeModelRoute.
+func (c *CompositeModelRouteClient) QueryGroup(_m *CompositeModelRoute) *GroupQuery {
+	query := (&GroupClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(compositemodelroute.Table, compositemodelroute.FieldID, id),
+			sqlgraph.To(group.Table, group.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, compositemodelroute.GroupTable, compositemodelroute.GroupColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *CompositeModelRouteClient) Hooks() []Hook {
+	hooks := c.hooks.CompositeModelRoute
+	return append(hooks[:len(hooks):len(hooks)], compositemodelroute.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *CompositeModelRouteClient) Interceptors() []Interceptor {
+	inters := c.inters.CompositeModelRoute
+	return append(inters[:len(inters):len(inters)], compositemodelroute.Interceptors[:]...)
+}
+
+func (c *CompositeModelRouteClient) mutate(ctx context.Context, m *CompositeModelRouteMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&CompositeModelRouteCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&CompositeModelRouteUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&CompositeModelRouteUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&CompositeModelRouteDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown CompositeModelRoute mutation op: %q", m.Op())
+	}
+}
+
 // ErrorPassthroughRuleClient is a client for the ErrorPassthroughRule schema.
 type ErrorPassthroughRuleClient struct {
 	config
@@ -3415,6 +3643,987 @@ func (c *IdentityAdoptionDecisionClient) mutate(ctx context.Context, m *Identity
 		return (&IdentityAdoptionDecisionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown IdentityAdoptionDecision mutation op: %q", m.Op())
+	}
+}
+
+// MobileAssetClient is a client for the MobileAsset schema.
+type MobileAssetClient struct {
+	config
+}
+
+// NewMobileAssetClient returns a client for the MobileAsset from the given config.
+func NewMobileAssetClient(c config) *MobileAssetClient {
+	return &MobileAssetClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobileasset.Hooks(f(g(h())))`.
+func (c *MobileAssetClient) Use(hooks ...Hook) {
+	c.hooks.MobileAsset = append(c.hooks.MobileAsset, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobileasset.Intercept(f(g(h())))`.
+func (c *MobileAssetClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobileAsset = append(c.inters.MobileAsset, interceptors...)
+}
+
+// Create returns a builder for creating a MobileAsset entity.
+func (c *MobileAssetClient) Create() *MobileAssetCreate {
+	mutation := newMobileAssetMutation(c.config, OpCreate)
+	return &MobileAssetCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobileAsset entities.
+func (c *MobileAssetClient) CreateBulk(builders ...*MobileAssetCreate) *MobileAssetCreateBulk {
+	return &MobileAssetCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobileAssetClient) MapCreateBulk(slice any, setFunc func(*MobileAssetCreate, int)) *MobileAssetCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobileAssetCreateBulk{err: fmt.Errorf("calling to MobileAssetClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobileAssetCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobileAssetCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobileAsset.
+func (c *MobileAssetClient) Update() *MobileAssetUpdate {
+	mutation := newMobileAssetMutation(c.config, OpUpdate)
+	return &MobileAssetUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobileAssetClient) UpdateOne(_m *MobileAsset) *MobileAssetUpdateOne {
+	mutation := newMobileAssetMutation(c.config, OpUpdateOne, withMobileAsset(_m))
+	return &MobileAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobileAssetClient) UpdateOneID(id uuid.UUID) *MobileAssetUpdateOne {
+	mutation := newMobileAssetMutation(c.config, OpUpdateOne, withMobileAssetID(id))
+	return &MobileAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobileAsset.
+func (c *MobileAssetClient) Delete() *MobileAssetDelete {
+	mutation := newMobileAssetMutation(c.config, OpDelete)
+	return &MobileAssetDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobileAssetClient) DeleteOne(_m *MobileAsset) *MobileAssetDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobileAssetClient) DeleteOneID(id uuid.UUID) *MobileAssetDeleteOne {
+	builder := c.Delete().Where(mobileasset.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobileAssetDeleteOne{builder}
+}
+
+// Query returns a query builder for MobileAsset.
+func (c *MobileAssetClient) Query() *MobileAssetQuery {
+	return &MobileAssetQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobileAsset},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobileAsset entity by its id.
+func (c *MobileAssetClient) Get(ctx context.Context, id uuid.UUID) (*MobileAsset, error) {
+	return c.Query().Where(mobileasset.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobileAssetClient) GetX(ctx context.Context, id uuid.UUID) *MobileAsset {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MobileAssetClient) Hooks() []Hook {
+	hooks := c.hooks.MobileAsset
+	return append(hooks[:len(hooks):len(hooks)], mobileasset.Hooks[:]...)
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobileAssetClient) Interceptors() []Interceptor {
+	inters := c.inters.MobileAsset
+	return append(inters[:len(inters):len(inters)], mobileasset.Interceptors[:]...)
+}
+
+func (c *MobileAssetClient) mutate(ctx context.Context, m *MobileAssetMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobileAssetCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobileAssetUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobileAssetUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobileAssetDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobileAsset mutation op: %q", m.Op())
+	}
+}
+
+// MobileDeviceClient is a client for the MobileDevice schema.
+type MobileDeviceClient struct {
+	config
+}
+
+// NewMobileDeviceClient returns a client for the MobileDevice from the given config.
+func NewMobileDeviceClient(c config) *MobileDeviceClient {
+	return &MobileDeviceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobiledevice.Hooks(f(g(h())))`.
+func (c *MobileDeviceClient) Use(hooks ...Hook) {
+	c.hooks.MobileDevice = append(c.hooks.MobileDevice, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobiledevice.Intercept(f(g(h())))`.
+func (c *MobileDeviceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobileDevice = append(c.inters.MobileDevice, interceptors...)
+}
+
+// Create returns a builder for creating a MobileDevice entity.
+func (c *MobileDeviceClient) Create() *MobileDeviceCreate {
+	mutation := newMobileDeviceMutation(c.config, OpCreate)
+	return &MobileDeviceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobileDevice entities.
+func (c *MobileDeviceClient) CreateBulk(builders ...*MobileDeviceCreate) *MobileDeviceCreateBulk {
+	return &MobileDeviceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobileDeviceClient) MapCreateBulk(slice any, setFunc func(*MobileDeviceCreate, int)) *MobileDeviceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobileDeviceCreateBulk{err: fmt.Errorf("calling to MobileDeviceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobileDeviceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobileDeviceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobileDevice.
+func (c *MobileDeviceClient) Update() *MobileDeviceUpdate {
+	mutation := newMobileDeviceMutation(c.config, OpUpdate)
+	return &MobileDeviceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobileDeviceClient) UpdateOne(_m *MobileDevice) *MobileDeviceUpdateOne {
+	mutation := newMobileDeviceMutation(c.config, OpUpdateOne, withMobileDevice(_m))
+	return &MobileDeviceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobileDeviceClient) UpdateOneID(id uuid.UUID) *MobileDeviceUpdateOne {
+	mutation := newMobileDeviceMutation(c.config, OpUpdateOne, withMobileDeviceID(id))
+	return &MobileDeviceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobileDevice.
+func (c *MobileDeviceClient) Delete() *MobileDeviceDelete {
+	mutation := newMobileDeviceMutation(c.config, OpDelete)
+	return &MobileDeviceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobileDeviceClient) DeleteOne(_m *MobileDevice) *MobileDeviceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobileDeviceClient) DeleteOneID(id uuid.UUID) *MobileDeviceDeleteOne {
+	builder := c.Delete().Where(mobiledevice.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobileDeviceDeleteOne{builder}
+}
+
+// Query returns a query builder for MobileDevice.
+func (c *MobileDeviceClient) Query() *MobileDeviceQuery {
+	return &MobileDeviceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobileDevice},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobileDevice entity by its id.
+func (c *MobileDeviceClient) Get(ctx context.Context, id uuid.UUID) (*MobileDevice, error) {
+	return c.Query().Where(mobiledevice.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobileDeviceClient) GetX(ctx context.Context, id uuid.UUID) *MobileDevice {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MobileDeviceClient) Hooks() []Hook {
+	return c.hooks.MobileDevice
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobileDeviceClient) Interceptors() []Interceptor {
+	return c.inters.MobileDevice
+}
+
+func (c *MobileDeviceClient) mutate(ctx context.Context, m *MobileDeviceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobileDeviceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobileDeviceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobileDeviceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobileDeviceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobileDevice mutation op: %q", m.Op())
+	}
+}
+
+// MobilePushDeliveryClient is a client for the MobilePushDelivery schema.
+type MobilePushDeliveryClient struct {
+	config
+}
+
+// NewMobilePushDeliveryClient returns a client for the MobilePushDelivery from the given config.
+func NewMobilePushDeliveryClient(c config) *MobilePushDeliveryClient {
+	return &MobilePushDeliveryClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobilepushdelivery.Hooks(f(g(h())))`.
+func (c *MobilePushDeliveryClient) Use(hooks ...Hook) {
+	c.hooks.MobilePushDelivery = append(c.hooks.MobilePushDelivery, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobilepushdelivery.Intercept(f(g(h())))`.
+func (c *MobilePushDeliveryClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobilePushDelivery = append(c.inters.MobilePushDelivery, interceptors...)
+}
+
+// Create returns a builder for creating a MobilePushDelivery entity.
+func (c *MobilePushDeliveryClient) Create() *MobilePushDeliveryCreate {
+	mutation := newMobilePushDeliveryMutation(c.config, OpCreate)
+	return &MobilePushDeliveryCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobilePushDelivery entities.
+func (c *MobilePushDeliveryClient) CreateBulk(builders ...*MobilePushDeliveryCreate) *MobilePushDeliveryCreateBulk {
+	return &MobilePushDeliveryCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobilePushDeliveryClient) MapCreateBulk(slice any, setFunc func(*MobilePushDeliveryCreate, int)) *MobilePushDeliveryCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobilePushDeliveryCreateBulk{err: fmt.Errorf("calling to MobilePushDeliveryClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobilePushDeliveryCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobilePushDeliveryCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobilePushDelivery.
+func (c *MobilePushDeliveryClient) Update() *MobilePushDeliveryUpdate {
+	mutation := newMobilePushDeliveryMutation(c.config, OpUpdate)
+	return &MobilePushDeliveryUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobilePushDeliveryClient) UpdateOne(_m *MobilePushDelivery) *MobilePushDeliveryUpdateOne {
+	mutation := newMobilePushDeliveryMutation(c.config, OpUpdateOne, withMobilePushDelivery(_m))
+	return &MobilePushDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobilePushDeliveryClient) UpdateOneID(id int64) *MobilePushDeliveryUpdateOne {
+	mutation := newMobilePushDeliveryMutation(c.config, OpUpdateOne, withMobilePushDeliveryID(id))
+	return &MobilePushDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobilePushDelivery.
+func (c *MobilePushDeliveryClient) Delete() *MobilePushDeliveryDelete {
+	mutation := newMobilePushDeliveryMutation(c.config, OpDelete)
+	return &MobilePushDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobilePushDeliveryClient) DeleteOne(_m *MobilePushDelivery) *MobilePushDeliveryDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobilePushDeliveryClient) DeleteOneID(id int64) *MobilePushDeliveryDeleteOne {
+	builder := c.Delete().Where(mobilepushdelivery.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobilePushDeliveryDeleteOne{builder}
+}
+
+// Query returns a query builder for MobilePushDelivery.
+func (c *MobilePushDeliveryClient) Query() *MobilePushDeliveryQuery {
+	return &MobilePushDeliveryQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobilePushDelivery},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobilePushDelivery entity by its id.
+func (c *MobilePushDeliveryClient) Get(ctx context.Context, id int64) (*MobilePushDelivery, error) {
+	return c.Query().Where(mobilepushdelivery.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobilePushDeliveryClient) GetX(ctx context.Context, id int64) *MobilePushDelivery {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MobilePushDeliveryClient) Hooks() []Hook {
+	return c.hooks.MobilePushDelivery
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobilePushDeliveryClient) Interceptors() []Interceptor {
+	return c.inters.MobilePushDelivery
+}
+
+func (c *MobilePushDeliveryClient) mutate(ctx context.Context, m *MobilePushDeliveryMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobilePushDeliveryCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobilePushDeliveryUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobilePushDeliveryUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobilePushDeliveryDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobilePushDelivery mutation op: %q", m.Op())
+	}
+}
+
+// MobilePushOutboxClient is a client for the MobilePushOutbox schema.
+type MobilePushOutboxClient struct {
+	config
+}
+
+// NewMobilePushOutboxClient returns a client for the MobilePushOutbox from the given config.
+func NewMobilePushOutboxClient(c config) *MobilePushOutboxClient {
+	return &MobilePushOutboxClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobilepushoutbox.Hooks(f(g(h())))`.
+func (c *MobilePushOutboxClient) Use(hooks ...Hook) {
+	c.hooks.MobilePushOutbox = append(c.hooks.MobilePushOutbox, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobilepushoutbox.Intercept(f(g(h())))`.
+func (c *MobilePushOutboxClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobilePushOutbox = append(c.inters.MobilePushOutbox, interceptors...)
+}
+
+// Create returns a builder for creating a MobilePushOutbox entity.
+func (c *MobilePushOutboxClient) Create() *MobilePushOutboxCreate {
+	mutation := newMobilePushOutboxMutation(c.config, OpCreate)
+	return &MobilePushOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobilePushOutbox entities.
+func (c *MobilePushOutboxClient) CreateBulk(builders ...*MobilePushOutboxCreate) *MobilePushOutboxCreateBulk {
+	return &MobilePushOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobilePushOutboxClient) MapCreateBulk(slice any, setFunc func(*MobilePushOutboxCreate, int)) *MobilePushOutboxCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobilePushOutboxCreateBulk{err: fmt.Errorf("calling to MobilePushOutboxClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobilePushOutboxCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobilePushOutboxCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobilePushOutbox.
+func (c *MobilePushOutboxClient) Update() *MobilePushOutboxUpdate {
+	mutation := newMobilePushOutboxMutation(c.config, OpUpdate)
+	return &MobilePushOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobilePushOutboxClient) UpdateOne(_m *MobilePushOutbox) *MobilePushOutboxUpdateOne {
+	mutation := newMobilePushOutboxMutation(c.config, OpUpdateOne, withMobilePushOutbox(_m))
+	return &MobilePushOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobilePushOutboxClient) UpdateOneID(id int64) *MobilePushOutboxUpdateOne {
+	mutation := newMobilePushOutboxMutation(c.config, OpUpdateOne, withMobilePushOutboxID(id))
+	return &MobilePushOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobilePushOutbox.
+func (c *MobilePushOutboxClient) Delete() *MobilePushOutboxDelete {
+	mutation := newMobilePushOutboxMutation(c.config, OpDelete)
+	return &MobilePushOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobilePushOutboxClient) DeleteOne(_m *MobilePushOutbox) *MobilePushOutboxDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobilePushOutboxClient) DeleteOneID(id int64) *MobilePushOutboxDeleteOne {
+	builder := c.Delete().Where(mobilepushoutbox.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobilePushOutboxDeleteOne{builder}
+}
+
+// Query returns a query builder for MobilePushOutbox.
+func (c *MobilePushOutboxClient) Query() *MobilePushOutboxQuery {
+	return &MobilePushOutboxQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobilePushOutbox},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobilePushOutbox entity by its id.
+func (c *MobilePushOutboxClient) Get(ctx context.Context, id int64) (*MobilePushOutbox, error) {
+	return c.Query().Where(mobilepushoutbox.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobilePushOutboxClient) GetX(ctx context.Context, id int64) *MobilePushOutbox {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MobilePushOutboxClient) Hooks() []Hook {
+	return c.hooks.MobilePushOutbox
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobilePushOutboxClient) Interceptors() []Interceptor {
+	return c.inters.MobilePushOutbox
+}
+
+func (c *MobilePushOutboxClient) mutate(ctx context.Context, m *MobilePushOutboxMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobilePushOutboxCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobilePushOutboxUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobilePushOutboxUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobilePushOutboxDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobilePushOutbox mutation op: %q", m.Op())
+	}
+}
+
+// MobileSkillClient is a client for the MobileSkill schema.
+type MobileSkillClient struct {
+	config
+}
+
+// NewMobileSkillClient returns a client for the MobileSkill from the given config.
+func NewMobileSkillClient(c config) *MobileSkillClient {
+	return &MobileSkillClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobileskill.Hooks(f(g(h())))`.
+func (c *MobileSkillClient) Use(hooks ...Hook) {
+	c.hooks.MobileSkill = append(c.hooks.MobileSkill, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobileskill.Intercept(f(g(h())))`.
+func (c *MobileSkillClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobileSkill = append(c.inters.MobileSkill, interceptors...)
+}
+
+// Create returns a builder for creating a MobileSkill entity.
+func (c *MobileSkillClient) Create() *MobileSkillCreate {
+	mutation := newMobileSkillMutation(c.config, OpCreate)
+	return &MobileSkillCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobileSkill entities.
+func (c *MobileSkillClient) CreateBulk(builders ...*MobileSkillCreate) *MobileSkillCreateBulk {
+	return &MobileSkillCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobileSkillClient) MapCreateBulk(slice any, setFunc func(*MobileSkillCreate, int)) *MobileSkillCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobileSkillCreateBulk{err: fmt.Errorf("calling to MobileSkillClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobileSkillCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobileSkillCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobileSkill.
+func (c *MobileSkillClient) Update() *MobileSkillUpdate {
+	mutation := newMobileSkillMutation(c.config, OpUpdate)
+	return &MobileSkillUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobileSkillClient) UpdateOne(_m *MobileSkill) *MobileSkillUpdateOne {
+	mutation := newMobileSkillMutation(c.config, OpUpdateOne, withMobileSkill(_m))
+	return &MobileSkillUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobileSkillClient) UpdateOneID(id int64) *MobileSkillUpdateOne {
+	mutation := newMobileSkillMutation(c.config, OpUpdateOne, withMobileSkillID(id))
+	return &MobileSkillUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobileSkill.
+func (c *MobileSkillClient) Delete() *MobileSkillDelete {
+	mutation := newMobileSkillMutation(c.config, OpDelete)
+	return &MobileSkillDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobileSkillClient) DeleteOne(_m *MobileSkill) *MobileSkillDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobileSkillClient) DeleteOneID(id int64) *MobileSkillDeleteOne {
+	builder := c.Delete().Where(mobileskill.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobileSkillDeleteOne{builder}
+}
+
+// Query returns a query builder for MobileSkill.
+func (c *MobileSkillClient) Query() *MobileSkillQuery {
+	return &MobileSkillQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobileSkill},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobileSkill entity by its id.
+func (c *MobileSkillClient) Get(ctx context.Context, id int64) (*MobileSkill, error) {
+	return c.Query().Where(mobileskill.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobileSkillClient) GetX(ctx context.Context, id int64) *MobileSkill {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QueryVersions queries the versions edge of a MobileSkill.
+func (c *MobileSkillClient) QueryVersions(_m *MobileSkill) *MobileSkillVersionQuery {
+	query := (&MobileSkillVersionClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mobileskill.Table, mobileskill.FieldID, id),
+			sqlgraph.To(mobileskillversion.Table, mobileskillversion.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, mobileskill.VersionsTable, mobileskill.VersionsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// QueryUserInstalls queries the user_installs edge of a MobileSkill.
+func (c *MobileSkillClient) QueryUserInstalls(_m *MobileSkill) *UserMobileSkillQuery {
+	query := (&UserMobileSkillClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mobileskill.Table, mobileskill.FieldID, id),
+			sqlgraph.To(usermobileskill.Table, usermobileskill.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, mobileskill.UserInstallsTable, mobileskill.UserInstallsColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MobileSkillClient) Hooks() []Hook {
+	return c.hooks.MobileSkill
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobileSkillClient) Interceptors() []Interceptor {
+	return c.inters.MobileSkill
+}
+
+func (c *MobileSkillClient) mutate(ctx context.Context, m *MobileSkillMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobileSkillCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobileSkillUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobileSkillUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobileSkillDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobileSkill mutation op: %q", m.Op())
+	}
+}
+
+// MobileSkillVersionClient is a client for the MobileSkillVersion schema.
+type MobileSkillVersionClient struct {
+	config
+}
+
+// NewMobileSkillVersionClient returns a client for the MobileSkillVersion from the given config.
+func NewMobileSkillVersionClient(c config) *MobileSkillVersionClient {
+	return &MobileSkillVersionClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobileskillversion.Hooks(f(g(h())))`.
+func (c *MobileSkillVersionClient) Use(hooks ...Hook) {
+	c.hooks.MobileSkillVersion = append(c.hooks.MobileSkillVersion, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobileskillversion.Intercept(f(g(h())))`.
+func (c *MobileSkillVersionClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobileSkillVersion = append(c.inters.MobileSkillVersion, interceptors...)
+}
+
+// Create returns a builder for creating a MobileSkillVersion entity.
+func (c *MobileSkillVersionClient) Create() *MobileSkillVersionCreate {
+	mutation := newMobileSkillVersionMutation(c.config, OpCreate)
+	return &MobileSkillVersionCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobileSkillVersion entities.
+func (c *MobileSkillVersionClient) CreateBulk(builders ...*MobileSkillVersionCreate) *MobileSkillVersionCreateBulk {
+	return &MobileSkillVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobileSkillVersionClient) MapCreateBulk(slice any, setFunc func(*MobileSkillVersionCreate, int)) *MobileSkillVersionCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobileSkillVersionCreateBulk{err: fmt.Errorf("calling to MobileSkillVersionClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobileSkillVersionCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobileSkillVersionCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobileSkillVersion.
+func (c *MobileSkillVersionClient) Update() *MobileSkillVersionUpdate {
+	mutation := newMobileSkillVersionMutation(c.config, OpUpdate)
+	return &MobileSkillVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobileSkillVersionClient) UpdateOne(_m *MobileSkillVersion) *MobileSkillVersionUpdateOne {
+	mutation := newMobileSkillVersionMutation(c.config, OpUpdateOne, withMobileSkillVersion(_m))
+	return &MobileSkillVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobileSkillVersionClient) UpdateOneID(id int64) *MobileSkillVersionUpdateOne {
+	mutation := newMobileSkillVersionMutation(c.config, OpUpdateOne, withMobileSkillVersionID(id))
+	return &MobileSkillVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobileSkillVersion.
+func (c *MobileSkillVersionClient) Delete() *MobileSkillVersionDelete {
+	mutation := newMobileSkillVersionMutation(c.config, OpDelete)
+	return &MobileSkillVersionDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobileSkillVersionClient) DeleteOne(_m *MobileSkillVersion) *MobileSkillVersionDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobileSkillVersionClient) DeleteOneID(id int64) *MobileSkillVersionDeleteOne {
+	builder := c.Delete().Where(mobileskillversion.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobileSkillVersionDeleteOne{builder}
+}
+
+// Query returns a query builder for MobileSkillVersion.
+func (c *MobileSkillVersionClient) Query() *MobileSkillVersionQuery {
+	return &MobileSkillVersionQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobileSkillVersion},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobileSkillVersion entity by its id.
+func (c *MobileSkillVersionClient) Get(ctx context.Context, id int64) (*MobileSkillVersion, error) {
+	return c.Query().Where(mobileskillversion.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobileSkillVersionClient) GetX(ctx context.Context, id int64) *MobileSkillVersion {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySkill queries the skill edge of a MobileSkillVersion.
+func (c *MobileSkillVersionClient) QuerySkill(_m *MobileSkillVersion) *MobileSkillQuery {
+	query := (&MobileSkillClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(mobileskillversion.Table, mobileskillversion.FieldID, id),
+			sqlgraph.To(mobileskill.Table, mobileskill.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, mobileskillversion.SkillTable, mobileskillversion.SkillColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *MobileSkillVersionClient) Hooks() []Hook {
+	return c.hooks.MobileSkillVersion
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobileSkillVersionClient) Interceptors() []Interceptor {
+	return c.inters.MobileSkillVersion
+}
+
+func (c *MobileSkillVersionClient) mutate(ctx context.Context, m *MobileSkillVersionMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobileSkillVersionCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobileSkillVersionUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobileSkillVersionUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobileSkillVersionDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobileSkillVersion mutation op: %q", m.Op())
+	}
+}
+
+// MobileTaskClient is a client for the MobileTask schema.
+type MobileTaskClient struct {
+	config
+}
+
+// NewMobileTaskClient returns a client for the MobileTask from the given config.
+func NewMobileTaskClient(c config) *MobileTaskClient {
+	return &MobileTaskClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `mobiletask.Hooks(f(g(h())))`.
+func (c *MobileTaskClient) Use(hooks ...Hook) {
+	c.hooks.MobileTask = append(c.hooks.MobileTask, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `mobiletask.Intercept(f(g(h())))`.
+func (c *MobileTaskClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MobileTask = append(c.inters.MobileTask, interceptors...)
+}
+
+// Create returns a builder for creating a MobileTask entity.
+func (c *MobileTaskClient) Create() *MobileTaskCreate {
+	mutation := newMobileTaskMutation(c.config, OpCreate)
+	return &MobileTaskCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MobileTask entities.
+func (c *MobileTaskClient) CreateBulk(builders ...*MobileTaskCreate) *MobileTaskCreateBulk {
+	return &MobileTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MobileTaskClient) MapCreateBulk(slice any, setFunc func(*MobileTaskCreate, int)) *MobileTaskCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MobileTaskCreateBulk{err: fmt.Errorf("calling to MobileTaskClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MobileTaskCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MobileTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MobileTask.
+func (c *MobileTaskClient) Update() *MobileTaskUpdate {
+	mutation := newMobileTaskMutation(c.config, OpUpdate)
+	return &MobileTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MobileTaskClient) UpdateOne(_m *MobileTask) *MobileTaskUpdateOne {
+	mutation := newMobileTaskMutation(c.config, OpUpdateOne, withMobileTask(_m))
+	return &MobileTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MobileTaskClient) UpdateOneID(id uuid.UUID) *MobileTaskUpdateOne {
+	mutation := newMobileTaskMutation(c.config, OpUpdateOne, withMobileTaskID(id))
+	return &MobileTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MobileTask.
+func (c *MobileTaskClient) Delete() *MobileTaskDelete {
+	mutation := newMobileTaskMutation(c.config, OpDelete)
+	return &MobileTaskDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MobileTaskClient) DeleteOne(_m *MobileTask) *MobileTaskDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MobileTaskClient) DeleteOneID(id uuid.UUID) *MobileTaskDeleteOne {
+	builder := c.Delete().Where(mobiletask.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MobileTaskDeleteOne{builder}
+}
+
+// Query returns a query builder for MobileTask.
+func (c *MobileTaskClient) Query() *MobileTaskQuery {
+	return &MobileTaskQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMobileTask},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MobileTask entity by its id.
+func (c *MobileTaskClient) Get(ctx context.Context, id uuid.UUID) (*MobileTask, error) {
+	return c.Query().Where(mobiletask.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MobileTaskClient) GetX(ctx context.Context, id uuid.UUID) *MobileTask {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MobileTaskClient) Hooks() []Hook {
+	return c.hooks.MobileTask
+}
+
+// Interceptors returns the client interceptors.
+func (c *MobileTaskClient) Interceptors() []Interceptor {
+	return c.inters.MobileTask
+}
+
+func (c *MobileTaskClient) mutate(ctx context.Context, m *MobileTaskMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MobileTaskCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MobileTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MobileTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MobileTaskDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MobileTask mutation op: %q", m.Op())
 	}
 }
 
@@ -6313,6 +7522,155 @@ func (c *UserAttributeValueClient) mutate(ctx context.Context, m *UserAttributeV
 	}
 }
 
+// UserMobileSkillClient is a client for the UserMobileSkill schema.
+type UserMobileSkillClient struct {
+	config
+}
+
+// NewUserMobileSkillClient returns a client for the UserMobileSkill from the given config.
+func NewUserMobileSkillClient(c config) *UserMobileSkillClient {
+	return &UserMobileSkillClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `usermobileskill.Hooks(f(g(h())))`.
+func (c *UserMobileSkillClient) Use(hooks ...Hook) {
+	c.hooks.UserMobileSkill = append(c.hooks.UserMobileSkill, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `usermobileskill.Intercept(f(g(h())))`.
+func (c *UserMobileSkillClient) Intercept(interceptors ...Interceptor) {
+	c.inters.UserMobileSkill = append(c.inters.UserMobileSkill, interceptors...)
+}
+
+// Create returns a builder for creating a UserMobileSkill entity.
+func (c *UserMobileSkillClient) Create() *UserMobileSkillCreate {
+	mutation := newUserMobileSkillMutation(c.config, OpCreate)
+	return &UserMobileSkillCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of UserMobileSkill entities.
+func (c *UserMobileSkillClient) CreateBulk(builders ...*UserMobileSkillCreate) *UserMobileSkillCreateBulk {
+	return &UserMobileSkillCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *UserMobileSkillClient) MapCreateBulk(slice any, setFunc func(*UserMobileSkillCreate, int)) *UserMobileSkillCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &UserMobileSkillCreateBulk{err: fmt.Errorf("calling to UserMobileSkillClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*UserMobileSkillCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &UserMobileSkillCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for UserMobileSkill.
+func (c *UserMobileSkillClient) Update() *UserMobileSkillUpdate {
+	mutation := newUserMobileSkillMutation(c.config, OpUpdate)
+	return &UserMobileSkillUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *UserMobileSkillClient) UpdateOne(_m *UserMobileSkill) *UserMobileSkillUpdateOne {
+	mutation := newUserMobileSkillMutation(c.config, OpUpdateOne, withUserMobileSkill(_m))
+	return &UserMobileSkillUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *UserMobileSkillClient) UpdateOneID(id int64) *UserMobileSkillUpdateOne {
+	mutation := newUserMobileSkillMutation(c.config, OpUpdateOne, withUserMobileSkillID(id))
+	return &UserMobileSkillUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for UserMobileSkill.
+func (c *UserMobileSkillClient) Delete() *UserMobileSkillDelete {
+	mutation := newUserMobileSkillMutation(c.config, OpDelete)
+	return &UserMobileSkillDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *UserMobileSkillClient) DeleteOne(_m *UserMobileSkill) *UserMobileSkillDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *UserMobileSkillClient) DeleteOneID(id int64) *UserMobileSkillDeleteOne {
+	builder := c.Delete().Where(usermobileskill.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &UserMobileSkillDeleteOne{builder}
+}
+
+// Query returns a query builder for UserMobileSkill.
+func (c *UserMobileSkillClient) Query() *UserMobileSkillQuery {
+	return &UserMobileSkillQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeUserMobileSkill},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a UserMobileSkill entity by its id.
+func (c *UserMobileSkillClient) Get(ctx context.Context, id int64) (*UserMobileSkill, error) {
+	return c.Query().Where(usermobileskill.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *UserMobileSkillClient) GetX(ctx context.Context, id int64) *UserMobileSkill {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// QuerySkill queries the skill edge of a UserMobileSkill.
+func (c *UserMobileSkillClient) QuerySkill(_m *UserMobileSkill) *MobileSkillQuery {
+	query := (&MobileSkillClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := _m.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(usermobileskill.Table, usermobileskill.FieldID, id),
+			sqlgraph.To(mobileskill.Table, mobileskill.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, usermobileskill.SkillTable, usermobileskill.SkillColumn),
+		)
+		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
+// Hooks returns the client hooks.
+func (c *UserMobileSkillClient) Hooks() []Hook {
+	return c.hooks.UserMobileSkill
+}
+
+// Interceptors returns the client interceptors.
+func (c *UserMobileSkillClient) Interceptors() []Interceptor {
+	return c.inters.UserMobileSkill
+}
+
+func (c *UserMobileSkillClient) mutate(ctx context.Context, m *UserMobileSkillMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&UserMobileSkillCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&UserMobileSkillUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&UserMobileSkillUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&UserMobileSkillDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown UserMobileSkill mutation op: %q", m.Op())
+	}
+}
+
 // UserPlatformQuotaClient is a client for the UserPlatformQuota schema.
 type UserPlatformQuotaClient struct {
 	config
@@ -6669,23 +8027,29 @@ type (
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
-		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
+		Group, IdempotencyRecord, IdentityAdoptionDecision, MobileAsset, MobileDevice,
+		MobilePushDelivery, MobilePushOutbox, MobileSkill, MobileSkillVersion,
+		MobileTask, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
 		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
-		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Hook
+		UserAttributeValue, UserMobileSkill, UserPlatformQuota,
+		UserSubscription []ent.Hook
 	}
 	inters struct {
 		APIKey, Account, AccountGroup, Announcement, AnnouncementRead, AuthIdentity,
 		AuthIdentityChannel, BatchImageEvent, BatchImageItem, BatchImageJob,
 		ChannelMonitor, ChannelMonitorDailyRollup, ChannelMonitorHistory,
-		ChannelMonitorRequestTemplate, ErrorPassthroughRule, Group, IdempotencyRecord,
-		IdentityAdoptionDecision, PaymentAuditLog, PaymentOrder,
-		PaymentProviderInstance, PendingAuthSession, PromoCode, PromoCodeUsage, Proxy,
-		RedeemCode, SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
+		ChannelMonitorRequestTemplate, CompositeModelRoute, ErrorPassthroughRule,
+		Group, IdempotencyRecord, IdentityAdoptionDecision, MobileAsset, MobileDevice,
+		MobilePushDelivery, MobilePushOutbox, MobileSkill, MobileSkillVersion,
+		MobileTask, PaymentAuditLog, PaymentOrder, PaymentProviderInstance,
+		PendingAuthSession, PromoCode, PromoCodeUsage, Proxy, RedeemCode,
+		SecuritySecret, Setting, SubscriptionPlan, TLSFingerprintProfile,
 		UsageCleanupTask, UsageLog, User, UserAllowedGroup, UserAttributeDefinition,
-		UserAttributeValue, UserPlatformQuota, UserSubscription []ent.Interceptor
+		UserAttributeValue, UserMobileSkill, UserPlatformQuota,
+		UserSubscription []ent.Interceptor
 	}
 )
 

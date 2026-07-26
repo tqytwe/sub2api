@@ -22,10 +22,18 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/mobileasset"
+	"github.com/Wei-Shaw/sub2api/ent/mobiledevice"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushdelivery"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushoutbox"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskill"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskillversion"
+	"github.com/Wei-Shaw/sub2api/ent/mobiletask"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -45,6 +53,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usermobileskill"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 )
@@ -483,6 +492,33 @@ func (f TraverseChannelMonitorRequestTemplate) Traverse(ctx context.Context, q e
 	return fmt.Errorf("unexpected query type %T. expect *ent.ChannelMonitorRequestTemplateQuery", q)
 }
 
+// The CompositeModelRouteFunc type is an adapter to allow the use of ordinary function as a Querier.
+type CompositeModelRouteFunc func(context.Context, *ent.CompositeModelRouteQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f CompositeModelRouteFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.CompositeModelRouteQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.CompositeModelRouteQuery", q)
+}
+
+// The TraverseCompositeModelRoute type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseCompositeModelRoute func(context.Context, *ent.CompositeModelRouteQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseCompositeModelRoute) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseCompositeModelRoute) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.CompositeModelRouteQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.CompositeModelRouteQuery", q)
+}
+
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary function as a Querier.
 type ErrorPassthroughRuleFunc func(context.Context, *ent.ErrorPassthroughRuleQuery) (ent.Value, error)
 
@@ -589,6 +625,195 @@ func (f TraverseIdentityAdoptionDecision) Traverse(ctx context.Context, q ent.Qu
 		return f(ctx, q)
 	}
 	return fmt.Errorf("unexpected query type %T. expect *ent.IdentityAdoptionDecisionQuery", q)
+}
+
+// The MobileAssetFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobileAssetFunc func(context.Context, *ent.MobileAssetQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobileAssetFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobileAssetQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobileAssetQuery", q)
+}
+
+// The TraverseMobileAsset type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobileAsset func(context.Context, *ent.MobileAssetQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobileAsset) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobileAsset) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobileAssetQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobileAssetQuery", q)
+}
+
+// The MobileDeviceFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobileDeviceFunc func(context.Context, *ent.MobileDeviceQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobileDeviceFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobileDeviceQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobileDeviceQuery", q)
+}
+
+// The TraverseMobileDevice type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobileDevice func(context.Context, *ent.MobileDeviceQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobileDevice) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobileDevice) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobileDeviceQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobileDeviceQuery", q)
+}
+
+// The MobilePushDeliveryFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobilePushDeliveryFunc func(context.Context, *ent.MobilePushDeliveryQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobilePushDeliveryFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobilePushDeliveryQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobilePushDeliveryQuery", q)
+}
+
+// The TraverseMobilePushDelivery type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobilePushDelivery func(context.Context, *ent.MobilePushDeliveryQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobilePushDelivery) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobilePushDelivery) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobilePushDeliveryQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobilePushDeliveryQuery", q)
+}
+
+// The MobilePushOutboxFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobilePushOutboxFunc func(context.Context, *ent.MobilePushOutboxQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobilePushOutboxFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobilePushOutboxQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobilePushOutboxQuery", q)
+}
+
+// The TraverseMobilePushOutbox type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobilePushOutbox func(context.Context, *ent.MobilePushOutboxQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobilePushOutbox) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobilePushOutbox) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobilePushOutboxQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobilePushOutboxQuery", q)
+}
+
+// The MobileSkillFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobileSkillFunc func(context.Context, *ent.MobileSkillQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobileSkillFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobileSkillQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobileSkillQuery", q)
+}
+
+// The TraverseMobileSkill type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobileSkill func(context.Context, *ent.MobileSkillQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobileSkill) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobileSkill) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobileSkillQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobileSkillQuery", q)
+}
+
+// The MobileSkillVersionFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobileSkillVersionFunc func(context.Context, *ent.MobileSkillVersionQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobileSkillVersionFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobileSkillVersionQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobileSkillVersionQuery", q)
+}
+
+// The TraverseMobileSkillVersion type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobileSkillVersion func(context.Context, *ent.MobileSkillVersionQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobileSkillVersion) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobileSkillVersion) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobileSkillVersionQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobileSkillVersionQuery", q)
+}
+
+// The MobileTaskFunc type is an adapter to allow the use of ordinary function as a Querier.
+type MobileTaskFunc func(context.Context, *ent.MobileTaskQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f MobileTaskFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.MobileTaskQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.MobileTaskQuery", q)
+}
+
+// The TraverseMobileTask type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseMobileTask func(context.Context, *ent.MobileTaskQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseMobileTask) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseMobileTask) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.MobileTaskQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.MobileTaskQuery", q)
 }
 
 // The PaymentAuditLogFunc type is an adapter to allow the use of ordinary function as a Querier.
@@ -1077,6 +1302,33 @@ func (f TraverseUserAttributeValue) Traverse(ctx context.Context, q ent.Query) e
 	return fmt.Errorf("unexpected query type %T. expect *ent.UserAttributeValueQuery", q)
 }
 
+// The UserMobileSkillFunc type is an adapter to allow the use of ordinary function as a Querier.
+type UserMobileSkillFunc func(context.Context, *ent.UserMobileSkillQuery) (ent.Value, error)
+
+// Query calls f(ctx, q).
+func (f UserMobileSkillFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
+	if q, ok := q.(*ent.UserMobileSkillQuery); ok {
+		return f(ctx, q)
+	}
+	return nil, fmt.Errorf("unexpected query type %T. expect *ent.UserMobileSkillQuery", q)
+}
+
+// The TraverseUserMobileSkill type is an adapter to allow the use of ordinary function as Traverser.
+type TraverseUserMobileSkill func(context.Context, *ent.UserMobileSkillQuery) error
+
+// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
+func (f TraverseUserMobileSkill) Intercept(next ent.Querier) ent.Querier {
+	return next
+}
+
+// Traverse calls f(ctx, q).
+func (f TraverseUserMobileSkill) Traverse(ctx context.Context, q ent.Query) error {
+	if q, ok := q.(*ent.UserMobileSkillQuery); ok {
+		return f(ctx, q)
+	}
+	return fmt.Errorf("unexpected query type %T. expect *ent.UserMobileSkillQuery", q)
+}
+
 // The UserPlatformQuotaFunc type is an adapter to allow the use of ordinary function as a Querier.
 type UserPlatformQuotaFunc func(context.Context, *ent.UserPlatformQuotaQuery) (ent.Value, error)
 
@@ -1162,6 +1414,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.ChannelMonitorHistoryQuery, predicate.ChannelMonitorHistory, channelmonitorhistory.OrderOption]{typ: ent.TypeChannelMonitorHistory, tq: q}, nil
 	case *ent.ChannelMonitorRequestTemplateQuery:
 		return &query[*ent.ChannelMonitorRequestTemplateQuery, predicate.ChannelMonitorRequestTemplate, channelmonitorrequesttemplate.OrderOption]{typ: ent.TypeChannelMonitorRequestTemplate, tq: q}, nil
+	case *ent.CompositeModelRouteQuery:
+		return &query[*ent.CompositeModelRouteQuery, predicate.CompositeModelRoute, compositemodelroute.OrderOption]{typ: ent.TypeCompositeModelRoute, tq: q}, nil
 	case *ent.ErrorPassthroughRuleQuery:
 		return &query[*ent.ErrorPassthroughRuleQuery, predicate.ErrorPassthroughRule, errorpassthroughrule.OrderOption]{typ: ent.TypeErrorPassthroughRule, tq: q}, nil
 	case *ent.GroupQuery:
@@ -1170,6 +1424,20 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.IdempotencyRecordQuery, predicate.IdempotencyRecord, idempotencyrecord.OrderOption]{typ: ent.TypeIdempotencyRecord, tq: q}, nil
 	case *ent.IdentityAdoptionDecisionQuery:
 		return &query[*ent.IdentityAdoptionDecisionQuery, predicate.IdentityAdoptionDecision, identityadoptiondecision.OrderOption]{typ: ent.TypeIdentityAdoptionDecision, tq: q}, nil
+	case *ent.MobileAssetQuery:
+		return &query[*ent.MobileAssetQuery, predicate.MobileAsset, mobileasset.OrderOption]{typ: ent.TypeMobileAsset, tq: q}, nil
+	case *ent.MobileDeviceQuery:
+		return &query[*ent.MobileDeviceQuery, predicate.MobileDevice, mobiledevice.OrderOption]{typ: ent.TypeMobileDevice, tq: q}, nil
+	case *ent.MobilePushDeliveryQuery:
+		return &query[*ent.MobilePushDeliveryQuery, predicate.MobilePushDelivery, mobilepushdelivery.OrderOption]{typ: ent.TypeMobilePushDelivery, tq: q}, nil
+	case *ent.MobilePushOutboxQuery:
+		return &query[*ent.MobilePushOutboxQuery, predicate.MobilePushOutbox, mobilepushoutbox.OrderOption]{typ: ent.TypeMobilePushOutbox, tq: q}, nil
+	case *ent.MobileSkillQuery:
+		return &query[*ent.MobileSkillQuery, predicate.MobileSkill, mobileskill.OrderOption]{typ: ent.TypeMobileSkill, tq: q}, nil
+	case *ent.MobileSkillVersionQuery:
+		return &query[*ent.MobileSkillVersionQuery, predicate.MobileSkillVersion, mobileskillversion.OrderOption]{typ: ent.TypeMobileSkillVersion, tq: q}, nil
+	case *ent.MobileTaskQuery:
+		return &query[*ent.MobileTaskQuery, predicate.MobileTask, mobiletask.OrderOption]{typ: ent.TypeMobileTask, tq: q}, nil
 	case *ent.PaymentAuditLogQuery:
 		return &query[*ent.PaymentAuditLogQuery, predicate.PaymentAuditLog, paymentauditlog.OrderOption]{typ: ent.TypePaymentAuditLog, tq: q}, nil
 	case *ent.PaymentOrderQuery:
@@ -1206,6 +1474,8 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.UserAttributeDefinitionQuery, predicate.UserAttributeDefinition, userattributedefinition.OrderOption]{typ: ent.TypeUserAttributeDefinition, tq: q}, nil
 	case *ent.UserAttributeValueQuery:
 		return &query[*ent.UserAttributeValueQuery, predicate.UserAttributeValue, userattributevalue.OrderOption]{typ: ent.TypeUserAttributeValue, tq: q}, nil
+	case *ent.UserMobileSkillQuery:
+		return &query[*ent.UserMobileSkillQuery, predicate.UserMobileSkill, usermobileskill.OrderOption]{typ: ent.TypeUserMobileSkill, tq: q}, nil
 	case *ent.UserPlatformQuotaQuery:
 		return &query[*ent.UserPlatformQuotaQuery, predicate.UserPlatformQuota, userplatformquota.OrderOption]{typ: ent.TypeUserPlatformQuota, tq: q}, nil
 	case *ent.UserSubscriptionQuery:

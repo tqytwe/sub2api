@@ -19,10 +19,18 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/mobileasset"
+	"github.com/Wei-Shaw/sub2api/ent/mobiledevice"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushdelivery"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushoutbox"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskill"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskillversion"
+	"github.com/Wei-Shaw/sub2api/ent/mobiletask"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -42,9 +50,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usermobileskill"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/google/uuid"
 )
 
 // The init function reads all schema descriptors with runtime code
@@ -865,6 +875,75 @@ func init() {
 	channelmonitorrequesttemplate.DefaultBodyOverrideMode = channelmonitorrequesttemplateDescBodyOverrideMode.Default.(string)
 	// channelmonitorrequesttemplate.BodyOverrideModeValidator is a validator for the "body_override_mode" field. It is called by the builders before save.
 	channelmonitorrequesttemplate.BodyOverrideModeValidator = channelmonitorrequesttemplateDescBodyOverrideMode.Validators[0].(func(string) error)
+	compositemodelrouteMixin := schema.CompositeModelRoute{}.Mixin()
+	compositemodelrouteMixinHooks1 := compositemodelrouteMixin[1].Hooks()
+	compositemodelroute.Hooks[0] = compositemodelrouteMixinHooks1[0]
+	compositemodelrouteMixinInters1 := compositemodelrouteMixin[1].Interceptors()
+	compositemodelroute.Interceptors[0] = compositemodelrouteMixinInters1[0]
+	compositemodelrouteMixinFields0 := compositemodelrouteMixin[0].Fields()
+	_ = compositemodelrouteMixinFields0
+	compositemodelrouteFields := schema.CompositeModelRoute{}.Fields()
+	_ = compositemodelrouteFields
+	// compositemodelrouteDescCreatedAt is the schema descriptor for created_at field.
+	compositemodelrouteDescCreatedAt := compositemodelrouteMixinFields0[0].Descriptor()
+	// compositemodelroute.DefaultCreatedAt holds the default value on creation for the created_at field.
+	compositemodelroute.DefaultCreatedAt = compositemodelrouteDescCreatedAt.Default.(func() time.Time)
+	// compositemodelrouteDescUpdatedAt is the schema descriptor for updated_at field.
+	compositemodelrouteDescUpdatedAt := compositemodelrouteMixinFields0[1].Descriptor()
+	// compositemodelroute.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	compositemodelroute.DefaultUpdatedAt = compositemodelrouteDescUpdatedAt.Default.(func() time.Time)
+	// compositemodelroute.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	compositemodelroute.UpdateDefaultUpdatedAt = compositemodelrouteDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// compositemodelrouteDescPublicModel is the schema descriptor for public_model field.
+	compositemodelrouteDescPublicModel := compositemodelrouteFields[1].Descriptor()
+	// compositemodelroute.PublicModelValidator is a validator for the "public_model" field. It is called by the builders before save.
+	compositemodelroute.PublicModelValidator = func() func(string) error {
+		validators := compositemodelrouteDescPublicModel.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(public_model string) error {
+			for _, fn := range fns {
+				if err := fn(public_model); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// compositemodelrouteDescMatchType is the schema descriptor for match_type field.
+	compositemodelrouteDescMatchType := compositemodelrouteFields[2].Descriptor()
+	// compositemodelroute.DefaultMatchType holds the default value on creation for the match_type field.
+	compositemodelroute.DefaultMatchType = compositemodelrouteDescMatchType.Default.(string)
+	// compositemodelroute.MatchTypeValidator is a validator for the "match_type" field. It is called by the builders before save.
+	compositemodelroute.MatchTypeValidator = compositemodelrouteDescMatchType.Validators[0].(func(string) error)
+	// compositemodelrouteDescTargetPlatform is the schema descriptor for target_platform field.
+	compositemodelrouteDescTargetPlatform := compositemodelrouteFields[3].Descriptor()
+	// compositemodelroute.DefaultTargetPlatform holds the default value on creation for the target_platform field.
+	compositemodelroute.DefaultTargetPlatform = compositemodelrouteDescTargetPlatform.Default.(string)
+	// compositemodelroute.TargetPlatformValidator is a validator for the "target_platform" field. It is called by the builders before save.
+	compositemodelroute.TargetPlatformValidator = compositemodelrouteDescTargetPlatform.Validators[0].(func(string) error)
+	// compositemodelrouteDescUpstreamModel is the schema descriptor for upstream_model field.
+	compositemodelrouteDescUpstreamModel := compositemodelrouteFields[4].Descriptor()
+	// compositemodelroute.DefaultUpstreamModel holds the default value on creation for the upstream_model field.
+	compositemodelroute.DefaultUpstreamModel = compositemodelrouteDescUpstreamModel.Default.(string)
+	// compositemodelroute.UpstreamModelValidator is a validator for the "upstream_model" field. It is called by the builders before save.
+	compositemodelroute.UpstreamModelValidator = compositemodelrouteDescUpstreamModel.Validators[0].(func(string) error)
+	// compositemodelrouteDescEndpoint is the schema descriptor for endpoint field.
+	compositemodelrouteDescEndpoint := compositemodelrouteFields[5].Descriptor()
+	// compositemodelroute.DefaultEndpoint holds the default value on creation for the endpoint field.
+	compositemodelroute.DefaultEndpoint = compositemodelrouteDescEndpoint.Default.(string)
+	// compositemodelroute.EndpointValidator is a validator for the "endpoint" field. It is called by the builders before save.
+	compositemodelroute.EndpointValidator = compositemodelrouteDescEndpoint.Validators[0].(func(string) error)
+	// compositemodelrouteDescPriority is the schema descriptor for priority field.
+	compositemodelrouteDescPriority := compositemodelrouteFields[6].Descriptor()
+	// compositemodelroute.DefaultPriority holds the default value on creation for the priority field.
+	compositemodelroute.DefaultPriority = compositemodelrouteDescPriority.Default.(int)
+	// compositemodelrouteDescEnabled is the schema descriptor for enabled field.
+	compositemodelrouteDescEnabled := compositemodelrouteFields[7].Descriptor()
+	// compositemodelroute.DefaultEnabled holds the default value on creation for the enabled field.
+	compositemodelroute.DefaultEnabled = compositemodelrouteDescEnabled.Default.(bool)
 	errorpassthroughruleMixin := schema.ErrorPassthroughRule{}.Mixin()
 	errorpassthroughruleMixinFields0 := errorpassthroughruleMixin[0].Fields()
 	_ = errorpassthroughruleMixinFields0
@@ -1089,32 +1168,46 @@ func init() {
 	groupDescAllowMessagesDispatch := groupFields[43].Descriptor()
 	// group.DefaultAllowMessagesDispatch holds the default value on creation for the allow_messages_dispatch field.
 	group.DefaultAllowMessagesDispatch = groupDescAllowMessagesDispatch.Default.(bool)
+	// groupDescAllowLive is the schema descriptor for allow_live field.
+	groupDescAllowLive := groupFields[44].Descriptor()
+	// group.DefaultAllowLive holds the default value on creation for the allow_live field.
+	group.DefaultAllowLive = groupDescAllowLive.Default.(bool)
 	// groupDescRequireOauthOnly is the schema descriptor for require_oauth_only field.
-	groupDescRequireOauthOnly := groupFields[44].Descriptor()
+	groupDescRequireOauthOnly := groupFields[45].Descriptor()
 	// group.DefaultRequireOauthOnly holds the default value on creation for the require_oauth_only field.
 	group.DefaultRequireOauthOnly = groupDescRequireOauthOnly.Default.(bool)
 	// groupDescRequirePrivacySet is the schema descriptor for require_privacy_set field.
-	groupDescRequirePrivacySet := groupFields[45].Descriptor()
+	groupDescRequirePrivacySet := groupFields[46].Descriptor()
 	// group.DefaultRequirePrivacySet holds the default value on creation for the require_privacy_set field.
 	group.DefaultRequirePrivacySet = groupDescRequirePrivacySet.Default.(bool)
 	// groupDescDefaultMappedModel is the schema descriptor for default_mapped_model field.
-	groupDescDefaultMappedModel := groupFields[46].Descriptor()
+	groupDescDefaultMappedModel := groupFields[47].Descriptor()
 	// group.DefaultDefaultMappedModel holds the default value on creation for the default_mapped_model field.
 	group.DefaultDefaultMappedModel = groupDescDefaultMappedModel.Default.(string)
 	// group.DefaultMappedModelValidator is a validator for the "default_mapped_model" field. It is called by the builders before save.
 	group.DefaultMappedModelValidator = groupDescDefaultMappedModel.Validators[0].(func(string) error)
 	// groupDescMessagesDispatchModelConfig is the schema descriptor for messages_dispatch_model_config field.
-	groupDescMessagesDispatchModelConfig := groupFields[47].Descriptor()
+	groupDescMessagesDispatchModelConfig := groupFields[48].Descriptor()
 	// group.DefaultMessagesDispatchModelConfig holds the default value on creation for the messages_dispatch_model_config field.
 	group.DefaultMessagesDispatchModelConfig = groupDescMessagesDispatchModelConfig.Default.(domain.OpenAIMessagesDispatchModelConfig)
 	// groupDescModelsListConfig is the schema descriptor for models_list_config field.
-	groupDescModelsListConfig := groupFields[48].Descriptor()
+	groupDescModelsListConfig := groupFields[49].Descriptor()
 	// group.DefaultModelsListConfig holds the default value on creation for the models_list_config field.
 	group.DefaultModelsListConfig = groupDescModelsListConfig.Default.(domain.GroupModelsListConfig)
 	// groupDescRpmLimit is the schema descriptor for rpm_limit field.
-	groupDescRpmLimit := groupFields[49].Descriptor()
+	groupDescRpmLimit := groupFields[50].Descriptor()
 	// group.DefaultRpmLimit holds the default value on creation for the rpm_limit field.
 	group.DefaultRpmLimit = groupDescRpmLimit.Default.(int)
+	// groupDescMaxReasoningEffort is the schema descriptor for max_reasoning_effort field.
+	groupDescMaxReasoningEffort := groupFields[51].Descriptor()
+	// group.DefaultMaxReasoningEffort holds the default value on creation for the max_reasoning_effort field.
+	group.DefaultMaxReasoningEffort = groupDescMaxReasoningEffort.Default.(string)
+	// group.MaxReasoningEffortValidator is a validator for the "max_reasoning_effort" field. It is called by the builders before save.
+	group.MaxReasoningEffortValidator = groupDescMaxReasoningEffort.Validators[0].(func(string) error)
+	// groupDescReasoningEffortMappings is the schema descriptor for reasoning_effort_mappings field.
+	groupDescReasoningEffortMappings := groupFields[52].Descriptor()
+	// group.DefaultReasoningEffortMappings holds the default value on creation for the reasoning_effort_mappings field.
+	group.DefaultReasoningEffortMappings = groupDescReasoningEffortMappings.Default.([]domain.ReasoningEffortMapping)
 	idempotencyrecordMixin := schema.IdempotencyRecord{}.Mixin()
 	idempotencyrecordMixinFields0 := idempotencyrecordMixin[0].Fields()
 	_ = idempotencyrecordMixinFields0
@@ -1177,6 +1270,718 @@ func init() {
 	identityadoptiondecisionDescDecidedAt := identityadoptiondecisionFields[4].Descriptor()
 	// identityadoptiondecision.DefaultDecidedAt holds the default value on creation for the decided_at field.
 	identityadoptiondecision.DefaultDecidedAt = identityadoptiondecisionDescDecidedAt.Default.(func() time.Time)
+	mobileassetMixin := schema.MobileAsset{}.Mixin()
+	mobileassetMixinHooks1 := mobileassetMixin[1].Hooks()
+	mobileasset.Hooks[0] = mobileassetMixinHooks1[0]
+	mobileassetMixinInters1 := mobileassetMixin[1].Interceptors()
+	mobileasset.Interceptors[0] = mobileassetMixinInters1[0]
+	mobileassetMixinFields0 := mobileassetMixin[0].Fields()
+	_ = mobileassetMixinFields0
+	mobileassetFields := schema.MobileAsset{}.Fields()
+	_ = mobileassetFields
+	// mobileassetDescCreatedAt is the schema descriptor for created_at field.
+	mobileassetDescCreatedAt := mobileassetMixinFields0[0].Descriptor()
+	// mobileasset.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobileasset.DefaultCreatedAt = mobileassetDescCreatedAt.Default.(func() time.Time)
+	// mobileassetDescUpdatedAt is the schema descriptor for updated_at field.
+	mobileassetDescUpdatedAt := mobileassetMixinFields0[1].Descriptor()
+	// mobileasset.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobileasset.DefaultUpdatedAt = mobileassetDescUpdatedAt.Default.(func() time.Time)
+	// mobileasset.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobileasset.UpdateDefaultUpdatedAt = mobileassetDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobileassetDescUserID is the schema descriptor for user_id field.
+	mobileassetDescUserID := mobileassetFields[1].Descriptor()
+	// mobileasset.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	mobileasset.UserIDValidator = mobileassetDescUserID.Validators[0].(func(int64) error)
+	// mobileassetDescKind is the schema descriptor for kind field.
+	mobileassetDescKind := mobileassetFields[2].Descriptor()
+	// mobileasset.KindValidator is a validator for the "kind" field. It is called by the builders before save.
+	mobileasset.KindValidator = func() func(string) error {
+		validators := mobileassetDescKind.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(kind string) error {
+			for _, fn := range fns {
+				if err := fn(kind); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescSource is the schema descriptor for source field.
+	mobileassetDescSource := mobileassetFields[3].Descriptor()
+	// mobileasset.SourceValidator is a validator for the "source" field. It is called by the builders before save.
+	mobileasset.SourceValidator = func() func(string) error {
+		validators := mobileassetDescSource.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source string) error {
+			for _, fn := range fns {
+				if err := fn(source); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescStorageKey is the schema descriptor for storage_key field.
+	mobileassetDescStorageKey := mobileassetFields[4].Descriptor()
+	// mobileasset.StorageKeyValidator is a validator for the "storage_key" field. It is called by the builders before save.
+	mobileasset.StorageKeyValidator = func() func(string) error {
+		validators := mobileassetDescStorageKey.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(storage_key string) error {
+			for _, fn := range fns {
+				if err := fn(storage_key); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescOriginalName is the schema descriptor for original_name field.
+	mobileassetDescOriginalName := mobileassetFields[5].Descriptor()
+	// mobileasset.OriginalNameValidator is a validator for the "original_name" field. It is called by the builders before save.
+	mobileasset.OriginalNameValidator = func() func(string) error {
+		validators := mobileassetDescOriginalName.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(original_name string) error {
+			for _, fn := range fns {
+				if err := fn(original_name); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescContentType is the schema descriptor for content_type field.
+	mobileassetDescContentType := mobileassetFields[6].Descriptor()
+	// mobileasset.ContentTypeValidator is a validator for the "content_type" field. It is called by the builders before save.
+	mobileasset.ContentTypeValidator = func() func(string) error {
+		validators := mobileassetDescContentType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(content_type string) error {
+			for _, fn := range fns {
+				if err := fn(content_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescByteSize is the schema descriptor for byte_size field.
+	mobileassetDescByteSize := mobileassetFields[7].Descriptor()
+	// mobileasset.ByteSizeValidator is a validator for the "byte_size" field. It is called by the builders before save.
+	mobileasset.ByteSizeValidator = mobileassetDescByteSize.Validators[0].(func(int64) error)
+	// mobileassetDescSha256 is the schema descriptor for sha256 field.
+	mobileassetDescSha256 := mobileassetFields[8].Descriptor()
+	// mobileasset.Sha256Validator is a validator for the "sha256" field. It is called by the builders before save.
+	mobileasset.Sha256Validator = func() func(string) error {
+		validators := mobileassetDescSha256.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(sha256 string) error {
+			for _, fn := range fns {
+				if err := fn(sha256); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescStatus is the schema descriptor for status field.
+	mobileassetDescStatus := mobileassetFields[9].Descriptor()
+	// mobileasset.DefaultStatus holds the default value on creation for the status field.
+	mobileasset.DefaultStatus = mobileassetDescStatus.Default.(string)
+	// mobileasset.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	mobileasset.StatusValidator = func() func(string) error {
+		validators := mobileassetDescStatus.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(status string) error {
+			for _, fn := range fns {
+				if err := fn(status); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescSourceType is the schema descriptor for source_type field.
+	mobileassetDescSourceType := mobileassetFields[10].Descriptor()
+	// mobileasset.SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
+	mobileasset.SourceTypeValidator = func() func(string) error {
+		validators := mobileassetDescSourceType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_type string) error {
+			for _, fn := range fns {
+				if err := fn(source_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescSourceID is the schema descriptor for source_id field.
+	mobileassetDescSourceID := mobileassetFields[11].Descriptor()
+	// mobileasset.SourceIDValidator is a validator for the "source_id" field. It is called by the builders before save.
+	mobileasset.SourceIDValidator = func() func(string) error {
+		validators := mobileassetDescSourceID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(source_id string) error {
+			for _, fn := range fns {
+				if err := fn(source_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileassetDescMetadata is the schema descriptor for metadata field.
+	mobileassetDescMetadata := mobileassetFields[12].Descriptor()
+	// mobileasset.DefaultMetadata holds the default value on creation for the metadata field.
+	mobileasset.DefaultMetadata = mobileassetDescMetadata.Default.(map[string]interface{})
+	// mobileassetDescID is the schema descriptor for id field.
+	mobileassetDescID := mobileassetFields[0].Descriptor()
+	// mobileasset.DefaultID holds the default value on creation for the id field.
+	mobileasset.DefaultID = mobileassetDescID.Default.(func() uuid.UUID)
+	mobiledeviceMixin := schema.MobileDevice{}.Mixin()
+	mobiledeviceMixinFields0 := mobiledeviceMixin[0].Fields()
+	_ = mobiledeviceMixinFields0
+	mobiledeviceFields := schema.MobileDevice{}.Fields()
+	_ = mobiledeviceFields
+	// mobiledeviceDescCreatedAt is the schema descriptor for created_at field.
+	mobiledeviceDescCreatedAt := mobiledeviceMixinFields0[0].Descriptor()
+	// mobiledevice.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobiledevice.DefaultCreatedAt = mobiledeviceDescCreatedAt.Default.(func() time.Time)
+	// mobiledeviceDescUpdatedAt is the schema descriptor for updated_at field.
+	mobiledeviceDescUpdatedAt := mobiledeviceMixinFields0[1].Descriptor()
+	// mobiledevice.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobiledevice.DefaultUpdatedAt = mobiledeviceDescUpdatedAt.Default.(func() time.Time)
+	// mobiledevice.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobiledevice.UpdateDefaultUpdatedAt = mobiledeviceDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobiledeviceDescUserID is the schema descriptor for user_id field.
+	mobiledeviceDescUserID := mobiledeviceFields[1].Descriptor()
+	// mobiledevice.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	mobiledevice.UserIDValidator = mobiledeviceDescUserID.Validators[0].(func(int64) error)
+	// mobiledeviceDescPlatform is the schema descriptor for platform field.
+	mobiledeviceDescPlatform := mobiledeviceFields[3].Descriptor()
+	// mobiledevice.PlatformValidator is a validator for the "platform" field. It is called by the builders before save.
+	mobiledevice.PlatformValidator = func() func(string) error {
+		validators := mobiledeviceDescPlatform.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(platform string) error {
+			for _, fn := range fns {
+				if err := fn(platform); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobiledeviceDescPushProvider is the schema descriptor for push_provider field.
+	mobiledeviceDescPushProvider := mobiledeviceFields[4].Descriptor()
+	// mobiledevice.DefaultPushProvider holds the default value on creation for the push_provider field.
+	mobiledevice.DefaultPushProvider = mobiledeviceDescPushProvider.Default.(string)
+	// mobiledevice.PushProviderValidator is a validator for the "push_provider" field. It is called by the builders before save.
+	mobiledevice.PushProviderValidator = func() func(string) error {
+		validators := mobiledeviceDescPushProvider.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(push_provider string) error {
+			for _, fn := range fns {
+				if err := fn(push_provider); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobiledeviceDescTokenCiphertext is the schema descriptor for token_ciphertext field.
+	mobiledeviceDescTokenCiphertext := mobiledeviceFields[5].Descriptor()
+	// mobiledevice.TokenCiphertextValidator is a validator for the "token_ciphertext" field. It is called by the builders before save.
+	mobiledevice.TokenCiphertextValidator = mobiledeviceDescTokenCiphertext.Validators[0].(func(string) error)
+	// mobiledeviceDescTokenHash is the schema descriptor for token_hash field.
+	mobiledeviceDescTokenHash := mobiledeviceFields[6].Descriptor()
+	// mobiledevice.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
+	mobiledevice.TokenHashValidator = func() func(string) error {
+		validators := mobiledeviceDescTokenHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(token_hash string) error {
+			for _, fn := range fns {
+				if err := fn(token_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobiledeviceDescAppVersion is the schema descriptor for app_version field.
+	mobiledeviceDescAppVersion := mobiledeviceFields[7].Descriptor()
+	// mobiledevice.DefaultAppVersion holds the default value on creation for the app_version field.
+	mobiledevice.DefaultAppVersion = mobiledeviceDescAppVersion.Default.(string)
+	// mobiledevice.AppVersionValidator is a validator for the "app_version" field. It is called by the builders before save.
+	mobiledevice.AppVersionValidator = mobiledeviceDescAppVersion.Validators[0].(func(string) error)
+	// mobiledeviceDescLocale is the schema descriptor for locale field.
+	mobiledeviceDescLocale := mobiledeviceFields[8].Descriptor()
+	// mobiledevice.DefaultLocale holds the default value on creation for the locale field.
+	mobiledevice.DefaultLocale = mobiledeviceDescLocale.Default.(string)
+	// mobiledevice.LocaleValidator is a validator for the "locale" field. It is called by the builders before save.
+	mobiledevice.LocaleValidator = mobiledeviceDescLocale.Validators[0].(func(string) error)
+	// mobiledeviceDescEnabled is the schema descriptor for enabled field.
+	mobiledeviceDescEnabled := mobiledeviceFields[9].Descriptor()
+	// mobiledevice.DefaultEnabled holds the default value on creation for the enabled field.
+	mobiledevice.DefaultEnabled = mobiledeviceDescEnabled.Default.(bool)
+	// mobiledeviceDescID is the schema descriptor for id field.
+	mobiledeviceDescID := mobiledeviceFields[0].Descriptor()
+	// mobiledevice.DefaultID holds the default value on creation for the id field.
+	mobiledevice.DefaultID = mobiledeviceDescID.Default.(func() uuid.UUID)
+	mobilepushdeliveryMixin := schema.MobilePushDelivery{}.Mixin()
+	mobilepushdeliveryMixinFields0 := mobilepushdeliveryMixin[0].Fields()
+	_ = mobilepushdeliveryMixinFields0
+	mobilepushdeliveryFields := schema.MobilePushDelivery{}.Fields()
+	_ = mobilepushdeliveryFields
+	// mobilepushdeliveryDescCreatedAt is the schema descriptor for created_at field.
+	mobilepushdeliveryDescCreatedAt := mobilepushdeliveryMixinFields0[0].Descriptor()
+	// mobilepushdelivery.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobilepushdelivery.DefaultCreatedAt = mobilepushdeliveryDescCreatedAt.Default.(func() time.Time)
+	// mobilepushdeliveryDescUpdatedAt is the schema descriptor for updated_at field.
+	mobilepushdeliveryDescUpdatedAt := mobilepushdeliveryMixinFields0[1].Descriptor()
+	// mobilepushdelivery.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobilepushdelivery.DefaultUpdatedAt = mobilepushdeliveryDescUpdatedAt.Default.(func() time.Time)
+	// mobilepushdelivery.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobilepushdelivery.UpdateDefaultUpdatedAt = mobilepushdeliveryDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobilepushdeliveryDescOutboxID is the schema descriptor for outbox_id field.
+	mobilepushdeliveryDescOutboxID := mobilepushdeliveryFields[0].Descriptor()
+	// mobilepushdelivery.OutboxIDValidator is a validator for the "outbox_id" field. It is called by the builders before save.
+	mobilepushdelivery.OutboxIDValidator = mobilepushdeliveryDescOutboxID.Validators[0].(func(int64) error)
+	// mobilepushdeliveryDescStatus is the schema descriptor for status field.
+	mobilepushdeliveryDescStatus := mobilepushdeliveryFields[2].Descriptor()
+	// mobilepushdelivery.DefaultStatus holds the default value on creation for the status field.
+	mobilepushdelivery.DefaultStatus = mobilepushdeliveryDescStatus.Default.(string)
+	// mobilepushdelivery.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	mobilepushdelivery.StatusValidator = func() func(string) error {
+		validators := mobilepushdeliveryDescStatus.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(status string) error {
+			for _, fn := range fns {
+				if err := fn(status); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobilepushdeliveryDescAttempts is the schema descriptor for attempts field.
+	mobilepushdeliveryDescAttempts := mobilepushdeliveryFields[3].Descriptor()
+	// mobilepushdelivery.DefaultAttempts holds the default value on creation for the attempts field.
+	mobilepushdelivery.DefaultAttempts = mobilepushdeliveryDescAttempts.Default.(int)
+	// mobilepushdelivery.AttemptsValidator is a validator for the "attempts" field. It is called by the builders before save.
+	mobilepushdelivery.AttemptsValidator = mobilepushdeliveryDescAttempts.Validators[0].(func(int) error)
+	// mobilepushdeliveryDescLastErrorCode is the schema descriptor for last_error_code field.
+	mobilepushdeliveryDescLastErrorCode := mobilepushdeliveryFields[4].Descriptor()
+	// mobilepushdelivery.LastErrorCodeValidator is a validator for the "last_error_code" field. It is called by the builders before save.
+	mobilepushdelivery.LastErrorCodeValidator = mobilepushdeliveryDescLastErrorCode.Validators[0].(func(string) error)
+	mobilepushoutboxMixin := schema.MobilePushOutbox{}.Mixin()
+	mobilepushoutboxMixinFields0 := mobilepushoutboxMixin[0].Fields()
+	_ = mobilepushoutboxMixinFields0
+	mobilepushoutboxFields := schema.MobilePushOutbox{}.Fields()
+	_ = mobilepushoutboxFields
+	// mobilepushoutboxDescCreatedAt is the schema descriptor for created_at field.
+	mobilepushoutboxDescCreatedAt := mobilepushoutboxMixinFields0[0].Descriptor()
+	// mobilepushoutbox.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobilepushoutbox.DefaultCreatedAt = mobilepushoutboxDescCreatedAt.Default.(func() time.Time)
+	// mobilepushoutboxDescUpdatedAt is the schema descriptor for updated_at field.
+	mobilepushoutboxDescUpdatedAt := mobilepushoutboxMixinFields0[1].Descriptor()
+	// mobilepushoutbox.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobilepushoutbox.DefaultUpdatedAt = mobilepushoutboxDescUpdatedAt.Default.(func() time.Time)
+	// mobilepushoutbox.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobilepushoutbox.UpdateDefaultUpdatedAt = mobilepushoutboxDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobilepushoutboxDescUserID is the schema descriptor for user_id field.
+	mobilepushoutboxDescUserID := mobilepushoutboxFields[0].Descriptor()
+	// mobilepushoutbox.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	mobilepushoutbox.UserIDValidator = mobilepushoutboxDescUserID.Validators[0].(func(int64) error)
+	// mobilepushoutboxDescDedupeKeyHash is the schema descriptor for dedupe_key_hash field.
+	mobilepushoutboxDescDedupeKeyHash := mobilepushoutboxFields[1].Descriptor()
+	// mobilepushoutbox.DedupeKeyHashValidator is a validator for the "dedupe_key_hash" field. It is called by the builders before save.
+	mobilepushoutbox.DedupeKeyHashValidator = func() func(string) error {
+		validators := mobilepushoutboxDescDedupeKeyHash.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(dedupe_key_hash string) error {
+			for _, fn := range fns {
+				if err := fn(dedupe_key_hash); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobilepushoutboxDescEventType is the schema descriptor for event_type field.
+	mobilepushoutboxDescEventType := mobilepushoutboxFields[2].Descriptor()
+	// mobilepushoutbox.EventTypeValidator is a validator for the "event_type" field. It is called by the builders before save.
+	mobilepushoutbox.EventTypeValidator = func() func(string) error {
+		validators := mobilepushoutboxDescEventType.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(event_type string) error {
+			for _, fn := range fns {
+				if err := fn(event_type); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobilepushoutboxDescSourceType is the schema descriptor for source_type field.
+	mobilepushoutboxDescSourceType := mobilepushoutboxFields[3].Descriptor()
+	// mobilepushoutbox.DefaultSourceType holds the default value on creation for the source_type field.
+	mobilepushoutbox.DefaultSourceType = mobilepushoutboxDescSourceType.Default.(string)
+	// mobilepushoutbox.SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
+	mobilepushoutbox.SourceTypeValidator = mobilepushoutboxDescSourceType.Validators[0].(func(string) error)
+	// mobilepushoutboxDescSourceID is the schema descriptor for source_id field.
+	mobilepushoutboxDescSourceID := mobilepushoutboxFields[4].Descriptor()
+	// mobilepushoutbox.DefaultSourceID holds the default value on creation for the source_id field.
+	mobilepushoutbox.DefaultSourceID = mobilepushoutboxDescSourceID.Default.(string)
+	// mobilepushoutbox.SourceIDValidator is a validator for the "source_id" field. It is called by the builders before save.
+	mobilepushoutbox.SourceIDValidator = mobilepushoutboxDescSourceID.Validators[0].(func(string) error)
+	// mobilepushoutboxDescTitleZh is the schema descriptor for title_zh field.
+	mobilepushoutboxDescTitleZh := mobilepushoutboxFields[5].Descriptor()
+	// mobilepushoutbox.TitleZhValidator is a validator for the "title_zh" field. It is called by the builders before save.
+	mobilepushoutbox.TitleZhValidator = func() func(string) error {
+		validators := mobilepushoutboxDescTitleZh.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(title_zh string) error {
+			for _, fn := range fns {
+				if err := fn(title_zh); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobilepushoutboxDescBodyZh is the schema descriptor for body_zh field.
+	mobilepushoutboxDescBodyZh := mobilepushoutboxFields[6].Descriptor()
+	// mobilepushoutbox.BodyZhValidator is a validator for the "body_zh" field. It is called by the builders before save.
+	mobilepushoutbox.BodyZhValidator = func() func(string) error {
+		validators := mobilepushoutboxDescBodyZh.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(body_zh string) error {
+			for _, fn := range fns {
+				if err := fn(body_zh); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobilepushoutboxDescData is the schema descriptor for data field.
+	mobilepushoutboxDescData := mobilepushoutboxFields[7].Descriptor()
+	// mobilepushoutbox.DefaultData holds the default value on creation for the data field.
+	mobilepushoutbox.DefaultData = mobilepushoutboxDescData.Default.(func() map[string]string)
+	// mobilepushoutboxDescStatus is the schema descriptor for status field.
+	mobilepushoutboxDescStatus := mobilepushoutboxFields[8].Descriptor()
+	// mobilepushoutbox.DefaultStatus holds the default value on creation for the status field.
+	mobilepushoutbox.DefaultStatus = mobilepushoutboxDescStatus.Default.(string)
+	// mobilepushoutbox.StatusValidator is a validator for the "status" field. It is called by the builders before save.
+	mobilepushoutbox.StatusValidator = func() func(string) error {
+		validators := mobilepushoutboxDescStatus.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(status string) error {
+			for _, fn := range fns {
+				if err := fn(status); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobilepushoutboxDescAttempts is the schema descriptor for attempts field.
+	mobilepushoutboxDescAttempts := mobilepushoutboxFields[9].Descriptor()
+	// mobilepushoutbox.DefaultAttempts holds the default value on creation for the attempts field.
+	mobilepushoutbox.DefaultAttempts = mobilepushoutboxDescAttempts.Default.(int)
+	// mobilepushoutbox.AttemptsValidator is a validator for the "attempts" field. It is called by the builders before save.
+	mobilepushoutbox.AttemptsValidator = mobilepushoutboxDescAttempts.Validators[0].(func(int) error)
+	// mobilepushoutboxDescLastErrorCode is the schema descriptor for last_error_code field.
+	mobilepushoutboxDescLastErrorCode := mobilepushoutboxFields[10].Descriptor()
+	// mobilepushoutbox.LastErrorCodeValidator is a validator for the "last_error_code" field. It is called by the builders before save.
+	mobilepushoutbox.LastErrorCodeValidator = mobilepushoutboxDescLastErrorCode.Validators[0].(func(string) error)
+	mobileskillMixin := schema.MobileSkill{}.Mixin()
+	mobileskillMixinFields0 := mobileskillMixin[0].Fields()
+	_ = mobileskillMixinFields0
+	mobileskillFields := schema.MobileSkill{}.Fields()
+	_ = mobileskillFields
+	// mobileskillDescCreatedAt is the schema descriptor for created_at field.
+	mobileskillDescCreatedAt := mobileskillMixinFields0[0].Descriptor()
+	// mobileskill.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobileskill.DefaultCreatedAt = mobileskillDescCreatedAt.Default.(func() time.Time)
+	// mobileskillDescUpdatedAt is the schema descriptor for updated_at field.
+	mobileskillDescUpdatedAt := mobileskillMixinFields0[1].Descriptor()
+	// mobileskill.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobileskill.DefaultUpdatedAt = mobileskillDescUpdatedAt.Default.(func() time.Time)
+	// mobileskill.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobileskill.UpdateDefaultUpdatedAt = mobileskillDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobileskillDescSlug is the schema descriptor for slug field.
+	mobileskillDescSlug := mobileskillFields[0].Descriptor()
+	// mobileskill.SlugValidator is a validator for the "slug" field. It is called by the builders before save.
+	mobileskill.SlugValidator = func() func(string) error {
+		validators := mobileskillDescSlug.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(slug string) error {
+			for _, fn := range fns {
+				if err := fn(slug); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileskillDescNameZh is the schema descriptor for name_zh field.
+	mobileskillDescNameZh := mobileskillFields[2].Descriptor()
+	// mobileskill.NameZhValidator is a validator for the "name_zh" field. It is called by the builders before save.
+	mobileskill.NameZhValidator = func() func(string) error {
+		validators := mobileskillDescNameZh.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(name_zh string) error {
+			for _, fn := range fns {
+				if err := fn(name_zh); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobileskillDescDescriptionZh is the schema descriptor for description_zh field.
+	mobileskillDescDescriptionZh := mobileskillFields[3].Descriptor()
+	// mobileskill.DefaultDescriptionZh holds the default value on creation for the description_zh field.
+	mobileskill.DefaultDescriptionZh = mobileskillDescDescriptionZh.Default.(string)
+	// mobileskillDescCategory is the schema descriptor for category field.
+	mobileskillDescCategory := mobileskillFields[4].Descriptor()
+	// mobileskill.DefaultCategory holds the default value on creation for the category field.
+	mobileskill.DefaultCategory = mobileskillDescCategory.Default.(string)
+	// mobileskill.CategoryValidator is a validator for the "category" field. It is called by the builders before save.
+	mobileskill.CategoryValidator = mobileskillDescCategory.Validators[0].(func(string) error)
+	// mobileskillDescIconURL is the schema descriptor for icon_url field.
+	mobileskillDescIconURL := mobileskillFields[5].Descriptor()
+	// mobileskill.DefaultIconURL holds the default value on creation for the icon_url field.
+	mobileskill.DefaultIconURL = mobileskillDescIconURL.Default.(string)
+	// mobileskillDescCoverURL is the schema descriptor for cover_url field.
+	mobileskillDescCoverURL := mobileskillFields[6].Descriptor()
+	// mobileskill.DefaultCoverURL holds the default value on creation for the cover_url field.
+	mobileskill.DefaultCoverURL = mobileskillDescCoverURL.Default.(string)
+	// mobileskillDescCurrentVersion is the schema descriptor for current_version field.
+	mobileskillDescCurrentVersion := mobileskillFields[7].Descriptor()
+	// mobileskill.DefaultCurrentVersion holds the default value on creation for the current_version field.
+	mobileskill.DefaultCurrentVersion = mobileskillDescCurrentVersion.Default.(int)
+	// mobileskill.CurrentVersionValidator is a validator for the "current_version" field. It is called by the builders before save.
+	mobileskill.CurrentVersionValidator = mobileskillDescCurrentVersion.Validators[0].(func(int) error)
+	// mobileskillDescPublishedVersion is the schema descriptor for published_version field.
+	mobileskillDescPublishedVersion := mobileskillFields[8].Descriptor()
+	// mobileskill.PublishedVersionValidator is a validator for the "published_version" field. It is called by the builders before save.
+	mobileskill.PublishedVersionValidator = mobileskillDescPublishedVersion.Validators[0].(func(int) error)
+	// mobileskillDescFeatured is the schema descriptor for featured field.
+	mobileskillDescFeatured := mobileskillFields[9].Descriptor()
+	// mobileskill.DefaultFeatured holds the default value on creation for the featured field.
+	mobileskill.DefaultFeatured = mobileskillDescFeatured.Default.(bool)
+	// mobileskillDescSortOrder is the schema descriptor for sort_order field.
+	mobileskillDescSortOrder := mobileskillFields[10].Descriptor()
+	// mobileskill.DefaultSortOrder holds the default value on creation for the sort_order field.
+	mobileskill.DefaultSortOrder = mobileskillDescSortOrder.Default.(int)
+	mobileskillversionMixin := schema.MobileSkillVersion{}.Mixin()
+	mobileskillversionMixinFields0 := mobileskillversionMixin[0].Fields()
+	_ = mobileskillversionMixinFields0
+	mobileskillversionFields := schema.MobileSkillVersion{}.Fields()
+	_ = mobileskillversionFields
+	// mobileskillversionDescCreatedAt is the schema descriptor for created_at field.
+	mobileskillversionDescCreatedAt := mobileskillversionMixinFields0[0].Descriptor()
+	// mobileskillversion.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobileskillversion.DefaultCreatedAt = mobileskillversionDescCreatedAt.Default.(func() time.Time)
+	// mobileskillversionDescUpdatedAt is the schema descriptor for updated_at field.
+	mobileskillversionDescUpdatedAt := mobileskillversionMixinFields0[1].Descriptor()
+	// mobileskillversion.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobileskillversion.DefaultUpdatedAt = mobileskillversionDescUpdatedAt.Default.(func() time.Time)
+	// mobileskillversion.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobileskillversion.UpdateDefaultUpdatedAt = mobileskillversionDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobileskillversionDescSkillID is the schema descriptor for skill_id field.
+	mobileskillversionDescSkillID := mobileskillversionFields[0].Descriptor()
+	// mobileskillversion.SkillIDValidator is a validator for the "skill_id" field. It is called by the builders before save.
+	mobileskillversion.SkillIDValidator = mobileskillversionDescSkillID.Validators[0].(func(int64) error)
+	// mobileskillversionDescVersion is the schema descriptor for version field.
+	mobileskillversionDescVersion := mobileskillversionFields[1].Descriptor()
+	// mobileskillversion.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	mobileskillversion.VersionValidator = mobileskillversionDescVersion.Validators[0].(func(int) error)
+	// mobileskillversionDescPromptID is the schema descriptor for prompt_id field.
+	mobileskillversionDescPromptID := mobileskillversionFields[2].Descriptor()
+	// mobileskillversion.PromptIDValidator is a validator for the "prompt_id" field. It is called by the builders before save.
+	mobileskillversion.PromptIDValidator = mobileskillversionDescPromptID.Validators[0].(func(int64) error)
+	// mobileskillversionDescPromptVersion is the schema descriptor for prompt_version field.
+	mobileskillversionDescPromptVersion := mobileskillversionFields[3].Descriptor()
+	// mobileskillversion.PromptVersionValidator is a validator for the "prompt_version" field. It is called by the builders before save.
+	mobileskillversion.PromptVersionValidator = mobileskillversionDescPromptVersion.Validators[0].(func(int) error)
+	// mobileskillversionDescInputSchema is the schema descriptor for input_schema field.
+	mobileskillversionDescInputSchema := mobileskillversionFields[5].Descriptor()
+	// mobileskillversion.DefaultInputSchema holds the default value on creation for the input_schema field.
+	mobileskillversion.DefaultInputSchema = mobileskillversionDescInputSchema.Default.(map[string]interface{})
+	// mobileskillversionDescExamples is the schema descriptor for examples field.
+	mobileskillversionDescExamples := mobileskillversionFields[6].Descriptor()
+	// mobileskillversion.DefaultExamples holds the default value on creation for the examples field.
+	mobileskillversion.DefaultExamples = mobileskillversionDescExamples.Default.([]map[string]interface{})
+	// mobileskillversionDescToolConfig is the schema descriptor for tool_config field.
+	mobileskillversionDescToolConfig := mobileskillversionFields[7].Descriptor()
+	// mobileskillversion.DefaultToolConfig holds the default value on creation for the tool_config field.
+	mobileskillversion.DefaultToolConfig = mobileskillversionDescToolConfig.Default.(map[string]interface{})
+	// mobileskillversionDescModelPolicy is the schema descriptor for model_policy field.
+	mobileskillversionDescModelPolicy := mobileskillversionFields[8].Descriptor()
+	// mobileskillversion.DefaultModelPolicy holds the default value on creation for the model_policy field.
+	mobileskillversion.DefaultModelPolicy = mobileskillversionDescModelPolicy.Default.(map[string]interface{})
+	// mobileskillversionDescConsumptionNoteZh is the schema descriptor for consumption_note_zh field.
+	mobileskillversionDescConsumptionNoteZh := mobileskillversionFields[9].Descriptor()
+	// mobileskillversion.DefaultConsumptionNoteZh holds the default value on creation for the consumption_note_zh field.
+	mobileskillversion.DefaultConsumptionNoteZh = mobileskillversionDescConsumptionNoteZh.Default.(string)
+	// mobileskillversionDescChangelogZh is the schema descriptor for changelog_zh field.
+	mobileskillversionDescChangelogZh := mobileskillversionFields[10].Descriptor()
+	// mobileskillversion.DefaultChangelogZh holds the default value on creation for the changelog_zh field.
+	mobileskillversion.DefaultChangelogZh = mobileskillversionDescChangelogZh.Default.(string)
+	mobiletaskFields := schema.MobileTask{}.Fields()
+	_ = mobiletaskFields
+	// mobiletaskDescUserID is the schema descriptor for user_id field.
+	mobiletaskDescUserID := mobiletaskFields[1].Descriptor()
+	// mobiletask.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	mobiletask.UserIDValidator = mobiletaskDescUserID.Validators[0].(func(int64) error)
+	// mobiletaskDescOperation is the schema descriptor for operation field.
+	mobiletaskDescOperation := mobiletaskFields[3].Descriptor()
+	// mobiletask.OperationValidator is a validator for the "operation" field. It is called by the builders before save.
+	mobiletask.OperationValidator = func() func(string) error {
+		validators := mobiletaskDescOperation.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(operation string) error {
+			for _, fn := range fns {
+				if err := fn(operation); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobiletaskDescProgress is the schema descriptor for progress field.
+	mobiletaskDescProgress := mobiletaskFields[5].Descriptor()
+	// mobiletask.DefaultProgress holds the default value on creation for the progress field.
+	mobiletask.DefaultProgress = mobiletaskDescProgress.Default.(int)
+	// mobiletask.ProgressValidator is a validator for the "progress" field. It is called by the builders before save.
+	mobiletask.ProgressValidator = func() func(int) error {
+		validators := mobiletaskDescProgress.Validators
+		fns := [...]func(int) error{
+			validators[0].(func(int) error),
+			validators[1].(func(int) error),
+		}
+		return func(progress int) error {
+			for _, fn := range fns {
+				if err := fn(progress); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobiletaskDescClientRequestID is the schema descriptor for client_request_id field.
+	mobiletaskDescClientRequestID := mobiletaskFields[8].Descriptor()
+	// mobiletask.ClientRequestIDValidator is a validator for the "client_request_id" field. It is called by the builders before save.
+	mobiletask.ClientRequestIDValidator = func() func(string) error {
+		validators := mobiletaskDescClientRequestID.Validators
+		fns := [...]func(string) error{
+			validators[0].(func(string) error),
+			validators[1].(func(string) error),
+		}
+		return func(client_request_id string) error {
+			for _, fn := range fns {
+				if err := fn(client_request_id); err != nil {
+					return err
+				}
+			}
+			return nil
+		}
+	}()
+	// mobiletaskDescArtifacts is the schema descriptor for artifacts field.
+	mobiletaskDescArtifacts := mobiletaskFields[10].Descriptor()
+	// mobiletask.DefaultArtifacts holds the default value on creation for the artifacts field.
+	mobiletask.DefaultArtifacts = mobiletaskDescArtifacts.Default.([]map[string]interface{})
+	// mobiletaskDescProtocolVersion is the schema descriptor for protocol_version field.
+	mobiletaskDescProtocolVersion := mobiletaskFields[12].Descriptor()
+	// mobiletask.DefaultProtocolVersion holds the default value on creation for the protocol_version field.
+	mobiletask.DefaultProtocolVersion = mobiletaskDescProtocolVersion.Default.(int)
+	// mobiletask.ProtocolVersionValidator is a validator for the "protocol_version" field. It is called by the builders before save.
+	mobiletask.ProtocolVersionValidator = mobiletaskDescProtocolVersion.Validators[0].(func(int) error)
+	// mobiletaskDescCreatedAt is the schema descriptor for created_at field.
+	mobiletaskDescCreatedAt := mobiletaskFields[13].Descriptor()
+	// mobiletask.DefaultCreatedAt holds the default value on creation for the created_at field.
+	mobiletask.DefaultCreatedAt = mobiletaskDescCreatedAt.Default.(func() time.Time)
+	// mobiletaskDescUpdatedAt is the schema descriptor for updated_at field.
+	mobiletaskDescUpdatedAt := mobiletaskFields[14].Descriptor()
+	// mobiletask.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	mobiletask.DefaultUpdatedAt = mobiletaskDescUpdatedAt.Default.(func() time.Time)
+	// mobiletask.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	mobiletask.UpdateDefaultUpdatedAt = mobiletaskDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// mobiletaskDescID is the schema descriptor for id field.
+	mobiletaskDescID := mobiletaskFields[0].Descriptor()
+	// mobiletask.DefaultID holds the default value on creation for the id field.
+	mobiletask.DefaultID = mobiletaskDescID.Default.(func() uuid.UUID)
 	paymentauditlogFields := schema.PaymentAuditLog{}.Fields()
 	_ = paymentauditlogFields
 	// paymentauditlogDescOrderID is the schema descriptor for order_id field.
@@ -2333,6 +3138,37 @@ func init() {
 	userattributevalueDescValue := userattributevalueFields[2].Descriptor()
 	// userattributevalue.DefaultValue holds the default value on creation for the value field.
 	userattributevalue.DefaultValue = userattributevalueDescValue.Default.(string)
+	usermobileskillMixin := schema.UserMobileSkill{}.Mixin()
+	usermobileskillMixinFields0 := usermobileskillMixin[0].Fields()
+	_ = usermobileskillMixinFields0
+	usermobileskillFields := schema.UserMobileSkill{}.Fields()
+	_ = usermobileskillFields
+	// usermobileskillDescCreatedAt is the schema descriptor for created_at field.
+	usermobileskillDescCreatedAt := usermobileskillMixinFields0[0].Descriptor()
+	// usermobileskill.DefaultCreatedAt holds the default value on creation for the created_at field.
+	usermobileskill.DefaultCreatedAt = usermobileskillDescCreatedAt.Default.(func() time.Time)
+	// usermobileskillDescUpdatedAt is the schema descriptor for updated_at field.
+	usermobileskillDescUpdatedAt := usermobileskillMixinFields0[1].Descriptor()
+	// usermobileskill.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	usermobileskill.DefaultUpdatedAt = usermobileskillDescUpdatedAt.Default.(func() time.Time)
+	// usermobileskill.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	usermobileskill.UpdateDefaultUpdatedAt = usermobileskillDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// usermobileskillDescUserID is the schema descriptor for user_id field.
+	usermobileskillDescUserID := usermobileskillFields[0].Descriptor()
+	// usermobileskill.UserIDValidator is a validator for the "user_id" field. It is called by the builders before save.
+	usermobileskill.UserIDValidator = usermobileskillDescUserID.Validators[0].(func(int64) error)
+	// usermobileskillDescSkillID is the schema descriptor for skill_id field.
+	usermobileskillDescSkillID := usermobileskillFields[1].Descriptor()
+	// usermobileskill.SkillIDValidator is a validator for the "skill_id" field. It is called by the builders before save.
+	usermobileskill.SkillIDValidator = usermobileskillDescSkillID.Validators[0].(func(int64) error)
+	// usermobileskillDescInstalledVersion is the schema descriptor for installed_version field.
+	usermobileskillDescInstalledVersion := usermobileskillFields[2].Descriptor()
+	// usermobileskill.InstalledVersionValidator is a validator for the "installed_version" field. It is called by the builders before save.
+	usermobileskill.InstalledVersionValidator = usermobileskillDescInstalledVersion.Validators[0].(func(int) error)
+	// usermobileskillDescPinned is the schema descriptor for pinned field.
+	usermobileskillDescPinned := usermobileskillFields[3].Descriptor()
+	// usermobileskill.DefaultPinned holds the default value on creation for the pinned field.
+	usermobileskill.DefaultPinned = usermobileskillDescPinned.Default.(bool)
 	userplatformquotaMixin := schema.UserPlatformQuota{}.Mixin()
 	userplatformquotaMixinHooks1 := userplatformquotaMixin[1].Hooks()
 	userplatformquota.Hooks[0] = userplatformquotaMixinHooks1[0]

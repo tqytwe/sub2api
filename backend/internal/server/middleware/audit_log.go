@@ -174,6 +174,7 @@ var auditActionOverrides = map[string]string{
 // 这类 body 的凭证内嵌在普通字符串值里，键级脱敏无法覆盖，整体不入库。
 var auditBodyOmittedRoutes = map[string]struct{}{
 	"POST /api/v1/admin/accounts/import/codex-session":                {},
+	"PUT /api/v1/admin/accounts/:id/ollama-cloud-usage/session":       {},
 	"PUT /api/v1/user/wallet/withdrawal-account":                      {},
 	"POST /api/v1/user/wallet/withdrawals":                            {},
 	"POST /api/v1/user/wallet/withdrawals/:id/cancel":                 {},

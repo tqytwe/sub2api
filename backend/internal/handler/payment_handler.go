@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -49,40 +50,44 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	// Enrich plans with group platform for frontend color coding
-	type planWithPlatform struct {
-		ID                 int64    `json:"id"`
-		GroupID            int64    `json:"group_id"`
-		GroupPlatform      string   `json:"group_platform"`
-		GroupName          string   `json:"group_name"`
-		RateMultiplier     float64  `json:"rate_multiplier"`
-		PeakRateEnabled    bool     `json:"peak_rate_enabled"`
-		PeakStart          string   `json:"peak_start"`
-		PeakEnd            string   `json:"peak_end"`
-		PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
-		Name               string   `json:"name"`
-		Description        string   `json:"description"`
-		Price              float64  `json:"price"`
-		OriginalPrice      *float64 `json:"original_price,omitempty"`
-		Currency           string   `json:"currency,omitempty"`
-		ValidityDays       int      `json:"validity_days"`
-		ValidityUnit       string   `json:"validity_unit"`
-		Features           string   `json:"features"`
-		ProductName        string   `json:"product_name"`
-		CoverImageURL      string   `json:"cover_image_url"`
-		DetailDescription  string   `json:"detail_description"`
-		StorefrontPlatform string   `json:"storefront_platform"`
-		StorefrontCategory string   `json:"storefront_category"`
-		StorefrontFeatured bool     `json:"storefront_featured"`
-		StorefrontBadge    string   `json:"storefront_badge"`
-		ForSale            bool     `json:"for_sale"`
-		SortOrder          int      `json:"sort_order"`
-	}
-	groupInfo := h.configService.GetGroupInfoMap(c.Request.Context(), plans)
-	result := make([]planWithPlatform, 0, len(plans))
+	response.Success(c, buildPaymentPlansForResponse(c.Request.Context(), h.configService, plans))
+}
+
+type paymentPlanResult struct {
+	ID                 int64    `json:"id"`
+	GroupID            int64    `json:"group_id"`
+	GroupPlatform      string   `json:"group_platform"`
+	GroupName          string   `json:"group_name"`
+	RateMultiplier     float64  `json:"rate_multiplier"`
+	PeakRateEnabled    bool     `json:"peak_rate_enabled"`
+	PeakStart          string   `json:"peak_start"`
+	PeakEnd            string   `json:"peak_end"`
+	PeakRateMultiplier float64  `json:"peak_rate_multiplier"`
+	Name               string   `json:"name"`
+	Description        string   `json:"description"`
+	Price              float64  `json:"price"`
+	OriginalPrice      *float64 `json:"original_price,omitempty"`
+	Currency           string   `json:"currency,omitempty"`
+	ValidityDays       int      `json:"validity_days"`
+	ValidityUnit       string   `json:"validity_unit"`
+	Features           string   `json:"features"`
+	ProductName        string   `json:"product_name"`
+	CoverImageURL      string   `json:"cover_image_url"`
+	DetailDescription  string   `json:"detail_description"`
+	StorefrontPlatform string   `json:"storefront_platform"`
+	StorefrontCategory string   `json:"storefront_category"`
+	StorefrontFeatured bool     `json:"storefront_featured"`
+	StorefrontBadge    string   `json:"storefront_badge"`
+	ForSale            bool     `json:"for_sale"`
+	SortOrder          int      `json:"sort_order"`
+}
+
+func buildPaymentPlansForResponse(ctx context.Context, configService *service.PaymentConfigService, plans []*dbent.SubscriptionPlan) []paymentPlanResult {
+	groupInfo := configService.GetGroupInfoMap(ctx, plans)
+	result := make([]paymentPlanResult, 0, len(plans))
 	for _, p := range plans {
 		gi := groupInfo[p.GroupID]
-		result = append(result, planWithPlatform{
+		result = append(result, paymentPlanResult{
 			ID: int64(p.ID), GroupID: p.GroupID,
 			GroupPlatform: gi.Platform, GroupName: gi.Name,
 			RateMultiplier: gi.RateMultiplier, PeakRateEnabled: gi.PeakRateEnabled,
@@ -96,7 +101,7 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 			ForSale: p.ForSale, SortOrder: p.SortOrder,
 		})
 	}
-	response.Success(c, result)
+	return result
 }
 
 // GetCheckoutInfo returns all data the payment page needs in a single call:
@@ -126,6 +131,15 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
+	}
+
+	alipayMobilePrecreateDeepLink := false
+	if cfg.AlipayMobilePrecreateDeepLink {
+		alipayMobilePrecreateDeepLink, err = h.configService.UsesOfficialAlipayVisibleMethod(ctx)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 	}
 
 	// Fetch plans with group info
@@ -158,38 +172,40 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 	}
 
 	response.Success(c, checkoutInfoResponse{
-		Methods:                   limitsResp.Methods,
-		GlobalMin:                 limitsResp.GlobalMin,
-		GlobalMax:                 limitsResp.GlobalMax,
-		Plans:                     planList,
-		BalanceDisabled:           cfg.BalanceDisabled,
-		BalanceRechargeMultiplier: cfg.BalanceRechargeMultiplier,
-		SubscriptionUSDToCNYRate:  cfg.SubscriptionUSDToCNYRate,
-		RechargeFeeRate:           cfg.RechargeFeeRate,
-		StorefrontConfig:          storefrontConfig,
-		HelpText:                  cfg.HelpText,
-		HelpImageURL:              cfg.HelpImageURL,
-		StripePublishableKey:      cfg.StripePublishableKey,
-		AlipayForceQRCode:         cfg.AlipayForceQRCode,
-		RechargeQuote:             rechargeQuote,
+		Methods:                       limitsResp.Methods,
+		GlobalMin:                     limitsResp.GlobalMin,
+		GlobalMax:                     limitsResp.GlobalMax,
+		Plans:                         planList,
+		BalanceDisabled:               cfg.BalanceDisabled,
+		BalanceRechargeMultiplier:     cfg.BalanceRechargeMultiplier,
+		SubscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
+		RechargeFeeRate:               cfg.RechargeFeeRate,
+		StorefrontConfig:              storefrontConfig,
+		HelpText:                      cfg.HelpText,
+		HelpImageURL:                  cfg.HelpImageURL,
+		StripePublishableKey:          cfg.StripePublishableKey,
+		AlipayForceQRCode:             cfg.AlipayForceQRCode,
+		AlipayMobilePrecreateDeepLink: alipayMobilePrecreateDeepLink,
+		RechargeQuote:                 rechargeQuote,
 	})
 }
 
 type checkoutInfoResponse struct {
-	Methods                   map[string]service.MethodLimits  `json:"methods"`
-	GlobalMin                 float64                          `json:"global_min"`
-	GlobalMax                 float64                          `json:"global_max"`
-	Plans                     []checkoutPlan                   `json:"plans"`
-	BalanceDisabled           bool                             `json:"balance_disabled"`
-	BalanceRechargeMultiplier float64                          `json:"balance_recharge_multiplier"`
-	SubscriptionUSDToCNYRate  float64                          `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate           float64                          `json:"recharge_fee_rate"`
-	StorefrontConfig          *service.PaymentStorefrontConfig `json:"storefront_config"`
-	HelpText                  string                           `json:"help_text"`
-	HelpImageURL              string                           `json:"help_image_url"`
-	StripePublishableKey      string                           `json:"stripe_publishable_key"`
-	AlipayForceQRCode         bool                             `json:"alipay_force_qrcode"`
-	RechargeQuote             *service.PaymentRechargeQuote    `json:"recharge_quote,omitempty"`
+	Methods                       map[string]service.MethodLimits  `json:"methods"`
+	GlobalMin                     float64                          `json:"global_min"`
+	GlobalMax                     float64                          `json:"global_max"`
+	Plans                         []checkoutPlan                   `json:"plans"`
+	BalanceDisabled               bool                             `json:"balance_disabled"`
+	BalanceRechargeMultiplier     float64                          `json:"balance_recharge_multiplier"`
+	SubscriptionUSDToCNYRate      float64                          `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate               float64                          `json:"recharge_fee_rate"`
+	StorefrontConfig              *service.PaymentStorefrontConfig `json:"storefront_config"`
+	HelpText                      string                           `json:"help_text"`
+	HelpImageURL                  string                           `json:"help_image_url"`
+	StripePublishableKey          string                           `json:"stripe_publishable_key"`
+	AlipayForceQRCode             bool                             `json:"alipay_force_qrcode"`
+	AlipayMobilePrecreateDeepLink bool                             `json:"alipay_mobile_precreate_deep_link"`
+	RechargeQuote                 *service.PaymentRechargeQuote    `json:"recharge_quote,omitempty"`
 }
 
 type checkoutPlan struct {

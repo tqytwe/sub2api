@@ -48,6 +48,9 @@ type ChannelMonitorHistory func(*sql.Selector)
 // ChannelMonitorRequestTemplate is the predicate function for channelmonitorrequesttemplate builders.
 type ChannelMonitorRequestTemplate func(*sql.Selector)
 
+// CompositeModelRoute is the predicate function for compositemodelroute builders.
+type CompositeModelRoute func(*sql.Selector)
+
 // ErrorPassthroughRule is the predicate function for errorpassthroughrule builders.
 type ErrorPassthroughRule func(*sql.Selector)
 
@@ -59,6 +62,27 @@ type IdempotencyRecord func(*sql.Selector)
 
 // IdentityAdoptionDecision is the predicate function for identityadoptiondecision builders.
 type IdentityAdoptionDecision func(*sql.Selector)
+
+// MobileAsset is the predicate function for mobileasset builders.
+type MobileAsset func(*sql.Selector)
+
+// MobileDevice is the predicate function for mobiledevice builders.
+type MobileDevice func(*sql.Selector)
+
+// MobilePushDelivery is the predicate function for mobilepushdelivery builders.
+type MobilePushDelivery func(*sql.Selector)
+
+// MobilePushOutbox is the predicate function for mobilepushoutbox builders.
+type MobilePushOutbox func(*sql.Selector)
+
+// MobileSkill is the predicate function for mobileskill builders.
+type MobileSkill func(*sql.Selector)
+
+// MobileSkillVersion is the predicate function for mobileskillversion builders.
+type MobileSkillVersion func(*sql.Selector)
+
+// MobileTask is the predicate function for mobiletask builders.
+type MobileTask func(*sql.Selector)
 
 // PaymentAuditLog is the predicate function for paymentauditlog builders.
 type PaymentAuditLog func(*sql.Selector)
@@ -113,6 +137,9 @@ type UserAttributeDefinition func(*sql.Selector)
 
 // UserAttributeValue is the predicate function for userattributevalue builders.
 type UserAttributeValue func(*sql.Selector)
+
+// UserMobileSkill is the predicate function for usermobileskill builders.
+type UserMobileSkill func(*sql.Selector)
 
 // UserPlatformQuota is the predicate function for userplatformquota builders.
 type UserPlatformQuota func(*sql.Selector)

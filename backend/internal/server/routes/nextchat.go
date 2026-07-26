@@ -39,6 +39,12 @@ type nextChatSessionIssuer interface {
 	IssueNextChatManagedSession(ctx context.Context, userID int64) (*service.NextChatManagedSession, error)
 }
 
+type nextChatScopedSessionIssuer interface {
+	IssueNextChatManagedSessions(ctx context.Context, userID int64) (*service.NextChatManagedSessions, error)
+	IssueNextChatManagedSessionForPurpose(ctx context.Context, userID int64, purpose string) (*service.NextChatManagedSession, error)
+	SetNextChatManagedSessionGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*service.NextChatWorkspaceIdentity, error)
+}
+
 type nextChatFeatureGate interface {
 	IsNextChatEnabled(ctx context.Context) bool
 }
@@ -163,7 +169,10 @@ func registerNextChatRoutes(
 			handleNextChatMobileBootstrap(c, issuer, modelProvider, gate, cfg)
 		})
 		authenticated.POST("/mobile/group", func(c *gin.Context) {
-			handleNextChatMobileGroupSwitch(c, issuer, modelProvider, gate, cfg)
+			handleNextChatMobileGroupSwitch(c, issuer, modelProvider, gate, cfg, service.NextChatSessionPurposeChat)
+		})
+		authenticated.POST("/mobile/sessions/:purpose/group", func(c *gin.Context) {
+			handleNextChatMobileGroupSwitch(c, issuer, modelProvider, gate, cfg, c.Param("purpose"))
 		})
 	}
 }
@@ -472,11 +481,29 @@ func handleNextChatMobileBootstrap(
 		response.ErrorFrom(c, err)
 		return
 	}
-	payload["session"] = gin.H{
-		"user_id":    session.UserID,
-		"api_key":    session.APIKey,
-		"api_key_id": session.KeyID,
-		"expires_at": time.Now().UTC().Add(nextChatSessionTTL(cfg)),
+	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
+	payload["session"] = nextChatSessionPayload(session, expiresAt)
+	if scoped, ok := issuer.(nextChatScopedSessionIssuer); ok {
+		sessions, sessionsErr := scoped.IssueNextChatManagedSessions(c.Request.Context(), subject.UserID)
+		if sessionsErr != nil {
+			response.ErrorFrom(c, sessionsErr)
+			return
+		}
+		payload["session"] = nextChatSessionPayload(&sessions.Chat, expiresAt)
+		payload["sessions"] = gin.H{
+			service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
+			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
+		}
+		if imagePayload, imageErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Image.UserID, sessions.Image.KeyID); imageErr == nil {
+			payload["managed_api_keys"] = gin.H{
+				service.NextChatSessionPurposeChat:  payload["managed_api_key"],
+				service.NextChatSessionPurposeImage: imagePayload["managed_api_key"],
+			}
+			payload["workspaces"] = gin.H{
+				service.NextChatSessionPurposeChat:  gin.H{"models": payload["models"]},
+				service.NextChatSessionPurposeImage: gin.H{"models": imagePayload["models"]},
+			}
+		}
 	}
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, payload)
@@ -488,6 +515,7 @@ func handleNextChatMobileGroupSwitch(
 	modelProvider nextChatWorkspaceModelProvider,
 	gate nextChatFeatureGate,
 	cfg *config.Config,
+	purpose string,
 ) {
 	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
 		response.NotFound(c, "NextChat is disabled")
@@ -512,12 +540,23 @@ func handleNextChatMobileGroupSwitch(
 		response.BadRequest(c, "group_id is required")
 		return
 	}
-	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
+	var session *service.NextChatManagedSession
+	var err error
+	if scoped, scopedOK := issuer.(nextChatScopedSessionIssuer); scopedOK {
+		session, err = scoped.IssueNextChatManagedSessionForPurpose(c.Request.Context(), subject.UserID, purpose)
+	} else {
+		session, err = issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
+	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	if _, err := identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), subject.UserID, session.KeyID, req.GroupID); err != nil {
+	if scoped, scopedOK := issuer.(nextChatScopedSessionIssuer); scopedOK {
+		_, err = scoped.SetNextChatManagedSessionGroup(c.Request.Context(), subject.UserID, purpose, req.GroupID)
+	} else {
+		_, err = identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), subject.UserID, session.KeyID, req.GroupID)
+	}
+	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -526,14 +565,19 @@ func handleNextChatMobileGroupSwitch(
 		response.ErrorFrom(c, err)
 		return
 	}
-	payload["session"] = gin.H{
+	payload["session"] = nextChatSessionPayload(session, time.Now().UTC().Add(nextChatSessionTTL(cfg)))
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, payload)
+}
+
+func nextChatSessionPayload(session *service.NextChatManagedSession, expiresAt time.Time) gin.H {
+	return gin.H{
 		"user_id":    session.UserID,
 		"api_key":    session.APIKey,
 		"api_key_id": session.KeyID,
-		"expires_at": time.Now().UTC().Add(nextChatSessionTTL(cfg)),
+		"purpose":    session.Purpose,
+		"expires_at": expiresAt,
 	}
-	c.Header("Cache-Control", "no-store")
-	response.Success(c, payload)
 }
 
 func buildNextChatBootstrapPayload(

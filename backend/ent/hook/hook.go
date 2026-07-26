@@ -177,6 +177,18 @@ func (f ChannelMonitorRequestTemplateFunc) Mutate(ctx context.Context, m ent.Mut
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ChannelMonitorRequestTemplateMutation", m)
 }
 
+// The CompositeModelRouteFunc type is an adapter to allow the use of ordinary
+// function as CompositeModelRoute mutator.
+type CompositeModelRouteFunc func(context.Context, *ent.CompositeModelRouteMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f CompositeModelRouteFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.CompositeModelRouteMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.CompositeModelRouteMutation", m)
+}
+
 // The ErrorPassthroughRuleFunc type is an adapter to allow the use of ordinary
 // function as ErrorPassthroughRule mutator.
 type ErrorPassthroughRuleFunc func(context.Context, *ent.ErrorPassthroughRuleMutation) (ent.Value, error)
@@ -223,6 +235,90 @@ func (f IdentityAdoptionDecisionFunc) Mutate(ctx context.Context, m ent.Mutation
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.IdentityAdoptionDecisionMutation", m)
+}
+
+// The MobileAssetFunc type is an adapter to allow the use of ordinary
+// function as MobileAsset mutator.
+type MobileAssetFunc func(context.Context, *ent.MobileAssetMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobileAssetFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobileAssetMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobileAssetMutation", m)
+}
+
+// The MobileDeviceFunc type is an adapter to allow the use of ordinary
+// function as MobileDevice mutator.
+type MobileDeviceFunc func(context.Context, *ent.MobileDeviceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobileDeviceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobileDeviceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobileDeviceMutation", m)
+}
+
+// The MobilePushDeliveryFunc type is an adapter to allow the use of ordinary
+// function as MobilePushDelivery mutator.
+type MobilePushDeliveryFunc func(context.Context, *ent.MobilePushDeliveryMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobilePushDeliveryFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobilePushDeliveryMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobilePushDeliveryMutation", m)
+}
+
+// The MobilePushOutboxFunc type is an adapter to allow the use of ordinary
+// function as MobilePushOutbox mutator.
+type MobilePushOutboxFunc func(context.Context, *ent.MobilePushOutboxMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobilePushOutboxFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobilePushOutboxMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobilePushOutboxMutation", m)
+}
+
+// The MobileSkillFunc type is an adapter to allow the use of ordinary
+// function as MobileSkill mutator.
+type MobileSkillFunc func(context.Context, *ent.MobileSkillMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobileSkillFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobileSkillMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobileSkillMutation", m)
+}
+
+// The MobileSkillVersionFunc type is an adapter to allow the use of ordinary
+// function as MobileSkillVersion mutator.
+type MobileSkillVersionFunc func(context.Context, *ent.MobileSkillVersionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobileSkillVersionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobileSkillVersionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobileSkillVersionMutation", m)
+}
+
+// The MobileTaskFunc type is an adapter to allow the use of ordinary
+// function as MobileTask mutator.
+type MobileTaskFunc func(context.Context, *ent.MobileTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MobileTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MobileTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MobileTaskMutation", m)
 }
 
 // The PaymentAuditLogFunc type is an adapter to allow the use of ordinary
@@ -439,6 +535,18 @@ func (f UserAttributeValueFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserAttributeValueMutation", m)
+}
+
+// The UserMobileSkillFunc type is an adapter to allow the use of ordinary
+// function as UserMobileSkill mutator.
+type UserMobileSkillFunc func(context.Context, *ent.UserMobileSkillMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f UserMobileSkillFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.UserMobileSkillMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMobileSkillMutation", m)
 }
 
 // The UserPlatformQuotaFunc type is an adapter to allow the use of ordinary

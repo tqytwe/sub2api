@@ -26,10 +26,18 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitordailyrollup"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorhistory"
 	"github.com/Wei-Shaw/sub2api/ent/channelmonitorrequesttemplate"
+	"github.com/Wei-Shaw/sub2api/ent/compositemodelroute"
 	"github.com/Wei-Shaw/sub2api/ent/errorpassthroughrule"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/idempotencyrecord"
 	"github.com/Wei-Shaw/sub2api/ent/identityadoptiondecision"
+	"github.com/Wei-Shaw/sub2api/ent/mobileasset"
+	"github.com/Wei-Shaw/sub2api/ent/mobiledevice"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushdelivery"
+	"github.com/Wei-Shaw/sub2api/ent/mobilepushoutbox"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskill"
+	"github.com/Wei-Shaw/sub2api/ent/mobileskillversion"
+	"github.com/Wei-Shaw/sub2api/ent/mobiletask"
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
 	"github.com/Wei-Shaw/sub2api/ent/paymentproviderinstance"
@@ -49,9 +57,11 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
 	"github.com/Wei-Shaw/sub2api/ent/userattributedefinition"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
+	"github.com/Wei-Shaw/sub2api/ent/usermobileskill"
 	"github.com/Wei-Shaw/sub2api/ent/userplatformquota"
 	"github.com/Wei-Shaw/sub2api/ent/usersubscription"
 	"github.com/Wei-Shaw/sub2api/internal/domain"
+	"github.com/google/uuid"
 )
 
 const (
@@ -77,10 +87,18 @@ const (
 	TypeChannelMonitorDailyRollup     = "ChannelMonitorDailyRollup"
 	TypeChannelMonitorHistory         = "ChannelMonitorHistory"
 	TypeChannelMonitorRequestTemplate = "ChannelMonitorRequestTemplate"
+	TypeCompositeModelRoute           = "CompositeModelRoute"
 	TypeErrorPassthroughRule          = "ErrorPassthroughRule"
 	TypeGroup                         = "Group"
 	TypeIdempotencyRecord             = "IdempotencyRecord"
 	TypeIdentityAdoptionDecision      = "IdentityAdoptionDecision"
+	TypeMobileAsset                   = "MobileAsset"
+	TypeMobileDevice                  = "MobileDevice"
+	TypeMobilePushDelivery            = "MobilePushDelivery"
+	TypeMobilePushOutbox              = "MobilePushOutbox"
+	TypeMobileSkill                   = "MobileSkill"
+	TypeMobileSkillVersion            = "MobileSkillVersion"
+	TypeMobileTask                    = "MobileTask"
 	TypePaymentAuditLog               = "PaymentAuditLog"
 	TypePaymentOrder                  = "PaymentOrder"
 	TypePaymentProviderInstance       = "PaymentProviderInstance"
@@ -99,6 +117,7 @@ const (
 	TypeUserAllowedGroup              = "UserAllowedGroup"
 	TypeUserAttributeDefinition       = "UserAttributeDefinition"
 	TypeUserAttributeValue            = "UserAttributeValue"
+	TypeUserMobileSkill               = "UserMobileSkill"
 	TypeUserPlatformQuota             = "UserPlatformQuota"
 	TypeUserSubscription              = "UserSubscription"
 )
@@ -19468,6 +19487,1057 @@ func (m *ChannelMonitorRequestTemplateMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown ChannelMonitorRequestTemplate edge %s", name)
 }
 
+// CompositeModelRouteMutation represents an operation that mutates the CompositeModelRoute nodes in the graph.
+type CompositeModelRouteMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int64
+	created_at      *time.Time
+	updated_at      *time.Time
+	deleted_at      *time.Time
+	public_model    *string
+	match_type      *string
+	target_platform *string
+	upstream_model  *string
+	endpoint        *string
+	priority        *int
+	addpriority     *int
+	enabled         *bool
+	notes           *string
+	clearedFields   map[string]struct{}
+	group           *int64
+	clearedgroup    bool
+	done            bool
+	oldValue        func(context.Context) (*CompositeModelRoute, error)
+	predicates      []predicate.CompositeModelRoute
+}
+
+var _ ent.Mutation = (*CompositeModelRouteMutation)(nil)
+
+// compositemodelrouteOption allows management of the mutation configuration using functional options.
+type compositemodelrouteOption func(*CompositeModelRouteMutation)
+
+// newCompositeModelRouteMutation creates new mutation for the CompositeModelRoute entity.
+func newCompositeModelRouteMutation(c config, op Op, opts ...compositemodelrouteOption) *CompositeModelRouteMutation {
+	m := &CompositeModelRouteMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeCompositeModelRoute,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withCompositeModelRouteID sets the ID field of the mutation.
+func withCompositeModelRouteID(id int64) compositemodelrouteOption {
+	return func(m *CompositeModelRouteMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *CompositeModelRoute
+		)
+		m.oldValue = func(ctx context.Context) (*CompositeModelRoute, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().CompositeModelRoute.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withCompositeModelRoute sets the old CompositeModelRoute of the mutation.
+func withCompositeModelRoute(node *CompositeModelRoute) compositemodelrouteOption {
+	return func(m *CompositeModelRouteMutation) {
+		m.oldValue = func(context.Context) (*CompositeModelRoute, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m CompositeModelRouteMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m CompositeModelRouteMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *CompositeModelRouteMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *CompositeModelRouteMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().CompositeModelRoute.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *CompositeModelRouteMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *CompositeModelRouteMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *CompositeModelRouteMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *CompositeModelRouteMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *CompositeModelRouteMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *CompositeModelRouteMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *CompositeModelRouteMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *CompositeModelRouteMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *CompositeModelRouteMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[compositemodelroute.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *CompositeModelRouteMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[compositemodelroute.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *CompositeModelRouteMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, compositemodelroute.FieldDeletedAt)
+}
+
+// SetGroupID sets the "group_id" field.
+func (m *CompositeModelRouteMutation) SetGroupID(i int64) {
+	m.group = &i
+}
+
+// GroupID returns the value of the "group_id" field in the mutation.
+func (m *CompositeModelRouteMutation) GroupID() (r int64, exists bool) {
+	v := m.group
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGroupID returns the old "group_id" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldGroupID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGroupID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGroupID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGroupID: %w", err)
+	}
+	return oldValue.GroupID, nil
+}
+
+// ResetGroupID resets all changes to the "group_id" field.
+func (m *CompositeModelRouteMutation) ResetGroupID() {
+	m.group = nil
+}
+
+// SetPublicModel sets the "public_model" field.
+func (m *CompositeModelRouteMutation) SetPublicModel(s string) {
+	m.public_model = &s
+}
+
+// PublicModel returns the value of the "public_model" field in the mutation.
+func (m *CompositeModelRouteMutation) PublicModel() (r string, exists bool) {
+	v := m.public_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublicModel returns the old "public_model" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldPublicModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublicModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublicModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublicModel: %w", err)
+	}
+	return oldValue.PublicModel, nil
+}
+
+// ResetPublicModel resets all changes to the "public_model" field.
+func (m *CompositeModelRouteMutation) ResetPublicModel() {
+	m.public_model = nil
+}
+
+// SetMatchType sets the "match_type" field.
+func (m *CompositeModelRouteMutation) SetMatchType(s string) {
+	m.match_type = &s
+}
+
+// MatchType returns the value of the "match_type" field in the mutation.
+func (m *CompositeModelRouteMutation) MatchType() (r string, exists bool) {
+	v := m.match_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMatchType returns the old "match_type" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldMatchType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMatchType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMatchType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMatchType: %w", err)
+	}
+	return oldValue.MatchType, nil
+}
+
+// ResetMatchType resets all changes to the "match_type" field.
+func (m *CompositeModelRouteMutation) ResetMatchType() {
+	m.match_type = nil
+}
+
+// SetTargetPlatform sets the "target_platform" field.
+func (m *CompositeModelRouteMutation) SetTargetPlatform(s string) {
+	m.target_platform = &s
+}
+
+// TargetPlatform returns the value of the "target_platform" field in the mutation.
+func (m *CompositeModelRouteMutation) TargetPlatform() (r string, exists bool) {
+	v := m.target_platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetPlatform returns the old "target_platform" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldTargetPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetPlatform: %w", err)
+	}
+	return oldValue.TargetPlatform, nil
+}
+
+// ResetTargetPlatform resets all changes to the "target_platform" field.
+func (m *CompositeModelRouteMutation) ResetTargetPlatform() {
+	m.target_platform = nil
+}
+
+// SetUpstreamModel sets the "upstream_model" field.
+func (m *CompositeModelRouteMutation) SetUpstreamModel(s string) {
+	m.upstream_model = &s
+}
+
+// UpstreamModel returns the value of the "upstream_model" field in the mutation.
+func (m *CompositeModelRouteMutation) UpstreamModel() (r string, exists bool) {
+	v := m.upstream_model
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpstreamModel returns the old "upstream_model" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldUpstreamModel(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpstreamModel is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpstreamModel requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpstreamModel: %w", err)
+	}
+	return oldValue.UpstreamModel, nil
+}
+
+// ResetUpstreamModel resets all changes to the "upstream_model" field.
+func (m *CompositeModelRouteMutation) ResetUpstreamModel() {
+	m.upstream_model = nil
+}
+
+// SetEndpoint sets the "endpoint" field.
+func (m *CompositeModelRouteMutation) SetEndpoint(s string) {
+	m.endpoint = &s
+}
+
+// Endpoint returns the value of the "endpoint" field in the mutation.
+func (m *CompositeModelRouteMutation) Endpoint() (r string, exists bool) {
+	v := m.endpoint
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEndpoint returns the old "endpoint" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldEndpoint(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEndpoint is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEndpoint requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEndpoint: %w", err)
+	}
+	return oldValue.Endpoint, nil
+}
+
+// ResetEndpoint resets all changes to the "endpoint" field.
+func (m *CompositeModelRouteMutation) ResetEndpoint() {
+	m.endpoint = nil
+}
+
+// SetPriority sets the "priority" field.
+func (m *CompositeModelRouteMutation) SetPriority(i int) {
+	m.priority = &i
+	m.addpriority = nil
+}
+
+// Priority returns the value of the "priority" field in the mutation.
+func (m *CompositeModelRouteMutation) Priority() (r int, exists bool) {
+	v := m.priority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPriority returns the old "priority" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldPriority(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPriority is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPriority requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPriority: %w", err)
+	}
+	return oldValue.Priority, nil
+}
+
+// AddPriority adds i to the "priority" field.
+func (m *CompositeModelRouteMutation) AddPriority(i int) {
+	if m.addpriority != nil {
+		*m.addpriority += i
+	} else {
+		m.addpriority = &i
+	}
+}
+
+// AddedPriority returns the value that was added to the "priority" field in this mutation.
+func (m *CompositeModelRouteMutation) AddedPriority() (r int, exists bool) {
+	v := m.addpriority
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPriority resets all changes to the "priority" field.
+func (m *CompositeModelRouteMutation) ResetPriority() {
+	m.priority = nil
+	m.addpriority = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *CompositeModelRouteMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *CompositeModelRouteMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *CompositeModelRouteMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetNotes sets the "notes" field.
+func (m *CompositeModelRouteMutation) SetNotes(s string) {
+	m.notes = &s
+}
+
+// Notes returns the value of the "notes" field in the mutation.
+func (m *CompositeModelRouteMutation) Notes() (r string, exists bool) {
+	v := m.notes
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNotes returns the old "notes" field's value of the CompositeModelRoute entity.
+// If the CompositeModelRoute object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *CompositeModelRouteMutation) OldNotes(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNotes is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNotes requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNotes: %w", err)
+	}
+	return oldValue.Notes, nil
+}
+
+// ClearNotes clears the value of the "notes" field.
+func (m *CompositeModelRouteMutation) ClearNotes() {
+	m.notes = nil
+	m.clearedFields[compositemodelroute.FieldNotes] = struct{}{}
+}
+
+// NotesCleared returns if the "notes" field was cleared in this mutation.
+func (m *CompositeModelRouteMutation) NotesCleared() bool {
+	_, ok := m.clearedFields[compositemodelroute.FieldNotes]
+	return ok
+}
+
+// ResetNotes resets all changes to the "notes" field.
+func (m *CompositeModelRouteMutation) ResetNotes() {
+	m.notes = nil
+	delete(m.clearedFields, compositemodelroute.FieldNotes)
+}
+
+// ClearGroup clears the "group" edge to the Group entity.
+func (m *CompositeModelRouteMutation) ClearGroup() {
+	m.clearedgroup = true
+	m.clearedFields[compositemodelroute.FieldGroupID] = struct{}{}
+}
+
+// GroupCleared reports if the "group" edge to the Group entity was cleared.
+func (m *CompositeModelRouteMutation) GroupCleared() bool {
+	return m.clearedgroup
+}
+
+// GroupIDs returns the "group" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// GroupID instead. It exists only for internal usage by the builders.
+func (m *CompositeModelRouteMutation) GroupIDs() (ids []int64) {
+	if id := m.group; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetGroup resets all changes to the "group" edge.
+func (m *CompositeModelRouteMutation) ResetGroup() {
+	m.group = nil
+	m.clearedgroup = false
+}
+
+// Where appends a list predicates to the CompositeModelRouteMutation builder.
+func (m *CompositeModelRouteMutation) Where(ps ...predicate.CompositeModelRoute) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the CompositeModelRouteMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *CompositeModelRouteMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.CompositeModelRoute, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *CompositeModelRouteMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *CompositeModelRouteMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (CompositeModelRoute).
+func (m *CompositeModelRouteMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *CompositeModelRouteMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.created_at != nil {
+		fields = append(fields, compositemodelroute.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, compositemodelroute.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, compositemodelroute.FieldDeletedAt)
+	}
+	if m.group != nil {
+		fields = append(fields, compositemodelroute.FieldGroupID)
+	}
+	if m.public_model != nil {
+		fields = append(fields, compositemodelroute.FieldPublicModel)
+	}
+	if m.match_type != nil {
+		fields = append(fields, compositemodelroute.FieldMatchType)
+	}
+	if m.target_platform != nil {
+		fields = append(fields, compositemodelroute.FieldTargetPlatform)
+	}
+	if m.upstream_model != nil {
+		fields = append(fields, compositemodelroute.FieldUpstreamModel)
+	}
+	if m.endpoint != nil {
+		fields = append(fields, compositemodelroute.FieldEndpoint)
+	}
+	if m.priority != nil {
+		fields = append(fields, compositemodelroute.FieldPriority)
+	}
+	if m.enabled != nil {
+		fields = append(fields, compositemodelroute.FieldEnabled)
+	}
+	if m.notes != nil {
+		fields = append(fields, compositemodelroute.FieldNotes)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *CompositeModelRouteMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case compositemodelroute.FieldCreatedAt:
+		return m.CreatedAt()
+	case compositemodelroute.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case compositemodelroute.FieldDeletedAt:
+		return m.DeletedAt()
+	case compositemodelroute.FieldGroupID:
+		return m.GroupID()
+	case compositemodelroute.FieldPublicModel:
+		return m.PublicModel()
+	case compositemodelroute.FieldMatchType:
+		return m.MatchType()
+	case compositemodelroute.FieldTargetPlatform:
+		return m.TargetPlatform()
+	case compositemodelroute.FieldUpstreamModel:
+		return m.UpstreamModel()
+	case compositemodelroute.FieldEndpoint:
+		return m.Endpoint()
+	case compositemodelroute.FieldPriority:
+		return m.Priority()
+	case compositemodelroute.FieldEnabled:
+		return m.Enabled()
+	case compositemodelroute.FieldNotes:
+		return m.Notes()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *CompositeModelRouteMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case compositemodelroute.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case compositemodelroute.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case compositemodelroute.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case compositemodelroute.FieldGroupID:
+		return m.OldGroupID(ctx)
+	case compositemodelroute.FieldPublicModel:
+		return m.OldPublicModel(ctx)
+	case compositemodelroute.FieldMatchType:
+		return m.OldMatchType(ctx)
+	case compositemodelroute.FieldTargetPlatform:
+		return m.OldTargetPlatform(ctx)
+	case compositemodelroute.FieldUpstreamModel:
+		return m.OldUpstreamModel(ctx)
+	case compositemodelroute.FieldEndpoint:
+		return m.OldEndpoint(ctx)
+	case compositemodelroute.FieldPriority:
+		return m.OldPriority(ctx)
+	case compositemodelroute.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case compositemodelroute.FieldNotes:
+		return m.OldNotes(ctx)
+	}
+	return nil, fmt.Errorf("unknown CompositeModelRoute field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CompositeModelRouteMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case compositemodelroute.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case compositemodelroute.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case compositemodelroute.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case compositemodelroute.FieldGroupID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGroupID(v)
+		return nil
+	case compositemodelroute.FieldPublicModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublicModel(v)
+		return nil
+	case compositemodelroute.FieldMatchType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMatchType(v)
+		return nil
+	case compositemodelroute.FieldTargetPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetPlatform(v)
+		return nil
+	case compositemodelroute.FieldUpstreamModel:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpstreamModel(v)
+		return nil
+	case compositemodelroute.FieldEndpoint:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEndpoint(v)
+		return nil
+	case compositemodelroute.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPriority(v)
+		return nil
+	case compositemodelroute.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case compositemodelroute.FieldNotes:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNotes(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CompositeModelRoute field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *CompositeModelRouteMutation) AddedFields() []string {
+	var fields []string
+	if m.addpriority != nil {
+		fields = append(fields, compositemodelroute.FieldPriority)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *CompositeModelRouteMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case compositemodelroute.FieldPriority:
+		return m.AddedPriority()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *CompositeModelRouteMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case compositemodelroute.FieldPriority:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPriority(v)
+		return nil
+	}
+	return fmt.Errorf("unknown CompositeModelRoute numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *CompositeModelRouteMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(compositemodelroute.FieldDeletedAt) {
+		fields = append(fields, compositemodelroute.FieldDeletedAt)
+	}
+	if m.FieldCleared(compositemodelroute.FieldNotes) {
+		fields = append(fields, compositemodelroute.FieldNotes)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *CompositeModelRouteMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *CompositeModelRouteMutation) ClearField(name string) error {
+	switch name {
+	case compositemodelroute.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case compositemodelroute.FieldNotes:
+		m.ClearNotes()
+		return nil
+	}
+	return fmt.Errorf("unknown CompositeModelRoute nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *CompositeModelRouteMutation) ResetField(name string) error {
+	switch name {
+	case compositemodelroute.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case compositemodelroute.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case compositemodelroute.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case compositemodelroute.FieldGroupID:
+		m.ResetGroupID()
+		return nil
+	case compositemodelroute.FieldPublicModel:
+		m.ResetPublicModel()
+		return nil
+	case compositemodelroute.FieldMatchType:
+		m.ResetMatchType()
+		return nil
+	case compositemodelroute.FieldTargetPlatform:
+		m.ResetTargetPlatform()
+		return nil
+	case compositemodelroute.FieldUpstreamModel:
+		m.ResetUpstreamModel()
+		return nil
+	case compositemodelroute.FieldEndpoint:
+		m.ResetEndpoint()
+		return nil
+	case compositemodelroute.FieldPriority:
+		m.ResetPriority()
+		return nil
+	case compositemodelroute.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case compositemodelroute.FieldNotes:
+		m.ResetNotes()
+		return nil
+	}
+	return fmt.Errorf("unknown CompositeModelRoute field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *CompositeModelRouteMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.group != nil {
+		edges = append(edges, compositemodelroute.EdgeGroup)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *CompositeModelRouteMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case compositemodelroute.EdgeGroup:
+		if id := m.group; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *CompositeModelRouteMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *CompositeModelRouteMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *CompositeModelRouteMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedgroup {
+		edges = append(edges, compositemodelroute.EdgeGroup)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *CompositeModelRouteMutation) EdgeCleared(name string) bool {
+	switch name {
+	case compositemodelroute.EdgeGroup:
+		return m.clearedgroup
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *CompositeModelRouteMutation) ClearEdge(name string) error {
+	switch name {
+	case compositemodelroute.EdgeGroup:
+		m.ClearGroup()
+		return nil
+	}
+	return fmt.Errorf("unknown CompositeModelRoute unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *CompositeModelRouteMutation) ResetEdge(name string) error {
+	switch name {
+	case compositemodelroute.EdgeGroup:
+		m.ResetGroup()
+		return nil
+	}
+	return fmt.Errorf("unknown CompositeModelRoute edge %s", name)
+}
+
 // ErrorPassthroughRuleMutation represents an operation that mutates the ErrorPassthroughRule nodes in the graph.
 type ErrorPassthroughRuleMutation struct {
 	config
@@ -20863,6 +21933,7 @@ type GroupMutation struct {
 	sort_order                              *int
 	addsort_order                           *int
 	allow_messages_dispatch                 *bool
+	allow_live                              *bool
 	require_oauth_only                      *bool
 	require_privacy_set                     *bool
 	default_mapped_model                    *string
@@ -20870,6 +21941,9 @@ type GroupMutation struct {
 	models_list_config                      *domain.GroupModelsListConfig
 	rpm_limit                               *int
 	addrpm_limit                            *int
+	max_reasoning_effort                    *string
+	reasoning_effort_mappings               *[]domain.ReasoningEffortMapping
+	appendreasoning_effort_mappings         []domain.ReasoningEffortMapping
 	clearedFields                           map[string]struct{}
 	api_keys                                map[int64]struct{}
 	removedapi_keys                         map[int64]struct{}
@@ -23339,6 +24413,42 @@ func (m *GroupMutation) ResetAllowMessagesDispatch() {
 	m.allow_messages_dispatch = nil
 }
 
+// SetAllowLive sets the "allow_live" field.
+func (m *GroupMutation) SetAllowLive(b bool) {
+	m.allow_live = &b
+}
+
+// AllowLive returns the value of the "allow_live" field in the mutation.
+func (m *GroupMutation) AllowLive() (r bool, exists bool) {
+	v := m.allow_live
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowLive returns the old "allow_live" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldAllowLive(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowLive is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowLive requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowLive: %w", err)
+	}
+	return oldValue.AllowLive, nil
+}
+
+// ResetAllowLive resets all changes to the "allow_live" field.
+func (m *GroupMutation) ResetAllowLive() {
+	m.allow_live = nil
+}
+
 // SetRequireOauthOnly sets the "require_oauth_only" field.
 func (m *GroupMutation) SetRequireOauthOnly(b bool) {
 	m.require_oauth_only = &b
@@ -23573,6 +24683,93 @@ func (m *GroupMutation) AddedRpmLimit() (r int, exists bool) {
 func (m *GroupMutation) ResetRpmLimit() {
 	m.rpm_limit = nil
 	m.addrpm_limit = nil
+}
+
+// SetMaxReasoningEffort sets the "max_reasoning_effort" field.
+func (m *GroupMutation) SetMaxReasoningEffort(s string) {
+	m.max_reasoning_effort = &s
+}
+
+// MaxReasoningEffort returns the value of the "max_reasoning_effort" field in the mutation.
+func (m *GroupMutation) MaxReasoningEffort() (r string, exists bool) {
+	v := m.max_reasoning_effort
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxReasoningEffort returns the old "max_reasoning_effort" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldMaxReasoningEffort(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxReasoningEffort is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxReasoningEffort requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxReasoningEffort: %w", err)
+	}
+	return oldValue.MaxReasoningEffort, nil
+}
+
+// ResetMaxReasoningEffort resets all changes to the "max_reasoning_effort" field.
+func (m *GroupMutation) ResetMaxReasoningEffort() {
+	m.max_reasoning_effort = nil
+}
+
+// SetReasoningEffortMappings sets the "reasoning_effort_mappings" field.
+func (m *GroupMutation) SetReasoningEffortMappings(dem []domain.ReasoningEffortMapping) {
+	m.reasoning_effort_mappings = &dem
+	m.appendreasoning_effort_mappings = nil
+}
+
+// ReasoningEffortMappings returns the value of the "reasoning_effort_mappings" field in the mutation.
+func (m *GroupMutation) ReasoningEffortMappings() (r []domain.ReasoningEffortMapping, exists bool) {
+	v := m.reasoning_effort_mappings
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReasoningEffortMappings returns the old "reasoning_effort_mappings" field's value of the Group entity.
+// If the Group object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *GroupMutation) OldReasoningEffortMappings(ctx context.Context) (v []domain.ReasoningEffortMapping, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReasoningEffortMappings is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReasoningEffortMappings requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReasoningEffortMappings: %w", err)
+	}
+	return oldValue.ReasoningEffortMappings, nil
+}
+
+// AppendReasoningEffortMappings adds dem to the "reasoning_effort_mappings" field.
+func (m *GroupMutation) AppendReasoningEffortMappings(dem []domain.ReasoningEffortMapping) {
+	m.appendreasoning_effort_mappings = append(m.appendreasoning_effort_mappings, dem...)
+}
+
+// AppendedReasoningEffortMappings returns the list of values that were appended to the "reasoning_effort_mappings" field in this mutation.
+func (m *GroupMutation) AppendedReasoningEffortMappings() ([]domain.ReasoningEffortMapping, bool) {
+	if len(m.appendreasoning_effort_mappings) == 0 {
+		return nil, false
+	}
+	return m.appendreasoning_effort_mappings, true
+}
+
+// ResetReasoningEffortMappings resets all changes to the "reasoning_effort_mappings" field.
+func (m *GroupMutation) ResetReasoningEffortMappings() {
+	m.reasoning_effort_mappings = nil
+	m.appendreasoning_effort_mappings = nil
 }
 
 // AddAPIKeyIDs adds the "api_keys" edge to the APIKey entity by ids.
@@ -23933,7 +25130,7 @@ func (m *GroupMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *GroupMutation) Fields() []string {
-	fields := make([]string, 0, 53)
+	fields := make([]string, 0, 56)
 	if m.created_at != nil {
 		fields = append(fields, group.FieldCreatedAt)
 	}
@@ -24075,6 +25272,9 @@ func (m *GroupMutation) Fields() []string {
 	if m.allow_messages_dispatch != nil {
 		fields = append(fields, group.FieldAllowMessagesDispatch)
 	}
+	if m.allow_live != nil {
+		fields = append(fields, group.FieldAllowLive)
+	}
 	if m.require_oauth_only != nil {
 		fields = append(fields, group.FieldRequireOauthOnly)
 	}
@@ -24092,6 +25292,12 @@ func (m *GroupMutation) Fields() []string {
 	}
 	if m.rpm_limit != nil {
 		fields = append(fields, group.FieldRpmLimit)
+	}
+	if m.max_reasoning_effort != nil {
+		fields = append(fields, group.FieldMaxReasoningEffort)
+	}
+	if m.reasoning_effort_mappings != nil {
+		fields = append(fields, group.FieldReasoningEffortMappings)
 	}
 	return fields
 }
@@ -24195,6 +25401,8 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.SortOrder()
 	case group.FieldAllowMessagesDispatch:
 		return m.AllowMessagesDispatch()
+	case group.FieldAllowLive:
+		return m.AllowLive()
 	case group.FieldRequireOauthOnly:
 		return m.RequireOauthOnly()
 	case group.FieldRequirePrivacySet:
@@ -24207,6 +25415,10 @@ func (m *GroupMutation) Field(name string) (ent.Value, bool) {
 		return m.ModelsListConfig()
 	case group.FieldRpmLimit:
 		return m.RpmLimit()
+	case group.FieldMaxReasoningEffort:
+		return m.MaxReasoningEffort()
+	case group.FieldReasoningEffortMappings:
+		return m.ReasoningEffortMappings()
 	}
 	return nil, false
 }
@@ -24310,6 +25522,8 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldSortOrder(ctx)
 	case group.FieldAllowMessagesDispatch:
 		return m.OldAllowMessagesDispatch(ctx)
+	case group.FieldAllowLive:
+		return m.OldAllowLive(ctx)
 	case group.FieldRequireOauthOnly:
 		return m.OldRequireOauthOnly(ctx)
 	case group.FieldRequirePrivacySet:
@@ -24322,6 +25536,10 @@ func (m *GroupMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldModelsListConfig(ctx)
 	case group.FieldRpmLimit:
 		return m.OldRpmLimit(ctx)
+	case group.FieldMaxReasoningEffort:
+		return m.OldMaxReasoningEffort(ctx)
+	case group.FieldReasoningEffortMappings:
+		return m.OldReasoningEffortMappings(ctx)
 	}
 	return nil, fmt.Errorf("unknown Group field %s", name)
 }
@@ -24660,6 +25878,13 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetAllowMessagesDispatch(v)
 		return nil
+	case group.FieldAllowLive:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowLive(v)
+		return nil
 	case group.FieldRequireOauthOnly:
 		v, ok := value.(bool)
 		if !ok {
@@ -24701,6 +25926,20 @@ func (m *GroupMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRpmLimit(v)
+		return nil
+	case group.FieldMaxReasoningEffort:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxReasoningEffort(v)
+		return nil
+	case group.FieldReasoningEffortMappings:
+		v, ok := value.([]domain.ReasoningEffortMapping)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReasoningEffortMappings(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -25258,6 +26497,9 @@ func (m *GroupMutation) ResetField(name string) error {
 	case group.FieldAllowMessagesDispatch:
 		m.ResetAllowMessagesDispatch()
 		return nil
+	case group.FieldAllowLive:
+		m.ResetAllowLive()
+		return nil
 	case group.FieldRequireOauthOnly:
 		m.ResetRequireOauthOnly()
 		return nil
@@ -25275,6 +26517,12 @@ func (m *GroupMutation) ResetField(name string) error {
 		return nil
 	case group.FieldRpmLimit:
 		m.ResetRpmLimit()
+		return nil
+	case group.FieldMaxReasoningEffort:
+		m.ResetMaxReasoningEffort()
+		return nil
+	case group.FieldReasoningEffortMappings:
+		m.ResetReasoningEffortMappings()
 		return nil
 	}
 	return fmt.Errorf("unknown Group field %s", name)
@@ -27249,6 +28497,8306 @@ func (m *IdentityAdoptionDecisionMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown IdentityAdoptionDecision edge %s", name)
+}
+
+// MobileAssetMutation represents an operation that mutates the MobileAsset nodes in the graph.
+type MobileAssetMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	created_at    *time.Time
+	updated_at    *time.Time
+	deleted_at    *time.Time
+	user_id       *int64
+	adduser_id    *int64
+	kind          *string
+	source        *string
+	storage_key   *string
+	original_name *string
+	content_type  *string
+	byte_size     *int64
+	addbyte_size  *int64
+	sha256        *string
+	status        *string
+	source_type   *string
+	source_id     *string
+	metadata      *map[string]interface{}
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*MobileAsset, error)
+	predicates    []predicate.MobileAsset
+}
+
+var _ ent.Mutation = (*MobileAssetMutation)(nil)
+
+// mobileassetOption allows management of the mutation configuration using functional options.
+type mobileassetOption func(*MobileAssetMutation)
+
+// newMobileAssetMutation creates new mutation for the MobileAsset entity.
+func newMobileAssetMutation(c config, op Op, opts ...mobileassetOption) *MobileAssetMutation {
+	m := &MobileAssetMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobileAsset,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobileAssetID sets the ID field of the mutation.
+func withMobileAssetID(id uuid.UUID) mobileassetOption {
+	return func(m *MobileAssetMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobileAsset
+		)
+		m.oldValue = func(ctx context.Context) (*MobileAsset, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobileAsset.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobileAsset sets the old MobileAsset of the mutation.
+func withMobileAsset(node *MobileAsset) mobileassetOption {
+	return func(m *MobileAssetMutation) {
+		m.oldValue = func(context.Context) (*MobileAsset, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobileAssetMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobileAssetMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MobileAsset entities.
+func (m *MobileAssetMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobileAssetMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobileAssetMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobileAsset.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobileAssetMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobileAssetMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobileAssetMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobileAssetMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobileAssetMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobileAssetMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (m *MobileAssetMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *MobileAssetMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *MobileAssetMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[mobileasset.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *MobileAssetMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[mobileasset.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *MobileAssetMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, mobileasset.FieldDeletedAt)
+}
+
+// SetUserID sets the "user_id" field.
+func (m *MobileAssetMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *MobileAssetMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *MobileAssetMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *MobileAssetMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *MobileAssetMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *MobileAssetMutation) SetKind(s string) {
+	m.kind = &s
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *MobileAssetMutation) Kind() (r string, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldKind(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *MobileAssetMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetSource sets the "source" field.
+func (m *MobileAssetMutation) SetSource(s string) {
+	m.source = &s
+}
+
+// Source returns the value of the "source" field in the mutation.
+func (m *MobileAssetMutation) Source() (r string, exists bool) {
+	v := m.source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSource returns the old "source" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSource: %w", err)
+	}
+	return oldValue.Source, nil
+}
+
+// ResetSource resets all changes to the "source" field.
+func (m *MobileAssetMutation) ResetSource() {
+	m.source = nil
+}
+
+// SetStorageKey sets the "storage_key" field.
+func (m *MobileAssetMutation) SetStorageKey(s string) {
+	m.storage_key = &s
+}
+
+// StorageKey returns the value of the "storage_key" field in the mutation.
+func (m *MobileAssetMutation) StorageKey() (r string, exists bool) {
+	v := m.storage_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStorageKey returns the old "storage_key" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldStorageKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStorageKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStorageKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStorageKey: %w", err)
+	}
+	return oldValue.StorageKey, nil
+}
+
+// ResetStorageKey resets all changes to the "storage_key" field.
+func (m *MobileAssetMutation) ResetStorageKey() {
+	m.storage_key = nil
+}
+
+// SetOriginalName sets the "original_name" field.
+func (m *MobileAssetMutation) SetOriginalName(s string) {
+	m.original_name = &s
+}
+
+// OriginalName returns the value of the "original_name" field in the mutation.
+func (m *MobileAssetMutation) OriginalName() (r string, exists bool) {
+	v := m.original_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOriginalName returns the old "original_name" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldOriginalName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOriginalName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOriginalName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOriginalName: %w", err)
+	}
+	return oldValue.OriginalName, nil
+}
+
+// ResetOriginalName resets all changes to the "original_name" field.
+func (m *MobileAssetMutation) ResetOriginalName() {
+	m.original_name = nil
+}
+
+// SetContentType sets the "content_type" field.
+func (m *MobileAssetMutation) SetContentType(s string) {
+	m.content_type = &s
+}
+
+// ContentType returns the value of the "content_type" field in the mutation.
+func (m *MobileAssetMutation) ContentType() (r string, exists bool) {
+	v := m.content_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldContentType returns the old "content_type" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldContentType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldContentType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldContentType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldContentType: %w", err)
+	}
+	return oldValue.ContentType, nil
+}
+
+// ResetContentType resets all changes to the "content_type" field.
+func (m *MobileAssetMutation) ResetContentType() {
+	m.content_type = nil
+}
+
+// SetByteSize sets the "byte_size" field.
+func (m *MobileAssetMutation) SetByteSize(i int64) {
+	m.byte_size = &i
+	m.addbyte_size = nil
+}
+
+// ByteSize returns the value of the "byte_size" field in the mutation.
+func (m *MobileAssetMutation) ByteSize() (r int64, exists bool) {
+	v := m.byte_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldByteSize returns the old "byte_size" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldByteSize(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldByteSize is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldByteSize requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldByteSize: %w", err)
+	}
+	return oldValue.ByteSize, nil
+}
+
+// AddByteSize adds i to the "byte_size" field.
+func (m *MobileAssetMutation) AddByteSize(i int64) {
+	if m.addbyte_size != nil {
+		*m.addbyte_size += i
+	} else {
+		m.addbyte_size = &i
+	}
+}
+
+// AddedByteSize returns the value that was added to the "byte_size" field in this mutation.
+func (m *MobileAssetMutation) AddedByteSize() (r int64, exists bool) {
+	v := m.addbyte_size
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetByteSize resets all changes to the "byte_size" field.
+func (m *MobileAssetMutation) ResetByteSize() {
+	m.byte_size = nil
+	m.addbyte_size = nil
+}
+
+// SetSha256 sets the "sha256" field.
+func (m *MobileAssetMutation) SetSha256(s string) {
+	m.sha256 = &s
+}
+
+// Sha256 returns the value of the "sha256" field in the mutation.
+func (m *MobileAssetMutation) Sha256() (r string, exists bool) {
+	v := m.sha256
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSha256 returns the old "sha256" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldSha256(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSha256 is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSha256 requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSha256: %w", err)
+	}
+	return oldValue.Sha256, nil
+}
+
+// ClearSha256 clears the value of the "sha256" field.
+func (m *MobileAssetMutation) ClearSha256() {
+	m.sha256 = nil
+	m.clearedFields[mobileasset.FieldSha256] = struct{}{}
+}
+
+// Sha256Cleared returns if the "sha256" field was cleared in this mutation.
+func (m *MobileAssetMutation) Sha256Cleared() bool {
+	_, ok := m.clearedFields[mobileasset.FieldSha256]
+	return ok
+}
+
+// ResetSha256 resets all changes to the "sha256" field.
+func (m *MobileAssetMutation) ResetSha256() {
+	m.sha256 = nil
+	delete(m.clearedFields, mobileasset.FieldSha256)
+}
+
+// SetStatus sets the "status" field.
+func (m *MobileAssetMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MobileAssetMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MobileAssetMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *MobileAssetMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *MobileAssetMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldSourceType(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ClearSourceType clears the value of the "source_type" field.
+func (m *MobileAssetMutation) ClearSourceType() {
+	m.source_type = nil
+	m.clearedFields[mobileasset.FieldSourceType] = struct{}{}
+}
+
+// SourceTypeCleared returns if the "source_type" field was cleared in this mutation.
+func (m *MobileAssetMutation) SourceTypeCleared() bool {
+	_, ok := m.clearedFields[mobileasset.FieldSourceType]
+	return ok
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *MobileAssetMutation) ResetSourceType() {
+	m.source_type = nil
+	delete(m.clearedFields, mobileasset.FieldSourceType)
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *MobileAssetMutation) SetSourceID(s string) {
+	m.source_id = &s
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *MobileAssetMutation) SourceID() (r string, exists bool) {
+	v := m.source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldSourceID(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// ClearSourceID clears the value of the "source_id" field.
+func (m *MobileAssetMutation) ClearSourceID() {
+	m.source_id = nil
+	m.clearedFields[mobileasset.FieldSourceID] = struct{}{}
+}
+
+// SourceIDCleared returns if the "source_id" field was cleared in this mutation.
+func (m *MobileAssetMutation) SourceIDCleared() bool {
+	_, ok := m.clearedFields[mobileasset.FieldSourceID]
+	return ok
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *MobileAssetMutation) ResetSourceID() {
+	m.source_id = nil
+	delete(m.clearedFields, mobileasset.FieldSourceID)
+}
+
+// SetMetadata sets the "metadata" field.
+func (m *MobileAssetMutation) SetMetadata(value map[string]interface{}) {
+	m.metadata = &value
+}
+
+// Metadata returns the value of the "metadata" field in the mutation.
+func (m *MobileAssetMutation) Metadata() (r map[string]interface{}, exists bool) {
+	v := m.metadata
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMetadata returns the old "metadata" field's value of the MobileAsset entity.
+// If the MobileAsset object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileAssetMutation) OldMetadata(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMetadata is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMetadata requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMetadata: %w", err)
+	}
+	return oldValue.Metadata, nil
+}
+
+// ResetMetadata resets all changes to the "metadata" field.
+func (m *MobileAssetMutation) ResetMetadata() {
+	m.metadata = nil
+}
+
+// Where appends a list predicates to the MobileAssetMutation builder.
+func (m *MobileAssetMutation) Where(ps ...predicate.MobileAsset) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobileAssetMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobileAssetMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobileAsset, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobileAssetMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobileAssetMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobileAsset).
+func (m *MobileAssetMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobileAssetMutation) Fields() []string {
+	fields := make([]string, 0, 15)
+	if m.created_at != nil {
+		fields = append(fields, mobileasset.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobileasset.FieldUpdatedAt)
+	}
+	if m.deleted_at != nil {
+		fields = append(fields, mobileasset.FieldDeletedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, mobileasset.FieldUserID)
+	}
+	if m.kind != nil {
+		fields = append(fields, mobileasset.FieldKind)
+	}
+	if m.source != nil {
+		fields = append(fields, mobileasset.FieldSource)
+	}
+	if m.storage_key != nil {
+		fields = append(fields, mobileasset.FieldStorageKey)
+	}
+	if m.original_name != nil {
+		fields = append(fields, mobileasset.FieldOriginalName)
+	}
+	if m.content_type != nil {
+		fields = append(fields, mobileasset.FieldContentType)
+	}
+	if m.byte_size != nil {
+		fields = append(fields, mobileasset.FieldByteSize)
+	}
+	if m.sha256 != nil {
+		fields = append(fields, mobileasset.FieldSha256)
+	}
+	if m.status != nil {
+		fields = append(fields, mobileasset.FieldStatus)
+	}
+	if m.source_type != nil {
+		fields = append(fields, mobileasset.FieldSourceType)
+	}
+	if m.source_id != nil {
+		fields = append(fields, mobileasset.FieldSourceID)
+	}
+	if m.metadata != nil {
+		fields = append(fields, mobileasset.FieldMetadata)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobileAssetMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobileasset.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobileasset.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobileasset.FieldDeletedAt:
+		return m.DeletedAt()
+	case mobileasset.FieldUserID:
+		return m.UserID()
+	case mobileasset.FieldKind:
+		return m.Kind()
+	case mobileasset.FieldSource:
+		return m.Source()
+	case mobileasset.FieldStorageKey:
+		return m.StorageKey()
+	case mobileasset.FieldOriginalName:
+		return m.OriginalName()
+	case mobileasset.FieldContentType:
+		return m.ContentType()
+	case mobileasset.FieldByteSize:
+		return m.ByteSize()
+	case mobileasset.FieldSha256:
+		return m.Sha256()
+	case mobileasset.FieldStatus:
+		return m.Status()
+	case mobileasset.FieldSourceType:
+		return m.SourceType()
+	case mobileasset.FieldSourceID:
+		return m.SourceID()
+	case mobileasset.FieldMetadata:
+		return m.Metadata()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobileAssetMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobileasset.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobileasset.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobileasset.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
+	case mobileasset.FieldUserID:
+		return m.OldUserID(ctx)
+	case mobileasset.FieldKind:
+		return m.OldKind(ctx)
+	case mobileasset.FieldSource:
+		return m.OldSource(ctx)
+	case mobileasset.FieldStorageKey:
+		return m.OldStorageKey(ctx)
+	case mobileasset.FieldOriginalName:
+		return m.OldOriginalName(ctx)
+	case mobileasset.FieldContentType:
+		return m.OldContentType(ctx)
+	case mobileasset.FieldByteSize:
+		return m.OldByteSize(ctx)
+	case mobileasset.FieldSha256:
+		return m.OldSha256(ctx)
+	case mobileasset.FieldStatus:
+		return m.OldStatus(ctx)
+	case mobileasset.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case mobileasset.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case mobileasset.FieldMetadata:
+		return m.OldMetadata(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobileAsset field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileAssetMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobileasset.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobileasset.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobileasset.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
+	case mobileasset.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case mobileasset.FieldKind:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case mobileasset.FieldSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSource(v)
+		return nil
+	case mobileasset.FieldStorageKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStorageKey(v)
+		return nil
+	case mobileasset.FieldOriginalName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOriginalName(v)
+		return nil
+	case mobileasset.FieldContentType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetContentType(v)
+		return nil
+	case mobileasset.FieldByteSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetByteSize(v)
+		return nil
+	case mobileasset.FieldSha256:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSha256(v)
+		return nil
+	case mobileasset.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case mobileasset.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case mobileasset.FieldSourceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case mobileasset.FieldMetadata:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMetadata(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileAsset field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobileAssetMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, mobileasset.FieldUserID)
+	}
+	if m.addbyte_size != nil {
+		fields = append(fields, mobileasset.FieldByteSize)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobileAssetMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobileasset.FieldUserID:
+		return m.AddedUserID()
+	case mobileasset.FieldByteSize:
+		return m.AddedByteSize()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileAssetMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobileasset.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case mobileasset.FieldByteSize:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddByteSize(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileAsset numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobileAssetMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobileasset.FieldDeletedAt) {
+		fields = append(fields, mobileasset.FieldDeletedAt)
+	}
+	if m.FieldCleared(mobileasset.FieldSha256) {
+		fields = append(fields, mobileasset.FieldSha256)
+	}
+	if m.FieldCleared(mobileasset.FieldSourceType) {
+		fields = append(fields, mobileasset.FieldSourceType)
+	}
+	if m.FieldCleared(mobileasset.FieldSourceID) {
+		fields = append(fields, mobileasset.FieldSourceID)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobileAssetMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobileAssetMutation) ClearField(name string) error {
+	switch name {
+	case mobileasset.FieldDeletedAt:
+		m.ClearDeletedAt()
+		return nil
+	case mobileasset.FieldSha256:
+		m.ClearSha256()
+		return nil
+	case mobileasset.FieldSourceType:
+		m.ClearSourceType()
+		return nil
+	case mobileasset.FieldSourceID:
+		m.ClearSourceID()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileAsset nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobileAssetMutation) ResetField(name string) error {
+	switch name {
+	case mobileasset.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobileasset.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobileasset.FieldDeletedAt:
+		m.ResetDeletedAt()
+		return nil
+	case mobileasset.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case mobileasset.FieldKind:
+		m.ResetKind()
+		return nil
+	case mobileasset.FieldSource:
+		m.ResetSource()
+		return nil
+	case mobileasset.FieldStorageKey:
+		m.ResetStorageKey()
+		return nil
+	case mobileasset.FieldOriginalName:
+		m.ResetOriginalName()
+		return nil
+	case mobileasset.FieldContentType:
+		m.ResetContentType()
+		return nil
+	case mobileasset.FieldByteSize:
+		m.ResetByteSize()
+		return nil
+	case mobileasset.FieldSha256:
+		m.ResetSha256()
+		return nil
+	case mobileasset.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case mobileasset.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case mobileasset.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case mobileasset.FieldMetadata:
+		m.ResetMetadata()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileAsset field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobileAssetMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobileAssetMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobileAssetMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobileAssetMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobileAssetMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobileAssetMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobileAssetMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MobileAsset unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobileAssetMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MobileAsset edge %s", name)
+}
+
+// MobileDeviceMutation represents an operation that mutates the MobileDevice nodes in the graph.
+type MobileDeviceMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	created_at       *time.Time
+	updated_at       *time.Time
+	user_id          *int64
+	adduser_id       *int64
+	installation_id  *uuid.UUID
+	platform         *string
+	push_provider    *string
+	token_ciphertext *string
+	token_hash       *string
+	app_version      *string
+	locale           *string
+	enabled          *bool
+	last_seen_at     *time.Time
+	revoked_at       *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*MobileDevice, error)
+	predicates       []predicate.MobileDevice
+}
+
+var _ ent.Mutation = (*MobileDeviceMutation)(nil)
+
+// mobiledeviceOption allows management of the mutation configuration using functional options.
+type mobiledeviceOption func(*MobileDeviceMutation)
+
+// newMobileDeviceMutation creates new mutation for the MobileDevice entity.
+func newMobileDeviceMutation(c config, op Op, opts ...mobiledeviceOption) *MobileDeviceMutation {
+	m := &MobileDeviceMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobileDevice,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobileDeviceID sets the ID field of the mutation.
+func withMobileDeviceID(id uuid.UUID) mobiledeviceOption {
+	return func(m *MobileDeviceMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobileDevice
+		)
+		m.oldValue = func(ctx context.Context) (*MobileDevice, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobileDevice.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobileDevice sets the old MobileDevice of the mutation.
+func withMobileDevice(node *MobileDevice) mobiledeviceOption {
+	return func(m *MobileDeviceMutation) {
+		m.oldValue = func(context.Context) (*MobileDevice, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobileDeviceMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobileDeviceMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MobileDevice entities.
+func (m *MobileDeviceMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobileDeviceMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobileDeviceMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobileDevice.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobileDeviceMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobileDeviceMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobileDeviceMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobileDeviceMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobileDeviceMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobileDeviceMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *MobileDeviceMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *MobileDeviceMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *MobileDeviceMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *MobileDeviceMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *MobileDeviceMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetInstallationID sets the "installation_id" field.
+func (m *MobileDeviceMutation) SetInstallationID(u uuid.UUID) {
+	m.installation_id = &u
+}
+
+// InstallationID returns the value of the "installation_id" field in the mutation.
+func (m *MobileDeviceMutation) InstallationID() (r uuid.UUID, exists bool) {
+	v := m.installation_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInstallationID returns the old "installation_id" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldInstallationID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInstallationID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInstallationID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInstallationID: %w", err)
+	}
+	return oldValue.InstallationID, nil
+}
+
+// ResetInstallationID resets all changes to the "installation_id" field.
+func (m *MobileDeviceMutation) ResetInstallationID() {
+	m.installation_id = nil
+}
+
+// SetPlatform sets the "platform" field.
+func (m *MobileDeviceMutation) SetPlatform(s string) {
+	m.platform = &s
+}
+
+// Platform returns the value of the "platform" field in the mutation.
+func (m *MobileDeviceMutation) Platform() (r string, exists bool) {
+	v := m.platform
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPlatform returns the old "platform" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldPlatform(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPlatform is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPlatform requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPlatform: %w", err)
+	}
+	return oldValue.Platform, nil
+}
+
+// ResetPlatform resets all changes to the "platform" field.
+func (m *MobileDeviceMutation) ResetPlatform() {
+	m.platform = nil
+}
+
+// SetPushProvider sets the "push_provider" field.
+func (m *MobileDeviceMutation) SetPushProvider(s string) {
+	m.push_provider = &s
+}
+
+// PushProvider returns the value of the "push_provider" field in the mutation.
+func (m *MobileDeviceMutation) PushProvider() (r string, exists bool) {
+	v := m.push_provider
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPushProvider returns the old "push_provider" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldPushProvider(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPushProvider is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPushProvider requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPushProvider: %w", err)
+	}
+	return oldValue.PushProvider, nil
+}
+
+// ResetPushProvider resets all changes to the "push_provider" field.
+func (m *MobileDeviceMutation) ResetPushProvider() {
+	m.push_provider = nil
+}
+
+// SetTokenCiphertext sets the "token_ciphertext" field.
+func (m *MobileDeviceMutation) SetTokenCiphertext(s string) {
+	m.token_ciphertext = &s
+}
+
+// TokenCiphertext returns the value of the "token_ciphertext" field in the mutation.
+func (m *MobileDeviceMutation) TokenCiphertext() (r string, exists bool) {
+	v := m.token_ciphertext
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenCiphertext returns the old "token_ciphertext" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldTokenCiphertext(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenCiphertext is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenCiphertext requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenCiphertext: %w", err)
+	}
+	return oldValue.TokenCiphertext, nil
+}
+
+// ResetTokenCiphertext resets all changes to the "token_ciphertext" field.
+func (m *MobileDeviceMutation) ResetTokenCiphertext() {
+	m.token_ciphertext = nil
+}
+
+// SetTokenHash sets the "token_hash" field.
+func (m *MobileDeviceMutation) SetTokenHash(s string) {
+	m.token_hash = &s
+}
+
+// TokenHash returns the value of the "token_hash" field in the mutation.
+func (m *MobileDeviceMutation) TokenHash() (r string, exists bool) {
+	v := m.token_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenHash returns the old "token_hash" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldTokenHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenHash: %w", err)
+	}
+	return oldValue.TokenHash, nil
+}
+
+// ResetTokenHash resets all changes to the "token_hash" field.
+func (m *MobileDeviceMutation) ResetTokenHash() {
+	m.token_hash = nil
+}
+
+// SetAppVersion sets the "app_version" field.
+func (m *MobileDeviceMutation) SetAppVersion(s string) {
+	m.app_version = &s
+}
+
+// AppVersion returns the value of the "app_version" field in the mutation.
+func (m *MobileDeviceMutation) AppVersion() (r string, exists bool) {
+	v := m.app_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAppVersion returns the old "app_version" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldAppVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAppVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAppVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAppVersion: %w", err)
+	}
+	return oldValue.AppVersion, nil
+}
+
+// ResetAppVersion resets all changes to the "app_version" field.
+func (m *MobileDeviceMutation) ResetAppVersion() {
+	m.app_version = nil
+}
+
+// SetLocale sets the "locale" field.
+func (m *MobileDeviceMutation) SetLocale(s string) {
+	m.locale = &s
+}
+
+// Locale returns the value of the "locale" field in the mutation.
+func (m *MobileDeviceMutation) Locale() (r string, exists bool) {
+	v := m.locale
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLocale returns the old "locale" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldLocale(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLocale is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLocale requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLocale: %w", err)
+	}
+	return oldValue.Locale, nil
+}
+
+// ResetLocale resets all changes to the "locale" field.
+func (m *MobileDeviceMutation) ResetLocale() {
+	m.locale = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *MobileDeviceMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *MobileDeviceMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *MobileDeviceMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *MobileDeviceMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *MobileDeviceMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *MobileDeviceMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+}
+
+// SetRevokedAt sets the "revoked_at" field.
+func (m *MobileDeviceMutation) SetRevokedAt(t time.Time) {
+	m.revoked_at = &t
+}
+
+// RevokedAt returns the value of the "revoked_at" field in the mutation.
+func (m *MobileDeviceMutation) RevokedAt() (r time.Time, exists bool) {
+	v := m.revoked_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRevokedAt returns the old "revoked_at" field's value of the MobileDevice entity.
+// If the MobileDevice object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileDeviceMutation) OldRevokedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRevokedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRevokedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRevokedAt: %w", err)
+	}
+	return oldValue.RevokedAt, nil
+}
+
+// ClearRevokedAt clears the value of the "revoked_at" field.
+func (m *MobileDeviceMutation) ClearRevokedAt() {
+	m.revoked_at = nil
+	m.clearedFields[mobiledevice.FieldRevokedAt] = struct{}{}
+}
+
+// RevokedAtCleared returns if the "revoked_at" field was cleared in this mutation.
+func (m *MobileDeviceMutation) RevokedAtCleared() bool {
+	_, ok := m.clearedFields[mobiledevice.FieldRevokedAt]
+	return ok
+}
+
+// ResetRevokedAt resets all changes to the "revoked_at" field.
+func (m *MobileDeviceMutation) ResetRevokedAt() {
+	m.revoked_at = nil
+	delete(m.clearedFields, mobiledevice.FieldRevokedAt)
+}
+
+// Where appends a list predicates to the MobileDeviceMutation builder.
+func (m *MobileDeviceMutation) Where(ps ...predicate.MobileDevice) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobileDeviceMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobileDeviceMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobileDevice, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobileDeviceMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobileDeviceMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobileDevice).
+func (m *MobileDeviceMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobileDeviceMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, mobiledevice.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobiledevice.FieldUpdatedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, mobiledevice.FieldUserID)
+	}
+	if m.installation_id != nil {
+		fields = append(fields, mobiledevice.FieldInstallationID)
+	}
+	if m.platform != nil {
+		fields = append(fields, mobiledevice.FieldPlatform)
+	}
+	if m.push_provider != nil {
+		fields = append(fields, mobiledevice.FieldPushProvider)
+	}
+	if m.token_ciphertext != nil {
+		fields = append(fields, mobiledevice.FieldTokenCiphertext)
+	}
+	if m.token_hash != nil {
+		fields = append(fields, mobiledevice.FieldTokenHash)
+	}
+	if m.app_version != nil {
+		fields = append(fields, mobiledevice.FieldAppVersion)
+	}
+	if m.locale != nil {
+		fields = append(fields, mobiledevice.FieldLocale)
+	}
+	if m.enabled != nil {
+		fields = append(fields, mobiledevice.FieldEnabled)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, mobiledevice.FieldLastSeenAt)
+	}
+	if m.revoked_at != nil {
+		fields = append(fields, mobiledevice.FieldRevokedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobileDeviceMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobiledevice.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobiledevice.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobiledevice.FieldUserID:
+		return m.UserID()
+	case mobiledevice.FieldInstallationID:
+		return m.InstallationID()
+	case mobiledevice.FieldPlatform:
+		return m.Platform()
+	case mobiledevice.FieldPushProvider:
+		return m.PushProvider()
+	case mobiledevice.FieldTokenCiphertext:
+		return m.TokenCiphertext()
+	case mobiledevice.FieldTokenHash:
+		return m.TokenHash()
+	case mobiledevice.FieldAppVersion:
+		return m.AppVersion()
+	case mobiledevice.FieldLocale:
+		return m.Locale()
+	case mobiledevice.FieldEnabled:
+		return m.Enabled()
+	case mobiledevice.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case mobiledevice.FieldRevokedAt:
+		return m.RevokedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobileDeviceMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobiledevice.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobiledevice.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobiledevice.FieldUserID:
+		return m.OldUserID(ctx)
+	case mobiledevice.FieldInstallationID:
+		return m.OldInstallationID(ctx)
+	case mobiledevice.FieldPlatform:
+		return m.OldPlatform(ctx)
+	case mobiledevice.FieldPushProvider:
+		return m.OldPushProvider(ctx)
+	case mobiledevice.FieldTokenCiphertext:
+		return m.OldTokenCiphertext(ctx)
+	case mobiledevice.FieldTokenHash:
+		return m.OldTokenHash(ctx)
+	case mobiledevice.FieldAppVersion:
+		return m.OldAppVersion(ctx)
+	case mobiledevice.FieldLocale:
+		return m.OldLocale(ctx)
+	case mobiledevice.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case mobiledevice.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case mobiledevice.FieldRevokedAt:
+		return m.OldRevokedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobileDevice field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileDeviceMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobiledevice.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobiledevice.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobiledevice.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case mobiledevice.FieldInstallationID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInstallationID(v)
+		return nil
+	case mobiledevice.FieldPlatform:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPlatform(v)
+		return nil
+	case mobiledevice.FieldPushProvider:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPushProvider(v)
+		return nil
+	case mobiledevice.FieldTokenCiphertext:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenCiphertext(v)
+		return nil
+	case mobiledevice.FieldTokenHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenHash(v)
+		return nil
+	case mobiledevice.FieldAppVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAppVersion(v)
+		return nil
+	case mobiledevice.FieldLocale:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLocale(v)
+		return nil
+	case mobiledevice.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case mobiledevice.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case mobiledevice.FieldRevokedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRevokedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileDevice field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobileDeviceMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, mobiledevice.FieldUserID)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobileDeviceMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobiledevice.FieldUserID:
+		return m.AddedUserID()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileDeviceMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobiledevice.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileDevice numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobileDeviceMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobiledevice.FieldRevokedAt) {
+		fields = append(fields, mobiledevice.FieldRevokedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobileDeviceMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobileDeviceMutation) ClearField(name string) error {
+	switch name {
+	case mobiledevice.FieldRevokedAt:
+		m.ClearRevokedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileDevice nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobileDeviceMutation) ResetField(name string) error {
+	switch name {
+	case mobiledevice.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobiledevice.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobiledevice.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case mobiledevice.FieldInstallationID:
+		m.ResetInstallationID()
+		return nil
+	case mobiledevice.FieldPlatform:
+		m.ResetPlatform()
+		return nil
+	case mobiledevice.FieldPushProvider:
+		m.ResetPushProvider()
+		return nil
+	case mobiledevice.FieldTokenCiphertext:
+		m.ResetTokenCiphertext()
+		return nil
+	case mobiledevice.FieldTokenHash:
+		m.ResetTokenHash()
+		return nil
+	case mobiledevice.FieldAppVersion:
+		m.ResetAppVersion()
+		return nil
+	case mobiledevice.FieldLocale:
+		m.ResetLocale()
+		return nil
+	case mobiledevice.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case mobiledevice.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case mobiledevice.FieldRevokedAt:
+		m.ResetRevokedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileDevice field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobileDeviceMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobileDeviceMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobileDeviceMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobileDeviceMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobileDeviceMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobileDeviceMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobileDeviceMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MobileDevice unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobileDeviceMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MobileDevice edge %s", name)
+}
+
+// MobilePushDeliveryMutation represents an operation that mutates the MobilePushDelivery nodes in the graph.
+type MobilePushDeliveryMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *int64
+	created_at      *time.Time
+	updated_at      *time.Time
+	outbox_id       *int64
+	addoutbox_id    *int64
+	device_id       *uuid.UUID
+	status          *string
+	attempts        *int
+	addattempts     *int
+	last_error_code *string
+	available_at    *time.Time
+	sent_at         *time.Time
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*MobilePushDelivery, error)
+	predicates      []predicate.MobilePushDelivery
+}
+
+var _ ent.Mutation = (*MobilePushDeliveryMutation)(nil)
+
+// mobilepushdeliveryOption allows management of the mutation configuration using functional options.
+type mobilepushdeliveryOption func(*MobilePushDeliveryMutation)
+
+// newMobilePushDeliveryMutation creates new mutation for the MobilePushDelivery entity.
+func newMobilePushDeliveryMutation(c config, op Op, opts ...mobilepushdeliveryOption) *MobilePushDeliveryMutation {
+	m := &MobilePushDeliveryMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobilePushDelivery,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobilePushDeliveryID sets the ID field of the mutation.
+func withMobilePushDeliveryID(id int64) mobilepushdeliveryOption {
+	return func(m *MobilePushDeliveryMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobilePushDelivery
+		)
+		m.oldValue = func(ctx context.Context) (*MobilePushDelivery, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobilePushDelivery.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobilePushDelivery sets the old MobilePushDelivery of the mutation.
+func withMobilePushDelivery(node *MobilePushDelivery) mobilepushdeliveryOption {
+	return func(m *MobilePushDeliveryMutation) {
+		m.oldValue = func(context.Context) (*MobilePushDelivery, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobilePushDeliveryMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobilePushDeliveryMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobilePushDeliveryMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobilePushDeliveryMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobilePushDelivery.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobilePushDeliveryMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobilePushDeliveryMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobilePushDeliveryMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobilePushDeliveryMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobilePushDeliveryMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobilePushDeliveryMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetOutboxID sets the "outbox_id" field.
+func (m *MobilePushDeliveryMutation) SetOutboxID(i int64) {
+	m.outbox_id = &i
+	m.addoutbox_id = nil
+}
+
+// OutboxID returns the value of the "outbox_id" field in the mutation.
+func (m *MobilePushDeliveryMutation) OutboxID() (r int64, exists bool) {
+	v := m.outbox_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOutboxID returns the old "outbox_id" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldOutboxID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOutboxID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOutboxID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOutboxID: %w", err)
+	}
+	return oldValue.OutboxID, nil
+}
+
+// AddOutboxID adds i to the "outbox_id" field.
+func (m *MobilePushDeliveryMutation) AddOutboxID(i int64) {
+	if m.addoutbox_id != nil {
+		*m.addoutbox_id += i
+	} else {
+		m.addoutbox_id = &i
+	}
+}
+
+// AddedOutboxID returns the value that was added to the "outbox_id" field in this mutation.
+func (m *MobilePushDeliveryMutation) AddedOutboxID() (r int64, exists bool) {
+	v := m.addoutbox_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetOutboxID resets all changes to the "outbox_id" field.
+func (m *MobilePushDeliveryMutation) ResetOutboxID() {
+	m.outbox_id = nil
+	m.addoutbox_id = nil
+}
+
+// SetDeviceID sets the "device_id" field.
+func (m *MobilePushDeliveryMutation) SetDeviceID(u uuid.UUID) {
+	m.device_id = &u
+}
+
+// DeviceID returns the value of the "device_id" field in the mutation.
+func (m *MobilePushDeliveryMutation) DeviceID() (r uuid.UUID, exists bool) {
+	v := m.device_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeviceID returns the old "device_id" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldDeviceID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeviceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeviceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeviceID: %w", err)
+	}
+	return oldValue.DeviceID, nil
+}
+
+// ResetDeviceID resets all changes to the "device_id" field.
+func (m *MobilePushDeliveryMutation) ResetDeviceID() {
+	m.device_id = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *MobilePushDeliveryMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MobilePushDeliveryMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MobilePushDeliveryMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *MobilePushDeliveryMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *MobilePushDeliveryMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *MobilePushDeliveryMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *MobilePushDeliveryMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *MobilePushDeliveryMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetLastErrorCode sets the "last_error_code" field.
+func (m *MobilePushDeliveryMutation) SetLastErrorCode(s string) {
+	m.last_error_code = &s
+}
+
+// LastErrorCode returns the value of the "last_error_code" field in the mutation.
+func (m *MobilePushDeliveryMutation) LastErrorCode() (r string, exists bool) {
+	v := m.last_error_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastErrorCode returns the old "last_error_code" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldLastErrorCode(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastErrorCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastErrorCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastErrorCode: %w", err)
+	}
+	return oldValue.LastErrorCode, nil
+}
+
+// ClearLastErrorCode clears the value of the "last_error_code" field.
+func (m *MobilePushDeliveryMutation) ClearLastErrorCode() {
+	m.last_error_code = nil
+	m.clearedFields[mobilepushdelivery.FieldLastErrorCode] = struct{}{}
+}
+
+// LastErrorCodeCleared returns if the "last_error_code" field was cleared in this mutation.
+func (m *MobilePushDeliveryMutation) LastErrorCodeCleared() bool {
+	_, ok := m.clearedFields[mobilepushdelivery.FieldLastErrorCode]
+	return ok
+}
+
+// ResetLastErrorCode resets all changes to the "last_error_code" field.
+func (m *MobilePushDeliveryMutation) ResetLastErrorCode() {
+	m.last_error_code = nil
+	delete(m.clearedFields, mobilepushdelivery.FieldLastErrorCode)
+}
+
+// SetAvailableAt sets the "available_at" field.
+func (m *MobilePushDeliveryMutation) SetAvailableAt(t time.Time) {
+	m.available_at = &t
+}
+
+// AvailableAt returns the value of the "available_at" field in the mutation.
+func (m *MobilePushDeliveryMutation) AvailableAt() (r time.Time, exists bool) {
+	v := m.available_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvailableAt returns the old "available_at" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldAvailableAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvailableAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvailableAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvailableAt: %w", err)
+	}
+	return oldValue.AvailableAt, nil
+}
+
+// ResetAvailableAt resets all changes to the "available_at" field.
+func (m *MobilePushDeliveryMutation) ResetAvailableAt() {
+	m.available_at = nil
+}
+
+// SetSentAt sets the "sent_at" field.
+func (m *MobilePushDeliveryMutation) SetSentAt(t time.Time) {
+	m.sent_at = &t
+}
+
+// SentAt returns the value of the "sent_at" field in the mutation.
+func (m *MobilePushDeliveryMutation) SentAt() (r time.Time, exists bool) {
+	v := m.sent_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSentAt returns the old "sent_at" field's value of the MobilePushDelivery entity.
+// If the MobilePushDelivery object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushDeliveryMutation) OldSentAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSentAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSentAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSentAt: %w", err)
+	}
+	return oldValue.SentAt, nil
+}
+
+// ClearSentAt clears the value of the "sent_at" field.
+func (m *MobilePushDeliveryMutation) ClearSentAt() {
+	m.sent_at = nil
+	m.clearedFields[mobilepushdelivery.FieldSentAt] = struct{}{}
+}
+
+// SentAtCleared returns if the "sent_at" field was cleared in this mutation.
+func (m *MobilePushDeliveryMutation) SentAtCleared() bool {
+	_, ok := m.clearedFields[mobilepushdelivery.FieldSentAt]
+	return ok
+}
+
+// ResetSentAt resets all changes to the "sent_at" field.
+func (m *MobilePushDeliveryMutation) ResetSentAt() {
+	m.sent_at = nil
+	delete(m.clearedFields, mobilepushdelivery.FieldSentAt)
+}
+
+// Where appends a list predicates to the MobilePushDeliveryMutation builder.
+func (m *MobilePushDeliveryMutation) Where(ps ...predicate.MobilePushDelivery) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobilePushDeliveryMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobilePushDeliveryMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobilePushDelivery, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobilePushDeliveryMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobilePushDeliveryMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobilePushDelivery).
+func (m *MobilePushDeliveryMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobilePushDeliveryMutation) Fields() []string {
+	fields := make([]string, 0, 9)
+	if m.created_at != nil {
+		fields = append(fields, mobilepushdelivery.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobilepushdelivery.FieldUpdatedAt)
+	}
+	if m.outbox_id != nil {
+		fields = append(fields, mobilepushdelivery.FieldOutboxID)
+	}
+	if m.device_id != nil {
+		fields = append(fields, mobilepushdelivery.FieldDeviceID)
+	}
+	if m.status != nil {
+		fields = append(fields, mobilepushdelivery.FieldStatus)
+	}
+	if m.attempts != nil {
+		fields = append(fields, mobilepushdelivery.FieldAttempts)
+	}
+	if m.last_error_code != nil {
+		fields = append(fields, mobilepushdelivery.FieldLastErrorCode)
+	}
+	if m.available_at != nil {
+		fields = append(fields, mobilepushdelivery.FieldAvailableAt)
+	}
+	if m.sent_at != nil {
+		fields = append(fields, mobilepushdelivery.FieldSentAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobilePushDeliveryMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobilepushdelivery.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobilepushdelivery.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobilepushdelivery.FieldOutboxID:
+		return m.OutboxID()
+	case mobilepushdelivery.FieldDeviceID:
+		return m.DeviceID()
+	case mobilepushdelivery.FieldStatus:
+		return m.Status()
+	case mobilepushdelivery.FieldAttempts:
+		return m.Attempts()
+	case mobilepushdelivery.FieldLastErrorCode:
+		return m.LastErrorCode()
+	case mobilepushdelivery.FieldAvailableAt:
+		return m.AvailableAt()
+	case mobilepushdelivery.FieldSentAt:
+		return m.SentAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobilePushDeliveryMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobilepushdelivery.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobilepushdelivery.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobilepushdelivery.FieldOutboxID:
+		return m.OldOutboxID(ctx)
+	case mobilepushdelivery.FieldDeviceID:
+		return m.OldDeviceID(ctx)
+	case mobilepushdelivery.FieldStatus:
+		return m.OldStatus(ctx)
+	case mobilepushdelivery.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case mobilepushdelivery.FieldLastErrorCode:
+		return m.OldLastErrorCode(ctx)
+	case mobilepushdelivery.FieldAvailableAt:
+		return m.OldAvailableAt(ctx)
+	case mobilepushdelivery.FieldSentAt:
+		return m.OldSentAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobilePushDelivery field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobilePushDeliveryMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobilepushdelivery.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobilepushdelivery.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobilepushdelivery.FieldOutboxID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOutboxID(v)
+		return nil
+	case mobilepushdelivery.FieldDeviceID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeviceID(v)
+		return nil
+	case mobilepushdelivery.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case mobilepushdelivery.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case mobilepushdelivery.FieldLastErrorCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastErrorCode(v)
+		return nil
+	case mobilepushdelivery.FieldAvailableAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvailableAt(v)
+		return nil
+	case mobilepushdelivery.FieldSentAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSentAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushDelivery field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobilePushDeliveryMutation) AddedFields() []string {
+	var fields []string
+	if m.addoutbox_id != nil {
+		fields = append(fields, mobilepushdelivery.FieldOutboxID)
+	}
+	if m.addattempts != nil {
+		fields = append(fields, mobilepushdelivery.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobilePushDeliveryMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobilepushdelivery.FieldOutboxID:
+		return m.AddedOutboxID()
+	case mobilepushdelivery.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobilePushDeliveryMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobilepushdelivery.FieldOutboxID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddOutboxID(v)
+		return nil
+	case mobilepushdelivery.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushDelivery numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobilePushDeliveryMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobilepushdelivery.FieldLastErrorCode) {
+		fields = append(fields, mobilepushdelivery.FieldLastErrorCode)
+	}
+	if m.FieldCleared(mobilepushdelivery.FieldSentAt) {
+		fields = append(fields, mobilepushdelivery.FieldSentAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobilePushDeliveryMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobilePushDeliveryMutation) ClearField(name string) error {
+	switch name {
+	case mobilepushdelivery.FieldLastErrorCode:
+		m.ClearLastErrorCode()
+		return nil
+	case mobilepushdelivery.FieldSentAt:
+		m.ClearSentAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushDelivery nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobilePushDeliveryMutation) ResetField(name string) error {
+	switch name {
+	case mobilepushdelivery.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobilepushdelivery.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobilepushdelivery.FieldOutboxID:
+		m.ResetOutboxID()
+		return nil
+	case mobilepushdelivery.FieldDeviceID:
+		m.ResetDeviceID()
+		return nil
+	case mobilepushdelivery.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case mobilepushdelivery.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case mobilepushdelivery.FieldLastErrorCode:
+		m.ResetLastErrorCode()
+		return nil
+	case mobilepushdelivery.FieldAvailableAt:
+		m.ResetAvailableAt()
+		return nil
+	case mobilepushdelivery.FieldSentAt:
+		m.ResetSentAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushDelivery field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobilePushDeliveryMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobilePushDeliveryMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobilePushDeliveryMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobilePushDeliveryMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobilePushDeliveryMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobilePushDeliveryMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobilePushDeliveryMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MobilePushDelivery unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobilePushDeliveryMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MobilePushDelivery edge %s", name)
+}
+
+// MobilePushOutboxMutation represents an operation that mutates the MobilePushOutbox nodes in the graph.
+type MobilePushOutboxMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *int64
+	created_at       *time.Time
+	updated_at       *time.Time
+	user_id          *int64
+	adduser_id       *int64
+	dedupe_key_hash  *string
+	event_type       *string
+	source_type      *string
+	source_id        *string
+	title_zh         *string
+	body_zh          *string
+	data             *map[string]string
+	status           *string
+	attempts         *int
+	addattempts      *int
+	last_error_code  *string
+	available_at     *time.Time
+	sent_at          *time.Time
+	claim_token      *uuid.UUID
+	lease_expires_at *time.Time
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*MobilePushOutbox, error)
+	predicates       []predicate.MobilePushOutbox
+}
+
+var _ ent.Mutation = (*MobilePushOutboxMutation)(nil)
+
+// mobilepushoutboxOption allows management of the mutation configuration using functional options.
+type mobilepushoutboxOption func(*MobilePushOutboxMutation)
+
+// newMobilePushOutboxMutation creates new mutation for the MobilePushOutbox entity.
+func newMobilePushOutboxMutation(c config, op Op, opts ...mobilepushoutboxOption) *MobilePushOutboxMutation {
+	m := &MobilePushOutboxMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobilePushOutbox,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobilePushOutboxID sets the ID field of the mutation.
+func withMobilePushOutboxID(id int64) mobilepushoutboxOption {
+	return func(m *MobilePushOutboxMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobilePushOutbox
+		)
+		m.oldValue = func(ctx context.Context) (*MobilePushOutbox, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobilePushOutbox.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobilePushOutbox sets the old MobilePushOutbox of the mutation.
+func withMobilePushOutbox(node *MobilePushOutbox) mobilepushoutboxOption {
+	return func(m *MobilePushOutboxMutation) {
+		m.oldValue = func(context.Context) (*MobilePushOutbox, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobilePushOutboxMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobilePushOutboxMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobilePushOutboxMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobilePushOutboxMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobilePushOutbox.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobilePushOutboxMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobilePushOutboxMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobilePushOutboxMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobilePushOutboxMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobilePushOutboxMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobilePushOutboxMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *MobilePushOutboxMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *MobilePushOutboxMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *MobilePushOutboxMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *MobilePushOutboxMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *MobilePushOutboxMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetDedupeKeyHash sets the "dedupe_key_hash" field.
+func (m *MobilePushOutboxMutation) SetDedupeKeyHash(s string) {
+	m.dedupe_key_hash = &s
+}
+
+// DedupeKeyHash returns the value of the "dedupe_key_hash" field in the mutation.
+func (m *MobilePushOutboxMutation) DedupeKeyHash() (r string, exists bool) {
+	v := m.dedupe_key_hash
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDedupeKeyHash returns the old "dedupe_key_hash" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldDedupeKeyHash(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDedupeKeyHash is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDedupeKeyHash requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDedupeKeyHash: %w", err)
+	}
+	return oldValue.DedupeKeyHash, nil
+}
+
+// ResetDedupeKeyHash resets all changes to the "dedupe_key_hash" field.
+func (m *MobilePushOutboxMutation) ResetDedupeKeyHash() {
+	m.dedupe_key_hash = nil
+}
+
+// SetEventType sets the "event_type" field.
+func (m *MobilePushOutboxMutation) SetEventType(s string) {
+	m.event_type = &s
+}
+
+// EventType returns the value of the "event_type" field in the mutation.
+func (m *MobilePushOutboxMutation) EventType() (r string, exists bool) {
+	v := m.event_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEventType returns the old "event_type" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldEventType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEventType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEventType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEventType: %w", err)
+	}
+	return oldValue.EventType, nil
+}
+
+// ResetEventType resets all changes to the "event_type" field.
+func (m *MobilePushOutboxMutation) ResetEventType() {
+	m.event_type = nil
+}
+
+// SetSourceType sets the "source_type" field.
+func (m *MobilePushOutboxMutation) SetSourceType(s string) {
+	m.source_type = &s
+}
+
+// SourceType returns the value of the "source_type" field in the mutation.
+func (m *MobilePushOutboxMutation) SourceType() (r string, exists bool) {
+	v := m.source_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceType returns the old "source_type" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldSourceType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
+	}
+	return oldValue.SourceType, nil
+}
+
+// ResetSourceType resets all changes to the "source_type" field.
+func (m *MobilePushOutboxMutation) ResetSourceType() {
+	m.source_type = nil
+}
+
+// SetSourceID sets the "source_id" field.
+func (m *MobilePushOutboxMutation) SetSourceID(s string) {
+	m.source_id = &s
+}
+
+// SourceID returns the value of the "source_id" field in the mutation.
+func (m *MobilePushOutboxMutation) SourceID() (r string, exists bool) {
+	v := m.source_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSourceID returns the old "source_id" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldSourceID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSourceID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
+	}
+	return oldValue.SourceID, nil
+}
+
+// ResetSourceID resets all changes to the "source_id" field.
+func (m *MobilePushOutboxMutation) ResetSourceID() {
+	m.source_id = nil
+}
+
+// SetTitleZh sets the "title_zh" field.
+func (m *MobilePushOutboxMutation) SetTitleZh(s string) {
+	m.title_zh = &s
+}
+
+// TitleZh returns the value of the "title_zh" field in the mutation.
+func (m *MobilePushOutboxMutation) TitleZh() (r string, exists bool) {
+	v := m.title_zh
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTitleZh returns the old "title_zh" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldTitleZh(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTitleZh is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTitleZh requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTitleZh: %w", err)
+	}
+	return oldValue.TitleZh, nil
+}
+
+// ResetTitleZh resets all changes to the "title_zh" field.
+func (m *MobilePushOutboxMutation) ResetTitleZh() {
+	m.title_zh = nil
+}
+
+// SetBodyZh sets the "body_zh" field.
+func (m *MobilePushOutboxMutation) SetBodyZh(s string) {
+	m.body_zh = &s
+}
+
+// BodyZh returns the value of the "body_zh" field in the mutation.
+func (m *MobilePushOutboxMutation) BodyZh() (r string, exists bool) {
+	v := m.body_zh
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldBodyZh returns the old "body_zh" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldBodyZh(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldBodyZh is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldBodyZh requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldBodyZh: %w", err)
+	}
+	return oldValue.BodyZh, nil
+}
+
+// ResetBodyZh resets all changes to the "body_zh" field.
+func (m *MobilePushOutboxMutation) ResetBodyZh() {
+	m.body_zh = nil
+}
+
+// SetData sets the "data" field.
+func (m *MobilePushOutboxMutation) SetData(value map[string]string) {
+	m.data = &value
+}
+
+// Data returns the value of the "data" field in the mutation.
+func (m *MobilePushOutboxMutation) Data() (r map[string]string, exists bool) {
+	v := m.data
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldData returns the old "data" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldData(ctx context.Context) (v map[string]string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldData is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldData requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldData: %w", err)
+	}
+	return oldValue.Data, nil
+}
+
+// ResetData resets all changes to the "data" field.
+func (m *MobilePushOutboxMutation) ResetData() {
+	m.data = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *MobilePushOutboxMutation) SetStatus(s string) {
+	m.status = &s
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MobilePushOutboxMutation) Status() (r string, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldStatus(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MobilePushOutboxMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetAttempts sets the "attempts" field.
+func (m *MobilePushOutboxMutation) SetAttempts(i int) {
+	m.attempts = &i
+	m.addattempts = nil
+}
+
+// Attempts returns the value of the "attempts" field in the mutation.
+func (m *MobilePushOutboxMutation) Attempts() (r int, exists bool) {
+	v := m.attempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAttempts returns the old "attempts" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldAttempts(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAttempts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAttempts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAttempts: %w", err)
+	}
+	return oldValue.Attempts, nil
+}
+
+// AddAttempts adds i to the "attempts" field.
+func (m *MobilePushOutboxMutation) AddAttempts(i int) {
+	if m.addattempts != nil {
+		*m.addattempts += i
+	} else {
+		m.addattempts = &i
+	}
+}
+
+// AddedAttempts returns the value that was added to the "attempts" field in this mutation.
+func (m *MobilePushOutboxMutation) AddedAttempts() (r int, exists bool) {
+	v := m.addattempts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetAttempts resets all changes to the "attempts" field.
+func (m *MobilePushOutboxMutation) ResetAttempts() {
+	m.attempts = nil
+	m.addattempts = nil
+}
+
+// SetLastErrorCode sets the "last_error_code" field.
+func (m *MobilePushOutboxMutation) SetLastErrorCode(s string) {
+	m.last_error_code = &s
+}
+
+// LastErrorCode returns the value of the "last_error_code" field in the mutation.
+func (m *MobilePushOutboxMutation) LastErrorCode() (r string, exists bool) {
+	v := m.last_error_code
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastErrorCode returns the old "last_error_code" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldLastErrorCode(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastErrorCode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastErrorCode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastErrorCode: %w", err)
+	}
+	return oldValue.LastErrorCode, nil
+}
+
+// ClearLastErrorCode clears the value of the "last_error_code" field.
+func (m *MobilePushOutboxMutation) ClearLastErrorCode() {
+	m.last_error_code = nil
+	m.clearedFields[mobilepushoutbox.FieldLastErrorCode] = struct{}{}
+}
+
+// LastErrorCodeCleared returns if the "last_error_code" field was cleared in this mutation.
+func (m *MobilePushOutboxMutation) LastErrorCodeCleared() bool {
+	_, ok := m.clearedFields[mobilepushoutbox.FieldLastErrorCode]
+	return ok
+}
+
+// ResetLastErrorCode resets all changes to the "last_error_code" field.
+func (m *MobilePushOutboxMutation) ResetLastErrorCode() {
+	m.last_error_code = nil
+	delete(m.clearedFields, mobilepushoutbox.FieldLastErrorCode)
+}
+
+// SetAvailableAt sets the "available_at" field.
+func (m *MobilePushOutboxMutation) SetAvailableAt(t time.Time) {
+	m.available_at = &t
+}
+
+// AvailableAt returns the value of the "available_at" field in the mutation.
+func (m *MobilePushOutboxMutation) AvailableAt() (r time.Time, exists bool) {
+	v := m.available_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAvailableAt returns the old "available_at" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldAvailableAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAvailableAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAvailableAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAvailableAt: %w", err)
+	}
+	return oldValue.AvailableAt, nil
+}
+
+// ResetAvailableAt resets all changes to the "available_at" field.
+func (m *MobilePushOutboxMutation) ResetAvailableAt() {
+	m.available_at = nil
+}
+
+// SetSentAt sets the "sent_at" field.
+func (m *MobilePushOutboxMutation) SetSentAt(t time.Time) {
+	m.sent_at = &t
+}
+
+// SentAt returns the value of the "sent_at" field in the mutation.
+func (m *MobilePushOutboxMutation) SentAt() (r time.Time, exists bool) {
+	v := m.sent_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSentAt returns the old "sent_at" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldSentAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSentAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSentAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSentAt: %w", err)
+	}
+	return oldValue.SentAt, nil
+}
+
+// ClearSentAt clears the value of the "sent_at" field.
+func (m *MobilePushOutboxMutation) ClearSentAt() {
+	m.sent_at = nil
+	m.clearedFields[mobilepushoutbox.FieldSentAt] = struct{}{}
+}
+
+// SentAtCleared returns if the "sent_at" field was cleared in this mutation.
+func (m *MobilePushOutboxMutation) SentAtCleared() bool {
+	_, ok := m.clearedFields[mobilepushoutbox.FieldSentAt]
+	return ok
+}
+
+// ResetSentAt resets all changes to the "sent_at" field.
+func (m *MobilePushOutboxMutation) ResetSentAt() {
+	m.sent_at = nil
+	delete(m.clearedFields, mobilepushoutbox.FieldSentAt)
+}
+
+// SetClaimToken sets the "claim_token" field.
+func (m *MobilePushOutboxMutation) SetClaimToken(u uuid.UUID) {
+	m.claim_token = &u
+}
+
+// ClaimToken returns the value of the "claim_token" field in the mutation.
+func (m *MobilePushOutboxMutation) ClaimToken() (r uuid.UUID, exists bool) {
+	v := m.claim_token
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClaimToken returns the old "claim_token" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldClaimToken(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClaimToken is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClaimToken requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClaimToken: %w", err)
+	}
+	return oldValue.ClaimToken, nil
+}
+
+// ClearClaimToken clears the value of the "claim_token" field.
+func (m *MobilePushOutboxMutation) ClearClaimToken() {
+	m.claim_token = nil
+	m.clearedFields[mobilepushoutbox.FieldClaimToken] = struct{}{}
+}
+
+// ClaimTokenCleared returns if the "claim_token" field was cleared in this mutation.
+func (m *MobilePushOutboxMutation) ClaimTokenCleared() bool {
+	_, ok := m.clearedFields[mobilepushoutbox.FieldClaimToken]
+	return ok
+}
+
+// ResetClaimToken resets all changes to the "claim_token" field.
+func (m *MobilePushOutboxMutation) ResetClaimToken() {
+	m.claim_token = nil
+	delete(m.clearedFields, mobilepushoutbox.FieldClaimToken)
+}
+
+// SetLeaseExpiresAt sets the "lease_expires_at" field.
+func (m *MobilePushOutboxMutation) SetLeaseExpiresAt(t time.Time) {
+	m.lease_expires_at = &t
+}
+
+// LeaseExpiresAt returns the value of the "lease_expires_at" field in the mutation.
+func (m *MobilePushOutboxMutation) LeaseExpiresAt() (r time.Time, exists bool) {
+	v := m.lease_expires_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLeaseExpiresAt returns the old "lease_expires_at" field's value of the MobilePushOutbox entity.
+// If the MobilePushOutbox object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobilePushOutboxMutation) OldLeaseExpiresAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLeaseExpiresAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLeaseExpiresAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLeaseExpiresAt: %w", err)
+	}
+	return oldValue.LeaseExpiresAt, nil
+}
+
+// ClearLeaseExpiresAt clears the value of the "lease_expires_at" field.
+func (m *MobilePushOutboxMutation) ClearLeaseExpiresAt() {
+	m.lease_expires_at = nil
+	m.clearedFields[mobilepushoutbox.FieldLeaseExpiresAt] = struct{}{}
+}
+
+// LeaseExpiresAtCleared returns if the "lease_expires_at" field was cleared in this mutation.
+func (m *MobilePushOutboxMutation) LeaseExpiresAtCleared() bool {
+	_, ok := m.clearedFields[mobilepushoutbox.FieldLeaseExpiresAt]
+	return ok
+}
+
+// ResetLeaseExpiresAt resets all changes to the "lease_expires_at" field.
+func (m *MobilePushOutboxMutation) ResetLeaseExpiresAt() {
+	m.lease_expires_at = nil
+	delete(m.clearedFields, mobilepushoutbox.FieldLeaseExpiresAt)
+}
+
+// Where appends a list predicates to the MobilePushOutboxMutation builder.
+func (m *MobilePushOutboxMutation) Where(ps ...predicate.MobilePushOutbox) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobilePushOutboxMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobilePushOutboxMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobilePushOutbox, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobilePushOutboxMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobilePushOutboxMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobilePushOutbox).
+func (m *MobilePushOutboxMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobilePushOutboxMutation) Fields() []string {
+	fields := make([]string, 0, 17)
+	if m.created_at != nil {
+		fields = append(fields, mobilepushoutbox.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobilepushoutbox.FieldUpdatedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, mobilepushoutbox.FieldUserID)
+	}
+	if m.dedupe_key_hash != nil {
+		fields = append(fields, mobilepushoutbox.FieldDedupeKeyHash)
+	}
+	if m.event_type != nil {
+		fields = append(fields, mobilepushoutbox.FieldEventType)
+	}
+	if m.source_type != nil {
+		fields = append(fields, mobilepushoutbox.FieldSourceType)
+	}
+	if m.source_id != nil {
+		fields = append(fields, mobilepushoutbox.FieldSourceID)
+	}
+	if m.title_zh != nil {
+		fields = append(fields, mobilepushoutbox.FieldTitleZh)
+	}
+	if m.body_zh != nil {
+		fields = append(fields, mobilepushoutbox.FieldBodyZh)
+	}
+	if m.data != nil {
+		fields = append(fields, mobilepushoutbox.FieldData)
+	}
+	if m.status != nil {
+		fields = append(fields, mobilepushoutbox.FieldStatus)
+	}
+	if m.attempts != nil {
+		fields = append(fields, mobilepushoutbox.FieldAttempts)
+	}
+	if m.last_error_code != nil {
+		fields = append(fields, mobilepushoutbox.FieldLastErrorCode)
+	}
+	if m.available_at != nil {
+		fields = append(fields, mobilepushoutbox.FieldAvailableAt)
+	}
+	if m.sent_at != nil {
+		fields = append(fields, mobilepushoutbox.FieldSentAt)
+	}
+	if m.claim_token != nil {
+		fields = append(fields, mobilepushoutbox.FieldClaimToken)
+	}
+	if m.lease_expires_at != nil {
+		fields = append(fields, mobilepushoutbox.FieldLeaseExpiresAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobilePushOutboxMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobilepushoutbox.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobilepushoutbox.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobilepushoutbox.FieldUserID:
+		return m.UserID()
+	case mobilepushoutbox.FieldDedupeKeyHash:
+		return m.DedupeKeyHash()
+	case mobilepushoutbox.FieldEventType:
+		return m.EventType()
+	case mobilepushoutbox.FieldSourceType:
+		return m.SourceType()
+	case mobilepushoutbox.FieldSourceID:
+		return m.SourceID()
+	case mobilepushoutbox.FieldTitleZh:
+		return m.TitleZh()
+	case mobilepushoutbox.FieldBodyZh:
+		return m.BodyZh()
+	case mobilepushoutbox.FieldData:
+		return m.Data()
+	case mobilepushoutbox.FieldStatus:
+		return m.Status()
+	case mobilepushoutbox.FieldAttempts:
+		return m.Attempts()
+	case mobilepushoutbox.FieldLastErrorCode:
+		return m.LastErrorCode()
+	case mobilepushoutbox.FieldAvailableAt:
+		return m.AvailableAt()
+	case mobilepushoutbox.FieldSentAt:
+		return m.SentAt()
+	case mobilepushoutbox.FieldClaimToken:
+		return m.ClaimToken()
+	case mobilepushoutbox.FieldLeaseExpiresAt:
+		return m.LeaseExpiresAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobilePushOutboxMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobilepushoutbox.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobilepushoutbox.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobilepushoutbox.FieldUserID:
+		return m.OldUserID(ctx)
+	case mobilepushoutbox.FieldDedupeKeyHash:
+		return m.OldDedupeKeyHash(ctx)
+	case mobilepushoutbox.FieldEventType:
+		return m.OldEventType(ctx)
+	case mobilepushoutbox.FieldSourceType:
+		return m.OldSourceType(ctx)
+	case mobilepushoutbox.FieldSourceID:
+		return m.OldSourceID(ctx)
+	case mobilepushoutbox.FieldTitleZh:
+		return m.OldTitleZh(ctx)
+	case mobilepushoutbox.FieldBodyZh:
+		return m.OldBodyZh(ctx)
+	case mobilepushoutbox.FieldData:
+		return m.OldData(ctx)
+	case mobilepushoutbox.FieldStatus:
+		return m.OldStatus(ctx)
+	case mobilepushoutbox.FieldAttempts:
+		return m.OldAttempts(ctx)
+	case mobilepushoutbox.FieldLastErrorCode:
+		return m.OldLastErrorCode(ctx)
+	case mobilepushoutbox.FieldAvailableAt:
+		return m.OldAvailableAt(ctx)
+	case mobilepushoutbox.FieldSentAt:
+		return m.OldSentAt(ctx)
+	case mobilepushoutbox.FieldClaimToken:
+		return m.OldClaimToken(ctx)
+	case mobilepushoutbox.FieldLeaseExpiresAt:
+		return m.OldLeaseExpiresAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobilePushOutbox field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobilePushOutboxMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobilepushoutbox.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobilepushoutbox.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobilepushoutbox.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case mobilepushoutbox.FieldDedupeKeyHash:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDedupeKeyHash(v)
+		return nil
+	case mobilepushoutbox.FieldEventType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEventType(v)
+		return nil
+	case mobilepushoutbox.FieldSourceType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceType(v)
+		return nil
+	case mobilepushoutbox.FieldSourceID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSourceID(v)
+		return nil
+	case mobilepushoutbox.FieldTitleZh:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTitleZh(v)
+		return nil
+	case mobilepushoutbox.FieldBodyZh:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetBodyZh(v)
+		return nil
+	case mobilepushoutbox.FieldData:
+		v, ok := value.(map[string]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetData(v)
+		return nil
+	case mobilepushoutbox.FieldStatus:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case mobilepushoutbox.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAttempts(v)
+		return nil
+	case mobilepushoutbox.FieldLastErrorCode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastErrorCode(v)
+		return nil
+	case mobilepushoutbox.FieldAvailableAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAvailableAt(v)
+		return nil
+	case mobilepushoutbox.FieldSentAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSentAt(v)
+		return nil
+	case mobilepushoutbox.FieldClaimToken:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClaimToken(v)
+		return nil
+	case mobilepushoutbox.FieldLeaseExpiresAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLeaseExpiresAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushOutbox field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobilePushOutboxMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, mobilepushoutbox.FieldUserID)
+	}
+	if m.addattempts != nil {
+		fields = append(fields, mobilepushoutbox.FieldAttempts)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobilePushOutboxMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobilepushoutbox.FieldUserID:
+		return m.AddedUserID()
+	case mobilepushoutbox.FieldAttempts:
+		return m.AddedAttempts()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobilePushOutboxMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobilepushoutbox.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case mobilepushoutbox.FieldAttempts:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAttempts(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushOutbox numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobilePushOutboxMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobilepushoutbox.FieldLastErrorCode) {
+		fields = append(fields, mobilepushoutbox.FieldLastErrorCode)
+	}
+	if m.FieldCleared(mobilepushoutbox.FieldSentAt) {
+		fields = append(fields, mobilepushoutbox.FieldSentAt)
+	}
+	if m.FieldCleared(mobilepushoutbox.FieldClaimToken) {
+		fields = append(fields, mobilepushoutbox.FieldClaimToken)
+	}
+	if m.FieldCleared(mobilepushoutbox.FieldLeaseExpiresAt) {
+		fields = append(fields, mobilepushoutbox.FieldLeaseExpiresAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobilePushOutboxMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobilePushOutboxMutation) ClearField(name string) error {
+	switch name {
+	case mobilepushoutbox.FieldLastErrorCode:
+		m.ClearLastErrorCode()
+		return nil
+	case mobilepushoutbox.FieldSentAt:
+		m.ClearSentAt()
+		return nil
+	case mobilepushoutbox.FieldClaimToken:
+		m.ClearClaimToken()
+		return nil
+	case mobilepushoutbox.FieldLeaseExpiresAt:
+		m.ClearLeaseExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushOutbox nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobilePushOutboxMutation) ResetField(name string) error {
+	switch name {
+	case mobilepushoutbox.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobilepushoutbox.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobilepushoutbox.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case mobilepushoutbox.FieldDedupeKeyHash:
+		m.ResetDedupeKeyHash()
+		return nil
+	case mobilepushoutbox.FieldEventType:
+		m.ResetEventType()
+		return nil
+	case mobilepushoutbox.FieldSourceType:
+		m.ResetSourceType()
+		return nil
+	case mobilepushoutbox.FieldSourceID:
+		m.ResetSourceID()
+		return nil
+	case mobilepushoutbox.FieldTitleZh:
+		m.ResetTitleZh()
+		return nil
+	case mobilepushoutbox.FieldBodyZh:
+		m.ResetBodyZh()
+		return nil
+	case mobilepushoutbox.FieldData:
+		m.ResetData()
+		return nil
+	case mobilepushoutbox.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case mobilepushoutbox.FieldAttempts:
+		m.ResetAttempts()
+		return nil
+	case mobilepushoutbox.FieldLastErrorCode:
+		m.ResetLastErrorCode()
+		return nil
+	case mobilepushoutbox.FieldAvailableAt:
+		m.ResetAvailableAt()
+		return nil
+	case mobilepushoutbox.FieldSentAt:
+		m.ResetSentAt()
+		return nil
+	case mobilepushoutbox.FieldClaimToken:
+		m.ResetClaimToken()
+		return nil
+	case mobilepushoutbox.FieldLeaseExpiresAt:
+		m.ResetLeaseExpiresAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobilePushOutbox field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobilePushOutboxMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobilePushOutboxMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobilePushOutboxMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobilePushOutboxMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobilePushOutboxMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobilePushOutboxMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobilePushOutboxMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MobilePushOutbox unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobilePushOutboxMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MobilePushOutbox edge %s", name)
+}
+
+// MobileSkillMutation represents an operation that mutates the MobileSkill nodes in the graph.
+type MobileSkillMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int64
+	created_at           *time.Time
+	updated_at           *time.Time
+	slug                 *string
+	status               *mobileskill.Status
+	name_zh              *string
+	description_zh       *string
+	category             *string
+	icon_url             *string
+	cover_url            *string
+	current_version      *int
+	addcurrent_version   *int
+	published_version    *int
+	addpublished_version *int
+	featured             *bool
+	sort_order           *int
+	addsort_order        *int
+	clearedFields        map[string]struct{}
+	versions             map[int64]struct{}
+	removedversions      map[int64]struct{}
+	clearedversions      bool
+	user_installs        map[int64]struct{}
+	removeduser_installs map[int64]struct{}
+	cleareduser_installs bool
+	done                 bool
+	oldValue             func(context.Context) (*MobileSkill, error)
+	predicates           []predicate.MobileSkill
+}
+
+var _ ent.Mutation = (*MobileSkillMutation)(nil)
+
+// mobileskillOption allows management of the mutation configuration using functional options.
+type mobileskillOption func(*MobileSkillMutation)
+
+// newMobileSkillMutation creates new mutation for the MobileSkill entity.
+func newMobileSkillMutation(c config, op Op, opts ...mobileskillOption) *MobileSkillMutation {
+	m := &MobileSkillMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobileSkill,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobileSkillID sets the ID field of the mutation.
+func withMobileSkillID(id int64) mobileskillOption {
+	return func(m *MobileSkillMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobileSkill
+		)
+		m.oldValue = func(ctx context.Context) (*MobileSkill, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobileSkill.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobileSkill sets the old MobileSkill of the mutation.
+func withMobileSkill(node *MobileSkill) mobileskillOption {
+	return func(m *MobileSkillMutation) {
+		m.oldValue = func(context.Context) (*MobileSkill, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobileSkillMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobileSkillMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobileSkillMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobileSkillMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobileSkill.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobileSkillMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobileSkillMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobileSkillMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobileSkillMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobileSkillMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobileSkillMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetSlug sets the "slug" field.
+func (m *MobileSkillMutation) SetSlug(s string) {
+	m.slug = &s
+}
+
+// Slug returns the value of the "slug" field in the mutation.
+func (m *MobileSkillMutation) Slug() (r string, exists bool) {
+	v := m.slug
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSlug returns the old "slug" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldSlug(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSlug is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSlug requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSlug: %w", err)
+	}
+	return oldValue.Slug, nil
+}
+
+// ResetSlug resets all changes to the "slug" field.
+func (m *MobileSkillMutation) ResetSlug() {
+	m.slug = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *MobileSkillMutation) SetStatus(value mobileskill.Status) {
+	m.status = &value
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MobileSkillMutation) Status() (r mobileskill.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldStatus(ctx context.Context) (v mobileskill.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MobileSkillMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetNameZh sets the "name_zh" field.
+func (m *MobileSkillMutation) SetNameZh(s string) {
+	m.name_zh = &s
+}
+
+// NameZh returns the value of the "name_zh" field in the mutation.
+func (m *MobileSkillMutation) NameZh() (r string, exists bool) {
+	v := m.name_zh
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNameZh returns the old "name_zh" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldNameZh(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNameZh is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNameZh requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNameZh: %w", err)
+	}
+	return oldValue.NameZh, nil
+}
+
+// ResetNameZh resets all changes to the "name_zh" field.
+func (m *MobileSkillMutation) ResetNameZh() {
+	m.name_zh = nil
+}
+
+// SetDescriptionZh sets the "description_zh" field.
+func (m *MobileSkillMutation) SetDescriptionZh(s string) {
+	m.description_zh = &s
+}
+
+// DescriptionZh returns the value of the "description_zh" field in the mutation.
+func (m *MobileSkillMutation) DescriptionZh() (r string, exists bool) {
+	v := m.description_zh
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescriptionZh returns the old "description_zh" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldDescriptionZh(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescriptionZh is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescriptionZh requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescriptionZh: %w", err)
+	}
+	return oldValue.DescriptionZh, nil
+}
+
+// ResetDescriptionZh resets all changes to the "description_zh" field.
+func (m *MobileSkillMutation) ResetDescriptionZh() {
+	m.description_zh = nil
+}
+
+// SetCategory sets the "category" field.
+func (m *MobileSkillMutation) SetCategory(s string) {
+	m.category = &s
+}
+
+// Category returns the value of the "category" field in the mutation.
+func (m *MobileSkillMutation) Category() (r string, exists bool) {
+	v := m.category
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCategory returns the old "category" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldCategory(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCategory is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCategory requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCategory: %w", err)
+	}
+	return oldValue.Category, nil
+}
+
+// ResetCategory resets all changes to the "category" field.
+func (m *MobileSkillMutation) ResetCategory() {
+	m.category = nil
+}
+
+// SetIconURL sets the "icon_url" field.
+func (m *MobileSkillMutation) SetIconURL(s string) {
+	m.icon_url = &s
+}
+
+// IconURL returns the value of the "icon_url" field in the mutation.
+func (m *MobileSkillMutation) IconURL() (r string, exists bool) {
+	v := m.icon_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIconURL returns the old "icon_url" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldIconURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIconURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIconURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIconURL: %w", err)
+	}
+	return oldValue.IconURL, nil
+}
+
+// ResetIconURL resets all changes to the "icon_url" field.
+func (m *MobileSkillMutation) ResetIconURL() {
+	m.icon_url = nil
+}
+
+// SetCoverURL sets the "cover_url" field.
+func (m *MobileSkillMutation) SetCoverURL(s string) {
+	m.cover_url = &s
+}
+
+// CoverURL returns the value of the "cover_url" field in the mutation.
+func (m *MobileSkillMutation) CoverURL() (r string, exists bool) {
+	v := m.cover_url
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCoverURL returns the old "cover_url" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldCoverURL(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCoverURL is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCoverURL requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCoverURL: %w", err)
+	}
+	return oldValue.CoverURL, nil
+}
+
+// ResetCoverURL resets all changes to the "cover_url" field.
+func (m *MobileSkillMutation) ResetCoverURL() {
+	m.cover_url = nil
+}
+
+// SetCurrentVersion sets the "current_version" field.
+func (m *MobileSkillMutation) SetCurrentVersion(i int) {
+	m.current_version = &i
+	m.addcurrent_version = nil
+}
+
+// CurrentVersion returns the value of the "current_version" field in the mutation.
+func (m *MobileSkillMutation) CurrentVersion() (r int, exists bool) {
+	v := m.current_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCurrentVersion returns the old "current_version" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldCurrentVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCurrentVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCurrentVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCurrentVersion: %w", err)
+	}
+	return oldValue.CurrentVersion, nil
+}
+
+// AddCurrentVersion adds i to the "current_version" field.
+func (m *MobileSkillMutation) AddCurrentVersion(i int) {
+	if m.addcurrent_version != nil {
+		*m.addcurrent_version += i
+	} else {
+		m.addcurrent_version = &i
+	}
+}
+
+// AddedCurrentVersion returns the value that was added to the "current_version" field in this mutation.
+func (m *MobileSkillMutation) AddedCurrentVersion() (r int, exists bool) {
+	v := m.addcurrent_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCurrentVersion resets all changes to the "current_version" field.
+func (m *MobileSkillMutation) ResetCurrentVersion() {
+	m.current_version = nil
+	m.addcurrent_version = nil
+}
+
+// SetPublishedVersion sets the "published_version" field.
+func (m *MobileSkillMutation) SetPublishedVersion(i int) {
+	m.published_version = &i
+	m.addpublished_version = nil
+}
+
+// PublishedVersion returns the value of the "published_version" field in the mutation.
+func (m *MobileSkillMutation) PublishedVersion() (r int, exists bool) {
+	v := m.published_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublishedVersion returns the old "published_version" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldPublishedVersion(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublishedVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublishedVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublishedVersion: %w", err)
+	}
+	return oldValue.PublishedVersion, nil
+}
+
+// AddPublishedVersion adds i to the "published_version" field.
+func (m *MobileSkillMutation) AddPublishedVersion(i int) {
+	if m.addpublished_version != nil {
+		*m.addpublished_version += i
+	} else {
+		m.addpublished_version = &i
+	}
+}
+
+// AddedPublishedVersion returns the value that was added to the "published_version" field in this mutation.
+func (m *MobileSkillMutation) AddedPublishedVersion() (r int, exists bool) {
+	v := m.addpublished_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearPublishedVersion clears the value of the "published_version" field.
+func (m *MobileSkillMutation) ClearPublishedVersion() {
+	m.published_version = nil
+	m.addpublished_version = nil
+	m.clearedFields[mobileskill.FieldPublishedVersion] = struct{}{}
+}
+
+// PublishedVersionCleared returns if the "published_version" field was cleared in this mutation.
+func (m *MobileSkillMutation) PublishedVersionCleared() bool {
+	_, ok := m.clearedFields[mobileskill.FieldPublishedVersion]
+	return ok
+}
+
+// ResetPublishedVersion resets all changes to the "published_version" field.
+func (m *MobileSkillMutation) ResetPublishedVersion() {
+	m.published_version = nil
+	m.addpublished_version = nil
+	delete(m.clearedFields, mobileskill.FieldPublishedVersion)
+}
+
+// SetFeatured sets the "featured" field.
+func (m *MobileSkillMutation) SetFeatured(b bool) {
+	m.featured = &b
+}
+
+// Featured returns the value of the "featured" field in the mutation.
+func (m *MobileSkillMutation) Featured() (r bool, exists bool) {
+	v := m.featured
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFeatured returns the old "featured" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldFeatured(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFeatured is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFeatured requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFeatured: %w", err)
+	}
+	return oldValue.Featured, nil
+}
+
+// ResetFeatured resets all changes to the "featured" field.
+func (m *MobileSkillMutation) ResetFeatured() {
+	m.featured = nil
+}
+
+// SetSortOrder sets the "sort_order" field.
+func (m *MobileSkillMutation) SetSortOrder(i int) {
+	m.sort_order = &i
+	m.addsort_order = nil
+}
+
+// SortOrder returns the value of the "sort_order" field in the mutation.
+func (m *MobileSkillMutation) SortOrder() (r int, exists bool) {
+	v := m.sort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSortOrder returns the old "sort_order" field's value of the MobileSkill entity.
+// If the MobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillMutation) OldSortOrder(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSortOrder is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSortOrder requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSortOrder: %w", err)
+	}
+	return oldValue.SortOrder, nil
+}
+
+// AddSortOrder adds i to the "sort_order" field.
+func (m *MobileSkillMutation) AddSortOrder(i int) {
+	if m.addsort_order != nil {
+		*m.addsort_order += i
+	} else {
+		m.addsort_order = &i
+	}
+}
+
+// AddedSortOrder returns the value that was added to the "sort_order" field in this mutation.
+func (m *MobileSkillMutation) AddedSortOrder() (r int, exists bool) {
+	v := m.addsort_order
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSortOrder resets all changes to the "sort_order" field.
+func (m *MobileSkillMutation) ResetSortOrder() {
+	m.sort_order = nil
+	m.addsort_order = nil
+}
+
+// AddVersionIDs adds the "versions" edge to the MobileSkillVersion entity by ids.
+func (m *MobileSkillMutation) AddVersionIDs(ids ...int64) {
+	if m.versions == nil {
+		m.versions = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.versions[ids[i]] = struct{}{}
+	}
+}
+
+// ClearVersions clears the "versions" edge to the MobileSkillVersion entity.
+func (m *MobileSkillMutation) ClearVersions() {
+	m.clearedversions = true
+}
+
+// VersionsCleared reports if the "versions" edge to the MobileSkillVersion entity was cleared.
+func (m *MobileSkillMutation) VersionsCleared() bool {
+	return m.clearedversions
+}
+
+// RemoveVersionIDs removes the "versions" edge to the MobileSkillVersion entity by IDs.
+func (m *MobileSkillMutation) RemoveVersionIDs(ids ...int64) {
+	if m.removedversions == nil {
+		m.removedversions = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.versions, ids[i])
+		m.removedversions[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedVersions returns the removed IDs of the "versions" edge to the MobileSkillVersion entity.
+func (m *MobileSkillMutation) RemovedVersionsIDs() (ids []int64) {
+	for id := range m.removedversions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// VersionsIDs returns the "versions" edge IDs in the mutation.
+func (m *MobileSkillMutation) VersionsIDs() (ids []int64) {
+	for id := range m.versions {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetVersions resets all changes to the "versions" edge.
+func (m *MobileSkillMutation) ResetVersions() {
+	m.versions = nil
+	m.clearedversions = false
+	m.removedversions = nil
+}
+
+// AddUserInstallIDs adds the "user_installs" edge to the UserMobileSkill entity by ids.
+func (m *MobileSkillMutation) AddUserInstallIDs(ids ...int64) {
+	if m.user_installs == nil {
+		m.user_installs = make(map[int64]struct{})
+	}
+	for i := range ids {
+		m.user_installs[ids[i]] = struct{}{}
+	}
+}
+
+// ClearUserInstalls clears the "user_installs" edge to the UserMobileSkill entity.
+func (m *MobileSkillMutation) ClearUserInstalls() {
+	m.cleareduser_installs = true
+}
+
+// UserInstallsCleared reports if the "user_installs" edge to the UserMobileSkill entity was cleared.
+func (m *MobileSkillMutation) UserInstallsCleared() bool {
+	return m.cleareduser_installs
+}
+
+// RemoveUserInstallIDs removes the "user_installs" edge to the UserMobileSkill entity by IDs.
+func (m *MobileSkillMutation) RemoveUserInstallIDs(ids ...int64) {
+	if m.removeduser_installs == nil {
+		m.removeduser_installs = make(map[int64]struct{})
+	}
+	for i := range ids {
+		delete(m.user_installs, ids[i])
+		m.removeduser_installs[ids[i]] = struct{}{}
+	}
+}
+
+// RemovedUserInstalls returns the removed IDs of the "user_installs" edge to the UserMobileSkill entity.
+func (m *MobileSkillMutation) RemovedUserInstallsIDs() (ids []int64) {
+	for id := range m.removeduser_installs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// UserInstallsIDs returns the "user_installs" edge IDs in the mutation.
+func (m *MobileSkillMutation) UserInstallsIDs() (ids []int64) {
+	for id := range m.user_installs {
+		ids = append(ids, id)
+	}
+	return
+}
+
+// ResetUserInstalls resets all changes to the "user_installs" edge.
+func (m *MobileSkillMutation) ResetUserInstalls() {
+	m.user_installs = nil
+	m.cleareduser_installs = false
+	m.removeduser_installs = nil
+}
+
+// Where appends a list predicates to the MobileSkillMutation builder.
+func (m *MobileSkillMutation) Where(ps ...predicate.MobileSkill) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobileSkillMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobileSkillMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobileSkill, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobileSkillMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobileSkillMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobileSkill).
+func (m *MobileSkillMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobileSkillMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, mobileskill.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobileskill.FieldUpdatedAt)
+	}
+	if m.slug != nil {
+		fields = append(fields, mobileskill.FieldSlug)
+	}
+	if m.status != nil {
+		fields = append(fields, mobileskill.FieldStatus)
+	}
+	if m.name_zh != nil {
+		fields = append(fields, mobileskill.FieldNameZh)
+	}
+	if m.description_zh != nil {
+		fields = append(fields, mobileskill.FieldDescriptionZh)
+	}
+	if m.category != nil {
+		fields = append(fields, mobileskill.FieldCategory)
+	}
+	if m.icon_url != nil {
+		fields = append(fields, mobileskill.FieldIconURL)
+	}
+	if m.cover_url != nil {
+		fields = append(fields, mobileskill.FieldCoverURL)
+	}
+	if m.current_version != nil {
+		fields = append(fields, mobileskill.FieldCurrentVersion)
+	}
+	if m.published_version != nil {
+		fields = append(fields, mobileskill.FieldPublishedVersion)
+	}
+	if m.featured != nil {
+		fields = append(fields, mobileskill.FieldFeatured)
+	}
+	if m.sort_order != nil {
+		fields = append(fields, mobileskill.FieldSortOrder)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobileSkillMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobileskill.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobileskill.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobileskill.FieldSlug:
+		return m.Slug()
+	case mobileskill.FieldStatus:
+		return m.Status()
+	case mobileskill.FieldNameZh:
+		return m.NameZh()
+	case mobileskill.FieldDescriptionZh:
+		return m.DescriptionZh()
+	case mobileskill.FieldCategory:
+		return m.Category()
+	case mobileskill.FieldIconURL:
+		return m.IconURL()
+	case mobileskill.FieldCoverURL:
+		return m.CoverURL()
+	case mobileskill.FieldCurrentVersion:
+		return m.CurrentVersion()
+	case mobileskill.FieldPublishedVersion:
+		return m.PublishedVersion()
+	case mobileskill.FieldFeatured:
+		return m.Featured()
+	case mobileskill.FieldSortOrder:
+		return m.SortOrder()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobileSkillMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobileskill.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobileskill.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobileskill.FieldSlug:
+		return m.OldSlug(ctx)
+	case mobileskill.FieldStatus:
+		return m.OldStatus(ctx)
+	case mobileskill.FieldNameZh:
+		return m.OldNameZh(ctx)
+	case mobileskill.FieldDescriptionZh:
+		return m.OldDescriptionZh(ctx)
+	case mobileskill.FieldCategory:
+		return m.OldCategory(ctx)
+	case mobileskill.FieldIconURL:
+		return m.OldIconURL(ctx)
+	case mobileskill.FieldCoverURL:
+		return m.OldCoverURL(ctx)
+	case mobileskill.FieldCurrentVersion:
+		return m.OldCurrentVersion(ctx)
+	case mobileskill.FieldPublishedVersion:
+		return m.OldPublishedVersion(ctx)
+	case mobileskill.FieldFeatured:
+		return m.OldFeatured(ctx)
+	case mobileskill.FieldSortOrder:
+		return m.OldSortOrder(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobileSkill field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileSkillMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobileskill.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobileskill.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobileskill.FieldSlug:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSlug(v)
+		return nil
+	case mobileskill.FieldStatus:
+		v, ok := value.(mobileskill.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case mobileskill.FieldNameZh:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNameZh(v)
+		return nil
+	case mobileskill.FieldDescriptionZh:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescriptionZh(v)
+		return nil
+	case mobileskill.FieldCategory:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCategory(v)
+		return nil
+	case mobileskill.FieldIconURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIconURL(v)
+		return nil
+	case mobileskill.FieldCoverURL:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCoverURL(v)
+		return nil
+	case mobileskill.FieldCurrentVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCurrentVersion(v)
+		return nil
+	case mobileskill.FieldPublishedVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublishedVersion(v)
+		return nil
+	case mobileskill.FieldFeatured:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFeatured(v)
+		return nil
+	case mobileskill.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkill field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobileSkillMutation) AddedFields() []string {
+	var fields []string
+	if m.addcurrent_version != nil {
+		fields = append(fields, mobileskill.FieldCurrentVersion)
+	}
+	if m.addpublished_version != nil {
+		fields = append(fields, mobileskill.FieldPublishedVersion)
+	}
+	if m.addsort_order != nil {
+		fields = append(fields, mobileskill.FieldSortOrder)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobileSkillMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobileskill.FieldCurrentVersion:
+		return m.AddedCurrentVersion()
+	case mobileskill.FieldPublishedVersion:
+		return m.AddedPublishedVersion()
+	case mobileskill.FieldSortOrder:
+		return m.AddedSortOrder()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileSkillMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobileskill.FieldCurrentVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCurrentVersion(v)
+		return nil
+	case mobileskill.FieldPublishedVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPublishedVersion(v)
+		return nil
+	case mobileskill.FieldSortOrder:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSortOrder(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkill numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobileSkillMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobileskill.FieldPublishedVersion) {
+		fields = append(fields, mobileskill.FieldPublishedVersion)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobileSkillMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobileSkillMutation) ClearField(name string) error {
+	switch name {
+	case mobileskill.FieldPublishedVersion:
+		m.ClearPublishedVersion()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkill nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobileSkillMutation) ResetField(name string) error {
+	switch name {
+	case mobileskill.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobileskill.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobileskill.FieldSlug:
+		m.ResetSlug()
+		return nil
+	case mobileskill.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case mobileskill.FieldNameZh:
+		m.ResetNameZh()
+		return nil
+	case mobileskill.FieldDescriptionZh:
+		m.ResetDescriptionZh()
+		return nil
+	case mobileskill.FieldCategory:
+		m.ResetCategory()
+		return nil
+	case mobileskill.FieldIconURL:
+		m.ResetIconURL()
+		return nil
+	case mobileskill.FieldCoverURL:
+		m.ResetCoverURL()
+		return nil
+	case mobileskill.FieldCurrentVersion:
+		m.ResetCurrentVersion()
+		return nil
+	case mobileskill.FieldPublishedVersion:
+		m.ResetPublishedVersion()
+		return nil
+	case mobileskill.FieldFeatured:
+		m.ResetFeatured()
+		return nil
+	case mobileskill.FieldSortOrder:
+		m.ResetSortOrder()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkill field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobileSkillMutation) AddedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.versions != nil {
+		edges = append(edges, mobileskill.EdgeVersions)
+	}
+	if m.user_installs != nil {
+		edges = append(edges, mobileskill.EdgeUserInstalls)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobileSkillMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case mobileskill.EdgeVersions:
+		ids := make([]ent.Value, 0, len(m.versions))
+		for id := range m.versions {
+			ids = append(ids, id)
+		}
+		return ids
+	case mobileskill.EdgeUserInstalls:
+		ids := make([]ent.Value, 0, len(m.user_installs))
+		for id := range m.user_installs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobileSkillMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.removedversions != nil {
+		edges = append(edges, mobileskill.EdgeVersions)
+	}
+	if m.removeduser_installs != nil {
+		edges = append(edges, mobileskill.EdgeUserInstalls)
+	}
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobileSkillMutation) RemovedIDs(name string) []ent.Value {
+	switch name {
+	case mobileskill.EdgeVersions:
+		ids := make([]ent.Value, 0, len(m.removedversions))
+		for id := range m.removedversions {
+			ids = append(ids, id)
+		}
+		return ids
+	case mobileskill.EdgeUserInstalls:
+		ids := make([]ent.Value, 0, len(m.removeduser_installs))
+		for id := range m.removeduser_installs {
+			ids = append(ids, id)
+		}
+		return ids
+	}
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobileSkillMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 2)
+	if m.clearedversions {
+		edges = append(edges, mobileskill.EdgeVersions)
+	}
+	if m.cleareduser_installs {
+		edges = append(edges, mobileskill.EdgeUserInstalls)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobileSkillMutation) EdgeCleared(name string) bool {
+	switch name {
+	case mobileskill.EdgeVersions:
+		return m.clearedversions
+	case mobileskill.EdgeUserInstalls:
+		return m.cleareduser_installs
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobileSkillMutation) ClearEdge(name string) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown MobileSkill unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobileSkillMutation) ResetEdge(name string) error {
+	switch name {
+	case mobileskill.EdgeVersions:
+		m.ResetVersions()
+		return nil
+	case mobileskill.EdgeUserInstalls:
+		m.ResetUserInstalls()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkill edge %s", name)
+}
+
+// MobileSkillVersionMutation represents an operation that mutates the MobileSkillVersion nodes in the graph.
+type MobileSkillVersionMutation struct {
+	config
+	op                     Op
+	typ                    string
+	id                     *int64
+	created_at             *time.Time
+	updated_at             *time.Time
+	version                *int
+	addversion             *int
+	prompt_id              *int64
+	addprompt_id           *int64
+	prompt_version         *int
+	addprompt_version      *int
+	system_prompt_override *string
+	input_schema           *map[string]interface{}
+	examples               *[]map[string]interface{}
+	appendexamples         []map[string]interface{}
+	tool_config            *map[string]interface{}
+	model_policy           *map[string]interface{}
+	consumption_note_zh    *string
+	changelog_zh           *string
+	clearedFields          map[string]struct{}
+	skill                  *int64
+	clearedskill           bool
+	done                   bool
+	oldValue               func(context.Context) (*MobileSkillVersion, error)
+	predicates             []predicate.MobileSkillVersion
+}
+
+var _ ent.Mutation = (*MobileSkillVersionMutation)(nil)
+
+// mobileskillversionOption allows management of the mutation configuration using functional options.
+type mobileskillversionOption func(*MobileSkillVersionMutation)
+
+// newMobileSkillVersionMutation creates new mutation for the MobileSkillVersion entity.
+func newMobileSkillVersionMutation(c config, op Op, opts ...mobileskillversionOption) *MobileSkillVersionMutation {
+	m := &MobileSkillVersionMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobileSkillVersion,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobileSkillVersionID sets the ID field of the mutation.
+func withMobileSkillVersionID(id int64) mobileskillversionOption {
+	return func(m *MobileSkillVersionMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobileSkillVersion
+		)
+		m.oldValue = func(ctx context.Context) (*MobileSkillVersion, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobileSkillVersion.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobileSkillVersion sets the old MobileSkillVersion of the mutation.
+func withMobileSkillVersion(node *MobileSkillVersion) mobileskillversionOption {
+	return func(m *MobileSkillVersionMutation) {
+		m.oldValue = func(context.Context) (*MobileSkillVersion, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobileSkillVersionMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobileSkillVersionMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobileSkillVersionMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobileSkillVersionMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobileSkillVersion.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobileSkillVersionMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobileSkillVersionMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobileSkillVersionMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobileSkillVersionMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobileSkillVersionMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobileSkillVersionMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetSkillID sets the "skill_id" field.
+func (m *MobileSkillVersionMutation) SetSkillID(i int64) {
+	m.skill = &i
+}
+
+// SkillID returns the value of the "skill_id" field in the mutation.
+func (m *MobileSkillVersionMutation) SkillID() (r int64, exists bool) {
+	v := m.skill
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkillID returns the old "skill_id" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldSkillID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkillID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkillID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkillID: %w", err)
+	}
+	return oldValue.SkillID, nil
+}
+
+// ResetSkillID resets all changes to the "skill_id" field.
+func (m *MobileSkillVersionMutation) ResetSkillID() {
+	m.skill = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *MobileSkillVersionMutation) SetVersion(i int) {
+	m.version = &i
+	m.addversion = nil
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *MobileSkillVersionMutation) Version() (r int, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// AddVersion adds i to the "version" field.
+func (m *MobileSkillVersionMutation) AddVersion(i int) {
+	if m.addversion != nil {
+		*m.addversion += i
+	} else {
+		m.addversion = &i
+	}
+}
+
+// AddedVersion returns the value that was added to the "version" field in this mutation.
+func (m *MobileSkillVersionMutation) AddedVersion() (r int, exists bool) {
+	v := m.addversion
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *MobileSkillVersionMutation) ResetVersion() {
+	m.version = nil
+	m.addversion = nil
+}
+
+// SetPromptID sets the "prompt_id" field.
+func (m *MobileSkillVersionMutation) SetPromptID(i int64) {
+	m.prompt_id = &i
+	m.addprompt_id = nil
+}
+
+// PromptID returns the value of the "prompt_id" field in the mutation.
+func (m *MobileSkillVersionMutation) PromptID() (r int64, exists bool) {
+	v := m.prompt_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromptID returns the old "prompt_id" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldPromptID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromptID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromptID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromptID: %w", err)
+	}
+	return oldValue.PromptID, nil
+}
+
+// AddPromptID adds i to the "prompt_id" field.
+func (m *MobileSkillVersionMutation) AddPromptID(i int64) {
+	if m.addprompt_id != nil {
+		*m.addprompt_id += i
+	} else {
+		m.addprompt_id = &i
+	}
+}
+
+// AddedPromptID returns the value that was added to the "prompt_id" field in this mutation.
+func (m *MobileSkillVersionMutation) AddedPromptID() (r int64, exists bool) {
+	v := m.addprompt_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPromptID resets all changes to the "prompt_id" field.
+func (m *MobileSkillVersionMutation) ResetPromptID() {
+	m.prompt_id = nil
+	m.addprompt_id = nil
+}
+
+// SetPromptVersion sets the "prompt_version" field.
+func (m *MobileSkillVersionMutation) SetPromptVersion(i int) {
+	m.prompt_version = &i
+	m.addprompt_version = nil
+}
+
+// PromptVersion returns the value of the "prompt_version" field in the mutation.
+func (m *MobileSkillVersionMutation) PromptVersion() (r int, exists bool) {
+	v := m.prompt_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPromptVersion returns the old "prompt_version" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldPromptVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPromptVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPromptVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPromptVersion: %w", err)
+	}
+	return oldValue.PromptVersion, nil
+}
+
+// AddPromptVersion adds i to the "prompt_version" field.
+func (m *MobileSkillVersionMutation) AddPromptVersion(i int) {
+	if m.addprompt_version != nil {
+		*m.addprompt_version += i
+	} else {
+		m.addprompt_version = &i
+	}
+}
+
+// AddedPromptVersion returns the value that was added to the "prompt_version" field in this mutation.
+func (m *MobileSkillVersionMutation) AddedPromptVersion() (r int, exists bool) {
+	v := m.addprompt_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPromptVersion resets all changes to the "prompt_version" field.
+func (m *MobileSkillVersionMutation) ResetPromptVersion() {
+	m.prompt_version = nil
+	m.addprompt_version = nil
+}
+
+// SetSystemPromptOverride sets the "system_prompt_override" field.
+func (m *MobileSkillVersionMutation) SetSystemPromptOverride(s string) {
+	m.system_prompt_override = &s
+}
+
+// SystemPromptOverride returns the value of the "system_prompt_override" field in the mutation.
+func (m *MobileSkillVersionMutation) SystemPromptOverride() (r string, exists bool) {
+	v := m.system_prompt_override
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSystemPromptOverride returns the old "system_prompt_override" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldSystemPromptOverride(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSystemPromptOverride is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSystemPromptOverride requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSystemPromptOverride: %w", err)
+	}
+	return oldValue.SystemPromptOverride, nil
+}
+
+// ClearSystemPromptOverride clears the value of the "system_prompt_override" field.
+func (m *MobileSkillVersionMutation) ClearSystemPromptOverride() {
+	m.system_prompt_override = nil
+	m.clearedFields[mobileskillversion.FieldSystemPromptOverride] = struct{}{}
+}
+
+// SystemPromptOverrideCleared returns if the "system_prompt_override" field was cleared in this mutation.
+func (m *MobileSkillVersionMutation) SystemPromptOverrideCleared() bool {
+	_, ok := m.clearedFields[mobileskillversion.FieldSystemPromptOverride]
+	return ok
+}
+
+// ResetSystemPromptOverride resets all changes to the "system_prompt_override" field.
+func (m *MobileSkillVersionMutation) ResetSystemPromptOverride() {
+	m.system_prompt_override = nil
+	delete(m.clearedFields, mobileskillversion.FieldSystemPromptOverride)
+}
+
+// SetInputSchema sets the "input_schema" field.
+func (m *MobileSkillVersionMutation) SetInputSchema(value map[string]interface{}) {
+	m.input_schema = &value
+}
+
+// InputSchema returns the value of the "input_schema" field in the mutation.
+func (m *MobileSkillVersionMutation) InputSchema() (r map[string]interface{}, exists bool) {
+	v := m.input_schema
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInputSchema returns the old "input_schema" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldInputSchema(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInputSchema is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInputSchema requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInputSchema: %w", err)
+	}
+	return oldValue.InputSchema, nil
+}
+
+// ResetInputSchema resets all changes to the "input_schema" field.
+func (m *MobileSkillVersionMutation) ResetInputSchema() {
+	m.input_schema = nil
+}
+
+// SetExamples sets the "examples" field.
+func (m *MobileSkillVersionMutation) SetExamples(value []map[string]interface{}) {
+	m.examples = &value
+	m.appendexamples = nil
+}
+
+// Examples returns the value of the "examples" field in the mutation.
+func (m *MobileSkillVersionMutation) Examples() (r []map[string]interface{}, exists bool) {
+	v := m.examples
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldExamples returns the old "examples" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldExamples(ctx context.Context) (v []map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldExamples is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldExamples requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldExamples: %w", err)
+	}
+	return oldValue.Examples, nil
+}
+
+// AppendExamples adds value to the "examples" field.
+func (m *MobileSkillVersionMutation) AppendExamples(value []map[string]interface{}) {
+	m.appendexamples = append(m.appendexamples, value...)
+}
+
+// AppendedExamples returns the list of values that were appended to the "examples" field in this mutation.
+func (m *MobileSkillVersionMutation) AppendedExamples() ([]map[string]interface{}, bool) {
+	if len(m.appendexamples) == 0 {
+		return nil, false
+	}
+	return m.appendexamples, true
+}
+
+// ResetExamples resets all changes to the "examples" field.
+func (m *MobileSkillVersionMutation) ResetExamples() {
+	m.examples = nil
+	m.appendexamples = nil
+}
+
+// SetToolConfig sets the "tool_config" field.
+func (m *MobileSkillVersionMutation) SetToolConfig(value map[string]interface{}) {
+	m.tool_config = &value
+}
+
+// ToolConfig returns the value of the "tool_config" field in the mutation.
+func (m *MobileSkillVersionMutation) ToolConfig() (r map[string]interface{}, exists bool) {
+	v := m.tool_config
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldToolConfig returns the old "tool_config" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldToolConfig(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldToolConfig is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldToolConfig requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldToolConfig: %w", err)
+	}
+	return oldValue.ToolConfig, nil
+}
+
+// ResetToolConfig resets all changes to the "tool_config" field.
+func (m *MobileSkillVersionMutation) ResetToolConfig() {
+	m.tool_config = nil
+}
+
+// SetModelPolicy sets the "model_policy" field.
+func (m *MobileSkillVersionMutation) SetModelPolicy(value map[string]interface{}) {
+	m.model_policy = &value
+}
+
+// ModelPolicy returns the value of the "model_policy" field in the mutation.
+func (m *MobileSkillVersionMutation) ModelPolicy() (r map[string]interface{}, exists bool) {
+	v := m.model_policy
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldModelPolicy returns the old "model_policy" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldModelPolicy(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldModelPolicy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldModelPolicy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldModelPolicy: %w", err)
+	}
+	return oldValue.ModelPolicy, nil
+}
+
+// ResetModelPolicy resets all changes to the "model_policy" field.
+func (m *MobileSkillVersionMutation) ResetModelPolicy() {
+	m.model_policy = nil
+}
+
+// SetConsumptionNoteZh sets the "consumption_note_zh" field.
+func (m *MobileSkillVersionMutation) SetConsumptionNoteZh(s string) {
+	m.consumption_note_zh = &s
+}
+
+// ConsumptionNoteZh returns the value of the "consumption_note_zh" field in the mutation.
+func (m *MobileSkillVersionMutation) ConsumptionNoteZh() (r string, exists bool) {
+	v := m.consumption_note_zh
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConsumptionNoteZh returns the old "consumption_note_zh" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldConsumptionNoteZh(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConsumptionNoteZh is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConsumptionNoteZh requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConsumptionNoteZh: %w", err)
+	}
+	return oldValue.ConsumptionNoteZh, nil
+}
+
+// ResetConsumptionNoteZh resets all changes to the "consumption_note_zh" field.
+func (m *MobileSkillVersionMutation) ResetConsumptionNoteZh() {
+	m.consumption_note_zh = nil
+}
+
+// SetChangelogZh sets the "changelog_zh" field.
+func (m *MobileSkillVersionMutation) SetChangelogZh(s string) {
+	m.changelog_zh = &s
+}
+
+// ChangelogZh returns the value of the "changelog_zh" field in the mutation.
+func (m *MobileSkillVersionMutation) ChangelogZh() (r string, exists bool) {
+	v := m.changelog_zh
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldChangelogZh returns the old "changelog_zh" field's value of the MobileSkillVersion entity.
+// If the MobileSkillVersion object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileSkillVersionMutation) OldChangelogZh(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldChangelogZh is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldChangelogZh requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldChangelogZh: %w", err)
+	}
+	return oldValue.ChangelogZh, nil
+}
+
+// ResetChangelogZh resets all changes to the "changelog_zh" field.
+func (m *MobileSkillVersionMutation) ResetChangelogZh() {
+	m.changelog_zh = nil
+}
+
+// ClearSkill clears the "skill" edge to the MobileSkill entity.
+func (m *MobileSkillVersionMutation) ClearSkill() {
+	m.clearedskill = true
+	m.clearedFields[mobileskillversion.FieldSkillID] = struct{}{}
+}
+
+// SkillCleared reports if the "skill" edge to the MobileSkill entity was cleared.
+func (m *MobileSkillVersionMutation) SkillCleared() bool {
+	return m.clearedskill
+}
+
+// SkillIDs returns the "skill" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SkillID instead. It exists only for internal usage by the builders.
+func (m *MobileSkillVersionMutation) SkillIDs() (ids []int64) {
+	if id := m.skill; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSkill resets all changes to the "skill" edge.
+func (m *MobileSkillVersionMutation) ResetSkill() {
+	m.skill = nil
+	m.clearedskill = false
+}
+
+// Where appends a list predicates to the MobileSkillVersionMutation builder.
+func (m *MobileSkillVersionMutation) Where(ps ...predicate.MobileSkillVersion) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobileSkillVersionMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobileSkillVersionMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobileSkillVersion, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobileSkillVersionMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobileSkillVersionMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobileSkillVersion).
+func (m *MobileSkillVersionMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobileSkillVersionMutation) Fields() []string {
+	fields := make([]string, 0, 13)
+	if m.created_at != nil {
+		fields = append(fields, mobileskillversion.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobileskillversion.FieldUpdatedAt)
+	}
+	if m.skill != nil {
+		fields = append(fields, mobileskillversion.FieldSkillID)
+	}
+	if m.version != nil {
+		fields = append(fields, mobileskillversion.FieldVersion)
+	}
+	if m.prompt_id != nil {
+		fields = append(fields, mobileskillversion.FieldPromptID)
+	}
+	if m.prompt_version != nil {
+		fields = append(fields, mobileskillversion.FieldPromptVersion)
+	}
+	if m.system_prompt_override != nil {
+		fields = append(fields, mobileskillversion.FieldSystemPromptOverride)
+	}
+	if m.input_schema != nil {
+		fields = append(fields, mobileskillversion.FieldInputSchema)
+	}
+	if m.examples != nil {
+		fields = append(fields, mobileskillversion.FieldExamples)
+	}
+	if m.tool_config != nil {
+		fields = append(fields, mobileskillversion.FieldToolConfig)
+	}
+	if m.model_policy != nil {
+		fields = append(fields, mobileskillversion.FieldModelPolicy)
+	}
+	if m.consumption_note_zh != nil {
+		fields = append(fields, mobileskillversion.FieldConsumptionNoteZh)
+	}
+	if m.changelog_zh != nil {
+		fields = append(fields, mobileskillversion.FieldChangelogZh)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobileSkillVersionMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobileskillversion.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobileskillversion.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobileskillversion.FieldSkillID:
+		return m.SkillID()
+	case mobileskillversion.FieldVersion:
+		return m.Version()
+	case mobileskillversion.FieldPromptID:
+		return m.PromptID()
+	case mobileskillversion.FieldPromptVersion:
+		return m.PromptVersion()
+	case mobileskillversion.FieldSystemPromptOverride:
+		return m.SystemPromptOverride()
+	case mobileskillversion.FieldInputSchema:
+		return m.InputSchema()
+	case mobileskillversion.FieldExamples:
+		return m.Examples()
+	case mobileskillversion.FieldToolConfig:
+		return m.ToolConfig()
+	case mobileskillversion.FieldModelPolicy:
+		return m.ModelPolicy()
+	case mobileskillversion.FieldConsumptionNoteZh:
+		return m.ConsumptionNoteZh()
+	case mobileskillversion.FieldChangelogZh:
+		return m.ChangelogZh()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobileSkillVersionMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobileskillversion.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobileskillversion.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobileskillversion.FieldSkillID:
+		return m.OldSkillID(ctx)
+	case mobileskillversion.FieldVersion:
+		return m.OldVersion(ctx)
+	case mobileskillversion.FieldPromptID:
+		return m.OldPromptID(ctx)
+	case mobileskillversion.FieldPromptVersion:
+		return m.OldPromptVersion(ctx)
+	case mobileskillversion.FieldSystemPromptOverride:
+		return m.OldSystemPromptOverride(ctx)
+	case mobileskillversion.FieldInputSchema:
+		return m.OldInputSchema(ctx)
+	case mobileskillversion.FieldExamples:
+		return m.OldExamples(ctx)
+	case mobileskillversion.FieldToolConfig:
+		return m.OldToolConfig(ctx)
+	case mobileskillversion.FieldModelPolicy:
+		return m.OldModelPolicy(ctx)
+	case mobileskillversion.FieldConsumptionNoteZh:
+		return m.OldConsumptionNoteZh(ctx)
+	case mobileskillversion.FieldChangelogZh:
+		return m.OldChangelogZh(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobileSkillVersion field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileSkillVersionMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobileskillversion.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobileskillversion.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobileskillversion.FieldSkillID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkillID(v)
+		return nil
+	case mobileskillversion.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case mobileskillversion.FieldPromptID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromptID(v)
+		return nil
+	case mobileskillversion.FieldPromptVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPromptVersion(v)
+		return nil
+	case mobileskillversion.FieldSystemPromptOverride:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSystemPromptOverride(v)
+		return nil
+	case mobileskillversion.FieldInputSchema:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInputSchema(v)
+		return nil
+	case mobileskillversion.FieldExamples:
+		v, ok := value.([]map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetExamples(v)
+		return nil
+	case mobileskillversion.FieldToolConfig:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetToolConfig(v)
+		return nil
+	case mobileskillversion.FieldModelPolicy:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetModelPolicy(v)
+		return nil
+	case mobileskillversion.FieldConsumptionNoteZh:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConsumptionNoteZh(v)
+		return nil
+	case mobileskillversion.FieldChangelogZh:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetChangelogZh(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkillVersion field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobileSkillVersionMutation) AddedFields() []string {
+	var fields []string
+	if m.addversion != nil {
+		fields = append(fields, mobileskillversion.FieldVersion)
+	}
+	if m.addprompt_id != nil {
+		fields = append(fields, mobileskillversion.FieldPromptID)
+	}
+	if m.addprompt_version != nil {
+		fields = append(fields, mobileskillversion.FieldPromptVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobileSkillVersionMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobileskillversion.FieldVersion:
+		return m.AddedVersion()
+	case mobileskillversion.FieldPromptID:
+		return m.AddedPromptID()
+	case mobileskillversion.FieldPromptVersion:
+		return m.AddedPromptVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileSkillVersionMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobileskillversion.FieldVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVersion(v)
+		return nil
+	case mobileskillversion.FieldPromptID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPromptID(v)
+		return nil
+	case mobileskillversion.FieldPromptVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPromptVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkillVersion numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobileSkillVersionMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobileskillversion.FieldSystemPromptOverride) {
+		fields = append(fields, mobileskillversion.FieldSystemPromptOverride)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobileSkillVersionMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobileSkillVersionMutation) ClearField(name string) error {
+	switch name {
+	case mobileskillversion.FieldSystemPromptOverride:
+		m.ClearSystemPromptOverride()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkillVersion nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobileSkillVersionMutation) ResetField(name string) error {
+	switch name {
+	case mobileskillversion.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobileskillversion.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobileskillversion.FieldSkillID:
+		m.ResetSkillID()
+		return nil
+	case mobileskillversion.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case mobileskillversion.FieldPromptID:
+		m.ResetPromptID()
+		return nil
+	case mobileskillversion.FieldPromptVersion:
+		m.ResetPromptVersion()
+		return nil
+	case mobileskillversion.FieldSystemPromptOverride:
+		m.ResetSystemPromptOverride()
+		return nil
+	case mobileskillversion.FieldInputSchema:
+		m.ResetInputSchema()
+		return nil
+	case mobileskillversion.FieldExamples:
+		m.ResetExamples()
+		return nil
+	case mobileskillversion.FieldToolConfig:
+		m.ResetToolConfig()
+		return nil
+	case mobileskillversion.FieldModelPolicy:
+		m.ResetModelPolicy()
+		return nil
+	case mobileskillversion.FieldConsumptionNoteZh:
+		m.ResetConsumptionNoteZh()
+		return nil
+	case mobileskillversion.FieldChangelogZh:
+		m.ResetChangelogZh()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkillVersion field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobileSkillVersionMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.skill != nil {
+		edges = append(edges, mobileskillversion.EdgeSkill)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobileSkillVersionMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case mobileskillversion.EdgeSkill:
+		if id := m.skill; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobileSkillVersionMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobileSkillVersionMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobileSkillVersionMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedskill {
+		edges = append(edges, mobileskillversion.EdgeSkill)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobileSkillVersionMutation) EdgeCleared(name string) bool {
+	switch name {
+	case mobileskillversion.EdgeSkill:
+		return m.clearedskill
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobileSkillVersionMutation) ClearEdge(name string) error {
+	switch name {
+	case mobileskillversion.EdgeSkill:
+		m.ClearSkill()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkillVersion unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobileSkillVersionMutation) ResetEdge(name string) error {
+	switch name {
+	case mobileskillversion.EdgeSkill:
+		m.ResetSkill()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileSkillVersion edge %s", name)
+}
+
+// MobileTaskMutation represents an operation that mutates the MobileTask nodes in the graph.
+type MobileTaskMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	user_id             *int64
+	adduser_id          *int64
+	kind                *mobiletask.Kind
+	operation           *string
+	status              *mobiletask.Status
+	progress            *int
+	addprogress         *int
+	parent_task_id      *uuid.UUID
+	retry_of            *uuid.UUID
+	client_request_id   *string
+	resource            *map[string]interface{}
+	artifacts           *[]map[string]interface{}
+	appendartifacts     []map[string]interface{}
+	error               *map[string]interface{}
+	protocol_version    *int
+	addprotocol_version *int
+	created_at          *time.Time
+	updated_at          *time.Time
+	started_at          *time.Time
+	finished_at         *time.Time
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*MobileTask, error)
+	predicates          []predicate.MobileTask
+}
+
+var _ ent.Mutation = (*MobileTaskMutation)(nil)
+
+// mobiletaskOption allows management of the mutation configuration using functional options.
+type mobiletaskOption func(*MobileTaskMutation)
+
+// newMobileTaskMutation creates new mutation for the MobileTask entity.
+func newMobileTaskMutation(c config, op Op, opts ...mobiletaskOption) *MobileTaskMutation {
+	m := &MobileTaskMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMobileTask,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMobileTaskID sets the ID field of the mutation.
+func withMobileTaskID(id uuid.UUID) mobiletaskOption {
+	return func(m *MobileTaskMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MobileTask
+		)
+		m.oldValue = func(ctx context.Context) (*MobileTask, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MobileTask.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMobileTask sets the old MobileTask of the mutation.
+func withMobileTask(node *MobileTask) mobiletaskOption {
+	return func(m *MobileTaskMutation) {
+		m.oldValue = func(context.Context) (*MobileTask, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MobileTaskMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MobileTaskMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MobileTask entities.
+func (m *MobileTaskMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MobileTaskMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MobileTaskMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MobileTask.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetUserID sets the "user_id" field.
+func (m *MobileTaskMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *MobileTaskMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *MobileTaskMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *MobileTaskMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *MobileTaskMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetKind sets the "kind" field.
+func (m *MobileTaskMutation) SetKind(value mobiletask.Kind) {
+	m.kind = &value
+}
+
+// Kind returns the value of the "kind" field in the mutation.
+func (m *MobileTaskMutation) Kind() (r mobiletask.Kind, exists bool) {
+	v := m.kind
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKind returns the old "kind" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldKind(ctx context.Context) (v mobiletask.Kind, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKind is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKind requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKind: %w", err)
+	}
+	return oldValue.Kind, nil
+}
+
+// ResetKind resets all changes to the "kind" field.
+func (m *MobileTaskMutation) ResetKind() {
+	m.kind = nil
+}
+
+// SetOperation sets the "operation" field.
+func (m *MobileTaskMutation) SetOperation(s string) {
+	m.operation = &s
+}
+
+// Operation returns the value of the "operation" field in the mutation.
+func (m *MobileTaskMutation) Operation() (r string, exists bool) {
+	v := m.operation
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOperation returns the old "operation" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldOperation(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOperation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOperation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOperation: %w", err)
+	}
+	return oldValue.Operation, nil
+}
+
+// ResetOperation resets all changes to the "operation" field.
+func (m *MobileTaskMutation) ResetOperation() {
+	m.operation = nil
+}
+
+// SetStatus sets the "status" field.
+func (m *MobileTaskMutation) SetStatus(value mobiletask.Status) {
+	m.status = &value
+}
+
+// Status returns the value of the "status" field in the mutation.
+func (m *MobileTaskMutation) Status() (r mobiletask.Status, exists bool) {
+	v := m.status
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStatus returns the old "status" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldStatus(ctx context.Context) (v mobiletask.Status, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStatus is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStatus requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStatus: %w", err)
+	}
+	return oldValue.Status, nil
+}
+
+// ResetStatus resets all changes to the "status" field.
+func (m *MobileTaskMutation) ResetStatus() {
+	m.status = nil
+}
+
+// SetProgress sets the "progress" field.
+func (m *MobileTaskMutation) SetProgress(i int) {
+	m.progress = &i
+	m.addprogress = nil
+}
+
+// Progress returns the value of the "progress" field in the mutation.
+func (m *MobileTaskMutation) Progress() (r int, exists bool) {
+	v := m.progress
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProgress returns the old "progress" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldProgress(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProgress is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProgress requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProgress: %w", err)
+	}
+	return oldValue.Progress, nil
+}
+
+// AddProgress adds i to the "progress" field.
+func (m *MobileTaskMutation) AddProgress(i int) {
+	if m.addprogress != nil {
+		*m.addprogress += i
+	} else {
+		m.addprogress = &i
+	}
+}
+
+// AddedProgress returns the value that was added to the "progress" field in this mutation.
+func (m *MobileTaskMutation) AddedProgress() (r int, exists bool) {
+	v := m.addprogress
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProgress resets all changes to the "progress" field.
+func (m *MobileTaskMutation) ResetProgress() {
+	m.progress = nil
+	m.addprogress = nil
+}
+
+// SetParentTaskID sets the "parent_task_id" field.
+func (m *MobileTaskMutation) SetParentTaskID(u uuid.UUID) {
+	m.parent_task_id = &u
+}
+
+// ParentTaskID returns the value of the "parent_task_id" field in the mutation.
+func (m *MobileTaskMutation) ParentTaskID() (r uuid.UUID, exists bool) {
+	v := m.parent_task_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParentTaskID returns the old "parent_task_id" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldParentTaskID(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParentTaskID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParentTaskID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParentTaskID: %w", err)
+	}
+	return oldValue.ParentTaskID, nil
+}
+
+// ClearParentTaskID clears the value of the "parent_task_id" field.
+func (m *MobileTaskMutation) ClearParentTaskID() {
+	m.parent_task_id = nil
+	m.clearedFields[mobiletask.FieldParentTaskID] = struct{}{}
+}
+
+// ParentTaskIDCleared returns if the "parent_task_id" field was cleared in this mutation.
+func (m *MobileTaskMutation) ParentTaskIDCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldParentTaskID]
+	return ok
+}
+
+// ResetParentTaskID resets all changes to the "parent_task_id" field.
+func (m *MobileTaskMutation) ResetParentTaskID() {
+	m.parent_task_id = nil
+	delete(m.clearedFields, mobiletask.FieldParentTaskID)
+}
+
+// SetRetryOf sets the "retry_of" field.
+func (m *MobileTaskMutation) SetRetryOf(u uuid.UUID) {
+	m.retry_of = &u
+}
+
+// RetryOf returns the value of the "retry_of" field in the mutation.
+func (m *MobileTaskMutation) RetryOf() (r uuid.UUID, exists bool) {
+	v := m.retry_of
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetryOf returns the old "retry_of" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldRetryOf(ctx context.Context) (v *uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetryOf is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetryOf requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetryOf: %w", err)
+	}
+	return oldValue.RetryOf, nil
+}
+
+// ClearRetryOf clears the value of the "retry_of" field.
+func (m *MobileTaskMutation) ClearRetryOf() {
+	m.retry_of = nil
+	m.clearedFields[mobiletask.FieldRetryOf] = struct{}{}
+}
+
+// RetryOfCleared returns if the "retry_of" field was cleared in this mutation.
+func (m *MobileTaskMutation) RetryOfCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldRetryOf]
+	return ok
+}
+
+// ResetRetryOf resets all changes to the "retry_of" field.
+func (m *MobileTaskMutation) ResetRetryOf() {
+	m.retry_of = nil
+	delete(m.clearedFields, mobiletask.FieldRetryOf)
+}
+
+// SetClientRequestID sets the "client_request_id" field.
+func (m *MobileTaskMutation) SetClientRequestID(s string) {
+	m.client_request_id = &s
+}
+
+// ClientRequestID returns the value of the "client_request_id" field in the mutation.
+func (m *MobileTaskMutation) ClientRequestID() (r string, exists bool) {
+	v := m.client_request_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldClientRequestID returns the old "client_request_id" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldClientRequestID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldClientRequestID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldClientRequestID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldClientRequestID: %w", err)
+	}
+	return oldValue.ClientRequestID, nil
+}
+
+// ResetClientRequestID resets all changes to the "client_request_id" field.
+func (m *MobileTaskMutation) ResetClientRequestID() {
+	m.client_request_id = nil
+}
+
+// SetResource sets the "resource" field.
+func (m *MobileTaskMutation) SetResource(value map[string]interface{}) {
+	m.resource = &value
+}
+
+// Resource returns the value of the "resource" field in the mutation.
+func (m *MobileTaskMutation) Resource() (r map[string]interface{}, exists bool) {
+	v := m.resource
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResource returns the old "resource" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldResource(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResource: %w", err)
+	}
+	return oldValue.Resource, nil
+}
+
+// ClearResource clears the value of the "resource" field.
+func (m *MobileTaskMutation) ClearResource() {
+	m.resource = nil
+	m.clearedFields[mobiletask.FieldResource] = struct{}{}
+}
+
+// ResourceCleared returns if the "resource" field was cleared in this mutation.
+func (m *MobileTaskMutation) ResourceCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldResource]
+	return ok
+}
+
+// ResetResource resets all changes to the "resource" field.
+func (m *MobileTaskMutation) ResetResource() {
+	m.resource = nil
+	delete(m.clearedFields, mobiletask.FieldResource)
+}
+
+// SetArtifacts sets the "artifacts" field.
+func (m *MobileTaskMutation) SetArtifacts(value []map[string]interface{}) {
+	m.artifacts = &value
+	m.appendartifacts = nil
+}
+
+// Artifacts returns the value of the "artifacts" field in the mutation.
+func (m *MobileTaskMutation) Artifacts() (r []map[string]interface{}, exists bool) {
+	v := m.artifacts
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldArtifacts returns the old "artifacts" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldArtifacts(ctx context.Context) (v []map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldArtifacts is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldArtifacts requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldArtifacts: %w", err)
+	}
+	return oldValue.Artifacts, nil
+}
+
+// AppendArtifacts adds value to the "artifacts" field.
+func (m *MobileTaskMutation) AppendArtifacts(value []map[string]interface{}) {
+	m.appendartifacts = append(m.appendartifacts, value...)
+}
+
+// AppendedArtifacts returns the list of values that were appended to the "artifacts" field in this mutation.
+func (m *MobileTaskMutation) AppendedArtifacts() ([]map[string]interface{}, bool) {
+	if len(m.appendartifacts) == 0 {
+		return nil, false
+	}
+	return m.appendartifacts, true
+}
+
+// ResetArtifacts resets all changes to the "artifacts" field.
+func (m *MobileTaskMutation) ResetArtifacts() {
+	m.artifacts = nil
+	m.appendartifacts = nil
+}
+
+// SetError sets the "error" field.
+func (m *MobileTaskMutation) SetError(value map[string]interface{}) {
+	m.error = &value
+}
+
+// Error returns the value of the "error" field in the mutation.
+func (m *MobileTaskMutation) Error() (r map[string]interface{}, exists bool) {
+	v := m.error
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldError returns the old "error" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldError(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldError is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldError requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldError: %w", err)
+	}
+	return oldValue.Error, nil
+}
+
+// ClearError clears the value of the "error" field.
+func (m *MobileTaskMutation) ClearError() {
+	m.error = nil
+	m.clearedFields[mobiletask.FieldError] = struct{}{}
+}
+
+// ErrorCleared returns if the "error" field was cleared in this mutation.
+func (m *MobileTaskMutation) ErrorCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldError]
+	return ok
+}
+
+// ResetError resets all changes to the "error" field.
+func (m *MobileTaskMutation) ResetError() {
+	m.error = nil
+	delete(m.clearedFields, mobiletask.FieldError)
+}
+
+// SetProtocolVersion sets the "protocol_version" field.
+func (m *MobileTaskMutation) SetProtocolVersion(i int) {
+	m.protocol_version = &i
+	m.addprotocol_version = nil
+}
+
+// ProtocolVersion returns the value of the "protocol_version" field in the mutation.
+func (m *MobileTaskMutation) ProtocolVersion() (r int, exists bool) {
+	v := m.protocol_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldProtocolVersion returns the old "protocol_version" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldProtocolVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldProtocolVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldProtocolVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldProtocolVersion: %w", err)
+	}
+	return oldValue.ProtocolVersion, nil
+}
+
+// AddProtocolVersion adds i to the "protocol_version" field.
+func (m *MobileTaskMutation) AddProtocolVersion(i int) {
+	if m.addprotocol_version != nil {
+		*m.addprotocol_version += i
+	} else {
+		m.addprotocol_version = &i
+	}
+}
+
+// AddedProtocolVersion returns the value that was added to the "protocol_version" field in this mutation.
+func (m *MobileTaskMutation) AddedProtocolVersion() (r int, exists bool) {
+	v := m.addprotocol_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetProtocolVersion resets all changes to the "protocol_version" field.
+func (m *MobileTaskMutation) ResetProtocolVersion() {
+	m.protocol_version = nil
+	m.addprotocol_version = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *MobileTaskMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *MobileTaskMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *MobileTaskMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MobileTaskMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MobileTaskMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MobileTaskMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *MobileTaskMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *MobileTaskMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldStartedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ClearStartedAt clears the value of the "started_at" field.
+func (m *MobileTaskMutation) ClearStartedAt() {
+	m.started_at = nil
+	m.clearedFields[mobiletask.FieldStartedAt] = struct{}{}
+}
+
+// StartedAtCleared returns if the "started_at" field was cleared in this mutation.
+func (m *MobileTaskMutation) StartedAtCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldStartedAt]
+	return ok
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *MobileTaskMutation) ResetStartedAt() {
+	m.started_at = nil
+	delete(m.clearedFields, mobiletask.FieldStartedAt)
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (m *MobileTaskMutation) SetFinishedAt(t time.Time) {
+	m.finished_at = &t
+}
+
+// FinishedAt returns the value of the "finished_at" field in the mutation.
+func (m *MobileTaskMutation) FinishedAt() (r time.Time, exists bool) {
+	v := m.finished_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinishedAt returns the old "finished_at" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldFinishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinishedAt: %w", err)
+	}
+	return oldValue.FinishedAt, nil
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (m *MobileTaskMutation) ClearFinishedAt() {
+	m.finished_at = nil
+	m.clearedFields[mobiletask.FieldFinishedAt] = struct{}{}
+}
+
+// FinishedAtCleared returns if the "finished_at" field was cleared in this mutation.
+func (m *MobileTaskMutation) FinishedAtCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldFinishedAt]
+	return ok
+}
+
+// ResetFinishedAt resets all changes to the "finished_at" field.
+func (m *MobileTaskMutation) ResetFinishedAt() {
+	m.finished_at = nil
+	delete(m.clearedFields, mobiletask.FieldFinishedAt)
+}
+
+// Where appends a list predicates to the MobileTaskMutation builder.
+func (m *MobileTaskMutation) Where(ps ...predicate.MobileTask) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MobileTaskMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MobileTaskMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MobileTask, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MobileTaskMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MobileTaskMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MobileTask).
+func (m *MobileTaskMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MobileTaskMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.user_id != nil {
+		fields = append(fields, mobiletask.FieldUserID)
+	}
+	if m.kind != nil {
+		fields = append(fields, mobiletask.FieldKind)
+	}
+	if m.operation != nil {
+		fields = append(fields, mobiletask.FieldOperation)
+	}
+	if m.status != nil {
+		fields = append(fields, mobiletask.FieldStatus)
+	}
+	if m.progress != nil {
+		fields = append(fields, mobiletask.FieldProgress)
+	}
+	if m.parent_task_id != nil {
+		fields = append(fields, mobiletask.FieldParentTaskID)
+	}
+	if m.retry_of != nil {
+		fields = append(fields, mobiletask.FieldRetryOf)
+	}
+	if m.client_request_id != nil {
+		fields = append(fields, mobiletask.FieldClientRequestID)
+	}
+	if m.resource != nil {
+		fields = append(fields, mobiletask.FieldResource)
+	}
+	if m.artifacts != nil {
+		fields = append(fields, mobiletask.FieldArtifacts)
+	}
+	if m.error != nil {
+		fields = append(fields, mobiletask.FieldError)
+	}
+	if m.protocol_version != nil {
+		fields = append(fields, mobiletask.FieldProtocolVersion)
+	}
+	if m.created_at != nil {
+		fields = append(fields, mobiletask.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, mobiletask.FieldUpdatedAt)
+	}
+	if m.started_at != nil {
+		fields = append(fields, mobiletask.FieldStartedAt)
+	}
+	if m.finished_at != nil {
+		fields = append(fields, mobiletask.FieldFinishedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MobileTaskMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case mobiletask.FieldUserID:
+		return m.UserID()
+	case mobiletask.FieldKind:
+		return m.Kind()
+	case mobiletask.FieldOperation:
+		return m.Operation()
+	case mobiletask.FieldStatus:
+		return m.Status()
+	case mobiletask.FieldProgress:
+		return m.Progress()
+	case mobiletask.FieldParentTaskID:
+		return m.ParentTaskID()
+	case mobiletask.FieldRetryOf:
+		return m.RetryOf()
+	case mobiletask.FieldClientRequestID:
+		return m.ClientRequestID()
+	case mobiletask.FieldResource:
+		return m.Resource()
+	case mobiletask.FieldArtifacts:
+		return m.Artifacts()
+	case mobiletask.FieldError:
+		return m.Error()
+	case mobiletask.FieldProtocolVersion:
+		return m.ProtocolVersion()
+	case mobiletask.FieldCreatedAt:
+		return m.CreatedAt()
+	case mobiletask.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case mobiletask.FieldStartedAt:
+		return m.StartedAt()
+	case mobiletask.FieldFinishedAt:
+		return m.FinishedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MobileTaskMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case mobiletask.FieldUserID:
+		return m.OldUserID(ctx)
+	case mobiletask.FieldKind:
+		return m.OldKind(ctx)
+	case mobiletask.FieldOperation:
+		return m.OldOperation(ctx)
+	case mobiletask.FieldStatus:
+		return m.OldStatus(ctx)
+	case mobiletask.FieldProgress:
+		return m.OldProgress(ctx)
+	case mobiletask.FieldParentTaskID:
+		return m.OldParentTaskID(ctx)
+	case mobiletask.FieldRetryOf:
+		return m.OldRetryOf(ctx)
+	case mobiletask.FieldClientRequestID:
+		return m.OldClientRequestID(ctx)
+	case mobiletask.FieldResource:
+		return m.OldResource(ctx)
+	case mobiletask.FieldArtifacts:
+		return m.OldArtifacts(ctx)
+	case mobiletask.FieldError:
+		return m.OldError(ctx)
+	case mobiletask.FieldProtocolVersion:
+		return m.OldProtocolVersion(ctx)
+	case mobiletask.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case mobiletask.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case mobiletask.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case mobiletask.FieldFinishedAt:
+		return m.OldFinishedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown MobileTask field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileTaskMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case mobiletask.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case mobiletask.FieldKind:
+		v, ok := value.(mobiletask.Kind)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKind(v)
+		return nil
+	case mobiletask.FieldOperation:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOperation(v)
+		return nil
+	case mobiletask.FieldStatus:
+		v, ok := value.(mobiletask.Status)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStatus(v)
+		return nil
+	case mobiletask.FieldProgress:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProgress(v)
+		return nil
+	case mobiletask.FieldParentTaskID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParentTaskID(v)
+		return nil
+	case mobiletask.FieldRetryOf:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetryOf(v)
+		return nil
+	case mobiletask.FieldClientRequestID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetClientRequestID(v)
+		return nil
+	case mobiletask.FieldResource:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResource(v)
+		return nil
+	case mobiletask.FieldArtifacts:
+		v, ok := value.([]map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetArtifacts(v)
+		return nil
+	case mobiletask.FieldError:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetError(v)
+		return nil
+	case mobiletask.FieldProtocolVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetProtocolVersion(v)
+		return nil
+	case mobiletask.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case mobiletask.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case mobiletask.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case mobiletask.FieldFinishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinishedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileTask field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MobileTaskMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, mobiletask.FieldUserID)
+	}
+	if m.addprogress != nil {
+		fields = append(fields, mobiletask.FieldProgress)
+	}
+	if m.addprotocol_version != nil {
+		fields = append(fields, mobiletask.FieldProtocolVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MobileTaskMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case mobiletask.FieldUserID:
+		return m.AddedUserID()
+	case mobiletask.FieldProgress:
+		return m.AddedProgress()
+	case mobiletask.FieldProtocolVersion:
+		return m.AddedProtocolVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MobileTaskMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case mobiletask.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case mobiletask.FieldProgress:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProgress(v)
+		return nil
+	case mobiletask.FieldProtocolVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddProtocolVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MobileTask numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MobileTaskMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(mobiletask.FieldParentTaskID) {
+		fields = append(fields, mobiletask.FieldParentTaskID)
+	}
+	if m.FieldCleared(mobiletask.FieldRetryOf) {
+		fields = append(fields, mobiletask.FieldRetryOf)
+	}
+	if m.FieldCleared(mobiletask.FieldResource) {
+		fields = append(fields, mobiletask.FieldResource)
+	}
+	if m.FieldCleared(mobiletask.FieldError) {
+		fields = append(fields, mobiletask.FieldError)
+	}
+	if m.FieldCleared(mobiletask.FieldStartedAt) {
+		fields = append(fields, mobiletask.FieldStartedAt)
+	}
+	if m.FieldCleared(mobiletask.FieldFinishedAt) {
+		fields = append(fields, mobiletask.FieldFinishedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MobileTaskMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MobileTaskMutation) ClearField(name string) error {
+	switch name {
+	case mobiletask.FieldParentTaskID:
+		m.ClearParentTaskID()
+		return nil
+	case mobiletask.FieldRetryOf:
+		m.ClearRetryOf()
+		return nil
+	case mobiletask.FieldResource:
+		m.ClearResource()
+		return nil
+	case mobiletask.FieldError:
+		m.ClearError()
+		return nil
+	case mobiletask.FieldStartedAt:
+		m.ClearStartedAt()
+		return nil
+	case mobiletask.FieldFinishedAt:
+		m.ClearFinishedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileTask nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MobileTaskMutation) ResetField(name string) error {
+	switch name {
+	case mobiletask.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case mobiletask.FieldKind:
+		m.ResetKind()
+		return nil
+	case mobiletask.FieldOperation:
+		m.ResetOperation()
+		return nil
+	case mobiletask.FieldStatus:
+		m.ResetStatus()
+		return nil
+	case mobiletask.FieldProgress:
+		m.ResetProgress()
+		return nil
+	case mobiletask.FieldParentTaskID:
+		m.ResetParentTaskID()
+		return nil
+	case mobiletask.FieldRetryOf:
+		m.ResetRetryOf()
+		return nil
+	case mobiletask.FieldClientRequestID:
+		m.ResetClientRequestID()
+		return nil
+	case mobiletask.FieldResource:
+		m.ResetResource()
+		return nil
+	case mobiletask.FieldArtifacts:
+		m.ResetArtifacts()
+		return nil
+	case mobiletask.FieldError:
+		m.ResetError()
+		return nil
+	case mobiletask.FieldProtocolVersion:
+		m.ResetProtocolVersion()
+		return nil
+	case mobiletask.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case mobiletask.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case mobiletask.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case mobiletask.FieldFinishedAt:
+		m.ResetFinishedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MobileTask field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MobileTaskMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MobileTaskMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MobileTaskMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MobileTaskMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MobileTaskMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MobileTaskMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MobileTaskMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MobileTask unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MobileTaskMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MobileTask edge %s", name)
 }
 
 // PaymentAuditLogMutation represents an operation that mutates the PaymentAuditLog nodes in the graph.
@@ -52363,6 +61911,801 @@ func (m *UserAttributeValueMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown UserAttributeValue edge %s", name)
+}
+
+// UserMobileSkillMutation represents an operation that mutates the UserMobileSkill nodes in the graph.
+type UserMobileSkillMutation struct {
+	config
+	op                   Op
+	typ                  string
+	id                   *int64
+	created_at           *time.Time
+	updated_at           *time.Time
+	user_id              *int64
+	adduser_id           *int64
+	installed_version    *int
+	addinstalled_version *int
+	pinned               *bool
+	last_used_at         *time.Time
+	clearedFields        map[string]struct{}
+	skill                *int64
+	clearedskill         bool
+	done                 bool
+	oldValue             func(context.Context) (*UserMobileSkill, error)
+	predicates           []predicate.UserMobileSkill
+}
+
+var _ ent.Mutation = (*UserMobileSkillMutation)(nil)
+
+// usermobileskillOption allows management of the mutation configuration using functional options.
+type usermobileskillOption func(*UserMobileSkillMutation)
+
+// newUserMobileSkillMutation creates new mutation for the UserMobileSkill entity.
+func newUserMobileSkillMutation(c config, op Op, opts ...usermobileskillOption) *UserMobileSkillMutation {
+	m := &UserMobileSkillMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeUserMobileSkill,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withUserMobileSkillID sets the ID field of the mutation.
+func withUserMobileSkillID(id int64) usermobileskillOption {
+	return func(m *UserMobileSkillMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *UserMobileSkill
+		)
+		m.oldValue = func(ctx context.Context) (*UserMobileSkill, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().UserMobileSkill.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withUserMobileSkill sets the old UserMobileSkill of the mutation.
+func withUserMobileSkill(node *UserMobileSkill) usermobileskillOption {
+	return func(m *UserMobileSkillMutation) {
+		m.oldValue = func(context.Context) (*UserMobileSkill, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m UserMobileSkillMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m UserMobileSkillMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *UserMobileSkillMutation) ID() (id int64, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *UserMobileSkillMutation) IDs(ctx context.Context) ([]int64, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []int64{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().UserMobileSkill.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *UserMobileSkillMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *UserMobileSkillMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *UserMobileSkillMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *UserMobileSkillMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *UserMobileSkillMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *UserMobileSkillMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// SetUserID sets the "user_id" field.
+func (m *UserMobileSkillMutation) SetUserID(i int64) {
+	m.user_id = &i
+	m.adduser_id = nil
+}
+
+// UserID returns the value of the "user_id" field in the mutation.
+func (m *UserMobileSkillMutation) UserID() (r int64, exists bool) {
+	v := m.user_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUserID returns the old "user_id" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldUserID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUserID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUserID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUserID: %w", err)
+	}
+	return oldValue.UserID, nil
+}
+
+// AddUserID adds i to the "user_id" field.
+func (m *UserMobileSkillMutation) AddUserID(i int64) {
+	if m.adduser_id != nil {
+		*m.adduser_id += i
+	} else {
+		m.adduser_id = &i
+	}
+}
+
+// AddedUserID returns the value that was added to the "user_id" field in this mutation.
+func (m *UserMobileSkillMutation) AddedUserID() (r int64, exists bool) {
+	v := m.adduser_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUserID resets all changes to the "user_id" field.
+func (m *UserMobileSkillMutation) ResetUserID() {
+	m.user_id = nil
+	m.adduser_id = nil
+}
+
+// SetSkillID sets the "skill_id" field.
+func (m *UserMobileSkillMutation) SetSkillID(i int64) {
+	m.skill = &i
+}
+
+// SkillID returns the value of the "skill_id" field in the mutation.
+func (m *UserMobileSkillMutation) SkillID() (r int64, exists bool) {
+	v := m.skill
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSkillID returns the old "skill_id" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldSkillID(ctx context.Context) (v int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSkillID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSkillID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSkillID: %w", err)
+	}
+	return oldValue.SkillID, nil
+}
+
+// ResetSkillID resets all changes to the "skill_id" field.
+func (m *UserMobileSkillMutation) ResetSkillID() {
+	m.skill = nil
+}
+
+// SetInstalledVersion sets the "installed_version" field.
+func (m *UserMobileSkillMutation) SetInstalledVersion(i int) {
+	m.installed_version = &i
+	m.addinstalled_version = nil
+}
+
+// InstalledVersion returns the value of the "installed_version" field in the mutation.
+func (m *UserMobileSkillMutation) InstalledVersion() (r int, exists bool) {
+	v := m.installed_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldInstalledVersion returns the old "installed_version" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldInstalledVersion(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldInstalledVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldInstalledVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldInstalledVersion: %w", err)
+	}
+	return oldValue.InstalledVersion, nil
+}
+
+// AddInstalledVersion adds i to the "installed_version" field.
+func (m *UserMobileSkillMutation) AddInstalledVersion(i int) {
+	if m.addinstalled_version != nil {
+		*m.addinstalled_version += i
+	} else {
+		m.addinstalled_version = &i
+	}
+}
+
+// AddedInstalledVersion returns the value that was added to the "installed_version" field in this mutation.
+func (m *UserMobileSkillMutation) AddedInstalledVersion() (r int, exists bool) {
+	v := m.addinstalled_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetInstalledVersion resets all changes to the "installed_version" field.
+func (m *UserMobileSkillMutation) ResetInstalledVersion() {
+	m.installed_version = nil
+	m.addinstalled_version = nil
+}
+
+// SetPinned sets the "pinned" field.
+func (m *UserMobileSkillMutation) SetPinned(b bool) {
+	m.pinned = &b
+}
+
+// Pinned returns the value of the "pinned" field in the mutation.
+func (m *UserMobileSkillMutation) Pinned() (r bool, exists bool) {
+	v := m.pinned
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPinned returns the old "pinned" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldPinned(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPinned is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPinned requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPinned: %w", err)
+	}
+	return oldValue.Pinned, nil
+}
+
+// ResetPinned resets all changes to the "pinned" field.
+func (m *UserMobileSkillMutation) ResetPinned() {
+	m.pinned = nil
+}
+
+// SetLastUsedAt sets the "last_used_at" field.
+func (m *UserMobileSkillMutation) SetLastUsedAt(t time.Time) {
+	m.last_used_at = &t
+}
+
+// LastUsedAt returns the value of the "last_used_at" field in the mutation.
+func (m *UserMobileSkillMutation) LastUsedAt() (r time.Time, exists bool) {
+	v := m.last_used_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastUsedAt returns the old "last_used_at" field's value of the UserMobileSkill entity.
+// If the UserMobileSkill object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UserMobileSkillMutation) OldLastUsedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastUsedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastUsedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastUsedAt: %w", err)
+	}
+	return oldValue.LastUsedAt, nil
+}
+
+// ClearLastUsedAt clears the value of the "last_used_at" field.
+func (m *UserMobileSkillMutation) ClearLastUsedAt() {
+	m.last_used_at = nil
+	m.clearedFields[usermobileskill.FieldLastUsedAt] = struct{}{}
+}
+
+// LastUsedAtCleared returns if the "last_used_at" field was cleared in this mutation.
+func (m *UserMobileSkillMutation) LastUsedAtCleared() bool {
+	_, ok := m.clearedFields[usermobileskill.FieldLastUsedAt]
+	return ok
+}
+
+// ResetLastUsedAt resets all changes to the "last_used_at" field.
+func (m *UserMobileSkillMutation) ResetLastUsedAt() {
+	m.last_used_at = nil
+	delete(m.clearedFields, usermobileskill.FieldLastUsedAt)
+}
+
+// ClearSkill clears the "skill" edge to the MobileSkill entity.
+func (m *UserMobileSkillMutation) ClearSkill() {
+	m.clearedskill = true
+	m.clearedFields[usermobileskill.FieldSkillID] = struct{}{}
+}
+
+// SkillCleared reports if the "skill" edge to the MobileSkill entity was cleared.
+func (m *UserMobileSkillMutation) SkillCleared() bool {
+	return m.clearedskill
+}
+
+// SkillIDs returns the "skill" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// SkillID instead. It exists only for internal usage by the builders.
+func (m *UserMobileSkillMutation) SkillIDs() (ids []int64) {
+	if id := m.skill; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetSkill resets all changes to the "skill" edge.
+func (m *UserMobileSkillMutation) ResetSkill() {
+	m.skill = nil
+	m.clearedskill = false
+}
+
+// Where appends a list predicates to the UserMobileSkillMutation builder.
+func (m *UserMobileSkillMutation) Where(ps ...predicate.UserMobileSkill) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the UserMobileSkillMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *UserMobileSkillMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.UserMobileSkill, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *UserMobileSkillMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *UserMobileSkillMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (UserMobileSkill).
+func (m *UserMobileSkillMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *UserMobileSkillMutation) Fields() []string {
+	fields := make([]string, 0, 7)
+	if m.created_at != nil {
+		fields = append(fields, usermobileskill.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, usermobileskill.FieldUpdatedAt)
+	}
+	if m.user_id != nil {
+		fields = append(fields, usermobileskill.FieldUserID)
+	}
+	if m.skill != nil {
+		fields = append(fields, usermobileskill.FieldSkillID)
+	}
+	if m.installed_version != nil {
+		fields = append(fields, usermobileskill.FieldInstalledVersion)
+	}
+	if m.pinned != nil {
+		fields = append(fields, usermobileskill.FieldPinned)
+	}
+	if m.last_used_at != nil {
+		fields = append(fields, usermobileskill.FieldLastUsedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *UserMobileSkillMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case usermobileskill.FieldCreatedAt:
+		return m.CreatedAt()
+	case usermobileskill.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case usermobileskill.FieldUserID:
+		return m.UserID()
+	case usermobileskill.FieldSkillID:
+		return m.SkillID()
+	case usermobileskill.FieldInstalledVersion:
+		return m.InstalledVersion()
+	case usermobileskill.FieldPinned:
+		return m.Pinned()
+	case usermobileskill.FieldLastUsedAt:
+		return m.LastUsedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *UserMobileSkillMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case usermobileskill.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case usermobileskill.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case usermobileskill.FieldUserID:
+		return m.OldUserID(ctx)
+	case usermobileskill.FieldSkillID:
+		return m.OldSkillID(ctx)
+	case usermobileskill.FieldInstalledVersion:
+		return m.OldInstalledVersion(ctx)
+	case usermobileskill.FieldPinned:
+		return m.OldPinned(ctx)
+	case usermobileskill.FieldLastUsedAt:
+		return m.OldLastUsedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown UserMobileSkill field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserMobileSkillMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case usermobileskill.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case usermobileskill.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case usermobileskill.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUserID(v)
+		return nil
+	case usermobileskill.FieldSkillID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSkillID(v)
+		return nil
+	case usermobileskill.FieldInstalledVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetInstalledVersion(v)
+		return nil
+	case usermobileskill.FieldPinned:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPinned(v)
+		return nil
+	case usermobileskill.FieldLastUsedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastUsedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserMobileSkill field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *UserMobileSkillMutation) AddedFields() []string {
+	var fields []string
+	if m.adduser_id != nil {
+		fields = append(fields, usermobileskill.FieldUserID)
+	}
+	if m.addinstalled_version != nil {
+		fields = append(fields, usermobileskill.FieldInstalledVersion)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *UserMobileSkillMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case usermobileskill.FieldUserID:
+		return m.AddedUserID()
+	case usermobileskill.FieldInstalledVersion:
+		return m.AddedInstalledVersion()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *UserMobileSkillMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case usermobileskill.FieldUserID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUserID(v)
+		return nil
+	case usermobileskill.FieldInstalledVersion:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddInstalledVersion(v)
+		return nil
+	}
+	return fmt.Errorf("unknown UserMobileSkill numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *UserMobileSkillMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(usermobileskill.FieldLastUsedAt) {
+		fields = append(fields, usermobileskill.FieldLastUsedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *UserMobileSkillMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *UserMobileSkillMutation) ClearField(name string) error {
+	switch name {
+	case usermobileskill.FieldLastUsedAt:
+		m.ClearLastUsedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserMobileSkill nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *UserMobileSkillMutation) ResetField(name string) error {
+	switch name {
+	case usermobileskill.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case usermobileskill.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case usermobileskill.FieldUserID:
+		m.ResetUserID()
+		return nil
+	case usermobileskill.FieldSkillID:
+		m.ResetSkillID()
+		return nil
+	case usermobileskill.FieldInstalledVersion:
+		m.ResetInstalledVersion()
+		return nil
+	case usermobileskill.FieldPinned:
+		m.ResetPinned()
+		return nil
+	case usermobileskill.FieldLastUsedAt:
+		m.ResetLastUsedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown UserMobileSkill field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *UserMobileSkillMutation) AddedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.skill != nil {
+		edges = append(edges, usermobileskill.EdgeSkill)
+	}
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *UserMobileSkillMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case usermobileskill.EdgeSkill:
+		if id := m.skill; id != nil {
+			return []ent.Value{*id}
+		}
+	}
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *UserMobileSkillMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 1)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *UserMobileSkillMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *UserMobileSkillMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 1)
+	if m.clearedskill {
+		edges = append(edges, usermobileskill.EdgeSkill)
+	}
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *UserMobileSkillMutation) EdgeCleared(name string) bool {
+	switch name {
+	case usermobileskill.EdgeSkill:
+		return m.clearedskill
+	}
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *UserMobileSkillMutation) ClearEdge(name string) error {
+	switch name {
+	case usermobileskill.EdgeSkill:
+		m.ClearSkill()
+		return nil
+	}
+	return fmt.Errorf("unknown UserMobileSkill unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *UserMobileSkillMutation) ResetEdge(name string) error {
+	switch name {
+	case usermobileskill.EdgeSkill:
+		m.ResetSkill()
+		return nil
+	}
+	return fmt.Errorf("unknown UserMobileSkill edge %s", name)
 }
 
 // UserPlatformQuotaMutation represents an operation that mutates the UserPlatformQuota nodes in the graph.

@@ -127,6 +127,7 @@ func TestCheckoutInfoJSONIncludesStorefrontConfig(t *testing.T) {
 		"help_text": "",
 		"help_image_url": "",
 		"stripe_publishable_key": "",
-		"alipay_force_qrcode": false
+		"alipay_force_qrcode": false,
+		"alipay_mobile_precreate_deep_link": false
 	}`, string(body))
 }

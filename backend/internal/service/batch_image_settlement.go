@@ -298,6 +298,7 @@ func (s *BatchImageSettlementService) recordUsageLog(ctx context.Context, job *B
 		RequestType:           RequestTypeSync,
 		BillingMode:           &billingMode,
 		ImageSize:             &imageSize,
+		SessionID:             job.SessionID,
 		CreatedAt:             createdAt,
 	}
 	usageCtx, cancel := detachedBillingContext(ctx)
