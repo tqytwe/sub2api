@@ -97,6 +97,7 @@ export interface PlayArenaDailyRewardEstimateRow {
 
 export interface PlayBlindboxStatus {
   enabled: boolean
+  coupon_pool_ready?: boolean
   cost_amount: number
   pool?: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
@@ -129,6 +130,7 @@ export interface PlayBlindboxPool {
 
 export interface PlayBlindboxPoolResponse {
   enabled: boolean
+  coupon_pool_ready?: boolean
   pool: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
   next_pool?: PlayBlindboxPool
@@ -143,6 +145,9 @@ export interface PlayBlindboxOpenResult {
   cost_amount: number
   reward_amount: number
   net_amount: number
+  reward_type?: PlayRewardType
+  coupon?: PlayCouponReward
+  coupon_pool_version?: string
   opens_today: number
   server_date: string
   pool_version: string
@@ -150,6 +155,22 @@ export interface PlayBlindboxOpenResult {
   vip_tier?: PlayVIPStatus
   expected_reward?: number
   rtp_cap?: number
+}
+
+export type PlayRewardType = 'none' | 'balance' | 'coupon'
+
+export interface PlayCouponReward {
+  user_coupon_id: number
+  template_id: number
+  name: string
+  benefit_type: 'fixed_amount' | 'percentage'
+  benefit_value: number
+  max_discount_amount?: number | null
+  currency: string
+  applicable_scopes: ('balance' | 'subscription')[]
+  minimum_order_amount: number
+  valid_from: string
+  expires_at: string
 }
 
 export interface PlayBlindboxRecentWin {
@@ -166,11 +187,15 @@ export interface PlayQuizQuestion {
 
 export interface PlayQuizToday {
   enabled: boolean
+  coupon_pool_ready?: boolean
   questions: PlayQuizQuestion[]
   already_submitted: boolean
   previous_score?: number
   previous_total?: number
   previous_reward?: number
+  previous_reward_type?: PlayRewardType
+  previous_coupon?: PlayCouponReward
+  previous_coupon_pool_version?: string
   reward_per_correct: number
   server_date: string
 }
@@ -179,6 +204,9 @@ export interface PlayQuizSubmitResult {
   score: number
   total: number
   reward_amount: number
+  reward_type?: PlayRewardType
+  coupon?: PlayCouponReward
+  coupon_pool_version?: string
   server_date: string
 }
 

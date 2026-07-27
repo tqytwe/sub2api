@@ -29,6 +29,24 @@ type PaymentOrder struct {
 	UserNotes *string `json:"user_notes,omitempty"`
 	// Amount holds the value of the "amount" field.
 	Amount float64 `json:"amount,omitempty"`
+	// CouponID holds the value of the "coupon_id" field.
+	CouponID *int64 `json:"coupon_id,omitempty"`
+	// CouponTemplateID holds the value of the "coupon_template_id" field.
+	CouponTemplateID *int64 `json:"coupon_template_id,omitempty"`
+	// CouponSnapshot holds the value of the "coupon_snapshot" field.
+	CouponSnapshot map[string]interface{} `json:"coupon_snapshot,omitempty"`
+	// ListAmount holds the value of the "list_amount" field.
+	ListAmount float64 `json:"list_amount,omitempty"`
+	// GatewayBaseAmount holds the value of the "gateway_base_amount" field.
+	GatewayBaseAmount float64 `json:"gateway_base_amount,omitempty"`
+	// DiscountAmount holds the value of the "discount_amount" field.
+	DiscountAmount float64 `json:"discount_amount,omitempty"`
+	// FeeAmount holds the value of the "fee_amount" field.
+	FeeAmount float64 `json:"fee_amount,omitempty"`
+	// QualifyingRechargeAmount holds the value of the "qualifying_recharge_amount" field.
+	QualifyingRechargeAmount float64 `json:"qualifying_recharge_amount,omitempty"`
+	// PaymentCurrency holds the value of the "payment_currency" field.
+	PaymentCurrency string `json:"payment_currency,omitempty"`
 	// PayAmount holds the value of the "pay_amount" field.
 	PayAmount float64 `json:"pay_amount,omitempty"`
 	// FeeRate holds the value of the "fee_rate" field.
@@ -130,15 +148,15 @@ func (*PaymentOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case paymentorder.FieldProviderSnapshot, paymentorder.FieldRechargeSnapshot:
+		case paymentorder.FieldCouponSnapshot, paymentorder.FieldProviderSnapshot, paymentorder.FieldRechargeSnapshot:
 			values[i] = new([]byte)
 		case paymentorder.FieldForceRefund:
 			values[i] = new(sql.NullBool)
-		case paymentorder.FieldAmount, paymentorder.FieldPayAmount, paymentorder.FieldFeeRate, paymentorder.FieldRefundAmount:
+		case paymentorder.FieldAmount, paymentorder.FieldListAmount, paymentorder.FieldGatewayBaseAmount, paymentorder.FieldDiscountAmount, paymentorder.FieldFeeAmount, paymentorder.FieldQualifyingRechargeAmount, paymentorder.FieldPayAmount, paymentorder.FieldFeeRate, paymentorder.FieldRefundAmount:
 			values[i] = new(sql.NullFloat64)
-		case paymentorder.FieldID, paymentorder.FieldUserID, paymentorder.FieldPlanID, paymentorder.FieldSubscriptionGroupID, paymentorder.FieldSubscriptionDays:
+		case paymentorder.FieldID, paymentorder.FieldUserID, paymentorder.FieldCouponID, paymentorder.FieldCouponTemplateID, paymentorder.FieldPlanID, paymentorder.FieldSubscriptionGroupID, paymentorder.FieldSubscriptionDays:
 			values[i] = new(sql.NullInt64)
-		case paymentorder.FieldUserEmail, paymentorder.FieldUserName, paymentorder.FieldUserNotes, paymentorder.FieldRechargeCode, paymentorder.FieldOutTradeNo, paymentorder.FieldPaymentType, paymentorder.FieldPaymentTradeNo, paymentorder.FieldPayURL, paymentorder.FieldQrCode, paymentorder.FieldQrCodeImg, paymentorder.FieldOrderType, paymentorder.FieldProviderInstanceID, paymentorder.FieldProviderKey, paymentorder.FieldStatus, paymentorder.FieldRefundReason, paymentorder.FieldRefundRequestReason, paymentorder.FieldRefundRequestedBy, paymentorder.FieldFailedReason, paymentorder.FieldClientIP, paymentorder.FieldSrcHost, paymentorder.FieldSrcURL:
+		case paymentorder.FieldUserEmail, paymentorder.FieldUserName, paymentorder.FieldUserNotes, paymentorder.FieldPaymentCurrency, paymentorder.FieldRechargeCode, paymentorder.FieldOutTradeNo, paymentorder.FieldPaymentType, paymentorder.FieldPaymentTradeNo, paymentorder.FieldPayURL, paymentorder.FieldQrCode, paymentorder.FieldQrCodeImg, paymentorder.FieldOrderType, paymentorder.FieldProviderInstanceID, paymentorder.FieldProviderKey, paymentorder.FieldStatus, paymentorder.FieldRefundReason, paymentorder.FieldRefundRequestReason, paymentorder.FieldRefundRequestedBy, paymentorder.FieldFailedReason, paymentorder.FieldClientIP, paymentorder.FieldSrcHost, paymentorder.FieldSrcURL:
 			values[i] = new(sql.NullString)
 		case paymentorder.FieldRefundAt, paymentorder.FieldRefundRequestedAt, paymentorder.FieldExpiresAt, paymentorder.FieldPaidAt, paymentorder.FieldCompletedAt, paymentorder.FieldFailedAt, paymentorder.FieldCreatedAt, paymentorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -193,6 +211,64 @@ func (_m *PaymentOrder) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field amount", values[i])
 			} else if value.Valid {
 				_m.Amount = value.Float64
+			}
+		case paymentorder.FieldCouponID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field coupon_id", values[i])
+			} else if value.Valid {
+				_m.CouponID = new(int64)
+				*_m.CouponID = value.Int64
+			}
+		case paymentorder.FieldCouponTemplateID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field coupon_template_id", values[i])
+			} else if value.Valid {
+				_m.CouponTemplateID = new(int64)
+				*_m.CouponTemplateID = value.Int64
+			}
+		case paymentorder.FieldCouponSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field coupon_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.CouponSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field coupon_snapshot: %w", err)
+				}
+			}
+		case paymentorder.FieldListAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field list_amount", values[i])
+			} else if value.Valid {
+				_m.ListAmount = value.Float64
+			}
+		case paymentorder.FieldGatewayBaseAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field gateway_base_amount", values[i])
+			} else if value.Valid {
+				_m.GatewayBaseAmount = value.Float64
+			}
+		case paymentorder.FieldDiscountAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field discount_amount", values[i])
+			} else if value.Valid {
+				_m.DiscountAmount = value.Float64
+			}
+		case paymentorder.FieldFeeAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field fee_amount", values[i])
+			} else if value.Valid {
+				_m.FeeAmount = value.Float64
+			}
+		case paymentorder.FieldQualifyingRechargeAmount:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field qualifying_recharge_amount", values[i])
+			} else if value.Valid {
+				_m.QualifyingRechargeAmount = value.Float64
+			}
+		case paymentorder.FieldPaymentCurrency:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field payment_currency", values[i])
+			} else if value.Valid {
+				_m.PaymentCurrency = value.String
 			}
 		case paymentorder.FieldPayAmount:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -483,6 +559,37 @@ func (_m *PaymentOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Amount))
+	builder.WriteString(", ")
+	if v := _m.CouponID; v != nil {
+		builder.WriteString("coupon_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.CouponTemplateID; v != nil {
+		builder.WriteString("coupon_template_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("coupon_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CouponSnapshot))
+	builder.WriteString(", ")
+	builder.WriteString("list_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ListAmount))
+	builder.WriteString(", ")
+	builder.WriteString("gateway_base_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.GatewayBaseAmount))
+	builder.WriteString(", ")
+	builder.WriteString("discount_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.DiscountAmount))
+	builder.WriteString(", ")
+	builder.WriteString("fee_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.FeeAmount))
+	builder.WriteString(", ")
+	builder.WriteString("qualifying_recharge_amount=")
+	builder.WriteString(fmt.Sprintf("%v", _m.QualifyingRechargeAmount))
+	builder.WriteString(", ")
+	builder.WriteString("payment_currency=")
+	builder.WriteString(_m.PaymentCurrency)
 	builder.WriteString(", ")
 	builder.WriteString("pay_amount=")
 	builder.WriteString(fmt.Sprintf("%v", _m.PayAmount))

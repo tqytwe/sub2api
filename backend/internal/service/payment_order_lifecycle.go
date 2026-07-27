@@ -391,6 +391,12 @@ func (s *PaymentService) ExpireTimedOutOrders(ctx context.Context) (int, error) 
 			n++
 		}
 	}
+	// Coupon locks stay in place during the late-webhook grace period. A
+	// separate release pass runs every scheduled expiry cycle so user-cancelled
+	// orders are also eventually unlocked even when no new order expires.
+	if _, releaseErr := s.ReleaseCouponLocksAfterLatePaymentGrace(ctx); releaseErr != nil {
+		slog.Warn("release stale payment coupon locks failed", "error", releaseErr)
+	}
 	return n, nil
 }
 

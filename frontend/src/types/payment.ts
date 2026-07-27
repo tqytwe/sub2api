@@ -241,6 +241,7 @@ export interface CreateOrderRequest {
   payment_type: string
   order_type: string
   plan_id?: number
+  coupon_id?: number
   return_url?: string
   payment_source?: string
   openid?: string
@@ -248,7 +249,7 @@ export interface CreateOrderRequest {
   is_mobile?: boolean
 }
 
-export type CreateOrderResultType = 'order_created' | 'oauth_required' | 'jsapi_ready'
+export type CreateOrderResultType = 'order_created' | 'oauth_required' | 'jsapi_ready' | 'completed'
 
 export interface WechatOAuthInfo {
   authorize_url?: string
@@ -281,6 +282,7 @@ export interface CreateOrderResult {
   pay_amount: number
   fee_rate: number
   expires_at: string
+  status?: string
   result_type?: CreateOrderResultType
   payment_type?: string
   out_trade_no?: string

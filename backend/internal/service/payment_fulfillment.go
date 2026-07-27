@@ -149,26 +149,14 @@ func expectedNotificationProviderKey(registry *payment.Registry, orderPaymentTyp
 
 func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, tradeNo string, paid float64, pk string) error {
 	previousStatus := o.Status
-	now := time.Now()
-	grace := now.Add(-paymentGraceMinutes * time.Minute)
-	c, err := s.entClient.PaymentOrder.Update().Where(
-		paymentorder.IDEQ(o.ID),
-		paymentorder.Or(
-			paymentorder.StatusEQ(OrderStatusPending),
-			paymentorder.StatusEQ(OrderStatusCancelled),
-			paymentorder.And(
-				paymentorder.StatusEQ(OrderStatusExpired),
-				paymentorder.UpdatedAtGTE(grace),
-			),
-		),
-	).SetStatus(OrderStatusPaid).SetPayAmount(paid).SetPaymentTradeNo(tradeNo).SetPaidAt(now).ClearFailedAt().ClearFailedReason().Save(ctx)
+	updated, err := s.markOrderPaidAndConsumeCoupon(ctx, o, tradeNo, paid, true)
 	if err != nil {
 		return fmt.Errorf("update to PAID: %w", err)
 	}
-	if c == 0 {
+	if !updated {
 		return s.alreadyProcessed(ctx, o)
 	}
-	if previousStatus == OrderStatusCancelled || previousStatus == OrderStatusExpired {
+	if previousStatus == OrderStatusCancelled || previousStatus == OrderStatusExpired || previousStatus == OrderStatusFailed {
 		slog.Info("order recovered from webhook payment success",
 			"orderID", o.ID,
 			"previousStatus", previousStatus,
@@ -182,7 +170,12 @@ func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, trad
 			"reason":          "webhook payment success received after order " + previousStatus,
 		})
 	}
-	s.writeAuditLog(ctx, o.ID, "ORDER_PAID", pk, map[string]any{"tradeNo": tradeNo, "paidAmount": paid})
+	paidDetail := map[string]any{"tradeNo": tradeNo, "paidAmount": paid}
+	if o.CouponID != nil {
+		paidDetail["couponID"] = *o.CouponID
+		paidDetail["discountAmount"] = o.DiscountAmount
+	}
+	s.writeAuditLog(ctx, o.ID, "ORDER_PAID", pk, paidDetail)
 	return s.executeFulfillment(ctx, o.ID)
 }
 
@@ -194,7 +187,25 @@ func (s *PaymentService) alreadyProcessed(ctx context.Context, o *dbent.PaymentO
 	switch cur.Status {
 	case OrderStatusCompleted, OrderStatusRefunded:
 		return nil
-	case OrderStatusFailed, OrderStatusPaid, OrderStatusRecharging:
+	case OrderStatusFailed:
+		// Failed is also used for a gateway-create error, where no payment was
+		// ever confirmed. Only retry fulfillment for a failure that happened
+		// after the order was paid and therefore still has a paid timestamp.
+		if cur.PaidAt == nil {
+			slog.Warn("webhook payment success for failed order beyond grace period",
+				"orderID", o.ID,
+				"status", cur.Status,
+				"updatedAt", cur.UpdatedAt,
+			)
+			s.writeAuditLog(ctx, o.ID, "PAYMENT_AFTER_FAILURE_GRACE", "system", map[string]any{
+				"status":    cur.Status,
+				"updatedAt": cur.UpdatedAt,
+				"reason":    "payment arrived after gateway failure grace period",
+			})
+			return nil
+		}
+		return s.executeFulfillment(ctx, o.ID)
+	case OrderStatusPaid, OrderStatusRecharging:
 		return s.executeFulfillment(ctx, o.ID)
 	case OrderStatusExpired:
 		slog.Warn("webhook payment success for expired order beyond grace period",
@@ -378,7 +389,7 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	if err := s.markCompleted(ctx, o, lease, "RECHARGE_SUCCESS"); err != nil {
 		return err
 	}
-	if s.playService != nil {
+	if s.playService != nil && baseCredited > 0 {
 		if err := s.playService.GrantRechargeBoost(ctx, o.UserID); err != nil {
 			slog.Warn("grant play recharge boost failed", "user_id", o.UserID, "order_id", o.ID, "err", err)
 		}
@@ -733,6 +744,9 @@ func affiliateRebateBaseAmount(o *dbent.PaymentOrder) float64 {
 		baseAmount, _ := paymentOrderRechargeBaseCredited(o)
 		return baseAmount
 	case payment.OrderTypeSubscription:
+		if o.ListAmount > 0 {
+			return o.QualifyingRechargeAmount
+		}
 		return o.Amount
 	default:
 		return 0

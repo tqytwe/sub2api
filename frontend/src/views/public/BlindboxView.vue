@@ -8,6 +8,8 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
+import CouponRewardCard from '@/components/play/CouponRewardCard.vue'
+import { formatCurrency, formatDateTime } from '@/utils/format'
 import playAPI, {
   type PlayBlindboxOpenResult,
   type PlayBlindboxPool,
@@ -30,7 +32,19 @@ const lastResult = ref<PlayBlindboxOpenResult | null>(null)
 const celebrationOpen = ref(false)
 const recentWins = ref<PlayBlindboxRecentWin[]>([])
 const recentWinsFailed = ref(false)
+const pendingOpenIdempotencyKey = ref<string | null>(null)
+const pendingOpenStorageKey = ref<string | null>(null)
 let statusRequestID = 0
+let openRequestID = 0
+
+const pendingOpenStoragePrefix = 'blindbox.pending-open:'
+const maxIdempotencyKeyLength = 128
+
+interface PendingBlindboxOpen {
+  idempotencyKey: string
+  storageKey: string | null
+  userID: number | null
+}
 
 function isValidPool(pool: PlayBlindboxPool | null | undefined): pool is PlayBlindboxPool {
   if (
@@ -69,6 +83,13 @@ const featureEnabled = computed(() =>
   authStore.isAuthenticated ? status.value?.enabled === true : publicPool.value?.enabled === true,
 )
 
+const couponPoolReady = computed(() => {
+  const value = authStore.isAuthenticated
+    ? status.value?.coupon_pool_ready
+    : publicPool.value?.coupon_pool_ready
+  return value !== false
+})
+
 const prizePool = computed<PlayBlindboxPool | null>(() => {
   if (!featureEnabled.value) return null
   const pool = authStore.isAuthenticated
@@ -88,10 +109,20 @@ const poolVersion = computed(() => status.value?.pool_version ?? publicPool.valu
 const currentRTPCap = computed(() => status.value?.rtp_cap ?? publicPool.value?.rtp_cap ?? prizePool.value?.rtp_cap ?? 0)
 const nextExpectedReward = computed(() => status.value?.next_expected_reward ?? publicPool.value?.next_expected_reward ?? (nextPool.value ? expectedReward(nextPool.value) : 0))
 
+// The configured tiers are the original balance pool. A blind box reaches
+// that pool only after the fixed 60% coupon / 40% balance branch draw.
+// Display overall odds so a tier's internal weight is not mistaken for its
+// chance across every open.
+const balanceBranchWeight = 0.4
+const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight)
+const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight)
+const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight)
+
 const canOpen = computed(
   () =>
     authStore.isAuthenticated &&
     status.value?.enabled &&
+    couponPoolReady.value &&
     status.value.can_open &&
     prizePool.value !== null &&
     !opening.value,
@@ -100,6 +131,10 @@ const canOpen = computed(
 function formatProbability(weight: number): string {
   const percentage = weight / 100
   return `${percentage.toFixed(2).replace(/\.?0+$/, '')}%`
+}
+
+function formatBalanceProbability(weight: number): string {
+  return formatProbability(weight * balanceBranchWeight)
 }
 
 function formatPrizeAmount(amount: number): string {
@@ -132,8 +167,34 @@ const celebrationVariant = computed(() => {
     : 'standard'
 })
 
+const hasCouponResult = computed(() => lastResult.value?.reward_type === 'coupon' && !!lastResult.value.coupon)
+const couponResultPendingActivation = computed(() => {
+  const validFrom = lastResult.value?.coupon?.valid_from
+  const timestamp = validFrom ? Date.parse(validFrom) : Number.NaN
+  return Number.isFinite(timestamp) && timestamp > Date.now()
+})
+const celebrationTitle = computed(() => hasCouponResult.value ? t('coupon.reward.blindboxTitle') : t('blindbox.celebrationTitle'))
+const celebrationAmount = computed(() => hasCouponResult.value
+  ? lastResult.value?.coupon?.name || ''
+  : `$${formatMoney(lastResult.value?.reward_amount)}`)
+const celebrationSubtitle = computed(() => hasCouponResult.value
+  ? t('coupon.reward.issuedToWallet')
+  : t('blindbox.celebrationSubtitle'))
+
 const celebrationDetails = computed(() => {
   if (!lastResult.value) return []
+  if (lastResult.value.reward_type === 'coupon' && lastResult.value.coupon) {
+    const coupon = lastResult.value.coupon
+    const details = [
+      t('coupon.reward.expiresAt', { time: formatDateTime(coupon.expires_at) }),
+      t('coupon.reward.minimum', { amount: formatCurrency(coupon.minimum_order_amount, coupon.currency) }),
+      lastResult.value.coupon_pool_version || lastResult.value.pool_version,
+    ]
+    if (couponResultPendingActivation.value) {
+      details.unshift(t('coupon.reward.availableAt', { time: formatDateTime(coupon.valid_from) }))
+    }
+    return details
+  }
   return [
     lastResult.value.pool_version,
     t('blindbox.celebrationNet', {
@@ -192,34 +253,158 @@ async function loadStatus() {
   }
 }
 
+function currentBlindboxUserID(): number | null {
+  const userID = authStore.user?.id
+  if (typeof userID !== 'number' || !Number.isInteger(userID) || userID <= 0) return null
+  return userID
+}
+
+function pendingOpenStorageKeyForCurrentUser(): string | null {
+  const userID = currentBlindboxUserID()
+  if (!userID) return null
+  return `${pendingOpenStoragePrefix}${userID}`
+}
+
+function loadPersistedOpenIdempotencyKey(storageKey: string): string | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const idempotencyKey = window.sessionStorage.getItem(storageKey)?.trim() ?? ''
+    if (
+      idempotencyKey &&
+      idempotencyKey.length <= maxIdempotencyKeyLength &&
+      [...idempotencyKey].every((character) => {
+        const code = character.charCodeAt(0)
+        return code >= 33 && code <= 126
+      })
+    ) {
+      return idempotencyKey
+    }
+    if (idempotencyKey) window.sessionStorage.removeItem(storageKey)
+  } catch {
+    // Storage can be unavailable in privacy-restricted browser contexts.
+  }
+  return null
+}
+
+function persistOpenIdempotencyKey(storageKey: string | null, idempotencyKey: string) {
+  if (!storageKey || typeof window === 'undefined') return
+  try {
+    window.sessionStorage.setItem(storageKey, idempotencyKey)
+  } catch {
+    // The in-memory key still protects retries in the current page.
+  }
+}
+
+function clearPendingOpenIdempotencyKey(open: PendingBlindboxOpen) {
+  if (open.storageKey && typeof window !== 'undefined') {
+    try {
+      window.sessionStorage.removeItem(open.storageKey)
+    } catch {
+      // Nothing else is needed once the settled response has been received.
+    }
+  }
+  if (
+    pendingOpenIdempotencyKey.value === open.idempotencyKey &&
+    pendingOpenStorageKey.value === open.storageKey
+  ) {
+    pendingOpenIdempotencyKey.value = null
+    pendingOpenStorageKey.value = null
+  }
+}
+
+function currentOpenIdempotencyKey(): PendingBlindboxOpen {
+  const userID = currentBlindboxUserID()
+  const storageKey = pendingOpenStorageKeyForCurrentUser()
+  if (
+    pendingOpenIdempotencyKey.value &&
+    pendingOpenStorageKey.value === storageKey
+  ) {
+    return {
+      idempotencyKey: pendingOpenIdempotencyKey.value,
+      storageKey,
+      userID,
+    }
+  }
+
+  pendingOpenIdempotencyKey.value = null
+  pendingOpenStorageKey.value = null
+
+  const persistedKey = storageKey ? loadPersistedOpenIdempotencyKey(storageKey) : null
+  if (persistedKey) {
+    pendingOpenIdempotencyKey.value = persistedKey
+    pendingOpenStorageKey.value = storageKey
+    return { idempotencyKey: persistedKey, storageKey, userID }
+  }
+
+  const uuid = globalThis.crypto?.randomUUID?.()
+  pendingOpenIdempotencyKey.value = uuid
+    ? `blindbox-${uuid}`
+    : `blindbox-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  pendingOpenStorageKey.value = storageKey
+  persistOpenIdempotencyKey(storageKey, pendingOpenIdempotencyKey.value)
+  return {
+    idempotencyKey: pendingOpenIdempotencyKey.value,
+    storageKey,
+    userID,
+  }
+}
+
+function isCurrentOpenRequest(requestID: number, open: PendingBlindboxOpen): boolean {
+  return (
+    requestID === openRequestID &&
+    authStore.isAuthenticated &&
+    open.userID === currentBlindboxUserID()
+  )
+}
+
 async function handleOpen() {
   if (!canOpen.value) return
+  const requestID = ++openRequestID
+  const open = currentOpenIdempotencyKey()
   opening.value = true
   try {
-    lastResult.value = await playAPI.openBlindbox(`blindbox-${Date.now()}`)
+    let result: PlayBlindboxOpenResult
+    try {
+      result = await playAPI.openBlindbox(open.idempotencyKey)
+    } catch (err: unknown) {
+      if (!isCurrentOpenRequest(requestID, open)) return
+      const code = extractApiErrorCode(err)
+      if (code === 'INSUFFICIENT_BALANCE') {
+        appStore.showError(t('blindbox.insufficientBalance'))
+        return
+      }
+      if (code === 'PLAY_BLINDBOX_DAILY_LIMIT') {
+        appStore.showInfo(t('blindbox.dailyLimit'))
+        await loadStatus()
+        return
+      }
+      if (code === 'COUPON_REWARD_POOL_UNAVAILABLE') {
+        appStore.showInfo(t('blindbox.couponPoolUnavailable'))
+        await loadStatus()
+        return
+      }
+      appStore.showError(t('blindbox.failed'))
+      return
+    }
+
+    clearPendingOpenIdempotencyKey(open)
+    if (!isCurrentOpenRequest(requestID, open)) return
+    lastResult.value = result
     celebrationOpen.value = true
-    appStore.showSuccess(
-      t('blindbox.success', {
-        reward: lastResult.value.reward_amount.toFixed(2),
-        net: lastResult.value.net_amount.toFixed(2),
-      }),
-    )
-    await authStore.refreshUser()
+    appStore.showSuccess(lastResult.value.reward_type === 'coupon' && lastResult.value.coupon
+      ? t('coupon.reward.issued', { name: lastResult.value.coupon.name })
+      : t('blindbox.success', {
+          reward: lastResult.value.reward_amount.toFixed(2),
+          net: lastResult.value.net_amount.toFixed(2),
+        }))
+    try {
+      await authStore.refreshUser()
+    } catch {
+      // The draw is already settled; refresh the view below without reporting it as a failed open.
+    }
     await Promise.all([loadStatus(), loadRecentWins()])
-  } catch (err: unknown) {
-    const code = extractApiErrorCode(err)
-    if (code === 'INSUFFICIENT_BALANCE') {
-      appStore.showError(t('blindbox.insufficientBalance'))
-      return
-    }
-    if (code === 'PLAY_BLINDBOX_DAILY_LIMIT') {
-      appStore.showInfo(t('blindbox.dailyLimit'))
-      await loadStatus()
-      return
-    }
-    appStore.showError(t('blindbox.failed'))
   } finally {
-    opening.value = false
+    if (requestID === openRequestID) opening.value = false
   }
 }
 
@@ -228,8 +413,17 @@ onMounted(async () => {
 })
 
 watch(
-  () => authStore.isAuthenticated,
+  () => [authStore.isAuthenticated, authStore.user?.id] as const,
   () => {
+    openRequestID += 1
+    opening.value = false
+    const storageKey = pendingOpenStorageKeyForCurrentUser()
+    if (pendingOpenStorageKey.value !== storageKey) {
+      pendingOpenIdempotencyKey.value = null
+      pendingOpenStorageKey.value = null
+      lastResult.value = null
+      celebrationOpen.value = false
+    }
     void loadStatus()
   },
 )
@@ -259,6 +453,12 @@ watch(
                 <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
                 <div v-else-if="statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</div>
                 <div v-else-if="!status?.enabled" class="play-note">{{ t('blindbox.disabled') }}</div>
+                <template v-else-if="!couponPoolReady">
+                  <div class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</div>
+                  <button type="button" class="play-btn play-btn-primary" disabled>
+                    {{ t('blindbox.openButton') }}
+                  </button>
+                </template>
                 <template v-else-if="!prizePool">
                   <div class="play-note">{{ t('blindbox.unavailable') }}</div>
                   <button type="button" class="play-btn play-btn-primary" disabled>
@@ -276,13 +476,13 @@ watch(
                     </div>
                     <p>{{ t('blindbox.currentPool', { pool: poolVersion }) }}</p>
                     <code>{{ poolVersion }}</code>
-                    <p>{{ t('blindbox.expectedReward', { amount: formatMoney(currentExpectedReward), rtp: Math.round(currentRTPCap * 100) }) }}</p>
+                    <p>{{ t('blindbox.expectedReward', { amount: formatMoney(expectedCashReward), rtp: Math.round(expectedCashRTPCap * 100) }) }}</p>
                     <p v-if="nextPool && vipPool.amount_to_next">
                       {{ t('blindbox.nextPoolHint', {
                         amount: formatMoney(vipPool.amount_to_next),
                         label: vipPool.next_label ?? `V${vipPool.next_tier}`,
                         pool: nextPool.version,
-                        reward: formatMoney(nextExpectedReward),
+                        reward: formatMoney(nextExpectedCashReward),
                       }) }}
                     </p>
                   </div>
@@ -295,15 +495,17 @@ watch(
                   >
                     {{ opening ? t('blindbox.opening') : t('blindbox.openButton') }}
                   </button>
-                  <p v-if="lastResult" class="play-note">
+                  <p v-if="lastResult && !hasCouponResult" class="play-note">
                     {{ t('blindbox.lastResult', { reward: lastResult.reward_amount.toFixed(2), net: lastResult.net_amount.toFixed(2) }) }}
                   </p>
+                  <CouponRewardCard v-if="hasCouponResult && lastResult?.coupon" :coupon="lastResult.coupon" />
                 </template>
               </div>
 
               <div v-else class="play-actions">
+                <p v-if="!couponPoolReady" class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</p>
                 <router-link
-                  v-if="featureEnabled"
+                  v-else-if="featureEnabled"
                   to="/register"
                   class="play-btn play-btn-primary"
                 >
@@ -333,8 +535,10 @@ watch(
           <section class="play-content-panel play-prize-section">
             <h2 class="play-section-title">{{ t('blindbox.prizePoolTitle') }}</h2>
             <p class="play-note">{{ t('blindbox.prizePoolNote') }}</p>
+            <p class="play-note">{{ t('blindbox.rewardSplit') }}</p>
             <p v-if="!loading && statusLoadFailed" class="play-note">{{ t('blindbox.unavailable') }}</p>
             <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
+            <p v-else-if="!loading && !couponPoolReady" class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</p>
             <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>
             <ul v-else-if="prizePool" class="play-prize-grid">
               <li
@@ -343,7 +547,7 @@ watch(
                 class="play-prize-tier"
               >
                 <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
-                <span class="play-prize-rate">{{ formatProbability(tier.weight) }}</span>
+                <span class="play-prize-rate">{{ formatBalanceProbability(tier.weight) }}</span>
               </li>
             </ul>
           </section>
@@ -366,9 +570,9 @@ watch(
 
     <RewardCelebrationOverlay
       :open="celebrationOpen && !!lastResult"
-      :title="t('blindbox.celebrationTitle')"
-      :amount="`$${formatMoney(lastResult?.reward_amount)}`"
-      :subtitle="t('blindbox.celebrationSubtitle')"
+      :title="celebrationTitle"
+      :amount="celebrationAmount"
+      :subtitle="celebrationSubtitle"
       :details="celebrationDetails"
       :vip-label="lastResult?.vip_tier?.label ?? vipPool?.label ?? ''"
       :color-key="lastResult?.vip_tier?.color_key ?? vipPool?.color_key ?? 'neutral'"

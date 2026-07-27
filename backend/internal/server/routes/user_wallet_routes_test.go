@@ -17,6 +17,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 	handlers := &handler.Handlers{
 		Wallet: handler.NewWalletHandler(nil),
 		Fund:   handler.NewFundHandler(nil),
+		Coupon: handler.NewCouponWalletHandler(nil),
 	}
 	RegisterUserRoutes(
 		router.Group("/api/v1"),
@@ -33,6 +34,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 		routes[route.Method+" "+route.Path] = struct{}{}
 	}
 	for _, route := range []string{
+		"GET /api/v1/coupons/me",
 		"GET /api/v1/user/wallet/summary",
 		"GET /api/v1/user/wallet/transactions",
 		"GET /api/v1/user/wallet/withdrawals/availability",
@@ -52,6 +54,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 	}
 
 	for _, path := range []string{
+		"/api/v1/coupons/me",
 		"/api/v1/user/wallet/summary",
 		"/api/v1/user/wallet/transactions",
 		"/api/v1/user/wallet/withdrawals/availability",

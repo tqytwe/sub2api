@@ -855,9 +855,11 @@ func ProvidePlayService(
 	entClient *dbent.Client,
 	balanceLedger *BalanceLedgerService,
 	mobilePush *MobilePushService,
+	couponService *CouponService,
 ) *PlayService {
 	svc := NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
 	svc.SetMobilePushService(mobilePush)
+	svc.SetCouponRewardIssuer(couponService)
 	return svc
 }
 
@@ -898,6 +900,7 @@ var ProviderSet = wire.NewSet(
 	NewProxyService,
 	NewRedeemService,
 	NewPromoService,
+	NewCouponService,
 	ProvideUsageService,
 	NewBalanceLedgerService,
 	NewWalletService,
@@ -1067,10 +1070,11 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, playService *PlayService, balanceLedger *BalanceLedgerService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, playService *PlayService, balanceLedger *BalanceLedgerService, couponService *CouponService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService, balanceLedger)
 	svc.SetNotificationEmailService(notificationEmailService)
 	svc.SetPlayService(playService)
+	svc.SetCouponService(couponService)
 	return svc
 }
 

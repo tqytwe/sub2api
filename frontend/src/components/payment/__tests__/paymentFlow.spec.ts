@@ -74,6 +74,36 @@ describe('getVisibleMethods', () => {
 })
 
 describe('decidePaymentLaunch', () => {
+  it('returns a completed launch for a fully discounted order', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_amount: 0,
+      result_type: 'completed',
+      status: 'COMPLETED',
+      out_trade_no: 'sub2_zero_101',
+    }), {
+      visibleMethod: 'wxpay',
+      orderType: 'balance',
+      isMobile: true,
+    })
+
+    expect(decision.kind).toBe('completed')
+    expect(decision.paymentState.payAmount).toBe(0)
+    expect(decision.paymentState.outTradeNo).toBe('sub2_zero_101')
+  })
+
+  it('accepts completed status from older create-order responses', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_amount: 0,
+      status: 'completed',
+    }), {
+      visibleMethod: 'alipay',
+      orderType: 'subscription',
+      isMobile: false,
+    })
+
+    expect(decision.kind).toBe('completed')
+  })
+
   it('uses Stripe popup waiting flow for desktop Alipay client secret', () => {
     const decision = decidePaymentLaunch(createOrderResult({
       client_secret: 'cs_test',

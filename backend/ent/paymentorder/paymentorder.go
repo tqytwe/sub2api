@@ -24,6 +24,24 @@ const (
 	FieldUserNotes = "user_notes"
 	// FieldAmount holds the string denoting the amount field in the database.
 	FieldAmount = "amount"
+	// FieldCouponID holds the string denoting the coupon_id field in the database.
+	FieldCouponID = "coupon_id"
+	// FieldCouponTemplateID holds the string denoting the coupon_template_id field in the database.
+	FieldCouponTemplateID = "coupon_template_id"
+	// FieldCouponSnapshot holds the string denoting the coupon_snapshot field in the database.
+	FieldCouponSnapshot = "coupon_snapshot"
+	// FieldListAmount holds the string denoting the list_amount field in the database.
+	FieldListAmount = "list_amount"
+	// FieldGatewayBaseAmount holds the string denoting the gateway_base_amount field in the database.
+	FieldGatewayBaseAmount = "gateway_base_amount"
+	// FieldDiscountAmount holds the string denoting the discount_amount field in the database.
+	FieldDiscountAmount = "discount_amount"
+	// FieldFeeAmount holds the string denoting the fee_amount field in the database.
+	FieldFeeAmount = "fee_amount"
+	// FieldQualifyingRechargeAmount holds the string denoting the qualifying_recharge_amount field in the database.
+	FieldQualifyingRechargeAmount = "qualifying_recharge_amount"
+	// FieldPaymentCurrency holds the string denoting the payment_currency field in the database.
+	FieldPaymentCurrency = "payment_currency"
 	// FieldPayAmount holds the string denoting the pay_amount field in the database.
 	FieldPayAmount = "pay_amount"
 	// FieldFeeRate holds the string denoting the fee_rate field in the database.
@@ -115,6 +133,15 @@ var Columns = []string{
 	FieldUserName,
 	FieldUserNotes,
 	FieldAmount,
+	FieldCouponID,
+	FieldCouponTemplateID,
+	FieldCouponSnapshot,
+	FieldListAmount,
+	FieldGatewayBaseAmount,
+	FieldDiscountAmount,
+	FieldFeeAmount,
+	FieldQualifyingRechargeAmount,
+	FieldPaymentCurrency,
 	FieldPayAmount,
 	FieldFeeRate,
 	FieldRechargeCode,
@@ -167,6 +194,20 @@ var (
 	UserEmailValidator func(string) error
 	// UserNameValidator is a validator for the "user_name" field. It is called by the builders before save.
 	UserNameValidator func(string) error
+	// DefaultListAmount holds the default value on creation for the "list_amount" field.
+	DefaultListAmount float64
+	// DefaultGatewayBaseAmount holds the default value on creation for the "gateway_base_amount" field.
+	DefaultGatewayBaseAmount float64
+	// DefaultDiscountAmount holds the default value on creation for the "discount_amount" field.
+	DefaultDiscountAmount float64
+	// DefaultFeeAmount holds the default value on creation for the "fee_amount" field.
+	DefaultFeeAmount float64
+	// DefaultQualifyingRechargeAmount holds the default value on creation for the "qualifying_recharge_amount" field.
+	DefaultQualifyingRechargeAmount float64
+	// DefaultPaymentCurrency holds the default value on creation for the "payment_currency" field.
+	DefaultPaymentCurrency string
+	// PaymentCurrencyValidator is a validator for the "payment_currency" field. It is called by the builders before save.
+	PaymentCurrencyValidator func(string) error
 	// DefaultFeeRate holds the default value on creation for the "fee_rate" field.
 	DefaultFeeRate float64
 	// RechargeCodeValidator is a validator for the "recharge_code" field. It is called by the builders before save.
@@ -240,6 +281,46 @@ func ByUserNotes(opts ...sql.OrderTermOption) OrderOption {
 // ByAmount orders the results by the amount field.
 func ByAmount(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldAmount, opts...).ToFunc()
+}
+
+// ByCouponID orders the results by the coupon_id field.
+func ByCouponID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCouponID, opts...).ToFunc()
+}
+
+// ByCouponTemplateID orders the results by the coupon_template_id field.
+func ByCouponTemplateID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCouponTemplateID, opts...).ToFunc()
+}
+
+// ByListAmount orders the results by the list_amount field.
+func ByListAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldListAmount, opts...).ToFunc()
+}
+
+// ByGatewayBaseAmount orders the results by the gateway_base_amount field.
+func ByGatewayBaseAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldGatewayBaseAmount, opts...).ToFunc()
+}
+
+// ByDiscountAmount orders the results by the discount_amount field.
+func ByDiscountAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDiscountAmount, opts...).ToFunc()
+}
+
+// ByFeeAmount orders the results by the fee_amount field.
+func ByFeeAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldFeeAmount, opts...).ToFunc()
+}
+
+// ByQualifyingRechargeAmount orders the results by the qualifying_recharge_amount field.
+func ByQualifyingRechargeAmount(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldQualifyingRechargeAmount, opts...).ToFunc()
+}
+
+// ByPaymentCurrency orders the results by the payment_currency field.
+func ByPaymentCurrency(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPaymentCurrency, opts...).ToFunc()
 }
 
 // ByPayAmount orders the results by the pay_amount field.

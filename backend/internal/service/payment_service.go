@@ -73,6 +73,7 @@ func generateRandomString(n int) string {
 type CreateOrderRequest struct {
 	UserID          int64
 	Amount          float64
+	CouponID        int64
 	PaymentType     string
 	OpenID          string
 	ClientIP        string
@@ -90,11 +91,17 @@ type CreateOrderRequest struct {
 type CreateOrderResponse struct {
 	OrderID                       int64                           `json:"order_id"`
 	Amount                        float64                         `json:"amount"`
+	ListAmount                    float64                         `json:"list_amount,omitempty"`
+	GatewayBaseAmount             float64                         `json:"gateway_base_amount,omitempty"`
+	DiscountAmount                float64                         `json:"discount_amount,omitempty"`
+	FeeAmount                     float64                         `json:"fee_amount,omitempty"`
+	QualifyingRechargeAmount      float64                         `json:"qualifying_recharge_amount,omitempty"`
 	PayAmount                     float64                         `json:"pay_amount"`
 	FeeRate                       float64                         `json:"fee_rate"`
 	Status                        string                          `json:"status"`
 	ResultType                    payment.CreatePaymentResultType `json:"result_type,omitempty"`
 	PaymentType                   string                          `json:"payment_type"`
+	PaymentCurrency               string                          `json:"payment_currency,omitempty"`
 	OutTradeNo                    string                          `json:"out_trade_no,omitempty"`
 	PayURL                        string                          `json:"pay_url,omitempty"`
 	QRCode                        string                          `json:"qr_code,omitempty"`
@@ -205,6 +212,7 @@ type PaymentService struct {
 	affiliateService         *AffiliateService
 	notificationEmailService *NotificationEmailService
 	playService              *PlayService
+	couponService            paymentCouponOrderService
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, balanceLedger ...*BalanceLedgerService) *PaymentService {
@@ -222,6 +230,13 @@ func (s *PaymentService) SetNotificationEmailService(notificationEmailService *N
 
 func (s *PaymentService) SetPlayService(playService *PlayService) {
 	s.playService = playService
+}
+
+// SetCouponService attaches the order-coupon boundary after both services are
+// constructed. Payment does not own coupon storage; it only locks and consumes
+// a coupon as part of the payment order lifecycle.
+func (s *PaymentService) SetCouponService(couponService paymentCouponOrderService) {
+	s.couponService = couponService
 }
 
 // --- Provider Registry ---

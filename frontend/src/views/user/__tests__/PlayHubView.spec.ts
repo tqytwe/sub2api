@@ -129,9 +129,13 @@ function hubFixture(): PlayHubSummary {
     },
     quiz: {
       enabled: true,
-      questions: [],
+      questions: Array.from({ length: 5 }, (_, index) => ({
+        id: index + 1,
+        prompt: `Question ${index + 1}`,
+        options: [],
+      })),
       already_submitted: false,
-      reward_per_correct: 0.25,
+      reward_per_correct: 0.1,
       server_date: '2026-07-17',
     },
     team: {
@@ -204,5 +208,13 @@ describe('PlayHubView layout', () => {
     expect(wrapper.text()).toContain('nav.checkIn')
     expect(wrapper.text()).toContain('nav.blindbox')
     expect(wrapper.text()).toContain('nav.agentTeam')
+  })
+
+  it('shows the full quiz balance reward for the completed set, not the per-correct base', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('playHub.quizPending:{"reward":"0.50"}')
+    expect(wrapper.text()).not.toContain('playHub.quizPending:{"reward":"0.10"}')
   })
 })

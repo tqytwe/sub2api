@@ -24,6 +24,8 @@
         </section>
       </div>
 
+      <CouponWalletPanel />
+
       <section class="card min-w-0 overflow-hidden">
         <div class="border-b border-gray-100 px-5 py-4 dark:border-dark-700">
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('wallet.refunds.title') }}</h2>
@@ -417,6 +419,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import CouponWalletPanel from '@/components/coupon/CouponWalletPanel.vue'
 import {
   cancelFundRefundRequest,
   cancelWithdrawal,

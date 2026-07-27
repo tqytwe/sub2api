@@ -32,6 +32,10 @@ const primaryCampaign = computed(() => hub.value?.campaigns?.[0] ?? null)
 const campaignDisplayName = computed(() =>
   resolveCampaignDisplayName(primaryCampaign.value, locale.value),
 )
+const quizCompletionReward = computed(() => {
+  const quiz = hub.value?.quiz
+  return (quiz?.questions.length ?? 0) * (quiz?.reward_per_correct ?? 0)
+})
 
 const campaignPerkLines = computed(() => {
   const rules = primaryCampaign.value?.rules
@@ -117,7 +121,7 @@ const playCards = computed(() => {
       title: t('nav.quizQuest'),
       subtitle: q?.already_submitted
         ? t('playHub.quizDone', { score: q.previous_score ?? 0, total: q.previous_total ?? 0 })
-        : t('playHub.quizPending', { reward: (q?.reward_per_correct ?? 0).toFixed(2) }),
+        : t('playHub.quizPending', { reward: quizCompletionReward.value.toFixed(2) }),
       route: '/quiz-quest',
       badge: q && !q.already_submitted ? t('playHub.badgePending') : undefined,
       enabled: !!q?.enabled,

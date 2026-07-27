@@ -20,6 +20,9 @@ const showError = vi.hoisted(() => vi.fn())
 const showInfo = vi.hoisted(() => vi.fn())
 const showWarning = vi.hoisted(() => vi.fn())
 const getCheckoutInfo = vi.hoisted(() => vi.fn())
+const cancelOrder = vi.hoisted(() => vi.fn())
+const getMyCoupons = vi.hoisted(() => vi.fn().mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 50, pages: 1 } }))
+const quotePaymentCoupon = vi.hoisted(() => vi.fn())
 const bridgeInvoke = vi.hoisted(() => vi.fn())
 
 vi.mock('vue-router', async () => {
@@ -40,7 +43,9 @@ vi.mock('vue-i18n', async () => {
   return {
     ...actual,
     useI18n: () => ({
-      t: (key: string) => key,
+      t: (key: string) => key === 'payment.errors.COUPON_EXPIRED'
+        ? 'payment.errors.COUPON_EXPIRED.localized'
+        : key,
     }),
   }
 })
@@ -79,6 +84,14 @@ vi.mock('@/stores', () => ({
 vi.mock('@/api/payment', () => ({
   paymentAPI: {
     getCheckoutInfo,
+    cancelOrder,
+  },
+}))
+
+vi.mock('@/api/coupon', () => ({
+  default: {
+    getMyCoupons,
+    quotePaymentCoupon,
   },
 }))
 
@@ -249,6 +262,8 @@ async function mountSubscriptionConfirm(options: Parameters<typeof checkoutInfoW
   showInfo.mockReset()
   showWarning.mockReset()
   getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoWithPlansFixture(options))
+  getMyCoupons.mockReset().mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 50, pages: 1 } })
+  quotePaymentCoupon.mockReset()
   bridgeInvoke.mockReset()
   window.localStorage.clear()
   ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = undefined
@@ -359,6 +374,97 @@ describe('PaymentView subscription confirmation amounts', () => {
     expect(text).toContain(fee)
     expect(text).toContain(total)
     expect(wrapper.findAll('button').some(button => button.text().includes(total))).toBe(true)
+  })
+
+  it('refreshes subscriptions and redirects when a full coupon completes the order', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      plan: { price: 30 },
+      method: { single_min: 50, single_max: 500 },
+    })
+    createOrder.mockResolvedValueOnce({
+      order_id: 903,
+      amount: 30,
+      pay_amount: 0,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'wxpay',
+      status: 'COMPLETED',
+      out_trade_no: 'coupon-zero-subscription-903',
+    })
+    const couponSelector = wrapper.findComponent({ name: 'CouponSelector' })
+    couponSelector.vm.$emit('update:modelValue', 14)
+    couponSelector.vm.$emit('quote', {
+      user_coupon_id: 14,
+      template_id: 5,
+      list_amount: 30,
+      gateway_base_amount: 0,
+      discount_amount: 30,
+      fee_amount: 0,
+      pay_amount: 0,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 0,
+    })
+    await flushPromises()
+
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    expect(submitButton?.attributes('disabled')).toBeUndefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      order_type: 'subscription',
+      plan_id: 7,
+      coupon_id: 14,
+    }))
+    expect(refreshUser).toHaveBeenCalledTimes(1)
+    expect(fetchActiveSubscriptions).toHaveBeenCalledWith(true)
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/payment/result',
+      query: {
+        order_id: '903',
+        out_trade_no: 'coupon-zero-subscription-903',
+      },
+    })
+    expect(wrapper.find('payment-status-panel-stub').exists()).toBe(false)
+    expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toBeNull()
+  })
+
+  it('switches subscription checkout to a method that accepts the coupon-adjusted total', async () => {
+    const wrapper = await mountSubscriptionConfirm({
+      checkout: {
+        methods: {
+          alipay: {
+            ...checkoutInfoFixture().data.methods.wxpay,
+            single_min: 0,
+          },
+        },
+      },
+      method: {
+        single_min: 50,
+      },
+      plan: { price: 100 },
+    })
+
+    const methodSelector = wrapper.findComponent({ name: 'PaymentMethodSelector' })
+    methodSelector.vm.$emit('select', 'wxpay')
+    await flushPromises()
+    const couponSelector = wrapper.findComponent({ name: 'CouponSelector' })
+    couponSelector.vm.$emit('update:modelValue', 14)
+    couponSelector.vm.$emit('quote', {
+      user_coupon_id: 14,
+      template_id: 5,
+      list_amount: 100,
+      gateway_base_amount: 30,
+      discount_amount: 70,
+      fee_amount: 0,
+      pay_amount: 30,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 30,
+    })
+    await flushPromises()
+
+    expect(wrapper.findComponent({ name: 'PaymentMethodSelector' }).props('selected')).toBe('alipay')
   })
 })
 
@@ -617,6 +723,500 @@ describe('PaymentView recharge quote preview', () => {
   })
 })
 
+describe('PaymentView coupon checkout', () => {
+  beforeEach(() => {
+    vi.useRealTimers()
+    routeState.path = '/purchase'
+    routeState.query = {}
+    routerReplace.mockReset().mockResolvedValue(undefined)
+    routerPush.mockReset().mockResolvedValue(undefined)
+    routerResolve.mockClear()
+    createOrder.mockReset().mockResolvedValue({
+      order_id: 901,
+      amount: 30,
+      pay_amount: 25,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'wxpay',
+      qr_code: 'weixin://wxpay/bizpayurl?pr=coupon',
+      out_trade_no: 'coupon-order-901',
+    })
+    refreshUser.mockReset()
+    fetchActiveSubscriptions.mockReset().mockResolvedValue(undefined)
+    showError.mockReset()
+    showInfo.mockReset()
+    showWarning.mockReset()
+    cancelOrder.mockReset().mockResolvedValue({ data: { message: 'cancelled' } })
+    getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture())
+    getMyCoupons.mockReset().mockResolvedValue({ data: { items: [], total: 0, page: 1, page_size: 50, pages: 1 } })
+    quotePaymentCoupon.mockReset()
+    window.localStorage.clear()
+  })
+
+  it('submits the user coupon id only after the server returned a checkout quote', async () => {
+    const quote = {
+      user_coupon_id: 12,
+      template_id: 3,
+      list_amount: 30,
+      gateway_base_amount: 25,
+      discount_amount: 5,
+      fee_amount: 0,
+      pay_amount: 25,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 25,
+    }
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-coupon" @click="$emit(\'update:modelValue\', 12); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await flushPromises()
+    wrapper.findComponent({ name: 'CouponSelector' }).vm.$emit('update:modelValue', 12)
+    await flushPromises()
+    const pendingSubmitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(pendingSubmitButton?.attributes('disabled')).toBeDefined()
+
+    await wrapper.get('[data-test="apply-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({
+      amount: 30,
+      order_type: 'balance',
+      coupon_id: 12,
+    }))
+  })
+
+  it('clears a rejected coupon quote and shows the localized coupon error', async () => {
+    const quote = {
+      user_coupon_id: 12,
+      template_id: 3,
+      list_amount: 30,
+      gateway_base_amount: 25,
+      discount_amount: 5,
+      fee_amount: 0,
+      pay_amount: 25,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 25,
+    }
+    createOrder.mockRejectedValueOnce({
+      reason: 'COUPON_EXPIRED',
+      message: 'coupon is outside its validity window',
+    })
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            props: ['modelValue'],
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-expired-coupon" @click="$emit(\'update:modelValue\', 12); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await wrapper.get('[data-test="apply-expired-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ coupon_id: 12 }))
+    expect(wrapper.findComponent({ name: 'CouponSelector' }).props('modelValue')).toBeNull()
+    expect(showError).toHaveBeenCalledWith('payment.errors.COUPON_EXPIRED.localized')
+  })
+
+  it('does not reuse a delayed quote after the selected coupon was cleared', async () => {
+    const quote = {
+      user_coupon_id: 12,
+      template_id: 3,
+      list_amount: 30,
+      gateway_base_amount: 25,
+      discount_amount: 5,
+      fee_amount: 0,
+      pay_amount: 25,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 25,
+    }
+    createOrder.mockRejectedValueOnce({ reason: 'COUPON_EXPIRED', message: 'coupon is outside its validity window' })
+    createOrder.mockResolvedValueOnce({
+      order_id: 777,
+      amount: 30,
+      pay_amount: 30,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'wxpay',
+      qr_code: 'weixin://wxpay/bizpayurl?pr=without-coupon',
+      out_trade_no: 'without-coupon-777',
+    })
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            props: ['modelValue'],
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-delayed-coupon" @click="$emit(\'update:modelValue\', 12); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await wrapper.get('[data-test="apply-delayed-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = () => wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    await submitButton()!.trigger('click')
+    await flushPromises()
+
+    const couponSelector = wrapper.findComponent({ name: 'CouponSelector' })
+    expect(couponSelector.props('modelValue')).toBeNull()
+    couponSelector.vm.$emit('quote', quote)
+    await flushPromises()
+
+    await submitButton()!.trigger('click')
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      amount: 30,
+      order_type: 'balance',
+    }))
+    expect(createOrder.mock.calls[1][0]).not.toHaveProperty('coupon_id')
+  })
+
+  it('preserves a quoted coupon through the WeChat OAuth return context', async () => {
+    const quote = {
+      user_coupon_id: 12,
+      template_id: 3,
+      list_amount: 30,
+      gateway_base_amount: 25,
+      discount_amount: 5,
+      fee_amount: 0,
+      pay_amount: 25,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 25,
+    }
+    createOrder.mockResolvedValueOnce(oauthOrderFixture())
+    const originalLocation = window.location
+    const locationState = {
+      href: 'http://localhost/purchase',
+      origin: 'http://localhost',
+    }
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: locationState,
+    })
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-oauth-coupon" @click="$emit(\'update:modelValue\', 12); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await wrapper.get('[data-test="apply-oauth-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+
+    const authorizeURL = new URL(locationState.href, 'http://localhost')
+    expect(createOrder).toHaveBeenCalledWith(expect.objectContaining({ coupon_id: 12 }))
+    expect(authorizeURL.searchParams.get('coupon_id')).toBe('12')
+    expect(authorizeURL.searchParams.get('redirect')).toBe(
+      '/purchase?from=wechat&payment_type=wxpay&order_type=balance&amount=30&coupon_id=12',
+    )
+
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: originalLocation,
+    })
+  })
+
+  it('keeps the selected coupon when mobile payment falls back to a desktop QR order', async () => {
+    const quote = {
+      user_coupon_id: 12,
+      template_id: 3,
+      list_amount: 30,
+      gateway_base_amount: 25,
+      discount_amount: 5,
+      fee_amount: 0,
+      pay_amount: 25,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 25,
+    }
+    createOrder
+      .mockRejectedValueOnce({ reason: 'WECHAT_H5_NOT_AUTHORIZED' })
+      .mockResolvedValueOnce({
+        order_id: 904,
+        amount: 30,
+        pay_amount: 25,
+        fee_rate: 0,
+        expires_at: '2099-01-01T00:10:00.000Z',
+        payment_type: 'wxpay',
+        qr_code: 'weixin://wxpay/bizpayurl?pr=coupon-fallback',
+        out_trade_no: 'coupon-fallback-904',
+      })
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-fallback-coupon" @click="$emit(\'update:modelValue\', 12); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await wrapper.get('[data-test="apply-fallback-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(createOrder).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      coupon_id: 12,
+      is_mobile: true,
+    }))
+    expect(createOrder).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      coupon_id: 12,
+      is_mobile: false,
+      payment_source: 'hosted_redirect',
+    }))
+    expect(showWarning).toHaveBeenCalledWith('payment.errors.mobilePaymentFallbackToQr')
+  })
+
+  it('cancels a coupon-backed JSAPI order and rebuilds its QR fallback without the locked coupon', async () => {
+    const quote = {
+      user_coupon_id: 12,
+      template_id: 3,
+      list_amount: 30,
+      gateway_base_amount: 25,
+      discount_amount: 5,
+      fee_amount: 0,
+      pay_amount: 25,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 25,
+    }
+    createOrder
+      .mockResolvedValueOnce({
+        ...jsapiOrderFixture('coupon-jsapi-123'),
+        amount: 30,
+        pay_amount: 25,
+      })
+      .mockResolvedValueOnce({
+        order_id: 905,
+        amount: 30,
+        pay_amount: 30,
+        fee_rate: 0,
+        expires_at: '2099-01-01T00:10:00.000Z',
+        payment_type: 'wxpay',
+        qr_code: 'weixin://wxpay/bizpayurl?pr=coupon-jsapi-fallback',
+        out_trade_no: 'coupon-jsapi-fallback-905',
+      })
+    bridgeInvoke.mockImplementation((_action, _payload, callback) => {
+      callback({ err_msg: 'get_brand_wcpay_request:fail' })
+    })
+    ;(window as Window & { WeixinJSBridge?: { invoke: typeof bridgeInvoke } }).WeixinJSBridge = {
+      invoke: bridgeInvoke,
+    }
+
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-jsapi-coupon" @click="$emit(\'update:modelValue\', 12); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await wrapper.get('[data-test="apply-jsapi-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+    await flushPromises()
+
+    expect(cancelOrder).toHaveBeenCalledWith(123)
+    expect(createOrder).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      coupon_id: 12,
+      is_mobile: true,
+    }))
+    expect(createOrder).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      is_mobile: false,
+      payment_source: 'hosted_redirect',
+    }))
+    expect(createOrder.mock.calls[1][0]).not.toHaveProperty('coupon_id')
+    expect(showWarning).toHaveBeenCalledWith('payment.errors.mobilePaymentFallbackToQrCouponHeld')
+    expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toContain('coupon-jsapi-fallback')
+  })
+
+  it('redirects a fully discounted completed order without opening a payment flow', async () => {
+    const quote = {
+      user_coupon_id: 13,
+      template_id: 4,
+      list_amount: 30,
+      gateway_base_amount: 0,
+      discount_amount: 30,
+      fee_amount: 0,
+      pay_amount: 0,
+      payment_currency: 'USD',
+      qualifying_recharge_amount: 0,
+    }
+    createOrder.mockResolvedValueOnce({
+      order_id: 902,
+      amount: 30,
+      pay_amount: 0,
+      fee_rate: 0,
+      expires_at: '2099-01-01T00:10:00.000Z',
+      payment_type: 'wxpay',
+      status: 'COMPLETED',
+      result_type: 'completed',
+      out_trade_no: 'coupon-zero-order-902',
+    })
+    const checkout = checkoutInfoFixture().data
+    getCheckoutInfo.mockResolvedValueOnce({
+      data: {
+        ...checkout,
+        methods: {
+          ...checkout.methods,
+          wxpay: {
+            ...checkout.methods.wxpay,
+            single_min: 50,
+            single_max: 500,
+          },
+        },
+      },
+    })
+    const wrapper = shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          AppLayout: { template: '<div><slot /></div>' },
+          PageFrame: { template: '<section><slot /></section>' },
+          CouponSelector: {
+            name: 'CouponSelector',
+            emits: ['update:modelValue', 'quote'],
+            template: '<button data-test="apply-zero-coupon" @click="$emit(\'update:modelValue\', 13); $emit(\'quote\', quote)">apply</button>',
+            data: () => ({ quote }),
+          },
+          PaymentMethodSelector: {
+            name: 'PaymentMethodSelector',
+            emits: ['select'],
+            template: '<button data-test="clear-payment-method" @click="$emit(\'select\', \'\')">clear</button>',
+          },
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    wrapper.findComponent({ name: 'AmountInput' }).vm.$emit('update:modelValue', 30)
+    await wrapper.get('[data-test="apply-zero-coupon"]').trigger('click')
+    await flushPromises()
+    const submitButton = wrapper.findAll('button').find((button) => button.text().includes('payment.createOrder'))
+    expect(submitButton).toBeDefined()
+    expect(submitButton?.attributes('disabled')).toBeUndefined()
+    expect(wrapper.text()).not.toContain('payment.amountTooLow')
+    const methodSelector = wrapper.findComponent({ name: 'PaymentMethodSelector' })
+    methodSelector.vm.$emit('select', '')
+    await flushPromises()
+    expect(submitButton?.attributes('disabled')).toBeDefined()
+    methodSelector.vm.$emit('select', 'wxpay')
+    await flushPromises()
+    expect(submitButton?.attributes('disabled')).toBeDefined()
+    wrapper.findComponent({ name: 'CouponSelector' }).vm.$emit('quote', quote)
+    await flushPromises()
+    expect(submitButton?.attributes('disabled')).toBeUndefined()
+    await submitButton!.trigger('click')
+    await flushPromises()
+
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/payment/result',
+      query: {
+        order_id: '902',
+        out_trade_no: 'coupon-zero-order-902',
+      },
+    })
+    expect(refreshUser).toHaveBeenCalledTimes(1)
+    expect(wrapper.find('payment-status-panel-stub').exists()).toBe(false)
+    expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toBeNull()
+  })
+})
+
 describe('PaymentView payment recovery', () => {
   beforeEach(() => {
     vi.useRealTimers()
@@ -718,6 +1318,7 @@ describe('PaymentView WeChat JSAPI flow', () => {
     showError.mockReset()
     showInfo.mockReset()
     showWarning.mockReset()
+    cancelOrder.mockReset().mockResolvedValue({ data: { message: 'cancelled' } })
     getCheckoutInfo.mockReset().mockResolvedValue(checkoutInfoFixture())
     bridgeInvoke.mockReset()
     window.localStorage.clear()
@@ -802,6 +1403,37 @@ describe('PaymentView WeChat JSAPI flow', () => {
     expect(routerPush).not.toHaveBeenCalled()
     expect(window.localStorage.getItem(PAYMENT_RECOVERY_STORAGE_KEY)).toBeNull()
     expect(wrapper.html()).not.toContain('payment-status-panel-stub')
+  })
+
+  it('does not create a QR fallback when cancelling the JSAPI order reports it as paid', async () => {
+    createOrder.mockResolvedValue(jsapiOrderFixture('resume-token-already-paid'))
+    cancelOrder.mockResolvedValueOnce({ data: { message: 'already_paid' } })
+    bridgeInvoke.mockImplementation((_action, _payload, callback) => {
+      callback({ err_msg: 'get_brand_wcpay_request:fail' })
+    })
+
+    shallowMount(PaymentView, {
+      global: {
+        stubs: {
+          Teleport: true,
+          Transition: false,
+        },
+      },
+    })
+    await flushPromises()
+    await flushPromises()
+
+    expect(cancelOrder).toHaveBeenCalledWith(123)
+    expect(createOrder).toHaveBeenCalledTimes(1)
+    expect(routerPush).toHaveBeenCalledWith({
+      path: '/payment/result',
+      query: {
+        order_id: '123',
+        out_trade_no: 'sub2_jsapi_123',
+        resume_token: 'resume-token-already-paid',
+      },
+    })
+    expect(showWarning).not.toHaveBeenCalled()
   })
 
   it('clears a stale recovery snapshot before handling wechat resume callback params', async () => {

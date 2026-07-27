@@ -78,53 +78,110 @@ func (s *PaymentService) CreateOrder(ctx context.Context, req CreateOrderRequest
 			return nil, err
 		}
 	}
-	payAmountStr, payAmount, err := calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, methodCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
+	listAmount := paymentGatewayListAmount(limitAmount, req.OrderType, methodCurrency, cfg.SubscriptionUSDToCNYRate)
+	couponQuote, err := s.quoteCouponForCheckout(ctx, req.CouponID, req.UserID, req.PlanID, req.OrderType, listAmount, methodCurrency)
 	if err != nil {
 		return nil, err
 	}
-	sel, err := s.selectCreateOrderInstance(ctx, req, cfg, payAmount)
+	settlement, err := calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+		ListAmount:  listAmount,
+		FeeRate:     feeRate,
+		Currency:    methodCurrency,
+		CouponQuote: couponQuote,
+	})
 	if err != nil {
-		return nil, err
+		return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
 	}
-	if err := s.validateSelectedCreateOrderInstance(ctx, req, sel); err != nil {
-		return nil, err
-	}
-	selectedCurrency := payment.DefaultPaymentCurrency
-	if sel != nil {
-		selectedCurrency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
-	}
-	if selectedCurrency != methodCurrency {
-		payAmountStr, payAmount, err = calculateCreateOrderPayAmountForOrderType(limitAmount, feeRate, selectedCurrency, req.OrderType, cfg.SubscriptionUSDToCNYRate)
+
+	var sel *payment.InstanceSelection
+	if settlement.PayAmount > 0 {
+		sel, err = s.selectCreateOrderInstance(ctx, req, cfg, settlement.PayAmount)
 		if err != nil {
 			return nil, err
 		}
+		selectedCurrency := payment.DefaultPaymentCurrency
+		if sel != nil {
+			selectedCurrency = paymentProviderConfigCurrency(sel.ProviderKey, sel.Config)
+		}
+		if selectedCurrency != methodCurrency {
+			listAmount = paymentGatewayListAmount(limitAmount, req.OrderType, selectedCurrency, cfg.SubscriptionUSDToCNYRate)
+			couponQuote, err = s.quoteCouponForCheckout(ctx, req.CouponID, req.UserID, req.PlanID, req.OrderType, listAmount, selectedCurrency)
+			if err != nil {
+				return nil, err
+			}
+			settlement, err = calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+				ListAmount:  listAmount,
+				FeeRate:     feeRate,
+				Currency:    selectedCurrency,
+				CouponQuote: couponQuote,
+			})
+			if err != nil {
+				return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", err.Error())
+			}
+		}
+		if err := s.validateSelectedCreateOrderInstance(ctx, req, sel); err != nil {
+			return nil, err
+		}
+		if err := validateSelectedCreateOrderAmountCurrency(settlement.PayAmountText, sel); err != nil {
+			return nil, err
+		}
+		oauthResp, oauthErr := s.maybeBuildWeChatOAuthRequiredResponseForSelection(ctx, req, settlement.GatewayBaseAmount, settlement.PayAmount, feeRate, sel)
+		if oauthErr != nil {
+			return nil, oauthErr
+		}
+		if oauthResp != nil {
+			applyCouponSettlementToOrderResponse(oauthResp, settlement)
+			return oauthResp, nil
+		}
 	}
-	if err := validateSelectedCreateOrderAmountCurrency(payAmountStr, sel); err != nil {
-		return nil, err
-	}
-	oauthResp, err := s.maybeBuildWeChatOAuthRequiredResponseForSelection(ctx, req, limitAmount, payAmount, feeRate, sel)
+
+	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, settlement, sel, rechargeQuote)
 	if err != nil {
 		return nil, err
 	}
-	if oauthResp != nil {
-		return oauthResp, nil
+	if settlement.PayAmount == 0 {
+		if err := s.completeZeroCouponOrder(ctx, order); err != nil {
+			return nil, err
+		}
+		completed, getErr := s.entClient.PaymentOrder.Get(ctx, order.ID)
+		if getErr != nil {
+			return nil, fmt.Errorf("reload zero-payment order: %w", getErr)
+		}
+		return buildZeroCouponOrderResponse(completed, req), nil
 	}
-	order, err := s.createOrderInTx(ctx, req, user, plan, cfg, orderAmount, limitAmount, feeRate, payAmount, sel, rechargeQuote)
+
+	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, settlement.PayAmountText, settlement.PayAmount, plan, sel)
 	if err != nil {
-		return nil, err
-	}
-	resp, err := s.invokeProvider(ctx, order, req, cfg, limitAmount, payAmountStr, payAmount, plan, sel)
-	if err != nil {
-		reason := psErrMsg(err)
-		_, _ = s.entClient.PaymentOrder.UpdateOneID(order.ID).
-			SetStatus(OrderStatusFailed).
-			SetFailedAt(time.Now()).
-			SetFailedReason(reason).
-			Save(ctx)
-		s.writeAuditLog(ctx, order.ID, "ORDER_CREATE_FAILED", "system", map[string]any{"reason": reason})
+		s.failPendingOrderAfterGatewayCreateError(ctx, order, psErrMsg(err))
 		return nil, err
 	}
 	return resp, nil
+}
+
+// failPendingOrderAfterGatewayCreateError marks an order failed only while it
+// remains pending. A provider can accept a payment and deliver its webhook
+// before the synchronous create call times out, so a stale create error must
+// never overwrite PAID, RECHARGING, or COMPLETED state.
+func (s *PaymentService) failPendingOrderAfterGatewayCreateError(ctx context.Context, order *dbent.PaymentOrder, reason string) {
+	if s == nil || s.entClient == nil || order == nil || order.ID <= 0 {
+		return
+	}
+	updated, updateErr := s.entClient.PaymentOrder.Update().
+		Where(paymentorder.IDEQ(order.ID), paymentorder.StatusEQ(OrderStatusPending)).
+		SetStatus(OrderStatusFailed).
+		SetFailedAt(time.Now()).
+		SetFailedReason(reason).
+		Save(ctx)
+	if updateErr != nil {
+		slog.Warn("mark payment order failed after gateway create error failed", "order_id", order.ID, "error", updateErr)
+		return
+	}
+	if updated == 0 {
+		slog.Info("skip gateway create failure because payment order left pending state", "order_id", order.ID)
+		return
+	}
+	s.releaseCouponAfterGatewayCreateFailure(ctx, order)
+	s.writeAuditLog(ctx, order.ID, "ORDER_CREATE_FAILED", "system", map[string]any{"reason": reason})
 }
 
 func (s *PaymentService) validateOrderInput(ctx context.Context, req CreateOrderRequest, cfg *PaymentConfig) (*dbent.SubscriptionPlan, error) {
@@ -162,7 +219,10 @@ func (s *PaymentService) validateSubOrder(ctx context.Context, req CreateOrderRe
 	return plan, nil
 }
 
-func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate, payAmount float64, sel *payment.InstanceSelection, rechargeQuote *PaymentRechargeQuote) (*dbent.PaymentOrder, error) {
+func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderRequest, user *User, plan *dbent.SubscriptionPlan, cfg *PaymentConfig, orderAmount, limitAmount, feeRate float64, settlement *paymentCouponSettlement, sel *payment.InstanceSelection, rechargeQuote *PaymentRechargeQuote) (*dbent.PaymentOrder, error) {
+	if settlement == nil {
+		return nil, fmt.Errorf("payment coupon settlement is required")
+	}
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("begin transaction: %w", err)
@@ -196,7 +256,13 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		SetUserName(user.Username).
 		SetNillableUserNotes(psNilIfEmpty(user.Notes)).
 		SetAmount(orderAmount).
-		SetPayAmount(payAmount).
+		SetListAmount(settlement.ListAmount).
+		SetGatewayBaseAmount(settlement.GatewayBaseAmount).
+		SetDiscountAmount(settlement.DiscountAmount).
+		SetFeeAmount(settlement.FeeAmount).
+		SetQualifyingRechargeAmount(settlement.QualifyingRechargeAmount).
+		SetPaymentCurrency(settlement.Currency).
+		SetPayAmount(settlement.PayAmount).
 		SetFeeRate(feeRate).
 		SetRechargeCode("").
 		SetOutTradeNo(outTradeNo).
@@ -228,6 +294,46 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	order, err := b.Save(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("create order: %w", err)
+	}
+	if req.CouponID > 0 {
+		if s.couponService == nil {
+			return nil, infraerrors.ServiceUnavailable("COUPON_SERVICE_UNAVAILABLE", "coupon service is unavailable")
+		}
+		orderContext, contextErr := couponOrderContext(req.UserID, req.PlanID, req.OrderType, settlement.ListAmount, settlement.Currency, time.Now().UTC())
+		if contextErr != nil {
+			return nil, infraerrors.BadRequest("INVALID_COUPON_ORDER", contextErr.Error())
+		}
+		txCtx := dbent.NewTxContext(ctx, tx)
+		lockResult, lockErr := s.couponService.LockUserCouponForOrder(txCtx, CouponLockRequest{
+			UserCouponID: req.CouponID,
+			UserID:       req.UserID,
+			OrderID:      order.ID,
+			OrderContext: orderContext,
+			LockedAt:     time.Now().UTC(),
+		})
+		if lockErr != nil {
+			return nil, lockErr
+		}
+		lockedSettlement, calculateErr := calculateCouponAdjustedPaymentSettlement(paymentCouponSettlementInput{
+			ListAmount:  settlement.ListAmount,
+			FeeRate:     feeRate,
+			Currency:    settlement.Currency,
+			CouponQuote: &lockResult.Quote,
+		})
+		if calculateErr != nil {
+			return nil, infraerrors.BadRequest("INVALID_COUPON_SETTLEMENT", calculateErr.Error())
+		}
+		if !couponSettlementsMatch(settlement, lockedSettlement) {
+			return nil, infraerrors.Conflict("COUPON_QUOTE_CHANGED", "coupon quote changed before the order could be created")
+		}
+		order, err = tx.PaymentOrder.UpdateOneID(order.ID).
+			SetCouponID(lockResult.Coupon.ID).
+			SetCouponTemplateID(lockResult.Coupon.TemplateID).
+			SetCouponSnapshot(paymentCouponSnapshot(lockResult.Coupon, lockResult.Quote)).
+			Save(txCtx)
+		if err != nil {
+			return nil, fmt.Errorf("attach coupon to payment order: %w", err)
+		}
 	}
 	code := fmt.Sprintf("PAY-%d-%d", order.ID, time.Now().UnixNano()%100000)
 	order, err = tx.PaymentOrder.UpdateOneID(order.ID).SetRechargeCode(code).Save(ctx)
@@ -802,7 +908,7 @@ func classifyCreatePaymentError(req CreateOrderRequest, providerKey string, err 
 }
 
 func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest, payAmount float64, sel *payment.InstanceSelection, pr *payment.CreatePaymentResponse, resultType payment.CreatePaymentResultType) *CreateOrderResponse {
-	return &CreateOrderResponse{
+	response := &CreateOrderResponse{
 		OrderID:          order.ID,
 		Amount:           order.Amount,
 		PayAmount:        payAmount,
@@ -825,6 +931,19 @@ func buildCreateOrderResponse(order *dbent.PaymentOrder, req CreateOrderRequest,
 		ExpiresAt:        order.ExpiresAt,
 		PaymentMode:      sel.PaymentMode,
 	}
+	if response.Currency == "" {
+		response.Currency = order.PaymentCurrency
+	}
+	applyCouponSettlementToOrderResponse(response, &paymentCouponSettlement{
+		ListAmount:               order.ListAmount,
+		GatewayBaseAmount:        order.GatewayBaseAmount,
+		DiscountAmount:           order.DiscountAmount,
+		FeeAmount:                order.FeeAmount,
+		PayAmount:                order.PayAmount,
+		Currency:                 order.PaymentCurrency,
+		QualifyingRechargeAmount: order.QualifyingRechargeAmount,
+	})
+	return response
 }
 
 func buildWeChatPaymentOAuthStartURL(req CreateOrderRequest, scope string) (string, error) {
@@ -842,6 +961,9 @@ func buildWeChatPaymentOAuthStartURL(req CreateOrderRequest, scope string) (stri
 	}
 	if req.PlanID > 0 {
 		q.Set("plan_id", strconv.FormatInt(req.PlanID, 10))
+	}
+	if req.CouponID > 0 {
+		q.Set("coupon_id", strconv.FormatInt(req.CouponID, 10))
 	}
 	if scope = strings.TrimSpace(scope); scope != "" {
 		q.Set("scope", scope)
