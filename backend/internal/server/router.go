@@ -167,6 +167,8 @@ func registerRoutes(
 	routes.RegisterGatewayRoutes(r, h, apiKeyAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg)
 	routes.RegisterNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, promptLibraryService, h.ImageStudio, settingService, cfg, redisClient)
 	routes.RegisterMobileNextChatSessionRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, settingService, cfg)
+	v1.GET("/mobile/protocol", handler.MobileProtocol)
+	v1.GET("/mobile/session/status", gin.HandlerFunc(jwtAuth), handler.MobileSessionStatus)
 	v1.GET("/mobile/account-summary", gin.HandlerFunc(jwtAuth), handler.MobileAccountSummary(h.Wallet, h.Payment, h.Subscription))
 	v1.GET("/nextchat/mobile/account-summary", gin.HandlerFunc(jwtAuth), handler.MobileAccountSummary(h.Wallet, h.Payment, h.Subscription))
 	mobileSkills := handler.NewMobileSkillHandlerFromAuth(h.Auth)
