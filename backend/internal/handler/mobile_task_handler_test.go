@@ -19,6 +19,7 @@ type fakeMobileTaskStore struct {
 	createFunc     func(context.Context, int64, service.MobileTaskCreateInput) (*service.MobileTask, error)
 	listFunc       func(context.Context, int64, service.MobileTaskListFilter) (*service.MobileTaskPage, error)
 	getFunc        func(context.Context, int64, string) (*service.MobileTask, error)
+	deleteFunc     func(context.Context, int64, string) (*service.MobileTaskDeleteResult, error)
 	cancelFunc     func(context.Context, int64, string) (*service.MobileTask, error)
 	retryFunc      func(context.Context, int64, string, string) (*service.MobileTask, error)
 	transitionFunc func(context.Context, int64, string, service.MobileTaskTransitionInput) (*service.MobileTask, error)
@@ -34,6 +35,10 @@ func (f *fakeMobileTaskStore) List(ctx context.Context, userID int64, filter ser
 
 func (f *fakeMobileTaskStore) Get(ctx context.Context, userID int64, id string) (*service.MobileTask, error) {
 	return f.getFunc(ctx, userID, id)
+}
+
+func (f *fakeMobileTaskStore) Delete(ctx context.Context, userID int64, id string) (*service.MobileTaskDeleteResult, error) {
+	return f.deleteFunc(ctx, userID, id)
 }
 
 func (f *fakeMobileTaskStore) Cancel(ctx context.Context, userID int64, id string) (*service.MobileTask, error) {
@@ -122,6 +127,70 @@ func TestMobileTaskHandlerGetCancelAndRetry(t *testing.T) {
 	require.Equal(t, http.StatusCreated, retryResponse.Code)
 	require.Contains(t, cancel.Body.String(), `"status":"cancelled"`)
 	require.Contains(t, retryResponse.Body.String(), `"retry_of":"task-1"`)
+}
+
+func TestMobileTaskHandlerDeleteAndImageHistory(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	imageTask := mobileTaskHandlerTestTask("task-image", service.MobileTaskKindImage, service.MobileTaskStatusFailed)
+	retry := mobileTaskHandlerTestTask("task-image-retry", service.MobileTaskKindImage, service.MobileTaskStatusQueued)
+	retry.RetryOf = "task-image"
+	store := &fakeMobileTaskStore{
+		getFunc: func(_ context.Context, userID int64, id string) (*service.MobileTask, error) {
+			require.Equal(t, int64(52), userID)
+			require.Equal(t, "task-image", id)
+			return imageTask, nil
+		},
+		deleteFunc: func(_ context.Context, userID int64, id string) (*service.MobileTaskDeleteResult, error) {
+			require.Equal(t, int64(52), userID)
+			require.Equal(t, "task-image", id)
+			return &service.MobileTaskDeleteResult{ID: id, Deleted: true, DeletedAt: time.Date(2026, time.July, 26, 13, 0, 0, 0, time.UTC)}, nil
+		},
+		retryFunc: func(_ context.Context, userID int64, id, requestID string) (*service.MobileTask, error) {
+			require.Equal(t, int64(52), userID)
+			require.Equal(t, "task-image", id)
+			require.Equal(t, "image-retry-request", requestID)
+			return retry, nil
+		},
+		listFunc: func(_ context.Context, userID int64, filter service.MobileTaskListFilter) (*service.MobileTaskPage, error) {
+			require.Equal(t, int64(52), userID)
+			require.Equal(t, service.MobileTaskKindImage, filter.Kind)
+			return &service.MobileTaskPage{Items: []service.MobileTask{*imageTask}, Total: 1, Page: 1, PageSize: 20, Pages: 1}, nil
+		},
+	}
+	h := newMobileTaskHandlerWithStore(store)
+	params := gin.Params{{Key: "id", Value: "task-image"}}
+
+	deleted := performMobileTaskHandlerRequest(h.DeleteImageHistory, http.MethodDelete, "/mobile/image-history/task-image", nil, 52, params)
+	require.Equal(t, http.StatusOK, deleted.Code)
+	require.Contains(t, deleted.Body.String(), `"deleted":true`)
+
+	retried := performMobileTaskHandlerRequest(h.RetryImageHistory, http.MethodPost, "/mobile/image-history/task-image/retry", []byte(`{"client_request_id":"image-retry-request"}`), 52, params)
+	require.Equal(t, http.StatusCreated, retried.Code)
+	require.Contains(t, retried.Body.String(), `"retry_of":"task-image"`)
+
+	history := performMobileTaskHandlerRequest(h.ImageHistory, http.MethodGet, "/mobile/image-history", nil, 52, nil)
+	require.Equal(t, http.StatusOK, history.Code)
+	require.Contains(t, history.Body.String(), `"kind":"image"`)
+}
+
+func TestMobileTaskHandlerImageHistoryRejectsNonImageTask(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	chatTask := mobileTaskHandlerTestTask("task-chat", service.MobileTaskKindChat, service.MobileTaskStatusFailed)
+	store := &fakeMobileTaskStore{
+		getFunc: func(_ context.Context, _ int64, _ string) (*service.MobileTask, error) {
+			return chatTask, nil
+		},
+	}
+	h := newMobileTaskHandlerWithStore(store)
+	params := gin.Params{{Key: "id", Value: "task-chat"}}
+
+	deleted := performMobileTaskHandlerRequest(h.DeleteImageHistory, http.MethodDelete, "/mobile/image-history/task-chat", nil, 52, params)
+	require.Equal(t, http.StatusNotFound, deleted.Code)
+	require.Contains(t, deleted.Body.String(), "生图历史不存在")
+
+	retried := performMobileTaskHandlerRequest(h.RetryImageHistory, http.MethodPost, "/mobile/image-history/task-chat/retry", []byte(`{"client_request_id":"retry-chat"}`), 52, params)
+	require.Equal(t, http.StatusNotFound, retried.Code)
+	require.Contains(t, retried.Body.String(), "生图历史不存在")
 }
 
 func TestMobileTaskHandlerRejectsInvalidAndMapsStateErrors(t *testing.T) {

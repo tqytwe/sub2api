@@ -36,8 +36,18 @@ type adminPlayCampaignRequest struct {
 }
 
 type adminMobileFeedbackUpdateRequest struct {
-	Status    string `json:"status"`
-	AdminNote string `json:"admin_note"`
+	Status    string                             `json:"status"`
+	AdminNote *string                            `json:"admin_note"`
+	WorkItem  *adminMobileFeedbackWorkItemUpdate `json:"work_item"`
+}
+
+type adminMobileFeedbackWorkItemUpdate struct {
+	ID              int64  `json:"id"`
+	Status          string `json:"status"`
+	Priority        string `json:"priority"`
+	TargetVersion   string `json:"target_version"`
+	ReleasedVersion string `json:"released_version"`
+	Owner           string `json:"owner"`
 }
 
 type adminPlayCampaignDTO struct {
@@ -449,12 +459,27 @@ func (h *AdminPlayHandler) UpdateMobileFeedback(c *gin.Context) {
 	item, err := h.playService.UpdateAdminMobileFeedback(c.Request.Context(), id, service.MobileFeedbackUpdate{
 		Status:    req.Status,
 		AdminNote: req.AdminNote,
+		WorkItem:  adminMobileFeedbackWorkItemUpdateToService(req.WorkItem),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, item)
+}
+
+func adminMobileFeedbackWorkItemUpdateToService(input *adminMobileFeedbackWorkItemUpdate) *service.MobileFeedbackWorkItemUpdate {
+	if input == nil {
+		return nil
+	}
+	return &service.MobileFeedbackWorkItemUpdate{
+		ID:              input.ID,
+		Status:          input.Status,
+		Priority:        input.Priority,
+		TargetVersion:   input.TargetVersion,
+		ReleasedVersion: input.ReleasedVersion,
+		Owner:           input.Owner,
+	}
 }
 
 func (h *AdminPlayHandler) GetTeam(c *gin.Context) {

@@ -311,8 +311,8 @@ func ProvideMobileTaskHandler(db *sql.DB, push *service.MobilePushService) *Mobi
 	return NewMobileTaskHandlerWithPush(service.NewMobileTaskService(db), push)
 }
 
-func ProvideMobileSupportHandler(playService *service.PlayService) *MobileSupportHandler {
-	return NewMobileSupportHandler(playService)
+func ProvideMobileSupportHandler(playService *service.PlayService, feedbackAssetService *service.AnnouncementAssetService) *MobileSupportHandler {
+	return NewMobileSupportHandler(playService, feedbackAssetService)
 }
 
 func ProvideMobileDeviceHandler(pushService *service.MobilePushService) *MobileDeviceHandler {

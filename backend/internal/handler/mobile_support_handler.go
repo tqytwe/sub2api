@@ -2,6 +2,9 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -13,6 +16,24 @@ import (
 )
 
 const mobileSupportMessageMaxBytes = 8 << 10
+
+type mobileSupportCreateRequest struct {
+	Title          string                             `json:"title"`
+	Category       string                             `json:"category"`
+	Content        string                             `json:"content"`
+	AppVersion     string                             `json:"app_version"`
+	Platform       string                             `json:"platform"`
+	DeviceModel    string                             `json:"device_model"`
+	AndroidVersion string                             `json:"android_version"`
+	SystemVersion  string                             `json:"system_version"`
+	GroupName      string                             `json:"group_name"`
+	GroupID        *int64                             `json:"group_id"`
+	BackendURL     string                             `json:"backend_url"`
+	LastError      string                             `json:"last_error"`
+	CrashLog       string                             `json:"crash_log"`
+	DeviceInfo     map[string]any                     `json:"device_info"`
+	Screenshots    []service.MobileFeedbackScreenshot `json:"-"`
+}
 
 type mobileSupportService interface {
 	CreateMobileFeedback(ctx context.Context, userID int64, input service.MobileFeedbackInput) (*service.MobileFeedbackRecord, error)
@@ -27,22 +48,18 @@ func (h *MobileSupportHandler) Create(c *gin.Context) {
 	if !ok {
 		return
 	}
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32<<10)
-	var req struct {
-		Title      string         `json:"title"`
-		Category   string         `json:"category"`
-		Content    string         `json:"content"`
-		AppVersion string         `json:"app_version"`
-		Platform   string         `json:"platform"`
-		DeviceInfo map[string]any `json:"device_info"`
-	}
-	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" {
+	req, err := h.parseCreateRequest(c)
+	if err != nil || strings.TrimSpace(req.Title) == "" || strings.TrimSpace(req.Content) == "" {
 		response.BadRequest(c, "工单内容不正确")
 		return
 	}
 	record, err := h.service.CreateMobileFeedback(c.Request.Context(), subject.UserID, service.MobileFeedbackInput{
 		Title: req.Title, Category: req.Category, Content: req.Content,
-		AppVersion: req.AppVersion, Platform: req.Platform, DeviceInfo: req.DeviceInfo,
+		AppVersion: req.AppVersion, Platform: req.Platform, DeviceModel: req.DeviceModel,
+		AndroidVersion: req.AndroidVersion, SystemVersion: req.SystemVersion,
+		GroupName: req.GroupName, GroupID: req.GroupID, BackendURL: req.BackendURL,
+		LastError: req.LastError, CrashLog: req.CrashLog, DeviceInfo: req.DeviceInfo,
+		Screenshots: req.Screenshots,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -52,11 +69,122 @@ func (h *MobileSupportHandler) Create(c *gin.Context) {
 }
 
 type MobileSupportHandler struct {
-	service mobileSupportService
+	service              mobileSupportService
+	feedbackAssetService *service.AnnouncementAssetService
 }
 
-func NewMobileSupportHandler(service mobileSupportService) *MobileSupportHandler {
-	return &MobileSupportHandler{service: service}
+func NewMobileSupportHandler(svc mobileSupportService, feedbackAssetService ...*service.AnnouncementAssetService) *MobileSupportHandler {
+	var assetService *service.AnnouncementAssetService
+	if len(feedbackAssetService) > 0 {
+		assetService = feedbackAssetService[0]
+	}
+	return &MobileSupportHandler{service: svc, feedbackAssetService: assetService}
+}
+
+func (h *MobileSupportHandler) parseCreateRequest(c *gin.Context) (mobileSupportCreateRequest, error) {
+	contentType := strings.ToLower(c.GetHeader("Content-Type"))
+	if strings.Contains(contentType, "multipart/form-data") {
+		return h.parseMultipartCreateRequest(c)
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32<<10)
+	var req mobileSupportCreateRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		return req, err
+	}
+	return req, nil
+}
+
+func (h *MobileSupportHandler) parseMultipartCreateRequest(c *gin.Context) (mobileSupportCreateRequest, error) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, mobileFeedbackMaxRequestBytes)
+	var req mobileSupportCreateRequest
+	if err := c.Request.ParseMultipartForm(mobileFeedbackMaxRequestBytes); err != nil {
+		return req, err
+	}
+	req.Title = c.PostForm("title")
+	req.Category = c.PostForm("category")
+	req.Content = c.PostForm("content")
+	req.AppVersion = c.PostForm("app_version")
+	req.Platform = c.PostForm("platform")
+	req.DeviceModel = c.PostForm("device_model")
+	req.AndroidVersion = c.PostForm("android_version")
+	req.SystemVersion = c.PostForm("system_version")
+	req.GroupName = c.PostForm("group_name")
+	req.BackendURL = c.PostForm("backend_url")
+	req.LastError = c.PostForm("last_error")
+	req.CrashLog = c.PostForm("crash_log")
+	if raw := strings.TrimSpace(c.PostForm("group_id")); raw != "" {
+		parsed, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || parsed <= 0 {
+			return req, err
+		}
+		req.GroupID = &parsed
+	}
+	if raw := strings.TrimSpace(c.PostForm("device_info")); raw != "" {
+		if err := json.Unmarshal([]byte(raw), &req.DeviceInfo); err != nil {
+			return req, err
+		}
+	}
+	screenshots, err := h.uploadScreenshots(c)
+	if err != nil {
+		if errors.Is(err, service.ErrAnnouncementAssetStorageUnavailable) {
+			req.LastError = strings.TrimSpace(strings.Join([]string{req.LastError, "截图上传失败：反馈附件存储暂不可用"}, "；"))
+			return req, nil
+		}
+		return req, err
+	}
+	req.Screenshots = screenshots
+	return req, nil
+}
+
+func (h *MobileSupportHandler) uploadScreenshots(c *gin.Context) ([]service.MobileFeedbackScreenshot, error) {
+	if c.Request.MultipartForm == nil || c.Request.MultipartForm.File == nil {
+		return []service.MobileFeedbackScreenshot{}, nil
+	}
+	files := c.Request.MultipartForm.File["screenshots"]
+	if len(files) == 0 {
+		return []service.MobileFeedbackScreenshot{}, nil
+	}
+	if len(files) > mobileFeedbackMaxScreenshots {
+		return nil, errors.New("too many screenshots")
+	}
+	if h.feedbackAssetService == nil {
+		return nil, service.ErrAnnouncementAssetStorageUnavailable
+	}
+	out := make([]service.MobileFeedbackScreenshot, 0, len(files))
+	for _, header := range files {
+		if header == nil {
+			continue
+		}
+		if header.Size > mobileFeedbackMaxFileBytes {
+			return nil, service.ErrAnnouncementAssetTooLarge
+		}
+		file, err := header.Open()
+		if err != nil {
+			return nil, err
+		}
+		data, readErr := io.ReadAll(io.LimitReader(file, mobileFeedbackMaxFileBytes+1))
+		closeErr := file.Close()
+		if readErr != nil {
+			return nil, readErr
+		}
+		if closeErr != nil {
+			return nil, closeErr
+		}
+		if int64(len(data)) > mobileFeedbackMaxFileBytes {
+			return nil, service.ErrAnnouncementAssetTooLarge
+		}
+		asset, err := h.feedbackAssetService.Upload(c.Request.Context(), header.Filename, header.Header.Get("Content-Type"), data)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, service.MobileFeedbackScreenshot{
+			URL:         asset.URL,
+			FileName:    header.Filename,
+			ContentType: asset.ContentType,
+			ByteSize:    asset.ByteSize,
+		})
+	}
+	return out, nil
 }
 
 func (h *MobileSupportHandler) List(c *gin.Context) {

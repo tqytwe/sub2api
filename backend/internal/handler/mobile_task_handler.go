@@ -17,6 +17,7 @@ type mobileTaskStore interface {
 	Create(context.Context, int64, service.MobileTaskCreateInput) (*service.MobileTask, error)
 	List(context.Context, int64, service.MobileTaskListFilter) (*service.MobileTaskPage, error)
 	Get(context.Context, int64, string) (*service.MobileTask, error)
+	Delete(context.Context, int64, string) (*service.MobileTaskDeleteResult, error)
 	Cancel(context.Context, int64, string) (*service.MobileTask, error)
 	Retry(context.Context, int64, string, string) (*service.MobileTask, error)
 	Transition(context.Context, int64, string, service.MobileTaskTransitionInput) (*service.MobileTask, error)
@@ -127,6 +128,99 @@ func (h *MobileTaskHandler) Get(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "private, no-store")
 	response.Success(c, task)
+}
+
+func (h *MobileTaskHandler) Delete(c *gin.Context) {
+	userID, ok := mobileTaskUserID(c)
+	if !ok {
+		return
+	}
+	if !h.available(c) {
+		return
+	}
+	result, err := h.store.Delete(c.Request.Context(), userID, strings.TrimSpace(c.Param("id")))
+	if writeMobileTaskError(c, err) {
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	response.Success(c, result)
+}
+
+func (h *MobileTaskHandler) ImageHistory(c *gin.Context) {
+	userID, ok := mobileTaskUserID(c)
+	if !ok {
+		return
+	}
+	if !h.available(c) {
+		return
+	}
+	filter, err := parseMobileTaskListFilter(c)
+	if err != nil {
+		response.BadRequest(c, err.Error())
+		return
+	}
+	filter.Kind = service.MobileTaskKindImage
+	page, err := h.store.List(c.Request.Context(), userID, filter)
+	if writeMobileTaskError(c, err) {
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	response.Success(c, page)
+}
+
+func (h *MobileTaskHandler) DeleteImageHistory(c *gin.Context) {
+	userID, ok := mobileTaskUserID(c)
+	if !ok {
+		return
+	}
+	if !h.available(c) {
+		return
+	}
+	id := strings.TrimSpace(c.Param("id"))
+	task, err := h.store.Get(c.Request.Context(), userID, id)
+	if writeMobileTaskError(c, err) {
+		return
+	}
+	if task.Kind != service.MobileTaskKindImage {
+		response.NotFound(c, "生图历史不存在")
+		return
+	}
+	result, err := h.store.Delete(c.Request.Context(), userID, id)
+	if writeMobileTaskError(c, err) {
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	response.Success(c, result)
+}
+
+func (h *MobileTaskHandler) RetryImageHistory(c *gin.Context) {
+	userID, ok := mobileTaskUserID(c)
+	if !ok {
+		return
+	}
+	if !h.available(c) {
+		return
+	}
+	id := strings.TrimSpace(c.Param("id"))
+	task, err := h.store.Get(c.Request.Context(), userID, id)
+	if writeMobileTaskError(c, err) {
+		return
+	}
+	if task.Kind != service.MobileTaskKindImage {
+		response.NotFound(c, "生图历史不存在")
+		return
+	}
+	var request mobileTaskRetryRequest
+	if err := c.ShouldBindJSON(&request); err != nil || strings.TrimSpace(request.ClientRequestID) == "" {
+		response.BadRequest(c, "重试请求标识不能为空")
+		return
+	}
+	retry, err := h.store.Retry(c.Request.Context(), userID, id, strings.TrimSpace(request.ClientRequestID))
+	if writeMobileTaskError(c, err) {
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
+	response.Created(c, retry)
 }
 
 func (h *MobileTaskHandler) Cancel(c *gin.Context) {
