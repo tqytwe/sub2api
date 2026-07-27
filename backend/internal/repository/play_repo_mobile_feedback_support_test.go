@@ -4,6 +4,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -53,16 +54,43 @@ func TestUpdateAdminMobileFeedbackAppendsOnlyChangedReply(t *testing.T) {
 	t.Cleanup(func() { _ = db.Close() })
 	createdAt := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
 	columns := []string{"id", "user_id", "user_email", "user_name", "title", "category", "content", "status", "app_version", "platform", "device_model", "android_version", "system_version", "group_name", "group_id", "backend_url", "last_error", "crash_log", "device_info", "screenshots", "admin_note", "created_at", "updated_at"}
-	mock.ExpectQuery(`(?s)WITH previous AS .*FOR UPDATE.*support_message AS .*\$3 IS DISTINCT FROM previous.admin_note`).
+	mock.ExpectQuery(`(?s)WITH previous AS .*FOR UPDATE.*UPDATE mobile_feedback.*RETURNING \*`).
 		WithArgs(int64(77), "viewed", "正在处理").
 		WillReturnRows(sqlmock.NewRows(columns).AddRow(
 			int64(77), int64(42), "", "", "网络问题", "bug", "无法连接", "viewed", "2.0.36", "android", "Redmi", "13", "", "", int64(0), "", "", "", []byte(`{}`), []byte(`[]`), "正在处理", createdAt, createdAt,
 		))
+	mock.ExpectExec(`(?s)INSERT INTO mobile_feedback_messages .*WHERE NOT EXISTS`).
+		WithArgs(int64(77), "正在处理").
+		WillReturnResult(sqlmock.NewResult(0, 1))
 	repo := NewPlayRepository(nil, db)
 
 	record, err := repo.UpdateAdminMobileFeedback(context.Background(), 77, "viewed", "正在处理")
 
 	require.NoError(t, err)
 	require.Equal(t, "正在处理", record.AdminNote)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestUpdateAdminMobileFeedbackStillSavesWhenReplyAppendFails(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	createdAt := time.Date(2026, 7, 26, 12, 0, 0, 0, time.UTC)
+	columns := []string{"id", "user_id", "user_email", "user_name", "title", "category", "content", "status", "app_version", "platform", "device_model", "android_version", "system_version", "group_name", "group_id", "backend_url", "last_error", "crash_log", "device_info", "screenshots", "admin_note", "created_at", "updated_at"}
+	mock.ExpectQuery(`(?s)WITH previous AS .*FOR UPDATE.*UPDATE mobile_feedback.*RETURNING \*`).
+		WithArgs(int64(77), "handled", "已处理").
+		WillReturnRows(sqlmock.NewRows(columns).AddRow(
+			int64(77), int64(42), "", "", "网络问题", "bug", "无法连接", "handled", "2.0.36", "android", "Redmi", "13", "", "", int64(0), "", "", "", []byte(`{}`), []byte(`[]`), "已处理", createdAt, createdAt,
+		))
+	mock.ExpectExec(`(?s)INSERT INTO mobile_feedback_messages .*WHERE NOT EXISTS`).
+		WithArgs(int64(77), "已处理").
+		WillReturnError(errors.New("messages table unavailable"))
+	repo := NewPlayRepository(nil, db)
+
+	record, err := repo.UpdateAdminMobileFeedback(context.Background(), 77, "handled", "已处理")
+
+	require.NoError(t, err)
+	require.Equal(t, "handled", record.Status)
+	require.Equal(t, "已处理", record.AdminNote)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

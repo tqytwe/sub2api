@@ -371,12 +371,6 @@ func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64
 			FROM previous
 			WHERE id = $1
 			RETURNING *
-		), support_message AS (
-			INSERT INTO mobile_feedback_messages (feedback_id, sender_type, content)
-			SELECT updated.id, 'support', $3
-			FROM updated, previous
-			WHERE $3 <> '' AND $3 IS DISTINCT FROM previous.admin_note
-			RETURNING id
 		)
 		SELECT
 			id,
@@ -407,6 +401,19 @@ func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64
 	)
 	if err != nil {
 		return nil, err
+	}
+	if strings.TrimSpace(adminNote) != "" && record != nil && strings.TrimSpace(record.AdminNote) != "" {
+		_, _ = exec.ExecContext(ctx, `
+			INSERT INTO mobile_feedback_messages (feedback_id, sender_type, content)
+			SELECT $1, 'support', $2
+			WHERE NOT EXISTS (
+				SELECT 1
+				FROM mobile_feedback_messages
+				WHERE feedback_id = $1 AND sender_type = 'support' AND content = $2
+			)`,
+			id,
+			record.AdminNote,
+		)
 	}
 	return record, nil
 }
