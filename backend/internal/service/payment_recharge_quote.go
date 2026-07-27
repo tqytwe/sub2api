@@ -165,6 +165,12 @@ func paymentOrderRechargeBaseCredited(o *dbent.PaymentOrder) (float64, bool) {
 	if o == nil || o.OrderType != payment.OrderTypeBalance {
 		return 0, false
 	}
+	// New coupon-aware orders persist the amount that actually qualifies for
+	// lifetime recharge, VIP and affiliate calculations. The credited balance
+	// can remain at the full product amount even when a coupon reduced cash due.
+	if o.ListAmount > 0 {
+		return roundMoney(o.QualifyingRechargeAmount), true
+	}
 	snapshot := paymentOrderRechargeSnapshot(o)
 	if snapshot == nil {
 		return o.Amount, false

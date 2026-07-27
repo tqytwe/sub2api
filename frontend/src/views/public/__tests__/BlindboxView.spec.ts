@@ -29,6 +29,7 @@ vi.mock('@/stores/auth', async () => {
   const { reactive } = await import('vue')
   const state = reactive({
     isAuthenticated: false,
+    user: null as { id: number } | null,
     refreshUser: vi.fn(),
   })
   return {
@@ -80,6 +81,7 @@ const configuredPool = {
 
 const authState = useAuthStore() as unknown as {
   isAuthenticated: boolean
+  user: { id: number } | null
   refreshUser: typeof refreshUserMock
 }
 
@@ -133,6 +135,7 @@ function mountView() {
 describe('BlindboxView', () => {
   beforeEach(() => {
     authState.isAuthenticated = false
+    authState.user = null
     refreshUserMock.mockReset()
     authState.refreshUser = refreshUserMock
     getBlindboxPoolMock.mockReset()
@@ -143,6 +146,7 @@ describe('BlindboxView', () => {
     showInfoMock.mockReset()
     showSuccessMock.mockReset()
     getBlindboxRecentWinsMock.mockResolvedValue([])
+    window.sessionStorage.clear()
   })
 
   it('loads the public pool for guests and renders all seven API tiers', async () => {
@@ -160,7 +164,9 @@ describe('BlindboxView', () => {
     const tiers = wrapper.findAll('.play-prize-tier')
     expect(tiers).toHaveLength(7)
     expect(wrapper.text()).toContain('$20.00')
-    expect(wrapper.text()).toContain('0.1%')
+    // $20 is a 0.1% tier inside the balance pool. The balance branch is 40%
+    // of all opens, so the UI must show its 0.04% global probability.
+    expect(wrapper.text()).toContain('0.04%')
     expect(wrapper.text()).not.toContain('$2.00')
   })
 
@@ -239,6 +245,231 @@ describe('BlindboxView', () => {
     expect(showInfoMock).toHaveBeenCalledWith('blindbox.dailyLimit')
     expect(showErrorMock).not.toHaveBeenCalled()
     expect(getBlindboxStatusMock).toHaveBeenCalledTimes(2)
+  })
+
+  it('reuses the same idempotency key after a failed open and rotates it after success', async () => {
+    authState.isAuthenticated = true
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock
+      .mockRejectedValueOnce(new Error('response lost after settlement'))
+      .mockResolvedValueOnce({
+        cost_amount: 0.5,
+        reward_amount: 3,
+        net_amount: 2.5,
+        opens_today: 1,
+        server_date: '2026-07-16',
+        pool_version: 'season-1-vip-v3',
+        open_source: 'paid',
+      })
+      .mockResolvedValueOnce({
+        cost_amount: 0.5,
+        reward_amount: 0.2,
+        net_amount: -0.3,
+        opens_today: 2,
+        server_date: '2026-07-16',
+        pool_version: 'season-1-vip-v3',
+        open_source: 'paid',
+      })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+    const retryKey = openBlindboxMock.mock.calls[0]?.[0]
+
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(typeof retryKey).toBe('string')
+    expect(retryKey).not.toHaveLength(0)
+    expect(openBlindboxMock.mock.calls[1]?.[0]).toBe(retryKey)
+    expect(openBlindboxMock.mock.calls[2]?.[0]).not.toBe(retryKey)
+  })
+
+  it('reuses the current user session key after a page reload and clears it after success', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 42 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock
+      .mockRejectedValueOnce(new Error('response lost after settlement'))
+      .mockResolvedValueOnce({
+        cost_amount: 0.5,
+        reward_amount: 3,
+        net_amount: 2.5,
+        opens_today: 1,
+        server_date: '2026-07-16',
+        pool_version: 'season-1-vip-v3',
+        open_source: 'paid',
+      })
+
+    const firstView = mountView()
+    await flushPromises()
+    await firstView.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+    const retryKey = openBlindboxMock.mock.calls[0]?.[0]
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBe(retryKey)
+
+    firstView.unmount()
+    const reloadedView = mountView()
+    await flushPromises()
+    await reloadedView.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(openBlindboxMock.mock.calls[1]?.[0]).toBe(retryKey)
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBeNull()
+  })
+
+  it('does not reuse a pending key that belongs to another signed-in user', async () => {
+    window.sessionStorage.setItem('blindbox.pending-open:42', 'blindbox-user-42-pending')
+    authState.isAuthenticated = true
+    authState.user = { id: 43 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock.mockRejectedValueOnce(new Error('response lost after settlement'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(openBlindboxMock.mock.calls[0]?.[0]).not.toBe('blindbox-user-42-pending')
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBe('blindbox-user-42-pending')
+    expect(window.sessionStorage.getItem('blindbox.pending-open:43')).toBe(openBlindboxMock.mock.calls[0]?.[0])
+  })
+
+  it('discards a persisted key that the server would reject before retrying', async () => {
+    window.sessionStorage.setItem('blindbox.pending-open:42', 'x'.repeat(129))
+    authState.isAuthenticated = true
+    authState.user = { id: 42 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock.mockRejectedValueOnce(new Error('response lost after settlement'))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(openBlindboxMock.mock.calls[0]?.[0]).not.toBe('x'.repeat(129))
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBe(openBlindboxMock.mock.calls[0]?.[0])
+  })
+
+  it('does not show a settled result from the previous user after an account switch', async () => {
+    let resolveOpen!: (result: {
+      cost_amount: number
+      reward_amount: number
+      net_amount: number
+      opens_today: number
+      server_date: string
+      pool_version: string
+      open_source: string
+    }) => void
+    authState.isAuthenticated = true
+    authState.user = { id: 42 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock.mockReturnValueOnce(new Promise((resolve) => {
+      resolveOpen = resolve
+    }))
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+
+    authState.user = { id: 43 }
+    await flushPromises()
+    resolveOpen({
+      cost_amount: 0.5,
+      reward_amount: 3,
+      net_amount: 2.5,
+      opens_today: 1,
+      server_date: '2026-07-16',
+      pool_version: 'season-1-vip-v3',
+      open_source: 'paid',
+    })
+    await flushPromises()
+
+    expect(showSuccessMock).not.toHaveBeenCalled()
+    expect(showErrorMock).not.toHaveBeenCalled()
+    expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBeNull()
+  })
+
+  it('allows the current account to open while an old account request is still pending', async () => {
+    let resolvePreviousOpen!: (result: {
+      cost_amount: number
+      reward_amount: number
+      net_amount: number
+      opens_today: number
+      server_date: string
+      pool_version: string
+      open_source: string
+    }) => void
+    authState.isAuthenticated = true
+    authState.user = { id: 42 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    openBlindboxMock
+      .mockReturnValueOnce(new Promise((resolve) => {
+        resolvePreviousOpen = resolve
+      }))
+      .mockResolvedValueOnce({
+        cost_amount: 0.5,
+        reward_amount: 0.2,
+        net_amount: -0.3,
+        opens_today: 1,
+        server_date: '2026-07-16',
+        pool_version: 'season-1-vip-v3',
+        open_source: 'paid',
+      })
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+
+    authState.user = { id: 43 }
+    await flushPromises()
+
+    const currentButton = wrapper.get('.play-btn-primary')
+    expect(currentButton.attributes('disabled')).toBeUndefined()
+    await currentButton.trigger('click')
+    await flushPromises()
+    expect(openBlindboxMock).toHaveBeenCalledTimes(2)
+
+    resolvePreviousOpen({
+      cost_amount: 0.5,
+      reward_amount: 3,
+      net_amount: 2.5,
+      opens_today: 1,
+      server_date: '2026-07-16',
+      pool_version: 'season-1-vip-v3',
+      open_source: 'paid',
+    })
+    await flushPromises()
+  })
+
+  it('keeps a settled blindbox result successful when refreshing the account fails', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 42 }
+    getBlindboxStatusMock.mockResolvedValue(configuredStatus())
+    refreshUserMock.mockRejectedValueOnce(new Error('user refresh unavailable'))
+    openBlindboxMock.mockResolvedValueOnce({
+      cost_amount: 0.5,
+      reward_amount: 3,
+      net_amount: 2.5,
+      opens_today: 1,
+      server_date: '2026-07-16',
+      pool_version: 'season-1-vip-v3',
+      open_source: 'paid',
+    })
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('.play-btn-primary').trigger('click')
+    await flushPromises()
+
+    expect(showSuccessMock).toHaveBeenCalledWith('blindbox.success')
+    expect(showErrorMock).not.toHaveBeenCalled()
+    expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(true)
+    expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBeNull()
   })
 
   it('shows the VIP pool upgrade context and celebration after a successful open', async () => {

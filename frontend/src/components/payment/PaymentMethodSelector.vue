@@ -8,16 +8,16 @@
         v-for="method in sortedMethods"
         :key="method.type"
         type="button"
-        :disabled="!method.available"
+        :disabled="disabled || !method.available"
         :class="[
           'relative flex h-[60px] flex-col items-center justify-center rounded-lg border px-3 transition-all sm:flex-1',
-          !method.available
+          !method.available || disabled
             ? 'cursor-not-allowed border-gray-200 bg-gray-50 opacity-50 dark:border-dark-700 dark:bg-dark-800/50'
             : selected === method.type
               ? methodSelectedClass(method.type)
               : 'border-gray-300 bg-white text-gray-700 hover:border-gray-400 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-200 dark:hover:border-dark-500',
         ]"
-        @click="method.available && emit('select', method.type)"
+        @click="method.available && !disabled && emit('select', method.type)"
       >
         <span class="flex items-center gap-2">
           <img :src="methodIcon(method.type)" :alt="methodLabel(method)" class="h-7 w-7 object-contain" />
@@ -56,6 +56,7 @@ export interface PaymentMethodOption {
 const props = defineProps<{
   methods: PaymentMethodOption[]
   selected: string
+  disabled?: boolean
 }>()
 
 const emit = defineEmits<{

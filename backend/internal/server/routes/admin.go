@@ -631,6 +631,41 @@ func registerRedeemCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 func registerPromoCodeRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	promoCodes := admin.Group("/promo-codes")
 	{
+		// Payment coupons share the existing promo-code administration entry,
+		// while keeping their order-discount data model independent from the
+		// legacy registration bonus codes below.
+		coupons := promoCodes.Group("/coupons")
+		{
+			templates := coupons.Group("/templates")
+			{
+				templates.GET("", h.Admin.Coupon.ListTemplates)
+				templates.POST("", h.Admin.Coupon.CreateTemplate)
+				templates.GET("/:id", h.Admin.Coupon.GetTemplate)
+				templates.PUT("/:id", h.Admin.Coupon.UpdateTemplate)
+				templates.DELETE("/:id", h.Admin.Coupon.DeleteTemplate)
+			}
+
+			userCoupons := coupons.Group("/user-coupons")
+			{
+				userCoupons.GET("", h.Admin.Coupon.ListUserCoupons)
+				userCoupons.POST("/issue", h.Admin.Coupon.IssueUserCoupon)
+				userCoupons.POST("/batches", h.Admin.Coupon.IssueUserCouponBatch)
+				userCoupons.POST("/:id/void", h.Admin.Coupon.VoidUserCoupon)
+			}
+			coupons.GET("/batches", h.Admin.Coupon.ListIssueBatches)
+
+			pools := coupons.Group("/pools")
+			{
+				pools.GET("", h.Admin.Coupon.ListRewardPools)
+				pools.POST("", h.Admin.Coupon.CreateRewardPool)
+				pools.GET("/published", h.Admin.Coupon.GetPublishedRewardPool)
+				pools.GET("/:id", h.Admin.Coupon.GetRewardPool)
+				pools.PUT("/:id", h.Admin.Coupon.UpdateRewardPool)
+				pools.DELETE("/:id", h.Admin.Coupon.DeleteRewardPool)
+				pools.POST("/:id/publish", h.Admin.Coupon.PublishRewardPool)
+			}
+		}
+
 		promoCodes.GET("", h.Admin.Promo.List)
 		promoCodes.GET("/:id", h.Admin.Promo.GetByID)
 		promoCodes.POST("", h.Admin.Promo.Create)

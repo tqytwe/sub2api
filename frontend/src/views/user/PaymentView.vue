@@ -59,7 +59,19 @@
                     <PaymentMethodSelector
                       :methods="methodOptions"
                       :selected="selectedMethod"
-                      @select="selectedMethod = $event"
+                      :disabled="submitting"
+                      @select="selectPaymentMethod"
+                    />
+                  </div>
+                  <div class="card p-6">
+                    <CouponSelector
+                      :model-value="rechargeCouponID"
+                      :amount="validAmount"
+                      order-type="balance"
+                      :payment-type="selectedMethod"
+                      :disabled="submitting"
+                      @update:model-value="handleCouponSelection('balance', $event)"
+                      @quote="handleCouponQuote('balance', $event)"
                     />
                   </div>
                 </template>
@@ -69,15 +81,19 @@
                   <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.paymentAmount') }}</span>
-                      <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(validAmount) }}</span>
+                      <span class="text-gray-900 dark:text-white">{{ formatRechargePaymentAmount(rechargeListAmount) }}</span>
+                    </div>
+                    <div v-if="rechargeCouponQuote" class="flex justify-between">
+                      <span class="text-gray-500 dark:text-gray-400">{{ t('coupon.payment.discount') }}</span>
+                      <span class="font-medium text-primary-700 dark:text-primary-300">-{{ formatRechargePaymentAmount(rechargeCouponQuote.discount_amount) }}</span>
                     </div>
                     <div v-if="feeRate > 0" class="flex justify-between">
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
-                      <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(feeAmount) }}</span>
+                      <span class="text-gray-900 dark:text-white">{{ formatRechargePaymentAmount(feeAmount) }}</span>
                     </div>
-                    <div v-if="feeRate > 0" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
+                    <div v-if="feeRate > 0 || rechargeCouponQuote" class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
                       <span class="font-medium text-gray-700 dark:text-gray-300">{{ t('payment.actualPay') }}</span>
-                      <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatSelectedPaymentAmount(totalAmount) }}</span>
+                      <span class="text-lg font-bold text-primary-600 dark:text-primary-400">{{ formatRechargePaymentAmount(totalAmount) }}</span>
                     </div>
                     <div class="flex justify-between border-t border-gray-200 pt-2 dark:border-dark-600">
                       <span class="text-gray-500 dark:text-gray-400">{{ t('payment.baseCredited') }}</span>
@@ -110,7 +126,7 @@
                     <LoadingSpinner size="sm" color="white" />
                     {{ t('common.processing') }}
                   </span>
-                  <span v-else>{{ t('payment.createOrder') }} {{ formatSelectedPaymentAmount(totalAmount) }}</span>
+                  <span v-else>{{ t('payment.createOrder') }} {{ formatRechargePaymentAmount(totalAmount) }}</span>
                 </button>
               </div>
             </div>
@@ -175,16 +191,33 @@
                 <PaymentMethodSelector
                   :methods="subMethodOptions"
                   :selected="selectedMethod"
-                  @select="selectedMethod = $event"
+                  :disabled="submitting"
+                  @select="selectPaymentMethod"
                 />
               </div>
-              <div v-if="feeRate > 0 && selectedPlan.price > 0" class="card p-6">
+              <div class="card p-6">
+                <CouponSelector
+                  :model-value="subscriptionCouponID"
+                  :amount="selectedPlan.price"
+                  order-type="subscription"
+                  :plan-id="selectedPlan.id"
+                  :payment-type="selectedMethod"
+                  :disabled="submitting"
+                  @update:model-value="handleCouponSelection('subscription', $event)"
+                  @quote="handleCouponQuote('subscription', $event)"
+                />
+              </div>
+              <div v-if="(feeRate > 0 || subscriptionCouponQuote) && selectedPlan.price > 0" class="card p-6">
                 <div class="space-y-2 text-sm">
                   <div class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.amountLabel') }}</span>
                     <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(subPaymentAmount) }}</span>
                   </div>
-                  <div class="flex justify-between">
+                  <div v-if="subscriptionCouponQuote" class="flex justify-between">
+                    <span class="text-gray-500 dark:text-gray-400">{{ t('coupon.payment.discount') }}</span>
+                    <span class="font-medium text-primary-700 dark:text-primary-300">-{{ formatSelectedPaymentAmount(subscriptionCouponQuote.discount_amount) }}</span>
+                  </div>
+                  <div v-if="feeRate > 0" class="flex justify-between">
                     <span class="text-gray-500 dark:text-gray-400">{{ t('payment.fee') }} ({{ feeRate }}%)</span>
                     <span class="text-gray-900 dark:text-white">{{ formatSelectedPaymentAmount(subFeeAmount) }}</span>
                   </div>
@@ -408,10 +441,11 @@ import { usePaymentStore } from '@/stores/payment'
 import { useSubscriptionStore } from '@/stores/subscriptions'
 import { useAppStore } from '@/stores'
 import { paymentAPI } from '@/api/payment'
-import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
+import { extractApiErrorCode, extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { isMobileDevice } from '@/utils/device'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel, type PeakRateFields } from '@/utils/peak-rate'
 import type { PaymentStorefrontConfig, PaymentStorefrontShelf, PaymentStorefrontTag, SubscriptionPlan, CheckoutInfoResponse, CreateOrderResult, OrderType } from '@/types/payment'
+import type { CouponPaymentQuote } from '@/types/coupon'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import AmountInput from '@/components/payment/AmountInput.vue'
 import PaymentMethodSelector from '@/components/payment/PaymentMethodSelector.vue'
@@ -431,6 +465,7 @@ import { platformAccentBarClass, platformBadgeLightClass, platformBadgeClass, pl
 import SubscriptionPlanCard from '@/components/payment/SubscriptionPlanCard.vue'
 import SubscriptionPlanDecisionShelf from '@/components/payment/SubscriptionPlanDecisionShelf.vue'
 import PaymentStatusPanel from '@/components/payment/PaymentStatusPanel.vue'
+import CouponSelector from '@/components/coupon/CouponSelector.vue'
 import LoadingSpinner from '@/components/common/LoadingSpinner.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { DEFAULT_PAYMENT_CURRENCY, formatPaymentAmount, normalizePaymentCurrency } from '@/components/payment/currency'
@@ -475,6 +510,10 @@ const selectedMethod = ref('')
 const selectedPlan = ref<SubscriptionPlan | null>(null)
 const selectedPlanDetails = ref<SubscriptionPlan | null>(null)
 const previewImage = ref('')
+const rechargeCouponID = ref<number | null>(null)
+const subscriptionCouponID = ref<number | null>(null)
+const rechargeCouponQuote = ref<CouponPaymentQuote | null>(null)
+const subscriptionCouponQuote = ref<CouponPaymentQuote | null>(null)
 
 const paymentPhase = ref<'select' | 'paying'>('select')
 
@@ -482,6 +521,7 @@ interface CreateOrderOptions {
   openid?: string
   wechatResumeToken?: string
   paymentType?: string
+  couponID?: number
   isResume?: boolean
   mobileQrFallbackAttempted?: boolean
 }
@@ -570,6 +610,81 @@ function resetPayment() {
   removeRecoverySnapshot()
 }
 
+function clearCouponSelection(orderType: OrderType) {
+  if (orderType === 'subscription') {
+    subscriptionCouponID.value = null
+    subscriptionCouponQuote.value = null
+    return
+  }
+  rechargeCouponID.value = null
+  rechargeCouponQuote.value = null
+}
+
+function selectedCouponID(orderType: OrderType): number | null {
+  return orderType === 'subscription' ? subscriptionCouponID.value : rechargeCouponID.value
+}
+
+function selectedCouponQuote(orderType: OrderType): CouponPaymentQuote | null {
+  return orderType === 'subscription' ? subscriptionCouponQuote.value : rechargeCouponQuote.value
+}
+
+function handleCouponSelection(orderType: OrderType, couponID: number | null) {
+  if (submitting.value) return
+  if (selectedCouponID(orderType) === couponID) return
+  if (orderType === 'subscription') {
+    subscriptionCouponID.value = couponID
+    subscriptionCouponQuote.value = null
+    return
+  }
+  rechargeCouponID.value = couponID
+  rechargeCouponQuote.value = null
+}
+
+function handleCouponQuote(orderType: OrderType, quote: CouponPaymentQuote | null) {
+  if (submitting.value) return
+  if (quote && quote.user_coupon_id !== selectedCouponID(orderType)) return
+  if (orderType === 'subscription') {
+    subscriptionCouponQuote.value = quote
+    return
+  }
+  rechargeCouponQuote.value = quote
+}
+
+function selectedCouponIDForOrder(orderType: OrderType): number | undefined {
+  const couponID = selectedCouponID(orderType)
+  const quote = selectedCouponQuote(orderType)
+  return couponID !== null && quote?.user_coupon_id === couponID ? couponID : undefined
+}
+
+function selectPaymentMethod(method: string) {
+  if (!submitting.value) selectedMethod.value = method
+}
+
+function invalidateCouponQuotes() {
+  rechargeCouponQuote.value = null
+  subscriptionCouponQuote.value = null
+}
+
+function shouldClearRejectedCouponSelection(code: string | undefined): boolean {
+  switch (code) {
+    case 'COUPON_NOT_FOUND':
+    case 'COUPON_NOT_AVAILABLE':
+    case 'COUPON_EXPIRED':
+    case 'COUPON_TERMS_INVALID':
+    case 'COUPON_SCOPE_MISMATCH':
+    case 'COUPON_MINIMUM_NOT_MET':
+    case 'COUPON_PLAN_MISMATCH':
+    case 'COUPON_CURRENCY_MISMATCH':
+    case 'COUPON_QUOTE_CHANGED':
+    case 'INVALID_COUPON_ORDER':
+    case 'INVALID_COUPON_SETTLEMENT':
+    case 'INVALID_USER_COUPON_ID':
+      return true
+    default:
+      return false
+  }
+}
+
 async function redirectToPaymentResult(state: PaymentRecoverySnapshot): Promise<void> {
   const query: Record<string, string | undefined> = {}
   if (state.orderId > 0) {
@@ -589,7 +704,7 @@ async function redirectToPaymentResult(state: PaymentRecoverySnapshot): Promise<
 
 function buildWechatOAuthAuthorizeUrl(
   authorizeUrl: string,
-  context: { paymentType: string; orderType: OrderType; planId?: number; orderAmount: number },
+  context: { paymentType: string; orderType: OrderType; planId?: number; orderAmount: number; couponID?: number },
 ): string {
   const normalizedUrl = authorizeUrl.trim()
   if (!normalizedUrl || typeof window === 'undefined') {
@@ -615,6 +730,14 @@ function buildWechatOAuthAuthorizeUrl(
       redirectUrl.searchParams.set('amount', String(context.orderAmount))
     } else {
       redirectUrl.searchParams.delete('amount')
+    }
+
+    if (context.couponID && context.couponID > 0) {
+      const couponID = String(context.couponID)
+      // The signed server-side resume token remains authoritative after OAuth.
+      // These parameters preserve context for older openid-based callbacks.
+      targetUrl.searchParams.set('coupon_id', couponID)
+      redirectUrl.searchParams.set('coupon_id', couponID)
     }
 
     targetUrl.searchParams.set('redirect', `${redirectUrl.pathname}${redirectUrl.search}`)
@@ -950,6 +1073,11 @@ const globalMaxAmount = computed(() => {
 
 // Selected method's limits (for validation and error messages)
 const selectedLimit = computed(() => visibleMethods.value[selectedMethod.value])
+const hasSelectedAvailableMethod = computed(() =>
+  Boolean(selectedMethod.value.trim())
+    && Boolean(selectedLimit.value)
+    && selectedLimit.value.available !== false
+)
 const selectedCurrency = computed(() => normalizePaymentCurrency(selectedLimit.value?.currency))
 const localeCode = computed(() => {
   const raw = i18n.locale as unknown
@@ -1011,6 +1139,10 @@ function formatSelectedSubscriptionPaymentAmount(value: number): string {
   return formatSelectedPaymentAmount(subscriptionPaymentAmountForCurrency(value, selectedCurrency.value))
 }
 
+function formatRechargePaymentAmount(value: number): string {
+  return formatPaymentAmount(value, rechargePaymentCurrency.value, localeCode.value)
+}
+
 const methodOptions = computed<PaymentMethodOption[]>(() =>
   enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
@@ -1018,77 +1150,81 @@ const methodOptions = computed<PaymentMethodOption[]>(() =>
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(validAmount.value, type),
+      available: ml?.available !== false && amountFitsMethod(totalAmount.value, type),
     }
   })
 )
 
 const feeRate = computed(() => checkout.value?.recharge_fee_rate ?? 0)
-const feeAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.ceil(((validAmount.value * feeRate.value) / 100) * 100) / 100
-    : 0
-)
-const totalAmount = computed(() =>
-  feeRate.value > 0 && validAmount.value > 0
-    ? Math.round((validAmount.value + feeAmount.value) * 100) / 100
-    : validAmount.value
-)
+const rechargeListAmount = computed(() => rechargeCouponQuote.value?.list_amount ?? validAmount.value)
+const rechargePaymentCurrency = computed(() => rechargeCouponQuote.value?.payment_currency || selectedCurrency.value)
+const rechargeGatewayBaseAmount = computed(() => rechargeCouponQuote.value?.gateway_base_amount ?? validAmount.value)
+const feeAmount = computed(() => {
+  if (rechargeCouponQuote.value) return rechargeCouponQuote.value.fee_amount
+  if (feeRate.value <= 0 || rechargeGatewayBaseAmount.value <= 0) return 0
+  return Math.ceil(((rechargeGatewayBaseAmount.value * feeRate.value) / 100) * 100) / 100
+})
+const totalAmount = computed(() => {
+  if (rechargeCouponQuote.value) return rechargeCouponQuote.value.pay_amount
+  if (feeRate.value <= 0 || rechargeGatewayBaseAmount.value <= 0) return rechargeGatewayBaseAmount.value
+  return Math.round((rechargeGatewayBaseAmount.value + feeAmount.value) * 100) / 100
+})
+const rechargeCouponAwaitingQuote = computed(() => rechargeCouponID.value !== null && rechargeCouponQuote.value === null)
 
 const amountError = computed(() => {
   if (validAmount.value <= 0) return ''
+  const amountForMethod = rechargeCouponQuote.value ? totalAmount.value : validAmount.value
+  // A fully discounted order is completed by the backend without reaching a
+  // payment gateway, so gateway minimums and maximums do not apply.
+  if (amountForMethod <= 0) return ''
   // No method can handle this amount
-  if (!enabledMethods.value.some((m) => amountFitsMethod(validAmount.value, m))) {
+  if (!enabledMethods.value.some((m) => amountFitsMethod(amountForMethod, m))) {
     return t('payment.amountNoMethod')
   }
   // Selected method can't handle this amount (but others can)
   const ml = selectedLimit.value
   if (ml) {
-    if (ml.single_min > 0 && validAmount.value < ml.single_min) return t('payment.amountTooLow', { min: formatSelectedPaymentAmount(ml.single_min) })
-    if (ml.single_max > 0 && validAmount.value > ml.single_max) return t('payment.amountTooHigh', { max: formatSelectedPaymentAmount(ml.single_max) })
+    if (ml.single_min > 0 && amountForMethod < ml.single_min) return t('payment.amountTooLow', { min: formatRechargePaymentAmount(ml.single_min) })
+    if (ml.single_max > 0 && amountForMethod > ml.single_max) return t('payment.amountTooHigh', { max: formatRechargePaymentAmount(ml.single_max) })
   }
   return ''
 })
 
 const canSubmit = computed(() =>
   validAmount.value > 0
-    && amountFitsMethod(validAmount.value, selectedMethod.value)
-    && selectedLimit.value?.available !== false
+    && amountFitsMethod(totalAmount.value, selectedMethod.value)
+    && hasSelectedAvailableMethod.value
+    && !rechargeCouponAwaitingQuote.value
 )
 
 const subPaymentAmount = computed(() => {
+  if (subscriptionCouponQuote.value) return subscriptionCouponQuote.value.gateway_base_amount
   const price = selectedPlan.value?.price ?? 0
   return subscriptionPaymentAmountForCurrency(price, selectedCurrency.value)
 })
 
 const subFeeAmount = computed(() => {
+  if (subscriptionCouponQuote.value) return subscriptionCouponQuote.value.fee_amount
   if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return 0
   return ceilPaymentAmount((subPaymentAmount.value * feeRate.value) / 100, selectedCurrency.value)
 })
 
 const subTotalAmount = computed(() => {
+  if (subscriptionCouponQuote.value) return subscriptionCouponQuote.value.pay_amount
   if (feeRate.value <= 0 || subPaymentAmount.value <= 0) return subPaymentAmount.value
   return roundPaymentAmount(subPaymentAmount.value + subFeeAmount.value, selectedCurrency.value)
 })
-
-function subscriptionTotalAmountForCurrency(value: number, currency: string): number {
-  const paymentAmount = subscriptionPaymentAmountForCurrency(value, currency)
-  if (feeRate.value <= 0 || paymentAmount <= 0) return paymentAmount
-  const fee = ceilPaymentAmount((paymentAmount * feeRate.value) / 100, currency)
-  return roundPaymentAmount(paymentAmount + fee, currency)
-}
+const subscriptionCouponAwaitingQuote = computed(() => subscriptionCouponID.value !== null && subscriptionCouponQuote.value === null)
 
 // Subscription-specific: method options based on gateway pay amount
 const subMethodOptions = computed<PaymentMethodOption[]>(() => {
-  const price = selectedPlan.value?.price ?? 0
   return enabledMethods.value.map((type) => {
     const ml = visibleMethods.value[type]
-    const currency = normalizePaymentCurrency(ml?.currency)
     return {
       type,
       display_name: ml?.display_name,
       fee_rate: ml?.fee_rate ?? 0,
-      available: ml?.available !== false && amountFitsMethod(subscriptionTotalAmountForCurrency(price, currency), type),
+      available: ml?.available !== false && amountFitsMethod(subTotalAmount.value, type),
     }
   })
 })
@@ -1096,15 +1232,39 @@ const subMethodOptions = computed<PaymentMethodOption[]>(() => {
 const canSubmitSubscription = computed(() =>
   selectedPlan.value !== null
     && amountFitsMethod(subTotalAmount.value, selectedMethod.value)
-    && selectedLimit.value?.available !== false
+    && hasSelectedAvailableMethod.value
+    && !subscriptionCouponAwaitingQuote.value
 )
 
-// Auto-switch to first available method when current selection can't handle the amount
-watch(() => [validAmount.value, selectedMethod.value] as const, ([amt, method]) => {
-  if (amt <= 0 || amountFitsMethod(amt, method)) return
-  const available = enabledMethods.value.find((m) => amountFitsMethod(amt, m))
+const selectedCheckoutPayableAmount = computed(() => selectedPlan.value
+  ? subTotalAmount.value
+  : totalAmount.value)
+
+// A coupon re-quotes after the amount or payment method changes. Keep both
+// recharge and subscription flows on a method that can accept that new quote.
+watch(() => [selectedCheckoutPayableAmount.value, selectedMethod.value] as const, ([payable, method]) => {
+  if (payable <= 0 || amountFitsMethod(payable, method)) return
+  const available = enabledMethods.value.find((m) => amountFitsMethod(payable, m))
   if (available) selectedMethod.value = available
 })
+
+// A server quote is tied to the current checkout context. The selector will
+// request a replacement for any retained coupon; until then no quote is valid.
+watch(selectedMethod, (method, previousMethod) => {
+  if (method !== previousMethod) invalidateCouponQuotes()
+})
+
+watch(activeTab, (tab, previousTab) => {
+  if (tab !== previousTab) invalidateCouponQuotes()
+})
+
+watch(
+  () => [authStore.isAuthenticated, authStore.user?.id, authStore.token] as const,
+  () => {
+    clearCouponSelection('balance')
+    clearCouponSelection('subscription')
+  },
+)
 
 // Payment button class: follows selected payment method color
 const paymentButtonClass = computed(() => {
@@ -1169,6 +1329,8 @@ function planPeakRateLabel(plan: SubscriptionPlan): string {
 function selectPlan(plan: SubscriptionPlan) {
   selectedPlanDetails.value = null
   selectedPlan.value = plan
+  subscriptionCouponID.value = null
+  subscriptionCouponQuote.value = null
   errorMessage.value = ''
 }
 
@@ -1213,6 +1375,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
   errorMessage.value = ''
   errorHintMessage.value = ''
   const requestType = normalizeVisibleMethod(options.paymentType || selectedMethod.value) || options.paymentType || selectedMethod.value
+  const couponID = options.couponID ?? selectedCouponIDForOrder(orderType)
   try {
     const payload = buildCreateOrderPayload({
       amount: orderAmount,
@@ -1230,6 +1393,9 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
     if (options.wechatResumeToken) {
       payload.wechat_resume_token = options.wechatResumeToken
+    }
+    if (couponID) {
+      payload.coupon_id = couponID
     }
 
     const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
@@ -1284,12 +1450,25 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
         orderType,
         planId,
         orderAmount,
+        couponID,
       })
       return
     }
 
     if (decision.kind === 'unhandled') {
       applyScenarioError({ reason: 'UNHANDLED_PAYMENT_SCENARIO' }, visibleMethod)
+      return
+    }
+
+    if (decision.kind === 'completed') {
+      // The backend has already fulfilled a zero-pay coupon order. Do not
+      // create a recovery entry or show a payment-status polling screen.
+      removeRecoverySnapshot()
+      Promise.resolve(authStore.refreshUser()).catch(() => {})
+      if (orderType === 'subscription') {
+        subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+      }
+      await redirectToPaymentResult(decision.paymentState)
       return
     }
 
@@ -1317,7 +1496,6 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
           appStore.showInfo(t('payment.qr.cancelled'))
           resetPayment()
         } else if (errMsg && !errMsg.includes('ok')) {
-          resetPayment()
           const fallbackApplied = await attemptMobileQrFallback(
             { reason: 'WECHAT_JSAPI_FAILED', message: errMsg },
             {
@@ -1325,7 +1503,9 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
               orderType,
               planId,
               paymentType: visibleMethod,
+              couponID,
               attempted: options.mobileQrFallbackAttempted === true,
+              sourcePayment: decision.paymentState,
             },
           )
           if (!fallbackApplied) {
@@ -1337,13 +1517,14 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
           await redirectToPaymentResult(resultState)
         }
       } catch (err: unknown) {
-        resetPayment()
         const fallbackApplied = await attemptMobileQrFallback(err, {
           orderAmount,
           orderType,
           planId,
           paymentType: visibleMethod,
+          couponID,
           attempted: options.mobileQrFallbackAttempted === true,
+          sourcePayment: decision.paymentState,
         })
         if (!fallbackApplied) {
           throw err
@@ -1360,11 +1541,15 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
     }
   } catch (err: unknown) {
     const apiErr = err as Record<string, unknown>
-    if (apiErr.reason === 'TOO_MANY_PENDING') {
+    const errorCode = extractApiErrorCode(err)
+    if (couponID && shouldClearRejectedCouponSelection(errorCode)) {
+      clearCouponSelection(orderType)
+    }
+    if (errorCode === 'TOO_MANY_PENDING') {
       const metadata = apiErr.metadata as Record<string, unknown> | undefined
       errorMessage.value = t('payment.errors.tooManyPending', { max: metadata?.max || '' })
       errorHintMessage.value = ''
-    } else if (apiErr.reason === 'CANCEL_RATE_LIMITED') {
+    } else if (errorCode === 'CANCEL_RATE_LIMITED') {
       errorMessage.value = t('payment.errors.cancelRateLimited')
       errorHintMessage.value = ''
     } else if (await attemptMobileQrFallback(err, {
@@ -1372,6 +1557,7 @@ async function createOrder(orderAmount: number, orderType: OrderType, planId?: n
       orderType,
       planId,
       paymentType: requestType,
+      couponID,
       attempted: options.mobileQrFallbackAttempted === true,
     })) {
       return
@@ -1399,7 +1585,10 @@ interface MobileQrFallbackContext {
   orderType: OrderType
   planId?: number
   paymentType: string
+  couponID?: number
   attempted: boolean
+  /** A created JSAPI order must be closed before a separate QR order is safe. */
+  sourcePayment?: PaymentRecoverySnapshot
 }
 
 function shouldFallbackToDesktopQr(err: unknown, paymentMethod: string, attempted: boolean): boolean {
@@ -1440,6 +1629,34 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
     return false
   }
 
+  const sourcePayment = context.sourcePayment
+  const sourceHasLockedCoupon = Boolean(context.couponID && sourcePayment?.orderId)
+  let sourceOrderCancelled = false
+
+  if (sourcePayment?.orderId) {
+    try {
+      const cancellation = await paymentAPI.cancelOrder(sourcePayment.orderId)
+      if (cancellation.data?.message?.trim().toLowerCase() === 'already_paid') {
+        removeRecoverySnapshot()
+        Promise.resolve(authStore.refreshUser()).catch(() => {})
+        if (sourcePayment.orderType === 'subscription') {
+          subscriptionStore.fetchActiveSubscriptions(true).catch(() => {})
+        }
+        await redirectToPaymentResult(sourcePayment)
+        return true
+      }
+      sourceOrderCancelled = true
+      if (sourceHasLockedCoupon) {
+        // A cancelled payment can still receive a late provider callback, so
+        // the server intentionally retains the coupon lock during that check.
+        clearCouponSelection(context.orderType)
+      }
+    } catch {
+      // Do not create a second order while the original JSAPI order may still settle.
+      return false
+    }
+  }
+
   try {
     const visibleMethod = normalizeVisibleMethod(context.paymentType) || context.paymentType
     const payload = buildCreateOrderPayload({
@@ -1451,6 +1668,9 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
       isMobile: false,
       isWechatBrowser: false,
     })
+    if (context.couponID && !sourceHasLockedCoupon) {
+      payload.coupon_id = context.couponID
+    }
     const result = await paymentStore.createOrder(payload) as CreateOrderResult & { resume_token?: string }
     const stripeMethod = visibleMethod === 'wxpay' ? 'wechat_pay' : 'alipay'
     const stripeRouteUrl = result.client_secret
@@ -1474,6 +1694,7 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
     })
 
     if (decision.kind !== 'qr_waiting' || !decision.paymentState.qrCode) {
+      if (sourceOrderCancelled) resetPayment()
       return false
     }
 
@@ -1482,9 +1703,12 @@ async function attemptMobileQrFallback(err: unknown, context: MobileQrFallbackCo
     paymentState.value = decision.paymentState
     paymentPhase.value = 'paying'
     persistRecoverySnapshot(decision.recovery)
-    appStore.showWarning(t('payment.errors.mobilePaymentFallbackToQr'))
+    appStore.showWarning(t(sourceHasLockedCoupon
+      ? 'payment.errors.mobilePaymentFallbackToQrCouponHeld'
+      : 'payment.errors.mobilePaymentFallbackToQr'))
     return true
   } catch {
+    if (sourceOrderCancelled) resetPayment()
     return false
   }
 }
@@ -1535,6 +1759,7 @@ async function resumeWechatPaymentFromQuery() {
     await createOrder(resume.orderAmount, resume.orderType, resume.planId, {
       openid: resume.openid,
       paymentType: resume.paymentType,
+      couponID: resume.couponId,
       isResume: true,
     })
   }

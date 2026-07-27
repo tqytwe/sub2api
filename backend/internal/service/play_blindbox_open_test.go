@@ -39,8 +39,11 @@ func (r *blindboxOpenSettingRepo) GetMultiple(_ context.Context, keys []string) 
 type blindboxOpenRepo struct {
 	PlayRepository
 	opens             int
+	countRecords      bool
 	lockedBalance     float64
 	records           []PlayBlindboxOpenRecord
+	replayLookups     int
+	replayInTx        bool
 	legacyInsertCalls int
 	ledgerEntries     []PlayRewardLedgerEntry
 	balanceUpdates    []float64
@@ -64,7 +67,22 @@ func (r *blindboxOpenRepo) UpdatePlayBalance(ctx context.Context, _ int64, amoun
 
 func (r *blindboxOpenRepo) CountBlindboxOpens(ctx context.Context, _ int64, _ time.Time) (int, error) {
 	r.countInTx = dbent.TxFromContext(ctx) != nil
+	if r.countRecords {
+		return r.opens + len(r.records), nil
+	}
 	return r.opens, nil
+}
+
+func (r *blindboxOpenRepo) FindBlindboxOpenByIdempotency(ctx context.Context, userID int64, idempotencyKey string) (*PlayBlindboxOpenRecord, error) {
+	r.replayLookups++
+	r.replayInTx = dbent.TxFromContext(ctx) != nil
+	for _, record := range r.records {
+		if record.UserID == userID && record.IdempotencyKey == idempotencyKey {
+			copy := record
+			return &copy, nil
+		}
+	}
+	return nil, nil
 }
 
 func (r *blindboxOpenRepo) InsertBlindboxOpen(
@@ -137,6 +155,10 @@ func TestBlindboxOpenUsesConfiguredPoolAndPersistsAudit(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	svc := NewPlayService(repo, userRepo, nil, settings, nil, client)
+	svc.rewardDrawSource = func(max int64) (int64, error) {
+		require.Equal(t, int64(couponWeightBasisPoints), max)
+		return 6000, nil // keep legacy audit tests on the 40% balance branch
+	}
 	svc.blindboxDrawSource = func(max int64) (int64, error) {
 		require.Equal(t, blindboxWeightTotal, max)
 		return max - 1, nil
@@ -229,6 +251,10 @@ func TestBlindboxOpenUsesVIPPoolAndReturnsCelebrationContext(t *testing.T) {
 	t.Cleanup(func() { _ = client.Close() })
 
 	svc := NewPlayService(repo, userRepo, nil, settings, nil, client)
+	svc.rewardDrawSource = func(max int64) (int64, error) {
+		require.Equal(t, int64(couponWeightBasisPoints), max)
+		return 6000, nil // keep legacy audit tests on the 40% balance branch
+	}
 	svc.blindboxDrawSource = func(max int64) (int64, error) {
 		require.Equal(t, blindboxWeightTotal, max)
 		return max - 1, nil
@@ -274,6 +300,109 @@ func TestBlindboxIdempotencyKeyRejectsInvalidClientKey(t *testing.T) {
 	require.ErrorIs(t, err, ErrIdempotencyKeyInvalid)
 }
 
+func TestBlindboxOpenReplaysCompletedBalanceOpenBeforeFeatureAndDailyLimitChecks(t *testing.T) {
+	now := time.Date(2026, time.July, 27, 12, 0, 0, 0, time.UTC)
+	rawKey := "retry-after-lost-response"
+	scopedKey, err := scopeBlindboxIdempotencyKey(42, rawKey)
+	require.NoError(t, err)
+
+	expectedReward := 0.45
+	rtpCap := 0.9
+	repo := &blindboxOpenRepo{
+		opens: 5,
+		records: []PlayBlindboxOpenRecord{{
+			UserID:         42,
+			Date:           now,
+			Cost:           0.5,
+			Reward:         9,
+			IdempotencyKey: scopedKey,
+			PoolVersion:    "season-1-v1",
+			OpenSource:     "paid",
+			VIPTierSnapshot: &PlayVIPStatus{
+				Tier:             3,
+				Label:            "V3",
+				RechargeBonusPct: 6,
+				ColorKey:         "indigo",
+				Perks:            []string{"blindbox_pool_upgrade"},
+				NextTier:         4,
+				NextLabel:        "V4",
+				NextMinRecharge:  500,
+				AmountToNext:     300,
+			},
+			ExpectedReward: &expectedReward,
+			RTPCap:         &rtpCap,
+		}},
+	}
+	svc := NewPlayService(repo, nil, nil, NewSettingService(&blindboxOpenSettingRepo{}, nil), nil, nil)
+	svc.now = func() time.Time { return now }
+	svc.rewardDrawSource = func(int64) (int64, error) {
+		t.Fatal("completed blindbox retry must not redraw the reward branch")
+		return 0, nil
+	}
+	svc.blindboxDrawSource = func(int64) (int64, error) {
+		t.Fatal("completed blindbox retry must not redraw the balance pool")
+		return 0, nil
+	}
+
+	result, err := svc.OpenBlindbox(context.Background(), 42, rawKey)
+
+	require.NoError(t, err)
+	require.Equal(t, PlayRewardTypeBalance, result.RewardType)
+	require.InDelta(t, 0.5, result.CostAmount, 1e-12)
+	require.InDelta(t, 9, result.RewardAmount, 1e-12)
+	require.InDelta(t, 8.5, result.NetAmount, 1e-12)
+	require.Equal(t, 5, result.OpensToday)
+	require.Equal(t, "2026-07-27", result.ServerDate)
+	require.Equal(t, "season-1-v1", result.PoolVersion)
+	require.Equal(t, 3, result.VIPTier.Tier)
+	require.Equal(t, "V3", result.VIPTier.Label)
+	require.Equal(t, []string{"blindbox_pool_upgrade"}, result.VIPTier.Perks)
+	require.InDelta(t, expectedReward, result.ExpectedReward, 1e-12)
+	require.InDelta(t, rtpCap, result.RTPCap, 1e-12)
+	require.Equal(t, 1, repo.replayLookups)
+	require.False(t, repo.replayInTx)
+	require.False(t, repo.lockInTx)
+	require.Empty(t, repo.ledgerEntries)
+	require.Empty(t, repo.balanceUpdates)
+}
+
+func TestBlindboxOpenSameKeyReplaysWithoutSecondDrawOrBalanceMutation(t *testing.T) {
+	pool := defaultBlindboxPool()
+	settings := newCouponRewardSettingService(t, pool, true)
+	repo := &blindboxOpenRepo{lockedBalance: 1, countRecords: true}
+	client, mock := newCouponRewardEntClient(t)
+	svc := NewPlayService(repo, nil, nil, settings, nil, client)
+	branchDraws := 0
+	balanceDraws := 0
+	svc.rewardDrawSource = func(int64) (int64, error) {
+		branchDraws++
+		return 6000, nil
+	}
+	svc.blindboxDrawSource = func(max int64) (int64, error) {
+		balanceDraws++
+		return max - 1, nil
+	}
+
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+	first, err := svc.OpenBlindbox(context.Background(), 42, "same-logical-open")
+	require.NoError(t, err)
+	retry, err := svc.OpenBlindbox(context.Background(), 42, "same-logical-open")
+
+	require.NoError(t, err)
+	require.Equal(t, first.CostAmount, retry.CostAmount)
+	require.Equal(t, first.RewardAmount, retry.RewardAmount)
+	require.Equal(t, first.NetAmount, retry.NetAmount)
+	require.Equal(t, first.PoolVersion, retry.PoolVersion)
+	require.Equal(t, first.OpensToday, retry.OpensToday)
+	require.Equal(t, 1, branchDraws)
+	require.Equal(t, 1, balanceDraws)
+	require.Len(t, repo.records, 1)
+	require.Len(t, repo.ledgerEntries, 1)
+	require.Equal(t, []float64{first.NetAmount}, repo.balanceUpdates)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestGrantBalanceUsesPlayBalanceUpdateWithoutRechargeMutation(t *testing.T) {
 	repo := &blindboxOpenRepo{}
 	userRepo := &blindboxOpenUserRepo{}
@@ -317,16 +446,32 @@ func TestBlindboxOpenRandomFailureDoesNotGrantBalance(t *testing.T) {
 	}}, nil)
 	repo := &blindboxOpenRepo{lockedBalance: 1}
 	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 1}}
-	svc := NewPlayService(repo, userRepo, nil, settings, nil, nil)
+
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	driver := entsql.OpenDB(dialect.Postgres, db)
+	client := dbent.NewClient(dbent.Driver(driver))
+	t.Cleanup(func() { _ = client.Close() })
+
+	svc := NewPlayService(repo, userRepo, nil, settings, nil, client)
+	svc.rewardDrawSource = func(max int64) (int64, error) {
+		require.Equal(t, int64(couponWeightBasisPoints), max)
+		return 6000, nil
+	}
 	svc.blindboxDrawSource = func(int64) (int64, error) {
 		return 0, errors.New("random unavailable")
 	}
+
+	mock.ExpectBegin()
+	mock.ExpectRollback()
 
 	_, err = svc.OpenBlindbox(context.Background(), 42, "blindbox-random-failure")
 	require.ErrorContains(t, err, "random unavailable")
 	require.Empty(t, repo.records)
 	require.Empty(t, repo.ledgerEntries)
 	require.Empty(t, userRepo.balanceUpdates)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestBlindboxOpenPoolReadFailureDoesNotGrantBalance(t *testing.T) {

@@ -87,7 +87,14 @@ func TestCreateOrderInTx_WritesProviderSnapshot(t *testing.T) {
 		88,
 		88,
 		0,
-		88,
+		&paymentCouponSettlement{
+			ListAmount:               88,
+			GatewayBaseAmount:        88,
+			PayAmount:                88,
+			PayAmountText:            "88.00",
+			Currency:                 payment.DefaultPaymentCurrency,
+			QualifyingRechargeAmount: 88,
+		},
 		&payment.InstanceSelection{
 			InstanceID:     strconv.FormatInt(instance.ID, 10),
 			ProviderKey:    payment.TypeAlipay,

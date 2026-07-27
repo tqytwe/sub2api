@@ -117,47 +117,55 @@ func (h *PaymentHandler) RetryFulfillment(c *gin.Context) {
 }
 
 type AdminPaymentOrderResult struct {
-	ID                  int64          `json:"id"`
-	UserID              int64          `json:"user_id"`
-	UserEmail           string         `json:"user_email,omitempty"`
-	UserName            string         `json:"user_name,omitempty"`
-	UserNotes           *string        `json:"user_notes,omitempty"`
-	Amount              float64        `json:"amount"`
-	PayAmount           float64        `json:"pay_amount"`
-	FeeRate             float64        `json:"fee_rate"`
-	Currency            string         `json:"currency"`
-	RechargeCode        string         `json:"recharge_code,omitempty"`
-	OutTradeNo          string         `json:"out_trade_no"`
-	PaymentType         string         `json:"payment_type"`
-	PaymentTradeNo      string         `json:"payment_trade_no,omitempty"`
-	PayURL              *string        `json:"pay_url,omitempty"`
-	QRCode              *string        `json:"qr_code,omitempty"`
-	QRCodeImg           *string        `json:"qr_code_img,omitempty"`
-	OrderType           string         `json:"order_type"`
-	PlanID              *int64         `json:"plan_id,omitempty"`
-	SubscriptionGroupID *int64         `json:"subscription_group_id,omitempty"`
-	SubscriptionDays    *int           `json:"subscription_days,omitempty"`
-	ProviderInstanceID  *string        `json:"provider_instance_id,omitempty"`
-	ProviderKey         *string        `json:"provider_key,omitempty"`
-	Status              string         `json:"status"`
-	RefundAmount        float64        `json:"refund_amount"`
-	RefundReason        *string        `json:"refund_reason,omitempty"`
-	RefundAt            *time.Time     `json:"refund_at,omitempty"`
-	ForceRefund         bool           `json:"force_refund,omitempty"`
-	RefundRequestedAt   *time.Time     `json:"refund_requested_at,omitempty"`
-	RefundRequestReason *string        `json:"refund_request_reason,omitempty"`
-	RefundRequestedBy   *string        `json:"refund_requested_by,omitempty"`
-	ExpiresAt           time.Time      `json:"expires_at"`
-	PaidAt              *time.Time     `json:"paid_at,omitempty"`
-	CompletedAt         *time.Time     `json:"completed_at,omitempty"`
-	FailedAt            *time.Time     `json:"failed_at,omitempty"`
-	FailedReason        *string        `json:"failed_reason,omitempty"`
-	ClientIP            string         `json:"client_ip,omitempty"`
-	SrcHost             string         `json:"src_host,omitempty"`
-	SrcURL              *string        `json:"src_url,omitempty"`
-	RechargeSnapshot    map[string]any `json:"recharge_snapshot,omitempty"`
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
+	ID                       int64          `json:"id"`
+	UserID                   int64          `json:"user_id"`
+	UserEmail                string         `json:"user_email,omitempty"`
+	UserName                 string         `json:"user_name,omitempty"`
+	UserNotes                *string        `json:"user_notes,omitempty"`
+	Amount                   float64        `json:"amount"`
+	ListAmount               float64        `json:"list_amount"`
+	GatewayBaseAmount        float64        `json:"gateway_base_amount"`
+	DiscountAmount           float64        `json:"discount_amount"`
+	FeeAmount                float64        `json:"fee_amount"`
+	QualifyingRechargeAmount float64        `json:"qualifying_recharge_amount"`
+	PayAmount                float64        `json:"pay_amount"`
+	FeeRate                  float64        `json:"fee_rate"`
+	Currency                 string         `json:"currency"`
+	PaymentCurrency          string         `json:"payment_currency"`
+	CouponID                 *int64         `json:"coupon_id,omitempty"`
+	CouponTemplateID         *int64         `json:"coupon_template_id,omitempty"`
+	RechargeCode             string         `json:"recharge_code,omitempty"`
+	OutTradeNo               string         `json:"out_trade_no"`
+	PaymentType              string         `json:"payment_type"`
+	PaymentTradeNo           string         `json:"payment_trade_no,omitempty"`
+	PayURL                   *string        `json:"pay_url,omitempty"`
+	QRCode                   *string        `json:"qr_code,omitempty"`
+	QRCodeImg                *string        `json:"qr_code_img,omitempty"`
+	OrderType                string         `json:"order_type"`
+	PlanID                   *int64         `json:"plan_id,omitempty"`
+	SubscriptionGroupID      *int64         `json:"subscription_group_id,omitempty"`
+	SubscriptionDays         *int           `json:"subscription_days,omitempty"`
+	ProviderInstanceID       *string        `json:"provider_instance_id,omitempty"`
+	ProviderKey              *string        `json:"provider_key,omitempty"`
+	Status                   string         `json:"status"`
+	RefundAmount             float64        `json:"refund_amount"`
+	RefundReason             *string        `json:"refund_reason,omitempty"`
+	RefundAt                 *time.Time     `json:"refund_at,omitempty"`
+	ForceRefund              bool           `json:"force_refund,omitempty"`
+	RefundRequestedAt        *time.Time     `json:"refund_requested_at,omitempty"`
+	RefundRequestReason      *string        `json:"refund_request_reason,omitempty"`
+	RefundRequestedBy        *string        `json:"refund_requested_by,omitempty"`
+	ExpiresAt                time.Time      `json:"expires_at"`
+	PaidAt                   *time.Time     `json:"paid_at,omitempty"`
+	CompletedAt              *time.Time     `json:"completed_at,omitempty"`
+	FailedAt                 *time.Time     `json:"failed_at,omitempty"`
+	FailedReason             *string        `json:"failed_reason,omitempty"`
+	ClientIP                 string         `json:"client_ip,omitempty"`
+	SrcHost                  string         `json:"src_host,omitempty"`
+	SrcURL                   *string        `json:"src_url,omitempty"`
+	RechargeSnapshot         map[string]any `json:"recharge_snapshot,omitempty"`
+	CreatedAt                time.Time      `json:"created_at"`
+	UpdatedAt                time.Time      `json:"updated_at"`
 }
 
 func sanitizeAdminPaymentOrdersForResponse(orders []*dbent.PaymentOrder) []*AdminPaymentOrderResult {
@@ -175,47 +183,55 @@ func sanitizeAdminPaymentOrderForResponse(order *dbent.PaymentOrder) *AdminPayme
 		return nil
 	}
 	return &AdminPaymentOrderResult{
-		ID:                  order.ID,
-		UserID:              order.UserID,
-		UserEmail:           order.UserEmail,
-		UserName:            order.UserName,
-		UserNotes:           order.UserNotes,
-		Amount:              order.Amount,
-		PayAmount:           order.PayAmount,
-		FeeRate:             order.FeeRate,
-		Currency:            service.PaymentOrderCurrency(order),
-		RechargeCode:        order.RechargeCode,
-		OutTradeNo:          order.OutTradeNo,
-		PaymentType:         order.PaymentType,
-		PaymentTradeNo:      order.PaymentTradeNo,
-		PayURL:              order.PayURL,
-		QRCode:              order.QrCode,
-		QRCodeImg:           order.QrCodeImg,
-		OrderType:           order.OrderType,
-		PlanID:              order.PlanID,
-		SubscriptionGroupID: order.SubscriptionGroupID,
-		SubscriptionDays:    order.SubscriptionDays,
-		ProviderInstanceID:  order.ProviderInstanceID,
-		ProviderKey:         order.ProviderKey,
-		Status:              order.Status,
-		RefundAmount:        order.RefundAmount,
-		RefundReason:        order.RefundReason,
-		RefundAt:            order.RefundAt,
-		ForceRefund:         order.ForceRefund,
-		RefundRequestedAt:   order.RefundRequestedAt,
-		RefundRequestReason: order.RefundRequestReason,
-		RefundRequestedBy:   order.RefundRequestedBy,
-		ExpiresAt:           order.ExpiresAt,
-		PaidAt:              order.PaidAt,
-		CompletedAt:         order.CompletedAt,
-		FailedAt:            order.FailedAt,
-		FailedReason:        order.FailedReason,
-		ClientIP:            order.ClientIP,
-		SrcHost:             order.SrcHost,
-		SrcURL:              order.SrcURL,
-		RechargeSnapshot:    adminPaymentRechargeSnapshotForResponse(order),
-		CreatedAt:           order.CreatedAt,
-		UpdatedAt:           order.UpdatedAt,
+		ID:                       order.ID,
+		UserID:                   order.UserID,
+		UserEmail:                order.UserEmail,
+		UserName:                 order.UserName,
+		UserNotes:                order.UserNotes,
+		Amount:                   order.Amount,
+		ListAmount:               order.ListAmount,
+		GatewayBaseAmount:        order.GatewayBaseAmount,
+		DiscountAmount:           order.DiscountAmount,
+		FeeAmount:                order.FeeAmount,
+		QualifyingRechargeAmount: order.QualifyingRechargeAmount,
+		PayAmount:                order.PayAmount,
+		FeeRate:                  order.FeeRate,
+		Currency:                 service.PaymentOrderCurrency(order),
+		PaymentCurrency:          order.PaymentCurrency,
+		CouponID:                 order.CouponID,
+		CouponTemplateID:         order.CouponTemplateID,
+		RechargeCode:             order.RechargeCode,
+		OutTradeNo:               order.OutTradeNo,
+		PaymentType:              order.PaymentType,
+		PaymentTradeNo:           order.PaymentTradeNo,
+		PayURL:                   order.PayURL,
+		QRCode:                   order.QrCode,
+		QRCodeImg:                order.QrCodeImg,
+		OrderType:                order.OrderType,
+		PlanID:                   order.PlanID,
+		SubscriptionGroupID:      order.SubscriptionGroupID,
+		SubscriptionDays:         order.SubscriptionDays,
+		ProviderInstanceID:       order.ProviderInstanceID,
+		ProviderKey:              order.ProviderKey,
+		Status:                   order.Status,
+		RefundAmount:             order.RefundAmount,
+		RefundReason:             order.RefundReason,
+		RefundAt:                 order.RefundAt,
+		ForceRefund:              order.ForceRefund,
+		RefundRequestedAt:        order.RefundRequestedAt,
+		RefundRequestReason:      order.RefundRequestReason,
+		RefundRequestedBy:        order.RefundRequestedBy,
+		ExpiresAt:                order.ExpiresAt,
+		PaidAt:                   order.PaidAt,
+		CompletedAt:              order.CompletedAt,
+		FailedAt:                 order.FailedAt,
+		FailedReason:             order.FailedReason,
+		ClientIP:                 order.ClientIP,
+		SrcHost:                  order.SrcHost,
+		SrcURL:                   order.SrcURL,
+		RechargeSnapshot:         adminPaymentRechargeSnapshotForResponse(order),
+		CreatedAt:                order.CreatedAt,
+		UpdatedAt:                order.UpdatedAt,
 	}
 }
 

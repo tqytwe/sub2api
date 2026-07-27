@@ -21,6 +21,7 @@ const VISIBLE_METHOD_ALIASES = {
 export type VisiblePaymentMethod = 'alipay' | 'wxpay' | 'stripe' | 'airwallex'
 export type StripeVisibleMethod = 'alipay' | 'wechat_pay'
 export type PaymentLaunchKind =
+  | 'completed'
   | 'qr_waiting'
   | 'alipay_deep_link'
   | 'redirect_waiting'
@@ -170,6 +171,16 @@ export function decidePaymentLaunch(
     resumeToken: result.resume_token || '',
     alipayMobilePrecreateDeepLink: result.alipay_mobile_precreate_deep_link === true,
   }, context.now)
+
+  // A fully discounted order has already been fulfilled by the backend and
+  // must not be sent to a payment provider. Keep the status fallback for
+  // older backend responses that do not yet emit the typed result.
+  if (
+    result.result_type === 'completed'
+    || result.status?.trim().toUpperCase() === 'COMPLETED'
+  ) {
+    return { kind: 'completed', paymentState: baseState, recovery: baseState }
+  }
 
   if (visibleMethod === 'airwallex' && baseState.clientSecret && baseState.intentId) {
     if (!context.airwallexRouteUrl) {

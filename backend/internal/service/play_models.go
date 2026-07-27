@@ -17,6 +17,30 @@ const (
 	PlayRewardSourceArenaDaily       = "arena_daily_settlement"
 )
 
+type PlayRewardType string
+
+const (
+	PlayRewardTypeNone    PlayRewardType = "none"
+	PlayRewardTypeBalance PlayRewardType = "balance"
+	PlayRewardTypeCoupon  PlayRewardType = "coupon"
+)
+
+// PlayCouponRewardSummary is the user-facing portion of a coupon issuance.
+// It intentionally excludes lock, usage, and idempotency metadata.
+type PlayCouponRewardSummary struct {
+	UserCouponID       int64             `json:"user_coupon_id"`
+	TemplateID         int64             `json:"template_id"`
+	Name               string            `json:"name"`
+	BenefitType        CouponBenefitType `json:"benefit_type"`
+	BenefitValue       float64           `json:"benefit_value"`
+	MaxDiscountAmount  *float64          `json:"max_discount_amount,omitempty"`
+	Currency           string            `json:"currency"`
+	ApplicableScopes   []CouponScope     `json:"applicable_scopes"`
+	MinimumOrderAmount float64           `json:"minimum_order_amount"`
+	ValidFrom          time.Time         `json:"valid_from"`
+	ExpiresAt          time.Time         `json:"expires_at"`
+}
+
 type PlayStreakMilestone struct {
 	Days  int     `json:"days"`
 	Bonus float64 `json:"bonus"`
@@ -80,6 +104,11 @@ type PlayBlindboxOpenRecord struct {
 	IdempotencyKey string
 	PoolVersion    string
 	OpenSource     string
+	// Replay-only fields come from the immutable reward-ledger detail. They
+	// preserve the original result even when VIP or pool settings change later.
+	VIPTierSnapshot *PlayVIPStatus
+	ExpectedReward  *float64
+	RTPCap          *float64
 }
 
 type PlayVIPBlindboxPool struct {
@@ -111,6 +140,7 @@ type PlayCheckinResult struct {
 
 type PlayBlindboxStatus struct {
 	Enabled             bool
+	CouponPoolReady     bool
 	CostAmount          float64
 	BlindboxPool        PlayBlindboxPool
 	CurrentPool         PlayBlindboxPool
@@ -130,16 +160,19 @@ type PlayBlindboxStatus struct {
 }
 
 type PlayBlindboxOpenResult struct {
-	CostAmount     float64
-	RewardAmount   float64
-	NetAmount      float64
-	OpensToday     int
-	ServerDate     string
-	PoolVersion    string
-	OpenSource     string
-	VIPTier        PlayVIPStatus
-	ExpectedReward float64
-	RTPCap         float64
+	CostAmount        float64
+	RewardAmount      float64
+	NetAmount         float64
+	RewardType        PlayRewardType
+	Coupon            *PlayCouponRewardSummary
+	CouponPoolVersion string
+	OpensToday        int
+	ServerDate        string
+	PoolVersion       string
+	OpenSource        string
+	VIPTier           PlayVIPStatus
+	ExpectedReward    float64
+	RTPCap            float64
 }
 
 // PlayBlindboxRecentWin is a privacy-masked public feed row for recent opens.
@@ -156,14 +189,18 @@ type PlayQuizQuestion struct {
 }
 
 type PlayQuizToday struct {
-	Enabled          bool
-	Questions        []PlayQuizQuestion
-	AlreadySubmitted bool
-	PreviousScore    int
-	PreviousTotal    int
-	PreviousReward   float64
-	RewardPerCorrect float64
-	ServerDate       string
+	Enabled                   bool
+	CouponPoolReady           bool
+	Questions                 []PlayQuizQuestion
+	AlreadySubmitted          bool
+	PreviousScore             int
+	PreviousTotal             int
+	PreviousReward            float64
+	PreviousRewardType        PlayRewardType
+	PreviousCoupon            *PlayCouponRewardSummary
+	PreviousCouponPoolVersion string
+	RewardPerCorrect          float64
+	ServerDate                string
 }
 
 type PlayQuizAnswer struct {
@@ -172,10 +209,13 @@ type PlayQuizAnswer struct {
 }
 
 type PlayQuizSubmitResult struct {
-	Score        int
-	Total        int
-	RewardAmount float64
-	ServerDate   string
+	Score             int
+	Total             int
+	RewardAmount      float64
+	RewardType        PlayRewardType
+	Coupon            *PlayCouponRewardSummary
+	CouponPoolVersion string
+	ServerDate        string
 }
 
 type PlayTeamMember struct {
@@ -469,6 +509,7 @@ type PlayRepository interface {
 	LockBlindboxOpenUser(ctx context.Context, userID int64) (balance float64, err error)
 	UpdatePlayBalance(ctx context.Context, userID int64, amount float64) error
 	CountBlindboxOpens(ctx context.Context, userID int64, date time.Time) (int, error)
+	FindBlindboxOpenByIdempotency(ctx context.Context, userID int64, idempotencyKey string) (*PlayBlindboxOpenRecord, error)
 	InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error
 	InsertBlindboxOpenRecord(ctx context.Context, record PlayBlindboxOpenRecord) error
 	ListRecentBlindboxWins(ctx context.Context, limit int) ([]PlayBlindboxRecentWin, error)

@@ -20,6 +20,8 @@ type PlayService struct {
 	entClient          *dbent.Client
 	balanceLedger      *BalanceLedgerService
 	mobilePush         *MobilePushService
+	couponRewardIssuer CouponRewardIssuer
+	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
 	now                func() time.Time
 }
@@ -27,6 +29,16 @@ type PlayService struct {
 func (s *PlayService) SetMobilePushService(push *MobilePushService) {
 	if s != nil {
 		s.mobilePush = push
+	}
+}
+
+// SetCouponRewardIssuer connects the optional coupon domain to game reward
+// flows. The game service remains responsible for choosing its fixed outer
+// reward branch; the issuer only selects and grants a coupon within that
+// branch's existing transaction.
+func (s *PlayService) SetCouponRewardIssuer(issuer CouponRewardIssuer) {
+	if s != nil {
+		s.couponRewardIssuer = issuer
 	}
 }
 
@@ -51,6 +63,7 @@ func NewPlayService(
 		affiliateService:   affiliateService,
 		entClient:          entClient,
 		balanceLedger:      ledger,
+		rewardDrawSource:   cryptoBlindboxDrawSource,
 		blindboxDrawSource: cryptoBlindboxDrawSource,
 	}
 }

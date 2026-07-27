@@ -112,6 +112,191 @@ func (_u *PaymentOrderUpdate) AddAmount(v float64) *PaymentOrderUpdate {
 	return _u
 }
 
+// SetCouponID sets the "coupon_id" field.
+func (_u *PaymentOrderUpdate) SetCouponID(v int64) *PaymentOrderUpdate {
+	_u.mutation.ResetCouponID()
+	_u.mutation.SetCouponID(v)
+	return _u
+}
+
+// SetNillableCouponID sets the "coupon_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableCouponID(v *int64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetCouponID(*v)
+	}
+	return _u
+}
+
+// AddCouponID adds value to the "coupon_id" field.
+func (_u *PaymentOrderUpdate) AddCouponID(v int64) *PaymentOrderUpdate {
+	_u.mutation.AddCouponID(v)
+	return _u
+}
+
+// ClearCouponID clears the value of the "coupon_id" field.
+func (_u *PaymentOrderUpdate) ClearCouponID() *PaymentOrderUpdate {
+	_u.mutation.ClearCouponID()
+	return _u
+}
+
+// SetCouponTemplateID sets the "coupon_template_id" field.
+func (_u *PaymentOrderUpdate) SetCouponTemplateID(v int64) *PaymentOrderUpdate {
+	_u.mutation.ResetCouponTemplateID()
+	_u.mutation.SetCouponTemplateID(v)
+	return _u
+}
+
+// SetNillableCouponTemplateID sets the "coupon_template_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableCouponTemplateID(v *int64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetCouponTemplateID(*v)
+	}
+	return _u
+}
+
+// AddCouponTemplateID adds value to the "coupon_template_id" field.
+func (_u *PaymentOrderUpdate) AddCouponTemplateID(v int64) *PaymentOrderUpdate {
+	_u.mutation.AddCouponTemplateID(v)
+	return _u
+}
+
+// ClearCouponTemplateID clears the value of the "coupon_template_id" field.
+func (_u *PaymentOrderUpdate) ClearCouponTemplateID() *PaymentOrderUpdate {
+	_u.mutation.ClearCouponTemplateID()
+	return _u
+}
+
+// SetCouponSnapshot sets the "coupon_snapshot" field.
+func (_u *PaymentOrderUpdate) SetCouponSnapshot(v map[string]interface{}) *PaymentOrderUpdate {
+	_u.mutation.SetCouponSnapshot(v)
+	return _u
+}
+
+// ClearCouponSnapshot clears the value of the "coupon_snapshot" field.
+func (_u *PaymentOrderUpdate) ClearCouponSnapshot() *PaymentOrderUpdate {
+	_u.mutation.ClearCouponSnapshot()
+	return _u
+}
+
+// SetListAmount sets the "list_amount" field.
+func (_u *PaymentOrderUpdate) SetListAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.ResetListAmount()
+	_u.mutation.SetListAmount(v)
+	return _u
+}
+
+// SetNillableListAmount sets the "list_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableListAmount(v *float64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetListAmount(*v)
+	}
+	return _u
+}
+
+// AddListAmount adds value to the "list_amount" field.
+func (_u *PaymentOrderUpdate) AddListAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.AddListAmount(v)
+	return _u
+}
+
+// SetGatewayBaseAmount sets the "gateway_base_amount" field.
+func (_u *PaymentOrderUpdate) SetGatewayBaseAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.ResetGatewayBaseAmount()
+	_u.mutation.SetGatewayBaseAmount(v)
+	return _u
+}
+
+// SetNillableGatewayBaseAmount sets the "gateway_base_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableGatewayBaseAmount(v *float64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetGatewayBaseAmount(*v)
+	}
+	return _u
+}
+
+// AddGatewayBaseAmount adds value to the "gateway_base_amount" field.
+func (_u *PaymentOrderUpdate) AddGatewayBaseAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.AddGatewayBaseAmount(v)
+	return _u
+}
+
+// SetDiscountAmount sets the "discount_amount" field.
+func (_u *PaymentOrderUpdate) SetDiscountAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.ResetDiscountAmount()
+	_u.mutation.SetDiscountAmount(v)
+	return _u
+}
+
+// SetNillableDiscountAmount sets the "discount_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableDiscountAmount(v *float64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetDiscountAmount(*v)
+	}
+	return _u
+}
+
+// AddDiscountAmount adds value to the "discount_amount" field.
+func (_u *PaymentOrderUpdate) AddDiscountAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.AddDiscountAmount(v)
+	return _u
+}
+
+// SetFeeAmount sets the "fee_amount" field.
+func (_u *PaymentOrderUpdate) SetFeeAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.ResetFeeAmount()
+	_u.mutation.SetFeeAmount(v)
+	return _u
+}
+
+// SetNillableFeeAmount sets the "fee_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableFeeAmount(v *float64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetFeeAmount(*v)
+	}
+	return _u
+}
+
+// AddFeeAmount adds value to the "fee_amount" field.
+func (_u *PaymentOrderUpdate) AddFeeAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.AddFeeAmount(v)
+	return _u
+}
+
+// SetQualifyingRechargeAmount sets the "qualifying_recharge_amount" field.
+func (_u *PaymentOrderUpdate) SetQualifyingRechargeAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.ResetQualifyingRechargeAmount()
+	_u.mutation.SetQualifyingRechargeAmount(v)
+	return _u
+}
+
+// SetNillableQualifyingRechargeAmount sets the "qualifying_recharge_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableQualifyingRechargeAmount(v *float64) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetQualifyingRechargeAmount(*v)
+	}
+	return _u
+}
+
+// AddQualifyingRechargeAmount adds value to the "qualifying_recharge_amount" field.
+func (_u *PaymentOrderUpdate) AddQualifyingRechargeAmount(v float64) *PaymentOrderUpdate {
+	_u.mutation.AddQualifyingRechargeAmount(v)
+	return _u
+}
+
+// SetPaymentCurrency sets the "payment_currency" field.
+func (_u *PaymentOrderUpdate) SetPaymentCurrency(v string) *PaymentOrderUpdate {
+	_u.mutation.SetPaymentCurrency(v)
+	return _u
+}
+
+// SetNillablePaymentCurrency sets the "payment_currency" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillablePaymentCurrency(v *string) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetPaymentCurrency(*v)
+	}
+	return _u
+}
+
 // SetPayAmount sets the "pay_amount" field.
 func (_u *PaymentOrderUpdate) SetPayAmount(v float64) *PaymentOrderUpdate {
 	_u.mutation.ResetPayAmount()
@@ -790,6 +975,11 @@ func (_u *PaymentOrderUpdate) check() error {
 			return &ValidationError{Name: "user_name", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.user_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PaymentCurrency(); ok {
+		if err := paymentorder.PaymentCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "payment_currency", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.payment_currency": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RechargeCode(); ok {
 		if err := paymentorder.RechargeCodeValidator(v); err != nil {
 			return &ValidationError{Name: "recharge_code", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.recharge_code": %w`, err)}
@@ -880,6 +1070,63 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedAmount(); ok {
 		_spec.AddField(paymentorder.FieldAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.CouponID(); ok {
+		_spec.SetField(paymentorder.FieldCouponID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCouponID(); ok {
+		_spec.AddField(paymentorder.FieldCouponID, field.TypeInt64, value)
+	}
+	if _u.mutation.CouponIDCleared() {
+		_spec.ClearField(paymentorder.FieldCouponID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.CouponTemplateID(); ok {
+		_spec.SetField(paymentorder.FieldCouponTemplateID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCouponTemplateID(); ok {
+		_spec.AddField(paymentorder.FieldCouponTemplateID, field.TypeInt64, value)
+	}
+	if _u.mutation.CouponTemplateIDCleared() {
+		_spec.ClearField(paymentorder.FieldCouponTemplateID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.CouponSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldCouponSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.CouponSnapshotCleared() {
+		_spec.ClearField(paymentorder.FieldCouponSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ListAmount(); ok {
+		_spec.SetField(paymentorder.FieldListAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedListAmount(); ok {
+		_spec.AddField(paymentorder.FieldListAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.GatewayBaseAmount(); ok {
+		_spec.SetField(paymentorder.FieldGatewayBaseAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGatewayBaseAmount(); ok {
+		_spec.AddField(paymentorder.FieldGatewayBaseAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DiscountAmount(); ok {
+		_spec.SetField(paymentorder.FieldDiscountAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiscountAmount(); ok {
+		_spec.AddField(paymentorder.FieldDiscountAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.FeeAmount(); ok {
+		_spec.SetField(paymentorder.FieldFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedFeeAmount(); ok {
+		_spec.AddField(paymentorder.FieldFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.QualifyingRechargeAmount(); ok {
+		_spec.SetField(paymentorder.FieldQualifyingRechargeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedQualifyingRechargeAmount(); ok {
+		_spec.AddField(paymentorder.FieldQualifyingRechargeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.PaymentCurrency(); ok {
+		_spec.SetField(paymentorder.FieldPaymentCurrency, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PayAmount(); ok {
 		_spec.SetField(paymentorder.FieldPayAmount, field.TypeFloat64, value)
@@ -1190,6 +1437,191 @@ func (_u *PaymentOrderUpdateOne) SetNillableAmount(v *float64) *PaymentOrderUpda
 // AddAmount adds value to the "amount" field.
 func (_u *PaymentOrderUpdateOne) AddAmount(v float64) *PaymentOrderUpdateOne {
 	_u.mutation.AddAmount(v)
+	return _u
+}
+
+// SetCouponID sets the "coupon_id" field.
+func (_u *PaymentOrderUpdateOne) SetCouponID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetCouponID()
+	_u.mutation.SetCouponID(v)
+	return _u
+}
+
+// SetNillableCouponID sets the "coupon_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableCouponID(v *int64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetCouponID(*v)
+	}
+	return _u
+}
+
+// AddCouponID adds value to the "coupon_id" field.
+func (_u *PaymentOrderUpdateOne) AddCouponID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.AddCouponID(v)
+	return _u
+}
+
+// ClearCouponID clears the value of the "coupon_id" field.
+func (_u *PaymentOrderUpdateOne) ClearCouponID() *PaymentOrderUpdateOne {
+	_u.mutation.ClearCouponID()
+	return _u
+}
+
+// SetCouponTemplateID sets the "coupon_template_id" field.
+func (_u *PaymentOrderUpdateOne) SetCouponTemplateID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetCouponTemplateID()
+	_u.mutation.SetCouponTemplateID(v)
+	return _u
+}
+
+// SetNillableCouponTemplateID sets the "coupon_template_id" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableCouponTemplateID(v *int64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetCouponTemplateID(*v)
+	}
+	return _u
+}
+
+// AddCouponTemplateID adds value to the "coupon_template_id" field.
+func (_u *PaymentOrderUpdateOne) AddCouponTemplateID(v int64) *PaymentOrderUpdateOne {
+	_u.mutation.AddCouponTemplateID(v)
+	return _u
+}
+
+// ClearCouponTemplateID clears the value of the "coupon_template_id" field.
+func (_u *PaymentOrderUpdateOne) ClearCouponTemplateID() *PaymentOrderUpdateOne {
+	_u.mutation.ClearCouponTemplateID()
+	return _u
+}
+
+// SetCouponSnapshot sets the "coupon_snapshot" field.
+func (_u *PaymentOrderUpdateOne) SetCouponSnapshot(v map[string]interface{}) *PaymentOrderUpdateOne {
+	_u.mutation.SetCouponSnapshot(v)
+	return _u
+}
+
+// ClearCouponSnapshot clears the value of the "coupon_snapshot" field.
+func (_u *PaymentOrderUpdateOne) ClearCouponSnapshot() *PaymentOrderUpdateOne {
+	_u.mutation.ClearCouponSnapshot()
+	return _u
+}
+
+// SetListAmount sets the "list_amount" field.
+func (_u *PaymentOrderUpdateOne) SetListAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetListAmount()
+	_u.mutation.SetListAmount(v)
+	return _u
+}
+
+// SetNillableListAmount sets the "list_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableListAmount(v *float64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetListAmount(*v)
+	}
+	return _u
+}
+
+// AddListAmount adds value to the "list_amount" field.
+func (_u *PaymentOrderUpdateOne) AddListAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.AddListAmount(v)
+	return _u
+}
+
+// SetGatewayBaseAmount sets the "gateway_base_amount" field.
+func (_u *PaymentOrderUpdateOne) SetGatewayBaseAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetGatewayBaseAmount()
+	_u.mutation.SetGatewayBaseAmount(v)
+	return _u
+}
+
+// SetNillableGatewayBaseAmount sets the "gateway_base_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableGatewayBaseAmount(v *float64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetGatewayBaseAmount(*v)
+	}
+	return _u
+}
+
+// AddGatewayBaseAmount adds value to the "gateway_base_amount" field.
+func (_u *PaymentOrderUpdateOne) AddGatewayBaseAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.AddGatewayBaseAmount(v)
+	return _u
+}
+
+// SetDiscountAmount sets the "discount_amount" field.
+func (_u *PaymentOrderUpdateOne) SetDiscountAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetDiscountAmount()
+	_u.mutation.SetDiscountAmount(v)
+	return _u
+}
+
+// SetNillableDiscountAmount sets the "discount_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableDiscountAmount(v *float64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetDiscountAmount(*v)
+	}
+	return _u
+}
+
+// AddDiscountAmount adds value to the "discount_amount" field.
+func (_u *PaymentOrderUpdateOne) AddDiscountAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.AddDiscountAmount(v)
+	return _u
+}
+
+// SetFeeAmount sets the "fee_amount" field.
+func (_u *PaymentOrderUpdateOne) SetFeeAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetFeeAmount()
+	_u.mutation.SetFeeAmount(v)
+	return _u
+}
+
+// SetNillableFeeAmount sets the "fee_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableFeeAmount(v *float64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetFeeAmount(*v)
+	}
+	return _u
+}
+
+// AddFeeAmount adds value to the "fee_amount" field.
+func (_u *PaymentOrderUpdateOne) AddFeeAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.AddFeeAmount(v)
+	return _u
+}
+
+// SetQualifyingRechargeAmount sets the "qualifying_recharge_amount" field.
+func (_u *PaymentOrderUpdateOne) SetQualifyingRechargeAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.ResetQualifyingRechargeAmount()
+	_u.mutation.SetQualifyingRechargeAmount(v)
+	return _u
+}
+
+// SetNillableQualifyingRechargeAmount sets the "qualifying_recharge_amount" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableQualifyingRechargeAmount(v *float64) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetQualifyingRechargeAmount(*v)
+	}
+	return _u
+}
+
+// AddQualifyingRechargeAmount adds value to the "qualifying_recharge_amount" field.
+func (_u *PaymentOrderUpdateOne) AddQualifyingRechargeAmount(v float64) *PaymentOrderUpdateOne {
+	_u.mutation.AddQualifyingRechargeAmount(v)
+	return _u
+}
+
+// SetPaymentCurrency sets the "payment_currency" field.
+func (_u *PaymentOrderUpdateOne) SetPaymentCurrency(v string) *PaymentOrderUpdateOne {
+	_u.mutation.SetPaymentCurrency(v)
+	return _u
+}
+
+// SetNillablePaymentCurrency sets the "payment_currency" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillablePaymentCurrency(v *string) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetPaymentCurrency(*v)
+	}
 	return _u
 }
 
@@ -1884,6 +2316,11 @@ func (_u *PaymentOrderUpdateOne) check() error {
 			return &ValidationError{Name: "user_name", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.user_name": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.PaymentCurrency(); ok {
+		if err := paymentorder.PaymentCurrencyValidator(v); err != nil {
+			return &ValidationError{Name: "payment_currency", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.payment_currency": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.RechargeCode(); ok {
 		if err := paymentorder.RechargeCodeValidator(v); err != nil {
 			return &ValidationError{Name: "recharge_code", err: fmt.Errorf(`ent: validator failed for field "PaymentOrder.recharge_code": %w`, err)}
@@ -1991,6 +2428,63 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if value, ok := _u.mutation.AddedAmount(); ok {
 		_spec.AddField(paymentorder.FieldAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.CouponID(); ok {
+		_spec.SetField(paymentorder.FieldCouponID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCouponID(); ok {
+		_spec.AddField(paymentorder.FieldCouponID, field.TypeInt64, value)
+	}
+	if _u.mutation.CouponIDCleared() {
+		_spec.ClearField(paymentorder.FieldCouponID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.CouponTemplateID(); ok {
+		_spec.SetField(paymentorder.FieldCouponTemplateID, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedCouponTemplateID(); ok {
+		_spec.AddField(paymentorder.FieldCouponTemplateID, field.TypeInt64, value)
+	}
+	if _u.mutation.CouponTemplateIDCleared() {
+		_spec.ClearField(paymentorder.FieldCouponTemplateID, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.CouponSnapshot(); ok {
+		_spec.SetField(paymentorder.FieldCouponSnapshot, field.TypeJSON, value)
+	}
+	if _u.mutation.CouponSnapshotCleared() {
+		_spec.ClearField(paymentorder.FieldCouponSnapshot, field.TypeJSON)
+	}
+	if value, ok := _u.mutation.ListAmount(); ok {
+		_spec.SetField(paymentorder.FieldListAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedListAmount(); ok {
+		_spec.AddField(paymentorder.FieldListAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.GatewayBaseAmount(); ok {
+		_spec.SetField(paymentorder.FieldGatewayBaseAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedGatewayBaseAmount(); ok {
+		_spec.AddField(paymentorder.FieldGatewayBaseAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.DiscountAmount(); ok {
+		_spec.SetField(paymentorder.FieldDiscountAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedDiscountAmount(); ok {
+		_spec.AddField(paymentorder.FieldDiscountAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.FeeAmount(); ok {
+		_spec.SetField(paymentorder.FieldFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedFeeAmount(); ok {
+		_spec.AddField(paymentorder.FieldFeeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.QualifyingRechargeAmount(); ok {
+		_spec.SetField(paymentorder.FieldQualifyingRechargeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedQualifyingRechargeAmount(); ok {
+		_spec.AddField(paymentorder.FieldQualifyingRechargeAmount, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.PaymentCurrency(); ok {
+		_spec.SetField(paymentorder.FieldPaymentCurrency, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.PayAmount(); ok {
 		_spec.SetField(paymentorder.FieldPayAmount, field.TypeFloat64, value)

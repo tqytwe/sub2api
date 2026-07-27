@@ -32,6 +32,10 @@ export interface PublicOrderVerifyResult {
   recharge_snapshot?: RechargeSnapshot
 }
 
+export interface CancelOrderResult {
+  message: string
+}
+
 export const paymentAPI = {
   /** Get payment configuration (enabled types, limits, etc.) */
   getConfig() {
@@ -70,7 +74,7 @@ export const paymentAPI = {
 
   /** Cancel a pending order */
   cancelOrder(id: number) {
-    return apiClient.post(`/payment/orders/${id}/cancel`)
+    return apiClient.post<CancelOrderResult>(`/payment/orders/${id}/cancel`)
   },
 
   /** Verify order payment status with upstream provider */

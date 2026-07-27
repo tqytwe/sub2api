@@ -45,6 +45,36 @@ func (PaymentOrder) Fields() []ent.Field {
 		// 金额信息
 		field.Float("amount").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}),
+		// Coupon settlement is captured as an immutable order snapshot. The
+		// coupon tables are intentionally maintained outside Ent, so the IDs are
+		// scalar fields instead of Ent edges.
+		field.Int64("coupon_id").
+			Optional().
+			Nillable(),
+		field.Int64("coupon_template_id").
+			Optional().
+			Nillable(),
+		field.JSON("coupon_snapshot", map[string]any{}).
+			Optional().
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.Float("list_amount").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
+		field.Float("gateway_base_amount").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
+		field.Float("discount_amount").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
+		field.Float("fee_amount").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
+		field.Float("qualifying_recharge_amount").
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}).
+			Default(0),
+		field.String("payment_currency").
+			MaxLen(3).
+			Default("CNY"),
 		field.Float("pay_amount").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,2)"}),
 		field.Float("fee_rate").

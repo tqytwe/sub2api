@@ -19,8 +19,21 @@ func paymentProviderConfigCurrency(providerKey string, cfg map[string]string) st
 }
 
 func PaymentOrderCurrency(order *dbent.PaymentOrder) string {
+	// list_amount is populated for every order created after the coupon
+	// settlement rollout. Older rows received the migration default for
+	// payment_currency, so their provider snapshot remains the source of truth.
+	if order != nil && order.ListAmount > 0 {
+		if currency, err := payment.NormalizePaymentCurrency(order.PaymentCurrency); err == nil && order.PaymentCurrency != "" {
+			return currency
+		}
+	}
 	if snapshot := psOrderProviderSnapshot(order); snapshot != nil {
 		if currency, err := payment.NormalizePaymentCurrency(snapshot.Currency); err == nil {
+			return currency
+		}
+	}
+	if order != nil {
+		if currency, err := payment.NormalizePaymentCurrency(order.PaymentCurrency); err == nil && order.PaymentCurrency != "" {
 			return currency
 		}
 	}

@@ -39,6 +39,7 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 		Amount:      "12.50",
 		OrderType:   payment.OrderTypeSubscription,
 		PlanID:      7,
+		CouponID:    9,
 	})
 	if err != nil {
 		t.Fatalf("applyWeChatPaymentResumeClaims returned error: %v", err)
@@ -54,6 +55,9 @@ func TestApplyWeChatPaymentResumeClaims(t *testing.T) {
 	}
 	if req.PlanID != 7 {
 		t.Fatalf("plan_id = %d, want 7", req.PlanID)
+	}
+	if req.CouponID != 9 {
+		t.Fatalf("coupon_id = %d, want 9", req.CouponID)
 	}
 }
 
@@ -72,6 +76,20 @@ func TestApplyWeChatPaymentResumeClaimsRejectsPaymentTypeMismatch(t *testing.T) 
 	})
 	if err == nil {
 		t.Fatal("applyWeChatPaymentResumeClaims should reject mismatched payment types")
+	}
+}
+
+func TestApplyWeChatPaymentResumeClaimsRejectsCouponMismatch(t *testing.T) {
+	t.Parallel()
+
+	req := CreateOrderRequest{PaymentType: payment.TypeWxpay, CouponID: 11}
+	err := applyWeChatPaymentResumeClaims(&req, &service.WeChatPaymentResumeClaims{
+		OpenID:      "openid-123",
+		PaymentType: payment.TypeWxpay,
+		CouponID:    12,
+	})
+	if err == nil {
+		t.Fatal("applyWeChatPaymentResumeClaims should reject coupon mismatch")
 	}
 }
 

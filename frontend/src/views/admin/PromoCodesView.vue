@@ -1,6 +1,24 @@
 <template>
   <AppLayout>
-    <TablePageLayout>
+    <div class="space-y-4">
+      <nav class="flex gap-1 overflow-x-auto border-b border-gray-200 dark:border-dark-700" :aria-label="t('coupon.admin.navigation')">
+        <button
+          v-for="tab in couponTabs"
+          :key="tab.value"
+          type="button"
+          :class="[
+            'min-h-10 shrink-0 border-b-2 px-3 text-sm font-medium transition-colors',
+            activeCouponTab === tab.value
+              ? 'border-primary-600 text-primary-700 dark:border-primary-400 dark:text-primary-300'
+              : 'border-transparent text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200',
+          ]"
+          @click="activeCouponTab = tab.value"
+        >
+          {{ tab.label }}
+        </button>
+      </nav>
+
+    <TablePageLayout v-if="activeCouponTab === 'register'">
       <template #filters>
         <div class="flex flex-wrap items-center gap-3">
           <!-- Left: Search + Filters -->
@@ -155,6 +173,8 @@
         />
       </template>
     </TablePageLayout>
+
+    <AdminCouponOperations v-if="activeCouponTab !== 'register'" :active-tab="activeCouponOperationsTab" />
 
     <!-- Create Dialog -->
     <BaseDialog
@@ -382,6 +402,7 @@
       @confirm="confirmDelete"
       @cancel="showDeleteDialog = false"
     />
+    </div>
   </AppLayout>
 </template>
 
@@ -403,6 +424,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Select from '@/components/common/Select.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AdminCouponOperations, { type CouponOperationsTab } from '@/components/admin/AdminCouponOperations.vue'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -415,6 +437,17 @@ const creating = ref(false)
 const updating = ref(false)
 const searchQuery = ref('')
 const copiedCode = ref<string | null>(null)
+const activeCouponTab = ref<'register' | CouponOperationsTab>('register')
+const activeCouponOperationsTab = computed<CouponOperationsTab>(() =>
+  activeCouponTab.value === 'register' ? 'templates' : activeCouponTab.value,
+)
+const couponTabs = computed(() => [
+  { value: 'register' as const, label: t('coupon.admin.tabs.register') },
+  { value: 'templates' as const, label: t('coupon.admin.tabs.templates') },
+  { value: 'issue' as const, label: t('coupon.admin.tabs.issue') },
+  { value: 'blindbox' as const, label: t('coupon.admin.tabs.blindbox') },
+  { value: 'quiz' as const, label: t('coupon.admin.tabs.quiz') },
+])
 
 const filters = reactive({
   status: ''
