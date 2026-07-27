@@ -10,10 +10,14 @@
 
 ### 账户聚合
 
+- `GET /api/v1/mobile/protocol`
+- `GET /api/v1/mobile/session/status`
 - `GET /api/v1/mobile/account-summary`
 - 保留兼容：`GET /api/v1/nextchat/mobile/account-summary`
 - 返回账户页所需的余额、冻结余额、分组、订阅、套餐进度等聚合信息。
 - APP 首选新路径，失败时可短期回退旧路径。
+
+`/mobile/protocol` 返回移动端统一协议版本、接口生命周期、任务状态、隐私脱敏规则。`/mobile/session/status` 返回当前登录态，APP 遇到 401 时必须先尝试 `/api/v1/auth/refresh`，刷新成功后重放原请求；只有 refresh token 也明确失效时才提示重新登录。
 
 ### 聊天和生图独立托管会话
 
@@ -138,3 +142,9 @@
 - 旧接口全部保留，后端回滚不会影响旧 APP。
 - `deleted_at` 是新增空列，回滚代码后不会破坏现有任务数据。
 - APP 仍可短期保留旧路径 fallback。
+
+## 当前边界
+
+- 当前已具备服务端技能目录、版本、输入要求、示例和消耗说明字段，但 `/mobile/skills/:slug/use` 主要记录启用/最近使用；完整 skill 执行编排仍需后续工作流执行器支撑。
+- 当前已具备统一任务记录、取消、重试、删除和生图历史包装；真实聊天 SSE 中断、生图上游取消仍取决于对应执行链路是否接入任务 ID。
+- 当前未把智能体协作宣传为完整后端多智能体编排；真正协作需要服务端保存步骤、中间状态、参与 agent、合并策略和可追踪结果。
