@@ -56,6 +56,12 @@ type MobileTaskPage struct {
 	Pages    int          `json:"pages"`
 }
 
+type MobileTaskDeleteResult struct {
+	ID        string    `json:"id"`
+	Deleted   bool      `json:"deleted"`
+	DeletedAt time.Time `json:"deleted_at"`
+}
+
 type MobileTaskTransitionInput struct {
 	Status    MobileTaskStatus
 	Progress  *int
@@ -136,7 +142,7 @@ func (s *MobileTaskService) Get(ctx context.Context, userID int64, id string) (*
 	if _, err := uuid.Parse(id); err != nil {
 		return nil, ErrMobileTaskNotFound
 	}
-	return s.queryOne(ctx, mobileTaskSelect+" WHERE user_id = ? AND id = ?", userID, id)
+	return s.queryOne(ctx, mobileTaskSelect+" WHERE user_id = ? AND id = ? AND deleted_at IS NULL", userID, id)
 }
 
 func (s *MobileTaskService) List(ctx context.Context, userID int64, filter MobileTaskListFilter) (*MobileTaskPage, error) {
@@ -144,7 +150,7 @@ func (s *MobileTaskService) List(ctx context.Context, userID int64, filter Mobil
 		return nil, err
 	}
 	filter = normalizeMobileTaskListFilter(filter)
-	where := []string{"user_id = ?"}
+	where := []string{"user_id = ?", "deleted_at IS NULL"}
 	args := []any{userID}
 	if filter.Kind != "" {
 		if !IsValidMobileTaskKind(filter.Kind) {
@@ -233,6 +239,30 @@ func (s *MobileTaskService) Retry(ctx context.Context, userID int64, id, clientR
 		return nil, err
 	}
 	return &retry, nil
+}
+
+func (s *MobileTaskService) Delete(ctx context.Context, userID int64, id string) (*MobileTaskDeleteResult, error) {
+	if err := s.ready(userID); err != nil {
+		return nil, err
+	}
+	id = strings.TrimSpace(id)
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrMobileTaskNotFound
+	}
+	deletedAt := s.now().UTC()
+	result, err := s.db.ExecContext(ctx, s.bind(`UPDATE mobile_tasks SET deleted_at = ?, updated_at = ? WHERE user_id = ? AND id = ? AND deleted_at IS NULL`),
+		deletedAt, deletedAt, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return nil, err
+	}
+	if affected == 0 {
+		return nil, ErrMobileTaskNotFound
+	}
+	return &MobileTaskDeleteResult{ID: id, Deleted: true, DeletedAt: deletedAt}, nil
 }
 
 // Transition persists executor-owned status changes while preserving the

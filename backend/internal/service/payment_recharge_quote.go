@@ -62,6 +62,17 @@ func (s *PaymentService) BuildRechargeQuote(ctx context.Context, userID int64, i
 	return s.buildRechargeQuoteForUser(ctx, user, inputAmount, cfg.BalanceRechargeMultiplier)
 }
 
+func (s *PaymentService) BuildRechargeQuoteWithMultiplier(ctx context.Context, userID int64, inputAmount, multiplier float64) (*PaymentRechargeQuote, error) {
+	if s == nil || s.userRepo == nil {
+		return nil, nil
+	}
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildRechargeQuoteForUser(ctx, user, inputAmount, multiplier)
+}
+
 func (s *PaymentService) buildRechargeQuoteForUser(ctx context.Context, user *User, inputAmount, multiplier float64) (*PaymentRechargeQuote, error) {
 	if user == nil {
 		return nil, nil

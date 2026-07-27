@@ -61,6 +61,7 @@ type MobileFeedbackRecord struct {
 	DeviceInfo     map[string]any             `json:"device_info"`
 	Screenshots    []MobileFeedbackScreenshot `json:"screenshots"`
 	AdminNote      string                     `json:"admin_note"`
+	WorkItems      []MobileFeedbackWorkItem   `json:"work_items,omitempty"`
 	CreatedAt      time.Time                  `json:"created_at"`
 	UpdatedAt      time.Time                  `json:"updated_at"`
 }
@@ -99,7 +100,34 @@ type MobileFeedbackList struct {
 
 type MobileFeedbackUpdate struct {
 	Status    string
-	AdminNote string
+	AdminNote *string
+	WorkItem  *MobileFeedbackWorkItemUpdate
+}
+
+type MobileFeedbackWorkItem struct {
+	ID                 int64     `json:"id"`
+	FeedbackID         int64     `json:"feedback_id"`
+	Type               string    `json:"type"`
+	Priority           string    `json:"priority"`
+	Status             string    `json:"status"`
+	Title              string    `json:"title"`
+	Summary            string    `json:"summary"`
+	AcceptanceCriteria string    `json:"acceptance_criteria"`
+	TargetVersion      string    `json:"target_version"`
+	ReleasedVersion    string    `json:"released_version"`
+	Owner              string    `json:"owner"`
+	Source             string    `json:"source"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+}
+
+type MobileFeedbackWorkItemUpdate struct {
+	ID              int64
+	Status          string
+	Priority        string
+	TargetVersion   string
+	ReleasedVersion string
+	Owner           string
 }
 
 type MobileFeedbackMessage struct {
@@ -162,7 +190,16 @@ func (s *PlayService) CreateMobileFeedback(ctx context.Context, userID int64, in
 	if err := validateMobileFeedbackForCreate(record); err != nil {
 		return nil, err
 	}
-	return s.repo.CreateMobileFeedback(ctx, record)
+	created, err := s.repo.CreateMobileFeedback(ctx, record)
+	if err != nil {
+		return nil, err
+	}
+	if workRepo, ok := s.repo.(mobileFeedbackWorkItemRepository); ok && created != nil {
+		if item, itemErr := workRepo.EnsureMobileFeedbackWorkItem(ctx, created.ID, defaultMobileFeedbackWorkItem(*created)); itemErr == nil && item != nil {
+			created.WorkItems = []MobileFeedbackWorkItem{*item}
+		}
+	}
+	return created, nil
 }
 
 func (s *PlayService) ListUserMobileFeedback(ctx context.Context, userID int64, filter MobileFeedbackListFilter) (*MobileSupportTicketList, error) {
@@ -342,7 +379,12 @@ func (s *PlayService) GetAdminMobileFeedback(ctx context.Context, id int64) (*Mo
 	if id <= 0 {
 		return nil, ErrMobileFeedbackNotFound
 	}
-	return s.repo.GetAdminMobileFeedback(ctx, id)
+	record, err := s.repo.GetAdminMobileFeedback(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	s.attachMobileFeedbackWorkItems(ctx, record)
+	return record, nil
 }
 
 func (s *PlayService) UpdateAdminMobileFeedback(ctx context.Context, id int64, input MobileFeedbackUpdate) (*MobileFeedbackRecord, error) {
@@ -352,16 +394,49 @@ func (s *PlayService) UpdateAdminMobileFeedback(ctx context.Context, id int64, i
 	if id <= 0 {
 		return nil, ErrMobileFeedbackNotFound
 	}
-	status := normalizeMobileFeedbackStatus(input.Status)
-	if status == "" {
+	var current *MobileFeedbackRecord
+	status := normalizeOptionalMobileFeedbackStatus(input.Status)
+	if status == "" && strings.TrimSpace(input.Status) != "" {
 		return nil, ErrMobileFeedbackInvalid.WithMetadata(map[string]string{"field": "status"})
 	}
-	note := truncateMobileFeedbackText(input.AdminNote, 1000)
+	if status == "" {
+		var err error
+		current, err = s.repo.GetAdminMobileFeedback(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		status = current.Status
+	}
+	note := ""
+	if input.AdminNote != nil {
+		note = truncateMobileFeedbackText(*input.AdminNote, 1000)
+	} else {
+		if current == nil {
+			var err error
+			current, err = s.repo.GetAdminMobileFeedback(ctx, id)
+			if err != nil {
+				return nil, err
+			}
+		}
+		note = current.AdminNote
+	}
 	record, err := s.repo.UpdateAdminMobileFeedback(ctx, id, status, note)
 	if err != nil {
 		return nil, err
 	}
-	if note != "" && record != nil && record.UserID > 0 && s.mobilePush != nil {
+	if input.WorkItem != nil {
+		normalizedWorkItem, err := normalizeMobileFeedbackWorkItemUpdate(*input.WorkItem)
+		if err != nil {
+			return nil, err
+		}
+		if workRepo, ok := s.repo.(mobileFeedbackWorkItemRepository); ok {
+			if _, workErr := workRepo.UpdateMobileFeedbackWorkItem(ctx, id, normalizedWorkItem); workErr != nil {
+				return nil, workErr
+			}
+		}
+	}
+	s.attachMobileFeedbackWorkItems(ctx, record)
+	if input.AdminNote != nil && note != "" && record != nil && record.UserID > 0 && s.mobilePush != nil {
 		_, _, _ = s.mobilePush.Enqueue(ctx, MobilePushEvent{
 			UserID: record.UserID, IdempotencyKey: fmt.Sprintf("support-reply:%d:%d", record.ID, record.UpdatedAt.UnixNano()),
 			EventType: "support.reply", SourceType: "mobile_feedback", SourceID: strconv.FormatInt(record.ID, 10),
@@ -370,6 +445,149 @@ func (s *PlayService) UpdateAdminMobileFeedback(ctx context.Context, id int64, i
 		})
 	}
 	return record, nil
+}
+
+func normalizeMobileFeedbackWorkItemUpdate(input MobileFeedbackWorkItemUpdate) (MobileFeedbackWorkItemUpdate, error) {
+	input.Status = strings.ToLower(strings.TrimSpace(input.Status))
+	input.Priority = strings.ToLower(strings.TrimSpace(input.Priority))
+	input.TargetVersion = truncateMobileFeedbackText(input.TargetVersion, 64)
+	input.ReleasedVersion = truncateMobileFeedbackText(input.ReleasedVersion, 64)
+	input.Owner = truncateMobileFeedbackText(input.Owner, 120)
+	if input.Status != "" && !isValidMobileFeedbackWorkItemStatus(input.Status) {
+		return input, ErrMobileFeedbackInvalid.WithMetadata(map[string]string{"field": "work_item.status"})
+	}
+	if input.Priority != "" && !isValidMobileFeedbackWorkItemPriority(input.Priority) {
+		return input, ErrMobileFeedbackInvalid.WithMetadata(map[string]string{"field": "work_item.priority"})
+	}
+	return input, nil
+}
+
+func isValidMobileFeedbackWorkItemStatus(status string) bool {
+	switch status {
+	case "backlog", "accepted", "in_progress", "testing", "released", "rejected":
+		return true
+	default:
+		return false
+	}
+}
+
+func isValidMobileFeedbackWorkItemPriority(priority string) bool {
+	switch priority {
+	case "p0", "p1", "p2", "p3":
+		return true
+	default:
+		return false
+	}
+}
+
+type mobileFeedbackWorkItemRepository interface {
+	EnsureMobileFeedbackWorkItem(ctx context.Context, feedbackID int64, item MobileFeedbackWorkItem) (*MobileFeedbackWorkItem, error)
+	ListMobileFeedbackWorkItems(ctx context.Context, feedbackID int64) ([]MobileFeedbackWorkItem, error)
+	UpdateMobileFeedbackWorkItem(ctx context.Context, feedbackID int64, input MobileFeedbackWorkItemUpdate) (*MobileFeedbackWorkItem, error)
+}
+
+func (s *PlayService) attachMobileFeedbackWorkItems(ctx context.Context, record *MobileFeedbackRecord) {
+	if record == nil || record.ID <= 0 {
+		return
+	}
+	workRepo, ok := s.repo.(mobileFeedbackWorkItemRepository)
+	if !ok {
+		return
+	}
+	items, err := workRepo.ListMobileFeedbackWorkItems(ctx, record.ID)
+	if err == nil {
+		record.WorkItems = items
+	}
+}
+
+func defaultMobileFeedbackWorkItem(record MobileFeedbackRecord) MobileFeedbackWorkItem {
+	itemType := mobileFeedbackWorkItemType(record)
+	return MobileFeedbackWorkItem{
+		FeedbackID:         record.ID,
+		Type:               itemType,
+		Priority:           mobileFeedbackWorkItemPriority(record),
+		Status:             "backlog",
+		Title:              truncateMobileFeedbackText(record.Title, 120),
+		Summary:            truncateMobileFeedbackText(mobileFeedbackWorkItemSummary(record), 1000),
+		AcceptanceCriteria: truncateMobileFeedbackText(mobileFeedbackWorkItemAcceptance(record, itemType), 1000),
+		Source:             "auto",
+	}
+}
+
+func mobileFeedbackWorkItemType(record MobileFeedbackRecord) string {
+	switch normalizeMobileFeedbackCategory(record.Category) {
+	case "payment":
+		return "payment"
+	case "account":
+		return "account"
+	case "image":
+		return "image"
+	case "chat":
+		return "chat"
+	case "experience":
+		return "ux"
+	case "request":
+		return "feature"
+	case "bug":
+		if strings.Contains(strings.ToLower(record.LastError), "网络") || strings.Contains(strings.ToLower(record.LastError), "timeout") {
+			return "network"
+		}
+		return "bug"
+	default:
+		return "other"
+	}
+}
+
+func mobileFeedbackWorkItemPriority(record MobileFeedbackRecord) string {
+	text := strings.ToLower(strings.Join([]string{record.Category, record.Title, record.Content, record.LastError}, " "))
+	switch {
+	case strings.Contains(text, "支付") || strings.Contains(text, "payment") || strings.Contains(text, "登录") || strings.Contains(text, "login") || strings.Contains(text, "failed to fetch"):
+		return "p1"
+	case strings.Contains(text, "崩溃") || strings.Contains(text, "crash") || strings.Contains(text, "无法使用"):
+		return "p1"
+	case normalizeMobileFeedbackCategory(record.Category) == "request":
+		return "p3"
+	default:
+		return "p2"
+	}
+}
+
+func mobileFeedbackWorkItemSummary(record MobileFeedbackRecord) string {
+	parts := []string{
+		"来源：APP反馈",
+		"类型：" + normalizeMobileFeedbackCategory(record.Category),
+		"标题：" + strings.TrimSpace(record.Title),
+	}
+	if record.LastError != "" {
+		parts = append(parts, "错误摘要："+record.LastError)
+	}
+	if record.AppVersion != "" {
+		parts = append(parts, "版本："+record.AppVersion)
+	}
+	if record.DeviceModel != "" {
+		parts = append(parts, "设备："+record.DeviceModel)
+	}
+	parts = append(parts, "内容："+strings.TrimSpace(record.Content))
+	return strings.Join(parts, "\n")
+}
+
+func mobileFeedbackWorkItemAcceptance(record MobileFeedbackRecord, itemType string) string {
+	switch itemType {
+	case "payment":
+		return "用户能在APP内成功发起支付；返回APP后可自动刷新订单状态；失败时展示明确中文原因。"
+	case "account":
+		return "用户登录后不会在弱网或切换网络时无故中断；认证恢复失败时给出明确处理方式。"
+	case "network":
+		return "弱网、Wi-Fi、移动网络切换场景下请求可自动重试或提示可恢复状态；诊断信息可定位失败路径。"
+	case "image":
+		return "生图相关操作成功、失败、取消、重试状态一致；历史记录可管理。"
+	case "chat":
+		return "聊天请求能及时发送并返回状态；失败时可重试且不丢失用户输入。"
+	case "feature":
+		return "需求被产品确认后给出范围、入口、消耗和验收标准。"
+	default:
+		return "复现用户反馈场景；确认问题原因；修复后在对应APP版本验证并记录处理结果。"
+	}
 }
 
 func validateMobileFeedbackForCreate(record MobileFeedbackRecord) error {

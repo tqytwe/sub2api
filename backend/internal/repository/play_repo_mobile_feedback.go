@@ -6,12 +6,114 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type mobileFeedbackScanner interface {
 	Scan(dest ...any) error
+}
+
+func (r *playRepository) EnsureMobileFeedbackWorkItem(ctx context.Context, feedbackID int64, item service.MobileFeedbackWorkItem) (*service.MobileFeedbackWorkItem, error) {
+	exec := r.sqlExec(ctx)
+	source := strings.TrimSpace(item.Source)
+	if source == "" {
+		source = "auto"
+	}
+	return scanMobileFeedbackWorkItemFromQuery(ctx, exec, `
+		INSERT INTO mobile_feedback_work_items (
+			feedback_id,
+			type,
+			priority,
+			status,
+			title,
+			summary,
+			acceptance_criteria,
+			target_version,
+			released_version,
+			owner,
+			source
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		ON CONFLICT (feedback_id, source) WHERE source = 'auto'
+		DO UPDATE SET
+			title = EXCLUDED.title,
+			summary = EXCLUDED.summary,
+			acceptance_criteria = EXCLUDED.acceptance_criteria,
+			updated_at = NOW()
+		RETURNING id, feedback_id, type, priority, status, title, summary, acceptance_criteria,
+		          target_version, released_version, owner, source, created_at, updated_at`,
+		[]any{
+			feedbackID,
+			item.Type,
+			item.Priority,
+			item.Status,
+			item.Title,
+			item.Summary,
+			item.AcceptanceCriteria,
+			item.TargetVersion,
+			item.ReleasedVersion,
+			item.Owner,
+			source,
+		})
+}
+
+func (r *playRepository) ListMobileFeedbackWorkItems(ctx context.Context, feedbackID int64) ([]service.MobileFeedbackWorkItem, error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT id, feedback_id, type, priority, status, title, summary, acceptance_criteria,
+		       target_version, released_version, owner, source, created_at, updated_at
+		FROM mobile_feedback_work_items
+		WHERE feedback_id = $1
+		ORDER BY created_at ASC, id ASC`, feedbackID)
+	if err != nil {
+		return nil, fmt.Errorf("list mobile feedback work items: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]service.MobileFeedbackWorkItem, 0)
+	for rows.Next() {
+		item, scanErr := scanMobileFeedbackWorkItem(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate mobile feedback work items: %w", err)
+	}
+	return items, nil
+}
+
+func (r *playRepository) UpdateMobileFeedbackWorkItem(ctx context.Context, feedbackID int64, input service.MobileFeedbackWorkItemUpdate) (*service.MobileFeedbackWorkItem, error) {
+	exec := r.sqlExec(ctx)
+	return scanMobileFeedbackWorkItemFromQuery(ctx, exec, `
+		WITH target AS (
+			SELECT id
+			FROM mobile_feedback_work_items
+			WHERE feedback_id = $1 AND ($2::bigint = 0 OR id = $2)
+			ORDER BY CASE WHEN source = 'auto' THEN 0 ELSE 1 END, id ASC
+			LIMIT 1
+		)
+		UPDATE mobile_feedback_work_items wi
+		SET status = CASE WHEN $3 = '' THEN wi.status ELSE $3 END,
+		    priority = CASE WHEN $4 = '' THEN wi.priority ELSE $4 END,
+		    target_version = CASE WHEN $5 = '' THEN wi.target_version ELSE $5 END,
+		    released_version = CASE WHEN $6 = '' THEN wi.released_version ELSE $6 END,
+		    owner = CASE WHEN $7 = '' THEN wi.owner ELSE $7 END,
+		    updated_at = NOW()
+		FROM target
+		WHERE wi.id = target.id
+		RETURNING wi.id, wi.feedback_id, wi.type, wi.priority, wi.status, wi.title, wi.summary, wi.acceptance_criteria,
+		          wi.target_version, wi.released_version, wi.owner, wi.source, wi.created_at, wi.updated_at`,
+		[]any{
+			feedbackID,
+			input.ID,
+			strings.TrimSpace(input.Status),
+			strings.TrimSpace(input.Priority),
+			strings.TrimSpace(input.TargetVersion),
+			strings.TrimSpace(input.ReleasedVersion),
+			strings.TrimSpace(input.Owner),
+		})
 }
 
 func (r *playRepository) CreateMobileFeedback(ctx context.Context, record service.MobileFeedbackRecord) (*service.MobileFeedbackRecord, error) {
@@ -495,6 +597,54 @@ func scanMobileFeedbackRecord(scanner mobileFeedbackScanner) (service.MobileFeed
 	record.DeviceInfo = decodeMobileFeedbackDeviceInfo(deviceInfoRaw)
 	record.Screenshots = decodeMobileFeedbackScreenshots(screenshotsRaw)
 	return record, nil
+}
+
+func scanMobileFeedbackWorkItemFromQuery(ctx context.Context, exec sqlExecutor, query string, args []any) (*service.MobileFeedbackWorkItem, error) {
+	rows, err := exec.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query mobile feedback work item: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("query mobile feedback work item: %w", err)
+		}
+		return nil, service.ErrMobileFeedbackNotFound
+	}
+	item, err := scanMobileFeedbackWorkItem(rows)
+	if err != nil {
+		return nil, err
+	}
+	if rows.Next() {
+		return nil, fmt.Errorf("query mobile feedback work item: unexpected duplicate rows")
+	}
+	return &item, nil
+}
+
+func scanMobileFeedbackWorkItem(scanner mobileFeedbackScanner) (service.MobileFeedbackWorkItem, error) {
+	var item service.MobileFeedbackWorkItem
+	err := scanner.Scan(
+		&item.ID,
+		&item.FeedbackID,
+		&item.Type,
+		&item.Priority,
+		&item.Status,
+		&item.Title,
+		&item.Summary,
+		&item.AcceptanceCriteria,
+		&item.TargetVersion,
+		&item.ReleasedVersion,
+		&item.Owner,
+		&item.Source,
+		&item.CreatedAt,
+		&item.UpdatedAt,
+	)
+	if err != nil {
+		return service.MobileFeedbackWorkItem{}, fmt.Errorf("scan mobile feedback work item: %w", err)
+	}
+	item.CreatedAt = item.CreatedAt.UTC()
+	item.UpdatedAt = item.UpdatedAt.UTC()
+	return item, nil
 }
 
 func decodeMobileFeedbackDeviceInfo(raw []byte) map[string]any {
