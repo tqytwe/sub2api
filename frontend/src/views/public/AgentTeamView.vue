@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import { useAppStore } from '@/stores/app'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
@@ -320,8 +321,9 @@ onMounted(loadTeam)
 </script>
 
 <template>
-  <div class="play-page">
-    <header class="public-page-header">
+  <AuthenticatedPlayShell>
+    <div class="play-page">
+    <header v-if="!authStore.isAuthenticated" class="public-page-header">
       <PublicPlayBackLink />
       <PublicPageToolbar />
     </header>
@@ -515,8 +517,9 @@ onMounted(loadTeam)
       @close="dismissTeamCelebration"
       @secondary="dismissTeamCelebration"
     />
-    <SupportFloatingCard />
-  </div>
+    <SupportFloatingCard v-if="!authStore.isAuthenticated" />
+    </div>
+  </AuthenticatedPlayShell>
 </template>
 
 <style scoped>
@@ -621,14 +624,14 @@ onMounted(loadTeam)
 }
 
 .agent-tier-track span.active {
-  border-color: rgba(31, 122, 91, 0.45);
-  background: #edf7f1;
-  color: #1f6d52;
+  border-color: var(--border-focus);
+  background: var(--action-primary-subtle);
+  color: var(--action-primary-hover);
 }
 
 .dark .agent-tier-track span.active {
-  background: rgba(31, 122, 91, 0.18);
-  color: #9be0c2;
+  background: var(--action-primary-subtle);
+  color: var(--text-secondary);
 }
 
 .agent-tier-track small {
@@ -676,7 +679,7 @@ onMounted(loadTeam)
 }
 
 .agent-member-card.current {
-  box-shadow: inset 3px 0 0 #1f7a5b;
+  box-shadow: inset 3px 0 0 var(--play-primary);
 }
 
 .agent-member-main {
@@ -718,7 +721,7 @@ onMounted(loadTeam)
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: #1f7a5b;
+  background: var(--play-primary);
 }
 
 .agent-member-actions {

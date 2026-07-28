@@ -140,6 +140,7 @@ function mountView() {
   return mount(AgentTeamView, {
     global: {
       stubs: {
+        AuthenticatedPlayShell: { template: '<div><slot /></div>' },
         PublicPageToolbar: true,
         PublicPlayBackLink: true,
         SupportFloatingCard: true,

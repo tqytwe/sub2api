@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorCode } from '@/utils/apiError'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
@@ -430,8 +431,9 @@ watch(
 </script>
 
 <template>
-  <div class="play-page">
-    <header class="public-page-header">
+  <AuthenticatedPlayShell>
+    <div class="play-page">
+    <header v-if="!authStore.isAuthenticated" class="public-page-header">
       <PublicPlayBackLink />
       <PublicPageToolbar />
     </header>
@@ -583,17 +585,18 @@ watch(
       @primary="() => { celebrationOpen = false; void handleOpen() }"
       @secondary="celebrationOpen = false"
     />
-    <SupportFloatingCard />
-  </div>
+    <SupportFloatingCard v-if="!authStore.isAuthenticated" />
+    </div>
+  </AuthenticatedPlayShell>
 </template>
 
 <style scoped>
 .blindbox-vip-pool {
   display: grid;
   gap: 7px;
-  border: 1px solid rgba(31, 122, 91, 0.22);
+  border: 1px solid var(--border-focus);
   border-radius: 8px;
-  background: rgba(31, 122, 91, 0.08);
+  background: var(--action-primary-subtle);
   padding: 12px;
   color: var(--text);
 }
@@ -616,11 +619,21 @@ watch(
   min-height: 24px;
   align-items: center;
   border-radius: 999px;
-  background: #1f7a5b;
-  color: #fff;
+  background: var(--play-primary);
+  color: var(--text-inverse);
   padding: 2px 9px;
   font-size: 12px;
   font-weight: 800;
+}
+
+.play-prize-tier:last-child {
+  border-color: var(--status-warning-border);
+  background: var(--status-warning-surface);
+}
+
+.play-prize-tier:last-child .play-prize-amount,
+.play-prize-tier:last-child .play-prize-rate {
+  color: var(--status-warning-text);
 }
 
 .blindbox-opening {

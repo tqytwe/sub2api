@@ -1,27 +1,34 @@
 /**
- * Growth world ink design tokens — aligned with public-pages.css / home-view.css
+ * Shared V2 play tokens. Blue carries interaction and progress; semantic colors
+ * are reserved for success and rewards, rather than individual game themes.
  * Tokens on :root so dashboard banners / modals work outside .gw-page.
  */
 :root {
-  --gw-bg: #f7f6f2;
-  --gw-card: #ffffff;
-  --gw-ink: #0a0a0a;
-  --gw-ink-2: #525252;
-  --gw-ink-3: #767673;
-  --gw-line: #e4e4df;
-  --gw-soft: #fafaf7;
-  --gw-ok: #15803d;
-  --gw-warn: #b45309;
+  --gw-bg: var(--surface-page);
+  --gw-card: var(--surface-panel);
+  --gw-ink: var(--text-primary);
+  --gw-ink-2: var(--text-secondary);
+  --gw-ink-3: var(--text-muted);
+  --gw-line: var(--border-default);
+  --gw-soft: var(--surface-sunken);
+  --gw-primary: var(--action-primary);
+  --gw-primary-strong: var(--action-primary-hover);
+  --gw-primary-soft: var(--action-primary-subtle);
+  --gw-ok: var(--status-success);
+  --gw-warn: var(--status-warning);
 }
 
 .dark {
-  --gw-bg: #141414;
-  --gw-card: #1a1a19;
-  --gw-ink: #f5f5f4;
-  --gw-ink-2: #a8a29e;
-  --gw-ink-3: #78716c;
-  --gw-line: #292524;
-  --gw-soft: #1f1f1e;
+  --gw-bg: var(--surface-page);
+  --gw-card: var(--surface-panel);
+  --gw-ink: var(--text-primary);
+  --gw-ink-2: var(--text-secondary);
+  --gw-ink-3: var(--text-muted);
+  --gw-line: var(--border-default);
+  --gw-soft: var(--surface-sunken);
+  --gw-primary: var(--action-primary);
+  --gw-primary-strong: var(--action-primary-hover);
+  --gw-primary-soft: var(--action-primary-subtle);
 }
 
 .gw-page {
@@ -42,7 +49,7 @@
 
 .gw-hero-panel {
   border: 1px solid var(--gw-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--gw-card);
   padding: 1.25rem 1.35rem;
 }
@@ -87,9 +94,8 @@
 }
 
 .gw-title {
-  font-family: 'Noto Serif SC', Songti SC, serif;
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
-  font-weight: 600;
+  font-size: 28px;
+  font-weight: 700;
   line-height: 1.12;
   margin: 0;
 }
@@ -120,13 +126,12 @@
 
 .gw-link {
   font-size: 13px;
-  color: var(--gw-ink);
+  color: var(--gw-primary-strong);
   text-decoration: underline;
   text-underline-offset: 3px;
 }
 
 .gw-section-title {
-  font-family: 'Noto Serif SC', serif;
   font-size: 1.125rem;
   font-weight: 600;
   margin: 0 0 0.85rem;
@@ -151,8 +156,8 @@
 
 .gw-card-btn:hover,
 .gw-card-btn.selected {
-  border-color: var(--gw-ink);
-  box-shadow: 0 8px 24px -12px rgba(10, 10, 10, 0.25);
+  border-color: var(--gw-primary);
+  box-shadow: 0 8px 24px -12px color-mix(in srgb, var(--gw-primary) 25%, transparent);
   transform: translateY(-2px);
 }
 
@@ -171,9 +176,9 @@
 
 .gw-card-btn:hover .gw-card-icon,
 .gw-card-btn.selected .gw-card-icon {
-  background: var(--gw-ink);
-  color: #fff;
-  border-color: var(--gw-ink);
+  background: var(--gw-primary);
+  color: var(--text-inverse);
+  border-color: var(--gw-primary);
   transform: scale(1.04);
 }
 
@@ -226,7 +231,8 @@
 .gw-select:focus,
 .gw-textarea:focus {
   outline: none;
-  border-color: var(--gw-ink);
+  border-color: var(--gw-primary);
+  box-shadow: 0 0 0 3px var(--gw-primary-soft);
 }
 
 .gw-cost-pill {
@@ -268,7 +274,7 @@
   align-items: center;
   justify-content: center;
   padding: 0.65rem 1.25rem;
-  border-radius: 999px;
+  border-radius: 6px;
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
@@ -278,14 +284,14 @@
 }
 
 .gw-btn-primary {
-  background: var(--gw-ink, #0a0a0a);
-  color: #fff;
-  border-color: var(--gw-ink, #0a0a0a);
+  background: var(--gw-primary);
+  color: var(--text-inverse);
+  border-color: var(--gw-primary);
 }
 
 .gw-btn-primary:hover:not(:disabled) {
-  background: #262626;
-  border-color: #262626;
+  background: var(--gw-primary-strong);
+  border-color: var(--gw-primary-strong);
   transform: translateY(-1px);
 }
 
@@ -301,18 +307,19 @@
 
 .gw-btn-secondary {
   background: transparent;
-  color: var(--gw-ink);
+  color: var(--gw-primary-strong);
   border-color: var(--gw-line);
 }
 
 .gw-btn-secondary:hover {
-  border-color: var(--gw-ink);
+  border-color: var(--gw-primary);
+  background: var(--gw-primary-soft);
 }
 
 .dark .gw-btn-primary {
-  background: #f5f5f4;
-  color: #0a0a0a;
-  border-color: #f5f5f4;
+  background: var(--gw-primary);
+  color: var(--text-inverse);
+  border-color: var(--gw-primary);
 }
 
 .gw-gallery {
@@ -336,7 +343,7 @@
 
 .gw-panel {
   border: 1px solid var(--gw-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--gw-card);
   padding: 1rem 1.15rem;
   animation: gw-fade-up 0.45s ease both;
@@ -363,9 +370,9 @@
 }
 
 .gw-quest-banner {
-  border: 1px solid var(--gw-ink);
-  border-radius: 14px;
-  background: var(--gw-soft);
+  border: 1px solid var(--gw-primary);
+  border-radius: 8px;
+  background: var(--gw-primary-soft);
   padding: 1rem 1.15rem;
   margin-bottom: 1rem;
   animation: gw-fade-up 0.35s ease both;
@@ -397,7 +404,7 @@
   justify-content: center;
   width: 18px;
   height: 18px;
-  border: 1.5px solid var(--gw-ink);
+  border: 1.5px solid var(--gw-primary);
   border-radius: 4px;
   font-size: 11px;
   flex-shrink: 0;
@@ -405,13 +412,14 @@
 }
 
 .gw-quest-check.done {
-  background: var(--gw-ink);
-  color: #fff;
+  background: var(--gw-ok);
+  border-color: var(--gw-ok);
+  color: var(--text-inverse);
 }
 
 .gw-hub-balance {
   border: 1px solid var(--gw-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--gw-card);
   padding: 1.25rem 1.5rem;
 }
@@ -447,7 +455,7 @@
 
 .gw-stat-card {
   border: 1px solid var(--gw-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--gw-card);
   padding: 1rem 1.15rem;
 }
@@ -499,7 +507,7 @@
 
 .gw-hub-card {
   border: 1px solid var(--gw-line);
-  border-radius: 14px;
+  border-radius: 8px;
   background: var(--gw-card);
   padding: 1.15rem 1.25rem;
   text-decoration: none;
@@ -509,8 +517,8 @@
 }
 
 .gw-hub-card:hover {
-  border-color: var(--gw-ink);
-  box-shadow: 0 4px 20px -8px rgba(10, 10, 10, 0.15);
+  border-color: var(--gw-primary);
+  box-shadow: 0 4px 20px -8px color-mix(in srgb, var(--gw-primary) 20%, transparent);
 }
 
 .gw-first-win {

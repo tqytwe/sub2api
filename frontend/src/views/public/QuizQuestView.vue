@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorCode } from '@/utils/apiError'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
@@ -26,6 +27,9 @@ let quizSubmitRequest = 0
 const couponPoolReady = computed(() => quiz.value?.coupon_pool_ready !== false)
 const fullBalanceReward = computed(() =>
   (quiz.value?.questions.length ?? 0) * (quiz.value?.reward_per_correct ?? 0),
+)
+const answeredCount = computed(() =>
+  quiz.value?.questions.filter((q) => typeof choices[q.id] === 'number').length ?? 0,
 )
 const completedCouponReward = computed(() => {
   if (lastResult.value?.reward_type === 'coupon' && lastResult.value.coupon) {
@@ -73,6 +77,13 @@ function clearChoices() {
   for (const questionID of Object.keys(choices)) {
     delete choices[Number(questionID)]
   }
+}
+
+function scrollToQuestion(questionID: number) {
+  document.getElementById(`quiz-question-${questionID}`)?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+  })
 }
 
 function resetQuizState() {
@@ -171,8 +182,9 @@ watch(
 </script>
 
 <template>
-  <div class="play-page">
-    <header class="public-page-header">
+  <AuthenticatedPlayShell>
+    <div class="play-page">
+    <header v-if="!authStore.isAuthenticated" class="public-page-header">
       <PublicPlayBackLink />
       <PublicPageToolbar />
     </header>
@@ -188,6 +200,12 @@ watch(
             </div>
             <div class="play-action-panel">
               <h2 class="play-section-title">{{ t('nav.quizQuest') }}</h2>
+              <div v-if="quiz?.enabled" class="quiz-hero-progress">
+                <div class="quiz-hero-progress__track">
+                  <span :style="{ width: `${quiz.questions.length ? (answeredCount / quiz.questions.length) * 100 : 0}%` }" />
+                </div>
+                <span>{{ answeredCount }}/{{ quiz.questions.length }}</span>
+              </div>
               <p v-if="quiz?.enabled && couponPoolReady" class="play-intro">
                 {{ t('quiz.rewardHint', { amount: fullBalanceReward.toFixed(2) }) }}
               </p>
@@ -218,19 +236,22 @@ watch(
               <div
                 v-for="(q, idx) in quiz.questions"
                 :key="q.id"
-                class="rounded-xl border border-gray-200 p-4 dark:border-dark-600"
+                :id="`quiz-question-${q.id}`"
+                class="quiz-question-card"
               >
-                <p class="mb-3 font-medium text-gray-900 dark:text-white">
+                <p class="quiz-question-card__title">
                   {{ idx + 1 }}. {{ q.prompt }}
                 </p>
-                <div class="space-y-2">
+                <div class="quiz-options-grid">
                   <label
                     v-for="(opt, optIdx) in q.options"
                     :key="optIdx"
-                    class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-dark-200"
+                    class="quiz-option"
+                    :class="{ 'quiz-option--selected': choices[q.id] === optIdx }"
                   >
-                    <input v-model="choices[q.id]" type="radio" :value="optIdx" />
-                    <span>{{ opt }}</span>
+                    <input v-model="choices[q.id]" class="sr-only" type="radio" :value="optIdx" />
+                    <span class="quiz-option__dot">{{ choices[q.id] === optIdx ? '✓' : '' }}</span>
+                    <span>{{ String.fromCharCode(65 + optIdx) }}. {{ opt }}</span>
                   </label>
                 </div>
               </div>
@@ -249,8 +270,19 @@ watch(
               </div>
               <div class="play-mini-stat">
                 <span class="play-mini-label">{{ t('quiz.submit') }}</span>
-                <span class="play-mini-value">{{ Object.keys(choices).length }}/{{ quiz.questions.length }}</span>
+                <span class="play-mini-value">{{ answeredCount }}/{{ quiz.questions.length }}</span>
               </div>
+            </div>
+            <div v-if="!quiz.already_submitted" class="quiz-question-nav" :aria-label="t('nav.quizQuest')">
+              <button
+                v-for="(q, idx) in quiz.questions"
+                :key="q.id"
+                type="button"
+                :class="{ 'quiz-question-nav__item--done': typeof choices[q.id] === 'number' }"
+                @click="scrollToQuestion(q.id)"
+              >
+                {{ idx + 1 }}
+              </button>
             </div>
             <p class="play-note mt-4">
               {{ quiz.already_submitted
@@ -264,6 +296,124 @@ watch(
       </div>
     </main>
 
-    <SupportFloatingCard />
-  </div>
+    <SupportFloatingCard v-if="!authStore.isAuthenticated" />
+    </div>
+  </AuthenticatedPlayShell>
 </template>
+
+<style scoped>
+.quiz-hero-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 16px;
+  color: var(--play-primary-strong);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.quiz-hero-progress__track {
+  height: 8px;
+  flex: 1;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--play-primary-soft);
+}
+
+.quiz-hero-progress__track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--play-primary);
+  transition: width 180ms ease;
+}
+
+.quiz-question-card {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 18px;
+  scroll-margin-top: 24px;
+}
+
+.quiz-question-card__title {
+  margin: 0 0 14px;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.quiz-options-grid {
+  display: grid;
+  gap: 10px;
+}
+
+.quiz-option {
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  gap: 10px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 10px 12px;
+  color: var(--ink-2);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.quiz-option:hover,
+.quiz-option--selected {
+  border-color: var(--play-primary);
+  background: var(--play-primary-soft);
+  color: var(--play-primary-strong);
+}
+
+.quiz-option__dot {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  color: var(--text-inverse);
+  font-size: 11px;
+}
+
+.quiz-option--selected .quiz-option__dot {
+  border-color: var(--play-primary);
+  background: var(--play-primary);
+}
+
+.quiz-question-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.quiz-question-nav button {
+  width: 40px;
+  height: 36px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--card);
+  color: var(--ink-2);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.quiz-question-nav button:hover {
+  border-color: var(--play-primary);
+  color: var(--play-primary-strong);
+}
+
+.quiz-question-nav .quiz-question-nav__item--done {
+  border-color: var(--status-success-border);
+  background: var(--status-success-surface);
+  color: var(--status-success-text);
+}
+</style>

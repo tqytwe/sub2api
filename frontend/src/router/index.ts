@@ -325,7 +325,9 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       playFeature: 'blindbox',
       title: 'Blindbox',
-      titleKey: 'play.blindbox.title'
+      titleKey: 'play.blindbox.title',
+      hidePageHeader: true,
+      frame: 'workspace',
     }
   },
   {
@@ -336,7 +338,9 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       playFeature: 'arena',
       title: 'Token Farm',
-      titleKey: 'play.arena.title'
+      titleKey: 'play.arena.title',
+      hidePageHeader: true,
+      frame: 'workspace',
     }
   },
   {
@@ -347,7 +351,9 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       playFeature: 'quiz-quest',
       title: 'Quiz Quest',
-      titleKey: 'play.quizQuest.title'
+      titleKey: 'play.quizQuest.title',
+      hidePageHeader: true,
+      frame: 'workspace',
     }
   },
   {
@@ -358,7 +364,9 @@ const routes: RouteRecordRaw[] = [
       requiresAuth: false,
       playFeature: 'agent-team',
       title: 'Agent Team',
-      titleKey: 'play.agentTeam.title'
+      titleKey: 'play.agentTeam.title',
+      hidePageHeader: true,
+      frame: 'workspace',
     }
   },
 

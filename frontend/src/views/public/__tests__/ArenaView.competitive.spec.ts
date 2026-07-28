@@ -136,6 +136,7 @@ function mountView() {
   return mount(ArenaView, {
     global: {
       stubs: {
+        AuthenticatedPlayShell: { template: '<div><slot /></div>' },
         PublicPageToolbar: true,
         PublicPlayBackLink: true,
         SupportFloatingCard: true,
