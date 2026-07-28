@@ -553,6 +553,10 @@ type PlayRepository interface {
 	InsertBlindboxOpenRecord(ctx context.Context, record PlayBlindboxOpenRecord) error
 	ListRecentBlindboxWins(ctx context.Context, limit int) ([]PlayBlindboxRecentWin, error)
 	ListQuizQuestions(ctx context.Context, language string) ([]PlayQuizQuestionDB, error)
+	ListAdminQuizQuestions(ctx context.Context, filter PlayAdminQuizQuestionFilter) ([]PlayAdminQuizQuestion, int, PlayAdminQuizQuestionStats, error)
+	CreateAdminQuizQuestion(ctx context.Context, input PlayAdminQuizQuestionInput) (*PlayAdminQuizQuestion, error)
+	UpdateAdminQuizQuestion(ctx context.Context, id int64, input PlayAdminQuizQuestionInput) (*PlayAdminQuizQuestion, error)
+	DeleteAdminQuizQuestion(ctx context.Context, id int64) error
 	GetQuizAttempt(ctx context.Context, userID int64, date time.Time) (*PlayQuizAttemptDB, error)
 	InsertQuizAttempt(ctx context.Context, userID int64, date time.Time, score, total int, reward float64, answers map[string]any) error
 	GetUserTeam(ctx context.Context, userID int64) (*PlayTeamDB, error)
@@ -642,6 +646,53 @@ type PlayQuizQuestionDB struct {
 	Prompt       string
 	OptionsJSON  string
 	CorrectIndex int
+}
+
+type PlayAdminQuizQuestionFilter struct {
+	Language   string
+	Active     *bool
+	Category   string
+	Difficulty string
+	Query      string
+	Page       int
+	PageSize   int
+}
+
+type PlayAdminQuizQuestionInput struct {
+	Language     string
+	Prompt       string
+	Options      []string
+	CorrectIndex int
+	Category     string
+	Difficulty   string
+	Explanation  string
+	SortOrder    int
+	Active       bool
+}
+
+type PlayAdminQuizQuestion struct {
+	ID           int64
+	Language     string
+	Prompt       string
+	Options      []string
+	CorrectIndex int
+	Category     string
+	Difficulty   string
+	Explanation  string
+	SortOrder    int
+	Active       bool
+	CreatedAt    time.Time
+	UpdatedAt    time.Time
+}
+
+type PlayAdminQuizQuestionStats struct {
+	Total        int
+	Active       int
+	Inactive     int
+	ZhActive     int
+	EnActive     int
+	Categories   []string
+	Difficulties []string
 }
 
 type PlayQuizAttemptDB struct {
