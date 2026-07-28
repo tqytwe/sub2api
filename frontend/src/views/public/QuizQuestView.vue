@@ -251,7 +251,7 @@ watch(
                   >
                     <input v-model="choices[q.id]" class="sr-only" type="radio" :value="optIdx" />
                     <span class="quiz-option__dot">{{ choices[q.id] === optIdx ? '✓' : '' }}</span>
-                    <span>{{ String.fromCharCode(65 + optIdx) }}　{{ opt }}</span>
+                    <span>{{ String.fromCharCode(65 + optIdx) }}. {{ opt }}</span>
                   </label>
                 </div>
               </div>
