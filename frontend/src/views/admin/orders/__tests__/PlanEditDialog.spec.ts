@@ -317,3 +317,38 @@ describe('PlanEditDialog product display fields', () => {
     }))
   })
 })
+
+describe('PlanEditDialog daily-card quota fields', () => {
+  it('preserves one-time quota and duration in the plan payload', async () => {
+    updatePlanMock.mockReset().mockResolvedValue({})
+    const wrapper = mountDialog({ plan: {
+      id: 10,
+      group_id: 3,
+      name: 'Daily Card',
+      description: '24-hour card',
+      price: 9.99,
+      original_price: 0,
+      currency: 'CNY',
+      validity_days: 1,
+      validity_unit: 'days',
+      quota_mode: 'one_time',
+      quota_limit_usd: 10,
+      duration_hours: 24,
+      features: [],
+      for_sale: true,
+      sort_order: 1,
+    } })
+
+    expect(wrapper.find('[data-test="plan-quota-limit"]').exists()).toBe(true)
+    expect(wrapper.find('[data-test="plan-duration-hours"]').exists()).toBe(true)
+    await wrapper.find('[data-test="plan-quota-limit"]').setValue('12.5')
+    await wrapper.find('[data-test="plan-duration-hours"]').setValue('36')
+    await wrapper.find('form').trigger('submit')
+
+    expect(updatePlanMock).toHaveBeenCalledWith(10, expect.objectContaining({
+      quota_mode: 'one_time',
+      quota_limit_usd: 12.5,
+      duration_hours: 36,
+    }))
+  })
+})

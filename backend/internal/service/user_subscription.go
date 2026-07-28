@@ -33,6 +33,12 @@ type UserSubscription struct {
 	Group          *Group
 	AssignedByUser *User
 	PurchaseOrder  *SubscriptionPurchaseOrder
+
+	// DailyCardEntitlementID is populated on the request path only. It points
+	// atomic usage billing at the immutable one-time card quota bucket.
+	DailyCardEntitlementID *int64
+	DailyCard              *DailyCardEntitlement
+	DailyCardQueueCount    int
 }
 
 type SubscriptionPurchaseOrder struct {

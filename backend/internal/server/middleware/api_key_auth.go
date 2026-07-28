@@ -2,10 +2,12 @@ package middleware
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -195,6 +197,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// ── 5. 按端点需要加载订阅 ───────────────────────────────────
 
 		var subscription *service.UserSubscription
+		var dailyCardHoldEntitlementID int64
+		var dailyCardHoldRequestID string
+		var dailyCardBillingSignal *DailyCardBillingSignal
 		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		// 倍率自省不需要订阅数据；/v1/usage 仍保留原有订阅读取行为。
@@ -240,27 +245,50 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 
 			// 订阅模式：验证订阅限额
 			if subscription != nil {
-				needsMaintenance, validateErr := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
-				if needsMaintenance {
-					refreshed, maintenanceErr := subscriptionService.EnsureWindowMaintenance(c.Request.Context(), subscription)
-					if maintenanceErr != nil {
-						AbortWithError(c, 500, "SUBSCRIPTION_MAINTENANCE_FAILED", "Failed to maintain subscription usage windows")
+				card, managedByDailyCard, cardErr := subscriptionService.ResolveDailyCardAccess(c.Request.Context(), apiKey.User.ID, apiKey.Group.ID)
+				if cardErr != nil {
+					AbortWithError(c, 429, "DAILY_CARD_EXHAUSTED", cardErr.Error())
+					return
+				}
+				if managedByDailyCard {
+					holdRequestID, reserveErr := reserveDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
+					if reserveErr != nil {
+						code := "DAILY_CARD_EXHAUSTED"
+						if errors.Is(reserveErr, service.ErrDailyCardRequestInFlight) {
+							code = "DAILY_CARD_BUSY"
+						}
+						AbortWithError(c, 429, code, reserveErr.Error())
 						return
 					}
-					subscription = refreshed
-					_, validateErr = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
-				}
-				if validateErr != nil {
-					code := "SUBSCRIPTION_INVALID"
-					status := 403
-					if errors.Is(validateErr, service.ErrDailyLimitExceeded) ||
-						errors.Is(validateErr, service.ErrWeeklyLimitExceeded) ||
-						errors.Is(validateErr, service.ErrMonthlyLimitExceeded) {
-						code = "USAGE_LIMIT_EXCEEDED"
-						status = 429
+					dailyCardHoldEntitlementID = card.ID
+					dailyCardHoldRequestID = holdRequestID
+					dailyCardBillingSignal = &DailyCardBillingSignal{}
+					c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.DailyCardBillingSignal, dailyCardBillingSignal))
+					subscription.DailyCardEntitlementID = &card.ID
+					subscription.DailyUsageUSD = card.QuotaUsedUSD
+				} else {
+					needsMaintenance, validateErr := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
+					if needsMaintenance {
+						refreshed, maintenanceErr := subscriptionService.EnsureWindowMaintenance(c.Request.Context(), subscription)
+						if maintenanceErr != nil {
+							AbortWithError(c, 500, "SUBSCRIPTION_MAINTENANCE_FAILED", "Failed to maintain subscription usage windows")
+							return
+						}
+						subscription = refreshed
+						_, validateErr = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 					}
-					AbortWithError(c, status, code, validateErr.Error())
-					return
+					if validateErr != nil {
+						code := "SUBSCRIPTION_INVALID"
+						status := 403
+						if errors.Is(validateErr, service.ErrDailyLimitExceeded) ||
+							errors.Is(validateErr, service.ErrWeeklyLimitExceeded) ||
+							errors.Is(validateErr, service.ErrMonthlyLimitExceeded) {
+							code = "USAGE_LIMIT_EXCEEDED"
+							status = 429
+						}
+						AbortWithError(c, status, code, validateErr.Error())
+						return
+					}
 				}
 			} else {
 				// 非订阅模式 或 订阅模式但 subscriptionService 未注入：回退到余额检查
@@ -288,7 +316,40 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		}
 
 		c.Next()
+		if dailyCardHoldEntitlementID > 0 && (c.Writer.Status() >= http.StatusBadRequest || !dailyCardBillingSignal.Scheduled() || isAsyncImageTaskSubmit(c.Request.Method, c.Request.URL.Path)) {
+			releaseDailyCardRequest(c.Request.Context(), subscriptionService, dailyCardHoldEntitlementID, apiKey.User.ID, dailyCardHoldRequestID)
+		}
 	}
+}
+
+func reserveDailyCardRequest(c *gin.Context, subscriptionService *service.SubscriptionService, card *service.DailyCardEntitlement, userID, apiKeyID int64) (string, error) {
+	if c == nil || subscriptionService == nil || card == nil {
+		return "", service.ErrDailyCardInvalidInput
+	}
+	requestID := ""
+	if clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
+		requestID = "client:" + strings.TrimSpace(clientRequestID)
+	} else if localRequestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string); strings.TrimSpace(localRequestID) != "" {
+		requestID = "local:" + strings.TrimSpace(localRequestID)
+	}
+	if requestID == "" {
+		return "", service.ErrDailyCardInvalidInput
+	}
+	fingerprint := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d|%d|%s|%s", userID, apiKeyID, c.Request.Method, c.Request.URL.Path))))
+	err := subscriptionService.ReserveDailyCardRequest(c.Request.Context(), service.DailyCardRequestHoldInput{
+		EntitlementID: card.ID, UserID: userID, RequestID: requestID,
+		RequestFingerprint: fingerprint, ReservedAt: time.Now(),
+	})
+	return requestID, err
+}
+
+func releaseDailyCardRequest(ctx context.Context, subscriptionService *service.SubscriptionService, entitlementID, userID int64, requestID string) {
+	if subscriptionService == nil || entitlementID <= 0 || requestID == "" {
+		return
+	}
+	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	_ = subscriptionService.ReleaseDailyCardRequest(releaseCtx, entitlementID, userID, requestID)
 }
 
 func apiKeyHeadersTooLarge(c *gin.Context) bool {
@@ -342,6 +403,14 @@ func isAsyncImageTaskRead(method, path string) bool {
 		return false
 	}
 	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/")
+}
+
+func isAsyncImageTaskSubmit(method, path string) bool {
+	if method != http.MethodPost {
+		return false
+	}
+	return path == "/v1/images/generations/async" || path == "/images/generations/async" ||
+		path == "/v1/images/edits/async" || path == "/images/edits/async"
 }
 
 // GetAPIKeyFromContext 从上下文中获取API key

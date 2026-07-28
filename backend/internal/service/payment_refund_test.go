@@ -121,6 +121,49 @@ func TestPrepareRefundRejectsLegacyGuessedProviderInstance(t *testing.T) {
 	require.Equal(t, "REFUND_DISABLED", infraerrors.Reason(err))
 }
 
+func TestDailyCardPaymentOrderCannotUseGenericRefundFlow(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+
+	user, err := client.User.Create().
+		SetEmail("daily-card-refund@example.com").
+		SetPasswordHash("hash").
+		SetUsername("daily-card-refund").
+		Save(ctx)
+	require.NoError(t, err)
+
+	order, err := client.PaymentOrder.Create().
+		SetUserID(user.ID).
+		SetUserEmail(user.Email).
+		SetUserName(user.Username).
+		SetAmount(9.9).
+		SetPayAmount(9.9).
+		SetFeeRate(0).
+		SetRechargeCode("DAILY-CARD-REFUND").
+		SetOutTradeNo("sub2_daily_card_refund").
+		SetPaymentType(payment.TypeAlipay).
+		SetPaymentTradeNo("trade-daily-card-refund").
+		SetOrderType(payment.OrderTypeSubscription).
+		SetSubscriptionSnapshot(map[string]any{
+			"quota_mode": DailyCardQuotaModeOneTime,
+		}).
+		SetStatus(OrderStatusCompleted).
+		SetExpiresAt(time.Now().Add(time.Hour)).
+		SetPaidAt(time.Now()).
+		SetClientIP("127.0.0.1").
+		SetSrcHost("api.example.com").
+		Save(ctx)
+	require.NoError(t, err)
+
+	svc := &PaymentService{entClient: client}
+	plan, result, err := svc.PrepareRefund(ctx, order.ID, 0, "", true, true)
+
+	require.Nil(t, plan)
+	require.Nil(t, result)
+	require.Error(t, err)
+	require.Equal(t, "DAILY_CARD_REFUND_REQUIRES_REVIEW", infraerrors.Reason(err))
+}
+
 func TestGwRefundRejectsAlipayMerchantIdentitySnapshotMismatch(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
