@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -215,11 +216,12 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 
 // AssignSubscriptionInput 分配订阅输入
 type AssignSubscriptionInput struct {
-	UserID       int64
-	GroupID      int64
-	ValidityDays int
-	AssignedBy   int64
-	Notes        string
+	UserID         int64
+	GroupID        int64
+	ValidityDays   int
+	AssignedBy     int64
+	Notes          string
+	PaymentOrderID int64
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -249,6 +251,9 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 	}
 	if !group.IsSubscriptionType() {
 		return nil, false, ErrGroupNotSubscriptionType
+	}
+	if err := s.validateDailyCardAssignmentSource(ctx, input); err != nil {
+		return nil, false, err
 	}
 
 	// 查询是否已有订阅
@@ -523,6 +528,9 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 	if !group.IsSubscriptionType() {
 		return nil, false, ErrGroupNotSubscriptionType
 	}
+	if err := s.validateDailyCardAssignmentSource(ctx, input); err != nil {
+		return nil, false, err
+	}
 
 	// 检查是否已存在订阅；若已存在，则按幂等成功返回现有订阅
 	exists, err := s.userSubRepo.ExistsByUserIDAndGroupID(ctx, input.UserID, input.GroupID)
@@ -578,6 +586,20 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 	}
 
 	return sub, false, nil
+}
+
+func (s *SubscriptionService) validateDailyCardAssignmentSource(ctx context.Context, input *AssignSubscriptionInput) error {
+	if s == nil || s.dailyCardSvc == nil || input == nil || input.GroupID <= 0 || input.PaymentOrderID > 0 {
+		return nil
+	}
+	managed, err := s.dailyCardSvc.IsOneTimeGroup(ctx, input.GroupID)
+	if err != nil {
+		return err
+	}
+	if managed {
+		return ErrDailyCardPaidOrderRequired
+	}
+	return nil
 }
 
 func detectAssignSemanticConflict(existing *UserSubscription, input *AssignSubscriptionInput) (string, bool) {
@@ -781,6 +803,18 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 	return &cp, nil
 }
 
+func (s *SubscriptionService) GetSubscriptionForDisplay(ctx context.Context, userID, groupID int64) (*UserSubscription, error) {
+	sub, err := s.GetActiveSubscription(ctx, userID, groupID)
+	if err != nil {
+		return nil, err
+	}
+	subs := []UserSubscription{*sub}
+	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
+		return nil, err
+	}
+	return &subs[0], nil
+}
+
 // ListUserSubscriptions 获取用户的所有订阅
 func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID int64) ([]UserSubscription, error) {
 	subs, err := s.userSubRepo.ListByUserID(ctx, userID)
@@ -805,7 +839,13 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
 		return nil, err
 	}
-	return subs, nil
+	active := subs[:0]
+	for i := range subs {
+		if subs[i].Status == SubscriptionStatusActive {
+			active = append(active, subs[i])
+		}
+	}
+	return active, nil
 }
 
 func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context, userID int64, subs []UserSubscription) error {
@@ -829,8 +869,29 @@ func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context,
 			selected[card.GroupID] = &copyOfCard
 		}
 	}
+	managedByGroup := make(map[int64]bool, len(selected))
+	resolvedByGroup := make(map[int64]*DailyCardEntitlement, len(selected))
+	for groupID := range selected {
+		card, managed, accessErr := s.dailyCardSvc.ResolveAccess(ctx, userID, groupID, time.Now())
+		if accessErr != nil && !errors.Is(accessErr, ErrDailyCardUnavailable) {
+			return accessErr
+		}
+		managedByGroup[groupID] = managed
+		if managed && card != nil {
+			resolvedByGroup[groupID] = card
+		}
+	}
 	for i := range subs {
+		if subs[i].UserID != userID || subs[i].Status == SubscriptionStatusRevoked {
+			continue
+		}
+		if !managedByGroup[subs[i].GroupID] {
+			continue
+		}
 		card := selected[subs[i].GroupID]
+		if resolved := resolvedByGroup[subs[i].GroupID]; resolved != nil {
+			card = resolved
+		}
 		if card == nil {
 			continue
 		}
@@ -838,6 +899,23 @@ func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context,
 		subs[i].DailyCardEntitlementID = &card.ID
 		subs[i].DailyCardQueueCount = queued[subs[i].GroupID]
 		subs[i].DailyUsageUSD = card.QuotaUsedUSD
+		if card.StartsAt != nil {
+			subs[i].DailyWindowStart = card.StartsAt
+		}
+		if card.ExpiresAt != nil {
+			subs[i].ExpiresAt = *card.ExpiresAt
+		}
+		switch card.Status {
+		case DailyCardStatusExhausted:
+			subs[i].Status = SubscriptionStatusExhausted
+			if card.EndedAt != nil {
+				subs[i].ExpiresAt = *card.EndedAt
+			}
+		case DailyCardStatusExpired:
+			subs[i].Status = SubscriptionStatusExpired
+		case DailyCardStatusRevoked:
+			subs[i].Status = SubscriptionStatusRevoked
+		}
 	}
 	return nil
 }
@@ -851,19 +929,105 @@ func (s *SubscriptionService) ListGroupSubscriptions(ctx context.Context, groupI
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.decorateDailyCardsForSubscriptions(ctx, subs); err != nil {
+		return nil, nil, err
+	}
 	return subs, pag, nil
 }
 
 // List 获取所有订阅（分页，支持筛选和排序）
 func (s *SubscriptionService) List(ctx context.Context, page, pageSize int, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]UserSubscription, *pagination.PaginationResult, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
+	if subscriptionStatusRequiresEffectiveFilter(status) {
+		return s.listWithEffectiveStatus(ctx, params, userID, groupID, status, platform, sortBy, sortOrder)
+	}
 	subs, pag, err := s.userSubRepo.List(ctx, params, userID, groupID, status, platform, sortBy, sortOrder)
 	if err != nil {
 		return nil, nil, err
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.decorateDailyCardsForSubscriptions(ctx, subs); err != nil {
+		return nil, nil, err
+	}
 	return subs, pag, nil
+}
+
+func subscriptionStatusRequiresEffectiveFilter(status string) bool {
+	switch status {
+	case SubscriptionStatusActive, SubscriptionStatusExpired, SubscriptionStatusExhausted:
+		return true
+	default:
+		return false
+	}
+}
+
+func (s *SubscriptionService) listWithEffectiveStatus(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]UserSubscription, *pagination.PaginationResult, error) {
+	const batchSize = 200
+	if params.Page < 1 {
+		params.Page = 1
+	}
+	params.PageSize = params.Limit()
+	offset := params.Offset()
+	result := make([]UserSubscription, 0, params.PageSize)
+	totalMatched := 0
+
+	for batchPage := 1; ; batchPage++ {
+		batchParams := pagination.PaginationParams{Page: batchPage, PageSize: batchSize}
+		subs, pag, err := s.userSubRepo.List(ctx, batchParams, userID, groupID, "", platform, sortBy, sortOrder)
+		if err != nil {
+			return nil, nil, err
+		}
+		if len(subs) == 0 {
+			break
+		}
+		normalizeExpiredWindows(subs)
+		normalizeSubscriptionStatus(subs)
+		if err := s.decorateDailyCardsForSubscriptions(ctx, subs); err != nil {
+			return nil, nil, err
+		}
+		for i := range subs {
+			if subs[i].Status != status {
+				continue
+			}
+			if totalMatched >= offset && len(result) < params.PageSize {
+				result = append(result, subs[i])
+			}
+			totalMatched++
+		}
+		if pag == nil || batchPage >= pag.Pages {
+			break
+		}
+	}
+
+	return result, subscriptionPaginationResult(int64(totalMatched), params), nil
+}
+
+func subscriptionPaginationResult(total int64, params pagination.PaginationParams) *pagination.PaginationResult {
+	pageSize := params.Limit()
+	pages := 0
+	if pageSize > 0 && total > 0 {
+		pages = int((total + int64(pageSize) - 1) / int64(pageSize))
+	}
+	page := params.Page
+	if page < 1 {
+		page = 1
+	}
+	return &pagination.PaginationResult{Total: total, Page: page, PageSize: pageSize, Pages: pages}
+}
+
+func (s *SubscriptionService) decorateDailyCardsForSubscriptions(ctx context.Context, subs []UserSubscription) error {
+	seen := make(map[int64]struct{})
+	for i := range subs {
+		if _, ok := seen[subs[i].UserID]; ok {
+			continue
+		}
+		seen[subs[i].UserID] = struct{}{}
+		if err := s.decorateDailyCardEntitlements(ctx, subs[i].UserID, subs); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // normalizeExpiredWindows 将已过期窗口的数据清零（仅影响返回数据，不影响数据库）

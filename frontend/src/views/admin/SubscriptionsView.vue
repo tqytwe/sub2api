@@ -214,22 +214,22 @@
           <template #cell-usage="{ row }">
             <div class="min-w-[280px] space-y-2">
               <!-- Daily Usage -->
-              <div v-if="row.group?.daily_limit_usd" class="usage-row">
+              <div v-if="subscriptionDailyLimit(row)" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.daily') }}</span>
                   <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                     <div
-                      class="h-1.5 rounded-full transition-all"
-                      :class="getProgressClass(row.daily_usage_usd, row.group?.daily_limit_usd)"
+                      class="h-1.5 rounded-full transition-[width,background-color]"
+                      :class="getProgressClass(subscriptionDailyUsage(row), subscriptionDailyLimit(row))"
                       :style="{
-                        width: getProgressWidth(row.daily_usage_usd, row.group?.daily_limit_usd)
+                        width: getProgressWidth(subscriptionDailyUsage(row), subscriptionDailyLimit(row))
                       }"
                     ></div>
                   </div>
                   <span class="usage-amount">
-                    ${{ row.daily_usage_usd?.toFixed(2) || '0.00' }}
+                    ${{ subscriptionDailyUsage(row).toFixed(2) }}
                     <span class="text-gray-400">/</span>
-                    ${{ row.group?.daily_limit_usd?.toFixed(2) }}
+                    ${{ subscriptionDailyLimit(row)?.toFixed(2) }}
                   </span>
                 </div>
                 <div class="reset-info" v-if="row.daily_window_start">
@@ -388,7 +388,7 @@
                 <span class="text-xs">{{ t('admin.subscriptions.adjust') }}</span>
               </button>
               <button
-                v-if="row.status === 'active'"
+                v-if="row.status === 'active' && !row.daily_card"
                 @click="handleResetQuota(row)"
                 :disabled="resettingQuota && resettingSubscription?.id === row.id"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 dark:hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
@@ -777,7 +777,13 @@ import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationParts } from '@/utils/subscriptionQuota'
+import {
+  getRemainingDurationParts,
+  isOneTimeDailyQuota,
+  subscriptionDailyLimit,
+  subscriptionDailyUsage,
+  type RemainingDurationParts
+} from '@/utils/subscriptionQuota'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -911,6 +917,7 @@ const columnDropdownRef = ref<HTMLElement | null>(null)
 const statusOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allStatus') },
   { value: 'active', label: t('admin.subscriptions.status.active') },
+  { value: 'exhausted', label: t('admin.subscriptions.status.exhausted') },
   { value: 'expired', label: t('admin.subscriptions.status.expired') },
   { value: 'revoked', label: t('admin.subscriptions.status.revoked') }
 ])
@@ -1380,6 +1387,9 @@ const formatQuotaEndDuration = (parts: RemainingDurationParts): string => {
 }
 
 const formatDailyUsageWindow = (subscription: UserSubscription): string => {
+  if (subscription.daily_card?.status === 'exhausted') {
+    return t('admin.subscriptions.dailyCardExhausted')
+  }
   if (isOneTimeDailyQuota(subscription) && subscription.expires_at) {
     const parts = getRemainingDurationParts(subscription.expires_at)
     return parts ? formatQuotaEndDuration(parts) : t('admin.subscriptions.windowNotActive')

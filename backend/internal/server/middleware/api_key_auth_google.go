@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -192,6 +193,10 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				return
 			}
 			if managedByDailyCard {
+				if !dailyCardBillingChannelSupported(c.Request.Method, c.Request.URL.Path, c.GetHeader("Upgrade")) {
+					abortWithGoogleError(c, http.StatusForbidden, "This request channel is not available for daily cards")
+					return
+				}
 				holdRequestID, reserveErr := reserveDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
 				if reserveErr != nil {
 					abortWithGoogleError(c, 429, reserveErr.Error())

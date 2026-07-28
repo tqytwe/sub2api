@@ -2093,6 +2093,10 @@ func (h *OpenAIGatewayHandler) submitUsageRecordTask(parent context.Context, tas
 		return
 	}
 	middleware2.MarkDailyCardBillingScheduled(parent)
+	if middleware2.IsDailyCardBillingRequest(parent) {
+		h.runUsageRecordTaskSync(parent, task)
+		return
+	}
 	if h.usageRecordWorkerPool != nil {
 		h.usageRecordWorkerPool.Submit(wrapUsageRecordTaskContext(parent, task))
 		return

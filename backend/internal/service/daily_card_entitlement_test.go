@@ -17,6 +17,7 @@ type dailyCardRepoStub struct {
 	reconciled             []int64
 	hasRecurringOrderAfter bool
 	recurringOrderAfter    time.Time
+	oneTimeGroup           bool
 }
 
 func (r *dailyCardRepoStub) IssuePaidCard(_ context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error) {
@@ -44,6 +45,10 @@ func (r *dailyCardRepoStub) ListByUser(context.Context, int64) ([]DailyCardEntit
 func (r *dailyCardRepoStub) HasRecurringOrderAfter(_ context.Context, _, _ int64, after time.Time) (bool, error) {
 	r.recurringOrderAfter = after
 	return r.hasRecurringOrderAfter, nil
+}
+
+func (r *dailyCardRepoStub) IsOneTimeGroup(context.Context, int64) (bool, error) {
+	return r.oneTimeGroup, r.err
 }
 
 func (*dailyCardRepoStub) ReserveRequest(context.Context, DailyCardRequestHoldInput) error {
@@ -196,6 +201,100 @@ func TestDailyCardServiceKeepsDailyOnlyGroupClosedAfterCardsEnd(t *testing.T) {
 	require.ErrorIs(t, err, ErrDailyCardUnavailable)
 	require.Nil(t, card)
 	require.True(t, managed)
+}
+
+func TestDailyCardServiceClosesManagedGroupWithoutEntitlementHistory(t *testing.T) {
+	svc := NewDailyCardService(&dailyCardRepoStub{oneTimeGroup: true})
+
+	card, managed, err := svc.ResolveAccess(context.Background(), 7, 10, time.Now())
+
+	require.ErrorIs(t, err, ErrDailyCardUnavailable)
+	require.Nil(t, card)
+	require.True(t, managed)
+}
+
+func TestAssignSubscriptionRejectsUntrackedDailyCardGrant(t *testing.T) {
+	groupRepo := &subscriptionGroupRepoStub{group: &Group{ID: 10, SubscriptionType: SubscriptionTypeSubscription}}
+	svc := NewSubscriptionService(groupRepo, newSubscriptionUserSubRepoStub(), nil, nil, nil)
+	svc.SetDailyCardService(NewDailyCardService(&dailyCardRepoStub{oneTimeGroup: true}))
+
+	_, err := svc.AssignSubscription(context.Background(), &AssignSubscriptionInput{
+		UserID: 7, GroupID: 10, ValidityDays: 1,
+	})
+
+	require.ErrorIs(t, err, ErrDailyCardPaidOrderRequired)
+}
+
+func TestDecorateDailyCardEntitlementsMakesExhaustionEffectiveImmediately(t *testing.T) {
+	now := time.Now().UTC()
+	repo := &dailyCardRepoStub{listed: []DailyCardEntitlement{{
+		ID: 9, UserID: 7, GroupID: 10, Status: DailyCardStatusExhausted,
+		QuotaLimitUSD: 16, QuotaUsedUSD: 16, CreatedAt: now.Add(-time.Hour), ExhaustedAt: &now, EndedAt: &now,
+	}}}
+	svc := &SubscriptionService{dailyCardSvc: NewDailyCardService(repo)}
+	subs := []UserSubscription{{
+		ID: 1, UserID: 7, GroupID: 10, Status: SubscriptionStatusActive,
+		ExpiresAt: now.Add(12 * time.Hour), DailyUsageUSD: 17.28,
+	}}
+
+	require.NoError(t, svc.decorateDailyCardEntitlements(context.Background(), 7, subs))
+	require.Equal(t, "exhausted", subs[0].Status)
+	require.Equal(t, 16.0, subs[0].DailyUsageUSD)
+	require.Equal(t, now, subs[0].ExpiresAt)
+}
+
+func TestDecorateDailyCardEntitlementsSkipsEndedCardAfterLaterRecurringPurchase(t *testing.T) {
+	now := time.Now().UTC()
+	purchasedAt := now.Add(-2 * time.Hour)
+	repo := &dailyCardRepoStub{
+		listed: []DailyCardEntitlement{{
+			ID: 9, UserID: 7, GroupID: 10, Status: DailyCardStatusExhausted,
+			QuotaLimitUSD: 16, QuotaUsedUSD: 16, CreatedAt: purchasedAt, ExhaustedAt: &now, EndedAt: &now,
+		}},
+		hasRecurringOrderAfter: true,
+	}
+	svc := &SubscriptionService{dailyCardSvc: NewDailyCardService(repo)}
+	subs := []UserSubscription{{
+		ID: 1, UserID: 7, GroupID: 10, Status: SubscriptionStatusActive,
+		ExpiresAt: now.Add(30 * 24 * time.Hour), DailyUsageUSD: 3,
+	}}
+
+	require.NoError(t, svc.decorateDailyCardEntitlements(context.Background(), 7, subs))
+	require.Equal(t, SubscriptionStatusActive, subs[0].Status)
+	require.Nil(t, subs[0].DailyCard)
+	require.Equal(t, 3.0, subs[0].DailyUsageUSD)
+	require.Equal(t, purchasedAt, repo.recurringOrderAfter)
+}
+
+func TestListSubscriptionsFiltersByEffectiveDailyCardStatus(t *testing.T) {
+	now := time.Now().UTC()
+	subRepo := newSubscriptionUserSubRepoStub()
+	subRepo.seed(&UserSubscription{
+		ID: 1, UserID: 7, GroupID: 10, Status: SubscriptionStatusActive,
+		StartsAt: now.Add(-time.Hour), ExpiresAt: now.Add(23 * time.Hour), CreatedAt: now.Add(-time.Minute),
+	})
+	subRepo.seed(&UserSubscription{
+		ID: 2, UserID: 7, GroupID: 20, Status: SubscriptionStatusActive,
+		StartsAt: now.Add(-time.Hour), ExpiresAt: now.Add(23 * time.Hour), CreatedAt: now,
+	})
+	repo := &dailyCardRepoStub{listed: []DailyCardEntitlement{{
+		ID: 9, UserID: 7, GroupID: 10, Status: DailyCardStatusExhausted,
+		QuotaLimitUSD: 16, QuotaUsedUSD: 16, CreatedAt: now.Add(-time.Hour), EndedAt: &now,
+	}}}
+	svc := NewSubscriptionService(nil, subRepo, nil, nil, nil)
+	svc.SetDailyCardService(NewDailyCardService(repo))
+
+	active, activePage, err := svc.List(context.Background(), 1, 20, nil, nil, SubscriptionStatusActive, "", "", "")
+	require.NoError(t, err)
+	require.Len(t, active, 1)
+	require.Equal(t, int64(2), active[0].ID)
+	require.Equal(t, int64(1), activePage.Total)
+
+	exhausted, exhaustedPage, err := svc.List(context.Background(), 1, 20, nil, nil, SubscriptionStatusExhausted, "", "", "")
+	require.NoError(t, err)
+	require.Len(t, exhausted, 1)
+	require.Equal(t, int64(1), exhausted[0].ID)
+	require.Equal(t, int64(1), exhaustedPage.Total)
 }
 
 func ptrDailyCardTime(value time.Time) *time.Time {

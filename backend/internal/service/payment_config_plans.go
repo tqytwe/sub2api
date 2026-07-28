@@ -43,6 +43,20 @@ func validatePlanQuotaConfig(rawMode string, quotaLimitUSD *float64, durationHou
 	}
 }
 
+func validateOneTimePlanDuration(rawMode string, durationHours *int, validityDays int, validityUnit string) error {
+	if normalizePlanQuotaMode(rawMode) != DailyCardQuotaModeOneTime || durationHours == nil {
+		return nil
+	}
+	unit := strings.ToLower(strings.TrimSpace(validityUnit))
+	if unit != "day" && unit != "days" {
+		return infraerrors.BadRequest("PLAN_DURATION_VALIDITY_INVALID", "one-time duration_hours requires day validity_unit")
+	}
+	if *durationHours > validityDays*24 {
+		return infraerrors.BadRequest("PLAN_DURATION_EXCEEDS_VALIDITY", "duration_hours cannot exceed the parent subscription validity")
+	}
+	return nil
+}
+
 // normalizePlanCurrency validates and normalizes the display-only currency label.
 // Empty means "no label" and is kept as-is so existing plans stay unchanged.
 func normalizePlanCurrency(raw string) (string, error) {
@@ -202,6 +216,9 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if err := validatePlanQuotaConfig(quotaMode, req.QuotaLimitUSD, req.DurationHours); err != nil {
 		return nil, err
 	}
+	if err := validateOneTimePlanDuration(quotaMode, req.DurationHours, req.ValidityDays, req.ValidityUnit); err != nil {
+		return nil, err
+	}
 	b := s.entClient.SubscriptionPlan.Create().
 		SetGroupID(req.GroupID).SetName(req.Name).SetDescription(req.Description).
 		SetPrice(req.Price).SetCurrency(currency).SetValidityDays(req.ValidityDays).SetValidityUnit(req.ValidityUnit).
@@ -253,6 +270,17 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 		durationHours = nil
 	}
 	if err := validatePlanQuotaConfig(quotaMode, quotaLimitUSD, durationHours); err != nil {
+		return nil, err
+	}
+	validityDays := current.ValidityDays
+	validityUnit := current.ValidityUnit
+	if req.ValidityDays != nil {
+		validityDays = *req.ValidityDays
+	}
+	if req.ValidityUnit != nil {
+		validityUnit = *req.ValidityUnit
+	}
+	if err := validateOneTimePlanDuration(quotaMode, durationHours, validityDays, validityUnit); err != nil {
 		return nil, err
 	}
 	u := s.entClient.SubscriptionPlan.UpdateOneID(id).SetQuotaMode(quotaMode)

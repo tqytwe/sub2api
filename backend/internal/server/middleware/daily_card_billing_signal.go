@@ -29,3 +29,11 @@ func MarkDailyCardBillingScheduled(ctx context.Context) {
 		signal.MarkScheduled()
 	}
 }
+
+func IsDailyCardBillingRequest(ctx context.Context) bool {
+	if ctx == nil {
+		return false
+	}
+	signal, _ := ctx.Value(ctxkey.DailyCardBillingSignal).(*DailyCardBillingSignal)
+	return signal != nil
+}
