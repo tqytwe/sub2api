@@ -13,24 +13,25 @@ import (
 )
 
 type playBlindboxStatusDTO struct {
-	Enabled             bool                  `json:"enabled"`
-	CouponPoolReady     bool                  `json:"coupon_pool_ready"`
-	CostAmount          float64               `json:"cost_amount"`
-	Pool                *playBlindboxPoolDTO  `json:"pool,omitempty"`
-	CurrentPool         *playBlindboxPoolDTO  `json:"current_pool,omitempty"`
-	NextPool            *playBlindboxPoolDTO  `json:"next_pool,omitempty"`
-	VIPTier             service.PlayVIPStatus `json:"vip_tier"`
-	ExpectedReward      float64               `json:"expected_reward,omitempty"`
-	NextExpectedReward  float64               `json:"next_expected_reward,omitempty"`
-	PoolVersion         string                `json:"pool_version,omitempty"`
-	RTPCap              float64               `json:"rtp_cap,omitempty"`
-	DailyLimit          int                   `json:"daily_limit"`
-	EffectiveLimit      int                   `json:"effective_limit,omitempty"`
-	OpensToday          int                   `json:"opens_today"`
-	CanOpen             bool                  `json:"can_open"`
-	ServerDate          string                `json:"server_date"`
-	RechargeBoostActive bool                  `json:"recharge_boost_active,omitempty"`
-	CampaignActive      bool                  `json:"campaign_active,omitempty"`
+	Enabled             bool                             `json:"enabled"`
+	CouponPoolReady     bool                             `json:"coupon_pool_ready"`
+	CouponPrizes        []service.PlayCouponPrizePreview `json:"coupon_prizes"`
+	CostAmount          float64                          `json:"cost_amount"`
+	Pool                *playBlindboxPoolDTO             `json:"pool,omitempty"`
+	CurrentPool         *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
+	NextPool            *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
+	VIPTier             service.PlayVIPStatus            `json:"vip_tier"`
+	ExpectedReward      float64                          `json:"expected_reward,omitempty"`
+	NextExpectedReward  float64                          `json:"next_expected_reward,omitempty"`
+	PoolVersion         string                           `json:"pool_version,omitempty"`
+	RTPCap              float64                          `json:"rtp_cap,omitempty"`
+	DailyLimit          int                              `json:"daily_limit"`
+	EffectiveLimit      int                              `json:"effective_limit,omitempty"`
+	OpensToday          int                              `json:"opens_today"`
+	CanOpen             bool                             `json:"can_open"`
+	ServerDate          string                           `json:"server_date"`
+	RechargeBoostActive bool                             `json:"recharge_boost_active,omitempty"`
+	CampaignActive      bool                             `json:"campaign_active,omitempty"`
 }
 
 type playUserTeamSettlementDTO struct {
@@ -49,16 +50,17 @@ type playUserTeamSettlementDTO struct {
 }
 
 type playBlindboxPoolResponseDTO struct {
-	Enabled            bool                  `json:"enabled"`
-	CouponPoolReady    bool                  `json:"coupon_pool_ready"`
-	Pool               playBlindboxPoolDTO   `json:"pool"`
-	CurrentPool        playBlindboxPoolDTO   `json:"current_pool"`
-	NextPool           *playBlindboxPoolDTO  `json:"next_pool,omitempty"`
-	VIPTier            service.PlayVIPStatus `json:"vip_tier"`
-	ExpectedReward     float64               `json:"expected_reward,omitempty"`
-	NextExpectedReward float64               `json:"next_expected_reward,omitempty"`
-	PoolVersion        string                `json:"pool_version,omitempty"`
-	RTPCap             float64               `json:"rtp_cap,omitempty"`
+	Enabled            bool                             `json:"enabled"`
+	CouponPoolReady    bool                             `json:"coupon_pool_ready"`
+	CouponPrizes       []service.PlayCouponPrizePreview `json:"coupon_prizes"`
+	Pool               playBlindboxPoolDTO              `json:"pool"`
+	CurrentPool        playBlindboxPoolDTO              `json:"current_pool"`
+	NextPool           *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
+	VIPTier            service.PlayVIPStatus            `json:"vip_tier"`
+	ExpectedReward     float64                          `json:"expected_reward,omitempty"`
+	NextExpectedReward float64                          `json:"next_expected_reward,omitempty"`
+	PoolVersion        string                           `json:"pool_version,omitempty"`
+	RTPCap             float64                          `json:"rtp_cap,omitempty"`
 }
 
 type playBlindboxPoolDTO struct {
@@ -104,9 +106,11 @@ type playCouponRewardDTO struct {
 }
 
 type playBlindboxRecentWinDTO struct {
-	User   string  `json:"user"`
-	Reward float64 `json:"reward"`
-	When   string  `json:"when"`
+	User       string                 `json:"user"`
+	Reward     float64                `json:"reward"`
+	RewardType service.PlayRewardType `json:"reward_type"`
+	CouponName string                 `json:"coupon_name,omitempty"`
+	When       string                 `json:"when"`
 }
 
 type playQuizQuestionDTO struct {
@@ -220,6 +224,7 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 	response.Success(c, playBlindboxStatusDTO{
 		Enabled:             status.Enabled,
 		CouponPoolReady:     status.CouponPoolReady,
+		CouponPrizes:        status.CouponPrizes,
 		CostAmount:          status.CostAmount,
 		Pool:                toPlayBlindboxPoolDTOPtr(status.BlindboxPool),
 		CurrentPool:         toPlayBlindboxPoolDTOPtr(status.CurrentPool),
@@ -248,6 +253,7 @@ func (h *PlayHandler) BlindboxPool(c *gin.Context) {
 	response.Success(c, playBlindboxPoolResponseDTO{
 		Enabled:            status.Enabled,
 		CouponPoolReady:    status.CouponPoolReady,
+		CouponPrizes:       status.CouponPrizes,
 		Pool:               toPlayBlindboxPoolDTO(status.BlindboxPool),
 		CurrentPool:        toPlayBlindboxPoolDTO(status.CurrentPool),
 		NextPool:           toOptionalPlayBlindboxPoolDTO(status.NextPool),
@@ -343,9 +349,11 @@ func (h *PlayHandler) BlindboxRecent(c *gin.Context) {
 	out := make([]playBlindboxRecentWinDTO, 0, len(wins))
 	for _, w := range wins {
 		out = append(out, playBlindboxRecentWinDTO{
-			User:   w.UserLabel,
-			Reward: w.RewardAmount,
-			When:   w.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
+			User:       w.UserLabel,
+			Reward:     w.RewardAmount,
+			RewardType: w.RewardType,
+			CouponName: w.CouponName,
+			When:       w.CreatedAt.UTC().Format("2006-01-02T15:04:05Z"),
 		})
 	}
 	response.Success(c, out)

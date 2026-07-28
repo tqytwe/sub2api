@@ -402,12 +402,23 @@ func marshalCouponTemplateJSON(template service.CouponTemplate) ([]byte, []byte,
 	return scopes, planIDs, rules, nil
 }
 
-const couponUserCouponSelectColumns = `
+const couponUserCouponBaseSelectColumns = `
 	uc.id, uc.template_id, COALESCE(ct.name, ''), uc.user_id, uc.status,
 	uc.terms_snapshot, uc.source, uc.source_ref, uc.issue_batch_id,
 	uc.idempotency_key, uc.issued_at, uc.valid_from, uc.expires_at,
 	uc.locked_order_id, uc.locked_at, uc.used_order_id, uc.used_at,
 	uc.voided_at, uc.void_reason, uc.created_at, uc.updated_at`
+
+const couponUserCouponAdminSelectColumns = `
+	uc.id, uc.template_id, COALESCE(ct.name, ''), uc.user_id, uc.status,
+	uc.terms_snapshot, uc.source, uc.source_ref, uc.issue_batch_id,
+	uc.idempotency_key, uc.issued_at, uc.valid_from, uc.expires_at,
+	uc.locked_order_id, uc.locked_at, uc.used_order_id, uc.used_at,
+	uc.voided_at, uc.void_reason, uc.created_at, uc.updated_at,
+	COALESCE(u.email, ''), COALESCE(u.username, ''),
+	COALESCE(po.out_trade_no, ''), COALESCE(po.order_type, ''), COALESCE(po.status, ''),
+	COALESCE(po.amount, 0), COALESCE(po.pay_amount, 0), COALESCE(po.discount_amount, 0),
+	COALESCE(po.payment_currency, '')`
 
 func (r *couponRepository) IssueCoupon(ctx context.Context, request service.CouponIssueInput, issuedAt time.Time) (*service.UserCoupon, error) {
 	var issued *service.UserCoupon
@@ -477,7 +488,7 @@ func issueCouponWithTemplate(
 		[]any{
 			template.ID, request.UserID, termsJSON, request.Source, strings.TrimSpace(request.SourceRef),
 			request.IssueBatchID, strings.TrimSpace(request.IdempotencyKey), issuedAt, validFrom, expiresAt,
-		}, row.scanDest()...)
+		}, row.scanBaseDest()...)
 	if err != nil {
 		if isUniqueConstraintViolation(err) {
 			return getUserCouponByIdempotency(ctx, exec, request.IdempotencyKey, true)
@@ -640,7 +651,7 @@ func (r *couponRepository) GetUserCoupon(ctx context.Context, id int64) (*servic
 }
 
 func getUserCoupon(ctx context.Context, exec sqlQueryExecutor, id int64, forUpdate bool) (*service.UserCoupon, error) {
-	query := `SELECT ` + couponUserCouponSelectColumns + `
+	query := `SELECT ` + couponUserCouponBaseSelectColumns + `
 		FROM user_coupons uc
 		JOIN coupon_templates ct ON ct.id = uc.template_id
 		WHERE uc.id = $1`
@@ -648,7 +659,7 @@ func getUserCoupon(ctx context.Context, exec sqlQueryExecutor, id int64, forUpda
 		query += ` FOR UPDATE OF uc`
 	}
 	var row couponUserCouponRow
-	err := scanSingleRow(ctx, exec, query, []any{id}, row.scanDest()...)
+	err := scanSingleRow(ctx, exec, query, []any{id}, row.scanBaseDest()...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -659,7 +670,7 @@ func getUserCoupon(ctx context.Context, exec sqlQueryExecutor, id int64, forUpda
 }
 
 func getUserCouponByIdempotency(ctx context.Context, exec sqlQueryExecutor, key string, forUpdate bool) (*service.UserCoupon, error) {
-	query := `SELECT ` + couponUserCouponSelectColumns + `
+	query := `SELECT ` + couponUserCouponBaseSelectColumns + `
 		FROM user_coupons uc
 		JOIN coupon_templates ct ON ct.id = uc.template_id
 		WHERE uc.idempotency_key = $1`
@@ -667,7 +678,7 @@ func getUserCouponByIdempotency(ctx context.Context, exec sqlQueryExecutor, key 
 		query += ` FOR UPDATE OF uc`
 	}
 	var row couponUserCouponRow
-	err := scanSingleRow(ctx, exec, query, []any{key}, row.scanDest()...)
+	err := scanSingleRow(ctx, exec, query, []any{key}, row.scanBaseDest()...)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -688,13 +699,30 @@ func (r *couponRepository) ListUserCoupons(ctx context.Context, filter service.U
 		args = append(args, filter.UserID)
 		where = append(where, fmt.Sprintf("uc.user_id = $%d", len(args)))
 	}
+	if query := strings.TrimSpace(filter.UserQuery); query != "" {
+		args = append(args, "%"+query+"%")
+		placeholder := fmt.Sprintf("$%d", len(args))
+		where = append(where, "(u.email ILIKE "+placeholder+" OR u.username ILIKE "+placeholder+" OR uc.user_id::text = "+placeholder+")")
+	}
 	if filter.TemplateID > 0 {
 		args = append(args, filter.TemplateID)
 		where = append(where, fmt.Sprintf("uc.template_id = $%d", len(args)))
 	}
+	if filter.Source != "" {
+		args = append(args, filter.Source)
+		where = append(where, fmt.Sprintf("uc.source = $%d", len(args)))
+	}
 	if filter.Status != "" {
 		args = append(args, filter.Status)
 		where = append(where, fmt.Sprintf("uc.status = $%d", len(args)))
+	}
+	if filter.IssuedFrom != nil {
+		args = append(args, *filter.IssuedFrom)
+		where = append(where, fmt.Sprintf("uc.issued_at >= $%d", len(args)))
+	}
+	if filter.IssuedTo != nil {
+		args = append(args, *filter.IssuedTo)
+		where = append(where, fmt.Sprintf("uc.issued_at < $%d", len(args)))
 	}
 	// The service persists expiry before listing. Keep this read-side guard as
 	// well so a coupon that expires between that sweep and this query cannot
@@ -705,12 +733,15 @@ func (r *couponRepository) ListUserCoupons(ctx context.Context, filter service.U
 		clause = " WHERE " + strings.Join(where, " AND ")
 	}
 	var total int64
-	if err := scanSingleRow(ctx, exec, `SELECT COUNT(*) FROM user_coupons uc`+clause, args, &total); err != nil {
+	if err := scanSingleRow(ctx, exec, `SELECT COUNT(*) FROM user_coupons uc LEFT JOIN users u ON u.id = uc.user_id`+clause, args, &total); err != nil {
 		return nil, 0, fmt.Errorf("count user coupons: %w", err)
 	}
 	args = append(args, filter.PageSize, (filter.Page-1)*filter.PageSize)
-	rows, err := exec.QueryContext(ctx, `SELECT `+couponUserCouponSelectColumns+`
-		FROM user_coupons uc JOIN coupon_templates ct ON ct.id = uc.template_id`+clause+
+	rows, err := exec.QueryContext(ctx, `SELECT `+couponUserCouponAdminSelectColumns+`
+		FROM user_coupons uc
+		JOIN coupon_templates ct ON ct.id = uc.template_id
+		LEFT JOIN users u ON u.id = uc.user_id
+		LEFT JOIN payment_orders po ON po.id = uc.used_order_id`+clause+
 		fmt.Sprintf(" ORDER BY uc.created_at DESC, uc.id DESC LIMIT $%d OFFSET $%d", len(args)-1, len(args)), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list user coupons: %w", err)
@@ -719,7 +750,7 @@ func (r *couponRepository) ListUserCoupons(ctx context.Context, filter service.U
 	out := make([]service.UserCoupon, 0, filter.PageSize)
 	for rows.Next() {
 		var row couponUserCouponRow
-		if err := rows.Scan(row.scanDest()...); err != nil {
+		if err := rows.Scan(row.scanAdminDest()...); err != nil {
 			return nil, 0, fmt.Errorf("scan user coupon: %w", err)
 		}
 		coupon, err := row.value()
@@ -786,7 +817,7 @@ func (r *couponRepository) VoidUserCoupon(ctx context.Context, couponID int64, r
 				idempotency_key, issued_at, valid_from, expires_at,
 				locked_order_id, locked_at, used_order_id, used_at,
 				voided_at, void_reason, created_at, updated_at`,
-			[]any{couponID, at, reason}, row.scanDest()...)
+			[]any{couponID, at, reason}, row.scanBaseDest()...)
 		if err != nil {
 			return fmt.Errorf("void user coupon: %w", err)
 		}
@@ -810,13 +841,20 @@ func (r *couponRepository) VoidUserCoupon(ctx context.Context, couponID int64, r
 }
 
 type couponUserCouponRaw struct {
-	terms       []byte
-	issueBatch  sql.NullInt64
-	lockedOrder sql.NullInt64
-	lockedAt    sql.NullTime
-	usedOrder   sql.NullInt64
-	usedAt      sql.NullTime
-	voidedAt    sql.NullTime
+	terms                   []byte
+	issueBatch              sql.NullInt64
+	lockedOrder             sql.NullInt64
+	lockedAt                sql.NullTime
+	usedOrder               sql.NullInt64
+	usedAt                  sql.NullTime
+	voidedAt                sql.NullTime
+	usedOrderNo             sql.NullString
+	usedOrderType           sql.NullString
+	usedOrderStatus         sql.NullString
+	usedOrderAmount         sql.NullFloat64
+	usedOrderPayAmount      sql.NullFloat64
+	usedOrderDiscountAmount sql.NullFloat64
+	usedOrderCurrency       sql.NullString
 }
 
 type couponUserCouponRow struct {
@@ -824,7 +862,7 @@ type couponUserCouponRow struct {
 	raw    couponUserCouponRaw
 }
 
-func (row *couponUserCouponRow) scanDest() []any {
+func (row *couponUserCouponRow) scanBaseDest() []any {
 	coupon := &row.coupon
 	raw := &row.raw
 	return []any{
@@ -834,6 +872,17 @@ func (row *couponUserCouponRow) scanDest() []any {
 		&raw.lockedOrder, &raw.lockedAt, &raw.usedOrder, &raw.usedAt,
 		&raw.voidedAt, &coupon.VoidReason, &coupon.CreatedAt, &coupon.UpdatedAt,
 	}
+}
+
+func (row *couponUserCouponRow) scanAdminDest() []any {
+	coupon := &row.coupon
+	raw := &row.raw
+	return append(row.scanBaseDest(),
+		&coupon.UserEmail, &coupon.UserName,
+		&raw.usedOrderNo, &raw.usedOrderType, &raw.usedOrderStatus,
+		&raw.usedOrderAmount, &raw.usedOrderPayAmount, &raw.usedOrderDiscountAmount,
+		&raw.usedOrderCurrency,
+	)
 }
 
 func (row *couponUserCouponRow) value() (*service.UserCoupon, error) {
@@ -861,6 +910,27 @@ func (row *couponUserCouponRow) value() (*service.UserCoupon, error) {
 	if raw.usedAt.Valid {
 		value := raw.usedAt.Time
 		coupon.UsedAt = &value
+	}
+	if raw.usedOrderNo.Valid {
+		coupon.UsedOrderNo = raw.usedOrderNo.String
+	}
+	if raw.usedOrderType.Valid {
+		coupon.UsedOrderType = raw.usedOrderType.String
+	}
+	if raw.usedOrderStatus.Valid {
+		coupon.UsedOrderStatus = raw.usedOrderStatus.String
+	}
+	if raw.usedOrderAmount.Valid {
+		coupon.UsedOrderAmount = raw.usedOrderAmount.Float64
+	}
+	if raw.usedOrderPayAmount.Valid {
+		coupon.UsedOrderPayAmount = raw.usedOrderPayAmount.Float64
+	}
+	if raw.usedOrderDiscountAmount.Valid {
+		coupon.UsedOrderDiscountAmount = raw.usedOrderDiscountAmount.Float64
+	}
+	if raw.usedOrderCurrency.Valid {
+		coupon.UsedOrderCurrency = raw.usedOrderCurrency.String
 	}
 	if raw.voidedAt.Valid {
 		value := raw.voidedAt.Time
@@ -1470,7 +1540,7 @@ func (r *couponRepository) LockUserCouponForOrder(ctx context.Context, request s
 				idempotency_key, issued_at, valid_from, expires_at,
 				locked_order_id, locked_at, used_order_id, used_at,
 				voided_at, void_reason, created_at, updated_at`,
-			[]any{coupon.ID, request.OrderID, request.LockedAt}, row.scanDest()...)
+			[]any{coupon.ID, request.OrderID, request.LockedAt}, row.scanBaseDest()...)
 		if errors.Is(err, sql.ErrNoRows) {
 			return infraerrors.Conflict("COUPON_NOT_AVAILABLE", "coupon is no longer available")
 		}
@@ -1533,7 +1603,7 @@ func (r *couponRepository) ReleaseUserCouponOrderLock(ctx context.Context, coupo
 				idempotency_key, issued_at, valid_from, expires_at,
 				locked_order_id, locked_at, used_order_id, used_at,
 				voided_at, void_reason, created_at, updated_at`,
-			[]any{couponID, newStatus}, row.scanDest()...)
+			[]any{couponID, newStatus}, row.scanBaseDest()...)
 		if err != nil {
 			return fmt.Errorf("release user coupon lock: %w", err)
 		}
@@ -1584,7 +1654,7 @@ func (r *couponRepository) ConsumeUserCouponOrderLock(ctx context.Context, coupo
 				idempotency_key, issued_at, valid_from, expires_at,
 				locked_order_id, locked_at, used_order_id, used_at,
 				voided_at, void_reason, created_at, updated_at`,
-			[]any{couponID, orderID, at}, row.scanDest()...)
+			[]any{couponID, orderID, at}, row.scanBaseDest()...)
 		if err != nil {
 			return fmt.Errorf("consume user coupon lock: %w", err)
 		}
@@ -2055,7 +2125,7 @@ func (row *couponRewardDrawRow) scanDest() []any {
 	return append([]any{
 		&row.result.PoolVersionID, &row.result.PoolVersion, &row.result.PoolEntryID, &row.result.TemplateID,
 		&row.userCouponID, &row.result.FallbackUsed,
-	}, row.coupon.scanDest()...)
+	}, row.coupon.scanBaseDest()...)
 }
 
 func (row *couponRewardDrawRow) value() (*service.CouponRewardIssueResult, error) {

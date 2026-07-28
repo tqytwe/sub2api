@@ -30,7 +30,7 @@ export const adminCouponAPI = {
     return apiClient.delete(`${basePath}/templates/${id}`)
   },
 
-  listUserCoupons(params: { page?: number; page_size?: number; user_id?: number; template_id?: number; status?: string } = {}) {
+  listUserCoupons(params: { page?: number; page_size?: number; user_id?: number; user?: string; template_id?: number; source?: string; status?: string; issued_from?: string; issued_to?: string } = {}) {
     return apiClient.get<UserCouponPage>(`${basePath}/user-coupons`, { params })
   },
 

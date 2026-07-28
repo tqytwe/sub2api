@@ -141,6 +141,7 @@ type PlayCheckinResult struct {
 type PlayBlindboxStatus struct {
 	Enabled             bool
 	CouponPoolReady     bool
+	CouponPrizes        []PlayCouponPrizePreview
 	CostAmount          float64
 	BlindboxPool        PlayBlindboxPool
 	CurrentPool         PlayBlindboxPool
@@ -157,6 +158,13 @@ type PlayBlindboxStatus struct {
 	ServerDate          string
 	RechargeBoostActive bool
 	CampaignActive      bool
+}
+
+type PlayCouponPrizePreview struct {
+	TemplateID int64  `json:"template_id"`
+	Name       string `json:"name"`
+	WeightBP   int    `json:"weight_bp"`
+	Tier       string `json:"tier"`
 }
 
 type PlayBlindboxOpenResult struct {
@@ -179,6 +187,8 @@ type PlayBlindboxOpenResult struct {
 type PlayBlindboxRecentWin struct {
 	UserLabel    string
 	RewardAmount float64
+	RewardType   PlayRewardType
+	CouponName   string
 	CreatedAt    time.Time
 }
 

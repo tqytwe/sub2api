@@ -201,27 +201,36 @@ func CouponTermsFromTemplate(template CouponTemplate) CouponTermsSnapshot {
 }
 
 type UserCoupon struct {
-	ID             int64               `json:"id"`
-	TemplateID     int64               `json:"template_id"`
-	TemplateName   string              `json:"template_name,omitempty"`
-	UserID         int64               `json:"user_id"`
-	Status         UserCouponStatus    `json:"status"`
-	TermsSnapshot  CouponTermsSnapshot `json:"terms_snapshot"`
-	Source         CouponIssueSource   `json:"source"`
-	SourceRef      string              `json:"source_ref,omitempty"`
-	IssueBatchID   *int64              `json:"issue_batch_id,omitempty"`
-	IdempotencyKey string              `json:"idempotency_key"`
-	IssuedAt       time.Time           `json:"issued_at"`
-	ValidFrom      time.Time           `json:"valid_from"`
-	ExpiresAt      time.Time           `json:"expires_at"`
-	LockedOrderID  *int64              `json:"locked_order_id,omitempty"`
-	LockedAt       *time.Time          `json:"locked_at,omitempty"`
-	UsedOrderID    *int64              `json:"used_order_id,omitempty"`
-	UsedAt         *time.Time          `json:"used_at,omitempty"`
-	VoidedAt       *time.Time          `json:"voided_at,omitempty"`
-	VoidReason     string              `json:"void_reason,omitempty"`
-	CreatedAt      time.Time           `json:"created_at"`
-	UpdatedAt      time.Time           `json:"updated_at"`
+	ID                      int64               `json:"id"`
+	TemplateID              int64               `json:"template_id"`
+	TemplateName            string              `json:"template_name,omitempty"`
+	UserID                  int64               `json:"user_id"`
+	UserEmail               string              `json:"user_email,omitempty"`
+	UserName                string              `json:"user_name,omitempty"`
+	Status                  UserCouponStatus    `json:"status"`
+	TermsSnapshot           CouponTermsSnapshot `json:"terms_snapshot"`
+	Source                  CouponIssueSource   `json:"source"`
+	SourceRef               string              `json:"source_ref,omitempty"`
+	IssueBatchID            *int64              `json:"issue_batch_id,omitempty"`
+	IdempotencyKey          string              `json:"idempotency_key"`
+	IssuedAt                time.Time           `json:"issued_at"`
+	ValidFrom               time.Time           `json:"valid_from"`
+	ExpiresAt               time.Time           `json:"expires_at"`
+	LockedOrderID           *int64              `json:"locked_order_id,omitempty"`
+	LockedAt                *time.Time          `json:"locked_at,omitempty"`
+	UsedOrderID             *int64              `json:"used_order_id,omitempty"`
+	UsedOrderNo             string              `json:"used_order_no,omitempty"`
+	UsedOrderType           string              `json:"used_order_type,omitempty"`
+	UsedOrderStatus         string              `json:"used_order_status,omitempty"`
+	UsedOrderAmount         float64             `json:"used_order_amount,omitempty"`
+	UsedOrderPayAmount      float64             `json:"used_order_pay_amount,omitempty"`
+	UsedOrderDiscountAmount float64             `json:"used_order_discount_amount,omitempty"`
+	UsedOrderCurrency       string              `json:"used_order_currency,omitempty"`
+	UsedAt                  *time.Time          `json:"used_at,omitempty"`
+	VoidedAt                *time.Time          `json:"voided_at,omitempty"`
+	VoidReason              string              `json:"void_reason,omitempty"`
+	CreatedAt               time.Time           `json:"created_at"`
+	UpdatedAt               time.Time           `json:"updated_at"`
 }
 
 type CouponIssueBatch struct {
@@ -280,8 +289,12 @@ type CouponTemplateListFilter struct {
 
 type UserCouponListFilter struct {
 	UserID     int64
+	UserQuery  string
 	TemplateID int64
+	Source     CouponIssueSource
 	Status     UserCouponStatus
+	IssuedFrom *time.Time
+	IssuedTo   *time.Time
 	Page       int
 	PageSize   int
 }

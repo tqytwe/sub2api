@@ -98,6 +98,14 @@ const prizePool = computed<PlayBlindboxPool | null>(() => {
   return isValidPool(pool) ? pool : null
 })
 
+const couponPrizes = computed(() => {
+  const prizes = authStore.isAuthenticated
+    ? status.value?.coupon_prizes
+    : publicPool.value?.coupon_prizes
+  return Array.isArray(prizes) ? prizes.filter((prize) => prize.name.trim()) : []
+})
+
+const totalPrizeCount = computed(() => (prizePool.value?.tiers.length ?? 0) + couponPrizes.value.length)
 const vipPool = computed(() => status.value?.vip_tier ?? publicPool.value?.vip_tier ?? null)
 const nextPool = computed(() => status.value?.next_pool ?? publicPool.value?.next_pool ?? null)
 const currentExpectedReward = computed(() =>
@@ -143,6 +151,19 @@ function formatPrizeAmount(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 8,
   })
+}
+
+function couponPrizeTierLabel(tier: string): string {
+  const key = `blindbox.couponTier.${tier}`
+  const translated = t(key)
+  return translated === key ? t('blindbox.couponTier.standard') : translated
+}
+
+function formatRecentWinReward(win: PlayBlindboxRecentWin): string {
+  if (win.reward_type === 'coupon' && win.coupon_name) {
+    return t('blindbox.recentCouponWin', { name: win.coupon_name })
+  }
+  return t('blindbox.recentBalanceWin', { amount: win.reward.toFixed(2) })
 }
 
 function formatMoney(amount: number | undefined): string {
@@ -519,7 +540,7 @@ watch(
         <section class="play-four-stat-grid" aria-label="blindbox status">
           <div class="play-mini-stat">
             <span class="play-mini-label">{{ t('blindbox.prizePoolTitle') }}</span>
-            <span class="play-mini-value">{{ prizePool?.tiers.length ?? 0 }}</span>
+            <span class="play-mini-value">{{ totalPrizeCount }}</span>
           </div>
           <div class="play-mini-stat">
             <span class="play-mini-label">{{ t('blindbox.openButton') }}</span>
@@ -540,16 +561,35 @@ watch(
             <p v-else-if="!loading && !featureEnabled" class="play-note">{{ t('blindbox.disabled') }}</p>
             <p v-else-if="!loading && !couponPoolReady" class="play-note">{{ t('blindbox.couponPoolUnavailable') }}</p>
             <p v-else-if="!loading && !prizePool" class="play-note">{{ t('blindbox.unavailable') }}</p>
-            <ul v-else-if="prizePool" class="play-prize-grid">
-              <li
-                v-for="(tier, index) in prizePool.tiers"
-                :key="`${prizePool.version}-${index}`"
-                class="play-prize-tier"
-              >
-                <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
-                <span class="play-prize-rate">{{ formatBalanceProbability(tier.weight) }}</span>
-              </li>
-            </ul>
+            <template v-else-if="prizePool">
+              <div class="blindbox-prize-block">
+                <h3 class="blindbox-prize-heading">{{ t('blindbox.couponPrizeTitle') }}</h3>
+                <p v-if="couponPrizes.length === 0" class="play-note">{{ t('blindbox.couponPrizeEmpty') }}</p>
+                <ul v-else class="play-prize-grid">
+                  <li
+                    v-for="prize in couponPrizes"
+                    :key="`coupon-${prize.template_id}`"
+                    class="play-prize-tier blindbox-coupon-prize"
+                  >
+                    <span class="play-prize-amount">{{ prize.name }}</span>
+                    <span class="play-prize-rate">{{ couponPrizeTierLabel(prize.tier) }}</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="blindbox-prize-block">
+                <h3 class="blindbox-prize-heading">{{ t('blindbox.balancePrizeTitle') }}</h3>
+                <ul class="play-prize-grid">
+                  <li
+                    v-for="(tier, index) in prizePool.tiers"
+                    :key="`${prizePool.version}-${index}`"
+                    class="play-prize-tier"
+                  >
+                    <span class="play-prize-amount">${{ formatPrizeAmount(tier.amount) }}</span>
+                    <span class="play-prize-rate">{{ formatBalanceProbability(tier.weight) }}</span>
+                  </li>
+                </ul>
+              </div>
+            </template>
           </section>
 
           <section class="play-content-panel">
@@ -559,7 +599,7 @@ watch(
             <ul v-else class="play-wins-list">
               <li v-for="(win, idx) in recentWins" :key="idx" class="play-win-item">
                 <span class="play-win-user">{{ win.user }}</span>
-                <span class="play-win-reward">+${{ win.reward.toFixed(2) }}</span>
+                <span class="play-win-reward" :class="{ 'blindbox-coupon-win': win.reward_type === 'coupon' }">{{ formatRecentWinReward(win) }}</span>
                 <span class="play-win-when">{{ formatWinWhen(win.when) }}</span>
               </li>
             </ul>
@@ -625,6 +665,31 @@ watch(
 
 .blindbox-opening {
   animation: blindbox-button-shake 0.42s ease-in-out infinite;
+}
+
+.blindbox-prize-block + .blindbox-prize-block {
+  margin-top: 18px;
+}
+
+.blindbox-prize-heading {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.blindbox-coupon-prize {
+  @apply border-emerald-200 bg-emerald-50/70 dark:border-emerald-500/30 dark:bg-emerald-900/10;
+}
+
+.blindbox-coupon-prize .play-prize-amount {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.blindbox-coupon-win {
+  @apply text-emerald-700 dark:text-emerald-300;
 }
 
 @keyframes blindbox-button-shake {
