@@ -1,28 +1,26 @@
 .arena-rpg-page {
-  --arena-ink: #0a0a0a;
-  --arena-muted: #737373;
-  --arena-border: rgba(10, 10, 10, 0.12);
-  --arena-field: #faf9f6;
+  --arena-ink: var(--action-primary);
+  --arena-muted: var(--text-muted);
+  --arena-border: var(--border-focus);
+  --arena-field: var(--action-primary-subtle);
 }
 
 .dark .arena-rpg-page {
-  --arena-ink: #fafafa;
-  --arena-muted: #a3a3a3;
-  --arena-border: rgba(255, 255, 255, 0.12);
-  --arena-field: #171717;
+  --arena-ink: var(--action-primary);
+  --arena-muted: var(--text-secondary);
+  --arena-border: var(--border-focus);
+  --arena-field: var(--action-primary-subtle);
 }
 
 .arena-rpg-hud {
   border: 1px solid var(--arena-border);
-  border-radius: 1rem;
-  background: linear-gradient(135deg, var(--arena-field) 0%, #fff 100%);
+  border-radius: 8px;
+  background: var(--arena-field);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.5rem;
 }
 
-.dark .arena-rpg-hud {
-  background: linear-gradient(135deg, #171717 0%, #0a0a0a 100%);
-}
+.dark .arena-rpg-hud { background: var(--arena-field); }
 
 .arena-rpg-level {
   display: flex;
@@ -36,12 +34,12 @@
 .arena-rpg-xp-bar {
   height: 8px;
   border-radius: 999px;
-  background: rgba(10, 10, 10, 0.08);
+  background: var(--action-primary-subtle);
   overflow: hidden;
 }
 
 .dark .arena-rpg-xp-bar {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border-focus);
 }
 
 .arena-rpg-xp-fill {
@@ -59,7 +57,7 @@
 
 .arena-rpg-tab {
   border: 1px solid var(--arena-border);
-  border-radius: 999px;
+  border-radius: 6px;
   padding: 0.35rem 0.9rem;
   font-size: 0.875rem;
   color: var(--arena-muted);
@@ -69,14 +67,11 @@
 
 .arena-rpg-tab.active {
   background: var(--arena-ink);
-  color: #fff;
+  color: var(--text-inverse);
   border-color: var(--arena-ink);
 }
 
-.dark .arena-rpg-tab.active {
-  color: #0a0a0a;
-  background: #fafafa;
-}
+.dark .arena-rpg-tab.active { color: var(--text-inverse); }
 
 .arena-quest-bar {
   display: grid;
@@ -90,7 +85,7 @@
   justify-content: space-between;
   gap: 1rem;
   border: 1px dashed var(--arena-border);
-  border-radius: 0.75rem;
+  border-radius: 8px;
   padding: 0.65rem 0.85rem;
   font-size: 0.875rem;
 }
@@ -101,7 +96,7 @@
 
 .arena-field-card {
   border: 1px solid var(--arena-border);
-  border-radius: 0.875rem;
+  border-radius: 8px;
   padding: 1rem 1.1rem;
   background: var(--arena-field);
   margin-bottom: 1rem;

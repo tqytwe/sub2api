@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
@@ -198,8 +199,9 @@ watch([tab, current], syncArenaCelebrationSeen)
 </script>
 
 <template>
-  <div class="play-page arena-rpg-page">
-    <header class="public-page-header">
+  <AuthenticatedPlayShell>
+    <div class="play-page arena-rpg-page">
+    <header v-if="!authStore.isAuthenticated" class="public-page-header">
       <PublicPlayBackLink />
       <PublicPageToolbar />
     </header>
@@ -457,8 +459,9 @@ watch([tab, current], syncArenaCelebrationSeen)
       @close="dismissArenaCelebration"
       @secondary="dismissArenaCelebration"
     />
-    <SupportFloatingCard />
-  </div>
+    <SupportFloatingCard v-if="!authStore.isAuthenticated" />
+    </div>
+  </AuthenticatedPlayShell>
 </template>
 
 <style scoped>

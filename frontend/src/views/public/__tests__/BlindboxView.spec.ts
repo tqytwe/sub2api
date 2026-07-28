@@ -123,6 +123,7 @@ function mountView() {
   return mount(BlindboxView, {
     global: {
       stubs: {
+        AuthenticatedPlayShell: { template: '<div><slot /></div>' },
         PublicPageToolbar: true,
         PublicPlayBackLink: true,
         SupportFloatingCard: true,

@@ -64,6 +64,7 @@ function mountView() {
   return mount(QuizQuestView, {
     global: {
       stubs: {
+        AuthenticatedPlayShell: { template: '<div><slot /></div>' },
         PublicPageToolbar: true,
         PublicPlayBackLink: true,
         SupportFloatingCard: true,
