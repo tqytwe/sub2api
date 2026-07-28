@@ -64,6 +64,78 @@ func (r *playRepository) CountBlindboxOpens(ctx context.Context, userID int64, d
 	return count, nil
 }
 
+func (r *playRepository) FindBlindboxOpenByIdempotency(ctx context.Context, userID int64, idempotencyKey string) (*service.PlayBlindboxOpenRecord, error) {
+	exec := r.sqlExec(ctx)
+	var record service.PlayBlindboxOpenRecord
+	var detailJSON []byte
+	err := scanSingleRow(ctx, exec, `
+		SELECT b.open_date, b.cost_amount, b.reward_amount, b.idempotency_key, b.pool_version, b.open_source,
+		       COALESCE(l.detail::text, '{}')
+		FROM play_blindbox_opens b
+		LEFT JOIN play_reward_ledger l
+		  ON l.user_id = b.user_id
+		 AND l.idempotency_key = b.idempotency_key
+		 AND l.source = $3
+		WHERE b.user_id = $1 AND b.idempotency_key = $2
+		LIMIT 1`, []any{userID, idempotencyKey, service.PlayRewardSourceBlindbox},
+		&record.Date,
+		&record.Cost,
+		&record.Reward,
+		&record.IdempotencyKey,
+		&record.PoolVersion,
+		&record.OpenSource,
+		&detailJSON,
+	)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("find blindbox open by idempotency: %w", err)
+	}
+	if err := applyBlindboxReplaySnapshot(&record, detailJSON); err != nil {
+		return nil, err
+	}
+	record.UserID = userID
+	return &record, nil
+}
+
+func applyBlindboxReplaySnapshot(record *service.PlayBlindboxOpenRecord, detailJSON []byte) error {
+	if record == nil || len(detailJSON) == 0 {
+		return nil
+	}
+	var detail struct {
+		VIPTierSnapshot *service.PlayVIPStatus `json:"vip_tier_snapshot"`
+		VIPTier         *int                   `json:"vip_tier"`
+		VIPLabel        *string                `json:"vip_label"`
+		VIPColorKey     *string                `json:"vip_color_key"`
+		ExpectedReward  *float64               `json:"expected_reward"`
+		RTPCap          *float64               `json:"rtp_cap"`
+	}
+	if err := json.Unmarshal(detailJSON, &detail); err != nil {
+		return fmt.Errorf("decode blindbox replay detail: %w", err)
+	}
+	if detail.VIPTierSnapshot != nil {
+		snapshot := *detail.VIPTierSnapshot
+		snapshot.Perks = append([]string(nil), detail.VIPTierSnapshot.Perks...)
+		record.VIPTierSnapshot = &snapshot
+	} else if detail.VIPTier != nil || detail.VIPLabel != nil || detail.VIPColorKey != nil {
+		snapshot := service.PlayVIPStatus{}
+		if detail.VIPTier != nil {
+			snapshot.Tier = *detail.VIPTier
+		}
+		if detail.VIPLabel != nil {
+			snapshot.Label = *detail.VIPLabel
+		}
+		if detail.VIPColorKey != nil {
+			snapshot.ColorKey = *detail.VIPColorKey
+		}
+		record.VIPTierSnapshot = &snapshot
+	}
+	record.ExpectedReward = detail.ExpectedReward
+	record.RTPCap = detail.RTPCap
+	return nil
+}
+
 func (r *playRepository) InsertBlindboxOpen(ctx context.Context, userID int64, date time.Time, cost, reward float64, idempotencyKey string) error {
 	return r.InsertBlindboxOpenRecord(ctx, service.PlayBlindboxOpenRecord{
 		UserID:         userID,
@@ -119,6 +191,7 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 		       b.created_at
 		FROM play_blindbox_opens b
 		JOIN users u ON u.id = b.user_id
+		WHERE b.reward_amount > 0
 		ORDER BY b.id DESC
 		LIMIT $1`, limit)
 	if err != nil {

@@ -154,6 +154,7 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 	if s.Blindbox != nil {
 		out.Blindbox = &playBlindboxStatusDTO{
 			Enabled:             s.Blindbox.Enabled,
+			CouponPoolReady:     s.Blindbox.CouponPoolReady,
 			CostAmount:          s.Blindbox.CostAmount,
 			Pool:                toPlayBlindboxPoolDTOPtr(s.Blindbox.BlindboxPool),
 			CurrentPool:         toPlayBlindboxPoolDTOPtr(s.Blindbox.CurrentPool),
@@ -174,14 +175,18 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 	}
 	if s.Quiz != nil {
 		qdto := playQuizTodayDTO{
-			Enabled:          s.Quiz.Enabled,
-			Questions:        make([]playQuizQuestionDTO, 0, len(s.Quiz.Questions)),
-			AlreadySubmitted: s.Quiz.AlreadySubmitted,
-			PreviousScore:    s.Quiz.PreviousScore,
-			PreviousTotal:    s.Quiz.PreviousTotal,
-			PreviousReward:   s.Quiz.PreviousReward,
-			RewardPerCorrect: s.Quiz.RewardPerCorrect,
-			ServerDate:       s.Quiz.ServerDate,
+			Enabled:                   s.Quiz.Enabled,
+			CouponPoolReady:           s.Quiz.CouponPoolReady,
+			Questions:                 make([]playQuizQuestionDTO, 0, len(s.Quiz.Questions)),
+			AlreadySubmitted:          s.Quiz.AlreadySubmitted,
+			PreviousScore:             s.Quiz.PreviousScore,
+			PreviousTotal:             s.Quiz.PreviousTotal,
+			PreviousReward:            s.Quiz.PreviousReward,
+			PreviousRewardType:        s.Quiz.PreviousRewardType,
+			PreviousCoupon:            toPlayCouponRewardDTO(s.Quiz.PreviousCoupon),
+			PreviousCouponPoolVersion: s.Quiz.PreviousCouponPoolVersion,
+			RewardPerCorrect:          s.Quiz.RewardPerCorrect,
+			ServerDate:                s.Quiz.ServerDate,
 		}
 		for _, q := range s.Quiz.Questions {
 			qdto.Questions = append(qdto.Questions, playQuizQuestionDTO{

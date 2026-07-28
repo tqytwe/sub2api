@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>优惠运营中心原型</title>
+    <script>
+      const reviewMode = new URLSearchParams(window.location.search).get('mode')
+      document.documentElement.dataset.mode = ['baseline', 'prototype', 'updated'].includes(reviewMode)
+        ? reviewMode
+        : 'prototype'
+    </script>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #eef1f5; color: #172033; font: 14px/1.45 Arial, "PingFang SC", sans-serif; }
+      .shell { display: grid; grid-template-columns: 216px 1fr; min-height: 900px; }
+      aside { background: #192235; color: #d7deeb; padding: 24px 16px; }
+      .brand { color: white; font-size: 18px; font-weight: 700; margin: 0 8px 32px; }
+      .nav { padding: 10px 12px; margin: 4px 0; border-radius: 6px; }
+      .nav.active { background: #314564; color: white; }
+      main { padding: 28px 32px; }
+      h1 { margin: 0; font-size: 24px; }
+      .muted { color: #64748b; }
+      .top { display: flex; align-items: end; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
+      .tabs { display: flex; gap: 4px; border-bottom: 1px solid #d5dae3; margin-bottom: 20px; }
+      .tab { padding: 10px 14px; color: #52627a; }
+      .tab.active { border-bottom: 2px solid #2563eb; color: #1d4ed8; font-weight: 700; }
+      .button { border: 0; border-radius: 6px; background: #2563eb; color: white; padding: 10px 14px; font-weight: 700; }
+      .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
+      .stat, .panel { border: 1px solid #d9dee7; border-radius: 8px; background: white; }
+      .stat { padding: 14px; }
+      .stat b { display: block; margin-top: 4px; font-size: 20px; }
+      .panel { overflow: hidden; }
+      .panel-title { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; border-bottom: 1px solid #e4e8ef; font-weight: 700; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 12px 16px; border-bottom: 1px solid #edf0f4; text-align: left; }
+      th { color: #65728a; font-size: 12px; font-weight: 600; }
+      .tag { display: inline-block; border-radius: 999px; padding: 2px 8px; background: #eaf5ed; color: #137333; font-size: 12px; }
+      .tag.blue { background: #e8f0fe; color: #1d4ed8; }
+      .tag.amber { background: #fff5dd; color: #9a5b00; }
+      .board { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; margin-top: 28px; }
+      .coupon { margin: 14px; border: 1px solid #d8e2f5; border-left: 4px solid #2563eb; border-radius: 6px; padding: 12px; }
+      .coupon strong { display: block; font-size: 16px; }
+      .steps { padding: 0 16px 16px; }
+      .step { display: grid; grid-template-columns: 28px 1fr; gap: 10px; padding: 10px 0; border-bottom: 1px solid #edf0f4; }
+      .num { align-self: start; width: 24px; height: 24px; border-radius: 50%; background: #e8f0fe; color: #1d4ed8; text-align: center; line-height: 24px; font-weight: 700; }
+      .note { margin-top: 18px; border-left: 3px solid #0f766e; background: #effcf8; padding: 12px 14px; color: #24584f; }
+      .stage-banner { margin: 0 0 18px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 12px; background: #f8fafc; color: #334155; font-weight: 700; }
+      .stage-copy, .baseline-only, .prototype-only, .updated-only { display: none; }
+      html[data-mode="baseline"] .baseline-only,
+      html[data-mode="prototype"] .prototype-only,
+      html[data-mode="updated"] .updated-only { display: block; }
+      html[data-mode="baseline"] .tabs.baseline-only,
+      html[data-mode="prototype"] .tabs.prototype-only,
+      html[data-mode="updated"] .tabs.updated-only { display: flex; }
+      html[data-mode="baseline"] .baseline-grid.baseline-only,
+      html[data-mode="updated"] .updated-summary.updated-only { display: grid; }
+      html[data-mode="baseline"] .prototype-updated { display: none; }
+      html[data-mode="updated"] .updated-emphasis { border-color: #6aa985; box-shadow: 0 0 0 3px #eaf5ed; }
+      .baseline-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 22px; }
+      .baseline-grid .panel { padding: 16px; min-height: 220px; }
+      .baseline-grid h2 { margin: 0 0 8px; font-size: 16px; }
+      .baseline-grid ul { margin: 12px 0 0; padding-left: 18px; color: #64748b; }
+      .baseline-grid li { margin: 8px 0; }
+      .updated-summary { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+      .updated-summary .panel { padding: 14px 16px; }
+      .updated-summary b { display: block; margin-bottom: 4px; }
+      .baseline-grid.baseline-only,
+      .updated-summary.updated-only { display: none; }
+      html[data-mode="baseline"] .baseline-grid.baseline-only,
+      html[data-mode="updated"] .updated-summary.updated-only { display: grid; }
+      @media (max-width: 760px) { .shell { grid-template-columns: 1fr; } aside { display: none; } main { padding: 18px 16px; } .stats, .board { grid-template-columns: 1fr; } .top { align-items: start; flex-direction: column; } }
+    </style>
+  </head>
+  <body>
+    <div class="shell">
+      <aside>
+        <div class="brand">极速蹬 管理后台</div>
+        <div class="nav">仪表盘</div><div class="nav">用户管理</div><div class="nav">订单与支付</div>
+        <div class="nav active">优惠码管理</div><div class="nav">运营活动</div><div class="nav">系统设置</div>
+      </aside>
+      <main>
+        <div class="stage-banner baseline-only">基线：入口分散，充值和订阅没有订单优惠券入口，活动奖励仅进入余额。</div>
+        <div class="stage-banner prototype-only">原型：在原有优惠码后台中统一券模板、批量发券、券包与活动券池。</div>
+        <div class="stage-banner updated-only">实施后：盲盒固定券 60% / 原奖池 40%，答题固定券 80% / 原余额奖励 20%，结算使用同一用户券。</div>
+        <div class="top"><div><h1 class="baseline-only">原有支付与活动入口</h1><h1 class="prototype-only">优惠运营中心原型</h1><h1 class="updated-only">优惠运营中心（已实现）</h1><div class="muted baseline-only">注册优惠码、充值、订阅和活动分别配置，用户无法在结算时用券。</div><div class="muted prototype-only">统一管理注册优惠码、订单优惠券、用户券包和活动奖池。</div><div class="muted updated-only">复用优惠码管理入口，管理券模板、批量发券、钱包、奖池和订单核销。</div></div><button class="button baseline-only">新增注册优惠码</button><button class="button prototype-only">新增券模板</button><button class="button updated-only">新增券模板</button></div>
+        <div class="tabs baseline-only"><div class="tab active">注册优惠码</div><div class="tab">支付配置</div><div class="tab">盲盒配置</div><div class="tab">答题设置</div></div>
+        <div class="tabs prototype-only updated-only"><div class="tab">注册优惠码</div><div class="tab active">券模板</div><div class="tab">用户券包 / 批量发券</div><div class="tab">盲盒券池</div><div class="tab">答题券池</div></div>
+        <div class="stats prototype-updated"><div class="stat"><span class="muted">可用模板</span><b>12</b></div><div class="stat"><span class="muted">今日发券</span><b>1,248</b></div><div class="stat"><span class="muted">今日核销</span><b>286</b></div><div class="stat"><span class="muted">待补充保底券</span><b>0</b></div></div>
+        <div class="baseline-grid baseline-only"><section class="panel"><h2>注册优惠码</h2><span class="tag">已有入口</span><ul><li>仅注册赠送余额</li><li>不支持模板、批量或时效</li><li>没有用户券包</li></ul></section><section class="panel"><h2>充值 / 订阅</h2><span class="tag amber">没有用券入口</span><ul><li>只显示金额和支付方式</li><li>无优惠试算、锁券、核销</li><li>无法带动复购</li></ul></section><section class="panel"><h2>盲盒 / 答题</h2><span class="tag amber">余额单一奖池</span><ul><li>盲盒按原概率发余额</li><li>答题整次提交后发余额</li><li>没有期限和充值召回</li></ul></section></div>
+        <section class="panel prototype-updated updated-emphasis"><div class="panel-title"><span>券模板</span><span class="muted">筛选：生效中 · 充值 / 订阅</span></div><table><thead><tr><th>名称</th><th>优惠规则</th><th>适用范围</th><th>有效期</th><th>库存 / 发放</th><th>状态</th></tr></thead><tbody><tr><td><b>首充满 10 减 1</b><br><span class="muted">仅新用户</span></td><td>满 10 减 1</td><td><span class="tag blue">充值</span></td><td>领取后 3 天</td><td>5,000 / 1,236</td><td><span class="tag">生效中</span></td></tr><tr><td><b>订阅满 30 减 3</b></td><td>满 30 减 3</td><td><span class="tag blue">订阅</span></td><td>领取后 7 天</td><td>不限量 / 342</td><td><span class="tag">生效中</span></td></tr><tr><td><b>盲盒保底小额券</b></td><td>满 5 减 0.5</td><td><span class="tag blue">通用</span></td><td>领取后 1 天</td><td>不限量 / 6,124</td><td><span class="tag">生效中</span></td></tr></tbody></table></section>
+        <div class="board prototype-updated"><section class="panel"><div class="panel-title">盲盒券池 <span class="tag amber">券 60% / 余额 40%</span></div><table><thead><tr><th>奖项</th><th>券池权重</th><th>最终概率</th><th>库存策略</th></tr></thead><tbody><tr><td>首充满 10 减 1</td><td>5,000</td><td>30%</td><td>总库存</td></tr><tr><td>订阅满 30 减 3</td><td>2,500</td><td>15%</td><td>每日上限</td></tr><tr><td>通用满 5 减 0.5</td><td>1,500</td><td>9%</td><td>总库存</td></tr><tr><td>保底小额券</td><td>1,000</td><td>6%</td><td>不限量</td></tr></tbody></table></section><section class="panel"><div class="panel-title">支付页优惠券闭环</div><div class="coupon"><span class="tag blue">充值可用</span><strong>满 10 减 1</strong><span class="muted">有效至 2026-07-30 23:59</span></div><div class="steps"><div class="step"><span class="num">1</span><div><b>选择优惠券</b><br><span class="muted">支付页只展示当前订单可用券</span></div></div><div class="step"><span class="num">2</span><div><b>服务端试算并锁券</b><br><span class="muted">原价 - 优惠 + 手续费 = 实付</span></div></div><div class="step"><span class="num">3</span><div><b>支付成功后核销</b><br><span class="muted">订单与券状态原子更新，可审计</span></div></div></div></section></div>
+        <div class="updated-summary updated-only"><section class="panel"><b>答题券池</b><span class="tag amber">券 80% / 原余额奖励 20%</span><p class="muted">全题提交后统一开奖；券奖进入账户并展示绝对失效时间。</p></section><section class="panel"><b>订单安全边界</b><span class="tag blue">服务端试算与锁券</span><p class="muted">微信 OAuth 使用签名续接令牌；JSAPI 失败先取消原单，避免重复扣券。</p></section></div>
+        <div class="note prototype-only">原型约定：开奖结果直接放入用户券包，展示券用途和绝对失效时间；券库存不足时使用保底券，不回退到余额奖池。</div>
+        <div class="note updated-only">已实现：奖励券发放到用户券包，可在充值和订阅结算页选择；订单、券锁定、使用和释放均保留审计记录。</div>
+      </main>
+    </div>
+  </body>
+</html>

@@ -47,6 +47,15 @@ vi.mock('@/api/wallet', () => ({
   normalizeWithdrawalWholeAmount: (value: string) => value.trim().replace(/\.0+$/, ''),
 }))
 
+// CouponWalletPanel intentionally keys its responses to the authenticated
+// account. This legacy wallet-view suite does not exercise coupon loading, so
+// provide the same unauthenticated shell state that the route can render.
+vi.mock('@/stores/auth', async () => {
+  const { reactive } = await import('vue')
+  const state = reactive({ isAuthenticated: false, user: null, token: null })
+  return { useAuthStore: () => state }
+})
+
 const messages: Record<string, string> = {
   'wallet.title': '钱包',
   'wallet.description': '查看余额、任务预留和统一流水。',
