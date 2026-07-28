@@ -205,6 +205,9 @@ func (s *CouponService) ListUserCoupons(ctx context.Context, filter UserCouponLi
 	if filter.Status != "" && !isUserCouponStatus(filter.Status) {
 		return nil, nil, infraerrors.BadRequest("INVALID_USER_COUPON_STATUS", "user coupon status is invalid")
 	}
+	if filter.Source != "" && !isCouponIssueSource(filter.Source) {
+		return nil, nil, infraerrors.BadRequest("INVALID_COUPON_SOURCE", "coupon issue source is invalid")
+	}
 	if shouldPersistCouponExpiry(filter.Status) {
 		if err := s.repo.ExpireAvailableUserCoupons(ctx, filter.UserID, s.now()); err != nil {
 			return nil, nil, err
@@ -600,6 +603,7 @@ func normalizeCouponTemplateListFilter(filter CouponTemplateListFilter) CouponTe
 
 func normalizeUserCouponListFilter(filter UserCouponListFilter) UserCouponListFilter {
 	filter.Status = UserCouponStatus(strings.ToLower(strings.TrimSpace(string(filter.Status))))
+	filter.Source = CouponIssueSource(strings.ToLower(strings.TrimSpace(string(filter.Source))))
 	filter.Page, filter.PageSize = normalizeCouponPage(filter.Page, filter.PageSize)
 	return filter
 }

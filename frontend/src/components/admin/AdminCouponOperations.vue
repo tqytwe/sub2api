@@ -10,8 +10,10 @@ import type {
   CouponRewardPoolVersion,
   CouponScope,
   CouponTemplate,
+  CouponTemplateStatus,
   CouponTemplateInput,
   UserCoupon,
+  UserCouponStatus,
 } from '@/types/coupon'
 import type { Column } from '@/components/common/types'
 import BaseDialog from '@/components/common/BaseDialog.vue'
@@ -19,7 +21,7 @@ import ConfirmDialog from '@/components/common/ConfirmDialog.vue'
 import DataTable from '@/components/common/DataTable.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
-import { formatDateTime } from '@/utils/format'
+import { formatCurrency, formatDateTime } from '@/utils/format'
 
 export type CouponOperationsTab = 'templates' | 'issue' | 'blindbox' | 'quiz'
 
@@ -45,9 +47,12 @@ let selectableTemplatesLoadRequest = 0
 const userCoupons = ref<UserCoupon[]>([])
 const userCouponLoading = ref(false)
 const userCouponFilters = reactive({
-  user_id: '',
+  user: '',
   template_id: 0,
+  source: '',
   status: '',
+  issued_from: '',
+  issued_to: '',
 })
 const userCouponPagination = reactive({
   page: 1,
@@ -142,6 +147,8 @@ const userCouponColumns = computed<Column[]>(() => [
   { key: 'source', label: t('coupon.admin.columns.issuedVia') },
   { key: 'expires_at', label: t('coupon.admin.columns.expiresAt') },
   { key: 'status', label: t('coupon.admin.columns.status') },
+  { key: 'used_order', label: t('coupon.admin.columns.usedOrder') },
+  { key: 'conversion', label: t('coupon.admin.columns.conversion') },
   { key: 'actions', label: t('coupon.admin.columns.actions') },
 ])
 
@@ -205,6 +212,70 @@ function statusClass(status: string): string {
   if (status === 'draft' || status === 'locked') return 'badge-warning'
   return 'badge-gray'
 }
+
+function templateStatusLabel(status: CouponTemplateStatus): string {
+  return t(`coupon.admin.templateStatus.${status}`)
+}
+
+function userCouponStatusLabel(status: UserCouponStatus): string {
+  return t(`coupon.admin.couponStatus.${status}`)
+}
+
+function poolStatusLabel(status: string): string {
+  return t(`coupon.admin.poolStatus.${status}`)
+}
+
+function issueSourceLabel(source: string): string {
+  const key = `coupon.admin.issueSource.${source}`
+  const translated = t(key)
+  return translated === key ? source : translated
+}
+
+function orderStatusLabel(status: string | undefined): string {
+  if (!status) return ''
+  const normalized = status.trim().toUpperCase()
+  const key = `coupon.admin.orderStatus.${normalized}`
+  const translated = t(key)
+  return translated === key ? status : translated
+}
+
+function orderTypeLabel(type: string | undefined): string {
+  if (!type) return ''
+  const key = `coupon.admin.orderType.${type}`
+  const translated = t(key)
+  return translated === key ? type : translated
+}
+
+function userCouponIdentity(coupon: UserCoupon): string {
+  return coupon.user_email || coupon.user_name || `#${coupon.user_id}`
+}
+
+function userCouponOrderLabel(coupon: UserCoupon): string {
+  if (!coupon.used_order_id) return '-'
+  const orderNo = coupon.used_order_no || `#${coupon.used_order_id}`
+  const type = orderTypeLabel(coupon.used_order_type)
+  const status = orderStatusLabel(coupon.used_order_status)
+  return [orderNo, type, status].filter(Boolean).join(' · ')
+}
+
+function userCouponConversion(coupon: UserCoupon): string {
+  if (!coupon.used_order_id) return t('coupon.admin.conversionPending')
+  return t('coupon.admin.conversionValue', {
+    pay: formatCurrency(coupon.used_order_pay_amount || 0, coupon.used_order_currency || coupon.terms_snapshot?.currency || 'CNY'),
+    discount: formatCurrency(coupon.used_order_discount_amount || 0, coupon.used_order_currency || coupon.terms_snapshot?.currency || 'CNY'),
+  })
+}
+
+const userCouponDashboard = computed(() => {
+  const rows = userCoupons.value
+  return {
+    issued: rows.length,
+    available: rows.filter((coupon) => coupon.status === 'available').length,
+    used: rows.filter((coupon) => coupon.status === 'used').length,
+    converted: rows.reduce((total, coupon) => total + (coupon.used_order_pay_amount || 0), 0),
+    currency: rows.find((coupon) => coupon.used_order_currency)?.used_order_currency || 'CNY',
+  }
+})
 
 async function loadTemplates() {
   const requestID = ++templateLoadRequest
@@ -292,14 +363,16 @@ async function loadUserCoupons() {
   const requestID = ++userCouponLoadRequest
   userCouponLoading.value = true
   try {
-    const userID = Number(userCouponFilters.user_id)
     const templateID = Number(userCouponFilters.template_id)
     const response = await adminAPI.coupon.listUserCoupons({
       page: userCouponPagination.page,
       page_size: userCouponPagination.page_size,
-      user_id: Number.isInteger(userID) && userID > 0 ? userID : undefined,
+      user: userCouponFilters.user.trim() || undefined,
       template_id: Number.isInteger(templateID) && templateID > 0 ? templateID : undefined,
+      source: userCouponFilters.source || undefined,
       status: userCouponFilters.status || undefined,
+      issued_from: toISO(userCouponFilters.issued_from) || undefined,
+      issued_to: toISO(userCouponFilters.issued_to) || undefined,
     })
     if (requestID !== userCouponLoadRequest) return
     userCoupons.value = response.data.items || []
@@ -324,9 +397,12 @@ function applyUserCouponFilters() {
 }
 
 function clearUserCouponFilters() {
-  userCouponFilters.user_id = ''
+  userCouponFilters.user = ''
   userCouponFilters.template_id = 0
+  userCouponFilters.source = ''
   userCouponFilters.status = ''
+  userCouponFilters.issued_from = ''
+  userCouponFilters.issued_to = ''
   userCouponPagination.page = 1
   void loadUserCoupons()
 }
@@ -724,7 +800,7 @@ watch(
       <template #cell-scope="{ row }"><span>{{ templateScope(row) }}</span></template>
       <template #cell-validity="{ row }"><span class="text-sm text-gray-600 dark:text-gray-300">{{ templateValidity(row) }}</span></template>
       <template #cell-issued_count="{ row }"><span class="tabular-nums">{{ row.issued_count }} / {{ row.total_issue_limit ?? '∞' }}</span></template>
-      <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ row.status }}</span></template>
+      <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ templateStatusLabel(row.status) }}</span></template>
       <template #cell-actions="{ row }"><div class="flex gap-1"><button type="button" class="btn btn-secondary btn-sm" @click="openEditTemplate(row)">{{ t('common.edit') }}</button><button type="button" class="btn btn-danger btn-sm" @click="deletingTemplate = row">{{ t('common.delete') }}</button></div></template>
     </DataTable>
     <Pagination
@@ -747,18 +823,31 @@ watch(
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.userIDs') }}</span><input v-model.trim="batchForm.user_ids_text" class="input" :placeholder="t('coupon.admin.userIDsPlaceholder')" required /></label>
       <button type="submit" class="btn btn-primary" :disabled="saving || selectableTemplatesLoading"><Icon name="check" size="sm" class="mr-1" />{{ saving ? t('common.processing') : t('coupon.admin.issueBatch') }}</button>
     </form>
-    <form class="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] xl:items-end dark:border-dark-700" @submit.prevent="applyUserCouponFilters">
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterUserID') }}</span><input v-model.trim="userCouponFilters.user_id" data-test="coupon-user-filter" class="input" inputmode="numeric" /></label>
+    <form class="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] xl:items-end dark:border-dark-700" @submit.prevent="applyUserCouponFilters">
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterUserID') }}</span><input v-model.trim="userCouponFilters.user" data-test="coupon-user-filter" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterTemplate') }}</span><select v-model.number="userCouponFilters.template_id" data-test="coupon-template-filter" class="input" :disabled="selectableTemplatesLoading"><option :value="0">{{ t('coupon.admin.allTemplates') }}</option><option v-for="template in selectableTemplates" :key="template.id" :value="template.id">{{ template.name }}</option></select></label>
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterSource') }}</span><select v-model="userCouponFilters.source" data-test="coupon-source-filter" class="input"><option value="">{{ t('coupon.admin.allSources') }}</option><option value="blindbox">{{ t('coupon.admin.issueSource.blindbox') }}</option><option value="quiz">{{ t('coupon.admin.issueSource.quiz') }}</option><option value="admin_batch">{{ t('coupon.admin.issueSource.admin_batch') }}</option><option value="manual">{{ t('coupon.admin.issueSource.manual') }}</option><option value="compensation">{{ t('coupon.admin.issueSource.compensation') }}</option></select></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterStatus') }}</span><select v-model="userCouponFilters.status" data-test="coupon-status-filter" class="input"><option value="">{{ t('coupon.admin.allStatuses') }}</option><option value="available">{{ t('coupon.wallet.status.available') }}</option><option value="locked">{{ t('coupon.wallet.status.locked') }}</option><option value="used">{{ t('coupon.wallet.status.used') }}</option><option value="expired">{{ t('coupon.wallet.status.expired') }}</option><option value="voided">{{ t('coupon.wallet.status.voided') }}</option></select></label>
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.issuedFrom') }}</span><input v-model="userCouponFilters.issued_from" data-test="coupon-issued-from-filter" type="datetime-local" class="input" /></label>
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.issuedTo') }}</span><input v-model="userCouponFilters.issued_to" data-test="coupon-issued-to-filter" type="datetime-local" class="input" /></label>
       <button type="submit" class="btn btn-secondary" data-test="apply-coupon-user-filters" :disabled="userCouponLoading"><Icon name="filter" size="sm" class="mr-1" />{{ t('coupon.admin.applyFilters') }}</button>
       <button type="button" class="btn btn-ghost" data-test="clear-coupon-user-filters" :disabled="userCouponLoading" @click="clearUserCouponFilters"><Icon name="x" size="sm" class="mr-1" />{{ t('coupon.admin.clearFilters') }}</button>
     </form>
+    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardIssued') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ userCouponDashboard.issued }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardAvailable') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ userCouponDashboard.available }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardUsed') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ userCouponDashboard.used }}</p></div>
+      <div class="card p-4"><p class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.dashboardConverted') }}</p><p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ formatCurrency(userCouponDashboard.converted, userCouponDashboard.currency) }}</p></div>
+    </div>
     <DataTable :columns="userCouponColumns" :data="userCoupons" :loading="userCouponLoading">
       <template #cell-id="{ row }"><code>#{{ row.id }}</code></template>
       <template #cell-template_name="{ row }">{{ row.template_name || row.terms_snapshot?.name }}</template>
+      <template #cell-user_id="{ row }"><div><p class="font-medium text-gray-900 dark:text-white">{{ userCouponIdentity(row) }}</p><p class="text-xs text-gray-500 dark:text-gray-400">UID {{ row.user_id }}</p></div></template>
+      <template #cell-source="{ row }"><div><p>{{ issueSourceLabel(row.source) }}</p><p v-if="row.source_ref" class="text-xs text-gray-500 dark:text-gray-400">{{ row.source_ref }}</p></div></template>
       <template #cell-expires_at="{ row }">{{ formatDateTime(row.expires_at) }}</template>
-      <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ row.status }}</span></template>
+      <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ userCouponStatusLabel(row.status) }}</span></template>
+      <template #cell-used_order="{ row }"><span>{{ userCouponOrderLabel(row) }}</span></template>
+      <template #cell-conversion="{ row }"><span>{{ userCouponConversion(row) }}</span></template>
       <template #cell-actions="{ row }"><button v-if="row.status === 'available'" type="button" class="btn btn-danger btn-sm" data-test="void-user-coupon" @click="openVoidUserCoupon(row)">{{ t('coupon.admin.voidCoupon') }}</button></template>
     </DataTable>
     <Pagination
@@ -780,7 +869,7 @@ watch(
       <div class="flex gap-2"><button type="button" class="btn btn-secondary" :disabled="poolLoading" @click="loadPools"><Icon name="refresh" size="sm" /></button><button type="button" class="btn btn-primary" :disabled="selectableTemplatesLoading" @click="openCreatePool"><Icon name="plus" size="sm" class="mr-1" />{{ t('coupon.admin.newPool') }}</button></div>
     </div>
     <DataTable :columns="poolColumns" :data="pools" :loading="poolLoading">
-      <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ row.status }}</span></template>
+      <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ poolStatusLabel(row.status) }}</span></template>
       <template #cell-split="{ row }"><span class="tabular-nums">{{ row.coupon_weight_bp / 100 }}% / {{ row.balance_weight_bp / 100 }}%</span></template>
       <template #cell-entries="{ row }"><span>{{ row.entries?.length || 0 }}</span></template>
       <template #cell-updated_at="{ row }">{{ formatDateTime(row.updated_at) }}</template>
@@ -804,7 +893,7 @@ watch(
       <label v-if="templateForm.validity_mode === 'fixed'" class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.fixedExpiry') }}</span><input v-model="templateForm.fixed_expires_at" type="datetime-local" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.validFrom') }}</span><input v-model="templateForm.valid_from" type="datetime-local" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.totalIssueLimit') }}</span><input v-model.number="templateForm.total_issue_limit" type="number" min="0" class="input" /></label>
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.status') }}</span><select v-model="templateForm.status" class="input"><option value="draft">draft</option><option value="active">active</option><option value="paused">paused</option><option value="archived">archived</option></select></label>
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.status') }}</span><select v-model="templateForm.status" class="input"><option value="draft">{{ t('coupon.admin.templateStatus.draft') }}</option><option value="active">{{ t('coupon.admin.templateStatus.active') }}</option><option value="paused">{{ t('coupon.admin.templateStatus.paused') }}</option><option value="archived">{{ t('coupon.admin.templateStatus.archived') }}</option></select></label>
       <label class="grid gap-1 text-sm md:col-span-2"><span class="input-label">{{ t('coupon.admin.description') }}</span><textarea v-model.trim="templateForm.description" rows="3" class="input" /></label>
     </form>
     <template #footer><div class="flex justify-end gap-3"><button type="button" class="btn btn-secondary" @click="showTemplateDialog = false">{{ t('common.cancel') }}</button><button type="submit" form="coupon-template-form" class="btn btn-primary" :disabled="saving">{{ saving ? t('common.saving') : t('common.save') }}</button></div></template>

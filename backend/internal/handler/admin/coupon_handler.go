@@ -142,10 +142,16 @@ func (h *CouponHandler) DeleteTemplate(c *gin.Context) {
 // ListUserCoupons GET /admin/promo-codes/coupons/user-coupons
 func (h *CouponHandler) ListUserCoupons(c *gin.Context) {
 	page, pageSize := response.ParsePagination(c)
+	issuedFrom := couponOptionalTime(c.Query("issued_from"))
+	issuedTo := couponOptionalTime(c.Query("issued_to"))
 	rows, result, err := h.service.ListUserCoupons(c.Request.Context(), service.UserCouponListFilter{
 		UserID:     couponOptionalInt64(c.Query("user_id")),
+		UserQuery:  strings.TrimSpace(c.Query("user")),
 		TemplateID: couponOptionalInt64(c.Query("template_id")),
+		Source:     service.CouponIssueSource(c.Query("source")),
 		Status:     service.UserCouponStatus(c.Query("status")),
+		IssuedFrom: issuedFrom,
+		IssuedTo:   issuedTo,
 		Page:       page,
 		PageSize:   pageSize,
 	})
@@ -394,4 +400,18 @@ func couponOptionalInt64(raw string) int64 {
 		return 0
 	}
 	return value
+}
+
+func couponOptionalTime(raw string) *time.Time {
+	value := strings.TrimSpace(raw)
+	if value == "" {
+		return nil
+	}
+	if parsed, err := time.Parse(time.RFC3339Nano, value); err == nil {
+		return &parsed
+	}
+	if parsed, err := time.Parse(time.RFC3339, value); err == nil {
+		return &parsed
+	}
+	return nil
 }
