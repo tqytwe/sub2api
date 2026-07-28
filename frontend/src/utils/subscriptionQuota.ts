@@ -8,6 +8,14 @@ export interface RemainingDurationParts {
   minutes: number
 }
 
+export function subscriptionDailyUsage(subscription: UserSubscription): number {
+  return subscription.daily_card?.quota_used_usd ?? subscription.daily_usage_usd ?? 0
+}
+
+export function subscriptionDailyLimit(subscription: UserSubscription): number | null {
+  return subscription.daily_card?.quota_limit_usd ?? subscription.group?.daily_limit_usd ?? null
+}
+
 export function isOneTimeDailyQuota(
   subscription: Pick<UserSubscription, 'starts_at' | 'expires_at'>
 ): boolean {

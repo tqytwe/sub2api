@@ -4277,11 +4277,13 @@ const messages = {
       quotaEndsInMinutes: '额度将在 {minutes} 分钟后结束',
       quotaEndsInHoursMinutes: '额度将在 {hours} 小时 {minutes} 分钟后结束',
       quotaEndsInDaysHours: '额度将在 {days} 天 {hours} 小时后结束',
+      dailyCardExhausted: '额度已用完，已立即结束',
       daysRemaining: '天剩余',
       remainingDays: '剩余天数',
       noExpiration: '无过期时间',
       status: {
         active: '生效中',
+        exhausted: '已耗尽',
         expired: '已过期',
         revoked: '已撤销',
         suspended: '已暂停'
@@ -8633,6 +8635,7 @@ const messages = {
     failedToLoad: '加载订阅失败',
     status: {
       active: '有效',
+      exhausted: '已耗尽',
       expired: '已过期',
       revoked: '已撤销'
     },
@@ -9282,6 +9285,7 @@ const messages = {
       oneTimeQuotaPolicy: '额度用完或有效时长结束时立即终止，以先发生者为准；不会在零点重置。',
       quotaLimitRequired: '一次性额度必须大于 0',
       durationHoursRequired: '一次性额度的有效时长必须大于 0',
+      durationExceedsValidity: '一次性额度时长不能超过父订阅有效期',
       sortOrder: '排序',
       forSale: '上架状态',
       onSale: '上架',

@@ -21,6 +21,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDailyCardBillingChannelSupportBlocksUnsettledChannels(t *testing.T) {
+	require.False(t, dailyCardBillingChannelSupported(http.MethodGet, "/openai/v1/responses", "websocket"))
+	require.False(t, dailyCardBillingChannelSupported(http.MethodPost, "/v1/videos", ""))
+	require.True(t, dailyCardBillingChannelSupported(http.MethodGet, "/v1/videos/video-1", ""))
+	require.True(t, dailyCardBillingChannelSupported(http.MethodPost, "/v1/chat/completions", ""))
+}
+
 func TestAPIKeyAuthRejectsOversizedCredentialsBeforeLookup(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	var calls atomic.Int32
@@ -1218,7 +1225,7 @@ func TestAPIKeyAuthTouchesLastUsedInStandardMode(t *testing.T) {
 	require.Equal(t, 1, touchCalls)
 }
 
-func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
+func TestAPIKeyAuthBillingInfoAllowsDisplayReadAndSkipsSideEffects(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	group := &service.Group{
@@ -1279,7 +1286,7 @@ func TestAPIKeyAuthBillingInfoSkipsBillingAndSideEffects(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Zero(t, subscriptionCalls)
+	require.Equal(t, 1, subscriptionCalls)
 	require.Zero(t, touchCalls)
 }
 

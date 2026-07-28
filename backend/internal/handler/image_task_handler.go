@@ -482,7 +482,7 @@ func (h *AsyncImageHandler) newWorkerImageContext(
 					RequestFingerprint: "async-image:" + taskID, ReservedAt: time.Now(),
 				}); reserveErr != nil {
 					cancel()
-					return nil, nil, func() {}, errors.New("daily card is busy or unavailable")
+					return nil, nil, func() {}, errors.New("daily card is exhausted or unavailable")
 				}
 				subscription.DailyCardEntitlementID = &card.ID
 				subscription.DailyUsageUSD = card.QuotaUsedUSD

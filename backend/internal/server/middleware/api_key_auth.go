@@ -203,12 +203,14 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		// 倍率自省不需要订阅数据；/v1/usage 仍保留原有订阅读取行为。
-		if isSubscriptionType && subscriptionService != nil && !billingInfoRequest {
-			sub, subErr := subscriptionService.GetActiveSubscription(
-				c.Request.Context(),
-				apiKey.User.ID,
-				apiKey.Group.ID,
-			)
+		if isSubscriptionType && subscriptionService != nil {
+			var sub *service.UserSubscription
+			var subErr error
+			if billingInfoRequest {
+				sub, subErr = subscriptionService.GetSubscriptionForDisplay(c.Request.Context(), apiKey.User.ID, apiKey.Group.ID)
+			} else {
+				sub, subErr = subscriptionService.GetActiveSubscription(c.Request.Context(), apiKey.User.ID, apiKey.Group.ID)
+			}
 			if subErr != nil {
 				if !skipBilling {
 					AbortWithError(c, 403, "SUBSCRIPTION_NOT_FOUND", "No active subscription found for this group")
@@ -251,13 +253,13 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 					return
 				}
 				if managedByDailyCard {
+					if !dailyCardBillingChannelSupported(c.Request.Method, c.Request.URL.Path, c.GetHeader("Upgrade")) {
+						AbortWithError(c, http.StatusForbidden, "DAILY_CARD_CHANNEL_UNSUPPORTED", "This request channel is not available for daily cards")
+						return
+					}
 					holdRequestID, reserveErr := reserveDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
 					if reserveErr != nil {
-						code := "DAILY_CARD_EXHAUSTED"
-						if errors.Is(reserveErr, service.ErrDailyCardRequestInFlight) {
-							code = "DAILY_CARD_BUSY"
-						}
-						AbortWithError(c, 429, code, reserveErr.Error())
+						AbortWithError(c, 429, "DAILY_CARD_EXHAUSTED", reserveErr.Error())
 						return
 					}
 					dailyCardHoldEntitlementID = card.ID
@@ -320,6 +322,13 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			releaseDailyCardRequest(c.Request.Context(), subscriptionService, dailyCardHoldEntitlementID, apiKey.User.ID, dailyCardHoldRequestID)
 		}
 	}
+}
+
+func dailyCardBillingChannelSupported(method, path, upgrade string) bool {
+	if strings.EqualFold(strings.TrimSpace(upgrade), "websocket") && strings.HasSuffix(strings.TrimRight(path, "/"), "/responses") {
+		return false
+	}
+	return method != http.MethodPost || !strings.HasSuffix(strings.TrimRight(path, "/"), "/videos")
 }
 
 func reserveDailyCardRequest(c *gin.Context, subscriptionService *service.SubscriptionService, card *service.DailyCardEntitlement, userID, apiKeyID int64) (string, error) {

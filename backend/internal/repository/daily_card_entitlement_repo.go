@@ -7,14 +7,13 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionentitlement"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
 
 type dailyCardEntitlementRepository struct {
 	client *dbent.Client
 }
-
-const dailyCardRequestHoldTTL = 30 * time.Minute
 
 func (r *dailyCardEntitlementRepository) ReserveRequest(ctx context.Context, input service.DailyCardRequestHoldInput) error {
 	return r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
@@ -65,67 +64,44 @@ func (r *dailyCardEntitlementRepository) ReserveRequest(ctx context.Context, inp
 				return service.ErrDailyCardRequestConflict
 			}
 			if existingStatus == "reserved" && input.ReservedAt.Before(existingExpiresAt) {
-				return service.ErrDailyCardRequestInFlight
+				return nil
 			}
 			return service.ErrDailyCardRequestConflict
 		}
 		_ = existingRows.Close()
 
-		var staleReserved float64
-		staleRows, err := client.QueryContext(txCtx, `
-			SELECT COALESCE(SUM(reserved_usd), 0)
-			FROM subscription_entitlement_holds
+		if _, err := client.ExecContext(txCtx, `
+			UPDATE subscription_entitlement_holds
+			SET status = 'released', released_at = $2, updated_at = $2
 			WHERE entitlement_id = $1 AND status = 'reserved' AND expires_at <= $2
-		`, input.EntitlementID, input.ReservedAt)
-		if err != nil {
+		`, input.EntitlementID, input.ReservedAt); err != nil {
 			return err
 		}
-		if staleRows.Next() {
-			err = staleRows.Scan(&staleReserved)
-		}
-		_ = staleRows.Close()
-		if err != nil {
-			return err
-		}
-		if staleReserved > 0 {
+
+		if quotaReserved != 0 {
+			quotaReserved = 0
 			if _, err := client.ExecContext(txCtx, `
-				UPDATE subscription_entitlement_holds
-				SET status = 'released', released_at = $2, updated_at = $2
-				WHERE entitlement_id = $1 AND status = 'reserved' AND expires_at <= $2
+				UPDATE subscription_entitlements
+				SET quota_reserved_usd = 0, updated_at = $2
+				WHERE id = $1
 			`, input.EntitlementID, input.ReservedAt); err != nil {
 				return err
 			}
-			quotaReserved -= staleReserved
-			if quotaReserved < 0 {
-				quotaReserved = 0
-			}
 		}
 
-		reservedUSD := quotaLimit - quotaUsed - quotaReserved
-		if reservedUSD <= 0.0000000001 {
-			if quotaReserved > 0 {
-				return service.ErrDailyCardRequestInFlight
-			}
+		if quotaLimit-quotaUsed <= 0.0000000001 {
 			return service.ErrDailyCardUnavailable
 		}
-		holdExpiresAt := input.ReservedAt.Add(dailyCardRequestHoldTTL)
-		if expiresAt.Time.Before(holdExpiresAt) {
-			holdExpiresAt = expiresAt.Time
-		}
+		holdExpiresAt := expiresAt.Time
 		if _, err := client.ExecContext(txCtx, `
 			INSERT INTO subscription_entitlement_holds (
 				entitlement_id, request_id, request_fingerprint, reserved_usd,
 				captured_usd, status, expires_at, created_at, updated_at
 			) VALUES ($1, $2, $3, $4, 0, 'reserved', $5, $6, $6)
-		`, input.EntitlementID, input.RequestID, input.RequestFingerprint, reservedUSD, holdExpiresAt, input.ReservedAt); err != nil {
+		`, input.EntitlementID, input.RequestID, input.RequestFingerprint, 0, holdExpiresAt, input.ReservedAt); err != nil {
 			return err
 		}
-		_, err = client.ExecContext(txCtx, `
-			UPDATE subscription_entitlements
-			SET quota_reserved_usd = $2, updated_at = $3
-			WHERE id = $1
-		`, input.EntitlementID, quotaReserved+reservedUSD, input.ReservedAt)
-		return err
+		return nil
 	})
 }
 
@@ -200,6 +176,15 @@ func (r *dailyCardEntitlementRepository) ReleaseRequest(ctx context.Context, ent
 
 func NewDailyCardEntitlementRepository(client *dbent.Client) service.DailyCardEntitlementRepository {
 	return &dailyCardEntitlementRepository{client: client}
+}
+
+func (r *dailyCardEntitlementRepository) IsOneTimeGroup(ctx context.Context, groupID int64) (bool, error) {
+	return clientFromContext(ctx, r.client).SubscriptionPlan.Query().
+		Where(
+			subscriptionplan.GroupIDEQ(groupID),
+			subscriptionplan.QuotaModeEQ(service.DailyCardQuotaModeOneTime),
+		).
+		Exist(ctx)
 }
 
 func (r *dailyCardEntitlementRepository) IssuePaidCard(ctx context.Context, input service.IssueDailyCardInput) (*service.DailyCardEntitlement, bool, error) {

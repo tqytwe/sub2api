@@ -1600,16 +1600,23 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 		subscription, ok := middleware2.GetSubscriptionFromContext(c)
 		if ok {
 			remaining := h.calculateSubscriptionRemaining(apiKey.Group, subscription)
+			dailyLimit := apiKey.Group.DailyLimitUSD
+			if subscription.DailyCard != nil {
+				dailyLimit = &subscription.DailyCard.QuotaLimitUSD
+			}
 			resp["remaining"] = remaining
 			resp["subscription"] = gin.H{
+				"status":              subscription.Status,
 				"daily_usage_usd":     subscription.DailyUsageUSD,
 				"weekly_usage_usd":    subscription.WeeklyUsageUSD,
 				"monthly_usage_usd":   subscription.MonthlyUsageUSD,
-				"daily_limit_usd":     apiKey.Group.DailyLimitUSD,
+				"daily_limit_usd":     dailyLimit,
+				"daily_window_start":  subscription.DailyWindowStart,
 				"weekly_limit_usd":    apiKey.Group.WeeklyLimitUSD,
 				"monthly_limit_usd":   apiKey.Group.MonthlyLimitUSD,
 				"weekly_window_start": subscription.WeeklyWindowStart,
 				"expires_at":          subscription.ExpiresAt,
+				"daily_card":          subscription.DailyCard,
 			}
 		}
 
@@ -1658,6 +1665,9 @@ func (h *GatewayHandler) usageUnrestricted(c *gin.Context, ctx context.Context, 
 // 1. 如果日/周/月任一限额达到100%，返回0
 // 2. 否则返回所有已配置周期中剩余额度的最小值
 func (h *GatewayHandler) calculateSubscriptionRemaining(group *service.Group, sub *service.UserSubscription) float64 {
+	if sub != nil && sub.DailyCard != nil {
+		return sub.DailyCard.RemainingQuotaUSD()
+	}
 	var remainingValues []float64
 
 	// 检查日限额
@@ -2336,7 +2346,7 @@ func (h *GatewayHandler) submitUsageRecordTask(parent context.Context, task serv
 	}
 	middleware2.MarkDailyCardBillingScheduled(parent)
 	task = wrapUsageRecordTaskContext(parent, task)
-	if service.IsImageStudioManagedBilling(parent) {
+	if service.IsImageStudioManagedBilling(parent) || middleware2.IsDailyCardBillingRequest(parent) {
 		h.runUsageRecordTaskSync(task)
 		return
 	}

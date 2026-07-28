@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionentitlementhold"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
@@ -57,7 +58,7 @@ func TestDailyCardRepositoryIssuesOneActiveAndQueuesDuplicatesByOrder(t *testing
 	require.Equal(t, now.Add(48*time.Hour), *active.ExpiresAt)
 }
 
-func TestDailyCardRepositorySerializesFinalQuotaWithRequestHold(t *testing.T) {
+func TestDailyCardRepositoryTracksAdmissionWithoutBlockingParallelRequests(t *testing.T) {
 	tx := testEntTx(t)
 	ctx := dbent.NewTxContext(context.Background(), tx)
 	client := tx.Client()
@@ -76,20 +77,26 @@ func TestDailyCardRepositorySerializesFinalQuotaWithRequestHold(t *testing.T) {
 		RequestFingerprint: "fingerprint-first", ReservedAt: now.Add(time.Minute),
 	})
 	require.NoError(t, err)
+	hold, err := client.SubscriptionEntitlementHold.Query().
+		Where(subscriptionentitlementhold.EntitlementIDEQ(card.ID), subscriptionentitlementhold.RequestIDEQ("local:first")).
+		Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, *card.ExpiresAt, hold.ExpiresAt, "admission hold must prove the request started before card expiry")
+	require.Zero(t, hold.ReservedUsd)
 	held, err := repo.GetActive(ctx, user.ID, group.ID)
 	require.NoError(t, err)
-	require.Equal(t, 10.0, held.QuotaReservedUSD)
+	require.Zero(t, held.QuotaReservedUSD)
 	err = repo.ReserveRequest(ctx, service.DailyCardRequestHoldInput{
 		EntitlementID: card.ID, UserID: user.ID, RequestID: "local:first",
 		RequestFingerprint: "fingerprint-first", ReservedAt: now.Add(90 * time.Second),
 	})
-	require.ErrorIs(t, err, service.ErrDailyCardRequestInFlight)
+	require.NoError(t, err)
 
 	err = repo.ReserveRequest(ctx, service.DailyCardRequestHoldInput{
 		EntitlementID: card.ID, UserID: user.ID, RequestID: "local:second",
 		RequestFingerprint: "fingerprint-second", ReservedAt: now.Add(2 * time.Minute),
 	})
-	require.ErrorIs(t, err, service.ErrDailyCardRequestInFlight)
+	require.NoError(t, err)
 
 	require.NoError(t, repo.ReleaseRequest(ctx, card.ID, user.ID, "local:first", now.Add(3*time.Minute)))
 	released, err := repo.GetActive(ctx, user.ID, group.ID)
