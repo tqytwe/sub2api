@@ -685,7 +685,3 @@ func couponPoolTemplateIDs(pool CouponRewardPoolVersion) []int64 {
 	}
 	return ids
 }
-
-func couponServiceErrorf(reason, message string, args ...any) error {
-	return infraerrors.BadRequest(reason, fmt.Sprintf(message, args...))
-}
