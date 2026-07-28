@@ -40,7 +40,7 @@ func (r *playRepository) ListAdminQuizQuestions(ctx context.Context, filter serv
 	if err != nil {
 		return nil, 0, service.PlayAdminQuizQuestionStats{}, fmt.Errorf("list admin quiz questions: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	items := make([]service.PlayAdminQuizQuestion, 0, limit)
 	for rows.Next() {
@@ -170,7 +170,7 @@ func scanAdminQuizQuestionFromQuery(ctx context.Context, exec sqlQueryer, query 
 	if err != nil {
 		return nil, fmt.Errorf("admin quiz question query: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	if !rows.Next() {
 		if err := rows.Err(); err != nil {
 			return nil, fmt.Errorf("admin quiz question rows: %w", err)
