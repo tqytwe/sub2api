@@ -267,10 +267,12 @@ func (h *CouponHandler) VoidUserCoupon(c *gin.Context) {
 }
 
 type couponRewardPoolRequest struct {
-	Activity           service.CouponRewardActivity    `json:"activity" binding:"required,oneof=blindbox quiz"`
+	Activity           service.CouponRewardActivity    `json:"activity" binding:"required,oneof=blindbox quiz checkin"`
 	Version            string                          `json:"version" binding:"required,max=80"`
 	CouponWeightBP     int                             `json:"coupon_weight_bp" binding:"required,gte=0,lte=10000"`
+	RedeemCodeWeightBP int                             `json:"redeem_code_weight_bp" binding:"gte=0,lte=10000"`
 	BalanceWeightBP    int                             `json:"balance_weight_bp" binding:"required,gte=0,lte=10000"`
+	RewardConfig       service.CouponRewardPoolConfig  `json:"reward_config"`
 	FallbackTemplateID int64                           `json:"fallback_template_id" binding:"required,gt=0"`
 	Entries            []service.CouponRewardPoolEntry `json:"entries" binding:"required,min=1,max=100"`
 }
@@ -282,7 +284,9 @@ func (r couponRewardPoolRequest) pool(id int64) service.CouponRewardPoolVersion 
 		Version:            r.Version,
 		Status:             service.CouponRewardPoolStatusDraft,
 		CouponWeightBP:     r.CouponWeightBP,
+		RedeemCodeWeightBP: r.RedeemCodeWeightBP,
 		BalanceWeightBP:    r.BalanceWeightBP,
+		RewardConfig:       r.RewardConfig,
 		FallbackTemplateID: r.FallbackTemplateID,
 		Entries:            r.Entries,
 	}
@@ -312,7 +316,7 @@ func (h *CouponHandler) GetRewardPool(c *gin.Context) {
 	response.Success(c, pool)
 }
 
-// GetPublishedRewardPool GET /admin/promo-codes/coupons/pools/published?activity=blindbox|quiz
+// GetPublishedRewardPool GET /admin/promo-codes/coupons/pools/published?activity=blindbox|quiz|checkin
 func (h *CouponHandler) GetPublishedRewardPool(c *gin.Context) {
 	pool, err := h.service.GetPublishedRewardPool(c.Request.Context(), service.CouponRewardActivity(c.Query("activity")))
 	if err != nil {
