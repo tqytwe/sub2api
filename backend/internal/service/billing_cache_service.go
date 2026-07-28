@@ -530,6 +530,13 @@ func (s *BillingCacheService) InvalidateSubscription(ctx context.Context, userID
 	return nil
 }
 
+func (s *BillingCacheService) InvalidateSubscriptionEverywhere(ctx context.Context, userID, groupID int64) error {
+	if err := s.InvalidateSubscription(ctx, userID, groupID); err != nil {
+		return err
+	}
+	return s.PublishSubscriptionCacheInvalidation(ctx, subCacheKey(userID, groupID))
+}
+
 func (s *BillingCacheService) PublishSubscriptionCacheInvalidation(ctx context.Context, cacheKey string) error {
 	if s.cache == nil {
 		return nil

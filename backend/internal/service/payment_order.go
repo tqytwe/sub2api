@@ -289,7 +289,14 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		b.SetRechargeSnapshot(rechargeQuote.Snapshot())
 	}
 	if plan != nil {
-		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
+		subscriptionSnapshot, snapshotErr := buildSubscriptionOrderSnapshot(plan)
+		if snapshotErr != nil {
+			return nil, snapshotErr
+		}
+		b.SetPlanID(plan.ID).
+			SetSubscriptionGroupID(plan.GroupID).
+			SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit)).
+			SetSubscriptionSnapshot(subscriptionSnapshot)
 	}
 	order, err := b.Save(ctx)
 	if err != nil {
@@ -344,6 +351,29 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 		return nil, fmt.Errorf("commit order transaction: %w", err)
 	}
 	return order, nil
+}
+
+func buildSubscriptionOrderSnapshot(plan *dbent.SubscriptionPlan) (map[string]any, error) {
+	if plan == nil {
+		return nil, infraerrors.BadRequest("PLAN_NOT_AVAILABLE", "subscription plan is required")
+	}
+	mode := normalizePlanQuotaMode(plan.QuotaMode)
+	if err := validatePlanQuotaConfig(mode, plan.QuotaLimitUsd, plan.DurationHours); err != nil {
+		return nil, err
+	}
+	snapshot := map[string]any{
+		"schema_version": 1,
+		"plan_id":        plan.ID,
+		"group_id":       plan.GroupID,
+		"quota_mode":     mode,
+		"validity_days":  plan.ValidityDays,
+		"validity_unit":  plan.ValidityUnit,
+	}
+	if mode == DailyCardQuotaModeOneTime {
+		snapshot["quota_limit_usd"] = *plan.QuotaLimitUsd
+		snapshot["duration_hours"] = *plan.DurationHours
+	}
+	return snapshot, nil
 }
 
 func (s *PaymentService) allocateOutTradeNo(ctx context.Context, tx *dbent.Tx) (string, error) {

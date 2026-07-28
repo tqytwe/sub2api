@@ -2092,6 +2092,7 @@ func (h *OpenAIGatewayHandler) submitUsageRecordTask(parent context.Context, tas
 	if task == nil {
 		return
 	}
+	middleware2.MarkDailyCardBillingScheduled(parent)
 	if h.usageRecordWorkerPool != nil {
 		h.usageRecordWorkerPool.Submit(wrapUsageRecordTaskContext(parent, task))
 		return
@@ -2133,6 +2134,7 @@ func (h *OpenAIGatewayHandler) submitMandatoryUsageRecordTask(parent context.Con
 	if task == nil {
 		return
 	}
+	middleware2.MarkDailyCardBillingScheduled(parent)
 	if h.usageRecordWorkerPool != nil {
 		if mode := h.usageRecordWorkerPool.Submit(wrapUsageRecordTaskContext(parent, task)); mode != service.UsageRecordSubmitModeDropped {
 			return
