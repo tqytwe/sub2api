@@ -6,6 +6,7 @@ const (
 	StatusDisabled = "disabled"
 	StatusError    = "error"
 	StatusUnused   = "unused"
+	StatusIssued   = "issued"
 	StatusUsed     = "used"
 	StatusExpired  = "expired"
 )

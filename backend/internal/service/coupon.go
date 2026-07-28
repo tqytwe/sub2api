@@ -62,6 +62,7 @@ type CouponIssueSource string
 const (
 	CouponIssueSourceBlindbox   CouponIssueSource = "blindbox"
 	CouponIssueSourceQuiz       CouponIssueSource = "quiz"
+	CouponIssueSourceCheckin    CouponIssueSource = "checkin"
 	CouponIssueSourceAdminBatch CouponIssueSource = "admin_batch"
 	CouponIssueSourceManual     CouponIssueSource = "manual"
 	CouponIssueSourceCompensate CouponIssueSource = "compensation"
@@ -79,6 +80,7 @@ type CouponRewardActivity string
 const (
 	CouponRewardActivityBlindbox CouponRewardActivity = "blindbox"
 	CouponRewardActivityQuiz     CouponRewardActivity = "quiz"
+	CouponRewardActivityCheckin  CouponRewardActivity = "checkin"
 )
 
 type CouponRewardPoolStatus string
@@ -255,7 +257,9 @@ type CouponRewardPoolVersion struct {
 	Version            string                  `json:"version"`
 	Status             CouponRewardPoolStatus  `json:"status"`
 	CouponWeightBP     int                     `json:"coupon_weight_bp"`
+	RedeemCodeWeightBP int                     `json:"redeem_code_weight_bp"`
 	BalanceWeightBP    int                     `json:"balance_weight_bp"`
+	RewardConfig       CouponRewardPoolConfig  `json:"reward_config,omitempty"`
 	FallbackTemplateID int64                   `json:"fallback_template_id"`
 	Entries            []CouponRewardPoolEntry `json:"entries"`
 	CreatedBy          *int64                  `json:"created_by,omitempty"`
@@ -263,6 +267,28 @@ type CouponRewardPoolVersion struct {
 	PublishedAt        *time.Time              `json:"published_at,omitempty"`
 	CreatedAt          time.Time               `json:"created_at"`
 	UpdatedAt          time.Time               `json:"updated_at"`
+}
+
+type CouponRewardPoolConfig struct {
+	BalanceEntries []BalanceRewardPoolEntry `json:"balance_entries,omitempty"`
+	RedeemEntries  []RedeemRewardPoolEntry  `json:"redeem_entries,omitempty"`
+}
+
+type BalanceRewardPoolEntry struct {
+	Name            string  `json:"name,omitempty"`
+	Amount          float64 `json:"amount"`
+	WeightBP        int     `json:"weight_bp"`
+	Enabled         bool    `json:"enabled"`
+	PerUserDayLimit int     `json:"per_user_day_limit,omitempty"`
+}
+
+type RedeemRewardPoolEntry struct {
+	Name         string `json:"name,omitempty"`
+	BatchName    string `json:"batch_name,omitempty"`
+	CodeType     string `json:"code_type,omitempty"`
+	WeightBP     int    `json:"weight_bp"`
+	Enabled      bool   `json:"enabled"`
+	DeliveryMode string `json:"delivery_mode,omitempty"`
 }
 
 type CouponRewardPoolEntry struct {
@@ -427,18 +453,17 @@ func ValidateCouponRewardPool(pool CouponRewardPoolVersion) error {
 	if !isCouponRewardPoolStatus(pool.Status) {
 		return fmt.Errorf("coupon reward pool status is invalid")
 	}
-	if pool.CouponWeightBP+pool.BalanceWeightBP != couponWeightBasisPoints {
+	if pool.CouponWeightBP < 0 || pool.RedeemCodeWeightBP < 0 || pool.BalanceWeightBP < 0 || pool.CouponWeightBP+pool.RedeemCodeWeightBP+pool.BalanceWeightBP != couponWeightBasisPoints {
 		return fmt.Errorf("coupon reward pool outer weights must total %d", couponWeightBasisPoints)
 	}
-	switch pool.Activity {
-	case CouponRewardActivityBlindbox:
-		if pool.CouponWeightBP != 6000 || pool.BalanceWeightBP != 4000 {
-			return fmt.Errorf("blindbox coupon weight must be 6000 and balance weight must be 4000")
-		}
-	case CouponRewardActivityQuiz:
-		if pool.CouponWeightBP != 8000 || pool.BalanceWeightBP != 2000 {
-			return fmt.Errorf("quiz coupon weight must be 8000 and balance weight must be 2000")
-		}
+	if pool.Activity == CouponRewardActivityCheckin && pool.BalanceWeightBP > 0 && len(enabledBalanceRewardEntries(pool.RewardConfig.BalanceEntries)) == 0 {
+		return fmt.Errorf("coupon reward pool balance branch requires at least one enabled balance reward")
+	}
+	if pool.RedeemCodeWeightBP > 0 && len(enabledRedeemRewardEntries(pool.RewardConfig.RedeemEntries)) == 0 {
+		return fmt.Errorf("coupon reward pool redeem code branch requires at least one enabled redeem code reward")
+	}
+	if pool.CouponWeightBP <= 0 && len(pool.Entries) == 0 {
+		return nil
 	}
 	if pool.FallbackTemplateID <= 0 {
 		return fmt.Errorf("coupon reward pool fallback template is required")
@@ -634,10 +659,51 @@ func normalizeCouponTemplate(template CouponTemplate) CouponTemplate {
 
 func normalizeCouponRewardPool(pool CouponRewardPoolVersion) CouponRewardPoolVersion {
 	pool.Version = strings.TrimSpace(pool.Version)
+	for i := range pool.RewardConfig.BalanceEntries {
+		pool.RewardConfig.BalanceEntries[i].Name = strings.TrimSpace(pool.RewardConfig.BalanceEntries[i].Name)
+	}
+	for i := range pool.RewardConfig.RedeemEntries {
+		pool.RewardConfig.RedeemEntries[i].Name = strings.TrimSpace(pool.RewardConfig.RedeemEntries[i].Name)
+		pool.RewardConfig.RedeemEntries[i].BatchName = strings.TrimSpace(pool.RewardConfig.RedeemEntries[i].BatchName)
+		pool.RewardConfig.RedeemEntries[i].CodeType = strings.TrimSpace(pool.RewardConfig.RedeemEntries[i].CodeType)
+		pool.RewardConfig.RedeemEntries[i].DeliveryMode = strings.TrimSpace(pool.RewardConfig.RedeemEntries[i].DeliveryMode)
+	}
 	for i := range pool.Entries {
 		pool.Entries[i].TemplateName = strings.TrimSpace(pool.Entries[i].TemplateName)
 	}
 	return pool
+}
+
+func enabledBalanceRewardEntries(entries []BalanceRewardPoolEntry) []BalanceRewardPoolEntry {
+	out := make([]BalanceRewardPoolEntry, 0, len(entries))
+	for _, entry := range entries {
+		if entry.Enabled && couponFinitePositive(entry.Amount) && entry.WeightBP > 0 {
+			out = append(out, entry)
+		}
+	}
+	return out
+}
+
+func EnabledBalanceRewardEntriesForRepository(entries []BalanceRewardPoolEntry) []BalanceRewardPoolEntry {
+	return enabledBalanceRewardEntries(entries)
+}
+
+func enabledRedeemRewardEntries(entries []RedeemRewardPoolEntry) []RedeemRewardPoolEntry {
+	out := make([]RedeemRewardPoolEntry, 0, len(entries))
+	for _, entry := range entries {
+		if !entry.Enabled || entry.WeightBP <= 0 {
+			continue
+		}
+		if entry.BatchName == "" && entry.CodeType == "" {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func EnabledRedeemRewardEntriesForRepository(entries []RedeemRewardPoolEntry) []RedeemRewardPoolEntry {
+	return enabledRedeemRewardEntries(entries)
 }
 
 func isCouponTemplateStatus(status CouponTemplateStatus) bool {
@@ -668,7 +734,7 @@ func isCouponValidityMode(mode CouponValidityMode) bool {
 
 func isCouponIssueSource(source CouponIssueSource) bool {
 	switch source {
-	case CouponIssueSourceBlindbox, CouponIssueSourceQuiz, CouponIssueSourceAdminBatch, CouponIssueSourceManual, CouponIssueSourceCompensate:
+	case CouponIssueSourceBlindbox, CouponIssueSourceQuiz, CouponIssueSourceCheckin, CouponIssueSourceAdminBatch, CouponIssueSourceManual, CouponIssueSourceCompensate:
 		return true
 	default:
 		return false
@@ -676,7 +742,7 @@ func isCouponIssueSource(source CouponIssueSource) bool {
 }
 
 func isCouponRewardActivity(activity CouponRewardActivity) bool {
-	return activity == CouponRewardActivityBlindbox || activity == CouponRewardActivityQuiz
+	return activity == CouponRewardActivityBlindbox || activity == CouponRewardActivityQuiz || activity == CouponRewardActivityCheckin
 }
 
 func isCouponRewardPoolStatus(status CouponRewardPoolStatus) bool {

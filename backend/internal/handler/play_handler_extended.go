@@ -16,6 +16,8 @@ type playBlindboxStatusDTO struct {
 	Enabled             bool                             `json:"enabled"`
 	CouponPoolReady     bool                             `json:"coupon_pool_ready"`
 	CouponPrizes        []service.PlayCouponPrizePreview `json:"coupon_prizes"`
+	CouponWeightBP      int                              `json:"coupon_weight_bp"`
+	BalanceWeightBP     int                              `json:"balance_weight_bp"`
 	CostAmount          float64                          `json:"cost_amount"`
 	Pool                *playBlindboxPoolDTO             `json:"pool,omitempty"`
 	CurrentPool         *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
@@ -53,6 +55,8 @@ type playBlindboxPoolResponseDTO struct {
 	Enabled            bool                             `json:"enabled"`
 	CouponPoolReady    bool                             `json:"coupon_pool_ready"`
 	CouponPrizes       []service.PlayCouponPrizePreview `json:"coupon_prizes"`
+	CouponWeightBP     int                              `json:"coupon_weight_bp"`
+	BalanceWeightBP    int                              `json:"balance_weight_bp"`
 	Pool               playBlindboxPoolDTO              `json:"pool"`
 	CurrentPool        playBlindboxPoolDTO              `json:"current_pool"`
 	NextPool           *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
@@ -76,19 +80,20 @@ type playBlindboxPoolTierDTO struct {
 }
 
 type playBlindboxOpenResultDTO struct {
-	CostAmount        float64                `json:"cost_amount"`
-	RewardAmount      float64                `json:"reward_amount"`
-	NetAmount         float64                `json:"net_amount"`
-	RewardType        service.PlayRewardType `json:"reward_type"`
-	Coupon            *playCouponRewardDTO   `json:"coupon,omitempty"`
-	CouponPoolVersion string                 `json:"coupon_pool_version,omitempty"`
-	OpensToday        int                    `json:"opens_today"`
-	ServerDate        string                 `json:"server_date"`
-	PoolVersion       string                 `json:"pool_version"`
-	OpenSource        string                 `json:"open_source"`
-	VIPTier           service.PlayVIPStatus  `json:"vip_tier"`
-	ExpectedReward    float64                `json:"expected_reward,omitempty"`
-	RTPCap            float64                `json:"rtp_cap,omitempty"`
+	CostAmount        float64                  `json:"cost_amount"`
+	RewardAmount      float64                  `json:"reward_amount"`
+	NetAmount         float64                  `json:"net_amount"`
+	RewardType        service.PlayRewardType   `json:"reward_type"`
+	Coupon            *playCouponRewardDTO     `json:"coupon,omitempty"`
+	RedeemCode        *playRedeemCodeRewardDTO `json:"redeem_code,omitempty"`
+	CouponPoolVersion string                   `json:"coupon_pool_version,omitempty"`
+	OpensToday        int                      `json:"opens_today"`
+	ServerDate        string                   `json:"server_date"`
+	PoolVersion       string                   `json:"pool_version"`
+	OpenSource        string                   `json:"open_source"`
+	VIPTier           service.PlayVIPStatus    `json:"vip_tier"`
+	ExpectedReward    float64                  `json:"expected_reward,omitempty"`
+	RTPCap            float64                  `json:"rtp_cap,omitempty"`
 }
 
 type playCouponRewardDTO struct {
@@ -103,6 +108,18 @@ type playCouponRewardDTO struct {
 	MinimumOrderAmount float64                   `json:"minimum_order_amount"`
 	ValidFrom          string                    `json:"valid_from"`
 	ExpiresAt          string                    `json:"expires_at"`
+}
+
+type playRedeemCodeRewardDTO struct {
+	ID                int64      `json:"id"`
+	Code              string     `json:"code"`
+	Type              string     `json:"type"`
+	Value             float64    `json:"value"`
+	Status            string     `json:"status"`
+	BatchName         string     `json:"batch_name,omitempty"`
+	IssuedAt          *time.Time `json:"issued_at,omitempty"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
+	RewardPoolVersion string     `json:"reward_pool_version,omitempty"`
 }
 
 type playBlindboxRecentWinDTO struct {
@@ -144,13 +161,14 @@ type playQuizAnswerDTO struct {
 }
 
 type playQuizSubmitResultDTO struct {
-	Score             int                    `json:"score"`
-	Total             int                    `json:"total"`
-	RewardAmount      float64                `json:"reward_amount"`
-	RewardType        service.PlayRewardType `json:"reward_type"`
-	Coupon            *playCouponRewardDTO   `json:"coupon,omitempty"`
-	CouponPoolVersion string                 `json:"coupon_pool_version,omitempty"`
-	ServerDate        string                 `json:"server_date"`
+	Score             int                      `json:"score"`
+	Total             int                      `json:"total"`
+	RewardAmount      float64                  `json:"reward_amount"`
+	RewardType        service.PlayRewardType   `json:"reward_type"`
+	Coupon            *playCouponRewardDTO     `json:"coupon,omitempty"`
+	RedeemCode        *playRedeemCodeRewardDTO `json:"redeem_code,omitempty"`
+	CouponPoolVersion string                   `json:"coupon_pool_version,omitempty"`
+	ServerDate        string                   `json:"server_date"`
 }
 
 type playTeamMemberDTO struct {
@@ -225,6 +243,8 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 		Enabled:             status.Enabled,
 		CouponPoolReady:     status.CouponPoolReady,
 		CouponPrizes:        status.CouponPrizes,
+		CouponWeightBP:      status.CouponWeightBP,
+		BalanceWeightBP:     status.BalanceWeightBP,
 		CostAmount:          status.CostAmount,
 		Pool:                toPlayBlindboxPoolDTOPtr(status.BlindboxPool),
 		CurrentPool:         toPlayBlindboxPoolDTOPtr(status.CurrentPool),
@@ -254,6 +274,8 @@ func (h *PlayHandler) BlindboxPool(c *gin.Context) {
 		Enabled:            status.Enabled,
 		CouponPoolReady:    status.CouponPoolReady,
 		CouponPrizes:       status.CouponPrizes,
+		CouponWeightBP:     status.CouponWeightBP,
+		BalanceWeightBP:    status.BalanceWeightBP,
 		Pool:               toPlayBlindboxPoolDTO(status.BlindboxPool),
 		CurrentPool:        toPlayBlindboxPoolDTO(status.CurrentPool),
 		NextPool:           toOptionalPlayBlindboxPoolDTO(status.NextPool),
@@ -282,6 +304,7 @@ func (h *PlayHandler) BlindboxOpen(c *gin.Context) {
 		NetAmount:         result.NetAmount,
 		RewardType:        result.RewardType,
 		Coupon:            toPlayCouponRewardDTO(result.Coupon),
+		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
 		CouponPoolVersion: result.CouponPoolVersion,
 		OpensToday:        result.OpensToday,
 		ServerDate:        result.ServerDate,
@@ -291,6 +314,23 @@ func (h *PlayHandler) BlindboxOpen(c *gin.Context) {
 		ExpectedReward:    result.ExpectedReward,
 		RTPCap:            result.RTPCap,
 	})
+}
+
+func toPlayRedeemCodeRewardDTO(code *service.PlayRedeemCodeRewardSummary) *playRedeemCodeRewardDTO {
+	if code == nil {
+		return nil
+	}
+	return &playRedeemCodeRewardDTO{
+		ID:                code.ID,
+		Code:              code.Code,
+		Type:              code.Type,
+		Value:             code.Value,
+		Status:            code.Status,
+		BatchName:         code.BatchName,
+		IssuedAt:          code.IssuedAt,
+		ExpiresAt:         code.ExpiresAt,
+		RewardPoolVersion: code.RewardPoolVersion,
+	}
 }
 
 func toPlayCouponRewardDTO(coupon *service.PlayCouponRewardSummary) *playCouponRewardDTO {
@@ -424,6 +464,7 @@ func (h *PlayHandler) QuizSubmit(c *gin.Context) {
 		RewardAmount:      result.RewardAmount,
 		RewardType:        result.RewardType,
 		Coupon:            toPlayCouponRewardDTO(result.Coupon),
+		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
 		CouponPoolVersion: result.CouponPoolVersion,
 		ServerDate:        result.ServerDate,
 	})

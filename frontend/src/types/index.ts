@@ -1716,7 +1716,7 @@ export interface RedeemCode {
   code: string
   type: RedeemCodeType
   value: number
-  status: 'active' | 'used' | 'expired' | 'unused' | 'disabled'
+  status: 'active' | 'used' | 'expired' | 'unused' | 'disabled' | 'issued'
   used_by: number | null
   used_at: string | null
   created_at: string
@@ -1725,7 +1725,15 @@ export interface RedeemCode {
   notes?: string
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
+  batch_name?: string
+  batch_tag?: string
+  issued_to?: number | null
+  issued_at?: string | null
+  issue_source?: string
+  issue_ref?: string
+  reward_pool_version?: string
   user?: User
+  issued_user?: User
   group?: Group // 关联的分组
 }
 
@@ -1735,6 +1743,8 @@ export interface GenerateRedeemCodesRequest {
   value: number
   group_id?: number | null // 订阅类型专用
   validity_days?: number // 订阅类型专用
+  batch_name?: string
+  batch_tag?: string
   expires_at?: string | null
   expires_in_days?: number
 }

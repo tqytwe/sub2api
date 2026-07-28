@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorCode } from '@/utils/apiError'
@@ -118,14 +119,22 @@ const poolVersion = computed(() => status.value?.pool_version ?? publicPool.valu
 const currentRTPCap = computed(() => status.value?.rtp_cap ?? publicPool.value?.rtp_cap ?? prizePool.value?.rtp_cap ?? 0)
 const nextExpectedReward = computed(() => status.value?.next_expected_reward ?? publicPool.value?.next_expected_reward ?? (nextPool.value ? expectedReward(nextPool.value) : 0))
 
-// The configured tiers are the original balance pool. A blind box reaches
-// that pool only after the fixed 60% coupon / 40% balance branch draw.
-// Display overall odds so a tier's internal weight is not mistaken for its
-// chance across every open.
-const balanceBranchWeight = 0.4
-const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight)
-const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight)
-const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight)
+const rewardSplit = computed(() => authStore.isAuthenticated
+  ? { coupon: status.value?.coupon_weight_bp, balance: status.value?.balance_weight_bp }
+  : { coupon: publicPool.value?.coupon_weight_bp, balance: publicPool.value?.balance_weight_bp })
+
+const balanceBranchWeight = computed(() => {
+  const balanceWeightBP = Number(rewardSplit.value.balance)
+  return Number.isFinite(balanceWeightBP) && balanceWeightBP >= 0
+    ? balanceWeightBP / 10_000
+    : 0.4
+})
+
+// The configured tiers are the original balance pool. Display overall odds
+// after the current published coupon/balance split so users see the real open odds.
+const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight.value)
+const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight.value)
+const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight.value)
 
 const canOpen = computed(
   () =>
@@ -143,7 +152,7 @@ function formatProbability(weight: number): string {
 }
 
 function formatBalanceProbability(weight: number): string {
-  return formatProbability(weight * balanceBranchWeight)
+  return formatProbability(weight * balanceBranchWeight.value)
 }
 
 function formatPrizeAmount(amount: number): string {
@@ -190,18 +199,27 @@ const celebrationVariant = computed(() => {
 })
 
 const hasCouponResult = computed(() => lastResult.value?.reward_type === 'coupon' && !!lastResult.value.coupon)
+const hasRedeemCodeResult = computed(() => lastResult.value?.reward_type === 'redeem_code' && !!lastResult.value.redeem_code)
 const couponResultPendingActivation = computed(() => {
   const validFrom = lastResult.value?.coupon?.valid_from
   const timestamp = validFrom ? Date.parse(validFrom) : Number.NaN
   return Number.isFinite(timestamp) && timestamp > Date.now()
 })
-const celebrationTitle = computed(() => hasCouponResult.value ? t('coupon.reward.blindboxTitle') : t('blindbox.celebrationTitle'))
+const celebrationTitle = computed(() => {
+  if (hasCouponResult.value) return t('coupon.reward.blindboxTitle')
+  if (hasRedeemCodeResult.value) return t('blindbox.redeemTitle')
+  return t('blindbox.celebrationTitle')
+})
 const celebrationAmount = computed(() => hasCouponResult.value
   ? lastResult.value?.coupon?.name || ''
+  : hasRedeemCodeResult.value
+    ? lastResult.value?.redeem_code?.code || ''
   : `$${formatMoney(lastResult.value?.reward_amount)}`)
-const celebrationSubtitle = computed(() => hasCouponResult.value
-  ? t('coupon.reward.issuedToWallet')
-  : t('blindbox.celebrationSubtitle'))
+const celebrationSubtitle = computed(() => {
+  if (hasCouponResult.value) return t('coupon.reward.issuedToWallet')
+  if (hasRedeemCodeResult.value) return t('blindbox.redeemSubtitle')
+  return t('blindbox.celebrationSubtitle')
+})
 
 const celebrationDetails = computed(() => {
   if (!lastResult.value) return []
@@ -216,6 +234,14 @@ const celebrationDetails = computed(() => {
       details.unshift(t('coupon.reward.availableAt', { time: formatDateTime(coupon.valid_from) }))
     }
     return details
+  }
+  if (lastResult.value.reward_type === 'redeem_code' && lastResult.value.redeem_code) {
+    const code = lastResult.value.redeem_code
+    return [
+      code.batch_name || '',
+      code.expires_at ? t('coupon.reward.expiresAt', { time: formatDateTime(code.expires_at) }) : '',
+      code.reward_pool_version || lastResult.value.coupon_pool_version || lastResult.value.pool_version,
+    ].filter(Boolean)
   }
   return [
     lastResult.value.pool_version,
@@ -413,12 +439,6 @@ async function handleOpen() {
     if (!isCurrentOpenRequest(requestID, open)) return
     lastResult.value = result
     celebrationOpen.value = true
-    appStore.showSuccess(lastResult.value.reward_type === 'coupon' && lastResult.value.coupon
-      ? t('coupon.reward.issued', { name: lastResult.value.coupon.name })
-      : t('blindbox.success', {
-          reward: lastResult.value.reward_amount.toFixed(2),
-          net: lastResult.value.net_amount.toFixed(2),
-        }))
     try {
       await authStore.refreshUser()
     } catch {
@@ -428,6 +448,19 @@ async function handleOpen() {
   } finally {
     if (requestID === openRequestID) opening.value = false
   }
+}
+
+function viewLatestReward() {
+  celebrationOpen.value = false
+  if (lastResult.value?.reward_type === 'coupon') {
+    void router.push({ path: '/wallet', query: { tab: 'coupons' } })
+    return
+  }
+  if (lastResult.value?.reward_type === 'redeem_code') {
+    void router.push('/redeem')
+    return
+  }
+  void router.push('/wallet')
 }
 
 onMounted(async () => {
@@ -620,10 +653,10 @@ watch(
       :color-key="lastResult?.vip_tier?.color_key ?? vipPool?.color_key ?? 'neutral'"
       :variant="celebrationVariant"
       :primary-label="t('blindbox.openAgain')"
-      :secondary-label="t('blindbox.viewPool')"
+      :secondary-label="t('blindbox.viewReward')"
       @close="celebrationOpen = false"
       @primary="() => { celebrationOpen = false; void handleOpen() }"
-      @secondary="celebrationOpen = false"
+      @secondary="viewLatestReward"
     />
     <SupportFloatingCard v-if="!authStore.isAuthenticated" />
     </div>

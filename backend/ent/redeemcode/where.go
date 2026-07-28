@@ -90,6 +90,41 @@ func Notes(v string) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldNotes, v))
 }
 
+// BatchName applies equality check predicate on the "batch_name" field. It's identical to BatchNameEQ.
+func BatchName(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldBatchName, v))
+}
+
+// BatchTag applies equality check predicate on the "batch_tag" field. It's identical to BatchTagEQ.
+func BatchTag(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldBatchTag, v))
+}
+
+// IssuedTo applies equality check predicate on the "issued_to" field. It's identical to IssuedToEQ.
+func IssuedTo(v int64) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssuedTo, v))
+}
+
+// IssuedAt applies equality check predicate on the "issued_at" field. It's identical to IssuedAtEQ.
+func IssuedAt(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssuedAt, v))
+}
+
+// IssueSource applies equality check predicate on the "issue_source" field. It's identical to IssueSourceEQ.
+func IssueSource(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssueSource, v))
+}
+
+// IssueRef applies equality check predicate on the "issue_ref" field. It's identical to IssueRefEQ.
+func IssueRef(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssueRef, v))
+}
+
+// RewardPoolVersion applies equality check predicate on the "reward_pool_version" field. It's identical to RewardPoolVersionEQ.
+func RewardPoolVersion(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldRewardPoolVersion, v))
+}
+
 // CreatedAt applies equality check predicate on the "created_at" field. It's identical to CreatedAtEQ.
 func CreatedAt(v time.Time) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldCreatedAt, v))
@@ -500,6 +535,461 @@ func NotesContainsFold(v string) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldContainsFold(FieldNotes, v))
 }
 
+// BatchNameEQ applies the EQ predicate on the "batch_name" field.
+func BatchNameEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldBatchName, v))
+}
+
+// BatchNameNEQ applies the NEQ predicate on the "batch_name" field.
+func BatchNameNEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldBatchName, v))
+}
+
+// BatchNameIn applies the In predicate on the "batch_name" field.
+func BatchNameIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldBatchName, vs...))
+}
+
+// BatchNameNotIn applies the NotIn predicate on the "batch_name" field.
+func BatchNameNotIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldBatchName, vs...))
+}
+
+// BatchNameGT applies the GT predicate on the "batch_name" field.
+func BatchNameGT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldBatchName, v))
+}
+
+// BatchNameGTE applies the GTE predicate on the "batch_name" field.
+func BatchNameGTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldBatchName, v))
+}
+
+// BatchNameLT applies the LT predicate on the "batch_name" field.
+func BatchNameLT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldBatchName, v))
+}
+
+// BatchNameLTE applies the LTE predicate on the "batch_name" field.
+func BatchNameLTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldBatchName, v))
+}
+
+// BatchNameContains applies the Contains predicate on the "batch_name" field.
+func BatchNameContains(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContains(FieldBatchName, v))
+}
+
+// BatchNameHasPrefix applies the HasPrefix predicate on the "batch_name" field.
+func BatchNameHasPrefix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasPrefix(FieldBatchName, v))
+}
+
+// BatchNameHasSuffix applies the HasSuffix predicate on the "batch_name" field.
+func BatchNameHasSuffix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasSuffix(FieldBatchName, v))
+}
+
+// BatchNameIsNil applies the IsNil predicate on the "batch_name" field.
+func BatchNameIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldBatchName))
+}
+
+// BatchNameNotNil applies the NotNil predicate on the "batch_name" field.
+func BatchNameNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldBatchName))
+}
+
+// BatchNameEqualFold applies the EqualFold predicate on the "batch_name" field.
+func BatchNameEqualFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEqualFold(FieldBatchName, v))
+}
+
+// BatchNameContainsFold applies the ContainsFold predicate on the "batch_name" field.
+func BatchNameContainsFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContainsFold(FieldBatchName, v))
+}
+
+// BatchTagEQ applies the EQ predicate on the "batch_tag" field.
+func BatchTagEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldBatchTag, v))
+}
+
+// BatchTagNEQ applies the NEQ predicate on the "batch_tag" field.
+func BatchTagNEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldBatchTag, v))
+}
+
+// BatchTagIn applies the In predicate on the "batch_tag" field.
+func BatchTagIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldBatchTag, vs...))
+}
+
+// BatchTagNotIn applies the NotIn predicate on the "batch_tag" field.
+func BatchTagNotIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldBatchTag, vs...))
+}
+
+// BatchTagGT applies the GT predicate on the "batch_tag" field.
+func BatchTagGT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldBatchTag, v))
+}
+
+// BatchTagGTE applies the GTE predicate on the "batch_tag" field.
+func BatchTagGTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldBatchTag, v))
+}
+
+// BatchTagLT applies the LT predicate on the "batch_tag" field.
+func BatchTagLT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldBatchTag, v))
+}
+
+// BatchTagLTE applies the LTE predicate on the "batch_tag" field.
+func BatchTagLTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldBatchTag, v))
+}
+
+// BatchTagContains applies the Contains predicate on the "batch_tag" field.
+func BatchTagContains(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContains(FieldBatchTag, v))
+}
+
+// BatchTagHasPrefix applies the HasPrefix predicate on the "batch_tag" field.
+func BatchTagHasPrefix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasPrefix(FieldBatchTag, v))
+}
+
+// BatchTagHasSuffix applies the HasSuffix predicate on the "batch_tag" field.
+func BatchTagHasSuffix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasSuffix(FieldBatchTag, v))
+}
+
+// BatchTagIsNil applies the IsNil predicate on the "batch_tag" field.
+func BatchTagIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldBatchTag))
+}
+
+// BatchTagNotNil applies the NotNil predicate on the "batch_tag" field.
+func BatchTagNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldBatchTag))
+}
+
+// BatchTagEqualFold applies the EqualFold predicate on the "batch_tag" field.
+func BatchTagEqualFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEqualFold(FieldBatchTag, v))
+}
+
+// BatchTagContainsFold applies the ContainsFold predicate on the "batch_tag" field.
+func BatchTagContainsFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContainsFold(FieldBatchTag, v))
+}
+
+// IssuedToEQ applies the EQ predicate on the "issued_to" field.
+func IssuedToEQ(v int64) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssuedTo, v))
+}
+
+// IssuedToNEQ applies the NEQ predicate on the "issued_to" field.
+func IssuedToNEQ(v int64) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldIssuedTo, v))
+}
+
+// IssuedToIn applies the In predicate on the "issued_to" field.
+func IssuedToIn(vs ...int64) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldIssuedTo, vs...))
+}
+
+// IssuedToNotIn applies the NotIn predicate on the "issued_to" field.
+func IssuedToNotIn(vs ...int64) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldIssuedTo, vs...))
+}
+
+// IssuedToIsNil applies the IsNil predicate on the "issued_to" field.
+func IssuedToIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldIssuedTo))
+}
+
+// IssuedToNotNil applies the NotNil predicate on the "issued_to" field.
+func IssuedToNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldIssuedTo))
+}
+
+// IssuedAtEQ applies the EQ predicate on the "issued_at" field.
+func IssuedAtEQ(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssuedAt, v))
+}
+
+// IssuedAtNEQ applies the NEQ predicate on the "issued_at" field.
+func IssuedAtNEQ(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldIssuedAt, v))
+}
+
+// IssuedAtIn applies the In predicate on the "issued_at" field.
+func IssuedAtIn(vs ...time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldIssuedAt, vs...))
+}
+
+// IssuedAtNotIn applies the NotIn predicate on the "issued_at" field.
+func IssuedAtNotIn(vs ...time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldIssuedAt, vs...))
+}
+
+// IssuedAtGT applies the GT predicate on the "issued_at" field.
+func IssuedAtGT(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldIssuedAt, v))
+}
+
+// IssuedAtGTE applies the GTE predicate on the "issued_at" field.
+func IssuedAtGTE(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldIssuedAt, v))
+}
+
+// IssuedAtLT applies the LT predicate on the "issued_at" field.
+func IssuedAtLT(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldIssuedAt, v))
+}
+
+// IssuedAtLTE applies the LTE predicate on the "issued_at" field.
+func IssuedAtLTE(v time.Time) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldIssuedAt, v))
+}
+
+// IssuedAtIsNil applies the IsNil predicate on the "issued_at" field.
+func IssuedAtIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldIssuedAt))
+}
+
+// IssuedAtNotNil applies the NotNil predicate on the "issued_at" field.
+func IssuedAtNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldIssuedAt))
+}
+
+// IssueSourceEQ applies the EQ predicate on the "issue_source" field.
+func IssueSourceEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssueSource, v))
+}
+
+// IssueSourceNEQ applies the NEQ predicate on the "issue_source" field.
+func IssueSourceNEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldIssueSource, v))
+}
+
+// IssueSourceIn applies the In predicate on the "issue_source" field.
+func IssueSourceIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldIssueSource, vs...))
+}
+
+// IssueSourceNotIn applies the NotIn predicate on the "issue_source" field.
+func IssueSourceNotIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldIssueSource, vs...))
+}
+
+// IssueSourceGT applies the GT predicate on the "issue_source" field.
+func IssueSourceGT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldIssueSource, v))
+}
+
+// IssueSourceGTE applies the GTE predicate on the "issue_source" field.
+func IssueSourceGTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldIssueSource, v))
+}
+
+// IssueSourceLT applies the LT predicate on the "issue_source" field.
+func IssueSourceLT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldIssueSource, v))
+}
+
+// IssueSourceLTE applies the LTE predicate on the "issue_source" field.
+func IssueSourceLTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldIssueSource, v))
+}
+
+// IssueSourceContains applies the Contains predicate on the "issue_source" field.
+func IssueSourceContains(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContains(FieldIssueSource, v))
+}
+
+// IssueSourceHasPrefix applies the HasPrefix predicate on the "issue_source" field.
+func IssueSourceHasPrefix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasPrefix(FieldIssueSource, v))
+}
+
+// IssueSourceHasSuffix applies the HasSuffix predicate on the "issue_source" field.
+func IssueSourceHasSuffix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasSuffix(FieldIssueSource, v))
+}
+
+// IssueSourceIsNil applies the IsNil predicate on the "issue_source" field.
+func IssueSourceIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldIssueSource))
+}
+
+// IssueSourceNotNil applies the NotNil predicate on the "issue_source" field.
+func IssueSourceNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldIssueSource))
+}
+
+// IssueSourceEqualFold applies the EqualFold predicate on the "issue_source" field.
+func IssueSourceEqualFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEqualFold(FieldIssueSource, v))
+}
+
+// IssueSourceContainsFold applies the ContainsFold predicate on the "issue_source" field.
+func IssueSourceContainsFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContainsFold(FieldIssueSource, v))
+}
+
+// IssueRefEQ applies the EQ predicate on the "issue_ref" field.
+func IssueRefEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldIssueRef, v))
+}
+
+// IssueRefNEQ applies the NEQ predicate on the "issue_ref" field.
+func IssueRefNEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldIssueRef, v))
+}
+
+// IssueRefIn applies the In predicate on the "issue_ref" field.
+func IssueRefIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldIssueRef, vs...))
+}
+
+// IssueRefNotIn applies the NotIn predicate on the "issue_ref" field.
+func IssueRefNotIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldIssueRef, vs...))
+}
+
+// IssueRefGT applies the GT predicate on the "issue_ref" field.
+func IssueRefGT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldIssueRef, v))
+}
+
+// IssueRefGTE applies the GTE predicate on the "issue_ref" field.
+func IssueRefGTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldIssueRef, v))
+}
+
+// IssueRefLT applies the LT predicate on the "issue_ref" field.
+func IssueRefLT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldIssueRef, v))
+}
+
+// IssueRefLTE applies the LTE predicate on the "issue_ref" field.
+func IssueRefLTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldIssueRef, v))
+}
+
+// IssueRefContains applies the Contains predicate on the "issue_ref" field.
+func IssueRefContains(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContains(FieldIssueRef, v))
+}
+
+// IssueRefHasPrefix applies the HasPrefix predicate on the "issue_ref" field.
+func IssueRefHasPrefix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasPrefix(FieldIssueRef, v))
+}
+
+// IssueRefHasSuffix applies the HasSuffix predicate on the "issue_ref" field.
+func IssueRefHasSuffix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasSuffix(FieldIssueRef, v))
+}
+
+// IssueRefIsNil applies the IsNil predicate on the "issue_ref" field.
+func IssueRefIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldIssueRef))
+}
+
+// IssueRefNotNil applies the NotNil predicate on the "issue_ref" field.
+func IssueRefNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldIssueRef))
+}
+
+// IssueRefEqualFold applies the EqualFold predicate on the "issue_ref" field.
+func IssueRefEqualFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEqualFold(FieldIssueRef, v))
+}
+
+// IssueRefContainsFold applies the ContainsFold predicate on the "issue_ref" field.
+func IssueRefContainsFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContainsFold(FieldIssueRef, v))
+}
+
+// RewardPoolVersionEQ applies the EQ predicate on the "reward_pool_version" field.
+func RewardPoolVersionEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEQ(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionNEQ applies the NEQ predicate on the "reward_pool_version" field.
+func RewardPoolVersionNEQ(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNEQ(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionIn applies the In predicate on the "reward_pool_version" field.
+func RewardPoolVersionIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIn(FieldRewardPoolVersion, vs...))
+}
+
+// RewardPoolVersionNotIn applies the NotIn predicate on the "reward_pool_version" field.
+func RewardPoolVersionNotIn(vs ...string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotIn(FieldRewardPoolVersion, vs...))
+}
+
+// RewardPoolVersionGT applies the GT predicate on the "reward_pool_version" field.
+func RewardPoolVersionGT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGT(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionGTE applies the GTE predicate on the "reward_pool_version" field.
+func RewardPoolVersionGTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldGTE(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionLT applies the LT predicate on the "reward_pool_version" field.
+func RewardPoolVersionLT(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLT(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionLTE applies the LTE predicate on the "reward_pool_version" field.
+func RewardPoolVersionLTE(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldLTE(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionContains applies the Contains predicate on the "reward_pool_version" field.
+func RewardPoolVersionContains(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContains(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionHasPrefix applies the HasPrefix predicate on the "reward_pool_version" field.
+func RewardPoolVersionHasPrefix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasPrefix(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionHasSuffix applies the HasSuffix predicate on the "reward_pool_version" field.
+func RewardPoolVersionHasSuffix(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldHasSuffix(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionIsNil applies the IsNil predicate on the "reward_pool_version" field.
+func RewardPoolVersionIsNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldIsNull(FieldRewardPoolVersion))
+}
+
+// RewardPoolVersionNotNil applies the NotNil predicate on the "reward_pool_version" field.
+func RewardPoolVersionNotNil() predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldNotNull(FieldRewardPoolVersion))
+}
+
+// RewardPoolVersionEqualFold applies the EqualFold predicate on the "reward_pool_version" field.
+func RewardPoolVersionEqualFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldEqualFold(FieldRewardPoolVersion, v))
+}
+
+// RewardPoolVersionContainsFold applies the ContainsFold predicate on the "reward_pool_version" field.
+func RewardPoolVersionContainsFold(v string) predicate.RedeemCode {
+	return predicate.RedeemCode(sql.FieldContainsFold(FieldRewardPoolVersion, v))
+}
+
 // CreatedAtEQ applies the EQ predicate on the "created_at" field.
 func CreatedAtEQ(v time.Time) predicate.RedeemCode {
 	return predicate.RedeemCode(sql.FieldEQ(FieldCreatedAt, v))
@@ -675,6 +1165,29 @@ func HasUser() predicate.RedeemCode {
 func HasUserWith(preds ...predicate.User) predicate.RedeemCode {
 	return predicate.RedeemCode(func(s *sql.Selector) {
 		step := newUserStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasIssuedUser applies the HasEdge predicate on the "issued_user" edge.
+func HasIssuedUser() predicate.RedeemCode {
+	return predicate.RedeemCode(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, IssuedUserTable, IssuedUserColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasIssuedUserWith applies the HasEdge predicate on the "issued_user" edge with a given conditions (other predicates).
+func HasIssuedUserWith(preds ...predicate.User) predicate.RedeemCode {
+	return predicate.RedeemCode(func(s *sql.Selector) {
+		step := newIssuedUserStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

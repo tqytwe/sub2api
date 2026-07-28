@@ -6,6 +6,7 @@ var (
 	ErrPlayCheckinAlreadyDone          = infraerrors.Conflict("PLAY_CHECKIN_ALREADY_DONE", "already checked in today")
 	ErrPlayRewardDuplicate             = infraerrors.Conflict("PLAY_REWARD_DUPLICATE", "reward already granted")
 	ErrPlayFeatureDisabled             = infraerrors.BadRequest("PLAY_FEATURE_DISABLED", "play feature is disabled")
+	ErrPlayCheckinIneligible           = infraerrors.Forbidden("PLAY_CHECKIN_INELIGIBLE", "check-in is only available for active users")
 	ErrPlayInsufficientBalance         = infraerrors.BadRequest("INSUFFICIENT_BALANCE", "insufficient balance")
 	ErrPlayBlindboxDailyLimit          = infraerrors.Conflict("PLAY_BLINDBOX_DAILY_LIMIT", "daily blindbox limit reached")
 	ErrPlayQuizAlreadyDone             = infraerrors.Conflict("PLAY_QUIZ_ALREADY_DONE", "quiz already submitted today")

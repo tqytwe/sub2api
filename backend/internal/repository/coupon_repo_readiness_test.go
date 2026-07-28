@@ -71,14 +71,14 @@ func expectPublishedCouponRewardPool(mock sqlmock.Sqlmock, id int64, activity se
 	mock.ExpectQuery(`(?s)SELECT .*FROM coupon_reward_pool_versions WHERE id = \$1`).
 		WithArgs(id).
 		WillReturnRows(sqlmock.NewRows(couponRewardPoolMockColumns()).AddRow(
-			id, activity, "pool-v1", service.CouponRewardPoolStatusPublished, 6000, 4000,
+			id, activity, "pool-v1", service.CouponRewardPoolStatusPublished, 6000, 0, 4000, []byte(`{}`),
 			int64(9), nil, nil, now, now, now,
 		))
 }
 
 func couponRewardPoolMockColumns() []string {
 	return []string{
-		"id", "activity", "version", "status", "coupon_weight_bp", "balance_weight_bp",
+		"id", "activity", "version", "status", "coupon_weight_bp", "redeem_code_weight_bp", "balance_weight_bp", "reward_config",
 		"fallback_template_id", "created_by", "updated_by", "published_at", "created_at", "updated_at",
 	}
 }

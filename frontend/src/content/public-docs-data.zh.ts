@@ -622,14 +622,14 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
       {
         id: 'check-in',
         title: "每日签到",
-        summary: "每日领余额 · 连续签到里程碑 · 充值可补签",
-        html: `<p class="docs-lead">每日签到是 Play 域的日活入口。管理员可在后台配置奖励金额；默认每次签到赠送 <strong>$0.50</strong> 余额（可在 Settings 调整）。</p>
+        summary: "随机开奖 · 连续签到里程碑 · 充值可补签",
+        html: `<p class="docs-lead">每日签到是 Play 域的日活入口。管理员可在后台营销奖励奖池中配置优惠券、兑换码和余额分支，用户完成签到后即时随机开奖。</p>
 
 <h2>怎么签到</h2>
 <ul>
   <li>控制台侧边栏 <strong>每日签到</strong>，或 <a href="/play">玩法中枢</a> 一键签到</li>
   <li>每天 0 点（服务器时区）重置，每人每天一次</li>
-  <li>奖励直接进入余额，可用于 API 调用</li>
+  <li>奖励可能是优惠券、兑换码或余额，具体以后台当前发布的签到奖池为准</li>
 </ul>
 
 <h2>连续签到（Streak）</h2>
@@ -652,7 +652,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <h2>充值加成 24h</h2>
 <p>充值成功后若开启 <code>play_recharge_boost_enabled</code>，24 小时内享受：</p>
 <ul>
-  <li>签到奖励 ×2（可配）</li>
+  <li>签到余额分支可参与加成（可配）</li>
   <li>盲盒每日额外开箱次数</li>
   <li>Arena 展示积分倍率加成</li>
 </ul>
@@ -660,7 +660,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <h2>常见问题</h2>
 <ul>
   <li><strong>签到余额能升 VIP 吗？</strong> — 不能，VIP 只看支付订单的基础到账累计。</li>
-  <li><strong>与 VIP 档位关系？</strong> — VIP 提供模型页徽章、盲盒/Arena 等玩法权益，不改变签到基础金额（除非运营单独配置活动）。</li>
+  <li><strong>与 VIP 档位关系？</strong> — VIP 提供模型页徽章、盲盒/Arena 等玩法权益；签到奖励以后台签到奖池和活动配置为准。</li>
 </ul>`,
       },
       {
@@ -748,15 +748,15 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
       {
         id: 'blindbox-rewards',
         title: "盲盒玩法",
-        summary: "扣费开箱 · 随机返余额 · 每日次数上限",
-        html: `<p class="docs-lead">盲盒是 Play 域的随机奖励玩法：消耗少量余额开箱，按当前用户的 <strong>VIP 专属奖池</strong> 随机返还 balance。与对标站「充值送盲盒」不同，<strong>本站默认是余额扣费开箱</strong>。</p>
+        summary: "扣费开箱 · 随机开奖 · 每日次数上限",
+        html: `<p class="docs-lead">盲盒是 Play 域的随机奖励玩法：消耗少量余额开箱，按后台当前发布的营销奖励奖池随机发放优惠券、兑换码或余额。余额分支仍按当前用户的 <strong>VIP 专属余额奖池</strong> 抽取。</p>
 
 <h2>基本规则（默认配置）</h2>
 <ul>
   <li>每次开箱扣费 <strong>$0.50</strong>（<code>play_blindbox_cost</code>）</li>
   <li>每日上限 <strong>10 次</strong>（<code>play_blindbox_daily_limit</code>）</li>
-  <li>随机返奖档位：$0.05 / $0.20 / $0.50 / $1.00 / $3.00 / $10.00 / $20.00（加权概率）</li>
-  <li>净收益 = 返奖 − 扣费，直接写入余额</li>
+  <li>外层奖励比例由后台配置，可在优惠券、兑换码、余额三类分支之间调整</li>
+  <li>余额分支命中后，再按 VIP 余额奖池档位抽取；净收益 = 返奖 − 扣费</li>
 </ul>
 
 <h2>VIP 专属奖池</h2>
@@ -781,9 +781,9 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <h2>API</h2>
 <ul>
   <li><code>GET /api/v1/play/blindbox/status</code> — 今日次数、是否可开、当前/下一 VIP 奖池、预计回报</li>
-  <li><code>POST /api/v1/play/blindbox/open</code> — 开箱（支持幂等键），返回中奖金额、净收益、VIP 与奖池版本</li>
+  <li><code>POST /api/v1/play/blindbox/open</code> — 开箱（支持幂等键），返回奖励类型、优惠券/兑换码/余额结果、净收益、VIP 与奖池版本</li>
 </ul>
-<p class="docs-tip">需管理员开启 <code>play_blindbox_enabled</code>。概率与扣费可在 Settings 调整。</p>`,
+<p class="docs-tip">需管理员开启 <code>play_blindbox_enabled</code>。扣费在 Settings 调整，营销奖励比例和奖项在优惠券运营奖池中配置。</p>`,
       },
       {
         id: 'image-studio',

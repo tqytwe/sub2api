@@ -153,6 +153,146 @@ func (_u *RedeemCodeUpdate) ClearNotes() *RedeemCodeUpdate {
 	return _u
 }
 
+// SetBatchName sets the "batch_name" field.
+func (_u *RedeemCodeUpdate) SetBatchName(v string) *RedeemCodeUpdate {
+	_u.mutation.SetBatchName(v)
+	return _u
+}
+
+// SetNillableBatchName sets the "batch_name" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableBatchName(v *string) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetBatchName(*v)
+	}
+	return _u
+}
+
+// ClearBatchName clears the value of the "batch_name" field.
+func (_u *RedeemCodeUpdate) ClearBatchName() *RedeemCodeUpdate {
+	_u.mutation.ClearBatchName()
+	return _u
+}
+
+// SetBatchTag sets the "batch_tag" field.
+func (_u *RedeemCodeUpdate) SetBatchTag(v string) *RedeemCodeUpdate {
+	_u.mutation.SetBatchTag(v)
+	return _u
+}
+
+// SetNillableBatchTag sets the "batch_tag" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableBatchTag(v *string) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetBatchTag(*v)
+	}
+	return _u
+}
+
+// ClearBatchTag clears the value of the "batch_tag" field.
+func (_u *RedeemCodeUpdate) ClearBatchTag() *RedeemCodeUpdate {
+	_u.mutation.ClearBatchTag()
+	return _u
+}
+
+// SetIssuedTo sets the "issued_to" field.
+func (_u *RedeemCodeUpdate) SetIssuedTo(v int64) *RedeemCodeUpdate {
+	_u.mutation.SetIssuedTo(v)
+	return _u
+}
+
+// SetNillableIssuedTo sets the "issued_to" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableIssuedTo(v *int64) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetIssuedTo(*v)
+	}
+	return _u
+}
+
+// ClearIssuedTo clears the value of the "issued_to" field.
+func (_u *RedeemCodeUpdate) ClearIssuedTo() *RedeemCodeUpdate {
+	_u.mutation.ClearIssuedTo()
+	return _u
+}
+
+// SetIssuedAt sets the "issued_at" field.
+func (_u *RedeemCodeUpdate) SetIssuedAt(v time.Time) *RedeemCodeUpdate {
+	_u.mutation.SetIssuedAt(v)
+	return _u
+}
+
+// SetNillableIssuedAt sets the "issued_at" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableIssuedAt(v *time.Time) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetIssuedAt(*v)
+	}
+	return _u
+}
+
+// ClearIssuedAt clears the value of the "issued_at" field.
+func (_u *RedeemCodeUpdate) ClearIssuedAt() *RedeemCodeUpdate {
+	_u.mutation.ClearIssuedAt()
+	return _u
+}
+
+// SetIssueSource sets the "issue_source" field.
+func (_u *RedeemCodeUpdate) SetIssueSource(v string) *RedeemCodeUpdate {
+	_u.mutation.SetIssueSource(v)
+	return _u
+}
+
+// SetNillableIssueSource sets the "issue_source" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableIssueSource(v *string) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetIssueSource(*v)
+	}
+	return _u
+}
+
+// ClearIssueSource clears the value of the "issue_source" field.
+func (_u *RedeemCodeUpdate) ClearIssueSource() *RedeemCodeUpdate {
+	_u.mutation.ClearIssueSource()
+	return _u
+}
+
+// SetIssueRef sets the "issue_ref" field.
+func (_u *RedeemCodeUpdate) SetIssueRef(v string) *RedeemCodeUpdate {
+	_u.mutation.SetIssueRef(v)
+	return _u
+}
+
+// SetNillableIssueRef sets the "issue_ref" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableIssueRef(v *string) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetIssueRef(*v)
+	}
+	return _u
+}
+
+// ClearIssueRef clears the value of the "issue_ref" field.
+func (_u *RedeemCodeUpdate) ClearIssueRef() *RedeemCodeUpdate {
+	_u.mutation.ClearIssueRef()
+	return _u
+}
+
+// SetRewardPoolVersion sets the "reward_pool_version" field.
+func (_u *RedeemCodeUpdate) SetRewardPoolVersion(v string) *RedeemCodeUpdate {
+	_u.mutation.SetRewardPoolVersion(v)
+	return _u
+}
+
+// SetNillableRewardPoolVersion sets the "reward_pool_version" field if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableRewardPoolVersion(v *string) *RedeemCodeUpdate {
+	if v != nil {
+		_u.SetRewardPoolVersion(*v)
+	}
+	return _u
+}
+
+// ClearRewardPoolVersion clears the value of the "reward_pool_version" field.
+func (_u *RedeemCodeUpdate) ClearRewardPoolVersion() *RedeemCodeUpdate {
+	_u.mutation.ClearRewardPoolVersion()
+	return _u
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_u *RedeemCodeUpdate) SetExpiresAt(v time.Time) *RedeemCodeUpdate {
 	_u.mutation.SetExpiresAt(v)
@@ -233,6 +373,25 @@ func (_u *RedeemCodeUpdate) SetUser(v *User) *RedeemCodeUpdate {
 	return _u.SetUserID(v.ID)
 }
 
+// SetIssuedUserID sets the "issued_user" edge to the User entity by ID.
+func (_u *RedeemCodeUpdate) SetIssuedUserID(id int64) *RedeemCodeUpdate {
+	_u.mutation.SetIssuedUserID(id)
+	return _u
+}
+
+// SetNillableIssuedUserID sets the "issued_user" edge to the User entity by ID if the given value is not nil.
+func (_u *RedeemCodeUpdate) SetNillableIssuedUserID(id *int64) *RedeemCodeUpdate {
+	if id != nil {
+		_u = _u.SetIssuedUserID(*id)
+	}
+	return _u
+}
+
+// SetIssuedUser sets the "issued_user" edge to the User entity.
+func (_u *RedeemCodeUpdate) SetIssuedUser(v *User) *RedeemCodeUpdate {
+	return _u.SetIssuedUserID(v.ID)
+}
+
 // SetGroup sets the "group" edge to the Group entity.
 func (_u *RedeemCodeUpdate) SetGroup(v *Group) *RedeemCodeUpdate {
 	return _u.SetGroupID(v.ID)
@@ -246,6 +405,12 @@ func (_u *RedeemCodeUpdate) Mutation() *RedeemCodeMutation {
 // ClearUser clears the "user" edge to the User entity.
 func (_u *RedeemCodeUpdate) ClearUser() *RedeemCodeUpdate {
 	_u.mutation.ClearUser()
+	return _u
+}
+
+// ClearIssuedUser clears the "issued_user" edge to the User entity.
+func (_u *RedeemCodeUpdate) ClearIssuedUser() *RedeemCodeUpdate {
+	_u.mutation.ClearIssuedUser()
 	return _u
 }
 
@@ -299,6 +464,31 @@ func (_u *RedeemCodeUpdate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BatchName(); ok {
+		if err := redeemcode.BatchNameValidator(v); err != nil {
+			return &ValidationError{Name: "batch_name", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.batch_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BatchTag(); ok {
+		if err := redeemcode.BatchTagValidator(v); err != nil {
+			return &ValidationError{Name: "batch_tag", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.batch_tag": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.IssueSource(); ok {
+		if err := redeemcode.IssueSourceValidator(v); err != nil {
+			return &ValidationError{Name: "issue_source", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.issue_source": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.IssueRef(); ok {
+		if err := redeemcode.IssueRefValidator(v); err != nil {
+			return &ValidationError{Name: "issue_ref", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.issue_ref": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RewardPoolVersion(); ok {
+		if err := redeemcode.RewardPoolVersionValidator(v); err != nil {
+			return &ValidationError{Name: "reward_pool_version", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.reward_pool_version": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -341,6 +531,42 @@ func (_u *RedeemCodeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(redeemcode.FieldNotes, field.TypeString)
 	}
+	if value, ok := _u.mutation.BatchName(); ok {
+		_spec.SetField(redeemcode.FieldBatchName, field.TypeString, value)
+	}
+	if _u.mutation.BatchNameCleared() {
+		_spec.ClearField(redeemcode.FieldBatchName, field.TypeString)
+	}
+	if value, ok := _u.mutation.BatchTag(); ok {
+		_spec.SetField(redeemcode.FieldBatchTag, field.TypeString, value)
+	}
+	if _u.mutation.BatchTagCleared() {
+		_spec.ClearField(redeemcode.FieldBatchTag, field.TypeString)
+	}
+	if value, ok := _u.mutation.IssuedAt(); ok {
+		_spec.SetField(redeemcode.FieldIssuedAt, field.TypeTime, value)
+	}
+	if _u.mutation.IssuedAtCleared() {
+		_spec.ClearField(redeemcode.FieldIssuedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.IssueSource(); ok {
+		_spec.SetField(redeemcode.FieldIssueSource, field.TypeString, value)
+	}
+	if _u.mutation.IssueSourceCleared() {
+		_spec.ClearField(redeemcode.FieldIssueSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.IssueRef(); ok {
+		_spec.SetField(redeemcode.FieldIssueRef, field.TypeString, value)
+	}
+	if _u.mutation.IssueRefCleared() {
+		_spec.ClearField(redeemcode.FieldIssueRef, field.TypeString)
+	}
+	if value, ok := _u.mutation.RewardPoolVersion(); ok {
+		_spec.SetField(redeemcode.FieldRewardPoolVersion, field.TypeString, value)
+	}
+	if _u.mutation.RewardPoolVersionCleared() {
+		_spec.ClearField(redeemcode.FieldRewardPoolVersion, field.TypeString)
+	}
 	if value, ok := _u.mutation.ExpiresAt(); ok {
 		_spec.SetField(redeemcode.FieldExpiresAt, field.TypeTime, value)
 	}
@@ -372,6 +598,35 @@ func (_u *RedeemCodeUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 			Inverse: true,
 			Table:   redeemcode.UserTable,
 			Columns: []string{redeemcode.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IssuedUserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   redeemcode.IssuedUserTable,
+			Columns: []string{redeemcode.IssuedUserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IssuedUserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   redeemcode.IssuedUserTable,
+			Columns: []string{redeemcode.IssuedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
@@ -554,6 +809,146 @@ func (_u *RedeemCodeUpdateOne) ClearNotes() *RedeemCodeUpdateOne {
 	return _u
 }
 
+// SetBatchName sets the "batch_name" field.
+func (_u *RedeemCodeUpdateOne) SetBatchName(v string) *RedeemCodeUpdateOne {
+	_u.mutation.SetBatchName(v)
+	return _u
+}
+
+// SetNillableBatchName sets the "batch_name" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableBatchName(v *string) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetBatchName(*v)
+	}
+	return _u
+}
+
+// ClearBatchName clears the value of the "batch_name" field.
+func (_u *RedeemCodeUpdateOne) ClearBatchName() *RedeemCodeUpdateOne {
+	_u.mutation.ClearBatchName()
+	return _u
+}
+
+// SetBatchTag sets the "batch_tag" field.
+func (_u *RedeemCodeUpdateOne) SetBatchTag(v string) *RedeemCodeUpdateOne {
+	_u.mutation.SetBatchTag(v)
+	return _u
+}
+
+// SetNillableBatchTag sets the "batch_tag" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableBatchTag(v *string) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetBatchTag(*v)
+	}
+	return _u
+}
+
+// ClearBatchTag clears the value of the "batch_tag" field.
+func (_u *RedeemCodeUpdateOne) ClearBatchTag() *RedeemCodeUpdateOne {
+	_u.mutation.ClearBatchTag()
+	return _u
+}
+
+// SetIssuedTo sets the "issued_to" field.
+func (_u *RedeemCodeUpdateOne) SetIssuedTo(v int64) *RedeemCodeUpdateOne {
+	_u.mutation.SetIssuedTo(v)
+	return _u
+}
+
+// SetNillableIssuedTo sets the "issued_to" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableIssuedTo(v *int64) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetIssuedTo(*v)
+	}
+	return _u
+}
+
+// ClearIssuedTo clears the value of the "issued_to" field.
+func (_u *RedeemCodeUpdateOne) ClearIssuedTo() *RedeemCodeUpdateOne {
+	_u.mutation.ClearIssuedTo()
+	return _u
+}
+
+// SetIssuedAt sets the "issued_at" field.
+func (_u *RedeemCodeUpdateOne) SetIssuedAt(v time.Time) *RedeemCodeUpdateOne {
+	_u.mutation.SetIssuedAt(v)
+	return _u
+}
+
+// SetNillableIssuedAt sets the "issued_at" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableIssuedAt(v *time.Time) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetIssuedAt(*v)
+	}
+	return _u
+}
+
+// ClearIssuedAt clears the value of the "issued_at" field.
+func (_u *RedeemCodeUpdateOne) ClearIssuedAt() *RedeemCodeUpdateOne {
+	_u.mutation.ClearIssuedAt()
+	return _u
+}
+
+// SetIssueSource sets the "issue_source" field.
+func (_u *RedeemCodeUpdateOne) SetIssueSource(v string) *RedeemCodeUpdateOne {
+	_u.mutation.SetIssueSource(v)
+	return _u
+}
+
+// SetNillableIssueSource sets the "issue_source" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableIssueSource(v *string) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetIssueSource(*v)
+	}
+	return _u
+}
+
+// ClearIssueSource clears the value of the "issue_source" field.
+func (_u *RedeemCodeUpdateOne) ClearIssueSource() *RedeemCodeUpdateOne {
+	_u.mutation.ClearIssueSource()
+	return _u
+}
+
+// SetIssueRef sets the "issue_ref" field.
+func (_u *RedeemCodeUpdateOne) SetIssueRef(v string) *RedeemCodeUpdateOne {
+	_u.mutation.SetIssueRef(v)
+	return _u
+}
+
+// SetNillableIssueRef sets the "issue_ref" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableIssueRef(v *string) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetIssueRef(*v)
+	}
+	return _u
+}
+
+// ClearIssueRef clears the value of the "issue_ref" field.
+func (_u *RedeemCodeUpdateOne) ClearIssueRef() *RedeemCodeUpdateOne {
+	_u.mutation.ClearIssueRef()
+	return _u
+}
+
+// SetRewardPoolVersion sets the "reward_pool_version" field.
+func (_u *RedeemCodeUpdateOne) SetRewardPoolVersion(v string) *RedeemCodeUpdateOne {
+	_u.mutation.SetRewardPoolVersion(v)
+	return _u
+}
+
+// SetNillableRewardPoolVersion sets the "reward_pool_version" field if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableRewardPoolVersion(v *string) *RedeemCodeUpdateOne {
+	if v != nil {
+		_u.SetRewardPoolVersion(*v)
+	}
+	return _u
+}
+
+// ClearRewardPoolVersion clears the value of the "reward_pool_version" field.
+func (_u *RedeemCodeUpdateOne) ClearRewardPoolVersion() *RedeemCodeUpdateOne {
+	_u.mutation.ClearRewardPoolVersion()
+	return _u
+}
+
 // SetExpiresAt sets the "expires_at" field.
 func (_u *RedeemCodeUpdateOne) SetExpiresAt(v time.Time) *RedeemCodeUpdateOne {
 	_u.mutation.SetExpiresAt(v)
@@ -634,6 +1029,25 @@ func (_u *RedeemCodeUpdateOne) SetUser(v *User) *RedeemCodeUpdateOne {
 	return _u.SetUserID(v.ID)
 }
 
+// SetIssuedUserID sets the "issued_user" edge to the User entity by ID.
+func (_u *RedeemCodeUpdateOne) SetIssuedUserID(id int64) *RedeemCodeUpdateOne {
+	_u.mutation.SetIssuedUserID(id)
+	return _u
+}
+
+// SetNillableIssuedUserID sets the "issued_user" edge to the User entity by ID if the given value is not nil.
+func (_u *RedeemCodeUpdateOne) SetNillableIssuedUserID(id *int64) *RedeemCodeUpdateOne {
+	if id != nil {
+		_u = _u.SetIssuedUserID(*id)
+	}
+	return _u
+}
+
+// SetIssuedUser sets the "issued_user" edge to the User entity.
+func (_u *RedeemCodeUpdateOne) SetIssuedUser(v *User) *RedeemCodeUpdateOne {
+	return _u.SetIssuedUserID(v.ID)
+}
+
 // SetGroup sets the "group" edge to the Group entity.
 func (_u *RedeemCodeUpdateOne) SetGroup(v *Group) *RedeemCodeUpdateOne {
 	return _u.SetGroupID(v.ID)
@@ -647,6 +1061,12 @@ func (_u *RedeemCodeUpdateOne) Mutation() *RedeemCodeMutation {
 // ClearUser clears the "user" edge to the User entity.
 func (_u *RedeemCodeUpdateOne) ClearUser() *RedeemCodeUpdateOne {
 	_u.mutation.ClearUser()
+	return _u
+}
+
+// ClearIssuedUser clears the "issued_user" edge to the User entity.
+func (_u *RedeemCodeUpdateOne) ClearIssuedUser() *RedeemCodeUpdateOne {
+	_u.mutation.ClearIssuedUser()
 	return _u
 }
 
@@ -713,6 +1133,31 @@ func (_u *RedeemCodeUpdateOne) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.status": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.BatchName(); ok {
+		if err := redeemcode.BatchNameValidator(v); err != nil {
+			return &ValidationError{Name: "batch_name", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.batch_name": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.BatchTag(); ok {
+		if err := redeemcode.BatchTagValidator(v); err != nil {
+			return &ValidationError{Name: "batch_tag", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.batch_tag": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.IssueSource(); ok {
+		if err := redeemcode.IssueSourceValidator(v); err != nil {
+			return &ValidationError{Name: "issue_source", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.issue_source": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.IssueRef(); ok {
+		if err := redeemcode.IssueRefValidator(v); err != nil {
+			return &ValidationError{Name: "issue_ref", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.issue_ref": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.RewardPoolVersion(); ok {
+		if err := redeemcode.RewardPoolVersionValidator(v); err != nil {
+			return &ValidationError{Name: "reward_pool_version", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.reward_pool_version": %w`, err)}
+		}
+	}
 	return nil
 }
 
@@ -772,6 +1217,42 @@ func (_u *RedeemCodeUpdateOne) sqlSave(ctx context.Context) (_node *RedeemCode, 
 	if _u.mutation.NotesCleared() {
 		_spec.ClearField(redeemcode.FieldNotes, field.TypeString)
 	}
+	if value, ok := _u.mutation.BatchName(); ok {
+		_spec.SetField(redeemcode.FieldBatchName, field.TypeString, value)
+	}
+	if _u.mutation.BatchNameCleared() {
+		_spec.ClearField(redeemcode.FieldBatchName, field.TypeString)
+	}
+	if value, ok := _u.mutation.BatchTag(); ok {
+		_spec.SetField(redeemcode.FieldBatchTag, field.TypeString, value)
+	}
+	if _u.mutation.BatchTagCleared() {
+		_spec.ClearField(redeemcode.FieldBatchTag, field.TypeString)
+	}
+	if value, ok := _u.mutation.IssuedAt(); ok {
+		_spec.SetField(redeemcode.FieldIssuedAt, field.TypeTime, value)
+	}
+	if _u.mutation.IssuedAtCleared() {
+		_spec.ClearField(redeemcode.FieldIssuedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.IssueSource(); ok {
+		_spec.SetField(redeemcode.FieldIssueSource, field.TypeString, value)
+	}
+	if _u.mutation.IssueSourceCleared() {
+		_spec.ClearField(redeemcode.FieldIssueSource, field.TypeString)
+	}
+	if value, ok := _u.mutation.IssueRef(); ok {
+		_spec.SetField(redeemcode.FieldIssueRef, field.TypeString, value)
+	}
+	if _u.mutation.IssueRefCleared() {
+		_spec.ClearField(redeemcode.FieldIssueRef, field.TypeString)
+	}
+	if value, ok := _u.mutation.RewardPoolVersion(); ok {
+		_spec.SetField(redeemcode.FieldRewardPoolVersion, field.TypeString, value)
+	}
+	if _u.mutation.RewardPoolVersionCleared() {
+		_spec.ClearField(redeemcode.FieldRewardPoolVersion, field.TypeString)
+	}
 	if value, ok := _u.mutation.ExpiresAt(); ok {
 		_spec.SetField(redeemcode.FieldExpiresAt, field.TypeTime, value)
 	}
@@ -803,6 +1284,35 @@ func (_u *RedeemCodeUpdateOne) sqlSave(ctx context.Context) (_node *RedeemCode, 
 			Inverse: true,
 			Table:   redeemcode.UserTable,
 			Columns: []string{redeemcode.UserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.IssuedUserCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   redeemcode.IssuedUserTable,
+			Columns: []string{redeemcode.IssuedUserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.IssuedUserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   redeemcode.IssuedUserTable,
+			Columns: []string{redeemcode.IssuedUserColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),

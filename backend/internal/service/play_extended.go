@@ -32,18 +32,21 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 	now := s.serverNow()
 	date := s.serverDate(now)
 	out := &PlayBlindboxStatus{
-		Enabled:         rt.BlindboxEnabled,
-		CouponPoolReady: true,
-		CostAmount:      pool.Cost,
-		BlindboxPool:    pool,
-		CurrentPool:     pool,
-		NextPool:        nextPool,
-		VIPTier:         vip,
-		ExpectedReward:  pool.ExpectedReward(),
-		PoolVersion:     pool.Version,
-		RTPCap:          pool.RTPCap,
-		DailyLimit:      rt.BlindboxDailyLimit,
-		ServerDate:      date.Format("2006-01-02"),
+		Enabled:            rt.BlindboxEnabled,
+		CouponPoolReady:    true,
+		CouponWeightBP:     6000,
+		RedeemCodeWeightBP: 0,
+		BalanceWeightBP:    4000,
+		CostAmount:         pool.Cost,
+		BlindboxPool:       pool,
+		CurrentPool:        pool,
+		NextPool:           nextPool,
+		VIPTier:            vip,
+		ExpectedReward:     pool.ExpectedReward(),
+		PoolVersion:        pool.Version,
+		RTPCap:             pool.RTPCap,
+		DailyLimit:         rt.BlindboxDailyLimit,
+		ServerDate:         date.Format("2006-01-02"),
 	}
 	if nextPool != nil {
 		out.NextExpectedReward = nextPool.ExpectedReward()
@@ -54,6 +57,15 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 			return nil, err
 		}
 		out.CouponPoolReady = ready
+		if ready {
+			couponWeightBP, redeemCodeWeightBP, balanceWeightBP, err := s.couponRewardSplit(ctx, CouponRewardActivityBlindbox)
+			if err != nil {
+				return nil, err
+			}
+			out.CouponWeightBP = couponWeightBP
+			out.RedeemCodeWeightBP = redeemCodeWeightBP
+			out.BalanceWeightBP = balanceWeightBP
+		}
 		prizes, err := s.couponRewardPrizePreview(ctx, CouponRewardActivityBlindbox)
 		if err != nil {
 			return nil, err
@@ -157,7 +169,7 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	if opens >= effectiveLimit {
 		return nil, ErrPlayBlindboxDailyLimit
 	}
-	rewardType, err := s.drawCouponRewardType(CouponRewardActivityBlindbox)
+	rewardType, err := s.drawCouponRewardType(txCtx, CouponRewardActivityBlindbox)
 	if err != nil {
 		return nil, err
 	}
@@ -171,8 +183,21 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	net := reward - cost
 
 	var couponIssue *CouponRewardIssueResult
+	var redeemCode *RedeemCode
 	if rewardType == PlayRewardTypeCoupon {
 		couponIssue, err = s.issueCouponRewardInTx(
+			txCtx,
+			userID,
+			CouponRewardActivityBlindbox,
+			idempotencyKey,
+			dateKey,
+			now,
+		)
+		if err != nil {
+			return nil, err
+		}
+	} else if rewardType == PlayRewardTypeRedeem {
+		redeemCode, err = s.issueRedeemCodeRewardInTx(
 			txCtx,
 			userID,
 			CouponRewardActivityBlindbox,
@@ -208,6 +233,13 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		detail["user_coupon_id"] = couponIssue.UserCouponID
 		detail["coupon_expires_at"] = couponIssue.ExpiresAt.Format(time.RFC3339)
 	}
+	if redeemCode != nil {
+		detail["redeem_code_id"] = redeemCode.ID
+		detail["redeem_code_type"] = redeemCode.Type
+		detail["redeem_code_batch"] = redeemCode.BatchName
+		detail["redeem_code_status"] = redeemCode.Status
+		detail["redeem_code_expires_at"] = redeemCode.ExpiresAt
+	}
 
 	if err := s.grantBalanceInTx(txCtx, userID, net, PlayRewardSourceBlindbox, idempotencyKey, detail, func(txCtx context.Context) error {
 		return s.repo.InsertBlindboxOpenRecord(txCtx, PlayBlindboxOpenRecord{
@@ -235,6 +267,7 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		NetAmount:         net,
 		RewardType:        rewardType,
 		Coupon:            playCouponRewardSummary(couponIssue),
+		RedeemCode:        playRedeemCodeRewardSummary(redeemCode),
 		CouponPoolVersion: couponPoolVersion(couponIssue),
 		OpensToday:        opens + 1,
 		ServerDate:        dateKey,
@@ -263,6 +296,7 @@ func (s *PlayService) replayBlindboxOpen(ctx context.Context, userID int64, idem
 	}
 
 	var couponIssue *CouponRewardIssueResult
+	var redeemCode *RedeemCode
 	if reader, ok := s.couponRewardIssuer.(CouponRewardReplayReader); ok && reader != nil {
 		couponIssue, err = reader.GetCouponRewardIssueByIdempotency(ctx, userID, idempotencyKey)
 		if err != nil {
@@ -280,6 +314,7 @@ func (s *PlayService) replayBlindboxOpen(ctx context.Context, userID int64, idem
 		NetAmount:         record.Reward - record.Cost,
 		RewardType:        rewardType,
 		Coupon:            playCouponRewardSummary(couponIssue),
+		RedeemCode:        playRedeemCodeRewardSummary(redeemCode),
 		CouponPoolVersion: couponPoolVersion(couponIssue),
 		OpensToday:        opens,
 		ServerDate:        record.Date.Format("2006-01-02"),
@@ -652,9 +687,10 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 	idempotencyKey := fmt.Sprintf("quiz:%d:%s", userID, dateKey)
 	rewardType := PlayRewardTypeNone
 	var couponIssue *CouponRewardIssueResult
+	var redeemCode *RedeemCode
 
 	if score > 0 {
-		rewardType, err = s.drawCouponRewardType(CouponRewardActivityQuiz)
+		rewardType, err = s.drawCouponRewardType(ctx, CouponRewardActivityQuiz)
 		if err != nil {
 			return nil, err
 		}
@@ -700,6 +736,37 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 			return nil, fmt.Errorf("commit quiz coupon tx: %w", err)
 		}
 		reward = 0
+	case PlayRewardTypeRedeem:
+		if s.entClient == nil {
+			return nil, fmt.Errorf("play service: ent client missing")
+		}
+		tx, err := s.entClient.Tx(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("begin quiz redeem code tx: %w", err)
+		}
+		defer func() { _ = tx.Rollback() }()
+		txCtx := dbent.NewTxContext(ctx, tx)
+		if err := s.repo.InsertQuizAttempt(txCtx, userID, date, score, total, 0, answerDetail); err != nil {
+			if errors.Is(err, ErrPlayQuizAlreadyDone) {
+				return nil, ErrPlayQuizAlreadyDone
+			}
+			return nil, err
+		}
+		redeemCode, err = s.issueRedeemCodeRewardInTx(
+			txCtx,
+			userID,
+			CouponRewardActivityQuiz,
+			idempotencyKey,
+			dateKey,
+			now,
+		)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, fmt.Errorf("commit quiz redeem code tx: %w", err)
+		}
+		reward = 0
 	case PlayRewardTypeBalance:
 		if err := s.grantBalance(ctx, userID, reward, PlayRewardSourceQuiz, idempotencyKey, map[string]any{
 			"attempt_date": dateKey,
@@ -731,6 +798,7 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 		RewardAmount:      reward,
 		RewardType:        rewardType,
 		Coupon:            playCouponRewardSummary(couponIssue),
+		RedeemCode:        playRedeemCodeRewardSummary(redeemCode),
 		CouponPoolVersion: couponPoolVersion(couponIssue),
 		ServerDate:        dateKey,
 	}, nil

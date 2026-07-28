@@ -447,6 +447,7 @@ const couponTabs = computed(() => [
   { value: 'issue' as const, label: t('coupon.admin.tabs.issue') },
   { value: 'blindbox' as const, label: t('coupon.admin.tabs.blindbox') },
   { value: 'quiz' as const, label: t('coupon.admin.tabs.quiz') },
+  { value: 'checkin' as const, label: t('coupon.admin.tabs.checkin') },
 ])
 
 const filters = reactive({

@@ -39,6 +39,8 @@ type GenerateRedeemCodesRequest struct {
 	Value         float64    `json:"value"`
 	GroupID       *int64     `json:"group_id"`      // 订阅类型必填
 	ValidityDays  int        `json:"validity_days"` // 订阅类型使用，正数增加/负数退款扣减
+	BatchName     string     `json:"batch_name" binding:"omitempty,max=120"`
+	BatchTag      string     `json:"batch_tag" binding:"omitempty,max=80"`
 	ExpiresAt     *time.Time `json:"expires_at"`
 	ExpiresInDays *int       `json:"expires_in_days" binding:"omitempty,min=1,max=3650"`
 }
@@ -149,6 +151,8 @@ func (h *RedeemHandler) Generate(c *gin.Context) {
 			Value:        req.Value,
 			GroupID:      req.GroupID,
 			ValidityDays: req.ValidityDays,
+			BatchName:    strings.TrimSpace(req.BatchName),
+			BatchTag:     strings.TrimSpace(req.BatchTag),
 			ExpiresAt:    expiresAt,
 		})
 		if execErr != nil {

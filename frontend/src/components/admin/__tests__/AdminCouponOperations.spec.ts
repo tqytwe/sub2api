@@ -341,8 +341,8 @@ describe('AdminCouponOperations', () => {
         activity: 'blindbox',
         version: 'blindbox-july',
         status: 'published',
-        coupon_weight_bp: 6000,
-        balance_weight_bp: 4000,
+        coupon_weight_bp: 7000,
+        balance_weight_bp: 3000,
         fallback_template_id: 3,
         entries: [
           {
@@ -397,6 +397,8 @@ describe('AdminCouponOperations', () => {
     await wrapper.get('#coupon-pool-form').trigger('submit')
     await flushPromises()
     expect(createPool).toHaveBeenCalledWith(expect.objectContaining({
+      coupon_weight_bp: 7000,
+      balance_weight_bp: 3000,
       fallback_template_id: 3,
       entries: expect.arrayContaining([
         expect.objectContaining({ template_id: 4, weight_bp: 10000 }),

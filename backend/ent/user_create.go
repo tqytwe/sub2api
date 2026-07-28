@@ -440,6 +440,21 @@ func (_c *UserCreate) AddRedeemCodes(v ...*RedeemCode) *UserCreate {
 	return _c.AddRedeemCodeIDs(ids...)
 }
 
+// AddIssuedRedeemCodeIDs adds the "issued_redeem_codes" edge to the RedeemCode entity by IDs.
+func (_c *UserCreate) AddIssuedRedeemCodeIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddIssuedRedeemCodeIDs(ids...)
+	return _c
+}
+
+// AddIssuedRedeemCodes adds the "issued_redeem_codes" edges to the RedeemCode entity.
+func (_c *UserCreate) AddIssuedRedeemCodes(v ...*RedeemCode) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddIssuedRedeemCodeIDs(ids...)
+}
+
 // AddSubscriptionIDs adds the "subscriptions" edge to the UserSubscription entity by IDs.
 func (_c *UserCreate) AddSubscriptionIDs(ids ...int64) *UserCreate {
 	_c.mutation.AddSubscriptionIDs(ids...)
@@ -988,6 +1003,22 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 			Inverse: false,
 			Table:   user.RedeemCodesTable,
 			Columns: []string{user.RedeemCodesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(redeemcode.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IssuedRedeemCodesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   user.IssuedRedeemCodesTable,
+			Columns: []string{user.IssuedRedeemCodesColumn},
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(redeemcode.FieldID, field.TypeInt64),

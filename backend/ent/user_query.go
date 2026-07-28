@@ -39,6 +39,7 @@ type UserQuery struct {
 	predicates                []predicate.User
 	withAPIKeys               *APIKeyQuery
 	withRedeemCodes           *RedeemCodeQuery
+	withIssuedRedeemCodes     *RedeemCodeQuery
 	withSubscriptions         *UserSubscriptionQuery
 	withAssignedSubscriptions *UserSubscriptionQuery
 	withAnnouncementReads     *AnnouncementReadQuery
@@ -125,6 +126,28 @@ func (_q *UserQuery) QueryRedeemCodes() *RedeemCodeQuery {
 			sqlgraph.From(user.Table, user.FieldID, selector),
 			sqlgraph.To(redeemcode.Table, redeemcode.FieldID),
 			sqlgraph.Edge(sqlgraph.O2M, false, user.RedeemCodesTable, user.RedeemCodesColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIssuedRedeemCodes chains the current query on the "issued_redeem_codes" edge.
+func (_q *UserQuery) QueryIssuedRedeemCodes() *RedeemCodeQuery {
+	query := (&RedeemCodeClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(redeemcode.Table, redeemcode.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, user.IssuedRedeemCodesTable, user.IssuedRedeemCodesColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -590,6 +613,7 @@ func (_q *UserQuery) Clone() *UserQuery {
 		predicates:                append([]predicate.User{}, _q.predicates...),
 		withAPIKeys:               _q.withAPIKeys.Clone(),
 		withRedeemCodes:           _q.withRedeemCodes.Clone(),
+		withIssuedRedeemCodes:     _q.withIssuedRedeemCodes.Clone(),
 		withSubscriptions:         _q.withSubscriptions.Clone(),
 		withAssignedSubscriptions: _q.withAssignedSubscriptions.Clone(),
 		withAnnouncementReads:     _q.withAnnouncementReads.Clone(),
@@ -627,6 +651,17 @@ func (_q *UserQuery) WithRedeemCodes(opts ...func(*RedeemCodeQuery)) *UserQuery 
 		opt(query)
 	}
 	_q.withRedeemCodes = query
+	return _q
+}
+
+// WithIssuedRedeemCodes tells the query-builder to eager-load the nodes that are connected to
+// the "issued_redeem_codes" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithIssuedRedeemCodes(opts ...func(*RedeemCodeQuery)) *UserQuery {
+	query := (&RedeemCodeClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIssuedRedeemCodes = query
 	return _q
 }
 
@@ -840,9 +875,10 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [14]bool{
+		loadedTypes = [15]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
+			_q.withIssuedRedeemCodes != nil,
 			_q.withSubscriptions != nil,
 			_q.withAssignedSubscriptions != nil,
 			_q.withAnnouncementReads != nil,
@@ -889,6 +925,13 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadRedeemCodes(ctx, query, nodes,
 			func(n *User) { n.Edges.RedeemCodes = []*RedeemCode{} },
 			func(n *User, e *RedeemCode) { n.Edges.RedeemCodes = append(n.Edges.RedeemCodes, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIssuedRedeemCodes; query != nil {
+		if err := _q.loadIssuedRedeemCodes(ctx, query, nodes,
+			func(n *User) { n.Edges.IssuedRedeemCodes = []*RedeemCode{} },
+			func(n *User, e *RedeemCode) { n.Edges.IssuedRedeemCodes = append(n.Edges.IssuedRedeemCodes, e) }); err != nil {
 			return nil, err
 		}
 	}
@@ -1041,6 +1084,39 @@ func (_q *UserQuery) loadRedeemCodes(ctx context.Context, query *RedeemCodeQuery
 		node, ok := nodeids[*fk]
 		if !ok {
 			return fmt.Errorf(`unexpected referenced foreign-key "used_by" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
+func (_q *UserQuery) loadIssuedRedeemCodes(ctx context.Context, query *RedeemCodeQuery, nodes []*User, init func(*User), assign func(*User, *RedeemCode)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(redeemcode.FieldIssuedTo)
+	}
+	query.Where(predicate.RedeemCode(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.IssuedRedeemCodesColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.IssuedTo
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "issued_to" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "issued_to" returned %v for node %v`, *fk, n.ID)
 		}
 		assign(node, n)
 	}

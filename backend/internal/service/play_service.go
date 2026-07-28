@@ -7,7 +7,6 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
-	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
 )
 
@@ -21,6 +20,7 @@ type PlayService struct {
 	balanceLedger      *BalanceLedgerService
 	mobilePush         *MobilePushService
 	couponRewardIssuer CouponRewardIssuer
+	redeemRewardIssuer RedeemCodeRewardIssuer
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
 	now                func() time.Time
@@ -33,12 +33,17 @@ func (s *PlayService) SetMobilePushService(push *MobilePushService) {
 }
 
 // SetCouponRewardIssuer connects the optional coupon domain to game reward
-// flows. The game service remains responsible for choosing its fixed outer
-// reward branch; the issuer only selects and grants a coupon within that
-// branch's existing transaction.
+// flows. The game service chooses the configured outer reward branch; the
+// issuer only selects and grants a coupon within that branch's transaction.
 func (s *PlayService) SetCouponRewardIssuer(issuer CouponRewardIssuer) {
 	if s != nil {
 		s.couponRewardIssuer = issuer
+	}
+}
+
+func (s *PlayService) SetRedeemCodeRewardIssuer(issuer RedeemCodeRewardIssuer) {
+	if s != nil {
+		s.redeemRewardIssuer = issuer
 	}
 }
 
@@ -89,13 +94,38 @@ func (s *PlayService) serverDate(now time.Time) time.Time {
 func (s *PlayService) GetCheckinStatus(ctx context.Context, userID int64) (*PlayCheckinStatus, error) {
 	rt := s.GetRuntime(ctx)
 	status := &PlayCheckinStatus{
-		Enabled:      rt.CheckinEnabled,
-		RewardAmount: rt.CheckinReward,
+		Enabled:            rt.CheckinEnabled,
+		Eligible:           true,
+		RewardAmount:       rt.CheckinReward,
+		CouponPoolReady:    true,
+		CouponWeightBP:     8000,
+		RedeemCodeWeightBP: 2000,
+		BalanceWeightBP:    0,
 	}
 	now := s.serverNow()
 	status.ServerDate = s.serverDate(now).Format("2006-01-02")
 	if !rt.CheckinEnabled || userID <= 0 {
 		return status, nil
+	}
+	eligible, reason, err := s.checkinEligibility(ctx, userID, now)
+	if err != nil {
+		return nil, err
+	}
+	status.Eligible = eligible
+	status.IneligibleReason = reason
+	ready, err := s.couponRewardPoolReady(ctx, CouponRewardActivityCheckin)
+	if err != nil {
+		return nil, err
+	}
+	status.CouponPoolReady = ready
+	if ready {
+		couponWeightBP, redeemCodeWeightBP, balanceWeightBP, err := s.couponRewardSplit(ctx, CouponRewardActivityCheckin)
+		if err != nil {
+			return nil, err
+		}
+		status.CouponWeightBP = couponWeightBP
+		status.RedeemCodeWeightBP = redeemCodeWeightBP
+		status.BalanceWeightBP = balanceWeightBP
 	}
 	done, err := s.repo.HasCheckin(ctx, userID, s.serverDate(now))
 	if err != nil {
@@ -113,8 +143,15 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 	if !rt.CheckinEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	if rt.CheckinReward <= 0 {
-		return nil, infraerrors.BadRequest("PLAY_CHECKIN_REWARD_ZERO", "check-in reward is not configured")
+	eligible, _, err := s.checkinEligibility(ctx, userID, s.serverNow())
+	if err != nil {
+		return nil, err
+	}
+	if !eligible {
+		return nil, ErrPlayCheckinIneligible
+	}
+	if err := s.requireCouponRewardPool(ctx, CouponRewardActivityCheckin); err != nil {
+		return nil, err
 	}
 
 	now := s.serverNow()
@@ -130,35 +167,104 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 	if err != nil {
 		return nil, err
 	}
+	rewardType, err := s.drawCouponRewardType(ctx, CouponRewardActivityCheckin)
+	if err != nil {
+		return nil, err
+	}
 	reward := rt.CheckinReward
+	var balanceEntry *BalanceRewardPoolEntry
+	if rewardType == PlayRewardTypeBalance {
+		balanceEntry, err = s.drawBalanceRewardEntry(ctx, CouponRewardActivityCheckin)
+		if err != nil {
+			return nil, err
+		}
+		reward = balanceEntry.Amount
+	}
 	if boost.Active && boost.CheckinMultiplier > 1 {
 		reward *= boost.CheckinMultiplier
 	}
 	milestoneBonus := s.resolveStreakMilestoneBonus(streak, rt.StreakMilestones)
 	totalReward := reward + milestoneBonus
+	if rewardType != PlayRewardTypeBalance {
+		totalReward = 0
+	}
 
-	if err := s.grantBalance(ctx, userID, totalReward, PlayRewardSourceCheckin, idempotencyKey, map[string]any{
-		"checkin_date":    dateKey,
-		"streak_count":    streak,
-		"milestone_bonus": milestoneBonus,
-		"boost_active":    boost.Active,
-	}, func(txCtx context.Context) error {
-		return s.repo.InsertCheckin(txCtx, userID, date, totalReward, streak)
+	var couponIssue *CouponRewardIssueResult
+	var redeemCode *RedeemCode
+	if err := s.withPlayTx(ctx, func(txCtx context.Context) error {
+		if rewardType == PlayRewardTypeCoupon {
+			var issueErr error
+			couponIssue, issueErr = s.issueCouponRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now)
+			if issueErr != nil {
+				return issueErr
+			}
+		} else if rewardType == PlayRewardTypeRedeem {
+			var issueErr error
+			redeemCode, issueErr = s.issueRedeemCodeRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now)
+			if issueErr != nil {
+				return issueErr
+			}
+		}
+		if err := s.repo.InsertCheckin(txCtx, userID, date, totalReward, streak); err != nil {
+			return err
+		}
+		if rewardType == PlayRewardTypeBalance {
+			return s.grantBalanceLedgerOnlyInTx(txCtx, userID, totalReward, PlayRewardSourceCheckin, idempotencyKey, map[string]any{
+				"checkin_date":    dateKey,
+				"streak_count":    streak,
+				"milestone_bonus": milestoneBonus,
+				"boost_active":    boost.Active,
+				"reward_type":     string(rewardType),
+				"balance_entry":   balanceEntry,
+			})
+		}
+		return nil
 	}); err != nil {
-		if errors.Is(err, ErrPlayCheckinAlreadyDone) {
+		if errors.Is(err, ErrPlayCheckinAlreadyDone) || errors.Is(err, ErrPlayRewardDuplicate) {
 			return nil, ErrPlayCheckinAlreadyDone
 		}
 		return nil, err
 	}
 
+	/*
+		if err := s.grantBalance(ctx, userID, totalReward, PlayRewardSourceCheckin, idempotencyKey, map[string]any{
+			"checkin_date":    dateKey,
+			"streak_count":    streak,
+			"milestone_bonus": milestoneBonus,
+			"boost_active":    boost.Active,
+		}, func(txCtx context.Context) error {
+			return s.repo.InsertCheckin(txCtx, userID, date, totalReward, streak)
+		}); err != nil {
+			if errors.Is(err, ErrPlayCheckinAlreadyDone) {
+				return nil, ErrPlayCheckinAlreadyDone
+			}
+			return nil, err
+		}
+	*/
+
 	_ = s.MarkQuestCompleted(ctx, userID, PlayQuestKeyCheckin)
 	return &PlayCheckinResult{
-		RewardAmount:   totalReward,
-		BalanceAdded:   totalReward,
-		ServerDate:     dateKey,
-		StreakCount:    streak,
-		MilestoneBonus: milestoneBonus,
+		RewardAmount:      totalReward,
+		BalanceAdded:      totalReward,
+		RewardType:        rewardType,
+		Coupon:            playCouponRewardSummary(couponIssue),
+		RedeemCode:        playRedeemCodeRewardSummary(redeemCode),
+		CouponPoolVersion: couponPoolVersion(couponIssue),
+		ServerDate:        dateKey,
+		StreakCount:       streak,
+		MilestoneBonus:    milestoneBonus,
 	}, nil
+}
+
+func (s *PlayService) checkinEligibility(ctx context.Context, userID int64, now time.Time) (bool, string, error) {
+	if userID <= 0 {
+		return false, "not_logged_in", nil
+	}
+	repo, ok := s.repo.(PlayCheckinEligibilityRepository)
+	if !ok || repo == nil {
+		return true, "", nil
+	}
+	return repo.GetCheckinEligibility(ctx, userID, now.AddDate(0, 0, -7), now)
 }
 
 func (s *PlayService) grantBalance(
@@ -187,6 +293,55 @@ func (s *PlayService) grantBalance(
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit play reward tx: %w", err)
+	}
+	return nil
+}
+
+func (s *PlayService) withPlayTx(ctx context.Context, fn func(txCtx context.Context) error) error {
+	if s.entClient == nil {
+		return fmt.Errorf("play service: ent client missing")
+	}
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin play tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	if err := fn(txCtx); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit play tx: %w", err)
+	}
+	return nil
+}
+
+func (s *PlayService) grantBalanceLedgerOnlyInTx(
+	txCtx context.Context,
+	userID int64,
+	amount float64,
+	source string,
+	idempotencyKey string,
+	detail map[string]any,
+) error {
+	entry := PlayRewardLedgerEntry{
+		UserID:         userID,
+		Source:         source,
+		Amount:         amount,
+		IdempotencyKey: idempotencyKey,
+		Detail:         detail,
+	}
+	if err := s.repo.InsertRewardLedger(txCtx, entry); err != nil {
+		return err
+	}
+	if s.balanceLedger != nil {
+		if err := s.applyPlayBalanceLedgerDelta(txCtx, userID, amount, source, idempotencyKey, detail); err != nil {
+			return err
+		}
+		return nil
+	}
+	if amount != 0 {
+		return s.repo.UpdatePlayBalance(txCtx, userID, amount)
 	}
 	return nil
 }

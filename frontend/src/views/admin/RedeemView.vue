@@ -149,11 +149,46 @@
                   ? 'badge-success'
                   : value === 'used'
                     ? 'badge-gray'
-                    : 'badge-danger'
+                    : value === 'issued'
+                      ? 'badge-warning'
+                      : 'badge-danger'
               ]"
             >
               {{ t('admin.redeem.status.' + value) }}
             </span>
+          </template>
+
+          <template #cell-batch="{ row }">
+            <div class="text-sm text-gray-500 dark:text-dark-400">
+              <div>{{ row.batch_name || '-' }}</div>
+              <div v-if="row.batch_tag" class="text-xs text-gray-400 dark:text-dark-500">
+                {{ row.batch_tag }}
+              </div>
+            </div>
+          </template>
+
+          <template #cell-issued_to="{ row }">
+            <span class="text-sm text-gray-500 dark:text-dark-400">
+              {{
+                row.issued_user?.email ||
+                (row.issued_to ? t('admin.redeem.userPrefix', { id: row.issued_to }) : '-')
+              }}
+            </span>
+          </template>
+
+          <template #cell-issued_at="{ value }">
+            <span class="text-sm text-gray-500 dark:text-dark-400">{{
+              value ? formatDateTime(value) : '-'
+            }}</span>
+          </template>
+
+          <template #cell-issue_source="{ value, row }">
+            <div class="text-sm text-gray-500 dark:text-dark-400">
+              <div>{{ formatIssueSource(value) }}</div>
+              <div v-if="row.reward_pool_version" class="text-xs text-gray-400 dark:text-dark-500">
+                {{ t('admin.redeem.rewardPoolVersionShort', { version: row.reward_pool_version }) }}
+              </div>
+            </div>
           </template>
 
           <template #cell-used_by="{ value, row }">
@@ -310,6 +345,28 @@
               <p class="text-sm text-blue-700 dark:text-blue-300">
                 {{ t('admin.redeem.invitationHint') }}
               </p>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label class="input-label">{{ t('admin.redeem.batchName') }}</label>
+                <input
+                  v-model.trim="generateForm.batch_name"
+                  type="text"
+                  maxlength="120"
+                  class="input"
+                  :placeholder="t('admin.redeem.batchNamePlaceholder')"
+                />
+              </div>
+              <div>
+                <label class="input-label">{{ t('admin.redeem.batchTag') }}</label>
+                <input
+                  v-model.trim="generateForm.batch_tag"
+                  type="text"
+                  maxlength="80"
+                  class="input"
+                  :placeholder="t('admin.redeem.batchTagPlaceholder')"
+                />
+              </div>
             </div>
             <!-- 订阅类型：显示分组选择和有效天数 -->
             <template v-if="generateForm.type === 'subscription'">
@@ -725,6 +782,10 @@ const columns = computed<Column[]>(() => [
   { key: 'type', label: t('admin.redeem.columns.type'), sortable: true },
   { key: 'value', label: t('admin.redeem.columns.value'), sortable: true },
   { key: 'status', label: t('admin.redeem.columns.status'), sortable: true },
+  { key: 'batch', label: t('admin.redeem.columns.batch') },
+  { key: 'issued_to', label: t('admin.redeem.columns.issuedTo') },
+  { key: 'issued_at', label: t('admin.redeem.columns.issuedAt'), sortable: true },
+  { key: 'issue_source', label: t('admin.redeem.columns.issueSource') },
   { key: 'used_by', label: t('admin.redeem.columns.usedBy') },
   { key: 'used_at', label: t('admin.redeem.columns.usedAt'), sortable: true },
   { key: 'expires_at', label: t('admin.redeem.columns.expiresAt'), sortable: true },
@@ -749,10 +810,18 @@ const filterTypeOptions = computed(() => [
 const filterStatusOptions = computed(() => [
   { value: '', label: t('admin.redeem.allStatus') },
   { value: 'unused', label: t('admin.redeem.unused') },
+  { value: 'issued', label: t('admin.redeem.status.issued') },
   { value: 'used', label: t('admin.redeem.used') },
   { value: 'expired', label: t('admin.redeem.status.expired') },
   { value: 'disabled', label: t('admin.redeem.status.disabled') }
 ])
+
+const formatIssueSource = (source?: string | null) => {
+  if (!source) return '-'
+  const key = `admin.redeem.issueSources.${source}`
+  const label = t(key)
+  return label === key ? source : label
+}
 
 const batchStatusOptions = computed(() => [
   { value: 'unused', label: t('admin.redeem.status.unused') },
@@ -833,6 +902,8 @@ const generateForm = reactive({
   count: 1,
   group_id: null as number | null,
   validity_days: 30,
+  batch_name: '',
+  batch_tag: '',
   expiry_option: 'never' as RedeemCodeExpiryOption,
   custom_expiry_days: 7
 })
@@ -851,7 +922,13 @@ watch(
 
 const buildRedeemQueryFilters = () => ({
   type: (filters.type || undefined) as RedeemCodeType | undefined,
-  status: (filters.status || undefined) as 'used' | 'expired' | 'unused' | 'disabled' | undefined,
+  status: (filters.status || undefined) as
+    | 'used'
+    | 'expired'
+    | 'unused'
+    | 'disabled'
+    | 'issued'
+    | undefined,
   search: searchQuery.value || undefined,
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
@@ -1038,7 +1115,9 @@ const handleGenerateCodes = async () => {
       generateForm.value,
       generateForm.type === 'subscription' ? generateForm.group_id : undefined,
       generateForm.type === 'subscription' ? generateForm.validity_days : undefined,
-      expiresInDays
+      expiresInDays,
+      generateForm.batch_name,
+      generateForm.batch_tag
     )
     showGenerateDialog.value = false
     generatedCodes.value = result
@@ -1046,6 +1125,8 @@ const handleGenerateCodes = async () => {
     // 重置表单
     generateForm.group_id = null
     generateForm.validity_days = 30
+    generateForm.batch_name = ''
+    generateForm.batch_tag = ''
     generateForm.expiry_option = 'never'
     generateForm.custom_expiry_days = 7
     loadCodes()

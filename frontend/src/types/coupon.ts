@@ -5,8 +5,8 @@ export type CouponScope = 'balance' | 'subscription'
 export type CouponValidityMode = 'relative_days' | 'end_of_day' | 'end_of_month' | 'fixed'
 export type CouponTemplateStatus = 'draft' | 'active' | 'paused' | 'archived'
 export type UserCouponStatus = 'available' | 'locked' | 'used' | 'expired' | 'voided'
-export type CouponIssueSource = 'blindbox' | 'quiz' | 'admin_batch' | 'manual' | 'compensation'
-export type CouponRewardActivity = 'blindbox' | 'quiz'
+export type CouponIssueSource = 'blindbox' | 'quiz' | 'checkin' | 'admin_batch' | 'manual' | 'compensation'
+export type CouponRewardActivity = 'blindbox' | 'quiz' | 'checkin'
 export type CouponRewardPoolStatus = 'draft' | 'published' | 'retired'
 
 export interface CouponTermsSnapshot {
@@ -153,7 +153,9 @@ export interface CouponRewardPoolVersion {
   version: string
   status: CouponRewardPoolStatus
   coupon_weight_bp: number
+  redeem_code_weight_bp?: number
   balance_weight_bp: number
+  reward_config?: CouponRewardPoolConfig
   fallback_template_id: number
   entries: CouponRewardPoolEntry[]
   published_at?: string | null
@@ -194,7 +196,31 @@ export interface CouponRewardPoolInput {
   version: string
   status: CouponRewardPoolStatus
   coupon_weight_bp: number
+  redeem_code_weight_bp?: number
   balance_weight_bp: number
+  reward_config?: CouponRewardPoolConfig
   fallback_template_id: number
   entries: CouponRewardPoolEntry[]
+}
+
+export interface CouponRewardPoolConfig {
+  balance_entries?: BalanceRewardPoolEntry[]
+  redeem_entries?: RedeemRewardPoolEntry[]
+}
+
+export interface BalanceRewardPoolEntry {
+  name?: string
+  amount: number
+  weight_bp: number
+  enabled: boolean
+  per_user_day_limit?: number
+}
+
+export interface RedeemRewardPoolEntry {
+  name?: string
+  batch_name?: string
+  code_type?: string
+  weight_bp: number
+  enabled: boolean
+  delivery_mode?: 'issue_code' | 'auto_redeem' | string
 }

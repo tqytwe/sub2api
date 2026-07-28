@@ -23,6 +23,7 @@ const (
 	PlayRewardTypeNone    PlayRewardType = "none"
 	PlayRewardTypeBalance PlayRewardType = "balance"
 	PlayRewardTypeCoupon  PlayRewardType = "coupon"
+	PlayRewardTypeRedeem  PlayRewardType = "redeem_code"
 )
 
 // PlayCouponRewardSummary is the user-facing portion of a coupon issuance.
@@ -39,6 +40,18 @@ type PlayCouponRewardSummary struct {
 	MinimumOrderAmount float64           `json:"minimum_order_amount"`
 	ValidFrom          time.Time         `json:"valid_from"`
 	ExpiresAt          time.Time         `json:"expires_at"`
+}
+
+type PlayRedeemCodeRewardSummary struct {
+	ID                int64      `json:"id"`
+	Code              string     `json:"code"`
+	Type              string     `json:"type"`
+	Value             float64    `json:"value"`
+	Status            string     `json:"status"`
+	BatchName         string     `json:"batch_name,omitempty"`
+	IssuedAt          *time.Time `json:"issued_at,omitempty"`
+	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
+	RewardPoolVersion string     `json:"reward_pool_version,omitempty"`
 }
 
 type PlayStreakMilestone struct {
@@ -118,8 +131,14 @@ type PlayVIPBlindboxPool struct {
 
 type PlayCheckinStatus struct {
 	Enabled                bool
+	Eligible               bool
+	IneligibleReason       string
 	CheckedInToday         bool
 	RewardAmount           float64
+	CouponPoolReady        bool
+	CouponWeightBP         int
+	RedeemCodeWeightBP     int
+	BalanceWeightBP        int
 	ServerDate             string
 	StreakCount            int
 	NextMilestoneDays      int
@@ -131,17 +150,24 @@ type PlayCheckinStatus struct {
 }
 
 type PlayCheckinResult struct {
-	RewardAmount   float64
-	BalanceAdded   float64
-	ServerDate     string
-	StreakCount    int
-	MilestoneBonus float64
+	RewardAmount      float64
+	BalanceAdded      float64
+	RewardType        PlayRewardType
+	Coupon            *PlayCouponRewardSummary
+	RedeemCode        *PlayRedeemCodeRewardSummary
+	CouponPoolVersion string
+	ServerDate        string
+	StreakCount       int
+	MilestoneBonus    float64
 }
 
 type PlayBlindboxStatus struct {
 	Enabled             bool
 	CouponPoolReady     bool
 	CouponPrizes        []PlayCouponPrizePreview
+	CouponWeightBP      int
+	RedeemCodeWeightBP  int
+	BalanceWeightBP     int
 	CostAmount          float64
 	BlindboxPool        PlayBlindboxPool
 	CurrentPool         PlayBlindboxPool
@@ -173,6 +199,7 @@ type PlayBlindboxOpenResult struct {
 	NetAmount         float64
 	RewardType        PlayRewardType
 	Coupon            *PlayCouponRewardSummary
+	RedeemCode        *PlayRedeemCodeRewardSummary
 	CouponPoolVersion string
 	OpensToday        int
 	ServerDate        string
@@ -208,6 +235,7 @@ type PlayQuizToday struct {
 	PreviousReward            float64
 	PreviousRewardType        PlayRewardType
 	PreviousCoupon            *PlayCouponRewardSummary
+	PreviousRedeemCode        *PlayRedeemCodeRewardSummary
 	PreviousCouponPoolVersion string
 	RewardPerCorrect          float64
 	ServerDate                string
@@ -224,6 +252,7 @@ type PlayQuizSubmitResult struct {
 	RewardAmount      float64
 	RewardType        PlayRewardType
 	Coupon            *PlayCouponRewardSummary
+	RedeemCode        *PlayRedeemCodeRewardSummary
 	CouponPoolVersion string
 	ServerDate        string
 }
@@ -601,6 +630,10 @@ type PlayRepository interface {
 	ListMobileFeedbackMessages(ctx context.Context, userID, feedbackID int64) ([]MobileFeedbackMessage, error)
 	CreateUserMobileFeedbackMessage(ctx context.Context, userID, feedbackID int64, content string) (*MobileFeedbackMessage, error)
 	CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
+}
+
+type PlayCheckinEligibilityRepository interface {
+	GetCheckinEligibility(ctx context.Context, userID int64, since time.Time, now time.Time) (eligible bool, reason string, err error)
 }
 
 type PlayQuizQuestionDB struct {

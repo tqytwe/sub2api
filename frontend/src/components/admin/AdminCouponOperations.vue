@@ -23,7 +23,7 @@ import Pagination from '@/components/common/Pagination.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 
-export type CouponOperationsTab = 'templates' | 'issue' | 'blindbox' | 'quiz'
+export type CouponOperationsTab = 'templates' | 'issue' | 'blindbox' | 'quiz' | 'checkin'
 
 const props = defineProps<{
   activeTab: CouponOperationsTab
@@ -114,21 +114,32 @@ type EditablePool = CouponRewardPoolInput & { id?: number }
 const poolForm = ref<EditablePool>(emptyPool())
 
 function activeActivity(): CouponRewardActivity {
-  return props.activeTab === 'quiz' ? 'quiz' : 'blindbox'
+  if (props.activeTab === 'quiz') return 'quiz'
+  if (props.activeTab === 'checkin') return 'checkin'
+  return 'blindbox'
 }
 
 function emptyPool(): EditablePool {
-  const activity = props.activeTab === 'quiz' ? 'quiz' : 'blindbox'
+  const activity = activeActivity()
   return {
     activity,
     version: '',
     status: 'draft',
-    coupon_weight_bp: activity === 'quiz' ? 8000 : 6000,
-    balance_weight_bp: activity === 'quiz' ? 2000 : 4000,
+    coupon_weight_bp: activity === 'blindbox' ? 6000 : 8000,
+    redeem_code_weight_bp: activity === 'blindbox' ? 3000 : 2000,
+    balance_weight_bp: activity === 'blindbox' ? 1000 : 0,
+    reward_config: { redeem_entries: [], balance_entries: [] },
     fallback_template_id: 0,
     entries: [],
   }
 }
+
+const splitPresets = [
+  { key: 'couponOnly', coupon: 10_000, redeem: 0, balance: 0 },
+  { key: 'couponFirst', coupon: 8_000, redeem: 2_000, balance: 0 },
+  { key: 'redeemFirst', coupon: 3_000, redeem: 7_000, balance: 0 },
+  { key: 'lowBalance', coupon: 6_000, redeem: 3_000, balance: 1_000 },
+] as const
 
 const templateColumns = computed<Column[]>(() => [
   { key: 'name', label: t('coupon.admin.columns.template') },
@@ -161,9 +172,62 @@ const poolColumns = computed<Column[]>(() => [
   { key: 'actions', label: t('coupon.admin.columns.actions') },
 ])
 
-const outerSplit = computed(() => activeActivity() === 'quiz'
-  ? t('coupon.admin.quizSplit')
-  : t('coupon.admin.blindboxSplit'))
+const outerSplit = computed(() => t(`coupon.admin.${activeActivity()}Split`))
+
+const outerWeightTotal = computed(() => Number(poolForm.value.coupon_weight_bp || 0) + Number(poolForm.value.redeem_code_weight_bp || 0) + Number(poolForm.value.balance_weight_bp || 0))
+
+function formatBp(value: number): string {
+  return `${(Number(value || 0) / 100).toFixed(2).replace(/\.00$/, '')}%`
+}
+
+function poolSplitLabel(pool: Pick<CouponRewardPoolVersion, 'coupon_weight_bp' | 'redeem_code_weight_bp' | 'balance_weight_bp'>): string {
+  return t('coupon.admin.splitLabel3', {
+    coupon: formatBp(pool.coupon_weight_bp),
+    redeem: formatBp(pool.redeem_code_weight_bp || 0),
+    balance: formatBp(pool.balance_weight_bp),
+  })
+}
+
+function applySplitPreset(preset: typeof splitPresets[number]) {
+  poolForm.value.coupon_weight_bp = preset.coupon
+  poolForm.value.redeem_code_weight_bp = preset.redeem
+  poolForm.value.balance_weight_bp = preset.balance
+}
+
+function ensureRewardConfig() {
+  if (!poolForm.value.reward_config) poolForm.value.reward_config = { redeem_entries: [], balance_entries: [] }
+  if (!poolForm.value.reward_config.redeem_entries) poolForm.value.reward_config.redeem_entries = []
+  if (!poolForm.value.reward_config.balance_entries) poolForm.value.reward_config.balance_entries = []
+  return poolForm.value.reward_config
+}
+
+function addRedeemEntry() {
+  ensureRewardConfig().redeem_entries!.push({
+    name: '',
+    batch_name: '',
+    code_type: '',
+    weight_bp: 10_000,
+    enabled: true,
+    delivery_mode: 'issue_code',
+  })
+}
+
+function removeRedeemEntry(index: number) {
+  ensureRewardConfig().redeem_entries!.splice(index, 1)
+}
+
+function addBalanceEntry() {
+  ensureRewardConfig().balance_entries!.push({
+    name: '',
+    amount: 0.5,
+    weight_bp: 10_000,
+    enabled: true,
+  })
+}
+
+function removeBalanceEntry(index: number) {
+  ensureRewardConfig().balance_entries!.splice(index, 1)
+}
 
 function parseIDs(input: string): number[] {
   return Array.from(new Set(input.split(/[\s,，]+/).map((value) => Number(value)).filter((value) => Number.isInteger(value) && value > 0)))
@@ -594,7 +658,9 @@ function openEditPool(pool: CouponRewardPoolVersion) {
     version: pool.version,
     status: pool.status,
     coupon_weight_bp: pool.coupon_weight_bp,
+    redeem_code_weight_bp: pool.redeem_code_weight_bp || 0,
     balance_weight_bp: pool.balance_weight_bp,
+    reward_config: pool.reward_config || { redeem_entries: [], balance_entries: [] },
     fallback_template_id: pool.fallback_template_id,
     entries: (pool.entries || []).map((entry) => ({
       ...entry,
@@ -625,8 +691,10 @@ function copyPoolAsDraft(pool: CouponRewardPoolVersion) {
     activity: pool.activity,
     version: copyPoolVersion(pool),
     status: 'draft',
-    coupon_weight_bp: pool.activity === 'quiz' ? 8000 : 6000,
-    balance_weight_bp: pool.activity === 'quiz' ? 2000 : 4000,
+    coupon_weight_bp: pool.coupon_weight_bp,
+    redeem_code_weight_bp: pool.redeem_code_weight_bp || 0,
+    balance_weight_bp: pool.balance_weight_bp,
+    reward_config: pool.reward_config || { redeem_entries: [], balance_entries: [] },
     fallback_template_id: pool.fallback_template_id,
     entries: (pool.entries || []).map((entry, index) => ({
       template_id: entry.template_id,
@@ -701,15 +769,17 @@ const ordinaryCouponWeightTotal = computed(() => poolForm.value.entries
 async function savePool() {
   const form = poolForm.value
   normalizeFallbackEntryConstraints()
-  if (!form.version.trim() || !form.fallback_template_id || form.entries.length === 0 || ordinaryCouponWeightTotal.value !== 10_000) return
+  if (!form.version.trim() || !form.fallback_template_id || form.entries.length === 0 || ordinaryCouponWeightTotal.value !== 10_000 || outerWeightTotal.value !== 10_000) return
   saving.value = true
   try {
     const payload: CouponRewardPoolInput = {
       activity: activeActivity(),
       version: form.version.trim(),
       status: form.status,
-      coupon_weight_bp: activeActivity() === 'quiz' ? 8000 : 6000,
-      balance_weight_bp: activeActivity() === 'quiz' ? 2000 : 4000,
+      coupon_weight_bp: Number(form.coupon_weight_bp || 0),
+      redeem_code_weight_bp: Number(form.redeem_code_weight_bp || 0),
+      balance_weight_bp: Number(form.balance_weight_bp || 0),
+      reward_config: form.reward_config || { redeem_entries: [], balance_entries: [] },
       fallback_template_id: form.fallback_template_id,
       entries: form.entries.map((entry, index) => ({
         ...entry,
@@ -826,7 +896,7 @@ watch(
     <form class="grid gap-3 rounded-lg border border-gray-200 p-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto_auto] xl:items-end dark:border-dark-700" @submit.prevent="applyUserCouponFilters">
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterUserID') }}</span><input v-model.trim="userCouponFilters.user" data-test="coupon-user-filter" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterTemplate') }}</span><select v-model.number="userCouponFilters.template_id" data-test="coupon-template-filter" class="input" :disabled="selectableTemplatesLoading"><option :value="0">{{ t('coupon.admin.allTemplates') }}</option><option v-for="template in selectableTemplates" :key="template.id" :value="template.id">{{ template.name }}</option></select></label>
-      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterSource') }}</span><select v-model="userCouponFilters.source" data-test="coupon-source-filter" class="input"><option value="">{{ t('coupon.admin.allSources') }}</option><option value="blindbox">{{ t('coupon.admin.issueSource.blindbox') }}</option><option value="quiz">{{ t('coupon.admin.issueSource.quiz') }}</option><option value="admin_batch">{{ t('coupon.admin.issueSource.admin_batch') }}</option><option value="manual">{{ t('coupon.admin.issueSource.manual') }}</option><option value="compensation">{{ t('coupon.admin.issueSource.compensation') }}</option></select></label>
+      <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterSource') }}</span><select v-model="userCouponFilters.source" data-test="coupon-source-filter" class="input"><option value="">{{ t('coupon.admin.allSources') }}</option><option value="blindbox">{{ t('coupon.admin.issueSource.blindbox') }}</option><option value="quiz">{{ t('coupon.admin.issueSource.quiz') }}</option><option value="checkin">{{ t('coupon.admin.issueSource.checkin') }}</option><option value="admin_batch">{{ t('coupon.admin.issueSource.admin_batch') }}</option><option value="manual">{{ t('coupon.admin.issueSource.manual') }}</option><option value="compensation">{{ t('coupon.admin.issueSource.compensation') }}</option></select></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.filterStatus') }}</span><select v-model="userCouponFilters.status" data-test="coupon-status-filter" class="input"><option value="">{{ t('coupon.admin.allStatuses') }}</option><option value="available">{{ t('coupon.wallet.status.available') }}</option><option value="locked">{{ t('coupon.wallet.status.locked') }}</option><option value="used">{{ t('coupon.wallet.status.used') }}</option><option value="expired">{{ t('coupon.wallet.status.expired') }}</option><option value="voided">{{ t('coupon.wallet.status.voided') }}</option></select></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.issuedFrom') }}</span><input v-model="userCouponFilters.issued_from" data-test="coupon-issued-from-filter" type="datetime-local" class="input" /></label>
       <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.issuedTo') }}</span><input v-model="userCouponFilters.issued_to" data-test="coupon-issued-to-filter" type="datetime-local" class="input" /></label>
@@ -863,14 +933,14 @@ watch(
   <section v-else class="space-y-4">
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ activeTab === 'quiz' ? t('coupon.admin.quizPoolTitle') : t('coupon.admin.blindboxPoolTitle') }}</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t(`coupon.admin.${activeActivity()}PoolTitle`) }}</h2>
         <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ outerSplit }}</p>
       </div>
       <div class="flex gap-2"><button type="button" class="btn btn-secondary" :disabled="poolLoading" @click="loadPools"><Icon name="refresh" size="sm" /></button><button type="button" class="btn btn-primary" :disabled="selectableTemplatesLoading" @click="openCreatePool"><Icon name="plus" size="sm" class="mr-1" />{{ t('coupon.admin.newPool') }}</button></div>
     </div>
     <DataTable :columns="poolColumns" :data="pools" :loading="poolLoading">
       <template #cell-status="{ row }"><span class="badge" :class="statusClass(row.status)">{{ poolStatusLabel(row.status) }}</span></template>
-      <template #cell-split="{ row }"><span class="tabular-nums">{{ row.coupon_weight_bp / 100 }}% / {{ row.balance_weight_bp / 100 }}%</span></template>
+      <template #cell-split="{ row }"><span class="tabular-nums">{{ poolSplitLabel(row) }}</span></template>
       <template #cell-entries="{ row }"><span>{{ row.entries?.length || 0 }}</span></template>
       <template #cell-updated_at="{ row }">{{ formatDateTime(row.updated_at) }}</template>
       <template #cell-actions="{ row }"><div class="flex flex-wrap gap-1"><button v-if="row.status === 'draft'" type="button" class="btn btn-secondary btn-sm" data-test="edit-draft-pool" @click="openEditPool(row)">{{ t('common.edit') }}</button><button v-else type="button" class="btn btn-secondary btn-sm" data-test="copy-immutable-pool" @click="copyPoolAsDraft(row)"><Icon name="copy" size="sm" class="mr-1" />{{ t('coupon.admin.copyPool') }}</button><button v-if="row.status === 'draft'" type="button" class="btn btn-primary btn-sm" data-test="publish-draft-pool" :disabled="saving" @click="publishPool(row)">{{ t('coupon.admin.publish') }}</button><button v-if="row.status === 'draft'" type="button" class="btn btn-danger btn-sm" data-test="delete-draft-pool" :disabled="saving" @click="deletingPool = row">{{ t('coupon.admin.deletePool') }}</button></div></template>
@@ -903,6 +973,60 @@ watch(
     <form id="coupon-pool-form" class="space-y-4" @submit.prevent="savePool">
       <p class="rounded-lg border border-primary-200 bg-primary-50 px-3 py-2 text-sm text-primary-800 dark:border-primary-500/30 dark:bg-primary-500/10 dark:text-primary-200">{{ outerSplit }}</p>
       <div class="grid gap-4 md:grid-cols-2"><label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.poolVersion') }}</span><input v-model.trim="poolForm.version" class="input" required /></label><label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.fallbackTemplate') }}</span><select v-model.number="poolForm.fallback_template_id" data-test="pool-fallback-template" class="input" :disabled="selectableTemplatesLoading" required><option :value="0" disabled>{{ t('coupon.admin.selectTemplate') }}</option><option v-for="template in activeSelectableTemplates" :key="template.id" :value="template.id">{{ template.name }}</option></select><span class="text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.fallbackHint') }}</span></label></div>
+      <section class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('coupon.admin.splitConfigTitle') }}</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.splitConfigHint') }}</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button v-for="preset in splitPresets" :key="preset.key" type="button" class="btn btn-secondary btn-sm" @click="applySplitPreset(preset)">{{ t(`coupon.admin.splitPresets.${preset.key}`) }}</button>
+          </div>
+        </div>
+        <div class="mt-3 grid gap-3 md:grid-cols-3">
+          <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.couponWeight') }}</span><input v-model.number="poolForm.coupon_weight_bp" data-test="pool-coupon-weight" type="number" min="0" max="10000" step="100" class="input" /><span class="text-xs text-gray-500 dark:text-gray-400">{{ formatBp(poolForm.coupon_weight_bp) }}</span></label>
+          <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.redeemCodeWeight') }}</span><input v-model.number="poolForm.redeem_code_weight_bp" data-test="pool-redeem-weight" type="number" min="0" max="10000" step="100" class="input" /><span class="text-xs text-gray-500 dark:text-gray-400">{{ formatBp(poolForm.redeem_code_weight_bp || 0) }}</span></label>
+          <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.balanceWeight') }}</span><input v-model.number="poolForm.balance_weight_bp" data-test="pool-balance-weight" type="number" min="0" max="10000" step="100" class="input" /><span class="text-xs text-gray-500 dark:text-gray-400">{{ formatBp(poolForm.balance_weight_bp) }}</span></label>
+        </div>
+        <p class="mt-2 text-sm" :class="outerWeightTotal === 10000 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'">{{ t('coupon.admin.splitTotal', { total: formatBp(outerWeightTotal) }) }}</p>
+      </section>
+      <section class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('coupon.admin.redeemPrizeTitle') }}</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.redeemPrizeHint') }}</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" @click="addRedeemEntry"><Icon name="plus" size="sm" class="mr-1" />{{ t('coupon.admin.addRedeemPrize') }}</button>
+        </div>
+        <div class="mt-3 space-y-2">
+          <div v-for="(entry, index) in poolForm.reward_config?.redeem_entries || []" :key="`redeem-${index}`" class="grid gap-2 rounded-lg border border-gray-100 p-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.8fr)_120px_90px_auto] md:items-end dark:border-dark-700">
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.prizeName') }}</span><input v-model.trim="entry.name" class="input" /></label>
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.redeemBatchName') }}</span><input v-model.trim="entry.batch_name" class="input" :placeholder="t('coupon.admin.redeemBatchPlaceholder')" /></label>
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.redeemCodeType') }}</span><input v-model.trim="entry.code_type" class="input" placeholder="balance / subscription" /></label>
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.weight') }}</span><input v-model.number="entry.weight_bp" type="number" min="1" max="10000" class="input" /></label>
+            <label class="inline-flex items-center gap-2 pb-2 text-sm"><input v-model="entry.enabled" type="checkbox" />{{ t('coupon.admin.enabled') }}</label>
+            <button type="button" class="btn btn-danger btn-sm" @click="removeRedeemEntry(index)">{{ t('coupon.admin.remove') }}</button>
+          </div>
+        </div>
+      </section>
+      <section class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('coupon.admin.balancePrizeConfigTitle') }}</h3>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('coupon.admin.balancePrizeConfigHint') }}</p>
+          </div>
+          <button type="button" class="btn btn-secondary btn-sm" @click="addBalanceEntry"><Icon name="plus" size="sm" class="mr-1" />{{ t('coupon.admin.addBalancePrize') }}</button>
+        </div>
+        <div class="mt-3 space-y-2">
+          <div v-for="(entry, index) in poolForm.reward_config?.balance_entries || []" :key="`balance-${index}`" class="grid gap-2 rounded-lg border border-gray-100 p-3 md:grid-cols-[minmax(0,1fr)_120px_120px_90px_auto] md:items-end dark:border-dark-700">
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.prizeName') }}</span><input v-model.trim="entry.name" class="input" /></label>
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.rewardAmount') }}</span><input v-model.number="entry.amount" type="number" min="0.01" step="0.01" class="input" /></label>
+            <label class="grid gap-1 text-sm"><span class="input-label">{{ t('coupon.admin.weight') }}</span><input v-model.number="entry.weight_bp" type="number" min="1" max="10000" class="input" /></label>
+            <label class="inline-flex items-center gap-2 pb-2 text-sm"><input v-model="entry.enabled" type="checkbox" />{{ t('coupon.admin.enabled') }}</label>
+            <button type="button" class="btn btn-danger btn-sm" @click="removeBalanceEntry(index)">{{ t('coupon.admin.remove') }}</button>
+          </div>
+        </div>
+      </section>
       <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-600">
         <table class="min-w-full text-left text-sm">
           <thead class="bg-gray-50 text-xs text-gray-500 dark:bg-dark-700/50 dark:text-gray-400">
@@ -933,7 +1057,7 @@ watch(
       </div>
       <div class="flex flex-wrap items-center justify-between gap-3"><button type="button" class="btn btn-secondary" :disabled="selectableTemplatesLoading" @click="addPoolEntry"><Icon name="plus" size="sm" class="mr-1" />{{ t('coupon.admin.addEntry') }}</button><p class="text-sm" :class="ordinaryCouponWeightTotal === 10000 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-600 dark:text-rose-300'">{{ t('coupon.admin.weightTotal', { total: ordinaryCouponWeightTotal }) }}</p></div>
     </form>
-    <template #footer><div class="flex justify-end gap-3"><button type="button" class="btn btn-secondary" @click="showPoolDialog = false">{{ t('common.cancel') }}</button><button type="submit" form="coupon-pool-form" class="btn btn-primary" :disabled="saving || selectableTemplatesLoading || ordinaryCouponWeightTotal !== 10000">{{ saving ? t('common.saving') : t('common.save') }}</button></div></template>
+    <template #footer><div class="flex justify-end gap-3"><button type="button" class="btn btn-secondary" @click="showPoolDialog = false">{{ t('common.cancel') }}</button><button type="submit" form="coupon-pool-form" class="btn btn-primary" :disabled="saving || selectableTemplatesLoading || ordinaryCouponWeightTotal !== 10000 || outerWeightTotal !== 10000">{{ saving ? t('common.saving') : t('common.save') }}</button></div></template>
   </BaseDialog>
 
   <BaseDialog :show="!!voidingUserCoupon" :title="t('coupon.admin.voidCoupon')" @close="closeVoidUserCoupon">

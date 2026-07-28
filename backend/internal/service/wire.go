@@ -856,10 +856,12 @@ func ProvidePlayService(
 	balanceLedger *BalanceLedgerService,
 	mobilePush *MobilePushService,
 	couponService *CouponService,
+	redeemService *RedeemService,
 ) *PlayService {
 	svc := NewPlayService(repo, userRepo, channelService, settingService, affiliateService, entClient, balanceLedger)
 	svc.SetMobilePushService(mobilePush)
 	svc.SetCouponRewardIssuer(couponService)
+	svc.SetRedeemCodeRewardIssuer(redeemService)
 	return svc
 }
 

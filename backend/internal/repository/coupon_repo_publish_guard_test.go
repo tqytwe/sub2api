@@ -20,7 +20,7 @@ func TestPublishCouponRewardPoolRechecksFallbackAfterTemplateLock(t *testing.T) 
 		WithArgs(int64(71)).
 		WillReturnRows(sqlmock.NewRows(couponRewardPoolMockColumns()).AddRow(
 			int64(71), service.CouponRewardActivityBlindbox, "blindbox-safe-v1", service.CouponRewardPoolStatusDraft,
-			6000, 4000, int64(9), nil, nil, nil, now, now,
+			6000, 0, 4000, []byte(`{}`), int64(9), nil, nil, nil, now, now,
 		))
 	mock.ExpectQuery(`(?s)SELECT e\.id.*FROM coupon_reward_pool_entries e.*WHERE e\.pool_version_id = \$1.*FOR UPDATE OF e`).
 		WithArgs(int64(71)).
