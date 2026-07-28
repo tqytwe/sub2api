@@ -7,35 +7,64 @@ import (
 	"time"
 )
 
-func couponRewardTypeAt(activity CouponRewardActivity, draw int64) (PlayRewardType, error) {
+func couponRewardTypeAt(couponWeightBP int, draw int64) (PlayRewardType, error) {
 	if draw < 0 || draw >= couponWeightBasisPoints {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward draw out of range: %d", draw)
 	}
-
-	var couponWeight int64
-	switch activity {
-	case CouponRewardActivityBlindbox:
-		couponWeight = 6000
-	case CouponRewardActivityQuiz:
-		couponWeight = 8000
-	default:
-		return PlayRewardTypeNone, fmt.Errorf("unsupported coupon reward activity: %s", activity)
+	if couponWeightBP < 0 || couponWeightBP > couponWeightBasisPoints {
+		return PlayRewardTypeNone, fmt.Errorf("coupon reward weight out of range: %d", couponWeightBP)
 	}
-	if draw < couponWeight {
+	if draw < int64(couponWeightBP) {
 		return PlayRewardTypeCoupon, nil
 	}
 	return PlayRewardTypeBalance, nil
 }
 
-func (s *PlayService) drawCouponRewardType(activity CouponRewardActivity) (PlayRewardType, error) {
+func defaultCouponRewardSplit(activity CouponRewardActivity) (int, int, error) {
+	switch activity {
+	case CouponRewardActivityBlindbox:
+		return 6000, 4000, nil
+	case CouponRewardActivityQuiz:
+		return 8000, 2000, nil
+	default:
+		return 0, 0, fmt.Errorf("unsupported coupon reward activity: %s", activity)
+	}
+}
+
+func (s *PlayService) couponRewardSplit(ctx context.Context, activity CouponRewardActivity) (int, int, error) {
+	if s == nil {
+		return defaultCouponRewardSplit(activity)
+	}
+	reader, ok := s.couponRewardIssuer.(CouponRewardPoolReader)
+	if !ok || reader == nil {
+		return defaultCouponRewardSplit(activity)
+	}
+	pool, err := reader.GetPublishedRewardPool(ctx, activity)
+	if err != nil {
+		return 0, 0, err
+	}
+	if pool == nil {
+		return 0, 0, ErrCouponRewardPoolUnavailable
+	}
+	if pool.CouponWeightBP < 0 || pool.BalanceWeightBP < 0 || pool.CouponWeightBP+pool.BalanceWeightBP != couponWeightBasisPoints {
+		return 0, 0, fmt.Errorf("coupon reward split is invalid for %s", activity)
+	}
+	return pool.CouponWeightBP, pool.BalanceWeightBP, nil
+}
+
+func (s *PlayService) drawCouponRewardType(ctx context.Context, activity CouponRewardActivity) (PlayRewardType, error) {
 	if s == nil || s.rewardDrawSource == nil {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward draw source is not configured")
+	}
+	couponWeightBP, _, err := s.couponRewardSplit(ctx, activity)
+	if err != nil {
+		return PlayRewardTypeNone, err
 	}
 	draw, err := s.rewardDrawSource(couponWeightBasisPoints)
 	if err != nil {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward draw source: %w", err)
 	}
-	return couponRewardTypeAt(activity, draw)
+	return couponRewardTypeAt(couponWeightBP, draw)
 }
 
 // couponRewardPoolReady checks the production coupon service before a reward

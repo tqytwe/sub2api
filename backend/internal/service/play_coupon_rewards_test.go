@@ -26,6 +26,8 @@ type playCouponRewardIssuer struct {
 	replayErr       error
 	replayKeys      []string
 	inTx            bool
+	couponWeightBP  int
+	balanceWeightBP int
 }
 
 type playCouponReadinessIssuer struct {
@@ -64,9 +66,16 @@ func (i *playCouponRewardIssuer) GetPublishedRewardPool(_ context.Context, activ
 	if i.poolUnavailable {
 		return nil, ErrCouponRewardPoolUnavailable
 	}
+	couponWeightBP := i.couponWeightBP
+	balanceWeightBP := i.balanceWeightBP
+	if couponWeightBP == 0 && balanceWeightBP == 0 {
+		couponWeightBP, balanceWeightBP, _ = defaultCouponRewardSplit(activity)
+	}
 	return &CouponRewardPoolVersion{
-		Activity: activity,
-		Status:   CouponRewardPoolStatusPublished,
+		Activity:        activity,
+		Status:          CouponRewardPoolStatusPublished,
+		CouponWeightBP:  couponWeightBP,
+		BalanceWeightBP: balanceWeightBP,
 	}, nil
 }
 
@@ -113,27 +122,28 @@ func (r *playCouponQuizRepo) UpdatePlayBalance(_ context.Context, _ int64, amoun
 	return nil
 }
 
-func TestCouponRewardBranchWeightsAreFixedByActivity(t *testing.T) {
+func TestCouponRewardBranchUsesConfiguredSplit(t *testing.T) {
 	t.Parallel()
 
 	cases := []struct {
-		activity     CouponRewardActivity
+		name         string
+		couponWeight int
 		couponDraws  int
 		balanceDraws int
 		boundaryDraw int64
 	}{
-		{activity: CouponRewardActivityBlindbox, couponDraws: 6000, balanceDraws: 4000, boundaryDraw: 6000},
-		{activity: CouponRewardActivityQuiz, couponDraws: 8000, balanceDraws: 2000, boundaryDraw: 8000},
+		{name: "coupon first", couponWeight: 7000, couponDraws: 7000, balanceDraws: 3000, boundaryDraw: 7000},
+		{name: "balance first", couponWeight: 2500, couponDraws: 2500, balanceDraws: 7500, boundaryDraw: 2500},
 	}
 
 	for _, tc := range cases {
 		tc := tc
-		t.Run(string(tc.activity), func(t *testing.T) {
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			couponCount := 0
 			balanceCount := 0
 			for draw := int64(0); draw < couponWeightBasisPoints; draw++ {
-				rewardType, err := couponRewardTypeAt(tc.activity, draw)
+				rewardType, err := couponRewardTypeAt(tc.couponWeight, draw)
 				require.NoError(t, err)
 				switch rewardType {
 				case PlayRewardTypeCoupon:
@@ -147,7 +157,7 @@ func TestCouponRewardBranchWeightsAreFixedByActivity(t *testing.T) {
 			require.Equal(t, tc.couponDraws, couponCount)
 			require.Equal(t, tc.balanceDraws, balanceCount)
 
-			rewardType, err := couponRewardTypeAt(tc.activity, tc.boundaryDraw)
+			rewardType, err := couponRewardTypeAt(tc.couponWeight, tc.boundaryDraw)
 			require.NoError(t, err)
 			require.Equal(t, PlayRewardTypeBalance, rewardType)
 		})

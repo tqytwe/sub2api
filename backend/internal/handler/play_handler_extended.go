@@ -16,6 +16,8 @@ type playBlindboxStatusDTO struct {
 	Enabled             bool                             `json:"enabled"`
 	CouponPoolReady     bool                             `json:"coupon_pool_ready"`
 	CouponPrizes        []service.PlayCouponPrizePreview `json:"coupon_prizes"`
+	CouponWeightBP      int                              `json:"coupon_weight_bp"`
+	BalanceWeightBP     int                              `json:"balance_weight_bp"`
 	CostAmount          float64                          `json:"cost_amount"`
 	Pool                *playBlindboxPoolDTO             `json:"pool,omitempty"`
 	CurrentPool         *playBlindboxPoolDTO             `json:"current_pool,omitempty"`
@@ -53,6 +55,8 @@ type playBlindboxPoolResponseDTO struct {
 	Enabled            bool                             `json:"enabled"`
 	CouponPoolReady    bool                             `json:"coupon_pool_ready"`
 	CouponPrizes       []service.PlayCouponPrizePreview `json:"coupon_prizes"`
+	CouponWeightBP     int                              `json:"coupon_weight_bp"`
+	BalanceWeightBP    int                              `json:"balance_weight_bp"`
 	Pool               playBlindboxPoolDTO              `json:"pool"`
 	CurrentPool        playBlindboxPoolDTO              `json:"current_pool"`
 	NextPool           *playBlindboxPoolDTO             `json:"next_pool,omitempty"`
@@ -225,6 +229,8 @@ func (h *PlayHandler) BlindboxStatus(c *gin.Context) {
 		Enabled:             status.Enabled,
 		CouponPoolReady:     status.CouponPoolReady,
 		CouponPrizes:        status.CouponPrizes,
+		CouponWeightBP:      status.CouponWeightBP,
+		BalanceWeightBP:     status.BalanceWeightBP,
 		CostAmount:          status.CostAmount,
 		Pool:                toPlayBlindboxPoolDTOPtr(status.BlindboxPool),
 		CurrentPool:         toPlayBlindboxPoolDTOPtr(status.CurrentPool),
@@ -254,6 +260,8 @@ func (h *PlayHandler) BlindboxPool(c *gin.Context) {
 		Enabled:            status.Enabled,
 		CouponPoolReady:    status.CouponPoolReady,
 		CouponPrizes:       status.CouponPrizes,
+		CouponWeightBP:     status.CouponWeightBP,
+		BalanceWeightBP:    status.BalanceWeightBP,
 		Pool:               toPlayBlindboxPoolDTO(status.BlindboxPool),
 		CurrentPool:        toPlayBlindboxPoolDTO(status.CurrentPool),
 		NextPool:           toOptionalPlayBlindboxPoolDTO(status.NextPool),

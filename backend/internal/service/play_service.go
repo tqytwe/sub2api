@@ -33,9 +33,8 @@ func (s *PlayService) SetMobilePushService(push *MobilePushService) {
 }
 
 // SetCouponRewardIssuer connects the optional coupon domain to game reward
-// flows. The game service remains responsible for choosing its fixed outer
-// reward branch; the issuer only selects and grants a coupon within that
-// branch's existing transaction.
+// flows. The game service chooses the configured outer reward branch; the
+// issuer only selects and grants a coupon within that branch's transaction.
 func (s *PlayService) SetCouponRewardIssuer(issuer CouponRewardIssuer) {
 	if s != nil {
 		s.couponRewardIssuer = issuer

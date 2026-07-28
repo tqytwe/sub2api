@@ -99,6 +99,8 @@ export interface PlayBlindboxStatus {
   enabled: boolean
   coupon_pool_ready?: boolean
   coupon_prizes?: PlayCouponPrizePreview[]
+  coupon_weight_bp?: number
+  balance_weight_bp?: number
   cost_amount: number
   pool?: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
@@ -133,6 +135,8 @@ export interface PlayBlindboxPoolResponse {
   enabled: boolean
   coupon_pool_ready?: boolean
   coupon_prizes?: PlayCouponPrizePreview[]
+  coupon_weight_bp?: number
+  balance_weight_bp?: number
   pool: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
   next_pool?: PlayBlindboxPool

@@ -342,7 +342,7 @@ func (s *CouponService) PublishRewardPool(ctx context.Context, id int64, actorID
 	return s.repo.PublishCouponRewardPool(ctx, id, actorID, s.now())
 }
 
-// ValidateCouponRewardFallbackTemplate protects the fixed outer game split.
+// ValidateCouponRewardFallbackTemplate protects the configured outer game split.
 // Its matching entry is intentionally unbounded, so the template must be
 // unbounded as well; otherwise a user who exhausted every normal entry could
 // hit a coupon branch that cannot settle.

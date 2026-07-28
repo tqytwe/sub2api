@@ -118,14 +118,22 @@ const poolVersion = computed(() => status.value?.pool_version ?? publicPool.valu
 const currentRTPCap = computed(() => status.value?.rtp_cap ?? publicPool.value?.rtp_cap ?? prizePool.value?.rtp_cap ?? 0)
 const nextExpectedReward = computed(() => status.value?.next_expected_reward ?? publicPool.value?.next_expected_reward ?? (nextPool.value ? expectedReward(nextPool.value) : 0))
 
-// The configured tiers are the original balance pool. A blind box reaches
-// that pool only after the fixed 60% coupon / 40% balance branch draw.
-// Display overall odds so a tier's internal weight is not mistaken for its
-// chance across every open.
-const balanceBranchWeight = 0.4
-const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight)
-const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight)
-const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight)
+const rewardSplit = computed(() => authStore.isAuthenticated
+  ? { coupon: status.value?.coupon_weight_bp, balance: status.value?.balance_weight_bp }
+  : { coupon: publicPool.value?.coupon_weight_bp, balance: publicPool.value?.balance_weight_bp })
+
+const balanceBranchWeight = computed(() => {
+  const balanceWeightBP = Number(rewardSplit.value.balance)
+  return Number.isFinite(balanceWeightBP) && balanceWeightBP >= 0
+    ? balanceWeightBP / 10_000
+    : 0.4
+})
+
+// The configured tiers are the original balance pool. Display overall odds
+// after the current published coupon/balance split so users see the real open odds.
+const expectedCashReward = computed(() => currentExpectedReward.value * balanceBranchWeight.value)
+const expectedCashRTPCap = computed(() => currentRTPCap.value * balanceBranchWeight.value)
+const nextExpectedCashReward = computed(() => nextExpectedReward.value * balanceBranchWeight.value)
 
 const canOpen = computed(
   () =>
@@ -143,7 +151,7 @@ function formatProbability(weight: number): string {
 }
 
 function formatBalanceProbability(weight: number): string {
-  return formatProbability(weight * balanceBranchWeight)
+  return formatProbability(weight * balanceBranchWeight.value)
 }
 
 function formatPrizeAmount(amount: number): string {
@@ -413,12 +421,6 @@ async function handleOpen() {
     if (!isCurrentOpenRequest(requestID, open)) return
     lastResult.value = result
     celebrationOpen.value = true
-    appStore.showSuccess(lastResult.value.reward_type === 'coupon' && lastResult.value.coupon
-      ? t('coupon.reward.issued', { name: lastResult.value.coupon.name })
-      : t('blindbox.success', {
-          reward: lastResult.value.reward_amount.toFixed(2),
-          net: lastResult.value.net_amount.toFixed(2),
-        }))
     try {
       await authStore.refreshUser()
     } catch {
@@ -620,7 +622,7 @@ watch(
       :color-key="lastResult?.vip_tier?.color_key ?? vipPool?.color_key ?? 'neutral'"
       :variant="celebrationVariant"
       :primary-label="t('blindbox.openAgain')"
-      :secondary-label="t('blindbox.viewPool')"
+      :secondary-label="t('blindbox.viewReward')"
       @close="celebrationOpen = false"
       @primary="() => { celebrationOpen = false; void handleOpen() }"
       @secondary="celebrationOpen = false"

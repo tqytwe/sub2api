@@ -142,6 +142,8 @@ type PlayBlindboxStatus struct {
 	Enabled             bool
 	CouponPoolReady     bool
 	CouponPrizes        []PlayCouponPrizePreview
+	CouponWeightBP      int
+	BalanceWeightBP     int
 	CostAmount          float64
 	BlindboxPool        PlayBlindboxPool
 	CurrentPool         PlayBlindboxPool

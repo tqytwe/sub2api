@@ -90,6 +90,8 @@ enableAutoUnmount(afterEach)
 function configuredStatus() {
   return {
     enabled: true,
+    coupon_weight_bp: 6000,
+    balance_weight_bp: 4000,
     cost_amount: 0.5,
     pool: configuredPool,
     current_pool: configuredPool,
@@ -153,6 +155,8 @@ describe('BlindboxView', () => {
   it('loads the public pool for guests and renders all seven API tiers', async () => {
     getBlindboxPoolMock.mockResolvedValue({
       enabled: true,
+      coupon_weight_bp: 7000,
+      balance_weight_bp: 3000,
       pool: configuredPool,
     })
 
@@ -165,9 +169,9 @@ describe('BlindboxView', () => {
     const tiers = wrapper.findAll('.play-prize-tier')
     expect(tiers).toHaveLength(7)
     expect(wrapper.text()).toContain('$20.00')
-    // $20 is a 0.1% tier inside the balance pool. The balance branch is 40%
-    // of all opens, so the UI must show its 0.04% global probability.
-    expect(wrapper.text()).toContain('0.04%')
+    // $20 is a 0.1% tier inside the balance pool. The balance branch is 30%
+    // of all opens here, so the UI must show its 0.03% global probability.
+    expect(wrapper.text()).toContain('0.03%')
     expect(wrapper.text()).not.toContain('$2.00')
   })
 
@@ -467,7 +471,7 @@ describe('BlindboxView', () => {
     await wrapper.get('.play-btn-primary').trigger('click')
     await flushPromises()
 
-    expect(showSuccessMock).toHaveBeenCalledWith('blindbox.success')
+    expect(showSuccessMock).not.toHaveBeenCalled()
     expect(showErrorMock).not.toHaveBeenCalled()
     expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(true)
     expect(window.sessionStorage.getItem('blindbox.pending-open:42')).toBeNull()

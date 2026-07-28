@@ -51,21 +51,33 @@ describe('Jisudeng page locale contracts', () => {
     }
   })
 
-  it('describes the quiz balance branch as one full completion reward in both locales', () => {
-    expect(jisudengPagesZh.quiz.rewardHint).toContain('${amount}')
-    expect(jisudengPagesZh.quiz.rewardHint).toContain('得分大于 0')
-    expect(jisudengPagesZh.quiz.rewardHint).not.toContain('每题')
-    expect(jisudengPagesZh.playHub.quizPending).toContain('${reward}')
-    expect(jisudengPagesZh.playHub.quizPending).not.toContain('每题')
-    expect(jisudengPagesZh.play.quizQuest.subtitle).toContain('得分大于 0')
-    expect(jisudengPagesZh.play.quizQuest.steps.join(' ')).not.toContain('按正确题数')
+  it('describes quiz rewards as configurable pool draws instead of fixed formulas in both locales', () => {
+    const zhCopy = [
+      jisudengPagesZh.quiz.rewardHint,
+      jisudengPagesZh.playHub.quizPending,
+      jisudengPagesZh.play.quizQuest.subtitle,
+      jisudengPagesZh.play.quizQuest.steps.join(' '),
+    ].join(' ')
+    expect(zhCopy).toContain('后台当前')
+    expect(zhCopy).not.toContain('80%')
+    expect(zhCopy).not.toContain('20%')
+    expect(zhCopy).not.toContain('默认 $0.50')
+    expect(zhCopy).not.toContain('得分大于 0')
+    expect(zhCopy).not.toContain('每题')
+    expect(zhCopy).not.toContain('按正确题数')
 
-    expect(jisudengPagesEn.quiz.rewardHint).toContain('${amount}')
-    expect(jisudengPagesEn.quiz.rewardHint).toMatch(/score above zero/i)
-    expect(jisudengPagesEn.quiz.rewardHint).not.toMatch(/per correct/i)
-    expect(jisudengPagesEn.playHub.quizPending).toContain('${reward}')
-    expect(jisudengPagesEn.playHub.quizPending).not.toMatch(/per correct/i)
-    expect(jisudengPagesEn.play.quizQuest.subtitle).toMatch(/score above zero/i)
-    expect(jisudengPagesEn.play.quizQuest.steps.join(' ')).not.toMatch(/correct answers/i)
+    const enCopy = [
+      jisudengPagesEn.quiz.rewardHint,
+      jisudengPagesEn.playHub.quizPending,
+      jisudengPagesEn.play.quizQuest.subtitle,
+      jisudengPagesEn.play.quizQuest.steps.join(' '),
+    ].join(' ')
+    expect(enCopy).toMatch(/current/i)
+    expect(enCopy).not.toContain('80%')
+    expect(enCopy).not.toContain('20%')
+    expect(enCopy).not.toMatch(/default \$0\.50/i)
+    expect(enCopy).not.toMatch(/score above zero/i)
+    expect(enCopy).not.toMatch(/per correct/i)
+    expect(enCopy).not.toMatch(/correct answers/i)
   })
 })

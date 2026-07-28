@@ -34,6 +34,8 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 	out := &PlayBlindboxStatus{
 		Enabled:         rt.BlindboxEnabled,
 		CouponPoolReady: true,
+		CouponWeightBP:  6000,
+		BalanceWeightBP: 4000,
 		CostAmount:      pool.Cost,
 		BlindboxPool:    pool,
 		CurrentPool:     pool,
@@ -54,6 +56,14 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 			return nil, err
 		}
 		out.CouponPoolReady = ready
+		if ready {
+			couponWeightBP, balanceWeightBP, err := s.couponRewardSplit(ctx, CouponRewardActivityBlindbox)
+			if err != nil {
+				return nil, err
+			}
+			out.CouponWeightBP = couponWeightBP
+			out.BalanceWeightBP = balanceWeightBP
+		}
 		prizes, err := s.couponRewardPrizePreview(ctx, CouponRewardActivityBlindbox)
 		if err != nil {
 			return nil, err
@@ -157,7 +167,7 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 	if opens >= effectiveLimit {
 		return nil, ErrPlayBlindboxDailyLimit
 	}
-	rewardType, err := s.drawCouponRewardType(CouponRewardActivityBlindbox)
+	rewardType, err := s.drawCouponRewardType(txCtx, CouponRewardActivityBlindbox)
 	if err != nil {
 		return nil, err
 	}
@@ -654,7 +664,7 @@ func (s *PlayService) SubmitQuiz(ctx context.Context, userID int64, language str
 	var couponIssue *CouponRewardIssueResult
 
 	if score > 0 {
-		rewardType, err = s.drawCouponRewardType(CouponRewardActivityQuiz)
+		rewardType, err = s.drawCouponRewardType(ctx, CouponRewardActivityQuiz)
 		if err != nil {
 			return nil, err
 		}
