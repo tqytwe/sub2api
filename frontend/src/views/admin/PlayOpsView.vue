@@ -53,6 +53,8 @@
         </div>
       </div>
 
+      <AdminQuizQuestionBank />
+
       <section v-if="feedbackPanelOpen" class="card">
         <div
           class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 lg:flex-row lg:items-center lg:justify-between"
@@ -1384,6 +1386,7 @@
 import { computed, onMounted, ref } from "vue";
 import { useI18n } from "vue-i18n";
 import AppLayout from "@/components/layout/AppLayout.vue";
+import AdminQuizQuestionBank from "@/components/admin/play/AdminQuizQuestionBank.vue";
 import Icon from "@/components/icons/Icon.vue";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
