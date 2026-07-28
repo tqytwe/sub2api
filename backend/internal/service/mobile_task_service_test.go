@@ -185,6 +185,35 @@ func TestMobileTaskServiceRetryAndSanitizedProjection(t *testing.T) {
 	require.ErrorIs(t, err, ErrMobileTaskNotFound)
 }
 
+func TestMobileTaskServiceSoftDeleteHidesTask(t *testing.T) {
+	service, db := newMobileTaskServiceTestStore(t)
+	ctx := context.Background()
+	task, err := service.Create(ctx, 40, MobileTaskCreateInput{
+		Kind:            MobileTaskKindImage,
+		Operation:       "image_generation",
+		ClientRequestID: "delete-1",
+	})
+	require.NoError(t, err)
+
+	result, err := service.Delete(ctx, 40, task.ID)
+	require.NoError(t, err)
+	require.True(t, result.Deleted)
+	require.Equal(t, task.ID, result.ID)
+	require.False(t, result.DeletedAt.IsZero())
+
+	_, err = service.Get(ctx, 40, task.ID)
+	require.ErrorIs(t, err, ErrMobileTaskNotFound)
+	page, err := service.List(ctx, 40, MobileTaskListFilter{Kind: MobileTaskKindImage})
+	require.NoError(t, err)
+	require.Zero(t, page.Total)
+
+	var deletedAt sql.NullTime
+	require.NoError(t, db.QueryRow("SELECT deleted_at FROM mobile_tasks WHERE id = ?", task.ID).Scan(&deletedAt))
+	require.True(t, deletedAt.Valid)
+	_, err = service.Delete(ctx, 40, task.ID)
+	require.ErrorIs(t, err, ErrMobileTaskNotFound)
+}
+
 func newMobileTaskServiceTestStore(t *testing.T) (*MobileTaskService, *sql.DB) {
 	t.Helper()
 	dsn := fmt.Sprintf("file:mobile_task_service_%s?mode=memory&cache=shared", uuidTestName(t.Name()))
@@ -209,6 +238,7 @@ func newMobileTaskServiceTestStore(t *testing.T) (*MobileTaskService, *sql.DB) {
 		updated_at TIMESTAMP NOT NULL,
 		started_at TIMESTAMP NULL,
 		finished_at TIMESTAMP NULL,
+		deleted_at TIMESTAMP NULL,
 		UNIQUE(user_id, client_request_id)
 	)`)
 	require.NoError(t, err)

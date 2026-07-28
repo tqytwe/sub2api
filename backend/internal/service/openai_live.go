@@ -123,6 +123,9 @@ func (s *OpenAIGatewayService) CreateLiveCall(
 	identity LiveCallIdentity,
 	userMaxConcurrency int,
 ) (*LiveCallCreated, error) {
+	if !s.liveEgressEnabled() {
+		return nil, ErrLiveUnavailable
+	}
 	if err := ValidateLiveCallRequest(request); err != nil {
 		return nil, err
 	}
@@ -257,6 +260,9 @@ func (s *OpenAIGatewayService) createUpstreamLiveCall(
 	request *LiveCallRequest,
 	attestation string,
 ) (*LiveCallCreated, error) {
+	if !s.liveEgressEnabled() {
+		return nil, ErrLiveUnavailable
+	}
 	token, _, err := s.GetAccessToken(ctx, account)
 	if err != nil {
 		logLiveCreateStageFailure(ctx, account.ID, "access_token", err)
@@ -432,6 +438,9 @@ func (s *OpenAIGatewayService) liveSidebandHeaders(
 }
 
 func (s *OpenAIGatewayService) dialLiveSideband(ctx context.Context, record *LiveCallRecord) (liveFrameConn, error) {
+	if !s.liveEgressEnabled() {
+		return nil, ErrLiveUnavailable
+	}
 	account, err := s.accountRepo.GetByID(ctx, record.AccountID)
 	if err != nil {
 		return nil, err

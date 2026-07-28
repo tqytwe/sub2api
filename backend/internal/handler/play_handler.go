@@ -184,6 +184,8 @@ func (h *PlayHandler) PublicModelPricing(c *gin.Context) {
 // SubmitMobileFeedback stores Android app feedback with optional screenshots.
 // POST /api/v1/play/mobile-feedback
 func (h *PlayHandler) SubmitMobileFeedback(c *gin.Context) {
+	c.Header("Deprecation", "true")
+	c.Header("Sunset-Policy", "legacy; use /api/v1/mobile/support/tickets")
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok || subject.UserID <= 0 {
 		response.Unauthorized(c, "User not authenticated")

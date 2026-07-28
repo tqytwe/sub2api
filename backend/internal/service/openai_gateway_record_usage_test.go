@@ -856,6 +856,10 @@ func TestOpenAIGatewayServiceRecordUsage_AppliesSurchargeAfterGroupMultiplier(t 
 	expectedBilled := expected.ActualCost + expectedSurcharge
 
 	require.InDelta(t, expected.ActualCost, usageRepo.lastLog.ActualCost, 1e-12)
+	require.InDelta(t, expectedSurcharge, usageRepo.lastLog.BillingSurchargeCost, 1e-12)
+	require.InDelta(t, expectedBilled, usageRepo.lastLog.BilledCost, 1e-12)
+	require.Equal(t, BillingSurchargeModeAdditiveMultiplier, usageRepo.lastLog.BillingSurchargeMode)
+	require.InDelta(t, 0.05, usageRepo.lastLog.BillingSurchargeValue, 1e-12)
 	require.InDelta(t, expected.ActualCost, billingRepo.lastCmd.ActualCost, 1e-12)
 	require.InDelta(t, expectedSurcharge, billingRepo.lastCmd.BillingSurchargeCost, 1e-12)
 	require.InDelta(t, expectedBilled, billingRepo.lastCmd.BilledCost, 1e-12)

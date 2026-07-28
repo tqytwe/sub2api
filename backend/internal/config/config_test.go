@@ -46,6 +46,19 @@ func TestLoadRedisUsernameFromEnvironment(t *testing.T) {
 	require.Equal(t, "app-user", cfg.Redis.Username)
 }
 
+func TestAccountSessionEgressDisabledByDefaultAndEnvReachable(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.False(t, AccountSessionEgressEnabled(cfg))
+
+	resetViperWithJWTSecret(t)
+	t.Setenv("SECURITY_ACCOUNT_SESSION_EGRESS_ENABLED", "true")
+	cfg, err = Load()
+	require.NoError(t, err)
+	require.True(t, AccountSessionEgressEnabled(cfg))
+}
+
 func TestLoadHTTPIngressSafetyDefaults(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	cfg, err := Load()

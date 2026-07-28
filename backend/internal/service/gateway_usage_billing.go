@@ -215,6 +215,16 @@ func (p *postUsageBillingParams) billedCost() float64 {
 	return p.Cost.ActualCost
 }
 
+func applyUsageLogBillingSurchargeSnapshot(usageLog *UsageLog, surcharge BillingSurchargeBreakdown) {
+	if usageLog == nil {
+		return
+	}
+	usageLog.BillingSurchargeCost = surcharge.SurchargeCost
+	usageLog.BilledCost = surcharge.BilledCost
+	usageLog.BillingSurchargeMode = surcharge.Mode
+	usageLog.BillingSurchargeValue = surcharge.Value
+}
+
 // postUsageBilling is the legacy fallback billing path used when the unified
 // billing repo is unavailable (nil). Production uses applyUsageBilling → repo.Apply
 // for atomic billing. This path only runs in tests or degraded mode.
@@ -926,6 +936,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		globalSurcharge = s.settingService.GetBillingSurchargeConfig(ctx)
 	}
 	surcharge := ApplyBillingSurcharge(cost, ResolveGroupBillingSurcharge(apiKey.Group, globalSurcharge))
+	applyUsageLogBillingSurchargeSnapshot(usageLog, surcharge)
 	_, billingErr := applyUsageBilling(ctx, requestID, usageLog, &postUsageBillingParams{
 		Cost:                  cost,
 		User:                  user,

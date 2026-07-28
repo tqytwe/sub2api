@@ -116,6 +116,26 @@ func RegisterNextChatRoutes(
 	registerNextChatRoutes(v1, jwtAuth, apiKeyService, modelCatalogService, promptProvider, imageStudio, settingService, cfg, redisClient)
 }
 
+func RegisterMobileNextChatSessionRoutes(
+	v1 *gin.RouterGroup,
+	jwtAuth middleware.JWTAuthMiddleware,
+	apiKeyService *service.APIKeyService,
+	modelCatalogService *service.ModelCatalogService,
+	settingService *service.SettingService,
+	cfg *config.Config,
+) {
+	mobile := v1.Group("/mobile")
+	mobile.Use(gin.HandlerFunc(jwtAuth))
+	{
+		mobile.GET("/sessions", func(c *gin.Context) {
+			handleNextChatMobileBootstrap(c, apiKeyService, modelCatalogService, settingService, cfg)
+		})
+		mobile.POST("/sessions/:purpose/switch-group", func(c *gin.Context) {
+			handleNextChatMobileGroupSwitch(c, apiKeyService, modelCatalogService, settingService, cfg, c.Param("purpose"))
+		})
+	}
+}
+
 func registerNextChatRoutes(
 	v1 *gin.RouterGroup,
 	jwtAuth middleware.JWTAuthMiddleware,

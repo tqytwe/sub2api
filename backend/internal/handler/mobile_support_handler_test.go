@@ -3,8 +3,10 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -21,10 +23,11 @@ type mobileSupportHandlerServiceStub struct {
 	userID     int64
 	ticketID   int64
 	content    string
+	create     service.MobileFeedbackInput
 }
 
 func (s *mobileSupportHandlerServiceStub) CreateMobileFeedback(_ context.Context, userID int64, input service.MobileFeedbackInput) (*service.MobileFeedbackRecord, error) {
-	s.userID, s.content = userID, input.Content
+	s.userID, s.content, s.create = userID, input.Content, input
 	return &service.MobileFeedbackRecord{ID: 1, UserID: userID, Title: input.Title, Content: input.Content}, nil
 }
 
@@ -109,6 +112,38 @@ func TestMobileSupportHandlerAddMessageValidatesChineseErrors(t *testing.T) {
 	require.Equal(t, "补充网络截图", svc.content)
 }
 
+func TestMobileSupportHandlerCreateAcceptsMultipartWithoutAssetStorage(t *testing.T) {
+	svc := &mobileSupportHandlerServiceStub{}
+	router := newMobileSupportHandlerTestRouter(svc)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("title", "保存反馈失败"))
+	require.NoError(t, writer.WriteField("category", "bug"))
+	require.NoError(t, writer.WriteField("content", "点击提交反馈后提示保存失败"))
+	require.NoError(t, writer.WriteField("app_version", "2.0.47"))
+	require.NoError(t, writer.WriteField("platform", "android"))
+	require.NoError(t, writer.WriteField("device_model", "Redmi K30"))
+	require.NoError(t, writer.WriteField("device_info", `{"networkType":"wifi"}`))
+	part, err := writer.CreateFormFile("screenshots", "feedback.png")
+	require.NoError(t, err)
+	_, err = part.Write([]byte("fake image bytes"))
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	recorder := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/support", &body)
+	req.Header.Set("Authorization", "Bearer valid")
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+	router.ServeHTTP(recorder, req)
+
+	require.Equal(t, http.StatusCreated, recorder.Code)
+	require.Equal(t, int64(42), svc.userID)
+	require.Equal(t, "点击提交反馈后提示保存失败", svc.create.Content)
+	require.Equal(t, "Redmi K30", svc.create.DeviceModel)
+	require.Contains(t, svc.create.LastError, "截图上传失败")
+	require.Empty(t, svc.create.Screenshots)
+}
+
 func TestMobileSupportHandlerRequiresAuthenticationAndValidID(t *testing.T) {
 	svc := &mobileSupportHandlerServiceStub{}
 	router := newMobileSupportHandlerTestRouter(svc)
@@ -136,6 +171,7 @@ func newMobileSupportHandlerTestRouter(svc mobileSupportService) *gin.Engine {
 		c.Next()
 	})
 	h := NewMobileSupportHandler(svc)
+	router.POST("/support", h.Create)
 	router.GET("/support", h.List)
 	router.GET("/support/:id", h.Detail)
 	router.POST("/support/:id/messages", h.AddMessage)

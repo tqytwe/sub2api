@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
@@ -76,6 +77,9 @@ func TestLiveSidebandLocationMatchesCreateRoute(t *testing.T) {
 }
 
 func TestLiveEnabledForAPIKey(t *testing.T) {
+	apiKey := &service.APIKey{
+		Group: &service.Group{Platform: service.PlatformOpenAI, AllowLive: true},
+	}
 	require.False(t, liveEnabledForAPIKey(nil))
 	require.False(t, liveEnabledForAPIKey(&service.APIKey{}))
 	require.False(t, liveEnabledForAPIKey(&service.APIKey{
@@ -87,6 +91,10 @@ func TestLiveEnabledForAPIKey(t *testing.T) {
 	require.True(t, liveEnabledForAPIKey(&service.APIKey{
 		Group: &service.Group{Platform: service.PlatformOpenAI, AllowLive: true},
 	}))
+	require.False(t, (&OpenAIGatewayHandler{cfg: &config.Config{}}).liveEnabledForAPIKey(apiKey))
+	require.True(t, (&OpenAIGatewayHandler{cfg: &config.Config{Security: config.SecurityConfig{
+		AccountSessionEgressEnabled: true,
+	}}}).liveEnabledForAPIKey(apiKey))
 }
 
 func TestLiveAttestationErrorIsExplicit(t *testing.T) {

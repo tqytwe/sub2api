@@ -353,7 +353,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	}
 	mobileAssetHandler := handler.ProvideMobileAssetHandler(db, mobileAssetStorage)
 	mobileTaskHandler := handler.ProvideMobileTaskHandler(db, mobilePushService)
-	mobileSupportHandler := handler.ProvideMobileSupportHandler(playService)
+	mobileSupportHandler := handler.ProvideMobileSupportHandler(playService, announcementAssetService)
 	mobileDiagnosticHandler := handler.NewMobileDiagnosticHandler(db)
 	mobileDeviceHandler := handler.ProvideMobileDeviceHandler(mobilePushService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)

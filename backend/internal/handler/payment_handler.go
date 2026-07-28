@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -21,6 +22,9 @@ import (
 type PaymentHandler struct {
 	paymentService *service.PaymentService
 	configService  *service.PaymentConfigService
+
+	checkoutCacheMu sync.Mutex
+	checkoutCache   paymentCheckoutPublicCache
 }
 
 // NewPaymentHandler creates a new PaymentHandler.
@@ -29,6 +33,30 @@ func NewPaymentHandler(paymentService *service.PaymentService, configService *se
 		paymentService: paymentService,
 		configService:  configService,
 	}
+}
+
+const paymentCheckoutPublicCacheTTL = 15 * time.Second
+
+type paymentCheckoutPublicCache struct {
+	expiresAt time.Time
+	payload   *paymentCheckoutPublicPayload
+}
+
+type paymentCheckoutPublicPayload struct {
+	methods                       map[string]service.MethodLimits
+	globalMin                     float64
+	globalMax                     float64
+	plans                         []checkoutPlan
+	balanceDisabled               bool
+	balanceRechargeMultiplier     float64
+	subscriptionUSDToCNYRate      float64
+	rechargeFeeRate               float64
+	storefrontConfig              *service.PaymentStorefrontConfig
+	helpText                      string
+	helpImageURL                  string
+	stripePublishableKey          string
+	alipayForceQRCode             bool
+	alipayMobilePrecreateDeepLink bool
 }
 
 // GetPaymentConfig returns the payment system configuration.
@@ -114,40 +142,71 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		return
 	}
 
-	// Fetch limits (methods + global range)
-	limitsResp, err := h.configService.GetAvailableMethodLimits(ctx)
+	publicPayload, err := h.getPaymentCheckoutPublicPayload(ctx)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	rechargeQuote, err := h.paymentService.BuildRechargeQuoteWithMultiplier(ctx, subject.UserID, 0, publicPayload.balanceRechargeMultiplier)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	// Fetch payment config
+	response.Success(c, publicPayload.withRechargeQuote(rechargeQuote))
+}
+
+func (h *PaymentHandler) getPaymentCheckoutPublicPayload(ctx context.Context) (*paymentCheckoutPublicPayload, error) {
+	now := time.Now()
+	h.checkoutCacheMu.Lock()
+	if h.checkoutCache.payload != nil && now.Before(h.checkoutCache.expiresAt) {
+		payload := h.checkoutCache.payload.clone()
+		h.checkoutCacheMu.Unlock()
+		return payload, nil
+	}
+	h.checkoutCacheMu.Unlock()
+
+	payload, err := h.buildPaymentCheckoutPublicPayload(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	h.checkoutCacheMu.Lock()
+	h.checkoutCache = paymentCheckoutPublicCache{
+		expiresAt: now.Add(paymentCheckoutPublicCacheTTL),
+		payload:   payload.clone(),
+	}
+	h.checkoutCacheMu.Unlock()
+
+	return payload, nil
+}
+
+func (h *PaymentHandler) buildPaymentCheckoutPublicPayload(ctx context.Context) (*paymentCheckoutPublicPayload, error) {
+	limitsResp, err := h.configService.GetAvailableMethodLimits(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	cfg, err := h.configService.GetPaymentConfig(ctx)
 	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	rechargeQuote, err := h.paymentService.BuildRechargeQuote(ctx, subject.UserID, 0)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
+		return nil, err
 	}
 
 	alipayMobilePrecreateDeepLink := false
 	if cfg.AlipayMobilePrecreateDeepLink {
 		alipayMobilePrecreateDeepLink, err = h.configService.UsesOfficialAlipayVisibleMethod(ctx)
 		if err != nil {
-			response.ErrorFrom(c, err)
-			return
+			return nil, err
 		}
 	}
 
-	// Fetch plans with group info
-	plans, _ := h.configService.ListPlansForSale(ctx)
+	plans, err := h.configService.ListPlansForSale(ctx)
+	if err != nil {
+		return nil, err
+	}
 	storefrontConfig, err := h.configService.GetPublicPaymentStorefrontConfig(ctx, plans)
 	if err != nil {
-		response.ErrorFrom(c, err)
-		return
+		return nil, err
 	}
 	groupInfo := h.configService.GetGroupInfoMap(ctx, plans)
 	planList := make([]checkoutPlan, 0, len(plans))
@@ -171,23 +230,107 @@ func (h *PaymentHandler) GetCheckoutInfo(c *gin.Context) {
 		})
 	}
 
-	response.Success(c, checkoutInfoResponse{
-		Methods:                       limitsResp.Methods,
-		GlobalMin:                     limitsResp.GlobalMin,
-		GlobalMax:                     limitsResp.GlobalMax,
-		Plans:                         planList,
-		BalanceDisabled:               cfg.BalanceDisabled,
-		BalanceRechargeMultiplier:     cfg.BalanceRechargeMultiplier,
-		SubscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
-		RechargeFeeRate:               cfg.RechargeFeeRate,
-		StorefrontConfig:              storefrontConfig,
-		HelpText:                      cfg.HelpText,
-		HelpImageURL:                  cfg.HelpImageURL,
-		StripePublishableKey:          cfg.StripePublishableKey,
-		AlipayForceQRCode:             cfg.AlipayForceQRCode,
-		AlipayMobilePrecreateDeepLink: alipayMobilePrecreateDeepLink,
+	return &paymentCheckoutPublicPayload{
+		methods:                       cloneMethodLimitsMap(limitsResp.Methods),
+		globalMin:                     limitsResp.GlobalMin,
+		globalMax:                     limitsResp.GlobalMax,
+		plans:                         cloneCheckoutPlans(planList),
+		balanceDisabled:               cfg.BalanceDisabled,
+		balanceRechargeMultiplier:     cfg.BalanceRechargeMultiplier,
+		subscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
+		rechargeFeeRate:               cfg.RechargeFeeRate,
+		storefrontConfig:              clonePaymentStorefrontConfig(storefrontConfig),
+		helpText:                      cfg.HelpText,
+		helpImageURL:                  cfg.HelpImageURL,
+		stripePublishableKey:          cfg.StripePublishableKey,
+		alipayForceQRCode:             cfg.AlipayForceQRCode,
+		alipayMobilePrecreateDeepLink: alipayMobilePrecreateDeepLink,
+	}, nil
+}
+
+func (p *paymentCheckoutPublicPayload) withRechargeQuote(rechargeQuote *service.PaymentRechargeQuote) checkoutInfoResponse {
+	return checkoutInfoResponse{
+		Methods:                       cloneMethodLimitsMap(p.methods),
+		GlobalMin:                     p.globalMin,
+		GlobalMax:                     p.globalMax,
+		Plans:                         cloneCheckoutPlans(p.plans),
+		BalanceDisabled:               p.balanceDisabled,
+		BalanceRechargeMultiplier:     p.balanceRechargeMultiplier,
+		SubscriptionUSDToCNYRate:      p.subscriptionUSDToCNYRate,
+		RechargeFeeRate:               p.rechargeFeeRate,
+		StorefrontConfig:              clonePaymentStorefrontConfig(p.storefrontConfig),
+		HelpText:                      p.helpText,
+		HelpImageURL:                  p.helpImageURL,
+		StripePublishableKey:          p.stripePublishableKey,
+		AlipayForceQRCode:             p.alipayForceQRCode,
+		AlipayMobilePrecreateDeepLink: p.alipayMobilePrecreateDeepLink,
 		RechargeQuote:                 rechargeQuote,
-	})
+	}
+}
+
+func (p *paymentCheckoutPublicPayload) clone() *paymentCheckoutPublicPayload {
+	if p == nil {
+		return nil
+	}
+	return &paymentCheckoutPublicPayload{
+		methods:                       cloneMethodLimitsMap(p.methods),
+		globalMin:                     p.globalMin,
+		globalMax:                     p.globalMax,
+		plans:                         cloneCheckoutPlans(p.plans),
+		balanceDisabled:               p.balanceDisabled,
+		balanceRechargeMultiplier:     p.balanceRechargeMultiplier,
+		subscriptionUSDToCNYRate:      p.subscriptionUSDToCNYRate,
+		rechargeFeeRate:               p.rechargeFeeRate,
+		storefrontConfig:              clonePaymentStorefrontConfig(p.storefrontConfig),
+		helpText:                      p.helpText,
+		helpImageURL:                  p.helpImageURL,
+		stripePublishableKey:          p.stripePublishableKey,
+		alipayForceQRCode:             p.alipayForceQRCode,
+		alipayMobilePrecreateDeepLink: p.alipayMobilePrecreateDeepLink,
+	}
+}
+
+func cloneMethodLimitsMap(in map[string]service.MethodLimits) map[string]service.MethodLimits {
+	if in == nil {
+		return nil
+	}
+	out := make(map[string]service.MethodLimits, len(in))
+	for k, v := range in {
+		out[k] = v
+	}
+	return out
+}
+
+func cloneCheckoutPlans(in []checkoutPlan) []checkoutPlan {
+	if in == nil {
+		return nil
+	}
+	out := make([]checkoutPlan, len(in))
+	copy(out, in)
+	for i := range out {
+		out[i].Features = append([]string(nil), in[i].Features...)
+		out[i].ModelScopes = append([]string(nil), in[i].ModelScopes...)
+	}
+	return out
+}
+
+func clonePaymentStorefrontConfig(in *service.PaymentStorefrontConfig) *service.PaymentStorefrontConfig {
+	if in == nil {
+		return nil
+	}
+	out := &service.PaymentStorefrontConfig{
+		Shelves: make([]service.PaymentStorefrontShelf, len(in.Shelves)),
+		Tags:    make([]service.PaymentStorefrontTag, len(in.Tags)),
+	}
+	copy(out.Shelves, in.Shelves)
+	copy(out.Tags, in.Tags)
+	for i := range out.Shelves {
+		out.Shelves[i].PlanIDs = append([]int64(nil), in.Shelves[i].PlanIDs...)
+	}
+	for i := range out.Tags {
+		out.Tags[i].PlanIDs = append([]int64(nil), in.Tags[i].PlanIDs...)
+	}
+	return out
 }
 
 type checkoutInfoResponse struct {
@@ -374,6 +517,189 @@ func (h *PaymentHandler) CreateOrder(c *gin.Context) {
 		return
 	}
 	response.Success(c, result)
+}
+
+type MobilePaymentResult struct {
+	Order           any                    `json:"order"`
+	Launch          *service.PaymentLaunch `json:"launch,omitempty"`
+	Deeplink        string                 `json:"deeplink,omitempty"`
+	SchemeURL       string                 `json:"scheme_url,omitempty"`
+	MWebURL         string                 `json:"mweb_url,omitempty"`
+	H5URL           string                 `json:"h5_url,omitempty"`
+	PayURL          string                 `json:"pay_url,omitempty"`
+	QRCode          string                 `json:"qr_code,omitempty"`
+	ResultType      string                 `json:"result_type,omitempty"`
+	ReturnURL       string                 `json:"return_url,omitempty"`
+	ResumeToken     string                 `json:"resume_token,omitempty"`
+	VerifyAfterMS   int                    `json:"verify_after_ms,omitempty"`
+	Paid            bool                   `json:"paid"`
+	Completed       bool                   `json:"completed"`
+	CanRetryPayment bool                   `json:"can_retry_payment"`
+}
+
+func (h *PaymentHandler) MobileCreate(c *gin.Context) {
+	subject, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+	var req CreateOrderRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "支付参数不正确："+err.Error())
+		return
+	}
+	if strings.TrimSpace(req.WechatResumeToken) != "" {
+		claims, err := h.paymentService.ParseWeChatPaymentResumeToken(req.WechatResumeToken)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if err := applyWeChatPaymentResumeClaims(&req, claims); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+	result, err := h.paymentService.CreateOrder(c.Request.Context(), service.CreateOrderRequest{
+		UserID: subject.UserID, Amount: req.Amount, PaymentType: req.PaymentType, OpenID: req.OpenID,
+		ClientIP: c.ClientIP(), IsMobile: true, IsWeChatBrowser: isWeChatBrowser(c),
+		SrcHost: c.Request.Host, SrcURL: c.Request.Referer(), ReturnURL: req.ReturnURL,
+		PaymentSource: firstNonEmptyPaymentSource(req.PaymentSource, "android_app"),
+		OrderType:     req.OrderType, PlanID: req.PlanID, Locale: c.GetHeader("Accept-Language"),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, buildMobilePaymentCreateResult(result, req.OrderType))
+}
+
+func (h *PaymentHandler) MobileGet(c *gin.Context) {
+	subject, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+	orderID, ok := parseMobilePaymentOrderID(c)
+	if !ok {
+		return
+	}
+	order, err := h.paymentService.GetOrder(c.Request.Context(), orderID, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, buildMobilePaymentOrderResult(order))
+}
+
+func (h *PaymentHandler) MobileSync(c *gin.Context) {
+	subject, ok := requireAuth(c)
+	if !ok {
+		return
+	}
+	orderID, ok := parseMobilePaymentOrderID(c)
+	if !ok {
+		return
+	}
+	order, err := h.paymentService.GetOrder(c.Request.Context(), orderID, subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if strings.TrimSpace(order.OutTradeNo) != "" {
+		order, err = h.paymentService.VerifyOrderByOutTradeNo(c.Request.Context(), order.OutTradeNo, subject.UserID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+	}
+	response.Success(c, buildMobilePaymentOrderResult(order))
+}
+
+func parseMobilePaymentOrderID(c *gin.Context) (int64, bool) {
+	orderID, err := strconv.ParseInt(strings.TrimSpace(c.Param("order_id")), 10, 64)
+	if err != nil || orderID <= 0 {
+		response.BadRequest(c, "订单号不正确")
+		return 0, false
+	}
+	return orderID, true
+}
+
+func buildMobilePaymentCreateResult(result *service.CreateOrderResponse, orderType string) MobilePaymentResult {
+	if result == nil {
+		return MobilePaymentResult{}
+	}
+	payURL := strings.TrimSpace(result.PayURL)
+	schemeURL := mobilePaymentSchemeURL(payURL)
+	return MobilePaymentResult{
+		Order: sanitizeMobilePaymentCreateOrder(result, orderType), Launch: result.Launch,
+		Deeplink: firstNonEmptyPaymentSource(schemeURL, payURL), SchemeURL: schemeURL,
+		MWebURL: mobilePaymentHTTPURL(payURL), H5URL: mobilePaymentHTTPURL(payURL), PayURL: payURL,
+		QRCode: strings.TrimSpace(result.QRCode), ResultType: string(result.ResultType),
+		ReturnURL: strings.TrimSpace(result.ReturnURL), ResumeToken: strings.TrimSpace(result.ResumeToken),
+		VerifyAfterMS: result.VerifyAfterMS, Paid: mobilePaymentStatusPaid(result.Status),
+		Completed: result.Status == service.OrderStatusCompleted, CanRetryPayment: result.Status == service.OrderStatusPending,
+	}
+}
+
+func buildMobilePaymentOrderResult(order *dbent.PaymentOrder) MobilePaymentResult {
+	item := sanitizePaymentOrderForResponse(order)
+	status := ""
+	if item != nil {
+		status = item.Status
+	}
+	return MobilePaymentResult{
+		Order: item, Paid: mobilePaymentStatusPaid(status),
+		Completed:       status == service.OrderStatusCompleted,
+		CanRetryPayment: status == service.OrderStatusPending,
+	}
+}
+
+func sanitizeMobilePaymentCreateOrder(result *service.CreateOrderResponse, orderType string) gin.H {
+	return gin.H{
+		"id": result.OrderID, "order_id": result.OrderID, "amount": result.Amount,
+		"pay_amount": result.PayAmount, "fee_rate": result.FeeRate, "status": result.Status,
+		"payment_type": result.PaymentType, "out_trade_no": result.OutTradeNo,
+		"currency": result.Currency, "country_code": result.CountryCode,
+		"payment_env": result.PaymentEnv, "payment_mode": result.PaymentMode,
+		"order_type": strings.TrimSpace(orderType), "expires_at": result.ExpiresAt,
+		"recharge_snapshot": result.RechargeSnapshot,
+	}
+}
+
+func mobilePaymentHTTPURL(value string) string {
+	value = strings.TrimSpace(value)
+	lower := strings.ToLower(value)
+	if strings.HasPrefix(lower, "http://") || strings.HasPrefix(lower, "https://") {
+		return value
+	}
+	return ""
+}
+
+func mobilePaymentSchemeURL(value string) string {
+	value = strings.TrimSpace(value)
+	lower := strings.ToLower(value)
+	if value != "" && !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+		return value
+	}
+	return ""
+}
+
+func mobilePaymentStatusPaid(status string) bool {
+	switch status {
+	case service.OrderStatusPaid, service.OrderStatusRecharging, service.OrderStatusCompleted,
+		service.OrderStatusRefundRequested, service.OrderStatusRefunding, service.OrderStatusRefundPending,
+		service.OrderStatusPartiallyRefunded, service.OrderStatusRefunded, service.OrderStatusRefundFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+func firstNonEmptyPaymentSource(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
 }
 
 func applyWeChatPaymentResumeClaims(req *CreateOrderRequest, claims *service.WeChatPaymentResumeClaims) error {
