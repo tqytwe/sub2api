@@ -12,6 +12,7 @@ const {
   listTeamMemberCandidates,
   repairTeamMember,
   listTeamEvents,
+  listQuizQuestions,
   showError,
   showSuccess,
   localeState,
@@ -25,6 +26,7 @@ const {
   listTeamMemberCandidates: vi.fn(),
   repairTeamMember: vi.fn(),
   listTeamEvents: vi.fn(),
+  listQuizQuestions: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   localeState: { value: 'zh-CN' },
@@ -43,6 +45,7 @@ vi.mock('@/api/admin/play', () => ({
     listTeamMemberCandidates,
     repairTeamMember,
     listTeamEvents,
+    listQuizQuestions,
   },
 }))
 
@@ -250,6 +253,21 @@ describe('PlayOpsView campaigns', () => {
     })
     repairTeamMember.mockReset().mockResolvedValue({ status: 'added', warnings: [] })
     listTeamEvents.mockReset().mockResolvedValue([])
+    listQuizQuestions.mockReset().mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      page_size: 20,
+      stats: {
+        total: 0,
+        active: 0,
+        inactive: 0,
+        zh_active: 0,
+        en_active: 0,
+        categories: [],
+        difficulties: [],
+      },
+    })
   })
 
   afterEach(() => {

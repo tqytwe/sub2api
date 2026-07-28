@@ -50,6 +50,41 @@ type adminMobileFeedbackWorkItemUpdate struct {
 	Owner           string `json:"owner"`
 }
 
+type adminQuizQuestionRequest struct {
+	Language     string   `json:"language"`
+	Prompt       string   `json:"prompt"`
+	Options      []string `json:"options"`
+	CorrectIndex int      `json:"correct_index"`
+	Category     string   `json:"category"`
+	Difficulty   string   `json:"difficulty"`
+	Explanation  string   `json:"explanation"`
+	SortOrder    int      `json:"sort_order"`
+	Active       bool     `json:"active"`
+}
+
+type adminQuizQuestionDTO struct {
+	ID           int64    `json:"id"`
+	Language     string   `json:"language"`
+	Prompt       string   `json:"prompt"`
+	Options      []string `json:"options"`
+	CorrectIndex int      `json:"correct_index"`
+	Category     string   `json:"category"`
+	Difficulty   string   `json:"difficulty"`
+	Explanation  string   `json:"explanation"`
+	SortOrder    int      `json:"sort_order"`
+	Active       bool     `json:"active"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
+}
+
+type adminQuizQuestionListDTO struct {
+	Items    []adminQuizQuestionDTO             `json:"items"`
+	Total    int                                `json:"total"`
+	Page     int                                `json:"page"`
+	PageSize int                                `json:"page_size"`
+	Stats    service.PlayAdminQuizQuestionStats `json:"stats"`
+}
+
 type adminPlayCampaignDTO struct {
 	ID        int64                     `json:"id"`
 	Name      string                    `json:"name"`
@@ -348,6 +383,86 @@ func (h *AdminPlayHandler) DeleteCampaign(c *gin.Context) {
 		return
 	}
 	if err := h.playService.DeleteAdminCampaign(c.Request.Context(), id); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"deleted": true})
+}
+
+func (h *AdminPlayHandler) ListQuizQuestions(c *gin.Context) {
+	page := parsePositiveInt(c.Query("page"), 1)
+	pageSize := parsePositiveInt(c.Query("page_size"), 20)
+	var active *bool
+	switch strings.ToLower(strings.TrimSpace(c.Query("active"))) {
+	case "true", "1":
+		value := true
+		active = &value
+	case "false", "0":
+		value := false
+		active = &value
+	}
+	items, total, stats, err := h.playService.ListAdminQuizQuestions(c.Request.Context(), service.PlayAdminQuizQuestionFilter{
+		Language:   c.Query("language"),
+		Active:     active,
+		Category:   c.Query("category"),
+		Difficulty: c.Query("difficulty"),
+		Query:      c.Query("q"),
+		Page:       page,
+		PageSize:   pageSize,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, adminQuizQuestionListDTO{
+		Items:    toAdminQuizQuestionDTOs(items),
+		Total:    total,
+		Page:     page,
+		PageSize: pageSize,
+		Stats:    stats,
+	})
+}
+
+func (h *AdminPlayHandler) CreateQuizQuestion(c *gin.Context) {
+	var req adminQuizQuestionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "题目请求无效"))
+		return
+	}
+	created, err := h.playService.CreateAdminQuizQuestion(c.Request.Context(), toPlayAdminQuizQuestionInput(req))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminQuizQuestionDTO(*created))
+}
+
+func (h *AdminPlayHandler) UpdateQuizQuestion(c *gin.Context) {
+	id := parsePositiveInt64(c.Param("id"))
+	if id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "题目 ID 无效"))
+		return
+	}
+	var req adminQuizQuestionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "题目请求无效"))
+		return
+	}
+	updated, err := h.playService.UpdateAdminQuizQuestion(c.Request.Context(), id, toPlayAdminQuizQuestionInput(req))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, toAdminQuizQuestionDTO(*updated))
+}
+
+func (h *AdminPlayHandler) DeleteQuizQuestion(c *gin.Context) {
+	id := parsePositiveInt64(c.Param("id"))
+	if id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "题目 ID 无效"))
+		return
+	}
+	if err := h.playService.DeleteAdminQuizQuestion(c.Request.Context(), id); err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
@@ -728,6 +843,45 @@ func toAdminPlayCampaignDTO(item service.PlayCampaign) adminPlayCampaignDTO {
 		Rules:     item.Rules,
 		Enabled:   item.Enabled,
 		CreatedAt: item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+	}
+}
+
+func toPlayAdminQuizQuestionInput(req adminQuizQuestionRequest) service.PlayAdminQuizQuestionInput {
+	return service.PlayAdminQuizQuestionInput{
+		Language:     req.Language,
+		Prompt:       req.Prompt,
+		Options:      req.Options,
+		CorrectIndex: req.CorrectIndex,
+		Category:     req.Category,
+		Difficulty:   req.Difficulty,
+		Explanation:  req.Explanation,
+		SortOrder:    req.SortOrder,
+		Active:       req.Active,
+	}
+}
+
+func toAdminQuizQuestionDTOs(items []service.PlayAdminQuizQuestion) []adminQuizQuestionDTO {
+	out := make([]adminQuizQuestionDTO, 0, len(items))
+	for _, item := range items {
+		out = append(out, toAdminQuizQuestionDTO(item))
+	}
+	return out
+}
+
+func toAdminQuizQuestionDTO(item service.PlayAdminQuizQuestion) adminQuizQuestionDTO {
+	return adminQuizQuestionDTO{
+		ID:           item.ID,
+		Language:     item.Language,
+		Prompt:       item.Prompt,
+		Options:      item.Options,
+		CorrectIndex: item.CorrectIndex,
+		Category:     item.Category,
+		Difficulty:   item.Difficulty,
+		Explanation:  item.Explanation,
+		SortOrder:    item.SortOrder,
+		Active:       item.Active,
+		CreatedAt:    item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		UpdatedAt:    item.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}
 }
 

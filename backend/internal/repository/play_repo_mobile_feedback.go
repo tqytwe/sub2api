@@ -360,19 +360,10 @@ func (r *playRepository) GetAdminMobileFeedback(ctx context.Context, id int64) (
 func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64, status, adminNote string) (*service.MobileFeedbackRecord, error) {
 	exec := r.sqlExec(ctx)
 	record, err := scanMobileFeedbackRecordFromQuery(ctx, exec, `
-		WITH previous AS (
-			SELECT admin_note
-			FROM mobile_feedback
-			WHERE id = $1
-			FOR UPDATE
-		), updated AS (
-			UPDATE mobile_feedback
-			SET status = $2, admin_note = $3, updated_at = NOW()
-			FROM previous
-			WHERE id = $1
-			RETURNING *
-		)
-		SELECT
+		UPDATE mobile_feedback
+		SET status = $2, admin_note = $3, updated_at = NOW()
+		WHERE id = $1
+		RETURNING
 			id,
 			user_id,
 			'' AS user_email,
@@ -395,8 +386,7 @@ func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64
 			screenshots,
 			admin_note,
 			created_at,
-			updated_at
-		FROM updated`,
+			updated_at`,
 		[]any{id, status, adminNote},
 	)
 	if err != nil {

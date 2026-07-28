@@ -234,6 +234,64 @@ export interface AdminMobileFeedbackUpdateInput {
   admin_note?: string;
 }
 
+export type AdminQuizQuestionLanguage = "zh" | "en";
+export type AdminQuizQuestionDifficulty = "easy" | "normal" | "hard";
+
+export interface AdminQuizQuestion {
+  id: number;
+  language: AdminQuizQuestionLanguage;
+  prompt: string;
+  options: string[];
+  correct_index: number;
+  category: string;
+  difficulty: AdminQuizQuestionDifficulty;
+  explanation: string;
+  sort_order: number;
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminQuizQuestionInput {
+  language: AdminQuizQuestionLanguage;
+  prompt: string;
+  options: string[];
+  correct_index: number;
+  category: string;
+  difficulty: AdminQuizQuestionDifficulty;
+  explanation: string;
+  sort_order: number;
+  active: boolean;
+}
+
+export interface AdminQuizQuestionStats {
+  total: number;
+  active: number;
+  inactive: number;
+  zh_active: number;
+  en_active: number;
+  categories: string[];
+  difficulties: AdminQuizQuestionDifficulty[];
+}
+
+export interface AdminQuizQuestionList {
+  items: AdminQuizQuestion[];
+  total: number;
+  page: number;
+  page_size: number;
+  stats: AdminQuizQuestionStats;
+}
+
+export interface AdminQuizQuestionListParams {
+  language?: AdminQuizQuestionLanguage | "";
+  active?: boolean | "";
+  category?: string;
+  difficulty?: AdminQuizQuestionDifficulty | "";
+  q?: string;
+  page?: number;
+  page_size?: number;
+}
+
 const teamMemberRepairOperationKeys = new Map<string, string>();
 
 function currentAdminID(): string | null {
@@ -497,6 +555,41 @@ export async function updateMobileFeedback(
   return data;
 }
 
+export async function listQuizQuestions(
+  params: AdminQuizQuestionListParams = {},
+): Promise<AdminQuizQuestionList> {
+  const { data } = await apiClient.get<AdminQuizQuestionList>(
+    "/admin/play/quiz/questions",
+    { params },
+  );
+  return data;
+}
+
+export async function createQuizQuestion(
+  input: AdminQuizQuestionInput,
+): Promise<AdminQuizQuestion> {
+  const { data } = await apiClient.post<AdminQuizQuestion>(
+    "/admin/play/quiz/questions",
+    input,
+  );
+  return data;
+}
+
+export async function updateQuizQuestion(
+  id: number,
+  input: AdminQuizQuestionInput,
+): Promise<AdminQuizQuestion> {
+  const { data } = await apiClient.put<AdminQuizQuestion>(
+    `/admin/play/quiz/questions/${id}`,
+    input,
+  );
+  return data;
+}
+
+export async function deleteQuizQuestion(id: number): Promise<void> {
+  await apiClient.delete(`/admin/play/quiz/questions/${id}`);
+}
+
 export const adminPlayAPI = {
   getBlindboxPool,
   updateBlindboxPool,
@@ -519,6 +612,10 @@ export const adminPlayAPI = {
   listMobileFeedback,
   getMobileFeedback,
   updateMobileFeedback,
+  listQuizQuestions,
+  createQuizQuestion,
+  updateQuizQuestion,
+  deleteQuizQuestion,
 };
 
 export default adminPlayAPI;
