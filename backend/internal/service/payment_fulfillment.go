@@ -546,10 +546,76 @@ func (s *PaymentService) doSub(ctx context.Context, o *dbent.PaymentOrder, lease
 	if err := s.ensurePaymentSubscriptionAssigned(ctx, o, gid, days); err != nil {
 		return err
 	}
+	if _, err := s.ensureDailyCardEntitlementAssigned(ctx, o); err != nil {
+		return err
+	}
 	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
 		return err
 	}
 	return s.markCompleted(ctx, o, lease, "SUBSCRIPTION_SUCCESS")
+}
+
+func (s *PaymentService) ensureDailyCardEntitlementAssigned(ctx context.Context, order *dbent.PaymentOrder) (bool, error) {
+	if order == nil || order.SubscriptionSnapshot == nil {
+		return false, nil
+	}
+	mode, _ := order.SubscriptionSnapshot["quota_mode"].(string)
+	if normalizePlanQuotaMode(mode) != DailyCardQuotaModeOneTime {
+		return false, nil
+	}
+	if s.dailyCardSvc == nil {
+		return true, errors.New("daily card service is unavailable")
+	}
+	if order.PlanID == nil || order.SubscriptionGroupID == nil {
+		return true, infraerrors.BadRequest("INVALID_STATUS", "daily card order is missing plan or group")
+	}
+	quotaLimit, ok := dailyCardSnapshotFloat(order.SubscriptionSnapshot["quota_limit_usd"])
+	if !ok || quotaLimit <= 0 {
+		return true, infraerrors.BadRequest("INVALID_STATUS", "daily card order is missing quota snapshot")
+	}
+	durationHours, ok := dailyCardSnapshotInt(order.SubscriptionSnapshot["duration_hours"])
+	if !ok || durationHours <= 0 {
+		return true, infraerrors.BadRequest("INVALID_STATUS", "daily card order is missing duration snapshot")
+	}
+	issuedAt := time.Now()
+	if order.PaidAt != nil {
+		issuedAt = *order.PaidAt
+	}
+	_, _, err := s.dailyCardSvc.IssuePaidCard(ctx, IssueDailyCardInput{
+		UserID: order.UserID, GroupID: *order.SubscriptionGroupID, PlanID: *order.PlanID,
+		PaymentOrderID: order.ID, QuotaLimitUSD: quotaLimit,
+		DurationHours: durationHours, IssuedAt: issuedAt,
+	})
+	if err != nil {
+		return true, fmt.Errorf("issue daily card entitlement: %w", err)
+	}
+	return true, nil
+}
+
+func dailyCardSnapshotFloat(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case float32:
+		return float64(v), true
+	case int:
+		return float64(v), true
+	case int64:
+		return float64(v), true
+	case json.Number:
+		result, err := v.Float64()
+		return result, err == nil
+	default:
+		return 0, false
+	}
+}
+
+func dailyCardSnapshotInt(value any) (int, bool) {
+	parsed, ok := dailyCardSnapshotFloat(value)
+	if !ok || parsed != math.Trunc(parsed) {
+		return 0, false
+	}
+	return int(parsed), true
 }
 
 func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, o *dbent.PaymentOrder, groupID int64, days int) error {

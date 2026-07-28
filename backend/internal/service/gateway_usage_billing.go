@@ -376,9 +376,12 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 	// speed. TotalCost remains the raw (pre-multiplier) value; downstream guards
 	// on "> 0" still correctly skip free subscriptions (RateMultiplier == 0).
 	if !IsImageStudioManagedBilling(ctx) {
-		if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
+		if p.IsSubscriptionBill && p.Subscription != nil {
 			cmd.SubscriptionID = &p.Subscription.ID
-			cmd.SubscriptionCost = p.billedCost()
+			cmd.SubscriptionEntitlementID = p.Subscription.DailyCardEntitlementID
+			if p.Cost.TotalCost > 0 {
+				cmd.SubscriptionCost = p.billedCost()
+			}
 		} else if p.billedCost() > 0 {
 			cmd.BalanceCost = p.billedCost()
 		}
@@ -458,7 +461,13 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 
 	if p.IsSubscriptionBill {
 		if billedCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
-			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, billedCost)
+			if result.DailyCardExhausted || result.ActivatedEntitlementID != nil {
+				if err := deps.billingCacheService.InvalidateSubscriptionEverywhere(ctx, p.User.ID, *p.APIKey.GroupID); err != nil {
+					logger.LegacyPrintf("service.gateway", "invalidate terminal daily-card subscription cache failed: %v", err)
+				}
+			} else {
+				deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, billedCost)
+			}
 		}
 	} else if billedCost > 0 && p.User != nil {
 		syncBalanceCacheAfterDeduction(ctx, p, deps, result)

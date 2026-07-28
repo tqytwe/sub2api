@@ -94,6 +94,21 @@ func ValidityUnit(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldValidityUnit, v))
 }
 
+// QuotaMode applies equality check predicate on the "quota_mode" field. It's identical to QuotaModeEQ.
+func QuotaMode(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaMode, v))
+}
+
+// QuotaLimitUsd applies equality check predicate on the "quota_limit_usd" field. It's identical to QuotaLimitUsdEQ.
+func QuotaLimitUsd(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaLimitUsd, v))
+}
+
+// DurationHours applies equality check predicate on the "duration_hours" field. It's identical to DurationHoursEQ.
+func DurationHours(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldDurationHours, v))
+}
+
 // Features applies equality check predicate on the "features" field. It's identical to FeaturesEQ.
 func Features(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldFeatures, v))
@@ -582,6 +597,171 @@ func ValidityUnitEqualFold(v string) predicate.SubscriptionPlan {
 // ValidityUnitContainsFold applies the ContainsFold predicate on the "validity_unit" field.
 func ValidityUnitContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldValidityUnit, v))
+}
+
+// QuotaModeEQ applies the EQ predicate on the "quota_mode" field.
+func QuotaModeEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaMode, v))
+}
+
+// QuotaModeNEQ applies the NEQ predicate on the "quota_mode" field.
+func QuotaModeNEQ(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldQuotaMode, v))
+}
+
+// QuotaModeIn applies the In predicate on the "quota_mode" field.
+func QuotaModeIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldQuotaMode, vs...))
+}
+
+// QuotaModeNotIn applies the NotIn predicate on the "quota_mode" field.
+func QuotaModeNotIn(vs ...string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldQuotaMode, vs...))
+}
+
+// QuotaModeGT applies the GT predicate on the "quota_mode" field.
+func QuotaModeGT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldQuotaMode, v))
+}
+
+// QuotaModeGTE applies the GTE predicate on the "quota_mode" field.
+func QuotaModeGTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldQuotaMode, v))
+}
+
+// QuotaModeLT applies the LT predicate on the "quota_mode" field.
+func QuotaModeLT(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldQuotaMode, v))
+}
+
+// QuotaModeLTE applies the LTE predicate on the "quota_mode" field.
+func QuotaModeLTE(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldQuotaMode, v))
+}
+
+// QuotaModeContains applies the Contains predicate on the "quota_mode" field.
+func QuotaModeContains(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContains(FieldQuotaMode, v))
+}
+
+// QuotaModeHasPrefix applies the HasPrefix predicate on the "quota_mode" field.
+func QuotaModeHasPrefix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasPrefix(FieldQuotaMode, v))
+}
+
+// QuotaModeHasSuffix applies the HasSuffix predicate on the "quota_mode" field.
+func QuotaModeHasSuffix(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldHasSuffix(FieldQuotaMode, v))
+}
+
+// QuotaModeEqualFold applies the EqualFold predicate on the "quota_mode" field.
+func QuotaModeEqualFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEqualFold(FieldQuotaMode, v))
+}
+
+// QuotaModeContainsFold applies the ContainsFold predicate on the "quota_mode" field.
+func QuotaModeContainsFold(v string) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldQuotaMode, v))
+}
+
+// QuotaLimitUsdEQ applies the EQ predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldQuotaLimitUsd, v))
+}
+
+// QuotaLimitUsdNEQ applies the NEQ predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdNEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldQuotaLimitUsd, v))
+}
+
+// QuotaLimitUsdIn applies the In predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldQuotaLimitUsd, vs...))
+}
+
+// QuotaLimitUsdNotIn applies the NotIn predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdNotIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldQuotaLimitUsd, vs...))
+}
+
+// QuotaLimitUsdGT applies the GT predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdGT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldQuotaLimitUsd, v))
+}
+
+// QuotaLimitUsdGTE applies the GTE predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdGTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldQuotaLimitUsd, v))
+}
+
+// QuotaLimitUsdLT applies the LT predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdLT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldQuotaLimitUsd, v))
+}
+
+// QuotaLimitUsdLTE applies the LTE predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdLTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldQuotaLimitUsd, v))
+}
+
+// QuotaLimitUsdIsNil applies the IsNil predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldQuotaLimitUsd))
+}
+
+// QuotaLimitUsdNotNil applies the NotNil predicate on the "quota_limit_usd" field.
+func QuotaLimitUsdNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldQuotaLimitUsd))
+}
+
+// DurationHoursEQ applies the EQ predicate on the "duration_hours" field.
+func DurationHoursEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldDurationHours, v))
+}
+
+// DurationHoursNEQ applies the NEQ predicate on the "duration_hours" field.
+func DurationHoursNEQ(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldDurationHours, v))
+}
+
+// DurationHoursIn applies the In predicate on the "duration_hours" field.
+func DurationHoursIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldDurationHours, vs...))
+}
+
+// DurationHoursNotIn applies the NotIn predicate on the "duration_hours" field.
+func DurationHoursNotIn(vs ...int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldDurationHours, vs...))
+}
+
+// DurationHoursGT applies the GT predicate on the "duration_hours" field.
+func DurationHoursGT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldDurationHours, v))
+}
+
+// DurationHoursGTE applies the GTE predicate on the "duration_hours" field.
+func DurationHoursGTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldDurationHours, v))
+}
+
+// DurationHoursLT applies the LT predicate on the "duration_hours" field.
+func DurationHoursLT(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldDurationHours, v))
+}
+
+// DurationHoursLTE applies the LTE predicate on the "duration_hours" field.
+func DurationHoursLTE(v int) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldDurationHours, v))
+}
+
+// DurationHoursIsNil applies the IsNil predicate on the "duration_hours" field.
+func DurationHoursIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldDurationHours))
+}
+
+// DurationHoursNotNil applies the NotNil predicate on the "duration_hours" field.
+func DurationHoursNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldDurationHours))
 }
 
 // FeaturesEQ applies the EQ predicate on the "features" field.

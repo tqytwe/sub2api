@@ -13,6 +13,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -42,6 +43,11 @@ type imageTaskAPIKeyLoader interface {
 
 type imageTaskSubscriptionLoader interface {
 	GetActiveSubscription(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
+}
+
+type imageTaskDailyCardLoader interface {
+	ResolveDailyCardAccess(ctx context.Context, userID, groupID int64) (*service.DailyCardEntitlement, bool, error)
+	ReserveDailyCardRequest(ctx context.Context, input service.DailyCardRequestHoldInput) error
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorage service.ImageStorage) *AsyncImageHandler {
@@ -462,6 +468,25 @@ func (h *AsyncImageHandler) newWorkerImageContext(
 		if err != nil || subscription == nil {
 			cancel()
 			return nil, nil, func() {}, errors.New("active subscription could not be restored")
+		}
+		if dailyCardLoader, ok := h.subscriptions.(imageTaskDailyCardLoader); ok {
+			card, managedByDailyCard, cardErr := dailyCardLoader.ResolveDailyCardAccess(executionCtx, apiKey.UserID, apiKey.Group.ID)
+			if cardErr != nil {
+				cancel()
+				return nil, nil, func() {}, errors.New("daily card is exhausted or expired")
+			}
+			if managedByDailyCard {
+				requestID := "client:" + taskID
+				if reserveErr := dailyCardLoader.ReserveDailyCardRequest(executionCtx, service.DailyCardRequestHoldInput{
+					EntitlementID: card.ID, UserID: apiKey.UserID, RequestID: requestID,
+					RequestFingerprint: "async-image:" + taskID, ReservedAt: time.Now(),
+				}); reserveErr != nil {
+					cancel()
+					return nil, nil, func() {}, errors.New("daily card is busy or unavailable")
+				}
+				subscription.DailyCardEntitlementID = &card.ID
+				subscription.DailyUsageUSD = card.QuotaUsedUSD
+			}
 		}
 		taskCtx.Set(string(middleware2.ContextKeySubscription), subscription)
 	}

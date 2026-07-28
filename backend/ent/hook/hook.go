@@ -441,6 +441,30 @@ func (f SettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SettingMutation", m)
 }
 
+// The SubscriptionEntitlementFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionEntitlement mutator.
+type SubscriptionEntitlementFunc func(context.Context, *ent.SubscriptionEntitlementMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionEntitlementFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionEntitlementMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionEntitlementMutation", m)
+}
+
+// The SubscriptionEntitlementHoldFunc type is an adapter to allow the use of ordinary
+// function as SubscriptionEntitlementHold mutator.
+type SubscriptionEntitlementHoldFunc func(context.Context, *ent.SubscriptionEntitlementHoldMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SubscriptionEntitlementHoldFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SubscriptionEntitlementHoldMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SubscriptionEntitlementHoldMutation", m)
+}
+
 // The SubscriptionPlanFunc type is an adapter to allow the use of ordinary
 // function as SubscriptionPlan mutator.
 type SubscriptionPlanFunc func(context.Context, *ent.SubscriptionPlanMutation) (ent.Value, error)
