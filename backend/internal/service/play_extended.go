@@ -54,6 +54,11 @@ func (s *PlayService) GetBlindboxStatus(ctx context.Context, userID int64) (*Pla
 			return nil, err
 		}
 		out.CouponPoolReady = ready
+		prizes, err := s.couponRewardPrizePreview(ctx, CouponRewardActivityBlindbox)
+		if err != nil {
+			return nil, err
+		}
+		out.CouponPrizes = prizes
 	}
 	out.EffectiveLimit = rt.BlindboxDailyLimit
 	if !rt.BlindboxEnabled || userID <= 0 {

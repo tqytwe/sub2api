@@ -10,23 +10,31 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestListRecentBlindboxWinsExcludesCouponOnlyOpenRecords(t *testing.T) {
+func TestListRecentBlindboxWinsIncludesBalanceAndCouponRewards(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
 
 	createdAt := time.Date(2026, time.July, 27, 12, 0, 0, 0, time.UTC)
-	mock.ExpectQuery(`(?s)FROM play_blindbox_opens b.*WHERE b\.reward_amount > 0.*LIMIT \$1`).
+	mock.ExpectQuery(`(?s)FROM play_blindbox_opens b.*UNION ALL.*FROM coupon_reward_draws d.*ORDER BY created_at DESC.*LIMIT \$1`).
 		WithArgs(20).
-		WillReturnRows(sqlmock.NewRows([]string{"user", "reward_amount", "created_at"}).
-			AddRow("cash-winner", 9.0, createdAt))
+		WillReturnRows(sqlmock.NewRows([]string{"user_label", "reward_amount", "reward_type", "coupon_name", "created_at"}).
+			AddRow("coupon-winner", 0.0, service.PlayRewardTypeCoupon, "充值20减1", createdAt.Add(time.Minute)).
+			AddRow("cash-winner", 9.0, service.PlayRewardTypeBalance, "", createdAt))
 
 	repo := NewPlayRepository(nil, db)
 	wins, err := repo.ListRecentBlindboxWins(context.Background(), 0)
 	require.NoError(t, err)
 	require.Equal(t, []service.PlayBlindboxRecentWin{{
+		UserLabel:    "coupon-winner",
+		RewardAmount: 0,
+		RewardType:   service.PlayRewardTypeCoupon,
+		CouponName:   "充值20减1",
+		CreatedAt:    createdAt.Add(time.Minute),
+	}, {
 		UserLabel:    "cash-winner",
 		RewardAmount: 9,
+		RewardType:   service.PlayRewardTypeBalance,
 		CreatedAt:    createdAt,
 	}}, wins)
 	require.NoError(t, mock.ExpectationsWereMet())

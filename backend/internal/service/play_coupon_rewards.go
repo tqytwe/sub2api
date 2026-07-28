@@ -69,6 +69,49 @@ func (s *PlayService) couponRewardPoolReady(ctx context.Context, activity Coupon
 	return pool != nil, nil
 }
 
+func (s *PlayService) couponRewardPrizePreview(ctx context.Context, activity CouponRewardActivity) ([]PlayCouponPrizePreview, error) {
+	reader, ok := s.couponRewardIssuer.(CouponRewardPoolReader)
+	if !ok || reader == nil {
+		return []PlayCouponPrizePreview{}, nil
+	}
+	pool, err := reader.GetPublishedRewardPool(ctx, activity)
+	if err != nil {
+		if errors.Is(err, ErrCouponRewardPoolUnavailable) {
+			return []PlayCouponPrizePreview{}, nil
+		}
+		return nil, err
+	}
+	if pool == nil {
+		return []PlayCouponPrizePreview{}, nil
+	}
+	out := make([]PlayCouponPrizePreview, 0, len(pool.Entries))
+	for _, entry := range pool.Entries {
+		if !entry.Enabled || entry.TemplateID <= 0 || entry.TemplateID == pool.FallbackTemplateID {
+			continue
+		}
+		out = append(out, PlayCouponPrizePreview{
+			TemplateID: entry.TemplateID,
+			Name:       entry.TemplateName,
+			WeightBP:   entry.WeightBP,
+			Tier:       couponPrizePreviewTier(entry.WeightBP),
+		})
+	}
+	return out, nil
+}
+
+func couponPrizePreviewTier(weight int) string {
+	switch {
+	case weight >= 1500:
+		return "common"
+	case weight >= 500:
+		return "standard"
+	case weight >= 100:
+		return "rare"
+	default:
+		return "jackpot"
+	}
+}
+
 func (s *PlayService) requireCouponRewardPool(ctx context.Context, activity CouponRewardActivity) error {
 	ready, err := s.couponRewardPoolReady(ctx, activity)
 	if err != nil {

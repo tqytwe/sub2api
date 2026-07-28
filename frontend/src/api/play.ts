@@ -98,6 +98,7 @@ export interface PlayArenaDailyRewardEstimateRow {
 export interface PlayBlindboxStatus {
   enabled: boolean
   coupon_pool_ready?: boolean
+  coupon_prizes?: PlayCouponPrizePreview[]
   cost_amount: number
   pool?: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
@@ -131,6 +132,7 @@ export interface PlayBlindboxPool {
 export interface PlayBlindboxPoolResponse {
   enabled: boolean
   coupon_pool_ready?: boolean
+  coupon_prizes?: PlayCouponPrizePreview[]
   pool: PlayBlindboxPool
   current_pool?: PlayBlindboxPool
   next_pool?: PlayBlindboxPool
@@ -159,6 +161,13 @@ export interface PlayBlindboxOpenResult {
 
 export type PlayRewardType = 'none' | 'balance' | 'coupon'
 
+export interface PlayCouponPrizePreview {
+  template_id: number
+  name: string
+  weight_bp: number
+  tier: 'common' | 'standard' | 'rare' | 'jackpot' | string
+}
+
 export interface PlayCouponReward {
   user_coupon_id: number
   template_id: number
@@ -176,6 +185,8 @@ export interface PlayCouponReward {
 export interface PlayBlindboxRecentWin {
   user: string
   reward: number
+  reward_type?: PlayRewardType
+  coupon_name?: string
   when: string
 }
 

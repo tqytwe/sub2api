@@ -186,13 +186,29 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 	}
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
-		SELECT COALESCE(NULLIF(TRIM(u.username), ''), NULLIF(TRIM(u.email), ''), CONCAT('user-', b.user_id::text)),
-		       b.reward_amount,
-		       b.created_at
-		FROM play_blindbox_opens b
-		JOIN users u ON u.id = b.user_id
-		WHERE b.reward_amount > 0
-		ORDER BY b.id DESC
+		SELECT user_label, reward_amount, reward_type, coupon_name, created_at
+		FROM (
+			SELECT COALESCE(NULLIF(TRIM(u.username), ''), NULLIF(TRIM(u.email), ''), CONCAT('user-', b.user_id::text)) AS user_label,
+			       b.reward_amount,
+			       'balance'::text AS reward_type,
+			       ''::text AS coupon_name,
+			       b.created_at
+			FROM play_blindbox_opens b
+			JOIN users u ON u.id = b.user_id
+			WHERE b.reward_amount > 0
+			UNION ALL
+			SELECT COALESCE(NULLIF(TRIM(u.username), ''), NULLIF(TRIM(u.email), ''), CONCAT('user-', d.user_id::text)) AS user_label,
+			       0::numeric AS reward_amount,
+			       'coupon'::text AS reward_type,
+			       COALESCE(NULLIF(TRIM(ct.name), ''), NULLIF(TRIM(uc.terms_snapshot->>'name'), ''), 'Coupon') AS coupon_name,
+			       d.created_at
+			FROM coupon_reward_draws d
+			JOIN users u ON u.id = d.user_id
+			JOIN user_coupons uc ON uc.id = d.user_coupon_id
+			JOIN coupon_templates ct ON ct.id = d.template_id
+			WHERE d.activity = 'blindbox'
+		) recent
+		ORDER BY created_at DESC
 		LIMIT $1`, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list recent blindbox wins: %w", err)
@@ -207,7 +223,7 @@ func (r *playRepository) ListRecentBlindboxWins(ctx context.Context, limit int) 
 	out := make([]service.PlayBlindboxRecentWin, 0, limit)
 	for rows.Next() {
 		var win service.PlayBlindboxRecentWin
-		if err := rows.Scan(&win.UserLabel, &win.RewardAmount, &win.CreatedAt); err != nil {
+		if err := rows.Scan(&win.UserLabel, &win.RewardAmount, &win.RewardType, &win.CouponName, &win.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan recent blindbox win: %w", err)
 		}
 		out = append(out, win)

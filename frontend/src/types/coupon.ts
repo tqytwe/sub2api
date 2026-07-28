@@ -45,6 +45,8 @@ export interface UserCoupon {
   template_id: number
   template_name?: string
   user_id: number
+  user_email?: string
+  user_name?: string
   status: UserCouponStatus
   terms_snapshot: CouponTermsSnapshot
   source: CouponIssueSource
@@ -56,6 +58,13 @@ export interface UserCoupon {
   locked_order_id?: number | null
   locked_at?: string | null
   used_order_id?: number | null
+  used_order_no?: string
+  used_order_type?: string
+  used_order_status?: string
+  used_order_amount?: number
+  used_order_pay_amount?: number
+  used_order_discount_amount?: number
+  used_order_currency?: string
   used_at?: string | null
   voided_at?: string | null
   void_reason?: string

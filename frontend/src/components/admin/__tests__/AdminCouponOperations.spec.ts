@@ -321,9 +321,12 @@ describe('AdminCouponOperations', () => {
     expect(listUserCoupons).toHaveBeenLastCalledWith({
       page: 1,
       page_size: 50,
-      user_id: 9,
+      user: '9',
       template_id: 3,
+      source: undefined,
       status: 'locked',
+      issued_from: undefined,
+      issued_to: undefined,
     })
 
     wrapper.findComponent({ name: 'Pagination' }).vm.$emit('update:page', 2)
