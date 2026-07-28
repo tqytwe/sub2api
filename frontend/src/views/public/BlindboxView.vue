@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import router from '@/router'
 import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorCode } from '@/utils/apiError'
@@ -198,18 +199,27 @@ const celebrationVariant = computed(() => {
 })
 
 const hasCouponResult = computed(() => lastResult.value?.reward_type === 'coupon' && !!lastResult.value.coupon)
+const hasRedeemCodeResult = computed(() => lastResult.value?.reward_type === 'redeem_code' && !!lastResult.value.redeem_code)
 const couponResultPendingActivation = computed(() => {
   const validFrom = lastResult.value?.coupon?.valid_from
   const timestamp = validFrom ? Date.parse(validFrom) : Number.NaN
   return Number.isFinite(timestamp) && timestamp > Date.now()
 })
-const celebrationTitle = computed(() => hasCouponResult.value ? t('coupon.reward.blindboxTitle') : t('blindbox.celebrationTitle'))
+const celebrationTitle = computed(() => {
+  if (hasCouponResult.value) return t('coupon.reward.blindboxTitle')
+  if (hasRedeemCodeResult.value) return t('blindbox.redeemTitle')
+  return t('blindbox.celebrationTitle')
+})
 const celebrationAmount = computed(() => hasCouponResult.value
   ? lastResult.value?.coupon?.name || ''
+  : hasRedeemCodeResult.value
+    ? lastResult.value?.redeem_code?.code || ''
   : `$${formatMoney(lastResult.value?.reward_amount)}`)
-const celebrationSubtitle = computed(() => hasCouponResult.value
-  ? t('coupon.reward.issuedToWallet')
-  : t('blindbox.celebrationSubtitle'))
+const celebrationSubtitle = computed(() => {
+  if (hasCouponResult.value) return t('coupon.reward.issuedToWallet')
+  if (hasRedeemCodeResult.value) return t('blindbox.redeemSubtitle')
+  return t('blindbox.celebrationSubtitle')
+})
 
 const celebrationDetails = computed(() => {
   if (!lastResult.value) return []
@@ -224,6 +234,14 @@ const celebrationDetails = computed(() => {
       details.unshift(t('coupon.reward.availableAt', { time: formatDateTime(coupon.valid_from) }))
     }
     return details
+  }
+  if (lastResult.value.reward_type === 'redeem_code' && lastResult.value.redeem_code) {
+    const code = lastResult.value.redeem_code
+    return [
+      code.batch_name || '',
+      code.expires_at ? t('coupon.reward.expiresAt', { time: formatDateTime(code.expires_at) }) : '',
+      code.reward_pool_version || lastResult.value.coupon_pool_version || lastResult.value.pool_version,
+    ].filter(Boolean)
   }
   return [
     lastResult.value.pool_version,
@@ -432,6 +450,19 @@ async function handleOpen() {
   }
 }
 
+function viewLatestReward() {
+  celebrationOpen.value = false
+  if (lastResult.value?.reward_type === 'coupon') {
+    void router.push({ path: '/wallet', query: { tab: 'coupons' } })
+    return
+  }
+  if (lastResult.value?.reward_type === 'redeem_code') {
+    void router.push('/redeem')
+    return
+  }
+  void router.push('/wallet')
+}
+
 onMounted(async () => {
   await Promise.all([loadStatus(), loadRecentWins()])
 })
@@ -625,7 +656,7 @@ watch(
       :secondary-label="t('blindbox.viewReward')"
       @close="celebrationOpen = false"
       @primary="() => { celebrationOpen = false; void handleOpen() }"
-      @secondary="celebrationOpen = false"
+      @secondary="viewLatestReward"
     />
     <SupportFloatingCard v-if="!authStore.isAuthenticated" />
     </div>

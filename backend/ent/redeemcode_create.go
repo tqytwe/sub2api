@@ -114,6 +114,104 @@ func (_c *RedeemCodeCreate) SetNillableNotes(v *string) *RedeemCodeCreate {
 	return _c
 }
 
+// SetBatchName sets the "batch_name" field.
+func (_c *RedeemCodeCreate) SetBatchName(v string) *RedeemCodeCreate {
+	_c.mutation.SetBatchName(v)
+	return _c
+}
+
+// SetNillableBatchName sets the "batch_name" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableBatchName(v *string) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetBatchName(*v)
+	}
+	return _c
+}
+
+// SetBatchTag sets the "batch_tag" field.
+func (_c *RedeemCodeCreate) SetBatchTag(v string) *RedeemCodeCreate {
+	_c.mutation.SetBatchTag(v)
+	return _c
+}
+
+// SetNillableBatchTag sets the "batch_tag" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableBatchTag(v *string) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetBatchTag(*v)
+	}
+	return _c
+}
+
+// SetIssuedTo sets the "issued_to" field.
+func (_c *RedeemCodeCreate) SetIssuedTo(v int64) *RedeemCodeCreate {
+	_c.mutation.SetIssuedTo(v)
+	return _c
+}
+
+// SetNillableIssuedTo sets the "issued_to" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableIssuedTo(v *int64) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetIssuedTo(*v)
+	}
+	return _c
+}
+
+// SetIssuedAt sets the "issued_at" field.
+func (_c *RedeemCodeCreate) SetIssuedAt(v time.Time) *RedeemCodeCreate {
+	_c.mutation.SetIssuedAt(v)
+	return _c
+}
+
+// SetNillableIssuedAt sets the "issued_at" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableIssuedAt(v *time.Time) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetIssuedAt(*v)
+	}
+	return _c
+}
+
+// SetIssueSource sets the "issue_source" field.
+func (_c *RedeemCodeCreate) SetIssueSource(v string) *RedeemCodeCreate {
+	_c.mutation.SetIssueSource(v)
+	return _c
+}
+
+// SetNillableIssueSource sets the "issue_source" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableIssueSource(v *string) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetIssueSource(*v)
+	}
+	return _c
+}
+
+// SetIssueRef sets the "issue_ref" field.
+func (_c *RedeemCodeCreate) SetIssueRef(v string) *RedeemCodeCreate {
+	_c.mutation.SetIssueRef(v)
+	return _c
+}
+
+// SetNillableIssueRef sets the "issue_ref" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableIssueRef(v *string) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetIssueRef(*v)
+	}
+	return _c
+}
+
+// SetRewardPoolVersion sets the "reward_pool_version" field.
+func (_c *RedeemCodeCreate) SetRewardPoolVersion(v string) *RedeemCodeCreate {
+	_c.mutation.SetRewardPoolVersion(v)
+	return _c
+}
+
+// SetNillableRewardPoolVersion sets the "reward_pool_version" field if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableRewardPoolVersion(v *string) *RedeemCodeCreate {
+	if v != nil {
+		_c.SetRewardPoolVersion(*v)
+	}
+	return _c
+}
+
 // SetCreatedAt sets the "created_at" field.
 func (_c *RedeemCodeCreate) SetCreatedAt(v time.Time) *RedeemCodeCreate {
 	_c.mutation.SetCreatedAt(v)
@@ -187,6 +285,25 @@ func (_c *RedeemCodeCreate) SetNillableUserID(id *int64) *RedeemCodeCreate {
 // SetUser sets the "user" edge to the User entity.
 func (_c *RedeemCodeCreate) SetUser(v *User) *RedeemCodeCreate {
 	return _c.SetUserID(v.ID)
+}
+
+// SetIssuedUserID sets the "issued_user" edge to the User entity by ID.
+func (_c *RedeemCodeCreate) SetIssuedUserID(id int64) *RedeemCodeCreate {
+	_c.mutation.SetIssuedUserID(id)
+	return _c
+}
+
+// SetNillableIssuedUserID sets the "issued_user" edge to the User entity by ID if the given value is not nil.
+func (_c *RedeemCodeCreate) SetNillableIssuedUserID(id *int64) *RedeemCodeCreate {
+	if id != nil {
+		_c = _c.SetIssuedUserID(*id)
+	}
+	return _c
+}
+
+// SetIssuedUser sets the "issued_user" edge to the User entity.
+func (_c *RedeemCodeCreate) SetIssuedUser(v *User) *RedeemCodeCreate {
+	return _c.SetIssuedUserID(v.ID)
 }
 
 // SetGroup sets the "group" edge to the Group entity.
@@ -280,6 +397,31 @@ func (_c *RedeemCodeCreate) check() error {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.status": %w`, err)}
 		}
 	}
+	if v, ok := _c.mutation.BatchName(); ok {
+		if err := redeemcode.BatchNameValidator(v); err != nil {
+			return &ValidationError{Name: "batch_name", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.batch_name": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.BatchTag(); ok {
+		if err := redeemcode.BatchTagValidator(v); err != nil {
+			return &ValidationError{Name: "batch_tag", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.batch_tag": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.IssueSource(); ok {
+		if err := redeemcode.IssueSourceValidator(v); err != nil {
+			return &ValidationError{Name: "issue_source", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.issue_source": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.IssueRef(); ok {
+		if err := redeemcode.IssueRefValidator(v); err != nil {
+			return &ValidationError{Name: "issue_ref", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.issue_ref": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.RewardPoolVersion(); ok {
+		if err := redeemcode.RewardPoolVersionValidator(v); err != nil {
+			return &ValidationError{Name: "reward_pool_version", err: fmt.Errorf(`ent: validator failed for field "RedeemCode.reward_pool_version": %w`, err)}
+		}
+	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "RedeemCode.created_at"`)}
 	}
@@ -337,6 +479,30 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 		_spec.SetField(redeemcode.FieldNotes, field.TypeString, value)
 		_node.Notes = &value
 	}
+	if value, ok := _c.mutation.BatchName(); ok {
+		_spec.SetField(redeemcode.FieldBatchName, field.TypeString, value)
+		_node.BatchName = &value
+	}
+	if value, ok := _c.mutation.BatchTag(); ok {
+		_spec.SetField(redeemcode.FieldBatchTag, field.TypeString, value)
+		_node.BatchTag = &value
+	}
+	if value, ok := _c.mutation.IssuedAt(); ok {
+		_spec.SetField(redeemcode.FieldIssuedAt, field.TypeTime, value)
+		_node.IssuedAt = &value
+	}
+	if value, ok := _c.mutation.IssueSource(); ok {
+		_spec.SetField(redeemcode.FieldIssueSource, field.TypeString, value)
+		_node.IssueSource = &value
+	}
+	if value, ok := _c.mutation.IssueRef(); ok {
+		_spec.SetField(redeemcode.FieldIssueRef, field.TypeString, value)
+		_node.IssueRef = &value
+	}
+	if value, ok := _c.mutation.RewardPoolVersion(); ok {
+		_spec.SetField(redeemcode.FieldRewardPoolVersion, field.TypeString, value)
+		_node.RewardPoolVersion = &value
+	}
 	if value, ok := _c.mutation.CreatedAt(); ok {
 		_spec.SetField(redeemcode.FieldCreatedAt, field.TypeTime, value)
 		_node.CreatedAt = value
@@ -364,6 +530,23 @@ func (_c *RedeemCodeCreate) createSpec() (*RedeemCode, *sqlgraph.CreateSpec) {
 			edge.Target.Nodes = append(edge.Target.Nodes, k)
 		}
 		_node.UsedBy = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.IssuedUserIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   redeemcode.IssuedUserTable,
+			Columns: []string{redeemcode.IssuedUserColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.IssuedTo = &nodes[0]
 		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.GroupIDs(); len(nodes) > 0 {
@@ -540,6 +723,132 @@ func (u *RedeemCodeUpsert) UpdateNotes() *RedeemCodeUpsert {
 // ClearNotes clears the value of the "notes" field.
 func (u *RedeemCodeUpsert) ClearNotes() *RedeemCodeUpsert {
 	u.SetNull(redeemcode.FieldNotes)
+	return u
+}
+
+// SetBatchName sets the "batch_name" field.
+func (u *RedeemCodeUpsert) SetBatchName(v string) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldBatchName, v)
+	return u
+}
+
+// UpdateBatchName sets the "batch_name" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateBatchName() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldBatchName)
+	return u
+}
+
+// ClearBatchName clears the value of the "batch_name" field.
+func (u *RedeemCodeUpsert) ClearBatchName() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldBatchName)
+	return u
+}
+
+// SetBatchTag sets the "batch_tag" field.
+func (u *RedeemCodeUpsert) SetBatchTag(v string) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldBatchTag, v)
+	return u
+}
+
+// UpdateBatchTag sets the "batch_tag" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateBatchTag() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldBatchTag)
+	return u
+}
+
+// ClearBatchTag clears the value of the "batch_tag" field.
+func (u *RedeemCodeUpsert) ClearBatchTag() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldBatchTag)
+	return u
+}
+
+// SetIssuedTo sets the "issued_to" field.
+func (u *RedeemCodeUpsert) SetIssuedTo(v int64) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldIssuedTo, v)
+	return u
+}
+
+// UpdateIssuedTo sets the "issued_to" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateIssuedTo() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldIssuedTo)
+	return u
+}
+
+// ClearIssuedTo clears the value of the "issued_to" field.
+func (u *RedeemCodeUpsert) ClearIssuedTo() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldIssuedTo)
+	return u
+}
+
+// SetIssuedAt sets the "issued_at" field.
+func (u *RedeemCodeUpsert) SetIssuedAt(v time.Time) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldIssuedAt, v)
+	return u
+}
+
+// UpdateIssuedAt sets the "issued_at" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateIssuedAt() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldIssuedAt)
+	return u
+}
+
+// ClearIssuedAt clears the value of the "issued_at" field.
+func (u *RedeemCodeUpsert) ClearIssuedAt() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldIssuedAt)
+	return u
+}
+
+// SetIssueSource sets the "issue_source" field.
+func (u *RedeemCodeUpsert) SetIssueSource(v string) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldIssueSource, v)
+	return u
+}
+
+// UpdateIssueSource sets the "issue_source" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateIssueSource() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldIssueSource)
+	return u
+}
+
+// ClearIssueSource clears the value of the "issue_source" field.
+func (u *RedeemCodeUpsert) ClearIssueSource() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldIssueSource)
+	return u
+}
+
+// SetIssueRef sets the "issue_ref" field.
+func (u *RedeemCodeUpsert) SetIssueRef(v string) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldIssueRef, v)
+	return u
+}
+
+// UpdateIssueRef sets the "issue_ref" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateIssueRef() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldIssueRef)
+	return u
+}
+
+// ClearIssueRef clears the value of the "issue_ref" field.
+func (u *RedeemCodeUpsert) ClearIssueRef() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldIssueRef)
+	return u
+}
+
+// SetRewardPoolVersion sets the "reward_pool_version" field.
+func (u *RedeemCodeUpsert) SetRewardPoolVersion(v string) *RedeemCodeUpsert {
+	u.Set(redeemcode.FieldRewardPoolVersion, v)
+	return u
+}
+
+// UpdateRewardPoolVersion sets the "reward_pool_version" field to the value that was provided on create.
+func (u *RedeemCodeUpsert) UpdateRewardPoolVersion() *RedeemCodeUpsert {
+	u.SetExcluded(redeemcode.FieldRewardPoolVersion)
+	return u
+}
+
+// ClearRewardPoolVersion clears the value of the "reward_pool_version" field.
+func (u *RedeemCodeUpsert) ClearRewardPoolVersion() *RedeemCodeUpsert {
+	u.SetNull(redeemcode.FieldRewardPoolVersion)
 	return u
 }
 
@@ -765,6 +1074,153 @@ func (u *RedeemCodeUpsertOne) UpdateNotes() *RedeemCodeUpsertOne {
 func (u *RedeemCodeUpsertOne) ClearNotes() *RedeemCodeUpsertOne {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetBatchName sets the "batch_name" field.
+func (u *RedeemCodeUpsertOne) SetBatchName(v string) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetBatchName(v)
+	})
+}
+
+// UpdateBatchName sets the "batch_name" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateBatchName() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateBatchName()
+	})
+}
+
+// ClearBatchName clears the value of the "batch_name" field.
+func (u *RedeemCodeUpsertOne) ClearBatchName() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearBatchName()
+	})
+}
+
+// SetBatchTag sets the "batch_tag" field.
+func (u *RedeemCodeUpsertOne) SetBatchTag(v string) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetBatchTag(v)
+	})
+}
+
+// UpdateBatchTag sets the "batch_tag" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateBatchTag() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateBatchTag()
+	})
+}
+
+// ClearBatchTag clears the value of the "batch_tag" field.
+func (u *RedeemCodeUpsertOne) ClearBatchTag() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearBatchTag()
+	})
+}
+
+// SetIssuedTo sets the "issued_to" field.
+func (u *RedeemCodeUpsertOne) SetIssuedTo(v int64) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssuedTo(v)
+	})
+}
+
+// UpdateIssuedTo sets the "issued_to" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateIssuedTo() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssuedTo()
+	})
+}
+
+// ClearIssuedTo clears the value of the "issued_to" field.
+func (u *RedeemCodeUpsertOne) ClearIssuedTo() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssuedTo()
+	})
+}
+
+// SetIssuedAt sets the "issued_at" field.
+func (u *RedeemCodeUpsertOne) SetIssuedAt(v time.Time) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssuedAt(v)
+	})
+}
+
+// UpdateIssuedAt sets the "issued_at" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateIssuedAt() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssuedAt()
+	})
+}
+
+// ClearIssuedAt clears the value of the "issued_at" field.
+func (u *RedeemCodeUpsertOne) ClearIssuedAt() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssuedAt()
+	})
+}
+
+// SetIssueSource sets the "issue_source" field.
+func (u *RedeemCodeUpsertOne) SetIssueSource(v string) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssueSource(v)
+	})
+}
+
+// UpdateIssueSource sets the "issue_source" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateIssueSource() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssueSource()
+	})
+}
+
+// ClearIssueSource clears the value of the "issue_source" field.
+func (u *RedeemCodeUpsertOne) ClearIssueSource() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssueSource()
+	})
+}
+
+// SetIssueRef sets the "issue_ref" field.
+func (u *RedeemCodeUpsertOne) SetIssueRef(v string) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssueRef(v)
+	})
+}
+
+// UpdateIssueRef sets the "issue_ref" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateIssueRef() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssueRef()
+	})
+}
+
+// ClearIssueRef clears the value of the "issue_ref" field.
+func (u *RedeemCodeUpsertOne) ClearIssueRef() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssueRef()
+	})
+}
+
+// SetRewardPoolVersion sets the "reward_pool_version" field.
+func (u *RedeemCodeUpsertOne) SetRewardPoolVersion(v string) *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetRewardPoolVersion(v)
+	})
+}
+
+// UpdateRewardPoolVersion sets the "reward_pool_version" field to the value that was provided on create.
+func (u *RedeemCodeUpsertOne) UpdateRewardPoolVersion() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateRewardPoolVersion()
+	})
+}
+
+// ClearRewardPoolVersion clears the value of the "reward_pool_version" field.
+func (u *RedeemCodeUpsertOne) ClearRewardPoolVersion() *RedeemCodeUpsertOne {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearRewardPoolVersion()
 	})
 }
 
@@ -1165,6 +1621,153 @@ func (u *RedeemCodeUpsertBulk) UpdateNotes() *RedeemCodeUpsertBulk {
 func (u *RedeemCodeUpsertBulk) ClearNotes() *RedeemCodeUpsertBulk {
 	return u.Update(func(s *RedeemCodeUpsert) {
 		s.ClearNotes()
+	})
+}
+
+// SetBatchName sets the "batch_name" field.
+func (u *RedeemCodeUpsertBulk) SetBatchName(v string) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetBatchName(v)
+	})
+}
+
+// UpdateBatchName sets the "batch_name" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateBatchName() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateBatchName()
+	})
+}
+
+// ClearBatchName clears the value of the "batch_name" field.
+func (u *RedeemCodeUpsertBulk) ClearBatchName() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearBatchName()
+	})
+}
+
+// SetBatchTag sets the "batch_tag" field.
+func (u *RedeemCodeUpsertBulk) SetBatchTag(v string) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetBatchTag(v)
+	})
+}
+
+// UpdateBatchTag sets the "batch_tag" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateBatchTag() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateBatchTag()
+	})
+}
+
+// ClearBatchTag clears the value of the "batch_tag" field.
+func (u *RedeemCodeUpsertBulk) ClearBatchTag() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearBatchTag()
+	})
+}
+
+// SetIssuedTo sets the "issued_to" field.
+func (u *RedeemCodeUpsertBulk) SetIssuedTo(v int64) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssuedTo(v)
+	})
+}
+
+// UpdateIssuedTo sets the "issued_to" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateIssuedTo() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssuedTo()
+	})
+}
+
+// ClearIssuedTo clears the value of the "issued_to" field.
+func (u *RedeemCodeUpsertBulk) ClearIssuedTo() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssuedTo()
+	})
+}
+
+// SetIssuedAt sets the "issued_at" field.
+func (u *RedeemCodeUpsertBulk) SetIssuedAt(v time.Time) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssuedAt(v)
+	})
+}
+
+// UpdateIssuedAt sets the "issued_at" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateIssuedAt() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssuedAt()
+	})
+}
+
+// ClearIssuedAt clears the value of the "issued_at" field.
+func (u *RedeemCodeUpsertBulk) ClearIssuedAt() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssuedAt()
+	})
+}
+
+// SetIssueSource sets the "issue_source" field.
+func (u *RedeemCodeUpsertBulk) SetIssueSource(v string) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssueSource(v)
+	})
+}
+
+// UpdateIssueSource sets the "issue_source" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateIssueSource() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssueSource()
+	})
+}
+
+// ClearIssueSource clears the value of the "issue_source" field.
+func (u *RedeemCodeUpsertBulk) ClearIssueSource() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssueSource()
+	})
+}
+
+// SetIssueRef sets the "issue_ref" field.
+func (u *RedeemCodeUpsertBulk) SetIssueRef(v string) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetIssueRef(v)
+	})
+}
+
+// UpdateIssueRef sets the "issue_ref" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateIssueRef() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateIssueRef()
+	})
+}
+
+// ClearIssueRef clears the value of the "issue_ref" field.
+func (u *RedeemCodeUpsertBulk) ClearIssueRef() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearIssueRef()
+	})
+}
+
+// SetRewardPoolVersion sets the "reward_pool_version" field.
+func (u *RedeemCodeUpsertBulk) SetRewardPoolVersion(v string) *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.SetRewardPoolVersion(v)
+	})
+}
+
+// UpdateRewardPoolVersion sets the "reward_pool_version" field to the value that was provided on create.
+func (u *RedeemCodeUpsertBulk) UpdateRewardPoolVersion() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.UpdateRewardPoolVersion()
+	})
+}
+
+// ClearRewardPoolVersion clears the value of the "reward_pool_version" field.
+func (u *RedeemCodeUpsertBulk) ClearRewardPoolVersion() *RedeemCodeUpsertBulk {
+	return u.Update(func(s *RedeemCodeUpsert) {
+		s.ClearRewardPoolVersion()
 	})
 }
 

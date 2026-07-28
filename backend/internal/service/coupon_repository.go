@@ -80,6 +80,10 @@ type CouponRewardPoolReadinessReader interface {
 	CouponRewardPoolReady(ctx context.Context, activity CouponRewardActivity) (bool, error)
 }
 
+type RedeemCodeRewardIssuer interface {
+	ClaimRedeemCodeRewardInTx(ctx context.Context, request RedeemCodeRewardClaimRequest) (*RedeemCode, error)
+}
+
 type CouponRewardDrawRequest struct {
 	UserID         int64
 	Activity       CouponRewardActivity

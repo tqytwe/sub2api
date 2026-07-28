@@ -12,6 +12,7 @@ const (
 	StatusDisabled = domain.StatusDisabled
 	StatusError    = domain.StatusError
 	StatusUnused   = domain.StatusUnused
+	StatusIssued   = domain.StatusIssued
 	StatusUsed     = domain.StatusUsed
 	StatusExpired  = domain.StatusExpired
 )

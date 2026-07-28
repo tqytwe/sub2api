@@ -242,7 +242,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 		return nil, err
 	}
 	mobilePushService := service.NewMobilePushService(mobilePushRepository, secretEncryptor, fcmSender)
-	playService := service.ProvidePlayService(playRepository, userRepository, channelService, settingService, affiliateService, client, balanceLedgerService, mobilePushService, couponService)
+	playService := service.ProvidePlayService(playRepository, userRepository, channelService, settingService, affiliateService, client, balanceLedgerService, mobilePushService, couponService, redeemService)
 	paymentService := service.ProvidePaymentService(client, registry, defaultLoadBalancer, redeemService, subscriptionService, paymentConfigService, userRepository, groupRepository, affiliateService, notificationEmailService, playService, balanceLedgerService, couponService)
 	settingHandler := handler.ProvideAdminSettingHandler(settingService, emailService, turnstileService, opsService, paymentConfigService, paymentService, userAttributeService, notificationEmailService, totpService, userService)
 	batchImageQueue := repository.NewBatchImageQueue(redisClient, configConfig)

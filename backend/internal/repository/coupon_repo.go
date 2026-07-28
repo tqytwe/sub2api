@@ -27,7 +27,7 @@ const couponTemplateColumns = `
 	created_at, updated_at`
 
 const couponPoolColumns = `
-	id, activity, version, status, coupon_weight_bp, balance_weight_bp,
+	id, activity, version, status, coupon_weight_bp, redeem_code_weight_bp, balance_weight_bp, reward_config,
 	fallback_template_id, created_by, updated_by, published_at, created_at, updated_at`
 
 type couponRepository struct {
@@ -1063,15 +1063,19 @@ func (r *couponRepository) SaveCouponRewardPool(ctx context.Context, pool servic
 	var saved *service.CouponRewardPoolVersion
 	err := r.withTx(ctx, func(exec sqlQueryExecutor) error {
 		if pool.ID == 0 {
+			rewardConfig, err := json.Marshal(pool.RewardConfig)
+			if err != nil {
+				return fmt.Errorf("encode coupon reward config: %w", err)
+			}
 			var row couponRewardPoolRow
-			err := scanSingleRow(ctx, exec, `
+			err = scanSingleRow(ctx, exec, `
 				INSERT INTO coupon_reward_pool_versions (
-					activity, version, status, coupon_weight_bp, balance_weight_bp,
+					activity, version, status, coupon_weight_bp, redeem_code_weight_bp, balance_weight_bp, reward_config,
 					fallback_template_id, created_by, updated_by
-				) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+				) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 				RETURNING `+couponPoolColumns,
 				[]any{
-					pool.Activity, pool.Version, pool.Status, pool.CouponWeightBP, pool.BalanceWeightBP,
+					pool.Activity, pool.Version, pool.Status, pool.CouponWeightBP, pool.RedeemCodeWeightBP, pool.BalanceWeightBP, rewardConfig,
 					pool.FallbackTemplateID, pool.CreatedBy, pool.UpdatedBy,
 				}, row.scanDest()...)
 			if err != nil {
@@ -1100,20 +1104,26 @@ func (r *couponRepository) SaveCouponRewardPool(ctx context.Context, pool servic
 		if existing.Status != service.CouponRewardPoolStatusDraft {
 			return infraerrors.Conflict("COUPON_POOL_NOT_DRAFT", "published or retired coupon pools cannot be changed")
 		}
+		rewardConfig, err := json.Marshal(pool.RewardConfig)
+		if err != nil {
+			return fmt.Errorf("encode coupon reward config: %w", err)
+		}
 		var row couponRewardPoolRow
 		err = scanSingleRow(ctx, exec, `
 			UPDATE coupon_reward_pool_versions SET
 				activity = $2,
 				version = $3,
 				coupon_weight_bp = $4,
-				balance_weight_bp = $5,
-				fallback_template_id = $6,
-				updated_by = $7,
+				redeem_code_weight_bp = $5,
+				balance_weight_bp = $6,
+				reward_config = $7,
+				fallback_template_id = $8,
+				updated_by = $9,
 				updated_at = NOW()
 			WHERE id = $1
 			RETURNING `+couponPoolColumns,
 			[]any{
-				pool.ID, pool.Activity, pool.Version, pool.CouponWeightBP, pool.BalanceWeightBP,
+				pool.ID, pool.Activity, pool.Version, pool.CouponWeightBP, pool.RedeemCodeWeightBP, pool.BalanceWeightBP, rewardConfig,
 				pool.FallbackTemplateID, pool.UpdatedBy,
 			}, row.scanDest()...)
 		if err != nil {
@@ -1355,6 +1365,15 @@ func (r *couponRepository) HasIssuableCouponRewardEntry(ctx context.Context, act
 	if pool == nil {
 		return false, nil
 	}
+	if pool.RedeemCodeWeightBP > 0 && len(service.EnabledRedeemRewardEntriesForRepository(pool.RewardConfig.RedeemEntries)) > 0 {
+		return true, nil
+	}
+	if pool.BalanceWeightBP > 0 && len(service.EnabledBalanceRewardEntriesForRepository(pool.RewardConfig.BalanceEntries)) > 0 {
+		return true, nil
+	}
+	if pool.CouponWeightBP <= 0 {
+		return false, nil
+	}
 	exec, err := r.exec(ctx)
 	if err != nil {
 		return false, err
@@ -1421,9 +1440,10 @@ func listCouponRewardPoolEntries(ctx context.Context, exec sqlQueryExecutor, poo
 }
 
 type couponRewardPoolRaw struct {
-	createdBy   sql.NullInt64
-	updatedBy   sql.NullInt64
-	publishedAt sql.NullTime
+	createdBy    sql.NullInt64
+	updatedBy    sql.NullInt64
+	publishedAt  sql.NullTime
+	rewardConfig []byte
 }
 
 type couponRewardPoolRow struct {
@@ -1435,7 +1455,7 @@ func (row *couponRewardPoolRow) scanDest() []any {
 	pool := &row.pool
 	raw := &row.raw
 	return []any{
-		&pool.ID, &pool.Activity, &pool.Version, &pool.Status, &pool.CouponWeightBP, &pool.BalanceWeightBP,
+		&pool.ID, &pool.Activity, &pool.Version, &pool.Status, &pool.CouponWeightBP, &pool.RedeemCodeWeightBP, &pool.BalanceWeightBP, &raw.rewardConfig,
 		&pool.FallbackTemplateID, &raw.createdBy, &raw.updatedBy, &raw.publishedAt, &pool.CreatedAt, &pool.UpdatedAt,
 	}
 }
@@ -1454,6 +1474,11 @@ func (row *couponRewardPoolRow) value() (*service.CouponRewardPoolVersion, error
 	if raw.publishedAt.Valid {
 		value := raw.publishedAt.Time
 		pool.PublishedAt = &value
+	}
+	if len(raw.rewardConfig) > 0 {
+		if err := json.Unmarshal(raw.rewardConfig, &pool.RewardConfig); err != nil {
+			return nil, fmt.Errorf("decode coupon reward config: %w", err)
+		}
 	}
 	pool.Entries = []service.CouponRewardPoolEntry{}
 	return pool, nil
@@ -1800,6 +1825,8 @@ func (r *couponRepository) DrawAndIssueCouponRewardInTx(ctx context.Context, req
 		source := service.CouponIssueSourceBlindbox
 		if request.Activity == service.CouponRewardActivityQuiz {
 			source = service.CouponIssueSourceQuiz
+		} else if request.Activity == service.CouponRewardActivityCheckin {
+			source = service.CouponIssueSourceCheckin
 		}
 		coupon, err := issueCouponWithTemplate(ctx, exec, template, service.CouponIssueInput{
 			TemplateID:     template.ID,

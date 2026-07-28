@@ -33,6 +33,20 @@ type RedeemCode struct {
 	UsedAt *time.Time `json:"used_at,omitempty"`
 	// Notes holds the value of the "notes" field.
 	Notes *string `json:"notes,omitempty"`
+	// BatchName holds the value of the "batch_name" field.
+	BatchName *string `json:"batch_name,omitempty"`
+	// BatchTag holds the value of the "batch_tag" field.
+	BatchTag *string `json:"batch_tag,omitempty"`
+	// IssuedTo holds the value of the "issued_to" field.
+	IssuedTo *int64 `json:"issued_to,omitempty"`
+	// IssuedAt holds the value of the "issued_at" field.
+	IssuedAt *time.Time `json:"issued_at,omitempty"`
+	// IssueSource holds the value of the "issue_source" field.
+	IssueSource *string `json:"issue_source,omitempty"`
+	// IssueRef holds the value of the "issue_ref" field.
+	IssueRef *string `json:"issue_ref,omitempty"`
+	// RewardPoolVersion holds the value of the "reward_pool_version" field.
+	RewardPoolVersion *string `json:"reward_pool_version,omitempty"`
 	// CreatedAt holds the value of the "created_at" field.
 	CreatedAt time.Time `json:"created_at,omitempty"`
 	// ExpiresAt holds the value of the "expires_at" field.
@@ -51,11 +65,13 @@ type RedeemCode struct {
 type RedeemCodeEdges struct {
 	// User holds the value of the user edge.
 	User *User `json:"user,omitempty"`
+	// IssuedUser holds the value of the issued_user edge.
+	IssuedUser *User `json:"issued_user,omitempty"`
 	// Group holds the value of the group edge.
 	Group *Group `json:"group,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
+	loadedTypes [3]bool
 }
 
 // UserOrErr returns the User value or an error if the edge
@@ -69,12 +85,23 @@ func (e RedeemCodeEdges) UserOrErr() (*User, error) {
 	return nil, &NotLoadedError{edge: "user"}
 }
 
+// IssuedUserOrErr returns the IssuedUser value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e RedeemCodeEdges) IssuedUserOrErr() (*User, error) {
+	if e.IssuedUser != nil {
+		return e.IssuedUser, nil
+	} else if e.loadedTypes[1] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "issued_user"}
+}
+
 // GroupOrErr returns the Group value or an error if the edge
 // was not loaded in eager-loading, or loaded but was not found.
 func (e RedeemCodeEdges) GroupOrErr() (*Group, error) {
 	if e.Group != nil {
 		return e.Group, nil
-	} else if e.loadedTypes[1] {
+	} else if e.loadedTypes[2] {
 		return nil, &NotFoundError{label: group.Label}
 	}
 	return nil, &NotLoadedError{edge: "group"}
@@ -87,11 +114,11 @@ func (*RedeemCode) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case redeemcode.FieldValue:
 			values[i] = new(sql.NullFloat64)
-		case redeemcode.FieldID, redeemcode.FieldUsedBy, redeemcode.FieldGroupID, redeemcode.FieldValidityDays:
+		case redeemcode.FieldID, redeemcode.FieldUsedBy, redeemcode.FieldIssuedTo, redeemcode.FieldGroupID, redeemcode.FieldValidityDays:
 			values[i] = new(sql.NullInt64)
-		case redeemcode.FieldCode, redeemcode.FieldType, redeemcode.FieldStatus, redeemcode.FieldNotes:
+		case redeemcode.FieldCode, redeemcode.FieldType, redeemcode.FieldStatus, redeemcode.FieldNotes, redeemcode.FieldBatchName, redeemcode.FieldBatchTag, redeemcode.FieldIssueSource, redeemcode.FieldIssueRef, redeemcode.FieldRewardPoolVersion:
 			values[i] = new(sql.NullString)
-		case redeemcode.FieldUsedAt, redeemcode.FieldCreatedAt, redeemcode.FieldExpiresAt:
+		case redeemcode.FieldUsedAt, redeemcode.FieldIssuedAt, redeemcode.FieldCreatedAt, redeemcode.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -159,6 +186,55 @@ func (_m *RedeemCode) assignValues(columns []string, values []any) error {
 				_m.Notes = new(string)
 				*_m.Notes = value.String
 			}
+		case redeemcode.FieldBatchName:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field batch_name", values[i])
+			} else if value.Valid {
+				_m.BatchName = new(string)
+				*_m.BatchName = value.String
+			}
+		case redeemcode.FieldBatchTag:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field batch_tag", values[i])
+			} else if value.Valid {
+				_m.BatchTag = new(string)
+				*_m.BatchTag = value.String
+			}
+		case redeemcode.FieldIssuedTo:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field issued_to", values[i])
+			} else if value.Valid {
+				_m.IssuedTo = new(int64)
+				*_m.IssuedTo = value.Int64
+			}
+		case redeemcode.FieldIssuedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field issued_at", values[i])
+			} else if value.Valid {
+				_m.IssuedAt = new(time.Time)
+				*_m.IssuedAt = value.Time
+			}
+		case redeemcode.FieldIssueSource:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field issue_source", values[i])
+			} else if value.Valid {
+				_m.IssueSource = new(string)
+				*_m.IssueSource = value.String
+			}
+		case redeemcode.FieldIssueRef:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field issue_ref", values[i])
+			} else if value.Valid {
+				_m.IssueRef = new(string)
+				*_m.IssueRef = value.String
+			}
+		case redeemcode.FieldRewardPoolVersion:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field reward_pool_version", values[i])
+			} else if value.Valid {
+				_m.RewardPoolVersion = new(string)
+				*_m.RewardPoolVersion = value.String
+			}
 		case redeemcode.FieldCreatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field created_at", values[i])
@@ -201,6 +277,11 @@ func (_m *RedeemCode) GetValue(name string) (ent.Value, error) {
 // QueryUser queries the "user" edge of the RedeemCode entity.
 func (_m *RedeemCode) QueryUser() *UserQuery {
 	return NewRedeemCodeClient(_m.config).QueryUser(_m)
+}
+
+// QueryIssuedUser queries the "issued_user" edge of the RedeemCode entity.
+func (_m *RedeemCode) QueryIssuedUser() *UserQuery {
+	return NewRedeemCodeClient(_m.config).QueryIssuedUser(_m)
 }
 
 // QueryGroup queries the "group" edge of the RedeemCode entity.
@@ -255,6 +336,41 @@ func (_m *RedeemCode) String() string {
 	builder.WriteString(", ")
 	if v := _m.Notes; v != nil {
 		builder.WriteString("notes=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BatchName; v != nil {
+		builder.WriteString("batch_name=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.BatchTag; v != nil {
+		builder.WriteString("batch_tag=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.IssuedTo; v != nil {
+		builder.WriteString("issued_to=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.IssuedAt; v != nil {
+		builder.WriteString("issued_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.IssueSource; v != nil {
+		builder.WriteString("issue_source=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.IssueRef; v != nil {
+		builder.WriteString("issue_ref=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.RewardPoolVersion; v != nil {
+		builder.WriteString("reward_pool_version=")
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")

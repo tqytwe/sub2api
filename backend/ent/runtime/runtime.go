@@ -2476,12 +2476,32 @@ func init() {
 	redeemcode.DefaultStatus = redeemcodeDescStatus.Default.(string)
 	// redeemcode.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	redeemcode.StatusValidator = redeemcodeDescStatus.Validators[0].(func(string) error)
+	// redeemcodeDescBatchName is the schema descriptor for batch_name field.
+	redeemcodeDescBatchName := redeemcodeFields[7].Descriptor()
+	// redeemcode.BatchNameValidator is a validator for the "batch_name" field. It is called by the builders before save.
+	redeemcode.BatchNameValidator = redeemcodeDescBatchName.Validators[0].(func(string) error)
+	// redeemcodeDescBatchTag is the schema descriptor for batch_tag field.
+	redeemcodeDescBatchTag := redeemcodeFields[8].Descriptor()
+	// redeemcode.BatchTagValidator is a validator for the "batch_tag" field. It is called by the builders before save.
+	redeemcode.BatchTagValidator = redeemcodeDescBatchTag.Validators[0].(func(string) error)
+	// redeemcodeDescIssueSource is the schema descriptor for issue_source field.
+	redeemcodeDescIssueSource := redeemcodeFields[11].Descriptor()
+	// redeemcode.IssueSourceValidator is a validator for the "issue_source" field. It is called by the builders before save.
+	redeemcode.IssueSourceValidator = redeemcodeDescIssueSource.Validators[0].(func(string) error)
+	// redeemcodeDescIssueRef is the schema descriptor for issue_ref field.
+	redeemcodeDescIssueRef := redeemcodeFields[12].Descriptor()
+	// redeemcode.IssueRefValidator is a validator for the "issue_ref" field. It is called by the builders before save.
+	redeemcode.IssueRefValidator = redeemcodeDescIssueRef.Validators[0].(func(string) error)
+	// redeemcodeDescRewardPoolVersion is the schema descriptor for reward_pool_version field.
+	redeemcodeDescRewardPoolVersion := redeemcodeFields[13].Descriptor()
+	// redeemcode.RewardPoolVersionValidator is a validator for the "reward_pool_version" field. It is called by the builders before save.
+	redeemcode.RewardPoolVersionValidator = redeemcodeDescRewardPoolVersion.Validators[0].(func(string) error)
 	// redeemcodeDescCreatedAt is the schema descriptor for created_at field.
-	redeemcodeDescCreatedAt := redeemcodeFields[7].Descriptor()
+	redeemcodeDescCreatedAt := redeemcodeFields[14].Descriptor()
 	// redeemcode.DefaultCreatedAt holds the default value on creation for the created_at field.
 	redeemcode.DefaultCreatedAt = redeemcodeDescCreatedAt.Default.(func() time.Time)
 	// redeemcodeDescValidityDays is the schema descriptor for validity_days field.
-	redeemcodeDescValidityDays := redeemcodeFields[10].Descriptor()
+	redeemcodeDescValidityDays := redeemcodeFields[17].Descriptor()
 	// redeemcode.DefaultValidityDays holds the default value on creation for the validity_days field.
 	redeemcode.DefaultValidityDays = redeemcodeDescValidityDays.Default.(int)
 	securitysecretMixin := schema.SecuritySecret{}.Mixin()

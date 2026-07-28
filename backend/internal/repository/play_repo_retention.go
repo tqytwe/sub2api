@@ -111,3 +111,45 @@ func (r *playRepository) HasCompletedBalanceRechargeSince(ctx context.Context, u
 	}
 	return exists, nil
 }
+
+func (r *playRepository) GetCheckinEligibility(ctx context.Context, userID int64, since time.Time, now time.Time) (bool, string, error) {
+	exec := r.sqlExec(ctx)
+	var hasRecharge, hasRecentUsage, hasRecentSpend, hasActiveSubscription bool
+	err := scanSingleRow(ctx, exec, `
+		SELECT
+			EXISTS(
+				SELECT 1 FROM payment_orders
+				WHERE user_id = $1
+				  AND status = $4
+				  AND COALESCE(amount, 0) > 0
+			) AS has_recharge,
+			EXISTS(
+				SELECT 1 FROM usage_logs
+				WHERE user_id = $1
+				  AND created_at >= $2
+			) AS has_recent_usage,
+			EXISTS(
+				SELECT 1 FROM balance_transactions
+				WHERE user_id = $1
+				  AND created_at >= $2
+				  AND balance_delta < 0
+			) AS has_recent_spend,
+			EXISTS(
+				SELECT 1 FROM user_subscriptions
+				WHERE user_id = $1
+				  AND status = $5
+				  AND starts_at <= $3
+				  AND expires_at > $3
+				  AND deleted_at IS NULL
+			) AS has_active_subscription`,
+		[]any{userID, since, now, payment.OrderStatusCompleted, service.SubscriptionStatusActive},
+		&hasRecharge, &hasRecentUsage, &hasRecentSpend, &hasActiveSubscription,
+	)
+	if err != nil {
+		return false, "", fmt.Errorf("check play checkin eligibility: %w", err)
+	}
+	if hasRecharge || hasRecentUsage || hasRecentSpend || hasActiveSubscription {
+		return true, "", nil
+	}
+	return false, "no_recent_activity", nil
+}

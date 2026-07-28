@@ -59,6 +59,33 @@ func (RedeemCode) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "text"}),
+		field.String("batch_name").
+			Optional().
+			Nillable().
+			MaxLen(120),
+		field.String("batch_tag").
+			Optional().
+			Nillable().
+			MaxLen(120),
+		field.Int64("issued_to").
+			Optional().
+			Nillable(),
+		field.Time("issued_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.String("issue_source").
+			Optional().
+			Nillable().
+			MaxLen(40),
+		field.String("issue_ref").
+			Optional().
+			Nillable().
+			MaxLen(200),
+		field.String("reward_pool_version").
+			Optional().
+			Nillable().
+			MaxLen(80),
 		field.Time("created_at").
 			Immutable().
 			Default(time.Now).
@@ -81,6 +108,10 @@ func (RedeemCode) Edges() []ent.Edge {
 			Ref("redeem_codes").
 			Field("used_by").
 			Unique(),
+		edge.From("issued_user", User.Type).
+			Ref("issued_redeem_codes").
+			Field("issued_to").
+			Unique(),
 		edge.From("group", Group.Type).
 			Ref("redeem_codes").
 			Field("group_id").
@@ -93,6 +124,8 @@ func (RedeemCode) Indexes() []ent.Index {
 		// code 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
 		index.Fields("used_by"),
+		index.Fields("issued_to"),
+		index.Fields("batch_name", "status"),
 		index.Fields("group_id"),
 		index.Fields("expires_at"),
 	}

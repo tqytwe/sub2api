@@ -303,8 +303,8 @@ func TestValidateCouponRewardPoolEnforcesOuterAndInnerWeights(t *testing.T) {
 
 	wrongOuter := valid
 	wrongOuter.CouponWeightBP = 7000
-	wrongOuter.BalanceWeightBP = 3000
-	require.ErrorContains(t, ValidateCouponRewardPool(wrongOuter), "blindbox coupon weight")
+	wrongOuter.BalanceWeightBP = 2999
+	require.ErrorContains(t, ValidateCouponRewardPool(wrongOuter), "outer weights")
 
 	wrongInner := valid
 	wrongInner.Entries = []CouponRewardPoolEntry{

@@ -410,6 +410,15 @@ func shouldPersistCouponExpiry(status UserCouponStatus) bool {
 }
 
 func (s *CouponService) publishedCouponRewardPoolReady(ctx context.Context, pool CouponRewardPoolVersion, at time.Time) (bool, error) {
+	if pool.RedeemCodeWeightBP > 0 && len(enabledRedeemRewardEntries(pool.RewardConfig.RedeemEntries)) > 0 {
+		return true, nil
+	}
+	if pool.BalanceWeightBP > 0 && len(enabledBalanceRewardEntries(pool.RewardConfig.BalanceEntries)) > 0 {
+		return true, nil
+	}
+	if pool.CouponWeightBP <= 0 {
+		return false, nil
+	}
 	for _, entry := range pool.Entries {
 		if !couponRewardEntryWindowHasCapacity(entry, at) {
 			continue

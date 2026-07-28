@@ -1161,6 +1161,8 @@ func (s *adminServiceImpl) GenerateRedeemCodes(ctx context.Context, input *Gener
 			Type:      input.Type,
 			Value:     input.Value,
 			Status:    StatusUnused,
+			BatchName: strings.TrimSpace(input.BatchName),
+			BatchTag:  strings.TrimSpace(input.BatchTag),
 			ExpiresAt: input.ExpiresAt,
 		}
 		// 订阅类型专用字段

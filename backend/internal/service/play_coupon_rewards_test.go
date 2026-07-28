@@ -69,7 +69,9 @@ func (i *playCouponRewardIssuer) GetPublishedRewardPool(_ context.Context, activ
 	couponWeightBP := i.couponWeightBP
 	balanceWeightBP := i.balanceWeightBP
 	if couponWeightBP == 0 && balanceWeightBP == 0 {
-		couponWeightBP, balanceWeightBP, _ = defaultCouponRewardSplit(activity)
+		var redeemCodeWeightBP int
+		couponWeightBP, redeemCodeWeightBP, balanceWeightBP, _ = defaultCouponRewardSplit(activity)
+		_ = redeemCodeWeightBP
 	}
 	return &CouponRewardPoolVersion{
 		Activity:        activity,

@@ -40,8 +40,14 @@ const (
 
 type playCheckinStatusDTO struct {
 	Enabled                bool    `json:"enabled"`
+	Eligible               bool    `json:"eligible"`
+	IneligibleReason       string  `json:"ineligible_reason,omitempty"`
 	CheckedInToday         bool    `json:"checked_in_today"`
 	RewardAmount           float64 `json:"reward_amount"`
+	CouponPoolReady        bool    `json:"coupon_pool_ready"`
+	CouponWeightBP         int     `json:"coupon_weight_bp"`
+	RedeemCodeWeightBP     int     `json:"redeem_code_weight_bp"`
+	BalanceWeightBP        int     `json:"balance_weight_bp"`
 	ServerDate             string  `json:"server_date"`
 	StreakCount            int     `json:"streak_count,omitempty"`
 	NextMilestoneDays      int     `json:"next_milestone_days,omitempty"`
@@ -53,11 +59,15 @@ type playCheckinStatusDTO struct {
 }
 
 type playCheckinResultDTO struct {
-	RewardAmount   float64 `json:"reward_amount"`
-	BalanceAdded   float64 `json:"balance_added"`
-	ServerDate     string  `json:"server_date"`
-	StreakCount    int     `json:"streak_count,omitempty"`
-	MilestoneBonus float64 `json:"milestone_bonus,omitempty"`
+	RewardAmount      float64                  `json:"reward_amount"`
+	BalanceAdded      float64                  `json:"balance_added"`
+	RewardType        service.PlayRewardType   `json:"reward_type"`
+	Coupon            *playCouponRewardDTO     `json:"coupon,omitempty"`
+	RedeemCode        *playRedeemCodeRewardDTO `json:"redeem_code,omitempty"`
+	CouponPoolVersion string                   `json:"coupon_pool_version,omitempty"`
+	ServerDate        string                   `json:"server_date"`
+	StreakCount       int                      `json:"streak_count,omitempty"`
+	MilestoneBonus    float64                  `json:"milestone_bonus,omitempty"`
 }
 
 type playArenaPeriodDTO struct {
@@ -318,8 +328,14 @@ func (h *PlayHandler) CheckinStatus(c *gin.Context) {
 	}
 	response.Success(c, playCheckinStatusDTO{
 		Enabled:                status.Enabled,
+		Eligible:               status.Eligible,
+		IneligibleReason:       status.IneligibleReason,
 		CheckedInToday:         status.CheckedInToday,
 		RewardAmount:           status.RewardAmount,
+		CouponPoolReady:        status.CouponPoolReady,
+		CouponWeightBP:         status.CouponWeightBP,
+		RedeemCodeWeightBP:     status.RedeemCodeWeightBP,
+		BalanceWeightBP:        status.BalanceWeightBP,
 		ServerDate:             status.ServerDate,
 		StreakCount:            status.StreakCount,
 		NextMilestoneDays:      status.NextMilestoneDays,
@@ -345,11 +361,15 @@ func (h *PlayHandler) CheckinMakeup(c *gin.Context) {
 		return
 	}
 	response.Success(c, playCheckinResultDTO{
-		RewardAmount:   result.RewardAmount,
-		BalanceAdded:   result.BalanceAdded,
-		ServerDate:     result.ServerDate,
-		StreakCount:    result.StreakCount,
-		MilestoneBonus: result.MilestoneBonus,
+		RewardAmount:      result.RewardAmount,
+		BalanceAdded:      result.BalanceAdded,
+		RewardType:        result.RewardType,
+		Coupon:            toPlayCouponRewardDTO(result.Coupon),
+		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
+		CouponPoolVersion: result.CouponPoolVersion,
+		ServerDate:        result.ServerDate,
+		StreakCount:       result.StreakCount,
+		MilestoneBonus:    result.MilestoneBonus,
 	})
 }
 
@@ -368,11 +388,15 @@ func (h *PlayHandler) Checkin(c *gin.Context) {
 		return
 	}
 	response.Success(c, playCheckinResultDTO{
-		RewardAmount:   result.RewardAmount,
-		BalanceAdded:   result.BalanceAdded,
-		ServerDate:     result.ServerDate,
-		StreakCount:    result.StreakCount,
-		MilestoneBonus: result.MilestoneBonus,
+		RewardAmount:      result.RewardAmount,
+		BalanceAdded:      result.BalanceAdded,
+		RewardType:        result.RewardType,
+		Coupon:            toPlayCouponRewardDTO(result.Coupon),
+		RedeemCode:        toPlayRedeemCodeRewardDTO(result.RedeemCode),
+		CouponPoolVersion: result.CouponPoolVersion,
+		ServerDate:        result.ServerDate,
+		StreakCount:       result.StreakCount,
+		MilestoneBonus:    result.MilestoneBonus,
 	})
 }
 

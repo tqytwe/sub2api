@@ -30,10 +30,17 @@ func (r *redeemCodeRepository) Create(ctx context.Context, code *service.RedeemC
 		SetValue(code.Value).
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
+		SetBatchName(code.BatchName).
+		SetBatchTag(code.BatchTag).
+		SetIssueSource(code.IssueSource).
+		SetIssueRef(code.IssueRef).
+		SetRewardPoolVersion(code.RewardPoolVersion).
 		SetValidityDays(code.ValidityDays).
 		SetNillableExpiresAt(code.ExpiresAt).
 		SetNillableUsedBy(code.UsedBy).
 		SetNillableUsedAt(code.UsedAt).
+		SetNillableIssuedTo(code.IssuedTo).
+		SetNillableIssuedAt(code.IssuedAt).
 		SetNillableGroupID(code.GroupID).
 		Save(ctx)
 	if err == nil {
@@ -57,10 +64,14 @@ func (r *redeemCodeRepository) CreateBatch(ctx context.Context, codes []service.
 			SetValue(c.Value).
 			SetStatus(c.Status).
 			SetNotes(c.Notes).
+			SetBatchName(c.BatchName).
+			SetBatchTag(c.BatchTag).
 			SetValidityDays(c.ValidityDays).
 			SetNillableExpiresAt(c.ExpiresAt).
 			SetNillableUsedBy(c.UsedBy).
 			SetNillableUsedAt(c.UsedAt).
+			SetNillableIssuedTo(c.IssuedTo).
+			SetNillableIssuedAt(c.IssuedAt).
 			SetNillableGroupID(c.GroupID)
 		builders = append(builders, b)
 	}
@@ -137,7 +148,12 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 		q = q.Where(
 			redeemcode.Or(
 				redeemcode.CodeContainsFold(search),
+				redeemcode.BatchNameContainsFold(search),
+				redeemcode.BatchTagContainsFold(search),
+				redeemcode.IssueSourceContainsFold(search),
+				redeemcode.RewardPoolVersionContainsFold(search),
 				redeemcode.HasUserWith(user.EmailContainsFold(search)),
+				redeemcode.HasIssuedUserWith(user.EmailContainsFold(search)),
 			),
 		)
 	}
@@ -149,6 +165,7 @@ func (r *redeemCodeRepository) ListWithFilters(ctx context.Context, params pagin
 
 	codesQuery := q.
 		WithUser().
+		WithIssuedUser().
 		WithGroup().
 		Offset(params.Offset()).
 		Limit(params.Limit())
@@ -180,6 +197,8 @@ func redeemCodeListOrder(params pagination.PaginationParams) []func(*entsql.Sele
 		field = redeemcode.FieldStatus
 	case "used_at":
 		field = redeemcode.FieldUsedAt
+	case "issued_at":
+		field = redeemcode.FieldIssuedAt
 	case "created_at":
 		field = redeemcode.FieldCreatedAt
 	case "expires_at":
@@ -203,6 +222,11 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 		SetValue(code.Value).
 		SetStatus(code.Status).
 		SetNotes(code.Notes).
+		SetBatchName(code.BatchName).
+		SetBatchTag(code.BatchTag).
+		SetIssueSource(code.IssueSource).
+		SetIssueRef(code.IssueRef).
+		SetRewardPoolVersion(code.RewardPoolVersion).
 		SetValidityDays(code.ValidityDays)
 
 	if code.UsedBy != nil {
@@ -214,6 +238,16 @@ func (r *redeemCodeRepository) Update(ctx context.Context, code *service.RedeemC
 		up.SetUsedAt(*code.UsedAt)
 	} else {
 		up.ClearUsedAt()
+	}
+	if code.IssuedTo != nil {
+		up.SetIssuedTo(*code.IssuedTo)
+	} else {
+		up.ClearIssuedTo()
+	}
+	if code.IssuedAt != nil {
+		up.SetIssuedAt(*code.IssuedAt)
+	} else {
+		up.ClearIssuedAt()
 	}
 	if code.GroupID != nil {
 		up.SetGroupID(*code.GroupID)
@@ -326,7 +360,10 @@ func (r *redeemCodeRepository) Use(ctx context.Context, id, userID int64) error 
 	now := time.Now()
 	client := clientFromContext(ctx, r.client)
 	affected, err := client.RedeemCode.Update().
-		Where(redeemcode.IDEQ(id), redeemcode.StatusEQ(service.StatusUnused)).
+		Where(redeemcode.IDEQ(id), redeemcode.Or(
+			redeemcode.StatusEQ(service.StatusUnused),
+			redeemcode.And(redeemcode.StatusEQ(service.StatusIssued), redeemcode.IssuedToEQ(userID)),
+		)).
 		SetStatus(service.StatusUsed).
 		SetUsedBy(userID).
 		SetUsedAt(now).
@@ -340,15 +377,63 @@ func (r *redeemCodeRepository) Use(ctx context.Context, id, userID int64) error 
 	return nil
 }
 
+func (r *redeemCodeRepository) ClaimForReward(ctx context.Context, request service.RedeemCodeRewardClaimRequest) (*service.RedeemCode, error) {
+	issuedAt := request.IssuedAt
+	if issuedAt.IsZero() {
+		issuedAt = time.Now()
+	}
+	client := clientFromContext(ctx, r.client)
+	q := client.RedeemCode.Query().Where(
+		redeemcode.StatusEQ(service.StatusUnused),
+		redeemcode.Or(redeemcode.ExpiresAtIsNil(), redeemcode.ExpiresAtGT(issuedAt)),
+	)
+	if strings.TrimSpace(request.BatchName) != "" {
+		q = q.Where(redeemcode.BatchNameEQ(strings.TrimSpace(request.BatchName)))
+	}
+	if strings.TrimSpace(request.CodeType) != "" {
+		q = q.Where(redeemcode.TypeEQ(strings.TrimSpace(request.CodeType)))
+	}
+	candidates, err := q.Order(dbent.Asc(redeemcode.FieldID)).Limit(10).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range candidates {
+		affected, err := client.RedeemCode.Update().
+			Where(redeemcode.IDEQ(candidate.ID), redeemcode.StatusEQ(service.StatusUnused)).
+			SetStatus(service.StatusIssued).
+			SetIssuedTo(request.UserID).
+			SetIssuedAt(issuedAt).
+			SetIssueSource(request.IssueSource).
+			SetIssueRef(request.IssueRef).
+			SetRewardPoolVersion(request.RewardPoolVersion).
+			Save(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if affected == 0 {
+			continue
+		}
+		claimed, err := client.RedeemCode.Query().Where(redeemcode.IDEQ(candidate.ID)).WithUser().WithGroup().Only(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return redeemCodeEntityToService(claimed), nil
+	}
+	return nil, service.ErrCouponRewardPoolUnavailable
+}
+
 func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, limit int) ([]service.RedeemCode, error) {
 	if limit <= 0 {
 		limit = 10
 	}
 
 	codes, err := r.client.RedeemCode.Query().
-		Where(redeemcode.UsedByEQ(userID)).
+		Where(redeemcode.Or(
+			redeemcode.UsedByEQ(userID),
+			redeemcode.IssuedToEQ(userID),
+		)).
 		WithGroup().
-		Order(dbent.Desc(redeemcode.FieldUsedAt)).
+		Order(dbent.Desc(redeemcode.FieldUsedAt), dbent.Desc(redeemcode.FieldIssuedAt), dbent.Desc(redeemcode.FieldID)).
 		Limit(limit).
 		All(ctx)
 	if err != nil {
@@ -362,7 +447,10 @@ func (r *redeemCodeRepository) ListByUser(ctx context.Context, userID int64, lim
 // Supports optional type filter (e.g. "balance", "admin_balance", "concurrency", "admin_concurrency", "subscription").
 func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID int64, params pagination.PaginationParams, codeType string) ([]service.RedeemCode, *pagination.PaginationResult, error) {
 	q := r.client.RedeemCode.Query().
-		Where(redeemcode.UsedByEQ(userID))
+		Where(redeemcode.Or(
+			redeemcode.UsedByEQ(userID),
+			redeemcode.IssuedToEQ(userID),
+		))
 
 	// Optional type filter
 	if codeType != "" {
@@ -378,7 +466,7 @@ func (r *redeemCodeRepository) ListByUserPaginated(ctx context.Context, userID i
 		WithGroup().
 		Offset(params.Offset()).
 		Limit(params.Limit()).
-		Order(dbent.Desc(redeemcode.FieldUsedAt)).
+		Order(dbent.Desc(redeemcode.FieldUsedAt), dbent.Desc(redeemcode.FieldIssuedAt), dbent.Desc(redeemcode.FieldID)).
 		All(ctx)
 	if err != nil {
 		return nil, nil, err
@@ -414,21 +502,31 @@ func redeemCodeEntityToService(m *dbent.RedeemCode) *service.RedeemCode {
 		return nil
 	}
 	out := &service.RedeemCode{
-		ID:           m.ID,
-		Code:         m.Code,
-		Type:         m.Type,
-		Value:        m.Value,
-		Status:       m.Status,
-		UsedBy:       m.UsedBy,
-		UsedAt:       m.UsedAt,
-		Notes:        derefString(m.Notes),
-		CreatedAt:    m.CreatedAt,
-		ExpiresAt:    m.ExpiresAt,
-		GroupID:      m.GroupID,
-		ValidityDays: m.ValidityDays,
+		ID:                m.ID,
+		Code:              m.Code,
+		Type:              m.Type,
+		Value:             m.Value,
+		Status:            m.Status,
+		UsedBy:            m.UsedBy,
+		UsedAt:            m.UsedAt,
+		Notes:             derefString(m.Notes),
+		BatchName:         derefString(m.BatchName),
+		BatchTag:          derefString(m.BatchTag),
+		IssuedTo:          m.IssuedTo,
+		IssuedAt:          m.IssuedAt,
+		IssueSource:       derefString(m.IssueSource),
+		IssueRef:          derefString(m.IssueRef),
+		RewardPoolVersion: derefString(m.RewardPoolVersion),
+		CreatedAt:         m.CreatedAt,
+		ExpiresAt:         m.ExpiresAt,
+		GroupID:           m.GroupID,
+		ValidityDays:      m.ValidityDays,
 	}
 	if m.Edges.User != nil {
 		out.User = userEntityToService(m.Edges.User)
+	}
+	if m.Edges.IssuedUser != nil {
+		out.IssuedUser = userEntityToService(m.Edges.IssuedUser)
 	}
 	if m.Edges.Group != nil {
 		out.Group = groupEntityToService(m.Edges.Group)

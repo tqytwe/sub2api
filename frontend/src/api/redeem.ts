@@ -12,7 +12,8 @@ export interface RedeemHistoryItem {
   type: string
   value: number
   status: string
-  used_at: string
+  used_at?: string | null
+  issued_at?: string | null
   created_at: string
   // Notes from admin for admin_balance/admin_concurrency types
   notes?: string

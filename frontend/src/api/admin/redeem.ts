@@ -24,7 +24,7 @@ export async function list(
   pageSize: number = 20,
   filters?: {
     type?: RedeemCodeType
-    status?: 'active' | 'used' | 'expired' | 'unused' | 'disabled'
+    status?: 'active' | 'used' | 'expired' | 'unused' | 'disabled' | 'issued'
     search?: string
     sort_by?: string
     sort_order?: 'asc' | 'desc'
@@ -70,7 +70,9 @@ export async function generate(
   value: number,
   groupId?: number | null,
   validityDays?: number,
-  expiresInDays?: number | null
+  expiresInDays?: number | null,
+  batchName?: string,
+  batchTag?: string
 ): Promise<RedeemCode[]> {
   const payload: GenerateRedeemCodesRequest = {
     count,
@@ -87,6 +89,12 @@ export async function generate(
   }
   if (expiresInDays && expiresInDays > 0) {
     payload.expires_in_days = expiresInDays
+  }
+  if (batchName?.trim()) {
+    payload.batch_name = batchName.trim()
+  }
+  if (batchTag?.trim()) {
+    payload.batch_tag = batchTag.trim()
   }
 
   const { data } = await apiClient.post<RedeemCode[]>('/admin/redeem-codes/generate', payload)
@@ -179,7 +187,7 @@ export async function getStats(): Promise<{
  */
 export async function exportCodes(filters?: {
   type?: RedeemCodeType
-  status?: 'used' | 'expired' | 'unused' | 'disabled'
+  status?: 'used' | 'expired' | 'unused' | 'disabled' | 'issued'
   search?: string
   sort_by?: string
   sort_order?: 'asc' | 'desc'

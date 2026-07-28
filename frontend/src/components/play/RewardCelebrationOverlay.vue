@@ -56,7 +56,7 @@ function pieceStyle(piece: typeof pieces[number]) {
     role="dialog"
     aria-modal="true"
   >
-    <div class="reward-celebration-backdrop" @click="emit('close')" />
+    <div class="reward-celebration-backdrop" />
     <div class="reward-confetti" aria-hidden="true">
       <span
         v-for="piece in pieces"

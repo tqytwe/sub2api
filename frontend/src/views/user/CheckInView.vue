@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
-import playAPI, { type PlayCheckinStatus } from '@/api/play'
+import playAPI, { type PlayCheckinResult, type PlayCheckinStatus } from '@/api/play'
 import { trackQuestCompleteOnce } from '@/utils/growthAnalytics'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
@@ -21,7 +21,11 @@ const status = ref<PlayCheckinStatus | null>(null)
 
 const user = computed(() => authStore.user)
 const canCheckIn = computed(
-  () => status.value?.enabled && !status.value.checked_in_today && !submitting.value,
+  () =>
+    status.value?.enabled &&
+    status.value.eligible !== false &&
+    !status.value.checked_in_today &&
+    !submitting.value,
 )
 const canMakeup = computed(
   () => status.value?.can_makeup && !makingUp.value && !submitting.value,
@@ -38,7 +42,13 @@ async function loadStatus() {
   }
 }
 
-function successMessage(result: { balance_added: number; streak_count?: number; milestone_bonus?: number }) {
+function successMessage(result: PlayCheckinResult) {
+  if (result.reward_type === 'coupon' && result.coupon) {
+    return t('checkin.couponSuccess', { name: result.coupon.name })
+  }
+  if (result.reward_type === 'redeem_code' && result.redeem_code) {
+    return t('checkin.redeemSuccess', { code: result.redeem_code.code })
+  }
   let msg = t('checkin.success', { amount: result.balance_added.toFixed(2) })
   if (result.streak_count && result.streak_count > 1) {
     msg += ` · ${t('checkin.streak', { days: result.streak_count })}`
@@ -47,6 +57,12 @@ function successMessage(result: { balance_added: number; streak_count?: number; 
     msg += ` · ${t('checkin.milestoneBonus', { amount: result.milestone_bonus.toFixed(2) })}`
   }
   return msg
+}
+
+function checkinIneligibleMessage(reason?: string) {
+  const key = `checkin.ineligibleReasons.${reason || 'no_recent_activity'}`
+  const label = t(key)
+  return label === key ? t('checkin.ineligibleReasons.no_recent_activity') : label
 }
 
 async function handleCheckin() {
@@ -67,6 +83,11 @@ async function handleCheckin() {
     }
     if (code === 'PLAY_FEATURE_DISABLED') {
       appStore.showError(t('checkin.disabled'))
+      return
+    }
+    if (code === 'PLAY_CHECKIN_INELIGIBLE') {
+      appStore.showError(checkinIneligibleMessage(status.value?.ineligible_reason))
+      await loadStatus()
       return
     }
     appStore.showError(t('checkin.failed'))
@@ -111,7 +132,7 @@ onMounted(loadStatus)
             <p class="gw-eyebrow">{{ t('checkin.eyebrow') }}</p>
             <h1 class="gw-title">{{ t('checkin.title') }}</h1>
             <p v-if="status?.enabled" class="gw-subtitle">
-              {{ t('checkin.rewardHint', { amount: status.reward_amount.toFixed(2) }) }}
+              {{ t('checkin.randomRewardHint') }}
             </p>
           </div>
 
@@ -142,6 +163,12 @@ onMounted(loadStatus)
             </p>
             <p v-if="status.checked_in_today" class="text-sm font-medium" style="color: var(--gw-ok)">
               {{ t('checkin.alreadyDone') }}
+            </p>
+            <p
+              v-else-if="status.eligible === false"
+              class="rounded-lg border border-amber-300/60 bg-amber-50/80 px-4 py-3 text-sm text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200"
+            >
+              {{ checkinIneligibleMessage(status.ineligible_reason) }}
             </p>
             <button
               type="button"

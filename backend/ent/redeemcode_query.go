@@ -21,13 +21,14 @@ import (
 // RedeemCodeQuery is the builder for querying RedeemCode entities.
 type RedeemCodeQuery struct {
 	config
-	ctx        *QueryContext
-	order      []redeemcode.OrderOption
-	inters     []Interceptor
-	predicates []predicate.RedeemCode
-	withUser   *UserQuery
-	withGroup  *GroupQuery
-	modifiers  []func(*sql.Selector)
+	ctx            *QueryContext
+	order          []redeemcode.OrderOption
+	inters         []Interceptor
+	predicates     []predicate.RedeemCode
+	withUser       *UserQuery
+	withIssuedUser *UserQuery
+	withGroup      *GroupQuery
+	modifiers      []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -79,6 +80,28 @@ func (_q *RedeemCodeQuery) QueryUser() *UserQuery {
 			sqlgraph.From(redeemcode.Table, redeemcode.FieldID, selector),
 			sqlgraph.To(user.Table, user.FieldID),
 			sqlgraph.Edge(sqlgraph.M2O, true, redeemcode.UserTable, redeemcode.UserColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryIssuedUser chains the current query on the "issued_user" edge.
+func (_q *RedeemCodeQuery) QueryIssuedUser() *UserQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(redeemcode.Table, redeemcode.FieldID, selector),
+			sqlgraph.To(user.Table, user.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, redeemcode.IssuedUserTable, redeemcode.IssuedUserColumn),
 		)
 		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
 		return fromU, nil
@@ -295,13 +318,14 @@ func (_q *RedeemCodeQuery) Clone() *RedeemCodeQuery {
 		return nil
 	}
 	return &RedeemCodeQuery{
-		config:     _q.config,
-		ctx:        _q.ctx.Clone(),
-		order:      append([]redeemcode.OrderOption{}, _q.order...),
-		inters:     append([]Interceptor{}, _q.inters...),
-		predicates: append([]predicate.RedeemCode{}, _q.predicates...),
-		withUser:   _q.withUser.Clone(),
-		withGroup:  _q.withGroup.Clone(),
+		config:         _q.config,
+		ctx:            _q.ctx.Clone(),
+		order:          append([]redeemcode.OrderOption{}, _q.order...),
+		inters:         append([]Interceptor{}, _q.inters...),
+		predicates:     append([]predicate.RedeemCode{}, _q.predicates...),
+		withUser:       _q.withUser.Clone(),
+		withIssuedUser: _q.withIssuedUser.Clone(),
+		withGroup:      _q.withGroup.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -316,6 +340,17 @@ func (_q *RedeemCodeQuery) WithUser(opts ...func(*UserQuery)) *RedeemCodeQuery {
 		opt(query)
 	}
 	_q.withUser = query
+	return _q
+}
+
+// WithIssuedUser tells the query-builder to eager-load the nodes that are connected to
+// the "issued_user" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *RedeemCodeQuery) WithIssuedUser(opts ...func(*UserQuery)) *RedeemCodeQuery {
+	query := (&UserClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withIssuedUser = query
 	return _q
 }
 
@@ -408,8 +443,9 @@ func (_q *RedeemCodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 	var (
 		nodes       = []*RedeemCode{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
+		loadedTypes = [3]bool{
 			_q.withUser != nil,
+			_q.withIssuedUser != nil,
 			_q.withGroup != nil,
 		}
 	)
@@ -437,6 +473,12 @@ func (_q *RedeemCodeQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*R
 	if query := _q.withUser; query != nil {
 		if err := _q.loadUser(ctx, query, nodes, nil,
 			func(n *RedeemCode, e *User) { n.Edges.User = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withIssuedUser; query != nil {
+		if err := _q.loadIssuedUser(ctx, query, nodes, nil,
+			func(n *RedeemCode, e *User) { n.Edges.IssuedUser = e }); err != nil {
 			return nil, err
 		}
 	}
@@ -474,6 +516,38 @@ func (_q *RedeemCodeQuery) loadUser(ctx context.Context, query *UserQuery, nodes
 		nodes, ok := nodeids[n.ID]
 		if !ok {
 			return fmt.Errorf(`unexpected foreign-key "used_by" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *RedeemCodeQuery) loadIssuedUser(ctx context.Context, query *UserQuery, nodes []*RedeemCode, init func(*RedeemCode), assign func(*RedeemCode, *User)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*RedeemCode)
+	for i := range nodes {
+		if nodes[i].IssuedTo == nil {
+			continue
+		}
+		fk := *nodes[i].IssuedTo
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(user.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "issued_to" returned %v`, n.ID)
 		}
 		for i := range nodes {
 			assign(nodes[i], n)
@@ -544,6 +618,9 @@ func (_q *RedeemCodeQuery) querySpec() *sqlgraph.QuerySpec {
 		}
 		if _q.withUser != nil {
 			_spec.Node.AddColumnOnce(redeemcode.FieldUsedBy)
+		}
+		if _q.withIssuedUser != nil {
+			_spec.Node.AddColumnOnce(redeemcode.FieldIssuedTo)
 		}
 		if _q.withGroup != nil {
 			_spec.Node.AddColumnOnce(redeemcode.FieldGroupID)

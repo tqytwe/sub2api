@@ -7,31 +7,40 @@ import (
 	"time"
 )
 
-func couponRewardTypeAt(couponWeightBP int, draw int64) (PlayRewardType, error) {
+func marketingRewardTypeAt(couponWeightBP, redeemCodeWeightBP int, draw int64) (PlayRewardType, error) {
 	if draw < 0 || draw >= couponWeightBasisPoints {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward draw out of range: %d", draw)
 	}
-	if couponWeightBP < 0 || couponWeightBP > couponWeightBasisPoints {
+	if couponWeightBP < 0 || redeemCodeWeightBP < 0 || couponWeightBP+redeemCodeWeightBP > couponWeightBasisPoints {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward weight out of range: %d", couponWeightBP)
 	}
 	if draw < int64(couponWeightBP) {
 		return PlayRewardTypeCoupon, nil
 	}
+	if draw < int64(couponWeightBP+redeemCodeWeightBP) {
+		return PlayRewardTypeRedeem, nil
+	}
 	return PlayRewardTypeBalance, nil
 }
 
-func defaultCouponRewardSplit(activity CouponRewardActivity) (int, int, error) {
+func couponRewardTypeAt(couponWeightBP int, draw int64) (PlayRewardType, error) {
+	return marketingRewardTypeAt(couponWeightBP, 0, draw)
+}
+
+func defaultCouponRewardSplit(activity CouponRewardActivity) (int, int, int, error) {
 	switch activity {
 	case CouponRewardActivityBlindbox:
-		return 6000, 4000, nil
+		return 6000, 0, 4000, nil
 	case CouponRewardActivityQuiz:
-		return 8000, 2000, nil
+		return 8000, 0, 2000, nil
+	case CouponRewardActivityCheckin:
+		return 8000, 2000, 0, nil
 	default:
-		return 0, 0, fmt.Errorf("unsupported coupon reward activity: %s", activity)
+		return 0, 0, 0, fmt.Errorf("unsupported coupon reward activity: %s", activity)
 	}
 }
 
-func (s *PlayService) couponRewardSplit(ctx context.Context, activity CouponRewardActivity) (int, int, error) {
+func (s *PlayService) couponRewardSplit(ctx context.Context, activity CouponRewardActivity) (int, int, int, error) {
 	if s == nil {
 		return defaultCouponRewardSplit(activity)
 	}
@@ -41,22 +50,22 @@ func (s *PlayService) couponRewardSplit(ctx context.Context, activity CouponRewa
 	}
 	pool, err := reader.GetPublishedRewardPool(ctx, activity)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, 0, err
 	}
 	if pool == nil {
-		return 0, 0, ErrCouponRewardPoolUnavailable
+		return 0, 0, 0, ErrCouponRewardPoolUnavailable
 	}
-	if pool.CouponWeightBP < 0 || pool.BalanceWeightBP < 0 || pool.CouponWeightBP+pool.BalanceWeightBP != couponWeightBasisPoints {
-		return 0, 0, fmt.Errorf("coupon reward split is invalid for %s", activity)
+	if pool.CouponWeightBP < 0 || pool.RedeemCodeWeightBP < 0 || pool.BalanceWeightBP < 0 || pool.CouponWeightBP+pool.RedeemCodeWeightBP+pool.BalanceWeightBP != couponWeightBasisPoints {
+		return 0, 0, 0, fmt.Errorf("coupon reward split is invalid for %s", activity)
 	}
-	return pool.CouponWeightBP, pool.BalanceWeightBP, nil
+	return pool.CouponWeightBP, pool.RedeemCodeWeightBP, pool.BalanceWeightBP, nil
 }
 
 func (s *PlayService) drawCouponRewardType(ctx context.Context, activity CouponRewardActivity) (PlayRewardType, error) {
 	if s == nil || s.rewardDrawSource == nil {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward draw source is not configured")
 	}
-	couponWeightBP, _, err := s.couponRewardSplit(ctx, activity)
+	couponWeightBP, redeemCodeWeightBP, _, err := s.couponRewardSplit(ctx, activity)
 	if err != nil {
 		return PlayRewardTypeNone, err
 	}
@@ -64,7 +73,7 @@ func (s *PlayService) drawCouponRewardType(ctx context.Context, activity CouponR
 	if err != nil {
 		return PlayRewardTypeNone, fmt.Errorf("coupon reward draw source: %w", err)
 	}
-	return couponRewardTypeAt(couponWeightBP, draw)
+	return marketingRewardTypeAt(couponWeightBP, redeemCodeWeightBP, draw)
 }
 
 // couponRewardPoolReady checks the production coupon service before a reward
@@ -179,6 +188,106 @@ func (s *PlayService) issueCouponRewardInTx(
 	return result, nil
 }
 
+func (s *PlayService) issueRedeemCodeRewardInTx(
+	ctx context.Context,
+	userID int64,
+	activity CouponRewardActivity,
+	idempotencyKey string,
+	sourceRef string,
+	issuedAt time.Time,
+) (*RedeemCode, error) {
+	if s == nil || s.redeemRewardIssuer == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	reader, ok := s.couponRewardIssuer.(CouponRewardPoolReader)
+	if !ok || reader == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	pool, err := reader.GetPublishedRewardPool(ctx, activity)
+	if err != nil {
+		return nil, err
+	}
+	if pool == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	entry, err := drawRedeemRewardEntry(pool.RewardConfig.RedeemEntries, s.rewardDrawSource)
+	if err != nil {
+		return nil, err
+	}
+	return s.redeemRewardIssuer.ClaimRedeemCodeRewardInTx(ctx, RedeemCodeRewardClaimRequest{
+		UserID:            userID,
+		BatchName:         entry.BatchName,
+		CodeType:          entry.CodeType,
+		IssueSource:       string(activity),
+		IssueRef:          sourceRef,
+		RewardPoolVersion: pool.Version,
+		IssuedAt:          issuedAt,
+	})
+}
+
+func drawRedeemRewardEntry(entries []RedeemRewardPoolEntry, drawSource func(max int64) (int64, error)) (*RedeemRewardPoolEntry, error) {
+	if drawSource == nil {
+		return nil, fmt.Errorf("redeem code reward draw source is not configured")
+	}
+	enabled := enabledRedeemRewardEntries(entries)
+	total := 0
+	for _, entry := range enabled {
+		total += entry.WeightBP
+	}
+	if total <= 0 {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	draw, err := drawSource(int64(total))
+	if err != nil {
+		return nil, fmt.Errorf("redeem code reward draw source: %w", err)
+	}
+	cursor := 0
+	for i := range enabled {
+		cursor += enabled[i].WeightBP
+		if draw < int64(cursor) {
+			return &enabled[i], nil
+		}
+	}
+	return nil, ErrCouponRewardPoolUnavailable
+}
+
+func (s *PlayService) drawBalanceRewardEntry(ctx context.Context, activity CouponRewardActivity) (*BalanceRewardPoolEntry, error) {
+	if s == nil || s.rewardDrawSource == nil {
+		return nil, fmt.Errorf("balance reward draw source is not configured")
+	}
+	reader, ok := s.couponRewardIssuer.(CouponRewardPoolReader)
+	if !ok || reader == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	pool, err := reader.GetPublishedRewardPool(ctx, activity)
+	if err != nil {
+		return nil, err
+	}
+	if pool == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	enabled := enabledBalanceRewardEntries(pool.RewardConfig.BalanceEntries)
+	total := 0
+	for _, entry := range enabled {
+		total += entry.WeightBP
+	}
+	if total <= 0 {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	draw, err := s.rewardDrawSource(int64(total))
+	if err != nil {
+		return nil, fmt.Errorf("balance reward draw source: %w", err)
+	}
+	cursor := 0
+	for i := range enabled {
+		cursor += enabled[i].WeightBP
+		if draw < int64(cursor) {
+			return &enabled[i], nil
+		}
+	}
+	return nil, ErrCouponRewardPoolUnavailable
+}
+
 func playCouponRewardSummary(result *CouponRewardIssueResult) *PlayCouponRewardSummary {
 	if result == nil {
 		return nil
@@ -213,6 +322,23 @@ func playCouponRewardSummary(result *CouponRewardIssueResult) *PlayCouponRewardS
 		MinimumOrderAmount: terms.MinimumOrderAmount,
 		ValidFrom:          validFrom,
 		ExpiresAt:          expiresAt,
+	}
+}
+
+func playRedeemCodeRewardSummary(code *RedeemCode) *PlayRedeemCodeRewardSummary {
+	if code == nil {
+		return nil
+	}
+	return &PlayRedeemCodeRewardSummary{
+		ID:                code.ID,
+		Code:              code.Code,
+		Type:              code.Type,
+		Value:             code.Value,
+		Status:            code.Status,
+		BatchName:         code.BatchName,
+		IssuedAt:          code.IssuedAt,
+		ExpiresAt:         code.ExpiresAt,
+		RewardPoolVersion: code.RewardPoolVersion,
 	}
 }
 

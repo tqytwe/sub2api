@@ -2,8 +2,14 @@ import { apiClient } from './client'
 
 export interface PlayCheckinStatus {
   enabled: boolean
+  eligible?: boolean
+  ineligible_reason?: string
   checked_in_today: boolean
   reward_amount: number
+  coupon_pool_ready?: boolean
+  coupon_weight_bp?: number
+  redeem_code_weight_bp?: number
+  balance_weight_bp?: number
   server_date: string
   streak_count?: number
   next_milestone_days?: number
@@ -17,6 +23,10 @@ export interface PlayCheckinStatus {
 export interface PlayCheckinResult {
   reward_amount: number
   balance_added: number
+  reward_type?: PlayRewardType
+  coupon?: PlayCouponReward
+  redeem_code?: PlayRedeemCodeReward
+  coupon_pool_version?: string
   server_date: string
   streak_count?: number
   milestone_bonus?: number
@@ -100,6 +110,7 @@ export interface PlayBlindboxStatus {
   coupon_pool_ready?: boolean
   coupon_prizes?: PlayCouponPrizePreview[]
   coupon_weight_bp?: number
+  redeem_code_weight_bp?: number
   balance_weight_bp?: number
   cost_amount: number
   pool?: PlayBlindboxPool
@@ -153,6 +164,7 @@ export interface PlayBlindboxOpenResult {
   net_amount: number
   reward_type?: PlayRewardType
   coupon?: PlayCouponReward
+  redeem_code?: PlayRedeemCodeReward
   coupon_pool_version?: string
   opens_today: number
   server_date: string
@@ -163,7 +175,7 @@ export interface PlayBlindboxOpenResult {
   rtp_cap?: number
 }
 
-export type PlayRewardType = 'none' | 'balance' | 'coupon'
+export type PlayRewardType = 'none' | 'balance' | 'coupon' | 'redeem_code'
 
 export interface PlayCouponPrizePreview {
   template_id: number
@@ -184,6 +196,18 @@ export interface PlayCouponReward {
   minimum_order_amount: number
   valid_from: string
   expires_at: string
+}
+
+export interface PlayRedeemCodeReward {
+  id: number
+  code: string
+  type: string
+  value: number
+  status: string
+  batch_name?: string
+  issued_at?: string | null
+  expires_at?: string | null
+  reward_pool_version?: string
 }
 
 export interface PlayBlindboxRecentWin {
@@ -210,6 +234,7 @@ export interface PlayQuizToday {
   previous_reward?: number
   previous_reward_type?: PlayRewardType
   previous_coupon?: PlayCouponReward
+  previous_redeem_code?: PlayRedeemCodeReward
   previous_coupon_pool_version?: string
   reward_per_correct: number
   server_date: string
@@ -221,6 +246,7 @@ export interface PlayQuizSubmitResult {
   reward_amount: number
   reward_type?: PlayRewardType
   coupon?: PlayCouponReward
+  redeem_code?: PlayRedeemCodeReward
   coupon_pool_version?: string
   server_date: string
 }

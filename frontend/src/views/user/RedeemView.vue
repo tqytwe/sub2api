@@ -252,7 +252,10 @@
                     {{ getHistoryItemTitle(item) }}
                   </p>
                   <p class="text-xs text-gray-500 dark:text-dark-400">
-                    {{ formatDateTime(item.used_at) }}
+                    {{ formatHistoryTime(item) }}
+                  </p>
+                  <p v-if="item.status === 'issued'" class="mt-1 font-mono text-xs text-primary-600 dark:text-primary-300">
+                    {{ item.code }}
                   </p>
                 </div>
               </div>
@@ -362,6 +365,9 @@ const isAdminAdjustment = (type: string) => {
 }
 
 const getHistoryItemTitle = (item: RedeemHistoryItem) => {
+  if (item.status === 'issued') {
+    return t('redeem.codeIssued')
+  }
   if (item.type === 'balance') {
     return t('redeem.balanceAddedRedeem')
   } else if (item.type === 'admin_balance') {
@@ -374,6 +380,12 @@ const getHistoryItemTitle = (item: RedeemHistoryItem) => {
     return t('redeem.subscriptionAssigned')
   }
   return t('common.unknown')
+}
+
+const formatHistoryTime = (item: RedeemHistoryItem) => {
+  const time = item.used_at || item.issued_at || item.created_at
+  const label = item.used_at ? t('redeem.usedAt') : item.issued_at ? t('redeem.issuedAt') : t('redeem.createdAt')
+  return `${label}：${formatDateTime(time)}`
 }
 
 const formatHistoryValue = (item: RedeemHistoryItem) => {

@@ -28,6 +28,20 @@ const (
 	FieldUsedAt = "used_at"
 	// FieldNotes holds the string denoting the notes field in the database.
 	FieldNotes = "notes"
+	// FieldBatchName holds the string denoting the batch_name field in the database.
+	FieldBatchName = "batch_name"
+	// FieldBatchTag holds the string denoting the batch_tag field in the database.
+	FieldBatchTag = "batch_tag"
+	// FieldIssuedTo holds the string denoting the issued_to field in the database.
+	FieldIssuedTo = "issued_to"
+	// FieldIssuedAt holds the string denoting the issued_at field in the database.
+	FieldIssuedAt = "issued_at"
+	// FieldIssueSource holds the string denoting the issue_source field in the database.
+	FieldIssueSource = "issue_source"
+	// FieldIssueRef holds the string denoting the issue_ref field in the database.
+	FieldIssueRef = "issue_ref"
+	// FieldRewardPoolVersion holds the string denoting the reward_pool_version field in the database.
+	FieldRewardPoolVersion = "reward_pool_version"
 	// FieldCreatedAt holds the string denoting the created_at field in the database.
 	FieldCreatedAt = "created_at"
 	// FieldExpiresAt holds the string denoting the expires_at field in the database.
@@ -38,6 +52,8 @@ const (
 	FieldValidityDays = "validity_days"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
+	// EdgeIssuedUser holds the string denoting the issued_user edge name in mutations.
+	EdgeIssuedUser = "issued_user"
 	// EdgeGroup holds the string denoting the group edge name in mutations.
 	EdgeGroup = "group"
 	// Table holds the table name of the redeemcode in the database.
@@ -49,6 +65,13 @@ const (
 	UserInverseTable = "users"
 	// UserColumn is the table column denoting the user relation/edge.
 	UserColumn = "used_by"
+	// IssuedUserTable is the table that holds the issued_user relation/edge.
+	IssuedUserTable = "redeem_codes"
+	// IssuedUserInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	IssuedUserInverseTable = "users"
+	// IssuedUserColumn is the table column denoting the issued_user relation/edge.
+	IssuedUserColumn = "issued_to"
 	// GroupTable is the table that holds the group relation/edge.
 	GroupTable = "redeem_codes"
 	// GroupInverseTable is the table name for the Group entity.
@@ -68,6 +91,13 @@ var Columns = []string{
 	FieldUsedBy,
 	FieldUsedAt,
 	FieldNotes,
+	FieldBatchName,
+	FieldBatchTag,
+	FieldIssuedTo,
+	FieldIssuedAt,
+	FieldIssueSource,
+	FieldIssueRef,
+	FieldRewardPoolVersion,
 	FieldCreatedAt,
 	FieldExpiresAt,
 	FieldGroupID,
@@ -97,6 +127,16 @@ var (
 	DefaultStatus string
 	// StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	StatusValidator func(string) error
+	// BatchNameValidator is a validator for the "batch_name" field. It is called by the builders before save.
+	BatchNameValidator func(string) error
+	// BatchTagValidator is a validator for the "batch_tag" field. It is called by the builders before save.
+	BatchTagValidator func(string) error
+	// IssueSourceValidator is a validator for the "issue_source" field. It is called by the builders before save.
+	IssueSourceValidator func(string) error
+	// IssueRefValidator is a validator for the "issue_ref" field. It is called by the builders before save.
+	IssueRefValidator func(string) error
+	// RewardPoolVersionValidator is a validator for the "reward_pool_version" field. It is called by the builders before save.
+	RewardPoolVersionValidator func(string) error
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
 	// DefaultValidityDays holds the default value on creation for the "validity_days" field.
@@ -146,6 +186,41 @@ func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
 }
 
+// ByBatchName orders the results by the batch_name field.
+func ByBatchName(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBatchName, opts...).ToFunc()
+}
+
+// ByBatchTag orders the results by the batch_tag field.
+func ByBatchTag(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldBatchTag, opts...).ToFunc()
+}
+
+// ByIssuedTo orders the results by the issued_to field.
+func ByIssuedTo(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIssuedTo, opts...).ToFunc()
+}
+
+// ByIssuedAt orders the results by the issued_at field.
+func ByIssuedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIssuedAt, opts...).ToFunc()
+}
+
+// ByIssueSource orders the results by the issue_source field.
+func ByIssueSource(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIssueSource, opts...).ToFunc()
+}
+
+// ByIssueRef orders the results by the issue_ref field.
+func ByIssueRef(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldIssueRef, opts...).ToFunc()
+}
+
+// ByRewardPoolVersion orders the results by the reward_pool_version field.
+func ByRewardPoolVersion(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRewardPoolVersion, opts...).ToFunc()
+}
+
 // ByCreatedAt orders the results by the created_at field.
 func ByCreatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCreatedAt, opts...).ToFunc()
@@ -173,6 +248,13 @@ func ByUserField(field string, opts ...sql.OrderTermOption) OrderOption {
 	}
 }
 
+// ByIssuedUserField orders the results by issued_user field.
+func ByIssuedUserField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newIssuedUserStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByGroupField orders the results by group field.
 func ByGroupField(field string, opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -184,6 +266,13 @@ func newUserStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UserInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.M2O, true, UserTable, UserColumn),
+	)
+}
+func newIssuedUserStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(IssuedUserInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, IssuedUserTable, IssuedUserColumn),
 	)
 }
 func newGroupStep() *sqlgraph.Step {

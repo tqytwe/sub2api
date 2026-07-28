@@ -83,8 +83,9 @@ type APIKey struct {
 	Reset1dAt     *time.Time `json:"reset_1d_at,omitempty"`
 	Reset7dAt     *time.Time `json:"reset_7d_at,omitempty"`
 
-	User  *User  `json:"user,omitempty"`
-	Group *Group `json:"group,omitempty"`
+	User       *User  `json:"user,omitempty"`
+	IssuedUser *User  `json:"issued_user,omitempty"`
+	Group      *Group `json:"group,omitempty"`
 }
 
 type Group struct {
@@ -397,12 +398,21 @@ type RedeemCode struct {
 	GroupID      *int64 `json:"group_id"`
 	ValidityDays int    `json:"validity_days"`
 
+	BatchName         string     `json:"batch_name,omitempty"`
+	BatchTag          string     `json:"batch_tag,omitempty"`
+	IssuedTo          *int64     `json:"issued_to,omitempty"`
+	IssuedAt          *time.Time `json:"issued_at,omitempty"`
+	IssueSource       string     `json:"issue_source,omitempty"`
+	IssueRef          string     `json:"issue_ref,omitempty"`
+	RewardPoolVersion string     `json:"reward_pool_version,omitempty"`
+
 	// Notes is only populated for admin_balance/admin_concurrency types
 	// so users can see why they were charged or credited
 	Notes *string `json:"notes,omitempty"`
 
-	User  *User  `json:"user,omitempty"`
-	Group *Group `json:"group,omitempty"`
+	User       *User  `json:"user,omitempty"`
+	IssuedUser *User  `json:"issued_user,omitempty"`
+	Group      *Group `json:"group,omitempty"`
 }
 
 // AdminRedeemCode 是管理员接口使用的 redeem code DTO（包含 notes 等字段）。

@@ -68,6 +68,20 @@ type RedeemCodeRepository interface {
 	SumPositiveBalanceByUser(ctx context.Context, userID int64) (float64, error)
 }
 
+type RedeemCodeRewardRepository interface {
+	ClaimForReward(ctx context.Context, request RedeemCodeRewardClaimRequest) (*RedeemCode, error)
+}
+
+type RedeemCodeRewardClaimRequest struct {
+	UserID            int64
+	BatchName         string
+	CodeType          string
+	IssueSource       string
+	IssueRef          string
+	RewardPoolVersion string
+	IssuedAt          time.Time
+}
+
 // GenerateCodesRequest 生成兑换码请求
 type GenerateCodesRequest struct {
 	Count int     `json:"count"`
@@ -271,6 +285,28 @@ func (s *RedeemService) CreateCode(ctx context.Context, code *RedeemCode) error 
 		return fmt.Errorf("create redeem code: %w", err)
 	}
 	return nil
+}
+
+func (s *RedeemService) ClaimRedeemCodeRewardInTx(ctx context.Context, request RedeemCodeRewardClaimRequest) (*RedeemCode, error) {
+	if s == nil || s.redeemRepo == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	request.BatchName = strings.TrimSpace(request.BatchName)
+	request.CodeType = strings.TrimSpace(request.CodeType)
+	request.IssueSource = strings.TrimSpace(request.IssueSource)
+	request.IssueRef = strings.TrimSpace(request.IssueRef)
+	request.RewardPoolVersion = strings.TrimSpace(request.RewardPoolVersion)
+	if request.UserID <= 0 || (request.BatchName == "" && request.CodeType == "") {
+		return nil, infraerrors.BadRequest("REDEEM_REWARD_CONFIG_INVALID", "redeem code reward requires user and batch or type")
+	}
+	if request.IssuedAt.IsZero() {
+		request.IssuedAt = time.Now()
+	}
+	rewardRepo, ok := s.redeemRepo.(RedeemCodeRewardRepository)
+	if !ok || rewardRepo == nil {
+		return nil, ErrCouponRewardPoolUnavailable
+	}
+	return rewardRepo.ClaimForReward(ctx, request)
 }
 
 func (s *RedeemService) BatchUpdate(ctx context.Context, input *RedeemCodeBatchUpdateInput) (*RedeemCodeBatchUpdateResult, error) {
