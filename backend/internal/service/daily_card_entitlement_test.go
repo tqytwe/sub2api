@@ -28,6 +28,11 @@ func (r *dailyCardRepoStub) IssuePaidCard(_ context.Context, input IssueDailyCar
 	return r.issued, r.created, r.err
 }
 
+func (r *dailyCardRepoStub) IssueSourcedCard(_ context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error) {
+	r.issuedInput = input
+	return r.issued, r.created, r.err
+}
+
 func (*dailyCardRepoStub) GetActive(context.Context, int64, int64) (*DailyCardEntitlement, error) {
 	return nil, ErrDailyCardEntitlementNotFound
 }
@@ -148,7 +153,8 @@ func TestDailyCardEntitlementPendingActivationStartsFreshTwentyFourHours(t *test
 
 func TestDailyCardServiceIssuePaidCardPassesImmutableOrderSnapshot(t *testing.T) {
 	issuedAt := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
-	want := &DailyCardEntitlement{ID: 99, PaymentOrderID: 44}
+	orderID := int64(44)
+	want := &DailyCardEntitlement{ID: 99, PaymentOrderID: &orderID}
 	repo := &dailyCardRepoStub{issued: want, created: true}
 	svc := NewDailyCardService(repo)
 
@@ -161,7 +167,28 @@ func TestDailyCardServiceIssuePaidCardPassesImmutableOrderSnapshot(t *testing.T)
 	require.True(t, created)
 	require.Same(t, want, got)
 	require.Equal(t, int64(44), repo.issuedInput.PaymentOrderID)
+	require.Equal(t, DailyCardSourcePaymentOrder, repo.issuedInput.SourceType)
 	require.Equal(t, 12.5, repo.issuedInput.QuotaLimitUSD)
+	require.Equal(t, issuedAt, repo.issuedInput.IssuedAt)
+}
+
+func TestDailyCardServiceIssueRedeemCardUsesRedeemSource(t *testing.T) {
+	issuedAt := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
+	want := &DailyCardEntitlement{ID: 100, SourceType: DailyCardSourceRedeemCode, SourceID: "123"}
+	repo := &dailyCardRepoStub{issued: want, created: true}
+	svc := NewDailyCardService(repo)
+
+	got, created, err := svc.IssueRedeemCard(context.Background(), IssueDailyCardInput{
+		UserID: 1, GroupID: 2, PlanID: 3, SourceID: "123",
+		QuotaLimitUSD: 12.5, DurationHours: 24, IssuedAt: issuedAt,
+	})
+
+	require.NoError(t, err)
+	require.True(t, created)
+	require.Same(t, want, got)
+	require.Zero(t, repo.issuedInput.PaymentOrderID)
+	require.Equal(t, DailyCardSourceRedeemCode, repo.issuedInput.SourceType)
+	require.Equal(t, "123", repo.issuedInput.SourceID)
 	require.Equal(t, issuedAt, repo.issuedInput.IssuedAt)
 }
 

@@ -847,6 +847,7 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 	if sub.DailyCard != nil {
 		out.DailyCard = &DailyCardEntitlement{
 			ID: sub.DailyCard.ID, PaymentOrderID: sub.DailyCard.PaymentOrderID,
+			SourceType: sub.DailyCard.SourceType, SourceID: sub.DailyCard.SourceID,
 			Status: sub.DailyCard.Status, QuotaLimitUSD: sub.DailyCard.QuotaLimitUSD,
 			QuotaUsedUSD: sub.DailyCard.QuotaUsedUSD, QuotaReservedUSD: sub.DailyCard.QuotaReservedUSD,
 			RemainingQuotaUSD: sub.DailyCard.RemainingQuotaUSD(), DurationHours: sub.DailyCard.DurationHours,

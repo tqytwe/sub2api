@@ -1982,7 +1982,9 @@ export interface UserSubscription {
 
 export interface DailyCardEntitlement {
   id: number
-  payment_order_id: number
+  payment_order_id?: number | null
+  source_type?: string
+  source_id?: string
   status: 'pending' | 'active' | 'exhausted' | 'expired' | 'revoked'
   quota_limit_usd: number
   quota_used_usd: number

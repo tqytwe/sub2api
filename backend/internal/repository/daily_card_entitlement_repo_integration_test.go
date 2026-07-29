@@ -59,6 +59,37 @@ func TestDailyCardRepositoryIssuesOneActiveAndQueuesDuplicatesByOrder(t *testing
 	require.Equal(t, now.Add(48*time.Hour), *active.ExpiresAt)
 }
 
+func TestDailyCardRepositoryIssuesRedeemCardIdempotentlyBySource(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	repo := NewDailyCardEntitlementRepository(client)
+	now := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
+
+	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
+	first, created, err := repo.IssueSourcedCard(ctx, service.IssueDailyCardInput{
+		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID,
+		SourceType: service.DailyCardSourceRedeemCode, SourceID: "redeem-1001",
+		QuotaLimitUSD: 10, DurationHours: 24, IssuedAt: now,
+	})
+	require.NoError(t, err)
+	require.True(t, created)
+	require.Nil(t, first.PaymentOrderID)
+	require.Equal(t, service.DailyCardSourceRedeemCode, first.SourceType)
+	require.Equal(t, "redeem-1001", first.SourceID)
+	require.Equal(t, service.DailyCardStatusActive, first.Status)
+
+	duplicate, created, err := repo.IssueSourcedCard(ctx, service.IssueDailyCardInput{
+		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID,
+		SourceType: service.DailyCardSourceRedeemCode, SourceID: "redeem-1001",
+		QuotaLimitUSD: 999, DurationHours: 999, IssuedAt: now.Add(time.Hour),
+	})
+	require.NoError(t, err)
+	require.False(t, created)
+	require.Equal(t, first.ID, duplicate.ID)
+	require.Equal(t, 10.0, duplicate.QuotaLimitUSD)
+}
+
 func TestDailyCardRepositoryTracksAdmissionWithoutBlockingParallelRequests(t *testing.T) {
 	tx := testEntTx(t)
 	ctx := dbent.NewTxContext(context.Background(), tx)

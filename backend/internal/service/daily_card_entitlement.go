@@ -12,6 +12,10 @@ import (
 const (
 	DailyCardQuotaModeOneTime = "one_time"
 
+	DailyCardSourcePaymentOrder = "payment_order"
+	DailyCardSourceRedeemCode   = "redeem_code"
+	DailyCardSourceBackfill     = "backfill"
+
 	DailyCardStatusPending   = "pending"
 	DailyCardStatusActive    = "active"
 	DailyCardStatusExhausted = "exhausted"
@@ -32,7 +36,9 @@ type DailyCardEntitlement struct {
 	UserID           int64      `json:"user_id"`
 	GroupID          int64      `json:"group_id"`
 	PlanID           *int64     `json:"plan_id,omitempty"`
-	PaymentOrderID   int64      `json:"payment_order_id"`
+	PaymentOrderID   *int64     `json:"payment_order_id,omitempty"`
+	SourceType       string     `json:"source_type"`
+	SourceID         string     `json:"source_id"`
 	QuotaMode        string     `json:"quota_mode"`
 	QuotaLimitUSD    float64    `json:"quota_limit_usd"`
 	QuotaUsedUSD     float64    `json:"quota_used_usd"`
@@ -53,6 +59,8 @@ type IssueDailyCardInput struct {
 	GroupID        int64
 	PlanID         int64
 	PaymentOrderID int64
+	SourceType     string
+	SourceID       string
 	QuotaLimitUSD  float64
 	DurationHours  int
 	IssuedAt       time.Time
@@ -73,6 +81,7 @@ type DailyCardAdminActionResult struct {
 
 type DailyCardEntitlementRepository interface {
 	IssuePaidCard(ctx context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error)
+	IssueSourcedCard(ctx context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error)
 	GetActive(ctx context.Context, userID, groupID int64) (*DailyCardEntitlement, error)
 	GetByPaymentOrder(ctx context.Context, paymentOrderID int64) (*DailyCardEntitlement, error)
 	ReconcileAndGetActive(ctx context.Context, userID, groupID int64, now time.Time) (*DailyCardEntitlement, error)
@@ -180,7 +189,22 @@ func (s *DailyCardService) IssuePaidCard(ctx context.Context, input IssueDailyCa
 	if input.IssuedAt.IsZero() {
 		input.IssuedAt = time.Now()
 	}
+	input.SourceType = DailyCardSourcePaymentOrder
+	input.SourceID = ""
 	return s.repo.IssuePaidCard(ctx, input)
+}
+
+func (s *DailyCardService) IssueRedeemCard(ctx context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error) {
+	if s == nil || s.repo == nil || input.UserID <= 0 || input.GroupID <= 0 || input.PlanID <= 0 ||
+		input.SourceID == "" || input.QuotaLimitUSD <= 0 || input.DurationHours <= 0 {
+		return nil, false, ErrDailyCardInvalidInput
+	}
+	if input.IssuedAt.IsZero() {
+		input.IssuedAt = time.Now()
+	}
+	input.PaymentOrderID = 0
+	input.SourceType = DailyCardSourceRedeemCode
+	return s.repo.IssueSourcedCard(ctx, input)
 }
 
 func (s *DailyCardService) ResolveAccess(ctx context.Context, userID, groupID int64, now time.Time) (*DailyCardEntitlement, bool, error) {
