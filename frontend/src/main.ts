@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+import { installGlobalChunkLoadRecovery } from './router/chunkRecovery'
 import i18n, { initI18n } from './i18n'
 import { useAppStore } from '@/stores/app'
 import { updateFavicon } from '@/utils/branding'
@@ -25,6 +26,8 @@ function initIOSViewportZoomFix() {
 }
 
 async function bootstrap() {
+  installGlobalChunkLoadRecovery()
+
   // Apply theme class globally before app mount to keep all routes consistent.
   initTheme()
   initIOSViewportZoomFix()
