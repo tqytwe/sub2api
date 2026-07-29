@@ -767,7 +767,7 @@ func (s *APIKeyService) realignNextChatManagedKeyGroup(ctx context.Context, key 
 
 	updated := *key
 	updated.GroupID = groupID
-	if err := s.apiKeyRepo.Update(ctx, &updated); err != nil {
+	if err := s.apiKeyRepo.Update(ctx, &updated, APIKeyUpdateFields{GroupID: true}); err != nil {
 		return nil, fmt.Errorf("realign nextchat managed api key group: %w", err)
 	}
 	s.InvalidateAuthCacheByKey(ctx, updated.Key)

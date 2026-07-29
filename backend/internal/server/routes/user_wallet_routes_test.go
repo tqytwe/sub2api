@@ -27,6 +27,7 @@ func TestUserWalletRoutesContract(t *testing.T) {
 		}),
 		middleware.AuditLogMiddleware(func(c *gin.Context) { c.Next() }),
 		nil,
+		nil,
 	)
 
 	routes := make(map[string]struct{})

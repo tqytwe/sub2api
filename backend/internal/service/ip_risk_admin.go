@@ -805,7 +805,7 @@ func (s *IPRiskAdminService) ExecuteAction(ctx context.Context, caseID, actorID 
 				}
 				if keyErr == nil && key.Status != StatusDisabled {
 					key.Status = StatusDisabled
-					keyErr = s.apiKeys.Update(ctx, key)
+					keyErr = s.apiKeys.Update(ctx, key, APIKeyUpdateFields{Status: true})
 					if keyErr == nil && s.invalidator != nil {
 						s.invalidator.InvalidateAuthCacheByKey(ctx, key.Key)
 					}
@@ -919,7 +919,7 @@ func (s *IPRiskAdminService) RollbackAction(ctx context.Context, actionID, actor
 			}
 			if itemErr == nil && before != "" {
 				key.Status = before
-				itemErr = s.apiKeys.Update(ctx, key)
+				itemErr = s.apiKeys.Update(ctx, key, APIKeyUpdateFields{Status: true})
 				if itemErr == nil && s.invalidator != nil {
 					s.invalidator.InvalidateAuthCacheByKey(ctx, key.Key)
 				}

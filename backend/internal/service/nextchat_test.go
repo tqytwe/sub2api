@@ -12,9 +12,10 @@ import (
 
 type nextChatAPIKeyRepoStub struct {
 	APIKeyRepository
-	keys    []APIKey
-	created []APIKey
-	updated []APIKey
+	keys          []APIKey
+	created       []APIKey
+	updated       []APIKey
+	updatedFields []APIKeyUpdateFields
 }
 
 func (s *nextChatAPIKeyRepoStub) Create(_ context.Context, key *APIKey) error {
@@ -37,9 +38,10 @@ func (s *nextChatAPIKeyRepoStub) GetByID(_ context.Context, id int64) (*APIKey, 
 	return nil, ErrAPIKeyNotFound
 }
 
-func (s *nextChatAPIKeyRepoStub) Update(_ context.Context, key *APIKey) error {
+func (s *nextChatAPIKeyRepoStub) Update(_ context.Context, key *APIKey, fields APIKeyUpdateFields) error {
 	clone := *key
 	s.updated = append(s.updated, clone)
+	s.updatedFields = append(s.updatedFields, fields)
 	for i := range s.keys {
 		if s.keys[i].ID == key.ID {
 			s.keys[i] = clone

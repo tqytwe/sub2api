@@ -110,7 +110,7 @@ func (f fakeAPIKeyRepo) GetByKeyForAuth(ctx context.Context, key string) (*servi
 	}
 	return apiKey, err
 }
-func (f fakeAPIKeyRepo) Update(ctx context.Context, key *service.APIKey) error {
+func (f fakeAPIKeyRepo) Update(ctx context.Context, key *service.APIKey, _ service.APIKeyUpdateFields) error {
 	return errors.New("not implemented")
 }
 func (f fakeAPIKeyRepo) Delete(ctx context.Context, id int64) error {

@@ -34,7 +34,7 @@ func (r *batchActionUserRepo) GetByID(_ context.Context, id int64) (*User, error
 	return &clone, nil
 }
 
-func (r *batchActionUserRepo) Update(_ context.Context, user *User) error {
+func (r *batchActionUserRepo) Update(_ context.Context, user *User, _ UserUpdateFields) error {
 	r.updatedIDs = append(r.updatedIDs, user.ID)
 	if err := r.updateErr[user.ID]; err != nil {
 		return err
