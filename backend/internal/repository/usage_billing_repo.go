@@ -894,7 +894,9 @@ func captureUsageBillingDailyCardHold(ctx context.Context, tx *sql.Tx, entitleme
 		return dailyCardHoldCapture{found: true, reservedUSD: reservedUSD}, nil
 	}
 	capturedUSD := costUSD
-	if reservedUSD > 0 && capturedUSD > reservedUSD {
+	if reservedUSD <= 0 {
+		capturedUSD = 0
+	} else if capturedUSD > reservedUSD {
 		capturedUSD = reservedUSD
 	}
 	_, err = tx.ExecContext(ctx, `

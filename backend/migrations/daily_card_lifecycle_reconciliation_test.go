@@ -23,3 +23,15 @@ func TestDailyCardLifecycleReconciliationMigrationContract(t *testing.T) {
 	require.Contains(t, sql, "status = 'pending'")
 	require.NotContains(t, sql, "quota_used_usd = 0")
 }
+
+func TestAllowZeroDailyCardHoldsMigrationContract(t *testing.T) {
+	raw, err := os.ReadFile("231_allow_zero_daily_card_holds.sql")
+	require.NoError(t, err)
+	sql := string(raw)
+
+	require.Contains(t, sql, "DROP CONSTRAINT IF EXISTS subscription_entitlement_holds_amount_check")
+	require.Contains(t, sql, "reserved_usd >= 0")
+	require.Contains(t, sql, "captured_usd >= 0")
+	require.Contains(t, sql, "reserved_usd = 0")
+	require.Contains(t, sql, "captured_usd <= reserved_usd")
+}
