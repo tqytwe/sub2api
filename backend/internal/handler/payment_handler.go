@@ -85,7 +85,9 @@ type dailyCardResult struct {
 	ID                int64      `json:"id"`
 	GroupID           int64      `json:"group_id"`
 	PlanID            *int64     `json:"plan_id,omitempty"`
-	PaymentOrderID    int64      `json:"payment_order_id"`
+	PaymentOrderID    *int64     `json:"payment_order_id,omitempty"`
+	SourceType        string     `json:"source_type,omitempty"`
+	SourceID          string     `json:"source_id,omitempty"`
 	Status            string     `json:"status"`
 	QuotaLimitUSD     float64    `json:"quota_limit_usd"`
 	QuotaUsedUSD      float64    `json:"quota_used_usd"`
@@ -116,6 +118,7 @@ func buildDailyCardResults(cards []service.DailyCardEntitlement, now time.Time) 
 		}
 		result = append(result, dailyCardResult{
 			ID: card.ID, GroupID: card.GroupID, PlanID: card.PlanID, PaymentOrderID: card.PaymentOrderID,
+			SourceType: card.SourceType, SourceID: card.SourceID,
 			Status: card.Status, QuotaLimitUSD: card.QuotaLimitUSD, QuotaUsedUSD: card.QuotaUsedUSD,
 			QuotaReservedUSD: card.QuotaReservedUSD, RemainingQuotaUSD: card.RemainingQuotaUSD(),
 			DurationHours: card.DurationHours, StartsAt: card.StartsAt, ExpiresAt: card.ExpiresAt,

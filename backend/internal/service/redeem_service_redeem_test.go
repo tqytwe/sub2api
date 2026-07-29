@@ -2,11 +2,18 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"testing"
+	"time"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
+	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/enttest"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/stretchr/testify/require"
+	_ "modernc.org/sqlite"
 )
 
 type redeemRejectRepo struct {
@@ -99,4 +106,52 @@ func TestRedeemRejectsInvitationCodeBeforeTransaction(t *testing.T) {
 	require.False(t, redeemRepo.useCalled)
 	require.Equal(t, StatusUnused, redeemRepo.code.Status)
 	require.Nil(t, redeemRepo.code.UsedBy)
+}
+
+func TestRedeemServiceIssuesDailyCardEntitlementFromOneTimePlan(t *testing.T) {
+	client := newRedeemServiceEntTestClient(t)
+	limit := 110.0
+	duration := 24
+	plan, err := client.SubscriptionPlan.Create().
+		SetGroupID(7).
+		SetName("高频日卡110刀").
+		SetPrice(9.9).
+		SetValidityDays(1).
+		SetValidityUnit("day").
+		SetQuotaMode(DailyCardQuotaModeOneTime).
+		SetQuotaLimitUsd(limit).
+		SetDurationHours(duration).
+		Save(context.Background())
+	require.NoError(t, err)
+
+	repo := &dailyCardRepoStub{issued: &DailyCardEntitlement{ID: 88}, created: true}
+	subSvc := &SubscriptionService{dailyCardSvc: NewDailyCardService(repo)}
+	redeemSvc := &RedeemService{subscriptionService: subSvc, entClient: client}
+	groupID := int64(7)
+
+	err = redeemSvc.issueDailyCardRedeemEntitlement(context.Background(), 451, &RedeemCode{
+		ID: 179, GroupID: &groupID,
+	}, 1)
+
+	require.NoError(t, err)
+	require.Equal(t, int64(451), repo.issuedInput.UserID)
+	require.Equal(t, groupID, repo.issuedInput.GroupID)
+	require.Equal(t, plan.ID, repo.issuedInput.PlanID)
+	require.Equal(t, DailyCardSourceRedeemCode, repo.issuedInput.SourceType)
+	require.Equal(t, "179", repo.issuedInput.SourceID)
+	require.Equal(t, limit, repo.issuedInput.QuotaLimitUSD)
+	require.Equal(t, duration, repo.issuedInput.DurationHours)
+}
+
+func newRedeemServiceEntTestClient(t *testing.T) *dbent.Client {
+	t.Helper()
+	db, err := sql.Open("sqlite", "file:redeem_daily_card_"+time.Now().Format("150405.000000000")+"?mode=memory&cache=shared&_fk=1")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	require.NoError(t, err)
+	drv := entsql.OpenDB(dialect.SQLite, db)
+	client := enttest.NewClient(t, enttest.WithOptions(dbent.Driver(drv)))
+	t.Cleanup(func() { _ = client.Close() })
+	return client
 }

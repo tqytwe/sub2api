@@ -655,7 +655,9 @@ type UserSubscription struct {
 
 type DailyCardEntitlement struct {
 	ID                int64      `json:"id"`
-	PaymentOrderID    int64      `json:"payment_order_id"`
+	PaymentOrderID    *int64     `json:"payment_order_id,omitempty"`
+	SourceType        string     `json:"source_type,omitempty"`
+	SourceID          string     `json:"source_id,omitempty"`
 	Status            string     `json:"status"`
 	QuotaLimitUSD     float64    `json:"quota_limit_usd"`
 	QuotaUsedUSD      float64    `json:"quota_used_usd"`

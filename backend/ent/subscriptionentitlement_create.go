@@ -54,6 +54,42 @@ func (_c *SubscriptionEntitlementCreate) SetPaymentOrderID(v int64) *Subscriptio
 	return _c
 }
 
+// SetNillablePaymentOrderID sets the "payment_order_id" field if the given value is not nil.
+func (_c *SubscriptionEntitlementCreate) SetNillablePaymentOrderID(v *int64) *SubscriptionEntitlementCreate {
+	if v != nil {
+		_c.SetPaymentOrderID(*v)
+	}
+	return _c
+}
+
+// SetSourceType sets the "source_type" field.
+func (_c *SubscriptionEntitlementCreate) SetSourceType(v string) *SubscriptionEntitlementCreate {
+	_c.mutation.SetSourceType(v)
+	return _c
+}
+
+// SetNillableSourceType sets the "source_type" field if the given value is not nil.
+func (_c *SubscriptionEntitlementCreate) SetNillableSourceType(v *string) *SubscriptionEntitlementCreate {
+	if v != nil {
+		_c.SetSourceType(*v)
+	}
+	return _c
+}
+
+// SetSourceID sets the "source_id" field.
+func (_c *SubscriptionEntitlementCreate) SetSourceID(v string) *SubscriptionEntitlementCreate {
+	_c.mutation.SetSourceID(v)
+	return _c
+}
+
+// SetNillableSourceID sets the "source_id" field if the given value is not nil.
+func (_c *SubscriptionEntitlementCreate) SetNillableSourceID(v *string) *SubscriptionEntitlementCreate {
+	if v != nil {
+		_c.SetSourceID(*v)
+	}
+	return _c
+}
+
 // SetQuotaMode sets the "quota_mode" field.
 func (_c *SubscriptionEntitlementCreate) SetQuotaMode(v string) *SubscriptionEntitlementCreate {
 	_c.mutation.SetQuotaMode(v)
@@ -247,6 +283,14 @@ func (_c *SubscriptionEntitlementCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *SubscriptionEntitlementCreate) defaults() {
+	if _, ok := _c.mutation.SourceType(); !ok {
+		v := subscriptionentitlement.DefaultSourceType
+		_c.mutation.SetSourceType(v)
+	}
+	if _, ok := _c.mutation.SourceID(); !ok {
+		v := subscriptionentitlement.DefaultSourceID
+		_c.mutation.SetSourceID(v)
+	}
 	if _, ok := _c.mutation.QuotaUsedUsd(); !ok {
 		v := subscriptionentitlement.DefaultQuotaUsedUsd
 		_c.mutation.SetQuotaUsedUsd(v)
@@ -277,8 +321,21 @@ func (_c *SubscriptionEntitlementCreate) check() error {
 	if _, ok := _c.mutation.GroupID(); !ok {
 		return &ValidationError{Name: "group_id", err: errors.New(`ent: missing required field "SubscriptionEntitlement.group_id"`)}
 	}
-	if _, ok := _c.mutation.PaymentOrderID(); !ok {
-		return &ValidationError{Name: "payment_order_id", err: errors.New(`ent: missing required field "SubscriptionEntitlement.payment_order_id"`)}
+	if _, ok := _c.mutation.SourceType(); !ok {
+		return &ValidationError{Name: "source_type", err: errors.New(`ent: missing required field "SubscriptionEntitlement.source_type"`)}
+	}
+	if v, ok := _c.mutation.SourceType(); ok {
+		if err := subscriptionentitlement.SourceTypeValidator(v); err != nil {
+			return &ValidationError{Name: "source_type", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.source_type": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.SourceID(); !ok {
+		return &ValidationError{Name: "source_id", err: errors.New(`ent: missing required field "SubscriptionEntitlement.source_id"`)}
+	}
+	if v, ok := _c.mutation.SourceID(); ok {
+		if err := subscriptionentitlement.SourceIDValidator(v); err != nil {
+			return &ValidationError{Name: "source_id", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.source_id": %w`, err)}
+		}
 	}
 	if _, ok := _c.mutation.QuotaMode(); !ok {
 		return &ValidationError{Name: "quota_mode", err: errors.New(`ent: missing required field "SubscriptionEntitlement.quota_mode"`)}
@@ -355,7 +412,15 @@ func (_c *SubscriptionEntitlementCreate) createSpec() (*SubscriptionEntitlement,
 	}
 	if value, ok := _c.mutation.PaymentOrderID(); ok {
 		_spec.SetField(subscriptionentitlement.FieldPaymentOrderID, field.TypeInt64, value)
-		_node.PaymentOrderID = value
+		_node.PaymentOrderID = &value
+	}
+	if value, ok := _c.mutation.SourceType(); ok {
+		_spec.SetField(subscriptionentitlement.FieldSourceType, field.TypeString, value)
+		_node.SourceType = value
+	}
+	if value, ok := _c.mutation.SourceID(); ok {
+		_spec.SetField(subscriptionentitlement.FieldSourceID, field.TypeString, value)
+		_node.SourceID = value
 	}
 	if value, ok := _c.mutation.QuotaMode(); ok {
 		_spec.SetField(subscriptionentitlement.FieldQuotaMode, field.TypeString, value)
@@ -536,6 +601,36 @@ func (u *SubscriptionEntitlementUpsert) UpdatePaymentOrderID() *SubscriptionEnti
 // AddPaymentOrderID adds v to the "payment_order_id" field.
 func (u *SubscriptionEntitlementUpsert) AddPaymentOrderID(v int64) *SubscriptionEntitlementUpsert {
 	u.Add(subscriptionentitlement.FieldPaymentOrderID, v)
+	return u
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (u *SubscriptionEntitlementUpsert) ClearPaymentOrderID() *SubscriptionEntitlementUpsert {
+	u.SetNull(subscriptionentitlement.FieldPaymentOrderID)
+	return u
+}
+
+// SetSourceType sets the "source_type" field.
+func (u *SubscriptionEntitlementUpsert) SetSourceType(v string) *SubscriptionEntitlementUpsert {
+	u.Set(subscriptionentitlement.FieldSourceType, v)
+	return u
+}
+
+// UpdateSourceType sets the "source_type" field to the value that was provided on create.
+func (u *SubscriptionEntitlementUpsert) UpdateSourceType() *SubscriptionEntitlementUpsert {
+	u.SetExcluded(subscriptionentitlement.FieldSourceType)
+	return u
+}
+
+// SetSourceID sets the "source_id" field.
+func (u *SubscriptionEntitlementUpsert) SetSourceID(v string) *SubscriptionEntitlementUpsert {
+	u.Set(subscriptionentitlement.FieldSourceID, v)
+	return u
+}
+
+// UpdateSourceID sets the "source_id" field to the value that was provided on create.
+func (u *SubscriptionEntitlementUpsert) UpdateSourceID() *SubscriptionEntitlementUpsert {
+	u.SetExcluded(subscriptionentitlement.FieldSourceID)
 	return u
 }
 
@@ -870,6 +965,41 @@ func (u *SubscriptionEntitlementUpsertOne) AddPaymentOrderID(v int64) *Subscript
 func (u *SubscriptionEntitlementUpsertOne) UpdatePaymentOrderID() *SubscriptionEntitlementUpsertOne {
 	return u.Update(func(s *SubscriptionEntitlementUpsert) {
 		s.UpdatePaymentOrderID()
+	})
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (u *SubscriptionEntitlementUpsertOne) ClearPaymentOrderID() *SubscriptionEntitlementUpsertOne {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.ClearPaymentOrderID()
+	})
+}
+
+// SetSourceType sets the "source_type" field.
+func (u *SubscriptionEntitlementUpsertOne) SetSourceType(v string) *SubscriptionEntitlementUpsertOne {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.SetSourceType(v)
+	})
+}
+
+// UpdateSourceType sets the "source_type" field to the value that was provided on create.
+func (u *SubscriptionEntitlementUpsertOne) UpdateSourceType() *SubscriptionEntitlementUpsertOne {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.UpdateSourceType()
+	})
+}
+
+// SetSourceID sets the "source_id" field.
+func (u *SubscriptionEntitlementUpsertOne) SetSourceID(v string) *SubscriptionEntitlementUpsertOne {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.SetSourceID(v)
+	})
+}
+
+// UpdateSourceID sets the "source_id" field to the value that was provided on create.
+func (u *SubscriptionEntitlementUpsertOne) UpdateSourceID() *SubscriptionEntitlementUpsertOne {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.UpdateSourceID()
 	})
 }
 
@@ -1403,6 +1533,41 @@ func (u *SubscriptionEntitlementUpsertBulk) AddPaymentOrderID(v int64) *Subscrip
 func (u *SubscriptionEntitlementUpsertBulk) UpdatePaymentOrderID() *SubscriptionEntitlementUpsertBulk {
 	return u.Update(func(s *SubscriptionEntitlementUpsert) {
 		s.UpdatePaymentOrderID()
+	})
+}
+
+// ClearPaymentOrderID clears the value of the "payment_order_id" field.
+func (u *SubscriptionEntitlementUpsertBulk) ClearPaymentOrderID() *SubscriptionEntitlementUpsertBulk {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.ClearPaymentOrderID()
+	})
+}
+
+// SetSourceType sets the "source_type" field.
+func (u *SubscriptionEntitlementUpsertBulk) SetSourceType(v string) *SubscriptionEntitlementUpsertBulk {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.SetSourceType(v)
+	})
+}
+
+// UpdateSourceType sets the "source_type" field to the value that was provided on create.
+func (u *SubscriptionEntitlementUpsertBulk) UpdateSourceType() *SubscriptionEntitlementUpsertBulk {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.UpdateSourceType()
+	})
+}
+
+// SetSourceID sets the "source_id" field.
+func (u *SubscriptionEntitlementUpsertBulk) SetSourceID(v string) *SubscriptionEntitlementUpsertBulk {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.SetSourceID(v)
+	})
+}
+
+// UpdateSourceID sets the "source_id" field to the value that was provided on create.
+func (u *SubscriptionEntitlementUpsertBulk) UpdateSourceID() *SubscriptionEntitlementUpsertBulk {
+	return u.Update(func(s *SubscriptionEntitlementUpsert) {
+		s.UpdateSourceID()
 	})
 }
 

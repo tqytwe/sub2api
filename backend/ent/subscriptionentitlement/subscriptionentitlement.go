@@ -21,6 +21,10 @@ const (
 	FieldPlanID = "plan_id"
 	// FieldPaymentOrderID holds the string denoting the payment_order_id field in the database.
 	FieldPaymentOrderID = "payment_order_id"
+	// FieldSourceType holds the string denoting the source_type field in the database.
+	FieldSourceType = "source_type"
+	// FieldSourceID holds the string denoting the source_id field in the database.
+	FieldSourceID = "source_id"
 	// FieldQuotaMode holds the string denoting the quota_mode field in the database.
 	FieldQuotaMode = "quota_mode"
 	// FieldQuotaLimitUsd holds the string denoting the quota_limit_usd field in the database.
@@ -58,6 +62,8 @@ var Columns = []string{
 	FieldGroupID,
 	FieldPlanID,
 	FieldPaymentOrderID,
+	FieldSourceType,
+	FieldSourceID,
 	FieldQuotaMode,
 	FieldQuotaLimitUsd,
 	FieldQuotaUsedUsd,
@@ -84,6 +90,14 @@ func ValidColumn(column string) bool {
 }
 
 var (
+	// DefaultSourceType holds the default value on creation for the "source_type" field.
+	DefaultSourceType string
+	// SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
+	SourceTypeValidator func(string) error
+	// DefaultSourceID holds the default value on creation for the "source_id" field.
+	DefaultSourceID string
+	// SourceIDValidator is a validator for the "source_id" field. It is called by the builders before save.
+	SourceIDValidator func(string) error
 	// QuotaModeValidator is a validator for the "quota_mode" field. It is called by the builders before save.
 	QuotaModeValidator func(string) error
 	// DefaultQuotaUsedUsd holds the default value on creation for the "quota_used_usd" field.
@@ -128,6 +142,16 @@ func ByPlanID(opts ...sql.OrderTermOption) OrderOption {
 // ByPaymentOrderID orders the results by the payment_order_id field.
 func ByPaymentOrderID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPaymentOrderID, opts...).ToFunc()
+}
+
+// BySourceType orders the results by the source_type field.
+func BySourceType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceType, opts...).ToFunc()
+}
+
+// BySourceID orders the results by the source_id field.
+func BySourceID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSourceID, opts...).ToFunc()
 }
 
 // ByQuotaMode orders the results by the quota_mode field.

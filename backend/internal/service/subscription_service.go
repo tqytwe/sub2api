@@ -216,12 +216,14 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 
 // AssignSubscriptionInput 分配订阅输入
 type AssignSubscriptionInput struct {
-	UserID         int64
-	GroupID        int64
-	ValidityDays   int
-	AssignedBy     int64
-	Notes          string
-	PaymentOrderID int64
+	UserID                   int64
+	GroupID                  int64
+	ValidityDays             int
+	AssignedBy               int64
+	Notes                    string
+	PaymentOrderID           int64
+	DailyCardGrantSourceType string
+	DailyCardGrantSourceID   string
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -597,6 +599,12 @@ func (s *SubscriptionService) validateDailyCardAssignmentSource(ctx context.Cont
 		return err
 	}
 	if managed {
+		switch input.DailyCardGrantSourceType {
+		case DailyCardSourceRedeemCode, DailyCardSourceBackfill:
+			if input.DailyCardGrantSourceID != "" {
+				return nil
+			}
+		}
 		return ErrDailyCardPaidOrderRequired
 	}
 	return nil
@@ -1090,6 +1098,15 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
 	if err != nil {
 		return nil, err
+	}
+	if s.dailyCardSvc != nil {
+		managed, managedErr := s.dailyCardSvc.IsOneTimeGroup(ctx, sub.GroupID)
+		if managedErr != nil {
+			return nil, managedErr
+		}
+		if managed {
+			return nil, ErrDailyCardAdminActionUnavailable
+		}
 	}
 	windowStart := startOfDay(time.Now())
 	if err := s.userSubRepo.ResetUsageWindows(ctx, sub.ID, resetDaily, resetWeekly, resetMonthly, windowStart); err != nil {

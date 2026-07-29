@@ -388,9 +388,9 @@
                 <span class="text-xs">{{ t('admin.subscriptions.adjust') }}</span>
               </button>
               <button
-                v-if="row.status === 'active' && !row.daily_card"
+                v-if="canResetSubscriptionQuota(row)"
                 @click="handleResetQuota(row)"
-                :disabled="resettingQuota && resettingSubscription?.id === row.id"
+                :disabled="(resettingQuota && resettingSubscription?.id === row.id) || (restoringDailyCardQuota && dailyCardActionSubscription?.id === row.id)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 dark:hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon name="refresh" size="sm" />
@@ -404,15 +404,6 @@
               >
                 <Icon name="sync" size="sm" />
                 <span class="text-xs">{{ t('admin.subscriptions.releaseDailyCardHolds') }}</span>
-              </button>
-              <button
-                v-if="canRestoreDailyCardQuota(row)"
-                @click="handleRestoreDailyCardQuota(row)"
-                :disabled="restoringDailyCardQuota && dailyCardActionSubscription?.id === row.id"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-purple-50 hover:text-purple-600 dark:hover:bg-purple-900/20 dark:hover:text-purple-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Icon name="gift" size="sm" />
-                <span class="text-xs">{{ t('admin.subscriptions.restoreDailyCardQuota') }}</span>
               </button>
               <button
                 v-if="row.status === 'active'"
@@ -1352,6 +1343,10 @@ const confirmRestore = async () => {
 }
 
 const handleResetQuota = (subscription: UserSubscription) => {
+  if (subscription.daily_card) {
+    handleRestoreDailyCardQuota(subscription)
+    return
+  }
   resettingSubscription.value = subscription
   showResetQuotaConfirm.value = true
 }
@@ -1429,6 +1424,11 @@ const confirmRestoreDailyCardQuota = async () => {
 const canRestoreDailyCardQuota = (subscription: UserSubscription): boolean => {
   const status = subscription.daily_card?.status
   return status === 'active' || status === 'exhausted'
+}
+
+const canResetSubscriptionQuota = (subscription: UserSubscription): boolean => {
+  if (subscription.daily_card) return canRestoreDailyCardQuota(subscription)
+  return subscription.status === 'active'
 }
 
 // Helper functions

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
@@ -536,14 +537,19 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 				validityDays = 30
 			}
 			_, _, err := s.subscriptionService.AssignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
-				UserID:       userID,
-				GroupID:      *redeemCode.GroupID,
-				ValidityDays: validityDays,
-				AssignedBy:   0, // 系统分配
-				Notes:        fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
+				UserID:                   userID,
+				GroupID:                  *redeemCode.GroupID,
+				ValidityDays:             validityDays,
+				AssignedBy:               0, // 系统分配
+				Notes:                    fmt.Sprintf("通过兑换码 %s 兑换", redeemCode.Code),
+				DailyCardGrantSourceType: DailyCardSourceRedeemCode,
+				DailyCardGrantSourceID:   fmt.Sprintf("%d", redeemCode.ID),
 			})
 			if err != nil {
 				return nil, fmt.Errorf("assign or extend subscription: %w", err)
+			}
+			if err := s.issueDailyCardRedeemEntitlement(txCtx, userID, redeemCode, validityDays); err != nil {
+				return nil, fmt.Errorf("issue daily card redeem entitlement: %w", err)
 			}
 		}
 
@@ -571,6 +577,53 @@ func (s *RedeemService) Redeem(ctx context.Context, userID int64, code string) (
 	}
 
 	return redeemCode, nil
+}
+
+func (s *RedeemService) issueDailyCardRedeemEntitlement(ctx context.Context, userID int64, redeemCode *RedeemCode, validityDays int) error {
+	if s == nil || s.subscriptionService == nil || s.subscriptionService.dailyCardSvc == nil ||
+		redeemCode == nil || redeemCode.GroupID == nil {
+		return nil
+	}
+	if s.entClient == nil {
+		return ErrDailyCardInvalidInput
+	}
+	client := s.entClient
+	if tx := dbent.TxFromContext(ctx); tx != nil {
+		client = tx.Client()
+	}
+	plan, err := client.SubscriptionPlan.Query().
+		Where(
+			subscriptionplan.GroupIDEQ(*redeemCode.GroupID),
+			subscriptionplan.QuotaModeEQ(DailyCardQuotaModeOneTime),
+			subscriptionplan.QuotaLimitUsdNotNil(),
+			subscriptionplan.DurationHoursNotNil(),
+		).
+		Order(dbent.Desc(subscriptionplan.FieldForSale), dbent.Asc(subscriptionplan.FieldSortOrder), dbent.Asc(subscriptionplan.FieldID)).
+		First(ctx)
+	if dbent.IsNotFound(err) {
+		managed, managedErr := s.subscriptionService.dailyCardSvc.IsOneTimeGroup(ctx, *redeemCode.GroupID)
+		if managedErr != nil {
+			return managedErr
+		}
+		if managed {
+			return ErrDailyCardInvalidInput
+		}
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if plan.QuotaLimitUsd == nil || plan.DurationHours == nil || *plan.QuotaLimitUsd <= 0 || *plan.DurationHours <= 0 {
+		return ErrDailyCardInvalidInput
+	}
+	issuedAt := time.Now()
+	_, _, err = s.subscriptionService.dailyCardSvc.IssueRedeemCard(ctx, IssueDailyCardInput{
+		UserID: userID, GroupID: *redeemCode.GroupID, PlanID: plan.ID,
+		SourceID:      fmt.Sprintf("%d", redeemCode.ID),
+		QuotaLimitUSD: *plan.QuotaLimitUsd, DurationHours: *plan.DurationHours,
+		IssuedAt: issuedAt,
+	})
+	return err
 }
 
 func (s *RedeemService) applyRedeemBalanceLedgerDelta(ctx context.Context, userID int64, redeemCode *RedeemCode, amount float64) error {
