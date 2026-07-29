@@ -20,6 +20,8 @@ type dailyCardRepoStub struct {
 	oneTimeGroup           bool
 	adminReleaseInput      []int64
 	adminRestoreInput      []int64
+	adminAdjustInput       []int64
+	adminAdjustExpiresAt   time.Time
 	adminResult            *DailyCardAdminActionResult
 }
 
@@ -81,6 +83,24 @@ func (r *dailyCardRepoStub) AdminRestoreQuota(_ context.Context, entitlementID, 
 		return r.adminResult, r.err
 	}
 	return &DailyCardAdminActionResult{}, r.err
+}
+
+func (r *dailyCardRepoStub) AdminAdjustExpiry(_ context.Context, entitlementID, userID, groupID int64, newExpiresAt, _ time.Time) (*DailyCardEntitlement, error) {
+	r.adminAdjustInput = []int64{entitlementID, userID, groupID}
+	r.adminAdjustExpiresAt = newExpiresAt
+	if r.err != nil {
+		return nil, r.err
+	}
+	for i := range r.listed {
+		if r.listed[i].ID == entitlementID {
+			r.listed[i].ExpiresAt = &newExpiresAt
+			r.listed[i].Status = DailyCardStatusActive
+			r.listed[i].EndedAt = nil
+			copyOfCard := r.listed[i]
+			return &copyOfCard, nil
+		}
+	}
+	return &DailyCardEntitlement{ID: entitlementID, UserID: userID, GroupID: groupID, Status: DailyCardStatusActive, ExpiresAt: &newExpiresAt}, nil
 }
 
 func TestDailyCardEntitlementCrossingMidnightDoesNotResetQuota(t *testing.T) {

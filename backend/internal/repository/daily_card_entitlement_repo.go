@@ -267,6 +267,78 @@ func (r *dailyCardEntitlementRepository) AdminRestoreQuota(ctx context.Context, 
 	return result, err
 }
 
+func (r *dailyCardEntitlementRepository) AdminAdjustExpiry(ctx context.Context, entitlementID, userID, groupID int64, newExpiresAt, adjustedAt time.Time) (*service.DailyCardEntitlement, error) {
+	var card *service.DailyCardEntitlement
+	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
+		var ownerID, ownerGroupID int64
+		var status string
+		var startsAt sql.NullTime
+		rows, err := client.QueryContext(txCtx, `
+			SELECT user_id, group_id, status, starts_at
+			FROM subscription_entitlements
+			WHERE id = $1
+			FOR UPDATE
+		`, entitlementID)
+		if err != nil {
+			return err
+		}
+		if !rows.Next() {
+			_ = rows.Close()
+			return service.ErrDailyCardAdminActionUnavailable
+		}
+		err = rows.Scan(&ownerID, &ownerGroupID, &status, &startsAt)
+		_ = rows.Close()
+		if err != nil {
+			return err
+		}
+		if ownerID != userID || ownerGroupID != groupID {
+			return service.ErrDailyCardAdminActionUnavailable
+		}
+		if status != service.DailyCardStatusActive && status != service.DailyCardStatusExpired {
+			return service.ErrDailyCardAdminActionUnavailable
+		}
+		if status == service.DailyCardStatusExpired {
+			otherActive, err := client.SubscriptionEntitlement.Query().
+				Where(
+					subscriptionentitlement.UserIDEQ(userID),
+					subscriptionentitlement.GroupIDEQ(groupID),
+					subscriptionentitlement.StatusEQ(service.DailyCardStatusActive),
+					subscriptionentitlement.IDNEQ(entitlementID),
+				).
+				Exist(txCtx)
+			if err != nil {
+				return err
+			}
+			if otherActive {
+				return service.ErrDailyCardAdminActionUnavailable
+			}
+		}
+
+		builder := client.SubscriptionEntitlement.UpdateOneID(entitlementID).
+			SetExpiresAt(newExpiresAt).
+			SetStatus(service.DailyCardStatusActive).
+			ClearEndedAt().
+			SetUpdatedAt(adjustedAt)
+		if startsAt.Valid {
+			durationHours := int(newExpiresAt.Sub(startsAt.Time).Hours())
+			if newExpiresAt.After(startsAt.Time) && newExpiresAt.Sub(startsAt.Time)%time.Hour != 0 {
+				durationHours++
+			}
+			if durationHours < 1 {
+				durationHours = 1
+			}
+			builder.SetDurationHours(durationHours)
+		}
+		entity, err := builder.Save(txCtx)
+		if err != nil {
+			return err
+		}
+		card = dailyCardEntitlementFromEntity(entity)
+		return nil
+	})
+	return card, err
+}
+
 func NewDailyCardEntitlementRepository(client *dbent.Client) service.DailyCardEntitlementRepository {
 	return &dailyCardEntitlementRepository{client: client}
 }

@@ -28,6 +28,20 @@ func TestUsageLogFromService_IncludesOpenAIWSMode(t *testing.T) {
 	require.False(t, UsageLogFromServiceAdmin(httpLog).OpenAIWSMode)
 }
 
+func TestUsageLogFromService_IncludesDailyCardEntitlementID(t *testing.T) {
+	t.Parallel()
+
+	entitlementID := int64(14)
+	log := &service.UsageLog{
+		RequestID:                 "req_daily_card",
+		Model:                     "gpt-5.1",
+		SubscriptionEntitlementID: &entitlementID,
+	}
+
+	require.Equal(t, &entitlementID, UsageLogFromService(log).SubscriptionEntitlementID)
+	require.Equal(t, &entitlementID, UsageLogFromServiceAdmin(log).SubscriptionEntitlementID)
+}
+
 func TestUsageLogFromService_PrefersRequestTypeForLegacyFields(t *testing.T) {
 	t.Parallel()
 
