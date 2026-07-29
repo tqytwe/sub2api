@@ -169,6 +169,20 @@ func (_c *UsageLogCreate) SetNillableSubscriptionID(v *int64) *UsageLogCreate {
 	return _c
 }
 
+// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
+func (_c *UsageLogCreate) SetSubscriptionEntitlementID(v int64) *UsageLogCreate {
+	_c.mutation.SetSubscriptionEntitlementID(v)
+	return _c
+}
+
+// SetNillableSubscriptionEntitlementID sets the "subscription_entitlement_id" field if the given value is not nil.
+func (_c *UsageLogCreate) SetNillableSubscriptionEntitlementID(v *int64) *UsageLogCreate {
+	if v != nil {
+		_c.SetSubscriptionEntitlementID(*v)
+	}
+	return _c
+}
+
 // SetInputTokens sets the "input_tokens" field.
 func (_c *UsageLogCreate) SetInputTokens(v int) *UsageLogCreate {
 	_c.mutation.SetInputTokens(v)
@@ -1055,6 +1069,10 @@ func (_c *UsageLogCreate) createSpec() (*UsageLog, *sqlgraph.CreateSpec) {
 		_spec.SetField(usagelog.FieldBillingMode, field.TypeString, value)
 		_node.BillingMode = &value
 	}
+	if value, ok := _c.mutation.SubscriptionEntitlementID(); ok {
+		_spec.SetField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64, value)
+		_node.SubscriptionEntitlementID = &value
+	}
 	if value, ok := _c.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 		_node.InputTokens = value
@@ -1543,6 +1561,30 @@ func (u *UsageLogUpsert) UpdateSubscriptionID() *UsageLogUpsert {
 // ClearSubscriptionID clears the value of the "subscription_id" field.
 func (u *UsageLogUpsert) ClearSubscriptionID() *UsageLogUpsert {
 	u.SetNull(usagelog.FieldSubscriptionID)
+	return u
+}
+
+// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
+func (u *UsageLogUpsert) SetSubscriptionEntitlementID(v int64) *UsageLogUpsert {
+	u.Set(usagelog.FieldSubscriptionEntitlementID, v)
+	return u
+}
+
+// UpdateSubscriptionEntitlementID sets the "subscription_entitlement_id" field to the value that was provided on create.
+func (u *UsageLogUpsert) UpdateSubscriptionEntitlementID() *UsageLogUpsert {
+	u.SetExcluded(usagelog.FieldSubscriptionEntitlementID)
+	return u
+}
+
+// AddSubscriptionEntitlementID adds v to the "subscription_entitlement_id" field.
+func (u *UsageLogUpsert) AddSubscriptionEntitlementID(v int64) *UsageLogUpsert {
+	u.Add(usagelog.FieldSubscriptionEntitlementID, v)
+	return u
+}
+
+// ClearSubscriptionEntitlementID clears the value of the "subscription_entitlement_id" field.
+func (u *UsageLogUpsert) ClearSubscriptionEntitlementID() *UsageLogUpsert {
+	u.SetNull(usagelog.FieldSubscriptionEntitlementID)
 	return u
 }
 
@@ -2463,6 +2505,34 @@ func (u *UsageLogUpsertOne) UpdateSubscriptionID() *UsageLogUpsertOne {
 func (u *UsageLogUpsertOne) ClearSubscriptionID() *UsageLogUpsertOne {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearSubscriptionID()
+	})
+}
+
+// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
+func (u *UsageLogUpsertOne) SetSubscriptionEntitlementID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSubscriptionEntitlementID(v)
+	})
+}
+
+// AddSubscriptionEntitlementID adds v to the "subscription_entitlement_id" field.
+func (u *UsageLogUpsertOne) AddSubscriptionEntitlementID(v int64) *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSubscriptionEntitlementID(v)
+	})
+}
+
+// UpdateSubscriptionEntitlementID sets the "subscription_entitlement_id" field to the value that was provided on create.
+func (u *UsageLogUpsertOne) UpdateSubscriptionEntitlementID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSubscriptionEntitlementID()
+	})
+}
+
+// ClearSubscriptionEntitlementID clears the value of the "subscription_entitlement_id" field.
+func (u *UsageLogUpsertOne) ClearSubscriptionEntitlementID() *UsageLogUpsertOne {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSubscriptionEntitlementID()
 	})
 }
 
@@ -3654,6 +3724,34 @@ func (u *UsageLogUpsertBulk) UpdateSubscriptionID() *UsageLogUpsertBulk {
 func (u *UsageLogUpsertBulk) ClearSubscriptionID() *UsageLogUpsertBulk {
 	return u.Update(func(s *UsageLogUpsert) {
 		s.ClearSubscriptionID()
+	})
+}
+
+// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
+func (u *UsageLogUpsertBulk) SetSubscriptionEntitlementID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.SetSubscriptionEntitlementID(v)
+	})
+}
+
+// AddSubscriptionEntitlementID adds v to the "subscription_entitlement_id" field.
+func (u *UsageLogUpsertBulk) AddSubscriptionEntitlementID(v int64) *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.AddSubscriptionEntitlementID(v)
+	})
+}
+
+// UpdateSubscriptionEntitlementID sets the "subscription_entitlement_id" field to the value that was provided on create.
+func (u *UsageLogUpsertBulk) UpdateSubscriptionEntitlementID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.UpdateSubscriptionEntitlementID()
+	})
+}
+
+// ClearSubscriptionEntitlementID clears the value of the "subscription_entitlement_id" field.
+func (u *UsageLogUpsertBulk) ClearSubscriptionEntitlementID() *UsageLogUpsertBulk {
+	return u.Update(func(s *UsageLogUpsert) {
+		s.ClearSubscriptionEntitlementID()
 	})
 }
 

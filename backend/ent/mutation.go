@@ -56487,91 +56487,93 @@ func (m *UsageCleanupTaskMutation) ResetEdge(name string) error {
 // UsageLogMutation represents an operation that mutates the UsageLog nodes in the graph.
 type UsageLogMutation struct {
 	config
-	op                           Op
-	typ                          string
-	id                           *int64
-	request_id                   *string
-	model                        *string
-	requested_model              *string
-	upstream_model               *string
-	channel_id                   *int64
-	addchannel_id                *int64
-	model_mapping_chain          *string
-	billing_tier                 *string
-	billing_mode                 *string
-	input_tokens                 *int
-	addinput_tokens              *int
-	output_tokens                *int
-	addoutput_tokens             *int
-	cache_creation_tokens        *int
-	addcache_creation_tokens     *int
-	cache_read_tokens            *int
-	addcache_read_tokens         *int
-	cache_creation_5m_tokens     *int
-	addcache_creation_5m_tokens  *int
-	cache_creation_1h_tokens     *int
-	addcache_creation_1h_tokens  *int
-	input_cost                   *float64
-	addinput_cost                *float64
-	output_cost                  *float64
-	addoutput_cost               *float64
-	cache_creation_cost          *float64
-	addcache_creation_cost       *float64
-	cache_read_cost              *float64
-	addcache_read_cost           *float64
-	total_cost                   *float64
-	addtotal_cost                *float64
-	actual_cost                  *float64
-	addactual_cost               *float64
-	billing_surcharge_cost       *float64
-	addbilling_surcharge_cost    *float64
-	billed_cost                  *float64
-	addbilled_cost               *float64
-	billing_surcharge_mode       *string
-	billing_surcharge_value      *float64
-	addbilling_surcharge_value   *float64
-	rate_multiplier              *float64
-	addrate_multiplier           *float64
-	long_context_billing_applied *bool
-	account_rate_multiplier      *float64
-	addaccount_rate_multiplier   *float64
-	billing_type                 *int8
-	addbilling_type              *int8
-	stream                       *bool
-	duration_ms                  *int
-	addduration_ms               *int
-	first_token_ms               *int
-	addfirst_token_ms            *int
-	user_agent                   *string
-	ip_address                   *string
-	image_count                  *int
-	addimage_count               *int
-	image_size                   *string
-	image_input_size             *string
-	image_output_size            *string
-	image_size_source            *string
-	image_size_breakdown         *map[string]int
-	video_count                  *int
-	addvideo_count               *int
-	video_resolution             *string
-	video_duration_seconds       *int
-	addvideo_duration_seconds    *int
-	cache_ttl_overridden         *bool
-	created_at                   *time.Time
-	clearedFields                map[string]struct{}
-	user                         *int64
-	cleareduser                  bool
-	api_key                      *int64
-	clearedapi_key               bool
-	account                      *int64
-	clearedaccount               bool
-	group                        *int64
-	clearedgroup                 bool
-	subscription                 *int64
-	clearedsubscription          bool
-	done                         bool
-	oldValue                     func(context.Context) (*UsageLog, error)
-	predicates                   []predicate.UsageLog
+	op                             Op
+	typ                            string
+	id                             *int64
+	request_id                     *string
+	model                          *string
+	requested_model                *string
+	upstream_model                 *string
+	channel_id                     *int64
+	addchannel_id                  *int64
+	model_mapping_chain            *string
+	billing_tier                   *string
+	billing_mode                   *string
+	subscription_entitlement_id    *int64
+	addsubscription_entitlement_id *int64
+	input_tokens                   *int
+	addinput_tokens                *int
+	output_tokens                  *int
+	addoutput_tokens               *int
+	cache_creation_tokens          *int
+	addcache_creation_tokens       *int
+	cache_read_tokens              *int
+	addcache_read_tokens           *int
+	cache_creation_5m_tokens       *int
+	addcache_creation_5m_tokens    *int
+	cache_creation_1h_tokens       *int
+	addcache_creation_1h_tokens    *int
+	input_cost                     *float64
+	addinput_cost                  *float64
+	output_cost                    *float64
+	addoutput_cost                 *float64
+	cache_creation_cost            *float64
+	addcache_creation_cost         *float64
+	cache_read_cost                *float64
+	addcache_read_cost             *float64
+	total_cost                     *float64
+	addtotal_cost                  *float64
+	actual_cost                    *float64
+	addactual_cost                 *float64
+	billing_surcharge_cost         *float64
+	addbilling_surcharge_cost      *float64
+	billed_cost                    *float64
+	addbilled_cost                 *float64
+	billing_surcharge_mode         *string
+	billing_surcharge_value        *float64
+	addbilling_surcharge_value     *float64
+	rate_multiplier                *float64
+	addrate_multiplier             *float64
+	long_context_billing_applied   *bool
+	account_rate_multiplier        *float64
+	addaccount_rate_multiplier     *float64
+	billing_type                   *int8
+	addbilling_type                *int8
+	stream                         *bool
+	duration_ms                    *int
+	addduration_ms                 *int
+	first_token_ms                 *int
+	addfirst_token_ms              *int
+	user_agent                     *string
+	ip_address                     *string
+	image_count                    *int
+	addimage_count                 *int
+	image_size                     *string
+	image_input_size               *string
+	image_output_size              *string
+	image_size_source              *string
+	image_size_breakdown           *map[string]int
+	video_count                    *int
+	addvideo_count                 *int
+	video_resolution               *string
+	video_duration_seconds         *int
+	addvideo_duration_seconds      *int
+	cache_ttl_overridden           *bool
+	created_at                     *time.Time
+	clearedFields                  map[string]struct{}
+	user                           *int64
+	cleareduser                    bool
+	api_key                        *int64
+	clearedapi_key                 bool
+	account                        *int64
+	clearedaccount                 bool
+	group                          *int64
+	clearedgroup                   bool
+	subscription                   *int64
+	clearedsubscription            bool
+	done                           bool
+	oldValue                       func(context.Context) (*UsageLog, error)
+	predicates                     []predicate.UsageLog
 }
 
 var _ ent.Mutation = (*UsageLogMutation)(nil)
@@ -57263,6 +57265,76 @@ func (m *UsageLogMutation) SubscriptionIDCleared() bool {
 func (m *UsageLogMutation) ResetSubscriptionID() {
 	m.subscription = nil
 	delete(m.clearedFields, usagelog.FieldSubscriptionID)
+}
+
+// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
+func (m *UsageLogMutation) SetSubscriptionEntitlementID(i int64) {
+	m.subscription_entitlement_id = &i
+	m.addsubscription_entitlement_id = nil
+}
+
+// SubscriptionEntitlementID returns the value of the "subscription_entitlement_id" field in the mutation.
+func (m *UsageLogMutation) SubscriptionEntitlementID() (r int64, exists bool) {
+	v := m.subscription_entitlement_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionEntitlementID returns the old "subscription_entitlement_id" field's value of the UsageLog entity.
+// If the UsageLog object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *UsageLogMutation) OldSubscriptionEntitlementID(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionEntitlementID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionEntitlementID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionEntitlementID: %w", err)
+	}
+	return oldValue.SubscriptionEntitlementID, nil
+}
+
+// AddSubscriptionEntitlementID adds i to the "subscription_entitlement_id" field.
+func (m *UsageLogMutation) AddSubscriptionEntitlementID(i int64) {
+	if m.addsubscription_entitlement_id != nil {
+		*m.addsubscription_entitlement_id += i
+	} else {
+		m.addsubscription_entitlement_id = &i
+	}
+}
+
+// AddedSubscriptionEntitlementID returns the value that was added to the "subscription_entitlement_id" field in this mutation.
+func (m *UsageLogMutation) AddedSubscriptionEntitlementID() (r int64, exists bool) {
+	v := m.addsubscription_entitlement_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearSubscriptionEntitlementID clears the value of the "subscription_entitlement_id" field.
+func (m *UsageLogMutation) ClearSubscriptionEntitlementID() {
+	m.subscription_entitlement_id = nil
+	m.addsubscription_entitlement_id = nil
+	m.clearedFields[usagelog.FieldSubscriptionEntitlementID] = struct{}{}
+}
+
+// SubscriptionEntitlementIDCleared returns if the "subscription_entitlement_id" field was cleared in this mutation.
+func (m *UsageLogMutation) SubscriptionEntitlementIDCleared() bool {
+	_, ok := m.clearedFields[usagelog.FieldSubscriptionEntitlementID]
+	return ok
+}
+
+// ResetSubscriptionEntitlementID resets all changes to the "subscription_entitlement_id" field.
+func (m *UsageLogMutation) ResetSubscriptionEntitlementID() {
+	m.subscription_entitlement_id = nil
+	m.addsubscription_entitlement_id = nil
+	delete(m.clearedFields, usagelog.FieldSubscriptionEntitlementID)
 }
 
 // SetInputTokens sets the "input_tokens" field.
@@ -59350,7 +59422,7 @@ func (m *UsageLogMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *UsageLogMutation) Fields() []string {
-	fields := make([]string, 0, 49)
+	fields := make([]string, 0, 50)
 	if m.user != nil {
 		fields = append(fields, usagelog.FieldUserID)
 	}
@@ -59389,6 +59461,9 @@ func (m *UsageLogMutation) Fields() []string {
 	}
 	if m.subscription != nil {
 		fields = append(fields, usagelog.FieldSubscriptionID)
+	}
+	if m.subscription_entitlement_id != nil {
+		fields = append(fields, usagelog.FieldSubscriptionEntitlementID)
 	}
 	if m.input_tokens != nil {
 		fields = append(fields, usagelog.FieldInputTokens)
@@ -59532,6 +59607,8 @@ func (m *UsageLogMutation) Field(name string) (ent.Value, bool) {
 		return m.GroupID()
 	case usagelog.FieldSubscriptionID:
 		return m.SubscriptionID()
+	case usagelog.FieldSubscriptionEntitlementID:
+		return m.SubscriptionEntitlementID()
 	case usagelog.FieldInputTokens:
 		return m.InputTokens()
 	case usagelog.FieldOutputTokens:
@@ -59639,6 +59716,8 @@ func (m *UsageLogMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldGroupID(ctx)
 	case usagelog.FieldSubscriptionID:
 		return m.OldSubscriptionID(ctx)
+	case usagelog.FieldSubscriptionEntitlementID:
+		return m.OldSubscriptionEntitlementID(ctx)
 	case usagelog.FieldInputTokens:
 		return m.OldInputTokens(ctx)
 	case usagelog.FieldOutputTokens:
@@ -59810,6 +59889,13 @@ func (m *UsageLogMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetSubscriptionID(v)
+		return nil
+	case usagelog.FieldSubscriptionEntitlementID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionEntitlementID(v)
 		return nil
 	case usagelog.FieldInputTokens:
 		v, ok := value.(int)
@@ -60074,6 +60160,9 @@ func (m *UsageLogMutation) AddedFields() []string {
 	if m.addchannel_id != nil {
 		fields = append(fields, usagelog.FieldChannelID)
 	}
+	if m.addsubscription_entitlement_id != nil {
+		fields = append(fields, usagelog.FieldSubscriptionEntitlementID)
+	}
 	if m.addinput_tokens != nil {
 		fields = append(fields, usagelog.FieldInputTokens)
 	}
@@ -60153,6 +60242,8 @@ func (m *UsageLogMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case usagelog.FieldChannelID:
 		return m.AddedChannelID()
+	case usagelog.FieldSubscriptionEntitlementID:
+		return m.AddedSubscriptionEntitlementID()
 	case usagelog.FieldInputTokens:
 		return m.AddedInputTokens()
 	case usagelog.FieldOutputTokens:
@@ -60214,6 +60305,13 @@ func (m *UsageLogMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddChannelID(v)
+		return nil
+	case usagelog.FieldSubscriptionEntitlementID:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSubscriptionEntitlementID(v)
 		return nil
 	case usagelog.FieldInputTokens:
 		v, ok := value.(int)
@@ -60408,6 +60506,9 @@ func (m *UsageLogMutation) ClearedFields() []string {
 	if m.FieldCleared(usagelog.FieldSubscriptionID) {
 		fields = append(fields, usagelog.FieldSubscriptionID)
 	}
+	if m.FieldCleared(usagelog.FieldSubscriptionEntitlementID) {
+		fields = append(fields, usagelog.FieldSubscriptionEntitlementID)
+	}
 	if m.FieldCleared(usagelog.FieldAccountRateMultiplier) {
 		fields = append(fields, usagelog.FieldAccountRateMultiplier)
 	}
@@ -60481,6 +60582,9 @@ func (m *UsageLogMutation) ClearField(name string) error {
 		return nil
 	case usagelog.FieldSubscriptionID:
 		m.ClearSubscriptionID()
+		return nil
+	case usagelog.FieldSubscriptionEntitlementID:
+		m.ClearSubscriptionEntitlementID()
 		return nil
 	case usagelog.FieldAccountRateMultiplier:
 		m.ClearAccountRateMultiplier()
@@ -60564,6 +60668,9 @@ func (m *UsageLogMutation) ResetField(name string) error {
 		return nil
 	case usagelog.FieldSubscriptionID:
 		m.ResetSubscriptionID()
+		return nil
+	case usagelog.FieldSubscriptionEntitlementID:
+		m.ResetSubscriptionEntitlementID()
 		return nil
 	case usagelog.FieldInputTokens:
 		m.ResetInputTokens()

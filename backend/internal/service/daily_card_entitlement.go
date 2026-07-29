@@ -92,6 +92,7 @@ type DailyCardEntitlementRepository interface {
 	ReleaseRequest(ctx context.Context, entitlementID, userID int64, requestID string, releasedAt time.Time) error
 	AdminReleaseReservedHolds(ctx context.Context, entitlementID, userID, groupID int64, releasedAt time.Time) (*DailyCardAdminActionResult, error)
 	AdminRestoreQuota(ctx context.Context, entitlementID, userID, groupID int64, restoredAt time.Time) (*DailyCardAdminActionResult, error)
+	AdminAdjustExpiry(ctx context.Context, entitlementID, userID, groupID int64, newExpiresAt, adjustedAt time.Time) (*DailyCardEntitlement, error)
 }
 
 func (s *DailyCardService) ReserveRequest(ctx context.Context, input DailyCardRequestHoldInput) error {
@@ -132,6 +133,16 @@ func (s *DailyCardService) AdminRestoreQuota(ctx context.Context, entitlementID,
 		restoredAt = time.Now()
 	}
 	return s.repo.AdminRestoreQuota(ctx, entitlementID, userID, groupID, restoredAt)
+}
+
+func (s *DailyCardService) AdminAdjustExpiry(ctx context.Context, entitlementID, userID, groupID int64, newExpiresAt, adjustedAt time.Time) (*DailyCardEntitlement, error) {
+	if s == nil || s.repo == nil || entitlementID <= 0 || userID <= 0 || groupID <= 0 || newExpiresAt.IsZero() {
+		return nil, ErrDailyCardInvalidInput
+	}
+	if adjustedAt.IsZero() {
+		adjustedAt = time.Now()
+	}
+	return s.repo.AdminAdjustExpiry(ctx, entitlementID, userID, groupID, newExpiresAt, adjustedAt)
 }
 
 func (s *DailyCardService) GetByPaymentOrder(ctx context.Context, paymentOrderID int64) (*DailyCardEntitlement, error) {

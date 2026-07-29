@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,10 +14,12 @@ type dailyResetTrackingUserSubRepo struct {
 	userSubRepoNoop
 
 	resetDailyCalled bool
+	dailyWindowStart *time.Time
 }
 
-func (r *dailyResetTrackingUserSubRepo) ResetDailyUsage(context.Context, int64, *time.Time, time.Time) error {
+func (r *dailyResetTrackingUserSubRepo) ResetDailyUsage(_ context.Context, _ int64, _ *time.Time, windowStart time.Time) error {
 	r.resetDailyCalled = true
+	r.dailyWindowStart = &windowStart
 	return nil
 }
 
@@ -58,7 +61,7 @@ func TestAssignOrExtendSubscription_ExpiredDailyCardStartsNewOneTimeQuota(t *tes
 	require.True(t, renewed.StartsAt.After(oldStart), "重新购买过期订阅时应重置当前周期 StartsAt")
 	require.False(t, renewed.ExpiresAt.After(renewed.StartsAt.AddDate(0, 0, 1)))
 	require.NotNil(t, renewed.DailyWindowStart)
-	require.Equal(t, startOfDay(renewed.StartsAt), *renewed.DailyWindowStart)
+	require.Equal(t, svc.subscriptionWindowStart(renewed.StartsAt), *renewed.DailyWindowStart)
 	require.Equal(t, 0.0, renewed.DailyUsageUSD)
 	require.Equal(t, 0.0, renewed.WeeklyUsageUSD)
 	require.Equal(t, 0.0, renewed.MonthlyUsageUSD)
@@ -182,6 +185,59 @@ func TestCheckAndResetWindows_MultiDaySubscriptionStillResetsDailyUsage(t *testi
 	require.Equal(t, 0.0, sub.DailyUsageUSD)
 }
 
+func TestCheckAndResetWindows_RecurringUsesShanghaiMidnightForLegacyUTCWindow(t *testing.T) {
+	shanghai, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	now := time.Date(2026, 7, 29, 0, 1, 0, 0, shanghai)
+	legacyUTCWindowStart := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
+	repo := &dailyResetTrackingUserSubRepo{}
+	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, &config.Config{Timezone: "Asia/Shanghai"})
+	svc.nowFunc = func() time.Time { return now.UTC() }
+	sub := &UserSubscription{
+		ID:               1,
+		UserID:           10,
+		GroupID:          20,
+		StartsAt:         now.Add(-48 * time.Hour),
+		ExpiresAt:        now.Add(48 * time.Hour),
+		DailyUsageUSD:    10,
+		DailyWindowStart: &legacyUTCWindowStart,
+	}
+
+	err = svc.CheckAndResetWindows(context.Background(), sub)
+
+	require.NoError(t, err)
+	require.True(t, repo.resetDailyCalled, "普通订阅应在北京时间 0 点后重置，即使旧窗口起点是 UTC 0 点")
+	require.NotNil(t, repo.dailyWindowStart)
+	require.Equal(t, time.Date(2026, 7, 29, 0, 0, 0, 0, shanghai), *repo.dailyWindowStart)
+	require.Equal(t, 0.0, sub.DailyUsageUSD)
+}
+
+func TestCheckAndResetWindows_DailyCardDoesNotResetAtShanghaiMidnight(t *testing.T) {
+	shanghai, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	startsAt := time.Date(2026, 7, 28, 23, 50, 0, 0, shanghai)
+	now := time.Date(2026, 7, 29, 0, 1, 0, 0, shanghai)
+	dailyWindowStart := time.Date(2026, 7, 28, 0, 0, 0, 0, shanghai)
+	repo := &dailyResetTrackingUserSubRepo{}
+	svc := NewSubscriptionService(groupRepoNoop{}, repo, nil, nil, &config.Config{Timezone: "Asia/Shanghai"})
+	svc.nowFunc = func() time.Time { return now }
+	sub := &UserSubscription{
+		ID:               1,
+		UserID:           10,
+		GroupID:          20,
+		StartsAt:         startsAt,
+		ExpiresAt:        startsAt.Add(24 * time.Hour),
+		DailyUsageUSD:    10,
+		DailyWindowStart: &dailyWindowStart,
+	}
+
+	err = svc.CheckAndResetWindows(context.Background(), sub)
+
+	require.NoError(t, err)
+	require.False(t, repo.resetDailyCalled, "日卡跨北京时间 0 点不应自动恢复额度")
+	require.Equal(t, 10.0, sub.DailyUsageUSD)
+}
+
 func TestValidateAndCheckLimits_DailyCardDoesNotAllowSecondQuotaAfterMidnight(t *testing.T) {
 	start := time.Now().Add(-23 * time.Hour)
 	dailyWindowStart := time.Now().Add(-25 * time.Hour)
@@ -204,4 +260,31 @@ func TestValidateAndCheckLimits_DailyCardDoesNotAllowSecondQuotaAfterMidnight(t 
 	require.False(t, needsMaintenance, "日卡跨过日窗口后不应触发 daily reset 维护")
 	require.True(t, errors.Is(err, ErrDailyLimitExceeded))
 	require.Equal(t, dailyLimit+0.01, sub.DailyUsageUSD, "热路径不应清零日卡已用额度")
+}
+
+func TestValidateAndCheckLimits_RecurringAllowsRequestAfterShanghaiMidnight(t *testing.T) {
+	shanghai, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	now := time.Date(2026, 7, 29, 0, 1, 0, 0, shanghai)
+	legacyUTCWindowStart := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
+	dailyLimit := 10.0
+	sub := &UserSubscription{
+		Status:           SubscriptionStatusActive,
+		StartsAt:         now.Add(-48 * time.Hour),
+		ExpiresAt:        now.Add(48 * time.Hour),
+		DailyWindowStart: &legacyUTCWindowStart,
+		DailyUsageUSD:    dailyLimit + 0.01,
+	}
+	group := &Group{
+		SubscriptionType: SubscriptionTypeSubscription,
+		DailyLimitUSD:    &dailyLimit,
+	}
+	svc := NewSubscriptionService(groupRepoNoop{}, userSubRepoNoop{}, nil, nil, &config.Config{Timezone: "Asia/Shanghai"})
+	svc.nowFunc = func() time.Time { return now.UTC() }
+
+	needsMaintenance, err := svc.ValidateAndCheckLimits(sub, group)
+
+	require.NoError(t, err)
+	require.True(t, needsMaintenance, "北京时间 0 点后普通订阅应先维护窗口再放行")
+	require.Equal(t, 0.0, sub.DailyUsageUSD)
 }

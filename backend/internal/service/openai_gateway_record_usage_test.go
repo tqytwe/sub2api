@@ -1682,7 +1682,8 @@ func TestOpenAIGatewayServiceRecordUsage_SubscriptionBillingSetsSubscriptionFiel
 	userRepo := &openAIRecordUsageUserRepoStub{}
 	subRepo := &openAIRecordUsageSubRepoStub{}
 	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
-	subscription := &UserSubscription{ID: 99}
+	entitlementID := int64(8814)
+	subscription := &UserSubscription{ID: 99, DailyCardEntitlementID: &entitlementID}
 
 	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
 		Result: &OpenAIForwardResult{
@@ -1702,6 +1703,8 @@ func TestOpenAIGatewayServiceRecordUsage_SubscriptionBillingSetsSubscriptionFiel
 	require.Equal(t, BillingTypeSubscription, usageRepo.lastLog.BillingType)
 	require.NotNil(t, usageRepo.lastLog.SubscriptionID)
 	require.Equal(t, subscription.ID, *usageRepo.lastLog.SubscriptionID)
+	require.NotNil(t, usageRepo.lastLog.SubscriptionEntitlementID)
+	require.Equal(t, entitlementID, *usageRepo.lastLog.SubscriptionEntitlementID)
 	require.Equal(t, 1, subRepo.incrementCalls)
 	require.Equal(t, 0, userRepo.deductCalls)
 }

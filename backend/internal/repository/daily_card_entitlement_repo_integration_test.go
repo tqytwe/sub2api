@@ -221,6 +221,34 @@ func TestDailyCardRepositoryAdminRestoreQuotaClearsCurrentCardUsage(t *testing.T
 	require.Equal(t, 1, activeCount)
 }
 
+func TestDailyCardRepositoryAdminAdjustExpiryUpdatesCurrentCard(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	repo := NewDailyCardEntitlementRepository(client)
+	now := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
+	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
+	order := createDailyCardIntegrationOrder(t, ctx, client, user.ID, group.ID, plan.ID, now)
+	card, _, err := repo.IssuePaidCard(ctx, service.IssueDailyCardInput{
+		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID, PaymentOrderID: order.ID,
+		QuotaLimitUSD: 10, DurationHours: 24, IssuedAt: now,
+	})
+	require.NoError(t, err)
+	newExpiresAt := now.Add(30 * time.Hour)
+
+	adjusted, err := repo.AdminAdjustExpiry(ctx, card.ID, user.ID, group.ID, newExpiresAt, now.Add(time.Minute))
+
+	require.NoError(t, err)
+	require.NotNil(t, adjusted)
+	require.Equal(t, service.DailyCardStatusActive, adjusted.Status)
+	require.Equal(t, newExpiresAt, *adjusted.ExpiresAt)
+	require.Equal(t, 30, adjusted.DurationHours)
+	stored, err := client.SubscriptionEntitlement.Query().Where(subscriptionentitlement.IDEQ(card.ID)).Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, newExpiresAt, stored.ExpiresAt)
+	require.Equal(t, 30, stored.DurationHours)
+}
+
 func TestDailyCardRepositoryRecognizesOnlyLaterRecurringPurchase(t *testing.T) {
 	tx := testEntTx(t)
 	ctx := dbent.NewTxContext(context.Background(), tx)
