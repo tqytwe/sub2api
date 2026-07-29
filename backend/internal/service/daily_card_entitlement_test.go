@@ -18,6 +18,9 @@ type dailyCardRepoStub struct {
 	hasRecurringOrderAfter bool
 	recurringOrderAfter    time.Time
 	oneTimeGroup           bool
+	adminReleaseInput      []int64
+	adminRestoreInput      []int64
+	adminResult            *DailyCardAdminActionResult
 }
 
 func (r *dailyCardRepoStub) IssuePaidCard(_ context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error) {
@@ -57,6 +60,22 @@ func (*dailyCardRepoStub) ReserveRequest(context.Context, DailyCardRequestHoldIn
 
 func (*dailyCardRepoStub) ReleaseRequest(context.Context, int64, int64, string, time.Time) error {
 	return nil
+}
+
+func (r *dailyCardRepoStub) AdminReleaseReservedHolds(_ context.Context, entitlementID, userID, groupID int64, _ time.Time) (*DailyCardAdminActionResult, error) {
+	r.adminReleaseInput = []int64{entitlementID, userID, groupID}
+	if r.adminResult != nil {
+		return r.adminResult, r.err
+	}
+	return &DailyCardAdminActionResult{}, r.err
+}
+
+func (r *dailyCardRepoStub) AdminRestoreQuota(_ context.Context, entitlementID, userID, groupID int64, _ time.Time) (*DailyCardAdminActionResult, error) {
+	r.adminRestoreInput = []int64{entitlementID, userID, groupID}
+	if r.adminResult != nil {
+		return r.adminResult, r.err
+	}
+	return &DailyCardAdminActionResult{}, r.err
 }
 
 func TestDailyCardEntitlementCrossingMidnightDoesNotResetQuota(t *testing.T) {

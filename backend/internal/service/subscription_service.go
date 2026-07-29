@@ -1106,6 +1106,60 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	return s.userSubRepo.GetByID(ctx, subscriptionID)
 }
 
+func (s *SubscriptionService) AdminReleaseDailyCardReservedHolds(ctx context.Context, subscriptionID, entitlementID int64) (*UserSubscription, *DailyCardAdminActionResult, error) {
+	if s == nil || s.dailyCardSvc == nil || entitlementID <= 0 {
+		return nil, nil, ErrDailyCardInvalidInput
+	}
+	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	result, err := s.dailyCardSvc.AdminReleaseReservedHolds(ctx, entitlementID, sub.UserID, sub.GroupID, time.Now())
+	if err != nil {
+		return nil, nil, err
+	}
+	s.InvalidateSubCacheSync(sub.UserID, sub.GroupID)
+	if s.billingCacheService != nil {
+		_ = s.billingCacheService.InvalidateSubscription(ctx, sub.UserID, sub.GroupID)
+	}
+	refreshed, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if result != nil && result.Card != nil {
+		refreshed.DailyCard = result.Card
+		refreshed.DailyCardEntitlementID = &result.Card.ID
+	}
+	return refreshed, result, nil
+}
+
+func (s *SubscriptionService) AdminRestoreDailyCardQuota(ctx context.Context, subscriptionID, entitlementID int64) (*UserSubscription, *DailyCardAdminActionResult, error) {
+	if s == nil || s.dailyCardSvc == nil || entitlementID <= 0 {
+		return nil, nil, ErrDailyCardInvalidInput
+	}
+	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	result, err := s.dailyCardSvc.AdminRestoreQuota(ctx, entitlementID, sub.UserID, sub.GroupID, time.Now())
+	if err != nil {
+		return nil, nil, err
+	}
+	s.InvalidateSubCacheSync(sub.UserID, sub.GroupID)
+	if s.billingCacheService != nil {
+		_ = s.billingCacheService.InvalidateSubscription(ctx, sub.UserID, sub.GroupID)
+	}
+	refreshed, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return nil, nil, err
+	}
+	if result != nil && result.Card != nil {
+		refreshed.DailyCard = result.Card
+		refreshed.DailyCardEntitlementID = &result.Card.ID
+	}
+	return refreshed, result, nil
+}
+
 // CheckAndResetWindows 检查并重置过期的窗口
 func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *UserSubscription) error {
 	// 使用当天零点作为新窗口起始时间

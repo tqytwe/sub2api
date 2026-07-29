@@ -9,6 +9,7 @@ import (
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/ent/subscriptionentitlement"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionentitlementhold"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -102,6 +103,91 @@ func TestDailyCardRepositoryTracksAdmissionWithoutBlockingParallelRequests(t *te
 	released, err := repo.GetActive(ctx, user.ID, group.ID)
 	require.NoError(t, err)
 	require.Zero(t, released.QuotaReservedUSD)
+}
+
+func TestDailyCardRepositoryAdminReleaseReservedHoldsDoesNotResetUsage(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	repo := NewDailyCardEntitlementRepository(client)
+	now := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
+	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
+	order := createDailyCardIntegrationOrder(t, ctx, client, user.ID, group.ID, plan.ID, now)
+	card, _, err := repo.IssuePaidCard(ctx, service.IssueDailyCardInput{
+		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID, PaymentOrderID: order.ID,
+		QuotaLimitUSD: 10, DurationHours: 24, IssuedAt: now,
+	})
+	require.NoError(t, err)
+	require.NoError(t, repo.ReserveRequest(ctx, service.DailyCardRequestHoldInput{
+		EntitlementID: card.ID, UserID: user.ID, RequestID: "admin-release",
+		RequestFingerprint: "admin-release-fingerprint", ReservedAt: now.Add(time.Minute),
+	}))
+	_, err = client.SubscriptionEntitlement.UpdateOneID(card.ID).
+		SetQuotaUsedUsd(6.25).
+		SetQuotaReservedUsd(48.75).
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.AdminReleaseReservedHolds(ctx, card.ID, user.ID, group.ID, now.Add(2*time.Minute))
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), result.ReleasedHolds)
+	require.NotNil(t, result.Card)
+	require.Equal(t, 6.25, result.Card.QuotaUsedUSD)
+	require.Zero(t, result.Card.QuotaReservedUSD)
+	hold, err := client.SubscriptionEntitlementHold.Query().
+		Where(subscriptionentitlementhold.EntitlementIDEQ(card.ID), subscriptionentitlementhold.RequestIDEQ("admin-release")).
+		Only(ctx)
+	require.NoError(t, err)
+	require.Equal(t, "released", hold.Status)
+	require.NotNil(t, hold.ReleasedAt)
+}
+
+func TestDailyCardRepositoryAdminRestoreQuotaClearsCurrentCardUsage(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	repo := NewDailyCardEntitlementRepository(client)
+	now := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
+	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
+	order := createDailyCardIntegrationOrder(t, ctx, client, user.ID, group.ID, plan.ID, now)
+	card, _, err := repo.IssuePaidCard(ctx, service.IssueDailyCardInput{
+		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID, PaymentOrderID: order.ID,
+		QuotaLimitUSD: 10, DurationHours: 24, IssuedAt: now,
+	})
+	require.NoError(t, err)
+	require.NoError(t, repo.ReserveRequest(ctx, service.DailyCardRequestHoldInput{
+		EntitlementID: card.ID, UserID: user.ID, RequestID: "admin-restore",
+		RequestFingerprint: "admin-restore-fingerprint", ReservedAt: now.Add(time.Minute),
+	}))
+	_, err = client.SubscriptionEntitlement.UpdateOneID(card.ID).
+		SetQuotaUsedUsd(10).
+		SetQuotaReservedUsd(2).
+		SetStatus(service.DailyCardStatusExhausted).
+		SetExhaustedAt(now.Add(time.Hour)).
+		SetEndedAt(now.Add(time.Hour)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	result, err := repo.AdminRestoreQuota(ctx, card.ID, user.ID, group.ID, now.Add(2*time.Minute))
+
+	require.NoError(t, err)
+	require.Equal(t, int64(1), result.ReleasedHolds)
+	require.NotNil(t, result.Card)
+	require.Equal(t, service.DailyCardStatusActive, result.Card.Status)
+	require.Zero(t, result.Card.QuotaUsedUSD)
+	require.Zero(t, result.Card.QuotaReservedUSD)
+	require.Nil(t, result.Card.ExhaustedAt)
+	require.Nil(t, result.Card.EndedAt)
+	activeCount, err := client.SubscriptionEntitlement.Query().
+		Where(
+			subscriptionentitlement.UserIDEQ(user.ID),
+			subscriptionentitlement.GroupIDEQ(group.ID),
+			subscriptionentitlement.StatusEQ(service.DailyCardStatusActive),
+		).
+		Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, activeCount)
 }
 
 func TestDailyCardRepositoryRecognizesOnlyLaterRecurringPurchase(t *testing.T) {

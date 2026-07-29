@@ -5,6 +5,8 @@ import (
 	"errors"
 	"math"
 	"time"
+
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
 const (
@@ -23,6 +25,7 @@ var ErrDailyCardEntitlementNotFound = errors.New("daily card entitlement not fou
 var ErrDailyCardUnavailable = errors.New("daily card quota exhausted or expired")
 var ErrDailyCardRequestConflict = errors.New("daily card request reservation conflict")
 var ErrDailyCardPaidOrderRequired = errors.New("daily card grants require a tracked payment order")
+var ErrDailyCardAdminActionUnavailable = infraerrors.BadRequest("DAILY_CARD_ADMIN_ACTION_UNAVAILABLE", "daily card admin action is unavailable for this entitlement")
 
 type DailyCardEntitlement struct {
 	ID               int64      `json:"id"`
@@ -63,6 +66,11 @@ type DailyCardRequestHoldInput struct {
 	ReservedAt         time.Time
 }
 
+type DailyCardAdminActionResult struct {
+	Card          *DailyCardEntitlement `json:"card"`
+	ReleasedHolds int64                 `json:"released_holds"`
+}
+
 type DailyCardEntitlementRepository interface {
 	IssuePaidCard(ctx context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error)
 	GetActive(ctx context.Context, userID, groupID int64) (*DailyCardEntitlement, error)
@@ -73,6 +81,8 @@ type DailyCardEntitlementRepository interface {
 	IsOneTimeGroup(ctx context.Context, groupID int64) (bool, error)
 	ReserveRequest(ctx context.Context, input DailyCardRequestHoldInput) error
 	ReleaseRequest(ctx context.Context, entitlementID, userID int64, requestID string, releasedAt time.Time) error
+	AdminReleaseReservedHolds(ctx context.Context, entitlementID, userID, groupID int64, releasedAt time.Time) (*DailyCardAdminActionResult, error)
+	AdminRestoreQuota(ctx context.Context, entitlementID, userID, groupID int64, restoredAt time.Time) (*DailyCardAdminActionResult, error)
 }
 
 func (s *DailyCardService) ReserveRequest(ctx context.Context, input DailyCardRequestHoldInput) error {
@@ -93,6 +103,26 @@ func (s *DailyCardService) ReleaseRequest(ctx context.Context, entitlementID, us
 		releasedAt = time.Now()
 	}
 	return s.repo.ReleaseRequest(ctx, entitlementID, userID, requestID, releasedAt)
+}
+
+func (s *DailyCardService) AdminReleaseReservedHolds(ctx context.Context, entitlementID, userID, groupID int64, releasedAt time.Time) (*DailyCardAdminActionResult, error) {
+	if s == nil || s.repo == nil || entitlementID <= 0 || userID <= 0 || groupID <= 0 {
+		return nil, ErrDailyCardInvalidInput
+	}
+	if releasedAt.IsZero() {
+		releasedAt = time.Now()
+	}
+	return s.repo.AdminReleaseReservedHolds(ctx, entitlementID, userID, groupID, releasedAt)
+}
+
+func (s *DailyCardService) AdminRestoreQuota(ctx context.Context, entitlementID, userID, groupID int64, restoredAt time.Time) (*DailyCardAdminActionResult, error) {
+	if s == nil || s.repo == nil || entitlementID <= 0 || userID <= 0 || groupID <= 0 {
+		return nil, ErrDailyCardInvalidInput
+	}
+	if restoredAt.IsZero() {
+		restoredAt = time.Now()
+	}
+	return s.repo.AdminRestoreQuota(ctx, entitlementID, userID, groupID, restoredAt)
 }
 
 func (s *DailyCardService) GetByPaymentOrder(ctx context.Context, paymentOrderID int64) (*DailyCardEntitlement, error) {
