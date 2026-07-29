@@ -45,6 +45,42 @@ const BORDER: Record<Platform, string> = {
 }
 const BORDER_DEFAULT = 'border-gray-200 dark:border-dark-700'
 
+// ── Border strong (higher-contrast platform tint, e.g. plaza group cards) ──
+const BORDER_STRONG: Record<Platform, string> = {
+  anthropic: 'border-orange-500/35 dark:border-orange-500/30',
+  openai: 'border-green-500/35 dark:border-green-500/30',
+  antigravity: 'border-purple-500/35 dark:border-purple-500/30',
+  gemini: 'border-blue-500/35 dark:border-blue-500/30',
+  grok: 'border-zinc-800/35 dark:border-zinc-500/35',
+  image: 'border-rose-500/35 dark:border-rose-500/30',
+  team: 'border-cyan-500/35 dark:border-cyan-500/30',
+  composite: 'border-cyan-500/35 dark:border-cyan-500/30',
+}
+const BORDER_STRONG_DEFAULT = 'border-gray-300 dark:border-dark-600'
+
+// ── Accent (single raw color per platform; consumers derive washes/tints
+//    from it via CSS color-mix, e.g. plaza paid-price zone) ──
+const ACCENT: Record<Platform, string> = {
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  anthropic: '#f97316', // orange-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  openai: '#22c55e', // green-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  antigravity: '#a855f7', // purple-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  gemini: '#3b82f6', // blue-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  grok: '#71717a', // zinc-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  image: '#f43f5e', // rose-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  team: '#06b6d4', // cyan-500
+  // design-governance-allow: raw-color - platform accent values are centralized tokens used by CSS color-mix consumers.
+  composite: '#06b6d4', // cyan-500
+}
+// design-governance-allow: raw-color - unknown platform accent falls back to the brand primary canvas color.
+const ACCENT_DEFAULT = '#14b8a6' // primary-500 (teal)
+
 // ── Accent bar (gradient) ───────────────────────────────────────────
 const ACCENT_BAR: Record<Platform, string> = {
   anthropic: 'bg-gradient-to-r from-orange-400 to-orange-500',
@@ -164,6 +200,14 @@ export function platformBadgeLightClass(p: string): string {
 
 export function platformBorderClass(p: string): string {
   return isPlatform(p) ? BORDER[p] : BORDER_DEFAULT
+}
+
+export function platformBorderStrongClass(p: string): string {
+  return isPlatform(p) ? BORDER_STRONG[p] : BORDER_STRONG_DEFAULT
+}
+
+export function platformAccentColor(p: string): string {
+  return isPlatform(p) ? ACCENT[p] : ACCENT_DEFAULT
 }
 
 export function platformAccentBarClass(p: string): string {

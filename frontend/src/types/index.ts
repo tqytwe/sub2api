@@ -247,6 +247,7 @@ export interface PublicSettings {
   login_agreement_revision?: string
   login_agreement_documents?: LoginAgreementDocument[]
   turnstile_enabled: boolean
+  passkey_enabled?: boolean
   turnstile_site_key: string
   site_name: string
   site_logo: string
@@ -287,6 +288,8 @@ export interface PublicSettings {
   channel_monitor_default_interval_seconds: number
   available_channels_enabled: boolean
   marketplace_enabled: boolean
+  model_plaza_enabled: boolean
+  model_plaza_require_auth: boolean
   public_models_enabled: boolean
   play_checkin_enabled: boolean
   play_arena_enabled: boolean

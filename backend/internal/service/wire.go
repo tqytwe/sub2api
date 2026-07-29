@@ -892,6 +892,7 @@ var ProviderSet = wire.NewSet(
 	NewMobilePushService,
 	ProvideMobilePushWorker,
 	ProvideAuthService,
+	NewPasskeyService,
 	NewUserService,
 	ProvideAPIKeyService,
 	ProvideAPIKeyAuthCacheInvalidator,
