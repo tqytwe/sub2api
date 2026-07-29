@@ -8,10 +8,15 @@ interface ChunkRecoveryOptions {
 }
 
 const retryKeyPrefix = 'chunk_reload_attempted:'
+// design-governance-allow: visual-evidence - behavior-only chunk recovery; no rendered UI changes.
+let globalChunkRecoveryInstalled = false
 
 export function isChunkLoadError(error: unknown): boolean {
   const candidate = error as { message?: string; name?: string } | null
-  const message = candidate?.message ?? ''
+  const message =
+    typeof error === 'string'
+      ? error
+      : candidate?.message ?? ''
 
   return (
     message.includes('Failed to fetch dynamically imported module') ||
@@ -45,6 +50,26 @@ export function recoverFromChunkLoadError(
   console.warn('Chunk load error detected, retrying target route with latest assets...')
   location.replace(target)
   return true
+}
+
+export function installGlobalChunkLoadRecovery(): void {
+  if (globalChunkRecoveryInstalled || typeof window === 'undefined') {
+    return
+  }
+  globalChunkRecoveryInstalled = true
+
+  window.addEventListener('unhandledrejection', (event) => {
+    if (recoverFromChunkLoadError(event.reason, currentFullPath())) {
+      event.preventDefault()
+    }
+  })
+
+  window.addEventListener('error', (event) => {
+    const error = event.error || event.message
+    if (recoverFromChunkLoadError(error, currentFullPath())) {
+      event.preventDefault()
+    }
+  })
 }
 
 function currentFullPath(): string {
