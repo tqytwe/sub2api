@@ -174,6 +174,98 @@ func (r *dailyCardEntitlementRepository) ReleaseRequest(ctx context.Context, ent
 	})
 }
 
+func (r *dailyCardEntitlementRepository) AdminReleaseReservedHolds(ctx context.Context, entitlementID, userID, groupID int64, releasedAt time.Time) (*service.DailyCardAdminActionResult, error) {
+	var result *service.DailyCardAdminActionResult
+	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
+		if err := validateDailyCardAdminTarget(txCtx, client, entitlementID, userID, groupID); err != nil {
+			return err
+		}
+		updateResult, err := client.ExecContext(txCtx, `
+			UPDATE subscription_entitlement_holds
+			SET status = 'released', released_at = $2, updated_at = $2
+			WHERE entitlement_id = $1 AND status = 'reserved'
+		`, entitlementID, releasedAt)
+		if err != nil {
+			return err
+		}
+		released, err := updateResult.RowsAffected()
+		if err != nil {
+			return err
+		}
+		entity, err := client.SubscriptionEntitlement.UpdateOneID(entitlementID).
+			SetQuotaReservedUsd(0).
+			SetUpdatedAt(releasedAt).
+			Save(txCtx)
+		if err != nil {
+			return err
+		}
+		result = &service.DailyCardAdminActionResult{
+			Card:          dailyCardEntitlementFromEntity(entity),
+			ReleasedHolds: released,
+		}
+		return nil
+	})
+	return result, err
+}
+
+func (r *dailyCardEntitlementRepository) AdminRestoreQuota(ctx context.Context, entitlementID, userID, groupID int64, restoredAt time.Time) (*service.DailyCardAdminActionResult, error) {
+	var result *service.DailyCardAdminActionResult
+	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
+		status, err := validateDailyCardAdminTargetWithStatus(txCtx, client, entitlementID, userID, groupID)
+		if err != nil {
+			return err
+		}
+		if status != service.DailyCardStatusActive && status != service.DailyCardStatusExhausted {
+			return service.ErrDailyCardAdminActionUnavailable
+		}
+		if status == service.DailyCardStatusExhausted {
+			otherActive, err := client.SubscriptionEntitlement.Query().
+				Where(
+					subscriptionentitlement.UserIDEQ(userID),
+					subscriptionentitlement.GroupIDEQ(groupID),
+					subscriptionentitlement.StatusEQ(service.DailyCardStatusActive),
+					subscriptionentitlement.IDNEQ(entitlementID),
+				).
+				Exist(txCtx)
+			if err != nil {
+				return err
+			}
+			if otherActive {
+				return service.ErrDailyCardAdminActionUnavailable
+			}
+		}
+		updateResult, err := client.ExecContext(txCtx, `
+			UPDATE subscription_entitlement_holds
+			SET status = 'released', released_at = $2, updated_at = $2
+			WHERE entitlement_id = $1 AND status = 'reserved'
+		`, entitlementID, restoredAt)
+		if err != nil {
+			return err
+		}
+		released, err := updateResult.RowsAffected()
+		if err != nil {
+			return err
+		}
+		entity, err := client.SubscriptionEntitlement.UpdateOneID(entitlementID).
+			SetQuotaUsedUsd(0).
+			SetQuotaReservedUsd(0).
+			SetStatus(service.DailyCardStatusActive).
+			ClearExhaustedAt().
+			ClearEndedAt().
+			SetUpdatedAt(restoredAt).
+			Save(txCtx)
+		if err != nil {
+			return err
+		}
+		result = &service.DailyCardAdminActionResult{
+			Card:          dailyCardEntitlementFromEntity(entity),
+			ReleasedHolds: released,
+		}
+		return nil
+	})
+	return result, err
+}
+
 func NewDailyCardEntitlementRepository(client *dbent.Client) service.DailyCardEntitlementRepository {
 	return &dailyCardEntitlementRepository{client: client}
 }
@@ -365,6 +457,38 @@ func (r *dailyCardEntitlementRepository) withTx(ctx context.Context, fn func(con
 func lockDailyCardQueue(ctx context.Context, client *dbent.Client, userID, groupID int64) error {
 	_, err := client.ExecContext(ctx, "SELECT pg_advisory_xact_lock($1, $2)", userID, groupID)
 	return err
+}
+
+func validateDailyCardAdminTarget(ctx context.Context, client *dbent.Client, entitlementID, userID, groupID int64) error {
+	_, err := validateDailyCardAdminTargetWithStatus(ctx, client, entitlementID, userID, groupID)
+	return err
+}
+
+func validateDailyCardAdminTargetWithStatus(ctx context.Context, client *dbent.Client, entitlementID, userID, groupID int64) (string, error) {
+	var ownerID, ownerGroupID int64
+	var status string
+	rows, err := client.QueryContext(ctx, `
+		SELECT user_id, group_id, status
+		FROM subscription_entitlements
+		WHERE id = $1
+		FOR UPDATE
+	`, entitlementID)
+	if err != nil {
+		return "", err
+	}
+	if !rows.Next() {
+		_ = rows.Close()
+		return "", service.ErrDailyCardAdminActionUnavailable
+	}
+	err = rows.Scan(&ownerID, &ownerGroupID, &status)
+	_ = rows.Close()
+	if err != nil {
+		return "", err
+	}
+	if ownerID != userID || ownerGroupID != groupID {
+		return "", service.ErrDailyCardAdminActionUnavailable
+	}
+	return status, nil
 }
 
 func reconcileDailyCardQueue(ctx context.Context, client *dbent.Client, userID, groupID int64, now time.Time) (*dbent.SubscriptionEntitlement, error) {

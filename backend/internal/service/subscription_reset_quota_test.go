@@ -236,3 +236,47 @@ func TestAdminResetQuota_ReturnsRefreshedSub(t *testing.T) {
 	require.Equal(t, float64(0), result.DailyUsageUSD, "返回的订阅应反映已归零的用量")
 	require.True(t, stub.resetDailyCalled)
 }
+
+func TestAdminReleaseDailyCardReservedHoldsUsesSubscriptionOwner(t *testing.T) {
+	stub := &resetQuotaUserSubRepoStub{
+		sub: &UserSubscription{ID: 12, UserID: 10, GroupID: 20},
+	}
+	cardRepo := &dailyCardRepoStub{
+		adminResult: &DailyCardAdminActionResult{
+			Card:          &DailyCardEntitlement{ID: 88, UserID: 10, GroupID: 20},
+			ReleasedHolds: 2,
+		},
+	}
+	svc := newResetQuotaSvc(stub)
+	svc.SetDailyCardService(NewDailyCardService(cardRepo))
+
+	sub, result, err := svc.AdminReleaseDailyCardReservedHolds(context.Background(), 12, 88)
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{88, 10, 20}, cardRepo.adminReleaseInput)
+	require.Equal(t, int64(2), result.ReleasedHolds)
+	require.NotNil(t, sub.DailyCard)
+	require.Equal(t, int64(88), *sub.DailyCardEntitlementID)
+}
+
+func TestAdminRestoreDailyCardQuotaUsesSubscriptionOwner(t *testing.T) {
+	stub := &resetQuotaUserSubRepoStub{
+		sub: &UserSubscription{ID: 13, UserID: 10, GroupID: 20},
+	}
+	cardRepo := &dailyCardRepoStub{
+		adminResult: &DailyCardAdminActionResult{
+			Card:          &DailyCardEntitlement{ID: 89, UserID: 10, GroupID: 20, QuotaUsedUSD: 0},
+			ReleasedHolds: 1,
+		},
+	}
+	svc := newResetQuotaSvc(stub)
+	svc.SetDailyCardService(NewDailyCardService(cardRepo))
+
+	sub, result, err := svc.AdminRestoreDailyCardQuota(context.Background(), 13, 89)
+
+	require.NoError(t, err)
+	require.Equal(t, []int64{89, 10, 20}, cardRepo.adminRestoreInput)
+	require.Equal(t, int64(1), result.ReleasedHolds)
+	require.NotNil(t, sub.DailyCard)
+	require.Equal(t, int64(89), *sub.DailyCardEntitlementID)
+}
