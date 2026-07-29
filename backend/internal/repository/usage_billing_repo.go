@@ -741,6 +741,19 @@ type dailyCardCaptureResult struct {
 	overageUSD             float64
 }
 
+// dailyCardEntitlementSettlementUpdateSQL keeps PostgreSQL from inferring a
+// text parameter for the varchar status column or an untyped nil ended_at.
+const dailyCardEntitlementSettlementUpdateSQL = `
+	UPDATE subscription_entitlements
+	SET quota_used_usd = $2,
+	    quota_reserved_usd = $3,
+	    status = $4::varchar,
+	    exhausted_at = CASE WHEN $4::varchar = 'exhausted' THEN $5 ELSE exhausted_at END,
+	    ended_at = COALESCE($6::timestamptz, ended_at),
+	    updated_at = $5
+	WHERE id = $1
+`
+
 func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID, userID int64, requestID string, costUSD float64) (*dailyCardCaptureResult, error) {
 	var lockUserID, lockGroupID int64
 	if err := tx.QueryRowContext(ctx, `
@@ -837,16 +850,8 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 		newStatus = service.DailyCardStatusExhausted
 		endedAt = settledAt
 	}
-	_, err = tx.ExecContext(ctx, `
-		UPDATE subscription_entitlements
-		SET quota_used_usd = $2,
-		    quota_reserved_usd = $3,
-		    status = $4,
-		    exhausted_at = CASE WHEN $4 = 'exhausted' THEN $5 ELSE exhausted_at END,
-		    ended_at = COALESCE($6, ended_at),
-		    updated_at = $5
-		WHERE id = $1
-	`, entitlementID, newUsed, quotaReserved, newStatus, settledAt, endedAt)
+	_, err = tx.ExecContext(ctx, dailyCardEntitlementSettlementUpdateSQL,
+		entitlementID, newUsed, quotaReserved, newStatus, settledAt, endedAt)
 	if err != nil {
 		return nil, err
 	}

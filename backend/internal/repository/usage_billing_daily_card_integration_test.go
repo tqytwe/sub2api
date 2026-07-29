@@ -14,6 +14,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDailyCardEntitlementSettlementUpdateSQLPreparesInPostgres(t *testing.T) {
+	ctx := context.Background()
+	statementName := "daily_card_entitlement_settlement_update"
+	_, err := integrationDB.ExecContext(ctx, "PREPARE "+statementName+" AS "+dailyCardEntitlementSettlementUpdateSQL)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		_, _ = integrationDB.ExecContext(ctx, "DEALLOCATE "+statementName)
+	})
+}
+
 func TestUsageBillingExhaustsDailyCardAndActivatesNextExactlyOnce(t *testing.T) {
 	ctx := context.Background()
 	client := integrationEntClient
