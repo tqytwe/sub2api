@@ -369,6 +369,9 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		if usageLog.SubscriptionID != nil {
 			cmd.SubscriptionID = usageLog.SubscriptionID
 		}
+		if usageLog.SubscriptionEntitlementID != nil {
+			cmd.SubscriptionEntitlementID = usageLog.SubscriptionEntitlementID
+		}
 	}
 
 	// Record subscription / balance cost using ActualCost so the group (and any
@@ -1167,45 +1170,46 @@ func (s *GatewayService) buildRecordUsageLog(
 	durationMs := int(result.Duration.Milliseconds())
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	usageLog := &UsageLog{
-		UserID:                user.ID,
-		APIKeyID:              apiKey.ID,
-		AccountID:             account.ID,
-		RequestID:             requestID,
-		Model:                 result.Model,
-		RequestedModel:        requestedModel,
-		UpstreamModel:         optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
-		ReasoningEffort:       result.ReasoningEffort,
-		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		InputTokens:           result.Usage.InputTokens,
-		OutputTokens:          result.Usage.OutputTokens,
-		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:       result.Usage.CacheReadInputTokens,
-		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
-		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
-		ImageOutputTokens:     result.Usage.ImageOutputTokens,
-		RateMultiplier:        multiplier,
-		AccountRateMultiplier: &accountRateMultiplier,
-		BillingType:           billingType,
-		BillingMode:           resolveBillingMode(result, cost),
-		Stream:                result.Stream,
-		DurationMs:            &durationMs,
-		FirstTokenMs:          result.FirstTokenMs,
-		ImageCount:            result.ImageCount,
-		ImageSize:             optionalTrimmedStringPtr(result.ImageSize),
-		ImageInputSize:        optionalTrimmedStringPtr(result.ImageInputSize),
-		ImageOutputSize:       optionalTrimmedStringPtr(result.ImageOutputSize),
-		ImageSizeSource:       optionalTrimmedStringPtr(result.ImageSizeSource),
-		ImageSizeBreakdown:    result.ImageSizeBreakdown,
-		CacheTTLOverridden:    cacheTTLOverridden,
-		ChannelID:             optionalInt64Ptr(input.ChannelID),
-		ModelMappingChain:     optionalTrimmedStringPtr(input.ModelMappingChain),
-		UserAgent:             optionalTrimmedStringPtr(input.UserAgent),
-		IPAddress:             optionalTrimmedStringPtr(input.IPAddress),
-		SessionID:             optionalTrimmedStringPtr(input.SessionID),
-		GroupID:               apiKey.GroupID,
-		SubscriptionID:        optionalSubscriptionID(subscription),
-		CreatedAt:             time.Now(),
+		UserID:                    user.ID,
+		APIKeyID:                  apiKey.ID,
+		AccountID:                 account.ID,
+		RequestID:                 requestID,
+		Model:                     result.Model,
+		RequestedModel:            requestedModel,
+		UpstreamModel:             optionalNonEqualStringPtr(result.UpstreamModel, result.Model),
+		ReasoningEffort:           result.ReasoningEffort,
+		InboundEndpoint:           optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:          optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:               result.Usage.InputTokens,
+		OutputTokens:              result.Usage.OutputTokens,
+		CacheCreationTokens:       result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:           result.Usage.CacheReadInputTokens,
+		CacheCreation5mTokens:     result.Usage.CacheCreation5mTokens,
+		CacheCreation1hTokens:     result.Usage.CacheCreation1hTokens,
+		ImageOutputTokens:         result.Usage.ImageOutputTokens,
+		RateMultiplier:            multiplier,
+		AccountRateMultiplier:     &accountRateMultiplier,
+		BillingType:               billingType,
+		BillingMode:               resolveBillingMode(result, cost),
+		Stream:                    result.Stream,
+		DurationMs:                &durationMs,
+		FirstTokenMs:              result.FirstTokenMs,
+		ImageCount:                result.ImageCount,
+		ImageSize:                 optionalTrimmedStringPtr(result.ImageSize),
+		ImageInputSize:            optionalTrimmedStringPtr(result.ImageInputSize),
+		ImageOutputSize:           optionalTrimmedStringPtr(result.ImageOutputSize),
+		ImageSizeSource:           optionalTrimmedStringPtr(result.ImageSizeSource),
+		ImageSizeBreakdown:        result.ImageSizeBreakdown,
+		CacheTTLOverridden:        cacheTTLOverridden,
+		ChannelID:                 optionalInt64Ptr(input.ChannelID),
+		ModelMappingChain:         optionalTrimmedStringPtr(input.ModelMappingChain),
+		UserAgent:                 optionalTrimmedStringPtr(input.UserAgent),
+		IPAddress:                 optionalTrimmedStringPtr(input.IPAddress),
+		SessionID:                 optionalTrimmedStringPtr(input.SessionID),
+		GroupID:                   apiKey.GroupID,
+		SubscriptionID:            optionalSubscriptionID(subscription),
+		SubscriptionEntitlementID: optionalSubscriptionEntitlementID(subscription),
+		CreatedAt:                 time.Now(),
 	}
 	if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
@@ -1243,4 +1247,11 @@ func optionalSubscriptionID(subscription *UserSubscription) *int64 {
 		return &subscription.ID
 	}
 	return nil
+}
+
+func optionalSubscriptionEntitlementID(subscription *UserSubscription) *int64 {
+	if subscription == nil || subscription.DailyCardEntitlementID == nil {
+		return nil
+	}
+	return subscription.DailyCardEntitlementID
 }

@@ -51,6 +51,7 @@ const messages: Record<string, string> = {
   'admin.usage.billingModeToken': 'Token',
   'admin.usage.billingModePerRequest': 'Per request',
   'admin.usage.billingModeImage': 'Image',
+  'admin.usage.dailyCard': 'Daily Card',
 }
 
 vi.mock('vue-i18n', async () => {
@@ -70,6 +71,7 @@ const DataTableStub = {
       <div v-for="row in data" :key="row.request_id">
         <slot name="cell-model" :row="row" :value="row.model" />
         <slot name="cell-billing_mode" :row="row" />
+        <slot name="cell-daily_card" :row="row" />
         <slot name="cell-tokens" :row="row" />
         <slot name="cell-cost" :row="row" />
       </div>
@@ -458,6 +460,39 @@ describe('admin UsageTable IP geolocation batch toolbar', () => {
     })
     expect(wrapper.text()).toContain('121.35.47.43')
     expect(wrapper.text()).toContain('CN · Guangdong · Shenzhen')
+  })
+})
+
+describe('admin UsageTable daily-card entitlement badge', () => {
+  it('renders the daily-card entitlement id when a usage row consumed one', () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{
+          request_id: 'req-daily-card-1',
+          model: 'gpt-5.1',
+          subscription_entitlement_id: 14,
+          actual_cost: 0.5,
+          total_cost: 0.5,
+          input_cost: 0,
+          output_cost: 0,
+          rate_multiplier: 1,
+          input_tokens: 1,
+          output_tokens: 1,
+        }],
+        loading: false,
+        columns: [{ key: 'daily_card', label: 'Daily Card' }],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('Daily Card #14')
   })
 })
 

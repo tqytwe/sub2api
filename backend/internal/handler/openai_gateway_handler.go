@@ -114,6 +114,9 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	if cap, ok := parent.Value(ctxkey.ImageStudioBillingActualCostCap).(float64); ok {
 		base = context.WithValue(base, ctxkey.ImageStudioBillingActualCostCap, cap)
 	}
+	if signal, _ := parent.Value(ctxkey.DailyCardBillingSignal).(*middleware2.DailyCardBillingSignal); signal != nil {
+		base = context.WithValue(base, ctxkey.DailyCardBillingSignal, signal)
+	}
 	return base
 }
 

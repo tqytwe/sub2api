@@ -1607,6 +1607,7 @@ export interface UsageLog {
 
   group_id: number | null
   subscription_id: number | null
+  subscription_entitlement_id?: number | null
 
   input_tokens: number
   output_tokens: number
