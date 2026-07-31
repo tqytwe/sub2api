@@ -6,6 +6,7 @@ import AgentTeamView from '@/views/public/AgentTeamView.vue'
 const {
   getTeamMeMock,
   getTeamSettlementsMock,
+  getTeamRewardShowcaseMock,
   createTeamMock,
   joinTeamMock,
   leaveTeamMock,
@@ -15,6 +16,7 @@ const {
 } = vi.hoisted(() => ({
   getTeamMeMock: vi.fn(),
   getTeamSettlementsMock: vi.fn(),
+  getTeamRewardShowcaseMock: vi.fn(),
   createTeamMock: vi.fn(),
   joinTeamMock: vi.fn(),
   leaveTeamMock: vi.fn(),
@@ -48,6 +50,7 @@ vi.mock('@/api/play', () => ({
   default: {
     getTeamMe: (...args: unknown[]) => getTeamMeMock(...args),
     getTeamSettlements: (...args: unknown[]) => getTeamSettlementsMock(...args),
+    getTeamRewardShowcase: (...args: unknown[]) => getTeamRewardShowcaseMock(...args),
     createTeam: (...args: unknown[]) => createTeamMock(...args),
     joinTeam: (...args: unknown[]) => joinTeamMock(...args),
     leaveTeam: (...args: unknown[]) => leaveTeamMock(...args),
@@ -116,6 +119,10 @@ const messages: Record<string, string> = {
   'agentTeam.payout.processing': '发放中',
   'agentTeam.payout.paid': '已到账',
   'agentTeam.payout.failed': '发放失败',
+  'agentTeam.publicRewardTitle': '最近已发放组队奖励',
+  'agentTeam.publicRewardPaid': '真实到账记录',
+  'agentTeam.publicRewardContext': '{month} · {team}',
+  'agentTeam.publicRewardPaidAt': '到账时间：{time}',
 }
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -202,6 +209,11 @@ describe('AgentTeamView competitive layout', () => {
         ],
       },
     ])
+    getTeamRewardShowcaseMock.mockResolvedValue({
+      winners: [
+        { settlement_month: '2026-07', team_name: '星火小队', display_name: 'Mira', amount: 14.16, paid_at: '2026-08-02T03:00:00Z' },
+      ],
+    })
   })
 
   it('renders team performance, ranked members, and localized settlement states', async () => {
@@ -247,5 +259,20 @@ describe('AgentTeamView competitive layout', () => {
     expect(wrapper.text()).toContain('14.16')
     expect(wrapper.text()).not.toContain('QuoRem · 贡献')
     expect(wrapper.html()).not.toContain('email')
+  })
+
+  it('shows verified team payouts even when the viewer has not joined a team', async () => {
+    vi.clearAllMocks()
+    getTeamMeMock.mockResolvedValueOnce({ enabled: true })
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getTeamRewardShowcaseMock).toHaveBeenCalledOnce()
+    expect(getTeamSettlementsMock).not.toHaveBeenCalled()
+    expect(wrapper.text()).toContain('最近已发放组队奖励')
+    expect(wrapper.text()).toContain('Mira')
+    expect(wrapper.text()).toContain('2026-07 · 星火小队')
+    expect(wrapper.text()).toContain('$14.16')
   })
 })

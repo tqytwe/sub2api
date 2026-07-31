@@ -21,6 +21,22 @@ type dailyRewardSummaryHandlerRepo struct {
 	period *service.PlayArenaPeriod
 }
 
+type publicTeamRewardShowcaseHandlerRepo struct {
+	service.PlayRepository
+}
+
+func (r *publicTeamRewardShowcaseHandlerRepo) ListPublicTeamRewardWinners(context.Context, int) ([]service.PlayTeamRewardPublicWinner, error) {
+	paidAt := time.Date(2026, time.August, 1, 0, 10, 0, 0, time.UTC)
+	return []service.PlayTeamRewardPublicWinner{{
+		SettlementID: 71,
+		PeriodStart:  time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC),
+		TeamName:     "星火小队",
+		DisplayName:  "wi***@example.com",
+		Amount:       14.16,
+		PaidAt:       &paidAt,
+	}}, nil
+}
+
 func (r *dailyRewardSummaryHandlerRepo) GetLatestSettledDailyArenaPeriod(context.Context) (*service.PlayArenaPeriod, error) {
 	return r.period, nil
 }
@@ -80,4 +96,31 @@ func TestArenaDailyRewardSummaryRouteIsPublicAndPrivacyMasked(t *testing.T) {
 	require.Contains(t, body, `wi***@example.com`)
 	require.NotContains(t, strings.ToLower(body), `"email"`)
 	require.NotContains(t, body, `winner@example.com`)
+}
+
+func TestTeamRewardShowcaseRouteIsPublicAndPrivacyMasked(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	playHandler := handler.NewPlayHandler(service.NewPlayService(&publicTeamRewardShowcaseHandlerRepo{}, nil, nil, nil, nil, nil), nil)
+
+	authCalls := 0
+	jwtAuth := middleware.JWTAuthMiddleware(func(c *gin.Context) {
+		authCalls++
+		c.Next()
+	})
+	router := gin.New()
+	v1 := router.Group("/api/v1")
+	routes.RegisterPlayRoutes(v1, &handler.Handlers{Play: playHandler}, jwtAuth)
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "/api/v1/play/teams/reward-showcase", nil)
+	router.ServeHTTP(recorder, request)
+
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Zero(t, authCalls)
+	body := recorder.Body.String()
+	require.Contains(t, body, `"team_name":"星火小队"`)
+	require.Contains(t, body, `wi***@example.com`)
+	require.Contains(t, body, `"amount":14.16`)
+	require.NotContains(t, body, `"user_id"`)
+	require.NotContains(t, strings.ToLower(body), `"email"`)
 }

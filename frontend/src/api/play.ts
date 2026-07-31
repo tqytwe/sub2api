@@ -105,6 +105,36 @@ export interface PlayArenaDailyRewardEstimateRow {
   estimated_reward: number
 }
 
+export interface PlayArenaMonthlyRewardSummary {
+  enabled: boolean
+  period?: PlayArenaPeriod
+  settled_at?: string
+  winners_count: number
+  total_amount: number
+  winners: PlayArenaMonthlyRewardWinner[]
+}
+
+export interface PlayArenaMonthlyRewardWinner {
+  rank: number
+  display_name: string
+  avatar_url?: string
+  amount: number
+  paid_at?: string
+}
+
+export interface PlayTeamRewardShowcase {
+  winners: PlayTeamRewardShowcaseWinner[]
+}
+
+export interface PlayTeamRewardShowcaseWinner {
+  settlement_month: string
+  team_name: string
+  display_name: string
+  avatar_url?: string
+  amount: number
+  paid_at?: string
+}
+
 export interface PlayBlindboxStatus {
   enabled: boolean
   coupon_pool_ready?: boolean
@@ -483,6 +513,11 @@ export async function getArenaDailyRewardSummary(): Promise<PlayArenaDailyReward
   return data
 }
 
+export async function getArenaRewardSummary(): Promise<PlayArenaMonthlyRewardSummary> {
+  const { data } = await apiClient.get<PlayArenaMonthlyRewardSummary>('/play/arena/reward-summary')
+  return data
+}
+
 export async function getQuestsToday(): Promise<PlayQuestToday> {
   const { data } = await apiClient.get<PlayQuestToday>('/play/quests/today')
   return data
@@ -558,6 +593,11 @@ export async function getTeamSettlements(): Promise<PlayTeamSettlementHistoryRec
   return data ?? []
 }
 
+export async function getTeamRewardShowcase(): Promise<PlayTeamRewardShowcase> {
+  const { data } = await apiClient.get<PlayTeamRewardShowcase>('/play/teams/reward-showcase')
+  return data ?? { winners: [] }
+}
+
 export const playAPI = {
   getPlayHub,
   getActiveCampaigns,
@@ -569,6 +609,7 @@ export const playAPI = {
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
   getArenaDailyRewardSummary,
+  getArenaRewardSummary,
   getQuestsToday,
   getBlindboxPool,
   getBlindboxStatus,
@@ -583,6 +624,7 @@ export const playAPI = {
   transferTeam,
   removeTeamMember,
   getTeamSettlements,
+  getTeamRewardShowcase,
 }
 
 export default playAPI
