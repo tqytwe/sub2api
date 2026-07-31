@@ -12,16 +12,20 @@ import (
 
 func TestReferralCampaignValidationRejectsRunningWithoutBudgetAndWindows(t *testing.T) {
 	campaign := ReferralCampaign{
+		Name:             "August invite",
 		Status:           ReferralCampaignStatusRunning,
 		RegistrationFrom: time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
 		RegistrationTo:   time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC),
 		StartsAt:         time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC),
 		EndsAt:           time.Date(2026, 8, 31, 0, 0, 0, 0, time.UTC),
+		QualificationTo:  time.Date(2026, 9, 1, 0, 0, 0, 0, time.UTC),
 		ClaimDeadline:    time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC),
 		BudgetTotal:      0,
 		MaxEnrollments:   100,
 		PayThreshold:     50,
 		UsageThreshold:   1,
+		RiskHoldHours:    168,
+		Version:          1,
 	}
 	err := ValidateReferralCampaign(&campaign)
 	require.Error(t, err)
