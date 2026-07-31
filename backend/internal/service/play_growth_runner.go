@@ -21,6 +21,7 @@ const (
 type PlayGrowthRunner struct {
 	playService *PlayService
 	imageStudio *ImageStudioService
+	affiliate   *AffiliateService
 	lockCache   LeaderLockCache
 	db          *sql.DB
 	ownerID     string
@@ -32,12 +33,14 @@ type PlayGrowthRunner struct {
 func NewPlayGrowthRunner(
 	playService *PlayService,
 	imageStudio *ImageStudioService,
+	affiliate *AffiliateService,
 	lockCache LeaderLockCache,
 	db *sql.DB,
 ) *PlayGrowthRunner {
 	return &PlayGrowthRunner{
 		playService: playService,
 		imageStudio: imageStudio,
+		affiliate:   affiliate,
 		lockCache:   lockCache,
 		db:          db,
 		ownerID:     uuid.NewString(),
@@ -127,15 +130,23 @@ func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] purged %d expired image studio jobs", n)
 		}
 	}
+	if r.affiliate != nil {
+		if n, err := r.affiliate.ProcessReferralReconcileQueue(ctx, 100); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] reconcile referral rewards: %v", err)
+		} else if n > 0 {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] reconciled %d referral reward orders", n)
+		}
+	}
 }
 
 func ProvidePlayGrowthRunner(
 	playService *PlayService,
 	imageStudio *ImageStudioService,
+	affiliate *AffiliateService,
 	lockCache LeaderLockCache,
 	db *sql.DB,
 ) *PlayGrowthRunner {
-	svc := NewPlayGrowthRunner(playService, imageStudio, lockCache, db)
+	svc := NewPlayGrowthRunner(playService, imageStudio, affiliate, lockCache, db)
 	svc.Start()
 	return svc
 }

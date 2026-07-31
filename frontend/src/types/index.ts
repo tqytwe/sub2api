@@ -171,6 +171,7 @@ export interface RegisterRequest {
   promo_code?: string
   invitation_code?: string
   aff_code?: string
+  invite_token?: string
 }
 
 export interface AffiliateInvitee {

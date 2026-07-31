@@ -3,6 +3,7 @@ import type {
   PlayArenaPeriod,
   PlayBlindboxPool,
   PlayCampaignRules,
+  PlayCampaignAudience,
   PlayTeamSettlementRecord,
   PlayTeamSummary,
   TeamRewardTier,
@@ -94,6 +95,7 @@ export interface AdminPlayCampaign {
   start_at: string;
   end_at: string;
   rules: PlayCampaignRules;
+  audience: PlayCampaignAudience;
   enabled: boolean;
   created_at: string;
 }
@@ -103,6 +105,7 @@ export interface AdminPlayCampaignInput {
   start_at: string;
   end_at: string;
   rules: PlayCampaignRules;
+  audience: PlayCampaignAudience;
   enabled: boolean;
 }
 
@@ -218,6 +221,13 @@ export interface AdminMobileFeedback {
   device_info: Record<string, unknown>;
   screenshots: AdminMobileFeedbackScreenshot[];
   admin_note: string;
+  installation_id?: string;
+  channel?: string;
+  referrer?: string;
+  version: number;
+  updated_by?: number;
+  status_changed_at?: string;
+  context?: AdminMobileFeedbackContext;
   created_at: string;
   updated_at: string;
 }
@@ -232,6 +242,265 @@ export interface AdminMobileFeedbackList {
 export interface AdminMobileFeedbackUpdateInput {
   status: AdminMobileFeedbackStatus;
   admin_note?: string;
+  expected_version: number;
+}
+
+export interface AdminMembershipOverview {
+  total_members: number
+  tier_counts: Array<{ tier: number; label: string; count: number }>
+  net_paid_amount: string
+  recent_upgrades: number
+  recent_downgrades: number
+}
+
+export interface AdminMembershipListItem {
+  user_id: number
+  email_masked: string
+  username?: string
+  tier: number
+  tier_label: string
+  is_member: boolean
+  net_paid_amount: string
+  registered_at?: string
+  first_paid_at?: string
+  last_paid_at?: string
+}
+
+export interface AdminMembershipList {
+  items: AdminMembershipListItem[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface AdminVIPTier {
+  tier: number
+  label: string
+  min_recharge: number
+  recharge_bonus_pct: number
+  color_key: string
+  perks?: string[]
+}
+
+export interface AdminVIPConfigImpact {
+  version: number
+  tiers: AdminVIPTier[]
+  affected_users: number
+  upgraded_users: number
+  downgraded_users: number
+}
+
+export interface AdminMembershipDetail {
+  user: AdminMembershipListItem
+  contributions: Array<{
+    order_id: number
+    order_type: string
+    paid_amount: string
+    refund_amount: string
+    net_amount: string
+    paid_at?: string
+    status: string
+    updated_at: string
+  }>
+  tier_history: Array<{
+    order_id?: number
+    from_tier: number
+    to_tier: number
+    net_paid_before: string
+    net_paid_after: string
+    reason: string
+    created_at: string
+  }>
+}
+
+export interface AdminInviteGrowthOverview {
+  invited_count: number
+  qualified_count: number
+  paid_invitee_count: number
+  reward_unlocked: string
+  reward_claimed: string
+  ranking?: Array<{
+    rank: number
+    display_name?: string
+    email_masked: string
+    qualified_count: number
+    net_paid_amount: string
+    reward_amount: string
+    is_me?: boolean
+  }>
+}
+
+export type AdminReferralCampaignStatus =
+  | "draft"
+  | "review"
+  | "approved"
+  | "scheduled"
+  | "running"
+  | "paused"
+  | "settling"
+  | "closed"
+  | "cancelled";
+
+export type AdminReferralReviewType = "ops" | "finance" | "risk" | "ux";
+export type AdminReferralReviewDecision = "approved" | "rejected";
+
+export interface AdminReferralCampaign {
+  id: number;
+  key: string;
+  name: string;
+  status: AdminReferralCampaignStatus;
+  version: number;
+  registration_from: string;
+  registration_to: string;
+  starts_at: string;
+  ends_at: string;
+  qualification_to: string;
+  claim_deadline: string;
+  risk_hold_hours: number;
+  pay_threshold: number;
+  usage_threshold: number;
+  max_enrollments: number;
+  budget_total: number;
+  budget_reserved: number;
+  budget_paid: number;
+  reward_mode: "additive" | "replace";
+  created_by: number;
+  approved_by?: number;
+}
+
+export interface AdminReferralCampaignTier {
+  tier: number;
+  required_invites: number;
+  reward_amount: number;
+  currency: "CNY";
+}
+
+export interface AdminReferralCampaignStats {
+  campaign_id: number;
+  enrolled: number;
+  attributed: number;
+  qualified: number;
+  risk_pending: number;
+  risk_rejected: number;
+  rewards_reserved: number;
+  rewards_claimed: number;
+  rewards_expired: number;
+  rewards_revoked: number;
+}
+
+export interface AdminReferralCampaignApproval {
+  version: number;
+  review_type: AdminReferralReviewType;
+  decision: AdminReferralReviewDecision;
+  reviewer_id?: number;
+  note: string;
+  created_at: string;
+}
+
+export interface AdminReferralCampaignDetail {
+  campaign: AdminReferralCampaign;
+  tiers: AdminReferralCampaignTier[];
+  stats: AdminReferralCampaignStats;
+  approvals: AdminReferralCampaignApproval[];
+}
+
+export interface AdminReferralCampaignInput {
+  key: string;
+  name: string;
+  registration_from: string;
+  registration_to: string;
+  starts_at: string;
+  ends_at: string;
+  qualification_to: string;
+  claim_deadline: string;
+  risk_hold_hours: number;
+  pay_threshold: number;
+  usage_threshold: number;
+  max_enrollments: number;
+  budget_total: number;
+  reward_mode: "additive" | "replace";
+  tiers: AdminReferralCampaignTier[];
+  expected_version?: number;
+}
+
+export interface AdminReferralCampaignPage {
+  items: AdminReferralCampaign[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface AdminReferralCampaignParticipant {
+  user_id: number;
+  email: string;
+  username: string;
+  enrolled_at: string;
+  invited_count: number;
+  qualified_count: number;
+  reward_unlocked: number;
+  reward_claimed: number;
+}
+
+export interface AdminReferralCampaignInvite {
+  attribution_id: number;
+  inviter_id: number;
+  inviter_email: string;
+  invitee_id: number;
+  invitee_email: string;
+  registered_at: string;
+  status: string;
+  net_paid: number;
+  actual_cost: number;
+  risk_status: string;
+  qualification_status: string;
+  qualified_at?: string;
+}
+
+export interface AdminReferralCampaignReward {
+  id: number;
+  campaign_id: number;
+  user_id: number;
+  tier: number;
+  reward_type: string;
+  amount: number;
+  currency: string;
+  status: string;
+  unlock_at?: string;
+  claim_deadline?: string;
+  frozen_until?: string;
+  version: number;
+  email: string;
+  username: string;
+}
+
+export interface AdminReferralPage<T> {
+  items: T[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export interface AdminAppAnalytics {
+  period: string
+  scans: number
+  download_redirects: number
+  first_launches: number
+  installs: number
+  registered_installs: number
+  active_users: number
+  dau: number
+  wau: number
+  mau: number
+  funnel: Array<{ event: string; count: number; conversion_rate?: number }>
+  versions: Array<{ version: string; platform: string; active: number; share?: number }>
+}
+
+export interface AdminMobileFeedbackContext {
+  installation_id?: string
+  registration_status?: string
+  acquisition_source?: string
+  first_launch_at?: string
+  last_seen_at?: string
 }
 
 export type AdminQuizQuestionLanguage = "zh" | "en";
@@ -555,6 +824,179 @@ export async function updateMobileFeedback(
   return data;
 }
 
+export async function getMembershipOverview(): Promise<AdminMembershipOverview> {
+  const { data } = await apiClient.get<AdminMembershipOverview>(
+    "/admin/play/membership/overview",
+  );
+  return data;
+}
+
+export async function listMembershipUsers(
+  params: {
+    q?: string;
+    tier?: number;
+    member?: boolean;
+    page?: number;
+    page_size?: number;
+  } = {},
+): Promise<AdminMembershipList> {
+  const { data } = await apiClient.get<AdminMembershipList>(
+    "/admin/play/membership/users",
+    { params },
+  );
+  return data;
+}
+
+export async function getMembershipUser(id: number): Promise<AdminMembershipDetail> {
+  const { data } = await apiClient.get<AdminMembershipDetail>(`/admin/play/membership/users/${id}`)
+  return data
+}
+
+export async function getVIPConfig(): Promise<AdminVIPConfigImpact> {
+  const { data } = await apiClient.get<AdminVIPConfigImpact>("/admin/play/membership/vip-config")
+  return data
+}
+
+export async function previewVIPConfig(tiers: AdminVIPTier[]): Promise<AdminVIPConfigImpact> {
+  const { data } = await apiClient.post<AdminVIPConfigImpact>("/admin/play/membership/vip-config/preview", { tiers })
+  return data
+}
+
+export async function publishVIPConfig(input: { tiers: AdminVIPTier[]; expected_version: number; reason: string }): Promise<AdminVIPConfigImpact> {
+  const { data } = await apiClient.put<AdminVIPConfigImpact>("/admin/play/membership/vip-config", input)
+  return data
+}
+
+export async function getInviteGrowthOverview(
+  params: { campaign_id?: number; period?: string } = {},
+): Promise<AdminInviteGrowthOverview> {
+  const { data } = await apiClient.get<AdminInviteGrowthOverview>(
+    "/admin/affiliates/invite-growth/overview",
+    { params },
+  );
+  return data;
+}
+
+export async function listReferralCampaigns(
+  params: { page?: number; page_size?: number; status?: string; search?: string } = {},
+): Promise<AdminReferralCampaignPage> {
+  const { data } = await apiClient.get<AdminReferralCampaignPage>(
+    "/admin/affiliates/campaigns",
+    { params },
+  );
+  return data;
+}
+
+export async function getReferralCampaign(id: number): Promise<AdminReferralCampaignDetail> {
+  const { data } = await apiClient.get<AdminReferralCampaignDetail>(
+    `/admin/affiliates/campaigns/${id}`,
+  );
+  return data;
+}
+
+export async function createReferralCampaign(
+  input: AdminReferralCampaignInput,
+): Promise<AdminReferralCampaign> {
+  const { data } = await apiClient.post<AdminReferralCampaign>(
+    "/admin/affiliates/campaigns",
+    input,
+  );
+  return data;
+}
+
+export async function updateReferralCampaign(
+  id: number,
+  input: AdminReferralCampaignInput & { expected_version: number },
+): Promise<AdminReferralCampaign> {
+  const { data } = await apiClient.put<AdminReferralCampaign>(
+    `/admin/affiliates/campaigns/${id}`,
+    input,
+  );
+  return data;
+}
+
+export async function setReferralCampaignStatus(
+  id: number,
+  input: { expected_version: number; status: AdminReferralCampaignStatus; note?: string },
+): Promise<AdminReferralCampaign> {
+  const { data } = await apiClient.post<AdminReferralCampaign>(
+    `/admin/affiliates/campaigns/${id}/status`,
+    input,
+  );
+  return data;
+}
+
+export async function reviewReferralCampaign(
+  id: number,
+  input: {
+    expected_version: number;
+    review_type: AdminReferralReviewType;
+    decision: AdminReferralReviewDecision;
+    note?: string;
+  },
+): Promise<AdminReferralCampaign> {
+  const { data } = await apiClient.post<AdminReferralCampaign>(
+    `/admin/affiliates/campaigns/${id}/reviews`,
+    input,
+  );
+  return data;
+}
+
+export async function listReferralCampaignParticipants(
+  id: number,
+  params: { page?: number; page_size?: number; search?: string } = {},
+): Promise<AdminReferralPage<AdminReferralCampaignParticipant>> {
+  const { data } = await apiClient.get<AdminReferralPage<AdminReferralCampaignParticipant>>(
+    `/admin/affiliates/campaigns/${id}/participants`,
+    { params },
+  );
+  return data;
+}
+
+export async function listReferralCampaignInvites(
+  id: number,
+  params: { page?: number; page_size?: number; search?: string; status?: string } = {},
+): Promise<AdminReferralPage<AdminReferralCampaignInvite>> {
+  const { data } = await apiClient.get<AdminReferralPage<AdminReferralCampaignInvite>>(
+    `/admin/affiliates/campaigns/${id}/invites`,
+    { params },
+  );
+  return data;
+}
+
+export async function listReferralCampaignRewards(
+  id: number,
+  params: { page?: number; page_size?: number; search?: string; status?: string } = {},
+): Promise<AdminReferralPage<AdminReferralCampaignReward>> {
+  const { data } = await apiClient.get<AdminReferralPage<AdminReferralCampaignReward>>(
+    `/admin/affiliates/campaigns/${id}/rewards`,
+    { params },
+  );
+  return data;
+}
+
+export async function resolveReferralRewardDebt(
+  campaignID: number,
+  rewardID: number,
+  input: { expected_version: number; decision: "recovered" | "waived"; note: string },
+): Promise<AdminReferralCampaignReward> {
+  const { data } = await apiClient.post<AdminReferralCampaignReward>(
+    `/admin/affiliates/campaigns/${campaignID}/rewards/${rewardID}/resolve`,
+    input,
+  );
+  return data;
+}
+
+export async function getAppAnalytics(
+  params: { period?: string; version?: string; channel?: string } = {},
+): Promise<AdminAppAnalytics> {
+  const { data } = await apiClient.get<AdminAppAnalytics>(
+    "/admin/play/app-analytics",
+    { params },
+  );
+  return data;
+}
+
 export async function listQuizQuestions(
   params: AdminQuizQuestionListParams = {},
 ): Promise<AdminQuizQuestionList> {
@@ -612,6 +1054,24 @@ export const adminPlayAPI = {
   listMobileFeedback,
   getMobileFeedback,
   updateMobileFeedback,
+  getMembershipOverview,
+  listMembershipUsers,
+  getMembershipUser,
+  getVIPConfig,
+  previewVIPConfig,
+  publishVIPConfig,
+  getInviteGrowthOverview,
+  listReferralCampaigns,
+  getReferralCampaign,
+  createReferralCampaign,
+  updateReferralCampaign,
+  setReferralCampaignStatus,
+  reviewReferralCampaign,
+  listReferralCampaignParticipants,
+  listReferralCampaignInvites,
+  listReferralCampaignRewards,
+  resolveReferralRewardDebt,
+  getAppAnalytics,
   listQuizQuestions,
   createQuizQuestion,
   updateQuizQuestion,

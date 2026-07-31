@@ -599,6 +599,20 @@ func (h *PlayHandler) TeamSettlements(c *gin.Context) {
 	response.Success(c, toPlayUserTeamSettlementDTOs(records))
 }
 
+func (h *PlayHandler) TeamLeaderboard(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	leaderboard, err := h.playService.TeamLeaderboard(c.Request.Context(), subject.UserID, 50)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, leaderboard)
+}
+
 func toPlayUserTeamSettlementDTOs(records []service.PlayUserTeamSettlementRecord) []playUserTeamSettlementDTO {
 	out := make([]playUserTeamSettlementDTO, 0, len(records))
 	for _, record := range records {

@@ -9,7 +9,7 @@ import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import playAPI, { type PlayTeamMe, type PlayTeamRewardShowcase, type PlayTeamSettlementHistoryRecord, type PlayTeamSettlementRecord } from '@/api/play'
+import playAPI, { type PlayTeamLeaderboard, type PlayTeamMe, type PlayTeamRewardShowcase, type PlayTeamSettlementHistoryRecord, type PlayTeamSettlementRecord } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
 import '@/styles/public-pages.css'
 
@@ -35,6 +35,7 @@ const teamMe = ref<PlayTeamMe | null>(null)
 const teamName = ref('')
 const inviteCode = ref('')
 const settlements = ref<PlayTeamSettlementHistoryRecord[]>([])
+const leaderboard = ref<PlayTeamLeaderboard | null>(null)
 const rewardShowcase = ref<PlayTeamRewardShowcase>({ winners: [] })
 const teamCelebrationDismissed = ref(false)
 
@@ -228,11 +229,15 @@ async function loadTeam() {
   }
   try {
     teamMe.value = await playAPI.getTeamMe()
-    const [settlementData, showcaseData] = await Promise.all([
+    const [settlementData, leaderboardData, showcaseData] = await Promise.all([
       teamMe.value?.team ? playAPI.getTeamSettlements() : Promise.resolve([]),
+      typeof playAPI.getTeamLeaderboard === 'function'
+        ? playAPI.getTeamLeaderboard().catch(() => null)
+        : Promise.resolve(null),
       playAPI.getTeamRewardShowcase().catch(() => ({ winners: [] })),
     ])
     settlements.value = settlementData
+    leaderboard.value = leaderboardData
     rewardShowcase.value = showcaseData
     syncTeamCelebrationSeen()
   } catch {
@@ -374,7 +379,7 @@ onMounted(loadTeam)
           <section class="play-content-panel">
             <div class="agent-team-header">
               <div>
-                <p class="agent-team-kicker">Agent Team</p>
+                <p class="agent-team-kicker">{{ t('agentTeam.kicker') }}</p>
                 <h2 class="play-section-title">{{ teamMe.team.name }}</h2>
               </div>
               <span class="agent-pill">{{ teamMe.team.member_count }} {{ t('agentTeam.membersUnit') }}</span>
@@ -415,6 +420,28 @@ onMounted(loadTeam)
             </div>
           </section>
 
+          <section v-if="leaderboard?.rows.length" class="play-content-panel">
+            <div class="agent-team-header">
+              <div>
+                <p class="agent-team-kicker">{{ leaderboard.month }}</p>
+                <h3 class="play-section-title">{{ t('agentTeam.leaderboardTitle') }}</h3>
+              </div>
+              <span class="agent-pill">{{ t('agentTeam.leaderboardTeams', { count: leaderboard.total_teams }) }}</span>
+            </div>
+            <div class="agent-settlement-list">
+              <article v-for="row in leaderboard.rows" :key="row.team_id" class="agent-settlement-card" :class="{ 'ring-1 ring-primary-500': row.is_mine }">
+                <div class="agent-settlement-head">
+                  <strong>#{{ row.rank }} {{ row.team_name }}</strong>
+                  <span>{{ t('agentTeam.leaderboardMembers', { count: row.member_count }) }}</span>
+                  <span>${{ formatMoney(row.monthly_spend) }}</span>
+                </div>
+                <div class="agent-allocation-list">
+                  <span>{{ t('agentTeam.leaderboardPool', { amount: formatMoney(row.estimated_pool) }) }}</span>
+                  <span v-if="row.gap_to_previous && Number(row.gap_to_previous) > 0">{{ t('agentTeam.leaderboardGap', { amount: formatMoney(row.gap_to_previous) }) }}</span>
+                </div>
+              </article>
+            </div>
+          </section>
 
           <div class="play-detail-grid">
             <section class="play-content-panel">
@@ -526,7 +553,7 @@ onMounted(loadTeam)
         <section v-if="!loading && rewardShowcase.winners.length" class="play-content-panel agent-public-reward-panel" aria-live="polite">
           <div class="agent-team-header">
             <div>
-              <p class="agent-team-kicker">Reward proof</p>
+              <p class="agent-team-kicker">{{ t('agentTeam.rewardProofKicker') }}</p>
               <h2 class="play-section-title">{{ t('agentTeam.publicRewardTitle') }}</h2>
             </div>
             <span class="agent-pill">{{ t('agentTeam.publicRewardPaid') }}</span>

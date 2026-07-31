@@ -343,17 +343,14 @@ func blindboxReplaySnapshotFloat(value *float64) float64 {
 
 func (s *PlayService) resolveBlindboxVIPStatus(ctx context.Context, userID int64, rt PlayRuntime) (PlayVIPStatus, error) {
 	vip := resolveVIPStatus(0, rt.VIPTiers)
-	if userID <= 0 || s.userRepo == nil {
+	if userID <= 0 {
 		return vip, nil
 	}
-	user, err := s.userRepo.GetByID(ctx, userID)
+	paidTotal, err := s.MembershipPaidTotal(ctx, userID)
 	if err != nil {
 		return vip, err
 	}
-	if user == nil {
-		return vip, nil
-	}
-	return resolveVIPStatus(user.TotalRecharged, rt.VIPTiers), nil
+	return resolveVIPStatus(paidTotal, rt.VIPTiers), nil
 }
 
 func scopeBlindboxIdempotencyKey(userID int64, raw string) (string, error) {

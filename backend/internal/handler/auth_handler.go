@@ -55,6 +55,7 @@ type RegisterRequest struct {
 	PromoCode      string `json:"promo_code"`      // 注册优惠码
 	InvitationCode string `json:"invitation_code"` // 邀请码
 	AffCode        string `json:"aff_code"`        // 邀请返利码
+	InviteToken    string `json:"invite_token"`    // 邀请活动签名令牌
 }
 
 // SendVerifyCodeRequest 发送验证码请求
@@ -258,6 +259,10 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	if err := h.authService.ValidateRegistrationReferral(c.Request.Context(), req.AffCode, req.InviteToken); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
 
 	_, user, err := h.authService.RegisterWithVerification(
 		c.Request.Context(),
@@ -272,6 +277,7 @@ func (h *AuthHandler) Register(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	h.bindReferralCampaignToken(c.Request.Context(), user.ID, req.InviteToken)
 
 	h.respondWithTokenPair(c, user)
 }
@@ -282,6 +288,10 @@ func (h *AuthHandler) MobileRegister(c *gin.Context) {
 	var req RegisterRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.BadRequest(c, authMobileMessage(c, "请求参数无效", "Invalid request"))
+		return
+	}
+	if err := h.authService.ValidateRegistrationReferral(c.Request.Context(), req.AffCode, req.InviteToken); err != nil {
+		respondMobileAuthError(c, err)
 		return
 	}
 
@@ -298,8 +308,18 @@ func (h *AuthHandler) MobileRegister(c *gin.Context) {
 		respondMobileAuthError(c, err)
 		return
 	}
+	h.bindReferralCampaignToken(c.Request.Context(), user.ID, req.InviteToken)
 
 	h.respondWithTokenPair(c, user)
+}
+
+func (h *AuthHandler) bindReferralCampaignToken(ctx context.Context, userID int64, token string) {
+	if h == nil || h.authService == nil || strings.TrimSpace(token) == "" {
+		return
+	}
+	if err := h.authService.AttributeReferralCampaign(ctx, userID, token); err != nil {
+		slog.Warn("referral campaign attribution after registration failed", "user_id", userID, "error", err)
+	}
 }
 
 // SendVerifyCode 发送邮箱验证码

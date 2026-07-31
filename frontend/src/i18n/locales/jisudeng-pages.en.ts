@@ -50,6 +50,7 @@ export const jisudengPagesEn = {
     copiedToast: 'Support QQ copied'
   },
   androidDownload: {
+		openInviteInApp: 'Open the app after install and continue registration',
     metaTitle: 'Android Download',
     eyebrow: 'JisudengChat Android',
     title: 'Download the Jisudeng Android app',
@@ -607,6 +608,8 @@ export const jisudengPagesEn = {
     },
   },
   agentTeam: {
+    kicker: 'Team rewards',
+    rewardProofKicker: 'Reward proof',
     disabled: 'Agent Team is not available right now',
     inviteCode: 'Invite code: {code}',
     stats: '{members} members · {tokens} squad tokens this month',
@@ -722,6 +725,7 @@ export const jisudengPagesEn = {
     goKeys: 'Manage API keys',
     channelPending: '{count} pending',
     vipTitle: 'VIP tier',
+    vipComparison: 'VIP benefit comparison',
     vipRechargeBonus: 'Recharge bonus +{pct}%',
     vipRecharged: 'Lifetime recharge ${amount}',
     vipNext: '${amount} more to reach {label}',

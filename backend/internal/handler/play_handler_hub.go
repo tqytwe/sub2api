@@ -9,15 +9,18 @@ import (
 )
 
 type playHubGrowthDTO struct {
-	Balance                  float64           `json:"balance"`
-	TotalRecharged           float64           `json:"total_recharged"`
-	FirstRechargeEligible    bool              `json:"first_recharge_eligible"`
-	BalanceLowWarning        bool              `json:"balance_low_warning"`
-	BalanceLowThreshold      float64           `json:"balance_low_threshold,omitempty"`
-	RechargeMultiplier       float64           `json:"recharge_multiplier"`
-	PaymentEnabled           bool              `json:"payment_enabled"`
-	CampaignRechargeBonusPct float64           `json:"campaign_recharge_bonus_pct,omitempty"`
-	VIP                      *playVIPStatusDTO `json:"vip,omitempty"`
+	Balance                  float64               `json:"balance"`
+	TotalRecharged           float64               `json:"total_recharged"`
+	FirstRechargeEligible    bool                  `json:"first_recharge_eligible"`
+	BalanceLowWarning        bool                  `json:"balance_low_warning"`
+	BalanceLowThreshold      float64               `json:"balance_low_threshold,omitempty"`
+	RechargeMultiplier       float64               `json:"recharge_multiplier"`
+	PaymentEnabled           bool                  `json:"payment_enabled"`
+	CampaignRechargeBonusPct float64               `json:"campaign_recharge_bonus_pct,omitempty"`
+	VIP                      *playVIPStatusDTO     `json:"vip,omitempty"`
+	VIPTiers                 []service.PlayVIPTier `json:"vip_tiers,omitempty"`
+	MembershipPaidAmount     float64               `json:"membership_paid_amount,omitempty"`
+	IsMember                 bool                  `json:"is_member"`
 }
 
 type playCampaignRulesDTO struct {
@@ -97,6 +100,9 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 			PaymentEnabled:           s.Growth.PaymentEnabled,
 			CampaignRechargeBonusPct: s.Growth.CampaignRechargeBonusPct,
 			VIP:                      toPlayVIPStatusDTO(s.Growth.VIP),
+			VIPTiers:                 s.Growth.VIPTiers,
+			MembershipPaidAmount:     s.Growth.MembershipPaidAmount,
+			IsMember:                 s.Growth.IsMember,
 		},
 		Campaigns: toPlayCampaignSummaryDTOs(s.Campaigns),
 	}

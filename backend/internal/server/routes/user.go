@@ -35,6 +35,16 @@ func RegisterUserRoutes(
 			user.PUT("", h.User.UpdateProfile)
 			user.GET("/aff", h.User.GetAffiliate)
 			user.POST("/aff/transfer", h.User.TransferAffiliateQuota)
+			referrals := user.Group("/aff/campaigns")
+			{
+				referrals.GET("", h.User.ListReferralCampaigns)
+				referrals.POST("/:campaign_id/enroll", h.User.EnrollReferralCampaign)
+				referrals.GET("/:campaign_id/invite-token", h.User.ReferralCampaignInviteToken)
+				referrals.POST("/attribute", h.User.AttributeReferralCampaign)
+				referrals.POST("/:campaign_id/qualification/refresh", h.User.RefreshReferralQualification)
+				referrals.GET("/:campaign_id/progress", h.User.ReferralCampaignProgress)
+				referrals.POST("/:campaign_id/rewards/:reward_id/claim", h.User.ClaimReferralCampaignReward)
+			}
 			user.POST("/account-bindings/email/send-code", h.User.SendEmailBindingCode)
 			user.POST("/account-bindings/email", h.User.BindEmailIdentity)
 			user.DELETE("/account-bindings/:provider", h.User.UnbindIdentity)

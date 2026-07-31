@@ -289,3 +289,289 @@ func parseAffiliateRecordEndTime(raw string, userTZ string) *time.Time {
 	}
 	return nil
 }
+
+func (h *AffiliateHandler) referralCampaignService(c *gin.Context) (*service.ReferralCampaignService, bool) {
+	if h == nil || h.affiliateService == nil || h.affiliateService.ReferralCampaign() == nil {
+		response.BadRequest(c, "referral campaign service unavailable")
+		return nil, false
+	}
+	return h.affiliateService.ReferralCampaign(), true
+}
+
+func (h *AffiliateHandler) GetReferralCampaign(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	campaign, err := svc.GetCampaignDetail(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, campaign)
+}
+
+type referralCampaignUpsertRequest struct {
+	service.ReferralCampaign
+	ExpectedVersion int64                          `json:"expected_version"`
+	Tiers           []service.ReferralCampaignTier `json:"tiers" binding:"required"`
+}
+
+func (h *AffiliateHandler) ListReferralCampaigns(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	result, err := svc.ListCampaigns(c.Request.Context(), service.ReferralCampaignListFilter{Page: page, PageSize: pageSize, Status: c.Query("status"), Search: c.Query("search")})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AffiliateHandler) CreateReferralCampaign(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	var req referralCampaignUpsertRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request")
+		return
+	}
+	req.ID = 0
+	req.CreatedBy = getAdminIDFromContext(c)
+	req.ApprovedBy = nil
+	created, err := svc.CreateCampaign(c.Request.Context(), req.ReferralCampaign, req.Tiers)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, created)
+}
+
+func (h *AffiliateHandler) UpdateReferralCampaign(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	var req referralCampaignUpsertRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request")
+		return
+	}
+	if req.ExpectedVersion <= 0 {
+		response.BadRequest(c, "expected_version is required")
+		return
+	}
+	req.ID = id
+	req.Version = req.ExpectedVersion
+	updated, err := svc.UpdateCampaign(c.Request.Context(), req.ReferralCampaign, req.Tiers, getAdminIDFromContext(c))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, updated)
+}
+
+func (h *AffiliateHandler) ReferralCampaignParticipants(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	result, err := svc.Participants(c.Request.Context(), id, page, pageSize, c.Query("search"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AffiliateHandler) ReferralCampaignInvites(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	result, err := svc.Invites(c.Request.Context(), id, page, pageSize, c.Query("search"), c.Query("status"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+func (h *AffiliateHandler) ReferralCampaignRewards(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	result, err := svc.Rewards(c.Request.Context(), id, page, pageSize, c.Query("search"), c.Query("status"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, result)
+}
+
+type referralRewardDebtResolutionRequest struct {
+	ExpectedVersion int64  `json:"expected_version" binding:"required"`
+	Decision        string `json:"decision" binding:"required"`
+	Note            string `json:"note" binding:"required"`
+}
+
+func (h *AffiliateHandler) ResolveReferralRewardDebt(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	campaignID, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || campaignID <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	rewardID, err := strconv.ParseInt(c.Param("reward_id"), 10, 64)
+	if err != nil || rewardID <= 0 {
+		response.BadRequest(c, "invalid reward_id")
+		return
+	}
+	var req referralRewardDebtResolutionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request")
+		return
+	}
+	reward, err := svc.ResolveRewardDebt(c.Request.Context(), campaignID, rewardID, req.ExpectedVersion, req.Decision, getAdminIDFromContext(c), req.Note)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, reward)
+}
+
+type referralCampaignStatusRequest struct {
+	ExpectedVersion int64  `json:"expected_version" binding:"required"`
+	Status          string `json:"status" binding:"required"`
+	Note            string `json:"note"`
+}
+
+func (h *AffiliateHandler) SetReferralCampaignStatus(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	var req referralCampaignStatusRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request")
+		return
+	}
+	campaign, err := svc.SetStatus(c.Request.Context(), id, req.ExpectedVersion, req.Status, getAdminIDFromContext(c), req.Note)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, campaign)
+}
+
+type referralCampaignReviewRequest struct {
+	ExpectedVersion int64  `json:"expected_version" binding:"required"`
+	ReviewType      string `json:"review_type" binding:"required"`
+	Decision        string `json:"decision" binding:"required"`
+	Note            string `json:"note"`
+}
+
+func (h *AffiliateHandler) ReviewReferralCampaign(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	var req referralCampaignReviewRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid request")
+		return
+	}
+	campaign, err := svc.Review(c.Request.Context(), id, req.ExpectedVersion, req.ReviewType, req.Decision, getAdminIDFromContext(c), req.Note)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, campaign)
+}
+
+func (h *AffiliateHandler) ReferralCampaignStats(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.BadRequest(c, "invalid campaign_id")
+		return
+	}
+	stats, err := svc.Stats(c.Request.Context(), id)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, stats)
+}
+
+func (h *AffiliateHandler) InviteGrowthOverview(c *gin.Context) {
+	svc, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	var campaignID *int64
+	if raw := strings.TrimSpace(c.Query("campaign_id")); raw != "" {
+		id, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || id <= 0 {
+			response.BadRequest(c, "invalid campaign_id")
+			return
+		}
+		campaignID = &id
+	}
+	overview, err := svc.Overview(c.Request.Context(), campaignID, nil)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, overview)
+}

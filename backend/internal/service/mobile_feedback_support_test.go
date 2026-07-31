@@ -5,6 +5,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -16,6 +17,82 @@ type mobileFeedbackSupportRepoStub struct {
 	records  map[int64]MobileFeedbackRecord
 	messages map[int64][]MobileFeedbackMessage
 	created  *MobileFeedbackRecord
+}
+
+type mobileFeedbackAdminRepoStub struct {
+	PlayRepository
+	record       MobileFeedbackRecord
+	workItemErr  error
+	statusUpdate MobileFeedbackStatusUpdate
+}
+
+func (r *mobileFeedbackAdminRepoStub) GetAdminMobileFeedback(_ context.Context, id int64) (*MobileFeedbackRecord, error) {
+	if r.record.ID != id {
+		return nil, ErrMobileFeedbackNotFound
+	}
+	record := r.record
+	return &record, nil
+}
+
+func (r *mobileFeedbackAdminRepoStub) UpdateAdminMobileFeedback(_ context.Context, id int64, input MobileFeedbackStatusUpdate) (*MobileFeedbackRecord, error) {
+	if r.record.ID != id {
+		return nil, ErrMobileFeedbackNotFound
+	}
+	r.statusUpdate = input
+	if input.ExpectedVersion != r.record.Version {
+		return nil, ErrMobileFeedbackVersionConflict
+	}
+	r.record.Status = input.Status
+	r.record.AdminNote = input.AdminNote
+	r.record.Version++
+	r.record.UpdatedBy = &input.ActorAdminID
+	copy := r.record
+	return &copy, nil
+}
+
+func (r *mobileFeedbackAdminRepoStub) UpdateMobileFeedbackWorkItem(_ context.Context, _ int64, _ MobileFeedbackWorkItemUpdate) (*MobileFeedbackWorkItem, error) {
+	if r.workItemErr != nil {
+		return nil, r.workItemErr
+	}
+	return &MobileFeedbackWorkItem{}, nil
+}
+
+func TestUpdateAdminMobileFeedbackKeepsStatusWhenWorkItemWriteFails(t *testing.T) {
+	repo := &mobileFeedbackAdminRepoStub{
+		record:      mobileFeedbackSupportRecord(77, 42, "viewed"),
+		workItemErr: errors.New("work item store unavailable"),
+	}
+	repo.record.Version = 4
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+
+	updated, err := svc.UpdateAdminMobileFeedback(context.Background(), 77, MobileFeedbackUpdate{
+		Status:          "handled",
+		AdminNote:       mobileFeedbackStringPtr("已处理"),
+		ExpectedVersion: 4,
+		ActorAdminID:    99,
+		WorkItem:        &MobileFeedbackWorkItemUpdate{ID: 7, Status: "released"},
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "handled", updated.Status)
+	require.Equal(t, int64(5), updated.Version)
+	require.Equal(t, int64(99), *updated.UpdatedBy)
+}
+
+func TestUpdateAdminMobileFeedbackRejectsStaleVersion(t *testing.T) {
+	repo := &mobileFeedbackAdminRepoStub{record: mobileFeedbackSupportRecord(77, 42, "viewed")}
+	repo.record.Version = 5
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+
+	_, err := svc.UpdateAdminMobileFeedback(context.Background(), 77, MobileFeedbackUpdate{
+		Status:          "handled",
+		ExpectedVersion: 4,
+		ActorAdminID:    99,
+	})
+
+	require.ErrorIs(t, err, ErrMobileFeedbackVersionConflict)
+	require.Equal(t, "viewed", repo.record.Status)
+	require.Equal(t, int64(5), repo.record.Version)
 }
 
 func (r *mobileFeedbackSupportRepoStub) CreateMobileFeedback(_ context.Context, record MobileFeedbackRecord) (*MobileFeedbackRecord, error) {
@@ -231,6 +308,26 @@ func TestCreateMobileFeedbackPersistsOnlyWhitelistedDiagnostics(t *testing.T) {
 	require.ErrorIs(t, err, ErrMobileFeedbackSensitive)
 }
 
+func TestCreateMobileFeedbackNormalizesSafeInstallationContext(t *testing.T) {
+	repo := newMobileFeedbackSupportRepoStub()
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+
+	created, err := svc.CreateMobileFeedback(context.Background(), 42, MobileFeedbackInput{
+		Title: "安装上下文", Content: "记录安装来源和渠道信息",
+		InstallationID: " 550e8400-e29b-41d4-a716-446655440000 ", Channel: "google-play", Referrer: "utm_source=partner&utm_campaign=august",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, "550e8400-e29b-41d4-a716-446655440000", created.InstallationID)
+	require.Equal(t, "google-play", created.Channel)
+	require.Equal(t, "utm_source=partner&utm_campaign=august", created.Referrer)
+
+	_, err = svc.CreateMobileFeedback(context.Background(), 42, MobileFeedbackInput{
+		Title: "非法安装上下文", Content: "不应接受敏感来源字段", InstallationID: "550e8400-e29b-41d4-a716-446655440000", Referrer: "token=secret",
+	})
+	require.ErrorIs(t, err, ErrMobileFeedbackSensitive)
+}
+
 func newMobileFeedbackSupportRepoStub() *mobileFeedbackSupportRepoStub {
 	return &mobileFeedbackSupportRepoStub{records: make(map[int64]MobileFeedbackRecord), messages: make(map[int64][]MobileFeedbackMessage)}
 }
@@ -243,3 +340,5 @@ func mobileFeedbackSupportRecord(id, userID int64, status string) MobileFeedback
 		CreatedAt: createdAt, UpdatedAt: createdAt,
 	}
 }
+
+func mobileFeedbackStringPtr(value string) *string { return &value }

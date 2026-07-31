@@ -2,11 +2,14 @@ package handler
 
 import (
 	"context"
+	"errors"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/handler/quotaview"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -230,6 +233,181 @@ func (h *UserHandler) TransferAffiliateQuota(c *gin.Context) {
 		"transferred_quota": transferred,
 		"balance":           balance,
 	})
+}
+
+func (h *UserHandler) referralCampaignService(c *gin.Context) (*service.ReferralCampaignService, int64, bool) {
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.ErrorFrom(c, infraerrors.Unauthorized("AUTH_REQUIRED", "authentication is required"))
+		return nil, 0, false
+	}
+	if h == nil || h.affiliateService == nil || h.affiliateService.ReferralCampaign() == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("REFERRAL_CAMPAIGN_UNAVAILABLE", "referral campaign service unavailable"))
+		return nil, 0, false
+	}
+	return h.affiliateService.ReferralCampaign(), subject.UserID, true
+}
+
+func (h *UserHandler) EnrollReferralCampaign(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral campaign id"))
+		return
+	}
+	enrollment, err := svc.Enroll(c.Request.Context(), id, userID, time.Now().UTC())
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, enrollment)
+}
+
+func (h *UserHandler) ReferralCampaignInviteToken(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral campaign id"))
+		return
+	}
+	token, err := svc.CreateInviteToken(c.Request.Context(), id, userID, time.Now().UTC())
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, gin.H{"token": token})
+}
+
+type ReferralCampaignAttributionRequest struct {
+	Token string `json:"token" binding:"required"`
+}
+
+func (h *UserHandler) AttributeReferralCampaign(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	var req ReferralCampaignAttributionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_TOKEN_REQUIRED", "referral campaign token is required"))
+		return
+	}
+	attribution, err := svc.Attribute(c.Request.Context(), req.Token, userID, time.Now().UTC())
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, attribution)
+}
+
+func (h *UserHandler) RefreshReferralQualification(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral campaign id"))
+		return
+	}
+	qualification, err := svc.RecomputeQualification(c.Request.Context(), id, userID, time.Now().UTC())
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, qualification)
+}
+
+type ReferralCampaignClaimRequest struct {
+	CampaignVersion int64 `json:"campaign_version" binding:"required"`
+}
+
+func (h *UserHandler) ClaimReferralCampaignReward(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	rewardID, err := strconv.ParseInt(c.Param("reward_id"), 10, 64)
+	if err != nil || rewardID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral reward id"))
+		return
+	}
+	campaignID, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || campaignID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral campaign id"))
+		return
+	}
+	var req ReferralCampaignClaimRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.CampaignVersion <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_VERSION_REQUIRED", "referral campaign version is required"))
+		return
+	}
+	reward, err := svc.ClaimReward(c.Request.Context(), service.ReferralClaimInput{CampaignID: campaignID, UserID: userID, RewardID: rewardID, CampaignVersion: req.CampaignVersion})
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, reward)
+}
+
+func (h *UserHandler) ReferralCampaignProgress(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	campaignID, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || campaignID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral campaign id"))
+		return
+	}
+	progress, err := svc.Progress(c.Request.Context(), campaignID, userID)
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, progress)
+}
+
+func (h *UserHandler) ListReferralCampaigns(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	items, err := svc.ListRunningProgress(c.Request.Context(), userID)
+	if err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, items)
+}
+
+func respondReferralCampaignError(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrReferralCampaignNotFound):
+		response.ErrorFrom(c, infraerrors.NotFound("REFERRAL_CAMPAIGN_NOT_FOUND", "referral campaign was not found"))
+	case errors.Is(err, service.ErrReferralCampaignNotOpen):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_NOT_OPEN", "referral campaign is not open"))
+	case errors.Is(err, service.ErrReferralCampaignVersionConflict):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_VERSION_CONFLICT", "referral campaign version changed"))
+	case errors.Is(err, service.ErrReferralCampaignTokenInvalid):
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_TOKEN_INVALID", "referral campaign token is invalid"))
+	case errors.Is(err, service.ErrReferralCampaignTokenExpired):
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_TOKEN_EXPIRED", "referral campaign token has expired"))
+	case errors.Is(err, service.ErrReferralRewardNotClaimable):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_REWARD_NOT_CLAIMABLE", "referral reward is not claimable"))
+	case errors.Is(err, service.ErrReferralCampaignBudgetExceeded):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_BUDGET_EXCEEDED", "referral campaign budget is exhausted"))
+	case errors.Is(err, service.ErrReferralCampaignCapacityReached):
+		response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_CAPACITY_REACHED", "referral campaign enrollment capacity is reached"))
+	default:
+		response.ErrorFrom(c, err)
+	}
 }
 
 type StartIdentityBindingRequest struct {

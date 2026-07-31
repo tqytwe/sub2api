@@ -118,9 +118,10 @@ func RegisterAdminRoutes(
 		registerPromptAuditRoutes(admin, h)
 
 		// 邀请返利（专属用户管理）
-		registerAffiliateRoutes(admin, h)
+		registerAffiliateRoutes(admin, h, stepUpAuth)
+		registerMobileAttributionRoutes(admin, h)
 
-		registerAdminPlayRoutes(admin, h)
+		registerAdminPlayRoutes(admin, h, stepUpAuth)
 
 		registerWithdrawalRoutes(admin, h, stepUpAuth)
 
@@ -132,6 +133,14 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+	}
+}
+
+func registerMobileAttributionRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	attribution := admin.Group("/mobile-attribution")
+	{
+		attribution.GET("/installations", h.Admin.MobileAttribution.Installations)
+		attribution.GET("/funnel", h.Admin.MobileAttribution.Funnel)
 	}
 }
 
@@ -208,20 +217,27 @@ func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	}
 }
 
-func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	play := admin.Group("/play")
 	{
 		play.GET("/blindbox/pool", h.Admin.Play.GetBlindboxPool)
 		play.PUT("/blindbox/pool", h.Admin.Play.UpdateBlindboxPool)
 		play.GET("/campaigns", h.Admin.Play.ListCampaigns)
-		play.POST("/campaigns", h.Admin.Play.CreateCampaign)
-		play.PUT("/campaigns/:id", h.Admin.Play.UpdateCampaign)
-		play.DELETE("/campaigns/:id", h.Admin.Play.DeleteCampaign)
+		play.POST("/campaigns", gin.HandlerFunc(stepUpAuth), h.Admin.Play.CreateCampaign)
+		play.PUT("/campaigns/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Play.UpdateCampaign)
+		play.DELETE("/campaigns/:id", gin.HandlerFunc(stepUpAuth), h.Admin.Play.DeleteCampaign)
 		play.GET("/quiz/questions", h.Admin.Play.ListQuizQuestions)
 		play.POST("/quiz/questions", h.Admin.Play.CreateQuizQuestion)
 		play.PUT("/quiz/questions/:id", h.Admin.Play.UpdateQuizQuestion)
 		play.DELETE("/quiz/questions/:id", h.Admin.Play.DeleteQuizQuestion)
 		play.GET("/summary", h.Admin.Play.Summary)
+		play.GET("/membership/overview", h.Admin.Play.MembershipOverview)
+		play.GET("/membership/users", h.Admin.Play.MembershipUsers)
+		play.GET("/membership/users/:id", h.Admin.Play.MembershipUser)
+		play.GET("/membership/vip-config", h.Admin.Play.VIPConfig)
+		play.POST("/membership/vip-config/preview", h.Admin.Play.PreviewVIPConfig)
+		play.PUT("/membership/vip-config", gin.HandlerFunc(stepUpAuth), h.Admin.Play.PublishVIPConfig)
+		play.GET("/app-analytics", h.Admin.Play.AppAnalytics)
 		play.GET("/arena/leaderboard", h.Admin.Play.ArenaLeaderboard)
 		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
 		play.GET("/mobile-feedback", h.Admin.Play.ListMobileFeedback)
@@ -914,12 +930,24 @@ func registerChannelMonitorRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 }
 
 // registerAffiliateRoutes 注册邀请返利的管理端路由（专属用户配置）
-func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+func registerAffiliateRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUpAuth middleware.StepUpAuthMiddleware) {
 	affiliates := admin.Group("/affiliates")
 	{
 		affiliates.GET("/invites", h.Admin.Affiliate.ListInviteRecords)
 		affiliates.GET("/rebates", h.Admin.Affiliate.ListRebateRecords)
 		affiliates.GET("/transfers", h.Admin.Affiliate.ListTransferRecords)
+		affiliates.GET("/campaigns", h.Admin.Affiliate.ListReferralCampaigns)
+		affiliates.POST("/campaigns", h.Admin.Affiliate.CreateReferralCampaign)
+		affiliates.GET("/campaigns/:campaign_id", h.Admin.Affiliate.GetReferralCampaign)
+		affiliates.PUT("/campaigns/:campaign_id", h.Admin.Affiliate.UpdateReferralCampaign)
+		affiliates.POST("/campaigns/:campaign_id/status", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.SetReferralCampaignStatus)
+		affiliates.POST("/campaigns/:campaign_id/reviews", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.ReviewReferralCampaign)
+		affiliates.GET("/campaigns/:campaign_id/stats", h.Admin.Affiliate.ReferralCampaignStats)
+		affiliates.GET("/campaigns/:campaign_id/participants", h.Admin.Affiliate.ReferralCampaignParticipants)
+		affiliates.GET("/campaigns/:campaign_id/invites", h.Admin.Affiliate.ReferralCampaignInvites)
+		affiliates.GET("/campaigns/:campaign_id/rewards", h.Admin.Affiliate.ReferralCampaignRewards)
+		affiliates.POST("/campaigns/:campaign_id/rewards/:reward_id/resolve", gin.HandlerFunc(stepUpAuth), h.Admin.Affiliate.ResolveReferralRewardDebt)
+		affiliates.GET("/invite-growth/overview", h.Admin.Affiliate.InviteGrowthOverview)
 
 		users := affiliates.Group("/users")
 		{

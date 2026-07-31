@@ -14,8 +14,19 @@ func TestAggregateCampaignRules(t *testing.T) {
 		{Rules: PlayCampaignRules{RechargeBonusPct: 5, BlindboxExtraOpens: 2, ArenaScoreMultiplier: 1.5}},
 	})
 	require.Equal(t, 10.0, rules.RechargeBonusPct)
-	require.Equal(t, 3, rules.BlindboxExtraOpens)
-	require.InDelta(t, 3.0, rules.ArenaScoreMultiplier, 1e-9)
+	require.Equal(t, 2, rules.BlindboxExtraOpens)
+	require.InDelta(t, 2.0, rules.ArenaScoreMultiplier, 1e-9)
+}
+
+func TestAggregateCampaignRulesUsesMaximumAndAppliesHardCaps(t *testing.T) {
+	rules := aggregateCampaignRules([]PlayCampaign{
+		{Rules: PlayCampaignRules{RechargeBonusPct: 150, BlindboxExtraOpens: 12, ArenaScoreMultiplier: 7}},
+		{Rules: PlayCampaignRules{RechargeBonusPct: 80, BlindboxExtraOpens: 8, ArenaScoreMultiplier: 4}},
+	})
+
+	require.Equal(t, playCampaignMaxRechargeBonusPct, rules.RechargeBonusPct)
+	require.Equal(t, playCampaignMaxBlindboxOpens, rules.BlindboxExtraOpens)
+	require.Equal(t, playCampaignMaxArenaMultiplier, rules.ArenaScoreMultiplier)
 }
 
 func TestParsePlayCampaignRules(t *testing.T) {
@@ -27,6 +38,20 @@ func TestParsePlayCampaignRules(t *testing.T) {
 	withI18n := ParsePlayCampaignRules(`{"name_i18n":{"en":"Launch week","zh":"开服福利周"}}`)
 	require.Equal(t, "Launch week", withI18n.NameI18n["en"])
 	require.Equal(t, "开服福利周", withI18n.NameI18n["zh"])
+}
+
+func TestParsePlayCampaignAudienceNormalizesTiers(t *testing.T) {
+	got := ParsePlayCampaignAudience(`{"ordinary":true,"vip_tiers":[6,6,-1,2],"registered_within_days":-2}`)
+	require.True(t, got.Ordinary)
+	require.Equal(t, []int{6, 2}, got.VIPTiers)
+	require.Zero(t, got.RegisteredWithinDays)
+	require.Equal(t, PlayCampaignAudience{}, ParsePlayCampaignAudience("not-json"))
+}
+
+func TestFirstMemberThresholdAndDynamicTier(t *testing.T) {
+	tiers := []PlayVIPTier{{Tier: 0, Label: "V0", MinRecharge: 0}, {Tier: 1, Label: "V1", MinRecharge: 20}, {Tier: 7, Label: "V7", MinRecharge: 700}}
+	require.Equal(t, 20.0, firstMemberThreshold(tiers))
+	require.Equal(t, 7, GetVIPTier(700, tiers).Tier)
 }
 
 func TestValidateAdminPlayCampaignCleansI18n(t *testing.T) {
@@ -77,4 +102,27 @@ func TestValidateAdminPlayCampaignRejectsInvalidRules(t *testing.T) {
 	require.Error(t, err)
 	require.True(t, infraerrors.IsBadRequest(err))
 	require.Equal(t, "PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", infraerrors.Reason(err))
+}
+
+func TestValidateAdminPlayCampaignRejectsContradictoryAudienceCombinations(t *testing.T) {
+	start := time.Date(2026, 8, 1, 0, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name     string
+		audience PlayCampaignAudience
+	}{
+		{name: "ordinary and member", audience: PlayCampaignAudience{Ordinary: true, Member: true}},
+		{name: "ordinary and VIP tier", audience: PlayCampaignAudience{Ordinary: true, VIPTiers: []int{2}}},
+		{name: "all and new user window", audience: PlayCampaignAudience{All: true, RegisteredWithinDays: 7}},
+		{name: "invalid VIP tier", audience: PlayCampaignAudience{VIPTiers: []int{0}}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			campaign := &PlayCampaign{Name: "audience", StartAt: start, EndAt: start.Add(24 * time.Hour), Audience: tt.audience}
+			err := validateAdminPlayCampaign(campaign)
+			require.Error(t, err)
+			require.True(t, infraerrors.IsBadRequest(err))
+			require.Equal(t, "PLAY_CAMPAIGN_AUDIENCE_INVALID", infraerrors.Reason(err))
+		})
+	}
 }

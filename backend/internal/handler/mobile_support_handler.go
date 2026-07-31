@@ -22,6 +22,9 @@ type mobileSupportCreateRequest struct {
 	Category       string                             `json:"category"`
 	Content        string                             `json:"content"`
 	AppVersion     string                             `json:"app_version"`
+	InstallationID string                             `json:"installation_id"`
+	Channel        string                             `json:"channel"`
+	Referrer       string                             `json:"referrer"`
 	Platform       string                             `json:"platform"`
 	DeviceModel    string                             `json:"device_model"`
 	AndroidVersion string                             `json:"android_version"`
@@ -56,6 +59,7 @@ func (h *MobileSupportHandler) Create(c *gin.Context) {
 	record, err := h.service.CreateMobileFeedback(c.Request.Context(), subject.UserID, service.MobileFeedbackInput{
 		Title: req.Title, Category: req.Category, Content: req.Content,
 		AppVersion: req.AppVersion, Platform: req.Platform, DeviceModel: req.DeviceModel,
+		InstallationID: req.InstallationID, Channel: req.Channel, Referrer: req.Referrer,
 		AndroidVersion: req.AndroidVersion, SystemVersion: req.SystemVersion,
 		GroupName: req.GroupName, GroupID: req.GroupID, BackendURL: req.BackendURL,
 		LastError: req.LastError, CrashLog: req.CrashLog, DeviceInfo: req.DeviceInfo,
@@ -104,6 +108,9 @@ func (h *MobileSupportHandler) parseMultipartCreateRequest(c *gin.Context) (mobi
 	req.Category = c.PostForm("category")
 	req.Content = c.PostForm("content")
 	req.AppVersion = c.PostForm("app_version")
+	req.InstallationID = c.PostForm("installation_id")
+	req.Channel = c.PostForm("channel")
+	req.Referrer = c.PostForm("referrer")
 	req.Platform = c.PostForm("platform")
 	req.DeviceModel = c.PostForm("device_model")
 	req.AndroidVersion = c.PostForm("android_version")

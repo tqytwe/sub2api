@@ -50,7 +50,7 @@ func (r *playRepository) ListArenaMonthlyRewardLedger(ctx context.Context, perio
 	if err != nil {
 		return nil, fmt.Errorf("list monthly arena reward ledger: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	out := make([]service.PlayArenaDailyRewardLedgerRow, 0)
 	for rows.Next() {
 		var row service.PlayArenaDailyRewardLedgerRow

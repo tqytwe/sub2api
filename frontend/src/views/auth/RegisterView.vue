@@ -357,7 +357,9 @@ import {
   clearAffiliateReferralCode,
   loadAffiliateReferralCode,
   resolveAffiliateReferralCode,
+  resolveReferralCampaignToken,
   resolveTeamReferralCode,
+	tryAttributeReferralCampaign,
   tryJoinTeamFromReferral,
 } from '@/utils/oauthAffiliate'
 import type { LoginAgreementDocument } from '@/types'
@@ -512,11 +514,16 @@ function syncTeamReferralCode(): string {
   return resolveTeamReferralCode(route.query.team)
 }
 
+function syncReferralCampaignToken(): string {
+  return resolveReferralCampaignToken(route.query.invite_token, route.query.token)
+}
+
 // ==================== Lifecycle ====================
 
 onMounted(async () => {
   syncAffiliateReferralCode()
   syncTeamReferralCode()
+  syncReferralCampaignToken()
 
   try {
     const settings = await getPublicSettings()
@@ -559,9 +566,10 @@ onMounted(async () => {
 })
 
 watch(
-  () => [route.query.ref, route.query.aff, route.query.aff_code],
+  () => [route.query.ref, route.query.aff, route.query.aff_code, route.query.invite_token, route.query.token],
   () => {
     syncAffiliateReferralCode()
+    syncReferralCampaignToken()
   }
 )
 
@@ -934,6 +942,7 @@ async function handleRegister(): Promise<void> {
       formData.aff_code = affCode
     }
     const teamCode = syncTeamReferralCode()
+		const inviteToken = syncReferralCampaignToken()
 
     // If email verification is enabled, redirect to verification page
     if (emailVerifyEnabled.value) {
@@ -948,6 +957,7 @@ async function handleRegister(): Promise<void> {
           invitation_code: formData.invitation_code || undefined,
           ...(affCode ? { aff_code: affCode } : {}),
           ...(teamCode ? { team_code: teamCode } : {}),
+					...(inviteToken ? { invite_token: inviteToken } : {}),
         })
       )
 
@@ -963,8 +973,10 @@ async function handleRegister(): Promise<void> {
       turnstile_token: turnstileEnabled.value ? turnstileToken.value : undefined,
       promo_code: formData.promo_code || undefined,
       invitation_code: formData.invitation_code || undefined,
-      ...(affCode ? { aff_code: affCode } : {})
+      ...(affCode ? { aff_code: affCode } : {}),
+			...(inviteToken ? { invite_token: inviteToken } : {})
     })
+		await tryAttributeReferralCampaign()
     clearAffiliateReferralCode()
 
     await tryJoinTeamFromReferral()

@@ -1,6 +1,7 @@
 const OAUTH_AFFILIATE_CODE_KEY = 'oauth_aff_code'
 const AFFILIATE_REFERRAL_CODE_KEY = 'affiliate_referral_code'
 const TEAM_REFERRAL_CODE_KEY = 'team_referral_code'
+const REFERRAL_CAMPAIGN_TOKEN_KEY = 'referral_campaign_token'
 const AFFILIATE_REFERRAL_TTL_MS = 30 * 24 * 60 * 60 * 1000
 
 interface StoredAffiliateReferralCode {
@@ -124,9 +125,72 @@ export function clearOAuthAffiliateCode(): void {
 }
 
 export function clearAllAffiliateReferralCodes(): void {
+  void tryAttributeReferralCampaign()
   clearOAuthAffiliateCode()
   clearAffiliateReferralCode()
   clearTeamReferralCode()
+}
+
+export function storeReferralCampaignToken(value?: unknown, now = Date.now()): void {
+  if (typeof window === 'undefined') return
+  const token = normalizeOAuthAffiliateCode(value).slice(0, 4096)
+  if (!token) return
+  try {
+    window.localStorage.setItem(REFERRAL_CAMPAIGN_TOKEN_KEY, JSON.stringify({
+      code: token,
+      expiresAt: now + AFFILIATE_REFERRAL_TTL_MS,
+    }))
+  } catch {
+    // Ignore storage errors; the current registration request can still use the URL.
+  }
+}
+
+export function loadReferralCampaignToken(now = Date.now()): string {
+  if (typeof window === 'undefined') return ''
+  try {
+    const raw = window.localStorage.getItem(REFERRAL_CAMPAIGN_TOKEN_KEY)
+    if (!raw) return ''
+    const parsed = JSON.parse(raw) as Partial<StoredAffiliateReferralCode>
+    const token = normalizeOAuthAffiliateCode(parsed.code).slice(0, 4096)
+    if (!token || (Number(parsed.expiresAt) || 0) <= now) {
+      clearReferralCampaignToken()
+      return ''
+    }
+    return token
+  } catch {
+    clearReferralCampaignToken()
+    return ''
+  }
+}
+
+export function clearReferralCampaignToken(): void {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.removeItem(REFERRAL_CAMPAIGN_TOKEN_KEY)
+  } catch {
+    // Ignore storage errors.
+  }
+}
+
+export function resolveReferralCampaignToken(...values: unknown[]): string {
+  const token = pickOAuthAffiliateCode(...values)
+  if (token) {
+    storeReferralCampaignToken(token)
+    return token
+  }
+  return loadReferralCampaignToken()
+}
+
+export async function tryAttributeReferralCampaign(): Promise<void> {
+  const token = loadReferralCampaignToken()
+  if (!token) return
+  try {
+    const { attributeReferralCampaign } = await import('@/api/referralCampaign')
+    await attributeReferralCampaign(token)
+    clearReferralCampaignToken()
+  } catch {
+    // Keep the token for an idempotent retry after the next authenticated callback.
+  }
 }
 
 export function storeTeamReferralCode(value?: unknown, now = Date.now()): void {

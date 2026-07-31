@@ -2,10 +2,60 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 )
+
+func validateAdminVIPTiers(items []PlayVIPTier) ([]PlayVIPTier, error) {
+	if len(items) < 2 || len(items) > 50 {
+		return nil, fmt.Errorf("vip tiers must contain V0 and at least one member tier")
+	}
+	items = append([]PlayVIPTier(nil), items...)
+	sort.Slice(items, func(i, j int) bool { return items[i].Tier < items[j].Tier })
+	seen := make(map[int]struct{}, len(items))
+	previousThreshold := -1.0
+	for i := range items {
+		item := &items[i]
+		if item.Tier < 0 || item.Tier > 999 {
+			return nil, fmt.Errorf("vip tier number is invalid")
+		}
+		if _, exists := seen[item.Tier]; exists {
+			return nil, fmt.Errorf("vip tier numbers must be unique")
+		}
+		seen[item.Tier] = struct{}{}
+		item.Label = strings.TrimSpace(item.Label)
+		if item.Label == "" || len(item.Label) > 64 {
+			return nil, fmt.Errorf("vip tier label is invalid")
+		}
+		if item.MinRecharge < 0 || item.MinRecharge <= previousThreshold {
+			return nil, fmt.Errorf("vip thresholds must be non-negative and strictly increasing")
+		}
+		if item.RechargeBonusPct < 0 || item.RechargeBonusPct > maxVIPRechargeBonusPct {
+			return nil, fmt.Errorf("vip recharge bonus is outside the allowed range")
+		}
+		if len(item.Perks) > 50 {
+			return nil, fmt.Errorf("too many vip perks")
+		}
+		for perkIndex, perk := range item.Perks {
+			perk = strings.TrimSpace(perk)
+			if perk == "" || len(perk) > 64 {
+				return nil, fmt.Errorf("vip perk key is invalid")
+			}
+			item.Perks[perkIndex] = perk
+		}
+		item.ColorKey = normalizeVIPColorKey(item.ColorKey, item.Tier)
+		previousThreshold = item.MinRecharge
+	}
+	if items[0].Tier != 0 || items[0].MinRecharge != 0 {
+		return nil, fmt.Errorf("V0 must be the first tier with a zero threshold")
+	}
+	if items[1].MinRecharge <= 0 {
+		return nil, fmt.Errorf("the first member tier must have a positive threshold")
+	}
+	return items, nil
+}
 
 const maxVIPRechargeBonusPct = 10
 
@@ -89,6 +139,7 @@ func defaultPlayVIPTiers() []PlayVIPTier {
 		{Tier: 3, Label: "V3", MinRecharge: 200, RechargeBonusPct: 6, ColorKey: "indigo", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus"}},
 		{Tier: 4, Label: "V4", MinRecharge: 500, RechargeBonusPct: 8, ColorKey: "amber", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
 		{Tier: 5, Label: "V5", MinRecharge: 1000, RechargeBonusPct: 10, ColorKey: "gold", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
+		{Tier: 6, Label: "V6", MinRecharge: 2000, RechargeBonusPct: 10, ColorKey: "gold", Perks: []string{"models_vip_tag", "blindbox_pool_upgrade", "arena_settlement_bonus", "affiliate_bonus_5pct"}},
 	}
 }
 

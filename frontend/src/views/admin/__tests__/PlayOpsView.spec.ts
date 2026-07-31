@@ -16,6 +16,8 @@ const {
   showError,
   showSuccess,
   localeState,
+  routeState,
+  routerPush,
 } = vi.hoisted(() => ({
   getSummary: vi.fn(),
   getArenaLeaderboard: vi.fn(),
@@ -30,6 +32,8 @@ const {
   showError: vi.fn(),
   showSuccess: vi.fn(),
   localeState: { value: 'zh-CN' },
+  routeState: { query: {} as Record<string, unknown> },
+  routerPush: vi.fn(),
 }))
 
 vi.mock('@/api/admin/play', () => ({
@@ -56,10 +60,31 @@ vi.mock('@/stores', () => ({
   }),
 }))
 
+vi.mock('vue-router', () => ({
+  useRoute: () => routeState,
+  useRouter: () => ({ push: routerPush }),
+}))
+
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
   const messages: Record<string, Record<string, string>> = {
     'zh-CN': {
+      'admin.playOps.tabs.app-analytics': 'APP 数据',
+      'admin.playOps.tabs.campaigns': '限时活动',
+      'admin.playOps.tabs.overview': '运营总览',
+      'admin.playOps.tabs.membership': '会员运营',
+      'admin.playOps.tabs.invite-growth': '邀请增长',
+      'admin.playOps.tabs.teams': '团队与排行',
+      'admin.playOps.tabs.feedback': 'APP 用户反馈',
+      'admin.playOps.tabs.quiz': '题库与其他玩法',
+      'admin.playOps.audience.label': '目标用户',
+      'admin.playOps.audience.all': '全部登录用户',
+      'admin.playOps.audience.ordinary': '普通用户',
+      'admin.playOps.audience.member': '会员用户',
+      'admin.playOps.audience.vip': '指定 VIP 等级',
+      'admin.playOps.audience.vipTiers': 'VIP 等级（逗号分隔）',
+      'admin.playOps.audience.vipTiersPlaceholder': '例如：1,2,6',
+      'admin.playOps.audience.registeredWithinDays': '新注册天数（可选）',
       'admin.playOps.campaignsTitle': '限时活动',
       'admin.playOps.ruleRechargeBonus': '充值加赠 +{pct}%',
       'admin.playOps.ruleBlindboxExtra': '盲盒每日 +{count} 次',
@@ -95,6 +120,22 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.eventReasons.admin_moved_last_captain': '管理员移动最后一名队长，来源战队自动归档',
     },
     en: {
+      'admin.playOps.tabs.app-analytics': 'APP data',
+      'admin.playOps.tabs.campaigns': 'Limited events',
+      'admin.playOps.tabs.overview': 'Operations overview',
+      'admin.playOps.tabs.membership': 'Membership',
+      'admin.playOps.tabs.invite-growth': 'Invite growth',
+      'admin.playOps.tabs.teams': 'Teams and rankings',
+      'admin.playOps.tabs.feedback': 'APP feedback',
+      'admin.playOps.tabs.quiz': 'Question bank and other play',
+      'admin.playOps.audience.label': 'Target audience',
+      'admin.playOps.audience.all': 'All signed-in users',
+      'admin.playOps.audience.ordinary': 'Ordinary users',
+      'admin.playOps.audience.member': 'Members',
+      'admin.playOps.audience.vip': 'Selected VIP tiers',
+      'admin.playOps.audience.vipTiers': 'VIP tiers (comma-separated)',
+      'admin.playOps.audience.vipTiersPlaceholder': 'For example: 1,2,6',
+      'admin.playOps.audience.registeredWithinDays': 'Registered within days (optional)',
       'admin.playOps.campaignsTitle': 'Limited events',
       'admin.playOps.ruleRechargeBonus': 'Recharge bonus +{pct}%',
       'admin.playOps.ruleBlindboxExtra': 'Blind box +{count}/day',
@@ -145,7 +186,8 @@ vi.mock('vue-i18n', async () => {
   }
 })
 
-function mountView() {
+function mountView(tab?: string) {
+  if (tab) routeState.query = { tab }
   return mount(PlayOpsView, {
     global: {
       stubs: {
@@ -216,6 +258,8 @@ function deferred<T>() {
 describe('PlayOpsView campaigns', () => {
   beforeEach(() => {
     localeState.value = 'zh-CN'
+    routeState.query = { tab: 'campaigns' }
+    routerPush.mockReset()
     getSummary.mockReset().mockResolvedValue({
       total_teams: 0,
       active_teams: 0,
@@ -270,6 +314,29 @@ describe('PlayOpsView campaigns', () => {
     })
   })
 
+  it('persists the selected top-level tab and does not load inactive domains', async () => {
+    routeState.query = { tab: 'app-analytics' }
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.get('[role="tab"][aria-selected="true"]').text()).toContain('APP')
+    expect(listCampaigns).not.toHaveBeenCalled()
+    expect(listTeams).not.toHaveBeenCalled()
+    await wrapper.get('[data-testid="play-ops-tab-campaigns"]').trigger('click')
+    expect(routerPush).toHaveBeenCalledWith({ query: { tab: 'campaigns' } })
+  })
+
+  it('does not render hardcoded audience labels when switching locales', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="new-campaign"]').trigger('click')
+    localeState.value = 'en'
+    const englishWrapper = mountView()
+    await englishWrapper.get('[data-testid="new-campaign"]').trigger('click')
+    expect(englishWrapper.text()).toContain('Target audience')
+    expect(englishWrapper.text()).not.toContain('VIP 等级（逗号分隔）')
+  })
+
   afterEach(() => {
     vi.useRealTimers()
   })
@@ -319,6 +386,7 @@ describe('PlayOpsView campaigns', () => {
       message: 'backend English failure',
     })
 
+    routeState.query = { tab: 'overview' }
     mountView()
     await flushPromises()
 
@@ -333,7 +401,7 @@ describe('PlayOpsView campaigns', () => {
       effective_at: '2026-07-20T10:00:00+08:00',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
     await wrapper.get('[data-testid="member-candidate-query"]').setValue('member@example.com')
@@ -374,7 +442,7 @@ describe('PlayOpsView campaigns', () => {
       effective_at: '2026-07-10T08:00:00+08:00',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
     await wrapper.get('input[type="datetime-local"]').setValue('2026-07-10T08:00')
@@ -417,7 +485,7 @@ describe('PlayOpsView campaigns', () => {
       effective_at: '2026-07-20T10:00:00+08:00',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     const changingTeam = (wrapper.vm as unknown as { selectTeam: (id: number) => Promise<void> }).selectTeam(10)
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
@@ -455,7 +523,7 @@ describe('PlayOpsView campaigns', () => {
       effective_at: '2026-07-20T10:00:00+08:00',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
 
@@ -480,7 +548,7 @@ describe('PlayOpsView campaigns', () => {
       effective_at: '2026-07-20T10:00:00+08:00',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
     await wrapper.get('[data-testid="member-candidate-query"]').setValue('member@example.com')
@@ -508,7 +576,7 @@ describe('PlayOpsView campaigns', () => {
       return params.q === 'first@example.com' ? first.promise : second.promise
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
     const input = wrapper.get('[data-testid="member-candidate-query"]')
@@ -538,7 +606,7 @@ describe('PlayOpsView campaigns', () => {
     vi.setSystemTime(new Date('2026-07-20T02:00:00Z'))
     mockTeamRepairTarget()
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
 
@@ -565,7 +633,7 @@ describe('PlayOpsView campaigns', () => {
     })
     vi.mocked(window.confirm).mockReturnValue(false)
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
     await wrapper.get('[data-testid="member-candidate-query"]').setValue('member@example.com')
@@ -597,7 +665,7 @@ describe('PlayOpsView campaigns', () => {
       effective_at: '2026-07-20T10:00:00+08:00',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
     await wrapper.get('[data-testid="add-team-member"]').trigger('click')
     await wrapper.get('[data-testid="member-candidate-query"]').setValue('member@example.com')
@@ -656,7 +724,7 @@ describe('PlayOpsView campaigns', () => {
       },
     }])
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
 
     expect(listTeamEvents).toHaveBeenCalledWith(9)
@@ -702,7 +770,7 @@ describe('PlayOpsView campaigns', () => {
     })
     listTeamEvents.mockResolvedValue([])
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
 
     expect(wrapper.text()).toContain('加入时间')
@@ -720,7 +788,7 @@ describe('PlayOpsView campaigns', () => {
       message: 'backend English event failure',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
 
     expect(wrapper.text()).toContain('目标战队')
@@ -743,7 +811,7 @@ describe('PlayOpsView campaigns', () => {
       created_at: '2026-07-01T00:00:00Z',
     })
 
-    const wrapper = mountView()
+    const wrapper = mountView('teams')
     await flushPromises()
 
     expect(wrapper.get('[data-testid="add-team-member"]').text()).toContain('Add member')

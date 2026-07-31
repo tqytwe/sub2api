@@ -28,17 +28,25 @@ type adminTeamMemberRepairRequest struct {
 }
 
 type adminPlayCampaignRequest struct {
-	Name    string                    `json:"name"`
-	StartAt time.Time                 `json:"start_at"`
-	EndAt   time.Time                 `json:"end_at"`
-	Rules   service.PlayCampaignRules `json:"rules"`
-	Enabled bool                      `json:"enabled"`
+	Name     string                       `json:"name"`
+	StartAt  time.Time                    `json:"start_at"`
+	EndAt    time.Time                    `json:"end_at"`
+	Rules    service.PlayCampaignRules    `json:"rules"`
+	Audience service.PlayCampaignAudience `json:"audience"`
+	Enabled  bool                         `json:"enabled"`
+}
+
+type adminVIPConfigRequest struct {
+	Tiers           []service.PlayVIPTier `json:"tiers"`
+	ExpectedVersion int64                 `json:"expected_version"`
+	Reason          string                `json:"reason"`
 }
 
 type adminMobileFeedbackUpdateRequest struct {
-	Status    string                             `json:"status"`
-	AdminNote *string                            `json:"admin_note"`
-	WorkItem  *adminMobileFeedbackWorkItemUpdate `json:"work_item"`
+	Status          string                             `json:"status"`
+	AdminNote       *string                            `json:"admin_note"`
+	ExpectedVersion int64                              `json:"expected_version"`
+	WorkItem        *adminMobileFeedbackWorkItemUpdate `json:"work_item"`
 }
 
 type adminMobileFeedbackWorkItemUpdate struct {
@@ -86,13 +94,14 @@ type adminQuizQuestionListDTO struct {
 }
 
 type adminPlayCampaignDTO struct {
-	ID        int64                     `json:"id"`
-	Name      string                    `json:"name"`
-	StartAt   string                    `json:"start_at"`
-	EndAt     string                    `json:"end_at"`
-	Rules     service.PlayCampaignRules `json:"rules"`
-	Enabled   bool                      `json:"enabled"`
-	CreatedAt string                    `json:"created_at"`
+	ID        int64                        `json:"id"`
+	Name      string                       `json:"name"`
+	StartAt   string                       `json:"start_at"`
+	EndAt     string                       `json:"end_at"`
+	Rules     service.PlayCampaignRules    `json:"rules"`
+	Audience  service.PlayCampaignAudience `json:"audience"`
+	Enabled   bool                         `json:"enabled"`
+	CreatedAt string                       `json:"created_at"`
 }
 
 type adminArenaSettleResultDTO struct {
@@ -337,11 +346,12 @@ func (h *AdminPlayHandler) CreateCampaign(c *gin.Context) {
 		return
 	}
 	created, err := h.playService.CreateAdminCampaign(c.Request.Context(), service.PlayCampaign{
-		Name:    req.Name,
-		StartAt: req.StartAt,
-		EndAt:   req.EndAt,
-		Rules:   req.Rules,
-		Enabled: req.Enabled,
+		Name:     req.Name,
+		StartAt:  req.StartAt,
+		EndAt:    req.EndAt,
+		Rules:    req.Rules,
+		Audience: req.Audience,
+		Enabled:  req.Enabled,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -362,12 +372,13 @@ func (h *AdminPlayHandler) UpdateCampaign(c *gin.Context) {
 		return
 	}
 	updated, err := h.playService.UpdateAdminCampaign(c.Request.Context(), service.PlayCampaign{
-		ID:      id,
-		Name:    req.Name,
-		StartAt: req.StartAt,
-		EndAt:   req.EndAt,
-		Rules:   req.Rules,
-		Enabled: req.Enabled,
+		ID:       id,
+		Name:     req.Name,
+		StartAt:  req.StartAt,
+		EndAt:    req.EndAt,
+		Rules:    req.Rules,
+		Audience: req.Audience,
+		Enabled:  req.Enabled,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -524,6 +535,110 @@ func (h *AdminPlayHandler) Summary(c *gin.Context) {
 	})
 }
 
+func (h *AdminPlayHandler) MembershipOverview(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_MEMBERSHIP_UNAVAILABLE", "membership service unavailable"))
+		return
+	}
+	overview, err := h.playService.MembershipAdminOverview(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, overview)
+}
+
+func (h *AdminPlayHandler) MembershipUser(c *gin.Context) {
+	userID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || userID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid user id"))
+		return
+	}
+	detail, err := h.playService.GetMembershipAdminUser(c.Request.Context(), userID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, detail)
+}
+
+func (h *AdminPlayHandler) VIPConfig(c *gin.Context) {
+	impact, err := h.playService.PreviewVIPConfig(c.Request.Context(), h.playService.GetRuntime(c.Request.Context()).VIPTiers)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, impact)
+}
+
+func (h *AdminPlayHandler) PreviewVIPConfig(c *gin.Context) {
+	var req adminVIPConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid VIP configuration"))
+		return
+	}
+	impact, err := h.playService.PreviewVIPConfig(c.Request.Context(), req.Tiers)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, impact)
+}
+
+func (h *AdminPlayHandler) PublishVIPConfig(c *gin.Context) {
+	var req adminVIPConfigRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid VIP configuration"))
+		return
+	}
+	impact, err := h.playService.PublishVIPConfig(c.Request.Context(), req.Tiers, req.ExpectedVersion, getAdminIDFromContext(c), req.Reason)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, impact)
+}
+
+func (h *AdminPlayHandler) MembershipUsers(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_MEMBERSHIP_UNAVAILABLE", "membership service unavailable"))
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	var memberOnly *bool
+	if raw := strings.TrimSpace(c.Query("member")); raw != "" {
+		value := strings.EqualFold(raw, "true") || raw == "1"
+		memberOnly = &value
+	}
+	items, total, err := h.playService.ListMembershipAdminUsers(c.Request.Context(), c.Query("q"), memberOnly, page, pageSize)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, items, int64(total), page, pageSize)
+}
+
+func (h *AdminPlayHandler) AppAnalytics(c *gin.Context) {
+	if h == nil || h.playService == nil {
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("PLAY_APP_ANALYTICS_UNAVAILABLE", "app analytics unavailable"))
+		return
+	}
+	to := time.Now().UTC()
+	from := to.Add(-30 * 24 * time.Hour)
+	switch strings.TrimSpace(c.Query("period")) {
+	case "7d":
+		from = to.Add(-7 * 24 * time.Hour)
+	case "90d":
+		from = to.Add(-90 * 24 * time.Hour)
+	}
+	analytics, err := h.playService.AppAnalytics(c.Request.Context(), from, to, strings.TrimSpace(c.Query("version")), strings.TrimSpace(c.Query("channel")))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, analytics)
+}
+
 // ListMobileFeedback lists Android app feedback inside Play Ops.
 // GET /api/v1/admin/play/mobile-feedback
 func (h *AdminPlayHandler) ListMobileFeedback(c *gin.Context) {
@@ -572,9 +687,11 @@ func (h *AdminPlayHandler) UpdateMobileFeedback(c *gin.Context) {
 		return
 	}
 	item, err := h.playService.UpdateAdminMobileFeedback(c.Request.Context(), id, service.MobileFeedbackUpdate{
-		Status:    req.Status,
-		AdminNote: req.AdminNote,
-		WorkItem:  adminMobileFeedbackWorkItemUpdateToService(req.WorkItem),
+		Status:          req.Status,
+		AdminNote:       req.AdminNote,
+		ExpectedVersion: req.ExpectedVersion,
+		ActorAdminID:    getAdminIDFromContext(c),
+		WorkItem:        adminMobileFeedbackWorkItemUpdateToService(req.WorkItem),
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -841,6 +958,7 @@ func toAdminPlayCampaignDTO(item service.PlayCampaign) adminPlayCampaignDTO {
 		StartAt:   item.StartAt.Format("2006-01-02T15:04:05Z07:00"),
 		EndAt:     item.EndAt.Format("2006-01-02T15:04:05Z07:00"),
 		Rules:     item.Rules,
+		Audience:  item.Audience,
 		Enabled:   item.Enabled,
 		CreatedAt: item.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 	}

@@ -172,8 +172,10 @@ import {
 import {
   clearAllAffiliateReferralCodes,
   loadAffiliateReferralCode,
+  loadReferralCampaignToken,
   oauthAffiliatePayload,
   storeTeamReferralCode,
+  tryAttributeReferralCampaign,
   tryJoinTeamFromReferral,
 } from '@/utils/oauthAffiliate'
 import { localizedSiteName } from '@/utils/localizedPublicSettings'
@@ -539,6 +541,7 @@ async function handleVerify(): Promise<void> {
 
       persistOAuthTokenContext(data)
       await authStore.setToken(data.access_token)
+			await tryAttributeReferralCampaign()
       authStore.clearPendingAuthSession?.()
     } else {
       // Register with verification code
@@ -549,8 +552,10 @@ async function handleVerify(): Promise<void> {
         turnstile_token: initialTurnstileToken.value || undefined,
         promo_code: promoCode.value || undefined,
         invitation_code: invitationCode.value || undefined,
-        ...(affCode.value ? { aff_code: affCode.value } : {})
+        ...(affCode.value ? { aff_code: affCode.value } : {}),
+				...(loadReferralCampaignToken() ? { invite_token: loadReferralCampaignToken() } : {})
       })
+			await tryAttributeReferralCampaign()
     }
 
     // Clear session data

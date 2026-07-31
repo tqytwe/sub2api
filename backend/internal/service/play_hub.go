@@ -15,6 +15,9 @@ type PlayHubGrowth struct {
 	PaymentEnabled           bool           `json:"payment_enabled"`
 	CampaignRechargeBonusPct float64        `json:"campaign_recharge_bonus_pct,omitempty"`
 	VIP                      *PlayVIPStatus `json:"vip,omitempty"`
+	VIPTiers                 []PlayVIPTier  `json:"vip_tiers,omitempty"`
+	MembershipPaidAmount     float64        `json:"membership_paid_amount,omitempty"`
+	IsMember                 bool           `json:"is_member"`
 }
 
 // PlayHubSummary aggregates all play module states for the logged-in user.
@@ -55,7 +58,10 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 	if err != nil {
 		return nil, err
 	}
-	hub.Growth = s.buildHubGrowth(ctx, user, s.GetRuntime(ctx))
+	hub.Growth, err = s.buildHubGrowth(ctx, user, s.GetRuntime(ctx))
+	if err != nil {
+		return nil, err
+	}
 
 	if rt.ImageStudioEnabled {
 		dayStart := s.serverDate(s.serverNow())
@@ -149,7 +155,7 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 	}
 
 	if rt.CampaignsEnabled {
-		campaigns, err := s.ListActiveCampaigns(ctx)
+		campaigns, err := s.ListActiveCampaignsForUser(ctx, userID)
 		if err != nil {
 			return nil, err
 		}
@@ -162,27 +168,34 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 	return hub, nil
 }
 
-func (s *PlayService) buildHubGrowth(ctx context.Context, user *User, rt PlayRuntime) PlayHubGrowth {
+func (s *PlayService) buildHubGrowth(ctx context.Context, user *User, rt PlayRuntime) (PlayHubGrowth, error) {
 	out := PlayHubGrowth{
 		Balance:        user.Balance,
 		TotalRecharged: user.TotalRecharged,
 	}
-	vip := resolveVIPStatus(user.TotalRecharged, rt.VIPTiers)
+	paidTotal, err := s.MembershipPaidTotal(ctx, user.ID)
+	if err != nil {
+		return PlayHubGrowth{}, err
+	}
+	vip := resolveVIPStatus(paidTotal, rt.VIPTiers)
 	out.VIP = &vip
+	out.VIPTiers = append([]PlayVIPTier(nil), rt.VIPTiers...)
+	out.MembershipPaidAmount = paidTotal
+	out.IsMember = paidTotal+1e-9 >= firstMemberThreshold(rt.VIPTiers)
 	if s.settingService == nil {
-		return out
+		return out, nil
 	}
 
 	public, err := s.settingService.GetPublicSettings(ctx)
 	if err != nil || public == nil {
-		return out
+		return out, nil
 	}
 
 	out.PaymentEnabled = public.PaymentEnabled
 	out.RechargeMultiplier = s.settingService.GetBalanceRechargeMultiplier(ctx)
 
 	if rt.CampaignsEnabled {
-		if campaigns, err := s.repo.ListActiveCampaigns(ctx, s.serverNow()); err == nil && len(campaigns) > 0 {
+		if campaigns, err := s.activeCampaignsForUser(ctx, user.ID); err == nil && len(campaigns) > 0 {
 			rules := aggregateCampaignRules(campaigns)
 			out.CampaignRechargeBonusPct = rules.RechargeBonusPct
 		}
@@ -209,5 +222,5 @@ func (s *PlayService) buildHubGrowth(ctx context.Context, user *User, rt PlayRun
 		}
 	}
 
-	return out
+	return out, nil
 }

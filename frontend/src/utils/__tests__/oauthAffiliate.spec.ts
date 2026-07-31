@@ -1,19 +1,30 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { attributeReferralCampaign } from '@/api/referralCampaign'
 import {
   buildRegisterInviteLink,
   clearAffiliateReferralCode,
   clearOAuthAffiliateCode,
+  loadReferralCampaignToken,
   loadAffiliateReferralCode,
   loadOAuthAffiliateCode,
   resolveAffiliateReferralCode,
+  storeReferralCampaignToken,
   storeAffiliateReferralCode,
-  storeOAuthAffiliateCode
+  storeOAuthAffiliateCode,
+  tryAttributeReferralCampaign
 } from '@/utils/oauthAffiliate'
+
+vi.mock('@/api/referralCampaign', () => ({
+  attributeReferralCampaign: vi.fn()
+}))
+
+const attributeReferralCampaignMock = vi.mocked(attributeReferralCampaign)
 
 describe('oauthAffiliate', () => {
   beforeEach(() => {
     localStorage.clear()
     sessionStorage.clear()
+    attributeReferralCampaignMock.mockReset()
     vi.useRealTimers()
   })
 
@@ -51,5 +62,25 @@ describe('oauthAffiliate', () => {
     expect(buildRegisterInviteLink('XRFP2MCTF4DS', '8895eab6')).toBe(
       `${window.location.origin}/register?ref=XRFP2MCTF4DS&team=8895EAB6`
     )
+  })
+
+  it('keeps a campaign token when authenticated attribution fails', async () => {
+    storeReferralCampaignToken('signed-campaign-token')
+    attributeReferralCampaignMock.mockRejectedValueOnce(new Error('temporary failure'))
+
+    await tryAttributeReferralCampaign()
+
+    expect(attributeReferralCampaignMock).toHaveBeenCalledWith('signed-campaign-token')
+    expect(loadReferralCampaignToken()).toBe('signed-campaign-token')
+  })
+
+  it('clears a campaign token only after attribution succeeds', async () => {
+    storeReferralCampaignToken('signed-campaign-token')
+    attributeReferralCampaignMock.mockResolvedValueOnce()
+
+    await tryAttributeReferralCampaign()
+
+    expect(attributeReferralCampaignMock).toHaveBeenCalledWith('signed-campaign-token')
+    expect(loadReferralCampaignToken()).toBe('')
   })
 })

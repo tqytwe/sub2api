@@ -16,12 +16,29 @@ type PlayCampaignRules struct {
 	NameI18n             map[string]string `json:"name_i18n,omitempty"`
 }
 
+const (
+	playCampaignMaxRechargeBonusPct = 100.0
+	playCampaignMaxBlindboxOpens    = 10
+	playCampaignMaxArenaMultiplier  = 5.0
+)
+
+// PlayCampaignAudience is deliberately separate from rewards. Dimensions are
+// ANDed; values within VIP tiers are ORed. An empty struct means all users.
+type PlayCampaignAudience struct {
+	All                  bool  `json:"all,omitempty"`
+	Ordinary             bool  `json:"ordinary,omitempty"`
+	Member               bool  `json:"member,omitempty"`
+	VIPTiers             []int `json:"vip_tiers,omitempty"`
+	RegisteredWithinDays int   `json:"registered_within_days,omitempty"`
+}
+
 type PlayCampaign struct {
 	ID        int64
 	Name      string
 	StartAt   time.Time
 	EndAt     time.Time
 	Rules     PlayCampaignRules
+	Audience  PlayCampaignAudience
 	Enabled   bool
 	CreatedAt time.Time
 }
@@ -42,6 +59,10 @@ type PlayEffectModifiers struct {
 }
 
 func (s *PlayService) ListActiveCampaigns(ctx context.Context) ([]PlayCampaignSummary, error) {
+	return s.ListActiveCampaignsForUser(ctx, 0)
+}
+
+func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int64) ([]PlayCampaignSummary, error) {
 	rt := s.GetRuntime(ctx)
 	if !rt.CampaignsEnabled || s.repo == nil {
 		return nil, nil
@@ -52,6 +73,15 @@ func (s *PlayService) ListActiveCampaigns(ctx context.Context) ([]PlayCampaignSu
 	}
 	out := make([]PlayCampaignSummary, 0, len(rows))
 	for _, row := range rows {
+		if userID > 0 {
+			matched, err := s.campaignAudienceMatches(ctx, userID, row.Audience)
+			if err != nil {
+				return nil, err
+			}
+			if !matched {
+				continue
+			}
+		}
 		out = append(out, toPlayCampaignSummary(row))
 	}
 	return out, nil
@@ -64,7 +94,7 @@ func (s *PlayService) ListAdminCampaigns(ctx context.Context) ([]PlayCampaign, e
 	return s.repo.ListAdminCampaigns(ctx)
 }
 
-func (s *PlayService) ResolveRechargeCampaignBonus(ctx context.Context) (float64, []int64, error) {
+func (s *PlayService) ResolveRechargeCampaignBonus(ctx context.Context, userID int64) (float64, []int64, error) {
 	if s == nil || s.repo == nil {
 		return 0, nil, nil
 	}
@@ -72,7 +102,7 @@ func (s *PlayService) ResolveRechargeCampaignBonus(ctx context.Context) (float64
 	if !rt.CampaignsEnabled {
 		return 0, nil, nil
 	}
-	campaigns, err := s.repo.ListActiveCampaigns(ctx, s.serverNow())
+	campaigns, err := s.activeCampaignsForUser(ctx, userID)
 	if err != nil {
 		return 0, nil, err
 	}
@@ -145,7 +175,7 @@ func (s *PlayService) resolvePlayEffectModifiers(ctx context.Context, userID int
 	if !rt.CampaignsEnabled || s.repo == nil {
 		return out, nil
 	}
-	campaigns, err := s.repo.ListActiveCampaigns(ctx, s.serverNow())
+	campaigns, err := s.activeCampaignsForUser(ctx, userID)
 	if err != nil {
 		return out, err
 	}
@@ -154,9 +184,13 @@ func (s *PlayService) resolvePlayEffectModifiers(ctx context.Context, userID int
 	}
 	rules := aggregateCampaignRules(campaigns)
 	out.CampaignActive = true
-	out.BlindboxExtraOpens += rules.BlindboxExtraOpens
+	if rules.BlindboxExtraOpens > out.BlindboxExtraOpens {
+		out.BlindboxExtraOpens = rules.BlindboxExtraOpens
+	}
 	if rules.ArenaScoreMultiplier > 1 {
-		out.ArenaScoreMultiplier *= rules.ArenaScoreMultiplier
+		if rules.ArenaScoreMultiplier > out.ArenaScoreMultiplier {
+			out.ArenaScoreMultiplier = rules.ArenaScoreMultiplier
+		}
 	}
 	out.CampaignRechargeBonusPct = rules.RechargeBonusPct
 	return out, nil
@@ -168,16 +202,21 @@ func aggregateCampaignRules(campaigns []PlayCampaign) PlayCampaignRules {
 		if c.Rules.RechargeBonusPct > out.RechargeBonusPct {
 			out.RechargeBonusPct = c.Rules.RechargeBonusPct
 		}
-		if c.Rules.BlindboxExtraOpens > 0 {
-			out.BlindboxExtraOpens += c.Rules.BlindboxExtraOpens
+		if c.Rules.BlindboxExtraOpens > out.BlindboxExtraOpens {
+			out.BlindboxExtraOpens = c.Rules.BlindboxExtraOpens
 		}
-		if c.Rules.ArenaScoreMultiplier > 1 {
-			if out.ArenaScoreMultiplier <= 1 {
-				out.ArenaScoreMultiplier = c.Rules.ArenaScoreMultiplier
-			} else {
-				out.ArenaScoreMultiplier *= c.Rules.ArenaScoreMultiplier
-			}
+		if c.Rules.ArenaScoreMultiplier > out.ArenaScoreMultiplier {
+			out.ArenaScoreMultiplier = c.Rules.ArenaScoreMultiplier
 		}
+	}
+	if out.RechargeBonusPct > playCampaignMaxRechargeBonusPct {
+		out.RechargeBonusPct = playCampaignMaxRechargeBonusPct
+	}
+	if out.BlindboxExtraOpens > playCampaignMaxBlindboxOpens {
+		out.BlindboxExtraOpens = playCampaignMaxBlindboxOpens
+	}
+	if out.ArenaScoreMultiplier > playCampaignMaxArenaMultiplier {
+		out.ArenaScoreMultiplier = playCampaignMaxArenaMultiplier
 	}
 	return out
 }
@@ -190,6 +229,82 @@ func toPlayCampaignSummary(c PlayCampaign) PlayCampaignSummary {
 		EndAt:   c.EndAt,
 		Rules:   c.Rules,
 	}
+}
+
+func (s *PlayService) activeCampaignsForUser(ctx context.Context, userID int64) ([]PlayCampaign, error) {
+	rows, err := s.repo.ListActiveCampaigns(ctx, s.serverNow())
+	if err != nil || userID <= 0 {
+		return rows, err
+	}
+	out := make([]PlayCampaign, 0, len(rows))
+	for _, row := range rows {
+		matched, matchErr := s.campaignAudienceMatches(ctx, userID, row.Audience)
+		if matchErr != nil {
+			return nil, matchErr
+		}
+		if matched {
+			out = append(out, row)
+		}
+	}
+	return out, nil
+}
+
+func (s *PlayService) campaignAudienceMatches(ctx context.Context, userID int64, audience PlayCampaignAudience) (bool, error) {
+	if userID <= 0 {
+		return false, nil
+	}
+	if !audience.Ordinary && !audience.Member && len(audience.VIPTiers) == 0 && audience.RegisteredWithinDays <= 0 {
+		return true, nil
+	}
+	user, err := s.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	paid, err := s.MembershipPaidTotal(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	vip := resolveVIPStatus(paid, s.GetRuntime(ctx).VIPTiers)
+	memberMin := firstMemberThreshold(s.GetRuntime(ctx).VIPTiers)
+	isMember := paid+1e-9 >= memberMin
+	if audience.Ordinary && isMember {
+		return false, nil
+	}
+	if audience.Member && !isMember {
+		return false, nil
+	}
+	if len(audience.VIPTiers) > 0 {
+		found := false
+		for _, tier := range audience.VIPTiers {
+			if tier == vip.Tier {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false, nil
+		}
+	}
+	if audience.RegisteredWithinDays > 0 && user.CreatedAt.Before(s.serverNow().AddDate(0, 0, -audience.RegisteredWithinDays)) {
+		return false, nil
+	}
+	return true, nil
+}
+
+func firstMemberThreshold(tiers []PlayVIPTier) float64 {
+	if len(tiers) == 0 {
+		tiers = defaultPlayVIPTiers()
+	}
+	threshold := -1.0
+	for _, tier := range tiers {
+		if tier.Tier > 0 && (threshold < 0 || tier.MinRecharge < threshold) {
+			threshold = tier.MinRecharge
+		}
+	}
+	if threshold < 0 {
+		return 0
+	}
+	return threshold
 }
 
 func ParsePlayCampaignRules(raw string) PlayCampaignRules {
@@ -207,6 +322,26 @@ func ParsePlayCampaignRules(raw string) PlayCampaignRules {
 	return rules
 }
 
+func ParsePlayCampaignAudience(raw string) PlayCampaignAudience {
+	var audience PlayCampaignAudience
+	if strings.TrimSpace(raw) == "" || json.Unmarshal([]byte(raw), &audience) != nil {
+		return PlayCampaignAudience{}
+	}
+	if audience.RegisteredWithinDays < 0 {
+		audience.RegisteredWithinDays = 0
+	}
+	seen := map[int]bool{}
+	tiers := make([]int, 0, len(audience.VIPTiers))
+	for _, tier := range audience.VIPTiers {
+		if tier >= 0 && !seen[tier] {
+			seen[tier] = true
+			tiers = append(tiers, tier)
+		}
+	}
+	audience.VIPTiers = tiers
+	return audience
+}
+
 func validateAdminPlayCampaign(c *PlayCampaign) error {
 	c.Name = strings.TrimSpace(c.Name)
 	if c.Name == "" {
@@ -222,18 +357,36 @@ func validateAdminPlayCampaign(c *PlayCampaign) error {
 		return infraerrors.BadRequest("PLAY_CAMPAIGN_TIME_INVALID", "campaign end time must be after start time")
 	}
 
-	if c.Rules.RechargeBonusPct < 0 || c.Rules.RechargeBonusPct > 1000 {
-		return infraerrors.BadRequest("PLAY_CAMPAIGN_RECHARGE_BONUS_INVALID", "recharge bonus must be between 0 and 1000")
+	if c.Rules.RechargeBonusPct < 0 || c.Rules.RechargeBonusPct > playCampaignMaxRechargeBonusPct {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_RECHARGE_BONUS_INVALID", "recharge bonus must be between 0 and 100")
 	}
-	if c.Rules.BlindboxExtraOpens < 0 || c.Rules.BlindboxExtraOpens > 100 {
-		return infraerrors.BadRequest("PLAY_CAMPAIGN_BLINDBOX_EXTRA_INVALID", "blindbox extra opens must be between 0 and 100")
+	if c.Rules.BlindboxExtraOpens < 0 || c.Rules.BlindboxExtraOpens > playCampaignMaxBlindboxOpens {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_BLINDBOX_EXTRA_INVALID", "blindbox extra opens must be between 0 and 10")
 	}
-	if c.Rules.ArenaScoreMultiplier < 0 || c.Rules.ArenaScoreMultiplier > 100 {
-		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be between 0 and 100")
+	if c.Rules.ArenaScoreMultiplier < 0 || c.Rules.ArenaScoreMultiplier > playCampaignMaxArenaMultiplier {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be between 0 and 5")
 	}
 	if c.Rules.ArenaScoreMultiplier > 0 && c.Rules.ArenaScoreMultiplier < 1 {
 		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be 0 or at least 1")
 	}
+	if c.Audience.RegisteredWithinDays < 0 || c.Audience.RegisteredWithinDays > 3650 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_AUDIENCE_INVALID", "registered days must be between 0 and 3650")
+	}
+	if c.Audience.Ordinary && c.Audience.Member {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_AUDIENCE_INVALID", "ordinary and member segments cannot be selected together")
+	}
+	if c.Audience.Ordinary && len(c.Audience.VIPTiers) > 0 {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_AUDIENCE_INVALID", "ordinary users cannot be combined with VIP tiers")
+	}
+	if c.Audience.All && (c.Audience.Ordinary || c.Audience.Member || len(c.Audience.VIPTiers) > 0 || c.Audience.RegisteredWithinDays > 0) {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_AUDIENCE_INVALID", "all users cannot be combined with other audience conditions")
+	}
+	for _, tier := range c.Audience.VIPTiers {
+		if tier <= 0 {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_AUDIENCE_INVALID", "VIP tier values must be greater than zero")
+		}
+	}
+	c.Audience = ParsePlayCampaignAudience(mustMarshalCampaignAudience(c.Audience))
 
 	if len(c.Rules.NameI18n) > 0 {
 		clean := make(map[string]string, len(c.Rules.NameI18n))
@@ -258,4 +411,9 @@ func validateAdminPlayCampaign(c *PlayCampaign) error {
 		}
 	}
 	return nil
+}
+
+func mustMarshalCampaignAudience(audience PlayCampaignAudience) string {
+	raw, _ := json.Marshal(audience)
+	return string(raw)
 }

@@ -448,7 +448,7 @@ func (r *playRepository) ListPublicTeamRewardWinners(ctx context.Context, limit 
 	if err != nil {
 		return nil, fmt.Errorf("list public team reward winners: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var row service.PlayTeamRewardPublicWinner
 		var username, email string

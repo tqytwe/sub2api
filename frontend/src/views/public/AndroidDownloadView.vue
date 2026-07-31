@@ -26,7 +26,7 @@ type FeatureCopy = {
   desc: string
 }
 
-const APK_PATH = '/downloads/jisudengchat-android.apk?v=2.0.37-237'
+const APK_PATH = '/downloads/jisudengchat-android.apk?v=2.0.49-249'
 const MANIFEST_PATH = '/downloads/android-version.json'
 const OFFICIAL_WEB_URL = 'https://www.jisudeng.com'
 
@@ -56,6 +56,19 @@ function absoluteUrl(path: string): string {
 }
 
 const downloadUrl = computed(() => absoluteUrl(manifest.value?.apkUrl || APK_PATH))
+const inviteOpenAppUrl = computed(() => {
+	if (typeof window === 'undefined') return ''
+	const source = new URLSearchParams(window.location.search)
+	const affCode = source.get('aff_code') || source.get('aff') || source.get('ref')
+	const inviteToken = source.get('invite_token') || source.get('token')
+	if (!affCode && !inviteToken) return ''
+	const target = new URL('/register', window.location.origin)
+	if (affCode) target.searchParams.set('aff_code', affCode)
+	if (inviteToken) target.searchParams.set('invite_token', inviteToken)
+	const campaignID = source.get('campaign_id') || source.get('campaign')
+	if (campaignID) target.searchParams.set('campaign_id', campaignID)
+	return target.toString()
+})
 const manifestUrl = computed(() => absoluteUrl(MANIFEST_PATH))
 const notes = computed(() => manifest.value?.notes?.filter(Boolean) ?? [])
 const featureRows = computed(() => {
@@ -133,6 +146,14 @@ onMounted(async () => {
               <Icon name="download" size="sm" />
               <span>{{ t('androidDownload.downloadApk') }}</span>
             </a>
+						<a
+							v-if="inviteOpenAppUrl"
+							:href="inviteOpenAppUrl"
+							class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-700 dark:text-dark-200 dark:hover:bg-dark-800"
+						>
+							<Icon name="externalLink" size="sm" />
+							<span>{{ t('androidDownload.openInviteInApp') }}</span>
+						</a>
             <a
               href="/"
               class="inline-flex min-h-11 items-center gap-2 rounded-lg border border-gray-200 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50 dark:border-dark-700 dark:text-dark-200 dark:hover:bg-dark-800"

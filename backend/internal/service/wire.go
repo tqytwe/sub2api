@@ -54,6 +54,14 @@ func ProvideBatchImageModelPricingResolver(resolver *ModelPricingResolver) *Batc
 	return &BatchImageModelPricingResolver{Resolver: resolver}
 }
 
+// ProvideMobileAttributionService derives a domain-separated signing key from
+// the server JWT secret. The raw attribution token is never persisted.
+func ProvideMobileAttributionService(repo MobileAttributionRepository, cfg *config.Config) *MobileAttributionService {
+	mac := hmac.New(sha256.New, []byte(cfg.JWT.Secret))
+	_, _ = mac.Write([]byte("sub2api:mobile-attribution:signing-key:v1"))
+	return NewMobileAttributionService(repo, mac.Sum(nil))
+}
+
 func ProvideBatchImageCleanupService(repo BatchImageRepository, accountRepo AccountRepository, cfg *config.Config) *BatchImageCleanupService {
 	svc := NewBatchImageCleanupService(repo, accountRepo, cfg)
 	svc.Start()
@@ -890,6 +898,7 @@ var ProviderSet = wire.NewSet(
 	ProvideIPRiskRuntimeConfig,
 	ProvideIPRiskService,
 	NewMobilePushService,
+	ProvideMobileAttributionService,
 	ProvideMobilePushWorker,
 	ProvideAuthService,
 	NewPasskeyService,

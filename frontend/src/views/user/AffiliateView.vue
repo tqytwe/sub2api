@@ -10,8 +10,9 @@ import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 import { useClipboard } from '@/composables/useClipboard'
 import { formatCurrency, formatDateTime } from '@/utils/format'
-import { extractApiErrorMessage } from '@/utils/apiError'
+import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { buildRegisterInviteLink } from '@/utils/oauthAffiliate'
+import { claimReferralCampaignReward, enrollReferralCampaign, getReferralCampaignInviteToken, getReferralCampaignProgress, listReferralCampaigns, type ReferralCampaignProgress } from '@/api/referralCampaign'
 import '@/styles/growth-world.css'
 
 const { t } = useI18n()
@@ -23,6 +24,9 @@ const loading = ref(true)
 const transferring = ref(false)
 const detail = ref<UserAffiliateDetail | null>(null)
 const teamInviteCode = ref('')
+const campaignLoading = ref(false)
+const campaignAction = ref<number | null>(null)
+const campaigns = ref<ReferralCampaignProgress[]>([])
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
@@ -90,9 +94,38 @@ async function transferQuota(): Promise<void> {
   }
 }
 
+async function loadCampaigns(): Promise<void> {
+  campaignLoading.value = true
+  try { campaigns.value = await listReferralCampaigns() } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.loadFailed'))) } finally { campaignLoading.value = false }
+}
+
+async function enrollCampaign(campaign: ReferralCampaignProgress): Promise<void> {
+  campaignAction.value = campaign.campaign.id
+  try { await enrollReferralCampaign(campaign.campaign.id); const progress = await getReferralCampaignProgress(campaign.campaign.id); campaigns.value = campaigns.value.map(item => item.campaign.id === progress.campaign.id ? progress : item); appStore.showSuccess(t('affiliate.campaign.enrolled')) } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.enrollFailed'))) } finally { campaignAction.value = null }
+}
+
+async function copyCampaignLink(campaign: ReferralCampaignProgress): Promise<void> {
+  campaignAction.value = campaign.campaign.id
+  try {
+    const token = await getReferralCampaignInviteToken(campaign.campaign.id)
+    const url = new URL(inviteLink.value, window.location.origin)
+    url.searchParams.set('campaign', String(campaign.campaign.id)); url.searchParams.set('token', token)
+    await copyToClipboard(url.toString(), t('affiliate.campaign.linkCopied'))
+  } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.linkFailed'))) } finally { campaignAction.value = null }
+}
+
+async function claimCampaignReward(campaign: ReferralCampaignProgress, rewardId: number): Promise<void> {
+  campaignAction.value = rewardId
+  try { await claimReferralCampaignReward(campaign.campaign.id, rewardId, campaign.campaign.version); const progress = await getReferralCampaignProgress(campaign.campaign.id); campaigns.value = campaigns.value.map(item => item.campaign.id === progress.campaign.id ? progress : item); appStore.showSuccess(t('affiliate.campaign.claimed')) } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.claimFailed'))) } finally { campaignAction.value = null }
+}
+
+function campaignReward(campaign: ReferralCampaignProgress, tier: number) { return campaign.rewards.find(item => item.tier === tier) }
+function campaignProgressPercent(campaign: ReferralCampaignProgress) { const max = Math.max(...campaign.tiers.map(item => item.required_invites), 1); return Math.min(100, Math.round(campaign.qualified_count * 100 / max)) }
+
 onMounted(() => {
   void loadAffiliateDetail()
   void loadTeamInviteCode()
+  void loadCampaigns()
 })
 </script>
 
@@ -130,6 +163,22 @@ onMounted(() => {
             </p>
           </div>
         </div>
+
+        <section class="gw-panel" aria-labelledby="referral-campaign-title">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.campaign.eyebrow') }}</p><h2 id="referral-campaign-title" class="gw-section-title">{{ t('affiliate.campaign.title') }}</h2></div><button type="button" class="gw-btn gw-btn-secondary" :disabled="campaignLoading" @click="loadCampaigns"><Icon name="refresh" size="sm" />{{ t('affiliate.campaign.refresh') }}</button></div>
+          <div v-if="campaignLoading" class="gw-polling py-8 text-center">{{ t('affiliate.campaign.loading') }}</div>
+          <div v-else-if="!campaigns.length" class="mt-4 border border-dashed p-8 text-center gw-subtitle" style="border-color: var(--gw-line)">{{ t('affiliate.campaign.empty') }}</div>
+          <div v-else class="mt-4 space-y-6">
+            <article v-for="campaign in campaigns" :key="campaign.campaign.id" class="border-t pt-5 first:border-t-0 first:pt-0" style="border-color: var(--gw-line)">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div class="flex flex-wrap items-center gap-2"><h3 class="text-lg font-semibold">{{ campaign.campaign.name }}</h3><span class="agent-pill">{{ t(`affiliate.campaign.statuses.${campaign.campaign.status}`, campaign.campaign.status) }}</span></div><p class="mt-2 gw-subtitle text-sm">{{ t('affiliate.campaign.rule', { pay: formatCurrency(campaign.campaign.pay_threshold), spend: formatCurrency(campaign.campaign.usage_threshold) }) }}</p><p class="mt-1 gw-subtitle text-xs">{{ t('affiliate.campaign.claimDeadline', { date: formatDateTime(campaign.campaign.claim_deadline) }) }}</p></div><div class="flex flex-col gap-2 sm:flex-row"><button v-if="!campaign.enrollment" type="button" class="gw-btn gw-btn-primary" :disabled="campaignAction === campaign.campaign.id" @click="enrollCampaign(campaign)">{{ t('affiliate.campaign.enroll') }}</button><button v-else type="button" class="gw-btn gw-btn-secondary" :disabled="campaignAction === campaign.campaign.id" @click="copyCampaignLink(campaign)"><Icon name="copy" size="sm" />{{ t('affiliate.campaign.share') }}</button></div></div>
+
+              <div class="mt-5"><div class="flex items-end justify-between gap-3"><div><p class="gw-field-label">{{ t('affiliate.campaign.progress') }}</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ campaign.qualified_count }} <span class="text-sm font-normal gw-subtitle">/ {{ Math.max(...campaign.tiers.map(item => item.required_invites), 0) }}</span></p><p class="mt-1 text-xs gw-subtitle">{{ t('affiliate.campaign.invitedBreakdown', { invited: campaign.invited_count, qualified: campaign.qualified_count }) }}</p></div><p v-if="campaign.ranking" class="text-sm gw-subtitle">{{ t('affiliate.campaign.myRank', { rank: campaign.ranking.rank }) }}</p></div><div class="mt-3 h-2 overflow-hidden rounded bg-gray-200 dark:bg-dark-700" role="progressbar" :aria-valuenow="campaignProgressPercent(campaign)" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-primary-600" :style="{ width: `${campaignProgressPercent(campaign)}%` }"></div></div></div>
+
+              <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><div v-for="tier in campaign.tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ t('affiliate.campaign.milestone', { count: tier.required_invites }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount) }}</p></div><span class="agent-pill">{{ campaign.qualified_count >= tier.required_invites ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><div v-if="campaignReward(campaign, tier.tier)" class="mt-3"><button v-if="campaignReward(campaign, tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary w-full" :disabled="campaignAction === campaignReward(campaign, tier.tier)?.id" @click="claimCampaignReward(campaign, campaignReward(campaign, tier.tier)!.id)">{{ t('affiliate.campaign.claim') }}</button><p v-else class="text-sm gw-subtitle">{{ t(`affiliate.campaign.rewardStatuses.${campaignReward(campaign, tier.tier)?.status}`, campaignReward(campaign, tier.tier)?.status || '') }}</p></div></div></div>
+              <div class="gw-table-wrap mt-5 overflow-x-auto"><h4 class="gw-field-label px-4 pt-4">{{ t('affiliate.campaign.leaderboard') }}</h4><table v-if="campaign.leaderboard?.length" class="gw-leaderboard min-w-[560px]"><thead><tr><th>{{ t('affiliate.campaign.rank') }}</th><th>{{ t('affiliate.campaign.email') }}</th><th class="text-right">{{ t('affiliate.campaign.qualified') }}</th><th class="text-right">{{ t('affiliate.campaign.reward') }}</th></tr></thead><tbody><tr v-for="row in campaign.leaderboard" :key="`${campaign.campaign.id}-${row.rank}`"><td>#{{ row.rank }}</td><td>{{ row.email_masked }}<span v-if="row.is_me" class="ml-2 text-primary-600">{{ t('affiliate.campaign.me') }}</span></td><td class="text-right tabular-nums">{{ row.qualified_count }}</td><td class="text-right tabular-nums">{{ formatCurrency(row.reward_amount) }}</td></tr></tbody></table><p v-else class="px-4 py-5 text-sm gw-subtitle">{{ t('affiliate.campaign.leaderboardEmpty') }}</p></div>
+            </article>
+          </div>
+        </section>
 
         <div class="gw-detail-grid">
           <div class="gw-panel">
@@ -222,6 +271,17 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.agent-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 10px;
+  border: 1px solid var(--gw-line);
+  border-radius: 8px;
+  color: var(--gw-muted);
+  font-size: 12px;
+}
+
 @media (width < 640px) {
   .gw-code-row code {
     overflow: visible;

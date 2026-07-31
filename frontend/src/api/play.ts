@@ -401,11 +401,28 @@ export interface PlayVIPStatus {
   amount_to_next?: number
 }
 
+export interface PlayVIPTier {
+  tier: number
+  label: string
+  min_recharge: number
+  recharge_bonus_pct: number
+  color_key: string
+  perks?: string[]
+}
+
 export interface PlayCampaignRules {
   recharge_bonus_pct?: number
   blindbox_extra_opens?: number
   arena_score_multiplier?: number
   name_i18n?: Record<string, string>
+}
+
+export interface PlayCampaignAudience {
+  all?: boolean
+  ordinary?: boolean
+  member?: boolean
+  vip_tiers?: number[]
+  registered_within_days?: number
 }
 
 export interface PlayCampaignSummary {
@@ -414,6 +431,23 @@ export interface PlayCampaignSummary {
   start_at: string
   end_at: string
   rules: PlayCampaignRules
+}
+
+export interface PlayTeamLeaderboardEntry {
+  rank: number
+  team_id: number
+  team_name: string
+  member_count: number
+  monthly_spend: string
+  estimated_pool: string
+  gap_to_previous: string
+  is_mine: boolean
+}
+
+export interface PlayTeamLeaderboard {
+  rows: PlayTeamLeaderboardEntry[]
+  month: string
+  total_teams: number
 }
 
 export interface PlayHubGrowth {
@@ -426,6 +460,9 @@ export interface PlayHubGrowth {
   payment_enabled: boolean
   campaign_recharge_bonus_pct?: number
   vip?: PlayVIPStatus
+  vip_tiers?: PlayVIPTier[]
+  membership_paid_amount?: number
+  is_member: boolean
 }
 
 export interface PlayHubImageStudio {
@@ -473,6 +510,11 @@ export async function getPlayHub(): Promise<PlayHubSummary> {
 
 export async function getActiveCampaigns(): Promise<PlayCampaignSummary[]> {
   const { data } = await apiClient.get<PlayCampaignSummary[]>('/play/campaigns/active')
+  return data
+}
+
+export async function getTeamLeaderboard(): Promise<PlayTeamLeaderboard> {
+  const { data } = await apiClient.get<PlayTeamLeaderboard>('/play/teams/leaderboard')
   return data
 }
 
@@ -618,6 +660,7 @@ export const playAPI = {
   getQuizToday,
   submitQuiz,
   getTeamMe,
+  getTeamLeaderboard,
   createTeam,
   joinTeam,
   leaveTeam,

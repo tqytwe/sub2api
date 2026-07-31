@@ -153,6 +153,30 @@ func (s *AuthService) SetIPRiskRecorder(recorder IPRiskRecorder) {
 	s.ipRiskRecorder = recorder
 }
 
+// AttributeReferralCampaign binds a signed campaign invitation after the new
+// account exists. Attribution is idempotent per campaign and invitee.
+func (s *AuthService) AttributeReferralCampaign(ctx context.Context, userID int64, token string) error {
+	if s == nil || s.affiliateService == nil || strings.TrimSpace(token) == "" || userID <= 0 {
+		return nil
+	}
+	campaignService := s.affiliateService.ReferralCampaign()
+	if campaignService == nil {
+		return nil
+	}
+	_, err := campaignService.Attribute(ctx, strings.TrimSpace(token), userID, time.Now().UTC())
+	return err
+}
+
+func (s *AuthService) ValidateRegistrationReferral(ctx context.Context, affiliateCode, token string) error {
+	if strings.TrimSpace(token) == "" {
+		return nil
+	}
+	if s == nil || s.affiliateService == nil {
+		return infraerrors.ServiceUnavailable("REFERRAL_CAMPAIGN_UNAVAILABLE", "referral campaign service unavailable")
+	}
+	return s.affiliateService.ValidateRegistrationReferral(ctx, affiliateCode, token)
+}
+
 func (s *AuthService) recordIPRiskRegistration(
 	ctx context.Context,
 	user *User,

@@ -161,7 +161,8 @@ import {
 import {
   clearAllAffiliateReferralCodes,
   loadOAuthAffiliateCode,
-  oauthAffiliatePayload
+  oauthAffiliatePayload,
+  tryAttributeReferralCampaign
 } from '@/utils/oauthAffiliate'
 
 const route = useRoute()
@@ -274,6 +275,7 @@ function redirectProviderCallbackToBackend(provider: 'github' | 'google'): void 
 async function finalizeTokenResponse(tokenResponse: OAuthTokenResponse, redirect: string) {
   persistOAuthTokenContext(tokenResponse)
   await authStore.setToken(tokenResponse.access_token)
+	await tryAttributeReferralCampaign()
   if (typeof window !== 'undefined') {
     window.sessionStorage.removeItem(EMAIL_OAUTH_PENDING_PROVIDER_KEY)
   }

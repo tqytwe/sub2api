@@ -1,6 +1,8 @@
 package routes
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler"
@@ -17,7 +19,7 @@ func TestAdminPlayTeamRepairRoutesContract(t *testing.T) {
 			Play: adminhandler.NewAdminPlayHandler(nil, nil, nil),
 		},
 	}
-	registerAdminPlayRoutes(router.Group("/api/v1/admin"), handlers)
+	registerAdminPlayRoutes(router.Group("/api/v1/admin"), handlers, func(c *gin.Context) {})
 
 	routes := make(map[string]struct{})
 	for _, route := range router.Routes() {
@@ -31,5 +33,29 @@ func TestAdminPlayTeamRepairRoutesContract(t *testing.T) {
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing route: %s", route)
+	}
+}
+
+func TestAdminPlayFinancialWritesRequireStepUp(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	handlers := &handler.Handlers{Admin: &handler.AdminHandlers{Play: adminhandler.NewAdminPlayHandler(nil, nil, nil)}}
+	registerAdminPlayRoutes(router.Group("/api/v1/admin"), handlers, func(c *gin.Context) {
+		c.AbortWithStatus(http.StatusPreconditionRequired)
+	})
+
+	for _, tc := range []struct {
+		method string
+		path   string
+	}{
+		{http.MethodPost, "/api/v1/admin/play/campaigns"},
+		{http.MethodPut, "/api/v1/admin/play/campaigns/12"},
+		{http.MethodDelete, "/api/v1/admin/play/campaigns/12"},
+		{http.MethodPut, "/api/v1/admin/play/membership/vip-config"},
+	} {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(tc.method, tc.path, nil)
+		router.ServeHTTP(recorder, request)
+		require.Equal(t, http.StatusPreconditionRequired, recorder.Code, tc.method+" "+tc.path)
 	}
 }
