@@ -12,6 +12,7 @@ import (
 const (
 	teamRewardAmountScale       int32 = 8
 	teamRewardMaxIntegerDigits        = 12
+	teamRewardMaxTiers                = 32
 	teamRewardTiersJSONMaxBytes       = 64 * 1024
 )
 
@@ -58,6 +59,9 @@ func validateTeamRewardConfig(cfg TeamRewardConfig) error {
 	}
 	if len(cfg.Tiers) == 0 {
 		return fmt.Errorf("team reward tiers are required")
+	}
+	if len(cfg.Tiers) > teamRewardMaxTiers {
+		return fmt.Errorf("team reward tiers must contain at most %d tiers", teamRewardMaxTiers)
 	}
 
 	for i, tier := range cfg.Tiers {

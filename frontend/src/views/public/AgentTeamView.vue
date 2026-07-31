@@ -9,7 +9,7 @@ import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
 import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
-import playAPI, { type PlayTeamMe, type PlayTeamSettlementHistoryRecord, type PlayTeamSettlementRecord } from '@/api/play'
+import playAPI, { type PlayTeamMe, type PlayTeamRewardShowcase, type PlayTeamSettlementHistoryRecord, type PlayTeamSettlementRecord } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
 import '@/styles/public-pages.css'
 
@@ -35,6 +35,7 @@ const teamMe = ref<PlayTeamMe | null>(null)
 const teamName = ref('')
 const inviteCode = ref('')
 const settlements = ref<PlayTeamSettlementHistoryRecord[]>([])
+const rewardShowcase = ref<PlayTeamRewardShowcase>({ winners: [] })
 const teamCelebrationDismissed = ref(false)
 
 const isCaptain = computed(
@@ -110,6 +111,18 @@ function formatMoney(value: string | number | undefined) {
 
 function formatTokens(value?: number) {
   return (value ?? 0).toLocaleString(locale?.value)
+}
+
+function formatDateTime(value?: string) {
+  if (!value) return ''
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return new Intl.DateTimeFormat(locale?.value, {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(date)
 }
 
 function toneForIndex(index: number): RankTone {
@@ -206,15 +219,21 @@ function dismissTeamCelebration() {
 }
 
 async function loadTeam() {
+  loading.value = true
   if (!authStore.isAuthenticated) {
     teamMe.value = { enabled: false }
+    rewardShowcase.value = await playAPI.getTeamRewardShowcase().catch(() => ({ winners: [] }))
     loading.value = false
     return
   }
-  loading.value = true
   try {
     teamMe.value = await playAPI.getTeamMe()
-    settlements.value = teamMe.value?.team ? await playAPI.getTeamSettlements() : []
+    const [settlementData, showcaseData] = await Promise.all([
+      teamMe.value?.team ? playAPI.getTeamSettlements() : Promise.resolve([]),
+      playAPI.getTeamRewardShowcase().catch(() => ({ winners: [] })),
+    ])
+    settlements.value = settlementData
+    rewardShowcase.value = showcaseData
     syncTeamCelebrationSeen()
   } catch {
     teamMe.value = null
@@ -396,6 +415,7 @@ onMounted(loadTeam)
             </div>
           </section>
 
+
           <div class="play-detail-grid">
             <section class="play-content-panel">
               <h3 class="play-section-title">{{ t('agentTeam.contributionsTitle') }}</h3>
@@ -502,6 +522,26 @@ onMounted(loadTeam)
             </div>
           </section>
         </div>
+
+        <section v-if="!loading && rewardShowcase.winners.length" class="play-content-panel agent-public-reward-panel" aria-live="polite">
+          <div class="agent-team-header">
+            <div>
+              <p class="agent-team-kicker">Reward proof</p>
+              <h2 class="play-section-title">{{ t('agentTeam.publicRewardTitle') }}</h2>
+            </div>
+            <span class="agent-pill">{{ t('agentTeam.publicRewardPaid') }}</span>
+          </div>
+          <div class="agent-public-reward-list">
+            <article v-for="winner in rewardShowcase.winners" :key="`${winner.settlement_month}-${winner.team_name}-${winner.display_name}-${winner.paid_at}`" class="agent-public-reward-row">
+              <PlayUserAvatar :name="winner.display_name" :avatar-url="winner.avatar_url" />
+              <span class="agent-public-reward-context">
+                {{ t('agentTeam.publicRewardContext', { team: winner.team_name, month: winner.settlement_month }) }}
+                <small v-if="winner.paid_at">{{ t('agentTeam.publicRewardPaidAt', { time: formatDateTime(winner.paid_at) }) }}</small>
+              </span>
+              <strong>${{ formatMoney(winner.amount) }}</strong>
+            </article>
+          </div>
+        </section>
       </div>
     </main>
 
@@ -670,6 +710,37 @@ onMounted(loadTeam)
   gap: 10px;
 }
 
+.agent-public-reward-list {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-public-reward-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(150px, 0.8fr) auto;
+  gap: 14px;
+  align-items: center;
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.agent-public-reward-context {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+.agent-public-reward-context small {
+  display: block;
+  margin-top: 3px;
+  color: var(--ink-3);
+}
+
+.agent-public-reward-row strong {
+  color: var(--status-success-text);
+  font-family: 'JetBrains Mono', monospace;
+  white-space: nowrap;
+}
+
 .agent-member-card {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, 0.45fr);
@@ -816,6 +887,15 @@ onMounted(loadTeam)
   .agent-member-card {
     grid-template-columns: 1fr;
     align-items: start;
+  }
+
+  .agent-public-reward-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .agent-public-reward-context {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 
   .agent-member-metrics {

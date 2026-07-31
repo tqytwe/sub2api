@@ -531,6 +531,44 @@ type PlayArenaDailyRewardEstimateRow struct {
 	EstimatedReward float64
 }
 
+type PlayTeamRewardPublicWinner struct {
+	SettlementID int64
+	PeriodStart  time.Time
+	TeamName     string
+	DisplayName  string
+	AvatarURL    string
+	Amount       float64
+	PaidAt       *time.Time
+}
+
+type PlayArenaRewardPublicWinner struct {
+	Rank        int
+	Period      *PlayArenaPeriod
+	DisplayName string
+	AvatarURL   string
+	Amount      float64
+	PaidAt      *time.Time
+}
+
+type PlayArenaMonthlyRewardSummary struct {
+	Enabled      bool
+	Period       *PlayArenaPeriod
+	SettledAt    *time.Time
+	WinnersCount int
+	TotalAmount  float64
+	Winners      []PlayArenaRewardPublicWinner
+}
+
+// Optional interfaces keep lightweight PlayRepository test doubles compatible.
+type PlayPublicTeamRewardsRepository interface {
+	ListPublicTeamRewardWinners(ctx context.Context, limit int) ([]PlayTeamRewardPublicWinner, error)
+}
+
+type PlayMonthlyArenaRewardsRepository interface {
+	GetLatestSettledMonthlyArenaPeriod(ctx context.Context) (*PlayArenaPeriod, error)
+	ListArenaMonthlyRewardLedger(ctx context.Context, periodID int64) ([]PlayArenaDailyRewardLedgerRow, error)
+}
+
 type PlayRepository interface {
 	HasCheckin(ctx context.Context, userID int64, date time.Time) (bool, error)
 	InsertCheckin(ctx context.Context, userID int64, date time.Time, reward float64, streakCount int) error

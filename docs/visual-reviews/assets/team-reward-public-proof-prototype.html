@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>奖励发放公示原型</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f6f7f9; color: #172033; font: 14px/1.55 system-ui, sans-serif; }
+    .shell { display: grid; grid-template-columns: 208px minmax(0, 1fr); min-height: 900px; }
+    aside { padding: 24px 16px; background: #182033; color: #eef2ff; }
+    .brand { margin-bottom: 28px; font-size: 20px; font-weight: 700; }
+    .nav { display: grid; gap: 6px; }
+    .nav span { padding: 10px 12px; border-radius: 6px; color: #c9d2e8; }
+    .nav .active { background: #2a3754; color: white; }
+    main { min-width: 0; }
+    header { height: 64px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; background: white; border-bottom: 1px solid #dfe3ea; }
+    .content { padding: 28px 32px 44px; }
+    h1 { margin: 0; font-size: 24px; line-height: 32px; }
+    .muted { color: #657086; }
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; margin: 22px 0 16px; }
+    .tabs { display: flex; gap: 4px; margin-top: 22px; border-bottom: 1px solid #dfe3ea; overflow-x: auto; }
+    .tab { padding: 10px 14px; color: #526079; white-space: nowrap; }
+    .tab.active { border-bottom: 2px solid #2563a9; color: #2563a9; font-weight: 600; }
+    .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+    .panel { padding: 18px; border: 1px solid #dfe3ea; border-radius: 8px; background: white; }
+    .panel h2 { margin: 0 0 12px; font-size: 18px; }
+    .panel-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+    .row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 10px; min-height: 54px; border-top: 1px solid #e7eaf0; }
+    .rank { color: #657086; font-variant-numeric: tabular-nums; }
+    .winner { display: flex; align-items: center; gap: 9px; min-width: 0; }
+    .avatar { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: #e6eef8; color: #2563a9; font-weight: 600; }
+    .winner strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
+    .period { color: #657086; font-size: 12px; }
+    @media (max-width: 760px) {
+      .shell { display: block; min-height: 900px; }
+      aside { display: none; }
+      header { padding: 0 16px; }
+      .content { padding: 20px 16px 32px; }
+      .grid { grid-template-columns: 1fr; }
+      .toolbar { display: block; }
+      .toolbar .muted { display: block; margin-top: 6px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside><div class="brand">极速蹬</div><div class="nav"><span>玩法中枢</span><span class="active">组队奖励</span><span>农场榜单</span><span>邀请返利</span></div></aside>
+    <main>
+      <header><strong>玩法中枢</strong><span class="muted">本月奖励公开记录</span></header>
+      <div class="content">
+        <h1>奖励发放公示</h1>
+        <div class="muted">已完成结算的奖励会显示在这里，所有用户都能查看。</div>
+        <div class="tabs"><div class="tab active">组队共享奖励</div><div class="tab">农场月榜奖励</div><div class="tab">日榜奖励</div></div>
+        <div class="toolbar"><strong>最近已发放</strong><span class="muted">只展示昵称、月份与实际到账金额</span></div>
+        <div class="grid">
+          <section class="panel"><div class="panel-head"><h2>组队共享奖励</h2><span class="period">2026-07</span></div>
+            <div class="row"><span class="rank">#1</span><div class="winner"><span class="avatar">林</span><strong>林***</strong><span class="muted">星火小队</span></div><span class="amount">+$12.80</span></div>
+            <div class="row"><span class="rank">#2</span><div class="winner"><span class="avatar">A</span><strong>al***</strong><span class="muted">星火小队</span></div><span class="amount">+$8.40</span></div>
+            <div class="row"><span class="rank">#3</span><div class="winner"><span class="avatar">周</span><strong>周***</strong><span class="muted">远航队</span></div><span class="amount">+$5.60</span></div>
+          </section>
+          <section class="panel"><div class="panel-head"><h2>农场月榜奖励</h2><span class="period">2026-07 已结算</span></div>
+            <div class="row"><span class="rank">#1</span><div class="winner"><span class="avatar">M</span><strong>mo***</strong><span class="muted">Token 农场</span></div><span class="amount">+$50.00</span></div>
+            <div class="row"><span class="rank">#2</span><div class="winner"><span class="avatar">陈</span><strong>陈***</strong><span class="muted">Token 农场</span></div><span class="amount">+$20.00</span></div>
+            <div class="row"><span class="rank">#3</span><div class="winner"><span class="avatar">K</span><strong>ka***</strong><span class="muted">Token 农场</span></div><span class="amount">+$20.00</span></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

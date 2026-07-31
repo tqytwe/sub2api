@@ -9,6 +9,7 @@ const {
   getArenaLeaderboardMock,
   getArenaDailyLeaderboardMock,
   getArenaDailyRewardSummaryMock,
+  getArenaRewardSummaryMock,
   getQuestsTodayMock,
 } = vi.hoisted(() => ({
   getArenaCurrentMock: vi.fn(),
@@ -16,6 +17,7 @@ const {
   getArenaLeaderboardMock: vi.fn(),
   getArenaDailyLeaderboardMock: vi.fn(),
   getArenaDailyRewardSummaryMock: vi.fn(),
+  getArenaRewardSummaryMock: vi.fn(),
   getQuestsTodayMock: vi.fn(),
 }))
 
@@ -37,6 +39,7 @@ vi.mock('@/api/play', () => ({
     getArenaLeaderboard: (...args: unknown[]) => getArenaLeaderboardMock(...args),
     getArenaDailyLeaderboard: (...args: unknown[]) => getArenaDailyLeaderboardMock(...args),
     getArenaDailyRewardSummary: (...args: unknown[]) => getArenaDailyRewardSummaryMock(...args),
+    getArenaRewardSummary: (...args: unknown[]) => getArenaRewardSummaryMock(...args),
     getQuestsToday: (...args: unknown[]) => getQuestsTodayMock(...args),
   },
 }))
@@ -99,6 +102,15 @@ const messages: Record<string, string> = {
   'arena.dailySummary.rowReward': '预计 ${amount}',
   'arena.dailySummary.winnerReward': '到账 ${amount}',
   'arena.dailySummary.rankToken': '#{rank} · {tokens} 枚代币',
+  'arena.monthlySummary.recentTitle': '最近月榜奖励发放',
+  'arena.monthlySummary.paid': '已到账',
+  'arena.monthlySummary.settledAt': '发放时间：{time}',
+  'arena.monthlySummary.period': '结算周期：{period}',
+  'arena.monthlySummary.winners': '{count} 人获奖',
+  'arena.monthlySummary.total': '合计 ${amount}',
+  'arena.monthlySummary.noRecent': '暂无已结算月榜',
+  'arena.monthlySummary.actualPayout': '实际到账',
+  'arena.monthlySummary.winnerReward': '到账 ${amount}',
   'arena.quests.api_call': 'API 调用',
   'arena.quests.image_generate': '出图 1 张',
 }
@@ -207,6 +219,17 @@ describe('ArenaView competitive layout', () => {
         ],
       },
     })
+    getArenaRewardSummaryMock.mockResolvedValue({
+      enabled: true,
+      period: { ...period(), status: 'settled' },
+      settled_at: '2026-08-01T00:10:00+08:00',
+      winners_count: 2,
+      total_amount: 25,
+      winners: [
+        { rank: 1, display_name: 'Mira Studio', amount: 20, paid_at: '2026-08-01T00:10:00+08:00' },
+        { rank: 2, display_name: 'North API Lab', amount: 5, paid_at: '2026-08-01T00:10:00+08:00' },
+      ],
+    })
     getQuestsTodayMock.mockResolvedValue({
       enabled: true,
       energy: 30,
@@ -248,6 +271,9 @@ describe('ArenaView competitive layout', () => {
     expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
     expect(wrapper.find('.arena-rank-row.current').text()).toContain('你')
     expect(wrapper.text()).not.toContain('最近发放')
+    expect(wrapper.text()).toContain('最近月榜奖励发放')
+    expect(wrapper.text()).toContain('Mira Studio')
+    expect(wrapper.text()).toContain('到账 $20.00')
   })
 
   it('renders daily recent payout and current estimate without labeling yesterday as today', async () => {

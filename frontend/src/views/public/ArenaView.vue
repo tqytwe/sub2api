@@ -12,6 +12,7 @@ import playAPI, {
   type PlayArenaCurrent,
   type PlayArenaDailyRewardSummary,
   type PlayArenaLeaderboard,
+  type PlayArenaMonthlyRewardSummary,
   type PlayArenaScore,
   type PlayQuestToday,
 } from '@/api/play'
@@ -38,6 +39,7 @@ const dailyCurrent = ref<PlayArenaCurrent | null>(null)
 const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
 const dailyBoard = ref<PlayArenaLeaderboard | null>(null)
 const dailyRewardSummary = ref<PlayArenaDailyRewardSummary | null>(null)
+const monthlyRewardSummary = ref<PlayArenaMonthlyRewardSummary | null>(null)
 const quests = ref<PlayQuestToday | null>(null)
 const arenaCelebrationDismissed = ref(false)
 
@@ -164,19 +166,21 @@ function switchTab(next: BoardTab) {
 async function load() {
   loading.value = true
   try {
-    const [mCur, dCur, mBoard, dBoard, summary, q] = await Promise.all([
+    const [mCur, dCur, mBoard, dBoard, dailySummary, monthlySummary, q] = await Promise.all([
       playAPI.getArenaCurrent(),
       playAPI.getArenaDailyCurrent(),
       playAPI.getArenaLeaderboard(50),
       playAPI.getArenaDailyLeaderboard(50),
       playAPI.getArenaDailyRewardSummary(),
+      playAPI.getArenaRewardSummary(),
       authStore.isAuthenticated ? playAPI.getQuestsToday() : Promise.resolve(null),
     ])
     monthlyCurrent.value = mCur
     dailyCurrent.value = dCur
     monthlyBoard.value = mBoard
     dailyBoard.value = dBoard
-    dailyRewardSummary.value = summary
+    dailyRewardSummary.value = dailySummary
+    monthlyRewardSummary.value = monthlySummary
     quests.value = q
     syncArenaCelebrationSeen()
     if (q?.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
@@ -188,6 +192,7 @@ async function load() {
     monthlyBoard.value = null
     dailyBoard.value = null
     dailyRewardSummary.value = null
+    monthlyRewardSummary.value = null
     quests.value = null
   } finally {
     loading.value = false
@@ -332,6 +337,34 @@ watch([tab, current], syncArenaCelebrationSeen)
                 </div>
               </template>
               <p v-else class="play-note">{{ t('arena.dailySummary.noEstimate') }}</p>
+            </div>
+          </section>
+
+          <section v-if="tab === 'monthly'" class="arena-daily-summary-grid" aria-live="polite">
+            <div class="arena-daily-summary-panel">
+              <div class="arena-summary-heading">
+                <p class="arena-panel-label">{{ t('arena.monthlySummary.recentTitle') }}</p>
+                <span v-if="monthlyRewardSummary?.period" class="arena-summary-badge">{{ t('arena.monthlySummary.paid') }}</span>
+              </div>
+              <template v-if="monthlyRewardSummary?.period">
+                <div class="arena-summary-metrics">
+                  <strong>{{ t('arena.monthlySummary.total', { amount: formatMoney(monthlyRewardSummary.total_amount) }) }}</strong>
+                  <span>{{ t('arena.monthlySummary.winners', { count: monthlyRewardSummary.winners_count }) }}</span>
+                </div>
+                <p class="arena-season-copy">{{ t('arena.monthlySummary.period', { period: monthlyRewardSummary.period.name }) }}</p>
+                <p v-if="monthlyRewardSummary.settled_at" class="arena-season-copy">
+                  {{ t('arena.monthlySummary.settledAt', { time: formatDateTime(monthlyRewardSummary.settled_at) }) }}
+                </p>
+                <div v-if="monthlyRewardSummary.winners.length" class="arena-summary-list">
+                  <div v-for="winner in monthlyRewardSummary.winners" :key="`${winner.rank}-${winner.display_name}-${winner.paid_at}`" class="arena-summary-row">
+                    <span class="arena-rank-number">#{{ winner.rank }}</span>
+                    <PlayUserAvatar :name="winner.display_name" :avatar-url="winner.avatar_url" />
+                    <span class="arena-rank-tokens">{{ t('arena.monthlySummary.actualPayout') }}</span>
+                    <strong>{{ t('arena.monthlySummary.winnerReward', { amount: formatMoney(winner.amount) }) }}</strong>
+                  </div>
+                </div>
+              </template>
+              <p v-else class="play-note">{{ t('arena.monthlySummary.noRecent') }}</p>
             </div>
           </section>
 

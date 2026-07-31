@@ -93,6 +93,36 @@ func (h *PlayHandler) ArenaDailyRewardSummary(c *gin.Context) {
 	response.Success(c, toPlayArenaDailyRewardSummaryDTO(summary))
 }
 
+func (h *PlayHandler) ArenaRewardSummary(c *gin.Context) {
+	summary, err := h.playService.GetMonthlyArenaRewardSummary(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := playArenaMonthlyRewardSummaryDTO{Enabled: summary.Enabled, WinnersCount: summary.WinnersCount, TotalAmount: summary.TotalAmount, Winners: make([]playArenaMonthlyRewardWinnerDTO, 0, len(summary.Winners))}
+	if summary.Period != nil {
+		out.Period = toPlayArenaPeriodDTO(summary.Period)
+	}
+	out.SettledAt = formatOptionalPlayTime(summary.SettledAt)
+	for _, row := range summary.Winners {
+		out.Winners = append(out.Winners, playArenaMonthlyRewardWinnerDTO{Rank: row.Rank, DisplayName: row.DisplayName, AvatarURL: row.AvatarURL, Amount: row.Amount, PaidAt: formatOptionalPlayTime(row.PaidAt)})
+	}
+	response.Success(c, out)
+}
+
+func (h *PlayHandler) TeamRewardShowcase(c *gin.Context) {
+	winners, err := h.playService.ListPublicTeamRewardWinners(c.Request.Context(), 50)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := playTeamRewardShowcaseDTO{Winners: make([]playTeamRewardShowcaseWinnerDTO, 0, len(winners))}
+	for _, row := range winners {
+		out.Winners = append(out.Winners, playTeamRewardShowcaseWinnerDTO{SettlementMonth: row.PeriodStart.Format("2006-01"), TeamName: row.TeamName, DisplayName: row.DisplayName, AvatarURL: row.AvatarURL, Amount: row.Amount, PaidAt: formatOptionalPlayTime(row.PaidAt)})
+	}
+	response.Success(c, out)
+}
+
 func toPlayArenaCurrentDTO(current *service.PlayArenaCurrent) playArenaCurrentDTO {
 	if current == nil {
 		return playArenaCurrentDTO{}

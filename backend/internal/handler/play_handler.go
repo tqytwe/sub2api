@@ -113,6 +113,36 @@ type playArenaDailyRewardSummaryDTO struct {
 	Current *playArenaDailyCurrentRewardEstimateDTO `json:"current,omitempty"`
 }
 
+type playTeamRewardShowcaseDTO struct {
+	Winners []playTeamRewardShowcaseWinnerDTO `json:"winners"`
+}
+
+type playTeamRewardShowcaseWinnerDTO struct {
+	SettlementMonth string  `json:"settlement_month"`
+	TeamName        string  `json:"team_name"`
+	DisplayName     string  `json:"display_name"`
+	AvatarURL       string  `json:"avatar_url,omitempty"`
+	Amount          float64 `json:"amount"`
+	PaidAt          *string `json:"paid_at,omitempty"`
+}
+
+type playArenaMonthlyRewardSummaryDTO struct {
+	Enabled      bool                              `json:"enabled"`
+	Period       *playArenaPeriodDTO               `json:"period,omitempty"`
+	SettledAt    *string                           `json:"settled_at,omitempty"`
+	WinnersCount int                               `json:"winners_count"`
+	TotalAmount  float64                           `json:"total_amount"`
+	Winners      []playArenaMonthlyRewardWinnerDTO `json:"winners"`
+}
+
+type playArenaMonthlyRewardWinnerDTO struct {
+	Rank        int     `json:"rank"`
+	DisplayName string  `json:"display_name"`
+	AvatarURL   string  `json:"avatar_url,omitempty"`
+	Amount      float64 `json:"amount"`
+	PaidAt      *string `json:"paid_at,omitempty"`
+}
+
 type playArenaDailyRecentRewardSummaryDTO struct {
 	Period       *playArenaPeriodDTO             `json:"period,omitempty"`
 	SettledAt    *string                         `json:"settled_at,omitempty"`

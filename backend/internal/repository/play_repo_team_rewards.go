@@ -429,6 +429,42 @@ func (r *playRepository) ListTeamRewardSettlements(
 		LIMIT $1`, normalizeTeamRewardListLimit(limit))
 }
 
+func (r *playRepository) ListPublicTeamRewardWinners(ctx context.Context, limit int) (result []service.PlayTeamRewardPublicWinner, err error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT s.id, s.period_start, t.name, a.user_id,
+		       COALESCE(u.username, ''), COALESCE(u.email, ''),
+		       COALESCE(NULLIF(TRIM(ua.url), ''), ''),
+		       a.reward_amount::float8, a.paid_at
+		FROM play_team_reward_allocations a
+		JOIN play_team_settlements s ON s.id = a.settlement_id
+		JOIN play_teams t ON t.id = s.team_id
+		JOIN users u ON u.id = a.user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = a.user_id
+		WHERE s.status = 'completed'
+		  AND a.payout_status = 'paid'
+		  AND a.reward_amount > 0
+		ORDER BY a.paid_at DESC NULLS LAST, s.period_start DESC, a.id DESC
+		LIMIT $1`, normalizeTeamRewardListLimit(limit))
+	if err != nil {
+		return nil, fmt.Errorf("list public team reward winners: %w", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var row service.PlayTeamRewardPublicWinner
+		var username, email string
+		var userID int64
+		if err := rows.Scan(&row.SettlementID, &row.PeriodStart, &row.TeamName, &userID, &username, &email, &row.AvatarURL, &row.Amount, &row.PaidAt); err != nil {
+			return nil, fmt.Errorf("scan public team reward winner: %w", err)
+		}
+		row.DisplayName = service.PublicPlayDisplayName(username, email, userID)
+		result = append(result, row)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate public team reward winners: %w", err)
+	}
+	return result, nil
+}
+
 func (r *playRepository) ListTeamRewardAllocations(
 	ctx context.Context,
 	settlementID int64,

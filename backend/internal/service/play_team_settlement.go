@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"time"
 
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/shopspring/decimal"
 )
 
@@ -34,11 +35,17 @@ func (s *PlayService) UpdateTeamRewardSettings(
 		Cap:     settings.Cap,
 	}
 	if err := validateTeamRewardConfig(cfg); err != nil {
-		return PlayTeamRewardSettings{}, err
+		return PlayTeamRewardSettings{}, infraerrors.BadRequest(
+			"PLAY_TEAM_REWARD_INVALID_SETTINGS",
+			err.Error(),
+		)
 	}
 	startMonth, diagnostic := parseTeamRewardStartMonth(settings.StartMonth)
 	if diagnostic != nil || startMonth == "" {
-		return PlayTeamRewardSettings{}, fmt.Errorf("team reward start month must use YYYY-MM")
+		return PlayTeamRewardSettings{}, infraerrors.BadRequest(
+			"PLAY_TEAM_REWARD_INVALID_SETTINGS",
+			"team reward start month must use YYYY-MM",
+		)
 	}
 	if s.settingService == nil || s.settingService.settingRepo == nil {
 		return PlayTeamRewardSettings{}, fmt.Errorf("team reward settings repository missing")
@@ -305,6 +312,17 @@ func (s *PlayService) ListAdminTeamRewardSettlements(
 		return nil, err
 	}
 	return s.attachTeamRewardAllocations(ctx, settlements)
+}
+
+func (s *PlayService) ListPublicTeamRewardWinners(ctx context.Context, limit int) ([]PlayTeamRewardPublicWinner, error) {
+	repo, ok := s.repo.(PlayPublicTeamRewardsRepository)
+	if !ok {
+		return []PlayTeamRewardPublicWinner{}, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 50
+	}
+	return repo.ListPublicTeamRewardWinners(ctx, limit)
 }
 
 func (s *PlayService) listTeamRewardSettlementRecords(
