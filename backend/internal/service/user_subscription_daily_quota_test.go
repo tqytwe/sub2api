@@ -265,13 +265,15 @@ func TestValidateAndCheckLimits_DailyCardDoesNotAllowSecondQuotaAfterMidnight(t 
 func TestValidateAndCheckLimits_RecurringAllowsRequestAfterShanghaiMidnight(t *testing.T) {
 	shanghai, err := time.LoadLocation("Asia/Shanghai")
 	require.NoError(t, err)
-	now := time.Date(2026, 7, 29, 0, 1, 0, 0, shanghai)
-	legacyUTCWindowStart := time.Date(2026, 7, 28, 0, 0, 0, 0, time.UTC)
+	localNow := time.Now().In(shanghai)
+	now := time.Date(localNow.Year(), localNow.Month(), localNow.Day(), 0, 1, 0, 0, shanghai)
+	legacyUTCWindowStart := now.Add(-24 * time.Hour).UTC()
+	actualNow := time.Now()
 	dailyLimit := 10.0
 	sub := &UserSubscription{
 		Status:           SubscriptionStatusActive,
-		StartsAt:         now.Add(-48 * time.Hour),
-		ExpiresAt:        now.Add(48 * time.Hour),
+		StartsAt:         actualNow.Add(-48 * time.Hour),
+		ExpiresAt:        actualNow.Add(48 * time.Hour),
 		DailyWindowStart: &legacyUTCWindowStart,
 		DailyUsageUSD:    dailyLimit + 0.01,
 	}
