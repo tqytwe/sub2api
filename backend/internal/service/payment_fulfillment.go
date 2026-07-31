@@ -229,10 +229,30 @@ func (s *PaymentService) executeFulfillment(ctx context.Context, oid int64) erro
 	if err != nil {
 		return fmt.Errorf("get order: %w", err)
 	}
+	var fulfillErr error
 	if o.OrderType == payment.OrderTypeSubscription {
-		return s.ExecuteSubscriptionFulfillment(ctx, oid)
+		fulfillErr = s.ExecuteSubscriptionFulfillment(ctx, oid)
+	} else {
+		fulfillErr = s.ExecuteBalanceFulfillment(ctx, oid)
 	}
-	return s.ExecuteBalanceFulfillment(ctx, oid)
+	if fulfillErr != nil {
+		return fulfillErr
+	}
+	return nil
+}
+
+func (s *PaymentService) syncMembershipOrder(ctx context.Context, order *dbent.PaymentOrder) error {
+	if s == nil || s.playService == nil || order == nil {
+		return nil
+	}
+	if order.OrderType != payment.OrderTypeBalance && order.OrderType != payment.OrderTypeSubscription {
+		return nil
+	}
+	refundPaid := 0.0
+	if order.Amount > 0 && order.RefundAmount > 0 {
+		refundPaid = order.RefundAmount * order.PayAmount / order.Amount
+	}
+	return s.playService.SyncMembershipOrder(ctx, order.ID, order.UserID, order.OrderType, order.PayAmount, refundPaid, order.PaidAt, order.Status)
 }
 
 func (s *PaymentService) ExecuteBalanceFulfillment(ctx context.Context, oid int64) error {
@@ -402,20 +422,40 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 		return errors.New("missing payment fulfillment lease")
 	}
 	now := time.Now()
-	updated, err := s.entClient.PaymentOrder.Update().Where(
+	tx, err := s.entClient.Tx(ctx)
+	if err != nil {
+		return fmt.Errorf("begin payment completion transaction: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	txCtx := dbent.NewTxContext(ctx, tx)
+	updated, err := tx.Client().PaymentOrder.Update().Where(
 		paymentorder.IDEQ(o.ID),
 		paymentorder.StatusEQ(OrderStatusRecharging),
 		paymentorder.UpdatedAtEQ(lease.version),
-	).SetStatus(OrderStatusCompleted).SetCompletedAt(now).Save(ctx)
+	).SetStatus(OrderStatusCompleted).SetCompletedAt(now).Save(txCtx)
 	if err != nil {
 		return fmt.Errorf("mark completed: %w", err)
 	}
 	if updated == 0 {
-		current, getErr := s.entClient.PaymentOrder.Get(ctx, o.ID)
+		current, getErr := tx.Client().PaymentOrder.Get(txCtx, o.ID)
 		if getErr == nil && current.Status == OrderStatusCompleted {
 			return nil
 		}
 		return infraerrors.Conflict("CONFLICT", "fulfillment lease was lost before completion")
+	}
+	completed := *o
+	completed.Status = OrderStatusCompleted
+	completed.CompletedAt = &now
+	if err := s.syncMembershipOrder(txCtx, &completed); err != nil {
+		return fmt.Errorf("sync membership payment: %w", err)
+	}
+	if s.affiliateService != nil {
+		if err := s.affiliateService.RecomputeReferralCampaignsForInvitee(txCtx, completed.UserID); err != nil {
+			return fmt.Errorf("recompute referral campaign qualification: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("commit payment completion transaction: %w", err)
 	}
 	if !s.hasAuditLog(ctx, o.ID, auditAction) {
 		s.writeAuditLog(ctx, o.ID, auditAction, "system", map[string]any{

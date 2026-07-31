@@ -140,6 +140,9 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 			content,
 			status,
 			app_version,
+			installation_id,
+			app_channel,
+			install_referrer,
 			platform,
 			device_model,
 			android_version,
@@ -152,7 +155,7 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 			device_info,
 			screenshots
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19::jsonb, $20::jsonb)
 		RETURNING
 			id,
 			user_id,
@@ -163,6 +166,9 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 			content,
 			status,
 			app_version,
+			installation_id,
+			app_channel,
+			install_referrer,
 			platform,
 			device_model,
 			android_version,
@@ -175,6 +181,9 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 			device_info,
 			screenshots,
 			admin_note,
+			version,
+			updated_by,
+			status_changed_at,
 			created_at,
 			updated_at`,
 		[]any{
@@ -184,6 +193,9 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 			record.Content,
 			record.Status,
 			record.AppVersion,
+			record.InstallationID,
+			record.Channel,
+			record.Referrer,
 			record.Platform,
 			record.DeviceModel,
 			record.AndroidVersion,
@@ -205,6 +217,9 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 		&created.Content,
 		&created.Status,
 		&created.AppVersion,
+		&created.InstallationID,
+		&created.Channel,
+		&created.Referrer,
 		&created.Platform,
 		&created.DeviceModel,
 		&created.AndroidVersion,
@@ -217,6 +232,9 @@ func (r *playRepository) CreateMobileFeedback(ctx context.Context, record servic
 		&deviceInfoRaw,
 		&screenshotsRaw,
 		&created.AdminNote,
+		&created.Version,
+		&created.UpdatedBy,
+		&created.StatusChangedAt,
 		&created.CreatedAt,
 		&created.UpdatedAt,
 	)
@@ -268,6 +286,9 @@ func (r *playRepository) ListAdminMobileFeedback(ctx context.Context, filter ser
 			f.content,
 			f.status,
 			f.app_version,
+			f.installation_id,
+			f.app_channel,
+			f.install_referrer,
 			f.platform,
 			f.device_model,
 			f.android_version,
@@ -280,6 +301,9 @@ func (r *playRepository) ListAdminMobileFeedback(ctx context.Context, filter ser
 			f.device_info,
 			f.screenshots,
 			f.admin_note,
+			f.version,
+			f.updated_by,
+			f.status_changed_at,
 			f.created_at,
 			f.updated_at
 		FROM mobile_feedback f
@@ -332,6 +356,9 @@ func (r *playRepository) GetAdminMobileFeedback(ctx context.Context, id int64) (
 			f.content,
 			f.status,
 			f.app_version,
+			f.installation_id,
+			f.app_channel,
+			f.install_referrer,
 			f.platform,
 			f.device_model,
 			f.android_version,
@@ -344,6 +371,9 @@ func (r *playRepository) GetAdminMobileFeedback(ctx context.Context, id int64) (
 			f.device_info,
 			f.screenshots,
 			f.admin_note,
+			f.version,
+			f.updated_by,
+			f.status_changed_at,
 			f.created_at,
 			f.updated_at
 		FROM mobile_feedback f
@@ -357,53 +387,94 @@ func (r *playRepository) GetAdminMobileFeedback(ctx context.Context, id int64) (
 	return record, nil
 }
 
-func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64, status, adminNote string) (*service.MobileFeedbackRecord, error) {
+func (r *playRepository) ListMobileFeedbackAdminAudits(ctx context.Context, feedbackID int64, limit int) ([]service.MobileFeedbackAdminAudit, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 100
+	}
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		SELECT id, feedback_id, actor_admin_id, from_status, to_status,
+		       from_admin_note, to_admin_note, from_version, to_version, created_at
+		FROM mobile_feedback_admin_audits
+		WHERE feedback_id = $1
+		ORDER BY created_at DESC, id DESC
+		LIMIT $2`, feedbackID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list mobile feedback admin audits: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+	items := make([]service.MobileFeedbackAdminAudit, 0)
+	for rows.Next() {
+		var item service.MobileFeedbackAdminAudit
+		if err := rows.Scan(&item.ID, &item.FeedbackID, &item.ActorAdminID, &item.FromStatus, &item.ToStatus, &item.FromAdminNote, &item.ToAdminNote, &item.FromVersion, &item.ToVersion, &item.CreatedAt); err != nil {
+			return nil, fmt.Errorf("scan mobile feedback admin audit: %w", err)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate mobile feedback admin audits: %w", err)
+	}
+	return items, nil
+}
+
+func (r *playRepository) UpdateAdminMobileFeedback(ctx context.Context, id int64, input service.MobileFeedbackStatusUpdate) (*service.MobileFeedbackRecord, error) {
 	exec := r.sqlExec(ctx)
 	record, err := scanMobileFeedbackRecordFromQuery(ctx, exec, `
-		UPDATE mobile_feedback
-		SET status = $2, admin_note = $3, updated_at = NOW()
-		WHERE id = $1
-		RETURNING
-			id,
-			user_id,
-			'' AS user_email,
-			'' AS user_name,
-			title,
-			category,
-			content,
-			status,
-			app_version,
-			platform,
-			device_model,
-			android_version,
-			system_version,
-			group_name,
-			group_id,
-			backend_url,
-			last_error,
-			crash_log,
-			device_info,
-			screenshots,
-			admin_note,
-			created_at,
-			updated_at`,
-		[]any{id, status, adminNote},
+		WITH current AS (
+			SELECT id, status AS from_status, admin_note AS from_admin_note, version AS from_version
+			FROM mobile_feedback
+			WHERE id = $1 AND version = $4
+			FOR UPDATE
+		), updated AS (
+			UPDATE mobile_feedback f
+			SET status = $2,
+				admin_note = $3,
+				version = f.version + 1,
+				updated_by = NULLIF($5, 0),
+				status_changed_at = CASE WHEN f.status IS DISTINCT FROM $2 THEN NOW() ELSE f.status_changed_at END,
+				updated_at = NOW()
+			FROM current c
+			WHERE f.id = c.id
+			RETURNING f.id, f.user_id, '' AS user_email, '' AS user_name,
+				f.title, f.category, f.content, f.status, f.app_version,
+				f.installation_id, f.app_channel, f.install_referrer,
+				f.platform, f.device_model, f.android_version, f.system_version,
+				f.group_name, f.group_id, f.backend_url, f.last_error, f.crash_log,
+				f.device_info, f.screenshots, f.admin_note, f.version, f.updated_by,
+				f.status_changed_at, f.created_at, f.updated_at
+		), audit AS (
+			INSERT INTO mobile_feedback_admin_audits (
+				feedback_id, actor_admin_id, from_status, to_status,
+				from_admin_note, to_admin_note, from_version, to_version
+			)
+			SELECT u.id, NULLIF($5, 0), c.from_status, u.status,
+				c.from_admin_note, u.admin_note, c.from_version, u.version
+			FROM updated u
+			JOIN current c ON c.id = u.id
+			RETURNING feedback_id
+		)
+		SELECT id, user_id, user_email, user_name, title, category, content, status,
+			app_version, installation_id, app_channel, install_referrer, platform,
+			device_model, android_version, system_version, group_name, group_id,
+			backend_url, last_error, crash_log, device_info, screenshots, admin_note,
+			version, updated_by, status_changed_at, created_at, updated_at
+		FROM updated
+		WHERE EXISTS (SELECT 1 FROM audit)`,
+		[]any{id, input.Status, input.AdminNote, input.ExpectedVersion, input.ActorAdminID},
 	)
 	if err != nil {
+		if errors.Is(err, service.ErrMobileFeedbackNotFound) {
+			return nil, service.ErrMobileFeedbackVersionConflict
+		}
 		return nil, err
 	}
-	if strings.TrimSpace(adminNote) != "" && record != nil && strings.TrimSpace(record.AdminNote) != "" {
+	if strings.TrimSpace(input.AdminNote) != "" && record != nil && strings.TrimSpace(record.AdminNote) != "" {
 		_, _ = exec.ExecContext(ctx, `
 			INSERT INTO mobile_feedback_messages (feedback_id, sender_type, content)
 			SELECT $1, 'support', $2
 			WHERE NOT EXISTS (
-				SELECT 1
-				FROM mobile_feedback_messages
+				SELECT 1 FROM mobile_feedback_messages
 				WHERE feedback_id = $1 AND sender_type = 'support' AND content = $2
-			)`,
-			id,
-			record.AdminNote,
-		)
+			)`, id, record.AdminNote)
 	}
 	return record, nil
 }
@@ -422,10 +493,12 @@ func (r *playRepository) ListUserMobileFeedback(ctx context.Context, userID int6
 	}
 	rows, err := exec.QueryContext(ctx, `
 		SELECT id, user_id, '' AS user_email, '' AS user_name,
-		       title, category, content, status, app_version, platform,
+		       title, category, content, status, app_version,
+		       installation_id, app_channel, install_referrer, platform,
 		       device_model, android_version, system_version, group_name,
 		       group_id, backend_url, last_error, crash_log, device_info,
-		       screenshots, admin_note, created_at, updated_at
+		       screenshots, admin_note, version, updated_by, status_changed_at,
+		       created_at, updated_at
 		FROM mobile_feedback
 		WHERE user_id = $1 AND ($2 = '' OR status = $2)
 		ORDER BY updated_at DESC, id DESC
@@ -451,10 +524,12 @@ func (r *playRepository) ListUserMobileFeedback(ctx context.Context, userID int6
 func (r *playRepository) GetUserMobileFeedback(ctx context.Context, userID, id int64) (*service.MobileFeedbackRecord, error) {
 	return scanMobileFeedbackRecordFromQuery(ctx, r.sqlExec(ctx), `
 		SELECT id, user_id, '' AS user_email, '' AS user_name,
-		       title, category, content, status, app_version, platform,
+		       title, category, content, status, app_version,
+		       installation_id, app_channel, install_referrer, platform,
 		       device_model, android_version, system_version, group_name,
 		       group_id, backend_url, last_error, crash_log, device_info,
-		       screenshots, admin_note, created_at, updated_at
+		       screenshots, admin_note, version, updated_by, status_changed_at,
+		       created_at, updated_at
 		FROM mobile_feedback
 		WHERE id = $1 AND user_id = $2`, []any{id, userID})
 }
@@ -494,6 +569,8 @@ func (r *playRepository) CreateUserMobileFeedbackMessage(ctx context.Context, us
 				WHEN status = 'deferred' THEN 'viewed'
 				ELSE status
 			END,
+			version = version + 1,
+			status_changed_at = CASE WHEN status IN ('handled', 'deferred') THEN NOW() ELSE status_changed_at END,
 			updated_at = NOW()
 			WHERE id = $1 AND user_id = $2 AND status <> 'ignored'
 			RETURNING id
@@ -515,13 +592,17 @@ func (r *playRepository) CreateUserMobileFeedbackMessage(ctx context.Context, us
 func (r *playRepository) CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*service.MobileFeedbackRecord, error) {
 	record, err := scanMobileFeedbackRecordFromQuery(ctx, r.sqlExec(ctx), `
 		UPDATE mobile_feedback
-		SET status = 'ignored', updated_at = NOW()
+		SET status = 'ignored', version = version + 1,
+		    status_changed_at = CASE WHEN status IS DISTINCT FROM 'ignored' THEN NOW() ELSE status_changed_at END,
+		    updated_at = NOW()
 		WHERE id = $1 AND user_id = $2 AND status <> 'ignored'
 		RETURNING id, user_id, '' AS user_email, '' AS user_name,
-		          title, category, content, status, app_version, platform,
+		          title, category, content, status, app_version,
+		          installation_id, app_channel, install_referrer, platform,
 		          device_model, android_version, system_version, group_name,
 		          group_id, backend_url, last_error, crash_log, device_info,
-		          screenshots, admin_note, created_at, updated_at`, []any{id, userID})
+		          screenshots, admin_note, version, updated_by, status_changed_at,
+		          created_at, updated_at`, []any{id, userID})
 	if err == nil {
 		return record, nil
 	}
@@ -568,6 +649,9 @@ func scanMobileFeedbackRecord(scanner mobileFeedbackScanner) (service.MobileFeed
 		&record.Content,
 		&record.Status,
 		&record.AppVersion,
+		&record.InstallationID,
+		&record.Channel,
+		&record.Referrer,
 		&record.Platform,
 		&record.DeviceModel,
 		&record.AndroidVersion,
@@ -580,6 +664,9 @@ func scanMobileFeedbackRecord(scanner mobileFeedbackScanner) (service.MobileFeed
 		&deviceInfoRaw,
 		&screenshotsRaw,
 		&record.AdminNote,
+		&record.Version,
+		&record.UpdatedBy,
+		&record.StatusChangedAt,
 		&record.CreatedAt,
 		&record.UpdatedAt,
 	); err != nil {

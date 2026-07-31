@@ -21,10 +21,10 @@ func TestCreateAdminCampaignStoresStructuredRules(t *testing.T) {
 	end := start.Add(24 * time.Hour)
 	created := start.Add(-time.Hour)
 
-	mock.ExpectQuery(`(?is)INSERT INTO play_campaigns \(name, start_at, end_at, rules_json, enabled\).*RETURNING id, name, start_at, end_at, rules_json::text, enabled, created_at`).
-		WithArgs("开服福利周", start, end, `{"recharge_bonus_pct":10,"blindbox_extra_opens":2,"arena_score_multiplier":2,"name_i18n":{"en":"Launch week","zh":"开服福利周"}}`, true).
-		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_at", "end_at", "rules_json", "enabled", "created_at"}).
-			AddRow(int64(7), "开服福利周", start, end, `{"recharge_bonus_pct":10,"blindbox_extra_opens":2,"arena_score_multiplier":2,"name_i18n":{"en":"Launch week","zh":"开服福利周"}}`, true, created))
+	mock.ExpectQuery(`(?is)INSERT INTO play_campaigns \(name, start_at, end_at, rules_json, audience_json, enabled\).*RETURNING id, name, start_at, end_at, rules_json::text, audience_json::text, enabled, created_at`).
+		WithArgs("开服福利周", start, end, `{"recharge_bonus_pct":10,"blindbox_extra_opens":2,"arena_score_multiplier":2,"name_i18n":{"en":"Launch week","zh":"开服福利周"}}`, `{}`, true).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_at", "end_at", "rules_json", "audience_json", "enabled", "created_at"}).
+			AddRow(int64(7), "开服福利周", start, end, `{"recharge_bonus_pct":10,"blindbox_extra_opens":2,"arena_score_multiplier":2,"name_i18n":{"en":"Launch week","zh":"开服福利周"}}`, `{}`, true, created))
 
 	got, err := repo.CreateAdminCampaign(context.Background(), service.PlayCampaign{
 		Name:    "开服福利周",

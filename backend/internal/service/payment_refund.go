@@ -584,15 +584,28 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 	}
 	defer func() { _ = tx.Rollback() }()
 	txCtx := dbent.NewTxContext(ctx, tx)
-	_, err = tx.Client().PaymentOrder.UpdateOneID(p.OrderID).SetStatus(fs).SetRefundAmount(p.RefundAmount).SetRefundReason(p.Reason).SetRefundAt(now).SetForceRefund(p.Force).Save(txCtx)
+	updated, err := tx.Client().PaymentOrder.UpdateOneID(p.OrderID).SetStatus(fs).SetRefundAmount(p.RefundAmount).SetRefundReason(p.Reason).SetRefundAt(now).SetForceRefund(p.Force).Save(txCtx)
 	if err != nil {
 		return nil, fmt.Errorf("mark refund: %w", err)
 	}
 	if err := s.adjustTotalRechargedForRefund(txCtx, p); err != nil {
 		return nil, err
 	}
+	if err := s.syncMembershipOrder(txCtx, updated); err != nil {
+		return nil, fmt.Errorf("sync membership refund: %w", err)
+	}
+	if s.affiliateService != nil {
+		if err := s.affiliateService.EnqueueReferralRefundReconcile(txCtx, p.OrderID); err != nil {
+			return nil, fmt.Errorf("enqueue referral campaign refund reconciliation: %w", err)
+		}
+	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit refund completion tx: %w", err)
+	}
+	if s.affiliateService != nil {
+		if _, reconcileErr := s.affiliateService.ProcessReferralReconcileQueue(ctx, 20); reconcileErr != nil {
+			slog.Error("referral campaign refund reconciliation deferred", "order_id", p.OrderID, "error", reconcileErr)
+		}
 	}
 	s.writeAuditLog(ctx, p.OrderID, "REFUND_SUCCESS", "admin", map[string]any{"refundAmount": p.RefundAmount, "reason": p.Reason, "balanceDeducted": p.BalanceToDeduct, "force": p.Force, "ledgerDeductKey": p.LedgerDeductKey})
 	return &RefundResult{Success: true, BalanceDeducted: p.BalanceToDeduct, SubDaysDeducted: p.SubDaysToDeduct}, nil

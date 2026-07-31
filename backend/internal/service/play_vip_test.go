@@ -23,7 +23,8 @@ func TestGetVIPTier(t *testing.T) {
 		{name: "v1 threshold", recharge: 50, wantTier: 1, wantNext: 2, wantAmt: 50, wantBonus: 2, wantColor: "emerald", wantPerk: "models_vip_tag"},
 		{name: "v2 threshold", recharge: 100, wantTier: 2, wantNext: 3, wantAmt: 100, wantBonus: 4, wantColor: "sky", wantPerk: "blindbox_pool_upgrade"},
 		{name: "v3 threshold", recharge: 200, wantTier: 3, wantNext: 4, wantAmt: 300, wantBonus: 6, wantColor: "indigo", wantPerk: "arena_settlement_bonus"},
-		{name: "v5 max", recharge: 1000, wantTier: 5, wantNext: 0, wantAmt: 0, wantBonus: 10, wantColor: "gold", wantPerk: "affiliate_bonus_5pct"},
+		{name: "v5 threshold", recharge: 1000, wantTier: 5, wantNext: 6, wantAmt: 1000, wantBonus: 10, wantColor: "gold", wantPerk: "affiliate_bonus_5pct"},
+		{name: "v6 max", recharge: 2000, wantTier: 6, wantNext: 0, wantAmt: 0, wantBonus: 10, wantColor: "gold", wantPerk: "affiliate_bonus_5pct"},
 		{name: "between v1 and v2", recharge: 80, wantTier: 1, wantNext: 2, wantAmt: 20, wantBonus: 2, wantColor: "emerald"},
 	}
 

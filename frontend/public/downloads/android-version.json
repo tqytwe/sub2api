@@ -1,20 +1,19 @@
 {
   "platform": "android",
-  "version": "2.0.37",
-  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.37-237",
+  "version": "2.0.49",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.49-249",
   "size": "7.1 MB",
-  "sha256": "442ef3a39c01f1617584de595f2cda822a954d0d60ec25af6c09adfb803d0877",
+  "sha256": "bf0f390b56fd4d0459925dc52709981ba5723682e6de38a7116d8818a0174707",
   "minAndroidVersion": "8.0",
-  "releaseDate": "2026-07-26",
+  "releaseDate": "2026-08-01",
   "notes": [
-    "修复 2.0.36 聊天连接中断中文提示和非流式兜底",
-    "修复账户与客服同步失败提示",
-    "修复聊天和生图模型分组互相干扰",
-    "优化本机图库底部遮挡、智能体面板高度和原图全屏查看",
-    "修复进入历史会话从头刷屏滚动问题"
+    "新增邀请活动报名、进度、手动领取与脱敏排行榜",
+    "新增三套中英文双二维码邀请海报及系统分享",
+    "新增 APP 扫码、安装、首次启动、注册与分享归因上报",
+    "反馈工单补充安装、渠道、版本与邀请上下文"
   ],
-  "versionCode": 237,
-  "bytes": 7394372,
+  "versionCode": 249,
+  "bytes": 7447916,
   "packageName": "com.jisudeng.chat",
   "signingCertificateSha256": "cd7abbd79daf6648a429ff34d7450b18cfb6b416e660b2f5169178e0a488627e"
 }

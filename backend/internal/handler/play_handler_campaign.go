@@ -11,13 +11,13 @@ import (
 // CampaignsActive lists currently active play campaigns.
 // GET /api/v1/play/campaigns/active
 func (h *PlayHandler) CampaignsActive(c *gin.Context) {
-	_, ok := middleware.GetAuthSubjectFromContext(c)
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
 
-	campaigns, err := h.playService.ListActiveCampaigns(c.Request.Context())
+	campaigns, err := h.playService.ListActiveCampaignsForUser(c.Request.Context(), subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

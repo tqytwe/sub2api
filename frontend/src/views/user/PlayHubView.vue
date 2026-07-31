@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
-import playAPI, { type PlayHubSummary } from '@/api/play'
+import playAPI, { type PlayCampaignSummary, type PlayHubSummary } from '@/api/play'
 import { resolveCampaignDisplayName } from '@/utils/playCampaign'
 import { useAuthStore } from '@/stores/auth'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
@@ -28,17 +28,15 @@ const showGrowthCta = computed(() => {
 
 const vip = computed(() => hub.value?.growth.vip)
 const vipPerks = computed(() => vip.value?.perks ?? [])
+const vipTiers = computed(() => hub.value?.growth.vip_tiers ?? [])
 const primaryCampaign = computed(() => hub.value?.campaigns?.[0] ?? null)
-const campaignDisplayName = computed(() =>
-  resolveCampaignDisplayName(primaryCampaign.value, locale.value),
-)
 const quizCompletionReward = computed(() => {
   const quiz = hub.value?.quiz
   return (quiz?.questions.length ?? 0) * (quiz?.reward_per_correct ?? 0)
 })
 
-const campaignPerkLines = computed(() => {
-  const rules = primaryCampaign.value?.rules
+const campaignPerkLinesFor = (campaign: PlayCampaignSummary) => {
+  const rules = campaign.rules
   if (!rules) return []
   const lines: string[] = []
   if (rules.recharge_bonus_pct && rules.recharge_bonus_pct > 0) {
@@ -51,7 +49,7 @@ const campaignPerkLines = computed(() => {
     lines.push(t('playHub.campaignArenaMult', { mult: rules.arena_score_multiplier }))
   }
   return lines
-})
+}
 
 const playCards = computed(() => {
   const cards: Array<{
@@ -297,15 +295,28 @@ onMounted(load)
             </div>
           </section>
 
-          <section v-if="primaryCampaign" class="gw-panel min-h-[12rem]">
+          <section v-if="vipTiers.length" class="gw-panel min-h-[12rem]">
+            <p class="gw-balance-label">{{ t('playHub.vipComparison') }}</p>
+            <div class="mt-3 grid gap-2 sm:grid-cols-2">
+              <div v-for="tier in vipTiers" :key="tier.tier" class="border-b border-[var(--gw-line)] pb-2 last:border-0">
+                <div class="flex items-center justify-between gap-2">
+                  <span :class="vipTierBadgeClass(tier.color_key)">{{ tier.label }}</span>
+                  <span class="gw-subtitle mt-0">{{ tier.min_recharge.toFixed(2) }}</span>
+                </div>
+                <p class="gw-subtitle mt-1">{{ t('playHub.vipRechargeBonus', { pct: tier.recharge_bonus_pct ?? 0 }) }}</p>
+              </div>
+            </div>
+          </section>
+
+          <section v-for="campaign in hub?.campaigns ?? []" :key="campaign.id" class="gw-panel min-h-[12rem]">
             <div class="flex h-full flex-col">
               <p class="gw-balance-label">{{ t('playHub.campaignEyebrow') }}</p>
-              <h2 class="gw-section-title mt-2 break-words">{{ campaignDisplayName }}</h2>
-              <ul v-if="campaignPerkLines.length" class="gw-subtitle mt-0 space-y-1">
-                <li v-for="(line, idx) in campaignPerkLines" :key="idx" class="break-words">· {{ line }}</li>
+              <h2 class="gw-section-title mt-2 break-words">{{ resolveCampaignDisplayName(campaign, locale) }}</h2>
+              <ul v-if="campaignPerkLinesFor(campaign).length" class="gw-subtitle mt-0 space-y-1">
+                <li v-for="(line, idx) in campaignPerkLinesFor(campaign)" :key="idx" class="break-words">· {{ line }}</li>
               </ul>
               <button
-                v-if="hub?.growth.payment_enabled && primaryCampaign.rules.recharge_bonus_pct"
+                v-if="hub?.growth.payment_enabled && campaign.rules.recharge_bonus_pct"
                 type="button"
                 class="gw-btn gw-btn-primary mt-4 w-fit gap-2"
                 @click="goPurchase"

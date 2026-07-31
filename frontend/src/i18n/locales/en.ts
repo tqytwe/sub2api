@@ -1661,6 +1661,15 @@ const messages = {
       empty: 'No available rebate quota',
       success: '{amount} has been transferred to your balance'
     },
+    campaign: {
+      eyebrow: 'Invite campaign', title: 'Qualified new-user invite campaigns', refresh: 'Refresh progress', loading: 'Loading campaigns', empty: 'No invite campaigns are open for enrollment', loadFailed: 'Failed to load invite campaigns',
+      rule: 'An invite counts after the invitee reaches {pay} net paid and {spend} actual usage.', claimDeadline: 'Claim deadline: {date}', enroll: 'Enroll', enrolled: 'Campaign enrollment completed', enrollFailed: 'Campaign enrollment failed',
+      share: 'Copy campaign invite link', linkCopied: 'Campaign invite link copied', linkFailed: 'Failed to create invite link', progress: 'Qualified invite progress', invitedBreakdown: '{invited} registered invitees; {qualified} reached both payment and usage targets', myRank: 'Current rank: #{rank}',
+      milestone: '{count} qualified invites', unlocked: 'Unlocked', locked: 'Locked', claim: 'Claim reward', claimed: 'Reward claimed', claimFailed: 'Failed to claim reward', leaderboard: 'Qualified invite leaderboard', leaderboardEmpty: 'No qualified users yet. Rankings appear after the first valid invite.', rank: 'Rank', email: 'Email', qualified: 'Qualified invites', reward: 'Unlocked rewards', me: 'Me',
+      statuses: { scheduled: 'Upcoming', running: 'Running', paused: 'Paused', settling: 'Settling', closed: 'Closed' },
+      rewardStatuses: { claimable: 'Claimable', claimed_frozen: 'Claimed and risk-held', available: 'Available', expired: 'Expired', revoked: 'Revoked', debt_review: 'Refund recovery review', resolved: 'Resolved' },
+      errors: { REFERRAL_CAMPAIGN_NOT_FOUND: 'This invite campaign no longer exists.', REFERRAL_CAMPAIGN_NOT_OPEN: 'This invite campaign is not open for this action.', REFERRAL_CAMPAIGN_VERSION_CONFLICT: 'Campaign rules changed. Refresh progress and try again.', REFERRAL_CAMPAIGN_TOKEN_INVALID: 'This invite link is invalid. Ask the inviter for a new link.', REFERRAL_CAMPAIGN_TOKEN_EXPIRED: 'This invite link expired. Ask the inviter for a new link.', REFERRAL_REWARD_NOT_CLAIMABLE: 'This milestone reward is not claimable.', REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: 'The campaign reward budget has been exhausted.', REFERRAL_CAMPAIGN_CAPACITY_REACHED: 'Campaign enrollment is full.' }
+    },
     invitees: {
       title: 'Invited Users',
       empty: 'No invited users yet',

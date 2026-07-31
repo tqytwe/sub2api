@@ -140,12 +140,17 @@ func TestEnforceStepUpDisabledSkipsAllChecks(t *testing.T) {
 	})
 }
 
-func TestEnforceStepUpDisabledStillProtectsMandatoryFundAndWithdrawalRoutes(t *testing.T) {
+func TestEnforceStepUpDisabledStillProtectsMandatoryFinancialRoutes(t *testing.T) {
 	disabled := stubStepUpSettingReader{enabled: false}
 
 	for _, path := range []string{
 		"/api/v1/admin/funds/gifts",
 		"/api/v1/admin/withdrawals/12/approve",
+		"/api/v1/admin/affiliates/campaigns/12/status",
+		"/api/v1/admin/affiliates/campaigns/12/reviews",
+		"/api/v1/admin/affiliates/campaigns/12/rewards/99/resolve",
+		"/api/v1/admin/play/campaigns/12",
+		"/api/v1/admin/play/membership/vip-config",
 	} {
 		t.Run(path, func(t *testing.T) {
 			c, rec := newStepUpTestContext(t)

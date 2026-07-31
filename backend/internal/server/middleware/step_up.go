@@ -151,5 +151,21 @@ func stepUpAlwaysRequired(c *gin.Context) bool {
 	}
 	path = strings.TrimPrefix(path, "/api/v1")
 	return strings.HasPrefix(path, "/admin/withdrawals/") ||
-		strings.HasPrefix(path, "/admin/funds/")
+		strings.HasPrefix(path, "/admin/funds/") ||
+		isMandatoryReferralCampaignStepUpPath(path) ||
+		isMandatoryPlayFinanceStepUpPath(path)
+}
+
+func isMandatoryPlayFinanceStepUpPath(path string) bool {
+	return strings.HasPrefix(path, "/admin/play/campaigns") ||
+		path == "/admin/play/membership/vip-config"
+}
+
+func isMandatoryReferralCampaignStepUpPath(path string) bool {
+	if !strings.HasPrefix(path, "/admin/affiliates/campaigns/") {
+		return false
+	}
+	return strings.HasSuffix(path, "/status") ||
+		strings.HasSuffix(path, "/reviews") ||
+		strings.HasSuffix(path, "/resolve")
 }

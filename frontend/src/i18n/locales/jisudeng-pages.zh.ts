@@ -49,6 +49,7 @@ export const jisudengPagesZh = {
     copiedToast: '客服 QQ 已复制'
   },
   androidDownload: {
+		openInviteInApp: '安装后打开 APP 并继续邀请注册',
     metaTitle: 'Android 下载',
     eyebrow: 'JisudengChat Android',
     title: '下载极速蹬安卓 APP',
@@ -614,6 +615,8 @@ export const jisudengPagesZh = {
     },
   },
   agentTeam: {
+    kicker: '组队奖励',
+    rewardProofKicker: '奖励到账凭证',
     disabled: 'Agent Team 暂未开启',
     inviteCode: '邀请码：{code}',
     stats: '{members} 名成员 · 本月小队 {tokens} tokens',
@@ -729,6 +732,7 @@ export const jisudengPagesZh = {
     goKeys: '管理 API 密钥',
     channelPending: '{count} 项待完成',
     vipTitle: 'VIP 档位',
+    vipComparison: 'VIP 权益对比',
     vipRechargeBonus: '充值加赠 +{pct}%',
     vipRecharged: '累计充值 ${amount}',
     vipNext: '再充 ${amount} 升至 {label}',

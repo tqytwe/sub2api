@@ -52,6 +52,11 @@ type blindboxOpenRepo struct {
 	recordInTx        bool
 	ledgerInTx        bool
 	balanceInTx       bool
+	membershipPaid    float64
+}
+
+func (r *blindboxOpenRepo) GetMembershipPaidTotal(context.Context, int64) (float64, error) {
+	return r.membershipPaid, nil
 }
 
 func (r *blindboxOpenRepo) LockBlindboxOpenUser(ctx context.Context, _ int64) (float64, error) {
@@ -212,8 +217,8 @@ func TestBlindboxStatusSelectsCurrentAndNextVIPBlindboxPools(t *testing.T) {
 		SettingKeyPlayBlindboxPoolJSON:   string(poolJSON),
 		SettingKeyPlayBlindboxDailyLimit: "5",
 	}}, nil)
-	repo := &blindboxOpenRepo{}
-	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 10, TotalRecharged: 200}}
+	repo := &blindboxOpenRepo{membershipPaid: 200}
+	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 10}}
 	svc := NewPlayService(repo, userRepo, nil, settings, nil, nil)
 
 	status, err := svc.GetBlindboxStatus(context.Background(), 42)
@@ -240,8 +245,8 @@ func TestBlindboxOpenUsesVIPPoolAndReturnsCelebrationContext(t *testing.T) {
 		SettingKeyPlayBlindboxPoolJSON:   string(poolJSON),
 		SettingKeyPlayBlindboxDailyLimit: "10",
 	}}, nil)
-	repo := &blindboxOpenRepo{lockedBalance: 2}
-	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 2, TotalRecharged: 1000}}
+	repo := &blindboxOpenRepo{lockedBalance: 2, membershipPaid: 1000}
+	userRepo := &blindboxOpenUserRepo{user: &User{ID: 42, Balance: 2}}
 
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)

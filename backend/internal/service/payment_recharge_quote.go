@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"math"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -87,13 +88,21 @@ func (s *PaymentService) buildRechargeQuoteForUser(ctx context.Context, user *Us
 	}
 	campaign := paymentRechargeCampaignBonus{}
 	if s != nil && s.playService != nil {
-		bonusPct, campaignIDs, err := s.playService.ResolveRechargeCampaignBonus(ctx)
+		bonusPct, campaignIDs, err := s.playService.ResolveRechargeCampaignBonus(ctx, user.ID)
 		if err != nil {
 			return nil, err
 		}
 		campaign = paymentRechargeCampaignBonus{BonusPct: bonusPct, CampaignIDs: campaignIDs}
 	}
-	quote := buildPaymentRechargeQuote(inputAmount, multiplier, user.TotalRecharged, tiers, campaign)
+	paidTotal := 0.0
+	if s.playService != nil {
+		total, err := s.playService.MembershipPaidTotal(ctx, user.ID)
+		if err != nil {
+			return nil, fmt.Errorf("load membership paid total: %w", err)
+		}
+		paidTotal = total
+	}
+	quote := buildPaymentRechargeQuote(inputAmount, multiplier, paidTotal, tiers, campaign)
 	return &quote, nil
 }
 

@@ -2,12 +2,16 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/timezone"
+	"github.com/shopspring/decimal"
 )
 
 type PlayService struct {
@@ -24,6 +28,233 @@ type PlayService struct {
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
 	now                func() time.Time
+}
+
+type PlayMembershipAdminOverview struct {
+	TotalMembers     int                       `json:"total_members"`
+	NetPaid          decimal.Decimal           `json:"net_paid_amount"`
+	RecentUpgrades   int                       `json:"recent_upgrades"`
+	RecentDowngrades int                       `json:"recent_downgrades"`
+	TierCounts       []PlayMembershipTierCount `json:"tier_counts"`
+}
+
+type PlayMembershipTierCount struct {
+	Tier  int    `json:"tier"`
+	Label string `json:"label"`
+	Count int    `json:"count"`
+}
+
+type PlayMembershipAdminUser struct {
+	UserID       int64           `json:"user_id"`
+	EmailMasked  string          `json:"email_masked"`
+	Username     string          `json:"username,omitempty"`
+	Tier         int             `json:"tier"`
+	TierLabel    string          `json:"tier_label"`
+	IsMember     bool            `json:"is_member"`
+	NetPaid      decimal.Decimal `json:"net_paid_amount"`
+	RegisteredAt time.Time       `json:"registered_at"`
+	FirstPaidAt  *time.Time      `json:"first_paid_at,omitempty"`
+	LastPaidAt   *time.Time      `json:"last_paid_at,omitempty"`
+}
+
+func (s *PlayService) MembershipAdminOverview(ctx context.Context) (*PlayMembershipAdminOverview, error) {
+	repo, ok := s.repo.(PlayMembershipAdminRepository)
+	if !ok {
+		return &PlayMembershipAdminOverview{}, nil
+	}
+	threshold := firstMemberThreshold(s.GetRuntime(ctx).VIPTiers)
+	total, amount, err := repo.MembershipAdminOverview(ctx, threshold)
+	if err != nil {
+		return nil, err
+	}
+	totals, err := repo.ListMembershipPaidTotals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	tiers := s.GetRuntime(ctx).VIPTiers
+	counts := make(map[int]int, len(tiers))
+	for _, paid := range totals {
+		counts[resolveVIPStatus(paid.InexactFloat64(), tiers).Tier]++
+	}
+	tierCounts := make([]PlayMembershipTierCount, 0, len(tiers))
+	for _, tier := range tiers {
+		tierCounts = append(tierCounts, PlayMembershipTierCount{Tier: tier.Tier, Label: tier.Label, Count: counts[tier.Tier]})
+	}
+	upgrades, downgrades, err := repo.CountRecentMembershipTierChanges(ctx, s.serverNow().Add(-30*24*time.Hour))
+	if err != nil {
+		return nil, err
+	}
+	return &PlayMembershipAdminOverview{TotalMembers: total, NetPaid: amount, RecentUpgrades: upgrades, RecentDowngrades: downgrades, TierCounts: tierCounts}, nil
+}
+
+func (s *PlayService) ListMembershipAdminUsers(ctx context.Context, query string, memberOnly *bool, page, pageSize int) ([]PlayMembershipAdminUser, int, error) {
+	repo, ok := s.repo.(PlayMembershipAdminRepository)
+	if !ok {
+		return []PlayMembershipAdminUser{}, 0, nil
+	}
+	tiers := s.GetRuntime(ctx).VIPTiers
+	threshold := firstMemberThreshold(tiers)
+	rows, total, err := repo.ListMembershipAdminRows(ctx, query, memberOnly, threshold, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	out := make([]PlayMembershipAdminUser, 0, len(rows))
+	for _, row := range rows {
+		status := resolveVIPStatus(row.NetPaid.InexactFloat64(), tiers)
+		out = append(out, PlayMembershipAdminUser{UserID: row.UserID, EmailMasked: maskMembershipEmail(row.Email), Username: row.Username, Tier: status.Tier, TierLabel: status.Label, IsMember: row.NetPaid.InexactFloat64()+1e-9 >= threshold, NetPaid: row.NetPaid, RegisteredAt: row.RegisteredAt, FirstPaidAt: row.FirstPaidAt, LastPaidAt: row.LastPaidAt})
+	}
+	return out, total, nil
+}
+
+type PlayMembershipAdminDetail struct {
+	User          PlayMembershipAdminUser      `json:"user"`
+	Contributions []PlayMembershipContribution `json:"contributions"`
+	TierHistory   []PlayMembershipTierChange   `json:"tier_history"`
+}
+
+func (s *PlayService) GetMembershipAdminUser(ctx context.Context, userID int64) (*PlayMembershipAdminDetail, error) {
+	repo, ok := s.repo.(PlayMembershipAdminRepository)
+	if !ok {
+		return nil, infraerrors.ServiceUnavailable("PLAY_MEMBERSHIP_UNAVAILABLE", "membership service unavailable")
+	}
+	row, err := repo.GetMembershipAdminRow(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if row == nil {
+		return nil, infraerrors.NotFound("PLAY_MEMBERSHIP_USER_NOT_FOUND", "membership user not found")
+	}
+	tiers := s.GetRuntime(ctx).VIPTiers
+	status := resolveVIPStatus(row.NetPaid.InexactFloat64(), tiers)
+	threshold := firstMemberThreshold(tiers)
+	user := PlayMembershipAdminUser{UserID: row.UserID, EmailMasked: maskMembershipEmail(row.Email), Username: row.Username, Tier: status.Tier, TierLabel: status.Label, IsMember: row.NetPaid.InexactFloat64()+1e-9 >= threshold, NetPaid: row.NetPaid, RegisteredAt: row.RegisteredAt, FirstPaidAt: row.FirstPaidAt, LastPaidAt: row.LastPaidAt}
+	contributions, err := repo.ListMembershipContributions(ctx, userID, 50)
+	if err != nil {
+		return nil, err
+	}
+	history, err := repo.ListMembershipTierHistory(ctx, userID, 50)
+	if err != nil {
+		return nil, err
+	}
+	return &PlayMembershipAdminDetail{User: user, Contributions: contributions, TierHistory: history}, nil
+}
+
+var ErrPlayVIPConfigConflict = infraerrors.Conflict("PLAY_VIP_CONFIG_CONFLICT", "VIP configuration changed; preview again")
+
+type PlayVIPConfigImpact struct {
+	Version         int64                      `json:"version"`
+	Tiers           []PlayVIPTier              `json:"tiers"`
+	AffectedUsers   int                        `json:"affected_users"`
+	UpgradedUsers   int                        `json:"upgraded_users"`
+	DowngradedUsers int                        `json:"downgraded_users"`
+	Changes         []PlayMembershipTierChange `json:"-"`
+}
+
+func (s *PlayService) PreviewVIPConfig(ctx context.Context, requested []PlayVIPTier) (*PlayVIPConfigImpact, error) {
+	tiers, err := validateAdminVIPTiers(requested)
+	if err != nil {
+		return nil, infraerrors.BadRequest("PLAY_VIP_CONFIG_INVALID", err.Error())
+	}
+	repo, ok := s.repo.(PlayMembershipAdminRepository)
+	if !ok {
+		return nil, infraerrors.ServiceUnavailable("PLAY_MEMBERSHIP_UNAVAILABLE", "membership service unavailable")
+	}
+	version, err := repo.GetVIPConfigVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	totals, err := repo.ListMembershipPaidTotals(ctx)
+	if err != nil {
+		return nil, err
+	}
+	current := s.GetRuntime(ctx).VIPTiers
+	impact := &PlayVIPConfigImpact{Version: version, Tiers: tiers}
+	for userID, paid := range totals {
+		before := resolveVIPStatus(paid.InexactFloat64(), current).Tier
+		after := resolveVIPStatus(paid.InexactFloat64(), tiers).Tier
+		if before == after {
+			continue
+		}
+		impact.AffectedUsers++
+		impact.Changes = append(impact.Changes, PlayMembershipTierChange{UserID: userID, FromTier: before, ToTier: after, NetPaidBefore: paid, NetPaidAfter: paid, Reason: "tier_config"})
+		if after > before {
+			impact.UpgradedUsers++
+		} else {
+			impact.DowngradedUsers++
+		}
+	}
+	return impact, nil
+}
+
+func (s *PlayService) PublishVIPConfig(ctx context.Context, requested []PlayVIPTier, expectedVersion, actorID int64, reason string) (*PlayVIPConfigImpact, error) {
+	reason = strings.TrimSpace(reason)
+	if len([]rune(reason)) < 10 || len([]rune(reason)) > 500 {
+		return nil, infraerrors.BadRequest("PLAY_VIP_CONFIG_REASON_INVALID", "VIP configuration reason must contain 10 to 500 characters")
+	}
+	impact, err := s.PreviewVIPConfig(ctx, requested)
+	if err != nil {
+		return nil, err
+	}
+	if impact.Version != expectedVersion {
+		return nil, ErrPlayVIPConfigConflict
+	}
+	raw, err := json.Marshal(impact.Tiers)
+	if err != nil {
+		return nil, err
+	}
+	repo, ok := s.repo.(PlayMembershipAdminRepository)
+	if !ok {
+		return nil, errors.New("membership administration is unavailable")
+	}
+	version, err := repo.PublishVIPConfig(ctx, expectedVersion, actorID, reason, string(raw), impact.AffectedUsers, impact.UpgradedUsers, impact.DowngradedUsers, impact.Changes)
+	if err != nil {
+		return nil, err
+	}
+	impact.Version = version
+	return impact, nil
+}
+
+func maskMembershipEmail(value string) string {
+	value = strings.TrimSpace(value)
+	parts := strings.SplitN(value, "@", 2)
+	if len(parts) != 2 || parts[0] == "" {
+		return "***"
+	}
+	local := parts[0]
+	if len(local) == 1 {
+		local += "*"
+	} else if len(local) == 2 {
+		local = local[:1] + "*"
+	} else {
+		local = local[:1] + "***" + local[len(local)-1:]
+	}
+	return local + "@" + parts[1]
+}
+
+type PlayAppAnalytics struct {
+	Scans              int64            `json:"scans"`
+	DownloadRedirects  int64            `json:"download_redirects"`
+	FirstLaunches      int64            `json:"first_launches"`
+	Installs           int64            `json:"installs"`
+	RegisteredInstalls int64            `json:"registered_installs"`
+	ActiveUsers        int64            `json:"active_users"`
+	DAU                int64            `json:"dau"`
+	WAU                int64            `json:"wau"`
+	MAU                int64            `json:"mau"`
+	Funnel             []map[string]any `json:"funnel"`
+	Versions           []map[string]any `json:"versions"`
+}
+
+func (s *PlayService) AppAnalytics(ctx context.Context, from, to time.Time, version, channel string) (*PlayAppAnalytics, error) {
+	repo, ok := s.repo.(PlayAppAnalyticsRepository)
+	if !ok {
+		return &PlayAppAnalytics{Funnel: []map[string]any{}, Versions: []map[string]any{}}, nil
+	}
+	scans, downloads, first, registered, active, dau, wau, mau, funnel, versions, err := repo.AppAnalytics(ctx, from, to, version, channel)
+	if err != nil {
+		return nil, err
+	}
+	return &PlayAppAnalytics{Scans: scans, DownloadRedirects: downloads, FirstLaunches: first, Installs: first, RegisteredInstalls: registered, ActiveUsers: active, DAU: dau, WAU: wau, MAU: mau, Funnel: funnel, Versions: versions}, nil
 }
 
 func (s *PlayService) SetMobilePushService(push *MobilePushService) {

@@ -14,14 +14,16 @@ import (
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/util/logredact"
+	"github.com/google/uuid"
 )
 
 var (
-	ErrMobileFeedbackUnavailable = infraerrors.ServiceUnavailable("MOBILE_FEEDBACK_UNAVAILABLE", "客服工单服务暂时不可用")
-	ErrMobileFeedbackInvalid     = infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "工单信息不正确")
-	ErrMobileFeedbackNotFound    = infraerrors.NotFound("MOBILE_FEEDBACK_NOT_FOUND", "工单不存在")
-	ErrMobileFeedbackClosed      = infraerrors.Conflict("MOBILE_FEEDBACK_CLOSED", "工单已关闭，无法继续回复")
-	ErrMobileFeedbackSensitive   = infraerrors.BadRequest("MOBILE_FEEDBACK_SENSITIVE_DIAGNOSTICS", "诊断信息包含不允许提交的敏感字段")
+	ErrMobileFeedbackUnavailable     = infraerrors.ServiceUnavailable("MOBILE_FEEDBACK_UNAVAILABLE", "客服工单服务暂时不可用")
+	ErrMobileFeedbackInvalid         = infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "工单信息不正确")
+	ErrMobileFeedbackNotFound        = infraerrors.NotFound("MOBILE_FEEDBACK_NOT_FOUND", "工单不存在")
+	ErrMobileFeedbackClosed          = infraerrors.Conflict("MOBILE_FEEDBACK_CLOSED", "工单已关闭，无法继续回复")
+	ErrMobileFeedbackSensitive       = infraerrors.BadRequest("MOBILE_FEEDBACK_SENSITIVE_DIAGNOSTICS", "诊断信息包含不允许提交的敏感字段")
+	ErrMobileFeedbackVersionConflict = infraerrors.Conflict("MOBILE_FEEDBACK_VERSION_CONFLICT", "工单已被其他管理员更新，请刷新后重试")
 )
 
 const (
@@ -40,30 +42,37 @@ type MobileFeedbackScreenshot struct {
 }
 
 type MobileFeedbackRecord struct {
-	ID             int64                      `json:"id"`
-	UserID         int64                      `json:"user_id"`
-	UserEmail      string                     `json:"user_email,omitempty"`
-	UserName       string                     `json:"user_name,omitempty"`
-	Title          string                     `json:"title"`
-	Category       string                     `json:"category"`
-	Content        string                     `json:"content"`
-	Status         string                     `json:"status"`
-	AppVersion     string                     `json:"app_version"`
-	Platform       string                     `json:"platform"`
-	DeviceModel    string                     `json:"device_model"`
-	AndroidVersion string                     `json:"android_version"`
-	SystemVersion  string                     `json:"system_version"`
-	GroupName      string                     `json:"group_name"`
-	GroupID        *int64                     `json:"group_id,omitempty"`
-	BackendURL     string                     `json:"backend_url"`
-	LastError      string                     `json:"last_error"`
-	CrashLog       string                     `json:"crash_log"`
-	DeviceInfo     map[string]any             `json:"device_info"`
-	Screenshots    []MobileFeedbackScreenshot `json:"screenshots"`
-	AdminNote      string                     `json:"admin_note"`
-	WorkItems      []MobileFeedbackWorkItem   `json:"work_items,omitempty"`
-	CreatedAt      time.Time                  `json:"created_at"`
-	UpdatedAt      time.Time                  `json:"updated_at"`
+	ID              int64                      `json:"id"`
+	UserID          int64                      `json:"user_id"`
+	UserEmail       string                     `json:"user_email,omitempty"`
+	UserName        string                     `json:"user_name,omitempty"`
+	Title           string                     `json:"title"`
+	Category        string                     `json:"category"`
+	Content         string                     `json:"content"`
+	Status          string                     `json:"status"`
+	AppVersion      string                     `json:"app_version"`
+	InstallationID  string                     `json:"installation_id,omitempty"`
+	Channel         string                     `json:"channel,omitempty"`
+	Referrer        string                     `json:"referrer,omitempty"`
+	Platform        string                     `json:"platform"`
+	DeviceModel     string                     `json:"device_model"`
+	AndroidVersion  string                     `json:"android_version"`
+	SystemVersion   string                     `json:"system_version"`
+	GroupName       string                     `json:"group_name"`
+	GroupID         *int64                     `json:"group_id,omitempty"`
+	BackendURL      string                     `json:"backend_url"`
+	LastError       string                     `json:"last_error"`
+	CrashLog        string                     `json:"crash_log"`
+	DeviceInfo      map[string]any             `json:"device_info"`
+	Screenshots     []MobileFeedbackScreenshot `json:"screenshots"`
+	AdminNote       string                     `json:"admin_note"`
+	Version         int64                      `json:"version"`
+	UpdatedBy       *int64                     `json:"updated_by,omitempty"`
+	StatusChangedAt time.Time                  `json:"status_changed_at"`
+	AdminAudits     []MobileFeedbackAdminAudit `json:"admin_audits,omitempty"`
+	WorkItems       []MobileFeedbackWorkItem   `json:"work_items,omitempty"`
+	CreatedAt       time.Time                  `json:"created_at"`
+	UpdatedAt       time.Time                  `json:"updated_at"`
 }
 
 type MobileFeedbackInput struct {
@@ -71,6 +80,9 @@ type MobileFeedbackInput struct {
 	Category       string
 	Content        string
 	AppVersion     string
+	InstallationID string
+	Channel        string
+	Referrer       string
 	Platform       string
 	DeviceModel    string
 	AndroidVersion string
@@ -99,9 +111,31 @@ type MobileFeedbackList struct {
 }
 
 type MobileFeedbackUpdate struct {
-	Status    string
-	AdminNote *string
-	WorkItem  *MobileFeedbackWorkItemUpdate
+	Status          string
+	AdminNote       *string
+	ExpectedVersion int64
+	ActorAdminID    int64
+	WorkItem        *MobileFeedbackWorkItemUpdate
+}
+
+type MobileFeedbackStatusUpdate struct {
+	Status          string
+	AdminNote       string
+	ExpectedVersion int64
+	ActorAdminID    int64
+}
+
+type MobileFeedbackAdminAudit struct {
+	ID            int64     `json:"id"`
+	FeedbackID    int64     `json:"feedback_id"`
+	ActorAdminID  *int64    `json:"actor_admin_id,omitempty"`
+	FromStatus    string    `json:"from_status"`
+	ToStatus      string    `json:"to_status"`
+	FromAdminNote string    `json:"from_admin_note,omitempty"`
+	ToAdminNote   string    `json:"to_admin_note,omitempty"`
+	FromVersion   int64     `json:"from_version"`
+	ToVersion     int64     `json:"to_version"`
+	CreatedAt     time.Time `json:"created_at"`
 }
 
 type MobileFeedbackWorkItem struct {
@@ -175,6 +209,9 @@ func (s *PlayService) CreateMobileFeedback(ctx context.Context, userID int64, in
 		Content:        truncateMobileFeedbackText(input.Content, 3000),
 		Status:         "new",
 		AppVersion:     truncateMobileFeedbackText(input.AppVersion, 64),
+		InstallationID: "",
+		Channel:        "",
+		Referrer:       "",
 		Platform:       truncateMobileFeedbackText(defaultString(input.Platform, "android"), 32),
 		DeviceModel:    truncateMobileFeedbackText(input.DeviceModel, 120),
 		AndroidVersion: truncateMobileFeedbackText(input.AndroidVersion, 64),
@@ -187,6 +224,13 @@ func (s *PlayService) CreateMobileFeedback(ctx context.Context, userID int64, in
 		DeviceInfo:     deviceInfo,
 		Screenshots:    normalizeMobileFeedbackScreenshots(input.Screenshots),
 	}
+	installationContext, err := normalizeMobileFeedbackInstallationContext(input.InstallationID, input.Channel, input.Referrer)
+	if err != nil {
+		return nil, err
+	}
+	record.InstallationID = installationContext.InstallationID
+	record.Channel = installationContext.Channel
+	record.Referrer = installationContext.Referrer
 	if err := validateMobileFeedbackForCreate(record); err != nil {
 		return nil, err
 	}
@@ -384,6 +428,7 @@ func (s *PlayService) GetAdminMobileFeedback(ctx context.Context, id int64) (*Mo
 		return nil, err
 	}
 	s.attachMobileFeedbackWorkItems(ctx, record)
+	s.attachMobileFeedbackAdminAudits(ctx, record)
 	return record, nil
 }
 
@@ -394,48 +439,53 @@ func (s *PlayService) UpdateAdminMobileFeedback(ctx context.Context, id int64, i
 	if id <= 0 {
 		return nil, ErrMobileFeedbackNotFound
 	}
-	var current *MobileFeedbackRecord
+	if input.ExpectedVersion <= 0 {
+		return nil, ErrMobileFeedbackInvalid.WithMetadata(map[string]string{"field": "expected_version"})
+	}
+	if input.ActorAdminID <= 0 {
+		return nil, ErrMobileFeedbackInvalid.WithMetadata(map[string]string{"field": "actor_admin_id"})
+	}
+	current, err := s.repo.GetAdminMobileFeedback(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	if current.Version != input.ExpectedVersion {
+		return nil, ErrMobileFeedbackVersionConflict
+	}
 	status := normalizeOptionalMobileFeedbackStatus(input.Status)
 	if status == "" && strings.TrimSpace(input.Status) != "" {
 		return nil, ErrMobileFeedbackInvalid.WithMetadata(map[string]string{"field": "status"})
 	}
 	if status == "" {
-		var err error
-		current, err = s.repo.GetAdminMobileFeedback(ctx, id)
-		if err != nil {
-			return nil, err
-		}
 		status = current.Status
 	}
 	note := ""
 	if input.AdminNote != nil {
 		note = truncateMobileFeedbackText(*input.AdminNote, 1000)
 	} else {
-		if current == nil {
-			var err error
-			current, err = s.repo.GetAdminMobileFeedback(ctx, id)
-			if err != nil {
-				return nil, err
-			}
-		}
 		note = current.AdminNote
 	}
-	record, err := s.repo.UpdateAdminMobileFeedback(ctx, id, status, note)
-	if err != nil {
-		return nil, err
-	}
+	var normalizedWorkItem *MobileFeedbackWorkItemUpdate
 	if input.WorkItem != nil {
-		normalizedWorkItem, err := normalizeMobileFeedbackWorkItemUpdate(*input.WorkItem)
+		normalized, err := normalizeMobileFeedbackWorkItemUpdate(*input.WorkItem)
 		if err != nil {
 			return nil, err
 		}
+		normalizedWorkItem = &normalized
+	}
+	record, err := s.repo.UpdateAdminMobileFeedback(ctx, id, MobileFeedbackStatusUpdate{
+		Status: status, AdminNote: note, ExpectedVersion: input.ExpectedVersion, ActorAdminID: input.ActorAdminID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	if normalizedWorkItem != nil {
 		if workRepo, ok := s.repo.(mobileFeedbackWorkItemRepository); ok {
-			if _, workErr := workRepo.UpdateMobileFeedbackWorkItem(ctx, id, normalizedWorkItem); workErr != nil {
-				return nil, workErr
-			}
+			_, _ = workRepo.UpdateMobileFeedbackWorkItem(ctx, id, *normalizedWorkItem)
 		}
 	}
 	s.attachMobileFeedbackWorkItems(ctx, record)
+	s.attachMobileFeedbackAdminAudits(ctx, record)
 	if input.AdminNote != nil && note != "" && record != nil && record.UserID > 0 && s.mobilePush != nil {
 		_, _, _ = s.mobilePush.Enqueue(ctx, MobilePushEvent{
 			UserID: record.UserID, IdempotencyKey: fmt.Sprintf("support-reply:%d:%d", record.ID, record.UpdatedAt.UnixNano()),
@@ -486,6 +536,10 @@ type mobileFeedbackWorkItemRepository interface {
 	UpdateMobileFeedbackWorkItem(ctx context.Context, feedbackID int64, input MobileFeedbackWorkItemUpdate) (*MobileFeedbackWorkItem, error)
 }
 
+type mobileFeedbackAdminAuditRepository interface {
+	ListMobileFeedbackAdminAudits(ctx context.Context, feedbackID int64, limit int) ([]MobileFeedbackAdminAudit, error)
+}
+
 func (s *PlayService) attachMobileFeedbackWorkItems(ctx context.Context, record *MobileFeedbackRecord) {
 	if record == nil || record.ID <= 0 {
 		return
@@ -497,6 +551,20 @@ func (s *PlayService) attachMobileFeedbackWorkItems(ctx context.Context, record 
 	items, err := workRepo.ListMobileFeedbackWorkItems(ctx, record.ID)
 	if err == nil {
 		record.WorkItems = items
+	}
+}
+
+func (s *PlayService) attachMobileFeedbackAdminAudits(ctx context.Context, record *MobileFeedbackRecord) {
+	if record == nil || record.ID <= 0 {
+		return
+	}
+	auditRepo, ok := s.repo.(mobileFeedbackAdminAuditRepository)
+	if !ok {
+		return
+	}
+	items, err := auditRepo.ListMobileFeedbackAdminAudits(ctx, record.ID, 100)
+	if err == nil {
+		record.AdminAudits = items
 	}
 }
 
@@ -700,6 +768,48 @@ var mobileFeedbackDeviceInfoAllowlist = map[string]struct{}{
 	"androidversion": {}, "sdkint": {}, "appversionname": {}, "appversioncode": {},
 	"useragent": {}, "language": {}, "screen": {}, "networktype": {}, "connectiontype": {},
 	"httpstatus": {}, "errorcode": {}, "timeout": {}, "transport": {},
+}
+
+type MobileFeedbackInstallationContext struct {
+	InstallationID string `json:"installation_id,omitempty"`
+	Channel        string `json:"channel,omitempty"`
+	Referrer       string `json:"referrer,omitempty"`
+}
+
+var mobileFeedbackSafeContextValue = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._:/?=&%+,'#@~\- ]{0,255}$`)
+var mobileFeedbackSafeContextToken = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$`)
+
+func normalizeMobileFeedbackInstallationContext(installationID, channel, referrer string) (MobileFeedbackInstallationContext, error) {
+	installationID = strings.TrimSpace(installationID)
+	channel = strings.TrimSpace(channel)
+	referrer = strings.TrimSpace(referrer)
+	if installationID != "" {
+		if _, err := uuid.Parse(installationID); err != nil {
+			return MobileFeedbackInstallationContext{}, ErrMobileFeedbackSensitive.WithMetadata(map[string]string{"field": "installation_id"})
+		}
+	}
+	if installationID != "" && len(installationID) > 160 {
+		return MobileFeedbackInstallationContext{}, ErrMobileFeedbackSensitive.WithMetadata(map[string]string{"field": "installation_id"})
+	}
+	if channel != "" && !mobileFeedbackSafeContextToken.MatchString(channel) {
+		return MobileFeedbackInstallationContext{}, ErrMobileFeedbackSensitive.WithMetadata(map[string]string{"field": "channel"})
+	}
+	if referrer != "" {
+		if len(referrer) > 256 || !mobileFeedbackSafeContextValue.MatchString(referrer) || containsMobileFeedbackSensitiveContext(referrer) {
+			return MobileFeedbackInstallationContext{}, ErrMobileFeedbackSensitive.WithMetadata(map[string]string{"field": "referrer"})
+		}
+	}
+	return MobileFeedbackInstallationContext{InstallationID: installationID, Channel: channel, Referrer: referrer}, nil
+}
+
+func containsMobileFeedbackSensitiveContext(value string) bool {
+	value = strings.ToLower(value)
+	for _, token := range []string{"token", "secret", "password", "authorization", "apikey", "api_key", "access_token", "bearer"} {
+		if strings.Contains(value, token) {
+			return true
+		}
+	}
+	return false
 }
 
 func normalizeMobileFeedbackDeviceInfo(input map[string]any) (map[string]any, error) {

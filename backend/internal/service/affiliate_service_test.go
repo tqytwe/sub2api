@@ -7,6 +7,7 @@ import (
 	"errors"
 	"math"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -193,6 +194,44 @@ func TestBindInviterByCodeJoinsInviterActiveTeam(t *testing.T) {
 	require.Equal(t, []string{"XRFP2MCTF4DS"}, repo.lookupCodes)
 	require.Equal(t, [][2]int64{{51, 50}}, repo.bindCalls)
 	require.Equal(t, [][2]int64{{50, 51}}, repo.joinCalls)
+}
+
+type referralValidationRepoStub struct {
+	*affiliateBindRepoStub
+	ReferralCampaignRepository
+	secret   []byte
+	campaign *ReferralCampaign
+}
+
+func (r *referralValidationRepoStub) GetReferralCampaignSecret(context.Context, int64) ([]byte, error) {
+	return r.secret, nil
+}
+
+func (r *referralValidationRepoStub) GetReferralCampaign(context.Context, int64) (*ReferralCampaign, error) {
+	return r.campaign, nil
+}
+
+func (r *referralValidationRepoStub) GetReferralCampaignEnrollment(_ context.Context, campaignID, userID int64) (*ReferralCampaignEnrollment, error) {
+	return &ReferralCampaignEnrollment{CampaignID: campaignID, UserID: userID}, nil
+}
+
+func TestValidateRegistrationReferralRejectsConflictingInviters(t *testing.T) {
+	now := time.Now().UTC()
+	secret := []byte("registration-referral-validation-secret")
+	token, err := SignReferralCampaignToken(secret, ReferralCampaignTokenPayload{
+		CampaignID: 7, InviterID: 42, Nonce: "registration-conflict", ExpiresAt: now.Add(time.Hour),
+	})
+	require.NoError(t, err)
+	repo := &referralValidationRepoStub{
+		affiliateBindRepoStub: &affiliateBindRepoStub{inviter: &AffiliateSummary{UserID: 99, AffCode: "INVITER99"}},
+		secret:                secret,
+		campaign:              &ReferralCampaign{ID: 7, Status: ReferralCampaignStatusRunning, RegistrationFrom: now.Add(-time.Hour), RegistrationTo: now.Add(time.Hour)},
+	}
+	svc := NewAffiliateService(repo, nil, nil, nil)
+
+	err = svc.ValidateRegistrationReferral(context.Background(), "INVITER99", token)
+
+	require.ErrorIs(t, err, ErrAffiliateInviteConflict)
 }
 
 func TestBindInviterByCodeKeepsAffiliateBindingWhenTeamJoinFails(t *testing.T) {

@@ -206,6 +206,7 @@ func registerRoutes(
 	v1.POST("/mobile/support/tickets/:id/messages", gin.HandlerFunc(jwtAuth), h.MobileSupport.AddMessage)
 	v1.POST("/mobile/support/tickets/:id/close", gin.HandlerFunc(jwtAuth), h.MobileSupport.Close)
 	v1.POST("/mobile/diagnostics", gin.HandlerFunc(jwtAuth), h.MobileDiagnostic.Create)
+	v1.POST("/mobile/attribution/events", panelRateLimiter.PublicIP(), gin.HandlerFunc(optionalJWTAuth), h.MobileAttribution.Event)
 	v1.PUT("/mobile/devices/:installation_id", gin.HandlerFunc(jwtAuth), h.MobileDevice.Register)
 	v1.DELETE("/mobile/devices/:installation_id", gin.HandlerFunc(jwtAuth), h.MobileDevice.Delete)
 	v1.POST("/redeem-codes/redeem", gin.HandlerFunc(jwtAuth), h.Redeem.Redeem)

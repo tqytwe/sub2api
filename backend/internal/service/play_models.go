@@ -666,12 +666,77 @@ type PlayRepository interface {
 	CreateMobileFeedback(ctx context.Context, record MobileFeedbackRecord) (*MobileFeedbackRecord, error)
 	ListAdminMobileFeedback(ctx context.Context, filter MobileFeedbackListFilter) ([]MobileFeedbackRecord, int64, error)
 	GetAdminMobileFeedback(ctx context.Context, id int64) (*MobileFeedbackRecord, error)
-	UpdateAdminMobileFeedback(ctx context.Context, id int64, status, adminNote string) (*MobileFeedbackRecord, error)
+	UpdateAdminMobileFeedback(ctx context.Context, id int64, input MobileFeedbackStatusUpdate) (*MobileFeedbackRecord, error)
 	ListUserMobileFeedback(ctx context.Context, userID int64, filter MobileFeedbackListFilter) ([]MobileFeedbackRecord, int64, error)
 	GetUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
 	ListMobileFeedbackMessages(ctx context.Context, userID, feedbackID int64) ([]MobileFeedbackMessage, error)
 	CreateUserMobileFeedbackMessage(ctx context.Context, userID, feedbackID int64, content string) (*MobileFeedbackMessage, error)
 	CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
+}
+
+// PlayMembershipRepository is optional so lightweight PlayRepository test
+// doubles and deployments without the new migration remain compatible.
+type PlayMembershipRepository interface {
+	GetMembershipPaidTotal(ctx context.Context, userID int64) (float64, error)
+	SyncMembershipOrderContribution(ctx context.Context, orderID, userID int64, orderType string, paidAmount, refundAmount float64, paidAt *time.Time, status string) error
+	ListTeamLeaderboardBase(ctx context.Context, start, end time.Time, limit int) ([]PlayTeamLeaderboardBase, error)
+	GetTeamLeaderboardRank(ctx context.Context, teamID int64, start, end time.Time) (rank int, total int, previousSpend decimal.Decimal, err error)
+}
+
+type PlayMembershipAdminRow struct {
+	UserID       int64
+	Email        string
+	Username     string
+	NetPaid      decimal.Decimal
+	RegisteredAt time.Time
+	FirstPaidAt  *time.Time
+	LastPaidAt   *time.Time
+}
+
+type PlayMembershipAdminRepository interface {
+	MembershipAdminOverview(ctx context.Context, memberThreshold float64) (totalMembers int, netPaid decimal.Decimal, err error)
+	ListMembershipAdminRows(ctx context.Context, query string, memberOnly *bool, memberThreshold float64, page, pageSize int) ([]PlayMembershipAdminRow, int, error)
+	ListMembershipPaidTotals(ctx context.Context) (map[int64]decimal.Decimal, error)
+	GetMembershipAdminRow(ctx context.Context, userID int64) (*PlayMembershipAdminRow, error)
+	ListMembershipContributions(ctx context.Context, userID int64, limit int) ([]PlayMembershipContribution, error)
+	ListMembershipTierHistory(ctx context.Context, userID int64, limit int) ([]PlayMembershipTierChange, error)
+	CountRecentMembershipTierChanges(ctx context.Context, since time.Time) (upgrades, downgrades int, err error)
+	RecordMembershipTierChange(ctx context.Context, change PlayMembershipTierChange) error
+	GetVIPConfigVersion(ctx context.Context) (int64, error)
+	PublishVIPConfig(ctx context.Context, expectedVersion, actorID int64, reason, tiersJSON string, affected, upgraded, downgraded int, changes []PlayMembershipTierChange) (int64, error)
+}
+
+type PlayMembershipContribution struct {
+	OrderID      int64           `json:"order_id"`
+	OrderType    string          `json:"order_type"`
+	PaidAmount   decimal.Decimal `json:"paid_amount"`
+	RefundAmount decimal.Decimal `json:"refund_amount"`
+	NetAmount    decimal.Decimal `json:"net_amount"`
+	PaidAt       *time.Time      `json:"paid_at,omitempty"`
+	Status       string          `json:"status"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
+type PlayMembershipTierChange struct {
+	UserID        int64           `json:"user_id,omitempty"`
+	OrderID       *int64          `json:"order_id,omitempty"`
+	FromTier      int             `json:"from_tier"`
+	ToTier        int             `json:"to_tier"`
+	NetPaidBefore decimal.Decimal `json:"net_paid_before"`
+	NetPaidAfter  decimal.Decimal `json:"net_paid_after"`
+	Reason        string          `json:"reason"`
+	CreatedAt     time.Time       `json:"created_at"`
+}
+
+type PlayAppAnalyticsRepository interface {
+	AppAnalytics(ctx context.Context, from, to time.Time, version, channel string) (scans, downloadRedirects, firstLaunches, registeredInstalls, activeUsers, dau, wau, mau int64, funnel []map[string]any, versions []map[string]any, err error)
+}
+
+type PlayTeamLeaderboardBase struct {
+	TeamID      int64
+	TeamName    string
+	MemberCount int
+	Spend       decimal.Decimal
 }
 
 type PlayCheckinEligibilityRepository interface {

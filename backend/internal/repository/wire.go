@@ -155,6 +155,7 @@ var ProviderSet = wire.NewSet(
 	NewAESEncryptor,
 	ProvideMobilePushConfig,
 	ProvideMobilePushRepository,
+	NewMobileAttributionRepository,
 	ProvideMobilePushSender,
 
 	// Backup infrastructure

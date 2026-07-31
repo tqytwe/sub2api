@@ -15,7 +15,7 @@ import (
 func (r *playRepository) ListActiveCampaigns(ctx context.Context, now time.Time) ([]service.PlayCampaign, error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
-		SELECT id, name, start_at, end_at, rules_json::text, enabled, created_at
+		SELECT id, name, start_at, end_at, rules_json::text, audience_json::text, enabled, created_at
 		FROM play_campaigns
 		WHERE enabled = TRUE AND start_at <= $1 AND end_at > $1
 		ORDER BY start_at ASC, id ASC`, now)
@@ -27,11 +27,12 @@ func (r *playRepository) ListActiveCampaigns(ctx context.Context, now time.Time)
 	out := make([]service.PlayCampaign, 0)
 	for rows.Next() {
 		var item service.PlayCampaign
-		var rulesRaw string
-		if err := rows.Scan(&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &item.Enabled, &item.CreatedAt); err != nil {
+		var rulesRaw, audienceRaw string
+		if err := rows.Scan(&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &audienceRaw, &item.Enabled, &item.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan play campaign: %w", err)
 		}
 		item.Rules = service.ParsePlayCampaignRules(rulesRaw)
+		item.Audience = service.ParsePlayCampaignAudience(audienceRaw)
 		out = append(out, item)
 	}
 	if err := rows.Err(); err != nil {
@@ -43,7 +44,7 @@ func (r *playRepository) ListActiveCampaigns(ctx context.Context, now time.Time)
 func (r *playRepository) ListAdminCampaigns(ctx context.Context) ([]service.PlayCampaign, error) {
 	exec := r.sqlExec(ctx)
 	rows, err := exec.QueryContext(ctx, `
-		SELECT id, name, start_at, end_at, rules_json::text, enabled, created_at
+		SELECT id, name, start_at, end_at, rules_json::text, audience_json::text, enabled, created_at
 		FROM play_campaigns
 		ORDER BY enabled DESC, start_at DESC, id DESC`)
 	if err != nil {
@@ -70,20 +71,25 @@ func (r *playRepository) CreateAdminCampaign(ctx context.Context, campaign servi
 	if err != nil {
 		return nil, fmt.Errorf("marshal play campaign rules: %w", err)
 	}
+	audienceJSON, err := json.Marshal(campaign.Audience)
+	if err != nil {
+		return nil, fmt.Errorf("marshal play campaign audience: %w", err)
+	}
 
 	var item service.PlayCampaign
-	var rulesRaw string
+	var rulesRaw, audienceRaw string
 	err = scanSingleRow(ctx, r.sqlExec(ctx), `
-		INSERT INTO play_campaigns (name, start_at, end_at, rules_json, enabled)
-		VALUES ($1, $2, $3, $4::jsonb, $5)
-		RETURNING id, name, start_at, end_at, rules_json::text, enabled, created_at`,
-		[]any{campaign.Name, campaign.StartAt, campaign.EndAt, string(rulesJSON), campaign.Enabled},
-		&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &item.Enabled, &item.CreatedAt,
+		INSERT INTO play_campaigns (name, start_at, end_at, rules_json, audience_json, enabled)
+		VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6)
+		RETURNING id, name, start_at, end_at, rules_json::text, audience_json::text, enabled, created_at`,
+		[]any{campaign.Name, campaign.StartAt, campaign.EndAt, string(rulesJSON), string(audienceJSON), campaign.Enabled},
+		&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &audienceRaw, &item.Enabled, &item.CreatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create admin play campaign: %w", err)
 	}
 	item.Rules = service.ParsePlayCampaignRules(rulesRaw)
+	item.Audience = service.ParsePlayCampaignAudience(audienceRaw)
 	return &item, nil
 }
 
@@ -92,16 +98,20 @@ func (r *playRepository) UpdateAdminCampaign(ctx context.Context, campaign servi
 	if err != nil {
 		return nil, fmt.Errorf("marshal play campaign rules: %w", err)
 	}
+	audienceJSON, err := json.Marshal(campaign.Audience)
+	if err != nil {
+		return nil, fmt.Errorf("marshal play campaign audience: %w", err)
+	}
 
 	var item service.PlayCampaign
-	var rulesRaw string
+	var rulesRaw, audienceRaw string
 	err = scanSingleRow(ctx, r.sqlExec(ctx), `
 		UPDATE play_campaigns
-		SET name = $2, start_at = $3, end_at = $4, rules_json = $5::jsonb, enabled = $6
+		SET name = $2, start_at = $3, end_at = $4, rules_json = $5::jsonb, audience_json = $6::jsonb, enabled = $7
 		WHERE id = $1
-		RETURNING id, name, start_at, end_at, rules_json::text, enabled, created_at`,
-		[]any{campaign.ID, campaign.Name, campaign.StartAt, campaign.EndAt, string(rulesJSON), campaign.Enabled},
-		&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &item.Enabled, &item.CreatedAt,
+		RETURNING id, name, start_at, end_at, rules_json::text, audience_json::text, enabled, created_at`,
+		[]any{campaign.ID, campaign.Name, campaign.StartAt, campaign.EndAt, string(rulesJSON), string(audienceJSON), campaign.Enabled},
+		&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &audienceRaw, &item.Enabled, &item.CreatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -110,6 +120,7 @@ func (r *playRepository) UpdateAdminCampaign(ctx context.Context, campaign servi
 		return nil, fmt.Errorf("update admin play campaign: %w", err)
 	}
 	item.Rules = service.ParsePlayCampaignRules(rulesRaw)
+	item.Audience = service.ParsePlayCampaignAudience(audienceRaw)
 	return &item, nil
 }
 
@@ -134,10 +145,11 @@ type campaignRowScanner interface {
 
 func scanPlayCampaign(row campaignRowScanner) (service.PlayCampaign, error) {
 	var item service.PlayCampaign
-	var rulesRaw string
-	if err := row.Scan(&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &item.Enabled, &item.CreatedAt); err != nil {
+	var rulesRaw, audienceRaw string
+	if err := row.Scan(&item.ID, &item.Name, &item.StartAt, &item.EndAt, &rulesRaw, &audienceRaw, &item.Enabled, &item.CreatedAt); err != nil {
 		return item, fmt.Errorf("scan play campaign: %w", err)
 	}
 	item.Rules = service.ParsePlayCampaignRules(rulesRaw)
+	item.Audience = service.ParsePlayCampaignAudience(audienceRaw)
 	return item, nil
 }

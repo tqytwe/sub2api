@@ -17,6 +17,8 @@ var (
 	ErrAffiliateCodeTaken       = infraerrors.Conflict("AFFILIATE_CODE_TAKEN", "affiliate code already in use")
 	ErrAffiliateAlreadyBound    = infraerrors.Conflict("AFFILIATE_ALREADY_BOUND", "affiliate inviter already bound")
 	ErrAffiliateQuotaEmpty      = infraerrors.BadRequest("AFFILIATE_QUOTA_EMPTY", "no affiliate quota available to transfer")
+	ErrAffiliateInviteConflict  = infraerrors.Conflict("AFFILIATE_INVITE_CONFLICT", "affiliate code and signed campaign invitation refer to different inviters")
+	ErrAffiliateDebtReview      = infraerrors.Conflict("AFFILIATE_DEBT_REVIEW", "affiliate transfer is suspended while a reversed campaign reward is under debt review")
 )
 
 const (
@@ -223,6 +225,7 @@ type AffiliateService struct {
 	authCacheInvalidator APIKeyAuthCacheInvalidator
 	billingCacheService  *BillingCacheService
 	balanceLedger        *BalanceLedgerService
+	referralCampaign     *ReferralCampaignService
 }
 
 func NewAffiliateService(repo AffiliateRepository, settingService *SettingService, authCacheInvalidator APIKeyAuthCacheInvalidator, billingCacheService *BillingCacheService, balanceLedger ...*BalanceLedgerService) *AffiliateService {
@@ -237,10 +240,91 @@ func NewAffiliateService(repo AffiliateRepository, settingService *SettingServic
 		billingCacheService:  billingCacheService,
 		balanceLedger:        ledger,
 	}
+	if campaignRepo, ok := repo.(ReferralCampaignRepository); ok {
+		svc.referralCampaign = NewReferralCampaignService(campaignRepo)
+	}
 	if joiner, ok := repo.(AffiliateTeamJoiner); ok {
 		svc.teamJoiner = joiner
 	}
 	return svc
+}
+
+// ReferralCampaign returns the optional campaign service wired from the same
+// repository. Keeping it optional preserves all existing affiliate test doubles
+// and deployments while the migration is rolled out.
+func (s *AffiliateService) ReferralCampaign() *ReferralCampaignService {
+	if s == nil {
+		return nil
+	}
+	return s.referralCampaign
+}
+
+// ValidateRegistrationReferral verifies the signed campaign invitation before
+// account creation and ensures a simultaneously supplied legacy affiliate code
+// cannot point at a different inviter.
+func (s *AffiliateService) ValidateRegistrationReferral(ctx context.Context, rawCode, token string) error {
+	if strings.TrimSpace(token) == "" {
+		return nil
+	}
+	if s == nil || s.repo == nil || s.referralCampaign == nil {
+		return infraerrors.ServiceUnavailable("REFERRAL_CAMPAIGN_UNAVAILABLE", "referral campaign service unavailable")
+	}
+	inviterID, err := s.referralCampaign.ValidateInviteToken(ctx, strings.TrimSpace(token), time.Now().UTC())
+	if err != nil {
+		return err
+	}
+	code := strings.ToUpper(strings.TrimSpace(rawCode))
+	if code == "" {
+		return nil
+	}
+	if !isValidAffiliateCodeFormat(code) {
+		return ErrAffiliateCodeInvalid
+	}
+	inviter, err := s.repo.GetAffiliateByCode(ctx, code)
+	if err != nil {
+		if errors.Is(err, ErrAffiliateProfileNotFound) {
+			return ErrAffiliateCodeInvalid
+		}
+		return err
+	}
+	if inviter == nil || inviter.UserID != inviterID {
+		return ErrAffiliateInviteConflict
+	}
+	return nil
+}
+
+// ReverseReferralRewardsByOrder is called after a successful payment refund.
+// It is intentionally idempotent and leaves the ordinary affiliate ledger
+// untouched; campaign rewards have their own state machine and budget ledger.
+func (s *AffiliateService) ReverseReferralRewardsByOrder(ctx context.Context, orderID int64) error {
+	if s == nil || s.referralCampaign == nil || s.referralCampaign.repo == nil || orderID <= 0 {
+		return nil
+	}
+	return s.referralCampaign.repo.ReverseReferralRewardsByOrder(ctx, orderID)
+}
+
+func (s *AffiliateService) EnqueueReferralRefundReconcile(ctx context.Context, orderID int64) error {
+	if s == nil || s.referralCampaign == nil || s.referralCampaign.repo == nil || orderID <= 0 {
+		return nil
+	}
+	return s.referralCampaign.repo.EnqueueReferralRefundReconcile(ctx, orderID)
+}
+
+func (s *AffiliateService) ProcessReferralReconcileQueue(ctx context.Context, limit int) (int, error) {
+	if s == nil || s.referralCampaign == nil || s.referralCampaign.repo == nil {
+		return 0, nil
+	}
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	return s.referralCampaign.repo.ProcessReferralReconcileQueue(ctx, limit)
+}
+
+func (s *AffiliateService) RecomputeReferralCampaignsForInvitee(ctx context.Context, inviteeID int64) error {
+	if s == nil || s.referralCampaign == nil {
+		return nil
+	}
+	return s.referralCampaign.RecomputeForInvitee(ctx, inviteeID, time.Now().UTC())
 }
 
 // IsEnabled reports whether the affiliate (邀请返利) feature is turned on.

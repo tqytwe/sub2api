@@ -301,6 +301,13 @@ MIGRATIONS=(
   215_ip_risk_management.sql
   216_mobile_feedback.sql
   217_billing_surcharge_layer.sql
+  234_play_membership_accounting_and_campaign_audience.sql
+  235_mobile_feedback_context_and_admin_audit.sql
+  236_referral_campaign_core.sql
+  237_mobile_attribution.sql
+  238_play_membership_operations.sql
+  239_membership_financial_fk_guard.sql
+  240_mobile_attribution_referral_campaign_fk.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

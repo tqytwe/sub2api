@@ -48,42 +48,44 @@ type AdminHandlers struct {
 	IPRisk                 *admin.IPRiskHandler
 	AuditLog               *admin.AuditLogHandler
 	PromptLibrary          *admin.PromptLibraryHandler
+	MobileAttribution      *MobileAttributionAdminHandler
 }
 
 // Handlers contains all HTTP handlers
 type Handlers struct {
-	Auth             *AuthHandler
-	User             *UserHandler
-	APIKey           *APIKeyHandler
-	Usage            *UsageHandler
-	Redeem           *RedeemHandler
-	Subscription     *SubscriptionHandler
-	Announcement     *AnnouncementHandler
-	ChannelMonitor   *ChannelMonitorUserHandler
-	Admin            *AdminHandlers
-	Gateway          *GatewayHandler
-	OpenAIGateway    *OpenAIGatewayHandler
-	Setting          *SettingHandler
-	Totp             *TotpHandler
-	Passkey          *PasskeyHandler
-	Payment          *PaymentHandler
-	PaymentWebhook   *PaymentWebhookHandler
-	Coupon           *CouponWalletHandler
-	AvailableChannel *AvailableChannelHandler
-	ModelPlaza       *ModelPlazaHandler
-	AsyncImage       *AsyncImageHandler
-	BatchImage       *BatchImageHandler
-	Play             *PlayHandler
-	Wallet           *WalletHandler
-	Fund             *FundHandler
-	ImageStudio      *ImageStudioHandler
-	ModelPricing     *ModelPricingHandler
-	PromptLibrary    *PromptLibraryHandler
-	MobileAsset      *MobileAssetHandler
-	MobileTask       *MobileTaskHandler
-	MobileSupport    *MobileSupportHandler
-	MobileDiagnostic *MobileDiagnosticHandler
-	MobileDevice     *MobileDeviceHandler
+	Auth              *AuthHandler
+	User              *UserHandler
+	APIKey            *APIKeyHandler
+	Usage             *UsageHandler
+	Redeem            *RedeemHandler
+	Subscription      *SubscriptionHandler
+	Announcement      *AnnouncementHandler
+	ChannelMonitor    *ChannelMonitorUserHandler
+	Admin             *AdminHandlers
+	Gateway           *GatewayHandler
+	OpenAIGateway     *OpenAIGatewayHandler
+	Setting           *SettingHandler
+	Totp              *TotpHandler
+	Passkey           *PasskeyHandler
+	Payment           *PaymentHandler
+	PaymentWebhook    *PaymentWebhookHandler
+	Coupon            *CouponWalletHandler
+	AvailableChannel  *AvailableChannelHandler
+	ModelPlaza        *ModelPlazaHandler
+	AsyncImage        *AsyncImageHandler
+	BatchImage        *BatchImageHandler
+	Play              *PlayHandler
+	Wallet            *WalletHandler
+	Fund              *FundHandler
+	ImageStudio       *ImageStudioHandler
+	ModelPricing      *ModelPricingHandler
+	PromptLibrary     *PromptLibraryHandler
+	MobileAsset       *MobileAssetHandler
+	MobileTask        *MobileTaskHandler
+	MobileSupport     *MobileSupportHandler
+	MobileDiagnostic  *MobileDiagnosticHandler
+	MobileDevice      *MobileDeviceHandler
+	MobileAttribution *MobileAttributionHandler
 }
 
 // BuildInfo contains build-time information

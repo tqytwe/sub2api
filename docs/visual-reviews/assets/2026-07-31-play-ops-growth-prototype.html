@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>玩法运营整改原型</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 14px/1.55 system-ui, sans-serif; color: #172033; background: #f6f7f9; }
+    .shell { display: grid; grid-template-columns: 224px 1fr; min-height: 100vh; }
+    aside { padding: 24px 16px; color: #eef2ff; background: #182033; }
+    .brand { margin-bottom: 28px; font-size: 20px; font-weight: 700; }
+    .nav { display: grid; gap: 6px; }
+    .nav div { padding: 10px 12px; border-radius: 6px; }
+    .nav .active { background: #2a3754; }
+    main { min-width: 0; }
+    header { display: flex; justify-content: space-between; align-items: center; height: 64px; padding: 0 32px; background: white; border-bottom: 1px solid #dfe3ea; }
+    .content { padding: 28px 32px 40px; }
+    h1 { margin: 0; font-size: 24px; line-height: 32px; }
+    .muted { color: #657086; }
+    .tabs { display: flex; gap: 4px; margin-top: 24px; overflow-x: auto; border-bottom: 1px solid #dfe3ea; }
+    .tab { flex: 0 0 auto; padding: 11px 14px; color: #526079; border-bottom: 2px solid transparent; }
+    .tab.active { color: #2563a9; font-weight: 600; border-color: #2563a9; }
+    .toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 20px 0; }
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; }
+    button, select { min-height: 40px; padding: 0 12px; border: 1px solid #cfd5df; border-radius: 6px; color: #172033; background: white; }
+    button.primary { color: white; border-color: #2563a9; background: #2563a9; }
+    .metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+    .metric, .panel { border: 1px solid #dfe3ea; border-radius: 8px; background: white; }
+    .metric { padding: 16px; }
+    .metric strong { display: block; margin-top: 6px; font-size: 24px; font-variant-numeric: tabular-nums; }
+    .grid { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; margin-top: 16px; }
+    .panel { padding: 18px; }
+    .panel h2 { margin: 0 0 14px; font-size: 18px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 12px 8px; text-align: left; border-bottom: 1px solid #e7eaf0; }
+    th { color: #657086; font-size: 12px; font-weight: 600; }
+    .status { display: inline-block; padding: 3px 8px; border-radius: 999px; color: #17633b; background: #e7f6ed; }
+    .bar { height: 8px; margin: 8px 0 14px; overflow: hidden; border-radius: 999px; background: #edf0f4; }
+    .bar span { display: block; height: 100%; background: #2563a9; }
+    .note { margin-top: 16px; padding: 12px; border-left: 3px solid #d09322; background: #fff8e8; }
+    @media (max-width: 900px) {
+      .shell { grid-template-columns: 1fr; }
+      aside { display: none; }
+      header { padding: 0 16px; }
+      .content { padding: 20px 16px 32px; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">极速蹬</div>
+      <div class="nav"><div>控制台</div><div class="active">玩法运营</div><div>用户管理</div><div>系统设置</div></div>
+    </aside>
+    <main>
+      <header><strong>管理后台</strong><span class="muted">管理员</span></header>
+      <div class="content">
+        <h1>玩法运营</h1>
+        <div class="muted">会员、活动、邀请、团队与 APP 数据统一管理</div>
+        <div class="tabs">
+          <div class="tab">运营总览</div><div class="tab">会员运营</div><div class="tab">限时活动</div>
+          <div class="tab">邀请增长</div><div class="tab">团队与排行</div><div class="tab active">APP 数据</div>
+          <div class="tab">APP 用户反馈</div><div class="tab">题库与其他玩法</div>
+        </div>
+        <div class="toolbar">
+          <div class="filters"><select><option>最近 30 天</option></select><select><option>全部版本</option></select><select><option>全部渠道</option></select></div>
+          <button class="primary">导出数据</button>
+        </div>
+        <div class="metrics">
+          <div class="metric"><span class="muted">APP 二维码扫码</span><strong>12,486</strong><span class="muted">较上期 +18.4%</span></div>
+          <div class="metric"><span class="muted">首次启动</span><strong>6,218</strong><span class="muted">扫码转化 49.8%</span></div>
+          <div class="metric"><span class="muted">注册安装</span><strong>3,906</strong><span class="muted">安装转化 62.8%</span></div>
+          <div class="metric"><span class="muted">月活跃用户</span><strong>18,230</strong><span class="muted">已排除测试设备</span></div>
+        </div>
+        <div class="grid">
+          <section class="panel">
+            <h2>获取与转化漏斗</h2>
+            <table><thead><tr><th>阶段</th><th>人数</th><th>阶段转化</th></tr></thead><tbody>
+              <tr><td>APP 二维码扫码</td><td>12,486</td><td>100%</td></tr>
+              <tr><td>下载跳转</td><td>10,224</td><td>81.9%</td></tr>
+              <tr><td>首次启动（实际安装）</td><td>6,218</td><td>60.8%</td></tr>
+              <tr><td>完成注册</td><td>3,906</td><td>62.8%</td></tr>
+              <tr><td>完成活动报名</td><td>2,745</td><td>70.3%</td></tr>
+              <tr><td>完成有效付费</td><td>814</td><td>29.7%</td></tr>
+            </tbody></table>
+          </section>
+          <section class="panel">
+            <h2>版本使用情况</h2>
+            <div>2.0.64 <span class="status">当前版本</span><div class="bar"><span style="width:72%"></span></div></div>
+            <div>2.0.63<div class="bar"><span style="width:19%"></span></div></div>
+            <div>其他版本<div class="bar"><span style="width:9%"></span></div></div>
+            <div class="note">下载点击不等于安装；实际安装统一按新安装实例首次启动统计。</div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

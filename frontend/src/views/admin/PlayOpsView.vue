@@ -16,7 +16,7 @@
           <button
             type="button"
             class="btn btn-secondary inline-flex items-center gap-2 self-start"
-            @click="openFeedbackPanel"
+            @click="selectTab('feedback')"
           >
             <Icon name="chat" size="sm" />
             {{ t("admin.playOps.feedback.open") }}
@@ -42,7 +42,11 @@
         </div>
       </div>
 
-      <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
+      <div class="flex gap-1 overflow-x-auto border-b border-gray-200 pb-px dark:border-dark-700" role="tablist" :aria-label="t('admin.playOps.tabsLabel')">
+        <button v-for="tab in tabs" :key="tab.key" type="button" role="tab" :data-testid="`play-ops-tab-${tab.key}`" :aria-selected="activeTab === tab.key" class="shrink-0 border-b-2 px-3 py-3 text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary-500" :class="activeTab === tab.key ? activeTopTabClass : idleTopTabClass" @click="selectTab(tab.key)">{{ tab.label }}</button>
+      </div>
+
+      <div v-if="activeTab === 'overview'" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
         <div v-for="card in statCards" :key="card.label" class="card p-4">
           <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
             {{ card.label }}
@@ -53,9 +57,9 @@
         </div>
       </div>
 
-      <AdminQuizQuestionBank />
+      <AdminQuizQuestionBank v-if="activeTab === 'quiz'" />
 
-      <section v-if="feedbackPanelOpen" class="card">
+      <section v-if="activeTab === 'feedback'" class="card">
         <div
           class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 lg:flex-row lg:items-center lg:justify-between"
         >
@@ -281,6 +285,16 @@
                   </a>
                 </div>
               </div>
+              <div v-if="selectedFeedback.context">
+                <h4 class="mb-2 text-sm font-semibold">{{ t("admin.playOps.feedback.installContext") }}</h4>
+                <dl class="space-y-1 text-xs">
+                  <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t("admin.playOps.feedback.installationId") }}</dt><dd class="max-w-56 truncate text-gray-700 dark:text-gray-200">{{ selectedFeedback.context.installation_id || "—" }}</dd></div>
+                  <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t("admin.playOps.feedback.registrationStatus") }}</dt><dd>{{ selectedFeedback.context.registration_status ? t(`admin.playOps.feedback.registrationStatuses.${selectedFeedback.context.registration_status}`, selectedFeedback.context.registration_status) : "—" }}</dd></div>
+                  <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t("admin.playOps.feedback.acquisitionSource") }}</dt><dd>{{ selectedFeedback.context.acquisition_source || "—" }}</dd></div>
+                  <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t("admin.playOps.feedback.firstLaunch") }}</dt><dd>{{ formatDateTime(selectedFeedback.context.first_launch_at) }}</dd></div>
+                  <div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t("admin.playOps.feedback.lastActive") }}</dt><dd>{{ formatDateTime(selectedFeedback.context.last_seen_at) }}</dd></div>
+                </dl>
+              </div>
               <div
                 v-if="selectedFeedback.last_error || selectedFeedback.crash_log"
               >
@@ -361,9 +375,9 @@
         </div>
       </section>
 
-      <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div v-if="activeTab === 'campaigns' || activeTab === 'teams'" class="grid gap-6" :class="{ 'xl:grid-cols-[minmax(0,1fr)_420px]': activeTab === 'teams' }">
         <div class="space-y-6">
-          <section class="card">
+          <section v-if="activeTab === 'campaigns'" class="card">
             <div
               class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 lg:flex-row lg:items-center lg:justify-between"
             >
@@ -512,6 +526,21 @@
                     :placeholder="t('admin.playOps.arenaMultiplierPlaceholder')"
                   />
                 </label>
+                <fieldset class="space-y-2">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.audience.label") }}</span>
+                  <div class="flex flex-wrap gap-2" role="radiogroup">
+                    <label v-for="segment in ['all','ordinary','member']" :key="segment" class="inline-flex items-center gap-2 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900"><input v-model="campaignForm.audience" type="radio" :value="segment" />{{ t(`admin.playOps.audience.${segment}`) }}</label>
+                  </div>
+                  <p class="text-xs text-gray-500 dark:text-gray-400">{{ t("admin.playOps.audience.combinationHint") }}</p>
+                </fieldset>
+                <label class="space-y-1">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.audience.vipTiers") }}</span>
+                  <input v-model="campaignForm.vipTiers" class="input" :placeholder="t('admin.playOps.audience.vipTiersPlaceholder')" />
+                </label>
+                <label class="space-y-1">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.audience.registeredWithinDays") }}</span>
+                  <input v-model="campaignForm.registeredWithinDays" type="number" min="1" max="3650" step="1" class="input" />
+                </label>
               </div>
               <div class="mt-4 flex flex-col gap-2 sm:flex-row sm:justify-end">
                 <button
@@ -643,7 +672,7 @@
             </div>
           </section>
 
-          <section class="card">
+          <section v-if="activeTab === 'campaigns'" class="card">
             <div
               class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -721,7 +750,7 @@
             </div>
           </section>
 
-          <section class="card">
+          <section v-if="activeTab === 'teams'" class="card">
             <div
               class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 lg:flex-row lg:items-center lg:justify-between"
             >
@@ -825,7 +854,7 @@
           </section>
         </div>
 
-        <aside class="card self-start">
+        <aside v-if="activeTab === 'teams'" class="card self-start">
           <div
             class="flex items-center justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700"
           >
@@ -1022,6 +1051,10 @@
           </div>
         </aside>
       </div>
+
+      <AdminMembershipOperations v-if="activeTab === 'membership'" />
+      <AdminInviteGrowthOperations v-if="activeTab === 'invite-growth'" />
+      <AdminAppAnalyticsOperations v-if="activeTab === 'app-analytics'" />
 
       <BaseDialog
         :show="memberRepairOpen"
@@ -1383,10 +1416,14 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { computed, onMounted, ref, watch } from "vue";
 import { useI18n } from "vue-i18n";
+import { useRoute, useRouter } from "vue-router";
 import AppLayout from "@/components/layout/AppLayout.vue";
 import AdminQuizQuestionBank from "@/components/admin/play/AdminQuizQuestionBank.vue";
+import AdminMembershipOperations from "@/components/admin/play/AdminMembershipOperations.vue";
+import AdminInviteGrowthOperations from "@/components/admin/play/AdminInviteGrowthOperations.vue";
+import AdminAppAnalyticsOperations from "@/components/admin/play/AdminAppAnalyticsOperations.vue";
 import Icon from "@/components/icons/Icon.vue";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
@@ -1411,6 +1448,54 @@ import { isStepUpCancelled, useStepUp } from "@/composables/useStepUp";
 
 const { t, locale } = useI18n();
 const appStore = useAppStore();
+const route = useRoute();
+const router = useRouter();
+
+type PlayOpsTab =
+  | "overview"
+  | "membership"
+  | "campaigns"
+  | "invite-growth"
+  | "teams"
+  | "app-analytics"
+  | "feedback"
+  | "quiz";
+
+const tabKeys: PlayOpsTab[] = [
+  "overview",
+  "membership",
+  "campaigns",
+  "invite-growth",
+  "teams",
+  "app-analytics",
+  "feedback",
+  "quiz",
+];
+const activeTab = ref<PlayOpsTab>(resolveTab(route.query.tab));
+const tabs = computed(() => tabKeys.map((key) => ({ key, label: t(`admin.playOps.tabs.${key}`) })));
+
+function resolveTab(value: unknown): PlayOpsTab {
+  return typeof value === "string" && tabKeys.includes(value as PlayOpsTab)
+    ? (value as PlayOpsTab)
+    : "overview";
+}
+
+function selectTab(tab: PlayOpsTab) {
+  activeTab.value = tab;
+  void router.push({ query: { ...route.query, tab } });
+  void loadForTab(tab);
+}
+
+watch(
+  () => route.query.tab,
+  (value) => {
+    const tab = resolveTab(value);
+    if (tab !== activeTab.value) {
+      activeTab.value = tab;
+      void loadForTab(tab);
+    }
+  },
+);
 
 interface CampaignFormState {
   id?: number;
@@ -1423,6 +1508,9 @@ interface CampaignFormState {
   rechargeBonusPct: string;
   blindboxExtraOpens: string;
   arenaScoreMultiplier: string;
+  audience: "all" | "ordinary" | "member";
+  vipTiers: string;
+  registeredWithinDays: string;
 }
 
 const loading = ref(false);
@@ -1460,7 +1548,6 @@ const memberRepairTarget = ref<{ id: number; name: string } | null>(null);
 const memberRepairPreviewEffectiveAt = ref<string | null>(null);
 const memberRepairStepUp = useStepUp();
 const memberRepairReferenceNow = ref(new Date());
-const feedbackPanelOpen = ref(false);
 const feedbackLoading = ref(false);
 const feedbackSaving = ref(false);
 const feedbackStatus = ref<"" | AdminMobileFeedbackStatus>("");
@@ -1481,6 +1568,8 @@ let teamSelectionRequestVersion = 0;
 const activeTabClass = "bg-primary-600 text-white";
 const idleTabClass =
   "text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-dark-700";
+const activeTopTabClass = "border-primary-600 text-primary-700 dark:border-primary-400 dark:text-primary-300";
+const idleTopTabClass = "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:text-gray-300 dark:hover:border-dark-500 dark:hover:text-white";
 const feedbackStatuses: AdminMobileFeedbackStatus[] = [
   "new",
   "viewed",
@@ -1568,28 +1657,26 @@ const statCards = computed(() => {
 });
 
 async function load() {
+  await loadForTab(activeTab.value);
+}
+
+async function loadForTab(tab: PlayOpsTab) {
   loading.value = true;
   try {
-    const [summaryData, arenaData, campaignData, teamData] = await Promise.all([
-      adminPlayAPI.getSummary(),
-      adminPlayAPI.getArenaLeaderboard({
-        period_type: arenaPeriodType.value,
-        limit: 20,
-      }),
-      adminPlayAPI.listCampaigns(),
-      adminPlayAPI.listTeams({
-        status: status.value,
-        q: query.value,
-        page: 1,
-        page_size: 50,
-      }),
-    ]);
-    summary.value = summaryData;
-    arena.value = arenaData;
-    campaigns.value = campaignData;
-    teams.value = teamData;
-    if (!selectedTeam.value && teamData.items[0]) {
-      await selectTeam(teamData.items[0].id);
+    if (tab === "overview") {
+      summary.value = await adminPlayAPI.getSummary();
+    } else if (tab === "campaigns") {
+      const [campaignData, arenaData] = await Promise.all([
+        adminPlayAPI.listCampaigns(),
+        adminPlayAPI.getArenaLeaderboard({ period_type: arenaPeriodType.value, limit: 20 }),
+      ]);
+      campaigns.value = campaignData;
+      arena.value = arenaData;
+    } else if (tab === "teams") {
+      await loadTeams();
+      if (!selectedTeam.value && teams.value.items[0]) await selectTeam(teams.value.items[0].id);
+    } else if (tab === "feedback") {
+      await loadFeedback(1);
     }
   } catch (error) {
     appStore.showError(
@@ -1597,13 +1684,6 @@ async function load() {
     );
   } finally {
     loading.value = false;
-  }
-}
-
-async function openFeedbackPanel() {
-  feedbackPanelOpen.value = !feedbackPanelOpen.value;
-  if (feedbackPanelOpen.value && !feedbackList.value.items.length) {
-    await loadFeedback(1);
   }
 }
 
@@ -1657,6 +1737,7 @@ async function saveFeedbackUpdate() {
       {
         status: feedbackStatusDraft.value,
         admin_note: feedbackNote.value,
+        expected_version: selectedFeedback.value.version,
       },
     );
     selectedFeedback.value = {
@@ -1703,6 +1784,9 @@ function blankCampaignForm(): CampaignFormState {
     rechargeBonusPct: "",
     blindboxExtraOpens: "",
     arenaScoreMultiplier: "",
+    audience: "all",
+    vipTiers: "",
+    registeredWithinDays: "",
   };
 }
 
@@ -1729,6 +1813,9 @@ function startEditCampaign(campaign: AdminPlayCampaign) {
     arenaScoreMultiplier: campaign.rules.arena_score_multiplier
       ? String(campaign.rules.arena_score_multiplier)
       : "",
+    audience: campaign.audience.member ? "member" : campaign.audience.ordinary ? "ordinary" : "all",
+    vipTiers: (campaign.audience.vip_tiers || []).join(","),
+    registeredWithinDays: campaign.audience.registered_within_days ? String(campaign.audience.registered_within_days) : "",
   };
   campaignFormOpen.value = true;
 }
@@ -1815,6 +1902,13 @@ function buildCampaignInput(form: CampaignFormState): AdminPlayCampaignInput {
     end_at: end.toISOString(),
     enabled: form.enabled,
     rules,
+    audience: {
+      all: form.audience === "all" || undefined,
+      ordinary: form.audience === "ordinary" || undefined,
+      member: form.audience === "member" || undefined,
+      vip_tiers: form.vipTiers.split(",").map((tier) => Number(tier.trim())).filter((tier) => Number.isInteger(tier) && tier >= 0),
+      registered_within_days: parseOptionalInteger(form.registeredWithinDays),
+    },
   };
 }
 
