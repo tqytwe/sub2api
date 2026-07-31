@@ -278,6 +278,9 @@ func TestAdminTeamRepairDeniedMoveKeepsExplicitAuditAction(t *testing.T) {
 
 func TestAdminTeamRepairBackdateExecutesWithJWTStepUpGrant(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	shanghai := time.FixedZone("Asia/Shanghai", 8*60*60)
+	now := time.Now().In(shanghai)
+	effectiveAt := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, shanghai).Format(time.RFC3339)
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
 	t.Cleanup(func() { _ = db.Close() })
@@ -301,7 +304,7 @@ func TestAdminTeamRepairBackdateExecutesWithJWTStepUpGrant(t *testing.T) {
 	rec := postAdminTeamRepair(t, router, map[string]any{
 		"user_id":      42,
 		"operation":    "add",
-		"effective_at": "2026-07-10T08:00:00+08:00",
+		"effective_at": effectiveAt,
 		"reason":       "backfill current month membership",
 	}, "repair-key-step-up-success")
 
