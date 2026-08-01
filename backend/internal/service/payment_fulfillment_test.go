@@ -764,6 +764,32 @@ func TestRetryFulfillmentReconcilesRefundedOrderWithoutRepeatingRefund(t *testin
 	require.Equal(t, 1, failureCount)
 }
 
+func TestRetryFulfillmentRejectsPendingRefund(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusRefundPending, time.Now())
+	svc := &PaymentService{
+		entClient:   client,
+		playService: &PlayService{repo: &failedMembershipProjectionRepo{}},
+	}
+
+	err := svc.RetryFulfillment(ctx, order.ID)
+	require.Error(t, err)
+	require.Equal(t, "INVALID_STATUS", infraerrors.Reason(err))
+
+	reloaded, getErr := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, getErr)
+	require.Equal(t, OrderStatusRefundPending, reloaded.Status)
+	failureCount, countErr := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.ActionEQ("MEMBERSHIP_CONTRIBUTION_REFUND_SYNC_FAILED"),
+		).
+		Count(ctx)
+	require.NoError(t, countErr)
+	require.Zero(t, failureCount)
+}
+
 func TestExecuteBalanceFulfillmentRecoversAfterRedeemWithoutCreditingAgain(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
