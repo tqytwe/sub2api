@@ -200,6 +200,7 @@ SELECT
     MIN(s.created_at),
     MAX(s.completed_at)
 FROM play_team_settlements s
+WHERE s.status = 'completed'
 GROUP BY s.period_start
 ON CONFLICT (period_start) DO NOTHING;
 
@@ -222,6 +223,7 @@ WITH legacy_settlements AS (
     JOIN play_team_seasons season ON season.period_start = s.period_start
     JOIN play_teams t ON t.id = s.team_id
     LEFT JOIN play_team_reward_allocations a ON a.settlement_id = s.id
+    WHERE s.status = 'completed'
     GROUP BY
         season.id, s.id, s.team_id, t.name, s.period_start, s.window_start, s.window_end,
         s.team_spend, s.reached_threshold, s.reward_rate, s.pool_amount, s.status

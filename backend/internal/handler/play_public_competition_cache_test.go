@@ -20,6 +20,8 @@ type cachedPublicTeamDirectoryRepo struct {
 	calls atomic.Int32
 }
 
+var _ service.PlayTeamCompetitionReadRepository = (*cachedPublicTeamDirectoryRepo)(nil)
+
 func (r *cachedPublicTeamDirectoryRepo) ListPublicTeamDirectory(context.Context, time.Time, time.Time, int) ([]service.PlayTeamDirectoryBase, error) {
 	r.calls.Add(1)
 	return []service.PlayTeamDirectoryBase{{
@@ -29,6 +31,18 @@ func (r *cachedPublicTeamDirectoryRepo) ListPublicTeamDirectory(context.Context,
 		Recruiting:  true,
 		Spend:       decimal.RequireFromString("12.50000000"),
 	}}, nil
+}
+
+func (*cachedPublicTeamDirectoryRepo) ListPublicTeamLeaderboard(context.Context, time.Time, time.Time, int) ([]service.PlayTeamPublicLeaderboardBase, int, error) {
+	return []service.PlayTeamPublicLeaderboardBase{}, 0, nil
+}
+
+func (*cachedPublicTeamDirectoryRepo) ListPublicTeamSeasons(context.Context, int) ([]service.PlayTeamSeason, error) {
+	return []service.PlayTeamSeason{}, nil
+}
+
+func (*cachedPublicTeamDirectoryRepo) GetPublicTeamSeason(context.Context, time.Time, int) (*service.PlayTeamSeason, []service.PlayTeamSeasonRanking, int, error) {
+	return nil, []service.PlayTeamSeasonRanking{}, 0, nil
 }
 
 func TestPublicTeamDirectoryUsesShortCacheAndConditionalRequest(t *testing.T) {
@@ -41,6 +55,7 @@ func TestPublicTeamDirectoryUsesShortCacheAndConditionalRequest(t *testing.T) {
 	first := httptest.NewRecorder()
 	router.ServeHTTP(first, httptest.NewRequest(http.MethodGet, "/play/teams/directory", nil))
 	require.Equal(t, http.StatusOK, first.Code)
+	require.Contains(t, first.Body.String(), "缓存验证战队")
 	require.Equal(t, "public, max-age=15, stale-while-revalidate=30", first.Header().Get("Cache-Control"))
 	etag := first.Header().Get("ETag")
 	require.NotEmpty(t, etag)

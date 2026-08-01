@@ -365,7 +365,7 @@ onMounted(loadCompetition)
 <template>
   <AuthenticatedPlayShell>
     <div class="play-page">
-      <header v-if="!isAuthenticated" class="public-page-header">
+      <header v-if="!authStore.isAuthenticated" class="public-page-header">
         <PublicPlayBackLink />
         <PublicPageToolbar />
       </header>
@@ -719,7 +719,7 @@ onMounted(loadCompetition)
         </div>
       </main>
 
-      <SupportFloatingCard v-if="!isAuthenticated" />
+      <SupportFloatingCard v-if="!authStore.isAuthenticated" />
     </div>
   </AuthenticatedPlayShell>
 </template>

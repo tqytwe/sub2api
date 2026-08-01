@@ -13,6 +13,8 @@
     "frontend/src/views/user/PlayHubView.vue",
     "frontend/src/views/user/__tests__/PlayHubView.spec.ts",
     "frontend/src/views/admin/PlayOpsView.vue",
+    "frontend/src/i18n/locales/zh/admin/playOps.ts",
+    "frontend/src/i18n/locales/en/admin/playOps.ts",
     "frontend/src/api/__tests__/play.arenaSeason.spec.ts"
   ],
   "routes_or_surfaces": ["/play", "/agent-team", "/arena", "/admin/play-ops"],
