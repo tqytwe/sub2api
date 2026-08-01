@@ -11,6 +11,13 @@ import (
 // users.total_recharged field remains available for balance and first-charge
 // behavior, but is deliberately not used for VIP qualification.
 func (s *PlayService) MembershipPaidTotal(ctx context.Context, userID int64) (float64, error) {
+	if cache := playRequestCacheFromContext(ctx); cache != nil {
+		return cache.getMembershipTotal(ctx, userID, s.membershipPaidTotalUncached)
+	}
+	return s.membershipPaidTotalUncached(ctx, userID)
+}
+
+func (s *PlayService) membershipPaidTotalUncached(ctx context.Context, userID int64) (float64, error) {
 	if s == nil || s.repo == nil {
 		return 0, nil
 	}

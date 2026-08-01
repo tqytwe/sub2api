@@ -42,6 +42,16 @@ func MaskPlayEmail(email string) string {
 	return prefix + "***@" + domain
 }
 
+// PublicPlayLeaderboardIdentity is intentionally narrower than the private
+// team/member display helper: public leaderboards never reveal usernames or
+// database-shaped fallback IDs. UI clients localize an empty anonymous label.
+func PublicPlayLeaderboardIdentity(email string) (label string, anonymous bool) {
+	if masked := MaskPlayEmail(email); masked != "" {
+		return masked, false
+	}
+	return "", true
+}
+
 func normalizedPlayUsername(username string) string {
 	username = strings.TrimSpace(username)
 	if username == "" || strings.EqualFold(username, "user") {

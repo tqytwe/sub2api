@@ -73,6 +73,7 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.tabs.campaigns': '限时活动',
       'admin.playOps.tabs.overview': '运营总览',
       'admin.playOps.tabs.membership': '会员运营',
+      'admin.playOps.tabs.arena': '农场月榜',
       'admin.playOps.tabs.invite-growth': '邀请增长',
       'admin.playOps.tabs.teams': '团队与排行',
       'admin.playOps.tabs.feedback': 'APP 用户反馈',
@@ -124,6 +125,7 @@ vi.mock('vue-i18n', async () => {
       'admin.playOps.tabs.campaigns': 'Limited events',
       'admin.playOps.tabs.overview': 'Operations overview',
       'admin.playOps.tabs.membership': 'Membership',
+      'admin.playOps.tabs.arena': 'Farm rankings',
       'admin.playOps.tabs.invite-growth': 'Invite growth',
       'admin.playOps.tabs.teams': 'Teams and rankings',
       'admin.playOps.tabs.feedback': 'APP feedback',
@@ -324,6 +326,15 @@ describe('PlayOpsView campaigns', () => {
     expect(listTeams).not.toHaveBeenCalled()
     await wrapper.get('[data-testid="play-ops-tab-campaigns"]').trigger('click')
     expect(routerPush).toHaveBeenCalledWith({ query: { tab: 'campaigns' } })
+  })
+
+  it('loads farm rankings only after the farm tab is selected', async () => {
+    routeState.query = { tab: 'arena' }
+    mountView()
+    await flushPromises()
+
+    expect(getArenaLeaderboard).toHaveBeenCalledWith({ period_type: 'monthly', limit: 20 })
+    expect(listCampaigns).not.toHaveBeenCalled()
   })
 
   it('does not render hardcoded audience labels when switching locales', async () => {

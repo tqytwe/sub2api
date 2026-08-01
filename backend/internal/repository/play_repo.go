@@ -127,7 +127,8 @@ func (r *playRepository) EnsureMonthlyArenaPeriod(ctx context.Context, now time.
 	exec := r.sqlExec(ctx)
 	if _, err := exec.ExecContext(ctx, `
 		INSERT INTO play_arena_periods (name, start_at, end_at, status, period_type)
-		VALUES ($1, $2, $3, 'active', 'monthly')`, name, start, end); err != nil {
+		VALUES ($1, $2, $3, 'active', 'monthly')
+		ON CONFLICT DO NOTHING`, name, start, end); err != nil {
 		return nil, fmt.Errorf("insert arena period: %w", err)
 	}
 	return r.GetActiveArenaPeriod(ctx, now)
@@ -175,7 +176,7 @@ func (r *playRepository) ListArenaLeaderboard(ctx context.Context, start, end ti
 		if err := rows.Scan(&row.UserID, &username, &email, &row.AvatarURL, &row.TokenSum); err != nil {
 			return nil, fmt.Errorf("scan arena leaderboard: %w", err)
 		}
-		row.DisplayName = service.PublicPlayDisplayName(username, email, row.UserID)
+		row.DisplayName, row.Anonymous = service.PublicPlayLeaderboardIdentity(email)
 		row.Email = email
 		rank++
 		row.Rank = rank

@@ -96,10 +96,18 @@ func (r *PlayGrowthRunner) Stop() {
 func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 	if r.playService != nil {
 		now := time.Now().In(timezone.Location())
+		if _, err := r.playService.PrepareCurrentArenaMonthlySeason(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare monthly arena season: %v", err)
+		}
 		if n, err := r.playService.SettleExpiredDailyArenaPeriods(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settle daily periods: %v", err)
 		} else if n > 0 {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settled %d daily arena periods", n)
+		}
+		if n, err := r.playService.SettleExpiredMonthlyArenaPeriods(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settle monthly periods: %v", err)
+		} else if n > 0 {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settled %d monthly arena periods", n)
 		}
 		release, ok := tryAcquireSingletonLeaderLock(
 			ctx,

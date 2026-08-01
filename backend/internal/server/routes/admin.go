@@ -239,7 +239,7 @@ func registerAdminPlayRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepUp
 		play.PUT("/membership/vip-config", gin.HandlerFunc(stepUpAuth), h.Admin.Play.PublishVIPConfig)
 		play.GET("/app-analytics", h.Admin.Play.AppAnalytics)
 		play.GET("/arena/leaderboard", h.Admin.Play.ArenaLeaderboard)
-		play.POST("/arena/settle", h.Admin.Play.ArenaSettle)
+		play.POST("/arena/settle", gin.HandlerFunc(stepUpAuth), h.Admin.Play.ArenaSettle)
 		play.GET("/mobile-feedback", h.Admin.Play.ListMobileFeedback)
 		play.GET("/mobile-feedback/:id", h.Admin.Play.GetMobileFeedback)
 		play.PATCH("/mobile-feedback/:id", h.Admin.Play.UpdateMobileFeedback)

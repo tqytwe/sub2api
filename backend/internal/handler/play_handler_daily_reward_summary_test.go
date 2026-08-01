@@ -94,6 +94,7 @@ func TestArenaDailyRewardSummaryRouteIsPublicAndPrivacyMasked(t *testing.T) {
 	body := recorder.Body.String()
 	require.Contains(t, body, `"recent"`)
 	require.Contains(t, body, `wi***@example.com`)
+	require.NotContains(t, body, `"user_id"`)
 	require.NotContains(t, strings.ToLower(body), `"email"`)
 	require.NotContains(t, body, `winner@example.com`)
 }

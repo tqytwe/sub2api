@@ -179,6 +179,8 @@ func isUserTimingPath(path string) bool {
 		return true
 	case rest == "/channel-monitors", strings.HasPrefix(rest, "/channel-monitors/"):
 		return true
+	case rest == "/play", strings.HasPrefix(rest, "/play/"):
+		return true
 	case strings.HasPrefix(rest, "/payment/"):
 		// Exclude public and webhook payment surfaces.
 		if strings.HasPrefix(rest, "/payment/public") || strings.HasPrefix(rest, "/payment/webhook") {

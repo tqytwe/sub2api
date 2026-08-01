@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // PlayHubGrowth surfaces balance/recharge conversion signals for the dashboard and hub.
@@ -44,6 +46,7 @@ type PlayHubImageStudio struct {
 
 // GetHub returns a single payload for the Play Hub dashboard.
 func (s *PlayService) GetHub(ctx context.Context, userID int64, language string) (*PlayHubSummary, error) {
+	ctx = withPlayRequestCache(ctx)
 	rt := s.GetRuntime(ctx)
 	hub := &PlayHubSummary{
 		AnyEnabled: rt.CheckinEnabled || rt.ArenaEnabled || rt.BlindboxEnabled ||
@@ -54,42 +57,135 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 		return hub, nil
 	}
 
-	user, err := s.userRepo.GetByID(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	hub.Growth, err = s.buildHubGrowth(ctx, user, s.GetRuntime(ctx))
+	user, err := s.playRequestUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 
+	var (
+		growth     PlayHubGrowth
+		campaigns  []PlayCampaignSummary
+		image      *PlayHubImageStudio
+		quests     *PlayQuestToday
+		checkin    *PlayCheckinStatus
+		arena      *PlayArenaCurrent
+		dailyArena *PlayArenaCurrent
+		blindbox   *PlayBlindboxStatus
+		quiz       *PlayQuizToday
+		team       *PlayTeamMe
+	)
+	group, groupCtx := errgroup.WithContext(ctx)
+	group.Go(func() error {
+		var growthErr error
+		growth, growthErr = s.buildHubGrowth(groupCtx, user, rt)
+		return growthErr
+	})
 	if rt.ImageStudioEnabled {
-		dayStart := s.serverDate(s.serverNow())
-		count, err := s.repo.CountImageStudioJobsToday(ctx, userID, dayStart)
-		if err != nil {
-			return nil, err
-		}
-		hasJob, err := s.repo.HasCompletedImageStudioJob(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hub.ImageStudio = &PlayHubImageStudio{
-			Enabled:         true,
-			ImagesToday:     count,
-			HasCompletedJob: hasJob,
-		}
-		hub.AnyEnabled = true
-		if !hasJob {
-			hub.PendingActions++
-		}
+		group.Go(func() error {
+			dayStart := s.serverDate(s.serverNow())
+			count, imageErr := s.repo.CountImageStudioJobsToday(groupCtx, userID, dayStart)
+			if imageErr != nil {
+				return imageErr
+			}
+			hasJob, imageErr := s.repo.HasCompletedImageStudioJob(groupCtx, userID)
+			if imageErr != nil {
+				return imageErr
+			}
+			image = &PlayHubImageStudio{Enabled: true, ImagesToday: count, HasCompletedJob: hasJob}
+			return nil
+		})
 	}
 
 	if rt.DailyQuestsEnabled {
-		quests, err := s.GetQuestsToday(ctx, userID)
-		if err != nil {
-			return nil, err
+		group.Go(func() error {
+			var questsErr error
+			quests, questsErr = s.GetQuestsToday(groupCtx, userID)
+			return questsErr
+		})
+	}
+
+	if rt.CheckinEnabled {
+		group.Go(func() error {
+			var checkinErr error
+			checkin, checkinErr = s.GetCheckinStatus(groupCtx, userID)
+			return checkinErr
+		})
+	}
+
+	if rt.ArenaEnabled {
+		group.Go(func() error {
+			var arenaErr error
+			arena, arenaErr = s.GetArenaCurrent(groupCtx, userID)
+			return arenaErr
+		})
+		if rt.DailyArenaEnabled {
+			group.Go(func() error {
+				var dailyArenaErr error
+				dailyArena, dailyArenaErr = s.GetDailyArenaCurrent(groupCtx, userID)
+				return dailyArenaErr
+			})
 		}
-		hub.Quests = quests
+	}
+
+	if rt.BlindboxEnabled {
+		group.Go(func() error {
+			var blindboxErr error
+			blindbox, blindboxErr = s.GetBlindboxStatus(groupCtx, userID)
+			return blindboxErr
+		})
+	}
+
+	if rt.QuizEnabled {
+		group.Go(func() error {
+			var quizErr error
+			quiz, quizErr = s.GetQuizToday(groupCtx, userID, language)
+			return quizErr
+		})
+	}
+
+	if rt.AgentTeamEnabled {
+		group.Go(func() error {
+			var teamErr error
+			team, teamErr = s.GetTeamMe(groupCtx, userID)
+			return teamErr
+		})
+	}
+
+	if rt.CampaignsEnabled {
+		group.Go(func() error {
+			var campaignsErr error
+			campaigns, campaignsErr = s.ListActiveCampaignsForUser(groupCtx, userID)
+			return campaignsErr
+		})
+	}
+
+	if err := group.Wait(); err != nil {
+		return nil, err
+	}
+
+	hub.Growth = growth
+	hub.ImageStudio = image
+	hub.Quests = quests
+	hub.Checkin = checkin
+	hub.Arena = arena
+	hub.DailyArena = dailyArena
+	hub.Blindbox = blindbox
+	hub.Quiz = quiz
+	hub.Team = team
+	hub.Campaigns = campaigns
+	// The campaign list is already loaded above for the response. Reuse that
+	// result for the summary instead of issuing another identical audience query.
+	if len(campaigns) > 0 {
+		hub.Growth.CampaignRechargeBonusPct = aggregateCampaignRulesFromSummaries(campaigns).RechargeBonusPct
+	}
+
+	if image != nil {
+		hub.AnyEnabled = true
+		if !image.HasCompletedJob {
+			hub.PendingActions++
+		}
+	}
+	if quests != nil {
 		hub.AnyEnabled = true
 		for _, task := range quests.Tasks {
 			if !task.Completed {
@@ -97,72 +193,17 @@ func (s *PlayService) GetHub(ctx context.Context, userID int64, language string)
 			}
 		}
 	}
-
-	if rt.CheckinEnabled {
-		status, err := s.GetCheckinStatus(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hub.Checkin = status
-		if status != nil && !status.CheckedInToday {
-			hub.PendingActions++
-		}
+	if checkin != nil && !checkin.CheckedInToday {
+		hub.PendingActions++
 	}
-
-	if rt.ArenaEnabled {
-		current, err := s.GetArenaCurrent(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hub.Arena = current
-		if rt.DailyArenaEnabled {
-			daily, err := s.GetDailyArenaCurrent(ctx, userID)
-			if err != nil {
-				return nil, err
-			}
-			hub.DailyArena = daily
-		}
+	if blindbox != nil && blindbox.CanOpen {
+		hub.PendingActions++
 	}
-
-	if rt.BlindboxEnabled {
-		status, err := s.GetBlindboxStatus(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hub.Blindbox = status
-		if status != nil && status.CanOpen {
-			hub.PendingActions++
-		}
+	if quiz != nil && !quiz.AlreadySubmitted && len(quiz.Questions) > 0 {
+		hub.PendingActions++
 	}
-
-	if rt.QuizEnabled {
-		today, err := s.GetQuizToday(ctx, userID, language)
-		if err != nil {
-			return nil, err
-		}
-		hub.Quiz = today
-		if today != nil && !today.AlreadySubmitted && len(today.Questions) > 0 {
-			hub.PendingActions++
-		}
-	}
-
-	if rt.AgentTeamEnabled {
-		team, err := s.GetTeamMe(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hub.Team = team
-	}
-
-	if rt.CampaignsEnabled {
-		campaigns, err := s.ListActiveCampaignsForUser(ctx, userID)
-		if err != nil {
-			return nil, err
-		}
-		hub.Campaigns = campaigns
-		if len(campaigns) > 0 {
-			hub.AnyEnabled = true
-		}
+	if len(campaigns) > 0 {
+		hub.AnyEnabled = true
 	}
 
 	return hub, nil
@@ -194,13 +235,6 @@ func (s *PlayService) buildHubGrowth(ctx context.Context, user *User, rt PlayRun
 	out.PaymentEnabled = public.PaymentEnabled
 	out.RechargeMultiplier = s.settingService.GetBalanceRechargeMultiplier(ctx)
 
-	if rt.CampaignsEnabled {
-		if campaigns, err := s.activeCampaignsForUser(ctx, user.ID); err == nil && len(campaigns) > 0 {
-			rules := aggregateCampaignRules(campaigns)
-			out.CampaignRechargeBonusPct = rules.RechargeBonusPct
-		}
-	}
-
 	out.FirstRechargeEligible = public.PaymentEnabled && user.TotalRecharged <= 0
 
 	if public.BalanceLowNotifyEnabled && public.BalanceLowNotifyThreshold > 0 {
@@ -223,4 +257,12 @@ func (s *PlayService) buildHubGrowth(ctx context.Context, user *User, rt PlayRun
 	}
 
 	return out, nil
+}
+
+func aggregateCampaignRulesFromSummaries(campaigns []PlayCampaignSummary) PlayCampaignRules {
+	rows := make([]PlayCampaign, 0, len(campaigns))
+	for _, campaign := range campaigns {
+		rows = append(rows, PlayCampaign{Rules: campaign.Rules})
+	}
+	return aggregateCampaignRules(rows)
 }

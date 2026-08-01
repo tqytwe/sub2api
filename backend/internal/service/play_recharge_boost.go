@@ -22,6 +22,15 @@ func (s *PlayService) GrantRechargeBoost(ctx context.Context, userID int64) erro
 }
 
 func (s *PlayService) getRechargeBoostStatus(ctx context.Context, userID int64, rt PlayRuntime) (PlayRechargeBoostStatus, error) {
+	if cache := playRequestCacheFromContext(ctx); cache != nil {
+		return cache.getRechargeBoost(ctx, userID, func(cacheCtx context.Context, cachedUserID int64) (PlayRechargeBoostStatus, error) {
+			return s.getRechargeBoostStatusUncached(cacheCtx, cachedUserID, rt)
+		})
+	}
+	return s.getRechargeBoostStatusUncached(ctx, userID, rt)
+}
+
+func (s *PlayService) getRechargeBoostStatusUncached(ctx context.Context, userID int64, rt PlayRuntime) (PlayRechargeBoostStatus, error) {
 	out := PlayRechargeBoostStatus{
 		CheckinMultiplier:  1,
 		BlindboxExtraOpens: 0,

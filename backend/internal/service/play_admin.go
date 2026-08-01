@@ -131,7 +131,7 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	} else if periodType == "daily" {
 		period, err = s.repo.EnsureDailyArenaPeriod(ctx, s.serverNow())
 	} else {
-		period, err = s.repo.EnsureMonthlyArenaPeriod(ctx, s.serverNow())
+		period, err = s.ensureMonthlyArenaPeriod(ctx, s.serverNow(), rt)
 	}
 	if err != nil {
 		return nil, nil, nil, err
@@ -144,8 +144,13 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 		return nil, nil, nil, err
 	}
 	rewards := rt.ArenaSettlementRewards
-	if periodType == "daily" {
+	if period.PeriodType == "daily" {
 		rewards = rt.DailyArenaTopRewards
+	} else {
+		rewards, err = s.arenaRewardTiersForPeriod(ctx, period)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
 	return rows, period, rewards, nil
 }

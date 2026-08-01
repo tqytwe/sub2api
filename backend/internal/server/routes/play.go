@@ -20,6 +20,7 @@ func RegisterPlayRoutes(
 	{
 		play.GET("/arena/current", middleware.OptionalJWTAuth(jwtAuth), h.Play.ArenaCurrent)
 		play.GET("/arena/leaderboard", h.Play.ArenaLeaderboard)
+		play.GET("/arena/overview", middleware.OptionalJWTAuth(jwtAuth), h.Play.ArenaSeasonOverview)
 		play.GET("/arena/daily/current", middleware.OptionalJWTAuth(jwtAuth), h.Play.ArenaDailyCurrent)
 		play.GET("/arena/daily/leaderboard", h.Play.ArenaDailyLeaderboard)
 		play.GET("/arena/daily/reward-summary", h.Play.ArenaDailyRewardSummary)

@@ -34,6 +34,33 @@ type playHubImageStudioDTO struct {
 	HasCompletedJob bool `json:"has_completed_job"`
 }
 
+type playArenaSeasonHistoryWinnerDTO struct {
+	Rank         int     `json:"rank"`
+	DisplayName  string  `json:"display_name,omitempty"`
+	Anonymous    bool    `json:"anonymous,omitempty"`
+	AvatarURL    string  `json:"avatar_url,omitempty"`
+	TokenSum     int64   `json:"token_sum"`
+	RewardAmount float64 `json:"reward_amount"`
+	PayoutStatus string  `json:"payout_status"`
+	PaidAt       *string `json:"paid_at,omitempty"`
+}
+
+type playArenaSeasonHistoryDTO struct {
+	Period       *playArenaPeriodDTO               `json:"period,omitempty"`
+	WinnersCount int                               `json:"winners_count"`
+	TotalAmount  float64                           `json:"total_amount"`
+	Winners      []playArenaSeasonHistoryWinnerDTO `json:"winners"`
+}
+
+type playArenaSeasonOverviewDTO struct {
+	Enabled     bool                              `json:"enabled"`
+	Period      *playArenaPeriodDTO               `json:"period,omitempty"`
+	Current     playArenaCurrentDTO               `json:"current"`
+	Rows        []playArenaScoreDTO               `json:"rows"`
+	RewardTiers []service.PlayArenaSettlementTier `json:"reward_tiers"`
+	History     []playArenaSeasonHistoryDTO       `json:"history"`
+}
+
 func (h *PlayHandler) QuestsToday(c *gin.Context) {
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok {
@@ -61,6 +88,60 @@ func (h *PlayHandler) ArenaDailyCurrent(c *gin.Context) {
 	response.Success(c, toPlayArenaCurrentDTO(current))
 }
 
+// ArenaSeasonOverview serves one selected daily or monthly tab. It is public
+// for competition proof and optionally augments only the viewer's own state.
+func (h *PlayHandler) ArenaSeasonOverview(c *gin.Context) {
+	periodType := c.DefaultQuery("period", "monthly")
+	// The current board is the page's first-screen payload. Historical proof is
+	// immutable but comparatively expensive, so clients can request it only
+	// after the user expands the history section.
+	includeHistory := c.DefaultQuery("include_history", "1") != "0"
+	var userID int64
+	if subject, ok := middleware.GetAuthSubjectFromContext(c); ok {
+		userID = subject.UserID
+	}
+	overview, err := h.playService.GetArenaSeasonOverview(c.Request.Context(), userID, periodType, includeHistory)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := playArenaSeasonOverviewDTO{
+		Enabled:     overview.Enabled,
+		Current:     toPlayArenaCurrentDTO(overview.Current),
+		Rows:        make([]playArenaScoreDTO, 0, len(overview.Rows)),
+		RewardTiers: append([]service.PlayArenaSettlementTier(nil), overview.RewardTiers...),
+		History:     make([]playArenaSeasonHistoryDTO, 0, len(overview.History)),
+	}
+	if overview.Period != nil {
+		out.Period = toPlayArenaPeriodDTO(overview.Period)
+	}
+	for _, row := range overview.Rows {
+		out.Rows = append(out.Rows, toPlayArenaScoreDTO(row))
+	}
+	for _, history := range overview.History {
+		item := playArenaSeasonHistoryDTO{
+			Period:       toPlayArenaPeriodDTO(&history.Period),
+			WinnersCount: history.WinnersCount,
+			TotalAmount:  history.TotalAmount,
+			Winners:      make([]playArenaSeasonHistoryWinnerDTO, 0, len(history.Winners)),
+		}
+		for _, winner := range history.Winners {
+			item.Winners = append(item.Winners, playArenaSeasonHistoryWinnerDTO{
+				Rank:         winner.Rank,
+				DisplayName:  winner.DisplayName,
+				Anonymous:    winner.Anonymous,
+				AvatarURL:    winner.AvatarURL,
+				TokenSum:     winner.TokenSum,
+				RewardAmount: winner.RewardAmount,
+				PayoutStatus: winner.PayoutStatus,
+				PaidAt:       formatOptionalPlayTime(winner.PaidAt),
+			})
+		}
+		out.History = append(out.History, item)
+	}
+	response.Success(c, out)
+}
+
 func (h *PlayHandler) ArenaDailyLeaderboard(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	rows, period, err := h.playService.ListDailyArenaLeaderboard(c.Request.Context(), limit)
@@ -73,13 +154,7 @@ func (h *PlayHandler) ArenaDailyLeaderboard(c *gin.Context) {
 		out.Period = toPlayArenaPeriodDTO(period)
 	}
 	for _, row := range rows {
-		out.Rows = append(out.Rows, playArenaScoreDTO{
-			Rank:        row.Rank,
-			UserID:      row.UserID,
-			DisplayName: row.DisplayName,
-			AvatarURL:   row.AvatarURL,
-			TokenSum:    row.TokenSum,
-		})
+		out.Rows = append(out.Rows, toPlayArenaScoreDTO(row))
 	}
 	response.Success(c, out)
 }
@@ -105,7 +180,7 @@ func (h *PlayHandler) ArenaRewardSummary(c *gin.Context) {
 	}
 	out.SettledAt = formatOptionalPlayTime(summary.SettledAt)
 	for _, row := range summary.Winners {
-		out.Winners = append(out.Winners, playArenaMonthlyRewardWinnerDTO{Rank: row.Rank, DisplayName: row.DisplayName, AvatarURL: row.AvatarURL, Amount: row.Amount, PaidAt: formatOptionalPlayTime(row.PaidAt)})
+		out.Winners = append(out.Winners, playArenaMonthlyRewardWinnerDTO{Rank: row.Rank, DisplayName: row.DisplayName, Anonymous: row.Anonymous, AvatarURL: row.AvatarURL, Amount: row.Amount, PaidAt: formatOptionalPlayTime(row.PaidAt)})
 	}
 	response.Success(c, out)
 }
@@ -161,8 +236,8 @@ func toPlayArenaDailyRewardSummaryDTO(summary *service.PlayArenaDailyRewardSumma
 		for _, row := range summary.Recent.Winners {
 			out.Recent.Winners = append(out.Recent.Winners, playArenaDailyRewardWinnerDTO{
 				Rank:        row.Rank,
-				UserID:      row.UserID,
 				DisplayName: row.DisplayName,
+				Anonymous:   row.Anonymous,
 				AvatarURL:   row.AvatarURL,
 				TokenSum:    row.TokenSum,
 				Amount:      row.Amount,
@@ -177,8 +252,8 @@ func toPlayArenaDailyRewardSummaryDTO(summary *service.PlayArenaDailyRewardSumma
 		for _, row := range summary.Current.Rows {
 			out.Current.Rows = append(out.Current.Rows, playArenaDailyRewardEstimateDTO{
 				Rank:            row.Rank,
-				UserID:          row.UserID,
 				DisplayName:     row.DisplayName,
+				Anonymous:       row.Anonymous,
 				AvatarURL:       row.AvatarURL,
 				TokenSum:        row.TokenSum,
 				EstimatedReward: row.EstimatedReward,

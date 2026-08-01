@@ -673,7 +673,7 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 		return out, nil
 	}
 	now := s.serverNow()
-	period, err := s.repo.EnsureMonthlyArenaPeriod(ctx, now)
+	period, err := s.ensureMonthlyArenaPeriod(ctx, now, rt)
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +690,11 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 	}
 	out.TokenSum = tokenSum
 	out.Rank = rank
-	out.EstimatedReward = arenaRewardForRank(rank, rt.ArenaSettlementRewards)
+	rewards, err := s.arenaRewardTiersForPeriod(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+	out.EstimatedReward = arenaRewardForRank(rank, rewards)
 	out.DisplayTokenSum = tokenSum
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
 	if err != nil {
@@ -724,7 +728,7 @@ func (s *PlayService) ListArenaLeaderboard(ctx context.Context, limit int) ([]Pl
 		return nil, nil, ErrPlayFeatureDisabled
 	}
 	now := s.serverNow()
-	period, err := s.repo.EnsureMonthlyArenaPeriod(ctx, now)
+	period, err := s.ensureMonthlyArenaPeriod(ctx, now, rt)
 	if err != nil {
 		return nil, nil, err
 	}

@@ -86,14 +86,17 @@ type PlayArenaScoreRow struct {
 	Rank        int
 	UserID      int64
 	DisplayName string
+	Anonymous   bool
 	Email       string
 	AvatarURL   string
 	TokenSum    int64
+	IsMine      bool
 }
 
 type PlayArenaDailyRewardLedgerRow struct {
 	UserID      int64
 	DisplayName string
+	Anonymous   bool
 	AvatarURL   string
 	Amount      float64
 	Rank        int
@@ -510,8 +513,8 @@ type PlayArenaDailyRecentRewardSummary struct {
 
 type PlayArenaDailyRewardWinner struct {
 	Rank        int
-	UserID      int64
 	DisplayName string
+	Anonymous   bool
 	AvatarURL   string
 	TokenSum    int64
 	Amount      float64
@@ -524,8 +527,8 @@ type PlayArenaDailyCurrentRewardEstimate struct {
 
 type PlayArenaDailyRewardEstimateRow struct {
 	Rank            int
-	UserID          int64
 	DisplayName     string
+	Anonymous       bool
 	AvatarURL       string
 	TokenSum        int64
 	EstimatedReward float64
@@ -545,6 +548,7 @@ type PlayArenaRewardPublicWinner struct {
 	Rank        int
 	Period      *PlayArenaPeriod
 	DisplayName string
+	Anonymous   bool
 	AvatarURL   string
 	Amount      float64
 	PaidAt      *time.Time
@@ -559,6 +563,40 @@ type PlayArenaMonthlyRewardSummary struct {
 	Winners      []PlayArenaRewardPublicWinner
 }
 
+// PlayArenaSeasonSnapshot is the immutable public proof created in the same
+// transaction as a monthly reward grant. It intentionally carries no raw user
+// identifier in the public DTO path.
+type PlayArenaSeasonSnapshot struct {
+	PeriodID     int64
+	Rank         int
+	UserID       int64
+	DisplayName  string
+	Anonymous    bool
+	AvatarURL    string
+	TokenSum     int64
+	RewardAmount float64
+	PayoutStatus string
+	PaidAt       *time.Time
+}
+
+type PlayArenaSeasonHistory struct {
+	Period       PlayArenaPeriod
+	WinnersCount int
+	TotalAmount  float64
+	Winners      []PlayArenaSeasonSnapshot
+}
+
+// PlayArenaSeasonOverview is the selected-tab aggregation used by web and
+// native clients. Rows have their user IDs stripped before leaving the service.
+type PlayArenaSeasonOverview struct {
+	Enabled     bool
+	Period      *PlayArenaPeriod
+	Current     *PlayArenaCurrent
+	Rows        []PlayArenaScoreRow
+	RewardTiers []PlayArenaSettlementTier
+	History     []PlayArenaSeasonHistory
+}
+
 // Optional interfaces keep lightweight PlayRepository test doubles compatible.
 type PlayPublicTeamRewardsRepository interface {
 	ListPublicTeamRewardWinners(ctx context.Context, limit int) ([]PlayTeamRewardPublicWinner, error)
@@ -567,6 +605,25 @@ type PlayPublicTeamRewardsRepository interface {
 type PlayMonthlyArenaRewardsRepository interface {
 	GetLatestSettledMonthlyArenaPeriod(ctx context.Context) (*PlayArenaPeriod, error)
 	ListArenaMonthlyRewardLedger(ctx context.Context, periodID int64) ([]PlayArenaDailyRewardLedgerRow, error)
+}
+
+// Arena season extensions remain optional so old lightweight repository test
+// doubles and pre-migration deployments can still serve the legacy endpoints.
+type PlayArenaSeasonRulesWriter interface {
+	FreezeArenaRewardRules(ctx context.Context, periodID int64, rulesJSON string) error
+}
+
+type PlayArenaSeasonRulesReader interface {
+	GetArenaRewardRulesSnapshot(ctx context.Context, periodID int64) (string, error)
+}
+
+type PlayArenaSeasonHistoryRepository interface {
+	ListArenaSeasonHistory(ctx context.Context, periodType string, limit int) ([]PlayArenaSeasonHistory, error)
+}
+
+type PlayArenaSeasonSettlementRepository interface {
+	ListExpiredActiveMonthlyArenaPeriods(ctx context.Context, now time.Time) ([]PlayArenaPeriod, error)
+	CreateArenaSeasonSnapshot(ctx context.Context, snapshot PlayArenaSeasonSnapshot) error
 }
 
 type PlayRepository interface {

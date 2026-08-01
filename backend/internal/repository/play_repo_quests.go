@@ -109,7 +109,8 @@ func (r *playRepository) EnsureDailyArenaPeriod(ctx context.Context, now time.Ti
 	exec := r.sqlExec(ctx)
 	if _, err := exec.ExecContext(ctx, `
 		INSERT INTO play_arena_periods (name, start_at, end_at, status, period_type)
-		VALUES ($1, $2, $3, 'active', 'daily')`, name, start, end); err != nil {
+		VALUES ($1, $2, $3, 'active', 'daily')
+		ON CONFLICT DO NOTHING`, name, start, end); err != nil {
 		return nil, fmt.Errorf("insert daily arena period: %w", err)
 	}
 	return r.GetActiveArenaPeriodByType(ctx, now, "daily")

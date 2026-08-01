@@ -375,7 +375,7 @@
         </div>
       </section>
 
-      <div v-if="activeTab === 'campaigns' || activeTab === 'teams'" class="grid gap-6" :class="{ 'xl:grid-cols-[minmax(0,1fr)_420px]': activeTab === 'teams' }">
+      <div v-if="activeTab === 'campaigns' || activeTab === 'arena' || activeTab === 'teams'" class="grid gap-6" :class="{ 'xl:grid-cols-[minmax(0,1fr)_420px]': activeTab === 'teams' }">
         <div class="space-y-6">
           <section v-if="activeTab === 'campaigns'" class="card">
             <div
@@ -672,7 +672,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'campaigns'" class="card">
+          <section v-if="activeTab === 'arena'" class="card">
             <div
               class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -1455,6 +1455,7 @@ type PlayOpsTab =
   | "overview"
   | "membership"
   | "campaigns"
+  | "arena"
   | "invite-growth"
   | "teams"
   | "app-analytics"
@@ -1465,6 +1466,7 @@ const tabKeys: PlayOpsTab[] = [
   "overview",
   "membership",
   "campaigns",
+  "arena",
   "invite-growth",
   "teams",
   "app-analytics",
@@ -1666,12 +1668,12 @@ async function loadForTab(tab: PlayOpsTab) {
     if (tab === "overview") {
       summary.value = await adminPlayAPI.getSummary();
     } else if (tab === "campaigns") {
-      const [campaignData, arenaData] = await Promise.all([
-        adminPlayAPI.listCampaigns(),
-        adminPlayAPI.getArenaLeaderboard({ period_type: arenaPeriodType.value, limit: 20 }),
-      ]);
-      campaigns.value = campaignData;
-      arena.value = arenaData;
+      campaigns.value = await adminPlayAPI.listCampaigns();
+    } else if (tab === "arena") {
+      arena.value = await adminPlayAPI.getArenaLeaderboard({
+        period_type: arenaPeriodType.value,
+        limit: 20,
+      });
     } else if (tab === "teams") {
       await loadTeams();
       if (!selectedTeam.value && teams.value.items[0]) await selectTeam(teams.value.items[0].id);

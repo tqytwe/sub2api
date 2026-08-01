@@ -3,28 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import ArenaView from '@/views/public/ArenaView.vue'
 
-const {
-  getArenaCurrentMock,
-  getArenaDailyCurrentMock,
-  getArenaLeaderboardMock,
-  getArenaDailyLeaderboardMock,
-  getArenaDailyRewardSummaryMock,
-  getArenaRewardSummaryMock,
-  getQuestsTodayMock,
-} = vi.hoisted(() => ({
-  getArenaCurrentMock: vi.fn(),
-  getArenaDailyCurrentMock: vi.fn(),
-  getArenaLeaderboardMock: vi.fn(),
-  getArenaDailyLeaderboardMock: vi.fn(),
-  getArenaDailyRewardSummaryMock: vi.fn(),
-  getArenaRewardSummaryMock: vi.fn(),
+const { getArenaSeasonOverviewMock, getQuestsTodayMock } = vi.hoisted(() => ({
+  getArenaSeasonOverviewMock: vi.fn(),
   getQuestsTodayMock: vi.fn(),
 }))
 
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    isAuthenticated: true,
-  }),
+  useAuthStore: () => ({ isAuthenticated: true }),
 }))
 
 vi.mock('@/utils/growthAnalytics', () => ({
@@ -34,18 +19,14 @@ vi.mock('@/utils/growthAnalytics', () => ({
 
 vi.mock('@/api/play', () => ({
   default: {
-    getArenaCurrent: (...args: unknown[]) => getArenaCurrentMock(...args),
-    getArenaDailyCurrent: (...args: unknown[]) => getArenaDailyCurrentMock(...args),
-    getArenaLeaderboard: (...args: unknown[]) => getArenaLeaderboardMock(...args),
-    getArenaDailyLeaderboard: (...args: unknown[]) => getArenaDailyLeaderboardMock(...args),
-    getArenaDailyRewardSummary: (...args: unknown[]) => getArenaDailyRewardSummaryMock(...args),
-    getArenaRewardSummary: (...args: unknown[]) => getArenaRewardSummaryMock(...args),
+    getArenaSeasonOverview: (...args: unknown[]) => getArenaSeasonOverviewMock(...args),
     getQuestsToday: (...args: unknown[]) => getQuestsTodayMock(...args),
   },
 }))
 
 const messages: Record<string, string> = {
   'models.loading': '加载中',
+  'common.retry': '重试',
   'play.arena.eyebrow': 'PLAY · TOKEN 农场',
   'play.arena.title': 'Token 农场',
   'play.arena.subtitle': '消耗也有回报',
@@ -53,20 +34,29 @@ const messages: Record<string, string> = {
   'play.arena.ctaGuest': '注册查看排行',
   'play.howItWorks': '玩法说明',
   'arena.disabled': 'Token 农场暂未开启',
+  'arena.loadFailed': '农场数据暂时无法加载，请重试。',
+  'arena.anonymous': '匿名用户',
   'arena.period': '当前周期：{name}',
   'arena.myStats': '第 {rank} 名 · 本期 {tokens} tokens',
   'arena.gapToPrev': '距上一名还差 {gap} tokens',
+  'arena.estimatedReward': '当前名次预计 API 余额奖励：${amount}',
   'arena.leaderboard': '排行榜',
   'arena.empty': '暂无排行',
   'arena.tokenValue': '{tokens} 枚代币',
+  'arena.currentRewards': '当前奖励档位',
+  'arena.rewardTier': '排名区间',
+  'arena.noRewardTiers': '当前没有可公开的奖励档位。',
+  'arena.historyTitle': '历史结算证明',
+  'arena.historyHint': '展开后查看最近已结算赛季的前十和实际发放金额。',
+  'arena.loadHistory': '查看历史结算',
+  'arena.loadingHistory': '加载历史结算...',
+  'arena.historyEmpty': '暂时没有可公开的已结算赛季。',
   'arena.rpg.season': '赛季',
   'arena.rpg.level': 'Lv.{level}',
   'arena.rpg.farmer': '耕作者',
   'arena.rpg.energyGap': '距下一级还差 {gap} 能量',
   'arena.rpg.dailyQuests': '每日任务',
   'arena.rpg.go': '去完成',
-  'arena.rpg.mainField': '主田',
-  'arena.rpg.monthTokens': '本月 {tokens} tokens',
   'arena.rpg.tabDaily': '日榜',
   'arena.rpg.tabMonthly': '月榜',
   'arena.rpg.campaignBuff': '活动加成中',
@@ -78,37 +68,16 @@ const messages: Record<string, string> = {
   'arena.competitive.formulaTitle': '结算口径',
   'arena.competitive.formulaRank': '最终奖励按结算时排名匹配固定金额。',
   'arena.competitive.formulaBoost': '充值/活动倍率只影响展示积分和排名，不直接倍增奖励金额。',
-  'arena.estimatedReward': '当前名次预计 API 余额奖励：${amount}',
-  'arena.competitive.settlementCelebrationTitle': '本期奖励已结算',
-  'arena.competitive.settlementCelebrationSubtitle': '奖励已按结算快照到账。',
-  'arena.competitive.viewDetails': '查看明细',
   'arena.competitive.rewardZone': '奖励区',
   'arena.competitive.keepClimbing': '继续追榜',
   'arena.competitive.topRange': 'Top 10 发放范围',
   'arena.competitive.noRank': '尚未上榜',
   'arena.competitive.podium': '前三名',
+  'arena.competitive.questDone': '已完成',
   'arena.competitive.questEnergy': '+{energy} 能量',
-  'arena.dailySummary.recentTitle': '最近发放',
-  'arena.dailySummary.currentTitle': '当前预估',
-  'arena.dailySummary.settledAt': '发放时间：{time}',
-  'arena.dailySummary.period': '结算周期：{period}',
-  'arena.dailySummary.currentPeriod': '当前周期：{period}',
-  'arena.dailySummary.paidToday': '今日已发放',
-  'arena.dailySummary.delayed': '非今日发放',
-  'arena.dailySummary.winners': '{count} 人获奖',
-  'arena.dailySummary.total': '合计 ${amount}',
-  'arena.dailySummary.noRecent': '暂无已结算日榜',
-  'arena.dailySummary.noEstimate': '当前暂无预估奖励',
-  'arena.dailySummary.rowReward': '预计 ${amount}',
-  'arena.dailySummary.winnerReward': '到账 ${amount}',
-  'arena.dailySummary.rankToken': '#{rank} · {tokens} 枚代币',
-  'arena.monthlySummary.recentTitle': '最近月榜奖励发放',
   'arena.monthlySummary.paid': '已到账',
-  'arena.monthlySummary.settledAt': '发放时间：{time}',
-  'arena.monthlySummary.period': '结算周期：{period}',
-  'arena.monthlySummary.winners': '{count} 人获奖',
   'arena.monthlySummary.total': '合计 ${amount}',
-  'arena.monthlySummary.noRecent': '暂无已结算月榜',
+  'arena.monthlySummary.winners': '{count} 人获奖',
   'arena.monthlySummary.actualPayout': '实际到账',
   'arena.monthlySummary.winnerReward': '到账 ${amount}',
   'arena.quests.api_call': 'API 调用',
@@ -120,6 +89,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
   return {
     ...actual,
     useI18n: () => ({
+      locale: { value: 'zh-CN' },
       te: (key: string) => key in messages,
       t: (key: string, params?: Record<string, unknown>) => {
         let template = messages[key] ?? key
@@ -134,13 +104,49 @@ vi.mock('vue-i18n', async (importOriginal) => {
 
 enableAutoUnmount(afterEach)
 
-function period() {
+function period(name: string, id: number) {
   return {
-    id: 1,
-    name: '2026-07 月榜',
-    start_at: '2026-07-01T00:00:00Z',
-    end_at: '2026-08-01T00:00:00Z',
+    id,
+    name,
+    start_at: '2026-08-01T00:00:00+08:00',
+    end_at: '2026-09-01T00:00:00+08:00',
     status: 'active',
+  }
+}
+
+function overview(kind: 'daily' | 'monthly', includeHistory = false) {
+  const isDaily = kind === 'daily'
+  return {
+    enabled: true,
+    period: period(isDaily ? '2026-08-01 日榜' : '2026-08 月榜', isDaily ? 10 : 11),
+    current: {
+      enabled: true,
+      period: period(isDaily ? '2026-08-01 日榜' : '2026-08 月榜', isDaily ? 10 : 11),
+      token_sum: isDaily ? 12000 : 653910,
+      display_token_sum: isDaily ? 12000 : 653910,
+      rank: isDaily ? 3 : 5,
+      tokens_to_prev_rank: isDaily ? 1000 : 37310,
+      estimated_reward: isDaily ? 0.2 : 5,
+    },
+    rows: [
+      { rank: 1, display_name: isDaily ? 'da***@example.com' : 'mi***@example.com', token_sum: isDaily ? 22000 : 982400 },
+      { rank: 2, display_name: isDaily ? 'no***@example.com' : 'no***@example.com', token_sum: isDaily ? 18000 : 876120 },
+      { rank: 3, anonymous: true, token_sum: isDaily ? 12000 : 744830, is_mine: isDaily },
+      { rank: 4, display_name: 'de***@example.com', token_sum: 691220 },
+      { rank: 5, anonymous: true, token_sum: 653910, is_mine: !isDaily },
+    ],
+    reward_tiers: [{ rank_max: 1, amount: isDaily ? 0.5 : 20 }, { rank_max: 10, amount: isDaily ? 0.2 : 5 }],
+    history: includeHistory
+      ? [{
+          period: { ...period(isDaily ? '2026-07-31 日榜' : '2026-07 月榜', isDaily ? 9 : 8), status: 'settled' },
+          winners_count: 2,
+          total_amount: isDaily ? 0.7 : 25,
+          winners: [
+            { rank: 1, display_name: 'mi***@example.com', token_sum: 22000, reward_amount: isDaily ? 0.5 : 20, payout_status: 'paid', paid_at: '2026-08-01T00:10:00+08:00' },
+            { rank: 2, anonymous: true, token_sum: 18000, reward_amount: isDaily ? 0.2 : 5, payout_status: 'paid', paid_at: '2026-08-01T00:10:00+08:00' },
+          ],
+        }]
+      : [],
   }
 }
 
@@ -160,171 +166,59 @@ function mountView() {
 
 describe('ArenaView competitive layout', () => {
   beforeEach(() => {
-    window.sessionStorage.clear()
     vi.clearAllMocks()
-    getArenaCurrentMock.mockResolvedValue({
-      enabled: true,
-      period: period(),
-      token_sum: 653910,
-      display_token_sum: 653910,
-      rank: 5,
-      tokens_to_prev_rank: 37310,
-      estimated_reward: 5,
-    })
-    getArenaDailyCurrentMock.mockResolvedValue({
-      enabled: true,
-      period: { ...period(), name: '2026-07-17 日榜' },
-      token_sum: 12000,
-      rank: 3,
-      estimated_reward: 0.2,
-    })
-    getArenaLeaderboardMock.mockResolvedValue({
-      enabled: true,
-      period: period(),
-      rows: [
-        { rank: 1, user_id: 11, display_name: 'Mira Studio', token_sum: 982400 },
-        { rank: 2, user_id: 12, display_name: 'North API Lab', token_sum: 876120 },
-        { rank: 3, user_id: 13, display_name: '星河工作流', token_sum: 744830 },
-        { rank: 4, user_id: 14, display_name: 'Dev Pilot', token_sum: 691220 },
-        { rank: 5, user_id: 15, display_name: '你', token_sum: 653910 },
-      ],
-    })
-    getArenaDailyLeaderboardMock.mockResolvedValue({
-      enabled: true,
-      period: { ...period(), name: '2026-07-17 日榜' },
-      rows: [
-        { rank: 1, user_id: 21, display_name: 'Daily One', token_sum: 22000 },
-        { rank: 2, user_id: 22, display_name: 'Daily Two', token_sum: 18000 },
-        { rank: 3, user_id: 23, display_name: '你', token_sum: 12000 },
-      ],
-    })
-    getArenaDailyRewardSummaryMock.mockResolvedValue({
-      enabled: true,
-      recent: {
-        period: { ...period(), id: 31, name: '2026-07-16 日榜', status: 'settled' },
-        settled_at: '2026-07-17T00:08:00+08:00',
-        paid_today: false,
-        winners_count: 2,
-        total_amount: 0.7,
-        winners: [
-          { rank: 1, user_id: 21, display_name: 'Daily One', token_sum: 22000, amount: 0.5 },
-          { rank: 2, user_id: 22, display_name: 'Daily Two', token_sum: 18000, amount: 0.2 },
-        ],
-      },
-      current: {
-        period: { ...period(), id: 32, name: '2026-07-17 日榜' },
-        rows: [
-          { rank: 1, user_id: 23, display_name: '你', token_sum: 12000, estimated_reward: 0.5 },
-          { rank: 2, user_id: 24, display_name: 'Current Two', token_sum: 9000, estimated_reward: 0.2 },
-        ],
-      },
-    })
-    getArenaRewardSummaryMock.mockResolvedValue({
-      enabled: true,
-      period: { ...period(), status: 'settled' },
-      settled_at: '2026-08-01T00:10:00+08:00',
-      winners_count: 2,
-      total_amount: 25,
-      winners: [
-        { rank: 1, display_name: 'Mira Studio', amount: 20, paid_at: '2026-08-01T00:10:00+08:00' },
-        { rank: 2, display_name: 'North API Lab', amount: 5, paid_at: '2026-08-01T00:10:00+08:00' },
-      ],
-    })
+    getArenaSeasonOverviewMock.mockImplementation((kind: 'daily' | 'monthly', includeHistory = false) => Promise.resolve(overview(kind, includeHistory)))
     getQuestsTodayMock.mockResolvedValue({
       enabled: true,
       energy: 30,
       level: 2,
       energy_to_next_level: 70,
-      server_date: '2026-07-17',
-      tasks: [
-        { key: 'api_call', completed: true, energy: 20 },
-        { key: 'image_generate', completed: false, energy: 30, cta_route: '/image-studio' },
-      ],
+      server_date: '2026-08-01',
+      tasks: [{ key: 'api_call', completed: true, energy: 20 }, { key: 'image_generate', completed: false, energy: 30, cta_route: '/image-studio' }],
     })
   })
 
-  it('defaults to the daily board with recent payout, estimate, and quest cards', async () => {
+  it('loads only the selected daily board on first paint and keeps public identities masked', async () => {
     const wrapper = mountView()
     await flushPromises()
 
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledTimes(1)
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('daily', false)
     expect(wrapper.find('.arena-rpg-tab.active').text()).toContain('日榜')
     expect(wrapper.findAll('.arena-podium-card')).toHaveLength(3)
-    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('Daily One')
-    expect(wrapper.text()).toContain('奖励发给排行榜上榜用户')
-    expect(wrapper.text()).toContain('每日任务能量用于等级/进度展示，不等同于余额到账')
+    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('da***@example.com')
     expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$0.20')
-    expect(wrapper.text()).toContain('充值/活动倍率只影响展示积分和排名，不直接倍增奖励金额')
-    expect(wrapper.text()).toContain('最近发放')
-    expect(wrapper.text()).toContain('当前预估')
+    expect(wrapper.text()).toContain('当前奖励档位')
+    expect(wrapper.text()).toContain('查看历史结算')
     expect(wrapper.findAll('.arena-quest-card')).toHaveLength(2)
+    expect(wrapper.html()).not.toContain('user_id')
   })
 
-  it('keeps the monthly board available from the tab switch', async () => {
+  it('loads the monthly board only after switching tabs', async () => {
     const wrapper = mountView()
     await flushPromises()
 
     await wrapper.findAll('.arena-rpg-tab')[1].trigger('click')
     await flushPromises()
 
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('monthly', false)
     expect(wrapper.find('.arena-rpg-tab.active').text()).toContain('月榜')
-    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('Mira Studio')
+    expect(wrapper.find('.arena-podium-card.tone-gold').text()).toContain('mi***@example.com')
     expect(wrapper.text()).toContain('当前名次预计 API 余额奖励：$5.00')
-    expect(wrapper.find('.arena-rank-row.current').text()).toContain('你')
-    expect(wrapper.text()).not.toContain('最近发放')
-    expect(wrapper.text()).toContain('最近月榜奖励发放')
-    expect(wrapper.text()).toContain('Mira Studio')
-    expect(wrapper.text()).toContain('到账 $20.00')
   })
 
-  it('renders daily recent payout and current estimate without labeling yesterday as today', async () => {
+  it('defers historical payout proof until the user expands it', async () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(getArenaDailyRewardSummaryMock).toHaveBeenCalledOnce()
-    expect(wrapper.text()).toContain('最近发放')
-    expect(wrapper.text()).toContain('当前预估')
-    expect(wrapper.text()).toContain('结算周期：2026-07-16 日榜')
-    expect(wrapper.text()).toContain('非今日发放')
-    expect(wrapper.text()).toContain('2 人获奖')
-    expect(wrapper.text()).toContain('合计 $0.70')
+    expect(wrapper.text()).not.toContain('到账 $0.50')
+    await wrapper.get('[data-testid="arena-history-load"]').trigger('click')
+    await flushPromises()
+
+    expect(getArenaSeasonOverviewMock).toHaveBeenCalledWith('daily', true)
+    expect(wrapper.text()).toContain('2026-07-31 日榜')
     expect(wrapper.text()).toContain('到账 $0.50')
-    expect(wrapper.text()).toContain('预计 $0.50')
-    expect(wrapper.text()).not.toContain('今日排名')
-  })
-
-  it('shows the monthly settlement celebration once after switching to the settled monthly period', async () => {
-    getArenaCurrentMock.mockResolvedValue({
-      enabled: true,
-      period: { ...period(), status: 'settled' },
-      token_sum: 653910,
-      display_token_sum: 653910,
-      rank: 5,
-      tokens_to_prev_rank: 37310,
-      estimated_reward: 5,
-    })
-
-    const wrapper = mountView()
-    await flushPromises()
-
-    expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
-
-    await wrapper.findAll('.arena-rpg-tab')[1].trigger('click')
-    await flushPromises()
-
-    expect(wrapper.find('.reward-celebration-overlay').text()).toContain('$5.00')
-
-    await wrapper.get('.reward-close').trigger('click')
-    await flushPromises()
-
-    expect(window.sessionStorage.getItem('play-arena-settled:monthly:1')).toBe('1')
-    expect(wrapper.find('.reward-celebration-overlay').exists()).toBe(false)
-
-    const again = mountView()
-    await flushPromises()
-
-    await again.findAll('.arena-rpg-tab')[1].trigger('click')
-    await flushPromises()
-
-    expect(again.find('.reward-celebration-overlay').exists()).toBe(false)
+    expect(wrapper.text()).toContain('mi***@example.com')
+    expect(wrapper.text()).toContain('匿名用户')
   })
 })
