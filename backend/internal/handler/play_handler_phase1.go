@@ -200,42 +200,51 @@ func (h *PlayHandler) TeamRewardShowcase(c *gin.Context) {
 
 func (h *PlayHandler) TeamDirectory(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-	directory, err := h.playService.PublicTeamDirectory(c.Request.Context(), limit)
+	payload, etag, err := h.publicCompetitionCache.load("directory:"+strconv.Itoa(limit), func() (any, error) {
+		return h.playService.PublicTeamDirectory(c.Request.Context(), limit)
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, directory)
+	respondPublicTeamCompetition(c, payload, etag)
 }
 
 func (h *PlayHandler) TeamPublicLeaderboard(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	leaderboard, err := h.playService.PublicTeamLeaderboard(c.Request.Context(), limit)
+	payload, etag, err := h.publicCompetitionCache.load("leaderboard:"+strconv.Itoa(limit), func() (any, error) {
+		return h.playService.PublicTeamLeaderboard(c.Request.Context(), limit)
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, leaderboard)
+	respondPublicTeamCompetition(c, payload, etag)
 }
 
 func (h *PlayHandler) TeamSeasons(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "12"))
-	seasons, err := h.playService.ListPublicTeamSeasons(c.Request.Context(), limit)
+	payload, etag, err := h.publicCompetitionCache.load("seasons:"+strconv.Itoa(limit), func() (any, error) {
+		return h.playService.ListPublicTeamSeasons(c.Request.Context(), limit)
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, seasons)
+	respondPublicTeamCompetition(c, payload, etag)
 }
 
 func (h *PlayHandler) TeamSeason(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
-	season, err := h.playService.GetPublicTeamSeason(c.Request.Context(), c.Param("month"), limit)
+	month := c.Param("month")
+	payload, etag, err := h.publicCompetitionCache.load("season:"+month+":"+strconv.Itoa(limit), func() (any, error) {
+		return h.playService.GetPublicTeamSeason(c.Request.Context(), month, limit)
+	})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, season)
+	respondPublicTeamCompetition(c, payload, etag)
 }
 
 func toPlayArenaCurrentDTO(current *service.PlayArenaCurrent) playArenaCurrentDTO {

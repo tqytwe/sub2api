@@ -19,9 +19,10 @@ import (
 
 // PlayHandler serves play/engagement endpoints (check-in, arena, public models).
 type PlayHandler struct {
-	playService          *service.PlayService
-	billingService       *service.BillingService
-	feedbackAssetService *service.AnnouncementAssetService
+	playService            *service.PlayService
+	billingService         *service.BillingService
+	feedbackAssetService   *service.AnnouncementAssetService
+	publicCompetitionCache publicTeamCompetitionCache
 }
 
 func NewPlayHandler(playService *service.PlayService, billingService *service.BillingService, feedbackAssetService ...*service.AnnouncementAssetService) *PlayHandler {

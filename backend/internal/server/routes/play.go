@@ -18,6 +18,10 @@ func RegisterPlayRoutes(
 	if len(teamAdmissionRateLimiters) > 0 && teamAdmissionRateLimiters[0] != nil {
 		teamAdmissionRateLimit = teamAdmissionRateLimiters[0].TeamAdmission()
 	}
+	publicTeamCompetitionRateLimit := gin.HandlerFunc(func(c *gin.Context) { c.Next() })
+	if len(teamAdmissionRateLimiters) > 0 && teamAdmissionRateLimiters[0] != nil {
+		publicTeamCompetitionRateLimit = teamAdmissionRateLimiters[0].PublicIP()
+	}
 	v1.GET("/public/models", h.Play.PublicModels)
 	v1.GET("/public/model-pricing", h.ModelPricing.PublicModelPricing)
 
@@ -31,10 +35,10 @@ func RegisterPlayRoutes(
 		play.GET("/arena/daily/reward-summary", h.Play.ArenaDailyRewardSummary)
 		play.GET("/arena/reward-summary", h.Play.ArenaRewardSummary)
 		play.GET("/teams/reward-showcase", h.Play.TeamRewardShowcase)
-		play.GET("/teams/directory", h.Play.TeamDirectory)
-		play.GET("/teams/leaderboard/public", h.Play.TeamPublicLeaderboard)
-		play.GET("/teams/seasons", h.Play.TeamSeasons)
-		play.GET("/teams/seasons/:month", h.Play.TeamSeason)
+		play.GET("/teams/directory", publicTeamCompetitionRateLimit, h.Play.TeamDirectory)
+		play.GET("/teams/leaderboard/public", publicTeamCompetitionRateLimit, h.Play.TeamPublicLeaderboard)
+		play.GET("/teams/seasons", publicTeamCompetitionRateLimit, h.Play.TeamSeasons)
+		play.GET("/teams/seasons/:month", publicTeamCompetitionRateLimit, h.Play.TeamSeason)
 		play.GET("/blindbox/pool", h.Play.BlindboxPool)
 		play.GET("/blindbox/recent", h.Play.BlindboxRecent)
 	}
