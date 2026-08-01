@@ -20,27 +20,31 @@ const store = vi.hoisted(() => ({ showSuccess: vi.fn(), showError: vi.fn() }))
 
 vi.mock('@/api/admin/play', () => ({ default: api }))
 vi.mock('@/stores', () => ({ useAppStore: () => store }))
-vi.mock('vue-i18n', () => ({
-  useI18n: () => ({
-    locale: { value: 'zh-CN' },
-    t: (key: string, params?: Record<string, unknown>) => {
-      const labels: Record<string, string> = {
-        'admin.playOps.inviteGrowth.title': '邀请增长',
-        'admin.playOps.inviteGrowth.newCampaign': '新建邀请活动',
-        'admin.playOps.inviteGrowth.maxLiability': '理论最大负债',
-        'admin.playOps.inviteGrowth.tabs.participants': '参与者',
-        'admin.playOps.inviteGrowth.tabs.invites': '邀请关联',
-        'admin.playOps.inviteGrowth.tabs.rewards': '奖励记录',
-        'admin.playOps.inviteGrowth.resolveDebt': '处理追缴',
-      }
-      let value = labels[key] || key
-      for (const [name, replacement] of Object.entries(params || {})) {
-        value = value.replace(`{${name}}`, String(replacement))
-      }
-      return value
-    },
-  }),
-}))
+vi.mock('vue-i18n', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('vue-i18n')>()
+  return {
+    ...actual,
+    useI18n: () => ({
+      locale: { value: 'zh-CN' },
+      t: (key: string, params?: Record<string, unknown>) => {
+        const labels: Record<string, string> = {
+          'admin.playOps.inviteGrowth.title': '邀请增长',
+          'admin.playOps.inviteGrowth.newCampaign': '新建邀请活动',
+          'admin.playOps.inviteGrowth.maxLiability': '理论最大负债',
+          'admin.playOps.inviteGrowth.tabs.participants': '参与者',
+          'admin.playOps.inviteGrowth.tabs.invites': '邀请关联',
+          'admin.playOps.inviteGrowth.tabs.rewards': '奖励记录',
+          'admin.playOps.inviteGrowth.resolveDebt': '处理追缴',
+        }
+        let value = labels[key] || key
+        for (const [name, replacement] of Object.entries(params || {})) {
+          value = value.replace(`{${name}}`, String(replacement))
+        }
+        return value
+      },
+    }),
+  }
+})
 
 const campaign = {
   id: 7,
