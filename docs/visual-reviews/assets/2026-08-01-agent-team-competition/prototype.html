@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>战队竞争页静态原型</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f6f7f9; color: #172033; font: 14px/1.5 system-ui, -apple-system, "PingFang SC", sans-serif; }
+    .shell { display: grid; grid-template-columns: 208px minmax(0, 1fr); min-height: 900px; }
+    aside { padding: 24px 16px; background: #182033; color: #eef2ff; }
+    .brand { margin-bottom: 28px; font-size: 20px; font-weight: 700; }
+    .nav { display: grid; gap: 6px; }
+    .nav span { padding: 10px 12px; border-radius: 6px; color: #c9d2e8; }
+    .nav .active { background: #2a3754; color: white; }
+    header { height: 64px; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; background: white; border-bottom: 1px solid #dfe3ea; }
+    .content { padding: 28px 32px 44px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { margin-bottom: 6px; font-size: 24px; line-height: 32px; }
+    h2 { margin-bottom: 12px; font-size: 18px; line-height: 26px; }
+    h3 { margin-bottom: 4px; font-size: 15px; }
+    .muted { color: #657086; }
+    .eyebrow { margin-bottom: 8px; color: #657086; font: 11px/1 ui-monospace, monospace; letter-spacing: .12em; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; margin: 20px 0; }
+    .panel { border: 1px solid #dfe3ea; border-radius: 8px; background: white; padding: 18px; }
+    .own { border-left: 3px solid #2563a9; }
+    .metric { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 16px; }
+    .metric div { border-top: 1px solid #e7eaf0; padding-top: 10px; }
+    .metric strong { display: block; font: 600 20px/1.2 ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+    .button { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; border: 1px solid #2563a9; border-radius: 6px; padding: 8px 12px; background: #2563a9; color: white; font-weight: 600; }
+    .button.secondary { background: white; color: #2563a9; }
+    .button.ghost { border-color: #dfe3ea; background: white; color: #526079; }
+    .button + .button { margin-left: 8px; }
+    .section-head { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; margin: 22px 0 10px; }
+    .grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(300px, .85fr); gap: 16px; }
+    .row { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto auto; gap: 12px; align-items: center; min-height: 54px; border-top: 1px solid #e7eaf0; }
+    .row:first-of-type { border-top: 0; }
+    .rank { color: #657086; font: 600 13px ui-monospace, monospace; }
+    .team strong, .team small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .team small, .aside-list small { color: #657086; }
+    .number { text-align: right; font: 600 13px ui-monospace, monospace; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .own-row { margin: 0 -18px; padding: 0 18px; background: #eef5ff; }
+    .tag { display: inline-flex; min-height: 24px; align-items: center; border: 1px solid #bfd4f1; border-radius: 999px; padding: 2px 8px; color: #1d5d9e; font-size: 12px; white-space: nowrap; }
+    .directory { display: grid; gap: 10px; }
+    .team-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: center; border-top: 1px solid #e7eaf0; padding-top: 10px; }
+    .team-card:first-child { border-top: 0; padding-top: 0; }
+    .aside-list { display: grid; gap: 10px; }
+    .aside-item { border-top: 1px solid #e7eaf0; padding-top: 10px; }
+    .aside-item:first-child { border-top: 0; padding-top: 0; }
+    .state-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
+    .state { border: 1px solid #dfe3ea; border-radius: 8px; background: white; padding: 12px; }
+    .state.current { border-color: #2563a9; }
+    .state p { margin-bottom: 0; font-size: 12px; color: #657086; }
+    .caption { margin-top: 14px; color: #657086; font-size: 12px; }
+    @media (max-width: 760px) {
+      .shell { display: block; }
+      aside { display: none; }
+      header { padding: 0 16px; }
+      .content { padding: 20px 16px 32px; }
+      .hero, .grid, .state-strip { grid-template-columns: 1fr; }
+      .metric { grid-template-columns: 1fr 1fr; }
+      .row { grid-template-columns: 34px minmax(0, 1fr) auto; }
+      .row .pool { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside>
+      <div class="brand">极速蹬</div>
+      <div class="nav"><span>仪表盘</span><span>玩法中心</span><span class="active">组队奖励</span><span>农场榜单</span><span>邀请返利</span></div>
+    </aside>
+    <main>
+      <header><strong>玩法中心</strong><span class="muted">上海时间 · 2026-08</span></header>
+      <div class="content">
+        <div class="eyebrow">PLAY · TEAM COMPETITION</div>
+        <h1>战队竞争</h1>
+        <p class="muted">查看实时名次、公开奖励证明，申请加入正在招募的战队。</p>
+        <div class="hero">
+          <section class="panel own">
+            <div class="eyebrow">我的战队</div>
+            <h2>星火战队 <span class="tag">当前第 4 名</span></h2>
+            <p class="muted">本月有效在队期间的 API 消费计入排名，月末以冻结快照结算。</p>
+            <div class="metric"><div><small class="muted">预计共享奖池</small><strong>$70.82</strong></div><div><small class="muted">距上一名</small><strong>$42.10</strong></div><div><small class="muted">成员</small><strong>12 / 30</strong></div></div>
+          </section>
+          <section class="panel">
+            <div class="eyebrow">加入资格</div>
+            <h2>当前可申请</h2>
+            <p class="muted">申请保留 7 天，队长会在 72 小时内处理。25 日后加入从下月参与结算。</p>
+            <span class="button">浏览可加入战队</span>
+          </section>
+        </div>
+        <div class="grid">
+          <section class="panel">
+            <div class="section-head"><div><div class="eyebrow">实时竞争</div><h2>本月战队排行</h2></div><span class="tag">48 支参赛队伍</span></div>
+            <div class="row"><span class="rank">#1</span><span class="team"><strong>远航战队</strong><small>28 / 30 名成员</small></span><span class="number pool">预计奖池 $116.42</span><span class="number">$1,164.20</span></div>
+            <div class="row"><span class="rank">#2</span><span class="team"><strong>北极星战队</strong><small>20 / 30 名成员</small></span><span class="number pool">预计奖池 $101.06</span><span class="number">$1,010.60</span></div>
+            <div class="row"><span class="rank">#3</span><span class="team"><strong>云端协作组</strong><small>18 / 30 名成员</small></span><span class="number pool">预计奖池 $75.03</span><span class="number">$750.30</span></div>
+            <div class="row own-row"><span class="rank">#4</span><span class="team"><strong>星火战队</strong><small>你的战队 · 距上一名 $42.10</small></span><span class="number pool">预计奖池 $70.82</span><span class="number">$708.20</span></div>
+            <p class="caption">公开区仅展示战队维度：名次、成员数、本月实际消费和预计共享奖池。</p>
+          </section>
+          <section class="panel">
+            <div class="section-head"><div><div class="eyebrow">历史证明</div><h2>2026-07 前十</h2></div><span class="tag">已结算</span></div>
+            <div class="aside-list"><div class="aside-item"><strong>#1 远航战队</strong><small>实际发放 $128.00</small></div><div class="aside-item"><strong>#2 北极星战队</strong><small>实际发放 $96.00</small></div><div class="aside-item"><strong>#3 星火战队</strong><small>实际发放 $70.82</small></div></div>
+            <p class="caption">到账证明仅显示脱敏邮箱或“匿名用户”、头像和到账时间；不显示用户 ID、个人消费或个人奖励计算。</p>
+          </section>
+        </div>
+        <div class="section-head"><div><div class="eyebrow">申请加入</div><h2>正在招募的战队</h2></div><span class="muted">无需离开当前页面</span></div>
+        <section class="panel directory"><div class="team-card"><div><h3>北极星战队</h3><span class="muted">20 / 30 名成员 · 预计共享奖池 $101.06</span></div><span class="button secondary">申请加入</span></div><div class="team-card"><div><h3>云端协作组</h3><span class="muted">18 / 30 名成员 · 预计共享奖池 $75.03</span></div><span class="button secondary">申请加入</span></div></section>
+        <div class="state-strip"><section class="state"><h3>游客</h3><p>读取排行、历史证明和招募目录；注册后可申请。</p></section><section class="state"><h3>未入队用户</h3><p>查看申请状态、选择战队并提交申请。</p></section><section class="state current"><h3>战队成员</h3><p>高亮自己的队伍、名次差额、预计奖池与私有结算。</p></section><section class="state"><h3>队长</h3><p>增加申请队列、批准/拒绝和邀请码轮换控制。</p></section></div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
