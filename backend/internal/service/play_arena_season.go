@@ -48,24 +48,44 @@ func (s *PlayService) ensureMonthlyArenaPeriod(ctx context.Context, now time.Tim
 	return period, nil
 }
 
+// getExistingMonthlyArenaPeriod is read-only. Monthly period creation and
+// reward-rule freezing belong exclusively to PrepareCurrentArenaMonthlySeason,
+// which is invoked by startup/scheduler paths.
+func (s *PlayService) getExistingMonthlyArenaPeriod(ctx context.Context, now time.Time) (*PlayArenaPeriod, error) {
+	period, err := s.repo.GetActiveArenaPeriod(ctx, now)
+	if err != nil {
+		return nil, err
+	}
+	if period != nil && period.PeriodType != "monthly" {
+		return nil, nil
+	}
+	return period, nil
+}
+
 func (s *PlayService) arenaRewardTiersForPeriod(ctx context.Context, period *PlayArenaPeriod) ([]PlayArenaSettlementTier, error) {
 	if period != nil && period.PeriodType == "monthly" {
-		if repo, ok := s.repo.(PlayArenaSeasonRulesReader); ok {
-			raw, err := repo.GetArenaRewardRulesSnapshot(ctx, period.ID)
-			if err != nil {
-				return nil, err
-			}
-			if raw != "" && raw != "[]" && raw != "null" {
-				var tiers []PlayArenaSettlementTier
-				if err := json.Unmarshal([]byte(raw), &tiers); err != nil {
-					return nil, fmt.Errorf("decode frozen arena reward rules: %w", err)
-				}
-				if len(tiers) == 0 {
-					return nil, fmt.Errorf("frozen arena reward rules are empty")
-				}
-				return tiers, nil
-			}
+		repo, ok := s.repo.(PlayArenaSeasonRulesReader)
+		if !ok {
+			return []PlayArenaSettlementTier{}, nil
 		}
+		raw, err := repo.GetArenaRewardRulesSnapshot(ctx, period.ID)
+		if err != nil {
+			return nil, err
+		}
+		if raw == "" || raw == "[]" || raw == "null" {
+			return []PlayArenaSettlementTier{}, nil
+		}
+		var tiers []PlayArenaSettlementTier
+		if err := json.Unmarshal([]byte(raw), &tiers); err != nil {
+			return nil, fmt.Errorf("decode frozen arena reward rules: %w", err)
+		}
+		if len(tiers) == 0 {
+			return []PlayArenaSettlementTier{}, nil
+		}
+		return tiers, nil
+	}
+	if period == nil {
+		return []PlayArenaSettlementTier{}, nil
 	}
 	return append([]PlayArenaSettlementTier(nil), s.GetRuntime(ctx).ArenaSettlementRewards...), nil
 }

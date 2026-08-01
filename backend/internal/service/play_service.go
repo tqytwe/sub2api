@@ -686,7 +686,7 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 		return out, nil
 	}
 	now := s.serverNow()
-	period, err := s.ensureMonthlyArenaPeriod(ctx, now, rt)
+	period, err := s.getExistingMonthlyArenaPeriod(ctx, now)
 	if err != nil {
 		return nil, err
 	}
@@ -741,7 +741,7 @@ func (s *PlayService) ListArenaLeaderboard(ctx context.Context, limit int) ([]Pl
 		return nil, nil, ErrPlayFeatureDisabled
 	}
 	now := s.serverNow()
-	period, err := s.ensureMonthlyArenaPeriod(ctx, now, rt)
+	period, err := s.getExistingMonthlyArenaPeriod(ctx, now)
 	if err != nil {
 		return nil, nil, err
 	}

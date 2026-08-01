@@ -131,7 +131,7 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	} else if periodType == "daily" {
 		period, err = s.repo.EnsureDailyArenaPeriod(ctx, s.serverNow())
 	} else {
-		period, err = s.ensureMonthlyArenaPeriod(ctx, s.serverNow(), rt)
+		period, err = s.getExistingMonthlyArenaPeriod(ctx, s.serverNow())
 	}
 	if err != nil {
 		return nil, nil, nil, err

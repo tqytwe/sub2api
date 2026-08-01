@@ -20,11 +20,17 @@ type arenaSeasonRepo struct {
 	historyCalls int
 	frozenRules  string
 	frozenID     int64
+	ensureCalls  int
 	dailyHistory *PlayArenaPeriod
 	dailyLedger  []PlayArenaDailyRewardLedgerRow
 }
 
+func (r *arenaSeasonRepo) GetActiveArenaPeriod(context.Context, time.Time) (*PlayArenaPeriod, error) {
+	return r.monthly, nil
+}
+
 func (r *arenaSeasonRepo) EnsureMonthlyArenaPeriod(context.Context, time.Time) (*PlayArenaPeriod, error) {
+	r.ensureCalls++
 	return r.monthly, nil
 }
 
@@ -97,6 +103,41 @@ func TestArenaSeasonUsesFrozenRewardRules(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, []PlayArenaSettlementTier{{RankMax: 1, Amount: 1000}, {RankMax: 10, Amount: 100}}, tiers)
+}
+
+func TestMonthlyArenaReadDoesNotCreateOrFreezeSeason(t *testing.T) {
+	shanghai := time.FixedZone("Asia/Shanghai", 8*60*60)
+	period := &PlayArenaPeriod{ID: 7, StartAt: time.Date(2026, time.August, 1, 0, 0, 0, 0, shanghai), EndAt: time.Date(2026, time.September, 1, 0, 0, 0, 0, shanghai), PeriodType: "monthly", Status: "active"}
+	repo := &arenaSeasonRepo{monthly: period, rows: []PlayArenaScoreRow{{Rank: 1, UserID: 42, TokenSum: 1000}}}
+	settings := NewSettingService(&dailyRewardSummarySettingRepo{values: map[string]string{
+		SettingKeyPlayArenaEnabled:           "true",
+		SettingKeyPlayArenaSettlementRewards: `[{"rank_max":1,"amount":1000}]`,
+	}}, nil)
+	svc := NewPlayService(repo, nil, nil, settings, nil, nil)
+	svc.now = func() time.Time { return time.Date(2026, time.August, 2, 12, 0, 0, 0, shanghai) }
+
+	current, err := svc.GetArenaCurrent(context.Background(), 42)
+
+	require.NoError(t, err)
+	require.Equal(t, period.ID, current.Period.ID)
+	require.Zero(t, repo.ensureCalls)
+	require.Zero(t, repo.frozenID)
+	require.Zero(t, current.EstimatedReward)
+}
+
+func TestMonthlyArenaMissingFrozenRulesDoesNotUseLiveConfiguration(t *testing.T) {
+	period := &PlayArenaPeriod{ID: 7, PeriodType: "monthly", Status: "active"}
+	repo := &arenaSeasonRepo{monthly: period}
+	settings := NewSettingService(&dailyRewardSummarySettingRepo{values: map[string]string{
+		SettingKeyPlayArenaEnabled:           "true",
+		SettingKeyPlayArenaSettlementRewards: `[{"rank_max":1,"amount":1000}]`,
+	}}, nil)
+	svc := NewPlayService(repo, nil, nil, settings, nil, nil)
+
+	tiers, err := svc.arenaRewardTiersForPeriod(context.Background(), period)
+
+	require.NoError(t, err)
+	require.Empty(t, tiers)
 }
 
 func TestArenaSeasonOverviewKeepsPublicRowsAnonymousAndMarksOnlyMine(t *testing.T) {
