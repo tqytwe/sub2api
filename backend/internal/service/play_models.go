@@ -694,6 +694,12 @@ type PlayTeamAdmissionRiskRepository interface {
 	HasBlockingTeamAdmissionRisk(ctx context.Context, userID int64) (bool, error)
 }
 
+// PlayTeamRewardHealthRepository is intentionally separate from the payout
+// repository so health probes remain read-only and lightweight.
+type PlayTeamRewardHealthRepository interface {
+	ListStalledTeamRewardSettlements(ctx context.Context, before time.Time, limit int) ([]PlayTeamSettlement, error)
+}
+
 type PlayArenaRewardPublicWinner struct {
 	Rank        int
 	Period      *PlayArenaPeriod

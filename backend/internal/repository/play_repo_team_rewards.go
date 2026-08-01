@@ -447,6 +447,24 @@ func (r *playRepository) ListTeamRewardSettlements(
 		LIMIT $1`, normalizeTeamRewardListLimit(limit))
 }
 
+func (r *playRepository) ListStalledTeamRewardSettlements(
+	ctx context.Context,
+	before time.Time,
+	limit int,
+) ([]service.PlayTeamSettlement, error) {
+	return listTeamRewardSettlements(ctx, r.sqlExec(ctx), `
+		SELECT id, team_id, period_start, window_start, window_end,
+		       team_spend::text, reached_threshold::text, reward_rate::text,
+		       pool_amount::text, cap_amount::text, status, last_error,
+		       processing_started_at, completed_at
+		FROM play_team_settlements
+		WHERE status = 'processing'
+		  AND processing_started_at IS NOT NULL
+		  AND processing_started_at <= $1
+		ORDER BY processing_started_at ASC, id ASC
+		LIMIT $2`, before, normalizeTeamRewardListLimit(limit))
+}
+
 func (r *playRepository) ListPublicTeamRewardWinners(ctx context.Context, limit int) (result []service.PlayTeamRewardPublicWinner, err error) {
 	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
 		SELECT s.id, s.period_start, t.name, COALESCE(u.email, ''),

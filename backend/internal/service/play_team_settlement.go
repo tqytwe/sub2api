@@ -383,6 +383,19 @@ type teamCompetitionFrozenRewardRules struct {
 	Tiers   []TeamRewardTier `json:"tiers"`
 }
 
+const teamRewardSettlementAlertAfter = 30 * time.Minute
+
+// FindStalledTeamRewardSettlements is a read-only health probe. Payout leases
+// and retries recover work independently; this method makes a long-running
+// settlement visible to the production alert pipeline without altering it.
+func (s *PlayService) FindStalledTeamRewardSettlements(ctx context.Context, now time.Time) ([]PlayTeamSettlement, error) {
+	repo, ok := s.repo.(PlayTeamRewardHealthRepository)
+	if !ok {
+		return []PlayTeamSettlement{}, nil
+	}
+	return repo.ListStalledTeamRewardSettlements(ctx, now.Add(-teamRewardSettlementAlertAfter), 100)
+}
+
 func teamCompetitionPeriodWindow(period time.Time) (time.Time, time.Time, time.Time, error) {
 	location, err := time.LoadLocation("Asia/Shanghai")
 	if err != nil {

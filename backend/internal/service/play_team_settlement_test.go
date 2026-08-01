@@ -205,6 +205,24 @@ func TestCurrentCompetitionRewardConfigFailsClosedUntilSeasonIsFrozen(t *testing
 	require.Empty(t, cfg.Tiers)
 }
 
+func TestFindStalledTeamRewardSettlementsUsesThirtyMinuteThreshold(t *testing.T) {
+	now := time.Date(2026, time.August, 1, 9, 0, 0, 0, time.UTC)
+	repo := newTeamSettlementRepo()
+	repo.stalled = []PlayTeamSettlement{{
+		ID:                  41,
+		TeamID:              7,
+		Status:              PlayTeamSettlementStatusProcessing,
+		ProcessingStartedAt: ptrTeamSettlementTime(now.Add(-31 * time.Minute)),
+	}}
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+
+	stalled, err := svc.FindStalledTeamRewardSettlements(context.Background(), now)
+
+	require.NoError(t, err)
+	require.Len(t, stalled, 1)
+	require.Equal(t, int64(41), stalled[0].ID)
+}
+
 func TestTeamPayoutRetryPaysOnlyFailedAllocationAndReconcilesExactly(t *testing.T) {
 	repo := newTeamSettlementRepo()
 	repo.settlement = &PlayTeamSettlement{
@@ -369,6 +387,11 @@ type teamSettlementRepo struct {
 	userSettlementRecords     []PlayUserTeamSettlementRecord
 	userSettlementQueryUserID int64
 	userSettlementQueryLimit  int
+	stalled                   []PlayTeamSettlement
+}
+
+func ptrTeamSettlementTime(value time.Time) *time.Time {
+	return &value
 }
 
 type catchUpTeamRewardRepo struct {
@@ -531,6 +554,10 @@ func (r *teamSettlementRepo) GetTeamRewardSettlement(
 	}
 	copy := *r.settlement
 	return &copy, nil
+}
+
+func (r *teamSettlementRepo) ListStalledTeamRewardSettlements(context.Context, time.Time, int) ([]PlayTeamSettlement, error) {
+	return append([]PlayTeamSettlement(nil), r.stalled...), nil
 }
 
 func (r *teamSettlementRepo) ListUnpaidTeamRewardAllocations(
