@@ -6,6 +6,7 @@ import (
 	"time"
 
 	sqlmock "github.com/DATA-DOG/go-sqlmock"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -44,6 +45,29 @@ func TestPublicTeamDirectoryNeverSelectsInviteCodeOrUserIdentity(t *testing.T) {
 	require.Len(t, rows, 1)
 	require.True(t, rows[0].Recruiting)
 	require.Equal(t, "120.50000000", rows[0].Spend.StringFixed(8))
+}
+
+func TestExpireDueTeamJoinApplicationsScansAllExpiredPendingRequests(t *testing.T) {
+	repo, mock := newPlayTeamRepositoryMock(t)
+	now := time.Date(2026, time.August, 8, 9, 0, 0, 0, time.UTC)
+
+	mock.ExpectQuery(`(?is)UPDATE play_team_join_applications.*WHERE status = 'pending'.*expires_at <= \$1.*RETURNING`).
+		WithArgs(now).
+		WillReturnRows(sqlmock.NewRows([]string{
+			"id", "team_id", "applicant_user_id", "status", "message",
+			"requested_at", "sla_due_at", "expires_at", "handled_at", "handled_by_user_id", "decision_note",
+		}).AddRow(
+			int64(19), int64(4), int64(8), service.PlayTeamJoinApplicationExpired, "join please",
+			now.Add(-8*24*time.Hour), now.Add(-5*24*time.Hour), now.Add(-24*time.Hour), now, nil, "",
+		))
+
+	applications, err := repo.ExpireDueTeamJoinApplications(context.Background(), now)
+
+	require.NoError(t, err)
+	require.Len(t, applications, 1)
+	require.Equal(t, int64(19), applications[0].ID)
+	require.Equal(t, service.PlayTeamJoinApplicationExpired, applications[0].Status)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestPublicTeamSeasonHistoryExcludesUnsettledSeasons(t *testing.T) {

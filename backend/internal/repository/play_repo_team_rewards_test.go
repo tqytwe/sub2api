@@ -58,6 +58,42 @@ func TestTeamContributionUsesActualCostInsideMonthAndMembershipIntervals(t *test
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestTeamRewardContributionHistoryDoesNotFilterArchivedTeams(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo := &playRepository{sql: db}
+	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 1, 0)
+
+	mock.ExpectQuery(`(?is)FROM play_team_members m\s+WHERE.*WHERE em\.team_id = \$3`).
+		WithArgs(start, end, int64(7)).
+		WillReturnRows(sqlmock.NewRows([]string{"user_id", "contribution"}).AddRow(int64(11), "30.00000000"))
+
+	contributions, err := repo.ListTeamRewardContributions(context.Background(), 7, start, end)
+	require.NoError(t, err)
+	require.Equal(t, []service.TeamContribution{{UserID: 11, Amount: decimal.RequireFromString("30.00000000")}}, contributions)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestListTeamIDsForRewardMonthIncludesArchivedTeamsWithValidMembership(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+	repo := &playRepository{sql: db}
+	start := time.Date(2026, time.July, 1, 0, 0, 0, 0, time.UTC)
+	end := start.AddDate(0, 1, 0)
+
+	mock.ExpectQuery(`(?is)FROM play_team_members m\s+WHERE.*SELECT DISTINCT team_id`).
+		WithArgs(start, end).
+		WillReturnRows(sqlmock.NewRows([]string{"team_id"}).AddRow(int64(7)))
+
+	teamIDs, err := repo.ListTeamIDsForRewardMonth(context.Background(), start, end)
+	require.NoError(t, err)
+	require.Equal(t, []int64{7}, teamIDs)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestTeamSettlementSnapshotReturnsExistingWithoutRecreatingAllocations(t *testing.T) {
 	db, mock, client := newTeamRewardRepositoryTestClient(t)
 	_ = db

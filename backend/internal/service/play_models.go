@@ -775,6 +775,7 @@ type PlayTeamCompetitionLifecycleRepository interface {
 	LockTeamJoinApplication(ctx context.Context, applicationID int64) (*PlayTeamJoinApplication, error)
 	UpdateTeamJoinApplication(ctx context.Context, application PlayTeamJoinApplication) error
 	ExpirePendingTeamJoinApplications(ctx context.Context, userID int64, now time.Time) ([]PlayTeamJoinApplication, error)
+	ExpireDueTeamJoinApplications(ctx context.Context, now time.Time) ([]PlayTeamJoinApplication, error)
 	ListUserTeamJoinApplications(ctx context.Context, userID int64, limit int) ([]PlayTeamJoinApplication, error)
 	ListCaptainTeamJoinApplications(ctx context.Context, teamID int64, limit int) ([]PlayTeamJoinApplication, error)
 	RecordTeamJoinApplicationEvent(ctx context.Context, applicationID, teamID int64, actorUserID *int64, eventType, fromStatus, toStatus string, detail map[string]any) error

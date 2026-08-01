@@ -48,6 +48,7 @@ type teamCompetitionLifecycleTestRepo struct {
 	updates     []PlayTeamJoinApplication
 	events      []teamCompetitionApplicationEvent
 	txCalls     int
+	expired     []PlayTeamJoinApplication
 }
 
 func (r *teamCompetitionLifecycleTestRepo) WithTeamCompetitionAdmissionTx(ctx context.Context, fn func(context.Context) error) error {
@@ -103,6 +104,10 @@ func (*teamCompetitionLifecycleTestRepo) ExpirePendingTeamJoinApplications(conte
 	return nil, nil
 }
 
+func (r *teamCompetitionLifecycleTestRepo) ExpireDueTeamJoinApplications(context.Context, time.Time) ([]PlayTeamJoinApplication, error) {
+	return append([]PlayTeamJoinApplication(nil), r.expired...), nil
+}
+
 func (*teamCompetitionLifecycleTestRepo) ListUserTeamJoinApplications(context.Context, int64, int) ([]PlayTeamJoinApplication, error) {
 	return nil, nil
 }
@@ -136,6 +141,28 @@ func newTeamCompetitionLifecycleService(repo *teamCompetitionLifecycleTestRepo, 
 	svc := NewPlayService(repo, nil, nil, settings, nil, nil)
 	svc.now = func() time.Time { return now }
 	return svc
+}
+
+func TestExpireDueTeamJoinApplicationsRecordsAuditEvents(t *testing.T) {
+	now := time.Date(2026, time.August, 1, 9, 0, 0, 0, time.UTC)
+	repo := &teamCompetitionLifecycleTestRepo{expired: []PlayTeamJoinApplication{{
+		ID: 51, TeamID: 9, ApplicantID: 7, Status: PlayTeamJoinApplicationExpired,
+	}}}
+	svc := newTeamCompetitionLifecycleService(repo, now)
+
+	n, err := svc.ExpireDueTeamJoinApplications(context.Background(), now)
+
+	require.NoError(t, err)
+	require.Equal(t, 1, n)
+	require.Equal(t, 1, repo.txCalls)
+	require.Len(t, repo.events, 1)
+	require.Equal(t, teamCompetitionApplicationEvent{
+		ApplicationID: 51,
+		TeamID:        9,
+		EventType:     "expired",
+		FromStatus:    PlayTeamJoinApplicationPending,
+		ToStatus:      PlayTeamJoinApplicationExpired,
+	}, repo.events[0])
 }
 
 func (r *teamCompetitionReadRepo) ListPublicTeamDirectory(context.Context, time.Time, time.Time, int) ([]PlayTeamDirectoryBase, error) {

@@ -96,6 +96,11 @@ func (r *PlayGrowthRunner) Stop() {
 func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 	if r.playService != nil {
 		now := time.Now().In(timezone.Location())
+		if n, err := r.playService.ExpireDueTeamJoinApplications(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] expire team join applications: %v", err)
+		} else if n > 0 {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] expired %d team join applications", n)
+		}
 		if err := r.playService.PrepareCurrentTeamCompetitionSeason(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare current team competition season: %v", err)
 		}

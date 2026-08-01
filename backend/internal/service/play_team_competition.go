@@ -788,6 +788,37 @@ func (s *PlayService) expireUserTeamJoinApplications(ctx context.Context, repo P
 	return nil
 }
 
+// ExpireDueTeamJoinApplications closes requests whose seven-day lifetime has
+// elapsed, even if neither party opens the team page. State and audit records
+// are committed by the same admission transaction.
+func (s *PlayService) ExpireDueTeamJoinApplications(ctx context.Context, now time.Time) (int, error) {
+	repo, ok := s.repo.(PlayTeamCompetitionLifecycleRepository)
+	if !ok {
+		return 0, nil
+	}
+	var expired []PlayTeamJoinApplication
+	if err := repo.WithTeamCompetitionAdmissionTx(ctx, func(txCtx context.Context) error {
+		var err error
+		expired, err = repo.ExpireDueTeamJoinApplications(txCtx, now)
+		if err != nil {
+			return err
+		}
+		for _, application := range expired {
+			if err := repo.RecordTeamJoinApplicationEvent(
+				txCtx, application.ID, application.TeamID, nil,
+				"expired", PlayTeamJoinApplicationPending, PlayTeamJoinApplicationExpired,
+				map[string]any{},
+			); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		return 0, err
+	}
+	return len(expired), nil
+}
+
 func (s *PlayService) checkTeamAdmissionRisk(ctx context.Context, action PlayTeamAdmissionAction, userID, teamID int64) error {
 	if s == nil || s.teamAdmissionRisk == nil {
 		return nil

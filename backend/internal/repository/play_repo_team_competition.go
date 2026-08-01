@@ -312,6 +312,22 @@ const teamCompetitionEligibleMembersCTE = `
  	)
 `
 
+// teamRewardEligibleMembersCTE intentionally includes archived teams. A team
+// archived after a valid member period still belongs in that month's settlement.
+const teamRewardEligibleMembersCTE = `
+	WITH eligible_members AS (
+		SELECT
+			m.team_id,
+			m.user_id,
+			GREATEST(m.joined_at, m.reward_eligible_at, $1) AS eligible_at,
+			LEAST(COALESCE(m.left_at, $2), $2) AS inactive_at
+		FROM play_team_members m
+		WHERE m.joined_at < $2
+		  AND m.reward_eligible_at < $2
+		  AND (m.left_at IS NULL OR m.left_at > $1)
+	)
+`
+
 const teamCompetitionScoreCTE = teamCompetitionEligibleMembersCTE + `
 	, team_scores AS (
 		SELECT
@@ -560,6 +576,39 @@ func (r *playRepository) ExpirePendingTeamJoinApplications(ctx context.Context, 
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("iterate expired team join applications: %w", err)
+	}
+	return result, nil
+}
+
+func (r *playRepository) ExpireDueTeamJoinApplications(ctx context.Context, now time.Time) (result []service.PlayTeamJoinApplication, err error) {
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+		UPDATE play_team_join_applications
+		SET status = 'expired',
+		    handled_at = COALESCE(handled_at, $1),
+		    updated_at = NOW()
+		WHERE status = 'pending'
+		  AND expires_at <= $1
+		RETURNING id, team_id, applicant_user_id, status, message,
+		          requested_at, sla_due_at, expires_at,
+		          handled_at, handled_by_user_id, decision_note`, now)
+	if err != nil {
+		return nil, fmt.Errorf("expire due team join applications: %w", err)
+	}
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil && err == nil {
+			err = closeErr
+			result = nil
+		}
+	}()
+	for rows.Next() {
+		application, scanErr := scanTeamJoinApplication(rows)
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		result = append(result, *application)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate due expired team join applications: %w", err)
 	}
 	return result, nil
 }

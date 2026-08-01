@@ -18,7 +18,7 @@ func (r *playRepository) ListTeamRewardContributions(
 	start time.Time,
 	end time.Time,
 ) (result []service.TeamContribution, err error) {
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamCompetitionEligibleMembersCTE+`
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamRewardEligibleMembersCTE+`
 		SELECT em.user_id, COALESCE(SUM(ul.actual_cost), 0)::text
 		FROM eligible_members em
 		JOIN usage_logs ul
@@ -391,7 +391,7 @@ func (r *playRepository) ListTeamIDsForRewardMonth(
 	start time.Time,
 	end time.Time,
 ) (result []int64, err error) {
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamCompetitionEligibleMembersCTE+`
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamRewardEligibleMembersCTE+`
 		SELECT DISTINCT team_id
 		FROM eligible_members
 		ORDER BY team_id`, start, end)
