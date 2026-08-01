@@ -720,7 +720,9 @@ function main() {
   const changedFiles = new Set(
     runGit(
       repoRoot,
-      ["diff", "--name-only", "--find-renames", base],
+      // Source-rule scanning is intentionally limited to frontend paths above,
+      // but visual-review evidence lives under docs/ and must be included here.
+      ["diff", "--name-only", "--find-renames", base, "--"],
       "list changed files",
     )
       .split("\n")
