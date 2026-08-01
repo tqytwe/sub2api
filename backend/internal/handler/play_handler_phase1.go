@@ -186,7 +186,7 @@ func (h *PlayHandler) ArenaRewardSummary(c *gin.Context) {
 }
 
 func (h *PlayHandler) TeamRewardShowcase(c *gin.Context) {
-	winners, err := h.playService.ListPublicTeamRewardWinners(c.Request.Context(), 50)
+	winners, err := h.playService.ListPublicTeamRewardWinners(c.Request.Context(), 10)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

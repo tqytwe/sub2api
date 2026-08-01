@@ -708,6 +708,7 @@ onMounted(loadCompetition)
                           <strong>{{ publicRecipientName(winner.display_name) }}</strong>
                           <small>{{ t('agentTeam.publicRewardContext', { month: winner.settlement_month, team: winner.team_name }) }}</small>
                         </span>
+                        <strong class="team-proof-amount">${{ formatMoney(winner.amount) }}</strong>
                         <time v-if="winner.paid_at">{{ formatDateTime(winner.paid_at) }}</time>
                       </article>
                     </div>
@@ -862,7 +863,8 @@ onMounted(loadCompetition)
 .team-leaderboard-spend,
 .team-directory-spend,
 .team-own-stat-grid strong,
-.team-history-row strong {
+.team-history-row strong,
+.team-proof-amount {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
@@ -1099,7 +1101,7 @@ onMounted(loadCompetition)
 
 .team-proof-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
   align-items: center;
   gap: 10px;
   min-height: 48px;
@@ -1178,9 +1180,12 @@ onMounted(loadCompetition)
   }
 
   .team-private-settlement-row,
-  .team-history-row,
-  .team-proof-row {
+  .team-history-row {
     grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .team-proof-row {
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   .team-private-settlement-row time,

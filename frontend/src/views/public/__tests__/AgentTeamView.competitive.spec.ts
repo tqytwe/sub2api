@@ -276,6 +276,8 @@ describe('AgentTeamView competition experience', () => {
     expect(getTeamSeasonsMock).toHaveBeenCalledOnce()
     expect(getTeamSeasonMock).toHaveBeenCalledWith('2026-07', 10)
     expect(wrapper.get('[data-testid="team-history"]').text()).toContain('远航战队')
+    expect(wrapper.get('[data-testid="team-history"]').text()).toContain('$128.00')
+    expect(wrapper.text()).toContain('$12.80')
   })
 
   it('keeps the public leaderboard available while member-only supplemental data is slow', async () => {

@@ -23,9 +23,11 @@ type dailyRewardSummaryHandlerRepo struct {
 
 type publicTeamRewardShowcaseHandlerRepo struct {
 	service.PlayRepository
+	limit int
 }
 
-func (r *publicTeamRewardShowcaseHandlerRepo) ListPublicTeamRewardWinners(context.Context, int) ([]service.PlayTeamRewardPublicWinner, error) {
+func (r *publicTeamRewardShowcaseHandlerRepo) ListPublicTeamRewardWinners(_ context.Context, limit int) ([]service.PlayTeamRewardPublicWinner, error) {
+	r.limit = limit
 	paidAt := time.Date(2026, time.August, 1, 0, 10, 0, 0, time.UTC)
 	return []service.PlayTeamRewardPublicWinner{{
 		SettlementID: 71,
@@ -101,7 +103,8 @@ func TestArenaDailyRewardSummaryRouteIsPublicAndPrivacyMasked(t *testing.T) {
 
 func TestTeamRewardShowcaseRouteIsPublicAndPrivacyMasked(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	playHandler := handler.NewPlayHandler(service.NewPlayService(&publicTeamRewardShowcaseHandlerRepo{}, nil, nil, nil, nil, nil), nil)
+	repo := &publicTeamRewardShowcaseHandlerRepo{}
+	playHandler := handler.NewPlayHandler(service.NewPlayService(repo, nil, nil, nil, nil, nil), nil)
 
 	authCalls := 0
 	jwtAuth := middleware.JWTAuthMiddleware(func(c *gin.Context) {
@@ -118,6 +121,7 @@ func TestTeamRewardShowcaseRouteIsPublicAndPrivacyMasked(t *testing.T) {
 
 	require.Equal(t, http.StatusOK, recorder.Code)
 	require.Zero(t, authCalls)
+	require.Equal(t, 10, repo.limit)
 	body := recorder.Body.String()
 	require.Contains(t, body, `"team_name":"星火小队"`)
 	require.Contains(t, body, `wi***@example.com`)

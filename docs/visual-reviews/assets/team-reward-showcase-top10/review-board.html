@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>战队奖励到账证明审查板</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f5f7fa; color: #202939; font: 14px Arial, sans-serif; }
+      main { width: min(1120px, calc(100% - 40px)); margin: 30px auto; }
+      header { border-left: 5px solid #2878c7; padding: 8px 18px; }
+      h1 { margin: 0; font-size: 26px; }
+      header p { color: #586779; margin: 8px 0 0; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 24px; }
+      section { background: #fff; border: 1px solid #dce3eb; border-radius: 8px; padding: 18px; }
+      h2 { font-size: 17px; margin: 0 0 14px; }
+      .eyebrow { color: #6a7687; font-size: 12px; margin: 0 0 7px; }
+      .proof { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 10px; align-items: center; min-height: 50px; border-top: 1px solid #e3e8ef; padding: 9px 0; }
+      .avatar { width: 28px; height: 28px; border-radius: 50%; background: #e8f0fb; color: #2b63a0; display: grid; place-items: center; font-weight: 700; }
+      .person { display: grid; gap: 3px; min-width: 0; }
+      .person small, time { color: #687689; font-size: 12px; }
+      .amount { font-family: monospace; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 700; }
+      .missing { color: #8a5660; font-style: italic; }
+      .note { grid-column: 1 / -1; color: #526175; line-height: 1.6; }
+      @media (max-width: 640px) {
+        main { width: min(100% - 28px, 1120px); margin: 20px auto; }
+        h1 { font-size: 22px; }
+        .grid { grid-template-columns: 1fr; }
+        .proof { grid-template-columns: auto minmax(0, 1fr) auto; }
+        .proof time { grid-column: 1 / -1; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>战队奖励到账证明</h1>
+        <p>静态审查板，不是生产浏览器截图。</p>
+      </header>
+      <div class="grid">
+        <section>
+          <p class="eyebrow">修改前</p>
+          <h2>到账证明未显示金额</h2>
+          <article class="proof">
+            <span class="avatar">M</span>
+            <span class="person"><strong>mi***@example.com</strong><small>2026-07 · 远航战队</small></span>
+            <span class="missing">未展示金额</span>
+            <time>2026-08-01 08:10</time>
+          </article>
+        </section>
+        <section>
+          <p class="eyebrow">修改后</p>
+          <h2>到账证明显示实际到账金额</h2>
+          <article class="proof">
+            <span class="avatar">M</span>
+            <span class="person"><strong>mi***@example.com</strong><small>2026-07 · 远航战队</small></span>
+            <strong class="amount">$12.80</strong>
+            <time>2026-08-01 08:10</time>
+          </article>
+        </section>
+        <section class="note">
+          历史前十战队继续独立显示排名和已发放金额；到账证明接口默认最多返回十条，减少历史区长度，不修改任何结算或发放数据。
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
