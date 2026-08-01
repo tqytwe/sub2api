@@ -570,6 +570,18 @@ export default {
         "The source team changed after this backdated time. Review its captain and membership history before continuing.",
       PLAY_TEAM_SETTLEMENT_SNAPSHOT_EXISTS:
         "An immutable settlement snapshot already covers this interval.",
+      PLAY_VIP_CONFIG_TIER_COUNT: "Keep V0 and at least one member tier; at most 50 tiers are allowed.",
+      PLAY_VIP_CONFIG_TIER_NUMBER_INVALID: "Tier numbers must be integers between 0 and 999.",
+      PLAY_VIP_CONFIG_TIER_DUPLICATE: "Tier numbers must be unique.",
+      PLAY_VIP_CONFIG_LABEL_INVALID: "A tier name is required and must not exceed 64 characters.",
+      PLAY_VIP_CONFIG_THRESHOLD_INVALID: "Net-paid thresholds must strictly increase from V0 and cannot be duplicated.",
+      PLAY_VIP_CONFIG_BONUS_INVALID: "Recharge bonus must be between 0% and 10%.",
+      PLAY_VIP_CONFIG_PERKS_LIMIT: "Each tier can contain at most 50 entitlement keys.",
+      PLAY_VIP_CONFIG_PERK_INVALID: "An entitlement key cannot be blank or exceed 64 characters.",
+      PLAY_VIP_CONFIG_BASELINE_INVALID: "V0 must be the first tier and its net-paid threshold must be 0.",
+      PLAY_VIP_CONFIG_MEMBER_THRESHOLD_INVALID: "The V1 net-paid threshold must be greater than 0.",
+      PLAY_VIP_CONFIG_REASON_INVALID: "The publishing reason must contain 10 to 500 characters.",
+      PLAY_VIP_CONFIG_CONFLICT: "Another operator changed the VIP configuration. Refresh, preview again, then publish.",
       PLAY_TEAM_MEMBERSHIP_OVERLAP:
         "The effective time overlaps a historical membership.",
       PLAY_TEAM_MEMBER_USER_INACTIVE:

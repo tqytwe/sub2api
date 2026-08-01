@@ -31,6 +31,7 @@
         <aside class="card p-5"><div v-if="detailLoading" class="py-8 text-center text-sm text-gray-500">{{ t('admin.playOps.loading') }}</div><div v-else-if="detail" class="space-y-5"><div><h3 class="font-semibold text-gray-900 dark:text-white">{{ detail.user.email_masked }}</h3><p class="mt-1 text-sm text-gray-500">{{ detail.user.tier_label }} · {{ detail.user.net_paid_amount }}</p></div><div><h4 class="mb-2 text-sm font-semibold">{{ t('admin.playOps.membership.orders') }}</h4><div v-if="!detail.contributions.length" class="text-sm text-gray-500">{{ t('admin.playOps.membership.noOrders') }}</div><div v-for="item in detail.contributions" :key="item.order_id" class="border-b border-gray-100 py-2 text-xs last:border-b-0 dark:border-dark-700"><div class="flex justify-between gap-3"><span>#{{ item.order_id }} · {{ item.order_type }}</span><strong>{{ item.net_amount }}</strong></div><div class="mt-1 text-gray-500">{{ formatDate(item.paid_at || item.updated_at) }} · {{ item.status }}</div></div></div><div><h4 class="mb-2 text-sm font-semibold">{{ t('admin.playOps.membership.tierHistory') }}</h4><div v-if="!detail.tier_history.length" class="text-sm text-gray-500">{{ t('admin.playOps.membership.noHistory') }}</div><div v-for="item in detail.tier_history" :key="`${item.created_at}-${item.from_tier}-${item.to_tier}`" class="border-b border-gray-100 py-2 text-xs last:border-b-0 dark:border-dark-700"><div>V{{ item.from_tier }} → V{{ item.to_tier }} · {{ t(`admin.playOps.membership.reasons.${item.reason}`, item.reason) }}</div><div class="mt-1 text-gray-500">{{ formatDate(item.created_at) }}</div></div></div></div><div v-else class="py-8 text-center text-sm text-gray-500">{{ t('admin.playOps.membership.selectUser') }}</div></aside>
       </div>
     </template>
+    <TotpStepUpDialog :controller="stepUp" />
   </section>
 </template>
 
@@ -39,11 +40,15 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import adminPlayAPI, { type AdminMembershipDetail, type AdminMembershipList, type AdminMembershipOverview, type AdminVIPConfigImpact, type AdminVIPTier } from '@/api/admin/play'
+import { extractI18nErrorMessage } from '@/utils/apiError'
+import { isStepUpBlocked, isStepUpCancelled, stepUpBlockReason, useStepUp } from '@/composables/useStepUp'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 
 const { t, locale } = useI18n()
 const loading = ref(false); const usersLoading = ref(false); const detailLoading = ref(false); const configSaving = ref(false); const error = ref('')
 const overview = ref<AdminMembershipOverview | null>(null); const users = ref<AdminMembershipList>({ items: [], total: 0, page: 1, page_size: 20 }); const detail = ref<AdminMembershipDetail | null>(null)
 const query = ref(''); const memberFilter = ref(''); const tierDraft = ref<AdminVIPTier[]>([]); const vipVersion = ref(0); const vipPreview = ref<AdminVIPConfigImpact | null>(null); const publishReason = ref('')
+const stepUp = useStepUp()
 const stats = computed(() => [{ label: t('admin.playOps.membership.totalMembers'), value: overview.value?.total_members.toLocaleString(locale.value) || '0' }, { label: t('admin.playOps.membership.netPaid'), value: overview.value?.net_paid_amount || '0' }, { label: t('admin.playOps.membership.upgrades'), value: overview.value?.recent_upgrades.toLocaleString(locale.value) || '0' }, { label: t('admin.playOps.membership.downgrades'), value: overview.value?.recent_downgrades.toLocaleString(locale.value) || '0' }])
 const canPublish = computed(() => Boolean(vipPreview.value && publishReason.value.trim().length >= 10 && !configSaving.value))
 
@@ -53,8 +58,8 @@ async function load() { loading.value = true; error.value = ''; try { const [sum
 function addTier() { const last = [...tierDraft.value].sort((a,b) => a.tier-b.tier).at(-1); tierDraft.value.push({ tier: (last?.tier || 0)+1, label: `V${(last?.tier || 0)+1}`, min_recharge: (last?.min_recharge || 0)+100, recharge_bonus_pct: last?.recharge_bonus_pct || 0, color_key: 'neutral', perks: [] }); vipPreview.value = null }
 function removeTier(index: number) { tierDraft.value.splice(index,1); vipPreview.value = null }
 function setTierPerks(tier: AdminVIPTier, event: Event) { tier.perks = (event.target as HTMLInputElement).value.split(/[,，]/).map(value => value.trim()).filter(Boolean); vipPreview.value = null }
-async function previewConfig() { configSaving.value = true; try { vipPreview.value = await adminPlayAPI.previewVIPConfig(tierDraft.value); vipVersion.value = vipPreview.value.version } catch { error.value = t('admin.playOps.membership.configInvalid') } finally { configSaving.value = false } }
-async function publishConfig() { if (!vipPreview.value) return; configSaving.value = true; try { const result = await adminPlayAPI.publishVIPConfig({ tiers: vipPreview.value.tiers, expected_version: vipVersion.value, reason: publishReason.value.trim() }); vipVersion.value = result.version; vipPreview.value = null; publishReason.value = ''; await load() } catch { error.value = t('admin.playOps.membership.publishFailed') } finally { configSaving.value = false } }
+async function previewConfig() { configSaving.value = true; error.value = ''; try { vipPreview.value = await adminPlayAPI.previewVIPConfig(tierDraft.value); vipVersion.value = vipPreview.value.version } catch (err) { error.value = extractI18nErrorMessage(err, t, 'admin.playOps.errors', t('admin.playOps.membership.configInvalid')) } finally { configSaving.value = false } }
+async function publishConfig() { if (!vipPreview.value) return; configSaving.value = true; error.value = ''; try { const result = await stepUp.run(() => adminPlayAPI.publishVIPConfig({ tiers: vipPreview.value!.tiers, expected_version: vipVersion.value, reason: publishReason.value.trim() })); vipVersion.value = result.version; vipPreview.value = null; publishReason.value = ''; await load() } catch (err) { if (isStepUpCancelled(err)) return; if (isStepUpBlocked(err)) { error.value = stepUpBlockReason(err) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN' ? t('stepUp.adminApiKeyForbidden') : t('stepUp.notEnabled'); return } error.value = extractI18nErrorMessage(err, t, 'admin.playOps.errors', t('admin.playOps.membership.publishFailed')) } finally { configSaving.value = false } }
 function formatDate(value?: string) { if (!value) return '—'; const date = new Date(value); return Number.isNaN(date.getTime()) ? value : date.toLocaleString(locale.value, { timeZone: 'Asia/Shanghai' }) }
 watch(tierDraft, () => { vipPreview.value = null }, { deep: true })
 onMounted(load)
