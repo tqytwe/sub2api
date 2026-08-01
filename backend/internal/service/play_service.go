@@ -153,6 +153,10 @@ type PlayVIPConfigImpact struct {
 func (s *PlayService) PreviewVIPConfig(ctx context.Context, requested []PlayVIPTier) (*PlayVIPConfigImpact, error) {
 	tiers, err := validateAdminVIPTiers(requested)
 	if err != nil {
+		var validationErr *vipConfigValidationError
+		if errors.As(err, &validationErr) {
+			return nil, infraerrors.BadRequest(validationErr.reason, validationErr.message)
+		}
 		return nil, infraerrors.BadRequest("PLAY_VIP_CONFIG_INVALID", err.Error())
 	}
 	repo, ok := s.repo.(PlayMembershipAdminRepository)
@@ -253,6 +257,12 @@ func (s *PlayService) AppAnalytics(ctx context.Context, from, to time.Time, vers
 	scans, downloads, first, registered, active, dau, wau, mau, funnel, versions, err := repo.AppAnalytics(ctx, from, to, version, channel)
 	if err != nil {
 		return nil, err
+	}
+	if funnel == nil {
+		funnel = []map[string]any{}
+	}
+	if versions == nil {
+		versions = []map[string]any{}
 	}
 	return &PlayAppAnalytics{Scans: scans, DownloadRedirects: downloads, FirstLaunches: first, Installs: first, RegisteredInstalls: registered, ActiveUsers: active, DAU: dau, WAU: wau, MAU: mau, Funnel: funnel, Versions: versions}, nil
 }

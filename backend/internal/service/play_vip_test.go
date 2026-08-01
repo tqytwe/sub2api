@@ -71,3 +71,23 @@ func TestParsePlayVIPTiersNormalizesBonusAndColor(t *testing.T) {
 	require.Equal(t, 10.0, got[1].RechargeBonusPct)
 	require.Equal(t, "gold", got[1].ColorKey)
 }
+
+func TestValidateAdminVIPTiers(t *testing.T) {
+	valid := []PlayVIPTier{
+		{Tier: 0, Label: "V0", MinRecharge: 0, RechargeBonusPct: 0},
+		{Tier: 1, Label: "V1", MinRecharge: 50, RechargeBonusPct: 1, Perks: []string{"models_vip_tag"}},
+		{Tier: 2, Label: "V2", MinRecharge: 500, RechargeBonusPct: 2, Perks: []string{"models_vip_tag", "blindbox_pool_upgrade"}},
+		{Tier: 9, Label: "V9", MinRecharge: 5400, RechargeBonusPct: 10, Perks: []string{"models_vip_tag"}},
+	}
+	_, err := validateAdminVIPTiers(valid)
+	require.NoError(t, err)
+
+	_, err = validateAdminVIPTiers([]PlayVIPTier{
+		{Tier: 0, Label: "V0", MinRecharge: 0},
+		{Tier: 1, Label: "V1", MinRecharge: 50},
+		{Tier: 2, Label: "V2", MinRecharge: 50},
+	})
+	var validationErr *vipConfigValidationError
+	require.ErrorAs(t, err, &validationErr)
+	require.Equal(t, "PLAY_VIP_CONFIG_THRESHOLD_INVALID", validationErr.reason)
+}

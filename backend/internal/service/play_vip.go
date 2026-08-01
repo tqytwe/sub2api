@@ -2,15 +2,27 @@ package service
 
 import (
 	"encoding/json"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
 )
 
+type vipConfigValidationError struct {
+	reason  string
+	message string
+}
+
+func (e *vipConfigValidationError) Error() string {
+	return e.message
+}
+
+func invalidVIPConfig(reason, message string) error {
+	return &vipConfigValidationError{reason: reason, message: message}
+}
+
 func validateAdminVIPTiers(items []PlayVIPTier) ([]PlayVIPTier, error) {
 	if len(items) < 2 || len(items) > 50 {
-		return nil, fmt.Errorf("vip tiers must contain V0 and at least one member tier")
+		return nil, invalidVIPConfig("PLAY_VIP_CONFIG_TIER_COUNT", "vip tiers must contain V0 and at least one member tier")
 	}
 	items = append([]PlayVIPTier(nil), items...)
 	sort.Slice(items, func(i, j int) bool { return items[i].Tier < items[j].Tier })
@@ -19,29 +31,29 @@ func validateAdminVIPTiers(items []PlayVIPTier) ([]PlayVIPTier, error) {
 	for i := range items {
 		item := &items[i]
 		if item.Tier < 0 || item.Tier > 999 {
-			return nil, fmt.Errorf("vip tier number is invalid")
+			return nil, invalidVIPConfig("PLAY_VIP_CONFIG_TIER_NUMBER_INVALID", "vip tier number is invalid")
 		}
 		if _, exists := seen[item.Tier]; exists {
-			return nil, fmt.Errorf("vip tier numbers must be unique")
+			return nil, invalidVIPConfig("PLAY_VIP_CONFIG_TIER_DUPLICATE", "vip tier numbers must be unique")
 		}
 		seen[item.Tier] = struct{}{}
 		item.Label = strings.TrimSpace(item.Label)
 		if item.Label == "" || len(item.Label) > 64 {
-			return nil, fmt.Errorf("vip tier label is invalid")
+			return nil, invalidVIPConfig("PLAY_VIP_CONFIG_LABEL_INVALID", "vip tier label is invalid")
 		}
 		if item.MinRecharge < 0 || item.MinRecharge <= previousThreshold {
-			return nil, fmt.Errorf("vip thresholds must be non-negative and strictly increasing")
+			return nil, invalidVIPConfig("PLAY_VIP_CONFIG_THRESHOLD_INVALID", "vip thresholds must be non-negative and strictly increasing")
 		}
 		if item.RechargeBonusPct < 0 || item.RechargeBonusPct > maxVIPRechargeBonusPct {
-			return nil, fmt.Errorf("vip recharge bonus is outside the allowed range")
+			return nil, invalidVIPConfig("PLAY_VIP_CONFIG_BONUS_INVALID", "vip recharge bonus is outside the allowed range")
 		}
 		if len(item.Perks) > 50 {
-			return nil, fmt.Errorf("too many vip perks")
+			return nil, invalidVIPConfig("PLAY_VIP_CONFIG_PERKS_LIMIT", "too many vip perks")
 		}
 		for perkIndex, perk := range item.Perks {
 			perk = strings.TrimSpace(perk)
 			if perk == "" || len(perk) > 64 {
-				return nil, fmt.Errorf("vip perk key is invalid")
+				return nil, invalidVIPConfig("PLAY_VIP_CONFIG_PERK_INVALID", "vip perk key is invalid")
 			}
 			item.Perks[perkIndex] = perk
 		}
@@ -49,10 +61,10 @@ func validateAdminVIPTiers(items []PlayVIPTier) ([]PlayVIPTier, error) {
 		previousThreshold = item.MinRecharge
 	}
 	if items[0].Tier != 0 || items[0].MinRecharge != 0 {
-		return nil, fmt.Errorf("V0 must be the first tier with a zero threshold")
+		return nil, invalidVIPConfig("PLAY_VIP_CONFIG_BASELINE_INVALID", "V0 must be the first tier with a zero threshold")
 	}
 	if items[1].MinRecharge <= 0 {
-		return nil, fmt.Errorf("the first member tier must have a positive threshold")
+		return nil, invalidVIPConfig("PLAY_VIP_CONFIG_MEMBER_THRESHOLD_INVALID", "the first member tier must have a positive threshold")
 	}
 	return items, nil
 }
