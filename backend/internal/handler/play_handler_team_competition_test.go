@@ -70,7 +70,6 @@ func TestPublicTeamCompetitionRoutesAreUnauthenticatedAndDoNotExposeSecrets(t *t
 	for _, path := range []string{
 		"/api/v1/play/teams/directory",
 		"/api/v1/play/teams/leaderboard/public",
-		"/api/v1/play/teams/seasons",
 		"/api/v1/play/teams/seasons/2026-07",
 	} {
 		recorder := httptest.NewRecorder()
@@ -80,5 +79,16 @@ func TestPublicTeamCompetitionRoutesAreUnauthenticatedAndDoNotExposeSecrets(t *t
 		require.NotContains(t, strings.ToLower(recorder.Body.String()), "invite_code")
 		require.NotContains(t, recorder.Body.String(), "user_id")
 	}
+
+	// The historical index intentionally exposes only immutable season metadata.
+	// Rankings stay behind the selected season endpoint above so a first paint
+	// cannot accidentally include members or any other team-level detail.
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/play/teams/seasons", nil))
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "2026-07")
+	require.NotContains(t, recorder.Body.String(), "星火战队")
+	require.NotContains(t, strings.ToLower(recorder.Body.String()), "invite_code")
+	require.NotContains(t, recorder.Body.String(), "user_id")
 	require.Zero(t, authCalls)
 }
