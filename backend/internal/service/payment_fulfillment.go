@@ -365,9 +365,6 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 
 	switch action {
 	case redeemActionSkipCompleted:
-		if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
-			return err
-		}
 		// Code already created and redeemed — just mark completed
 		return s.markCompleted(ctx, o, lease, "RECHARGE_SUCCESS")
 	case redeemActionCreate:
@@ -402,9 +399,6 @@ func (s *PaymentService) doBalance(ctx context.Context, o *dbent.PaymentOrder, l
 	}
 	if _, err := s.redeemService.Redeem(redeemCtx, o.UserID, o.RechargeCode); err != nil {
 		return fmt.Errorf("redeem balance: %w", err)
-	}
-	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
-		return err
 	}
 	if err := s.markCompleted(ctx, o, lease, "RECHARGE_SUCCESS"); err != nil {
 		return err
@@ -443,20 +437,13 @@ func (s *PaymentService) markCompleted(ctx context.Context, o *dbent.PaymentOrde
 		}
 		return infraerrors.Conflict("CONFLICT", "fulfillment lease was lost before completion")
 	}
-	completed := *o
-	completed.Status = OrderStatusCompleted
-	completed.CompletedAt = &now
-	if err := s.syncMembershipOrder(txCtx, &completed); err != nil {
-		return fmt.Errorf("sync membership payment: %w", err)
-	}
-	if s.affiliateService != nil {
-		if err := s.affiliateService.RecomputeReferralCampaignsForInvitee(txCtx, completed.UserID); err != nil {
-			return fmt.Errorf("recompute referral campaign qualification: %w", err)
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit payment completion transaction: %w", err)
 	}
+	completed := *o
+	completed.Status = OrderStatusCompleted
+	completed.CompletedAt = &now
+	s.reconcileCompletedPaymentProjections(ctx, &completed)
 	if !s.hasAuditLog(ctx, o.ID, auditAction) {
 		s.writeAuditLog(ctx, o.ID, auditAction, "system", map[string]any{
 			"rechargeCode":   o.RechargeCode,
@@ -589,10 +576,33 @@ func (s *PaymentService) doSub(ctx context.Context, o *dbent.PaymentOrder, lease
 	if _, err := s.ensureDailyCardEntitlementAssigned(ctx, o); err != nil {
 		return err
 	}
-	if err := s.applyAffiliateRebateForOrder(ctx, o); err != nil {
-		return err
-	}
 	return s.markCompleted(ctx, o, lease, "SUBSCRIPTION_SUCCESS")
+}
+
+// reconcileCompletedPaymentProjections updates non-financial growth read models
+// after the paid order is durable. These projections are idempotent and must
+// never turn an already credited balance or assigned subscription into FAILED.
+func (s *PaymentService) reconcileCompletedPaymentProjections(ctx context.Context, order *dbent.PaymentOrder) {
+	if order == nil {
+		return
+	}
+	if err := s.syncMembershipOrder(ctx, order); err != nil {
+		slog.Error("sync membership contribution after fulfillment", "order_id", order.ID, "user_id", order.UserID, "err", err)
+		if !s.hasAuditLog(ctx, order.ID, "MEMBERSHIP_CONTRIBUTION_SYNC_FAILED") {
+			s.writeAuditLog(ctx, order.ID, "MEMBERSHIP_CONTRIBUTION_SYNC_FAILED", "system", map[string]any{"error": err.Error()})
+		}
+	}
+	if err := s.applyAffiliateRebateForOrder(ctx, order); err != nil {
+		slog.Error("apply affiliate rebate after fulfillment", "order_id", order.ID, "user_id", order.UserID, "err", err)
+	}
+	if s.affiliateService != nil {
+		if err := s.affiliateService.RecomputeReferralCampaignsForInvitee(ctx, order.UserID); err != nil {
+			slog.Error("recompute referral campaigns after fulfillment", "order_id", order.ID, "user_id", order.UserID, "err", err)
+			if !s.hasAuditLog(ctx, order.ID, "REFERRAL_CAMPAIGN_RECOMPUTE_FAILED") {
+				s.writeAuditLog(ctx, order.ID, "REFERRAL_CAMPAIGN_RECOMPUTE_FAILED", "system", map[string]any{"error": err.Error()})
+			}
+		}
+	}
 }
 
 func (s *PaymentService) ensureDailyCardEntitlementAssigned(ctx context.Context, order *dbent.PaymentOrder) (bool, error) {
@@ -985,11 +995,16 @@ func (s *PaymentService) RetryFulfillment(ctx context.Context, oid int64) error 
 	if o.PaidAt == nil {
 		return infraerrors.BadRequest("INVALID_STATUS", "order is not paid")
 	}
+	if o.Status == OrderStatusCompleted {
+		s.reconcileCompletedPaymentProjections(ctx, o)
+		return nil
+	}
+	if o.Status == OrderStatusRefunded || o.Status == OrderStatusPartiallyRefunded {
+		s.reconcileCompletedRefundProjections(ctx, o)
+		return nil
+	}
 	if psIsRefundStatus(o.Status) {
 		return infraerrors.BadRequest("INVALID_STATUS", "refund-related order cannot retry")
-	}
-	if o.Status == OrderStatusCompleted {
-		return infraerrors.BadRequest("INVALID_STATUS", "order already completed")
 	}
 	if o.Status != OrderStatusFailed && o.Status != OrderStatusPaid && o.Status != OrderStatusRecharging {
 		return infraerrors.BadRequest("INVALID_STATUS", "only paid, failed, and recoverable recharging orders can retry")

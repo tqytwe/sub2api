@@ -591,24 +591,39 @@ func (s *PaymentService) markRefundOk(ctx context.Context, p *RefundPlan) (*Refu
 	if err := s.adjustTotalRechargedForRefund(txCtx, p); err != nil {
 		return nil, err
 	}
-	if err := s.syncMembershipOrder(txCtx, updated); err != nil {
-		return nil, fmt.Errorf("sync membership refund: %w", err)
-	}
-	if s.affiliateService != nil {
-		if err := s.affiliateService.EnqueueReferralRefundReconcile(txCtx, p.OrderID); err != nil {
-			return nil, fmt.Errorf("enqueue referral campaign refund reconciliation: %w", err)
-		}
-	}
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit refund completion tx: %w", err)
 	}
-	if s.affiliateService != nil {
-		if _, reconcileErr := s.affiliateService.ProcessReferralReconcileQueue(ctx, 20); reconcileErr != nil {
-			slog.Error("referral campaign refund reconciliation deferred", "order_id", p.OrderID, "error", reconcileErr)
-		}
-	}
+	s.reconcileCompletedRefundProjections(ctx, updated)
 	s.writeAuditLog(ctx, p.OrderID, "REFUND_SUCCESS", "admin", map[string]any{"refundAmount": p.RefundAmount, "reason": p.Reason, "balanceDeducted": p.BalanceToDeduct, "force": p.Force, "ledgerDeductKey": p.LedgerDeductKey})
 	return &RefundResult{Success: true, BalanceDeducted: p.BalanceToDeduct, SubDaysDeducted: p.SubDaysToDeduct}, nil
+}
+
+// reconcileCompletedRefundProjections keeps refund-side growth records out of
+// the irreversible gateway-refund transaction. Both operations are idempotent;
+// a failed projection is auditable and can be retried without refunding twice.
+func (s *PaymentService) reconcileCompletedRefundProjections(ctx context.Context, order *dbent.PaymentOrder) {
+	if order == nil {
+		return
+	}
+	if err := s.syncMembershipOrder(ctx, order); err != nil {
+		slog.Error("sync membership contribution after refund", "order_id", order.ID, "user_id", order.UserID, "err", err)
+		if !s.hasAuditLog(ctx, order.ID, "MEMBERSHIP_CONTRIBUTION_REFUND_SYNC_FAILED") {
+			s.writeAuditLog(ctx, order.ID, "MEMBERSHIP_CONTRIBUTION_REFUND_SYNC_FAILED", "system", map[string]any{"error": err.Error()})
+		}
+	}
+	if s.affiliateService != nil {
+		if err := s.affiliateService.EnqueueReferralRefundReconcile(ctx, order.ID); err != nil {
+			slog.Error("enqueue referral refund reconciliation", "order_id", order.ID, "err", err)
+			if !s.hasAuditLog(ctx, order.ID, "REFERRAL_REFUND_RECONCILE_ENQUEUE_FAILED") {
+				s.writeAuditLog(ctx, order.ID, "REFERRAL_REFUND_RECONCILE_ENQUEUE_FAILED", "system", map[string]any{"error": err.Error()})
+			}
+			return
+		}
+		if _, reconcileErr := s.affiliateService.ProcessReferralReconcileQueue(ctx, 20); reconcileErr != nil {
+			slog.Error("referral campaign refund reconciliation deferred", "order_id", order.ID, "error", reconcileErr)
+		}
+	}
 }
 
 type paymentTotalRechargedAdjuster interface {
