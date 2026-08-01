@@ -38,19 +38,11 @@ func (r *playRepository) CountTeamRewardSettlementsNeedingAttention(ctx context.
 
 func (r *playRepository) ListAdminTeamMonthlySpends(ctx context.Context, start, end time.Time) (result []decimal.Decimal, err error) {
 	exec := r.sqlExec(ctx)
-	rows, err := exec.QueryContext(ctx, `
-		SELECT COALESCE(SUM(ul.actual_cost), 0)::text AS team_spend
+	rows, err := exec.QueryContext(ctx, teamCompetitionScoreCTE+`
+		SELECT COALESCE(team_scores.spend, 0)::text AS team_spend
 		FROM play_teams t
-		JOIN play_team_members m
-		  ON m.team_id = t.id
-		 AND m.left_at IS NULL
-		JOIN usage_logs ul
-		  ON ul.user_id = m.user_id
-		 AND ul.created_at >= $1
-		 AND ul.created_at < $2
-		 AND ul.created_at >= m.joined_at
-		WHERE t.archived_at IS NULL
-		GROUP BY t.id`, start, end)
+		LEFT JOIN team_scores ON team_scores.team_id = t.id
+		WHERE t.archived_at IS NULL`, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("list admin team monthly spends: %w", err)
 	}
@@ -80,7 +72,7 @@ func (r *playRepository) ListAdminTeamMonthlySpends(ctx context.Context, start, 
 }
 
 func (r *playRepository) GetAdminTeamMeta(ctx context.Context, teamID int64) (*service.PlayAdminTeamListItem, error) {
-	items, _, err := r.listAdminTeams(ctx, "all", "", time.Time{}, time.Time{}, 1, 0, "t.id = $1", teamID)
+	items, _, err := r.listAdminTeams(ctx, "all", "", time.Time{}, time.Time{}, 1, 0, &teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +91,7 @@ func (r *playRepository) ListAdminTeams(
 	limit int,
 	offset int,
 ) ([]service.PlayAdminTeamListItem, int, error) {
-	return r.listAdminTeams(ctx, status, query, start, end, limit, offset, "", nil)
+	return r.listAdminTeams(ctx, status, query, start, end, limit, offset, nil)
 }
 
 func (r *playRepository) listAdminTeams(
@@ -110,8 +102,7 @@ func (r *playRepository) listAdminTeams(
 	end time.Time,
 	limit int,
 	offset int,
-	extraWhere string,
-	extraArg any,
+	extraTeamID *int64,
 ) ([]service.PlayAdminTeamListItem, int, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
@@ -119,49 +110,51 @@ func (r *playRepository) listAdminTeams(
 	if offset < 0 {
 		offset = 0
 	}
-	where, args := buildAdminTeamWhere(status, query)
-	if extraWhere != "" {
-		where = append(where, extraWhere)
-		args = append(args, extraArg)
+	exec := r.sqlExec(ctx)
+	var total int
+	countWhere, countArgs := buildAdminTeamWhereAt(status, query, 0)
+	if extraTeamID != nil {
+		countArgs = append(countArgs, *extraTeamID)
+		countWhere = append(countWhere, fmt.Sprintf("t.id = $%d", len(countArgs)))
+	}
+	countWhereSQL := ""
+	if len(countWhere) > 0 {
+		countWhereSQL = "WHERE " + strings.Join(countWhere, " AND ")
+	}
+	countQuery := fmt.Sprintf(`
+		SELECT COUNT(*)
+		FROM play_teams t
+		JOIN users captain ON captain.id = t.captain_user_id
+		%s`, countWhereSQL)
+	if err := scanSingleRow(ctx, exec, countQuery, countArgs, &total); err != nil {
+		return nil, 0, fmt.Errorf("count admin teams: %w", err)
+	}
+
+	where, filterArgs := buildAdminTeamWhereAt(status, query, 2)
+	queryArgs := []any{start, end}
+	queryArgs = append(queryArgs, filterArgs...)
+	if extraTeamID != nil {
+		queryArgs = append(queryArgs, *extraTeamID)
+		where = append(where, fmt.Sprintf("t.id = $%d", len(queryArgs)))
 	}
 	whereSQL := ""
 	if len(where) > 0 {
 		whereSQL = "WHERE " + strings.Join(where, " AND ")
 	}
-
-	exec := r.sqlExec(ctx)
-	var total int
-	countQuery := fmt.Sprintf(`
-		SELECT COUNT(*)
-		FROM play_teams t
-		JOIN users captain ON captain.id = t.captain_user_id
-		%s`, whereSQL)
-	if err := scanSingleRow(ctx, exec, countQuery, args, &total); err != nil {
-		return nil, 0, fmt.Errorf("count admin teams: %w", err)
-	}
-
-	queryArgs := append([]any{}, args...)
-	startPos := len(queryArgs) + 1
-	queryArgs = append(queryArgs, start, end, limit, offset)
-	rows, err := exec.QueryContext(ctx, fmt.Sprintf(`
-		WITH active_members AS (
-			SELECT team_id, COUNT(*)::int AS member_count
-			FROM play_team_members
-			WHERE left_at IS NULL
-			GROUP BY team_id
-		),
-		team_usage AS (
-			SELECT m.team_id,
-			       COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens), 0)::bigint AS token_sum,
-			       COALESCE(SUM(ul.actual_cost), 0)::text AS team_spend
-			FROM play_team_members m
-			JOIN usage_logs ul
-			  ON ul.user_id = m.user_id
-			 AND ul.created_at >= $%d
-			 AND ul.created_at < $%d
-			 AND ul.created_at >= m.joined_at
-			 AND (m.left_at IS NULL OR ul.created_at < m.left_at)
-			GROUP BY m.team_id
+	limitPos := len(queryArgs) + 1
+	offsetPos := limitPos + 1
+	queryArgs = append(queryArgs, limit, offset)
+	rows, err := exec.QueryContext(ctx, fmt.Sprintf(teamCompetitionScoreCTE+`
+		, team_usage AS (
+			SELECT em.team_id,
+			       COALESCE(SUM(ul.input_tokens + ul.output_tokens + ul.cache_creation_tokens), 0)::bigint AS token_sum
+			FROM eligible_members em
+			LEFT JOIN usage_logs ul
+			  ON ul.user_id = em.user_id
+			 AND ul.actual_cost > 0
+			 AND ul.created_at >= em.eligible_at
+			 AND ul.created_at < em.inactive_at
+			GROUP BY em.team_id
 		)
 		SELECT t.id, t.name, t.invite_code, t.captain_user_id,
 		       COALESCE(captain.username, '') AS captain_username,
@@ -169,21 +162,20 @@ func (r *playRepository) listAdminTeams(
 		       COALESCE(NULLIF(TRIM(ua.url), ''), '') AS captain_avatar_url,
 		       COALESCE(am.member_count, 0),
 		       COALESCE(tu.token_sum, 0),
-		       COALESCE(tu.team_spend, '0'),
+		       COALESCE(team_scores.spend, 0)::text AS team_spend,
 		       t.created_at, t.archived_at
 		FROM play_teams t
 		JOIN users captain ON captain.id = t.captain_user_id
 		LEFT JOIN user_avatars ua ON ua.user_id = t.captain_user_id
 		LEFT JOIN active_members am ON am.team_id = t.id
 		LEFT JOIN team_usage tu ON tu.team_id = t.id
+		LEFT JOIN team_scores ON team_scores.team_id = t.id
 		%s
 		ORDER BY t.created_at DESC, t.id DESC
 		LIMIT $%d OFFSET $%d`,
-		startPos,
-		startPos+1,
 		whereSQL,
-		startPos+2,
-		startPos+3,
+		limitPos,
+		offsetPos,
 	), queryArgs...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list admin teams: %w", err)
@@ -205,6 +197,10 @@ func (r *playRepository) listAdminTeams(
 }
 
 func buildAdminTeamWhere(status string, query string) ([]string, []any) {
+	return buildAdminTeamWhereAt(status, query, 0)
+}
+
+func buildAdminTeamWhereAt(status string, query string, placeholderOffset int) ([]string, []any) {
 	where := make([]string, 0, 3)
 	args := make([]any, 0, 2)
 	switch strings.ToLower(strings.TrimSpace(status)) {
@@ -218,12 +214,13 @@ func buildAdminTeamWhere(status string, query string) ([]string, []any) {
 	}
 	if q := strings.TrimSpace(query); q != "" {
 		args = append(args, "%"+strings.ToLower(q)+"%")
+		placeholder := placeholderOffset + len(args)
 		where = append(where, fmt.Sprintf(`(
 			LOWER(t.name) LIKE $%d OR
 			LOWER(t.invite_code) LIKE $%d OR
 			LOWER(captain.username) LIKE $%d OR
 			LOWER(captain.email) LIKE $%d
-		)`, len(args), len(args), len(args), len(args)))
+		)`, placeholder, placeholder, placeholder, placeholder))
 	}
 	return where, args
 }

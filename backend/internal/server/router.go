@@ -215,7 +215,7 @@ func registerRoutes(
 	v1.GET("/mobile/payments/:order_id", gin.HandlerFunc(jwtAuth), h.Payment.MobileGet)
 	v1.POST("/mobile/payments/:order_id/sync", gin.HandlerFunc(jwtAuth), h.Payment.MobileSync)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
-	routes.RegisterPlayRoutes(v1, h, jwtAuth)
+	routes.RegisterPlayRoutes(v1, h, jwtAuth, panelRateLimiter)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
 	routes.RegisterPromptLibraryRoutes(v1, h, jwtAuth)
 	routes.RegisterPromptLibrarySEORoutes(r, h)

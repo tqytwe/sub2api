@@ -27,6 +27,7 @@ type PlayService struct {
 	redeemRewardIssuer RedeemCodeRewardIssuer
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
+	teamAdmissionRisk  PlayTeamAdmissionRiskHook
 	now                func() time.Time
 }
 
@@ -285,6 +286,14 @@ func (s *PlayService) SetCouponRewardIssuer(issuer CouponRewardIssuer) {
 func (s *PlayService) SetRedeemCodeRewardIssuer(issuer RedeemCodeRewardIssuer) {
 	if s != nil {
 		s.redeemRewardIssuer = issuer
+	}
+}
+
+// SetTeamAdmissionRiskHook installs the optional admission policy used before
+// team creation, invite joins, applications, and approvals.
+func (s *PlayService) SetTeamAdmissionRiskHook(hook PlayTeamAdmissionRiskHook) {
+	if s != nil {
+		s.teamAdmissionRisk = hook
 	}
 }
 

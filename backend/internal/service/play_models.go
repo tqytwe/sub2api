@@ -282,6 +282,7 @@ type PlayTeamSummary struct {
 	Name             string
 	InviteCode       string
 	CaptainID        int64
+	Recruiting       bool
 	MemberCount      int
 	TokenSum         int64
 	Members          []PlayTeamMember
@@ -544,6 +545,149 @@ type PlayTeamRewardPublicWinner struct {
 	PaidAt       *time.Time
 }
 
+const (
+	PlayTeamMaxMembers               = 30
+	playTeamJoinCooldown             = 7 * 24 * time.Hour
+	playTeamJoinApplicationTTL       = 7 * 24 * time.Hour
+	playTeamJoinApplicationSLA       = 72 * time.Hour
+	playTeamInviteTTL                = 30 * 24 * time.Hour
+	playTeamPayoutLease              = 5 * time.Minute
+	playTeamSeasonRankingLimit       = 10
+	PlayTeamJoinApplicationPending   = "pending"
+	PlayTeamJoinApplicationApproved  = "approved"
+	PlayTeamJoinApplicationRejected  = "rejected"
+	PlayTeamJoinApplicationWithdrawn = "withdrawn"
+	PlayTeamJoinApplicationExpired   = "expired"
+)
+
+// PlayTeamDirectoryBase is deliberately team-only data. It is safe to return
+// to guests and must never contain invite credentials or member identities.
+type PlayTeamDirectoryBase struct {
+	TeamID      int64
+	TeamName    string
+	MemberCount int
+	Recruiting  bool
+	Spend       decimal.Decimal
+}
+
+type PlayTeamDirectoryEntry struct {
+	TeamID                int64           `json:"team_id"`
+	TeamName              string          `json:"team_name"`
+	MemberCount           int             `json:"member_count"`
+	MemberCapacity        int             `json:"member_capacity"`
+	MonthlySpend          decimal.Decimal `json:"monthly_spend"`
+	EstimatedPool         decimal.Decimal `json:"estimated_pool"`
+	AcceptingApplications bool            `json:"accepting_applications"`
+}
+
+type PlayTeamDirectory struct {
+	Month string                   `json:"month"`
+	Rows  []PlayTeamDirectoryEntry `json:"rows"`
+}
+
+type PlayTeamPublicLeaderboardBase struct {
+	Rank        int
+	TeamID      int64
+	TeamName    string
+	MemberCount int
+	Spend       decimal.Decimal
+	GapToPrev   decimal.Decimal
+}
+
+type PlayTeamPublicLeaderboardEntry struct {
+	Rank          int             `json:"rank"`
+	TeamID        int64           `json:"team_id"`
+	TeamName      string          `json:"team_name"`
+	MemberCount   int             `json:"member_count"`
+	Spend         decimal.Decimal `json:"monthly_spend"`
+	EstimatedPool decimal.Decimal `json:"estimated_pool"`
+	GapToPrevious decimal.Decimal `json:"gap_to_previous"`
+}
+
+type PlayTeamPublicLeaderboard struct {
+	Month      string                           `json:"month"`
+	TotalTeams int                              `json:"total_teams"`
+	Rows       []PlayTeamPublicLeaderboardEntry `json:"rows"`
+}
+
+type PlayTeamSeason struct {
+	ID          int64          `json:"id"`
+	Month       string         `json:"month"`
+	WindowStart time.Time      `json:"window_start"`
+	WindowEnd   time.Time      `json:"window_end"`
+	Rules       map[string]any `json:"rules"`
+	Status      string         `json:"status"`
+	FrozenAt    *time.Time     `json:"frozen_at,omitempty"`
+	SettledAt   *time.Time     `json:"settled_at,omitempty"`
+}
+
+type PlayTeamSeasonRanking struct {
+	Rank             int             `json:"rank"`
+	TeamID           int64           `json:"team_id"`
+	TeamName         string          `json:"team_name"`
+	MemberCount      int             `json:"member_count"`
+	TeamSpend        decimal.Decimal `json:"team_spend"`
+	ReachedThreshold decimal.Decimal `json:"reached_threshold"`
+	RewardRate       decimal.Decimal `json:"reward_rate"`
+	PoolAmount       decimal.Decimal `json:"pool_amount"`
+	PaidAmount       decimal.Decimal `json:"paid_amount"`
+	SettlementStatus string          `json:"settlement_status"`
+}
+
+type PlayTeamSeasonDetail struct {
+	Season     PlayTeamSeason          `json:"season"`
+	TotalTeams int                     `json:"total_teams"`
+	Rows       []PlayTeamSeasonRanking `json:"rows"`
+}
+
+type PlayTeamJoinApplication struct {
+	ID                   int64      `json:"id"`
+	TeamID               int64      `json:"team_id"`
+	ApplicantID          int64      `json:"-"`
+	ApplicantDisplayName string     `json:"applicant_display_name,omitempty"`
+	Status               string     `json:"status"`
+	Message              string     `json:"message,omitempty"`
+	RequestedAt          time.Time  `json:"requested_at"`
+	SLADueAt             time.Time  `json:"sla_due_at"`
+	ExpiresAt            time.Time  `json:"expires_at"`
+	HandledAt            *time.Time `json:"handled_at,omitempty"`
+	HandledByID          *int64     `json:"-"`
+	DecisionNote         string     `json:"decision_note,omitempty"`
+}
+
+type PlayTeamAdmissionEligibility struct {
+	Enabled         bool       `json:"enabled"`
+	CanApplyOrJoin  bool       `json:"can_apply_or_join"`
+	CurrentTeamID   *int64     `json:"current_team_id,omitempty"`
+	CooldownEndsAt  *time.Time `json:"cooldown_ends_at,omitempty"`
+	CooldownActive  bool       `json:"cooldown_active"`
+	MemberCapacity  int        `json:"member_capacity"`
+	ApplicationTTL  int        `json:"application_ttl_hours"`
+	CaptainSLAHours int        `json:"captain_sla_hours"`
+}
+
+type PlayTeamInvite struct {
+	Code      string    `json:"invite_code"`
+	ExpiresAt time.Time `json:"expires_at"`
+	RotatedAt time.Time `json:"rotated_at"`
+}
+
+type PlayTeamAdmissionAction string
+
+const (
+	PlayTeamAdmissionActionCreate      PlayTeamAdmissionAction = "create"
+	PlayTeamAdmissionActionInviteJoin  PlayTeamAdmissionAction = "invite_join"
+	PlayTeamAdmissionActionApplication PlayTeamAdmissionAction = "application"
+	PlayTeamAdmissionActionApprove     PlayTeamAdmissionAction = "application_approve"
+)
+
+// PlayTeamAdmissionRiskHook is deliberately narrow. Product deployments may
+// attach a risk policy without coupling the team lifecycle to a specific risk
+// provider or exposing risk evidence in public API responses.
+type PlayTeamAdmissionRiskHook interface {
+	CheckTeamAdmission(ctx context.Context, action PlayTeamAdmissionAction, userID, teamID int64) error
+}
+
 type PlayArenaRewardPublicWinner struct {
 	Rank        int
 	Period      *PlayArenaPeriod
@@ -600,6 +744,57 @@ type PlayArenaSeasonOverview struct {
 // Optional interfaces keep lightweight PlayRepository test doubles compatible.
 type PlayPublicTeamRewardsRepository interface {
 	ListPublicTeamRewardWinners(ctx context.Context, limit int) ([]PlayTeamRewardPublicWinner, error)
+}
+
+// PlayTeamCompetitionReadRepository is deliberately read-only. Public routes
+// must depend only on this interface: embedding lifecycle writes here makes a
+// valid public read repository fail its type assertion and silently return an
+// empty payload.
+type PlayTeamCompetitionReadRepository interface {
+	ListPublicTeamDirectory(ctx context.Context, start, end time.Time, limit int) ([]PlayTeamDirectoryBase, error)
+	ListPublicTeamLeaderboard(ctx context.Context, start, end time.Time, limit int) ([]PlayTeamPublicLeaderboardBase, int, error)
+	ListPublicTeamSeasons(ctx context.Context, limit int) ([]PlayTeamSeason, error)
+	GetPublicTeamSeason(ctx context.Context, month time.Time, limit int) (*PlayTeamSeason, []PlayTeamSeasonRanking, int, error)
+}
+
+// PlayTeamCompetitionLifecycleRepository owns the mutable admission state
+// introduced by migration 243. Keeping it separate preserves compatibility
+// with older PlayRepository implementations and makes the admission service
+// independently testable.
+type PlayTeamCompetitionLifecycleRepository interface {
+	WithTeamCompetitionAdmissionTx(ctx context.Context, fn func(context.Context) error) error
+	CreateTeamWithInvite(ctx context.Context, name string, captainUserID int64, invite PlayTeamInvite) (*PlayTeamDB, error)
+	LockTeamByInviteCode(ctx context.Context, inviteCode string) (*PlayTeamCompetitionTeam, error)
+	LockTeamCompetition(ctx context.Context, teamID int64) (*PlayTeamCompetitionTeam, error)
+	UpdateTeamInvite(ctx context.Context, teamID int64, invite PlayTeamInvite) error
+	UpdateTeamRecruiting(ctx context.Context, teamID int64, recruiting bool) error
+	GetLatestTeamLeftAt(ctx context.Context, userID int64) (*time.Time, error)
+	JoinTeamWithEligibility(ctx context.Context, teamID, userID int64, joinedAt, rewardEligibleAt time.Time) error
+
+	CreateTeamJoinApplication(ctx context.Context, application PlayTeamJoinApplication) (*PlayTeamJoinApplication, error)
+	LockTeamJoinApplication(ctx context.Context, applicationID int64) (*PlayTeamJoinApplication, error)
+	UpdateTeamJoinApplication(ctx context.Context, application PlayTeamJoinApplication) error
+	ExpirePendingTeamJoinApplications(ctx context.Context, userID int64, now time.Time) ([]PlayTeamJoinApplication, error)
+	ListUserTeamJoinApplications(ctx context.Context, userID int64, limit int) ([]PlayTeamJoinApplication, error)
+	ListCaptainTeamJoinApplications(ctx context.Context, teamID int64, limit int) ([]PlayTeamJoinApplication, error)
+	RecordTeamJoinApplicationEvent(ctx context.Context, applicationID, teamID int64, actorUserID *int64, eventType, fromStatus, toStatus string, detail map[string]any) error
+}
+
+// PlayTeamCompetitionStatusRepository exposes the current recruitment flag
+// without forcing ordinary team-summary reads to take a row lock.
+type PlayTeamCompetitionStatusRepository interface {
+	GetTeamRecruiting(ctx context.Context, teamID int64) (bool, error)
+}
+
+// PlayTeamCompetitionSeasonRepository owns the immutable monthly rule record
+// and its public history. Ensure freezes the rules once for a period; snapshot
+// finalization may retry, but may only publish rankings after every payout is
+// complete. The bool returned by CreateTeamCompetitionSeasonSnapshot is true
+// only when that call finalized a previously-unpublished season.
+type PlayTeamCompetitionSeasonRepository interface {
+	GetTeamCompetitionSeason(ctx context.Context, periodStart time.Time) (*PlayTeamSeason, error)
+	EnsureTeamCompetitionSeason(ctx context.Context, periodStart, windowStart, windowEnd time.Time, rules map[string]any) (*PlayTeamSeason, error)
+	CreateTeamCompetitionSeasonSnapshot(ctx context.Context, periodStart, windowStart, windowEnd time.Time, rules map[string]any) (bool, error)
 }
 
 type PlayMonthlyArenaRewardsRepository interface {
@@ -662,7 +857,7 @@ type PlayRepository interface {
 	LockTeamForAdmin(ctx context.Context, teamID int64) (*PlayTeamDB, error)
 	CreateTeam(ctx context.Context, name string, captainUserID int64, inviteCode string) (*PlayTeamDB, error)
 	JoinTeam(ctx context.Context, teamID, userID int64) error
-	JoinTeamAt(ctx context.Context, teamID, userID int64, joinedAt time.Time) error
+	JoinTeamAt(ctx context.Context, teamID, userID int64, joinedAt, rewardEligibleAt time.Time) error
 	CountActiveTeamMembers(ctx context.Context, teamID int64) (int, error)
 	LeaveTeam(ctx context.Context, teamID, userID int64) error
 	CloseTeamMembershipAt(ctx context.Context, membershipID int64, leftAt time.Time) error
@@ -868,6 +1063,13 @@ type PlayTeamDB struct {
 	InviteCode    string
 	CreatedAt     time.Time
 	ArchivedAt    *time.Time
+}
+
+type PlayTeamCompetitionTeam struct {
+	PlayTeamDB
+	InviteCodeExpiresAt *time.Time
+	InviteCodeRotatedAt *time.Time
+	Recruiting          bool
 }
 
 type PlayTeamMembershipDB struct {

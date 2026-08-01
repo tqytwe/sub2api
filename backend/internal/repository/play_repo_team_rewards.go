@@ -18,21 +18,17 @@ func (r *playRepository) ListTeamRewardContributions(
 	start time.Time,
 	end time.Time,
 ) (result []service.TeamContribution, err error) {
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
-		SELECT m.user_id, COALESCE(SUM(ul.actual_cost), 0)::text
-		FROM play_team_members m
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamCompetitionEligibleMembersCTE+`
+		SELECT em.user_id, COALESCE(SUM(ul.actual_cost), 0)::text
+		FROM eligible_members em
 		JOIN usage_logs ul
-		  ON ul.user_id = m.user_id
+		  ON ul.user_id = em.user_id
 		 AND ul.actual_cost > 0
-		 AND ul.created_at >= $2
-		 AND ul.created_at < $3
-		 AND ul.created_at >= m.joined_at
-		 AND (m.left_at IS NULL OR ul.created_at < m.left_at)
-		WHERE m.team_id = $1
-		  AND m.joined_at < $3
-		  AND (m.left_at IS NULL OR m.left_at > $2)
-		GROUP BY m.user_id
-		ORDER BY m.user_id`, teamID, start, end)
+		 AND ul.created_at >= em.eligible_at
+		 AND ul.created_at < em.inactive_at
+		WHERE em.team_id = $3
+		GROUP BY em.user_id
+		ORDER BY em.user_id`, start, end, teamID)
 	if err != nil {
 		return nil, fmt.Errorf("list team reward contributions: %w", err)
 	}
@@ -243,7 +239,13 @@ func (r *playRepository) ListUnpaidTeamRewardAllocations(
 		JOIN users u ON u.id = a.user_id
 		LEFT JOIN user_avatars ua ON ua.user_id = a.user_id
 		WHERE a.settlement_id = $1
-		  AND a.payout_status IN ('pending', 'failed')
+		  AND (
+				a.payout_status IN ('pending', 'failed')
+				OR (
+					a.payout_status = 'processing'
+					AND (a.payout_lease_expires_at IS NULL OR a.payout_lease_expires_at <= NOW())
+				)
+			)
 		  AND a.reward_amount > 0
 		ORDER BY a.user_id`, settlementID)
 	if err != nil {
@@ -287,9 +289,19 @@ func (r *playRepository) ClaimTeamRewardAllocation(ctx context.Context, allocati
 	var claimedID int64
 	err := scanSingleRow(ctx, r.sqlExec(ctx), `
 		UPDATE play_team_reward_allocations
-		SET payout_status = 'processing', last_error = NULL, updated_at = NOW()
+		SET payout_status = 'processing',
+		    payout_lease_expires_at = NOW() + INTERVAL '5 minutes',
+		    payout_attempts = payout_attempts + 1,
+		    last_error = NULL,
+		    updated_at = NOW()
 		WHERE id = $1
-		  AND payout_status IN ('pending', 'failed')
+		  AND (
+				payout_status IN ('pending', 'failed')
+				OR (
+					payout_status = 'processing'
+					AND (payout_lease_expires_at IS NULL OR payout_lease_expires_at <= NOW())
+				)
+			)
 		RETURNING id`, []any{allocationID}, &claimedID)
 	if errors.Is(err, sql.ErrNoRows) {
 		return false, nil
@@ -303,7 +315,11 @@ func (r *playRepository) ClaimTeamRewardAllocation(ctx context.Context, allocati
 func (r *playRepository) MarkTeamRewardAllocationPaid(ctx context.Context, allocationID int64) error {
 	res, err := r.sqlExec(ctx).ExecContext(ctx, `
 		UPDATE play_team_reward_allocations
-		SET payout_status = 'paid', paid_at = NOW(), last_error = NULL, updated_at = NOW()
+		SET payout_status = 'paid',
+		    paid_at = NOW(),
+		    payout_lease_expires_at = NULL,
+		    last_error = NULL,
+		    updated_at = NOW()
 		WHERE id = $1
 		  AND payout_status = 'processing'`, allocationID)
 	if err != nil {
@@ -319,7 +335,11 @@ func (r *playRepository) MarkTeamRewardAllocationFailed(
 ) error {
 	res, err := r.sqlExec(ctx).ExecContext(ctx, `
 		UPDATE play_team_reward_allocations
-		SET payout_status = 'failed', paid_at = NULL, last_error = $2, updated_at = NOW()
+		SET payout_status = 'failed',
+		    paid_at = NULL,
+		    payout_lease_expires_at = NULL,
+		    last_error = $2,
+		    updated_at = NOW()
 		WHERE id = $1
 		  AND payout_status = 'processing'`, allocationID, message)
 	if err != nil {
@@ -371,11 +391,9 @@ func (r *playRepository) ListTeamIDsForRewardMonth(
 	start time.Time,
 	end time.Time,
 ) (result []int64, err error) {
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamCompetitionEligibleMembersCTE+`
 		SELECT DISTINCT team_id
-		FROM play_team_members
-		WHERE joined_at < $2
-		  AND (left_at IS NULL OR left_at > $1)
+		FROM eligible_members
 		ORDER BY team_id`, start, end)
 	if err != nil {
 		return nil, fmt.Errorf("list team IDs for reward month: %w", err)

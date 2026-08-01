@@ -24,7 +24,7 @@ func (s *PlayService) GetAdminOpsSummary(ctx context.Context) (*PlayAdminOpsSumm
 	if err != nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	monthSpend := decimal.Zero
 	estimatedPool := decimal.Zero
 	for _, spend := range spends {
@@ -64,7 +64,7 @@ func (s *PlayService) ListAdminTeams(
 	if err != nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	for i := range items {
 		items[i].EstimatedPool = resolveTeamRewardPool(items[i].TeamSpend, cfg)
 	}
@@ -81,7 +81,7 @@ func (s *PlayService) GetAdminTeamDetail(ctx context.Context, teamID int64) (*Pl
 	if err != nil || meta == nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	meta.EstimatedPool = resolveTeamRewardPool(meta.TeamSpend, cfg)
 
 	summary, err := s.buildTeamSummaryByID(ctx, teamID)

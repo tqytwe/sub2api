@@ -96,6 +96,9 @@ func (r *PlayGrowthRunner) Stop() {
 func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 	if r.playService != nil {
 		now := time.Now().In(timezone.Location())
+		if err := r.playService.PrepareCurrentTeamCompetitionSeason(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare current team competition season: %v", err)
+		}
 		if _, err := r.playService.PrepareCurrentArenaMonthlySeason(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare monthly arena season: %v", err)
 		}

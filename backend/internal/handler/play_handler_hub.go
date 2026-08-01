@@ -80,10 +80,10 @@ func (h *PlayHandler) Hub(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, toPlayHubSummaryDTO(summary))
+	response.Success(c, toPlayHubSummaryDTOForActor(summary, subject.UserID))
 }
 
-func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
+func toPlayHubSummaryDTOForActor(s *service.PlayHubSummary, actorUserID int64) playHubSummaryDTO {
 	if s == nil {
 		return playHubSummaryDTO{}
 	}
@@ -206,11 +206,17 @@ func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
 	if s.Team != nil {
 		tdto := playTeamMeDTO{Enabled: s.Team.Enabled}
 		if s.Team.Team != nil {
-			tdto.Team = toPlayTeamSummaryDTO(s.Team.Team)
+			tdto.Team = toPlayTeamSummaryDTOForActor(s.Team.Team, actorUserID)
 		}
 		out.Team = &tdto
 	}
 	return out
+}
+
+// toPlayHubSummaryDTO is retained for focused DTO tests that do not have an
+// authenticated actor. A missing actor never receives team management data.
+func toPlayHubSummaryDTO(s *service.PlayHubSummary) playHubSummaryDTO {
+	return toPlayHubSummaryDTOForActor(s, 0)
 }
 
 func toPlayVIPStatusDTO(v *service.PlayVIPStatus) *playVIPStatusDTO {

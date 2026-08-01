@@ -115,7 +115,7 @@ func (r *handlerTeamRepairRepo) HasTeamMembershipOverlap(context.Context, int64,
 	return false, nil
 }
 
-func (r *handlerTeamRepairRepo) JoinTeamAt(context.Context, int64, int64, time.Time) error {
+func (r *handlerTeamRepairRepo) JoinTeamAt(context.Context, int64, int64, time.Time, time.Time) error {
 	return nil
 }
 

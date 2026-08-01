@@ -29,19 +29,16 @@ func TestTeamContributionUsesActualCostInsideMonthAndMembershipIntervals(t *test
 	windowEnd := windowStart.AddDate(0, 1, 0)
 
 	mock.ExpectQuery(`(?is)
-		FROM play_team_members m
+		GREATEST\(m\.joined_at, m\.reward_eligible_at, \$1\)
+		.*FROM eligible_members em
 		JOIN usage_logs ul
-		  ON ul\.user_id = m\.user_id
+		  ON ul\.user_id = em\.user_id
 		 AND ul\.actual_cost > 0
-		 AND ul\.created_at >= \$2
-		 AND ul\.created_at < \$3
-		 AND ul\.created_at >= m\.joined_at
-		 AND \(m\.left_at IS NULL OR ul\.created_at < m\.left_at\)
-		WHERE m\.team_id = \$1
-		  AND m\.joined_at < \$3
-		  AND \(m\.left_at IS NULL OR m\.left_at > \$2\)
-		GROUP BY m\.user_id`).
-		WithArgs(int64(7), windowStart, windowEnd).
+		 AND ul\.created_at >= em\.eligible_at
+		 AND ul\.created_at < em\.inactive_at
+		WHERE em\.team_id = \$3
+		GROUP BY em\.user_id`).
+		WithArgs(windowStart, windowEnd, int64(7)).
 		WillReturnRows(sqlmock.NewRows([]string{"user_id", "contribution"}).
 			AddRow(int64(11), "30.00000000").
 			AddRow(int64(19), "5.12345678"))

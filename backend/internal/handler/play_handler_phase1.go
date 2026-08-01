@@ -198,6 +198,46 @@ func (h *PlayHandler) TeamRewardShowcase(c *gin.Context) {
 	response.Success(c, out)
 }
 
+func (h *PlayHandler) TeamDirectory(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	directory, err := h.playService.PublicTeamDirectory(c.Request.Context(), limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, directory)
+}
+
+func (h *PlayHandler) TeamPublicLeaderboard(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	leaderboard, err := h.playService.PublicTeamLeaderboard(c.Request.Context(), limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, leaderboard)
+}
+
+func (h *PlayHandler) TeamSeasons(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "12"))
+	seasons, err := h.playService.ListPublicTeamSeasons(c.Request.Context(), limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, seasons)
+}
+
+func (h *PlayHandler) TeamSeason(c *gin.Context) {
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	season, err := h.playService.GetPublicTeamSeason(c.Request.Context(), c.Param("month"), limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, season)
+}
+
 func toPlayArenaCurrentDTO(current *service.PlayArenaCurrent) playArenaCurrentDTO {
 	if current == nil {
 		return playArenaCurrentDTO{}

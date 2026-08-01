@@ -12,7 +12,12 @@ func RegisterPlayRoutes(
 	v1 *gin.RouterGroup,
 	h *handler.Handlers,
 	jwtAuth middleware.JWTAuthMiddleware,
+	teamAdmissionRateLimiters ...*middleware.PanelRateLimiter,
 ) {
+	teamAdmissionRateLimit := gin.HandlerFunc(func(c *gin.Context) { c.Next() })
+	if len(teamAdmissionRateLimiters) > 0 && teamAdmissionRateLimiters[0] != nil {
+		teamAdmissionRateLimit = teamAdmissionRateLimiters[0].TeamAdmission()
+	}
 	v1.GET("/public/models", h.Play.PublicModels)
 	v1.GET("/public/model-pricing", h.ModelPricing.PublicModelPricing)
 
@@ -26,6 +31,10 @@ func RegisterPlayRoutes(
 		play.GET("/arena/daily/reward-summary", h.Play.ArenaDailyRewardSummary)
 		play.GET("/arena/reward-summary", h.Play.ArenaRewardSummary)
 		play.GET("/teams/reward-showcase", h.Play.TeamRewardShowcase)
+		play.GET("/teams/directory", h.Play.TeamDirectory)
+		play.GET("/teams/leaderboard/public", h.Play.TeamPublicLeaderboard)
+		play.GET("/teams/seasons", h.Play.TeamSeasons)
+		play.GET("/teams/seasons/:month", h.Play.TeamSeason)
 		play.GET("/blindbox/pool", h.Play.BlindboxPool)
 		play.GET("/blindbox/recent", h.Play.BlindboxRecent)
 	}
@@ -55,8 +64,16 @@ func RegisterPlayRoutes(
 		teams := authenticated.Group("/play/teams")
 		{
 			teams.GET("/me", h.Play.TeamMe)
-			teams.POST("", h.Play.TeamCreate)
-			teams.POST("/join", h.Play.TeamJoin)
+			teams.GET("/admission", h.Play.TeamAdmissionEligibility)
+			teams.POST("", teamAdmissionRateLimit, h.Play.TeamCreate)
+			teams.POST("/join", teamAdmissionRateLimit, h.Play.TeamJoin)
+			teams.POST("/applications", teamAdmissionRateLimit, h.Play.TeamApply)
+			teams.GET("/applications/me", h.Play.TeamMyApplications)
+			teams.GET("/applications", h.Play.TeamCaptainApplications)
+			teams.POST("/applications/:id/withdraw", teamAdmissionRateLimit, h.Play.TeamApplicationWithdraw)
+			teams.POST("/applications/:id/decision", teamAdmissionRateLimit, h.Play.TeamApplicationDecision)
+			teams.POST("/invite/rotate", teamAdmissionRateLimit, h.Play.TeamInviteRotate)
+			teams.PUT("/recruiting", teamAdmissionRateLimit, h.Play.TeamRecruiting)
 			teams.POST("/leave", h.Play.TeamLeave)
 			teams.POST("/transfer", h.Play.TeamTransfer)
 			teams.POST("/remove", h.Play.TeamRemove)

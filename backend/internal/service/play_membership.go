@@ -64,14 +64,15 @@ func (s *PlayService) SyncMembershipOrder(ctx context.Context, orderID, userID i
 
 func (s *PlayService) TeamLeaderboard(ctx context.Context, userID int64, limit int) (*PlayTeamLeaderboard, error) {
 	now := s.serverNow()
-	out := &PlayTeamLeaderboard{Month: now.Format("2006-01")}
+	start, end, windowErr := currentTeamCompetitionWindow(now)
+	if windowErr != nil {
+		return nil, windowErr
+	}
+	out := &PlayTeamLeaderboard{Month: start.Format("2006-01")}
 	repo, ok := s.repo.(PlayMembershipRepository)
 	if !ok {
 		return out, nil
 	}
-	loc := now.Location()
-	start := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, loc)
-	end := start.AddDate(0, 1, 0)
 	rows, err := repo.ListTeamLeaderboardBase(ctx, start, end, limit)
 	if err != nil {
 		return nil, err
