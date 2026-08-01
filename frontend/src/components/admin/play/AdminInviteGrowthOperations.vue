@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
+import TotpStepUpDialog from '@/components/auth/TotpStepUpDialog.vue'
 import adminPlayAPI, {
   type AdminInviteGrowthOverview,
   type AdminReferralCampaignDetail,
@@ -18,6 +19,7 @@ import adminPlayAPI, {
 } from '@/api/admin/play'
 import { useAppStore } from '@/stores'
 import { extractApiErrorMessage } from '@/utils/apiError'
+import { isStepUpBlocked, isStepUpCancelled, stepUpBlockReason, useStepUp } from '@/composables/useStepUp'
 
 type DetailTab = 'participants' | 'invites' | 'rewards'
 
@@ -53,6 +55,7 @@ const showCampaignDialog = ref(false)
 const campaignDraft = ref<CampaignDraft>(blankCampaignDraft())
 const debtReward = ref<AdminReferralCampaignReward | null>(null)
 const debtNote = ref('')
+const stepUp = useStepUp()
 
 const statuses: AdminReferralCampaignStatus[] = [
   'draft', 'review', 'approved', 'scheduled', 'running', 'paused', 'settling', 'closed', 'cancelled',
@@ -376,16 +379,25 @@ async function saveCampaign(): Promise<void> {
   }
   saving.value = true
   try {
-    if (campaignDraft.value.id && campaignDraft.value.version) {
-      await adminPlayAPI.updateReferralCampaign(campaignDraft.value.id, { ...input, expected_version: campaignDraft.value.version })
-      appStore.showSuccess(t('admin.playOps.inviteGrowth.updated'))
-    } else {
-      await adminPlayAPI.createReferralCampaign(input)
-      appStore.showSuccess(t('admin.playOps.inviteGrowth.created'))
-    }
+    await stepUp.run(async () => {
+      if (campaignDraft.value.id && campaignDraft.value.version) {
+        await adminPlayAPI.updateReferralCampaign(campaignDraft.value.id, { ...input, expected_version: campaignDraft.value.version })
+        appStore.showSuccess(t('admin.playOps.inviteGrowth.updated'))
+      } else {
+        await adminPlayAPI.createReferralCampaign(input)
+        appStore.showSuccess(t('admin.playOps.inviteGrowth.created'))
+      }
+    })
     showCampaignDialog.value = false
     await loadCampaigns(1)
   } catch (cause) {
+    if (isStepUpCancelled(cause)) return
+    if (isStepUpBlocked(cause)) {
+      error.value = stepUpBlockReason(cause) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? t('stepUp.adminApiKeyForbidden')
+        : t('stepUp.notEnabled')
+      return
+    }
     appStore.showError(extractApiErrorMessage(cause, t('admin.playOps.inviteGrowth.saveFailed')))
   } finally {
     saving.value = false
@@ -394,17 +406,25 @@ async function saveCampaign(): Promise<void> {
 
 async function changeStatus(status: AdminReferralCampaignStatus): Promise<void> {
   if (!detail.value || actionLoading.value) return
+  const campaign = detail.value.campaign
   actionLoading.value = true
   try {
-    await adminPlayAPI.setReferralCampaignStatus(detail.value.campaign.id, {
-      expected_version: detail.value.campaign.version,
+    await stepUp.run(() => adminPlayAPI.setReferralCampaignStatus(campaign.id, {
+      expected_version: campaign.version,
       status,
       note: statusNote.value.trim(),
-    })
+    }))
     statusNote.value = ''
     appStore.showSuccess(t('admin.playOps.inviteGrowth.statusUpdated'))
     await loadCampaigns(campaigns.value.page)
   } catch (cause) {
+    if (isStepUpCancelled(cause)) return
+    if (isStepUpBlocked(cause)) {
+      error.value = stepUpBlockReason(cause) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? t('stepUp.adminApiKeyForbidden')
+        : t('stepUp.notEnabled')
+      return
+    }
     appStore.showError(extractApiErrorMessage(cause, t('admin.playOps.inviteGrowth.actionFailed')))
   } finally {
     actionLoading.value = false
@@ -413,18 +433,26 @@ async function changeStatus(status: AdminReferralCampaignStatus): Promise<void> 
 
 async function submitReview(reviewType: AdminReferralReviewType, decision: AdminReferralReviewDecision): Promise<void> {
   if (!detail.value || actionLoading.value) return
+  const campaign = detail.value.campaign
   actionLoading.value = true
   try {
-    await adminPlayAPI.reviewReferralCampaign(detail.value.campaign.id, {
-      expected_version: detail.value.campaign.version,
+    await stepUp.run(() => adminPlayAPI.reviewReferralCampaign(campaign.id, {
+      expected_version: campaign.version,
       review_type: reviewType,
       decision,
       note: reviewNote.value.trim(),
-    })
+    }))
     reviewNote.value = ''
     appStore.showSuccess(t('admin.playOps.inviteGrowth.reviewSaved'))
     await loadCampaigns(campaigns.value.page)
   } catch (cause) {
+    if (isStepUpCancelled(cause)) return
+    if (isStepUpBlocked(cause)) {
+      error.value = stepUpBlockReason(cause) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? t('stepUp.adminApiKeyForbidden')
+        : t('stepUp.notEnabled')
+      return
+    }
     appStore.showError(extractApiErrorMessage(cause, t('admin.playOps.inviteGrowth.actionFailed')))
   } finally {
     actionLoading.value = false
@@ -448,18 +476,27 @@ function openDebtResolution(reward: AdminReferralCampaignReward): void {
 
 async function resolveDebt(decision: 'recovered' | 'waived'): Promise<void> {
   if (!detail.value || !debtReward.value || debtNote.value.trim().length < 10 || actionLoading.value) return
+  const campaign = detail.value.campaign
+  const reward = debtReward.value
   actionLoading.value = true
   try {
-    await adminPlayAPI.resolveReferralRewardDebt(detail.value.campaign.id, debtReward.value.id, {
-      expected_version: debtReward.value.version,
+    await stepUp.run(() => adminPlayAPI.resolveReferralRewardDebt(campaign.id, reward.id, {
+      expected_version: reward.version,
       decision,
       note: debtNote.value.trim(),
-    })
+    }))
     debtReward.value = null
     debtNote.value = ''
     appStore.showSuccess(t('admin.playOps.inviteGrowth.debtResolved'))
-    await Promise.all([selectCampaign(detail.value.campaign.id), loadOverview()])
+    await Promise.all([selectCampaign(campaign.id), loadOverview()])
   } catch (cause) {
+    if (isStepUpCancelled(cause)) return
+    if (isStepUpBlocked(cause)) {
+      error.value = stepUpBlockReason(cause) === 'STEP_UP_ADMIN_API_KEY_FORBIDDEN'
+        ? t('stepUp.adminApiKeyForbidden')
+        : t('stepUp.notEnabled')
+      return
+    }
     appStore.showError(extractApiErrorMessage(cause, t('admin.playOps.inviteGrowth.actionFailed')))
   } finally {
     actionLoading.value = false
@@ -629,5 +666,7 @@ defineExpose({ selectCampaign })
       <div v-if="debtReward" class="space-y-4"><p class="text-sm text-gray-600 dark:text-gray-300">{{ t('admin.playOps.inviteGrowth.debtSummary', { email: debtReward.email, amount: formatMoney(debtReward.amount) }) }}</p><label class="grid gap-1 text-sm"><span>{{ t('admin.playOps.inviteGrowth.debtNote') }}</span><textarea v-model="debtNote" data-testid="debt-note" rows="4" maxlength="500" class="input" :placeholder="t('admin.playOps.inviteGrowth.debtNotePlaceholder')" /></label><p class="text-xs text-gray-500">{{ t('admin.playOps.inviteGrowth.debtWarning') }}</p></div>
       <template #footer><button type="button" class="btn btn-secondary" @click="debtReward = null">{{ t('admin.playOps.cancel') }}</button><button data-testid="debt-recovered" type="button" class="btn btn-secondary" :disabled="debtNote.trim().length < 10 || actionLoading" @click="resolveDebt('recovered')">{{ t('admin.playOps.inviteGrowth.recovered') }}</button><button data-testid="debt-waive" type="button" class="btn btn-primary" :disabled="debtNote.trim().length < 10 || actionLoading" @click="resolveDebt('waived')">{{ t('admin.playOps.inviteGrowth.waived') }}</button></template>
     </BaseDialog>
+
+    <TotpStepUpDialog :controller="stepUp" />
   </section>
 </template>
