@@ -8,6 +8,7 @@
     "frontend/src/views/admin/PlayOpsView.vue",
     "frontend/src/components/admin/play/TeamRewardSettings.vue",
     "frontend/src/components/admin/play/ArenaRewardSettings.vue",
+    "frontend/src/views/public/AgentTeamView.vue",
     "frontend/src/i18n/locales/zh/admin/playOps.ts",
     "frontend/src/i18n/locales/en/admin/playOps.ts"
   ],
@@ -31,7 +32,7 @@
 
 ## Scope
 
-The existing `/admin/play-ops` page gains dedicated farm reward, blind box pool and team shared reward tabs. The Settings features tab retains only feature toggles. Team settlements use bounded scrolling, pagination and an explicit per-user allocation disclosure.
+The existing `/admin/play-ops` page gains dedicated farm reward, blind box pool and team shared reward tabs. The Settings features tab retains only feature toggles. Team settlements use bounded scrolling, pagination and an explicit per-user allocation disclosure. The public Agent Team reward proof adds the already-returned credited amount without changing the number of rows or any payout data.
 
 ## Baseline
 
