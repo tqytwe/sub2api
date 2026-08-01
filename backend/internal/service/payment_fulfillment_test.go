@@ -14,6 +14,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/paymentauditlog"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -47,6 +48,26 @@ type paymentFulfillmentAffiliateAccrueCall struct {
 	amount        float64
 	freezeHours   int
 	sourceOrderID *int64
+}
+
+// failedMembershipProjectionRepo keeps the full PlayRepository method set via
+// embedding, while making the post-fulfillment membership projection fail.
+type failedMembershipProjectionRepo struct{ PlayRepository }
+
+func (r *failedMembershipProjectionRepo) GetMembershipPaidTotal(context.Context, int64) (float64, error) {
+	return 0, nil
+}
+
+func (r *failedMembershipProjectionRepo) SyncMembershipOrderContribution(context.Context, int64, int64, string, float64, float64, *time.Time, string) error {
+	return errors.New("membership projection unavailable")
+}
+
+func (r *failedMembershipProjectionRepo) ListTeamLeaderboardBase(context.Context, time.Time, time.Time, int) ([]PlayTeamLeaderboardBase, error) {
+	return nil, nil
+}
+
+func (r *failedMembershipProjectionRepo) GetTeamLeaderboardRank(context.Context, int64, time.Time, time.Time) (int, int, decimal.Decimal, error) {
+	return 0, 0, decimal.Zero, nil
 }
 
 type paymentFulfillmentAffiliateRepoStub struct {
@@ -666,6 +687,57 @@ func TestFulfillmentLeaseVersionRejectsStaleWorker(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, OrderStatusRecharging, reloaded.Status)
 	require.NoError(t, svc.markCompleted(ctx, order, secondLease, "SUBSCRIPTION_SUCCESS"))
+}
+
+func TestMarkCompletedKeepsPaidOrderCompletedWhenMembershipProjectionFails(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusPaid, time.Now())
+	svc := &PaymentService{
+		entClient:   client,
+		playService: &PlayService{repo: &failedMembershipProjectionRepo{}},
+	}
+	lease, err := svc.acquirePaymentFulfillmentLease(ctx, order)
+	require.NoError(t, err)
+	require.NotNil(t, lease)
+
+	require.NoError(t, svc.markCompleted(ctx, order, lease, "SUBSCRIPTION_SUCCESS"))
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, reloaded.Status)
+	failureCount, err := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.ActionEQ("MEMBERSHIP_CONTRIBUTION_SYNC_FAILED"),
+		).
+		Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, failureCount)
+}
+
+func TestRetryFulfillmentReconcilesCompletedOrderWithoutReprocessingPayment(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusCompleted, time.Now())
+	svc := &PaymentService{
+		entClient:   client,
+		playService: &PlayService{repo: &failedMembershipProjectionRepo{}},
+	}
+
+	require.NoError(t, svc.RetryFulfillment(ctx, order.ID))
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusCompleted, reloaded.Status)
+	failureCount, err := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.ActionEQ("MEMBERSHIP_CONTRIBUTION_SYNC_FAILED"),
+		).
+		Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, failureCount)
 }
 
 func TestExecuteBalanceFulfillmentRecoversAfterRedeemWithoutCreditingAgain(t *testing.T) {
