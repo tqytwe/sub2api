@@ -17,6 +17,15 @@ type teamCompetitionReadRepo struct {
 	rankings    []PlayTeamSeasonRanking
 }
 
+type teamAdmissionRiskTestRepo struct {
+	PlayRepository
+	blocked bool
+}
+
+func (r *teamAdmissionRiskTestRepo) HasBlockingTeamAdmissionRisk(context.Context, int64) (bool, error) {
+	return r.blocked, nil
+}
+
 type teamCompetitionSettingRepo struct {
 	SettingRepository
 	values map[string]string
@@ -229,6 +238,15 @@ func TestGenerateTeamInviteCodeIsHighEntropyAndURLSafe(t *testing.T) {
 	require.Len(t, first, 43)
 	require.NotEqual(t, first, second)
 	require.Regexp(t, `^[A-Za-z0-9_-]+$`, first)
+}
+
+func TestDefaultTeamAdmissionRiskIsInstalledForProductionRiskRepository(t *testing.T) {
+	repo := &teamAdmissionRiskTestRepo{blocked: true}
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+
+	err := svc.checkTeamAdmissionRisk(context.Background(), PlayTeamAdmissionActionApplication, 7, 11)
+
+	require.ErrorIs(t, err, ErrPlayTeamAdmissionRiskRejected)
 }
 
 func TestWithdrawTeamJoinApplicationTransitionsOnlyTheApplicantPendingRequest(t *testing.T) {

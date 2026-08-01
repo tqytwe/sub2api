@@ -454,9 +454,11 @@ func (s *PlayService) teamRewardConfigForCompetitionMonth(
 	return fallback, season.Rules, fallback.Enabled, nil
 }
 
-// currentCompetitionRewardConfig prefers the policy frozen for the active
-// Shanghai month. Reads never create a season; the settlement runner owns that
-// write so normal request traffic cannot move an effective-date boundary.
+// currentCompetitionRewardConfig reads only an active Shanghai-month freeze.
+// Reads never create a season; the settlement runner owns that write so normal
+// request traffic cannot move an effective-date boundary. If a production
+// season record is unavailable or malformed, fail closed rather than showing a
+// newly edited configuration as the current month's expected payout.
 func (s *PlayService) currentCompetitionRewardConfig(ctx context.Context) TeamRewardConfig {
 	fallback := s.currentTeamRewardConfig(ctx)
 	repo, ok := s.repo.(PlayTeamCompetitionSeasonRepository)
@@ -465,15 +467,15 @@ func (s *PlayService) currentCompetitionRewardConfig(ctx context.Context) TeamRe
 	}
 	periodStart, _, _, err := teamCompetitionPeriodWindow(s.serverNow())
 	if err != nil {
-		return fallback
+		return TeamRewardConfig{}
 	}
 	season, err := repo.GetTeamCompetitionSeason(ctx, periodStart)
 	if err != nil || season == nil {
-		return fallback
+		return TeamRewardConfig{}
 	}
 	frozen, found, err := teamCompetitionFrozenRewardConfig(season)
 	if err != nil || !found {
-		return fallback
+		return TeamRewardConfig{}
 	}
 	return frozen
 }

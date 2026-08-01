@@ -688,6 +688,12 @@ type PlayTeamAdmissionRiskHook interface {
 	CheckTeamAdmission(ctx context.Context, action PlayTeamAdmissionAction, userID, teamID int64) error
 }
 
+// PlayTeamAdmissionRiskRepository exposes only the admission decision. Risk
+// evidence must remain confined to the security and operations surfaces.
+type PlayTeamAdmissionRiskRepository interface {
+	HasBlockingTeamAdmissionRisk(ctx context.Context, userID int64) (bool, error)
+}
+
 type PlayArenaRewardPublicWinner struct {
 	Rank        int
 	Period      *PlayArenaPeriod

@@ -62,6 +62,36 @@ func (r *playRepository) ListPublicTeamDirectory(
 	return result, nil
 }
 
+// HasBlockingTeamAdmissionRisk keeps the enforcement response intentionally
+// opaque. A normal team participant must not learn whether an account is in a
+// security case, debt review, or merely disabled.
+func (r *playRepository) HasBlockingTeamAdmissionRisk(ctx context.Context, userID int64) (bool, error) {
+	var blocked bool
+	err := scanSingleRow(ctx, r.sqlExec(ctx), `
+		SELECT EXISTS (
+			SELECT 1
+			FROM users u
+			WHERE u.id = $1
+			  AND COALESCE(u.status, '') <> 'active'
+			UNION ALL
+			SELECT 1
+			FROM ip_risk_case_users cu
+			JOIN ip_risk_cases rc ON rc.id = cu.case_id
+			WHERE cu.user_id = $1
+			  AND rc.status IN ('open', 'observing', 'processing')
+			  AND rc.level IN ('high', 'severe', 'critical')
+			UNION ALL
+			SELECT 1
+			FROM referral_campaign_rewards r
+			WHERE r.user_id = $1
+			  AND r.status = 'debt_review'
+		)`, []any{userID}, &blocked)
+	if err != nil {
+		return false, fmt.Errorf("check team admission risk: %w", err)
+	}
+	return blocked, nil
+}
+
 func (r *playRepository) ListPublicTeamLeaderboard(
 	ctx context.Context,
 	start time.Time,

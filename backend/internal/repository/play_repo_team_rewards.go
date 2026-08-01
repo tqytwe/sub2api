@@ -449,8 +449,7 @@ func (r *playRepository) ListTeamRewardSettlements(
 
 func (r *playRepository) ListPublicTeamRewardWinners(ctx context.Context, limit int) (result []service.PlayTeamRewardPublicWinner, err error) {
 	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
-		SELECT s.id, s.period_start, t.name, a.user_id,
-		       COALESCE(u.username, ''), COALESCE(u.email, ''),
+		SELECT s.id, s.period_start, t.name, COALESCE(u.email, ''),
 		       COALESCE(NULLIF(TRIM(ua.url), ''), ''),
 		       a.reward_amount::float8, a.paid_at
 		FROM play_team_reward_allocations a
@@ -469,12 +468,11 @@ func (r *playRepository) ListPublicTeamRewardWinners(ctx context.Context, limit 
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		var row service.PlayTeamRewardPublicWinner
-		var username, email string
-		var userID int64
-		if err := rows.Scan(&row.SettlementID, &row.PeriodStart, &row.TeamName, &userID, &username, &email, &row.AvatarURL, &row.Amount, &row.PaidAt); err != nil {
+		var email string
+		if err := rows.Scan(&row.SettlementID, &row.PeriodStart, &row.TeamName, &email, &row.AvatarURL, &row.Amount, &row.PaidAt); err != nil {
 			return nil, fmt.Errorf("scan public team reward winner: %w", err)
 		}
-		row.DisplayName = service.PublicPlayDisplayName(username, email, userID)
+		row.DisplayName, _ = service.PublicPlayLeaderboardIdentity(email)
 		result = append(result, row)
 	}
 	if err := rows.Err(); err != nil {

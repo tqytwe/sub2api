@@ -185,6 +185,26 @@ func TestSettleTeamRewardMonthUsesFrozenSeasonRulesInsteadOfCurrentSettings(t *t
 	require.Equal(t, "0.60000000", settlement.PoolAmount.StringFixed(8))
 }
 
+func TestCurrentCompetitionRewardConfigFailsClosedUntilSeasonIsFrozen(t *testing.T) {
+	repo := &frozenSeasonTeamRewardRepo{
+		teamSettlementRepo: newTeamSettlementRepo(),
+		seasons:            map[string]*PlayTeamSeason{},
+	}
+	settings := &SettingService{settingRepo: &teamRewardSettingRepoStub{values: map[string]string{
+		SettingKeyPlayTeamSharedRewardEnabled: "true",
+		SettingKeyPlayTeamSharedRewardTiers:   `[{"threshold":"20","rate":"0.50"}]`,
+		SettingKeyPlayTeamSharedRewardCap:     "250",
+	}}}
+	svc := &PlayService{repo: repo, settingService: settings, now: func() time.Time {
+		return time.Date(2026, time.August, 1, 8, 0, 0, 0, time.UTC)
+	}}
+
+	cfg := svc.currentCompetitionRewardConfig(context.Background())
+
+	require.False(t, cfg.Enabled)
+	require.Empty(t, cfg.Tiers)
+}
+
 func TestTeamPayoutRetryPaysOnlyFailedAllocationAndReconcilesExactly(t *testing.T) {
 	repo := newTeamSettlementRepo()
 	repo.settlement = &PlayTeamSettlement{

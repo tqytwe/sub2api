@@ -18,7 +18,7 @@ func TestPublicTeamRewardShowcaseOnlyReadsCompletedPaidAllocations(t *testing.T)
 	mock.ExpectQuery(`(?s)FROM play_team_reward_allocations a.*JOIN play_team_settlements s.*JOIN play_teams t.*JOIN users u.*s\.status = 'completed'.*a\.payout_status = 'paid'.*a\.reward_amount > 0.*LIMIT \$1`).
 		WithArgs(50).
 		WillReturnRows(newPlayRewardShowcaseRows().AddRow(
-			int64(71), periodStart, "星火小队", int64(501), "", "winner@example.com", "", 14.16, paidAt,
+			int64(71), periodStart, "星火小队", "winner@example.com", "", 14.16, paidAt,
 		))
 
 	rows, err := repo.ListPublicTeamRewardWinners(context.Background(), 50)
@@ -62,7 +62,7 @@ func TestMonthlyArenaRewardShowcaseReadsSettledMonthlyLedger(t *testing.T) {
 }
 
 func newPlayRewardShowcaseRows() *sqlmock.Rows {
-	return sqlmock.NewRows([]string{"settlement_id", "period_start", "team_name", "user_id", "username", "email", "avatar_url", "amount", "paid_at"})
+	return sqlmock.NewRows([]string{"settlement_id", "period_start", "team_name", "email", "avatar_url", "amount", "paid_at"})
 }
 
 func newPlayArenaPeriodRows() *sqlmock.Rows {

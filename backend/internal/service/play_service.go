@@ -292,7 +292,7 @@ func (s *PlayService) SetRedeemCodeRewardIssuer(issuer RedeemCodeRewardIssuer) {
 // SetTeamAdmissionRiskHook installs the optional admission policy used before
 // team creation, invite joins, applications, and approvals.
 func (s *PlayService) SetTeamAdmissionRiskHook(hook PlayTeamAdmissionRiskHook) {
-	if s != nil {
+	if s != nil && hook != nil {
 		s.teamAdmissionRisk = hook
 	}
 }
@@ -310,7 +310,7 @@ func NewPlayService(
 	if len(balanceLedger) > 0 {
 		ledger = balanceLedger[0]
 	}
-	return &PlayService{
+	svc := &PlayService{
 		repo:               repo,
 		userRepo:           userRepo,
 		channelService:     channelService,
@@ -321,6 +321,10 @@ func NewPlayService(
 		rewardDrawSource:   cryptoBlindboxDrawSource,
 		blindboxDrawSource: cryptoBlindboxDrawSource,
 	}
+	if riskRepo, ok := repo.(PlayTeamAdmissionRiskRepository); ok {
+		svc.teamAdmissionRisk = defaultPlayTeamAdmissionRisk{repo: riskRepo}
+	}
+	return svc
 }
 
 func (s *PlayService) GetRuntime(ctx context.Context) PlayRuntime {
