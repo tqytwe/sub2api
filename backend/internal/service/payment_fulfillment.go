@@ -1000,7 +1000,8 @@ func (s *PaymentService) RetryFulfillment(ctx context.Context, oid int64) error 
 		return nil
 	}
 	if psIsRefundStatus(o.Status) {
-		return infraerrors.BadRequest("INVALID_STATUS", "refund-related order cannot retry")
+		s.reconcileCompletedRefundProjections(ctx, o)
+		return nil
 	}
 	if o.Status != OrderStatusFailed && o.Status != OrderStatusPaid && o.Status != OrderStatusRecharging {
 		return infraerrors.BadRequest("INVALID_STATUS", "only paid, failed, and recoverable recharging orders can retry")

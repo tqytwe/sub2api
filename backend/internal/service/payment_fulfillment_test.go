@@ -740,6 +740,30 @@ func TestRetryFulfillmentReconcilesCompletedOrderWithoutReprocessingPayment(t *t
 	require.Equal(t, 1, failureCount)
 }
 
+func TestRetryFulfillmentReconcilesRefundedOrderWithoutRepeatingRefund(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusRefunded, time.Now())
+	svc := &PaymentService{
+		entClient:   client,
+		playService: &PlayService{repo: &failedMembershipProjectionRepo{}},
+	}
+
+	require.NoError(t, svc.RetryFulfillment(ctx, order.ID))
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusRefunded, reloaded.Status)
+	failureCount, err := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.ActionEQ("MEMBERSHIP_CONTRIBUTION_REFUND_SYNC_FAILED"),
+		).
+		Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, failureCount)
+}
+
 func TestExecuteBalanceFulfillmentRecoversAfterRedeemWithoutCreditingAgain(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
