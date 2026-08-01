@@ -488,3 +488,51 @@ func TestAffiliateRepository_ListUsersWithCustomSettings(t *testing.T) {
 
 	require.GreaterOrEqual(t, total, int64(2), "total must include at least our 2 custom rows")
 }
+
+func TestAffiliateRepository_CreateReferralCampaignWritesCreatedAuditLog(t *testing.T) {
+	ctx := context.Background()
+	client := testEntClient(t)
+	repo := NewAffiliateRepository(client, integrationDB)
+	creator := mustCreateUser(t, client, &service.User{
+		Email:        fmt.Sprintf("campaign-creator-%d@example.com", time.Now().UnixNano()),
+		PasswordHash: "hash",
+		Role:         service.RoleAdmin,
+		Status:       service.StatusActive,
+	})
+
+	startsAt := time.Now().UTC().Add(24 * time.Hour)
+	campaign, err := repo.CreateReferralCampaign(ctx, service.ReferralCampaign{
+		Key:              fmt.Sprintf("audit-campaign-%d", time.Now().UnixNano()),
+		Name:             "Audit parameter type regression",
+		RegistrationFrom: startsAt,
+		RegistrationTo:   startsAt.Add(24 * time.Hour),
+		StartsAt:         startsAt,
+		EndsAt:           startsAt.Add(7 * 24 * time.Hour),
+		QualificationTo:  startsAt.Add(8 * 24 * time.Hour),
+		ClaimDeadline:    startsAt.Add(14 * 24 * time.Hour),
+		RiskHoldHours:    168,
+		PayThreshold:     10,
+		UsageThreshold:   1,
+		MaxEnrollments:   100,
+		BudgetTotal:      1000,
+		RewardMode:       "additive",
+		SigningSecret:    []byte("test-signing-secret"),
+		CreatedBy:        creator.ID,
+	}, []service.ReferralCampaignTier{{
+		Tier: 1, RequiredInvites: 1, RewardAmount: 10, Currency: "CNY",
+	}})
+	require.NoError(t, err)
+	require.NotZero(t, campaign.ID)
+
+	var auditCampaignKey string
+	rows, err := client.QueryContext(ctx, `
+SELECT detail->>'campaign_key'
+FROM referral_campaign_audit_logs
+WHERE campaign_id=$1 AND action='created'`, campaign.ID)
+	require.NoError(t, err)
+	defer func() { _ = rows.Close() }()
+	require.True(t, rows.Next())
+	require.NoError(t, rows.Scan(&auditCampaignKey))
+	require.NoError(t, rows.Err())
+	require.Equal(t, campaign.Key, auditCampaignKey)
+}
