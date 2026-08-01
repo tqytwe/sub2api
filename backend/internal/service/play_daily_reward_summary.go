@@ -52,8 +52,8 @@ func (s *PlayService) GetDailyArenaRewardSummary(ctx context.Context) (*PlayAren
 		for _, row := range rows {
 			out.Current.Rows = append(out.Current.Rows, PlayArenaDailyRewardEstimateRow{
 				Rank:            row.Rank,
-				UserID:          row.UserID,
 				DisplayName:     row.DisplayName,
+				Anonymous:       row.Anonymous,
 				AvatarURL:       row.AvatarURL,
 				TokenSum:        row.TokenSum,
 				EstimatedReward: arenaRewardForRank(row.Rank, rewards),
@@ -110,8 +110,8 @@ func (s *PlayService) buildDailyArenaRecentRewardSummary(
 		}
 		recent.Winners = append(recent.Winners, PlayArenaDailyRewardWinner{
 			Rank:        row.Rank,
-			UserID:      row.UserID,
 			DisplayName: row.DisplayName,
+			Anonymous:   row.Anonymous,
 			AvatarURL:   row.AvatarURL,
 			TokenSum:    row.TokenSum,
 			Amount:      row.Amount,
@@ -147,6 +147,9 @@ func fillDailyRewardLedgerFallback(rows []PlayArenaDailyRewardLedgerRow, leaderb
 		}
 		if rows[i].DisplayName == "" {
 			rows[i].DisplayName = score.DisplayName
+		}
+		if score.Anonymous {
+			rows[i].Anonymous = true
 		}
 		if rows[i].AvatarURL == "" {
 			rows[i].AvatarURL = score.AvatarURL

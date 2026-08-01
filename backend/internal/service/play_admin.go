@@ -24,7 +24,7 @@ func (s *PlayService) GetAdminOpsSummary(ctx context.Context) (*PlayAdminOpsSumm
 	if err != nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	monthSpend := decimal.Zero
 	estimatedPool := decimal.Zero
 	for _, spend := range spends {
@@ -64,7 +64,7 @@ func (s *PlayService) ListAdminTeams(
 	if err != nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	for i := range items {
 		items[i].EstimatedPool = resolveTeamRewardPool(items[i].TeamSpend, cfg)
 	}
@@ -81,7 +81,7 @@ func (s *PlayService) GetAdminTeamDetail(ctx context.Context, teamID int64) (*Pl
 	if err != nil || meta == nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	meta.EstimatedPool = resolveTeamRewardPool(meta.TeamSpend, cfg)
 
 	summary, err := s.buildTeamSummaryByID(ctx, teamID)
@@ -131,7 +131,7 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	} else if periodType == "daily" {
 		period, err = s.repo.EnsureDailyArenaPeriod(ctx, s.serverNow())
 	} else {
-		period, err = s.repo.EnsureMonthlyArenaPeriod(ctx, s.serverNow())
+		period, err = s.getExistingMonthlyArenaPeriod(ctx, s.serverNow())
 	}
 	if err != nil {
 		return nil, nil, nil, err
@@ -143,9 +143,14 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	rewards := rt.ArenaSettlementRewards
-	if periodType == "daily" {
+	var rewards []PlayArenaSettlementTier
+	if period.PeriodType == "daily" {
 		rewards = rt.DailyArenaTopRewards
+	} else {
+		rewards, err = s.arenaRewardTiersForPeriod(ctx, period)
+		if err != nil {
+			return nil, nil, nil, err
+		}
 	}
 	return rows, period, rewards, nil
 }

@@ -110,11 +110,12 @@ func TestAdminTeamRepairRepositoryUsesExplicitEffectiveTimestamp(t *testing.T) {
 
 	t.Run("join", func(t *testing.T) {
 		repo, mock := newPlayTeamRepositoryMock(t)
-		mock.ExpectExec(`(?s)INSERT INTO play_team_members.*team_id.*user_id.*joined_at.*VALUES \(\$1, \$2, \$3\)`).
-			WithArgs(int64(11), int64(7), effectiveAt).
+		rewardEligibleAt := effectiveAt.AddDate(0, 1, 0)
+		mock.ExpectExec(`(?s)INSERT INTO play_team_members.*team_id.*user_id.*joined_at.*reward_eligible_at.*VALUES \(\$1, \$2, \$3, \$4\)`).
+			WithArgs(int64(11), int64(7), effectiveAt, rewardEligibleAt).
 			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		require.NoError(t, repo.JoinTeamAt(context.Background(), 11, 7, effectiveAt))
+		require.NoError(t, repo.JoinTeamAt(context.Background(), 11, 7, effectiveAt, rewardEligibleAt))
 	})
 
 	t.Run("close", func(t *testing.T) {

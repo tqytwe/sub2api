@@ -40,11 +40,11 @@ func (r *playRepository) SyncMembershipOrderContribution(ctx context.Context, or
 	_, err := r.sqlExec(ctx).ExecContext(ctx, `
 		INSERT INTO play_membership_order_contributions
 		(order_id, user_id, order_type, paid_amount, refund_amount, net_amount, paid_at, status, processed_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,GREATEST($4-$5,0),$6,$7,NOW(),NOW())
+		VALUES ($1,$2,$3,$4,$5,GREATEST($4::numeric - $5::numeric, 0::numeric),$6,$7,NOW(),NOW())
 		ON CONFLICT (order_id) DO UPDATE SET
 			user_id=EXCLUDED.user_id, order_type=EXCLUDED.order_type,
 			paid_amount=EXCLUDED.paid_amount, refund_amount=EXCLUDED.refund_amount,
-			net_amount=GREATEST(EXCLUDED.paid_amount-EXCLUDED.refund_amount,0),
+			net_amount=GREATEST(EXCLUDED.paid_amount - EXCLUDED.refund_amount, 0::numeric),
 			paid_at=EXCLUDED.paid_at, status=EXCLUDED.status, updated_at=NOW()`,
 		orderID, userID, orderType, paidAmount, refundAmount, paidAt, status)
 	if err != nil {
@@ -57,19 +57,15 @@ func (r *playRepository) ListTeamLeaderboardBase(ctx context.Context, start, end
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `
-		SELECT t.id, t.name, COUNT(DISTINCT m.user_id)::int,
-		       COALESCE(SUM(ul.actual_cost),0)::text
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, teamCompetitionScoreCTE+`
+		SELECT t.id, t.name,
+		       COALESCE(active_members.member_count, 0)::int,
+		       COALESCE(team_scores.spend, 0)::text
 		FROM play_teams t
-		JOIN play_team_members m ON m.team_id=t.id
-		LEFT JOIN usage_logs ul ON ul.user_id=m.user_id
-		  AND ul.actual_cost > 0 AND ul.created_at >= $1 AND ul.created_at < $2
-		  AND ul.created_at >= m.joined_at
-		  AND (m.left_at IS NULL OR ul.created_at < m.left_at)
-		WHERE t.archived_at IS NULL AND m.joined_at < $2
-		  AND (m.left_at IS NULL OR m.left_at > $1)
-		GROUP BY t.id, t.name
-		ORDER BY COALESCE(SUM(ul.actual_cost),0) DESC, t.id ASC
+		LEFT JOIN team_scores ON team_scores.team_id = t.id
+		LEFT JOIN active_members ON active_members.team_id = t.id
+		WHERE t.archived_at IS NULL
+		ORDER BY COALESCE(team_scores.spend, 0) DESC, t.id ASC
 		LIMIT $3`, start, end, limit)
 	if err != nil {
 		return nil, fmt.Errorf("list team leaderboard: %w", err)
@@ -94,20 +90,18 @@ func (r *playRepository) ListTeamLeaderboardBase(ctx context.Context, start, end
 func (r *playRepository) GetTeamLeaderboardRank(ctx context.Context, teamID int64, start, end time.Time) (int, int, decimal.Decimal, error) {
 	var rank, total int
 	var previousSpendRaw string
-	err := scanSingleRow(ctx, r.sqlExec(ctx), `
-			WITH board AS (
-				SELECT t.id, COALESCE(SUM(ul.actual_cost),0) AS spend,
-				 ROW_NUMBER() OVER (ORDER BY COALESCE(SUM(ul.actual_cost),0) DESC, t.id ASC)::int AS rank
-			FROM play_teams t JOIN play_team_members m ON m.team_id=t.id
-			LEFT JOIN usage_logs ul ON ul.user_id=m.user_id AND ul.actual_cost>0
-			 AND ul.created_at >= $2 AND ul.created_at < $3 AND ul.created_at >= m.joined_at
-			 AND (m.left_at IS NULL OR ul.created_at < m.left_at)
-			WHERE t.archived_at IS NULL AND m.joined_at < $3 AND (m.left_at IS NULL OR m.left_at > $2)
-			GROUP BY t.id
-		), totals AS (SELECT COUNT(*)::int AS total FROM board)
+	err := scanSingleRow(ctx, r.sqlExec(ctx), teamCompetitionScoreCTE+`
+			, board AS (
+				SELECT t.id, COALESCE(team_scores.spend, 0) AS spend,
+				       ROW_NUMBER() OVER (ORDER BY COALESCE(team_scores.spend, 0) DESC, t.id ASC)::int AS rank
+				FROM play_teams t
+				LEFT JOIN team_scores ON team_scores.team_id = t.id
+				WHERE t.archived_at IS NULL
+			), totals AS (SELECT COUNT(*)::int AS total FROM board)
 			SELECT board.rank, totals.total,
-			 COALESCE((SELECT previous.spend FROM board previous WHERE previous.rank=board.rank-1),board.spend)::text
-			FROM board CROSS JOIN totals WHERE board.id=$1`, []any{teamID, start, end}, &rank, &total, &previousSpendRaw)
+		       COALESCE((SELECT previous.spend FROM board previous WHERE previous.rank = board.rank - 1), board.spend)::text
+			FROM board CROSS JOIN totals
+			WHERE board.id = $3`, []any{start, end, teamID}, &rank, &total, &previousSpendRaw)
 	if err != nil {
 		return 0, 0, decimal.Zero, fmt.Errorf("get team leaderboard rank: %w", err)
 	}

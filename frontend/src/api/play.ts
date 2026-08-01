@@ -55,10 +55,13 @@ export interface PlayArenaCurrent {
 
 export interface PlayArenaScore {
   rank: number
-  user_id: number
-  display_name: string
+  // Public boards deliberately never return a database user ID. An empty
+  // display_name with anonymous=true is localized by the consuming surface.
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   token_sum: number
+  is_mine?: boolean
 }
 
 export interface PlayArenaLeaderboard {
@@ -84,8 +87,8 @@ export interface PlayArenaDailyRecentRewardSummary {
 
 export interface PlayArenaDailyRewardWinner {
   rank: number
-  user_id: number
-  display_name: string
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   token_sum: number
   amount: number
@@ -98,8 +101,8 @@ export interface PlayArenaDailyCurrentRewardEstimate {
 
 export interface PlayArenaDailyRewardEstimateRow {
   rank: number
-  user_id: number
-  display_name: string
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   token_sum: number
   estimated_reward: number
@@ -116,10 +119,38 @@ export interface PlayArenaMonthlyRewardSummary {
 
 export interface PlayArenaMonthlyRewardWinner {
   rank: number
-  display_name: string
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   amount: number
   paid_at?: string
+}
+
+export interface PlayArenaSeasonHistoryWinner extends PlayArenaScore {
+  reward_amount: number
+  payout_status: 'paid' | string
+  paid_at?: string
+}
+
+export interface PlayArenaSeasonHistory {
+  period?: PlayArenaPeriod
+  winners_count: number
+  total_amount: number
+  winners: PlayArenaSeasonHistoryWinner[]
+}
+
+export interface PlayArenaSeasonOverview {
+  enabled: boolean
+  period?: PlayArenaPeriod
+  current: PlayArenaCurrent
+  rows: PlayArenaScore[]
+  reward_tiers: PlayArenaSettlementTier[]
+  history: PlayArenaSeasonHistory[]
+}
+
+export interface PlayArenaSettlementTier {
+  rank_max: number
+  amount: number
 }
 
 export interface PlayTeamRewardShowcase {
@@ -646,6 +677,22 @@ export async function getArenaCurrent(): Promise<PlayArenaCurrent> {
   return data
 }
 
+// The aggregation reads one selected Farm period. History is opt-in so a
+// ranking tab can render promptly while immutable payout proof loads only when
+// the user expands it.
+export async function getArenaSeasonOverview(
+  period: 'daily' | 'monthly',
+  includeHistory = false,
+): Promise<PlayArenaSeasonOverview> {
+  const { data } = await apiClient.get<PlayArenaSeasonOverview>('/play/arena/overview', {
+    params: {
+      period,
+      include_history: includeHistory ? '1' : '0',
+    },
+  })
+  return data
+}
+
 export async function getArenaDailyCurrent(): Promise<PlayArenaCurrent> {
   const { data } = await apiClient.get<PlayArenaCurrent>('/play/arena/daily/current')
   return data
@@ -791,6 +838,7 @@ export const playAPI = {
   checkin,
   checkinMakeup,
   getArenaCurrent,
+  getArenaSeasonOverview,
   getArenaLeaderboard,
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,

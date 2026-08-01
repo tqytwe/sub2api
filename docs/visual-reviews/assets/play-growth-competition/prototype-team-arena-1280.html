@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>玩法增长竞争原型</title>
+  <style>
+    :root { color-scheme: light; --nav:#172137; --nav-active:#2b3d62; --page:#f5f7fb; --panel:#fff; --line:#dbe2ee; --text:#17233b; --muted:#63718b; --blue:#2563d9; --green:#16865b; --amber:#ad6a00; --soft-blue:#edf4ff; --soft-green:#ecf8f1; }
+    * { box-sizing:border-box; }
+    body { margin:0; min-width:1120px; background:var(--page); color:var(--text); font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif; }
+    .shell { display:grid; grid-template-columns:208px 1fr; min-height:900px; }
+    .side { background:var(--nav); color:#cbd5e7; padding:28px 16px; }
+    .brand { color:#fff; font-size:20px; font-weight:700; margin:0 0 46px; }
+    .nav-label { margin:0 12px 14px; font-size:13px; color:#aebbd0; }
+    .nav-item { display:block; padding:11px 12px; color:#cbd5e7; border-radius:6px; margin:4px 0; }
+    .nav-item.active { color:#fff; background:var(--nav-active); }
+    .top { height:64px; background:#fff; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; padding:0 32px; font-weight:600; }
+    .top small { color:var(--muted); font-weight:400; }
+    .main { padding:28px 32px 40px; }
+    .eyebrow { color:var(--blue); font-size:13px; margin:0 0 4px; }
+    h1 { font-size:24px; line-height:32px; margin:0; }
+    .sub { color:var(--muted); margin:4px 0 24px; }
+    .tabs { display:flex; gap:24px; border-bottom:1px solid var(--line); margin-bottom:20px; }
+    .tab { padding:0 0 12px; color:var(--muted); }
+    .tab.active { color:var(--blue); border-bottom:2px solid var(--blue); font-weight:600; }
+    .overview { display:grid; grid-template-columns:1.7fr 1fr; gap:16px; margin-bottom:16px; }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:18px; }
+    .panel h2 { margin:0 0 12px; font-size:16px; line-height:24px; }
+    .hero { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+    .hero p { margin:0; color:var(--muted); }
+    .button { border:0; background:var(--blue); color:#fff; border-radius:6px; padding:10px 14px; font:inherit; font-weight:600; }
+    .stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    .stat { border-left:2px solid var(--line); padding-left:12px; }
+    .stat b { display:block; font-size:18px; font-variant-numeric:tabular-nums; }
+    .stat span { color:var(--muted); font-size:12px; }
+    .status { display:inline-flex; align-items:center; padding:3px 8px; border-radius:999px; font-size:12px; background:var(--soft-green); color:var(--green); }
+    .stack { display:grid; gap:16px; }
+    .row { display:grid; grid-template-columns:52px minmax(0,1.4fr) 104px 110px 112px; align-items:center; gap:10px; min-height:54px; border-top:1px solid var(--line); }
+    .row:first-of-type { border-top:0; }
+    .rank { color:var(--muted); font-variant-numeric:tabular-nums; }
+    .team { font-weight:600; }
+    .team small { display:block; color:var(--muted); font-weight:400; }
+    .money { text-align:right; font-variant-numeric:tabular-nums; }
+    .estimate { text-align:right; color:var(--green); font-variant-numeric:tabular-nums; font-weight:600; }
+    .action { text-align:right; }
+    .link { color:var(--blue); font-weight:600; }
+    .mine { background:var(--soft-blue); margin:0 -10px; padding:0 10px; border-left:2px solid var(--blue); }
+    .table-head { color:var(--muted); font-size:12px; min-height:32px; }
+    .history { display:grid; grid-template-columns:1.25fr 1fr; gap:16px; }
+    .proof { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-top:1px solid var(--line); }
+    .proof:first-of-type { border-top:0; }
+    .proof div small { display:block; color:var(--muted); }
+    .award { color:var(--green); font-variant-numeric:tabular-nums; font-weight:600; }
+    .farm { margin-top:24px; }
+    .farm .hero { align-items:flex-start; }
+    .progress { height:8px; background:#e8edf5; border-radius:999px; overflow:hidden; margin:12px 0 4px; }
+    .progress i { display:block; width:74%; height:100%; background:var(--blue); }
+    .notice { color:var(--amber); font-size:12px; margin:8px 0 0; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="side">
+      <p class="brand">极速蹬</p>
+      <p class="nav-label">玩法中心</p>
+      <span class="nav-item active">组队奖励</span>
+      <span class="nav-item">农场榜单</span>
+      <span class="nav-item">邀请返利</span>
+    </aside>
+    <section>
+      <header class="top"><span>玩法中心</span><small>上海时间 · 2026 年 8 月赛季</small></header>
+      <main class="main">
+        <p class="eyebrow">公开竞争 · 申请加入</p>
+        <h1>组队奖励</h1>
+        <p class="sub">所有用户均可查看本月战队竞争、历史发奖和可申请的队伍。</p>
+        <nav class="tabs"><span class="tab active">本月战队榜</span><span class="tab">可加入队伍</span><span class="tab">历史赛季</span></nav>
+        <section class="overview">
+          <article class="panel hero">
+            <div><h2>找到适合你的战队</h2><p>查看队伍名次、预计奖池和剩余名额；申请有效 7 天。</p></div>
+            <button class="button">浏览可加入队伍</button>
+          </article>
+          <article class="panel"><h2>本月规则</h2><p><span class="status">生效中</span></p><p>8 月 25 日后加入的成员，将从 9 月开始参与战队奖励结算。</p></article>
+        </section>
+        <section class="panel stack">
+          <div class="hero"><h2>本月战队竞争</h2><span class="status">184 支参赛队伍</span></div>
+          <div class="row table-head"><span>排名</span><span>战队</span><span class="money">成员</span><span class="money">本月消费</span><span class="money">预计奖池</span></div>
+          <div class="row"><span class="rank">#1</span><span class="team">星火小队<small>剩余 2 个名额</small></span><span class="money">28 / 30</span><span class="money">¥ 18,420.50</span><span class="estimate">¥ 1,000.00</span></div>
+          <div class="row"><span class="rank">#2</span><span class="team">远航联盟<small>剩余 7 个名额</small></span><span class="money">23 / 30</span><span class="money">¥ 16,980.00</span><span class="estimate">¥ 860.00</span></div>
+          <div class="row mine"><span class="rank">#8</span><span class="team">我的战队<small>距上一名还差 ¥ 460.20</small></span><span class="money">19 / 30</span><span class="money">¥ 9,420.80</span><span class="estimate">¥ 420.00</span></div>
+          <div class="row"><span class="rank">#9</span><span class="team">Token 先锋<small>满员，暂不可申请</small></span><span class="money">30 / 30</span><span class="money">¥ 8,932.60</span><span class="estimate">¥ 400.00</span></div>
+        </section>
+        <section class="history">
+          <article class="panel"><h2>2026 年 7 月前十战队</h2><div class="proof"><div><b>#1 星火小队</b><small>30 位成员 · 本月消费 ¥ 17,840.00</small></div><strong class="award">最终奖池 ¥ 1,000.00</strong></div><div class="proof"><div><b>#2 远航联盟</b><small>26 位成员 · 本月消费 ¥ 15,320.00</small></div><strong class="award">最终奖池 ¥ 780.00</strong></div><div class="proof"><div><b>#3 Token 先锋</b><small>24 位成员 · 本月消费 ¥ 12,450.00</small></div><strong class="award">最终奖池 ¥ 620.00</strong></div></article>
+          <article class="panel"><h2>奖励到账证明</h2><div class="proof"><div><b>li***@example.com</b><small>星火小队 · 2026-07</small></div><strong class="award">+¥ 48.00</strong></div><div class="proof"><div><b>an***@example.com</b><small>远航联盟 · 2026-07</small></div><strong class="award">+¥ 36.50</strong></div><div class="proof"><div><b>匿名用户</b><small>Token 先锋 · 2026-07</small></div><strong class="award">+¥ 22.00</strong></div></article>
+        </section>
+        <section class="farm panel">
+          <div class="hero"><div><p class="eyebrow">农场月榜</p><h2>我的本月追赶进度</h2><p>当前第 12 名，距上一名还差 1,280 Token；次月 00:10 自动快照并结算。</p><div class="progress"><i></i></div><small>预计奖励 ¥ 18.00 · 奖励规则已冻结</small></div><button class="button">查看农场榜单</button></div>
+          <p class="notice">历史前十和实际到账金额将持续保留，个人消费不公开。</p>
+        </section>
+      </main>
+    </section>
+  </div>
+</body>
+</html>

@@ -170,7 +170,6 @@ const playCards = computed(() => {
 async function load() {
   loading.value = true
   try {
-    await authStore.refreshUser()
     hub.value = await playAPI.getPlayHub()
   } catch {
     hub.value = null

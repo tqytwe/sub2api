@@ -96,10 +96,33 @@ func (r *PlayGrowthRunner) Stop() {
 func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 	if r.playService != nil {
 		now := time.Now().In(timezone.Location())
+		if stalled, err := r.playService.FindStalledTeamRewardSettlements(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] inspect stalled team settlements: %v", err)
+		} else {
+			for _, settlement := range stalled {
+				logger.LegacyPrintf("play.growth_runner", "[ALERT] team reward settlement stalled for over 30 minutes: settlement_id=%d team_id=%d period=%s", settlement.ID, settlement.TeamID, settlement.PeriodStart.Format("2006-01"))
+			}
+		}
+		if n, err := r.playService.ExpireDueTeamJoinApplications(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] expire team join applications: %v", err)
+		} else if n > 0 {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] expired %d team join applications", n)
+		}
+		if err := r.playService.PrepareCurrentTeamCompetitionSeason(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare current team competition season: %v", err)
+		}
+		if _, err := r.playService.PrepareCurrentArenaMonthlySeason(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] prepare monthly arena season: %v", err)
+		}
 		if n, err := r.playService.SettleExpiredDailyArenaPeriods(ctx, now); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settle daily periods: %v", err)
 		} else if n > 0 {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settled %d daily arena periods", n)
+		}
+		if n, err := r.playService.SettleExpiredMonthlyArenaPeriods(ctx, now); err != nil {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settle monthly periods: %v", err)
+		} else if n > 0 {
+			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] settled %d monthly arena periods", n)
 		}
 		release, ok := tryAcquireSingletonLeaderLock(
 			ctx,

@@ -58,7 +58,7 @@ func (r *playRepository) ListArenaMonthlyRewardLedger(ctx context.Context, perio
 		if err := rows.Scan(&row.UserID, &username, &email, &row.AvatarURL, &row.Amount, &row.Rank, &row.TokenSum, &row.CreatedAt); err != nil {
 			return nil, fmt.Errorf("scan monthly arena reward ledger: %w", err)
 		}
-		row.DisplayName = service.PublicPlayDisplayName(username, email, row.UserID)
+		row.DisplayName, row.Anonymous = service.PublicPlayLeaderboardIdentity(email)
 		out = append(out, row)
 	}
 	if err := rows.Err(); err != nil {

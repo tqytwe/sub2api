@@ -19,9 +19,10 @@ import (
 
 // PlayHandler serves play/engagement endpoints (check-in, arena, public models).
 type PlayHandler struct {
-	playService          *service.PlayService
-	billingService       *service.BillingService
-	feedbackAssetService *service.AnnouncementAssetService
+	playService            *service.PlayService
+	billingService         *service.BillingService
+	feedbackAssetService   *service.AnnouncementAssetService
+	publicCompetitionCache publicTeamCompetitionCache
 }
 
 func NewPlayHandler(playService *service.PlayService, billingService *service.BillingService, feedbackAssetService ...*service.AnnouncementAssetService) *PlayHandler {
@@ -95,10 +96,11 @@ type playArenaCurrentDTO struct {
 
 type playArenaScoreDTO struct {
 	Rank        int    `json:"rank"`
-	UserID      int64  `json:"user_id"`
-	DisplayName string `json:"display_name"`
+	DisplayName string `json:"display_name,omitempty"`
+	Anonymous   bool   `json:"anonymous,omitempty"`
 	AvatarURL   string `json:"avatar_url,omitempty"`
 	TokenSum    int64  `json:"token_sum"`
+	IsMine      bool   `json:"is_mine,omitempty"`
 }
 
 type playArenaLeaderboardDTO struct {
@@ -138,6 +140,7 @@ type playArenaMonthlyRewardSummaryDTO struct {
 type playArenaMonthlyRewardWinnerDTO struct {
 	Rank        int     `json:"rank"`
 	DisplayName string  `json:"display_name"`
+	Anonymous   bool    `json:"anonymous,omitempty"`
 	AvatarURL   string  `json:"avatar_url,omitempty"`
 	Amount      float64 `json:"amount"`
 	PaidAt      *string `json:"paid_at,omitempty"`
@@ -154,8 +157,8 @@ type playArenaDailyRecentRewardSummaryDTO struct {
 
 type playArenaDailyRewardWinnerDTO struct {
 	Rank        int     `json:"rank"`
-	UserID      int64   `json:"user_id"`
 	DisplayName string  `json:"display_name"`
+	Anonymous   bool    `json:"anonymous,omitempty"`
 	AvatarURL   string  `json:"avatar_url,omitempty"`
 	TokenSum    int64   `json:"token_sum"`
 	Amount      float64 `json:"amount"`
@@ -168,8 +171,8 @@ type playArenaDailyCurrentRewardEstimateDTO struct {
 
 type playArenaDailyRewardEstimateDTO struct {
 	Rank            int     `json:"rank"`
-	UserID          int64   `json:"user_id"`
 	DisplayName     string  `json:"display_name"`
+	Anonymous       bool    `json:"anonymous,omitempty"`
 	AvatarURL       string  `json:"avatar_url,omitempty"`
 	TokenSum        int64   `json:"token_sum"`
 	EstimatedReward float64 `json:"estimated_reward"`
@@ -488,15 +491,20 @@ func (h *PlayHandler) ArenaLeaderboard(c *gin.Context) {
 		out.Period = toPlayArenaPeriodDTO(period)
 	}
 	for _, row := range rows {
-		out.Rows = append(out.Rows, playArenaScoreDTO{
-			Rank:        row.Rank,
-			UserID:      row.UserID,
-			DisplayName: row.DisplayName,
-			AvatarURL:   row.AvatarURL,
-			TokenSum:    row.TokenSum,
-		})
+		out.Rows = append(out.Rows, toPlayArenaScoreDTO(row))
 	}
 	response.Success(c, out)
+}
+
+func toPlayArenaScoreDTO(row service.PlayArenaScoreRow) playArenaScoreDTO {
+	return playArenaScoreDTO{
+		Rank:        row.Rank,
+		DisplayName: row.DisplayName,
+		Anonymous:   row.Anonymous,
+		AvatarURL:   row.AvatarURL,
+		TokenSum:    row.TokenSum,
+		IsMine:      row.IsMine,
+	}
 }
 
 func toPlayArenaPeriodDTO(p *service.PlayArenaPeriod) *playArenaPeriodDTO {

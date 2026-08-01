@@ -819,6 +819,9 @@ func (s *PlayService) CreateTeam(ctx context.Context, userID int64, name string)
 	if !rt.AgentTeamEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
+	if _, ok := s.repo.(PlayTeamCompetitionLifecycleRepository); ok {
+		return s.createTeamWithCompetitionAdmission(ctx, userID, name)
+	}
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return nil, ErrPlayTeamNameRequired
@@ -861,7 +864,7 @@ func (s *PlayService) CreateTeam(ctx context.Context, userID int64, name string)
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("commit create team tx: %w", err)
 	}
-	return s.buildTeamSummaryByID(ctx, team.ID)
+	return s.buildTeamSummary(ctx, userID)
 }
 
 func (s *PlayService) JoinTeam(ctx context.Context, userID int64, inviteCode string) (*PlayTeamSummary, error) {
@@ -869,7 +872,10 @@ func (s *PlayService) JoinTeam(ctx context.Context, userID int64, inviteCode str
 	if !rt.AgentTeamEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	inviteCode = strings.ToUpper(strings.TrimSpace(inviteCode))
+	if _, ok := s.repo.(PlayTeamCompetitionLifecycleRepository); ok {
+		return s.joinTeamWithCompetitionInvite(ctx, userID, inviteCode)
+	}
+	inviteCode = strings.TrimSpace(inviteCode)
 	if inviteCode == "" {
 		return nil, ErrPlayTeamNotFound
 	}
@@ -923,7 +929,7 @@ func (s *PlayService) JoinTeam(ctx context.Context, userID int64, inviteCode str
 		}
 		return nil, fmt.Errorf("commit join team tx: %w", err)
 	}
-	return s.buildTeamSummaryByID(ctx, team.ID)
+	return s.buildTeamSummary(ctx, userID)
 }
 
 func isPlayTeamUniqueViolation(err error) bool {
@@ -1169,7 +1175,14 @@ func (s *PlayService) buildTeamSummary(ctx context.Context, userID int64) (*Play
 	if team == nil {
 		return nil, nil
 	}
-	return s.buildTeamSummaryByID(ctx, team.ID)
+	summary, err := s.buildTeamSummaryByID(ctx, team.ID)
+	if err != nil || summary == nil {
+		return summary, err
+	}
+	if summary.CaptainID != userID {
+		summary.InviteCode = ""
+	}
+	return summary, nil
 }
 
 func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*PlayTeamSummary, error) {
@@ -1179,6 +1192,14 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 	}
 	if teamDB == nil {
 		return nil, nil
+	}
+	recruiting := true
+	if statusRepo, ok := s.repo.(PlayTeamCompetitionStatusRepository); ok {
+		value, statusErr := statusRepo.GetTeamRecruiting(ctx, teamID)
+		if statusErr != nil {
+			return nil, statusErr
+		}
+		recruiting = value
 	}
 	members, err := s.repo.ListTeamMembers(ctx, teamID)
 	if err != nil {
@@ -1228,12 +1249,7 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 			members[i].SpendPct = int(members[i].Spend.Mul(decimal.NewFromInt(100)).Div(teamSpend).IntPart())
 		}
 	}
-	rt := s.GetRuntime(ctx)
-	cfg := TeamRewardConfig{
-		Enabled: rt.TeamSharedRewardEnabled,
-		Tiers:   append([]TeamRewardTier(nil), rt.TeamSharedRewardTiers...),
-		Cap:     rt.TeamSharedRewardCap,
-	}
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	reachedThreshold, rewardRate := reachedTeamRewardTier(teamSpend, cfg.Tiers)
 	nextThreshold := decimal.Zero
 	for _, tier := range cfg.Tiers {
@@ -1255,6 +1271,7 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 		Name:             teamDB.Name,
 		InviteCode:       teamDB.InviteCode,
 		CaptainID:        teamDB.CaptainUserID,
+		Recruiting:       recruiting,
 		MemberCount:      len(members),
 		TokenSum:         tokenSum,
 		Members:          members,
@@ -1268,12 +1285,4 @@ func (s *PlayService) buildTeamSummaryByID(ctx context.Context, teamID int64) (*
 		RewardTiers:      cfg.Tiers,
 	}
 	return summary, nil
-}
-
-func generateTeamInviteCode() (string, error) {
-	b := make([]byte, 4)
-	if _, err := rand.Read(b); err != nil {
-		return "", fmt.Errorf("generate invite code: %w", err)
-	}
-	return strings.ToUpper(hex.EncodeToString(b)), nil
 }

@@ -76,11 +76,12 @@ func (s *PlayService) SettleTeamRewardMonth(
 	teamID int64,
 	month time.Time,
 ) (*PlayTeamSettlement, error) {
-	rt := s.GetRuntime(ctx)
-	cfg := TeamRewardConfig{
-		Enabled: rt.TeamSharedRewardEnabled,
-		Cap:     rt.TeamSharedRewardCap,
-		Tiers:   append([]TeamRewardTier(nil), rt.TeamSharedRewardTiers...),
+	cfg, _, enabled, err := s.teamRewardConfigForCompetitionMonth(ctx, month, s.currentTeamRewardConfig(ctx))
+	if err != nil {
+		return nil, err
+	}
+	if !enabled {
+		return nil, nil
 	}
 	return s.settleTeamRewardMonth(ctx, teamID, month, cfg)
 }
@@ -250,7 +251,8 @@ func (s *PlayService) PayoutTeamRewardSettlement(
 
 func (s *PlayService) SettleDueTeamRewardMonths(ctx context.Context, now time.Time) (int, error) {
 	settings := s.GetTeamRewardSettings(ctx)
-	if !settings.Enabled || settings.StartMonth == "" {
+	startMonth, diagnostic := parseTeamRewardStartMonth(settings.StartMonth)
+	if diagnostic != nil || startMonth == "" {
 		return 0, nil
 	}
 	location, err := time.LoadLocation("Asia/Shanghai")
@@ -258,38 +260,278 @@ func (s *PlayService) SettleDueTeamRewardMonths(ctx context.Context, now time.Ti
 		return 0, fmt.Errorf("load team reward timezone: %w", err)
 	}
 	currentMonth := time.Date(now.In(location).Year(), now.In(location).Month(), 1, 0, 0, 0, 0, location)
-	period := currentMonth.AddDate(0, -1, 0)
-	if period.Format("2006-01") < settings.StartMonth {
-		return 0, nil
-	}
-	windowEnd := currentMonth
-	teamIDs, err := s.repo.ListTeamIDsForRewardMonth(ctx, period, windowEnd)
+	firstPeriod, err := time.ParseInLocation("2006-01", startMonth, location)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("parse team reward start month: %w", err)
+	}
+	if currentMonth.Before(firstPeriod) {
+		return 0, nil
 	}
 	cfg := TeamRewardConfig{
 		Enabled: settings.Enabled,
-		Tiers:   settings.Tiers,
+		Tiers:   append([]TeamRewardTier(nil), settings.Tiers...),
 		Cap:     settings.Cap,
 	}
+	if cfg.Enabled {
+		if _, _, _, err := s.teamRewardConfigForCompetitionMonth(ctx, currentMonth, cfg); err != nil {
+			return 0, err
+		}
+	}
+
 	settled := 0
 	var settleErr error
-	for _, teamID := range teamIDs {
-		snapshot, err := s.settleTeamRewardMonth(ctx, teamID, period, cfg)
-		if err != nil {
-			settleErr = errors.Join(settleErr, err)
+	for period := firstPeriod; period.Before(currentMonth); period = period.AddDate(0, 1, 0) {
+		periodCfg, rules, enabled, periodErr := s.teamRewardConfigForCompetitionMonth(ctx, period, cfg)
+		if periodErr != nil {
+			settleErr = errors.Join(settleErr, periodErr)
 			continue
 		}
-		if snapshot == nil {
+		if !enabled {
 			continue
 		}
-		if _, err := s.PayoutTeamRewardSettlement(ctx, snapshot.ID); err != nil {
-			settleErr = errors.Join(settleErr, err)
+
+		_, windowStart, windowEnd, boundsErr := teamCompetitionPeriodWindow(period)
+		if boundsErr != nil {
+			settleErr = errors.Join(settleErr, boundsErr)
 			continue
 		}
-		settled++
+		teamIDs, listErr := s.repo.ListTeamIDsForRewardMonth(ctx, windowStart, windowEnd)
+		if listErr != nil {
+			settleErr = errors.Join(settleErr, listErr)
+			continue
+		}
+
+		for _, teamID := range teamIDs {
+			snapshot, snapshotErr := s.settleTeamRewardMonth(ctx, teamID, period, periodCfg)
+			if snapshotErr != nil {
+				periodErr = errors.Join(periodErr, snapshotErr)
+				continue
+			}
+			if snapshot == nil {
+				continue
+			}
+			payout, payoutErr := s.PayoutTeamRewardSettlement(ctx, snapshot.ID)
+			if payoutErr != nil {
+				periodErr = errors.Join(periodErr, payoutErr)
+				continue
+			}
+			if payout == nil || payout.Status != PlayTeamSettlementStatusCompleted {
+				periodErr = errors.Join(periodErr, fmt.Errorf("team reward settlement %d is not complete", snapshot.ID))
+				continue
+			}
+			settled++
+		}
+
+		if periodErr == nil {
+			if err := s.snapshotTeamCompetitionSeason(ctx, period, rules); err != nil {
+				periodErr = errors.Join(periodErr, err)
+			}
+		}
+		settleErr = errors.Join(settleErr, periodErr)
 	}
 	return settled, settleErr
+}
+
+func (s *PlayService) snapshotTeamCompetitionSeason(ctx context.Context, period time.Time, rules map[string]any) error {
+	repo, ok := s.repo.(PlayTeamCompetitionSeasonRepository)
+	if !ok {
+		return nil
+	}
+	periodStart, windowStart, windowEnd, err := teamCompetitionPeriodWindow(period)
+	if err != nil {
+		return err
+	}
+	_, err = repo.CreateTeamCompetitionSeasonSnapshot(ctx, periodStart, windowStart, windowEnd, rules)
+	if err != nil {
+		return fmt.Errorf("snapshot team competition season: %w", err)
+	}
+	return nil
+}
+
+// PrepareCurrentTeamCompetitionSeason freezes the current Shanghai-month rules
+// before any team traffic reads or settles them. It intentionally records a
+// disabled reward config too: enabling or changing policy later in the month
+// must not rewrite the season that has already started.
+func (s *PlayService) PrepareCurrentTeamCompetitionSeason(ctx context.Context, now time.Time) error {
+	repo, ok := s.repo.(PlayTeamCompetitionSeasonRepository)
+	if !ok {
+		return nil
+	}
+	cfg := s.currentTeamRewardConfig(ctx)
+	if err := validateTeamRewardConfig(cfg); err != nil {
+		return fmt.Errorf("prepare team competition season rules: %w", err)
+	}
+	periodStart, windowStart, windowEnd, err := teamCompetitionPeriodWindow(now)
+	if err != nil {
+		return err
+	}
+	if _, err := repo.EnsureTeamCompetitionSeason(
+		ctx,
+		periodStart,
+		windowStart,
+		windowEnd,
+		teamCompetitionSeasonRules(cfg),
+	); err != nil {
+		return fmt.Errorf("prepare current team competition season: %w", err)
+	}
+	return nil
+}
+
+type teamCompetitionFrozenRewardRules struct {
+	Enabled bool             `json:"enabled"`
+	Cap     decimal.Decimal  `json:"cap"`
+	Tiers   []TeamRewardTier `json:"tiers"`
+}
+
+const teamRewardSettlementAlertAfter = 30 * time.Minute
+
+// FindStalledTeamRewardSettlements is a read-only health probe. Payout leases
+// and retries recover work independently; this method makes a long-running
+// settlement visible to the production alert pipeline without altering it.
+func (s *PlayService) FindStalledTeamRewardSettlements(ctx context.Context, now time.Time) ([]PlayTeamSettlement, error) {
+	repo, ok := s.repo.(PlayTeamRewardHealthRepository)
+	if !ok {
+		return []PlayTeamSettlement{}, nil
+	}
+	return repo.ListStalledTeamRewardSettlements(ctx, now.Add(-teamRewardSettlementAlertAfter), 100)
+}
+
+func teamCompetitionPeriodWindow(period time.Time) (time.Time, time.Time, time.Time, error) {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	if err != nil {
+		return time.Time{}, time.Time{}, time.Time{}, fmt.Errorf("load team competition season timezone: %w", err)
+	}
+	local := period.In(location)
+	windowStart := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, location)
+	windowEnd := windowStart.AddDate(0, 1, 0)
+	periodStart := time.Date(local.Year(), local.Month(), 1, 0, 0, 0, 0, time.UTC)
+	return periodStart, windowStart, windowEnd, nil
+}
+
+func teamCompetitionSeasonRules(cfg TeamRewardConfig) map[string]any {
+	frozen := teamCompetitionFrozenRewardRules{
+		Enabled: cfg.Enabled,
+		Cap:     cfg.Cap.Round(teamRewardAmountScale),
+		Tiers:   append([]TeamRewardTier(nil), cfg.Tiers...),
+	}
+	return map[string]any{
+		"scoring_version":        "team-competition-v2",
+		"timezone":               "Asia/Shanghai",
+		"actual_cost_positive":   true,
+		"late_join_cutoff_day":   25,
+		"member_capacity":        PlayTeamMaxMembers,
+		"team_reward":            frozen,
+		"reward_cap":             frozen.Cap.StringFixed(teamRewardAmountScale),
+		"reward_tiers":           frozen.Tiers,
+		"payout_idempotency_key": "team_reward:{team_id}:{period}:{user_id}",
+	}
+}
+
+func (s *PlayService) teamRewardConfigForCompetitionMonth(
+	ctx context.Context,
+	period time.Time,
+	fallback TeamRewardConfig,
+) (TeamRewardConfig, map[string]any, bool, error) {
+	fallback = copyTeamRewardConfig(fallback)
+	repo, ok := s.repo.(PlayTeamCompetitionSeasonRepository)
+	if !ok {
+		return fallback, teamCompetitionSeasonRules(fallback), fallback.Enabled, nil
+	}
+	periodStart, windowStart, windowEnd, err := teamCompetitionPeriodWindow(period)
+	if err != nil {
+		return TeamRewardConfig{}, nil, false, err
+	}
+	season, err := repo.GetTeamCompetitionSeason(ctx, periodStart)
+	if err != nil {
+		return TeamRewardConfig{}, nil, false, fmt.Errorf("load team competition season: %w", err)
+	}
+	if season == nil {
+		if !fallback.Enabled {
+			return fallback, nil, false, nil
+		}
+		season, err = repo.EnsureTeamCompetitionSeason(ctx, periodStart, windowStart, windowEnd, teamCompetitionSeasonRules(fallback))
+		if err != nil {
+			return TeamRewardConfig{}, nil, false, fmt.Errorf("freeze team competition season rules: %w", err)
+		}
+	}
+	frozen, found, err := teamCompetitionFrozenRewardConfig(season)
+	if err != nil {
+		return TeamRewardConfig{}, nil, false, err
+	}
+	if found {
+		return frozen, season.Rules, frozen.Enabled, nil
+	}
+	if season.Status != "legacy" {
+		return TeamRewardConfig{}, nil, false, fmt.Errorf("team competition season %s is missing frozen reward rules", season.Month)
+	}
+	return fallback, season.Rules, fallback.Enabled, nil
+}
+
+// currentCompetitionRewardConfig reads only an active Shanghai-month freeze.
+// Reads never create a season; the settlement runner owns that write so normal
+// request traffic cannot move an effective-date boundary. If a production
+// season record is unavailable or malformed, fail closed rather than showing a
+// newly edited configuration as the current month's expected payout.
+func (s *PlayService) currentCompetitionRewardConfig(ctx context.Context) TeamRewardConfig {
+	fallback := s.currentTeamRewardConfig(ctx)
+	repo, ok := s.repo.(PlayTeamCompetitionSeasonRepository)
+	if !ok {
+		return fallback
+	}
+	periodStart, _, _, err := teamCompetitionPeriodWindow(s.serverNow())
+	if err != nil {
+		return TeamRewardConfig{}
+	}
+	season, err := repo.GetTeamCompetitionSeason(ctx, periodStart)
+	if err != nil || season == nil {
+		return TeamRewardConfig{}
+	}
+	frozen, found, err := teamCompetitionFrozenRewardConfig(season)
+	if err != nil || !found {
+		return TeamRewardConfig{}
+	}
+	return frozen
+}
+
+func copyTeamRewardConfig(cfg TeamRewardConfig) TeamRewardConfig {
+	cfg.Tiers = append([]TeamRewardTier(nil), cfg.Tiers...)
+	return cfg
+}
+
+func teamCompetitionFrozenRewardConfig(season *PlayTeamSeason) (TeamRewardConfig, bool, error) {
+	if season == nil || len(season.Rules) == 0 {
+		return TeamRewardConfig{}, false, nil
+	}
+	raw, found := season.Rules["team_reward"]
+	if !found {
+		cap, hasCap := season.Rules["reward_cap"]
+		tiers, hasTiers := season.Rules["reward_tiers"]
+		if !hasCap || !hasTiers {
+			return TeamRewardConfig{}, false, nil
+		}
+		raw = map[string]any{
+			"enabled": true,
+			"cap":     cap,
+			"tiers":   tiers,
+		}
+	}
+	encoded, err := json.Marshal(raw)
+	if err != nil {
+		return TeamRewardConfig{}, false, fmt.Errorf("encode frozen team reward rules: %w", err)
+	}
+	var frozen teamCompetitionFrozenRewardRules
+	if err := json.Unmarshal(encoded, &frozen); err != nil {
+		return TeamRewardConfig{}, false, fmt.Errorf("decode frozen team reward rules: %w", err)
+	}
+	cfg := TeamRewardConfig{
+		Enabled: frozen.Enabled,
+		Cap:     frozen.Cap,
+		Tiers:   append([]TeamRewardTier(nil), frozen.Tiers...),
+	}
+	if err := validateTeamRewardConfig(cfg); err != nil {
+		return TeamRewardConfig{}, false, fmt.Errorf("invalid frozen team reward rules: %w", err)
+	}
+	return cfg, true, nil
 }
 
 func (s *PlayService) ListUserTeamRewardSettlements(

@@ -23,6 +23,46 @@ var (
 		"PLAY_TEAM_CAPTAIN_CANNOT_REMOVE_SELF",
 		"the captain cannot remove themselves",
 	)
+	ErrPlayTeamFull = infraerrors.Conflict(
+		"PLAY_TEAM_FULL",
+		"the squad has reached its member capacity",
+	)
+	ErrPlayTeamJoinCooldown = infraerrors.Conflict(
+		"PLAY_TEAM_JOIN_COOLDOWN_ACTIVE",
+		"a squad join cooldown is still active",
+	)
+	ErrPlayTeamInviteExpired = infraerrors.Conflict(
+		"PLAY_TEAM_INVITE_EXPIRED",
+		"the squad invite has expired",
+	)
+	ErrPlayTeamRecruitmentClosed = infraerrors.Conflict(
+		"PLAY_TEAM_RECRUITMENT_CLOSED",
+		"the squad is not accepting new applications or invites",
+	)
+	ErrPlayTeamAdmissionRiskRejected = infraerrors.Forbidden(
+		"PLAY_TEAM_ADMISSION_RISK_REJECTED",
+		"team admission is unavailable for this account",
+	)
+	ErrPlayTeamApplicationNotFound = infraerrors.NotFound(
+		"PLAY_TEAM_APPLICATION_NOT_FOUND",
+		"team join application not found",
+	)
+	ErrPlayTeamApplicationNotPending = infraerrors.Conflict(
+		"PLAY_TEAM_APPLICATION_NOT_PENDING",
+		"team join application is no longer pending",
+	)
+	ErrPlayTeamApplicationExpired = infraerrors.Conflict(
+		"PLAY_TEAM_APPLICATION_EXPIRED",
+		"team join application has expired",
+	)
+	ErrPlayTeamApplicationDecisionInvalid = infraerrors.BadRequest(
+		"PLAY_TEAM_APPLICATION_DECISION_INVALID",
+		"team join application decision must be approve or reject",
+	)
+	ErrPlayTeamSeasonNotFound = infraerrors.NotFound(
+		"PLAY_TEAM_SEASON_NOT_FOUND",
+		"team competition season not found",
+	)
 	ErrPlayAdminTeamInvalidOperation = infraerrors.BadRequest(
 		"PLAY_TEAM_ADMIN_OPERATION_INVALID",
 		"team member repair operation must be add or move",

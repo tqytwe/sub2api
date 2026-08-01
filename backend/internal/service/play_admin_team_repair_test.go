@@ -30,6 +30,7 @@ type adminTeamRepairRepo struct {
 	lockedTeamIDs    []int64
 	joinedTeamID     int64
 	joinedAt         time.Time
+	rewardEligibleAt time.Time
 	closedMembership int64
 	closedAt         time.Time
 	archivedTeamID   int64
@@ -77,9 +78,10 @@ func (r *adminTeamRepairRepo) HasOtherTeamMembershipAfter(context.Context, int64
 	return r.otherMembership, nil
 }
 
-func (r *adminTeamRepairRepo) JoinTeamAt(_ context.Context, teamID, _ int64, joinedAt time.Time) error {
+func (r *adminTeamRepairRepo) JoinTeamAt(_ context.Context, teamID, _ int64, joinedAt, rewardEligibleAt time.Time) error {
 	r.joinedTeamID = teamID
 	r.joinedAt = joinedAt
+	r.rewardEligibleAt = rewardEligibleAt
 	return nil
 }
 
@@ -147,12 +149,41 @@ func TestAdminRepairTeamMemberAddsAtServerNowAndWritesTypedEvent(t *testing.T) {
 	require.Equal(t, AdminTeamMemberRepairStatusAdded, result.Status)
 	require.Equal(t, int64(9), repo.joinedTeamID)
 	require.Equal(t, now, repo.joinedAt)
+	require.Equal(t, now, repo.rewardEligibleAt)
 	require.Len(t, repo.events, 1)
 	require.Equal(t, PlayTeamEventAdminMemberAdded, repo.events[0].Type)
 	require.Equal(t, int64(99), repo.events[0].ActorUserID)
 	require.Equal(t, int64(42), repo.events[0].SubjectUserID)
 	require.NotContains(t, repo.events[0].Detail, "invite_code")
 	require.NotContains(t, repo.events[0].Detail, "token")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestAdminRepairTeamMemberDefersRewardEligibilityAfterMonthlyCutoff(t *testing.T) {
+	shanghai := time.FixedZone("Asia/Shanghai", 8*60*60)
+	now := time.Date(2026, time.August, 26, 10, 30, 0, 0, shanghai)
+	repo := &adminTeamRepairRepo{
+		user: activeRepairCandidate(42),
+		teams: map[int64]*PlayTeamDB{
+			9: {ID: 9, Name: "Target", CaptainUserID: 7},
+		},
+		memberCounts: map[int64]int{9: 1},
+	}
+	svc, mock := newAdminTeamRepairService(t, repo, now)
+	mock.ExpectBegin()
+	mock.ExpectCommit()
+
+	_, err := svc.RepairAdminTeamMember(context.Background(), AdminTeamMemberRepairInput{
+		TargetTeamID: 9,
+		UserID:       42,
+		ActorUserID:  99,
+		Operation:    AdminTeamMemberOperationAdd,
+		Reason:       "repair membership after monthly cutoff",
+	})
+
+	require.NoError(t, err)
+	require.Equal(t, now, repo.joinedAt)
+	require.True(t, time.Date(2026, time.September, 1, 0, 0, 0, 0, shanghai).Equal(repo.rewardEligibleAt))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 

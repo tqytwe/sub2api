@@ -1,18 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
 import AuthenticatedPlayShell from '@/components/layout/AuthenticatedPlayShell.vue'
 import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import PublicPlayBackLink from '@/components/common/PublicPlayBackLink.vue'
 import PlayUserAvatar from '@/components/play/PlayUserAvatar.vue'
-import RewardCelebrationOverlay from '@/components/play/RewardCelebrationOverlay.vue'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import playAPI, {
   type PlayArenaCurrent,
-  type PlayArenaDailyRewardSummary,
-  type PlayArenaLeaderboard,
-  type PlayArenaMonthlyRewardSummary,
+  type PlayArenaSeasonHistoryWinner,
+  type PlayArenaSeasonOverview,
   type PlayArenaScore,
   type PlayQuestToday,
 } from '@/api/play'
@@ -33,22 +31,23 @@ function readStringList(key: string): string[] {
 }
 
 const loading = ref(true)
+const boardLoading = ref(false)
+const historyLoading = ref(false)
+const loadError = ref('')
 const tab = ref<BoardTab>('daily')
-const monthlyCurrent = ref<PlayArenaCurrent | null>(null)
-const dailyCurrent = ref<PlayArenaCurrent | null>(null)
-const monthlyBoard = ref<PlayArenaLeaderboard | null>(null)
-const dailyBoard = ref<PlayArenaLeaderboard | null>(null)
-const dailyRewardSummary = ref<PlayArenaDailyRewardSummary | null>(null)
-const monthlyRewardSummary = ref<PlayArenaMonthlyRewardSummary | null>(null)
+const boards = ref<Record<BoardTab, PlayArenaSeasonOverview | null>>({ daily: null, monthly: null })
+const historyLoaded = ref<Record<BoardTab, boolean>>({ daily: false, monthly: false })
 const quests = ref<PlayQuestToday | null>(null)
-const arenaCelebrationDismissed = ref(false)
 
-const current = computed(() => (tab.value === 'daily' ? dailyCurrent.value : monthlyCurrent.value))
-const leaderboard = computed(() => (tab.value === 'daily' ? dailyBoard.value : monthlyBoard.value))
-const periodLabel = computed(() => current.value?.period?.name || leaderboard.value?.period?.name || '')
+const selectedOverview = computed(() => boards.value[tab.value])
+const current = computed<PlayArenaCurrent | null>(() => selectedOverview.value?.current ?? null)
+const periodLabel = computed(() => current.value?.period?.name || selectedOverview.value?.period?.name || '')
 const steps = computed(() => readStringList('play.arena.steps'))
 const rules = computed(() => readStringList('play.arena.rules'))
-const leaderboardRows = computed(() => leaderboard.value?.rows ?? [])
+const leaderboardRows = computed(() => selectedOverview.value?.rows ?? [])
+const rewardTiers = computed(() => selectedOverview.value?.reward_tiers ?? [])
+const history = computed(() => selectedOverview.value?.history ?? [])
+const latestHistory = computed(() => history.value[0] ?? null)
 const podiumRows = computed(() => {
   const byRank = new Map(leaderboardRows.value.map(row => [row.rank, row]))
   return [2, 1, 3].map(rank => byRank.get(rank)).filter((row): row is PlayArenaScore => Boolean(row))
@@ -58,11 +57,6 @@ const selectedTokenSum = computed(() => current.value?.display_token_sum ?? curr
 const selectedRank = computed(() => current.value?.rank ?? null)
 const selectedGap = computed(() => current.value?.tokens_to_prev_rank ?? 0)
 const selectedEstimatedReward = computed(() => current.value?.estimated_reward ?? 0)
-const showArenaSettlementCelebration = computed(() =>
-  !arenaCelebrationDismissed.value &&
-  current.value?.period?.status === 'settled' &&
-  selectedEstimatedReward.value > 0,
-)
 const rankProgressPercent = computed(() => {
   if (!selectedTokenSum.value || !selectedGap.value) return selectedRank.value ? 100 : 0
   return Math.max(6, Math.min(100, Math.round((selectedTokenSum.value / (selectedTokenSum.value + selectedGap.value)) * 100)))
@@ -81,8 +75,7 @@ const xpPercent = computed(() => {
 
 const showSeedGuide = computed(() => {
   if (!authStore.isAuthenticated) return false
-  const tokens = (monthlyCurrent.value?.token_sum ?? 0) + (dailyCurrent.value?.token_sum ?? 0)
-  return tokens <= 0
+  return (current.value?.token_sum ?? 0) <= 0
 })
 
 function questLabel(key: string) {
@@ -103,18 +96,6 @@ function formatMoney(value?: number) {
   }).format(value ?? 0)
 }
 
-function formatDateTime(value?: string) {
-  if (!value) return ''
-  const date = new Date(value)
-  if (Number.isNaN(date.getTime())) return ''
-  return new Intl.DateTimeFormat(activeLocale.value, {
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  }).format(date)
-}
-
 function toneForRank(rank: number): RankTone {
   if (rank === 1) return 'gold'
   if (rank === 2) return 'silver'
@@ -122,85 +103,71 @@ function toneForRank(rank: number): RankTone {
   return 'standard'
 }
 
-function arenaCelebrationKey() {
-  const period = current.value?.period
-  return period?.id ? `play-arena-settled:${tab.value}:${period.id}` : ''
-}
-
-function syncArenaCelebrationSeen() {
-  const key = arenaCelebrationKey()
-  if (!key) {
-    arenaCelebrationDismissed.value = false
-    return
-  }
-  try {
-    arenaCelebrationDismissed.value = window.sessionStorage.getItem(key) === '1'
-  } catch {
-    arenaCelebrationDismissed.value = false
-  }
-}
-
-function dismissArenaCelebration() {
-  const key = arenaCelebrationKey()
-  if (key) {
-    try {
-      window.sessionStorage.setItem(key, '1')
-    } catch {
-      // Ignore storage failures; closing the overlay for this view is enough.
-    }
-  }
-  arenaCelebrationDismissed.value = true
-}
-
 function isCurrentRank(row: PlayArenaScore) {
-  return selectedRank.value != null && row.rank === selectedRank.value
+  return row.is_mine === true
 }
 
 function switchTab(next: BoardTab) {
+  if (tab.value === next) return
   tab.value = next
   if (next === 'daily') {
     trackGrowthEvent('farm_daily_tab_view')
+  }
+  void loadBoard(next)
+}
+
+function publicName(row: Pick<PlayArenaScore, 'display_name' | 'anonymous'> | PlayArenaSeasonHistoryWinner) {
+  return row.display_name || t('arena.anonymous')
+}
+
+function rewardForRank(rank: number): number {
+  for (const tier of rewardTiers.value) {
+    if (rank <= tier.rank_max) return tier.amount
+  }
+  return 0
+}
+
+async function loadBoard(period: BoardTab, includeHistory = false) {
+  if (boardLoading.value || historyLoading.value) return
+  if (boards.value[period] && (!includeHistory || historyLoaded.value[period])) return
+  if (includeHistory) historyLoading.value = true
+  else boardLoading.value = true
+  if (!boards.value[period]) loading.value = true
+  loadError.value = ''
+  try {
+    const overview = await playAPI.getArenaSeasonOverview(period, includeHistory)
+    boards.value = { ...boards.value, [period]: overview }
+    if (includeHistory) historyLoaded.value = { ...historyLoaded.value, [period]: true }
+  } catch {
+    loadError.value = t('arena.loadFailed')
+  } finally {
+    boardLoading.value = false
+    historyLoading.value = false
+    if (boards.value[period]) loading.value = false
   }
 }
 
 async function load() {
   loading.value = true
-  try {
-    const [mCur, dCur, mBoard, dBoard, dailySummary, monthlySummary, q] = await Promise.all([
-      playAPI.getArenaCurrent(),
-      playAPI.getArenaDailyCurrent(),
-      playAPI.getArenaLeaderboard(50),
-      playAPI.getArenaDailyLeaderboard(50),
-      playAPI.getArenaDailyRewardSummary(),
-      playAPI.getArenaRewardSummary(),
-      authStore.isAuthenticated ? playAPI.getQuestsToday() : Promise.resolve(null),
-    ])
-    monthlyCurrent.value = mCur
-    dailyCurrent.value = dCur
-    monthlyBoard.value = mBoard
-    dailyBoard.value = dBoard
-    dailyRewardSummary.value = dailySummary
-    monthlyRewardSummary.value = monthlySummary
-    quests.value = q
-    syncArenaCelebrationSeen()
-    if (q?.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
-      trackQuestCompleteOnce('api_call')
-    }
-  } catch {
-    monthlyCurrent.value = null
-    dailyCurrent.value = null
-    monthlyBoard.value = null
-    dailyBoard.value = null
-    dailyRewardSummary.value = null
-    monthlyRewardSummary.value = null
-    quests.value = null
-  } finally {
-    loading.value = false
-  }
+  await Promise.all([
+    loadBoard(tab.value),
+    authStore.isAuthenticated
+      ? playAPI.getQuestsToday().then((result) => {
+          quests.value = result
+          if (result.tasks?.some((task) => task.key === 'api_call' && task.completed)) {
+            trackQuestCompleteOnce('api_call')
+          }
+        }).catch(() => { quests.value = null })
+      : Promise.resolve(),
+  ])
+  loading.value = false
+}
+
+async function loadHistory() {
+  await loadBoard(tab.value, true)
 }
 
 onMounted(load)
-watch([tab, current], syncArenaCelebrationSeen)
 </script>
 
 <template>
@@ -224,10 +191,10 @@ watch([tab, current], syncArenaCelebrationSeen)
 
             <div class="play-action-panel">
               <div class="arena-rpg-tabs">
-                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" @click="switchTab('daily')">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'daily' }" :disabled="boardLoading" @click="switchTab('daily')">
                   {{ t('arena.rpg.tabDaily') }}
                 </button>
-                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" @click="switchTab('monthly')">
+                <button type="button" class="arena-rpg-tab" :class="{ active: tab === 'monthly' }" :disabled="boardLoading" @click="switchTab('monthly')">
                   {{ t('arena.rpg.tabMonthly') }}
                 </button>
               </div>
@@ -237,7 +204,11 @@ watch([tab, current], syncArenaCelebrationSeen)
         </section>
 
         <div v-if="loading" class="play-note">{{ t('models.loading') }}</div>
-        <div v-else-if="!monthlyCurrent?.enabled && !dailyCurrent?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
+        <div v-else-if="loadError" class="play-note" role="alert">
+          <p>{{ loadError }}</p>
+          <button type="button" class="play-btn play-btn-secondary mt-3" @click="loadBoard(tab)">{{ t('common.retry') }}</button>
+        </div>
+        <div v-else-if="!selectedOverview?.enabled" class="play-note">{{ t('arena.disabled') }}</div>
         <template v-else>
           <section class="arena-hero-grid">
             <div class="arena-season-panel">
@@ -261,11 +232,11 @@ watch([tab, current], syncArenaCelebrationSeen)
               <p v-if="selectedEstimatedReward > 0" class="arena-estimated-reward">
                 {{ t('arena.estimatedReward', { amount: formatMoney(selectedEstimatedReward) }) }}
               </p>
-              <div v-if="monthlyCurrent?.recharge_boost_active || monthlyCurrent?.campaign_active" class="arena-buff-row">
-                <span v-if="monthlyCurrent?.recharge_boost_active" class="arena-buff">
-                  {{ t('arena.boostActive', { mult: monthlyCurrent.arena_score_multiplier || 1.5 }) }}
+              <div v-if="current?.recharge_boost_active || current?.campaign_active" class="arena-buff-row">
+                <span v-if="current?.recharge_boost_active" class="arena-buff">
+                  {{ t('arena.boostActive', { mult: current.arena_score_multiplier || 1.5 }) }}
                 </span>
-                <span v-if="monthlyCurrent?.campaign_active" class="arena-buff">{{ t('arena.rpg.campaignBuff') }}</span>
+                <span v-if="current?.campaign_active" class="arena-buff">{{ t('arena.rpg.campaignBuff') }}</span>
               </div>
             </div>
 
@@ -284,87 +255,47 @@ watch([tab, current], syncArenaCelebrationSeen)
             </div>
           </section>
 
-          <section v-if="tab === 'daily'" class="arena-daily-summary-grid" aria-live="polite">
+          <section class="arena-daily-summary-grid" aria-live="polite">
             <div class="arena-daily-summary-panel">
               <div class="arena-summary-heading">
-                <p class="arena-panel-label">{{ t('arena.dailySummary.recentTitle') }}</p>
-                <span v-if="dailyRewardSummary?.recent" class="arena-summary-badge">
-                  {{ t(dailyRewardSummary.recent.paid_today ? 'arena.dailySummary.paidToday' : 'arena.dailySummary.delayed') }}
-                </span>
+                <p class="arena-panel-label">{{ t('arena.currentRewards') }}</p>
+                <span class="arena-summary-badge">{{ tab === 'daily' ? t('arena.rpg.tabDaily') : t('arena.rpg.tabMonthly') }}</span>
               </div>
-              <template v-if="dailyRewardSummary?.recent">
-                <div class="arena-summary-metrics">
-                  <strong>{{ t('arena.dailySummary.total', { amount: formatMoney(dailyRewardSummary.recent.total_amount) }) }}</strong>
-                  <span>{{ t('arena.dailySummary.winners', { count: dailyRewardSummary.recent.winners_count }) }}</span>
+              <div v-if="rewardTiers.length" class="arena-summary-list">
+                <div v-for="tier in rewardTiers" :key="`${tier.rank_max}-${tier.amount}`" class="arena-summary-row">
+                  <span class="arena-rank-number">#1-{{ tier.rank_max }}</span>
+                  <span class="arena-rank-tokens">{{ t('arena.rewardTier') }}</span>
+                  <strong>{{ t('arena.estimatedReward', { amount: formatMoney(tier.amount) }) }}</strong>
                 </div>
-                <p v-if="dailyRewardSummary.recent.period?.name" class="arena-season-copy">
-                  {{ t('arena.dailySummary.period', { period: dailyRewardSummary.recent.period.name }) }}
-                </p>
-                <p v-if="dailyRewardSummary.recent.settled_at" class="arena-season-copy">
-                  {{ t('arena.dailySummary.settledAt', { time: formatDateTime(dailyRewardSummary.recent.settled_at) }) }}
-                </p>
-                <div v-if="dailyRewardSummary.recent.winners.length" class="arena-summary-list">
-                  <div v-for="winner in dailyRewardSummary.recent.winners" :key="winner.user_id" class="arena-summary-row">
-                    <span class="arena-rank-number">#{{ winner.rank }}</span>
-                    <PlayUserAvatar :name="winner.display_name" :avatar-url="winner.avatar_url" />
-                    <span class="arena-rank-tokens">
-                      {{ t('arena.dailySummary.rankToken', { rank: winner.rank, tokens: formatTokens(winner.token_sum) }) }}
-                    </span>
-                    <strong>{{ t('arena.dailySummary.winnerReward', { amount: formatMoney(winner.amount) }) }}</strong>
-                  </div>
-                </div>
-              </template>
-              <p v-else class="play-note">{{ t('arena.dailySummary.noRecent') }}</p>
+              </div>
+              <p v-else class="play-note">{{ t('arena.noRewardTiers') }}</p>
             </div>
 
             <div class="arena-daily-summary-panel">
               <div class="arena-summary-heading">
-                <p class="arena-panel-label">{{ t('arena.dailySummary.currentTitle') }}</p>
+                <p class="arena-panel-label">{{ t('arena.historyTitle') }}</p>
+                <button v-if="!historyLoaded[tab]" type="button" data-testid="arena-history-load" class="play-btn play-btn-secondary" :disabled="historyLoading" @click="loadHistory">
+                  {{ historyLoading ? t('arena.loadingHistory') : t('arena.loadHistory') }}
+                </button>
+                <span v-else-if="latestHistory" class="arena-summary-badge">{{ t('arena.monthlySummary.paid') }}</span>
               </div>
-              <template v-if="dailyRewardSummary?.current?.rows?.length">
-                <p v-if="dailyRewardSummary.current.period?.name" class="arena-season-copy">
-                  {{ t('arena.dailySummary.currentPeriod', { period: dailyRewardSummary.current.period.name }) }}
-                </p>
-                <div class="arena-summary-list">
-                  <div v-for="row in dailyRewardSummary.current.rows" :key="row.user_id" class="arena-summary-row">
-                    <span class="arena-rank-number">#{{ row.rank }}</span>
-                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
-                    <span class="arena-rank-tokens">
-                      {{ t('arena.dailySummary.rankToken', { rank: row.rank, tokens: formatTokens(row.token_sum) }) }}
-                    </span>
-                    <strong>{{ t('arena.dailySummary.rowReward', { amount: formatMoney(row.estimated_reward) }) }}</strong>
-                  </div>
-                </div>
-              </template>
-              <p v-else class="play-note">{{ t('arena.dailySummary.noEstimate') }}</p>
-            </div>
-          </section>
-
-          <section v-if="tab === 'monthly'" class="arena-daily-summary-grid" aria-live="polite">
-            <div class="arena-daily-summary-panel">
-              <div class="arena-summary-heading">
-                <p class="arena-panel-label">{{ t('arena.monthlySummary.recentTitle') }}</p>
-                <span v-if="monthlyRewardSummary?.period" class="arena-summary-badge">{{ t('arena.monthlySummary.paid') }}</span>
-              </div>
-              <template v-if="monthlyRewardSummary?.period">
+              <template v-if="latestHistory">
                 <div class="arena-summary-metrics">
-                  <strong>{{ t('arena.monthlySummary.total', { amount: formatMoney(monthlyRewardSummary.total_amount) }) }}</strong>
-                  <span>{{ t('arena.monthlySummary.winners', { count: monthlyRewardSummary.winners_count }) }}</span>
+                  <strong>{{ t('arena.monthlySummary.total', { amount: formatMoney(latestHistory.total_amount) }) }}</strong>
+                  <span>{{ t('arena.monthlySummary.winners', { count: latestHistory.winners_count }) }}</span>
                 </div>
-                <p class="arena-season-copy">{{ t('arena.monthlySummary.period', { period: monthlyRewardSummary.period.name }) }}</p>
-                <p v-if="monthlyRewardSummary.settled_at" class="arena-season-copy">
-                  {{ t('arena.monthlySummary.settledAt', { time: formatDateTime(monthlyRewardSummary.settled_at) }) }}
-                </p>
-                <div v-if="monthlyRewardSummary.winners.length" class="arena-summary-list">
-                  <div v-for="winner in monthlyRewardSummary.winners" :key="`${winner.rank}-${winner.display_name}-${winner.paid_at}`" class="arena-summary-row">
+                <p v-if="latestHistory.period?.name" class="arena-season-copy">{{ latestHistory.period.name }}</p>
+                <div v-if="latestHistory.winners.length" class="arena-summary-list">
+                  <div v-for="winner in latestHistory.winners" :key="`${winner.rank}-${winner.display_name}-${winner.paid_at}`" class="arena-summary-row">
                     <span class="arena-rank-number">#{{ winner.rank }}</span>
-                    <PlayUserAvatar :name="winner.display_name" :avatar-url="winner.avatar_url" />
+                    <PlayUserAvatar :name="publicName(winner)" :avatar-url="winner.avatar_url" />
                     <span class="arena-rank-tokens">{{ t('arena.monthlySummary.actualPayout') }}</span>
-                    <strong>{{ t('arena.monthlySummary.winnerReward', { amount: formatMoney(winner.amount) }) }}</strong>
+                    <strong>{{ t('arena.monthlySummary.winnerReward', { amount: formatMoney(winner.reward_amount) }) }}</strong>
                   </div>
                 </div>
               </template>
-              <p v-else class="play-note">{{ t('arena.monthlySummary.noRecent') }}</p>
+              <p v-else-if="historyLoaded[tab]" class="play-note">{{ t('arena.historyEmpty') }}</p>
+              <p v-else class="play-note">{{ t('arena.historyHint') }}</p>
             </div>
           </section>
 
@@ -375,12 +306,12 @@ watch([tab, current], syncArenaCelebrationSeen)
                 <div class="arena-podium">
                   <article
                     v-for="row in podiumRows"
-                    :key="row.user_id"
+                    :key="`${row.rank}-${row.display_name || 'anonymous'}`"
                     class="arena-podium-card"
                     :class="[`tone-${toneForRank(row.rank)}`, { champion: row.rank === 1 }]"
                   >
                     <div class="arena-podium-rank">#{{ row.rank }}</div>
-                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" size-class="h-10 w-10" />
+                    <PlayUserAvatar :name="publicName(row)" :avatar-url="row.avatar_url" size-class="h-10 w-10" />
                     <strong>{{ formatTokens(row.token_sum) }}</strong>
                     <span>{{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}</span>
                   </article>
@@ -392,15 +323,15 @@ watch([tab, current], syncArenaCelebrationSeen)
                 <div v-if="rankRows.length" class="arena-rank-list">
                   <div
                     v-for="row in rankRows"
-                    :key="row.user_id"
+                    :key="`${row.rank}-${row.display_name || 'anonymous'}`"
                     class="arena-rank-row"
                     :class="{ current: isCurrentRank(row) }"
                   >
                     <span class="arena-rank-number">#{{ row.rank }}</span>
-                    <PlayUserAvatar :name="row.display_name" :avatar-url="row.avatar_url" />
+                    <PlayUserAvatar :name="publicName(row)" :avatar-url="row.avatar_url" />
                     <span class="arena-rank-tokens">{{ t('arena.tokenValue', { tokens: formatTokens(row.token_sum) }) }}</span>
                     <span class="arena-rank-reward">
-                      {{ row.rank <= 10 ? t('arena.competitive.rewardZone') : t('arena.competitive.keepClimbing') }}
+                      {{ rewardForRank(row.rank) > 0 ? t('arena.estimatedReward', { amount: formatMoney(rewardForRank(row.rank)) }) : t('arena.competitive.keepClimbing') }}
                     </span>
                   </div>
                 </div>
@@ -480,18 +411,6 @@ watch([tab, current], syncArenaCelebrationSeen)
       </div>
     </main>
 
-    <RewardCelebrationOverlay
-      :open="showArenaSettlementCelebration"
-      :title="t('arena.competitive.settlementCelebrationTitle')"
-      :amount="`$${formatMoney(selectedEstimatedReward)}`"
-      :subtitle="t('arena.competitive.settlementCelebrationSubtitle')"
-      :details="[rewardStatus, t('arena.competitive.formulaRank')]"
-      color-key="gold"
-      variant="settlement"
-      :secondary-label="t('arena.competitive.viewDetails')"
-      @close="dismissArenaCelebration"
-      @secondary="dismissArenaCelebration"
-    />
     <SupportFloatingCard v-if="!authStore.isAuthenticated" />
     </div>
   </AuthenticatedPlayShell>

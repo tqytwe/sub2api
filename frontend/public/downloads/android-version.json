@@ -1,9 +1,9 @@
 {
   "platform": "android",
-  "version": "2.0.49",
-  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.49-249",
+  "version": "2.0.65",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.65-265",
   "size": "7.1 MB",
-  "sha256": "bf0f390b56fd4d0459925dc52709981ba5723682e6de38a7116d8818a0174707",
+  "sha256": "18ac2104df53176d03058f5eb9ff752b70830fd3a2b37bfbc29b8f5ed189ec33",
   "minAndroidVersion": "8.0",
   "releaseDate": "2026-08-01",
   "notes": [
@@ -12,8 +12,8 @@
     "新增 APP 扫码、安装、首次启动、注册与分享归因上报",
     "反馈工单补充安装、渠道、版本与邀请上下文"
   ],
-  "versionCode": 249,
-  "bytes": 7447916,
+  "versionCode": 265,
+  "bytes": 7456605,
   "packageName": "com.jisudeng.chat",
   "signingCertificateSha256": "cd7abbd79daf6648a429ff34d7450b18cfb6b416e660b2f5169178e0a488627e"
 }

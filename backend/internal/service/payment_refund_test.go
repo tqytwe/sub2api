@@ -68,6 +68,37 @@ func TestValidateRefundRequestRejectsLegacyGuessedProviderInstance(t *testing.T)
 	require.Equal(t, "USER_REFUND_DISABLED", infraerrors.Reason(err))
 }
 
+func TestMarkRefundOkKeepsRefundCompletedWhenMembershipProjectionFails(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	order := createPaymentFulfillmentSubscriptionOrder(t, ctx, client, OrderStatusCompleted, time.Now())
+	svc := &PaymentService{
+		entClient:   client,
+		playService: &PlayService{repo: &failedMembershipProjectionRepo{}},
+	}
+
+	result, err := svc.markRefundOk(ctx, &RefundPlan{
+		OrderID:      order.ID,
+		Order:        order,
+		RefundAmount: order.Amount,
+		Reason:       "test refund",
+	})
+	require.NoError(t, err)
+	require.True(t, result.Success)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusRefunded, reloaded.Status)
+	failureCount, err := client.PaymentAuditLog.Query().
+		Where(
+			paymentauditlog.OrderIDEQ(strconv.FormatInt(order.ID, 10)),
+			paymentauditlog.ActionEQ("MEMBERSHIP_CONTRIBUTION_REFUND_SYNC_FAILED"),
+		).
+		Count(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, failureCount)
+}
+
 func TestPrepareRefundRejectsLegacyGuessedProviderInstance(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)
