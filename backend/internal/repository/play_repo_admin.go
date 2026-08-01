@@ -196,10 +196,6 @@ func (r *playRepository) listAdminTeams(
 	return items, total, nil
 }
 
-func buildAdminTeamWhere(status string, query string) ([]string, []any) {
-	return buildAdminTeamWhereAt(status, query, 0)
-}
-
 func buildAdminTeamWhereAt(status string, query string, placeholderOffset int) ([]string, []any) {
 	where := make([]string, 0, 3)
 	args := make([]any, 0, 2)

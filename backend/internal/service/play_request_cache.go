@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"sync"
 
@@ -72,7 +73,11 @@ func (c *playRequestCache) getUser(ctx context.Context, userID int64, load func(
 	if value == nil {
 		return nil, nil
 	}
-	return value.(*User), nil
+	cachedUser, typeOK := value.(*User)
+	if !typeOK {
+		return nil, fmt.Errorf("play user cache returned %T", value)
+	}
+	return cachedUser, nil
 }
 
 func (c *playRequestCache) getMembershipTotal(ctx context.Context, userID int64, load func(context.Context, int64) (float64, error)) (float64, error) {
@@ -101,7 +106,11 @@ func (c *playRequestCache) getMembershipTotal(ctx context.Context, userID int64,
 	if err != nil {
 		return 0, err
 	}
-	return value.(float64), nil
+	cachedTotal, typeOK := value.(float64)
+	if !typeOK {
+		return 0, fmt.Errorf("play membership cache returned %T", value)
+	}
+	return cachedTotal, nil
 }
 
 func (c *playRequestCache) getCampaigns(ctx context.Context, userID int64, load func(context.Context, int64) ([]PlayCampaign, error)) ([]PlayCampaign, error) {
@@ -131,7 +140,11 @@ func (c *playRequestCache) getCampaigns(ctx context.Context, userID int64, load 
 	if err != nil {
 		return nil, err
 	}
-	return clonePlayCampaigns(value.([]PlayCampaign)), nil
+	cachedCampaigns, typeOK := value.([]PlayCampaign)
+	if !typeOK {
+		return nil, fmt.Errorf("play campaign cache returned %T", value)
+	}
+	return clonePlayCampaigns(cachedCampaigns), nil
 }
 
 func (c *playRequestCache) getRechargeBoost(ctx context.Context, userID int64, load func(context.Context, int64) (PlayRechargeBoostStatus, error)) (PlayRechargeBoostStatus, error) {
@@ -160,7 +173,11 @@ func (c *playRequestCache) getRechargeBoost(ctx context.Context, userID int64, l
 	if err != nil {
 		return PlayRechargeBoostStatus{}, err
 	}
-	return value.(PlayRechargeBoostStatus), nil
+	cachedBoost, typeOK := value.(PlayRechargeBoostStatus)
+	if !typeOK {
+		return PlayRechargeBoostStatus{}, fmt.Errorf("play recharge boost cache returned %T", value)
+	}
+	return cachedBoost, nil
 }
 
 func clonePlayCampaigns(in []PlayCampaign) []PlayCampaign {

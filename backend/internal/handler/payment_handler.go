@@ -264,7 +264,11 @@ func (h *PaymentHandler) getPaymentCheckoutPublicPayload(ctx context.Context) (*
 	if err != nil {
 		return nil, err
 	}
-	return value.(*paymentCheckoutPublicPayload).clone(), nil
+	payload, ok := value.(*paymentCheckoutPublicPayload)
+	if !ok {
+		return nil, fmt.Errorf("payment checkout cache returned %T", value)
+	}
+	return payload.clone(), nil
 }
 
 func (h *PaymentHandler) buildPaymentCheckoutPublicPayload(ctx context.Context) (*paymentCheckoutPublicPayload, error) {

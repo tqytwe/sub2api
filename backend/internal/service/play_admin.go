@@ -143,7 +143,7 @@ func (s *PlayService) ListAdminArenaLeaderboard(
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	rewards := rt.ArenaSettlementRewards
+	var rewards []PlayArenaSettlementTier
 	if period.PeriodType == "daily" {
 		rewards = rt.DailyArenaTopRewards
 	} else {
