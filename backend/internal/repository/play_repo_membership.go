@@ -40,11 +40,11 @@ func (r *playRepository) SyncMembershipOrderContribution(ctx context.Context, or
 	_, err := r.sqlExec(ctx).ExecContext(ctx, `
 		INSERT INTO play_membership_order_contributions
 		(order_id, user_id, order_type, paid_amount, refund_amount, net_amount, paid_at, status, processed_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,GREATEST($4-$5,0),$6,$7,NOW(),NOW())
+		VALUES ($1,$2,$3,$4,$5,GREATEST($4::numeric - $5::numeric, 0::numeric),$6,$7,NOW(),NOW())
 		ON CONFLICT (order_id) DO UPDATE SET
 			user_id=EXCLUDED.user_id, order_type=EXCLUDED.order_type,
 			paid_amount=EXCLUDED.paid_amount, refund_amount=EXCLUDED.refund_amount,
-			net_amount=GREATEST(EXCLUDED.paid_amount-EXCLUDED.refund_amount,0),
+			net_amount=GREATEST(EXCLUDED.paid_amount - EXCLUDED.refund_amount, 0::numeric),
 			paid_at=EXCLUDED.paid_at, status=EXCLUDED.status, updated_at=NOW()`,
 		orderID, userID, orderType, paidAmount, refundAmount, paidAt, status)
 	if err != nil {
