@@ -276,6 +276,33 @@ func (h *AdminPlayHandler) UpdateBlindboxPool(c *gin.Context) {
 	response.Success(c, updated)
 }
 
+// GetArenaRewardSettings returns the editable daily and monthly arena reward rules.
+// GET /api/v1/admin/play/arena/rewards
+func (h *AdminPlayHandler) GetArenaRewardSettings(c *gin.Context) {
+	settings, err := h.playService.GetArenaRewardSettings(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, settings)
+}
+
+// UpdateArenaRewardSettings validates and replaces future arena reward rules.
+// PUT /api/v1/admin/play/arena/rewards
+func (h *AdminPlayHandler) UpdateArenaRewardSettings(c *gin.Context) {
+	var settings service.PlayArenaRewardSettings
+	if err := c.ShouldBindJSON(&settings); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid arena reward settings request"))
+		return
+	}
+	updated, err := h.playService.UpdateArenaRewardSettings(c.Request.Context(), settings)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, updated)
+}
+
 // ArenaSettle settles an arena period and distributes rank rewards.
 // POST /api/v1/admin/play/arena/settle
 func (h *AdminPlayHandler) ArenaSettle(c *gin.Context) {

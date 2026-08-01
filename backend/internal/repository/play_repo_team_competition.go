@@ -339,7 +339,7 @@ const teamCompetitionEligibleMembersCTE = `
 		  AND m.joined_at < $2
 		  AND m.reward_eligible_at < $2
 		  AND (m.left_at IS NULL OR m.left_at > $1)
- 	)
+	)
 `
 
 // teamRewardEligibleMembersCTE intentionally includes archived teams. A team

@@ -119,21 +119,46 @@
           <button type="button" class="btn btn-secondary btn-sm" @click="load">{{ text('刷新', 'Refresh') }}</button>
         </div>
         <p v-if="settlements.length === 0" class="text-sm text-gray-500">{{ text('暂无结算', 'No settlements') }}</p>
-        <div v-else class="space-y-2">
-          <div v-for="record in settlements" :key="record.settlement.id" class="flex flex-wrap items-center justify-between gap-3 rounded border border-gray-200 px-3 py-2 text-sm dark:border-dark-700">
-            <span>#{{ record.settlement.id }} · {{ record.settlement.period_start.slice(0, 7) }} · ${{ Number(record.settlement.pool_amount).toFixed(2) }}</span>
-            <div class="flex items-center gap-2">
-              <span>{{ record.settlement.status }}</span>
-              <button
-                v-if="record.settlement.status !== 'completed'"
-                type="button"
-                class="btn btn-secondary btn-sm"
-                :disabled="retrying === record.settlement.id"
-                @click="retry(record.settlement.id)"
-              >
-                {{ text('重试', 'Retry') }}
-              </button>
+        <div v-else class="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
+          <article v-for="record in pagedSettlements" :key="record.settlement.id" class="rounded border border-gray-200 text-sm dark:border-dark-700">
+            <div class="flex flex-wrap items-center justify-between gap-3 px-3 py-2">
+              <div>
+                <p class="font-medium text-gray-900 dark:text-white">{{ record.settlement.period_start.slice(0, 7) }} · {{ text('奖池', 'Pool') }} {{ formatMoney(record.settlement.pool_amount) }}</p>
+                <p class="mt-0.5 text-xs text-gray-500">{{ text('发放人数', 'Recipients') }} {{ record.allocations.length }} · {{ text('实际发放', 'Paid total') }} {{ allocationTotal(record) }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-500">{{ settlementStatusLabel(record.settlement.status) }}</span>
+                <button type="button" class="btn btn-secondary btn-sm" :aria-expanded="expandedSettlementIds.has(record.settlement.id)" @click="toggleSettlement(record.settlement.id)">
+                  {{ expandedSettlementIds.has(record.settlement.id) ? text('收起明细', 'Hide details') : text('查看明细', 'View details') }}
+                </button>
+                <button
+                  v-if="record.settlement.status !== 'completed'"
+                  type="button"
+                  class="btn btn-secondary btn-sm"
+                  :disabled="retrying === record.settlement.id"
+                  @click="retry(record.settlement.id)"
+                >
+                  {{ text('重试', 'Retry') }}
+                </button>
+              </div>
             </div>
+            <div v-if="expandedSettlementIds.has(record.settlement.id)" class="border-t border-gray-100 px-3 py-2 dark:border-dark-700">
+              <p v-if="!record.allocations.length" class="text-xs text-gray-500">{{ text('本次结算暂无奖励明细', 'No reward allocations for this settlement') }}</p>
+              <div v-else class="max-h-64 space-y-2 overflow-y-auto pr-1">
+                <div v-for="allocation in record.allocations" :key="allocation.id" class="flex items-center justify-between gap-3 rounded bg-gray-50 px-3 py-2 text-xs dark:bg-dark-800">
+                  <span class="min-w-0">
+                    <span class="block truncate font-medium text-gray-800 dark:text-gray-100">{{ allocation.display_name || allocation.email || text('匿名用户', 'Anonymous user') }}</span>
+                    <span v-if="allocation.email && allocation.display_name" class="block truncate text-gray-500">{{ allocation.email }}</span>
+                    <span v-if="allocation.paid_at" class="block text-gray-500">{{ text('到账时间', 'Credited') }} {{ formatDateTime(allocation.paid_at) }}</span>
+                  </span>
+                  <span class="shrink-0 text-right"><span class="block font-medium text-gray-900 dark:text-white">{{ formatMoney(allocation.reward_amount) }}</span><span class="text-gray-500">{{ payoutStatusLabel(allocation.payout_status) }}</span></span>
+                </div>
+              </div>
+            </div>
+          </article>
+          <div v-if="settlementPageCount > 1" class="flex items-center justify-between pt-2 text-xs text-gray-500">
+            <span>{{ text(`第 ${settlementPage} / ${settlementPageCount} 页`, `Page ${settlementPage} of ${settlementPageCount}`) }}</span>
+            <span class="flex gap-2"><button type="button" class="btn btn-secondary btn-sm" :disabled="settlementPage <= 1" @click="settlementPage--">{{ text('上一页', 'Previous') }}</button><button type="button" class="btn btn-secondary btn-sm" :disabled="settlementPage >= settlementPageCount" @click="settlementPage++">{{ text('下一页', 'Next') }}</button></span>
           </div>
         </div>
       </div>
@@ -159,6 +184,9 @@ const settlements = ref<PlayTeamSettlementRecord[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const retrying = ref<number | null>(null)
+const expandedSettlementIds = ref<Set<number>>(new Set())
+const settlementPage = ref(1)
+const settlementsPerPage = 8
 const isZh = computed(() => locale.value.startsWith('zh'))
 const text = (zh: string, en: string) => (isZh.value ? zh : en)
 const maxTiers = 32
@@ -168,6 +196,41 @@ const maxIntegerDigits = 12
 const validationMessage = computed(() => validateSettings(settings.value))
 const canSave = computed(() => Boolean(settings.value) && !saving.value && !validationMessage.value)
 const canAddTier = computed(() => nextTier(settings.value?.tiers ?? []) !== null)
+const settlementPageCount = computed(() => Math.max(1, Math.ceil(settlements.value.length / settlementsPerPage)))
+const pagedSettlements = computed(() => settlements.value.slice((settlementPage.value - 1) * settlementsPerPage, settlementPage.value * settlementsPerPage))
+
+function formatMoney(value: string | number | undefined): string {
+  const amount = Number(value ?? 0)
+  return new Intl.NumberFormat(isZh.value ? 'zh-CN' : 'en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number.isFinite(amount) ? amount : 0)
+}
+
+function formatDateTime(value: string): string {
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? value : new Intl.DateTimeFormat(isZh.value ? 'zh-CN' : 'en-US', { dateStyle: 'short', timeStyle: 'short' }).format(date)
+}
+
+function settlementStatusLabel(status: string): string {
+  const labels: Record<string, [string, string]> = { pending: ['待发放', 'Pending'], processing: ['处理中', 'Processing'], completed: ['已完成', 'Completed'], partial: ['部分完成', 'Partially completed'], failed: ['失败', 'Failed'] }
+  const label = labels[status]
+  return label ? text(label[0], label[1]) : text('未知状态', 'Unknown status')
+}
+
+function payoutStatusLabel(status: string): string {
+  const labels: Record<string, [string, string]> = { pending: ['待发放', 'Pending'], processing: ['处理中', 'Processing'], paid: ['已到账', 'Credited'], failed: ['失败', 'Failed'] }
+  const label = labels[status]
+  return label ? text(label[0], label[1]) : text('未知状态', 'Unknown status')
+}
+
+function allocationTotal(record: PlayTeamSettlementRecord): string {
+  return formatMoney(record.allocations.reduce((total, allocation) => total.plus(new Decimal(allocation.reward_amount || 0)), new Decimal(0)).toString())
+}
+
+function toggleSettlement(id: number) {
+  const next = new Set(expandedSettlementIds.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  expandedSettlementIds.value = next
+}
 
 function parseDecimal(value: unknown): Decimal | null {
   const raw = String(value ?? '').trim()
@@ -251,6 +314,8 @@ async function load() {
     ])
     settings.value = cloneSettings(config)
     settlements.value = history
+    settlementPage.value = 1
+    expandedSettlementIds.value = new Set()
   } catch (error) {
     appStore.showError(extractApiErrorMessage(error, text('加载团队奖励失败', 'Failed to load team rewards')))
   } finally {

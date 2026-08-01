@@ -427,6 +427,7 @@ const (
 	SettingKeyPlayDailyArenaEnabled           = "play_daily_arena_enabled"
 	SettingKeyPlayDailyQuests                 = "play_daily_quests"
 	SettingKeyPlayDailyArenaTopRewards        = "play_daily_arena_top_rewards"
+	SettingKeyPlayDailyArenaDailyBudget       = "play_daily_arena_daily_budget"
 
 	// SettingKeyModelPlazaEnabled is a DB-backed soft switch for the Model Plaza page
 	// (public group/model pricing showcase). When false: the plaza endpoint returns 404

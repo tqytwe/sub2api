@@ -219,7 +219,11 @@ func (s *PlayService) SettleDailyArenaPeriod(ctx context.Context, periodID int64
 		if amount <= 0 {
 			continue
 		}
-		if result.TotalAwarded+amount > playDailyArenaDailyBudgetUSD {
+		dailyBudget := rt.DailyArenaDailyBudget
+		if dailyBudget <= 0 {
+			dailyBudget = defaultPlayDailyArenaDailyBudgetUSD
+		}
+		if result.TotalAwarded+amount > dailyBudget {
 			break
 		}
 		idempotencyKey := "arena_daily_settlement:" + strconv.FormatInt(period.ID, 10) + ":" + strconv.FormatInt(row.UserID, 10)

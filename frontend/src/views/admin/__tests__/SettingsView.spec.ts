@@ -681,14 +681,13 @@ describe("admin SettingsView payment visible method controls", () => {
     adminSettingsFetch.mockResolvedValue(undefined);
   });
 
-  it("places the focused blindbox pool editor in the Features tab", async () => {
+  it("keeps the Features tab limited to feature toggles", async () => {
     const wrapper = mountView();
     await flushPromises();
 
-    const editor = wrapper.get('[data-testid="blindbox-pool-editor-stub"]');
     const featuresPanel = wrapper.get('[data-testid="settings-features-panel"]');
     expect(featuresPanel.attributes("style")).toContain("display: none");
-    expect(featuresPanel.element.contains(editor.element)).toBe(true);
+    expect(wrapper.find('[data-testid="blindbox-pool-editor-stub"]').exists()).toBe(false);
 
     await wrapper.get("#settings-tab-features").trigger("click");
     await flushPromises();
