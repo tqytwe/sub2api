@@ -47,6 +47,7 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		SettingKeyPlayDailyArenaEnabled,
 		SettingKeyPlayDailyQuests,
 		SettingKeyPlayDailyArenaTopRewards,
+		SettingKeyPlayDailyArenaDailyBudget,
 	}
 	vals, err := s.settingRepo.GetMultiple(ctx, keys)
 	if err != nil {
@@ -137,6 +138,7 @@ func (s *SettingService) GetPlayRuntime(ctx context.Context) PlayRuntime {
 		DailyArenaEnabled:           vals[SettingKeyPlayDailyArenaEnabled] == "true",
 		DailyQuests:                 parsePlayDailyQuests(vals[SettingKeyPlayDailyQuests]),
 		DailyArenaTopRewards:        parsePlayDailyArenaRewards(vals[SettingKeyPlayDailyArenaTopRewards]),
+		DailyArenaDailyBudget:       parsePositiveFloatSetting(vals[SettingKeyPlayDailyArenaDailyBudget], defaultPlayDailyArenaDailyBudgetUSD),
 	}
 }
 

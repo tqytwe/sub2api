@@ -58,6 +58,9 @@
       </div>
 
       <AdminQuizQuestionBank v-if="activeTab === 'quiz'" />
+      <ArenaRewardSettings v-if="activeTab === 'arena'" />
+      <BlindboxPoolEditor v-if="activeTab === 'blindbox'" />
+      <TeamRewardSettings v-if="activeTab === 'team-rewards'" />
 
       <section v-if="activeTab === 'feedback'" class="card">
         <div
@@ -375,7 +378,7 @@
         </div>
       </section>
 
-      <div v-if="activeTab === 'campaigns' || activeTab === 'teams'" class="grid gap-6" :class="{ 'xl:grid-cols-[minmax(0,1fr)_420px]': activeTab === 'teams' }">
+      <div v-if="activeTab === 'campaigns' || activeTab === 'arena' || activeTab === 'teams'" class="grid gap-6" :class="{ 'xl:grid-cols-[minmax(0,1fr)_420px]': activeTab === 'teams' }">
         <div class="space-y-6">
           <section v-if="activeTab === 'campaigns'" class="card">
             <div
@@ -672,7 +675,7 @@
             </div>
           </section>
 
-          <section v-if="activeTab === 'campaigns'" class="card">
+          <section v-if="activeTab === 'arena'" class="card">
             <div
               class="flex flex-col gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -886,7 +889,8 @@
               <h4 class="mb-2 text-sm font-semibold">
                 {{ t("admin.playOps.memberContributions") }}
               </h4>
-              <div class="space-y-2">
+              <!-- design-governance-allow: page-shell-ownership - member details are a bounded inner list so large teams do not stretch the admin route. -->
+              <div class="max-h-[32rem] space-y-2 overflow-y-auto pr-1">
                 <div
                   v-for="member in selectedTeam.team.members"
                   :key="member.user_id"
@@ -1424,6 +1428,9 @@ import AdminQuizQuestionBank from "@/components/admin/play/AdminQuizQuestionBank
 import AdminMembershipOperations from "@/components/admin/play/AdminMembershipOperations.vue";
 import AdminInviteGrowthOperations from "@/components/admin/play/AdminInviteGrowthOperations.vue";
 import AdminAppAnalyticsOperations from "@/components/admin/play/AdminAppAnalyticsOperations.vue";
+import BlindboxPoolEditor from "@/components/admin/play/BlindboxPoolEditor.vue";
+import TeamRewardSettings from "@/components/admin/play/TeamRewardSettings.vue";
+import ArenaRewardSettings from "@/components/admin/play/ArenaRewardSettings.vue";
 import Icon from "@/components/icons/Icon.vue";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
@@ -1455,6 +1462,9 @@ type PlayOpsTab =
   | "overview"
   | "membership"
   | "campaigns"
+  | "arena"
+  | "blindbox"
+  | "team-rewards"
   | "invite-growth"
   | "teams"
   | "app-analytics"
@@ -1465,6 +1475,9 @@ const tabKeys: PlayOpsTab[] = [
   "overview",
   "membership",
   "campaigns",
+  "arena",
+  "blindbox",
+  "team-rewards",
   "invite-growth",
   "teams",
   "app-analytics",
@@ -1666,12 +1679,12 @@ async function loadForTab(tab: PlayOpsTab) {
     if (tab === "overview") {
       summary.value = await adminPlayAPI.getSummary();
     } else if (tab === "campaigns") {
-      const [campaignData, arenaData] = await Promise.all([
-        adminPlayAPI.listCampaigns(),
-        adminPlayAPI.getArenaLeaderboard({ period_type: arenaPeriodType.value, limit: 20 }),
-      ]);
-      campaigns.value = campaignData;
-      arena.value = arenaData;
+      campaigns.value = await adminPlayAPI.listCampaigns();
+    } else if (tab === "arena") {
+      arena.value = await adminPlayAPI.getArenaLeaderboard({
+        period_type: arenaPeriodType.value,
+        limit: 20,
+      });
     } else if (tab === "teams") {
       await loadTeams();
       if (!selectedTeam.value && teams.value.items[0]) await selectTeam(teams.value.items[0].id);

@@ -106,4 +106,21 @@ describe('TeamRewardSettings', () => {
     })
     expect(showSuccessMock).toHaveBeenCalledTimes(1)
   })
+
+  it('keeps settlement allocations collapsed until an operator opens the record', async () => {
+    listTeamRewardSettlementsMock.mockResolvedValue([
+      {
+        settlement: { id: 8, period_start: '2026-07-01T00:00:00Z', pool_amount: '10', status: 'completed' },
+        allocations: [{ id: 81, display_name: '已脱敏用户', email: 'u***@example.com', reward_amount: '4.84', payout_status: 'paid', paid_at: '2026-08-01T00:10:00Z' }],
+      },
+    ])
+    const wrapper = await mountEditor()
+
+    expect(wrapper.text()).toContain('发放人数 1')
+    expect(wrapper.text()).not.toContain('已脱敏用户')
+    await wrapper.get('button[aria-expanded="false"]').trigger('click')
+    expect(wrapper.text()).toContain('已脱敏用户')
+    expect(wrapper.text()).toContain('$4.84')
+    expect(wrapper.text()).toContain('已到账')
+  })
 })

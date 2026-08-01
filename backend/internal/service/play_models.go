@@ -64,6 +64,15 @@ type PlayArenaSettlementTier struct {
 	Amount  float64 `json:"amount"`
 }
 
+// PlayArenaRewardSettings is the editable reward schedule for the monthly and
+// daily arena leaderboards. DailyBudget caps the amount issued for one daily
+// period and does not alter rank reward calculations.
+type PlayArenaRewardSettings struct {
+	Monthly     []PlayArenaSettlementTier `json:"monthly"`
+	Daily       []PlayArenaSettlementTier `json:"daily"`
+	DailyBudget float64                   `json:"daily_budget"`
+}
+
 type PlayRechargeBoostStatus struct {
 	Active             bool
 	ExpiresAt          time.Time
@@ -919,4 +928,5 @@ type PlayRuntime struct {
 	DailyArenaEnabled           bool
 	DailyQuests                 []PlayDailyQuestDef
 	DailyArenaTopRewards        []PlayArenaSettlementTier
+	DailyArenaDailyBudget       float64
 }

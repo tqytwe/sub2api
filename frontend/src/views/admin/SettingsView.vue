@@ -6648,8 +6648,6 @@
           </div>
         </div>
 
-        <BlindboxPoolEditor />
-        <TeamRewardSettings />
 
         <div class="card">
           <div class="border-b border-gray-100 px-6 py-4 dark:border-dark-700">
@@ -8384,8 +8382,6 @@ import ImageUpload from "@/components/common/ImageUpload.vue";
 import BackupSettings from "@/views/admin/BackupView.vue";
 import EmailTemplateEditor from "@/views/admin/settings/EmailTemplateEditor.vue";
 import OpenAIFastPolicyUserSelector from "@/views/admin/settings/OpenAIFastPolicyUserSelector.vue";
-import BlindboxPoolEditor from "@/components/admin/play/BlindboxPoolEditor.vue";
-import TeamRewardSettings from "@/components/admin/play/TeamRewardSettings.vue";
 import { useClipboard } from "@/composables/useClipboard";
 import {
   useStepUp,

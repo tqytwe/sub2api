@@ -11,7 +11,7 @@ const (
 	PlayQuestKeyImageGenerate = "image_generate"
 	PlayQuestKeyAPICall       = "api_call"
 
-	playDailyArenaDailyBudgetUSD = 50.0
+	defaultPlayDailyArenaDailyBudgetUSD = 50.0
 )
 
 type PlayDailyQuestDef struct {

@@ -50,6 +50,12 @@ export interface AdminArenaRewardTier {
   amount: number;
 }
 
+export interface AdminArenaRewardSettings {
+  monthly: AdminArenaRewardTier[];
+  daily: AdminArenaRewardTier[];
+  daily_budget: number;
+}
+
 export interface AdminArenaLeaderboard {
   period?: PlayArenaPeriod;
   rewards: AdminArenaRewardTier[];
@@ -665,6 +671,23 @@ export async function getArenaLeaderboard(
   return data;
 }
 
+export async function getArenaRewardSettings(): Promise<AdminArenaRewardSettings> {
+  const { data } = await apiClient.get<AdminArenaRewardSettings>(
+    "/admin/play/arena/rewards",
+  );
+  return data;
+}
+
+export async function updateArenaRewardSettings(
+  settings: AdminArenaRewardSettings,
+): Promise<AdminArenaRewardSettings> {
+  const { data } = await apiClient.put<AdminArenaRewardSettings>(
+    "/admin/play/arena/rewards",
+    settings,
+  );
+  return data;
+}
+
 export async function getSummary(): Promise<AdminPlayOpsSummary> {
   const { data } = await apiClient.get<AdminPlayOpsSummary>(
     "/admin/play/summary",
@@ -1045,6 +1068,8 @@ export const adminPlayAPI = {
   updateCampaign,
   deleteCampaign,
   getArenaLeaderboard,
+  getArenaRewardSettings,
+  updateArenaRewardSettings,
   listTeams,
   getTeam,
   getTeamSettlements,

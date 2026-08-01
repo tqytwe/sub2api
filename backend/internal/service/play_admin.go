@@ -171,8 +171,13 @@ func currentTeamRewardWindow(now time.Time) (time.Time, time.Time, error) {
 
 func sumArenaRewardBudget(tiers []PlayArenaSettlementTier) float64 {
 	total := 0.0
+	previousRankMax := 0
 	for _, tier := range tiers {
-		total += tier.Amount
+		if tier.RankMax <= previousRankMax {
+			continue
+		}
+		total += float64(tier.RankMax-previousRankMax) * tier.Amount
+		previousRankMax = tier.RankMax
 	}
 	return total
 }
