@@ -131,6 +131,98 @@ func TestTeamSettlementCompletedSnapshotIsNeverRecalculated(t *testing.T) {
 	require.Equal(t, 1, repo.createCalls)
 }
 
+func TestSettleDueTeamRewardMonthsScansEveryClosedMonthSinceStart(t *testing.T) {
+	location, err := time.LoadLocation("Asia/Shanghai")
+	require.NoError(t, err)
+	repo := &catchUpTeamRewardRepo{seasons: map[string]*PlayTeamSeason{}}
+	settings := &SettingService{settingRepo: &teamRewardSettingRepoStub{values: map[string]string{
+		SettingKeyPlayTeamSharedRewardStartMonth: "2026-04",
+	}}}
+	svc := &PlayService{repo: repo, settingService: settings}
+
+	settled, err := svc.SettleDueTeamRewardMonths(
+		context.Background(),
+		time.Date(2026, time.August, 1, 0, 5, 0, 0, location),
+	)
+
+	require.NoError(t, err)
+	require.Zero(t, settled)
+	require.Equal(t, []string{"2026-04", "2026-05", "2026-06", "2026-07"}, repo.rewardMonthQueries)
+	require.Equal(t, []string{"2026-04", "2026-05", "2026-06", "2026-07"}, repo.finalizedMonths)
+	require.Contains(t, repo.seasons, "2026-08")
+}
+
+func TestSettleTeamRewardMonthUsesFrozenSeasonRulesInsteadOfCurrentSettings(t *testing.T) {
+	base := newTeamSettlementRepo()
+	base.contributions = []TeamContribution{{
+		UserID: 11,
+		Amount: decimal.RequireFromString("30.00000000"),
+	}}
+	period := time.Date(2026, time.June, 1, 0, 0, 0, 0, time.UTC)
+	frozen := defaultTeamRewardConfig()
+	repo := &frozenSeasonTeamRewardRepo{
+		teamSettlementRepo: base,
+		seasons: map[string]*PlayTeamSeason{
+			"2026-06": {
+				Month:  "2026-06",
+				Status: "active",
+				Rules:  teamCompetitionSeasonRules(frozen),
+			},
+		},
+	}
+	settings := &SettingService{settingRepo: &teamRewardSettingRepoStub{values: map[string]string{
+		SettingKeyPlayTeamSharedRewardEnabled: "true",
+		SettingKeyPlayTeamSharedRewardTiers:   `[{"threshold":"20","rate":"0.50"}]`,
+		SettingKeyPlayTeamSharedRewardCap:     "250",
+	}}}
+	svc := &PlayService{repo: repo, settingService: settings}
+
+	settlement, err := svc.SettleTeamRewardMonth(context.Background(), 7, period)
+
+	require.NoError(t, err)
+	require.NotNil(t, settlement)
+	require.Equal(t, "0.02000000", settlement.RewardRate.StringFixed(8))
+	require.Equal(t, "0.60000000", settlement.PoolAmount.StringFixed(8))
+}
+
+func TestCurrentCompetitionRewardConfigFailsClosedUntilSeasonIsFrozen(t *testing.T) {
+	repo := &frozenSeasonTeamRewardRepo{
+		teamSettlementRepo: newTeamSettlementRepo(),
+		seasons:            map[string]*PlayTeamSeason{},
+	}
+	settings := &SettingService{settingRepo: &teamRewardSettingRepoStub{values: map[string]string{
+		SettingKeyPlayTeamSharedRewardEnabled: "true",
+		SettingKeyPlayTeamSharedRewardTiers:   `[{"threshold":"20","rate":"0.50"}]`,
+		SettingKeyPlayTeamSharedRewardCap:     "250",
+	}}}
+	svc := &PlayService{repo: repo, settingService: settings, now: func() time.Time {
+		return time.Date(2026, time.August, 1, 8, 0, 0, 0, time.UTC)
+	}}
+
+	cfg := svc.currentCompetitionRewardConfig(context.Background())
+
+	require.False(t, cfg.Enabled)
+	require.Empty(t, cfg.Tiers)
+}
+
+func TestFindStalledTeamRewardSettlementsUsesThirtyMinuteThreshold(t *testing.T) {
+	now := time.Date(2026, time.August, 1, 9, 0, 0, 0, time.UTC)
+	repo := newTeamSettlementRepo()
+	repo.stalled = []PlayTeamSettlement{{
+		ID:                  41,
+		TeamID:              7,
+		Status:              PlayTeamSettlementStatusProcessing,
+		ProcessingStartedAt: ptrTeamSettlementTime(now.Add(-31 * time.Minute)),
+	}}
+	svc := NewPlayService(repo, nil, nil, nil, nil, nil)
+
+	stalled, err := svc.FindStalledTeamRewardSettlements(context.Background(), now)
+
+	require.NoError(t, err)
+	require.Len(t, stalled, 1)
+	require.Equal(t, int64(41), stalled[0].ID)
+}
+
 func TestTeamPayoutRetryPaysOnlyFailedAllocationAndReconcilesExactly(t *testing.T) {
 	repo := newTeamSettlementRepo()
 	repo.settlement = &PlayTeamSettlement{
@@ -295,6 +387,87 @@ type teamSettlementRepo struct {
 	userSettlementRecords     []PlayUserTeamSettlementRecord
 	userSettlementQueryUserID int64
 	userSettlementQueryLimit  int
+	stalled                   []PlayTeamSettlement
+}
+
+func ptrTeamSettlementTime(value time.Time) *time.Time {
+	return &value
+}
+
+type catchUpTeamRewardRepo struct {
+	PlayRepository
+
+	seasons            map[string]*PlayTeamSeason
+	rewardMonthQueries []string
+	finalizedMonths    []string
+}
+
+func (r *catchUpTeamRewardRepo) GetTeamCompetitionSeason(_ context.Context, periodStart time.Time) (*PlayTeamSeason, error) {
+	season := r.seasons[periodStart.Format("2006-01")]
+	if season == nil {
+		return nil, nil
+	}
+	copy := *season
+	return &copy, nil
+}
+
+func (r *catchUpTeamRewardRepo) EnsureTeamCompetitionSeason(_ context.Context, periodStart, windowStart, windowEnd time.Time, rules map[string]any) (*PlayTeamSeason, error) {
+	key := periodStart.Format("2006-01")
+	if season := r.seasons[key]; season != nil {
+		copy := *season
+		return &copy, nil
+	}
+	season := &PlayTeamSeason{
+		ID:          int64(len(r.seasons) + 1),
+		Month:       key,
+		WindowStart: windowStart,
+		WindowEnd:   windowEnd,
+		Rules:       rules,
+		Status:      "active",
+	}
+	r.seasons[key] = season
+	copy := *season
+	return &copy, nil
+}
+
+func (r *catchUpTeamRewardRepo) CreateTeamCompetitionSeasonSnapshot(_ context.Context, periodStart, _, _ time.Time, _ map[string]any) (bool, error) {
+	key := periodStart.Format("2006-01")
+	r.finalizedMonths = append(r.finalizedMonths, key)
+	if season := r.seasons[key]; season != nil {
+		season.Status = "settled"
+	}
+	return true, nil
+}
+
+func (r *catchUpTeamRewardRepo) ListTeamIDsForRewardMonth(_ context.Context, start, _ time.Time) ([]int64, error) {
+	r.rewardMonthQueries = append(r.rewardMonthQueries, start.In(time.FixedZone("Asia/Shanghai", 8*60*60)).Format("2006-01"))
+	return []int64{}, nil
+}
+
+type frozenSeasonTeamRewardRepo struct {
+	*teamSettlementRepo
+	seasons map[string]*PlayTeamSeason
+}
+
+func (r *frozenSeasonTeamRewardRepo) GetTeamCompetitionSeason(_ context.Context, periodStart time.Time) (*PlayTeamSeason, error) {
+	season := r.seasons[periodStart.Format("2006-01")]
+	if season == nil {
+		return nil, nil
+	}
+	copy := *season
+	return &copy, nil
+}
+
+func (r *frozenSeasonTeamRewardRepo) EnsureTeamCompetitionSeason(_ context.Context, periodStart, windowStart, windowEnd time.Time, rules map[string]any) (*PlayTeamSeason, error) {
+	key := periodStart.Format("2006-01")
+	season := &PlayTeamSeason{Month: key, WindowStart: windowStart, WindowEnd: windowEnd, Rules: rules, Status: "active"}
+	r.seasons[key] = season
+	copy := *season
+	return &copy, nil
+}
+
+func (r *frozenSeasonTeamRewardRepo) CreateTeamCompetitionSeasonSnapshot(context.Context, time.Time, time.Time, time.Time, map[string]any) (bool, error) {
+	return false, nil
 }
 
 func (r *teamSettlementRepo) WithTeamRewardSnapshotLock(
@@ -381,6 +554,10 @@ func (r *teamSettlementRepo) GetTeamRewardSettlement(
 	}
 	copy := *r.settlement
 	return &copy, nil
+}
+
+func (r *teamSettlementRepo) ListStalledTeamRewardSettlements(context.Context, time.Time, int) ([]PlayTeamSettlement, error) {
+	return append([]PlayTeamSettlement(nil), r.stalled...), nil
 }
 
 func (r *teamSettlementRepo) ListUnpaidTeamRewardAllocations(

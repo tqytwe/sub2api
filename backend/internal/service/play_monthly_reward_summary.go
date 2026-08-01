@@ -37,7 +37,7 @@ func (s *PlayService) GetMonthlyArenaRewardSummary(ctx context.Context) (*PlayAr
 		paidAt := row.CreatedAt
 		out.Winners = append(out.Winners, PlayArenaRewardPublicWinner{
 			Rank: row.Rank, Period: period, DisplayName: row.DisplayName,
-			AvatarURL: row.AvatarURL, Amount: row.Amount, PaidAt: &paidAt,
+			Anonymous: row.Anonymous, AvatarURL: row.AvatarURL, Amount: row.Amount, PaidAt: &paidAt,
 		})
 	}
 	return out, nil

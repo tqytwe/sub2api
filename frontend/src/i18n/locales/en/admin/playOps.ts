@@ -280,6 +280,7 @@ export default {
       overview: "Operations overview",
       membership: "Membership",
       campaigns: "Limited events",
+      arena: "Farm rankings",
       "invite-growth": "Invite growth",
       teams: "Teams and rankings",
       "app-analytics": "APP data",

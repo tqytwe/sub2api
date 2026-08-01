@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/sync/singleflight"
+
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -25,6 +27,7 @@ type PaymentHandler struct {
 
 	checkoutCacheMu sync.Mutex
 	checkoutCache   paymentCheckoutPublicCache
+	checkoutCacheSF singleflight.Group
 }
 
 // NewPaymentHandler creates a new PaymentHandler.
@@ -233,19 +236,39 @@ func (h *PaymentHandler) getPaymentCheckoutPublicPayload(ctx context.Context) (*
 	}
 	h.checkoutCacheMu.Unlock()
 
-	payload, err := h.buildPaymentCheckoutPublicPayload(ctx)
+	value, err, _ := h.checkoutCacheSF.Do("payment-checkout-public", func() (any, error) {
+		// A request may have populated the cache while this caller was waiting
+		// for the singleflight slot, so always check it again inside the flight.
+		now := time.Now()
+		h.checkoutCacheMu.Lock()
+		if h.checkoutCache.payload != nil && now.Before(h.checkoutCache.expiresAt) {
+			payload := h.checkoutCache.payload.clone()
+			h.checkoutCacheMu.Unlock()
+			return payload, nil
+		}
+		h.checkoutCacheMu.Unlock()
+
+		payload, buildErr := h.buildPaymentCheckoutPublicPayload(ctx)
+		if buildErr != nil {
+			return nil, buildErr
+		}
+
+		h.checkoutCacheMu.Lock()
+		h.checkoutCache = paymentCheckoutPublicCache{
+			expiresAt: now.Add(paymentCheckoutPublicCacheTTL),
+			payload:   payload.clone(),
+		}
+		h.checkoutCacheMu.Unlock()
+		return payload, nil
+	})
 	if err != nil {
 		return nil, err
 	}
-
-	h.checkoutCacheMu.Lock()
-	h.checkoutCache = paymentCheckoutPublicCache{
-		expiresAt: now.Add(paymentCheckoutPublicCacheTTL),
-		payload:   payload.clone(),
+	payload, ok := value.(*paymentCheckoutPublicPayload)
+	if !ok {
+		return nil, fmt.Errorf("payment checkout cache returned %T", value)
 	}
-	h.checkoutCacheMu.Unlock()
-
-	return payload, nil
+	return payload.clone(), nil
 }
 
 func (h *PaymentHandler) buildPaymentCheckoutPublicPayload(ctx context.Context) (*paymentCheckoutPublicPayload, error) {

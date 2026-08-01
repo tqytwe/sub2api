@@ -184,6 +184,9 @@ describe('PlayHubView layout', () => {
     const wrapper = mountView()
     await flushPromises()
 
+    expect(state.getPlayHub).toHaveBeenCalledTimes(1)
+    expect(state.refreshUser).not.toHaveBeenCalled()
+
     const shell = wrapper.get('[data-testid="play-hub-shell"]')
     expect(shell.classes()).toContain('w-full')
     expect(shell.classes()).toContain('max-w-none')

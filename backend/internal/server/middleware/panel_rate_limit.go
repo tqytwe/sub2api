@@ -56,6 +56,14 @@ func (p *PanelRateLimiter) Heavy() gin.HandlerFunc {
 	return p.userScoped("heavy", func(s service.PanelRateLimitSettings) int { return s.HeavyRPM })
 }
 
+// TeamAdmission protects state-changing squad admission endpoints under a
+// distinct user bucket. It uses the existing panel RPM setting so deployments
+// do not need a second configuration rollout just to protect invite rotation,
+// applications, and approval workflows.
+func (p *PanelRateLimiter) TeamAdmission() gin.HandlerFunc {
+	return p.userScoped("team_admission", func(s service.PanelRateLimitSettings) int { return s.UserRPM })
+}
+
 func (p *PanelRateLimiter) userScoped(scope string, limitOf func(service.PanelRateLimitSettings) int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if p == nil || p.limiter == nil || p.settingService == nil {

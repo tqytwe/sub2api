@@ -230,11 +230,11 @@ func (r *playRepository) LockTeamForAdmin(ctx context.Context, teamID int64) (*s
 	return &team, nil
 }
 
-func (r *playRepository) JoinTeamAt(ctx context.Context, teamID, userID int64, joinedAt time.Time) error {
+func (r *playRepository) JoinTeamAt(ctx context.Context, teamID, userID int64, joinedAt, rewardEligibleAt time.Time) error {
 	exec := r.sqlExec(ctx)
 	_, err := exec.ExecContext(ctx, `
-		INSERT INTO play_team_members (team_id, user_id, joined_at)
-		VALUES ($1, $2, $3)`, teamID, userID, joinedAt)
+		INSERT INTO play_team_members (team_id, user_id, joined_at, reward_eligible_at)
+		VALUES ($1, $2, $3, $4)`, teamID, userID, joinedAt, rewardEligibleAt)
 	if err != nil {
 		if isPlayTeamUniqueViolation(err) {
 			return service.ErrPlayTeamAlreadyJoined
@@ -368,16 +368,12 @@ func (r *playRepository) GetAdminTeamSpend(
 ) (decimal.Decimal, error) {
 	exec := r.sqlExec(ctx)
 	var raw string
-	if err := scanSingleRow(ctx, exec, `
-		SELECT COALESCE(SUM(ul.actual_cost), 0)::text
-		FROM play_team_members m
-		JOIN usage_logs ul
-		  ON ul.user_id = m.user_id
-		 AND ul.created_at >= $2
-		 AND ul.created_at < $3
-		 AND ul.created_at >= m.joined_at
-		 AND (m.left_at IS NULL OR ul.created_at < m.left_at)
-		WHERE m.team_id = $1`, []any{teamID, start, end}, &raw); err != nil {
+	if err := scanSingleRow(ctx, exec, teamCompetitionScoreCTE+`
+		SELECT COALESCE((
+			SELECT spend
+			FROM team_scores
+			WHERE team_id = $3
+		), 0)::text`, []any{start, end, teamID}, &raw); err != nil {
 		return decimal.Zero, fmt.Errorf("get admin team spend: %w", err)
 	}
 	value, err := decimal.NewFromString(raw)
@@ -399,6 +395,7 @@ func (r *playRepository) GetUserActualCost(
 		SELECT COALESCE(SUM(actual_cost), 0)::text
 		FROM usage_logs
 		WHERE user_id = $1
+		  AND actual_cost > 0
 		  AND created_at >= $2
 		  AND created_at < $3`, []any{userID, start, end}, &raw); err != nil {
 		return decimal.Zero, fmt.Errorf("get user actual cost: %w", err)

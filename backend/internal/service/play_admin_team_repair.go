@@ -66,7 +66,7 @@ func (s *PlayService) ListAdminTeamMemberCandidates(
 	if err != nil {
 		return nil, err
 	}
-	cfg := s.currentTeamRewardConfig(ctx)
+	cfg := s.currentCompetitionRewardConfig(ctx)
 	if len(cfg.Tiers) == 0 || cfg.Cap.LessThanOrEqual(decimal.Zero) {
 		cfg = defaultTeamRewardConfig()
 	}
@@ -451,7 +451,8 @@ func (s *PlayService) RepairAdminTeamMember(
 		}
 	}
 
-	if err := s.repo.JoinTeamAt(txCtx, input.TargetTeamID, input.UserID, effectiveAt); err != nil {
+	rewardEligibleAt := teamRewardEligibleAt(effectiveAt)
+	if err := s.repo.JoinTeamAt(txCtx, input.TargetTeamID, input.UserID, effectiveAt, rewardEligibleAt); err != nil {
 		if errors.Is(err, ErrPlayTeamAlreadyJoined) {
 			return nil, ErrPlayAdminTeamSourceConflict
 		}

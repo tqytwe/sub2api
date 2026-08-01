@@ -267,6 +267,7 @@ export default {
       overview: "运营总览",
       membership: "会员运营",
       campaigns: "限时活动",
+      arena: "农场月榜",
       "invite-growth": "邀请增长",
       teams: "团队与排行",
       "app-analytics": "APP 数据",

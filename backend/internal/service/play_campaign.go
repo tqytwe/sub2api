@@ -67,21 +67,12 @@ func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int
 	if !rt.CampaignsEnabled || s.repo == nil {
 		return nil, nil
 	}
-	rows, err := s.repo.ListActiveCampaigns(ctx, s.serverNow())
+	rows, err := s.activeCampaignsForUser(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]PlayCampaignSummary, 0, len(rows))
 	for _, row := range rows {
-		if userID > 0 {
-			matched, err := s.campaignAudienceMatches(ctx, userID, row.Audience)
-			if err != nil {
-				return nil, err
-			}
-			if !matched {
-				continue
-			}
-		}
 		out = append(out, toPlayCampaignSummary(row))
 	}
 	return out, nil
@@ -232,6 +223,16 @@ func toPlayCampaignSummary(c PlayCampaign) PlayCampaignSummary {
 }
 
 func (s *PlayService) activeCampaignsForUser(ctx context.Context, userID int64) ([]PlayCampaign, error) {
+	if cache := playRequestCacheFromContext(ctx); cache != nil {
+		return cache.getCampaigns(ctx, userID, s.activeCampaignsForUserUncached)
+	}
+	return s.activeCampaignsForUserUncached(ctx, userID)
+}
+
+func (s *PlayService) activeCampaignsForUserUncached(ctx context.Context, userID int64) ([]PlayCampaign, error) {
+	if s == nil || s.repo == nil {
+		return nil, nil
+	}
 	rows, err := s.repo.ListActiveCampaigns(ctx, s.serverNow())
 	if err != nil || userID <= 0 {
 		return rows, err
@@ -256,7 +257,7 @@ func (s *PlayService) campaignAudienceMatches(ctx context.Context, userID int64,
 	if !audience.Ordinary && !audience.Member && len(audience.VIPTiers) == 0 && audience.RegisteredWithinDays <= 0 {
 		return true, nil
 	}
-	user, err := s.userRepo.GetByID(ctx, userID)
+	user, err := s.playRequestUser(ctx, userID)
 	if err != nil {
 		return false, err
 	}
@@ -289,6 +290,16 @@ func (s *PlayService) campaignAudienceMatches(ctx context.Context, userID int64,
 		return false, nil
 	}
 	return true, nil
+}
+
+func (s *PlayService) playRequestUser(ctx context.Context, userID int64) (*User, error) {
+	if s == nil || s.userRepo == nil {
+		return nil, ErrUserNotFound
+	}
+	if cache := playRequestCacheFromContext(ctx); cache != nil {
+		return cache.getUser(ctx, userID, s.userRepo.GetByID)
+	}
+	return s.userRepo.GetByID(ctx, userID)
 }
 
 func firstMemberThreshold(tiers []PlayVIPTier) float64 {

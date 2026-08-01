@@ -18,7 +18,7 @@ func TestPublicTeamRewardShowcaseOnlyReadsCompletedPaidAllocations(t *testing.T)
 	mock.ExpectQuery(`(?s)FROM play_team_reward_allocations a.*JOIN play_team_settlements s.*JOIN play_teams t.*JOIN users u.*s\.status = 'completed'.*a\.payout_status = 'paid'.*a\.reward_amount > 0.*LIMIT \$1`).
 		WithArgs(50).
 		WillReturnRows(newPlayRewardShowcaseRows().AddRow(
-			int64(71), periodStart, "星火小队", int64(501), "", "winner@example.com", "", 14.16, paidAt,
+			int64(71), periodStart, "星火小队", "winner@example.com", "", 14.16, paidAt,
 		))
 
 	rows, err := repo.ListPublicTeamRewardWinners(context.Background(), 50)
@@ -52,14 +52,17 @@ func TestMonthlyArenaRewardShowcaseReadsSettledMonthlyLedger(t *testing.T) {
 	rows, err := repo.ListArenaMonthlyRewardLedger(context.Background(), 44)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
-	require.Equal(t, "Mira", rows[0].DisplayName)
+	// Public payout proof never falls back to a username. With no email there is
+	// no safe public identity, so the client renders its localized anonymous label.
+	require.Empty(t, rows[0].DisplayName)
+	require.True(t, rows[0].Anonymous)
 	require.Equal(t, 1, rows[0].Rank)
 	require.InDelta(t, 20.0, rows[0].Amount, 0.00000001)
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func newPlayRewardShowcaseRows() *sqlmock.Rows {
-	return sqlmock.NewRows([]string{"settlement_id", "period_start", "team_name", "user_id", "username", "email", "avatar_url", "amount", "paid_at"})
+	return sqlmock.NewRows([]string{"settlement_id", "period_start", "team_name", "email", "avatar_url", "amount", "paid_at"})
 }
 
 func newPlayArenaPeriodRows() *sqlmock.Rows {

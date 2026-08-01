@@ -27,6 +27,7 @@ type PlayService struct {
 	redeemRewardIssuer RedeemCodeRewardIssuer
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
+	teamAdmissionRisk  PlayTeamAdmissionRiskHook
 	now                func() time.Time
 }
 
@@ -288,6 +289,14 @@ func (s *PlayService) SetRedeemCodeRewardIssuer(issuer RedeemCodeRewardIssuer) {
 	}
 }
 
+// SetTeamAdmissionRiskHook installs the optional admission policy used before
+// team creation, invite joins, applications, and approvals.
+func (s *PlayService) SetTeamAdmissionRiskHook(hook PlayTeamAdmissionRiskHook) {
+	if s != nil && hook != nil {
+		s.teamAdmissionRisk = hook
+	}
+}
+
 func NewPlayService(
 	repo PlayRepository,
 	userRepo UserRepository,
@@ -301,7 +310,7 @@ func NewPlayService(
 	if len(balanceLedger) > 0 {
 		ledger = balanceLedger[0]
 	}
-	return &PlayService{
+	svc := &PlayService{
 		repo:               repo,
 		userRepo:           userRepo,
 		channelService:     channelService,
@@ -312,6 +321,10 @@ func NewPlayService(
 		rewardDrawSource:   cryptoBlindboxDrawSource,
 		blindboxDrawSource: cryptoBlindboxDrawSource,
 	}
+	if riskRepo, ok := repo.(PlayTeamAdmissionRiskRepository); ok {
+		svc.teamAdmissionRisk = defaultPlayTeamAdmissionRisk{repo: riskRepo}
+	}
+	return svc
 }
 
 func (s *PlayService) GetRuntime(ctx context.Context) PlayRuntime {
@@ -673,7 +686,7 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 		return out, nil
 	}
 	now := s.serverNow()
-	period, err := s.repo.EnsureMonthlyArenaPeriod(ctx, now)
+	period, err := s.getExistingMonthlyArenaPeriod(ctx, now)
 	if err != nil {
 		return nil, err
 	}
@@ -690,7 +703,11 @@ func (s *PlayService) GetArenaCurrent(ctx context.Context, userID int64) (*PlayA
 	}
 	out.TokenSum = tokenSum
 	out.Rank = rank
-	out.EstimatedReward = arenaRewardForRank(rank, rt.ArenaSettlementRewards)
+	rewards, err := s.arenaRewardTiersForPeriod(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+	out.EstimatedReward = arenaRewardForRank(rank, rewards)
 	out.DisplayTokenSum = tokenSum
 	mods, err := s.resolvePlayEffectModifiers(ctx, userID, rt)
 	if err != nil {
@@ -724,7 +741,7 @@ func (s *PlayService) ListArenaLeaderboard(ctx context.Context, limit int) ([]Pl
 		return nil, nil, ErrPlayFeatureDisabled
 	}
 	now := s.serverNow()
-	period, err := s.repo.EnsureMonthlyArenaPeriod(ctx, now)
+	period, err := s.getExistingMonthlyArenaPeriod(ctx, now)
 	if err != nil {
 		return nil, nil, err
 	}

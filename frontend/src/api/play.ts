@@ -55,10 +55,13 @@ export interface PlayArenaCurrent {
 
 export interface PlayArenaScore {
   rank: number
-  user_id: number
-  display_name: string
+  // Public boards deliberately never return a database user ID. An empty
+  // display_name with anonymous=true is localized by the consuming surface.
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   token_sum: number
+  is_mine?: boolean
 }
 
 export interface PlayArenaLeaderboard {
@@ -84,8 +87,8 @@ export interface PlayArenaDailyRecentRewardSummary {
 
 export interface PlayArenaDailyRewardWinner {
   rank: number
-  user_id: number
-  display_name: string
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   token_sum: number
   amount: number
@@ -98,8 +101,8 @@ export interface PlayArenaDailyCurrentRewardEstimate {
 
 export interface PlayArenaDailyRewardEstimateRow {
   rank: number
-  user_id: number
-  display_name: string
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   token_sum: number
   estimated_reward: number
@@ -116,10 +119,38 @@ export interface PlayArenaMonthlyRewardSummary {
 
 export interface PlayArenaMonthlyRewardWinner {
   rank: number
-  display_name: string
+  display_name?: string
+  anonymous?: boolean
   avatar_url?: string
   amount: number
   paid_at?: string
+}
+
+export interface PlayArenaSeasonHistoryWinner extends PlayArenaScore {
+  reward_amount: number
+  payout_status: 'paid' | string
+  paid_at?: string
+}
+
+export interface PlayArenaSeasonHistory {
+  period?: PlayArenaPeriod
+  winners_count: number
+  total_amount: number
+  winners: PlayArenaSeasonHistoryWinner[]
+}
+
+export interface PlayArenaSeasonOverview {
+  enabled: boolean
+  period?: PlayArenaPeriod
+  current: PlayArenaCurrent
+  rows: PlayArenaScore[]
+  reward_tiers: PlayArenaSettlementTier[]
+  history: PlayArenaSeasonHistory[]
+}
+
+export interface PlayArenaSettlementTier {
+  rank_max: number
+  amount: number
 }
 
 export interface PlayTeamRewardShowcase {
@@ -315,7 +346,8 @@ export interface PlayTeamAffiliateInfo {
 export interface PlayTeamSummary {
   id: number
   name: string
-  invite_code: string
+  invite_code?: string
+  is_recruiting?: boolean
   captain_id: number
   member_count: number
   token_sum: number
@@ -450,6 +482,93 @@ export interface PlayTeamLeaderboard {
   total_teams: number
 }
 
+// Public team competition data is team-only by contract. It must not contain
+// invite codes, member identities, personal spend, or payout allocations.
+export interface PlayTeamDirectoryEntry {
+  team_id: number
+  team_name: string
+  member_count: number
+  member_capacity: number
+  monthly_spend: string
+  estimated_pool: string
+  accepting_applications: boolean
+}
+
+export interface PlayTeamDirectory {
+  month: string
+  rows: PlayTeamDirectoryEntry[]
+}
+
+export interface PlayTeamPublicLeaderboardEntry {
+  rank: number
+  team_id: number
+  team_name: string
+  member_count: number
+  monthly_spend: string
+  estimated_pool: string
+  gap_to_previous: string
+}
+
+export interface PlayTeamPublicLeaderboard {
+  month: string
+  total_teams: number
+  rows: PlayTeamPublicLeaderboardEntry[]
+}
+
+export interface PlayTeamSeason {
+  id: number
+  month: string
+  window_start?: string
+  window_end?: string
+  rules?: Record<string, unknown>
+  status: string
+  frozen_at?: string
+  settled_at?: string
+}
+
+export interface PlayTeamSeasonRanking {
+  rank: number
+  team_id: number
+  team_name: string
+  member_count: number
+  team_spend: string
+  reached_threshold?: string
+  reward_rate?: string
+  pool_amount: string
+  paid_amount: string
+  settlement_status: string
+}
+
+export interface PlayTeamSeasonDetail {
+  season: PlayTeamSeason
+  total_teams: number
+  rows: PlayTeamSeasonRanking[]
+}
+
+export interface PlayTeamJoinApplication {
+  id: number
+  team_id: number
+  // This field is intentionally never rendered. A future backend may attach a
+  // masked display field for captains, but the immutable lifecycle ID remains
+  // solely an action target.
+  applicant_user_id?: number
+  applicant_display_name?: string
+  applicant_avatar_url?: string
+  status: 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'expired' | string
+  message?: string
+  requested_at: string
+  sla_due_at: string
+  expires_at: string
+  handled_at?: string
+  decision_note?: string
+}
+
+export interface PlayTeamInvite {
+  invite_code: string
+  expires_at: string
+  rotated_at?: string
+}
+
 export interface PlayHubGrowth {
   balance: number
   total_recharged: number
@@ -518,6 +637,26 @@ export async function getTeamLeaderboard(): Promise<PlayTeamLeaderboard> {
   return data
 }
 
+export async function getTeamDirectory(limit = 20): Promise<PlayTeamDirectory> {
+  const { data } = await apiClient.get<PlayTeamDirectory>('/play/teams/directory', { params: { limit } })
+  return data
+}
+
+export async function getTeamPublicLeaderboard(limit = 50): Promise<PlayTeamPublicLeaderboard> {
+  const { data } = await apiClient.get<PlayTeamPublicLeaderboard>('/play/teams/leaderboard/public', { params: { limit } })
+  return data
+}
+
+export async function getTeamSeasons(limit = 12): Promise<PlayTeamSeason[]> {
+  const { data } = await apiClient.get<PlayTeamSeason[]>('/play/teams/seasons', { params: { limit } })
+  return data ?? []
+}
+
+export async function getTeamSeason(month: string, limit = 10): Promise<PlayTeamSeasonDetail> {
+  const { data } = await apiClient.get<PlayTeamSeasonDetail>(`/play/teams/seasons/${encodeURIComponent(month)}`, { params: { limit } })
+  return data
+}
+
 export async function getCheckinStatus(): Promise<PlayCheckinStatus> {
   const { data } = await apiClient.get<PlayCheckinStatus>('/play/checkin/status')
   return data
@@ -535,6 +674,22 @@ export async function checkinMakeup(): Promise<PlayCheckinResult> {
 
 export async function getArenaCurrent(): Promise<PlayArenaCurrent> {
   const { data } = await apiClient.get<PlayArenaCurrent>('/play/arena/current')
+  return data
+}
+
+// The aggregation reads one selected Farm period. History is opt-in so a
+// ranking tab can render promptly while immutable payout proof loads only when
+// the user expands it.
+export async function getArenaSeasonOverview(
+  period: 'daily' | 'monthly',
+  includeHistory = false,
+): Promise<PlayArenaSeasonOverview> {
+  const { data } = await apiClient.get<PlayArenaSeasonOverview>('/play/arena/overview', {
+    params: {
+      period,
+      include_history: includeHistory ? '1' : '0',
+    },
+  })
   return data
 }
 
@@ -618,6 +773,42 @@ export async function joinTeam(inviteCode: string): Promise<PlayTeamSummary> {
   return data
 }
 
+export async function applyToTeam(teamID: number, message = ''): Promise<PlayTeamJoinApplication> {
+  const { data } = await apiClient.post<PlayTeamJoinApplication>('/play/teams/applications', {
+    team_id: teamID,
+    message,
+  })
+  return data
+}
+
+export async function getTeamMyApplications(limit = 20): Promise<PlayTeamJoinApplication[]> {
+  const { data } = await apiClient.get<PlayTeamJoinApplication[]>('/play/teams/applications/me', { params: { limit } })
+  return data ?? []
+}
+
+export async function getTeamCaptainApplications(limit = 50): Promise<PlayTeamJoinApplication[]> {
+  const { data } = await apiClient.get<PlayTeamJoinApplication[]>('/play/teams/applications', { params: { limit } })
+  return data ?? []
+}
+
+export async function decideTeamApplication(applicationID: number, decision: 'approve' | 'reject', note = ''): Promise<PlayTeamJoinApplication> {
+  const { data } = await apiClient.post<PlayTeamJoinApplication>(`/play/teams/applications/${applicationID}/decision`, {
+    decision,
+    note,
+  })
+  return data
+}
+
+export async function rotateTeamInvite(): Promise<PlayTeamInvite> {
+  const { data } = await apiClient.post<PlayTeamInvite>('/play/teams/invite/rotate')
+  return data
+}
+
+export async function setTeamRecruiting(recruiting: boolean): Promise<{ recruiting: boolean }> {
+  const { data } = await apiClient.put<{ recruiting: boolean }>('/play/teams/recruiting', { recruiting })
+  return data
+}
+
 export async function leaveTeam(): Promise<void> {
   await apiClient.post('/play/teams/leave')
 }
@@ -647,6 +838,7 @@ export const playAPI = {
   checkin,
   checkinMakeup,
   getArenaCurrent,
+  getArenaSeasonOverview,
   getArenaLeaderboard,
   getArenaDailyCurrent,
   getArenaDailyLeaderboard,
@@ -661,8 +853,18 @@ export const playAPI = {
   submitQuiz,
   getTeamMe,
   getTeamLeaderboard,
+  getTeamDirectory,
+  getTeamPublicLeaderboard,
+  getTeamSeasons,
+  getTeamSeason,
   createTeam,
   joinTeam,
+  applyToTeam,
+  getTeamMyApplications,
+  getTeamCaptainApplications,
+  decideTeamApplication,
+  rotateTeamInvite,
+  setTeamRecruiting,
   leaveTeam,
   transferTeam,
   removeTeamMember,

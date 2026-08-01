@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -172,15 +173,8 @@ type playQuizSubmitResultDTO struct {
 }
 
 type playTeamMemberDTO struct {
-	UserID          int64  `json:"user_id"`
-	DisplayName     string `json:"display_name"`
-	AvatarURL       string `json:"avatar_url,omitempty"`
-	JoinedAt        string `json:"joined_at"`
-	TokenSum        int64  `json:"token_sum"`
-	TokenPct        int    `json:"token_pct"`
-	Spend           string `json:"spend"`
-	SpendPct        int    `json:"spend_pct"`
-	EstimatedReward string `json:"estimated_reward"`
+	DisplayName string `json:"display_name"`
+	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
 type playTeamAffiliateDTO struct {
@@ -195,8 +189,10 @@ type playTeamAffiliateDTO struct {
 type playTeamSummaryDTO struct {
 	ID               int64                    `json:"id"`
 	Name             string                   `json:"name"`
-	InviteCode       string                   `json:"invite_code"`
-	CaptainID        int64                    `json:"captain_id"`
+	InviteCode       string                   `json:"invite_code,omitempty"`
+	IsCaptain        bool                     `json:"is_captain"`
+	CanManage        bool                     `json:"can_manage"`
+	Recruiting       bool                     `json:"is_recruiting"`
 	MemberCount      int                      `json:"member_count"`
 	TokenSum         int64                    `json:"token_sum"`
 	Members          []playTeamMemberDTO      `json:"members"`
@@ -222,6 +218,20 @@ type playTeamCreateRequest struct {
 
 type playTeamJoinRequest struct {
 	InviteCode string `json:"invite_code"`
+}
+
+type playTeamApplicationRequest struct {
+	TeamID  int64  `json:"team_id" binding:"required,gt=0"`
+	Message string `json:"message"`
+}
+
+type playTeamApplicationDecisionRequest struct {
+	Decision string `json:"decision" binding:"required"`
+	Note     string `json:"note"`
+}
+
+type playTeamRecruitingRequest struct {
+	Recruiting *bool `json:"recruiting" binding:"required"`
 }
 
 type playTeamMemberActionRequest struct {
@@ -493,7 +503,7 @@ func (h *PlayHandler) TeamMe(c *gin.Context) {
 	}
 	out := playTeamMeDTO{Enabled: me.Enabled}
 	if me.Team != nil {
-		out.Team = toPlayTeamSummaryDTO(me.Team)
+		out.Team = toPlayTeamSummaryDTOForActor(me.Team, subject.UserID)
 	}
 	response.Success(c, out)
 }
@@ -514,7 +524,7 @@ func (h *PlayHandler) TeamCreate(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, toPlayTeamSummaryDTO(team))
+	response.Success(c, toPlayTeamSummaryDTOForActor(team, subject.UserID))
 }
 
 func (h *PlayHandler) TeamJoin(c *gin.Context) {
@@ -533,7 +543,148 @@ func (h *PlayHandler) TeamJoin(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, toPlayTeamSummaryDTO(team))
+	response.Success(c, toPlayTeamSummaryDTOForActor(team, subject.UserID))
+}
+
+func (h *PlayHandler) TeamAdmissionEligibility(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	eligibility, err := h.playService.GetTeamAdmissionEligibility(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, eligibility)
+}
+
+func (h *PlayHandler) TeamApply(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req playTeamApplicationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application request"))
+		return
+	}
+	application, err := h.playService.ApplyToTeam(c.Request.Context(), subject.UserID, service.PlayTeamJoinApplicationInput{
+		TeamID:  req.TeamID,
+		Message: req.Message,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, application)
+}
+
+func (h *PlayHandler) TeamMyApplications(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	applications, err := h.playService.ListMyTeamJoinApplications(c.Request.Context(), subject.UserID, limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, applications)
+}
+
+func (h *PlayHandler) TeamApplicationWithdraw(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	applicationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || applicationID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application ID"))
+		return
+	}
+	application, err := h.playService.WithdrawTeamJoinApplication(c.Request.Context(), subject.UserID, applicationID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, application)
+}
+
+func (h *PlayHandler) TeamCaptainApplications(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	applications, err := h.playService.ListCaptainTeamJoinApplications(c.Request.Context(), subject.UserID, limit)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, applications)
+}
+
+func (h *PlayHandler) TeamApplicationDecision(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	applicationID, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || applicationID <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application ID"))
+		return
+	}
+	var req playTeamApplicationDecisionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application decision request"))
+		return
+	}
+	application, err := h.playService.DecideTeamJoinApplication(c.Request.Context(), subject.UserID, applicationID, req.Decision, req.Note)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, application)
+}
+
+func (h *PlayHandler) TeamInviteRotate(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	invite, err := h.playService.RotateTeamInvite(c.Request.Context(), subject.UserID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, invite)
+}
+
+func (h *PlayHandler) TeamRecruiting(c *gin.Context) {
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "User not authenticated")
+		return
+	}
+	var req playTeamRecruitingRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.Recruiting == nil {
+		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team recruiting request"))
+		return
+	}
+	if err := h.playService.SetTeamRecruiting(c.Request.Context(), subject.UserID, *req.Recruiting); err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, map[string]bool{"recruiting": *req.Recruiting})
 }
 
 func (h *PlayHandler) TeamLeave(c *gin.Context) {
@@ -639,15 +790,17 @@ func toPlayUserTeamSettlementDTOs(records []service.PlayUserTeamSettlementRecord
 	return out
 }
 
-func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
+func toPlayTeamSummaryDTOForActor(team *service.PlayTeamSummary, actorUserID int64) *playTeamSummaryDTO {
 	if team == nil {
 		return nil
 	}
+	isCaptain := actorUserID > 0 && team.CaptainID == actorUserID
 	out := &playTeamSummaryDTO{
 		ID:               team.ID,
 		Name:             team.Name,
-		InviteCode:       team.InviteCode,
-		CaptainID:        team.CaptainID,
+		IsCaptain:        isCaptain,
+		CanManage:        isCaptain,
+		Recruiting:       team.Recruiting,
 		MemberCount:      team.MemberCount,
 		TokenSum:         team.TokenSum,
 		Members:          make([]playTeamMemberDTO, 0, len(team.Members)),
@@ -660,17 +813,13 @@ func toPlayTeamSummaryDTO(team *service.PlayTeamSummary) *playTeamSummaryDTO {
 		RewardCap:        team.RewardCap.StringFixed(8),
 		RewardTiers:      team.RewardTiers,
 	}
+	if isCaptain {
+		out.InviteCode = team.InviteCode
+	}
 	for _, m := range team.Members {
 		out.Members = append(out.Members, playTeamMemberDTO{
-			UserID:          m.UserID,
-			DisplayName:     m.DisplayName,
-			AvatarURL:       m.AvatarURL,
-			JoinedAt:        m.JoinedAt.Format("2006-01-02T15:04:05Z07:00"),
-			TokenSum:        m.TokenSum,
-			TokenPct:        m.TokenPct,
-			Spend:           m.Spend.StringFixed(8),
-			SpendPct:        m.SpendPct,
-			EstimatedReward: m.EstimatedReward.StringFixed(8),
+			DisplayName: m.DisplayName,
+			AvatarURL:   m.AvatarURL,
 		})
 	}
 	if team.Affiliate != nil {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 )
 
 func (s *PlayService) SettleArenaPeriod(ctx context.Context, periodID int64) (*PlayArenaSettlementResult, error) {
@@ -11,10 +12,6 @@ func (s *PlayService) SettleArenaPeriod(ctx context.Context, periodID int64) (*P
 	if !rt.ArenaEnabled {
 		return nil, ErrPlayFeatureDisabled
 	}
-	if len(rt.ArenaSettlementRewards) == 0 {
-		return nil, fmt.Errorf("arena settlement rewards not configured")
-	}
-
 	now := s.serverNow()
 	var period *PlayArenaPeriod
 	var err error
@@ -32,11 +29,26 @@ func (s *PlayService) SettleArenaPeriod(ctx context.Context, periodID int64) (*P
 	if period.Status != "active" {
 		return nil, ErrPlayArenaPeriodNotSettleable
 	}
-	if periodID <= 0 && period.EndAt.After(now) {
+	if period.PeriodType == "monthly" {
+		// Monthly results are intentionally held until 00:10 Shanghai time so
+		// in-flight usage writes at the calendar boundary cannot alter the
+		// published snapshot. The admin endpoint is a retry path, not a way to
+		// publish a running season early.
+		if !isArenaPeriodSettlementDue(period, now) {
+			return nil, ErrPlayArenaPeriodNotSettleable
+		}
+	} else if now.Before(period.EndAt) {
 		return nil, ErrPlayArenaPeriodNotSettleable
 	}
+	rewards, err := s.arenaRewardTiersForPeriod(ctx, period)
+	if err != nil {
+		return nil, err
+	}
+	if len(rewards) == 0 {
+		return nil, fmt.Errorf("arena settlement rewards not configured")
+	}
 
-	maxRank := rt.ArenaSettlementRewards[len(rt.ArenaSettlementRewards)-1].RankMax
+	maxRank := rewards[len(rewards)-1].RankMax
 	if maxRank <= 0 {
 		maxRank = 10
 	}
@@ -49,18 +61,36 @@ func (s *PlayService) SettleArenaPeriod(ctx context.Context, periodID int64) (*P
 		PeriodID:   period.ID,
 		PeriodName: period.Name,
 	}
+	seasonRepo, canSnapshot := s.repo.(PlayArenaSeasonSettlementRepository)
 	for _, row := range rows {
-		amount := arenaRewardForRank(row.Rank, rt.ArenaSettlementRewards)
+		amount := arenaRewardForRank(row.Rank, rewards)
 		if amount <= 0 {
 			continue
 		}
 		idempotencyKey := fmt.Sprintf("arena_settlement:%d:%d", period.ID, row.UserID)
+		paidAt := s.serverNow()
 		if err := s.grantBalance(ctx, row.UserID, amount, PlayRewardSourceArenaSettlement, idempotencyKey, map[string]any{
-			"period_id":   period.ID,
-			"period_name": period.Name,
-			"rank":        row.Rank,
-			"token_sum":   row.TokenSum,
-		}, nil); err != nil {
+			"period_id":    period.ID,
+			"period_name":  period.Name,
+			"period_type":  "monthly",
+			"period_start": period.StartAt.Format(time.RFC3339),
+			"period_end":   period.EndAt.Format(time.RFC3339),
+			"rank":         row.Rank,
+			"token_sum":    row.TokenSum,
+		}, func(txCtx context.Context) error {
+			if !canSnapshot {
+				return nil
+			}
+			return seasonRepo.CreateArenaSeasonSnapshot(txCtx, PlayArenaSeasonSnapshot{
+				PeriodID:     period.ID,
+				Rank:         row.Rank,
+				UserID:       row.UserID,
+				TokenSum:     row.TokenSum,
+				RewardAmount: amount,
+				PayoutStatus: "paid",
+				PaidAt:       &paidAt,
+			})
+		}); err != nil {
 			if errors.Is(err, ErrPlayRewardDuplicate) {
 				continue
 			}

@@ -1,35 +1,57 @@
 import { enableAutoUnmount, flushPromises, mount } from '@vue/test-utils'
+import { ref } from 'vue'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import AgentTeamView from '@/views/public/AgentTeamView.vue'
 
 const {
+  getTeamDirectoryMock,
+  getTeamPublicLeaderboardMock,
+  getTeamLeaderboardMock,
   getTeamMeMock,
-  getTeamSettlementsMock,
+  getTeamMyApplicationsMock,
+  getTeamCaptainApplicationsMock,
+  getTeamSeasonsMock,
+  getTeamSeasonMock,
   getTeamRewardShowcaseMock,
+  getTeamSettlementsMock,
+  applyToTeamMock,
+  decideTeamApplicationMock,
+  rotateTeamInviteMock,
+  setTeamRecruitingMock,
   createTeamMock,
   joinTeamMock,
   leaveTeamMock,
-  transferTeamMock,
-  removeTeamMemberMock,
-  copyToClipboardMock,
 } = vi.hoisted(() => ({
+  getTeamDirectoryMock: vi.fn(),
+  getTeamPublicLeaderboardMock: vi.fn(),
+  getTeamLeaderboardMock: vi.fn(),
   getTeamMeMock: vi.fn(),
-  getTeamSettlementsMock: vi.fn(),
+  getTeamMyApplicationsMock: vi.fn(),
+  getTeamCaptainApplicationsMock: vi.fn(),
+  getTeamSeasonsMock: vi.fn(),
+  getTeamSeasonMock: vi.fn(),
   getTeamRewardShowcaseMock: vi.fn(),
+  getTeamSettlementsMock: vi.fn(),
+  applyToTeamMock: vi.fn(),
+  decideTeamApplicationMock: vi.fn(),
+  rotateTeamInviteMock: vi.fn(),
+  setTeamRecruitingMock: vi.fn(),
   createTeamMock: vi.fn(),
   joinTeamMock: vi.fn(),
   leaveTeamMock: vi.fn(),
-  transferTeamMock: vi.fn(),
-  removeTeamMemberMock: vi.fn(),
-  copyToClipboardMock: vi.fn(),
 }))
 
+const authState: {
+  isAuthenticated: boolean
+  user: { id: number } | null
+} = {
+  isAuthenticated: false,
+  user: null,
+}
+
 vi.mock('@/stores/auth', () => ({
-  useAuthStore: () => ({
-    isAuthenticated: true,
-    user: { id: 103 },
-  }),
+  useAuthStore: () => authState,
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -41,88 +63,76 @@ vi.mock('@/stores/app', () => ({
 }))
 
 vi.mock('@/composables/useClipboard', () => ({
-  useClipboard: () => ({
-    copyToClipboard: copyToClipboardMock,
-  }),
+  useClipboard: () => ({ copyToClipboard: vi.fn() }),
 }))
 
 vi.mock('@/api/play', () => ({
   default: {
+    getTeamDirectory: (...args: unknown[]) => getTeamDirectoryMock(...args),
+    getTeamPublicLeaderboard: (...args: unknown[]) => getTeamPublicLeaderboardMock(...args),
+    getTeamLeaderboard: (...args: unknown[]) => getTeamLeaderboardMock(...args),
     getTeamMe: (...args: unknown[]) => getTeamMeMock(...args),
-    getTeamSettlements: (...args: unknown[]) => getTeamSettlementsMock(...args),
+    getTeamMyApplications: (...args: unknown[]) => getTeamMyApplicationsMock(...args),
+    getTeamCaptainApplications: (...args: unknown[]) => getTeamCaptainApplicationsMock(...args),
+    getTeamSeasons: (...args: unknown[]) => getTeamSeasonsMock(...args),
+    getTeamSeason: (...args: unknown[]) => getTeamSeasonMock(...args),
     getTeamRewardShowcase: (...args: unknown[]) => getTeamRewardShowcaseMock(...args),
+    getTeamSettlements: (...args: unknown[]) => getTeamSettlementsMock(...args),
+    applyToTeam: (...args: unknown[]) => applyToTeamMock(...args),
+    decideTeamApplication: (...args: unknown[]) => decideTeamApplicationMock(...args),
+    rotateTeamInvite: (...args: unknown[]) => rotateTeamInviteMock(...args),
+    setTeamRecruiting: (...args: unknown[]) => setTeamRecruitingMock(...args),
     createTeam: (...args: unknown[]) => createTeamMock(...args),
     joinTeam: (...args: unknown[]) => joinTeamMock(...args),
     leaveTeam: (...args: unknown[]) => leaveTeamMock(...args),
-    transferTeam: (...args: unknown[]) => transferTeamMock(...args),
-    removeTeamMember: (...args: unknown[]) => removeTeamMemberMock(...args),
   },
 }))
 
 const messages: Record<string, string> = {
   'models.loading': '加载中',
-  'play.agentTeam.eyebrow': 'PLAY · AGENT TEAM',
-  'play.agentTeam.title': 'Agent Team',
-  'play.agentTeam.subtitle': '组队共享收益',
-  'play.agentTeam.intro': '小队共享奖励',
-  'play.agentTeam.ctaGuest': '注册加入小队',
-  'agentTeam.disabled': 'Agent Team 暂未开启',
-  'agentTeam.created': '小队已创建',
-  'agentTeam.joined': '已加入小队',
-  'agentTeam.alreadyJoined': '你已在小队中',
-  'agentTeam.notFound': '邀请码无效',
-  'agentTeam.failed': '操作失败',
-  'agentTeam.linkCopied': '邀请码已复制',
-  'agentTeam.membersUnit': '名成员',
-  'agentTeam.contributionsTitle': '本月成员贡献',
-  'agentTeam.captainBadge': '队长',
-  'agentTeam.memberUsageEmpty': '本月暂无 API 消耗记录',
-  'agentTeam.spendStats': '{members} 名成员 · 本月实际消费 ${spend}',
-  'agentTeam.reachedTier': '已达 {rate}% 返还档，预计共享奖池 ${pool}',
-  'agentTeam.noTier': '本月尚未达到首档共享奖励',
-  'agentTeam.nextTier': '再消费 ${amount} 达到 ${threshold} 档位',
-  'agentTeam.rewardRule': '按成员实际消费比例分配，次月自动结算，每队每月上限 ${cap}',
-  'agentTeam.rewardRuleDetail': '共享奖池按成员实际消费比例分配给成员；队长负责邀请和管理，不独占共享奖池。',
-  'agentTeam.formulaTitle': '奖励怎么算',
-  'agentTeam.poolFormula': '团队奖池 = 团队月消费 × 当前达标比例，且不超过封顶。',
-  'agentTeam.memberFormula': '个人预计奖励 = 个人消费 / 团队总消费 × 团队奖池。',
-  'agentTeam.settlementSnapshotRule': '最终以月结快照为准，预计值会随成员贡献变化。',
-  'agentTeam.paidCelebrationTitle': '本期团队奖励已到账',
-  'agentTeam.teamRecord': '本月团队战绩',
-  'agentTeam.nextTierTitle': '下一档',
-  'agentTeam.moreToNextTier': '再消费 ${amount}',
-  'agentTeam.currentTier': '当前 {rate}% 档',
-  'agentTeam.tierReached': '已达成',
-  'agentTeam.tierLocked': '未达成',
-  'agentTeam.inviteCodeLabel': '小队邀请码',
-  'agentTeam.copyInviteCode': '复制邀请码',
-  'agentTeam.memberSpend': '${spend} · {pct}%',
-  'agentTeam.memberTokens': '信息指标：{tokens} tokens',
-  'agentTeam.memberEstimatedReward': '预计本月可分 ${reward}',
-  'agentTeam.leave': '离开小队',
-  'agentTeam.leaveConfirm': '确认离开当前小队？',
-  'agentTeam.transfer': '转让队长',
-  'agentTeam.transferConfirm': '确认转让？',
-  'agentTeam.remove': '移除成员',
-  'agentTeam.removeConfirm': '确认移除？',
-  'agentTeam.settlementHistory': '结算历史',
-  'agentTeam.noSettlements': '暂无已生成的月度结算',
-  'agentTeam.personalShare': '个人分成',
-  'agentTeam.poolStatus': '奖池 ${pool} · {status}',
-  'agentTeam.allocationLine': '贡献 ${contribution} · {ratio}% · 奖励 ${reward} · {status}',
-  'agentTeam.status.pending': '待结算',
-  'agentTeam.status.processing': '结算中',
-  'agentTeam.status.completed': '已完成',
-  'agentTeam.status.partial': '部分完成',
-  'agentTeam.status.failed': '结算失败',
-  'agentTeam.payout.pending': '待发放',
-  'agentTeam.payout.processing': '发放中',
-  'agentTeam.payout.paid': '已到账',
-  'agentTeam.payout.failed': '发放失败',
-  'agentTeam.publicRewardTitle': '最近已发放组队奖励',
-  'agentTeam.publicRewardPaid': '真实到账记录',
-  'agentTeam.publicRewardContext': '{month} · {team}',
-  'agentTeam.publicRewardPaidAt': '到账时间：{time}',
+  'play.agentTeam.eyebrow': 'PLAY · TEAM COMPETITION',
+  'play.agentTeam.title': '战队竞争',
+  'play.agentTeam.subtitle': '组队冲榜，共享奖励',
+  'agentTeam.liveLeaderboard': '本月战队排行',
+  'agentTeam.teamDirectory': '正在招募的战队',
+  'agentTeam.apply': '申请加入',
+  'agentTeam.history': '历史结算',
+  'agentTeam.viewHistory': '查看已结算战绩',
+  'agentTeam.ownTeam': '我的战队',
+  'agentTeam.estimatedPool': '预计共享奖池',
+  'agentTeam.gapToPrevious': '距上一名',
+  'agentTeam.memberCapacity': '{current} / {capacity} 名成员',
+  'agentTeam.applicationMessage': '申请说明',
+  'agentTeam.submitApplication': '提交申请',
+  'agentTeam.applicationSubmitted': '申请已提交',
+  'agentTeam.captainControls': '队长管理',
+  'agentTeam.pendingApplications': '待处理申请',
+  'agentTeam.approve': '通过',
+  'agentTeam.reject': '拒绝',
+  'agentTeam.rotateInvite': '轮换邀请码',
+  'agentTeam.inviteRotated': '邀请码已轮换',
+  'agentTeam.noPersonalSpend': '不公开个人消费或个人奖励明细',
+  'agentTeam.guestRegister': '注册后申请加入',
+  'agentTeam.publicProof': '奖励到账证明',
+  'agentTeam.anonymous': '匿名用户',
+  'agentTeam.failed': '操作失败，请稍后重试',
+  'agentTeam.disabled': '战队竞争暂未开启',
+  'agentTeam.noTeams': '暂无可展示战队',
+  'agentTeam.noHistory': '暂无已结算赛季',
+  'agentTeam.applicationPending': '申请待处理',
+  'agentTeam.applicationSla': '队长将在 72 小时内处理',
+  'agentTeam.applicationExpires': '申请 7 天后失效',
+  'agentTeam.inviteJoin': '使用邀请码加入',
+  'agentTeam.createLabel': '创建战队',
+  'agentTeam.createButton': '创建',
+  'agentTeam.joinButton': '加入',
+  'agentTeam.joinPlaceholder': '邀请码',
+  'agentTeam.leave': '离开战队',
+  'agentTeam.leaveConfirm': '确认离开战队？',
+  'agentTeam.left': '已离开战队',
+  'agentTeam.recruitingOpen': '接受申请',
+  'agentTeam.recruitingClosed': '暂停招募',
+  'agentTeam.recruitingUpdated': '招募状态已更新',
 }
 
 vi.mock('vue-i18n', async (importOriginal) => {
@@ -130,6 +140,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
   return {
     ...actual,
     useI18n: () => ({
+      locale: ref('zh-CN'),
       t: (key: string, params?: Record<string, unknown>) => {
         let template = messages[key] ?? key
         for (const [name, value] of Object.entries(params ?? {})) {
@@ -143,6 +154,23 @@ vi.mock('vue-i18n', async (importOriginal) => {
 
 enableAutoUnmount(afterEach)
 
+const publicDirectory = {
+  month: '2026-08',
+  rows: [
+    { team_id: 11, team_name: '北极星战队', member_count: 20, member_capacity: 30, monthly_spend: '1010.60', estimated_pool: '101.06', accepting_applications: true },
+    { team_id: 12, team_name: '云端协作组', member_count: 30, member_capacity: 30, monthly_spend: '750.30', estimated_pool: '75.03', accepting_applications: false },
+  ],
+}
+
+const publicLeaderboard = {
+  month: '2026-08',
+  total_teams: 48,
+  rows: [
+    { rank: 1, team_id: 8, team_name: '远航战队', member_count: 28, monthly_spend: '1164.20', estimated_pool: '116.42', gap_to_previous: '0.00' },
+    { rank: 4, team_id: 1, team_name: '星火战队', member_count: 12, monthly_spend: '708.20', estimated_pool: '70.82', gap_to_previous: '42.10' },
+  ],
+}
+
 function mountView() {
   return mount(AgentTeamView, {
     global: {
@@ -151,128 +179,160 @@ function mountView() {
         PublicPageToolbar: true,
         PublicPlayBackLink: true,
         SupportFloatingCard: true,
-        RouterLink: { template: '<a><slot /></a>' },
+        PlayUserAvatar: { template: '<span class="avatar-stub" />' },
+        Icon: true,
+        RouterLink: {
+          props: ['to'],
+          template: '<a :href="typeof to === \'string\' ? to : to.path"><slot /></a>',
+        },
       },
     },
   })
 }
 
-describe('AgentTeamView competitive layout', () => {
+describe('AgentTeamView competition experience', () => {
   beforeEach(() => {
+    vi.clearAllMocks()
+    authState.isAuthenticated = false
+    authState.user = null
+    getTeamDirectoryMock.mockResolvedValue(publicDirectory)
+    getTeamPublicLeaderboardMock.mockResolvedValue(publicLeaderboard)
+    getTeamSeasonsMock.mockResolvedValue([{ id: 7, month: '2026-07', status: 'settled' }])
+    getTeamSeasonMock.mockResolvedValue({
+      season: { id: 7, month: '2026-07', status: 'settled' },
+      total_teams: 24,
+      rows: [{ rank: 1, team_id: 8, team_name: '远航战队', member_count: 28, team_spend: '1280', pool_amount: '128', paid_amount: '128', settlement_status: 'completed' }],
+    })
+    getTeamRewardShowcaseMock.mockResolvedValue({ winners: [{ settlement_month: '2026-07', team_name: '远航战队', display_name: 'mi***@example.com', amount: 12.8, paid_at: '2026-08-01T00:10:00Z' }] })
+    getTeamMeMock.mockResolvedValue({ enabled: true })
+    getTeamMyApplicationsMock.mockResolvedValue([])
+    getTeamCaptainApplicationsMock.mockResolvedValue([])
+    getTeamLeaderboardMock.mockResolvedValue({ ...publicLeaderboard, rows: publicLeaderboard.rows.map(row => ({ ...row, is_mine: row.team_id === 1 })) })
+    getTeamSettlementsMock.mockResolvedValue([])
+    applyToTeamMock.mockResolvedValue({ id: 21, team_id: 11, status: 'pending', requested_at: '2026-08-01T00:00:00Z', sla_due_at: '2026-08-04T00:00:00Z', expires_at: '2026-08-08T00:00:00Z' })
+    decideTeamApplicationMock.mockResolvedValue({ id: 22, team_id: 1, status: 'approved' })
+    rotateTeamInviteMock.mockResolvedValue({ invite_code: 'rotated-code', expires_at: '2026-08-31T00:00:00Z' })
+    setTeamRecruitingMock.mockResolvedValue({ recruiting: true })
+  })
+
+  it('lets guests inspect public competition and routes a team application to registration', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getTeamDirectoryMock).toHaveBeenCalledOnce()
+    expect(getTeamPublicLeaderboardMock).toHaveBeenCalledOnce()
+    expect(getTeamMeMock).not.toHaveBeenCalled()
+    expect(wrapper.get('[data-testid="team-live-leaderboard"]').text()).toContain('远航战队')
+    expect(wrapper.get('[data-testid="team-directory"]').text()).toContain('北极星战队')
+    expect(wrapper.get('[data-testid="team-apply-11"]').attributes('href')).toContain('/register')
+    expect(wrapper.text()).toContain('不公开个人消费或个人奖励明细')
+  })
+
+  it('lets a signed-in user without a team submit a visible, connected application', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 103 }
+
+    const wrapper = mountView()
+    await flushPromises()
+    await wrapper.get('[data-testid="team-apply-11"]').trigger('click')
+    await wrapper.get('[data-testid="team-application-message"]').setValue('希望一起冲榜')
+    await wrapper.get('[data-testid="team-application-submit"]').trigger('click')
+    await flushPromises()
+
+    expect(applyToTeamMock).toHaveBeenCalledWith(11, '希望一起冲榜')
+    expect(wrapper.text()).toContain('申请待处理')
+    expect(wrapper.text()).toContain('队长将在 72 小时内处理')
+    expect(wrapper.html()).not.toContain('applicant_user_id')
+  })
+
+  it('highlights the member team, defers historical reads, and never renders member spend details', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 103 }
     getTeamMeMock.mockResolvedValue({
       enabled: true,
       team: {
         id: 1,
-        name: '星火小队',
-        invite_code: 'TEAM2026',
+        name: '星火战队',
         captain_id: 101,
-        member_count: 4,
-        token_sum: 992910,
-        current_month: '2026-07',
-        team_spend: '885.20',
-        reached_threshold: '800',
-        reward_rate: '0.08',
-        next_threshold: '1200',
+        member_count: 12,
         estimated_pool: '70.82',
-        reward_cap: '88.00',
-        reward_tiers: [
-          { threshold: '500', rate: '0.05' },
-          { threshold: '800', rate: '0.08' },
-          { threshold: '1200', rate: '0.10' },
-        ],
-        members: [
-          { user_id: 101, display_name: 'QuoRem', joined_at: '2026-07-01T00:00:00Z', token_sum: 421300, token_pct: 42, spend: '368.20', spend_pct: 42 },
-          { user_id: 102, display_name: 'Nina Ops', joined_at: '2026-07-01T00:00:00Z', token_sum: 292880, token_pct: 27, spend: '241.70', spend_pct: 27 },
-          { user_id: 103, display_name: '你', joined_at: '2026-07-01T00:00:00Z', token_sum: 188420, token_pct: 20, spend: '178.90', spend_pct: 20 },
-          { user_id: 104, display_name: 'Rift Agent', joined_at: '2026-07-01T00:00:00Z', token_sum: 90310, token_pct: 11, spend: '96.40', spend_pct: 11 },
-        ],
+        team_spend: '708.20',
+        reward_cap: '300.00',
       },
     })
-    getTeamSettlementsMock.mockResolvedValue([
-      {
-        settlement: {
-          id: 7,
-          team_id: 1,
-          period_start: '2026-07-01T00:00:00Z',
-          window_start: '2026-07-01T00:00:00Z',
-          window_end: '2026-08-01T00:00:00Z',
-          team_spend: '885.20',
-          reached_threshold: '800',
-          reward_rate: '0.08',
-          pool_amount: '70.82',
-          cap_amount: '88.00',
-          status: 'completed',
-        },
-        allocations: [
-          { id: 1, settlement_id: 7, user_id: 101, contribution: '368.20', ratio: '0.42', reward_amount: '29.74', payout_status: 'processing' },
-          { id: 2, settlement_id: 7, user_id: 103, contribution: '178.90', ratio: '0.20', reward_amount: '14.16', payout_status: 'paid' },
-        ],
-      },
-    ])
-    getTeamRewardShowcaseMock.mockResolvedValue({
-      winners: [
-        { settlement_month: '2026-07', team_name: '星火小队', display_name: 'Mira', amount: 14.16, paid_at: '2026-08-02T03:00:00Z' },
-      ],
-    })
-  })
 
-  it('renders team performance, ranked members, and localized settlement states', async () => {
     const wrapper = mountView()
     await flushPromises()
 
-    expect(wrapper.find('.agent-team-score-panel').text()).toContain('$70.82')
-    expect(wrapper.text()).toContain('队长负责邀请和管理，不独占共享奖池')
-    expect(wrapper.text()).toContain('团队奖池 = 团队月消费 × 当前达标比例')
-    expect(wrapper.text()).toContain('个人预计奖励 = 个人消费 / 团队总消费 × 团队奖池')
-    expect(wrapper.findAll('.agent-member-card')).toHaveLength(4)
-    expect(wrapper.find('.agent-member-card.tone-gold').text()).toContain('QuoRem')
-    expect(wrapper.find('.agent-member-card.current').text()).toContain('你')
-    expect(wrapper.text()).toContain('已完成')
-    expect(wrapper.text()).toContain('发放中')
-    expect(wrapper.text()).toContain('已到账')
-    expect(wrapper.find('.reward-celebration-overlay').text()).toContain('$14.16')
+    expect(wrapper.get('[data-testid="team-own-summary"]').text()).toContain('星火战队')
+    expect(wrapper.get('[data-testid="team-leaderboard-row-1"]').classes()).toContain('team-leaderboard-row--mine')
+    expect(wrapper.text()).not.toContain('本月成员贡献')
+    expect(wrapper.text()).not.toContain('个人预计奖励')
+    expect(getTeamSeasonsMock).not.toHaveBeenCalled()
+
+    await wrapper.get('[data-testid="team-history-load"]').trigger('click')
+    await flushPromises()
+
+    expect(getTeamSeasonsMock).toHaveBeenCalledOnce()
+    expect(getTeamSeasonMock).toHaveBeenCalledWith('2026-07', 10)
+    expect(wrapper.get('[data-testid="team-history"]').text()).toContain('远航战队')
   })
 
-  it('renders only the current user settlement allocation from the privacy-safe DTO', async () => {
-    getTeamSettlementsMock.mockResolvedValueOnce([
-      {
-        settlement_id: 7,
-        team_id: 1,
-        team_name: '星火小队',
-        settlement_month: '2026-07',
-        team_spend: '885.20000000',
-        pool_amount: '70.82000000',
-        settlement_status: 'completed',
-        personal_contribution: '178.90000000',
-        personal_ratio: '0.20000000',
-        personal_reward: '14.16000000',
-        payout_status: 'paid',
-        paid_at: '2026-08-02T03:00:00Z',
+  it('keeps the public leaderboard available while member-only supplemental data is slow', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 103 }
+    getTeamMeMock.mockResolvedValue({
+      enabled: true,
+      team: {
+        id: 1,
+        name: '星火战队',
+        captain_id: 101,
+        member_count: 12,
+        estimated_pool: '70.82',
+        team_spend: '708.20',
+        reward_cap: '300.00',
       },
+    })
+    getTeamLeaderboardMock.mockReturnValue(new Promise(() => undefined))
+    getTeamSettlementsMock.mockReturnValue(new Promise(() => undefined))
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(getTeamLeaderboardMock).toHaveBeenCalledOnce()
+    expect(getTeamSettlementsMock).toHaveBeenCalledOnce()
+    expect(wrapper.get('[data-testid="team-live-leaderboard"]').text()).toContain('远航战队')
+    expect(wrapper.get('[data-testid="team-own-summary"]').text()).toContain('星火战队')
+  })
+
+  it('shows the captain-only application queue and invite rotation without exposing applicant IDs', async () => {
+    authState.isAuthenticated = true
+    authState.user = { id: 101 }
+    getTeamMeMock.mockResolvedValue({
+      enabled: true,
+      team: {
+        id: 1,
+        name: '星火战队',
+        captain_id: 101,
+        member_count: 12,
+        estimated_pool: '70.82',
+        team_spend: '708.20',
+        reward_cap: '300.00',
+      },
+    })
+    getTeamCaptainApplicationsMock.mockResolvedValue([
+      { id: 22, team_id: 1, applicant_user_id: 9988, status: 'pending', message: '希望加入', requested_at: '2026-08-01T00:00:00Z', sla_due_at: '2026-08-04T00:00:00Z', expires_at: '2026-08-08T00:00:00Z' },
     ])
 
     const wrapper = mountView()
     await flushPromises()
-
-    expect(wrapper.text()).toContain('2026-07')
-    expect(wrapper.text()).toContain('已到账')
-    expect(wrapper.text()).toContain('14.16')
-    expect(wrapper.text()).not.toContain('QuoRem · 贡献')
-    expect(wrapper.html()).not.toContain('email')
-  })
-
-  it('shows verified team payouts even when the viewer has not joined a team', async () => {
-    vi.clearAllMocks()
-    getTeamMeMock.mockResolvedValueOnce({ enabled: true })
-
-    const wrapper = mountView()
+    await wrapper.get('[data-testid="team-application-approve-22"]').trigger('click')
+    await wrapper.get('[data-testid="team-invite-rotate"]').trigger('click')
     await flushPromises()
 
-    expect(getTeamRewardShowcaseMock).toHaveBeenCalledOnce()
-    expect(getTeamSettlementsMock).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('最近已发放组队奖励')
-    expect(wrapper.text()).toContain('Mira')
-    expect(wrapper.text()).toContain('2026-07 · 星火小队')
-    expect(wrapper.text()).toContain('$14.16')
+    expect(getTeamCaptainApplicationsMock).toHaveBeenCalledOnce()
+    expect(decideTeamApplicationMock).toHaveBeenCalledWith(22, 'approve')
+    expect(rotateTeamInviteMock).toHaveBeenCalledOnce()
+    expect(wrapper.html()).not.toContain('9988')
   })
 })
