@@ -1166,7 +1166,7 @@ RETURNING id`, []any{strings.TrimSpace(campaign.Key), strings.TrimSpace(campaign
 				return fmt.Errorf("create referral campaign tier: %w", err)
 			}
 		}
-		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,1,$2,'created',jsonb_build_object('campaign_key',$3))`, campaign.ID, campaign.CreatedBy, campaign.Key)
+		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,1,$2,'created',jsonb_build_object('campaign_key',$3::text))`, campaign.ID, campaign.CreatedBy, campaign.Key)
 		return err
 	})
 	if err != nil {
@@ -1349,7 +1349,7 @@ WITH changed AS (
  ON CONFLICT (idempotency_key) DO NOTHING RETURNING id
 )
 INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail)
-SELECT id,version,$4,'status_changed',jsonb_build_object('status',$3,'note',$5) FROM changed`, id, expectedVersion, status, actorID, strings.TrimSpace(note))
+SELECT id,version,$4,'status_changed',jsonb_build_object('status',$3::text,'note',$5::text) FROM changed`, id, expectedVersion, status, actorID, strings.TrimSpace(note))
 	if err != nil {
 		return nil, fmt.Errorf("set referral campaign status: %w", err)
 	}
@@ -1386,7 +1386,7 @@ func (r *affiliateRepository) ReviewReferralCampaign(ctx context.Context, id, ex
 			if _, err := txClient.ExecContext(txCtx, `UPDATE referral_campaigns SET status='draft',version=version+1,approved_by=NULL,updated_at=NOW() WHERE id=$1 AND version=$2`, id, version); err != nil {
 				return err
 			}
-			_, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2+1,$3,'review_rejected',jsonb_build_object('review_type',$4,'note',$5))`, id, version, actorID, reviewType, strings.TrimSpace(note))
+			_, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2+1,$3,'review_rejected',jsonb_build_object('review_type',$4::text,'note',$5::text))`, id, version, actorID, reviewType, strings.TrimSpace(note))
 			return err
 		}
 		var approvals int
@@ -2140,7 +2140,7 @@ func (r *affiliateRepository) ResolveReferralRewardDebt(ctx context.Context, cam
 				return err
 			}
 		}
-		_, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT campaign_id,$2,$3,'reward_debt_resolved',jsonb_build_object('reward_id',id,'decision',$4,'note',$5) FROM referral_campaign_rewards WHERE id=$1`, rewardID, out.Version, actorID, decision, strings.TrimSpace(note))
+		_, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT campaign_id,$2,$3,'reward_debt_resolved',jsonb_build_object('reward_id',id,'decision',$4::text,'note',$5::text) FROM referral_campaign_rewards WHERE id=$1`, rewardID, out.Version, actorID, decision, strings.TrimSpace(note))
 		return err
 	})
 	if err != nil {
