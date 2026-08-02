@@ -10,6 +10,7 @@ import { useAuthStore } from '@/stores/auth'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import { trackGrowthEvent } from '@/utils/growthAnalytics'
 import { vipTierBadgeClass } from '@/utils/vipColors'
+import { listReferralCampaigns, type ReferralCampaignProgress } from '@/api/referralCampaign'
 import '@/styles/growth-world.css'
 
 const { t, locale } = useI18n()
@@ -18,6 +19,7 @@ const authStore = useAuthStore()
 
 const loading = ref(true)
 const hub = ref<PlayHubSummary | null>(null)
+const referralCampaigns = ref<ReferralCampaignProgress[]>([])
 
 const balance = computed(() => hub.value?.growth.balance ?? authStore.user?.balance ?? 0)
 const showGrowthCta = computed(() => {
@@ -30,6 +32,7 @@ const vip = computed(() => hub.value?.growth.vip)
 const vipPerks = computed(() => vip.value?.perks ?? [])
 const vipTiers = computed(() => hub.value?.growth.vip_tiers ?? [])
 const primaryCampaign = computed(() => hub.value?.campaigns?.[0] ?? null)
+const referralCampaign = computed(() => referralCampaigns.value.find(item => ['scheduled', 'running', 'settling'].includes(item.campaign.status)) ?? null)
 const quizCompletionReward = computed(() => {
   const quiz = hub.value?.quiz
   return (quiz?.questions.length ?? 0) * (quiz?.reward_per_correct ?? 0)
@@ -155,11 +158,13 @@ const playCards = computed(() => {
   }
 
   if (isFeatureFlagEnabled(FeatureFlags.affiliate)) {
+		const campaign = referralCampaign.value
     cards.push({
       key: 'affiliate',
       title: t('nav.affiliate'),
-      subtitle: t('playHub.affiliateHint'),
+      subtitle: campaign ? t('playHub.affiliateCampaign', { name: campaign.campaign.name }) : t('playHub.affiliateHint'),
       route: '/affiliate',
+		badge: campaign?.attention ? t('playHub.affiliateAttention') : undefined,
       enabled: true,
     })
   }
@@ -170,9 +175,15 @@ const playCards = computed(() => {
 async function load() {
   loading.value = true
   try {
-    hub.value = await playAPI.getPlayHub()
+		const [nextHub, nextCampaigns] = await Promise.all([
+			playAPI.getPlayHub(),
+			isFeatureFlagEnabled(FeatureFlags.affiliate) ? listReferralCampaigns().catch(() => []) : Promise.resolve([]),
+		])
+		hub.value = nextHub
+		referralCampaigns.value = nextCampaigns
   } catch {
     hub.value = null
+		referralCampaigns.value = []
   } finally {
     loading.value = false
   }

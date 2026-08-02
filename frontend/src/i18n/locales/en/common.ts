@@ -296,6 +296,13 @@ export default {
     invitationCodeInvalid: 'Invalid or used invitation code',
     invitationCodeValidating: 'Validating invitation code...',
     invitationCodeInvalidCannotRegister: 'Invalid invitation code. Please check and try again',
+    referralCampaign: {
+      invitedTo: 'You are registering through a campaign invitation',
+      rebatePolicy: 'Standard 10% affiliate rebate: {policy}',
+      exclude: 'Not combined; campaign invitees do not earn the standard rebate',
+      stack: 'Combined; campaign rewards and the standard rebate settle separately',
+      unavailable: 'This campaign invitation is expired, paused, or no longer accepting enrollment.'
+    },
     oauthOrContinue: 'or continue with others',
     linuxdo: {
       signIn: 'Continue with Linux.do',

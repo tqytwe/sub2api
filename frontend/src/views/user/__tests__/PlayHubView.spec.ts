@@ -6,6 +6,7 @@ import PlayHubView from '@/views/user/PlayHubView.vue'
 
 const state = vi.hoisted(() => ({
   getPlayHub: vi.fn(),
+  listReferralCampaigns: vi.fn(),
   refreshUser: vi.fn(),
   push: vi.fn(),
 }))
@@ -14,6 +15,10 @@ vi.mock('@/api/play', () => ({
   default: {
     getPlayHub: state.getPlayHub,
   },
+}))
+
+vi.mock('@/api/referralCampaign', () => ({
+  listReferralCampaigns: state.listReferralCampaigns,
 }))
 
 vi.mock('@/stores/auth', () => ({
@@ -176,6 +181,7 @@ function mountView() {
 describe('PlayHubView layout', () => {
   beforeEach(() => {
     state.getPlayHub.mockResolvedValue(hubFixture())
+    state.listReferralCampaigns.mockResolvedValue([])
     state.refreshUser.mockResolvedValue(undefined)
     state.push.mockReset()
   })

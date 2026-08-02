@@ -452,6 +452,17 @@ func (s *AffiliateService) AccrueInviteRebateForOrder(ctx context.Context, invit
 	if !s.IsEnabled(ctx) {
 		return 0, nil
 	}
+	if policyRepo, ok := s.repo.(interface {
+		ShouldSuppressLegacyReferralRebate(context.Context, int64) (bool, error)
+	}); ok {
+		suppress, err := policyRepo.ShouldSuppressLegacyReferralRebate(ctx, inviteeUserID)
+		if err != nil {
+			return 0, err
+		}
+		if suppress {
+			return 0, nil
+		}
+	}
 
 	inviteeSummary, err := s.repo.EnsureUserAffiliate(ctx, inviteeUserID)
 	if err != nil {

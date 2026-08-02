@@ -370,6 +370,11 @@ export interface AdminReferralCampaign {
   budget_reserved: number;
   budget_paid: number;
   reward_mode: "additive" | "replace";
+  public_rules_md: string;
+  invitee_notice_md: string;
+  legacy_rebate_policy: "exclude" | "stack";
+  rules_version: number;
+  rules_updated_at: string;
   created_by: number;
   approved_by?: number;
 }
@@ -408,6 +413,7 @@ export interface AdminReferralCampaignDetail {
   tiers: AdminReferralCampaignTier[];
   stats: AdminReferralCampaignStats;
   approvals: AdminReferralCampaignApproval[];
+  rule_versions: Array<{ rules_version: number; change_kind: string; changed_by?: number; created_at: string }>;
 }
 
 export interface AdminReferralCampaignInput {
@@ -425,6 +431,9 @@ export interface AdminReferralCampaignInput {
   max_enrollments: number;
   budget_total: number;
   reward_mode: "additive" | "replace";
+  public_rules_md: string;
+  invitee_notice_md: string;
+  legacy_rebate_policy: "exclude" | "stack";
   tiers: AdminReferralCampaignTier[];
   expected_version?: number;
 }

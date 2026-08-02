@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import AnnouncementContent from '@/components/common/AnnouncementContent.vue'
 import userAPI from '@/api/user'
 import { getTeamMe } from '@/api/play'
 import type { UserAffiliateDetail } from '@/types'
@@ -12,7 +13,7 @@ import { useClipboard } from '@/composables/useClipboard'
 import { formatCurrency, formatDateTime } from '@/utils/format'
 import { extractApiErrorMessage, extractI18nErrorMessage } from '@/utils/apiError'
 import { buildRegisterInviteLink } from '@/utils/oauthAffiliate'
-import { claimReferralCampaignReward, enrollReferralCampaign, getReferralCampaignInviteToken, getReferralCampaignProgress, listReferralCampaigns, type ReferralCampaignProgress } from '@/api/referralCampaign'
+import { claimReferralCampaignReward, enrollReferralCampaign, getReferralCampaignInviteToken, getReferralCampaignProgress, listReferralCampaigns, markReferralCampaignViewed, type ReferralCampaignProgress } from '@/api/referralCampaign'
 import '@/styles/growth-world.css'
 
 const { t } = useI18n()
@@ -96,7 +97,10 @@ async function transferQuota(): Promise<void> {
 
 async function loadCampaigns(): Promise<void> {
   campaignLoading.value = true
-  try { campaigns.value = await listReferralCampaigns() } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.loadFailed'))) } finally { campaignLoading.value = false }
+  try {
+    campaigns.value = await listReferralCampaigns()
+    await Promise.all(campaigns.value.filter(item => item.unseen_update).map(item => markReferralCampaignViewed(item.campaign.id).catch(() => undefined)))
+  } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.loadFailed'))) } finally { campaignLoading.value = false }
 }
 
 async function enrollCampaign(campaign: ReferralCampaignProgress): Promise<void> {
@@ -108,7 +112,9 @@ async function copyCampaignLink(campaign: ReferralCampaignProgress): Promise<voi
   campaignAction.value = campaign.campaign.id
   try {
     const token = await getReferralCampaignInviteToken(campaign.campaign.id)
-    const url = new URL(inviteLink.value, window.location.origin)
+    const url = new URL('/register', window.location.origin)
+    if (campaign.campaign.legacy_rebate_policy === 'stack' && detail.value?.aff_code) url.searchParams.set('ref', detail.value.aff_code)
+    if (teamInviteCode.value) url.searchParams.set('team', teamInviteCode.value)
     url.searchParams.set('campaign', String(campaign.campaign.id)); url.searchParams.set('token', token)
     await copyToClipboard(url.toString(), t('affiliate.campaign.linkCopied'))
   } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.linkFailed'))) } finally { campaignAction.value = null }
@@ -141,7 +147,28 @@ onMounted(() => {
       <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
 
       <template v-else-if="detail">
-        <div class="gw-stat-grid">
+        <section class="gw-panel" aria-labelledby="referral-campaign-title">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.campaign.eyebrow') }}</p><h2 id="referral-campaign-title" class="gw-section-title">{{ t('affiliate.campaign.title') }}</h2></div><button type="button" class="gw-btn gw-btn-secondary" :disabled="campaignLoading" @click="loadCampaigns"><Icon name="refresh" size="sm" />{{ t('affiliate.campaign.refresh') }}</button></div>
+          <div v-if="campaignLoading" class="gw-polling py-8 text-center">{{ t('affiliate.campaign.loading') }}</div>
+          <div v-else-if="!campaigns.length" class="mt-4 border border-dashed p-8 text-center gw-subtitle" style="border-color: var(--gw-line)">{{ t('affiliate.campaign.empty') }}</div>
+          <div v-else class="mt-4 space-y-6">
+            <article v-for="campaign in campaigns" :key="campaign.campaign.id" class="border-t pt-5 first:border-t-0 first:pt-0" style="border-color: var(--gw-line)">
+              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div class="flex flex-wrap items-center gap-2"><h3 class="text-lg font-semibold">{{ campaign.campaign.name }}</h3><span class="agent-pill">{{ t(`affiliate.campaign.statuses.${campaign.campaign.status}`, campaign.campaign.status) }}</span><span v-if="campaign.attention" class="agent-pill" style="color: var(--gw-warn)">{{ t(`affiliate.campaign.attention.${campaign.attention}`) }}</span></div><p class="mt-2 gw-subtitle text-sm">{{ t('affiliate.campaign.rule', { pay: formatCurrency(campaign.campaign.pay_threshold), spend: formatCurrency(campaign.campaign.usage_threshold) }) }}</p><p class="mt-1 gw-subtitle text-xs">{{ t('affiliate.campaign.windows', { registration: formatDateTime(campaign.campaign.registration_to), qualification: formatDateTime(campaign.campaign.qualification_to), claim: formatDateTime(campaign.campaign.claim_deadline) }) }}</p></div><div class="flex flex-col gap-2 sm:flex-row"><button v-if="!campaign.enrollment" type="button" class="gw-btn gw-btn-primary" :disabled="campaignAction === campaign.campaign.id" @click="enrollCampaign(campaign)">{{ t('affiliate.campaign.enroll') }}</button><button v-else type="button" class="gw-btn gw-btn-secondary" :disabled="campaignAction === campaign.campaign.id" @click="copyCampaignLink(campaign)"><Icon name="copy" size="sm" />{{ t('affiliate.campaign.share') }}</button></div></div>
+              <div class="mt-4 grid gap-3 border-y py-4 text-sm sm:grid-cols-2" style="border-color: var(--gw-line)"><p><strong>{{ t('affiliate.campaign.rebatePolicy') }}</strong> {{ campaign.campaign.legacy_rebate_policy === 'stack' ? t('affiliate.campaign.rebateStack') : t('affiliate.campaign.rebateExclude') }}</p><p><strong>{{ t('affiliate.campaign.version') }}</strong> {{ campaign.campaign.rules_version }} · {{ formatDateTime(campaign.campaign.rules_updated_at) }}</p><p>{{ t('affiliate.campaign.riskNotice', { hours: campaign.campaign.risk_hold_hours }) }}</p><p>{{ t('affiliate.campaign.refundNotice') }}</p></div>
+              <AnnouncementContent class="mt-4" dense :content="campaign.campaign.public_rules_md || ''" />
+
+              <div class="mt-5"><div class="flex items-end justify-between gap-3"><div><p class="gw-field-label">{{ t('affiliate.campaign.progress') }}</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ campaign.qualified_count }} <span class="text-sm font-normal gw-subtitle">/ {{ Math.max(...campaign.tiers.map(item => item.required_invites), 0) }}</span></p><p class="mt-1 text-xs gw-subtitle">{{ t('affiliate.campaign.invitedBreakdown', { invited: campaign.invited_count, qualified: campaign.qualified_count }) }}</p></div><p v-if="campaign.ranking" class="text-sm gw-subtitle">{{ t('affiliate.campaign.myRank', { rank: campaign.ranking.rank }) }}</p></div><div class="mt-3 h-2 overflow-hidden rounded bg-gray-200 dark:bg-dark-700" role="progressbar" :aria-valuenow="campaignProgressPercent(campaign)" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-primary-600" :style="{ width: `${campaignProgressPercent(campaign)}%` }"></div></div></div>
+
+              <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><div v-for="tier in campaign.tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ t('affiliate.campaign.milestone', { count: tier.required_invites }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount) }}</p></div><span class="agent-pill">{{ campaign.qualified_count >= tier.required_invites ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><div v-if="campaignReward(campaign, tier.tier)" class="mt-3"><button v-if="campaignReward(campaign, tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary w-full" :disabled="campaignAction === campaignReward(campaign, tier.tier)?.id" @click="claimCampaignReward(campaign, campaignReward(campaign, tier.tier)!.id)">{{ t('affiliate.campaign.claim') }}</button><p v-else class="text-sm gw-subtitle">{{ t(`affiliate.campaign.rewardStatuses.${campaignReward(campaign, tier.tier)?.status}`, campaignReward(campaign, tier.tier)?.status || '') }}</p></div></div></div>
+              <div class="gw-table-wrap mt-5 overflow-x-auto"><h4 class="gw-field-label px-4 pt-4">{{ t('affiliate.campaign.leaderboard') }}</h4><table v-if="campaign.leaderboard?.length" class="gw-leaderboard min-w-[560px]"><thead><tr><th>{{ t('affiliate.campaign.rank') }}</th><th>{{ t('affiliate.campaign.email') }}</th><th class="text-right">{{ t('affiliate.campaign.qualified') }}</th><th class="text-right">{{ t('affiliate.campaign.reward') }}</th></tr></thead><tbody><tr v-for="row in campaign.leaderboard" :key="`${campaign.campaign.id}-${row.rank}`"><td>#{{ row.rank }}</td><td>{{ row.email_masked }}<span v-if="row.is_me" class="ml-2 text-primary-600">{{ t('affiliate.campaign.me') }}</span></td><td class="text-right tabular-nums">{{ row.qualified_count }}</td><td class="text-right tabular-nums">{{ formatCurrency(row.reward_amount) }}</td></tr></tbody></table><p v-else class="px-4 py-5 text-sm gw-subtitle">{{ t('affiliate.campaign.leaderboardEmpty') }}</p></div>
+            </article>
+          </div>
+        </section>
+
+        <section class="mt-6" aria-labelledby="standard-affiliate-title">
+          <p class="gw-eyebrow">{{ t('affiliate.standard.eyebrow') }}</p><h2 id="standard-affiliate-title" class="gw-section-title">{{ t('affiliate.standard.title') }}</h2>
+        </section>
+        <div class="gw-stat-grid mt-4">
           <div class="gw-stat-card">
             <p class="gw-balance-label">{{ t('affiliate.stats.rebateRate') }}</p>
             <p class="gw-stat-value">{{ formattedRebateRate }}<span class="text-base">%</span></p>
@@ -163,22 +190,6 @@ onMounted(() => {
             </p>
           </div>
         </div>
-
-        <section class="gw-panel" aria-labelledby="referral-campaign-title">
-          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.campaign.eyebrow') }}</p><h2 id="referral-campaign-title" class="gw-section-title">{{ t('affiliate.campaign.title') }}</h2></div><button type="button" class="gw-btn gw-btn-secondary" :disabled="campaignLoading" @click="loadCampaigns"><Icon name="refresh" size="sm" />{{ t('affiliate.campaign.refresh') }}</button></div>
-          <div v-if="campaignLoading" class="gw-polling py-8 text-center">{{ t('affiliate.campaign.loading') }}</div>
-          <div v-else-if="!campaigns.length" class="mt-4 border border-dashed p-8 text-center gw-subtitle" style="border-color: var(--gw-line)">{{ t('affiliate.campaign.empty') }}</div>
-          <div v-else class="mt-4 space-y-6">
-            <article v-for="campaign in campaigns" :key="campaign.campaign.id" class="border-t pt-5 first:border-t-0 first:pt-0" style="border-color: var(--gw-line)">
-              <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between"><div><div class="flex flex-wrap items-center gap-2"><h3 class="text-lg font-semibold">{{ campaign.campaign.name }}</h3><span class="agent-pill">{{ t(`affiliate.campaign.statuses.${campaign.campaign.status}`, campaign.campaign.status) }}</span></div><p class="mt-2 gw-subtitle text-sm">{{ t('affiliate.campaign.rule', { pay: formatCurrency(campaign.campaign.pay_threshold), spend: formatCurrency(campaign.campaign.usage_threshold) }) }}</p><p class="mt-1 gw-subtitle text-xs">{{ t('affiliate.campaign.claimDeadline', { date: formatDateTime(campaign.campaign.claim_deadline) }) }}</p></div><div class="flex flex-col gap-2 sm:flex-row"><button v-if="!campaign.enrollment" type="button" class="gw-btn gw-btn-primary" :disabled="campaignAction === campaign.campaign.id" @click="enrollCampaign(campaign)">{{ t('affiliate.campaign.enroll') }}</button><button v-else type="button" class="gw-btn gw-btn-secondary" :disabled="campaignAction === campaign.campaign.id" @click="copyCampaignLink(campaign)"><Icon name="copy" size="sm" />{{ t('affiliate.campaign.share') }}</button></div></div>
-
-              <div class="mt-5"><div class="flex items-end justify-between gap-3"><div><p class="gw-field-label">{{ t('affiliate.campaign.progress') }}</p><p class="mt-1 text-2xl font-semibold tabular-nums">{{ campaign.qualified_count }} <span class="text-sm font-normal gw-subtitle">/ {{ Math.max(...campaign.tiers.map(item => item.required_invites), 0) }}</span></p><p class="mt-1 text-xs gw-subtitle">{{ t('affiliate.campaign.invitedBreakdown', { invited: campaign.invited_count, qualified: campaign.qualified_count }) }}</p></div><p v-if="campaign.ranking" class="text-sm gw-subtitle">{{ t('affiliate.campaign.myRank', { rank: campaign.ranking.rank }) }}</p></div><div class="mt-3 h-2 overflow-hidden rounded bg-gray-200 dark:bg-dark-700" role="progressbar" :aria-valuenow="campaignProgressPercent(campaign)" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-primary-600" :style="{ width: `${campaignProgressPercent(campaign)}%` }"></div></div></div>
-
-              <div class="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3"><div v-for="tier in campaign.tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ t('affiliate.campaign.milestone', { count: tier.required_invites }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount) }}</p></div><span class="agent-pill">{{ campaign.qualified_count >= tier.required_invites ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><div v-if="campaignReward(campaign, tier.tier)" class="mt-3"><button v-if="campaignReward(campaign, tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary w-full" :disabled="campaignAction === campaignReward(campaign, tier.tier)?.id" @click="claimCampaignReward(campaign, campaignReward(campaign, tier.tier)!.id)">{{ t('affiliate.campaign.claim') }}</button><p v-else class="text-sm gw-subtitle">{{ t(`affiliate.campaign.rewardStatuses.${campaignReward(campaign, tier.tier)?.status}`, campaignReward(campaign, tier.tier)?.status || '') }}</p></div></div></div>
-              <div class="gw-table-wrap mt-5 overflow-x-auto"><h4 class="gw-field-label px-4 pt-4">{{ t('affiliate.campaign.leaderboard') }}</h4><table v-if="campaign.leaderboard?.length" class="gw-leaderboard min-w-[560px]"><thead><tr><th>{{ t('affiliate.campaign.rank') }}</th><th>{{ t('affiliate.campaign.email') }}</th><th class="text-right">{{ t('affiliate.campaign.qualified') }}</th><th class="text-right">{{ t('affiliate.campaign.reward') }}</th></tr></thead><tbody><tr v-for="row in campaign.leaderboard" :key="`${campaign.campaign.id}-${row.rank}`"><td>#{{ row.rank }}</td><td>{{ row.email_masked }}<span v-if="row.is_me" class="ml-2 text-primary-600">{{ t('affiliate.campaign.me') }}</span></td><td class="text-right tabular-nums">{{ row.qualified_count }}</td><td class="text-right tabular-nums">{{ formatCurrency(row.reward_amount) }}</td></tr></tbody></table><p v-else class="px-4 py-5 text-sm gw-subtitle">{{ t('affiliate.campaign.leaderboardEmpty') }}</p></div>
-            </article>
-          </div>
-        </section>
 
         <div class="gw-detail-grid">
           <div class="gw-panel">

@@ -154,6 +154,13 @@ func (r *PlayGrowthRunner) runOnce(ctx context.Context) {
 		}
 	}
 	if r.affiliate != nil {
+		if campaigns := r.affiliate.ReferralCampaign(); campaigns != nil {
+			if n, err := campaigns.AdvanceDueCampaigns(ctx, time.Now().UTC()); err != nil {
+				logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] advance referral campaigns: %v", err)
+			} else if n > 0 {
+				logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] advanced %d referral campaigns", n)
+			}
+		}
 		if n, err := r.affiliate.ProcessReferralReconcileQueue(ctx, 100); err != nil {
 			logger.LegacyPrintf("play.growth_runner", "[PlayGrowthRunner] reconcile referral rewards: %v", err)
 		} else if n > 0 {

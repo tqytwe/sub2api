@@ -39,6 +39,7 @@ func RegisterUserRoutes(
 			{
 				referrals.GET("", h.User.ListReferralCampaigns)
 				referrals.POST("/:campaign_id/enroll", h.User.EnrollReferralCampaign)
+				referrals.POST("/:campaign_id/view", h.User.MarkReferralCampaignViewed)
 				referrals.GET("/:campaign_id/invite-token", h.User.ReferralCampaignInviteToken)
 				referrals.POST("/attribute", h.User.AttributeReferralCampaign)
 				referrals.POST("/:campaign_id/qualification/refresh", h.User.RefreshReferralQualification)

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"strings"
 	"sync"
@@ -68,6 +69,32 @@ type SendVerifyCodeRequest struct {
 type SendVerifyCodeResponse struct {
 	Message   string `json:"message"`
 	Countdown int    `json:"countdown"` // 倒计时秒数
+}
+
+// ReferralCampaignInvitePreview shows a signed invitation's public terms on
+// the registration form before the invitee submits personal information.
+// GET /api/v1/auth/referral-campaign-preview?token=...
+func (h *AuthHandler) ReferralCampaignInvitePreview(c *gin.Context) {
+	token := strings.TrimSpace(c.Query("token"))
+	if token == "" {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_TOKEN_REQUIRED", "referral campaign token is required"))
+		return
+	}
+	preview, err := h.authService.ReferralCampaignInvitePreview(c.Request.Context(), token)
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrReferralCampaignTokenExpired):
+			response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_TOKEN_EXPIRED", "referral campaign token has expired"))
+		case errors.Is(err, service.ErrReferralCampaignNotOpen):
+			response.ErrorFrom(c, infraerrors.Conflict("REFERRAL_CAMPAIGN_NOT_OPEN", "referral campaign is unavailable"))
+		case errors.Is(err, service.ErrReferralCampaignNotFound):
+			response.ErrorFrom(c, infraerrors.NotFound("REFERRAL_CAMPAIGN_NOT_FOUND", "referral campaign was not found"))
+		default:
+			response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_TOKEN_INVALID", "referral campaign token is invalid"))
+		}
+		return
+	}
+	response.Success(c, preview)
 }
 
 func authMobileMessage(c *gin.Context, zh, en string) string {

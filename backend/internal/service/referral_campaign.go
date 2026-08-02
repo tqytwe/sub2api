@@ -63,29 +63,34 @@ var (
 )
 
 type ReferralCampaign struct {
-	ID               int64              `json:"id"`
-	Key              string             `json:"key"`
-	Name             string             `json:"name"`
-	Status           string             `json:"status"`
-	Version          int64              `json:"version"`
-	RegistrationFrom time.Time          `json:"registration_from"`
-	RegistrationTo   time.Time          `json:"registration_to"`
-	StartsAt         time.Time          `json:"starts_at"`
-	EndsAt           time.Time          `json:"ends_at"`
-	QualificationTo  time.Time          `json:"qualification_to"`
-	ClaimDeadline    time.Time          `json:"claim_deadline"`
-	RiskHoldHours    int                `json:"risk_hold_hours"`
-	PayThreshold     float64            `json:"pay_threshold"`
-	UsageThreshold   float64            `json:"usage_threshold"`
-	MaxEnrollments   int                `json:"max_enrollments"`
-	BudgetTotal      float64            `json:"budget_total"`
-	BudgetReserved   float64            `json:"budget_reserved"`
-	BudgetPaid       float64            `json:"budget_paid"`
-	RewardMode       string             `json:"reward_mode"`
-	RankRewards      map[string]float64 `json:"rank_rewards,omitempty"`
-	CreatedBy        int64              `json:"created_by"`
-	ApprovedBy       *int64             `json:"approved_by,omitempty"`
-	SigningSecret    []byte             `json:"-"`
+	ID                 int64              `json:"id"`
+	Key                string             `json:"key"`
+	Name               string             `json:"name"`
+	Status             string             `json:"status"`
+	Version            int64              `json:"version"`
+	RegistrationFrom   time.Time          `json:"registration_from"`
+	RegistrationTo     time.Time          `json:"registration_to"`
+	StartsAt           time.Time          `json:"starts_at"`
+	EndsAt             time.Time          `json:"ends_at"`
+	QualificationTo    time.Time          `json:"qualification_to"`
+	ClaimDeadline      time.Time          `json:"claim_deadline"`
+	RiskHoldHours      int                `json:"risk_hold_hours"`
+	PayThreshold       float64            `json:"pay_threshold"`
+	UsageThreshold     float64            `json:"usage_threshold"`
+	MaxEnrollments     int                `json:"max_enrollments"`
+	BudgetTotal        float64            `json:"budget_total"`
+	BudgetReserved     float64            `json:"budget_reserved"`
+	BudgetPaid         float64            `json:"budget_paid"`
+	RewardMode         string             `json:"reward_mode"`
+	PublicRulesMD      string             `json:"public_rules_md"`
+	InviteeNoticeMD    string             `json:"invitee_notice_md"`
+	LegacyRebatePolicy string             `json:"legacy_rebate_policy"`
+	RulesVersion       int64              `json:"rules_version"`
+	RulesUpdatedAt     time.Time          `json:"rules_updated_at"`
+	RankRewards        map[string]float64 `json:"rank_rewards,omitempty"`
+	CreatedBy          int64              `json:"created_by"`
+	ApprovedBy         *int64             `json:"approved_by,omitempty"`
+	SigningSecret      []byte             `json:"-"`
 }
 
 type ReferralCampaignTier struct {
@@ -102,13 +107,19 @@ type ReferralCampaignEnrollment struct {
 }
 
 type ReferralAttribution struct {
-	ID           int64     `json:"id"`
-	CampaignID   int64     `json:"campaign_id"`
-	InviterID    int64     `json:"inviter_id"`
-	InviteeID    int64     `json:"invitee_id"`
-	Nonce        string    `json:"-"`
-	RegisteredAt time.Time `json:"registered_at"`
-	Status       string    `json:"status"`
+	ID                      int64     `json:"id"`
+	CampaignID              int64     `json:"campaign_id"`
+	InviterID               int64     `json:"inviter_id"`
+	InviteeID               int64     `json:"invitee_id"`
+	Nonce                   string    `json:"-"`
+	RegisteredAt            time.Time `json:"registered_at"`
+	Status                  string    `json:"status"`
+	RulesVersion            int64     `json:"rules_version"`
+	LegacyRebatePolicy      string    `json:"legacy_rebate_policy"`
+	QualificationToSnapshot time.Time `json:"qualification_to_snapshot"`
+	PayThresholdSnapshot    float64   `json:"pay_threshold_snapshot"`
+	UsageThresholdSnapshot  float64   `json:"usage_threshold_snapshot"`
+	RiskHoldHoursSnapshot   int       `json:"risk_hold_hours_snapshot"`
 }
 
 type ReferralQualificationInput struct {
@@ -187,10 +198,19 @@ type ReferralCampaignApproval struct {
 }
 
 type ReferralCampaignDetail struct {
-	Campaign  ReferralCampaign           `json:"campaign"`
-	Tiers     []ReferralCampaignTier     `json:"tiers"`
-	Stats     ReferralCampaignStats      `json:"stats"`
-	Approvals []ReferralCampaignApproval `json:"approvals"`
+	Campaign     ReferralCampaign              `json:"campaign"`
+	Tiers        []ReferralCampaignTier        `json:"tiers"`
+	Stats        ReferralCampaignStats         `json:"stats"`
+	Approvals    []ReferralCampaignApproval    `json:"approvals"`
+	RuleVersions []ReferralCampaignRuleVersion `json:"rule_versions"`
+}
+
+type ReferralCampaignRuleVersion struct {
+	RulesVersion int64           `json:"rules_version"`
+	ChangeKind   string          `json:"change_kind"`
+	Snapshot     json.RawMessage `json:"snapshot"`
+	ChangedBy    *int64          `json:"changed_by,omitempty"`
+	CreatedAt    time.Time       `json:"created_at"`
 }
 
 type ReferralCampaignParticipant struct {
@@ -255,24 +275,39 @@ type ReferralCampaignProgress struct {
 	Rewards        []ReferralReward            `json:"rewards"`
 	Ranking        *ReferralGrowthRanking      `json:"ranking,omitempty"`
 	Leaderboard    []ReferralGrowthRanking     `json:"leaderboard"`
+	UnseenUpdate   bool                        `json:"unseen_update"`
+	Attention      string                      `json:"attention,omitempty"`
 }
 
 type ReferralCampaignPublic struct {
-	ID               int64     `json:"id"`
-	Key              string    `json:"key"`
-	Name             string    `json:"name"`
-	Status           string    `json:"status"`
-	Version          int64     `json:"version"`
-	RegistrationFrom time.Time `json:"registration_from"`
-	RegistrationTo   time.Time `json:"registration_to"`
-	StartsAt         time.Time `json:"starts_at"`
-	EndsAt           time.Time `json:"ends_at"`
-	QualificationTo  time.Time `json:"qualification_to"`
-	ClaimDeadline    time.Time `json:"claim_deadline"`
-	RiskHoldHours    int       `json:"risk_hold_hours"`
-	PayThreshold     float64   `json:"pay_threshold"`
-	UsageThreshold   float64   `json:"usage_threshold"`
-	RewardMode       string    `json:"reward_mode"`
+	ID                 int64     `json:"id"`
+	Key                string    `json:"key"`
+	Name               string    `json:"name"`
+	Status             string    `json:"status"`
+	Version            int64     `json:"version"`
+	RegistrationFrom   time.Time `json:"registration_from"`
+	RegistrationTo     time.Time `json:"registration_to"`
+	StartsAt           time.Time `json:"starts_at"`
+	EndsAt             time.Time `json:"ends_at"`
+	QualificationTo    time.Time `json:"qualification_to"`
+	ClaimDeadline      time.Time `json:"claim_deadline"`
+	RiskHoldHours      int       `json:"risk_hold_hours"`
+	PayThreshold       float64   `json:"pay_threshold"`
+	UsageThreshold     float64   `json:"usage_threshold"`
+	MaxEnrollments     int       `json:"max_enrollments"`
+	RewardMode         string    `json:"reward_mode"`
+	PublicRulesMD      string    `json:"public_rules_md"`
+	InviteeNoticeMD    string    `json:"invitee_notice_md"`
+	LegacyRebatePolicy string    `json:"legacy_rebate_policy"`
+	RulesVersion       int64     `json:"rules_version"`
+	RulesUpdatedAt     time.Time `json:"rules_updated_at"`
+}
+
+// ReferralCampaignInvitePreview is intentionally limited to information a new
+// invitee needs before registering. It never exposes an inviter identity or a
+// signing secret.
+type ReferralCampaignInvitePreview struct {
+	Campaign ReferralCampaignPublic `json:"campaign"`
 }
 
 type ReferralClaimInput struct {
@@ -283,10 +318,11 @@ type ReferralClaimInput struct {
 }
 
 type ReferralCampaignTokenPayload struct {
-	CampaignID int64     `json:"campaign_id"`
-	InviterID  int64     `json:"inviter_id"`
-	Nonce      string    `json:"nonce"`
-	ExpiresAt  time.Time `json:"expires_at"`
+	CampaignID   int64     `json:"campaign_id"`
+	InviterID    int64     `json:"inviter_id"`
+	RulesVersion int64     `json:"rules_version,omitempty"`
+	Nonce        string    `json:"nonce"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 type ReferralCampaignRepository interface {
@@ -319,6 +355,11 @@ type ReferralCampaignRepository interface {
 	EnqueueReferralRefundReconcile(context.Context, int64) error
 	ProcessReferralReconcileQueue(context.Context, int) (int, error)
 	GetReferralGrowthOverview(context.Context, *int64, *int64) (*ReferralGrowthOverview, error)
+	ListReferralCampaignRuleVersions(context.Context, int64) ([]ReferralCampaignRuleVersion, error)
+	GetReferralCampaignRuleVersion(context.Context, int64, int64) (*ReferralCampaignRuleVersion, error)
+	MarkReferralCampaignViewed(context.Context, int64, int64, int64) error
+	ShouldSuppressLegacyReferralRebate(context.Context, int64) (bool, error)
+	AdvanceReferralCampaigns(context.Context, time.Time) (int, error)
 }
 
 type ReferralCampaignStats struct {
@@ -371,10 +412,13 @@ func (s *ReferralCampaignService) UpdateCampaign(ctx context.Context, campaign R
 	if current.Version != campaign.Version {
 		return nil, ErrReferralCampaignVersionConflict
 	}
-	if current.Status != ReferralCampaignStatusDraft {
+	if current.Status == ReferralCampaignStatusSettling || current.Status == ReferralCampaignStatusClosed || current.Status == ReferralCampaignStatusCancelled {
 		return nil, ErrReferralCampaignImmutable
 	}
-	campaign.Status = ReferralCampaignStatusDraft
+	// Published campaigns may be amended. The repository records an immutable
+	// rules version; existing attributions retain their policy/qualification
+	// snapshots instead of silently adopting this amendment.
+	campaign.Status = current.Status
 	campaign.BudgetReserved = current.BudgetReserved
 	campaign.BudgetPaid = current.BudgetPaid
 	if err := validateReferralCampaignDraft(&campaign, tiers); err != nil {
@@ -392,6 +436,18 @@ func validateReferralCampaignDraft(campaign *ReferralCampaign, tiers []ReferralC
 	}
 	if campaign.RewardMode != "additive" && campaign.RewardMode != "replace" {
 		return errors.New("reward mode is invalid")
+	}
+	if campaign.LegacyRebatePolicy == "" {
+		campaign.LegacyRebatePolicy = "exclude"
+	}
+	if campaign.LegacyRebatePolicy != "exclude" && campaign.LegacyRebatePolicy != "stack" {
+		return errors.New("legacy rebate policy is invalid")
+	}
+	if strings.TrimSpace(campaign.PublicRulesMD) == "" {
+		return errors.New("public campaign rules are required")
+	}
+	if strings.TrimSpace(campaign.InviteeNoticeMD) == "" {
+		return errors.New("invitee campaign notice is required")
 	}
 	if len(tiers) == 0 {
 		return errors.New("at least one reward tier is required")
@@ -456,7 +512,7 @@ func ValidateReferralCampaign(c *ReferralCampaign) error {
 	if c.QualificationTo.IsZero() || c.QualificationTo.Before(c.EndsAt) {
 		return errors.New("qualification deadline is invalid")
 	}
-	if c.ClaimDeadline.IsZero() || !c.ClaimDeadline.After(c.EndsAt) {
+	if c.ClaimDeadline.IsZero() || c.ClaimDeadline.Before(c.QualificationTo) {
 		return errors.New("claim deadline is invalid")
 	}
 	if c.PayThreshold < 0 || c.UsageThreshold < 0 {
@@ -503,6 +559,24 @@ func (s *ReferralCampaignService) ListRunningProgress(ctx context.Context, userI
 	return out, nil
 }
 
+func (s *ReferralCampaignService) MarkViewed(ctx context.Context, campaignID, userID int64) error {
+	if s == nil || s.repo == nil {
+		return errors.New("referral campaign service unavailable")
+	}
+	campaign, err := s.repo.GetReferralCampaign(ctx, campaignID)
+	if err != nil || campaign == nil {
+		return ErrReferralCampaignNotFound
+	}
+	return s.repo.MarkReferralCampaignViewed(ctx, campaignID, userID, campaign.RulesVersion)
+}
+
+func (s *ReferralCampaignService) AdvanceDueCampaigns(ctx context.Context, now time.Time) (int, error) {
+	if s == nil || s.repo == nil {
+		return 0, nil
+	}
+	return s.repo.AdvanceReferralCampaigns(ctx, now)
+}
+
 func (s *ReferralCampaignService) GetCampaignDetail(ctx context.Context, campaignID int64) (*ReferralCampaignDetail, error) {
 	campaign, err := s.GetCampaign(ctx, campaignID)
 	if err != nil {
@@ -520,7 +594,11 @@ func (s *ReferralCampaignService) GetCampaignDetail(ctx context.Context, campaig
 	if err != nil {
 		return nil, err
 	}
-	return &ReferralCampaignDetail{Campaign: *campaign, Tiers: tiers, Stats: *stats, Approvals: approvals}, nil
+	ruleVersions, err := s.repo.ListReferralCampaignRuleVersions(ctx, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	return &ReferralCampaignDetail{Campaign: *campaign, Tiers: tiers, Stats: *stats, Approvals: approvals, RuleVersions: ruleVersions}, nil
 }
 
 func isReferralCampaignStatus(status string) bool {
@@ -726,7 +804,38 @@ func (s *ReferralCampaignService) CreateInviteToken(ctx context.Context, campaig
 		return "", err
 	}
 	nonce := base64.RawURLEncoding.EncodeToString(nonceBytes)
-	return SignReferralCampaignToken(secret, ReferralCampaignTokenPayload{CampaignID: campaignID, InviterID: inviterID, Nonce: nonce, ExpiresAt: now.Add(30 * 24 * time.Hour)})
+	return SignReferralCampaignToken(secret, ReferralCampaignTokenPayload{CampaignID: campaignID, InviterID: inviterID, RulesVersion: c.RulesVersion, Nonce: nonce, ExpiresAt: now.Add(30 * 24 * time.Hour)})
+}
+
+func referralCampaignPublic(c *ReferralCampaign) ReferralCampaignPublic {
+	return ReferralCampaignPublic{
+		ID: c.ID, Key: c.Key, Name: c.Name, Status: c.Status, Version: c.Version,
+		RegistrationFrom: c.RegistrationFrom, RegistrationTo: c.RegistrationTo,
+		StartsAt: c.StartsAt, EndsAt: c.EndsAt, QualificationTo: c.QualificationTo,
+		ClaimDeadline: c.ClaimDeadline, RiskHoldHours: c.RiskHoldHours,
+		PayThreshold: c.PayThreshold, UsageThreshold: c.UsageThreshold,
+		MaxEnrollments: c.MaxEnrollments, RewardMode: c.RewardMode,
+		PublicRulesMD: c.PublicRulesMD, InviteeNoticeMD: c.InviteeNoticeMD,
+		LegacyRebatePolicy: c.LegacyRebatePolicy, RulesVersion: c.RulesVersion,
+		RulesUpdatedAt: c.RulesUpdatedAt,
+	}
+}
+
+// InvitePreview validates the same token that account creation will use. This
+// prevents the registration UI from promising a campaign that cannot bind.
+func (s *ReferralCampaignService) InvitePreview(ctx context.Context, token string, now time.Time) (*ReferralCampaignInvitePreview, error) {
+	if s == nil || s.repo == nil {
+		return nil, errors.New("referral campaign service unavailable")
+	}
+	payload, err := s.resolveInviteToken(ctx, strings.TrimSpace(token), now)
+	if err != nil {
+		return nil, err
+	}
+	campaign, err := s.repo.GetReferralCampaign(ctx, payload.CampaignID)
+	if err != nil || campaign == nil {
+		return nil, ErrReferralCampaignNotFound
+	}
+	return &ReferralCampaignInvitePreview{Campaign: referralCampaignPublic(campaign)}, nil
 }
 
 func (s *ReferralCampaignService) Attribute(ctx context.Context, token string, inviteeID int64, now time.Time) (*ReferralAttribution, error) {
@@ -740,7 +849,31 @@ func (s *ReferralCampaignService) Attribute(ctx context.Context, token string, i
 	if payload.InviterID == inviteeID {
 		return nil, ErrReferralCampaignTokenInvalid
 	}
-	return s.repo.BindReferralAttribution(ctx, ReferralAttribution{CampaignID: payload.CampaignID, InviterID: payload.InviterID, InviteeID: inviteeID, Nonce: payload.Nonce, RegisteredAt: now, Status: ReferralRiskPending})
+	campaign, err := s.repo.GetReferralCampaign(ctx, payload.CampaignID)
+	if err != nil || campaign == nil {
+		return nil, ErrReferralCampaignNotFound
+	}
+	ruleCampaign := campaign
+	if payload.RulesVersion > 0 && payload.RulesVersion != campaign.RulesVersion {
+		ruleVersion, err := s.repo.GetReferralCampaignRuleVersion(ctx, payload.CampaignID, payload.RulesVersion)
+		if err != nil || ruleVersion == nil {
+			return nil, ErrReferralCampaignTokenInvalid
+		}
+		var snapshot struct {
+			Campaign ReferralCampaign `json:"campaign"`
+		}
+		if err := json.Unmarshal(ruleVersion.Snapshot, &snapshot); err != nil || snapshot.Campaign.RulesVersion != payload.RulesVersion {
+			return nil, ErrReferralCampaignTokenInvalid
+		}
+		ruleCampaign = &snapshot.Campaign
+	}
+	return s.repo.BindReferralAttribution(ctx, ReferralAttribution{
+		CampaignID: payload.CampaignID, InviterID: payload.InviterID, InviteeID: inviteeID,
+		Nonce: payload.Nonce, RegisteredAt: now, Status: ReferralRiskPending,
+		RulesVersion: ruleCampaign.RulesVersion, LegacyRebatePolicy: ruleCampaign.LegacyRebatePolicy,
+		QualificationToSnapshot: ruleCampaign.QualificationTo, PayThresholdSnapshot: ruleCampaign.PayThreshold,
+		UsageThresholdSnapshot: ruleCampaign.UsageThreshold, RiskHoldHoursSnapshot: ruleCampaign.RiskHoldHours,
+	})
 }
 
 // ValidateInviteToken verifies campaign state and inviter enrollment before a
@@ -798,12 +931,15 @@ func (s *ReferralCampaignService) RefreshQualification(ctx context.Context, qual
 	if s == nil || s.repo == nil {
 		return nil, errors.New("referral campaign service unavailable")
 	}
-	c, err := s.repo.GetReferralCampaign(ctx, qualification.CampaignID)
-	if err != nil || c == nil {
+	if _, err := s.repo.GetReferralCampaign(ctx, qualification.CampaignID); err != nil {
+		return nil, ErrReferralCampaignNotFound
+	}
+	attribution, err := s.repo.GetReferralAttribution(ctx, qualification.CampaignID, qualification.InviteeID)
+	if err != nil || attribution == nil {
 		return nil, ErrReferralCampaignNotFound
 	}
 	input := ReferralQualificationInput{NetPaid: qualification.NetPaid, ActualCost: qualification.ActualCost, RiskStatus: qualification.RiskStatus}
-	if ReferralQualificationMeetsThresholds(input, c.PayThreshold, c.UsageThreshold) {
+	if ReferralQualificationMeetsThresholds(input, attribution.PayThresholdSnapshot, attribution.UsageThresholdSnapshot) {
 		qualification.Status = ReferralQualificationQualified
 		now := time.Now().UTC()
 		qualification.QualifiedAt = &now
@@ -825,14 +961,30 @@ func (s *ReferralCampaignService) RecomputeQualification(ctx context.Context, ca
 	if err != nil || campaign == nil {
 		return nil, ErrReferralCampaignNotFound
 	}
-	if (campaign.Status != ReferralCampaignStatusScheduled && campaign.Status != ReferralCampaignStatusRunning && campaign.Status != ReferralCampaignStatusSettling) || now.After(campaign.QualificationTo) {
+	attribution, err := s.repo.GetReferralAttribution(ctx, campaignID, inviteeID)
+	if err != nil || attribution == nil {
+		return nil, ErrReferralCampaignNotFound
+	}
+	if (campaign.Status != ReferralCampaignStatusScheduled && campaign.Status != ReferralCampaignStatusRunning && campaign.Status != ReferralCampaignStatusSettling) || now.After(attribution.QualificationToSnapshot) {
 		return nil, ErrReferralCampaignNotOpen
 	}
 	q, err := s.repo.RecomputeReferralQualification(ctx, campaignID, inviteeID, now)
 	if err != nil {
 		return nil, err
 	}
-	return s.RefreshQualification(ctx, *q)
+	input := ReferralQualificationInput{NetPaid: q.NetPaid, ActualCost: q.ActualCost, RiskStatus: q.RiskStatus}
+	if ReferralQualificationMeetsThresholds(input, attribution.PayThresholdSnapshot, attribution.UsageThresholdSnapshot) {
+		q.Status = ReferralQualificationQualified
+		qualifiedAt := time.Now().UTC()
+		q.QualifiedAt = &qualifiedAt
+	} else if q.RiskStatus == ReferralRiskRejected && q.Status == ReferralQualificationQualified {
+		q.Status = ReferralQualificationRevoked
+		revokedAt := time.Now().UTC()
+		q.RevokedAt = &revokedAt
+	} else {
+		q.Status = ReferralQualificationPending
+	}
+	return s.repo.UpdateReferralQualification(ctx, *q)
 }
 
 func (s *ReferralCampaignService) RecomputeForInvitee(ctx context.Context, inviteeID int64, now time.Time) error {
