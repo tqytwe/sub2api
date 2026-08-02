@@ -414,6 +414,13 @@ export interface AdminReferralCampaignDetail {
   stats: AdminReferralCampaignStats;
   approvals: AdminReferralCampaignApproval[];
   rule_versions: Array<{ rules_version: number; change_kind: string; changed_by?: number; created_at: string }>;
+  pending_financial_version?: {
+    rules_version: number;
+    base_rules_version: number;
+    status: "review";
+    created_by?: number;
+    created_at: string;
+  };
 }
 
 export interface AdminReferralCampaignInput {

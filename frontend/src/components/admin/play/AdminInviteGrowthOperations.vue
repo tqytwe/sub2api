@@ -258,7 +258,7 @@ function openNewCampaign(): void {
 }
 
 function openEditCampaign(): void {
-  if (!detail.value || detail.value.campaign.status !== 'draft') return
+  if (!detail.value || ['settling', 'closed', 'cancelled'].includes(detail.value.campaign.status)) return
   const campaign = detail.value.campaign
   campaignDraft.value = {
     id: campaign.id,
@@ -449,7 +449,7 @@ async function submitReview(reviewType: AdminReferralReviewType, decision: Admin
   actionLoading.value = true
   try {
     await stepUp.run(() => adminPlayAPI.reviewReferralCampaign(campaign.id, {
-      expected_version: campaign.version,
+      expected_version: detail.value?.pending_financial_version?.rules_version ?? campaign.version,
       review_type: reviewType,
       decision,
       note: reviewNote.value.trim(),
@@ -475,9 +475,8 @@ function approvalFor(type: AdminReferralReviewType) {
   if (!detail.value) return undefined
   const campaign = detail.value.campaign
   if (campaign.status === 'draft' || campaign.status === 'cancelled') return undefined
-  const targetVersion = campaign.status === 'review'
-    ? campaign.version
-    : Math.max(...detail.value.approvals.map(item => item.version), 0)
+  const targetVersion = detail.value.pending_financial_version?.rules_version
+    ?? (campaign.status === 'review' ? campaign.version : Math.max(...detail.value.approvals.map(item => item.version), 0))
   return detail.value.approvals.find(item => item.review_type === type && item.version === targetVersion)
 }
 
@@ -610,7 +609,7 @@ defineExpose({ selectCampaign })
       <aside class="card p-5" aria-live="polite">
         <div v-if="detailLoading" class="py-8 text-center text-sm text-gray-500">{{ t('admin.playOps.loading') }}</div>
         <div v-else-if="detail" class="space-y-5">
-          <div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-gray-900 dark:text-white">{{ detail.campaign.name }}</h3><p class="mt-1 text-xs text-gray-500">{{ detail.campaign.key }} · v{{ detail.campaign.version }} · 规则 v{{ detail.campaign.rules_version }}</p></div><button v-if="!['settling','closed','cancelled'].includes(detail.campaign.status)" type="button" class="btn btn-secondary" @click="openEditCampaign"><Icon name="edit" size="sm" />编辑活动</button></div>
+          <div class="flex items-start justify-between gap-3"><div><h3 class="font-semibold text-gray-900 dark:text-white">{{ detail.campaign.name }}</h3><p class="mt-1 text-xs text-gray-500">{{ detail.campaign.key }} · v{{ detail.campaign.version }} · 规则 v{{ detail.campaign.rules_version }}</p><p v-if="detail.pending_financial_version" class="mt-2 text-xs text-amber-700 dark:text-amber-300">资金规则版本 v{{ detail.pending_financial_version.rules_version }} 待四项审批；当前活动仍按规则 v{{ detail.campaign.rules_version }} 结算。</p></div><button v-if="!['settling','closed','cancelled'].includes(detail.campaign.status)" type="button" class="btn btn-secondary" @click="openEditCampaign"><Icon name="edit" size="sm" />编辑活动</button></div>
           <dl class="space-y-2 text-sm"><div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t('admin.playOps.inviteGrowth.registrationWindow') }}</dt><dd class="text-right">{{ formatDate(detail.campaign.registration_from) }}<br />{{ formatDate(detail.campaign.registration_to) }}</dd></div><div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t('admin.playOps.inviteGrowth.thresholds') }}</dt><dd class="text-right">{{ formatMoney(detail.campaign.pay_threshold) }} / {{ formatMoney(detail.campaign.usage_threshold) }}</dd></div><div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t('admin.playOps.inviteGrowth.capacity') }}</dt><dd class="tabular-nums">{{ detail.campaign.max_enrollments }}</dd></div><div class="flex justify-between gap-3"><dt class="text-gray-500">{{ t('admin.playOps.inviteGrowth.claimDeadline') }}</dt><dd class="text-right">{{ formatDate(detail.campaign.claim_deadline) }}</dd></div></dl>
           <div><h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('admin.playOps.inviteGrowth.tiers') }}</h4><div class="mt-2 divide-y divide-gray-100 text-sm dark:divide-dark-700"><div v-for="tier in detail.tiers" :key="tier.tier" class="flex justify-between gap-3 py-2"><span>{{ t('admin.playOps.inviteGrowth.tierLine', { tier: tier.tier, count: tier.required_invites }) }}</span><strong>{{ formatMoney(tier.reward_amount) }}</strong></div></div></div>
         </div>
@@ -639,7 +638,7 @@ defineExpose({ selectCampaign })
                     <p v-if="approvalFor(type)!.note" class="mt-1 break-words text-xs text-gray-600 dark:text-gray-300">{{ approvalFor(type)!.note }}</p>
                   </template>
                 </div>
-                <div v-if="detail.campaign.status === 'review' && !approvalFor(type)" class="flex shrink-0 gap-1"><button type="button" class="btn btn-secondary" :data-testid="`review-approve-${type}`" :disabled="actionLoading" @click="submitReview(type, 'approved')">{{ t('admin.playOps.inviteGrowth.approve') }}</button><button type="button" class="btn btn-secondary text-red-600" :data-testid="`review-reject-${type}`" :disabled="actionLoading" @click="submitReview(type, 'rejected')">{{ t('admin.playOps.inviteGrowth.reject') }}</button></div>
+                <div v-if="(detail.campaign.status === 'review' || detail.pending_financial_version) && !approvalFor(type)" class="flex shrink-0 gap-1"><button type="button" class="btn btn-secondary" :data-testid="`review-approve-${type}`" :disabled="actionLoading" @click="submitReview(type, 'approved')">{{ t('admin.playOps.inviteGrowth.approve') }}</button><button type="button" class="btn btn-secondary text-red-600" :data-testid="`review-reject-${type}`" :disabled="actionLoading" @click="submitReview(type, 'rejected')">{{ t('admin.playOps.inviteGrowth.reject') }}</button></div>
               </div>
             </div>
           </div>

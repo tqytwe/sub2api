@@ -198,11 +198,12 @@ type ReferralCampaignApproval struct {
 }
 
 type ReferralCampaignDetail struct {
-	Campaign     ReferralCampaign              `json:"campaign"`
-	Tiers        []ReferralCampaignTier        `json:"tiers"`
-	Stats        ReferralCampaignStats         `json:"stats"`
-	Approvals    []ReferralCampaignApproval    `json:"approvals"`
-	RuleVersions []ReferralCampaignRuleVersion `json:"rule_versions"`
+	Campaign                ReferralCampaign                  `json:"campaign"`
+	Tiers                   []ReferralCampaignTier            `json:"tiers"`
+	Stats                   ReferralCampaignStats             `json:"stats"`
+	Approvals               []ReferralCampaignApproval        `json:"approvals"`
+	RuleVersions            []ReferralCampaignRuleVersion     `json:"rule_versions"`
+	PendingFinancialVersion *ReferralCampaignFinancialVersion `json:"pending_financial_version,omitempty"`
 }
 
 type ReferralCampaignRuleVersion struct {
@@ -211,6 +212,18 @@ type ReferralCampaignRuleVersion struct {
 	Snapshot     json.RawMessage `json:"snapshot"`
 	ChangedBy    *int64          `json:"changed_by,omitempty"`
 	CreatedAt    time.Time       `json:"created_at"`
+}
+
+// ReferralCampaignFinancialVersion is a proposed funds-affecting rule set.
+// It remains separate from the effective campaign until all required reviews
+// approve it, so running activity never adopts new money rules prematurely.
+type ReferralCampaignFinancialVersion struct {
+	RulesVersion     int64           `json:"rules_version"`
+	BaseRulesVersion int64           `json:"base_rules_version"`
+	Snapshot         json.RawMessage `json:"snapshot"`
+	Status           string          `json:"status"`
+	CreatedBy        *int64          `json:"created_by,omitempty"`
+	CreatedAt        time.Time       `json:"created_at"`
 }
 
 type ReferralCampaignParticipant struct {
@@ -328,6 +341,7 @@ type ReferralCampaignTokenPayload struct {
 type ReferralCampaignRepository interface {
 	CreateReferralCampaign(context.Context, ReferralCampaign, []ReferralCampaignTier) (*ReferralCampaign, error)
 	UpdateReferralCampaign(context.Context, ReferralCampaign, []ReferralCampaignTier, int64) (*ReferralCampaign, error)
+	UpdateReferralCampaignContent(context.Context, ReferralCampaign, []ReferralCampaignTier, int64) (*ReferralCampaign, error)
 	ListReferralCampaigns(context.Context, ReferralCampaignListFilter) (*ReferralCampaignPage, error)
 	ListRunningReferralCampaignIDs(context.Context, int) ([]int64, error)
 	GetReferralCampaign(context.Context, int64) (*ReferralCampaign, error)
@@ -357,6 +371,7 @@ type ReferralCampaignRepository interface {
 	GetReferralGrowthOverview(context.Context, *int64, *int64) (*ReferralGrowthOverview, error)
 	ListReferralCampaignRuleVersions(context.Context, int64) ([]ReferralCampaignRuleVersion, error)
 	GetReferralCampaignRuleVersion(context.Context, int64, int64) (*ReferralCampaignRuleVersion, error)
+	GetPendingReferralCampaignFinancialVersion(context.Context, int64) (*ReferralCampaignFinancialVersion, error)
 	MarkReferralCampaignViewed(context.Context, int64, int64, int64) error
 	ShouldSuppressLegacyReferralRebate(context.Context, int64) (bool, error)
 	AdvanceReferralCampaigns(context.Context, time.Time) (int, error)
@@ -424,7 +439,34 @@ func (s *ReferralCampaignService) UpdateCampaign(ctx context.Context, campaign R
 	if err := validateReferralCampaignDraft(&campaign, tiers); err != nil {
 		return nil, err
 	}
+	if current.Status != ReferralCampaignStatusDraft {
+		currentTiers, err := s.repo.GetReferralCampaignTiers(ctx, campaign.ID)
+		if err != nil {
+			return nil, err
+		}
+		if !referralCampaignFinancialRulesChanged(*current, campaign, currentTiers, tiers) {
+			return s.repo.UpdateReferralCampaignContent(ctx, campaign, tiers, actorID)
+		}
+	}
 	return s.repo.UpdateReferralCampaign(ctx, campaign, tiers, actorID)
+}
+
+func referralCampaignFinancialRulesChanged(current, candidate ReferralCampaign, currentTiers, candidateTiers []ReferralCampaignTier) bool {
+	if !current.RegistrationFrom.Equal(candidate.RegistrationFrom) || !current.RegistrationTo.Equal(candidate.RegistrationTo) ||
+		!current.StartsAt.Equal(candidate.StartsAt) || !current.EndsAt.Equal(candidate.EndsAt) ||
+		!current.QualificationTo.Equal(candidate.QualificationTo) || !current.ClaimDeadline.Equal(candidate.ClaimDeadline) ||
+		current.RiskHoldHours != candidate.RiskHoldHours || current.PayThreshold != candidate.PayThreshold ||
+		current.UsageThreshold != candidate.UsageThreshold || current.MaxEnrollments != candidate.MaxEnrollments ||
+		current.BudgetTotal != candidate.BudgetTotal || current.RewardMode != candidate.RewardMode ||
+		current.LegacyRebatePolicy != candidate.LegacyRebatePolicy || len(currentTiers) != len(candidateTiers) {
+		return true
+	}
+	for i := range currentTiers {
+		if currentTiers[i] != candidateTiers[i] {
+			return true
+		}
+	}
+	return false
 }
 
 func validateReferralCampaignDraft(campaign *ReferralCampaign, tiers []ReferralCampaignTier) error {
@@ -598,7 +640,11 @@ func (s *ReferralCampaignService) GetCampaignDetail(ctx context.Context, campaig
 	if err != nil {
 		return nil, err
 	}
-	return &ReferralCampaignDetail{Campaign: *campaign, Tiers: tiers, Stats: *stats, Approvals: approvals, RuleVersions: ruleVersions}, nil
+	pendingFinancialVersion, err := s.repo.GetPendingReferralCampaignFinancialVersion(ctx, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	return &ReferralCampaignDetail{Campaign: *campaign, Tiers: tiers, Stats: *stats, Approvals: approvals, RuleVersions: ruleVersions, PendingFinancialVersion: pendingFinancialVersion}, nil
 }
 
 func isReferralCampaignStatus(status string) bool {
@@ -744,11 +790,18 @@ func (s *ReferralCampaignService) Review(ctx context.Context, campaignID, expect
 	if err != nil || campaign == nil {
 		return nil, ErrReferralCampaignNotFound
 	}
-	if campaign.Version != expectedVersion {
-		return nil, ErrReferralCampaignVersionConflict
-	}
-	if campaign.Status != ReferralCampaignStatusReview {
-		return nil, ErrReferralCampaignInvalidState
+	if campaign.Status == ReferralCampaignStatusReview {
+		if campaign.Version != expectedVersion {
+			return nil, ErrReferralCampaignVersionConflict
+		}
+	} else {
+		pending, err := s.repo.GetPendingReferralCampaignFinancialVersion(ctx, campaignID)
+		if err != nil {
+			return nil, err
+		}
+		if pending == nil || pending.RulesVersion != expectedVersion {
+			return nil, ErrReferralCampaignInvalidState
+		}
 	}
 	return s.repo.ReviewReferralCampaign(ctx, campaignID, expectedVersion, reviewType, decision, actorID, note)
 }

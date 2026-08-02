@@ -91,9 +91,11 @@ func TestReferralCampaignServiceRejectsClaimWhenCampaignVersionChanged(t *testin
 
 type referralCampaignMemoryRepo struct {
 	ReferralCampaignRepository
-	campaign   *ReferralCampaign
-	secret     []byte
-	enrollment *ReferralCampaignEnrollment
+	campaign         *ReferralCampaign
+	secret           []byte
+	enrollment       *ReferralCampaignEnrollment
+	pendingFinancial *ReferralCampaignFinancialVersion
+	reviewedVersion  int64
 }
 
 func (r *referralCampaignMemoryRepo) GetReferralCampaign(_ context.Context, _ int64) (*ReferralCampaign, error) {
@@ -110,6 +112,29 @@ func (r *referralCampaignMemoryRepo) GetReferralCampaignSecret(context.Context, 
 
 func (r *referralCampaignMemoryRepo) GetReferralCampaignEnrollment(context.Context, int64, int64) (*ReferralCampaignEnrollment, error) {
 	return r.enrollment, nil
+}
+
+func (r *referralCampaignMemoryRepo) GetPendingReferralCampaignFinancialVersion(context.Context, int64) (*ReferralCampaignFinancialVersion, error) {
+	return r.pendingFinancial, nil
+}
+
+func (r *referralCampaignMemoryRepo) ReviewReferralCampaign(_ context.Context, _ int64, version int64, _ string, _ string, _ int64, _ string) (*ReferralCampaign, error) {
+	r.reviewedVersion = version
+	return r.campaign, nil
+}
+
+func TestReferralCampaignServiceReviewsPendingFinancialVersionWithoutPausingRunningCampaign(t *testing.T) {
+	repo := &referralCampaignMemoryRepo{
+		campaign:         &ReferralCampaign{ID: 7, Version: 4, Status: ReferralCampaignStatusRunning, RulesVersion: 3},
+		pendingFinancial: &ReferralCampaignFinancialVersion{RulesVersion: 4, BaseRulesVersion: 3, Status: "review"},
+	}
+	svc := NewReferralCampaignService(repo)
+
+	_, err := svc.Review(context.Background(), 7, 4, "finance", "approved", 42, "funds checked")
+
+	require.NoError(t, err)
+	require.Equal(t, int64(4), repo.reviewedVersion)
+	require.Equal(t, ReferralCampaignStatusRunning, repo.campaign.Status)
 }
 
 func TestReferralCampaignValidateInviteTokenBeforeRegistration(t *testing.T) {

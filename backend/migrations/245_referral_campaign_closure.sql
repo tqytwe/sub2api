@@ -28,6 +28,28 @@ CREATE TABLE IF NOT EXISTS referral_campaign_rule_versions (
       CHECK (change_kind IN ('created', 'content', 'financial', 'legacy_import'))
 );
 
+-- Funds-affecting amendments are staged separately. They never overwrite a
+-- running campaign until Operations, Finance, Risk, and UX all approve the
+-- proposed snapshot. Rejected snapshots remain review evidence.
+CREATE TABLE IF NOT EXISTS referral_campaign_financial_versions (
+    id BIGSERIAL PRIMARY KEY,
+    campaign_id BIGINT NOT NULL REFERENCES referral_campaigns(id) ON DELETE RESTRICT,
+    rules_version BIGINT NOT NULL,
+    base_rules_version BIGINT NOT NULL,
+    snapshot JSONB NOT NULL,
+    status VARCHAR(16) NOT NULL DEFAULT 'review',
+    created_by BIGINT REFERENCES users(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    resolved_at TIMESTAMPTZ,
+    UNIQUE (campaign_id, rules_version),
+    CONSTRAINT referral_campaign_financial_version_status_check
+      CHECK (status IN ('review', 'approved', 'rejected'))
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_referral_campaign_financial_version_active
+    ON referral_campaign_financial_versions(campaign_id)
+    WHERE status = 'review';
+
 ALTER TABLE referral_campaign_attributions
     ADD COLUMN IF NOT EXISTS rules_version BIGINT,
     ADD COLUMN IF NOT EXISTS legacy_rebate_policy VARCHAR(16),
