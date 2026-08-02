@@ -36,32 +36,44 @@
           {{ displayInitials }}
         </div>
         <div class="min-w-0 flex-1">
-          <div class="flex flex-wrap items-center gap-1.5">
-            <span :class="['rounded-md border px-2 py-0.5 text-xs font-semibold', platformBadgeClass(storefrontPlatform)]">
-              {{ pLabel }}
-            </span>
-            <span
-              v-for="badge in storefrontBadges"
-              :key="badge"
-              data-test="plan-storefront-badge"
-              class="rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-semibold text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300"
-            >
-              {{ badge }}
-            </span>
-          </div>
-          <h3 class="mt-2 line-clamp-2 text-base font-semibold leading-snug text-gray-900 dark:text-white">{{ displayName }}</h3>
+          <h3
+            :title="displayName"
+            class="mt-2 h-12 min-w-0 break-words [overflow-wrap:anywhere] text-base font-bold leading-6 text-gray-900 dark:text-white line-clamp-2"
+          >
+            {{ displayName }}
+          </h3>
           <p v-if="displayName !== plan.name" class="mt-0.5 truncate text-xs text-gray-400 dark:text-dark-400">{{ plan.name }}</p>
           <p v-if="plan.description" class="mt-1 line-clamp-2 text-sm leading-relaxed text-gray-500 dark:text-dark-400">
             {{ plan.description }}
           </p>
         </div>
-      </div>
-
-      <div class="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span v-if="plan.original_price" class="text-sm text-gray-400 line-through dark:text-dark-500">{{ planCurrencySymbol }}{{ plan.original_price }}<template v-if="plan.currency"> {{ plan.currency }}</template></span>
-        <span class="text-xs text-gray-400 dark:text-dark-500">{{ planCurrencySymbol }}</span><span :class="['text-2xl font-bold tabular-nums', textClass]">{{ plan.price }}</span><span v-if="plan.currency" class="text-xs font-medium text-gray-400 dark:text-dark-500">{{ plan.currency }}</span>
-        <span class="text-sm text-gray-500 dark:text-gray-400">/ {{ validitySuffix }}</span>
-        <span v-if="plan.original_price" :class="['rounded px-1.5 py-0.5 text-xs font-semibold', discountClass]">{{ discountText }}</span>
+        <div class="shrink-0 text-right">
+          <div class="flex items-baseline gap-1">
+            <span class="text-xs text-gray-400 dark:text-dark-500">{{ planCurrencySymbol }}</span>
+            <span :class="['text-2xl font-extrabold tracking-tight', textClass]">{{ plan.price }}</span>
+            <span v-if="plan.currency" class="text-xs font-medium text-gray-400 dark:text-dark-500">{{ plan.currency }}</span>
+          </div>
+          <div class="flex items-center justify-end gap-1">
+            <span :class="['inline-flex shrink-0 rounded-md border px-2 py-0.5 text-[11px] font-medium', platformBadgeClass(storefrontPlatform)]">
+              {{ pLabel }}
+            </span>
+            <span class="text-[11px] text-gray-400 dark:text-dark-500">/ {{ validitySuffix }}</span>
+          </div>
+          <div v-if="storefrontBadges.length > 0" class="mt-1 flex flex-wrap justify-end gap-1.5">
+            <span
+              v-for="badge in storefrontBadges"
+              :key="badge"
+              data-test="plan-storefront-badge"
+              class="rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-semibold text-gray-600 dark:border-dark-600 dark:bg-dark-700 dark:text-gray-300"
+            >
+              {{ badge }}
+            </span>
+          </div>
+          <div v-if="plan.original_price" class="mt-0.5 flex items-center justify-end gap-1.5">
+            <span class="text-xs text-gray-400 line-through dark:text-dark-500">{{ planCurrencySymbol }}{{ plan.original_price }}<template v-if="plan.currency"> {{ plan.currency }}</template></span>
+            <span :class="['rounded px-1 py-0.5 text-[10px] font-semibold', discountClass]">{{ discountText }}</span>
+          </div>
+        </div>
       </div>
 
       <div class="mt-4 grid grid-cols-2 gap-2 text-xs">

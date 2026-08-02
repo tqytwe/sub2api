@@ -45,13 +45,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	mobileAttributionRepository := repository.NewMobileAttributionRepository(db)
-	mobileAttributionService := service.ProvideMobileAttributionService(mobileAttributionRepository, configConfig)
 	userRepository := repository.NewUserRepository(client, db)
-	passkeyRepository := repository.NewPasskeyRepository(db)
 	redeemCodeRepository := repository.NewRedeemCodeRepository(client)
 	redisClient := repository.ProvideRedis(configConfig)
-	passkeySessionStore := repository.NewPasskeySessionStore(redisClient)
 	refreshTokenCache := repository.NewRefreshTokenCache(redisClient)
 	settingRepository := repository.NewSettingRepository(client)
 	groupRepository := repository.NewGroupRepository(client, db)
@@ -95,10 +91,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	auditLogService := service.ProvideAuditLogService(auditLogRepository, settingService)
 	ipRiskService := service.ProvideIPRiskService(ipRiskRepository, leaderLockCache, db, ipRiskHasher, ipRiskRuntimeConfig, ipRiskAlertEmailNotifier, auditLogService)
 	authService := service.ProvideAuthService(client, userRepository, redeemCodeRepository, refreshTokenCache, configConfig, settingService, emailService, turnstileService, emailQueueService, promoService, subscriptionService, affiliateService, serviceUserPlatformQuotaRepository, balanceLedgerService, ipRiskService)
-	passkeyService, err := service.NewPasskeyService(configConfig, passkeyRepository, passkeySessionStore, userRepository)
-	if err != nil {
-		return nil, err
-	}
 	userService := service.NewUserService(userRepository, settingRepository, apiKeyAuthCacheInvalidator, billingCache)
 	redeemCache := repository.NewRedeemCache(redisClient)
 	redeemService := service.NewRedeemService(redeemCodeRepository, userRepository, subscriptionService, redeemCache, billingCacheService, client, apiKeyAuthCacheInvalidator, affiliateService, balanceLedgerService)
@@ -112,7 +104,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	userAttributeValueRepository := repository.NewUserAttributeValueRepository(client)
 	userAttributeService := service.NewUserAttributeService(userAttributeDefinitionRepository, userAttributeValueRepository)
 	authHandler := handler.NewAuthHandler(configConfig, authService, userService, settingService, promoService, redeemService, totpService, userAttributeService)
-	passkeyHandler := handler.NewPasskeyHandler(passkeyService, authService, settingService)
 	userHandler := handler.NewUserHandler(userService, authService, emailService, emailCache, affiliateService, serviceUserPlatformQuotaRepository)
 	apiKeyHandler := handler.NewAPIKeyHandler(apiKeyService)
 	usageLogRepository := repository.NewUsageLogRepository(client, db)
@@ -273,7 +264,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	errorPassthroughService := service.NewErrorPassthroughService(errorPassthroughRepository, errorPassthroughCache)
 	contentModerationRepository := repository.NewContentModerationRepository(db)
 	contentModerationHashCache := repository.NewContentModerationHashCache(redisClient)
-	contentModerationService := service.NewContentModerationService(settingRepository, contentModerationRepository, contentModerationHashCache, groupRepository, userRepository, apiKeyAuthCacheInvalidator, emailService)
+	contentModerationService := service.NewContentModerationService(settingRepository, contentModerationRepository, contentModerationHashCache, groupRepository, userRepository, proxyRepository, apiKeyAuthCacheInvalidator, emailService)
 	legacyEngine := securityaudit.NewLegacyModerationAdapter(contentModerationService)
 	configManager := securityaudit.NewConfigManager(db, settingRepository, redisClient, secretEncryptor, configConfig)
 	postgreSQLRepository := securityaudit.NewPostgreSQLRepository(db)
@@ -330,12 +321,22 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	auditLogHandler := admin.NewAuditLogHandler(auditLogService, totpService)
 	promptLibraryService := service.NewPromptLibraryService(promptLibraryRepository)
 	promptLibraryHandler := admin.NewPromptLibraryHandler(promptLibraryService)
-	mobileAttributionAdminHandler := handler.NewMobileAttributionAdminHandler(mobileAttributionService)
+	mobileAttributionRepository := repository.NewMobileAttributionRepository(db)
+	mobileAttributionService := service.ProvideMobileAttributionService(mobileAttributionRepository, configConfig)
+	mobileAttributionAdminService := handler.ProvideMobileAttributionAdminService(mobileAttributionService)
+	mobileAttributionAdminHandler := handler.NewMobileAttributionAdminHandler(mobileAttributionAdminService)
 	upstreamBillingProbeService := service.ProvideUpstreamBillingProbeService(accountRepository, accountTestService, settingService, leaderLockCache, db)
 	ollamaCloudUsageService := service.ProvideOllamaCloudUsageService(accountRepository, httpUpstream, settingService, secretEncryptor, configConfig, leaderLockCache, db)
 	adminHandlers := handler.ProvideAdminHandlers(dashboardHandler, adminUserHandler, groupHandler, accountHandler, adminAnnouncementHandler, dataManagementHandler, backupHandler, oAuthHandler, openAIOAuthHandler, geminiOAuthHandler, antigravityOAuthHandler, grokOAuthHandler, proxyHandler, adminRedeemHandler, promoHandler, couponHandler, settingHandler, opsHandler, systemHandler, adminSubscriptionHandler, adminUsageHandler, userAttributeHandler, errorPassthroughHandler, tlsFingerprintProfileHandler, adminAPIKeyHandler, scheduledTestHandler, channelHandler, channelMonitorHandler, channelMonitorRequestTemplateHandler, contentModerationHandler, promptAdminHandler, paymentHandler, affiliateHandler, complianceHandler, adminPlayHandler, withdrawalHandler, fundHandler, modelCatalogHandler, ipRiskHandler, auditLogHandler, promptLibraryHandler, mobileAttributionAdminHandler, upstreamBillingProbeService, ollamaCloudUsageService)
 	handlerSettingHandler := handler.ProvideSettingHandler(settingService, buildInfo, notificationEmailService)
 	totpHandler := handler.NewTotpHandler(totpService)
+	passkeyRepository := repository.NewPasskeyRepository(db)
+	passkeySessionStore := repository.NewPasskeySessionStore(redisClient)
+	passkeyService, err := service.NewPasskeyService(configConfig, passkeyRepository, passkeySessionStore, userRepository)
+	if err != nil {
+		return nil, err
+	}
+	passkeyHandler := handler.NewPasskeyHandler(passkeyService, authService, settingService)
 	handlerPaymentHandler := handler.NewPaymentHandler(paymentService, paymentConfigService)
 	paymentWebhookHandler := handler.NewPaymentWebhookHandler(paymentService, registry)
 	couponWalletHandler := handler.NewCouponWalletHandler(couponService)
@@ -369,7 +370,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	mobileSupportHandler := handler.ProvideMobileSupportHandler(playService, announcementAssetService)
 	mobileDiagnosticHandler := handler.NewMobileDiagnosticHandler(db)
 	mobileDeviceHandler := handler.ProvideMobileDeviceHandler(mobilePushService)
-	mobileAttributionHandler := handler.NewMobileAttributionHandler(mobileAttributionService)
+	mobileAttributionEventService := handler.ProvideMobileAttributionEventService(mobileAttributionService)
+	mobileAttributionHandler := handler.NewMobileAttributionHandler(mobileAttributionEventService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, couponWalletHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, playHandler, walletHandler, handlerFundHandler, imageStudioHandler, modelPricingHandler, handlerPromptLibraryHandler, mobileAssetHandler, mobileTaskHandler, mobileSupportHandler, mobileDiagnosticHandler, mobileDeviceHandler, mobileAttributionHandler, idempotencyCoordinator, idempotencyCleanupService)

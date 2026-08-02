@@ -331,6 +331,14 @@ func ProvideMobileDeviceHandler(pushService *service.MobilePushService) *MobileD
 	return NewMobileDeviceHandler(pushService)
 }
 
+func ProvideMobileAttributionEventService(svc *service.MobileAttributionService) mobileAttributionEventService {
+	return svc
+}
+
+func ProvideMobileAttributionAdminService(svc *service.MobileAttributionService) mobileAttributionAdminService {
+	return svc
+}
+
 // ProviderSet is the Wire provider set for all handlers
 var ProviderSet = wire.NewSet(
 	// Top-level handlers
@@ -367,6 +375,8 @@ var ProviderSet = wire.NewSet(
 	NewMobileDiagnosticHandler,
 	ProvideMobileDeviceHandler,
 	NewMobileAttributionHandler,
+	ProvideMobileAttributionEventService,
+	ProvideMobileAttributionAdminService,
 
 	// Admin handlers
 	admin.NewDashboardHandler,

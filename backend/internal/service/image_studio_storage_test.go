@@ -96,7 +96,7 @@ func TestFetchImageStudioRemoteURLRejectsPrivateAndInsecureTargets(t *testing.T)
 }
 
 func TestCloneImageStudioHTTPTransportFallsBackForCustomRoundTripper(t *testing.T) {
-	transport := cloneImageStudioHTTPTransport(roundTripFunc(func(*http.Request) (*http.Response, error) {
+	transport := cloneImageStudioHTTPTransport(imageStudioRoundTripFunc(func(*http.Request) (*http.Response, error) {
 		return nil, nil
 	}))
 
@@ -167,8 +167,8 @@ func encodeImageStudioStorageTestImage(t *testing.T, format string) []byte {
 	return out.Bytes()
 }
 
-type roundTripFunc func(*http.Request) (*http.Response, error)
+type imageStudioRoundTripFunc func(*http.Request) (*http.Response, error)
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+func (f imageStudioRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
