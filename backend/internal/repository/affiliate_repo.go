@@ -12,6 +12,7 @@ import (
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/user"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
 )
@@ -1152,13 +1153,13 @@ func (r *affiliateRepository) CreateReferralCampaign(ctx context.Context, campai
 INSERT INTO referral_campaigns (
  campaign_key,name,status,version,registration_from,registration_to,starts_at,ends_at,
  qualification_to,claim_deadline,risk_hold_hours,pay_threshold,usage_threshold,max_enrollments,
- budget_total,reward_mode,rank_rewards_json,signing_secret,created_by
-) VALUES ($1,$2,'draft',1,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+ budget_total,reward_mode,rank_rewards_json,signing_secret,created_by,public_rules_md,invitee_notice_md,legacy_rebate_policy,rules_version
+) VALUES ($1,$2,'draft',1,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,1)
 RETURNING id`, []any{strings.TrimSpace(campaign.Key), strings.TrimSpace(campaign.Name), campaign.RegistrationFrom,
 			campaign.RegistrationTo, campaign.StartsAt, campaign.EndsAt, campaign.QualificationTo,
 			campaign.ClaimDeadline, campaign.RiskHoldHours, campaign.PayThreshold, campaign.UsageThreshold,
 			campaign.MaxEnrollments, campaign.BudgetTotal, campaign.RewardMode, rankRewards,
-			campaign.SigningSecret, campaign.CreatedBy}, &campaign.ID); err != nil {
+			campaign.SigningSecret, campaign.CreatedBy, strings.TrimSpace(campaign.PublicRulesMD), strings.TrimSpace(campaign.InviteeNoticeMD), campaign.LegacyRebatePolicy}, &campaign.ID); err != nil {
 			return fmt.Errorf("create referral campaign: %w", err)
 		}
 		for _, tier := range tiers {
@@ -1166,7 +1167,51 @@ RETURNING id`, []any{strings.TrimSpace(campaign.Key), strings.TrimSpace(campaign
 				return fmt.Errorf("create referral campaign tier: %w", err)
 			}
 		}
+		snapshot, err := referralCampaignSnapshot(campaign, tiers)
+		if err != nil {
+			return err
+		}
+		if _, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_rule_versions (campaign_id,rules_version,change_kind,snapshot,changed_by) VALUES ($1,1,'created',$2,$3)`, campaign.ID, snapshot, campaign.CreatedBy); err != nil {
+			return err
+		}
 		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,1,$2,'created',jsonb_build_object('campaign_key',$3::text))`, campaign.ID, campaign.CreatedBy, campaign.Key)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.GetReferralCampaign(ctx, campaign.ID)
+}
+
+func (r *affiliateRepository) UpdateReferralCampaignContent(ctx context.Context, campaign service.ReferralCampaign, tiers []service.ReferralCampaignTier, actorID int64) (*service.ReferralCampaign, error) {
+	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		var pendingCount int
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT COUNT(*) FROM referral_campaign_financial_versions WHERE campaign_id=$1 AND status='review'`, []any{campaign.ID}, &pendingCount); err != nil {
+			return err
+		}
+		if pendingCount > 0 {
+			return infraerrors.Conflict("REFERRAL_CAMPAIGN_FINANCIAL_VERSION_PENDING", "a financial rules version is already awaiting review")
+		}
+		var rulesVersion int64
+		if err := scanAffiliateRow(txCtx, txClient, `
+UPDATE referral_campaigns SET campaign_key=$3,name=$4,public_rules_md=$5,invitee_notice_md=$6,
+ rules_version=rules_version+1,rules_updated_at=NOW(),version=version+1,updated_at=NOW()
+WHERE id=$1 AND version=$2 AND status NOT IN ('settling','closed','cancelled')
+RETURNING rules_version`, []any{campaign.ID, campaign.Version, strings.TrimSpace(campaign.Key), strings.TrimSpace(campaign.Name), strings.TrimSpace(campaign.PublicRulesMD), strings.TrimSpace(campaign.InviteeNoticeMD)}, &rulesVersion); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignVersionConflict
+			}
+			return err
+		}
+		campaign.RulesVersion = rulesVersion
+		snapshot, err := referralCampaignSnapshot(campaign, tiers)
+		if err != nil {
+			return err
+		}
+		if _, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_rule_versions (campaign_id,rules_version,change_kind,snapshot,changed_by) VALUES ($1,$2,'content',$3,$4)`, campaign.ID, rulesVersion, snapshot, actorID); err != nil {
+			return err
+		}
+		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT id,version,$2,'content_rules_updated',jsonb_build_object('rules_version',$3::bigint) FROM referral_campaigns WHERE id=$1`, campaign.ID, actorID, rulesVersion)
 		return err
 	})
 	if err != nil {
@@ -1181,21 +1226,67 @@ func (r *affiliateRepository) UpdateReferralCampaign(ctx context.Context, campai
 		if err != nil {
 			return err
 		}
-		res, err := txClient.ExecContext(txCtx, `
+		var currentStatus string
+		var currentRulesVersion int64
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT status,rules_version FROM referral_campaigns WHERE id=$1 AND version=$2 AND status NOT IN ('settling','closed','cancelled') FOR UPDATE`, []any{campaign.ID, campaign.Version}, &currentStatus, &currentRulesVersion); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignVersionConflict
+			}
+			return fmt.Errorf("lock referral campaign for update: %w", err)
+		}
+
+		if currentStatus != service.ReferralCampaignStatusDraft {
+			var activeCount int
+			if err := scanAffiliateRow(txCtx, txClient, `SELECT COUNT(*) FROM referral_campaign_financial_versions WHERE campaign_id=$1 AND status='review'`, []any{campaign.ID}, &activeCount); err != nil {
+				return err
+			}
+			if activeCount > 0 {
+				return infraerrors.Conflict("REFERRAL_CAMPAIGN_FINANCIAL_VERSION_PENDING", "a financial rules version is already awaiting review")
+			}
+			var nextRulesVersion int64
+			if err := scanAffiliateRow(txCtx, txClient, `
+SELECT GREATEST(
+  $2::bigint + 1,
+  COALESCE((SELECT MAX(rules_version) + 1 FROM referral_campaign_rule_versions WHERE campaign_id=$1), 1),
+  COALESCE((SELECT MAX(rules_version) + 1 FROM referral_campaign_financial_versions WHERE campaign_id=$1), 1)
+)`, []any{campaign.ID, currentRulesVersion}, &nextRulesVersion); err != nil {
+				return err
+			}
+			campaign.RulesVersion = nextRulesVersion
+			snapshot, err := referralCampaignSnapshot(campaign, tiers)
+			if err != nil {
+				return err
+			}
+			if _, err = txClient.ExecContext(txCtx, `
+INSERT INTO referral_campaign_financial_versions (campaign_id,rules_version,base_rules_version,snapshot,status,created_by)
+VALUES ($1,$2,$3,$4,'review',$5)`, campaign.ID, nextRulesVersion, currentRulesVersion, snapshot, actorID); err != nil {
+				return fmt.Errorf("stage referral campaign financial version: %w", err)
+			}
+			_, err = txClient.ExecContext(txCtx, `
+INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail)
+VALUES ($1,$2,$3,'financial_rules_submitted',jsonb_build_object('rules_version',$4::bigint,'base_rules_version',$5::bigint))`, campaign.ID, campaign.Version, actorID, nextRulesVersion, currentRulesVersion)
+			return err
+		}
+
+		var rulesVersion int64
+		if err := scanAffiliateRow(txCtx, txClient, `
 UPDATE referral_campaigns SET campaign_key=$3,name=$4,registration_from=$5,registration_to=$6,
  starts_at=$7,ends_at=$8,qualification_to=$9,claim_deadline=$10,risk_hold_hours=$11,
  pay_threshold=$12,usage_threshold=$13,max_enrollments=$14,budget_total=$15,reward_mode=$16,
- rank_rewards_json=$17,version=version+1,approved_by=NULL,updated_at=NOW()
-WHERE id=$1 AND version=$2 AND status='draft' AND budget_reserved=0 AND budget_paid=0`, campaign.ID, campaign.Version,
+ rank_rewards_json=$17,public_rules_md=$18,invitee_notice_md=$19,legacy_rebate_policy=$20,
+ rules_version=rules_version+1,rules_updated_at=NOW(),version=version+1,updated_at=NOW()
+WHERE id=$1 AND version=$2 AND status='draft'
+  AND $15 >= budget_reserved + budget_paid
+RETURNING rules_version`, []any{campaign.ID, campaign.Version,
 			strings.TrimSpace(campaign.Key), strings.TrimSpace(campaign.Name), campaign.RegistrationFrom,
 			campaign.RegistrationTo, campaign.StartsAt, campaign.EndsAt, campaign.QualificationTo,
 			campaign.ClaimDeadline, campaign.RiskHoldHours, campaign.PayThreshold, campaign.UsageThreshold,
-			campaign.MaxEnrollments, campaign.BudgetTotal, campaign.RewardMode, rankRewards)
-		if err != nil {
+			campaign.MaxEnrollments, campaign.BudgetTotal, campaign.RewardMode, rankRewards,
+			strings.TrimSpace(campaign.PublicRulesMD), strings.TrimSpace(campaign.InviteeNoticeMD), campaign.LegacyRebatePolicy}, &rulesVersion); err != nil {
+			if errors.Is(err, sql.ErrNoRows) {
+				return service.ErrReferralCampaignVersionConflict
+			}
 			return fmt.Errorf("update referral campaign: %w", err)
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return service.ErrReferralCampaignVersionConflict
 		}
 		if _, err := txClient.ExecContext(txCtx, `DELETE FROM referral_campaign_tiers WHERE campaign_id=$1`, campaign.ID); err != nil {
 			return err
@@ -1205,13 +1296,30 @@ WHERE id=$1 AND version=$2 AND status='draft' AND budget_reserved=0 AND budget_p
 				return err
 			}
 		}
-		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT id,version,$2,'updated','{}'::jsonb FROM referral_campaigns WHERE id=$1`, campaign.ID, actorID)
+		campaign.RulesVersion = rulesVersion
+		snapshot, err := referralCampaignSnapshot(campaign, tiers)
+		if err != nil {
+			return err
+		}
+		if _, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_rule_versions (campaign_id,rules_version,change_kind,snapshot,changed_by) VALUES ($1,$2,'financial',$3,$4)`, campaign.ID, rulesVersion, snapshot, actorID); err != nil {
+			return err
+		}
+		_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT id,version,$2,'rules_updated',jsonb_build_object('rules_version',$3::bigint) FROM referral_campaigns WHERE id=$1`, campaign.ID, actorID, rulesVersion)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 	return r.GetReferralCampaign(ctx, campaign.ID)
+}
+
+func referralCampaignSnapshot(campaign service.ReferralCampaign, tiers []service.ReferralCampaignTier) ([]byte, error) {
+	return json.Marshal(referralCampaignSnapshotPayload{Campaign: campaign, Tiers: tiers})
+}
+
+type referralCampaignSnapshotPayload struct {
+	Campaign service.ReferralCampaign       `json:"campaign"`
+	Tiers    []service.ReferralCampaignTier `json:"tiers"`
 }
 
 func normalizeReferralPage(page, pageSize int) (int, int, int) {
@@ -1241,7 +1349,7 @@ func (r *affiliateRepository) ListReferralCampaigns(ctx context.Context, filter 
 SELECT id,campaign_key,name,status,version,registration_from,registration_to,starts_at,ends_at,
  qualification_to,claim_deadline,risk_hold_hours,pay_threshold::double precision,usage_threshold::double precision,
  max_enrollments,budget_total::double precision,budget_reserved::double precision,budget_paid::double precision,
- reward_mode,created_by,approved_by
+ reward_mode,public_rules_md,invitee_notice_md,legacy_rebate_policy,rules_version,rules_updated_at,created_by,approved_by
 FROM referral_campaigns `+where+` ORDER BY created_at DESC,id DESC LIMIT $3 OFFSET $4`, status, search, pageSize, offset)
 	if err != nil {
 		return nil, fmt.Errorf("list referral campaigns: %w", err)
@@ -1254,7 +1362,7 @@ FROM referral_campaigns `+where+` ORDER BY created_at DESC,id DESC LIMIT $3 OFFS
 		if err := rows.Scan(&c.ID, &c.Key, &c.Name, &c.Status, &c.Version, &c.RegistrationFrom, &c.RegistrationTo,
 			&c.StartsAt, &c.EndsAt, &c.QualificationTo, &c.ClaimDeadline, &c.RiskHoldHours, &c.PayThreshold,
 			&c.UsageThreshold, &c.MaxEnrollments, &c.BudgetTotal, &c.BudgetReserved, &c.BudgetPaid, &c.RewardMode,
-			&createdBy, &approvedBy); err != nil {
+			&c.PublicRulesMD, &c.InviteeNoticeMD, &c.LegacyRebatePolicy, &c.RulesVersion, &c.RulesUpdatedAt, &createdBy, &approvedBy); err != nil {
 			return nil, err
 		}
 		if createdBy.Valid {
@@ -1277,7 +1385,12 @@ func (r *affiliateRepository) ListRunningReferralCampaignIDs(ctx context.Context
 		limit = 20
 	}
 	client := clientFromContext(ctx, r.client)
-	rows, err := client.QueryContext(ctx, `SELECT id FROM referral_campaigns WHERE status='running' AND starts_at<=NOW() AND ends_at>NOW() ORDER BY starts_at DESC,id DESC LIMIT $1`, limit)
+	rows, err := client.QueryContext(ctx, `
+SELECT id FROM referral_campaigns
+WHERE (status IN ('scheduled','running') AND registration_from<=NOW() AND registration_to>NOW())
+   OR (status='settling' AND claim_deadline>NOW())
+ORDER BY CASE WHEN status='settling' THEN 0 ELSE 1 END, starts_at DESC,id DESC
+LIMIT $1`, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -1303,11 +1416,13 @@ SELECT id, campaign_key, name, status, version, registration_from,
        registration_to, starts_at, ends_at, qualification_to, claim_deadline,
        risk_hold_hours, pay_threshold::double precision, usage_threshold::double precision,
        max_enrollments, budget_total::double precision, budget_reserved::double precision,
-       budget_paid::double precision, reward_mode, rank_rewards_json, created_by, approved_by
+       budget_paid::double precision, reward_mode, public_rules_md, invitee_notice_md, legacy_rebate_policy,
+       rules_version, rules_updated_at, rank_rewards_json, created_by, approved_by
 FROM referral_campaigns WHERE id = $1`, []any{id}, &c.ID, &c.Key, &c.Name, &c.Status, &c.Version, &c.RegistrationFrom,
 		&c.RegistrationTo, &c.StartsAt, &c.EndsAt, &c.QualificationTo, &c.ClaimDeadline,
 		&c.RiskHoldHours, &c.PayThreshold, &c.UsageThreshold, &c.MaxEnrollments,
-		&c.BudgetTotal, &c.BudgetReserved, &c.BudgetPaid, &c.RewardMode, &rankRewards, &createdBy, &approvedBy)
+		&c.BudgetTotal, &c.BudgetReserved, &c.BudgetPaid, &c.RewardMode, &c.PublicRulesMD, &c.InviteeNoticeMD,
+		&c.LegacyRebatePolicy, &c.RulesVersion, &c.RulesUpdatedAt, &rankRewards, &createdBy, &approvedBy)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, service.ErrReferralCampaignNotFound
@@ -1325,6 +1440,114 @@ FROM referral_campaigns WHERE id = $1`, []any{id}, &c.ID, &c.Key, &c.Name, &c.St
 		_ = json.Unmarshal(rankRewards, &c.RankRewards)
 	}
 	return &c, nil
+}
+
+func (r *affiliateRepository) ListReferralCampaignRuleVersions(ctx context.Context, campaignID int64) ([]service.ReferralCampaignRuleVersion, error) {
+	client := clientFromContext(ctx, r.client)
+	rows, err := client.QueryContext(ctx, `SELECT rules_version,change_kind,snapshot,changed_by,created_at FROM referral_campaign_rule_versions WHERE campaign_id=$1 ORDER BY rules_version DESC`, campaignID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	out := make([]service.ReferralCampaignRuleVersion, 0)
+	for rows.Next() {
+		var item service.ReferralCampaignRuleVersion
+		var changedBy sql.NullInt64
+		if err := rows.Scan(&item.RulesVersion, &item.ChangeKind, &item.Snapshot, &changedBy, &item.CreatedAt); err != nil {
+			return nil, err
+		}
+		if changedBy.Valid {
+			value := changedBy.Int64
+			item.ChangedBy = &value
+		}
+		out = append(out, item)
+	}
+	return out, rows.Err()
+}
+
+func (r *affiliateRepository) GetReferralCampaignRuleVersion(ctx context.Context, campaignID, rulesVersion int64) (*service.ReferralCampaignRuleVersion, error) {
+	client := clientFromContext(ctx, r.client)
+	var item service.ReferralCampaignRuleVersion
+	var changedBy sql.NullInt64
+	if err := scanAffiliateRow(ctx, client, `SELECT rules_version,change_kind,snapshot,changed_by,created_at FROM referral_campaign_rule_versions WHERE campaign_id=$1 AND rules_version=$2`, []any{campaignID, rulesVersion}, &item.RulesVersion, &item.ChangeKind, &item.Snapshot, &changedBy, &item.CreatedAt); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, service.ErrReferralCampaignNotFound
+		}
+		return nil, err
+	}
+	if changedBy.Valid {
+		value := changedBy.Int64
+		item.ChangedBy = &value
+	}
+	return &item, nil
+}
+
+func (r *affiliateRepository) GetPendingReferralCampaignFinancialVersion(ctx context.Context, campaignID int64) (*service.ReferralCampaignFinancialVersion, error) {
+	client := clientFromContext(ctx, r.client)
+	var item service.ReferralCampaignFinancialVersion
+	var createdBy sql.NullInt64
+	err := scanAffiliateRow(ctx, client, `
+SELECT rules_version,base_rules_version,snapshot,status,created_by,created_at
+FROM referral_campaign_financial_versions
+WHERE campaign_id=$1 AND status='review'`, []any{campaignID},
+		&item.RulesVersion, &item.BaseRulesVersion, &item.Snapshot, &item.Status, &createdBy, &item.CreatedAt)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get pending referral campaign financial version: %w", err)
+	}
+	if createdBy.Valid {
+		value := createdBy.Int64
+		item.CreatedBy = &value
+	}
+	return &item, nil
+}
+
+func (r *affiliateRepository) MarkReferralCampaignViewed(ctx context.Context, campaignID, userID, rulesVersion int64) error {
+	client := clientFromContext(ctx, r.client)
+	_, err := client.ExecContext(ctx, `INSERT INTO referral_campaign_user_views (campaign_id,user_id,rules_version,seen_at) VALUES ($1,$2,$3,NOW()) ON CONFLICT (campaign_id,user_id) DO UPDATE SET rules_version=EXCLUDED.rules_version,seen_at=NOW()`, campaignID, userID, rulesVersion)
+	return err
+}
+
+func (r *affiliateRepository) ShouldSuppressLegacyReferralRebate(ctx context.Context, inviteeID int64) (bool, error) {
+	client := clientFromContext(ctx, r.client)
+	var found bool
+	err := scanAffiliateRow(ctx, client, `SELECT EXISTS (SELECT 1 FROM referral_campaign_attributions WHERE invitee_id=$1 AND legacy_rebate_policy='exclude' AND status IN ('pending','approved','rejected','revoked'))`, []any{inviteeID}, &found)
+	return found, err
+}
+
+func (r *affiliateRepository) AdvanceReferralCampaigns(ctx context.Context, now time.Time) (int, error) {
+	client := clientFromContext(ctx, r.client)
+	rows, err := client.QueryContext(ctx, `
+UPDATE referral_campaigns
+SET status=CASE
+    WHEN status='scheduled' AND starts_at <= $1 THEN 'running'
+    WHEN status IN ('running','paused') AND ends_at <= $1 THEN 'settling'
+    WHEN status='settling' AND claim_deadline <= $1 THEN 'closed'
+    ELSE status END,
+    version=version+1,updated_at=NOW()
+WHERE (status='scheduled' AND starts_at <= $1)
+   OR (status IN ('running','paused') AND ends_at <= $1)
+   OR (status='settling' AND claim_deadline <= $1)
+RETURNING id,version,status`, now)
+	if err != nil {
+		return 0, err
+	}
+	defer func() { _ = rows.Close() }()
+	count := 0
+	for rows.Next() {
+		var id, version int64
+		var status string
+		if err := rows.Scan(&id, &version, &status); err != nil {
+			return count, err
+		}
+		if _, err := client.ExecContext(ctx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) VALUES ($1,$2,NULL,'auto_status_changed',jsonb_build_object('status',$3::text))`, id, version, status); err != nil {
+			return count, err
+		}
+		count++
+	}
+	return count, rows.Err()
 }
 
 func (r *affiliateRepository) SetReferralCampaignStatus(ctx context.Context, id, expectedVersion int64, status string, actorID int64, note string) (*service.ReferralCampaign, error) {
@@ -1361,6 +1584,86 @@ SELECT id,version,$4,'status_changed',jsonb_build_object('status',$3::text,'note
 
 func (r *affiliateRepository) ReviewReferralCampaign(ctx context.Context, id, expectedVersion int64, reviewType, decision string, actorID int64, note string) (*service.ReferralCampaign, error) {
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
+		var financialSnapshot []byte
+		var financialBaseVersion int64
+		financialErr := scanAffiliateRow(txCtx, txClient, `
+SELECT snapshot,base_rules_version FROM referral_campaign_financial_versions
+WHERE campaign_id=$1 AND rules_version=$2 AND status='review' FOR UPDATE`, []any{id, expectedVersion}, &financialSnapshot, &financialBaseVersion)
+		if financialErr == nil {
+			if _, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_approvals (campaign_id,version,review_type,decision,reviewer_id,note) VALUES ($1,$2,$3,$4,$5,$6)`, id, expectedVersion, reviewType, decision, actorID, strings.TrimSpace(note)); err != nil {
+				return err
+			}
+			if decision == "rejected" {
+				if _, err := txClient.ExecContext(txCtx, `UPDATE referral_campaign_financial_versions SET status='rejected',resolved_at=NOW() WHERE campaign_id=$1 AND rules_version=$2 AND status='review'`, id, expectedVersion); err != nil {
+					return err
+				}
+				_, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT id,version,$3,'financial_rules_rejected',jsonb_build_object('rules_version',$2::bigint,'review_type',$4::text,'note',$5::text) FROM referral_campaigns WHERE id=$1`, id, expectedVersion, actorID, reviewType, strings.TrimSpace(note))
+				return err
+			}
+			var approvals int
+			if err := scanAffiliateRow(txCtx, txClient, `SELECT COUNT(DISTINCT review_type) FROM referral_campaign_approvals WHERE campaign_id=$1 AND version=$2 AND decision='approved'`, []any{id, expectedVersion}, &approvals); err != nil {
+				return err
+			}
+			if approvals < 4 {
+				return nil
+			}
+			var candidate referralCampaignSnapshotPayload
+			if err := json.Unmarshal(financialSnapshot, &candidate); err != nil {
+				return fmt.Errorf("decode financial campaign version: %w", err)
+			}
+			var currentRulesVersion int64
+			if err := scanAffiliateRow(txCtx, txClient, `SELECT rules_version FROM referral_campaigns WHERE id=$1 FOR UPDATE`, []any{id}, &currentRulesVersion); err != nil {
+				return err
+			}
+			if currentRulesVersion != financialBaseVersion {
+				return service.ErrReferralCampaignVersionConflict
+			}
+			rankRewards, err := json.Marshal(candidate.Campaign.RankRewards)
+			if err != nil {
+				return err
+			}
+			if _, err = txClient.ExecContext(txCtx, `
+UPDATE referral_campaigns SET campaign_key=$2,name=$3,registration_from=$4,registration_to=$5,
+ starts_at=$6,ends_at=$7,qualification_to=$8,claim_deadline=$9,risk_hold_hours=$10,
+ pay_threshold=$11,usage_threshold=$12,max_enrollments=$13,budget_total=$14,reward_mode=$15,
+ rank_rewards_json=$16,public_rules_md=$17,invitee_notice_md=$18,legacy_rebate_policy=$19,
+ rules_version=$20,rules_updated_at=NOW(),version=version+1,updated_at=NOW()
+WHERE id=$1 AND $14 >= budget_reserved + budget_paid`, id,
+				strings.TrimSpace(candidate.Campaign.Key), strings.TrimSpace(candidate.Campaign.Name), candidate.Campaign.RegistrationFrom,
+				candidate.Campaign.RegistrationTo, candidate.Campaign.StartsAt, candidate.Campaign.EndsAt, candidate.Campaign.QualificationTo,
+				candidate.Campaign.ClaimDeadline, candidate.Campaign.RiskHoldHours, candidate.Campaign.PayThreshold, candidate.Campaign.UsageThreshold,
+				candidate.Campaign.MaxEnrollments, candidate.Campaign.BudgetTotal, candidate.Campaign.RewardMode, rankRewards,
+				strings.TrimSpace(candidate.Campaign.PublicRulesMD), strings.TrimSpace(candidate.Campaign.InviteeNoticeMD), candidate.Campaign.LegacyRebatePolicy,
+				expectedVersion); err != nil {
+				return fmt.Errorf("apply financial campaign version: %w", err)
+			}
+			if _, err := txClient.ExecContext(txCtx, `DELETE FROM referral_campaign_tiers WHERE campaign_id=$1`, id); err != nil {
+				return err
+			}
+			for _, tier := range candidate.Tiers {
+				if _, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_tiers (campaign_id,tier_no,required_invites,reward_amount,currency) VALUES ($1,$2,$3,$4,$5)`, id, tier.Tier, tier.RequiredInvites, tier.RewardAmount, strings.ToUpper(strings.TrimSpace(tier.Currency))); err != nil {
+					return err
+				}
+			}
+			candidate.Campaign.ID = id
+			candidate.Campaign.RulesVersion = expectedVersion
+			appliedSnapshot, err := referralCampaignSnapshot(candidate.Campaign, candidate.Tiers)
+			if err != nil {
+				return err
+			}
+			if _, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_rule_versions (campaign_id,rules_version,change_kind,snapshot,changed_by) VALUES ($1,$2,'financial',$3,$4)`, id, expectedVersion, appliedSnapshot, actorID); err != nil {
+				return err
+			}
+			if _, err = txClient.ExecContext(txCtx, `UPDATE referral_campaign_financial_versions SET status='approved',resolved_at=NOW() WHERE campaign_id=$1 AND rules_version=$2 AND status='review'`, id, expectedVersion); err != nil {
+				return err
+			}
+			_, err = txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_audit_logs (campaign_id,campaign_version,actor_id,action,detail) SELECT id,version,$3,'financial_rules_approved',jsonb_build_object('rules_version',$2::bigint) FROM referral_campaigns WHERE id=$1`, id, expectedVersion, actorID)
+			return err
+		}
+		if !errors.Is(financialErr, sql.ErrNoRows) {
+			return financialErr
+		}
+
 		var version int64
 		if err := scanAffiliateRow(txCtx, txClient, `SELECT version FROM referral_campaigns WHERE id=$1 AND version=$2 AND status='review' FOR UPDATE`, []any{id, expectedVersion}, &version); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
@@ -1623,7 +1926,7 @@ func (r *affiliateRepository) BindReferralAttribution(ctx context.Context, attri
 	var out service.ReferralAttribution
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
 		var existing service.ReferralAttribution
-		if err := scanAffiliateRow(txCtx, txClient, `SELECT id,campaign_id,inviter_id,invitee_id,token_nonce,registered_at,status FROM referral_campaign_attributions WHERE campaign_id=$1 AND invitee_id=$2`, []any{attribution.CampaignID, attribution.InviteeID}, &existing.ID, &existing.CampaignID, &existing.InviterID, &existing.InviteeID, &existing.Nonce, &existing.RegisteredAt, &existing.Status); err == nil {
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT id,campaign_id,inviter_id,invitee_id,token_nonce,registered_at,status,rules_version,legacy_rebate_policy,qualification_to_snapshot,pay_threshold_snapshot::double precision,usage_threshold_snapshot::double precision,risk_hold_hours_snapshot FROM referral_campaign_attributions WHERE campaign_id=$1 AND invitee_id=$2`, []any{attribution.CampaignID, attribution.InviteeID}, &existing.ID, &existing.CampaignID, &existing.InviterID, &existing.InviteeID, &existing.Nonce, &existing.RegisteredAt, &existing.Status, &existing.RulesVersion, &existing.LegacyRebatePolicy, &existing.QualificationToSnapshot, &existing.PayThresholdSnapshot, &existing.UsageThresholdSnapshot, &existing.RiskHoldHoursSnapshot); err == nil {
 			if existing.InviterID != attribution.InviterID {
 				return service.ErrAffiliateAlreadyBound
 			}
@@ -1668,10 +1971,10 @@ WHERE u.id=$3 AND u.created_at>=c.registration_from AND u.created_at<c.registrat
 			}
 		}
 		err = scanAffiliateRow(txCtx, txClient, `
-INSERT INTO referral_campaign_attributions (campaign_id, inviter_id, invitee_id, token_nonce, registered_at, status)
-VALUES ($1, $2, $3, $4, $5, $6)
+INSERT INTO referral_campaign_attributions (campaign_id, inviter_id, invitee_id, token_nonce, registered_at, status, rules_version, legacy_rebate_policy, qualification_to_snapshot, pay_threshold_snapshot, usage_threshold_snapshot, risk_hold_hours_snapshot)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 ON CONFLICT (campaign_id, invitee_id) DO UPDATE SET inviter_id = referral_campaign_attributions.inviter_id
-RETURNING id, campaign_id, inviter_id, invitee_id, token_nonce, registered_at, status`, []any{attribution.CampaignID, attribution.InviterID, attribution.InviteeID, attribution.Nonce, attribution.RegisteredAt, attribution.Status}, &out.ID, &out.CampaignID, &out.InviterID, &out.InviteeID, &out.Nonce, &out.RegisteredAt, &out.Status)
+RETURNING id, campaign_id, inviter_id, invitee_id, token_nonce, registered_at, status, rules_version, legacy_rebate_policy, qualification_to_snapshot, pay_threshold_snapshot::double precision, usage_threshold_snapshot::double precision, risk_hold_hours_snapshot`, []any{attribution.CampaignID, attribution.InviterID, attribution.InviteeID, attribution.Nonce, attribution.RegisteredAt, attribution.Status, attribution.RulesVersion, attribution.LegacyRebatePolicy, attribution.QualificationToSnapshot, attribution.PayThresholdSnapshot, attribution.UsageThresholdSnapshot, attribution.RiskHoldHoursSnapshot}, &out.ID, &out.CampaignID, &out.InviterID, &out.InviteeID, &out.Nonce, &out.RegisteredAt, &out.Status, &out.RulesVersion, &out.LegacyRebatePolicy, &out.QualificationToSnapshot, &out.PayThresholdSnapshot, &out.UsageThresholdSnapshot, &out.RiskHoldHoursSnapshot)
 		if err != nil {
 			return fmt.Errorf("record campaign attribution: %w", err)
 		}
@@ -1686,7 +1989,7 @@ RETURNING id, campaign_id, inviter_id, invitee_id, token_nonce, registered_at, s
 func (r *affiliateRepository) GetReferralAttribution(ctx context.Context, campaignID, inviteeID int64) (*service.ReferralAttribution, error) {
 	client := clientFromContext(ctx, r.client)
 	var a service.ReferralAttribution
-	if err := scanAffiliateRow(ctx, client, `SELECT id, campaign_id, inviter_id, invitee_id, token_nonce, registered_at, status FROM referral_campaign_attributions WHERE campaign_id = $1 AND invitee_id = $2`, []any{campaignID, inviteeID}, &a.ID, &a.CampaignID, &a.InviterID, &a.InviteeID, &a.Nonce, &a.RegisteredAt, &a.Status); err != nil {
+	if err := scanAffiliateRow(ctx, client, `SELECT id, campaign_id, inviter_id, invitee_id, token_nonce, registered_at, status, rules_version, legacy_rebate_policy, qualification_to_snapshot, pay_threshold_snapshot::double precision, usage_threshold_snapshot::double precision, risk_hold_hours_snapshot FROM referral_campaign_attributions WHERE campaign_id = $1 AND invitee_id = $2`, []any{campaignID, inviteeID}, &a.ID, &a.CampaignID, &a.InviterID, &a.InviteeID, &a.Nonce, &a.RegisteredAt, &a.Status, &a.RulesVersion, &a.LegacyRebatePolicy, &a.QualificationToSnapshot, &a.PayThresholdSnapshot, &a.UsageThresholdSnapshot, &a.RiskHoldHoursSnapshot); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, service.ErrReferralCampaignNotFound
 		}
@@ -1719,12 +2022,12 @@ func (r *affiliateRepository) ListReferralCampaignInviteeIDs(ctx context.Context
 	}
 	client := clientFromContext(ctx, r.client)
 	rows, err := client.QueryContext(ctx, `
-SELECT a.invitee_id FROM referral_campaign_attributions a JOIN referral_campaigns c ON c.id=a.campaign_id
+SELECT a.invitee_id FROM referral_campaign_attributions a
 LEFT JOIN referral_campaign_qualifications q ON q.campaign_id=a.campaign_id AND q.invitee_id=a.invitee_id
 WHERE a.campaign_id=$1 AND a.inviter_id=$2 AND a.status IN ('pending','approved')
 ORDER BY CASE WHEN
- COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m WHERE m.user_id=a.invitee_id AND m.paid_at>=a.registered_at AND m.paid_at<=c.qualification_to),0)>=c.pay_threshold
- AND COALESCE((SELECT SUM(u.actual_cost) FROM usage_logs u WHERE u.user_id=a.invitee_id AND u.created_at>=a.registered_at AND u.created_at<=c.qualification_to),0)>=c.usage_threshold
+ COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m WHERE m.user_id=a.invitee_id AND m.paid_at>=a.registered_at AND m.paid_at<=a.qualification_to_snapshot),0)>=a.pay_threshold_snapshot
+ AND COALESCE((SELECT SUM(u.actual_cost) FROM usage_logs u WHERE u.user_id=a.invitee_id AND u.created_at>=a.registered_at AND u.created_at<=a.qualification_to_snapshot),0)>=a.usage_threshold_snapshot
  THEN 0 ELSE 1 END,
  CASE WHEN COALESCE(q.status,'pending')='pending' THEN 0 ELSE 1 END,a.id
 LIMIT $3`, campaignID, inviterID, limit)
@@ -1751,17 +2054,17 @@ func (r *affiliateRepository) RecomputeReferralQualification(ctx context.Context
 	err := scanAffiliateRow(ctx, client, `
 SELECT a.campaign_id, a.inviter_id, a.invitee_id, a.registered_at,
        COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m
-                 WHERE m.user_id=a.invitee_id AND m.paid_at >= a.registered_at AND m.paid_at <= c.qualification_to),0)::double precision,
+                 WHERE m.user_id=a.invitee_id AND m.paid_at >= a.registered_at AND m.paid_at <= a.qualification_to_snapshot),0)::double precision,
        COALESCE((SELECT SUM(u.actual_cost) FROM usage_logs u
-                 WHERE u.user_id=a.invitee_id AND u.created_at >= a.registered_at AND u.created_at <= c.qualification_to),0)::double precision,
+                 WHERE u.user_id=a.invitee_id AND u.created_at >= a.registered_at AND u.created_at <= a.qualification_to_snapshot),0)::double precision,
        (SELECT m.order_id FROM play_membership_order_contributions m
-        WHERE m.user_id=a.invitee_id AND m.net_amount > 0 AND m.paid_at >= a.registered_at AND m.paid_at <= c.qualification_to
+        WHERE m.user_id=a.invitee_id AND m.net_amount > 0 AND m.paid_at >= a.registered_at AND m.paid_at <= a.qualification_to_snapshot
         ORDER BY m.paid_at DESC, m.order_id DESC LIMIT 1),
        CASE WHEN EXISTS (
           SELECT 1 FROM ip_risk_case_users cu JOIN ip_risk_cases rc ON rc.id=cu.case_id
           WHERE cu.user_id=a.invitee_id AND rc.status IN ('open','observing','processing') AND rc.level IN ('high','severe','critical')
        ) THEN 'rejected'
-       WHEN NOW() < a.registered_at + make_interval(hours => c.risk_hold_hours) THEN 'pending'
+       WHEN NOW() < a.registered_at + make_interval(hours => a.risk_hold_hours_snapshot) THEN 'pending'
        ELSE 'approved' END,
        COALESCE(q.status, 'pending')
 FROM referral_campaign_attributions a
@@ -2338,7 +2641,7 @@ func (r *affiliateRepository) GetReferralCampaignProgress(ctx context.Context, c
 	if err != nil {
 		return nil, err
 	}
-	progress := &service.ReferralCampaignProgress{Campaign: service.ReferralCampaignPublic{ID: campaign.ID, Key: campaign.Key, Name: campaign.Name, Status: campaign.Status, Version: campaign.Version, RegistrationFrom: campaign.RegistrationFrom, RegistrationTo: campaign.RegistrationTo, StartsAt: campaign.StartsAt, EndsAt: campaign.EndsAt, QualificationTo: campaign.QualificationTo, ClaimDeadline: campaign.ClaimDeadline, RiskHoldHours: campaign.RiskHoldHours, PayThreshold: campaign.PayThreshold, UsageThreshold: campaign.UsageThreshold, RewardMode: campaign.RewardMode}, Tiers: tiers, Rewards: []service.ReferralReward{}}
+	progress := &service.ReferralCampaignProgress{Campaign: service.ReferralCampaignPublic{ID: campaign.ID, Key: campaign.Key, Name: campaign.Name, Status: campaign.Status, Version: campaign.Version, RegistrationFrom: campaign.RegistrationFrom, RegistrationTo: campaign.RegistrationTo, StartsAt: campaign.StartsAt, EndsAt: campaign.EndsAt, QualificationTo: campaign.QualificationTo, ClaimDeadline: campaign.ClaimDeadline, RiskHoldHours: campaign.RiskHoldHours, PayThreshold: campaign.PayThreshold, UsageThreshold: campaign.UsageThreshold, MaxEnrollments: campaign.MaxEnrollments, RewardMode: campaign.RewardMode, PublicRulesMD: campaign.PublicRulesMD, InviteeNoticeMD: campaign.InviteeNoticeMD, LegacyRebatePolicy: campaign.LegacyRebatePolicy, RulesVersion: campaign.RulesVersion, RulesUpdatedAt: campaign.RulesUpdatedAt}, Tiers: tiers, Rewards: []service.ReferralReward{}}
 	if enrollment, err := r.GetReferralCampaignEnrollment(ctx, campaignID, userID); err == nil {
 		progress.Enrollment = enrollment
 	} else if !errors.Is(err, service.ErrReferralCampaignNotOpen) {
@@ -2375,6 +2678,16 @@ func (r *affiliateRepository) GetReferralCampaignProgress(ctx context.Context, c
 	}
 	if err := rows.Close(); err != nil {
 		return nil, err
+	}
+	var hasClaimable bool
+	if err := scanAffiliateRow(ctx, client, `SELECT COALESCE((SELECT rules_version < $3 FROM referral_campaign_user_views WHERE campaign_id=$1 AND user_id=$2),true), EXISTS (SELECT 1 FROM referral_campaign_rewards WHERE campaign_id=$1 AND user_id=$2 AND status='claimable')`, []any{campaignID, userID, campaign.RulesVersion}, &progress.UnseenUpdate, &hasClaimable); err != nil {
+		return nil, err
+	}
+	if hasClaimable {
+		progress.Attention = "claimable_reward"
+	}
+	if progress.Attention == "" && progress.UnseenUpdate {
+		progress.Attention = "rules_updated"
 	}
 	overview, err := r.GetReferralGrowthOverview(ctx, &campaignID, &userID)
 	if err != nil {

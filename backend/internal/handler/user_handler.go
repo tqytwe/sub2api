@@ -387,6 +387,23 @@ func (h *UserHandler) ListReferralCampaigns(c *gin.Context) {
 	response.Success(c, items)
 }
 
+func (h *UserHandler) MarkReferralCampaignViewed(c *gin.Context) {
+	svc, userID, ok := h.referralCampaignService(c)
+	if !ok {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("campaign_id"), 10, 64)
+	if err != nil || id <= 0 {
+		response.ErrorFrom(c, infraerrors.BadRequest("REFERRAL_CAMPAIGN_INVALID_INPUT", "invalid referral campaign id"))
+		return
+	}
+	if err := svc.MarkViewed(c.Request.Context(), id, userID); err != nil {
+		respondReferralCampaignError(c, err)
+		return
+	}
+	response.Success(c, gin.H{"campaign_id": id})
+}
+
 func respondReferralCampaignError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, service.ErrReferralCampaignNotFound):

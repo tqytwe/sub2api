@@ -810,6 +810,8 @@ export const jisudengPagesEn = {
     teamAffiliateReached: 'Squad milestone hit — captain bonus active',
     teamNone: 'Not in a squad yet',
     affiliateHint: 'Invite friends — rewards for both sides',
+    affiliateCampaign: 'Campaign active: {name}',
+    affiliateAttention: 'New update',
     badgePending: 'Pending',
     actionCheckin: 'Check in',
     actionOpen: 'Open box',

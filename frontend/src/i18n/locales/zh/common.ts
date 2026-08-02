@@ -294,6 +294,13 @@ export default {
     invitationCodeInvalid: '邀请码无效或已被使用',
     invitationCodeValidating: '正在验证邀请码...',
     invitationCodeInvalidCannotRegister: '邀请码无效，请检查后重试',
+    referralCampaign: {
+      invitedTo: '你正通过活动邀请注册',
+      rebatePolicy: '常规 10% 邀请返佣：{policy}',
+      exclude: '不叠加，活动邀请不产生常规返佣',
+      stack: '允许叠加，活动奖励与常规返佣分别结算',
+      unavailable: '此活动邀请链接已失效、暂停或不再接受报名。'
+    },
     oauthOrContinue: '或使用其他继续',
     linuxdo: {
       signIn: '使用 Linux.do 登录',

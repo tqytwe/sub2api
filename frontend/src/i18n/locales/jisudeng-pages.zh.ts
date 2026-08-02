@@ -817,6 +817,8 @@ export const jisudengPagesZh = {
     teamAffiliateReached: '小队本月已达标，队长返利已发放',
     teamNone: '尚未加入小队',
     affiliateHint: '邀请好友注册充值，双方得奖励',
+    affiliateCampaign: '活动进行中：{name}',
+    affiliateAttention: '有新动态',
     badgePending: '待完成',
     actionCheckin: '去签到',
     actionOpen: '去开盒',

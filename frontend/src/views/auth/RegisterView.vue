@@ -20,6 +20,22 @@
         </p>
       </div>
 
+      <section
+        v-if="campaignPreview"
+        class="rounded-lg border border-primary-200 bg-primary-50 p-4 dark:border-primary-800/60 dark:bg-primary-950/25"
+        data-testid="referral-campaign-preview"
+      >
+        <p class="text-xs font-medium text-primary-700 dark:text-primary-300">{{ t('auth.referralCampaign.invitedTo') }}</p>
+        <h3 class="mt-1 text-base font-semibold text-gray-900 dark:text-white">{{ campaignPreview.campaign.name }}</h3>
+        <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">{{ campaignPreview.campaign.invitee_notice_md }}</p>
+        <p class="mt-2 text-xs text-gray-600 dark:text-gray-400">
+          {{ t('auth.referralCampaign.rebatePolicy', { policy: campaignPreview.campaign.legacy_rebate_policy === 'stack' ? t('auth.referralCampaign.stack') : t('auth.referralCampaign.exclude') }) }}
+        </p>
+      </section>
+      <p v-else-if="campaignPreviewError" class="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-800/60 dark:bg-amber-950/25 dark:text-amber-200" data-testid="referral-campaign-preview-error">
+        {{ campaignPreviewError }}
+      </p>
+
       <!-- Registration Disabled Message -->
       <div
         v-if="!registrationEnabled && settingsLoaded"
@@ -365,6 +381,7 @@ import {
 import type { LoginAgreementDocument } from '@/types'
 import { usePublicGrowthTeaser } from '@/composables/usePublicGrowthTeaser'
 import { localizedSiteName } from '@/utils/localizedPublicSettings'
+import { getReferralCampaignInvitePreview, type ReferralCampaignInvitePreview } from '@/api/referralCampaign'
 
 const { t, locale, te } = useI18n()
 const LOGIN_AGREEMENT_STORAGE_KEY = 'sub2api_login_agreement_consent'
@@ -430,6 +447,8 @@ const loginAgreementRevision = ref<string>('')
 const loginAgreementDocuments = ref<LoginAgreementDocument[]>([])
 const agreementAccepted = ref<boolean>(false)
 const showAgreementModal = ref<boolean>(false)
+const campaignPreview = ref<ReferralCampaignInvitePreview | null>(null)
+const campaignPreviewError = ref<string>('')
 
 // Turnstile
 const turnstileRef = ref<InstanceType<typeof TurnstileWidget> | null>(null)
@@ -518,12 +537,26 @@ function syncReferralCampaignToken(): string {
   return resolveReferralCampaignToken(route.query.invite_token, route.query.token)
 }
 
+async function loadReferralCampaignPreview(): Promise<void> {
+  const token = syncReferralCampaignToken()
+  campaignPreview.value = null
+  campaignPreviewError.value = ''
+  if (!token) return
+  try {
+    campaignPreview.value = await getReferralCampaignInvitePreview(token)
+  } catch {
+    campaignPreviewError.value = t('auth.referralCampaign.unavailable')
+  }
+}
+
 // ==================== Lifecycle ====================
 
 onMounted(async () => {
   syncAffiliateReferralCode()
   syncTeamReferralCode()
   syncReferralCampaignToken()
+
+  void loadReferralCampaignPreview()
 
   try {
     const settings = await getPublicSettings()
@@ -570,6 +603,7 @@ watch(
   () => {
     syncAffiliateReferralCode()
     syncReferralCampaignToken()
+    void loadReferralCampaignPreview()
   }
 )
 

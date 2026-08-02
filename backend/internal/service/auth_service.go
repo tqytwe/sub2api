@@ -177,6 +177,17 @@ func (s *AuthService) ValidateRegistrationReferral(ctx context.Context, affiliat
 	return s.affiliateService.ValidateRegistrationReferral(ctx, affiliateCode, token)
 }
 
+func (s *AuthService) ReferralCampaignInvitePreview(ctx context.Context, token string) (*ReferralCampaignInvitePreview, error) {
+	if s == nil || s.affiliateService == nil || strings.TrimSpace(token) == "" {
+		return nil, ErrReferralCampaignTokenInvalid
+	}
+	campaignService := s.affiliateService.ReferralCampaign()
+	if campaignService == nil {
+		return nil, infraerrors.ServiceUnavailable("REFERRAL_CAMPAIGN_UNAVAILABLE", "referral campaign service unavailable")
+	}
+	return campaignService.InvitePreview(ctx, token, time.Now().UTC())
+}
+
 func (s *AuthService) recordIPRiskRegistration(
 	ctx context.Context,
 	user *User,
