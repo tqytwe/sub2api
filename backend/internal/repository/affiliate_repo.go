@@ -1361,23 +1361,12 @@ SELECT id,version,$4,'status_changed',jsonb_build_object('status',$3::text,'note
 
 func (r *affiliateRepository) ReviewReferralCampaign(ctx context.Context, id, expectedVersion int64, reviewType, decision string, actorID int64, note string) (*service.ReferralCampaign, error) {
 	err := r.withTx(ctx, func(txCtx context.Context, txClient *dbent.Client) error {
-		var createdBy int64
 		var version int64
-		if err := scanAffiliateRow(txCtx, txClient, `SELECT COALESCE(created_by,0),version FROM referral_campaigns WHERE id=$1 AND version=$2 AND status='review' FOR UPDATE`, []any{id, expectedVersion}, &createdBy, &version); err != nil {
+		if err := scanAffiliateRow(txCtx, txClient, `SELECT version FROM referral_campaigns WHERE id=$1 AND version=$2 AND status='review' FOR UPDATE`, []any{id, expectedVersion}, &version); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return service.ErrReferralCampaignVersionConflict
 			}
 			return err
-		}
-		if createdBy == actorID {
-			return service.ErrReferralCampaignReviewerConflict
-		}
-		var priorReviews int
-		if err := scanAffiliateRow(txCtx, txClient, `SELECT COUNT(*) FROM referral_campaign_approvals WHERE campaign_id=$1 AND version=$2 AND reviewer_id=$3`, []any{id, version, actorID}, &priorReviews); err != nil {
-			return err
-		}
-		if priorReviews > 0 {
-			return service.ErrReferralCampaignReviewerConflict
 		}
 		if _, err := txClient.ExecContext(txCtx, `INSERT INTO referral_campaign_approvals (campaign_id,version,review_type,decision,reviewer_id,note) VALUES ($1,$2,$3,$4,$5,$6)`, id, version, reviewType, decision, actorID, strings.TrimSpace(note)); err != nil {
 			return err
