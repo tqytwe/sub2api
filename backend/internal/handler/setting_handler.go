@@ -71,6 +71,7 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		SupportContact:                   service.RewritePublicSupportContactQRImages(settings.SupportContact),
 		APIOnboarding:                    settings.APIOnboarding,
 		HomeContent:                      settings.HomeContent,
+		CompactHomeEnabled:               settings.CompactHomeEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,

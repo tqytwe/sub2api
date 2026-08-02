@@ -181,6 +181,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeySupportContactConfig,
 		SettingKeyAPIOnboardingConfig,
 		SettingKeyHomeContent,
+		SettingKeyCompactHomeEnabled,
 		SettingKeyHideCcsImportButton,
 		SettingKeyPurchaseSubscriptionEnabled,
 		SettingKeyPurchaseSubscriptionURL,
@@ -321,6 +322,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SupportContact:                   BuildPublicSupportContactConfig(settings[SettingKeySupportContactConfig], settings[SettingKeyContactInfo], settings[SettingKeyDocURL]),
 		APIOnboarding:                    BuildPublicAPIOnboardingConfig(settings[SettingKeyAPIOnboardingConfig]),
 		HomeContent:                      settings[SettingKeyHomeContent],
+		CompactHomeEnabled:               settings[SettingKeyCompactHomeEnabled] == "true",
 		HideCcsImportButton:              settings[SettingKeyHideCcsImportButton] == "true",
 		PurchaseSubscriptionEnabled:      settings[SettingKeyPurchaseSubscriptionEnabled] == "true",
 		PurchaseSubscriptionURL:          strings.TrimSpace(settings[SettingKeyPurchaseSubscriptionURL]),
@@ -520,6 +522,7 @@ type PublicSettingsInjectionPayload struct {
 	SupportContact                   SupportContactConfig     `json:"support_contact"`
 	APIOnboarding                    APIOnboardingConfig      `json:"api_onboarding"`
 	HomeContent                      string                   `json:"home_content"`
+	CompactHomeEnabled               bool                     `json:"compact_home_enabled"`
 	HideCcsImportButton              bool                     `json:"hide_ccs_import_button"`
 	PurchaseSubscriptionEnabled      bool                     `json:"purchase_subscription_enabled"`
 	PurchaseSubscriptionURL          string                   `json:"purchase_subscription_url"`
@@ -603,6 +606,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		SupportContact:                   RewritePublicSupportContactQRImages(settings.SupportContact),
 		APIOnboarding:                    settings.APIOnboarding,
 		HomeContent:                      settings.HomeContent,
+		CompactHomeEnabled:               settings.CompactHomeEnabled,
 		HideCcsImportButton:              settings.HideCcsImportButton,
 		PurchaseSubscriptionEnabled:      settings.PurchaseSubscriptionEnabled,
 		PurchaseSubscriptionURL:          settings.PurchaseSubscriptionURL,

@@ -141,6 +141,7 @@ type SystemSettings struct {
 	SupportContact              SupportContactConfig
 	SupportContactProvided      bool
 	HomeContent                 string
+	CompactHomeEnabled          bool
 	HideCcsImportButton         bool
 	PurchaseSubscriptionEnabled bool
 	PurchaseSubscriptionURL     string
@@ -324,6 +325,7 @@ type PublicSettings struct {
 	SupportContact                   SupportContactConfig
 	APIOnboarding                    APIOnboardingConfig
 	HomeContent                      string
+	CompactHomeEnabled               bool
 	HideCcsImportButton              bool
 
 	PurchaseSubscriptionEnabled bool
