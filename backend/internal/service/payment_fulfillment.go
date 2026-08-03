@@ -603,6 +603,14 @@ func (s *PaymentService) reconcileCompletedPaymentProjections(ctx context.Contex
 			}
 		}
 	}
+	if s.playService != nil {
+		if err := s.playService.ReconcileNewUserGrowth(ctx, order.UserID, time.Now().UTC()); err != nil {
+			slog.Error("reconcile new user growth after fulfillment", "order_id", order.ID, "user_id", order.UserID, "err", err)
+			if !s.hasAuditLog(ctx, order.ID, "NEW_USER_GROWTH_RECONCILE_FAILED") {
+				s.writeAuditLog(ctx, order.ID, "NEW_USER_GROWTH_RECONCILE_FAILED", "system", map[string]any{"error": err.Error()})
+			}
+		}
+	}
 }
 
 func (s *PaymentService) ensureDailyCardEntitlementAssigned(ctx context.Context, order *dbent.PaymentOrder) (bool, error) {

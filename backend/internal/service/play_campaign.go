@@ -9,11 +9,44 @@ import (
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 )
 
+var ErrPlayCampaignRewardBudgetExceeded = infraerrors.Conflict("PLAY_CAMPAIGN_REWARD_BUDGET_EXCEEDED", "campaign reward budget is exhausted")
+
 type PlayCampaignRules struct {
-	RechargeBonusPct     float64           `json:"recharge_bonus_pct,omitempty"`
-	BlindboxExtraOpens   int               `json:"blindbox_extra_opens,omitempty"`
-	ArenaScoreMultiplier float64           `json:"arena_score_multiplier,omitempty"`
-	NameI18n             map[string]string `json:"name_i18n,omitempty"`
+	RechargeBonusPct     float64                  `json:"recharge_bonus_pct,omitempty"`
+	BlindboxExtraOpens   int                      `json:"blindbox_extra_opens,omitempty"`
+	ArenaScoreMultiplier float64                  `json:"arena_score_multiplier,omitempty"`
+	NameI18n             map[string]string        `json:"name_i18n,omitempty"`
+	CampaignType         string                   `json:"campaign_type,omitempty"`
+	ReferralCampaignID   int64                    `json:"referral_campaign_id,omitempty"`
+	QualificationMetric  string                   `json:"qualification_metric,omitempty"`
+	RewardTiers          []PlayCampaignRewardTier `json:"reward_tiers,omitempty"`
+	RequireInvite        bool                     `json:"require_invite,omitempty"`
+	LegacyRebatePolicy   string                   `json:"legacy_rebate_policy,omitempty"`
+}
+
+const (
+	PlayCampaignTypeBenefitOverlay  = "benefit_overlay"
+	PlayCampaignTypeNewUserGrowth   = "new_user_growth"
+	PlayCampaignTypeHybrid          = "hybrid"
+	PlayCampaignMetricNetRecharge   = "net_recharge"
+	PlayCampaignMetricConsumption   = "actual_consumption"
+	PlayCampaignLegacyRebateExclude = "exclude"
+	PlayCampaignLegacyRebateStack   = "stack"
+)
+
+type PlayCampaignRewardTier struct {
+	Tier           int     `json:"tier"`
+	RequiredAmount float64 `json:"required_amount"`
+	RewardAmount   float64 `json:"reward_amount"`
+	Currency       string  `json:"currency"`
+}
+
+func (r PlayCampaignRules) MaxReward() float64 {
+	total := 0.0
+	for _, tier := range r.RewardTiers {
+		total += tier.RewardAmount
+	}
+	return total
 }
 
 const (
@@ -44,11 +77,30 @@ type PlayCampaign struct {
 }
 
 type PlayCampaignSummary struct {
-	ID      int64             `json:"id"`
-	Name    string            `json:"name"`
-	StartAt time.Time         `json:"start_at"`
-	EndAt   time.Time         `json:"end_at"`
-	Rules   PlayCampaignRules `json:"rules"`
+	ID            int64                      `json:"id"`
+	Name          string                     `json:"name"`
+	StartAt       time.Time                  `json:"start_at"`
+	EndAt         time.Time                  `json:"end_at"`
+	Rules         PlayCampaignRules          `json:"rules"`
+	NewUserGrowth *PlayNewUserGrowthProgress `json:"new_user_growth,omitempty"`
+}
+
+type PlayNewUserGrowthRewardProgress struct {
+	RewardID       int64   `json:"reward_id,omitempty"`
+	Tier           int     `json:"tier"`
+	RequiredAmount float64 `json:"required_amount"`
+	RewardAmount   float64 `json:"reward_amount"`
+	Currency       string  `json:"currency"`
+	Status         string  `json:"status,omitempty"`
+}
+
+type PlayNewUserGrowthProgress struct {
+	Eligible            bool                              `json:"eligible"`
+	ReferralCampaignID  int64                             `json:"referral_campaign_id"`
+	ReferralVersion     int64                             `json:"referral_version"`
+	QualificationMetric string                            `json:"qualification_metric"`
+	QualifiedAmount     float64                           `json:"qualified_amount"`
+	Rewards             []PlayNewUserGrowthRewardProgress `json:"rewards"`
 }
 
 type PlayEffectModifiers struct {
@@ -73,9 +125,118 @@ func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int
 	}
 	out := make([]PlayCampaignSummary, 0, len(rows))
 	for _, row := range rows {
+		if userID > 0 && (row.Rules.CampaignType == PlayCampaignTypeNewUserGrowth || row.Rules.CampaignType == PlayCampaignTypeHybrid) {
+			progressRepo, ok := s.repo.(PlayNewUserGrowthProgressRepository)
+			if !ok {
+				continue
+			}
+			progress, progressErr := progressRepo.GetNewUserGrowthProgress(ctx, row, userID, s.serverNow())
+			if progressErr != nil {
+				return nil, progressErr
+			}
+			if !progress.Eligible {
+				continue
+			}
+			summary := toPlayCampaignSummary(row)
+			summary.NewUserGrowth = &progress
+			out = append(out, summary)
+			continue
+		}
 		out = append(out, toPlayCampaignSummary(row))
 	}
+	if userID > 0 {
+		if progressRepo, ok := s.repo.(PlayNewUserGrowthProgressRepository); ok {
+			seen := make(map[int64]struct{}, len(out))
+			for _, item := range out {
+				seen[item.ID] = struct{}{}
+			}
+			linked, linkedErr := s.newUserGrowthCampaignsForUser(ctx, userID, s.serverNow())
+			if linkedErr != nil {
+				return nil, linkedErr
+			}
+			for _, row := range linked {
+				if _, exists := seen[row.ID]; exists {
+					continue
+				}
+				progress, progressErr := progressRepo.GetNewUserGrowthProgress(ctx, row, userID, s.serverNow())
+				if progressErr != nil {
+					return nil, progressErr
+				}
+				if !progress.Eligible {
+					continue
+				}
+				summary := toPlayCampaignSummary(row)
+				summary.NewUserGrowth = &progress
+				out = append(out, summary)
+			}
+		}
+	}
 	return out, nil
+}
+
+// ReconcileNewUserGrowth refreshes milestone rewards for a user after a paid
+// order or a refund. The repository owns the transaction and idempotency keys;
+// this optional interface keeps older deployments and test doubles harmless.
+func (s *PlayService) ReconcileNewUserGrowth(ctx context.Context, userID int64, now time.Time) error {
+	if s == nil || s.repo == nil || userID <= 0 {
+		return nil
+	}
+	repo, ok := s.repo.(PlayNewUserGrowthRepository)
+	if !ok {
+		return nil
+	}
+	campaigns, err := s.newUserGrowthCampaignsForUser(ctx, userID, now)
+	if err != nil {
+		return err
+	}
+	for _, campaign := range campaigns {
+		if campaign.Rules.CampaignType != PlayCampaignTypeNewUserGrowth && campaign.Rules.CampaignType != PlayCampaignTypeHybrid {
+			continue
+		}
+		if err := repo.ReconcileNewUserGrowthCampaign(ctx, campaign, userID, now); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *PlayService) newUserGrowthCampaignsForUser(ctx context.Context, userID int64, now time.Time) ([]PlayCampaign, error) {
+	if repo, ok := s.repo.(PlayNewUserGrowthCampaignRepository); ok {
+		campaigns, err := repo.ListNewUserGrowthCampaignsForUser(ctx, userID, now)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]PlayCampaign, 0, len(campaigns))
+		for _, campaign := range campaigns {
+			matched, matchErr := s.campaignAudienceMatches(ctx, userID, campaign.Audience)
+			if matchErr != nil {
+				return nil, matchErr
+			}
+			if matched {
+				out = append(out, campaign)
+			}
+		}
+		return out, nil
+	}
+	return s.activeCampaignsForUser(ctx, userID)
+}
+
+func (s *PlayService) validateNewUserGrowthLink(ctx context.Context, campaign PlayCampaign) error {
+	if campaign.Rules.CampaignType != PlayCampaignTypeNewUserGrowth && campaign.Rules.CampaignType != PlayCampaignTypeHybrid {
+		return nil
+	}
+	repo, ok := s.repo.(PlayNewUserGrowthLinkRepository)
+	if !ok {
+		return nil
+	}
+	policy, err := repo.GetReferralCampaignLegacyRebatePolicy(ctx, campaign.Rules.ReferralCampaignID)
+	if err != nil {
+		return err
+	}
+	if policy != campaign.Rules.LegacyRebatePolicy {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_REFERRAL_POLICY_MISMATCH", "new user growth rebate policy must match its referral campaign")
+	}
+	return nil
 }
 
 func (s *PlayService) ListAdminCampaigns(ctx context.Context) ([]PlayCampaign, error) {
@@ -119,6 +280,9 @@ func (s *PlayService) CreateAdminCampaign(ctx context.Context, campaign PlayCamp
 	if err := validateAdminPlayCampaign(&campaign); err != nil {
 		return nil, err
 	}
+	if err := s.validateNewUserGrowthLink(ctx, campaign); err != nil {
+		return nil, err
+	}
 	return s.repo.CreateAdminCampaign(ctx, campaign)
 }
 
@@ -127,6 +291,9 @@ func (s *PlayService) UpdateAdminCampaign(ctx context.Context, campaign PlayCamp
 		return nil, infraerrors.BadRequest("PLAY_CAMPAIGN_INVALID_ID", "campaign id is invalid")
 	}
 	if err := validateAdminPlayCampaign(&campaign); err != nil {
+		return nil, err
+	}
+	if err := s.validateNewUserGrowthLink(ctx, campaign); err != nil {
 		return nil, err
 	}
 	updated, err := s.repo.UpdateAdminCampaign(ctx, campaign)
@@ -376,6 +543,42 @@ func validateAdminPlayCampaign(c *PlayCampaign) error {
 	}
 	if c.Rules.ArenaScoreMultiplier < 0 || c.Rules.ArenaScoreMultiplier > playCampaignMaxArenaMultiplier {
 		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be between 0 and 5")
+	}
+	if c.Rules.CampaignType == "" {
+		c.Rules.CampaignType = PlayCampaignTypeBenefitOverlay
+	}
+	if c.Rules.CampaignType != PlayCampaignTypeBenefitOverlay && c.Rules.CampaignType != PlayCampaignTypeNewUserGrowth && c.Rules.CampaignType != PlayCampaignTypeHybrid {
+		return infraerrors.BadRequest("PLAY_CAMPAIGN_TYPE_INVALID", "campaign type is invalid")
+	}
+	if c.Rules.CampaignType == PlayCampaignTypeNewUserGrowth || c.Rules.CampaignType == PlayCampaignTypeHybrid {
+		if c.Rules.ReferralCampaignID <= 0 {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_REFERRAL_REQUIRED", "new user growth campaign requires a referral campaign")
+		}
+		if c.Rules.QualificationMetric != PlayCampaignMetricNetRecharge && c.Rules.QualificationMetric != PlayCampaignMetricConsumption {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_METRIC_INVALID", "new user growth campaign metric is invalid")
+		}
+		if c.Rules.LegacyRebatePolicy == "" {
+			c.Rules.LegacyRebatePolicy = PlayCampaignLegacyRebateExclude
+		}
+		if c.Rules.LegacyRebatePolicy != PlayCampaignLegacyRebateExclude && c.Rules.LegacyRebatePolicy != PlayCampaignLegacyRebateStack {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_REBATE_POLICY_INVALID", "legacy rebate policy is invalid")
+		}
+		c.Rules.RequireInvite = true
+		if len(c.Rules.RewardTiers) == 0 {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_REWARD_TIERS_REQUIRED", "new user growth campaign requires reward tiers")
+		}
+		seenTier := map[int]bool{}
+		previousThreshold := 0.0
+		for _, tier := range c.Rules.RewardTiers {
+			if tier.Tier <= 0 || seenTier[tier.Tier] || tier.RequiredAmount <= previousThreshold || tier.RewardAmount <= 0 || strings.ToUpper(strings.TrimSpace(tier.Currency)) != "CNY" {
+				return infraerrors.BadRequest("PLAY_CAMPAIGN_REWARD_TIER_INVALID", "new user growth reward tiers are invalid")
+			}
+			seenTier[tier.Tier] = true
+			previousThreshold = tier.RequiredAmount
+		}
+		if c.Rules.MaxReward() > 500+1e-9 {
+			return infraerrors.BadRequest("PLAY_CAMPAIGN_REWARD_CAP_EXCEEDED", "new user growth rewards cannot exceed 500")
+		}
 	}
 	if c.Rules.ArenaScoreMultiplier > 0 && c.Rules.ArenaScoreMultiplier < 1 {
 		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be 0 or at least 1")
