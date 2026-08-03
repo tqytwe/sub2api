@@ -10,7 +10,18 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-const mobileProtocolVersion = 1
+const mobileProtocolVersion = 2
+
+type mobileProtocolAdminCapabilities struct {
+	Available      bool   `json:"available"`
+	APIBasePath    string `json:"api_base_path,omitempty"`
+	StepUpPath     string `json:"step_up_path,omitempty"`
+	CompliancePath string `json:"compliance_path,omitempty"`
+}
+
+type mobileProtocolCapabilities struct {
+	Admin mobileProtocolAdminCapabilities `json:"admin"`
+}
 
 type mobileProtocolEndpoint struct {
 	Method      string `json:"method"`
@@ -22,14 +33,15 @@ type mobileProtocolEndpoint struct {
 }
 
 type mobileProtocolResponse struct {
-	Version          int                      `json:"version"`
-	GeneratedAt      time.Time                `json:"generated_at"`
-	Session          map[string]any           `json:"session"`
-	TaskKinds        []string                 `json:"task_kinds"`
-	TaskStatuses     []string                 `json:"task_statuses"`
-	TerminalStatuses []string                 `json:"terminal_statuses"`
-	Endpoints        []mobileProtocolEndpoint `json:"endpoints"`
-	Privacy          map[string]any           `json:"privacy"`
+	Version          int                        `json:"version"`
+	GeneratedAt      time.Time                  `json:"generated_at"`
+	Session          map[string]any             `json:"session"`
+	Capabilities     mobileProtocolCapabilities `json:"capabilities"`
+	TaskKinds        []string                   `json:"task_kinds"`
+	TaskStatuses     []string                   `json:"task_statuses"`
+	TerminalStatuses []string                   `json:"terminal_statuses"`
+	Endpoints        []mobileProtocolEndpoint   `json:"endpoints"`
+	Privacy          map[string]any             `json:"privacy"`
 }
 
 func MobileProtocol(c *gin.Context) {
@@ -49,6 +61,14 @@ func MobileSessionStatus(c *gin.Context) {
 }
 
 func mobileProtocolPayload(authenticated bool, userID int64, role string) mobileProtocolResponse {
+	isAdmin := authenticated && role == service.RoleAdmin
+	adminCapabilities := mobileProtocolAdminCapabilities{Available: isAdmin}
+	if isAdmin {
+		adminCapabilities.APIBasePath = "/api/v1/admin"
+		adminCapabilities.StepUpPath = "/api/v1/user/totp/step-up"
+		adminCapabilities.CompliancePath = "/api/v1/admin/compliance"
+	}
+
 	return mobileProtocolResponse{
 		Version:     mobileProtocolVersion,
 		GeneratedAt: time.Now().UTC(),
@@ -59,6 +79,9 @@ func mobileProtocolPayload(authenticated bool, userID int64, role string) mobile
 			"refresh_path":  "/api/v1/auth/refresh",
 			"login_path":    "/api/v1/auth/mobile/login",
 			"logout_path":   "/api/v1/auth/logout",
+		},
+		Capabilities: mobileProtocolCapabilities{
+			Admin: adminCapabilities,
 		},
 		TaskKinds: []string{
 			string(service.MobileTaskKindChat),

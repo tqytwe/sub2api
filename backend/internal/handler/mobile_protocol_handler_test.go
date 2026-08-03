@@ -63,7 +63,15 @@ func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
 	var envelope struct {
 		Code int `json:"code"`
 		Data struct {
-			Session map[string]any `json:"session"`
+			Session      map[string]any `json:"session"`
+			Capabilities struct {
+				Admin struct {
+					Available      bool   `json:"available"`
+					APIBasePath    string `json:"api_base_path"`
+					StepUpPath     string `json:"step_up_path"`
+					CompliancePath string `json:"compliance_path"`
+				} `json:"admin"`
+			} `json:"capabilities"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
@@ -77,6 +85,53 @@ func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
 	}
 	if envelope.Data.Session["role"] != "admin" {
 		t.Fatalf("role = %v", envelope.Data.Session["role"])
+	}
+	if !envelope.Data.Capabilities.Admin.Available {
+		t.Fatal("admin capability must be server-declared for an administrator")
+	}
+	if envelope.Data.Capabilities.Admin.APIBasePath != "/api/v1/admin" {
+		t.Fatalf("admin API base path = %q", envelope.Data.Capabilities.Admin.APIBasePath)
+	}
+	if envelope.Data.Capabilities.Admin.StepUpPath != "/api/v1/user/totp/step-up" {
+		t.Fatalf("step-up path = %q", envelope.Data.Capabilities.Admin.StepUpPath)
+	}
+	if envelope.Data.Capabilities.Admin.CompliancePath != "/api/v1/admin/compliance" {
+		t.Fatalf("compliance path = %q", envelope.Data.Capabilities.Admin.CompliancePath)
+	}
+}
+
+func TestMobileSessionStatusDoesNotGrantAdminCapabilityToRegularUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/mobile/session/status", nil)
+	c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 7})
+	c.Set(string(middleware2.ContextKeyUserRole), "user")
+
+	MobileSessionStatus(c)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", rec.Code, http.StatusOK)
+	}
+
+	var envelope struct {
+		Data struct {
+			Capabilities struct {
+				Admin struct {
+					Available      bool   `json:"available"`
+					CompliancePath string `json:"compliance_path"`
+				} `json:"admin"`
+			} `json:"capabilities"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if envelope.Data.Capabilities.Admin.Available {
+		t.Fatal("regular user must not receive administrator capability")
+	}
+	if envelope.Data.Capabilities.Admin.CompliancePath != "" {
+		t.Fatal("regular user must not receive an administrator compliance path")
 	}
 }
 
