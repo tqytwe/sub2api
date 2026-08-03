@@ -84,6 +84,9 @@ func applyFundBatchLedgerEffects(
 			if len(consumed) > 0 {
 				return applyFundBatchRestore(ctx, runner, input.UserID, transactionID, actualBalanceDelta, consumed, input.SourceType, input.SourceID, restoreKey, createdAt)
 			}
+			// Legacy debits may predate fund-batch tracking. A release/reversal is
+			// not a new grant, so never manufacture an unknown batch for it.
+			return nil
 		}
 		policy := classifyFundBatchGrant(input.SourceType, input.SourceID, input.Metadata)
 		if !policy.Eligible {
@@ -121,8 +124,20 @@ func classifyFundBatchGrant(sourceType string, sourceID string, metadata map[str
 		return fundBatchGrantPolicy{Eligible: true, SourceKind: FundSourceKindRedeemGift}
 	case BalanceFlowTypePromoBonus, "promo_code", "promotion":
 		return fundBatchGrantPolicy{Eligible: true, SourceKind: FundSourceKindPromotionGift}
+	case "affiliate_balance",
+		PlayRewardSourceCheckin,
+		PlayRewardSourceCheckinMilestone,
+		PlayRewardSourceCheckinMakeup,
+		PlayRewardSourceBlindbox,
+		PlayRewardSourceQuiz,
+		PlayRewardSourceArenaSettlement,
+		PlayRewardSourceArenaDaily,
+		PlayRewardSourceTeamSharedReward:
+		return fundBatchGrantPolicy{Eligible: true, SourceKind: FundSourceKindPromotionGift}
 	default:
-		return fundBatchGrantPolicy{}
+		// A positive wallet grant without a recognized source must remain traceable.
+		// It is explicitly non-paid and cannot qualify for paid-consumption rewards.
+		return fundBatchGrantPolicy{Eligible: true, SourceKind: FundSourceKindUnknown}
 	}
 }
 

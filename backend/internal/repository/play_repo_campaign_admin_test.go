@@ -98,7 +98,7 @@ func TestNewUserGrowthMetricStartsAtCampaignStart(t *testing.T) {
 		WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(120.0))
 
 	repo := &playRepository{sql: db}
-	amount, err := repo.newUserGrowthMetric(context.Background(), service.PlayCampaign{
+	amount, conflicted, err := repo.newUserGrowthMetric(context.Background(), service.PlayCampaign{
 		StartAt: start,
 		EndAt:   now.Add(24 * time.Hour),
 		Rules:   service.PlayCampaignRules{ReferralCampaignID: 7, QualificationMetric: service.PlayCampaignMetricNetRecharge},
@@ -106,5 +106,30 @@ func TestNewUserGrowthMetricStartsAtCampaignStart(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Equal(t, 120.0, amount)
+	require.False(t, conflicted)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewUserGrowthConsumptionRejectsNonPaymentBalanceCredits(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	start := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+	now := start.Add(48 * time.Hour)
+	mock.ExpectQuery(`(?s)SUM\(u.actual_cost\).*FROM balance_transactions bt.*bt.source_type <> 'payment_recharge'.*image_balance_capture.*image_balance_release.*reversal`).
+		WithArgs(int64(7), int64(42), start, now).
+		WillReturnRows(sqlmock.NewRows([]string{"sum", "funding_conflict"}).AddRow(120.0, true))
+
+	repo := &playRepository{sql: db}
+	amount, conflicted, err := repo.newUserGrowthMetric(context.Background(), service.PlayCampaign{
+		StartAt: start,
+		EndAt:   now.Add(24 * time.Hour),
+		Rules:   service.PlayCampaignRules{ReferralCampaignID: 7, QualificationMetric: service.PlayCampaignMetricConsumption},
+	}, 42, now)
+
+	require.NoError(t, err)
+	require.Equal(t, 120.0, amount)
+	require.True(t, conflicted)
 	require.NoError(t, mock.ExpectationsWereMet())
 }

@@ -96,6 +96,7 @@ type PlayNewUserGrowthRewardProgress struct {
 
 type PlayNewUserGrowthProgress struct {
 	Eligible            bool                              `json:"eligible"`
+	FundingConflict     bool                              `json:"funding_conflict,omitempty"`
 	ReferralCampaignID  int64                             `json:"referral_campaign_id"`
 	ReferralVersion     int64                             `json:"referral_version"`
 	QualificationMetric string                            `json:"qualification_metric"`
@@ -130,6 +131,13 @@ func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int
 			if !ok {
 				continue
 			}
+			if row.Rules.QualificationMetric == PlayCampaignMetricConsumption {
+				if reconcileRepo, supported := s.repo.(PlayNewUserGrowthRepository); supported {
+					if err := reconcileRepo.ReconcileNewUserGrowthCampaign(ctx, row, userID, s.serverNow()); err != nil {
+						return nil, err
+					}
+				}
+			}
 			progress, progressErr := progressRepo.GetNewUserGrowthProgress(ctx, row, userID, s.serverNow())
 			if progressErr != nil {
 				return nil, progressErr
@@ -158,6 +166,13 @@ func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int
 				if _, exists := seen[row.ID]; exists {
 					continue
 				}
+				if row.Rules.QualificationMetric == PlayCampaignMetricConsumption {
+					if reconcileRepo, supported := s.repo.(PlayNewUserGrowthRepository); supported {
+						if err := reconcileRepo.ReconcileNewUserGrowthCampaign(ctx, row, userID, s.serverNow()); err != nil {
+							return nil, err
+						}
+					}
+				}
 				progress, progressErr := progressRepo.GetNewUserGrowthProgress(ctx, row, userID, s.serverNow())
 				if progressErr != nil {
 					return nil, progressErr
@@ -174,9 +189,9 @@ func (s *PlayService) ListActiveCampaignsForUser(ctx context.Context, userID int
 	return out, nil
 }
 
-// ReconcileNewUserGrowth refreshes milestone rewards for a user after a paid
-// order or a refund. The repository owns the transaction and idempotency keys;
-// this optional interface keeps older deployments and test doubles harmless.
+// ReconcileNewUserGrowth refreshes milestone rewards after a financial state
+// change. Consumption campaigns also reconcile when the user opens progress so
+// a completed API charge can unlock its next tier without a separate payout job.
 func (s *PlayService) ReconcileNewUserGrowth(ctx context.Context, userID int64, now time.Time) error {
 	if s == nil || s.repo == nil || userID <= 0 {
 		return nil

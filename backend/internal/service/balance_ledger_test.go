@@ -94,6 +94,7 @@ func TestBalanceLedgerApplyDeltaCommitsLedgerAndInvalidatesAfterCommit(t *testin
 			"checkin", "2026-07-19", "checkin:42:2026-07-19", "system", nil,
 			"签到奖励", `{"checkin_date":"2026-07-19"}`, false, "high", createdAt,
 		))
+	expectFundBatchGrant(mock, 42, 9001, FundSourceKindPromotionGift, "checkin", "2026-07-19", "0.50000000", false, createdAt)
 	mock.ExpectCommit()
 
 	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{
@@ -488,6 +489,7 @@ func TestBalanceLedgerGrantArenaDailyCreatesPendingWithdrawableEntitlement(t *te
 	mock.ExpectExec("(?s)INSERT INTO withdrawable_entitlement_allocations").
 		WithArgs(int64(42), int64(3001), int64(9201), "grant", "2.00000000", availableAt, PlayRewardSourceArenaDaily, "arena_daily_settlement:77:42", sqlmock.AnyArg(), createdAt).
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	expectFundBatchGrant(mock, 42, 9201, FundSourceKindPromotionGift, PlayRewardSourceArenaDaily, "arena_daily_settlement:77:42", "2.00000000", false, createdAt)
 	mock.ExpectCommit()
 
 	got, err := svc.ApplyDelta(context.Background(), BalanceLedgerApplyInput{

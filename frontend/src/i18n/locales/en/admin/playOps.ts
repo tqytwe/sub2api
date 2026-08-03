@@ -25,7 +25,7 @@ export default {
     referralCampaign: "Linked invite campaign",
     referralCampaignPlaceholder: "Select an existing invite campaign",
     qualificationMetric: "Growth metric",
-    metrics: { net_recharge: "Net recharge", actual_consumption: "Actual consumption" },
+    metrics: { net_recharge: "Net recharge", actual_consumption: "Verified paid consumption" },
     legacyRebatePolicy: "Normal 10% rebate",
     rebateExclude: "Excluded",
     rebateStack: "Stacked",

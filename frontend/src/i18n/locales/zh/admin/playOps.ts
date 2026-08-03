@@ -24,7 +24,7 @@ export default {
     referralCampaign: "关联邀请活动",
     referralCampaignPlaceholder: "选择已创建的邀请活动",
     qualificationMetric: "新用户达标指标",
-    metrics: { net_recharge: "累计净充值", actual_consumption: "累计实际消费" },
+    metrics: { net_recharge: "累计净充值", actual_consumption: "有效付费消费" },
     legacyRebatePolicy: "普通 10% 返佣",
     rebateExclude: "不叠加",
     rebateStack: "允许叠加",
