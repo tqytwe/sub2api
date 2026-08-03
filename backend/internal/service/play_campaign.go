@@ -576,9 +576,6 @@ func validateAdminPlayCampaign(c *PlayCampaign) error {
 			seenTier[tier.Tier] = true
 			previousThreshold = tier.RequiredAmount
 		}
-		if c.Rules.MaxReward() > 500+1e-9 {
-			return infraerrors.BadRequest("PLAY_CAMPAIGN_REWARD_CAP_EXCEEDED", "new user growth rewards cannot exceed 500")
-		}
 	}
 	if c.Rules.ArenaScoreMultiplier > 0 && c.Rules.ArenaScoreMultiplier < 1 {
 		return infraerrors.BadRequest("PLAY_CAMPAIGN_ARENA_MULTIPLIER_INVALID", "arena score multiplier must be 0 or at least 1")

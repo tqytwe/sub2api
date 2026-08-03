@@ -83,11 +83,7 @@ func TestValidateAdminPlayCampaignValidatesNewUserGrowthRules(t *testing.T) {
 	require.Contains(t, err.Error(), "referral campaign")
 
 	base.Rules.ReferralCampaignID = 7
-	err = validateAdminPlayCampaign(&base)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "500")
-
-	base.Rules.RewardTiers[0].RewardAmount = 50
+	base.Rules.RewardTiers[0].RewardAmount = 501
 	base.Rules.LegacyRebatePolicy = PlayCampaignLegacyRebateStack
 	err = validateAdminPlayCampaign(&base)
 	require.NoError(t, err)

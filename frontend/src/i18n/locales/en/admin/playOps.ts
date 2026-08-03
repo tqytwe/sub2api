@@ -32,7 +32,7 @@ export default {
     rebateExcludeDefault: "Excluded (default)",
     rebateStackOptIn: "Stacked (explicit opt-in)",
     rewardTiers: "Milestone rewards (JSON)",
-    rewardTiersHint: "Total reward is capped at CNY 500; required_amount must increase.",
+    rewardTiersHint: "Total reward is the sum of all reward_amount values; required_amount must increase.",
     rewardTiersPlaceholder: "[{'{'}\"tier\":1,\"required_amount\":50,\"reward_amount\":50,\"currency\":\"CNY\"{'}'}]",
     rewardTiersInvalid: "Reward tiers must be a JSON array",
     campaignStartAt: "Start time",
