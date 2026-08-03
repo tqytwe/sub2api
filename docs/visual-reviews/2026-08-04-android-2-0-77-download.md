@@ -1,4 +1,4 @@
-# Android 2.0.76 Download Release Visual Review
+# Android 2.0.77 Download Release Visual Review
 
 <!-- visual-review-manifest
 {
@@ -32,16 +32,16 @@
   ],
   "artifact_mode": "static-review-board",
   "prototype_artifacts": [
-    "docs/visual-reviews/assets/android-2.0.76-release/prototype-1280.png"
+    "docs/visual-reviews/assets/android-2.0.77-release/prototype-1280.png"
   ],
   "baseline_artifacts": [
-    "docs/visual-reviews/assets/android-2.0.76-release/baseline-390.png"
+    "docs/visual-reviews/assets/android-2.0.77-release/baseline-390.png"
   ],
   "updated_artifacts": [
-    "docs/visual-reviews/assets/android-2.0.76-release/updated-1280.png"
+    "docs/visual-reviews/assets/android-2.0.77-release/updated-1280.png"
   ],
   "commands": [
-    "firefox --headless --screenshot docs/visual-reviews/assets/android-2.0.76-release/*.png file://.../release-review-board.html",
+    "firefox --headless --screenshot docs/visual-reviews/assets/android-2.0.77-release/*.png file://.../release-review-board.html",
     "sha256sum frontend/public/downloads/jisudengchat-android.apk",
     "pnpm --dir frontend design:check",
     "post-deployment curl https://www.jisudeng.com/downloads/android-version.json",
@@ -78,7 +78,7 @@ The existing `PublicContentLayout`, download button, QR code, package metadata t
 
 ## Prototype
 
-The review board records the intended transition to `2.0.76 / 276`, including package identity, byte size, checksum, native metadata, embedded metadata, signing, and monotonic version-code validation. It is deliberately a static release review board, not a fabricated product screenshot.
+The review board records the intended transition to `2.0.77 / 277`, including package identity, byte size, checksum, native metadata, embedded web configuration, signing, and monotonic version-code validation. It is deliberately a static release review board, not a fabricated product screenshot.
 
 ## Reuse Decision
 
@@ -94,8 +94,8 @@ The `390x844` board records compact evidence and the `1280x820` board records wi
 
 ## Evidence
 
-The release manifest, APK bytes, native package metadata, embedded release metadata, checksum, and signing were validated before this static asset synchronization. The package is `com.jisudeng.chat`, version `2.0.76`, version code `276`, with SHA-256 `d6bc6aea21aa9e1e936727a0fdd787aeb25d6642483c108a535edadd04d99653`.
+The release manifest, APK bytes, native package metadata, embedded web configuration, checksum, signing, and absence of a bundled download manifest were validated before this static asset synchronization. The package is `com.jisudeng.chat`, version `2.0.77`, version code `277`, with SHA-256 `70197d55918ce4eda5f878135edb3fa7f1f56d1b57ca6f1817acf460ab071cc6`.
 
 ## Residual Risk
 
-The static review board is not a substitute for production browser or Android-device acceptance. After deployment, the live manifest and downloaded checksum must match, then an installed `2.0.74` device must confirm the upgrade and an administrator must complete login plus TOTP to verify capability-controlled access.
+The static review board is not a substitute for production browser or Android-device acceptance. After deployment, the live manifest and downloaded checksum must match, then an installed `2.0.74` or `2.0.76` device must confirm the upgrade and an administrator must complete login plus TOTP to verify capability-controlled access.
