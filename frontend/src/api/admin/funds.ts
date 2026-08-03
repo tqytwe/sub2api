@@ -73,7 +73,7 @@ export type AdminFundSensitivePayout = Record<string, unknown>
 function normalizeGrantInput<T extends { amount: string }>(input: T): T {
   return {
     ...input,
-    amount: normalizeWithdrawalWholeAmount(input.amount),
+    amount: input.amount.trim(),
   }
 }
 

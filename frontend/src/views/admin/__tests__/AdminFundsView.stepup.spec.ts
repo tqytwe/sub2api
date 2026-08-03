@@ -84,10 +84,10 @@ const messages: Record<string, string> = {
   'admin.funds.grants.submitGift': '确认赠送',
   'admin.funds.grants.submitOffline': '确认线下充值',
   'admin.funds.forms.userId': '用户 ID',
-  'admin.funds.forms.amount': '金额，整数',
+  'admin.funds.forms.amount': '金额，大于 0，最多 8 位小数',
   'admin.funds.forms.reason': '原因，至少说明业务背景',
   'admin.funds.forms.externalRef': '外部付款凭证或备注编号',
-  'admin.funds.validation.wholeAmountRequired': '金额必须是大于 0 的整数，例如 30',
+  'admin.funds.validation.positiveAmountRequired': '金额必须大于 0，最多保留 8 位小数，例如 0.5 或 30',
   'admin.funds.validation.reasonTooShort': '原因至少需要 {min} 个字符',
   'admin.funds.validation.reasonTooLong': '原因不能超过 {max} 个字符',
   'admin.funds.validation.userRequired': '请输入正确的用户 ID',
@@ -217,15 +217,31 @@ describe('AdminFundsView step-up actions', () => {
     expect(wrapper.text()).toContain('赠送余额已入账')
   })
 
-  it('shows local validation before sending decimal gift amounts', async () => {
+  it('submits positive decimal gift amounts without a hard-coded whole-unit limit', async () => {
+    grantGift.mockResolvedValueOnce({ id: 9, source_type: 'ops_gift' })
+
     const wrapper = mountView('grants')
-    const firstForm = await fillGiftForm(wrapper, '30.00')
+    const firstForm = await fillGiftForm(wrapper, '0.5')
+    await firstForm.trigger('submit')
+    await flushPromises()
+
+    expect(stepUpRun).toHaveBeenCalledTimes(1)
+    expect(grantGift).toHaveBeenCalledWith({
+      user_id: 261,
+      amount: '0.5',
+      reason: '新用户注册赠送30',
+    })
+  })
+
+  it('rejects gift amounts beyond ledger precision before sending', async () => {
+    const wrapper = mountView('grants')
+    const firstForm = await fillGiftForm(wrapper, '0.000000001')
     await firstForm.trigger('submit')
     await flushPromises()
 
     expect(stepUpRun).not.toHaveBeenCalled()
     expect(grantGift).not.toHaveBeenCalled()
-    expect(wrapper.text()).toContain('金额必须是大于 0 的整数，例如 30')
+    expect(wrapper.text()).toContain('金额必须大于 0，最多保留 8 位小数，例如 0.5 或 30')
   })
 
   it('retries historical signup gift classification through step-up', async () => {
