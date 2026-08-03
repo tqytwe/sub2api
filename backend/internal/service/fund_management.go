@@ -653,7 +653,7 @@ func (s *FundManagementService) adminCreditUser(ctx context.Context, userID int6
 	if s == nil || s.ledger == nil {
 		return nil, ErrFundManagementUnavailable
 	}
-	amount, err := parseFundWholeAmount(rawAmount)
+	amount, err := parseFundCreditAmount(rawAmount)
 	if err != nil {
 		return nil, err
 	}
@@ -778,6 +778,14 @@ func (s *FundManagementService) AdminGetRefundPayoutSnapshot(ctx context.Context
 		return nil, ErrWithdrawalAccountEncryption.WithCause(err)
 	}
 	return out, nil
+}
+
+func parseFundCreditAmount(raw string) (decimal.Decimal, error) {
+	amount, err := decimal.NewFromString(strings.TrimSpace(raw))
+	if err != nil || !amount.IsPositive() || !amount.Equal(amount.Round(8)) {
+		return decimal.Zero, ErrFundInvalidAmount
+	}
+	return amount.Round(8), nil
 }
 
 func parseFundWholeAmount(raw string) (decimal.Decimal, error) {

@@ -125,7 +125,7 @@
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.funds.grants.giftTitle') }}</h2>
           <div class="mt-4 grid min-w-0 gap-3">
             <input v-model.number="giftForm.user_id" class="input" type="number" min="1" :placeholder="t('admin.funds.forms.userId')" />
-            <input v-model.trim="giftForm.amount" class="input" inputmode="numeric" :placeholder="t('admin.funds.forms.amount')" />
+            <input v-model.trim="giftForm.amount" class="input" inputmode="decimal" :placeholder="t('admin.funds.forms.amount')" />
             <textarea v-model.trim="giftForm.reason" class="input min-h-[96px]" :placeholder="t('admin.funds.forms.reason')" />
             <button type="submit" class="btn btn-primary" data-testid="admin-funds-submit-gift" :disabled="loading">{{ t('admin.funds.grants.submitGift') }}</button>
           </div>
@@ -135,7 +135,7 @@
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.funds.grants.offlineTitle') }}</h2>
           <div class="mt-4 grid min-w-0 gap-3">
             <input v-model.number="offlineForm.user_id" class="input" type="number" min="1" :placeholder="t('admin.funds.forms.userId')" />
-            <input v-model.trim="offlineForm.amount" class="input" inputmode="numeric" :placeholder="t('admin.funds.forms.amount')" />
+            <input v-model.trim="offlineForm.amount" class="input" inputmode="decimal" :placeholder="t('admin.funds.forms.amount')" />
             <input v-model.trim="offlineForm.external_ref" class="input" :placeholder="t('admin.funds.forms.externalRef')" />
             <textarea v-model.trim="offlineForm.reason" class="input min-h-[96px]" :placeholder="t('admin.funds.forms.reason')" />
             <button type="submit" class="btn btn-primary" :disabled="loading">{{ t('admin.funds.grants.submitOffline') }}</button>
@@ -273,8 +273,9 @@ function textLength(value: string) {
   return Array.from(value.trim()).length
 }
 
-function isPositiveWholeAmount(value: string) {
-  return /^[1-9]\d*$/.test(value.trim())
+function isPositiveLedgerAmount(value: string) {
+  const normalized = value.trim()
+  return /^(?:0|[1-9]\d*)(?:\.\d{1,8})?$/.test(normalized) && /[1-9]/.test(normalized)
 }
 
 function isPositiveUserID(value: unknown) {
@@ -299,8 +300,8 @@ function validateCreditForm(userID: unknown, amount: string, reason: string, rea
     showMessage('error', t('admin.funds.validation.userRequired'))
     return false
   }
-  if (!isPositiveWholeAmount(amount)) {
-    showMessage('error', t('admin.funds.validation.wholeAmountRequired'))
+  if (!isPositiveLedgerAmount(amount)) {
+    showMessage('error', t('admin.funds.validation.positiveAmountRequired'))
     return false
   }
   return validateReason(reason, reasonMin, 500)

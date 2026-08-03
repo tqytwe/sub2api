@@ -52,17 +52,20 @@ describe('admin funds API', () => {
 
   it('grants gift balance, records offline recharge, and runs signup gift classification', async () => {
     post.mockResolvedValueOnce({ data: { id: 21, source_type: 'ops_gift' } })
+    post.mockResolvedValueOnce({ data: { id: 23, source_type: 'ops_gift' } })
     post.mockResolvedValueOnce({ data: { id: 22, source_type: 'offline_recharge' } })
     get.mockResolvedValueOnce({ data: { mode: 'preview', candidate_count: 1, candidates: [] } })
     post.mockResolvedValueOnce({ data: { mode: 'execute', affected_count: 1, candidates: [] } })
 
     await adminFundsAPI.grantGift({ user_id: 7, amount: '30.00', reason: '人工赠送新用户余额' })
+    await adminFundsAPI.grantGift({ user_id: 7, amount: '0.5', reason: '人工赠送小额余额' })
     await adminFundsAPI.grantOfflineRecharge({ user_id: 7, amount: '100.00', external_ref: 'wire-1001', reason: '线下充值到账' })
     await adminFundsAPI.previewSignupGift30(50)
     await adminFundsAPI.executeSignupGift30({ transaction_ids: [21], reason: '核对历史首笔 30 为赠送余额' })
 
-    expect(post).toHaveBeenCalledWith('/admin/funds/gifts', { user_id: 7, amount: '30', reason: '人工赠送新用户余额' })
-    expect(post).toHaveBeenCalledWith('/admin/funds/offline-recharges', { user_id: 7, amount: '100', external_ref: 'wire-1001', reason: '线下充值到账' })
+    expect(post).toHaveBeenCalledWith('/admin/funds/gifts', { user_id: 7, amount: '30.00', reason: '人工赠送新用户余额' })
+    expect(post).toHaveBeenCalledWith('/admin/funds/gifts', { user_id: 7, amount: '0.5', reason: '人工赠送小额余额' })
+    expect(post).toHaveBeenCalledWith('/admin/funds/offline-recharges', { user_id: 7, amount: '100.00', external_ref: 'wire-1001', reason: '线下充值到账' })
     expect(get).toHaveBeenCalledWith('/admin/funds/classifications/signup-gift-30/preview', { params: { limit: 50 } })
     expect(post).toHaveBeenCalledWith('/admin/funds/classifications/signup-gift-30/execute', { transaction_ids: [21], reason: '核对历史首笔 30 为赠送余额' })
   })
