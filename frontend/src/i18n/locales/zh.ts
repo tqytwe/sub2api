@@ -1679,7 +1679,7 @@ const messages = {
       rewardStatuses: { claimable: '可领取', claimed_frozen: '已领取，风控冻结中', available: '已到账', expired: '已过期', revoked: '已撤销', debt_review: '退款追缴复核中', resolved: '已处理' },
       errors: { REFERRAL_CAMPAIGN_NOT_FOUND: '邀请活动不存在或已下线。', REFERRAL_CAMPAIGN_NOT_OPEN: '邀请活动当前不可报名或操作。', REFERRAL_CAMPAIGN_VERSION_CONFLICT: '活动规则已更新，请刷新进度后重试。', REFERRAL_CAMPAIGN_TOKEN_INVALID: '邀请链接无效，请让邀请人重新生成。', REFERRAL_CAMPAIGN_TOKEN_EXPIRED: '邀请链接已过期，请让邀请人重新生成。', REFERRAL_REWARD_NOT_CLAIMABLE: '该档奖励当前不可领取。', REFERRAL_CAMPAIGN_BUDGET_EXCEEDED: '活动奖励预算已用完，请联系平台客服。', REFERRAL_CAMPAIGN_CAPACITY_REACHED: '活动报名人数已满。' }
     },
-    growth: { eyebrow: '新用户成长奖励', title: '邀请进来的新用户成长活动', description: '通过邀请链接进入后，按累计净充值或实际消费逐档获得奖励，最高 500 元。', inviteOnly: '仅限活动邀请用户', metricRecharge: '当前按累计净充值计算', metricConsumption: '当前按累计实际消费计算', rebatePolicy: '普通 10% 返佣：{policy}', deadline: '活动结束：{date}', progress: '我的累计进度', tier: '达到 {amount}', claim: '领取本档奖励', claimed: '成长奖励领取成功', claimFailed: '成长奖励领取失败' },
+    growth: { eyebrow: '新用户成长奖励', title: '邀请进来的新用户成长活动', description: '通过邀请链接进入后，按活动配置的达标指标逐档获得奖励，奖励总额以活动档位为准。', inviteOnly: '仅限活动邀请用户', metricRecharge: '当前按累计净充值计算', metricConsumption: '当前按累计实际消费计算', rebatePolicy: '普通 10% 返佣：{policy}', deadline: '活动结束：{date}', progress: '我的累计进度', tier: '达到 {amount}', claim: '领取本档奖励', claimed: '成长奖励领取成功', claimFailed: '成长奖励领取失败' },
     invitees: {
       title: '已邀请用户',
       empty: '暂无邀请记录',

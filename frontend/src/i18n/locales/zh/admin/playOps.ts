@@ -31,7 +31,7 @@ export default {
     rebateExcludeDefault: "不叠加（默认）",
     rebateStackOptIn: "允许叠加（明确选择）",
     rewardTiers: "分阶段奖励档位（JSON）",
-    rewardTiersHint: "总奖励最多 500 元；required_amount 递增，reward_amount 为该档奖励。",
+    rewardTiersHint: "总奖励为所有 reward_amount 之和；required_amount 递增，reward_amount 为该档新增奖励。",
     rewardTiersPlaceholder: "[{'{'}\"tier\":1,\"required_amount\":50,\"reward_amount\":50,\"currency\":\"CNY\"{'}'}]",
     rewardTiersInvalid: "奖励档位必须是 JSON 数组",
     campaignStartAt: "开始时间",
