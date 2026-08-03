@@ -28,12 +28,12 @@
 | `GET /api/v1/admin/play/mobile-feedback/:id` | canonical | 反馈详情、客服记录、关联需求项 | `mobile_feedback`, `mobile_feedback_work_items` | 保留 |
 | `PATCH /api/v1/admin/play/mobile-feedback/:id` | canonical | 更新反馈处理状态、客服备注、关联需求状态 | `mobile_feedback`, `mobile_feedback_work_items` | 保留 |
 
-## 移动端统一协议 v1
+## 移动端统一协议 v2
 
 | 接口 | 状态 | 用途 | 数据归属 | 替代/处理 |
 | --- | --- | --- | --- | --- |
 | `GET /api/v1/mobile/protocol` | canonical | APP 获取统一协议版本、任务状态、接口生命周期和隐私规则 | 无业务写入 | 保留 |
-| `GET /api/v1/mobile/session/status` | canonical | APP 登录态自检；401 时应先 refresh token 无感续期后重试原请求 | 无业务写入 | 保留 |
+| `GET /api/v1/mobile/session/status` | canonical | APP 登录态自检，并返回后端判定的 `capabilities.admin`；401 时应先 refresh token 无感续期后重试原请求 | 无业务写入 | 保留 |
 | `GET /api/v1/mobile/account-summary` | canonical | 账户、余额、分组、订阅、套餐消耗聚合 | user、wallet、subscription、payment | 保留 |
 | `GET /api/v1/nextchat/mobile/account-summary` | legacy | 旧 APP 账户聚合路径 | 同 canonical | 仅兼容旧版本；新能力不扩展 |
 | `GET /api/v1/nextchat/mobile/bootstrap` | canonical | 移动端聊天和生图独立托管会话启动 | user api key/session | 保留 |
@@ -69,6 +69,29 @@
 | `POST /api/v1/mobile/payments/:order_id/sync` | canonical | 返回 APP 后主动查单同步到账 | payment order | 保留 |
 | `POST /api/v1/redeem-codes/redeem` | canonical | 兑换码、活动码和套餐码兑换 | redeem code | 保留 |
 | `GET /api/v1/redeem-codes/history` | canonical | 兑换记录 | redeem code | 保留 |
+
+### 移动管理员复用原则
+
+- APP 只能依据 `GET /api/v1/mobile/session/status` 返回的 `capabilities.admin.available` 显示管理员入口，禁止扫描邮箱、角色别名或前端字符串猜测权限。
+- `capabilities.admin.api_base_path` 指向既有 `/api/v1/admin`；用户、订单、分组、模型、玩法运营、工单和审计继续使用各自已有 canonical 管理接口，不创建同名 `/mobile/admin/*` 镜像接口。
+- 需要二次验证的操作继续复用 `capabilities.admin.step_up_path` 指向的 `POST /api/v1/user/totp/step-up`。授权绑定当前 JWT 会话，APP 收到 `STEP_UP_REQUIRED` 后验证并重放原请求。
+- `capabilities.admin.compliance_path` 仅在服务端实际启用管理员合规守卫时下发，值为 `/api/v1/admin/compliance`；字段缺失的旧服务保持既有只读管理路径，APP 不得探测该接口。
+- 只有已有接口无法提供移动端所需的聚合、脱敏或最小化数据形状时，才可以新增专用接口；新接口必须复用现有认证、审计、幂等、请求 ID 与错误响应规范，不得复制业务规则。
+
+### 管理员移动端核对（2026-08-03）
+
+主 `/api/v1/admin/*` 路由统一经过 `AdminAuth`、面板限流、审计日志和合规守卫；独立注册的 `/api/v1/admin/payment/*` 也复用 `AdminAuth`、审计和合规守卫。APP 只能使用管理员 JWT，绝不保存或发送 `x-api-key`。首次遇到 `423 ADMIN_COMPLIANCE_ACK_REQUIRED` 时复用 `GET/POST /api/v1/admin/compliance`；遇到 `403 STEP_UP_REQUIRED` 时复用 TOTP step-up 后，以同一个幂等键重放原请求。
+
+| 管理域 | 已有 canonical 路由 | 移动端处理 |
+| --- | --- | --- |
+| 概览与运行状态 | `/admin/dashboard/*`、`/admin/ops/*` | 可做只读概览，不复制统计逻辑 |
+| 用户、余额、分组、模型 | `/admin/users/*`、`/admin/groups/*`、`/admin/model-catalog/*` | 搜索/详情复用；涉及余额、角色、分组写入先核对 step-up 与幂等 |
+| 订单、卡券、套餐与资金 | `/admin/payment/*`、`/admin/promo-codes/*`、`/admin/subscriptions/*`、`/admin/funds/*`、`/admin/withdrawals/*` | 订单/用量可读；资金和结算只在路由级 step-up 与幂等验收后开放 |
+| 玩法、战队、反馈与邀请 | `/admin/play/*`、`/admin/affiliates/*` | APP 反馈继续用 `/admin/play/mobile-feedback`；不增加第二套 support/work-items 路由 |
+| 上游账号、代理、渠道、备份与系统 | `/admin/accounts/*`、`/admin/proxies/*`、`/admin/channels/*`、`/admin/backups/*`、`/admin/system/*` | 不在移动端直接暴露密钥、导出、对象存储、备份恢复或服务重启 |
+| 审计与合规 | `/admin/audit-logs/*`、`/admin/compliance` | 查询可复用；清理继续使用现有现场 TOTP 校验 |
+
+本轮确认不存在 `/api/v1/mobile/admin/*`，也不创建镜像路由。唯一协议变化是由已有 `GET /api/v1/mobile/session/status` 下发管理员可用性和既有路径；这不是新的管理员业务接口。当前真正待补的是移动端统一处理 `STEP_UP_REQUIRED`、`ADMIN_COMPLIANCE_ACK_REQUIRED`、`Idempotency-Key` 和 request ID，以及逐项收紧尚未被 step-up 覆盖的高风险管理写操作。
 
 ## Legacy 接口下线流程
 
