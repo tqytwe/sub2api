@@ -1,19 +1,21 @@
 {
   "platform": "android",
-  "version": "2.0.65",
-  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.65-265",
-  "size": "7.1 MB",
-  "sha256": "18ac2104df53176d03058f5eb9ff752b70830fd3a2b37bfbc29b8f5ed189ec33",
+  "version": "2.0.77",
+  "apkUrl": "/downloads/jisudengchat-android.apk?v=2.0.77-277",
+  "size": "7.2 MB",
+  "sha256": "70197d55918ce4eda5f878135edb3fa7f1f56d1b57ca6f1817acf460ab071cc6",
   "minAndroidVersion": "8.0",
-  "releaseDate": "2026-08-01",
+  "releaseDate": "2026-08-04",
   "notes": [
-    "新增邀请活动报名、进度、手动领取与脱敏排行榜",
-    "新增三套中英文双二维码邀请海报及系统分享",
-    "新增 APP 扫码、安装、首次启动、注册与分享归因上报",
-    "反馈工单补充安装、渠道、版本与邀请上下文"
+    "修复 APK 内残留旧版本清单",
+    "统一原生版本显示和更新比较",
+    "管理员入口按服务端 capability 控制"
   ],
-  "versionCode": 265,
-  "bytes": 7456605,
+  "versionCode": 277,
+  "bytes": 7513414,
   "packageName": "com.jisudeng.chat",
-  "signingCertificateSha256": "cd7abbd79daf6648a429ff34d7450b18cfb6b416e660b2f5169178e0a488627e"
+  "signingCertificateSha256": "cd7abbd79daf6648a429ff34d7450b18cfb6b416e660b2f5169178e0a488627e",
+  "latestVersion": "2.0.77",
+  "sourceCommit": "7a6288a679bf2b628baa95482b4f06a9743d37aa",
+  "builtFromCommit": "7a6288a679bf2b628baa95482b4f06a9743d37aa"
 }

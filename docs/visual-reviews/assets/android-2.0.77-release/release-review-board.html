@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Android 2.0.77 release review</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f4f7fb; color: #172033; font: 16px Arial, sans-serif; }
+      main { width: min(1120px, calc(100% - 48px)); margin: 36px auto; }
+      header { border-left: 6px solid #1976d2; padding: 8px 20px; }
+      h1 { margin: 0; font-size: 30px; }
+      header p { color: #516176; margin: 9px 0 0; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+      section { background: #fff; border: 1px solid #d8e0eb; border-radius: 8px; padding: 20px; }
+      h2 { font-size: 18px; margin: 0 0 16px; }
+      dl { margin: 0; display: grid; grid-template-columns: 170px 1fr; gap: 11px 16px; }
+      dt { color: #65758b; }
+      dd { margin: 0; font-family: monospace; overflow-wrap: anywhere; }
+      .good { color: #137333; font-weight: bold; }
+      .next { grid-column: 1 / -1; }
+      ul { margin: 0; padding-left: 20px; line-height: 1.65; }
+      @media (max-width: 640px) {
+        main { width: min(100% - 28px, 1120px); margin: 20px auto; }
+        h1 { font-size: 24px; }
+        .grid { grid-template-columns: 1fr; }
+        .next { grid-column: auto; }
+        dl { grid-template-columns: 1fr; gap: 5px; }
+        dt { margin-top: 8px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Android release review: 2.0.77</h1>
+        <p>Static review board. This is release evidence, not a browser product screenshot.</p>
+      </header>
+      <div class="grid">
+        <section>
+          <h2>Production baseline</h2>
+          <dl>
+            <dt>Previous version</dt><dd>2.0.74</dd>
+            <dt>Previous version code</dt><dd>274</dd>
+            <dt>Previous APK SHA-256</dt><dd>49c46cfdd10111908e1e55208dc8cc03f6ccf53f846fd8d568dfff154eda67c8</dd>
+            <dt>Observed source</dt><dd>https://www.jisudeng.com/downloads/android-version.json</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Published package</h2>
+          <dl>
+            <dt>Package</dt><dd>com.jisudeng.chat</dd>
+            <dt>Version</dt><dd>2.0.77</dd>
+            <dt>Version code</dt><dd>277</dd>
+            <dt>APK size</dt><dd>7,513,414 bytes</dd>
+            <dt>APK SHA-256</dt><dd>70197d55918ce4eda5f878135edb3fa7f1f56d1b57ca6f1817acf460ab071cc6</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Integrity results</h2>
+          <ul>
+            <li class="good">Native package, version, and version code match the manifest</li>
+            <li class="good">No downloadable release manifest is bundled in the APK</li>
+            <li class="good">APK Signature Scheme v1 and v2 verified</li>
+            <li class="good">Historical version-code gate prevents a release downgrade</li>
+          </ul>
+        </section>
+        <section class="next">
+          <h2>Public download behavior kept unchanged</h2>
+          <ul>
+            <li>The existing download page, QR routing, responsive layout, and fallback behavior are reused.</li>
+            <li>The manifest-driven package metadata and fallback URL move from 2.0.74 / 274 to 2.0.77 / 277.</li>
+            <li>Final production acceptance verifies the live manifest, downloaded checksum, installation, update path, and administrator login.</li>
+          </ul>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>
