@@ -6,6 +6,7 @@ const state = vi.hoisted(() => ({
   getAffiliateDetail: vi.fn(),
   transferAffiliateQuota: vi.fn(),
   getTeamMe: vi.fn(),
+  getActiveCampaigns: vi.fn(),
   showError: vi.fn(),
   showSuccess: vi.fn(),
   refreshUser: vi.fn(),
@@ -22,6 +23,7 @@ vi.mock('@/api/user', () => ({
 
 vi.mock('@/api/play', () => ({
   getTeamMe: state.getTeamMe,
+  getActiveCampaigns: state.getActiveCampaigns,
 }))
 
 vi.mock('@/stores/app', () => ({
@@ -104,6 +106,7 @@ describe('AffiliateView', () => {
     state.getAffiliateDetail.mockReset()
     state.transferAffiliateQuota.mockReset()
     state.getTeamMe.mockReset()
+    state.getActiveCampaigns.mockReset()
     state.showError.mockReset()
     state.showSuccess.mockReset()
     state.refreshUser.mockReset()
@@ -117,6 +120,7 @@ describe('AffiliateView', () => {
         invite_code: '8895EAB6',
       },
     })
+    state.getActiveCampaigns.mockResolvedValue([])
     state.listReferralCampaigns.mockResolvedValue([])
   })
 
@@ -188,4 +192,20 @@ describe('AffiliateView', () => {
 		expect(wrapper.text()).toContain('affiliate.campaign.invitedBreakdown:{"invited":5,"qualified":2}')
 		expect(wrapper.text()).toContain('affiliate.campaign.leaderboardEmpty')
 	})
+
+  it('explains why non-recharge credits do not count toward growth rewards', async () => {
+    state.getActiveCampaigns.mockResolvedValue([{
+      id: 9,
+      name: 'New user growth',
+      end_at: '2026-09-01',
+      rules: { qualification_metric: 'actual_consumption', reward_tiers: [] },
+      new_user_growth: { eligible: true, funding_conflict: true, qualified_amount: 0, rewards: [] },
+    }])
+
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('affiliate.growth.fundingConflict')
+    expect(wrapper.find('[role="status"]').exists()).toBe(true)
+  })
 })

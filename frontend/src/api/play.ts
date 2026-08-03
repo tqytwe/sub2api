@@ -469,6 +469,7 @@ export interface PlayNewUserGrowthRewardProgress extends PlayCampaignRewardTier 
 
 export interface PlayNewUserGrowthProgress {
   eligible: boolean
+  funding_conflict?: boolean
   referral_campaign_id: number
   referral_version: number
   qualification_metric: 'net_recharge' | 'actual_consumption'

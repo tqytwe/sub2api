@@ -152,11 +152,11 @@ func (r *playRepository) ReconcileNewUserGrowthCampaign(ctx context.Context, cam
 	if err != nil {
 		return err
 	}
-	metric, err := r.newUserGrowthMetric(ctx, campaign, userID, now)
+	metric, fundingConflict, err := r.newUserGrowthMetric(ctx, campaign, userID, now)
 	if err != nil {
 		return err
 	}
-	if !parent.Eligible || parent.LegacyRebatePolicy != campaign.Rules.LegacyRebatePolicy {
+	if !parent.Eligible || parent.LegacyRebatePolicy != campaign.Rules.LegacyRebatePolicy || fundingConflict {
 		metric = 0
 	}
 
@@ -232,11 +232,15 @@ func (r *playRepository) GetNewUserGrowthProgress(ctx context.Context, campaign 
 	}
 	progress.Eligible = parent.Eligible && parent.LegacyRebatePolicy == campaign.Rules.LegacyRebatePolicy
 	progress.ReferralVersion = parent.CampaignVersion
-	metric, err := r.newUserGrowthMetric(ctx, campaign, userID, now)
+	metric, fundingConflict, err := r.newUserGrowthMetric(ctx, campaign, userID, now)
 	if err != nil {
 		return progress, err
 	}
+	progress.FundingConflict = fundingConflict
 	if !progress.Eligible {
+		metric = 0
+	}
+	if fundingConflict {
 		metric = 0
 	}
 	progress.QualifiedAmount = metric
@@ -305,23 +309,58 @@ WHERE c.id=$1`, []any{campaignID, userID},
 	return out, nil
 }
 
-func (r *playRepository) newUserGrowthMetric(ctx context.Context, campaign service.PlayCampaign, userID int64, now time.Time) (float64, error) {
+func (r *playRepository) newUserGrowthMetric(ctx context.Context, campaign service.PlayCampaign, userID int64, now time.Time) (float64, bool, error) {
 	start := campaign.StartAt
 	if !now.After(start) {
-		return 0, nil
+		return 0, false, nil
 	}
 	end := now
 	var metric float64
+	var fundingConflict bool
 	var query string
 	if campaign.Rules.QualificationMetric == service.PlayCampaignMetricConsumption {
-		query = `SELECT COALESCE(SUM(u.actual_cost),0)::double precision FROM usage_logs u JOIN referral_campaign_attributions a ON a.campaign_id=$1 AND a.invitee_id=u.user_id WHERE u.user_id=$2 AND u.created_at>=GREATEST(a.registered_at,$3) AND u.created_at<LEAST($4,a.qualification_to_snapshot)`
+		query = `
+WITH attribution AS (
+  SELECT invitee_id, registered_at, qualification_to_snapshot
+  FROM referral_campaign_attributions
+  WHERE campaign_id=$1 AND invitee_id=$2
+)
+SELECT
+  COALESCE((
+    SELECT SUM(u.actual_cost)
+    FROM usage_logs u
+    JOIN attribution a ON a.invitee_id=u.user_id
+    WHERE u.created_at>=GREATEST(a.registered_at,$3)
+      AND u.created_at<LEAST($4,a.qualification_to_snapshot)
+  ),0)::double precision,
+  EXISTS (
+    SELECT 1
+    FROM balance_transactions bt
+    JOIN attribution a ON a.invitee_id=bt.user_id
+    WHERE bt.balance_delta > 0
+      AND bt.created_at >= GREATEST(a.registered_at,$3)
+      AND bt.created_at < LEAST($4,a.qualification_to_snapshot)
+      AND bt.source_type <> 'payment_recharge'
+      AND NOT (
+        bt.source_type IN ('image_balance_capture','image_balance_release','reversal')
+        AND (
+          bt.metadata ? 'restore_ledger_key'
+          OR bt.metadata ? 'ledger_deduct_key'
+          OR bt.metadata ? 'reverses_idempotency_key'
+        )
+      )
+  ) AS funding_conflict`
 	} else {
 		query = `SELECT COALESCE(SUM(m.net_amount),0)::double precision FROM play_membership_order_contributions m JOIN referral_campaign_attributions a ON a.campaign_id=$1 AND a.invitee_id=m.user_id WHERE m.user_id=$2 AND m.paid_at>=GREATEST(a.registered_at,$3) AND m.paid_at<LEAST($4,a.qualification_to_snapshot)`
 	}
-	if err := scanSingleRow(ctx, r.sqlExec(ctx), query, []any{campaign.Rules.ReferralCampaignID, userID, start, end}, &metric); err != nil {
-		return 0, fmt.Errorf("calculate new user growth metric: %w", err)
+	destinations := []any{&metric}
+	if campaign.Rules.QualificationMetric == service.PlayCampaignMetricConsumption {
+		destinations = append(destinations, &fundingConflict)
 	}
-	return metric, nil
+	if err := scanSingleRow(ctx, r.sqlExec(ctx), query, []any{campaign.Rules.ReferralCampaignID, userID, start, end}, destinations...); err != nil {
+		return 0, false, fmt.Errorf("calculate new user growth metric: %w", err)
+	}
+	return metric, fundingConflict, nil
 }
 
 func (r *playRepository) ensureNewUserGrowthReward(ctx context.Context, parent newUserGrowthParent, campaign service.PlayCampaign, userID int64, tier service.PlayCampaignRewardTier, now time.Time) error {
