@@ -2242,7 +2242,7 @@ SELECT r.id,r.amount::double precision,r.status,r.user_id,
 FROM referral_campaign_rewards r JOIN referral_campaign_tiers t ON t.campaign_id=r.campaign_id AND t.tier_no=r.tier_no
 LEFT JOIN user_affiliate_ledger l ON l.referral_reward_id=r.id AND l.action='accrue'
 WHERE r.campaign_id=$1 AND r.user_id=$2 AND t.required_invites>$3 AND r.status IN ('claimable','claimed_frozen','available')
-ORDER BY r.id FOR UPDATE`, campaignID, inviterID, qualifiedCount)
+ORDER BY r.id FOR UPDATE OF r`, campaignID, inviterID, qualifiedCount)
 	if err != nil {
 		return err
 	}
