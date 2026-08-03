@@ -1940,7 +1940,7 @@ func (r *affiliateRepository) BindReferralAttribution(ctx context.Context, attri
 SELECT u.created_at FROM users u JOIN referral_campaigns c ON c.id=$1
 JOIN referral_campaign_enrollments e ON e.campaign_id=c.id AND e.user_id=$2
 WHERE u.id=$3 AND u.created_at>=c.registration_from AND u.created_at<c.registration_to
-  AND u.created_at >= $4 - INTERVAL '24 hours'
+  AND u.created_at >= $4::timestamptz - INTERVAL '24 hours'
 	  AND c.status IN ('scheduled','running')`, []any{attribution.CampaignID, attribution.InviterID, attribution.InviteeID, attribution.RegisteredAt}, &userCreatedAt); err != nil {
 			if errors.Is(err, sql.ErrNoRows) {
 				return service.ErrReferralCampaignNotOpen
