@@ -948,6 +948,25 @@ type PlayRepository interface {
 	CloseUserMobileFeedback(ctx context.Context, userID, id int64) (*MobileFeedbackRecord, error)
 }
 
+// PlayNewUserGrowthRepository is optional so existing lightweight PlayRepository
+// test doubles remain compatible while the limited-time campaign reward path is
+// rolled out.
+type PlayNewUserGrowthRepository interface {
+	ReconcileNewUserGrowthCampaign(ctx context.Context, campaign PlayCampaign, userID int64, now time.Time) error
+}
+
+type PlayNewUserGrowthCampaignRepository interface {
+	ListNewUserGrowthCampaignsForUser(ctx context.Context, userID int64, now time.Time) ([]PlayCampaign, error)
+}
+
+type PlayNewUserGrowthProgressRepository interface {
+	GetNewUserGrowthProgress(ctx context.Context, campaign PlayCampaign, userID int64, now time.Time) (PlayNewUserGrowthProgress, error)
+}
+
+type PlayNewUserGrowthLinkRepository interface {
+	GetReferralCampaignLegacyRebatePolicy(ctx context.Context, campaignID int64) (string, error)
+}
+
 // PlayMembershipRepository is optional so lightweight PlayRepository test
 // doubles and deployments without the new migration remain compatible.
 type PlayMembershipRepository interface {

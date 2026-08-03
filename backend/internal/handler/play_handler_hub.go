@@ -24,18 +24,25 @@ type playHubGrowthDTO struct {
 }
 
 type playCampaignRulesDTO struct {
-	RechargeBonusPct     float64           `json:"recharge_bonus_pct,omitempty"`
-	BlindboxExtraOpens   int               `json:"blindbox_extra_opens,omitempty"`
-	ArenaScoreMultiplier float64           `json:"arena_score_multiplier,omitempty"`
-	NameI18n             map[string]string `json:"name_i18n,omitempty"`
+	RechargeBonusPct     float64                          `json:"recharge_bonus_pct,omitempty"`
+	BlindboxExtraOpens   int                              `json:"blindbox_extra_opens,omitempty"`
+	ArenaScoreMultiplier float64                          `json:"arena_score_multiplier,omitempty"`
+	NameI18n             map[string]string                `json:"name_i18n,omitempty"`
+	CampaignType         string                           `json:"campaign_type,omitempty"`
+	ReferralCampaignID   int64                            `json:"referral_campaign_id,omitempty"`
+	QualificationMetric  string                           `json:"qualification_metric,omitempty"`
+	RewardTiers          []service.PlayCampaignRewardTier `json:"reward_tiers,omitempty"`
+	RequireInvite        bool                             `json:"require_invite,omitempty"`
+	LegacyRebatePolicy   string                           `json:"legacy_rebate_policy,omitempty"`
 }
 
 type playCampaignSummaryDTO struct {
-	ID      int64                `json:"id"`
-	Name    string               `json:"name"`
-	StartAt string               `json:"start_at"`
-	EndAt   string               `json:"end_at"`
-	Rules   playCampaignRulesDTO `json:"rules"`
+	ID            int64                              `json:"id"`
+	Name          string                             `json:"name"`
+	StartAt       string                             `json:"start_at"`
+	EndAt         string                             `json:"end_at"`
+	Rules         playCampaignRulesDTO               `json:"rules"`
+	NewUserGrowth *service.PlayNewUserGrowthProgress `json:"new_user_growth,omitempty"`
 }
 
 type playVIPStatusDTO struct {

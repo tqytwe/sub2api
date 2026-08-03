@@ -612,6 +612,14 @@ func (s *PaymentService) reconcileCompletedRefundProjections(ctx context.Context
 			s.writeAuditLog(ctx, order.ID, "MEMBERSHIP_CONTRIBUTION_REFUND_SYNC_FAILED", "system", map[string]any{"error": err.Error()})
 		}
 	}
+	if s.playService != nil {
+		if err := s.playService.ReconcileNewUserGrowth(ctx, order.UserID, time.Now().UTC()); err != nil {
+			slog.Error("reconcile new user growth after refund", "order_id", order.ID, "user_id", order.UserID, "err", err)
+			if !s.hasAuditLog(ctx, order.ID, "NEW_USER_GROWTH_REFUND_RECONCILE_FAILED") {
+				s.writeAuditLog(ctx, order.ID, "NEW_USER_GROWTH_REFUND_RECONCILE_FAILED", "system", map[string]any{"error": err.Error()})
+			}
+		}
+	}
 	if s.affiliateService != nil {
 		if err := s.affiliateService.EnqueueReferralRefundReconcile(ctx, order.ID); err != nil {
 			slog.Error("enqueue referral refund reconciliation", "order_id", order.ID, "err", err)

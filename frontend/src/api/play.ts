@@ -447,6 +447,33 @@ export interface PlayCampaignRules {
   blindbox_extra_opens?: number
   arena_score_multiplier?: number
   name_i18n?: Record<string, string>
+  campaign_type?: 'benefit_overlay' | 'new_user_growth' | 'hybrid'
+  referral_campaign_id?: number
+  qualification_metric?: 'net_recharge' | 'actual_consumption'
+  reward_tiers?: PlayCampaignRewardTier[]
+  require_invite?: boolean
+  legacy_rebate_policy?: 'exclude' | 'stack'
+}
+
+export interface PlayCampaignRewardTier {
+  tier: number
+  required_amount: number
+  reward_amount: number
+  currency: 'CNY'
+}
+
+export interface PlayNewUserGrowthRewardProgress extends PlayCampaignRewardTier {
+  reward_id?: number
+  status?: 'claimable' | 'claimed_frozen' | 'available' | 'expired' | 'revoked' | 'debt_review' | 'resolved'
+}
+
+export interface PlayNewUserGrowthProgress {
+  eligible: boolean
+  referral_campaign_id: number
+  referral_version: number
+  qualification_metric: 'net_recharge' | 'actual_consumption'
+  qualified_amount: number
+  rewards: PlayNewUserGrowthRewardProgress[]
 }
 
 export interface PlayCampaignAudience {
@@ -463,6 +490,7 @@ export interface PlayCampaignSummary {
   start_at: string
   end_at: string
   rules: PlayCampaignRules
+  new_user_growth?: PlayNewUserGrowthProgress
 }
 
 export interface PlayTeamLeaderboardEntry {

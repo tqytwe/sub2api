@@ -40,7 +40,14 @@ func toPlayCampaignSummaryDTO(item service.PlayCampaignSummary) playCampaignSumm
 			BlindboxExtraOpens:   item.Rules.BlindboxExtraOpens,
 			ArenaScoreMultiplier: item.Rules.ArenaScoreMultiplier,
 			NameI18n:             item.Rules.NameI18n,
+			CampaignType:         item.Rules.CampaignType,
+			ReferralCampaignID:   item.Rules.ReferralCampaignID,
+			QualificationMetric:  item.Rules.QualificationMetric,
+			RewardTiers:          item.Rules.RewardTiers,
+			RequireInvite:        item.Rules.RequireInvite,
+			LegacyRebatePolicy:   item.Rules.LegacyRebatePolicy,
 		},
+		NewUserGrowth: item.NewUserGrowth,
 	}
 }
 

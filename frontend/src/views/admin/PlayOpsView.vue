@@ -423,6 +423,42 @@
                     maxlength="128"
                   />
                 </label>
+                <label class="space-y-1">
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.campaignType") }}</span>
+                  <select v-model="campaignForm.campaignType" class="input">
+                    <option value="benefit_overlay">{{ t("admin.playOps.campaignTypes.benefit_overlay") }}</option>
+                    <option value="new_user_growth">{{ t("admin.playOps.campaignTypes.new_user_growth") }}</option>
+                    <option value="hybrid">{{ t("admin.playOps.campaignTypes.hybrid") }}</option>
+                  </select>
+                </label>
+                <template v-if="campaignForm.campaignType !== 'benefit_overlay'">
+                  <label class="space-y-1">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.referralCampaign") }}</span>
+                    <select v-model="campaignForm.referralCampaignID" class="input" required>
+                      <option value="">{{ t("admin.playOps.referralCampaignPlaceholder") }}</option>
+                      <option v-for="item in referralCampaigns" :key="item.id" :value="String(item.id)">{{ item.name }} · #{{ item.id }} · {{ item.legacy_rebate_policy === 'stack' ? t("admin.playOps.rebateStack") : t("admin.playOps.rebateExclude") }}</option>
+                    </select>
+                  </label>
+                  <label class="space-y-1">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.qualificationMetric") }}</span>
+                    <select v-model="campaignForm.qualificationMetric" class="input">
+                      <option value="net_recharge">{{ t("admin.playOps.metrics.net_recharge") }}</option>
+                      <option value="actual_consumption">{{ t("admin.playOps.metrics.actual_consumption") }}</option>
+                    </select>
+                  </label>
+                  <label class="space-y-1">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.legacyRebatePolicy") }}</span>
+                    <select v-model="campaignForm.legacyRebatePolicy" class="input">
+                      <option value="exclude">{{ t("admin.playOps.rebateExcludeDefault") }}</option>
+                      <option value="stack">{{ t("admin.playOps.rebateStackOptIn") }}</option>
+                    </select>
+                  </label>
+                  <label class="space-y-1 lg:col-span-2">
+                    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ t("admin.playOps.rewardTiers") }}</span>
+                    <textarea v-model="campaignForm.rewardTiers" rows="3" class="input font-mono text-xs" :placeholder="t('admin.playOps.rewardTiersPlaceholder')" required></textarea>
+                    <span class="text-xs text-gray-500 dark:text-gray-400">{{ t("admin.playOps.rewardTiersHint") }}</span>
+                  </label>
+                </template>
                 <label
                   class="flex items-center gap-3 rounded border border-gray-200 bg-white px-3 py-2 text-sm dark:border-dark-700 dark:bg-dark-900"
                 >
@@ -1444,6 +1480,7 @@ import adminPlayAPI, {
   type AdminPlayOpsSummary,
   type AdminPlayTeamDetail,
   type AdminPlayTeamList,
+  type AdminReferralCampaign,
   type AdminTeamEvent,
   type AdminTeamMemberCandidate,
   type AdminTeamMemberOperation,
@@ -1524,6 +1561,11 @@ interface CampaignFormState {
   audience: "all" | "ordinary" | "member";
   vipTiers: string;
   registeredWithinDays: string;
+  campaignType: "benefit_overlay" | "new_user_growth" | "hybrid";
+  referralCampaignID: string;
+  qualificationMetric: "net_recharge" | "actual_consumption";
+  legacyRebatePolicy: "exclude" | "stack";
+  rewardTiers: string;
 }
 
 const loading = ref(false);
@@ -1533,6 +1575,7 @@ const campaignFormOpen = ref(false);
 const arenaPeriodType = ref<"daily" | "monthly">("monthly");
 const arena = ref<AdminArenaLeaderboard | null>(null);
 const campaigns = ref<AdminPlayCampaign[]>([]);
+const referralCampaigns = ref<AdminReferralCampaign[]>([]);
 const teams = ref<AdminPlayTeamList>({
   items: [],
   total: 0,
@@ -1679,7 +1722,13 @@ async function loadForTab(tab: PlayOpsTab) {
     if (tab === "overview") {
       summary.value = await adminPlayAPI.getSummary();
     } else if (tab === "campaigns") {
-      campaigns.value = await adminPlayAPI.listCampaigns();
+      const limitedPromise = adminPlayAPI.listCampaigns();
+      const referralsPromise = typeof adminPlayAPI.listReferralCampaigns === "function"
+        ? adminPlayAPI.listReferralCampaigns({ page: 1, page_size: 100 })
+        : Promise.resolve({ items: [], total: 0, page: 1, page_size: 100 });
+      const [limited, referrals] = await Promise.all([limitedPromise, referralsPromise]);
+      campaigns.value = limited;
+      referralCampaigns.value = referrals.items;
     } else if (tab === "arena") {
       arena.value = await adminPlayAPI.getArenaLeaderboard({
         period_type: arenaPeriodType.value,
@@ -1800,6 +1849,16 @@ function blankCampaignForm(): CampaignFormState {
     audience: "all",
     vipTiers: "",
     registeredWithinDays: "",
+    campaignType: "benefit_overlay",
+    referralCampaignID: "",
+    qualificationMetric: "net_recharge",
+    legacyRebatePolicy: "exclude",
+    rewardTiers: JSON.stringify([
+      { tier: 1, required_amount: 50, reward_amount: 50, currency: "CNY" },
+      { tier: 2, required_amount: 200, reward_amount: 100, currency: "CNY" },
+      { tier: 3, required_amount: 500, reward_amount: 150, currency: "CNY" },
+      { tier: 4, required_amount: 1000, reward_amount: 200, currency: "CNY" },
+    ]),
   };
 }
 
@@ -1829,6 +1888,11 @@ function startEditCampaign(campaign: AdminPlayCampaign) {
     audience: campaign.audience.member ? "member" : campaign.audience.ordinary ? "ordinary" : "all",
     vipTiers: (campaign.audience.vip_tiers || []).join(","),
     registeredWithinDays: campaign.audience.registered_within_days ? String(campaign.audience.registered_within_days) : "",
+    campaignType: campaign.rules.campaign_type || "benefit_overlay",
+    referralCampaignID: campaign.rules.referral_campaign_id ? String(campaign.rules.referral_campaign_id) : "",
+    qualificationMetric: campaign.rules.qualification_metric || "net_recharge",
+    legacyRebatePolicy: campaign.rules.legacy_rebate_policy || "exclude",
+    rewardTiers: JSON.stringify(campaign.rules.reward_tiers || [], null, 2),
   };
   campaignFormOpen.value = true;
 }
@@ -1902,12 +1966,30 @@ function buildCampaignInput(form: CampaignFormState): AdminPlayCampaignInput {
   if (form.nameZh.trim()) nameI18n.zh = form.nameZh.trim();
   if (form.nameEn.trim()) nameI18n.en = form.nameEn.trim();
 
-  const rules = {
+  let rewardTiers: unknown[] | undefined;
+  if (form.campaignType !== "benefit_overlay") {
+    try {
+      const parsed = JSON.parse(form.rewardTiers);
+      if (!Array.isArray(parsed)) throw new Error("tiers")
+      rewardTiers = parsed;
+    } catch {
+      throw new Error(t("admin.playOps.rewardTiersInvalid"));
+    }
+  }
+  const rules: AdminPlayCampaignInput["rules"] = {
     recharge_bonus_pct: parseOptionalNumber(form.rechargeBonusPct),
     blindbox_extra_opens: parseOptionalInteger(form.blindboxExtraOpens),
     arena_score_multiplier: parseOptionalNumber(form.arenaScoreMultiplier),
     name_i18n: Object.keys(nameI18n).length ? nameI18n : undefined,
   };
+  if (form.campaignType !== "benefit_overlay") {
+    rules.campaign_type = form.campaignType;
+    rules.referral_campaign_id = parseOptionalInteger(form.referralCampaignID);
+    rules.qualification_metric = form.qualificationMetric;
+    rules.legacy_rebate_policy = form.legacyRebatePolicy;
+    rules.require_invite = true;
+    rules.reward_tiers = rewardTiers as AdminPlayCampaignInput["rules"]["reward_tiers"];
+  }
 
   return {
     name: form.name.trim(),

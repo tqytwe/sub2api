@@ -63,3 +63,48 @@ func TestDeleteAdminCampaignReturnsNotFound(t *testing.T) {
 	require.Equal(t, "PLAY_CAMPAIGN_NOT_FOUND", infraerrors.Reason(err))
 	require.NoError(t, mock.ExpectationsWereMet())
 }
+
+func TestListNewUserGrowthCampaignsForUserKeepsRewardedEndedCampaigns(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	start := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+	end := start.Add(24 * time.Hour)
+	mock.ExpectQuery(`(?s)FROM play_campaigns p.*rules_json->>'campaign_type' IN \('new_user_growth','hybrid'\).*play_campaign_reward_snapshots`).
+		WithArgs(int64(42), end.Add(time.Hour)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "name", "start_at", "end_at", "rules_json", "audience_json", "enabled", "created_at"}).
+			AddRow(int64(9), "新用户成长", start, end, `{"campaign_type":"new_user_growth","referral_campaign_id":7,"qualification_metric":"net_recharge","legacy_rebate_policy":"exclude","reward_tiers":[{"tier":1,"required_amount":50,"reward_amount":50,"currency":"CNY"}]}`, `{}`, true, start))
+
+	repo := &playRepository{sql: db}
+	items, err := repo.ListNewUserGrowthCampaignsForUser(context.Background(), 42, end.Add(time.Hour))
+
+	require.NoError(t, err)
+	require.Len(t, items, 1)
+	require.Equal(t, int64(7), items[0].Rules.ReferralCampaignID)
+	require.Equal(t, service.PlayCampaignLegacyRebateExclude, items[0].Rules.LegacyRebatePolicy)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+func TestNewUserGrowthMetricStartsAtCampaignStart(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	start := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+	now := start.Add(48 * time.Hour)
+	mock.ExpectQuery(`(?s)SUM\(m.net_amount\).*GREATEST\(a.registered_at,\$3\).*m.paid_at<LEAST\(\$4,a.qualification_to_snapshot\)`).
+		WithArgs(int64(7), int64(42), start, now).
+		WillReturnRows(sqlmock.NewRows([]string{"sum"}).AddRow(120.0))
+
+	repo := &playRepository{sql: db}
+	amount, err := repo.newUserGrowthMetric(context.Background(), service.PlayCampaign{
+		StartAt: start,
+		EndAt:   now.Add(24 * time.Hour),
+		Rules:   service.PlayCampaignRules{ReferralCampaignID: 7, QualificationMetric: service.PlayCampaignMetricNetRecharge},
+	}, 42, now)
+
+	require.NoError(t, err)
+	require.Equal(t, 120.0, amount)
+	require.NoError(t, mock.ExpectationsWereMet())
+}
