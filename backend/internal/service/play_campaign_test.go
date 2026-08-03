@@ -40,6 +40,60 @@ func TestParsePlayCampaignRules(t *testing.T) {
 	require.Equal(t, "开服福利周", withI18n.NameI18n["zh"])
 }
 
+func TestValidateAdminPlayCampaignNormalizesNewUserGrowthDefaults(t *testing.T) {
+	start := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+	campaign := PlayCampaign{
+		Name:    "新用户成长奖励",
+		StartAt: start,
+		EndAt:   start.Add(7 * 24 * time.Hour),
+		Rules: PlayCampaignRules{
+			CampaignType:        PlayCampaignTypeNewUserGrowth,
+			ReferralCampaignID:  7,
+			QualificationMetric: PlayCampaignMetricNetRecharge,
+			RewardTiers: []PlayCampaignRewardTier{
+				{Tier: 1, RequiredAmount: 50, RewardAmount: 50, Currency: "CNY"},
+				{Tier: 2, RequiredAmount: 200, RewardAmount: 100, Currency: "CNY"},
+				{Tier: 3, RequiredAmount: 500, RewardAmount: 150, Currency: "CNY"},
+				{Tier: 4, RequiredAmount: 1000, RewardAmount: 200, Currency: "CNY"},
+			},
+		},
+	}
+
+	require.NoError(t, validateAdminPlayCampaign(&campaign))
+	require.Equal(t, PlayCampaignLegacyRebateExclude, campaign.Rules.LegacyRebatePolicy)
+	require.True(t, campaign.Rules.RequireInvite)
+	require.InDelta(t, 500, campaign.Rules.MaxReward(), 1e-9)
+}
+
+func TestValidateAdminPlayCampaignValidatesNewUserGrowthRules(t *testing.T) {
+	start := time.Date(2026, 8, 3, 0, 0, 0, 0, time.UTC)
+	base := PlayCampaign{
+		Name:    "新用户成长奖励",
+		StartAt: start,
+		EndAt:   start.Add(7 * 24 * time.Hour),
+		Rules: PlayCampaignRules{
+			CampaignType:        PlayCampaignTypeNewUserGrowth,
+			QualificationMetric: PlayCampaignMetricNetRecharge,
+			RewardTiers:         []PlayCampaignRewardTier{{Tier: 1, RequiredAmount: 50, RewardAmount: 501, Currency: "CNY"}},
+		},
+	}
+
+	err := validateAdminPlayCampaign(&base)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "referral campaign")
+
+	base.Rules.ReferralCampaignID = 7
+	err = validateAdminPlayCampaign(&base)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "500")
+
+	base.Rules.RewardTiers[0].RewardAmount = 50
+	base.Rules.LegacyRebatePolicy = PlayCampaignLegacyRebateStack
+	err = validateAdminPlayCampaign(&base)
+	require.NoError(t, err)
+	require.Equal(t, PlayCampaignLegacyRebateStack, base.Rules.LegacyRebatePolicy)
+}
+
 func TestParsePlayCampaignAudienceNormalizesTiers(t *testing.T) {
 	got := ParsePlayCampaignAudience(`{"ordinary":true,"vip_tiers":[6,6,-1,2],"registered_within_days":-2}`)
 	require.True(t, got.Ordinary)

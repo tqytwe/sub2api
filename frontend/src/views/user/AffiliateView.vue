@@ -5,7 +5,7 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AnnouncementContent from '@/components/common/AnnouncementContent.vue'
 import userAPI from '@/api/user'
-import { getTeamMe } from '@/api/play'
+import { getActiveCampaigns, getTeamMe, type PlayCampaignSummary } from '@/api/play'
 import type { UserAffiliateDetail } from '@/types'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
@@ -28,6 +28,8 @@ const teamInviteCode = ref('')
 const campaignLoading = ref(false)
 const campaignAction = ref<number | null>(null)
 const campaigns = ref<ReferralCampaignProgress[]>([])
+const growthCampaigns = ref<PlayCampaignSummary[]>([])
+const growthAction = ref<number | null>(null)
 
 const inviteLink = computed(() => {
   if (!detail.value) return ''
@@ -100,7 +102,34 @@ async function loadCampaigns(): Promise<void> {
   try {
     campaigns.value = await listReferralCampaigns()
     await Promise.all(campaigns.value.filter(item => item.unseen_update).map(item => markReferralCampaignViewed(item.campaign.id).catch(() => undefined)))
+    try {
+      const growth = await getActiveCampaigns()
+      growthCampaigns.value = growth.filter(item => item.new_user_growth)
+    } catch {
+      growthCampaigns.value = []
+    }
   } catch (error) { appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.campaign.loadFailed'))) } finally { campaignLoading.value = false }
+}
+
+async function claimGrowthReward(campaign: PlayCampaignSummary, rewardId: number): Promise<void> {
+  const progress = campaign.new_user_growth
+  if (!progress || !progress.referral_campaign_id || !progress.referral_version) return
+  growthAction.value = rewardId
+  try {
+    await claimReferralCampaignReward(progress.referral_campaign_id, rewardId, progress.referral_version)
+    const refreshed = await getActiveCampaigns()
+    growthCampaigns.value = refreshed.filter(item => item.new_user_growth)
+    appStore.showSuccess(t('affiliate.growth.claimed'))
+  } catch (error) {
+    appStore.showError(extractI18nErrorMessage(error, t, 'affiliate.campaign.errors', t('affiliate.growth.claimFailed')))
+  } finally { growthAction.value = null }
+}
+
+function growthProgressPercent(campaign: PlayCampaignSummary): number {
+  const progress = campaign.new_user_growth
+  if (!progress || !campaign.rules.reward_tiers?.length) return 0
+  const max = Math.max(...campaign.rules.reward_tiers.map(item => item.required_amount), 1)
+  return Math.min(100, Math.round(progress.qualified_amount * 100 / max))
 }
 
 async function enrollCampaign(campaign: ReferralCampaignProgress): Promise<void> {
@@ -147,6 +176,11 @@ onMounted(() => {
       <div v-if="loading" class="gw-polling py-12 text-center">{{ t('models.loading') }}</div>
 
       <template v-else-if="detail">
+        <section v-if="growthCampaigns.length" class="gw-panel" aria-labelledby="growth-campaign-title">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.growth.eyebrow') }}</p><h2 id="growth-campaign-title" class="gw-section-title">{{ t('affiliate.growth.title') }}</h2><p class="gw-subtitle">{{ t('affiliate.growth.description') }}</p></div><span class="agent-pill">{{ t('affiliate.growth.inviteOnly') }}</span></div>
+          <div class="mt-5 space-y-6"><article v-for="campaign in growthCampaigns" :key="campaign.id" class="border-t pt-5 first:border-t-0 first:pt-0" style="border-color: var(--gw-line)"><div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"><div><h3 class="text-lg font-semibold">{{ campaign.name }}</h3><p class="mt-1 gw-subtitle text-sm">{{ campaign.new_user_growth?.qualification_metric === 'actual_consumption' ? t('affiliate.growth.metricConsumption') : t('affiliate.growth.metricRecharge') }}</p><p class="mt-1 gw-subtitle text-xs">{{ t('affiliate.growth.rebatePolicy', { policy: campaign.rules.legacy_rebate_policy === 'stack' ? t('affiliate.campaign.rebateStack') : t('affiliate.campaign.rebateExclude') }) }}</p></div><p class="text-sm gw-subtitle">{{ t('affiliate.growth.deadline', { date: formatDateTime(campaign.end_at) }) }}</p></div><div class="mt-4"><div class="flex items-end justify-between gap-3"><p class="gw-field-label">{{ t('affiliate.growth.progress') }}</p><p class="text-lg font-semibold tabular-nums">{{ formatCurrency(campaign.new_user_growth?.qualified_amount || 0) }}</p></div><div class="mt-2 h-2 overflow-hidden rounded bg-gray-200 dark:bg-dark-700" role="progressbar" :aria-valuenow="growthProgressPercent(campaign)" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-primary-600" :style="{ width: `${growthProgressPercent(campaign)}%` }"></div></div></div><div class="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><div v-for="tier in campaign.rules.reward_tiers" :key="tier.tier" class="rounded border p-4" style="border-color: var(--gw-line)"><div class="flex items-start justify-between gap-2"><div><p class="font-semibold">{{ t('affiliate.growth.tier', { amount: formatCurrency(tier.required_amount) }) }}</p><p class="mt-1 text-lg font-semibold" style="color: var(--gw-ok)">{{ formatCurrency(tier.reward_amount) }}</p></div><span class="agent-pill">{{ (campaign.new_user_growth?.qualified_amount ?? 0) >= tier.required_amount ? t('affiliate.campaign.unlocked') : t('affiliate.campaign.locked') }}</span></div><button v-if="campaign.new_user_growth?.rewards.find(item => item.tier === tier.tier)?.status === 'claimable'" type="button" class="gw-btn gw-btn-primary mt-3 w-full" :disabled="growthAction === campaign.new_user_growth?.rewards.find(item => item.tier === tier.tier)?.reward_id" @click="claimGrowthReward(campaign, campaign.new_user_growth?.rewards.find(item => item.tier === tier.tier)?.reward_id || 0)">{{ t('affiliate.growth.claim') }}</button></div></div></article></div>
+        </section>
+
         <section class="gw-panel" aria-labelledby="referral-campaign-title">
           <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p class="gw-eyebrow">{{ t('affiliate.campaign.eyebrow') }}</p><h2 id="referral-campaign-title" class="gw-section-title">{{ t('affiliate.campaign.title') }}</h2></div><button type="button" class="gw-btn gw-btn-secondary" :disabled="campaignLoading" @click="loadCampaigns"><Icon name="refresh" size="sm" />{{ t('affiliate.campaign.refresh') }}</button></div>
           <div v-if="campaignLoading" class="gw-polling py-8 text-center">{{ t('affiliate.campaign.loading') }}</div>
