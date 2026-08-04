@@ -18,23 +18,46 @@
 
 | 接口 | 状态 | 用途 | 数据归属 | 替代/处理 |
 | --- | --- | --- | --- | --- |
-| `POST /api/v1/mobile/support/tickets` | canonical | APP 反馈/客服工单提交，支持 JSON 和 multipart 截图 | `mobile_feedback` | 新 APP 默认使用 |
+| `POST /api/v1/mobile/support/tickets` | canonical | APP 反馈/客服工单提交，支持 JSON 和 multipart 截图 | `mobile_feedback` | 新 APP 默认使用；`Idempotency-Key` 在观察期可选，携带时按账号和请求指纹回放原工单，不重复上传截图 |
 | `GET /api/v1/mobile/support/tickets` | canonical | 用户查看自己的工单列表 | `mobile_feedback` | 保留 |
 | `GET /api/v1/mobile/support/tickets/:id` | canonical | 用户查看工单详情和客服回复 | `mobile_feedback`, `mobile_feedback_messages` | 保留 |
 | `POST /api/v1/mobile/support/tickets/:id/messages` | canonical | 用户补充问题 | `mobile_feedback_messages` | 保留 |
 | `POST /api/v1/mobile/support/tickets/:id/close` | canonical | 用户关闭工单 | `mobile_feedback` | 保留 |
-| `POST /api/v1/play/mobile-feedback` | legacy | 旧 APP 反馈提交 | `mobile_feedback` | 仅兼容旧版本，不再扩展；观察 30 天无请求后移除 |
+| `POST /api/v1/play/mobile-feedback` | legacy | 旧 APP 反馈提交 | `mobile_feedback` | 仅兼容旧版本，不再承载新功能；当 APP 因 canonical 路由不存在而降级且复用已有 `Idempotency-Key` 时，服务端回放原工单，避免截图和工单重复写入；观察 30 天无请求后移除 |
 | `GET /api/v1/admin/play/mobile-feedback` | canonical | 玩法运营统一管理 APP 反馈 | `mobile_feedback` | 保留，不新增第二套后台入口 |
 | `GET /api/v1/admin/play/mobile-feedback/:id` | canonical | 反馈详情、客服记录、关联需求项 | `mobile_feedback`, `mobile_feedback_work_items` | 保留 |
 | `PATCH /api/v1/admin/play/mobile-feedback/:id` | canonical | 更新反馈处理状态、客服备注、关联需求状态 | `mobile_feedback`, `mobile_feedback_work_items` | 保留 |
 
 ## 移动端统一协议 v2
 
+### 服务端联网搜索配置
+
+移动端联网搜索只有在服务端设置 `MOBILE_WEB_SEARCH_ENABLED=1`（也接受
+`true`、`yes` 或 `on`）并选择一个服务端提供商时才会下发为 `canonical` capability。
+默认提供商是 Exa（需通过生产环境 secret manager 注入 `EXA_API_KEY`）；如不使用
+密钥，可显式设置 `MOBILE_WEB_SEARCH_PROVIDER=duckduckgo` 使用 DuckDuckGo 公共
+Instant Answer 接口。两种提供商都只在服务端调用，禁止把密钥写入 APP、WebView、
+数据库或协议响应。未配置时协议返回 `execution_state=disabled`，请求统一返回可
+本地化的 `MOBILE_WEB_SEARCH_UNAVAILABLE` 错误，不会由客户端隐式切换提供商。
+
+搜索请求还必须携带 `Idempotency-Key`。服务端使用现有幂等记录回放成功结果，
+不会因 Android 传输重试再次调用 Exa 或消耗额度。预算由 Redis 原子固定窗口
+保护，默认每用户每分钟 12 次、每日 120 次，全局每分钟 600 次、每日 10000
+次；可通过 `MOBILE_WEB_SEARCH_USER_RPM`、
+`MOBILE_WEB_SEARCH_USER_DAILY_LIMIT`、`MOBILE_WEB_SEARCH_GLOBAL_RPM` 和
+`MOBILE_WEB_SEARCH_GLOBAL_DAILY_LIMIT` 调整。Redis 不可用时请求 fail-closed，
+返回 `MOBILE_WEB_SEARCH_BUDGET_UNAVAILABLE`；额度耗尽返回 HTTP 429、
+`MOBILE_WEB_SEARCH_BUDGET_EXCEEDED` 和 `Retry-After`。预算按上游尝试计数，
+因为超时或 5xx 无法证明供应商未收到请求，成功回放不重复计数。搜索路由单独
+使用 100ms 的失败重试窗口，与 Android 250ms 的幂等传输重试匹配；极端并发时仍
+返回 HTTP 409、`MOBILE_WEB_SEARCH_RETRY_BACKOFF` 和 `Retry-After`。
+
 | 接口 | 状态 | 用途 | 数据归属 | 替代/处理 |
 | --- | --- | --- | --- | --- |
 | `GET /api/v1/mobile/protocol` | canonical | APP 获取统一协议版本、任务状态、接口生命周期和隐私规则 | 无业务写入 | 保留 |
 | `GET /api/v1/mobile/session/status` | canonical | APP 登录态自检，并返回后端判定的 `capabilities.admin`；401 时应先 refresh token 无感续期后重试原请求 | 无业务写入 | 保留 |
 | `GET /api/v1/mobile/account-summary` | canonical | 账户、余额、分组、订阅、套餐消耗聚合 | user、wallet、subscription、payment | 保留 |
+| `POST /api/v1/mobile/web-search` | canonical | 用户明确确认后使用服务端 Exa 联网搜索；仅 JWT，不接受管理员 API Key | server-side Exa | 保留 |
 | `GET /api/v1/nextchat/mobile/account-summary` | legacy | 旧 APP 账户聚合路径 | 同 canonical | 仅兼容旧版本；新能力不扩展 |
 | `GET /api/v1/nextchat/mobile/bootstrap` | canonical | 移动端聊天和生图独立托管会话启动 | user api key/session | 保留 |
 | `GET /api/v1/mobile/sessions` | canonical | 获取聊天、生图独立会话 | user api key/session | 保留 |
@@ -47,11 +70,11 @@
 | `DELETE /api/v1/mobile/tasks/:id` | canonical | 软删除任务 | `mobile_tasks.deleted_at` | 保留 |
 | `POST /api/v1/mobile/tasks/:id/cancel` | canonical | 取消任务 | `mobile_tasks` | 保留 |
 | `POST /api/v1/mobile/tasks/:id/retry` | canonical | 重试任务 | `mobile_tasks` | 保留 |
-| `POST /api/v1/mobile/tasks/:id/status` | canonical | 更新任务状态 | `mobile_tasks` | 保留 |
+| `POST /api/v1/mobile/tasks/:id/status` | observe | 旧客户端兼容任务状态写入 | `mobile_tasks` | 新客户端不再写入；观察期后按最低支持版本下线 |
 | `GET /api/v1/mobile/image-history` | canonical | 生图历史，是 `kind=image` 任务的语义化视图 | `mobile_tasks` | 保留 |
 | `DELETE /api/v1/mobile/image-history/:id` | canonical | 删除生图历史 | `mobile_tasks.deleted_at` | 保留 |
 | `POST /api/v1/mobile/image-history/:id/retry` | canonical | 重试生图历史 | `mobile_tasks` | 保留 |
-| `POST /api/v1/mobile/assets` | canonical | 上传图片、PDF、语音、分享文件等素材 | `mobile_assets` | 保留 |
+| `POST /api/v1/mobile/assets` | canonical | 上传图片、PDF、语音、分享文件等素材 | `mobile_assets` | 保留；`Idempotency-Key` 在观察期可选，携带时按账号和文件摘要回放原素材，不重复保存文件 |
 | `GET /api/v1/mobile/assets` | canonical | 素材库列表 | `mobile_assets` | 保留 |
 | `GET /api/v1/mobile/assets/:id` | canonical | 素材详情 | `mobile_assets` | 保留 |
 | `GET /api/v1/mobile/assets/:id/content` | canonical | 素材内容读取 | `mobile_assets` | 保留 |
@@ -69,6 +92,23 @@
 | `POST /api/v1/mobile/payments/:order_id/sync` | canonical | 返回 APP 后主动查单同步到账 | payment order | 保留 |
 | `POST /api/v1/redeem-codes/redeem` | canonical | 兑换码、活动码和套餐码兑换 | redeem code | 保留 |
 | `GET /api/v1/redeem-codes/history` | canonical | 兑换记录 | redeem code | 保留 |
+
+### 移动端创建请求重试
+
+- `POST /api/v1/mobile/assets` 和 `POST /api/v1/mobile/support/tickets`
+  在本轮接入通用 `IdempotencyCoordinator`。客户端发送同一个
+  `Idempotency-Key`、`X-Client-Request-ID` 和 `X-Request-ID` 时，服务端按
+  用户作用域和请求指纹回放原始 `201` 资源，成功重试不重复写入对象存储、素材或工单。
+  legacy 反馈路由只为安全处理上述工单的降级重试而接入同一协调器，不能作为新客户端
+  的主动提交入口。
+- 无幂等键的旧客户端继续在当前观察期内执行，便于平滑升级；在最低支持版本切换前
+  不强制拒绝。键复用但内容不同返回冲突，处理中返回可重试冲突，存储不可用保持
+  fail-closed，避免把不确定提交伪装成成功。
+- APP 只在 canonical 工单接口返回 `404`、`405` 或 `501` 时回退
+  `/api/v1/play/mobile-feedback`。该 legacy 路径只为旧服务器兼容，不能被新功能主动
+  选用；但降级请求必须复用 canonical 已生成的 `Idempotency-Key` 和关联 ID，服务端
+  按用户和请求指纹回放原工单，避免 native transport 重试重复上传截图或创建工单。
+  它仍按既定下线流程观察，不新增第二套业务语义。
 
 ### 移动管理员复用原则
 

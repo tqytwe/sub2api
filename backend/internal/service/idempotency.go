@@ -79,14 +79,15 @@ func DefaultIdempotencyConfig() IdempotencyConfig {
 }
 
 type IdempotencyExecuteOptions struct {
-	Scope          string
-	ActorScope     string
-	Method         string
-	Route          string
-	IdempotencyKey string
-	Payload        any
-	TTL            time.Duration
-	RequireKey     bool
+	Scope              string
+	ActorScope         string
+	Method             string
+	Route              string
+	IdempotencyKey     string
+	Payload            any
+	TTL                time.Duration
+	RequireKey         bool
+	FailedRetryBackoff time.Duration
 }
 
 type IdempotencyExecuteResult struct {
@@ -399,7 +400,11 @@ func (c *IdempotencyCoordinator) Execute(
 
 	data, execErr := execute(ctx)
 	if execErr != nil {
-		backoffUntil := time.Now().Add(c.cfg.FailedRetryBackoff)
+		failedRetryBackoff := c.cfg.FailedRetryBackoff
+		if opts.FailedRetryBackoff > 0 {
+			failedRetryBackoff = opts.FailedRetryBackoff
+		}
+		backoffUntil := time.Now().Add(failedRetryBackoff)
 		reason := infraerrors.Reason(execErr)
 		if reason == "" {
 			reason = "EXECUTION_FAILED"

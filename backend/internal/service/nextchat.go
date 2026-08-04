@@ -63,6 +63,9 @@ type NextChatWorkspaceModel struct {
 	SortOrder            int      `json:"sort_order"`
 	EffectiveInputPrice  *float64 `json:"effective_input_price,omitempty"`
 	EffectiveOutputPrice *float64 `json:"effective_output_price,omitempty"`
+	// ImageCapabilities is server-owned. Mobile clients must use this contract
+	// for reference-image editing instead of inferring support from model names.
+	ImageCapabilities *ImageStudioModelCapabilities `json:"image_capabilities,omitempty"`
 }
 
 type NextChatWorkspaceGroup struct {
@@ -77,11 +80,16 @@ type NextChatWorkspaceGroup struct {
 }
 
 type NextChatWorkspaceModels struct {
-	Source          string                   `json:"source"`
-	DefaultModel    string                   `json:"default_model"`
-	SelectedGroupID *int64                   `json:"selected_group_id,omitempty"`
-	Groups          []NextChatWorkspaceGroup `json:"groups"`
+	Source                   string                   `json:"source"`
+	DefaultModel             string                   `json:"default_model"`
+	SelectedGroupID          *int64                   `json:"selected_group_id,omitempty"`
+	ImageCapabilitiesVersion string                   `json:"image_capabilities_version,omitempty"`
+	Groups                   []NextChatWorkspaceGroup `json:"groups"`
 }
+
+// NextChatImageCapabilitiesVersion is bumped whenever the mobile image
+// capability payload changes incompatibly. It lets older clients fail closed.
+const NextChatImageCapabilitiesVersion = "2026-07-16.1"
 
 type NextChatAvailableModelResolver interface {
 	GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string
@@ -527,9 +535,10 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 	}
 
 	out := &NextChatWorkspaceModels{
-		Source:          "/v1/models",
-		SelectedGroupID: identity.APIKey.GroupID,
-		Groups:          make([]NextChatWorkspaceGroup, 0, len(selectableGroups)),
+		Source:                   "/v1/models",
+		SelectedGroupID:          identity.APIKey.GroupID,
+		ImageCapabilitiesVersion: NextChatImageCapabilitiesVersion,
+		Groups:                   make([]NextChatWorkspaceGroup, 0, len(selectableGroups)),
 	}
 	for _, group := range selectableGroups {
 		g := NextChatWorkspaceGroup{
@@ -698,7 +707,7 @@ func buildNextChatWorkspaceModel(groupPlatform, modelID string, meta nextChatWor
 	if platform != "" {
 		displayName = fmt.Sprintf("%s · %s", modelID, platform)
 	}
-	return NextChatWorkspaceModel{
+	model := NextChatWorkspaceModel{
 		ID:                   modelID,
 		Name:                 modelID,
 		DisplayName:          displayName,
@@ -709,6 +718,10 @@ func buildNextChatWorkspaceModel(groupPlatform, modelID string, meta nextChatWor
 		EffectiveInputPrice:  meta.effectiveInputPrice,
 		EffectiveOutputPrice: meta.effectiveOutputPrice,
 	}
+	if capability, ok := ResolveImageStudioProviderCapability(platform, modelID); ok {
+		model.ImageCapabilities = &capability
+	}
+	return model
 }
 
 func nextChatModelPlatformMatchesGroup(modelPlatform, groupPlatform string) bool {
