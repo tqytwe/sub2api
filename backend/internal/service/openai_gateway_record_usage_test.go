@@ -141,10 +141,19 @@ func TestRecordCyberPolicyUsageLog_SkipsWhenIncomplete(t *testing.T) {
 type openAIRecordUsageUserRepoStub struct {
 	UserRepository
 
+	user        *User
+	getByIDErr  error
 	deductCalls int
 	deductErr   error
 	lastAmount  float64
 	lastCtxErr  error
+}
+
+func (s *openAIRecordUsageUserRepoStub) GetByID(context.Context, int64) (*User, error) {
+	if s.getByIDErr != nil {
+		return nil, s.getByIDErr
+	}
+	return s.user, nil
 }
 
 func (s *openAIRecordUsageUserRepoStub) DeductBalance(ctx context.Context, id int64, amount float64) error {
@@ -330,6 +339,54 @@ func TestOpenAIGatewayServiceRecordUsage_ZeroUsageStillWritesUsageLog(t *testing
 	require.Zero(t, billingRepo.lastCmd.APIKeyQuotaCost)
 	require.Zero(t, billingRepo.lastCmd.APIKeyRateLimitCost)
 	require.Zero(t, billingRepo.lastCmd.AccountQuotaCost)
+}
+
+func TestOpenAIGatewayServiceRecordUsage_ChargesAudioAndAudioCacheTokens(t *testing.T) {
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	userRepo := &openAIRecordUsageUserRepoStub{}
+	subRepo := &openAIRecordUsageSubRepoStub{}
+	svc := newOpenAIRecordUsageServiceForTest(usageRepo, userRepo, subRepo, nil)
+	svc.billingService = NewBillingService(svc.cfg, &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-realtime-test": {
+			InputCostPerToken:                4,
+			OutputCostPerToken:               16,
+			CacheCreationInputTokenCost:      2,
+			CacheReadInputTokenCost:          1,
+			InputCostPerAudioToken:           32,
+			OutputCostPerAudioToken:          64,
+			CacheCreationInputAudioTokenCost: 0.4,
+			CacheReadInputAudioTokenCost:     0.3,
+		},
+	}})
+
+	err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: "resp_live_audio_usage",
+			Model:     "gpt-realtime-test",
+			Usage: OpenAIUsage{
+				InputTokens:                   50,
+				InputAudioTokens:              36,
+				OutputTokens:                  12,
+				OutputAudioTokens:             5,
+				CacheCreationInputTokens:      10,
+				CacheCreationInputAudioTokens: 4,
+				CacheReadInputTokens:          8,
+				CacheReadInputAudioTokens:     3,
+			},
+		},
+		APIKey:  &APIKey{ID: 2, UserID: 1, Group: &Group{RateMultiplier: 1}},
+		User:    &User{ID: 1},
+		Account: &Account{ID: 3},
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, 32, usageRepo.lastLog.InputTokens)
+	require.Equal(t, 12, usageRepo.lastLog.OutputTokens)
+	require.InDelta(t, 1391.5, usageRepo.lastLog.TotalCost, 1e-12)
+	require.InDelta(t, 1530.65, usageRepo.lastLog.ActualCost, 1e-12)
+	require.Equal(t, 1, userRepo.deductCalls)
+	require.InDelta(t, 1530.65, userRepo.lastAmount, 1e-12)
 }
 
 func TestOpenAIGatewayServiceRecordUsage_MissingPricingRecordsZeroCostUsageLog(t *testing.T) {

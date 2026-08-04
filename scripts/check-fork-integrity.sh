@@ -168,7 +168,7 @@ check_contains "FORK-IMAGE-011" "Zeabur persistent data path" "deploy/zeabur.tem
 check_not_contains "FORK-IMAGE-011" "Zeabur stale app data path removed" "deploy/zeabur.template.yaml" "persistent /app/data"
 
 check_file "FORK-PRICING-005" "model catalog service" "backend/internal/service/model_catalog_service.go"
-check_contains "FORK-PRICING-005" "explicit catalog group IDs" "backend/internal/service/model_catalog_types.go" 'GroupIDs                []int64    `json:"group_ids"`'
+check_regex "FORK-PRICING-005" "explicit catalog group IDs" "backend/internal/service/model_catalog_types.go" '^[[:space:]]*GroupIDs[[:space:]]+\[\]int64[[:space:]]+`json:"group_ids"`$'
 check_contains "FORK-PRICING-005" "site catalog price is display-only" "backend/internal/service/model_pricing_resolver.go" "site catalog as display-only"
 
 check_contains "FORK-DEPLOY-006" "deployment defaults to play/main" "scripts/push-github-and-deploy.sh" 'BRANCH="${1:-play/main}"'

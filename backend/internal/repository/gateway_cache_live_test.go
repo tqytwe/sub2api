@@ -60,3 +60,40 @@ func TestGatewayCacheLiveCallIdentityAndController(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, closed)
 }
+
+func TestGatewayCacheAccumulatesLiveUsageAtomicallyAndDeduplicatesResponseIDs(t *testing.T) {
+	redisServer := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	store, ok := NewGatewayCache(client).(service.LiveCallStore)
+	require.True(t, ok)
+	record := &service.LiveCallRecord{
+		CallID:     "call_usage_atomic",
+		CallHash:   HashLiveCallID("call_usage_atomic"),
+		Controller: service.LiveControllerObserver,
+		CreatedAt:  time.Now(),
+		ExpiresAt:  time.Now().Add(time.Hour),
+	}
+	require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
+
+	added, err := store.AccumulateLiveUsage(context.Background(), record.CallHash, "response_one", service.OpenAIUsage{
+		InputTokens: 10, OutputTokens: 4, InputAudioTokens: 8,
+	})
+	require.NoError(t, err)
+	require.True(t, added)
+	added, err = store.AccumulateLiveUsage(context.Background(), record.CallHash, "response_one", service.OpenAIUsage{
+		InputTokens: 10, OutputTokens: 4, InputAudioTokens: 8,
+	})
+	require.NoError(t, err)
+	require.False(t, added)
+	added, err = store.AccumulateLiveUsage(context.Background(), record.CallHash, "response_two", service.OpenAIUsage{
+		InputTokens: 7, OutputTokens: 9, OutputAudioTokens: 5,
+	})
+	require.NoError(t, err)
+	require.True(t, added)
+
+	loaded, err := store.GetLiveCall(context.Background(), record.CallHash)
+	require.NoError(t, err)
+	require.Equal(t, service.OpenAIUsage{
+		InputTokens: 17, OutputTokens: 13, InputAudioTokens: 8, OutputAudioTokens: 5,
+	}, loaded.Usage)
+}

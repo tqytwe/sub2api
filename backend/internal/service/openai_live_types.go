@@ -20,6 +20,10 @@ var (
 	ErrLiveCallNotFound      = errors.New("live call not found")
 	ErrLiveIdentityMismatch  = errors.New("live call identity mismatch")
 	ErrLiveControllerChanged = errors.New("live controller changed")
+	// ErrLiveUsagePersistence is terminal for a live sideband. Continuing after
+	// receiving billable usage that cannot be durably recorded would make the
+	// session appear successful while silently losing a charge.
+	ErrLiveUsagePersistence = errors.New("live usage persistence failed")
 )
 
 type LiveAttestationUnavailableError struct {
@@ -49,6 +53,13 @@ type LiveCallIdentity struct {
 	InboundEndpoint string
 }
 
+// liveAPIKeyLoader is deliberately smaller than APIKeyRepository. Live only
+// needs the already-authorized key's current billing relationship at settlement
+// time; it must never read or retain the credential material itself.
+type liveAPIKeyLoader interface {
+	GetByID(ctx context.Context, id int64) (*APIKey, error)
+}
+
 type LiveCallRecord struct {
 	CallID          string
 	CallHash        string
@@ -66,6 +77,9 @@ type LiveCallRecord struct {
 	UserAgent       string
 	IPAddress       string
 	InboundEndpoint string
+	// Usage is the additive, de-duplicated total from upstream response.done
+	// events. It deliberately contains no transcript, audio, or raw response ID.
+	Usage OpenAIUsage
 	// AttestationCiphertext 仅用于让同一会话的 Sideband 复用创建时的证明。
 	AttestationCiphertext string
 }
@@ -84,7 +98,59 @@ type LiveCallStore interface {
 	ClaimLiveController(ctx context.Context, callHash, controller, owner string) (bool, error)
 	ReleaseLiveController(ctx context.Context, callHash, owner string) (bool, error)
 	GetLiveController(ctx context.Context, callHash string) (string, error)
+	// AccumulateLiveUsage atomically adds one response.done usage payload. The
+	// response ID is used only to reject replayed terminal events after a
+	// sideband reconnect; implementations must not retain it in plaintext.
+	AccumulateLiveUsage(ctx context.Context, callHash, responseID string, usage OpenAIUsage) (added bool, err error)
 	MarkLiveCallClosed(ctx context.Context, callHash string, ttl time.Duration) (bool, error)
+}
+
+const (
+	// LiveSettlementClosing is a durable finalization intent. It is not
+	// billable until Redis confirms the call was closed, or the original live
+	// session has reached its hard expiry.
+	LiveSettlementClosing = "closing"
+	LiveSettlementReady   = "ready"
+)
+
+// LiveSettlementJob deliberately persists only the billing snapshot required
+// to replay RecordUsage after a process crash. It never stores a transcript,
+// audio frames, upstream response IDs, credentials, or attestation material.
+type LiveSettlementJob struct {
+	ID          int64
+	CallHash    string
+	Record      *LiveCallRecord
+	Status      string
+	Attempts    int
+	AvailableAt time.Time
+	ClaimedBy   string
+}
+
+// LiveSettlementOutboxRepository is a durable PostgreSQL boundary. Redis is
+// still the live-control source of truth, but it must not be the sole place a
+// closed call's billable usage exists.
+type LiveSettlementOutboxRepository interface {
+	Enqueue(ctx context.Context, record *LiveCallRecord) error
+	Activate(ctx context.Context, callHash string) error
+	ListClosing(ctx context.Context, limit int) ([]LiveSettlementJob, error)
+	Claim(ctx context.Context, workerID string, limit int, lease time.Duration) ([]LiveSettlementJob, error)
+	Ack(ctx context.Context, id int64, workerID string) error
+	Retry(ctx context.Context, id int64, workerID string, availableAt time.Time, lastError string) error
+}
+
+func addLiveUsage(left, right OpenAIUsage) OpenAIUsage {
+	return OpenAIUsage{
+		InputTokens:                   left.InputTokens + right.InputTokens,
+		InputAudioTokens:              left.InputAudioTokens + right.InputAudioTokens,
+		ImageInputTokens:              left.ImageInputTokens + right.ImageInputTokens,
+		OutputTokens:                  left.OutputTokens + right.OutputTokens,
+		OutputAudioTokens:             left.OutputAudioTokens + right.OutputAudioTokens,
+		CacheCreationInputTokens:      left.CacheCreationInputTokens + right.CacheCreationInputTokens,
+		CacheCreationInputAudioTokens: left.CacheCreationInputAudioTokens + right.CacheCreationInputAudioTokens,
+		CacheReadInputTokens:          left.CacheReadInputTokens + right.CacheReadInputTokens,
+		CacheReadInputAudioTokens:     left.CacheReadInputAudioTokens + right.CacheReadInputAudioTokens,
+		ImageOutputTokens:             left.ImageOutputTokens + right.ImageOutputTokens,
+	}
 }
 
 type LiveConcurrencyCache interface {

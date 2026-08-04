@@ -30,6 +30,98 @@ type liveTestFrameConn struct {
 	closeOnce sync.Once
 }
 
+func TestParseLiveUsageFromResponseDoneIncludesAudioAndCacheBreakdown(t *testing.T) {
+	usage, ok := parseLiveUsageFromEvent([]byte(`{
+		"type":"response.done",
+		"response":{"usage":{
+			"input_tokens":80,
+			"output_tokens":45,
+			"input_token_details":{
+				"audio_tokens":60,
+				"cached_tokens":14,
+				"cached_tokens_details":{"audio_tokens":10},
+				"cache_creation_tokens":6,
+				"cache_creation_tokens_details":{"audio_tokens":4}
+			},
+			"output_token_details":{"audio_tokens":30}
+		}}
+	}`))
+
+	require.True(t, ok)
+	require.Equal(t, OpenAIUsage{
+		InputTokens:                   80,
+		OutputTokens:                  45,
+		InputAudioTokens:              60,
+		OutputAudioTokens:             30,
+		CacheReadInputTokens:          14,
+		CacheReadInputAudioTokens:     10,
+		CacheCreationInputTokens:      6,
+		CacheCreationInputAudioTokens: 4,
+	}, usage)
+}
+
+func TestParseLiveUsageFromEventIgnoresNonTerminalOrIncompletePayloads(t *testing.T) {
+	for _, payload := range [][]byte{
+		[]byte(`{"type":"response.created","response":{"usage":{"input_tokens":20}}}`),
+		[]byte(`{"type":"response.done","response":{}}`),
+		[]byte(`not-json`),
+	} {
+		usage, ok := parseLiveUsageFromEvent(payload)
+		require.False(t, ok)
+		require.Equal(t, OpenAIUsage{}, usage)
+	}
+}
+
+// A terminal usage event without response.id cannot be safely de-duplicated
+// across a recovered sideband. Treating it as an ordinary ignored frame would
+// silently lose a billable response.
+func TestRecordLiveUsageEventRejectsTerminalUsageWithoutResponseID(t *testing.T) {
+	record := &LiveCallRecord{CallHash: hashLiveCallID("call_missing_response_id")}
+	service := &OpenAIGatewayService{cache: &liveTestStore{}}
+
+	err := service.recordLiveUsageEvent(record, []byte(`{
+		"type":"response.done",
+		"response":{"usage":{"input_tokens":12,"output_tokens":5}}
+	}`))
+
+	require.ErrorIs(t, err, ErrLiveUsagePersistence)
+}
+
+func TestRunLiveObserverConnectionAccumulatesEachResponseDoneOnce(t *testing.T) {
+	record := &LiveCallRecord{
+		CallID:     "call_usage_observer",
+		CallHash:   hashLiveCallID("call_usage_observer"),
+		ExpiresAt:  time.Now().Add(time.Minute),
+		Controller: LiveControllerObserver,
+	}
+	store := &liveTestStore{}
+	require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
+	upstream := newLiveTestFrameConn()
+	service := &OpenAIGatewayService{cache: store}
+
+	upstream.reads <- liveTestFrame{messageType: coderws.MessageText, payload: []byte(`{
+		"type":"response.done",
+		"response":{"id":"resp_one","usage":{"input_tokens":10,"output_tokens":4}}
+	}`)}
+	// A recovered sideband can replay the terminal event. It must not bill it twice.
+	upstream.reads <- liveTestFrame{messageType: coderws.MessageText, payload: []byte(`{
+		"type":"response.done",
+		"response":{"id":"resp_one","usage":{"input_tokens":10,"output_tokens":4}}
+	}`)}
+	upstream.reads <- liveTestFrame{messageType: coderws.MessageText, payload: []byte(`{
+		"type":"response.done",
+		"response":{"id":"resp_two","usage":{"input_tokens":7,"output_tokens":9}}
+	}`)}
+	upstream.reads <- liveTestFrame{messageType: coderws.MessageText, payload: []byte(`{"type":"session.ended"}`)}
+
+	err := service.runLiveObserverConnection(record, upstream)
+	require.ErrorIs(t, err, ErrLiveCallNotFound)
+
+	loaded, err := store.GetLiveCall(context.Background(), record.CallHash)
+	require.NoError(t, err)
+	require.Equal(t, OpenAIUsage{InputTokens: 17, OutputTokens: 13}, loaded.Usage)
+}
+
 func newLiveTestFrameConn() *liveTestFrameConn {
 	return &liveTestFrameConn{
 		reads:  make(chan liveTestFrame, 8),
@@ -103,6 +195,18 @@ type liveTestAccountRepo struct {
 	account *Account
 }
 
+type liveTestAPIKeyLoader struct {
+	key *APIKey
+	err error
+}
+
+func (r *liveTestAPIKeyLoader) GetByID(context.Context, int64) (*APIKey, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+	return r.key, nil
+}
+
 func (r *liveTestAccountRepo) GetByID(context.Context, int64) (*Account, error) {
 	return r.account, nil
 }
@@ -115,6 +219,7 @@ type liveTestStore struct {
 	claimErr         error
 	getCallErr       error
 	getControllerErr error
+	usageResponseIDs map[string]struct{}
 }
 
 func (s *liveTestStore) SaveLiveCall(_ context.Context, record *LiveCallRecord, _ time.Duration) error {
@@ -181,6 +286,23 @@ func (s *liveTestStore) GetLiveController(_ context.Context, callHash string) (s
 	return s.record.Controller, nil
 }
 
+func (s *liveTestStore) AccumulateLiveUsage(_ context.Context, callHash, responseID string, usage OpenAIUsage) (bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.record == nil || s.record.CallHash != callHash || s.record.Controller == LiveControllerClosed {
+		return false, ErrLiveCallNotFound
+	}
+	if s.usageResponseIDs == nil {
+		s.usageResponseIDs = make(map[string]struct{})
+	}
+	if _, seen := s.usageResponseIDs[responseID]; seen {
+		return false, nil
+	}
+	s.usageResponseIDs[responseID] = struct{}{}
+	s.record.Usage = addLiveUsage(s.record.Usage, usage)
+	return true, nil
+}
+
 func (s *liveTestStore) MarkLiveCallClosed(_ context.Context, callHash string, _ time.Duration) (bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -240,6 +362,34 @@ type liveTestUsageRepo struct {
 	logs []*UsageLog
 }
 
+func newLiveBillingServiceForLifecycleTest(
+	record *LiveCallRecord,
+	store GatewayCache,
+	concurrencyCache ConcurrencyCache,
+	usageRepo UsageLogRepository,
+	billingRepo UsageBillingRepository,
+) *OpenAIGatewayService {
+	service := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{user: &User{ID: record.UserID}},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+	groupID := record.GroupID
+	service.cache = store
+	service.concurrencyService = NewConcurrencyService(concurrencyCache)
+	service.accountRepo = &liveTestAccountRepo{account: &Account{ID: record.AccountID}}
+	service.liveAPIKeyLoader = &liveTestAPIKeyLoader{key: &APIKey{
+		ID:      record.APIKeyID,
+		UserID:  record.UserID,
+		GroupID: &groupID,
+		Group:   &Group{ID: groupID, RateMultiplier: 1},
+	}}
+	service.liveAPIKeyQuotaUpdater = &openAIRecordUsageAPIKeyQuotaStub{}
+	return service
+}
+
 func (r *liveTestUsageRepo) Create(_ context.Context, log *UsageLog) (bool, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -265,7 +415,8 @@ func TestRunLiveControllerClosesExpiredSession(t *testing.T) {
 	}
 }
 
-func TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage(t *testing.T) {
+func TestFinalizeLiveCallBillsAccumulatedUsageExactlyOnce(t *testing.T) {
+	groupID := int64(44)
 	record := &LiveCallRecord{
 		CallID:          "call_secret",
 		CallHash:        hashLiveCallID("call_secret"),
@@ -279,16 +430,52 @@ func TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage(t *testing.T) {
 		ExpiresAt:       time.Now().Add(time.Hour),
 		Controller:      LiveControllerPending,
 		InboundEndpoint: "/v1/live",
+		Usage: OpenAIUsage{
+			InputTokens:                   50,
+			InputAudioTokens:              36,
+			OutputTokens:                  12,
+			OutputAudioTokens:             5,
+			CacheCreationInputTokens:      10,
+			CacheCreationInputAudioTokens: 4,
+			CacheReadInputTokens:          8,
+			CacheReadInputAudioTokens:     3,
+		},
 	}
 	store := &liveTestStore{}
 	require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
 	concurrencyCache := &liveTestConcurrencyCache{}
-	usageRepo := &liveTestUsageRepo{}
-	service := &OpenAIGatewayService{
-		cache:              store,
-		concurrencyService: NewConcurrencyService(concurrencyCache),
-		usageLogRepo:       usageRepo,
-	}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
+	userRepo := &openAIRecordUsageUserRepoStub{user: &User{ID: record.UserID}}
+	service := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		userRepo,
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+	service.billingService = NewBillingService(service.cfg, &PricingService{pricingData: map[string]*LiteLLMModelPricing{
+		"gpt-live-test": {
+			InputCostPerToken:                4,
+			OutputCostPerToken:               16,
+			CacheCreationInputTokenCost:      2,
+			CacheReadInputTokenCost:          1,
+			InputCostPerAudioToken:           32,
+			OutputCostPerAudioToken:          64,
+			CacheCreationInputAudioTokenCost: 0.4,
+			CacheReadInputAudioTokenCost:     0.3,
+		},
+	}})
+	service.cache = store
+	service.concurrencyService = NewConcurrencyService(concurrencyCache)
+	service.accountRepo = &liveTestAccountRepo{account: &Account{ID: record.AccountID}}
+	service.liveAPIKeyLoader = &liveTestAPIKeyLoader{key: &APIKey{
+		ID:      record.APIKeyID,
+		UserID:  record.UserID,
+		GroupID: &groupID,
+		Group:   &Group{ID: groupID, RateMultiplier: 1},
+	}}
+	service.liveAPIKeyQuotaUpdater = &openAIRecordUsageAPIKeyQuotaStub{}
 
 	service.finalizeLiveCall(record)
 	service.finalizeLiveCall(record)
@@ -296,18 +483,65 @@ func TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage(t *testing.T) {
 	concurrencyCache.mu.Lock()
 	require.Equal(t, 1, concurrencyCache.releases)
 	concurrencyCache.mu.Unlock()
-	usageRepo.mu.Lock()
-	require.Len(t, usageRepo.logs, 1)
-	log := usageRepo.logs[0]
-	usageRepo.mu.Unlock()
-	require.Equal(t, RequestTypeLive, log.RequestType)
-	require.Equal(t, record.CallHash, log.RequestID)
-	require.NotEqual(t, record.CallID, log.RequestID)
-	require.NotNil(t, log.DurationMs)
-	require.Zero(t, log.InputTokens)
-	require.Zero(t, log.OutputTokens)
-	require.Zero(t, log.TotalCost)
-	require.Zero(t, log.ActualCost)
+	require.Equal(t, 1, billingRepo.calls)
+	require.NotNil(t, billingRepo.lastCmd)
+	require.Equal(t, record.CallHash, billingRepo.lastCmd.RequestID)
+	require.Equal(t, record.APIKeyID, billingRepo.lastCmd.APIKeyID)
+	require.Greater(t, billingRepo.lastCmd.ActualCost, 0.0)
+	require.Equal(t, 1, usageRepo.calls)
+	require.NotNil(t, usageRepo.lastLog)
+	require.Equal(t, RequestTypeLive, usageRepo.lastLog.RequestType)
+	require.Equal(t, record.CallHash, usageRepo.lastLog.RequestID)
+	require.Equal(t, 32, usageRepo.lastLog.InputTokens)
+	require.Equal(t, 12, usageRepo.lastLog.OutputTokens)
+	require.Greater(t, usageRepo.lastLog.TotalCost, 0.0)
+	require.Greater(t, usageRepo.lastLog.ActualCost, 0.0)
+}
+
+func TestFinalizeLiveCallDoesNotReleaseLeaseWhenUsageBillingFails(t *testing.T) {
+	groupID := int64(44)
+	record := &LiveCallRecord{
+		CallID:     "call_bill_failure",
+		CallHash:   hashLiveCallID("call_bill_failure"),
+		AccountID:  11,
+		APIKeyID:   22,
+		UserID:     33,
+		GroupID:    groupID,
+		LeaseID:    "lease-1",
+		Model:      "gpt-live-test",
+		CreatedAt:  time.Now().Add(-time.Second),
+		ExpiresAt:  time.Now().Add(time.Hour),
+		Controller: LiveControllerPending,
+		Usage:      OpenAIUsage{InputTokens: 10, OutputTokens: 4},
+	}
+	store := &liveTestStore{}
+	require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
+	concurrencyCache := &liveTestConcurrencyCache{}
+	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+	billingRepo := &openAIRecordUsageBillingRepoStub{err: errors.New("database temporarily unavailable")}
+	service := newOpenAIRecordUsageServiceWithBillingRepoForTest(
+		usageRepo,
+		billingRepo,
+		&openAIRecordUsageUserRepoStub{user: &User{ID: record.UserID}},
+		&openAIRecordUsageSubRepoStub{},
+		nil,
+	)
+	service.cache = store
+	service.concurrencyService = NewConcurrencyService(concurrencyCache)
+	service.accountRepo = &liveTestAccountRepo{account: &Account{ID: record.AccountID}}
+	service.liveAPIKeyLoader = &liveTestAPIKeyLoader{key: &APIKey{
+		ID:      record.APIKeyID,
+		UserID:  record.UserID,
+		GroupID: &groupID,
+		Group:   &Group{ID: groupID, RateMultiplier: 1},
+	}}
+
+	service.finalizeLiveCall(record)
+
+	require.Equal(t, 1, billingRepo.calls)
+	concurrencyCache.mu.Lock()
+	require.Zero(t, concurrencyCache.releases, "未结算的会话不能提前释放并发租约")
+	concurrencyCache.mu.Unlock()
 }
 
 func TestGetLiveCallForIdentityRejectsMismatchedCaller(t *testing.T) {
@@ -357,6 +591,7 @@ func TestProxyLiveSidebandForwardsTextAndBinary(t *testing.T) {
 		AccountID:  account.ID,
 		APIKeyID:   22,
 		UserID:     33,
+		GroupID:    44,
 		LeaseID:    "lease-1",
 		CreatedAt:  time.Now(),
 		ExpiresAt:  time.Now().Add(time.Minute),
@@ -444,6 +679,7 @@ func TestLiveSessionEndedTreatsLeaseLossAsTerminal(t *testing.T) {
 	}{
 		{"租约丢失", ErrLiveUnavailable, true},
 		{"租约丢失（被包装）", fmt.Errorf("refresh live lease: %w", ErrLiveUnavailable), true},
+		{"终态用量无法持久化", fmt.Errorf("response.done: %w", ErrLiveUsagePersistence), true},
 		{"上游报告会话已关闭", ErrLiveCallNotFound, true},
 		{"到达会话时长上限", context.DeadlineExceeded, true},
 		{"控制权被他人接管", ErrLiveControllerChanged, false},
@@ -538,22 +774,22 @@ func TestObserveLiveCallStoreOutageFallsBackToExpiryFinalize(t *testing.T) {
 			require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
 			tc.inject(store)
 			concurrencyCache := &liveTestConcurrencyCache{}
-			usageRepo := &liveTestUsageRepo{}
-			svc := &OpenAIGatewayService{
-				cache:              store,
-				concurrencyService: NewConcurrencyService(concurrencyCache),
-				usageLogRepo:       usageRepo,
-			}
+			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+			svc := newLiveBillingServiceForLifecycleTest(
+				record,
+				store,
+				concurrencyCache,
+				usageRepo,
+				&openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}},
+			)
 
 			svc.observeLiveCall(record)
 
 			concurrencyCache.mu.Lock()
 			require.Equal(t, 1, concurrencyCache.releases, "store 故障时租约释放不能丢")
 			concurrencyCache.mu.Unlock()
-			usageRepo.mu.Lock()
-			require.Len(t, usageRepo.logs, 1, "store 故障时 usage log 不能丢")
-			require.Equal(t, RequestTypeLive, usageRepo.logs[0].RequestType)
-			usageRepo.mu.Unlock()
+			require.Equal(t, 1, usageRepo.calls, "store 故障时 usage log 不能丢")
+			require.Equal(t, RequestTypeLive, usageRepo.lastLog.RequestType)
 		})
 	}
 }
@@ -562,6 +798,74 @@ type liveTestBestEffortUsageRepo struct {
 	liveTestUsageRepo
 	bestEffortErr   error
 	bestEffortCalls int
+}
+
+type liveTestRetryBillingRepo struct {
+	UsageBillingRepository
+	mu        sync.Mutex
+	calls     int
+	succeeded chan struct{}
+}
+
+func (r *liveTestRetryBillingRepo) Apply(context.Context, *UsageBillingCommand) (*UsageBillingApplyResult, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.calls++
+	if r.calls == 1 {
+		return nil, errors.New("temporary usage billing outage")
+	}
+	select {
+	case <-r.succeeded:
+	default:
+		close(r.succeeded)
+	}
+	return &UsageBillingApplyResult{Applied: true}, nil
+}
+
+func TestFinalizeLiveCallRetriesBillingBeforeReleasingLease(t *testing.T) {
+	restore := liveBillingRetryInterval
+	liveBillingRetryInterval = time.Millisecond
+	t.Cleanup(func() { liveBillingRetryInterval = restore })
+
+	record := &LiveCallRecord{
+		CallID:     "call_retry_billing",
+		CallHash:   hashLiveCallID("call_retry_billing"),
+		AccountID:  11,
+		APIKeyID:   22,
+		UserID:     33,
+		GroupID:    44,
+		LeaseID:    "lease-1",
+		Model:      "gpt-live-test",
+		CreatedAt:  time.Now().Add(-time.Second),
+		ExpiresAt:  time.Now().Add(time.Hour),
+		Controller: LiveControllerPending,
+		Usage:      OpenAIUsage{InputTokens: 10, OutputTokens: 4},
+	}
+	store := &liveTestStore{}
+	require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
+	concurrencyCache := &liveTestConcurrencyCache{}
+	billingRepo := &liveTestRetryBillingRepo{succeeded: make(chan struct{})}
+	service := newLiveBillingServiceForLifecycleTest(
+		record,
+		store,
+		concurrencyCache,
+		&openAIRecordUsageLogRepoStub{inserted: true},
+		billingRepo,
+	)
+
+	service.finalizeLiveCall(record)
+
+	select {
+	case <-billingRepo.succeeded:
+	case <-time.After(time.Second):
+		t.Fatal("Live 结算未在短暂失败后重试")
+	}
+	billingRepo.mu.Lock()
+	require.Equal(t, 2, billingRepo.calls)
+	billingRepo.mu.Unlock()
+	concurrencyCache.mu.Lock()
+	require.Equal(t, 1, concurrencyCache.releases)
+	concurrencyCache.mu.Unlock()
 }
 
 func (r *liveTestBestEffortUsageRepo) CreateBestEffort(_ context.Context, _ *UsageLog) error {
@@ -581,6 +885,7 @@ func TestFinalizeLiveCallUsageLogFallsBackToSyncCreate(t *testing.T) {
 		AccountID:  11,
 		APIKeyID:   22,
 		UserID:     33,
+		GroupID:    44,
 		LeaseID:    "lease-1",
 		Model:      "gpt-live-test",
 		CreatedAt:  time.Now().Add(-time.Second),
@@ -590,11 +895,13 @@ func TestFinalizeLiveCallUsageLogFallsBackToSyncCreate(t *testing.T) {
 	store := &liveTestStore{}
 	require.NoError(t, store.SaveLiveCall(context.Background(), record, time.Hour))
 	usageRepo := &liveTestBestEffortUsageRepo{bestEffortErr: errors.New("usage log queue dropped")}
-	svc := &OpenAIGatewayService{
-		cache:              store,
-		concurrencyService: NewConcurrencyService(&liveTestConcurrencyCache{}),
-		usageLogRepo:       usageRepo,
-	}
+	svc := newLiveBillingServiceForLifecycleTest(
+		record,
+		store,
+		&liveTestConcurrencyCache{},
+		usageRepo,
+		&openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}},
+	)
 
 	svc.finalizeLiveCall(record)
 

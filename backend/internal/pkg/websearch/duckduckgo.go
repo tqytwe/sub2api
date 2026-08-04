@@ -111,7 +111,7 @@ func (d *DuckDuckGoProvider) Search(ctx context.Context, req SearchRequest) (*Se
 		}
 	}
 	walk(raw.RelatedTopics)
-	return &SearchResponse{Results: results, Query: query}, nil
+	return &SearchResponse{Results: results, Query: query, Provider: d.Name()}, nil
 }
 
 type duckDuckGoResponse struct {

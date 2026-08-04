@@ -15,7 +15,7 @@ import (
 // existing behavior.
 const (
 	mobileProtocolVersion                  = 2
-	mobileProtocolContractVersion          = "2026-08-04.4"
+	mobileProtocolContractVersion          = "2026-08-05.2"
 	mobileProtocolLifecycleRegistryVersion = 1
 
 	mobileProtocolLifecycleCanonical = "canonical"
@@ -71,17 +71,19 @@ type mobileProtocolOperationGrant struct {
 // route. Configuration is server-only; no API key or provider fallback is ever
 // included in this payload.
 type mobileProtocolSearchCapability struct {
-	Configured             bool     `json:"configured"`
-	Provider               string   `json:"provider,omitempty"`
-	ExecutionState         string   `json:"execution_state"`
-	DefaultEnabled         bool     `json:"default_enabled"`
-	UserOptInRequired      bool     `json:"user_opt_in_required"`
-	ResultFields           []string `json:"result_fields"`
-	MaxQueryRunes          int      `json:"max_query_runes"`
-	MaxResults             int      `json:"max_results"`
-	TimeoutMS              int      `json:"timeout_ms"`
-	ClientRequestIDHeader  string   `json:"client_request_id_header"`
-	ResponseRequestIDField string   `json:"response_request_id_field"`
+	Configured              bool     `json:"configured"`
+	Provider                string   `json:"provider,omitempty"`
+	ExecutionState          string   `json:"execution_state"`
+	DefaultEnabled          bool     `json:"default_enabled"`
+	ModelToolCallRequired   bool     `json:"model_tool_call_required"`
+	ResultFields            []string `json:"result_fields"`
+	MaxQueryRunes           int      `json:"max_query_runes"`
+	MaxResults              int      `json:"max_results"`
+	TimeoutMS               int      `json:"timeout_ms"`
+	ClientRequestIDHeader   string   `json:"client_request_id_header"`
+	ResponseRequestIDField  string   `json:"response_request_id_field"`
+	ToolCallIDField         string   `json:"tool_call_id_field"`
+	ResponseToolCallIDField string   `json:"response_tool_call_id_field"`
 }
 
 type mobileProtocolCapabilities struct {
@@ -139,22 +141,28 @@ func mobileProtocolSearchCapabilityFromEnvironment() mobileProtocolSearchCapabil
 	enabled := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED"))
 	hasExaKey := strings.TrimSpace(os.Getenv("EXA_API_KEY")) != ""
 	configuredProvider := strings.ToLower(strings.TrimSpace(os.Getenv("MOBILE_WEB_SEARCH_PROVIDER")))
-	configured := enabled && ((hasExaKey && (configuredProvider == "" || configuredProvider == "exa")) || configuredProvider == "duckduckgo")
+	// The request handler always has a server-owned DuckDuckGo fallback when
+	// search is enabled. The protocol must mirror that behavior so a client
+	// never sees "disabled" while the handler can actually complete a model
+	// tool call.
+	configured := enabled
 
 	capability := mobileProtocolSearchCapability{
-		Configured:             configured,
-		ExecutionState:         mobileProtocolLifecycleDisabled,
-		DefaultEnabled:         false,
-		UserOptInRequired:      true,
-		ResultFields:           []string{"title", "url", "snippet", "page_age"},
-		MaxQueryRunes:          mobileWebSearchMaxQueryRunes,
-		MaxResults:             mobileWebSearchMaxResults,
-		TimeoutMS:              int(mobileWebSearchTimeout / time.Millisecond),
-		ClientRequestIDHeader:  middleware2.ClientRequestIDHeader,
-		ResponseRequestIDField: "request_id",
+		Configured:              configured,
+		ExecutionState:          mobileProtocolLifecycleDisabled,
+		DefaultEnabled:          configured,
+		ModelToolCallRequired:   true,
+		ResultFields:            []string{"title", "url", "snippet", "page_age"},
+		MaxQueryRunes:           mobileWebSearchMaxQueryRunes,
+		MaxResults:              mobileWebSearchMaxResults,
+		TimeoutMS:               int(mobileWebSearchTimeout / time.Millisecond),
+		ClientRequestIDHeader:   middleware2.ClientRequestIDHeader,
+		ResponseRequestIDField:  "request_id",
+		ToolCallIDField:         "tool_call_id",
+		ResponseToolCallIDField: "tool_call_id",
 	}
 	if capability.Configured {
-		if configuredProvider == "duckduckgo" && !hasExaKey {
+		if configuredProvider == "duckduckgo" || !hasExaKey {
 			capability.Provider = "duckduckgo"
 		} else {
 			capability.Provider = "exa"
@@ -230,7 +238,7 @@ func mobileProtocolOperationGrants(authenticated, isAdmin, searchConfigured bool
 			Granted:               authenticated && searchConfigured,
 			Lifecycle:             searchLifecycle,
 			RiskLevel:             "medium",
-			Authorization:         []string{"configured_server_tool", "explicit_user_opt_in", "authenticated_mobile_route", "server_budget"},
+			Authorization:         []string{"configured_server_tool", "model_tool_call_for_user_request", "authenticated_mobile_route", "server_budget"},
 			ClientRequestIDHeader: requestID,
 			IdempotencyHeader:     idempotency,
 			IdempotencyMode:       "required",
@@ -351,7 +359,7 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 			Method:      http.MethodPost,
 			Path:        "/api/v1/mobile/web-search",
 			Status:      canonical,
-			Description: "用户明确确认后执行服务端 Exa 联网搜索",
+			Description: "模型工具调用后执行服务端 Exa 或 DuckDuckGo 联网搜索",
 			OperationID: mobileOperationSearchWeb,
 			RiskLevel:   "medium",
 			Lifecycle: mobileProtocolEndpointLifecycle{

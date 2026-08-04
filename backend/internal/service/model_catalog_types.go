@@ -7,32 +7,46 @@ import (
 
 // SiteModelCatalogEntry is one row in site_model_catalog.
 type SiteModelCatalogEntry struct {
-	ID                      int64      `json:"id"`
-	ModelName               string     `json:"model_name"`
-	Platform                string     `json:"platform"`
-	DisplayName             *string    `json:"display_name"`
-	UseCase                 *string    `json:"use_case"`
-	SortOrder               int        `json:"sort_order"`
-	VisiblePublic           bool       `json:"visible_public"`
-	VisibleAuth             bool       `json:"visible_auth"`
-	Featured                bool       `json:"featured"`
-	GroupIDs                []int64    `json:"group_ids"`
-	OfficialInputPrice      *float64   `json:"official_input_price"`
-	OfficialOutputPrice     *float64   `json:"official_output_price"`
-	OfficialCacheReadPrice  *float64   `json:"official_cache_read_price"`
-	OfficialCacheWritePrice *float64   `json:"official_cache_write_price"`
-	OfficialSource          string     `json:"official_source"`
-	OfficialUpdatedAt       *time.Time `json:"official_updated_at"`
-	PriceMultiplier         *float64   `json:"price_multiplier"`
-	InputPrice              *float64   `json:"input_price"`
-	OutputPrice             *float64   `json:"output_price"`
-	CacheReadPrice          *float64   `json:"cache_read_price"`
-	CacheWritePrice         *float64   `json:"cache_write_price"`
-	BillingMode             string     `json:"billing_mode"`
-	Source                  string     `json:"source"`
-	SourceUpdatedAt         *time.Time `json:"source_updated_at"`
-	CreatedAt               time.Time  `json:"created_at"`
-	UpdatedAt               time.Time  `json:"updated_at"`
+	ID                      int64                        `json:"id"`
+	ModelName               string                       `json:"model_name"`
+	Platform                string                       `json:"platform"`
+	DisplayName             *string                      `json:"display_name"`
+	UseCase                 *string                      `json:"use_case"`
+	SortOrder               int                          `json:"sort_order"`
+	VisiblePublic           bool                         `json:"visible_public"`
+	VisibleAuth             bool                         `json:"visible_auth"`
+	Featured                bool                         `json:"featured"`
+	GroupIDs                []int64                      `json:"group_ids"`
+	ToolCapabilities        ModelToolCapabilityOverrides `json:"tool_capabilities"`
+	OfficialInputPrice      *float64                     `json:"official_input_price"`
+	OfficialOutputPrice     *float64                     `json:"official_output_price"`
+	OfficialCacheReadPrice  *float64                     `json:"official_cache_read_price"`
+	OfficialCacheWritePrice *float64                     `json:"official_cache_write_price"`
+	OfficialSource          string                       `json:"official_source"`
+	OfficialUpdatedAt       *time.Time                   `json:"official_updated_at"`
+	PriceMultiplier         *float64                     `json:"price_multiplier"`
+	InputPrice              *float64                     `json:"input_price"`
+	OutputPrice             *float64                     `json:"output_price"`
+	CacheReadPrice          *float64                     `json:"cache_read_price"`
+	CacheWritePrice         *float64                     `json:"cache_write_price"`
+	BillingMode             string                       `json:"billing_mode"`
+	Source                  string                       `json:"source"`
+	SourceUpdatedAt         *time.Time                   `json:"source_updated_at"`
+	CreatedAt               time.Time                    `json:"created_at"`
+	UpdatedAt               time.Time                    `json:"updated_at"`
+}
+
+// ModelToolCapabilityOverrides records an administrator's explicit capability
+// declaration. Nil means "not declared" and may use exact upstream metadata;
+// false is a deliberate denial and must override any upstream metadata.
+//
+// These fields are intentionally pointers because a boolean cannot distinguish
+// an operator's explicit false from an unset legacy catalog row.
+type ModelToolCapabilityOverrides struct {
+	FunctionCalling *bool `json:"function_calling,omitempty"`
+	ToolChoice      *bool `json:"tool_choice,omitempty"`
+	WebSearch       *bool `json:"web_search,omitempty"`
+	Live            *bool `json:"live,omitempty"`
 }
 
 // ModelDiscovery is a newly discovered model from an online pricing source.
