@@ -303,6 +303,9 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 
 func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string) string {
 	if ctx != nil {
+		if settlementRequestID, _ := ctx.Value(ctxkey.DailyCardSettlementRequestID).(string); strings.TrimSpace(settlementRequestID) != "" {
+			return strings.TrimSpace(settlementRequestID)
+		}
 		if clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
 			return "client:" + strings.TrimSpace(clientRequestID)
 		}

@@ -173,9 +173,6 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		}
 
 		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
-		var dailyCardHoldEntitlementID int64
-		var dailyCardHoldRequestID string
-		var dailyCardBillingSignal *DailyCardBillingSignal
 		if isSubscriptionType && subscriptionService != nil {
 			subscription, err := subscriptionService.GetActiveSubscription(
 				c.Request.Context(),
@@ -197,14 +194,20 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 					abortWithGoogleError(c, http.StatusForbidden, "This request channel is not available for daily cards")
 					return
 				}
-				holdRequestID, reserveErr := reserveDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
+				_, reserveErr := admitDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
 				if reserveErr != nil {
+					if errors.Is(reserveErr, service.ErrDailyCardDuplicateRequest) || errors.Is(reserveErr, service.ErrDailyCardRequestPendingConfirmation) {
+						code := "DAILY_CARD_DUPLICATE_REQUEST"
+						if errors.Is(reserveErr, service.ErrDailyCardRequestPendingConfirmation) {
+							code = "DAILY_CARD_REQUEST_PENDING_CONFIRMATION"
+						}
+						abortWithGoogleError(c, http.StatusConflict, code+": "+reserveErr.Error())
+						return
+					}
 					abortWithGoogleError(c, 429, reserveErr.Error())
 					return
 				}
-				dailyCardHoldEntitlementID = card.ID
-				dailyCardHoldRequestID = holdRequestID
-				dailyCardBillingSignal = &DailyCardBillingSignal{}
+				dailyCardBillingSignal := &DailyCardBillingSignal{}
 				c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.DailyCardBillingSignal, dailyCardBillingSignal))
 				subscription.DailyCardEntitlementID = &card.ID
 				subscription.DailyUsageUSD = card.QuotaUsedUSD
@@ -248,9 +251,8 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		setGroupContext(c, apiKey.Group)
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		c.Next()
-		if dailyCardHoldEntitlementID > 0 && (c.Writer.Status() >= 400 || !dailyCardBillingSignal.Scheduled()) {
-			releaseDailyCardRequest(c.Request.Context(), subscriptionService, dailyCardHoldEntitlementID, apiKey.User.ID, dailyCardHoldRequestID)
-		}
+		// A Google gateway response cannot prove the upstream was not reached.
+		// Preserve the replay as pending until explicit reconciliation.
 	}
 }
 

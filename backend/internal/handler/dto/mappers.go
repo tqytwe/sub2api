@@ -853,7 +853,7 @@ func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscrip
 			ID: sub.DailyCard.ID, PaymentOrderID: sub.DailyCard.PaymentOrderID,
 			SourceType: sub.DailyCard.SourceType, SourceID: sub.DailyCard.SourceID,
 			Status: sub.DailyCard.Status, QuotaLimitUSD: sub.DailyCard.QuotaLimitUSD,
-			QuotaUsedUSD: sub.DailyCard.QuotaUsedUSD, QuotaReservedUSD: sub.DailyCard.QuotaReservedUSD,
+			QuotaUsedUSD: sub.DailyCard.QuotaUsedUSD, QuotaReservedUSD: 0,
 			RemainingQuotaUSD: sub.DailyCard.RemainingQuotaUSD(), DurationHours: sub.DailyCard.DurationHours,
 			StartsAt: sub.DailyCard.StartsAt, ExpiresAt: sub.DailyCard.ExpiresAt,
 			ExhaustedAt: sub.DailyCard.ExhaustedAt, EndedAt: sub.DailyCard.EndedAt,
