@@ -77,11 +77,11 @@ The existing `PublicContentLayout`, controls, QR code, package metadata table, r
 
 ## Prototype
 
-The review board records the intended `2.0.86 / 286` static artifact transition: package identity, byte size, checksum, signing continuity, and a fallback URL that uses the same cache key as the manifest. It is a release metadata board, not a fabricated product screenshot.
+The review board records the intended `2.0.86 / 286` static artifact transition: package identity, byte size, checksum, signing continuity, and the `?v=2.0.86-286-r1` cache key shared by the manifest and fallback URL. It is a release metadata board, not a fabricated product screenshot.
 
 ## Reuse Decision
 
-Reuse the existing public route, buttons, icons, layout, and localization. The only source behavior change is the manifest-failure fallback URL. No layout, hierarchy, copy, icon, or interaction pattern is introduced.
+Reuse the existing public route, buttons, icons, layout, and localization. The only source behavior change is the manifest-failure fallback URL's cache key (`?v=2.0.86-286-r1`). No layout, hierarchy, copy, icon, or interaction pattern is introduced.
 
 ## State Coverage
 
@@ -93,7 +93,7 @@ The previous `390x844` baseline is retained and the `1280x820` release board rec
 
 ## Evidence
 
-The signed APK is `com.jisudeng.chat`, version `2.0.86`, version code `286`, size `7,532,618` bytes, SHA-256 `87e36b169e2ea0568445c270999c0c0b1c58016a21c1b422dd13bec0e0c60613`, and uses the already released signing certificate. The canonical download file remains unchanged; only its versioned cache query changes.
+The signed APK is `com.jisudeng.chat`, version `2.0.86`, version code `286`, size `7,532,618` bytes, SHA-256 `87e36b169e2ea0568445c270999c0c0b1c58016a21c1b422dd13bec0e0c60613`, and uses the already released signing certificate. The canonical download file remains unchanged; only its versioned cache query changes to `?v=2.0.86-286-r1` so stale CDN objects cannot be selected.
 
 ## Residual Risk
 
