@@ -46,6 +46,14 @@ func mobileProtocolPayload(authenticated bool, userID int64, role string) mobile
 		adminCapabilities.APIBasePath = "/api/v1/admin"
 		adminCapabilities.StepUpPath = "/api/v1/user/totp/step-up"
 		adminCapabilities.CompliancePath = "/api/v1/admin/compliance"
+		adminCapabilities.WriteOperations = []string{
+			mobileOperationAdminRefundApprove,
+			mobileOperationAdminRefundReject,
+			mobileOperationAdminRefundMarkPaid,
+			mobileOperationAdminWithdrawalApprove,
+			mobileOperationAdminWithdrawalReject,
+			mobileOperationAdminWithdrawalMarkPaid,
+		}
 	}
 	searchCapability := mobileProtocolSearchCapabilityFromEnvironment()
 

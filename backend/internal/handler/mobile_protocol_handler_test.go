@@ -157,6 +157,20 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndCanonicalWhenConfigured
 	}
 }
 
+func TestMobileProtocolSearchContractSupportsExplicitDuckDuckGo(t *testing.T) {
+	t.Setenv("MOBILE_WEB_SEARCH_ENABLED", "1")
+	t.Setenv("EXA_API_KEY", "")
+	t.Setenv("MOBILE_WEB_SEARCH_PROVIDER", "duckduckgo")
+
+	search := mobileProtocolPayload(true, 42, "user").Capabilities.Search
+	if !search.Configured || search.Provider != "duckduckgo" {
+		t.Fatalf("unexpected DuckDuckGo capability: %#v", search)
+	}
+	if search.ExecutionState != mobileProtocolLifecycleCanonical {
+		t.Fatalf("execution_state = %q, want canonical", search.ExecutionState)
+	}
+}
+
 func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	rec := httptest.NewRecorder()

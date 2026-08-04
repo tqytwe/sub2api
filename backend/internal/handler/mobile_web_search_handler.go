@@ -42,10 +42,11 @@ type mobileWebSearchProvider interface {
 // MobileWebSearchHandler exposes the one canonical, authenticated mobile web
 // search route. Its provider is created from server environment only.
 type MobileWebSearchHandler struct {
-	provider mobileWebSearchProvider
-	enabled  bool
-	timeout  time.Duration
-	budget   service.MobileWebSearchBudget
+	provider     mobileWebSearchProvider
+	providerName string
+	enabled      bool
+	timeout      time.Duration
+	budget       service.MobileWebSearchBudget
 }
 
 var errMobileWebSearchBudgetUnavailable = service.ErrMobileWebSearchBudgetUnavailable
@@ -68,16 +69,22 @@ func (unmeteredMobileWebSearchBudget) Reserve(context.Context, int64) (time.Dura
 // behind the repository layer and is never imported by this handler package.
 func NewMobileWebSearchHandlerFromEnvironment(budget service.MobileWebSearchBudget) *MobileWebSearchHandler {
 	apiKey := strings.TrimSpace(os.Getenv("EXA_API_KEY"))
-	enabled := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED")) && apiKey != ""
+	enabledFlag := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED"))
+	configuredProvider := strings.ToLower(strings.TrimSpace(os.Getenv("MOBILE_WEB_SEARCH_PROVIDER")))
 	var provider mobileWebSearchProvider
-	if enabled {
+	providerName := ""
+	if enabledFlag && apiKey != "" && (configuredProvider == "" || configuredProvider == "exa") {
 		provider = websearch.NewExaProvider(apiKey, &http.Client{
 			Timeout: mobileWebSearchTimeout,
 			// Never follow a redirect with x-api-key attached to an unknown host.
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		})
+		providerName = "exa"
+	} else if enabledFlag && configuredProvider == "duckduckgo" {
+		provider = websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout})
+		providerName = "duckduckgo"
 	}
-	return newMobileWebSearchHandlerWithBudget(provider, enabled, mobileWebSearchTimeout, budget)
+	return newMobileWebSearchHandlerWithBudgetAndName(provider, enabledFlag && provider != nil, providerName, mobileWebSearchTimeout, budget)
 }
 
 func newMobileWebSearchHandler(provider mobileWebSearchProvider, enabled bool, timeout time.Duration) *MobileWebSearchHandler {
@@ -85,10 +92,18 @@ func newMobileWebSearchHandler(provider mobileWebSearchProvider, enabled bool, t
 }
 
 func newMobileWebSearchHandlerWithBudget(provider mobileWebSearchProvider, enabled bool, timeout time.Duration, budget service.MobileWebSearchBudget) *MobileWebSearchHandler {
+	providerName := ""
+	if named, ok := provider.(interface{ Name() string }); ok {
+		providerName = named.Name()
+	}
+	return newMobileWebSearchHandlerWithBudgetAndName(provider, enabled, providerName, timeout, budget)
+}
+
+func newMobileWebSearchHandlerWithBudgetAndName(provider mobileWebSearchProvider, enabled bool, providerName string, timeout time.Duration, budget service.MobileWebSearchBudget) *MobileWebSearchHandler {
 	if timeout <= 0 {
 		timeout = mobileWebSearchTimeout
 	}
-	return &MobileWebSearchHandler{provider: provider, enabled: enabled && provider != nil, timeout: timeout, budget: budget}
+	return &MobileWebSearchHandler{provider: provider, providerName: strings.TrimSpace(providerName), enabled: enabled && provider != nil, timeout: timeout, budget: budget}
 }
 
 func mobileWebSearchEnvBool(value string) bool {
@@ -226,7 +241,11 @@ func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 		if executedQuery == "" {
 			executedQuery = query
 		}
-		return mobileWebSearchResponse{RequestID: requestID, Query: executedQuery, Provider: "exa", Results: items}, nil
+		providerName := h.providerName
+		if providerName == "" {
+			providerName = "unknown"
+		}
+		return mobileWebSearchResponse{RequestID: requestID, Query: executedQuery, Provider: providerName, Results: items}, nil
 	})
 	if err != nil {
 		if writeMobileWebSearchBudgetError(c, err, locale, requestID) {
