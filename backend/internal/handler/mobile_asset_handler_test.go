@@ -12,6 +12,7 @@ import (
 	"time"
 
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
@@ -21,11 +22,13 @@ type fakeMobileAssetStorage struct {
 	key         string
 	contentType string
 	data        []byte
+	saveCount   int
 	deleted     bool
 	deleteFunc  func() error
 }
 
 func (s *fakeMobileAssetStorage) Save(_ context.Context, key, contentType string, data []byte) (string, error) {
+	s.saveCount++
 	s.key, s.contentType, s.data = key, contentType, append([]byte(nil), data...)
 	return "/private/" + key, nil
 }
@@ -304,6 +307,118 @@ func TestMobileAssetHandlerUploadsAndStreamsAuthenticatedContent(t *testing.T) {
 	content := performMobileAssetRequest(handler.Content, http.MethodGet, "/mobile/assets/"+assetID+"/content", nil, 23, gin.Params{{Key: "id", Value: assetID}})
 	require.Equal(t, http.StatusOK, content.Code)
 	require.Equal(t, storage.data, content.Body.Bytes())
+}
+
+func TestMobileAssetHandlerUploadReplaysWithoutSavingBytesAgain(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(
+		newMobileReplayIdempotencyRepo(),
+		service.DefaultIdempotencyConfig(),
+	))
+	t.Cleanup(func() {
+		service.SetDefaultIdempotencyCoordinator(previous)
+	})
+
+	assetID := uuid.NewString()
+	storage := &fakeMobileAssetStorage{}
+	var createCount int
+	store := &fakeMobileAssetStore{
+		createFunc: func(_ context.Context, userID int64, input mobileAssetCreateInput) (*mobileAssetRecord, error) {
+			createCount++
+			require.Equal(t, int64(23), userID)
+			require.NotEmpty(t, input.StorageKey)
+			record := mobileAssetTestRecord(assetID)
+			record.StorageKey = input.StorageKey
+			record.ContentType = input.ContentType
+			record.ByteSize = input.ByteSize
+			return record, nil
+		},
+	}
+	handler := newMobileAssetHandlerWithStoreAndStorage(store, storage)
+
+	perform := func() *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("file", "retry.png")
+		require.NoError(t, err)
+		_, err = part.Write(append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 512)...))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/mobile/assets", &body)
+		request.Header.Set("Content-Type", writer.FormDataContentType())
+		request.Header.Set("Idempotency-Key", "asset-upload-replay-1")
+		context, _ := gin.CreateTestContext(recorder)
+		context.Request = request
+		context.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 23})
+		handler.Upload(context)
+		return recorder
+	}
+
+	first := perform()
+	second := perform()
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.Equal(t, http.StatusCreated, second.Code)
+	require.Equal(t, "true", second.Header().Get("X-Idempotency-Replayed"))
+	require.Equal(t, 1, storage.saveCount)
+	require.Equal(t, 1, createCount)
+	require.Contains(t, second.Body.String(), assetID)
+}
+
+func TestMobileAssetHandlerUploadScopesSameIdempotencyKeyByAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(
+		newMobileReplayIdempotencyRepo(),
+		service.DefaultIdempotencyConfig(),
+	))
+	t.Cleanup(func() {
+		service.SetDefaultIdempotencyCoordinator(previous)
+	})
+
+	storage := &fakeMobileAssetStorage{}
+	createdFor := make([]int64, 0, 2)
+	store := &fakeMobileAssetStore{
+		createFunc: func(_ context.Context, userID int64, input mobileAssetCreateInput) (*mobileAssetRecord, error) {
+			createdFor = append(createdFor, userID)
+			record := mobileAssetTestRecord(uuid.NewString())
+			record.StorageKey = input.StorageKey
+			record.ContentType = input.ContentType
+			record.ByteSize = input.ByteSize
+			return record, nil
+		},
+	}
+	handler := newMobileAssetHandlerWithStoreAndStorage(store, storage)
+
+	perform := func(userID int64) *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		part, err := writer.CreateFormFile("file", "shared-key.png")
+		require.NoError(t, err)
+		_, err = part.Write(append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 512)...))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPost, "/mobile/assets", &body)
+		request.Header.Set("Content-Type", writer.FormDataContentType())
+		request.Header.Set("Idempotency-Key", "shared-mobile-key-1")
+		context, _ := gin.CreateTestContext(recorder)
+		context.Request = request
+		context.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: userID})
+		handler.Upload(context)
+		return recorder
+	}
+
+	first := perform(23)
+	second := perform(24)
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.Equal(t, http.StatusCreated, second.Code)
+	require.Empty(t, second.Header().Get("X-Idempotency-Replayed"))
+	require.Equal(t, []int64{23, 24}, createdFor)
+	require.Equal(t, 2, storage.saveCount)
 }
 
 func performMobileAssetRequest(method gin.HandlerFunc, httpMethod, target string, body []byte, userID int64, params gin.Params) *httptest.ResponseRecorder {
