@@ -15,7 +15,7 @@ import (
 // existing behavior.
 const (
 	mobileProtocolVersion                  = 2
-	mobileProtocolContractVersion          = "2026-08-04.3"
+	mobileProtocolContractVersion          = "2026-08-04.4"
 	mobileProtocolLifecycleRegistryVersion = 1
 
 	mobileProtocolLifecycleCanonical = "canonical"
@@ -213,11 +213,14 @@ func mobileProtocolOperationGrants(authenticated, isAdmin, searchConfigured bool
 		teamOperationGrant(mobileOperationTeamInviteRotate, authenticated, "high", []string{"authenticated", "team_captain"}),
 		teamOperationGrant(mobileOperationTeamRecruitingUpdate, authenticated, "medium", []string{"authenticated", "team_captain"}),
 		{
-			ID:            mobileOperationSearchWeb,
-			Granted:       authenticated && searchConfigured,
-			Lifecycle:     searchLifecycle,
-			RiskLevel:     "medium",
-			Authorization: []string{"configured_server_tool", "explicit_user_opt_in", "authenticated_mobile_route"},
+			ID:                    mobileOperationSearchWeb,
+			Granted:               authenticated && searchConfigured,
+			Lifecycle:             searchLifecycle,
+			RiskLevel:             "medium",
+			Authorization:         []string{"configured_server_tool", "explicit_user_opt_in", "authenticated_mobile_route", "server_budget"},
+			ClientRequestIDHeader: requestID,
+			IdempotencyHeader:     idempotency,
+			IdempotencyMode:       "required",
 		},
 		{
 			ID:            mobileOperationAdminConsoleRead,
@@ -326,6 +329,8 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 			},
 			Request: &mobileProtocolEndpointRequest{
 				ClientRequestIDHeader: middleware2.ClientRequestIDHeader,
+				IdempotencyHeader:     "Idempotency-Key",
+				IdempotencyMode:       "required",
 			},
 		},
 		mobileEndpoint(http.MethodPatch, "/api/v1/admin/play/mobile-feedback/:id", canonical, "玩法运营统一维护 APP 反馈、客服备注和需求项"),

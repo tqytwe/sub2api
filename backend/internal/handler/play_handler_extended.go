@@ -572,7 +572,7 @@ func (h *PlayHandler) TeamApply(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application request"))
 		return
 	}
-	executeUserIdempotentJSON(c, mobileOperationTeamApplicationCreate, req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+	executeUserIdempotentJSONOptionalKey(c, mobileUserIdempotencyScope(c, mobileOperationTeamApplicationCreate), req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		return h.playService.ApplyToTeam(ctx, subject.UserID, service.PlayTeamJoinApplicationInput{
 			TeamID:  req.TeamID,
 			Message: req.Message,
@@ -645,7 +645,7 @@ func (h *PlayHandler) TeamApplicationDecision(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application decision request"))
 		return
 	}
-	executeUserIdempotentJSON(c, mobileOperationTeamApplicationDecide, struct {
+	executeUserIdempotentJSONOptionalKey(c, mobileUserIdempotencyScope(c, mobileOperationTeamApplicationDecide), struct {
 		ApplicationID int64  `json:"application_id"`
 		Decision      string `json:"decision"`
 		Note          string `json:"note"`
@@ -664,7 +664,7 @@ func (h *PlayHandler) TeamInviteRotate(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	executeUserIdempotentJSON(c, mobileOperationTeamInviteRotate, struct{}{}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+	executeUserIdempotentJSONOptionalKey(c, mobileUserIdempotencyScope(c, mobileOperationTeamInviteRotate), struct{}{}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		return h.playService.RotateTeamInvite(ctx, subject.UserID)
 	})
 }
@@ -680,7 +680,7 @@ func (h *PlayHandler) TeamRecruiting(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team recruiting request"))
 		return
 	}
-	executeUserIdempotentJSON(c, mobileOperationTeamRecruitingUpdate, struct {
+	executeUserIdempotentJSONOptionalKey(c, mobileUserIdempotencyScope(c, mobileOperationTeamRecruitingUpdate), struct {
 		Recruiting bool `json:"recruiting"`
 	}{Recruiting: *req.Recruiting}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
 		if err := h.playService.SetTeamRecruiting(ctx, subject.UserID, *req.Recruiting); err != nil {

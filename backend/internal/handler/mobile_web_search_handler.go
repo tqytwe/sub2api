@@ -12,11 +12,14 @@ import (
 	"unicode/utf8"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/websearch"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -25,6 +28,10 @@ const (
 	mobileWebSearchDefaultResults = 5
 	mobileWebSearchMaxBodyBytes   = 16 << 10
 	mobileWebSearchTimeout        = 8 * time.Second
+	// The native transport retries an idempotent 5xx after 250ms. Search has
+	// no user-visible side effect, so its recovery lock is deliberately shorter
+	// than the write-operation default and cannot turn that retry into a 409.
+	mobileWebSearchRetryBackoff = 100 * time.Millisecond
 )
 
 // mobileWebSearchProvider keeps the handler testable without allowing callers
@@ -39,11 +46,12 @@ type MobileWebSearchHandler struct {
 	provider mobileWebSearchProvider
 	enabled  bool
 	timeout  time.Duration
+	budget   mobileWebSearchBudget
 }
 
 // NewMobileWebSearchHandlerFromEnvironment is the only production constructor.
 // EXA_API_KEY is read here and never passed through an HTTP response or client.
-func NewMobileWebSearchHandlerFromEnvironment() *MobileWebSearchHandler {
+func NewMobileWebSearchHandlerFromEnvironment(redisClient *redis.Client) *MobileWebSearchHandler {
 	apiKey := strings.TrimSpace(os.Getenv("EXA_API_KEY"))
 	enabled := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED")) && apiKey != ""
 	var provider mobileWebSearchProvider
@@ -54,14 +62,18 @@ func NewMobileWebSearchHandlerFromEnvironment() *MobileWebSearchHandler {
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		})
 	}
-	return newMobileWebSearchHandler(provider, enabled, mobileWebSearchTimeout)
+	return newMobileWebSearchHandlerWithBudget(provider, enabled, mobileWebSearchTimeout, newRedisMobileWebSearchBudget(redisClient))
 }
 
 func newMobileWebSearchHandler(provider mobileWebSearchProvider, enabled bool, timeout time.Duration) *MobileWebSearchHandler {
+	return newMobileWebSearchHandlerWithBudget(provider, enabled, timeout, unmeteredMobileWebSearchBudget{})
+}
+
+func newMobileWebSearchHandlerWithBudget(provider mobileWebSearchProvider, enabled bool, timeout time.Duration, budget mobileWebSearchBudget) *MobileWebSearchHandler {
 	if timeout <= 0 {
 		timeout = mobileWebSearchTimeout
 	}
-	return &MobileWebSearchHandler{provider: provider, enabled: enabled && provider != nil, timeout: timeout}
+	return &MobileWebSearchHandler{provider: provider, enabled: enabled && provider != nil, timeout: timeout, budget: budget}
 }
 
 func mobileWebSearchEnvBool(value string) bool {
@@ -94,8 +106,9 @@ type mobileWebSearchResponse struct {
 	Results   []mobileWebSearchResult `json:"results"`
 }
 
-// Search handles POST /api/v1/mobile/web-search. Search is side-effect free,
-// so a retry key is not required; X-Request-ID still correlates the full call.
+// Search handles POST /api/v1/mobile/web-search. The response is read-only,
+// but every provider call has a cost. A key is therefore required and a
+// successful retry is replayed before another budget slot can be reserved.
 func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 	requestID := mobileWebSearchRequestID(c)
 	c.Header("Cache-Control", "private, no-store")
@@ -142,10 +155,81 @@ func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(c.Request.Context(), h.timeout)
-	defer cancel()
-	result, err := h.provider.Search(ctx, websearch.SearchRequest{Query: query, MaxResults: maxResults})
+	key, keyErr := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if keyErr != nil {
+		writeMobileWebSearchError(c, http.StatusBadRequest, "MOBILE_WEB_SEARCH_IDEMPOTENCY_KEY_INVALID", "idempotency_key_invalid", locale, requestID)
+		return
+	}
+	if key == "" {
+		writeMobileWebSearchError(c, http.StatusBadRequest, "MOBILE_WEB_SEARCH_IDEMPOTENCY_KEY_REQUIRED", "idempotency_key_required", locale, requestID)
+		return
+	}
+	coordinator := service.DefaultIdempotencyCoordinator()
+	if coordinator == nil {
+		writeMobileWebSearchError(c, http.StatusServiceUnavailable, "MOBILE_WEB_SEARCH_IDEMPOTENCY_UNAVAILABLE", "idempotency_unavailable", locale, requestID)
+		return
+	}
+	payload := struct {
+		Query      string `json:"query"`
+		MaxResults int    `json:"max_results"`
+		Locale     string `json:"locale"`
+	}{Query: query, MaxResults: maxResults, Locale: locale}
+	result, err := coordinator.Execute(c.Request.Context(), service.IdempotencyExecuteOptions{
+		Scope:              mobileUserIdempotencyScope(c, mobileOperationSearchWeb),
+		ActorScope:         "user:" + strconv.FormatInt(subject.UserID, 10),
+		Method:             c.Request.Method,
+		Route:              c.FullPath(),
+		IdempotencyKey:     key,
+		Payload:            payload,
+		RequireKey:         true,
+		TTL:                service.DefaultWriteIdempotencyTTL(),
+		FailedRetryBackoff: mobileWebSearchRetryBackoff,
+	}, func(ctx context.Context) (any, error) {
+		if h.budget == nil {
+			return nil, errMobileWebSearchBudgetUnavailable
+		}
+		if _, budgetErr := h.budget.Reserve(ctx, subject.UserID); budgetErr != nil {
+			return nil, budgetErr
+		}
+		searchCtx, cancel := context.WithTimeout(ctx, h.timeout)
+		defer cancel()
+		upstream, searchErr := h.provider.Search(searchCtx, websearch.SearchRequest{Query: query, MaxResults: maxResults})
+		if searchErr != nil {
+			return nil, searchErr
+		}
+		if upstream == nil {
+			return nil, &websearch.UpstreamStatusError{StatusCode: http.StatusBadGateway}
+		}
+		items := make([]mobileWebSearchResult, 0, len(upstream.Results))
+		for _, item := range upstream.Results {
+			if len(items) >= maxResults {
+				break
+			}
+			items = append(items, mobileWebSearchResult{Title: item.Title, URL: item.URL, Snippet: item.Snippet, PageAge: item.PageAge})
+		}
+		executedQuery := strings.TrimSpace(upstream.Query)
+		if executedQuery == "" {
+			executedQuery = query
+		}
+		return mobileWebSearchResponse{RequestID: requestID, Query: executedQuery, Provider: "exa", Results: items}, nil
+	})
 	if err != nil {
+		if writeMobileWebSearchBudgetError(c, err, locale, requestID) {
+			return
+		}
+		if status := infraerrors.Code(err); (status >= http.StatusBadRequest && status < http.StatusInternalServerError) || status == http.StatusServiceUnavailable {
+			code, reason := mobileWebSearchIdempotencyError(err)
+			metadata := map[string]string{
+				"request_id": requestID,
+			}
+			if retryAfter := service.RetryAfterSecondsFromError(err); retryAfter > 0 {
+				value := strconv.Itoa(retryAfter)
+				c.Header("Retry-After", value)
+				metadata["retry_after"] = value
+			}
+			writeMobileWebSearchErrorWithMetadata(c, status, code, reason, locale, metadata)
+			return
+		}
 		writeMobileWebSearchProviderError(c, err, locale, requestID)
 		return
 	}
@@ -153,19 +237,53 @@ func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 		writeMobileWebSearchError(c, http.StatusBadGateway, "MOBILE_WEB_SEARCH_UPSTREAM_ERROR", "upstream_error", locale, requestID)
 		return
 	}
-	items := make([]mobileWebSearchResult, 0, len(result.Results))
-	for _, item := range result.Results {
-		if len(items) >= maxResults {
-			break
-		}
-		items = append(items, mobileWebSearchResult{Title: item.Title, URL: item.URL, Snippet: item.Snippet, PageAge: item.PageAge})
-	}
-	executedQuery := strings.TrimSpace(result.Query)
-	if executedQuery == "" {
-		executedQuery = query
-	}
 	c.Header("X-Request-ID", requestID)
-	response.Success(c, mobileWebSearchResponse{RequestID: requestID, Query: executedQuery, Provider: "exa", Results: items})
+	if result.Replayed {
+		c.Header("X-Idempotency-Replayed", "true")
+	}
+	response.Success(c, result.Data)
+}
+
+func mobileWebSearchIdempotencyError(err error) (code, reason string) {
+	switch strings.ToUpper(strings.TrimSpace(infraerrors.Reason(err))) {
+	case "IDEMPOTENCY_RETRY_BACKOFF":
+		return "MOBILE_WEB_SEARCH_RETRY_BACKOFF", "idempotency_retry_backoff"
+	case "IDEMPOTENCY_IN_PROGRESS":
+		return "MOBILE_WEB_SEARCH_IN_PROGRESS", "idempotency_in_progress"
+	case "IDEMPOTENCY_KEY_CONFLICT":
+		return "MOBILE_WEB_SEARCH_IDEMPOTENCY_CONFLICT", "idempotency_key_conflict"
+	case "IDEMPOTENCY_STORE_UNAVAILABLE":
+		return "MOBILE_WEB_SEARCH_IDEMPOTENCY_UNAVAILABLE", "idempotency_unavailable"
+	default:
+		return "MOBILE_WEB_SEARCH_IDEMPOTENCY_ERROR", "idempotency_error"
+	}
+}
+
+func writeMobileWebSearchBudgetError(c *gin.Context, err error, locale, requestID string) bool {
+	if errors.Is(err, errMobileWebSearchBudgetUnavailable) {
+		writeMobileWebSearchError(c, http.StatusServiceUnavailable, "MOBILE_WEB_SEARCH_BUDGET_UNAVAILABLE", "budget_unavailable", locale, requestID)
+		return true
+	}
+	var exceeded *mobileWebSearchBudgetExceededError
+	if errors.As(err, &exceeded) {
+		retryAfter := exceeded.retryAfter
+		if retryAfter <= 0 {
+			retryAfter = time.Minute
+		}
+		seconds := int64(retryAfter / time.Second)
+		if retryAfter%time.Second != 0 {
+			seconds++
+		}
+		c.Header("Retry-After", strconv.FormatInt(seconds, 10))
+		metadata := map[string]string{
+			"request_id":  requestID,
+			"error_code":  "MOBILE_WEB_SEARCH_BUDGET_EXCEEDED",
+			"retry_after": strconv.FormatInt(seconds, 10),
+		}
+		writeMobileWebSearchErrorWithMetadata(c, http.StatusTooManyRequests, "MOBILE_WEB_SEARCH_BUDGET_EXCEEDED", "budget_exceeded", locale, metadata)
+		return true
+	}
+	return false
 }
 
 func writeMobileWebSearchProviderError(c *gin.Context, err error, locale, requestID string) {
@@ -191,13 +309,17 @@ func writeMobileWebSearchProviderError(c *gin.Context, err error, locale, reques
 }
 
 func writeMobileWebSearchError(c *gin.Context, status int, code, reason, locale, requestID string) {
-	writeMobileWebSearchErrorWithMetadata(c, status, code, reason, locale, map[string]string{"request_id": requestID})
+	writeMobileWebSearchErrorWithMetadata(c, status, code, reason, locale, map[string]string{
+		"request_id": requestID,
+		"error_code": code,
+	})
 }
 
 func writeMobileWebSearchErrorWithMetadata(c *gin.Context, status int, code, reason, locale string, metadata map[string]string) {
 	if metadata == nil {
 		metadata = make(map[string]string, 1)
 	}
+	metadata["error_code"] = code
 	metadata["locale"] = locale
 	message := mobileWebSearchMessage(code, locale)
 	response.ErrorWithDetails(c, status, message, reason, metadata)
@@ -220,6 +342,24 @@ func mobileWebSearchMessage(code, locale string) string {
 			return "The search query is too long"
 		case "MOBILE_WEB_SEARCH_RESULTS_LIMIT":
 			return "Maximum results is 10"
+		case "MOBILE_WEB_SEARCH_IDEMPOTENCY_KEY_REQUIRED":
+			return "An Idempotency-Key is required for web search"
+		case "MOBILE_WEB_SEARCH_IDEMPOTENCY_KEY_INVALID":
+			return "The Idempotency-Key is invalid"
+		case "MOBILE_WEB_SEARCH_IDEMPOTENCY_UNAVAILABLE":
+			return "Web search is temporarily unavailable"
+		case "MOBILE_WEB_SEARCH_BUDGET_UNAVAILABLE":
+			return "Web search budget is temporarily unavailable"
+		case "MOBILE_WEB_SEARCH_BUDGET_EXCEEDED":
+			return "Web search quota has been reached"
+		case "MOBILE_WEB_SEARCH_RETRY_BACKOFF":
+			return "Web search is recovering; retry after the indicated delay"
+		case "MOBILE_WEB_SEARCH_IN_PROGRESS":
+			return "An identical web search is still in progress"
+		case "MOBILE_WEB_SEARCH_IDEMPOTENCY_CONFLICT":
+			return "This web search key was used with a different request"
+		case "MOBILE_WEB_SEARCH_IDEMPOTENCY_ERROR":
+			return "Web search could not confirm the request state"
 		case "MOBILE_WEB_SEARCH_TIMEOUT":
 			return "The search provider timed out"
 		case "MOBILE_WEB_SEARCH_UPSTREAM_ERROR":
@@ -245,6 +385,24 @@ func mobileWebSearchMessage(code, locale string) string {
 		return "搜索内容过长"
 	case "MOBILE_WEB_SEARCH_RESULTS_LIMIT":
 		return "最多返回 10 条结果"
+	case "MOBILE_WEB_SEARCH_IDEMPOTENCY_KEY_REQUIRED":
+		return "联网搜索请求必须携带幂等键，请稍后重试"
+	case "MOBILE_WEB_SEARCH_IDEMPOTENCY_KEY_INVALID":
+		return "联网搜索幂等键无效"
+	case "MOBILE_WEB_SEARCH_IDEMPOTENCY_UNAVAILABLE":
+		return "联网搜索暂时无法确认请求状态，请稍后重试"
+	case "MOBILE_WEB_SEARCH_BUDGET_UNAVAILABLE":
+		return "联网搜索额度服务暂不可用，请稍后重试"
+	case "MOBILE_WEB_SEARCH_BUDGET_EXCEEDED":
+		return "联网搜索额度已用完，请稍后再试"
+	case "MOBILE_WEB_SEARCH_RETRY_BACKOFF":
+		return "联网搜索正在恢复，请在提示的等待时间后重试"
+	case "MOBILE_WEB_SEARCH_IN_PROGRESS":
+		return "相同的联网搜索仍在处理中，请稍后再试"
+	case "MOBILE_WEB_SEARCH_IDEMPOTENCY_CONFLICT":
+		return "该联网搜索请求标识已用于不同内容，请重新发起搜索"
+	case "MOBILE_WEB_SEARCH_IDEMPOTENCY_ERROR":
+		return "联网搜索暂时无法确认请求状态，请稍后重试"
 	case "MOBILE_WEB_SEARCH_TIMEOUT":
 		return "搜索服务响应超时，请稍后重试"
 	case "MOBILE_WEB_SEARCH_UPSTREAM_ERROR":

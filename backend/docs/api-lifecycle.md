@@ -39,6 +39,18 @@
 未配置时协议返回 `execution_state=disabled`，请求统一返回可本地化的
 `MOBILE_WEB_SEARCH_UNAVAILABLE` 错误；不声明或实现 DuckDuckGo 隐式回退。
 
+搜索请求还必须携带 `Idempotency-Key`。服务端使用现有幂等记录回放成功结果，
+不会因 Android 传输重试再次调用 Exa 或消耗额度。预算由 Redis 原子固定窗口
+保护，默认每用户每分钟 12 次、每日 120 次，全局每分钟 600 次、每日 10000
+次；可通过 `MOBILE_WEB_SEARCH_USER_RPM`、
+`MOBILE_WEB_SEARCH_USER_DAILY_LIMIT`、`MOBILE_WEB_SEARCH_GLOBAL_RPM` 和
+`MOBILE_WEB_SEARCH_GLOBAL_DAILY_LIMIT` 调整。Redis 不可用时请求 fail-closed，
+返回 `MOBILE_WEB_SEARCH_BUDGET_UNAVAILABLE`；额度耗尽返回 HTTP 429、
+`MOBILE_WEB_SEARCH_BUDGET_EXCEEDED` 和 `Retry-After`。预算按上游尝试计数，
+因为超时或 5xx 无法证明供应商未收到请求，成功回放不重复计数。搜索路由单独
+使用 100ms 的失败重试窗口，与 Android 250ms 的幂等传输重试匹配；极端并发时仍
+返回 HTTP 409、`MOBILE_WEB_SEARCH_RETRY_BACKOFF` 和 `Retry-After`。
+
 | 接口 | 状态 | 用途 | 数据归属 | 替代/处理 |
 | --- | --- | --- | --- | --- |
 | `GET /api/v1/mobile/protocol` | canonical | APP 获取统一协议版本、任务状态、接口生命周期和隐私规则 | 无业务写入 | 保留 |

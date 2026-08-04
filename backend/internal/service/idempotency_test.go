@@ -353,6 +353,51 @@ func TestIdempotencyCoordinator_BackoffAfterRetryableFailure(t *testing.T) {
 	require.GreaterOrEqual(t, metrics.ProcessingDurationCount, uint64(1))
 }
 
+func TestIdempotencyCoordinator_ReclaimsFailedRetryableAfterLockExpires(t *testing.T) {
+	resetIdempotencyMetricsForTest()
+	repo := newInMemoryIdempotencyRepo()
+	cfg := DefaultIdempotencyConfig()
+	// Keep the normal backoff long enough to prove the retry is blocked by the
+	// persisted lock, then move the record past that lock without sleeping.
+	cfg.FailedRetryBackoff = time.Hour
+	coordinator := NewIdempotencyCoordinator(repo, cfg)
+	opts := IdempotencyExecuteOptions{
+		Scope:          "test.scope.failed-reclaim",
+		Method:         "POST",
+		Route:          "/test/failed-reclaim",
+		ActorScope:     "user:1",
+		RequireKey:     true,
+		IdempotencyKey: "failed-reclaim",
+		Payload:        map[string]any{"query": "same"},
+	}
+
+	_, err := coordinator.Execute(context.Background(), opts, func(context.Context) (any, error) {
+		return nil, infraerrors.InternalServer("UPSTREAM_ERROR", "upstream error")
+	})
+	require.Error(t, err)
+
+	keyHash := HashIdempotencyKey(opts.IdempotencyKey)
+	repo.mu.Lock()
+	record := repo.data[repo.key(opts.Scope, keyHash)]
+	require.NotNil(t, record)
+	require.Equal(t, IdempotencyStatusFailedRetryable, record.Status)
+	expiredAt := time.Now().Add(-time.Second)
+	record.LockedUntil = &expiredAt
+	repo.mu.Unlock()
+
+	second, err := coordinator.Execute(context.Background(), opts, func(context.Context) (any, error) {
+		return map[string]any{"recovered": true}, nil
+	})
+	require.NoError(t, err)
+	require.NotNil(t, second)
+	require.False(t, second.Replayed, "an expired failed lock must be reclaimed and executed")
+	require.Equal(t, map[string]any{"recovered": true}, second.Data)
+
+	repo.mu.Lock()
+	defer repo.mu.Unlock()
+	require.Equal(t, IdempotencyStatusSucceeded, repo.data[repo.key(opts.Scope, keyHash)].Status)
+}
+
 func TestIdempotencyCoordinator_ConcurrentSameKeySingleSideEffect(t *testing.T) {
 	resetIdempotencyMetricsForTest()
 	repo := newInMemoryIdempotencyRepo()

@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Android 2.0.84 release review</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; color: #172033; background: #eef2f7; }
+      body { margin: 0; padding: 48px; }
+      main { max-width: 1120px; margin: 0 auto; background: #fff; border: 1px solid #d9e0ea; border-radius: 8px; overflow: hidden; }
+      header { padding: 36px 40px; border-bottom: 1px solid #d9e0ea; }
+      h1 { margin: 0; font-size: 30px; }
+      header p { margin: 10px 0 0; color: #596579; font-size: 16px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 28px 40px; }
+      section { border: 1px solid #d9e0ea; border-radius: 8px; padding: 20px; }
+      h2 { margin: 0 0 16px; font-size: 17px; }
+      dl { display: grid; grid-template-columns: 178px 1fr; gap: 10px 16px; margin: 0; font-size: 14px; }
+      dt { color: #596579; }
+      dd { margin: 0; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+      .ok { color: #147a4b; font-weight: 700; }
+      footer { border-top: 1px solid #d9e0ea; padding: 20px 40px; color: #596579; font-size: 13px; }
+      @media (max-width: 720px) { body { padding: 16px; } .grid { grid-template-columns: 1fr; padding: 20px; } header { padding: 28px 20px; } footer { padding: 20px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Android 2.0.84 release transition</h1>
+        <p>Static review board for the existing public download route and its cache-safe fallback.</p>
+      </header>
+      <div class="grid">
+        <section>
+          <h2>Published package</h2>
+          <dl>
+            <dt>Package</dt><dd>com.jisudeng.chat</dd>
+            <dt>Version</dt><dd>2.0.84 (284)</dd>
+            <dt>Minimum Android</dt><dd>6.0</dd>
+            <dt>Bytes</dt><dd>7,530,970</dd>
+            <dt>SHA-256</dt><dd>efdc3955673db71ef691d6f154cc15ff9756d39f196f710e4921bf3a1a9ebb2d</dd>
+          </dl>
+        </section>
+        <section>
+          <h2>Download contract</h2>
+          <dl>
+            <dt>Canonical file</dt><dd>/downloads/jisudengchat-android.apk</dd>
+            <dt>Manifest</dt><dd>/downloads/android-version.json</dd>
+            <dt>Cache key</dt><dd>?v=2.0.84-284</dd>
+            <dt>Fallback link</dt><dd class="ok">matches manifest cache key</dd>
+            <dt>Layout / controls</dt><dd>unchanged</dd>
+          </dl>
+        </section>
+      </div>
+      <footer>Prototype and updated evidence record the same release metadata. This board is not a product screenshot.</footer>
+    </main>
+  </body>
+</html>

@@ -257,7 +257,7 @@ func (h *PlayHandler) SubmitMobileFeedback(c *gin.Context) {
 		return
 	}
 
-	executeUserIdempotentCreated(
+	executeUserIdempotentCreatedOptionalKey(
 		c,
 		mobileUserIdempotencyScope(c, "mobile.play.feedback.legacy.create"),
 		fingerprint,

@@ -372,7 +372,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	mobileDeviceHandler := handler.ProvideMobileDeviceHandler(mobilePushService)
 	mobileAttributionEventService := handler.ProvideMobileAttributionEventService(mobileAttributionService)
 	mobileAttributionHandler := handler.NewMobileAttributionHandler(mobileAttributionEventService)
-	mobileWebSearchHandler := handler.NewMobileWebSearchHandlerFromEnvironment()
+	mobileWebSearchHandler := handler.NewMobileWebSearchHandlerFromEnvironment(redisClient)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, couponWalletHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, playHandler, walletHandler, handlerFundHandler, imageStudioHandler, modelPricingHandler, handlerPromptLibraryHandler, mobileAssetHandler, mobileTaskHandler, mobileSupportHandler, mobileDiagnosticHandler, mobileDeviceHandler, mobileAttributionHandler, mobileWebSearchHandler, idempotencyCoordinator, idempotencyCleanupService)

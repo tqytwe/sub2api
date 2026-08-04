@@ -99,6 +99,10 @@
 - 请求必须带 JWT 和显式 `opt_in=true`；响应包含 `request_id`、来源 URL、摘要和
   `page_age`。上游超时返回 504，上游 HTTP/连接错误返回 502，不把它们伪装成
   本地网络失败。
+- 请求必须带 `Idempotency-Key`；成功响应由现有幂等协调器回放，避免网络重试重复
+  调用 Exa。Redis 原子预算按用户分钟/日和全局分钟/日同时限制，Redis 故障返回
+  `MOBILE_WEB_SEARCH_BUDGET_UNAVAILABLE`，额度耗尽返回 429 和 `Retry-After`。
+  预算按上游尝试计数，超时/502 不做不确定的退款。
 
 - 素材库继续使用 `/api/v1/mobile/assets`，系统分享文件由 APP 上传后生成 asset 记录；
   新客户端携带 `Idempotency-Key` 后按账号和文件摘要回放原素材，不重复保存文件。

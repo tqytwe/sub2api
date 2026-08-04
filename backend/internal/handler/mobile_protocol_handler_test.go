@@ -64,8 +64,8 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 			if endpoint.OperationID != mobileOperationSearchWeb {
 				t.Fatalf("web search operation id = %q, want %q", endpoint.OperationID, mobileOperationSearchWeb)
 			}
-			if endpoint.Request == nil || endpoint.Request.ClientRequestIDHeader != middleware2.ClientRequestIDHeader {
-				t.Fatalf("web search endpoint must advertise client request ID header: %#v", endpoint.Request)
+			if endpoint.Request == nil || endpoint.Request.ClientRequestIDHeader != middleware2.ClientRequestIDHeader || endpoint.Request.IdempotencyHeader != "Idempotency-Key" || endpoint.Request.IdempotencyMode != "required" {
+				t.Fatalf("web search endpoint must advertise required replay headers: %#v", endpoint.Request)
 			}
 		}
 		if endpoint.Method == http.MethodPost && (endpoint.Path == "/api/v1/mobile/assets" || endpoint.Path == "/api/v1/mobile/support/tickets") {
@@ -151,6 +151,10 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndCanonicalWhenConfigured
 		t.Fatal("protocol payload must not claim an unconfigured DuckDuckGo fallback")
 	}
 	assertOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb, true, mobileProtocolLifecycleCanonical)
+	searchGrant := findOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb)
+	if searchGrant.ClientRequestIDHeader != middleware2.ClientRequestIDHeader || searchGrant.IdempotencyHeader != "Idempotency-Key" || searchGrant.IdempotencyMode != "required" {
+		t.Fatalf("search operation idempotency contract is incomplete: %#v", searchGrant)
+	}
 }
 
 func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {

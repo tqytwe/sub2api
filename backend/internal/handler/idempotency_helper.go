@@ -23,7 +23,22 @@ func executeUserIdempotentJSON(
 	ttl time.Duration,
 	execute func(context.Context) (any, error),
 ) {
-	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusOK, execute)
+	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusOK, true, execute)
+}
+
+// executeUserIdempotentJSONOptionalKey keeps compatibility routes usable by
+// older web clients while still deduplicating requests that do provide a key.
+// The coordinator remains authoritative whenever a key is present; only the
+// missing-key rejection is relaxed for the caller explicitly marked as
+// observe-only by the protocol contract.
+func executeUserIdempotentJSONOptionalKey(
+	c *gin.Context,
+	scope string,
+	payload any,
+	ttl time.Duration,
+	execute func(context.Context) (any, error),
+) {
+	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusOK, false, execute)
 }
 
 // mobileUserIdempotencyScope returns an account-scoped namespace for mobile
@@ -59,7 +74,17 @@ func executeUserIdempotentCreated(
 	ttl time.Duration,
 	execute func(context.Context) (any, error),
 ) {
-	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusCreated, execute)
+	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusCreated, true, execute)
+}
+
+func executeUserIdempotentCreatedOptionalKey(
+	c *gin.Context,
+	scope string,
+	payload any,
+	ttl time.Duration,
+	execute func(context.Context) (any, error),
+) {
+	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusCreated, false, execute)
 }
 
 func executeUserIdempotentResponse(
@@ -68,6 +93,7 @@ func executeUserIdempotentResponse(
 	payload any,
 	ttl time.Duration,
 	status int,
+	requireKey bool,
 	execute func(context.Context) (any, error),
 ) {
 	coordinator := service.DefaultIdempotencyCoordinator()
@@ -93,7 +119,7 @@ func executeUserIdempotentResponse(
 		Route:          c.FullPath(),
 		IdempotencyKey: c.GetHeader("Idempotency-Key"),
 		Payload:        payload,
-		RequireKey:     true,
+		RequireKey:     requireKey,
 		TTL:            ttl,
 	}, execute)
 	if err != nil {
