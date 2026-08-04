@@ -86,6 +86,7 @@ type Handlers struct {
 	MobileDiagnostic  *MobileDiagnosticHandler
 	MobileDevice      *MobileDeviceHandler
 	MobileAttribution *MobileAttributionHandler
+	MobileWebSearch   *MobileWebSearchHandler
 }
 
 // BuildInfo contains build-time information

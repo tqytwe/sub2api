@@ -92,6 +92,9 @@ func RegisterPlayRoutes(
 		authenticated.GET("/play/hub", h.Play.Hub)
 		authenticated.GET("/play/quests/today", h.Play.QuestsToday)
 		authenticated.GET("/play/campaigns/active", h.Play.CampaignsActive)
-		authenticated.POST("/play/mobile-feedback", h.Play.SubmitMobileFeedback)
+		// The legacy fallback may carry the same correlation/idempotency key as
+		// the canonical support request. Preserve its request ID for diagnosis
+		// while the handler safely replays a duplicate keyed submission.
+		authenticated.POST("/play/mobile-feedback", middleware.ClientRequestID(), h.Play.SubmitMobileFeedback)
 	}
 }

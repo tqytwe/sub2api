@@ -2,7 +2,9 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
@@ -21,6 +23,53 @@ func executeUserIdempotentJSON(
 	ttl time.Duration,
 	execute func(context.Context) (any, error),
 ) {
+	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusOK, execute)
+}
+
+// mobileUserIdempotencyScope returns an account-scoped namespace for mobile
+// writes. The idempotency table is intentionally shared by all handlers and
+// is keyed by (scope, key hash), so the account must be part of the scope
+// before a request reaches the coordinator. The mobile write handlers already
+// require authentication; keep the base scope unchanged for an absent/invalid
+// subject so the helper remains safe to call during error handling.
+//
+// Older records use the unscoped name. We deliberately do not replay those
+// records here: they cannot be proven to belong to the current account. They
+// remain subject to the existing TTL cleanup and new clients get an isolated
+// namespace immediately without a schema migration.
+func mobileUserIdempotencyScope(c *gin.Context, baseScope string) string {
+	baseScope = strings.TrimSpace(baseScope)
+	if c == nil || baseScope == "" {
+		return baseScope
+	}
+	subject, ok := middleware2.GetAuthSubjectFromContext(c)
+	if !ok || subject.UserID <= 0 {
+		return baseScope
+	}
+	return baseScope + ".user." + strconv.FormatInt(subject.UserID, 10)
+}
+
+// executeUserIdempotentCreated preserves the normal 201 contract for create
+// routes while allowing a retry with the same key to replay the exact resource
+// instead of invoking storage or business side effects again.
+func executeUserIdempotentCreated(
+	c *gin.Context,
+	scope string,
+	payload any,
+	ttl time.Duration,
+	execute func(context.Context) (any, error),
+) {
+	executeUserIdempotentResponse(c, scope, payload, ttl, http.StatusCreated, execute)
+}
+
+func executeUserIdempotentResponse(
+	c *gin.Context,
+	scope string,
+	payload any,
+	ttl time.Duration,
+	status int,
+	execute func(context.Context) (any, error),
+) {
 	coordinator := service.DefaultIdempotencyCoordinator()
 	if coordinator == nil {
 		data, err := execute(c.Request.Context())
@@ -28,7 +77,7 @@ func executeUserIdempotentJSON(
 			response.ErrorFrom(c, err)
 			return
 		}
-		response.Success(c, data)
+		writeUserIdempotentResponse(c, status, data)
 		return
 	}
 
@@ -61,5 +110,13 @@ func executeUserIdempotentJSON(
 	if result != nil && result.Replayed {
 		c.Header("X-Idempotency-Replayed", "true")
 	}
-	response.Success(c, result.Data)
+	writeUserIdempotentResponse(c, status, result.Data)
+}
+
+func writeUserIdempotentResponse(c *gin.Context, status int, data any) {
+	if status == http.StatusCreated {
+		response.Created(c, data)
+		return
+	}
+	response.Success(c, data)
 }

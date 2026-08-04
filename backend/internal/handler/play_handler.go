@@ -2,9 +2,7 @@ package handler
 
 import (
 	"context"
-	"encoding/json"
 	"io"
-	"net/http"
 	"sort"
 	"strconv"
 	"strings"
@@ -239,61 +237,41 @@ func (h *PlayHandler) SubmitMobileFeedback(c *gin.Context) {
 		return
 	}
 
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, mobileFeedbackMaxRequestBytes)
-	if err := c.Request.ParseMultipartForm(mobileFeedbackMaxRequestBytes); err != nil {
+	request, err := parseMobileFeedbackMultipartCreateRequest(c)
+	if err != nil {
 		response.ErrorFrom(c, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "invalid feedback request"))
 		return
 	}
 
-	deviceInfo := map[string]any{}
-	if raw := strings.TrimSpace(c.PostForm("device_info")); raw != "" {
-		if err := json.Unmarshal([]byte(raw), &deviceInfo); err != nil {
-			response.ErrorFrom(c, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "invalid device info"))
-			return
-		}
+	// The current APP only reaches this legacy route after the canonical
+	// endpoint is unavailable. It reuses the same key while the native
+	// transport retries the request, so the compatibility path must preserve
+	// the original side-effect guarantee instead of creating duplicate tickets.
+	// Requests without a key retain the historical legacy behavior.
+	var fingerprint any = request
+	if strings.TrimSpace(c.GetHeader("Idempotency-Key")) != "" {
+		fingerprint, err = mobileFeedbackCreateFingerprint(c, request)
 	}
-
-	var groupID *int64
-	if raw := strings.TrimSpace(c.PostForm("group_id")); raw != "" {
-		parsed, err := strconv.ParseInt(raw, 10, 64)
-		if err != nil || parsed <= 0 {
-			response.ErrorFrom(c, infraerrors.BadRequest("MOBILE_FEEDBACK_INVALID", "invalid group id"))
-			return
-		}
-		groupID = &parsed
-	}
-
-	screenshots, err := h.uploadMobileFeedbackScreenshots(c)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
 
-	created, err := h.playService.CreateMobileFeedback(c.Request.Context(), subject.UserID, service.MobileFeedbackInput{
-		Title:          c.PostForm("title"),
-		Category:       c.PostForm("category"),
-		Content:        c.PostForm("content"),
-		AppVersion:     c.PostForm("app_version"),
-		InstallationID: c.PostForm("installation_id"),
-		Channel:        c.PostForm("channel"),
-		Referrer:       c.PostForm("referrer"),
-		Platform:       c.PostForm("platform"),
-		DeviceModel:    c.PostForm("device_model"),
-		AndroidVersion: c.PostForm("android_version"),
-		SystemVersion:  c.PostForm("system_version"),
-		GroupName:      c.PostForm("group_name"),
-		GroupID:        groupID,
-		BackendURL:     c.PostForm("backend_url"),
-		LastError:      c.PostForm("last_error"),
-		CrashLog:       c.PostForm("crash_log"),
-		DeviceInfo:     deviceInfo,
-		Screenshots:    screenshots,
-	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Created(c, created)
+	executeUserIdempotentCreated(
+		c,
+		mobileUserIdempotencyScope(c, "mobile.play.feedback.legacy.create"),
+		fingerprint,
+		service.DefaultWriteIdempotencyTTL(),
+		func(ctx context.Context) (any, error) {
+			requestForCreate := request
+			screenshots, uploadErr := h.uploadMobileFeedbackScreenshots(c)
+			if uploadErr != nil {
+				return nil, uploadErr
+			}
+			requestForCreate.Screenshots = screenshots
+			return h.playService.CreateMobileFeedback(ctx, subject.UserID, mobileFeedbackInput(requestForCreate))
+		},
+	)
 }
 
 func (h *PlayHandler) uploadMobileFeedbackScreenshots(c *gin.Context) ([]service.MobileFeedbackScreenshot, error) {

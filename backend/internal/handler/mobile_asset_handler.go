@@ -15,6 +15,7 @@ import (
 	"time"
 
 	entsql "entgo.io/ent/dialect/sql"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -149,16 +150,6 @@ func (h *MobileAssetHandler) Upload(c *gin.Context) {
 		response.BadRequest(c, "素材文件类型不支持")
 		return
 	}
-	id := uuid.NewString()
-	ext := strings.ToLower(filepath.Ext(header.Filename))
-	if len(ext) > 12 || strings.ContainsAny(ext, "/\\") {
-		ext = ""
-	}
-	key := fmt.Sprintf("mobile-assets/%d/%s%s", userID, id, ext)
-	if _, err := h.storage.Save(c.Request.Context(), key, contentType, data); err != nil {
-		response.InternalError(c, "上传素材失败")
-		return
-	}
 	hash := fmt.Sprintf("%x", sha256.Sum256(data))
 	source := strings.ToLower(strings.TrimSpace(c.PostForm("source")))
 	switch source {
@@ -168,21 +159,61 @@ func (h *MobileAssetHandler) Upload(c *gin.Context) {
 		source = "upload"
 	}
 	input := mobileAssetCreateInput{
-		Kind: kind, Source: source, StorageKey: key,
+		Kind: kind, Source: source,
 		OriginalName: strings.TrimSpace(header.Filename), ContentType: contentType,
 		ByteSize: int64(len(data)), SHA256: &hash, Status: "ready", Metadata: map[string]any{},
 	}
-	record, err := h.store.Create(c.Request.Context(), userID, input)
-	if err != nil {
-		if deleter, ok := h.storage.(service.ImageAssetDeleter); ok {
-			_ = deleter.Delete(context.WithoutCancel(c.Request.Context()), key)
-		}
-		response.InternalError(c, "创建素材失败")
-		return
+
+	// The request fingerprint includes the content digest and all immutable
+	// metadata. A replay with the same user-scoped key returns the original
+	// asset record without saving the bytes or creating a second database row.
+	fingerprint := struct {
+		Kind         string `json:"kind"`
+		Source       string `json:"source"`
+		OriginalName string `json:"original_name"`
+		ContentType  string `json:"content_type"`
+		ByteSize     int64  `json:"byte_size"`
+		SHA256       string `json:"sha256"`
+	}{
+		Kind: input.Kind, Source: input.Source, OriginalName: input.OriginalName,
+		ContentType: input.ContentType, ByteSize: input.ByteSize, SHA256: hash,
 	}
-	setMobileAssetContentURL(record)
+
 	c.Header("Cache-Control", "private, no-store")
-	response.Created(c, record)
+	executeUserIdempotentCreated(
+		c,
+		mobileUserIdempotencyScope(c, "mobile.asset.upload"),
+		fingerprint,
+		service.DefaultWriteIdempotencyTTL(),
+		func(ctx context.Context) (any, error) {
+			id := uuid.NewString()
+			ext := strings.ToLower(filepath.Ext(header.Filename))
+			if len(ext) > 12 || strings.ContainsAny(ext, "/\\") {
+				ext = ""
+			}
+			key := fmt.Sprintf("mobile-assets/%d/%s%s", userID, id, ext)
+			if _, err := h.storage.Save(ctx, key, contentType, data); err != nil {
+				return nil, infraerrors.ServiceUnavailable(
+					"MOBILE_ASSET_STORAGE_UNAVAILABLE",
+					"上传素材失败",
+				).WithCause(err)
+			}
+			createInput := input
+			createInput.StorageKey = key
+			record, err := h.store.Create(ctx, userID, createInput)
+			if err != nil {
+				if deleter, ok := h.storage.(service.ImageAssetDeleter); ok {
+					_ = deleter.Delete(context.WithoutCancel(ctx), key)
+				}
+				return nil, infraerrors.InternalServer(
+					"MOBILE_ASSET_CREATE_FAILED",
+					"创建素材失败",
+				).WithCause(err)
+			}
+			setMobileAssetContentURL(record)
+			return record, nil
+		},
+	)
 }
 
 func (h *MobileAssetHandler) Create(c *gin.Context) {

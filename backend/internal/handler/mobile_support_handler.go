@@ -2,6 +2,8 @@ package handler
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -56,20 +58,29 @@ func (h *MobileSupportHandler) Create(c *gin.Context) {
 		response.BadRequest(c, "工单内容不正确")
 		return
 	}
-	record, err := h.service.CreateMobileFeedback(c.Request.Context(), subject.UserID, service.MobileFeedbackInput{
-		Title: req.Title, Category: req.Category, Content: req.Content,
-		AppVersion: req.AppVersion, Platform: req.Platform, DeviceModel: req.DeviceModel,
-		InstallationID: req.InstallationID, Channel: req.Channel, Referrer: req.Referrer,
-		AndroidVersion: req.AndroidVersion, SystemVersion: req.SystemVersion,
-		GroupName: req.GroupName, GroupID: req.GroupID, BackendURL: req.BackendURL,
-		LastError: req.LastError, CrashLog: req.CrashLog, DeviceInfo: req.DeviceInfo,
-		Screenshots: req.Screenshots,
-	})
+	fingerprint, err := mobileFeedbackCreateFingerprint(c, req)
 	if err != nil {
-		response.ErrorFrom(c, err)
+		response.BadRequest(c, "工单附件不正确")
 		return
 	}
-	response.Created(c, record)
+
+	// Parsing multipart data is intentionally outside the idempotent executor,
+	// but screenshot storage and ticket creation are inside it. A successful
+	// replay therefore returns the original ticket without re-uploading its
+	// screenshots or creating another feedback record.
+	executeUserIdempotentCreated(
+		c,
+		mobileUserIdempotencyScope(c, "mobile.support.ticket.create"),
+		fingerprint,
+		service.DefaultWriteIdempotencyTTL(),
+		func(ctx context.Context) (any, error) {
+			request := req
+			if err := h.populateScreenshots(c, &request); err != nil {
+				return nil, err
+			}
+			return h.service.CreateMobileFeedback(ctx, subject.UserID, mobileFeedbackInput(request))
+		},
+	)
 }
 
 type MobileSupportHandler struct {
@@ -88,7 +99,7 @@ func NewMobileSupportHandler(svc mobileSupportService, feedbackAssetService ...*
 func (h *MobileSupportHandler) parseCreateRequest(c *gin.Context) (mobileSupportCreateRequest, error) {
 	contentType := strings.ToLower(c.GetHeader("Content-Type"))
 	if strings.Contains(contentType, "multipart/form-data") {
-		return h.parseMultipartCreateRequest(c)
+		return parseMobileFeedbackMultipartCreateRequest(c)
 	}
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32<<10)
 	var req mobileSupportCreateRequest
@@ -98,7 +109,10 @@ func (h *MobileSupportHandler) parseCreateRequest(c *gin.Context) (mobileSupport
 	return req, nil
 }
 
-func (h *MobileSupportHandler) parseMultipartCreateRequest(c *gin.Context) (mobileSupportCreateRequest, error) {
+// parseMobileFeedbackMultipartCreateRequest is shared by the canonical support
+// route and its legacy fallback. Keeping field parsing identical means a
+// fallback cannot silently alter ticket content or the idempotency fingerprint.
+func parseMobileFeedbackMultipartCreateRequest(c *gin.Context) (mobileSupportCreateRequest, error) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, mobileFeedbackMaxRequestBytes)
 	var req mobileSupportCreateRequest
 	if err := c.Request.ParseMultipartForm(mobileFeedbackMaxRequestBytes); err != nil {
@@ -122,7 +136,10 @@ func (h *MobileSupportHandler) parseMultipartCreateRequest(c *gin.Context) (mobi
 	if raw := strings.TrimSpace(c.PostForm("group_id")); raw != "" {
 		parsed, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil || parsed <= 0 {
-			return req, err
+			if err != nil {
+				return req, err
+			}
+			return req, errors.New("group id must be positive")
 		}
 		req.GroupID = &parsed
 	}
@@ -131,16 +148,100 @@ func (h *MobileSupportHandler) parseMultipartCreateRequest(c *gin.Context) (mobi
 			return req, err
 		}
 	}
+	return req, nil
+}
+
+func mobileFeedbackInput(req mobileSupportCreateRequest) service.MobileFeedbackInput {
+	return service.MobileFeedbackInput{
+		Title: req.Title, Category: req.Category, Content: req.Content,
+		AppVersion: req.AppVersion, Platform: req.Platform, DeviceModel: req.DeviceModel,
+		InstallationID: req.InstallationID, Channel: req.Channel, Referrer: req.Referrer,
+		AndroidVersion: req.AndroidVersion, SystemVersion: req.SystemVersion,
+		GroupName: req.GroupName, GroupID: req.GroupID, BackendURL: req.BackendURL,
+		LastError: req.LastError, CrashLog: req.CrashLog, DeviceInfo: req.DeviceInfo,
+		Screenshots: req.Screenshots,
+	}
+}
+
+type mobileFeedbackCreateIdempotencyFingerprint struct {
+	RequestSHA256 string                                       `json:"request_sha256"`
+	Screenshots   []mobileFeedbackScreenshotIdempotencySummary `json:"screenshots"`
+}
+
+type mobileFeedbackScreenshotIdempotencySummary struct {
+	FileName    string `json:"file_name"`
+	ContentType string `json:"content_type"`
+	ByteSize    int64  `json:"byte_size"`
+	SHA256      string `json:"sha256"`
+}
+
+// mobileFeedbackCreateFingerprint includes the stable form/JSON fields plus
+// digests of multipart screenshots. It deliberately hashes the bytes before
+// the executor so a successful replay can skip object storage entirely.
+func mobileFeedbackCreateFingerprint(c *gin.Context, payload any) (mobileFeedbackCreateIdempotencyFingerprint, error) {
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		return mobileFeedbackCreateIdempotencyFingerprint{}, err
+	}
+	requestDigest := sha256.Sum256(raw)
+	fingerprint := mobileFeedbackCreateIdempotencyFingerprint{
+		RequestSHA256: hex.EncodeToString(requestDigest[:]),
+		Screenshots:   make([]mobileFeedbackScreenshotIdempotencySummary, 0),
+	}
+	if c == nil || c.Request == nil || c.Request.MultipartForm == nil {
+		return fingerprint, nil
+	}
+	files := c.Request.MultipartForm.File["screenshots"]
+	if len(files) > mobileFeedbackMaxScreenshots {
+		return mobileFeedbackCreateIdempotencyFingerprint{}, errors.New("too many screenshots")
+	}
+	for _, header := range files {
+		if header == nil {
+			continue
+		}
+		if header.Size > mobileFeedbackMaxFileBytes {
+			return mobileFeedbackCreateIdempotencyFingerprint{}, service.ErrAnnouncementAssetTooLarge
+		}
+		file, err := header.Open()
+		if err != nil {
+			return mobileFeedbackCreateIdempotencyFingerprint{}, err
+		}
+		data, readErr := io.ReadAll(io.LimitReader(file, mobileFeedbackMaxFileBytes+1))
+		closeErr := file.Close()
+		if readErr != nil {
+			return mobileFeedbackCreateIdempotencyFingerprint{}, readErr
+		}
+		if closeErr != nil {
+			return mobileFeedbackCreateIdempotencyFingerprint{}, closeErr
+		}
+		if int64(len(data)) > mobileFeedbackMaxFileBytes {
+			return mobileFeedbackCreateIdempotencyFingerprint{}, service.ErrAnnouncementAssetTooLarge
+		}
+		digest := sha256.Sum256(data)
+		fingerprint.Screenshots = append(fingerprint.Screenshots, mobileFeedbackScreenshotIdempotencySummary{
+			FileName:    header.Filename,
+			ContentType: header.Header.Get("Content-Type"),
+			ByteSize:    int64(len(data)),
+			SHA256:      hex.EncodeToString(digest[:]),
+		})
+	}
+	return fingerprint, nil
+}
+
+func (h *MobileSupportHandler) populateScreenshots(c *gin.Context, req *mobileSupportCreateRequest) error {
+	if req == nil {
+		return errors.New("support request is required")
+	}
 	screenshots, err := h.uploadScreenshots(c)
 	if err != nil {
 		if errors.Is(err, service.ErrAnnouncementAssetStorageUnavailable) {
 			req.LastError = strings.TrimSpace(strings.Join([]string{req.LastError, "截图上传失败：反馈附件存储暂不可用"}, "；"))
-			return req, nil
+			return nil
 		}
-		return req, err
+		return err
 	}
 	req.Screenshots = screenshots
-	return req, nil
+	return nil
 }
 
 func (h *MobileSupportHandler) uploadScreenshots(c *gin.Context) ([]service.MobileFeedbackScreenshot, error) {

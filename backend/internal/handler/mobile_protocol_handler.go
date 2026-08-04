@@ -64,7 +64,7 @@ func mobileProtocolPayload(authenticated bool, userID int64, role string) mobile
 		Capabilities: mobileProtocolCapabilities{
 			Admin:           adminCapabilities,
 			Search:          searchCapability,
-			OperationGrants: mobileProtocolOperationGrants(authenticated, isAdmin),
+			OperationGrants: mobileProtocolOperationGrants(authenticated, isAdmin, searchCapability.Configured),
 		},
 		Lifecycle: mobileProtocolLifecycleMetadata(),
 		TaskKinds: []string{

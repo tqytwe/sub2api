@@ -854,6 +854,18 @@ func collectNextChatModelNames(models []NextChatWorkspaceModel) []string {
 	return names
 }
 
+func TestBuildNextChatWorkspaceModelPublishesServerImageCapabilities(t *testing.T) {
+	editModel := buildNextChatWorkspaceModel(PlatformOpenAI, "gpt-image-1", nextChatWorkspaceModelMeta{})
+	require.NotNil(t, editModel.ImageCapabilities)
+	require.Contains(t, editModel.ImageCapabilities.Operations, "edit")
+	require.Greater(t, editModel.ImageCapabilities.MaxReferenceImages, 0)
+
+	privateModel := buildNextChatWorkspaceModel(PlatformOpenAI, "agnes-image-2.1-flash", nextChatWorkspaceModelMeta{})
+	require.NotNil(t, privateModel.ImageCapabilities)
+	require.NotContains(t, privateModel.ImageCapabilities.Operations, "edit")
+	require.Zero(t, privateModel.ImageCapabilities.MaxReferenceImages)
+}
+
 func filterNextChatAPIKeyRepoKeys(userID int64, keys []APIKey, filters APIKeyListFilters) []APIKey {
 	result := make([]APIKey, 0, len(keys))
 	search := strings.ToLower(filters.Search)

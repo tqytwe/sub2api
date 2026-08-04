@@ -43,7 +43,7 @@
 - `DELETE /api/v1/mobile/tasks/:id`
 - `POST /api/v1/mobile/tasks/:id/cancel`
 - `POST /api/v1/mobile/tasks/:id/retry`
-- `POST /api/v1/mobile/tasks/:id/status`
+- `POST /api/v1/mobile/tasks/:id/status`（observe：仅兼容旧客户端，新客户端不得写入）
 
 任务类型统一为 `chat`、`image`、`file`。状态统一为 `queued`、`running`、`streaming`、`completed`、`partial`、`failed`、`cancelled`。
 
@@ -90,11 +90,22 @@
 
 ## P1 后端支撑
 
-- 素材库继续使用 `/api/v1/mobile/assets`，系统分享文件由 APP 上传后生成 asset 记录。
+### 服务端联网搜索
+
+- `POST /api/v1/mobile/web-search` 是唯一 canonical 移动端联网搜索接口。
+- 只有同时配置 `MOBILE_WEB_SEARCH_ENABLED=1`（也接受 `true`、`yes`、`on`）和
+  `EXA_API_KEY` 时才启用；密钥只从服务端 secret manager 读取，禁止进入 APP
+  或协议响应。
+- 请求必须带 JWT 和显式 `opt_in=true`；响应包含 `request_id`、来源 URL、摘要和
+  `page_age`。上游超时返回 504，上游 HTTP/连接错误返回 502，不把它们伪装成
+  本地网络失败。
+
+- 素材库继续使用 `/api/v1/mobile/assets`，系统分享文件由 APP 上传后生成 asset 记录；
+  新客户端携带 `Idempotency-Key` 后按账号和文件摘要回放原素材，不重复保存文件。
 - 技能中心继续使用 `/api/v1/mobile/skills`，后续服务端技能数据必须区分 `skill` 和 `agent`：
   - `agent` 是智能体角色、人格、专业背景。
   - `skill` 是可被智能体调用的能力、模板、步骤、输入要求和消耗说明。
-- 客服工单继续使用 `/api/v1/mobile/support/tickets`，诊断信息走 `/api/v1/mobile/diagnostics`，不得上传聊天全文、access token、API key。
+- 客服工单继续使用 `/api/v1/mobile/support/tickets`，诊断信息走 `/api/v1/mobile/diagnostics`，不得上传聊天全文、access token、API key；同一幂等键的 multipart 重试回放原工单，不重复上传截图。仅当 canonical 路由不存在时，APP 才可回退 `/api/v1/play/mobile-feedback` 并复用同一幂等键；legacy 路由也会回放原工单，但不因此获得任何新业务能力。
 
 ## P2 稳定性支撑
 

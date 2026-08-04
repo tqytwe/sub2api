@@ -9,6 +9,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -19,15 +20,17 @@ import (
 )
 
 type mobileSupportHandlerServiceStub struct {
-	listFilter service.MobileFeedbackListFilter
-	userID     int64
-	ticketID   int64
-	content    string
-	create     service.MobileFeedbackInput
+	listFilter  service.MobileFeedbackListFilter
+	userID      int64
+	ticketID    int64
+	content     string
+	create      service.MobileFeedbackInput
+	createCount int
 }
 
 func (s *mobileSupportHandlerServiceStub) CreateMobileFeedback(_ context.Context, userID int64, input service.MobileFeedbackInput) (*service.MobileFeedbackRecord, error) {
 	s.userID, s.content, s.create = userID, input.Content, input
+	s.createCount++
 	return &service.MobileFeedbackRecord{ID: 1, UserID: userID, Title: input.Title, Content: input.Content}, nil
 }
 
@@ -150,6 +153,123 @@ func TestMobileSupportHandlerCreateAcceptsMultipartWithoutAssetStorage(t *testin
 	require.Empty(t, svc.create.Screenshots)
 }
 
+func TestParseMobileFeedbackMultipartCreateRequestRejectsNonPositiveGroupID(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	require.NoError(t, writer.WriteField("title", "invalid group"))
+	require.NoError(t, writer.WriteField("content", "the group ID must be positive"))
+	require.NoError(t, writer.WriteField("group_id", "0"))
+	require.NoError(t, writer.Close())
+
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Request = httptest.NewRequest(http.MethodPost, "/support", &body)
+	context.Request.Header.Set("Content-Type", writer.FormDataContentType())
+
+	_, err := parseMobileFeedbackMultipartCreateRequest(context)
+	require.Error(t, err)
+}
+
+func TestMobileSupportHandlerCreateReplaysMultipartWithoutUploadingScreenshotsAgain(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(
+		newMobileReplayIdempotencyRepo(),
+		service.DefaultIdempotencyConfig(),
+	))
+	t.Cleanup(func() {
+		service.SetDefaultIdempotencyCoordinator(previous)
+	})
+
+	svc := &mobileSupportHandlerServiceStub{}
+	storage := &fakeMobileAssetStorage{}
+	assetService := service.NewAnnouncementAssetServiceWithResolver(func() (*service.ImageResultUploader, bool) {
+		return service.NewImageResultUploader(storage, "", 0, nil), true
+	})
+	router := newMobileSupportHandlerTestRouter(svc, assetService)
+
+	perform := func() *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		require.NoError(t, writer.WriteField("title", "重复提交反馈"))
+		require.NoError(t, writer.WriteField("category", "bug"))
+		require.NoError(t, writer.WriteField("content", "网络恢复后不应重复创建工单"))
+		part, err := writer.CreateFormFile("screenshots", "retry.png")
+		require.NoError(t, err)
+		_, err = part.Write(append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 512)...))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/support", &body)
+		req.Header.Set("Authorization", "Bearer valid")
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Idempotency-Key", "support-ticket-replay-1")
+		req.Header.Set(middleware.ClientRequestIDHeader, "support-ticket-request-1")
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	first := perform()
+	second := perform()
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.Equal(t, http.StatusCreated, second.Code)
+	require.Equal(t, "true", second.Header().Get("X-Idempotency-Replayed"))
+	require.Equal(t, "support-ticket-request-1", second.Header().Get(middleware.ClientRequestIDHeader))
+	require.Equal(t, 1, svc.createCount)
+	require.Equal(t, 1, storage.saveCount)
+	require.Len(t, svc.create.Screenshots, 1)
+}
+
+func TestMobileSupportHandlerScopesSameIdempotencyKeyByAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(
+		newMobileReplayIdempotencyRepo(),
+		service.DefaultIdempotencyConfig(),
+	))
+	t.Cleanup(func() {
+		service.SetDefaultIdempotencyCoordinator(previous)
+	})
+
+	svc := &mobileSupportHandlerServiceStub{}
+	storage := &fakeMobileAssetStorage{}
+	assetService := service.NewAnnouncementAssetServiceWithResolver(func() (*service.ImageResultUploader, bool) {
+		return service.NewImageResultUploader(storage, "", 0, nil), true
+	})
+	router := newMobileSupportHandlerTestRouter(svc, assetService)
+
+	perform := func(userID int64) *httptest.ResponseRecorder {
+		var body bytes.Buffer
+		writer := multipart.NewWriter(&body)
+		require.NoError(t, writer.WriteField("title", "跨账号反馈"))
+		require.NoError(t, writer.WriteField("category", "bug"))
+		require.NoError(t, writer.WriteField("content", "相同客户端幂等键不能跨账号复用"))
+		part, err := writer.CreateFormFile("screenshots", "account-scope.png")
+		require.NoError(t, err)
+		_, err = part.Write(append([]byte("\x89PNG\r\n\x1a\n"), make([]byte, 512)...))
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+
+		recorder := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/support", &body)
+		req.Header.Set("Authorization", "Bearer user-"+strconv.FormatInt(userID, 10))
+		req.Header.Set("Content-Type", writer.FormDataContentType())
+		req.Header.Set("Idempotency-Key", "shared-support-key-1")
+		router.ServeHTTP(recorder, req)
+		return recorder
+	}
+
+	first := perform(42)
+	second := perform(43)
+	require.Equal(t, http.StatusCreated, first.Code)
+	require.Equal(t, http.StatusCreated, second.Code)
+	require.Empty(t, second.Header().Get("X-Idempotency-Replayed"))
+	require.Equal(t, 2, svc.createCount)
+	require.Equal(t, 2, storage.saveCount)
+}
+
 func TestMobileSupportHandlerRequiresAuthenticationAndValidID(t *testing.T) {
 	svc := &mobileSupportHandlerServiceStub{}
 	router := newMobileSupportHandlerTestRouter(svc)
@@ -167,17 +287,25 @@ func TestMobileSupportHandlerRequiresAuthenticationAndValidID(t *testing.T) {
 	require.Contains(t, badID.Body.String(), "工单编号不正确")
 }
 
-func newMobileSupportHandlerTestRouter(svc mobileSupportService) *gin.Engine {
+func newMobileSupportHandlerTestRouter(svc mobileSupportService, assets ...*service.AnnouncementAssetService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
 	router.Use(func(c *gin.Context) {
-		if c.GetHeader("Authorization") == "Bearer valid" {
-			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 42})
+		authorization := c.GetHeader("Authorization")
+		userID := int64(42)
+		if strings.HasPrefix(authorization, "Bearer user-") {
+			if parsed, err := strconv.ParseInt(strings.TrimPrefix(authorization, "Bearer user-"), 10, 64); err == nil && parsed > 0 {
+				userID = parsed
+				authorization = "Bearer valid"
+			}
+		}
+		if authorization == "Bearer valid" {
+			c.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: userID})
 		}
 		c.Next()
 	})
-	h := NewMobileSupportHandler(svc)
-	router.POST("/support", h.Create)
+	h := NewMobileSupportHandler(svc, assets...)
+	router.POST("/support", middleware.ClientRequestID(), h.Create)
 	router.GET("/support", h.List)
 	router.GET("/support/:id", h.Detail)
 	router.POST("/support/:id/messages", h.AddMessage)

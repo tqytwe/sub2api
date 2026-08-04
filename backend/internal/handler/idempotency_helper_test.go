@@ -210,6 +210,20 @@ func TestExecuteUserIdempotentJSONFallbackWithoutCoordinator(t *testing.T) {
 	require.Equal(t, 1, executed)
 }
 
+func TestMobileUserIdempotencyScopeIsolatedByAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	recorder := httptest.NewRecorder()
+	context, _ := gin.CreateTestContext(recorder)
+	context.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 77})
+
+	require.Equal(t, "mobile.asset.upload.user.77", mobileUserIdempotencyScope(context, "mobile.asset.upload"))
+	noSubjectRecorder := httptest.NewRecorder()
+	noSubjectContext, _ := gin.CreateTestContext(noSubjectRecorder)
+	require.Equal(t, "mobile.asset.upload", mobileUserIdempotencyScope(noSubjectContext, "mobile.asset.upload"))
+	context.Set(string(middleware.ContextKeyUser), middleware.AuthSubject{UserID: 0})
+	require.Equal(t, "mobile.asset.upload", mobileUserIdempotencyScope(context, "mobile.asset.upload"))
+}
+
 func TestExecuteUserIdempotentJSONFailCloseOnStoreUnavailable(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(userStoreUnavailableRepoStub{}, service.DefaultIdempotencyConfig()))

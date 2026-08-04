@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 )
@@ -14,7 +15,7 @@ import (
 // existing behavior.
 const (
 	mobileProtocolVersion                  = 2
-	mobileProtocolContractVersion          = "2026-08-04.1"
+	mobileProtocolContractVersion          = "2026-08-04.3"
 	mobileProtocolLifecycleRegistryVersion = 1
 
 	mobileProtocolLifecycleCanonical = "canonical"
@@ -26,6 +27,7 @@ const (
 	mobileOperationAccountSummaryRead      = "mobile.account.summary.read"
 	mobileOperationTaskSubmit              = "mobile.task.submit"
 	mobileOperationAssetUpload             = "mobile.asset.upload"
+	mobileOperationSupportTicketCreate     = "mobile.support.ticket.create"
 	mobileOperationTaskClientStatusObserve = "mobile.task.client_status.observe"
 	mobileOperationTeamApplicationCreate   = "play.team.application.create"
 	mobileOperationTeamApplicationDecide   = "play.team.application.decide"
@@ -58,10 +60,9 @@ type mobileProtocolOperationGrant struct {
 	IdempotencyMode       string   `json:"idempotency_mode,omitempty"`
 }
 
-// mobileProtocolSearchCapability deliberately describes the tool contract,
-// not a claim that every chat route has already executed it. The first mobile
-// release remains observe-only until the managed chat tool path is wired.
-// No API key or provider fallback is ever included in this payload.
+// mobileProtocolSearchCapability describes the one canonical mobile search
+// route. Configuration is server-only; no API key or provider fallback is ever
+// included in this payload.
 type mobileProtocolSearchCapability struct {
 	Configured             bool     `json:"configured"`
 	Provider               string   `json:"provider,omitempty"`
@@ -69,6 +70,9 @@ type mobileProtocolSearchCapability struct {
 	DefaultEnabled         bool     `json:"default_enabled"`
 	UserOptInRequired      bool     `json:"user_opt_in_required"`
 	ResultFields           []string `json:"result_fields"`
+	MaxQueryRunes          int      `json:"max_query_runes"`
+	MaxResults             int      `json:"max_results"`
+	TimeoutMS              int      `json:"timeout_ms"`
 	ClientRequestIDHeader  string   `json:"client_request_id_header"`
 	ResponseRequestIDField string   `json:"response_request_id_field"`
 }
@@ -117,7 +121,7 @@ func mobileProtocolLifecycleMetadata() mobileProtocolLifecycle {
 	return mobileProtocolLifecycle{
 		RegistryVersion:       mobileProtocolLifecycleRegistryVersion,
 		ContractVersion:       mobileProtocolContractVersion,
-		States:                []string{mobileProtocolLifecycleCanonical, mobileProtocolLifecycleLegacy, mobileProtocolLifecycleObserve},
+		States:                []string{mobileProtocolLifecycleCanonical, mobileProtocolLifecycleLegacy, mobileProtocolLifecycleObserve, mobileProtocolLifecycleDisabled},
 		ClientRequestIDHeader: middleware2.ClientRequestIDHeader,
 		IdempotencyHeader:     "Idempotency-Key",
 		MissingKeyPolicy:      "observe_only_until_server_enforcement_is_enabled",
@@ -125,7 +129,7 @@ func mobileProtocolLifecycleMetadata() mobileProtocolLifecycle {
 }
 
 func mobileProtocolSearchCapabilityFromEnvironment() mobileProtocolSearchCapability {
-	enabled := strings.EqualFold(strings.TrimSpace(os.Getenv("MOBILE_WEB_SEARCH_ENABLED")), "true")
+	enabled := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED"))
 	hasExaKey := strings.TrimSpace(os.Getenv("EXA_API_KEY")) != ""
 
 	capability := mobileProtocolSearchCapability{
@@ -133,20 +137,27 @@ func mobileProtocolSearchCapabilityFromEnvironment() mobileProtocolSearchCapabil
 		ExecutionState:         mobileProtocolLifecycleDisabled,
 		DefaultEnabled:         false,
 		UserOptInRequired:      true,
-		ResultFields:           []string{"title", "url"},
+		ResultFields:           []string{"title", "url", "snippet", "page_age"},
+		MaxQueryRunes:          mobileWebSearchMaxQueryRunes,
+		MaxResults:             mobileWebSearchMaxResults,
+		TimeoutMS:              int(mobileWebSearchTimeout / time.Millisecond),
 		ClientRequestIDHeader:  middleware2.ClientRequestIDHeader,
 		ResponseRequestIDField: "request_id",
 	}
 	if capability.Configured {
 		capability.Provider = "exa"
-		capability.ExecutionState = mobileProtocolLifecycleObserve
+		capability.ExecutionState = mobileProtocolLifecycleCanonical
 	}
 	return capability
 }
 
-func mobileProtocolOperationGrants(authenticated, isAdmin bool) []mobileProtocolOperationGrant {
+func mobileProtocolOperationGrants(authenticated, isAdmin, searchConfigured bool) []mobileProtocolOperationGrant {
 	requestID := middleware2.ClientRequestIDHeader
 	idempotency := "Idempotency-Key"
+	searchLifecycle := mobileProtocolLifecycleDisabled
+	if searchConfigured {
+		searchLifecycle = mobileProtocolLifecycleCanonical
+	}
 	grants := []mobileProtocolOperationGrant{
 		{
 			ID:            mobileOperationSessionStatusRead,
@@ -171,11 +182,24 @@ func mobileProtocolOperationGrants(authenticated, isAdmin bool) []mobileProtocol
 			IdempotencyMode: "client_request_id_body",
 		},
 		{
-			ID:            mobileOperationAssetUpload,
-			Granted:       authenticated,
-			Lifecycle:     mobileProtocolLifecycleCanonical,
-			RiskLevel:     "medium",
-			Authorization: []string{"authenticated", "file_policy"},
+			ID:                    mobileOperationAssetUpload,
+			Granted:               authenticated,
+			Lifecycle:             mobileProtocolLifecycleCanonical,
+			RiskLevel:             "medium",
+			Authorization:         []string{"authenticated", "file_policy"},
+			ClientRequestIDHeader: requestID,
+			IdempotencyHeader:     idempotency,
+			IdempotencyMode:       "observe_only",
+		},
+		{
+			ID:                    mobileOperationSupportTicketCreate,
+			Granted:               authenticated,
+			Lifecycle:             mobileProtocolLifecycleCanonical,
+			RiskLevel:             "medium",
+			Authorization:         []string{"authenticated", "support_content_policy"},
+			ClientRequestIDHeader: requestID,
+			IdempotencyHeader:     idempotency,
+			IdempotencyMode:       "observe_only",
 		},
 		{
 			ID:            mobileOperationTaskClientStatusObserve,
@@ -190,10 +214,10 @@ func mobileProtocolOperationGrants(authenticated, isAdmin bool) []mobileProtocol
 		teamOperationGrant(mobileOperationTeamRecruitingUpdate, authenticated, "medium", []string{"authenticated", "team_captain"}),
 		{
 			ID:            mobileOperationSearchWeb,
-			Granted:       false,
-			Lifecycle:     mobileProtocolLifecycleObserve,
+			Granted:       authenticated && searchConfigured,
+			Lifecycle:     searchLifecycle,
 			RiskLevel:     "medium",
-			Authorization: []string{"configured_server_tool", "explicit_user_opt_in", "managed_chat_tool_path"},
+			Authorization: []string{"configured_server_tool", "explicit_user_opt_in", "authenticated_mobile_route"},
 		},
 		{
 			ID:            mobileOperationAdminConsoleRead,
@@ -273,7 +297,7 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/image-history", canonical, "生图任务历史语义化包装"),
 		mobileEndpoint(http.MethodDelete, "/api/v1/mobile/image-history/:id", canonical, "删除生图历史"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/image-history/:id/retry", canonical, "重试生图历史任务"),
-		mobileEndpoint(http.MethodPost, "/api/v1/mobile/assets", canonical, "上传系统分享、图片、PDF、语音和文件素材"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/assets", mobileOperationAssetUpload, "medium", "上传系统分享、图片、PDF、语音和文件素材"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets", canonical, "素材库列表"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets/:id", canonical, "读取单个素材元数据"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets/:id/content", canonical, "读取素材内容"),
@@ -284,10 +308,26 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/skills/:slug/use", canonical, "启用技能并记录最近使用"),
 		mobileEndpoint(http.MethodDelete, "/api/v1/mobile/skills/:slug/install", canonical, "卸载技能"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/support/tickets", canonical, "读取 APP 反馈和客服工单"),
-		mobileEndpoint(http.MethodPost, "/api/v1/mobile/support/tickets", canonical, "APP 反馈和客服工单提交"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/support/tickets", mobileOperationSupportTicketCreate, "medium", "APP 反馈和客服工单提交"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/support/tickets/:id", canonical, "读取工单详情"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/support/tickets/:id/messages", canonical, "追加工单消息"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/support/tickets/:id/close", canonical, "关闭工单"),
+		{
+			Method:      http.MethodPost,
+			Path:        "/api/v1/mobile/web-search",
+			Status:      canonical,
+			Description: "用户明确确认后执行服务端 Exa 联网搜索",
+			OperationID: mobileOperationSearchWeb,
+			RiskLevel:   "medium",
+			Lifecycle: mobileProtocolEndpointLifecycle{
+				State:                  canonical,
+				DeclaredInContract:     mobileProtocolContractVersion,
+				NewCapabilitiesAllowed: true,
+			},
+			Request: &mobileProtocolEndpointRequest{
+				ClientRequestIDHeader: middleware2.ClientRequestIDHeader,
+			},
+		},
 		mobileEndpoint(http.MethodPatch, "/api/v1/admin/play/mobile-feedback/:id", canonical, "玩法运营统一维护 APP 反馈、客服备注和需求项"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/diagnostics", canonical, "脱敏移动端网络和崩溃诊断"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/attribution/events", canonical, "记录脱敏安装和归因事件"),
@@ -355,7 +395,7 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 			Method:      http.MethodPost,
 			Path:        "/api/v1/play/mobile-feedback",
 			Status:      legacy,
-			Description: "旧 APP 反馈兼容提交",
+			Description: "旧 APP 反馈兼容提交；canonical 不存在时可复用原幂等键安全降级",
 			Replacement: "/api/v1/mobile/support/tickets",
 			RemoveAfter: "2026-09-30",
 			Lifecycle: mobileProtocolEndpointLifecycle{
@@ -387,6 +427,18 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 }
 
 func teamEndpoint(method, path, operationID, riskLevel, description string) mobileProtocolEndpoint {
+	endpoint := mobileEndpoint(method, path, mobileProtocolLifecycleCanonical, description)
+	endpoint.OperationID = operationID
+	endpoint.RiskLevel = riskLevel
+	endpoint.Request = &mobileProtocolEndpointRequest{
+		ClientRequestIDHeader: middleware2.ClientRequestIDHeader,
+		IdempotencyHeader:     "Idempotency-Key",
+		IdempotencyMode:       "observe_only",
+	}
+	return endpoint
+}
+
+func idempotentMobileEndpoint(method, path, operationID, riskLevel, description string) mobileProtocolEndpoint {
 	endpoint := mobileEndpoint(method, path, mobileProtocolLifecycleCanonical, description)
 	endpoint.OperationID = operationID
 	endpoint.RiskLevel = riskLevel

@@ -58,10 +58,34 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	}
 	assertStringSliceContains(t, envelope.Data.TaskStatuses, "streaming")
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodGet, "/api/v1/mobile/account-summary", "canonical")
+	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/mobile/web-search", "canonical")
+	for _, endpoint := range envelope.Data.Endpoints {
+		if endpoint.Method == http.MethodPost && endpoint.Path == "/api/v1/mobile/web-search" {
+			if endpoint.OperationID != mobileOperationSearchWeb {
+				t.Fatalf("web search operation id = %q, want %q", endpoint.OperationID, mobileOperationSearchWeb)
+			}
+			if endpoint.Request == nil || endpoint.Request.ClientRequestIDHeader != middleware2.ClientRequestIDHeader {
+				t.Fatalf("web search endpoint must advertise client request ID header: %#v", endpoint.Request)
+			}
+		}
+		if endpoint.Method == http.MethodPost && (endpoint.Path == "/api/v1/mobile/assets" || endpoint.Path == "/api/v1/mobile/support/tickets") {
+			if endpoint.Request == nil || endpoint.Request.ClientRequestIDHeader != middleware2.ClientRequestIDHeader || endpoint.Request.IdempotencyHeader != "Idempotency-Key" || endpoint.Request.IdempotencyMode != "observe_only" {
+				t.Fatalf("idempotent mobile create endpoint contract is incomplete: %#v", endpoint)
+			}
+		}
+	}
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/play/mobile-feedback", "legacy")
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/mobile/tasks/:id/status", "observe")
 	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationTeamApplicationCreate, false, mobileProtocolLifecycleCanonical)
-	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationSearchWeb, false, mobileProtocolLifecycleObserve)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationSearchWeb, false, mobileProtocolLifecycleDisabled)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAssetUpload, false, mobileProtocolLifecycleCanonical)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationSupportTicketCreate, false, mobileProtocolLifecycleCanonical)
+	for _, operation := range []string{mobileOperationAssetUpload, mobileOperationSupportTicketCreate} {
+		grant := findOperationGrant(t, envelope.Data.Capabilities.OperationGrants, operation)
+		if grant.ClientRequestIDHeader != middleware2.ClientRequestIDHeader || grant.IdempotencyHeader != "Idempotency-Key" || grant.IdempotencyMode != "observe_only" {
+			t.Fatalf("operation %q idempotency contract is incomplete: %#v", operation, grant)
+		}
+	}
 	taskGrant := findOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationTaskSubmit)
 	if taskGrant.IdempotencyMode != "client_request_id_body" {
 		t.Fatalf("task submit idempotency mode = %q", taskGrant.IdempotencyMode)
@@ -86,7 +110,7 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	}
 }
 
-func TestMobileProtocolSearchContractIsEnvironmentOnlyAndObserveUntilToolExecutionExists(t *testing.T) {
+func TestMobileProtocolSearchContractIsEnvironmentOnlyAndCanonicalWhenConfigured(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	t.Setenv("MOBILE_WEB_SEARCH_ENABLED", "true")
 	t.Setenv("EXA_API_KEY", "test-exa-key")
@@ -99,14 +123,17 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndObserveUntilToolExecuti
 	if search.Provider != "exa" {
 		t.Fatalf("search provider = %q, want exa", search.Provider)
 	}
-	if search.ExecutionState != mobileProtocolLifecycleObserve {
-		t.Fatalf("search execution_state = %q, want observe", search.ExecutionState)
+	if search.ExecutionState != mobileProtocolLifecycleCanonical {
+		t.Fatalf("search execution_state = %q, want canonical", search.ExecutionState)
 	}
 	if search.DefaultEnabled || !search.UserOptInRequired {
 		t.Fatalf("unexpected opt-in policy: default_enabled=%v user_opt_in_required=%v", search.DefaultEnabled, search.UserOptInRequired)
 	}
 	assertStringSliceContains(t, search.ResultFields, "title")
 	assertStringSliceContains(t, search.ResultFields, "url")
+	if search.MaxQueryRunes != mobileWebSearchMaxQueryRunes || search.MaxResults != mobileWebSearchMaxResults || search.TimeoutMS <= 0 {
+		t.Fatalf("unexpected search limits: query=%d results=%d timeout=%d", search.MaxQueryRunes, search.MaxResults, search.TimeoutMS)
+	}
 	if search.ClientRequestIDHeader != "X-Client-Request-ID" {
 		t.Fatalf("search client request ID header = %q", search.ClientRequestIDHeader)
 	}
@@ -123,7 +150,7 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndObserveUntilToolExecuti
 	if strings.Contains(strings.ToLower(string(serialized)), "duckduckgo") {
 		t.Fatal("protocol payload must not claim an unconfigured DuckDuckGo fallback")
 	}
-	assertOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb, false, mobileProtocolLifecycleObserve)
+	assertOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb, true, mobileProtocolLifecycleCanonical)
 }
 
 func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
