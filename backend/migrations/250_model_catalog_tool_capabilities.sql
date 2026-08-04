@@ -1,4 +1,4 @@
--- 247_model_catalog_tool_capabilities.sql
+-- 250_model_catalog_tool_capabilities.sql
 --
 -- A nullable JSON object keeps an explicit false distinct from an older
 -- catalog row that has never been reviewed for mobile tool use. Capability
