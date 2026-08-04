@@ -93,9 +93,10 @@
 ### 服务端联网搜索
 
 - `POST /api/v1/mobile/web-search` 是唯一 canonical 移动端联网搜索接口。
-- 只有同时配置 `MOBILE_WEB_SEARCH_ENABLED=1`（也接受 `true`、`yes`、`on`）和
-  `EXA_API_KEY` 时才启用；密钥只从服务端 secret manager 读取，禁止进入 APP
-  或协议响应。
+- 设置 `MOBILE_WEB_SEARCH_ENABLED=1`（也接受 `true`、`yes`、`on`）并选择服务端
+  提供商才启用。默认使用 Exa（`EXA_API_KEY` 只从 secret manager 读取）；也可
+  显式设置 `MOBILE_WEB_SEARCH_PROVIDER=duckduckgo` 使用无密钥的公共接口。提供商
+  只在服务端调用，禁止进入 APP 或协议响应。
 - 请求必须带 JWT 和显式 `opt_in=true`；响应包含 `request_id`、来源 URL、摘要和
   `page_age`。上游超时返回 504，上游 HTTP/连接错误返回 502，不把它们伪装成
   本地网络失败。

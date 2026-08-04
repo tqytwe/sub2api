@@ -36,13 +36,20 @@ const (
 	mobileOperationSearchWeb               = "mobile.search.web"
 	mobileOperationAdminConsoleRead        = "admin.console.read"
 	mobileOperationAdminStepUpWrite        = "admin.step_up.write"
+	mobileOperationAdminRefundApprove      = "admin.funds.refund.approve"
+	mobileOperationAdminRefundReject       = "admin.funds.refund.reject"
+	mobileOperationAdminRefundMarkPaid     = "admin.funds.refund.mark_paid"
+	mobileOperationAdminWithdrawalApprove  = "admin.funds.withdrawal.approve"
+	mobileOperationAdminWithdrawalReject   = "admin.funds.withdrawal.reject"
+	mobileOperationAdminWithdrawalMarkPaid = "admin.funds.withdrawal.mark_paid"
 )
 
 type mobileProtocolAdminCapabilities struct {
-	Available      bool   `json:"available"`
-	APIBasePath    string `json:"api_base_path,omitempty"`
-	StepUpPath     string `json:"step_up_path,omitempty"`
-	CompliancePath string `json:"compliance_path,omitempty"`
+	Available       bool     `json:"available"`
+	APIBasePath     string   `json:"api_base_path,omitempty"`
+	StepUpPath      string   `json:"step_up_path,omitempty"`
+	CompliancePath  string   `json:"compliance_path,omitempty"`
+	WriteOperations []string `json:"write_operations,omitempty"`
 }
 
 // mobileProtocolOperationGrant is intentionally identifier-based. Mobile
@@ -131,9 +138,11 @@ func mobileProtocolLifecycleMetadata() mobileProtocolLifecycle {
 func mobileProtocolSearchCapabilityFromEnvironment() mobileProtocolSearchCapability {
 	enabled := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED"))
 	hasExaKey := strings.TrimSpace(os.Getenv("EXA_API_KEY")) != ""
+	configuredProvider := strings.ToLower(strings.TrimSpace(os.Getenv("MOBILE_WEB_SEARCH_PROVIDER")))
+	configured := enabled && ((hasExaKey && (configuredProvider == "" || configuredProvider == "exa")) || configuredProvider == "duckduckgo")
 
 	capability := mobileProtocolSearchCapability{
-		Configured:             enabled && hasExaKey,
+		Configured:             configured,
 		ExecutionState:         mobileProtocolLifecycleDisabled,
 		DefaultEnabled:         false,
 		UserOptInRequired:      true,
@@ -145,7 +154,11 @@ func mobileProtocolSearchCapabilityFromEnvironment() mobileProtocolSearchCapabil
 		ResponseRequestIDField: "request_id",
 	}
 	if capability.Configured {
-		capability.Provider = "exa"
+		if configuredProvider == "duckduckgo" && !hasExaKey {
+			capability.Provider = "duckduckgo"
+		} else {
+			capability.Provider = "exa"
+		}
 		capability.ExecutionState = mobileProtocolLifecycleCanonical
 	}
 	return capability
@@ -239,9 +252,28 @@ func mobileProtocolOperationGrants(authenticated, isAdmin, searchConfigured bool
 			IdempotencyHeader:     idempotency,
 			IdempotencyMode:       "route_specific",
 		},
+		adminWriteOperationGrant(mobileOperationAdminRefundApprove, isAdmin),
+		adminWriteOperationGrant(mobileOperationAdminRefundReject, isAdmin),
+		adminWriteOperationGrant(mobileOperationAdminRefundMarkPaid, isAdmin),
+		adminWriteOperationGrant(mobileOperationAdminWithdrawalApprove, isAdmin),
+		adminWriteOperationGrant(mobileOperationAdminWithdrawalReject, isAdmin),
+		adminWriteOperationGrant(mobileOperationAdminWithdrawalMarkPaid, isAdmin),
 	}
 
 	return grants
+}
+
+func adminWriteOperationGrant(id string, granted bool) mobileProtocolOperationGrant {
+	return mobileProtocolOperationGrant{
+		ID:                    id,
+		Granted:               granted,
+		Lifecycle:             mobileProtocolLifecycleCanonical,
+		RiskLevel:             "critical",
+		Authorization:         []string{"role:admin", "totp_step_up", "route_specific_rbac"},
+		ClientRequestIDHeader: middleware2.ClientRequestIDHeader,
+		IdempotencyHeader:     "Idempotency-Key",
+		IdempotencyMode:       "required",
+	}
 }
 
 func teamOperationGrant(id string, granted bool, riskLevel string, authorization []string) mobileProtocolOperationGrant {

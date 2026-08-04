@@ -32,12 +32,13 @@
 
 ### 服务端联网搜索配置
 
-移动端联网搜索只有在服务端同时设置 `MOBILE_WEB_SEARCH_ENABLED=1`（也接受
-`true`、`yes` 或 `on`）和
-`EXA_API_KEY` 时才会下发为 `canonical` capability。`EXA_API_KEY` 只能通过
-生产环境的 secret manager 注入，禁止写入 APP、WebView、数据库或协议响应。
-未配置时协议返回 `execution_state=disabled`，请求统一返回可本地化的
-`MOBILE_WEB_SEARCH_UNAVAILABLE` 错误；不声明或实现 DuckDuckGo 隐式回退。
+移动端联网搜索只有在服务端设置 `MOBILE_WEB_SEARCH_ENABLED=1`（也接受
+`true`、`yes` 或 `on`）并选择一个服务端提供商时才会下发为 `canonical` capability。
+默认提供商是 Exa（需通过生产环境 secret manager 注入 `EXA_API_KEY`）；如不使用
+密钥，可显式设置 `MOBILE_WEB_SEARCH_PROVIDER=duckduckgo` 使用 DuckDuckGo 公共
+Instant Answer 接口。两种提供商都只在服务端调用，禁止把密钥写入 APP、WebView、
+数据库或协议响应。未配置时协议返回 `execution_state=disabled`，请求统一返回可
+本地化的 `MOBILE_WEB_SEARCH_UNAVAILABLE` 错误，不会由客户端隐式切换提供商。
 
 搜索请求还必须携带 `Idempotency-Key`。服务端使用现有幂等记录回放成功结果，
 不会因 Android 传输重试再次调用 Exa 或消耗额度。预算由 Redis 原子固定窗口
