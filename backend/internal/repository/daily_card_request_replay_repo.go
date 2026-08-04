@@ -73,7 +73,7 @@ func (r *dailyCardEntitlementRepository) AdmitRequest(ctx context.Context, input
 			INSERT INTO daily_card_request_replays (
 				entitlement_id, user_id, group_id, client_request_id, settlement_request_id, request_fingerprint,
 				request_path, state, dispatched_at, created_at, updated_at
-			) VALUES ($1, $2, $3, $4, $5, $6, 'forwarding', $7, $7, $7)
+			) VALUES ($1, $2, $3, $4, $5, $6, $7, 'forwarding', $8, $8, $8)
 		`, input.EntitlementID, input.UserID, groupID, input.ClientRequestID, input.SettlementRequestID, input.RequestFingerprint, input.RequestPath, input.AdmittedAt)
 		if err != nil && strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return service.ErrDailyCardRequestPendingConfirmation

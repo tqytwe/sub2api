@@ -265,7 +265,7 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 							AbortWithError(c, http.StatusConflict, code, reserveErr.Error())
 							return
 						}
-						AbortWithError(c, 429, "DAILY_CARD_EXHAUSTED", reserveErr.Error())
+						AbortWithError(c, http.StatusInternalServerError, "DAILY_CARD_REQUEST_ADMISSION_FAILED", reserveErr.Error())
 						return
 					}
 					dailyCardBillingSignal := &DailyCardBillingSignal{}
