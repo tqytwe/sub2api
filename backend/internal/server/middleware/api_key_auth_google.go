@@ -204,7 +204,7 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 						abortWithGoogleError(c, http.StatusConflict, code+": "+reserveErr.Error())
 						return
 					}
-					abortWithGoogleError(c, 429, reserveErr.Error())
+					abortWithGoogleError(c, http.StatusInternalServerError, "DAILY_CARD_REQUEST_ADMISSION_FAILED: "+reserveErr.Error())
 					return
 				}
 				dailyCardBillingSignal := &DailyCardBillingSignal{}
