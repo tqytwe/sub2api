@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"time"
@@ -571,15 +572,12 @@ func (h *PlayHandler) TeamApply(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application request"))
 		return
 	}
-	application, err := h.playService.ApplyToTeam(c.Request.Context(), subject.UserID, service.PlayTeamJoinApplicationInput{
-		TeamID:  req.TeamID,
-		Message: req.Message,
+	executeUserIdempotentJSON(c, mobileOperationTeamApplicationCreate, req, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.playService.ApplyToTeam(ctx, subject.UserID, service.PlayTeamJoinApplicationInput{
+			TeamID:  req.TeamID,
+			Message: req.Message,
+		})
 	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, application)
 }
 
 func (h *PlayHandler) TeamMyApplications(c *gin.Context) {
@@ -647,12 +645,17 @@ func (h *PlayHandler) TeamApplicationDecision(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team join application decision request"))
 		return
 	}
-	application, err := h.playService.DecideTeamJoinApplication(c.Request.Context(), subject.UserID, applicationID, req.Decision, req.Note)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, application)
+	executeUserIdempotentJSON(c, mobileOperationTeamApplicationDecide, struct {
+		ApplicationID int64  `json:"application_id"`
+		Decision      string `json:"decision"`
+		Note          string `json:"note"`
+	}{
+		ApplicationID: applicationID,
+		Decision:      req.Decision,
+		Note:          req.Note,
+	}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.playService.DecideTeamJoinApplication(ctx, subject.UserID, applicationID, req.Decision, req.Note)
+	})
 }
 
 func (h *PlayHandler) TeamInviteRotate(c *gin.Context) {
@@ -661,12 +664,9 @@ func (h *PlayHandler) TeamInviteRotate(c *gin.Context) {
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	invite, err := h.playService.RotateTeamInvite(c.Request.Context(), subject.UserID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, invite)
+	executeUserIdempotentJSON(c, mobileOperationTeamInviteRotate, struct{}{}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		return h.playService.RotateTeamInvite(ctx, subject.UserID)
+	})
 }
 
 func (h *PlayHandler) TeamRecruiting(c *gin.Context) {
@@ -680,11 +680,14 @@ func (h *PlayHandler) TeamRecruiting(c *gin.Context) {
 		response.ErrorFrom(c, infraerrors.BadRequest("INVALID_REQUEST", "invalid team recruiting request"))
 		return
 	}
-	if err := h.playService.SetTeamRecruiting(c.Request.Context(), subject.UserID, *req.Recruiting); err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, map[string]bool{"recruiting": *req.Recruiting})
+	executeUserIdempotentJSON(c, mobileOperationTeamRecruitingUpdate, struct {
+		Recruiting bool `json:"recruiting"`
+	}{Recruiting: *req.Recruiting}, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		if err := h.playService.SetTeamRecruiting(ctx, subject.UserID, *req.Recruiting); err != nil {
+			return nil, err
+		}
+		return map[string]bool{"recruiting": *req.Recruiting}, nil
+	})
 }
 
 func (h *PlayHandler) TeamLeave(c *gin.Context) {

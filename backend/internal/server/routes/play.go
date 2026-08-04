@@ -14,6 +14,10 @@ func RegisterPlayRoutes(
 	jwtAuth middleware.JWTAuthMiddleware,
 	teamAdmissionRateLimiters ...*middleware.PanelRateLimiter,
 ) {
+	// These writes are commonly retried by mobile clients after transient
+	// transport failures. Keep the correlation ID and idempotency policy on the
+	// canonical routes rather than creating mobile-only mirrors.
+	teamWriteCorrelationID := middleware.ClientRequestID()
 	teamAdmissionRateLimit := gin.HandlerFunc(func(c *gin.Context) { c.Next() })
 	if len(teamAdmissionRateLimiters) > 0 && teamAdmissionRateLimiters[0] != nil {
 		teamAdmissionRateLimit = teamAdmissionRateLimiters[0].TeamAdmission()
@@ -71,13 +75,13 @@ func RegisterPlayRoutes(
 			teams.GET("/admission", h.Play.TeamAdmissionEligibility)
 			teams.POST("", teamAdmissionRateLimit, h.Play.TeamCreate)
 			teams.POST("/join", teamAdmissionRateLimit, h.Play.TeamJoin)
-			teams.POST("/applications", teamAdmissionRateLimit, h.Play.TeamApply)
+			teams.POST("/applications", teamWriteCorrelationID, teamAdmissionRateLimit, h.Play.TeamApply)
 			teams.GET("/applications/me", h.Play.TeamMyApplications)
 			teams.GET("/applications", h.Play.TeamCaptainApplications)
 			teams.POST("/applications/:id/withdraw", teamAdmissionRateLimit, h.Play.TeamApplicationWithdraw)
-			teams.POST("/applications/:id/decision", teamAdmissionRateLimit, h.Play.TeamApplicationDecision)
-			teams.POST("/invite/rotate", teamAdmissionRateLimit, h.Play.TeamInviteRotate)
-			teams.PUT("/recruiting", teamAdmissionRateLimit, h.Play.TeamRecruiting)
+			teams.POST("/applications/:id/decision", teamWriteCorrelationID, teamAdmissionRateLimit, h.Play.TeamApplicationDecision)
+			teams.POST("/invite/rotate", teamWriteCorrelationID, teamAdmissionRateLimit, h.Play.TeamInviteRotate)
+			teams.PUT("/recruiting", teamWriteCorrelationID, teamAdmissionRateLimit, h.Play.TeamRecruiting)
 			teams.POST("/leave", h.Play.TeamLeave)
 			teams.POST("/transfer", h.Play.TeamTransfer)
 			teams.POST("/remove", h.Play.TeamRemove)

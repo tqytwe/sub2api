@@ -11,7 +11,12 @@ import (
 	"go.uber.org/zap"
 )
 
-const clientRequestIDHeader = "X-Client-Request-ID"
+const (
+	// ClientRequestIDHeader is the stable client correlation header for mobile
+	// and gateway requests. It is echoed only after bounded validation.
+	ClientRequestIDHeader = "X-Client-Request-ID"
+	clientRequestIDHeader = ClientRequestIDHeader
+)
 
 // ClientRequestID ensures every request has a unique client_request_id in request.Context().
 //
@@ -36,8 +41,18 @@ func ClientRequestID() gin.HandlerFunc {
 			return
 		}
 
+		if v, valid := normalizeCorrelationID(c.GetHeader(ClientRequestIDHeader)); valid {
+			c.Header(ClientRequestIDHeader, v)
+			ctx := context.WithValue(c.Request.Context(), ctxkey.ClientRequestID, v)
+			requestLogger := logger.FromContext(ctx).With(zap.String("client_request_id", strings.TrimSpace(v)))
+			ctx = logger.IntoContext(ctx, requestLogger)
+			c.Request = c.Request.WithContext(ctx)
+			c.Next()
+			return
+		}
+
 		id := uuid.New().String()
-		c.Header(clientRequestIDHeader, id)
+		c.Header(ClientRequestIDHeader, id)
 		ctx := context.WithValue(c.Request.Context(), ctxkey.ClientRequestID, id)
 		requestLogger := logger.FromContext(ctx).With(zap.String("client_request_id", strings.TrimSpace(id)))
 		ctx = logger.IntoContext(ctx, requestLogger)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -12,6 +13,8 @@ import (
 
 func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	t.Setenv("MOBILE_WEB_SEARCH_ENABLED", "")
+	t.Setenv("EXA_API_KEY", "")
 	rec := httptest.NewRecorder()
 	c, _ := gin.CreateTestContext(rec)
 	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/mobile/protocol", nil)
@@ -25,11 +28,14 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	var envelope struct {
 		Code int `json:"code"`
 		Data struct {
-			Version      int                      `json:"version"`
-			Session      map[string]any           `json:"session"`
-			TaskStatuses []string                 `json:"task_statuses"`
-			Endpoints    []mobileProtocolEndpoint `json:"endpoints"`
-			Privacy      map[string]any           `json:"privacy"`
+			Version         int                        `json:"version"`
+			ContractVersion string                     `json:"contract_version"`
+			Session         map[string]any             `json:"session"`
+			TaskStatuses    []string                   `json:"task_statuses"`
+			Endpoints       []mobileProtocolEndpoint   `json:"endpoints"`
+			Lifecycle       mobileProtocolLifecycle    `json:"lifecycle"`
+			Capabilities    mobileProtocolCapabilities `json:"capabilities"`
+			Privacy         map[string]any             `json:"privacy"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(rec.Body.Bytes(), &envelope); err != nil {
@@ -38,12 +44,86 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	if envelope.Code != 0 || envelope.Data.Version != mobileProtocolVersion {
 		t.Fatalf("unexpected envelope: code=%d version=%d", envelope.Code, envelope.Data.Version)
 	}
+	if envelope.Data.ContractVersion != mobileProtocolContractVersion {
+		t.Fatalf("contract_version = %q, want %q", envelope.Data.ContractVersion, mobileProtocolContractVersion)
+	}
+	if envelope.Data.Lifecycle.RegistryVersion != mobileProtocolLifecycleRegistryVersion {
+		t.Fatalf("lifecycle registry_version = %d, want %d", envelope.Data.Lifecycle.RegistryVersion, mobileProtocolLifecycleRegistryVersion)
+	}
+	assertStringSliceContains(t, envelope.Data.Lifecycle.States, mobileProtocolLifecycleCanonical)
+	assertStringSliceContains(t, envelope.Data.Lifecycle.States, mobileProtocolLifecycleLegacy)
+	assertStringSliceContains(t, envelope.Data.Lifecycle.States, mobileProtocolLifecycleObserve)
 	if got := envelope.Data.Session["refresh_path"]; got != "/api/v1/auth/refresh" {
 		t.Fatalf("refresh path = %v", got)
 	}
 	assertStringSliceContains(t, envelope.Data.TaskStatuses, "streaming")
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodGet, "/api/v1/mobile/account-summary", "canonical")
 	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/play/mobile-feedback", "legacy")
+	assertEndpointContains(t, envelope.Data.Endpoints, http.MethodPost, "/api/v1/mobile/tasks/:id/status", "observe")
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationTeamApplicationCreate, false, mobileProtocolLifecycleCanonical)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationSearchWeb, false, mobileProtocolLifecycleObserve)
+	taskGrant := findOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationTaskSubmit)
+	if taskGrant.IdempotencyMode != "client_request_id_body" {
+		t.Fatalf("task submit idempotency mode = %q", taskGrant.IdempotencyMode)
+	}
+	if taskGrant.ClientRequestIDHeader != "" || taskGrant.IdempotencyHeader != "" {
+		t.Fatal("task submit must not advertise team-write headers it does not consume")
+	}
+	if envelope.Data.Capabilities.Search.Configured {
+		t.Fatal("search must be unconfigured when the server Exa environment is absent")
+	}
+	if envelope.Data.Capabilities.Search.Provider != "" {
+		t.Fatalf("search provider = %q when no server key is configured", envelope.Data.Capabilities.Search.Provider)
+	}
+	if envelope.Data.Capabilities.Search.DefaultEnabled {
+		t.Fatal("mobile search must remain opt-in by default")
+	}
+	if envelope.Data.Capabilities.Search.ExecutionState != mobileProtocolLifecycleDisabled {
+		t.Fatalf("search execution_state = %q", envelope.Data.Capabilities.Search.ExecutionState)
+	}
+	if strings.Contains(rec.Body.String(), `"request":{}`) {
+		t.Fatal("protocol response must omit empty per-endpoint request contracts")
+	}
+}
+
+func TestMobileProtocolSearchContractIsEnvironmentOnlyAndObserveUntilToolExecutionExists(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	t.Setenv("MOBILE_WEB_SEARCH_ENABLED", "true")
+	t.Setenv("EXA_API_KEY", "test-exa-key")
+
+	payload := mobileProtocolPayload(true, 42, "user")
+	search := payload.Capabilities.Search
+	if !search.Configured {
+		t.Fatal("search should be configured only when the server toggle and Exa key are present")
+	}
+	if search.Provider != "exa" {
+		t.Fatalf("search provider = %q, want exa", search.Provider)
+	}
+	if search.ExecutionState != mobileProtocolLifecycleObserve {
+		t.Fatalf("search execution_state = %q, want observe", search.ExecutionState)
+	}
+	if search.DefaultEnabled || !search.UserOptInRequired {
+		t.Fatalf("unexpected opt-in policy: default_enabled=%v user_opt_in_required=%v", search.DefaultEnabled, search.UserOptInRequired)
+	}
+	assertStringSliceContains(t, search.ResultFields, "title")
+	assertStringSliceContains(t, search.ResultFields, "url")
+	if search.ClientRequestIDHeader != "X-Client-Request-ID" {
+		t.Fatalf("search client request ID header = %q", search.ClientRequestIDHeader)
+	}
+	if search.ResponseRequestIDField != "request_id" {
+		t.Fatalf("search response request ID field = %q", search.ResponseRequestIDField)
+	}
+	serialized, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal protocol payload: %v", err)
+	}
+	if strings.Contains(string(serialized), "test-exa-key") {
+		t.Fatal("protocol payload must not expose the server search credential")
+	}
+	if strings.Contains(strings.ToLower(string(serialized)), "duckduckgo") {
+		t.Fatal("protocol payload must not claim an unconfigured DuckDuckGo fallback")
+	}
+	assertOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb, false, mobileProtocolLifecycleObserve)
 }
 
 func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
@@ -65,7 +145,8 @@ func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
 		Data struct {
 			Session      map[string]any `json:"session"`
 			Capabilities struct {
-				Admin struct {
+				OperationGrants []mobileProtocolOperationGrant `json:"operation_grants"`
+				Admin           struct {
 					Available      bool   `json:"available"`
 					APIBasePath    string `json:"api_base_path"`
 					StepUpPath     string `json:"step_up_path"`
@@ -98,6 +179,8 @@ func TestMobileSessionStatusUsesAuthenticatedContext(t *testing.T) {
 	if envelope.Data.Capabilities.Admin.CompliancePath != "/api/v1/admin/compliance" {
 		t.Fatalf("compliance path = %q", envelope.Data.Capabilities.Admin.CompliancePath)
 	}
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAdminConsoleRead, true, mobileProtocolLifecycleCanonical)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAdminStepUpWrite, true, mobileProtocolLifecycleCanonical)
 }
 
 func TestMobileSessionStatusDoesNotGrantAdminCapabilityToRegularUser(t *testing.T) {
@@ -117,7 +200,8 @@ func TestMobileSessionStatusDoesNotGrantAdminCapabilityToRegularUser(t *testing.
 	var envelope struct {
 		Data struct {
 			Capabilities struct {
-				Admin struct {
+				OperationGrants []mobileProtocolOperationGrant `json:"operation_grants"`
+				Admin           struct {
 					Available      bool   `json:"available"`
 					CompliancePath string `json:"compliance_path"`
 				} `json:"admin"`
@@ -133,6 +217,8 @@ func TestMobileSessionStatusDoesNotGrantAdminCapabilityToRegularUser(t *testing.
 	if envelope.Data.Capabilities.Admin.CompliancePath != "" {
 		t.Fatal("regular user must not receive an administrator compliance path")
 	}
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAdminConsoleRead, false, mobileProtocolLifecycleCanonical)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAdminStepUpWrite, false, mobileProtocolLifecycleCanonical)
 }
 
 func TestMobileSessionStatusRejectsMissingContext(t *testing.T) {
@@ -146,6 +232,17 @@ func TestMobileSessionStatusRejectsMissingContext(t *testing.T) {
 	if rec.Code != http.StatusUnauthorized {
 		t.Fatalf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
+}
+
+func TestMobileProtocolLifecycleRegistryCoversCanonicalLegacyAndObserveRoutes(t *testing.T) {
+	if err := validateMobileProtocolLifecycleRegistry(); err != nil {
+		t.Fatalf("mobile protocol lifecycle registry is invalid: %v", err)
+	}
+
+	endpoints := mobileProtocolEndpoints()
+	assertEndpointContains(t, endpoints, http.MethodGet, "/api/v1/mobile/protocol", mobileProtocolLifecycleCanonical)
+	assertEndpointContains(t, endpoints, http.MethodPost, "/api/v1/nextchat/mobile/group", mobileProtocolLifecycleLegacy)
+	assertEndpointContains(t, endpoints, http.MethodPost, "/api/v1/mobile/tasks/:id/status", mobileProtocolLifecycleObserve)
 }
 
 func assertEndpointContains(t *testing.T, endpoints []mobileProtocolEndpoint, method, path, status string) {
@@ -166,4 +263,26 @@ func assertStringSliceContains(t *testing.T, values []string, needle string) {
 		}
 	}
 	t.Fatalf("%q not found in %#v", needle, values)
+}
+
+func assertOperationGrant(t *testing.T, grants []mobileProtocolOperationGrant, operation string, granted bool, lifecycle string) {
+	grant := findOperationGrant(t, grants, operation)
+	if grant.Granted != granted {
+		t.Fatalf("operation %q granted = %v, want %v", operation, grant.Granted, granted)
+	}
+	if grant.Lifecycle != lifecycle {
+		t.Fatalf("operation %q lifecycle = %q, want %q", operation, grant.Lifecycle, lifecycle)
+	}
+}
+
+func findOperationGrant(t *testing.T, grants []mobileProtocolOperationGrant, operation string) mobileProtocolOperationGrant {
+	t.Helper()
+	for _, grant := range grants {
+		if grant.ID != operation {
+			continue
+		}
+		return grant
+	}
+	t.Fatalf("operation %q not found in %#v", operation, grants)
+	return mobileProtocolOperationGrant{}
 }

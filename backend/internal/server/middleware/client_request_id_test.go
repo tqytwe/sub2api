@@ -66,3 +66,42 @@ func TestClientRequestIDPreservesExistingContextID(t *testing.T) {
 	require.Equal(t, "existing-client-request-id", w.Body.String())
 	require.Equal(t, "existing-client-request-id", w.Header().Get(clientRequestIDHeader))
 }
+
+func TestClientRequestIDPreservesValidatedIncomingHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(ClientRequestID())
+	router.GET("/", func(c *gin.Context) {
+		value, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
+		c.String(http.StatusOK, value)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set(clientRequestIDHeader, "mobile-retry-42")
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Equal(t, "mobile-retry-42", response.Body.String())
+	require.Equal(t, "mobile-retry-42", response.Header().Get(clientRequestIDHeader))
+}
+
+func TestClientRequestIDRejectsInvalidIncomingHeader(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.Use(ClientRequestID())
+	router.GET("/", func(c *gin.Context) {
+		value, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
+		c.String(http.StatusOK, value)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "/", nil)
+	request.Header.Set(clientRequestIDHeader, strings.Repeat("x", maxPersistentRequestIDBytes+1))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+
+	require.Equal(t, http.StatusOK, response.Code)
+	require.Len(t, response.Body.String(), 36)
+	require.NotEqual(t, request.Header.Get(clientRequestIDHeader), response.Body.String())
+	require.Equal(t, response.Body.String(), response.Header().Get(clientRequestIDHeader))
+}
