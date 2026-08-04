@@ -303,6 +303,46 @@ func (h *SubscriptionHandler) RestoreDailyCardQuota(c *gin.Context) {
 	})
 }
 
+// GetDailyCardRequestReplay returns an operator-only replay record.
+func (h *SubscriptionHandler) GetDailyCardRequestReplay(c *gin.Context) {
+	subscriptionID, entitlementID, ok := parseSubscriptionDailyCardParams(c)
+	if !ok {
+		return
+	}
+	clientRequestID := c.Param("client_request_id")
+	replay, err := h.subscriptionService.AdminGetDailyCardRequestReplay(c.Request.Context(), subscriptionID, entitlementID, clientRequestID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, replay)
+}
+
+// ReconcileDailyCardRequest only releases a pending replay after an operator
+// records evidence. It never resets daily-card quota.
+func (h *SubscriptionHandler) ReconcileDailyCardRequest(c *gin.Context) {
+	subscriptionID, entitlementID, ok := parseSubscriptionDailyCardParams(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		Action   string `json:"action"`
+		Evidence string `json:"evidence"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "invalid reconciliation request")
+		return
+	}
+	replay, err := h.subscriptionService.AdminReconcileDailyCardRequest(c.Request.Context(), subscriptionID, entitlementID, service.DailyCardRequestReconciliationInput{
+		ClientRequestID: c.Param("client_request_id"), Action: req.Action, Evidence: req.Evidence, ActorID: getAdminIDFromContext(c),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, replay)
+}
+
 // Revoke handles revoking a subscription.
 // POST /api/v1/admin/subscriptions/:id/revoke
 // DELETE /api/v1/admin/subscriptions/:id is kept for backward compatibility.
