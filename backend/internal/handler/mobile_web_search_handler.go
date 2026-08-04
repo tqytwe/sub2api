@@ -19,7 +19,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/redis/go-redis/v9"
 )
 
 const (
@@ -46,12 +45,28 @@ type MobileWebSearchHandler struct {
 	provider mobileWebSearchProvider
 	enabled  bool
 	timeout  time.Duration
-	budget   mobileWebSearchBudget
+	budget   service.MobileWebSearchBudget
+}
+
+var errMobileWebSearchBudgetUnavailable = service.ErrMobileWebSearchBudgetUnavailable
+
+type mobileWebSearchBudgetExceededError = service.MobileWebSearchBudgetExceededError
+
+func newMobileWebSearchBudgetExceededError(retryAfter time.Duration) error {
+	return service.NewMobileWebSearchBudgetExceededError(retryAfter)
+}
+
+type unmeteredMobileWebSearchBudget struct{}
+
+func (unmeteredMobileWebSearchBudget) Reserve(context.Context, int64) (time.Duration, error) {
+	return 0, nil
 }
 
 // NewMobileWebSearchHandlerFromEnvironment is the only production constructor.
 // EXA_API_KEY is read here and never passed through an HTTP response or client.
-func NewMobileWebSearchHandlerFromEnvironment(redisClient *redis.Client) *MobileWebSearchHandler {
+// The budget implementation is injected as a service contract; Redis remains
+// behind the repository layer and is never imported by this handler package.
+func NewMobileWebSearchHandlerFromEnvironment(budget service.MobileWebSearchBudget) *MobileWebSearchHandler {
 	apiKey := strings.TrimSpace(os.Getenv("EXA_API_KEY"))
 	enabled := mobileWebSearchEnvBool(os.Getenv("MOBILE_WEB_SEARCH_ENABLED")) && apiKey != ""
 	var provider mobileWebSearchProvider
@@ -62,14 +77,14 @@ func NewMobileWebSearchHandlerFromEnvironment(redisClient *redis.Client) *Mobile
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		})
 	}
-	return newMobileWebSearchHandlerWithBudget(provider, enabled, mobileWebSearchTimeout, newRedisMobileWebSearchBudget(redisClient))
+	return newMobileWebSearchHandlerWithBudget(provider, enabled, mobileWebSearchTimeout, budget)
 }
 
 func newMobileWebSearchHandler(provider mobileWebSearchProvider, enabled bool, timeout time.Duration) *MobileWebSearchHandler {
 	return newMobileWebSearchHandlerWithBudget(provider, enabled, timeout, unmeteredMobileWebSearchBudget{})
 }
 
-func newMobileWebSearchHandlerWithBudget(provider mobileWebSearchProvider, enabled bool, timeout time.Duration, budget mobileWebSearchBudget) *MobileWebSearchHandler {
+func newMobileWebSearchHandlerWithBudget(provider mobileWebSearchProvider, enabled bool, timeout time.Duration, budget service.MobileWebSearchBudget) *MobileWebSearchHandler {
 	if timeout <= 0 {
 		timeout = mobileWebSearchTimeout
 	}
@@ -266,7 +281,7 @@ func writeMobileWebSearchBudgetError(c *gin.Context, err error, locale, requestI
 	}
 	var exceeded *mobileWebSearchBudgetExceededError
 	if errors.As(err, &exceeded) {
-		retryAfter := exceeded.retryAfter
+		retryAfter := exceeded.RetryAfter
 		if retryAfter <= 0 {
 			retryAfter = time.Minute
 		}

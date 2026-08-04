@@ -1,14 +1,14 @@
-package handler
+package repository
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -21,26 +21,9 @@ const (
 	mobileWebSearchBudgetStoreTimeout       = time.Second
 )
 
-var errMobileWebSearchBudgetUnavailable = errors.New("mobile web search budget store unavailable")
+var errMobileWebSearchBudgetUnavailable = service.ErrMobileWebSearchBudgetUnavailable
 
-type mobileWebSearchBudgetExceededError struct {
-	retryAfter time.Duration
-}
-
-func (e *mobileWebSearchBudgetExceededError) Error() string {
-	return "mobile web search budget exceeded"
-}
-
-func newMobileWebSearchBudgetExceededError(retryAfter time.Duration) error {
-	if retryAfter <= 0 {
-		retryAfter = time.Minute
-	}
-	return &mobileWebSearchBudgetExceededError{retryAfter: retryAfter}
-}
-
-type mobileWebSearchBudget interface {
-	Reserve(context.Context, int64) (time.Duration, error)
-}
+type mobileWebSearchBudgetExceededError = service.MobileWebSearchBudgetExceededError
 
 type mobileWebSearchBudgetConfig struct {
 	UserRPM     int
@@ -96,7 +79,10 @@ type redisMobileWebSearchBudget struct {
 	now    func() time.Time
 }
 
-func newRedisMobileWebSearchBudget(client *redis.Client) mobileWebSearchBudget {
+// NewMobileWebSearchBudget creates the production Redis-backed search budget.
+// Returning the service interface keeps Redis details inside this repository
+// package and lets handlers remain storage-agnostic.
+func NewMobileWebSearchBudget(client *redis.Client) service.MobileWebSearchBudget {
 	return &redisMobileWebSearchBudget{
 		client: client,
 		config: mobileWebSearchBudgetConfigFromEnvironment(),
@@ -111,7 +97,7 @@ func newRedisMobileWebSearchBudget(client *redis.Client) mobileWebSearchBudget {
 // is reached; a confirmed failed retry is a new provider attempt.
 func (b *redisMobileWebSearchBudget) Reserve(ctx context.Context, userID int64) (time.Duration, error) {
 	if b == nil || b.client == nil || userID <= 0 {
-		return 0, errMobileWebSearchBudgetUnavailable
+		return 0, service.ErrMobileWebSearchBudgetUnavailable
 	}
 	now := time.Now()
 	if b.now != nil {
@@ -142,14 +128,14 @@ func (b *redisMobileWebSearchBudget) Reserve(ctx context.Context, userID int64) 
 	defer cancel()
 	values, err := mobileWebSearchBudgetScript.Run(budgetCtx, b.client, keys, args...).Slice()
 	if err != nil {
-		return 0, errMobileWebSearchBudgetUnavailable
+		return 0, service.ErrMobileWebSearchBudgetUnavailable
 	}
 	if len(values) < 3 {
-		return 0, errMobileWebSearchBudgetUnavailable
+		return 0, service.ErrMobileWebSearchBudgetUnavailable
 	}
 	allowed, err := mobileWebSearchBudgetInt64(values[0])
 	if err != nil {
-		return 0, errMobileWebSearchBudgetUnavailable
+		return 0, service.ErrMobileWebSearchBudgetUnavailable
 	}
 	if allowed == 1 {
 		return 0, nil
@@ -162,7 +148,7 @@ func (b *redisMobileWebSearchBudget) Reserve(ctx context.Context, userID int64) 
 		retryMillis = minuteTTL.Milliseconds()
 	}
 	retryAfter := time.Duration(retryMillis) * time.Millisecond
-	return retryAfter, newMobileWebSearchBudgetExceededError(retryAfter)
+	return retryAfter, service.NewMobileWebSearchBudgetExceededError(retryAfter)
 }
 
 func mobileWebSearchBudgetInt64(value any) (int64, error) {
@@ -194,13 +180,4 @@ func positiveBudgetTTL(value time.Duration) time.Duration {
 		return time.Millisecond
 	}
 	return value
-}
-
-// The unmetered implementation is used only by the package-level test
-// constructor. Production construction always injects the Redis-backed
-// implementation above, which fails closed when Redis is unavailable.
-type unmeteredMobileWebSearchBudget struct{}
-
-func (unmeteredMobileWebSearchBudget) Reserve(context.Context, int64) (time.Duration, error) {
-	return 0, nil
 }

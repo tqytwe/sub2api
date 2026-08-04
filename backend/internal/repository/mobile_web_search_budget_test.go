@@ -1,4 +1,4 @@
-package handler
+package repository
 
 import (
 	"context"
@@ -53,7 +53,7 @@ func TestRedisMobileWebSearchBudgetFailsClosedWhenRedisCannotBeReached(t *testin
 		WriteTimeout: 20 * time.Millisecond,
 	})
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
-	budget := newRedisMobileWebSearchBudget(client)
+	budget := NewMobileWebSearchBudget(client)
 	_, err := budget.Reserve(context.Background(), 7)
 	require.ErrorIs(t, err, errMobileWebSearchBudgetUnavailable)
 }
