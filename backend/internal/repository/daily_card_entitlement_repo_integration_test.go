@@ -136,6 +136,32 @@ func TestDailyCardRepositoryTracksAdmissionWithoutBlockingParallelRequests(t *te
 	require.Zero(t, released.QuotaReservedUSD)
 }
 
+func TestDailyCardRepositoryAdmitRequestPersistsReplayRecord(t *testing.T) {
+	tx := testEntTx(t)
+	ctx := dbent.NewTxContext(context.Background(), tx)
+	client := tx.Client()
+	repo := NewDailyCardEntitlementRepository(client)
+	now := time.Date(2026, 8, 5, 4, 0, 0, 0, time.UTC)
+	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
+	order := createDailyCardIntegrationOrder(t, ctx, client, user.ID, group.ID, plan.ID, now)
+	card, _, err := repo.IssuePaidCard(ctx, service.IssueDailyCardInput{
+		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID, PaymentOrderID: order.ID,
+		QuotaLimitUSD: 200, DurationHours: 24, IssuedAt: now,
+	})
+	require.NoError(t, err)
+
+	err = repo.AdmitRequest(ctx, service.DailyCardRequestAdmissionInput{
+		EntitlementID: card.ID, UserID: user.ID, ClientRequestID: "client-new-request",
+		SettlementRequestID: "daily:test-settlement", RequestFingerprint: "test-fingerprint",
+		RequestPath: "/v1/responses", AdmittedAt: now.Add(time.Minute),
+	})
+	require.NoError(t, err)
+	replay, err := repo.GetRequestReplay(ctx, card.ID, "client-new-request")
+	require.NoError(t, err)
+	require.Equal(t, "daily:test-settlement", replay.SettlementRequestID)
+	require.Equal(t, "forwarding", replay.State)
+}
+
 func TestDailyCardRepositoryAdminReleaseReservedHoldsDoesNotResetUsage(t *testing.T) {
 	tx := testEntTx(t)
 	ctx := dbent.NewTxContext(context.Background(), tx)

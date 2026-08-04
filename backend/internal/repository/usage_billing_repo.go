@@ -797,15 +797,11 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 		return nil, service.ErrUsageBillingOwnershipMismatch
 	}
 	settledAt := time.Now().UTC()
-	hold, err := captureUsageBillingDailyCardHold(ctx, tx, entitlementID, requestID, costUSD, settledAt)
-	if err != nil {
+	if err := verifyDailyCardSettlementRequest(ctx, tx, entitlementID, requestID); err != nil {
 		return nil, err
 	}
 	quotaReserved = 0
 	if status != service.DailyCardStatusActive {
-		if !hold.found {
-			return nil, service.ErrDailyCardUnavailable
-		}
 		remaining := quotaLimit - quotaUsed
 		if remaining < 0 {
 			remaining = 0
@@ -824,6 +820,9 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 			WHERE id = $1
 		`, entitlementID, newUsed, quotaReserved, settledAt)
 		if err != nil {
+			return nil, err
+		}
+		if err := markDailyCardSettlementCompleted(ctx, tx, entitlementID, requestID, settledAt); err != nil {
 			return nil, err
 		}
 		return &dailyCardCaptureResult{overageUSD: costUSD - captured}, nil
@@ -855,6 +854,9 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 	if err != nil {
 		return nil, err
 	}
+	if err := markDailyCardSettlementCompleted(ctx, tx, entitlementID, requestID, settledAt); err != nil {
+		return nil, err
+	}
 
 	result := &dailyCardCaptureResult{exhausted: exhausted, overageUSD: overage}
 	if newStatus == service.DailyCardStatusActive {
@@ -872,47 +874,37 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 	return result, nil
 }
 
-type dailyCardHoldCapture struct {
-	found       bool
-	reservedUSD float64
+func verifyDailyCardSettlementRequest(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string) error {
+	if strings.TrimSpace(requestID) == "" {
+		return service.ErrDailyCardRequestPendingConfirmation
+	}
+	var state string
+	err := tx.QueryRowContext(ctx, `
+		SELECT state FROM daily_card_request_replays
+		WHERE entitlement_id = $1 AND settlement_request_id = $2
+		FOR UPDATE
+	`, entitlementID, requestID).Scan(&state)
+	if errors.Is(err, sql.ErrNoRows) {
+		// Legacy direct billing records predate the replay table. They remain
+		// accepted for migration compatibility but the gateway never creates them.
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if state != "forwarding" {
+		return service.ErrDailyCardRequestPendingConfirmation
+	}
+	return nil
 }
 
-func captureUsageBillingDailyCardHold(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string, costUSD float64, capturedAt time.Time) (dailyCardHoldCapture, error) {
-	if strings.TrimSpace(requestID) == "" {
-		return dailyCardHoldCapture{}, nil
-	}
-	var reservedUSD float64
-	var status string
-	err := tx.QueryRowContext(ctx, `
-		SELECT reserved_usd, status
-		FROM subscription_entitlement_holds
-		WHERE entitlement_id = $1 AND request_id = $2
-		FOR UPDATE
-	`, entitlementID, requestID).Scan(&reservedUSD, &status)
-	if errors.Is(err, sql.ErrNoRows) {
-		return dailyCardHoldCapture{}, nil
-	}
-	if err != nil {
-		return dailyCardHoldCapture{}, err
-	}
-	if status != "reserved" {
-		return dailyCardHoldCapture{found: true, reservedUSD: reservedUSD}, nil
-	}
-	capturedUSD := costUSD
-	if reservedUSD <= 0 {
-		capturedUSD = 0
-	} else if capturedUSD > reservedUSD {
-		capturedUSD = reservedUSD
-	}
-	_, err = tx.ExecContext(ctx, `
-		UPDATE subscription_entitlement_holds
-		SET captured_usd = $3, status = 'captured', captured_at = $4, updated_at = $4
-		WHERE entitlement_id = $1 AND request_id = $2 AND status = 'reserved'
-	`, entitlementID, requestID, capturedUSD, capturedAt)
-	if err != nil {
-		return dailyCardHoldCapture{}, err
-	}
-	return dailyCardHoldCapture{found: true, reservedUSD: reservedUSD}, nil
+func markDailyCardSettlementCompleted(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string, completedAt time.Time) error {
+	_, err := tx.ExecContext(ctx, `
+		UPDATE daily_card_request_replays
+		SET state = 'completed', completed_at = $3, updated_at = $3
+		WHERE entitlement_id = $1 AND settlement_request_id = $2 AND state = 'forwarding'
+	`, entitlementID, requestID, completedAt)
+	return err
 }
 
 func activateNextDailyCardInBillingTx(ctx context.Context, tx *sql.Tx, userID, groupID int64, activationAt, updatedAt time.Time) (*int64, error) {

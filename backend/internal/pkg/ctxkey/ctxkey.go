@@ -29,6 +29,10 @@ const (
 	// DailyCardBillingSignal links request admission to asynchronous usage billing.
 	DailyCardBillingSignal Key = "ctx_daily_card_billing_signal"
 
+	// DailyCardSettlementRequestID is a gateway-generated private billing key.
+	// It must never be derived from the client correlation ID.
+	DailyCardSettlementRequestID Key = "ctx_daily_card_settlement_request_id"
+
 	// Model 请求模型标识（用于统一请求链路日志字段）。
 	Model Key = "ctx_model"
 

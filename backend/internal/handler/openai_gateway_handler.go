@@ -150,6 +150,9 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	if requestID, _ := parent.Value(ctxkey.RequestID).(string); strings.TrimSpace(requestID) != "" {
 		base = context.WithValue(base, ctxkey.RequestID, strings.TrimSpace(requestID))
 	}
+	if settlementRequestID, _ := parent.Value(ctxkey.DailyCardSettlementRequestID).(string); strings.TrimSpace(settlementRequestID) != "" {
+		base = context.WithValue(base, ctxkey.DailyCardSettlementRequestID, strings.TrimSpace(settlementRequestID))
+	}
 	if managed, _ := parent.Value(ctxkey.ImageStudioManagedBilling).(bool); managed {
 		base = context.WithValue(base, ctxkey.ImageStudioManagedBilling, true)
 	}

@@ -402,15 +402,6 @@
                 <span class="text-xs">{{ t('admin.subscriptions.resetQuota') }}</span>
               </button>
               <button
-                v-if="row.daily_card"
-                @click="handleReleaseDailyCardHolds(row)"
-                :disabled="releasingDailyCardHolds && dailyCardActionSubscription?.id === row.id"
-                class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-teal-50 hover:text-teal-600 dark:hover:bg-teal-900/20 dark:hover:text-teal-400 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <Icon name="sync" size="sm" />
-                <span class="text-xs">{{ t('admin.subscriptions.releaseDailyCardHolds') }}</span>
-              </button>
-              <button
                 v-if="row.status === 'active'"
                 @click="handleRevoke(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
@@ -687,15 +678,6 @@
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
       @cancel="showResetQuotaConfirm = false"
-    />
-    <ConfirmDialog
-      :show="showReleaseDailyCardHoldsConfirm"
-      :title="t('admin.subscriptions.releaseDailyCardHoldsTitle')"
-      :message="t('admin.subscriptions.releaseDailyCardHoldsConfirm', { user: dailyCardActionSubscription?.user?.email })"
-      :confirm-text="t('admin.subscriptions.releaseDailyCardHolds')"
-      :cancel-text="t('common.cancel')"
-      @confirm="confirmReleaseDailyCardHolds"
-      @cancel="showReleaseDailyCardHoldsConfirm = false"
     />
     <ConfirmDialog
       :show="showRestoreDailyCardQuotaConfirm"
@@ -1002,13 +984,11 @@ const showExtendModal = ref(false)
 const showRevokeDialog = ref(false)
 const showRestoreDialog = ref(false)
 const showResetQuotaConfirm = ref(false)
-const showReleaseDailyCardHoldsConfirm = ref(false)
 const showRestoreDailyCardQuotaConfirm = ref(false)
 const submitting = ref(false)
 const resettingSubscription = ref<UserSubscription | null>(null)
 const resettingQuota = ref(false)
 const dailyCardActionSubscription = ref<UserSubscription | null>(null)
-const releasingDailyCardHolds = ref(false)
 const restoringDailyCardQuota = ref(false)
 const extendingSubscription = ref<UserSubscription | null>(null)
 const revokingSubscription = ref<UserSubscription | null>(null)
@@ -1372,32 +1352,6 @@ const confirmResetQuota = async () => {
     console.error('Error resetting quota:', error)
   } finally {
     resettingQuota.value = false
-  }
-}
-
-const handleReleaseDailyCardHolds = (subscription: UserSubscription) => {
-  if (!subscription.daily_card) return
-  dailyCardActionSubscription.value = subscription
-  showReleaseDailyCardHoldsConfirm.value = true
-}
-
-const confirmReleaseDailyCardHolds = async () => {
-  const subscription = dailyCardActionSubscription.value
-  const entitlementID = subscription?.daily_card?.id
-  if (!subscription || !entitlementID) return
-  if (releasingDailyCardHolds.value) return
-  releasingDailyCardHolds.value = true
-  try {
-    const result = await adminAPI.subscriptions.releaseDailyCardHolds(subscription.id, entitlementID)
-    appStore.showSuccess(t('admin.subscriptions.dailyCardHoldsReleased', { count: result.released_holds }))
-    showReleaseDailyCardHoldsConfirm.value = false
-    dailyCardActionSubscription.value = null
-    await loadSubscriptions()
-  } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToReleaseDailyCardHolds'))
-    console.error('Error releasing daily card holds:', error)
-  } finally {
-    releasingDailyCardHolds.value = false
   }
 }
 

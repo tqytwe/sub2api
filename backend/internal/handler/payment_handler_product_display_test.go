@@ -148,14 +148,15 @@ func TestBuildDailyCardResultsShowsRemainingQuotaAndQueuePosition(t *testing.T) 
 	now := time.Date(2026, 7, 28, 20, 0, 0, 0, time.UTC)
 	expiresAt := now.Add(22 * time.Hour)
 	cards := []service.DailyCardEntitlement{
-		{ID: 1, GroupID: 7, Status: service.DailyCardStatusActive, QuotaLimitUSD: 10, QuotaUsedUSD: 9, QuotaReservedUSD: 0.25, ExpiresAt: &expiresAt},
+		{ID: 1, GroupID: 7, Status: service.DailyCardStatusActive, QuotaLimitUSD: 10, QuotaUsedUSD: 9, ExpiresAt: &expiresAt},
 		{ID: 2, GroupID: 7, Status: service.DailyCardStatusPending, QuotaLimitUSD: 10},
 	}
 
 	got := buildDailyCardResults(cards, now)
 
 	require.Len(t, got, 2)
-	require.Equal(t, 0.75, got[0].RemainingQuotaUSD)
+	require.Equal(t, 1.0, got[0].RemainingQuotaUSD)
+	require.Zero(t, got[0].QuotaReservedUSD)
 	require.Equal(t, int64(22*time.Hour/time.Second), got[0].RemainingSeconds)
 	require.Zero(t, got[0].QueuePosition)
 	require.Equal(t, 1, got[1].QueuePosition)

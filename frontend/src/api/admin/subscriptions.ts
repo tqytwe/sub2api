@@ -155,16 +155,6 @@ export async function resetQuota(
   return data
 }
 
-export async function releaseDailyCardHolds(
-  subscriptionId: number,
-  entitlementId: number
-): Promise<DailyCardAdminActionResult> {
-  const { data } = await apiClient.post<DailyCardAdminActionResult>(
-    `/admin/subscriptions/${subscriptionId}/daily-card/${entitlementId}/release-holds`
-  )
-  return data
-}
-
 export async function restoreDailyCardQuota(
   subscriptionId: number,
   entitlementId: number
@@ -218,7 +208,6 @@ export const subscriptionsAPI = {
   revoke,
   restore,
   resetQuota,
-  releaseDailyCardHolds,
   restoreDailyCardQuota,
   listByGroup,
   listByUser

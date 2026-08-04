@@ -15,6 +15,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 const maxAPIKeyAuthorizationHeaderBytes = service.MaxAPIKeyCredentialBytes + 128
@@ -197,9 +198,6 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		// ── 5. 按端点需要加载订阅 ───────────────────────────────────
 
 		var subscription *service.UserSubscription
-		var dailyCardHoldEntitlementID int64
-		var dailyCardHoldRequestID string
-		var dailyCardBillingSignal *DailyCardBillingSignal
 		isSubscriptionType := apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
 
 		// 倍率自省不需要订阅数据；/v1/usage 仍保留原有订阅读取行为。
@@ -257,14 +255,20 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 						AbortWithError(c, http.StatusForbidden, "DAILY_CARD_CHANNEL_UNSUPPORTED", "This request channel is not available for daily cards")
 						return
 					}
-					holdRequestID, reserveErr := reserveDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
+					_, reserveErr := admitDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
 					if reserveErr != nil {
-						AbortWithError(c, 429, "DAILY_CARD_EXHAUSTED", reserveErr.Error())
+						if errors.Is(reserveErr, service.ErrDailyCardDuplicateRequest) || errors.Is(reserveErr, service.ErrDailyCardRequestPendingConfirmation) {
+							code := "DAILY_CARD_DUPLICATE_REQUEST"
+							if errors.Is(reserveErr, service.ErrDailyCardRequestPendingConfirmation) {
+								code = "DAILY_CARD_REQUEST_PENDING_CONFIRMATION"
+							}
+							AbortWithError(c, http.StatusConflict, code, reserveErr.Error())
+							return
+						}
+						AbortWithError(c, http.StatusInternalServerError, "DAILY_CARD_REQUEST_ADMISSION_FAILED", reserveErr.Error())
 						return
 					}
-					dailyCardHoldEntitlementID = card.ID
-					dailyCardHoldRequestID = holdRequestID
-					dailyCardBillingSignal = &DailyCardBillingSignal{}
+					dailyCardBillingSignal := &DailyCardBillingSignal{}
 					c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.DailyCardBillingSignal, dailyCardBillingSignal))
 					subscription.DailyCardEntitlementID = &card.ID
 					subscription.DailyUsageUSD = card.QuotaUsedUSD
@@ -318,9 +322,9 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 		}
 
 		c.Next()
-		if dailyCardHoldEntitlementID > 0 && (c.Writer.Status() >= http.StatusBadRequest || !dailyCardBillingSignal.Scheduled() || isAsyncImageTaskSubmit(c.Request.Method, c.Request.URL.Path)) {
-			releaseDailyCardRequest(c.Request.Context(), subscriptionService, dailyCardHoldEntitlementID, apiKey.User.ID, dailyCardHoldRequestID)
-		}
+		// Once admitted, a request remains pending until billing completes. The
+		// middleware cannot prove a downstream 4xx was never sent upstream, so
+		// only an evidence-backed admin reconciliation may make it retryable.
 	}
 }
 
@@ -331,34 +335,26 @@ func dailyCardBillingChannelSupported(method, path, upgrade string) bool {
 	return method != http.MethodPost || !strings.HasSuffix(strings.TrimRight(path, "/"), "/videos")
 }
 
-func reserveDailyCardRequest(c *gin.Context, subscriptionService *service.SubscriptionService, card *service.DailyCardEntitlement, userID, apiKeyID int64) (string, error) {
+func admitDailyCardRequest(c *gin.Context, subscriptionService *service.SubscriptionService, card *service.DailyCardEntitlement, userID, apiKeyID int64) (string, error) {
 	if c == nil || subscriptionService == nil || card == nil {
 		return "", service.ErrDailyCardInvalidInput
 	}
-	requestID := ""
-	if clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
-		requestID = "client:" + strings.TrimSpace(clientRequestID)
-	} else if localRequestID, _ := c.Request.Context().Value(ctxkey.RequestID).(string); strings.TrimSpace(localRequestID) != "" {
-		requestID = "local:" + strings.TrimSpace(localRequestID)
-	}
-	if requestID == "" {
+	clientRequestID, _ := c.Request.Context().Value(ctxkey.ClientRequestID).(string)
+	clientRequestID = strings.TrimSpace(clientRequestID)
+	if clientRequestID == "" {
 		return "", service.ErrDailyCardInvalidInput
 	}
+	settlementRequestID := "daily:" + uuid.NewString()
 	fingerprint := fmt.Sprintf("%x", sha256.Sum256([]byte(fmt.Sprintf("%d|%d|%s|%s", userID, apiKeyID, c.Request.Method, c.Request.URL.Path))))
-	err := subscriptionService.ReserveDailyCardRequest(c.Request.Context(), service.DailyCardRequestHoldInput{
-		EntitlementID: card.ID, UserID: userID, RequestID: requestID,
-		RequestFingerprint: fingerprint, ReservedAt: time.Now(),
+	err := subscriptionService.AdmitDailyCardRequest(c.Request.Context(), service.DailyCardRequestAdmissionInput{
+		EntitlementID: card.ID, UserID: userID, ClientRequestID: clientRequestID,
+		SettlementRequestID: settlementRequestID, RequestFingerprint: fingerprint,
+		RequestPath: c.Request.URL.Path, AdmittedAt: time.Now(),
 	})
-	return requestID, err
-}
-
-func releaseDailyCardRequest(ctx context.Context, subscriptionService *service.SubscriptionService, entitlementID, userID int64, requestID string) {
-	if subscriptionService == nil || entitlementID <= 0 || requestID == "" {
-		return
+	if err == nil {
+		c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.DailyCardSettlementRequestID, settlementRequestID))
 	}
-	releaseCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-	defer cancel()
-	_ = subscriptionService.ReleaseDailyCardRequest(releaseCtx, entitlementID, userID, requestID)
+	return settlementRequestID, err
 }
 
 func apiKeyHeadersTooLarge(c *gin.Context) bool {
