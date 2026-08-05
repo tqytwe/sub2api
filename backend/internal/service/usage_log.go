@@ -135,9 +135,6 @@ type UsageLog struct {
 
 	GroupID        *int64
 	SubscriptionID *int64
-	// SubscriptionEntitlementID records the one-time daily-card entitlement
-	// charged by this request when subscription quota is backed by entitlements.
-	SubscriptionEntitlementID *int64
 
 	InputTokens         int
 	OutputTokens        int

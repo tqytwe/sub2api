@@ -124,9 +124,7 @@ func TestNormalizeExpiredWindowsKeepsLegacyMonthlyUsageBeforeExpiry(t *testing.T
 		MonthlyUsageUSD:    12,
 	}}
 
-	svc := NewSubscriptionService(groupRepoNoop{}, userSubRepoNoop{}, nil, nil, nil)
-	svc.now = func() time.Time { return now }
-	svc.normalizeExpiredWindows(subs)
+	normalizeExpiredWindowsAt(subs, now)
 
 	require.Equal(t, 12.0, subs[0].MonthlyUsageUSD)
 	require.Equal(t, windowStart, *subs[0].MonthlyWindowStart)
@@ -143,9 +141,7 @@ func TestNormalizeExpiredWindowsResetsMonthlyUsageWithPartialFinalPeriod(t *test
 		MonthlyUsageUSD:    12,
 	}}
 
-	svc := NewSubscriptionService(groupRepoNoop{}, userSubRepoNoop{}, nil, nil, nil)
-	svc.now = func() time.Time { return now }
-	svc.normalizeExpiredWindows(subs)
+	normalizeExpiredWindowsAt(subs, now)
 
 	require.Zero(t, subs[0].MonthlyUsageUSD)
 	require.Nil(t, subs[0].MonthlyWindowStart)

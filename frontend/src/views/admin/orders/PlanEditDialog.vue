@@ -151,26 +151,6 @@
         <div><label class="input-label">{{ t('payment.admin.validity') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.validity_days" type="number" min="1" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="text-red-500">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
       </div>
-      <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
-        <h3 class="mb-4 text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.quotaRule') }}</h3>
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
-          <div>
-            <label class="input-label">{{ t('payment.admin.quotaMode') }}</label>
-            <Select v-model="planForm.quota_mode" data-test="plan-quota-mode" :options="quotaModeOptions" />
-          </div>
-          <div v-if="planForm.quota_mode === 'one_time'">
-            <label class="input-label">{{ t('payment.admin.quotaLimitUsd') }} <span class="text-red-500">*</span></label>
-            <input v-model.number="planForm.quota_limit_usd" data-test="plan-quota-limit" type="number" min="0.0000000001" step="0.01" class="input" required />
-          </div>
-          <div v-if="planForm.quota_mode === 'one_time'">
-            <label class="input-label">{{ t('payment.admin.durationHours') }} <span class="text-red-500">*</span></label>
-            <input v-model.number="planForm.duration_hours" data-test="plan-duration-hours" type="number" min="1" step="1" class="input" required />
-          </div>
-        </div>
-        <p v-if="planForm.quota_mode === 'one_time'" class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          {{ t('payment.admin.oneTimeQuotaPolicy') }}
-        </p>
-      </div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
         <div>
@@ -259,9 +239,6 @@ const planForm = reactive({
   currency: '',
   validity_days: 30,
   validity_unit: 'days',
-  quota_mode: 'recurring' as 'recurring' | 'one_time',
-  quota_limit_usd: null as number | null,
-  duration_hours: null as number | null,
   sort_order: 0,
   for_sale: true,
 })
@@ -271,11 +248,6 @@ const validityUnitOptions = computed(() => [
   { value: 'days', label: t('payment.admin.days') },
   { value: 'weeks', label: t('payment.admin.weeks') },
   { value: 'months', label: t('payment.admin.months') },
-])
-
-const quotaModeOptions = computed(() => [
-  { value: 'recurring', label: t('payment.admin.quotaModeRecurring') },
-  { value: 'one_time', label: t('payment.admin.quotaModeOneTime') },
 ])
 
 const storefrontPlatformOptions = computed(() => [
@@ -393,9 +365,6 @@ watch(() => props.show, (visible) => {
       currency: props.plan.currency || '',
       validity_days: props.plan.validity_days,
       validity_unit: props.plan.validity_unit || 'days',
-      quota_mode: props.plan.quota_mode || 'recurring',
-      quota_limit_usd: props.plan.quota_limit_usd ?? null,
-      duration_hours: props.plan.duration_hours ?? null,
       sort_order: props.plan.sort_order || 0,
       for_sale: props.plan.for_sale,
     })
@@ -417,9 +386,6 @@ watch(() => props.show, (visible) => {
       currency: '',
       validity_days: 30,
       validity_unit: 'days',
-      quota_mode: 'recurring',
-      quota_limit_usd: null,
-      duration_hours: null,
       sort_order: 0,
       for_sale: true,
     })
@@ -454,9 +420,6 @@ function buildPlanPayload() {
     currency: planForm.currency.trim().toUpperCase(),
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
-    quota_mode: planForm.quota_mode,
-    quota_limit_usd: planForm.quota_mode === 'one_time' ? planForm.quota_limit_usd : null,
-    duration_hours: planForm.quota_mode === 'one_time' ? planForm.duration_hours : null,
     sort_order: planForm.sort_order,
     for_sale: planForm.for_sale,
     features,
@@ -474,22 +437,6 @@ async function handleSavePlan() {
   }
   if (!planForm.validity_days || planForm.validity_days < 1) {
     appStore.showError(t('payment.admin.validityRequired'))
-    return
-  }
-  if (planForm.quota_mode === 'one_time' && (!planForm.quota_limit_usd || planForm.quota_limit_usd <= 0)) {
-    appStore.showError(t('payment.admin.quotaLimitRequired'))
-    return
-  }
-  if (planForm.quota_mode === 'one_time' && (!planForm.duration_hours || planForm.duration_hours < 1)) {
-    appStore.showError(t('payment.admin.durationHoursRequired'))
-    return
-  }
-  if (
-    planForm.quota_mode === 'one_time'
-    && planForm.validity_unit.replace(/s$/, '') === 'day'
-    && (planForm.duration_hours ?? 0) > planForm.validity_days * 24
-  ) {
-    appStore.showError(t('payment.admin.durationExceedsValidity'))
     return
   }
   saving.value = true

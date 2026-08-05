@@ -530,13 +530,6 @@ func (s *BillingCacheService) InvalidateSubscription(ctx context.Context, userID
 	return nil
 }
 
-func (s *BillingCacheService) InvalidateSubscriptionEverywhere(ctx context.Context, userID, groupID int64) error {
-	if err := s.InvalidateSubscription(ctx, userID, groupID); err != nil {
-		return err
-	}
-	return s.PublishSubscriptionCacheInvalidation(ctx, subCacheKey(userID, groupID))
-}
-
 func (s *BillingCacheService) PublishSubscriptionCacheInvalidation(ctx context.Context, cacheKey string) error {
 	if s.cache == nil {
 		return nil
@@ -752,12 +745,8 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
 
 	if isSubscriptionMode {
-		// Daily-card admission has already reconciled and reserved the immutable
-		// entitlement. Legacy calendar-window usage is not authoritative here.
-		if subscription.DailyCardEntitlementID == nil {
-			if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
-				return err
-			}
+		if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
+			return err
 		}
 	} else {
 		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {

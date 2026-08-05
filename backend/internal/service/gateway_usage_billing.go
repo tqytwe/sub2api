@@ -303,9 +303,6 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 
 func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string) string {
 	if ctx != nil {
-		if settlementRequestID, _ := ctx.Value(ctxkey.DailyCardSettlementRequestID).(string); strings.TrimSpace(settlementRequestID) != "" {
-			return strings.TrimSpace(settlementRequestID)
-		}
 		if clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
 			return "client:" + strings.TrimSpace(clientRequestID)
 		}
@@ -373,9 +370,6 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		if usageLog.SubscriptionID != nil {
 			cmd.SubscriptionID = usageLog.SubscriptionID
 		}
-		if usageLog.SubscriptionEntitlementID != nil {
-			cmd.SubscriptionEntitlementID = usageLog.SubscriptionEntitlementID
-		}
 	}
 
 	// Record subscription / balance cost using ActualCost so the group (and any
@@ -383,12 +377,9 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 	// speed. TotalCost remains the raw (pre-multiplier) value; downstream guards
 	// on "> 0" still correctly skip free subscriptions (RateMultiplier == 0).
 	if !IsImageStudioManagedBilling(ctx) {
-		if p.IsSubscriptionBill && p.Subscription != nil {
+		if p.IsSubscriptionBill && p.Subscription != nil && p.Cost.TotalCost > 0 {
 			cmd.SubscriptionID = &p.Subscription.ID
-			cmd.SubscriptionEntitlementID = p.Subscription.DailyCardEntitlementID
-			if p.Cost.TotalCost > 0 {
-				cmd.SubscriptionCost = p.billedCost()
-			}
+			cmd.SubscriptionCost = p.billedCost()
 		} else if p.billedCost() > 0 {
 			cmd.BalanceCost = p.billedCost()
 		}
@@ -468,13 +459,7 @@ func finalizePostUsageBilling(ctx context.Context, p *postUsageBillingParams, de
 
 	if p.IsSubscriptionBill {
 		if billedCost > 0 && p.User != nil && p.APIKey != nil && p.APIKey.GroupID != nil {
-			if result.DailyCardExhausted || result.ActivatedEntitlementID != nil {
-				if err := deps.billingCacheService.InvalidateSubscriptionEverywhere(ctx, p.User.ID, *p.APIKey.GroupID); err != nil {
-					logger.LegacyPrintf("service.gateway", "invalidate terminal daily-card subscription cache failed: %v", err)
-				}
-			} else {
-				deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, billedCost)
-			}
+			deps.billingCacheService.QueueUpdateSubscriptionUsage(p.User.ID, *p.APIKey.GroupID, billedCost)
 		}
 	} else if billedCost > 0 && p.User != nil {
 		syncBalanceCacheAfterDeduction(ctx, p, deps, result)
@@ -1182,46 +1167,45 @@ func (s *GatewayService) buildRecordUsageLog(
 	durationMs := int(result.Duration.Milliseconds())
 	requestID := resolveUsageBillingRequestID(ctx, result.RequestID)
 	usageLog := &UsageLog{
-		UserID:                    user.ID,
-		APIKeyID:                  apiKey.ID,
-		AccountID:                 account.ID,
-		RequestID:                 requestID,
-		Model:                     result.Model,
-		RequestedModel:            requestedModel,
-		UpstreamModel:             optionalTrimmedStringPtr(result.UpstreamModel),
-		ReasoningEffort:           result.ReasoningEffort,
-		InboundEndpoint:           optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:          optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		InputTokens:               result.Usage.InputTokens,
-		OutputTokens:              result.Usage.OutputTokens,
-		CacheCreationTokens:       result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:           result.Usage.CacheReadInputTokens,
-		CacheCreation5mTokens:     result.Usage.CacheCreation5mTokens,
-		CacheCreation1hTokens:     result.Usage.CacheCreation1hTokens,
-		ImageOutputTokens:         result.Usage.ImageOutputTokens,
-		RateMultiplier:            multiplier,
-		AccountRateMultiplier:     &accountRateMultiplier,
-		BillingType:               billingType,
-		BillingMode:               resolveBillingMode(result, cost),
-		Stream:                    result.Stream,
-		DurationMs:                &durationMs,
-		FirstTokenMs:              result.FirstTokenMs,
-		ImageCount:                result.ImageCount,
-		ImageSize:                 optionalTrimmedStringPtr(result.ImageSize),
-		ImageInputSize:            optionalTrimmedStringPtr(result.ImageInputSize),
-		ImageOutputSize:           optionalTrimmedStringPtr(result.ImageOutputSize),
-		ImageSizeSource:           optionalTrimmedStringPtr(result.ImageSizeSource),
-		ImageSizeBreakdown:        result.ImageSizeBreakdown,
-		CacheTTLOverridden:        cacheTTLOverridden,
-		ChannelID:                 optionalInt64Ptr(input.ChannelID),
-		ModelMappingChain:         optionalTrimmedStringPtr(input.ModelMappingChain),
-		UserAgent:                 optionalTrimmedStringPtr(input.UserAgent),
-		IPAddress:                 optionalTrimmedStringPtr(input.IPAddress),
-		SessionID:                 optionalTrimmedStringPtr(input.SessionID),
-		GroupID:                   apiKey.GroupID,
-		SubscriptionID:            optionalSubscriptionID(subscription),
-		SubscriptionEntitlementID: optionalSubscriptionEntitlementID(subscription),
-		CreatedAt:                 time.Now(),
+		UserID:                user.ID,
+		APIKeyID:              apiKey.ID,
+		AccountID:             account.ID,
+		RequestID:             requestID,
+		Model:                 result.Model,
+		RequestedModel:        requestedModel,
+		UpstreamModel:         optionalTrimmedStringPtr(result.UpstreamModel),
+		ReasoningEffort:       result.ReasoningEffort,
+		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:           result.Usage.InputTokens,
+		OutputTokens:          result.Usage.OutputTokens,
+		CacheCreationTokens:   result.Usage.CacheCreationInputTokens,
+		CacheReadTokens:       result.Usage.CacheReadInputTokens,
+		CacheCreation5mTokens: result.Usage.CacheCreation5mTokens,
+		CacheCreation1hTokens: result.Usage.CacheCreation1hTokens,
+		ImageOutputTokens:     result.Usage.ImageOutputTokens,
+		RateMultiplier:        multiplier,
+		AccountRateMultiplier: &accountRateMultiplier,
+		BillingType:           billingType,
+		BillingMode:           resolveBillingMode(result, cost),
+		Stream:                result.Stream,
+		DurationMs:            &durationMs,
+		FirstTokenMs:          result.FirstTokenMs,
+		ImageCount:            result.ImageCount,
+		ImageSize:             optionalTrimmedStringPtr(result.ImageSize),
+		ImageInputSize:        optionalTrimmedStringPtr(result.ImageInputSize),
+		ImageOutputSize:       optionalTrimmedStringPtr(result.ImageOutputSize),
+		ImageSizeSource:       optionalTrimmedStringPtr(result.ImageSizeSource),
+		ImageSizeBreakdown:    result.ImageSizeBreakdown,
+		CacheTTLOverridden:    cacheTTLOverridden,
+		ChannelID:             optionalInt64Ptr(input.ChannelID),
+		ModelMappingChain:     optionalTrimmedStringPtr(input.ModelMappingChain),
+		UserAgent:             optionalTrimmedStringPtr(input.UserAgent),
+		IPAddress:             optionalTrimmedStringPtr(input.IPAddress),
+		SessionID:             optionalTrimmedStringPtr(input.SessionID),
+		GroupID:               apiKey.GroupID,
+		SubscriptionID:        optionalSubscriptionID(subscription),
+		CreatedAt:             time.Now(),
 	}
 	if result.ImageCount > 0 && (cost == nil || cost.BillingMode != string(BillingModeToken)) {
 		usageLog.RateMultiplier = imageMultiplier
@@ -1259,11 +1243,4 @@ func optionalSubscriptionID(subscription *UserSubscription) *int64 {
 		return &subscription.ID
 	}
 	return nil
-}
-
-func optionalSubscriptionEntitlementID(subscription *UserSubscription) *int64 {
-	if subscription == nil || subscription.DailyCardEntitlementID == nil {
-		return nil
-	}
-	return subscription.DailyCardEntitlementID
 }

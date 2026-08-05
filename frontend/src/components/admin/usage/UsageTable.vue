@@ -110,16 +110,6 @@
           </span>
         </template>
 
-        <template #cell-daily_card="{ row }">
-          <span
-            v-if="row.subscription_entitlement_id"
-            class="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium bg-emerald-100 text-emerald-700 ring-1 ring-inset ring-emerald-200 dark:bg-emerald-500/20 dark:text-emerald-300 dark:ring-emerald-500/30"
-          >
-            {{ t('admin.usage.dailyCard') }} #{{ row.subscription_entitlement_id }}
-          </span>
-          <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
-        </template>
-
         <template #cell-tokens="{ row }">
           <!-- 图片生成请求（仅按次计费时显示图片格式） -->
           <div v-if="isImageUsage(row)" class="flex items-center gap-1.5">

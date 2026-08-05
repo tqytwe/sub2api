@@ -984,8 +984,7 @@ var ProviderSet = wire.NewSet(
 	NewFundManagementService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
-	ProvideSubscriptionService,
-	NewDailyCardService,
+	NewSubscriptionService,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
 	ProvideConcurrencyService,
 	ProvideUserMessageQueueService,
@@ -1075,12 +1074,6 @@ func ProvidePaymentConfigService(entClient *dbent.Client, settingRepo SettingRep
 	return NewPaymentConfigService(entClient, settingRepo, []byte(key))
 }
 
-func ProvideSubscriptionService(groupRepo GroupRepository, userSubRepo UserSubscriptionRepository, billingCacheService *BillingCacheService, entClient *dbent.Client, cfg *config.Config, dailyCardSvc *DailyCardService) *SubscriptionService {
-	svc := NewSubscriptionService(groupRepo, userSubRepo, billingCacheService, entClient, cfg)
-	svc.SetDailyCardService(dailyCardSvc)
-	return svc
-}
-
 // ProvideBalanceNotifyService creates BalanceNotifyService
 func ProvideBalanceNotifyService(emailService *EmailService, settingRepo SettingRepository, accountRepo AccountRepository, notificationEmailService *NotificationEmailService) *BalanceNotifyService {
 	svc := NewBalanceNotifyService(emailService, settingRepo, accountRepo)
@@ -1089,12 +1082,11 @@ func ProvideBalanceNotifyService(emailService *EmailService, settingRepo Setting
 }
 
 // ProvidePaymentService creates PaymentService and attaches notification email delivery.
-func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, playService *PlayService, balanceLedger *BalanceLedgerService, couponService *CouponService, dailyCardSvc *DailyCardService) *PaymentService {
+func ProvidePaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, notificationEmailService *NotificationEmailService, playService *PlayService, balanceLedger *BalanceLedgerService, couponService *CouponService) *PaymentService {
 	svc := NewPaymentService(entClient, registry, loadBalancer, redeemService, subscriptionSvc, configService, userRepo, groupRepo, affiliateService, balanceLedger)
 	svc.SetNotificationEmailService(notificationEmailService)
 	svc.SetPlayService(playService)
 	svc.SetCouponService(couponService)
-	svc.SetDailyCardService(dailyCardSvc)
 	return svc
 }
 

@@ -150,9 +150,6 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	if requestID, _ := parent.Value(ctxkey.RequestID).(string); strings.TrimSpace(requestID) != "" {
 		base = context.WithValue(base, ctxkey.RequestID, strings.TrimSpace(requestID))
 	}
-	if settlementRequestID, _ := parent.Value(ctxkey.DailyCardSettlementRequestID).(string); strings.TrimSpace(settlementRequestID) != "" {
-		base = context.WithValue(base, ctxkey.DailyCardSettlementRequestID, strings.TrimSpace(settlementRequestID))
-	}
 	if managed, _ := parent.Value(ctxkey.ImageStudioManagedBilling).(bool); managed {
 		base = context.WithValue(base, ctxkey.ImageStudioManagedBilling, true)
 	}
@@ -161,9 +158,6 @@ func usageRecordContext(parent context.Context, base context.Context) context.Co
 	}
 	if cap, ok := parent.Value(ctxkey.ImageStudioBillingActualCostCap).(float64); ok {
 		base = context.WithValue(base, ctxkey.ImageStudioBillingActualCostCap, cap)
-	}
-	if signal, _ := parent.Value(ctxkey.DailyCardBillingSignal).(*middleware2.DailyCardBillingSignal); signal != nil {
-		base = context.WithValue(base, ctxkey.DailyCardBillingSignal, signal)
 	}
 	return base
 }
@@ -2408,11 +2402,6 @@ func (h *OpenAIGatewayHandler) submitUsageRecordTask(parent context.Context, tas
 	if task == nil {
 		return
 	}
-	middleware2.MarkDailyCardBillingScheduled(parent)
-	if middleware2.IsDailyCardBillingRequest(parent) {
-		h.runUsageRecordTaskSync(parent, task)
-		return
-	}
 	if h.usageRecordWorkerPool != nil {
 		if mode := h.usageRecordWorkerPool.Submit(task); mode != service.UsageRecordSubmitModeDroppedStopped {
 			return
@@ -2461,7 +2450,6 @@ func (h *OpenAIGatewayHandler) submitMandatoryUsageRecordTask(parent context.Con
 	if task == nil {
 		return
 	}
-	middleware2.MarkDailyCardBillingScheduled(parent)
 	if h.usageRecordWorkerPool != nil {
 		if mode := h.usageRecordWorkerPool.Submit(wrapUsageRecordTaskContext(parent, task)); mode != service.UsageRecordSubmitModeDropped {
 			return

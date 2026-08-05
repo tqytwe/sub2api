@@ -1,7 +1,6 @@
 package admin
 
 import (
-	"errors"
 	"strconv"
 	"time"
 
@@ -85,16 +84,7 @@ func (h *PaymentHandler) GetOrderDetail(c *gin.Context) {
 		return
 	}
 	auditLogs, _ := h.paymentService.GetOrderAuditLogs(c.Request.Context(), orderID)
-	entitlement, entitlementErr := h.paymentService.GetDailyCardByPaymentOrder(c.Request.Context(), orderID)
-	if entitlementErr != nil && !errors.Is(entitlementErr, service.ErrDailyCardEntitlementNotFound) {
-		response.ErrorFrom(c, entitlementErr)
-		return
-	}
-	response.Success(c, gin.H{
-		"order":                  sanitizeAdminPaymentOrderForResponse(order),
-		"auditLogs":              auditLogs,
-		"daily_card_entitlement": entitlement,
-	})
+	response.Success(c, gin.H{"order": sanitizeAdminPaymentOrderForResponse(order), "auditLogs": auditLogs})
 }
 
 // CancelOrder cancels a pending order (admin).
@@ -174,7 +164,6 @@ type AdminPaymentOrderResult struct {
 	SrcHost                  string         `json:"src_host,omitempty"`
 	SrcURL                   *string        `json:"src_url,omitempty"`
 	RechargeSnapshot         map[string]any `json:"recharge_snapshot,omitempty"`
-	SubscriptionSnapshot     map[string]any `json:"subscription_snapshot,omitempty"`
 	CreatedAt                time.Time      `json:"created_at"`
 	UpdatedAt                time.Time      `json:"updated_at"`
 }
@@ -241,7 +230,6 @@ func sanitizeAdminPaymentOrderForResponse(order *dbent.PaymentOrder) *AdminPayme
 		SrcHost:                  order.SrcHost,
 		SrcURL:                   order.SrcURL,
 		RechargeSnapshot:         adminPaymentRechargeSnapshotForResponse(order),
-		SubscriptionSnapshot:     order.SubscriptionSnapshot,
 		CreatedAt:                order.CreatedAt,
 		UpdatedAt:                order.UpdatedAt,
 	}
@@ -341,9 +329,6 @@ type AdminSubscriptionPlanResult struct {
 	Currency        string    `json:"currency,omitempty"`
 	ValidityDays    int       `json:"validity_days"`
 	ValidityUnit    string    `json:"validity_unit"`
-	QuotaMode       string    `json:"quota_mode"`
-	QuotaLimitUSD   *float64  `json:"quota_limit_usd"`
-	DurationHours   *int      `json:"duration_hours"`
 	Features        string    `json:"features"`
 	ProductName     string    `json:"product_name"`
 	ForSale         bool      `json:"for_sale"`
@@ -376,9 +361,6 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 			Currency:        p.Currency,
 			ValidityDays:    p.ValidityDays,
 			ValidityUnit:    p.ValidityUnit,
-			QuotaMode:       p.QuotaMode,
-			QuotaLimitUSD:   p.QuotaLimitUsd,
-			DurationHours:   p.DurationHours,
 			Features:        p.Features,
 			ProductName:     p.ProductName,
 			ForSale:         p.ForSale,

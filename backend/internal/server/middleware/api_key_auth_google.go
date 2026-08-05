@@ -1,14 +1,11 @@
 package middleware
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
-	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/googleapi"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ip"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -184,54 +181,25 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				return
 			}
 
-			card, managedByDailyCard, cardErr := subscriptionService.ResolveDailyCardAccess(c.Request.Context(), apiKey.User.ID, apiKey.Group.ID)
-			if cardErr != nil {
-				abortWithGoogleError(c, 429, cardErr.Error())
-				return
+			needsMaintenance, err := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
+			if needsMaintenance {
+				refreshed, maintenanceErr := subscriptionService.EnsureWindowMaintenance(c.Request.Context(), subscription)
+				if maintenanceErr != nil {
+					abortWithGoogleError(c, 500, "Failed to maintain subscription usage windows")
+					return
+				}
+				subscription = refreshed
+				_, err = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
 			}
-			if managedByDailyCard {
-				if !dailyCardBillingChannelSupported(c.Request.Method, c.Request.URL.Path, c.GetHeader("Upgrade")) {
-					abortWithGoogleError(c, http.StatusForbidden, "This request channel is not available for daily cards")
-					return
+			if err != nil {
+				status := 403
+				if errors.Is(err, service.ErrDailyLimitExceeded) ||
+					errors.Is(err, service.ErrWeeklyLimitExceeded) ||
+					errors.Is(err, service.ErrMonthlyLimitExceeded) {
+					status = 429
 				}
-				_, reserveErr := admitDailyCardRequest(c, subscriptionService, card, apiKey.User.ID, apiKey.ID)
-				if reserveErr != nil {
-					if errors.Is(reserveErr, service.ErrDailyCardDuplicateRequest) || errors.Is(reserveErr, service.ErrDailyCardRequestPendingConfirmation) {
-						code := "DAILY_CARD_DUPLICATE_REQUEST"
-						if errors.Is(reserveErr, service.ErrDailyCardRequestPendingConfirmation) {
-							code = "DAILY_CARD_REQUEST_PENDING_CONFIRMATION"
-						}
-						abortWithGoogleError(c, http.StatusConflict, code+": "+reserveErr.Error())
-						return
-					}
-					abortWithGoogleError(c, http.StatusInternalServerError, "DAILY_CARD_REQUEST_ADMISSION_FAILED: "+reserveErr.Error())
-					return
-				}
-				dailyCardBillingSignal := &DailyCardBillingSignal{}
-				c.Request = c.Request.WithContext(context.WithValue(c.Request.Context(), ctxkey.DailyCardBillingSignal, dailyCardBillingSignal))
-				subscription.DailyCardEntitlementID = &card.ID
-				subscription.DailyUsageUSD = card.QuotaUsedUSD
-			} else {
-				needsMaintenance, err := subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
-				if needsMaintenance {
-					refreshed, maintenanceErr := subscriptionService.EnsureWindowMaintenance(c.Request.Context(), subscription)
-					if maintenanceErr != nil {
-						abortWithGoogleError(c, 500, "Failed to maintain subscription usage windows")
-						return
-					}
-					subscription = refreshed
-					_, err = subscriptionService.ValidateAndCheckLimits(subscription, apiKey.Group)
-				}
-				if err != nil {
-					status := 403
-					if errors.Is(err, service.ErrDailyLimitExceeded) ||
-						errors.Is(err, service.ErrWeeklyLimitExceeded) ||
-						errors.Is(err, service.ErrMonthlyLimitExceeded) {
-						status = 429
-					}
-					abortWithGoogleError(c, status, err.Error())
-					return
-				}
+				abortWithGoogleError(c, status, err.Error())
+				return
 			}
 
 			c.Set(string(ContextKeySubscription), subscription)
@@ -251,8 +219,6 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 		setGroupContext(c, apiKey.Group)
 		_ = apiKeyService.TouchLastUsed(c.Request.Context(), apiKey.ID)
 		c.Next()
-		// A Google gateway response cannot prove the upstream was not reached.
-		// Preserve the replay as pending until explicit reconciliation.
 	}
 }
 

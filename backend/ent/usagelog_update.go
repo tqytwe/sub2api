@@ -269,33 +269,6 @@ func (_u *UsageLogUpdate) ClearSubscriptionID() *UsageLogUpdate {
 	return _u
 }
 
-// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
-func (_u *UsageLogUpdate) SetSubscriptionEntitlementID(v int64) *UsageLogUpdate {
-	_u.mutation.ResetSubscriptionEntitlementID()
-	_u.mutation.SetSubscriptionEntitlementID(v)
-	return _u
-}
-
-// SetNillableSubscriptionEntitlementID sets the "subscription_entitlement_id" field if the given value is not nil.
-func (_u *UsageLogUpdate) SetNillableSubscriptionEntitlementID(v *int64) *UsageLogUpdate {
-	if v != nil {
-		_u.SetSubscriptionEntitlementID(*v)
-	}
-	return _u
-}
-
-// AddSubscriptionEntitlementID adds value to the "subscription_entitlement_id" field.
-func (_u *UsageLogUpdate) AddSubscriptionEntitlementID(v int64) *UsageLogUpdate {
-	_u.mutation.AddSubscriptionEntitlementID(v)
-	return _u
-}
-
-// ClearSubscriptionEntitlementID clears the value of the "subscription_entitlement_id" field.
-func (_u *UsageLogUpdate) ClearSubscriptionEntitlementID() *UsageLogUpdate {
-	_u.mutation.ClearSubscriptionEntitlementID()
-	return _u
-}
-
 // SetInputTokens sets the "input_tokens" field.
 func (_u *UsageLogUpdate) SetInputTokens(v int) *UsageLogUpdate {
 	_u.mutation.ResetInputTokens()
@@ -1244,15 +1217,6 @@ func (_u *UsageLogUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	if _u.mutation.BillingModeCleared() {
 		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
 	}
-	if value, ok := _u.mutation.SubscriptionEntitlementID(); ok {
-		_spec.SetField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedSubscriptionEntitlementID(); ok {
-		_spec.AddField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64, value)
-	}
-	if _u.mutation.SubscriptionEntitlementIDCleared() {
-		_spec.ClearField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64)
-	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)
 	}
@@ -1862,33 +1826,6 @@ func (_u *UsageLogUpdateOne) SetNillableSubscriptionID(v *int64) *UsageLogUpdate
 // ClearSubscriptionID clears the value of the "subscription_id" field.
 func (_u *UsageLogUpdateOne) ClearSubscriptionID() *UsageLogUpdateOne {
 	_u.mutation.ClearSubscriptionID()
-	return _u
-}
-
-// SetSubscriptionEntitlementID sets the "subscription_entitlement_id" field.
-func (_u *UsageLogUpdateOne) SetSubscriptionEntitlementID(v int64) *UsageLogUpdateOne {
-	_u.mutation.ResetSubscriptionEntitlementID()
-	_u.mutation.SetSubscriptionEntitlementID(v)
-	return _u
-}
-
-// SetNillableSubscriptionEntitlementID sets the "subscription_entitlement_id" field if the given value is not nil.
-func (_u *UsageLogUpdateOne) SetNillableSubscriptionEntitlementID(v *int64) *UsageLogUpdateOne {
-	if v != nil {
-		_u.SetSubscriptionEntitlementID(*v)
-	}
-	return _u
-}
-
-// AddSubscriptionEntitlementID adds value to the "subscription_entitlement_id" field.
-func (_u *UsageLogUpdateOne) AddSubscriptionEntitlementID(v int64) *UsageLogUpdateOne {
-	_u.mutation.AddSubscriptionEntitlementID(v)
-	return _u
-}
-
-// ClearSubscriptionEntitlementID clears the value of the "subscription_entitlement_id" field.
-func (_u *UsageLogUpdateOne) ClearSubscriptionEntitlementID() *UsageLogUpdateOne {
-	_u.mutation.ClearSubscriptionEntitlementID()
 	return _u
 }
 
@@ -2869,15 +2806,6 @@ func (_u *UsageLogUpdateOne) sqlSave(ctx context.Context) (_node *UsageLog, err 
 	}
 	if _u.mutation.BillingModeCleared() {
 		_spec.ClearField(usagelog.FieldBillingMode, field.TypeString)
-	}
-	if value, ok := _u.mutation.SubscriptionEntitlementID(); ok {
-		_spec.SetField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64, value)
-	}
-	if value, ok := _u.mutation.AddedSubscriptionEntitlementID(); ok {
-		_spec.AddField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64, value)
-	}
-	if _u.mutation.SubscriptionEntitlementIDCleared() {
-		_spec.ClearField(usagelog.FieldSubscriptionEntitlementID, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.InputTokens(); ok {
 		_spec.SetField(usagelog.FieldInputTokens, field.TypeInt, value)

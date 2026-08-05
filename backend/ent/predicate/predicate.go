@@ -114,12 +114,6 @@ type SecuritySecret func(*sql.Selector)
 // Setting is the predicate function for setting builders.
 type Setting func(*sql.Selector)
 
-// SubscriptionEntitlement is the predicate function for subscriptionentitlement builders.
-type SubscriptionEntitlement func(*sql.Selector)
-
-// SubscriptionEntitlementHold is the predicate function for subscriptionentitlementhold builders.
-type SubscriptionEntitlementHold func(*sql.Selector)
-
 // SubscriptionPlan is the predicate function for subscriptionplan builders.
 type SubscriptionPlan func(*sql.Selector)
 

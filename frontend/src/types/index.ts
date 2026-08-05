@@ -1631,7 +1631,6 @@ export interface UsageLog {
 
   group_id: number | null
   subscription_id: number | null
-  subscription_entitlement_id?: number | null
 
   input_tokens: number
   output_tokens: number
@@ -2001,25 +2000,6 @@ export interface UserSubscription {
   assigned_at?: string
   notes?: string
   purchase_order?: SubscriptionPurchaseOrder | null
-  daily_card?: DailyCardEntitlement | null
-  daily_card_queue_count?: number
-}
-
-export interface DailyCardEntitlement {
-  id: number
-  payment_order_id?: number | null
-  source_type?: string
-  source_id?: string
-  status: 'pending' | 'active' | 'exhausted' | 'expired' | 'revoked'
-  quota_limit_usd: number
-  quota_used_usd: number
-  quota_reserved_usd: number
-  remaining_quota_usd: number
-  duration_hours: number
-  starts_at?: string | null
-  expires_at?: string | null
-  exhausted_at?: string | null
-  ended_at?: string | null
 }
 
 export interface SubscriptionPurchaseOrder {

@@ -5,15 +5,12 @@ package handler
 import (
 	"encoding/json"
 	"testing"
-	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCheckoutPlanJSONIncludesProductDisplayFields(t *testing.T) {
-	quotaLimit := 10.0
-	durationHours := 24
 	body, err := json.Marshal(checkoutPlan{
 		ID:                7,
 		GroupID:           3,
@@ -24,9 +21,6 @@ func TestCheckoutPlanJSONIncludesProductDisplayFields(t *testing.T) {
 		Price:             19.99,
 		ValidityDays:      30,
 		ValidityUnit:      "days",
-		QuotaMode:         service.DailyCardQuotaModeOneTime,
-		QuotaLimitUSD:     &quotaLimit,
-		DurationHours:     &durationHours,
 		Features:          []string{"Priority models"},
 	})
 	require.NoError(t, err)
@@ -50,9 +44,6 @@ func TestCheckoutPlanJSONIncludesProductDisplayFields(t *testing.T) {
 		"price": 19.99,
 		"validity_days": 30,
 		"validity_unit": "days",
-		"quota_mode": "one_time",
-		"quota_limit_usd": 10,
-		"duration_hours": 24,
 		"features": ["Priority models"],
 		"product_name": "GPT Pro Workbench",
 		"cover_image_url": "/assets/plans/pro.webp",
@@ -102,9 +93,6 @@ func TestCheckoutInfoJSONIncludesStorefrontConfig(t *testing.T) {
 			"price": 0,
 			"validity_days": 0,
 			"validity_unit": "",
-			"quota_mode": "",
-			"quota_limit_usd": null,
-			"duration_hours": null,
 			"features": null,
 			"product_name": "",
 			"cover_image_url": "",
@@ -142,22 +130,4 @@ func TestCheckoutInfoJSONIncludesStorefrontConfig(t *testing.T) {
 		"alipay_force_qrcode": false,
 		"alipay_mobile_precreate_deep_link": false
 	}`, string(body))
-}
-
-func TestBuildDailyCardResultsShowsRemainingQuotaAndQueuePosition(t *testing.T) {
-	now := time.Date(2026, 7, 28, 20, 0, 0, 0, time.UTC)
-	expiresAt := now.Add(22 * time.Hour)
-	cards := []service.DailyCardEntitlement{
-		{ID: 1, GroupID: 7, Status: service.DailyCardStatusActive, QuotaLimitUSD: 10, QuotaUsedUSD: 9, ExpiresAt: &expiresAt},
-		{ID: 2, GroupID: 7, Status: service.DailyCardStatusPending, QuotaLimitUSD: 10},
-	}
-
-	got := buildDailyCardResults(cards, now)
-
-	require.Len(t, got, 2)
-	require.Equal(t, 1.0, got[0].RemainingQuotaUSD)
-	require.Zero(t, got[0].QuotaReservedUSD)
-	require.Equal(t, int64(22*time.Hour/time.Second), got[0].RemainingSeconds)
-	require.Zero(t, got[0].QueuePosition)
-	require.Equal(t, 1, got[1].QueuePosition)
 }

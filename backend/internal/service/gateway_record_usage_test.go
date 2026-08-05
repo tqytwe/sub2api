@@ -168,44 +168,6 @@ func TestGatewayServiceRecordUsage_BillingFingerprintFallsBackToContextRequestID
 	require.Equal(t, "local:req-local-123", billingRepo.lastCmd.RequestPayloadHash)
 }
 
-func TestGatewayServiceRecordUsage_DailyCardCarriesEntitlementToBillingAndUsageLog(t *testing.T) {
-	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
-	billingRepo := &openAIRecordUsageBillingRepoStub{result: &UsageBillingApplyResult{Applied: true}}
-	svc := newGatewayRecordUsageServiceWithBillingRepoForTest(usageRepo, billingRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})
-
-	groupID := int64(88)
-	entitlementID := int64(14)
-	err := svc.RecordUsage(context.Background(), &RecordUsageInput{
-		Result: &ForwardResult{
-			RequestID: "gateway_daily_card_capture",
-			Usage: ClaudeUsage{
-				InputTokens:  10,
-				OutputTokens: 6,
-			},
-			Model:    "claude-sonnet-4",
-			Duration: time.Second,
-		},
-		APIKey: &APIKey{
-			ID:      501,
-			GroupID: &groupID,
-			Quota:   100,
-			Group:   &Group{ID: groupID, SubscriptionType: SubscriptionTypeSubscription, RateMultiplier: 1},
-		},
-		User:         &User{ID: 601},
-		Account:      &Account{ID: 701},
-		Subscription: &UserSubscription{ID: 99, UserID: 601, GroupID: groupID, DailyCardEntitlementID: &entitlementID},
-	})
-
-	require.NoError(t, err)
-	require.NotNil(t, usageRepo.lastLog)
-	require.NotNil(t, usageRepo.lastLog.SubscriptionEntitlementID)
-	require.Equal(t, entitlementID, *usageRepo.lastLog.SubscriptionEntitlementID)
-	require.NotNil(t, billingRepo.lastCmd)
-	require.NotNil(t, billingRepo.lastCmd.SubscriptionEntitlementID)
-	require.Equal(t, entitlementID, *billingRepo.lastCmd.SubscriptionEntitlementID)
-	require.Greater(t, billingRepo.lastCmd.SubscriptionCost, 0.0)
-}
-
 func TestGatewayServiceRecordUsage_PreservesRequestedAndUpstreamModels(t *testing.T) {
 	usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
 	svc := newGatewayRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{})

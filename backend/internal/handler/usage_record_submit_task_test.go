@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
-	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -130,48 +128,6 @@ func TestOpenAIGatewayHandlerSubmitUsageRecordTask_WithoutPool_TaskPanicRecovere
 		called.Store(true)
 	})
 	require.True(t, called.Load(), "panic 后后续任务应仍可执行")
-}
-
-func TestOpenAIGatewayHandlerSubmitUsageRecordTask_DailyCardRunsSynchronously(t *testing.T) {
-	pool := newUsageRecordTestPool(t)
-	h := &OpenAIGatewayHandler{usageRecordWorkerPool: pool}
-	ctx := context.WithValue(context.Background(), ctxkey.DailyCardBillingSignal, &middleware2.DailyCardBillingSignal{})
-	var called atomic.Bool
-	block := make(chan struct{})
-	started := make(chan struct{})
-	pool.Submit(func(context.Context) {
-		close(started)
-		<-block
-	})
-	<-started
-
-	h.submitUsageRecordTask(ctx, func(context.Context) {
-		called.Store(true)
-	})
-	close(block)
-
-	require.True(t, called.Load(), "daily-card settlement must finish before the request returns")
-}
-
-func TestGatewayHandlerSubmitUsageRecordTask_DailyCardRunsSynchronously(t *testing.T) {
-	pool := newUsageRecordTestPool(t)
-	h := &GatewayHandler{usageRecordWorkerPool: pool}
-	ctx := context.WithValue(context.Background(), ctxkey.DailyCardBillingSignal, &middleware2.DailyCardBillingSignal{})
-	var called atomic.Bool
-	block := make(chan struct{})
-	started := make(chan struct{})
-	pool.Submit(func(context.Context) {
-		close(started)
-		<-block
-	})
-	<-started
-
-	h.submitUsageRecordTask(ctx, func(context.Context) {
-		called.Store(true)
-	})
-	close(block)
-
-	require.True(t, called.Load(), "daily-card settlement must finish before the request returns")
 }
 
 func TestOpenAIGatewayHandlerSubmitMandatoryUsageRecordTask_DroppedTaskSyncFallback(t *testing.T) {

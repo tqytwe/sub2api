@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
-	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/stretchr/testify/require"
 )
@@ -54,32 +53,4 @@ func TestOpenAISubmitUsageRecordTaskCopiesRequestContext(t *testing.T) {
 	require.Same(t, capture, gotCapture)
 	require.True(t, gotActualCostCapOK)
 	require.InDelta(t, 0.125, gotActualCostCap, 0.000001)
-}
-
-func TestSubmitUsageRecordTaskCopiesDailyCardBillingSignal(t *testing.T) {
-	signal := &middleware2.DailyCardBillingSignal{}
-	parent := context.WithValue(context.Background(), ctxkey.DailyCardBillingSignal, signal)
-
-	var gotSignal *middleware2.DailyCardBillingSignal
-	h := &GatewayHandler{}
-	h.submitUsageRecordTask(parent, func(ctx context.Context) {
-		gotSignal, _ = ctx.Value(ctxkey.DailyCardBillingSignal).(*middleware2.DailyCardBillingSignal)
-	})
-
-	require.Same(t, signal, gotSignal)
-	require.True(t, signal.Scheduled())
-}
-
-func TestOpenAISubmitUsageRecordTaskCopiesDailyCardBillingSignal(t *testing.T) {
-	signal := &middleware2.DailyCardBillingSignal{}
-	parent := context.WithValue(context.Background(), ctxkey.DailyCardBillingSignal, signal)
-
-	var gotSignal *middleware2.DailyCardBillingSignal
-	h := &OpenAIGatewayHandler{}
-	h.submitUsageRecordTask(parent, func(ctx context.Context) {
-		gotSignal, _ = ctx.Value(ctxkey.DailyCardBillingSignal).(*middleware2.DailyCardBillingSignal)
-	})
-
-	require.Same(t, signal, gotSignal)
-	require.True(t, signal.Scheduled())
 }

@@ -331,30 +331,6 @@ func TestComputeValidityDaysSupportsSingularAndPluralUnits(t *testing.T) {
 	}
 }
 
-func TestBuildSubscriptionOrderSnapshotLocksDailyCardQuota(t *testing.T) {
-	quota := 12.5
-	duration := 24
-	plan := &dbent.SubscriptionPlan{
-		ID: 7, GroupID: 8, QuotaMode: DailyCardQuotaModeOneTime,
-		QuotaLimitUsd: &quota, DurationHours: &duration,
-	}
-
-	snapshot, err := buildSubscriptionOrderSnapshot(plan)
-
-	if err != nil {
-		t.Fatalf("buildSubscriptionOrderSnapshot() error = %v", err)
-	}
-	if got := snapshot["quota_mode"]; got != DailyCardQuotaModeOneTime {
-		t.Fatalf("quota_mode = %v", got)
-	}
-	if got := snapshot["quota_limit_usd"]; got != quota {
-		t.Fatalf("quota_limit_usd = %v, want %v", got, quota)
-	}
-	if got := snapshot["duration_hours"]; got != duration {
-		t.Fatalf("duration_hours = %v, want %v", got, duration)
-	}
-}
-
 func TestBuildPaymentSubjectAppliesAffixToSubscriptionPlanProductName(t *testing.T) {
 	t.Parallel()
 

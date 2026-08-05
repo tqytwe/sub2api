@@ -84,69 +84,6 @@ func (h *PaymentHandler) GetPlans(c *gin.Context) {
 	response.Success(c, buildPaymentPlansForResponse(c.Request.Context(), h.configService, plans))
 }
 
-type dailyCardResult struct {
-	ID                int64      `json:"id"`
-	GroupID           int64      `json:"group_id"`
-	PlanID            *int64     `json:"plan_id,omitempty"`
-	PaymentOrderID    *int64     `json:"payment_order_id,omitempty"`
-	SourceType        string     `json:"source_type,omitempty"`
-	SourceID          string     `json:"source_id,omitempty"`
-	Status            string     `json:"status"`
-	QuotaLimitUSD     float64    `json:"quota_limit_usd"`
-	QuotaUsedUSD      float64    `json:"quota_used_usd"`
-	QuotaReservedUSD  float64    `json:"quota_reserved_usd"`
-	RemainingQuotaUSD float64    `json:"remaining_quota_usd"`
-	DurationHours     int        `json:"duration_hours"`
-	StartsAt          *time.Time `json:"starts_at,omitempty"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	ExhaustedAt       *time.Time `json:"exhausted_at,omitempty"`
-	EndedAt           *time.Time `json:"ended_at,omitempty"`
-	RemainingSeconds  int64      `json:"remaining_seconds"`
-	QueuePosition     int        `json:"queue_position"`
-}
-
-func buildDailyCardResults(cards []service.DailyCardEntitlement, now time.Time) []dailyCardResult {
-	result := make([]dailyCardResult, 0, len(cards))
-	queuePositions := make(map[int64]int)
-	for i := range cards {
-		card := &cards[i]
-		remainingSeconds := int64(0)
-		if card.Status == service.DailyCardStatusActive && card.ExpiresAt != nil && now.Before(*card.ExpiresAt) {
-			remainingSeconds = int64(card.ExpiresAt.Sub(now) / time.Second)
-		}
-		queuePosition := 0
-		if card.Status == service.DailyCardStatusPending {
-			queuePositions[card.GroupID]++
-			queuePosition = queuePositions[card.GroupID]
-		}
-		result = append(result, dailyCardResult{
-			ID: card.ID, GroupID: card.GroupID, PlanID: card.PlanID, PaymentOrderID: card.PaymentOrderID,
-			SourceType: card.SourceType, SourceID: card.SourceID,
-			Status: card.Status, QuotaLimitUSD: card.QuotaLimitUSD, QuotaUsedUSD: card.QuotaUsedUSD,
-			QuotaReservedUSD: 0, RemainingQuotaUSD: card.RemainingQuotaUSD(),
-			DurationHours: card.DurationHours, StartsAt: card.StartsAt, ExpiresAt: card.ExpiresAt,
-			ExhaustedAt: card.ExhaustedAt, EndedAt: card.EndedAt,
-			RemainingSeconds: remainingSeconds, QueuePosition: queuePosition,
-		})
-	}
-	return result
-}
-
-// GetDailyCards returns the user's immutable one-time daily-card entitlements.
-// GET /api/v1/payment/daily-cards
-func (h *PaymentHandler) GetDailyCards(c *gin.Context) {
-	subject, ok := requireAuth(c)
-	if !ok {
-		return
-	}
-	cards, err := h.paymentService.ListDailyCards(c.Request.Context(), subject.UserID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Success(c, buildDailyCardResults(cards, time.Now()))
-}
-
 type paymentPlanResult struct {
 	ID                 int64    `json:"id"`
 	GroupID            int64    `json:"group_id"`
@@ -164,9 +101,6 @@ type paymentPlanResult struct {
 	Currency           string   `json:"currency,omitempty"`
 	ValidityDays       int      `json:"validity_days"`
 	ValidityUnit       string   `json:"validity_unit"`
-	QuotaMode          string   `json:"quota_mode"`
-	QuotaLimitUSD      *float64 `json:"quota_limit_usd"`
-	DurationHours      *int     `json:"duration_hours"`
 	Features           string   `json:"features"`
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`
@@ -192,7 +126,6 @@ func buildPaymentPlansForResponse(ctx context.Context, configService *service.Pa
 			Name: p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
-			QuotaMode: p.QuotaMode, QuotaLimitUSD: p.QuotaLimitUsd, DurationHours: p.DurationHours,
 			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
 			StorefrontPlatform: p.StorefrontPlatform, StorefrontCategory: p.StorefrontCategory,
 			StorefrontFeatured: p.StorefrontFeatured, StorefrontBadge: p.StorefrontBadge,
@@ -314,7 +247,6 @@ func (h *PaymentHandler) buildPaymentCheckoutPublicPayload(ctx context.Context) 
 			Name:        p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
-			QuotaMode: p.QuotaMode, QuotaLimitUSD: p.QuotaLimitUsd, DurationHours: p.DurationHours,
 			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
 			StorefrontPlatform: p.StorefrontPlatform, StorefrontCategory: p.StorefrontCategory,
 			StorefrontFeatured: p.StorefrontFeatured, StorefrontBadge: p.StorefrontBadge,
@@ -463,9 +395,6 @@ type checkoutPlan struct {
 	Currency           string   `json:"currency,omitempty"`
 	ValidityDays       int      `json:"validity_days"`
 	ValidityUnit       string   `json:"validity_unit"`
-	QuotaMode          string   `json:"quota_mode"`
-	QuotaLimitUSD      *float64 `json:"quota_limit_usd"`
-	DurationHours      *int     `json:"duration_hours"`
 	Features           []string `json:"features"`
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`
