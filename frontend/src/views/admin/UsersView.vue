@@ -856,6 +856,7 @@ import Icon from '@/components/icons/Icon.vue'
 
 const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
+import { fetchPublicVIPTiers, type PublicVIPTier } from '@/api/publicVipTiers'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
 import type { PlatformQuotaItem, UserBatchAction, UserBatchActionResult, ExclusiveGroupBatchPreview, ExclusiveGroupCSVPreview } from '@/api/admin/users'
@@ -1191,6 +1192,7 @@ const filters = reactive({
   vipTier: null as number | null
 })
 const activeAttributeFilters = reactive<Record<number, string>>({})
+const vipTiers = ref<Pick<PublicVIPTier, 'tier' | 'label'>[]>([])
 
 // Visible filters tracking (which filters are shown in the UI)
 // Keys: 'role', 'status', 'attr_${id}'
@@ -1224,8 +1226,26 @@ const builtInFilters = computed(() => [
 
 const vipTierOptions = computed<SelectOption[]>(() => [
   { value: '', label: t('admin.users.vip.allTiers') },
-  ...Array.from({ length: 7 }, (_, tier) => ({ value: tier, label: t('admin.users.vip.tier', { tier }) }))
+  ...(vipTiers.value.length > 0
+    ? vipTiers.value.map(({ tier, label }) => ({ value: tier, label: label || t('admin.users.vip.tier', { tier }) }))
+    : Array.from({ length: 7 }, (_, tier) => ({ value: tier, label: t('admin.users.vip.tier', { tier }) })))
 ])
+
+const loadVIPTiers = async () => {
+  try {
+    const response = await fetchPublicVIPTiers()
+    vipTiers.value = response.enabled
+      ? response.tiers
+        .filter((tier) => Number.isInteger(tier.tier) && tier.tier >= 0)
+        .sort((left, right) => left.tier - right.tier)
+        .map(({ tier, label }) => ({ tier, label }))
+      : []
+  } catch (error) {
+    // Keep the existing filter usable when the public configuration endpoint is unavailable.
+    console.error('Failed to load VIP tiers:', error)
+    vipTiers.value = []
+  }
+}
 
 // Load saved filters from localStorage
 const loadSavedFilters = () => {
@@ -2055,6 +2075,7 @@ onMounted(async () => {
   loadSavedFilters()
   loadSavedColumns()
   loadUsers()
+  void loadVIPTiers()
   if (hasVisibleGroupsColumn.value || visibleFilters.has('group')) {
     loadAllGroups()
   }
