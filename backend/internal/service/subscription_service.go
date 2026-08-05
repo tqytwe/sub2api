@@ -80,20 +80,6 @@ func (s *SubscriptionService) ReserveDailyCardRequest(ctx context.Context, input
 	return s.dailyCardSvc.ReserveRequest(ctx, input)
 }
 
-func (s *SubscriptionService) AdmitDailyCardRequest(ctx context.Context, input DailyCardRequestAdmissionInput) error {
-	if s == nil || s.dailyCardSvc == nil {
-		return ErrDailyCardInvalidInput
-	}
-	return s.dailyCardSvc.AdmitRequest(ctx, input)
-}
-
-func (s *SubscriptionService) MarkDailyCardRequestRetryable(ctx context.Context, entitlementID int64, settlementRequestID string) error {
-	if s == nil || s.dailyCardSvc == nil {
-		return ErrDailyCardInvalidInput
-	}
-	return s.dailyCardSvc.MarkRequestRetryable(ctx, entitlementID, settlementRequestID, time.Now())
-}
-
 func (s *SubscriptionService) ReleaseDailyCardRequest(ctx context.Context, entitlementID, userID int64, requestID string) error {
 	if s == nil || s.dailyCardSvc == nil {
 		return ErrDailyCardInvalidInput
@@ -1375,58 +1361,6 @@ func (s *SubscriptionService) AdminRestoreDailyCardQuota(ctx context.Context, su
 		refreshed.DailyCardEntitlementID = &result.Card.ID
 	}
 	return refreshed, result, nil
-}
-
-func (s *SubscriptionService) AdminGetDailyCardRequestReplay(ctx context.Context, subscriptionID, entitlementID int64, clientRequestID string) (*DailyCardRequestReplay, error) {
-	if s == nil || s.dailyCardSvc == nil {
-		return nil, ErrDailyCardInvalidInput
-	}
-	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
-	if err != nil {
-		return nil, err
-	}
-	cards, err := s.dailyCardSvc.ListForUser(ctx, sub.UserID, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	matched := false
-	for _, card := range cards {
-		if card.ID == entitlementID && card.GroupID == sub.GroupID {
-			matched = true
-			break
-		}
-	}
-	if !matched {
-		return nil, ErrDailyCardAdminActionUnavailable
-	}
-	return s.dailyCardSvc.GetRequestReplay(ctx, entitlementID, clientRequestID)
-}
-
-func (s *SubscriptionService) AdminReconcileDailyCardRequest(ctx context.Context, subscriptionID, entitlementID int64, input DailyCardRequestReconciliationInput) (*DailyCardRequestReplay, error) {
-	if s == nil || s.dailyCardSvc == nil {
-		return nil, ErrDailyCardInvalidInput
-	}
-	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
-	if err != nil {
-		return nil, err
-	}
-	// Resolve access by entitlement ID before mutating the replay state.
-	cards, err := s.dailyCardSvc.ListForUser(ctx, sub.UserID, time.Now())
-	if err != nil {
-		return nil, err
-	}
-	matched := false
-	for _, card := range cards {
-		if card.ID == entitlementID && card.GroupID == sub.GroupID {
-			matched = true
-			break
-		}
-	}
-	if !matched {
-		return nil, ErrDailyCardAdminActionUnavailable
-	}
-	input.EntitlementID = entitlementID
-	return s.dailyCardSvc.ReconcileRequest(ctx, input)
 }
 
 // CheckAndResetWindows 检查并重置过期的窗口

@@ -235,6 +235,18 @@ func (r *dailyCardEntitlementRepository) AdminRestoreQuota(ctx context.Context, 
 				return service.ErrDailyCardAdminActionUnavailable
 			}
 		}
+		updateResult, err := client.ExecContext(txCtx, `
+			UPDATE subscription_entitlement_holds
+			SET status = 'released', released_at = $2, updated_at = $2
+			WHERE entitlement_id = $1 AND status = 'reserved'
+		`, entitlementID, restoredAt)
+		if err != nil {
+			return err
+		}
+		released, err := updateResult.RowsAffected()
+		if err != nil {
+			return err
+		}
 		entity, err := client.SubscriptionEntitlement.UpdateOneID(entitlementID).
 			SetQuotaUsedUsd(0).
 			SetQuotaReservedUsd(0).
@@ -248,7 +260,7 @@ func (r *dailyCardEntitlementRepository) AdminRestoreQuota(ctx context.Context, 
 		}
 		result = &service.DailyCardAdminActionResult{
 			Card:          dailyCardEntitlementFromEntity(entity),
-			ReleasedHolds: 0,
+			ReleasedHolds: released,
 		}
 		return nil
 	})
@@ -643,7 +655,7 @@ func dailyCardEntitlementFromEntity(entity *dbent.SubscriptionEntitlement) *serv
 		PlanID: entity.PlanID, PaymentOrderID: entity.PaymentOrderID,
 		SourceType: entity.SourceType, SourceID: entity.SourceID,
 		QuotaMode: entity.QuotaMode, QuotaLimitUSD: entity.QuotaLimitUsd,
-		QuotaUsedUSD: entity.QuotaUsedUsd, QuotaReservedUSD: 0,
+		QuotaUsedUSD: entity.QuotaUsedUsd, QuotaReservedUSD: entity.QuotaReservedUsd,
 		DurationHours: entity.DurationHours, Status: entity.Status,
 		StartsAt: entity.StartsAt, ExpiresAt: entity.ExpiresAt, ActivatedAt: entity.ActivatedAt,
 		ExhaustedAt: entity.ExhaustedAt, EndedAt: entity.EndedAt,

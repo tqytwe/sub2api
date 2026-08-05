@@ -28,8 +28,6 @@ var ErrDailyCardInvalidInput = errors.New("invalid daily card entitlement input"
 var ErrDailyCardEntitlementNotFound = errors.New("daily card entitlement not found")
 var ErrDailyCardUnavailable = errors.New("daily card quota exhausted or expired")
 var ErrDailyCardRequestConflict = errors.New("daily card request reservation conflict")
-var ErrDailyCardDuplicateRequest = infraerrors.Conflict("DAILY_CARD_DUPLICATE_REQUEST", "daily card request was already completed")
-var ErrDailyCardRequestPendingConfirmation = infraerrors.Conflict("DAILY_CARD_REQUEST_PENDING_CONFIRMATION", "daily card request outcome is pending confirmation")
 var ErrDailyCardPaidOrderRequired = errors.New("daily card grants require a tracked payment order")
 var ErrDailyCardAdminActionUnavailable = infraerrors.BadRequest("DAILY_CARD_ADMIN_ACTION_UNAVAILABLE", "daily card admin action is unavailable for this entitlement")
 
@@ -76,40 +74,6 @@ type DailyCardRequestHoldInput struct {
 	ReservedAt         time.Time
 }
 
-// DailyCardRequestAdmissionInput deliberately separates the client correlation
-// key from the private settlement key used by billing.
-type DailyCardRequestAdmissionInput struct {
-	EntitlementID       int64
-	UserID              int64
-	ClientRequestID     string
-	SettlementRequestID string
-	RequestFingerprint  string
-	RequestPath         string
-	AdmittedAt          time.Time
-}
-
-type DailyCardRequestReplay struct {
-	EntitlementID       int64      `json:"entitlement_id"`
-	ClientRequestID     string     `json:"client_request_id"`
-	SettlementRequestID string     `json:"settlement_request_id"`
-	State               string     `json:"state"`
-	RequestPath         string     `json:"request_path"`
-	DispatchedAt        *time.Time `json:"dispatched_at,omitempty"`
-	CompletedAt         *time.Time `json:"completed_at,omitempty"`
-	ReconciledAt        *time.Time `json:"reconciled_at,omitempty"`
-	ReconciledBy        *int64     `json:"reconciled_by,omitempty"`
-	Evidence            string     `json:"reconciliation_evidence,omitempty"`
-}
-
-type DailyCardRequestReconciliationInput struct {
-	EntitlementID   int64
-	ClientRequestID string
-	Action          string
-	Evidence        string
-	ActorID         int64
-	ReconciledAt    time.Time
-}
-
 type DailyCardAdminActionResult struct {
 	Card          *DailyCardEntitlement `json:"card"`
 	ReleasedHolds int64                 `json:"released_holds"`
@@ -124,52 +88,11 @@ type DailyCardEntitlementRepository interface {
 	ListByUser(ctx context.Context, userID int64) ([]DailyCardEntitlement, error)
 	HasRecurringOrderAfter(ctx context.Context, userID, groupID int64, after time.Time) (bool, error)
 	IsOneTimeGroup(ctx context.Context, groupID int64) (bool, error)
-	AdmitRequest(ctx context.Context, input DailyCardRequestAdmissionInput) error
-	MarkRequestRetryable(ctx context.Context, entitlementID int64, settlementRequestID string, updatedAt time.Time) error
-	GetRequestReplay(ctx context.Context, entitlementID int64, clientRequestID string) (*DailyCardRequestReplay, error)
-	ReconcileRequest(ctx context.Context, input DailyCardRequestReconciliationInput) (*DailyCardRequestReplay, error)
 	ReserveRequest(ctx context.Context, input DailyCardRequestHoldInput) error
 	ReleaseRequest(ctx context.Context, entitlementID, userID int64, requestID string, releasedAt time.Time) error
 	AdminReleaseReservedHolds(ctx context.Context, entitlementID, userID, groupID int64, releasedAt time.Time) (*DailyCardAdminActionResult, error)
 	AdminRestoreQuota(ctx context.Context, entitlementID, userID, groupID int64, restoredAt time.Time) (*DailyCardAdminActionResult, error)
 	AdminAdjustExpiry(ctx context.Context, entitlementID, userID, groupID int64, newExpiresAt, adjustedAt time.Time) (*DailyCardEntitlement, error)
-}
-
-func (s *DailyCardService) GetRequestReplay(ctx context.Context, entitlementID int64, clientRequestID string) (*DailyCardRequestReplay, error) {
-	if s == nil || s.repo == nil || entitlementID <= 0 || clientRequestID == "" {
-		return nil, ErrDailyCardInvalidInput
-	}
-	return s.repo.GetRequestReplay(ctx, entitlementID, clientRequestID)
-}
-
-func (s *DailyCardService) ReconcileRequest(ctx context.Context, input DailyCardRequestReconciliationInput) (*DailyCardRequestReplay, error) {
-	if s == nil || s.repo == nil || input.EntitlementID <= 0 || input.ClientRequestID == "" || input.ActorID <= 0 || input.Evidence == "" {
-		return nil, ErrDailyCardInvalidInput
-	}
-	if input.ReconciledAt.IsZero() {
-		input.ReconciledAt = time.Now()
-	}
-	return s.repo.ReconcileRequest(ctx, input)
-}
-
-func (s *DailyCardService) AdmitRequest(ctx context.Context, input DailyCardRequestAdmissionInput) error {
-	if s == nil || s.repo == nil || input.EntitlementID <= 0 || input.UserID <= 0 || input.ClientRequestID == "" || input.SettlementRequestID == "" || input.RequestFingerprint == "" {
-		return ErrDailyCardInvalidInput
-	}
-	if input.AdmittedAt.IsZero() {
-		input.AdmittedAt = time.Now()
-	}
-	return s.repo.AdmitRequest(ctx, input)
-}
-
-func (s *DailyCardService) MarkRequestRetryable(ctx context.Context, entitlementID int64, settlementRequestID string, updatedAt time.Time) error {
-	if s == nil || s.repo == nil || entitlementID <= 0 || settlementRequestID == "" {
-		return ErrDailyCardInvalidInput
-	}
-	if updatedAt.IsZero() {
-		updatedAt = time.Now()
-	}
-	return s.repo.MarkRequestRetryable(ctx, entitlementID, settlementRequestID, updatedAt)
 }
 
 func (s *DailyCardService) ReserveRequest(ctx context.Context, input DailyCardRequestHoldInput) error {
@@ -350,7 +273,7 @@ func (e *DailyCardEntitlement) RemainingQuotaUSD() float64 {
 	if e == nil {
 		return 0
 	}
-	remaining := e.QuotaLimitUSD - e.QuotaUsedUSD
+	remaining := e.QuotaLimitUSD - e.QuotaUsedUSD - e.QuotaReservedUSD
 	if remaining <= 0 {
 		return 0
 	}

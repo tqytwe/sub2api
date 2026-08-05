@@ -502,8 +502,6 @@ type UsageLog struct {
 
 	GroupID        *int64 `json:"group_id"`
 	SubscriptionID *int64 `json:"subscription_id"`
-	// SubscriptionEntitlementID is present when this usage consumed a one-time daily-card entitlement.
-	SubscriptionEntitlementID *int64 `json:"subscription_entitlement_id,omitempty"`
 
 	InputTokens         int `json:"input_tokens"`
 	OutputTokens        int `json:"output_tokens"`

@@ -303,9 +303,6 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 
 func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string) string {
 	if ctx != nil {
-		if settlementRequestID, _ := ctx.Value(ctxkey.DailyCardSettlementRequestID).(string); strings.TrimSpace(settlementRequestID) != "" {
-			return strings.TrimSpace(settlementRequestID)
-		}
 		if clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
 			return "client:" + strings.TrimSpace(clientRequestID)
 		}
@@ -372,9 +369,6 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		}
 		if usageLog.SubscriptionID != nil {
 			cmd.SubscriptionID = usageLog.SubscriptionID
-		}
-		if usageLog.SubscriptionEntitlementID != nil {
-			cmd.SubscriptionEntitlementID = usageLog.SubscriptionEntitlementID
 		}
 	}
 
@@ -1259,11 +1253,4 @@ func optionalSubscriptionID(subscription *UserSubscription) *int64 {
 		return &subscription.ID
 	}
 	return nil
-}
-
-func optionalSubscriptionEntitlementID(subscription *UserSubscription) *int64 {
-	if subscription == nil || subscription.DailyCardEntitlementID == nil {
-		return nil
-	}
-	return subscription.DailyCardEntitlementID
 }

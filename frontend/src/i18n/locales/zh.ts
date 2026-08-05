@@ -6350,7 +6350,6 @@ const messages = {
       billingModeImage: '按次(图片)',
       billingModeVideo: '按次(视频)',
       allBillingModes: '全部计费模式',
-      dailyCard: '日卡',
       ipAddress: 'IP',
       clickToViewBalance: '点击查看余额流水',
       failedToLoadUser: '加载用户信息失败',

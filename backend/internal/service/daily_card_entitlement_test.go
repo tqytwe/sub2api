@@ -69,22 +69,6 @@ func (*dailyCardRepoStub) ReleaseRequest(context.Context, int64, int64, string, 
 	return nil
 }
 
-func (*dailyCardRepoStub) AdmitRequest(context.Context, DailyCardRequestAdmissionInput) error {
-	return nil
-}
-
-func (*dailyCardRepoStub) MarkRequestRetryable(context.Context, int64, string, time.Time) error {
-	return nil
-}
-
-func (*dailyCardRepoStub) GetRequestReplay(context.Context, int64, string) (*DailyCardRequestReplay, error) {
-	return nil, ErrDailyCardEntitlementNotFound
-}
-
-func (*dailyCardRepoStub) ReconcileRequest(context.Context, DailyCardRequestReconciliationInput) (*DailyCardRequestReplay, error) {
-	return nil, ErrDailyCardEntitlementNotFound
-}
-
 func (r *dailyCardRepoStub) AdminReleaseReservedHolds(_ context.Context, entitlementID, userID, groupID int64, _ time.Time) (*DailyCardAdminActionResult, error) {
 	r.adminReleaseInput = []int64{entitlementID, userID, groupID}
 	if r.adminResult != nil {

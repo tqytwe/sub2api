@@ -47,7 +47,7 @@ type imageTaskSubscriptionLoader interface {
 
 type imageTaskDailyCardLoader interface {
 	ResolveDailyCardAccess(ctx context.Context, userID, groupID int64) (*service.DailyCardEntitlement, bool, error)
-	AdmitDailyCardRequest(ctx context.Context, input service.DailyCardRequestAdmissionInput) error
+	ReserveDailyCardRequest(ctx context.Context, input service.DailyCardRequestHoldInput) error
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorage service.ImageStorage) *AsyncImageHandler {
@@ -476,18 +476,14 @@ func (h *AsyncImageHandler) newWorkerImageContext(
 				return nil, nil, func() {}, errors.New("daily card is exhausted or expired")
 			}
 			if managedByDailyCard {
-				settlementRequestID := "daily:image:" + taskID
-				if reserveErr := dailyCardLoader.AdmitDailyCardRequest(executionCtx, service.DailyCardRequestAdmissionInput{
-					EntitlementID: card.ID, UserID: apiKey.UserID, ClientRequestID: taskID,
-					SettlementRequestID: settlementRequestID, RequestFingerprint: "async-image:" + taskID,
-					RequestPath: request.URL.Path, AdmittedAt: time.Now(),
+				requestID := "client:" + taskID
+				if reserveErr := dailyCardLoader.ReserveDailyCardRequest(executionCtx, service.DailyCardRequestHoldInput{
+					EntitlementID: card.ID, UserID: apiKey.UserID, RequestID: requestID,
+					RequestFingerprint: "async-image:" + taskID, ReservedAt: time.Now(),
 				}); reserveErr != nil {
 					cancel()
 					return nil, nil, func() {}, errors.New("daily card is exhausted or unavailable")
 				}
-				executionCtx = context.WithValue(executionCtx, ctxkey.DailyCardSettlementRequestID, settlementRequestID)
-				request = request.WithContext(executionCtx)
-				taskCtx.Request = request
 				subscription.DailyCardEntitlementID = &card.ID
 				subscription.DailyUsageUSD = card.QuotaUsedUSD
 			}

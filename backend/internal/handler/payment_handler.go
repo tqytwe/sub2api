@@ -123,7 +123,7 @@ func buildDailyCardResults(cards []service.DailyCardEntitlement, now time.Time) 
 			ID: card.ID, GroupID: card.GroupID, PlanID: card.PlanID, PaymentOrderID: card.PaymentOrderID,
 			SourceType: card.SourceType, SourceID: card.SourceID,
 			Status: card.Status, QuotaLimitUSD: card.QuotaLimitUSD, QuotaUsedUSD: card.QuotaUsedUSD,
-			QuotaReservedUSD: 0, RemainingQuotaUSD: card.RemainingQuotaUSD(),
+			QuotaReservedUSD: card.QuotaReservedUSD, RemainingQuotaUSD: card.RemainingQuotaUSD(),
 			DurationHours: card.DurationHours, StartsAt: card.StartsAt, ExpiresAt: card.ExpiresAt,
 			ExhaustedAt: card.ExhaustedAt, EndedAt: card.EndedAt,
 			RemainingSeconds: remainingSeconds, QueuePosition: queuePosition,

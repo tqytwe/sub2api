@@ -40,8 +40,6 @@ const (
 	FieldGroupID = "group_id"
 	// FieldSubscriptionID holds the string denoting the subscription_id field in the database.
 	FieldSubscriptionID = "subscription_id"
-	// FieldSubscriptionEntitlementID holds the string denoting the subscription_entitlement_id field in the database.
-	FieldSubscriptionEntitlementID = "subscription_entitlement_id"
 	// FieldInputTokens holds the string denoting the input_tokens field in the database.
 	FieldInputTokens = "input_tokens"
 	// FieldOutputTokens holds the string denoting the output_tokens field in the database.
@@ -179,7 +177,6 @@ var Columns = []string{
 	FieldBillingMode,
 	FieldGroupID,
 	FieldSubscriptionID,
-	FieldSubscriptionEntitlementID,
 	FieldInputTokens,
 	FieldOutputTokens,
 	FieldCacheCreationTokens,
@@ -380,11 +377,6 @@ func ByGroupID(opts ...sql.OrderTermOption) OrderOption {
 // BySubscriptionID orders the results by the subscription_id field.
 func BySubscriptionID(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldSubscriptionID, opts...).ToFunc()
-}
-
-// BySubscriptionEntitlementID orders the results by the subscription_entitlement_id field.
-func BySubscriptionEntitlementID(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldSubscriptionEntitlementID, opts...).ToFunc()
 }
 
 // ByInputTokens orders the results by the input_tokens field.

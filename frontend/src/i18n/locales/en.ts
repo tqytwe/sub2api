@@ -6201,7 +6201,6 @@ const messages = {
       billingModeImage: 'Image',
       billingModeVideo: 'Video',
       allBillingModes: 'All Billing Modes',
-      dailyCard: 'Daily Card',
       ipAddress: 'IP',
       clickToViewBalance: 'Click to view balance flow',
       failedToLoadUser: 'Failed to load user info',
