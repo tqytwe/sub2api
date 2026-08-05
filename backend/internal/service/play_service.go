@@ -446,13 +446,14 @@ func (s *PlayService) Checkin(ctx context.Context, userID int64) (*PlayCheckinRe
 	var couponIssue *CouponRewardIssueResult
 	var redeemCode *RedeemCode
 	if err := s.withPlayTx(ctx, func(txCtx context.Context) error {
-		if rewardType == PlayRewardTypeCoupon {
+		switch rewardType {
+		case PlayRewardTypeCoupon:
 			var issueErr error
 			couponIssue, issueErr = s.issueCouponRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now)
 			if issueErr != nil {
 				return issueErr
 			}
-		} else if rewardType == PlayRewardTypeRedeem {
+		case PlayRewardTypeRedeem:
 			var issueErr error
 			redeemCode, issueErr = s.issueRedeemCodeRewardInTx(txCtx, userID, CouponRewardActivityCheckin, idempotencyKey, dateKey, now)
 			if issueErr != nil {
