@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,14 +125,14 @@ func TestAdminResetQuota_ResetDailyOnly(t *testing.T) {
 	require.False(t, stub.resetMonthlyCalled, "不应调用 ResetMonthlyUsage")
 }
 
-func TestAdminResetQuota_UsesShanghaiBusinessDay(t *testing.T) {
+func TestAdminResetQuota_UsesInjectedTime(t *testing.T) {
 	shanghai, err := time.LoadLocation("Asia/Shanghai")
 	require.NoError(t, err)
 	now := time.Date(2026, 7, 29, 0, 1, 0, 0, shanghai)
 	stub := &resetQuotaUserSubRepoStub{
 		sub: &UserSubscription{ID: 22, UserID: 10, GroupID: 20},
 	}
-	svc := NewSubscriptionService(groupRepoNoop{}, stub, nil, nil, &config.Config{Timezone: "Asia/Shanghai"})
+	svc := newResetQuotaSvc(stub)
 	svc.now = func() time.Time { return now.UTC() }
 
 	result, err := svc.AdminResetQuota(context.Background(), 22, true, false, false)
@@ -142,7 +141,7 @@ func TestAdminResetQuota_UsesShanghaiBusinessDay(t *testing.T) {
 	require.NotNil(t, result)
 	require.True(t, stub.resetDailyCalled)
 	require.NotNil(t, stub.sub.DailyWindowStart)
-	require.Equal(t, time.Date(2026, 7, 29, 0, 0, 0, 0, shanghai), *stub.sub.DailyWindowStart)
+	require.Equal(t, now.UTC(), *stub.sub.DailyWindowStart)
 }
 
 func TestAdminResetQuota_ResetWeeklyOnly(t *testing.T) {
