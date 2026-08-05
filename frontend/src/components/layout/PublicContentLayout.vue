@@ -34,7 +34,7 @@ const frameClass = computed(() => ({
   <div class="flex min-h-screen flex-col bg-gray-50 text-gray-900 dark:bg-dark-950 dark:text-white">
     <header class="border-b border-gray-200 bg-white/95 dark:border-dark-800 dark:bg-dark-900/95">
       <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-        <RouterLink to="/home" class="flex min-w-0 items-center gap-3">
+        <RouterLink to="/" class="flex min-w-0 items-center gap-3">
           <span class="flex h-10 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 dark:bg-dark-800 dark:ring-dark-700">
             <img :src="siteLogo || '/logo.png'" :alt="siteName" class="h-full w-full object-contain" />
           </span>
@@ -54,6 +54,14 @@ const frameClass = computed(() => ({
             <Icon name="book" size="sm" />
             <span class="hidden sm:inline">{{ t('home.viewDocs') }}</span>
           </a>
+          <RouterLink
+            v-else
+            to="/docs"
+            class="inline-flex h-10 items-center gap-1.5 rounded-lg px-3 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-dark-300 dark:hover:bg-dark-800 dark:hover:text-white"
+          >
+            <Icon name="book" size="sm" />
+            <span class="hidden sm:inline">{{ t('home.viewDocs') }}</span>
+          </RouterLink>
           <PublicPageToolbar />
           <slot name="actions" />
         </nav>
@@ -84,6 +92,13 @@ const frameClass = computed(() => ({
           >
             {{ t('home.docs') }}
           </a>
+          <RouterLink
+            v-else
+            to="/docs"
+            class="text-sm text-gray-500 transition-colors hover:text-gray-900 dark:text-dark-400 dark:hover:text-white"
+          >
+            {{ t('home.docs') }}
+          </RouterLink>
           <a
             v-if="githubUrl"
             :href="githubUrl"

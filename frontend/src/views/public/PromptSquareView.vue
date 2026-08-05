@@ -198,7 +198,7 @@ function goBack() {
     router.back()
     return
   }
-  void router.push(isEnglishPromptLocale.value ? '/en' : '/home')
+  void router.push(isEnglishPromptLocale.value ? '/en' : '/')
 }
 
 async function showCurrentPromptLibrary() {

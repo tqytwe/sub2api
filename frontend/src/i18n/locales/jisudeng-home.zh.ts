@@ -152,6 +152,7 @@ export const jisudengHomeZh = {
       '每日签到、排行榜、邀请返利、VIP 等级——在公平 API 计费之上，让每一次消耗多一点回馈。',
     next: '换台',
     enter: '进入频道',
+    empty: '当前没有开放的活动频道',
     joinCta: '注册参与',
     ch1: { name: '盲盒', hint: '消耗 Token 开盲盒，随机奖励余额' },
     ch2: { name: '签到', hint: '每日签到领测试额度' },

@@ -129,7 +129,7 @@ run_check "FORK-UI-012" "design governance command" \
   node "$ROOT/scripts/check-frontend-design-governance.mjs"
 
 check_contains "FORK-NAV-002" "Growth navigation group" "frontend/src/components/layout/AppSidebar.vue" "path: '/growth-group'"
-check_contains "FORK-NAV-002" "models navigation entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/models'"
+check_contains "FORK-NAV-002" "pricing navigation entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/pricing'"
 check_not_contains "FORK-NAV-002" "user sidebar excludes available channels" "frontend/src/components/layout/AppSidebar.vue" "path: '/available-channels'"
 check_not_contains "FORK-NAV-002" "user sidebar excludes monitor route" "frontend/src/components/layout/AppSidebar.vue" "path: '/monitor'"
 

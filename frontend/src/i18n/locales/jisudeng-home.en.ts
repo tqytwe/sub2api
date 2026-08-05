@@ -153,6 +153,7 @@ export const jisudengHomeEn = {
       'Daily check-ins, leaderboards, referral rebates, and VIP tiers — optional perks on top of fair API billing.',
     next: 'Next',
     enter: 'Explore',
+    empty: 'No activity channels are currently available',
     joinCta: 'Register to join',
     ch1: { name: 'Rewards box', hint: 'Spend tokens for random balance boosts' },
     ch2: { name: 'Daily check-in', hint: 'Free balance every day' },

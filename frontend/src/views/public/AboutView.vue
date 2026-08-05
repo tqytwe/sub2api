@@ -10,7 +10,7 @@ import '@/styles/public-pages.css'
 const { t, tm, locale } = useI18n()
 
 const isEnglish = computed(() => isEnglishLocale(locale.value))
-const homeRoute = computed(() => (isEnglish.value ? '/en' : '/home'))
+const homeRoute = computed(() => (isEnglish.value ? '/en' : '/'))
 const docsRoute = computed(() =>
   isEnglish.value
     ? { name: 'EnglishDocs', query: { cat: 'tutorial', page: 'quick-start' } }

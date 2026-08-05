@@ -36,6 +36,6 @@ describe('LmspeedBadge', () => {
     expect(image.attributes('width')).toBe('190')
     expect(image.attributes('height')).toBe('64')
     expect(image.attributes('decoding')).toBe('async')
-    expect(image.attributes('loading')).toBeUndefined()
+    expect(image.attributes('loading')).toBe('lazy')
   })
 })

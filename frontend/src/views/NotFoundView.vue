@@ -51,7 +51,7 @@ const { t } = useI18n()
 const router = useRouter()
 const authStore = useAuthStore()
 
-const homeTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/home'))
+const homeTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/'))
 const homeLabel = computed(() =>
   authStore.isAuthenticated ? t('home.goToDashboard') : t('errors.backHome'),
 )

@@ -25,10 +25,20 @@
           />
           <span class="min-w-0 truncate text-base font-semibold">{{ siteName }}</span>
         </div>
+        <nav class="compact-home-nav" :aria-label="t('nav.publicActions')">
+          <router-link
+            v-for="item in homePrimaryNavItems"
+            :key="item.key"
+            :to="item.to"
+            class="compact-home-nav-link"
+          >
+            {{ t(item.labelKey) }}
+          </router-link>
+        </nav>
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
           <LocaleSwitcher />
           <a
-            v-if="docUrl"
+            v-if="docUrl && !isEnglishPublicRoute"
             :href="docUrl"
             target="_blank"
             rel="noopener noreferrer"
@@ -37,6 +47,14 @@
           >
             <Icon name="book" size="md" />
           </a>
+          <router-link
+            v-else
+            :to="docsRoute"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
+            :title="t('home.viewDocs')"
+          >
+            <Icon name="book" size="md" />
+          </router-link>
           <button
             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
             :title="isDark ? t('home.switchToLight') : t('home.switchToDark')"
@@ -46,10 +64,24 @@
             <Icon v-else name="moon" size="md" />
           </button>
           <router-link
-            :to="isAuthenticated ? dashboardPath : '/login'"
-            class="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
+            :to="downloadRoute"
+            class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
+            :title="t('home.jisudeng.nav.androidApp')"
+          >
+            <Icon name="download" size="md" />
+          </router-link>
+          <router-link
+            :to="isAuthenticated ? dashboardRoute : loginRoute"
+            class="compact-home-auth-link inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-800 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200"
           >
             {{ isAuthenticated ? t('home.dashboard') : t('home.login') }}
+          </router-link>
+          <router-link
+            v-if="!isAuthenticated"
+            :to="registerRoute"
+            class="compact-home-register-link inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-dark-700 dark:text-dark-200 dark:hover:bg-dark-800"
+          >
+            {{ t('home.jisudeng.nav.signUp') }}
           </router-link>
         </div>
       </nav>
@@ -65,8 +97,8 @@
         <h1 class="[overflow-wrap:anywhere] text-3xl font-bold md:text-4xl">{{ siteName }}</h1>
         <p class="mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-base text-gray-600 dark:text-dark-300">{{ siteSubtitle }}</p>
         <router-link
-          :to="isAuthenticated ? dashboardPath : '/login'"
-          class="mt-8 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700"
+          :to="isAuthenticated ? dashboardRoute : loginRoute"
+          class="compact-home-auth-link mt-8 inline-flex min-h-10 items-center justify-center rounded-lg bg-primary-600 px-5 py-2.5 text-sm font-medium text-white hover:bg-primary-700"
         >
           {{ isAuthenticated ? t('home.goToDashboard') : t('home.login') }}
         </router-link>
@@ -108,6 +140,16 @@
           </nav>
         </div>
         <nav class="page-nav">
+          <button
+            type="button"
+            class="mobile-menu-toggle"
+            :aria-expanded="mobileNavOpen"
+            :aria-controls="mobileNavId"
+            :aria-label="mobileNavOpen ? t('common.closeMenu') : t('common.toggleMenu')"
+            @click="toggleMobileNav"
+          >
+            <Icon :name="mobileNavOpen ? 'x' : 'menu'" size="md" />
+          </button>
           <PublicPageToolbar />
           <router-link :to="downloadRoute" class="nav-download">
             {{ t('home.jisudeng.nav.androidApp') }}
@@ -122,6 +164,51 @@
           </template>
         </nav>
       </div>
+      <nav
+        v-if="mobileNavOpen"
+        :id="mobileNavId"
+        class="mobile-nav-panel page-container"
+        :aria-label="t('nav.publicActions')"
+      >
+        <router-link
+          v-for="item in homePrimaryNavItems"
+          :key="item.key"
+          :to="item.to"
+          class="mobile-nav-link"
+          :data-nav-key="item.key"
+          @click="closeMobileNav"
+        >
+          {{ t(item.labelKey) }}
+        </router-link>
+        <div class="mobile-nav-divider" aria-hidden="true" />
+        <div class="mobile-nav-utilities">
+          <PublicPageToolbar />
+          <router-link :to="downloadRoute" class="mobile-nav-link" @click="closeMobileNav">
+            {{ t('home.jisudeng.nav.androidApp') }}
+          </router-link>
+          <router-link v-if="isAuthenticated && isAdmin" :to="adminDashboardRoute" class="mobile-nav-link" @click="closeMobileNav">
+            {{ t('home.jisudeng.nav.admin') }}
+          </router-link>
+          <router-link v-if="isAuthenticated" :to="dashboardRoute" class="mobile-nav-link" @click="closeMobileNav">
+            {{ t('home.jisudeng.nav.console') }}
+          </router-link>
+          <template v-else>
+            <router-link :to="loginRoute" class="mobile-nav-link" @click="closeMobileNav">
+              {{ t('home.jisudeng.nav.signIn') }}
+            </router-link>
+            <router-link :to="registerRoute" class="mobile-nav-link mobile-nav-link--primary" @click="closeMobileNav">
+              {{ t('home.jisudeng.nav.signUp') }}
+            </router-link>
+          </template>
+        </div>
+      </nav>
+      <button
+        v-if="mobileNavOpen"
+        type="button"
+        class="mobile-nav-backdrop"
+        :aria-label="t('common.closeMenu')"
+        @click="closeMobileNav"
+      />
     </header>
 
     <section class="hero-section">
@@ -164,7 +251,7 @@
             {{ isAuthenticated ? t('home.jisudeng.cta.console') : t('home.jisudeng.cta.start') }}
             <span class="arrow">→</span>
           </button>
-          <button v-if="docUrl || isEnglishPublicRoute" type="button" class="cta-text" @click="openDocs">
+          <button type="button" class="cta-text" @click="openDocs">
             {{ t('home.jisudeng.cta.docs') }}
             <span class="arrow-tiny">↗</span>
           </button>
@@ -428,10 +515,10 @@
         <ul class="pricing-tags">
           <li v-for="tag in pricingTags" :key="tag">— {{ tag }}</li>
         </ul>
-        <button type="button" class="cta-text-large" @click="goStart">
+        <router-link :to="pricingRoute" class="cta-text-large">
           {{ t('home.jisudeng.cta.viewPrice') }}
           <span class="arrow">→</span>
-        </button>
+        </router-link>
       </div>
     </section>
 
@@ -515,7 +602,8 @@
         <LmspeedBadge />
         <span class="f-links">
           <router-link v-if="isEnglishPublicRoute" :to="{ name: PUBLIC_ROUTE_NAMES.englishDocs }">{{ t('home.jisudeng.footer.docs') }}</router-link>
-          <a v-else-if="docUrl" :href="docUrl" target="_blank" rel="noopener">{{ t('home.jisudeng.footer.docs') }}</a>
+          <a v-else-if="docUrl" :href="docUrl" target="_blank" rel="noopener noreferrer">{{ t('home.jisudeng.footer.docs') }}</a>
+          <router-link v-else :to="docsRoute">{{ t('home.jisudeng.footer.docs') }}</router-link>
           <span class="f-copy">© {{ year }} {{ siteName }}</span>
         </span>
       </div>
@@ -558,6 +646,7 @@ import { localizedSiteName, localizedSiteSubtitle } from '@/utils/localizedPubli
 import { isHomeContentUrl as isCustomHomeContentUrl, sanitizeHomeContent } from '@/utils/homeContent'
 import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
 import {
+  PRICING_ROUTE,
   PUBLIC_ROUTE_NAMES,
   authEntryRoute,
   buildHomePrimaryNav,
@@ -575,6 +664,8 @@ const appStore = useAppStore()
 
 const isIntro = ref(true)
 const headerScrolled = ref(false)
+const mobileNavOpen = ref(false)
+const mobileNavId = 'home-mobile-navigation'
 const whyActive = ref<number | null>(null)
 const whyX = ref(0)
 const whyY = ref(0)
@@ -613,14 +704,24 @@ const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
 const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
-const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value))
+const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value, isEnglishPublicRoute.value ? 'en' : 'zh'))
 const adminDashboardRoute = { name: PUBLIC_ROUTE_NAMES.adminDashboard }
-const aboutRoute = { name: PUBLIC_ROUTE_NAMES.about }
+const aboutRoute = computed(() =>
+  isEnglishPublicRoute.value
+    ? { name: PUBLIC_ROUTE_NAMES.about, query: { lang: 'en' } }
+    : { name: PUBLIC_ROUTE_NAMES.about },
+)
 const downloadRoute = { name: PUBLIC_ROUTE_NAMES.androidDownload }
 const loginRoute = authEntryRoute(false)
 const registerRoute = authEntryRoute(true)
 const homeLogoRoute = computed(() =>
   isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishHome } : { path: '/' },
+)
+const pricingRoute = computed(() =>
+  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishModels } : PRICING_ROUTE,
+)
+const docsRoute = computed(() =>
+  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishDocs } : { name: PUBLIC_ROUTE_NAMES.docs },
 )
 const imageDocsRoute = computed(() =>
   isEnglishPublicRoute.value
@@ -633,15 +734,8 @@ const quickStartDocsRoute = computed(() =>
     : docsTopicRoute('tutorial', 'quick-start'),
 )
 const dashboardRoute = computed(() => dashboardEntryRoute(isAdmin.value))
-const dashboardPath = computed(() => isAdmin.value ? '/admin/dashboard' : '/dashboard')
 const homePrimaryNavItems = computed(() =>
-  buildHomePrimaryNav(isAuthenticated.value)
-    .map((item) => {
-      if (!isEnglishPublicRoute.value) return item
-      if (item.key === 'models') return { ...item, to: { name: PUBLIC_ROUTE_NAMES.englishModels } }
-      if (item.key === 'docs') return { ...item, to: { name: PUBLIC_ROUTE_NAMES.englishDocs } }
-      return item
-    })
+  buildHomePrimaryNav(isAuthenticated.value, isEnglishPublicRoute.value ? 'en' : 'zh')
     .filter((item) => !item.requiresSupportContact || hasSupportContact.value),
 )
 const siteLogo = computed(() =>
@@ -831,6 +925,27 @@ function goRegister() {
   router.push(registerRoute)
 }
 
+function toggleMobileNav() {
+  mobileNavOpen.value = !mobileNavOpen.value
+}
+
+function closeMobileNav() {
+  mobileNavOpen.value = false
+}
+
+function handleMobileNavKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') closeMobileNav()
+}
+
+watch(
+  () => route.fullPath,
+  () => closeMobileNav(),
+)
+
+watch(mobileNavOpen, (open) => {
+  document.body.style.overflow = open ? 'hidden' : ''
+})
+
 function goStart() {
   if (isAuthenticated.value) {
     router.push(dashboardRoute.value)
@@ -844,7 +959,11 @@ function openDocs() {
     router.push({ name: PUBLIC_ROUTE_NAMES.englishDocs })
     return
   }
-  if (docUrl.value) window.open(docUrl.value, '_blank', 'noopener')
+  if (docUrl.value) {
+    window.open(docUrl.value, '_blank', 'noopener,noreferrer')
+    return
+  }
+  router.push(docsRoute.value)
 }
 
 function scrollToSection(id: string) {
@@ -928,6 +1047,7 @@ onMounted(() => {
     updateScrollState()
   }
   window.addEventListener('scroll', scrollHandler, { passive: true })
+  document.addEventListener('keydown', handleMobileNavKeydown)
   updateScrollState()
 
   observer = new IntersectionObserver(
@@ -950,6 +1070,9 @@ onMounted(() => {
 onBeforeUnmount(() => {
   observer?.disconnect()
   if (scrollHandler) window.removeEventListener('scroll', scrollHandler)
+  document.removeEventListener('keydown', handleMobileNavKeydown)
+  closeMobileNav()
+  document.body.style.overflow = ''
   cancelAnimationFrame(whyRaf)
 })
 </script>

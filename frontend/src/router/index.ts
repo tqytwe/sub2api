@@ -80,13 +80,25 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/home',
-    name: 'Home',
-    component: () => import('@/views/HomeView.vue'),
+    path: '/pricing',
+    name: 'Pricing',
+    component: () => import('@/views/public/ModelsView.vue'),
     meta: {
       requiresAuth: false,
-      title: '',
-      frame: 'fluid'
+      title: 'Models & Pricing',
+      titleKey: 'models.title',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/pricing/:family(deepseek|qwen|kimi|glm)',
+    name: 'PricingFamily',
+    component: () => import('@/views/public/ModelsView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model pricing',
+      titleKey: 'models.title',
+      frame: 'workspace'
     }
   },
   {
@@ -265,28 +277,6 @@ const routes: RouteRecordRaw[] = [
     redirect: '/contact'
   },
   {
-    path: '/models',
-    name: 'Models',
-    component: () => import('@/views/public/ModelsView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Models',
-      titleKey: 'models.title',
-      frame: 'workspace'
-    }
-  },
-  {
-    path: '/models/:family(deepseek|qwen|kimi|glm)',
-    name: 'ModelFamily',
-    component: () => import('@/views/public/ModelsView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Models',
-      titleKey: 'models.title',
-      frame: 'workspace'
-    }
-  },
-  {
     path: '/docs',
     name: 'Docs',
     component: () => import('@/views/public/DocsView.vue'),
@@ -383,7 +373,17 @@ const routes: RouteRecordRaw[] = [
   // ==================== User Routes ====================
   {
     path: '/',
-    redirect: '/home'
+    name: 'Home',
+    component: () => import('@/views/HomeView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: '',
+      frame: 'fluid'
+    }
+  },
+  {
+    path: '/home',
+    redirect: '/'
   },
   {
     path: '/dashboard',
@@ -1162,7 +1162,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android', '/pricing', '/en/models']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
@@ -1263,7 +1263,7 @@ router.beforeEach(async (to, _from, next) => {
             ? authStore.isAdmin
               ? '/admin/dashboard'
               : '/dashboard'
-            : '/home'
+            : '/'
         )
         return
       }

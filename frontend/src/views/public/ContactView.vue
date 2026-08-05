@@ -11,7 +11,7 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
-const backTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/home'))
+const backTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/'))
 const backLabel = computed(() =>
   authStore.isAuthenticated ? t('contact.backDashboard') : t('contact.backHome')
 )

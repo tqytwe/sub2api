@@ -7170,7 +7170,7 @@ const messages = {
           title: 'Play Center',
           description: 'Opt-in engagement modules: check-in, token farm, blind box, quiz, and agent team.',
           publicModelsEnabled: 'Public model catalog',
-          publicModelsEnabledHint: 'Guests can browse official, site display, and group display prices for guest-visible models at /models.',
+          publicModelsEnabledHint: 'Guests can browse official, site display, and group display prices for guest-visible models at /pricing.',
           checkinEnabled: 'Daily check-in',
           checkinEnabledHint: 'Shows the check-in page and sidebar entry.',
           checkinDailyReward: 'Check-in daily reward (balance)',

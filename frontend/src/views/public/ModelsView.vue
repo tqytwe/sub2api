@@ -161,7 +161,7 @@ function goBack() {
     router.back()
     return
   }
-  router.push(isAuthMode.value ? '/dashboard' : '/home')
+  router.push(isAuthMode.value ? '/dashboard' : '/')
 }
 
 async function loadModels() {

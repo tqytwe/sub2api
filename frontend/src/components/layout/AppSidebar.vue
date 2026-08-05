@@ -844,7 +844,7 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
   }
   items.push(
-    { path: '/models', label: t('nav.modelsAndPricing'), icon: PriceTagIcon },
+    { path: '/pricing', label: t('nav.modelsAndPricing'), icon: PriceTagIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/ai', label: t('nav.aiCreation'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagNextChat },
     { path: '/image-studio', label: t('nav.imageStudio'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagImageStudio },

@@ -3,7 +3,7 @@
   <div class="auth-page">
     <header class="auth-header">
       <div class="auth-header-row">
-        <router-link to="/home" class="auth-brand">
+        <router-link to="/" class="auth-brand">
           <span class="brand-mark">
             <img :src="siteLogo || '/logo.png'" :alt="siteName" />
           </span>
@@ -11,7 +11,7 @@
         </router-link>
         <nav class="auth-nav">
           <PublicPageToolbar />
-          <router-link to="/home" class="nav-link">{{ t('authAside.backHome') }}</router-link>
+          <router-link to="/" class="nav-link">{{ t('authAside.backHome') }}</router-link>
         </nav>
       </div>
     </header>
