@@ -249,60 +249,6 @@ func (h *SubscriptionHandler) ResetQuota(c *gin.Context) {
 	response.Success(c, dto.UserSubscriptionFromServiceAdmin(sub))
 }
 
-// ReleaseDailyCardHolds releases all reserved holds on a specific daily-card entitlement.
-// POST /api/v1/admin/subscriptions/:id/daily-card/:entitlement_id/release-holds
-func (h *SubscriptionHandler) ReleaseDailyCardHolds(c *gin.Context) {
-	subscriptionID, entitlementID, ok := parseSubscriptionDailyCardParams(c)
-	if !ok {
-		return
-	}
-	idempotencyPayload := struct {
-		SubscriptionID int64 `json:"subscription_id"`
-		EntitlementID  int64 `json:"entitlement_id"`
-	}{
-		SubscriptionID: subscriptionID,
-		EntitlementID:  entitlementID,
-	}
-	executeAdminIdempotentJSON(c, "admin.subscriptions.daily_card.release_holds", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		sub, result, execErr := h.subscriptionService.AdminReleaseDailyCardReservedHolds(ctx, subscriptionID, entitlementID)
-		if execErr != nil {
-			return nil, execErr
-		}
-		return gin.H{
-			"subscription":   dto.UserSubscriptionFromServiceAdmin(sub),
-			"card":           result.Card,
-			"released_holds": result.ReleasedHolds,
-		}, nil
-	})
-}
-
-// RestoreDailyCardQuota releases reserved holds and restores quota_used_usd on a specific daily-card entitlement.
-// POST /api/v1/admin/subscriptions/:id/daily-card/:entitlement_id/restore-quota
-func (h *SubscriptionHandler) RestoreDailyCardQuota(c *gin.Context) {
-	subscriptionID, entitlementID, ok := parseSubscriptionDailyCardParams(c)
-	if !ok {
-		return
-	}
-	idempotencyPayload := struct {
-		SubscriptionID int64 `json:"subscription_id"`
-		EntitlementID  int64 `json:"entitlement_id"`
-	}{
-		SubscriptionID: subscriptionID,
-		EntitlementID:  entitlementID,
-	}
-	executeAdminIdempotentJSON(c, "admin.subscriptions.daily_card.restore_quota", idempotencyPayload, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
-		sub, result, execErr := h.subscriptionService.AdminRestoreDailyCardQuota(ctx, subscriptionID, entitlementID)
-		if execErr != nil {
-			return nil, execErr
-		}
-		return gin.H{
-			"subscription":   dto.UserSubscriptionFromServiceAdmin(sub),
-			"card":           result.Card,
-			"released_holds": result.ReleasedHolds,
-		}, nil
-	})
-}
-
 // Revoke handles revoking a subscription.
 // POST /api/v1/admin/subscriptions/:id/revoke
 // DELETE /api/v1/admin/subscriptions/:id is kept for backward compatibility.
@@ -393,18 +339,4 @@ func getAdminIDFromContext(c *gin.Context) int64 {
 		return 0
 	}
 	return subject.UserID
-}
-
-func parseSubscriptionDailyCardParams(c *gin.Context) (subscriptionID, entitlementID int64, ok bool) {
-	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "Invalid subscription ID")
-		return 0, 0, false
-	}
-	entitlementID, err = strconv.ParseInt(c.Param("entitlement_id"), 10, 64)
-	if err != nil {
-		response.BadRequest(c, "Invalid daily card entitlement ID")
-		return 0, 0, false
-	}
-	return subscriptionID, entitlementID, true
 }
