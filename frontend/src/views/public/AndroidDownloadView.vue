@@ -26,7 +26,7 @@ type FeatureCopy = {
   desc: string
 }
 
-const APK_PATH = '/downloads/jisudengchat-android.apk?v=2.0.87-287-86bd20988ed232c3b7b87a3c0a360eb8a5928518494c322173058acc21e94392'
+const APK_PATH = '/downloads/jisudengchat-android.apk?v=2.0.89-289-664b8287a5cfd370534a48d1531205786ed23186bb621808498e3bc76353d3fe'
 const MANIFEST_PATH = '/downloads/android-version.json'
 const OFFICIAL_WEB_URL = 'https://www.jisudeng.com'
 
