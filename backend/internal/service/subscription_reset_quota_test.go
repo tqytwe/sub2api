@@ -134,7 +134,7 @@ func TestAdminResetQuota_UsesShanghaiBusinessDay(t *testing.T) {
 		sub: &UserSubscription{ID: 22, UserID: 10, GroupID: 20},
 	}
 	svc := NewSubscriptionService(groupRepoNoop{}, stub, nil, nil, &config.Config{Timezone: "Asia/Shanghai"})
-	svc.nowFunc = func() time.Time { return now.UTC() }
+	svc.now = func() time.Time { return now.UTC() }
 
 	result, err := svc.AdminResetQuota(context.Background(), 22, true, false, false)
 
