@@ -57,7 +57,7 @@ Instant Answer 接口。两种提供商都只在服务端调用，禁止把密�
 | `GET /api/v1/mobile/protocol` | canonical | APP 获取统一协议版本、任务状态、接口生命周期和隐私规则 | 无业务写入 | 保留 |
 | `GET /api/v1/mobile/session/status` | canonical | APP 登录态自检，并返回后端判定的 `capabilities.admin`；401 时应先 refresh token 无感续期后重试原请求 | 无业务写入 | 保留 |
 | `GET /api/v1/mobile/account-summary` | canonical | 账户、余额、分组、订阅、套餐消耗聚合 | user、wallet、subscription、payment | 保留 |
-| `POST /api/v1/mobile/web-search` | canonical | 用户明确确认后使用服务端 Exa 联网搜索；仅 JWT，不接受管理员 API Key | server-side Exa | 保留 |
+| `POST /api/v1/mobile/web-search` | canonical | 仅在具备后端声明能力的模型返回 `web_search` tool call 后执行；仅 JWT，不接受管理员 API Key | server-side Exa / DuckDuckGo | 保留 |
 | `GET /api/v1/nextchat/mobile/account-summary` | legacy | 旧 APP 账户聚合路径 | 同 canonical | 仅兼容旧版本；新能力不扩展 |
 | `GET /api/v1/nextchat/mobile/bootstrap` | canonical | 移动端聊天和生图独立托管会话启动 | user api key/session | 保留 |
 | `GET /api/v1/mobile/sessions` | canonical | 获取聊天、生图独立会话 | user api key/session | 保留 |

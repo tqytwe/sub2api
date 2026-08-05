@@ -410,14 +410,6 @@ func isAsyncImageTaskRead(method, path string) bool {
 	return strings.HasPrefix(path, "/v1/images/tasks/") || strings.HasPrefix(path, "/images/tasks/")
 }
 
-func isAsyncImageTaskSubmit(method, path string) bool {
-	if method != http.MethodPost {
-		return false
-	}
-	return path == "/v1/images/generations/async" || path == "/images/generations/async" ||
-		path == "/v1/images/edits/async" || path == "/images/edits/async"
-}
-
 // GetAPIKeyFromContext 从上下文中获取API key
 func GetAPIKeyFromContext(c *gin.Context) (*service.APIKey, bool) {
 	value, exists := c.Get(string(ContextKeyAPIKey))

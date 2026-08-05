@@ -18,6 +18,7 @@ type modelCatalogRepository struct {
 
 const catalogSelectColumns = `id, model_name, platform, display_name, use_case, sort_order,
 	visible_public, visible_auth, featured, group_ids,
+	tool_capabilities,
 	official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
 	official_source, official_updated_at, price_multiplier,
 	input_price, output_price, cache_read_price, cache_write_price,
@@ -113,15 +114,20 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 	if source == "" {
 		source = "manual"
 	}
-	err := r.db.QueryRowContext(ctx,
+	toolCapabilities, err := catalogToolCapabilitiesValue(entry.ToolCapabilities)
+	if err != nil {
+		return err
+	}
+	err = r.db.QueryRowContext(ctx,
 		`INSERT INTO site_model_catalog (
 			model_name, platform, display_name, use_case, sort_order,
 			visible_public, visible_auth, featured, group_ids,
+			tool_capabilities,
 			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
 			official_source, official_updated_at, price_multiplier,
 			input_price, output_price, cache_read_price, cache_write_price,
 			billing_mode, source, source_updated_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW())
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			use_case = EXCLUDED.use_case,
@@ -130,6 +136,7 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 			visible_auth = EXCLUDED.visible_auth,
 			featured = EXCLUDED.featured,
 			group_ids = EXCLUDED.group_ids,
+			tool_capabilities = EXCLUDED.tool_capabilities,
 			official_input_price = COALESCE(EXCLUDED.official_input_price, site_model_catalog.official_input_price),
 			official_output_price = COALESCE(EXCLUDED.official_output_price, site_model_catalog.official_output_price),
 			official_cache_read_price = COALESCE(EXCLUDED.official_cache_read_price, site_model_catalog.official_cache_read_price),
@@ -148,6 +155,7 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 		RETURNING id, created_at, updated_at`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
+		toolCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
 		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt, entry.PriceMultiplier,
 		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
@@ -170,18 +178,24 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 	if source == "" {
 		source = "discovery"
 	}
-	err := r.db.QueryRowContext(ctx,
+	toolCapabilities, err := catalogToolCapabilitiesValue(entry.ToolCapabilities)
+	if err != nil {
+		return err
+	}
+	err = r.db.QueryRowContext(ctx,
 		`INSERT INTO site_model_catalog (
 			model_name, platform, display_name, use_case, sort_order,
 			visible_public, visible_auth, featured, group_ids,
+			tool_capabilities,
 			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
 			official_source, official_updated_at, price_multiplier,
 			input_price, output_price, cache_read_price, cache_write_price,
 			billing_mode, source, source_updated_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW())
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			use_case = COALESCE(EXCLUDED.use_case, site_model_catalog.use_case),
 			group_ids = COALESCE(EXCLUDED.group_ids, site_model_catalog.group_ids),
+			tool_capabilities = COALESCE(EXCLUDED.tool_capabilities, site_model_catalog.tool_capabilities),
 			official_input_price = EXCLUDED.official_input_price,
 			official_output_price = EXCLUDED.official_output_price,
 			official_cache_read_price = EXCLUDED.official_cache_read_price,
@@ -199,6 +213,7 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 		RETURNING id, created_at, updated_at`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
+		toolCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
 		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt, entry.PriceMultiplier,
 		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
@@ -215,15 +230,21 @@ func (r *modelCatalogRepository) UpdateCatalogEntry(ctx context.Context, entry *
 	if billingMode == "" {
 		billingMode = string(service.BillingModeToken)
 	}
+	toolCapabilities, err := catalogToolCapabilitiesValue(entry.ToolCapabilities)
+	if err != nil {
+		return err
+	}
 	res, err := r.db.ExecContext(ctx,
 		`UPDATE site_model_catalog SET
 			model_name = $1, platform = $2, display_name = $3, use_case = $4, sort_order = $5,
 			visible_public = $6, visible_auth = $7, featured = $8, group_ids = $9,
-			input_price = $10, output_price = $11, cache_read_price = $12, cache_write_price = $13,
-			price_multiplier = $14, billing_mode = $15, source = $16, source_updated_at = $17, updated_at = NOW()
-		 WHERE id = $18`,
+			tool_capabilities = $10,
+			input_price = $11, output_price = $12, cache_read_price = $13, cache_write_price = $14,
+			price_multiplier = $15, billing_mode = $16, source = $17, source_updated_at = $18, updated_at = NOW()
+		 WHERE id = $19`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
+		toolCapabilities,
 		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice, entry.PriceMultiplier,
 		billingMode, entry.Source, entry.SourceUpdatedAt, entry.ID,
 	)
@@ -550,9 +571,11 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 	var displayName, useCase, officialSource sql.NullString
 	var sourceUpdated, officialUpdated sql.NullTime
 	var groupIDs pq.Int64Array
+	var toolCapabilities []byte
 	err := row.Scan(
 		&e.ID, &e.ModelName, &e.Platform, &displayName, &useCase, &e.SortOrder,
 		&e.VisiblePublic, &e.VisibleAuth, &e.Featured, &groupIDs,
+		&toolCapabilities,
 		&e.OfficialInputPrice, &e.OfficialOutputPrice, &e.OfficialCacheReadPrice, &e.OfficialCacheWritePrice,
 		&officialSource, &officialUpdated, &e.PriceMultiplier,
 		&e.InputPrice, &e.OutputPrice, &e.CacheReadPrice, &e.CacheWritePrice,
@@ -570,6 +593,11 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 	if groupIDs != nil {
 		e.GroupIDs = make([]int64, len(groupIDs))
 		copy(e.GroupIDs, groupIDs)
+	}
+	if len(toolCapabilities) > 0 {
+		if err := json.Unmarshal(toolCapabilities, &e.ToolCapabilities); err != nil {
+			return nil, fmt.Errorf("decode catalog tool capabilities: %w", err)
+		}
 	}
 	if officialSource.Valid {
 		e.OfficialSource = officialSource.String
@@ -597,6 +625,17 @@ func catalogGroupIDsValue(groupIDs []int64) any {
 		return nil
 	}
 	return pq.Array(groupIDs)
+}
+
+func catalogToolCapabilitiesValue(value service.ModelToolCapabilityOverrides) (any, error) {
+	if value.FunctionCalling == nil && value.ToolChoice == nil && value.WebSearch == nil && value.Live == nil {
+		return nil, nil
+	}
+	payload, err := json.Marshal(value)
+	if err != nil {
+		return nil, fmt.Errorf("encode catalog tool capabilities: %w", err)
+	}
+	return payload, nil
 }
 
 // ListAllModelPricingEntries returns every channel_model_pricing row (for sync).

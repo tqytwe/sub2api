@@ -108,18 +108,25 @@ var (
 // 只保留我们需要的字段，使用指针来处理可能缺失的值
 type LiteLLMModelPricing struct {
 	InputCostPerToken                   float64 `json:"input_cost_per_token"`
+	InputCostPerAudioToken              float64 `json:"input_cost_per_audio_token"`
 	InputCostPerTokenPriority           float64 `json:"input_cost_per_token_priority"`
 	OutputCostPerToken                  float64 `json:"output_cost_per_token"`
+	OutputCostPerAudioToken             float64 `json:"output_cost_per_audio_token"`
 	OutputCostPerTokenPriority          float64 `json:"output_cost_per_token_priority"`
 	CacheCreationInputTokenCost         float64 `json:"cache_creation_input_token_cost"`
+	CacheCreationInputAudioTokenCost    float64 `json:"cache_creation_input_audio_token_cost"`
 	CacheCreationInputTokenCostPriority float64 `json:"cache_creation_input_token_cost_priority"`
 	CacheCreationInputTokenCostAbove1hr float64 `json:"cache_creation_input_token_cost_above_1hr"`
 	CacheReadInputTokenCost             float64 `json:"cache_read_input_token_cost"`
+	CacheReadInputAudioTokenCost        float64 `json:"cache_read_input_audio_token_cost"`
 	CacheReadInputTokenCostPriority     float64 `json:"cache_read_input_token_cost_priority"`
 	LongContextInputTokenThreshold      int     `json:"long_context_input_token_threshold,omitempty"`
 	LongContextInputCostMultiplier      float64 `json:"long_context_input_cost_multiplier,omitempty"`
 	LongContextOutputCostMultiplier     float64 `json:"long_context_output_cost_multiplier,omitempty"`
 	SupportsServiceTier                 bool    `json:"supports_service_tier"`
+	SupportsFunctionCalling             bool    `json:"supports_function_calling"`
+	SupportsToolChoice                  bool    `json:"supports_tool_choice"`
+	SupportsWebSearch                   bool    `json:"supports_web_search"`
 	LiteLLMProvider                     string  `json:"litellm_provider"`
 	Mode                                string  `json:"mode"`
 	SupportsPromptCaching               bool    `json:"supports_prompt_caching"`
@@ -142,24 +149,45 @@ type PricingRemoteClient interface {
 // LiteLLMRawEntry 用于解析原始JSON数据
 type LiteLLMRawEntry struct {
 	InputCostPerToken                   *float64 `json:"input_cost_per_token"`
+	InputCostPerAudioToken              *float64 `json:"input_cost_per_audio_token"`
 	InputCostPerTokenPriority           *float64 `json:"input_cost_per_token_priority"`
 	OutputCostPerToken                  *float64 `json:"output_cost_per_token"`
+	OutputCostPerAudioToken             *float64 `json:"output_cost_per_audio_token"`
 	OutputCostPerTokenPriority          *float64 `json:"output_cost_per_token_priority"`
 	CacheCreationInputTokenCost         *float64 `json:"cache_creation_input_token_cost"`
+	CacheCreationInputAudioTokenCost    *float64 `json:"cache_creation_input_audio_token_cost"`
 	CacheCreationInputTokenCostPriority *float64 `json:"cache_creation_input_token_cost_priority"`
 	CacheCreationInputTokenCostAbove1hr *float64 `json:"cache_creation_input_token_cost_above_1hr"`
 	CacheReadInputTokenCost             *float64 `json:"cache_read_input_token_cost"`
+	CacheReadInputAudioTokenCost        *float64 `json:"cache_read_input_audio_token_cost"`
 	CacheReadInputTokenCostPriority     *float64 `json:"cache_read_input_token_cost_priority"`
 	LongContextInputTokenThreshold      *int     `json:"long_context_input_token_threshold"`
 	LongContextInputCostMultiplier      *float64 `json:"long_context_input_cost_multiplier"`
 	LongContextOutputCostMultiplier     *float64 `json:"long_context_output_cost_multiplier"`
 	SupportsServiceTier                 bool     `json:"supports_service_tier"`
+	SupportsFunctionCalling             bool     `json:"supports_function_calling"`
+	SupportsToolChoice                  bool     `json:"supports_tool_choice"`
+	SupportsWebSearch                   bool     `json:"supports_web_search"`
 	LiteLLMProvider                     string   `json:"litellm_provider"`
 	Mode                                string   `json:"mode"`
 	SupportsPromptCaching               bool     `json:"supports_prompt_caching"`
 	OutputCostPerImage                  *float64 `json:"output_cost_per_image"`
 	OutputCostPerImageToken             *float64 `json:"output_cost_per_image_token"`
 	InputCostPerImageToken              *float64 `json:"input_cost_per_image_token"`
+}
+
+// ModelToolCapabilities is the server-owned tool contract exposed to managed
+// clients. A false value means the catalog has no verified declaration; the
+// client must fail closed instead of inferring support from a model name.
+type ModelToolCapabilities struct {
+	FunctionCalling bool `json:"function_calling"`
+	ToolChoice      bool `json:"tool_choice"`
+	WebSearch       bool `json:"web_search"`
+	// Live is an explicit catalog declaration for a model that can accept the
+	// managed WebRTC Realtime session. It intentionally defaults to false: a
+	// group permission alone never proves that every model in the group supports
+	// continuous audio.
+	Live bool `json:"live"`
 }
 
 // PricingService 动态价格服务
@@ -447,15 +475,21 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 
 		pricing := &LiteLLMModelPricing{
-			LiteLLMProvider:       entry.LiteLLMProvider,
-			Mode:                  entry.Mode,
-			SupportsPromptCaching: entry.SupportsPromptCaching,
-			SupportsServiceTier:   entry.SupportsServiceTier,
-			TokenPricingAbsent:    entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil,
+			LiteLLMProvider:         entry.LiteLLMProvider,
+			Mode:                    entry.Mode,
+			SupportsPromptCaching:   entry.SupportsPromptCaching,
+			SupportsServiceTier:     entry.SupportsServiceTier,
+			SupportsFunctionCalling: entry.SupportsFunctionCalling,
+			SupportsToolChoice:      entry.SupportsToolChoice,
+			SupportsWebSearch:       entry.SupportsWebSearch,
+			TokenPricingAbsent:      entry.InputCostPerToken == nil && entry.OutputCostPerToken == nil,
 		}
 
 		if entry.InputCostPerToken != nil {
 			pricing.InputCostPerToken = *entry.InputCostPerToken
+		}
+		if entry.InputCostPerAudioToken != nil {
+			pricing.InputCostPerAudioToken = *entry.InputCostPerAudioToken
 		}
 		if entry.InputCostPerTokenPriority != nil {
 			pricing.InputCostPerTokenPriority = *entry.InputCostPerTokenPriority
@@ -463,11 +497,17 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		if entry.OutputCostPerToken != nil {
 			pricing.OutputCostPerToken = *entry.OutputCostPerToken
 		}
+		if entry.OutputCostPerAudioToken != nil {
+			pricing.OutputCostPerAudioToken = *entry.OutputCostPerAudioToken
+		}
 		if entry.OutputCostPerTokenPriority != nil {
 			pricing.OutputCostPerTokenPriority = *entry.OutputCostPerTokenPriority
 		}
 		if entry.CacheCreationInputTokenCost != nil {
 			pricing.CacheCreationInputTokenCost = *entry.CacheCreationInputTokenCost
+		}
+		if entry.CacheCreationInputAudioTokenCost != nil {
+			pricing.CacheCreationInputAudioTokenCost = *entry.CacheCreationInputAudioTokenCost
 		}
 		if entry.CacheCreationInputTokenCostPriority != nil {
 			pricing.CacheCreationInputTokenCostPriority = *entry.CacheCreationInputTokenCostPriority
@@ -477,6 +517,9 @@ func (s *PricingService) parsePricingData(body []byte) (map[string]*LiteLLMModel
 		}
 		if entry.CacheReadInputTokenCost != nil {
 			pricing.CacheReadInputTokenCost = *entry.CacheReadInputTokenCost
+		}
+		if entry.CacheReadInputAudioTokenCost != nil {
+			pricing.CacheReadInputAudioTokenCost = *entry.CacheReadInputAudioTokenCost
 		}
 		if entry.CacheReadInputTokenCostPriority != nil {
 			pricing.CacheReadInputTokenCostPriority = *entry.CacheReadInputTokenCostPriority
@@ -692,6 +735,30 @@ func (s *PricingService) GetModelPricing(modelName string) *LiteLLMModelPricing 
 	}
 
 	return nil
+}
+
+// GetModelToolCapabilities performs an exact catalog lookup. In particular it
+// intentionally does not use billing fallbacks: a fallback price never proves
+// that an alias, preview, or private model can execute a tool.
+func (s *PricingService) GetModelToolCapabilities(modelName string) ModelToolCapabilities {
+	if s == nil {
+		return ModelToolCapabilities{}
+	}
+	modelName = strings.ToLower(strings.TrimSpace(modelName))
+	if modelName == "" {
+		return ModelToolCapabilities{}
+	}
+	s.mu.RLock()
+	pricing := s.pricingData[modelName]
+	s.mu.RUnlock()
+	if pricing == nil {
+		return ModelToolCapabilities{}
+	}
+	return ModelToolCapabilities{
+		FunctionCalling: pricing.SupportsFunctionCalling,
+		ToolChoice:      pricing.SupportsToolChoice,
+		WebSearch:       pricing.SupportsWebSearch,
+	}
 }
 
 func (s *PricingService) buildModelLookupCandidates(modelLower string) []string {

@@ -63,20 +63,26 @@ type NextChatWorkspaceModel struct {
 	SortOrder            int      `json:"sort_order"`
 	EffectiveInputPrice  *float64 `json:"effective_input_price,omitempty"`
 	EffectiveOutputPrice *float64 `json:"effective_output_price,omitempty"`
+	// ToolCapabilities is derived from the server catalog. It deliberately
+	// contains explicit false values so clients do not guess from model names.
+	ToolCapabilities ModelToolCapabilities `json:"tool_capabilities"`
 	// ImageCapabilities is server-owned. Mobile clients must use this contract
 	// for reference-image editing instead of inferring support from model names.
 	ImageCapabilities *ImageStudioModelCapabilities `json:"image_capabilities,omitempty"`
 }
 
 type NextChatWorkspaceGroup struct {
-	ID             int64                    `json:"id"`
-	Name           string                   `json:"name"`
-	Description    string                   `json:"description,omitempty"`
-	Platform       string                   `json:"platform,omitempty"`
-	RateMultiplier float64                  `json:"rate_multiplier"`
-	SortOrder      int                      `json:"sort_order"`
-	IsCurrent      bool                     `json:"is_current"`
-	Models         []NextChatWorkspaceModel `json:"models"`
+	ID             int64   `json:"id"`
+	Name           string  `json:"name"`
+	Description    string  `json:"description,omitempty"`
+	Platform       string  `json:"platform,omitempty"`
+	RateMultiplier float64 `json:"rate_multiplier"`
+	SortOrder      int     `json:"sort_order"`
+	IsCurrent      bool    `json:"is_current"`
+	// LiveAvailable is the group-level authorization result. The gateway still
+	// validates the concrete model and upstream session before creating a call.
+	LiveAvailable bool                     `json:"live_available"`
+	Models        []NextChatWorkspaceModel `json:"models"`
 }
 
 type NextChatWorkspaceModels struct {
@@ -549,6 +555,7 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 			RateMultiplier: group.RateMultiplier,
 			SortOrder:      group.SortOrder,
 			IsCurrent:      identity.APIKey.GroupID != nil && *identity.APIKey.GroupID == group.ID,
+			LiveAvailable:  group.Platform == PlatformOpenAI && group.AllowLive,
 			Models:         []NextChatWorkspaceModel{},
 		}
 		out.Groups = append(out.Groups, g)
@@ -557,6 +564,13 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 	metadata := nextChatWorkspaceModelMetadata{}
 	if pricing != nil {
 		metadata = buildNextChatWorkspaceModelMetadata(pricing.Models)
+	}
+	toolCapabilityEntries := []SiteModelCatalogEntry{}
+	if s.repo != nil {
+		visible := true
+		if entries, listErr := s.repo.ListCatalog(ctx, CatalogListFilter{VisibleAuth: &visible}); listErr == nil {
+			toolCapabilityEntries = entries
+		}
 	}
 	for groupIndex := range out.Groups {
 		group := &out.Groups[groupIndex]
@@ -578,7 +592,18 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 			}
 			seen[normalizedModelID] = struct{}{}
 			meta := metadata.lookup(group.ID, group.Platform, modelID)
-			group.Models = append(group.Models, buildNextChatWorkspaceModel(group.Platform, modelID, meta))
+			workspaceModel := buildNextChatWorkspaceModel(group.Platform, modelID, meta)
+			upstreamCapabilities := ModelToolCapabilities{}
+			if s.pricingService != nil {
+				upstreamCapabilities = s.pricingService.GetModelToolCapabilities(modelID)
+			}
+			workspaceModel.ToolCapabilities = resolveNextChatWorkspaceModelToolCapabilities(
+				toolCapabilityEntries,
+				sourceGroup,
+				modelID,
+				upstreamCapabilities,
+			)
+			group.Models = append(group.Models, workspaceModel)
 		}
 	}
 
@@ -722,6 +747,72 @@ func buildNextChatWorkspaceModel(groupPlatform, modelID string, meta nextChatWor
 		model.ImageCapabilities = &capability
 	}
 	return model
+}
+
+// resolveNextChatModelToolCapabilities applies the only permitted capability
+// precedence: explicit catalog values, then exact upstream metadata. Platform
+// web search is a function tool backed by Exa/DuckDuckGo, not an upstream's
+// native search product, so every verified function-calling model is eligible
+// unless the catalog explicitly denies it. It never performs a model-name
+// fallback, so private aliases must be declared by an administrator before a
+// mobile client can use a tool.
+func resolveNextChatModelToolCapabilities(overrides ModelToolCapabilityOverrides, upstream ModelToolCapabilities) ModelToolCapabilities {
+	resolved := upstream
+	if overrides.FunctionCalling != nil {
+		resolved.FunctionCalling = *overrides.FunctionCalling
+	}
+	if overrides.ToolChoice != nil {
+		resolved.ToolChoice = *overrides.ToolChoice
+	}
+	if overrides.WebSearch != nil {
+		resolved.WebSearch = *overrides.WebSearch
+	} else {
+		resolved.WebSearch = resolved.FunctionCalling
+	}
+	// No catalog override can make a model execute a function it cannot call.
+	if !resolved.FunctionCalling {
+		resolved.WebSearch = false
+	}
+	if overrides.Live != nil {
+		resolved.Live = *overrides.Live
+	}
+	return resolved
+}
+
+// resolveNextChatWorkspaceModelToolCapabilities finds a server-owned catalog
+// declaration for the exact visible model. A declaration must match the
+// selected group (including an explicit group scope); otherwise it is ignored.
+// This is what lets an administrator approve a private alias without letting a
+// same-named model in another group inherit that approval.
+func resolveNextChatWorkspaceModelToolCapabilities(
+	entries []SiteModelCatalogEntry,
+	group Group,
+	modelID string,
+	upstream ModelToolCapabilities,
+) ModelToolCapabilities {
+	modelID = strings.TrimSpace(modelID)
+	if modelID == "" {
+		return ModelToolCapabilities{}
+	}
+
+	var generic *SiteModelCatalogEntry
+	for index := range entries {
+		entry := &entries[index]
+		if !strings.EqualFold(strings.TrimSpace(entry.ModelName), modelID) ||
+			!catalogAllowsGroup(*entry, group.ID, group.Platform) {
+			continue
+		}
+		if normalizeNextChatModelPlatform(entry.Platform) == normalizeNextChatModelPlatform(group.Platform) {
+			return resolveNextChatModelToolCapabilities(entry.ToolCapabilities, upstream)
+		}
+		if strings.TrimSpace(entry.Platform) == "" {
+			generic = entry
+		}
+	}
+	if generic != nil {
+		return resolveNextChatModelToolCapabilities(generic.ToolCapabilities, upstream)
+	}
+	return resolveNextChatModelToolCapabilities(ModelToolCapabilityOverrides{}, upstream)
 }
 
 func nextChatModelPlatformMatchesGroup(modelPlatform, groupPlatform string) bool {

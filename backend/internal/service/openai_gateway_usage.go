@@ -37,6 +37,10 @@ type OpenAIRecordUsageInput struct {
 	// 按该时刻计算，保证同一请求从准入到扣费不中途变价。零值回退记录时刻
 	//（既有行为），供未装配的路径（图片/异步/cyber 等）沿用。
 	PricingAt time.Time
+	// RequestType preserves protocol-specific audit semantics. Most OpenAI
+	// requests continue to infer their type from stream/WS legacy fields; Live
+	// is explicit because it is neither of those protocols.
+	RequestType RequestType
 	// CyberBlocked 为 true 时把该用量行标记为 cyber（request_type=cyber），计费逻辑不变。
 	CyberBlocked bool
 	ChannelUsageFields
@@ -159,15 +163,23 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if actualInputTokens < 0 {
 		actualInputTokens = 0
 	}
+	actualInputAudioTokens := result.Usage.InputAudioTokens - result.Usage.CacheReadInputAudioTokens - result.Usage.CacheCreationInputAudioTokens
+	if actualInputAudioTokens < 0 {
+		actualInputAudioTokens = 0
+	}
 
 	// Calculate cost
 	tokens := UsageTokens{
-		InputTokens:         actualInputTokens,
-		ImageInputTokens:    result.Usage.ImageInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		ImageOutputTokens:   result.Usage.ImageOutputTokens,
+		InputTokens:              actualInputTokens,
+		InputAudioTokens:         actualInputAudioTokens,
+		ImageInputTokens:         result.Usage.ImageInputTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		OutputAudioTokens:        result.Usage.OutputAudioTokens,
+		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheCreationAudioTokens: result.Usage.CacheCreationInputAudioTokens,
+		CacheReadTokens:          result.Usage.CacheReadInputTokens,
+		CacheReadAudioTokens:     result.Usage.CacheReadInputAudioTokens,
+		ImageOutputTokens:        result.Usage.ImageOutputTokens,
 	}
 
 	// Get rate multiplier
@@ -271,29 +283,33 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 
 	usageLog := &UsageLog{
-		UserID:              user.ID,
-		APIKeyID:            apiKey.ID,
-		AccountID:           account.ID,
-		RequestID:           requestID,
-		Model:               result.Model,
-		RequestedModel:      requestedModel,
-		UpstreamModel:       optionalTrimmedStringPtr(result.UpstreamModel),
-		ServiceTier:         result.ServiceTier,
-		ReasoningEffort:     result.ReasoningEffort,
-		InboundEndpoint:     optionalTrimmedStringPtr(input.InboundEndpoint),
-		UpstreamEndpoint:    optionalTrimmedStringPtr(input.UpstreamEndpoint),
-		InputTokens:         actualInputTokens,
-		OutputTokens:        result.Usage.OutputTokens,
-		CacheCreationTokens: result.Usage.CacheCreationInputTokens,
-		CacheReadTokens:     result.Usage.CacheReadInputTokens,
-		ImageInputTokens:    result.Usage.ImageInputTokens,
-		ImageOutputTokens:   result.Usage.ImageOutputTokens,
-		ImageCount:          result.ImageCount,
-		ImageSize:           optionalTrimmedStringPtr(result.ImageSize),
-		ImageInputSize:      optionalTrimmedStringPtr(result.ImageInputSize),
-		ImageOutputSize:     optionalTrimmedStringPtr(result.ImageOutputSize),
-		ImageSizeSource:     optionalTrimmedStringPtr(result.ImageSizeSource),
-		ImageSizeBreakdown:  result.ImageSizeBreakdown,
+		UserID:                   user.ID,
+		APIKeyID:                 apiKey.ID,
+		AccountID:                account.ID,
+		RequestID:                requestID,
+		Model:                    result.Model,
+		RequestedModel:           requestedModel,
+		UpstreamModel:            optionalTrimmedStringPtr(result.UpstreamModel),
+		ServiceTier:              result.ServiceTier,
+		ReasoningEffort:          result.ReasoningEffort,
+		InboundEndpoint:          optionalTrimmedStringPtr(input.InboundEndpoint),
+		UpstreamEndpoint:         optionalTrimmedStringPtr(input.UpstreamEndpoint),
+		InputTokens:              actualInputTokens,
+		InputAudioTokens:         actualInputAudioTokens,
+		OutputTokens:             result.Usage.OutputTokens,
+		OutputAudioTokens:        result.Usage.OutputAudioTokens,
+		CacheCreationTokens:      result.Usage.CacheCreationInputTokens,
+		CacheCreationAudioTokens: result.Usage.CacheCreationInputAudioTokens,
+		CacheReadTokens:          result.Usage.CacheReadInputTokens,
+		CacheReadAudioTokens:     result.Usage.CacheReadInputAudioTokens,
+		ImageInputTokens:         result.Usage.ImageInputTokens,
+		ImageOutputTokens:        result.Usage.ImageOutputTokens,
+		ImageCount:               result.ImageCount,
+		ImageSize:                optionalTrimmedStringPtr(result.ImageSize),
+		ImageInputSize:           optionalTrimmedStringPtr(result.ImageInputSize),
+		ImageOutputSize:          optionalTrimmedStringPtr(result.ImageOutputSize),
+		ImageSizeSource:          optionalTrimmedStringPtr(result.ImageSizeSource),
+		ImageSizeBreakdown:       result.ImageSizeBreakdown,
 	}
 	isVideoUsage := isGrokVideoUsageResult(result, billingModels)
 	if isVideoUsage {
@@ -322,6 +338,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}
 	usageLog.AccountRateMultiplier = &accountRateMultiplier
 	usageLog.BillingType = billingType
+	usageLog.RequestType = input.RequestType
 	usageLog.Stream = result.Stream
 	if input.CyberBlocked {
 		usageLog.RequestType = RequestTypeCyberBlocked

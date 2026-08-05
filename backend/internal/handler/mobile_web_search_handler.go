@@ -73,14 +73,22 @@ func NewMobileWebSearchHandlerFromEnvironment(budget service.MobileWebSearchBudg
 	configuredProvider := strings.ToLower(strings.TrimSpace(os.Getenv("MOBILE_WEB_SEARCH_PROVIDER")))
 	var provider mobileWebSearchProvider
 	providerName := ""
-	if enabledFlag && apiKey != "" && (configuredProvider == "" || configuredProvider == "exa") {
-		provider = websearch.NewExaProvider(apiKey, &http.Client{
+	// DuckDuckGo is the no-key fallback and can also be selected explicitly for
+	// an installation that must not send requests to Exa. An absent or invalid
+	// provider value follows the default: Exa when the server has a key, then
+	// DuckDuckGo on an Exa failure.
+	useExa := apiKey != "" && configuredProvider != "duckduckgo"
+	if enabledFlag && useExa {
+		primary := websearch.NewExaProvider(apiKey, &http.Client{
 			Timeout: mobileWebSearchTimeout,
 			// Never follow a redirect with x-api-key attached to an unknown host.
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		})
-		providerName = "exa"
-	} else if enabledFlag && configuredProvider == "duckduckgo" {
+		fallback := websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout})
+		fallbackProvider := newMobileWebSearchFallbackProvider(primary, fallback, primary.Name(), fallback.Name())
+		provider = fallbackProvider
+		providerName = fallbackProvider.Name()
+	} else if enabledFlag {
 		provider = websearch.NewDuckDuckGoProvider(&http.Client{Timeout: mobileWebSearchTimeout})
 		providerName = "duckduckgo"
 	}
@@ -117,8 +125,8 @@ func mobileWebSearchEnvBool(value string) bool {
 
 type mobileWebSearchRequest struct {
 	Query      string `json:"query"`
+	ToolCallID string `json:"tool_call_id"`
 	MaxResults int    `json:"max_results"`
-	OptIn      bool   `json:"opt_in"`
 	Locale     string `json:"locale"`
 }
 
@@ -130,10 +138,11 @@ type mobileWebSearchResult struct {
 }
 
 type mobileWebSearchResponse struct {
-	RequestID string                  `json:"request_id"`
-	Query     string                  `json:"query"`
-	Provider  string                  `json:"provider"`
-	Results   []mobileWebSearchResult `json:"results"`
+	RequestID  string                  `json:"request_id"`
+	ToolCallID string                  `json:"tool_call_id"`
+	Query      string                  `json:"query"`
+	Provider   string                  `json:"provider"`
+	Results    []mobileWebSearchResult `json:"results"`
 }
 
 // Search handles POST /api/v1/mobile/web-search. The response is read-only,
@@ -162,14 +171,18 @@ func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 	if requestLocale := mobileWebSearchLocale(input.Locale); strings.TrimSpace(input.Locale) != "" {
 		locale = requestLocale
 	}
-	if !input.OptIn {
-		writeMobileWebSearchError(c, http.StatusBadRequest, "MOBILE_WEB_SEARCH_OPT_IN_REQUIRED", "explicit_opt_in_required", locale, requestID)
-		return
-	}
-
 	query := strings.TrimSpace(input.Query)
 	if query == "" {
 		writeMobileWebSearchError(c, http.StatusBadRequest, "MOBILE_WEB_SEARCH_INVALID_QUERY", "query_required", locale, requestID)
+		return
+	}
+	// Search is a model tool, not a user-controlled mobile feature. Requiring
+	// the gateway tool-call identifier keeps legacy toggle-based clients from
+	// treating this endpoint as a second manual search surface. Echoing it lets
+	// the client reject an idempotency replay for a different tool call.
+	toolCallID := strings.TrimSpace(input.ToolCallID)
+	if toolCallID == "" || utf8.RuneCountInString(toolCallID) > 256 {
+		writeMobileWebSearchError(c, http.StatusBadRequest, "MOBILE_WEB_SEARCH_TOOL_CALL_REQUIRED", "tool_call_required", locale, requestID)
 		return
 	}
 	if utf8.RuneCountInString(query) > mobileWebSearchMaxQueryRunes {
@@ -201,9 +214,10 @@ func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 	}
 	payload := struct {
 		Query      string `json:"query"`
+		ToolCallID string `json:"tool_call_id"`
 		MaxResults int    `json:"max_results"`
 		Locale     string `json:"locale"`
-	}{Query: query, MaxResults: maxResults, Locale: locale}
+	}{Query: query, ToolCallID: toolCallID, MaxResults: maxResults, Locale: locale}
 	result, err := coordinator.Execute(c.Request.Context(), service.IdempotencyExecuteOptions{
 		Scope:              mobileUserIdempotencyScope(c, mobileOperationSearchWeb),
 		ActorScope:         "user:" + strconv.FormatInt(subject.UserID, 10),
@@ -241,11 +255,14 @@ func (h *MobileWebSearchHandler) Search(c *gin.Context) {
 		if executedQuery == "" {
 			executedQuery = query
 		}
-		providerName := h.providerName
+		providerName := strings.TrimSpace(upstream.Provider)
+		if providerName == "" {
+			providerName = h.providerName
+		}
 		if providerName == "" {
 			providerName = "unknown"
 		}
-		return mobileWebSearchResponse{RequestID: requestID, Query: executedQuery, Provider: providerName, Results: items}, nil
+		return mobileWebSearchResponse{RequestID: requestID, ToolCallID: toolCallID, Query: executedQuery, Provider: providerName, Results: items}, nil
 	})
 	if err != nil {
 		if writeMobileWebSearchBudgetError(c, err, locale, requestID) {
@@ -368,8 +385,8 @@ func mobileWebSearchMessage(code, locale string) string {
 			return "Web search is not available"
 		case "MOBILE_WEB_SEARCH_INVALID_REQUEST":
 			return "The search request is invalid"
-		case "MOBILE_WEB_SEARCH_OPT_IN_REQUIRED":
-			return "Confirm web search before continuing"
+		case "MOBILE_WEB_SEARCH_TOOL_CALL_REQUIRED":
+			return "Web search must be requested by a model tool call"
 		case "MOBILE_WEB_SEARCH_INVALID_QUERY":
 			return "Enter a search query"
 		case "MOBILE_WEB_SEARCH_QUERY_TOO_LONG":
@@ -411,8 +428,8 @@ func mobileWebSearchMessage(code, locale string) string {
 		return "联网搜索暂不可用"
 	case "MOBILE_WEB_SEARCH_INVALID_REQUEST":
 		return "联网搜索请求无效"
-	case "MOBILE_WEB_SEARCH_OPT_IN_REQUIRED":
-		return "请先确认启用联网搜索"
+	case "MOBILE_WEB_SEARCH_TOOL_CALL_REQUIRED":
+		return "联网搜索必须由模型工具调用触发"
 	case "MOBILE_WEB_SEARCH_INVALID_QUERY":
 		return "请输入搜索内容"
 	case "MOBILE_WEB_SEARCH_QUERY_TOO_LONG":

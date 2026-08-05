@@ -97,7 +97,8 @@
   提供商才启用。默认使用 Exa（`EXA_API_KEY` 只从 secret manager 读取）；也可
   显式设置 `MOBILE_WEB_SEARCH_PROVIDER=duckduckgo` 使用无密钥的公共接口。提供商
   只在服务端调用，禁止进入 APP 或协议响应。
-- 请求必须带 JWT 和显式 `opt_in=true`；响应包含 `request_id`、来源 URL、摘要和
+- 请求必须带 JWT、`tool_call_id` 与幂等键；只有模型实际返回 `web_search` tool call
+  后 APP 才会调用。响应回显 `request_id` 和 `tool_call_id`，并包含来源 URL、摘要和
   `page_age`。上游超时返回 504，上游 HTTP/连接错误返回 502，不把它们伪装成
   本地网络失败。
 - 请求必须带 `Idempotency-Key`；成功响应由现有幂等协调器回放，避免网络重试重复

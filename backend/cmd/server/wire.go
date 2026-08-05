@@ -334,6 +334,12 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"OpenAILiveSettlementWorker", func() error {
+				if openAIGateway != nil {
+					openAIGateway.StopLiveSettlementWorker()
+				}
+				return nil
+			}},
 			{"ScheduledTestRunnerService", func() error {
 				if scheduledTestRunner != nil {
 					scheduledTestRunner.Stop()

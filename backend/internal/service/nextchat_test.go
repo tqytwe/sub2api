@@ -463,7 +463,7 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 			Key:     "sk-user-openai",
 			Status:  StatusActive,
 			GroupID: &openAIGroupID,
-			Group:   &Group{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+			Group:   &Group{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1, AllowLive: true},
 		},
 		{
 			ID:      2,
@@ -485,7 +485,7 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 	}}
 	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
 	groupRepo := &nextChatGroupRepoStub{groups: []Group{
-		{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1},
+		{ID: openAIGroupID, Name: "OpenAI main", Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 1, AllowLive: true},
 		{ID: grokGroupID, Name: "Grok backup", Platform: PlatformGrok, Status: StatusActive, SortOrder: 2},
 	}}
 	apiKeySvc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
@@ -507,8 +507,10 @@ func TestGetNextChatWorkspaceModelsGroupsModelsBySelectableGroup(t *testing.T) {
 	require.Len(t, models.Groups, 2)
 	require.Equal(t, openAIGroupID, models.Groups[0].ID)
 	require.True(t, models.Groups[0].IsCurrent)
+	require.True(t, models.Groups[0].LiveAvailable)
 	require.Equal(t, []string{"gpt-4o-mini"}, collectNextChatModelNames(models.Groups[0].Models))
 	require.Equal(t, grokGroupID, models.Groups[1].ID)
+	require.False(t, models.Groups[1].LiveAvailable)
 	require.Equal(t, []string{"grok-4-fast"}, collectNextChatModelNames(models.Groups[1].Models))
 	require.NotContains(t, collectNextChatModelNames(models.Groups[1].Models), "claude-fable-5")
 	require.Equal(t, "gpt-4o-mini", models.DefaultModel)
@@ -864,6 +866,128 @@ func TestBuildNextChatWorkspaceModelPublishesServerImageCapabilities(t *testing.
 	require.NotNil(t, privateModel.ImageCapabilities)
 	require.NotContains(t, privateModel.ImageCapabilities.Operations, "edit")
 	require.Zero(t, privateModel.ImageCapabilities.MaxReferenceImages)
+}
+
+func TestResolveNextChatModelToolCapabilitiesPrefersExplicitCatalogDeclaration(t *testing.T) {
+	allow := true
+	disallow := false
+	upstream := ModelToolCapabilities{
+		FunctionCalling: true,
+		ToolChoice:      true,
+		WebSearch:       true,
+	}
+
+	resolved := resolveNextChatModelToolCapabilities(
+		ModelToolCapabilityOverrides{
+			FunctionCalling: &disallow,
+			ToolChoice:      &allow,
+			WebSearch:       &disallow,
+			Live:            &allow,
+		},
+		upstream,
+	)
+
+	require.Equal(t, ModelToolCapabilities{
+		FunctionCalling: false,
+		ToolChoice:      true,
+		WebSearch:       false,
+		Live:            true,
+	}, resolved)
+}
+
+func TestResolveNextChatModelToolCapabilitiesFallsBackOnlyToExactUpstreamMetadata(t *testing.T) {
+	allow := true
+	upstream := ModelToolCapabilities{FunctionCalling: true}
+
+	// A catalog row may deliberately leave individual fields unset. Those
+	// fields may use exact LiteLLM metadata, but never a model-name fallback.
+	resolved := resolveNextChatModelToolCapabilities(
+		ModelToolCapabilityOverrides{WebSearch: &allow},
+		upstream,
+	)
+	require.Equal(t, ModelToolCapabilities{
+		FunctionCalling: true,
+		ToolChoice:      false,
+		WebSearch:       true,
+	}, resolved)
+
+	require.Equal(t, ModelToolCapabilities{}, resolveNextChatModelToolCapabilities(
+		ModelToolCapabilityOverrides{},
+		ModelToolCapabilities{},
+	))
+}
+
+func TestResolveNextChatModelToolCapabilitiesEnablesPlatformSearchForFunctionCapableModels(t *testing.T) {
+	// A provider's native web-search flag is not the contract for the
+	// platform-owned Exa/DuckDuckGo function tool. Any model with verified
+	// function calling can request the platform tool unless an administrator
+	// explicitly denies it in the catalog.
+	resolved := resolveNextChatModelToolCapabilities(
+		ModelToolCapabilityOverrides{},
+		ModelToolCapabilities{
+			FunctionCalling: true,
+			ToolChoice:      true,
+			WebSearch:       false,
+		},
+	)
+	require.Equal(t, ModelToolCapabilities{
+		FunctionCalling: true,
+		ToolChoice:      true,
+		WebSearch:       true,
+	}, resolved)
+
+	disallow := false
+	denied := resolveNextChatModelToolCapabilities(
+		ModelToolCapabilityOverrides{WebSearch: &disallow},
+		ModelToolCapabilities{FunctionCalling: true, ToolChoice: true},
+	)
+	require.False(t, denied.WebSearch)
+}
+
+func TestResolveNextChatWorkspaceModelToolCapabilitiesHonorsCatalogAliasAndGroupScope(t *testing.T) {
+	allow := true
+	group := Group{ID: 42, Platform: PlatformOpenAI}
+	entries := []SiteModelCatalogEntry{
+		{
+			ModelName:   "private-search-alias",
+			Platform:    PlatformOpenAI,
+			VisibleAuth: true,
+			GroupIDs:    []int64{group.ID},
+			ToolCapabilities: ModelToolCapabilityOverrides{
+				FunctionCalling: &allow,
+				ToolChoice:      &allow,
+				WebSearch:       &allow,
+				Live:            &allow,
+			},
+		},
+	}
+
+	// The private alias is not present in LiteLLM metadata. The explicit,
+	// group-scoped catalog declaration is therefore its sole authority.
+	require.Equal(t, ModelToolCapabilities{
+		FunctionCalling: true,
+		ToolChoice:      true,
+		WebSearch:       true,
+		Live:            true,
+	}, resolveNextChatWorkspaceModelToolCapabilities(entries, group, "private-search-alias", ModelToolCapabilities{}))
+
+	otherGroup := Group{ID: 99, Platform: PlatformOpenAI}
+	require.Equal(t, ModelToolCapabilities{}, resolveNextChatWorkspaceModelToolCapabilities(entries, otherGroup, "private-search-alias", ModelToolCapabilities{}))
+
+	// A model does not need a duplicated catalog row merely to receive the
+	// platform-owned search tool. Exact server metadata already verifies its
+	// function capability; the resolver must apply the same web-search default
+	// as it does for a catalog entry with no explicit override.
+	require.Equal(t, ModelToolCapabilities{
+		FunctionCalling: true,
+		ToolChoice:      true,
+		WebSearch:       true,
+	}, resolveNextChatWorkspaceModelToolCapabilities(
+		nil,
+		group,
+		"verified-function-model",
+		ModelToolCapabilities{FunctionCalling: true, ToolChoice: true},
+	))
 }
 
 func filterNextChatAPIKeyRepoKeys(userID int64, keys []APIKey, filters APIKeyListFilters) []APIKey {

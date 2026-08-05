@@ -21,23 +21,24 @@ func NewModelCatalogHandler(catalogService *service.ModelCatalogService) *ModelC
 }
 
 type catalogEntryRequest struct {
-	ID              int64    `json:"id"`
-	ModelName       string   `json:"model_name" binding:"required,max=128"`
-	Platform        string   `json:"platform" binding:"max=50"`
-	DisplayName     *string  `json:"display_name"`
-	UseCase         *string  `json:"use_case"`
-	SortOrder       int      `json:"sort_order"`
-	VisiblePublic   bool     `json:"visible_public"`
-	VisibleAuth     bool     `json:"visible_auth"`
-	Featured        bool     `json:"featured"`
-	GroupIDs        []int64  `json:"group_ids"`
-	InputPrice      *float64 `json:"input_price"`
-	OutputPrice     *float64 `json:"output_price"`
-	CacheReadPrice  *float64 `json:"cache_read_price"`
-	CacheWritePrice *float64 `json:"cache_write_price"`
-	PriceMultiplier *float64 `json:"price_multiplier"`
-	BillingMode     string   `json:"billing_mode"`
-	Source          string   `json:"source"`
+	ID               int64                                `json:"id"`
+	ModelName        string                               `json:"model_name" binding:"required,max=128"`
+	Platform         string                               `json:"platform" binding:"max=50"`
+	DisplayName      *string                              `json:"display_name"`
+	UseCase          *string                              `json:"use_case"`
+	SortOrder        int                                  `json:"sort_order"`
+	VisiblePublic    bool                                 `json:"visible_public"`
+	VisibleAuth      bool                                 `json:"visible_auth"`
+	Featured         bool                                 `json:"featured"`
+	GroupIDs         []int64                              `json:"group_ids"`
+	ToolCapabilities service.ModelToolCapabilityOverrides `json:"tool_capabilities"`
+	InputPrice       *float64                             `json:"input_price"`
+	OutputPrice      *float64                             `json:"output_price"`
+	CacheReadPrice   *float64                             `json:"cache_read_price"`
+	CacheWritePrice  *float64                             `json:"cache_write_price"`
+	PriceMultiplier  *float64                             `json:"price_multiplier"`
+	BillingMode      string                               `json:"billing_mode"`
+	Source           string                               `json:"source"`
 }
 
 type batchVisibilityRequest struct {
@@ -95,23 +96,24 @@ func (h *ModelCatalogHandler) Upsert(c *gin.Context) {
 		return
 	}
 	entry := &service.SiteModelCatalogEntry{
-		ID:              req.ID,
-		ModelName:       req.ModelName,
-		Platform:        req.Platform,
-		DisplayName:     req.DisplayName,
-		UseCase:         req.UseCase,
-		SortOrder:       req.SortOrder,
-		VisiblePublic:   req.VisiblePublic,
-		VisibleAuth:     req.VisibleAuth,
-		Featured:        req.Featured,
-		GroupIDs:        req.GroupIDs,
-		InputPrice:      req.InputPrice,
-		OutputPrice:     req.OutputPrice,
-		CacheReadPrice:  req.CacheReadPrice,
-		CacheWritePrice: req.CacheWritePrice,
-		PriceMultiplier: req.PriceMultiplier,
-		BillingMode:     req.BillingMode,
-		Source:          req.Source,
+		ID:               req.ID,
+		ModelName:        req.ModelName,
+		Platform:         req.Platform,
+		DisplayName:      req.DisplayName,
+		UseCase:          req.UseCase,
+		SortOrder:        req.SortOrder,
+		VisiblePublic:    req.VisiblePublic,
+		VisibleAuth:      req.VisibleAuth,
+		Featured:         req.Featured,
+		GroupIDs:         req.GroupIDs,
+		ToolCapabilities: req.ToolCapabilities,
+		InputPrice:       req.InputPrice,
+		OutputPrice:      req.OutputPrice,
+		CacheReadPrice:   req.CacheReadPrice,
+		CacheWritePrice:  req.CacheWritePrice,
+		PriceMultiplier:  req.PriceMultiplier,
+		BillingMode:      req.BillingMode,
+		Source:           req.Source,
 	}
 	if err := h.catalogService.SaveCatalogEntry(c.Request.Context(), entry); err != nil {
 		response.ErrorFrom(c, err)
