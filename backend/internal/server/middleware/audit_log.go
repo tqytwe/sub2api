@@ -58,7 +58,7 @@ var auditExtraAllowedKeys = map[string]struct{}{
 	"http_status": {}, "latency_ms": {}, "token_applied": {}, "retryable": {},
 	"event_id": {}, "requested_count": {}, "deleted_events": {}, "deleted_jobs": {},
 	"matched_count": {}, "snapshot_max_id": {}, "filter_hash": {}, "confirm": {},
-	"target_team_id": {}, "target_user_id": {}, "source_team_id": {},
+	"target_team_id": {}, "target_user_id": {}, "target_group_id": {}, "source_team_id": {},
 	"operation": {}, "effective_at": {}, "reason_code": {},
 	"withdrawal_request_id": {}, "withdrawal_status": {}, "paid_currency": {},
 }

@@ -2838,6 +2838,17 @@ const messages = {
         preview: 'Preview',
         confirm: 'Submit',
         previewSummary: '{eligible} eligible, {skipped} skipped',
+        previewCategories: {
+          eligible: 'Eligible',
+          alreadyGranted: 'Already granted',
+          alreadyRevoked: 'Not granted',
+          skipped: 'Skipped',
+          missing: 'Missing users',
+          duplicates: 'Duplicate rows',
+          notFound: 'Unknown emails',
+          disabled: 'Disabled users',
+          invalid: 'Invalid emails'
+        },
         previewFailed: 'Preview failed. Check the group, users, and file.',
         executeFailed: 'Submit failed. Preview again and retry.',
         accountingUnavailable: 'VIP accounting is temporarily unavailable. Try again later.',

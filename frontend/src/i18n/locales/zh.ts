@@ -2858,6 +2858,17 @@ const messages = {
         preview: '预览',
         confirm: '提交',
         previewSummary: '可处理 {eligible} 人，跳过 {skipped} 人',
+        previewCategories: {
+          eligible: '可处理',
+          alreadyGranted: '已授权',
+          alreadyRevoked: '未授权',
+          skipped: '已跳过',
+          missing: '不存在用户',
+          duplicates: '文件内重复',
+          notFound: '不存在邮箱',
+          disabled: '禁用用户',
+          invalid: '非法邮箱'
+        },
         previewFailed: '预览失败，请检查分组、用户和文件',
         executeFailed: '提交失败，请重新预览后重试',
         accountingUnavailable: 'VIP 账本暂不可用，请稍后重试',
