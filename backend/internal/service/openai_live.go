@@ -30,10 +30,15 @@ const (
 	liveObserverPollInterval      = 250 * time.Millisecond
 	liveObserverStoreRetryLimit   = 5
 	liveUpstreamBodyLimit         = 2 << 20
+	liveBillingRetryLimit         = 5
 )
 
 // liveObserverStoreRetryInterval 是 var 以便测试缩短 store 报错的重试等待。
 var liveObserverStoreRetryInterval = time.Second
+
+// Kept as a var so lifecycle tests can exercise recovery without waiting for
+// production retry timing.
+var liveBillingRetryInterval = 15 * time.Second
 
 var (
 	chatGPTLiveCallsURL        = "https://chatgpt.com/backend-api/codex/realtime/calls?intent=quicksilver&architecture=avas"
@@ -53,6 +58,69 @@ func liveSidebandReadError(err error) error {
 	return err
 }
 
+// parseLiveUsageFromEvent extracts billable usage only from a terminal
+// response.done sideband event. Every number comes from the upstream payload;
+// no duration-based estimate is introduced when the provider omits usage.
+func parseLiveUsageFromEvent(payload []byte) (OpenAIUsage, bool) {
+	if !json.Valid(payload) || strings.TrimSpace(gjson.GetBytes(payload, "type").String()) != "response.done" {
+		return OpenAIUsage{}, false
+	}
+	usage := gjson.GetBytes(payload, "response.usage")
+	if !usage.Exists() || !usage.IsObject() {
+		return OpenAIUsage{}, false
+	}
+	input := usage.Get("input_tokens")
+	output := usage.Get("output_tokens")
+	if !input.Exists() && !output.Exists() {
+		return OpenAIUsage{}, false
+	}
+	details := usage.Get("input_token_details")
+	outputDetails := usage.Get("output_token_details")
+	return OpenAIUsage{
+		InputTokens:                   liveUsageTokenCount(input),
+		OutputTokens:                  liveUsageTokenCount(output),
+		InputAudioTokens:              liveUsageTokenCount(details.Get("audio_tokens")),
+		OutputAudioTokens:             liveUsageTokenCount(outputDetails.Get("audio_tokens")),
+		CacheReadInputTokens:          liveUsageTokenCount(details.Get("cached_tokens")),
+		CacheReadInputAudioTokens:     liveUsageTokenCount(details.Get("cached_tokens_details.audio_tokens")),
+		CacheCreationInputTokens:      liveUsageTokenCount(firstLiveUsageValue(details, "cache_creation_tokens", "cache_creation_input_tokens")),
+		CacheCreationInputAudioTokens: liveUsageTokenCount(firstLiveUsageValue(details, "cache_creation_tokens_details.audio_tokens", "cache_creation_input_tokens_details.audio_tokens")),
+	}, true
+}
+
+func parseLiveUsageEvent(payload []byte) (string, OpenAIUsage, bool) {
+	usage, ok := parseLiveUsageFromEvent(payload)
+	if !ok {
+		return "", OpenAIUsage{}, false
+	}
+	responseID := strings.TrimSpace(gjson.GetBytes(payload, "response.id").String())
+	if responseID == "" {
+		return "", OpenAIUsage{}, false
+	}
+	return responseID, usage, true
+}
+
+func firstLiveUsageValue(parent gjson.Result, paths ...string) gjson.Result {
+	for _, path := range paths {
+		value := parent.Get(path)
+		if value.Exists() {
+			return value
+		}
+	}
+	return gjson.Result{}
+}
+
+func liveUsageTokenCount(value gjson.Result) int {
+	if !value.Exists() || value.Type != gjson.Number {
+		return 0
+	}
+	count := value.Int()
+	if count < 0 {
+		return 0
+	}
+	return int(count)
+}
+
 func hashLiveCallID(callID string) string {
 	sum := sha256.Sum256([]byte(callID))
 	return hex.EncodeToString(sum[:])
@@ -65,14 +133,6 @@ func liveGroupID(groupID *int64) int64 {
 	return *groupID
 }
 
-func liveOptionalID(value int64) *int64 {
-	if value <= 0 {
-		return nil
-	}
-	result := value
-	return &result
-}
-
 func (s *OpenAIGatewayService) liveStore() (LiveCallStore, error) {
 	if s == nil || s.cache == nil {
 		return nil, ErrLiveUnavailable
@@ -82,6 +142,41 @@ func (s *OpenAIGatewayService) liveStore() (LiveCallStore, error) {
 		return nil, ErrLiveUnavailable
 	}
 	return store, nil
+}
+
+func (s *OpenAIGatewayService) recordLiveUsageEvent(record *LiveCallRecord, payload []byte) error {
+	if record == nil {
+		return ErrLiveUsagePersistence
+	}
+	// response.done with billable usage but no response.id cannot be safely
+	// deduplicated after a sideband reconnect. It is a provider protocol fault,
+	// not an ignorable event: continuing would silently undercharge the call.
+	if usage, hasUsage := parseLiveUsageFromEvent(payload); hasUsage &&
+		strings.TrimSpace(gjson.GetBytes(payload, "response.id").String()) == "" {
+		_ = usage
+		return fmt.Errorf("%w: terminal response.done has usage but no response.id", ErrLiveUsagePersistence)
+	}
+	responseID, usage, ok := parseLiveUsageEvent(payload)
+	if !ok {
+		return nil
+	}
+	store, err := s.liveStore()
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrLiveUsagePersistence, err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
+	defer cancel()
+	added, err := store.AccumulateLiveUsage(ctx, record.CallHash, responseID, usage)
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrLiveUsagePersistence, err)
+	}
+	if added {
+		// Keep the observer/proxy's in-memory snapshot in sync with Redis. This is
+		// only a short outage fallback; Redis remains the cross-process source of
+		// truth and response-ID deduplication boundary.
+		record.Usage = addLiveUsage(record.Usage, usage)
+	}
+	return nil
 }
 
 func (s *OpenAIGatewayService) liveConcurrencyCache() (LiveConcurrencyCache, error) {
@@ -553,6 +648,12 @@ func (s *OpenAIGatewayService) ProxyLiveSideband(
 				errCh <- liveSidebandReadError(readErr)
 				return
 			}
+			if messageType == coderws.MessageText {
+				if usageErr := s.recordLiveUsageEvent(record, payload); usageErr != nil {
+					errCh <- usageErr
+					return
+				}
+			}
 			if writeErr := downstream.Write(proxyCtx, messageType, payload); writeErr != nil {
 				errCh <- writeErr
 				return
@@ -587,6 +688,7 @@ func (s *OpenAIGatewayService) ProxyLiveSideband(
 func liveSessionEnded(err error) bool {
 	return errors.Is(err, ErrLiveCallNotFound) ||
 		errors.Is(err, ErrLiveUnavailable) ||
+		errors.Is(err, ErrLiveUsagePersistence) ||
 		errors.Is(err, context.DeadlineExceeded)
 }
 
@@ -722,6 +824,9 @@ func (s *OpenAIGatewayService) runLiveObserverConnection(record *LiveCallRecord,
 	for {
 		select {
 		case payload := <-frameCh:
+			if err := s.recordLiveUsageEvent(record, payload); err != nil {
+				return err
+			}
 			eventType := strings.TrimSpace(gjson.GetBytes(payload, "type").String())
 			if eventType == "session.closed" || eventType == "session.ended" {
 				return ErrLiveCallNotFound
@@ -807,57 +912,198 @@ func (s *OpenAIGatewayService) finalizeLiveCall(record *LiveCallRecord) {
 	if record == nil {
 		return
 	}
+	if s.liveSettlementOutbox != nil {
+		s.finalizeLiveCallDurably(record)
+		return
+	}
 	store, err := s.liveStore()
 	if err != nil {
+		s.settleLiveCallAfterStoreFailure(record, err)
 		return
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
+	latest, loadErr := store.GetLiveCall(ctx, record.CallHash)
+	if loadErr != nil {
+		cancel()
+		s.settleLiveCallAfterStoreFailure(record, loadErr)
+		return
+	}
 	first, err := store.MarkLiveCallClosed(ctx, record.CallHash, liveClosedRecordTTL)
 	cancel()
 	if err != nil || !first {
 		return
 	}
-	s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
-	if s.usageLogRepo == nil {
+	if err := s.settleLiveCall(latest); err != nil {
+		logger.L().Warn("openai_live.billing_settlement_failed",
+			zap.String("call_hash", latest.CallHash),
+			zap.Int64("api_key_id", latest.APIKeyID),
+			zap.Error(err),
+		)
+		go s.retryLiveBilling(latest)
 		return
 	}
-	duration := int(time.Since(record.CreatedAt).Milliseconds())
+	s.releaseLiveLease(latest.AccountID, latest.UserID, latest.APIKeyID, latest.LeaseID)
+}
+
+// finalizeLiveCallDurably stages the exact Redis usage snapshot before the
+// call is marked closed. The staged row survives a process exit between Redis
+// closure and billing, while its `closing` state prevents premature charging.
+func (s *OpenAIGatewayService) finalizeLiveCallDurably(record *LiveCallRecord) {
+	store, err := s.liveStore()
+	if err != nil {
+		s.stageLiveSettlement(record, err)
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
+	latest, loadErr := store.GetLiveCall(ctx, record.CallHash)
+	cancel()
+	if loadErr != nil {
+		s.stageLiveSettlement(record, loadErr)
+		return
+	}
+	if err := s.enqueueLiveSettlement(latest); err != nil {
+		// Do not close the Redis record when the durable intent cannot be
+		// written. The session remains observable and its lease stays held.
+		logger.L().Warn("openai_live.settlement_enqueue_failed", zap.String("call_hash", latest.CallHash), zap.Error(err))
+		return
+	}
+	ctx, cancel = context.WithTimeout(context.Background(), liveRedisOperationTimeout)
+	_, closeErr := store.MarkLiveCallClosed(ctx, latest.CallHash, liveClosedRecordTTL)
+	cancel()
+	if closeErr != nil {
+		logger.L().Warn("openai_live.settlement_close_mark_failed", zap.String("call_hash", latest.CallHash), zap.Error(closeErr))
+		return
+	}
+	// A false first result means another controller already closed the same
+	// Redis record. Activation is idempotent and recovers a predecessor that
+	// crashed after the Redis write but before its database activation.
+	s.activateLiveSettlement(latest.CallHash)
+	s.processLiveSettlementBatch(context.Background())
+}
+
+func (s *OpenAIGatewayService) enqueueLiveSettlement(record *LiveCallRecord) error {
+	if s == nil || s.liveSettlementOutbox == nil || record == nil {
+		return ErrLiveUsagePersistence
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), liveSettlementDBTimeout)
+	err := s.liveSettlementOutbox.Enqueue(ctx, record)
+	cancel()
+	return err
+}
+
+func (s *OpenAIGatewayService) stageLiveSettlement(record *LiveCallRecord, cause error) {
+	if err := s.enqueueLiveSettlement(record); err != nil {
+		logger.L().Warn("openai_live.settlement_stage_failed", zap.String("call_hash", record.CallHash), zap.Error(errors.Join(cause, err)))
+		return
+	}
+	// If the original hard expiry has already passed, recover immediately. For
+	// an unexpired call with an unavailable Redis store, recovery waits rather
+	// than risking an early or duplicate charge.
+	s.recoverLiveSettlementClosures(context.Background())
+	s.processLiveSettlementBatch(context.Background())
+}
+
+func (s *OpenAIGatewayService) settleLiveCallAfterStoreFailure(record *LiveCallRecord, cause error) {
+	if record == nil {
+		return
+	}
+	if err := s.settleLiveCall(record); err != nil {
+		logger.L().Warn("openai_live.billing_settlement_store_fallback_failed",
+			zap.String("call_hash", record.CallHash),
+			zap.Error(errors.Join(cause, err)),
+		)
+		go s.retryLiveBilling(record)
+		return
+	}
+	s.releaseLiveLease(record.AccountID, record.UserID, record.APIKeyID, record.LeaseID)
+}
+
+func (s *OpenAIGatewayService) retryLiveBilling(record *LiveCallRecord) {
+	if record == nil {
+		return
+	}
+	for attempt := 0; attempt < liveBillingRetryLimit; attempt++ {
+		time.Sleep(liveBillingRetryInterval)
+		store, err := s.liveStore()
+		if err != nil {
+			continue
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), liveRedisOperationTimeout)
+		latest, loadErr := store.GetLiveCall(ctx, record.CallHash)
+		cancel()
+		if loadErr != nil {
+			return
+		}
+		if err := s.settleLiveCall(latest); err != nil {
+			logger.L().Warn("openai_live.billing_settlement_retry_failed",
+				zap.String("call_hash", latest.CallHash),
+				zap.Int("attempt", attempt+1),
+				zap.Error(err),
+			)
+			continue
+		}
+		s.releaseLiveLease(latest.AccountID, latest.UserID, latest.APIKeyID, latest.LeaseID)
+		return
+	}
+}
+
+func (s *OpenAIGatewayService) settleLiveCall(record *LiveCallRecord) error {
+	if record == nil || s.liveAPIKeyLoader == nil || s.userRepo == nil || s.accountRepo == nil || s.billingService == nil {
+		return ErrLiveUnavailable
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), postUsageBillingTimeout)
+	defer cancel()
+	apiKey, err := s.liveAPIKeyLoader.GetByID(ctx, record.APIKeyID)
+	if err != nil {
+		return fmt.Errorf("load api key: %w", err)
+	}
+	if apiKey == nil || apiKey.ID != record.APIKeyID || apiKey.UserID != record.UserID ||
+		apiKey.GroupID == nil || *apiKey.GroupID != record.GroupID || apiKey.Group == nil {
+		return ErrLiveIdentityMismatch
+	}
+	user, err := s.userRepo.GetByID(ctx, record.UserID)
+	if err != nil {
+		return fmt.Errorf("load user: %w", err)
+	}
+	account, err := s.accountRepo.GetByID(ctx, record.AccountID)
+	if err != nil {
+		return fmt.Errorf("load account: %w", err)
+	}
+	var subscription *UserSubscription
+	if record.SubscriptionID > 0 {
+		if s.userSubRepo == nil {
+			return ErrLiveUnavailable
+		}
+		subscription, err = s.userSubRepo.GetByID(ctx, record.SubscriptionID)
+		if err != nil {
+			return fmt.Errorf("load subscription: %w", err)
+		}
+		if subscription == nil || subscription.UserID != record.UserID || subscription.GroupID != record.GroupID {
+			return ErrLiveIdentityMismatch
+		}
+	}
+	duration := time.Since(record.CreatedAt)
 	if duration < 0 {
 		duration = 0
 	}
-	inboundEndpoint := record.InboundEndpoint
-	upstreamEndpoint := "/backend-api/codex/realtime/calls"
-	userAgent := record.UserAgent
-	ipAddress := record.IPAddress
-	billingType := int8(BillingTypeBalance)
-	if record.SubscriptionID > 0 {
-		billingType = BillingTypeSubscription
-	}
-	// TODO(billing): Live 会话目前不计费：TotalCost/ActualCost 恒为 0，完全绕过
-	// recordUsageCore/applyUsageBilling，余额模式下极低余额也能反复开启最长
-	// liveMaxSessionDuration 的会话。若确认按时长计费，应在此接入计费管道；
-	// 若确认有意免费，删除本注释即可（零值行为由
-	// TestFinalizeLiveCallIsIdempotentAndWritesZeroUsage 锁定）。
-	//
-	// 这是该会话唯一一次落库机会（MarkLiveCallClosed 已标记 first），失败即永久
-	// 丢失，因此走带日志与同步兜底的 writeUsageLogBestEffort（issue #3656）。
-	writeUsageLogBestEffort(context.Background(), s.usageLogRepo, &UsageLog{
-		UserID:           record.UserID,
-		APIKeyID:         record.APIKeyID,
-		AccountID:        record.AccountID,
-		RequestID:        record.CallHash,
-		Model:            record.Model,
-		RequestedModel:   record.Model,
-		GroupID:          liveOptionalID(record.GroupID),
-		SubscriptionID:   liveOptionalID(record.SubscriptionID),
-		RateMultiplier:   1,
-		BillingType:      billingType,
-		RequestType:      RequestTypeLive,
-		DurationMs:       &duration,
-		UserAgent:        &userAgent,
-		IPAddress:        &ipAddress,
-		InboundEndpoint:  &inboundEndpoint,
-		UpstreamEndpoint: &upstreamEndpoint,
-		CreatedAt:        record.CreatedAt,
-	}, "service.openai_live")
+	return s.RecordUsage(ctx, &OpenAIRecordUsageInput{
+		Result: &OpenAIForwardResult{
+			RequestID: record.CallHash,
+			Model:     record.Model,
+			Usage:     record.Usage,
+			Duration:  duration,
+		},
+		APIKey:             apiKey,
+		User:               user,
+		Account:            account,
+		Subscription:       subscription,
+		InboundEndpoint:    record.InboundEndpoint,
+		UpstreamEndpoint:   "/backend-api/codex/realtime/calls",
+		UserAgent:          record.UserAgent,
+		IPAddress:          record.IPAddress,
+		APIKeyService:      s.liveAPIKeyQuotaUpdater,
+		QuotaPlatform:      PlatformFromAPIKey(apiKey),
+		RequestType:        RequestTypeLive,
+		RequestPayloadHash: record.CallHash,
+	})
 }

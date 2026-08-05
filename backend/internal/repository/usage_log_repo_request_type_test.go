@@ -102,6 +102,10 @@ func TestUsageLogRepositoryCreateSyncRequestTypeAndLegacyFields(t *testing.T) {
 			log.BilledCost,
 			service.BillingSurchargeModeNone,
 			log.BillingSurchargeValue,
+			0, // input_audio_tokens
+			0, // output_audio_tokens
+			0, // cache_creation_audio_tokens
+			0, // cache_read_audio_tokens
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(99), createdAt))
 
@@ -196,6 +200,10 @@ func TestUsageLogRepositoryCreate_PersistsServiceTier(t *testing.T) {
 			log.BilledCost,
 			service.BillingSurchargeModeNone,
 			log.BillingSurchargeValue,
+			0, // input_audio_tokens
+			0, // output_audio_tokens
+			0, // cache_creation_audio_tokens
+			0, // cache_read_audio_tokens
 		).
 		WillReturnRows(sqlmock.NewRows([]string{"id", "created_at"}).AddRow(int64(100), createdAt))
 
@@ -260,6 +268,21 @@ func TestPrepareUsageLogInsert_ArgCountMatchesTypes(t *testing.T) {
 	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
 }
 
+func TestPrepareUsageLogInsert_PersistsAudioUsageBreakdown(t *testing.T) {
+	prepared := prepareUsageLogInsert(&service.UsageLog{
+		UserID:                   1,
+		APIKeyID:                 2,
+		AccountID:                3,
+		Model:                    "gpt-realtime-test",
+		InputAudioTokens:         36,
+		OutputAudioTokens:        5,
+		CacheCreationAudioTokens: 4,
+		CacheReadAudioTokens:     3,
+	})
+	require.Len(t, prepared.args, len(usageLogInsertArgTypes))
+	require.Equal(t, []any{36, 5, 4, 3}, prepared.args[len(prepared.args)-4:])
+}
+
 func TestPrepareUsageLogInsert_PersistsBillingSurchargeSnapshot(t *testing.T) {
 	prepared := prepareUsageLogInsert(&service.UsageLog{
 		UserID:                1,
@@ -276,10 +299,10 @@ func TestPrepareUsageLogInsert_PersistsBillingSurchargeSnapshot(t *testing.T) {
 		CreatedAt:             time.Date(2025, 1, 5, 12, 0, 0, 0, time.UTC),
 	})
 
-	require.Equal(t, 0.05, prepared.args[len(prepared.args)-4])
-	require.Equal(t, 0.30, prepared.args[len(prepared.args)-3])
-	require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, prepared.args[len(prepared.args)-2])
-	require.Equal(t, 0.2, prepared.args[len(prepared.args)-1])
+	require.Equal(t, 0.05, prepared.args[len(prepared.args)-8])
+	require.Equal(t, 0.30, prepared.args[len(prepared.args)-7])
+	require.Equal(t, service.BillingSurchargeModeAdditiveMultiplier, prepared.args[len(prepared.args)-6])
+	require.Equal(t, 0.2, prepared.args[len(prepared.args)-5])
 }
 
 func TestPrepareUsageLogInsert_PersistsImageSizeMetadata(t *testing.T) {
@@ -814,10 +837,10 @@ type usageLogScannerStub struct {
 }
 
 func (s usageLogScannerStub) Scan(dest ...any) error {
-	if len(dest) != len(s.values) {
-		return fmt.Errorf("scan arg count mismatch: got %d want %d", len(dest), len(s.values))
+	if len(dest) < len(s.values) {
+		return fmt.Errorf("scan arg count mismatch: got %d want at least %d", len(dest), len(s.values))
 	}
-	for i := range dest {
+	for i := range s.values {
 		dv := reflect.ValueOf(dest[i])
 		if dv.Kind() != reflect.Pointer {
 			return fmt.Errorf("dest[%d] is not pointer", i)

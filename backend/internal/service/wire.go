@@ -927,7 +927,7 @@ var ProviderSet = wire.NewSet(
 	NewGatewayService,
 	wire.Bind(new(ImageStudioModelResolver), new(*GatewayService)),
 	wire.Bind(new(NextChatAvailableModelResolver), new(*GatewayService)),
-	NewOpenAIGatewayService,
+	NewOpenAIGatewayServiceWithLiveBilling,
 	ProvideImageStorageSettingService,
 	ProvideAnnouncementAssetService,
 	ProvideImageTaskRuntimeState,

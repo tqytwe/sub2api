@@ -112,6 +112,39 @@ func TestModelCatalogRepository_GroupScopeRoundTrip(t *testing.T) {
 	require.Nil(t, got.GroupIDs, "NULL group_ids must restore legacy platform auto-matching")
 }
 
+func TestModelCatalogRepository_ToolCapabilitiesRoundTrip(t *testing.T) {
+	ctx := context.Background()
+	repo := NewModelCatalogRepository(integrationDB)
+	allow := true
+	disallow := false
+	entry := &service.SiteModelCatalogEntry{
+		ModelName:   "catalog-tools-" + uuid.NewString(),
+		Platform:    service.PlatformOpenAI,
+		VisibleAuth: true,
+		ToolCapabilities: service.ModelToolCapabilityOverrides{
+			FunctionCalling: &allow,
+			ToolChoice:      &allow,
+			WebSearch:       &disallow,
+			Live:            &allow,
+		},
+		BillingMode: string(service.BillingModeToken),
+		Source:      "manual",
+	}
+	require.NoError(t, repo.UpsertCatalogEntry(ctx, entry))
+	t.Cleanup(func() { _ = repo.DeleteCatalogEntry(context.Background(), entry.ID) })
+
+	got, err := repo.GetCatalogEntry(ctx, entry.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.ToolCapabilities.FunctionCalling)
+	require.NotNil(t, got.ToolCapabilities.ToolChoice)
+	require.NotNil(t, got.ToolCapabilities.WebSearch)
+	require.NotNil(t, got.ToolCapabilities.Live)
+	require.True(t, *got.ToolCapabilities.FunctionCalling)
+	require.True(t, *got.ToolCapabilities.ToolChoice)
+	require.False(t, *got.ToolCapabilities.WebSearch)
+	require.True(t, *got.ToolCapabilities.Live)
+}
+
 func TestModelCatalogRepository_SyncJobRoundTrip(t *testing.T) {
 	ctx := context.Background()
 	repo := NewModelCatalogRepository(integrationDB)

@@ -117,6 +117,22 @@ var markLiveCallClosedScript = redis.NewScript(`
 	return 1
 `)
 
+var accumulateLiveUsageScript = redis.NewScript(`
+	local key = KEYS[1]
+	if redis.call('EXISTS', key) == 0 or redis.call('HGET', key, 'controller') == 'closed' then
+		return -1
+	end
+	local marker = 'live_usage_response:' .. redis.sha1hex(ARGV[1])
+	if redis.call('HEXISTS', key, marker) == 1 then
+		return 0
+	end
+	redis.call('HSET', key, marker, '1')
+	for index = 2, #ARGV, 2 do
+		redis.call('HINCRBY', key, ARGV[index], ARGV[index + 1])
+	end
+	return 1
+`)
+
 var releaseLiveControllerScript = redis.NewScript(`
 	local key = KEYS[1]
 	if redis.call('HGET', key, 'controller') ~= 'proxy' or
@@ -141,22 +157,32 @@ func (c *gatewayCache) SaveLiveCall(ctx context.Context, record *service.LiveCal
 		return fmt.Errorf("invalid live call record")
 	}
 	values := map[string]any{
-		"call_id":          record.CallID,
-		"account_id":       record.AccountID,
-		"api_key_id":       record.APIKeyID,
-		"user_id":          record.UserID,
-		"group_id":         record.GroupID,
-		"subscription_id":  record.SubscriptionID,
-		"lease_id":         record.LeaseID,
-		"model":            record.Model,
-		"created_at":       record.CreatedAt.UnixMilli(),
-		"expires_at":       record.ExpiresAt.UnixMilli(),
-		"controller":       record.Controller,
-		"controller_owner": record.ControllerOwner,
-		"user_agent":       record.UserAgent,
-		"ip_address":       record.IPAddress,
-		"inbound_endpoint": record.InboundEndpoint,
-		"attestation":      record.AttestationCiphertext,
+		"call_id":                           record.CallID,
+		"account_id":                        record.AccountID,
+		"api_key_id":                        record.APIKeyID,
+		"user_id":                           record.UserID,
+		"group_id":                          record.GroupID,
+		"subscription_id":                   record.SubscriptionID,
+		"lease_id":                          record.LeaseID,
+		"model":                             record.Model,
+		"created_at":                        record.CreatedAt.UnixMilli(),
+		"expires_at":                        record.ExpiresAt.UnixMilli(),
+		"controller":                        record.Controller,
+		"controller_owner":                  record.ControllerOwner,
+		"user_agent":                        record.UserAgent,
+		"ip_address":                        record.IPAddress,
+		"inbound_endpoint":                  record.InboundEndpoint,
+		"usage_input_tokens":                record.Usage.InputTokens,
+		"usage_input_audio_tokens":          record.Usage.InputAudioTokens,
+		"usage_image_input_tokens":          record.Usage.ImageInputTokens,
+		"usage_output_tokens":               record.Usage.OutputTokens,
+		"usage_output_audio_tokens":         record.Usage.OutputAudioTokens,
+		"usage_cache_creation_tokens":       record.Usage.CacheCreationInputTokens,
+		"usage_cache_creation_audio_tokens": record.Usage.CacheCreationInputAudioTokens,
+		"usage_cache_read_tokens":           record.Usage.CacheReadInputTokens,
+		"usage_cache_read_audio_tokens":     record.Usage.CacheReadInputAudioTokens,
+		"usage_image_output_tokens":         record.Usage.ImageOutputTokens,
+		"attestation":                       record.AttestationCiphertext,
 	}
 	key := liveCallKey(record.CallHash)
 	pipe := c.rdb.TxPipeline()
@@ -181,24 +207,63 @@ func (c *gatewayCache) GetLiveCall(ctx context.Context, callHash string) (*servi
 	createdAt := time.UnixMilli(parseInt("created_at"))
 	expiresAt := time.UnixMilli(parseInt("expires_at"))
 	return &service.LiveCallRecord{
-		CallID:                values["call_id"],
-		CallHash:              callHash,
-		AccountID:             parseInt("account_id"),
-		APIKeyID:              parseInt("api_key_id"),
-		UserID:                parseInt("user_id"),
-		GroupID:               parseInt("group_id"),
-		SubscriptionID:        parseInt("subscription_id"),
-		LeaseID:               values["lease_id"],
-		Model:                 values["model"],
-		CreatedAt:             createdAt,
-		ExpiresAt:             expiresAt,
-		Controller:            values["controller"],
-		ControllerOwner:       values["controller_owner"],
-		UserAgent:             values["user_agent"],
-		IPAddress:             values["ip_address"],
-		InboundEndpoint:       values["inbound_endpoint"],
+		CallID:          values["call_id"],
+		CallHash:        callHash,
+		AccountID:       parseInt("account_id"),
+		APIKeyID:        parseInt("api_key_id"),
+		UserID:          parseInt("user_id"),
+		GroupID:         parseInt("group_id"),
+		SubscriptionID:  parseInt("subscription_id"),
+		LeaseID:         values["lease_id"],
+		Model:           values["model"],
+		CreatedAt:       createdAt,
+		ExpiresAt:       expiresAt,
+		Controller:      values["controller"],
+		ControllerOwner: values["controller_owner"],
+		UserAgent:       values["user_agent"],
+		IPAddress:       values["ip_address"],
+		InboundEndpoint: values["inbound_endpoint"],
+		Usage: service.OpenAIUsage{
+			InputTokens:                   int(parseInt("usage_input_tokens")),
+			InputAudioTokens:              int(parseInt("usage_input_audio_tokens")),
+			ImageInputTokens:              int(parseInt("usage_image_input_tokens")),
+			OutputTokens:                  int(parseInt("usage_output_tokens")),
+			OutputAudioTokens:             int(parseInt("usage_output_audio_tokens")),
+			CacheCreationInputTokens:      int(parseInt("usage_cache_creation_tokens")),
+			CacheCreationInputAudioTokens: int(parseInt("usage_cache_creation_audio_tokens")),
+			CacheReadInputTokens:          int(parseInt("usage_cache_read_tokens")),
+			CacheReadInputAudioTokens:     int(parseInt("usage_cache_read_audio_tokens")),
+			ImageOutputTokens:             int(parseInt("usage_image_output_tokens")),
+		},
 		AttestationCiphertext: values["attestation"],
 	}, nil
+}
+
+func (c *gatewayCache) AccumulateLiveUsage(
+	ctx context.Context,
+	callHash, responseID string,
+	usage service.OpenAIUsage,
+) (bool, error) {
+	result, err := accumulateLiveUsageScript.Run(ctx, c.rdb, []string{liveCallKey(callHash)},
+		responseID,
+		"usage_input_tokens", usage.InputTokens,
+		"usage_input_audio_tokens", usage.InputAudioTokens,
+		"usage_image_input_tokens", usage.ImageInputTokens,
+		"usage_output_tokens", usage.OutputTokens,
+		"usage_output_audio_tokens", usage.OutputAudioTokens,
+		"usage_cache_creation_tokens", usage.CacheCreationInputTokens,
+		"usage_cache_creation_audio_tokens", usage.CacheCreationInputAudioTokens,
+		"usage_cache_read_tokens", usage.CacheReadInputTokens,
+		"usage_cache_read_audio_tokens", usage.CacheReadInputAudioTokens,
+		"usage_image_output_tokens", usage.ImageOutputTokens,
+	).Int()
+	if err != nil {
+		return false, err
+	}
+	if result < 0 {
+		return false, service.ErrLiveCallNotFound
+	}
+	return result == 1, nil
 }
 
 func (c *gatewayCache) ClaimLiveController(ctx context.Context, callHash, controller, owner string) (bool, error) {

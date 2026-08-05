@@ -140,6 +140,12 @@ type UsageLog struct {
 	OutputTokens        int
 	CacheCreationTokens int
 	CacheReadTokens     int
+	// Audio token fields are subsets of the corresponding total buckets. They
+	// make realtime billing auditable without changing historical totals.
+	InputAudioTokens         int
+	OutputAudioTokens        int
+	CacheCreationAudioTokens int
+	CacheReadAudioTokens     int
 
 	CacheCreation5mTokens int `gorm:"column:cache_creation_5m_tokens"`
 	CacheCreation1hTokens int `gorm:"column:cache_creation_1h_tokens"`

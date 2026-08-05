@@ -127,7 +127,7 @@ func (e *ExaProvider) Search(ctx context.Context, req SearchRequest) (*SearchRes
 			PageAge: strings.TrimSpace(item.PublishedDate),
 		})
 	}
-	return &SearchResponse{Results: results, Query: query}, nil
+	return &SearchResponse{Results: results, Query: query, Provider: e.Name()}, nil
 }
 
 type exaRequest struct {

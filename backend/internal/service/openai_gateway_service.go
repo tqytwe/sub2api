@@ -211,12 +211,19 @@ func (s *OpenAICodexUsageSnapshot) Normalize() *NormalizedCodexLimits {
 
 // OpenAIUsage represents OpenAI API response usage
 type OpenAIUsage struct {
-	InputTokens              int `json:"input_tokens"`
-	ImageInputTokens         int `json:"image_input_tokens,omitempty"`
-	OutputTokens             int `json:"output_tokens"`
-	CacheCreationInputTokens int `json:"cache_creation_input_tokens,omitempty"`
-	CacheReadInputTokens     int `json:"cache_read_input_tokens,omitempty"`
-	ImageOutputTokens        int `json:"image_output_tokens,omitempty"`
+	InputTokens int `json:"input_tokens"`
+	// InputAudioTokens and OutputAudioTokens are subsets of the corresponding
+	// total token counts. They are kept separately because realtime providers
+	// price audio tokens differently from text tokens.
+	InputAudioTokens              int `json:"input_audio_tokens,omitempty"`
+	ImageInputTokens              int `json:"image_input_tokens,omitempty"`
+	OutputTokens                  int `json:"output_tokens"`
+	OutputAudioTokens             int `json:"output_audio_tokens,omitempty"`
+	CacheCreationInputTokens      int `json:"cache_creation_input_tokens,omitempty"`
+	CacheCreationInputAudioTokens int `json:"cache_creation_input_audio_tokens,omitempty"`
+	CacheReadInputTokens          int `json:"cache_read_input_tokens,omitempty"`
+	CacheReadInputAudioTokens     int `json:"cache_read_input_audio_tokens,omitempty"`
+	ImageOutputTokens             int `json:"image_output_tokens,omitempty"`
 }
 
 // OpenAIForwardResult represents the result of forwarding
@@ -411,8 +418,14 @@ type OpenAIGatewayService struct {
 	balanceNotifyService  *BalanceNotifyService
 	settingService        *SettingService
 	userPlatformQuotaRepo UserPlatformQuotaRepository
-	liveAttestation       liveattestation.Provider
-	liveAttestationCipher SecretEncryptor
+	// Live settles asynchronously after the sideband ends. Reuse the existing
+	// API key service for both authoritative ownership lookup and quota updates.
+	liveAPIKeyLoader       liveAPIKeyLoader
+	liveAPIKeyQuotaUpdater APIKeyQuotaUpdater
+	liveAttestation        liveattestation.Provider
+	liveAttestationCipher  SecretEncryptor
+	liveSettlementOutbox   LiveSettlementOutboxRepository
+	liveSettlementWorker   *liveSettlementWorker
 
 	openaiWSPoolOnce               sync.Once
 	openaiWSStateStoreOnce         sync.Once
@@ -520,9 +533,100 @@ func NewOpenAIGatewayService(
 	return svc
 }
 
+// NewOpenAIGatewayServiceWithLiveBilling is the application wiring provider.
+// The lower-level constructor remains available to focused tests and does not
+// need an API-key service for ordinary HTTP/WS forwarding.
+func NewOpenAIGatewayServiceWithLiveBilling(
+	accountRepo AccountRepository,
+	usageLogRepo UsageLogRepository,
+	usageBillingRepo UsageBillingRepository,
+	userRepo UserRepository,
+	userSubRepo UserSubscriptionRepository,
+	userGroupRateRepo UserGroupRateRepository,
+	cache GatewayCache,
+	cfg *config.Config,
+	schedulerSnapshot *SchedulerSnapshotService,
+	concurrencyService *ConcurrencyService,
+	billingService *BillingService,
+	rateLimitService *RateLimitService,
+	billingCacheService *BillingCacheService,
+	httpUpstream HTTPUpstream,
+	deferredService *DeferredService,
+	openAITokenProvider *OpenAITokenProvider,
+	grokTokenProvider *GrokTokenProvider,
+	resolver *ModelPricingResolver,
+	channelService *ChannelService,
+	balanceNotifyService *BalanceNotifyService,
+	settingService *SettingService,
+	userPlatformQuotaRepo UserPlatformQuotaRepository,
+	apiKeyService *APIKeyService,
+	liveSettlementOutbox LiveSettlementOutboxRepository,
+) *OpenAIGatewayService {
+	svc := NewOpenAIGatewayService(
+		accountRepo,
+		usageLogRepo,
+		usageBillingRepo,
+		userRepo,
+		userSubRepo,
+		userGroupRateRepo,
+		cache,
+		cfg,
+		schedulerSnapshot,
+		concurrencyService,
+		billingService,
+		rateLimitService,
+		billingCacheService,
+		httpUpstream,
+		deferredService,
+		openAITokenProvider,
+		grokTokenProvider,
+		resolver,
+		channelService,
+		balanceNotifyService,
+		settingService,
+		userPlatformQuotaRepo,
+	)
+	svc.SetLiveBillingAPIKeyService(apiKeyService)
+	svc.SetLiveSettlementOutbox(liveSettlementOutbox)
+	return svc
+}
+
 func (s *OpenAIGatewayService) SetOpenAIImageResultService(results *OpenAIImageResultService) {
 	if s != nil {
 		s.openAIImageResults = results
+	}
+}
+
+// SetLiveBillingAPIKeyService supplies the existing API-key authority to Live
+// settlement without adding another repository or parallel accounting path.
+func (s *OpenAIGatewayService) SetLiveBillingAPIKeyService(apiKeyService *APIKeyService) {
+	if s == nil {
+		return
+	}
+	s.liveAPIKeyLoader = apiKeyService
+	s.liveAPIKeyQuotaUpdater = apiKeyService
+}
+
+// SetLiveSettlementOutbox installs the durable Live settlement path. The
+// worker starts immediately so a process restart drains prior ready jobs
+// without waiting for another Live request.
+func (s *OpenAIGatewayService) SetLiveSettlementOutbox(outbox LiveSettlementOutboxRepository) {
+	if s == nil {
+		return
+	}
+	s.liveSettlementOutbox = outbox
+	if outbox == nil {
+		return
+	}
+	if s.liveSettlementWorker == nil {
+		s.liveSettlementWorker = newLiveSettlementWorker(s, outbox)
+	}
+	s.liveSettlementWorker.Start()
+}
+
+func (s *OpenAIGatewayService) StopLiveSettlementWorker() {
+	if s != nil && s.liveSettlementWorker != nil {
+		s.liveSettlementWorker.Stop()
 	}
 }
 

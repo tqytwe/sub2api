@@ -100,7 +100,7 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 		t.Fatalf("search provider = %q when no server key is configured", envelope.Data.Capabilities.Search.Provider)
 	}
 	if envelope.Data.Capabilities.Search.DefaultEnabled {
-		t.Fatal("mobile search must remain opt-in by default")
+		t.Fatal("mobile search must be disabled when the server search service is disabled")
 	}
 	if envelope.Data.Capabilities.Search.ExecutionState != mobileProtocolLifecycleDisabled {
 		t.Fatalf("search execution_state = %q", envelope.Data.Capabilities.Search.ExecutionState)
@@ -126,8 +126,8 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndCanonicalWhenConfigured
 	if search.ExecutionState != mobileProtocolLifecycleCanonical {
 		t.Fatalf("search execution_state = %q, want canonical", search.ExecutionState)
 	}
-	if search.DefaultEnabled || !search.UserOptInRequired {
-		t.Fatalf("unexpected opt-in policy: default_enabled=%v user_opt_in_required=%v", search.DefaultEnabled, search.UserOptInRequired)
+	if !search.DefaultEnabled || !search.ModelToolCallRequired {
+		t.Fatalf("unexpected model-tool policy: default_enabled=%v model_tool_call_required=%v", search.DefaultEnabled, search.ModelToolCallRequired)
 	}
 	assertStringSliceContains(t, search.ResultFields, "title")
 	assertStringSliceContains(t, search.ResultFields, "url")
@@ -140,6 +140,9 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndCanonicalWhenConfigured
 	if search.ResponseRequestIDField != "request_id" {
 		t.Fatalf("search response request ID field = %q", search.ResponseRequestIDField)
 	}
+	if search.ToolCallIDField != "tool_call_id" || search.ResponseToolCallIDField != "tool_call_id" {
+		t.Fatalf("search tool call fields = request:%q response:%q", search.ToolCallIDField, search.ResponseToolCallIDField)
+	}
 	serialized, err := json.Marshal(payload)
 	if err != nil {
 		t.Fatalf("marshal protocol payload: %v", err)
@@ -147,8 +150,8 @@ func TestMobileProtocolSearchContractIsEnvironmentOnlyAndCanonicalWhenConfigured
 	if strings.Contains(string(serialized), "test-exa-key") {
 		t.Fatal("protocol payload must not expose the server search credential")
 	}
-	if strings.Contains(strings.ToLower(string(serialized)), "duckduckgo") {
-		t.Fatal("protocol payload must not claim an unconfigured DuckDuckGo fallback")
+	if !strings.Contains(strings.ToLower(string(serialized)), "duckduckgo") {
+		t.Fatal("protocol payload must document the server-owned DuckDuckGo fallback")
 	}
 	assertOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb, true, mobileProtocolLifecycleCanonical)
 	searchGrant := findOperationGrant(t, payload.Capabilities.OperationGrants, mobileOperationSearchWeb)
@@ -168,6 +171,23 @@ func TestMobileProtocolSearchContractSupportsExplicitDuckDuckGo(t *testing.T) {
 	}
 	if search.ExecutionState != mobileProtocolLifecycleCanonical {
 		t.Fatalf("execution_state = %q, want canonical", search.ExecutionState)
+	}
+	if !search.DefaultEnabled || !search.ModelToolCallRequired {
+		t.Fatalf("DuckDuckGo must remain model-tool enabled without a client toggle: %#v", search)
+	}
+}
+
+func TestMobileProtocolSearchContractFallsBackToDuckDuckGoWithoutExaKey(t *testing.T) {
+	t.Setenv("MOBILE_WEB_SEARCH_ENABLED", "true")
+	t.Setenv("EXA_API_KEY", "")
+	t.Setenv("MOBILE_WEB_SEARCH_PROVIDER", "")
+
+	search := mobileProtocolPayload(true, 42, "user").Capabilities.Search
+	if !search.Configured || search.Provider != "duckduckgo" {
+		t.Fatalf("unexpected automatic DuckDuckGo fallback capability: %#v", search)
+	}
+	if search.ExecutionState != mobileProtocolLifecycleCanonical || !search.DefaultEnabled || !search.ModelToolCallRequired {
+		t.Fatalf("unexpected fallback model-tool policy: %#v", search)
 	}
 }
 

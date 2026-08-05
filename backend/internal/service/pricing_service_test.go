@@ -77,6 +77,64 @@ func TestParsePricingData_ParsesPriorityAndServiceTierFields(t *testing.T) {
 	require.True(t, pricing.SupportsServiceTier)
 }
 
+func TestParsePricingData_PreservesAudioTokenPricing(t *testing.T) {
+	svc := &PricingService{}
+	data, err := svc.parsePricingData([]byte(`{
+		"gpt-realtime-test": {
+			"input_cost_per_token": 0.000004,
+			"output_cost_per_token": 0.000016,
+			"input_cost_per_audio_token": 0.000032,
+			"output_cost_per_audio_token": 0.000064,
+			"cache_creation_input_audio_token_cost": 0.0000004,
+			"cache_read_input_audio_token_cost": 0.0000003,
+			"litellm_provider": "openai",
+			"mode": "realtime"
+		}
+	}`))
+	require.NoError(t, err)
+
+	pricing := data["gpt-realtime-test"]
+	require.NotNil(t, pricing)
+	require.InDelta(t, 32e-6, pricing.InputCostPerAudioToken, 1e-12)
+	require.InDelta(t, 64e-6, pricing.OutputCostPerAudioToken, 1e-12)
+	require.InDelta(t, 0.4e-6, pricing.CacheCreationInputAudioTokenCost, 1e-12)
+	require.InDelta(t, 0.3e-6, pricing.CacheReadInputAudioTokenCost, 1e-12)
+}
+
+func TestBillingServiceComputeTokenBreakdown_UsesAudioPricesWithoutChangingTextBuckets(t *testing.T) {
+	billing := NewBillingService(&config.Config{}, nil)
+	breakdown := billing.computeTokenBreakdown(&ModelPricing{
+		InputPricePerToken:              4,
+		OutputPricePerToken:             16,
+		CacheCreationPricePerToken:      2,
+		CacheReadPricePerToken:          1,
+		InputAudioPricePerToken:         32,
+		OutputAudioPricePerToken:        64,
+		CacheCreationAudioPricePerToken: 0.4,
+		CacheReadAudioPricePerToken:     0.3,
+	}, UsageTokens{
+		InputTokens:              20,
+		InputAudioTokens:         6,
+		OutputTokens:             12,
+		OutputAudioTokens:        5,
+		CacheCreationTokens:      10,
+		CacheCreationAudioTokens: 4,
+		CacheReadTokens:          8,
+		CacheReadAudioTokens:     3,
+	}, 1, "", false)
+
+	require.InDelta(t, 56, breakdown.InputCost, 1e-12)
+	require.InDelta(t, 192, breakdown.AudioInputCost, 1e-12)
+	require.InDelta(t, 112, breakdown.OutputCost, 1e-12)
+	require.InDelta(t, 320, breakdown.AudioOutputCost, 1e-12)
+	require.InDelta(t, 12, breakdown.CacheCreationCost, 1e-12)
+	require.InDelta(t, 1.6, breakdown.CacheCreationAudioCost, 1e-12)
+	require.InDelta(t, 5, breakdown.CacheReadCost, 1e-12)
+	require.InDelta(t, 0.9, breakdown.CacheReadAudioCost, 1e-12)
+	require.InDelta(t, 699.5, breakdown.TotalCost, 1e-12)
+	require.InDelta(t, 699.5, breakdown.ActualCost, 1e-12)
+}
+
 func TestBillingService_GPT56CacheWritePricingUsesOfficialMultiplier(t *testing.T) {
 	tests := []struct {
 		model             string
