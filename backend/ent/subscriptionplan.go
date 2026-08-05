@@ -33,12 +33,6 @@ type SubscriptionPlan struct {
 	ValidityDays int `json:"validity_days,omitempty"`
 	// ValidityUnit holds the value of the "validity_unit" field.
 	ValidityUnit string `json:"validity_unit,omitempty"`
-	// QuotaMode holds the value of the "quota_mode" field.
-	QuotaMode string `json:"quota_mode,omitempty"`
-	// QuotaLimitUsd holds the value of the "quota_limit_usd" field.
-	QuotaLimitUsd *float64 `json:"quota_limit_usd,omitempty"`
-	// DurationHours holds the value of the "duration_hours" field.
-	DurationHours *int `json:"duration_hours,omitempty"`
 	// Features holds the value of the "features" field.
 	Features string `json:"features,omitempty"`
 	// ProductName holds the value of the "product_name" field.
@@ -73,11 +67,11 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case subscriptionplan.FieldStorefrontFeatured, subscriptionplan.FieldForSale:
 			values[i] = new(sql.NullBool)
-		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice, subscriptionplan.FieldQuotaLimitUsd:
+		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldDurationHours, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
-		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldQuotaMode, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldCoverImageURL, subscriptionplan.FieldDetailDescription, subscriptionplan.FieldStorefrontPlatform, subscriptionplan.FieldStorefrontCategory, subscriptionplan.FieldStorefrontBadge:
+		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldCoverImageURL, subscriptionplan.FieldDetailDescription, subscriptionplan.FieldStorefrontPlatform, subscriptionplan.FieldStorefrontCategory, subscriptionplan.FieldStorefrontBadge:
 			values[i] = new(sql.NullString)
 		case subscriptionplan.FieldCreatedAt, subscriptionplan.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -150,26 +144,6 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field validity_unit", values[i])
 			} else if value.Valid {
 				_m.ValidityUnit = value.String
-			}
-		case subscriptionplan.FieldQuotaMode:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field quota_mode", values[i])
-			} else if value.Valid {
-				_m.QuotaMode = value.String
-			}
-		case subscriptionplan.FieldQuotaLimitUsd:
-			if value, ok := values[i].(*sql.NullFloat64); !ok {
-				return fmt.Errorf("unexpected type %T for field quota_limit_usd", values[i])
-			} else if value.Valid {
-				_m.QuotaLimitUsd = new(float64)
-				*_m.QuotaLimitUsd = value.Float64
-			}
-		case subscriptionplan.FieldDurationHours:
-			if value, ok := values[i].(*sql.NullInt64); !ok {
-				return fmt.Errorf("unexpected type %T for field duration_hours", values[i])
-			} else if value.Valid {
-				_m.DurationHours = new(int)
-				*_m.DurationHours = int(value.Int64)
 			}
 		case subscriptionplan.FieldFeatures:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -304,19 +278,6 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("validity_unit=")
 	builder.WriteString(_m.ValidityUnit)
-	builder.WriteString(", ")
-	builder.WriteString("quota_mode=")
-	builder.WriteString(_m.QuotaMode)
-	builder.WriteString(", ")
-	if v := _m.QuotaLimitUsd; v != nil {
-		builder.WriteString("quota_limit_usd=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
-	builder.WriteString(", ")
-	if v := _m.DurationHours; v != nil {
-		builder.WriteString("duration_hours=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
 	builder.WriteString(", ")
 	builder.WriteString("features=")
 	builder.WriteString(_m.Features)

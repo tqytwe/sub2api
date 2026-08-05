@@ -171,9 +171,6 @@ type CreatePlanRequest struct {
 	Currency           string   `json:"currency"`
 	ValidityDays       int      `json:"validity_days"`
 	ValidityUnit       string   `json:"validity_unit"`
-	QuotaMode          string   `json:"quota_mode"`
-	QuotaLimitUSD      *float64 `json:"quota_limit_usd"`
-	DurationHours      *int     `json:"duration_hours"`
 	Features           string   `json:"features"`
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`
@@ -195,9 +192,6 @@ type UpdatePlanRequest struct {
 	Currency           *string  `json:"currency"`
 	ValidityDays       *int     `json:"validity_days"`
 	ValidityUnit       *string  `json:"validity_unit"`
-	QuotaMode          *string  `json:"quota_mode"`
-	QuotaLimitUSD      *float64 `json:"quota_limit_usd"`
-	DurationHours      *int     `json:"duration_hours"`
 	Features           *string  `json:"features"`
 	ProductName        *string  `json:"product_name"`
 	CoverImageURL      *string  `json:"cover_image_url"`

@@ -959,29 +959,6 @@ func TestHasPaymentSubscriptionOrderNoteRequiresIndependentExactLine(t *testing.
 	require.False(t, hasPaymentSubscriptionOrderNote("prefix payment order 42 suffix", "payment order 42"))
 }
 
-func TestEnsureDailyCardEntitlementAssignedUsesOrderSnapshot(t *testing.T) {
-	planID := int64(7)
-	groupID := int64(8)
-	paidAt := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
-	repo := &dailyCardRepoStub{issued: &DailyCardEntitlement{ID: 99}, created: true}
-	svc := &PaymentService{dailyCardSvc: NewDailyCardService(repo)}
-	order := &dbent.PaymentOrder{
-		ID: 44, UserID: 5, PlanID: &planID, SubscriptionGroupID: &groupID, PaidAt: &paidAt,
-		SubscriptionSnapshot: map[string]any{
-			"quota_mode": DailyCardQuotaModeOneTime, "quota_limit_usd": 12.5, "duration_hours": float64(24),
-		},
-	}
-
-	managed, err := svc.ensureDailyCardEntitlementAssigned(context.Background(), order)
-
-	require.NoError(t, err)
-	require.True(t, managed)
-	require.Equal(t, int64(44), repo.issuedInput.PaymentOrderID)
-	require.Equal(t, 12.5, repo.issuedInput.QuotaLimitUSD)
-	require.Equal(t, 24, repo.issuedInput.DurationHours)
-	require.Equal(t, paidAt, repo.issuedInput.IssuedAt)
-}
-
 func createPaymentFulfillmentSubscriptionOrder(
 	t *testing.T,
 	ctx context.Context,

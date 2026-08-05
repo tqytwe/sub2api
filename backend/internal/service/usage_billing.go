@@ -23,28 +23,27 @@ type UsageBillingCommand struct {
 	RequestFingerprint string
 	RequestPayloadHash string
 
-	UserID                    int64
-	AccountID                 int64
-	APIKeyGroupID             *int64
-	APIKeyGroupName           string
-	SubscriptionID            *int64
-	SubscriptionEntitlementID *int64
-	AccountType               string
-	Model                     string
-	ServiceTier               string
-	ReasoningEffort           string
-	BillingType               int8
-	InputTokens               int
-	OutputTokens              int
-	CacheCreationTokens       int
-	CacheReadTokens           int
-	ImageCount                int
-	MediaType                 string
-	ActualCost                float64
-	BillingSurchargeCost      float64
-	BilledCost                float64
-	BillingSurchargeMode      string
-	BillingSurchargeValue     float64
+	UserID                int64
+	AccountID             int64
+	APIKeyGroupID         *int64
+	APIKeyGroupName       string
+	SubscriptionID        *int64
+	AccountType           string
+	Model                 string
+	ServiceTier           string
+	ReasoningEffort       string
+	BillingType           int8
+	InputTokens           int
+	OutputTokens          int
+	CacheCreationTokens   int
+	CacheReadTokens       int
+	ImageCount            int
+	MediaType             string
+	ActualCost            float64
+	BillingSurchargeCost  float64
+	BilledCost            float64
+	BillingSurchargeMode  string
+	BillingSurchargeValue float64
 
 	BalanceCost         float64
 	SubscriptionCost    float64
@@ -94,7 +93,6 @@ func buildUsageBillingFingerprint(c *UsageBillingCommand) string {
 		c.APIKeyRateLimitCost,
 		c.AccountQuotaCost,
 	)
-	raw += fmt.Sprintf("|%d", valueOrZero(c.SubscriptionEntitlementID))
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash
 	}
@@ -129,14 +127,11 @@ type AccountQuotaState struct {
 }
 
 type UsageBillingApplyResult struct {
-	Applied                bool
-	APIKeyQuotaExhausted   bool
-	NewBalance             *float64           // post-deduction balance (nil = no balance deduction)
-	BalanceOverdrafted     bool               // true when the sufficient-balance guard missed and debt was still recorded
-	QuotaState             *AccountQuotaState // post-increment quota state (nil = no quota increment)
-	DailyCardExhausted     bool
-	ActivatedEntitlementID *int64
-	DailyCardOverageUSD    float64
+	Applied              bool
+	APIKeyQuotaExhausted bool
+	NewBalance           *float64           // post-deduction balance (nil = no balance deduction)
+	BalanceOverdrafted   bool               // true when the sufficient-balance guard missed and debt was still recorded
+	QuotaState           *AccountQuotaState // post-increment quota state (nil = no quota increment)
 }
 
 // BatchImageBalanceHoldCommand describes an idempotent balance hold operation.

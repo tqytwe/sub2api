@@ -1823,10 +1823,9 @@ func (r *couponRepository) DrawAndIssueCouponRewardInTx(ctx context.Context, req
 		}
 
 		source := service.CouponIssueSourceBlindbox
-		switch request.Activity {
-		case service.CouponRewardActivityQuiz:
+		if request.Activity == service.CouponRewardActivityQuiz {
 			source = service.CouponIssueSourceQuiz
-		case service.CouponRewardActivityCheckin:
+		} else if request.Activity == service.CouponRewardActivityCheckin {
 			source = service.CouponIssueSourceCheckin
 		}
 		coupon, err := issueCouponWithTemplate(ctx, exec, template, service.CouponIssueInput{

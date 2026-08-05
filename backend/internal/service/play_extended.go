@@ -174,15 +174,17 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		return nil, err
 	}
 	reward := 0.0
-	var couponIssue *CouponRewardIssueResult
-	var redeemCode *RedeemCode
-	switch rewardType {
-	case PlayRewardTypeBalance:
+	if rewardType == PlayRewardTypeBalance {
 		reward, err = s.pickBlindboxReward(pool)
 		if err != nil {
 			return nil, err
 		}
-	case PlayRewardTypeCoupon:
+	}
+	net := reward - cost
+
+	var couponIssue *CouponRewardIssueResult
+	var redeemCode *RedeemCode
+	if rewardType == PlayRewardTypeCoupon {
 		couponIssue, err = s.issueCouponRewardInTx(
 			txCtx,
 			userID,
@@ -194,7 +196,7 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 		if err != nil {
 			return nil, err
 		}
-	case PlayRewardTypeRedeem:
+	} else if rewardType == PlayRewardTypeRedeem {
 		redeemCode, err = s.issueRedeemCodeRewardInTx(
 			txCtx,
 			userID,
@@ -207,7 +209,6 @@ func (s *PlayService) OpenBlindbox(ctx context.Context, userID int64, idempotenc
 			return nil, err
 		}
 	}
-	net := reward - cost
 
 	detail := map[string]any{
 		"open_date":         dateKey,

@@ -83,12 +83,12 @@
           <!-- Usage Progress -->
           <div class="space-y-4 p-4">
             <!-- Expiration Info -->
-            <div v-if="effectiveExpiration(subscription)" class="flex items-center justify-between text-sm">
+            <div v-if="subscription.expires_at" class="flex items-center justify-between text-sm">
               <span class="text-gray-500 dark:text-dark-400">{{
                 t('userSubscriptions.expires')
               }}</span>
-              <span :class="getExpirationClass(effectiveExpiration(subscription)!)">
-                {{ formatExpirationDate(effectiveExpiration(subscription)!) }}
+              <span :class="getExpirationClass(subscription.expires_at)">
+                {{ formatExpirationDate(subscription.expires_at) }}
               </span>
             </div>
             <div v-else class="flex items-center justify-between text-sm">
@@ -101,14 +101,14 @@
             </div>
 
             <!-- Daily Usage -->
-            <div v-if="dailyLimitUSD(subscription)" class="space-y-2">
+            <div v-if="subscription.group?.daily_limit_usd" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.daily') }}
                 </span>
                 <span class="text-sm text-gray-500 dark:text-dark-400">
-                  ${{ dailyUsageUSD(subscription).toFixed(2) }} / ${{
-                    dailyLimitUSD(subscription)!.toFixed(2)
+                  ${{ (subscription.daily_usage_usd || 0).toFixed(2) }} / ${{
+                    subscription.group.daily_limit_usd.toFixed(2)
                   }}
                 </span>
               </div>
@@ -117,31 +117,28 @@
                   class="absolute inset-y-0 left-0 rounded-full transition-all duration-300"
                   :class="
                     getProgressBarClass(
-                      dailyUsageUSD(subscription),
-                      dailyLimitUSD(subscription)
+                      subscription.daily_usage_usd,
+                      subscription.group.daily_limit_usd
                     )
                   "
                   :style="{
                     width: getProgressWidth(
-                      dailyUsageUSD(subscription),
-                      dailyLimitUSD(subscription)
+                      subscription.daily_usage_usd,
+                      subscription.group.daily_limit_usd
                     )
                   }"
                 ></div>
               </div>
               <p
-                v-if="subscription.daily_card || subscription.daily_window_start"
+                v-if="subscription.daily_window_start"
                 class="text-xs text-gray-500 dark:text-dark-400"
               >
                 {{ formatDailyUsageWindow(subscription) }}
               </p>
-              <p v-if="subscription.daily_card_queue_count" class="text-xs text-gray-500 dark:text-dark-400">
-                {{ t('userSubscriptions.dailyCardQueued', { count: subscription.daily_card_queue_count }) }}
-              </p>
             </div>
 
             <!-- Weekly Usage -->
-            <div v-if="!subscription.daily_card && subscription.group?.weekly_limit_usd" class="space-y-2">
+            <div v-if="subscription.group?.weekly_limit_usd" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.weekly') }}
@@ -182,7 +179,7 @@
             </div>
 
             <!-- Monthly Usage -->
-            <div v-if="!subscription.daily_card && subscription.group?.monthly_limit_usd" class="space-y-2">
+            <div v-if="subscription.group?.monthly_limit_usd" class="space-y-2">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('userSubscriptions.monthly') }}
@@ -225,7 +222,7 @@
             <!-- No limits configured - Unlimited badge -->
             <div
               v-if="
-                !dailyLimitUSD(subscription) &&
+                !subscription.group?.daily_limit_usd &&
                 !subscription.group?.weekly_limit_usd &&
                 !subscription.group?.monthly_limit_usd
               "
@@ -370,14 +367,6 @@ function formatDurationParts(parts: RemainingDurationParts): string {
 }
 
 function formatDailyUsageWindow(subscription: UserSubscription): string {
-  const cardExpiresAt = subscription.daily_card?.expires_at
-  if (subscription.daily_card && cardExpiresAt) {
-    if (subscription.daily_card.status === 'exhausted') return t('userSubscriptions.dailyCardExhausted')
-    if (subscription.daily_card.status === 'expired') return t('userSubscriptions.dailyCardExpired')
-    const parts = getRemainingDurationParts(cardExpiresAt)
-    if (!parts) return t('userSubscriptions.windowNotActive')
-    return t('userSubscriptions.quotaEndsIn', { time: formatDurationParts(parts) })
-  }
   if (isOneTimeDailyQuota(subscription) && subscription.expires_at) {
     const parts = getRemainingDurationParts(subscription.expires_at)
     if (!parts) return t('userSubscriptions.windowNotActive')
@@ -387,18 +376,6 @@ function formatDailyUsageWindow(subscription: UserSubscription): string {
   return t('userSubscriptions.resetIn', {
     time: formatResetTime(subscription.daily_window_start, 24)
   })
-}
-
-function dailyUsageUSD(subscription: UserSubscription): number {
-  return subscription.daily_card?.quota_used_usd ?? subscription.daily_usage_usd ?? 0
-}
-
-function dailyLimitUSD(subscription: UserSubscription): number | null {
-  return subscription.daily_card?.quota_limit_usd ?? subscription.group?.daily_limit_usd ?? null
-}
-
-function effectiveExpiration(subscription: UserSubscription): string | null {
-  return subscription.daily_card?.expires_at || subscription.expires_at
 }
 
 function formatResetTime(windowStart: string | null, windowHours: number): string {

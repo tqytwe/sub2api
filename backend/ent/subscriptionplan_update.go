@@ -174,74 +174,6 @@ func (_u *SubscriptionPlanUpdate) SetNillableValidityUnit(v *string) *Subscripti
 	return _u
 }
 
-// SetQuotaMode sets the "quota_mode" field.
-func (_u *SubscriptionPlanUpdate) SetQuotaMode(v string) *SubscriptionPlanUpdate {
-	_u.mutation.SetQuotaMode(v)
-	return _u
-}
-
-// SetNillableQuotaMode sets the "quota_mode" field if the given value is not nil.
-func (_u *SubscriptionPlanUpdate) SetNillableQuotaMode(v *string) *SubscriptionPlanUpdate {
-	if v != nil {
-		_u.SetQuotaMode(*v)
-	}
-	return _u
-}
-
-// SetQuotaLimitUsd sets the "quota_limit_usd" field.
-func (_u *SubscriptionPlanUpdate) SetQuotaLimitUsd(v float64) *SubscriptionPlanUpdate {
-	_u.mutation.ResetQuotaLimitUsd()
-	_u.mutation.SetQuotaLimitUsd(v)
-	return _u
-}
-
-// SetNillableQuotaLimitUsd sets the "quota_limit_usd" field if the given value is not nil.
-func (_u *SubscriptionPlanUpdate) SetNillableQuotaLimitUsd(v *float64) *SubscriptionPlanUpdate {
-	if v != nil {
-		_u.SetQuotaLimitUsd(*v)
-	}
-	return _u
-}
-
-// AddQuotaLimitUsd adds value to the "quota_limit_usd" field.
-func (_u *SubscriptionPlanUpdate) AddQuotaLimitUsd(v float64) *SubscriptionPlanUpdate {
-	_u.mutation.AddQuotaLimitUsd(v)
-	return _u
-}
-
-// ClearQuotaLimitUsd clears the value of the "quota_limit_usd" field.
-func (_u *SubscriptionPlanUpdate) ClearQuotaLimitUsd() *SubscriptionPlanUpdate {
-	_u.mutation.ClearQuotaLimitUsd()
-	return _u
-}
-
-// SetDurationHours sets the "duration_hours" field.
-func (_u *SubscriptionPlanUpdate) SetDurationHours(v int) *SubscriptionPlanUpdate {
-	_u.mutation.ResetDurationHours()
-	_u.mutation.SetDurationHours(v)
-	return _u
-}
-
-// SetNillableDurationHours sets the "duration_hours" field if the given value is not nil.
-func (_u *SubscriptionPlanUpdate) SetNillableDurationHours(v *int) *SubscriptionPlanUpdate {
-	if v != nil {
-		_u.SetDurationHours(*v)
-	}
-	return _u
-}
-
-// AddDurationHours adds value to the "duration_hours" field.
-func (_u *SubscriptionPlanUpdate) AddDurationHours(v int) *SubscriptionPlanUpdate {
-	_u.mutation.AddDurationHours(v)
-	return _u
-}
-
-// ClearDurationHours clears the value of the "duration_hours" field.
-func (_u *SubscriptionPlanUpdate) ClearDurationHours() *SubscriptionPlanUpdate {
-	_u.mutation.ClearDurationHours()
-	return _u
-}
-
 // SetFeatures sets the "features" field.
 func (_u *SubscriptionPlanUpdate) SetFeatures(v string) *SubscriptionPlanUpdate {
 	_u.mutation.SetFeatures(v)
@@ -453,11 +385,6 @@ func (_u *SubscriptionPlanUpdate) check() error {
 			return &ValidationError{Name: "validity_unit", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.validity_unit": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.QuotaMode(); ok {
-		if err := subscriptionplan.QuotaModeValidator(v); err != nil {
-			return &ValidationError{Name: "quota_mode", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_mode": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.ProductName(); ok {
 		if err := subscriptionplan.ProductNameValidator(v); err != nil {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
@@ -531,27 +458,6 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	}
 	if value, ok := _u.mutation.ValidityUnit(); ok {
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.QuotaMode(); ok {
-		_spec.SetField(subscriptionplan.FieldQuotaMode, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.QuotaLimitUsd(); ok {
-		_spec.SetField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.AddedQuotaLimitUsd(); ok {
-		_spec.AddField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64, value)
-	}
-	if _u.mutation.QuotaLimitUsdCleared() {
-		_spec.ClearField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64)
-	}
-	if value, ok := _u.mutation.DurationHours(); ok {
-		_spec.SetField(subscriptionplan.FieldDurationHours, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedDurationHours(); ok {
-		_spec.AddField(subscriptionplan.FieldDurationHours, field.TypeInt, value)
-	}
-	if _u.mutation.DurationHoursCleared() {
-		_spec.ClearField(subscriptionplan.FieldDurationHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
@@ -752,74 +658,6 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableValidityUnit(v *string) *Subscri
 	if v != nil {
 		_u.SetValidityUnit(*v)
 	}
-	return _u
-}
-
-// SetQuotaMode sets the "quota_mode" field.
-func (_u *SubscriptionPlanUpdateOne) SetQuotaMode(v string) *SubscriptionPlanUpdateOne {
-	_u.mutation.SetQuotaMode(v)
-	return _u
-}
-
-// SetNillableQuotaMode sets the "quota_mode" field if the given value is not nil.
-func (_u *SubscriptionPlanUpdateOne) SetNillableQuotaMode(v *string) *SubscriptionPlanUpdateOne {
-	if v != nil {
-		_u.SetQuotaMode(*v)
-	}
-	return _u
-}
-
-// SetQuotaLimitUsd sets the "quota_limit_usd" field.
-func (_u *SubscriptionPlanUpdateOne) SetQuotaLimitUsd(v float64) *SubscriptionPlanUpdateOne {
-	_u.mutation.ResetQuotaLimitUsd()
-	_u.mutation.SetQuotaLimitUsd(v)
-	return _u
-}
-
-// SetNillableQuotaLimitUsd sets the "quota_limit_usd" field if the given value is not nil.
-func (_u *SubscriptionPlanUpdateOne) SetNillableQuotaLimitUsd(v *float64) *SubscriptionPlanUpdateOne {
-	if v != nil {
-		_u.SetQuotaLimitUsd(*v)
-	}
-	return _u
-}
-
-// AddQuotaLimitUsd adds value to the "quota_limit_usd" field.
-func (_u *SubscriptionPlanUpdateOne) AddQuotaLimitUsd(v float64) *SubscriptionPlanUpdateOne {
-	_u.mutation.AddQuotaLimitUsd(v)
-	return _u
-}
-
-// ClearQuotaLimitUsd clears the value of the "quota_limit_usd" field.
-func (_u *SubscriptionPlanUpdateOne) ClearQuotaLimitUsd() *SubscriptionPlanUpdateOne {
-	_u.mutation.ClearQuotaLimitUsd()
-	return _u
-}
-
-// SetDurationHours sets the "duration_hours" field.
-func (_u *SubscriptionPlanUpdateOne) SetDurationHours(v int) *SubscriptionPlanUpdateOne {
-	_u.mutation.ResetDurationHours()
-	_u.mutation.SetDurationHours(v)
-	return _u
-}
-
-// SetNillableDurationHours sets the "duration_hours" field if the given value is not nil.
-func (_u *SubscriptionPlanUpdateOne) SetNillableDurationHours(v *int) *SubscriptionPlanUpdateOne {
-	if v != nil {
-		_u.SetDurationHours(*v)
-	}
-	return _u
-}
-
-// AddDurationHours adds value to the "duration_hours" field.
-func (_u *SubscriptionPlanUpdateOne) AddDurationHours(v int) *SubscriptionPlanUpdateOne {
-	_u.mutation.AddDurationHours(v)
-	return _u
-}
-
-// ClearDurationHours clears the value of the "duration_hours" field.
-func (_u *SubscriptionPlanUpdateOne) ClearDurationHours() *SubscriptionPlanUpdateOne {
-	_u.mutation.ClearDurationHours()
 	return _u
 }
 
@@ -1047,11 +885,6 @@ func (_u *SubscriptionPlanUpdateOne) check() error {
 			return &ValidationError{Name: "validity_unit", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.validity_unit": %w`, err)}
 		}
 	}
-	if v, ok := _u.mutation.QuotaMode(); ok {
-		if err := subscriptionplan.QuotaModeValidator(v); err != nil {
-			return &ValidationError{Name: "quota_mode", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_mode": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.ProductName(); ok {
 		if err := subscriptionplan.ProductNameValidator(v); err != nil {
 			return &ValidationError{Name: "product_name", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.product_name": %w`, err)}
@@ -1142,27 +975,6 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ValidityUnit(); ok {
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.QuotaMode(); ok {
-		_spec.SetField(subscriptionplan.FieldQuotaMode, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.QuotaLimitUsd(); ok {
-		_spec.SetField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64, value)
-	}
-	if value, ok := _u.mutation.AddedQuotaLimitUsd(); ok {
-		_spec.AddField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64, value)
-	}
-	if _u.mutation.QuotaLimitUsdCleared() {
-		_spec.ClearField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64)
-	}
-	if value, ok := _u.mutation.DurationHours(); ok {
-		_spec.SetField(subscriptionplan.FieldDurationHours, field.TypeInt, value)
-	}
-	if value, ok := _u.mutation.AddedDurationHours(); ok {
-		_spec.AddField(subscriptionplan.FieldDurationHours, field.TypeInt, value)
-	}
-	if _u.mutation.DurationHoursCleared() {
-		_spec.ClearField(subscriptionplan.FieldDurationHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)

@@ -2391,7 +2391,6 @@ func (h *GatewayHandler) submitUsageRecordTask(parent context.Context, task serv
 	if task == nil {
 		return
 	}
-	middleware2.MarkDailyCardBillingScheduled(parent)
 	task = wrapUsageRecordTaskContext(parent, task)
 	if service.IsImageStudioManagedBilling(parent) {
 		h.runUsageRecordTaskSync(task)

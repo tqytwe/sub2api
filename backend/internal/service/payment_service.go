@@ -221,7 +221,6 @@ type PaymentService struct {
 	notificationEmailService *NotificationEmailService
 	playService              *PlayService
 	couponService            paymentCouponOrderService
-	dailyCardSvc             *DailyCardService
 }
 
 func NewPaymentService(entClient *dbent.Client, registry *payment.Registry, loadBalancer payment.LoadBalancer, redeemService *RedeemService, subscriptionSvc *SubscriptionService, configService *PaymentConfigService, userRepo UserRepository, groupRepo GroupRepository, affiliateService *AffiliateService, balanceLedger ...*BalanceLedgerService) *PaymentService {
@@ -246,24 +245,6 @@ func (s *PaymentService) SetPlayService(playService *PlayService) {
 // a coupon as part of the payment order lifecycle.
 func (s *PaymentService) SetCouponService(couponService paymentCouponOrderService) {
 	s.couponService = couponService
-}
-
-func (s *PaymentService) SetDailyCardService(dailyCardSvc *DailyCardService) {
-	s.dailyCardSvc = dailyCardSvc
-}
-
-func (s *PaymentService) ListDailyCards(ctx context.Context, userID int64) ([]DailyCardEntitlement, error) {
-	if s == nil || s.dailyCardSvc == nil {
-		return []DailyCardEntitlement{}, nil
-	}
-	return s.dailyCardSvc.ListForUser(ctx, userID, time.Now())
-}
-
-func (s *PaymentService) GetDailyCardByPaymentOrder(ctx context.Context, paymentOrderID int64) (*DailyCardEntitlement, error) {
-	if s == nil || s.dailyCardSvc == nil {
-		return nil, ErrDailyCardEntitlementNotFound
-	}
-	return s.dailyCardSvc.GetByPaymentOrder(ctx, paymentOrderID)
 }
 
 // --- Provider Registry ---

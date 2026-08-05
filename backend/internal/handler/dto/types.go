@@ -654,24 +654,6 @@ type UserSubscription struct {
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
-
-	DailyCard           *DailyCardEntitlement `json:"daily_card,omitempty"`
-	DailyCardQueueCount int                   `json:"daily_card_queue_count,omitempty"`
-}
-
-type DailyCardEntitlement struct {
-	ID                int64      `json:"id"`
-	PaymentOrderID    int64      `json:"payment_order_id"`
-	Status            string     `json:"status"`
-	QuotaLimitUSD     float64    `json:"quota_limit_usd"`
-	QuotaUsedUSD      float64    `json:"quota_used_usd"`
-	QuotaReservedUSD  float64    `json:"quota_reserved_usd"`
-	RemainingQuotaUSD float64    `json:"remaining_quota_usd"`
-	DurationHours     int        `json:"duration_hours"`
-	StartsAt          *time.Time `json:"starts_at,omitempty"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	ExhaustedAt       *time.Time `json:"exhausted_at,omitempty"`
-	EndedAt           *time.Time `json:"ended_at,omitempty"`
 }
 
 type SubscriptionPurchaseOrder struct {

@@ -47,7 +47,6 @@ type SubscriptionService struct {
 	userSubRepo         UserSubscriptionRepository
 	billingCacheService *BillingCacheService
 	entClient           *dbent.Client
-	dailyCardSvc        *DailyCardService
 
 	// L1 缓存：加速中间件热路径的订阅查询
 	subCacheL1     *ristretto.Cache
@@ -56,31 +55,6 @@ type SubscriptionService struct {
 	subCacheJitter int // 抖动百分比
 
 	maintenanceQueue *SubscriptionMaintenanceQueue
-}
-
-func (s *SubscriptionService) SetDailyCardService(dailyCardSvc *DailyCardService) {
-	s.dailyCardSvc = dailyCardSvc
-}
-
-func (s *SubscriptionService) ResolveDailyCardAccess(ctx context.Context, userID, groupID int64) (*DailyCardEntitlement, bool, error) {
-	if s == nil || s.dailyCardSvc == nil {
-		return nil, false, nil
-	}
-	return s.dailyCardSvc.ResolveAccess(ctx, userID, groupID, time.Now())
-}
-
-func (s *SubscriptionService) ReserveDailyCardRequest(ctx context.Context, input DailyCardRequestHoldInput) error {
-	if s == nil || s.dailyCardSvc == nil {
-		return ErrDailyCardInvalidInput
-	}
-	return s.dailyCardSvc.ReserveRequest(ctx, input)
-}
-
-func (s *SubscriptionService) ReleaseDailyCardRequest(ctx context.Context, entitlementID, userID int64, requestID string) error {
-	if s == nil || s.dailyCardSvc == nil {
-		return ErrDailyCardInvalidInput
-	}
-	return s.dailyCardSvc.ReleaseRequest(ctx, entitlementID, userID, requestID, time.Now())
 }
 
 // NewSubscriptionService 创建订阅服务
@@ -789,9 +763,6 @@ func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID 
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
-	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
-		return nil, err
-	}
 	return subs, nil
 }
 
@@ -802,44 +773,7 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 		return nil, err
 	}
 	normalizeExpiredWindows(subs)
-	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
-		return nil, err
-	}
 	return subs, nil
-}
-
-func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context, userID int64, subs []UserSubscription) error {
-	if s == nil || s.dailyCardSvc == nil || len(subs) == 0 {
-		return nil
-	}
-	cards, err := s.dailyCardSvc.ListForUser(ctx, userID, time.Now())
-	if err != nil {
-		return err
-	}
-	selected := make(map[int64]*DailyCardEntitlement)
-	queued := make(map[int64]int)
-	for i := range cards {
-		card := cards[i]
-		if card.Status == DailyCardStatusPending {
-			queued[card.GroupID]++
-		}
-		current := selected[card.GroupID]
-		if current == nil || card.Status == DailyCardStatusActive || (current.Status != DailyCardStatusActive && card.CreatedAt.After(current.CreatedAt)) {
-			copyOfCard := card
-			selected[card.GroupID] = &copyOfCard
-		}
-	}
-	for i := range subs {
-		card := selected[subs[i].GroupID]
-		if card == nil {
-			continue
-		}
-		subs[i].DailyCard = card
-		subs[i].DailyCardEntitlementID = &card.ID
-		subs[i].DailyCardQueueCount = queued[subs[i].GroupID]
-		subs[i].DailyUsageUSD = card.QuotaUsedUSD
-	}
-	return nil
 }
 
 // ListGroupSubscriptions 获取分组的所有订阅
