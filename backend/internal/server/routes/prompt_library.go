@@ -32,6 +32,9 @@ func RegisterPromptLibrarySEORoutes(
 	r.GET("/sitemap.xml", h.PromptLibrary.Sitemap)
 	r.GET("/robots.txt", h.PromptLibrary.Robots)
 	r.GET("/llms.txt", h.PromptLibrary.LLMSTxt)
+	r.GET("/llms-full.txt", h.PromptLibrary.LLMSFullTxt)
+	r.GET("/llms.small-txt", h.PromptLibrary.LLMSSmallTxt)
+	r.GET("/.well-known/ai.txt", h.PromptLibrary.AITxt)
 }
 
 func registerAdminPromptLibraryRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
