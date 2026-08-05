@@ -30,6 +30,10 @@ type User struct {
 	BalanceNotifyThreshold     *float64           `json:"balance_notify_threshold"`
 	BalanceNotifyExtraEmails   []NotifyEmailEntry `json:"balance_notify_extra_emails"`
 	TotalRecharged             float64            `json:"total_recharged"`
+	MembershipPaidAmount       float64            `json:"membership_paid_amount,omitempty"`
+	VIPTier                    int                `json:"vip_tier,omitempty"`
+	VIPLabel                   string             `json:"vip_label,omitempty"`
+	MembershipDataState        string             `json:"membership_data_state,omitempty"`
 
 	// RPMLimit 用户级每分钟请求数上限（0 = 不限制），仅在所用分组未设置 rpm_limit 时作为兜底生效。
 	RPMLimit int `json:"rpm_limit"`

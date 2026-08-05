@@ -288,6 +288,17 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 	if rechargeQuote != nil {
 		b.SetRechargeSnapshot(rechargeQuote.Snapshot())
 	}
+	if req.OrderType == payment.OrderTypeSubscription && plan != nil {
+		b.SetSubscriptionSnapshot(map[string]any{
+			"plan_id":                    plan.ID,
+			"group_id":                   plan.GroupID,
+			"validity_days":              psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit),
+			"list_amount":                settlement.ListAmount,
+			"gateway_base_amount":        settlement.GatewayBaseAmount,
+			"qualifying_recharge_amount": settlement.QualifyingRechargeAmount,
+			"payment_currency":           settlement.Currency,
+		})
+	}
 	if plan != nil {
 		b.SetPlanID(plan.ID).SetSubscriptionGroupID(plan.GroupID).SetSubscriptionDays(psComputeValidityDays(plan.ValidityDays, plan.ValidityUnit))
 	}

@@ -2026,7 +2026,7 @@ SELECT a.invitee_id FROM referral_campaign_attributions a
 LEFT JOIN referral_campaign_qualifications q ON q.campaign_id=a.campaign_id AND q.invitee_id=a.invitee_id
 WHERE a.campaign_id=$1 AND a.inviter_id=$2 AND a.status IN ('pending','approved')
 ORDER BY CASE WHEN
- COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m WHERE m.user_id=a.invitee_id AND m.paid_at>=a.registered_at AND m.paid_at<=a.qualification_to_snapshot),0)>=a.pay_threshold_snapshot
+COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m WHERE m.user_id=a.invitee_id AND m.qualification_state='verified' AND m.paid_at>=a.registered_at AND m.paid_at<=a.qualification_to_snapshot),0)>=a.pay_threshold_snapshot
  AND COALESCE((SELECT SUM(u.actual_cost) FROM usage_logs u WHERE u.user_id=a.invitee_id AND u.created_at>=a.registered_at AND u.created_at<=a.qualification_to_snapshot),0)>=a.usage_threshold_snapshot
  THEN 0 ELSE 1 END,
  CASE WHEN COALESCE(q.status,'pending')='pending' THEN 0 ELSE 1 END,a.id
@@ -2054,11 +2054,11 @@ func (r *affiliateRepository) RecomputeReferralQualification(ctx context.Context
 	err := scanAffiliateRow(ctx, client, `
 SELECT a.campaign_id, a.inviter_id, a.invitee_id, a.registered_at,
        COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m
-                 WHERE m.user_id=a.invitee_id AND m.paid_at >= a.registered_at AND m.paid_at <= a.qualification_to_snapshot),0)::double precision,
+                 WHERE m.user_id=a.invitee_id AND m.qualification_state='verified' AND m.paid_at >= a.registered_at AND m.paid_at <= a.qualification_to_snapshot),0)::double precision,
        COALESCE((SELECT SUM(u.actual_cost) FROM usage_logs u
                  WHERE u.user_id=a.invitee_id AND u.created_at >= a.registered_at AND u.created_at <= a.qualification_to_snapshot),0)::double precision,
        (SELECT m.order_id FROM play_membership_order_contributions m
-        WHERE m.user_id=a.invitee_id AND m.net_amount > 0 AND m.paid_at >= a.registered_at AND m.paid_at <= a.qualification_to_snapshot
+        WHERE m.user_id=a.invitee_id AND m.qualification_state='verified' AND m.net_amount > 0 AND m.paid_at >= a.registered_at AND m.paid_at <= a.qualification_to_snapshot
         ORDER BY m.paid_at DESC, m.order_id DESC LIMIT 1),
        CASE WHEN EXISTS (
           SELECT 1 FROM ip_risk_case_users cu JOIN ip_risk_cases rc ON rc.id=cu.case_id
@@ -2459,7 +2459,7 @@ func (r *affiliateRepository) ReverseReferralRewardsByOrder(ctx context.Context,
 SELECT DISTINCT a.campaign_id,a.inviter_id,a.invitee_id
 FROM play_membership_order_contributions m
 JOIN referral_campaign_attributions a ON a.invitee_id=m.user_id
-WHERE m.order_id=$1`, orderID)
+WHERE m.order_id=$1 AND m.qualification_state='verified'`, orderID)
 		if err != nil {
 			return err
 		}
@@ -2481,7 +2481,7 @@ WHERE m.order_id=$1`, orderID)
 			var riskStatus string
 			if err := scanAffiliateRow(txCtx, txClient, `
 SELECT c.pay_threshold::double precision,c.usage_threshold::double precision,
- COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m WHERE m.user_id=$2 AND m.paid_at>=a.registered_at AND m.paid_at<=c.qualification_to),0)::double precision,
+ COALESCE((SELECT SUM(m.net_amount) FROM play_membership_order_contributions m WHERE m.user_id=$2 AND m.qualification_state='verified' AND m.paid_at>=a.registered_at AND m.paid_at<=c.qualification_to),0)::double precision,
  COALESCE((SELECT SUM(u.actual_cost) FROM usage_logs u WHERE u.user_id=$2 AND u.created_at>=a.registered_at AND u.created_at<=c.qualification_to),0)::double precision,
  COALESCE(q.risk_status,'pending')
 FROM referral_campaigns c JOIN referral_campaign_attributions a ON a.campaign_id=c.id AND a.invitee_id=$2
@@ -2522,7 +2522,7 @@ INSERT INTO referral_campaign_reconcile_queue (campaign_id,invitee_id,source_ord
 SELECT DISTINCT a.campaign_id,a.invitee_id,$1,'refund_revoke','pending',NOW()
 FROM play_membership_order_contributions m
 JOIN referral_campaign_attributions a ON a.invitee_id=m.user_id
-WHERE m.order_id=$1
+WHERE m.order_id=$1 AND m.qualification_state='verified'
 ON CONFLICT (campaign_id,invitee_id,source_order_id,action) DO UPDATE SET
  status='pending',available_at=NOW(),processed_at=NULL,last_error=''`, orderID)
 	return err

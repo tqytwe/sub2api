@@ -81,6 +81,8 @@ type PaymentOrder struct {
 	ProviderSnapshot map[string]interface{} `json:"provider_snapshot,omitempty"`
 	// RechargeSnapshot holds the value of the "recharge_snapshot" field.
 	RechargeSnapshot map[string]interface{} `json:"recharge_snapshot,omitempty"`
+	// SubscriptionSnapshot holds the value of the "subscription_snapshot" field.
+	SubscriptionSnapshot map[string]interface{} `json:"subscription_snapshot,omitempty"`
 	// Status holds the value of the "status" field.
 	Status string `json:"status,omitempty"`
 	// RefundAmount holds the value of the "refund_amount" field.
@@ -148,7 +150,7 @@ func (*PaymentOrder) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case paymentorder.FieldCouponSnapshot, paymentorder.FieldProviderSnapshot, paymentorder.FieldRechargeSnapshot:
+		case paymentorder.FieldCouponSnapshot, paymentorder.FieldProviderSnapshot, paymentorder.FieldRechargeSnapshot, paymentorder.FieldSubscriptionSnapshot:
 			values[i] = new([]byte)
 		case paymentorder.FieldForceRefund:
 			values[i] = new(sql.NullBool)
@@ -382,6 +384,14 @@ func (_m *PaymentOrder) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.RechargeSnapshot); err != nil {
 					return fmt.Errorf("unmarshal field recharge_snapshot: %w", err)
+				}
+			}
+		case paymentorder.FieldSubscriptionSnapshot:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field subscription_snapshot", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.SubscriptionSnapshot); err != nil {
+					return fmt.Errorf("unmarshal field subscription_snapshot: %w", err)
 				}
 			}
 		case paymentorder.FieldStatus:
@@ -657,6 +667,9 @@ func (_m *PaymentOrder) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("recharge_snapshot=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RechargeSnapshot))
+	builder.WriteString(", ")
+	builder.WriteString("subscription_snapshot=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SubscriptionSnapshot))
 	builder.WriteString(", ")
 	builder.WriteString("status=")
 	builder.WriteString(_m.Status)

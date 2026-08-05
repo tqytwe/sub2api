@@ -22,6 +22,9 @@ func (s *adminServiceImpl) ListUsers(ctx context.Context, page, pageSize int, fi
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize, SortBy: sortBy, SortOrder: sortOrder}
 	users, result, err := s.userRepo.ListWithFilters(ctx, params, filters)
 	if err != nil {
+		if filters.VIPTier != nil {
+			return nil, 0, ErrMembershipAccountingUnavailable
+		}
 		return nil, 0, err
 	}
 	if len(users) > 0 {

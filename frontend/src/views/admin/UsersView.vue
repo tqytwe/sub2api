@@ -72,6 +72,10 @@
               />
             </div>
 
+            <div v-if="visibleFilters.has('vipTier')" class="w-full sm:w-36">
+              <Select v-model="filters.vipTier" :options="vipTierOptions" @change="applyFilter" />
+            </div>
+
             <!-- Dynamic Attribute Filters -->
             <template v-for="(value, attrId) in activeAttributeFilters" :key="attrId">
               <div
@@ -260,6 +264,15 @@
             >
               <Icon name="ban" size="md" class="mr-2" />
               {{ t('admin.users.bulkActions.disableAction') }}
+            </button>
+
+            <button v-if="users.length > 0" class="btn btn-secondary flex-1 md:flex-initial" data-test="bulk-exclusive-group" @click="openExclusiveGroupDialog('grant')">
+              <Icon name="shield" size="md" class="mr-2" />
+              {{ t('admin.users.vip.batchGrant') }}
+            </button>
+            <button v-if="users.length > 0" class="btn btn-secondary flex-1 md:flex-initial" data-test="bulk-exclusive-group-revoke" @click="openExclusiveGroupDialog('revoke')">
+              <Icon name="shield" size="md" class="mr-2" />
+              {{ t('admin.users.vip.batchRevoke') }}
             </button>
 
             <button
@@ -463,6 +476,13 @@
               >
                 {{ t('admin.users.deposit') }}
               </button>
+            </div>
+          </template>
+
+          <template #cell-vip="{ row }">
+            <div class="text-xs">
+              <div class="font-medium text-gray-800 dark:text-gray-200">{{ row.vip_label || t('admin.users.vip.unavailable') }}</div>
+              <div class="text-gray-500 dark:text-gray-400">{{ t('admin.users.vip.amount', { amount: (row.membership_paid_amount ?? 0).toFixed(2) }) }}</div>
             </div>
           </template>
 
@@ -795,6 +815,27 @@
     <UserBalanceHistoryModal :show="showBalanceHistoryModal" :user="balanceHistoryUser" @close="closeBalanceHistoryModal" @deposit="handleDepositFromHistory" @withdraw="handleWithdrawFromHistory" />
     <GroupReplaceModal :show="showGroupReplaceModal" :user="groupReplaceUser" :old-group="groupReplaceOldGroup" :all-groups="allGroups" @close="closeGroupReplaceModal" @success="loadUsers" />
     <UserAttributesConfigModal :show="showAttributesModal" @close="handleAttributesModalClose" />
+    <!-- design-governance-allow: page-shell-ownership - this fixed element is a batch-operation overlay modal, not the route page shell -->
+    <div v-if="showExclusiveGroupDialog" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4" @click.self="closeExclusiveGroupDialog">
+      <!-- design-governance-allow: page-shell-ownership - this is the dialog panel inside a fixed overlay, not a route shell -->
+      <div class="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl dark:bg-dark-800">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ exclusiveGroupAction === 'grant' ? t('admin.users.vip.batchGrant') : t('admin.users.vip.batchRevoke') }}</h2>
+        <div class="mt-4 space-y-3">
+          <Select v-model="exclusiveGroupId" :options="exclusiveGroupOptions" :placeholder="t('admin.users.vip.chooseGroup')" />
+          <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('admin.users.vip.selected', { count: selectedCount }) }}</div>
+          <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input v-model="exclusiveGroupAll" type="checkbox" />{{ t('admin.users.vip.currentFilterAll') }}</label>
+          <label class="block text-sm text-gray-700 dark:text-gray-300">{{ t('admin.users.vip.csvLabel') }}<input type="file" accept=".csv,text/csv" class="mt-1 block w-full text-sm" @change="handleExclusiveCSVFile" /></label>
+          <div v-if="exclusiveGroupPreview" class="rounded border border-gray-200 p-3 text-sm dark:border-dark-600">
+            {{ t('admin.users.vip.previewSummary', { eligible: exclusiveGroupPreview.eligible?.length ?? exclusiveGroupPreview.valid?.length ?? 0, skipped: exclusiveGroupPreview.skipped?.length ?? 0 }) }}
+          </div>
+          <div class="flex justify-end gap-2">
+            <button class="btn btn-secondary" @click="closeExclusiveGroupDialog">{{ t('common.cancel') }}</button>
+            <button class="btn btn-secondary" :disabled="exclusiveGroupLoading || !exclusiveGroupId || (!exclusiveGroupAll && selectedCount === 0)" @click="previewExclusiveGroupAction">{{ t('admin.users.vip.preview') }}</button>
+            <button class="btn btn-primary" :disabled="exclusiveGroupLoading || !exclusiveGroupPreview" @click="executeExclusiveGroupAction">{{ t('admin.users.vip.confirm') }}</button>
+          </div>
+        </div>
+      </div>
+    </div>
   </AppLayout>
 </template>
 
@@ -811,7 +852,7 @@ const { t } = useI18n()
 import { adminAPI } from '@/api/admin'
 import type { AdminUser, AdminGroup, UserAttributeDefinition } from '@/types'
 import type { BatchUserUsageStats } from '@/api/admin/dashboard'
-import type { PlatformQuotaItem, UserBatchAction, UserBatchActionResult } from '@/api/admin/users'
+import type { PlatformQuotaItem, UserBatchAction, UserBatchActionResult, ExclusiveGroupBatchPreview, ExclusiveGroupCSVPreview } from '@/api/admin/users'
 import type { Column } from '@/components/common/types'
 import type { SelectOption } from '@/components/common/Select.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -898,6 +939,7 @@ const allColumns = computed<Column[]>(() => [
   { key: 'role', label: t('admin.users.columns.role'), sortable: true },
   { key: 'groups', label: t('admin.users.columns.groups'), sortable: false },
   { key: 'subscriptions', label: t('admin.users.columns.subscriptions'), sortable: false },
+  { key: 'vip', label: t('admin.users.columns.vip'), sortable: false },
   { key: 'balance', label: t('admin.users.columns.balance'), sortable: true },
   { key: 'balance_platform_quota', label: t('admin.users.columns.balancePlatformQuota'), sortable: false },
   { key: 'usage', label: t('admin.users.columns.usage'), sortable: false },
@@ -1138,7 +1180,8 @@ const filters = reactive({
   role: '',
   status: '',
   group: '',  // group name for fuzzy match, '' = all
-  apiKeyGroup: null as number | null  // group id bound to the user's API keys, null = all
+  apiKeyGroup: null as number | null,  // group id bound to the user's API keys, null = all
+  vipTier: null as number | null
 })
 const activeAttributeFilters = reactive<Record<number, string>>({})
 
@@ -1168,7 +1211,16 @@ const builtInFilters = computed(() => [
   { key: 'role', name: t('admin.users.columns.role'), type: 'select' as const },
   { key: 'status', name: t('admin.users.columns.status'), type: 'select' as const },
   { key: 'group', name: t('admin.users.authorizedGroupFilter'), type: 'select' as const },
-  { key: 'apiKeyGroup', name: t('admin.users.apiKeyGroupFilter'), type: 'select' as const }
+  { key: 'apiKeyGroup', name: t('admin.users.apiKeyGroupFilter'), type: 'select' as const },
+  { key: 'vipTier', name: t('admin.users.vip.filter'), type: 'select' as const }
+])
+
+const vipTierOptions = computed<SelectOption[]>(() => [
+  { value: '', label: t('admin.users.vip.allTiers') },
+  { value: '0', label: t('admin.users.vip.tier', { tier: 0 }) },
+  { value: '1', label: t('admin.users.vip.tier', { tier: 1 }) },
+  { value: '2', label: t('admin.users.vip.tier', { tier: 2 }) },
+  { value: '3', label: t('admin.users.vip.tier', { tier: 3 }) }
 ])
 
 // Load saved filters from localStorage
@@ -1188,6 +1240,7 @@ const loadSavedFilters = () => {
       if (parsed.status) filters.status = parsed.status
       if (parsed.group) filters.group = parsed.group
       if (typeof parsed.apiKeyGroup === 'number') filters.apiKeyGroup = parsed.apiKeyGroup
+      if (typeof parsed.vipTier === 'number') filters.vipTier = parsed.vipTier
       if (parsed.attributes) {
         Object.assign(activeAttributeFilters, parsed.attributes)
       }
@@ -1208,6 +1261,7 @@ const saveFiltersToStorage = () => {
       status: filters.status,
       group: filters.group,
       apiKeyGroup: filters.apiKeyGroup,
+      vipTier: filters.vipTier,
       attributes: activeAttributeFilters
     }
     localStorage.setItem(FILTER_VALUES_KEY, JSON.stringify(values))
@@ -1359,6 +1413,93 @@ const editingUser = ref<AdminUser | null>(null)
 const deletingUser = ref<AdminUser | null>(null)
 const viewingUser = ref<AdminUser | null>(null)
 const platformQuotaUser = ref<AdminUser | null>(null)
+
+const showExclusiveGroupDialog = ref(false)
+const exclusiveGroupAction = ref<'grant' | 'revoke'>('grant')
+const exclusiveGroupId = ref<number | null>(null)
+const exclusiveGroupAll = ref(false)
+const exclusiveGroupFile = ref<File | null>(null)
+const exclusiveGroupPreview = ref<ExclusiveGroupBatchPreview | ExclusiveGroupCSVPreview | null>(null)
+const exclusiveGroupLoading = ref(false)
+const exclusiveGroupOptions = computed<SelectOption[]>(() => allGroups.value
+  .filter(group => group.status === 'active' && group.is_exclusive && group.subscription_type === 'standard')
+  .map(group => ({ value: group.id, label: group.name })))
+
+const openExclusiveGroupDialog = (action: 'grant' | 'revoke') => {
+  exclusiveGroupAction.value = action
+  exclusiveGroupId.value = null
+  exclusiveGroupAll.value = false
+  exclusiveGroupFile.value = null
+  exclusiveGroupPreview.value = null
+  showExclusiveGroupDialog.value = true
+  void loadAllGroups()
+}
+const closeExclusiveGroupDialog = () => {
+  showExclusiveGroupDialog.value = false
+  exclusiveGroupPreview.value = null
+  exclusiveGroupFile.value = null
+}
+const handleExclusiveCSVFile = (event: Event) => {
+  exclusiveGroupFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
+  exclusiveGroupPreview.value = null
+}
+const exclusiveFilters = computed(() => ({
+  status: filters.status || undefined,
+  role: filters.role || undefined,
+  search: searchQuery.value || undefined,
+  group_name: filters.group || undefined,
+  api_key_group_id: filters.apiKeyGroup ?? undefined,
+  vip_tier: filters.vipTier ?? undefined,
+  attributes: Object.keys(activeAttributeFilters).length > 0 ? activeAttributeFilters : undefined
+}))
+const previewExclusiveGroupAction = async () => {
+  if (!exclusiveGroupId.value || (!exclusiveGroupAll.value && selectedCount.value === 0)) return
+  exclusiveGroupLoading.value = true
+  try {
+    if (exclusiveGroupFile.value) {
+      exclusiveGroupPreview.value = await adminAPI.users.previewExclusiveGroupCSV(exclusiveGroupId.value, exclusiveGroupAction.value, exclusiveGroupFile.value)
+    } else {
+      exclusiveGroupPreview.value = await adminAPI.users.previewExclusiveGroup({
+        group_id: exclusiveGroupId.value,
+        action: exclusiveGroupAction.value,
+        all: exclusiveGroupAll.value,
+        user_ids: exclusiveGroupAll.value ? undefined : selectedIds.value,
+        filters: exclusiveFilters.value
+      })
+    }
+  } catch (error: any) {
+    appStore.showError(t('admin.users.vip.previewFailed'))
+  } finally {
+    exclusiveGroupLoading.value = false
+  }
+}
+const executeExclusiveGroupAction = async () => {
+  const preview = exclusiveGroupPreview.value
+  if (!preview || !exclusiveGroupId.value) return
+  exclusiveGroupLoading.value = true
+  try {
+    if (exclusiveGroupFile.value && 'file_sha256' in preview) {
+      await adminAPI.users.executeExclusiveGroupCSV(exclusiveGroupId.value, exclusiveGroupAction.value, exclusiveGroupFile.value, preview.preview_token, preview.file_sha256)
+    } else {
+      await adminAPI.users.executeExclusiveGroup({
+        group_id: exclusiveGroupId.value,
+        action: exclusiveGroupAction.value,
+        all: exclusiveGroupAll.value,
+        user_ids: exclusiveGroupAll.value ? undefined : selectedIds.value,
+        filters: exclusiveFilters.value,
+        preview_token: preview.preview_token
+      })
+    }
+    appStore.showSuccess(t('admin.users.vip.completed'))
+    closeExclusiveGroupDialog()
+    clearSelection()
+    await loadUsers()
+  } catch (error: any) {
+    appStore.showError(t('admin.users.vip.executeFailed'))
+  } finally {
+    exclusiveGroupLoading.value = false
+  }
+}
 
 const handlePlatformQuota = (user: AdminUser) => {
   platformQuotaUser.value = user
@@ -1613,6 +1754,8 @@ const loadUsers = async () => {
         search: searchQuery.value || undefined,
         group_name: filters.group || undefined,
         api_key_group_id: filters.apiKeyGroup ?? undefined,
+        vip_tier: filters.vipTier ?? undefined,
+        include_membership: true,
         attributes: Object.keys(attrFilters).length > 0 ? attrFilters : undefined,
         // 始终请求 subscriptions：列隐藏时仍需用于 UserPlatformQuotaModal 的 active-subscription 警示 banner
         include_subscriptions: true,
@@ -1645,7 +1788,9 @@ const loadUsers = async () => {
     if (errorInfo?.name === 'AbortError' || errorInfo?.name === 'CanceledError' || errorInfo?.code === 'ERR_CANCELED') {
       return
     }
-    const message = error.response?.data?.detail || error.message || t('admin.users.failedToLoad')
+    const message = error.response?.data?.code === 'VIP_ACCOUNTING_UNAVAILABLE'
+      ? t('admin.users.vip.accountingUnavailable')
+      : t('admin.users.failedToLoad')
     appStore.showError(message)
     console.error('Error loading users:', error)
   } finally {

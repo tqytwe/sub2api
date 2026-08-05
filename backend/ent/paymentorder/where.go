@@ -1875,6 +1875,16 @@ func RechargeSnapshotNotNil() predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldNotNull(FieldRechargeSnapshot))
 }
 
+// SubscriptionSnapshotIsNil applies the IsNil predicate on the "subscription_snapshot" field.
+func SubscriptionSnapshotIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldSubscriptionSnapshot))
+}
+
+// SubscriptionSnapshotNotNil applies the NotNil predicate on the "subscription_snapshot" field.
+func SubscriptionSnapshotNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldSubscriptionSnapshot))
+}
+
 // StatusEQ applies the EQ predicate on the "status" field.
 func StatusEQ(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldStatus, v))

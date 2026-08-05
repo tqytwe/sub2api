@@ -980,6 +980,11 @@ func createPaymentFulfillmentSubscriptionOrder(
 		SetUserName(user.Username).
 		SetAmount(80).
 		SetPayAmount(80).
+		SetListAmount(80).
+		SetGatewayBaseAmount(80).
+		SetQualifyingRechargeAmount(80).
+		SetPaymentCurrency(payment.DefaultPaymentCurrency).
+		SetSubscriptionSnapshot(map[string]interface{}{"plan_id": 100, "currency": "CNY"}).
 		SetFeeRate(0).
 		SetRechargeCode("PAY-SUB-" + strconv.FormatInt(time.Now().UnixNano(), 10)).
 		SetOutTradeNo("sub2_fulfillment_" + strconv.FormatInt(time.Now().UnixNano(), 10)).

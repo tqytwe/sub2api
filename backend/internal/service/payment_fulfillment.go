@@ -248,11 +248,36 @@ func (s *PaymentService) syncMembershipOrder(ctx context.Context, order *dbent.P
 	if order.OrderType != payment.OrderTypeBalance && order.OrderType != payment.OrderTypeSubscription {
 		return nil
 	}
+	qualified, ok := paymentOrderMembershipAmount(order)
+	if !ok {
+		// Legacy orders without a complete settlement snapshot are handled by
+		// the explicit reconciliation job, never guessed during fulfillment.
+		return nil
+	}
 	refundPaid := 0.0
 	if order.Amount > 0 && order.RefundAmount > 0 {
-		refundPaid = order.RefundAmount * order.PayAmount / order.Amount
+		ratio := order.RefundAmount / order.Amount
+		if ratio > 1 {
+			ratio = 1
+		}
+		if ratio > 0 {
+			refundPaid = qualified * ratio
+		}
 	}
-	return s.playService.SyncMembershipOrder(ctx, order.ID, order.UserID, order.OrderType, order.PayAmount, refundPaid, order.PaidAt, order.Status)
+	return s.playService.SyncMembershipOrder(ctx, order.ID, order.UserID, order.OrderType, qualified, refundPaid, order.PaidAt, order.Status)
+}
+
+func paymentOrderMembershipAmount(order *dbent.PaymentOrder) (float64, bool) {
+	if order == nil || order.QualifyingRechargeAmount < 0 || !strings.EqualFold(strings.TrimSpace(order.PaymentCurrency), payment.DefaultPaymentCurrency) {
+		return 0, false
+	}
+	if order.ListAmount <= 0 || order.GatewayBaseAmount < 0 || order.FeeAmount < 0 {
+		return 0, false
+	}
+	if order.OrderType == payment.OrderTypeSubscription && len(order.SubscriptionSnapshot) == 0 {
+		return 0, false
+	}
+	return order.QualifyingRechargeAmount, true
 }
 
 func (s *PaymentService) ExecuteBalanceFulfillment(ctx context.Context, oid int64) error {

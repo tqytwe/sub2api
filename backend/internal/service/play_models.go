@@ -1000,14 +1000,17 @@ type PlayMembershipAdminRepository interface {
 }
 
 type PlayMembershipContribution struct {
-	OrderID      int64           `json:"order_id"`
-	OrderType    string          `json:"order_type"`
-	PaidAmount   decimal.Decimal `json:"paid_amount"`
-	RefundAmount decimal.Decimal `json:"refund_amount"`
-	NetAmount    decimal.Decimal `json:"net_amount"`
-	PaidAt       *time.Time      `json:"paid_at,omitempty"`
-	Status       string          `json:"status"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	OrderID             int64           `json:"order_id"`
+	OrderType           string          `json:"order_type"`
+	PaidAmount          decimal.Decimal `json:"paid_amount"`
+	RefundAmount        decimal.Decimal `json:"refund_amount"`
+	NetAmount           decimal.Decimal `json:"net_amount"`
+	PaidAt              *time.Time      `json:"paid_at,omitempty"`
+	Status              string          `json:"status"`
+	UpdatedAt           time.Time       `json:"updated_at"`
+	QualificationState  string          `json:"qualification_state"`
+	QualificationSource string          `json:"qualification_source"`
+	QualificationReason string          `json:"qualification_reason,omitempty"`
 }
 
 type PlayMembershipTierChange struct {

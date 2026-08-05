@@ -23,6 +23,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/lib/pq"
+	"github.com/shopspring/decimal"
 
 	entsql "entgo.io/ent/dialect/sql"
 )
@@ -531,6 +532,23 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 		))
 	}
 
+	if filters.VIPTier != nil && *filters.VIPTier >= 0 {
+		tier := *filters.VIPTier
+		q = q.Where(predicate.User(func(s *entsql.Selector) {
+			s.Where(entsql.P(func(b *entsql.Builder) {
+				b.WriteString("(COALESCE((SELECT SUM(c.net_amount) FROM play_membership_order_contributions c WHERE c.user_id = ")
+				b.Ident(s.C(dbuser.FieldID))
+				b.WriteString(" AND c.qualification_state = 'verified'), 0) >= COALESCE((SELECT (tier->>'min_recharge')::numeric FROM settings cfg, jsonb_array_elements(cfg.value::jsonb) tier WHERE cfg.key = 'play_vip_tiers' AND (tier->>'tier')::int = ")
+				b.Arg(tier)
+				b.WriteString("), 0) AND COALESCE((SELECT SUM(c2.net_amount) FROM play_membership_order_contributions c2 WHERE c2.user_id = ")
+				b.Ident(s.C(dbuser.FieldID))
+				b.WriteString(" AND c2.qualification_state = 'verified'), 0) < COALESCE((SELECT MIN((next_tier->>'min_recharge')::numeric) FROM settings cfg2, jsonb_array_elements(cfg2.value::jsonb) next_tier WHERE cfg2.key = 'play_vip_tiers' AND (next_tier->>'tier')::int > ")
+				b.Arg(tier)
+				b.WriteString("), 1e100))")
+			}))
+		}))
+	}
+
 	// If attribute filters are specified, we need to filter by user IDs first
 	var allowedUserIDs []int64
 	if len(filters.Attributes) > 0 {
@@ -607,8 +625,72 @@ func (r *userRepository) ListWithFilters(ctx context.Context, params pagination.
 			u.AllowedGroups = groups
 		}
 	}
+	if filters.IncludeMembership || filters.VIPTier != nil {
+		if err := r.loadMembershipProjection(ctx, userIDs, outUsers); err != nil {
+			if filters.VIPTier != nil {
+				return nil, nil, service.ErrMembershipAccountingUnavailable
+			}
+			for i := range outUsers {
+				outUsers[i].MembershipDataState = "unavailable"
+			}
+		}
+	}
 
 	return outUsers, paginationResultFromTotal(int64(total), params), nil
+}
+
+func (r *userRepository) loadMembershipProjection(ctx context.Context, userIDs []int64, users []service.User) error {
+	if len(userIDs) == 0 || r.sql == nil {
+		return nil
+	}
+	rows, err := r.sql.QueryContext(ctx, `
+		WITH totals AS (
+			SELECT u.id AS user_id, COALESCE(SUM(c.net_amount) FILTER (WHERE c.qualification_state = 'verified'), 0)::numeric AS total_paid
+			FROM users u
+			LEFT JOIN play_membership_order_contributions c ON c.user_id = u.id
+			WHERE u.id = ANY($1)
+			GROUP BY u.id
+		)
+		SELECT t.user_id, t.total_paid::text,
+		       COALESCE((SELECT (tier->>'tier')::int
+		                 FROM settings cfg, jsonb_array_elements(cfg.value::jsonb) tier
+		                 WHERE cfg.key = 'play_vip_tiers'
+		                   AND COALESCE((tier->>'min_recharge')::numeric, 0) <= t.total_paid
+		                 ORDER BY (tier->>'min_recharge')::numeric DESC LIMIT 1), 0),
+		       COALESCE((SELECT tier->>'label'
+		                 FROM settings cfg, jsonb_array_elements(cfg.value::jsonb) tier
+		                 WHERE cfg.key = 'play_vip_tiers'
+		                   AND COALESCE((tier->>'min_recharge')::numeric, 0) <= t.total_paid
+		                 ORDER BY (tier->>'min_recharge')::numeric DESC LIMIT 1), 'V0')
+		FROM totals t`, pq.Array(userIDs))
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+	byID := make(map[int64]*service.User, len(users))
+	for i := range users {
+		byID[users[i].ID] = &users[i]
+	}
+	for rows.Next() {
+		var id int64
+		var raw string
+		var tier int
+		var label string
+		if err := rows.Scan(&id, &raw, &tier, &label); err != nil {
+			return err
+		}
+		amount, err := decimal.NewFromString(raw)
+		if err != nil {
+			return err
+		}
+		if user := byID[id]; user != nil {
+			user.MembershipPaidAmount = amount.InexactFloat64()
+			user.VIPTier = tier
+			user.VIPLabel = label
+			user.MembershipDataState = "verified"
+		}
+	}
+	return rows.Err()
 }
 
 func userListOrder(params pagination.PaginationParams) []func(*entsql.Selector) {
