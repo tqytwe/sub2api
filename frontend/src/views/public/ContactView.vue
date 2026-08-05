@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAppStore, useAuthStore } from '@/stores'
 import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
@@ -8,10 +9,14 @@ import PublicPageToolbar from '@/components/common/PublicPageToolbar.vue'
 import '@/styles/public-pages.css'
 
 const { t } = useI18n()
+const route = useRoute()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
-const backTarget = computed(() => (authStore.isAuthenticated ? '/dashboard' : '/'))
+const backTarget = computed(() => {
+  if (authStore.isAuthenticated) return '/dashboard'
+  return route.path === '/en/contact' ? '/en' : '/'
+})
 const backLabel = computed(() =>
   authStore.isAuthenticated ? t('contact.backDashboard') : t('contact.backHome')
 )

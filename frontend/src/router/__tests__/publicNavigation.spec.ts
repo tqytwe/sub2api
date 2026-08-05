@@ -37,8 +37,10 @@ describe('public navigation contract', () => {
     expect(nav.find((item) => item.key === 'models')?.to).toEqual({ name: PUBLIC_ROUTE_NAMES.englishModels })
     expect(nav.find((item) => item.key === 'docs')?.to).toEqual({ name: PUBLIC_ROUTE_NAMES.englishDocs })
     expect(nav.find((item) => item.key === 'about')?.to).toEqual({
-      name: PUBLIC_ROUTE_NAMES.about,
-      query: { lang: 'en' },
+      name: PUBLIC_ROUTE_NAMES.englishAbout,
+    })
+    expect(nav.find((item) => item.key === 'contact')?.to).toEqual({
+      name: PUBLIC_ROUTE_NAMES.englishContact,
     })
   })
 })

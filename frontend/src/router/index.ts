@@ -80,6 +80,26 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/en/about',
+    name: 'EnglishAbout',
+    component: () => import('@/views/public/AboutView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'About Jisudeng',
+      frame: 'reading'
+    }
+  },
+  {
+    path: '/en/contact',
+    name: 'EnglishContact',
+    component: () => import('@/views/public/ContactView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Contact Jisudeng',
+      frame: 'reading'
+    }
+  },
+  {
     path: '/pricing',
     name: 'Pricing',
     component: () => import('@/views/public/ModelsView.vue'),

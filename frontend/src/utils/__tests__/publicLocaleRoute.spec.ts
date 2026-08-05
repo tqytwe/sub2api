@@ -8,8 +8,8 @@ describe('resolvePublicLocaleRoute', () => {
     ['/home', '/en'],
     ['/login', '/en'],
     ['/register', '/en'],
-    ['/about', '/en'],
-    ['/contact', '/en'],
+    ['/about', '/en/about'],
+    ['/contact', '/en/contact'],
   ])('sends Chinese public route %s to the English landing route', (from, to) => {
     expect(resolvePublicLocaleRoute('en', from)).toEqual({ path: to })
   })
@@ -29,6 +29,8 @@ describe('resolvePublicLocaleRoute', () => {
       path: '/docs',
       query: { cat: 'tutorial' },
     })
+    expect(resolvePublicLocaleRoute('zh', '/en/about')).toEqual({ path: '/about' })
+    expect(resolvePublicLocaleRoute('zh', '/en/contact')).toEqual({ path: '/contact' })
   })
 
   it('does not invent English paths for routes already in the requested public locale', () => {

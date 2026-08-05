@@ -329,11 +329,23 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 	},
 	{Path: "/about", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "zh-CN", Path: "/about"},
-		{Hreflang: "x-default", Path: "/about"},
+		{Hreflang: "en", Path: "/en/about"},
+		{Hreflang: "x-default", Path: "/en/about"},
 	}},
 	{Path: "/contact", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "zh-CN", Path: "/contact"},
-		{Hreflang: "x-default", Path: "/contact"},
+		{Hreflang: "en", Path: "/en/contact"},
+		{Hreflang: "x-default", Path: "/en/contact"},
+	}},
+	{Path: "/en/about", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
+		{Hreflang: "en", Path: "/en/about"},
+		{Hreflang: "zh-CN", Path: "/about"},
+		{Hreflang: "x-default", Path: "/en/about"},
+	}},
+	{Path: "/en/contact", ChangeFreq: "monthly", Priority: "0.60", Alternates: []promptSitemapAlternatePath{
+		{Hreflang: "en", Path: "/en/contact"},
+		{Hreflang: "zh-CN", Path: "/contact"},
+		{Hreflang: "x-default", Path: "/en/contact"},
 	}},
 	{Path: "/download/android", ChangeFreq: "weekly", Priority: "0.55", Alternates: []promptSitemapAlternatePath{
 		{Hreflang: "zh-CN", Path: "/download/android"},
@@ -379,6 +391,21 @@ func (h *PromptLibraryHandler) Robots(c *gin.Context) {
 func (h *PromptLibraryHandler) LLMSTxt(c *gin.Context) {
 	setPromptSEOResponseHeaders(c)
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSTxt(promptRequestOrigin(c.Request))))
+}
+
+func (h *PromptLibraryHandler) LLMSFullTxt(c *gin.Context) {
+	setPromptSEOResponseHeaders(c)
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSFullTxt(promptRequestOrigin(c.Request))))
+}
+
+func (h *PromptLibraryHandler) LLMSSmallTxt(c *gin.Context) {
+	setPromptSEOResponseHeaders(c)
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSSmallTxt(promptRequestOrigin(c.Request))))
+}
+
+func (h *PromptLibraryHandler) AITxt(c *gin.Context) {
+	setPromptSEOResponseHeaders(c)
+	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildAITxt(promptRequestOrigin(c.Request))))
 }
 
 func setPromptSEOResponseHeaders(c *gin.Context) {
@@ -471,6 +498,9 @@ Content-Signal: search=yes,ai-input=yes,ai-train=no,use=reference
 Allow: /
 Allow: /sitemap.xml
 Allow: /llms.txt
+Allow: /llms-full.txt
+Allow: /llms.small-txt
+Allow: /.well-known/ai.txt
 Disallow: /api/
 Disallow: /v1/
 Disallow: /v1beta/
@@ -479,7 +509,10 @@ Disallow: /admin/
 Disallow: /setup/
 Sitemap: %s/sitemap.xml
 LLMs: %s/llms.txt
-`, origin, origin)
+LLMs-Full: %s/llms-full.txt
+LLMs-Small: %s/llms.small-txt
+AI-Policy: %s/.well-known/ai.txt
+`, origin, origin, origin, origin, origin)
 }
 
 func buildLLMSTxt(origin string) string {
@@ -536,6 +569,73 @@ Chinese public routes are the default for '/', '/pricing', and '/docs'. English 
 
 极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成、API Key 管理和提示词库。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
 `, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
+}
+
+func buildLLMSFullTxt(origin string) string {
+	origin = strings.TrimRight(origin, "/")
+	return buildLLMSTxt(origin) + fmt.Sprintf(`
+## Public Route Inventory
+
+### Chinese
+
+- Homepage: %s/
+- Pricing: %s/pricing
+- DeepSeek pricing: %s/pricing/deepseek
+- API docs: %s/docs
+- About: %s/about
+- Contact: %s/contact
+
+### English
+
+- Homepage: %s/en/
+- Models and pricing: %s/en/models
+- DeepSeek pricing: %s/en/models/deepseek
+- API docs: %s/en/docs
+- About: %s/en/about
+- Contact: %s/en/contact
+
+## Access and Privacy Boundaries
+
+- Public pages may be indexed and cited as reference material.
+- API endpoints under /api/, /v1/, and /v1beta/ are service interfaces, not public documentation.
+- Account, key, billing, admin, and setup pages require the appropriate authentication and must not be summarized as public user data.
+- Jisudeng does not grant model-training permission through this file.
+`, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
+}
+
+func buildLLMSSmallTxt(origin string) string {
+	origin = strings.TrimRight(origin, "/")
+	return fmt.Sprintf(`# Jisudeng
+
+> OpenAI-compatible AI API gateway with public bilingual model pricing, docs, image APIs, and API key guidance.
+
+- Chinese homepage: %s/
+- English homepage: %s/en/
+- Chinese pricing: %s/pricing
+- English pricing: %s/en/models
+- Chinese docs: %s/docs
+- English docs: %s/en/docs
+- Sitemap: %s/sitemap.xml
+- Full AI reference: %s/llms-full.txt
+
+Public pages may be cited for search and answer references. Private account, billing, admin, setup, API, and key data must not be exposed.
+`, origin, origin, origin, origin, origin, origin, origin, origin)
+}
+
+func buildAITxt(origin string) string {
+	origin = strings.TrimRight(origin, "/")
+	return fmt.Sprintf(`# Jisudeng AI access guidance
+
+The public reference files for this site are:
+
+- Short AI summary: %s/llms.txt
+- Full AI summary: %s/llms-full.txt
+- Small AI summary: %s/llms.small-txt
+- XML sitemap: %s/sitemap.xml
+- Robots policy: %s/robots.txt
+
+Use public Chinese and English pages for discovery and factual references. Do not expose or infer private account data, API keys, billing records, administrator pages, setup state, or protected API responses.
+`, origin, origin, origin, origin, origin)
 }
 
 func promptRequestOrigin(request *http.Request) string {

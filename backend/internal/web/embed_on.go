@@ -688,7 +688,8 @@ var publicRouteSEO = map[string]routeSEO{
 		StructuredType:     "AboutPage",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "zh-CN", Path: "/about"},
-			{Hreflang: "x-default", Path: "/about"},
+			{Hreflang: "en", Path: "/en/about"},
+			{Hreflang: "x-default", Path: "/en/about"},
 		},
 	},
 	"/contact": {
@@ -705,7 +706,8 @@ var publicRouteSEO = map[string]routeSEO{
 		StructuredType:     "ContactPage",
 		Alternates: []routeSEOAlternate{
 			{Hreflang: "zh-CN", Path: "/contact"},
-			{Hreflang: "x-default", Path: "/contact"},
+			{Hreflang: "en", Path: "/en/contact"},
+			{Hreflang: "x-default", Path: "/en/contact"},
 		},
 	},
 	"/en": {
@@ -830,6 +832,42 @@ var publicRouteSEO = map[string]routeSEO{
 			{Hreflang: "en", Path: "/en/docs"},
 			{Hreflang: "zh-CN", Path: "/docs"},
 			{Hreflang: "x-default", Path: "/en/docs"},
+		},
+	},
+	"/en/about": {
+		Title:              "About Jisudeng: A Transparent OpenAI-Compatible API Relay",
+		Description:        "Learn how Jisudeng provides a transparent OpenAI-compatible API with public pricing, privacy commitments, and practical developer documentation for teams.",
+		TwitterTitle:       "About Jisudeng: Transparent AI API Routing, Pricing, Privacy, and Developer Access",
+		TwitterDescription: "Learn how Jisudeng routes major AI models through an OpenAI-compatible API with transparent channels, public pricing, request-body privacy, image access, developer docs, and support for teams.",
+		Keywords:           "about Jisudeng, transparent AI API relay, OpenAI-compatible gateway, DeepSeek API, model pricing, API privacy, developer API access",
+		CanonicalPath:      "/en/about",
+		Lang:               "en",
+		OGLocale:           "en_US",
+		OGType:             "website",
+		SiteName:           "Jisudeng",
+		StructuredType:     "AboutPage",
+		Alternates: []routeSEOAlternate{
+			{Hreflang: "en", Path: "/en/about"},
+			{Hreflang: "zh-CN", Path: "/about"},
+			{Hreflang: "x-default", Path: "/en/about"},
+		},
+	},
+	"/en/contact": {
+		Title:              "Contact Jisudeng: API, Account, Billing, and Support",
+		Description:        "Contact Jisudeng for API keys, model access, billing questions, image generation, documentation, integration help, and technical support.",
+		TwitterTitle:       "Contact Jisudeng: API Keys, Model Access, Billing, and Developer Support",
+		TwitterDescription: "Contact Jisudeng for API keys, model access, billing, image generation, documentation, integration help, privacy questions, and support across major AI model workflows.",
+		Keywords:           "contact Jisudeng, AI API support, API key help, model access support, billing support, OpenAI-compatible integration support, developer support",
+		CanonicalPath:      "/en/contact",
+		Lang:               "en",
+		OGLocale:           "en_US",
+		OGType:             "website",
+		SiteName:           "Jisudeng",
+		StructuredType:     "ContactPage",
+		Alternates: []routeSEOAlternate{
+			{Hreflang: "en", Path: "/en/contact"},
+			{Hreflang: "zh-CN", Path: "/contact"},
+			{Hreflang: "x-default", Path: "/en/contact"},
 		},
 	},
 }
@@ -1335,6 +1373,9 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/robots.txt" ||
 		trimmed == "/sitemap.xml" ||
 		trimmed == "/llms.txt" ||
+		trimmed == "/llms-full.txt" ||
+		trimmed == "/llms.small-txt" ||
+		trimmed == "/.well-known/ai.txt" ||
 		trimmed == "/models" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||

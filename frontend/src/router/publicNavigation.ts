@@ -2,9 +2,11 @@ import type { RouteLocationRaw } from 'vue-router'
 
 export const PUBLIC_ROUTE_NAMES = {
   about: 'About',
+  englishAbout: 'EnglishAbout',
   adminDashboard: 'AdminDashboard',
   androidDownload: 'AndroidDownload',
   contact: 'Contact',
+  englishContact: 'EnglishContact',
   dashboard: 'Dashboard',
   docs: 'Docs',
   englishDocs: 'EnglishDocs',
@@ -85,7 +87,7 @@ export function buildHomePrimaryNav(isAuthenticated: boolean, locale: 'zh' | 'en
     { key: 'creation', labelKey: 'home.jisudeng.nav.creation', to: imageStudioEntryRoute(isAuthenticated, locale) },
     { key: 'prompts', labelKey: 'home.jisudeng.nav.prompts', to: sharedRoute(PUBLIC_ROUTE_NAMES.promptSquare) },
     { key: 'keyUsage', labelKey: 'home.jisudeng.nav.keyUsage', to: sharedRoute(PUBLIC_ROUTE_NAMES.keyUsage) },
-    { key: 'about', labelKey: 'home.jisudeng.nav.about', to: sharedRoute(PUBLIC_ROUTE_NAMES.about) },
-    { key: 'contact', labelKey: 'home.jisudeng.nav.contact', to: locale === 'en' ? sharedRoute(PUBLIC_ROUTE_NAMES.contact) : CONTACT_ROUTE, requiresSupportContact: true },
+    { key: 'about', labelKey: 'home.jisudeng.nav.about', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishAbout } : { name: PUBLIC_ROUTE_NAMES.about } },
+    { key: 'contact', labelKey: 'home.jisudeng.nav.contact', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishContact } : CONTACT_ROUTE, requiresSupportContact: true },
   ]
 }
