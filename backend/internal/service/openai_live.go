@@ -133,14 +133,6 @@ func liveGroupID(groupID *int64) int64 {
 	return *groupID
 }
 
-func liveOptionalID(value int64) *int64 {
-	if value <= 0 {
-		return nil
-	}
-	result := value
-	return &result
-}
-
 func (s *OpenAIGatewayService) liveStore() (LiveCallStore, error) {
 	if s == nil || s.cache == nil {
 		return nil, ErrLiveUnavailable
