@@ -21,7 +21,7 @@ describe('usePlayPageBackNav', () => {
   it('routes guests back to home', async () => {
     const { usePlayPageBackNav } = await import('@/composables/usePlayPageBackNav')
     const { backTarget, backLabel } = usePlayPageBackNav()
-    expect(backTarget.value).toBe('/home')
+    expect(backTarget.value).toBe('/')
     expect(backLabel.value).toBe('play.backHome')
   })
 

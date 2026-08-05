@@ -50,6 +50,7 @@ export default {
     clearSearch: 'Clear search',
     toggleSetting: 'Toggle setting',
     toggleMenu: 'Toggle menu',
+    closeMenu: 'Close menu',
     userMenu: 'User menu',
     pageNotFound: 'Page not found',
     enabled: 'Enabled',

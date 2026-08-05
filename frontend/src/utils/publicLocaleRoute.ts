@@ -21,12 +21,16 @@ export function resolvePublicLocaleRoute(
 
   if (targetLocale === 'en') {
     if (path === '/en' || path.startsWith('/en/')) return null
-    if (path === '/models') return withQuery('/en/models', query)
+    if (path === '/pricing' || path.startsWith('/pricing/')) {
+      return withQuery(path.replace(/^\/pricing/, '/en/models'), query)
+    }
     if (path === '/docs') return withQuery('/en/docs', query)
     return { path: '/en' }
   }
 
-  if (path === '/en/models') return withQuery('/models', query)
+  if (path === '/en/models' || path.startsWith('/en/models/')) {
+    return withQuery(path.replace(/^\/en\/models/, '/pricing'), query)
+  }
   if (path === '/en/docs') return withQuery('/docs', query)
   if (path === '/en') return { path: '/' }
   return null

@@ -50,6 +50,7 @@ export default {
     clearSearch: '清空搜索',
     toggleSetting: '切换设置',
     toggleMenu: '切换菜单',
+    closeMenu: '关闭菜单',
     userMenu: '用户菜单',
     pageNotFound: '页面不存在',
     enabled: '已启用',

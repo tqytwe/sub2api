@@ -47,7 +47,13 @@ describe('public route SEO', () => {
     expect(resolvePublicRouteSeo('/')?.description.length).toBeGreaterThanOrEqual(120)
     expect(resolvePublicRouteSeo('/')?.twitterTitle?.length).toBeGreaterThanOrEqual(50)
     expect(resolvePublicRouteSeo('/')?.twitterDescription?.length).toBeGreaterThanOrEqual(150)
-    expect(resolvePublicRouteSeo('/models')?.canonicalPath).toBe('/models')
+    expect(resolvePublicRouteSeo('/pricing')?.canonicalPath).toBe('/pricing')
+    expect(resolvePublicRouteSeo('/pricing/deepseek')?.canonicalPath).toBe('/pricing/deepseek')
+    expect(resolvePublicRouteSeo('/pricing/deepseek')?.alternates).toEqual([
+      { hreflang: 'zh-CN', path: '/pricing/deepseek' },
+      { hreflang: 'en', path: '/en/models/deepseek' },
+      { hreflang: 'x-default', path: '/en/models/deepseek' },
+    ])
     expect(resolvePublicRouteSeo('/docs')?.alternates.some((link) => link.path === '/en/docs')).toBe(true)
     expect(resolvePublicRouteSeo('/download/android')?.canonicalPath).toBe('/download/android')
     expect(resolvePublicRouteSeo('/about')?.canonicalPath).toBe('/about')

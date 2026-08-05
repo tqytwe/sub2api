@@ -101,7 +101,8 @@ function mountHome(settings: Record<string, unknown> = {}) {
 }
 
 function compactDestination(wrapper: ReturnType<typeof mountHome>) {
-  return wrapper.get('[data-testid="compact-home"]').findComponent(RouterLinkStub).props('to')
+  const authLink = wrapper.findAllComponents(RouterLinkStub).find((link) => link.classes().includes('compact-home-auth-link'))
+  return authLink?.props('to')
 }
 
 describe('HomeView compact mode', () => {
@@ -111,6 +112,8 @@ describe('HomeView compact mode', () => {
     authStore.user = null
     authStore.checkAuth.mockClear()
     appStore.fetchPublicSettings.mockClear()
+    routeState.path = '/'
+    routeState.fullPath = '/'
     localStorage.clear()
     sanitizeHomeContentMock.mockReset().mockResolvedValue('')
     vi.spyOn(window, 'matchMedia').mockReturnValue({ matches: false } as MediaQueryList)
@@ -154,13 +157,13 @@ describe('HomeView compact mode', () => {
   })
 
   it('links unauthenticated visitors to login', () => {
-    expect(compactDestination(mountHome({ compact_home_enabled: true }))).toBe('/login')
+    expect(compactDestination(mountHome({ compact_home_enabled: true }))).toEqual({ name: 'Login' })
   })
 
   it('links authenticated users to their dashboard', () => {
     authStore.isAuthenticated = true
 
-    expect(compactDestination(mountHome({ compact_home_enabled: true }))).toBe('/dashboard')
+    expect(compactDestination(mountHome({ compact_home_enabled: true }))).toEqual({ name: 'Dashboard' })
   })
 
   it('links administrators to the admin dashboard', () => {
@@ -168,7 +171,33 @@ describe('HomeView compact mode', () => {
     authStore.isAdmin = true
 
     const wrapper = mountHome({ compact_home_enabled: true })
-    expect(compactDestination(wrapper)).toBe('/admin/dashboard')
+    expect(compactDestination(wrapper)).toEqual({ name: 'AdminDashboard' })
     expect(appStore.fetchPublicSettings).not.toHaveBeenCalled()
+  })
+
+  it('keeps the English compact documentation action on the internal English docs page', () => {
+    routeState.path = '/en'
+    routeState.fullPath = '/en'
+
+    const wrapper = mountHome({
+      compact_home_enabled: true,
+      doc_url: 'https://docs.example.com',
+    })
+    const docsLink = wrapper.findAllComponents(RouterLinkStub).find((link) => {
+      return (link.props('to') as { name?: string }).name === 'EnglishDocs'
+    })
+
+    expect(docsLink?.props('to')).toEqual({ name: 'EnglishDocs' })
+  })
+
+  it('exposes download and authentication actions in the mobile menu', async () => {
+    const wrapper = mountHome()
+
+    await wrapper.get('.mobile-menu-toggle').trigger('click')
+
+    expect(wrapper.find('.mobile-nav-panel').exists()).toBe(true)
+    expect(wrapper.find('.mobile-nav-panel').text()).toContain('home.jisudeng.nav.androidApp')
+    expect(wrapper.find('.mobile-nav-panel').text()).toContain('home.jisudeng.nav.signIn')
+    expect(wrapper.find('.mobile-nav-panel').text()).toContain('home.jisudeng.nav.signUp')
   })
 })

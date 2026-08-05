@@ -13,14 +13,26 @@
       width="190"
       height="64"
       decoding="async"
+      loading="lazy"
+      referrerpolicy="no-referrer"
+      @error="hideBrokenImage"
     />
+    <span v-if="badgeFailed" class="lmspeed-badge-fallback">{{ t('home.jisudeng.footer.lmspeedBadgeAlt') }}</span>
   </a>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+const badgeFailed = ref(false)
+
+function hideBrokenImage(event: Event) {
+  badgeFailed.value = true
+  const image = event.target
+  if (image instanceof HTMLImageElement) image.hidden = true
+}
 </script>
 
 <style scoped>
@@ -41,5 +53,15 @@ const { t } = useI18n()
   width: 190px;
   max-width: 100%;
   height: auto;
+}
+
+.lmspeed-badge-fallback {
+  display: inline-flex;
+  min-height: 32px;
+  align-items: center;
+  padding: 6px 10px;
+  border: 1px solid currentColor;
+  border-radius: 8px;
+  font-size: 11px;
 }
 </style>

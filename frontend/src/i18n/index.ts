@@ -11,7 +11,7 @@ const DEFAULT_LOCALE: LocaleCode = 'zh'
 const CHINESE_PUBLIC_LOCALE_PATHS = new Set([
   '/',
   '/home',
-  '/models',
+  '/pricing',
   '/docs',
   '/login',
   '/register',
@@ -57,7 +57,7 @@ export function localeFromPath(path: string): LocaleCode | null {
   if (normalized === '/en' || normalized.startsWith('/en/')) {
     return 'en'
   }
-  if (normalized.startsWith('/models/')) {
+  if (normalized.startsWith('/pricing/') || normalized === '/pricing') {
     return 'zh'
   }
   if (CHINESE_PUBLIC_LOCALE_PATHS.has(normalized)) {

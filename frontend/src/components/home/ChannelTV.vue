@@ -87,26 +87,27 @@
           <div class="ctv-beam" />
           <div class="ctv-vignette" />
           <div class="ctv-noise" />
-          <div class="ctv-ch">{{ currentName }}</div>
-          <div class="ctv-hint">{{ currentHint }}</div>
+          <div v-if="channels.length" class="ctv-ch">{{ currentName }}</div>
+          <div v-if="channels.length" class="ctv-hint">{{ currentHint }}</div>
+          <div v-else class="ctv-empty">{{ emptyLabel }}</div>
         </div>
 
         <aside class="ctv-panel">
           <div class="ctv-panel-tag">CHANNEL</div>
-          <div class="ctv-list">
+          <div v-if="channels.length" class="ctv-list">
             <button v-for="(ch, idx) in channels" :key="ch.key" class="ctv-pick" :class="{ active: activeIndex === idx }" @click="pick(idx)">
               <span class="ctv-pick-no">0{{ idx + 1 }}</span>
               <span class="ctv-pick-name">{{ ch.name }}</span>
             </button>
           </div>
-          <router-link :to="activeDestination" class="ctv-enter">
+          <router-link v-if="channels.length" :to="activeDestination" class="ctv-enter">
             {{ enterLabel }}
             <span aria-hidden="true">→</span>
           </router-link>
-          <button class="ctv-knob" :style="knobStyle" @click="nextChannel" :aria-label="nextLabel">
+          <button v-if="channels.length" class="ctv-knob" :style="knobStyle" @click="nextChannel" :aria-label="nextLabel">
             <span class="ctv-knob-disc"><span class="ctv-knob-pointer" /></span>
           </button>
-          <div class="ctv-next">{{ nextLabel }}</div>
+          <div v-if="channels.length" class="ctv-next">{{ nextLabel }}</div>
           <div class="ctv-grill"><i /><i /><i /></div>
         </aside>
       </div>
@@ -115,18 +116,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { CHANNEL_DESTINATIONS } from '@/content/play-features'
+import { useAppStore } from '@/stores/app'
+import { enabledHomeChannels } from '@/content/play-features'
 import playAPI from '@/api/play'
 
 const { t } = useI18n()
 const authStore = useAuthStore()
+const appStore = useAppStore()
 const activeIndex = ref(0)
 const hubPending = ref(0)
 
-const activeKey = computed(() => `ch${activeIndex.value + 1}`)
+const channels = computed(() => {
+  if (!appStore.publicSettingsLoaded) return []
+  return enabledHomeChannels(appStore.cachedPublicSettings)
+    .map((channel) => ({
+      ...channel,
+      destination: { route: channel.route },
+      name: t(`home.jisudeng.channels.${channel.key}.name`),
+    }))
+})
+const activeKey = computed(() => channels.value[activeIndex.value]?.key ?? 'ch1')
 const currentName = computed(() => t(`home.jisudeng.channels.${activeKey.value}.name`))
 const currentHint = computed(() => {
   const base = t(`home.jisudeng.channels.${activeKey.value}.hint`)
@@ -137,13 +149,11 @@ const currentHint = computed(() => {
 })
 const nextLabel = computed(() => t('home.jisudeng.channels.next'))
 const enterLabel = computed(() => t('home.jisudeng.channels.enter'))
+const emptyLabel = computed(() => t('home.jisudeng.channels.empty'))
 const knobStyle = computed(() => ({ transform: `rotate(${activeIndex.value * 90}deg)` }))
 
-const channels = [1, 2, 3, 4].map((n) => ({ key: `ch${n}`, name: t(`home.jisudeng.channels.ch${n}.name`) }))
-
 const activeDestination = computed(() => {
-  const dest = CHANNEL_DESTINATIONS[activeIndex.value]
-  return dest?.route ?? '/home'
+  return channels.value[activeIndex.value]?.destination.route ?? '/'
 })
 
 async function loadHubPending() {
@@ -157,7 +167,17 @@ async function loadHubPending() {
 }
 
 function pick(idx: number) { activeIndex.value = idx }
-function nextChannel() { activeIndex.value = (activeIndex.value + 1) % channels.length }
+function nextChannel() {
+  if (!channels.value.length) return
+  activeIndex.value = (activeIndex.value + 1) % channels.value.length
+}
 
-onMounted(loadHubPending)
+watch(channels, (next) => {
+  if (activeIndex.value >= next.length) activeIndex.value = 0
+})
+
+onMounted(() => {
+  void appStore.fetchPublicSettings()
+  void loadHubPending()
+})
 </script>

@@ -176,7 +176,7 @@ describe('PromptSquareView', () => {
     await wrapper.get('[aria-label="返回上一页"]').trigger('click')
 
     expect(routerBackMock).not.toHaveBeenCalled()
-    expect(pushMock).toHaveBeenCalledWith('/home')
+    expect(pushMock).toHaveBeenCalledWith('/')
   })
 
   it('falls back to the English home route in an English locale shell', async () => {

@@ -15,7 +15,7 @@ describe('resolvePublicLocaleRoute', () => {
   })
 
   it('keeps models and docs on their matched English public routes', () => {
-    expect(resolvePublicLocaleRoute('en', '/models')).toEqual({ path: '/en/models' })
+    expect(resolvePublicLocaleRoute('en', '/pricing')).toEqual({ path: '/en/models' })
     expect(resolvePublicLocaleRoute('en', '/docs', { cat: 'tutorial', page: 'quick-start' })).toEqual({
       path: '/en/docs',
       query: { cat: 'tutorial', page: 'quick-start' },
@@ -24,7 +24,7 @@ describe('resolvePublicLocaleRoute', () => {
 
   it('sends English public routes back to canonical Chinese routes', () => {
     expect(resolvePublicLocaleRoute('zh', '/en')).toEqual({ path: '/' })
-    expect(resolvePublicLocaleRoute('zh', '/en/models')).toEqual({ path: '/models' })
+    expect(resolvePublicLocaleRoute('zh', '/en/models')).toEqual({ path: '/pricing' })
     expect(resolvePublicLocaleRoute('zh', '/en/docs', { cat: 'tutorial' })).toEqual({
       path: '/docs',
       query: { cat: 'tutorial' },

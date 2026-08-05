@@ -60,7 +60,7 @@ function defaultLoadedDocPage(catId: string) {
 
 const backTarget = computed(() => {
   if (authStore.isAuthenticated) return '/dashboard'
-  return isEnglishDocsRoute.value ? '/en' : '/home'
+  return isEnglishDocsRoute.value ? '/en' : '/'
 })
 const backLabel = computed(() =>
   authStore.isAuthenticated ? t('docs.backDashboard') : t('contact.backHome'),

@@ -29,6 +29,7 @@
           loading="lazy"
           decoding="async"
           referrerpolicy="no-referrer"
+          @error="hideBrokenImage"
         />
       </a>
     </div>
@@ -86,6 +87,11 @@ const proofItems = computed(() => [
     alt: t('home.jisudeng.lmspeedProof.items.recent.alt'),
   },
 ])
+
+function hideBrokenImage(event: Event) {
+  const image = event.target
+  if (image instanceof HTMLImageElement) image.hidden = true
+}
 </script>
 
 <style scoped>

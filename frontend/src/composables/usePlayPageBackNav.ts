@@ -6,7 +6,7 @@ export function usePlayPageBackNav() {
   const { t } = useI18n()
   const authStore = useAuthStore()
 
-  const backTarget = computed(() => (authStore.isAuthenticated ? '/play' : '/home'))
+  const backTarget = computed(() => (authStore.isAuthenticated ? '/play' : '/'))
   const backLabel = computed(() =>
     authStore.isAuthenticated ? t('play.backPlayHub') : t('play.backHome'),
   )
