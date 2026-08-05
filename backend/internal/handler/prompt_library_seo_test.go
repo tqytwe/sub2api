@@ -97,6 +97,17 @@ func TestRobotsAndLLMSTxtUseRevalidationHeaders(t *testing.T) {
 	}
 }
 
+func TestHomeRedirectsToCanonicalRoot(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodGet, "/home", nil)
+
+	(&PromptLibraryHandler{}).HomeRedirect(c)
+
+	require.Equal(t, http.StatusMovedPermanently, recorder.Code)
+	require.Equal(t, "/", recorder.Header().Get("Location"))
+}
+
 func TestBuildLLMSTxtExposesBilingualAIReferenceSummary(t *testing.T) {
 	body := buildLLMSTxt("https://www.jisudeng.com")
 

@@ -393,6 +393,10 @@ func (h *PromptLibraryHandler) LLMSTxt(c *gin.Context) {
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSTxt(promptRequestOrigin(c.Request))))
 }
 
+func (h *PromptLibraryHandler) HomeRedirect(c *gin.Context) {
+	c.Redirect(http.StatusMovedPermanently, "/")
+}
+
 func (h *PromptLibraryHandler) LLMSFullTxt(c *gin.Context) {
 	setPromptSEOResponseHeaders(c)
 	c.Data(http.StatusOK, "text/plain; charset=utf-8", []byte(buildLLMSFullTxt(promptRequestOrigin(c.Request))))

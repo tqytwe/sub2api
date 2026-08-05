@@ -29,6 +29,7 @@ func RegisterPromptLibrarySEORoutes(
 	r gin.IRoutes,
 	h *handler.Handlers,
 ) {
+	r.GET("/home", h.PromptLibrary.HomeRedirect)
 	r.GET("/sitemap.xml", h.PromptLibrary.Sitemap)
 	r.GET("/robots.txt", h.PromptLibrary.Robots)
 	r.GET("/llms.txt", h.PromptLibrary.LLMSTxt)
