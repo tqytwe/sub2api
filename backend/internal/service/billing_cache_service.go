@@ -752,12 +752,8 @@ func (s *BillingCacheService) CheckBillingEligibility(ctx context.Context, user 
 	isSubscriptionMode := group != nil && group.IsSubscriptionType() && subscription != nil
 
 	if isSubscriptionMode {
-		// Daily-card admission has already reconciled and reserved the immutable
-		// entitlement. Legacy calendar-window usage is not authoritative here.
-		if subscription.DailyCardEntitlementID == nil {
-			if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
-				return err
-			}
+		if err := s.checkSubscriptionEligibility(ctx, user.ID, group, subscription); err != nil {
+			return err
 		}
 	} else {
 		if err := s.checkBalanceEligibility(ctx, user.ID); err != nil {

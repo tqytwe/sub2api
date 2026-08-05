@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"math/rand/v2"
@@ -49,8 +48,6 @@ type SubscriptionService struct {
 	billingCacheService *BillingCacheService
 	entClient           *dbent.Client
 	dailyCardSvc        *DailyCardService
-	quotaResetLocation  *time.Location
-	nowFunc             func() time.Time
 
 	// L1 缓存：加速中间件热路径的订阅查询
 	subCacheL1     *ristretto.Cache
@@ -59,7 +56,6 @@ type SubscriptionService struct {
 	subCacheJitter int // 抖动百分比
 
 	maintenanceQueue *SubscriptionMaintenanceQueue
-	now              func() time.Time
 }
 
 func (s *SubscriptionService) SetDailyCardService(dailyCardSvc *DailyCardService) {
@@ -89,17 +85,11 @@ func (s *SubscriptionService) ReleaseDailyCardRequest(ctx context.Context, entit
 
 // NewSubscriptionService 创建订阅服务
 func NewSubscriptionService(groupRepo GroupRepository, userSubRepo UserSubscriptionRepository, billingCacheService *BillingCacheService, entClient *dbent.Client, cfg *config.Config) *SubscriptionService {
-	var quotaResetLocation *time.Location
-	if cfg != nil {
-		quotaResetLocation = resolveSubscriptionQuotaResetLocation(cfg)
-	}
 	svc := &SubscriptionService{
 		groupRepo:           groupRepo,
 		userSubRepo:         userSubRepo,
 		billingCacheService: billingCacheService,
 		entClient:           entClient,
-		quotaResetLocation:  quotaResetLocation,
-		now:                 time.Now,
 	}
 	svc.initSubCache(cfg)
 	svc.initMaintenanceQueue(cfg)
@@ -225,14 +215,11 @@ func (s *SubscriptionService) invalidateSubscriptionCaches(userID, groupID int64
 
 // AssignSubscriptionInput 分配订阅输入
 type AssignSubscriptionInput struct {
-	UserID                   int64
-	GroupID                  int64
-	ValidityDays             int
-	AssignedBy               int64
-	Notes                    string
-	PaymentOrderID           int64
-	DailyCardGrantSourceType string
-	DailyCardGrantSourceID   string
+	UserID       int64
+	GroupID      int64
+	ValidityDays int
+	AssignedBy   int64
+	Notes        string
 }
 
 // AssignSubscription 分配订阅给用户（不允许重复分配）
@@ -262,9 +249,6 @@ func (s *SubscriptionService) assignOrExtendSubscription(ctx context.Context, in
 	}
 	if !group.IsSubscriptionType() {
 		return nil, false, ErrGroupNotSubscriptionType
-	}
-	if err := s.validateDailyCardAssignmentSource(ctx, input); err != nil {
-		return nil, false, err
 	}
 
 	// 查询是否已有订阅
@@ -353,7 +337,7 @@ func (s *SubscriptionService) updateExistingSubscriptionTerm(
 ) error {
 	return s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
 		if isExpired {
-			renewed := renewedSubscriptionTerm(existingSub, notes, startsAt, newExpiresAt, s.subscriptionWindowStart(startsAt))
+			renewed := renewedSubscriptionTerm(existingSub, notes, startsAt, newExpiresAt)
 			if err := s.userSubRepo.Update(txCtx, renewed); err != nil {
 				return fmt.Errorf("renew expired subscription: %w", err)
 			}
@@ -408,12 +392,9 @@ func (s *SubscriptionService) withSubscriptionUpdateTx(ctx context.Context, fn f
 	return nil
 }
 
-func renewedSubscriptionTerm(existingSub *UserSubscription, notes string, startsAt, expiresAt time.Time, windowStarts ...time.Time) *UserSubscription {
+func renewedSubscriptionTerm(existingSub *UserSubscription, notes string, startsAt, expiresAt time.Time) *UserSubscription {
 	renewed := *existingSub
-	windowStart := startsAt
-	if len(windowStarts) > 0 {
-		windowStart = windowStarts[0]
-	}
+	windowStart := startOfDay(startsAt)
 	renewed.StartsAt = startsAt
 	renewed.ExpiresAt = expiresAt
 	renewed.Status = SubscriptionStatusActive
@@ -542,9 +523,6 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 	if !group.IsSubscriptionType() {
 		return nil, false, ErrGroupNotSubscriptionType
 	}
-	if err := s.validateDailyCardAssignmentSource(ctx, input); err != nil {
-		return nil, false, err
-	}
 
 	// 检查是否已存在订阅；若已存在，则按幂等成功返回现有订阅
 	exists, err := s.userSubRepo.ExistsByUserIDAndGroupID(ctx, input.UserID, input.GroupID)
@@ -600,26 +578,6 @@ func (s *SubscriptionService) assignSubscriptionWithReuse(ctx context.Context, i
 	}
 
 	return sub, false, nil
-}
-
-func (s *SubscriptionService) validateDailyCardAssignmentSource(ctx context.Context, input *AssignSubscriptionInput) error {
-	if s == nil || s.dailyCardSvc == nil || input == nil || input.GroupID <= 0 || input.PaymentOrderID > 0 {
-		return nil
-	}
-	managed, err := s.dailyCardSvc.IsOneTimeGroup(ctx, input.GroupID)
-	if err != nil {
-		return err
-	}
-	if managed {
-		switch input.DailyCardGrantSourceType {
-		case DailyCardSourceRedeemCode, DailyCardSourceBackfill:
-			if input.DailyCardGrantSourceID != "" {
-				return nil
-			}
-		}
-		return ErrDailyCardPaidOrderRequired
-	}
-	return nil
 }
 
 func detectAssignSemanticConflict(existing *UserSubscription, input *AssignSubscriptionInput) (string, bool) {
@@ -823,25 +781,13 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 	return &cp, nil
 }
 
-func (s *SubscriptionService) GetSubscriptionForDisplay(ctx context.Context, userID, groupID int64) (*UserSubscription, error) {
-	sub, err := s.GetActiveSubscription(ctx, userID, groupID)
-	if err != nil {
-		return nil, err
-	}
-	subs := []UserSubscription{*sub}
-	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
-		return nil, err
-	}
-	return &subs[0], nil
-}
-
 // ListUserSubscriptions 获取用户的所有订阅
 func (s *SubscriptionService) ListUserSubscriptions(ctx context.Context, userID int64) ([]UserSubscription, error) {
 	subs, err := s.userSubRepo.ListByUserID(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	s.normalizeExpiredWindows(subs)
+	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
 	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
 		return nil, err
@@ -855,17 +801,11 @@ func (s *SubscriptionService) ListActiveUserSubscriptions(ctx context.Context, u
 	if err != nil {
 		return nil, err
 	}
-	s.normalizeExpiredWindows(subs)
+	normalizeExpiredWindows(subs)
 	if err := s.decorateDailyCardEntitlements(ctx, userID, subs); err != nil {
 		return nil, err
 	}
-	active := subs[:0]
-	for i := range subs {
-		if subs[i].Status == SubscriptionStatusActive {
-			active = append(active, subs[i])
-		}
-	}
-	return active, nil
+	return subs, nil
 }
 
 func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context, userID int64, subs []UserSubscription) error {
@@ -889,29 +829,8 @@ func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context,
 			selected[card.GroupID] = &copyOfCard
 		}
 	}
-	managedByGroup := make(map[int64]bool, len(selected))
-	resolvedByGroup := make(map[int64]*DailyCardEntitlement, len(selected))
-	for groupID := range selected {
-		card, managed, accessErr := s.dailyCardSvc.ResolveAccess(ctx, userID, groupID, time.Now())
-		if accessErr != nil && !errors.Is(accessErr, ErrDailyCardUnavailable) {
-			return accessErr
-		}
-		managedByGroup[groupID] = managed
-		if managed && card != nil {
-			resolvedByGroup[groupID] = card
-		}
-	}
 	for i := range subs {
-		if subs[i].UserID != userID || subs[i].Status == SubscriptionStatusRevoked {
-			continue
-		}
-		if !managedByGroup[subs[i].GroupID] {
-			continue
-		}
 		card := selected[subs[i].GroupID]
-		if resolved := resolvedByGroup[subs[i].GroupID]; resolved != nil {
-			card = resolved
-		}
 		if card == nil {
 			continue
 		}
@@ -919,23 +838,6 @@ func (s *SubscriptionService) decorateDailyCardEntitlements(ctx context.Context,
 		subs[i].DailyCardEntitlementID = &card.ID
 		subs[i].DailyCardQueueCount = queued[subs[i].GroupID]
 		subs[i].DailyUsageUSD = card.QuotaUsedUSD
-		if card.StartsAt != nil {
-			subs[i].DailyWindowStart = card.StartsAt
-		}
-		if card.ExpiresAt != nil {
-			subs[i].ExpiresAt = *card.ExpiresAt
-		}
-		switch card.Status {
-		case DailyCardStatusExhausted:
-			subs[i].Status = SubscriptionStatusExhausted
-			if card.EndedAt != nil {
-				subs[i].ExpiresAt = *card.EndedAt
-			}
-		case DailyCardStatusExpired:
-			subs[i].Status = SubscriptionStatusExpired
-		case DailyCardStatusRevoked:
-			subs[i].Status = SubscriptionStatusRevoked
-		}
 	}
 	return nil
 }
@@ -947,127 +849,40 @@ func (s *SubscriptionService) ListGroupSubscriptions(ctx context.Context, groupI
 	if err != nil {
 		return nil, nil, err
 	}
-	s.normalizeExpiredWindows(subs)
+	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
-	if err := s.decorateDailyCardsForSubscriptions(ctx, subs); err != nil {
-		return nil, nil, err
-	}
 	return subs, pag, nil
 }
 
 // List 获取所有订阅（分页，支持筛选和排序）
 func (s *SubscriptionService) List(ctx context.Context, page, pageSize int, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]UserSubscription, *pagination.PaginationResult, error) {
 	params := pagination.PaginationParams{Page: page, PageSize: pageSize}
-	if subscriptionStatusRequiresEffectiveFilter(status) {
-		return s.listWithEffectiveStatus(ctx, params, userID, groupID, status, platform, sortBy, sortOrder)
-	}
 	subs, pag, err := s.userSubRepo.List(ctx, params, userID, groupID, status, platform, sortBy, sortOrder)
 	if err != nil {
 		return nil, nil, err
 	}
-	s.normalizeExpiredWindows(subs)
+	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
-	if err := s.decorateDailyCardsForSubscriptions(ctx, subs); err != nil {
-		return nil, nil, err
-	}
 	return subs, pag, nil
-}
-
-func subscriptionStatusRequiresEffectiveFilter(status string) bool {
-	switch status {
-	case SubscriptionStatusActive, SubscriptionStatusExpired, SubscriptionStatusExhausted:
-		return true
-	default:
-		return false
-	}
-}
-
-func (s *SubscriptionService) listWithEffectiveStatus(ctx context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]UserSubscription, *pagination.PaginationResult, error) {
-	const batchSize = 200
-	if params.Page < 1 {
-		params.Page = 1
-	}
-	params.PageSize = params.Limit()
-	offset := params.Offset()
-	result := make([]UserSubscription, 0, params.PageSize)
-	totalMatched := 0
-
-	for batchPage := 1; ; batchPage++ {
-		batchParams := pagination.PaginationParams{Page: batchPage, PageSize: batchSize}
-		subs, pag, err := s.userSubRepo.List(ctx, batchParams, userID, groupID, "", platform, sortBy, sortOrder)
-		if err != nil {
-			return nil, nil, err
-		}
-		if len(subs) == 0 {
-			break
-		}
-		s.normalizeExpiredWindows(subs)
-		normalizeSubscriptionStatus(subs)
-		if err := s.decorateDailyCardsForSubscriptions(ctx, subs); err != nil {
-			return nil, nil, err
-		}
-		for i := range subs {
-			if subs[i].Status != status {
-				continue
-			}
-			if totalMatched >= offset && len(result) < params.PageSize {
-				result = append(result, subs[i])
-			}
-			totalMatched++
-		}
-		if pag == nil || batchPage >= pag.Pages {
-			break
-		}
-	}
-
-	return result, subscriptionPaginationResult(int64(totalMatched), params), nil
-}
-
-func subscriptionPaginationResult(total int64, params pagination.PaginationParams) *pagination.PaginationResult {
-	pageSize := params.Limit()
-	pages := 0
-	if pageSize > 0 && total > 0 {
-		pages = int((total + int64(pageSize) - 1) / int64(pageSize))
-	}
-	page := params.Page
-	if page < 1 {
-		page = 1
-	}
-	return &pagination.PaginationResult{Total: total, Page: page, PageSize: pageSize, Pages: pages}
-}
-
-func (s *SubscriptionService) decorateDailyCardsForSubscriptions(ctx context.Context, subs []UserSubscription) error {
-	seen := make(map[int64]struct{})
-	for i := range subs {
-		if _, ok := seen[subs[i].UserID]; ok {
-			continue
-		}
-		seen[subs[i].UserID] = struct{}{}
-		if err := s.decorateDailyCardEntitlements(ctx, subs[i].UserID, subs); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // normalizeExpiredWindows 将已过期窗口的数据清零（仅影响返回数据，不影响数据库）
 // 这确保前端显示正确的当前窗口状态，而不是过期窗口的历史数据
-func (s *SubscriptionService) normalizeExpiredWindows(subs []UserSubscription) {
-	now := s.subscriptionNow()
+func normalizeExpiredWindows(subs []UserSubscription) {
 	for i := range subs {
 		sub := &subs[i]
 		// 日窗口过期：清零展示数据
-		if (s.usesBusinessQuotaWindow() && s.subscriptionNeedsDailyResetAt(sub, now)) || (!s.usesBusinessQuotaWindow() && sub.canAutomaticallyResetDailyAt(now)) {
+		if sub.NeedsDailyReset() {
 			sub.DailyWindowStart = nil
 			sub.DailyUsageUSD = 0
 		}
 		// 周窗口过期：清零展示数据
-		if sub.canAutomaticallyResetWeeklyAt(now) {
+		if sub.NeedsWeeklyReset() {
 			sub.WeeklyWindowStart = nil
 			sub.WeeklyUsageUSD = 0
 		}
 		// 月窗口过期：清零展示数据
-		if sub.canAutomaticallyResetMonthlyAt(now) {
+		if sub.NeedsMonthlyReset() {
 			sub.MonthlyWindowStart = nil
 			sub.MonthlyUsageUSD = 0
 		}
@@ -1091,84 +906,19 @@ func startOfDay(t time.Time) time.Time {
 	return time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, t.Location())
 }
 
-func resolveSubscriptionQuotaResetLocation(cfg *config.Config) *time.Location {
-	tz := "Asia/Shanghai"
-	if cfg != nil && strings.TrimSpace(cfg.Timezone) != "" {
-		tz = strings.TrimSpace(cfg.Timezone)
-	}
-	if loc, err := time.LoadLocation(tz); err == nil {
-		return loc
-	}
-	if loc, err := time.LoadLocation("Asia/Shanghai"); err == nil {
-		return loc
-	}
-	return time.FixedZone("Asia/Shanghai", 8*60*60)
-}
-
-func (s *SubscriptionService) subscriptionNow() time.Time {
-	if s != nil && s.nowFunc != nil {
-		return s.nowFunc()
-	}
-	if s != nil && s.now != nil {
-		return s.now()
-	}
-	return time.Now()
-}
-
-func (s *SubscriptionService) usesBusinessQuotaWindow() bool {
-	return s != nil && s.quotaResetLocation != nil
-}
-
-func (s *SubscriptionService) subscriptionQuotaResetLocation() *time.Location {
-	if s != nil && s.quotaResetLocation != nil {
-		return s.quotaResetLocation
-	}
-	return resolveSubscriptionQuotaResetLocation(nil)
-}
-
-func (s *SubscriptionService) subscriptionWindowStart(t time.Time) time.Time {
-	loc := s.subscriptionQuotaResetLocation()
-	local := t.In(loc)
-	return time.Date(local.Year(), local.Month(), local.Day(), 0, 0, 0, 0, loc)
-}
-
-func (s *SubscriptionService) subscriptionDailyResetTime(sub *UserSubscription) *time.Time {
-	if sub == nil || sub.DailyWindowStart == nil {
-		return nil
-	}
-	if sub.HasOneTimeDailyQuota() {
-		t := sub.ExpiresAt
-		return &t
-	}
-	loc := s.subscriptionQuotaResetLocation()
-	local := sub.DailyWindowStart.In(loc)
-	t := time.Date(local.Year(), local.Month(), local.Day()+1, 0, 0, 0, 0, loc)
-	return &t
-}
-
-func (s *SubscriptionService) subscriptionNeedsDailyResetAt(sub *UserSubscription, now time.Time) bool {
-	if sub == nil || sub.HasOneTimeDailyQuota() {
-		return false
-	}
-	resetAt := s.subscriptionDailyResetTime(sub)
-	return resetAt != nil && !now.Before(*resetAt)
-}
-
 // CheckAndActivateWindow 检查并激活窗口（首次使用时）
 func (s *SubscriptionService) CheckAndActivateWindow(ctx context.Context, sub *UserSubscription) error {
-	return s.checkAndActivateWindowAt(ctx, sub, s.subscriptionNow())
-}
-
-func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub *UserSubscription, now time.Time) error {
 	if sub.IsWindowActivated() {
 		return nil
 	}
 
-	return s.userSubRepo.ActivateWindows(ctx, sub.ID, now)
+	// 使用当天零点作为窗口起始时间
+	windowStart := startOfDay(time.Now())
+	return s.userSubRepo.ActivateWindows(ctx, sub.ID, windowStart)
 }
 
 // AdminResetQuota manually resets the daily, weekly, and/or monthly usage windows.
-
+// Uses startOfDay(now) as the new window start, matching automatic resets.
 func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool) (*UserSubscription, error) {
 	if !resetDaily && !resetWeekly && !resetMonthly {
 		return nil, ErrInvalidInput
@@ -1177,19 +927,7 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	if err != nil {
 		return nil, err
 	}
-	if s.dailyCardSvc != nil {
-		managed, managedErr := s.dailyCardSvc.IsOneTimeGroup(ctx, sub.GroupID)
-		if managedErr != nil {
-			return nil, managedErr
-		}
-		if managed {
-			return nil, ErrDailyCardAdminActionUnavailable
-		}
-	}
-	windowStart := s.subscriptionNow()
-	if s.usesBusinessQuotaWindow() {
-		windowStart = s.subscriptionWindowStart(windowStart)
-	}
+	windowStart := startOfDay(time.Now())
 	if err := s.userSubRepo.ResetUsageWindows(ctx, sub.ID, resetDaily, resetWeekly, resetMonthly, windowStart); err != nil {
 		return nil, err
 	}
@@ -1206,22 +944,14 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 
 // CheckAndResetWindows 检查并重置过期的窗口
 func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *UserSubscription) error {
-	now := s.subscriptionNow()
+	// 使用当天零点作为新窗口起始时间
+	windowStart := startOfDay(time.Now())
 	needsInvalidateCache := false
 
-	if s.usesBusinessQuotaWindow() {
-		// 业务时区下按自然日重置，兼容历史上以 UTC 零点保存的窗口。
-		if s.subscriptionNeedsDailyResetAt(sub, now) {
-			windowStart := s.subscriptionWindowStart(now)
-			if err := s.userSubRepo.ResetDailyUsage(ctx, sub.ID, sub.DailyWindowStart, windowStart); err != nil {
-				return err
-			}
-			sub.DailyWindowStart = &windowStart
-			sub.DailyUsageUSD = 0
-			needsInvalidateCache = true
-		}
-	} else if windowStart, ok := sub.automaticWindowStartAt(sub.DailyWindowStart, 24*time.Hour, now); !sub.HasOneTimeDailyQuota() && ok {
-		if err := s.userSubRepo.ResetDailyUsage(ctx, sub.ID, sub.DailyWindowStart, windowStart); err != nil {
+	// 日窗口重置（24小时）
+	if sub.NeedsDailyReset() {
+		expectedWindowStart := sub.DailyWindowStart
+		if err := s.userSubRepo.ResetDailyUsage(ctx, sub.ID, expectedWindowStart, windowStart); err != nil {
 			return err
 		}
 		sub.DailyWindowStart = &windowStart
@@ -1230,7 +960,7 @@ func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *Use
 	}
 
 	// 周窗口重置（7天）
-	if windowStart, ok := sub.automaticWindowStartAt(sub.WeeklyWindowStart, 7*24*time.Hour, now); ok {
+	if sub.NeedsWeeklyReset() {
 		expectedWindowStart := sub.WeeklyWindowStart
 		if err := s.userSubRepo.ResetWeeklyUsage(ctx, sub.ID, expectedWindowStart, windowStart); err != nil {
 			return err
@@ -1241,7 +971,7 @@ func (s *SubscriptionService) CheckAndResetWindows(ctx context.Context, sub *Use
 	}
 
 	// 月窗口重置（30天）
-	if windowStart, ok := sub.automaticWindowStartAt(sub.MonthlyWindowStart, 30*24*time.Hour, now); ok {
+	if sub.NeedsMonthlyReset() {
 		expectedWindowStart := sub.MonthlyWindowStart
 		if err := s.userSubRepo.ResetMonthlyUsage(ctx, sub.ID, expectedWindowStart, windowStart); err != nil {
 			return err
@@ -1307,7 +1037,6 @@ func (s *SubscriptionService) CheckUsageLimits(ctx context.Context, sub *UserSub
 // 仅做内存检查，不触发 DB 写入。调用方必须在放行请求前同步完成窗口维护。
 // 返回 needsMaintenance 表示是否需要执行窗口维护并回读数据库快照。
 func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, group *Group) (needsMaintenance bool, err error) {
-	now := s.subscriptionNow()
 	// 1. 验证订阅状态
 	if sub.Status == SubscriptionStatusExpired {
 		return false, ErrSubscriptionExpired
@@ -1315,21 +1044,21 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 	if sub.Status == SubscriptionStatusSuspended {
 		return false, ErrSubscriptionSuspended
 	}
-	if !sub.ExpiresAt.IsZero() && !sub.ExpiresAt.After(now) {
+	if sub.IsExpired() {
 		return false, ErrSubscriptionExpired
 	}
 
 	// 2. 内存中修正过期窗口的用量，确保预检查不会误拒绝用户。
 	//    调用方随后同步推进 DB 窗口，并用回读快照重新校验。
-	if (s.usesBusinessQuotaWindow() && s.subscriptionNeedsDailyResetAt(sub, now)) || (!s.usesBusinessQuotaWindow() && sub.canAutomaticallyResetDailyAt(now)) {
+	if sub.NeedsDailyReset() {
 		sub.DailyUsageUSD = 0
 		needsMaintenance = true
 	}
-	if sub.canAutomaticallyResetWeeklyAt(now) {
+	if sub.NeedsWeeklyReset() {
 		sub.WeeklyUsageUSD = 0
 		needsMaintenance = true
 	}
-	if sub.canAutomaticallyResetMonthlyAt(now) {
+	if sub.NeedsMonthlyReset() {
 		sub.MonthlyUsageUSD = 0
 		needsMaintenance = true
 	}
@@ -1451,7 +1180,7 @@ func (s *SubscriptionService) calculateProgress(sub *UserSubscription, group *Gr
 	if group.HasDailyLimit() && sub.DailyWindowStart != nil {
 		limit := *group.DailyLimitUSD
 		resetsAt := sub.DailyWindowStart.Add(24 * time.Hour)
-		if dailyResetTime := s.subscriptionDailyResetTime(sub); dailyResetTime != nil {
+		if dailyResetTime := sub.DailyResetTime(); dailyResetTime != nil {
 			resetsAt = *dailyResetTime
 		}
 		progress.Daily = &UsageWindowProgress{

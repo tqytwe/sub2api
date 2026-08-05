@@ -660,9 +660,10 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		result.ActivatedEntitlementID = capture.activatedEntitlementID
 		result.DailyCardOverageUSD = capture.overageUSD
 		if capture.overageUSD > 0 {
-			overageCmd := dailyCardOverageBillingCommand(cmd, capture.overageUSD)
+			overageCmd := *cmd
+			overageCmd.BalanceCost = capture.overageUSD
 			if r.balanceLedger != nil {
-				transaction, err := r.deductUsageBillingBalanceWithLedger(ctx, tx, overageCmd)
+				transaction, err := r.deductUsageBillingBalanceWithLedger(ctx, tx, &overageCmd)
 				if err != nil {
 					return err
 				}
@@ -671,7 +672,7 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 					result.BalanceOverdrafted = *transaction.BalanceBefore < capture.overageUSD
 				}
 			} else {
-				newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, overageCmd.UserID, overageCmd.BalanceCost)
+				newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, cmd.UserID, capture.overageUSD)
 				if err != nil {
 					return err
 				}
@@ -728,50 +729,13 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	return nil
 }
 
-func dailyCardOverageBillingCommand(cmd *service.UsageBillingCommand, overageUSD float64) *service.UsageBillingCommand {
-	overageCmd := *cmd
-	overageCmd.BalanceCost = overageUSD
-	overageCmd.BalancePolicy = service.BalanceLedgerPolicyAllowOverdraft
-	return &overageCmd
-}
-
 type dailyCardCaptureResult struct {
 	exhausted              bool
 	activatedEntitlementID *int64
 	overageUSD             float64
 }
 
-// dailyCardEntitlementSettlementUpdateSQL keeps PostgreSQL from inferring a
-// text parameter for the varchar status column or an untyped nil ended_at.
-const dailyCardEntitlementSettlementUpdateSQL = `
-	UPDATE subscription_entitlements
-	SET quota_used_usd = $2,
-	    quota_reserved_usd = $3,
-	    status = $4::varchar,
-	    exhausted_at = CASE WHEN $4::varchar = 'exhausted' THEN $5 ELSE exhausted_at END,
-	    ended_at = COALESCE($6::timestamptz, ended_at),
-	    updated_at = $5
-	WHERE id = $1
-`
-
 func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID, userID int64, requestID string, costUSD float64) (*dailyCardCaptureResult, error) {
-	var lockUserID, lockGroupID int64
-	if err := tx.QueryRowContext(ctx, `
-		SELECT user_id, group_id
-		FROM subscription_entitlements
-		WHERE id = $1
-	`, entitlementID).Scan(&lockUserID, &lockGroupID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, service.ErrUsageBillingOwnershipMismatch
-		}
-		return nil, err
-	}
-	if lockUserID != userID {
-		return nil, service.ErrUsageBillingOwnershipMismatch
-	}
-	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock($1, $2)", lockUserID, lockGroupID); err != nil {
-		return nil, err
-	}
 	var (
 		ownerID       int64
 		groupID       int64
@@ -797,16 +761,19 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 		return nil, service.ErrUsageBillingOwnershipMismatch
 	}
 	settledAt := time.Now().UTC()
-	hold, err := captureUsageBillingDailyCardHold(ctx, tx, entitlementID, requestID, costUSD, settledAt)
+	releasedReservation, err := captureUsageBillingDailyCardHold(ctx, tx, entitlementID, requestID, costUSD, settledAt)
 	if err != nil {
 		return nil, err
 	}
-	quotaReserved = 0
+	quotaReserved -= releasedReservation
+	if quotaReserved < 0 {
+		quotaReserved = 0
+	}
 	if status != service.DailyCardStatusActive {
-		if !hold.found {
+		if releasedReservation <= 0 {
 			return nil, service.ErrDailyCardUnavailable
 		}
-		remaining := quotaLimit - quotaUsed
+		remaining := quotaLimit - quotaUsed - quotaReserved
 		if remaining < 0 {
 			remaining = 0
 		}
@@ -828,7 +795,7 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 		}
 		return &dailyCardCaptureResult{overageUSD: costUSD - captured}, nil
 	}
-	remaining := quotaLimit - quotaUsed
+	remaining := quotaLimit - quotaUsed - quotaReserved
 	if remaining < 0 {
 		remaining = 0
 	}
@@ -838,20 +805,27 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 	}
 	overage := costUSD - captured
 	newUsed := quotaUsed + captured
-	expired := expiresAt.Valid && !settledAt.Before(expiresAt.Time)
-	exhausted := !expired && newUsed >= quotaLimit
+	exhausted := newUsed >= quotaLimit
 	newStatus := service.DailyCardStatusActive
 	var endedAt any
-	if expired {
-		newStatus = service.DailyCardStatusExpired
-		endedAt = expiresAt.Time
-	} else if exhausted {
+	if exhausted {
 		newUsed = quotaLimit
 		newStatus = service.DailyCardStatusExhausted
 		endedAt = settledAt
+	} else if expiresAt.Valid && !settledAt.Before(expiresAt.Time) {
+		newStatus = service.DailyCardStatusExpired
+		endedAt = expiresAt.Time
 	}
-	_, err = tx.ExecContext(ctx, dailyCardEntitlementSettlementUpdateSQL,
-		entitlementID, newUsed, quotaReserved, newStatus, settledAt, endedAt)
+	_, err = tx.ExecContext(ctx, `
+		UPDATE subscription_entitlements
+		SET quota_used_usd = $2,
+		    quota_reserved_usd = $3,
+		    status = $4,
+		    exhausted_at = CASE WHEN $4 = 'exhausted' THEN $5 ELSE exhausted_at END,
+		    ended_at = COALESCE($6, ended_at),
+		    updated_at = $5
+		WHERE id = $1
+	`, entitlementID, newUsed, quotaReserved, newStatus, settledAt, endedAt)
 	if err != nil {
 		return nil, err
 	}
@@ -872,14 +846,9 @@ func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID
 	return result, nil
 }
 
-type dailyCardHoldCapture struct {
-	found       bool
-	reservedUSD float64
-}
-
-func captureUsageBillingDailyCardHold(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string, costUSD float64, capturedAt time.Time) (dailyCardHoldCapture, error) {
+func captureUsageBillingDailyCardHold(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string, costUSD float64, capturedAt time.Time) (float64, error) {
 	if strings.TrimSpace(requestID) == "" {
-		return dailyCardHoldCapture{}, nil
+		return 0, nil
 	}
 	var reservedUSD float64
 	var status string
@@ -890,18 +859,16 @@ func captureUsageBillingDailyCardHold(ctx context.Context, tx *sql.Tx, entitleme
 		FOR UPDATE
 	`, entitlementID, requestID).Scan(&reservedUSD, &status)
 	if errors.Is(err, sql.ErrNoRows) {
-		return dailyCardHoldCapture{}, nil
+		return 0, nil
 	}
 	if err != nil {
-		return dailyCardHoldCapture{}, err
+		return 0, err
 	}
 	if status != "reserved" {
-		return dailyCardHoldCapture{found: true, reservedUSD: reservedUSD}, nil
+		return 0, nil
 	}
 	capturedUSD := costUSD
-	if reservedUSD <= 0 {
-		capturedUSD = 0
-	} else if capturedUSD > reservedUSD {
+	if capturedUSD > reservedUSD {
 		capturedUSD = reservedUSD
 	}
 	_, err = tx.ExecContext(ctx, `
@@ -910,9 +877,9 @@ func captureUsageBillingDailyCardHold(ctx context.Context, tx *sql.Tx, entitleme
 		WHERE entitlement_id = $1 AND request_id = $2 AND status = 'reserved'
 	`, entitlementID, requestID, capturedUSD, capturedAt)
 	if err != nil {
-		return dailyCardHoldCapture{}, err
+		return 0, err
 	}
-	return dailyCardHoldCapture{found: true, reservedUSD: reservedUSD}, nil
+	return reservedUSD, nil
 }
 
 func activateNextDailyCardInBillingTx(ctx context.Context, tx *sql.Tx, userID, groupID int64, activationAt, updatedAt time.Time) (*int64, error) {
@@ -1010,10 +977,6 @@ func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context
 	if r == nil || r.balanceLedger == nil {
 		return nil, service.ErrBalanceLedgerUnavailable
 	}
-	policy := cmd.BalancePolicy
-	if policy == "" {
-		policy = service.BalanceLedgerPolicyAllowOverdraft
-	}
 	transaction, err := r.balanceLedger.ApplyDeltaInSQLTx(ctx, tx, service.BalanceLedgerApplyInput{
 		UserID:         cmd.UserID,
 		BalanceDelta:   -cmd.BalanceCost,
@@ -1048,7 +1011,7 @@ func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context
 			"media_type":              strings.TrimSpace(cmd.MediaType),
 			"request_payload_hash":    strings.TrimSpace(cmd.RequestPayloadHash),
 		},
-		BalancePolicy: policy,
+		BalancePolicy: service.BalanceLedgerPolicyAllowOverdraft,
 	})
 	if err != nil {
 		return nil, err

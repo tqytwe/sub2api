@@ -22,7 +22,7 @@ var ErrDailyCardInvalidInput = errors.New("invalid daily card entitlement input"
 var ErrDailyCardEntitlementNotFound = errors.New("daily card entitlement not found")
 var ErrDailyCardUnavailable = errors.New("daily card quota exhausted or expired")
 var ErrDailyCardRequestConflict = errors.New("daily card request reservation conflict")
-var ErrDailyCardPaidOrderRequired = errors.New("daily card grants require a tracked payment order")
+var ErrDailyCardRequestInFlight = errors.New("daily card has another request in flight")
 
 type DailyCardEntitlement struct {
 	ID               int64      `json:"id"`
@@ -70,7 +70,6 @@ type DailyCardEntitlementRepository interface {
 	ReconcileAndGetActive(ctx context.Context, userID, groupID int64, now time.Time) (*DailyCardEntitlement, error)
 	ListByUser(ctx context.Context, userID int64) ([]DailyCardEntitlement, error)
 	HasRecurringOrderAfter(ctx context.Context, userID, groupID int64, after time.Time) (bool, error)
-	IsOneTimeGroup(ctx context.Context, groupID int64) (bool, error)
 	ReserveRequest(ctx context.Context, input DailyCardRequestHoldInput) error
 	ReleaseRequest(ctx context.Context, entitlementID, userID int64, requestID string, releasedAt time.Time) error
 }
@@ -178,13 +177,6 @@ func (s *DailyCardService) ResolveAccess(ctx context.Context, userID, groupID in
 		}
 	}
 	if latestPurchase.IsZero() {
-		managed, managedErr := s.repo.IsOneTimeGroup(ctx, groupID)
-		if managedErr != nil {
-			return nil, false, managedErr
-		}
-		if managed {
-			return nil, true, ErrDailyCardUnavailable
-		}
 		return nil, false, nil
 	}
 	hasLaterRecurringOrder, recurringErr := s.repo.HasRecurringOrderAfter(ctx, userID, groupID, latestPurchase)
@@ -195,13 +187,6 @@ func (s *DailyCardService) ResolveAccess(ctx context.Context, userID, groupID in
 		return nil, false, nil
 	}
 	return nil, true, ErrDailyCardUnavailable
-}
-
-func (s *DailyCardService) IsOneTimeGroup(ctx context.Context, groupID int64) (bool, error) {
-	if s == nil || s.repo == nil || groupID <= 0 {
-		return false, ErrDailyCardInvalidInput
-	}
-	return s.repo.IsOneTimeGroup(ctx, groupID)
 }
 
 func (e *DailyCardEntitlement) RemainingQuotaUSD() float64 {

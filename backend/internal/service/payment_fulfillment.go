@@ -705,12 +705,11 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 			return fmt.Errorf("check existing subscription assignment: %w", lookupErr)
 		default:
 			if _, _, err := s.subscriptionSvc.assignOrExtendSubscription(txCtx, &AssignSubscriptionInput{
-				UserID:         o.UserID,
-				GroupID:        groupID,
-				ValidityDays:   days,
-				AssignedBy:     0,
-				Notes:          orderNote,
-				PaymentOrderID: o.ID,
+				UserID:       o.UserID,
+				GroupID:      groupID,
+				ValidityDays: days,
+				AssignedBy:   0,
+				Notes:        orderNote,
 			}, true); err != nil {
 				return fmt.Errorf("assign subscription: %w", err)
 			}

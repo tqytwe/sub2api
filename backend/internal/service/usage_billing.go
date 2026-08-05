@@ -51,7 +51,6 @@ type UsageBillingCommand struct {
 	APIKeyQuotaCost     float64
 	APIKeyRateLimitCost float64
 	AccountQuotaCost    float64
-	BalancePolicy       string
 }
 
 func (c *UsageBillingCommand) Normalize() {

@@ -204,18 +204,6 @@ func TestValidatePlanQuotaConfig_OneTimeAcceptsExplicitSnapshotValues(t *testing
 	require.NoError(t, validatePlanQuotaConfig(DailyCardQuotaModeOneTime, &quota, &duration))
 }
 
-func TestValidateOneTimePlanDurationRejectsEntitlementLongerThanParent(t *testing.T) {
-	duration := 36
-	err := validateOneTimePlanDuration(DailyCardQuotaModeOneTime, &duration, 1, "day")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "duration_hours")
-}
-
-func TestValidateOneTimePlanDurationAcceptsMatchingParent(t *testing.T) {
-	duration := 24
-	require.NoError(t, validateOneTimePlanDuration(DailyCardQuotaModeOneTime, &duration, 1, "days"))
-}
-
 func TestValidatePlanQuotaConfig_RecurringRejectsDailyCardSnapshotFields(t *testing.T) {
 	quota := 10.0
 	duration := 24

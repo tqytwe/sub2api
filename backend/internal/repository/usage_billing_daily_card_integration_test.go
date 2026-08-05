@@ -153,7 +153,7 @@ func TestUsageBillingSettlesInFlightRequestAgainstOriginalExpiredCard(t *testing
 		RequestID: requestID,
 		APIKeyID:  apiKey.ID, UserID: user.ID, AccountID: 1,
 		SubscriptionID: &sub.ID, SubscriptionEntitlementID: &first.ID,
-		SubscriptionCost: 10, ActualCost: 10, BilledCost: 10,
+		SubscriptionCost: 4, ActualCost: 4, BilledCost: 4,
 	})
 	require.NoError(t, err)
 	require.True(t, result.Applied)
@@ -163,97 +163,10 @@ func TestUsageBillingSettlesInFlightRequestAgainstOriginalExpiredCard(t *testing
 	settledFirst, err := client.SubscriptionEntitlement.Get(ctx, first.ID)
 	require.NoError(t, err)
 	require.Equal(t, service.DailyCardStatusExpired, settledFirst.Status)
-	require.Equal(t, 10.0, settledFirst.QuotaUsedUsd)
+	require.Equal(t, 4.0, settledFirst.QuotaUsedUsd)
 	require.Zero(t, settledFirst.QuotaReservedUsd)
 	settledSecond, err := client.SubscriptionEntitlement.Get(ctx, second.ID)
 	require.NoError(t, err)
 	require.Equal(t, service.DailyCardStatusActive, settledSecond.Status)
 	require.Zero(t, settledSecond.QuotaUsedUsd)
-}
-
-func TestUsageBillingDailyCardOverageRecordsBalanceDebt(t *testing.T) {
-	ctx := context.Background()
-	client := integrationEntClient
-	now := time.Now().UTC().Truncate(time.Second)
-	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
-	_, err := client.User.UpdateOneID(user.ID).SetBalance(0.25).Save(ctx)
-	require.NoError(t, err)
-	order := createDailyCardIntegrationOrder(t, ctx, client, user.ID, group.ID, plan.ID, now)
-	cardRepo := NewDailyCardEntitlementRepository(client)
-	card, _, err := cardRepo.IssuePaidCard(ctx, service.IssueDailyCardInput{
-		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID, PaymentOrderID: order.ID,
-		QuotaLimitUSD: 1, DurationHours: 24, IssuedAt: now,
-	})
-	require.NoError(t, err)
-	sub, err := client.UserSubscription.Create().SetUserID(user.ID).SetGroupID(group.ID).
-		SetStartsAt(now).SetExpiresAt(now.Add(24 * time.Hour)).SetStatus(service.SubscriptionStatusActive).Save(ctx)
-	require.NoError(t, err)
-	apiKey := mustCreateApiKey(t, client, &service.APIKey{
-		UserID: user.ID, GroupID: &group.ID,
-		Key: "sk-daily-overage-" + fmt.Sprintf("%d", time.Now().UnixNano()), Name: "daily-overage",
-	})
-	requestID := "daily-overage-" + fmt.Sprintf("%d", time.Now().UnixNano())
-	require.NoError(t, cardRepo.ReserveRequest(ctx, service.DailyCardRequestHoldInput{
-		EntitlementID: card.ID, UserID: user.ID, RequestID: requestID,
-		RequestFingerprint: "daily-overage", ReservedAt: now.Add(time.Minute),
-	}))
-
-	ledger := service.NewBalanceLedgerService(integrationDB, nil, nil)
-	result, err := NewUsageBillingRepositoryWithLedger(client, integrationDB, ledger).Apply(ctx, &service.UsageBillingCommand{
-		RequestID: requestID, APIKeyID: apiKey.ID, UserID: user.ID, AccountID: 1,
-		SubscriptionID: &sub.ID, SubscriptionEntitlementID: &card.ID,
-		SubscriptionCost: 2, ActualCost: 2, BilledCost: 2,
-	})
-
-	require.NoError(t, err)
-	require.True(t, result.DailyCardExhausted)
-	require.True(t, result.BalanceOverdrafted)
-	var balance float64
-	require.NoError(t, integrationDB.QueryRowContext(ctx, "SELECT balance FROM users WHERE id = $1", user.ID).Scan(&balance))
-	require.InDelta(t, -0.75, balance, 0.000001)
-}
-
-func TestUsageBillingDailyCardExpiryWinsWhenSettlementAlsoExhaustsQuota(t *testing.T) {
-	ctx := context.Background()
-	client := integrationEntClient
-	now := time.Now().UTC().Truncate(time.Second)
-	user, group, plan := createDailyCardIntegrationCatalog(t, ctx, client)
-	order := createDailyCardIntegrationOrder(t, ctx, client, user.ID, group.ID, plan.ID, now)
-	cardRepo := NewDailyCardEntitlementRepository(client)
-	card, _, err := cardRepo.IssuePaidCard(ctx, service.IssueDailyCardInput{
-		UserID: user.ID, GroupID: group.ID, PlanID: plan.ID, PaymentOrderID: order.ID,
-		QuotaLimitUSD: 1, DurationHours: 24, IssuedAt: now,
-	})
-	require.NoError(t, err)
-	sub, err := client.UserSubscription.Create().SetUserID(user.ID).SetGroupID(group.ID).
-		SetStartsAt(now).SetExpiresAt(now.Add(24 * time.Hour)).SetStatus(service.SubscriptionStatusActive).Save(ctx)
-	require.NoError(t, err)
-	apiKey := mustCreateApiKey(t, client, &service.APIKey{
-		UserID: user.ID, GroupID: &group.ID,
-		Key: "sk-daily-earlier-of-" + fmt.Sprintf("%d", time.Now().UnixNano()), Name: "daily-earlier-of",
-	})
-	requestID := "daily-earlier-of-" + fmt.Sprintf("%d", time.Now().UnixNano())
-	require.NoError(t, cardRepo.ReserveRequest(ctx, service.DailyCardRequestHoldInput{
-		EntitlementID: card.ID, UserID: user.ID, RequestID: requestID,
-		RequestFingerprint: "daily-earlier-of", ReservedAt: now.Add(time.Minute),
-	}))
-	expiredAt := time.Now().UTC().Add(-time.Second)
-	_, err = integrationDB.ExecContext(ctx, "UPDATE subscription_entitlements SET expires_at = $1 WHERE id = $2", expiredAt, card.ID)
-	require.NoError(t, err)
-	beforeSettlement, err := client.SubscriptionEntitlement.Get(ctx, card.ID)
-	require.NoError(t, err)
-	require.Equal(t, service.DailyCardStatusActive, beforeSettlement.Status)
-	require.WithinDuration(t, expiredAt, *beforeSettlement.ExpiresAt, time.Millisecond)
-
-	result, err := NewUsageBillingRepository(client, integrationDB).Apply(ctx, &service.UsageBillingCommand{
-		RequestID: requestID, APIKeyID: apiKey.ID, UserID: user.ID, AccountID: 1,
-		SubscriptionID: &sub.ID, SubscriptionEntitlementID: &card.ID,
-		SubscriptionCost: 1, ActualCost: 1, BilledCost: 1,
-	})
-	require.NoError(t, err)
-	require.False(t, result.DailyCardExhausted)
-	settled, err := client.SubscriptionEntitlement.Get(ctx, card.ID)
-	require.NoError(t, err)
-	require.Equal(t, service.DailyCardStatusExpired, settled.Status)
-	require.WithinDuration(t, expiredAt, *settled.EndedAt, time.Millisecond)
 }

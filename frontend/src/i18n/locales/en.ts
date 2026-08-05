@@ -4289,13 +4289,11 @@ const messages = {
       quotaEndsInMinutes: 'Quota ends in {minutes}m',
       quotaEndsInHoursMinutes: 'Quota ends in {hours}h {minutes}m',
       quotaEndsInDaysHours: 'Quota ends in {days}d {hours}h',
-      dailyCardExhausted: 'Quota exhausted; access ended immediately',
       daysRemaining: 'days remaining',
       remainingDays: 'Remaining days',
       noExpiration: 'No expiration',
       status: {
         active: 'Active',
-        exhausted: 'Exhausted',
         expired: 'Expired',
         revoked: 'Revoked',
         suspended: 'Suspended'
@@ -8584,7 +8582,6 @@ const messages = {
     failedToLoad: 'Failed to load subscriptions',
     status: {
       active: 'Active',
-      exhausted: 'Exhausted',
       expired: 'Expired',
       revoked: 'Revoked'
     },
@@ -9208,7 +9205,6 @@ const messages = {
       oneTimeQuotaPolicy: 'Ends as soon as the quota is exhausted or the duration elapses, whichever happens first. It does not reset at midnight.',
       quotaLimitRequired: 'One-time quota must be greater than 0',
       durationHoursRequired: 'One-time quota duration must be greater than 0',
-      durationExceedsValidity: 'One-time quota duration cannot exceed the parent subscription validity',
       sortOrder: 'Sort Order',
       forSale: 'For Sale',
       onSale: 'On Sale',

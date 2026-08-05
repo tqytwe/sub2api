@@ -484,14 +484,6 @@ async function handleSavePlan() {
     appStore.showError(t('payment.admin.durationHoursRequired'))
     return
   }
-  if (
-    planForm.quota_mode === 'one_time'
-    && planForm.validity_unit.replace(/s$/, '') === 'day'
-    && (planForm.duration_hours ?? 0) > planForm.validity_days * 24
-  ) {
-    appStore.showError(t('payment.admin.durationExceedsValidity'))
-    return
-  }
   saving.value = true
   try {
     const data = buildPlanPayload()
