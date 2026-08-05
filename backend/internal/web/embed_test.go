@@ -200,7 +200,7 @@ func TestInjectRouteSEO(t *testing.T) {
 	})
 
 	t.Run("english_public_routes_do_not_emit_cjk_metadata", func(t *testing.T) {
-		for _, path := range []string{"/en", "/en/docs", "/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm"} {
+		for _, path := range []string{"/en", "/en/docs", "/en/about", "/en/contact", "/en/models/deepseek", "/en/models/qwen", "/en/models/kimi", "/en/models/glm"} {
 			result := string(injectRouteSEO(baseHTML, path))
 
 			assert.Contains(t, result, `<html lang="en">`)
@@ -270,6 +270,14 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, contact, `<title>联系极速蹬客服 - API、模型调用、充值、账号与接入支持入口</title>`)
 		assert.Contains(t, contact, `<link rel="canonical" href="https://www.jisudeng.com/contact" />`)
 		assert.Contains(t, contact, `"@type":"ContactPage"`)
+
+		englishAbout := string(injectRouteSEO(baseHTML, "/en/about"))
+		englishContact := string(injectRouteSEO(baseHTML, "/en/contact"))
+		assert.Contains(t, englishAbout, `<html lang="en">`)
+		assert.Contains(t, englishAbout, `<link rel="canonical" href="https://www.jisudeng.com/en/about" />`)
+		assert.Contains(t, englishAbout, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/about" />`)
+		assert.Contains(t, englishContact, `<html lang="en">`)
+		assert.Contains(t, englishContact, `<link rel="canonical" href="https://www.jisudeng.com/en/contact" />`)
 	})
 
 	t.Run("uses_brand_name_for_website_entity", func(t *testing.T) {

@@ -21,7 +21,7 @@ const vipRoute = computed(() =>
     ? { name: 'EnglishDocs', query: { cat: 'recharge-vip', page: 'vip-levels' } }
     : '/blindbox',
 )
-const contactRoute = computed(() => (isEnglish.value ? '/en' : '/contact'))
+const contactRoute = computed(() => (isEnglish.value ? '/en/contact' : '/contact'))
 const s5items = computed<string[]>(() => {
   const value = tm('about.s5items') as unknown
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
