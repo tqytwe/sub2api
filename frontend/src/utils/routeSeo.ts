@@ -197,7 +197,8 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     structuredType: 'AboutPage',
     alternates: [
       { hreflang: 'zh-CN', path: '/about' },
-      { hreflang: 'x-default', path: '/about' },
+      { hreflang: 'en', path: '/en/about' },
+      { hreflang: 'x-default', path: '/en/about' },
     ],
   },
   '/contact': {
@@ -214,7 +215,8 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
     structuredType: 'ContactPage',
     alternates: [
       { hreflang: 'zh-CN', path: '/contact' },
-      { hreflang: 'x-default', path: '/contact' },
+      { hreflang: 'en', path: '/en/contact' },
+      { hreflang: 'x-default', path: '/en/contact' },
     ],
   },
   '/en': {
@@ -339,6 +341,42 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
       { hreflang: 'en', path: '/en/docs' },
       { hreflang: 'zh-CN', path: '/docs' },
       { hreflang: 'x-default', path: '/en/docs' },
+    ],
+  },
+  '/en/about': {
+    title: 'About Jisudeng: A Transparent OpenAI-Compatible API Relay',
+    description: 'Learn how Jisudeng provides a transparent OpenAI-compatible API with public pricing, privacy commitments, and practical developer documentation for teams.',
+    twitterTitle: 'About Jisudeng: Transparent AI API, Pricing, and Privacy',
+    twitterDescription: 'Learn how Jisudeng routes major AI models through an OpenAI-compatible API with transparent channels, public pricing, request-body privacy, image access, developer docs, and support for teams.',
+    keywords: 'about Jisudeng, transparent AI API relay, OpenAI-compatible gateway, DeepSeek API, model pricing, API privacy, developer API access',
+    canonicalPath: '/en/about',
+    lang: 'en',
+    ogLocale: 'en_US',
+    ogType: 'website',
+    siteName: 'Jisudeng',
+    structuredType: 'AboutPage',
+    alternates: [
+      { hreflang: 'en', path: '/en/about' },
+      { hreflang: 'zh-CN', path: '/about' },
+      { hreflang: 'x-default', path: '/en/about' },
+    ],
+  },
+  '/en/contact': {
+    title: 'Contact Jisudeng: API, Account, Billing, and Support',
+    description: 'Contact Jisudeng for API keys, model access, billing questions, image generation, documentation, integration help, and technical support.',
+    twitterTitle: 'Contact Jisudeng: API, Billing, and Developer Support',
+    twitterDescription: 'Contact Jisudeng for API keys, model access, billing, image generation, docs, integration help, privacy, and technical support for teams using major AI models.',
+    keywords: 'contact Jisudeng, AI API support, API key help, model access support, billing support, OpenAI-compatible integration support, developer support',
+    canonicalPath: '/en/contact',
+    lang: 'en',
+    ogLocale: 'en_US',
+    ogType: 'website',
+    siteName: 'Jisudeng',
+    structuredType: 'ContactPage',
+    alternates: [
+      { hreflang: 'en', path: '/en/contact' },
+      { hreflang: 'zh-CN', path: '/contact' },
+      { hreflang: 'x-default', path: '/en/contact' },
     ],
   },
 }

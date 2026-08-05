@@ -21,6 +21,8 @@ export function resolvePublicLocaleRoute(
 
   if (targetLocale === 'en') {
     if (path === '/en' || path.startsWith('/en/')) return null
+    if (path === '/about') return { path: '/en/about' }
+    if (path === '/contact') return { path: '/en/contact' }
     if (path === '/pricing' || path.startsWith('/pricing/')) {
       return withQuery(path.replace(/^\/pricing/, '/en/models'), query)
     }
@@ -32,6 +34,8 @@ export function resolvePublicLocaleRoute(
     return withQuery(path.replace(/^\/en\/models/, '/pricing'), query)
   }
   if (path === '/en/docs') return withQuery('/docs', query)
+  if (path === '/en/about') return { path: '/about' }
+  if (path === '/en/contact') return { path: '/contact' }
   if (path === '/en') return { path: '/' }
   return null
 }

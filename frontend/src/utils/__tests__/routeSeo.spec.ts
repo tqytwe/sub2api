@@ -4,7 +4,7 @@ import { applyPublicRouteSeo, resolvePublicRouteSeo } from '../routeSeo'
 
 describe('public route SEO', () => {
   it('keeps public metadata within the crawler and social length budgets', () => {
-    for (const path of ['/', '/home', '/models', '/docs', '/download/android', '/about', '/contact', '/en', '/en/models', '/en/docs']) {
+    for (const path of ['/', '/home', '/models', '/docs', '/download/android', '/about', '/contact', '/en', '/en/models', '/en/docs', '/en/about', '/en/contact']) {
       const seo = resolvePublicRouteSeo(path)
 
       expect(seo, path).toBeTruthy()
@@ -57,7 +57,14 @@ describe('public route SEO', () => {
     expect(resolvePublicRouteSeo('/docs')?.alternates.some((link) => link.path === '/en/docs')).toBe(true)
     expect(resolvePublicRouteSeo('/download/android')?.canonicalPath).toBe('/download/android')
     expect(resolvePublicRouteSeo('/about')?.canonicalPath).toBe('/about')
+    expect(resolvePublicRouteSeo('/about')?.alternates).toEqual([
+      { hreflang: 'zh-CN', path: '/about' },
+      { hreflang: 'en', path: '/en/about' },
+      { hreflang: 'x-default', path: '/en/about' },
+    ])
     expect(resolvePublicRouteSeo('/contact')?.structuredType).toBe('ContactPage')
+    expect(resolvePublicRouteSeo('/en/about')?.lang).toBe('en')
+    expect(resolvePublicRouteSeo('/en/contact')?.canonicalPath).toBe('/en/contact')
   })
 
   it('applies title, lang, canonical, and hreflang tags in the browser head', () => {
