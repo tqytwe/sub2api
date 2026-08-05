@@ -13,6 +13,7 @@
   "languages_and_themes": ["zh-CN/light", "zh-CN/dark", "en-US/light", "en-US/dark"],
   "states": [
     "VIP tier filter and paid amount column",
+    "pending-review ledger state instead of a zero-value VIP display",
     "standard exclusive group grant/revoke preview",
     "CSV preview classifications",
     "expired or mismatched preview error"
@@ -41,8 +42,9 @@
 ## Scope
 
 The existing administrator user list gains a localized VIP filter, a paid
-membership column, and a compact overlay for previewing and submitting standard
-exclusive-group changes or CSV email imports.
+membership column, an explicit pending-review ledger state, and a compact
+overlay for previewing and submitting standard exclusive-group changes or CSV
+email imports.
 
 ## Baseline
 
@@ -63,9 +65,9 @@ components. No new visual library or standalone page shell was introduced.
 
 ## State Coverage
 
-The review covers empty and populated VIP values, both grant and revoke
-actions, CSV preview classifications, loading/disabled submit controls, and
-localized preview or submit failures.
+The review covers empty and populated VIP values, pending historical ledgers,
+both grant and revoke actions, CSV preview classifications, loading/disabled
+submit controls, and localized preview or submit failures.
 
 ## Viewport Coverage
 
