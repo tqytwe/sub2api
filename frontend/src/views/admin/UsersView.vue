@@ -481,8 +481,12 @@
 
           <template #cell-vip="{ row }">
             <div class="text-xs">
-              <div class="font-medium text-gray-800 dark:text-gray-200">{{ row.vip_label || t('admin.users.vip.unavailable') }}</div>
-              <div class="text-gray-500 dark:text-gray-400">{{ t('admin.users.vip.amount', { amount: (row.membership_paid_amount ?? 0).toFixed(2) }) }}</div>
+              <div class="font-medium text-gray-800 dark:text-gray-200">
+                {{ row.membership_data_state === 'pending_review' ? t('admin.users.vip.pendingReview') : (row.vip_label || t('admin.users.vip.unavailable')) }}
+              </div>
+              <div class="text-gray-500 dark:text-gray-400">
+                {{ row.membership_data_state === 'pending_review' ? t('admin.users.vip.pendingAmount') : t('admin.users.vip.amount', { amount: (row.membership_paid_amount ?? 0).toFixed(2) }) }}
+              </div>
             </div>
           </template>
 

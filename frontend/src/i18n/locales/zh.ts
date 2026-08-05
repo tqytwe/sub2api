@@ -2847,6 +2847,8 @@ const messages = {
         tier: 'VIP {tier}',
         amount: '累计实付 ¥{amount}',
         unavailable: '待核查',
+        pendingReview: '账本待核查',
+        pendingAmount: '历史订单待核验',
         batchGrant: '授予专属分组',
         batchRevoke: '撤销专属分组',
         chooseGroup: '选择标准专属分组',

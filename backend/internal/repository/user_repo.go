@@ -645,13 +645,15 @@ func (r *userRepository) loadMembershipProjection(ctx context.Context, userIDs [
 	}
 	rows, err := r.sql.QueryContext(ctx, `
 		WITH totals AS (
-			SELECT u.id AS user_id, COALESCE(SUM(c.net_amount) FILTER (WHERE c.qualification_state = 'verified'), 0)::numeric AS total_paid
+			SELECT u.id AS user_id,
+			       COALESCE(SUM(c.net_amount) FILTER (WHERE c.qualification_state = 'verified'), 0)::numeric AS total_paid,
+			       COUNT(*) FILTER (WHERE c.qualification_state = 'pending_review')::int AS pending_review_count
 			FROM users u
 			LEFT JOIN play_membership_order_contributions c ON c.user_id = u.id
 			WHERE u.id = ANY($1)
 			GROUP BY u.id
 		)
-		SELECT t.user_id, t.total_paid::text,
+		SELECT t.user_id, t.total_paid::text, t.pending_review_count,
 		       COALESCE((SELECT (tier->>'tier')::int
 		                 FROM settings cfg, jsonb_array_elements(cfg.value::jsonb) tier
 		                 WHERE cfg.key = 'play_vip_tiers'
@@ -674,9 +676,10 @@ func (r *userRepository) loadMembershipProjection(ctx context.Context, userIDs [
 	for rows.Next() {
 		var id int64
 		var raw string
+		var pendingReviewCount int
 		var tier int
 		var label string
-		if err := rows.Scan(&id, &raw, &tier, &label); err != nil {
+		if err := rows.Scan(&id, &raw, &pendingReviewCount, &tier, &label); err != nil {
 			return err
 		}
 		amount, err := decimal.NewFromString(raw)
@@ -687,7 +690,11 @@ func (r *userRepository) loadMembershipProjection(ctx context.Context, userIDs [
 			user.MembershipPaidAmount = amount.InexactFloat64()
 			user.VIPTier = tier
 			user.VIPLabel = label
-			user.MembershipDataState = "verified"
+			if pendingReviewCount > 0 {
+				user.MembershipDataState = "pending_review"
+			} else {
+				user.MembershipDataState = "verified"
+			}
 		}
 	}
 	return rows.Err()
