@@ -37618,6 +37618,7 @@ type PaymentOrderMutation struct {
 	provider_key                  *string
 	provider_snapshot             *map[string]interface{}
 	recharge_snapshot             *map[string]interface{}
+	subscription_snapshot         *map[string]interface{}
 	status                        *string
 	refund_amount                 *float64
 	addrefund_amount              *float64
@@ -39306,6 +39307,55 @@ func (m *PaymentOrderMutation) ResetRechargeSnapshot() {
 	delete(m.clearedFields, paymentorder.FieldRechargeSnapshot)
 }
 
+// SetSubscriptionSnapshot sets the "subscription_snapshot" field.
+func (m *PaymentOrderMutation) SetSubscriptionSnapshot(value map[string]interface{}) {
+	m.subscription_snapshot = &value
+}
+
+// SubscriptionSnapshot returns the value of the "subscription_snapshot" field in the mutation.
+func (m *PaymentOrderMutation) SubscriptionSnapshot() (r map[string]interface{}, exists bool) {
+	v := m.subscription_snapshot
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSubscriptionSnapshot returns the old "subscription_snapshot" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldSubscriptionSnapshot(ctx context.Context) (v map[string]interface{}, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSubscriptionSnapshot is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSubscriptionSnapshot requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSubscriptionSnapshot: %w", err)
+	}
+	return oldValue.SubscriptionSnapshot, nil
+}
+
+// ClearSubscriptionSnapshot clears the value of the "subscription_snapshot" field.
+func (m *PaymentOrderMutation) ClearSubscriptionSnapshot() {
+	m.subscription_snapshot = nil
+	m.clearedFields[paymentorder.FieldSubscriptionSnapshot] = struct{}{}
+}
+
+// SubscriptionSnapshotCleared returns if the "subscription_snapshot" field was cleared in this mutation.
+func (m *PaymentOrderMutation) SubscriptionSnapshotCleared() bool {
+	_, ok := m.clearedFields[paymentorder.FieldSubscriptionSnapshot]
+	return ok
+}
+
+// ResetSubscriptionSnapshot resets all changes to the "subscription_snapshot" field.
+func (m *PaymentOrderMutation) ResetSubscriptionSnapshot() {
+	m.subscription_snapshot = nil
+	delete(m.clearedFields, paymentorder.FieldSubscriptionSnapshot)
+}
+
 // SetStatus sets the "status" field.
 func (m *PaymentOrderMutation) SetStatus(s string) {
 	m.status = &s
@@ -40165,7 +40215,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 49)
+	fields := make([]string, 0, 50)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -40258,6 +40308,9 @@ func (m *PaymentOrderMutation) Fields() []string {
 	}
 	if m.recharge_snapshot != nil {
 		fields = append(fields, paymentorder.FieldRechargeSnapshot)
+	}
+	if m.subscription_snapshot != nil {
+		fields = append(fields, paymentorder.FieldSubscriptionSnapshot)
 	}
 	if m.status != nil {
 		fields = append(fields, paymentorder.FieldStatus)
@@ -40383,6 +40436,8 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.ProviderSnapshot()
 	case paymentorder.FieldRechargeSnapshot:
 		return m.RechargeSnapshot()
+	case paymentorder.FieldSubscriptionSnapshot:
+		return m.SubscriptionSnapshot()
 	case paymentorder.FieldStatus:
 		return m.Status()
 	case paymentorder.FieldRefundAmount:
@@ -40490,6 +40545,8 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldProviderSnapshot(ctx)
 	case paymentorder.FieldRechargeSnapshot:
 		return m.OldRechargeSnapshot(ctx)
+	case paymentorder.FieldSubscriptionSnapshot:
+		return m.OldSubscriptionSnapshot(ctx)
 	case paymentorder.FieldStatus:
 		return m.OldStatus(ctx)
 	case paymentorder.FieldRefundAmount:
@@ -40751,6 +40808,13 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRechargeSnapshot(v)
+		return nil
+	case paymentorder.FieldSubscriptionSnapshot:
+		v, ok := value.(map[string]interface{})
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSubscriptionSnapshot(v)
 		return nil
 	case paymentorder.FieldStatus:
 		v, ok := value.(string)
@@ -41121,6 +41185,9 @@ func (m *PaymentOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(paymentorder.FieldRechargeSnapshot) {
 		fields = append(fields, paymentorder.FieldRechargeSnapshot)
 	}
+	if m.FieldCleared(paymentorder.FieldSubscriptionSnapshot) {
+		fields = append(fields, paymentorder.FieldSubscriptionSnapshot)
+	}
 	if m.FieldCleared(paymentorder.FieldRefundReason) {
 		fields = append(fields, paymentorder.FieldRefundReason)
 	}
@@ -41206,6 +41273,9 @@ func (m *PaymentOrderMutation) ClearField(name string) error {
 		return nil
 	case paymentorder.FieldRechargeSnapshot:
 		m.ClearRechargeSnapshot()
+		return nil
+	case paymentorder.FieldSubscriptionSnapshot:
+		m.ClearSubscriptionSnapshot()
 		return nil
 	case paymentorder.FieldRefundReason:
 		m.ClearRefundReason()
@@ -41337,6 +41407,9 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldRechargeSnapshot:
 		m.ResetRechargeSnapshot()
+		return nil
+	case paymentorder.FieldSubscriptionSnapshot:
+		m.ResetSubscriptionSnapshot()
 		return nil
 	case paymentorder.FieldStatus:
 		m.ResetStatus()

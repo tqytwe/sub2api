@@ -55,6 +55,53 @@ export interface BatchUpdateUserLimitsResponse {
   affected: number
 }
 
+export interface ExclusiveGroupBatchRequest {
+  group_id: number
+  action: 'grant' | 'revoke'
+  user_ids?: number[]
+  all?: boolean
+  filters?: {
+    status?: string
+    role?: string
+    search?: string
+    group_name?: string
+    api_key_group_id?: number
+    vip_tier?: number
+    attributes?: Record<number, string>
+  }
+  preview_token?: string
+}
+
+export interface ExclusiveGroupBatchPreview {
+  group_id: number
+  group_name: string
+  action: 'grant' | 'revoke'
+  requested_count: number
+  eligible: Array<{ user_id: number; email?: string; reason: string }>
+  already_granted: Array<{ user_id: number; email?: string; reason: string }>
+  already_revoked: Array<{ user_id: number; email?: string; reason: string }>
+  skipped: Array<{ user_id: number; email?: string; reason: string }>
+  missing_user_ids: number[]
+  preview_token: string
+  expires_at: string
+  valid?: Array<{ user_id: number; email?: string; reason: string }>
+}
+
+export interface ExclusiveGroupBatchResult {
+  action: 'grant' | 'revoke'
+  affected: number
+  skipped: Array<{ user_id: number; email?: string; reason: string }>
+}
+
+export interface ExclusiveGroupCSVPreview extends ExclusiveGroupBatchPreview {
+  file_sha256: string
+  valid: Array<{ user_id: number; email?: string; reason: string }>
+  duplicate_rows: number[]
+  not_found: string[]
+  disabled: string[]
+  invalid: string[]
+}
+
 export type UserBatchAction = 'disable' | 'delete'
 
 export interface UserBatchActionRequest {
@@ -124,6 +171,8 @@ export async function list(
     api_key_group_id?: number   // filter users by the group their API keys are bound to
     attributes?: Record<number, string>  // attributeId -> value
     include_subscriptions?: boolean
+    include_membership?: boolean
+    vip_tier?: number
     sort_by?: string
     sort_order?: 'asc' | 'desc'
   },
@@ -141,6 +190,8 @@ export async function list(
     group_name: filters?.group_name,
     api_key_group_id: filters?.api_key_group_id,
     include_subscriptions: filters?.include_subscriptions,
+    include_membership: filters?.include_membership,
+    vip_tier: filters?.vip_tier,
     sort_by: filters?.sort_by,
     sort_order: filters?.sort_order
   }
@@ -157,6 +208,36 @@ export async function list(
     params,
     signal: options?.signal
   })
+  return data
+}
+
+export async function previewExclusiveGroup(request: Omit<ExclusiveGroupBatchRequest, 'preview_token'>): Promise<ExclusiveGroupBatchPreview> {
+  const { data } = await apiClient.post<ExclusiveGroupBatchPreview>('/admin/users/exclusive-groups/preview', request)
+  return data
+}
+
+export async function executeExclusiveGroup(request: ExclusiveGroupBatchRequest): Promise<ExclusiveGroupBatchResult> {
+  const { data } = await apiClient.post<ExclusiveGroupBatchResult>('/admin/users/exclusive-groups', request, { headers: { 'Idempotency-Key': `vip-${Date.now()}-${Math.random().toString(36).slice(2)}` } })
+  return data
+}
+
+function csvFormData(groupId: number, action: 'grant' | 'revoke', file: File, previewToken?: string, fileSha256?: string): FormData {
+  const form = new FormData()
+  form.append('group_id', String(groupId))
+  form.append('action', action)
+  form.append('file', file)
+  if (previewToken) form.append('preview_token', previewToken)
+  if (fileSha256) form.append('file_sha256', fileSha256)
+  return form
+}
+
+export async function previewExclusiveGroupCSV(groupId: number, action: 'grant' | 'revoke', file: File): Promise<ExclusiveGroupCSVPreview> {
+  const { data } = await apiClient.post<ExclusiveGroupCSVPreview>('/admin/users/exclusive-groups/csv/preview', csvFormData(groupId, action, file))
+  return data
+}
+
+export async function executeExclusiveGroupCSV(groupId: number, action: 'grant' | 'revoke', file: File, previewToken: string, fileSha256: string): Promise<ExclusiveGroupBatchResult> {
+  const { data } = await apiClient.post<ExclusiveGroupBatchResult>('/admin/users/exclusive-groups/csv', csvFormData(groupId, action, file, previewToken, fileSha256), { headers: { 'Idempotency-Key': `vip-csv-${Date.now()}-${Math.random().toString(36).slice(2)}` } })
   return data
 }
 
@@ -522,6 +603,10 @@ export const usersAPI = {
   batchUpdateLimits,
   previewBatchAction,
   executeBatchAction,
+  previewExclusiveGroup,
+  executeExclusiveGroup,
+  previewExclusiveGroupCSV,
+  executeExclusiveGroupCSV,
   toggleStatus,
   getUserApiKeys,
   getUserUsageStats,

@@ -16,7 +16,8 @@ func (r *playRepository) GetMembershipPaidTotal(ctx context.Context, userID int6
 	var total string
 	err := scanSingleRow(ctx, r.sqlExec(ctx), `
 		SELECT COALESCE(SUM(net_amount), 0)::text
-		FROM play_membership_order_contributions WHERE user_id = $1`, []any{userID}, &total)
+		FROM play_membership_order_contributions
+		WHERE user_id = $1 AND qualification_state = 'verified'`, []any{userID}, &total)
 	if err != nil {
 		return 0, fmt.Errorf("get membership paid total: %w", err)
 	}
@@ -39,13 +40,17 @@ func (r *playRepository) SyncMembershipOrderContribution(ctx context.Context, or
 	}
 	_, err := r.sqlExec(ctx).ExecContext(ctx, `
 		INSERT INTO play_membership_order_contributions
-		(order_id, user_id, order_type, paid_amount, refund_amount, net_amount, paid_at, status, processed_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,GREATEST($4::numeric - $5::numeric, 0::numeric),$6,$7,NOW(),NOW())
+		(order_id, user_id, order_type, paid_amount, refund_amount, net_amount, paid_at, status,
+		 qualification_state, qualification_source, qualification_reason, reviewed_at, processed_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,GREATEST($4::numeric - $5::numeric, 0::numeric),$6,$7,
+		 'verified','live_snapshot',NULL,NOW(),NOW(),NOW())
 		ON CONFLICT (order_id) DO UPDATE SET
 			user_id=EXCLUDED.user_id, order_type=EXCLUDED.order_type,
 			paid_amount=EXCLUDED.paid_amount, refund_amount=EXCLUDED.refund_amount,
 			net_amount=GREATEST(EXCLUDED.paid_amount - EXCLUDED.refund_amount, 0::numeric),
-			paid_at=EXCLUDED.paid_at, status=EXCLUDED.status, updated_at=NOW()`,
+			paid_at=EXCLUDED.paid_at, status=EXCLUDED.status,
+			qualification_state='verified', qualification_source='live_snapshot',
+			qualification_reason=NULL, reviewed_at=NOW(), reviewed_by=NULL, updated_at=NOW()`,
 		orderID, userID, orderType, paidAmount, refundAmount, paidAt, status)
 	if err != nil {
 		return fmt.Errorf("sync membership contribution: %w", err)
@@ -119,7 +124,9 @@ func (r *playRepository) MembershipAdminOverview(ctx context.Context, memberThre
 		SELECT COUNT(*) FILTER (WHERE total_paid >= $1)::int,
 		       COALESCE(SUM(total_paid), 0)::text
 		FROM (SELECT user_id, COALESCE(SUM(net_amount), 0) AS total_paid
-		      FROM play_membership_order_contributions GROUP BY user_id) totals`, []any{memberThreshold}, &total, &netPaid)
+		      FROM play_membership_order_contributions
+		      WHERE qualification_state = 'verified'
+		      GROUP BY user_id) totals`, []any{memberThreshold}, &total, &netPaid)
 	if err != nil {
 		return 0, decimal.Zero, fmt.Errorf("get membership admin overview: %w", err)
 	}
@@ -161,7 +168,9 @@ func (r *playRepository) ListMembershipAdminRows(ctx context.Context, query stri
 	var total int
 	baseJoin := ` FROM users u LEFT JOIN (
 		SELECT user_id, COALESCE(SUM(net_amount),0) AS total_paid
-		FROM play_membership_order_contributions GROUP BY user_id
+		FROM play_membership_order_contributions
+		WHERE qualification_state = 'verified'
+		GROUP BY user_id
 	) totals ON totals.user_id=u.id WHERE ` + whereSQL
 	countSQL := `SELECT COUNT(*)` + baseJoin
 	countArgs := append([]any(nil), args...)
@@ -172,8 +181,8 @@ func (r *playRepository) ListMembershipAdminRows(ctx context.Context, query stri
 	rows, err := exec.QueryContext(ctx, `
 			SELECT u.id, COALESCE(u.email,''), COALESCE(u.username,''), COALESCE(totals.total_paid,0)::text,
 			       u.created_at,
-		       (SELECT MIN(paid_at) FROM play_membership_order_contributions c WHERE c.user_id=u.id AND c.net_amount>0),
-		       (SELECT MAX(paid_at) FROM play_membership_order_contributions c WHERE c.user_id=u.id AND c.net_amount>0)
+			   (SELECT MIN(paid_at) FROM play_membership_order_contributions c WHERE c.user_id=u.id AND c.net_amount>0 AND c.qualification_state='verified'),
+			   (SELECT MAX(paid_at) FROM play_membership_order_contributions c WHERE c.user_id=u.id AND c.net_amount>0 AND c.qualification_state='verified')
 			`+baseJoin+` ORDER BY COALESCE(totals.total_paid,0) DESC, u.id ASC LIMIT $`+fmt.Sprint(len(args)-1)+` OFFSET $`+fmt.Sprint(len(args)), args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list membership admin rows: %w", err)
@@ -196,7 +205,7 @@ func (r *playRepository) ListMembershipAdminRows(ctx context.Context, query stri
 }
 
 func (r *playRepository) ListMembershipPaidTotals(ctx context.Context) (map[int64]decimal.Decimal, error) {
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT u.id, COALESCE(SUM(c.net_amount),0)::text FROM users u LEFT JOIN play_membership_order_contributions c ON c.user_id=u.id GROUP BY u.id`)
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT u.id, COALESCE(SUM(c.net_amount),0)::text FROM users u LEFT JOIN play_membership_order_contributions c ON c.user_id=u.id AND c.qualification_state = 'verified' GROUP BY u.id`)
 	if err != nil {
 		return nil, fmt.Errorf("list membership paid totals: %w", err)
 	}
@@ -223,7 +232,8 @@ func (r *playRepository) GetMembershipAdminRow(ctx context.Context, userID int64
 	err := scanSingleRow(ctx, r.sqlExec(ctx), `
 		SELECT u.id, COALESCE(u.email,''), COALESCE(u.username,''), COALESCE(SUM(c.net_amount),0)::text,
 		       u.created_at, MIN(c.paid_at) FILTER (WHERE c.net_amount>0), MAX(c.paid_at) FILTER (WHERE c.net_amount>0)
-		FROM users u LEFT JOIN play_membership_order_contributions c ON c.user_id=u.id
+		FROM users u LEFT JOIN play_membership_order_contributions c
+		  ON c.user_id=u.id AND c.qualification_state = 'verified'
 		WHERE u.id=$1 GROUP BY u.id`, []any{userID}, &row.UserID, &row.Email, &row.Username, &paid, &row.RegisteredAt, &row.FirstPaidAt, &row.LastPaidAt)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -242,7 +252,7 @@ func (r *playRepository) ListMembershipContributions(ctx context.Context, userID
 	if limit < 1 || limit > 100 {
 		limit = 50
 	}
-	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT order_id,order_type,paid_amount::text,refund_amount::text,net_amount::text,paid_at,status,updated_at FROM play_membership_order_contributions WHERE user_id=$1 ORDER BY COALESCE(paid_at,updated_at) DESC,order_id DESC LIMIT $2`, userID, limit)
+	rows, err := r.sqlExec(ctx).QueryContext(ctx, `SELECT order_id,order_type,paid_amount::text,refund_amount::text,net_amount::text,paid_at,status,updated_at,qualification_state,qualification_source,qualification_reason FROM play_membership_order_contributions WHERE user_id=$1 ORDER BY COALESCE(paid_at,updated_at) DESC,order_id DESC LIMIT $2`, userID, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -251,7 +261,7 @@ func (r *playRepository) ListMembershipContributions(ctx context.Context, userID
 	for rows.Next() {
 		var item service.PlayMembershipContribution
 		var paid, refunded, net string
-		if err := rows.Scan(&item.OrderID, &item.OrderType, &paid, &refunded, &net, &item.PaidAt, &item.Status, &item.UpdatedAt); err != nil {
+		if err := rows.Scan(&item.OrderID, &item.OrderType, &paid, &refunded, &net, &item.PaidAt, &item.Status, &item.UpdatedAt, &item.QualificationState, &item.QualificationSource, &item.QualificationReason); err != nil {
 			return nil, err
 		}
 		item.PaidAmount, err = decimal.NewFromString(paid)

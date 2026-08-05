@@ -43,6 +43,8 @@ var (
 		"IDENTITY_UNBIND_LAST_METHOD",
 		"bind another sign-in method before unbinding this provider",
 	)
+	ErrMembershipAccountingUnavailable = infraerrors.ServiceUnavailable("VIP_ACCOUNTING_UNAVAILABLE", "VIP accounting is unavailable")
+	ErrInvalidVIPTier                  = infraerrors.BadRequest("INVALID_VIP_TIER", "VIP tier is invalid")
 )
 
 const (
@@ -82,6 +84,11 @@ type UserListFilters struct {
 	// IncludeDeleted 为 true 时绕过软删除过滤，返回含已删除（deleted_at 非空）的用户。
 	// 仅供 /admin/usage 的 SearchUsers 端点使用，其他列表调用方不要设置。
 	IncludeDeleted bool
+	// VIPTier filters against verified membership contributions and the current
+	// play_vip_tiers setting. Tier 0 includes users below the first paid tier.
+	VIPTier *int
+	// IncludeMembership requests membership projection fields for admin views.
+	IncludeMembership bool
 }
 
 // UserUpdateFields 声明 UserRepository.Update 允许写回的列。
@@ -307,6 +314,30 @@ func (s *UserService) GetFirstAdmin(ctx context.Context) (*User, error) {
 		return nil, fmt.Errorf("get first admin: %w", err)
 	}
 	return admin, nil
+}
+
+// GetByEmail returns a user using the repository's normalized email lookup.
+func (s *UserService) GetByEmail(ctx context.Context, email string) (*User, error) {
+	if s == nil || s.userRepo == nil {
+		return nil, ErrUserNotFound
+	}
+	return s.userRepo.GetByEmail(ctx, strings.TrimSpace(strings.ToLower(email)))
+}
+
+// AddGroupToAllowedGroups adds one allowed group without replacing any others.
+func (s *UserService) AddGroupToAllowedGroups(ctx context.Context, userID, groupID int64) error {
+	if s == nil || s.userRepo == nil {
+		return ErrUserNotFound
+	}
+	return s.userRepo.AddGroupToAllowedGroups(ctx, userID, groupID)
+}
+
+// RemoveGroupFromUserAllowedGroups removes only the requested allowed group.
+func (s *UserService) RemoveGroupFromUserAllowedGroups(ctx context.Context, userID, groupID int64) error {
+	if s == nil || s.userRepo == nil {
+		return ErrUserNotFound
+	}
+	return s.userRepo.RemoveGroupFromUserAllowedGroups(ctx, userID, groupID)
 }
 
 // GetProfile 获取用户资料

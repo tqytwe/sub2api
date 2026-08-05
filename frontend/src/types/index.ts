@@ -155,6 +155,10 @@ export interface AdminUser extends User {
   group_rates?: Record<number, number>
   // 当前并发数（仅管理员列表接口返回）
   current_concurrency?: number
+  membership_paid_amount?: number
+  vip_tier?: number
+  vip_label?: string
+  membership_data_state?: string
 }
 
 export interface LoginRequest {

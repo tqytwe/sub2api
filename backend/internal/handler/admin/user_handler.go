@@ -155,6 +155,18 @@ func (h *UserHandler) List(c *gin.Context) {
 		includeSubscriptions := parseBoolQueryWithDefault(raw, true)
 		filters.IncludeSubscriptions = &includeSubscriptions
 	}
+	if raw, ok := c.GetQuery("include_membership"); ok {
+		filters.IncludeMembership = parseBoolQueryWithDefault(raw, true)
+	}
+	if raw := strings.TrimSpace(c.Query("vip_tier")); raw != "" {
+		tier, parseErr := strconv.Atoi(raw)
+		if parseErr != nil || tier < 0 || tier > 99 {
+			response.ErrorFrom(c, service.ErrInvalidVIPTier)
+			return
+		}
+		filters.VIPTier = &tier
+		filters.IncludeMembership = true
+	}
 
 	users, total, err := h.adminService.ListUsers(c.Request.Context(), page, pageSize, filters, sortBy, sortOrder)
 	if err != nil {

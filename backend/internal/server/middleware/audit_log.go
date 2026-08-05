@@ -192,6 +192,8 @@ var auditBodyOmittedRoutes = map[string]struct{}{
 	"POST /api/v1/admin/funds/gifts":                                  {},
 	"POST /api/v1/admin/funds/offline-recharges":                      {},
 	"POST /api/v1/admin/funds/classifications/signup-gift-30/execute": {},
+	"POST /api/v1/admin/users/exclusive-groups/csv/preview":           {},
+	"POST /api/v1/admin/users/exclusive-groups/csv":                   {},
 	"POST /api/v1/admin/play/teams/:id/members":                       {},
 	"POST /api/v1/admin/prompts/import-jobs":                          {},
 	"POST /api/v1/admin/prompts/import-items/:id/approve":             {},
