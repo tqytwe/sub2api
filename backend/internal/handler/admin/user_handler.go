@@ -164,6 +164,10 @@ func (h *UserHandler) List(c *gin.Context) {
 			response.ErrorFrom(c, service.ErrInvalidVIPTier)
 			return
 		}
+		if err := h.validateVIPTier(c.Request.Context(), &tier); err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
 		filters.VIPTier = &tier
 		filters.IncludeMembership = true
 	}

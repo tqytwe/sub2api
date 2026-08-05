@@ -14,6 +14,7 @@ import {
   executeBatchAction,
   batchUpdateLimits,
   bindUserAuthIdentity,
+  executeExclusiveGroup,
   previewBatchAction,
   type AdminBindAuthIdentityRequest,
   type AdminBoundAuthIdentity,
@@ -244,5 +245,22 @@ describe('admin users api auth identity binding', () => {
       skipped: [],
       failed: [],
     })
+  })
+
+  it('reuses the preview token as the idempotency key for exclusive group submission', async () => {
+    post.mockResolvedValue({ data: { action: 'grant', affected: 1, skipped: [] } })
+
+    await executeExclusiveGroup({
+      group_id: 12,
+      action: 'grant',
+      all: true,
+      preview_token: 'preview-token'
+    })
+
+    expect(post).toHaveBeenCalledWith(
+      '/admin/users/exclusive-groups',
+      expect.objectContaining({ preview_token: 'preview-token' }),
+      { headers: { 'Idempotency-Key': 'vip-preview-token' } }
+    )
   })
 })

@@ -217,7 +217,7 @@ export async function previewExclusiveGroup(request: Omit<ExclusiveGroupBatchReq
 }
 
 export async function executeExclusiveGroup(request: ExclusiveGroupBatchRequest): Promise<ExclusiveGroupBatchResult> {
-  const { data } = await apiClient.post<ExclusiveGroupBatchResult>('/admin/users/exclusive-groups', request, { headers: { 'Idempotency-Key': `vip-${Date.now()}-${Math.random().toString(36).slice(2)}` } })
+  const { data } = await apiClient.post<ExclusiveGroupBatchResult>('/admin/users/exclusive-groups', request, { headers: { 'Idempotency-Key': `vip-${request.preview_token}` } })
   return data
 }
 
@@ -237,7 +237,7 @@ export async function previewExclusiveGroupCSV(groupId: number, action: 'grant' 
 }
 
 export async function executeExclusiveGroupCSV(groupId: number, action: 'grant' | 'revoke', file: File, previewToken: string, fileSha256: string): Promise<ExclusiveGroupBatchResult> {
-  const { data } = await apiClient.post<ExclusiveGroupBatchResult>('/admin/users/exclusive-groups/csv', csvFormData(groupId, action, file, previewToken, fileSha256), { headers: { 'Idempotency-Key': `vip-csv-${Date.now()}-${Math.random().toString(36).slice(2)}` } })
+  const { data } = await apiClient.post<ExclusiveGroupBatchResult>('/admin/users/exclusive-groups/csv', csvFormData(groupId, action, file, previewToken, fileSha256), { headers: { 'Idempotency-Key': `vip-csv-${previewToken}` } })
   return data
 }
 

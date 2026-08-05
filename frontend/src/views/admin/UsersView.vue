@@ -827,14 +827,16 @@
         <div class="mt-4 space-y-3">
           <Select v-model="exclusiveGroupId" :options="exclusiveGroupOptions" :placeholder="t('admin.users.vip.chooseGroup')" />
           <div class="text-sm text-gray-500 dark:text-gray-400">{{ t('admin.users.vip.selected', { count: selectedCount }) }}</div>
-          <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input v-model="exclusiveGroupAll" type="checkbox" />{{ t('admin.users.vip.currentFilterAll') }}</label>
+          <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300"><input v-model="exclusiveGroupAll" type="checkbox" :disabled="Boolean(exclusiveGroupFile)" />{{ t('admin.users.vip.currentFilterAll') }}</label>
           <label class="block text-sm text-gray-700 dark:text-gray-300">{{ t('admin.users.vip.csvLabel') }}<input type="file" accept=".csv,text/csv" class="mt-1 block w-full text-sm" @change="handleExclusiveCSVFile" /></label>
           <div v-if="exclusiveGroupPreview" class="rounded border border-gray-200 p-3 text-sm dark:border-dark-600">
-            {{ t('admin.users.vip.previewSummary', { eligible: exclusiveGroupPreview.eligible?.length ?? exclusiveGroupPreview.valid?.length ?? 0, skipped: exclusiveGroupPreview.skipped?.length ?? 0 }) }}
+            <div class="grid gap-1 sm:grid-cols-2">
+              <div v-for="item in exclusivePreviewCategories" :key="item.key">{{ t(`admin.users.vip.previewCategories.${item.key}`) }}: {{ item.count }}</div>
+            </div>
           </div>
           <div class="flex justify-end gap-2">
             <button class="btn btn-secondary" @click="closeExclusiveGroupDialog">{{ t('common.cancel') }}</button>
-            <button class="btn btn-secondary" :disabled="exclusiveGroupLoading || !exclusiveGroupId || (!exclusiveGroupAll && selectedCount === 0)" @click="previewExclusiveGroupAction">{{ t('admin.users.vip.preview') }}</button>
+            <button class="btn btn-secondary" :disabled="exclusiveGroupLoading || !exclusiveGroupId || !canPreviewExclusiveGroup" @click="previewExclusiveGroupAction">{{ t('admin.users.vip.preview') }}</button>
             <button class="btn btn-primary" :disabled="exclusiveGroupLoading || !exclusiveGroupPreview" @click="executeExclusiveGroupAction">{{ t('admin.users.vip.confirm') }}</button>
           </div>
         </div>
@@ -868,6 +870,7 @@ import EmptyState from '@/components/common/EmptyState.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import Select from '@/components/common/Select.vue'
 import { buildApiKeyGroupFilterOptions } from './apiKeyGroupFilterOptions'
+import { normalizeVipTier } from '@/utils/vipTier'
 import UserAttributesConfigModal from '@/components/user/UserAttributesConfigModal.vue'
 import UserConcurrencyCell from '@/components/user/UserConcurrencyCell.vue'
 import PlatformUsageBreakdown from '@/components/user/PlatformUsageBreakdown.vue'
@@ -1221,10 +1224,7 @@ const builtInFilters = computed(() => [
 
 const vipTierOptions = computed<SelectOption[]>(() => [
   { value: '', label: t('admin.users.vip.allTiers') },
-  { value: '0', label: t('admin.users.vip.tier', { tier: 0 }) },
-  { value: '1', label: t('admin.users.vip.tier', { tier: 1 }) },
-  { value: '2', label: t('admin.users.vip.tier', { tier: 2 }) },
-  { value: '3', label: t('admin.users.vip.tier', { tier: 3 }) }
+  ...Array.from({ length: 7 }, (_, tier) => ({ value: tier, label: t('admin.users.vip.tier', { tier }) }))
 ])
 
 // Load saved filters from localStorage
@@ -1244,7 +1244,8 @@ const loadSavedFilters = () => {
       if (parsed.status) filters.status = parsed.status
       if (parsed.group) filters.group = parsed.group
       if (typeof parsed.apiKeyGroup === 'number') filters.apiKeyGroup = parsed.apiKeyGroup
-      if (typeof parsed.vipTier === 'number') filters.vipTier = parsed.vipTier
+      const savedVipTier = normalizeVipTier(parsed.vipTier)
+      if (savedVipTier !== undefined) filters.vipTier = savedVipTier
       if (parsed.attributes) {
         Object.assign(activeAttributeFilters, parsed.attributes)
       }
@@ -1445,6 +1446,7 @@ const closeExclusiveGroupDialog = () => {
 }
 const handleExclusiveCSVFile = (event: Event) => {
   exclusiveGroupFile.value = (event.target as HTMLInputElement).files?.[0] ?? null
+  if (exclusiveGroupFile.value) exclusiveGroupAll.value = false
   exclusiveGroupPreview.value = null
 }
 const exclusiveFilters = computed(() => ({
@@ -1453,11 +1455,33 @@ const exclusiveFilters = computed(() => ({
   search: searchQuery.value || undefined,
   group_name: filters.group || undefined,
   api_key_group_id: filters.apiKeyGroup ?? undefined,
-  vip_tier: filters.vipTier ?? undefined,
+  vip_tier: normalizeVipTier(filters.vipTier),
   attributes: Object.keys(activeAttributeFilters).length > 0 ? activeAttributeFilters : undefined
 }))
+const canPreviewExclusiveGroup = computed(() => Boolean(exclusiveGroupFile.value || exclusiveGroupAll.value || selectedCount.value > 0))
+const exclusivePreviewCategories = computed(() => {
+  const preview = exclusiveGroupPreview.value
+  if (!preview) return []
+  const csv = 'file_sha256' in preview
+  const categories = [
+    { key: 'eligible', count: csv ? preview.valid?.length ?? 0 : preview.eligible?.length ?? 0 },
+    { key: 'alreadyGranted', count: preview.already_granted?.length ?? 0 },
+    { key: 'alreadyRevoked', count: preview.already_revoked?.length ?? 0 },
+    { key: 'skipped', count: preview.skipped?.length ?? 0 },
+    { key: 'missing', count: preview.missing_user_ids?.length ?? 0 }
+  ]
+  if (csv) {
+    categories.push(
+      { key: 'duplicates', count: preview.duplicate_rows?.length ?? 0 },
+      { key: 'notFound', count: preview.not_found?.length ?? 0 },
+      { key: 'disabled', count: preview.disabled?.length ?? 0 },
+      { key: 'invalid', count: preview.invalid?.length ?? 0 }
+    )
+  }
+  return categories
+})
 const previewExclusiveGroupAction = async () => {
-  if (!exclusiveGroupId.value || (!exclusiveGroupAll.value && selectedCount.value === 0)) return
+  if (!exclusiveGroupId.value || !canPreviewExclusiveGroup.value) return
   exclusiveGroupLoading.value = true
   try {
     if (exclusiveGroupFile.value) {
@@ -1758,7 +1782,7 @@ const loadUsers = async () => {
         search: searchQuery.value || undefined,
         group_name: filters.group || undefined,
         api_key_group_id: filters.apiKeyGroup ?? undefined,
-        vip_tier: filters.vipTier ?? undefined,
+        vip_tier: normalizeVipTier(filters.vipTier),
         include_membership: true,
         attributes: Object.keys(attrFilters).length > 0 ? attrFilters : undefined,
         // 始终请求 subscriptions：列隐藏时仍需用于 UserPlatformQuotaModal 的 active-subscription 警示 banner

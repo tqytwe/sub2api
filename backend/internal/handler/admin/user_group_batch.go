@@ -126,6 +126,24 @@ func (h *UserHandler) validateExclusiveGroup(c *gin.Context, groupID int64) (*se
 	return group, nil
 }
 
+func (h *UserHandler) validateVIPTier(ctx context.Context, tier *int) error {
+	if tier == nil {
+		return nil
+	}
+	if *tier < 0 || *tier > 99 {
+		return service.ErrInvalidVIPTier
+	}
+	if h.settingService == nil {
+		return nil
+	}
+	for _, configured := range h.settingService.GetPlayRuntime(ctx).VIPTiers {
+		if configured.Tier == *tier {
+			return nil
+		}
+	}
+	return service.ErrInvalidVIPTier
+}
+
 func (h *UserHandler) targetUsers(c *gin.Context, req exclusiveGroupBatchRequest) ([]service.User, []int64, error) {
 	if req.All && len(req.UserIDs) > 0 {
 		return nil, nil, infraerrors.BadRequest("INVALID_TARGET", "all and user_ids cannot be combined")
@@ -135,6 +153,9 @@ func (h *UserHandler) targetUsers(c *gin.Context, req exclusiveGroupBatchRequest
 	}
 	if !req.All && len(req.UserIDs) > maxExclusiveGroupUsers {
 		return nil, nil, infraerrors.BadRequest("TOO_MANY_USERS", "too many users")
+	}
+	if err := h.validateVIPTier(c.Request.Context(), req.Filters.VIPTier); err != nil {
+		return nil, nil, err
 	}
 	filters := service.UserListFilters{
 		Status: req.Filters.Status, Role: req.Filters.Role, Search: req.Filters.Search,
@@ -319,7 +340,7 @@ func (h *UserHandler) PreviewExclusiveGroupCSV(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	middleware.SetAuditExtra(c, map[string]any{"filter_hash": hash, "target_user_id": group.ID, "operation": action, "matched_count": len(preview.Valid)})
+	middleware.SetAuditExtra(c, map[string]any{"filter_hash": hash, "target_group_id": group.ID, "operation": action, "matched_count": len(preview.Valid)})
 	response.Success(c, preview)
 }
 
@@ -341,7 +362,7 @@ func (h *UserHandler) ExecuteExclusiveGroupCSV(c *gin.Context) {
 	} else if preview, err := h.buildCSVPreview(c, group, action, raw, hash); err != nil {
 		response.ErrorFrom(c, err)
 	} else {
-		middleware.SetAuditExtra(c, map[string]any{"filter_hash": hash, "target_user_id": group.ID, "operation": action, "matched_count": len(preview.Valid)})
+		middleware.SetAuditExtra(c, map[string]any{"filter_hash": hash, "target_group_id": group.ID, "operation": action, "matched_count": len(preview.Valid)})
 		executeAdminIdempotentJSON(c, "admin.users.exclusive_groups_csv", map[string]any{"group_id": groupID, "action": action, "file_sha256": hash}, exclusiveGroupPreviewTTL, func(ctx context.Context) (any, error) {
 			result := exclusiveGroupBatchResult{Action: action, Skipped: []exclusiveGroupTarget{}}
 			for _, item := range preview.Valid {
