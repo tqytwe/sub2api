@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
@@ -267,78 +266,6 @@ func (r *dailyCardEntitlementRepository) AdminRestoreQuota(ctx context.Context, 
 	return result, err
 }
 
-func (r *dailyCardEntitlementRepository) AdminAdjustExpiry(ctx context.Context, entitlementID, userID, groupID int64, newExpiresAt, adjustedAt time.Time) (*service.DailyCardEntitlement, error) {
-	var card *service.DailyCardEntitlement
-	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
-		var ownerID, ownerGroupID int64
-		var status string
-		var startsAt sql.NullTime
-		rows, err := client.QueryContext(txCtx, `
-			SELECT user_id, group_id, status, starts_at
-			FROM subscription_entitlements
-			WHERE id = $1
-			FOR UPDATE
-		`, entitlementID)
-		if err != nil {
-			return err
-		}
-		if !rows.Next() {
-			_ = rows.Close()
-			return service.ErrDailyCardAdminActionUnavailable
-		}
-		err = rows.Scan(&ownerID, &ownerGroupID, &status, &startsAt)
-		_ = rows.Close()
-		if err != nil {
-			return err
-		}
-		if ownerID != userID || ownerGroupID != groupID {
-			return service.ErrDailyCardAdminActionUnavailable
-		}
-		if status != service.DailyCardStatusActive && status != service.DailyCardStatusExpired {
-			return service.ErrDailyCardAdminActionUnavailable
-		}
-		if status == service.DailyCardStatusExpired {
-			otherActive, err := client.SubscriptionEntitlement.Query().
-				Where(
-					subscriptionentitlement.UserIDEQ(userID),
-					subscriptionentitlement.GroupIDEQ(groupID),
-					subscriptionentitlement.StatusEQ(service.DailyCardStatusActive),
-					subscriptionentitlement.IDNEQ(entitlementID),
-				).
-				Exist(txCtx)
-			if err != nil {
-				return err
-			}
-			if otherActive {
-				return service.ErrDailyCardAdminActionUnavailable
-			}
-		}
-
-		builder := client.SubscriptionEntitlement.UpdateOneID(entitlementID).
-			SetExpiresAt(newExpiresAt).
-			SetStatus(service.DailyCardStatusActive).
-			ClearEndedAt().
-			SetUpdatedAt(adjustedAt)
-		if startsAt.Valid {
-			durationHours := int(newExpiresAt.Sub(startsAt.Time).Hours())
-			if newExpiresAt.After(startsAt.Time) && newExpiresAt.Sub(startsAt.Time)%time.Hour != 0 {
-				durationHours++
-			}
-			if durationHours < 1 {
-				durationHours = 1
-			}
-			builder.SetDurationHours(durationHours)
-		}
-		entity, err := builder.Save(txCtx)
-		if err != nil {
-			return err
-		}
-		card = dailyCardEntitlementFromEntity(entity)
-		return nil
-	})
-	return card, err
-}
-
 func NewDailyCardEntitlementRepository(client *dbent.Client) service.DailyCardEntitlementRepository {
 	return &dailyCardEntitlementRepository{client: client}
 }
@@ -353,36 +280,15 @@ func (r *dailyCardEntitlementRepository) IsOneTimeGroup(ctx context.Context, gro
 }
 
 func (r *dailyCardEntitlementRepository) IssuePaidCard(ctx context.Context, input service.IssueDailyCardInput) (*service.DailyCardEntitlement, bool, error) {
-	input.SourceType = service.DailyCardSourcePaymentOrder
-	input.SourceID = fmt.Sprintf("%d", input.PaymentOrderID)
-	return r.issueCard(ctx, input, true)
-}
-
-func (r *dailyCardEntitlementRepository) IssueSourcedCard(ctx context.Context, input service.IssueDailyCardInput) (*service.DailyCardEntitlement, bool, error) {
-	return r.issueCard(ctx, input, false)
-}
-
-func (r *dailyCardEntitlementRepository) issueCard(ctx context.Context, input service.IssueDailyCardInput, requirePaymentOrder bool) (*service.DailyCardEntitlement, bool, error) {
 	var issued *service.DailyCardEntitlement
 	created := false
 	err := r.withTx(ctx, func(txCtx context.Context, client *dbent.Client) error {
 		if err := lockDailyCardQueue(txCtx, client, input.UserID, input.GroupID); err != nil {
 			return err
 		}
-		var existing *dbent.SubscriptionEntitlement
-		var err error
-		if requirePaymentOrder {
-			existing, err = client.SubscriptionEntitlement.Query().
-				Where(subscriptionentitlement.PaymentOrderIDEQ(input.PaymentOrderID)).
-				Only(txCtx)
-		} else {
-			existing, err = client.SubscriptionEntitlement.Query().
-				Where(
-					subscriptionentitlement.SourceTypeEQ(input.SourceType),
-					subscriptionentitlement.SourceIDEQ(input.SourceID),
-				).
-				Only(txCtx)
-		}
+		existing, err := client.SubscriptionEntitlement.Query().
+			Where(subscriptionentitlement.PaymentOrderIDEQ(input.PaymentOrderID)).
+			Only(txCtx)
 		if err == nil {
 			issued = dailyCardEntitlementFromEntity(existing)
 			return nil
@@ -412,17 +318,13 @@ func (r *dailyCardEntitlementRepository) issueCard(ctx context.Context, input se
 			SetUserID(input.UserID).
 			SetGroupID(input.GroupID).
 			SetPlanID(input.PlanID).
-			SetSourceType(input.SourceType).
-			SetSourceID(input.SourceID).
+			SetPaymentOrderID(input.PaymentOrderID).
 			SetQuotaMode(service.DailyCardQuotaModeOneTime).
 			SetQuotaLimitUsd(input.QuotaLimitUSD).
 			SetDurationHours(input.DurationHours).
 			SetStatus(status).
 			SetCreatedAt(input.IssuedAt).
 			SetUpdatedAt(input.IssuedAt)
-		if requirePaymentOrder {
-			builder.SetPaymentOrderID(input.PaymentOrderID)
-		}
 		if status == service.DailyCardStatusActive {
 			expiresAt := input.IssuedAt.Add(time.Duration(input.DurationHours) * time.Hour)
 			builder.SetStartsAt(input.IssuedAt).
@@ -653,7 +555,6 @@ func dailyCardEntitlementFromEntity(entity *dbent.SubscriptionEntitlement) *serv
 	return &service.DailyCardEntitlement{
 		ID: entity.ID, UserID: entity.UserID, GroupID: entity.GroupID,
 		PlanID: entity.PlanID, PaymentOrderID: entity.PaymentOrderID,
-		SourceType: entity.SourceType, SourceID: entity.SourceID,
 		QuotaMode: entity.QuotaMode, QuotaLimitUSD: entity.QuotaLimitUsd,
 		QuotaUsedUSD: entity.QuotaUsedUsd, QuotaReservedUSD: entity.QuotaReservedUsd,
 		DurationHours: entity.DurationHours, Status: entity.Status,

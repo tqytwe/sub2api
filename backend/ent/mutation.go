@@ -49746,8 +49746,6 @@ type SubscriptionEntitlementMutation struct {
 	addplan_id            *int64
 	payment_order_id      *int64
 	addpayment_order_id   *int64
-	source_type           *string
-	source_id             *string
 	quota_mode            *string
 	quota_limit_usd       *float64
 	addquota_limit_usd    *float64
@@ -50069,7 +50067,7 @@ func (m *SubscriptionEntitlementMutation) PaymentOrderID() (r int64, exists bool
 // OldPaymentOrderID returns the old "payment_order_id" field's value of the SubscriptionEntitlement entity.
 // If the SubscriptionEntitlement object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SubscriptionEntitlementMutation) OldPaymentOrderID(ctx context.Context) (v *int64, err error) {
+func (m *SubscriptionEntitlementMutation) OldPaymentOrderID(ctx context.Context) (v int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldPaymentOrderID is only allowed on UpdateOne operations")
 	}
@@ -50101,96 +50099,10 @@ func (m *SubscriptionEntitlementMutation) AddedPaymentOrderID() (r int64, exists
 	return *v, true
 }
 
-// ClearPaymentOrderID clears the value of the "payment_order_id" field.
-func (m *SubscriptionEntitlementMutation) ClearPaymentOrderID() {
-	m.payment_order_id = nil
-	m.addpayment_order_id = nil
-	m.clearedFields[subscriptionentitlement.FieldPaymentOrderID] = struct{}{}
-}
-
-// PaymentOrderIDCleared returns if the "payment_order_id" field was cleared in this mutation.
-func (m *SubscriptionEntitlementMutation) PaymentOrderIDCleared() bool {
-	_, ok := m.clearedFields[subscriptionentitlement.FieldPaymentOrderID]
-	return ok
-}
-
 // ResetPaymentOrderID resets all changes to the "payment_order_id" field.
 func (m *SubscriptionEntitlementMutation) ResetPaymentOrderID() {
 	m.payment_order_id = nil
 	m.addpayment_order_id = nil
-	delete(m.clearedFields, subscriptionentitlement.FieldPaymentOrderID)
-}
-
-// SetSourceType sets the "source_type" field.
-func (m *SubscriptionEntitlementMutation) SetSourceType(s string) {
-	m.source_type = &s
-}
-
-// SourceType returns the value of the "source_type" field in the mutation.
-func (m *SubscriptionEntitlementMutation) SourceType() (r string, exists bool) {
-	v := m.source_type
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldSourceType returns the old "source_type" field's value of the SubscriptionEntitlement entity.
-// If the SubscriptionEntitlement object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SubscriptionEntitlementMutation) OldSourceType(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSourceType is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSourceType requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSourceType: %w", err)
-	}
-	return oldValue.SourceType, nil
-}
-
-// ResetSourceType resets all changes to the "source_type" field.
-func (m *SubscriptionEntitlementMutation) ResetSourceType() {
-	m.source_type = nil
-}
-
-// SetSourceID sets the "source_id" field.
-func (m *SubscriptionEntitlementMutation) SetSourceID(s string) {
-	m.source_id = &s
-}
-
-// SourceID returns the value of the "source_id" field in the mutation.
-func (m *SubscriptionEntitlementMutation) SourceID() (r string, exists bool) {
-	v := m.source_id
-	if v == nil {
-		return
-	}
-	return *v, true
-}
-
-// OldSourceID returns the old "source_id" field's value of the SubscriptionEntitlement entity.
-// If the SubscriptionEntitlement object wasn't provided to the builder, the object is fetched from the database.
-// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SubscriptionEntitlementMutation) OldSourceID(ctx context.Context) (v string, err error) {
-	if !m.op.Is(OpUpdateOne) {
-		return v, errors.New("OldSourceID is only allowed on UpdateOne operations")
-	}
-	if m.id == nil || m.oldValue == nil {
-		return v, errors.New("OldSourceID requires an ID field in the mutation")
-	}
-	oldValue, err := m.oldValue(ctx)
-	if err != nil {
-		return v, fmt.Errorf("querying old value for OldSourceID: %w", err)
-	}
-	return oldValue.SourceID, nil
-}
-
-// ResetSourceID resets all changes to the "source_id" field.
-func (m *SubscriptionEntitlementMutation) ResetSourceID() {
-	m.source_id = nil
 }
 
 // SetQuotaMode sets the "quota_mode" field.
@@ -50840,7 +50752,7 @@ func (m *SubscriptionEntitlementMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionEntitlementMutation) Fields() []string {
-	fields := make([]string, 0, 19)
+	fields := make([]string, 0, 17)
 	if m.user_id != nil {
 		fields = append(fields, subscriptionentitlement.FieldUserID)
 	}
@@ -50852,12 +50764,6 @@ func (m *SubscriptionEntitlementMutation) Fields() []string {
 	}
 	if m.payment_order_id != nil {
 		fields = append(fields, subscriptionentitlement.FieldPaymentOrderID)
-	}
-	if m.source_type != nil {
-		fields = append(fields, subscriptionentitlement.FieldSourceType)
-	}
-	if m.source_id != nil {
-		fields = append(fields, subscriptionentitlement.FieldSourceID)
 	}
 	if m.quota_mode != nil {
 		fields = append(fields, subscriptionentitlement.FieldQuotaMode)
@@ -50914,10 +50820,6 @@ func (m *SubscriptionEntitlementMutation) Field(name string) (ent.Value, bool) {
 		return m.PlanID()
 	case subscriptionentitlement.FieldPaymentOrderID:
 		return m.PaymentOrderID()
-	case subscriptionentitlement.FieldSourceType:
-		return m.SourceType()
-	case subscriptionentitlement.FieldSourceID:
-		return m.SourceID()
 	case subscriptionentitlement.FieldQuotaMode:
 		return m.QuotaMode()
 	case subscriptionentitlement.FieldQuotaLimitUsd:
@@ -50961,10 +50863,6 @@ func (m *SubscriptionEntitlementMutation) OldField(ctx context.Context, name str
 		return m.OldPlanID(ctx)
 	case subscriptionentitlement.FieldPaymentOrderID:
 		return m.OldPaymentOrderID(ctx)
-	case subscriptionentitlement.FieldSourceType:
-		return m.OldSourceType(ctx)
-	case subscriptionentitlement.FieldSourceID:
-		return m.OldSourceID(ctx)
 	case subscriptionentitlement.FieldQuotaMode:
 		return m.OldQuotaMode(ctx)
 	case subscriptionentitlement.FieldQuotaLimitUsd:
@@ -51027,20 +50925,6 @@ func (m *SubscriptionEntitlementMutation) SetField(name string, value ent.Value)
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPaymentOrderID(v)
-		return nil
-	case subscriptionentitlement.FieldSourceType:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetSourceType(v)
-		return nil
-	case subscriptionentitlement.FieldSourceID:
-		v, ok := value.(string)
-		if !ok {
-			return fmt.Errorf("unexpected type %T for field %s", value, name)
-		}
-		m.SetSourceID(v)
 		return nil
 	case subscriptionentitlement.FieldQuotaMode:
 		v, ok := value.(string)
@@ -51265,9 +51149,6 @@ func (m *SubscriptionEntitlementMutation) ClearedFields() []string {
 	if m.FieldCleared(subscriptionentitlement.FieldPlanID) {
 		fields = append(fields, subscriptionentitlement.FieldPlanID)
 	}
-	if m.FieldCleared(subscriptionentitlement.FieldPaymentOrderID) {
-		fields = append(fields, subscriptionentitlement.FieldPaymentOrderID)
-	}
 	if m.FieldCleared(subscriptionentitlement.FieldStartsAt) {
 		fields = append(fields, subscriptionentitlement.FieldStartsAt)
 	}
@@ -51299,9 +51180,6 @@ func (m *SubscriptionEntitlementMutation) ClearField(name string) error {
 	switch name {
 	case subscriptionentitlement.FieldPlanID:
 		m.ClearPlanID()
-		return nil
-	case subscriptionentitlement.FieldPaymentOrderID:
-		m.ClearPaymentOrderID()
 		return nil
 	case subscriptionentitlement.FieldStartsAt:
 		m.ClearStartsAt()
@@ -51337,12 +51215,6 @@ func (m *SubscriptionEntitlementMutation) ResetField(name string) error {
 		return nil
 	case subscriptionentitlement.FieldPaymentOrderID:
 		m.ResetPaymentOrderID()
-		return nil
-	case subscriptionentitlement.FieldSourceType:
-		m.ResetSourceType()
-		return nil
-	case subscriptionentitlement.FieldSourceID:
-		m.ResetSourceID()
 		return nil
 	case subscriptionentitlement.FieldQuotaMode:
 		m.ResetQuotaMode()

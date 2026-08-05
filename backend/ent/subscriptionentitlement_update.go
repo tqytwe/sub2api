@@ -118,40 +118,6 @@ func (_u *SubscriptionEntitlementUpdate) AddPaymentOrderID(v int64) *Subscriptio
 	return _u
 }
 
-// ClearPaymentOrderID clears the value of the "payment_order_id" field.
-func (_u *SubscriptionEntitlementUpdate) ClearPaymentOrderID() *SubscriptionEntitlementUpdate {
-	_u.mutation.ClearPaymentOrderID()
-	return _u
-}
-
-// SetSourceType sets the "source_type" field.
-func (_u *SubscriptionEntitlementUpdate) SetSourceType(v string) *SubscriptionEntitlementUpdate {
-	_u.mutation.SetSourceType(v)
-	return _u
-}
-
-// SetNillableSourceType sets the "source_type" field if the given value is not nil.
-func (_u *SubscriptionEntitlementUpdate) SetNillableSourceType(v *string) *SubscriptionEntitlementUpdate {
-	if v != nil {
-		_u.SetSourceType(*v)
-	}
-	return _u
-}
-
-// SetSourceID sets the "source_id" field.
-func (_u *SubscriptionEntitlementUpdate) SetSourceID(v string) *SubscriptionEntitlementUpdate {
-	_u.mutation.SetSourceID(v)
-	return _u
-}
-
-// SetNillableSourceID sets the "source_id" field if the given value is not nil.
-func (_u *SubscriptionEntitlementUpdate) SetNillableSourceID(v *string) *SubscriptionEntitlementUpdate {
-	if v != nil {
-		_u.SetSourceID(*v)
-	}
-	return _u
-}
-
 // SetQuotaMode sets the "quota_mode" field.
 func (_u *SubscriptionEntitlementUpdate) SetQuotaMode(v string) *SubscriptionEntitlementUpdate {
 	_u.mutation.SetQuotaMode(v)
@@ -413,16 +379,6 @@ func (_u *SubscriptionEntitlementUpdate) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *SubscriptionEntitlementUpdate) check() error {
-	if v, ok := _u.mutation.SourceType(); ok {
-		if err := subscriptionentitlement.SourceTypeValidator(v); err != nil {
-			return &ValidationError{Name: "source_type", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.source_type": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.SourceID(); ok {
-		if err := subscriptionentitlement.SourceIDValidator(v); err != nil {
-			return &ValidationError{Name: "source_id", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.source_id": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.QuotaMode(); ok {
 		if err := subscriptionentitlement.QuotaModeValidator(v); err != nil {
 			return &ValidationError{Name: "quota_mode", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.quota_mode": %w`, err)}
@@ -474,15 +430,6 @@ func (_u *SubscriptionEntitlementUpdate) sqlSave(ctx context.Context) (_node int
 	}
 	if value, ok := _u.mutation.AddedPaymentOrderID(); ok {
 		_spec.AddField(subscriptionentitlement.FieldPaymentOrderID, field.TypeInt64, value)
-	}
-	if _u.mutation.PaymentOrderIDCleared() {
-		_spec.ClearField(subscriptionentitlement.FieldPaymentOrderID, field.TypeInt64)
-	}
-	if value, ok := _u.mutation.SourceType(); ok {
-		_spec.SetField(subscriptionentitlement.FieldSourceType, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.SourceID(); ok {
-		_spec.SetField(subscriptionentitlement.FieldSourceID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.QuotaMode(); ok {
 		_spec.SetField(subscriptionentitlement.FieldQuotaMode, field.TypeString, value)
@@ -654,40 +601,6 @@ func (_u *SubscriptionEntitlementUpdateOne) SetNillablePaymentOrderID(v *int64) 
 // AddPaymentOrderID adds value to the "payment_order_id" field.
 func (_u *SubscriptionEntitlementUpdateOne) AddPaymentOrderID(v int64) *SubscriptionEntitlementUpdateOne {
 	_u.mutation.AddPaymentOrderID(v)
-	return _u
-}
-
-// ClearPaymentOrderID clears the value of the "payment_order_id" field.
-func (_u *SubscriptionEntitlementUpdateOne) ClearPaymentOrderID() *SubscriptionEntitlementUpdateOne {
-	_u.mutation.ClearPaymentOrderID()
-	return _u
-}
-
-// SetSourceType sets the "source_type" field.
-func (_u *SubscriptionEntitlementUpdateOne) SetSourceType(v string) *SubscriptionEntitlementUpdateOne {
-	_u.mutation.SetSourceType(v)
-	return _u
-}
-
-// SetNillableSourceType sets the "source_type" field if the given value is not nil.
-func (_u *SubscriptionEntitlementUpdateOne) SetNillableSourceType(v *string) *SubscriptionEntitlementUpdateOne {
-	if v != nil {
-		_u.SetSourceType(*v)
-	}
-	return _u
-}
-
-// SetSourceID sets the "source_id" field.
-func (_u *SubscriptionEntitlementUpdateOne) SetSourceID(v string) *SubscriptionEntitlementUpdateOne {
-	_u.mutation.SetSourceID(v)
-	return _u
-}
-
-// SetNillableSourceID sets the "source_id" field if the given value is not nil.
-func (_u *SubscriptionEntitlementUpdateOne) SetNillableSourceID(v *string) *SubscriptionEntitlementUpdateOne {
-	if v != nil {
-		_u.SetSourceID(*v)
-	}
 	return _u
 }
 
@@ -965,16 +878,6 @@ func (_u *SubscriptionEntitlementUpdateOne) defaults() {
 
 // check runs all checks and user-defined validators on the builder.
 func (_u *SubscriptionEntitlementUpdateOne) check() error {
-	if v, ok := _u.mutation.SourceType(); ok {
-		if err := subscriptionentitlement.SourceTypeValidator(v); err != nil {
-			return &ValidationError{Name: "source_type", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.source_type": %w`, err)}
-		}
-	}
-	if v, ok := _u.mutation.SourceID(); ok {
-		if err := subscriptionentitlement.SourceIDValidator(v); err != nil {
-			return &ValidationError{Name: "source_id", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.source_id": %w`, err)}
-		}
-	}
 	if v, ok := _u.mutation.QuotaMode(); ok {
 		if err := subscriptionentitlement.QuotaModeValidator(v); err != nil {
 			return &ValidationError{Name: "quota_mode", err: fmt.Errorf(`ent: validator failed for field "SubscriptionEntitlement.quota_mode": %w`, err)}
@@ -1043,15 +946,6 @@ func (_u *SubscriptionEntitlementUpdateOne) sqlSave(ctx context.Context) (_node 
 	}
 	if value, ok := _u.mutation.AddedPaymentOrderID(); ok {
 		_spec.AddField(subscriptionentitlement.FieldPaymentOrderID, field.TypeInt64, value)
-	}
-	if _u.mutation.PaymentOrderIDCleared() {
-		_spec.ClearField(subscriptionentitlement.FieldPaymentOrderID, field.TypeInt64)
-	}
-	if value, ok := _u.mutation.SourceType(); ok {
-		_spec.SetField(subscriptionentitlement.FieldSourceType, field.TypeString, value)
-	}
-	if value, ok := _u.mutation.SourceID(); ok {
-		_spec.SetField(subscriptionentitlement.FieldSourceID, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.QuotaMode(); ok {
 		_spec.SetField(subscriptionentitlement.FieldQuotaMode, field.TypeString, value)

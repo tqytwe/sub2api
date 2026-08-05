@@ -1899,9 +1899,7 @@ var (
 		{Name: "user_id", Type: field.TypeInt64},
 		{Name: "group_id", Type: field.TypeInt64},
 		{Name: "plan_id", Type: field.TypeInt64, Nullable: true},
-		{Name: "payment_order_id", Type: field.TypeInt64, Nullable: true},
-		{Name: "source_type", Type: field.TypeString, Size: 32, Default: "payment_order"},
-		{Name: "source_id", Type: field.TypeString, Size: 128, Default: ""},
+		{Name: "payment_order_id", Type: field.TypeInt64},
 		{Name: "quota_mode", Type: field.TypeString, Size: 24},
 		{Name: "quota_limit_usd", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
 		{Name: "quota_used_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
@@ -1930,12 +1928,12 @@ var (
 			{
 				Name:    "subscriptionentitlement_user_id_group_id_status",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionEntitlementsColumns[1], SubscriptionEntitlementsColumns[2], SubscriptionEntitlementsColumns[12]},
+				Columns: []*schema.Column{SubscriptionEntitlementsColumns[1], SubscriptionEntitlementsColumns[2], SubscriptionEntitlementsColumns[10]},
 			},
 			{
 				Name:    "subscriptionentitlement_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionEntitlementsColumns[14]},
+				Columns: []*schema.Column{SubscriptionEntitlementsColumns[12]},
 			},
 		},
 	}

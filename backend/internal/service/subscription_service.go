@@ -726,16 +726,6 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 		days = -MaxValidityDays
 	}
 
-	if s.dailyCardSvc != nil {
-		managed, managedErr := s.dailyCardSvc.IsOneTimeGroup(ctx, sub.GroupID)
-		if managedErr != nil {
-			return nil, managedErr
-		}
-		if managed {
-			return s.extendDailyCardSubscription(ctx, sub, days)
-		}
-	}
-
 	now := time.Now()
 	isExpired := !sub.ExpiresAt.After(now)
 
@@ -786,101 +776,6 @@ func (s *SubscriptionService) ExtendSubscription(ctx context.Context, subscripti
 	}
 
 	return s.userSubRepo.GetByID(ctx, subscriptionID)
-}
-
-func (s *SubscriptionService) extendDailyCardSubscription(ctx context.Context, sub *UserSubscription, days int) (*UserSubscription, error) {
-	if s == nil || s.dailyCardSvc == nil || sub == nil {
-		return nil, ErrDailyCardInvalidInput
-	}
-	now := time.Now()
-	card, err := s.dailyCardForAdminExpiryAdjustment(ctx, sub.UserID, sub.GroupID, now)
-	if err != nil {
-		return nil, err
-	}
-	if card == nil || card.ExpiresAt == nil {
-		return nil, ErrDailyCardAdminActionUnavailable
-	}
-	isExpired := !card.ExpiresAt.After(now) || card.Status == DailyCardStatusExpired
-	if isExpired && days < 0 {
-		return nil, infraerrors.BadRequest("CANNOT_SHORTEN_EXPIRED", "cannot shorten an expired subscription")
-	}
-
-	var newExpiresAt time.Time
-	if isExpired {
-		newExpiresAt = now.AddDate(0, 0, days)
-	} else {
-		newExpiresAt = card.ExpiresAt.AddDate(0, 0, days)
-	}
-	if newExpiresAt.After(MaxExpiresAt) {
-		newExpiresAt = MaxExpiresAt
-	}
-	if !newExpiresAt.After(now) {
-		return nil, ErrAdjustWouldExpire
-	}
-
-	var adjusted *DailyCardEntitlement
-	if err := s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
-		var adjustErr error
-		adjusted, adjustErr = s.dailyCardSvc.AdminAdjustExpiry(txCtx, card.ID, sub.UserID, sub.GroupID, newExpiresAt, now)
-		if adjustErr != nil {
-			return adjustErr
-		}
-		if err := s.userSubRepo.ExtendExpiry(txCtx, sub.ID, newExpiresAt); err != nil {
-			return err
-		}
-		if sub.Status == SubscriptionStatusExpired {
-			if err := s.userSubRepo.UpdateStatus(txCtx, sub.ID, SubscriptionStatusActive); err != nil {
-				return err
-			}
-		}
-		return nil
-	}); err != nil {
-		return nil, err
-	}
-
-	if err := s.invalidateSubscriptionCaches(sub.UserID, sub.GroupID); err != nil {
-		return nil, err
-	}
-	refreshed, err := s.userSubRepo.GetByID(ctx, sub.ID)
-	if err != nil {
-		return nil, err
-	}
-	if adjusted != nil {
-		refreshed.DailyCard = adjusted
-		refreshed.DailyCardEntitlementID = &adjusted.ID
-		refreshed.ExpiresAt = newExpiresAt
-		refreshed.Status = SubscriptionStatusActive
-	}
-	return refreshed, nil
-}
-
-func (s *SubscriptionService) dailyCardForAdminExpiryAdjustment(ctx context.Context, userID, groupID int64, now time.Time) (*DailyCardEntitlement, error) {
-	cards, err := s.dailyCardSvc.ListForUser(ctx, userID, now)
-	if err != nil {
-		return nil, err
-	}
-	var selected *DailyCardEntitlement
-	for i := range cards {
-		card := cards[i]
-		if card.GroupID != groupID {
-			continue
-		}
-		if card.Status == DailyCardStatusActive {
-			copyOfCard := card
-			return &copyOfCard, nil
-		}
-		if card.Status != DailyCardStatusExpired {
-			continue
-		}
-		if selected == nil || card.CreatedAt.After(selected.CreatedAt) {
-			copyOfCard := card
-			selected = &copyOfCard
-		}
-	}
-	if selected == nil {
-		return nil, ErrDailyCardAdminActionUnavailable
-	}
-	return selected, nil
 }
 
 // GetByID 根据ID获取订阅

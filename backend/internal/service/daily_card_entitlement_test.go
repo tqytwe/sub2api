@@ -20,17 +20,10 @@ type dailyCardRepoStub struct {
 	oneTimeGroup           bool
 	adminReleaseInput      []int64
 	adminRestoreInput      []int64
-	adminAdjustInput       []int64
-	adminAdjustExpiresAt   time.Time
 	adminResult            *DailyCardAdminActionResult
 }
 
 func (r *dailyCardRepoStub) IssuePaidCard(_ context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error) {
-	r.issuedInput = input
-	return r.issued, r.created, r.err
-}
-
-func (r *dailyCardRepoStub) IssueSourcedCard(_ context.Context, input IssueDailyCardInput) (*DailyCardEntitlement, bool, error) {
 	r.issuedInput = input
 	return r.issued, r.created, r.err
 }
@@ -83,24 +76,6 @@ func (r *dailyCardRepoStub) AdminRestoreQuota(_ context.Context, entitlementID, 
 		return r.adminResult, r.err
 	}
 	return &DailyCardAdminActionResult{}, r.err
-}
-
-func (r *dailyCardRepoStub) AdminAdjustExpiry(_ context.Context, entitlementID, userID, groupID int64, newExpiresAt, _ time.Time) (*DailyCardEntitlement, error) {
-	r.adminAdjustInput = []int64{entitlementID, userID, groupID}
-	r.adminAdjustExpiresAt = newExpiresAt
-	if r.err != nil {
-		return nil, r.err
-	}
-	for i := range r.listed {
-		if r.listed[i].ID == entitlementID {
-			r.listed[i].ExpiresAt = &newExpiresAt
-			r.listed[i].Status = DailyCardStatusActive
-			r.listed[i].EndedAt = nil
-			copyOfCard := r.listed[i]
-			return &copyOfCard, nil
-		}
-	}
-	return &DailyCardEntitlement{ID: entitlementID, UserID: userID, GroupID: groupID, Status: DailyCardStatusActive, ExpiresAt: &newExpiresAt}, nil
 }
 
 func TestDailyCardEntitlementCrossingMidnightDoesNotResetQuota(t *testing.T) {
@@ -173,8 +148,7 @@ func TestDailyCardEntitlementPendingActivationStartsFreshTwentyFourHours(t *test
 
 func TestDailyCardServiceIssuePaidCardPassesImmutableOrderSnapshot(t *testing.T) {
 	issuedAt := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
-	orderID := int64(44)
-	want := &DailyCardEntitlement{ID: 99, PaymentOrderID: &orderID}
+	want := &DailyCardEntitlement{ID: 99, PaymentOrderID: 44}
 	repo := &dailyCardRepoStub{issued: want, created: true}
 	svc := NewDailyCardService(repo)
 
@@ -187,28 +161,7 @@ func TestDailyCardServiceIssuePaidCardPassesImmutableOrderSnapshot(t *testing.T)
 	require.True(t, created)
 	require.Same(t, want, got)
 	require.Equal(t, int64(44), repo.issuedInput.PaymentOrderID)
-	require.Equal(t, DailyCardSourcePaymentOrder, repo.issuedInput.SourceType)
 	require.Equal(t, 12.5, repo.issuedInput.QuotaLimitUSD)
-	require.Equal(t, issuedAt, repo.issuedInput.IssuedAt)
-}
-
-func TestDailyCardServiceIssueRedeemCardUsesRedeemSource(t *testing.T) {
-	issuedAt := time.Date(2026, 7, 28, 18, 0, 0, 0, time.UTC)
-	want := &DailyCardEntitlement{ID: 100, SourceType: DailyCardSourceRedeemCode, SourceID: "123"}
-	repo := &dailyCardRepoStub{issued: want, created: true}
-	svc := NewDailyCardService(repo)
-
-	got, created, err := svc.IssueRedeemCard(context.Background(), IssueDailyCardInput{
-		UserID: 1, GroupID: 2, PlanID: 3, SourceID: "123",
-		QuotaLimitUSD: 12.5, DurationHours: 24, IssuedAt: issuedAt,
-	})
-
-	require.NoError(t, err)
-	require.True(t, created)
-	require.Same(t, want, got)
-	require.Zero(t, repo.issuedInput.PaymentOrderID)
-	require.Equal(t, DailyCardSourceRedeemCode, repo.issuedInput.SourceType)
-	require.Equal(t, "123", repo.issuedInput.SourceID)
 	require.Equal(t, issuedAt, repo.issuedInput.IssuedAt)
 }
 

@@ -24,11 +24,7 @@ type SubscriptionEntitlement struct {
 	// PlanID holds the value of the "plan_id" field.
 	PlanID *int64 `json:"plan_id,omitempty"`
 	// PaymentOrderID holds the value of the "payment_order_id" field.
-	PaymentOrderID *int64 `json:"payment_order_id,omitempty"`
-	// SourceType holds the value of the "source_type" field.
-	SourceType string `json:"source_type,omitempty"`
-	// SourceID holds the value of the "source_id" field.
-	SourceID string `json:"source_id,omitempty"`
+	PaymentOrderID int64 `json:"payment_order_id,omitempty"`
 	// QuotaMode holds the value of the "quota_mode" field.
 	QuotaMode string `json:"quota_mode,omitempty"`
 	// QuotaLimitUsd holds the value of the "quota_limit_usd" field.
@@ -67,7 +63,7 @@ func (*SubscriptionEntitlement) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case subscriptionentitlement.FieldID, subscriptionentitlement.FieldUserID, subscriptionentitlement.FieldGroupID, subscriptionentitlement.FieldPlanID, subscriptionentitlement.FieldPaymentOrderID, subscriptionentitlement.FieldDurationHours:
 			values[i] = new(sql.NullInt64)
-		case subscriptionentitlement.FieldSourceType, subscriptionentitlement.FieldSourceID, subscriptionentitlement.FieldQuotaMode, subscriptionentitlement.FieldStatus:
+		case subscriptionentitlement.FieldQuotaMode, subscriptionentitlement.FieldStatus:
 			values[i] = new(sql.NullString)
 		case subscriptionentitlement.FieldStartsAt, subscriptionentitlement.FieldExpiresAt, subscriptionentitlement.FieldActivatedAt, subscriptionentitlement.FieldExhaustedAt, subscriptionentitlement.FieldEndedAt, subscriptionentitlement.FieldCreatedAt, subscriptionentitlement.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
@@ -115,20 +111,7 @@ func (_m *SubscriptionEntitlement) assignValues(columns []string, values []any) 
 			if value, ok := values[i].(*sql.NullInt64); !ok {
 				return fmt.Errorf("unexpected type %T for field payment_order_id", values[i])
 			} else if value.Valid {
-				_m.PaymentOrderID = new(int64)
-				*_m.PaymentOrderID = value.Int64
-			}
-		case subscriptionentitlement.FieldSourceType:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field source_type", values[i])
-			} else if value.Valid {
-				_m.SourceType = value.String
-			}
-		case subscriptionentitlement.FieldSourceID:
-			if value, ok := values[i].(*sql.NullString); !ok {
-				return fmt.Errorf("unexpected type %T for field source_id", values[i])
-			} else if value.Valid {
-				_m.SourceID = value.String
+				_m.PaymentOrderID = value.Int64
 			}
 		case subscriptionentitlement.FieldQuotaMode:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -260,16 +243,8 @@ func (_m *SubscriptionEntitlement) String() string {
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")
-	if v := _m.PaymentOrderID; v != nil {
-		builder.WriteString("payment_order_id=")
-		builder.WriteString(fmt.Sprintf("%v", *v))
-	}
-	builder.WriteString(", ")
-	builder.WriteString("source_type=")
-	builder.WriteString(_m.SourceType)
-	builder.WriteString(", ")
-	builder.WriteString("source_id=")
-	builder.WriteString(_m.SourceID)
+	builder.WriteString("payment_order_id=")
+	builder.WriteString(fmt.Sprintf("%v", _m.PaymentOrderID))
 	builder.WriteString(", ")
 	builder.WriteString("quota_mode=")
 	builder.WriteString(_m.QuotaMode)

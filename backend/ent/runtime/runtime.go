@@ -2583,42 +2583,30 @@ func init() {
 	setting.UpdateDefaultUpdatedAt = settingDescUpdatedAt.UpdateDefault.(func() time.Time)
 	subscriptionentitlementFields := schema.SubscriptionEntitlement{}.Fields()
 	_ = subscriptionentitlementFields
-	// subscriptionentitlementDescSourceType is the schema descriptor for source_type field.
-	subscriptionentitlementDescSourceType := subscriptionentitlementFields[4].Descriptor()
-	// subscriptionentitlement.DefaultSourceType holds the default value on creation for the source_type field.
-	subscriptionentitlement.DefaultSourceType = subscriptionentitlementDescSourceType.Default.(string)
-	// subscriptionentitlement.SourceTypeValidator is a validator for the "source_type" field. It is called by the builders before save.
-	subscriptionentitlement.SourceTypeValidator = subscriptionentitlementDescSourceType.Validators[0].(func(string) error)
-	// subscriptionentitlementDescSourceID is the schema descriptor for source_id field.
-	subscriptionentitlementDescSourceID := subscriptionentitlementFields[5].Descriptor()
-	// subscriptionentitlement.DefaultSourceID holds the default value on creation for the source_id field.
-	subscriptionentitlement.DefaultSourceID = subscriptionentitlementDescSourceID.Default.(string)
-	// subscriptionentitlement.SourceIDValidator is a validator for the "source_id" field. It is called by the builders before save.
-	subscriptionentitlement.SourceIDValidator = subscriptionentitlementDescSourceID.Validators[0].(func(string) error)
 	// subscriptionentitlementDescQuotaMode is the schema descriptor for quota_mode field.
-	subscriptionentitlementDescQuotaMode := subscriptionentitlementFields[6].Descriptor()
+	subscriptionentitlementDescQuotaMode := subscriptionentitlementFields[4].Descriptor()
 	// subscriptionentitlement.QuotaModeValidator is a validator for the "quota_mode" field. It is called by the builders before save.
 	subscriptionentitlement.QuotaModeValidator = subscriptionentitlementDescQuotaMode.Validators[0].(func(string) error)
 	// subscriptionentitlementDescQuotaUsedUsd is the schema descriptor for quota_used_usd field.
-	subscriptionentitlementDescQuotaUsedUsd := subscriptionentitlementFields[8].Descriptor()
+	subscriptionentitlementDescQuotaUsedUsd := subscriptionentitlementFields[6].Descriptor()
 	// subscriptionentitlement.DefaultQuotaUsedUsd holds the default value on creation for the quota_used_usd field.
 	subscriptionentitlement.DefaultQuotaUsedUsd = subscriptionentitlementDescQuotaUsedUsd.Default.(float64)
 	// subscriptionentitlementDescQuotaReservedUsd is the schema descriptor for quota_reserved_usd field.
-	subscriptionentitlementDescQuotaReservedUsd := subscriptionentitlementFields[9].Descriptor()
+	subscriptionentitlementDescQuotaReservedUsd := subscriptionentitlementFields[7].Descriptor()
 	// subscriptionentitlement.DefaultQuotaReservedUsd holds the default value on creation for the quota_reserved_usd field.
 	subscriptionentitlement.DefaultQuotaReservedUsd = subscriptionentitlementDescQuotaReservedUsd.Default.(float64)
 	// subscriptionentitlementDescStatus is the schema descriptor for status field.
-	subscriptionentitlementDescStatus := subscriptionentitlementFields[11].Descriptor()
+	subscriptionentitlementDescStatus := subscriptionentitlementFields[9].Descriptor()
 	// subscriptionentitlement.DefaultStatus holds the default value on creation for the status field.
 	subscriptionentitlement.DefaultStatus = subscriptionentitlementDescStatus.Default.(string)
 	// subscriptionentitlement.StatusValidator is a validator for the "status" field. It is called by the builders before save.
 	subscriptionentitlement.StatusValidator = subscriptionentitlementDescStatus.Validators[0].(func(string) error)
 	// subscriptionentitlementDescCreatedAt is the schema descriptor for created_at field.
-	subscriptionentitlementDescCreatedAt := subscriptionentitlementFields[17].Descriptor()
+	subscriptionentitlementDescCreatedAt := subscriptionentitlementFields[15].Descriptor()
 	// subscriptionentitlement.DefaultCreatedAt holds the default value on creation for the created_at field.
 	subscriptionentitlement.DefaultCreatedAt = subscriptionentitlementDescCreatedAt.Default.(func() time.Time)
 	// subscriptionentitlementDescUpdatedAt is the schema descriptor for updated_at field.
-	subscriptionentitlementDescUpdatedAt := subscriptionentitlementFields[18].Descriptor()
+	subscriptionentitlementDescUpdatedAt := subscriptionentitlementFields[16].Descriptor()
 	// subscriptionentitlement.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	subscriptionentitlement.DefaultUpdatedAt = subscriptionentitlementDescUpdatedAt.Default.(func() time.Time)
 	// subscriptionentitlement.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
