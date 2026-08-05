@@ -2827,6 +2827,8 @@ const messages = {
         tier: 'VIP {tier}',
         amount: 'Paid CNY {amount}',
         unavailable: 'Needs review',
+        pendingReview: 'Ledger review pending',
+        pendingAmount: 'Historical orders pending review',
         batchGrant: 'Grant exclusive group',
         batchRevoke: 'Revoke exclusive group',
         chooseGroup: 'Choose a standard exclusive group',
