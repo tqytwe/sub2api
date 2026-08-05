@@ -110,48 +110,6 @@ func (_c *SubscriptionPlanCreate) SetNillableValidityUnit(v *string) *Subscripti
 	return _c
 }
 
-// SetQuotaMode sets the "quota_mode" field.
-func (_c *SubscriptionPlanCreate) SetQuotaMode(v string) *SubscriptionPlanCreate {
-	_c.mutation.SetQuotaMode(v)
-	return _c
-}
-
-// SetNillableQuotaMode sets the "quota_mode" field if the given value is not nil.
-func (_c *SubscriptionPlanCreate) SetNillableQuotaMode(v *string) *SubscriptionPlanCreate {
-	if v != nil {
-		_c.SetQuotaMode(*v)
-	}
-	return _c
-}
-
-// SetQuotaLimitUsd sets the "quota_limit_usd" field.
-func (_c *SubscriptionPlanCreate) SetQuotaLimitUsd(v float64) *SubscriptionPlanCreate {
-	_c.mutation.SetQuotaLimitUsd(v)
-	return _c
-}
-
-// SetNillableQuotaLimitUsd sets the "quota_limit_usd" field if the given value is not nil.
-func (_c *SubscriptionPlanCreate) SetNillableQuotaLimitUsd(v *float64) *SubscriptionPlanCreate {
-	if v != nil {
-		_c.SetQuotaLimitUsd(*v)
-	}
-	return _c
-}
-
-// SetDurationHours sets the "duration_hours" field.
-func (_c *SubscriptionPlanCreate) SetDurationHours(v int) *SubscriptionPlanCreate {
-	_c.mutation.SetDurationHours(v)
-	return _c
-}
-
-// SetNillableDurationHours sets the "duration_hours" field if the given value is not nil.
-func (_c *SubscriptionPlanCreate) SetNillableDurationHours(v *int) *SubscriptionPlanCreate {
-	if v != nil {
-		_c.SetDurationHours(*v)
-	}
-	return _c
-}
-
 // SetFeatures sets the "features" field.
 func (_c *SubscriptionPlanCreate) SetFeatures(v string) *SubscriptionPlanCreate {
 	_c.mutation.SetFeatures(v)
@@ -371,10 +329,6 @@ func (_c *SubscriptionPlanCreate) defaults() {
 		v := subscriptionplan.DefaultValidityUnit
 		_c.mutation.SetValidityUnit(v)
 	}
-	if _, ok := _c.mutation.QuotaMode(); !ok {
-		v := subscriptionplan.DefaultQuotaMode
-		_c.mutation.SetQuotaMode(v)
-	}
 	if _, ok := _c.mutation.Features(); !ok {
 		v := subscriptionplan.DefaultFeatures
 		_c.mutation.SetFeatures(v)
@@ -461,14 +415,6 @@ func (_c *SubscriptionPlanCreate) check() error {
 	if v, ok := _c.mutation.ValidityUnit(); ok {
 		if err := subscriptionplan.ValidityUnitValidator(v); err != nil {
 			return &ValidationError{Name: "validity_unit", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.validity_unit": %w`, err)}
-		}
-	}
-	if _, ok := _c.mutation.QuotaMode(); !ok {
-		return &ValidationError{Name: "quota_mode", err: errors.New(`ent: missing required field "SubscriptionPlan.quota_mode"`)}
-	}
-	if v, ok := _c.mutation.QuotaMode(); ok {
-		if err := subscriptionplan.QuotaModeValidator(v); err != nil {
-			return &ValidationError{Name: "quota_mode", err: fmt.Errorf(`ent: validator failed for field "SubscriptionPlan.quota_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Features(); !ok {
@@ -585,18 +531,6 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 	if value, ok := _c.mutation.ValidityUnit(); ok {
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
 		_node.ValidityUnit = value
-	}
-	if value, ok := _c.mutation.QuotaMode(); ok {
-		_spec.SetField(subscriptionplan.FieldQuotaMode, field.TypeString, value)
-		_node.QuotaMode = value
-	}
-	if value, ok := _c.mutation.QuotaLimitUsd(); ok {
-		_spec.SetField(subscriptionplan.FieldQuotaLimitUsd, field.TypeFloat64, value)
-		_node.QuotaLimitUsd = &value
-	}
-	if value, ok := _c.mutation.DurationHours(); ok {
-		_spec.SetField(subscriptionplan.FieldDurationHours, field.TypeInt, value)
-		_node.DurationHours = &value
 	}
 	if value, ok := _c.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
@@ -821,66 +755,6 @@ func (u *SubscriptionPlanUpsert) SetValidityUnit(v string) *SubscriptionPlanUpse
 // UpdateValidityUnit sets the "validity_unit" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateValidityUnit() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldValidityUnit)
-	return u
-}
-
-// SetQuotaMode sets the "quota_mode" field.
-func (u *SubscriptionPlanUpsert) SetQuotaMode(v string) *SubscriptionPlanUpsert {
-	u.Set(subscriptionplan.FieldQuotaMode, v)
-	return u
-}
-
-// UpdateQuotaMode sets the "quota_mode" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsert) UpdateQuotaMode() *SubscriptionPlanUpsert {
-	u.SetExcluded(subscriptionplan.FieldQuotaMode)
-	return u
-}
-
-// SetQuotaLimitUsd sets the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsert) SetQuotaLimitUsd(v float64) *SubscriptionPlanUpsert {
-	u.Set(subscriptionplan.FieldQuotaLimitUsd, v)
-	return u
-}
-
-// UpdateQuotaLimitUsd sets the "quota_limit_usd" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsert) UpdateQuotaLimitUsd() *SubscriptionPlanUpsert {
-	u.SetExcluded(subscriptionplan.FieldQuotaLimitUsd)
-	return u
-}
-
-// AddQuotaLimitUsd adds v to the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsert) AddQuotaLimitUsd(v float64) *SubscriptionPlanUpsert {
-	u.Add(subscriptionplan.FieldQuotaLimitUsd, v)
-	return u
-}
-
-// ClearQuotaLimitUsd clears the value of the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsert) ClearQuotaLimitUsd() *SubscriptionPlanUpsert {
-	u.SetNull(subscriptionplan.FieldQuotaLimitUsd)
-	return u
-}
-
-// SetDurationHours sets the "duration_hours" field.
-func (u *SubscriptionPlanUpsert) SetDurationHours(v int) *SubscriptionPlanUpsert {
-	u.Set(subscriptionplan.FieldDurationHours, v)
-	return u
-}
-
-// UpdateDurationHours sets the "duration_hours" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsert) UpdateDurationHours() *SubscriptionPlanUpsert {
-	u.SetExcluded(subscriptionplan.FieldDurationHours)
-	return u
-}
-
-// AddDurationHours adds v to the "duration_hours" field.
-func (u *SubscriptionPlanUpsert) AddDurationHours(v int) *SubscriptionPlanUpsert {
-	u.Add(subscriptionplan.FieldDurationHours, v)
-	return u
-}
-
-// ClearDurationHours clears the value of the "duration_hours" field.
-func (u *SubscriptionPlanUpsert) ClearDurationHours() *SubscriptionPlanUpsert {
-	u.SetNull(subscriptionplan.FieldDurationHours)
 	return u
 }
 
@@ -1211,76 +1085,6 @@ func (u *SubscriptionPlanUpsertOne) SetValidityUnit(v string) *SubscriptionPlanU
 func (u *SubscriptionPlanUpsertOne) UpdateValidityUnit() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateValidityUnit()
-	})
-}
-
-// SetQuotaMode sets the "quota_mode" field.
-func (u *SubscriptionPlanUpsertOne) SetQuotaMode(v string) *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.SetQuotaMode(v)
-	})
-}
-
-// UpdateQuotaMode sets the "quota_mode" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsertOne) UpdateQuotaMode() *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.UpdateQuotaMode()
-	})
-}
-
-// SetQuotaLimitUsd sets the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsertOne) SetQuotaLimitUsd(v float64) *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.SetQuotaLimitUsd(v)
-	})
-}
-
-// AddQuotaLimitUsd adds v to the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsertOne) AddQuotaLimitUsd(v float64) *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.AddQuotaLimitUsd(v)
-	})
-}
-
-// UpdateQuotaLimitUsd sets the "quota_limit_usd" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsertOne) UpdateQuotaLimitUsd() *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.UpdateQuotaLimitUsd()
-	})
-}
-
-// ClearQuotaLimitUsd clears the value of the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsertOne) ClearQuotaLimitUsd() *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.ClearQuotaLimitUsd()
-	})
-}
-
-// SetDurationHours sets the "duration_hours" field.
-func (u *SubscriptionPlanUpsertOne) SetDurationHours(v int) *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.SetDurationHours(v)
-	})
-}
-
-// AddDurationHours adds v to the "duration_hours" field.
-func (u *SubscriptionPlanUpsertOne) AddDurationHours(v int) *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.AddDurationHours(v)
-	})
-}
-
-// UpdateDurationHours sets the "duration_hours" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsertOne) UpdateDurationHours() *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.UpdateDurationHours()
-	})
-}
-
-// ClearDurationHours clears the value of the "duration_hours" field.
-func (u *SubscriptionPlanUpsertOne) ClearDurationHours() *SubscriptionPlanUpsertOne {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.ClearDurationHours()
 	})
 }
 
@@ -1800,76 +1604,6 @@ func (u *SubscriptionPlanUpsertBulk) SetValidityUnit(v string) *SubscriptionPlan
 func (u *SubscriptionPlanUpsertBulk) UpdateValidityUnit() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateValidityUnit()
-	})
-}
-
-// SetQuotaMode sets the "quota_mode" field.
-func (u *SubscriptionPlanUpsertBulk) SetQuotaMode(v string) *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.SetQuotaMode(v)
-	})
-}
-
-// UpdateQuotaMode sets the "quota_mode" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsertBulk) UpdateQuotaMode() *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.UpdateQuotaMode()
-	})
-}
-
-// SetQuotaLimitUsd sets the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsertBulk) SetQuotaLimitUsd(v float64) *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.SetQuotaLimitUsd(v)
-	})
-}
-
-// AddQuotaLimitUsd adds v to the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsertBulk) AddQuotaLimitUsd(v float64) *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.AddQuotaLimitUsd(v)
-	})
-}
-
-// UpdateQuotaLimitUsd sets the "quota_limit_usd" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsertBulk) UpdateQuotaLimitUsd() *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.UpdateQuotaLimitUsd()
-	})
-}
-
-// ClearQuotaLimitUsd clears the value of the "quota_limit_usd" field.
-func (u *SubscriptionPlanUpsertBulk) ClearQuotaLimitUsd() *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.ClearQuotaLimitUsd()
-	})
-}
-
-// SetDurationHours sets the "duration_hours" field.
-func (u *SubscriptionPlanUpsertBulk) SetDurationHours(v int) *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.SetDurationHours(v)
-	})
-}
-
-// AddDurationHours adds v to the "duration_hours" field.
-func (u *SubscriptionPlanUpsertBulk) AddDurationHours(v int) *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.AddDurationHours(v)
-	})
-}
-
-// UpdateDurationHours sets the "duration_hours" field to the value that was provided on create.
-func (u *SubscriptionPlanUpsertBulk) UpdateDurationHours() *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.UpdateDurationHours()
-	})
-}
-
-// ClearDurationHours clears the value of the "duration_hours" field.
-func (u *SubscriptionPlanUpsertBulk) ClearDurationHours() *SubscriptionPlanUpsertBulk {
-	return u.Update(func(s *SubscriptionPlanUpsert) {
-		s.ClearDurationHours()
 	})
 }
 

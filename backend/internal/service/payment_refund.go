@@ -214,12 +214,6 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 	if !psSliceContains(ok, o.Status) {
 		return nil, nil, infraerrors.BadRequest("INVALID_STATUS", "order status does not allow refund")
 	}
-	if isDailyCardPaymentOrder(o) {
-		return nil, nil, infraerrors.BadRequest(
-			"DAILY_CARD_REFUND_REQUIRES_REVIEW",
-			"daily-card refunds require entitlement revocation and manual accounting review",
-		)
-	}
 	// Check provider instance allows admin refund
 	inst, instErr := s.getRefundOrderProviderInstance(ctx, o)
 	if instErr != nil {
@@ -258,14 +252,6 @@ func (s *PaymentService) PrepareRefund(ctx context.Context, oid int64, amt float
 		}
 	}
 	return p, nil, nil
-}
-
-func isDailyCardPaymentOrder(order *dbent.PaymentOrder) bool {
-	if order == nil || order.OrderType != payment.OrderTypeSubscription || len(order.SubscriptionSnapshot) == 0 {
-		return false
-	}
-	mode, _ := order.SubscriptionSnapshot["quota_mode"].(string)
-	return normalizePlanQuotaMode(mode) == DailyCardQuotaModeOneTime
 }
 
 func (s *PaymentService) prepDeduct(ctx context.Context, o *dbent.PaymentOrder, p *RefundPlan, force bool) *RefundResult {

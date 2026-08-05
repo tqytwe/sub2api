@@ -192,37 +192,6 @@ func TestValidatePlanPatch_AllNil(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestValidatePlanQuotaConfig_OneTimeRequiresQuotaAndDuration(t *testing.T) {
-	err := validatePlanQuotaConfig(DailyCardQuotaModeOneTime, nil, nil)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "quota")
-}
-
-func TestValidatePlanQuotaConfig_OneTimeAcceptsExplicitSnapshotValues(t *testing.T) {
-	quota := 10.0
-	duration := 24
-	require.NoError(t, validatePlanQuotaConfig(DailyCardQuotaModeOneTime, &quota, &duration))
-}
-
-func TestValidateOneTimePlanDurationRejectsEntitlementLongerThanParent(t *testing.T) {
-	duration := 36
-	err := validateOneTimePlanDuration(DailyCardQuotaModeOneTime, &duration, 1, "day")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "duration_hours")
-}
-
-func TestValidateOneTimePlanDurationAcceptsMatchingParent(t *testing.T) {
-	duration := 24
-	require.NoError(t, validateOneTimePlanDuration(DailyCardQuotaModeOneTime, &duration, 1, "days"))
-}
-
-func TestValidatePlanQuotaConfig_RecurringRejectsDailyCardSnapshotFields(t *testing.T) {
-	quota := 10.0
-	duration := 24
-	err := validatePlanQuotaConfig("recurring", &quota, &duration)
-	require.Error(t, err)
-}
-
 // --- normalizePlanCurrency tests ---
 // Empty must stay empty (not coerced to the default payment currency),
 // so existing plans keep rendering without any currency label.

@@ -51,16 +51,6 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("validity_unit").
 			MaxLen(10).
 			Default("day"),
-		field.String("quota_mode").
-			MaxLen(24).
-			Default("recurring"),
-		field.Float("quota_limit_usd").
-			Optional().
-			Nillable().
-			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
-		field.Int("duration_hours").
-			Optional().
-			Nillable(),
 		field.String("features").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),

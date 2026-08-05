@@ -141,23 +141,6 @@ func TestBuildUsageBillingCommand_SurchargeBilledCostDoesNotPolluteActualCost(t 
 	}
 }
 
-func TestBuildUsageBillingCommandCarriesDailyCardEntitlement(t *testing.T) {
-	groupID := int64(7)
-	entitlementID := int64(88)
-	p := &postUsageBillingParams{
-		Cost: &CostBreakdown{TotalCost: 1, ActualCost: 1},
-		User: &User{ID: 1}, APIKey: &APIKey{ID: 2, GroupID: &groupID}, Account: &Account{ID: 3},
-		Subscription:       &UserSubscription{ID: 42, DailyCardEntitlementID: &entitlementID},
-		IsSubscriptionBill: true,
-	}
-
-	cmd := buildUsageBillingCommandForContext(context.Background(), "req-daily-card", nil, p)
-
-	if cmd.SubscriptionEntitlementID == nil || *cmd.SubscriptionEntitlementID != entitlementID {
-		t.Fatalf("SubscriptionEntitlementID = %v, want %d", cmd.SubscriptionEntitlementID, entitlementID)
-	}
-}
-
 type apiKeyQuotaUpdaterStub struct{}
 
 func (apiKeyQuotaUpdaterStub) UpdateQuotaUsed(context.Context, int64, float64) error {

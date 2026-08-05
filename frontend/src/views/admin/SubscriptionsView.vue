@@ -214,22 +214,22 @@
           <template #cell-usage="{ row }">
             <div class="min-w-[280px] space-y-2">
               <!-- Daily Usage -->
-              <div v-if="subscriptionDailyLimit(row)" class="usage-row">
+              <div v-if="row.group?.daily_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
                   <span class="usage-label">{{ t('admin.subscriptions.daily') }}</span>
                   <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
                     <div
                       class="h-1.5 rounded-full transition-[width,background-color]"
-                      :class="getProgressClass(subscriptionDailyUsage(row), subscriptionDailyLimit(row))"
+                      :class="getProgressClass(row.daily_usage_usd, row.group?.daily_limit_usd)"
                       :style="{
-                        width: getProgressWidth(subscriptionDailyUsage(row), subscriptionDailyLimit(row))
+                        width: getProgressWidth(row.daily_usage_usd, row.group?.daily_limit_usd)
                       }"
                     ></div>
                   </div>
                   <span class="usage-amount">
-                    ${{ subscriptionDailyUsage(row).toFixed(2) }}
+                    ${{ row.daily_usage_usd?.toFixed(2) || '0.00' }}
                     <span class="text-gray-400">/</span>
-                    ${{ subscriptionDailyLimit(row)?.toFixed(2) }}
+                    ${{ row.group?.daily_limit_usd?.toFixed(2) }}
                   </span>
                 </div>
                 <div class="reset-info" v-if="row.daily_window_start">
@@ -353,14 +353,9 @@
               >
                 {{ formatDateTimeToMinute(value) }}
               </span>
-              <template
-                v-for="remainingExpiry in [formatRemainingExpiry(value)]"
-                :key="remainingExpiry ?? 'expired'"
-              >
-                <div v-if="remainingExpiry" class="text-xs text-gray-500">
-                  {{ remainingExpiry }}
-                </div>
-              </template>
+              <div v-if="getDaysRemaining(value) !== null" class="text-xs text-gray-500">
+                {{ getDaysRemaining(value) }} {{ t('admin.subscriptions.daysRemaining') }}
+              </div>
             </div>
             <span v-else class="text-sm text-gray-500">{{
               t('admin.subscriptions.noExpiration')
@@ -393,9 +388,9 @@
                 <span class="text-xs">{{ t('admin.subscriptions.adjust') }}</span>
               </button>
               <button
-                v-if="canResetSubscriptionQuota(row)"
+                v-if="row.status === 'active'"
                 @click="handleResetQuota(row)"
-                :disabled="(resettingQuota && resettingSubscription?.id === row.id) || (restoringDailyCardQuota && dailyCardActionSubscription?.id === row.id)"
+                :disabled="resettingQuota && resettingSubscription?.id === row.id"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-orange-50 hover:text-orange-600 dark:hover:bg-orange-900/20 dark:hover:text-orange-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Icon name="refresh" size="sm" />
@@ -679,16 +674,6 @@
       @confirm="confirmResetQuota"
       @cancel="showResetQuotaConfirm = false"
     />
-    <ConfirmDialog
-      :show="showRestoreDailyCardQuotaConfirm"
-      :title="t('admin.subscriptions.restoreDailyCardQuotaTitle')"
-      :message="t('admin.subscriptions.restoreDailyCardQuotaConfirm', { user: dailyCardActionSubscription?.user?.email })"
-      :confirm-text="t('admin.subscriptions.restoreDailyCardQuota')"
-      :cancel-text="t('common.cancel')"
-      :danger="true"
-      @confirm="confirmRestoreDailyCardQuota"
-      @cancel="showRestoreDailyCardQuotaConfirm = false"
-    />
     <!-- Subscription Guide Modal -->
     <teleport to="body">
       <transition name="modal">
@@ -792,14 +777,7 @@ import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
-import {
-  getRemainingDurationParts,
-  isOneTimeDailyQuota,
-  subscriptionDailyLimit,
-  subscriptionDailyUsage,
-  getRemainingExpiryDuration,
-  type RemainingDurationParts
-} from '@/utils/subscriptionQuota'
+import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationParts } from '@/utils/subscriptionQuota'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -933,7 +911,6 @@ const columnDropdownRef = ref<HTMLElement | null>(null)
 const statusOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allStatus') },
   { value: 'active', label: t('admin.subscriptions.status.active') },
-  { value: 'exhausted', label: t('admin.subscriptions.status.exhausted') },
   { value: 'expired', label: t('admin.subscriptions.status.expired') },
   { value: 'revoked', label: t('admin.subscriptions.status.revoked') }
 ])
@@ -984,12 +961,9 @@ const showExtendModal = ref(false)
 const showRevokeDialog = ref(false)
 const showRestoreDialog = ref(false)
 const showResetQuotaConfirm = ref(false)
-const showRestoreDailyCardQuotaConfirm = ref(false)
 const submitting = ref(false)
 const resettingSubscription = ref<UserSubscription | null>(null)
 const resettingQuota = ref(false)
-const dailyCardActionSubscription = ref<UserSubscription | null>(null)
-const restoringDailyCardQuota = ref(false)
 const extendingSubscription = ref<UserSubscription | null>(null)
 const revokingSubscription = ref<UserSubscription | null>(null)
 const restoringSubscription = ref<UserSubscription | null>(null)
@@ -1329,10 +1303,6 @@ const confirmRestore = async () => {
 }
 
 const handleResetQuota = (subscription: UserSubscription) => {
-  if (subscription.daily_card) {
-    handleRestoreDailyCardQuota(subscription)
-    return
-  }
   resettingSubscription.value = subscription
   showResetQuotaConfirm.value = true
 }
@@ -1355,42 +1325,6 @@ const confirmResetQuota = async () => {
   }
 }
 
-const handleRestoreDailyCardQuota = (subscription: UserSubscription) => {
-  if (!canRestoreDailyCardQuota(subscription)) return
-  dailyCardActionSubscription.value = subscription
-  showRestoreDailyCardQuotaConfirm.value = true
-}
-
-const confirmRestoreDailyCardQuota = async () => {
-  const subscription = dailyCardActionSubscription.value
-  const entitlementID = subscription?.daily_card?.id
-  if (!subscription || !entitlementID) return
-  if (restoringDailyCardQuota.value) return
-  restoringDailyCardQuota.value = true
-  try {
-    const result = await adminAPI.subscriptions.restoreDailyCardQuota(subscription.id, entitlementID)
-    appStore.showSuccess(t('admin.subscriptions.dailyCardQuotaRestored', { count: result.released_holds }))
-    showRestoreDailyCardQuotaConfirm.value = false
-    dailyCardActionSubscription.value = null
-    await loadSubscriptions()
-  } catch (error: any) {
-    appStore.showError(error.response?.data?.detail || t('admin.subscriptions.failedToRestoreDailyCardQuota'))
-    console.error('Error restoring daily card quota:', error)
-  } finally {
-    restoringDailyCardQuota.value = false
-  }
-}
-
-const canRestoreDailyCardQuota = (subscription: UserSubscription): boolean => {
-  const status = subscription.daily_card?.status
-  return status === 'active' || status === 'exhausted'
-}
-
-const canResetSubscriptionQuota = (subscription: UserSubscription): boolean => {
-  if (subscription.daily_card) return canRestoreDailyCardQuota(subscription)
-  return subscription.status === 'active'
-}
-
 // Helper functions
 const getDaysRemaining = (expiresAt: string): number | null => {
   const now = new Date()
@@ -1398,21 +1332,6 @@ const getDaysRemaining = (expiresAt: string): number | null => {
   const diff = expires.getTime() - now.getTime()
   if (diff < 0) return null
   return Math.ceil(diff / (1000 * 60 * 60 * 24))
-}
-
-const formatRemainingExpiry = (expiresAt: string): string | null => {
-  const duration = getRemainingExpiryDuration(expiresAt)
-  if (!duration) return null
-  if (duration.unit === 'days') {
-    return t('admin.subscriptions.daysRemaining', { days: duration.days })
-  }
-  if (duration.hours) {
-    return t('admin.subscriptions.hoursMinutesRemaining', {
-      hours: duration.hours,
-      minutes: duration.minutes
-    })
-  }
-  return t('admin.subscriptions.minutesRemaining', { minutes: duration.minutes })
 }
 
 const isExpiringSoon = (expiresAt: string): boolean => {
@@ -1461,9 +1380,6 @@ const formatQuotaEndDuration = (parts: RemainingDurationParts): string => {
 }
 
 const formatDailyUsageWindow = (subscription: UserSubscription): string => {
-  if (subscription.daily_card?.status === 'exhausted') {
-    return t('admin.subscriptions.dailyCardExhausted')
-  }
   if (isOneTimeDailyQuota(subscription) && subscription.expires_at) {
     const parts = getRemainingDurationParts(subscription.expires_at)
     return parts ? formatQuotaEndDuration(parts) : t('admin.subscriptions.windowNotActive')

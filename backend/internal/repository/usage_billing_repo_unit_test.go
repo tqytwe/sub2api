@@ -141,18 +141,6 @@ func TestApplyUsageBillingEffects_FlagsBalanceOverdraft(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
-func TestDailyCardOverageBillingCommand_AllowsBalanceDebt(t *testing.T) {
-	original := &service.UsageBillingCommand{UserID: 42, BalanceCost: 9}
-
-	overage := dailyCardOverageBillingCommand(original, 1.25)
-
-	require.Equal(t, int64(42), overage.UserID)
-	require.InDelta(t, 1.25, overage.BalanceCost, 0.000001)
-	require.Equal(t, service.BalanceLedgerPolicyAllowOverdraft, overage.BalancePolicy)
-	require.InDelta(t, 9, original.BalanceCost, 0.000001, "the caller command must remain immutable")
-	require.Empty(t, original.BalancePolicy)
-}
-
 func TestDeductUsageBillingBalance_ReturnsUserNotFoundWhenNoUserUpdated(t *testing.T) {
 	ctx := context.Background()
 	db, mock, err := sqlmock.New()

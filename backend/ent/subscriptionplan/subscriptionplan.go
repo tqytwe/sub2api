@@ -29,12 +29,6 @@ const (
 	FieldValidityDays = "validity_days"
 	// FieldValidityUnit holds the string denoting the validity_unit field in the database.
 	FieldValidityUnit = "validity_unit"
-	// FieldQuotaMode holds the string denoting the quota_mode field in the database.
-	FieldQuotaMode = "quota_mode"
-	// FieldQuotaLimitUsd holds the string denoting the quota_limit_usd field in the database.
-	FieldQuotaLimitUsd = "quota_limit_usd"
-	// FieldDurationHours holds the string denoting the duration_hours field in the database.
-	FieldDurationHours = "duration_hours"
 	// FieldFeatures holds the string denoting the features field in the database.
 	FieldFeatures = "features"
 	// FieldProductName holds the string denoting the product_name field in the database.
@@ -74,9 +68,6 @@ var Columns = []string{
 	FieldCurrency,
 	FieldValidityDays,
 	FieldValidityUnit,
-	FieldQuotaMode,
-	FieldQuotaLimitUsd,
-	FieldDurationHours,
 	FieldFeatures,
 	FieldProductName,
 	FieldCoverImageURL,
@@ -116,10 +107,6 @@ var (
 	DefaultValidityUnit string
 	// ValidityUnitValidator is a validator for the "validity_unit" field. It is called by the builders before save.
 	ValidityUnitValidator func(string) error
-	// DefaultQuotaMode holds the default value on creation for the "quota_mode" field.
-	DefaultQuotaMode string
-	// QuotaModeValidator is a validator for the "quota_mode" field. It is called by the builders before save.
-	QuotaModeValidator func(string) error
 	// DefaultFeatures holds the default value on creation for the "features" field.
 	DefaultFeatures string
 	// DefaultProductName holds the default value on creation for the "product_name" field.
@@ -202,21 +189,6 @@ func ByValidityDays(opts ...sql.OrderTermOption) OrderOption {
 // ByValidityUnit orders the results by the validity_unit field.
 func ByValidityUnit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldValidityUnit, opts...).ToFunc()
-}
-
-// ByQuotaMode orders the results by the quota_mode field.
-func ByQuotaMode(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldQuotaMode, opts...).ToFunc()
-}
-
-// ByQuotaLimitUsd orders the results by the quota_limit_usd field.
-func ByQuotaLimitUsd(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldQuotaLimitUsd, opts...).ToFunc()
-}
-
-// ByDurationHours orders the results by the duration_hours field.
-func ByDurationHours(opts ...sql.OrderTermOption) OrderOption {
-	return sql.OrderByField(FieldDurationHours, opts...).ToFunc()
 }
 
 // ByFeatures orders the results by the features field.

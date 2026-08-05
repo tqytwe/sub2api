@@ -1472,7 +1472,6 @@ var (
 		{Name: "plan_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "subscription_group_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "subscription_days", Type: field.TypeInt, Nullable: true},
-		{Name: "subscription_snapshot", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "provider_instance_id", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "provider_key", Type: field.TypeString, Nullable: true, Size: 30},
 		{Name: "provider_snapshot", Type: field.TypeJSON, Nullable: true, SchemaType: map[string]string{"postgres": "jsonb"}},
@@ -1505,7 +1504,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "payment_orders_users_payment_orders",
-				Columns:    []*schema.Column{PaymentOrdersColumns[50]},
+				Columns:    []*schema.Column{PaymentOrdersColumns[49]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -1522,32 +1521,32 @@ var (
 			{
 				Name:    "paymentorder_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[50]},
+				Columns: []*schema.Column{PaymentOrdersColumns[49]},
 			},
 			{
 				Name:    "paymentorder_status",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[32]},
+				Columns: []*schema.Column{PaymentOrdersColumns[31]},
 			},
 			{
 				Name:    "paymentorder_expires_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[40]},
+				Columns: []*schema.Column{PaymentOrdersColumns[39]},
 			},
 			{
 				Name:    "paymentorder_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[48]},
+				Columns: []*schema.Column{PaymentOrdersColumns[47]},
 			},
 			{
 				Name:    "paymentorder_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[41]},
+				Columns: []*schema.Column{PaymentOrdersColumns[40]},
 			},
 			{
 				Name:    "paymentorder_payment_type_paid_at",
 				Unique:  false,
-				Columns: []*schema.Column{PaymentOrdersColumns[18], PaymentOrdersColumns[41]},
+				Columns: []*schema.Column{PaymentOrdersColumns[18], PaymentOrdersColumns[40]},
 			},
 			{
 				Name:    "paymentorder_order_type",
@@ -1893,90 +1892,6 @@ var (
 		Columns:    SettingsColumns,
 		PrimaryKey: []*schema.Column{SettingsColumns[0]},
 	}
-	// SubscriptionEntitlementsColumns holds the columns for the "subscription_entitlements" table.
-	SubscriptionEntitlementsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt64, Increment: true},
-		{Name: "user_id", Type: field.TypeInt64},
-		{Name: "group_id", Type: field.TypeInt64},
-		{Name: "plan_id", Type: field.TypeInt64, Nullable: true},
-		{Name: "payment_order_id", Type: field.TypeInt64, Nullable: true},
-		{Name: "source_type", Type: field.TypeString, Size: 32, Default: "payment_order"},
-		{Name: "source_id", Type: field.TypeString, Size: 128, Default: ""},
-		{Name: "quota_mode", Type: field.TypeString, Size: 24},
-		{Name: "quota_limit_usd", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
-		{Name: "quota_used_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
-		{Name: "quota_reserved_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
-		{Name: "duration_hours", Type: field.TypeInt},
-		{Name: "status", Type: field.TypeString, Size: 20, Default: "pending"},
-		{Name: "starts_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "expires_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "activated_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "exhausted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "ended_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-	}
-	// SubscriptionEntitlementsTable holds the schema information for the "subscription_entitlements" table.
-	SubscriptionEntitlementsTable = &schema.Table{
-		Name:       "subscription_entitlements",
-		Columns:    SubscriptionEntitlementsColumns,
-		PrimaryKey: []*schema.Column{SubscriptionEntitlementsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "subscriptionentitlement_payment_order_id",
-				Unique:  true,
-				Columns: []*schema.Column{SubscriptionEntitlementsColumns[4]},
-			},
-			{
-				Name:    "subscriptionentitlement_user_id_group_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{SubscriptionEntitlementsColumns[1], SubscriptionEntitlementsColumns[2], SubscriptionEntitlementsColumns[12]},
-			},
-			{
-				Name:    "subscriptionentitlement_expires_at",
-				Unique:  false,
-				Columns: []*schema.Column{SubscriptionEntitlementsColumns[14]},
-			},
-		},
-	}
-	// SubscriptionEntitlementHoldsColumns holds the columns for the "subscription_entitlement_holds" table.
-	SubscriptionEntitlementHoldsColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeInt64, Increment: true},
-		{Name: "entitlement_id", Type: field.TypeInt64},
-		{Name: "request_id", Type: field.TypeString, Size: 200},
-		{Name: "request_fingerprint", Type: field.TypeString, Size: 128},
-		{Name: "reserved_usd", Type: field.TypeFloat64, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
-		{Name: "captured_usd", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
-		{Name: "status", Type: field.TypeString, Size: 20, Default: "reserved"},
-		{Name: "expires_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "captured_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "released_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
-	}
-	// SubscriptionEntitlementHoldsTable holds the schema information for the "subscription_entitlement_holds" table.
-	SubscriptionEntitlementHoldsTable = &schema.Table{
-		Name:       "subscription_entitlement_holds",
-		Columns:    SubscriptionEntitlementHoldsColumns,
-		PrimaryKey: []*schema.Column{SubscriptionEntitlementHoldsColumns[0]},
-		Indexes: []*schema.Index{
-			{
-				Name:    "subscriptionentitlementhold_entitlement_id_request_id",
-				Unique:  true,
-				Columns: []*schema.Column{SubscriptionEntitlementHoldsColumns[1], SubscriptionEntitlementHoldsColumns[2]},
-			},
-			{
-				Name:    "subscriptionentitlementhold_entitlement_id_status",
-				Unique:  false,
-				Columns: []*schema.Column{SubscriptionEntitlementHoldsColumns[1], SubscriptionEntitlementHoldsColumns[6]},
-			},
-			{
-				Name:    "subscriptionentitlementhold_expires_at",
-				Unique:  false,
-				Columns: []*schema.Column{SubscriptionEntitlementHoldsColumns[7]},
-			},
-		},
-	}
 	// SubscriptionPlansColumns holds the columns for the "subscription_plans" table.
 	SubscriptionPlansColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1988,9 +1903,6 @@ var (
 		{Name: "currency", Type: field.TypeString, Size: 3, Default: ""},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "validity_unit", Type: field.TypeString, Size: 10, Default: "day"},
-		{Name: "quota_mode", Type: field.TypeString, Size: 24, Default: "recurring"},
-		{Name: "quota_limit_usd", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
-		{Name: "duration_hours", Type: field.TypeInt, Nullable: true},
 		{Name: "features", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "product_name", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "cover_image_url", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
@@ -2018,22 +1930,22 @@ var (
 			{
 				Name:    "subscriptionplan_for_sale",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[20]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[17]},
 			},
 			{
 				Name:    "subscriptionplan_storefront_platform",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[16]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[13]},
 			},
 			{
 				Name:    "subscriptionplan_storefront_category",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[17]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[14]},
 			},
 			{
 				Name:    "subscriptionplan_storefront_featured",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[18]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[15]},
 			},
 		},
 	}
@@ -2110,7 +2022,6 @@ var (
 		{Name: "model_mapping_chain", Type: field.TypeString, Nullable: true, Size: 500},
 		{Name: "billing_tier", Type: field.TypeString, Nullable: true, Size: 50},
 		{Name: "billing_mode", Type: field.TypeString, Nullable: true, Size: 20},
-		{Name: "subscription_entitlement_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "input_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "output_tokens", Type: field.TypeInt, Default: 0},
 		{Name: "cache_creation_tokens", Type: field.TypeInt, Default: 0},
@@ -2161,31 +2072,31 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "usage_logs_api_keys_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[46]},
+				Columns:    []*schema.Column{UsageLogsColumns[45]},
 				RefColumns: []*schema.Column{APIKeysColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_accounts_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[47]},
+				Columns:    []*schema.Column{UsageLogsColumns[46]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_groups_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[48]},
+				Columns:    []*schema.Column{UsageLogsColumns[47]},
 				RefColumns: []*schema.Column{GroupsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "usage_logs_users_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[49]},
+				Columns:    []*schema.Column{UsageLogsColumns[48]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 			{
 				Symbol:     "usage_logs_user_subscriptions_usage_logs",
-				Columns:    []*schema.Column{UsageLogsColumns[50]},
+				Columns:    []*schema.Column{UsageLogsColumns[49]},
 				RefColumns: []*schema.Column{UserSubscriptionsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -2194,37 +2105,32 @@ var (
 			{
 				Name:    "usagelog_user_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[49]},
+				Columns: []*schema.Column{UsageLogsColumns[48]},
 			},
 			{
 				Name:    "usagelog_api_key_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[46]},
+				Columns: []*schema.Column{UsageLogsColumns[45]},
 			},
 			{
 				Name:    "usagelog_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[47]},
+				Columns: []*schema.Column{UsageLogsColumns[46]},
 			},
 			{
 				Name:    "usagelog_group_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[48]},
+				Columns: []*schema.Column{UsageLogsColumns[47]},
 			},
 			{
 				Name:    "usagelog_subscription_id",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[50]},
-			},
-			{
-				Name:    "usagelog_subscription_entitlement_id",
-				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[9]},
+				Columns: []*schema.Column{UsageLogsColumns[49]},
 			},
 			{
 				Name:    "usagelog_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[45]},
+				Columns: []*schema.Column{UsageLogsColumns[44]},
 			},
 			{
 				Name:    "usagelog_model",
@@ -2244,17 +2150,17 @@ var (
 			{
 				Name:    "usagelog_user_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[49], UsageLogsColumns[45]},
+				Columns: []*schema.Column{UsageLogsColumns[48], UsageLogsColumns[44]},
 			},
 			{
 				Name:    "usagelog_api_key_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[46], UsageLogsColumns[45]},
+				Columns: []*schema.Column{UsageLogsColumns[45], UsageLogsColumns[44]},
 			},
 			{
 				Name:    "usagelog_group_id_created_at",
 				Unique:  false,
-				Columns: []*schema.Column{UsageLogsColumns[48], UsageLogsColumns[45]},
+				Columns: []*schema.Column{UsageLogsColumns[47], UsageLogsColumns[44]},
 			},
 		},
 	}
@@ -2643,8 +2549,6 @@ var (
 		RedeemCodesTable,
 		SecuritySecretsTable,
 		SettingsTable,
-		SubscriptionEntitlementsTable,
-		SubscriptionEntitlementHoldsTable,
 		SubscriptionPlansTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
@@ -2792,12 +2696,6 @@ func init() {
 	}
 	SettingsTable.Annotation = &entsql.Annotation{
 		Table: "settings",
-	}
-	SubscriptionEntitlementsTable.Annotation = &entsql.Annotation{
-		Table: "subscription_entitlements",
-	}
-	SubscriptionEntitlementHoldsTable.Annotation = &entsql.Annotation{
-		Table: "subscription_entitlement_holds",
 	}
 	SubscriptionPlansTable.Annotation = &entsql.Annotation{
 		Table: "subscription_plans",

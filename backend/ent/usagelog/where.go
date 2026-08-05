@@ -120,11 +120,6 @@ func SubscriptionID(v int64) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldSubscriptionID, v))
 }
 
-// SubscriptionEntitlementID applies equality check predicate on the "subscription_entitlement_id" field. It's identical to SubscriptionEntitlementIDEQ.
-func SubscriptionEntitlementID(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldEQ(FieldSubscriptionEntitlementID, v))
-}
-
 // InputTokens applies equality check predicate on the "input_tokens" field. It's identical to InputTokensEQ.
 func InputTokens(v int) predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldEQ(FieldInputTokens, v))
@@ -973,56 +968,6 @@ func SubscriptionIDIsNil() predicate.UsageLog {
 // SubscriptionIDNotNil applies the NotNil predicate on the "subscription_id" field.
 func SubscriptionIDNotNil() predicate.UsageLog {
 	return predicate.UsageLog(sql.FieldNotNull(FieldSubscriptionID))
-}
-
-// SubscriptionEntitlementIDEQ applies the EQ predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDEQ(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldEQ(FieldSubscriptionEntitlementID, v))
-}
-
-// SubscriptionEntitlementIDNEQ applies the NEQ predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDNEQ(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldNEQ(FieldSubscriptionEntitlementID, v))
-}
-
-// SubscriptionEntitlementIDIn applies the In predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDIn(vs ...int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldIn(FieldSubscriptionEntitlementID, vs...))
-}
-
-// SubscriptionEntitlementIDNotIn applies the NotIn predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDNotIn(vs ...int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldNotIn(FieldSubscriptionEntitlementID, vs...))
-}
-
-// SubscriptionEntitlementIDGT applies the GT predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDGT(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldGT(FieldSubscriptionEntitlementID, v))
-}
-
-// SubscriptionEntitlementIDGTE applies the GTE predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDGTE(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldGTE(FieldSubscriptionEntitlementID, v))
-}
-
-// SubscriptionEntitlementIDLT applies the LT predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDLT(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldLT(FieldSubscriptionEntitlementID, v))
-}
-
-// SubscriptionEntitlementIDLTE applies the LTE predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDLTE(v int64) predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldLTE(FieldSubscriptionEntitlementID, v))
-}
-
-// SubscriptionEntitlementIDIsNil applies the IsNil predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDIsNil() predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldIsNull(FieldSubscriptionEntitlementID))
-}
-
-// SubscriptionEntitlementIDNotNil applies the NotNil predicate on the "subscription_entitlement_id" field.
-func SubscriptionEntitlementIDNotNil() predicate.UsageLog {
-	return predicate.UsageLog(sql.FieldNotNull(FieldSubscriptionEntitlementID))
 }
 
 // InputTokensEQ applies the EQ predicate on the "input_tokens" field.

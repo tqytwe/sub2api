@@ -32,7 +32,6 @@ func RegisterPaymentRoutes(
 		authenticated.GET("/config", paymentHandler.GetPaymentConfig)
 		authenticated.GET("/checkout-info", paymentHandler.GetCheckoutInfo)
 		authenticated.GET("/plans", paymentHandler.GetPlans)
-		authenticated.GET("/daily-cards", paymentHandler.GetDailyCards)
 		authenticated.GET("/limits", paymentHandler.GetLimits)
 		authenticated.POST("/coupons/quote", paymentHandler.QuoteCouponPayment)
 

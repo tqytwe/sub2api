@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -268,85 +267,6 @@ func (s *subscriptionUserSubRepoStub) Update(_ context.Context, sub *UserSubscri
 	return nil
 }
 
-func (s *subscriptionUserSubRepoStub) ExtendExpiry(_ context.Context, subscriptionID int64, newExpiresAt time.Time) error {
-	sub := s.byID[subscriptionID]
-	if sub == nil {
-		return ErrSubscriptionNotFound
-	}
-	sub.ExpiresAt = newExpiresAt
-	return nil
-}
-
-func (s *subscriptionUserSubRepoStub) UpdateStatus(_ context.Context, subscriptionID int64, status string) error {
-	sub := s.byID[subscriptionID]
-	if sub == nil {
-		return ErrSubscriptionNotFound
-	}
-	sub.Status = status
-	return nil
-}
-
-func (s *subscriptionUserSubRepoStub) List(_ context.Context, params pagination.PaginationParams, userID, groupID *int64, status, platform, sortBy, sortOrder string) ([]UserSubscription, *pagination.PaginationResult, error) {
-	items := make([]UserSubscription, 0, len(s.byID))
-	for _, sub := range s.byID {
-		if userID != nil && sub.UserID != *userID {
-			continue
-		}
-		if groupID != nil && sub.GroupID != *groupID {
-			continue
-		}
-		if status != "" && sub.Status != status {
-			continue
-		}
-		if platform != "" && (sub.Group == nil || sub.Group.Platform != platform) {
-			continue
-		}
-		cp := *sub
-		items = append(items, cp)
-	}
-	sort.SliceStable(items, func(i, j int) bool {
-		asc := sortOrder == "asc" && sortBy != ""
-		var cmp int
-		switch sortBy {
-		case "expires_at":
-			cmp = items[i].ExpiresAt.Compare(items[j].ExpiresAt)
-		case "status":
-			switch {
-			case items[i].Status < items[j].Status:
-				cmp = -1
-			case items[i].Status > items[j].Status:
-				cmp = 1
-			default:
-				cmp = 0
-			}
-		default:
-			cmp = items[i].CreatedAt.Compare(items[j].CreatedAt)
-		}
-		if cmp == 0 {
-			switch {
-			case items[i].ID < items[j].ID:
-				cmp = -1
-			case items[i].ID > items[j].ID:
-				cmp = 1
-			}
-		}
-		if asc {
-			return cmp < 0
-		}
-		return cmp > 0
-	})
-	total := int64(len(items))
-	start := params.Offset()
-	if start > len(items) {
-		start = len(items)
-	}
-	end := start + params.Limit()
-	if end > len(items) {
-		end = len(items)
-	}
-	return items[start:end], subscriptionPaginationResult(total, params), nil
-}
-
 func TestAssignSubscriptionReuseWhenSemanticsMatch(t *testing.T) {
 	start := time.Now().Add(-time.Hour)
 	groupRepo := &subscriptionGroupRepoStub{
@@ -497,9 +417,9 @@ func TestAssignSubscriptionRenewsExpiredSemanticMatch(t *testing.T) {
 	require.False(t, sub.StartsAt.Before(before))
 	require.False(t, sub.StartsAt.After(after))
 	require.Equal(t, sub.StartsAt.AddDate(0, 0, 30), sub.ExpiresAt)
-	require.Equal(t, svc.subscriptionWindowStart(sub.StartsAt), *sub.DailyWindowStart)
-	require.Equal(t, svc.subscriptionWindowStart(sub.StartsAt), *sub.WeeklyWindowStart)
-	require.Equal(t, svc.subscriptionWindowStart(sub.StartsAt), *sub.MonthlyWindowStart)
+	require.Equal(t, sub.StartsAt, *sub.DailyWindowStart)
+	require.Equal(t, sub.StartsAt, *sub.WeeklyWindowStart)
+	require.Equal(t, sub.StartsAt, *sub.MonthlyWindowStart)
 	require.Zero(t, sub.DailyUsageUSD)
 	require.Zero(t, sub.WeeklyUsageUSD)
 	require.Zero(t, sub.MonthlyUsageUSD)

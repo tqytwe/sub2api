@@ -125,42 +125,41 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 		return nil, err
 	}
 	tx = nil
-	if result.Applied && r.balanceLedger != nil && result.NewBalance != nil && cmd.UserID > 0 {
+	if result.Applied && r.balanceLedger != nil && cmd.BalanceCost > 0 && cmd.UserID > 0 {
 		r.balanceLedger.InvalidateUserBalanceCaches(ctx, cmd.UserID)
 	}
 	return result, nil
 }
 
 type imageStudioBillingReconciliationCommand struct {
-	RequestID                 string  `json:"request_id"`
-	APIKeyID                  int64   `json:"api_key_id"`
-	UserID                    int64   `json:"user_id"`
-	AccountID                 int64   `json:"account_id"`
-	SubscriptionID            *int64  `json:"subscription_id,omitempty"`
-	SubscriptionEntitlementID *int64  `json:"subscription_entitlement_id,omitempty"`
-	AccountType               string  `json:"account_type,omitempty"`
-	Model                     string  `json:"model,omitempty"`
-	ServiceTier               string  `json:"service_tier,omitempty"`
-	ReasoningEffort           string  `json:"reasoning_effort,omitempty"`
-	BillingType               int8    `json:"billing_type"`
-	InputTokens               int     `json:"input_tokens"`
-	OutputTokens              int     `json:"output_tokens"`
-	CacheCreationTokens       int     `json:"cache_creation_tokens"`
-	CacheReadTokens           int     `json:"cache_read_tokens"`
-	ImageCount                int     `json:"image_count"`
-	MediaType                 string  `json:"media_type,omitempty"`
-	ActualCost                float64 `json:"actual_cost"`
-	BillingSurchargeCost      float64 `json:"billing_surcharge_cost,omitempty"`
-	BilledCost                float64 `json:"billed_cost,omitempty"`
-	BillingSurchargeMode      string  `json:"billing_surcharge_mode,omitempty"`
-	BillingSurchargeValue     float64 `json:"billing_surcharge_value,omitempty"`
-	BalanceCost               float64 `json:"balance_cost"`
-	SubscriptionCost          float64 `json:"subscription_cost"`
-	APIKeyQuotaCost           float64 `json:"api_key_quota_cost"`
-	APIKeyRateLimitCost       float64 `json:"api_key_rate_limit_cost"`
-	AccountQuotaCost          float64 `json:"account_quota_cost"`
-	RequestPayloadHash        string  `json:"request_payload_hash,omitempty"`
-	RequestFingerprint        string  `json:"request_fingerprint"`
+	RequestID             string  `json:"request_id"`
+	APIKeyID              int64   `json:"api_key_id"`
+	UserID                int64   `json:"user_id"`
+	AccountID             int64   `json:"account_id"`
+	SubscriptionID        *int64  `json:"subscription_id,omitempty"`
+	AccountType           string  `json:"account_type,omitempty"`
+	Model                 string  `json:"model,omitempty"`
+	ServiceTier           string  `json:"service_tier,omitempty"`
+	ReasoningEffort       string  `json:"reasoning_effort,omitempty"`
+	BillingType           int8    `json:"billing_type"`
+	InputTokens           int     `json:"input_tokens"`
+	OutputTokens          int     `json:"output_tokens"`
+	CacheCreationTokens   int     `json:"cache_creation_tokens"`
+	CacheReadTokens       int     `json:"cache_read_tokens"`
+	ImageCount            int     `json:"image_count"`
+	MediaType             string  `json:"media_type,omitempty"`
+	ActualCost            float64 `json:"actual_cost"`
+	BillingSurchargeCost  float64 `json:"billing_surcharge_cost,omitempty"`
+	BilledCost            float64 `json:"billed_cost,omitempty"`
+	BillingSurchargeMode  string  `json:"billing_surcharge_mode,omitempty"`
+	BillingSurchargeValue float64 `json:"billing_surcharge_value,omitempty"`
+	BalanceCost           float64 `json:"balance_cost"`
+	SubscriptionCost      float64 `json:"subscription_cost"`
+	APIKeyQuotaCost       float64 `json:"api_key_quota_cost"`
+	APIKeyRateLimitCost   float64 `json:"api_key_rate_limit_cost"`
+	AccountQuotaCost      float64 `json:"account_quota_cost"`
+	RequestPayloadHash    string  `json:"request_payload_hash,omitempty"`
+	RequestFingerprint    string  `json:"request_fingerprint"`
 }
 
 func marshalImageStudioBillingReconciliationCommand(cmd *service.UsageBillingCommand) ([]byte, error) {
@@ -168,35 +167,34 @@ func marshalImageStudioBillingReconciliationCommand(cmd *service.UsageBillingCom
 		return nil, errors.New("usage billing command is nil")
 	}
 	return json.Marshal(imageStudioBillingReconciliationCommand{
-		RequestID:                 cmd.RequestID,
-		APIKeyID:                  cmd.APIKeyID,
-		UserID:                    cmd.UserID,
-		AccountID:                 cmd.AccountID,
-		SubscriptionID:            cmd.SubscriptionID,
-		SubscriptionEntitlementID: cmd.SubscriptionEntitlementID,
-		AccountType:               cmd.AccountType,
-		Model:                     cmd.Model,
-		ServiceTier:               cmd.ServiceTier,
-		ReasoningEffort:           cmd.ReasoningEffort,
-		BillingType:               cmd.BillingType,
-		InputTokens:               cmd.InputTokens,
-		OutputTokens:              cmd.OutputTokens,
-		CacheCreationTokens:       cmd.CacheCreationTokens,
-		CacheReadTokens:           cmd.CacheReadTokens,
-		ImageCount:                cmd.ImageCount,
-		MediaType:                 cmd.MediaType,
-		ActualCost:                cmd.ActualCost,
-		BillingSurchargeCost:      cmd.BillingSurchargeCost,
-		BilledCost:                cmd.BilledCost,
-		BillingSurchargeMode:      cmd.BillingSurchargeMode,
-		BillingSurchargeValue:     cmd.BillingSurchargeValue,
-		BalanceCost:               cmd.BalanceCost,
-		SubscriptionCost:          cmd.SubscriptionCost,
-		APIKeyQuotaCost:           cmd.APIKeyQuotaCost,
-		APIKeyRateLimitCost:       cmd.APIKeyRateLimitCost,
-		AccountQuotaCost:          cmd.AccountQuotaCost,
-		RequestPayloadHash:        cmd.RequestPayloadHash,
-		RequestFingerprint:        cmd.RequestFingerprint,
+		RequestID:             cmd.RequestID,
+		APIKeyID:              cmd.APIKeyID,
+		UserID:                cmd.UserID,
+		AccountID:             cmd.AccountID,
+		SubscriptionID:        cmd.SubscriptionID,
+		AccountType:           cmd.AccountType,
+		Model:                 cmd.Model,
+		ServiceTier:           cmd.ServiceTier,
+		ReasoningEffort:       cmd.ReasoningEffort,
+		BillingType:           cmd.BillingType,
+		InputTokens:           cmd.InputTokens,
+		OutputTokens:          cmd.OutputTokens,
+		CacheCreationTokens:   cmd.CacheCreationTokens,
+		CacheReadTokens:       cmd.CacheReadTokens,
+		ImageCount:            cmd.ImageCount,
+		MediaType:             cmd.MediaType,
+		ActualCost:            cmd.ActualCost,
+		BillingSurchargeCost:  cmd.BillingSurchargeCost,
+		BilledCost:            cmd.BilledCost,
+		BillingSurchargeMode:  cmd.BillingSurchargeMode,
+		BillingSurchargeValue: cmd.BillingSurchargeValue,
+		BalanceCost:           cmd.BalanceCost,
+		SubscriptionCost:      cmd.SubscriptionCost,
+		APIKeyQuotaCost:       cmd.APIKeyQuotaCost,
+		APIKeyRateLimitCost:   cmd.APIKeyRateLimitCost,
+		AccountQuotaCost:      cmd.AccountQuotaCost,
+		RequestPayloadHash:    cmd.RequestPayloadHash,
+		RequestFingerprint:    cmd.RequestFingerprint,
 	})
 }
 
@@ -406,35 +404,34 @@ func unmarshalImageStudioBillingReconciliationCommand(payload []byte) (*service.
 		return nil, err
 	}
 	cmd := &service.UsageBillingCommand{
-		RequestID:                 stored.RequestID,
-		APIKeyID:                  stored.APIKeyID,
-		UserID:                    stored.UserID,
-		AccountID:                 stored.AccountID,
-		SubscriptionID:            stored.SubscriptionID,
-		SubscriptionEntitlementID: stored.SubscriptionEntitlementID,
-		AccountType:               stored.AccountType,
-		Model:                     stored.Model,
-		ServiceTier:               stored.ServiceTier,
-		ReasoningEffort:           stored.ReasoningEffort,
-		BillingType:               stored.BillingType,
-		InputTokens:               stored.InputTokens,
-		OutputTokens:              stored.OutputTokens,
-		CacheCreationTokens:       stored.CacheCreationTokens,
-		CacheReadTokens:           stored.CacheReadTokens,
-		ImageCount:                stored.ImageCount,
-		MediaType:                 stored.MediaType,
-		ActualCost:                stored.ActualCost,
-		BillingSurchargeCost:      stored.BillingSurchargeCost,
-		BilledCost:                stored.BilledCost,
-		BillingSurchargeMode:      stored.BillingSurchargeMode,
-		BillingSurchargeValue:     stored.BillingSurchargeValue,
-		BalanceCost:               stored.BalanceCost,
-		SubscriptionCost:          stored.SubscriptionCost,
-		APIKeyQuotaCost:           stored.APIKeyQuotaCost,
-		APIKeyRateLimitCost:       stored.APIKeyRateLimitCost,
-		AccountQuotaCost:          stored.AccountQuotaCost,
-		RequestPayloadHash:        stored.RequestPayloadHash,
-		RequestFingerprint:        stored.RequestFingerprint,
+		RequestID:             stored.RequestID,
+		APIKeyID:              stored.APIKeyID,
+		UserID:                stored.UserID,
+		AccountID:             stored.AccountID,
+		SubscriptionID:        stored.SubscriptionID,
+		AccountType:           stored.AccountType,
+		Model:                 stored.Model,
+		ServiceTier:           stored.ServiceTier,
+		ReasoningEffort:       stored.ReasoningEffort,
+		BillingType:           stored.BillingType,
+		InputTokens:           stored.InputTokens,
+		OutputTokens:          stored.OutputTokens,
+		CacheCreationTokens:   stored.CacheCreationTokens,
+		CacheReadTokens:       stored.CacheReadTokens,
+		ImageCount:            stored.ImageCount,
+		MediaType:             stored.MediaType,
+		ActualCost:            stored.ActualCost,
+		BillingSurchargeCost:  stored.BillingSurchargeCost,
+		BilledCost:            stored.BilledCost,
+		BillingSurchargeMode:  stored.BillingSurchargeMode,
+		BillingSurchargeValue: stored.BillingSurchargeValue,
+		BalanceCost:           stored.BalanceCost,
+		SubscriptionCost:      stored.SubscriptionCost,
+		APIKeyQuotaCost:       stored.APIKeyQuotaCost,
+		APIKeyRateLimitCost:   stored.APIKeyRateLimitCost,
+		AccountQuotaCost:      stored.AccountQuotaCost,
+		RequestPayloadHash:    stored.RequestPayloadHash,
+		RequestFingerprint:    stored.RequestFingerprint,
 	}
 	cmd.Normalize()
 	if cmd.RequestID == "" || cmd.APIKeyID <= 0 || cmd.RequestFingerprint == "" {
@@ -651,35 +648,6 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 			return err
 		}
 	}
-	if cmd.SubscriptionEntitlementID != nil {
-		capture, err := captureUsageBillingDailyCard(ctx, tx, *cmd.SubscriptionEntitlementID, cmd.UserID, cmd.RequestID, cmd.SubscriptionCost)
-		if err != nil {
-			return err
-		}
-		result.DailyCardExhausted = capture.exhausted
-		result.ActivatedEntitlementID = capture.activatedEntitlementID
-		result.DailyCardOverageUSD = capture.overageUSD
-		if capture.overageUSD > 0 {
-			overageCmd := dailyCardOverageBillingCommand(cmd, capture.overageUSD)
-			if r.balanceLedger != nil {
-				transaction, err := r.deductUsageBillingBalanceWithLedger(ctx, tx, overageCmd)
-				if err != nil {
-					return err
-				}
-				result.NewBalance = transaction.BalanceAfter
-				if transaction.BalanceBefore != nil {
-					result.BalanceOverdrafted = *transaction.BalanceBefore < capture.overageUSD
-				}
-			} else {
-				newBalance, sufficient, err := deductUsageBillingBalance(ctx, tx, overageCmd.UserID, overageCmd.BalanceCost)
-				if err != nil {
-					return err
-				}
-				result.NewBalance = &newBalance
-				result.BalanceOverdrafted = !sufficient
-			}
-		}
-	}
 
 	if cmd.BalanceCost > 0 {
 		if r.balanceLedger != nil {
@@ -726,215 +694,6 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 	}
 
 	return nil
-}
-
-func dailyCardOverageBillingCommand(cmd *service.UsageBillingCommand, overageUSD float64) *service.UsageBillingCommand {
-	overageCmd := *cmd
-	overageCmd.BalanceCost = overageUSD
-	overageCmd.BalancePolicy = service.BalanceLedgerPolicyAllowOverdraft
-	return &overageCmd
-}
-
-type dailyCardCaptureResult struct {
-	exhausted              bool
-	activatedEntitlementID *int64
-	overageUSD             float64
-}
-
-// dailyCardEntitlementSettlementUpdateSQL keeps PostgreSQL from inferring a
-// text parameter for the varchar status column or an untyped nil ended_at.
-const dailyCardEntitlementSettlementUpdateSQL = `
-	UPDATE subscription_entitlements
-	SET quota_used_usd = $2,
-	    quota_reserved_usd = $3,
-	    status = $4::varchar,
-	    exhausted_at = CASE WHEN $4::varchar = 'exhausted' THEN $5 ELSE exhausted_at END,
-	    ended_at = COALESCE($6::timestamptz, ended_at),
-	    updated_at = $5
-	WHERE id = $1
-`
-
-func captureUsageBillingDailyCard(ctx context.Context, tx *sql.Tx, entitlementID, userID int64, requestID string, costUSD float64) (*dailyCardCaptureResult, error) {
-	var lockUserID, lockGroupID int64
-	if err := tx.QueryRowContext(ctx, `
-		SELECT user_id, group_id
-		FROM subscription_entitlements
-		WHERE id = $1
-	`, entitlementID).Scan(&lockUserID, &lockGroupID); err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, service.ErrUsageBillingOwnershipMismatch
-		}
-		return nil, err
-	}
-	if lockUserID != userID {
-		return nil, service.ErrUsageBillingOwnershipMismatch
-	}
-	if _, err := tx.ExecContext(ctx, "SELECT pg_advisory_xact_lock($1, $2)", lockUserID, lockGroupID); err != nil {
-		return nil, err
-	}
-	var (
-		ownerID       int64
-		groupID       int64
-		quotaLimit    float64
-		quotaUsed     float64
-		quotaReserved float64
-		status        string
-		expiresAt     sql.NullTime
-	)
-	err := tx.QueryRowContext(ctx, `
-		SELECT user_id, group_id, quota_limit_usd, quota_used_usd, quota_reserved_usd, status, expires_at
-		FROM subscription_entitlements
-		WHERE id = $1
-		FOR UPDATE
-	`, entitlementID).Scan(&ownerID, &groupID, &quotaLimit, &quotaUsed, &quotaReserved, &status, &expiresAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, service.ErrUsageBillingOwnershipMismatch
-		}
-		return nil, err
-	}
-	if ownerID != userID {
-		return nil, service.ErrUsageBillingOwnershipMismatch
-	}
-	settledAt := time.Now().UTC()
-	if err := verifyDailyCardSettlementRequest(ctx, tx, entitlementID, requestID); err != nil {
-		return nil, err
-	}
-	quotaReserved = 0
-	if status != service.DailyCardStatusActive {
-		remaining := quotaLimit - quotaUsed
-		if remaining < 0 {
-			remaining = 0
-		}
-		captured := costUSD
-		if captured > remaining {
-			captured = remaining
-		}
-		newUsed := quotaUsed + captured
-		if newUsed > quotaLimit {
-			newUsed = quotaLimit
-		}
-		_, err = tx.ExecContext(ctx, `
-			UPDATE subscription_entitlements
-			SET quota_used_usd = $2, quota_reserved_usd = $3, updated_at = $4
-			WHERE id = $1
-		`, entitlementID, newUsed, quotaReserved, settledAt)
-		if err != nil {
-			return nil, err
-		}
-		if err := markDailyCardSettlementCompleted(ctx, tx, entitlementID, requestID, settledAt); err != nil {
-			return nil, err
-		}
-		return &dailyCardCaptureResult{overageUSD: costUSD - captured}, nil
-	}
-	remaining := quotaLimit - quotaUsed
-	if remaining < 0 {
-		remaining = 0
-	}
-	captured := costUSD
-	if captured > remaining {
-		captured = remaining
-	}
-	overage := costUSD - captured
-	newUsed := quotaUsed + captured
-	expired := expiresAt.Valid && !settledAt.Before(expiresAt.Time)
-	exhausted := !expired && newUsed >= quotaLimit
-	newStatus := service.DailyCardStatusActive
-	var endedAt any
-	if expired {
-		newStatus = service.DailyCardStatusExpired
-		endedAt = expiresAt.Time
-	} else if exhausted {
-		newUsed = quotaLimit
-		newStatus = service.DailyCardStatusExhausted
-		endedAt = settledAt
-	}
-	_, err = tx.ExecContext(ctx, dailyCardEntitlementSettlementUpdateSQL,
-		entitlementID, newUsed, quotaReserved, newStatus, settledAt, endedAt)
-	if err != nil {
-		return nil, err
-	}
-	if err := markDailyCardSettlementCompleted(ctx, tx, entitlementID, requestID, settledAt); err != nil {
-		return nil, err
-	}
-
-	result := &dailyCardCaptureResult{exhausted: exhausted, overageUSD: overage}
-	if newStatus == service.DailyCardStatusActive {
-		return result, nil
-	}
-	activationAt := settledAt
-	if newStatus == service.DailyCardStatusExpired && expiresAt.Valid {
-		activationAt = expiresAt.Time
-	}
-	activatedID, err := activateNextDailyCardInBillingTx(ctx, tx, userID, groupID, activationAt, settledAt)
-	if err != nil {
-		return nil, err
-	}
-	result.activatedEntitlementID = activatedID
-	return result, nil
-}
-
-func verifyDailyCardSettlementRequest(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string) error {
-	if strings.TrimSpace(requestID) == "" {
-		return service.ErrDailyCardRequestPendingConfirmation
-	}
-	var state string
-	err := tx.QueryRowContext(ctx, `
-		SELECT state FROM daily_card_request_replays
-		WHERE entitlement_id = $1 AND settlement_request_id = $2
-		FOR UPDATE
-	`, entitlementID, requestID).Scan(&state)
-	if errors.Is(err, sql.ErrNoRows) {
-		// Legacy direct billing records predate the replay table. They remain
-		// accepted for migration compatibility but the gateway never creates them.
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if state != "forwarding" {
-		return service.ErrDailyCardRequestPendingConfirmation
-	}
-	return nil
-}
-
-func markDailyCardSettlementCompleted(ctx context.Context, tx *sql.Tx, entitlementID int64, requestID string, completedAt time.Time) error {
-	_, err := tx.ExecContext(ctx, `
-		UPDATE daily_card_request_replays
-		SET state = 'completed', completed_at = $3, updated_at = $3
-		WHERE entitlement_id = $1 AND settlement_request_id = $2 AND state = 'forwarding'
-	`, entitlementID, requestID, completedAt)
-	return err
-}
-
-func activateNextDailyCardInBillingTx(ctx context.Context, tx *sql.Tx, userID, groupID int64, activationAt, updatedAt time.Time) (*int64, error) {
-	var id int64
-	var durationHours int
-	err := tx.QueryRowContext(ctx, `
-		SELECT id, duration_hours
-		FROM subscription_entitlements
-		WHERE user_id = $1 AND group_id = $2 AND status = 'pending'
-		ORDER BY created_at, id
-		FOR UPDATE
-		LIMIT 1
-	`, userID, groupID).Scan(&id, &durationHours)
-	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	expiresAt := activationAt.Add(time.Duration(durationHours) * time.Hour)
-	_, err = tx.ExecContext(ctx, `
-		UPDATE subscription_entitlements
-		SET status = 'active', starts_at = $2, activated_at = $2,
-		    expires_at = $3, updated_at = $4
-		WHERE id = $1 AND status = 'pending'
-	`, id, activationAt, expiresAt, updatedAt)
-	if err != nil {
-		return nil, err
-	}
-	return &id, nil
 }
 
 func validateUsageBillingOwnership(ctx context.Context, tx *sql.Tx, apiKeyID, userID int64) error {
@@ -1002,10 +761,6 @@ func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context
 	if r == nil || r.balanceLedger == nil {
 		return nil, service.ErrBalanceLedgerUnavailable
 	}
-	policy := cmd.BalancePolicy
-	if policy == "" {
-		policy = service.BalanceLedgerPolicyAllowOverdraft
-	}
 	transaction, err := r.balanceLedger.ApplyDeltaInSQLTx(ctx, tx, service.BalanceLedgerApplyInput{
 		UserID:         cmd.UserID,
 		BalanceDelta:   -cmd.BalanceCost,
@@ -1040,7 +795,7 @@ func (r *usageBillingRepository) deductUsageBillingBalanceWithLedger(ctx context
 			"media_type":              strings.TrimSpace(cmd.MediaType),
 			"request_payload_hash":    strings.TrimSpace(cmd.RequestPayloadHash),
 		},
-		BalancePolicy: policy,
+		BalancePolicy: service.BalanceLedgerPolicyAllowOverdraft,
 	})
 	if err != nil {
 		return nil, err

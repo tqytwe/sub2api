@@ -45,8 +45,6 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
 	"github.com/Wei-Shaw/sub2api/ent/securitysecret"
 	"github.com/Wei-Shaw/sub2api/ent/setting"
-	"github.com/Wei-Shaw/sub2api/ent/subscriptionentitlement"
-	"github.com/Wei-Shaw/sub2api/ent/subscriptionentitlementhold"
 	"github.com/Wei-Shaw/sub2api/ent/subscriptionplan"
 	"github.com/Wei-Shaw/sub2api/ent/tlsfingerprintprofile"
 	"github.com/Wei-Shaw/sub2api/ent/usagecleanuptask"
@@ -1088,60 +1086,6 @@ func (f TraverseSetting) Traverse(ctx context.Context, q ent.Query) error {
 	return fmt.Errorf("unexpected query type %T. expect *ent.SettingQuery", q)
 }
 
-// The SubscriptionEntitlementFunc type is an adapter to allow the use of ordinary function as a Querier.
-type SubscriptionEntitlementFunc func(context.Context, *ent.SubscriptionEntitlementQuery) (ent.Value, error)
-
-// Query calls f(ctx, q).
-func (f SubscriptionEntitlementFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
-	if q, ok := q.(*ent.SubscriptionEntitlementQuery); ok {
-		return f(ctx, q)
-	}
-	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionEntitlementQuery", q)
-}
-
-// The TraverseSubscriptionEntitlement type is an adapter to allow the use of ordinary function as Traverser.
-type TraverseSubscriptionEntitlement func(context.Context, *ent.SubscriptionEntitlementQuery) error
-
-// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
-func (f TraverseSubscriptionEntitlement) Intercept(next ent.Querier) ent.Querier {
-	return next
-}
-
-// Traverse calls f(ctx, q).
-func (f TraverseSubscriptionEntitlement) Traverse(ctx context.Context, q ent.Query) error {
-	if q, ok := q.(*ent.SubscriptionEntitlementQuery); ok {
-		return f(ctx, q)
-	}
-	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionEntitlementQuery", q)
-}
-
-// The SubscriptionEntitlementHoldFunc type is an adapter to allow the use of ordinary function as a Querier.
-type SubscriptionEntitlementHoldFunc func(context.Context, *ent.SubscriptionEntitlementHoldQuery) (ent.Value, error)
-
-// Query calls f(ctx, q).
-func (f SubscriptionEntitlementHoldFunc) Query(ctx context.Context, q ent.Query) (ent.Value, error) {
-	if q, ok := q.(*ent.SubscriptionEntitlementHoldQuery); ok {
-		return f(ctx, q)
-	}
-	return nil, fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionEntitlementHoldQuery", q)
-}
-
-// The TraverseSubscriptionEntitlementHold type is an adapter to allow the use of ordinary function as Traverser.
-type TraverseSubscriptionEntitlementHold func(context.Context, *ent.SubscriptionEntitlementHoldQuery) error
-
-// Intercept is a dummy implementation of Intercept that returns the next Querier in the pipeline.
-func (f TraverseSubscriptionEntitlementHold) Intercept(next ent.Querier) ent.Querier {
-	return next
-}
-
-// Traverse calls f(ctx, q).
-func (f TraverseSubscriptionEntitlementHold) Traverse(ctx context.Context, q ent.Query) error {
-	if q, ok := q.(*ent.SubscriptionEntitlementHoldQuery); ok {
-		return f(ctx, q)
-	}
-	return fmt.Errorf("unexpected query type %T. expect *ent.SubscriptionEntitlementHoldQuery", q)
-}
-
 // The SubscriptionPlanFunc type is an adapter to allow the use of ordinary function as a Querier.
 type SubscriptionPlanFunc func(context.Context, *ent.SubscriptionPlanQuery) (ent.Value, error)
 
@@ -1514,10 +1458,6 @@ func NewQuery(q ent.Query) (Query, error) {
 		return &query[*ent.SecuritySecretQuery, predicate.SecuritySecret, securitysecret.OrderOption]{typ: ent.TypeSecuritySecret, tq: q}, nil
 	case *ent.SettingQuery:
 		return &query[*ent.SettingQuery, predicate.Setting, setting.OrderOption]{typ: ent.TypeSetting, tq: q}, nil
-	case *ent.SubscriptionEntitlementQuery:
-		return &query[*ent.SubscriptionEntitlementQuery, predicate.SubscriptionEntitlement, subscriptionentitlement.OrderOption]{typ: ent.TypeSubscriptionEntitlement, tq: q}, nil
-	case *ent.SubscriptionEntitlementHoldQuery:
-		return &query[*ent.SubscriptionEntitlementHoldQuery, predicate.SubscriptionEntitlementHold, subscriptionentitlementhold.OrderOption]{typ: ent.TypeSubscriptionEntitlementHold, tq: q}, nil
 	case *ent.SubscriptionPlanQuery:
 		return &query[*ent.SubscriptionPlanQuery, predicate.SubscriptionPlan, subscriptionplan.OrderOption]{typ: ent.TypeSubscriptionPlan, tq: q}, nil
 	case *ent.TLSFingerprintProfileQuery:

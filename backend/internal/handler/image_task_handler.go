@@ -13,7 +13,6 @@ import (
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
@@ -43,11 +42,6 @@ type imageTaskAPIKeyLoader interface {
 
 type imageTaskSubscriptionLoader interface {
 	GetActiveSubscription(ctx context.Context, userID, groupID int64) (*service.UserSubscription, error)
-}
-
-type imageTaskDailyCardLoader interface {
-	ResolveDailyCardAccess(ctx context.Context, userID, groupID int64) (*service.DailyCardEntitlement, bool, error)
-	AdmitDailyCardRequest(ctx context.Context, input service.DailyCardRequestAdmissionInput) error
 }
 
 func NewAsyncImageHandler(tasks *service.ImageTaskService, openAI *OpenAIGatewayHandler, imageStorage service.ImageStorage) *AsyncImageHandler {
@@ -468,29 +462,6 @@ func (h *AsyncImageHandler) newWorkerImageContext(
 		if err != nil || subscription == nil {
 			cancel()
 			return nil, nil, func() {}, errors.New("active subscription could not be restored")
-		}
-		if dailyCardLoader, ok := h.subscriptions.(imageTaskDailyCardLoader); ok {
-			card, managedByDailyCard, cardErr := dailyCardLoader.ResolveDailyCardAccess(executionCtx, apiKey.UserID, apiKey.Group.ID)
-			if cardErr != nil {
-				cancel()
-				return nil, nil, func() {}, errors.New("daily card is exhausted or expired")
-			}
-			if managedByDailyCard {
-				settlementRequestID := "daily:image:" + taskID
-				if reserveErr := dailyCardLoader.AdmitDailyCardRequest(executionCtx, service.DailyCardRequestAdmissionInput{
-					EntitlementID: card.ID, UserID: apiKey.UserID, ClientRequestID: taskID,
-					SettlementRequestID: settlementRequestID, RequestFingerprint: "async-image:" + taskID,
-					RequestPath: request.URL.Path, AdmittedAt: time.Now(),
-				}); reserveErr != nil {
-					cancel()
-					return nil, nil, func() {}, errors.New("daily card is exhausted or unavailable")
-				}
-				executionCtx = context.WithValue(executionCtx, ctxkey.DailyCardSettlementRequestID, settlementRequestID)
-				request = request.WithContext(executionCtx)
-				taskCtx.Request = request
-				subscription.DailyCardEntitlementID = &card.ID
-				subscription.DailyUsageUSD = card.QuotaUsedUSD
-			}
 		}
 		taskCtx.Set(string(middleware2.ContextKeySubscription), subscription)
 	}

@@ -652,7 +652,6 @@ func usageLogFromServiceUser(l *service.UsageLog) UsageLog {
 		InboundEndpoint:           l.InboundEndpoint,
 		GroupID:                   l.GroupID,
 		SubscriptionID:            l.SubscriptionID,
-		SubscriptionEntitlementID: l.SubscriptionEntitlementID,
 		InputTokens:               l.InputTokens,
 		OutputTokens:              l.OutputTokens,
 		CacheCreationTokens:       l.CacheCreationTokens,
@@ -828,38 +827,25 @@ func SubscriptionPurchaseOrderFromService(order *service.SubscriptionPurchaseOrd
 }
 
 func userSubscriptionFromServiceBase(sub *service.UserSubscription) UserSubscription {
-	out := UserSubscription{
-		ID:                  sub.ID,
-		UserID:              sub.UserID,
-		GroupID:             sub.GroupID,
-		StartsAt:            sub.StartsAt,
-		ExpiresAt:           sub.ExpiresAt,
-		Status:              sub.Status,
-		DailyWindowStart:    sub.DailyWindowStart,
-		WeeklyWindowStart:   sub.WeeklyWindowStart,
-		MonthlyWindowStart:  sub.MonthlyWindowStart,
-		DailyUsageUSD:       sub.DailyUsageUSD,
-		WeeklyUsageUSD:      sub.WeeklyUsageUSD,
-		MonthlyUsageUSD:     sub.MonthlyUsageUSD,
-		CreatedAt:           sub.CreatedAt,
-		UpdatedAt:           sub.UpdatedAt,
-		RevokedAt:           sub.DeletedAt,
-		User:                UserFromServiceShallow(sub.User),
-		Group:               GroupFromServiceShallow(sub.Group),
-		DailyCardQueueCount: sub.DailyCardQueueCount,
+	return UserSubscription{
+		ID:                 sub.ID,
+		UserID:             sub.UserID,
+		GroupID:            sub.GroupID,
+		StartsAt:           sub.StartsAt,
+		ExpiresAt:          sub.ExpiresAt,
+		Status:             sub.Status,
+		DailyWindowStart:   sub.DailyWindowStart,
+		WeeklyWindowStart:  sub.WeeklyWindowStart,
+		MonthlyWindowStart: sub.MonthlyWindowStart,
+		DailyUsageUSD:      sub.DailyUsageUSD,
+		WeeklyUsageUSD:     sub.WeeklyUsageUSD,
+		MonthlyUsageUSD:    sub.MonthlyUsageUSD,
+		CreatedAt:          sub.CreatedAt,
+		UpdatedAt:          sub.UpdatedAt,
+		RevokedAt:          sub.DeletedAt,
+		User:               UserFromServiceShallow(sub.User),
+		Group:              GroupFromServiceShallow(sub.Group),
 	}
-	if sub.DailyCard != nil {
-		out.DailyCard = &DailyCardEntitlement{
-			ID: sub.DailyCard.ID, PaymentOrderID: sub.DailyCard.PaymentOrderID,
-			SourceType: sub.DailyCard.SourceType, SourceID: sub.DailyCard.SourceID,
-			Status: sub.DailyCard.Status, QuotaLimitUSD: sub.DailyCard.QuotaLimitUSD,
-			QuotaUsedUSD: sub.DailyCard.QuotaUsedUSD, QuotaReservedUSD: 0,
-			RemainingQuotaUSD: sub.DailyCard.RemainingQuotaUSD(), DurationHours: sub.DailyCard.DurationHours,
-			StartsAt: sub.DailyCard.StartsAt, ExpiresAt: sub.DailyCard.ExpiresAt,
-			ExhaustedAt: sub.DailyCard.ExhaustedAt, EndedAt: sub.DailyCard.EndedAt,
-		}
-	}
-	return out
 }
 
 func BulkAssignResultFromService(r *service.BulkAssignResult) *BulkAssignResult {

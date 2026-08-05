@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 )
 
@@ -126,15 +125,15 @@ func TestAdminResetQuota_ResetDailyOnly(t *testing.T) {
 	require.False(t, stub.resetMonthlyCalled, "不应调用 ResetMonthlyUsage")
 }
 
-func TestAdminResetQuota_UsesShanghaiBusinessDay(t *testing.T) {
+func TestAdminResetQuota_UsesInjectedTime(t *testing.T) {
 	shanghai, err := time.LoadLocation("Asia/Shanghai")
 	require.NoError(t, err)
 	now := time.Date(2026, 7, 29, 0, 1, 0, 0, shanghai)
 	stub := &resetQuotaUserSubRepoStub{
 		sub: &UserSubscription{ID: 22, UserID: 10, GroupID: 20},
 	}
-	svc := NewSubscriptionService(groupRepoNoop{}, stub, nil, nil, &config.Config{Timezone: "Asia/Shanghai"})
-	svc.nowFunc = func() time.Time { return now.UTC() }
+	svc := newResetQuotaSvc(stub)
+	svc.now = func() time.Time { return now.UTC() }
 
 	result, err := svc.AdminResetQuota(context.Background(), 22, true, false, false)
 
@@ -142,7 +141,7 @@ func TestAdminResetQuota_UsesShanghaiBusinessDay(t *testing.T) {
 	require.NotNil(t, result)
 	require.True(t, stub.resetDailyCalled)
 	require.NotNil(t, stub.sub.DailyWindowStart)
-	require.Equal(t, time.Date(2026, 7, 29, 0, 0, 0, 0, shanghai), *stub.sub.DailyWindowStart)
+	require.Equal(t, now.UTC(), *stub.sub.DailyWindowStart)
 }
 
 func TestAdminResetQuota_ResetWeeklyOnly(t *testing.T) {
@@ -286,48 +285,4 @@ func TestAdminResetQuota_ReturnsRefreshedSub(t *testing.T) {
 	// 服务应返回第二次 GetByID 的刷新值而非初始的 99.9
 	require.Equal(t, float64(0), result.DailyUsageUSD, "返回的订阅应反映已归零的用量")
 	require.True(t, stub.resetDailyCalled)
-}
-
-func TestAdminReleaseDailyCardReservedHoldsUsesSubscriptionOwner(t *testing.T) {
-	stub := &resetQuotaUserSubRepoStub{
-		sub: &UserSubscription{ID: 12, UserID: 10, GroupID: 20},
-	}
-	cardRepo := &dailyCardRepoStub{
-		adminResult: &DailyCardAdminActionResult{
-			Card:          &DailyCardEntitlement{ID: 88, UserID: 10, GroupID: 20},
-			ReleasedHolds: 2,
-		},
-	}
-	svc := newResetQuotaSvc(stub)
-	svc.SetDailyCardService(NewDailyCardService(cardRepo))
-
-	sub, result, err := svc.AdminReleaseDailyCardReservedHolds(context.Background(), 12, 88)
-
-	require.NoError(t, err)
-	require.Equal(t, []int64{88, 10, 20}, cardRepo.adminReleaseInput)
-	require.Equal(t, int64(2), result.ReleasedHolds)
-	require.NotNil(t, sub.DailyCard)
-	require.Equal(t, int64(88), *sub.DailyCardEntitlementID)
-}
-
-func TestAdminRestoreDailyCardQuotaUsesSubscriptionOwner(t *testing.T) {
-	stub := &resetQuotaUserSubRepoStub{
-		sub: &UserSubscription{ID: 13, UserID: 10, GroupID: 20},
-	}
-	cardRepo := &dailyCardRepoStub{
-		adminResult: &DailyCardAdminActionResult{
-			Card:          &DailyCardEntitlement{ID: 89, UserID: 10, GroupID: 20, QuotaUsedUSD: 0},
-			ReleasedHolds: 1,
-		},
-	}
-	svc := newResetQuotaSvc(stub)
-	svc.SetDailyCardService(NewDailyCardService(cardRepo))
-
-	sub, result, err := svc.AdminRestoreDailyCardQuota(context.Background(), 13, 89)
-
-	require.NoError(t, err)
-	require.Equal(t, []int64{89, 10, 20}, cardRepo.adminRestoreInput)
-	require.Equal(t, int64(1), result.ReleasedHolds)
-	require.NotNil(t, sub.DailyCard)
-	require.Equal(t, int64(89), *sub.DailyCardEntitlementID)
 }

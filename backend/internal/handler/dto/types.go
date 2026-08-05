@@ -502,8 +502,6 @@ type UsageLog struct {
 
 	GroupID        *int64 `json:"group_id"`
 	SubscriptionID *int64 `json:"subscription_id"`
-	// SubscriptionEntitlementID is present when this usage consumed a one-time daily-card entitlement.
-	SubscriptionEntitlementID *int64 `json:"subscription_entitlement_id,omitempty"`
 
 	InputTokens         int `json:"input_tokens"`
 	OutputTokens        int `json:"output_tokens"`
@@ -656,26 +654,6 @@ type UserSubscription struct {
 
 	User  *User  `json:"user,omitempty"`
 	Group *Group `json:"group,omitempty"`
-
-	DailyCard           *DailyCardEntitlement `json:"daily_card,omitempty"`
-	DailyCardQueueCount int                   `json:"daily_card_queue_count,omitempty"`
-}
-
-type DailyCardEntitlement struct {
-	ID                int64      `json:"id"`
-	PaymentOrderID    *int64     `json:"payment_order_id,omitempty"`
-	SourceType        string     `json:"source_type,omitempty"`
-	SourceID          string     `json:"source_id,omitempty"`
-	Status            string     `json:"status"`
-	QuotaLimitUSD     float64    `json:"quota_limit_usd"`
-	QuotaUsedUSD      float64    `json:"quota_used_usd"`
-	QuotaReservedUSD  float64    `json:"quota_reserved_usd"`
-	RemainingQuotaUSD float64    `json:"remaining_quota_usd"`
-	DurationHours     int        `json:"duration_hours"`
-	StartsAt          *time.Time `json:"starts_at,omitempty"`
-	ExpiresAt         *time.Time `json:"expires_at,omitempty"`
-	ExhaustedAt       *time.Time `json:"exhausted_at,omitempty"`
-	EndedAt           *time.Time `json:"ended_at,omitempty"`
 }
 
 type SubscriptionPurchaseOrder struct {
