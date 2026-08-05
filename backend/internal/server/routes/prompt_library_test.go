@@ -40,6 +40,7 @@ func TestPromptLibraryRoutesContract(t *testing.T) {
 		"POST /api/v1/prompts/:id/use",
 		"GET /sitemap.xml",
 		"GET /robots.txt",
+		"GET /home",
 		"GET /llms.txt",
 		"GET /llms-full.txt",
 		"GET /llms.small-txt",
