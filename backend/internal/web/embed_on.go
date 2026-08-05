@@ -1373,6 +1373,9 @@ func shouldBypassEmbeddedFrontend(path string) bool {
 		trimmed == "/robots.txt" ||
 		trimmed == "/sitemap.xml" ||
 		trimmed == "/llms.txt" ||
+		trimmed == "/llms-full.txt" ||
+		trimmed == "/llms.small-txt" ||
+		trimmed == "/.well-known/ai.txt" ||
 		trimmed == "/models" ||
 		trimmed == "/responses" ||
 		strings.HasPrefix(trimmed, "/responses/") ||

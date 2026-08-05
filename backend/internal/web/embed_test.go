@@ -751,6 +751,9 @@ func TestFrontendServer_Middleware(t *testing.T) {
 			"/robots.txt",
 			"/sitemap.xml",
 			"/llms.txt",
+			"/llms-full.txt",
+			"/llms.small-txt",
+			"/.well-known/ai.txt",
 			"/responses",
 			"/responses/compact",
 		}
@@ -1118,6 +1121,9 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 			"/robots.txt",
 			"/sitemap.xml",
 			"/llms.txt",
+			"/llms-full.txt",
+			"/llms.small-txt",
+			"/.well-known/ai.txt",
 			"/responses",
 			"/responses/compact",
 		}
