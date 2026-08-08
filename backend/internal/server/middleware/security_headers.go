@@ -239,6 +239,18 @@ func addToDirective(policy, directive, value string) string {
 	// Insert value before the semicolon
 	policy = removeNoneFromDirective(policy, directive)
 	idx = strings.Index(policy, directivePrefix)
+	if idx == -1 {
+		// Removing the sole 'none' value leaves a bare directive such as
+		// "connect-src;". Add the required source to that directive instead of
+		// indexing the policy at -1.
+		bareDirective := directive + ";"
+		idx = strings.Index(policy, bareDirective)
+		if idx != -1 {
+			insertPos := idx + len(directive)
+			return policy[:insertPos] + " " + value + policy[insertPos:]
+		}
+		return policy
+	}
 	endIdx = strings.Index(policy[idx:], ";")
 	if endIdx == -1 {
 		return policy + " " + value
