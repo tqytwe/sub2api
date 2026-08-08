@@ -146,7 +146,7 @@ func TestAdminResetQuota_UsesInjectedTime(t *testing.T) {
 	require.NotNil(t, result)
 	require.True(t, stub.resetDailyCalled)
 	require.NotNil(t, stub.sub.DailyWindowStart)
-	require.Equal(t, now.UTC(), *stub.sub.DailyWindowStart)
+	require.Equal(t, timezone.StartOfDay(now.UTC()), *stub.sub.DailyWindowStart)
 }
 
 func TestAdminResetQuota_ResetWeeklyOnly(t *testing.T) {
