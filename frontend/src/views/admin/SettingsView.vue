@@ -1953,38 +1953,71 @@
             </div>
           </div>
 
-          <!-- Cloudflare Turnstile Settings -->
+          <!-- CAPTCHA provider settings -->
           <div class="card">
             <div
               class="border-b border-gray-100 px-6 py-4 dark:border-dark-700"
             >
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ t("admin.settings.turnstile.title") }}
+                {{ t("admin.settings.captcha.title") }}
               </h2>
               <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {{ t("admin.settings.turnstile.description") }}
+                {{ t("admin.settings.captcha.description") }}
               </p>
             </div>
             <div class="space-y-5 p-6">
-              <!-- Enable Turnstile -->
               <div class="flex items-center justify-between">
                 <div>
                   <label class="font-medium text-gray-900 dark:text-white">{{
-                    t("admin.settings.turnstile.enableTurnstile")
+                    t("admin.settings.captcha.enable")
                   }}</label>
                   <p class="text-sm text-gray-500 dark:text-gray-400">
-                    {{ t("admin.settings.turnstile.enableTurnstileHint") }}
+                    {{ t("admin.settings.captcha.enableHint") }}
                   </p>
                 </div>
-                <Toggle v-model="form.turnstile_enabled" />
+                <Toggle v-model="captchaMasterEnabled" data-testid="captcha-enabled-toggle" />
               </div>
 
-              <!-- Turnstile Keys - Only show when enabled -->
               <div
-                v-if="form.turnstile_enabled"
+                v-if="captchaMasterEnabled"
                 class="border-t border-gray-100 pt-4 dark:border-dark-700"
               >
-                <div class="grid grid-cols-1 gap-6">
+                <div class="mb-6">
+                  <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ t("admin.settings.captcha.provider") }}
+                  </label>
+                  <div class="grid grid-cols-3 gap-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
+                    <button
+                      type="button"
+                      data-testid="captcha-provider-turnstile"
+                      class="rounded-md px-3 py-2 text-sm font-medium transition"
+                      :class="captchaProviderSelection === 'turnstile' ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300' : 'text-gray-600 dark:text-dark-300'"
+                      @click="selectCaptchaProvider('turnstile')"
+                    >
+                      {{ t("admin.settings.captcha.providerTurnstile") }}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="captcha-provider-tencent"
+                      class="rounded-md px-3 py-2 text-sm font-medium transition"
+                      :class="captchaProviderSelection === 'tencent' ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300' : 'text-gray-600 dark:text-dark-300'"
+                      @click="selectCaptchaProvider('tencent')"
+                    >
+                      {{ t("admin.settings.captcha.providerTencent") }}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="captcha-provider-aliyun"
+                      class="rounded-md px-3 py-2 text-sm font-medium transition"
+                      :class="captchaProviderSelection === 'aliyun' ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300' : 'text-gray-600 dark:text-dark-300'"
+                      @click="selectCaptchaProvider('aliyun')"
+                    >
+                      {{ t("admin.settings.captcha.providerAliyun") }}
+                    </button>
+                  </div>
+                </div>
+
+                <div v-if="captchaProviderSelection === 'turnstile'" class="grid grid-cols-1 gap-6">
                   <div>
                     <label
                       class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
@@ -2031,6 +2064,49 @@
                       }}
                     </p>
                   </div>
+                </div>
+
+                <div v-else-if="captchaProviderSelection === 'tencent'" class="space-y-5">
+                  <div>
+                    <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {{ t("admin.settings.tencentCaptcha.region") }}
+                    </label>
+                    <div class="grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-700">
+                      <button
+                        type="button"
+                        data-testid="tencent-captcha-region-cn"
+                        class="rounded-md px-3 py-1.5 text-sm font-medium transition"
+                        :class="form.tencent_captcha_region !== 'intl' ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300' : 'text-gray-600 dark:text-dark-300'"
+                        @click="form.tencent_captcha_region = 'cn'"
+                      >{{ t("admin.settings.tencentCaptcha.regionCn") }}</button>
+                      <button
+                        type="button"
+                        data-testid="tencent-captcha-region-intl"
+                        class="rounded-md px-3 py-1.5 text-sm font-medium transition"
+                        :class="form.tencent_captcha_region === 'intl' ? 'bg-white text-primary-700 shadow-sm dark:bg-dark-800 dark:text-primary-300' : 'text-gray-600 dark:text-dark-300'"
+                        @click="form.tencent_captcha_region = 'intl'"
+                      >{{ t("admin.settings.tencentCaptcha.regionIntl") }}</button>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 gap-6 md:grid-cols-2">
+                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.appId") }}</label><input v-model="form.tencent_captcha_app_id" type="text" inputmode="numeric" class="input font-mono text-sm" /></div>
+                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.appSecretKey") }}</label><input v-model="form.tencent_captcha_app_secret_key" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
+                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.cloudSecretId") }}</label><input v-model="form.tencent_captcha_cloud_secret_id" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
+                    <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.tencentCaptcha.cloudSecretKey") }}</label><input v-model="form.tencent_captcha_cloud_secret_key" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
+                  </div>
+                  <div class="flex flex-wrap gap-x-4 gap-y-2 text-sm">
+                    <a :href="tencentCaptchaLinks.console" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:text-primary-500">{{ t("admin.settings.tencentCaptcha.openCaptchaConsole") }}</a>
+                    <a :href="tencentCaptchaLinks.cloudKeys" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:text-primary-500">{{ t("admin.settings.tencentCaptcha.createCloudKeys") }}</a>
+                    <a :href="tencentCaptchaLinks.webDocs" target="_blank" rel="noopener noreferrer" class="text-primary-600 hover:text-primary-500">{{ t("admin.settings.tencentCaptcha.openWebDocs") }}</a>
+                  </div>
+                </div>
+
+                <div v-else class="grid grid-cols-1 gap-6">
+                  <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.region") }}</label><div class="grid grid-cols-2 gap-2 rounded-lg bg-gray-100 p-1 dark:bg-dark-700"><button type="button" class="rounded-md px-3 py-1.5 text-sm font-medium transition" @click="form.aliyun_captcha_region = 'cn'">{{ t("admin.settings.aliyunCaptcha.regionCn") }}</button><button type="button" class="rounded-md px-3 py-1.5 text-sm font-medium transition" @click="form.aliyun_captcha_region = 'sgp'">{{ t("admin.settings.aliyunCaptcha.regionSgp") }}</button></div></div>
+                  <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.prefix") }}</label><input v-model="form.aliyun_captcha_prefix" type="text" class="input font-mono text-sm" /></div>
+                  <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.sceneId") }}</label><input v-model="form.aliyun_captcha_scene_id" type="text" class="input font-mono text-sm" /></div>
+                  <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.accessKeyId") }}</label><input v-model="form.aliyun_captcha_access_key_id" type="text" class="input font-mono text-sm" /></div>
+                  <div><label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ t("admin.settings.aliyunCaptcha.accessKeySecret") }}</label><input v-model="form.aliyun_captcha_access_key_secret" type="password" autocomplete="new-password" class="input font-mono text-sm" /></div>
                 </div>
               </div>
             </div>
@@ -9068,6 +9144,10 @@ type SettingsForm = Omit<
 > & {
   smtp_password: string;
   turnstile_secret_key: string;
+  tencent_captcha_app_secret_key: string;
+  tencent_captcha_cloud_secret_id: string;
+  tencent_captcha_cloud_secret_key: string;
+  aliyun_captcha_access_key_secret: string;
   linuxdo_connect_client_secret: string;
   dingtalk_connect_client_secret: string;
   wechat_connect_app_secret: string;
@@ -9206,6 +9286,24 @@ const form = reactive<SettingsForm>({
   turnstile_site_key: "",
   turnstile_secret_key: "",
   turnstile_secret_key_configured: false,
+  // Tencent Captcha
+  tencent_captcha_enabled: false,
+  tencent_captcha_app_id: "",
+  tencent_captcha_app_secret_key: "",
+  tencent_captcha_app_secret_key_configured: false,
+  tencent_captcha_cloud_secret_id: "",
+  tencent_captcha_cloud_secret_id_configured: false,
+  tencent_captcha_cloud_secret_key: "",
+  tencent_captcha_cloud_secret_key_configured: false,
+  tencent_captcha_region: "cn",
+  // Aliyun Captcha
+  aliyun_captcha_enabled: false,
+  aliyun_captcha_access_key_id: "",
+  aliyun_captcha_access_key_secret: "",
+  aliyun_captcha_access_key_secret_configured: false,
+  aliyun_captcha_scene_id: "",
+  aliyun_captcha_prefix: "",
+  aliyun_captcha_region: "cn",
   api_key_acl_trust_forwarded_ip: true,
   forwarded_client_ip_headers: [],
   // LinuxDo Connect OAuth 登录
@@ -9336,6 +9434,9 @@ const form = reactive<SettingsForm>({
   enable_client_dateline_normalization: true,
   antigravity_user_agent_version: "",
   openai_codex_user_agent: "",
+  openai_codex_client_version: "",
+  openai_codex_client_version_synced: "",
+  openai_codex_version_auto_sync_enabled: true,
   // codex_cli_only 加固
   min_codex_version: "",
   max_codex_version: "",
@@ -9373,6 +9474,54 @@ const form = reactive<SettingsForm>({
   // Allow user view error requests
   allow_user_view_error_requests: false,
 });
+
+type CaptchaProviderSelection = "turnstile" | "tencent" | "aliyun";
+
+const captchaProviderSelection = ref<CaptchaProviderSelection>("turnstile");
+
+function applyCaptchaSelection(provider: CaptchaProviderSelection | null): void {
+  form.turnstile_enabled = provider === "turnstile";
+  form.tencent_captcha_enabled = provider === "tencent";
+  form.aliyun_captcha_enabled = provider === "aliyun";
+}
+
+const captchaMasterEnabled = computed({
+  get: () =>
+    form.turnstile_enabled ||
+    form.tencent_captcha_enabled ||
+    form.aliyun_captcha_enabled,
+  set: (enabled: boolean) =>
+    applyCaptchaSelection(enabled ? captchaProviderSelection.value : null),
+});
+
+function selectCaptchaProvider(provider: CaptchaProviderSelection): void {
+  captchaProviderSelection.value = provider;
+  applyCaptchaSelection(provider);
+}
+
+const tencentCaptchaLinks = computed(() =>
+  form.tencent_captcha_region === "intl"
+    ? {
+        console: "https://console.tencentcloud.com/captcha/graphical",
+        cloudKeys: "https://console.tencentcloud.com/cam/capi",
+        webDocs: "https://www.tencentcloud.com/document/product/1159/49680",
+      }
+    : {
+        console: "https://console.cloud.tencent.com/captcha",
+        cloudKeys: "https://console.cloud.tencent.com/cam/capi",
+        webDocs: "https://cloud.tencent.com/document/product/1110/36841",
+      },
+);
+
+function syncCaptchaProviderSelection(): void {
+  if (form.tencent_captcha_enabled) {
+    captchaProviderSelection.value = "tencent";
+  } else if (form.aliyun_captcha_enabled) {
+    captchaProviderSelection.value = "aliyun";
+  } else if (form.turnstile_enabled) {
+    captchaProviderSelection.value = "turnstile";
+  }
+}
 
 const supportContactTypeOptions = computed(() => [
   { value: "wechat", label: localText("微信", "WeChat") },
@@ -10445,6 +10594,7 @@ async function loadSettings() {
         (form as Record<string, unknown>)[key] = value;
       }
     }
+    syncCaptchaProviderSelection();
     form.support_contact = normalizeAdminSupportContactConfig(
       settings.support_contact,
       settings.contact_info || "",
@@ -10504,6 +10654,10 @@ async function loadSettings() {
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;
     form.turnstile_secret_key = "";
+    form.tencent_captcha_app_secret_key = "";
+    form.tencent_captcha_cloud_secret_id = "";
+    form.tencent_captcha_cloud_secret_key = "";
+    form.aliyun_captcha_access_key_secret = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
     form.github_oauth_client_secret = "";
@@ -10885,6 +11039,22 @@ async function saveSettings() {
       turnstile_enabled: form.turnstile_enabled,
       turnstile_site_key: form.turnstile_site_key,
       turnstile_secret_key: form.turnstile_secret_key || undefined,
+      tencent_captcha_enabled: form.tencent_captcha_enabled,
+      tencent_captcha_app_id: form.tencent_captcha_app_id,
+      tencent_captcha_app_secret_key:
+        form.tencent_captcha_app_secret_key || undefined,
+      tencent_captcha_cloud_secret_id:
+        form.tencent_captcha_cloud_secret_id || undefined,
+      tencent_captcha_cloud_secret_key:
+        form.tencent_captcha_cloud_secret_key || undefined,
+      tencent_captcha_region: form.tencent_captcha_region,
+      aliyun_captcha_enabled: form.aliyun_captcha_enabled,
+      aliyun_captcha_access_key_id: form.aliyun_captcha_access_key_id,
+      aliyun_captcha_access_key_secret:
+        form.aliyun_captcha_access_key_secret || undefined,
+      aliyun_captcha_scene_id: form.aliyun_captcha_scene_id,
+      aliyun_captcha_prefix: form.aliyun_captcha_prefix,
+      aliyun_captcha_region: form.aliyun_captcha_region,
       api_key_acl_trust_forwarded_ip: form.api_key_acl_trust_forwarded_ip,
       forwarded_client_ip_headers: form.forwarded_client_ip_headers,
       linuxdo_connect_enabled: form.linuxdo_connect_enabled,
@@ -11002,6 +11172,10 @@ async function saveSettings() {
         form.antigravity_user_agent_version?.trim() || "",
       openai_codex_user_agent:
         form.openai_codex_user_agent?.trim() || "",
+      openai_codex_client_version:
+        form.openai_codex_client_version?.trim() || "",
+      openai_codex_version_auto_sync_enabled:
+        form.openai_codex_version_auto_sync_enabled,
       min_codex_version: form.min_codex_version?.trim() || "",
       max_codex_version: form.max_codex_version?.trim() || "",
       codex_cli_only_allow_app_server_clients:
@@ -11184,6 +11358,10 @@ async function saveSettings() {
     form.smtp_password = "";
     smtpPasswordManuallyEdited.value = false;
     form.turnstile_secret_key = "";
+    form.tencent_captcha_app_secret_key = "";
+    form.tencent_captcha_cloud_secret_id = "";
+    form.tencent_captcha_cloud_secret_key = "";
+    form.aliyun_captcha_access_key_secret = "";
     form.linuxdo_connect_client_secret = "";
     form.dingtalk_connect_client_secret = "";
     form.github_oauth_client_secret = "";
