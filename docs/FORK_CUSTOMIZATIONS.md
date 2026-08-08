@@ -26,6 +26,10 @@
 | `FORK-MARKETPLACE-013` | AI 模型商城关闭态基础 | active | integrity 脚本 + Go/Vitest 测试 |
 | `FORK-RISK-013` | IP 风险检测与批量注册发现 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 | `FORK-ADMIN-014` | 管理员用户批量处置 | active | Go/Vitest/API contract 测试 |
+| `FORK-REWARDS-015` | 优惠券、日卡与支付结算 | active | integrity 脚本 + Go/Vitest 测试 |
+| `FORK-MEMBERSHIP-016` | 会员资格与 VIP 配置 | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
+| `FORK-MOBILE-017` | NextChat 移动协议与归因反馈 | active | integrity 脚本 + Go 测试 |
+| `FORK-LIVE-SETTLEMENT-018` | 实时用量结算 outbox | active | integrity 脚本 + Go/PostgreSQL 集成测试 |
 
 所有条目的上游冲突都必须逐段审查，禁止对整个文件直接使用 `ours` 或 `theirs`。
 
@@ -210,6 +214,18 @@
 238_play_membership_operations.sql
 239_membership_financial_fk_guard.sql
 240_mobile_attribution_referral_campaign_fk.sql
+241_play_daily_arena_budget.sql
+241_play_growth_competition.sql
+241_referral_campaign_single_admin_review.sql
+243_play_team_competition.sql
+244_play_arena_period_integrity.sql
+245_referral_campaign_closure.sql
+246_new_user_growth_campaign.sql
+248_restore_upstream_daily_subscription_usage.sql
+248_usage_logs_audio_token_breakdown.sql
+249_live_usage_settlement_outbox.sql
+250_model_catalog_tool_capabilities.sql
+251_vip_membership_qualification_review.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
@@ -219,6 +235,38 @@
 - 关键位置：`backend/internal/repository/usage_billing_repo.go`、`backend/internal/service/gateway_usage_billing.go`、`backend/internal/service/gateway_service.go`、`backend/internal/server/routes/nextchat.go`、`backend/internal/service/payment_fulfillment.go`、`backend/internal/service/play_recharge_boost.go`、`backend/internal/service/withdrawable_ledger.go`、`backend/internal/service/withdrawal.go`、`backend/internal/service/fund_management.go`、`backend/internal/service/fund_batches.go`、`frontend/src/views/user/WalletView.vue`、`frontend/src/views/admin/AdminWithdrawalsView.vue`、`frontend/src/views/admin/AdminFundsView.vue`。
 - 冲突策略：上游支付状态机和安全修复必须合入；归属校验、真实计费优先级与充值后 Play 联动必须保留。
 - 验证：usage billing unit/integration tests、session hash tests、model pricing tests、payment lifecycle tests、NextChat mobile bootstrap/group switch route tests；线上以测试订单检查余额到账和 boost 状态。
+
+## FORK-REWARDS-015 优惠券、日卡与支付结算
+
+- 产品目的：让 Play 奖励可安全发放优惠券，并让日卡保持一次性日额度语义，不因支付回调、重试或跨日重置重复发奖或重复扣费。
+- 不变量：优惠券钱包、奖池和模板按用户隔离；订单创建在同一事务锁定优惠券并固化结算快照；重复支付回调最多消费一次，晚到的取消/失败回调不能逆转已完成订单；日卡在有效期内只拥有一次日额度，跨零点、手动窗口逻辑和请求重放都不得再发放额度。
+- 关键位置：`backend/internal/service/coupon_service.go`、`backend/internal/service/payment_coupon.go`、`backend/internal/service/payment_order_lifecycle.go`、`backend/internal/service/play_coupon_rewards.go`、`backend/internal/service/user_subscription.go`、`backend/internal/service/subscription_service.go`、`frontend/src/components/coupon/`。
+- 冲突策略：可吸收上游支付状态机、订阅和用量修复，但不得绕过优惠券锁、结算快照、支付幂等或日卡一次性额度判断。
+- 验证：coupon wallet/reward/payment lifecycle tests、`user_subscription_daily_quota_test.go`，以及用户支付页、钱包、盲盒和答题的本地浏览器验收。
+
+## FORK-MEMBERSHIP-016 会员资格与 VIP 配置
+
+- 产品目的：以成功实付的 CNY 订单形成可审计会员资格，并允许管理员通过受控预览和 TOTP 发布 VIP 配置。
+- 不变量：资格金额从支付结算快照读取，退款或非 CNY/不完整快照不能伪造贡献；会员投影失败不能回滚已完成订单；VIP 配置先预览再发布，发布和涉及资金/资格的管理员操作保持 JWT TOTP step-up 边界。
+- 关键位置：`backend/internal/service/membership_reconciliation.go`、`backend/internal/service/payment_membership_qualification.go`、`backend/internal/service/play_vip.go`、`backend/internal/repository/play_repo_membership.go`、`backend/internal/server/routes/admin.go`、`frontend/src/components/admin/play/AdminMembershipOperations.vue`。
+- 冲突策略：保留上游订阅、退款与支付安全修复，同时保护本地会员资格来源、历史账务和 VIP 发布审查链。
+- 验证：membership reconciliation、payment qualification、VIP tier 和 PostgreSQL migration tests；线上以测试订单、退款和管理员预览/发布分别对账。
+
+## FORK-MOBILE-017 NextChat 移动协议与归因反馈
+
+- 产品目的：移动端只使用登录用户 JWT 获取受管会话与可用分组，反馈和归因信息保持最小化、可审计和不可伪造。
+- 不变量：NextChat mobile bootstrap/group switch 必须校验 JWT，绝不向前端返回受管 API Key 明文；聊天与图片分组会话相互隔离；移动注册、登录和密码流程保留独立限流；归因 token 必须服务端验签并只保存摘要，反馈诊断只保存白名单字段。
+- 关键位置：`backend/internal/server/routes/nextchat.go`、`backend/internal/server/routes/auth.go`、`backend/internal/service/mobile_attribution.go`、`backend/internal/service/mobile_feedback.go`、`backend/internal/server/routes/play.go`。
+- 冲突策略：可合并上游认证与网关兼容修复，但不能降级 JWT 边界、泄露 API Key、混合聊天/图片会话或放宽诊断隐私。
+- 验证：NextChat mobile route、mobile attribution 和 feedback service tests；Android/WebView 端的最终验收仍由用户设备完成。
+
+## FORK-LIVE-SETTLEMENT-018 实时用量结算 outbox
+
+- 产品目的：实时会话终止后的用量结算可恢复、可重试且不保存敏感请求载荷。
+- 不变量：结算任务经数据库 outbox 入队，claim/retry 必须持有正确 lease；重启后可恢复，成功后释放 lease；迁移和数据表不得保存 prompt、API Key 或响应正文。
+- 关键位置：`backend/internal/repository/live_settlement_outbox_repo.go`、`backend/internal/service/openai_live_settlement_outbox.go`、`backend/migrations/249_live_usage_settlement_outbox.sql`。
+- 冲突策略：吸收上游用量审计和网关恢复修复时，保留 outbox 的幂等、lease 所有权与隐私边界。
+- 验证：live settlement repository/unit/integration tests，以及真实会话终止后的余额与 usage log 对账。
 
 ## 更新规则
 
