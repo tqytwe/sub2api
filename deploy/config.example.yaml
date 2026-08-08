@@ -105,17 +105,9 @@ run_mode: "standard"
 # 跨域资源共享 (CORS) 配置
 # =============================================================================
 cors:
-  # Allowed origins list. First-party Jisudeng Web and Android WebView origins
-  # are also allowed by the fork runtime so the official web app and APK can
-  # call api.jisudeng.com.
-  # 允许的来源列表。极速蹬 Fork 运行时也会放行一方 Web 与 Android WebView 来源，
-  # 以便官方网页和 APK 访问 api.jisudeng.com。
-  allowed_origins:
-    - "https://jisudeng.com"
-    - "https://www.jisudeng.com"
-    - "https://localhost"
-    - "http://localhost"
-    - "capacitor://localhost"
+  # Allowed origins list. Leave empty to disable cross-origin requests.
+  # 允许的来源列表。留空则禁用跨域请求。
+  allowed_origins: []
   # Allow credentials (cookies/authorization headers). Cannot be used with "*".
   # 允许携带凭证（cookies/授权头）。不能与 "*" 通配符同时使用。
   allow_credentials: true
@@ -189,17 +181,11 @@ security:
     # 默认 CSP 策略（如果静态资源托管在其他域名，请自行覆盖）
     # Note: __CSP_NONCE__ will be replaced with 'nonce-xxx' at request time for inline script security
     # 注意：__CSP_NONCE__ 会在请求时被替换为 'nonce-xxx'，用于内联脚本安全
-    policy: "default-src 'self'; script-src 'self' __CSP_NONCE__ https://challenges.cloudflare.com https://static.cloudflareinsights.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://challenges.cloudflare.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+    policy: "default-src 'self'; worker-src 'self' blob:; script-src 'self' __CSP_NONCE__ https://challenges.cloudflare.com https://*.alicdn.com https://static.cloudflareinsights.com https://turing.captcha.qcloud.com https://turing.captcha.gtimg.com https://ca.turing.captcha.qcloud.com https://global.turing.captcha.gtimg.com https://www.tycaptcha.com https://cloudcache.tencentcs.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://*.captcha.gtimg.com https://fonts.googleapis.com https://*.alicdn.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://turing.captcha.qcloud.com https://www.tycaptcha.com https://rce.tencentrio.com https:; frame-src https://challenges.cloudflare.com https://turing.captcha.qcloud.com https://ca.turing.captcha.qcloud.com https://www.tycaptcha.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
   proxy_probe:
     # Allow skipping TLS verification for proxy probe (debug only)
     # 允许代理探测时跳过 TLS 证书验证（仅用于调试）
     insecure_skip_verify: false
-  # Allow optional features that send stored account session credentials or derived
-  # account identity headers to official upstream services outside the normal model gateway path.
-  # 允许可选功能把已保存账号会话凭据或派生账号身份头发送到普通模型网关以外的官方上游服务。
-  # Keep false unless OpenAI Live / Ollama Cloud Usage sync have been explicitly audited and approved.
-  # 未明确审计并批准 OpenAI Live / Ollama Cloud Usage 同步前保持 false。
-  account_session_egress_enabled: false
   proxy_fallback:
     # Allow auxiliary services (update check, pricing data) to fallback to direct
     # connection when proxy initialization fails. Does NOT affect AI gateway connections.
@@ -283,6 +269,16 @@ gateway:
   #
   # 注意：开启后会影响所有客户端的行为（不仅限于 VS Code / Codex CLI），请谨慎开启。
   force_codex_cli: false
+  # Stop rewriting load-shed Codex originators to the official CLI identity.
+  # 关闭「把落在上游降载桶的 Codex originator 改写为官方 CLI 身份（codex_cli_rs）」。
+  #
+  # 上游 /backend-api/codex 按 originator 分桶调度容量：命中降载桶的请求即使 HTTP 200，
+  # 也会立刻推 server_is_overloaded 错误事件，网关据此判定瞬时上游故障并冷却账号，
+  # 对外表现为 Codex 账号频繁过载不可用。归一化只替换身份段，保留版本/OS/架构/终端指纹，
+  # 改写后 originator 与 User-Agent 首段仍然配套。
+  #
+  # 默认 false（即归一化开启）；仅当上游调整分桶、使归一化反而落入降载桶时才置 true。
+  disable_codex_originator_normalization: false
   # Enable Codex image-generation bridge injection for /openai/v1/responses.
   # 是否为 Codex /responses 请求自动注入 image_generation 工具与桥接指令。
   #
@@ -481,11 +477,9 @@ gateway:
   # Image stream keepalive interval (seconds), 0=disable; independent from ordinary text streams
   # 图片流式 keepalive 间隔（秒），0=禁用；独立于普通文本流式
   image_stream_keepalive_interval: 10
-  # Non-streaming Images JSON keepalive interval (seconds), 0=disable; commits HTTP 200 after the first heartbeat.
-  # Keeps long /v1/images/generations requests alive behind Cloudflare, but async image tasks are still recommended.
-  # 图片非流式 JSON keepalive 间隔（秒），0=禁用；首个心跳后 HTTP 状态会固化为 200。
-  # 用于降低长耗时同步生图在 Cloudflare 后面的 524；生产长任务仍建议使用异步图片任务接口。
-  image_nonstream_keepalive_interval: 15
+  # Non-streaming Images JSON keepalive interval (seconds), 0=disable; commits HTTP 200 after the first heartbeat
+  # 图片非流式 JSON keepalive 间隔（秒），0=禁用；首个心跳后 HTTP 状态会固化为 200
+  image_nonstream_keepalive_interval: 0
   # Image generation independent concurrency limiter (process-local, default disabled)
   # 图片生成独立并发限制（进程级，默认关闭；多实例总上限约为实例数×该值）
   image_concurrency:
@@ -998,32 +992,6 @@ ops:
   enabled: true
 
 # =============================================================================
-# IP Risk Detection (Shadow Mode)
-# IP 风险检测（影子模式）
-# =============================================================================
-ip_risk:
-  # Collect evidence and create explainable cases. CP1 executes no actions.
-  # 采集证据并生成可解释案件；CP1 不执行任何处置动作。
-  enabled: true
-  # Optional dedicated HMAC secret. When empty, a domain-separated key is
-  # derived from jwt.secret. Generate with: openssl rand -hex 32
-  # 可选独立 HMAC 密钥；为空时从 jwt.secret 做域隔离派生。
-  hmac_key: ""
-  incremental_delay_seconds: 10
-  reconcile_interval_minutes: 5
-  daily_scan_interval_hours: 24
-  event_retention_days: 90
-  case_retention_days: 365
-  # Historical auth.register inference is disabled by default and never
-  # participates in automatic-action eligibility.
-  # 历史 auth.register 推断默认关闭，且永不参与自动处置资格。
-  historical_backfill_enabled: false
-  historical_backfill_max_days: 90
-  manual_scan_max_days: 90
-  retention_batch_size: 5000
-  evaluation_queue_capacity: 4096
-
-# =============================================================================
 # JWT Configuration
 # JWT 配置
 # =============================================================================
@@ -1303,17 +1271,20 @@ update:
   proxy_url: ""
 
 # =============================================================================
-# Image Storage (异步图片任务结果存储)
+# Image Storage (异步图片任务结果对象存储)
 # =============================================================================
 # 长耗时生图套 Cloudflare 会 524 超时，异步图片任务接口（/v1/images/generations/async
 # 等）先返回 task_id，再由客户端轮询 /v1/images/tasks/{task_id} 获取结果。
 #
-# 默认使用本机持久数据目录（DATA_DIR/image-task-results）临时保存图片结果，
-# 只在 Redis 存一个短链接，避免 gpt-image-1 等返回的大 base64 结果把 Redis 撑爆。
-# 如需跨实例共享或 CDN 分发，也可把 backend 改成 s3 并配置 S3 兼容存储
-# （AWS S3 / Cloudflare R2 / 阿里云 OSS / MinIO 等）。
+# 这里配置一个 S3 兼容对象存储（AWS S3 / Cloudflare R2 / 阿里云 OSS / MinIO 等），
+# 任务完成后把生成的图片上传到对象存储，只在 Redis 存一个短链接，避免 gpt-image-1 等
+# 返回的大 base64 结果把 Redis 撑爆。
 #
-# enabled 同时是异步图片任务功能的总开关：为 false 时异步生图接口整体返回 404。
+# enabled 同时是异步图片任务功能的总开关：为 false 或凭证未配全时，异步生图接口
+# 整体返回 404、不创建任务、不写 Redis。
+#
+# 换其它厂商对象存储：只要它兼容 S3 API 即可直接用；如需完全自定义，实现
+# service.ImageStorage 接口（Save(ctx, key, contentType, data) -> url）即可。
 image_storage:
   enabled: false
   # local（默认，本机持久卷）/ s3（S3 兼容对象存储）/ auto（有 S3 凭证则 s3，否则 local）
@@ -1322,7 +1293,7 @@ image_storage:
   local_dir: ""
   # local 后端返回的鉴权下载 URL 前缀
   local_url_prefix: "/v1/images/task-assets/"
-  # S3 后端配置。AWS 官方 endpoint 可留空；R2 形如 https://<account_id>.r2.cloudflarestorage.com
+  # S3 兼容端点。AWS 官方可留空；R2 形如 https://<account_id>.r2.cloudflarestorage.com
   endpoint: ""
   # 区域。Cloudflare R2 用 "auto"
   region: "auto"

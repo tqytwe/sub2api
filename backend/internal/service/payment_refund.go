@@ -720,7 +720,7 @@ func (s *PaymentService) deductRefundBalance(ctx context.Context, p *RefundPlan)
 			p.LedgerDeductKey = fmt.Sprintf("payment_refund:%d:deduct:%d", p.OrderID, time.Now().UTC().UnixNano())
 		}
 		sourceID := refundLedgerSourceID(p.LedgerDeductKey, p.OrderID)
-		_, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
+		transaction, err := s.balanceLedger.ApplyDelta(ctx, BalanceLedgerApplyInput{
 			UserID:         p.Order.UserID,
 			BalanceDelta:   -p.BalanceToDeduct,
 			SourceType:     BalanceFlowTypeRefund,
@@ -741,9 +741,15 @@ func (s *PaymentService) deductRefundBalance(ctx context.Context, p *RefundPlan)
 				"source_id":         sourceID,
 				"ledger_deduct_key": p.LedgerDeductKey,
 			},
-			BalancePolicy: BalanceLedgerPolicyAllowOverdraft,
+			BalancePolicy: BalanceLedgerPolicyClampZero,
 		})
-		return err
+		if err != nil {
+			return err
+		}
+		if transaction != nil {
+			p.BalanceToDeduct = -transaction.BalanceDelta
+		}
+		return nil
 	}
 	return s.userRepo.DeductBalance(ctx, p.Order.UserID, p.BalanceToDeduct)
 }

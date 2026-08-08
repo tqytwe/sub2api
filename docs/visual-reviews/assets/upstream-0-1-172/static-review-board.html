@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Upstream v0.1.172 static review board</title>
+    <style>
+      :root { color-scheme: light; font-family: Arial, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f4f6f8; color: #17212b; }
+      main { width: 1280px; height: 800px; padding: 28px 38px; }
+      .header { display: flex; align-items: end; justify-content: space-between; border-bottom: 2px solid #17212b; padding-bottom: 17px; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 28px; line-height: 1.15; }
+      h2 { font-size: 16px; }
+      h3 { font-size: 14px; }
+      .eyebrow, .status, .small { color: #5d6d7d; font-size: 11px; font-weight: 700; letter-spacing: .4px; text-transform: uppercase; }
+      .status { border: 1px solid #aeb9c3; padding: 7px 10px; }
+      .grid { display: grid; grid-template-columns: 1.08fr 1.1fr .92fr; gap: 17px; margin-top: 19px; }
+      .panel { min-height: 303px; border: 1px solid #cbd4dc; background: #fff; padding: 16px; }
+      .panel > p { color: #5d6d7d; font-size: 12px; line-height: 1.42; margin-top: 8px; }
+      .auth-shell { margin-top: 12px; border: 1px solid #d5dde4; padding: 12px; }
+      .field { height: 27px; border: 1px solid #b8c4ce; margin-top: 7px; padding: 6px 8px; color: #7a8792; font-size: 10px; }
+      .row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+      .button { border: 1px solid #17745f; background: #17745f; color: #fff; padding: 7px 10px; font-size: 10px; font-weight: 700; }
+      .outline { border: 1px solid #aeb9c3; background: #fff; color: #314250; }
+      .captcha { display: flex; align-items: center; justify-content: space-between; border: 1px dashed #639c8d; background: #edf8f4; color: #176651; margin-top: 9px; padding: 8px; font-size: 10px; }
+      .check { width: 15px; height: 15px; border: 2px solid #17745f; background: #fff; }
+      .table { width: 100%; border-collapse: collapse; font-size: 11px; margin-top: 12px; }
+      .table th, .table td { border-bottom: 1px solid #dbe2e7; padding: 8px 4px; text-align: left; }
+      .table th { color: #637383; font-size: 9px; text-transform: uppercase; }
+      .tag { display: inline-block; padding: 3px 5px; background: #eaf5f1; color: #176651; font-size: 9px; font-weight: 700; }
+      .warn { background: #fff4df; color: #895b08; }
+      .settings { margin-top: 11px; }
+      .setting { display: flex; align-items: center; justify-content: space-between; border-top: 1px solid #dbe2e7; padding: 10px 0; font-size: 11px; }
+      .toggle { width: 33px; height: 19px; border-radius: 12px; background: #17745f; padding: 3px; }
+      .toggle span { display: block; width: 13px; height: 13px; margin-left: auto; border-radius: 50%; background: #fff; }
+      .notes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 13px; margin-top: 18px; }
+      .note { border-left: 3px solid #17745f; background: #eaf5f1; padding: 11px; font-size: 11px; line-height: 1.43; }
+      .new { display: block; }
+      [data-mode="baseline"] .new { opacity: .3; }
+      [data-mode="prototype"] .new { border-style: dashed; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="header">
+        <div><p class="eyebrow">Fork-safe upstream merge review</p><h1>v0.1.172 authentication and operations</h1></div>
+        <div class="status" id="status">UPDATED MERGE CANDIDATE</div>
+      </section>
+      <section class="grid">
+        <article class="panel">
+          <h2>Login and OAuth challenge</h2><p>Existing login form and provider actions retain their shared layout.</p>
+          <div class="auth-shell"><div class="field">Email address</div><div class="field">Password</div><div class="captcha new"><span>Action captcha proof</span><span class="check"></span></div><div class="row"><span class="button">Sign in</span><span class="button outline">Passkey</span><span class="button outline new">OAuth</span></div></div>
+        </article>
+        <article class="panel">
+          <h2>Account, usage and Model Plaza</h2><p>Dense table patterns preserve account scope, quota feedback and model price comparison.</p>
+          <table class="table"><thead><tr><th>Account / model</th><th>State</th><th>Usage / price</th></tr></thead><tbody><tr><td>OpenAI account</td><td><span class="tag">Scoped</span></td><td>Quota reset</td></tr><tr><td>gpt-5</td><td><span class="tag">Available</span></td><td>$0.00x</td></tr><tr class="new"><td>Response model</td><td><span class="tag warn">Mismatch</span></td><td>Auditable</td></tr></tbody></table>
+        </article>
+        <article class="panel">
+          <h2>Administrator controls</h2><p>Settings, group policies and refund warnings remain in existing control families.</p>
+          <div class="settings"><div class="setting"><span>CAPTCHA provider</span><span class="toggle"><span></span></span></div><div class="setting"><span>Marketplace visibility</span><span class="tag new">Disabled by default</span></div><div class="setting"><span>Reasoning effort policy</span><span class="tag new">Group scoped</span></div><div class="setting"><span>Refund request</span><span class="tag warn new">Force confirmation</span></div></div>
+        </article>
+      </section>
+      <section class="notes"><p class="note"><strong>Baseline:</strong> preserve fork authentication, Image Studio, NextChat, Play, marketplace and billing boundaries.</p><p class="note"><strong>Merge candidate:</strong> upstream CAPTCHA and operational detail are added without broadening public settings or changing role authorization.</p><p class="note"><strong>Review boundary:</strong> this is a static review board, not a browser capture. Guest, user and administrator browser acceptance remains required.</p></section>
+    </main>
+    <script>
+      const mode = new URLSearchParams(location.search).get('mode') || 'updated';
+      document.documentElement.dataset.mode = mode;
+      document.getElementById('status').textContent = mode.toUpperCase() + ' REVIEW BOARD';
+    </script>
+  </body>
+</html>

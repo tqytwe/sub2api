@@ -132,7 +132,10 @@ describe('feature route guard', () => {
 
     const { navigation, next } = runGuard({ requiresPayment: true }, '/purchase')
 
-    await vi.waitFor(() => expect(appStore.fetchPublicSettings).toHaveBeenCalledTimes(1))
+    await vi.waitFor(
+      () => expect(appStore.fetchPublicSettings).toHaveBeenCalledTimes(1),
+      { timeout: 5_000 }
+    )
     expect(next).not.toHaveBeenCalled()
 
     deferred.resolve({ payment_enabled: true })

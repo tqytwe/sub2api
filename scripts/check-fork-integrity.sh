@@ -236,7 +236,7 @@ check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/servic
 check_file "FORK-MARKETPLACE-013" "marketplace fail-closed runtime" "backend/internal/service/marketplace_runtime.go"
 check_file "FORK-MARKETPLACE-013" "marketplace stable errors" "backend/internal/service/marketplace_errors.go"
 check_regex "FORK-MARKETPLACE-013" "marketplace setting key" "backend/internal/service/domain_constants.go" '^[[:space:]]*SettingKeyMarketplaceEnabled[[:space:]]*=[[:space:]]*"marketplace_enabled"'
-check_contains "FORK-MARKETPLACE-013" "marketplace default is disabled" "backend/internal/service/setting_parse.go" 'SettingKeyMarketplaceEnabled: "false"'
+check_regex "FORK-MARKETPLACE-013" "marketplace default is disabled" "backend/internal/service/setting_parse.go" 'SettingKeyMarketplaceEnabled:[[:space:]]*"false"'
 check_contains "FORK-MARKETPLACE-013" "public settings bulk reads marketplace key" "backend/internal/service/setting_public.go" "SettingKeyMarketplaceEnabled,"
 check_contains "FORK-MARKETPLACE-013" "public DTO exposes marketplace flag" "backend/internal/handler/dto/settings.go" 'MarketplaceEnabled'
 check_contains "FORK-MARKETPLACE-013" "public handler maps marketplace value" "backend/internal/handler/setting_handler.go" 'MarketplaceEnabled:'

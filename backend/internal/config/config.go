@@ -10,7 +10,6 @@ import (
 	"net/textproto"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -33,7 +32,7 @@ const (
 
 // DefaultCSPPolicy is the default Content-Security-Policy with nonce support
 // __CSP_NONCE__ will be replaced with actual nonce at request time by the SecurityHeaders middleware
-const DefaultCSPPolicy = "default-src 'self'; script-src 'self' __CSP_NONCE__ https://challenges.cloudflare.com https://static.cloudflareinsights.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https:; frame-src https://challenges.cloudflare.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+const DefaultCSPPolicy = "default-src 'self'; worker-src 'self' blob:; script-src 'self' __CSP_NONCE__ https://challenges.cloudflare.com https://*.alicdn.com https://static.cloudflareinsights.com https://turing.captcha.qcloud.com https://turing.captcha.gtimg.com https://ca.turing.captcha.qcloud.com https://global.turing.captcha.gtimg.com https://www.tycaptcha.com https://cloudcache.tencentcs.com https://*.stripe.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; style-src 'self' 'unsafe-inline' https://*.captcha.gtimg.com https://fonts.googleapis.com https://*.alicdn.com https://static.airwallex.com https://checkout.airwallex.com https://static-demo.airwallex.com https://checkout-demo.airwallex.com; img-src 'self' data: blob: https:; font-src 'self' data: https://fonts.gstatic.com; connect-src 'self' https://turing.captcha.qcloud.com https://www.tycaptcha.com https://rce.tencentrio.com https:; frame-src https://challenges.cloudflare.com https://turing.captcha.qcloud.com https://ca.turing.captcha.qcloud.com https://www.tycaptcha.com https://*.stripe.com https://checkout.airwallex.com https://checkout-demo.airwallex.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 
 // UMQ（用户消息队列）模式常量
 const (
@@ -242,6 +241,9 @@ type BatchImageConfig struct {
 	VertexGCSBaseURL             string `mapstructure:"vertex_gcs_base_url"`
 }
 
+// ImageStorageConfig 配置异步图片任务结果上传的 S3 兼容对象存储。
+// Enabled 同时作为异步图片任务功能的总开关：未启用或未配置完整凭证时，
+// 异步生图接口整体禁用，避免把上游返回的大 base64 结果塞进 Redis。
 type ImageAsyncConfig struct {
 	Enabled                 bool   `mapstructure:"enabled"`
 	QueueEnabled            bool   `mapstructure:"queue_enabled"`
@@ -258,24 +260,21 @@ type ImageAsyncConfig struct {
 	RecoverLimit            int    `mapstructure:"recover_limit"`
 }
 
-// ImageStorageConfig 配置异步图片任务结果的临时持久化。
-// Enabled 同时作为异步图片任务功能的总开关：未启用时异步生图接口整体禁用，
-// 避免把上游返回的大 base64 结果塞进 Redis。
 type ImageStorageConfig struct {
 	Enabled                bool   `mapstructure:"enabled"`
-	Backend                string `mapstructure:"backend"`  // local / s3 / auto；默认 local
-	Endpoint               string `mapstructure:"endpoint"` // e.g. https://<account_id>.r2.cloudflarestorage.com
-	Region                 string `mapstructure:"region"`   // R2 用 "auto"
+	Backend                string `mapstructure:"backend"`
+	Endpoint               string `mapstructure:"endpoint"`
+	Region                 string `mapstructure:"region"`
 	Bucket                 string `mapstructure:"bucket"`
 	AccessKeyID            string `mapstructure:"access_key_id"`
 	SecretAccessKey        string `mapstructure:"secret_access_key"`
-	Prefix                 string `mapstructure:"prefix"`               // S3 key 前缀，如 "images/"
-	ForcePathStyle         bool   `mapstructure:"force_path_style"`     // MinIO/路径风格桶
-	PublicBaseURL          string `mapstructure:"public_base_url"`      // 配了则返回 public_base_url/key 直链；否则 presigned
-	LocalDir               string `mapstructure:"local_dir"`            // local 后端目录；为空时使用 data_dir/image-task-results
-	LocalURLPrefix         string `mapstructure:"local_url_prefix"`     // local 返回 URL 前缀
-	PresignExpiry          int    `mapstructure:"presign_expiry_hours"` // public_base_url 为空时的 presigned 过期时长(小时)
-	MaxDownloadByte        int64  `mapstructure:"max_download_bytes"`   // 下载上游 url 图片的字节上限
+	Prefix                 string `mapstructure:"prefix"`
+	ForcePathStyle         bool   `mapstructure:"force_path_style"`
+	PublicBaseURL          string `mapstructure:"public_base_url"`
+	LocalDir               string `mapstructure:"local_dir"`
+	LocalURLPrefix         string `mapstructure:"local_url_prefix"`
+	PresignExpiry          int    `mapstructure:"presign_expiry_hours"`
+	MaxDownloadByte        int64  `mapstructure:"max_download_bytes"`
 	CleanupIntervalSeconds int    `mapstructure:"cleanup_interval_seconds"`
 	CleanupBatchSize       int    `mapstructure:"cleanup_batch_size"`
 }
@@ -291,12 +290,10 @@ func (c *ImageStorageConfig) BackendOrDefault() string {
 	return backend
 }
 
-// S3Configured 检查 S3 兼容对象存储必要字段是否已配置
 func (c *ImageStorageConfig) S3Configured() bool {
 	return c.Bucket != "" && c.AccessKeyID != "" && c.SecretAccessKey != ""
 }
 
-// Active 返回异步图片任务是否可用。
 func (c *ImageStorageConfig) Active() bool {
 	if !c.Enabled {
 		return false
@@ -311,12 +308,8 @@ func (c *ImageStorageConfig) Active() bool {
 	}
 }
 
-// IsConfigured reports whether image storage can be used by runtime services.
 func (c *ImageStorageConfig) IsConfigured() bool {
-	if c == nil {
-		return false
-	}
-	return c.Active()
+	return c != nil && c.Active()
 }
 
 // MissingCredentialKeys 返回 IsConfigured 所缺的配置键名。
@@ -771,9 +764,7 @@ type SecurityConfig struct {
 	CSP             CSPConfig            `mapstructure:"csp"`
 	ProxyFallback   ProxyFallbackConfig  `mapstructure:"proxy_fallback"`
 	ProxyProbe      ProxyProbeConfig     `mapstructure:"proxy_probe"`
-	// AccountSessionEgressEnabled allows optional features that send stored account
-	// session credentials or derived account identity headers to official upstream
-	// services outside the normal model gateway path.
+	// AccountSessionEgressEnabled keeps optional account-session egress opt-in.
 	AccountSessionEgressEnabled bool `mapstructure:"account_session_egress_enabled"`
 	// TrustForwardedIPForAPIKeyACL enables legacy raw forwarded-header takeover.
 	// When disabled, server.trusted_proxies is authoritative for all client-IP consumers.
@@ -976,6 +967,18 @@ type GatewayConfig struct {
 	// ForceCodexCLI: 强制将 OpenAI `/v1/responses` 请求按 Codex CLI 处理。
 	// 用于网关未透传/改写 User-Agent 时的兼容兜底（默认关闭，避免影响其他客户端）。
 	ForceCodexCLI bool `mapstructure:"force_codex_cli"`
+	// DisableCodexIdentityEnforcement: 关闭「强制统一 Codex 出站身份」。上游 /backend-api/codex
+	// 在容量紧张时按客户端身份分优先级降载，被降载的请求会拿到 HTTP 200 + 流内
+	// server_is_overloaded，该次请求失败。默认强制统一出口：所有 OAuth 出站的
+	// User-Agent / originator / version 都改写为网关规范身份，确保没有请求带着第三方或陈旧身份
+	// 出站。置 true 后退回「仅按最终 User-Agent 配对 originator」的收口语义，供上游策略变动时回滚。
+	//
+	// 取反义命名是为了让零值安全：该开关会发布为进程级快照，未经 viper 加载而手工构造的
+	// Config（测试、工具）其零值必须落在「强制统一开启」这一侧，否则会静默丢掉这层保护。
+	DisableCodexIdentityEnforcement bool `mapstructure:"disable_codex_identity_enforcement"`
+	// DisableCodexOriginatorNormalization: 已废弃，等价于 DisableCodexIdentityEnforcement。
+	// 保留以兼容既有配置文件；加载时会折叠进新键，不要在新代码里直接读取。
+	DisableCodexOriginatorNormalization bool `mapstructure:"disable_codex_originator_normalization"`
 	// CodexImageGenerationBridgeEnabled: 是否为 Codex `/v1/responses` 自动注入 image_generation 工具和桥接指令。
 	// 默认关闭，避免纯文本 Codex 请求被意外改写；显式携带 image_generation 工具的请求仍按分组能力转发。
 	CodexImageGenerationBridgeEnabled bool `mapstructure:"codex_image_generation_bridge_enabled"`
@@ -1563,8 +1566,7 @@ type OpsAggregationConfig struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
-// IPRiskConfig controls the shadow-only IP risk detector. CP1 intentionally
-// exposes no automatic-action switch.
+// IPRiskConfig controls the shadow-only IP risk detector.
 type IPRiskConfig struct {
 	Enabled                   bool   `mapstructure:"enabled"`
 	HMACKey                   string `mapstructure:"hmac_key" json:"-" yaml:"-"`
@@ -1853,6 +1855,13 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		cfg.Gateway.ForcedCodexInstructionsTemplate = string(content)
 	}
 
+	// 兼容旧键 gateway.disable_codex_originator_normalization：语义已被
+	// disable_codex_identity_enforcement 取代（身份改写升级为强制统一出口），
+	// 任一为 true 即关闭强制统一。
+	if cfg.Gateway.DisableCodexOriginatorNormalization {
+		cfg.Gateway.DisableCodexIdentityEnforcement = true
+	}
+
 	// 兼容旧键 gateway.openai_ws.sticky_previous_response_ttl_seconds。
 	// 新键未配置（<=0）时回退旧键；新键优先。
 	if cfg.Gateway.OpenAIWS.StickyResponseIDTTLSeconds <= 0 && cfg.Gateway.OpenAIWS.StickyPreviousResponseTTLSeconds > 0 {
@@ -1915,61 +1924,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 		)
 	}
 
-	cfg.Pricing.DataDir = ResolvePricingDataDir(cfg.Pricing.DataDir)
-	slog.Info("pricing data dir resolved", "data_dir", cfg.Pricing.DataDir)
-
 	return &cfg, nil
-}
-
-// ResolvePricingDataDir picks the writable data root for pricing caches and image-studio assets.
-// Priority: DATA_DIR env > explicit non-default path > /data (Zeabur) > /app/data (Docker) > configured/default.
-func ResolvePricingDataDir(configured string) string {
-	if dir := strings.TrimSpace(os.Getenv("DATA_DIR")); dir != "" {
-		_ = os.MkdirAll(dir, 0o755) //nolint:gosec // DATA_DIR is an operator-controlled deployment data root.
-		return dir
-	}
-	configured = strings.TrimSpace(configured)
-	candidates := make([]string, 0, 4)
-	if configured != "" && configured != "./data" && configured != "data" {
-		candidates = append(candidates, configured)
-	}
-	candidates = append(candidates, "/data", "/app/data")
-	if configured != "" {
-		candidates = append(candidates, configured)
-	} else {
-		candidates = append(candidates, "./data")
-	}
-	seen := map[string]struct{}{}
-	for _, dir := range candidates {
-		if _, ok := seen[dir]; ok {
-			continue
-		}
-		seen[dir] = struct{}{}
-		if isWritableDataDir(dir) {
-			return dir
-		}
-	}
-	if configured != "" {
-		_ = os.MkdirAll(configured, 0o755)
-		return configured
-	}
-	_ = os.MkdirAll("./data", 0o755)
-	return "./data"
-}
-
-func isWritableDataDir(dir string) bool {
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		return false
-	}
-	testFile := filepath.Join(dir, ".write_test")
-	f, err := os.Create(testFile)
-	if err != nil {
-		return false
-	}
-	_ = f.Close()
-	_ = os.Remove(testFile)
-	return true
 }
 
 func configureConfigSource(setConfigFile, addConfigPath func(string)) {
@@ -1983,7 +1938,6 @@ func configureConfigSource(setConfigFile, addConfigPath func(string)) {
 		addConfigPath(dataDir)
 	}
 	addConfigPath("/app/data")
-	addConfigPath("/data")
 	addConfigPath(".")
 	addConfigPath("./config")
 	addConfigPath("/etc/sub2api")
@@ -2243,21 +2197,25 @@ func setDefaults() {
 	viper.SetDefault("image_async.recovery_interval_seconds", 60)
 	viper.SetDefault("image_async.recover_limit", 100)
 
-	// Image storage (async image task result offload)
+	// Image storage (async image task result offload to S3-compatible object storage)
 	viper.SetDefault("image_storage.enabled", false)
 	viper.SetDefault("image_storage.backend", "local")
-	viper.SetDefault("image_storage.endpoint", "")
 	viper.SetDefault("image_storage.region", "auto")
+	viper.SetDefault("image_storage.prefix", "images/")
+	viper.SetDefault("image_storage.force_path_style", false)
+	viper.SetDefault("image_storage.presign_expiry_hours", 24)
+	viper.SetDefault("image_storage.max_download_bytes", 33554432)
+	// Registered with empty defaults so AutomaticEnv can reach them: viper only
+	// decodes keys present in AllKeys(), so a credential that is supplied purely
+	// via IMAGE_STORAGE_* and never appears in config.yaml would be dropped and
+	// silently disable the whole async image feature.
+	viper.SetDefault("image_storage.endpoint", "")
 	viper.SetDefault("image_storage.bucket", "")
 	viper.SetDefault("image_storage.access_key_id", "")
 	viper.SetDefault("image_storage.secret_access_key", "")
-	viper.SetDefault("image_storage.prefix", "images/")
-	viper.SetDefault("image_storage.force_path_style", false)
 	viper.SetDefault("image_storage.public_base_url", "")
 	viper.SetDefault("image_storage.local_dir", "")
 	viper.SetDefault("image_storage.local_url_prefix", "/v1/images/task-assets/")
-	viper.SetDefault("image_storage.presign_expiry_hours", 24)
-	viper.SetDefault("image_storage.max_download_bytes", 33554432)
 	viper.SetDefault("image_storage.cleanup_interval_seconds", 60)
 	viper.SetDefault("image_storage.cleanup_batch_size", 100)
 
@@ -2275,7 +2233,6 @@ func setDefaults() {
 	// TTL should be slightly larger than collection interval (1m) to maximize cross-replica cache hits.
 	viper.SetDefault("ops.metrics_collector_cache.ttl", 65*time.Second)
 
-	// IP risk detection (CP1 shadow-only).
 	viper.SetDefault("ip_risk.enabled", true)
 	viper.SetDefault("ip_risk.hmac_key", "")
 	viper.SetDefault("ip_risk.incremental_delay_seconds", 10)
@@ -2378,7 +2335,6 @@ func setDefaults() {
 	viper.SetDefault("idempotency.max_stored_response_len", 64*1024)
 	viper.SetDefault("idempotency.cleanup_interval_seconds", 60)
 	viper.SetDefault("idempotency.cleanup_batch_size", 500)
-
 	viper.SetDefault("nextchat.public_url", "/ai")
 	viper.SetDefault("nextchat.launch_token_ttl_seconds", 120)
 	viper.SetDefault("nextchat.session_ttl_seconds", 604800)
@@ -2396,6 +2352,8 @@ func setDefaults() {
 	viper.SetDefault("gateway.max_account_switches", 10)
 	viper.SetDefault("gateway.max_account_switches_gemini", 3)
 	viper.SetDefault("gateway.force_codex_cli", false)
+	viper.SetDefault("gateway.disable_codex_identity_enforcement", false)
+	viper.SetDefault("gateway.disable_codex_originator_normalization", false)
 	viper.SetDefault("gateway.codex_image_generation_bridge_enabled", false)
 	viper.SetDefault("gateway.openai_passthrough_allow_timeout_headers", false)
 	viper.SetDefault("gateway.openai_compact_model", "gpt-5.4")
@@ -3173,8 +3131,7 @@ func (c *Config) Validate() error {
 	if c.ImageAsync.Enabled && !c.ImageAsync.QueueEnabled {
 		return fmt.Errorf("image_async.enabled requires image_async.queue_enabled")
 	}
-	if c.ImageStorage.Enabled &&
-		(c.ImageStorage.CleanupIntervalSeconds <= 0 || c.ImageStorage.CleanupBatchSize <= 0) {
+	if c.ImageStorage.Enabled && (c.ImageStorage.CleanupIntervalSeconds <= 0 || c.ImageStorage.CleanupBatchSize <= 0) {
 		return fmt.Errorf("image_storage cleanup interval and batch size must be positive")
 	}
 	if c.ImageAsync.Enabled && !c.ImageStorage.Active() {
@@ -3190,24 +3147,10 @@ func (c *Config) Validate() error {
 		if c.ImageAsync.WorkerCount <= 0 {
 			return fmt.Errorf("image_async.worker_count must be positive")
 		}
-		if strings.TrimSpace(c.ImageAsync.QueueReadyKey) == "" {
-			return fmt.Errorf("image_async.queue_ready_key must not be empty")
+		if strings.TrimSpace(c.ImageAsync.QueueReadyKey) == "" || strings.TrimSpace(c.ImageAsync.QueueActiveKey) == "" || strings.TrimSpace(c.ImageAsync.IdempotencyKeyPrefix) == "" || strings.TrimSpace(c.ImageAsync.JobLockKeyPrefix) == "" {
+			return fmt.Errorf("image_async queue keys must not be empty")
 		}
-		if strings.TrimSpace(c.ImageAsync.QueueActiveKey) == "" {
-			return fmt.Errorf("image_async.queue_active_key must not be empty")
-		}
-		if strings.TrimSpace(c.ImageAsync.IdempotencyKeyPrefix) == "" {
-			return fmt.Errorf("image_async.idempotency_key_prefix must not be empty")
-		}
-		if strings.TrimSpace(c.ImageAsync.JobLockKeyPrefix) == "" {
-			return fmt.Errorf("image_async.job_lock_key_prefix must not be empty")
-		}
-		if c.ImageAsync.ReserveTimeoutSeconds <= 0 ||
-			c.ImageAsync.JobLockTTLSeconds <= 0 ||
-			c.ImageAsync.HeartbeatSeconds <= 0 ||
-			c.ImageAsync.StaleActiveAfterSeconds <= 0 ||
-			c.ImageAsync.RecoveryIntervalSeconds <= 0 ||
-			c.ImageAsync.RecoverLimit <= 0 {
+		if c.ImageAsync.ReserveTimeoutSeconds <= 0 || c.ImageAsync.JobLockTTLSeconds <= 0 || c.ImageAsync.HeartbeatSeconds <= 0 || c.ImageAsync.StaleActiveAfterSeconds <= 0 || c.ImageAsync.RecoveryIntervalSeconds <= 0 || c.ImageAsync.RecoverLimit <= 0 {
 			return fmt.Errorf("image_async queue timings and limits must be positive")
 		}
 		if c.ImageAsync.HeartbeatSeconds >= c.ImageAsync.StaleActiveAfterSeconds {
