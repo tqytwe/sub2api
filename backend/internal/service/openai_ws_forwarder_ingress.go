@@ -25,21 +25,6 @@ func (s *OpenAIGatewayService) openAIWSIngressInterTurnIdleTimeout() time.Durati
 	return time.Duration(s.cfg.Gateway.OpenAIWS.IngressInterTurnIdleTimeoutSeconds) * time.Second
 }
 
-// newOpenAIWSDownstreamWriteContext binds writes directly to the client
-// lifecycle while excluding the separate ingress-lease cancellation signal.
-// This lets a lease-loss path finish its current client write before
-// ReadOpenAIWSClientMessage sends the retryable close frame.
-func newOpenAIWSDownstreamWriteContext(controlCtx context.Context, hooks *OpenAIWSIngressHooks, timeout time.Duration) (context.Context, context.CancelFunc) {
-	writeParent := controlCtx
-	if hooks != nil && hooks.ClientLifecycleContext != nil {
-		writeParent = hooks.ClientLifecycleContext
-	}
-	if writeParent == nil {
-		writeParent = context.Background()
-	}
-	return context.WithTimeout(writeParent, timeout)
-}
-
 func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	ctx context.Context,
 	c *gin.Context,
@@ -384,7 +369,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			// the kernel send buffer before any close frame is queued.
 			eventBytes := buildOpenAIFastPolicyBlockedWSEvent(blocked)
 			if eventBytes != nil {
-				writeCtx, cancel := newOpenAIWSDownstreamWriteContext(ctx, hooks, s.openAIWSWriteTimeout())
+				writeCtx, cancel := context.WithTimeout(ctx, s.openAIWSWriteTimeout())
 				_ = clientConn.Write(writeCtx, coderws.MessageText, eventBytes)
 				cancel()
 			}
@@ -411,7 +396,7 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	writeClientMessage := func(message []byte) error {
-		writeCtx, cancel := newOpenAIWSDownstreamWriteContext(ctx, hooks, s.openAIWSWriteTimeout())
+		writeCtx, cancel := context.WithTimeout(ctx, s.openAIWSWriteTimeout())
 		defer cancel()
 		return clientConn.Write(writeCtx, coderws.MessageText, message)
 	}
@@ -785,7 +770,6 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 	}
 
 	sendAndRelay := func(turn int, lease *openAIWSConnLease, payload []byte, payloadBytes int, originalModel string, imageBillingModel string, imageSizeTier string, imageInputSize string) (*OpenAIForwardResult, error) {
-		responseModelObserver := &upstreamResponseModelObserver{}
 		if lease == nil {
 			return nil, errors.New("upstream websocket lease is nil")
 		}
@@ -853,7 +837,6 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 			}
 
 			eventType, eventResponseID, _ := parseOpenAIWSEventEnvelope(upstreamMessage)
-			responseModelObserver.ObserveOpenAI(upstreamMessage, eventType)
 			if responseID == "" && eventResponseID != "" {
 				responseID = eventResponseID
 			}
@@ -1028,20 +1011,18 @@ func (s *OpenAIGatewayService) ProxyResponsesWebSocketFromClient(
 				}
 				imageCount := imageCounter.Count()
 				result := &OpenAIForwardResult{
-					RequestID:                     responseID,
-					Usage:                         usage,
-					Model:                         originalModel,
-					UpstreamModel:                 mappedModel,
-					UpstreamResponseModel:         responseModelObserver.Model(),
-					UpstreamResponseModelConflict: responseModelObserver.Conflict(),
-					ServiceTier:                   extractOpenAIServiceTierFromBody(payload),
-					ReasoningEffort:               ApplyThinkingEnabledFallback(extractOpenAIReasoningEffortFromBody(payload, mappedModel, originalModel), payload, mappedModel),
-					Stream:                        reqStream,
-					OpenAIWSMode:                  true,
-					UpstreamTerminalEvent:         terminalEvent,
-					ResponseHeaders:               lease.HandshakeHeaders(),
-					Duration:                      time.Since(turnStart),
-					FirstTokenMs:                  firstTokenMs,
+					RequestID:             responseID,
+					Usage:                 usage,
+					Model:                 originalModel,
+					UpstreamModel:         mappedModel,
+					ServiceTier:           extractOpenAIServiceTierFromBody(payload),
+					ReasoningEffort:       ApplyThinkingEnabledFallback(extractOpenAIReasoningEffortFromBody(payload, mappedModel, originalModel), payload, mappedModel),
+					Stream:                reqStream,
+					OpenAIWSMode:          true,
+					UpstreamTerminalEvent: terminalEvent,
+					ResponseHeaders:       lease.HandshakeHeaders(),
+					Duration:              time.Since(turnStart),
+					FirstTokenMs:          firstTokenMs,
 				}
 				if replayInput := replayCollector.Items(); len(replayInput) > 0 {
 					result.wsReplayInput = replayInput

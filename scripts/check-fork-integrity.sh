@@ -97,8 +97,7 @@ echo "Checking fork registry and static invariants..."
 for id in \
   FORK-BRAND-001 FORK-NAV-002 FORK-PLAY-003 FORK-IMAGE-004 FORK-PRICING-005 \
   FORK-DEPLOY-006 FORK-OAUTH-007 FORK-PUBLIC-008 FORK-MIGRATION-009 FORK-BILLING-010 \
-  FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013 FORK-RISK-013 FORK-ADMIN-014 \
-  FORK-REWARDS-015 FORK-MEMBERSHIP-016 FORK-MOBILE-017 FORK-LIVE-SETTLEMENT-018; do
+  FORK-IMAGE-011 FORK-UI-012 FORK-MARKETPLACE-013 FORK-RISK-013 FORK-ADMIN-014; do
   check_contains "$id" "registry entry exists" "docs/FORK_CUSTOMIZATIONS.md" "## $id"
 done
 
@@ -236,7 +235,7 @@ check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/servic
 check_file "FORK-MARKETPLACE-013" "marketplace fail-closed runtime" "backend/internal/service/marketplace_runtime.go"
 check_file "FORK-MARKETPLACE-013" "marketplace stable errors" "backend/internal/service/marketplace_errors.go"
 check_regex "FORK-MARKETPLACE-013" "marketplace setting key" "backend/internal/service/domain_constants.go" '^[[:space:]]*SettingKeyMarketplaceEnabled[[:space:]]*=[[:space:]]*"marketplace_enabled"'
-check_regex "FORK-MARKETPLACE-013" "marketplace default is disabled" "backend/internal/service/setting_parse.go" 'SettingKeyMarketplaceEnabled:[[:space:]]*"false"'
+check_contains "FORK-MARKETPLACE-013" "marketplace default is disabled" "backend/internal/service/setting_parse.go" 'SettingKeyMarketplaceEnabled: "false"'
 check_contains "FORK-MARKETPLACE-013" "public settings bulk reads marketplace key" "backend/internal/service/setting_public.go" "SettingKeyMarketplaceEnabled,"
 check_contains "FORK-MARKETPLACE-013" "public DTO exposes marketplace flag" "backend/internal/handler/dto/settings.go" 'MarketplaceEnabled'
 check_contains "FORK-MARKETPLACE-013" "public handler maps marketplace value" "backend/internal/handler/setting_handler.go" 'MarketplaceEnabled:'
@@ -309,18 +308,6 @@ MIGRATIONS=(
   238_play_membership_operations.sql
   239_membership_financial_fk_guard.sql
   240_mobile_attribution_referral_campaign_fk.sql
-  241_play_daily_arena_budget.sql
-  241_play_growth_competition.sql
-  241_referral_campaign_single_admin_review.sql
-  243_play_team_competition.sql
-  244_play_arena_period_integrity.sql
-  245_referral_campaign_closure.sql
-  246_new_user_growth_campaign.sql
-  248_restore_upstream_daily_subscription_usage.sql
-  248_usage_logs_audio_token_breakdown.sql
-  249_live_usage_settlement_outbox.sql
-  250_model_catalog_tool_capabilities.sql
-  251_vip_membership_qualification_review.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -341,25 +328,6 @@ check_contains "FORK-BILLING-010" "admin withdrawal step-up route" "backend/inte
 check_file "FORK-BILLING-010" "admin withdrawals view" "frontend/src/views/admin/AdminWithdrawalsView.vue"
 check_contains "FORK-BILLING-010" "Chinese withdrawal management locale" "frontend/src/i18n/locales/zh.ts" "提现管理"
 check_contains "FORK-BILLING-010" "English withdrawal management locale" "frontend/src/i18n/locales/en.ts" "Withdrawals"
-
-check_file "FORK-REWARDS-015" "coupon service" "backend/internal/service/coupon_service.go"
-check_contains "FORK-REWARDS-015" "coupon wallet route" "backend/internal/server/routes/user.go" 'authenticated.GET("/coupons/me"'
-check_contains "FORK-REWARDS-015" "coupon payment quote route" "backend/internal/server/routes/payment.go" 'authenticated.POST("/coupons/quote"'
-check_contains "FORK-REWARDS-015" "daily card one-time quota guard" "backend/internal/service/user_subscription.go" "HasOneTimeDailyQuota"
-
-check_file "FORK-MEMBERSHIP-016" "membership reconciliation" "backend/internal/service/membership_reconciliation.go"
-check_contains "FORK-MEMBERSHIP-016" "membership overview route" "backend/internal/server/routes/admin.go" 'play.GET("/membership/overview"'
-check_contains "FORK-MEMBERSHIP-016" "VIP publish remains step-up guarded" "backend/internal/server/routes/admin.go" 'play.PUT("/membership/vip-config", gin.HandlerFunc(stepUpAuth)'
-check_file "FORK-MEMBERSHIP-016" "membership qualification migration" "backend/migrations/251_vip_membership_qualification_review.sql"
-
-check_contains "FORK-MOBILE-017" "mobile login rate-limited route" "backend/internal/server/routes/auth.go" 'auth.POST("/mobile/login"'
-check_contains "FORK-MOBILE-017" "NextChat mobile bootstrap route" "backend/internal/server/routes/nextchat.go" 'authenticated.GET("/mobile/bootstrap"'
-check_file "FORK-MOBILE-017" "mobile attribution service" "backend/internal/service/mobile_attribution.go"
-check_file "FORK-MOBILE-017" "mobile feedback service" "backend/internal/service/mobile_feedback.go"
-
-check_file "FORK-LIVE-SETTLEMENT-018" "live settlement outbox repository" "backend/internal/repository/live_settlement_outbox_repo.go"
-check_file "FORK-LIVE-SETTLEMENT-018" "live settlement recovery service" "backend/internal/service/openai_live_settlement_outbox.go"
-check_file "FORK-LIVE-SETTLEMENT-018" "live settlement migration" "backend/migrations/249_live_usage_settlement_outbox.sql"
 
 run_check "DOCS" "local links and document index" node "$ROOT/scripts/check-doc-links.mjs"
 
@@ -382,14 +350,6 @@ run_check "FORK-BILLING-010" "billing ownership unit tests" \
   bash -c "cd '$ROOT/backend' && go test -tags=unit -count=1 ./internal/repository -run '^TestValidateUsageBilling.*Ownership'"
 run_check "FORK-BILLING-010" "withdrawable ledger and recompute tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./migrations -run '^(TestWithdrawable|TestBalanceLedgerGrantArenaDailyCreatesPendingWithdrawableEntitlement|TestBalanceLedgerImageHoldConsumesEntitlementsFIFOWithoutWithdrawalFrozen|TestBalanceLedgerReleaseRestoresOriginalConsumedEntitlementBatches)'"
-run_check "FORK-REWARDS-015" "coupon payment lifecycle and daily card quota tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestUserSubscription.*DailyCard|TestCheckAndResetWindows_DailyCard.*|TestValidateAndCheckLimits_DailyCard.*|TestCreateOrderInTx.*Coupon|TestPaidCouponOrder.*|TestCouponOrderRefund.*|TestCouponReward.*)'"
-run_check "FORK-MEMBERSHIP-016" "membership qualification and VIP tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestMembership|TestPaymentOrderMembership|TestBuildPaymentRechargeQuote|Test(Get|Parse|Validate).*VIP)'"
-run_check "FORK-MOBILE-017" "mobile protocol, attribution and feedback tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/server/routes ./internal/service -run '^(TestNextChatMobile|TestMobileAttribution|Test.*MobileFeedback)'"
-run_check "FORK-LIVE-SETTLEMENT-018" "live settlement outbox and recovery tests" \
-  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service -run '^TestLiveSettlement'"
 run_check "FORK-PLAY-003" "admin team repair unit and route tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository ./internal/handler/admin ./internal/server/routes -run '^(TestAdminTeamRepair|TestAdminTeamMemberCandidatePreview|TestAdminPlayTeamRepairRoutesContract|TestTeamRewardSnapshotLock|TestTeamSettlementSnapshotReusesOuterTransaction)'"
 run_check "FORK-PLAY-003" "daily arena reward summary tests" \

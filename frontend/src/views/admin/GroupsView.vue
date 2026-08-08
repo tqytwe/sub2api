@@ -654,7 +654,7 @@
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
         <ReasoningEffortPolicyFields
-          v-if="supportsReasoningEffortPolicyPlatform(createForm.platform)"
+          v-if="createForm.platform === 'openai'"
           ref="createReasoningEffortPolicyRef"
           id-prefix="create-group-reasoning"
           :platform="createForm.platform"
@@ -2301,7 +2301,7 @@
           <p class="input-hint">{{ t("admin.groups.form.rpmLimitHint") }}</p>
         </div>
         <ReasoningEffortPolicyFields
-          v-if="supportsReasoningEffortPolicyPlatform(editForm.platform)"
+          v-if="editForm.platform === 'openai'"
           ref="editReasoningEffortPolicyRef"
           id-prefix="edit-group-reasoning"
           :platform="editForm.platform"
@@ -4294,7 +4294,6 @@ import {
   normalizeReasoningEffortForPlatform,
   reasoningEffortMappingsToAPI,
   reasoningEffortMappingsToRows,
-  supportsReasoningEffortPolicyPlatform,
   type ReasoningEffortMappingRow,
 } from "./groupsReasoningEffort";
 import {
@@ -5707,7 +5706,7 @@ const handleCreateGroup = async () => {
     return;
   }
   if (
-    supportsReasoningEffortPolicyPlatform(createForm.platform) &&
+    createForm.platform === "openai" &&
     createReasoningEffortPolicyRef.value &&
     !createReasoningEffortPolicyRef.value.validate()
   ) {
@@ -5945,7 +5944,7 @@ const handleUpdateGroup = async () => {
     return;
   }
   if (
-    supportsReasoningEffortPolicyPlatform(editForm.platform) &&
+    editForm.platform === "openai" &&
     editReasoningEffortPolicyRef.value &&
     !editReasoningEffortPolicyRef.value.validate()
   ) {

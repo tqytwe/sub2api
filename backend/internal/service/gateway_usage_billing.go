@@ -961,13 +961,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}, s.billingDeps(), s.usageBillingRepo)
 
 	if billingErr != nil {
-		capturedActualCost := cost.ActualCost
-		usageLog.ActualCost = 0
-		if IsImageStudioManagedBilling(ctx) {
-			recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.gateway", capturedActualCost)
-		} else {
-			writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")
-		}
+		recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.gateway", cost.ActualCost)
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.gateway")

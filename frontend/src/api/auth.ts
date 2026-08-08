@@ -4,8 +4,6 @@
  */
 
 import { apiClient } from './client'
-import { refreshAuthTokens, type RefreshTokenResponse } from './tokenRefresh'
-export type { RefreshTokenResponse } from './tokenRefresh'
 import type {
   LoginRequest,
   RegisterRequest,
@@ -14,7 +12,6 @@ import type {
   SendVerifyCodeRequest,
   SendVerifyCodeResponse,
   PublicSettings,
-  ActionCaptchaRequestProof,
   TotpLoginResponse,
   TotpLogin2FARequest
 } from '@/types'
@@ -23,43 +20,6 @@ import type {
  * Login response type - can be either full auth or 2FA required
  */
 export type LoginResponse = AuthResponse | TotpLoginResponse
-
-export type OAuthLoginProvider =
-  | 'github'
-  | 'google'
-  | 'linuxdo'
-  | 'dingtalk'
-  | 'wechat'
-  | 'oidc'
-
-export interface OAuthLoginStart {
-  provider: OAuthLoginProvider
-  params: Record<string, string>
-}
-
-export interface OAuthLoginStartResponse {
-  authorize_url: string
-}
-
-export function buildOAuthLoginStartURL(request: OAuthLoginStart): string {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL as string | undefined) || '/api/v1'
-  const normalized = apiBase.replace(/\/$/, '')
-  const query = new URLSearchParams(request.params).toString()
-  const path = `${normalized}/auth/oauth/${request.provider}/start`
-  return query ? `${path}?${query}` : path
-}
-
-export async function startOAuthLogin(
-  request: OAuthLoginStart,
-  proof: ActionCaptchaRequestProof
-): Promise<OAuthLoginStartResponse> {
-  const { data } = await apiClient.post<OAuthLoginStartResponse>(
-    `/auth/oauth/${request.provider}/start`,
-    proof,
-    { params: request.params }
-  )
-  return data
-}
 
 /**
  * Type guard to check if login response requires 2FA
@@ -130,19 +90,6 @@ export function clearAuthToken(): void {
  */
 export async function login(credentials: LoginRequest): Promise<LoginResponse> {
   const { data } = await apiClient.post<LoginResponse>('/auth/login', credentials)
-
-  // Only store token if 2FA is not required
-  if (!isTotp2FARequired(data)) {
-    setAuthToken(data.access_token)
-    if (data.refresh_token) {
-      setRefreshToken(data.refresh_token)
-    }
-    if (data.expires_in) {
-      setTokenExpiresAt(data.expires_in)
-    }
-    localStorage.setItem('auth_user', JSON.stringify(data.user))
-  }
-
   return data
 }
 
@@ -153,17 +100,6 @@ export async function login(credentials: LoginRequest): Promise<LoginResponse> {
  */
 export async function login2FA(request: TotpLogin2FARequest): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/login/2fa', request)
-
-  // Store token and user data
-  setAuthToken(data.access_token)
-  if (data.refresh_token) {
-    setRefreshToken(data.refresh_token)
-  }
-  if (data.expires_in) {
-    setTokenExpiresAt(data.expires_in)
-  }
-  localStorage.setItem('auth_user', JSON.stringify(data.user))
-
   return data
 }
 
@@ -174,17 +110,6 @@ export async function login2FA(request: TotpLogin2FARequest): Promise<AuthRespon
  */
 export async function register(userData: RegisterRequest): Promise<AuthResponse> {
   const { data } = await apiClient.post<AuthResponse>('/auth/register', userData)
-
-  // Store token and user data
-  setAuthToken(data.access_token)
-  if (data.refresh_token) {
-    setRefreshToken(data.refresh_token)
-  }
-  if (data.expires_in) {
-    setTokenExpiresAt(data.expires_in)
-  }
-  localStorage.setItem('auth_user', JSON.stringify(data.user))
-
   return data
 }
 
@@ -202,7 +127,7 @@ export async function getCurrentUser() {
  * Optionally revokes the refresh token on the server
  */
 export async function logout(refreshTokenOverride?: string | null): Promise<void> {
-	const refreshToken = refreshTokenOverride ?? getRefreshToken()
+  const refreshToken = refreshTokenOverride ?? getRefreshToken()
 
   // Try to revoke the refresh token on the server
   if (refreshToken) {
@@ -218,6 +143,13 @@ export async function logout(refreshTokenOverride?: string | null): Promise<void
 /**
  * Refresh token response
  */
+export interface RefreshTokenResponse {
+  access_token: string
+  refresh_token: string
+  expires_in: number
+  token_type: string
+}
+
 export interface OAuthTokenResponse {
   access_token: string
   refresh_token?: string
@@ -325,14 +257,16 @@ export async function prepareOAuthBindAccessTokenCookie(): Promise<void> {
  * @returns New token pair
  */
 export async function refreshToken(refreshTokenOverride?: string): Promise<RefreshTokenResponse> {
-	const currentRefreshToken = getRefreshToken()
-	if (!refreshTokenOverride || refreshTokenOverride === currentRefreshToken) {
-		return refreshAuthTokens()
-	}
-	const { data } = await apiClient.post<RefreshTokenResponse>('/auth/refresh', {
-		refresh_token: refreshTokenOverride,
-	})
-	return data
+  const currentRefreshToken = refreshTokenOverride ?? getRefreshToken()
+  if (!currentRefreshToken) {
+    throw new Error('No refresh token available')
+  }
+
+  const { data } = await apiClient.post<RefreshTokenResponse>('/auth/refresh', {
+    refresh_token: currentRefreshToken
+  })
+
+  return data
 }
 
 /**
@@ -537,8 +471,6 @@ export async function validateInvitationCode(code: string): Promise<ValidateInvi
 export interface ForgotPasswordRequest {
   email: string
   turnstile_token?: string
-  tencent_captcha_ticket?: string
-  tencent_captcha_randstr?: string
 }
 
 /**

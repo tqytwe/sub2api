@@ -97,9 +97,6 @@ type wechatPaymentOAuthContext struct {
 // WeChatOAuthStart starts the WeChat OAuth login flow and stores the short-lived
 // browser cookies required by the rebuild pending-auth bridge.
 func (h *AuthHandler) WeChatOAuthStart(c *gin.Context) {
-	if !h.requireActionCaptchaForOAuthLoginStart(c) {
-		return
-	}
 	cfg, err := h.getWeChatOAuthConfig(c.Request.Context(), c.Query("mode"), c)
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -149,7 +146,7 @@ func (h *AuthHandler) WeChatOAuthStart(c *gin.Context) {
 		return
 	}
 
-	respondOAuthStart(c, authURL)
+	c.Redirect(http.StatusFound, authURL)
 }
 
 // WeChatOAuthCallback exchanges the code with WeChat, resolves openid/unionid,

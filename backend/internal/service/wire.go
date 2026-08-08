@@ -290,17 +290,6 @@ func ProvideAccountExpiryService(accountRepo AccountRepository) *AccountExpirySe
 	return svc
 }
 
-// ProvideOpenAICodexVersionSyncService keeps the configured Codex client identity current.
-func ProvideOpenAICodexVersionSyncService(
-	settingRepo SettingRepository,
-	settingService *SettingService,
-	githubClient GitHubReleaseClient,
-) *OpenAICodexVersionSyncService {
-	svc := NewOpenAICodexVersionSyncService(settingRepo, settingService, githubClient, openAICodexVersionSyncInterval)
-	svc.Start()
-	return svc
-}
-
 // ProvideProxyExpiryService creates and starts ProxyExpiryService.
 func ProvideProxyExpiryService(proxyRepo ProxyRepository) *ProxyExpiryService {
 	svc := NewProxyExpiryService(proxyRepo, time.Minute)
@@ -817,8 +806,6 @@ func ProvideAuthService(
 	settingService *SettingService,
 	emailService *EmailService,
 	turnstileService *TurnstileService,
-	tencentCaptchaService *TencentCaptchaService,
-	aliyunCaptchaService *AliyunCaptchaService,
 	emailQueueService *EmailQueueService,
 	promoService *PromoService,
 	defaultSubAssigner DefaultSubscriptionAssigner,
@@ -843,8 +830,6 @@ func ProvideAuthService(
 		userPlatformQuotaRepo,
 		balanceLedger,
 	)
-	svc.SetTencentCaptchaService(tencentCaptchaService)
-	svc.SetAliyunCaptchaService(aliyunCaptchaService)
 	svc.SetIPRiskRecorder(ipRiskService)
 	return svc
 }
@@ -999,8 +984,6 @@ var ProviderSet = wire.NewSet(
 	NewFundManagementService,
 	ProvideEmailQueueService,
 	NewTurnstileService,
-	NewTencentCaptchaService,
-	NewAliyunCaptchaService,
 	NewSubscriptionService,
 	wire.Bind(new(DefaultSubscriptionAssigner), new(*SubscriptionService)),
 	ProvideConcurrencyService,
@@ -1013,7 +996,6 @@ var ProviderSet = wire.NewSet(
 	ProvideTokenRefreshService,
 	wire.Bind(new(GrokOAuthReconciler), new(*TokenRefreshService)),
 	ProvideAccountExpiryService,
-	ProvideOpenAICodexVersionSyncService,
 	ProvideProxyExpiryService,
 	ProvideSubscriptionExpiryService,
 	ProvideTimingWheelService,

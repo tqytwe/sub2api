@@ -281,16 +281,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if input.OriginalModel != "" {
 		requestedModel = input.OriginalModel
 	}
-	sentModel := upstreamSentModel(result.Model, result.UpstreamModel)
-	if result.UpstreamResponseModelConflict {
-		logger.L().Warn("upstream_response_model_conflict",
-			zap.String("platform", account.Platform),
-			zap.Int64("account_id", account.ID),
-			zap.String("request_id", requestID),
-			zap.String("sent_model", sentModel),
-			zap.String("selected_response_model", strings.TrimSpace(result.UpstreamResponseModel)),
-		)
-	}
 
 	usageLog := &UsageLog{
 		UserID:                   user.ID,
@@ -300,8 +290,6 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		Model:                    result.Model,
 		RequestedModel:           requestedModel,
 		UpstreamModel:            optionalTrimmedStringPtr(result.UpstreamModel),
-		UpstreamResponseModel:    optionalTrimmedStringPtr(result.UpstreamResponseModel),
-		UpstreamModelMismatch:    upstreamModelMismatch(sentModel, result.UpstreamResponseModel),
 		ServiceTier:              result.ServiceTier,
 		ReasoningEffort:          result.ReasoningEffort,
 		InboundEndpoint:          optionalTrimmedStringPtr(input.InboundEndpoint),
@@ -443,12 +431,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	}()
 
 	if billingErr != nil {
-		if IsImageStudioManagedBilling(ctx) {
-			recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.openai_gateway", cost.ActualCost)
-		} else {
-			usageLog.ActualCost = 0
-			writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")
-		}
+		recordImageStudioManagedUsageForReconciliation(ctx, s.usageLogRepo, usageLog, "service.openai_gateway", cost.ActualCost)
 		return billingErr
 	}
 	writeUsageLogBestEffort(ctx, s.usageLogRepo, usageLog, "service.openai_gateway")

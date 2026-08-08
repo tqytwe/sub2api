@@ -144,7 +144,7 @@
           refresh button is rendered via the pre-actions slot so the user sees a
           single row of related buttons instead of two stacked rows.
         -->
-        <OpenAIQuotaResetCell :account="account" @account-updated="handleQuotaResetAccountUpdated">
+        <OpenAIQuotaResetCell :account="account">
           <template #pre-actions>
             <button
               type="button"
@@ -186,11 +186,7 @@
       <div v-else>
         <div class="text-xs text-gray-400">-</div>
         <!-- Always allow on-demand upstream quota query, even before local data exists. -->
-        <OpenAIQuotaResetCell
-          :account="account"
-          class="mt-1"
-          @account-updated="handleQuotaResetAccountUpdated"
-        />
+        <OpenAIQuotaResetCell :account="account" class="mt-1" />
       </div>
     </template>
 
@@ -643,8 +639,6 @@ import OllamaCloudUsageCell from './OllamaCloudUsageCell.vue'
 // Module-level cache shared across all AccountUsageCell instances
 const _usageCache = new Map<number, { data: AccountUsageInfo; ts: number }>()
 const USAGE_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-// How long a quota-reset response may suppress the row-patch usage refetch.
-const SUPPRESS_USAGE_REFRESH_WINDOW_MS = 5 * 1000
 
 const props = withDefaults(
   defineProps<{
@@ -660,10 +654,6 @@ const props = withDefaults(
   }
 )
 
-const emit = defineEmits<{
-  'account-updated': [account: Account]
-}>()
-
 const { t } = useI18n()
 const desktopViewportQuery = '(min-width: 768px)'
 
@@ -674,7 +664,6 @@ const loading = ref(false)
 const activeQueryLoading = ref(false)
 const error = ref<string | null>(null)
 const usageInfo = ref<AccountUsageInfo | null>(null)
-const suppressOpenAIUsageRefreshUntil = ref(0)
 const rootRef = ref<HTMLElement | null>(null)
 const isDesktopViewport = ref(
   typeof window === 'undefined' ? true : window.matchMedia(desktopViewportQuery).matches
@@ -1484,15 +1473,6 @@ const quotaTotalBar = computed((): QuotaBarInfo | null => {
   return makeQuotaBar(props.account.quota_used ?? 0, limit)
 })
 
-const handleQuotaResetAccountUpdated = (account: Account) => {
-  // The reset response already carries authoritative quota and account data.
-  // Avoid turning the parent patch into a second automatic /usage request.
-  // The suppression is time-boxed so an unhandled emit (parent that ignores
-  // account-updated) cannot latch it and swallow a later, unrelated refresh.
-  suppressOpenAIUsageRefreshUntil.value = Date.now() + SUPPRESS_USAGE_REFRESH_WINDOW_MS
-  emit('account-updated', account)
-}
-
 // ===== Key account today stats formatters =====
 
 const formatKeyRequests = computed(() => {
@@ -1537,10 +1517,6 @@ onMounted(() => {
 watch(openAIUsageRefreshKey, (nextKey, prevKey) => {
   if (!prevKey || nextKey === prevKey) return
   if (props.account.platform !== 'openai' || props.account.type !== 'oauth') return
-  if (Date.now() < suppressOpenAIUsageRefreshUntil.value) {
-    suppressOpenAIUsageRefreshUntil.value = 0
-    return
-  }
 
   _usageCache.delete(props.account.id)
   requestAutoLoad()

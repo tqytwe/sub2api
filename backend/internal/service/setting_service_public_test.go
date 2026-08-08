@@ -13,7 +13,6 @@ import (
 
 type settingPublicRepoStub struct {
 	values            map[string]string
-	err               error
 	getMultipleErr    error
 	getMultipleErrKey map[string]error
 	getMultipleCalls  [][]string
@@ -36,9 +35,6 @@ func (s *settingPublicRepoStub) Set(ctx context.Context, key, value string) erro
 
 func (s *settingPublicRepoStub) GetMultiple(ctx context.Context, keys []string) (map[string]string, error) {
 	s.getMultipleCalls = append(s.getMultipleCalls, append([]string(nil), keys...))
-	if s.err != nil {
-		return nil, s.err
-	}
 	if s.getMultipleErr != nil {
 		return nil, s.getMultipleErr
 	}
