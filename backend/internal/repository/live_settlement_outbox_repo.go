@@ -27,6 +27,14 @@ const liveSettlementSelectColumns = `
 	cache_creation_audio_tokens, cache_read_tokens, cache_read_audio_tokens,
 	image_output_tokens, status, attempts, available_at, claimed_by`
 
+const liveSettlementReturningColumns = `
+	o.id, o.call_hash, o.account_id, o.api_key_id, o.user_id, o.group_id, o.subscription_id,
+	o.lease_id, o.model, o.call_created_at, o.call_expires_at, o.inbound_endpoint,
+	o.user_agent, o.ip_address, o.input_tokens, o.input_audio_tokens, o.image_input_tokens,
+	o.output_tokens, o.output_audio_tokens, o.cache_creation_tokens,
+	o.cache_creation_audio_tokens, o.cache_read_tokens, o.cache_read_audio_tokens,
+	o.image_output_tokens, o.status, o.attempts, o.available_at, o.claimed_by`
+
 func (r *liveSettlementOutboxRepository) Enqueue(ctx context.Context, record *service.LiveCallRecord) error {
 	if r == nil || r.db == nil {
 		return errors.New("nil live settlement outbox database")
@@ -167,7 +175,7 @@ func (r *liveSettlementOutboxRepository) Claim(ctx context.Context, workerID str
 		SET claimed_at = NOW(), claimed_by = $1, updated_at = NOW()
 		FROM candidates AS c
 		WHERE o.id = c.id
-		RETURNING `+liveSettlementSelectColumns+`
+		RETURNING `+liveSettlementReturningColumns+`
 	`, workerID, limit, leaseSeconds)
 	if err != nil {
 		return nil, err

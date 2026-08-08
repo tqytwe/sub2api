@@ -67,7 +67,7 @@ func TestLiveSettlementOutboxRepositoryClaimAndRetryPreserveLeaseOwnership(t *te
 		record.LeaseID, record.Model, created, expires, record.InboundEndpoint, record.UserAgent, record.IPAddress,
 		10, 2, 0, 4, 1, 0, 0, 0, 0, 0, "ready", 2, available, "worker-a",
 	)
-	mock.ExpectQuery("(?s)WITH candidates.*FOR UPDATE SKIP LOCKED.*RETURNING").
+	mock.ExpectQuery("(?s)WITH candidates.*FOR UPDATE SKIP LOCKED.*RETURNING o\\.id, o\\.call_hash").
 		WithArgs("worker-a", 32, int64(30)).WillReturnRows(rows)
 	jobs, err := repo.Claim(context.Background(), "worker-a", 32, 30*time.Second)
 	require.NoError(t, err)
