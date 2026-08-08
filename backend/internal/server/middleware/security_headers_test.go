@@ -357,6 +357,17 @@ func TestEnhanceCSPPolicy(t *testing.T) {
 		assert.Equal(t, 1, count)
 	})
 
+	t.Run("replaces_none_when_adding_required_directive_values", func(t *testing.T) {
+		policy := "default-src 'self'; script-src 'self'; connect-src 'none'"
+
+		enhanced := enhanceCSPPolicy(policy)
+
+		assert.NotContains(t, enhanced, "connect-src 'none'")
+		assert.Equal(t, 1, countDirectiveValue(enhanced, "connect-src", TencentCaptchaDomain))
+		assert.Equal(t, 1, countDirectiveValue(enhanced, "connect-src", TencentCaptchaPrehandleDomain))
+		assert.Equal(t, 1, countDirectiveValue(enhanced, "connect-src", TencentCaptchaRceDomain))
+	})
+
 	t.Run("adds_tencent_captcha_domain_for_web_sdk", func(t *testing.T) {
 		policy := "default-src 'self'; script-src 'self' __CSP_NONCE__"
 		enhanced := enhanceCSPPolicy(policy)
@@ -462,6 +473,16 @@ func countDirectiveValue(policy, directive, value string) int {
 }
 
 func TestAddToDirective(t *testing.T) {
+	t.Run("handles_none_only_directive", func(t *testing.T) {
+		policy := "default-src 'self'; connect-src 'none'; script-src 'self'"
+
+		assert.NotPanics(t, func() {
+			result := addToDirective(policy, "connect-src", "https://example.com")
+			assert.Contains(t, result, "connect-src https://example.com")
+			assert.NotContains(t, result, "connect-src 'none'")
+		})
+	})
+
 	t.Run("adds_to_existing_directive", func(t *testing.T) {
 		policy := "script-src 'self'; style-src 'self'"
 		result := addToDirective(policy, "script-src", "https://example.com")
