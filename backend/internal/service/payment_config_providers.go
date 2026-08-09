@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/ent/paymentorder"
@@ -116,6 +117,7 @@ var providerSensitiveConfigFields = map[string]map[string]struct{}{
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}},
 	payment.TypeAirwallex: {"apikey": {}, "webhooksecret": {}},
+	payment.TypeBepusdt:   {"apitoken": {}},
 }
 
 // providerPendingOrderProtectedConfigFields lists config keys that cannot be
@@ -128,6 +130,7 @@ var providerPendingOrderProtectedConfigFields = map[string]map[string]struct{}{
 	payment.TypeWxpay:     {"privatekey": {}, "apiv3key": {}, "publickey": {}, "appid": {}, "mpappid": {}, "mchid": {}, "publickeyid": {}, "certserial": {}},
 	payment.TypeStripe:    {"secretkey": {}, "webhooksecret": {}, "currency": {}},
 	payment.TypeAirwallex: {"clientid": {}, "apikey": {}, "webhooksecret": {}, "apibase": {}, "accountid": {}, "currency": {}},
+	payment.TypeBepusdt:   {"apitoken": {}, "apibase": {}, "currency": {}},
 }
 
 func isSensitiveProviderConfigField(providerKey, fieldName string) bool {
@@ -162,10 +165,18 @@ func providerConfigFieldValue(config map[string]string, fieldName string) string
 }
 
 func (s *PaymentConfigService) countPendingOrders(ctx context.Context, providerInstanceID int64) (int, error) {
+	graceCutoff := time.Now().UTC().Add(-paymentGraceMinutes * time.Minute)
 	return s.entClient.PaymentOrder.Query().
 		Where(
 			paymentorder.ProviderInstanceIDEQ(strconv.FormatInt(providerInstanceID, 10)),
-			paymentorder.StatusIn(pendingOrderStatuses...),
+			paymentorder.Or(
+				paymentorder.StatusIn(pendingOrderStatuses...),
+				paymentorder.And(
+					paymentorder.StatusIn(payment.OrderStatusCancelled, payment.OrderStatusExpired, payment.OrderStatusFailed),
+					paymentorder.PaidAtIsNil(),
+					paymentorder.UpdatedAtGTE(graceCutoff),
+				),
+			),
 		).Count(ctx)
 }
 
@@ -178,12 +189,18 @@ func (s *PaymentConfigService) countPendingOrdersByPlan(ctx context.Context, pla
 }
 
 var validProviderKeys = map[string]bool{
-	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true,
+	payment.TypeEasyPay: true, payment.TypeAlipay: true, payment.TypeWxpay: true, payment.TypeStripe: true, payment.TypeAirwallex: true, payment.TypeBepusdt: true,
 }
 
 func (s *PaymentConfigService) CreateProviderInstance(ctx context.Context, req CreateProviderInstanceRequest) (*dbent.PaymentProviderInstance, error) {
 	typesStr := joinTypes(req.SupportedTypes)
 	if err := validateProviderRequest(req.ProviderKey, req.Name, typesStr); err != nil {
+		return nil, err
+	}
+	if err := validateBepusdtInstanceContract(req.ProviderKey, typesStr, req.PaymentMode); err != nil {
+		return nil, err
+	}
+	if err := validateBepusdtRefundSettings(req.ProviderKey, req.RefundEnabled, req.AllowUserRefund); err != nil {
 		return nil, err
 	}
 	if req.ProviderKey == payment.TypeEasyPay {
@@ -224,6 +241,30 @@ func validateProviderRequest(providerKey, name, supportedTypes string) error {
 }
 
 var easyPayCustomMethodCodePattern = regexp.MustCompile(`^[a-z0-9_-]+$`)
+
+func validateBepusdtRefundSettings(providerKey string, refundEnabled, allowUserRefund bool) error {
+	if providerKey == payment.TypeBepusdt && refundEnabled {
+		return infraerrors.BadRequest("UNSUPPORTED_REFUND", "BEpusdt does not support automatic refunds")
+	}
+	if providerKey == payment.TypeBepusdt && allowUserRefund {
+		return infraerrors.BadRequest("UNSUPPORTED_REFUND", "BEpusdt does not support user refunds")
+	}
+	return nil
+}
+
+func validateBepusdtInstanceContract(providerKey, supportedTypes, paymentMode string) error {
+	if providerKey != payment.TypeBepusdt {
+		return nil
+	}
+	types := splitTypes(supportedTypes)
+	if len(types) != 1 || types[0] != payment.TypeBepusdt {
+		return infraerrors.BadRequest("VALIDATION_ERROR", "BEpusdt supported_types must contain only bepusdt")
+	}
+	if strings.TrimSpace(paymentMode) != "" {
+		return infraerrors.BadRequest("VALIDATION_ERROR", "BEpusdt payment_mode must be empty")
+	}
+	return nil
+}
 
 type easyPayCustomMethodConfig struct {
 	Type         string `json:"type"`
@@ -311,6 +352,27 @@ func (s *PaymentConfigService) UpdateProviderInstance(ctx context.Context, id in
 	nextSupportedTypes := current.SupportedTypes
 	if req.SupportedTypes != nil {
 		nextSupportedTypes = joinTypes(req.SupportedTypes)
+	}
+	nextPaymentMode := current.PaymentMode
+	if req.PaymentMode != nil {
+		nextPaymentMode = *req.PaymentMode
+	}
+	if err := validateBepusdtInstanceContract(current.ProviderKey, nextSupportedTypes, nextPaymentMode); err != nil {
+		return nil, err
+	}
+	nextRefundEnabled := current.RefundEnabled
+	if req.RefundEnabled != nil {
+		nextRefundEnabled = *req.RefundEnabled
+	}
+	nextAllowUserRefund := current.AllowUserRefund
+	if req.AllowUserRefund != nil {
+		nextAllowUserRefund = *req.AllowUserRefund
+	}
+	if !nextRefundEnabled {
+		nextAllowUserRefund = false
+	}
+	if err := validateBepusdtRefundSettings(current.ProviderKey, nextRefundEnabled, nextAllowUserRefund); err != nil {
+		return nil, err
 	}
 	if err := s.validateVisibleMethodEnablementConflicts(ctx, id, current.ProviderKey, nextSupportedTypes, nextEnabled); err != nil {
 		return nil, err

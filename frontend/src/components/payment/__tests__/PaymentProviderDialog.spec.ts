@@ -18,6 +18,8 @@ const messages: Record<string, string> = {
   'admin.settings.payment.alipayGuideSummary': 'Desktop prefers QR precreate and falls back to cashier; mobile prefers WAP checkout.',
   'admin.settings.payment.wxpayGuideSummary': 'Desktop prefers Native QR; mobile routes to JSAPI or H5 based on browser context.',
   'admin.settings.payment.airwallexGuideSummary': 'Use Payment Acceptance read/write only.',
+  'admin.settings.payment.providerBepusdt': 'BEpusdt (USDT TRC20)',
+  'admin.settings.payment.bepusdtManualRefundHint': 'Automatic refunds are unavailable; process on-chain refunds manually.',
   'admin.settings.payment.stripeWebhookHint': 'Configure Stripe webhook.',
   'admin.settings.payment.stripeWebhookApiVersionHint': 'Use Stripe API version {version}.',
   'admin.settings.payment.airwallexWebhookHint': 'Select payment_intent.succeeded and use the latest stable API version.',
@@ -65,11 +67,13 @@ function mountDialog(options: { editing?: ProviderInstance | null } = {}) {
         { value: 'wxpay', label: 'WeChat Pay' },
         { value: 'stripe', label: 'Stripe' },
         { value: 'airwallex', label: 'Airwallex' },
+        { value: 'bepusdt', label: 'BEpusdt (USDT TRC20)' },
       ],
       enabledKeyOptions: [
         { value: 'easypay', label: 'EasyPay' },
         { value: 'alipay', label: 'Alipay' },
         { value: 'wxpay', label: 'WeChat Pay' },
+        { value: 'bepusdt', label: 'USDT (TRC20)' },
         { value: 'airwallex', label: 'Airwallex' },
       ],
       allPaymentTypes: [
@@ -277,5 +281,33 @@ describe('PaymentProviderDialog payment guide', () => {
     await wrapper.find('form').trigger('submit.prevent')
 
     expect(wrapper.emitted('save')).toBeUndefined()
+  })
+})
+
+describe('PaymentProviderDialog BEpusdt safeguards', () => {
+  it('keeps BEpusdt refunds disabled when an old instance had the flag set', async () => {
+    const provider = providerFactory({
+      provider_key: 'bepusdt',
+      name: 'BEpusdt',
+      refund_enabled: true,
+      allow_user_refund: true,
+      config: {
+        apiBase: 'https://pay.example.com',
+        currency: 'CNY',
+        notifyUrl: 'https://example.com/api/v1/payment/webhook/bepusdt',
+        returnUrl: 'https://example.com/payment/result',
+      },
+      supported_types: ['bepusdt'],
+    })
+    const wrapper = mountDialog({ editing: provider })
+
+    ;(wrapper.vm as unknown as { loadProvider: (provider: ProviderInstance) => void }).loadProvider(provider)
+    await nextTick()
+    expect(wrapper.text()).toContain('Automatic refunds are unavailable')
+    await wrapper.find('form').trigger('submit.prevent')
+
+    const payload = wrapper.emitted('save')?.[0]?.[0] as { refund_enabled: boolean; allow_user_refund: boolean }
+    expect(payload.refund_enabled).toBe(false)
+    expect(payload.allow_user_refund).toBe(false)
   })
 })

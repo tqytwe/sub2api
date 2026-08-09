@@ -52,6 +52,13 @@ func TestValidateProviderRequest(t *testing.T) {
 			wantErr:        false,
 		},
 		{
+			name:           "valid bepusdt provider",
+			providerKey:    payment.TypeBepusdt,
+			providerName:   "BEpusdt",
+			supportedTypes: payment.TypeBepusdt,
+			wantErr:        false,
+		},
+		{
 			name:           "valid alipay provider",
 			providerKey:    "alipay",
 			providerName:   "Alipay Direct",
@@ -112,6 +119,14 @@ func TestValidateProviderRequest(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestValidateBepusdtRefundSettings(t *testing.T) {
+	t.Parallel()
+	require.NoError(t, validateBepusdtRefundSettings(payment.TypeAirwallex, true, true))
+	require.NoError(t, validateBepusdtRefundSettings(payment.TypeBepusdt, false, false))
+	require.ErrorContains(t, validateBepusdtRefundSettings(payment.TypeBepusdt, true, false), "automatic refunds")
+	require.ErrorContains(t, validateBepusdtRefundSettings(payment.TypeBepusdt, false, true), "user refunds")
 }
 
 func TestValidateEasyPayCustomMethods(t *testing.T) {
@@ -244,6 +259,11 @@ func TestIsSensitiveProviderConfigField(t *testing.T) {
 		{payment.TypeAirwallex, "apiBase", false},
 		{payment.TypeAirwallex, "accountId", false},
 		{payment.TypeAirwallex, "currency", false},
+
+		// BEpusdt
+		{payment.TypeBepusdt, "apiToken", true},
+		{payment.TypeBepusdt, "apiBase", false},
+		{payment.TypeBepusdt, "currency", false},
 
 		// Unknown provider: never sensitive
 		{"unknown", "secretKey", false},
@@ -543,6 +563,15 @@ func TestUpdateProviderInstanceRejectsProtectedConfigChangesWhilePendingOrders(t
 			fieldName:     "webhookSecret",
 			wantValue:     "whsec-test",
 		},
+		{
+			name:          "bepusdt apiToken",
+			providerKey:   payment.TypeBepusdt,
+			createConfig:  validBepusdtProviderConfig,
+			supportedType: []string{payment.TypeBepusdt},
+			updateConfig:  map[string]string{"apiToken": "bepusdt-token-updated"},
+			fieldName:     "apiToken",
+			wantValue:     "bepusdt-token-test",
+		},
 	}
 
 	for _, tc := range tests {
@@ -582,6 +611,98 @@ func TestUpdateProviderInstanceRejectsProtectedConfigChangesWhilePendingOrders(t
 			require.Equal(t, tc.wantValue, cfg[tc.fieldName])
 		})
 	}
+}
+
+func TestUpdateProviderInstanceProtectsLateCallbackCredentialsDuringGrace(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentConfigService{
+		entClient:     client,
+		encryptionKey: []byte("0123456789abcdef0123456789abcdef"),
+	}
+	instance, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+		ProviderKey:    payment.TypeBepusdt,
+		Name:           "BEpusdt late callback",
+		Config:         validBepusdtProviderConfig(t),
+		SupportedTypes: []string{payment.TypeBepusdt},
+		Enabled:        true,
+	})
+	require.NoError(t, err)
+	createPendingProviderConfigOrder(t, ctx, client, instance)
+	order, err := client.PaymentOrder.Query().Only(ctx)
+	require.NoError(t, err)
+	_, err = client.PaymentOrder.UpdateOneID(order.ID).
+		SetStatus(OrderStatusExpired).
+		SetUpdatedAt(time.Now().UTC().Add(-time.Minute)).
+		Save(ctx)
+	require.NoError(t, err)
+
+	updated, err := svc.UpdateProviderInstance(ctx, instance.ID, UpdateProviderInstanceRequest{
+		Config: map[string]string{"apiToken": "bepusdt-token-updated"},
+	})
+	require.Nil(t, updated)
+	require.Equal(t, "PENDING_ORDERS", infraerrors.Reason(err))
+}
+
+func TestCreateBepusdtProviderRejectsDatabaseContractMismatch(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		supportedTypes []string
+		paymentMode    string
+	}{
+		{name: "wrong supported type", supportedTypes: []string{payment.TypeAlipay}},
+		{name: "multiple supported types", supportedTypes: []string{payment.TypeBepusdt, payment.TypeAlipay}},
+		{name: "non-empty payment mode", supportedTypes: []string{payment.TypeBepusdt}, paymentMode: "popup"},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			client := newPaymentConfigServiceTestClient(t)
+			svc := &PaymentConfigService{entClient: client}
+
+			instance, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+				ProviderKey:    payment.TypeBepusdt,
+				Name:           "BEpusdt invalid contract",
+				Config:         validBepusdtProviderConfig(t),
+				SupportedTypes: test.supportedTypes,
+				PaymentMode:    test.paymentMode,
+				Enabled:        true,
+			})
+			require.Nil(t, instance)
+			require.Equal(t, "VALIDATION_ERROR", infraerrors.Reason(err))
+		})
+	}
+}
+
+func TestUpdateBepusdtProviderRejectsDatabaseContractMismatch(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	client := newPaymentConfigServiceTestClient(t)
+	svc := &PaymentConfigService{entClient: client}
+	instance, err := svc.CreateProviderInstance(ctx, CreateProviderInstanceRequest{
+		ProviderKey:    payment.TypeBepusdt,
+		Name:           "BEpusdt valid contract",
+		Config:         validBepusdtProviderConfig(t),
+		SupportedTypes: []string{payment.TypeBepusdt},
+		Enabled:        true,
+	})
+	require.NoError(t, err)
+
+	wrongTypes := []string{payment.TypeAlipay}
+	updated, err := svc.UpdateProviderInstance(ctx, instance.ID, UpdateProviderInstanceRequest{SupportedTypes: wrongTypes})
+	require.Nil(t, updated)
+	require.Equal(t, "VALIDATION_ERROR", infraerrors.Reason(err))
+
+	popupMode := "popup"
+	updated, err = svc.UpdateProviderInstance(ctx, instance.ID, UpdateProviderInstanceRequest{PaymentMode: &popupMode})
+	require.Nil(t, updated)
+	require.Equal(t, "VALIDATION_ERROR", infraerrors.Reason(err))
 }
 
 func TestUpdateProviderInstanceAllowsSafeConfigChangesWhilePendingOrders(t *testing.T) {
@@ -730,6 +851,8 @@ func providerPendingOrderPaymentType(providerKey string) string {
 		return payment.TypeAirwallex
 	case payment.TypeStripe:
 		return payment.TypeStripe
+	case payment.TypeBepusdt:
+		return payment.TypeBepusdt
 	default:
 		return payment.TypeAlipay
 	}
@@ -784,6 +907,18 @@ func validAirwallexProviderConfig(t *testing.T) map[string]string {
 		"apiBase":       "https://api-demo.airwallex.com/api/v1",
 		"accountId":     "acct-test",
 		"currency":      "CNY",
+	}
+}
+
+func validBepusdtProviderConfig(t *testing.T) map[string]string {
+	t.Helper()
+
+	return map[string]string{
+		"apiBase":   "https://bepusdt.example.com",
+		"apiToken":  "bepusdt-token-test",
+		"notifyUrl": "https://merchant.example.com/api/v1/payment/webhook/bepusdt",
+		"returnUrl": "https://merchant.example.com/payment/result",
+		"currency":  "CNY",
 	}
 }
 

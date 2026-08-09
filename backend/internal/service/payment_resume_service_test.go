@@ -55,6 +55,15 @@ func TestEnabledVisibleMethodsForEasyPayIncludesCustomSupportedTypes(t *testing.
 	}
 }
 
+func TestEnabledVisibleMethodsForBepusdtIncludesConfiguredNetwork(t *testing.T) {
+	t.Parallel()
+
+	got := enabledVisibleMethodsForProvider(payment.TypeBepusdt, payment.TypeBepusdt)
+	if len(got) != 1 || got[0] != payment.TypeBepusdt {
+		t.Fatalf("enabledVisibleMethodsForProvider(bepusdt) = %v, want [bepusdt]", got)
+	}
+}
+
 func TestNormalizePaymentSource(t *testing.T) {
 	t.Parallel()
 

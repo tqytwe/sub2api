@@ -58,6 +58,18 @@ describe('PROVIDER_CONFIG_FIELDS.stripe', () => {
   })
 })
 
+describe('PROVIDER_CONFIG_FIELDS.bepusdt', () => {
+  it('keeps the channel fixed to CNY and marks the API token sensitive', () => {
+    const currency = findField('bepusdt', 'currency')
+    const token = findField('bepusdt', 'apiToken')
+
+    expect(currency?.defaultValue).toBe('CNY')
+    expect(currency?.options).toEqual([{ value: 'CNY', label: 'CNY' }])
+    expect(token?.sensitive).toBe(true)
+    expect(findField('bepusdt', 'apiBase')?.hintKey).toBe('admin.settings.payment.field_bepusdtApiBaseHint')
+  })
+})
+
 describe('PROVIDER_CONFIG_FIELDS.easypay', () => {
   it('adds API base guidance and currency config for KyrenPay-compatible methods', () => {
     expect(findField('easypay', 'apiBase')?.hintKey).toBe('admin.settings.payment.field_easypayApiBaseHint')

@@ -101,6 +101,15 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 		})
 		return err
 	}
+	if strings.EqualFold(strings.TrimSpace(pk), payment.TypeBepusdt) {
+		if err := validateBepusdtPaymentBinding(o, tradeNo, paid, metadata); err != nil {
+			s.writeAuditLog(ctx, o.ID, "PAYMENT_BEPUSDT_BINDING_MISMATCH", pk, map[string]any{
+				"detail":  err.Error(),
+				"tradeNo": tradeNo,
+			})
+			return err
+		}
+	}
 	if !isValidProviderAmount(paid) {
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_INVALID_AMOUNT", pk, map[string]any{
 			"expected": o.PayAmount,
@@ -113,7 +122,31 @@ func (s *PaymentService) confirmPayment(ctx context.Context, oid int64, tradeNo 
 		s.writeAuditLog(ctx, o.ID, "PAYMENT_AMOUNT_MISMATCH", pk, map[string]any{"expected": o.PayAmount, "paid": paid, "tradeNo": tradeNo})
 		return fmt.Errorf("amount mismatch: expected %s, got %s", strconv.FormatFloat(o.PayAmount, 'f', -1, 64), strconv.FormatFloat(paid, 'f', -1, 64))
 	}
-	return s.toPaid(ctx, o, tradeNo, paid, pk)
+	return s.toPaid(ctx, o, tradeNo, paid, pk, metadata)
+}
+
+func validateBepusdtPaymentBinding(order *dbent.PaymentOrder, tradeNo string, paid float64, metadata map[string]string) error {
+	if order == nil {
+		return fmt.Errorf("bepusdt order is missing")
+	}
+	if expected := strings.TrimSpace(order.PaymentTradeNo); expected != "" && !strings.EqualFold(expected, strings.TrimSpace(tradeNo)) {
+		return fmt.Errorf("bepusdt trade_id mismatch: expected %s, got %s", expected, strings.TrimSpace(tradeNo))
+	}
+	if expected := strings.TrimSpace(order.OutTradeNo); expected != "" && !strings.EqualFold(expected, strings.TrimSpace(metadata["order_id"])) {
+		return fmt.Errorf("bepusdt order_id mismatch: expected %s, got %s", expected, strings.TrimSpace(metadata["order_id"]))
+	}
+	if expected := strings.TrimSpace(tradeNo); expected != "" && !strings.EqualFold(expected, strings.TrimSpace(metadata["trade_id"])) {
+		return fmt.Errorf("bepusdt metadata trade_id mismatch")
+	}
+	expectedMinor, err := payment.AmountToMinorUnit(strconv.FormatFloat(order.PayAmount, 'f', -1, 64), payment.DefaultPaymentCurrency)
+	if err != nil {
+		return fmt.Errorf("bepusdt stored amount is invalid: %w", err)
+	}
+	paidMinor, err := payment.AmountToMinorUnit(strconv.FormatFloat(paid, 'f', -1, 64), payment.DefaultPaymentCurrency)
+	if err != nil || expectedMinor != paidMinor {
+		return fmt.Errorf("bepusdt amount mismatch: expected %s, got %s", payment.FormatAmountForCurrency(order.PayAmount, payment.DefaultPaymentCurrency), payment.FormatAmountForCurrency(paid, payment.DefaultPaymentCurrency))
+	}
+	return nil
 }
 
 func paymentAmountToleranceForCurrency(currency string) float64 {
@@ -147,7 +180,7 @@ func expectedNotificationProviderKey(registry *payment.Registry, orderPaymentTyp
 	return strings.TrimSpace(orderPaymentType)
 }
 
-func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, tradeNo string, paid float64, pk string) error {
+func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, tradeNo string, paid float64, pk string, notificationMetadata ...map[string]string) error {
 	previousStatus := o.Status
 	updated, err := s.markOrderPaidAndConsumeCoupon(ctx, o, tradeNo, paid, true)
 	if err != nil {
@@ -171,12 +204,27 @@ func (s *PaymentService) toPaid(ctx context.Context, o *dbent.PaymentOrder, trad
 		})
 	}
 	paidDetail := map[string]any{"tradeNo": tradeNo, "paidAmount": paid}
+	if strings.EqualFold(strings.TrimSpace(pk), payment.TypeBepusdt) && len(notificationMetadata) > 0 {
+		for key, value := range bepusdtPaymentAuditEvidence(notificationMetadata[0]) {
+			paidDetail[key] = value
+		}
+	}
 	if o.CouponID != nil {
 		paidDetail["couponID"] = *o.CouponID
 		paidDetail["discountAmount"] = o.DiscountAmount
 	}
 	s.writeAuditLog(ctx, o.ID, "ORDER_PAID", pk, paidDetail)
 	return s.executeFulfillment(ctx, o.ID)
+}
+
+func bepusdtPaymentAuditEvidence(metadata map[string]string) map[string]any {
+	evidence := make(map[string]any, 3)
+	for _, key := range []string{"actual_amount", "block_transaction_id", "trade_url"} {
+		if value := strings.TrimSpace(metadata[key]); value != "" {
+			evidence[key] = value
+		}
+	}
+	return evidence
 }
 
 func (s *PaymentService) alreadyProcessed(ctx context.Context, o *dbent.PaymentOrder) error {
