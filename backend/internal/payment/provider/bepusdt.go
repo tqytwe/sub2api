@@ -24,14 +24,17 @@ import (
 const (
 	bepusdtHTTPTimeout       = 10 * time.Second
 	bepusdtMaxResponseSize   = 1 << 20
-	bepusdtTradeType         = "usdt.trc20"
-	bepusdtMinTimeoutSeconds = int64(120)
+	bepusdtAssetCurrency     = "USDT"
+	bepusdtMinTimeoutSeconds = int64(180)
 	bepusdtMaxSubjectRunes   = 64
 )
 
 // Bepusdt implements the BEpusdt ePusdt JSON API. The payable amount remains
 // the immutable CNY amount calculated by this application; BEpusdt converts it
-// to and locks the corresponding USDT (TRC20) amount for the hosted checkout.
+// to and locks the corresponding USDT amount for the hosted checkout. Network
+// selection is delegated to BEpusdt so enabled wallets such as TRC20, BSC,
+// Arbitrum, Base, and other USDT networks can be offered without trusting the
+// browser to submit a crypto amount.
 type Bepusdt struct {
 	instanceID string
 	config     map[string]string
@@ -142,7 +145,7 @@ func (b *Bepusdt) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 		"order_id":     strings.TrimSpace(req.OrderID),
 		"amount":       amount,
 		"fiat":         payment.DefaultPaymentCurrency,
-		"trade_type":   bepusdtTradeType,
+		"currencies":   bepusdtAssetCurrency,
 		"name":         truncateBepusdtSubject(req.Subject),
 		"notify_url":   b.config["notifyUrl"],
 		"redirect_url": redirectURL,
@@ -156,11 +159,11 @@ func (b *Bepusdt) CreatePayment(ctx context.Context, req payment.CreatePaymentRe
 	payload["signature"] = bepusdtSign(payload, b.config["apiToken"])
 
 	var response bepusdtCreateResponse
-	if err := b.postJSON(ctx, "/api/v1/order/create-transaction", payload, &response); err != nil {
-		return nil, fmt.Errorf("bepusdt create transaction: %w", err)
+	if err := b.postJSON(ctx, "/api/v1/order/create-order", payload, &response); err != nil {
+		return nil, fmt.Errorf("bepusdt create order: %w", err)
 	}
 	if response.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("bepusdt create transaction failed: %s", bepusdtMessage(response.Message))
+		return nil, fmt.Errorf("bepusdt create order failed: %s", bepusdtMessage(response.Message))
 	}
 	if err := b.validateCreateResponse(req, amount, response.Data); err != nil {
 		return nil, err
@@ -186,6 +189,7 @@ type bepusdtCreateResponse struct {
 		ActualAmount  json.RawMessage `json:"actual_amount"`
 		Token         string          `json:"token"`
 		Fiat          string          `json:"fiat"`
+		Currencies    string          `json:"currencies"`
 		TradeType     string          `json:"trade_type"`
 		ExpirationSec int64           `json:"expiration_time"`
 		Status        json.RawMessage `json:"status"`
@@ -200,50 +204,51 @@ func (b *Bepusdt) validateCreateResponse(req payment.CreatePaymentRequest, expec
 	ActualAmount  json.RawMessage `json:"actual_amount"`
 	Token         string          `json:"token"`
 	Fiat          string          `json:"fiat"`
+	Currencies    string          `json:"currencies"`
 	TradeType     string          `json:"trade_type"`
 	ExpirationSec int64           `json:"expiration_time"`
 	Status        json.RawMessage `json:"status"`
 }) error {
 	if strings.TrimSpace(data.TradeID) == "" || strings.TrimSpace(data.PaymentURL) == "" {
-		return fmt.Errorf("bepusdt create transaction returned incomplete order data")
+		return fmt.Errorf("bepusdt create order returned incomplete order data")
 	}
 	if strings.TrimSpace(data.OrderID) != strings.TrimSpace(req.OrderID) {
-		return fmt.Errorf("bepusdt create transaction order_id mismatch")
+		return fmt.Errorf("bepusdt create order order_id mismatch")
 	}
-	// Older BEpusdt builds omit fiat/trade_type from the create-transaction
-	// response even though they honor both request fields. Validate them when
-	// present, but do not reject a valid response solely because the optional
-	// response fields are absent.
+	// Older BEpusdt builds omit optional response fields even though they honor
+	// the request fields. Validate fields when present, but do not reject a valid
+	// hosted checkout solely because those optional fields are absent.
 	if fiat := strings.TrimSpace(data.Fiat); fiat != "" &&
 		!strings.EqualFold(fiat, payment.DefaultPaymentCurrency) {
-		return fmt.Errorf("bepusdt create transaction fiat mismatch")
+		return fmt.Errorf("bepusdt create order fiat mismatch")
+	}
+	if currencies := strings.TrimSpace(data.Currencies); currencies != "" &&
+		!bepusdtIsUSDTAssetCurrency(currencies) {
+		return fmt.Errorf("bepusdt create order currencies mismatch")
 	}
 	if tradeType := strings.TrimSpace(data.TradeType); tradeType != "" &&
-		!strings.EqualFold(tradeType, bepusdtTradeType) {
-		return fmt.Errorf("bepusdt create transaction trade_type mismatch")
+		!bepusdtIsUSDTTradeType(tradeType) {
+		return fmt.Errorf("bepusdt create order trade_type mismatch")
 	}
 	amount, err := bepusdtNumber(data.Amount)
 	if err != nil || !bepusdtAmountsEqual(amount, expectedAmount) {
-		return fmt.Errorf("bepusdt create transaction amount mismatch")
+		return fmt.Errorf("bepusdt create order amount mismatch")
 	}
-	// BEpusdt v1.24.x returns the live USDT quote and wallet token from the
-	// hosted checkout/query endpoints, but its create-transaction response may
-	// omit both fields. Do not reject a valid order merely because those
-	// optional response fields are absent; the user is sent to payment_url,
-	// where the locked quote is authoritative. If a build does include a quote,
-	// validate it when present so malformed gateway data still fails closed.
+	// BEpusdt returns the live USDT quote and wallet token from the hosted
+	// checkout/query endpoints. If the create response includes a quote, validate
+	// it so malformed gateway data still fails closed.
 	if len(data.ActualAmount) > 0 && string(data.ActualAmount) != "null" {
 		actualAmount, actualErr := bepusdtNumber(data.ActualAmount)
 		if actualErr != nil || actualAmount <= 0 {
-			return fmt.Errorf("bepusdt create transaction returned invalid USDT quote")
+			return fmt.Errorf("bepusdt create order returned invalid USDT quote")
 		}
 	}
 	if data.ExpirationSec <= 0 {
-		return fmt.Errorf("bepusdt create transaction returned invalid expiration_time")
+		return fmt.Errorf("bepusdt create order returned invalid expiration_time")
 	}
 	statusCode, statusErr := bepusdtStatus(data.Status)
 	if statusErr != nil || statusCode != 1 {
-		return fmt.Errorf("bepusdt create transaction returned invalid order status")
+		return fmt.Errorf("bepusdt create order returned invalid order status")
 	}
 	if err := b.validatePaymentURL(data.PaymentURL); err != nil {
 		return err
@@ -284,6 +289,8 @@ func (b *Bepusdt) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 			ActualAmount json.RawMessage `json:"actual_amount"`
 			Token        string          `json:"token"`
 			Fiat         string          `json:"fiat"`
+			Currency     string          `json:"currency"`
+			Network      string          `json:"network"`
 			TradeType    string          `json:"trade_type"`
 			TradeURL     string          `json:"trade_url"`
 		} `json:"data"`
@@ -301,11 +308,14 @@ func (b *Bepusdt) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 	if strings.TrimSpace(response.Data.OrderID) == "" {
 		return nil, fmt.Errorf("bepusdt query transaction missing order_id")
 	}
-	if !strings.EqualFold(strings.TrimSpace(response.Data.Fiat), payment.DefaultPaymentCurrency) {
+	if fiat := strings.TrimSpace(response.Data.Fiat); fiat != "" && !strings.EqualFold(fiat, payment.DefaultPaymentCurrency) {
 		return nil, fmt.Errorf("bepusdt query transaction fiat mismatch")
 	}
-	if !strings.EqualFold(strings.TrimSpace(response.Data.TradeType), bepusdtTradeType) {
+	if tradeType := strings.TrimSpace(response.Data.TradeType); tradeType != "" && !bepusdtIsUSDTTradeType(tradeType) {
 		return nil, fmt.Errorf("bepusdt query transaction trade_type mismatch")
+	}
+	if assetCurrency := strings.TrimSpace(response.Data.Currency); assetCurrency != "" && !bepusdtIsUSDTAssetCurrency(assetCurrency) {
+		return nil, fmt.Errorf("bepusdt query transaction asset currency mismatch")
 	}
 	statusCode, statusErr := bepusdtStatus(response.Data.Status)
 	if statusErr != nil {
@@ -323,15 +333,18 @@ func (b *Bepusdt) QueryOrder(ctx context.Context, tradeNo string) (*payment.Quer
 		return nil, fmt.Errorf("bepusdt query transaction returned invalid CNY amount")
 	}
 	metadata := map[string]string{
-		"order_id":   strings.TrimSpace(response.Data.OrderID),
-		"trade_id":   resolvedTradeNo,
-		"currency":   payment.DefaultPaymentCurrency,
-		"trade_type": bepusdtTradeType,
+		"order_id":       strings.TrimSpace(response.Data.OrderID),
+		"trade_id":       resolvedTradeNo,
+		"currency":       payment.DefaultPaymentCurrency,
+		"asset_currency": bepusdtAssetCurrency,
 	}
 	for key, value := range map[string]string{
 		"actual_amount": bepusdtRawString(response.Data.ActualAmount),
 		"token":         strings.TrimSpace(response.Data.Token),
 		"trade_url":     strings.TrimSpace(response.Data.TradeURL),
+		"trade_type":    strings.TrimSpace(response.Data.TradeType),
+		"network":       strings.TrimSpace(response.Data.Network),
+		"asset":         strings.TrimSpace(response.Data.Currency),
 	} {
 		if value != "" {
 			metadata[key] = value
@@ -388,15 +401,27 @@ func (b *Bepusdt) VerifyNotification(_ context.Context, rawBody string, _ map[st
 		}
 	}
 	metadata := map[string]string{
-		"order_id":   orderID,
-		"trade_id":   tradeID,
-		"currency":   payment.DefaultPaymentCurrency,
-		"trade_type": bepusdtTradeType,
+		"order_id":       orderID,
+		"trade_id":       tradeID,
+		"currency":       payment.DefaultPaymentCurrency,
+		"asset_currency": bepusdtAssetCurrency,
+	}
+	if tradeType := bepusdtString(payload["trade_type"]); tradeType != "" {
+		if !bepusdtIsUSDTTradeType(tradeType) {
+			return nil, fmt.Errorf("bepusdt notification trade_type mismatch")
+		}
+		metadata["trade_type"] = tradeType
+	}
+	assetCurrency := bepusdtString(payload["currency"])
+	if assetCurrency != "" && !bepusdtIsUSDTAssetCurrency(assetCurrency) {
+		return nil, fmt.Errorf("bepusdt notification asset currency mismatch")
 	}
 	for key, value := range map[string]string{
 		"actual_amount":        actualAmount,
 		"token":                bepusdtString(payload["token"]),
 		"block_transaction_id": blockTransactionID,
+		"network":              bepusdtString(payload["network"]),
+		"asset":                assetCurrency,
 	} {
 		if value != "" {
 			metadata[key] = value
@@ -507,6 +532,16 @@ func truncateBepusdtSubject(subject string) string {
 
 func bepusdtAmountsEqual(left, right float64) bool {
 	return math.Abs(left-right) < 0.000001
+}
+
+func bepusdtIsUSDTTradeType(raw string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	return normalized == strings.ToLower(bepusdtAssetCurrency) ||
+		strings.HasPrefix(normalized, strings.ToLower(bepusdtAssetCurrency)+".")
+}
+
+func bepusdtIsUSDTAssetCurrency(raw string) bool {
+	return strings.EqualFold(strings.TrimSpace(raw), bepusdtAssetCurrency)
 }
 
 func bepusdtMessage(message string) string {

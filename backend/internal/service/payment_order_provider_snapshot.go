@@ -231,12 +231,27 @@ func validateProviderSnapshotMetadata(order *dbent.PaymentOrder, providerKey str
 			}
 		}
 		if actual := strings.TrimSpace(metadata["trade_type"]); actual != "" &&
-			!strings.EqualFold(actual, "usdt.trc20") {
-			return fmt.Errorf("bepusdt trade_type mismatch: expected usdt.trc20, got %s", actual)
+			!isBepusdtUSDTTradeType(actual) {
+			return fmt.Errorf("bepusdt trade_type mismatch: expected USDT network, got %s", actual)
+		}
+		for _, key := range []string{"asset_currency", "asset"} {
+			if actual := strings.TrimSpace(metadata[key]); actual != "" &&
+				!isBepusdtUSDTAssetCurrency(actual) {
+				return fmt.Errorf("bepusdt asset currency mismatch: expected USDT, got %s", actual)
+			}
 		}
 	}
 
 	return nil
+}
+
+func isBepusdtUSDTTradeType(raw string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(raw))
+	return normalized == "usdt" || strings.HasPrefix(normalized, "usdt.")
+}
+
+func isBepusdtUSDTAssetCurrency(raw string) bool {
+	return strings.EqualFold(strings.TrimSpace(raw), "USDT")
 }
 
 func providerMerchantIdentityMetadata(prov payment.Provider) map[string]string {

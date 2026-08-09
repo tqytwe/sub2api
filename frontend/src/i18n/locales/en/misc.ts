@@ -302,7 +302,7 @@ export default {
       wxpay: 'WeChat Pay',
       stripe: 'Stripe',
       airwallex: 'Airwallex',
-      bepusdt: 'USDT (TRC20)',
+      bepusdt: 'USDT',
       card: 'Card',
       link: 'Link',
       alipay_direct: 'Alipay (Direct)',

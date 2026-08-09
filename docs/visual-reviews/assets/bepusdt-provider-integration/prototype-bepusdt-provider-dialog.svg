@@ -7,7 +7,7 @@
 
   <text x="210" y="224" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Provider name *</text>
   <rect x="210" y="236" width="400" height="42" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
-  <text x="226" y="262" font-family="Arial, sans-serif" font-size="14" fill="#111827">USDT (TRC20)</text>
+  <text x="226" y="262" font-family="Arial, sans-serif" font-size="14" fill="#111827">USDT</text>
   <text x="646" y="224" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Provider key *</text>
   <rect x="646" y="236" width="424" height="42" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
   <text x="662" y="262" font-family="Arial, sans-serif" font-size="14" fill="#111827">BEpusdt</text>

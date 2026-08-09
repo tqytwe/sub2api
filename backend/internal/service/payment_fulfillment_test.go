@@ -645,14 +645,34 @@ func TestValidateProviderNotificationMetadataRejectsBepusdtCurrencyOrNetworkMism
 		"currency":   "CNY",
 		"trade_type": "usdt.trc20",
 	}))
+	require.NoError(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":   "CNY",
+		"trade_type": "usdt.erc20",
+	}))
+	require.NoError(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":       "CNY",
+		"asset_currency": "USDT",
+		"asset":          "USDT",
+		"trade_type":     "usdt.arbitrum",
+	}))
 	require.ErrorContains(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
 		"currency":   "USD",
 		"trade_type": "usdt.trc20",
 	}), "currency mismatch")
 	require.ErrorContains(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
 		"currency":   "CNY",
-		"trade_type": "usdt.erc20",
+		"trade_type": "usdc.trc20",
 	}), "trade_type mismatch")
+	require.ErrorContains(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":       "CNY",
+		"asset_currency": "USDC",
+		"trade_type":     "usdt.trc20",
+	}), "asset currency mismatch")
+	require.ErrorContains(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":   "CNY",
+		"asset":      "USDC",
+		"trade_type": "usdt.trc20",
+	}), "asset currency mismatch")
 }
 
 func TestBepusdtPaymentAuditEvidenceKeepsChainProofWithoutWalletAddress(t *testing.T) {
