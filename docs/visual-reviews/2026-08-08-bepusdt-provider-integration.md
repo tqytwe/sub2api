@@ -53,13 +53,13 @@
 ## Scope
 
 - Surfaces: the existing admin payment-provider dialog and existing user payment-method selector.
-- Roles: administrators configure the provider; authenticated users select USDT (TRC20) during recharge or subscription checkout.
+- Roles: administrators configure the provider; authenticated users select USDT during recharge or subscription checkout, then choose the enabled BEpusdt network on the hosted checkout.
 - Languages and themes: zh-CN and en-US, light and dark.
 - Boundary: no new route, page shell, card system, checkout layout or payment-result page was introduced.
 
 ## Baseline
 
-- Current behavior: the shared dialog supported EasyPay, official Alipay/WeChat, Stripe and Airwallex, but had no dedicated BEpusdt configuration or USDT (TRC20) method.
+- Current behavior: the shared dialog supported EasyPay, official Alipay/WeChat, Stripe and Airwallex, but had no dedicated BEpusdt configuration or USDT method.
 - Baseline artifact: the prototype board preserves the existing dialog shell and identifies the additive fields; it is not a live browser screenshot.
 - Inconsistency observed: the first implementation hid refund controls but did not explain that BEpusdt refunds must be handled manually on-chain.
 
@@ -67,7 +67,7 @@
 
 - Prototype design image: `docs/visual-reviews/assets/bepusdt-provider-integration/prototype-bepusdt-provider-dialog.png`.
 - Approval status: follows the already agreed dedicated-provider boundary and existing administration dialog.
-- Scope boundary: fixed CNY settlement, sensitive API token, deterministic callback paths, USDT TRC20 only, and no automatic refund controls.
+- Scope boundary: fixed CNY settlement, sensitive API token, deterministic callback paths, USDT hosted checkout with BEpusdt-owned network selection, and no automatic refund controls.
 
 ## Reuse Decision
 
@@ -77,7 +77,7 @@
 
 ## State Coverage
 
-- Default: BEpusdt appears as a provider and as USDT (TRC20) in checkout ordering.
+- Default: BEpusdt appears as a provider and as USDT in checkout ordering.
 - Enabled and disabled: existing provider enablement behavior remains unchanged.
 - Editing: the API token is omitted by the backend, shown empty, and preserved when the administrator submits it empty.
 - Validation error: required configuration and backend provider validation continue through the existing field and toast flow.

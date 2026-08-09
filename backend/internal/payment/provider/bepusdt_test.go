@@ -25,24 +25,25 @@ func testBepusdtConfig(apiBase string) map[string]string {
 	}
 }
 
-func TestBepusdtCreatePaymentUsesServerCalculatedCNYAmountAndTimeout(t *testing.T) {
+func TestBepusdtCreatePaymentUsesHostedUSDTCheckoutWithServerCalculatedCNYAmount(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		require.Equal(t, http.MethodPost, r.Method)
-		require.Equal(t, "/api/v1/order/create-transaction", r.URL.Path)
+		require.Equal(t, "/api/v1/order/create-order", r.URL.Path)
 
 		var payload map[string]any
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 		require.Equal(t, "sub2api-123", payload["order_id"])
 		require.Equal(t, "CNY", payload["fiat"])
-		require.Equal(t, "usdt.trc20", payload["trade_type"])
+		require.Equal(t, "USDT", payload["currencies"])
+		require.NotContains(t, payload, "trade_type")
 		require.Equal(t, 28.88, payload["amount"])
 		require.Equal(t, float64(900), payload["timeout"])
 		require.Equal(t, "https://merchant.example.com/api/v1/payment/webhook/bepusdt", payload["notify_url"])
 		require.Equal(t, "https://app.example.com/payment/result?order_id=123&resume_token=signed", payload["redirect_url"])
 		require.Equal(t, bepusdtSign(payload, "test-token"), payload["signature"])
 
-		_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\",\"order_id\":\"sub2api-123\",\"payment_url\":\"" + serverURLForResponse(r) + "/pay/checkout/be-trade-1\",\"amount\":\"28.88\",\"fiat\":\"CNY\",\"trade_type\":\"usdt.trc20\",\"expiration_time\":900,\"status\":1}}"))
+		_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\",\"order_id\":\"sub2api-123\",\"payment_url\":\"" + serverURLForResponse(r) + "/pay/checkout/be-trade-1\",\"amount\":\"28.88\",\"fiat\":\"CNY\",\"currencies\":\"USDT\",\"expiration_time\":900,\"status\":1}}"))
 	}))
 	defer server.Close()
 
@@ -60,6 +61,26 @@ func TestBepusdtCreatePaymentUsesServerCalculatedCNYAmountAndTimeout(t *testing.
 	require.Equal(t, server.URL+"/pay/checkout/be-trade-1", result.PayURL)
 	require.Empty(t, result.QRCode)
 	require.Equal(t, payment.DefaultPaymentCurrency, result.Currency)
+}
+
+func TestBepusdtCreatePaymentUsesHostedMinimumTimeout(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
+		require.Equal(t, float64(180), payload["timeout"])
+		_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\",\"order_id\":\"sub2api-123\",\"payment_url\":\"" + serverURLForResponse(r) + "/pay/checkout/be-trade-1\",\"amount\":\"28.88\",\"fiat\":\"CNY\",\"currencies\":\"USDT\",\"expiration_time\":180,\"status\":1}}"))
+	}))
+	defer server.Close()
+
+	provider, err := NewBepusdt("1", testBepusdtConfig(server.URL))
+	require.NoError(t, err)
+	_, err = provider.CreatePayment(context.Background(), payment.CreatePaymentRequest{
+		OrderID:   "sub2api-123",
+		Amount:    "28.88",
+		ExpiresAt: time.Now().Add(30 * time.Second),
+	})
+	require.NoError(t, err)
 }
 
 func serverURLForResponse(r *http.Request) string {
@@ -161,7 +182,8 @@ func TestBepusdtVerifyNotificationRequiresChainEvidenceForSuccess(t *testing.T) 
 
 	payload := map[string]any{
 		"trade_id": "be-trade-1", "order_id": "sub2api-123", "amount": 28.88,
-		"actual_amount": "4.00", "token": "TRON_ADDRESS", "block_transaction_id": "chain-hash", "status": 2,
+		"actual_amount": "4.00", "token": "BSC_ADDRESS", "block_transaction_id": "chain-hash", "status": 2,
+		"trade_type": "usdt.bep20",
 	}
 	payload["signature"] = bepusdtSign(payload, "test-token")
 	raw, err := json.Marshal(payload)
@@ -174,6 +196,7 @@ func TestBepusdtVerifyNotificationRequiresChainEvidenceForSuccess(t *testing.T) 
 	require.Equal(t, "be-trade-1", notification.TradeNo)
 	require.Equal(t, "4.00", notification.Metadata["actual_amount"])
 	require.Equal(t, "chain-hash", notification.Metadata["block_transaction_id"])
+	require.Equal(t, "usdt.bep20", notification.Metadata["trade_type"])
 
 	delete(payload, "block_transaction_id")
 	payload["signature"] = bepusdtSign(payload, "test-token")
@@ -220,6 +243,38 @@ func TestBepusdtVerifyNotificationRejectsInvalidSignature(t *testing.T) {
 	require.ErrorContains(t, err, "signature is invalid")
 }
 
+func TestBepusdtVerifyNotificationRejectsNonUSDTTradeType(t *testing.T) {
+	t.Parallel()
+	provider, err := NewBepusdt("1", testBepusdtConfig("https://bepusdt.example.com"))
+	require.NoError(t, err)
+	payload := map[string]any{
+		"trade_id": "be-trade-1", "order_id": "sub2api-123", "amount": 28.88,
+		"actual_amount": "4.00", "token": "ADDRESS", "block_transaction_id": "chain-hash", "status": 2,
+		"trade_type": "usdc.trc20",
+	}
+	payload["signature"] = bepusdtSign(payload, "test-token")
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err)
+	_, err = provider.VerifyNotification(context.Background(), string(raw), nil)
+	require.ErrorContains(t, err, "trade_type mismatch")
+}
+
+func TestBepusdtVerifyNotificationRejectsNonUSDTAssetCurrency(t *testing.T) {
+	t.Parallel()
+	provider, err := NewBepusdt("1", testBepusdtConfig("https://bepusdt.example.com"))
+	require.NoError(t, err)
+	payload := map[string]any{
+		"trade_id": "be-trade-1", "order_id": "sub2api-123", "amount": 28.88,
+		"actual_amount": "4.00", "token": "ADDRESS", "block_transaction_id": "chain-hash", "status": 2,
+		"currency": "USDC",
+	}
+	payload["signature"] = bepusdtSign(payload, "test-token")
+	raw, err := json.Marshal(payload)
+	require.NoError(t, err)
+	_, err = provider.VerifyNotification(context.Background(), string(raw), nil)
+	require.ErrorContains(t, err, "asset currency mismatch")
+}
+
 func TestBepusdtVerifyNotificationRejectsUnknownOrFractionalStatus(t *testing.T) {
 	t.Parallel()
 	provider, err := NewBepusdt("1", testBepusdtConfig("https://bepusdt.example.com"))
@@ -247,7 +302,7 @@ func TestBepusdtQueryAndCancel(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/v1/pay/info":
 			require.Equal(t, "be-trade-1", payload["trade_id"])
-			_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\",\"order_id\":\"sub2api-123\",\"status\":2,\"money\":\"28.88\",\"actual_amount\":\"4.00\",\"trade_url\":\"https://tronscan.org/#/transaction/chain-hash\",\"fiat\":\"CNY\",\"trade_type\":\"usdt.trc20\"}}"))
+			_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\",\"order_id\":\"sub2api-123\",\"status\":2,\"money\":\"28.88\",\"actual_amount\":\"4.00\",\"trade_url\":\"https://bscscan.com/tx/chain-hash\",\"fiat\":\"CNY\",\"trade_type\":\"usdt.bep20\"}}"))
 		case "/api/v1/order/cancel-transaction":
 			require.Equal(t, bepusdtSign(payload, "test-token"), payload["signature"])
 			_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\"}}"))
@@ -264,8 +319,22 @@ func TestBepusdtQueryAndCancel(t *testing.T) {
 	require.Equal(t, payment.ProviderStatusPaid, query.Status)
 	require.Equal(t, 28.88, query.Amount)
 	require.Equal(t, "sub2api-123", query.Metadata["order_id"])
-	require.Equal(t, "https://tronscan.org/#/transaction/chain-hash", query.Metadata["trade_url"])
+	require.Equal(t, "usdt.bep20", query.Metadata["trade_type"])
+	require.Equal(t, "https://bscscan.com/tx/chain-hash", query.Metadata["trade_url"])
 	require.NoError(t, provider.CancelPayment(context.Background(), "be-trade-1"))
+}
+
+func TestBepusdtQueryOrderRejectsNonUSDTAssetCurrency(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte("{\"status_code\":200,\"message\":\"success\",\"data\":{\"trade_id\":\"be-trade-1\",\"order_id\":\"sub2api-123\",\"status\":2,\"money\":\"28.88\",\"actual_amount\":\"4.00\",\"trade_url\":\"https://etherscan.io/tx/chain-hash\",\"fiat\":\"CNY\",\"currency\":\"USDC\"}}"))
+	}))
+	defer server.Close()
+
+	provider, err := NewBepusdt("1", testBepusdtConfig(server.URL))
+	require.NoError(t, err)
+	_, err = provider.QueryOrder(context.Background(), "be-trade-1")
+	require.ErrorContains(t, err, "asset currency mismatch")
 }
 
 func TestBepusdtQueryOrderRejectsInvalidStatus(t *testing.T) {

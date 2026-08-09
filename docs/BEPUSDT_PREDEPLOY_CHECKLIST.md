@@ -15,8 +15,8 @@ contract are aligned.
 - The browser never supplies or edits a USDT amount.
 - After order creation, the application sends the immutable CNY `pay_amount` to
   BEpusdt.
-- BEpusdt converts that CNY amount to a time-limited USDT TRC20 quote and owns
-  the hosted checkout screen.
+- BEpusdt converts that CNY amount to a time-limited USDT quote and owns the
+  hosted checkout screen, including the enabled network choice.
 - The browser opens only the HTTPS `payment_url` returned by BEpusdt. It must
   not build a wallet-only QR code from `token` because that omits the locked
   amount.
@@ -54,7 +54,7 @@ gate into a fixed-tier requirement.
 | Backend snapshot | `currency` | `CNY` |
 | Backend snapshot | secret fields | Must not contain `apiToken`, `notifyUrl`, or `returnUrl` |
 | Provider create request | `amount` / `fiat` | Backend CNY amount and `CNY` |
-| Provider create request | `trade_type` | `usdt.trc20` |
+| Provider create request | `currencies` | `USDT`; network selection stays inside BEpusdt checkout |
 | Provider create response | `trade_id` / `payment_url` | Both present; URL is absolute HTTP(S) |
 | Provider paid callback | `status` | Numeric `2` only; unknown/fractional values are rejected |
 | Provider paid callback | `order_id` / `trade_id` | Must match the immutable order and stored provider trade number |
