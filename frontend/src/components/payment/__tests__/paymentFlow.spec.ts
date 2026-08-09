@@ -190,6 +190,27 @@ describe('decidePaymentLaunch', () => {
     expect(decision.recovery.resumeToken).toBe('resume-2')
   })
 
+  it('opens BEpusdt only through its hosted checkout URL', () => {
+    const decision = decidePaymentLaunch(createOrderResult({
+      pay_url: 'https://pay.example.com/pay/checkout/be-trade-1',
+      qr_code: '',
+      payment_type: 'bepusdt',
+      payment_currency: 'CNY',
+      pay_amount: 28.88,
+      out_trade_no: 'sub2_be_1',
+    }), {
+      visibleMethod: 'bepusdt',
+      orderType: 'subscription',
+      isMobile: false,
+    })
+
+    expect(decision.kind).toBe('redirect_waiting')
+    expect(decision.paymentState.paymentType).toBe('bepusdt')
+    expect(decision.paymentState.payAmount).toBe(28.88)
+    expect(decision.paymentState.qrCode).toBe('')
+    expect(decision.paymentState.payUrl).toBe('https://pay.example.com/pay/checkout/be-trade-1')
+  })
+
   it('prefers redirect on mobile when both pay_url and qr_code are present', () => {
     const decision = decidePaymentLaunch(createOrderResult({
       pay_url: 'https://pay.example.com/mobile/session',

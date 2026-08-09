@@ -207,6 +207,31 @@ func TestMigrationsRunner_AuthIdentityAndPaymentSchemaStayAligned(t *testing.T) 
 	requireIndex(t, tx, "payment_orders", "paymentorder_out_trade_no")
 	requirePartialUniqueIndexDefinition(t, tx, "payment_orders", "paymentorder_out_trade_no", "out_trade_no", "WHERE")
 	requireIndexAbsent(t, tx, "payment_orders", "paymentorder_out_trade_no_unique")
+	requireValidatedConstraint(t, tx, "payment_provider_instances", "payment_provider_instances_bepusdt_contract_check")
+	requireConstraintDefinitionContains(
+		t,
+		tx,
+		"payment_provider_instances",
+		"payment_provider_instances_bepusdt_contract_check",
+		"supported_types",
+		"payment_mode",
+		"refund_enabled",
+		"allow_user_refund",
+		"apiToken",
+		"currency",
+	)
+	requireValidatedConstraint(t, tx, "payment_orders", "payment_orders_bepusdt_contract_check")
+	requireConstraintDefinitionContains(
+		t,
+		tx,
+		"payment_orders",
+		"payment_orders_bepusdt_contract_check",
+		"payment_type",
+		"provider_snapshot",
+		"schema_version",
+		"provider_instance_id",
+		"payment_currency",
+	)
 }
 
 func requireIndex(t *testing.T, tx *sql.Tx, table, index string) {
@@ -317,6 +342,23 @@ WHERE ns.nspname = 'public'
 	for _, fragment := range fragments {
 		require.Contains(t, def, fragment, "expected constraint definition for %s.%s to contain %q", table, constraint, fragment)
 	}
+}
+
+func requireValidatedConstraint(t *testing.T, tx *sql.Tx, table, constraint string) {
+	t.Helper()
+
+	var validated bool
+	err := tx.QueryRowContext(context.Background(), `
+SELECT c.convalidated
+FROM pg_constraint c
+JOIN pg_class tbl ON tbl.oid = c.conrelid
+JOIN pg_namespace ns ON ns.oid = tbl.relnamespace
+WHERE ns.nspname = 'public'
+  AND tbl.relname = $1
+  AND c.conname = $2
+`, table, constraint).Scan(&validated)
+	require.NoError(t, err, "query validation state for %s.%s", table, constraint)
+	require.True(t, validated, "expected constraint %s on %s to be validated", constraint, table)
 }
 
 func requireColumnDefaultContains(t *testing.T, tx *sql.Tx, table, column string, fragments ...string) {

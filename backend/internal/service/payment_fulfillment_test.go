@@ -608,6 +608,68 @@ func TestPaymentAmountToleranceForThreeDecimalCurrency(t *testing.T) {
 	assert.InDelta(t, 0.0005, paymentAmountToleranceForCurrency("KWD"), 1e-12)
 }
 
+func TestValidateBepusdtPaymentBindingUsesImmutableOrderAndCents(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{
+		OutTradeNo:      "sub2-order-1",
+		PaymentTradeNo:  "be-trade-1",
+		PayAmount:       28.88,
+		PaymentCurrency: payment.DefaultPaymentCurrency,
+		PaymentType:     payment.TypeBepusdt,
+	}
+	metadata := map[string]string{
+		"order_id": "sub2-order-1",
+		"trade_id": "be-trade-1",
+	}
+	require.NoError(t, validateBepusdtPaymentBinding(order, "be-trade-1", 28.88, metadata))
+	require.ErrorContains(t, validateBepusdtPaymentBinding(order, "be-trade-other", 28.88, metadata), "trade_id mismatch")
+	require.ErrorContains(t, validateBepusdtPaymentBinding(order, "be-trade-1", 28.87, metadata), "amount mismatch")
+	metadata["order_id"] = "sub2-order-other"
+	require.ErrorContains(t, validateBepusdtPaymentBinding(order, "be-trade-1", 28.88, metadata), "order_id mismatch")
+}
+
+func TestValidateProviderNotificationMetadataRejectsBepusdtCurrencyOrNetworkMismatch(t *testing.T) {
+	t.Parallel()
+
+	order := &dbent.PaymentOrder{
+		PaymentType: payment.TypeBepusdt,
+		ProviderSnapshot: map[string]any{
+			"schema_version": 2,
+			"provider_key":   payment.TypeBepusdt,
+			"currency":       "CNY",
+		},
+	}
+
+	require.NoError(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":   "CNY",
+		"trade_type": "usdt.trc20",
+	}))
+	require.ErrorContains(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":   "USD",
+		"trade_type": "usdt.trc20",
+	}), "currency mismatch")
+	require.ErrorContains(t, validateProviderNotificationMetadata(order, payment.TypeBepusdt, map[string]string{
+		"currency":   "CNY",
+		"trade_type": "usdt.erc20",
+	}), "trade_type mismatch")
+}
+
+func TestBepusdtPaymentAuditEvidenceKeepsChainProofWithoutWalletAddress(t *testing.T) {
+	t.Parallel()
+
+	evidence := bepusdtPaymentAuditEvidence(map[string]string{
+		"actual_amount":        "4.00",
+		"block_transaction_id": "chain-hash",
+		"trade_url":            "https://tronscan.org/#/transaction/chain-hash",
+		"token":                "TRON_ADDRESS",
+	})
+	require.Equal(t, "4.00", evidence["actual_amount"])
+	require.Equal(t, "chain-hash", evidence["block_transaction_id"])
+	require.Equal(t, "https://tronscan.org/#/transaction/chain-hash", evidence["trade_url"])
+	require.NotContains(t, evidence, "token")
+}
+
 func TestRetryFulfillmentRejectsFreshRechargingLease(t *testing.T) {
 	ctx := context.Background()
 	client := newPaymentConfigServiceTestClient(t)

@@ -1,7 +1,7 @@
 # 项目文档索引
 
 > 状态：active
-> 最后核验：2026-07-21
+> 最后核验：2026-08-08
 > 维护规则：当前实现以代码和测试为准；未登记在本索引中的 `docs/` 文档不得作为项目依据。
 
 ## 状态定义
@@ -37,6 +37,7 @@
 | [支付配置（中文）](./PAYMENT_CN.md) | `reference` | 上游内置支付配置 | 支付维护者 | 2026-07-15 |
 | [Payment configuration](./PAYMENT.md) | `reference` | Upstream payment configuration | 支付维护者 | 2026-07-15 |
 | [外部支付 Admin API](./ADMIN_PAYMENT_INTEGRATION_API.md) | `reference` | 外部支付系统对接 | 支付维护者 | 2026-07-15 |
+| [BEpusdt 上线前检查清单](./BEPUSDT_PREDEPLOY_CHECKLIST.md) | `proposal` | CNY 结算、数据库契约、回调和真实支付验收门禁 | 支付维护者 | 2026-08-08 |
 | [管理员合规说明（中文）](./legal/admin-compliance.zh.md) | `active` | 管理员合规内容 | 合规维护者 | 2026-07-15 |
 | [Admin compliance](./legal/admin-compliance.en.md) | `active` | English admin compliance content | 合规维护者 | 2026-07-15 |
 

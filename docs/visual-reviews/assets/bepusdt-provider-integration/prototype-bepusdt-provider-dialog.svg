@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="900" viewBox="0 0 1280 900">
+  <rect width="1280" height="900" fill="#f4f7fb"/>
+  <text x="52" y="64" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#111827">Prototype: BEpusdt provider configuration</text>
+  <text x="52" y="94" font-family="Arial, sans-serif" font-size="16" fill="#64748b">Reuse the existing provider dialog; lock settlement to CNY and keep on-chain refunds manual.</text>
+  <rect x="170" y="126" width="940" height="708" rx="12" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="210" y="178" font-family="Arial, sans-serif" font-size="20" font-weight="600" fill="#111827">Create payment provider</text>
+
+  <text x="210" y="224" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Provider name *</text>
+  <rect x="210" y="236" width="400" height="42" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="226" y="262" font-family="Arial, sans-serif" font-size="14" fill="#111827">USDT (TRC20)</text>
+  <text x="646" y="224" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Provider key *</text>
+  <rect x="646" y="236" width="424" height="42" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="662" y="262" font-family="Arial, sans-serif" font-size="14" fill="#111827">BEpusdt</text>
+
+  <rect x="210" y="304" width="16" height="16" rx="4" fill="#2563eb"/>
+  <path d="M214 312l3 3 6-7" fill="none" stroke="#fff" stroke-width="2"/>
+  <text x="236" y="317" font-family="Arial, sans-serif" font-size="13" fill="#334155">Enabled</text>
+  <text x="318" y="317" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Automatic refunds unavailable — process on-chain refunds manually</text>
+
+  <text x="210" y="364" font-family="Arial, sans-serif" font-size="13" fill="#64748b">BEpusdt public base URL *</text>
+  <rect x="210" y="376" width="860" height="42" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="226" y="402" font-family="Arial, sans-serif" font-size="14" fill="#111827">https://pay.example.com</text>
+  <text x="210" y="440" font-family="Arial, sans-serif" font-size="12" fill="#64748b">Public root only; do not append /api or /pay. BEpusdt converts the immutable CNY order amount to locked USDT.</text>
+
+  <text x="210" y="480" font-family="Arial, sans-serif" font-size="13" fill="#64748b">API Token *</text>
+  <rect x="210" y="492" width="860" height="42" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="226" y="518" font-family="Arial, sans-serif" font-size="14" fill="#94a3b8">••••••••••••••••••••</text>
+
+  <text x="210" y="574" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Settlement currency *</text>
+  <rect x="210" y="586" width="860" height="42" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="226" y="612" font-family="Arial, sans-serif" font-size="14" fill="#111827">CNY (fixed)</text>
+
+  <text x="210" y="668" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Notification URL *</text>
+  <rect x="210" y="680" width="860" height="42" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="226" y="706" font-family="Arial, sans-serif" font-size="13" fill="#334155">https://www.jisudeng.com/api/v1/payment/webhook/bepusdt</text>
+
+  <text x="210" y="756" font-family="Arial, sans-serif" font-size="13" fill="#64748b">Return URL *</text>
+  <rect x="210" y="768" width="610" height="42" rx="7" fill="#ffffff" stroke="#cbd5e1"/>
+  <text x="226" y="794" font-family="Arial, sans-serif" font-size="13" fill="#334155">https://www.jisudeng.com/payment/result</text>
+  <rect x="930" y="768" width="140" height="42" rx="7" fill="#2563eb"/>
+  <text x="976" y="794" font-family="Arial, sans-serif" font-size="14" font-weight="600" fill="#ffffff">Save</text>
+</svg>

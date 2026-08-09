@@ -2,7 +2,10 @@
 // registry, load balancing, and shared utilities for the payment subsystem.
 package payment
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 // PaymentType represents a supported payment method.
 type PaymentType = string
@@ -18,6 +21,7 @@ const (
 	TypeLink         PaymentType = "link"
 	TypeEasyPay      PaymentType = "easypay"
 	TypeAirwallex    PaymentType = "airwallex"
+	TypeBepusdt      PaymentType = "bepusdt"
 )
 
 // Order status constants shared across payment and service layers.
@@ -86,6 +90,8 @@ func GetBasePaymentType(t string) string {
 		return TypeEasyPay
 	case t == TypeAirwallex:
 		return TypeAirwallex
+	case t == TypeBepusdt:
+		return TypeBepusdt
 	case t == TypeStripe || t == TypeCard || t == TypeLink:
 		return TypeStripe
 	case len(t) >= len(TypeAlipay) && t[:len(TypeAlipay)] == TypeAlipay:
@@ -99,15 +105,16 @@ func GetBasePaymentType(t string) string {
 
 // CreatePaymentRequest holds the parameters for creating a new payment.
 type CreatePaymentRequest struct {
-	OrderID     string // Internal order ID
-	Amount      string // 支付金额，按服务商实例配置的币种解释
-	PaymentType string // e.g. "alipay", "wxpay", "stripe"
-	Subject     string // Product description
-	NotifyURL   string // Webhook callback URL
-	ReturnURL   string // Browser redirect URL after payment
-	OpenID      string // WeChat JSAPI payer OpenID when available
-	ClientIP    string // Payer's IP address
-	IsMobile    bool   // Whether the request comes from a mobile device
+	OrderID     string    // Internal order ID
+	Amount      string    // 支付金额，按服务商实例配置的币种解释
+	PaymentType string    // e.g. "alipay", "wxpay", "stripe"
+	Subject     string    // Product description
+	ExpiresAt   time.Time // Local order expiry; providers should align their checkout timeout when supported
+	NotifyURL   string    // Webhook callback URL
+	ReturnURL   string    // Browser redirect URL after payment
+	OpenID      string    // WeChat JSAPI payer OpenID when available
+	ClientIP    string    // Payer's IP address
+	IsMobile    bool      // Whether the request comes from a mobile device
 	// AlipayMobilePrecreate routes a mobile Alipay request through
 	// alipay.trade.precreate instead of alipay.trade.wap.pay.
 	AlipayMobilePrecreate bool

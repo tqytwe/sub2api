@@ -439,6 +439,9 @@ func buildPaymentOrderProviderSnapshot(sel *payment.InstanceSelection, req Creat
 		}
 		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
 	}
+	if providerKey == payment.TypeBepusdt {
+		snapshot["currency"] = paymentProviderConfigCurrency(providerKey, sel.Config)
+	}
 
 	if len(snapshot) == 1 {
 		return nil
@@ -607,7 +610,7 @@ func (s *PaymentService) invokeProvider(ctx context.Context, order *dbent.Paymen
 		ClientIP:    req.ClientIP,
 		IsMobile:    req.IsMobile,
 		ReturnURL:   providerReturnURL,
-	}, sel, outTradeNo, payAmountStr, subject)
+	}, sel, outTradeNo, payAmountStr, subject, order.ExpiresAt)
 	providerReq.AlipayMobilePrecreate = shouldUseAlipayMobilePrecreate(req, cfg, sel)
 	finishProviderCall := servertiming.ObserveDependency(ctx, "payment")
 	pr, err := prov.CreatePayment(ctx, providerReq)
@@ -699,12 +702,13 @@ func removePostgresTextNUL(value string) string {
 	return strings.ReplaceAll(value, "\x00", "")
 }
 
-func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.InstanceSelection, orderID, amount, subject string) payment.CreatePaymentRequest {
+func buildProviderCreatePaymentRequest(req CreateOrderRequest, sel *payment.InstanceSelection, orderID, amount, subject string, expiresAt time.Time) payment.CreatePaymentRequest {
 	return payment.CreatePaymentRequest{
 		OrderID:            orderID,
 		Amount:             amount,
 		PaymentType:        req.PaymentType,
 		Subject:            subject,
+		ExpiresAt:          expiresAt,
 		ReturnURL:          req.ReturnURL,
 		OpenID:             strings.TrimSpace(req.OpenID),
 		ClientIP:           req.ClientIP,
