@@ -14,8 +14,12 @@ const locationState = { href: 'http://localhost/login' }
 vi.mock('vue-router', () => ({
   useRouter: () => ({
     currentRoute: { value: { query: {} } },
-    push: vi.fn()
-  })
+    push: vi.fn(),
+    replace: vi.fn()
+  }),
+  // No query parameters, so the forum SSO resume watcher stays inert and these
+  // captcha assertions exercise the ordinary login path.
+  useRoute: () => ({ path: '/login', query: {} })
 }))
 
 vi.mock('vue-i18n', async () => {
