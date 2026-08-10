@@ -1051,6 +1051,7 @@ var ProviderSet = wire.NewSet(
 	NewPromptLibraryService,
 	ProvideImageStudioService,
 	ProvidePlayGrowthRunner,
+	NewForumSSOService,
 )
 
 func ProvideMobilePushWorker(push *MobilePushService, cfg config.MobilePushConfig) *MobilePushWorker {
