@@ -102,6 +102,44 @@ type Config struct {
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageAsync              ImageAsyncConfig              `mapstructure:"image_async"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	ForumSSO                ForumSSOConfig                `mapstructure:"forum_sso"`
+}
+
+// ForumSSOConfig configures this platform as the OAuth2 provider for the NodeBB
+// community forum, which runs on its own domain and treats us as its identity
+// source, wallet and VIP authority.
+//
+// The forum is a confidential client: it holds ClientSecret and calls the token
+// endpoint server-to-server. RedirectURLs is an exact-match allowlist because a
+// loose redirect_uri check on an authorization endpoint hands out auth codes to
+// whoever asks.
+type ForumSSOConfig struct {
+	Enabled      bool   `mapstructure:"enabled"`
+	ClientID     string `mapstructure:"client_id"`
+	ClientSecret string `mapstructure:"client_secret"`
+	// RedirectURLs is a comma-separated exact-match allowlist of permitted
+	// redirect_uri values, e.g.
+	// "https://jisudengbbs.zeabur.app/auth/sub2api/callback".
+	RedirectURLs string `mapstructure:"redirect_urls"`
+	// ForumBaseURL is where outbound webhooks are delivered, e.g.
+	// "https://jisudengbbs.zeabur.app". Must match the forum's own NODEBB_URL.
+	ForumBaseURL string `mapstructure:"forum_base_url"`
+	// WebhookSecret is the HMAC-SHA256 key shared with the forum plugin
+	// (NODEBB_SSO_WEBHOOK_SECRET there). Outbound webhooks are unsigned-rejected
+	// by the forum without it.
+	WebhookSecret string `mapstructure:"webhook_secret"`
+	// LoginPagePath is the frontend route that completes an authorize request
+	// when the browser arrives without a platform session.
+	LoginPagePath string `mapstructure:"login_page_path"`
+	// AuthCodeTTLSeconds bounds how long an issued authorization code stays
+	// redeemable. RFC 6749 §4.1.2 recommends a maximum of 10 minutes; codes are
+	// single-use regardless.
+	AuthCodeTTLSeconds int `mapstructure:"auth_code_ttl_seconds"`
+	// AccessTokenTTLSeconds bounds the SSO access token handed to the forum.
+	// This token is scoped to the /api/v1/sso/* endpoints only; it is
+	// deliberately NOT a platform JWT, so the forum never holds a credential
+	// that can drive the rest of the API.
+	AccessTokenTTLSeconds int `mapstructure:"access_token_ttl_seconds"`
 }
 
 type LogConfig struct {
@@ -2590,6 +2628,19 @@ func setEnvReachableDefaults() {
 		viper.SetDefault(provider+".redirect_url", "")
 		viper.SetDefault(provider+".frontend_redirect_url", "")
 	}
+
+	// Community forum SSO. The forum is deployed separately and injects the
+	// matching values as its own env vars, so every key here must be reachable
+	// from the environment (FORUM_SSO_CLIENT_SECRET and friends).
+	viper.SetDefault("forum_sso.enabled", false)
+	viper.SetDefault("forum_sso.client_id", "")
+	viper.SetDefault("forum_sso.client_secret", "")
+	viper.SetDefault("forum_sso.redirect_urls", "")
+	viper.SetDefault("forum_sso.forum_base_url", "")
+	viper.SetDefault("forum_sso.webhook_secret", "")
+	viper.SetDefault("forum_sso.login_page_path", "/login")
+	viper.SetDefault("forum_sso.auth_code_ttl_seconds", 60)
+	viper.SetDefault("forum_sso.access_token_ttl_seconds", 2592000)
 
 	viper.SetDefault("dingtalk_connect.client_id", "")
 	viper.SetDefault("dingtalk_connect.client_secret", "")

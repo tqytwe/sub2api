@@ -265,6 +265,7 @@ func ProvideHandlers(
 	mobileDeviceHandler *MobileDeviceHandler,
 	mobileAttributionHandler *MobileAttributionHandler,
 	mobileWebSearchHandler *MobileWebSearchHandler,
+	forumSSOHandler *ForumSSOHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -303,6 +304,7 @@ func ProvideHandlers(
 		MobileDevice:      mobileDeviceHandler,
 		MobileAttribution: mobileAttributionHandler,
 		MobileWebSearch:   mobileWebSearchHandler,
+		ForumSSO:          forumSSOHandler,
 	}
 }
 
@@ -379,6 +381,7 @@ var ProviderSet = wire.NewSet(
 	ProvideMobileDeviceHandler,
 	NewMobileAttributionHandler,
 	NewMobileWebSearchHandlerFromEnvironment,
+	NewForumSSOHandler,
 	ProvideMobileAttributionEventService,
 	ProvideMobileAttributionAdminService,
 
