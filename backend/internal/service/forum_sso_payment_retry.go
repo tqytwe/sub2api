@@ -3,11 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"log"
 	"strconv"
 	"sync"
 	"time"
 
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -64,7 +64,7 @@ func (s *ForumSSOService) enqueuePaymentCallbackRetry(order *ForumOrderResult, u
 	}
 	raw, err := json.Marshal(job)
 	if err != nil {
-		log.Printf("[forum-sso] failed to marshal payment retry job: %v", err)
+		logger.LegacyPrintf("forum-sso", "failed to marshal payment retry job: %v", err)
 		return
 	}
 	nextRun := s.now().Add(forumPaymentRetryInitial)
@@ -74,7 +74,7 @@ func (s *ForumSSOService) enqueuePaymentCallbackRetry(order *ForumOrderResult, u
 		Score:  float64(nextRun.Unix()),
 		Member: string(raw),
 	}).Err(); err != nil {
-		log.Printf("[forum-sso] failed to enqueue payment retry job order_id=%s: %v", job.OrderID, err)
+		logger.LegacyPrintf("forum-sso", "failed to enqueue payment retry job order_id=%s: %v", job.OrderID, err)
 	}
 }
 
@@ -94,8 +94,8 @@ func retryBackoff(attempt int) time.Duration {
 // callbacks. Wire it like MobilePushWorker: construct, Start(), register Stop()
 // in provideCleanup.
 type ForumPaymentRetryWorker struct {
-	svc  *ForumSSOService
-	mu   sync.Mutex
+	svc    *ForumSSOService
+	mu     sync.Mutex
 	cancel context.CancelFunc
 	done   chan struct{}
 }
@@ -189,14 +189,14 @@ func (w *ForumPaymentRetryWorker) runOnce(ctx context.Context) (int, error) {
 func (w *ForumPaymentRetryWorker) processOne(ctx context.Context, raw string, now time.Time) {
 	var job forumPaymentRetryJob
 	if err := json.Unmarshal([]byte(raw), &job); err != nil {
-		log.Printf("[forum-sso] payment retry: malformed job, dropping: %v", err)
+		logger.LegacyPrintf("forum-sso", "payment retry: malformed job, dropping: %v", err)
 		w.svc.redis.ZRem(ctx, forumPaymentRetryKey, raw)
 		return
 	}
 
 	// Drop jobs that have been retrying longer than forumPaymentRetryMaxAge.
 	if now.Unix()-job.EnqueueAt > int64(forumPaymentRetryMaxAge.Seconds()) {
-		log.Printf("[forum-sso] payment retry: giving up on order_id=%s after %s", job.OrderID, forumPaymentRetryMaxAge)
+		logger.LegacyPrintf("forum-sso", "payment retry: giving up on order_id=%s after %s", job.OrderID, forumPaymentRetryMaxAge)
 		w.svc.redis.ZRem(ctx, forumPaymentRetryKey, raw)
 		return
 	}
@@ -212,11 +212,11 @@ func (w *ForumPaymentRetryWorker) processOne(ctx context.Context, raw string, no
 	defer cancel()
 	err := w.svc.SendForumPaymentCallback(callCtx, job.UserID, order, job.ItemID, job.ItemType)
 	if err == nil {
-		log.Printf("[forum-sso] payment retry: delivered order_id=%s attempt=%d", job.OrderID, job.Attempt)
+		logger.LegacyPrintf("forum-sso", "payment retry: delivered order_id=%s attempt=%d", job.OrderID, job.Attempt)
 		return
 	}
 
-	log.Printf("[forum-sso] payment retry: attempt %d failed for order_id=%s: %v", job.Attempt, job.OrderID, err)
+	logger.LegacyPrintf("forum-sso", "payment retry: attempt %d failed for order_id=%s: %v", job.Attempt, job.OrderID, err)
 
 	// Re-enqueue with exponential backoff.
 	job.Attempt++

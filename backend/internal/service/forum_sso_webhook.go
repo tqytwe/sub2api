@@ -7,11 +7,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
 )
 
 // Outbound webhooks to the forum.
@@ -134,7 +135,7 @@ func (s *ForumSSOService) deliverAsync(path string, payload map[string]any, labe
 			time.Duration(forumWebhookMaxAttempts)*(forumWebhookTimeout+2*time.Second))
 		defer cancel()
 		if err := s.postSignedWebhook(ctx, path, payload); err != nil {
-			log.Printf("[forum-sso] %s webhook failed: %v", label, err)
+			logger.LegacyPrintf("forum-sso", "%s webhook failed: %v", label, err)
 		}
 	}()
 }

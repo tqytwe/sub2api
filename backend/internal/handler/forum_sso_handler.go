@@ -353,9 +353,17 @@ func redirectWithOAuthError(c *gin.Context, redirectURI, state, code, descriptio
 }
 
 // resolveAuthenticatedUser looks for a platform session on a browser navigation.
-// Falls back to the short-lived HttpOnly cookie the SPA can set via
-// /api/v1/auth/oauth/bind-token, mirroring how the existing third-party OAuth
-// bind flows authenticate a top-level GET.
+// Three sources, in precedence order:
+//  1. an auth subject already placed in context by upstream middleware;
+//  2. an Authorization: Bearer panel JWT, for non-browser clients (native app,
+//     server-side agent) that cannot ride the SPA's cookie handoff and would
+//     otherwise be bounced to an HTML login page they cannot render;
+//  3. the short-lived HttpOnly cookie the SPA sets via
+//     /api/v1/auth/oauth/bind-token, mirroring the third-party OAuth bind flows.
+//
+// The Bearer and cookie branches validate the JWT identically, so neither is
+// weaker than the other; a disabled account is still rejected downstream in
+// BuildUserInfo before any forum session is opened.
 func (h *ForumSSOHandler) resolveAuthenticatedUser(c *gin.Context) (int64, bool) {
 	if subject, ok := servermiddleware.GetAuthSubjectFromContext(c); ok && subject.UserID > 0 {
 		return subject.UserID, true
@@ -364,12 +372,43 @@ func (h *ForumSSOHandler) resolveAuthenticatedUser(c *gin.Context) (int64, bool)
 		return 0, false
 	}
 
+	// An explicit Bearer credential wins over the cookie: a client that bothered
+	// to attach one is asking to authenticate as that token's subject.
+	if userID, ok := h.userFromBearer(c); ok {
+		return userID, true
+	}
+
 	cookie, err := c.Request.Cookie(oauthBindAccessTokenCookieName)
 	if err != nil {
 		return 0, false
 	}
 	tokenString, err := url.QueryUnescape(strings.TrimSpace(cookie.Value))
 	if err != nil || tokenString == "" {
+		return 0, false
+	}
+	return h.userFromPanelToken(tokenString)
+}
+
+// userFromBearer validates a panel JWT presented in the Authorization: Bearer
+// header and returns the bound user ID. Absent or malformed headers are a soft
+// miss, not an error, so the caller can fall through to the cookie.
+func (h *ForumSSOHandler) userFromBearer(c *gin.Context) (int64, bool) {
+	authHeader := strings.TrimSpace(c.GetHeader("Authorization"))
+	if authHeader == "" {
+		return 0, false
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
+		return 0, false
+	}
+	return h.userFromPanelToken(strings.TrimSpace(parts[1]))
+}
+
+// userFromPanelToken validates a panel JWT string and returns the bound user ID.
+// Shared by the Bearer and cookie branches so both enforce exactly the same
+// checks.
+func (h *ForumSSOHandler) userFromPanelToken(tokenString string) (int64, bool) {
+	if tokenString == "" || h.authService == nil {
 		return 0, false
 	}
 	claims, err := h.authService.ValidateToken(tokenString)

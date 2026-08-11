@@ -142,6 +142,16 @@ func (s *ForumSSOService) LoginPagePath() string {
 	return "/login"
 }
 
+// userLanguage is the locale stamped into the userinfo document. The platform
+// has no per-user locale, so it is a deployment-wide default; an empty config
+// value falls back to "zh-CN", the historical hardcoded value.
+func (s *ForumSSOService) userLanguage() string {
+	if lang := strings.TrimSpace(s.conf().UserLanguage); lang != "" {
+		return lang
+	}
+	return "zh-CN"
+}
+
 func (s *ForumSSOService) codeTTL() time.Duration {
 	if ttl := s.conf().AuthCodeTTLSeconds; ttl > 0 {
 		return time.Duration(ttl) * time.Second
@@ -447,7 +457,7 @@ func (s *ForumSSOService) BuildUserInfo(ctx context.Context, userID int64) (*For
 		RechargeBonusPct: vip.RechargeBonusPct,
 		Role:             user.Role,
 		Groups:           groups,
-		Language:         "zh-CN",
+		Language:         s.userLanguage(),
 	}, nil
 }
 
