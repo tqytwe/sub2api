@@ -307,6 +307,20 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		}
 	}
 
+	// 封号：吊销该用户在论坛的所有 SSO token，防止已持有 token 的用户在禁用
+	// 生效后继续访问论坛（最长可达 30 天）。异步执行，不阻塞后台操作。
+	if user.Status != oldStatus && user.Status == StatusDisabled && s.tokenRevoker != nil {
+		revoker := s.tokenRevoker
+		userID := user.ID
+		go func() {
+			revokeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := revoker.RevokeUserTokens(revokeCtx, userID); err != nil {
+				logger.LegacyPrintf("service.admin", "forum SSO token revocation failed: user_id=%d err=%v", userID, err)
+			}
+		}()
+	}
+
 	// 同步用户专属分组倍率
 	if input.GroupRates != nil && s.userGroupRateRepo != nil {
 		if err := s.userGroupRateRepo.SyncUserGroupRates(ctx, user.ID, input.GroupRates); err != nil {
@@ -408,6 +422,19 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 			}
 		}
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
+	}
+
+	// 删除账号：吊销该用户在论坛的所有 SSO token，防止已持有 token 的用户
+	// 在账号删除后继续访问论坛。异步执行，不阻塞删除操作。
+	if s.tokenRevoker != nil {
+		revoker := s.tokenRevoker
+		go func() {
+			revokeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := revoker.RevokeUserTokens(revokeCtx, id); err != nil {
+				logger.LegacyPrintf("service.admin", "forum SSO token revocation failed after delete: user_id=%d err=%v", id, err)
+			}
+		}()
 	}
 	return nil
 }

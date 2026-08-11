@@ -440,3 +440,294 @@ func TestForumSSOServiceSatisfiesObserverInterfaces(t *testing.T) {
 		svc.NotifyRoleChanged(1, RoleAdmin)
 	})
 }
+
+// ---------------------------------------------------------------------------
+// Fix #5: deliverAsync 重试 context — 只做静态断言，实际 HTTP 交互在
+// forum_sso_sign_test.go 的跨实现 pin 测试中覆盖。
+// ---------------------------------------------------------------------------
+
+func TestDeliverAsyncContextIsWideEnoughForAllAttempts(t *testing.T) {
+	t.Parallel()
+	// 总预算 = maxAttempts × (httpTimeout + 2s)，必须 > httpTimeout（单次）。
+	total := time.Duration(forumWebhookMaxAttempts) * (forumWebhookTimeout + 2*time.Second)
+	require.Greater(t, total, forumWebhookTimeout,
+		"每次重试都应有足够的 context 预算")
+	// 应为两次完整超时 + margin，而不仅仅是一次超时加一点儿。
+	require.GreaterOrEqual(t, total, 2*forumWebhookTimeout,
+		"重试预算应覆盖至少两次完整请求超时")
+}
+
+// ---------------------------------------------------------------------------
+// Fix #6: AlreadyPaid — BalanceTransaction.Replayed 标志在幂等重放时设置。
+// ---------------------------------------------------------------------------
+
+func TestBalanceLedgerIdempotentReplaySetsReplayedFlag(t *testing.T) {
+	t.Parallel()
+
+	db, mock := newBalanceLedgerSQLMock(t)
+	defer func() { _ = db.Close() }()
+
+	createdAt := time.Date(2026, 8, 11, 10, 0, 0, 0, time.UTC)
+	svc := &BalanceLedgerService{db: db, now: func() time.Time { return createdAt }}
+
+	// 首次应用
+	expectRechargeApply(mock, createdAt)
+	first := applyRecharge(t, svc)
+	require.False(t, first.Replayed, "首次应用不是重放")
+
+	// 幂等重放：同一 idempotency key 返回已有交易
+	mock.ExpectBegin()
+	mock.ExpectQuery(balanceLedgerSelectByKeyPattern()).
+		WithArgs(int64(42), "payment_recharge:42:order-9101").
+		WillReturnRows(balanceTransactionRows().AddRow(
+			int64(9101), int64(42), 25.0, 10.0, 35.0, 0.0, 0.0, 0.0,
+			0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+			BalanceFlowTypePaymentRecharge, "order-9101", "payment_recharge:42:order-9101", "system", nil,
+			"在线充值", `{}`, false, "high", createdAt,
+		))
+	mock.ExpectCommit()
+
+	second := applyRecharge(t, svc)
+	require.True(t, second.Replayed, "幂等重放应设置 Replayed = true")
+	require.Equal(t, first.ID, second.ID, "重放应返回同一交易 ID")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
+// ---------------------------------------------------------------------------
+// Fix #4: 封号/删除吊销 SSO token —— 使用 tokenRevokerStub 验证接缝。
+// ---------------------------------------------------------------------------
+
+type tokenRevokerStub struct {
+	revokedUserIDs []int64
+	err            error
+}
+
+func (s *tokenRevokerStub) RevokeUserTokens(_ context.Context, userID int64) error {
+	s.revokedUserIDs = append(s.revokedUserIDs, userID)
+	return s.err
+}
+
+// waitForRevocations 等待 tokenRevokerStub 收到 n 次吊销，超时则 fail。
+func waitForRevocations(t *testing.T, stub *tokenRevokerStub, n int) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if len(stub.revokedUserIDs) >= n {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatalf("expected %d token revocations, got %d", n, len(stub.revokedUserIDs))
+}
+
+func TestAdminServiceRevokesForumTokenOnDisable(t *testing.T) {
+	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", Role: RoleUser, Status: StatusActive}}
+	repo := &rpmUserRepoStub{userRepoStub: base}
+	revoker := &tokenRevokerStub{}
+	svc := &adminServiceImpl{
+		userRepo:       repo,
+		redeemCodeRepo: &redeemRepoStub{},
+	}
+	svc.SetTokenRevoker(revoker)
+
+	disabled := StatusDisabled
+	_, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{Status: disabled})
+	require.NoError(t, err)
+
+	waitForRevocations(t, revoker, 1)
+	require.Equal(t, []int64{42}, revoker.revokedUserIDs, "封号应吊销论坛 token")
+}
+
+func TestAdminServiceDoesNotRevokeTokenWhenStatusUnchanged(t *testing.T) {
+	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", Role: RoleUser, Status: StatusActive}}
+	repo := &rpmUserRepoStub{userRepoStub: base}
+	revoker := &tokenRevokerStub{}
+	svc := &adminServiceImpl{
+		userRepo:       repo,
+		redeemCodeRepo: &redeemRepoStub{},
+	}
+	svc.SetTokenRevoker(revoker)
+
+	// 仅改用户名，状态不变
+	newName := "renamed"
+	_, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{Username: &newName})
+	require.NoError(t, err)
+
+	// 等待一段时间确认没有异步吊销
+	time.Sleep(50 * time.Millisecond)
+	require.Empty(t, revoker.revokedUserIDs, "仅改名不应吊销论坛 token")
+}
+
+func TestAdminServiceDoesNotRevokeTokenWhenReenabling(t *testing.T) {
+	// 恢复账号（disabled → active）不应触发吊销
+	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", Role: RoleUser, Status: StatusDisabled}}
+	repo := &rpmUserRepoStub{userRepoStub: base}
+	revoker := &tokenRevokerStub{}
+	svc := &adminServiceImpl{
+		userRepo:       repo,
+		redeemCodeRepo: &redeemRepoStub{},
+	}
+	svc.SetTokenRevoker(revoker)
+
+	_, err := svc.UpdateUser(context.Background(), 42, &UpdateUserInput{Status: StatusActive})
+	require.NoError(t, err)
+
+	time.Sleep(50 * time.Millisecond)
+	require.Empty(t, revoker.revokedUserIDs, "解封不应吊销论坛 token")
+}
+
+func TestAdminServiceRevokesForumTokenOnDelete(t *testing.T) {
+	repo := &userRepoStub{user: &User{ID: 55, Role: RoleUser}}
+	revoker := &tokenRevokerStub{}
+	svc := &adminServiceImpl{
+		userRepo:       repo,
+		redeemCodeRepo: &redeemRepoStub{},
+	}
+	svc.SetTokenRevoker(revoker)
+
+	err := svc.DeleteUser(context.Background(), 55)
+	require.NoError(t, err)
+
+	waitForRevocations(t, revoker, 1)
+	require.Equal(t, []int64{55}, revoker.revokedUserIDs, "删除账号应吊销论坛 token")
+}
+
+func TestAdminServiceNoTokenRevokerIsNoop(t *testing.T) {
+	// 未注册 tokenRevoker 时不能 panic
+	base := &userRepoStub{user: &User{ID: 42, Email: "u@example.com", Role: RoleUser, Status: StatusActive}}
+	repo := &rpmUserRepoStub{userRepoStub: base}
+	svc := &adminServiceImpl{userRepo: repo, redeemCodeRepo: &redeemRepoStub{}}
+
+	disabled := StatusDisabled
+	require.NotPanics(t, func() {
+		_, _ = svc.UpdateUser(context.Background(), 42, &UpdateUserInput{Status: disabled})
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Fix #7: PublishVIPConfig 批量通知论坛。
+// ---------------------------------------------------------------------------
+
+// publishVIPConfigAdminRepo 实现 PlayMembershipAdminRepository + PlayRepository
+// 只提供 PublishVIPConfig 路径所需的方法，其余全部 panic。
+type publishVIPConfigAdminRepo struct {
+	vipSyncMembershipRepo                          // embeds base PlayRepository stubs
+	version                int64
+	totals                 map[int64]decimal.Decimal
+	publishedVersion       int64
+}
+
+func (r *publishVIPConfigAdminRepo) GetVIPConfigVersion(_ context.Context) (int64, error) {
+	return r.version, nil
+}
+
+func (r *publishVIPConfigAdminRepo) ListMembershipPaidTotals(_ context.Context) (map[int64]decimal.Decimal, error) {
+	return r.totals, nil
+}
+
+func (r *publishVIPConfigAdminRepo) PublishVIPConfig(_ context.Context, expectedVersion, _ int64, _, _ string, _, _, _ int, _ []PlayMembershipTierChange) (int64, error) {
+	r.publishedVersion = expectedVersion + 1
+	return r.publishedVersion, nil
+}
+
+// Stub methods required by PlayMembershipAdminRepository interface but not needed for this test path.
+func (r *publishVIPConfigAdminRepo) MembershipAdminOverview(_ context.Context, _ float64) (int, decimal.Decimal, error) {
+	return 0, decimal.Zero, nil
+}
+func (r *publishVIPConfigAdminRepo) ListMembershipAdminRows(_ context.Context, _ string, _ *bool, _ float64, _, _ int) ([]PlayMembershipAdminRow, int, error) {
+	return nil, 0, nil
+}
+func (r *publishVIPConfigAdminRepo) GetMembershipAdminRow(_ context.Context, _ int64) (*PlayMembershipAdminRow, error) {
+	return nil, nil
+}
+func (r *publishVIPConfigAdminRepo) ListMembershipContributions(_ context.Context, _ int64, _ int) ([]PlayMembershipContribution, error) {
+	return nil, nil
+}
+func (r *publishVIPConfigAdminRepo) ListMembershipTierHistory(_ context.Context, _ int64, _ int) ([]PlayMembershipTierChange, error) {
+	return nil, nil
+}
+func (r *publishVIPConfigAdminRepo) CountRecentMembershipTierChanges(_ context.Context, _ time.Time) (int, int, error) {
+	return 0, 0, nil
+}
+func (r *publishVIPConfigAdminRepo) RecordMembershipTierChange(_ context.Context, _ PlayMembershipTierChange) error {
+	return nil
+}
+
+func TestPublishVIPConfigNotifiesForumForAffectedUsers(t *testing.T) {
+	t.Parallel()
+
+	observer := &vipChangeObserverStub{}
+	// user 1: 100 元 → V2 under default tiers; user 2: 10 元 → V0 (unchanged in new cfg).
+	// New tiers move V1 threshold from 50→80, so user 1 stays V2, user 2 stays V0.
+	// To get a tier change: user 3 at 60 元 goes V1→V0 when V1 threshold moves to 80.
+	totals := map[int64]decimal.Decimal{
+		1: decimal.NewFromFloat(100), // V2 → V2 (unchanged)
+		2: decimal.NewFromFloat(10),  // V0 → V0 (unchanged)
+		3: decimal.NewFromFloat(60),  // V1 → V0 (downgraded)
+	}
+	repo := &publishVIPConfigAdminRepo{
+		version: 1,
+		totals:  totals,
+	}
+	svc := &PlayService{
+		repo:     repo,
+		userRepo: &userRepoStub{user: &User{ID: 3, Role: RoleUser}},
+	}
+	svc.SetVIPChangeObserver(observer)
+
+	// New tiers: V1 threshold = 80 (was 50), so user 3 at 60 moves V1 → V0.
+	newTiers := []PlayVIPTier{
+		{Tier: 0, Label: "V0", MinRecharge: 0, RechargeBonusPct: 0, ColorKey: "neutral"},
+		{Tier: 1, Label: "V1", MinRecharge: 80, RechargeBonusPct: 2, ColorKey: "emerald"},
+		{Tier: 2, Label: "V2", MinRecharge: 100, RechargeBonusPct: 4, ColorKey: "sky"},
+	}
+	_, err := svc.PublishVIPConfig(context.Background(), newTiers, 1, 99,
+		"raise V1 threshold for testing purposes ok")
+	require.NoError(t, err)
+
+	require.Len(t, observer.calls, 1, "应通知受档位影响的用户（user 3）")
+	require.Equal(t, int64(3), observer.calls[0].userID)
+	require.Equal(t, 0, observer.calls[0].vip.Tier, "user 3 应降到 V0")
+}
+
+func TestPublishVIPConfigSkipsForumWhenNoUsersAffected(t *testing.T) {
+	t.Parallel()
+
+	observer := &vipChangeObserverStub{}
+	// totals empty → no users to affect
+	repo := &publishVIPConfigAdminRepo{version: 1, totals: map[int64]decimal.Decimal{}}
+	svc := &PlayService{repo: repo}
+	svc.SetVIPChangeObserver(observer)
+
+	_, err := svc.PublishVIPConfig(context.Background(), defaultPlayVIPTiers(), 1, 99,
+		"no users in the system at all this is a test")
+	require.NoError(t, err)
+	require.Empty(t, observer.calls, "无受影响用户时不应通知论坛")
+}
+
+// ---------------------------------------------------------------------------
+// Fix #8: retryBackoff — 指数退避不超过上限。
+// ---------------------------------------------------------------------------
+
+func TestRetryBackoffExponentialCappedAtMax(t *testing.T) {
+	t.Parallel()
+
+	prev := retryBackoff(1)
+	require.Equal(t, forumPaymentRetryInitial, prev, "第一次重试应使用初始间隔")
+
+	for attempt := 2; attempt <= 10; attempt++ {
+		d := retryBackoff(attempt)
+		require.LessOrEqual(t, d, forumPaymentRetryMax, "退避不应超过上限")
+		if prev < forumPaymentRetryMax {
+			require.Greater(t, d, prev, "未到上限前应递增")
+		}
+		prev = d
+	}
+}
+
+func TestForumSSOServiceSatisfiesForumTokenRevoker(t *testing.T) {
+	t.Parallel()
+	// ForumSSOService 现在同时实现三个观察者接口和 forumTokenRevoker。
+	var _ forumTokenRevoker = (*ForumSSOService)(nil)
+}
+

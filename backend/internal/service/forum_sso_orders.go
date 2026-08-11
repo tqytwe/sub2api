@@ -140,6 +140,7 @@ func (s *ForumSSOService) CreateForumOrder(ctx context.Context, userID int64, re
 		Status:        "paid",
 		Amount:        amount.StringFixed(2),
 		TransactionID: txn.ID,
+		AlreadyPaid:   txn.Replayed,
 	}
 	if txn.BalanceAfter != nil {
 		result.BalanceAfter = formatForumMoney(*txn.BalanceAfter)

@@ -248,6 +248,10 @@ func (h *ForumSSOHandler) CreateOrder(c *gin.Context) {
 	// synchronously and its outcome reported. The forum is idempotent on
 	// order_id, so a retry cannot double-grant.
 	if err := h.sso.SendForumPaymentCallback(c.Request.Context(), userID, order, req.ItemID, req.ItemType); err != nil {
+		// Persist a retry job so the callback is re-attempted in the background.
+		// The user's wallet is already debited; this ensures the entitlement
+		// eventually lands without requiring user action.
+		h.sso.EnqueuePaymentCallbackRetry(order, userID, req.ItemID, req.ItemType)
 		// Deliberately still 200: the charge succeeded and the forum reconciles
 		// on retry. Reporting a failure here would invite the forum to re-POST
 		// and confuse the user about whether they paid.
@@ -257,6 +261,7 @@ func (h *ForumSSOHandler) CreateOrder(c *gin.Context) {
 			"amount":         order.Amount,
 			"balance_after":  order.BalanceAfter,
 			"transaction_id": order.TransactionID,
+			"already_paid":   order.AlreadyPaid,
 			"grant_pending":  true,
 		})
 		return
@@ -268,6 +273,7 @@ func (h *ForumSSOHandler) CreateOrder(c *gin.Context) {
 		"amount":         order.Amount,
 		"balance_after":  order.BalanceAfter,
 		"transaction_id": order.TransactionID,
+		"already_paid":   order.AlreadyPaid,
 		"grant_pending":  false,
 	})
 }
