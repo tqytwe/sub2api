@@ -140,6 +140,11 @@ type ForumSSOConfig struct {
 	// deliberately NOT a platform JWT, so the forum never holds a credential
 	// that can drive the rest of the API.
 	AccessTokenTTLSeconds int `mapstructure:"access_token_ttl_seconds"`
+	// UserLanguage is the BCP-47 locale reported in the userinfo document, which
+	// the forum plugin applies as the NodeBB account language on first sync. The
+	// platform has no per-user locale, so this is a deployment-wide default;
+	// empty falls back to "zh-CN" to preserve the pre-config behaviour.
+	UserLanguage string `mapstructure:"user_language"`
 }
 
 type LogConfig struct {
@@ -2641,6 +2646,7 @@ func setEnvReachableDefaults() {
 	viper.SetDefault("forum_sso.login_page_path", "/login")
 	viper.SetDefault("forum_sso.auth_code_ttl_seconds", 60)
 	viper.SetDefault("forum_sso.access_token_ttl_seconds", 2592000)
+	viper.SetDefault("forum_sso.user_language", "zh-CN")
 
 	viper.SetDefault("dingtalk_connect.client_id", "")
 	viper.SetDefault("dingtalk_connect.client_secret", "")
