@@ -409,7 +409,9 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicHomeStatsRepository := repository.NewPublicHomeStatsRepository(db)
 	publicHomeStatsService := service.NewPublicHomeStatsService(publicHomeStatsRepository)
 	mobilePushWorker := service.ProvideMobilePushWorker(mobilePushService, mobilePushConfig)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker)
+	forumPaymentRetryWorker := service.NewForumPaymentRetryWorker(forumSSOService)
+	forumPaymentRetryWorker.Start()
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker, forumPaymentRetryWorker)
 	application := &Application{
 		Server:      httpServer,
 		PromptAudit: promptService,
@@ -487,6 +489,7 @@ func provideCleanup(
 	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
 	mobilePushWorker *service.MobilePushWorker,
+	forumPaymentRetryWorker *service.ForumPaymentRetryWorker,
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
 	return func() {
@@ -502,6 +505,12 @@ func provideCleanup(
 			{"MobilePushWorker", func() error {
 				if mobilePushWorker != nil {
 					mobilePushWorker.Stop()
+				}
+				return nil
+			}},
+			{"ForumPaymentRetryWorker", func() error {
+				if forumPaymentRetryWorker != nil {
+					forumPaymentRetryWorker.Stop()
 				}
 				return nil
 			}},

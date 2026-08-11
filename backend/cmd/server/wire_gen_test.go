@@ -100,6 +100,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // ipRisk
 		nil, // promptAudit
 		nil, // mobilePushWorker
+		nil, // forumPaymentRetryWorker
 	)
 
 	require.NotPanics(t, func() {

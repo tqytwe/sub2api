@@ -217,6 +217,18 @@ func (s *PlayService) PublishVIPConfig(ctx context.Context, requested []PlayVIPT
 		return nil, err
 	}
 	impact.Version = version
+
+	// 档位配置变更后，批量通知论坛受影响用户的新档位。
+	// 异步投递：ForumSSOService.NotifyVIPChanged 内部已用 goroutine，
+	// 这里在调用方 goroutine 中串行触发，避免在 PublishVIPConfig 路径上并发
+	// 爆出大量 goroutine（变更通常为批量管理操作，并发数量可控）。
+	if len(impact.Changes) > 0 && s.vipObserver != nil {
+		tiers := s.GetRuntime(ctx).VIPTiers
+		for _, change := range impact.Changes {
+			s.notifyVIPChanged(ctx, change.UserID, resolveVIPStatus(change.NetPaidAfter.InexactFloat64(), tiers))
+		}
+	}
+
 	return impact, nil
 }
 

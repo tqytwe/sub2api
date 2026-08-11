@@ -120,6 +120,9 @@ type BalanceTransaction struct {
 	IsBackfilled           bool           `json:"is_backfilled"`
 	Confidence             string         `json:"confidence"`
 	CreatedAt              time.Time      `json:"created_at"`
+	// Replayed is true when ApplyDelta returned an existing transaction
+	// instead of inserting a new one (idempotent replay). Not persisted.
+	Replayed bool `json:"-"`
 }
 
 type balanceLedgerUserState struct {
@@ -283,6 +286,7 @@ func (s *BalanceLedgerService) applyDeltaWithRunner(ctx context.Context, runner 
 		if existing.SourceType != normalized.SourceType || existing.SourceID != normalized.SourceID {
 			return nil, false, ErrBalanceLedgerIdempotencyConflict
 		}
+		existing.Replayed = true
 		return existing, false, nil
 	}
 

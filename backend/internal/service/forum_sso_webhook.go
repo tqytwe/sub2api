@@ -126,7 +126,12 @@ func (s *ForumSSOService) deliverAsync(path string, payload map[string]any, labe
 		return
 	}
 	go func() {
-		ctx, cancel := context.WithTimeout(context.Background(), forumWebhookTimeout+2*time.Second)
+		// Budget for all attempts: each attempt gets its own HTTP timeout, plus
+		// a small margin for network setup.  Without this, a first-attempt
+		// timeout leaves only ~2 s for the second attempt, making the retry
+		// effectively useless.
+		ctx, cancel := context.WithTimeout(context.Background(),
+			time.Duration(forumWebhookMaxAttempts)*(forumWebhookTimeout+2*time.Second))
 		defer cancel()
 		if err := s.postSignedWebhook(ctx, path, payload); err != nil {
 			log.Printf("[forum-sso] %s webhook failed: %v", label, err)

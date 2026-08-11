@@ -659,6 +659,7 @@ type adminServiceImpl struct {
 	affiliateService     adminRechargeAffiliateAccruer
 	balanceLedger        *BalanceLedgerService
 	roleObserver         userRoleChangeObserver
+	tokenRevoker         forumTokenRevoker
 	userBatchPreviewKey  []byte
 	compositeRouteRepo   CompositeModelRouteRepository
 	compositeResolver    *CompositeRouteResolver
@@ -681,6 +682,29 @@ func (s *adminServiceImpl) SetRoleChangeObserver(observer userRoleChangeObserver
 		return
 	}
 	s.roleObserver = observer
+}
+
+// forumTokenRevoker is called when a user account is disabled or deleted so
+// that any live SSO tokens are immediately invalidated. The only implementation
+// is ForumSSOService.RevokeUserTokens.
+//
+// Set after construction rather than taken as a constructor argument: the only
+// implementation is ForumSSOService, which already depends on several services
+// that adminServiceImpl also depends on, so injecting it as a constructor
+// parameter would be a cycle. Wiring the callback post-construction keeps the
+// dependency edges one-directional.
+type forumTokenRevoker interface {
+	RevokeUserTokens(ctx context.Context, userID int64) error
+}
+
+// SetTokenRevoker registers the revoker called when an account is disabled or
+// deleted. Safe to call with nil, which leaves token revocation disabled.
+// Called once during wiring, before the service serves traffic.
+func (s *adminServiceImpl) SetTokenRevoker(revoker forumTokenRevoker) {
+	if s == nil {
+		return
+	}
+	s.tokenRevoker = revoker
 }
 
 type adminRechargeAffiliateAccruer interface {

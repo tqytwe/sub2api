@@ -103,13 +103,16 @@ func ProvideForumSSOService(
 
 	ledger.SetChangeObserver(svc)
 	playService.SetVIPChangeObserver(svc)
-	// AdminService is an interface; only the concrete implementation observes
-	// role changes. A different implementation simply does not sync roles rather
-	// than panicking.
-	if setter, ok := adminService.(interface {
+	// AdminService is an interface; only the concrete implementation exposes
+	// the role-change and token-revocation seams. A different implementation
+	// simply does not sync rather than panicking.
+	type adminObserverSetter interface {
 		SetRoleChangeObserver(observer userRoleChangeObserver)
-	}); ok {
+		SetTokenRevoker(revoker forumTokenRevoker)
+	}
+	if setter, ok := adminService.(adminObserverSetter); ok {
 		setter.SetRoleChangeObserver(svc)
+		setter.SetTokenRevoker(svc)
 	}
 
 	return svc
