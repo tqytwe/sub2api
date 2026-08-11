@@ -377,7 +377,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	mobileAttributionHandler := handler.NewMobileAttributionHandler(mobileAttributionEventService)
 	mobileWebSearchBudget := repository.NewMobileWebSearchBudget(redisClient)
 	mobileWebSearchHandler := handler.NewMobileWebSearchHandlerFromEnvironment(mobileWebSearchBudget)
-	forumSSOService := service.NewForumSSOService(configConfig, redisClient, userService, playService, settingService, balanceLedgerService)
+	forumSSOService := service.ProvideForumSSOService(configConfig, redisClient, userService, playService, settingService, balanceLedgerService, adminService)
 	forumSSOHandler := handler.NewForumSSOHandler(forumSSOService, authService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)

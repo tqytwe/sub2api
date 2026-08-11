@@ -42,10 +42,12 @@ func (s *PlayService) SyncMembershipOrder(ctx context.Context, orderID, userID i
 		if err != nil {
 			return err
 		}
+		tiers := s.GetRuntime(ctx).VIPTiers
+		fromStatus := resolveVIPStatus(before, tiers)
+		toStatus := resolveVIPStatus(after, tiers)
 		if adminRepo, ok := s.repo.(PlayMembershipAdminRepository); ok {
-			tiers := s.GetRuntime(ctx).VIPTiers
-			fromTier := resolveVIPStatus(before, tiers).Tier
-			toTier := resolveVIPStatus(after, tiers).Tier
+			fromTier := fromStatus.Tier
+			toTier := toStatus.Tier
 			if fromTier != toTier {
 				reason := "payment"
 				if after < before || refundAmount > 0 {
@@ -57,9 +59,54 @@ func (s *PlayService) SyncMembershipOrder(ctx context.Context, orderID, userID i
 				}
 			}
 		}
+		// 同步到社区论坛：VIP 等级驱动论坛用户组和徽章。独立于上面的
+		// PlayMembershipAdminRepository 断言，否则实现未提供该可选接口时会连带
+		// 丢失论坛同步。
+		if fromStatus.Tier != toStatus.Tier {
+			s.notifyVIPChanged(ctx, userID, toStatus)
+		}
 		return nil
 	}
 	return nil
+}
+
+// playVIPChangeObserver is notified after a user's VIP tier moves.
+//
+// Set after construction rather than taken as a constructor argument: the only
+// implementation is ForumSSOService, which already depends on PlayService to
+// resolve tiers, so a constructor parameter would be a cycle.
+type playVIPChangeObserver interface {
+	NotifyVIPChanged(userID int64, vip PlayVIPStatus, role string)
+}
+
+// SetVIPChangeObserver registers the observer notified after a tier change.
+// Safe to call with nil, which leaves observation disabled. Called once during
+// wiring, before the service serves traffic, so it needs no locking.
+func (s *PlayService) SetVIPChangeObserver(observer playVIPChangeObserver) {
+	if s == nil {
+		return
+	}
+	s.vipObserver = observer
+}
+
+// notifyVIPChanged reports a tier move to the observer.
+//
+// The observer's contract includes the user's role, which SyncMembershipOrder
+// does not otherwise need, so it is looked up here. A failed lookup still
+// notifies with an empty role: the tier is the part the forum acts on, and
+// dropping the event entirely would leave the forum badge stale until the user's
+// next login.
+func (s *PlayService) notifyVIPChanged(ctx context.Context, userID int64, status PlayVIPStatus) {
+	if s == nil || s.vipObserver == nil {
+		return
+	}
+	role := ""
+	if s.userRepo != nil {
+		if user, err := s.userRepo.GetByID(ctx, userID); err == nil && user != nil {
+			role = user.Role
+		}
+	}
+	s.vipObserver.NotifyVIPChanged(userID, status, role)
 }
 
 func (s *PlayService) TeamLeaderboard(ctx context.Context, userID int64, limit int) (*PlayTeamLeaderboard, error) {

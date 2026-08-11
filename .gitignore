@@ -174,3 +174,4 @@ frontend/coverage/
 aicodex
 output/
 .worktrees/
+.claude/plans/myagents/

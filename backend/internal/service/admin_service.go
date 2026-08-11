@@ -658,9 +658,29 @@ type adminServiceImpl struct {
 	runtimeBlocker       AccountRuntimeBlocker
 	affiliateService     adminRechargeAffiliateAccruer
 	balanceLedger        *BalanceLedgerService
+	roleObserver         userRoleChangeObserver
 	userBatchPreviewKey  []byte
 	compositeRouteRepo   CompositeModelRouteRepository
 	compositeResolver    *CompositeRouteResolver
+}
+
+// userRoleChangeObserver is notified after a user's role is persisted.
+//
+// Set after construction rather than taken as a constructor argument: the only
+// implementation is ForumSSOService, which forwards the change to the community
+// forum so a platform administrator is an administrator there too.
+type userRoleChangeObserver interface {
+	NotifyRoleChanged(userID int64, newRole string)
+}
+
+// SetRoleChangeObserver registers the observer notified after a role change.
+// Safe to call with nil, which leaves observation disabled. Called once during
+// wiring, before the service serves traffic, so it needs no locking.
+func (s *adminServiceImpl) SetRoleChangeObserver(observer userRoleChangeObserver) {
+	if s == nil {
+		return
+	}
+	s.roleObserver = observer
 }
 
 type adminRechargeAffiliateAccruer interface {
