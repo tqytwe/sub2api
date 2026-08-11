@@ -28,6 +28,7 @@ type PlayService struct {
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
 	teamAdmissionRisk  PlayTeamAdmissionRiskHook
+	vipObserver        playVIPChangeObserver
 	now                func() time.Time
 }
 

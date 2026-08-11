@@ -77,6 +77,44 @@ func NewForumSSOService(
 	}
 }
 
+// ProvideForumSSOService builds the service and registers it as the observer for
+// the three platform changes the forum mirrors: wallet balance, VIP tier and
+// role.
+//
+// The registration happens here rather than through constructor arguments
+// because each observed service is a dependency of this one: ForumSSOService
+// needs the ledger and PlayService to answer userinfo, so asking them to accept
+// a ForumSSOService at construction would be a cycle. Wiring the callbacks after
+// every object exists keeps the dependency edges one-directional.
+//
+// Registration is unconditional. Each notifier checks webhookConfigured() at
+// call time, so an unconfigured or disabled integration costs a nil-secret check
+// and returns, and enabling it later needs no rewiring.
+func ProvideForumSSOService(
+	cfg *config.Config,
+	redisClient *redis.Client,
+	userService *UserService,
+	playService *PlayService,
+	settingService *SettingService,
+	ledger *BalanceLedgerService,
+	adminService AdminService,
+) *ForumSSOService {
+	svc := NewForumSSOService(cfg, redisClient, userService, playService, settingService, ledger)
+
+	ledger.SetChangeObserver(svc)
+	playService.SetVIPChangeObserver(svc)
+	// AdminService is an interface; only the concrete implementation observes
+	// role changes. A different implementation simply does not sync roles rather
+	// than panicking.
+	if setter, ok := adminService.(interface {
+		SetRoleChangeObserver(observer userRoleChangeObserver)
+	}); ok {
+		setter.SetRoleChangeObserver(svc)
+	}
+
+	return svc
+}
+
 func (s *ForumSSOService) conf() config.ForumSSOConfig {
 	if s == nil || s.cfg == nil {
 		return config.ForumSSOConfig{}

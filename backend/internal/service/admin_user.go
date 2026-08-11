@@ -300,6 +300,11 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if user.Role != oldRole {
 		logger.LegacyPrintf("service.admin", "audit: user role changed actor_admin_id=%d target_user_id=%d old_role=%s new_role=%s",
 			input.ActorAdminID, user.ID, oldRole, user.Role)
+		// 同步到社区论坛：平台管理员在论坛同样是管理员。放在写库成功之后，
+		// 观察者内部为异步投递，论坛不可用不会影响本次后台操作。
+		if s.roleObserver != nil {
+			s.roleObserver.NotifyRoleChanged(user.ID, user.Role)
+		}
 	}
 
 	// 同步用户专属分组倍率
