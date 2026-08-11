@@ -222,10 +222,12 @@ func (s *PlayService) PublishVIPConfig(ctx context.Context, requested []PlayVIPT
 	// 异步投递：ForumSSOService.NotifyVIPChanged 内部已用 goroutine，
 	// 这里在调用方 goroutine 中串行触发，避免在 PublishVIPConfig 路径上并发
 	// 爆出大量 goroutine（变更通常为批量管理操作，并发数量可控）。
+	//
+	// 必须用 impact.Tiers 而不是 GetRuntime(ctx).VIPTiers：后者读 setting 缓存，
+	// 此刻新配置刚落库、缓存尚未重载，会解析出变更前的旧档位。
 	if len(impact.Changes) > 0 && s.vipObserver != nil {
-		tiers := s.GetRuntime(ctx).VIPTiers
 		for _, change := range impact.Changes {
-			s.notifyVIPChanged(ctx, change.UserID, resolveVIPStatus(change.NetPaidAfter.InexactFloat64(), tiers))
+			s.notifyVIPChanged(ctx, change.UserID, resolveVIPStatus(change.NetPaidAfter.InexactFloat64(), impact.Tiers))
 		}
 	}
 
