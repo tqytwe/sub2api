@@ -1,6 +1,8 @@
 package admin
 
 import (
+	"errors"
+	"net/http"
 	"strconv"
 	"time"
 
@@ -42,6 +44,51 @@ func (h *PaymentHandler) GetDashboard(c *gin.Context) {
 		return
 	}
 	response.Success(c, stats)
+}
+
+// GetPlayBillingConfig returns the Google Play Billing product mapping.
+// GET /api/v1/admin/payment/play-billing/config
+func (h *PaymentHandler) GetPlayBillingConfig(c *gin.Context) {
+	if h == nil || h.configService == nil {
+		response.ErrorWithDetails(c, http.StatusServiceUnavailable, "Play Billing 配置服务未初始化", "PLAY_BILLING_NOT_CONFIGURED", nil)
+		return
+	}
+	cfg, err := h.configService.GetMobilePlayBillingAdminConfig(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+// UpdatePlayBillingConfig updates the backend-owned mapping between Google Play
+// product IDs and platform balance/subscription fulfillment rules.
+// PUT /api/v1/admin/payment/play-billing/config
+func (h *PaymentHandler) UpdatePlayBillingConfig(c *gin.Context) {
+	if h == nil || h.configService == nil {
+		response.ErrorWithDetails(c, http.StatusServiceUnavailable, "Play Billing 配置服务未初始化", "PLAY_BILLING_NOT_CONFIGURED", nil)
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 256<<10)
+	var req service.UpdateMobilePlayBillingProductsRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Play Billing 商品映射格式不正确")
+		return
+	}
+	cfg, err := h.configService.UpdateMobilePlayBillingProducts(c.Request.Context(), req)
+	if err != nil {
+		playBillingConfigError(c, err)
+		return
+	}
+	response.Success(c, cfg)
+}
+
+func playBillingConfigError(c *gin.Context, err error) {
+	if errors.Is(err, service.ErrMobilePlayBillingNotConfigured) {
+		response.ErrorWithDetails(c, http.StatusServiceUnavailable, "Play Billing 配置服务未初始化", "PLAY_BILLING_NOT_CONFIGURED", nil)
+		return
+	}
+	response.ErrorFrom(c, err)
 }
 
 // --- Orders ---

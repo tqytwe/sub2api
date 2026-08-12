@@ -36,6 +36,7 @@
 | [批量图像 MVP](./BATCH_IMAGE_MVP.md) | `reference` | Batch provider、内部生命周期与运维参考 | API 维护者 | 2026-07-18 |
 | [支付配置（中文）](./PAYMENT_CN.md) | `reference` | 上游内置支付配置 | 支付维护者 | 2026-07-15 |
 | [Payment configuration](./PAYMENT.md) | `reference` | Upstream payment configuration | 支付维护者 | 2026-07-15 |
+| [Android Google Play Billing 接入手册](./ANDROID_PLAY_BILLING_RUNBOOK.md) | `active` | Play 版数字权益内购、服务端验单、后台商品映射和国内/Play 支付分流 | 移动端与支付维护者 | 2026-08-12 |
 | [外部支付 Admin API](./ADMIN_PAYMENT_INTEGRATION_API.md) | `reference` | 外部支付系统对接 | 支付维护者 | 2026-07-15 |
 | [BEpusdt 上线前检查清单](./BEPUSDT_PREDEPLOY_CHECKLIST.md) | `proposal` | CNY 结算、数据库契约、回调和真实支付验收门禁 | 支付维护者 | 2026-08-08 |
 | [管理员合规说明（中文）](./legal/admin-compliance.zh.md) | `active` | 管理员合规内容 | 合规维护者 | 2026-07-15 |

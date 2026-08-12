@@ -265,6 +265,7 @@ func ProvideHandlers(
 	mobileDeviceHandler *MobileDeviceHandler,
 	mobileAttributionHandler *MobileAttributionHandler,
 	mobileWebSearchHandler *MobileWebSearchHandler,
+	mobilePlayBillingHandler *MobilePlayBillingHandler,
 	forumSSOHandler *ForumSSOHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
@@ -304,6 +305,7 @@ func ProvideHandlers(
 		MobileDevice:      mobileDeviceHandler,
 		MobileAttribution: mobileAttributionHandler,
 		MobileWebSearch:   mobileWebSearchHandler,
+		MobilePlayBilling: mobilePlayBillingHandler,
 		ForumSSO:          forumSSOHandler,
 	}
 }
@@ -334,6 +336,10 @@ func ProvideMobileSupportHandler(playService *service.PlayService, feedbackAsset
 
 func ProvideMobileDeviceHandler(pushService *service.MobilePushService) *MobileDeviceHandler {
 	return NewMobileDeviceHandler(pushService)
+}
+
+func ProvideMobilePlayBillingHandler(playBillingService *service.MobilePlayBillingService) *MobilePlayBillingHandler {
+	return NewMobilePlayBillingHandler(playBillingService)
 }
 
 func ProvideMobileAttributionEventService(svc *service.MobileAttributionService) mobileAttributionEventService {
@@ -381,6 +387,7 @@ var ProviderSet = wire.NewSet(
 	ProvideMobileDeviceHandler,
 	NewMobileAttributionHandler,
 	NewMobileWebSearchHandlerFromEnvironment,
+	ProvideMobilePlayBillingHandler,
 	NewForumSSOHandler,
 	ProvideMobileAttributionEventService,
 	ProvideMobileAttributionAdminService,

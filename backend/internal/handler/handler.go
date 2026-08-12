@@ -87,6 +87,7 @@ type Handlers struct {
 	MobileDevice      *MobileDeviceHandler
 	MobileAttribution *MobileAttributionHandler
 	MobileWebSearch   *MobileWebSearchHandler
+	MobilePlayBilling *MobilePlayBillingHandler
 	ForumSSO          *ForumSSOHandler
 }
 

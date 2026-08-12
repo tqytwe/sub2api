@@ -28,6 +28,7 @@ const (
 	mobileOperationTaskSubmit              = "mobile.task.submit"
 	mobileOperationAssetUpload             = "mobile.asset.upload"
 	mobileOperationSupportTicketCreate     = "mobile.support.ticket.create"
+	mobileOperationPlayBillingPurchase     = "mobile.play_billing.purchase"
 	mobileOperationTaskClientStatusObserve = "mobile.task.client_status.observe"
 	mobileOperationTeamApplicationCreate   = "play.team.application.create"
 	mobileOperationTeamApplicationDecide   = "play.team.application.decide"
@@ -223,6 +224,16 @@ func mobileProtocolOperationGrants(authenticated, isAdmin, searchConfigured bool
 			IdempotencyMode:       "observe_only",
 		},
 		{
+			ID:                    mobileOperationPlayBillingPurchase,
+			Granted:               authenticated,
+			Lifecycle:             mobileProtocolLifecycleCanonical,
+			RiskLevel:             "high",
+			Authorization:         []string{"authenticated", "google_play_purchase_token", "server_side_verification"},
+			ClientRequestIDHeader: requestID,
+			IdempotencyHeader:     idempotency,
+			IdempotencyMode:       "required",
+		},
+		{
 			ID:            mobileOperationTaskClientStatusObserve,
 			Granted:       false,
 			Lifecycle:     mobileProtocolLifecycleObserve,
@@ -381,6 +392,24 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/payments/create", canonical, "创建移动端支付并返回拉起字段"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/payments/:order_id", canonical, "读取移动端支付订单"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/payments/:order_id/sync", canonical, "返回 APP 后查单并同步到账"),
+		{
+			Method:      http.MethodPost,
+			Path:        "/api/v1/mobile/play-billing/purchases",
+			Status:      canonical,
+			Description: "提交 Google Play Billing purchase token，由服务端验单后发放余额或套餐权益",
+			OperationID: mobileOperationPlayBillingPurchase,
+			RiskLevel:   "high",
+			Lifecycle: mobileProtocolEndpointLifecycle{
+				State:                  canonical,
+				DeclaredInContract:     mobileProtocolContractVersion,
+				NewCapabilitiesAllowed: true,
+			},
+			Request: &mobileProtocolEndpointRequest{
+				ClientRequestIDHeader: middleware2.ClientRequestIDHeader,
+				IdempotencyHeader:     "Idempotency-Key",
+				IdempotencyMode:       "required",
+			},
+		},
 		mobileEndpoint(http.MethodPost, "/api/v1/redeem-codes/redeem", canonical, "兑换码、活动码和套餐码兑换"),
 		mobileEndpoint(http.MethodGet, "/api/v1/redeem-codes/history", canonical, "兑换码历史"),
 		mobileEndpoint(http.MethodGet, "/api/v1/nextchat/image-studio/models", canonical, "移动端生图模型能力清单"),

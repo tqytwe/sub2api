@@ -218,6 +218,11 @@ func registerRoutes(
 	v1.POST("/mobile/payments/create", gin.HandlerFunc(jwtAuth), h.Payment.MobileCreate)
 	v1.GET("/mobile/payments/:order_id", gin.HandlerFunc(jwtAuth), h.Payment.MobileGet)
 	v1.POST("/mobile/payments/:order_id/sync", gin.HandlerFunc(jwtAuth), h.Payment.MobileSync)
+	mobilePlayBilling := h.MobilePlayBilling
+	if mobilePlayBilling == nil {
+		mobilePlayBilling = handler.NewMobilePlayBillingHandler()
+	}
+	v1.POST("/mobile/play-billing/purchases", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobilePlayBilling.SubmitPurchase)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth, panelRateLimiter)
 	// 论坛 SSO：OAuth2 授权端点 + 论坛回调所需的钱包/订单接口。

@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
-	"github.com/redis/go-redis/v9"
 )
 
 // Payment callback retry queue.
@@ -50,7 +49,7 @@ func (s *ForumSSOService) EnqueuePaymentCallbackRetry(order *ForumOrderResult, u
 // enqueuePaymentCallbackRetry persists a retry job to Redis.
 // Called when SendForumPaymentCallback fails in the HTTP handler.
 func (s *ForumSSOService) enqueuePaymentCallbackRetry(order *ForumOrderResult, userID int64, itemID, itemType string) {
-	if s == nil || s.redis == nil {
+	if s == nil || s.store == nil {
 		return
 	}
 	job := forumPaymentRetryJob{
@@ -70,10 +69,7 @@ func (s *ForumSSOService) enqueuePaymentCallbackRetry(order *ForumOrderResult, u
 	nextRun := s.now().Add(forumPaymentRetryInitial)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	if err := s.redis.ZAdd(ctx, forumPaymentRetryKey, redis.Z{
-		Score:  float64(nextRun.Unix()),
-		Member: string(raw),
-	}).Err(); err != nil {
+	if err := s.store.ZAdd(ctx, forumPaymentRetryKey, float64(nextRun.Unix()), string(raw)); err != nil {
 		logger.LegacyPrintf("forum-sso", "failed to enqueue payment retry job order_id=%s: %v", job.OrderID, err)
 	}
 }
@@ -163,15 +159,12 @@ func (w *ForumPaymentRetryWorker) run(ctx context.Context) {
 
 // runOnce processes all jobs whose next-run time has arrived.
 func (w *ForumPaymentRetryWorker) runOnce(ctx context.Context) (int, error) {
-	if w == nil || w.svc == nil || w.svc.redis == nil {
+	if w == nil || w.svc == nil || w.svc.store == nil {
 		return 0, nil
 	}
 	now := w.svc.now()
 	// Fetch all jobs ready to run (score <= now).
-	members, err := w.svc.redis.ZRangeByScore(ctx, forumPaymentRetryKey, &redis.ZRangeBy{
-		Min: "-inf",
-		Max: float64ToString(float64(now.Unix())),
-	}).Result()
+	members, err := w.svc.store.ZRangeByScore(ctx, forumPaymentRetryKey, "-inf", float64ToString(float64(now.Unix())))
 	if err != nil {
 		return 0, err
 	}
@@ -190,19 +183,19 @@ func (w *ForumPaymentRetryWorker) processOne(ctx context.Context, raw string, no
 	var job forumPaymentRetryJob
 	if err := json.Unmarshal([]byte(raw), &job); err != nil {
 		logger.LegacyPrintf("forum-sso", "payment retry: malformed job, dropping: %v", err)
-		w.svc.redis.ZRem(ctx, forumPaymentRetryKey, raw)
+		_ = w.svc.store.ZRem(ctx, forumPaymentRetryKey, raw)
 		return
 	}
 
 	// Drop jobs that have been retrying longer than forumPaymentRetryMaxAge.
 	if now.Unix()-job.EnqueueAt > int64(forumPaymentRetryMaxAge.Seconds()) {
 		logger.LegacyPrintf("forum-sso", "payment retry: giving up on order_id=%s after %s", job.OrderID, forumPaymentRetryMaxAge)
-		w.svc.redis.ZRem(ctx, forumPaymentRetryKey, raw)
+		_ = w.svc.store.ZRem(ctx, forumPaymentRetryKey, raw)
 		return
 	}
 
 	// Remove from queue before attempting, so a crash doesn't replay immediately.
-	w.svc.redis.ZRem(ctx, forumPaymentRetryKey, raw)
+	_ = w.svc.store.ZRem(ctx, forumPaymentRetryKey, raw)
 
 	order := &ForumOrderResult{
 		OrderID: job.OrderID,
@@ -225,10 +218,7 @@ func (w *ForumPaymentRetryWorker) processOne(ctx context.Context, raw string, no
 		return
 	}
 	nextRun := w.svc.now().Add(retryBackoff(job.Attempt))
-	w.svc.redis.ZAdd(ctx, forumPaymentRetryKey, redis.Z{
-		Score:  float64(nextRun.Unix()),
-		Member: string(nextRaw),
-	})
+	_ = w.svc.store.ZAdd(ctx, forumPaymentRetryKey, float64(nextRun.Unix()), string(nextRaw))
 }
 
 // float64ToString converts a float64 to its string representation for

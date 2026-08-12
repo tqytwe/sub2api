@@ -11,7 +11,9 @@ import type {
   PaymentChannel,
   SubscriptionPlan,
   ProviderInstance,
-  PaymentStorefrontConfig
+  PaymentStorefrontConfig,
+  PlayBillingProductMapping,
+  PlayBillingPublicProduct
 } from '@/types/payment'
 import type { BasePaginationResponse } from '@/types'
 
@@ -55,6 +57,20 @@ export interface UpdatePaymentConfigRequest {
   help_text?: string
 }
 
+export interface AdminPlayBillingConfig {
+  package_name: string
+  service_account_configured: boolean
+  config_source: 'env' | 'settings'
+  product_count: number
+  enabled_product_count: number
+  products: PlayBillingProductMapping[]
+  public_products: PlayBillingPublicProduct[]
+}
+
+export interface UpdatePlayBillingConfigRequest {
+  products: PlayBillingProductMapping[]
+}
+
 export interface RefundResult {
   success: boolean
   warning?: string
@@ -74,6 +90,16 @@ export const adminPaymentAPI = {
   /** Update payment configuration */
   updateConfig(data: UpdatePaymentConfigRequest) {
     return apiClient.put('/admin/payment/config', data)
+  },
+
+  /** Get Google Play Billing product mappings */
+  getPlayBillingConfig() {
+    return apiClient.get<AdminPlayBillingConfig>('/admin/payment/play-billing/config')
+  },
+
+  /** Update Google Play product -> platform entitlement mappings */
+  updatePlayBillingConfig(data: UpdatePlayBillingConfigRequest) {
+    return apiClient.put<AdminPlayBillingConfig>('/admin/payment/play-billing/config', data)
   },
 
   // ==================== Dashboard ====================

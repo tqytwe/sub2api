@@ -142,6 +142,7 @@ vite.config.js
 docs/*
 !docs/PAYMENT.md
 !docs/PAYMENT_CN.md
+!docs/ANDROID_PLAY_BILLING_RUNBOOK.md
 !docs/ADMIN_PAYMENT_INTEGRATION_API.md
 !docs/IMAGE_GENERATION_API.md
 !docs/BATCH_IMAGE_API.md
