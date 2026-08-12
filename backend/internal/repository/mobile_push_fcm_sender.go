@@ -26,8 +26,9 @@ import (
 )
 
 const (
-	fcmMessagingScope = "https://www.googleapis.com/auth/firebase.messaging"
-	fcmDefaultBaseURL = "https://fcm.googleapis.com"
+	fcmMessagingScope     = "https://www.googleapis.com/auth/firebase.messaging"
+	fcmDefaultBaseURL     = "https://fcm.googleapis.com"
+	fcmAndroidClickAction = "com.jisudeng.chat.PUSH_OPEN"
 )
 
 type fcmServiceAccount struct {
@@ -117,10 +118,12 @@ func (s *FCMHTTPSender) Send(ctx context.Context, token string, delivery service
 	}
 	tag := strings.Trim(strings.TrimSpace(delivery.SourceType)+":"+strings.TrimSpace(delivery.SourceID), ":")
 	android := map[string]any{"priority": "high"}
+	androidNotification := map[string]string{"click_action": fcmAndroidClickAction}
 	if tag != "" {
 		android["collapse_key"] = tag
-		android["notification"] = map[string]string{"tag": tag}
+		androidNotification["tag"] = tag
 	}
+	android["notification"] = androidNotification
 	payload, err := json.Marshal(map[string]any{
 		"message": map[string]any{
 			"token":        token,
