@@ -65,13 +65,20 @@ func TestFCMHTTPSenderExchangesJWTAndCachesAccessToken(t *testing.T) {
 			require.Equal(t, "Bearer oauth-access", r.Header.Get("Authorization"))
 			var payload struct {
 				Message struct {
-					Token string            `json:"token"`
-					Data  map[string]string `json:"data"`
+					Token   string            `json:"token"`
+					Data    map[string]string `json:"data"`
+					Android struct {
+						Notification map[string]string `json:"notification"`
+					} `json:"android"`
 				} `json:"message"`
 			}
 			require.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
 			require.Equal(t, "fcm-private-token", payload.Message.Token)
 			require.Equal(t, "task.completed", payload.Message.Data["event_type"])
+			require.Equal(t, "mobile_task", payload.Message.Data["source_type"])
+			require.Equal(t, "task-1", payload.Message.Data["source_id"])
+			require.Equal(t, "com.jisudeng.chat.PUSH_OPEN", payload.Message.Android.Notification["click_action"])
+			require.Equal(t, "mobile_task:task-1", payload.Message.Android.Notification["tag"])
 			w.WriteHeader(http.StatusOK)
 			_, _ = w.Write([]byte(`{"name":"message-id"}`))
 		default:
@@ -89,7 +96,10 @@ func TestFCMHTTPSenderExchangesJWTAndCachesAccessToken(t *testing.T) {
 	}, server.Client())
 	require.NoError(t, err)
 
-	delivery := service.MobilePushDelivery{EventType: "task.completed", TitleZh: "任务完成", BodyZh: "任务已经完成"}
+	delivery := service.MobilePushDelivery{
+		EventType: "task.completed", SourceType: "mobile_task", SourceID: "task-1",
+		TitleZh: "任务完成", BodyZh: "任务已经完成",
+	}
 	require.NoError(t, sender.Send(context.Background(), "fcm-private-token", delivery))
 	require.NoError(t, sender.Send(context.Background(), "fcm-private-token", delivery))
 	require.Equal(t, int32(1), tokenCalls.Load())
