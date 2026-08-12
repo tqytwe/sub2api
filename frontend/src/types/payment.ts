@@ -22,6 +22,7 @@ export type OrderStatus =
 export type PaymentType = 'alipay' | 'wxpay' | 'alipay_direct' | 'wxpay_direct' | 'stripe' | 'easypay' | 'airwallex' | 'bepusdt'
 
 export type OrderType = 'balance' | 'subscription'
+export type PlayBillingProductType = 'inapp' | 'subs'
 
 export type PlanStorefrontPlatform = 'openai' | 'anthropic' | 'gemini' | 'grok' | 'image' | 'team' | ''
 export type PlanStorefrontCategory = 'daily' | 'credit' | 'pro' | 'team' | 'enterprise' | 'image' | ''
@@ -43,6 +44,36 @@ export interface PaymentConfig {
   help_image_url: string
   help_text: string
   stripe_publishable_key: string
+}
+
+export interface PlayBillingProductMapping {
+  product_id: string
+  product_type: PlayBillingProductType
+  order_type: OrderType
+  amount?: number
+  pay_amount?: number
+  currency?: string
+  plan_id?: number
+  title?: string
+  description?: string
+  formatted_price?: string
+  offer_token?: string
+  consumable?: boolean
+  enabled?: boolean
+}
+
+export interface PlayBillingPublicProduct {
+  product_id: string
+  product_type: PlayBillingProductType
+  order_type: OrderType
+  amount?: number
+  pay_amount?: number
+  currency?: string
+  plan_id?: number
+  title?: string
+  description?: string
+  formatted_price?: string
+  offer_token?: string
 }
 
 export interface MethodLimit {
@@ -84,6 +115,8 @@ export interface CheckoutInfoResponse {
   recharge_quote?: RechargeQuote
   /** When true, official Alipay mobile orders use precreate plus an Alipay app deep link */
   alipay_mobile_precreate_deep_link?: boolean
+  /** Google Play Billing products for the Play build. Domestic builds should ignore this list. */
+  play_billing_products?: PlayBillingPublicProduct[]
 }
 
 // ==================== Orders ====================

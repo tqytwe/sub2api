@@ -1,13 +1,19 @@
 package admin
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 )
 
 func TestSanitizeAdminPaymentOrderForResponseAddsCurrency(t *testing.T) {
@@ -104,4 +110,108 @@ func TestAdminSubscriptionPlansForResponseIncludesCompositeGroupInfo(t *testing.
 	if !got[0].CreatedAt.Equal(now) || !got[0].UpdatedAt.Equal(now) {
 		t.Fatalf("expected created_at/updated_at to be preserved, got %v / %v", got[0].CreatedAt, got[0].UpdatedAt)
 	}
+}
+
+func TestAdminPaymentPlayBillingConfigCanBeReadAndUpdated(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repo := &adminPaymentPlayBillingSettingRepo{values: map[string]string{}}
+	handler := NewPaymentHandler(nil, service.NewPaymentConfigService(nil, repo, nil))
+	router := gin.New()
+	router.GET("/admin/payment/play-billing/config", handler.GetPlayBillingConfig)
+	router.PUT("/admin/payment/play-billing/config", handler.UpdatePlayBillingConfig)
+
+	readBefore := httptest.NewRecorder()
+	router.ServeHTTP(readBefore, httptest.NewRequest(http.MethodGet, "/admin/payment/play-billing/config", nil))
+	if readBefore.Code != http.StatusOK {
+		t.Fatalf("expected read status 200, got %d: %s", readBefore.Code, readBefore.Body.String())
+	}
+
+	payload := []byte(`{"products":[
+		{"product_id":"jisudeng.balance.50","product_type":"inapp","order_type":"balance","amount":50,"pay_amount":7.99,"currency":"usd","enabled":true},
+		{"product_id":"jisudeng.plan.pro.30d","product_type":"inapp","order_type":"subscription","plan_id":7,"amount":19.99,"enabled":false}
+	]}`)
+	update := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPut, "/admin/payment/play-billing/config", bytes.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(update, req)
+	if update.Code != http.StatusOK {
+		t.Fatalf("expected update status 200, got %d: %s", update.Code, update.Body.String())
+	}
+
+	var envelope response.Response
+	if err := json.Unmarshal(update.Body.Bytes(), &envelope); err != nil {
+		t.Fatalf("decode update response: %v", err)
+	}
+	raw, err := json.Marshal(envelope.Data)
+	if err != nil {
+		t.Fatalf("marshal data: %v", err)
+	}
+	var cfg service.MobilePlayBillingAdminConfig
+	if err := json.Unmarshal(raw, &cfg); err != nil {
+		t.Fatalf("decode config: %v", err)
+	}
+	if cfg.ConfigSource != "settings" || cfg.ProductCount != 2 || cfg.EnabledProductCount != 1 {
+		t.Fatalf("unexpected config summary: %#v", cfg)
+	}
+	if !strings.Contains(repo.values[service.SettingMobilePlayBillingProducts], `"product_id":"jisudeng.balance.50"`) {
+		t.Fatalf("expected mapping to be persisted, got %s", repo.values[service.SettingMobilePlayBillingProducts])
+	}
+}
+
+type adminPaymentPlayBillingSettingRepo struct {
+	values map[string]string
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) Get(context.Context, string) (*service.Setting, error) {
+	return nil, service.ErrSettingNotFound
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) GetValue(_ context.Context, key string) (string, error) {
+	if r.values == nil {
+		return "", service.ErrSettingNotFound
+	}
+	value, ok := r.values[key]
+	if !ok {
+		return "", service.ErrSettingNotFound
+	}
+	return value, nil
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) Set(_ context.Context, key, value string) error {
+	if r.values == nil {
+		r.values = map[string]string{}
+	}
+	r.values[key] = value
+	return nil
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) GetMultiple(_ context.Context, keys []string) (map[string]string, error) {
+	out := make(map[string]string, len(keys))
+	for _, key := range keys {
+		out[key] = r.values[key]
+	}
+	return out, nil
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) SetMultiple(_ context.Context, values map[string]string) error {
+	if r.values == nil {
+		r.values = map[string]string{}
+	}
+	for key, value := range values {
+		r.values[key] = value
+	}
+	return nil
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) GetAll(context.Context) (map[string]string, error) {
+	out := make(map[string]string, len(r.values))
+	for key, value := range r.values {
+		out[key] = value
+	}
+	return out, nil
+}
+
+func (r *adminPaymentPlayBillingSettingRepo) Delete(_ context.Context, key string) error {
+	delete(r.values, key)
+	return nil
 }

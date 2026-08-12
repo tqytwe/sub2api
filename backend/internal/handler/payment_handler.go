@@ -55,6 +55,7 @@ type paymentCheckoutPublicPayload struct {
 	subscriptionUSDToCNYRate      float64
 	rechargeFeeRate               float64
 	storefrontConfig              *service.PaymentStorefrontConfig
+	playBillingProducts           []service.MobilePlayBillingPublicProduct
 	helpText                      string
 	helpImageURL                  string
 	stripePublishableKey          string
@@ -263,6 +264,7 @@ func (h *PaymentHandler) buildPaymentCheckoutPublicPayload(ctx context.Context) 
 		subscriptionUSDToCNYRate:      cfg.SubscriptionUSDToCNYRate,
 		rechargeFeeRate:               cfg.RechargeFeeRate,
 		storefrontConfig:              clonePaymentStorefrontConfig(storefrontConfig),
+		playBillingProducts:           h.configService.PublicMobilePlayBillingProducts(ctx),
 		helpText:                      cfg.HelpText,
 		helpImageURL:                  cfg.HelpImageURL,
 		stripePublishableKey:          cfg.StripePublishableKey,
@@ -282,6 +284,7 @@ func (p *paymentCheckoutPublicPayload) withRechargeQuote(rechargeQuote *service.
 		SubscriptionUSDToCNYRate:      p.subscriptionUSDToCNYRate,
 		RechargeFeeRate:               p.rechargeFeeRate,
 		StorefrontConfig:              clonePaymentStorefrontConfig(p.storefrontConfig),
+		PlayBillingProducts:           cloneMobilePlayBillingPublicProducts(p.playBillingProducts),
 		HelpText:                      p.helpText,
 		HelpImageURL:                  p.helpImageURL,
 		StripePublishableKey:          p.stripePublishableKey,
@@ -305,6 +308,7 @@ func (p *paymentCheckoutPublicPayload) clone() *paymentCheckoutPublicPayload {
 		subscriptionUSDToCNYRate:      p.subscriptionUSDToCNYRate,
 		rechargeFeeRate:               p.rechargeFeeRate,
 		storefrontConfig:              clonePaymentStorefrontConfig(p.storefrontConfig),
+		playBillingProducts:           cloneMobilePlayBillingPublicProducts(p.playBillingProducts),
 		helpText:                      p.helpText,
 		helpImageURL:                  p.helpImageURL,
 		stripePublishableKey:          p.stripePublishableKey,
@@ -356,22 +360,32 @@ func clonePaymentStorefrontConfig(in *service.PaymentStorefrontConfig) *service.
 	return out
 }
 
+func cloneMobilePlayBillingPublicProducts(in []service.MobilePlayBillingPublicProduct) []service.MobilePlayBillingPublicProduct {
+	if in == nil {
+		return nil
+	}
+	out := make([]service.MobilePlayBillingPublicProduct, len(in))
+	copy(out, in)
+	return out
+}
+
 type checkoutInfoResponse struct {
-	Methods                       map[string]service.MethodLimits  `json:"methods"`
-	GlobalMin                     float64                          `json:"global_min"`
-	GlobalMax                     float64                          `json:"global_max"`
-	Plans                         []checkoutPlan                   `json:"plans"`
-	BalanceDisabled               bool                             `json:"balance_disabled"`
-	BalanceRechargeMultiplier     float64                          `json:"balance_recharge_multiplier"`
-	SubscriptionUSDToCNYRate      float64                          `json:"subscription_usd_to_cny_rate"`
-	RechargeFeeRate               float64                          `json:"recharge_fee_rate"`
-	StorefrontConfig              *service.PaymentStorefrontConfig `json:"storefront_config"`
-	HelpText                      string                           `json:"help_text"`
-	HelpImageURL                  string                           `json:"help_image_url"`
-	StripePublishableKey          string                           `json:"stripe_publishable_key"`
-	AlipayForceQRCode             bool                             `json:"alipay_force_qrcode"`
-	AlipayMobilePrecreateDeepLink bool                             `json:"alipay_mobile_precreate_deep_link"`
-	RechargeQuote                 *service.PaymentRechargeQuote    `json:"recharge_quote,omitempty"`
+	Methods                       map[string]service.MethodLimits          `json:"methods"`
+	GlobalMin                     float64                                  `json:"global_min"`
+	GlobalMax                     float64                                  `json:"global_max"`
+	Plans                         []checkoutPlan                           `json:"plans"`
+	BalanceDisabled               bool                                     `json:"balance_disabled"`
+	BalanceRechargeMultiplier     float64                                  `json:"balance_recharge_multiplier"`
+	SubscriptionUSDToCNYRate      float64                                  `json:"subscription_usd_to_cny_rate"`
+	RechargeFeeRate               float64                                  `json:"recharge_fee_rate"`
+	StorefrontConfig              *service.PaymentStorefrontConfig         `json:"storefront_config"`
+	PlayBillingProducts           []service.MobilePlayBillingPublicProduct `json:"play_billing_products,omitempty"`
+	HelpText                      string                                   `json:"help_text"`
+	HelpImageURL                  string                                   `json:"help_image_url"`
+	StripePublishableKey          string                                   `json:"stripe_publishable_key"`
+	AlipayForceQRCode             bool                                     `json:"alipay_force_qrcode"`
+	AlipayMobilePrecreateDeepLink bool                                     `json:"alipay_mobile_precreate_deep_link"`
+	RechargeQuote                 *service.PaymentRechargeQuote            `json:"recharge_quote,omitempty"`
 }
 
 type checkoutPlan struct {

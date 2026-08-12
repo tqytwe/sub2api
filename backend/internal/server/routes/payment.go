@@ -82,6 +82,8 @@ func RegisterPaymentRoutes(
 		// Config
 		adminGroup.GET("/config", adminPaymentHandler.GetConfig)
 		adminGroup.PUT("/config", adminPaymentHandler.UpdateConfig)
+		adminGroup.GET("/play-billing/config", adminPaymentHandler.GetPlayBillingConfig)
+		adminGroup.PUT("/play-billing/config", adminPaymentHandler.UpdatePlayBillingConfig)
 
 		// Orders
 		adminOrders := adminGroup.Group("/orders")

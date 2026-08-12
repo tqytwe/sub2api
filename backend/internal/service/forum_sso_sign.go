@@ -98,6 +98,6 @@ func ForumSSOCanonicalize(payload map[string]any, timestamp, nonce string) strin
 // ForumSSOSign returns the hex HMAC-SHA256 of the canonical string.
 func ForumSSOSign(payload map[string]any, timestamp, nonce, secret string) string {
 	mac := hmac.New(sha256.New, []byte(secret))
-	mac.Write([]byte(ForumSSOCanonicalize(payload, timestamp, nonce)))
+	_, _ = mac.Write([]byte(ForumSSOCanonicalize(payload, timestamp, nonce)))
 	return hex.EncodeToString(mac.Sum(nil))
 }

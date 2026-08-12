@@ -1146,6 +1146,19 @@ const routes: RouteRecordRaw[] = [
       frame: 'workspace'
     }
   },
+  {
+    path: '/admin/orders/play-billing',
+    name: 'AdminPlayBillingConfig',
+    component: () => import('@/views/admin/orders/AdminPlayBillingConfigView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Google Play Billing',
+      titleKey: 'nav.playBilling',
+      requiresPayment: true,
+      frame: 'workspace'
+    }
+  },
 
   // ==================== 404 Not Found ====================
   {

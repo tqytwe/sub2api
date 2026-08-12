@@ -913,6 +913,7 @@ var ProviderSet = wire.NewSet(
 	ProvideIPRiskRuntimeConfig,
 	ProvideIPRiskService,
 	NewMobilePushService,
+	NewMobilePlayBillingService,
 	ProvideMobileAttributionService,
 	ProvideMobilePushWorker,
 	ProvideAuthService,

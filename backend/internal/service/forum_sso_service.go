@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -13,8 +14,6 @@ import (
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
-
-	"github.com/redis/go-redis/v9"
 )
 
 // ForumSSOService makes this platform the OAuth2 identity provider, wallet and
@@ -29,13 +28,14 @@ import (
 // would silently expire with no refresh path. An opaque token lets us scope it
 // to /api/v1/sso/* and revoke it server-side.
 var (
-	ErrForumSSODisabled       = infraerrors.NotFound("FORUM_SSO_DISABLED", "forum sso is not enabled")
-	ErrForumSSOUnknownClient  = infraerrors.Unauthorized("FORUM_SSO_UNKNOWN_CLIENT", "unknown client_id")
-	ErrForumSSOBadRedirectURI = infraerrors.BadRequest("FORUM_SSO_BAD_REDIRECT_URI", "redirect_uri is not allowlisted")
-	ErrForumSSOBadCode        = infraerrors.Unauthorized("FORUM_SSO_BAD_CODE", "authorization code is invalid or expired")
-	ErrForumSSOBadToken       = infraerrors.Unauthorized("FORUM_SSO_BAD_TOKEN", "access token is invalid or expired")
-	ErrForumSSOBadClientAuth  = infraerrors.Unauthorized("FORUM_SSO_BAD_CLIENT_AUTH", "client authentication failed")
-	ErrForumSSOStoreDown      = infraerrors.InternalServer("FORUM_SSO_STORE_UNAVAILABLE", "forum sso store is unavailable")
+	ErrForumSSODisabled         = infraerrors.NotFound("FORUM_SSO_DISABLED", "forum sso is not enabled")
+	ErrForumSSOUnknownClient    = infraerrors.Unauthorized("FORUM_SSO_UNKNOWN_CLIENT", "unknown client_id")
+	ErrForumSSOBadRedirectURI   = infraerrors.BadRequest("FORUM_SSO_BAD_REDIRECT_URI", "redirect_uri is not allowlisted")
+	ErrForumSSOBadCode          = infraerrors.Unauthorized("FORUM_SSO_BAD_CODE", "authorization code is invalid or expired")
+	ErrForumSSOBadToken         = infraerrors.Unauthorized("FORUM_SSO_BAD_TOKEN", "access token is invalid or expired")
+	ErrForumSSOBadClientAuth    = infraerrors.Unauthorized("FORUM_SSO_BAD_CLIENT_AUTH", "client authentication failed")
+	ErrForumSSOStoreDown        = infraerrors.InternalServer("FORUM_SSO_STORE_UNAVAILABLE", "forum sso store is unavailable")
+	ErrForumSSOStoreKeyNotFound = errors.New("forum sso store key not found")
 )
 
 const (
@@ -50,7 +50,7 @@ const (
 
 type ForumSSOService struct {
 	cfg            *config.Config
-	redis          *redis.Client
+	store          ForumSSOStore
 	userService    *UserService
 	playService    *PlayService
 	settingService *SettingService
@@ -58,9 +58,22 @@ type ForumSSOService struct {
 	now            func() time.Time
 }
 
+type ForumSSOStore interface {
+	Set(ctx context.Context, key string, value []byte, ttl time.Duration) error
+	Get(ctx context.Context, key string) ([]byte, error)
+	GetDel(ctx context.Context, key string) ([]byte, error)
+	Del(ctx context.Context, keys ...string) error
+	Expire(ctx context.Context, key string, ttl time.Duration) error
+	ZAdd(ctx context.Context, key string, score float64, member string) error
+	ZRange(ctx context.Context, key string, start, stop int64) ([]string, error)
+	ZRevRange(ctx context.Context, key string, start, stop int64) ([]string, error)
+	ZRangeByScore(ctx context.Context, key, min, max string) ([]string, error)
+	ZRem(ctx context.Context, key string, members ...string) error
+}
+
 func NewForumSSOService(
 	cfg *config.Config,
-	redisClient *redis.Client,
+	store ForumSSOStore,
 	userService *UserService,
 	playService *PlayService,
 	settingService *SettingService,
@@ -68,7 +81,7 @@ func NewForumSSOService(
 ) *ForumSSOService {
 	return &ForumSSOService{
 		cfg:            cfg,
-		redis:          redisClient,
+		store:          store,
 		userService:    userService,
 		playService:    playService,
 		settingService: settingService,
@@ -92,14 +105,14 @@ func NewForumSSOService(
 // and returns, and enabling it later needs no rewiring.
 func ProvideForumSSOService(
 	cfg *config.Config,
-	redisClient *redis.Client,
+	store ForumSSOStore,
 	userService *UserService,
 	playService *PlayService,
 	settingService *SettingService,
 	ledger *BalanceLedgerService,
 	adminService AdminService,
 ) *ForumSSOService {
-	svc := NewForumSSOService(cfg, redisClient, userService, playService, settingService, ledger)
+	svc := NewForumSSOService(cfg, store, userService, playService, settingService, ledger)
 
 	ledger.SetChangeObserver(svc)
 	playService.SetVIPChangeObserver(svc)
@@ -130,7 +143,7 @@ func (s *ForumSSOService) conf() config.ForumSSOConfig {
 // so a half-applied deployment cannot accidentally accept any secret.
 func (s *ForumSSOService) Enabled() bool {
 	c := s.conf()
-	return c.Enabled && c.ClientID != "" && c.ClientSecret != "" && s.redis != nil
+	return c.Enabled && c.ClientID != "" && c.ClientSecret != "" && s.store != nil
 }
 
 // LoginPagePath is the frontend route that resumes an authorize request when the
@@ -265,7 +278,7 @@ func (s *ForumSSOService) IssueAuthorizationCode(ctx context.Context, userID int
 	if err != nil {
 		return "", ErrForumSSOStoreDown
 	}
-	if err := s.redis.Set(ctx, forumSSOCodePrefix+code, encoded, s.codeTTL()).Err(); err != nil {
+	if err := s.store.Set(ctx, forumSSOCodePrefix+code, encoded, s.codeTTL()); err != nil {
 		return "", ErrForumSSOStoreDown
 	}
 	return code, nil
@@ -282,9 +295,9 @@ func (s *ForumSSOService) RedeemAuthorizationCode(ctx context.Context, code, cli
 		return nil, ErrForumSSOBadCode
 	}
 
-	raw, err := s.redis.GetDel(ctx, forumSSOCodePrefix+code).Bytes()
+	raw, err := s.store.GetDel(ctx, forumSSOCodePrefix+code)
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, ErrForumSSOStoreKeyNotFound) {
 			return nil, ErrForumSSOBadCode
 		}
 		return nil, ErrForumSSOStoreDown
@@ -324,7 +337,7 @@ func (s *ForumSSOService) IssueAccessToken(ctx context.Context, userID int64, sc
 		return "", 0, ErrForumSSOStoreDown
 	}
 
-	if err := s.redis.Set(ctx, forumSSOTokenPrefix+token, payload, ttl).Err(); err != nil {
+	if err := s.store.Set(ctx, forumSSOTokenPrefix+token, payload, ttl); err != nil {
 		return "", 0, ErrForumSSOStoreDown
 	}
 
@@ -332,17 +345,15 @@ func (s *ForumSSOService) IssueAccessToken(ctx context.Context, userID int64, sc
 	// forum repeatedly would grow this set without limit.
 	indexKey := forumSSOUserPrefix + strconv.FormatInt(userID, 10)
 	score := float64(s.now().UnixNano())
-	if err := s.redis.ZAdd(ctx, indexKey, redis.Z{Score: score, Member: token}).Err(); err == nil {
-		s.redis.Expire(ctx, indexKey, ttl)
-		if stale, err := s.redis.ZRevRange(ctx, indexKey, forumSSOMaxTokensPerUser, -1).Result(); err == nil && len(stale) > 0 {
+	if err := s.store.ZAdd(ctx, indexKey, score, token); err == nil {
+		_ = s.store.Expire(ctx, indexKey, ttl)
+		if stale, err := s.store.ZRevRange(ctx, indexKey, forumSSOMaxTokensPerUser, -1); err == nil && len(stale) > 0 {
 			keys := make([]string, 0, len(stale))
-			members := make([]any, 0, len(stale))
 			for _, old := range stale {
 				keys = append(keys, forumSSOTokenPrefix+old)
-				members = append(members, old)
 			}
-			s.redis.Del(ctx, keys...)
-			s.redis.ZRem(ctx, indexKey, members...)
+			_ = s.store.Del(ctx, keys...)
+			_ = s.store.ZRem(ctx, indexKey, stale...)
 		}
 	}
 
@@ -357,9 +368,9 @@ func (s *ForumSSOService) ResolveAccessToken(ctx context.Context, token string) 
 	if token == "" {
 		return 0, ErrForumSSOBadToken
 	}
-	raw, err := s.redis.Get(ctx, forumSSOTokenPrefix+token).Bytes()
+	raw, err := s.store.Get(ctx, forumSSOTokenPrefix+token)
 	if err != nil {
-		if err == redis.Nil {
+		if errors.Is(err, ErrForumSSOStoreKeyNotFound) {
 			return 0, ErrForumSSOBadToken
 		}
 		return 0, ErrForumSSOStoreDown
@@ -376,11 +387,11 @@ func (s *ForumSSOService) ResolveAccessToken(ctx context.Context, token string) 
 // RevokeUserTokens drops every SSO token for a user. Called when an account is
 // disabled so the forum session cannot outlive platform access.
 func (s *ForumSSOService) RevokeUserTokens(ctx context.Context, userID int64) error {
-	if s == nil || s.redis == nil {
+	if s == nil || s.store == nil {
 		return nil
 	}
 	indexKey := forumSSOUserPrefix + strconv.FormatInt(userID, 10)
-	tokens, err := s.redis.ZRange(ctx, indexKey, 0, -1).Result()
+	tokens, err := s.store.ZRange(ctx, indexKey, 0, -1)
 	if err != nil {
 		return err
 	}
@@ -389,7 +400,7 @@ func (s *ForumSSOService) RevokeUserTokens(ctx context.Context, userID int64) er
 		keys = append(keys, forumSSOTokenPrefix+token)
 	}
 	keys = append(keys, indexKey)
-	return s.redis.Del(ctx, keys...).Err()
+	return s.store.Del(ctx, keys...)
 }
 
 // ForumUserInfo is the OAuth2 userinfo document consumed by the forum plugin's
