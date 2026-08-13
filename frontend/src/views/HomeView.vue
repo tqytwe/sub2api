@@ -653,7 +653,7 @@ import {
   dashboardEntryRoute,
   docsTopicRoute,
   englishDocsTopicRoute,
-  imageStudioEntryRoute,
+  aiCreationSpaceEntryRoute,
 } from '@/router/publicNavigation'
 
 const { t, tm, te, locale } = useI18n()
@@ -704,7 +704,7 @@ const isAuthenticated = computed(() => authStore.isAuthenticated)
 const isAdmin = computed(() => authStore.isAdmin)
 const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
-const studioCtaLink = computed(() => imageStudioEntryRoute(isAuthenticated.value, isEnglishPublicRoute.value ? 'en' : 'zh'))
+const studioCtaLink = computed(() => aiCreationSpaceEntryRoute(isAuthenticated.value, isEnglishPublicRoute.value ? 'en' : 'zh'))
 const adminDashboardRoute = { name: PUBLIC_ROUTE_NAMES.adminDashboard }
 const aboutRoute = computed(() =>
   isEnglishPublicRoute.value

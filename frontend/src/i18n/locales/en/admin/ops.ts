@@ -36,7 +36,7 @@ export default {
 	        names: {
 	          gatewayAsync: 'Gateway Async',
 	          batch: 'Batch Image',
-	          imageStudio: 'Image Studio'
+	          imageStudio: 'Image-generation backend'
 	        },
 	        states: {
 	          ready: 'Ready',

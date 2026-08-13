@@ -290,10 +290,10 @@ json.data.forEach((item, index) =&gt; {
 </ul>
 <p class="docs-tip">JSON 请求会兼容剥离可选 UTF-8 BOM。Windows PowerShell 写出的 BOM JSON 可以直接用 <code>curl --data-binary @request.json</code> 提交，但仍建议保存为 UTF-8 without BOM，便于其他工具链处理。</p>
 
-<h2>和图像工作室的区别</h2>
+<h2>创作入口与 API 的区别</h2>
 <ul>
   <li><strong>API 生成</strong>：开发者直调 <code>/v1/images/generations</code>，Base URL 是 <code>https://api.jisudeng.com</code>，自己保存和展示图片。</li>
-  <li><strong>图像工作室</strong>：打开 <a href="/image-studio">/image-studio</a> 手动生成，站内负责模板、估价、异步 job 和图库。</li>
+  <li><strong>AI创作空间</strong>：打开 <a href="/ai-creation-space">/ai-creation-space</a> 进入统一创作入口；旧的 <code>/ai</code> 与 <code>/image-studio</code> 网页地址会自动跳转。</li>
   <li><strong>一次多张</strong>：一次多张使用同步 Images 的 <code>n=1-10</code>；流式只支持 <code>n=1</code>。</li>
   <li><strong>多个 prompt</strong>：多个 prompt 使用 Batch Image，见 <a href="/docs?cat=deploy&amp;page=batch-image-api">Batch Image 持久批任务</a>。</li>
   <li><strong>单请求异步</strong>：避免一个 Images 请求占用长连接，见 <a href="/docs?cat=deploy&amp;page=async-image-tasks">异步图片任务</a>。</li>
@@ -396,7 +396,7 @@ curl https://api.jisudeng.com/v1/images/batches/{id}/download \\
   <li><strong>同步 Images</strong>：API Key，短请求，<code>/v1/images/generations</code> 和 <code>/v1/images/edits</code>。</li>
   <li><strong>Gateway 单请求异步</strong>：API Key，一个 Images 请求进入 Redis 队列，使用 <code>/generations/async</code> 或 <code>/edits/async</code>。</li>
   <li><strong>Batch Image</strong>：API Key，多个 prompt 的持久批任务，使用 <code>/v1/images/batches</code>。</li>
-  <li><strong>图像工作室</strong>：登录 JWT 页面接口，模板、估价、图库，不使用 API Key 直调。</li>
+  <li><strong>AI创作空间</strong>：登录后进入统一画布与创作工作台；账号、模型权限、计费和异步任务仍由主平台统一管理。</li>
 </ul>`,
       },
       {
@@ -686,7 +686,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 
 <h2>Play 中枢（/play）聚合能力</h2>
 <ul>
-  <li><strong>图像工作室</strong> — 模板向导出图、今日是否已出图、首图引导</li>
+  <li><strong>AI创作空间</strong> — 画布创作、素材保存、提示词带入和首图引导</li>
   <li><strong>每日任务</strong> — 签到 / 出图 / API 调用进度与能量等级</li>
   <li><strong>签到</strong> — 今日是否已签、连续天数、距下一里程碑</li>
   <li><strong>Token 农场 / Arena</strong> — 日榜 + 月榜排名、距上一名 token 差、周期结算</li>
@@ -787,30 +787,30 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
       },
       {
         id: 'image-studio',
-        title: "图像工作室",
-        summary: "模板向导 · 生成前估价 · 图库 · 与每日任务联动",
-        html: `<p class="docs-lead">图像工作室面向<strong>不会写 prompt</strong>的用户：选意图 → 选模板 → 填描述 → 确认费用后生成。开发者批量调用请直接使用图片生成 API，不需要进入图像工作室。</p>
+        title: "AI创作空间",
+        summary: "画布创作 · 生图工作台 · 素材保存 · 与每日任务联动",
+        html: `<p class="docs-lead">AI创作空间是极速蹬统一的创作入口：在画布中组织素材，在生图工作台确认提示词与规格后再生成。开发者批量调用请直接使用图片生成 API。</p>
 
 <h2>入口</h2>
 <ul>
-  <li>控制台侧边栏 <strong>图像工作室</strong>（<a href="/image-studio">/image-studio</a>）</li>
+  <li>控制台侧边栏 <strong>AI创作空间</strong>（<a href="/ai-creation-space">/ai-creation-space</a>）</li>
   <li><a href="/play">玩法中枢</a>「今日出图」卡片</li>
   <li>首页 IMAGE 区 CTA「免费试做一张」</li>
 </ul>
 
 <h2>四步向导</h2>
 <ol>
-  <li><strong>意图</strong> — 电商白底 / 小红书封面 / 自由创作</li>
-  <li><strong>模板</strong> — 每类默认 1 个模板（尺寸、合规提示已预填）</li>
-  <li><strong>内容</strong> — 产品描述、主色、尺寸、数量；可折叠编辑专家 prompt</li>
-  <li><strong>确认</strong> — 选择 API Key、查看预估费用与余额状态后生成</li>
+  <li><strong>进入</strong> — 从主站“AI创作空间”进入，并继承当前账号权限</li>
+  <li><strong>组织</strong> — 在画布中整理提示词、参考图和已有成果</li>
+  <li><strong>生成</strong> — 在生图工作台确认提示词、模型、尺寸和参考图</li>
+  <li><strong>保存</strong> — 将成果保存到创作空间，空间紧张时及时导出自己的数据</li>
 </ol>
-<p class="docs-tip">已充值用户默认生成 4 张变体；新用户默认 1 张，避免赠金过快耗尽。回访用户可跳过前两步，直达上次模板。</p>
+<p class="docs-tip">生成请求会进入极速蹬主平台的异步队列；确认生成前会按当前账号、模型权限和余额进行校验。</p>
 
 <h2>费用与余额</h2>
 <ul>
   <li>生成前调用 <code>GET /api/v1/image-studio/estimate</code> 展示预估费用</li>
-  <li>余额不足时引导 <code>/purchase?return=/image-studio</code></li>
+  <li>余额不足时引导 <code>/purchase?return=/ai-creation-space</code></li>
   <li>扣费与 Gateway 图像 API 同源，按所选 Key 的分组计费</li>
 </ul>
 
@@ -864,7 +864,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <thead><tr><th>任务</th><th>条件</th><th>能量</th></tr></thead>
 <tbody>
 <tr><td>签到</td><td>当日完成签到</td><td>+10</td></tr>
-<tr><td>出图 1 张</td><td>图像工作室成功 1 次</td><td>+20</td></tr>
+<tr><td>出图 1 张</td><td>AI创作空间成功生成 1 次</td><td>+20</td></tr>
 <tr><td>API 调用</td><td>当日 usage ≥ 100 tokens</td><td>+15</td></tr>
 </tbody>
 </table>
@@ -872,7 +872,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <p>能量与等级用于 HUD 进度条，<strong>不单独兑换余额</strong>（防刷量设计）。</p>
 
 <h2>零消耗用户</h2>
-<p>若日榜与月榜消耗均为 0，页面展示「播种指南」：创建 Key → 调用 API 或先去图像工作室出图。</p>
+<p>若日榜与月榜消耗均为 0，页面展示「播种指南」：创建 Key → 调用 API 或先去 AI创作空间完成创作。</p>
 
 <h2>入口与 API</h2>
 <ul>

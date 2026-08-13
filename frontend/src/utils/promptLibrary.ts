@@ -126,7 +126,7 @@ export async function openPromptInImageStudio(
   const payload = await loadCurrentVersion(id)
   storePromptUsePayload(payload)
   await router.push(
-    `/image-studio?prompt=${encodeURIComponent(payload.prompt_id)}&version=${encodeURIComponent(String(payload.version))}`,
+    `/ai-creation-space?prompt=${encodeURIComponent(payload.prompt_id)}&version=${encodeURIComponent(String(payload.version))}`,
   )
 }
 

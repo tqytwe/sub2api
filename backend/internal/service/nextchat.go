@@ -36,6 +36,8 @@ type NextChatWorkspaceUser struct {
 	Username      string  `json:"username,omitempty"`
 	Email         string  `json:"email,omitempty"`
 	AvatarURL     string  `json:"avatar_url,omitempty"`
+	Role          string  `json:"role,omitempty"`
+	IsAdmin       bool    `json:"is_admin"`
 	Balance       float64 `json:"balance"`
 	FrozenBalance float64 `json:"frozen_balance"`
 }
@@ -240,6 +242,8 @@ func (s *APIKeyService) GetNextChatWorkspaceIdentity(ctx context.Context, userID
 			Username:      user.Username,
 			Email:         user.Email,
 			AvatarURL:     user.AvatarURL,
+			Role:          user.Role,
+			IsAdmin:       user.IsAdmin(),
 			Balance:       user.Balance,
 			FrozenBalance: user.FrozenBalance,
 		},

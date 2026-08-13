@@ -196,7 +196,7 @@ onMounted(() => {
     <header class="prompt-studio-panel-header">
       <div>
         <h2>选提示词</h2>
-        <p>从极速蹬提示词库选择一个创作起点，带回图像工作室继续编辑。</p>
+        <p>从极速蹬提示词库选择一个创作起点，带入 AI创作空间继续编辑。</p>
       </div>
       <button type="button" class="prompt-primary-button" @click="applyQuickEntry('featured')">
         <Icon name="sparkles" size="sm" />

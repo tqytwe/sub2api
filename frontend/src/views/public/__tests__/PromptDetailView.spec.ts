@@ -85,7 +85,7 @@ describe('PromptDetailView', () => {
     showSuccessMock.mockReset()
   })
 
-  it('stores the returned current public version before navigating to image studio', async () => {
+  it('stores the returned current public version before navigating to the AI creation space', async () => {
     const wrapper = mount(PromptDetailView, {
       global: {
         stubs: {
@@ -112,7 +112,7 @@ describe('PromptDetailView', () => {
       recommended_sizes: ['1024x1536'],
       reference_requirement: 'optional',
     })
-    expect(pushMock).toHaveBeenCalledWith('/image-studio?prompt=prompt-1&version=5')
+    expect(pushMock).toHaveBeenCalledWith('/ai-creation-space?prompt=prompt-1&version=5')
   })
 
   it('uses the final server favorite state and count without guessing', async () => {

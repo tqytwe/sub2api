@@ -477,9 +477,9 @@ const messages = {
   },
 
   nextChatLaunch: {
-    title: '正在进入 AI 创作',
+    title: '正在进入 AI创作空间',
     loading: '正在为当前账号创建安全会话...',
-    failed: 'AI 创作暂时无法打开，请稍后重试。'
+    failed: 'AI创作空间暂时无法打开，请稍后重试。'
   },
 
   // Navigation
@@ -489,8 +489,9 @@ const messages = {
     publicActions: '公共页面操作',
     apiKeys: 'API 密钥',
     aiCreation: 'AI 创作',
+    aiCreationSpace: 'AI创作空间',
     batchImage: '批量生图',
-    imageStudio: '图像工作室',
+    imageStudio: '生图后端能力',
     promptSquare: '提示词广场',
     promptManagement: '提示词管理',
     usage: '使用记录',
@@ -1053,7 +1054,7 @@ const messages = {
       step1TitleStudio: '欢迎加入 — 3 分钟出第一张图',
       step1Desc: 'API Key 是调用模型的凭证。先创建一个 Key，马上就能发第一条请求。',
       step1DescStudio: '不会写 prompt 也能出图。选模板、填描述，赠金足够试做一张。',
-      studioHint: '推荐新用户先从图像工作室开始 — 完成首图后可在玩法农场领取能量。',
+      studioHint: '推荐新用户先进入 AI创作空间完成首图，再到玩法农场领取能量。',
       studioCta: '免费试做一张',
       step2Title: '复制 curl 示例，立即试调',
       step2Desc: '把下面的命令粘贴到终端（记得替换模型名）。Key 已自动填入。',
@@ -1073,8 +1074,8 @@ const messages = {
     },
     createApiKey: '创建 API 密钥',
     generateNewKey: '生成新的 API 密钥',
-    imageStudioAgent: '图像工作室',
-    imageStudioAgentDesc: '选模板出图，3 分钟上手',
+    imageStudioAgent: 'AI创作空间',
+    imageStudioAgentDesc: '画布、生图和视频创作统一入口',
     batchImageAgent: '批量生图助手',
     batchImageAgentDesc: '复制给 Agent 的任务说明',
     viewUsage: '查看使用记录',
@@ -6473,7 +6474,7 @@ const messages = {
         names: {
           gatewayAsync: 'Gateway 异步',
           batch: 'Batch Image',
-          imageStudio: '图像工作室'
+          imageStudio: '生图后端能力'
         },
         states: {
           ready: '就绪',
@@ -7347,8 +7348,8 @@ const messages = {
         userSidebar: {
           title: '用户侧栏',
           description: '控制登录用户在侧边栏看到的玩法福利分组（玩法中枢、签到、农场等）。极速蹬不向普通用户展示「可用渠道 / 渠道状态」，渠道运维请走管理后台。',
-          nextChatHint: 'AI 创作 /ai（NextChat 托管入口）',
-          imageStudioHint: '图像工作室 /image-studio',
+          nextChatHint: 'AI创作空间 /ai-creation-space（统一创作入口）',
+          imageStudioHint: '图像生成后端能力（由 AI创作空间与 App 共用）',
           checkinHint: '每日签到与玩法中枢签到卡片',
           arenaHint: 'Token 农场 /arena',
           blindboxHint: '盲盒 /blindbox',

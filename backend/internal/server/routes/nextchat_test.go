@@ -49,6 +49,7 @@ type nextChatRouteIssuerStub struct {
 	userID         int64
 	selectedGroup  int64
 	switchRequests []int64
+	role           string
 }
 
 type nextChatRouteScopedIssuerStub struct {
@@ -128,7 +129,10 @@ func (s *nextChatRouteScopedIssuerStub) GetNextChatWorkspaceIdentity(_ context.C
 	if groupID == 0 {
 		groupID = 7
 	}
-	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, keyName, groupID), nil
+	identity := nextChatRouteWorkspaceIdentity(userID, apiKeyID, keyName, groupID)
+	identity.User.Role = s.workspaceRole()
+	identity.User.IsAdmin = identity.User.Role == service.RoleAdmin
+	return identity, nil
 }
 
 func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error) {
@@ -136,7 +140,10 @@ func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context
 	if groupID == 0 {
 		groupID = 7
 	}
-	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, service.NextChatManagedAPIKeyName, groupID), nil
+	identity := nextChatRouteWorkspaceIdentity(userID, apiKeyID, service.NextChatManagedAPIKeyName, groupID)
+	identity.User.Role = s.workspaceRole()
+	identity.User.IsAdmin = identity.User.Role == service.RoleAdmin
+	return identity, nil
 }
 
 func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, groupID int64) *service.NextChatWorkspaceIdentity {
@@ -145,6 +152,7 @@ func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, grou
 			ID:       userID,
 			Username: "tester",
 			Email:    "tester@example.com",
+			Role:     service.RoleUser,
 			Balance:  12.5,
 		},
 		APIKey: service.NextChatWorkspaceAPIKey{
@@ -155,6 +163,13 @@ func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, grou
 			GroupPlatform: service.PlatformOpenAI,
 		},
 	}
+}
+
+func (s *nextChatRouteIssuerStub) workspaceRole() string {
+	if strings.TrimSpace(s.role) != "" {
+		return s.role
+	}
+	return service.RoleUser
 }
 
 func (s *nextChatRouteIssuerStub) SetNextChatManagedKeyGroup(_ context.Context, userID, apiKeyID, groupID int64) (*service.NextChatWorkspaceIdentity, error) {
@@ -488,14 +503,21 @@ func extractNextChatLaunchToken(t *testing.T, launchURL string) string {
 	return token
 }
 
-func postNextChatLaunch(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
+func postNextChatLaunchWithBody(router *gin.Engine, authHeader, body string) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/nextchat/launch", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/nextchat/launch", strings.NewReader(body))
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if authHeader != "" {
 		req.Header.Set("Authorization", authHeader)
 	}
 	router.ServeHTTP(recorder, req)
 	return recorder
+}
+
+func postNextChatLaunch(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
+	return postNextChatLaunchWithBody(router, authHeader, "")
 }
 
 func getNextChatMobileBootstrap(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
@@ -617,6 +639,31 @@ func TestNextChatLaunchDisabledReturnsNotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, recorder.Code)
 	require.Contains(t, recorder.Body.String(), "NextChat is disabled")
+}
+
+func TestNextChatLaunchCarriesWhitelistedImagePromptIntent(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{
+		NextChat: config.NextChatConfig{PublicURL: "https://canvas.example.com"},
+	}, rdb)
+
+	recorder := postNextChatLaunchWithBody(router, "Bearer valid-user", `{"intent":{"type":"image_prompt","prompt_id":42,"prompt_version":3}}`)
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, recorder)
+	parsed, err := url.Parse(launch.LaunchURL)
+	require.NoError(t, err)
+	require.Equal(t, "42", parsed.Query().Get("creation_prompt"))
+	require.Equal(t, "3", parsed.Query().Get("creation_prompt_version"))
+	require.NotEmpty(t, parsed.Query().Get("launch_token"))
+}
+
+func TestNextChatLaunchRejectsUnknownCreationIntent(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{}, rdb)
+
+	recorder := postNextChatLaunchWithBody(router, "Bearer valid-user", `{"intent":{"type":"redirect","prompt_id":42}}`)
+	require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "Invalid creation intent")
 }
 
 func TestNextChatMobileBootstrapRequiresJWT(t *testing.T) {

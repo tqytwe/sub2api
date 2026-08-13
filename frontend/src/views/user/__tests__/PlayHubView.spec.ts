@@ -108,7 +108,7 @@ function hubFixture(): PlayHubSummary {
       server_date: '2026-07-17',
       tasks: [
         { key: 'checkin', completed: true, energy: 10 },
-        { key: 'image_studio', completed: false, energy: 30, cta_route: '/image-studio' },
+        { key: 'image_studio', completed: false, energy: 30, cta_route: '/ai-creation-space' },
       ],
     },
     checkin: {
@@ -213,7 +213,7 @@ describe('PlayHubView layout', () => {
     expect(wrapper.text()).toContain('V1')
     expect(wrapper.text()).toContain('夏日加速')
     expect(wrapper.text()).toContain('playHub.questsEnergy')
-    expect(wrapper.text()).toContain('nav.imageStudio')
+    expect(wrapper.text()).toContain('nav.aiCreationSpace')
     expect(wrapper.text()).toContain('nav.checkIn')
     expect(wrapper.text()).toContain('nav.blindbox')
     expect(wrapper.text()).toContain('nav.agentTeam')

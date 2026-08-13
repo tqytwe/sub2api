@@ -351,7 +351,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		{Hreflang: "zh-CN", Path: "/download/android"},
 		{Hreflang: "x-default", Path: "/download/android"},
 	}},
-	{Path: "/image-studio", ChangeFreq: "weekly", Priority: "0.70"},
+	{Path: "/ai-creation-space", ChangeFreq: "weekly", Priority: "0.70"},
 	{Path: "/prompts", ChangeFreq: "daily", Priority: "0.75"},
 }
 
