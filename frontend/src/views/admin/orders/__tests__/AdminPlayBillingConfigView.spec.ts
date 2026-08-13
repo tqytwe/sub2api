@@ -69,30 +69,6 @@ function mountView() {
     global: {
       stubs: {
         AppLayout: { template: '<div><slot /></div>' },
-        DataTable: {
-          props: ['columns', 'data', 'stickyFirstColumn', 'stickyActionsColumn'],
-          template: `
-            <div
-              data-test="play-billing-data-table"
-              :data-sticky-first-column="String(stickyFirstColumn)"
-              :data-sticky-actions-column="String(stickyActionsColumn)"
-              :data-column-classes="columns.map(column => column.class || '').join('|')"
-            >
-              <slot v-if="!data || data.length === 0" name="empty" />
-              <div v-for="row in data" :key="row.local_id" data-test="mapping-row">
-                <slot name="cell-enabled" :row="row" :value="row.enabled" />
-                <slot name="cell-product_id" :row="row" :value="row.product_id" />
-                <slot name="cell-product_type" :row="row" :value="row.product_type" />
-                <slot name="cell-order_type" :row="row" :value="row.order_type" />
-                <slot name="cell-title" :row="row" :value="row.title" />
-                <slot name="cell-entitlement" :row="row" :value="row.amount" />
-                <slot name="cell-pay_amount" :row="row" :value="row.pay_amount" />
-                <slot name="cell-consumable" :row="row" :value="row.consumable" />
-                <slot name="cell-actions" :row="row" />
-              </div>
-            </div>
-          `,
-        },
         Select: {
           props: ['modelValue', 'options'],
           emits: ['update:modelValue', 'change'],
@@ -200,15 +176,14 @@ describe('AdminPlayBillingConfigView', () => {
     expect(wrapper.text()).toContain('amount required')
   })
 
-  it('uses a non-overlapping wide-table layout for editable Play Billing mappings', async () => {
+  it('renders each editable mapping as a multi-row card without a wide table', async () => {
     const wrapper = mountView()
     await flushPromises()
 
-    const table = wrapper.find('[data-test="play-billing-data-table"]')
-    expect(table.attributes('data-sticky-first-column')).toBe('false')
-    expect(table.attributes('data-sticky-actions-column')).toBe('false')
-    expect(table.attributes('data-column-classes')).toContain('min-w-[260px]')
-    expect(table.attributes('data-column-classes')).toContain('min-w-[96px]')
+    expect(wrapper.find('[data-test="play-billing-mapping-list"]').exists()).toBe(true)
+    expect(wrapper.findAll('[data-test="play-billing-mapping-card"]')).toHaveLength(1)
     expect(wrapper.find('[data-test="play-billing-product-id"]').classes()).toContain('min-w-0')
+    expect(wrapper.find('[data-test="play-billing-mapping-card"]').findAll('label')).toHaveLength(9)
+    expect(wrapper.find('[data-test="play-billing-mapping-card"]').find('[aria-label="common.copy"]').exists()).toBe(true)
   })
 })
