@@ -70,9 +70,14 @@ function mountView() {
       stubs: {
         AppLayout: { template: '<div><slot /></div>' },
         DataTable: {
-          props: ['data'],
+          props: ['columns', 'data', 'stickyFirstColumn', 'stickyActionsColumn'],
           template: `
-            <div>
+            <div
+              data-test="play-billing-data-table"
+              :data-sticky-first-column="String(stickyFirstColumn)"
+              :data-sticky-actions-column="String(stickyActionsColumn)"
+              :data-column-classes="columns.map(column => column.class || '').join('|')"
+            >
               <slot v-if="!data || data.length === 0" name="empty" />
               <div v-for="row in data" :key="row.local_id" data-test="mapping-row">
                 <slot name="cell-enabled" :row="row" :value="row.enabled" />
@@ -193,5 +198,17 @@ describe('AdminPlayBillingConfigView', () => {
     expect(showErrorMock).toHaveBeenCalledWith('fix errors')
     expect(wrapper.text()).toContain('product required')
     expect(wrapper.text()).toContain('amount required')
+  })
+
+  it('uses a non-overlapping wide-table layout for editable Play Billing mappings', async () => {
+    const wrapper = mountView()
+    await flushPromises()
+
+    const table = wrapper.find('[data-test="play-billing-data-table"]')
+    expect(table.attributes('data-sticky-first-column')).toBe('false')
+    expect(table.attributes('data-sticky-actions-column')).toBe('false')
+    expect(table.attributes('data-column-classes')).toContain('min-w-[260px]')
+    expect(table.attributes('data-column-classes')).toContain('min-w-[96px]')
+    expect(wrapper.find('[data-test="play-billing-product-id"]').classes()).toContain('min-w-0')
   })
 })

@@ -89,6 +89,8 @@
           :columns="columns"
           :data="mappings"
           :loading="loading"
+          :sticky-first-column="false"
+          :sticky-actions-column="false"
           row-key="local_id"
         >
           <template #empty>
@@ -112,10 +114,10 @@
           </template>
 
           <template #cell-product_id="{ row }">
-            <div class="min-w-[220px] space-y-1">
+            <div class="w-full min-w-0 space-y-1 md:min-w-[220px]">
               <input
                 v-model.trim="row.product_id"
-                class="input"
+                class="input min-w-0"
                 :class="fieldError(row, 'product_id') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''"
                 :placeholder="t('payment.admin.playBilling.productIdPlaceholder')"
                 :disabled="saving"
@@ -147,16 +149,16 @@
           </template>
 
           <template #cell-title="{ row }">
-            <div class="min-w-[200px] space-y-1">
+            <div class="w-full min-w-0 space-y-1 md:min-w-[200px]">
               <input
                 v-model.trim="row.title"
-                class="input"
+                class="input min-w-0"
                 :placeholder="t('payment.admin.playBilling.titlePlaceholder')"
                 :disabled="saving"
               />
               <input
                 v-model.trim="row.formatted_price"
-                class="input"
+                class="input min-w-0"
                 :placeholder="t('payment.admin.playBilling.pricePlaceholder')"
                 :disabled="saving"
               />
@@ -164,14 +166,14 @@
           </template>
 
           <template #cell-entitlement="{ row }">
-            <div class="min-w-[240px] space-y-2">
+            <div class="w-full min-w-0 space-y-2 md:min-w-[240px]">
               <template v-if="row.order_type === 'balance'">
                 <input
                   v-model.number="row.amount"
                   type="number"
                   min="0"
                   step="0.01"
-                  class="input"
+                  class="input min-w-0"
                   :class="fieldError(row, 'amount') ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''"
                   :placeholder="t('payment.admin.playBilling.amountPlaceholder')"
                   :disabled="saving"
@@ -198,19 +200,19 @@
           </template>
 
           <template #cell-pay_amount="{ row }">
-            <div class="min-w-[150px] space-y-1">
+            <div class="w-full min-w-0 space-y-1 md:min-w-[150px]">
               <input
                 v-model.number="row.pay_amount"
                 type="number"
                 min="0"
                 step="0.01"
-                class="input"
+                class="input min-w-0"
                 :placeholder="t('payment.admin.playBilling.payAmountPlaceholder')"
                 :disabled="saving"
               />
               <input
                 v-model.trim="row.currency"
-                class="input uppercase"
+                class="input min-w-0 uppercase"
                 maxlength="3"
                 :placeholder="t('payment.admin.playBilling.currencyPlaceholder')"
                 :disabled="saving"
@@ -306,15 +308,15 @@ const planOptions = computed(() => [
 ])
 
 const columns = computed((): Column[] => [
-  { key: 'enabled', label: t('payment.admin.playBilling.enabled') },
-  { key: 'product_id', label: t('payment.admin.playBilling.productId') },
-  { key: 'product_type', label: t('payment.admin.playBilling.productType') },
-  { key: 'order_type', label: t('payment.admin.playBilling.orderType') },
-  { key: 'title', label: t('payment.admin.playBilling.display') },
-  { key: 'entitlement', label: t('payment.admin.playBilling.entitlement') },
-  { key: 'pay_amount', label: t('payment.admin.playBilling.payAmount') },
-  { key: 'consumable', label: t('payment.admin.playBilling.consumable') },
-  { key: 'actions', label: t('common.actions') },
+  { key: 'enabled', label: t('payment.admin.playBilling.enabled'), class: 'min-w-[72px]' },
+  { key: 'product_id', label: t('payment.admin.playBilling.productId'), class: 'min-w-[260px]' },
+  { key: 'product_type', label: t('payment.admin.playBilling.productType'), class: 'min-w-[140px]' },
+  { key: 'order_type', label: t('payment.admin.playBilling.orderType'), class: 'min-w-[150px]' },
+  { key: 'title', label: t('payment.admin.playBilling.display'), class: 'min-w-[260px]' },
+  { key: 'entitlement', label: t('payment.admin.playBilling.entitlement'), class: 'min-w-[280px]' },
+  { key: 'pay_amount', label: t('payment.admin.playBilling.payAmount'), class: 'min-w-[200px]' },
+  { key: 'consumable', label: t('payment.admin.playBilling.consumable'), class: 'min-w-[96px]' },
+  { key: 'actions', label: t('common.actions'), class: 'min-w-[96px]' },
 ])
 
 const enabledCount = computed(() => mappings.value.filter(item => item.enabled).length)
