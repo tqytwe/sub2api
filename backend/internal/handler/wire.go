@@ -52,7 +52,6 @@ func ProvideAdminHandlers(
 	modelCatalogHandler *admin.ModelCatalogHandler,
 	ipRiskHandler *admin.IPRiskHandler,
 	auditLogHandler *admin.AuditLogHandler,
-	promptLibraryHandler *admin.PromptLibraryHandler,
 	mobileAttributionAdminHandler *MobileAttributionAdminHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
@@ -100,7 +99,6 @@ func ProvideAdminHandlers(
 		ModelCatalog:           modelCatalogHandler,
 		IPRisk:                 ipRiskHandler,
 		AuditLog:               auditLogHandler,
-		PromptLibrary:          promptLibraryHandler,
 		MobileAttribution:      mobileAttributionAdminHandler,
 	}
 }
@@ -433,7 +431,6 @@ var ProviderSet = wire.NewSet(
 	admin.NewModelCatalogHandler,
 	ProvideIPRiskHandler,
 	admin.NewAuditLogHandler,
-	admin.NewPromptLibraryHandler,
 	NewMobileAttributionAdminHandler,
 
 	// AdminHandlers and Handlers constructors

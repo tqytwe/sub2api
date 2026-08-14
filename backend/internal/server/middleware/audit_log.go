@@ -195,8 +195,6 @@ var auditBodyOmittedRoutes = map[string]struct{}{
 	"POST /api/v1/admin/users/exclusive-groups/csv/preview":           {},
 	"POST /api/v1/admin/users/exclusive-groups/csv":                   {},
 	"POST /api/v1/admin/play/teams/:id/members":                       {},
-	"POST /api/v1/admin/prompts/import-jobs":                          {},
-	"POST /api/v1/admin/prompts/import-items/:id/approve":             {},
 	"PUT /api/v1/admin/prompt-audit/config":                           {},
 	"POST /api/v1/admin/prompt-audit/endpoints/probe":                 {},
 	"DELETE /api/v1/admin/prompt-audit/events/:id":                    {},

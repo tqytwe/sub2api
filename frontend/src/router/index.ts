@@ -906,17 +906,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/prompts',
-    name: 'AdminPrompts',
-    component: () => import('@/views/admin/PromptsView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: '提示词管理',
-      frame: 'workspace',
-    },
-  },
-  {
     path: '/admin/proxies',
     name: 'AdminProxies',
     component: () => import('@/views/admin/ProxiesView.vue'),

@@ -7,6 +7,8 @@
     "frontend/src/router/index.ts",
     "frontend/src/router/publicNavigation.ts",
     "frontend/src/components/layout/AppSidebar.vue",
+    "frontend/src/views/admin/PromptsView.vue",
+    "frontend/src/components/prompt/prompt-admin.css",
     "frontend/src/components/prompt/PromptCard.vue",
     "frontend/src/components/prompt/PromptLibraryPanel.vue",
     "frontend/src/views/HomeView.vue",
@@ -108,7 +110,7 @@
 
 - Consolidate web-facing creation navigation under `/ai-creation-space`.
 - Keep `/ai` and `/image-studio` as compatibility redirects.
-- Remove the retired public `/prompts` and `/prompts/:id` prompt-square pages; Canvas remains the user-facing prompt workspace and `/admin/prompts` remains available for platform governance.
+- Remove the retired public `/prompts` and `/prompts/:id` prompt-square pages; Canvas remains the user-facing prompt workspace and the former administrator prompt-governance surface is removed.
 - Preserve legacy query parameters so a prompt-library launch can reach the unified entry.
 - Allow only a validated image-prompt identifier in the Canvas launch URL; Canvas retrieves the prompt through the authenticated server BFF and only pre-fills the image workbench.
 - Keep the internal prompt panel usable after retiring the public prompt pages: selecting a cover uses the prompt directly, while copy, favorite and use actions remain available.

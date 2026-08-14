@@ -42,7 +42,6 @@ function productUiTemplates(): string[] {
     template('components/home/LmspeedProviderProof.vue'),
     template('components/layout/AppHeader.vue'),
     template('components/layout/AppSidebar.vue'),
-    template('views/admin/PromptsView.vue'),
     template('views/user/ImageStudioView.vue'),
     ...promptComponents,
   ]

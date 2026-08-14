@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  createDefaultAdminPromptDraft,
   promptSourceLabel,
   promptSessionStorageKey,
   readPromptFilters,
@@ -87,10 +86,4 @@ describe('promptLibrary utilities', () => {
     expect(sessionStorage.getItem(key)).not.toContain('user_input')
   })
 
-  it('defaults new external content to curated instead of original', () => {
-    const draft = createDefaultAdminPromptDraft()
-
-    expect(draft.source_attribution).toBe('curated')
-    expect(draft.source_attribution).not.toBe('original')
-  })
 })
