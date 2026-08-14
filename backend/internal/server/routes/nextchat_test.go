@@ -365,10 +365,11 @@ type nextChatLaunchResponse struct {
 }
 
 type nextChatSessionResponse struct {
-	UserID  int64  `json:"user_id"`
-	APIKey  string `json:"api_key"`
-	KeyID   int64  `json:"api_key_id"`
-	Purpose string `json:"purpose"`
+	UserID   int64                              `json:"user_id"`
+	APIKey   string                             `json:"api_key"`
+	KeyID    int64                              `json:"api_key_id"`
+	Purpose  string                             `json:"purpose"`
+	Sessions map[string]nextChatSessionResponse `json:"sessions"`
 }
 
 type nextChatMobileBootstrapResponse struct {
@@ -850,6 +851,29 @@ func TestNextChatLaunchTokenIsConsumedOnce(t *testing.T) {
 	require.Contains(t, second.Body.String(), "Invalid or consumed launch token")
 	require.Equal(t, 1, issuer.calls)
 	require.Equal(t, int64(42), issuer.userID)
+}
+
+func TestNextChatSessionExchangeReturnsScopedChatAndImageSessions(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteScopedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, postNextChatLaunch(router, "Bearer valid-user"))
+	token := extractNextChatLaunchToken(t, launch.LaunchURL)
+	recorder := postNextChatSession(router, "server-secret", token)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	session := decodeNextChatRouteResponse[nextChatSessionResponse](t, recorder)
+	require.Equal(t, "sk-managed-nextchat", session.APIKey)
+	require.Equal(t, int64(123), session.KeyID)
+	require.Equal(t, service.NextChatSessionPurposeChat, session.Purpose)
+	require.Equal(t, "sk-managed-nextchat", session.Sessions[service.NextChatSessionPurposeChat].APIKey)
+	require.Equal(t, "sk-managed-nextchat-image", session.Sessions[service.NextChatSessionPurposeImage].APIKey)
+	require.Equal(t, int64(456), session.Sessions[service.NextChatSessionPurposeImage].KeyID)
+	require.Equal(t, []string{service.NextChatSessionPurposeChat, service.NextChatSessionPurposeImage}, issuer.purposeIssueRequests)
+	require.Zero(t, issuer.calls, "scoped exchange must not issue the legacy chat-only session")
 }
 
 func TestNextChatLaunchTokenExpires(t *testing.T) {
