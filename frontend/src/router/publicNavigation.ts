@@ -16,7 +16,6 @@ export const PUBLIC_ROUTE_NAMES = {
   keyUsage: 'KeyUsage',
   login: 'Login',
   pricing: 'Pricing',
-  promptSquare: 'PromptSquare',
   register: 'Register',
 } as const
 
@@ -24,7 +23,6 @@ export type HomePrimaryNavKey =
   | 'models'
   | 'docs'
   | 'creation'
-  | 'prompts'
   | 'keyUsage'
   | 'about'
   | 'contact'
@@ -85,7 +83,6 @@ export function buildHomePrimaryNav(isAuthenticated: boolean, locale: 'zh' | 'en
     { key: 'models', labelKey: 'home.jisudeng.nav.models', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishModels } : PRICING_ROUTE },
     { key: 'docs', labelKey: 'home.jisudeng.nav.docs', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishDocs } : { name: PUBLIC_ROUTE_NAMES.docs } },
     { key: 'creation', labelKey: 'home.jisudeng.nav.creation', to: aiCreationSpaceEntryRoute(isAuthenticated, locale) },
-    { key: 'prompts', labelKey: 'home.jisudeng.nav.prompts', to: sharedRoute(PUBLIC_ROUTE_NAMES.promptSquare) },
     { key: 'keyUsage', labelKey: 'home.jisudeng.nav.keyUsage', to: sharedRoute(PUBLIC_ROUTE_NAMES.keyUsage) },
     { key: 'about', labelKey: 'home.jisudeng.nav.about', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishAbout } : { name: PUBLIC_ROUTE_NAMES.about } },
     { key: 'contact', labelKey: 'home.jisudeng.nav.contact', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishContact } : CONTACT_ROUTE, requiresSupportContact: true },

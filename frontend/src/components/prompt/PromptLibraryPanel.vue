@@ -156,10 +156,6 @@ async function handleCopy(prompt: PromptSummary) {
   }
 }
 
-function handleDetails(prompt: PromptSummary) {
-  void router.push(`/prompts/${encodeURIComponent(prompt.id)}`)
-}
-
 async function handleUse(prompt: PromptSummary) {
   if (busyIds.value.has(prompt.id)) return
   if (!authStore.isAuthenticated) {
@@ -267,7 +263,6 @@ onMounted(() => {
         :busy="busyIds.has(prompt.id)"
         @favorite="handleFavorite"
         @copy="handleCopy"
-        @details="handleDetails"
         @use="handleUse"
       />
     </section>

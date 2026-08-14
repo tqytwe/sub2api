@@ -6,26 +6,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
-func TestBuildPromptLibrarySitemapContainsOnlyProvidedPublishedPrompts(t *testing.T) {
-	body, err := buildPromptLibrarySitemap("https://www.jisudeng.com", []service.PublicPrompt{
-		{ID: 12},
-		{ID: 34},
-	})
+func TestBuildPromptLibrarySitemapContainsOnlyExistingPublicPages(t *testing.T) {
+	body, err := buildPromptLibrarySitemap("https://www.jisudeng.com")
 	require.NoError(t, err)
 	xml := string(body)
-	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts</loc>")
-	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts/12</loc>")
-	require.Contains(t, xml, "<loc>https://www.jisudeng.com/prompts/34</loc>")
+	require.NotContains(t, xml, "/prompts")
 	for _, path := range []string{
 		"/", "/pricing", "/pricing/deepseek", "/pricing/qwen", "/pricing/kimi", "/pricing/glm",
 		"/docs", "/en/", "/en/models", "/en/models/deepseek", "/en/models/qwen",
 		"/en/models/kimi", "/en/models/glm", "/en/docs", "/about", "/contact", "/en/about", "/en/contact",
-		"/download/android", "/image-studio",
+		"/download/android",
 	} {
 		require.Contains(t, xml, "<loc>https://www.jisudeng.com"+path+"</loc>")
 	}

@@ -309,26 +309,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/prompts',
-    name: 'PromptSquare',
-    component: () => import('@/views/public/PromptSquareView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'AI创作空间 · 选提示词',
-      hidePageHeader: true,
-    },
-  },
-  {
-    path: '/prompts/:id',
-    name: 'PromptDetail',
-    component: () => import('@/views/public/PromptDetailView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: '提示词详情',
-      hidePageHeader: true,
-    },
-  },
-  {
     path: '/blindbox',
     name: 'Blindbox',
     component: () => import('@/views/public/BlindboxView.vue'),

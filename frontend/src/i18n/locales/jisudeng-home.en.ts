@@ -4,7 +4,6 @@ export const jisudengHomeEn = {
     models: 'Models & Pricing',
     docs: 'Docs',
     creation: 'AI Creation Space',
-    prompts: 'Prompts',
     keyUsage: 'API Audit',
     about: 'About',
     contact: 'Contact',

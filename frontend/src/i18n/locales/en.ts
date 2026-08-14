@@ -492,7 +492,6 @@ const messages = {
     aiCreationSpace: 'AI Creation Space',
     batchImage: 'Batch Images',
     imageStudio: 'Image-generation backend',
-    promptSquare: 'Prompt Library',
     promptManagement: 'Prompt Management',
     usage: 'Usage',
     wallet: 'Wallet',

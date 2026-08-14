@@ -492,7 +492,6 @@ const messages = {
     aiCreationSpace: 'AI创作空间',
     batchImage: '批量生图',
     imageStudio: '生图后端能力',
-    promptSquare: '提示词广场',
     promptManagement: '提示词管理',
     usage: '使用记录',
     wallet: '钱包',

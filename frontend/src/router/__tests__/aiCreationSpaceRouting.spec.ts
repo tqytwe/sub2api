@@ -23,4 +23,9 @@ describe('AI creation space web routing', () => {
     expect(readFileSync(resolve(process.cwd(), '../backend/internal/server/routes/nextchat.go'), 'utf8'))
       .toContain('mobile/sessions/:purpose/group')
   })
+
+  it('does not depend on the retired public prompt-square routes', () => {
+    expect(routerSource).not.toContain("PromptSquareView.vue")
+    expect(routerSource).not.toContain("PromptDetailView.vue")
+  })
 })

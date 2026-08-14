@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -352,29 +351,10 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		{Hreflang: "x-default", Path: "/download/android"},
 	}},
 	{Path: "/ai-creation-space", ChangeFreq: "weekly", Priority: "0.70"},
-	{Path: "/prompts", ChangeFreq: "daily", Priority: "0.75"},
 }
 
 func (h *PromptLibraryHandler) Sitemap(c *gin.Context) {
-	prompts := make([]service.PublicPrompt, 0)
-	for page := 1; ; page++ {
-		rows, result, err := h.service.ListPublic(c.Request.Context(), service.PromptListFilter{
-			Sort: "latest",
-			Pagination: pagination.PaginationParams{
-				Page:     page,
-				PageSize: 500,
-			},
-		}, nil)
-		if err != nil {
-			response.ErrorFrom(c, err)
-			return
-		}
-		prompts = append(prompts, rows...)
-		if result == nil || page >= result.Pages {
-			break
-		}
-	}
-	body, err := buildPromptLibrarySitemap(promptRequestOrigin(c.Request), prompts)
+	body, err := buildPromptLibrarySitemap(promptRequestOrigin(c.Request))
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -417,9 +397,9 @@ func setPromptSEOResponseHeaders(c *gin.Context) {
 	c.Header("X-Robots-Tag", "index, follow")
 }
 
-func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([]byte, error) {
+func buildPromptLibrarySitemap(origin string) ([]byte, error) {
 	origin = strings.TrimRight(origin, "/")
-	urls := make([]promptSitemapURL, 0, len(promptSitemapStaticPaths)+len(prompts))
+	urls := make([]promptSitemapURL, 0, len(promptSitemapStaticPaths))
 	for _, path := range promptSitemapStaticPaths {
 		urls = append(urls, promptSitemapURL{
 			Location:   origin + path.Path,
@@ -427,17 +407,6 @@ func buildPromptLibrarySitemap(origin string, prompts []service.PublicPrompt) ([
 			Priority:   path.Priority,
 			Alternates: promptSitemapAlternates(origin, path.Alternates),
 		})
-	}
-	for _, prompt := range prompts {
-		entry := promptSitemapURL{
-			Location:   fmt.Sprintf("%s/prompts/%d", origin, prompt.ID),
-			ChangeFreq: "weekly",
-			Priority:   "0.50",
-		}
-		if prompt.PublishedAt != nil {
-			entry.Modified = prompt.PublishedAt.UTC().Format(time.DateOnly)
-		}
-		urls = append(urls, entry)
 	}
 	body, err := xml.Marshal(promptSitemapURLSet{
 		XMLNS: "http://www.sitemaps.org/schemas/sitemap/0.9",
@@ -551,7 +520,7 @@ Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps
 
 ## AI Search Reference Policy
 
-- Public pages, the model catalog, docs, prompt pages, sitemap.xml, and llms.txt may be used for search indexing and answer references.
+- Public pages, the model catalog, docs, AI创作空间, sitemap.xml, and llms.txt may be used for search indexing and answer references.
 - API routes, admin routes, setup routes, account pages, keys, billing records, and private user data are not public reference material.
 - Model training permission is not granted by this file.
 
@@ -571,7 +540,7 @@ Chinese public routes are the default for '/', '/pricing', and '/docs'. English 
 
 ## 中文摘要
 
-极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、图像生成、API Key 管理和提示词库。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
+极速蹬为开发者、团队和 AI 工具用户提供 OpenAI 兼容 API 网关、模型目录、公开价格、接入文档、AI创作空间、图像生成和 API Key 管理。中文页面默认使用中文，英文页面仅在 /en 路径下提供。
 `, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin, origin)
 }
 
