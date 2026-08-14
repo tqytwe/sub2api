@@ -1072,18 +1072,28 @@ func handleNextChatSessionExchange(
 		return
 	}
 
+	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
+	if scoped, ok := issuer.(nextChatScopedSessionIssuer); ok {
+		sessions, err := scoped.IssueNextChatManagedSessions(c.Request.Context(), record.UserID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		payload := nextChatSessionPayload(&sessions.Chat, expiresAt)
+		payload["sessions"] = gin.H{
+			service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
+			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
+		}
+		response.Success(c, payload)
+		return
+	}
+
 	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), record.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
-	response.Success(c, gin.H{
-		"user_id":    session.UserID,
-		"api_key":    session.APIKey,
-		"api_key_id": session.KeyID,
-		"expires_at": expiresAt,
-	})
+	response.Success(c, nextChatSessionPayload(session, expiresAt))
 }
 
 func requireNextChatBFFSession(c *gin.Context, cfg *config.Config) (int64, int64, bool) {
