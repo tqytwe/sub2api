@@ -359,6 +359,7 @@ func TestGetNextChatWorkspaceIdentityReturnsUserAndManagedKeySummary(t *testing.
 		Username:      "tester",
 		Email:         "tester@example.com",
 		AvatarURL:     "/avatar.png",
+		Role:          RoleAdmin,
 		Balance:       12.5,
 		FrozenBalance: 1.5,
 		Status:        StatusActive,
@@ -373,6 +374,8 @@ func TestGetNextChatWorkspaceIdentityReturnsUserAndManagedKeySummary(t *testing.
 	require.NoError(t, err)
 	require.Equal(t, int64(42), identity.User.ID)
 	require.Equal(t, "tester", identity.User.Username)
+	require.Equal(t, RoleAdmin, identity.User.Role)
+	require.True(t, identity.User.IsAdmin)
 	require.Equal(t, 12.5, identity.User.Balance)
 	require.Equal(t, int64(2), identity.APIKey.ID)
 	require.Equal(t, NextChatManagedAPIKeyName, identity.APIKey.Name)
