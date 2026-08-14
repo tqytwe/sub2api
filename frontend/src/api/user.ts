@@ -211,6 +211,11 @@ export async function launchNextChat(intent?: AICreationIntent): Promise<NextCha
   return data
 }
 
+export async function launchAICreationSpace(intent?: AICreationIntent): Promise<NextChatLaunchResponse> {
+  const { data } = await apiClient.post<NextChatLaunchResponse>('/nextchat/launch', intent ? { intent } : undefined)
+  return data
+}
+
 export const userAPI = {
   getProfile,
   updateProfile,
@@ -228,6 +233,7 @@ export const userAPI = {
   transferAffiliateQuota,
   getMyPlatformQuotas,
   launchNextChat,
+  launchAICreationSpace,
 }
 
 export default userAPI

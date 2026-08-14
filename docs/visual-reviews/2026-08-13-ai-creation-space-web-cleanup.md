@@ -17,7 +17,7 @@
     "frontend/src/components/user/dashboard/FirstLoginWelcomeModal.vue",
     "frontend/src/utils/promptLibrary.ts",
     "frontend/src/composables/useImageStudioWorkspace.ts",
-    "frontend/src/views/user/NextChatLaunchView.vue",
+    "frontend/src/views/user/CanvasLaunchView.vue",
     "frontend/src/api/user.ts",
     "backend/internal/server/routes/nextchat.go",
     "frontend/src/content/public-docs-data.zh.ts",
@@ -106,7 +106,7 @@
 
 ## Scope
 
-- Consolidate web-facing creation navigation under `/ai-creation-space`.
+- Consolidate web-facing creation navigation under `/ai-creation-space`, which now launches the managed Infinite Canvas service.
 - Keep `/ai` and `/image-studio` as compatibility redirects.
 - Remove the retired public `/prompts` and `/prompts/:id` prompt-square pages; Canvas remains the user-facing prompt workspace and `/admin/prompts` remains available for platform governance.
 - Preserve legacy query parameters so a prompt-library launch can reach the unified entry.

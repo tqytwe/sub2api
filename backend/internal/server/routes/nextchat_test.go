@@ -658,6 +658,26 @@ func TestNextChatLaunchCarriesWhitelistedImagePromptIntent(t *testing.T) {
 	require.NotEmpty(t, parsed.Query().Get("launch_token"))
 }
 
+func TestNextChatLaunchPrefersAICreationSpacePublicURL(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{
+		AICreationSpace: config.AICreationSpaceConfig{
+			PublicURL: "https://jisudengcanvas.zeabur.app",
+		},
+		NextChat: config.NextChatConfig{
+			PublicURL: "https://legacy-nextchat.example.com",
+		},
+	}, rdb)
+
+	recorder := postNextChatLaunch(router, "Bearer valid-user")
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, recorder)
+	parsed, err := url.Parse(launch.LaunchURL)
+	require.NoError(t, err)
+	require.Equal(t, "jisudengcanvas.zeabur.app", parsed.Host)
+	require.NotEmpty(t, parsed.Query().Get("launch_token"))
+}
+
 func TestNextChatLaunchRejectsUnknownCreationIntent(t *testing.T) {
 	_, rdb := newNextChatRouteRedis(t)
 	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{}, rdb)

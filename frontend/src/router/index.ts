@@ -485,7 +485,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/ai-creation-space',
     name: 'AICreationSpace',
-    component: () => import('@/views/user/NextChatLaunchView.vue'),
+    component: () => import('@/views/user/CanvasLaunchView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,

@@ -40,6 +40,15 @@ func TestLoadServerTimingConfig(t *testing.T) {
 	})
 }
 
+func TestLoadAICreationSpacePublicURLFromEnvironment(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("AI_CREATION_SPACE_PUBLIC_URL", "https://canvas.example.com")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "https://canvas.example.com", cfg.AICreationSpace.PublicURL)
+}
+
 func TestLoadRedisUsernameFromEnvironment(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	t.Setenv("REDIS_USERNAME", "app-user")

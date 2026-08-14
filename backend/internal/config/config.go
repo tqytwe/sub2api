@@ -98,6 +98,7 @@ type Config struct {
 	Gemini                  GeminiConfig                  `mapstructure:"gemini"`
 	Update                  UpdateConfig                  `mapstructure:"update"`
 	Idempotency             IdempotencyConfig             `mapstructure:"idempotency"`
+	AICreationSpace         AICreationSpaceConfig         `mapstructure:"ai_creation_space"`
 	NextChat                NextChatConfig                `mapstructure:"nextchat"`
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageAsync              ImageAsyncConfig              `mapstructure:"image_async"`
@@ -225,6 +226,10 @@ type IdempotencyConfig struct {
 	CleanupIntervalSeconds int `mapstructure:"cleanup_interval_seconds"`
 	// CleanupBatchSize 每次清理的最大记录数。
 	CleanupBatchSize int `mapstructure:"cleanup_batch_size"`
+}
+
+type AICreationSpaceConfig struct {
+	PublicURL string `mapstructure:"public_url"`
 }
 
 type NextChatConfig struct {
@@ -1921,6 +1926,7 @@ func load(allowMissingJWTSecret bool) (*Config, error) {
 
 	cfg.NextChat.PublicURL = strings.TrimRight(strings.TrimSpace(cfg.NextChat.PublicURL), "/")
 	cfg.NextChat.ExchangeSecret = strings.TrimSpace(cfg.NextChat.ExchangeSecret)
+	cfg.AICreationSpace.PublicURL = strings.TrimRight(strings.TrimSpace(cfg.AICreationSpace.PublicURL), "/")
 
 	// Auto-generate TOTP encryption key if not set (32 bytes = 64 hex chars for AES-256)
 	cfg.Totp.EncryptionKey = strings.TrimSpace(cfg.Totp.EncryptionKey)
@@ -2378,6 +2384,7 @@ func setDefaults() {
 	viper.SetDefault("idempotency.max_stored_response_len", 64*1024)
 	viper.SetDefault("idempotency.cleanup_interval_seconds", 60)
 	viper.SetDefault("idempotency.cleanup_batch_size", 500)
+	viper.SetDefault("ai_creation_space.public_url", "https://jisudengcanvas.zeabur.app")
 	viper.SetDefault("nextchat.public_url", "/ai")
 	viper.SetDefault("nextchat.launch_token_ttl_seconds", 120)
 	viper.SetDefault("nextchat.session_ttl_seconds", 604800)
