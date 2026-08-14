@@ -7,7 +7,7 @@ const routerSource = readFileSync(resolve(process.cwd(), 'src/router/index.ts'),
 describe('AI creation space web routing', () => {
   it('uses the unified AI creation space as the protected web entry', () => {
     expect(routerSource).toMatch(
-      /path: '\/ai-creation-space'[\s\S]*?name: 'AICreationSpace'[\s\S]*?requiresAuth: true[\s\S]*?requiresNextChat: true/,
+      /path: '\/ai-creation-space'[\s\S]*?name: 'AICreationSpace'[\s\S]*?component: \(\) => import\('@\/views\/user\/CanvasLaunchView\.vue'\)[\s\S]*?requiresAuth: true/,
     )
   })
 
@@ -18,8 +18,12 @@ describe('AI creation space web routing', () => {
     expect(routerSource).toContain(legacyRedirect)
   })
 
-  it('does not remove the mobile or API implementation by deleting web routes', () => {
-    expect(routerSource).toContain("component: () => import('@/views/user/NextChatLaunchView.vue')")
+  it('does not route the web entry through the retired NextChat page', () => {
+    expect(routerSource).not.toContain("component: () => import('@/views/user/NextChatLaunchView.vue')")
+    expect(routerSource).toContain("component: () => import('@/views/user/CanvasLaunchView.vue')")
+  })
+
+  it('does not remove the mobile or API implementation by deleting session routes', () => {
     expect(readFileSync(resolve(process.cwd(), '../backend/internal/server/routes/nextchat.go'), 'utf8'))
       .toContain('mobile/sessions/:purpose/group')
   })

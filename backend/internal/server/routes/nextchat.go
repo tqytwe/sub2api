@@ -1199,9 +1199,15 @@ func nextChatLaunchTokenKey(token string) string {
 }
 
 func nextChatLaunchURL(cfg *config.Config, token string, intent *nextChatLaunchIntent) string {
-	base := "/ai"
-	if cfg != nil && strings.TrimSpace(cfg.NextChat.PublicURL) != "" {
-		base = strings.TrimSpace(cfg.NextChat.PublicURL)
+	base := "https://jisudengcanvas.zeabur.app"
+	if cfg != nil {
+		if strings.TrimSpace(cfg.AICreationSpace.PublicURL) != "" {
+			base = strings.TrimSpace(cfg.AICreationSpace.PublicURL)
+		} else if strings.TrimSpace(cfg.NextChat.PublicURL) != "" {
+			// Keep older test fixtures and deployments working until the
+			// dedicated AI creation space URL is configured.
+			base = strings.TrimSpace(cfg.NextChat.PublicURL)
+		}
 	}
 	parsed, err := url.Parse(base)
 	if err != nil {

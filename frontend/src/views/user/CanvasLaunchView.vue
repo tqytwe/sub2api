@@ -32,7 +32,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores'
-import { launchNextChat } from '@/api/user'
+import { launchAICreationSpace } from '@/api/user'
 import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -62,10 +62,10 @@ async function startLaunch(): Promise<void> {
           ...(Number.isSafeInteger(promptVersion) && promptVersion > 0 ? { prompt_version: promptVersion } : {}),
         }
       : undefined
-    const result = await launchNextChat(intent)
+    const result = await launchAICreationSpace(intent)
     const launchURL = result.launch_url?.trim()
     if (!launchURL) {
-      throw new Error('Missing NextChat launch URL')
+      throw new Error('Missing AI creation space launch URL')
     }
     window.location.replace(launchURL)
   } catch {
