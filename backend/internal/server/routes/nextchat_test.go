@@ -47,6 +47,7 @@ func (s nextChatRouteGateStub) GetFrontendURL(context.Context) string {
 type nextChatRouteIssuerStub struct {
 	calls          int
 	userID         int64
+	role           string
 	selectedGroup  int64
 	switchRequests []int64
 }
@@ -128,7 +129,7 @@ func (s *nextChatRouteScopedIssuerStub) GetNextChatWorkspaceIdentity(_ context.C
 	if groupID == 0 {
 		groupID = 7
 	}
-	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, keyName, groupID), nil
+	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, keyName, groupID, s.role), nil
 }
 
 func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error) {
@@ -136,15 +137,20 @@ func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context
 	if groupID == 0 {
 		groupID = 7
 	}
-	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, service.NextChatManagedAPIKeyName, groupID), nil
+	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, service.NextChatManagedAPIKeyName, groupID, s.role), nil
 }
 
-func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, groupID int64) *service.NextChatWorkspaceIdentity {
+func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, groupID int64, role string) *service.NextChatWorkspaceIdentity {
+	if role == "" {
+		role = service.RoleUser
+	}
 	return &service.NextChatWorkspaceIdentity{
 		User: service.NextChatWorkspaceUser{
 			ID:       userID,
 			Username: "tester",
 			Email:    "tester@example.com",
+			Role:     role,
+			IsAdmin:  role == service.RoleAdmin,
 			Balance:  12.5,
 		},
 		APIKey: service.NextChatWorkspaceAPIKey{
@@ -902,6 +908,8 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	got := decodeNextChatRouteResponse[nextChatBootstrapResponse](t, recorder)
 	require.Equal(t, int64(42), got.User.ID)
 	require.Equal(t, "tester", got.User.Username)
+	require.Equal(t, service.RoleUser, got.User.Role)
+	require.False(t, got.User.IsAdmin)
 	require.Equal(t, int64(123), got.ManagedAPIKey.ID)
 	require.Equal(t, service.NextChatManagedAPIKeyName, got.ManagedAPIKey.Name)
 	require.Equal(t, "极速蹬", got.Brand.SiteName)
@@ -928,6 +936,20 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.False(t, got.Retention.ServerChatLog)
 	require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
 	require.NotContains(t, recorder.Body.String(), `"api_key"`)
+}
+
+func TestNextChatBootstrapReturnsAdminRoleForCanvasGate(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{role: service.RoleAdmin}, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/bootstrap", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatBootstrapResponse](t, recorder)
+	require.Equal(t, service.RoleAdmin, got.User.Role)
+	require.True(t, got.User.IsAdmin)
 }
 
 func TestNextChatBootstrapDefaultsReturnAndRechargeToConsolePages(t *testing.T) {
