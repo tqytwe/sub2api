@@ -47,7 +47,6 @@ type AdminHandlers struct {
 	ModelCatalog           *admin.ModelCatalogHandler
 	IPRisk                 *admin.IPRiskHandler
 	AuditLog               *admin.AuditLogHandler
-	PromptLibrary          *admin.PromptLibraryHandler
 	MobileAttribution      *MobileAttributionAdminHandler
 }
 
