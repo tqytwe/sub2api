@@ -309,26 +309,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/prompts',
-    name: 'PromptSquare',
-    component: () => import('@/views/public/PromptSquareView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: '图像工作室 · 选提示词',
-      hidePageHeader: true,
-    },
-  },
-  {
-    path: '/prompts/:id',
-    name: 'PromptDetail',
-    component: () => import('@/views/public/PromptDetailView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: '提示词详情',
-      hidePageHeader: true,
-    },
-  },
-  {
     path: '/blindbox',
     name: 'Blindbox',
     component: () => import('@/views/public/BlindboxView.vue'),
@@ -500,32 +480,26 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/ai',
-    name: 'NextChatLaunch',
+    redirect: to => ({ path: '/ai-creation-space', query: to.query }),
+  },
+  {
+    path: '/ai-creation-space',
+    name: 'AICreationSpace',
     component: () => import('@/views/user/NextChatLaunchView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
       requiresNextChat: true,
-      title: 'AI 创作',
-      titleKey: 'nav.aiCreation',
-      hidePageHeader: true,
+      title: 'AI创作空间',
+      titleKey: 'nav.aiCreationSpace',
       hideMobileSupport: true,
-      frame: 'compact',
+      hidePageHeader: true,
+      frame: 'fluid',
     },
   },
   {
     path: '/image-studio',
-    name: 'ImageStudio',
-    component: () => import('@/views/user/ImageStudioView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: '图像工作室',
-      titleKey: 'imageStudio.title',
-      descriptionKey: 'imageStudio.subtitle',
-      hideMobileSupport: true,
-      frame: 'workspace',
-    },
+    redirect: to => ({ path: '/ai-creation-space', query: to.query }),
   },
   {
     path: '/play',

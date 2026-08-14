@@ -49,7 +49,7 @@ const PAGE_TITLES: Record<string, string> = {
   'discount-examples': 'Discount examples',
   faq: 'FAQ',
   'blindbox-rewards': 'Blind box rewards',
-  'image-studio': 'Image Studio',
+  'image-studio': 'AI Creation Space',
   'token-farm': 'Token farm',
   'about-us-overview': 'Platform overview',
   'about-us-privacy': 'Privacy and request data',

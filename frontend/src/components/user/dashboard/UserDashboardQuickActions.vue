@@ -5,15 +5,15 @@
     </div>
     <div class="space-y-3 p-4">
       <button
-        v-if="canUseImageStudio"
-        @click="router.push('/image-studio')"
+        v-if="canUseCreationSpace"
+        @click="router.push('/ai-creation-space')"
         class="group flex w-full items-center gap-4 rounded-xl bg-gray-50 p-4 text-left transition-all duration-200 hover:bg-gray-100 dark:bg-dark-800/50 dark:hover:bg-dark-800"
       >
         <div class="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-primary-100 transition-transform group-hover:scale-105 dark:bg-primary-900/30">
           <Icon name="sparkles" size="lg" class="text-primary-600 dark:text-primary-400" />
         </div>
         <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('dashboard.imageStudioAgent') }}</p>
+          <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('nav.aiCreationSpace') }}</p>
           <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('dashboard.imageStudioAgentDesc') }}</p>
         </div>
         <Icon
@@ -98,7 +98,7 @@ const router = useRouter()
 const { t } = useI18n()
 const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
 
-const canUseImageStudio = computed(() => isFeatureFlagEnabled(FeatureFlags.imageStudio))
+const canUseCreationSpace = computed(() => isFeatureFlagEnabled(FeatureFlags.nextChat))
 
 onMounted(() => {
   void refreshBatchImageAccess()

@@ -423,7 +423,7 @@ export function useImageStudioWorkspace() {
     applyPromptVariables()
     applyPromptReferenceRecommendations()
     void router.replace({
-      path: '/image-studio',
+      path: '/ai-creation-space',
       query: {
         prompt: reference.prompt_id,
         version: String(reference.version),
@@ -438,7 +438,7 @@ export function useImageStudioWorkspace() {
     promptReferenceError.value = ''
     promptVariableValues.value = {}
     promptPrivacyMode.value = false
-    void router.replace({ path: '/image-studio', query: {} })
+    void router.replace({ path: '/ai-creation-space', query: {} })
   }
 
   function saveCreationRecipe() {
@@ -1376,7 +1376,7 @@ export function useImageStudioWorkspace() {
     if (!submittedUserId) return false
     if (estimate.value && !estimate.value.sufficient) {
       trackGrowthEvent('image_studio_insufficient_balance', { balance: estimate.value.balance })
-      router.push('/purchase?return=/image-studio')
+      router.push('/purchase?return=/ai-creation-space')
       return false
     }
     trackGrowthEvent('image_studio_generate_click', {

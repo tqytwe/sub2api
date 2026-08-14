@@ -30,6 +30,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores'
 import { launchNextChat } from '@/api/user'
 import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
@@ -37,6 +38,7 @@ import Icon from '@/components/icons/Icon.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
 
 const { t } = useI18n()
+const route = useRoute()
 const appStore = useAppStore()
 const loading = ref(false)
 const failed = ref(false)
@@ -51,7 +53,16 @@ async function startLaunch(): Promise<void> {
   failed.value = false
 
   try {
-    const result = await launchNextChat()
+    const promptID = Number(route.query.prompt)
+    const promptVersion = Number(route.query.version)
+    const intent = Number.isSafeInteger(promptID) && promptID > 0
+      ? {
+          type: 'image_prompt' as const,
+          prompt_id: promptID,
+          ...(Number.isSafeInteger(promptVersion) && promptVersion > 0 ? { prompt_version: promptVersion } : {}),
+        }
+      : undefined
+    const result = await launchNextChat(intent)
     const launchURL = result.launch_url?.trim()
     if (!launchURL) {
       throw new Error('Missing NextChat launch URL')

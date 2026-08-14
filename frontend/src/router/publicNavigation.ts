@@ -1,6 +1,7 @@
 import type { RouteLocationRaw } from 'vue-router'
 
 export const PUBLIC_ROUTE_NAMES = {
+  aiCreationSpace: 'AICreationSpace',
   about: 'About',
   englishAbout: 'EnglishAbout',
   adminDashboard: 'AdminDashboard',
@@ -12,11 +13,9 @@ export const PUBLIC_ROUTE_NAMES = {
   englishDocs: 'EnglishDocs',
   englishHome: 'EnglishHome',
   englishModels: 'EnglishModels',
-  imageStudio: 'ImageStudio',
   keyUsage: 'KeyUsage',
   login: 'Login',
   pricing: 'Pricing',
-  promptSquare: 'PromptSquare',
   register: 'Register',
 } as const
 
@@ -24,7 +23,6 @@ export type HomePrimaryNavKey =
   | 'models'
   | 'docs'
   | 'creation'
-  | 'prompts'
   | 'keyUsage'
   | 'about'
   | 'contact'
@@ -50,16 +48,16 @@ export function authEntryRoute(preferRegister: boolean): RouteLocationRaw {
   return { name: preferRegister ? PUBLIC_ROUTE_NAMES.register : PUBLIC_ROUTE_NAMES.login }
 }
 
-export function imageStudioEntryRoute(isAuthenticated: boolean, locale: 'zh' | 'en' = 'zh'): RouteLocationRaw {
-  const studioPath = locale === 'en' ? '/image-studio?lang=en' : '/image-studio'
+export function aiCreationSpaceEntryRoute(isAuthenticated: boolean, locale: 'zh' | 'en' = 'zh'): RouteLocationRaw {
+  const workspacePath = locale === 'en' ? '/ai-creation-space?lang=en' : '/ai-creation-space'
   if (isAuthenticated) {
     return locale === 'en'
-      ? { name: PUBLIC_ROUTE_NAMES.imageStudio, query: { lang: 'en' } }
-      : { name: PUBLIC_ROUTE_NAMES.imageStudio }
+      ? { name: PUBLIC_ROUTE_NAMES.aiCreationSpace, query: { lang: 'en' } }
+      : { name: PUBLIC_ROUTE_NAMES.aiCreationSpace }
   }
   return {
     name: PUBLIC_ROUTE_NAMES.register,
-    query: { redirect: studioPath },
+    query: { redirect: workspacePath },
   }
 }
 
@@ -84,8 +82,7 @@ export function buildHomePrimaryNav(isAuthenticated: boolean, locale: 'zh' | 'en
   return [
     { key: 'models', labelKey: 'home.jisudeng.nav.models', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishModels } : PRICING_ROUTE },
     { key: 'docs', labelKey: 'home.jisudeng.nav.docs', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishDocs } : { name: PUBLIC_ROUTE_NAMES.docs } },
-    { key: 'creation', labelKey: 'home.jisudeng.nav.creation', to: imageStudioEntryRoute(isAuthenticated, locale) },
-    { key: 'prompts', labelKey: 'home.jisudeng.nav.prompts', to: sharedRoute(PUBLIC_ROUTE_NAMES.promptSquare) },
+    { key: 'creation', labelKey: 'home.jisudeng.nav.creation', to: aiCreationSpaceEntryRoute(isAuthenticated, locale) },
     { key: 'keyUsage', labelKey: 'home.jisudeng.nav.keyUsage', to: sharedRoute(PUBLIC_ROUTE_NAMES.keyUsage) },
     { key: 'about', labelKey: 'home.jisudeng.nav.about', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishAbout } : { name: PUBLIC_ROUTE_NAMES.about } },
     { key: 'contact', labelKey: 'home.jisudeng.nav.contact', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishContact } : CONTACT_ROUTE, requiresSupportContact: true },

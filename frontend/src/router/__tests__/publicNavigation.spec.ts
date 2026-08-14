@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest'
 
 import {
   PUBLIC_ROUTE_NAMES,
+  aiCreationSpaceEntryRoute,
   buildHomePrimaryNav,
   dashboardEntryRoute,
-  imageStudioEntryRoute,
 } from '@/router/publicNavigation'
 
 describe('public navigation contract', () => {
@@ -19,15 +19,15 @@ describe('public navigation contract', () => {
     const user = buildHomePrimaryNav(true).map((item) => item.key)
 
     expect(user).toEqual(guest)
-    expect(guest).toEqual(['models', 'docs', 'creation', 'prompts', 'keyUsage', 'about', 'contact'])
+    expect(guest).toEqual(['models', 'docs', 'creation', 'keyUsage', 'about', 'contact'])
   })
 
   it('preserves auth-aware destinations only for protected actions', () => {
-    expect(imageStudioEntryRoute(false)).toEqual({
+    expect(aiCreationSpaceEntryRoute(false)).toEqual({
       name: PUBLIC_ROUTE_NAMES.register,
-      query: { redirect: '/image-studio' },
+      query: { redirect: '/ai-creation-space' },
     })
-    expect(imageStudioEntryRoute(true)).toEqual({ name: PUBLIC_ROUTE_NAMES.imageStudio })
+    expect(aiCreationSpaceEntryRoute(true)).toEqual({ name: PUBLIC_ROUTE_NAMES.aiCreationSpace })
     expect(dashboardEntryRoute(false)).toEqual({ name: PUBLIC_ROUTE_NAMES.dashboard })
     expect(dashboardEntryRoute(true)).toEqual({ name: PUBLIC_ROUTE_NAMES.adminDashboard })
   })

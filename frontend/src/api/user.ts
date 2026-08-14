@@ -25,6 +25,12 @@ export interface NextChatLaunchResponse {
   ttl_seconds: number
 }
 
+export interface AICreationIntent {
+  type: 'image_prompt'
+  prompt_id: number
+  prompt_version?: number
+}
+
 /**
  * Get current user profile
  * @returns User profile data
@@ -200,8 +206,8 @@ export async function getMyPlatformQuotas(): Promise<PlatformQuotasResponse> {
   return data
 }
 
-export async function launchNextChat(): Promise<NextChatLaunchResponse> {
-  const { data } = await apiClient.post<NextChatLaunchResponse>('/nextchat/launch')
+export async function launchNextChat(intent?: AICreationIntent): Promise<NextChatLaunchResponse> {
+  const { data } = await apiClient.post<NextChatLaunchResponse>('/nextchat/launch', intent ? { intent } : undefined)
   return data
 }
 

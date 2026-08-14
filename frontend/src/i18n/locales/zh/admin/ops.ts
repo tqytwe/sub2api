@@ -36,7 +36,7 @@ export default {
 	        names: {
 	          gatewayAsync: 'Gateway 异步',
 	          batch: 'Batch Image',
-	          imageStudio: '图像工作室'
+	          imageStudio: '生图后端能力'
 	        },
 	        states: {
 	          ready: '就绪',

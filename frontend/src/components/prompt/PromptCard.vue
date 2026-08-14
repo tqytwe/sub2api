@@ -19,7 +19,6 @@ const props = defineProps<{
 const emit = defineEmits<{
   favorite: [prompt: PromptSummary]
   copy: [prompt: PromptSummary]
-  details: [prompt: PromptSummary]
   use: [prompt: PromptSummary]
 }>()
 
@@ -47,8 +46,8 @@ async function handleFavorite() {
     <button
       type="button"
       class="prompt-card-media"
-      aria-label="查看详情"
-      @click="emit('details', prompt)"
+      aria-label="用于创作"
+      @click="emit('use', prompt)"
     >
       <img
         v-if="!useGeneratedCover && prompt.preview_image_url"
@@ -99,15 +98,6 @@ async function handleFavorite() {
           @click="emit('copy', prompt)"
         >
           <Icon name="copy" size="sm" />
-        </button>
-        <button
-          type="button"
-          class="prompt-icon-button"
-          aria-label="查看详情"
-          title="查看详情"
-          @click="emit('details', prompt)"
-        >
-          <Icon name="eye" size="sm" />
         </button>
         <button
           type="button"

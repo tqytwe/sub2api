@@ -22,6 +22,7 @@ const hub = ref<PlayHubSummary | null>(null)
 const referralCampaigns = ref<ReferralCampaignProgress[]>([])
 
 const balance = computed(() => hub.value?.growth.balance ?? authStore.user?.balance ?? 0)
+const canUseCreationSpace = computed(() => isFeatureFlagEnabled(FeatureFlags.nextChat))
 const showGrowthCta = computed(() => {
   const g = hub.value?.growth
   if (!g?.payment_enabled) return false
@@ -366,8 +367,8 @@ onMounted(load)
           class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4"
         >
           <router-link
-            v-if="hub?.image_studio?.enabled"
-            to="/image-studio"
+            v-if="canUseCreationSpace"
+            to="/ai-creation-space"
             class="gw-hub-card group min-h-[10rem] xl:col-span-2 2xl:min-h-[11rem]"
             @click="trackHubClick('image_studio')"
           >
@@ -376,16 +377,16 @@ onMounted(load)
                 <div class="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--gw-line)] bg-[var(--gw-soft)]">
                   <Icon name="sparkles" size="sm" />
                 </div>
-                <h2 class="gw-section-title break-words">{{ t('nav.imageStudio') }}</h2>
+                <h2 class="gw-section-title break-words">{{ t('nav.aiCreationSpace') }}</h2>
                 <p class="gw-subtitle break-words">
                   {{
-                    hub.image_studio.has_completed_job
+                    hub?.image_studio?.has_completed_job
                       ? t('playHub.studioDone', { count: hub.image_studio.images_today })
                       : t('playHub.studioPending')
                   }}
                 </p>
                 <p
-                  v-if="!hub.image_studio.has_completed_job"
+                  v-if="!hub?.image_studio?.has_completed_job"
                   class="mt-2 text-xs font-medium"
                   style="color: var(--gw-ink)"
                 >
@@ -393,7 +394,7 @@ onMounted(load)
                 </p>
               </div>
               <span
-                v-if="!hub.image_studio.has_completed_job"
+                v-if="!hub?.image_studio?.has_completed_job"
                 class="gw-buff shrink-0"
               >
                 {{ t('playHub.badgePending') }}

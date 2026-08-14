@@ -174,7 +174,7 @@ describe('ArenaView competitive layout', () => {
       level: 2,
       energy_to_next_level: 70,
       server_date: '2026-08-01',
-      tasks: [{ key: 'api_call', completed: true, energy: 20 }, { key: 'image_generate', completed: false, energy: 30, cta_route: '/image-studio' }],
+      tasks: [{ key: 'api_call', completed: true, energy: 20 }, { key: 'image_generate', completed: false, energy: 30, cta_route: '/ai-creation-space' }],
     })
   })
 
