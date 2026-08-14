@@ -2,12 +2,7 @@ package service
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
 	"errors"
-	"reflect"
-	"regexp"
 	"strings"
 	"time"
 	"unicode"
@@ -83,6 +78,8 @@ const (
 	PromptReviewReject  PromptReviewDecision = "reject"
 )
 
+// Prompt import and report records remain for existing database history and migrations.
+// They have no service or HTTP entry point after administrator prompt management removal.
 type PromptImportStatus string
 
 const (
@@ -107,12 +104,6 @@ var (
 	ErrPromptPublishContentIncomplete = errors.New("prompt publish content incomplete")
 	ErrPromptRollbackVersionInvalid   = errors.New("rollback target must be an older version")
 	ErrPromptVersionConflict          = errors.New("prompt version conflict")
-)
-
-var (
-	promptOpenAISecretPattern = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_])sk-[a-z0-9_-]{16,}`)
-	promptGitHubSecretPattern = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_])ghp_[a-z0-9]{20,}`)
-	promptJWTSecretPattern    = regexp.MustCompile(`(?:^|[^A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}`)
 )
 
 type Prompt struct {
@@ -326,38 +317,6 @@ type PromptImportItem struct {
 	CreatedAt           time.Time              `json:"created_at"`
 }
 
-type PromptLibraryRepository interface {
-	GetPrompt(ctx context.Context, id int64, userID *int64, publicOnly bool) (*Prompt, error)
-	SavePrompt(ctx context.Context, prompt *Prompt, actorID int64) (*Prompt, error)
-	ListPromptSources(ctx context.Context, promptID int64) ([]PromptSource, error)
-	ListPromptReviews(ctx context.Context, promptID int64, version int) ([]PromptReviewRecord, error)
-	SetPromptStatus(ctx context.Context, id int64, version int, status PromptStatus, actorID int64) (*Prompt, error)
-	RollbackPrompt(ctx context.Context, id int64, version int, actorID int64) (*Prompt, error)
-	CreateImportJob(ctx context.Context, input PromptImportJobInput, actorID int64) (*PromptImportJob, error)
-}
-
-type promptPublicRepository interface {
-	ListPrompts(ctx context.Context, filter PromptListFilter, userID *int64, publicOnly bool) ([]Prompt, *pagination.PaginationResult, error)
-	ListCategories(ctx context.Context, publicOnly bool) ([]PromptCategory, error)
-	SetFavorite(ctx context.Context, promptID, userID int64, favorite bool) (bool, error)
-	UsePrompt(ctx context.Context, promptID, userID int64) (*Prompt, error)
-	CreateReport(ctx context.Context, report PromptReport) (*PromptReport, error)
-}
-
-type promptAdminRepository interface {
-	SubmitPromptReview(ctx context.Context, promptID int64, actorID int64) (*Prompt, error)
-	AddPromptReview(ctx context.Context, record PromptReviewRecord) error
-	ApprovePromptVersion(ctx context.Context, promptID int64, version int, actorID int64, note string) (*Prompt, error)
-	SaveCategory(ctx context.Context, category *PromptCategory) (*PromptCategory, error)
-	DeleteCategory(ctx context.Context, id int64) error
-	ListImportJobs(ctx context.Context, pagination pagination.PaginationParams) ([]PromptImportJob, *pagination.PaginationResult, error)
-	GetImportJob(ctx context.Context, id int64) (*PromptImportJob, error)
-	ListImportItems(ctx context.Context, filter PromptImportItemListFilter) ([]PromptImportItem, *pagination.PaginationResult, error)
-	ReviewImportItem(ctx context.Context, id, actorID int64, approve bool, reason string) (*PromptImportItem, error)
-	ListReports(ctx context.Context, filter PromptReportListFilter) ([]PromptReport, *pagination.PaginationResult, error)
-	ResolveReport(ctx context.Context, id, actorID int64, status, resolution string) (*PromptReport, error)
-}
-
 type PromptImportItemListFilter struct {
 	JobID      int64
 	Status     PromptImportItemStatus
@@ -367,6 +326,30 @@ type PromptImportItemListFilter struct {
 type PromptReportListFilter struct {
 	Status     string
 	Pagination pagination.PaginationParams
+}
+
+type PromptLibraryRepository interface {
+	GetPrompt(ctx context.Context, id int64, userID *int64, publicOnly bool) (*Prompt, error)
+	SavePrompt(ctx context.Context, prompt *Prompt, actorID int64) (*Prompt, error)
+	ListPromptSources(ctx context.Context, promptID int64) ([]PromptSource, error)
+	ListPromptReviews(ctx context.Context, promptID int64, version int) ([]PromptReviewRecord, error)
+	SetPromptStatus(ctx context.Context, id int64, version int, status PromptStatus, actorID int64) (*Prompt, error)
+	RollbackPrompt(ctx context.Context, id int64, version int, actorID int64) (*Prompt, error)
+}
+
+type promptPublicRepository interface {
+	ListPrompts(ctx context.Context, filter PromptListFilter, userID *int64, publicOnly bool) ([]Prompt, *pagination.PaginationResult, error)
+	ListCategories(ctx context.Context, publicOnly bool) ([]PromptCategory, error)
+	SetFavorite(ctx context.Context, promptID, userID int64, favorite bool) (bool, error)
+	UsePrompt(ctx context.Context, promptID, userID int64) (*Prompt, error)
+}
+
+type promptAdminRepository interface {
+	SubmitPromptReview(ctx context.Context, promptID int64, actorID int64) (*Prompt, error)
+	AddPromptReview(ctx context.Context, record PromptReviewRecord) error
+	ApprovePromptVersion(ctx context.Context, promptID int64, version int, actorID int64, note string) (*Prompt, error)
+	SaveCategory(ctx context.Context, category *PromptCategory) (*PromptCategory, error)
+	DeleteCategory(ctx context.Context, id int64) error
 }
 
 type PromptLibraryService struct {
@@ -476,32 +459,6 @@ func (s *PromptLibraryService) UsePrompt(ctx context.Context, promptID, userID i
 		ReferenceInstructions: prompt.ReferenceInstructions,
 		RequiresReference:     prompt.RequiresReference,
 	}, nil
-}
-
-func (s *PromptLibraryService) ReportPrompt(
-	ctx context.Context,
-	promptID, userID int64,
-	reason, detail string,
-) (*PromptReport, error) {
-	repo, ok := s.repo.(promptPublicRepository)
-	if !ok {
-		return nil, errors.New("prompt public repository unavailable")
-	}
-	reason = strings.TrimSpace(reason)
-	detail = strings.TrimSpace(detail)
-	if reason == "" {
-		return nil, apperrors.BadRequest("PROMPT_REPORT_REASON_REQUIRED", "report reason is required")
-	}
-	if len([]rune(reason)) > 96 || len([]rune(detail)) > 2000 {
-		return nil, apperrors.BadRequest("PROMPT_REPORT_TOO_LONG", "report content is too long")
-	}
-	return repo.CreateReport(ctx, PromptReport{
-		PromptID:   promptID,
-		ReporterID: &userID,
-		Reason:     reason,
-		Detail:     detail,
-		Status:     "open",
-	})
 }
 
 func (s *PromptLibraryService) SavePrompt(ctx context.Context, prompt *Prompt, actorID int64) (*Prompt, error) {
@@ -626,146 +583,6 @@ func (s *PromptLibraryService) RollbackVersion(ctx context.Context, id int64, ve
 	return s.repo.RollbackPrompt(ctx, id, version, actorID)
 }
 
-func (s *PromptLibraryService) CreateImportJob(ctx context.Context, input PromptImportJobInput, actorID int64) (*PromptImportJob, error) {
-	input.SourceKey = strings.TrimSpace(input.SourceKey)
-	if input.SourceKey == "" || len(input.Items) == 0 {
-		return nil, apperrors.BadRequest(
-			"PROMPT_IMPORT_INVALID",
-			"source key and at least one item are required",
-		)
-	}
-	input.Status = PromptImportStatusPendingReview
-	if containsPromptImportSecret(input.RawPayload) {
-		return nil, apperrors.BadRequest("PROMPT_IMPORT_SECRET_REJECTED", "导入内容包含疑似密钥、令牌或 Cookie 字段")
-	}
-	for i := range input.Items {
-		if containsPromptImportSecret(input.Items[i]) {
-			return nil, apperrors.BadRequest("PROMPT_IMPORT_SECRET_REJECTED", "导入内容包含疑似密钥、令牌或 Cookie 字段")
-		}
-		input.Items[i].NormalizedHash = promptImportContentHash(input.Items[i])
-		input.Items[i].ExternalID = strings.TrimSpace(input.Items[i].ExternalID)
-		if input.Items[i].ExternalID == "" {
-			input.Items[i].ExternalID = input.Items[i].NormalizedHash
-		}
-		input.Items[i].BrandType = NormalizeImportedBrand(
-			input.Items[i].BrandType,
-			input.Items[i].AuthorizationStatus,
-			input.Items[i].EvidenceVerified,
-		)
-	}
-	return s.repo.CreateImportJob(ctx, input, actorID)
-}
-
-func containsPromptImportSecret(value any) bool {
-	return containsPromptImportSecretValue(reflect.ValueOf(value))
-}
-
-func containsPromptImportSecretValue(value reflect.Value) bool {
-	if !value.IsValid() {
-		return false
-	}
-	switch value.Kind() {
-	case reflect.Interface, reflect.Pointer:
-		if value.IsNil() {
-			return false
-		}
-		return containsPromptImportSecretValue(value.Elem())
-	case reflect.Struct:
-		for i := 0; i < value.NumField(); i++ {
-			if containsPromptImportSecretValue(value.Field(i)) {
-				return true
-			}
-		}
-	case reflect.Map:
-		if value.IsNil() {
-			return false
-		}
-		iter := value.MapRange()
-		for iter.Next() {
-			key := iter.Key()
-			if key.Kind() == reflect.String && isPromptSecretKey(key.String()) {
-				return true
-			}
-			if containsPromptImportSecretValue(iter.Value()) {
-				return true
-			}
-		}
-	case reflect.Slice, reflect.Array:
-		for i := 0; i < value.Len(); i++ {
-			if containsPromptImportSecretValue(value.Index(i)) {
-				return true
-			}
-		}
-	case reflect.String:
-		return isPromptSecretString(value.String())
-	}
-	return false
-}
-
-func isPromptSecretKey(key string) bool {
-	var normalized strings.Builder
-	for _, r := range strings.ToLower(key) {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			_, _ = normalized.WriteRune(r)
-		}
-	}
-	switch normalized.String() {
-	case "apikey", "xapikey", "accesstoken", "refreshtoken", "authorization",
-		"authorizationheader", "proxyauthorization", "cookie", "cookies", "setcookie",
-		"password", "passwd", "privatekey", "clientsecret", "secretkey",
-		"sessiontoken", "sessioncookie":
-		return true
-	default:
-		return false
-	}
-}
-
-func isPromptSecretString(value string) bool {
-	trimmed := strings.TrimSpace(value)
-	normalized := strings.ToLower(trimmed)
-	return strings.HasPrefix(normalized, "bearer ") ||
-		strings.HasPrefix(normalized, "cookie:") ||
-		strings.HasPrefix(normalized, "set-cookie:") ||
-		(strings.Contains(normalized, "-----begin ") && strings.Contains(normalized, "private key-----")) ||
-		promptOpenAISecretPattern.MatchString(trimmed) ||
-		promptGitHubSecretPattern.MatchString(trimmed) ||
-		promptJWTSecretPattern.MatchString(trimmed)
-}
-
-func promptImportContentHash(input PromptImportItemInput) string {
-	normalized, _ := json.Marshal(struct {
-		TitleZH               string                     `json:"title_zh"`
-		DescriptionZH         string                     `json:"description_zh"`
-		PromptText            string                     `json:"prompt_text"`
-		Variables             map[string]any             `json:"variables"`
-		Models                []string                   `json:"models"`
-		Sizes                 []string                   `json:"sizes"`
-		ReferenceRequirement  PromptReferenceRequirement `json:"reference_requirement"`
-		ReferenceInstructions string                     `json:"reference_instructions"`
-		RequiresReference     bool                       `json:"requires_reference"`
-		Media                 []PromptMedia              `json:"media"`
-		Purpose               string                     `json:"purpose"`
-		Style                 string                     `json:"style"`
-		Subject               string                     `json:"subject"`
-	}{
-		TitleZH:               strings.TrimSpace(input.TitleZH),
-		DescriptionZH:         strings.TrimSpace(input.DescriptionZH),
-		PromptText:            strings.TrimSpace(input.PromptText),
-		Variables:             input.Variables,
-		Models:                input.Models,
-		Sizes:                 input.Sizes,
-		ReferenceRequirement:  input.ReferenceRequirement,
-		ReferenceInstructions: strings.TrimSpace(input.ReferenceInstructions),
-		RequiresReference:     input.RequiresReference,
-		Media:                 input.Media,
-		Purpose:               strings.TrimSpace(input.Purpose),
-		Style:                 strings.TrimSpace(input.Style),
-		Subject:               strings.TrimSpace(input.Subject),
-	})
-	sum := sha256.Sum256(normalized)
-	return hex.EncodeToString(sum[:])
-}
-
 func (s *PromptLibraryService) ListAdmin(
 	ctx context.Context,
 	filter PromptListFilter,
@@ -813,90 +630,6 @@ func (s *PromptLibraryService) DeleteCategory(ctx context.Context, id int64) err
 		return errors.New("prompt category repository unavailable")
 	}
 	return repo.DeleteCategory(ctx, id)
-}
-
-func (s *PromptLibraryService) GetImportJob(ctx context.Context, id int64) (*PromptImportJob, error) {
-	repo, ok := s.repo.(promptAdminRepository)
-	if !ok {
-		return nil, errors.New("prompt import repository unavailable")
-	}
-	job, err := repo.GetImportJob(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if job == nil {
-		return nil, apperrors.NotFound("PROMPT_IMPORT_JOB_NOT_FOUND", "prompt import job not found")
-	}
-	return job, nil
-}
-
-func (s *PromptLibraryService) ListImportJobs(
-	ctx context.Context,
-	params pagination.PaginationParams,
-) ([]PromptImportJob, *pagination.PaginationResult, error) {
-	repo, ok := s.repo.(promptAdminRepository)
-	if !ok {
-		return nil, nil, errors.New("prompt import repository unavailable")
-	}
-	return repo.ListImportJobs(ctx, params)
-}
-
-func (s *PromptLibraryService) ListImportItems(
-	ctx context.Context,
-	filter PromptImportItemListFilter,
-) ([]PromptImportItem, *pagination.PaginationResult, error) {
-	repo, ok := s.repo.(promptAdminRepository)
-	if !ok {
-		return nil, nil, errors.New("prompt import repository unavailable")
-	}
-	return repo.ListImportItems(ctx, filter)
-}
-
-func (s *PromptLibraryService) ReviewImportItem(
-	ctx context.Context,
-	id, actorID int64,
-	approve bool,
-	reason string,
-) (*PromptImportItem, error) {
-	repo, ok := s.repo.(promptAdminRepository)
-	if !ok {
-		return nil, errors.New("prompt import repository unavailable")
-	}
-	if !approve && strings.TrimSpace(reason) == "" {
-		return nil, apperrors.BadRequest("PROMPT_IMPORT_REJECTION_REASON_REQUIRED", "rejection reason is required")
-	}
-	return repo.ReviewImportItem(ctx, id, actorID, approve, reason)
-}
-
-func (s *PromptLibraryService) ListReports(
-	ctx context.Context,
-	filter PromptReportListFilter,
-) ([]PromptReport, *pagination.PaginationResult, error) {
-	repo, ok := s.repo.(promptAdminRepository)
-	if !ok {
-		return nil, nil, errors.New("prompt report repository unavailable")
-	}
-	return repo.ListReports(ctx, filter)
-}
-
-func (s *PromptLibraryService) ResolveReport(
-	ctx context.Context,
-	id, actorID int64,
-	status, resolution string,
-) (*PromptReport, error) {
-	repo, ok := s.repo.(promptAdminRepository)
-	if !ok {
-		return nil, errors.New("prompt report repository unavailable")
-	}
-	switch status {
-	case "resolved", "dismissed":
-	default:
-		return nil, apperrors.BadRequest("PROMPT_REPORT_STATUS_INVALID", "report status must be resolved or dismissed")
-	}
-	if strings.TrimSpace(resolution) == "" {
-		return nil, apperrors.BadRequest("PROMPT_REPORT_RESOLUTION_REQUIRED", "resolution is required")
-	}
-	return repo.ResolveReport(ctx, id, actorID, status, resolution)
 }
 
 func toPublicPrompt(prompt *Prompt, includeText bool) PublicPrompt {

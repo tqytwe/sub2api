@@ -124,34 +124,6 @@ func (h *PromptLibraryHandler) Use(c *gin.Context) {
 	response.Success(c, result)
 }
 
-func (h *PromptLibraryHandler) Report(c *gin.Context) {
-	id, ok := promptPathID(c)
-	if !ok {
-		return
-	}
-	subject, ok := middleware.GetAuthSubjectFromContext(c)
-	if !ok {
-		response.Unauthorized(c, "authentication required")
-		return
-	}
-	var input struct {
-		Reason string `json:"reason" binding:"required"`
-		Detail string `json:"detail"`
-	}
-	if err := c.ShouldBindJSON(&input); err != nil {
-		response.BadRequest(c, err.Error())
-		return
-	}
-	report, err := h.service.ReportPrompt(
-		c.Request.Context(), id, subject.UserID, input.Reason, input.Detail,
-	)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	response.Created(c, report)
-}
-
 type promptSitemapURL struct {
 	Location   string                   `xml:"loc"`
 	Modified   string                   `xml:"lastmod,omitempty"`

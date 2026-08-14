@@ -304,10 +304,6 @@ export async function usePrompt(id: string): Promise<PromptUseResult> {
   return normalizePromptUseResult(data)
 }
 
-export async function reportPrompt(id: string, reason: string, detail: string): Promise<void> {
-  await apiClient.post(`/prompts/${encodeURIComponent(id)}/report`, { reason, detail })
-}
-
 const promptsAPI = {
   list: listPrompts,
   get: getPrompt,
@@ -315,7 +311,6 @@ const promptsAPI = {
   favorite: favoritePrompt,
   unfavorite: unfavoritePrompt,
   use: usePrompt,
-  report: reportPrompt,
 }
 
 export default promptsAPI

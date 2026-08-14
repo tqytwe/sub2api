@@ -12,14 +12,12 @@ import (
 )
 
 type promptLibraryRepoStub struct {
-	prompt        *Prompt
-	reviews       []PromptReviewRecord
-	sources       []PromptSource
-	saved         *Prompt
-	rolledBackTo  int
-	imported      *PromptImportJob
-	importedInput PromptImportJobInput
-	saveErr       error
+	prompt       *Prompt
+	reviews      []PromptReviewRecord
+	sources      []PromptSource
+	saved        *Prompt
+	rolledBackTo int
+	saveErr      error
 }
 
 func (s *promptLibraryRepoStub) GetPrompt(context.Context, int64, *int64, bool) (*Prompt, error) {
@@ -58,12 +56,6 @@ func (s *promptLibraryRepoStub) RollbackPrompt(_ context.Context, _ int64, versi
 	out.CurrentVersion = version + 1
 	out.Status = PromptStatusPendingReview
 	return &out, nil
-}
-
-func (s *promptLibraryRepoStub) CreateImportJob(_ context.Context, input PromptImportJobInput, _ int64) (*PromptImportJob, error) {
-	s.importedInput = input
-	s.imported = &PromptImportJob{SourceKey: input.SourceKey, Status: PromptImportStatusPendingReview}
-	return s.imported, nil
 }
 
 func promptAuthorizationForBrand(brand PromptBrand) PromptAuthorization {
@@ -288,115 +280,6 @@ func TestPublishRejectsUnverifiedSourceEvidence(t *testing.T) {
 	_, err := svc.ApproveAndPublish(context.Background(), 9, 3)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "source evidence")
-}
-
-func TestImportJobAlwaysStartsPendingReview(t *testing.T) {
-	repo := &promptLibraryRepoStub{}
-	svc := NewPromptLibraryService(repo)
-
-	job, err := svc.CreateImportJob(context.Background(), PromptImportJobInput{
-		SourceKey: "operator-json",
-		Status:    PromptImportStatus("published"),
-		Items: []PromptImportItemInput{{
-			ExternalID:     "ext-1",
-			NormalizedHash: "hash-1",
-			TitleZH:        "测试",
-			PromptText:     "正文",
-		}},
-	}, 3)
-	require.NoError(t, err)
-	require.Equal(t, PromptImportStatusPendingReview, job.Status)
-}
-
-func TestImportJobBuildsStableDeduplicationKeys(t *testing.T) {
-	repo := &promptLibraryRepoStub{}
-	svc := NewPromptLibraryService(repo)
-	input := PromptImportJobInput{
-		SourceKey: "operator-json",
-		Items: []PromptImportItemInput{{
-			NormalizedHash: "caller-controlled-hash",
-			TitleZH:        "测试标题",
-			PromptText:     "Create a clean product image",
-			Models:         []string{"gpt-image-1"},
-		}},
-	}
-
-	first, err := svc.CreateImportJob(context.Background(), input, 3)
-	require.NoError(t, err)
-	require.Equal(t, PromptImportStatusPendingReview, first.Status)
-	require.NotEmpty(t, repo.importedInput.Items[0].NormalizedHash)
-	require.NotEqual(t, "caller-controlled-hash", repo.importedInput.Items[0].NormalizedHash)
-	require.Equal(t, repo.importedInput.Items[0].NormalizedHash, repo.importedInput.Items[0].ExternalID)
-}
-
-func TestImportJobRejectsSecretMaterial(t *testing.T) {
-	repo := &promptLibraryRepoStub{}
-	svc := NewPromptLibraryService(repo)
-
-	_, err := svc.CreateImportJob(context.Background(), PromptImportJobInput{
-		SourceKey: "operator-json",
-		Items: []PromptImportItemInput{{
-			TitleZH:    "测试标题",
-			PromptText: "prompt",
-			Evidence: map[string]any{
-				"access_token": "secret",
-			},
-		}},
-	}, 3)
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "PROMPT_IMPORT_SECRET_REJECTED")
-}
-
-func TestImportJobScansEntireItemForSecretKeysAndValues(t *testing.T) {
-	tests := map[string]func(*PromptImportItemInput){
-		"accessToken key": func(item *PromptImportItemInput) {
-			item.Variables = map[string]any{"accessToken": "redacted"}
-		},
-		"authorization key": func(item *PromptImportItemInput) {
-			item.Variables = map[string]any{"authorization": "redacted"}
-		},
-		"x-api-key key": func(item *PromptImportItemInput) {
-			item.Variables = map[string]any{"x-api-key": "redacted"}
-		},
-		"OpenAI key value": func(item *PromptImportItemInput) {
-			item.DescriptionZH = "sk-proj-1234567890abcdefghijklmnop"
-		},
-		"GitHub token value": func(item *PromptImportItemInput) {
-			item.PromptText = "ghp_1234567890abcdefghijklmnopqrstuv"
-		},
-		"JWT value": func(item *PromptImportItemInput) {
-			item.ReferenceInstructions = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjMifQ.c2lnbmF0dXJl"
-		},
-		"private key value": func(item *PromptImportItemInput) {
-			item.Subject = "-----BEGIN RSA PRIVATE KEY-----\nredacted\n-----END RSA PRIVATE KEY-----"
-		},
-		"Bearer value": func(item *PromptImportItemInput) {
-			item.SourceURL = "Bearer opaque-access-token"
-		},
-		"Cookie value": func(item *PromptImportItemInput) {
-			item.Style = "Cookie: session_id=abc123; csrftoken=def456"
-		},
-	}
-
-	for name, mutate := range tests {
-		t.Run(name, func(t *testing.T) {
-			item := PromptImportItemInput{
-				TitleZH:    "测试标题",
-				PromptText: "普通提示词",
-			}
-			mutate(&item)
-			_, err := NewPromptLibraryService(&promptLibraryRepoStub{}).CreateImportJob(
-				context.Background(),
-				PromptImportJobInput{
-					SourceKey: "operator-json",
-					Items:     []PromptImportItemInput{item},
-				},
-				3,
-			)
-			require.Error(t, err)
-			require.Equal(t, "PROMPT_IMPORT_SECRET_REJECTED", apperrors.Reason(err))
-		})
-	}
 }
 
 func TestSavePromptRequiresStrictCurrentVersionEvidence(t *testing.T) {
