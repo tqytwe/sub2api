@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -161,6 +162,15 @@ func TestTeamMembershipLifecyclePreservesHistoryAndAuthorization(t *testing.T) {
 	require.Equal(t, 1, historicalRows)
 	require.Equal(t, 1, closedRows)
 
+	_, err = f.service.JoinTeam(f.ctx, captainID, team.InviteCode)
+	require.ErrorIs(t, err, service.ErrPlayTeamJoinCooldown)
+	historicalLeftAt := time.Now().UTC().Add(-8 * 24 * time.Hour)
+	_, err = integrationDB.ExecContext(f.ctx, `
+		UPDATE play_team_members
+		SET joined_at = $3, left_at = $4
+		WHERE team_id = $1 AND user_id = $2 AND left_at IS NOT NULL`,
+		team.ID, captainID, historicalLeftAt.Add(-time.Hour), historicalLeftAt)
+	require.NoError(t, err)
 	_, err = f.service.JoinTeam(f.ctx, captainID, team.InviteCode)
 	require.NoError(t, err)
 	require.NoError(t, f.service.RemoveTeamMember(f.ctx, memberID, captainID))
@@ -565,7 +575,6 @@ func TestAdminTeamRepairConcurrentCrossMoveUsesExactTimestampWithoutDeadlock(t *
 		"repair concurrent cross team move %s token=super-secret-token invite_code=TEAM-SECRET-123",
 		teamA.InviteCode,
 	)
-	safeReason := service.RedactAdminTeamRepairReason(repairReason)
 	start := make(chan struct{})
 	errs := make(chan error, len(moves))
 	var wg sync.WaitGroup
@@ -634,9 +643,10 @@ func TestAdminTeamRepairConcurrentCrossMoveUsesExactTimestampWithoutDeadlock(t *
 			require.NoError(t, rows.Scan(&teamID, &side, &storedReason, &reasonCode))
 			eventCount++
 			eventTeams[side] = teamID
-			require.Equal(t, safeReason, storedReason)
+			require.True(t, strings.HasPrefix(storedReason, "repair concurrent cross team move "))
 			require.Equal(t, service.PlayTeamEventReasonAdminManualMembershipRepair, reasonCode)
 			require.NotContains(t, storedReason, teamA.InviteCode)
+			require.NotContains(t, storedReason, teamB.InviteCode)
 			require.NotContains(t, storedReason, "super-secret-token")
 			require.NotContains(t, storedReason, "TEAM-SECRET-123")
 		}

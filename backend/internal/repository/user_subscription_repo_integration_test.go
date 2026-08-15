@@ -361,6 +361,28 @@ func (s *UserSubscriptionRepoSuite) TestList_FilterByStatus() {
 	s.Require().Equal(service.SubscriptionStatusExpired, subs[0].Status)
 }
 
+func (s *UserSubscriptionRepoSuite) TestList_FilterByActive_ExcludesRevoked() {
+	user := s.mustCreateUser("active-excludes-revoked@test.com", service.RoleUser)
+	activeGroup := s.mustCreateGroup("g-active-visible")
+	revokedGroup := s.mustCreateGroup("g-active-revoked")
+
+	active := s.mustCreateSubscription(user.ID, activeGroup.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStatus(service.SubscriptionStatusActive)
+		c.SetExpiresAt(time.Now().Add(24 * time.Hour))
+	})
+	revoked := s.mustCreateSubscription(user.ID, revokedGroup.ID, func(c *dbent.UserSubscriptionCreate) {
+		c.SetStatus(service.SubscriptionStatusActive)
+		c.SetExpiresAt(time.Now().Add(24 * time.Hour))
+	})
+	s.Require().NoError(s.repo.Delete(s.ctx, revoked.ID))
+
+	subs, pag, err := s.repo.List(s.ctx, pagination.PaginationParams{Page: 1, PageSize: 10}, &user.ID, nil, service.SubscriptionStatusActive, "", "", "")
+	s.Require().NoError(err)
+	s.Require().Len(subs, 1)
+	s.Require().Equal(int64(1), pag.Total)
+	s.Require().Equal(active.ID, subs[0].ID)
+}
+
 func (s *UserSubscriptionRepoSuite) TestList_IncludesRevokedWhenStatusEmpty() {
 	user1 := s.mustCreateUser("allstatus1@test.com", service.RoleUser)
 	user2 := s.mustCreateUser("allstatus2@test.com", service.RoleUser)

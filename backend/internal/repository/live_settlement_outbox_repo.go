@@ -80,7 +80,7 @@ func (r *liveSettlementOutboxRepository) Enqueue(ctx context.Context, record *se
 			cache_read_audio_tokens = EXCLUDED.cache_read_audio_tokens,
 			image_output_tokens = EXCLUDED.image_output_tokens,
 			updated_at = NOW()
-		WHERE status = 'closing'
+		WHERE live_usage_settlement_outbox.status = 'closing'
 	`,
 		record.CallHash,
 		record.AccountID,

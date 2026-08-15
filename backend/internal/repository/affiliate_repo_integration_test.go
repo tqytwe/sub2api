@@ -493,6 +493,8 @@ func TestAffiliateRepository_CreateReferralCampaignWritesCreatedAuditLog(t *test
 	ctx := context.Background()
 	client := testEntClient(t)
 	repo := NewAffiliateRepository(client, integrationDB)
+	campaignRepo, ok := repo.(service.ReferralCampaignRepository)
+	require.True(t, ok, "affiliate repository must implement referral campaign persistence")
 	creator := mustCreateUser(t, client, &service.User{
 		Email:        fmt.Sprintf("campaign-creator-%d@example.com", time.Now().UnixNano()),
 		PasswordHash: "hash",
@@ -501,23 +503,24 @@ func TestAffiliateRepository_CreateReferralCampaignWritesCreatedAuditLog(t *test
 	})
 
 	startsAt := time.Now().UTC().Add(24 * time.Hour)
-	campaign, err := repo.CreateReferralCampaign(ctx, service.ReferralCampaign{
-		Key:              fmt.Sprintf("audit-campaign-%d", time.Now().UnixNano()),
-		Name:             "Audit parameter type regression",
-		RegistrationFrom: startsAt,
-		RegistrationTo:   startsAt.Add(24 * time.Hour),
-		StartsAt:         startsAt,
-		EndsAt:           startsAt.Add(7 * 24 * time.Hour),
-		QualificationTo:  startsAt.Add(8 * 24 * time.Hour),
-		ClaimDeadline:    startsAt.Add(14 * 24 * time.Hour),
-		RiskHoldHours:    168,
-		PayThreshold:     10,
-		UsageThreshold:   1,
-		MaxEnrollments:   100,
-		BudgetTotal:      1000,
-		RewardMode:       "additive",
-		SigningSecret:    []byte("test-signing-secret"),
-		CreatedBy:        creator.ID,
+	campaign, err := campaignRepo.CreateReferralCampaign(ctx, service.ReferralCampaign{
+		Key:                fmt.Sprintf("audit-campaign-%d", time.Now().UnixNano()),
+		Name:               "Audit parameter type regression",
+		RegistrationFrom:   startsAt,
+		RegistrationTo:     startsAt.Add(24 * time.Hour),
+		StartsAt:           startsAt,
+		EndsAt:             startsAt.Add(7 * 24 * time.Hour),
+		QualificationTo:    startsAt.Add(8 * 24 * time.Hour),
+		ClaimDeadline:      startsAt.Add(14 * 24 * time.Hour),
+		RiskHoldHours:      168,
+		PayThreshold:       10,
+		UsageThreshold:     1,
+		MaxEnrollments:     100,
+		BudgetTotal:        1000,
+		RewardMode:         "additive",
+		LegacyRebatePolicy: "exclude",
+		SigningSecret:      []byte("test-signing-secret"),
+		CreatedBy:          creator.ID,
 	}, []service.ReferralCampaignTier{{
 		Tier: 1, RequiredInvites: 1, RewardAmount: 10, Currency: "CNY",
 	}})

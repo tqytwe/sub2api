@@ -64,6 +64,8 @@ func init() {
 	apikeyMixin := schema.APIKey{}.Mixin()
 	apikeyMixinHooks1 := apikeyMixin[1].Hooks()
 	apikey.Hooks[0] = apikeyMixinHooks1[0]
+	apikeyMixinInters1 := apikeyMixin[1].Interceptors()
+	apikey.Interceptors[0] = apikeyMixinInters1[0]
 	apikeyMixinFields0 := apikeyMixin[0].Fields()
 	_ = apikeyMixinFields0
 	apikeyFields := schema.APIKey{}.Fields()
@@ -155,6 +157,8 @@ func init() {
 	accountMixin := schema.Account{}.Mixin()
 	accountMixinHooks1 := accountMixin[1].Hooks()
 	account.Hooks[0] = accountMixinHooks1[0]
+	accountMixinInters1 := accountMixin[1].Interceptors()
+	account.Interceptors[0] = accountMixinInters1[0]
 	accountMixinFields0 := accountMixin[0].Fields()
 	_ = accountMixinFields0
 	accountFields := schema.Account{}.Fields()
@@ -874,6 +878,8 @@ func init() {
 	compositemodelrouteMixin := schema.CompositeModelRoute{}.Mixin()
 	compositemodelrouteMixinHooks1 := compositemodelrouteMixin[1].Hooks()
 	compositemodelroute.Hooks[0] = compositemodelrouteMixinHooks1[0]
+	compositemodelrouteMixinInters1 := compositemodelrouteMixin[1].Interceptors()
+	compositemodelroute.Interceptors[0] = compositemodelrouteMixinInters1[0]
 	compositemodelrouteMixinFields0 := compositemodelrouteMixin[0].Fields()
 	_ = compositemodelrouteMixinFields0
 	compositemodelrouteFields := schema.CompositeModelRoute{}.Fields()
@@ -1000,6 +1006,8 @@ func init() {
 	groupMixin := schema.Group{}.Mixin()
 	groupMixinHooks1 := groupMixin[1].Hooks()
 	group.Hooks[0] = groupMixinHooks1[0]
+	groupMixinInters1 := groupMixin[1].Interceptors()
+	group.Interceptors[0] = groupMixinInters1[0]
 	groupMixinFields0 := groupMixin[0].Fields()
 	_ = groupMixinFields0
 	groupFields := schema.Group{}.Fields()
@@ -1297,6 +1305,8 @@ func init() {
 	mobileassetMixin := schema.MobileAsset{}.Mixin()
 	mobileassetMixinHooks1 := mobileassetMixin[1].Hooks()
 	mobileasset.Hooks[0] = mobileassetMixinHooks1[0]
+	mobileassetMixinInters1 := mobileassetMixin[1].Interceptors()
+	mobileasset.Interceptors[0] = mobileassetMixinInters1[0]
 	mobileassetMixinFields0 := mobileassetMixin[0].Fields()
 	_ = mobileassetMixinFields0
 	mobileassetFields := schema.MobileAsset{}.Fields()
@@ -2368,6 +2378,8 @@ func init() {
 	proxyMixin := schema.Proxy{}.Mixin()
 	proxyMixinHooks1 := proxyMixin[1].Hooks()
 	proxy.Hooks[0] = proxyMixinHooks1[0]
+	proxyMixinInters1 := proxyMixin[1].Interceptors()
+	proxy.Interceptors[0] = proxyMixinInters1[0]
 	proxyMixinFields0 := proxyMixin[0].Fields()
 	_ = proxyMixinFields0
 	proxyFields := schema.Proxy{}.Fields()
@@ -2950,6 +2962,8 @@ func init() {
 	userMixin := schema.User{}.Mixin()
 	userMixinHooks1 := userMixin[1].Hooks()
 	user.Hooks[0] = userMixinHooks1[0]
+	userMixinInters1 := userMixin[1].Interceptors()
+	user.Interceptors[0] = userMixinInters1[0]
 	userMixinFields0 := userMixin[0].Fields()
 	_ = userMixinFields0
 	userFields := schema.User{}.Fields()
@@ -3087,6 +3101,8 @@ func init() {
 	userattributedefinitionMixin := schema.UserAttributeDefinition{}.Mixin()
 	userattributedefinitionMixinHooks1 := userattributedefinitionMixin[1].Hooks()
 	userattributedefinition.Hooks[0] = userattributedefinitionMixinHooks1[0]
+	userattributedefinitionMixinInters1 := userattributedefinitionMixin[1].Interceptors()
+	userattributedefinition.Interceptors[0] = userattributedefinitionMixinInters1[0]
 	userattributedefinitionMixinFields0 := userattributedefinitionMixin[0].Fields()
 	_ = userattributedefinitionMixinFields0
 	userattributedefinitionFields := schema.UserAttributeDefinition{}.Fields()
@@ -3238,6 +3254,8 @@ func init() {
 	userplatformquotaMixin := schema.UserPlatformQuota{}.Mixin()
 	userplatformquotaMixinHooks1 := userplatformquotaMixin[1].Hooks()
 	userplatformquota.Hooks[0] = userplatformquotaMixinHooks1[0]
+	userplatformquotaMixinInters1 := userplatformquotaMixin[1].Interceptors()
+	userplatformquota.Interceptors[0] = userplatformquotaMixinInters1[0]
 	userplatformquotaMixinFields0 := userplatformquotaMixin[0].Fields()
 	_ = userplatformquotaMixinFields0
 	userplatformquotaFields := schema.UserPlatformQuota{}.Fields()
@@ -3286,6 +3304,8 @@ func init() {
 	usersubscriptionMixin := schema.UserSubscription{}.Mixin()
 	usersubscriptionMixinHooks1 := usersubscriptionMixin[1].Hooks()
 	usersubscription.Hooks[0] = usersubscriptionMixinHooks1[0]
+	usersubscriptionMixinInters1 := usersubscriptionMixin[1].Interceptors()
+	usersubscription.Interceptors[0] = usersubscriptionMixinInters1[0]
 	usersubscriptionMixinFields0 := usersubscriptionMixin[0].Fields()
 	_ = usersubscriptionMixinFields0
 	usersubscriptionFields := schema.UserSubscription{}.Fields()
