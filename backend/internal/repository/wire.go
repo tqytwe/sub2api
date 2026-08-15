@@ -170,6 +170,7 @@ var ProviderSet = wire.NewSet(
 	ProvideImageStorage,
 	ProvideImageStorageFactory,
 	ProvideMobileAssetStorage,
+	ProvideMobileReleaseStorage,
 
 	// HTTP service ports (DI Strategy A: return interface directly)
 	NewTurnstileVerifier,
