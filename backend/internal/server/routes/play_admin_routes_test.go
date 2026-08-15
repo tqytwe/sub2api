@@ -30,6 +30,9 @@ func TestAdminPlayTeamRepairRoutesContract(t *testing.T) {
 		"GET /api/v1/admin/play/teams/:id/member-candidates",
 		"POST /api/v1/admin/play/teams/:id/members",
 		"GET /api/v1/admin/play/teams/:id/events",
+		"GET /api/v1/admin/play/mobile-releases",
+		"POST /api/v1/admin/play/mobile-releases/upload",
+		"POST /api/v1/admin/play/mobile-releases/:id/publish",
 	} {
 		_, ok := routes[route]
 		require.Truef(t, ok, "missing route: %s", route)

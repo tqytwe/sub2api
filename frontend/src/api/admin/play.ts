@@ -251,6 +251,68 @@ export interface AdminMobileFeedbackUpdateInput {
   expected_version: number;
 }
 
+export type AdminMobileReleaseDistribution = "direct" | "play";
+export type AdminMobileReleaseStatus = "draft" | "ready" | "published" | "paused" | "retired";
+export interface AdminMobileReleaseManifest {
+  platform: "android";
+  version: string;
+  versionCode: number;
+  distribution?: AdminMobileReleaseDistribution;
+  artifactType: "apk" | "aab";
+  packageName: string;
+  bytes: number;
+  sha256: string;
+  signingCertificateSha256: string;
+  notes: string[];
+  notes_i18n: Record<"zh" | "en" | "ja" | "ko", string[]>;
+  [key: string]: unknown;
+}
+export interface AdminMobileRelease {
+  id: number;
+  distribution: AdminMobileReleaseDistribution;
+  package_name: string;
+  artifact_type: "apk" | "aab";
+  version: string;
+  version_code: number;
+  download_url?: string;
+  bytes: number;
+  sha256: string;
+  signing_certificate_sha256: string;
+  notes: string[];
+  notes_i18n: Record<string, string[]>;
+  manifest: AdminMobileReleaseManifest;
+  status: AdminMobileReleaseStatus;
+  rollout_percent: number;
+  created_at: string;
+  updated_at: string;
+  published_at?: string;
+}
+export interface AdminMobileReleaseList { items: AdminMobileRelease[] }
+
+export async function listMobileReleases(distribution?: AdminMobileReleaseDistribution): Promise<AdminMobileReleaseList> {
+  const { data } = await apiClient.get<AdminMobileReleaseList>("/admin/play/mobile-releases", { params: distribution ? { distribution } : undefined });
+  return data;
+}
+export async function uploadMobileRelease(artifact: File, manifest: File): Promise<AdminMobileRelease> {
+  const form = new FormData();
+  form.append("artifact", artifact);
+  form.append("manifest", manifest);
+  const { data } = await apiClient.post<AdminMobileRelease>("/admin/play/mobile-releases/upload", form, { headers: { "Content-Type": "multipart/form-data" }, timeout: 10 * 60 * 1000 });
+  return data;
+}
+export async function publishMobileRelease(id: number): Promise<AdminMobileRelease> {
+  const { data } = await apiClient.post<AdminMobileRelease>(`/admin/play/mobile-releases/${id}/publish`);
+  return data;
+}
+export async function pauseMobileRelease(id: number): Promise<AdminMobileRelease> {
+  const { data } = await apiClient.post<AdminMobileRelease>(`/admin/play/mobile-releases/${id}/pause`);
+  return data;
+}
+export async function retireMobileRelease(id: number): Promise<AdminMobileRelease> {
+  const { data } = await apiClient.post<AdminMobileRelease>(`/admin/play/mobile-releases/${id}/retire`);
+  return data;
+}
+
 export interface AdminMembershipOverview {
   total_members: number
   tier_counts: Array<{ tier: number; label: string; count: number }>
@@ -1117,6 +1179,11 @@ export const adminPlayAPI = {
   createQuizQuestion,
   updateQuizQuestion,
   deleteQuizQuestion,
+  listMobileReleases,
+  uploadMobileRelease,
+  publishMobileRelease,
+  pauseMobileRelease,
+  retireMobileRelease,
 };
 
 export default adminPlayAPI;

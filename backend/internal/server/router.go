@@ -160,6 +160,7 @@ func registerRoutes(
 ) {
 	// 通用路由（健康检查、状态等）
 	routes.RegisterCommonRoutes(r)
+	r.GET("/downloads/android-version.json", h.MobileRelease.CompatibilityManifest)
 
 	// API v1
 	v1 := r.Group("/api/v1")
@@ -223,6 +224,8 @@ func registerRoutes(
 		mobilePlayBilling = handler.NewMobilePlayBillingHandler()
 	}
 	v1.POST("/mobile/play-billing/purchases", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobilePlayBilling.SubmitPurchase)
+	v1.GET("/mobile/releases/check", h.MobileRelease.Check)
+	v1.GET("/mobile/releases/:id/download", h.MobileRelease.Download)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth, panelRateLimiter)
 	// 论坛 SSO：OAuth2 授权端点 + 论坛回调所需的钱包/订单接口。

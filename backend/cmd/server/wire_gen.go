@@ -312,7 +312,13 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	paymentHandler := admin.NewPaymentHandler(paymentService, paymentConfigService)
 	affiliateHandler := admin.NewAffiliateHandler(affiliateService, adminService)
 	complianceHandler := admin.NewComplianceHandler(settingService)
-	adminPlayHandler := admin.NewAdminPlayHandler(playService, totpService, userService)
+	mobileAppReleaseRepository := repository.NewMobileAppReleaseRepository(db)
+	mobileAssetStorage, err := repository.ProvideMobileAssetStorage(configConfig)
+	if err != nil {
+		return nil, err
+	}
+	mobileAppReleaseService := service.NewMobileAppReleaseService(mobileAppReleaseRepository, mobileAssetStorage)
+	adminPlayHandler := handler.ProvideAdminPlayHandler(playService, totpService, userService, mobileAppReleaseService)
 	withdrawalService := service.NewWithdrawalService(db, balanceLedgerService, secretEncryptor, notificationEmailService)
 	withdrawableRecomputeService := service.NewWithdrawableRecomputeService(db)
 	withdrawalHandler := admin.NewWithdrawalHandler(withdrawalService, withdrawableRecomputeService)
@@ -363,10 +369,6 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	modelPricingHandler := handler.NewModelPricingHandler(modelCatalogService, playService, billingService)
 	promptLibraryService := service.NewPromptLibraryService(promptLibraryRepository)
 	promptLibraryHandler := handler.NewPromptLibraryHandler(promptLibraryService)
-	mobileAssetStorage, err := repository.ProvideMobileAssetStorage(configConfig)
-	if err != nil {
-		return nil, err
-	}
 	mobileAssetHandler := handler.ProvideMobileAssetHandler(db, mobileAssetStorage)
 	mobileTaskHandler := handler.ProvideMobileTaskHandler(db, mobilePushService)
 	mobileSupportHandler := handler.ProvideMobileSupportHandler(playService, announcementAssetService)
@@ -378,12 +380,13 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	mobileWebSearchHandler := handler.NewMobileWebSearchHandlerFromEnvironment(mobileWebSearchBudget)
 	mobilePlayBillingService := service.NewMobilePlayBillingService(paymentService, settingRepository)
 	mobilePlayBillingHandler := handler.ProvideMobilePlayBillingHandler(mobilePlayBillingService)
+	mobileAppReleaseHandler := handler.ProvideMobileReleaseHandler(mobileAppReleaseService)
 	forumSSOStore := repository.NewForumSSOStore(redisClient)
 	forumSSOService := service.ProvideForumSSOService(configConfig, forumSSOStore, userService, playService, settingService, balanceLedgerService, adminService)
 	forumSSOHandler := handler.NewForumSSOHandler(forumSSOService, authService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, couponWalletHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, playHandler, walletHandler, handlerFundHandler, imageStudioHandler, modelPricingHandler, promptLibraryHandler, mobileAssetHandler, mobileTaskHandler, mobileSupportHandler, mobileDiagnosticHandler, mobileDeviceHandler, mobileAttributionHandler, mobileWebSearchHandler, mobilePlayBillingHandler, forumSSOHandler, idempotencyCoordinator, idempotencyCleanupService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, couponWalletHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, playHandler, walletHandler, handlerFundHandler, imageStudioHandler, modelPricingHandler, promptLibraryHandler, mobileAssetHandler, mobileTaskHandler, mobileSupportHandler, mobileDiagnosticHandler, mobileDeviceHandler, mobileAttributionHandler, mobileWebSearchHandler, mobilePlayBillingHandler, mobileAppReleaseHandler, forumSSOHandler, idempotencyCoordinator, idempotencyCleanupService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	optionalJWTAuthMiddleware := middleware.NewOptionalJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService, auditLogService)
