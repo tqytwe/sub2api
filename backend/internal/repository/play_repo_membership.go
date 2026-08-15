@@ -261,8 +261,12 @@ func (r *playRepository) ListMembershipContributions(ctx context.Context, userID
 	for rows.Next() {
 		var item service.PlayMembershipContribution
 		var paid, refunded, net string
-		if err := rows.Scan(&item.OrderID, &item.OrderType, &paid, &refunded, &net, &item.PaidAt, &item.Status, &item.UpdatedAt, &item.QualificationState, &item.QualificationSource, &item.QualificationReason); err != nil {
+		var qualificationReason sql.NullString
+		if err := rows.Scan(&item.OrderID, &item.OrderType, &paid, &refunded, &net, &item.PaidAt, &item.Status, &item.UpdatedAt, &item.QualificationState, &item.QualificationSource, &qualificationReason); err != nil {
 			return nil, err
+		}
+		if qualificationReason.Valid {
+			item.QualificationReason = qualificationReason.String
 		}
 		item.PaidAmount, err = decimal.NewFromString(paid)
 		if err != nil {
