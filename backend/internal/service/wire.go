@@ -914,6 +914,7 @@ var ProviderSet = wire.NewSet(
 	ProvideIPRiskService,
 	NewMobilePushService,
 	NewMobilePlayBillingService,
+	NewMobileAppReleaseService,
 	ProvideMobileAttributionService,
 	ProvideMobilePushWorker,
 	ProvideAuthService,

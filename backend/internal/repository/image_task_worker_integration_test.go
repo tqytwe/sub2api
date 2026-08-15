@@ -381,15 +381,15 @@ func TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{Addr: mr.Addr()})
 	t.Cleanup(func() { _ = rdb.Close() })
 	cfg := &config.Config{ImageAsync: config.ImageAsyncConfig{
-		QueueEnabled:            true,
-		WorkerCount:             1,
-		QueueReadyKey:           "worker:image:lease:ready",
-		QueueActiveKey:          "worker:image:lease:active",
-		IdempotencyKeyPrefix:    "worker:image:lease:idem:",
-		JobLockKeyPrefix:        "worker:image:lease:lock:",
-		ReserveTimeoutSeconds:   1,
-		JobLockTTLSeconds:       60,
-		HeartbeatSeconds:        1,
+		QueueEnabled:          true,
+		WorkerCount:           1,
+		QueueReadyKey:         "worker:image:lease:ready",
+		QueueActiveKey:        "worker:image:lease:active",
+		IdempotencyKeyPrefix:  "worker:image:lease:idem:",
+		JobLockKeyPrefix:      "worker:image:lease:lock:",
+		ReserveTimeoutSeconds: 1,
+		JobLockTTLSeconds:     60,
+		HeartbeatSeconds:      1,
 		// Keep the runtime's eager recovery pass from racing the explicit
 		// recovery assertion below; the task is made stale by one hour.
 		StaleActiveAfterSeconds: 24 * 60 * 60,

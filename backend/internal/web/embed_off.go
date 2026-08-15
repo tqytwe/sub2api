@@ -46,3 +46,7 @@ func ServeEmbeddedFrontend() gin.HandlerFunc {
 func HasEmbeddedFrontend() bool {
 	return false
 }
+
+func ReadEmbeddedAsset(_ string) ([]byte, error) {
+	return nil, errors.New("frontend not embedded")
+}

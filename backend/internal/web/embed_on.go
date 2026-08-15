@@ -1433,3 +1433,9 @@ func HasEmbeddedFrontend() bool {
 	_, err := frontendFS.ReadFile("dist/index.html")
 	return err == nil
 }
+
+// ReadEmbeddedAsset returns a public frontend asset for compatibility routes
+// that need a database-backed override with a static fallback.
+func ReadEmbeddedAsset(name string) ([]byte, error) {
+	return fs.ReadFile(frontendFS, "dist/"+strings.TrimLeft(name, "/"))
+}

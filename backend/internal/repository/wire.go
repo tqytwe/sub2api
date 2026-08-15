@@ -158,6 +158,7 @@ var ProviderSet = wire.NewSet(
 	ProvideMobilePushConfig,
 	ProvideMobilePushRepository,
 	NewMobileAttributionRepository,
+	NewMobileAppReleaseRepository,
 	ProvideMobilePushSender,
 
 	// Backup infrastructure
