@@ -801,8 +801,15 @@ func isGrokCLIProxyTarget(rawURL string) bool {
 }
 
 func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, contentType string) ([]byte, string, error) {
-	if endpoint != GrokMediaEndpointImagesEdits || gjson.ValidBytes(body) {
+	if endpoint != GrokMediaEndpointImagesEdits {
 		return body, contentType, nil
+	}
+	if gjson.ValidBytes(body) {
+		out, normalizedContentType, err := normalizeGrokMediaForwardBody(endpoint, body, contentType)
+		if err != nil {
+			return nil, "", err
+		}
+		return normalizeGrokEditImageSources(out, normalizedContentType)
 	}
 	mediaType, _, err := mime.ParseMediaType(strings.TrimSpace(contentType))
 	if err != nil || !strings.EqualFold(mediaType, "multipart/form-data") {
@@ -863,7 +870,7 @@ func prepareGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, conten
 	if err != nil {
 		return nil, "", err
 	}
-	return out, "application/json", nil
+	return normalizeGrokEditImageSources(out, "application/json")
 }
 
 func normalizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, contentType string) ([]byte, string, error) {
@@ -882,6 +889,12 @@ func normalizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, cont
 	if err != nil {
 		return nil, "", err
 	}
+	if endpoint == GrokMediaEndpointImagesEdits {
+		body, contentType, err = normalizeGrokEditImageSources(body, contentType)
+		if err != nil {
+			return nil, "", err
+		}
+	}
 	info := ParseGrokMediaRequest(contentType, body)
 	upstreamModel := NormalizeGrokMediaModelForEndpoint(endpoint, info.Model, info.HasInputImage())
 	if upstreamModel == "" || upstreamModel == info.Model {
@@ -892,6 +905,62 @@ func normalizeGrokMediaForwardBody(endpoint GrokMediaEndpoint, body []byte, cont
 		return nil, "", fmt.Errorf("rewrite grok media model: %w", err)
 	}
 	return out, contentType, nil
+}
+
+// normalizeGrokEditImageSources emits the single image_url object shape that
+// Grok's edits endpoint accepts, regardless of whether clients used legacy
+// image_url, official url objects, or bare URL strings.
+func normalizeGrokEditImageSources(body []byte, contentType string) ([]byte, string, error) {
+	if !gjson.ValidBytes(body) {
+		return body, contentType, nil
+	}
+	out := body
+	count := 0
+	for _, field := range []string{"image", "images", "mask"} {
+		value := gjson.GetBytes(out, field)
+		if !value.Exists() {
+			continue
+		}
+		paths := []string{field}
+		if value.IsArray() {
+			paths = paths[:0]
+			for index := range value.Array() {
+				paths = append(paths, fmt.Sprintf("%s.%d", field, index))
+			}
+		}
+		for _, path := range paths {
+			url := grokMediaImageURLAtPath(out, path)
+			if url == "" {
+				continue
+			}
+			if field != "mask" {
+				count++
+			}
+			var err error
+			out, err = sjson.SetBytes(out, path, map[string]string{"type": "image_url", "url": url})
+			if err != nil {
+				return nil, "", fmt.Errorf("normalize grok edit image source: %w", err)
+			}
+		}
+	}
+	if count > 3 {
+		return nil, "", fmt.Errorf("grok image edits accept a maximum of 3 source images")
+	}
+	return out, contentType, nil
+}
+
+func grokMediaImageURLAtPath(body []byte, path string) string {
+	value := gjson.GetBytes(body, path)
+	if value.Type == gjson.String {
+		return strings.TrimSpace(value.String())
+	}
+	for _, key := range []string{"url", "url.url", "image_url.url", "image_url"} {
+		candidate := gjson.GetBytes(body, path+"."+key)
+		if candidate.Type == gjson.String && strings.TrimSpace(candidate.String()) != "" {
+			return strings.TrimSpace(candidate.String())
+		}
+	}
+	return ""
 }
 
 func canonicalizeGrokMediaImageURLFields(body []byte, fields ...string) ([]byte, error) {
@@ -973,10 +1042,6 @@ func NormalizeGrokMediaModelForEndpoint(endpoint GrokMediaEndpoint, model string
 	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits:
 		if model == "grok-imagine" {
 			return "grok-imagine-image-quality"
-		}
-	case GrokMediaEndpointVideosGenerations:
-		if model == "grok-imagine-video-1.5" && !hasInputImage {
-			return "grok-imagine-video"
 		}
 	}
 	return model

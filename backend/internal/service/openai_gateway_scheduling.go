@@ -1280,7 +1280,17 @@ func (s *OpenAIGatewayService) listSchedulableAccounts(ctx context.Context, grou
 	if err != nil {
 		return nil, fmt.Errorf("query accounts failed: %w", err)
 	}
-	return accounts, nil
+	if s.rateLimitService == nil || len(accounts) == 0 {
+		return accounts, nil
+	}
+	filtered := accounts[:0]
+	for index := range accounts {
+		if s.rateLimitService.ApplyAccountSchedulingThreshold(ctx, &accounts[index]) {
+			continue
+		}
+		filtered = append(filtered, accounts[index])
+	}
+	return filtered, nil
 }
 
 func (s *OpenAIGatewayService) tryAcquireAccountSlot(ctx context.Context, accountID int64, maxConcurrency int) (*AcquireResult, error) {

@@ -1297,6 +1297,8 @@ func (s *GatewayService) buildRecordUsageLog(
 		Model:                 result.Model,
 		RequestedModel:        requestedModel,
 		UpstreamModel:         optionalTrimmedStringPtr(result.UpstreamModel),
+		UpstreamResponseModel: optionalTrimmedStringPtr(result.UpstreamResponseModel),
+		UpstreamModelMismatch: upstreamModelMismatch(upstreamSentModel(result.Model, result.UpstreamModel), result.UpstreamResponseModel),
 		ReasoningEffort:       result.ReasoningEffort,
 		InboundEndpoint:       optionalTrimmedStringPtr(input.InboundEndpoint),
 		UpstreamEndpoint:      optionalTrimmedStringPtr(input.UpstreamEndpoint),

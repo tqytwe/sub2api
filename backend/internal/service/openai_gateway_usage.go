@@ -557,32 +557,32 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 			), nil
 		}
 	}
-	if len(billingModels) == 0 || billingModel == "" {
-		return nil, errors.New("openai usage billing model is empty")
-	}
 	var tokenCost *CostBreakdown
 	var lastErr error
-	for _, candidate := range billingModels {
-		candidate = strings.TrimSpace(candidate)
-		if candidate == "" {
-			continue
+	tokenBillingAttempted := len(billingModels) > 0 && billingModel != ""
+	if tokenBillingAttempted {
+		for _, candidate := range billingModels {
+			candidate = strings.TrimSpace(candidate)
+			if candidate == "" {
+				continue
+			}
+			cost, err := s.calculateOpenAIRecordUsageTokenCost(
+				ctx,
+				apiKey,
+				candidate,
+				multiplier,
+				tokens,
+				serviceTier,
+				applyLongContext,
+			)
+			if err == nil {
+				tokenCost = cost
+				break
+			}
+			lastErr = err
 		}
-		cost, err := s.calculateOpenAIRecordUsageTokenCost(
-			ctx,
-			apiKey,
-			candidate,
-			multiplier,
-			tokens,
-			serviceTier,
-			applyLongContext,
-		)
-		if err == nil {
-			tokenCost = cost
-			break
-		}
-		lastErr = err
 	}
-	if lastErr == nil {
+	if tokenBillingAttempted && lastErr == nil {
 		lastErr = errors.New("no non-empty billing model candidates")
 	}
 	searchCost := (*CostBreakdown)(nil)
@@ -591,8 +591,14 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 		searchCost = s.billingService.CalculateSearchCost(result.SearchCount, price, webSearchMultiplier)
 	}
 	if tokenCost == nil {
+		if tokenBillingAttempted {
+			return nil, fmt.Errorf("calculate OpenAI usage cost failed for billing models %s: %w", strings.Join(billingModels, ","), lastErr)
+		}
 		if searchCost != nil {
 			return searchCost, nil
+		}
+		if lastErr == nil {
+			lastErr = errors.New("openai usage billing model is empty")
 		}
 		return nil, fmt.Errorf("calculate OpenAI usage cost failed for billing models %s: %w", strings.Join(billingModels, ","), lastErr)
 	}
@@ -943,6 +949,14 @@ func groupMediaPricingLooksIncomplete(group *Group) bool {
 		return false
 	}
 	if group.ImageRateMultiplier != 0 || group.VideoRateMultiplier != 0 {
+		return false
+	}
+	if len(group.VideoModelPrices) > 0 || len(group.ModelPricing) > 0 || group.LongContextPricingEnabled {
+		return false
+	}
+	if group.SearchPricePer1k != nil || group.AudioRealtimePricePerMin != nil ||
+		group.AudioTTSPricePerMillionChars != nil || group.AudioSTTPricePerHour != nil ||
+		group.WebSearchPricePerCall != nil {
 		return false
 	}
 	return group.ImagePrice1K == nil && group.ImagePrice2K == nil && group.ImagePrice4K == nil &&
