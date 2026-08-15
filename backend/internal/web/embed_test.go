@@ -740,6 +740,7 @@ func TestFrontendServer_Middleware(t *testing.T) {
 
 		apiPaths := []string{
 			"/api/v1/users",
+			"/downloads/android-version.json",
 			"/models",
 			"/v1/models",
 			"/v1beta/chat",
@@ -1111,6 +1112,7 @@ func TestServeEmbeddedFrontend(t *testing.T) {
 
 		apiPaths := []string{
 			"/api/users",
+			"/downloads/android-version.json",
 			"/models",
 			"/v1/models",
 			"/v1beta/chat",

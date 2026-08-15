@@ -258,6 +258,25 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		).Warn("openai_usage.pricing_missing_record_zero_cost", zap.Error(err))
 		cost = &CostBreakdown{BillingMode: string(BillingModeToken)}
 	}
+	baselineBillingModel := firstUsageBillingModel(billingModels)
+	if responseModel := responseModelBillingDeclaration(
+		input.BillingModelSource,
+		result.UpstreamResponseModel,
+		result.UpstreamResponseModelConflict,
+		result.ImageCount > 0 || result.VideoCount > 0 || result.WebSearchCalls > 0 ||
+			result.AudioUsage != nil || result.SearchCount > 0,
+	); responseModel != "" && !strings.EqualFold(responseModel, baselineBillingModel) {
+		if identified, responseChannelPriced := s.hasIdentifiedOpenAIResponsePricing(ctx, responseModel, apiKey); identified {
+			responseModels := usageBillingModelCandidates(responseModel)
+			responseCost, responseErr := s.calculateOpenAIRecordUsageCost(ctx, result, apiKey, responseModels, multiplier, imageMultiplier, videoMultiplier, baseMultiplier, tokens, serviceTier, longContextBillingGate)
+			baselineChannelPriced := s.resolveOpenAIChannelPricing(ctx, baselineBillingModel, apiKey) != nil
+			if responseErr == nil && responseModelBillingAdoptable(cost, responseCost, baselineChannelPriced, responseChannelPriced) {
+				logResponseModelBillingApplied("service.openai_gateway", account, result.RequestID, baselineBillingModel, responseModel, cost, responseCost)
+				billingModels = responseModels
+				cost = responseCost
+			}
+		}
+	}
 	applyImageStudioBillingActualCostCap(ctx, cost)
 	// Determine billing type
 	isSubscriptionBilling := subscription != nil && apiKey.Group != nil && apiKey.Group.IsSubscriptionType()
@@ -457,6 +476,17 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	return nil
 }
 
+func (s *OpenAIGatewayService) hasIdentifiedOpenAIResponsePricing(ctx context.Context, model string, apiKey *APIKey) (bool, bool) {
+	model = strings.TrimSpace(model)
+	if model == "" {
+		return false, false
+	}
+	if s.resolveOpenAIChannelPricing(ctx, model, apiKey) != nil {
+		return true, true
+	}
+	return s.billingService.HasIdentifiedTokenPricing(model), false
+}
+
 // openAILongContextBillingGate returns the per-account long-context opt-in.
 // The flag is an OpenAI-only account setting, so other platforms (Grok) return
 // nil - "no per-account gate" - and are governed by the group toggle alone.
@@ -500,6 +530,18 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 			return s.calculateOpenAIVideoCost(ctx, billingModel, apiKey, result, videoMultiplier), nil
 		}
 	}
+	if result != nil && result.AudioUsage != nil {
+		if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved != nil && resolved.Mode == BillingModePerRequest {
+			gid := apiKey.Group.ID
+			return s.billingService.CalculateCostUnified(CostInput{
+				Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
+				UsageUnits: result.AudioUsage.DurationOrUnits, SizeTier: result.AudioUsage.Mode,
+				RateMultiplier: webSearchMultiplier, Resolver: s.resolver, Resolved: resolved,
+			})
+		}
+		cfg := groupAudioPriceConfigFromAPIKey(apiKey)
+		return s.billingService.CalculateAudioCost(result.AudioUsage.Mode, result.AudioUsage.DurationOrUnits, cfg, webSearchMultiplier), nil
+	}
 	if result != nil && result.ImageCount > 0 {
 		// 渠道定价为 token 计费时走 token 路径，否则走图片计费
 		if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved == nil || resolved.Mode != BillingModeToken {
@@ -518,6 +560,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	if len(billingModels) == 0 || billingModel == "" {
 		return nil, errors.New("openai usage billing model is empty")
 	}
+	var tokenCost *CostBreakdown
 	var lastErr error
 	for _, candidate := range billingModels {
 		candidate = strings.TrimSpace(candidate)
@@ -534,14 +577,30 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 			applyLongContext,
 		)
 		if err == nil {
-			return cost, nil
+			tokenCost = cost
+			break
 		}
 		lastErr = err
 	}
 	if lastErr == nil {
 		lastErr = errors.New("no non-empty billing model candidates")
 	}
-	return nil, fmt.Errorf("calculate OpenAI usage cost failed for billing models %s: %w", strings.Join(billingModels, ","), lastErr)
+	searchCost := (*CostBreakdown)(nil)
+	if result != nil && result.SearchCount > 0 {
+		price := groupSearchPricePer1kFromAPIKey(apiKey)
+		searchCost = s.billingService.CalculateSearchCost(result.SearchCount, price, webSearchMultiplier)
+	}
+	if tokenCost == nil {
+		if searchCost != nil {
+			return searchCost, nil
+		}
+		return nil, fmt.Errorf("calculate OpenAI usage cost failed for billing models %s: %w", strings.Join(billingModels, ","), lastErr)
+	}
+	if searchCost != nil {
+		tokenCost.TotalCost += searchCost.TotalCost
+		tokenCost.ActualCost += searchCost.ActualCost
+	}
+	return tokenCost, nil
 }
 
 func isGrokVideoBillingModel(model string) bool {

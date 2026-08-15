@@ -232,9 +232,16 @@ type adminTeamRewardAllocationDTO struct {
 
 // AdminPlayHandler serves admin play operations.
 type AdminPlayHandler struct {
-	playService *service.PlayService
-	totpService *service.TotpService
-	userService *service.UserService
+	playService    *service.PlayService
+	totpService    *service.TotpService
+	userService    *service.UserService
+	releaseService *service.MobileAppReleaseService
+}
+
+// SetMobileAppReleaseService attaches the release manager without changing the
+// constructor contract used by existing admin Play tests and integrations.
+func (h *AdminPlayHandler) SetMobileAppReleaseService(releaseService *service.MobileAppReleaseService) {
+	h.releaseService = releaseService
 }
 
 func NewAdminPlayHandler(

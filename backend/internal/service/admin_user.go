@@ -300,6 +300,21 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if user.Role != oldRole {
 		logger.LegacyPrintf("service.admin", "audit: user role changed actor_admin_id=%d target_user_id=%d old_role=%s new_role=%s",
 			input.ActorAdminID, user.ID, oldRole, user.Role)
+		if s.roleObserver != nil {
+			s.roleObserver.NotifyRoleChanged(user.ID, user.Role)
+		}
+	}
+
+	if user.Status != oldStatus && user.Status == StatusDisabled && s.tokenRevoker != nil {
+		revoker := s.tokenRevoker
+		userID := user.ID
+		go func() {
+			revokeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := revoker.RevokeUserTokens(revokeCtx, userID); err != nil {
+				logger.LegacyPrintf("service.admin", "forum SSO token revocation failed: user_id=%d err=%v", userID, err)
+			}
+		}()
 	}
 
 	// 同步用户专属分组倍率
@@ -403,6 +418,17 @@ func (s *adminServiceImpl) DeleteUser(ctx context.Context, id int64) error {
 			}
 		}
 		s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, id)
+	}
+
+	if s.tokenRevoker != nil {
+		revoker := s.tokenRevoker
+		go func() {
+			revokeCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := revoker.RevokeUserTokens(revokeCtx, id); err != nil {
+				logger.LegacyPrintf("service.admin", "forum SSO token revocation failed after delete: user_id=%d err=%v", id, err)
+			}
+		}()
 	}
 
 	return nil

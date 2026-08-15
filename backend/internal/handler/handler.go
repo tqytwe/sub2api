@@ -88,6 +88,8 @@ type Handlers struct {
 	MobileAttribution *MobileAttributionHandler
 	MobileWebSearch   *MobileWebSearchHandler
 	MobilePlayBilling *MobilePlayBillingHandler
+	MobileRelease     *MobileAppReleaseHandler
+	ForumSSO          *ForumSSOHandler
 }
 
 // BuildInfo contains build-time information

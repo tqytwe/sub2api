@@ -226,6 +226,8 @@
 249_live_usage_settlement_outbox.sql
 250_model_catalog_tool_capabilities.sql
 251_vip_membership_qualification_review.sql
+252_bepusdt_payment_contract.sql
+253_mobile_app_releases.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动

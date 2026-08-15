@@ -103,6 +103,23 @@ type Config struct {
 	BatchImage              BatchImageConfig              `mapstructure:"batch_image"`
 	ImageAsync              ImageAsyncConfig              `mapstructure:"image_async"`
 	ImageStorage            ImageStorageConfig            `mapstructure:"image_storage"`
+	ForumSSO                ForumSSOConfig                `mapstructure:"forum_sso"`
+}
+
+// ForumSSOConfig configures this platform as the OAuth2 provider for the NodeBB
+// community forum, which runs on its own domain and treats us as its identity
+// source, wallet and VIP authority.
+type ForumSSOConfig struct {
+	Enabled               bool   `mapstructure:"enabled"`
+	ClientID              string `mapstructure:"client_id"`
+	ClientSecret          string `mapstructure:"client_secret"`
+	RedirectURLs          string `mapstructure:"redirect_urls"`
+	ForumBaseURL          string `mapstructure:"forum_base_url"`
+	WebhookSecret         string `mapstructure:"webhook_secret"`
+	LoginPagePath         string `mapstructure:"login_page_path"`
+	AuthCodeTTLSeconds    int    `mapstructure:"auth_code_ttl_seconds"`
+	AccessTokenTTLSeconds int    `mapstructure:"access_token_ttl_seconds"`
+	UserLanguage          string `mapstructure:"user_language"`
 }
 
 type LogConfig struct {
@@ -2639,6 +2656,17 @@ func setEnvReachableDefaults() {
 		viper.SetDefault(provider+".redirect_url", "")
 		viper.SetDefault(provider+".frontend_redirect_url", "")
 	}
+
+	viper.SetDefault("forum_sso.enabled", false)
+	viper.SetDefault("forum_sso.client_id", "")
+	viper.SetDefault("forum_sso.client_secret", "")
+	viper.SetDefault("forum_sso.redirect_urls", "")
+	viper.SetDefault("forum_sso.forum_base_url", "")
+	viper.SetDefault("forum_sso.webhook_secret", "")
+	viper.SetDefault("forum_sso.login_page_path", "/login")
+	viper.SetDefault("forum_sso.auth_code_ttl_seconds", 60)
+	viper.SetDefault("forum_sso.access_token_ttl_seconds", 2592000)
+	viper.SetDefault("forum_sso.user_language", "zh-CN")
 
 	viper.SetDefault("dingtalk_connect.client_id", "")
 	viper.SetDefault("dingtalk_connect.client_secret", "")

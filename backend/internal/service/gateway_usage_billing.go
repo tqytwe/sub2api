@@ -368,6 +368,20 @@ func responseModelBillingAdoptable(baseline, response *CostBreakdown, baselineCh
 	return !baselineChannelPriced || responseChannelPriced
 }
 
+func logResponseModelBillingApplied(component string, account *Account, requestID, baselineModel, responseModel string, baselineCost, responseCost *CostBreakdown) {
+	if strings.EqualFold(strings.TrimSpace(baselineModel), strings.TrimSpace(responseModel)) {
+		return
+	}
+	attrs := []any{"component", component, "request_id", strings.TrimSpace(requestID), "baseline_model", strings.TrimSpace(baselineModel), "response_model", strings.TrimSpace(responseModel)}
+	if baselineCost != nil && responseCost != nil {
+		attrs = append(attrs, "baseline_cost", baselineCost.TotalCost, "billed_cost", responseCost.TotalCost)
+	}
+	if account != nil {
+		attrs = append(attrs, "platform", account.Platform, "account_id", account.ID)
+	}
+	slog.Info("billing.response_model_applied", attrs...)
+}
+
 func resolveUsageBillingPayloadFingerprint(ctx context.Context, requestPayloadHash string) string {
 	if payloadHash := strings.TrimSpace(requestPayloadHash); payloadHash != "" {
 		return payloadHash
@@ -942,6 +956,21 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 
 	// 计算费用
 	cost := s.calculateRecordUsageCost(ctx, result, apiKey, billingModel, multiplier, imageMultiplier, opts)
+	if responseModel := responseModelBillingDeclaration(
+		input.BillingModelSource,
+		result.UpstreamResponseModel,
+		result.UpstreamResponseModelConflict,
+		result.ImageCount > 0 || result.AudioUsage != nil || result.SearchCount > 0,
+	); responseModel != "" && !strings.EqualFold(responseModel, strings.TrimSpace(billingModel)) {
+		if identified, responseChannelPriced := s.hasIdentifiedResponseModelPricing(ctx, responseModel, apiKey); identified {
+			responseCost := s.calculateRecordUsageCost(ctx, result, apiKey, responseModel, multiplier, imageMultiplier, opts)
+			baselineChannelPriced := s.resolveChannelPricing(ctx, billingModel, apiKey) != nil
+			if responseModelBillingAdoptable(cost, responseCost, baselineChannelPriced, responseChannelPriced) {
+				logResponseModelBillingApplied("service.gateway", account, result.RequestID, billingModel, responseModel, cost, responseCost)
+				cost = responseCost
+			}
+		}
+	}
 	applyImageStudioBillingActualCostCap(ctx, cost)
 
 	// 判断计费方式：订阅模式 vs 余额模式
@@ -1045,9 +1074,34 @@ func (s *GatewayService) calculateRecordUsageCost(
 		}
 		return s.calculateImageCost(ctx, result, apiKey, billingModel, imageMultiplier)
 	}
+	if result.AudioUsage != nil {
+		if resolved := s.resolveChannelPricing(ctx, billingModel, apiKey); resolved != nil && resolved.Mode == BillingModePerRequest {
+			gid := apiKey.Group.ID
+			cost, err := s.billingService.CalculateCostUnified(CostInput{
+				Ctx: ctx, Model: billingModel, GroupID: &gid, Group: apiKey.Group,
+				UsageUnits: result.AudioUsage.DurationOrUnits, SizeTier: result.AudioUsage.Mode,
+				RateMultiplier: multiplier, Resolver: s.resolver, Resolved: resolved,
+			})
+			if err == nil {
+				return cost
+			}
+		}
+		return s.billingService.CalculateAudioCost(result.AudioUsage.Mode, result.AudioUsage.DurationOrUnits, groupAudioPriceConfigFromAPIKey(apiKey), multiplier)
+	}
 
-	// Token 计费
-	return s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, opts)
+	tokenCost := s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, opts)
+	if result.SearchCount <= 0 {
+		return tokenCost
+	}
+	searchCost := s.billingService.CalculateSearchCost(result.SearchCount, groupSearchPricePer1kFromAPIKey(apiKey), multiplier)
+	if tokenCost == nil {
+		return searchCost
+	}
+	if searchCost != nil {
+		tokenCost.TotalCost += searchCost.TotalCost
+		tokenCost.ActualCost += searchCost.ActualCost
+	}
+	return tokenCost
 }
 
 // compositeBillableModel 决定 composite 分组请求的计费模型：来源覆盖把计费模型
@@ -1098,6 +1152,16 @@ func (s *GatewayService) hasResolvableTokenPricing(ctx context.Context, model st
 	}
 	_, err := s.billingService.GetModelPricing(model)
 	return err == nil
+}
+
+func (s *GatewayService) hasIdentifiedResponseModelPricing(ctx context.Context, model string, apiKey *APIKey) (bool, bool) {
+	if strings.TrimSpace(model) == "" {
+		return false, false
+	}
+	if s.resolveChannelPricing(ctx, model, apiKey) != nil {
+		return true, true
+	}
+	return s.billingService.HasIdentifiedTokenPricing(model), false
 }
 
 // resolveChannelPricing 检查指定模型是否存在渠道级别定价。

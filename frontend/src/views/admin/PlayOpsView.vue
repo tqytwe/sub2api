@@ -1095,6 +1095,7 @@
       <AdminMembershipOperations v-if="activeTab === 'membership'" />
       <AdminInviteGrowthOperations v-if="activeTab === 'invite-growth'" />
       <AdminAppAnalyticsOperations v-if="activeTab === 'app-analytics'" />
+      <MobileReleaseManager v-if="activeTab === 'mobile-releases'" />
 
       <BaseDialog
         :show="memberRepairOpen"
@@ -1467,6 +1468,7 @@ import AdminAppAnalyticsOperations from "@/components/admin/play/AdminAppAnalyti
 import BlindboxPoolEditor from "@/components/admin/play/BlindboxPoolEditor.vue";
 import TeamRewardSettings from "@/components/admin/play/TeamRewardSettings.vue";
 import ArenaRewardSettings from "@/components/admin/play/ArenaRewardSettings.vue";
+import MobileReleaseManager from "@/components/admin/play/MobileReleaseManager.vue";
 import Icon from "@/components/icons/Icon.vue";
 import BaseDialog from "@/components/common/BaseDialog.vue";
 import TotpStepUpDialog from "@/components/auth/TotpStepUpDialog.vue";
@@ -1506,7 +1508,8 @@ type PlayOpsTab =
   | "teams"
   | "app-analytics"
   | "feedback"
-  | "quiz";
+  | "quiz"
+  | "mobile-releases";
 
 const tabKeys: PlayOpsTab[] = [
   "overview",
@@ -1520,6 +1523,7 @@ const tabKeys: PlayOpsTab[] = [
   "app-analytics",
   "feedback",
   "quiz",
+  "mobile-releases",
 ];
 const activeTab = ref<PlayOpsTab>(resolveTab(route.query.tab));
 const tabs = computed(() => tabKeys.map((key) => ({ key, label: t(`admin.playOps.tabs.${key}`) })));

@@ -59,9 +59,36 @@ func (s *PlayService) SyncMembershipOrder(ctx context.Context, orderID, userID i
 				}
 			}
 		}
+		if fromStatus.Tier != toStatus.Tier {
+			s.notifyVIPChanged(ctx, userID, toStatus)
+		}
 		return nil
 	}
 	return nil
+}
+
+type playVIPChangeObserver interface {
+	NotifyVIPChanged(userID int64, vip PlayVIPStatus, role string)
+}
+
+func (s *PlayService) SetVIPChangeObserver(observer playVIPChangeObserver) {
+	if s == nil {
+		return
+	}
+	s.vipObserver = observer
+}
+
+func (s *PlayService) notifyVIPChanged(ctx context.Context, userID int64, status PlayVIPStatus) {
+	if s == nil || s.vipObserver == nil {
+		return
+	}
+	role := ""
+	if s.userRepo != nil {
+		if user, err := s.userRepo.GetByID(ctx, userID); err == nil && user != nil {
+			role = user.Role
+		}
+	}
+	s.vipObserver.NotifyVIPChanged(userID, status, role)
 }
 
 func (s *PlayService) TeamLeaderboard(ctx context.Context, userID int64, limit int) (*PlayTeamLeaderboard, error) {

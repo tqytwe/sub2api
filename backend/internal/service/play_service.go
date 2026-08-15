@@ -28,6 +28,7 @@ type PlayService struct {
 	rewardDrawSource   func(max int64) (int64, error)
 	blindboxDrawSource func(max int64) (int64, error)
 	teamAdmissionRisk  PlayTeamAdmissionRiskHook
+	vipObserver        playVIPChangeObserver
 	now                func() time.Time
 }
 
@@ -216,6 +217,11 @@ func (s *PlayService) PublishVIPConfig(ctx context.Context, requested []PlayVIPT
 		return nil, err
 	}
 	impact.Version = version
+	if len(impact.Changes) > 0 && s.vipObserver != nil {
+		for _, change := range impact.Changes {
+			s.notifyVIPChanged(ctx, change.UserID, resolveVIPStatus(change.NetPaidAfter.InexactFloat64(), impact.Tiers))
+		}
+	}
 
 	return impact, nil
 }

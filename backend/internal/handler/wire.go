@@ -264,6 +264,8 @@ func ProvideHandlers(
 	mobileAttributionHandler *MobileAttributionHandler,
 	mobileWebSearchHandler *MobileWebSearchHandler,
 	mobilePlayBillingHandler *MobilePlayBillingHandler,
+	mobileReleaseHandler *MobileAppReleaseHandler,
+	forumSSOHandler *ForumSSOHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -303,6 +305,8 @@ func ProvideHandlers(
 		MobileAttribution: mobileAttributionHandler,
 		MobileWebSearch:   mobileWebSearchHandler,
 		MobilePlayBilling: mobilePlayBillingHandler,
+		MobileRelease:     mobileReleaseHandler,
+		ForumSSO:          forumSSOHandler,
 	}
 }
 
@@ -316,6 +320,17 @@ func ProvidePlayHandler(
 	feedbackAssetService *service.AnnouncementAssetService,
 ) *PlayHandler {
 	return NewPlayHandler(playService, billingService, feedbackAssetService)
+}
+
+func ProvideAdminPlayHandler(
+	playService *service.PlayService,
+	totpService *service.TotpService,
+	userService *service.UserService,
+	releaseService *service.MobileAppReleaseService,
+) *admin.AdminPlayHandler {
+	h := admin.NewAdminPlayHandler(playService, totpService, userService)
+	h.SetMobileAppReleaseService(releaseService)
+	return h
 }
 
 func ProvideMobileAssetHandler(db *sql.DB, storage service.MobileAssetStorage) *MobileAssetHandler {
@@ -336,6 +351,10 @@ func ProvideMobileDeviceHandler(pushService *service.MobilePushService) *MobileD
 
 func ProvideMobilePlayBillingHandler(playBillingService *service.MobilePlayBillingService) *MobilePlayBillingHandler {
 	return NewMobilePlayBillingHandler(playBillingService)
+}
+
+func ProvideMobileReleaseHandler(releaseService *service.MobileAppReleaseService) *MobileAppReleaseHandler {
+	return NewMobileAppReleaseHandler(releaseService)
 }
 
 func ProvideMobileAttributionEventService(svc *service.MobileAttributionService) mobileAttributionEventService {
@@ -384,6 +403,8 @@ var ProviderSet = wire.NewSet(
 	NewMobileAttributionHandler,
 	NewMobileWebSearchHandlerFromEnvironment,
 	ProvideMobilePlayBillingHandler,
+	ProvideMobileReleaseHandler,
+	NewForumSSOHandler,
 	ProvideMobileAttributionEventService,
 	ProvideMobileAttributionAdminService,
 
@@ -422,7 +443,7 @@ var ProviderSet = wire.NewSet(
 	admin.NewPaymentHandler,
 	admin.NewAffiliateHandler,
 	admin.NewComplianceHandler,
-	admin.NewAdminPlayHandler,
+	ProvideAdminPlayHandler,
 	admin.NewWithdrawalHandler,
 	admin.NewFundHandler,
 	admin.NewModelCatalogHandler,

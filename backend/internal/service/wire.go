@@ -925,6 +925,7 @@ var ProviderSet = wire.NewSet(
 	ProvideIPRiskService,
 	NewMobilePushService,
 	NewMobilePlayBillingService,
+	NewMobileAppReleaseService,
 	ProvideMobileAttributionService,
 	ProvideMobilePushWorker,
 	ProvideAuthService,
@@ -1065,6 +1066,7 @@ var ProviderSet = wire.NewSet(
 	NewPromptLibraryService,
 	ProvideImageStudioService,
 	ProvidePlayGrowthRunner,
+	ProvideForumSSOService,
 )
 
 func ProvideMobilePushWorker(push *MobilePushService, cfg config.MobilePushConfig) *MobilePushWorker {

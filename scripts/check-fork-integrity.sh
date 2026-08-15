@@ -321,6 +321,8 @@ MIGRATIONS=(
   249_live_usage_settlement_outbox.sql
   250_model_catalog_tool_capabilities.sql
   251_vip_membership_qualification_review.sql
+  252_bepusdt_payment_contract.sql
+  253_mobile_app_releases.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"

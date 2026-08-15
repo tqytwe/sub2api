@@ -17,6 +17,7 @@ import { resolveRouteDocumentTitle } from './title'
 import { useTheme } from '@/composables/useTheme'
 import { recoverFromChunkLoadError } from './chunkRecovery'
 import { applyPublicRouteSeo } from '@/utils/routeSeo'
+import { FORUM_SSO_RESUME_PARAM } from '@/composables/useForumSsoResume'
 
 const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
 
@@ -1235,6 +1236,10 @@ router.beforeEach(async (to, _from, next) => {
       // In backend mode, non-admin users should NOT be redirected away from login
       // (they are blocked from all protected routes, so redirecting would cause a loop)
       if (appStore.backendModeEnabled && !authStore.isAdmin) {
+        next()
+        return
+      }
+      if (to.path === '/login' && to.query[FORUM_SSO_RESUME_PARAM]) {
         next()
         return
       }

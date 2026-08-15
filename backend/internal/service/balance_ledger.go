@@ -46,10 +46,15 @@ type balanceLedgerSQLRunner interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
+type balanceLedgerChangeObserver interface {
+	NotifyBalanceChanged(userID int64, newBalance, change float64, reason string)
+}
+
 type BalanceLedgerService struct {
 	db                      *sql.DB
 	authCacheInvalidator    APIKeyAuthCacheInvalidator
 	balanceCacheInvalidator balanceLedgerCacheInvalidator
+	changeObserver          balanceLedgerChangeObserver
 	now                     func() time.Time
 }
 
@@ -155,6 +160,7 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 						return err
 					}
 					s.invalidateBalanceCachesAfterCommit(ctx, normalized.UserID)
+					s.notifyBalanceChanged(transaction, normalized.SourceType)
 					return nil
 				})
 			})
@@ -191,6 +197,7 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 
 	if changed {
 		s.invalidateBalanceCachesAfterCommit(ctx, normalized.UserID)
+		s.notifyBalanceChanged(transaction, normalized.SourceType)
 	}
 	return transaction, nil
 }
@@ -210,6 +217,23 @@ func (s *BalanceLedgerService) ApplyDeltaInSQLTx(ctx context.Context, tx *sql.Tx
 	}
 	transaction, _, err := s.applyDeltaWithRunner(ctx, tx, normalized)
 	return transaction, err
+}
+
+func (s *BalanceLedgerService) SetChangeObserver(observer balanceLedgerChangeObserver) {
+	if s == nil {
+		return
+	}
+	s.changeObserver = observer
+}
+
+func (s *BalanceLedgerService) notifyBalanceChanged(transaction *BalanceTransaction, sourceType string) {
+	if s == nil || s.changeObserver == nil || transaction == nil {
+		return
+	}
+	if transaction.BalanceDelta == 0 || transaction.BalanceAfter == nil || sourceType == BalanceFlowTypeUsageCharge {
+		return
+	}
+	s.changeObserver.NotifyBalanceChanged(transaction.UserID, *transaction.BalanceAfter, transaction.BalanceDelta, sourceType)
 }
 
 func (s *BalanceLedgerService) InvalidateUserBalanceCaches(ctx context.Context, userID int64) {
