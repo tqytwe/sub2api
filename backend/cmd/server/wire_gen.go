@@ -317,7 +317,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	if err != nil {
 		return nil, err
 	}
-	mobileAppReleaseService := service.NewMobileAppReleaseService(mobileAppReleaseRepository, mobileAssetStorage)
+	mobileReleaseStorage := repository.ProvideMobileReleaseStorage(configConfig, mobileAssetStorage)
+	mobileAppReleaseService := service.NewMobileAppReleaseService(mobileAppReleaseRepository, mobileReleaseStorage)
 	adminPlayHandler := handler.ProvideAdminPlayHandler(playService, totpService, userService, mobileAppReleaseService)
 	withdrawalService := service.NewWithdrawalService(db, balanceLedgerService, secretEncryptor, notificationEmailService)
 	withdrawableRecomputeService := service.NewWithdrawableRecomputeService(db)

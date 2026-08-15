@@ -89,10 +89,10 @@ type MobileAppReleaseRepository interface {
 
 type MobileAppReleaseService struct {
 	repo    MobileAppReleaseRepository
-	storage MobileAssetStorage
+	storage MobileReleaseStorage
 }
 
-func NewMobileAppReleaseService(repo MobileAppReleaseRepository, storage MobileAssetStorage) *MobileAppReleaseService {
+func NewMobileAppReleaseService(repo MobileAppReleaseRepository, storage MobileReleaseStorage) *MobileAppReleaseService {
 	return &MobileAppReleaseService{repo: repo, storage: storage}
 }
 

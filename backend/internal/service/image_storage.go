@@ -48,6 +48,14 @@ type MobileAssetStorage interface {
 	ImageAssetDeleter
 }
 
+// MobileReleaseStorage keeps release binaries on a separately scoped object
+// prefix while retaining the same private read/write/delete contract.
+type MobileReleaseStorage interface {
+	ImageStorage
+	ImageAssetReader
+	ImageAssetDeleter
+}
+
 // ImageResultUploader 是 ImageStorage 的上层编排器（与具体厂商无关）：
 // 把上游生图响应里的每张图片（b64_json 解码 / url 下载）转存到结果存储，
 // 并把响应结果改写为只含短链接的紧凑 JSON，从而避免大 base64 落 Redis。
