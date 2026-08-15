@@ -64,7 +64,6 @@ func SetupRouter(
 	compositeResolver *service.CompositeRouteResolver,
 	cfg *config.Config,
 	redisClient *redis.Client,
-	forumSSOService *service.ForumSSOService,
 ) *gin.Engine {
 	middleware2.SetIngressRejectRecorder(opsService)
 	// 缓存 iframe 页面的 origin 列表，用于动态注入 CSP frame-src / frame-ancestors
@@ -131,7 +130,7 @@ func SetupRouter(
 	}
 
 	// 注册路由
-	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, dashboardService, modelCatalogService, promptLibraryService, compositeResolver, cfg, redisClient, forumSSOService)
+	registerRoutes(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, dashboardService, modelCatalogService, promptLibraryService, compositeResolver, cfg, redisClient)
 
 	return r
 }
@@ -156,7 +155,6 @@ func registerRoutes(
 	compositeResolver *service.CompositeRouteResolver,
 	cfg *config.Config,
 	redisClient *redis.Client,
-	forumSSOService *service.ForumSSOService,
 ) {
 	// 通用路由（健康检查、状态等）
 	routes.RegisterCommonRoutes(r)
@@ -228,9 +226,6 @@ func registerRoutes(
 	v1.GET("/mobile/releases/:id/download", h.MobileRelease.Download)
 	routes.RegisterPaymentRoutes(v1, h.Payment, h.PaymentWebhook, h.Admin.Payment, jwtAuth, adminAuth, auditLog, settingService, panelRateLimiter)
 	routes.RegisterPlayRoutes(v1, h, jwtAuth, panelRateLimiter)
-	// 论坛 SSO：OAuth2 授权端点 + 论坛回调所需的钱包/订单接口。
-	// 未配置 forum_sso.enabled 时内部各处理器会直接返回禁用错误，不影响其他路由。
-	routes.RegisterForumSSORoutes(v1, h.ForumSSO, forumSSOService, jwtAuth, redisClient)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
 	routes.RegisterPromptLibraryRoutes(v1, h, jwtAuth)
 	routes.RegisterPromptLibrarySEORoutes(r, h)

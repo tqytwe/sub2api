@@ -46,11 +46,6 @@ type balanceLedgerSQLRunner interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-// balanceLedgerChangeObserver is notified after a committed balance change.
-//
-// Interface-typed and set after construction rather than taken as a constructor
-// argument: the only implementation is ForumSSOService, which already depends on
-// this service, so a constructor parameter would be a cycle.
 type balanceLedgerChangeObserver interface {
 	NotifyBalanceChanged(userID int64, newBalance, change float64, reason string)
 }
@@ -209,12 +204,9 @@ func (s *BalanceLedgerService) ApplyDelta(ctx context.Context, input BalanceLedg
 
 // ApplyDeltaInSQLTx records a delta inside a transaction the caller owns.
 //
-// Unlike ApplyDelta this does NOT notify the change observer: it returns while
-// the caller's transaction is still open, so firing here could announce a change
-// that then rolls back. Callers that want a wallet change observed must call
-// InvalidateUserBalanceCaches and the observer themselves after their commit.
-// The flows on this path today are withdrawal freeze/restore, fund refunds and
-// per-request usage billing, none of which the forum reflects.
+// Unlike ApplyDelta this does NOT run after-commit side effects: it returns while
+// the caller's transaction is still open, so callers must invalidate balance
+// caches themselves after their commit.
 func (s *BalanceLedgerService) ApplyDeltaInSQLTx(ctx context.Context, tx *sql.Tx, input BalanceLedgerApplyInput) (*BalanceTransaction, error) {
 	if s == nil || tx == nil {
 		return nil, ErrBalanceLedgerUnavailable
@@ -227,11 +219,6 @@ func (s *BalanceLedgerService) ApplyDeltaInSQLTx(ctx context.Context, tx *sql.Tx
 	return transaction, err
 }
 
-// SetChangeObserver registers the observer notified after a committed balance
-// change. Safe to call with nil, which leaves observation disabled.
-//
-// Called once during wiring, before the service serves traffic, so it needs no
-// locking.
 func (s *BalanceLedgerService) SetChangeObserver(observer balanceLedgerChangeObserver) {
 	if s == nil {
 		return
@@ -239,35 +226,14 @@ func (s *BalanceLedgerService) SetChangeObserver(observer balanceLedgerChangeObs
 	s.changeObserver = observer
 }
 
-// notifyBalanceChanged reports a committed change to the observer.
-//
-// Deliberately skips the high-volume machine-driven flows. Per-request API
-// consumption fires on literally every billed call, and an observer that
-// forwards to an external service would turn each one into an outbound HTTP
-// request; the forum shows a wallet balance, which reconciles on the user's next
-// login anyway. Everything not named here is announced, so a new wallet event
-// type is visible by default rather than silently dropped.
-//
-// balance_after is nullable in the ledger schema, so a transaction without one
-// is skipped rather than reported with a fabricated zero.
 func (s *BalanceLedgerService) notifyBalanceChanged(transaction *BalanceTransaction, sourceType string) {
 	if s == nil || s.changeObserver == nil || transaction == nil {
 		return
 	}
-	if transaction.BalanceDelta == 0 || transaction.BalanceAfter == nil {
+	if transaction.BalanceDelta == 0 || transaction.BalanceAfter == nil || sourceType == BalanceFlowTypeUsageCharge {
 		return
 	}
-	// BalanceFlowTypeUsageCharge is the "usage_charge" literal the repository
-	// layer also passes, so this single case covers both call paths.
-	if sourceType == BalanceFlowTypeUsageCharge {
-		return
-	}
-	s.changeObserver.NotifyBalanceChanged(
-		transaction.UserID,
-		*transaction.BalanceAfter,
-		transaction.BalanceDelta,
-		sourceType,
-	)
+	s.changeObserver.NotifyBalanceChanged(transaction.UserID, *transaction.BalanceAfter, transaction.BalanceDelta, sourceType)
 }
 
 func (s *BalanceLedgerService) InvalidateUserBalanceCaches(ctx context.Context, userID int64) {

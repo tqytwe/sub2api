@@ -43,6 +43,9 @@ func (s *AuthService) SendPendingOAuthVerifyCode(ctx context.Context, email stri
 	if s == nil || s.emailService == nil {
 		return nil, ErrServiceUnavailable
 	}
+	if err := s.validateRegistrationEmailQuota(ctx, email); err != nil {
+		return nil, err
+	}
 
 	siteName := "Sub2API"
 	if s.settingService != nil {
@@ -122,10 +125,6 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	if isReservedEmail(email) {
 		return nil, nil, ErrEmailReserved
 	}
-	if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
-		slog.Error("oauth email register: policy rejected", "email", email, "error", err.Error())
-		return nil, nil, err
-	}
 	if err := s.VerifyOAuthEmailCode(ctx, email, verifyCode); err != nil {
 		slog.Error("oauth email register: verify code failed", "email", email, "error", err.Error())
 		return nil, nil, err
@@ -144,6 +143,10 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 	}
 	if existsEmail {
 		return nil, nil, ErrEmailExists
+	}
+	if err := s.validateRegistrationEmailQuota(ctx, email); err != nil {
+		slog.Error("oauth email register: policy rejected", "email", email, "error", err.Error())
+		return nil, nil, err
 	}
 
 	hashedPassword, err := s.HashPassword(password)
@@ -164,12 +167,16 @@ func (s *AuthService) RegisterOAuthEmailAccount(
 		SignupSource: signupSource,
 	}
 
-	if err := s.userRepo.CreateWithEmailAliasGuard(ctx, user); err != nil {
-		if errors.Is(err, ErrEmailExists) {
+	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+		switch {
+		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
+		case errors.Is(err, ErrEmailDomainRegistrationLimit):
+			return nil, nil, ErrEmailDomainRegistrationLimit
+		default:
+			slog.Error("oauth email register: userRepo.Create failed", "email", email, "signup_source", signupSource, "error", err.Error())
+			return nil, nil, ErrServiceUnavailable
 		}
-		slog.Error("oauth email register: userRepo.Create failed", "email", email, "signup_source", signupSource, "error", err.Error())
-		return nil, nil, ErrServiceUnavailable
 	}
 
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
@@ -209,9 +216,6 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	if isReservedEmail(email) {
 		return nil, nil, ErrEmailReserved
 	}
-	if err := s.validateRegistrationEmailPolicy(ctx, email); err != nil {
-		return nil, nil, err
-	}
 	if strings.TrimSpace(password) == "" {
 		return nil, nil, infraerrors.BadRequest("PASSWORD_REQUIRED", "password is required")
 	}
@@ -226,6 +230,9 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 	}
 	if existsEmail {
 		return nil, nil, ErrEmailExists
+	}
+	if err := s.validateRegistrationEmailQuota(ctx, email); err != nil {
+		return nil, nil, err
 	}
 
 	hashedPassword, err := s.HashPassword(password)
@@ -250,11 +257,15 @@ func (s *AuthService) RegisterVerifiedOAuthEmailAccount(
 		SignupSource: signupSource,
 	}
 
-	if err := s.userRepo.CreateWithEmailAliasGuard(ctx, user); err != nil {
-		if errors.Is(err, ErrEmailExists) {
+	if err := s.createUserWithRegistrationEmailGuard(ctx, user); err != nil {
+		switch {
+		case errors.Is(err, ErrEmailExists):
 			return nil, nil, ErrEmailExists
+		case errors.Is(err, ErrEmailDomainRegistrationLimit):
+			return nil, nil, ErrEmailDomainRegistrationLimit
+		default:
+			return nil, nil, ErrServiceUnavailable
 		}
-		return nil, nil, ErrServiceUnavailable
 	}
 
 	tokenPair, err := s.GenerateTokenPair(ctx, user, "")
@@ -306,6 +317,14 @@ func (s *AuthService) RollbackOAuthEmailAccountCreation(ctx context.Context, use
 	}
 	if err := s.restoreOAuthRegistrationInvitation(ctx, invitationCode, userID); err != nil {
 		return err
+	}
+	if rollbackRepo, ok := s.userRepo.(interface {
+		DeleteOAuthEmailAccountCreation(context.Context, int64) error
+	}); ok {
+		if err := rollbackRepo.DeleteOAuthEmailAccountCreation(ctx, userID); err != nil {
+			return fmt.Errorf("delete created oauth user: %w", err)
+		}
+		return nil
 	}
 	if err := s.userRepo.Delete(ctx, userID); err != nil {
 		return fmt.Errorf("delete created oauth user: %w", err)

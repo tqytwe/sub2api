@@ -730,4 +730,3 @@ func TestForumSSOServiceSatisfiesForumTokenRevoker(t *testing.T) {
 	// ForumSSOService 现在同时实现三个观察者接口和 forumTokenRevoker。
 	var _ forumTokenRevoker = (*ForumSSOService)(nil)
 }
-

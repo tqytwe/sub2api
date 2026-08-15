@@ -109,6 +109,7 @@ var ProviderSet = wire.NewSet(
 	wire.Bind(new(service.PromptLibraryRepository), new(*PromptLibraryRepository)),
 	NewPlayRepository,
 	NewChannelMonitorRepository,
+	NewChannelMonitorV2Repository,
 	NewChannelMonitorRequestTemplateRepository,
 	NewContentModerationRepository,
 	NewAffiliateRepository,
@@ -151,7 +152,6 @@ var ProviderSet = wire.NewSet(
 	NewTLSFingerprintProfileCache,
 	NewContentModerationHashCache,
 	NewMobileWebSearchBudget,
-	NewForumSSOStore,
 
 	// Encryptors
 	NewAESEncryptor,
@@ -159,6 +159,7 @@ var ProviderSet = wire.NewSet(
 	ProvideMobilePushRepository,
 	NewMobileAttributionRepository,
 	NewMobileAppReleaseRepository,
+	NewForumSSOStore,
 	ProvideMobilePushSender,
 
 	// Backup infrastructure

@@ -3,6 +3,7 @@ import { jisudengPagesEn } from './jisudeng-pages.en'
 import splitAdminEn from './en/admin'
 import splitBatchImageEn from './en/batchImage'
 import splitCommonEn from './en/common'
+import splitChannelMonitorV2En from './en/channelMonitorV2'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
@@ -9333,6 +9334,7 @@ const messages = {
 
 export default mergeLocaleMessages(messages, {
   ...splitCommonEn,
+  ...splitChannelMonitorV2En,
   ...splitBatchImageEn,
   admin: splitAdminEn,
 })

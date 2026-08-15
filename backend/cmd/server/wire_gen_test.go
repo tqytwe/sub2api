@@ -91,6 +91,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // backupSvc
 		nil, // paymentOrderExpiry
 		nil, // channelMonitorRunner
+		nil, // channelMonitorV2Aggregator
 		nil, // quotaFlusher
 		nil, // playGrowthRunner
 		nil, // publicHomeStatsService
@@ -100,7 +101,6 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // ipRisk
 		nil, // promptAudit
 		nil, // mobilePushWorker
-		nil, // forumPaymentRetryWorker
 	)
 
 	require.NotPanics(t, func() {

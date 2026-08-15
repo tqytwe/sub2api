@@ -225,6 +225,8 @@ type CreateGroupInput struct {
 	DailyLimitUSD                   *float64 // 日限额 (USD)
 	WeeklyLimitUSD                  *float64 // 周限额 (USD)
 	MonthlyLimitUSD                 *float64 // 月限额 (USD)
+	LongContextPricingEnabled       bool
+	ModelPricing                    []ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
 	AllowImageGeneration         bool
 	AllowBatchImageGeneration    bool
@@ -245,10 +247,16 @@ type CreateGroupInput struct {
 	VideoPrice480P     *float64
 	VideoPrice720P     *float64
 	VideoPrice1080P    *float64
+	// VideoModelPrices 可选按模型族×分辨率覆盖视频每秒单价。
+	VideoModelPrices map[string]map[string]float64
 	// Codex alpha/search 网页搜索单次价格（USD/次，仅 openai 平台使用）；nil/负数按默认价 0.01 处理
-	WebSearchPricePerCall *float64
-	ClaudeCodeOnly        bool   // 仅允许 Claude Code 客户端
-	FallbackGroupID       *int64 // 降级分组 ID
+	WebSearchPricePerCall        *float64
+	SearchPricePer1k             *float64
+	AudioRealtimePricePerMin     *float64
+	AudioTTSPricePerMillionChars *float64
+	AudioSTTPricePerHour         *float64
+	ClaudeCodeOnly               bool   // 仅允许 Claude Code 客户端
+	FallbackGroupID              *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
 	// 模型路由配置（仅 anthropic 平台使用）
@@ -294,6 +302,8 @@ type UpdateGroupInput struct {
 	DailyLimitUSD                   *float64 // 日限额 (USD)
 	WeeklyLimitUSD                  *float64 // 周限额 (USD)
 	MonthlyLimitUSD                 *float64 // 月限额 (USD)
+	LongContextPricingEnabled       *bool
+	ModelPricing                    *[]ChannelModelPricing
 	// 图片生成计费配置（仅 antigravity 平台使用）
 	AllowImageGeneration         *bool
 	AllowBatchImageGeneration    *bool
@@ -314,10 +324,16 @@ type UpdateGroupInput struct {
 	VideoPrice480P     *float64
 	VideoPrice720P     *float64
 	VideoPrice1080P    *float64
+	// VideoModelPrices 可选按模型族×分辨率覆盖；nil 表示不修改，空 map 表示清除。
+	VideoModelPrices map[string]map[string]float64
 	// Codex alpha/search 网页搜索单次价格（USD/次）；nil 表示不修改，负数表示清除回默认价 0.01
-	WebSearchPricePerCall *float64
-	ClaudeCodeOnly        *bool  // 仅允许 Claude Code 客户端
-	FallbackGroupID       *int64 // 降级分组 ID
+	WebSearchPricePerCall        *float64
+	SearchPricePer1k             *float64
+	AudioRealtimePricePerMin     *float64
+	AudioTTSPricePerMillionChars *float64
+	AudioSTTPricePerHour         *float64
+	ClaudeCodeOnly               *bool  // 仅允许 Claude Code 客户端
+	FallbackGroupID              *int64 // 降级分组 ID
 	// 无效请求兜底分组 ID（仅 anthropic 平台使用）
 	FallbackGroupIDOnInvalidRequest *int64
 	// 模型路由配置（仅 anthropic 平台使用）
@@ -635,48 +651,45 @@ var ErrRPMStatusUnavailable = infraerrors.New(http.StatusNotImplemented, "RPM_ST
 
 // adminServiceImpl implements AdminService
 type adminServiceImpl struct {
-	userRepo             UserRepository
-	groupRepo            GroupRepository
-	groupDuplicateRepo   GroupDuplicateRepository
-	accountRepo          AccountRepository
-	accountDuplicateRepo AccountDuplicateRepository
-	accountBillingRepo   AccountBillingSettingsRepository
-	proxyRepo            ProxyRepository
-	apiKeyRepo           APIKeyRepository
-	redeemCodeRepo       RedeemCodeRepository
-	userGroupRateRepo    UserGroupRateRepository
-	userRPMCache         UserRPMCache
-	billingCacheService  *BillingCacheService
-	proxyProber          ProxyExitInfoProber
-	proxyLatencyCache    ProxyLatencyCache
-	authCacheInvalidator APIKeyAuthCacheInvalidator
-	entClient            *dbent.Client // 用于开启数据库事务
-	settingService       *SettingService
-	defaultSubAssigner   DefaultSubscriptionAssigner
-	userSubRepo          UserSubscriptionRepository
-	privacyClientFactory PrivacyClientFactory
-	runtimeBlocker       AccountRuntimeBlocker
-	affiliateService     adminRechargeAffiliateAccruer
-	balanceLedger        *BalanceLedgerService
-	roleObserver         userRoleChangeObserver
-	tokenRevoker         forumTokenRevoker
-	userBatchPreviewKey  []byte
-	compositeRouteRepo   CompositeModelRouteRepository
-	compositeResolver    *CompositeRouteResolver
+	userRepo                UserRepository
+	groupRepo               GroupRepository
+	groupDuplicateRepo      GroupDuplicateRepository
+	accountRepo             AccountRepository
+	accountDuplicateRepo    AccountDuplicateRepository
+	accountBillingRepo      AccountBillingSettingsRepository
+	proxyRepo               ProxyRepository
+	apiKeyRepo              APIKeyRepository
+	redeemCodeRepo          RedeemCodeRepository
+	userGroupRateRepo       UserGroupRateRepository
+	userRPMCache            UserRPMCache
+	billingCacheService     *BillingCacheService
+	proxyProber             ProxyExitInfoProber
+	proxyLatencyCache       ProxyLatencyCache
+	authCacheInvalidator    APIKeyAuthCacheInvalidator
+	entClient               *dbent.Client // 用于开启数据库事务
+	settingService          *SettingService
+	defaultSubAssigner      DefaultSubscriptionAssigner
+	userSubRepo             UserSubscriptionRepository
+	privacyClientFactory    PrivacyClientFactory
+	runtimeBlocker          AccountRuntimeBlocker
+	affiliateService        adminRechargeAffiliateAccruer
+	balanceLedger           *BalanceLedgerService
+	roleObserver            userRoleChangeObserver
+	tokenRevoker            forumTokenRevoker
+	userBatchPreviewKey     []byte
+	compositeRouteRepo      CompositeModelRouteRepository
+	compositeResolver       *CompositeRouteResolver
+	channelCacheInvalidator ChannelCacheInvalidator
 }
 
-// userRoleChangeObserver is notified after a user's role is persisted.
-//
-// Set after construction rather than taken as a constructor argument: the only
-// implementation is ForumSSOService, which forwards the change to the community
-// forum so a platform administrator is an administrator there too.
+type ChannelCacheInvalidator interface {
+	InvalidateCache()
+}
+
 type userRoleChangeObserver interface {
 	NotifyRoleChanged(userID int64, newRole string)
 }
 
-// SetRoleChangeObserver registers the observer notified after a role change.
-// Safe to call with nil, which leaves observation disabled. Called once during
-// wiring, before the service serves traffic, so it needs no locking.
 func (s *adminServiceImpl) SetRoleChangeObserver(observer userRoleChangeObserver) {
 	if s == nil {
 		return
@@ -684,22 +697,10 @@ func (s *adminServiceImpl) SetRoleChangeObserver(observer userRoleChangeObserver
 	s.roleObserver = observer
 }
 
-// forumTokenRevoker is called when a user account is disabled or deleted so
-// that any live SSO tokens are immediately invalidated. The only implementation
-// is ForumSSOService.RevokeUserTokens.
-//
-// Set after construction rather than taken as a constructor argument: the only
-// implementation is ForumSSOService, which already depends on several services
-// that adminServiceImpl also depends on, so injecting it as a constructor
-// parameter would be a cycle. Wiring the callback post-construction keeps the
-// dependency edges one-directional.
 type forumTokenRevoker interface {
 	RevokeUserTokens(ctx context.Context, userID int64) error
 }
 
-// SetTokenRevoker registers the revoker called when an account is disabled or
-// deleted. Safe to call with nil, which leaves token revocation disabled.
-// Called once during wiring, before the service serves traffic.
 func (s *adminServiceImpl) SetTokenRevoker(revoker forumTokenRevoker) {
 	if s == nil {
 		return

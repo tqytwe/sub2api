@@ -223,7 +223,7 @@
 
 <script setup lang="ts">
 import { computed, ref, reactive, onMounted, watch } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { AuthLayout } from '@/components/layout'
 import LinuxDoOAuthSection from '@/components/auth/LinuxDoOAuthSection.vue'
@@ -253,8 +253,6 @@ import { extractI18nErrorMessage } from '@/utils/apiError'
 import { clearAllAffiliateReferralCodes } from '@/utils/oauthAffiliate'
 // design-governance-allow: visual-evidence - login chunk recovery changes behavior only and does not alter rendered UI.
 import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
-// design-governance-allow: visual-evidence - forum SSO resume performs a redirect after login and renders no UI.
-import { useForumSsoResume } from '@/composables/useForumSsoResume'
 
 const { t } = useI18n()
 const LOGIN_AGREEMENT_STORAGE_KEY = 'sub2api_login_agreement_consent'
@@ -262,39 +260,13 @@ const LOGIN_AGREEMENT_STORAGE_KEY = 'sub2api_login_agreement_consent'
 // ==================== Router & Stores ====================
 
 const router = useRouter()
-const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
-// ==================== Forum SSO ====================
-
-// When the community forum sends a guest here to log in, finish that OAuth
-// request and hand the browser back to the forum. This watches for an
-// authenticated session rather than hooking each login handler, so password,
-// passkey and 2FA logins are all covered without touching their code paths.
-const forumSsoResume = useForumSsoResume({
-  router,
-  route,
-  isAuthenticated: computed(() => authStore.isAuthenticated),
-  onError: message => {
-    appStore.showError(message)
-    // The forum handoff failed but the user is logged in, so send them to the
-    // panel rather than leaving them sitting on the login form.
-    void router.push('/dashboard')
-  }
-})
-
 /**
  * Where to go after a successful login.
- *
- * Returns null when a forum SSO handoff is pending: that flow finishes with a
- * full page load to the forum, and navigating to the dashboard first would both
- * race it and flash a page the user never asked for.
  */
-function resolvePostLoginRedirect(): string | null {
-  if (forumSsoResume.hasPendingResume.value) {
-    return null
-  }
+function resolvePostLoginRedirect(): string {
   return (router.currentRoute.value.query.redirect as string) || '/dashboard'
 }
 
@@ -637,12 +609,8 @@ async function handleLogin(): Promise<void> {
     clearAllAffiliateReferralCodes()
     appStore.showSuccess(t('auth.loginSuccess'))
 
-    // Redirect to dashboard or intended route. Skipped when a forum SSO handoff
-    // is pending, since that navigates away on its own.
+    // Redirect to dashboard or intended route.
     const redirectTo = resolvePostLoginRedirect()
-    if (redirectTo === null) {
-      return
-    }
     try {
       await router.push(redirectTo)
     } catch (error: unknown) {
@@ -761,12 +729,8 @@ async function handle2FAVerify(code: string): Promise<void> {
     clearAllAffiliateReferralCodes()
     appStore.showSuccess(t('auth.loginSuccess'))
 
-    // Redirect to dashboard or intended route. Skipped when a forum SSO handoff
-    // is pending, since that navigates away on its own.
+    // Redirect to dashboard or intended route.
     const redirectTo = resolvePostLoginRedirect()
-    if (redirectTo === null) {
-      return
-    }
     try {
       await router.push(redirectTo)
     } catch (error: unknown) {

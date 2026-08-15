@@ -1239,11 +1239,6 @@ router.beforeEach(async (to, _from, next) => {
         next()
         return
       }
-      // A pending forum SSO handoff must survive this redirect. The panel keeps
-      // its JWT in JS rather than a cookie, so the backend authorize endpoint
-      // sees even a logged-in user as a guest and bounces them here. Sending
-      // them to the dashboard would silently drop the forum's request and leave
-      // the forum login looking broken, so let LoginView complete the handoff.
       if (to.path === '/login' && to.query[FORUM_SSO_RESUME_PARAM]) {
         next()
         return

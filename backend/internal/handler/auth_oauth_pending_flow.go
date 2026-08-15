@@ -1095,7 +1095,9 @@ func findActiveUserByID(ctx context.Context, client *dbent.Client, userID int64)
 	if client == nil || userID <= 0 {
 		return nil, nil
 	}
-	userEntity, err := client.User.Get(ctx, userID)
+	userEntity, err := client.User.Query().
+		Where(dbuser.IDEQ(userID), dbuser.DeletedAtIsNil()).
+		Only(ctx)
 	if err != nil {
 		if dbent.IsNotFound(err) {
 			return nil, nil

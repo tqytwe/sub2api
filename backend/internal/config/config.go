@@ -109,43 +109,17 @@ type Config struct {
 // ForumSSOConfig configures this platform as the OAuth2 provider for the NodeBB
 // community forum, which runs on its own domain and treats us as its identity
 // source, wallet and VIP authority.
-//
-// The forum is a confidential client: it holds ClientSecret and calls the token
-// endpoint server-to-server. RedirectURLs is an exact-match allowlist because a
-// loose redirect_uri check on an authorization endpoint hands out auth codes to
-// whoever asks.
 type ForumSSOConfig struct {
-	Enabled      bool   `mapstructure:"enabled"`
-	ClientID     string `mapstructure:"client_id"`
-	ClientSecret string `mapstructure:"client_secret"`
-	// RedirectURLs is a comma-separated exact-match allowlist of permitted
-	// redirect_uri values, e.g.
-	// "https://jisudengbbs.zeabur.app/auth/sub2api/callback".
-	RedirectURLs string `mapstructure:"redirect_urls"`
-	// ForumBaseURL is where outbound webhooks are delivered, e.g.
-	// "https://jisudengbbs.zeabur.app". Must match the forum's own NODEBB_URL.
-	ForumBaseURL string `mapstructure:"forum_base_url"`
-	// WebhookSecret is the HMAC-SHA256 key shared with the forum plugin
-	// (NODEBB_SSO_WEBHOOK_SECRET there). Outbound webhooks are unsigned-rejected
-	// by the forum without it.
-	WebhookSecret string `mapstructure:"webhook_secret"`
-	// LoginPagePath is the frontend route that completes an authorize request
-	// when the browser arrives without a platform session.
-	LoginPagePath string `mapstructure:"login_page_path"`
-	// AuthCodeTTLSeconds bounds how long an issued authorization code stays
-	// redeemable. RFC 6749 §4.1.2 recommends a maximum of 10 minutes; codes are
-	// single-use regardless.
-	AuthCodeTTLSeconds int `mapstructure:"auth_code_ttl_seconds"`
-	// AccessTokenTTLSeconds bounds the SSO access token handed to the forum.
-	// This token is scoped to the /api/v1/sso/* endpoints only; it is
-	// deliberately NOT a platform JWT, so the forum never holds a credential
-	// that can drive the rest of the API.
-	AccessTokenTTLSeconds int `mapstructure:"access_token_ttl_seconds"`
-	// UserLanguage is the BCP-47 locale reported in the userinfo document, which
-	// the forum plugin applies as the NodeBB account language on first sync. The
-	// platform has no per-user locale, so this is a deployment-wide default;
-	// empty falls back to "zh-CN" to preserve the pre-config behaviour.
-	UserLanguage string `mapstructure:"user_language"`
+	Enabled               bool   `mapstructure:"enabled"`
+	ClientID              string `mapstructure:"client_id"`
+	ClientSecret          string `mapstructure:"client_secret"`
+	RedirectURLs          string `mapstructure:"redirect_urls"`
+	ForumBaseURL          string `mapstructure:"forum_base_url"`
+	WebhookSecret         string `mapstructure:"webhook_secret"`
+	LoginPagePath         string `mapstructure:"login_page_path"`
+	AuthCodeTTLSeconds    int    `mapstructure:"auth_code_ttl_seconds"`
+	AccessTokenTTLSeconds int    `mapstructure:"access_token_ttl_seconds"`
+	UserLanguage          string `mapstructure:"user_language"`
 }
 
 type LogConfig struct {
@@ -1130,6 +1104,39 @@ type GatewayConfig struct {
 	// UserMessageQueue: 用户消息串行队列配置
 	// 对 role:"user" 的真实用户消息实施账号级串行化 + RPM 自适应延迟
 	UserMessageQueue UserMessageQueueConfig `mapstructure:"user_message_queue"`
+
+	// Grok: Grok/xAI gateway scheduling and free-tier soft-gate settings.
+	Grok GatewayGrokConfig `mapstructure:"grok"`
+}
+
+// GatewayGrokConfig holds Grok-specific gateway scheduling knobs.
+//
+// Free-quota soft gate keys (gateway.grok.*):
+//   - free_quota_soft_gate_enabled: enable local rolling-window scheduling guard for
+//     OAuth accounts whose subscription_tier/plan_type is explicitly "free".
+//     Default true is safe only because free-tier detection is strict (unknown/paid fail open).
+//   - free_quota_token_limit: nominal rolling-window token allowance.
+//   - free_quota_soft_gate_percent: stop new scheduling before the nominal limit (1-100).
+//   - free_quota_window_hours: local usage rolling window length in hours.
+//   - free_quota_stats_cache_seconds: cache TTL for free-tier usage stats
+//     (hot path never blocks on DB; misses fail open and refresh in background).
+type GatewayGrokConfig struct {
+	// PasswordAuthEnabled controls the optional password-to-SSO OAuth flow.
+	// It defaults to false and must be explicitly enabled by the operator.
+	// When true, POST /admin/grok/oauth/password is functional (not ignored).
+	PasswordAuthEnabled bool `mapstructure:"password_auth_enabled"`
+	// FreeQuotaSoftGateEnabled enables a local rolling-window scheduling guard
+	// for explicitly free Grok OAuth accounts only.
+	FreeQuotaSoftGateEnabled bool `mapstructure:"free_quota_soft_gate_enabled"`
+	// FreeQuotaTokenLimit is the nominal rolling-window allowance.
+	FreeQuotaTokenLimit int64 `mapstructure:"free_quota_token_limit"`
+	// FreeQuotaSoftGatePercent stops new scheduling before the nominal limit.
+	FreeQuotaSoftGatePercent int `mapstructure:"free_quota_soft_gate_percent"`
+	// FreeQuotaWindowHours controls the local rolling usage window.
+	FreeQuotaWindowHours int `mapstructure:"free_quota_window_hours"`
+	// FreeQuotaStatsCacheSeconds is the soft-gate stats cache TTL. Hot path never
+	// waits on usage_logs; misses fail open and refresh asynchronously.
+	FreeQuotaStatsCacheSeconds int `mapstructure:"free_quota_stats_cache_seconds"`
 }
 
 type GatewayLiveConfig struct {
@@ -2475,6 +2482,15 @@ func setDefaults() {
 	viper.SetDefault("gateway.openai_proxy_stream_circuit.failure_threshold", 2)
 	viper.SetDefault("gateway.openai_proxy_stream_circuit.window_seconds", 60)
 	viper.SetDefault("gateway.openai_proxy_stream_circuit.ttl_seconds", 600)
+	// Grok free-tier local soft gate (scheduler-only; admin QueryQuota does not use this).
+	// Enabled by default because free detection requires an explicit free tier marker.
+	viper.SetDefault("gateway.grok.free_quota_soft_gate_enabled", true)
+	viper.SetDefault("gateway.grok.password_auth_enabled", false)
+	// Free soft-gate nominal limit: 500k tokens / rolling 24h (operator policy).
+	viper.SetDefault("gateway.grok.free_quota_token_limit", int64(500_000))
+	viper.SetDefault("gateway.grok.free_quota_soft_gate_percent", 95)
+	viper.SetDefault("gateway.grok.free_quota_window_hours", 24)
+	viper.SetDefault("gateway.grok.free_quota_stats_cache_seconds", 60)
 	viper.SetDefault("gateway.image_concurrency.enabled", false)
 	viper.SetDefault("gateway.image_concurrency.max_concurrent_requests", 0)
 	viper.SetDefault("gateway.image_concurrency.overflow_mode", ImageConcurrencyOverflowModeReject)
@@ -2641,9 +2657,6 @@ func setEnvReachableDefaults() {
 		viper.SetDefault(provider+".frontend_redirect_url", "")
 	}
 
-	// Community forum SSO. The forum is deployed separately and injects the
-	// matching values as its own env vars, so every key here must be reachable
-	// from the environment (FORUM_SSO_CLIENT_SECRET and friends).
 	viper.SetDefault("forum_sso.enabled", false)
 	viper.SetDefault("forum_sso.client_id", "")
 	viper.SetDefault("forum_sso.client_secret", "")
@@ -3776,6 +3789,20 @@ func (c *Config) Validate() error {
 	}
 	if c.Concurrency.PingInterval < 5 || c.Concurrency.PingInterval > 30 {
 		return fmt.Errorf("concurrency.ping_interval must be between 5-30 seconds")
+	}
+	if c.Gateway.Grok.FreeQuotaSoftGateEnabled {
+		if c.Gateway.Grok.FreeQuotaTokenLimit <= 0 {
+			return fmt.Errorf("gateway.grok.free_quota_token_limit must be positive")
+		}
+		if c.Gateway.Grok.FreeQuotaSoftGatePercent < 1 || c.Gateway.Grok.FreeQuotaSoftGatePercent > 100 {
+			return fmt.Errorf("gateway.grok.free_quota_soft_gate_percent must be between 1 and 100")
+		}
+		if c.Gateway.Grok.FreeQuotaWindowHours <= 0 {
+			return fmt.Errorf("gateway.grok.free_quota_window_hours must be positive")
+		}
+	}
+	if c.Gateway.Grok.FreeQuotaStatsCacheSeconds < 0 {
+		return fmt.Errorf("gateway.grok.free_quota_stats_cache_seconds must be non-negative")
 	}
 	if err := ValidateDingTalkConfig(c.DingTalk); err != nil {
 		return fmt.Errorf("dingtalk_connect: %w", err)

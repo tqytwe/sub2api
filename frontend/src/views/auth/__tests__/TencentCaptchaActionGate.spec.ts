@@ -17,8 +17,6 @@ vi.mock('vue-router', () => ({
     push: vi.fn(),
     replace: vi.fn()
   }),
-  // No query parameters, so the forum SSO resume watcher stays inert and these
-  // captcha assertions exercise the ordinary login path.
   useRoute: () => ({ path: '/login', query: {} })
 }))
 
