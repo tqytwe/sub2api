@@ -835,7 +835,7 @@ INSERT INTO batch_image_jobs (
     $26, $27, $28, $29,
     $30,
 	    $31, $32,
-	    $33, $34, $35, $36, $37
+	    $33, $34, $35, $36, $37, $38
 )
 RETURNING `+batchImageJobColumns,
 		params.BatchID, params.UserID, params.APIKeyID, params.AccountID, params.Provider, params.Model, params.TaskName, params.ParentBatchID, params.Status,

@@ -693,6 +693,14 @@ func (s *UsageLogRepoSuite) TestListWithFilters() {
 func (s *UsageLogRepoSuite) TestDashboardStats_TodayTotalsAndPerformance() {
 	now := time.Now().UTC()
 	todayStart := truncateToDayUTC(now)
+	_, err := s.tx.ExecContext(s.ctx, `DELETE FROM usage_dashboard_daily`)
+	s.Require().NoError(err, "clear daily dashboard aggregates in test transaction")
+	_, err = s.tx.ExecContext(s.ctx, `DELETE FROM usage_dashboard_hourly`)
+	s.Require().NoError(err, "clear hourly dashboard aggregates in test transaction")
+	_, err = s.tx.ExecContext(s.ctx, `
+		DELETE FROM usage_logs
+		WHERE created_at >= $1 AND created_at < $2`, todayStart.Add(-2*time.Hour), now.Add(2*time.Minute))
+	s.Require().NoError(err, "clear dashboard aggregates in test transaction")
 	baseStats, err := s.repo.GetDashboardStats(s.ctx)
 	s.Require().NoError(err, "GetDashboardStats base")
 
@@ -809,6 +817,10 @@ func (s *UsageLogRepoSuite) TestDashboardStatsWithRange_Fallback() {
 	todayStart := truncateToDayUTC(now)
 	rangeStart := todayStart.Add(-24 * time.Hour)
 	rangeEnd := now.Add(1 * time.Second)
+	_, err := s.tx.ExecContext(s.ctx, `
+		DELETE FROM usage_logs
+		WHERE created_at >= $1 AND created_at < $2`, rangeStart, rangeEnd)
+	s.Require().NoError(err, "clear usage logs in test range")
 
 	user1 := mustCreateUser(s.T(), s.client, &service.User{Email: "range-u1@test.com"})
 	user2 := mustCreateUser(s.T(), s.client, &service.User{Email: "range-u2@test.com"})
@@ -829,7 +841,7 @@ func (s *UsageLogRepoSuite) TestDashboardStatsWithRange_Fallback() {
 		DurationMs:   &d3,
 		CreatedAt:    rangeStart.Add(-1 * time.Hour),
 	}
-	_, err := s.repo.Create(s.ctx, logOutside)
+	_, err = s.repo.Create(s.ctx, logOutside)
 	s.Require().NoError(err)
 
 	logRange := &service.UsageLog{

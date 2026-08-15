@@ -764,7 +764,8 @@ func (c *APIKeyClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *APIKeyClient) Interceptors() []Interceptor {
-	return c.inters.APIKey
+	inters := c.inters.APIKey
+	return append(inters[:len(inters):len(inters)], apikey.Interceptors[:]...)
 }
 
 func (c *APIKeyClient) mutate(ctx context.Context, m *APIKeyMutation) (Value, error) {
@@ -994,7 +995,8 @@ func (c *AccountClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *AccountClient) Interceptors() []Interceptor {
-	return c.inters.Account
+	inters := c.inters.Account
+	return append(inters[:len(inters):len(inters)], account.Interceptors[:]...)
 }
 
 func (c *AccountClient) mutate(ctx context.Context, m *AccountMutation) (Value, error) {
@@ -2931,7 +2933,8 @@ func (c *CompositeModelRouteClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *CompositeModelRouteClient) Interceptors() []Interceptor {
-	return c.inters.CompositeModelRoute
+	inters := c.inters.CompositeModelRoute
+	return append(inters[:len(inters):len(inters)], compositemodelroute.Interceptors[:]...)
 }
 
 func (c *CompositeModelRouteClient) mutate(ctx context.Context, m *CompositeModelRouteMutation) (Value, error) {
@@ -3326,7 +3329,8 @@ func (c *GroupClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *GroupClient) Interceptors() []Interceptor {
-	return c.inters.Group
+	inters := c.inters.Group
+	return append(inters[:len(inters):len(inters)], group.Interceptors[:]...)
 }
 
 func (c *GroupClient) mutate(ctx context.Context, m *GroupMutation) (Value, error) {
@@ -3758,7 +3762,8 @@ func (c *MobileAssetClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *MobileAssetClient) Interceptors() []Interceptor {
-	return c.inters.MobileAsset
+	inters := c.inters.MobileAsset
+	return append(inters[:len(inters):len(inters)], mobileasset.Interceptors[:]...)
 }
 
 func (c *MobileAssetClient) mutate(ctx context.Context, m *MobileAssetMutation) (Value, error) {
@@ -5664,7 +5669,8 @@ func (c *ProxyClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *ProxyClient) Interceptors() []Interceptor {
-	return c.inters.Proxy
+	inters := c.inters.Proxy
+	return append(inters[:len(inters):len(inters)], proxy.Interceptors[:]...)
 }
 
 func (c *ProxyClient) mutate(ctx context.Context, m *ProxyMutation) (Value, error) {
@@ -7097,7 +7103,8 @@ func (c *UserClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *UserClient) Interceptors() []Interceptor {
-	return c.inters.User
+	inters := c.inters.User
+	return append(inters[:len(inters):len(inters)], user.Interceptors[:]...)
 }
 
 func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error) {
@@ -7363,7 +7370,8 @@ func (c *UserAttributeDefinitionClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *UserAttributeDefinitionClient) Interceptors() []Interceptor {
-	return c.inters.UserAttributeDefinition
+	inters := c.inters.UserAttributeDefinition
+	return append(inters[:len(inters):len(inters)], userattributedefinition.Interceptors[:]...)
 }
 
 func (c *UserAttributeDefinitionClient) mutate(ctx context.Context, m *UserAttributeDefinitionMutation) (Value, error) {
@@ -7827,7 +7835,8 @@ func (c *UserPlatformQuotaClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *UserPlatformQuotaClient) Interceptors() []Interceptor {
-	return c.inters.UserPlatformQuota
+	inters := c.inters.UserPlatformQuota
+	return append(inters[:len(inters):len(inters)], userplatformquota.Interceptors[:]...)
 }
 
 func (c *UserPlatformQuotaClient) mutate(ctx context.Context, m *UserPlatformQuotaMutation) (Value, error) {
@@ -8025,7 +8034,8 @@ func (c *UserSubscriptionClient) Hooks() []Hook {
 
 // Interceptors returns the client interceptors.
 func (c *UserSubscriptionClient) Interceptors() []Interceptor {
-	return c.inters.UserSubscription
+	inters := c.inters.UserSubscription
+	return append(inters[:len(inters):len(inters)], usersubscription.Interceptors[:]...)
 }
 
 func (c *UserSubscriptionClient) mutate(ctx context.Context, m *UserSubscriptionMutation) (Value, error) {
