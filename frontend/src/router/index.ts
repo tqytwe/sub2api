@@ -17,7 +17,6 @@ import { resolveRouteDocumentTitle } from './title'
 import { useTheme } from '@/composables/useTheme'
 import { recoverFromChunkLoadError } from './chunkRecovery'
 import { applyPublicRouteSeo } from '@/utils/routeSeo'
-import { FORUM_SSO_RESUME_PARAM } from '@/composables/useForumSsoResume'
 
 const adminPromptAuditPath = '/admin/pro' + 'mpt-audit'
 
@@ -309,26 +308,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/prompts',
-    name: 'PromptSquare',
-    component: () => import('@/views/public/PromptSquareView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: '图像工作室 · 选提示词',
-      hidePageHeader: true,
-    },
-  },
-  {
-    path: '/prompts/:id',
-    name: 'PromptDetail',
-    component: () => import('@/views/public/PromptDetailView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: '提示词详情',
-      hidePageHeader: true,
-    },
-  },
-  {
     path: '/blindbox',
     name: 'Blindbox',
     component: () => import('@/views/public/BlindboxView.vue'),
@@ -500,32 +479,26 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/ai',
-    name: 'NextChatLaunch',
-    component: () => import('@/views/user/NextChatLaunchView.vue'),
+    redirect: to => ({ path: '/ai-creation-space', query: to.query }),
+  },
+  {
+    path: '/ai-creation-space',
+    name: 'AICreationSpace',
+    component: () => import('@/views/user/CanvasLaunchView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
       requiresNextChat: true,
-      title: 'AI 创作',
-      titleKey: 'nav.aiCreation',
-      hidePageHeader: true,
+      title: 'AI创作空间',
+      titleKey: 'nav.aiCreationSpace',
       hideMobileSupport: true,
-      frame: 'compact',
+      hidePageHeader: true,
+      frame: 'fluid',
     },
   },
   {
     path: '/image-studio',
-    name: 'ImageStudio',
-    component: () => import('@/views/user/ImageStudioView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: false,
-      title: '图像工作室',
-      titleKey: 'imageStudio.title',
-      descriptionKey: 'imageStudio.subtitle',
-      hideMobileSupport: true,
-      frame: 'workspace',
-    },
+    redirect: to => ({ path: '/ai-creation-space', query: to.query }),
   },
   {
     path: '/play',
@@ -932,17 +905,6 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/prompts',
-    name: 'AdminPrompts',
-    component: () => import('@/views/admin/PromptsView.vue'),
-    meta: {
-      requiresAuth: true,
-      requiresAdmin: true,
-      title: '提示词管理',
-      frame: 'workspace',
-    },
-  },
-  {
     path: '/admin/proxies',
     name: 'AdminProxies',
     component: () => import('@/views/admin/ProxiesView.vue'),
@@ -1273,15 +1235,6 @@ router.beforeEach(async (to, _from, next) => {
       // In backend mode, non-admin users should NOT be redirected away from login
       // (they are blocked from all protected routes, so redirecting would cause a loop)
       if (appStore.backendModeEnabled && !authStore.isAdmin) {
-        next()
-        return
-      }
-      // A pending forum SSO handoff must survive this redirect. The panel keeps
-      // its JWT in JS rather than a cookie, so the backend authorize endpoint
-      // sees even a logged-in user as a guest and bounces them here. Sending
-      // them to the dashboard would silently drop the forum's request and leave
-      // the forum login looking broken, so let LoginView complete the handoff.
-      if (to.path === '/login' && to.query[FORUM_SSO_RESUME_PARAM]) {
         next()
         return
       }

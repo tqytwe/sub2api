@@ -3,26 +3,19 @@ import { resolve } from 'node:path'
 import { describe, expect, it } from 'vitest'
 
 const routerSource = readFileSync(resolve(__dirname, '../index.ts'), 'utf8')
-const sidebarSource = readFileSync(
-  resolve(__dirname, '../../components/layout/AppSidebar.vue'),
-  'utf8',
-)
-const zhSource = readFileSync(resolve(__dirname, '../../i18n/locales/zh.ts'), 'utf8')
+const publicNavigationSource = readFileSync(resolve(__dirname, '../publicNavigation.ts'), 'utf8')
+const homeZhSource = readFileSync(resolve(__dirname, '../../i18n/locales/jisudeng-home.zh.ts'), 'utf8')
 
-describe('提示词平台入口', () => {
-  it('提供公开广场、公开详情和管理员路由，并使用中文静态标题', () => {
-    expect(routerSource).toContain("path: '/prompts'")
-    expect(routerSource).toContain("path: '/prompts/:id'")
-    expect(routerSource).toContain("path: '/admin/prompts'")
-    expect(routerSource).toContain("title: '图像工作室 · 选提示词'")
-    expect(routerSource).toContain("title: '提示词详情'")
-    expect(routerSource).toContain("title: '提示词管理'")
+describe('提示词入口', () => {
+  it('移除公开广场、详情和管理员管理路由', () => {
+    expect(routerSource).not.toContain("path: '/prompts'")
+    expect(routerSource).not.toContain("path: '/prompts/:id'")
+    expect(routerSource).not.toContain("path: '/admin/prompts'")
   })
 
-  it('不在用户侧新增提示词入口，仅保留管理员管理入口', () => {
-    expect(sidebarSource).not.toContain("{ path: '/prompts', label: t('nav.promptSquare')")
-    expect(sidebarSource).toContain("{ path: '/admin/prompts', label: t('nav.promptManagement')")
-    expect(zhSource).toContain("promptSquare: '提示词广场'")
-    expect(zhSource).toContain("promptManagement: '提示词管理'")
+  it('首页公开导航不再暴露提示词广场', () => {
+    expect(publicNavigationSource).not.toContain("key: 'prompts'")
+    expect(publicNavigationSource).not.toContain('PUBLIC_ROUTE_NAMES.promptSquare')
+    expect(homeZhSource).not.toContain("prompts: '提示词广场'")
   })
 })

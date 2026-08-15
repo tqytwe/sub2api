@@ -302,6 +302,9 @@ func postUsageBilling(ctx context.Context, p *postUsageBillingParams, deps *bill
 }
 
 func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string) string {
+	if requestID := strings.TrimSpace(upstreamRequestID); isForcedUsageBillingRequestID(requestID) {
+		return requestID
+	}
 	if ctx != nil {
 		if clientRequestID, _ := ctx.Value(ctxkey.ClientRequestID).(string); strings.TrimSpace(clientRequestID) != "" {
 			return "client:" + strings.TrimSpace(clientRequestID)
@@ -314,6 +317,55 @@ func resolveUsageBillingRequestID(ctx context.Context, upstreamRequestID string)
 		return requestID
 	}
 	return "generated:" + generateRequestID()
+}
+
+func isForcedUsageBillingRequestID(requestID string) bool {
+	id := strings.TrimSpace(requestID)
+	return strings.HasPrefix(id, "web_search:") || strings.HasPrefix(id, "grok-video:") || strings.HasPrefix(id, "grok_audio:") || strings.HasPrefix(id, "grok_realtime:")
+}
+
+func StableGrokAudioBillingRequestID(upstreamRequestID string) string {
+	id := strings.TrimSpace(upstreamRequestID)
+	if strings.HasPrefix(id, "grok_audio:") {
+		return id
+	}
+	if id == "" {
+		id = generateRequestID()
+	}
+	return "grok_audio:" + id
+}
+
+func StableGrokRealtimeBillingRequestID(sessionID string) string {
+	id := strings.TrimSpace(sessionID)
+	if strings.HasPrefix(id, "grok_realtime:") {
+		return id
+	}
+	if id == "" {
+		id = generateRequestID()
+	}
+	return "grok_realtime:" + id
+}
+
+const responseModelBillingCostEpsilon = 1e-12
+
+func responseModelBillingDeclaration(source, responseModel string, conflict, mediaBilled bool) string {
+	if source != BillingModelSourceResponse || conflict || mediaBilled {
+		return ""
+	}
+	return strings.TrimSpace(responseModel)
+}
+
+func responseModelBillingAdoptable(baseline, response *CostBreakdown, baselineChannelPriced, responseChannelPriced bool) bool {
+	if baseline == nil || response == nil {
+		return false
+	}
+	if response.TotalCost > baseline.TotalCost+responseModelBillingCostEpsilon {
+		return false
+	}
+	if response.TotalCost <= 0 && baseline.TotalCost > 0 {
+		return false
+	}
+	return !baselineChannelPriced || responseChannelPriced
 }
 
 func resolveUsageBillingPayloadFingerprint(ctx context.Context, requestPayloadHash string) string {
@@ -1055,8 +1107,8 @@ func (s *GatewayService) resolveChannelPricing(ctx context.Context, billingModel
 		return nil
 	}
 	gid := apiKey.Group.ID
-	resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid})
-	if resolved.Source == PricingSourceChannel {
+	resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid, Group: apiKey.Group})
+	if resolved.Source == PricingSourceGroup || resolved.Source == PricingSourceChannel {
 		return resolved
 	}
 	return nil
@@ -1128,11 +1180,12 @@ func (s *GatewayService) calculateTokenCost(
 	// 普通 token 请求统一解析：渠道覆盖 → 本站基础售价 → 兼容兜底。
 	if s.resolver != nil && apiKey.Group != nil && opts.LongContextThreshold <= 0 {
 		gid := apiKey.Group.ID
-		resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid})
+		resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid, Group: apiKey.Group})
 		cost, err = s.billingService.CalculateCostUnified(CostInput{
 			Ctx:            ctx,
 			Model:          billingModel,
 			GroupID:        &gid,
+			Group:          apiKey.Group,
 			Tokens:         tokens,
 			RequestCount:   1,
 			RateMultiplier: multiplier,

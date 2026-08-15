@@ -3,8 +3,7 @@ export const jisudengHomeEn = {
   nav: {
     models: 'Models & Pricing',
     docs: 'Docs',
-    creation: 'AI Studio',
-    prompts: 'Prompts',
+    creation: 'AI Creation Space',
     keyUsage: 'API Audit',
     about: 'About',
     contact: 'Contact',

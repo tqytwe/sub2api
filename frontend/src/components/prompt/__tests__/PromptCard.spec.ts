@@ -49,8 +49,16 @@ describe('PromptCard', () => {
     expect(wrapper.text()).not.toContain('curated')
     expect(wrapper.get('[aria-label="收藏提示词"]').exists()).toBe(true)
     expect(wrapper.get('[aria-label="复制提示词"]').exists()).toBe(true)
-    expect(wrapper.get('[aria-label="查看详情"]').exists()).toBe(true)
+    expect(wrapper.findAll('[aria-label="用于创作"]')).toHaveLength(2)
     expect(wrapper.get('[aria-label="用于创作"]').exists()).toBe(true)
+  })
+
+  it('uses the prompt when its cover is selected', async () => {
+    const wrapper = mount(PromptCard, { props: { prompt } })
+
+    await wrapper.get('.prompt-card-media').trigger('click')
+
+    expect(wrapper.emitted('use')).toEqual([[prompt]])
   })
 
   it('sends guests to login with the complete current URL as redirect', async () => {

@@ -8,7 +8,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores'
 import keysAPI from '@/api/keys'
 import userGroupsAPI from '@/api/groups'
-import playAPI, { type PlayHubGrowth, type PlayHubImageStudio } from '@/api/play'
+import playAPI, { type PlayHubGrowth } from '@/api/play'
 import { isFeatureFlagEnabled, FeatureFlags } from '@/utils/featureFlags'
 import { buildGatewayUrl } from '@/api/url'
 import {
@@ -32,13 +32,9 @@ const selectedGroupId = ref<number | null>(null)
 const createdKey = ref<ApiKey | null>(null)
 const creating = ref(false)
 const growth = ref<PlayHubGrowth | null>(null)
-const imageStudio = ref<PlayHubImageStudio | null>(null)
-
-const showStudioFirst = computed(
+const showCreationSpaceFirst = computed(
   () =>
-    isFeatureFlagEnabled(FeatureFlags.imageStudio) &&
-    imageStudio.value?.enabled &&
-    !imageStudio.value.has_completed_job,
+    isFeatureFlagEnabled(FeatureFlags.nextChat),
 )
 
 const curlExample = computed(() => {
@@ -69,7 +65,7 @@ const rechargeHint = computed(() => {
 
 const stepTitle = computed(() => {
   if (step.value === 1) {
-    return showStudioFirst.value
+    return showCreationSpaceFirst.value
       ? t('dashboard.firstLoginWelcome.step1TitleStudio')
       : t('dashboard.firstLoginWelcome.step1Title')
   }
@@ -85,7 +81,6 @@ async function loadContext() {
   groups.value = groupList
   selectedGroupId.value = groupList[0]?.id ?? null
   growth.value = hub?.growth ?? null
-  imageStudio.value = hub?.image_studio ?? null
   keyName.value = t('dashboard.firstLoginWelcome.defaultKeyName')
 }
 
@@ -139,9 +134,9 @@ function goRecharge() {
   router.push('/purchase')
 }
 
-function goImageStudio() {
+function goCreationSpace() {
   finish()
-  router.push('/image-studio')
+  router.push('/ai-creation-space')
 }
 
 async function copyCurl() {
@@ -177,11 +172,11 @@ onMounted(() => {
       </div>
 
       <template v-if="step === 1">
-        <p v-if="showStudioFirst" class="rounded-xl border border-[var(--gw-line)] bg-[var(--gw-paper)] px-4 py-3 text-sm text-gray-700 dark:text-dark-200">
+        <p v-if="showCreationSpaceFirst" class="rounded-lg border border-[var(--gw-line)] bg-[var(--gw-paper)] px-4 py-3 text-sm text-gray-700 dark:text-dark-200">
           {{ t('dashboard.firstLoginWelcome.studioHint') }}
         </p>
         <p class="text-sm text-gray-600 dark:text-dark-300">
-          {{ showStudioFirst ? t('dashboard.firstLoginWelcome.step1DescStudio') : t('dashboard.firstLoginWelcome.step1Desc') }}
+          {{ showCreationSpaceFirst ? t('dashboard.firstLoginWelcome.step1DescStudio') : t('dashboard.firstLoginWelcome.step1Desc') }}
         </p>
         <div>
           <label class="input-label">{{ t('keys.nameLabel') }}</label>
@@ -239,7 +234,7 @@ onMounted(() => {
         </button>
         <div class="flex flex-wrap gap-2">
           <template v-if="step === 1">
-            <button v-if="showStudioFirst" type="button" class="btn btn-primary" @click="goImageStudio">
+            <button v-if="showCreationSpaceFirst" type="button" class="btn btn-primary" @click="goCreationSpace">
               {{ t('dashboard.firstLoginWelcome.studioCta') }}
             </button>
             <button type="button" class="btn btn-secondary" @click="skipKeyStep">

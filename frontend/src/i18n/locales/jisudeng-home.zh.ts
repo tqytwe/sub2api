@@ -3,8 +3,7 @@ export const jisudengHomeZh = {
   nav: {
     models: '模型与价格',
     docs: '使用文档',
-    creation: 'AI 创作',
-    prompts: '提示词广场',
+    creation: 'AI创作空间',
     keyUsage: 'API 查账',
     about: '了解极速蹬',
     contact: '联系我们',

@@ -94,6 +94,16 @@ type nextChatLaunchTokenRecord struct {
 	RemoteAddr string    `json:"remote_addr,omitempty"`
 }
 
+type nextChatLaunchIntent struct {
+	Type          string `json:"type"`
+	PromptID      int64  `json:"prompt_id"`
+	PromptVersion int    `json:"prompt_version,omitempty"`
+}
+
+type nextChatLaunchRequest struct {
+	Intent *nextChatLaunchIntent `json:"intent"`
+}
+
 type nextChatExchangeRequest struct {
 	LaunchToken string `json:"launch_token"`
 }
@@ -976,6 +986,15 @@ func handleNextChatLaunch(
 		response.Error(c, http.StatusServiceUnavailable, "NextChat launch token store is unavailable")
 		return
 	}
+	var req nextChatLaunchRequest
+	if err := c.ShouldBindJSON(&req); err != nil && err != io.EOF {
+		response.BadRequest(c, "Invalid launch request")
+		return
+	}
+	if req.Intent != nil && !validNextChatLaunchIntent(*req.Intent) {
+		response.BadRequest(c, "Invalid creation intent")
+		return
+	}
 
 	subject, ok := middleware.GetAuthSubjectFromContext(c)
 	if !ok || subject.UserID <= 0 {
@@ -1012,10 +1031,14 @@ func handleNextChatLaunch(
 	}
 
 	response.Success(c, gin.H{
-		"launch_url":  nextChatLaunchURL(cfg, token),
+		"launch_url":  nextChatLaunchURL(cfg, token, req.Intent),
 		"expires_at":  record.ExpiresAt,
 		"ttl_seconds": int(ttl.Seconds()),
 	})
+}
+
+func validNextChatLaunchIntent(intent nextChatLaunchIntent) bool {
+	return intent.Type == "image_prompt" && intent.PromptID > 0 && intent.PromptVersion >= 0
 }
 
 func handleNextChatSessionExchange(
@@ -1072,18 +1095,28 @@ func handleNextChatSessionExchange(
 		return
 	}
 
+	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
+	if scoped, ok := issuer.(nextChatScopedSessionIssuer); ok {
+		sessions, err := scoped.IssueNextChatManagedSessions(c.Request.Context(), record.UserID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		payload := nextChatSessionPayload(&sessions.Chat, expiresAt)
+		payload["sessions"] = gin.H{
+			service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
+			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
+		}
+		response.Success(c, payload)
+		return
+	}
+
 	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), record.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
-	response.Success(c, gin.H{
-		"user_id":    session.UserID,
-		"api_key":    session.APIKey,
-		"api_key_id": session.KeyID,
-		"expires_at": expiresAt,
-	})
+	response.Success(c, nextChatSessionPayload(session, expiresAt))
 }
 
 func requireNextChatBFFSession(c *gin.Context, cfg *config.Config) (int64, int64, bool) {
@@ -1165,10 +1198,16 @@ func nextChatLaunchTokenKey(token string) string {
 	return nextChatLaunchTokenKeyPrefix + hex.EncodeToString(sum[:])
 }
 
-func nextChatLaunchURL(cfg *config.Config, token string) string {
-	base := "/ai"
-	if cfg != nil && strings.TrimSpace(cfg.NextChat.PublicURL) != "" {
-		base = strings.TrimSpace(cfg.NextChat.PublicURL)
+func nextChatLaunchURL(cfg *config.Config, token string, intent *nextChatLaunchIntent) string {
+	base := "https://jisudengcanvas.zeabur.app"
+	if cfg != nil {
+		if strings.TrimSpace(cfg.AICreationSpace.PublicURL) != "" {
+			base = strings.TrimSpace(cfg.AICreationSpace.PublicURL)
+		} else if strings.TrimSpace(cfg.NextChat.PublicURL) != "" {
+			// Keep older test fixtures and deployments working until the
+			// dedicated AI creation space URL is configured.
+			base = strings.TrimSpace(cfg.NextChat.PublicURL)
+		}
 	}
 	parsed, err := url.Parse(base)
 	if err != nil {
@@ -1176,10 +1215,23 @@ func nextChatLaunchURL(cfg *config.Config, token string) string {
 		if strings.Contains(base, "?") {
 			separator = "&"
 		}
-		return base + separator + "launch_token=" + url.QueryEscape(token)
+		value := base + separator + "launch_token=" + url.QueryEscape(token)
+		if intent != nil {
+			value += "&creation_prompt=" + strconv.FormatInt(intent.PromptID, 10)
+			if intent.PromptVersion > 0 {
+				value += "&creation_prompt_version=" + strconv.Itoa(intent.PromptVersion)
+			}
+		}
+		return value
 	}
 	query := parsed.Query()
 	query.Set("launch_token", token)
+	if intent != nil {
+		query.Set("creation_prompt", strconv.FormatInt(intent.PromptID, 10))
+		if intent.PromptVersion > 0 {
+			query.Set("creation_prompt_version", strconv.Itoa(intent.PromptVersion))
+		}
+	}
 	parsed.RawQuery = query.Encode()
 	return parsed.String()
 }

@@ -33,18 +33,6 @@ func TestDeriveAuditAction(t *testing.T) {
 	}
 }
 
-func TestPromptLibraryImportBodiesAreOmittedFromAudit(t *testing.T) {
-	for _, route := range []string{
-		"POST /api/v1/admin/prompts/import-jobs",
-		"POST /api/v1/admin/prompts/import-items/:id/approve",
-	} {
-		_, ok := auditBodyOmittedRoutes[route]
-		if !ok {
-			t.Fatalf("prompt library route %q must omit the request body from audit", route)
-		}
-	}
-}
-
 func TestAdminTeamRepairBodyIsOmittedFromAudit(t *testing.T) {
 	_, ok := auditBodyOmittedRoutes["POST /api/v1/admin/play/teams/:id/members"]
 	require.True(t, ok, "team repair reasons may contain embedded credentials and must not be persisted")

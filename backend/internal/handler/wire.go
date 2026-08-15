@@ -52,7 +52,6 @@ func ProvideAdminHandlers(
 	modelCatalogHandler *admin.ModelCatalogHandler,
 	ipRiskHandler *admin.IPRiskHandler,
 	auditLogHandler *admin.AuditLogHandler,
-	promptLibraryHandler *admin.PromptLibraryHandler,
 	mobileAttributionAdminHandler *MobileAttributionAdminHandler,
 	upstreamBillingProbe *service.UpstreamBillingProbeService,
 	ollamaCloudUsage *service.OllamaCloudUsageService,
@@ -100,7 +99,6 @@ func ProvideAdminHandlers(
 		ModelCatalog:           modelCatalogHandler,
 		IPRisk:                 ipRiskHandler,
 		AuditLog:               auditLogHandler,
-		PromptLibrary:          promptLibraryHandler,
 		MobileAttribution:      mobileAttributionAdminHandler,
 	}
 }
@@ -266,7 +264,6 @@ func ProvideHandlers(
 	mobileAttributionHandler *MobileAttributionHandler,
 	mobileWebSearchHandler *MobileWebSearchHandler,
 	mobilePlayBillingHandler *MobilePlayBillingHandler,
-	forumSSOHandler *ForumSSOHandler,
 	_ *service.IdempotencyCoordinator,
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
@@ -306,7 +303,6 @@ func ProvideHandlers(
 		MobileAttribution: mobileAttributionHandler,
 		MobileWebSearch:   mobileWebSearchHandler,
 		MobilePlayBilling: mobilePlayBillingHandler,
-		ForumSSO:          forumSSOHandler,
 	}
 }
 
@@ -388,7 +384,6 @@ var ProviderSet = wire.NewSet(
 	NewMobileAttributionHandler,
 	NewMobileWebSearchHandlerFromEnvironment,
 	ProvideMobilePlayBillingHandler,
-	NewForumSSOHandler,
 	ProvideMobileAttributionEventService,
 	ProvideMobileAttributionAdminService,
 
@@ -433,7 +428,6 @@ var ProviderSet = wire.NewSet(
 	admin.NewModelCatalogHandler,
 	ProvideIPRiskHandler,
 	admin.NewAuditLogHandler,
-	admin.NewPromptLibraryHandler,
 	NewMobileAttributionAdminHandler,
 
 	// AdminHandlers and Handlers constructors

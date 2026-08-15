@@ -5,7 +5,6 @@ import type {
   PromptSort,
   PromptUseResult,
 } from '@/api/prompts'
-import type { AdminPromptDraft, AdminPromptStatus } from '@/api/admin/prompts'
 
 export interface PromptFiltersState {
   q: string
@@ -126,7 +125,7 @@ export async function openPromptInImageStudio(
   const payload = await loadCurrentVersion(id)
   storePromptUsePayload(payload)
   await router.push(
-    `/image-studio?prompt=${encodeURIComponent(payload.prompt_id)}&version=${encodeURIComponent(String(payload.version))}`,
+    `/ai-creation-space?prompt=${encodeURIComponent(payload.prompt_id)}&version=${encodeURIComponent(String(payload.version))}`,
   )
 }
 
@@ -137,19 +136,8 @@ export const PROMPT_SOURCE_LABELS: Record<PromptSourceAttribution, string> = {
   community: '极速蹬社区精选',
 }
 
-export const PROMPT_STATUS_LABELS: Record<AdminPromptStatus, string> = {
-  draft: '草稿',
-  pending_review: '待审核',
-  published: '已发布',
-  offline: '已下线',
-}
-
 export function promptSourceLabel(source: PromptSourceAttribution): string {
   return PROMPT_SOURCE_LABELS[source]
-}
-
-export function promptStatusLabel(status: AdminPromptStatus): string {
-  return PROMPT_STATUS_LABELS[status]
 }
 
 export function referenceRequirementLabel(requirement: PromptReferenceRequirement): string {
@@ -159,29 +147,4 @@ export function referenceRequirementLabel(requirement: PromptReferenceRequiremen
     required: '需要参考图',
   }
   return labels[requirement]
-}
-
-export function createDefaultAdminPromptDraft(): AdminPromptDraft {
-  return {
-    title: '',
-    purpose_description: '',
-    prompt_template: '',
-    variables: [],
-    preview_image_url: '',
-    recommended_models: [],
-    recommended_sizes: [],
-    reference_requirement: 'none',
-    reference_instructions: '',
-    source_attribution: 'curated',
-    source_evidence_summary: '',
-    source_evidence_verified: false,
-    source_evidence_captured_at: '',
-    source_author: '',
-    source_url: '',
-    featured: false,
-    purpose: '',
-    style: '',
-    subject: '',
-    content_notice: '',
-  }
 }

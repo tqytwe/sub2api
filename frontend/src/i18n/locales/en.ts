@@ -3,6 +3,7 @@ import { jisudengPagesEn } from './jisudeng-pages.en'
 import splitAdminEn from './en/admin'
 import splitBatchImageEn from './en/batchImage'
 import splitCommonEn from './en/common'
+import splitChannelMonitorV2En from './en/channelMonitorV2'
 import auditAdminEn from './en/admin/audit'
 import promptAuditAdminEn from './en/admin/promptAudit'
 import { mergeLocaleMessages } from './merge'
@@ -477,9 +478,9 @@ const messages = {
   },
 
   nextChatLaunch: {
-    title: 'Opening AI Creation',
+    title: 'Opening AI Creation Space',
     loading: 'Creating a secure session for your account...',
-    failed: 'AI Creation is unavailable right now. Please try again later.'
+    failed: 'AI Creation Space is unavailable right now. Please try again later.'
   },
 
   // Navigation
@@ -489,10 +490,9 @@ const messages = {
     publicActions: 'Public page actions',
     apiKeys: 'API Keys',
     aiCreation: 'AI Creation',
+    aiCreationSpace: 'AI Creation Space',
     batchImage: 'Batch Images',
-    imageStudio: 'Image Studio',
-    promptSquare: 'Prompt Library',
-    promptManagement: 'Prompt Management',
+    imageStudio: 'Image-generation backend',
     usage: 'Usage',
     wallet: 'Wallet',
     withdrawals: 'Withdrawals',
@@ -1054,7 +1054,7 @@ const messages = {
       step1TitleStudio: 'Welcome — your first image in 3 minutes',
       step1Desc: 'Your API key is the credential for calling models. Create one to send your first request.',
       step1DescStudio: 'No prompt skills needed. Pick a template, describe your subject, and generate with your welcome balance.',
-      studioHint: 'New here? Start with Image Studio — complete your first image to earn farm energy.',
+      studioHint: 'Start in AI Creation Space, then complete your first image to earn farm energy.',
       studioCta: 'Try a free image',
       step2Title: 'Copy the curl example and try it',
       step2Desc: 'Paste the command into your terminal (adjust the model name if needed). Your key is filled in when you created one.',
@@ -1074,8 +1074,8 @@ const messages = {
     },
     createApiKey: 'Create API Key',
     generateNewKey: 'Generate a new API key',
-    imageStudioAgent: 'Image Studio',
-    imageStudioAgentDesc: 'Template-based images in 3 minutes',
+    imageStudioAgent: 'AI Creation Space',
+    imageStudioAgentDesc: 'One workspace for canvas, image, and video creation',
     batchImageAgent: 'Batch Image Assistant',
     batchImageAgentDesc: 'Copy instructions for an agent',
     viewUsage: 'View Usage',
@@ -6324,7 +6324,7 @@ const messages = {
         names: {
           gatewayAsync: 'Gateway Async',
           batch: 'Batch Image',
-          imageStudio: 'Image Studio'
+          imageStudio: 'Image-generation backend'
         },
         states: {
           ready: 'Ready',
@@ -7197,8 +7197,8 @@ const messages = {
         userSidebar: {
           title: 'User Sidebar',
           description: 'Control growth-world entries in the logged-in user sidebar. Jisudeng Play never shows channel items to end users — use the admin console for channel ops.',
-          nextChatHint: 'AI Creation at /ai (managed NextChat launch)',
-          imageStudioHint: 'Image Studio at /image-studio',
+          nextChatHint: 'AI Creation Space at /ai-creation-space (unified creation entry)',
+          imageStudioHint: 'Image-generation backend capability shared by AI Creation Space and the App',
           checkinHint: 'Daily check-in and Play Hub card',
           arenaHint: 'Token Farm at /arena',
           blindboxHint: 'Blind box at /blindbox',
@@ -9334,6 +9334,7 @@ const messages = {
 
 export default mergeLocaleMessages(messages, {
   ...splitCommonEn,
+  ...splitChannelMonitorV2En,
   ...splitBatchImageEn,
   admin: splitAdminEn,
 })

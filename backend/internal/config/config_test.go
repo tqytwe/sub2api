@@ -40,6 +40,15 @@ func TestLoadServerTimingConfig(t *testing.T) {
 	})
 }
 
+func TestLoadAICreationSpacePublicURLFromEnvironment(t *testing.T) {
+	resetViperWithJWTSecret(t)
+	t.Setenv("AI_CREATION_SPACE_PUBLIC_URL", "https://canvas.example.com")
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.Equal(t, "https://canvas.example.com", cfg.AICreationSpace.PublicURL)
+}
+
 func TestLoadRedisUsernameFromEnvironment(t *testing.T) {
 	resetViperWithJWTSecret(t)
 	t.Setenv("REDIS_USERNAME", "app-user")
@@ -624,6 +633,19 @@ func TestLoadOpenAICompactModelFromEnv(t *testing.T) {
 	cfg, err := Load()
 	require.NoError(t, err)
 	require.Equal(t, "gpt-5.3-codex", cfg.Gateway.OpenAICompactModel)
+}
+
+func TestLoadDefaultGrokFreeQuotaSoftGate(t *testing.T) {
+	resetViperWithJWTSecret(t)
+
+	cfg, err := Load()
+	require.NoError(t, err)
+	require.False(t, cfg.Gateway.Grok.PasswordAuthEnabled)
+	require.True(t, cfg.Gateway.Grok.FreeQuotaSoftGateEnabled)
+	require.Equal(t, int64(500_000), cfg.Gateway.Grok.FreeQuotaTokenLimit)
+	require.Equal(t, 95, cfg.Gateway.Grok.FreeQuotaSoftGatePercent)
+	require.Equal(t, 24, cfg.Gateway.Grok.FreeQuotaWindowHours)
+	require.Equal(t, 60, cfg.Gateway.Grok.FreeQuotaStatsCacheSeconds)
 }
 
 func TestLoadDefaultOpenAIHTTP2Enabled(t *testing.T) {

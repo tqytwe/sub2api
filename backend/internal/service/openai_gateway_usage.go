@@ -229,7 +229,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 			return err
 		}
 	}
-	longContextBillingEnabled := billingAccount.IsOpenAILongContextBillingEnabled()
+	longContextBillingGate := openAILongContextBillingGate(billingAccount)
 	cost, err = s.calculateOpenAIRecordUsageCost(
 		ctx,
 		result,
@@ -241,7 +241,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		baseMultiplier,
 		tokens,
 		serviceTier,
-		longContextBillingEnabled,
+		longContextBillingGate,
 	)
 	if err != nil {
 		if !isUsagePricingUnavailableError(err) {
@@ -457,6 +457,19 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	return nil
 }
 
+// openAILongContextBillingGate returns the per-account long-context opt-in.
+// The flag is an OpenAI-only account setting, so other platforms (Grok) return
+// nil - "no per-account gate" - and are governed by the group toggle alone.
+// Returning a hardcoded false for them would veto the official model ladders
+// (e.g. the Grok >=200k 2x card) that no account setting can ever re-enable.
+func openAILongContextBillingGate(account *Account) *bool {
+	if account == nil || !account.IsOpenAI() {
+		return nil
+	}
+	enabled := account.IsOpenAILongContextBillingEnabled()
+	return &enabled
+}
+
 func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	ctx context.Context,
 	result *OpenAIForwardResult,
@@ -468,8 +481,12 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	webSearchMultiplier float64,
 	tokens UsageTokens,
 	serviceTier string,
-	longContextBillingEnabled bool,
+	longContextBillingEnabled *bool,
 ) (*CostBreakdown, error) {
+	applyLongContext := true
+	if longContextBillingEnabled != nil {
+		applyLongContext = *longContextBillingEnabled
+	}
 	billingModel := firstUsageBillingModel(billingModels)
 	if result != nil && result.WebSearchCalls > 0 {
 		// Codex alpha/search 网页搜索按次计费：上游不返回 usage/token 字段，单价只取
@@ -514,7 +531,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 			multiplier,
 			tokens,
 			serviceTier,
-			longContextBillingEnabled,
+			applyLongContext,
 		)
 		if err == nil {
 			return cost, nil
@@ -571,6 +588,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageTokenCost(
 			Ctx:                       ctx,
 			Model:                     billingModel,
 			GroupID:                   &gid,
+			Group:                     apiKey.Group,
 			Tokens:                    tokens,
 			RequestCount:              1,
 			RateMultiplier:            multiplier,
@@ -654,6 +672,7 @@ func (s *OpenAIGatewayService) calculateOpenAIImageOutputCost(
 			Ctx:            ctx,
 			Model:          billingModel,
 			GroupID:        &gid,
+			Group:          apiKey.Group,
 			RequestCount:   result.ImageCount,
 			SizeTier:       sizeTier,
 			RateMultiplier: multiplier,
@@ -799,13 +818,13 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 	resolution := NormalizeVideoBillingResolutionOrDefault(result.VideoResolution)
 	durationSeconds := NormalizeVideoBillingDurationSecondsOrDefault(result.VideoDurationSeconds)
 	groupConfig := videoPriceConfigFromAPIKey(apiKey)
-	if apiKeyHasConfiguredVideoPrice(apiKey, resolution) {
+	if apiKeyHasConfiguredVideoPrice(apiKey, billingModel, resolution) {
 		return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
 	}
 	if refreshed := s.apiKeyWithFreshGroupMediaPricing(ctx, apiKey); refreshed != apiKey {
 		apiKey = refreshed
 		groupConfig = videoPriceConfigFromAPIKey(apiKey)
-		if apiKeyHasConfiguredVideoPrice(apiKey, resolution) {
+		if apiKeyHasConfiguredVideoPrice(apiKey, billingModel, resolution) {
 			return s.billingService.CalculateVideoCost(billingModel, resolution, videoCount, durationSeconds, groupConfig, multiplier)
 		}
 	}
@@ -817,6 +836,7 @@ func (s *OpenAIGatewayService) calculateOpenAIVideoCost(
 			Ctx:            ctx,
 			Model:          billingModel,
 			GroupID:        &gid,
+			Group:          apiKey.Group,
 			RequestCount:   videoCount,
 			SizeTier:       resolution,
 			RateMultiplier: multiplier,
@@ -875,8 +895,8 @@ func (s *OpenAIGatewayService) resolveOpenAIChannelPricing(ctx context.Context, 
 		return nil
 	}
 	gid := apiKey.Group.ID
-	resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid})
-	if resolved.Source == PricingSourceChannel {
+	resolved := s.resolver.Resolve(ctx, PricingInput{Model: billingModel, GroupID: &gid, Group: apiKey.Group})
+	if resolved.Source == PricingSourceGroup || resolved.Source == PricingSourceChannel {
 		return resolved
 	}
 	return nil

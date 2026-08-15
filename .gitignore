@@ -176,3 +176,4 @@ aicodex
 output/
 .worktrees/
 .claude/plans/myagents/
+.vite/

@@ -259,6 +259,7 @@ export interface PublicSettings {
   registration_enabled: boolean
   email_verify_enabled: boolean
   force_email_on_third_party_signup: boolean
+  registration_email_domain_quota_enabled: boolean
   registration_email_suffix_whitelist: string[]
   promo_code_enabled: boolean
   password_reset_enabled: boolean
@@ -315,7 +316,9 @@ export interface PublicSettings {
   account_quota_notify_enabled: boolean
   balance_low_notify_threshold: number
   channel_monitor_enabled: boolean
+  channel_monitor_mode?: 'v1' | 'v2'
   channel_monitor_default_interval_seconds: number
+  channel_monitor_hide_throughput?: boolean
   available_channels_enabled: boolean
   marketplace_enabled: boolean
   model_plaza_enabled: boolean
@@ -653,6 +656,13 @@ export interface Group {
 }
 
 export interface AdminGroup extends Group {
+  long_context_pricing_enabled?: boolean
+  model_pricing?: any[]
+  video_model_prices?: Record<string, Record<string, number>>
+  search_price_per_1k?: number | null
+  audio_realtime_price_per_min?: number | null
+  audio_tts_price_per_million_chars?: number | null
+  audio_stt_price_per_hour?: number | null
   billing_surcharge_override_enabled: boolean
   billing_surcharge_enabled: boolean
   billing_surcharge_mode: BillingSurchargeMode
@@ -1047,6 +1057,9 @@ export interface TempUnschedulableState {
   matched_keyword: string
   rule_index: number
   error_message: string
+  trigger_count?: number
+  trigger_threshold?: number
+  trigger_window_minutes?: number
 }
 
 export interface TempUnschedulableStatus {
@@ -1344,6 +1357,9 @@ export interface GrokBillingSummary {
   monthly_updated_at?: string
   partial?: boolean
   failed_windows?: string[]
+  prepaid_balance?: number | null
+  monthly_used?: number | null
+  monthly_limit?: number | null
 }
 
 export interface AccountUsageInfo {

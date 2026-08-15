@@ -20,6 +20,21 @@
   --status-warning-text: #b54708;
   --status-warning-surface: #fff7ed;
   --status-warning-border: #fedf89;
+  --monitor-health-0: #ef4444;
+  --monitor-health-1: #f87171;
+  --monitor-health-2: #fb7185;
+  --monitor-health-3: #f97316;
+  --monitor-health-4: #f59e0b;
+  --monitor-health-5: #fbbf24;
+  --monitor-health-6: #facc15;
+  --monitor-health-7: #a3e635;
+  --monitor-health-8: #4ade80;
+  --monitor-health-9: #22c55e;
+  --monitor-health-10: #16a34a;
+  --monitor-tooltip-surface: #ffffff;
+  --monitor-tooltip-text: #111827;
+  --monitor-tooltip-muted: #4b5563;
+  --monitor-tooltip-border: #e5e7eb;
 }
 
 .dark {
@@ -44,4 +59,8 @@
   --status-warning-text: #fec84b;
   --status-warning-surface: #4a2800;
   --status-warning-border: #b54708;
+  --monitor-tooltip-surface: #111827;
+  --monitor-tooltip-text: #f3f4f6;
+  --monitor-tooltip-muted: #d1d5db;
+  --monitor-tooltip-border: #374151;
 }

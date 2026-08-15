@@ -390,7 +390,9 @@ func TestImageTaskWorkerRuntimeCancelsExecutionWhenLeaseIsLost(t *testing.T) {
 		ReserveTimeoutSeconds:   1,
 		JobLockTTLSeconds:       60,
 		HeartbeatSeconds:        1,
-		StaleActiveAfterSeconds: 30,
+		// Keep the runtime's eager recovery pass from racing the explicit
+		// recovery assertion below; the task is made stale by one hour.
+		StaleActiveAfterSeconds: 24 * 60 * 60,
 		RecoveryIntervalSeconds: 30,
 		RecoverLimit:            100,
 	}}

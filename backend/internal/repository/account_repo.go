@@ -1869,6 +1869,7 @@ func (r *accountRepository) ListSchedulableAccountLoads(ctx context.Context) ([]
 func (r *accountRepository) schedulableAccountsQuery(now time.Time) *dbent.AccountQuery {
 	return r.client.Account.Query().
 		Where(
+			dbaccount.DeletedAtIsNil(),
 			dbaccount.StatusEQ(service.StatusActive),
 			dbaccount.SchedulableEQ(true),
 			tempUnschedulablePredicate(),

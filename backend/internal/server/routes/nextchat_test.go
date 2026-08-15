@@ -49,6 +49,7 @@ type nextChatRouteIssuerStub struct {
 	userID         int64
 	selectedGroup  int64
 	switchRequests []int64
+	role           string
 }
 
 type nextChatRouteScopedIssuerStub struct {
@@ -128,7 +129,10 @@ func (s *nextChatRouteScopedIssuerStub) GetNextChatWorkspaceIdentity(_ context.C
 	if groupID == 0 {
 		groupID = 7
 	}
-	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, keyName, groupID), nil
+	identity := nextChatRouteWorkspaceIdentity(userID, apiKeyID, keyName, groupID)
+	identity.User.Role = s.workspaceRole()
+	identity.User.IsAdmin = identity.User.Role == service.RoleAdmin
+	return identity, nil
 }
 
 func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error) {
@@ -136,7 +140,10 @@ func (s *nextChatRouteIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context
 	if groupID == 0 {
 		groupID = 7
 	}
-	return nextChatRouteWorkspaceIdentity(userID, apiKeyID, service.NextChatManagedAPIKeyName, groupID), nil
+	identity := nextChatRouteWorkspaceIdentity(userID, apiKeyID, service.NextChatManagedAPIKeyName, groupID)
+	identity.User.Role = s.workspaceRole()
+	identity.User.IsAdmin = identity.User.Role == service.RoleAdmin
+	return identity, nil
 }
 
 func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, groupID int64) *service.NextChatWorkspaceIdentity {
@@ -145,6 +152,7 @@ func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, grou
 			ID:       userID,
 			Username: "tester",
 			Email:    "tester@example.com",
+			Role:     service.RoleUser,
 			Balance:  12.5,
 		},
 		APIKey: service.NextChatWorkspaceAPIKey{
@@ -155,6 +163,13 @@ func nextChatRouteWorkspaceIdentity(userID, apiKeyID int64, keyName string, grou
 			GroupPlatform: service.PlatformOpenAI,
 		},
 	}
+}
+
+func (s *nextChatRouteIssuerStub) workspaceRole() string {
+	if strings.TrimSpace(s.role) != "" {
+		return s.role
+	}
+	return service.RoleUser
 }
 
 func (s *nextChatRouteIssuerStub) SetNextChatManagedKeyGroup(_ context.Context, userID, apiKeyID, groupID int64) (*service.NextChatWorkspaceIdentity, error) {
@@ -350,10 +365,11 @@ type nextChatLaunchResponse struct {
 }
 
 type nextChatSessionResponse struct {
-	UserID  int64  `json:"user_id"`
-	APIKey  string `json:"api_key"`
-	KeyID   int64  `json:"api_key_id"`
-	Purpose string `json:"purpose"`
+	UserID   int64                              `json:"user_id"`
+	APIKey   string                             `json:"api_key"`
+	KeyID    int64                              `json:"api_key_id"`
+	Purpose  string                             `json:"purpose"`
+	Sessions map[string]nextChatSessionResponse `json:"sessions"`
 }
 
 type nextChatMobileBootstrapResponse struct {
@@ -488,14 +504,21 @@ func extractNextChatLaunchToken(t *testing.T, launchURL string) string {
 	return token
 }
 
-func postNextChatLaunch(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
+func postNextChatLaunchWithBody(router *gin.Engine, authHeader, body string) *httptest.ResponseRecorder {
 	recorder := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/nextchat/launch", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/nextchat/launch", strings.NewReader(body))
+	if body != "" {
+		req.Header.Set("Content-Type", "application/json")
+	}
 	if authHeader != "" {
 		req.Header.Set("Authorization", authHeader)
 	}
 	router.ServeHTTP(recorder, req)
 	return recorder
+}
+
+func postNextChatLaunch(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
+	return postNextChatLaunchWithBody(router, authHeader, "")
 }
 
 func getNextChatMobileBootstrap(router *gin.Engine, authHeader string) *httptest.ResponseRecorder {
@@ -617,6 +640,51 @@ func TestNextChatLaunchDisabledReturnsNotFound(t *testing.T) {
 
 	require.Equal(t, http.StatusNotFound, recorder.Code)
 	require.Contains(t, recorder.Body.String(), "NextChat is disabled")
+}
+
+func TestNextChatLaunchCarriesWhitelistedImagePromptIntent(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{
+		NextChat: config.NextChatConfig{PublicURL: "https://canvas.example.com"},
+	}, rdb)
+
+	recorder := postNextChatLaunchWithBody(router, "Bearer valid-user", `{"intent":{"type":"image_prompt","prompt_id":42,"prompt_version":3}}`)
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, recorder)
+	parsed, err := url.Parse(launch.LaunchURL)
+	require.NoError(t, err)
+	require.Equal(t, "42", parsed.Query().Get("creation_prompt"))
+	require.Equal(t, "3", parsed.Query().Get("creation_prompt_version"))
+	require.NotEmpty(t, parsed.Query().Get("launch_token"))
+}
+
+func TestNextChatLaunchPrefersAICreationSpacePublicURL(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{
+		AICreationSpace: config.AICreationSpaceConfig{
+			PublicURL: "https://jisudengcanvas.zeabur.app",
+		},
+		NextChat: config.NextChatConfig{
+			PublicURL: "https://legacy-nextchat.example.com",
+		},
+	}, rdb)
+
+	recorder := postNextChatLaunch(router, "Bearer valid-user")
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, recorder)
+	parsed, err := url.Parse(launch.LaunchURL)
+	require.NoError(t, err)
+	require.Equal(t, "jisudengcanvas.zeabur.app", parsed.Host)
+	require.NotEmpty(t, parsed.Query().Get("launch_token"))
+}
+
+func TestNextChatLaunchRejectsUnknownCreationIntent(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{}, &config.Config{}, rdb)
+
+	recorder := postNextChatLaunchWithBody(router, "Bearer valid-user", `{"intent":{"type":"redirect","prompt_id":42}}`)
+	require.Equal(t, http.StatusBadRequest, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "Invalid creation intent")
 }
 
 func TestNextChatMobileBootstrapRequiresJWT(t *testing.T) {
@@ -805,6 +873,29 @@ func TestNextChatLaunchTokenIsConsumedOnce(t *testing.T) {
 	require.Equal(t, int64(42), issuer.userID)
 }
 
+func TestNextChatSessionExchangeReturnsScopedChatAndImageSessions(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteScopedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, postNextChatLaunch(router, "Bearer valid-user"))
+	token := extractNextChatLaunchToken(t, launch.LaunchURL)
+	recorder := postNextChatSession(router, "server-secret", token)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	session := decodeNextChatRouteResponse[nextChatSessionResponse](t, recorder)
+	require.Equal(t, "sk-managed-nextchat", session.APIKey)
+	require.Equal(t, int64(123), session.KeyID)
+	require.Equal(t, service.NextChatSessionPurposeChat, session.Purpose)
+	require.Equal(t, "sk-managed-nextchat", session.Sessions[service.NextChatSessionPurposeChat].APIKey)
+	require.Equal(t, "sk-managed-nextchat-image", session.Sessions[service.NextChatSessionPurposeImage].APIKey)
+	require.Equal(t, int64(456), session.Sessions[service.NextChatSessionPurposeImage].KeyID)
+	require.Equal(t, []string{service.NextChatSessionPurposeChat, service.NextChatSessionPurposeImage}, issuer.purposeIssueRequests)
+	require.Zero(t, issuer.calls, "scoped exchange must not issue the legacy chat-only session")
+}
+
 func TestNextChatLaunchTokenExpires(t *testing.T) {
 	mr, rdb := newNextChatRouteRedis(t)
 	issuer := &nextChatRouteIssuerStub{}
@@ -878,6 +969,8 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	got := decodeNextChatRouteResponse[nextChatBootstrapResponse](t, recorder)
 	require.Equal(t, int64(42), got.User.ID)
 	require.Equal(t, "tester", got.User.Username)
+	require.Equal(t, service.RoleUser, got.User.Role)
+	require.False(t, got.User.IsAdmin)
 	require.Equal(t, int64(123), got.ManagedAPIKey.ID)
 	require.Equal(t, service.NextChatManagedAPIKeyName, got.ManagedAPIKey.Name)
 	require.Equal(t, "极速蹬", got.Brand.SiteName)
@@ -904,6 +997,20 @@ func TestNextChatBootstrapReturnsWorkspaceStateWithoutAPIKeySecret(t *testing.T)
 	require.False(t, got.Retention.ServerChatLog)
 	require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
 	require.NotContains(t, recorder.Body.String(), `"api_key"`)
+}
+
+func TestNextChatBootstrapReturnsAdminRoleForCanvasGate(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, &nextChatRouteIssuerStub{role: service.RoleAdmin}, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := getNextChatBFF(router, "/api/v1/nextchat/bootstrap", "server-secret", 42, 123)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatBootstrapResponse](t, recorder)
+	require.Equal(t, service.RoleAdmin, got.User.Role)
+	require.True(t, got.User.IsAdmin)
 }
 
 func TestNextChatBootstrapDefaultsReturnAndRechargeToConsolePages(t *testing.T) {

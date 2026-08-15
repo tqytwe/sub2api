@@ -47,7 +47,6 @@ type AdminHandlers struct {
 	ModelCatalog           *admin.ModelCatalogHandler
 	IPRisk                 *admin.IPRiskHandler
 	AuditLog               *admin.AuditLogHandler
-	PromptLibrary          *admin.PromptLibraryHandler
 	MobileAttribution      *MobileAttributionAdminHandler
 }
 
@@ -61,6 +60,7 @@ type Handlers struct {
 	Subscription      *SubscriptionHandler
 	Announcement      *AnnouncementHandler
 	ChannelMonitor    *ChannelMonitorUserHandler
+	ChannelMonitorV2  *ChannelMonitorV2Handler
 	Admin             *AdminHandlers
 	Gateway           *GatewayHandler
 	OpenAIGateway     *OpenAIGatewayHandler
@@ -88,7 +88,6 @@ type Handlers struct {
 	MobileAttribution *MobileAttributionHandler
 	MobileWebSearch   *MobileWebSearchHandler
 	MobilePlayBilling *MobilePlayBillingHandler
-	ForumSSO          *ForumSSOHandler
 }
 
 // BuildInfo contains build-time information

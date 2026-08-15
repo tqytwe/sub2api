@@ -9,6 +9,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"net/url"
 	"path"
 	"strconv"
 	"strings"
@@ -171,13 +172,13 @@ func (u *ImageResultUploader) rewrite(
 			return nil, nil, fmt.Errorf("image %d: %w", i, err)
 		}
 		key := u.buildKey(taskID, i, contentType)
-		url, err := u.storage.Save(ctx, key, contentType, data)
+		_, err = u.storage.Save(ctx, key, contentType, data)
 		if err != nil {
 			rollback()
 			return nil, nil, fmt.Errorf("image %d: store image result: %w", i, err)
 		}
 		storedKeys = append(storedKeys, key)
-		urlRaw, err := json.Marshal(url)
+		urlRaw, err := json.Marshal(imageTaskAssetURL(key))
 		if err != nil {
 			rollback()
 			return nil, nil, fmt.Errorf("image %d: encode url: %w", i, err)
@@ -198,6 +199,18 @@ func (u *ImageResultUploader) rewrite(
 		return nil, nil, fmt.Errorf("encode image response: %w", err)
 	}
 	return out, storedKeys, nil
+}
+
+func imageTaskAssetURL(key string) string {
+	clean := strings.TrimLeft(path.Clean("/"+strings.TrimSpace(key)), "/")
+	if clean == "" || clean == "." {
+		return "/v1/images/task-assets/"
+	}
+	parts := strings.Split(clean, "/")
+	for i, part := range parts {
+		parts[i] = url.PathEscape(part)
+	}
+	return "/v1/images/task-assets/" + strings.Join(parts, "/")
 }
 
 func deleteImageAssets(ctx context.Context, storage ImageStorage, keys []string) error {
