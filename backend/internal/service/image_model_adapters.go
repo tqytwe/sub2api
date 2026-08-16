@@ -19,6 +19,7 @@ const (
 type imageModelAdapter interface {
 	ID() string
 	Matches(model string) bool
+	RequiresOutputFanout() bool
 	ResolveCapability(model string) (ImageStudioModelCapabilities, bool)
 	BuildImageStudioPayload(operation, model, prompt, size string, count int, req ImageStudioGenerateRequest, referenceIDs []string) (string, []byte, bool, error)
 	RewriteOpenAIImagesBody(body []byte, contentType string, parsed *OpenAIImagesRequest, upstreamModel string) ([]byte, string, bool, error)
@@ -52,6 +53,11 @@ func resolveAdaptedImageStudioCapability(model string) (ImageStudioModelCapabili
 func isRegisteredOpenAICompatibleImageModel(model string) bool {
 	adapter, ok := findImageModelAdapter(model)
 	return ok && strings.TrimSpace(adapter.ID()) != ""
+}
+
+func adaptedImageModelRequiresOutputFanout(model string) bool {
+	adapter, ok := findImageModelAdapter(model)
+	return ok && adapter.RequiresOutputFanout()
 }
 
 func buildAdaptedImageStudioProviderPayload(
@@ -93,6 +99,10 @@ func (agnesImageModelAdapter) Matches(model string) bool {
 	default:
 		return false
 	}
+}
+
+func (agnesImageModelAdapter) RequiresOutputFanout() bool {
+	return true
 }
 
 func (agnesImageModelAdapter) ResolveCapability(model string) (ImageStudioModelCapabilities, bool) {
@@ -191,6 +201,12 @@ func (a agnesImageModelAdapter) RewriteOpenAIImagesBody(
 	out, err := sjson.SetBytes(body, "model", strings.ToLower(strings.TrimSpace(upstreamModel)))
 	if err != nil {
 		return nil, "", true, fmt.Errorf("rewrite agnes image model: %w", err)
+	}
+	if gjson.GetBytes(out, "n").Exists() {
+		out, err = sjson.DeleteBytes(out, "n")
+		if err != nil {
+			return nil, "", true, fmt.Errorf("remove unsupported agnes image count: %w", err)
+		}
 	}
 	if strings.EqualFold(strings.TrimSpace(upstreamModel), agnesImage20FlashModelID) {
 		out, err = sjson.SetBytes(out, "size", normalizeAgnesImage20Size(parsed.Size))

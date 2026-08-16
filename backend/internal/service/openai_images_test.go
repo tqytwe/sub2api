@@ -573,7 +573,7 @@ func TestOpenAIGatewayServiceParseOpenAIImagesRequest_AllowsGenericOpenAICompati
 }
 
 func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnesPayload(t *testing.T) {
-	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024","response_format":"b64_json","output_format":"png","extra_body":{"output_format":"png"}}`)
+	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw a cat","size":"1024x1024","n":2,"response_format":"b64_json","output_format":"png","extra_body":{"output_format":"png"}}`)
 	parsed := &OpenAIImagesRequest{
 		Endpoint:       openAIImagesGenerationsEndpoint,
 		ContentType:    "application/json",
@@ -598,6 +598,7 @@ func TestRewriteAdaptedOpenAIImagesBodyBuildsAgnesPayload(t *testing.T) {
 	require.Equal(t, "1:1", gjson.GetBytes(rewritten, "ratio").String())
 	require.Equal(t, "b64_json", gjson.GetBytes(rewritten, "extra_body.response_format").String())
 	require.False(t, gjson.GetBytes(rewritten, "response_format").Exists())
+	require.False(t, gjson.GetBytes(rewritten, "n").Exists())
 	require.False(t, gjson.GetBytes(rewritten, "output_format").Exists())
 	require.False(t, gjson.GetBytes(rewritten, "extra_body.output_format").Exists())
 }
@@ -844,6 +845,66 @@ func TestOpenAIGatewayServiceImagesFansOutGeminiAndAddsActualMetadata(t *testing
 	require.Equal(t, "gemini-3.1-flash-image-preview", gjson.Get(rec.Body.String(), "model").String())
 	require.Equal(t, "gemini-3.1-flash-image-preview", gjson.Get(rec.Body.String(), "upstream_model").String())
 	require.False(t, gjson.Get(rec.Body.String(), "usage").Exists())
+}
+
+func TestOpenAIGatewayServiceImagesFansOutAgnesWithoutForwardingN(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	body := []byte(`{"model":"agnes-image-2.1-flash","prompt":"draw two cards","size":"1024x1024","n":2,"response_format":"b64_json"}`)
+	rec := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(rec)
+	c.Request = httptest.NewRequest(http.MethodPost, "/v1/images/generations", bytes.NewReader(body))
+	c.Request.Header.Set("Content-Type", "application/json")
+	upstream := &httpUpstreamRecorder{responses: []*http.Response{
+		{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(
+				`{"created":1710000001,"data":[{"b64_json":"Zmlyc3Q="}]}`,
+			)),
+		},
+		{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body: io.NopCloser(strings.NewReader(
+				`{"created":1710000002,"data":[{"b64_json":"c2Vjb25k"}]}`,
+			)),
+		},
+	}}
+	svc := &OpenAIGatewayService{cfg: &config.Config{}, httpUpstream: upstream}
+	parsed, err := svc.ParseOpenAIImagesRequest(c, body)
+	require.NoError(t, err)
+
+	result, err := svc.ForwardImages(
+		context.Background(),
+		c,
+		&Account{
+			ID:       43,
+			Platform: PlatformOpenAI,
+			Type:     AccountTypeAPIKey,
+			Credentials: map[string]any{
+				"api_key":  "sk-test",
+				"base_url": "https://apihub.agnes-ai.com/v1",
+			},
+		},
+		body,
+		parsed,
+		"",
+	)
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.Equal(t, 2, result.ImageCount)
+	require.Len(t, upstream.requests, 2)
+	for _, upstreamBody := range upstream.bodies {
+		require.False(t, gjson.GetBytes(upstreamBody, "n").Exists())
+		require.Equal(t, "b64_json", gjson.GetBytes(upstreamBody, "extra_body.response_format").String())
+	}
+	require.Equal(t, int64(2), gjson.Get(rec.Body.String(), "requested_n").Int())
+	require.Equal(t, int64(2), gjson.Get(rec.Body.String(), "completed_n").Int())
+	require.Zero(t, gjson.Get(rec.Body.String(), "failed_n").Int())
+	require.Equal(t, "Zmlyc3Q=", gjson.Get(rec.Body.String(), "data.0.b64_json").String())
+	require.Equal(t, "c2Vjb25k", gjson.Get(rec.Body.String(), "data.1.b64_json").String())
 }
 
 func TestOpenAIGatewayServiceParseOpenAIImagesRequest_JSONEditURLs(t *testing.T) {
