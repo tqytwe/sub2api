@@ -122,6 +122,28 @@ func (s *nextChatAvailableModelResolverStub) GetAvailableModels(_ context.Contex
 	return append([]string(nil), s.modelsByGroup[*groupID]...)
 }
 
+func TestGetNextChatSelectableGroupsMergesAvailableGroupsWithOwnedKeyGroups(t *testing.T) {
+	domesticGroupID := int64(11)
+	videoGroupID := int64(22)
+	svc := NewAPIKeyService(
+		&nextChatAPIKeyRepoStub{keys: []APIKey{{ID: 1, UserID: 42, Name: "ordinary key", Key: "sk-ordinary", GroupID: &domesticGroupID, Status: StatusActive}}},
+		&nextChatUserRepoStub{user: &User{ID: 42}},
+		&nextChatGroupRepoStub{groups: []Group{
+			{ID: domesticGroupID, Name: "国产分组", Status: StatusActive},
+			{ID: videoGroupID, Name: "video 分组", Status: StatusActive},
+		}},
+		&nextChatSubscriptionRepoStub{},
+		nil,
+		nil,
+		&config.Config{},
+	)
+
+	groups, err := svc.GetNextChatSelectableGroups(context.Background(), 42)
+	require.NoError(t, err)
+	require.Len(t, groups, 2)
+	require.ElementsMatch(t, []int64{domesticGroupID, videoGroupID}, []int64{groups[0].ID, groups[1].ID})
+}
+
 func TestIssueNextChatManagedSessionReusesExistingManagedKey(t *testing.T) {
 	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
 		{ID: 1, UserID: 42, Name: "normal key", Key: "sk-normal", Status: StatusActive},
