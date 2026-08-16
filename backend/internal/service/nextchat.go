@@ -467,6 +467,16 @@ func nextChatManagedKeyMatchesPurpose(name, purpose string) bool {
 }
 
 func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (*int64, error) {
+	// Preserve the historical default for users who already have ordinary API
+	// keys: the managed key starts in one of those billing groups. The Canvas
+	// video workspace can then explicitly switch it to a permitted video group.
+	ownedGroups, err := s.getNextChatUserOwnedKeyGroups(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if len(ownedGroups) > 0 {
+		return pickPreferredNextChatGroupID(ownedGroups), nil
+	}
 	groups, err := s.GetNextChatSelectableGroups(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -479,10 +489,30 @@ func (s *APIKeyService) GetNextChatSelectableGroups(ctx context.Context, userID 
 	if err != nil {
 		return nil, err
 	}
-	if len(groups) == 0 && s.userRepo != nil && s.groupRepo != nil && s.userSubRepo != nil {
-		groups, err = s.GetAvailableGroups(ctx, userID)
-		if err != nil {
-			return nil, err
+	// Managed workspaces must expose every group the user can bind, even when
+	// an existing ordinary API key already belongs to another group. Otherwise
+	// a text-only key group can hide a video group that has not been bound yet.
+	if s.userRepo != nil && s.groupRepo != nil && s.userSubRepo != nil {
+		available, availableErr := s.GetAvailableGroups(ctx, userID)
+		if availableErr != nil {
+			// Preserve already-bound groups if the optional permission lookup is
+			// unavailable; switching to a group still requires an existing key or
+			// a successful permission lookup.
+			if len(groups) == 0 {
+				return nil, availableErr
+			}
+		} else {
+			byID := make(map[int64]Group, len(groups)+len(available))
+			for _, group := range groups {
+				byID[group.ID] = group
+			}
+			for _, group := range available {
+				byID[group.ID] = group
+			}
+			groups = groups[:0]
+			for _, group := range byID {
+				groups = append(groups, group)
+			}
 		}
 	}
 	sort.SliceStable(groups, func(i, j int) bool {
