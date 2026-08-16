@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,6 +34,42 @@ func AgnesVideoSessionHash(id string) string {
 		return ""
 	}
 	return "agnes-video:" + id
+}
+
+// StableAgnesVideoBillingRequestID makes the asynchronous task ID the billing
+// idempotency key. Status polls must never create a second charge.
+func StableAgnesVideoBillingRequestID(id string) string {
+	return AgnesVideoSessionHash(id)
+}
+
+// ExtractAgnesVideoBillingMetadata derives the requested billable tier from
+// the create payload. Agnes returns its task before the final media is ready,
+// so this is the only request that can be charged exactly once.
+func ExtractAgnesVideoBillingMetadata(body []byte) (resolution string, durationSeconds int) {
+	resolution = VideoBillingResolution720P
+	dimensions := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "dimensions").String()))
+	parts := strings.Split(dimensions, "x")
+	if len(parts) == 2 {
+		width := gjson.Parse(parts[0]).Int()
+		height := gjson.Parse(parts[1]).Int()
+		shortEdge := width
+		if height > 0 && (shortEdge <= 0 || height < shortEdge) {
+			shortEdge = height
+		}
+		switch {
+		case shortEdge > 720:
+			resolution = VideoBillingResolution1080P
+		case shortEdge > 0 && shortEdge <= 480:
+			resolution = VideoBillingResolution480P
+		}
+	}
+
+	frames := gjson.GetBytes(body, "num_frames").Int()
+	frameRate := gjson.GetBytes(body, "frame_rate").Int()
+	if frames > 0 && frameRate > 0 {
+		durationSeconds = int(math.Round(float64(frames) / float64(frameRate)))
+	}
+	return resolution, NormalizeVideoBillingDurationSecondsOrDefault(durationSeconds)
 }
 
 func ExtractAgnesVideoRequestModel(body []byte) string {
