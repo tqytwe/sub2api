@@ -153,7 +153,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 	if subscription != nil && subscription.UserID > 0 && subscription.UserID != user.ID {
 		return ErrUsageBillingOwnershipMismatch
 	}
-	if !isGrokVideoUsageResult(result, nil) {
+	if !isOpenAIVideoUsageResult(result, nil) {
 		ApplyOpenAIImageBillingResolution(result)
 	}
 
@@ -342,7 +342,7 @@ func (s *OpenAIGatewayService) RecordUsage(ctx context.Context, input *OpenAIRec
 		ImageSizeSource:          optionalTrimmedStringPtr(result.ImageSizeSource),
 		ImageSizeBreakdown:       result.ImageSizeBreakdown,
 	}
-	isVideoUsage := isGrokVideoUsageResult(result, billingModels)
+	isVideoUsage := isOpenAIVideoUsageResult(result, billingModels)
 	if isVideoUsage {
 		usageLog.VideoCount = result.VideoCount
 		usageLog.VideoResolution = optionalTrimmedStringPtr(NormalizeVideoBillingResolutionOrDefault(result.VideoResolution))
@@ -525,7 +525,7 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 		//（用户专属 > 分组 rate_multiplier > 系统默认），与分组表单的价格预览承诺一致。
 		return s.billingService.CalculateWebSearchCost(result.WebSearchCalls, webSearchPricePerCallFromAPIKey(apiKey), webSearchMultiplier), nil
 	}
-	if isGrokVideoUsageResult(result, billingModels) {
+	if isOpenAIVideoUsageResult(result, billingModels) {
 		if resolved := s.resolveOpenAIChannelPricing(ctx, billingModel, apiKey); resolved == nil || resolved.Mode != BillingModeToken {
 			return s.calculateOpenAIVideoCost(ctx, billingModel, apiKey, result, videoMultiplier), nil
 		}
@@ -609,18 +609,23 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	return tokenCost, nil
 }
 
+func isOpenAIVideoBillingModel(model string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(model))
+	return isGrokVideoBillingModel(normalized) || strings.HasPrefix(normalized, "agnes-video")
+}
+
 func isGrokVideoBillingModel(model string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "grok-imagine-video")
 }
 
-func isGrokVideoUsageResult(result *OpenAIForwardResult, billingModels []string) bool {
+func isOpenAIVideoUsageResult(result *OpenAIForwardResult, billingModels []string) bool {
 	if result == nil || result.VideoCount <= 0 {
 		return false
 	}
 	candidates := append([]string{}, billingModels...)
 	candidates = append(candidates, result.BillingModel, result.Model, result.UpstreamModel)
 	for _, candidate := range candidates {
-		if isGrokVideoBillingModel(candidate) {
+		if isOpenAIVideoBillingModel(candidate) {
 			return true
 		}
 	}

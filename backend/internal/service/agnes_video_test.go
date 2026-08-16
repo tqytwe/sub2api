@@ -50,3 +50,10 @@ func TestExtractAgnesVideoResponseIDPrefersVideoID(t *testing.T) {
 	require.Equal(t, "video_3", ExtractAgnesVideoResponseID(body))
 	require.Equal(t, "agnes-video:video_3", AgnesVideoSessionHash(" video_3 "))
 }
+
+func TestExtractAgnesVideoBillingMetadata(t *testing.T) {
+	resolution, seconds := ExtractAgnesVideoBillingMetadata([]byte(`{"dimensions":"1280x720","num_frames":137,"frame_rate":24}`))
+	require.Equal(t, VideoBillingResolution720P, resolution)
+	require.Equal(t, 6, seconds)
+	require.Equal(t, "agnes-video:task_123", StableAgnesVideoBillingRequestID("task_123"))
+}
