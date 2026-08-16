@@ -922,7 +922,7 @@ idempotency:
 # AI 创作空间网页入口
 # =============================================================================
 ai_creation_space:
-  public_url: https://jisudengcanvas.zeabur.app
+  public_url: https://canvas.jisudeng.com
 
 # =============================================================================
 # Concurrency Wait Configuration

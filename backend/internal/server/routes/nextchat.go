@@ -523,15 +523,23 @@ func handleNextChatMobileBootstrap(
 		payload["sessions"] = gin.H{
 			service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
 			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
+			service.NextChatSessionPurposeVideo: nextChatSessionPayload(&sessions.Video, expiresAt),
 		}
 		if imagePayload, imageErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Image.UserID, sessions.Image.KeyID); imageErr == nil {
+			videoPayload, videoErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Video.UserID, sessions.Video.KeyID)
+			if videoErr != nil {
+				response.ErrorFrom(c, videoErr)
+				return
+			}
 			payload["managed_api_keys"] = gin.H{
 				service.NextChatSessionPurposeChat:  payload["managed_api_key"],
 				service.NextChatSessionPurposeImage: imagePayload["managed_api_key"],
+				service.NextChatSessionPurposeVideo: videoPayload["managed_api_key"],
 			}
 			payload["workspaces"] = gin.H{
 				service.NextChatSessionPurposeChat:  gin.H{"models": payload["models"]},
 				service.NextChatSessionPurposeImage: gin.H{"models": imagePayload["models"]},
+				service.NextChatSessionPurposeVideo: gin.H{"models": videoPayload["models"]},
 			}
 		}
 	}
@@ -1106,6 +1114,7 @@ func handleNextChatSessionExchange(
 		payload["sessions"] = gin.H{
 			service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
 			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
+			service.NextChatSessionPurposeVideo: nextChatSessionPayload(&sessions.Video, expiresAt),
 		}
 		response.Success(c, payload)
 		return
@@ -1199,7 +1208,7 @@ func nextChatLaunchTokenKey(token string) string {
 }
 
 func nextChatLaunchURL(cfg *config.Config, token string, intent *nextChatLaunchIntent) string {
-	base := "https://jisudengcanvas.zeabur.app"
+	base := "https://canvas.jisudeng.com"
 	if cfg != nil {
 		if strings.TrimSpace(cfg.AICreationSpace.PublicURL) != "" {
 			base = strings.TrimSpace(cfg.AICreationSpace.PublicURL)

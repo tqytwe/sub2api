@@ -2391,7 +2391,7 @@ func setDefaults() {
 	viper.SetDefault("idempotency.max_stored_response_len", 64*1024)
 	viper.SetDefault("idempotency.cleanup_interval_seconds", 60)
 	viper.SetDefault("idempotency.cleanup_batch_size", 500)
-	viper.SetDefault("ai_creation_space.public_url", "https://jisudengcanvas.zeabur.app")
+	viper.SetDefault("ai_creation_space.public_url", "https://canvas.jisudeng.com")
 	viper.SetDefault("nextchat.public_url", "/ai")
 	viper.SetDefault("nextchat.launch_token_ttl_seconds", 120)
 	viper.SetDefault("nextchat.session_ttl_seconds", 604800)
