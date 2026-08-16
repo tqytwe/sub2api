@@ -15,8 +15,10 @@ const (
 	NextChatManagedAPIKeyName       = NextChatManagedAPIKeyNamePrefix + " AI 创作"
 	NextChatManagedChatAPIKeyName   = NextChatManagedAPIKeyNamePrefix + " Chat"
 	NextChatManagedImageAPIKeyName  = NextChatManagedAPIKeyNamePrefix + " Image"
+	NextChatManagedVideoAPIKeyName  = NextChatManagedAPIKeyNamePrefix + " Video"
 	NextChatSessionPurposeChat      = "chat"
 	NextChatSessionPurposeImage     = "image"
+	NextChatSessionPurposeVideo     = "video"
 )
 
 type NextChatManagedSession struct {
@@ -29,6 +31,7 @@ type NextChatManagedSession struct {
 type NextChatManagedSessions struct {
 	Chat  NextChatManagedSession `json:"chat"`
 	Image NextChatManagedSession `json:"image"`
+	Video NextChatManagedSession `json:"video"`
 }
 
 type NextChatWorkspaceUser struct {
@@ -141,7 +144,11 @@ func (s *APIKeyService) IssueNextChatManagedSessions(ctx context.Context, userID
 	if err != nil {
 		return nil, err
 	}
-	return &NextChatManagedSessions{Chat: *chat, Image: *image}, nil
+	video, err := s.IssueNextChatManagedSessionForPurpose(ctx, userID, NextChatSessionPurposeVideo)
+	if err != nil {
+		return nil, err
+	}
+	return &NextChatManagedSessions{Chat: *chat, Image: *image, Video: *video}, nil
 }
 
 func (s *APIKeyService) IssueNextChatManagedSessionForPurpose(ctx context.Context, userID int64, purpose string) (*NextChatManagedSession, error) {
@@ -204,8 +211,10 @@ func normalizeNextChatSessionPurpose(purpose string) (string, string, error) {
 		return NextChatSessionPurposeChat, NextChatManagedAPIKeyName, nil
 	case NextChatSessionPurposeImage:
 		return NextChatSessionPurposeImage, NextChatManagedImageAPIKeyName, nil
+	case NextChatSessionPurposeVideo:
+		return NextChatSessionPurposeVideo, NextChatManagedVideoAPIKeyName, nil
 	default:
-		return "", "", infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat or image")
+		return "", "", infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat, image, or video")
 	}
 }
 
@@ -450,6 +459,8 @@ func nextChatManagedKeyMatchesPurpose(name, purpose string) bool {
 		return name == NextChatManagedAPIKeyName || name == NextChatManagedChatAPIKeyName
 	case NextChatSessionPurposeImage:
 		return name == NextChatManagedImageAPIKeyName
+	case NextChatSessionPurposeVideo:
+		return name == NextChatManagedVideoAPIKeyName
 	default:
 		return false
 	}

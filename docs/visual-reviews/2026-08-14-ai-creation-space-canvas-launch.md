@@ -95,7 +95,7 @@ reused. No new page width, visual language, animation or storage UI was introduc
 
 - Loading: secure launch session is being created.
 - Error: existing localized error state keeps retry and dashboard actions.
-- Success: the browser is redirected to `https://jisudengcanvas.zeabur.app` with the
+- Success: the browser is redirected to `https://canvas.jisudeng.com` with the
   one-time launch token; the token is exchanged server-side by Canvas.
 
 ## Viewport Coverage

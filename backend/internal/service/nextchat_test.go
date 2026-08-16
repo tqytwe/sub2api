@@ -139,17 +139,20 @@ func TestIssueNextChatManagedSessionReusesExistingManagedKey(t *testing.T) {
 	require.Empty(t, repo.updated)
 }
 
-func TestIssueNextChatManagedSessionsKeepsChatAndImageIndependent(t *testing.T) {
+func TestIssueNextChatManagedSessionsKeepsPurposesIndependent(t *testing.T) {
 	chatGroupID := int64(7)
 	imageGroupID := int64(8)
+	videoGroupID := int64(9)
 	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
 		{ID: 2, UserID: 42, Name: NextChatManagedAPIKeyName, Key: "sk-chat", Status: StatusActive, GroupID: &chatGroupID},
 		{ID: 3, UserID: 42, Name: NextChatManagedImageAPIKeyName, Key: "sk-image", Status: StatusActive, GroupID: &imageGroupID},
+		{ID: 4, UserID: 42, Name: NextChatManagedVideoAPIKeyName, Key: "sk-video", Status: StatusActive, GroupID: &videoGroupID},
 	}}
 	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
 	groupRepo := &nextChatGroupRepoStub{groups: []Group{
 		{ID: chatGroupID, Platform: PlatformOpenAI, Status: StatusActive},
 		{ID: imageGroupID, Platform: PlatformGrok, Status: StatusActive},
+		{ID: videoGroupID, Platform: PlatformOpenAI, Status: StatusActive},
 	}}
 	svc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{})
 
@@ -157,18 +160,43 @@ func TestIssueNextChatManagedSessionsKeepsChatAndImageIndependent(t *testing.T) 
 	require.NoError(t, err)
 	require.Equal(t, int64(2), sessions.Chat.KeyID)
 	require.Equal(t, int64(3), sessions.Image.KeyID)
+	require.Equal(t, int64(4), sessions.Video.KeyID)
 	require.Equal(t, NextChatSessionPurposeChat, sessions.Chat.Purpose)
 	require.Equal(t, NextChatSessionPurposeImage, sessions.Image.Purpose)
+	require.Equal(t, NextChatSessionPurposeVideo, sessions.Video.Purpose)
 
 	_, err = svc.SetNextChatManagedSessionGroup(context.Background(), 42, NextChatSessionPurposeChat, imageGroupID)
 	require.NoError(t, err)
 	require.Equal(t, imageGroupID, *repo.keys[0].GroupID)
 	require.Equal(t, imageGroupID, *repo.keys[1].GroupID, "image session must not be modified by chat switch")
+	require.Equal(t, videoGroupID, *repo.keys[2].GroupID, "video session must not be modified by chat switch")
 
 	_, err = svc.SetNextChatManagedSessionGroup(context.Background(), 42, NextChatSessionPurposeImage, chatGroupID)
 	require.NoError(t, err)
 	require.Equal(t, imageGroupID, *repo.keys[0].GroupID, "chat session must not be modified by image switch")
 	require.Equal(t, chatGroupID, *repo.keys[1].GroupID)
+	require.Equal(t, videoGroupID, *repo.keys[2].GroupID, "video session must not be modified by image switch")
+
+	_, err = svc.SetNextChatManagedSessionGroup(context.Background(), 42, NextChatSessionPurposeVideo, chatGroupID)
+	require.NoError(t, err)
+	require.Equal(t, imageGroupID, *repo.keys[0].GroupID, "chat session must not be modified by video switch")
+	require.Equal(t, chatGroupID, *repo.keys[1].GroupID, "image session must not be modified by video switch")
+	require.Equal(t, chatGroupID, *repo.keys[2].GroupID)
+}
+
+func TestIssueNextChatManagedSessionForVideoDoesNotReuseChatKey(t *testing.T) {
+	groupID := int64(7)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{ID: 2, UserID: 42, Name: NextChatManagedAPIKeyName, Key: "sk-chat", Status: StatusActive, GroupID: &groupID},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{{ID: groupID, Platform: PlatformOpenAI, Status: StatusActive}}}
+	svc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{Default: config.DefaultConfig{APIKeyPrefix: "sk-test-"}})
+
+	video, err := svc.IssueNextChatManagedSessionForPurpose(context.Background(), 42, NextChatSessionPurposeVideo)
+	require.NoError(t, err)
+	require.NotEqual(t, int64(2), video.KeyID)
+	require.Equal(t, NextChatManagedVideoAPIKeyName, repo.created[0].Name)
 }
 
 func TestIssueNextChatManagedSessionForImageDoesNotReuseChatKey(t *testing.T) {
