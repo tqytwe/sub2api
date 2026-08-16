@@ -5,7 +5,7 @@
 > API Key：`https://www.jisudeng.com/keys`
 > 模型与价格：`https://www.jisudeng.com/models`
 > API 地址：`https://api.jisudeng.com`
-> 最后核验：2026-07-20
+> 最后核验：2026-08-16
 
 ## 现在怎么用
 
@@ -185,7 +185,9 @@ jq -r '.data[0].b64_json' grok-response.json | base64 -d > grok-image.png
 ## 一次生成多张
 
 `n` 正式支持 1-10。对不接受上游多图字段的 Responses/Gemini 兼容路径，网关会
-删除不兼容字段并执行多个 `n=1` 子请求。`stream=true` 只允许 `n=1`。
+删除不兼容字段并执行多个单图子请求。Agnes 2.0/2.1 的官方协议没有定义 `n`，
+网关同样不会把 `n` 传给 Agnes，而是在一个平台请求内顺序执行对应数量的单图调用。
+客户端不得按模型名自行并发拆分请求。`stream=true` 只允许 `n=1`。
 
 把 `n` 改成需要的张数即可，例如一次出 4 张：
 
@@ -216,6 +218,22 @@ done
 `failed_n`，只按实际成功图片结算。全部失败时返回标准错误。
 
 计费按实际图片张数计算。`n=4` 最多请求 4 张图，不是 1 次请求只算 1 张。
+
+## Agnes 2.0 / 2.1 适配合同
+
+主平台公开入口仍是 OpenAI 兼容的 `/v1/images/generations`，客户端不直接拼 Agnes
+上游地址。网关负责以下差异：
+
+- `agnes-image-2.0-flash` 使用精确像素 `size`，上游请求不带 `ratio`。
+- `agnes-image-2.1-flash` 使用 `1K / 2K / 3K / 4K` 与受支持的 `ratio`；网关会从平台尺寸推导并规范化。
+- 客户端可继续传顶层 `response_format`；网关会移动到 Agnes 要求的 `extra_body.response_format`。
+- Agnes 不接受平台通用的 `output_format`，网关会在调用上游前删除。
+- Agnes 官方没有定义 `n`；平台接收 `n=1-10` 后顺序 fan-out，并汇总部分成功结果。
+
+Agnes 官方文档还定义了通过 `/images/generations` 的 `extra_body.image` 做图生图和多图
+合成，但主平台当前受控适配只开放 Agnes 文生图。`/v1/images/edits` 和
+`/v1/images/edits/async` 暂不用于 Agnes；客户端有参考图时应禁用 Agnes 或切换到已
+声明 edit capability 的模型，不能静默退回文生图。
 
 ## 多个 prompt 批量生成
 

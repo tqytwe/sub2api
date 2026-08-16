@@ -1,7 +1,7 @@
 # Gateway 单请求异步图片任务
 
 > 状态：active
-> 最后核验：2026-07-20
+> 最后核验：2026-08-16
 
 Gateway async 让客户端提交一个 OpenAI-compatible Images 请求后立即获得任务 ID，不需要保持长 HTTP 连接。它适合 GPT、Grok、Agnes、Gemini 等图片模型的长耗时生成与编辑；多个 prompt 的持久批任务应使用 `/v1/images/batches`。
 
@@ -166,6 +166,30 @@ Cache-Control: no-store
 同步接口的请求校验契约同样适用于异步提交：空白 prompt 返回
 `400 IMAGE_PROMPT_REQUIRED`，非法 `response_format` 返回
 `400 IMAGE_RESPONSE_FORMAT_INVALID`，且都发生在任务创建和入队之前。
+
+## Canvas 托管模式调用约束
+
+Canvas 通过自己的同源代理调用主平台 Gateway：
+
+```text
+POST /api/platform/gateway/v1/images/generations/async
+POST /api/platform/gateway/v1/images/edits/async
+GET  /api/platform/gateway/v1/images/tasks/{task_id}
+```
+
+一次用户操作只提交一个异步任务，并把用户选择的输出数放在 `n`，范围为 `1-10`。
+不要根据 `gpt-image`、`agnes` 或其他模型名在浏览器并发发送 N 个任务。主平台会按
+模型协议决定直接透传还是在同一任务中顺序 fan-out；Agnes 的上游请求不会携带官方
+未定义的 `n` 字段。
+
+每次新提交生成新的 `Idempotency-Key`；网络重试必须复用原 key。轮询使用响应里的
+`poll_url`，并解析 `result.data` 中的全部图片。同步 fan-out 的部分成功元数据为
+`requested_n / completed_n / failed_n`；异步任务完成后以 `result.data.length` 为实际
+成功数量，不得假设每个任务只返回一张。
+
+Canvas 所有数量输入都必须以主平台 Images API 的 `1-10` 合同为准。当前主平台这条
+调用链没有“最多 4 张”的限制；也不要在 Canvas 的其他面板保留 `15` 之类与服务端
+合同不一致的上限。
 
 ## 轮询
 

@@ -672,7 +672,9 @@ func shouldFanOutOpenAIImages(account *Account, parsed *OpenAIImagesRequest, cha
 	if mapped := strings.TrimSpace(channelMappedModel); mapped != "" {
 		requestModel = mapped
 	}
-	return isGeminiOpenAICompatibleImageModel(account.GetMappedModel(requestModel))
+	upstreamModel := account.GetMappedModel(requestModel)
+	return isGeminiOpenAICompatibleImageModel(upstreamModel) ||
+		adaptedImageModelRequiresOutputFanout(upstreamModel)
 }
 
 func (s *OpenAIGatewayService) forwardOpenAIImagesFanout(
