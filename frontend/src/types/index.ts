@@ -2056,6 +2056,21 @@ export interface UserSubscription {
   assigned_at?: string
   notes?: string
   purchase_order?: SubscriptionPurchaseOrder | null
+  package_entitlement?: PackageEntitlement | null
+}
+
+export interface PackageEntitlement {
+  id: number
+  payment_order_id: number
+  expires_at: string
+  status: 'active' | 'exhausted' | 'expired'
+  exhausted_reason: 'request' | 'amount' | 'token' | null
+  request_limit: number | null
+  request_used: number
+  amount_limit_usd: number | null
+  amount_used_usd: number
+  token_limit: number | null
+  token_used: number
 }
 
 export interface SubscriptionPurchaseOrder {

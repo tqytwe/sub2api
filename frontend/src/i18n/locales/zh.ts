@@ -4416,7 +4416,13 @@ const messages = {
         active: '生效中',
         expired: '已过期',
         revoked: '已撤销',
-        suspended: '已暂停'
+        suspended: '已暂停',
+        packageExhausted: '套餐已耗尽'
+      },
+      packageUsage: {
+        request: '请求',
+        amount: '金额',
+        token: '令牌'
       },
       columns: {
         user: '用户',
@@ -4449,6 +4455,8 @@ const messages = {
       resetQuota: '重置配额',
       resetQuotaTitle: '重置用量配额',
       resetQuotaConfirm: "确定要重置 '{user}' 的每日、每周和每月用量配额吗？用量将归零并从今天开始重新计算。",
+      resetPackageQuotaTitle: '重置套餐用量',
+      resetPackageQuotaConfirm: "确定要重置 '{user}' 当前套餐的请求、金额和令牌用量吗？仅重置当前未到期套餐，后续续费套餐不会受影响。",
       quotaResetSuccess: '配额重置成功',
       failedToResetQuota: '重置配额失败',
       noSubscriptionsYet: '暂无订阅',

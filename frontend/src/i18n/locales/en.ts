@@ -4342,7 +4342,13 @@ const messages = {
         active: 'Active',
         expired: 'Expired',
         revoked: 'Revoked',
-        suspended: 'Suspended'
+        suspended: 'Suspended',
+        packageExhausted: 'Package exhausted'
+      },
+      packageUsage: {
+        request: 'Requests',
+        amount: 'Amount',
+        token: 'Tokens'
       },
       columns: {
         user: 'User',
@@ -4375,6 +4381,8 @@ const messages = {
       resetQuota: 'Reset Quota',
       resetQuotaTitle: 'Reset Usage Quota',
       resetQuotaConfirm: "Reset the daily, weekly, and monthly usage quota for '{user}'? Usage will be zeroed and windows restarted from today.",
+      resetPackageQuotaTitle: 'Reset Package Usage',
+      resetPackageQuotaConfirm: "Reset request, amount, and Token usage for {user}'s current package? Only the current unexpired package will be reset; later renewals are unchanged.",
       quotaResetSuccess: 'Quota reset successfully',
       failedToResetQuota: 'Failed to reset quota',
       noSubscriptionsYet: 'No subscriptions yet',

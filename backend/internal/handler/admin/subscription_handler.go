@@ -224,7 +224,8 @@ type ResetSubscriptionQuotaRequest struct {
 	Monthly bool `json:"monthly"`
 }
 
-// ResetQuota resets daily, weekly, and/or monthly usage for a subscription.
+// ResetQuota resets the current package counters, or the legacy daily, weekly,
+// and monthly counters for subscriptions without a package entitlement.
 // POST /api/v1/admin/subscriptions/:id/reset-quota
 func (h *SubscriptionHandler) ResetQuota(c *gin.Context) {
 	subscriptionID, err := strconv.ParseInt(c.Param("id"), 10, 64)
