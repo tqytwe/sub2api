@@ -419,7 +419,8 @@
               </div>
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.videoDuration') }}</span>
-                <span class="font-medium text-white">{{ tooltipData.video_duration_seconds ?? '-' }}s</span>
+                <span v-if="tooltipData.video_duration_seconds != null" class="font-medium text-white">{{ tooltipData.video_duration_seconds }}s</span>
+                <span v-else data-testid="video-duration-unavailable" class="font-medium text-amber-300">{{ t('usage.videoUnitPriceUnavailable') }}</span>
               </div>
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.videoUnitPrice') }}</span>
