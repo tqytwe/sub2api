@@ -1043,7 +1043,7 @@ type CostInput struct {
 	Group                     *Group
 	Tokens                    UsageTokens
 	RequestCount              int     // 按次计费时使用
-	UsageUnits                float64 // 音频等连续计量单位（分钟/小时/百万字符）
+	UsageUnits                float64 // 连续计量单位（音频为分钟/小时/百万字符；视频为秒数乘视频数）
 	SizeTier                  string  // 按次/图片模式的层级标签（"1K","2K","4K","HD" 等）
 	RateMultiplier            float64
 	ServiceTier               string                // "priority","flex","" 等
@@ -1052,7 +1052,7 @@ type CostInput struct {
 	LongContextBillingEnabled *bool
 }
 
-// CalculateCostUnified 统一计费入口，支持三种计费模式。
+// CalculateCostUnified 统一计费入口，支持 token、按次、图片和视频计费模式。
 // 使用 ModelPricingResolver 解析定价，然后根据 BillingMode 分发计算。
 func (s *BillingService) CalculateCostUnified(input CostInput) (*CostBreakdown, error) {
 	if input.Resolver == nil {
