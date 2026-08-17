@@ -802,12 +802,32 @@ func UserSubscriptionFromServiceAdmin(sub *service.UserSubscription) *AdminUserS
 		return nil
 	}
 	return &AdminUserSubscription{
-		UserSubscription: userSubscriptionFromServiceBase(sub),
-		AssignedBy:       sub.AssignedBy,
-		AssignedAt:       sub.AssignedAt,
-		Notes:            sub.Notes,
-		AssignedByUser:   UserFromServiceShallow(sub.AssignedByUser),
-		PurchaseOrder:    SubscriptionPurchaseOrderFromService(sub.PurchaseOrder),
+		UserSubscription:   userSubscriptionFromServiceBase(sub),
+		AssignedBy:         sub.AssignedBy,
+		AssignedAt:         sub.AssignedAt,
+		Notes:              sub.Notes,
+		AssignedByUser:     UserFromServiceShallow(sub.AssignedByUser),
+		PurchaseOrder:      SubscriptionPurchaseOrderFromService(sub.PurchaseOrder),
+		PackageEntitlement: PackageEntitlementFromService(sub.PackageEntitlement),
+	}
+}
+
+func PackageEntitlementFromService(entitlement *service.PackageEntitlement) *PackageEntitlement {
+	if entitlement == nil {
+		return nil
+	}
+	return &PackageEntitlement{
+		ID:              entitlement.ID,
+		PaymentOrderID:  entitlement.PaymentOrderID,
+		ExpiresAt:       entitlement.ExpiresAt,
+		Status:          entitlement.Status,
+		ExhaustedReason: entitlement.ExhaustedReason,
+		RequestLimit:    entitlement.RequestLimit,
+		RequestUsed:     entitlement.RequestUsed,
+		AmountLimitUSD:  entitlement.AmountLimitUSD,
+		AmountUsedUSD:   entitlement.AmountUsedUSD,
+		TokenLimit:      entitlement.TokenLimit,
+		TokenUsed:       entitlement.TokenUsed,
 	}
 }
 

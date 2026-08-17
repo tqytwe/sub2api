@@ -213,6 +213,27 @@
 
           <template #cell-usage="{ row }">
             <div class="min-w-[280px] space-y-2">
+              <template v-if="row.package_entitlement">
+                <div v-for="quota in packageQuotaRows(row.package_entitlement)" :key="quota.dimension" class="usage-row">
+                  <div class="flex items-center gap-2">
+                    <span class="usage-label">{{ packageQuotaLabel(quota.dimension) }}</span>
+                    <div class="h-1.5 flex-1 rounded-full bg-gray-200 dark:bg-dark-600">
+                      <div
+                        class="h-1.5 rounded-full transition-[width,background-color]"
+                        :class="getProgressClass(quota.used, quota.limit)"
+                        :style="{ width: getProgressWidth(quota.used, quota.limit) }"
+                      ></div>
+                    </div>
+                    <span class="usage-amount tabular-nums">
+                      {{ formatPackageQuotaValue(quota.dimension, quota.used) }}
+                      <span class="text-gray-400">/</span>
+                      {{ formatPackageQuotaValue(quota.dimension, quota.limit) }}
+                    </span>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else>
               <!-- Daily Usage -->
               <div v-if="row.group?.daily_limit_usd" class="usage-row">
                 <div class="flex items-center gap-2">
@@ -338,6 +359,7 @@
                   {{ t('admin.subscriptions.unlimited') }}
                 </span>
               </div>
+              </template>
             </div>
           </template>
 
@@ -362,18 +384,18 @@
             }}</span>
           </template>
 
-          <template #cell-status="{ value }">
+          <template #cell-status="{ value, row }">
             <span
               :class="[
                 'badge',
-                value === 'active'
+                subscriptionDisplayStatus(row) === 'active'
                   ? 'badge-success'
-                  : value === 'expired'
+                  : subscriptionDisplayStatus(row) === 'expired'
                     ? 'badge-warning'
                     : 'badge-danger'
               ]"
             >
-              {{ t(`admin.subscriptions.status.${value}`) }}
+              {{ subscriptionDisplayStatusLabel(row, value) }}
             </span>
           </template>
 
@@ -667,8 +689,8 @@
     <!-- Reset Quota Confirmation Dialog -->
     <ConfirmDialog
       :show="showResetQuotaConfirm"
-      :title="t('admin.subscriptions.resetQuotaTitle')"
-      :message="t('admin.subscriptions.resetQuotaConfirm', { user: resettingSubscription?.user?.email })"
+      :title="resetQuotaDialogTitle"
+      :message="resetQuotaDialogMessage"
       :confirm-text="t('admin.subscriptions.resetQuota')"
       :cancel-text="t('common.cancel')"
       @confirm="confirmResetQuota"
@@ -764,7 +786,7 @@ import { adminAPI } from '@/api/admin'
 import type { UserSubscription, Group, GroupPlatform, SubscriptionType } from '@/types'
 import type { SimpleUser } from '@/api/admin/usage'
 import type { Column } from '@/components/common/types'
-import { formatDateTimeToMinute } from '@/utils/format'
+import { formatCurrency, formatDateTimeToMinute } from '@/utils/format'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -778,6 +800,7 @@ import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
 import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationParts } from '@/utils/subscriptionQuota'
+import { packageQuotaRows, type PackageQuotaDimension } from '@/utils/packageQuota'
 
 const { t } = useI18n()
 const appStore = useAppStore()
@@ -967,6 +990,20 @@ const resettingQuota = ref(false)
 const extendingSubscription = ref<UserSubscription | null>(null)
 const revokingSubscription = ref<UserSubscription | null>(null)
 const restoringSubscription = ref<UserSubscription | null>(null)
+
+const resetQuotaDialogTitle = computed(() =>
+  resettingSubscription.value?.package_entitlement
+    ? t('admin.subscriptions.resetPackageQuotaTitle')
+    : t('admin.subscriptions.resetQuotaTitle')
+)
+
+const resetQuotaDialogMessage = computed(() => {
+  const subscription = resettingSubscription.value
+  const user = subscription?.user?.email
+  return subscription?.package_entitlement
+    ? t('admin.subscriptions.resetPackageQuotaConfirm', { user })
+    : t('admin.subscriptions.resetQuotaConfirm', { user })
+})
 
 const assignForm = reactive({
   user_id: null as number | null,
@@ -1353,6 +1390,29 @@ const getProgressClass = (used: number | null | undefined, limit: number | null)
   if (percentage >= 90) return 'bg-red-500'
   if (percentage >= 70) return 'bg-orange-500'
   return 'bg-green-500'
+}
+
+const packageQuotaLabel = (dimension: PackageQuotaDimension): string => {
+  if (dimension === 'request') return t('admin.subscriptions.packageUsage.request')
+  if (dimension === 'amount') return t('admin.subscriptions.packageUsage.amount')
+  return t('admin.subscriptions.packageUsage.token')
+}
+
+const formatPackageQuotaValue = (dimension: PackageQuotaDimension, value: number): string => {
+  if (dimension === 'amount') return formatCurrency(value, 'USD')
+  return new Intl.NumberFormat().format(value)
+}
+
+const subscriptionDisplayStatus = (subscription: UserSubscription): string => {
+  if (subscription.status !== 'active') return subscription.status
+  if (subscription.package_entitlement?.status === 'exhausted') return 'packageExhausted'
+  return subscription.status
+}
+
+const subscriptionDisplayStatusLabel = (subscription: UserSubscription, fallbackStatus: string): string => {
+  const status = subscriptionDisplayStatus(subscription) || fallbackStatus
+  if (status === 'packageExhausted') return t('admin.subscriptions.status.packageExhausted')
+  return t(`admin.subscriptions.status.${status}`)
 }
 
 const formatResetDuration = (parts: RemainingDurationParts): string => {

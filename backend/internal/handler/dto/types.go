@@ -705,8 +705,25 @@ type AdminUserSubscription struct {
 	AssignedAt time.Time `json:"assigned_at"`
 	Notes      string    `json:"notes"`
 
-	AssignedByUser *User                      `json:"assigned_by_user,omitempty"`
-	PurchaseOrder  *SubscriptionPurchaseOrder `json:"purchase_order,omitempty"`
+	AssignedByUser     *User                      `json:"assigned_by_user,omitempty"`
+	PurchaseOrder      *SubscriptionPurchaseOrder `json:"purchase_order,omitempty"`
+	PackageEntitlement *PackageEntitlement        `json:"package_entitlement,omitempty"`
+}
+
+// PackageEntitlement is the current immutable package snapshot returned to
+// administrators for a package-managed subscription.
+type PackageEntitlement struct {
+	ID              int64     `json:"id"`
+	PaymentOrderID  int64     `json:"payment_order_id"`
+	ExpiresAt       time.Time `json:"expires_at"`
+	Status          string    `json:"status"`
+	ExhaustedReason string    `json:"exhausted_reason,omitempty"`
+	RequestLimit    *int64    `json:"request_limit"`
+	RequestUsed     int64     `json:"request_used"`
+	AmountLimitUSD  *float64  `json:"amount_limit_usd"`
+	AmountUsedUSD   float64   `json:"amount_used_usd"`
+	TokenLimit      *int64    `json:"token_limit"`
+	TokenUsed       int64     `json:"token_used"`
 }
 
 type BulkAssignResult struct {

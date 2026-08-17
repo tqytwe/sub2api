@@ -826,6 +826,9 @@ func (s *SubscriptionService) List(ctx context.Context, page, pageSize int, user
 	}
 	normalizeExpiredWindows(subs)
 	normalizeSubscriptionStatus(subs)
+	if err := s.attachPackageEntitlements(ctx, subs); err != nil {
+		return nil, nil, err
+	}
 	return subs, pag, nil
 }
 
@@ -888,7 +891,9 @@ func (s *SubscriptionService) checkAndActivateWindowAt(ctx context.Context, sub 
 	return s.userSubRepo.ActivateWindows(ctx, sub.ID, timezone.StartOfDay(now), now)
 }
 
-// AdminResetQuota manually resets the daily, weekly, and/or monthly usage windows.
+// AdminResetQuota resets the current unexpired package entitlement when one
+// exists. Legacy subscriptions retain their daily, weekly, and monthly reset
+// behavior.
 func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionID int64, resetDaily, resetWeekly, resetMonthly bool) (*UserSubscription, error) {
 	if !resetDaily && !resetWeekly && !resetMonthly {
 		return nil, ErrInvalidInput
@@ -897,11 +902,36 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	if err != nil {
 		return nil, err
 	}
-	now := s.now()
-	// 日窗口锚点取当天 0 点：手动重置只清空用量，不改变“每天 0 点刷新”的节奏。
-	// 周/月窗口保持锚定重置时刻（期限对齐滚动窗口语义）。
-	if err := s.userSubRepo.ResetUsageWindows(ctx, sub.ID, resetDaily, resetWeekly, resetMonthly, timezone.StartOfDay(now), now); err != nil {
+	packageEntitlement, packageManaged, err := s.packageEntitlementForAdmin(ctx, sub.UserID, sub.GroupID)
+	if err != nil {
 		return nil, err
+	}
+	if packageManaged {
+		if packageEntitlement == nil || packageEntitlement.Status == PackageEntitlementExpired {
+			return nil, ErrPackageEntitlementExpired
+		}
+		result, err := s.packageQuotaRunner(ctx).ExecContext(ctx, `
+			UPDATE subscription_package_entitlements
+			SET request_used = 0, amount_used_usd = 0, token_used = 0,
+				status = $2, exhausted_reason = NULL, updated_at = NOW()
+			WHERE id = $1 AND status <> 'revoked' AND expires_at > NOW()`, packageEntitlement.ID, PackageEntitlementActive)
+		if err != nil {
+			return nil, fmt.Errorf("reset package entitlement usage: %w", err)
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return nil, fmt.Errorf("inspect package entitlement reset: %w", err)
+		}
+		if affected == 0 {
+			return nil, ErrPackageEntitlementExpired
+		}
+	} else {
+		now := s.now()
+		// 日窗口锚点取当天 0 点：手动重置只清空用量，不改变“每天 0 点刷新”的节奏。
+		// 周/月窗口保持锚定重置时刻（期限对齐滚动窗口语义）。
+		if err := s.userSubRepo.ResetUsageWindows(ctx, sub.ID, resetDaily, resetWeekly, resetMonthly, timezone.StartOfDay(now), now); err != nil {
+			return nil, err
+		}
 	}
 	// Invalidate L1 ristretto cache. Ristretto's Del() is asynchronous by design,
 	// so call Wait() immediately after to flush pending operations and guarantee
@@ -910,8 +940,27 @@ func (s *SubscriptionService) AdminResetQuota(ctx context.Context, subscriptionI
 	if s.billingCacheService != nil {
 		_ = s.billingCacheService.InvalidateSubscription(ctx, sub.UserID, sub.GroupID)
 	}
-	// Return the refreshed subscription from DB
-	return s.userSubRepo.GetByID(ctx, subscriptionID)
+	// Return the refreshed subscription from DB, including the package snapshot
+	// used by the admin screen when this was a package-managed subscription.
+	refreshed, err := s.userSubRepo.GetByID(ctx, subscriptionID)
+	if err != nil {
+		return nil, err
+	}
+	if packageManaged {
+		refreshed.PackageEntitlement = &PackageEntitlement{
+			ID:             packageEntitlement.ID,
+			PaymentOrderID: packageEntitlement.PaymentOrderID,
+			UserID:         packageEntitlement.UserID,
+			GroupID:        packageEntitlement.GroupID,
+			StartsAt:       packageEntitlement.StartsAt,
+			ExpiresAt:      packageEntitlement.ExpiresAt,
+			Status:         PackageEntitlementActive,
+			RequestLimit:   packageEntitlement.RequestLimit,
+			AmountLimitUSD: packageEntitlement.AmountLimitUSD,
+			TokenLimit:     packageEntitlement.TokenLimit,
+		}
+	}
+	return refreshed, nil
 }
 
 // CheckAndResetWindows 检查并重置过期的窗口
