@@ -151,6 +151,26 @@
         <div><label class="input-label">{{ t('payment.admin.validity') }} <span class="text-red-500">*</span></label><input v-model.number="planForm.validity_days" type="number" min="1" class="input" required /></div>
         <div><label class="input-label">{{ t('payment.admin.validityUnit') }} <span class="text-red-500">*</span></label><Select v-model="planForm.validity_unit" :options="validityUnitOptions" /></div>
       </div>
+      <div class="rounded-lg border border-gray-200 p-4 dark:border-dark-600">
+        <div class="mb-3">
+          <h3 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('payment.admin.packageQuotaTitle') }}</h3>
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('payment.admin.packageQuotaHint') }}</p>
+        </div>
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div>
+            <label class="input-label">{{ t('payment.admin.requestLimit') }}</label>
+            <input v-model.number="planForm.request_limit" data-test="plan-request-limit" type="number" min="1" step="1" class="input" :placeholder="t('payment.admin.unlimited')" />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.amountLimitUSD') }}</label>
+            <input v-model.number="planForm.amount_limit_usd" data-test="plan-amount-limit" type="number" min="0.01" step="0.01" class="input" :placeholder="t('payment.admin.unlimited')" />
+          </div>
+          <div>
+            <label class="input-label">{{ t('payment.admin.tokenLimit') }}</label>
+            <input v-model.number="planForm.token_limit" data-test="plan-token-limit" type="number" min="1" step="1" class="input" :placeholder="t('payment.admin.unlimited')" />
+          </div>
+        </div>
+      </div>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div><label class="input-label">{{ t('payment.admin.sortOrder') }}</label><input v-model.number="planForm.sort_order" type="number" min="0" class="input" /></div>
         <div>
@@ -196,7 +216,7 @@ import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminPaymentAPI } from '@/api/admin/payment'
 import type { AdminPaymentConfig } from '@/api/admin/payment'
-import { extractApiErrorMessage } from '@/utils/apiError'
+import { extractI18nErrorMessage } from '@/utils/apiError'
 import { formatPaymentAmount } from '@/components/payment/currency'
 import type { SubscriptionPlan } from '@/types/payment'
 import type { AdminGroup } from '@/types'
@@ -239,6 +259,9 @@ const planForm = reactive({
   currency: '',
   validity_days: 30,
   validity_unit: 'days',
+  request_limit: null as number | null,
+  amount_limit_usd: null as number | null,
+  token_limit: null as number | null,
   sort_order: 0,
   for_sale: true,
 })
@@ -365,6 +388,9 @@ watch(() => props.show, (visible) => {
       currency: props.plan.currency || '',
       validity_days: props.plan.validity_days,
       validity_unit: props.plan.validity_unit || 'days',
+      request_limit: props.plan.request_limit ?? null,
+      amount_limit_usd: props.plan.amount_limit_usd ?? null,
+      token_limit: props.plan.token_limit ?? null,
       sort_order: props.plan.sort_order || 0,
       for_sale: props.plan.for_sale,
     })
@@ -386,6 +412,9 @@ watch(() => props.show, (visible) => {
       currency: '',
       validity_days: 30,
       validity_unit: 'days',
+      request_limit: null,
+      amount_limit_usd: null,
+      token_limit: null,
       sort_order: 0,
       for_sale: true,
     })
@@ -404,6 +433,9 @@ watch(() => planForm.group_id, (newGroupId, oldGroupId) => {
 /** Build request payload with snake_case keys matching backend JSON tags */
 function buildPlanPayload() {
   const features = planFeaturesText.value.split('\n').map(f => f.trim()).filter(Boolean).join('\n')
+  const requestLimit = optionalPlanLimit(planForm.request_limit)
+  const amountLimitUSD = optionalPlanLimit(planForm.amount_limit_usd)
+  const tokenLimit = optionalPlanLimit(planForm.token_limit)
   return {
     name: planForm.name,
     group_id: planForm.group_id,
@@ -420,10 +452,24 @@ function buildPlanPayload() {
     currency: planForm.currency.trim().toUpperCase(),
     validity_days: planForm.validity_days,
     validity_unit: planForm.validity_unit,
+    request_limit: requestLimit,
+    amount_limit_usd: amountLimitUSD,
+    token_limit: tokenLimit,
+    clear_request_limit: requestLimit === null,
+    clear_amount_limit_usd: amountLimitUSD === null,
+    clear_token_limit: tokenLimit === null,
     sort_order: planForm.sort_order,
     for_sale: planForm.for_sale,
     features,
   }
+}
+
+// Vue preserves an emptied number input as an empty string. Normalize it so an
+// administrator can intentionally remove a package cap through the API.
+function optionalPlanLimit(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
 }
 
 async function handleSavePlan() {
@@ -447,7 +493,7 @@ async function handleSavePlan() {
     appStore.showSuccess(t('common.saved'))
     emit('close')
     emit('saved')
-  } catch (err: unknown) { appStore.showError(extractApiErrorMessage(err, t('common.error'))) }
+  } catch (err: unknown) { appStore.showError(extractI18nErrorMessage(err, t, 'payment.errors', t('common.error'))) }
   finally { saving.value = false }
 }
 </script>

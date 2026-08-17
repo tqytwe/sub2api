@@ -23,6 +23,9 @@ const i18n = createI18n({
         selectPlan: 'Select Plan',
         planCard: {
           dailyLimit: 'Daily',
+		  requestLimit: 'Requests',
+		  amountLimit: 'Amount',
+		  tokenLimit: 'Tokens',
           featured: 'Recommended',
           monthlyLimit: 'Monthly',
           quota: 'Quota',
@@ -115,4 +118,14 @@ describe('SubscriptionPlanDecisionShelf', () => {
     expect(wrapper.emitted('details')?.[0]).toBeTruthy()
     expect(wrapper.emitted('select')?.[0]).toBeTruthy()
   })
+
+	it('shows each configured package hard limit', () => {
+		const wrapper = mount(SubscriptionPlanDecisionShelf, {
+			props: { plans: [planFixture(1, { request_limit: 10000, amount_limit_usd: 700, token_limit: 100000000 })] },
+			global: { plugins: [i18n] },
+		})
+		expect(wrapper.text()).toContain('payment.planCard.requestLimit')
+		expect(wrapper.text()).toContain('payment.planCard.amountLimit')
+		expect(wrapper.text()).toContain('payment.planCard.tokenLimit')
+	})
 })

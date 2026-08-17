@@ -376,6 +376,9 @@ type AdminSubscriptionPlanResult struct {
 	Currency        string    `json:"currency,omitempty"`
 	ValidityDays    int       `json:"validity_days"`
 	ValidityUnit    string    `json:"validity_unit"`
+	RequestLimit    *int64    `json:"request_limit,omitempty"`
+	AmountLimitUSD  *float64  `json:"amount_limit_usd,omitempty"`
+	TokenLimit      *int64    `json:"token_limit,omitempty"`
 	Features        string    `json:"features"`
 	ProductName     string    `json:"product_name"`
 	ForSale         bool      `json:"for_sale"`
@@ -408,6 +411,9 @@ func adminSubscriptionPlansForResponse(plans []*dbent.SubscriptionPlan, groupInf
 			Currency:        p.Currency,
 			ValidityDays:    p.ValidityDays,
 			ValidityUnit:    p.ValidityUnit,
+			RequestLimit:    p.RequestLimit,
+			AmountLimitUSD:  p.AmountLimitUsd,
+			TokenLimit:      p.TokenLimit,
 			Features:        p.Features,
 			ProductName:     p.ProductName,
 			ForSale:         p.ForSale,

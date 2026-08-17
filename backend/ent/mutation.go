@@ -50391,6 +50391,12 @@ type SubscriptionPlanMutation struct {
 	validity_days       *int
 	addvalidity_days    *int
 	validity_unit       *string
+	request_limit       *int64
+	addrequest_limit    *int64
+	amount_limit_usd    *float64
+	addamount_limit_usd *float64
+	token_limit         *int64
+	addtoken_limit      *int64
 	features            *string
 	product_name        *string
 	cover_image_url     *string
@@ -50890,6 +50896,216 @@ func (m *SubscriptionPlanMutation) ResetValidityUnit() {
 	m.validity_unit = nil
 }
 
+// SetRequestLimit sets the "request_limit" field.
+func (m *SubscriptionPlanMutation) SetRequestLimit(i int64) {
+	m.request_limit = &i
+	m.addrequest_limit = nil
+}
+
+// RequestLimit returns the value of the "request_limit" field in the mutation.
+func (m *SubscriptionPlanMutation) RequestLimit() (r int64, exists bool) {
+	v := m.request_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestLimit returns the old "request_limit" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldRequestLimit(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestLimit: %w", err)
+	}
+	return oldValue.RequestLimit, nil
+}
+
+// AddRequestLimit adds i to the "request_limit" field.
+func (m *SubscriptionPlanMutation) AddRequestLimit(i int64) {
+	if m.addrequest_limit != nil {
+		*m.addrequest_limit += i
+	} else {
+		m.addrequest_limit = &i
+	}
+}
+
+// AddedRequestLimit returns the value that was added to the "request_limit" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedRequestLimit() (r int64, exists bool) {
+	v := m.addrequest_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearRequestLimit clears the value of the "request_limit" field.
+func (m *SubscriptionPlanMutation) ClearRequestLimit() {
+	m.request_limit = nil
+	m.addrequest_limit = nil
+	m.clearedFields[subscriptionplan.FieldRequestLimit] = struct{}{}
+}
+
+// RequestLimitCleared returns if the "request_limit" field was cleared in this mutation.
+func (m *SubscriptionPlanMutation) RequestLimitCleared() bool {
+	_, ok := m.clearedFields[subscriptionplan.FieldRequestLimit]
+	return ok
+}
+
+// ResetRequestLimit resets all changes to the "request_limit" field.
+func (m *SubscriptionPlanMutation) ResetRequestLimit() {
+	m.request_limit = nil
+	m.addrequest_limit = nil
+	delete(m.clearedFields, subscriptionplan.FieldRequestLimit)
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (m *SubscriptionPlanMutation) SetAmountLimitUsd(f float64) {
+	m.amount_limit_usd = &f
+	m.addamount_limit_usd = nil
+}
+
+// AmountLimitUsd returns the value of the "amount_limit_usd" field in the mutation.
+func (m *SubscriptionPlanMutation) AmountLimitUsd() (r float64, exists bool) {
+	v := m.amount_limit_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAmountLimitUsd returns the old "amount_limit_usd" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldAmountLimitUsd(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAmountLimitUsd is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAmountLimitUsd requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAmountLimitUsd: %w", err)
+	}
+	return oldValue.AmountLimitUsd, nil
+}
+
+// AddAmountLimitUsd adds f to the "amount_limit_usd" field.
+func (m *SubscriptionPlanMutation) AddAmountLimitUsd(f float64) {
+	if m.addamount_limit_usd != nil {
+		*m.addamount_limit_usd += f
+	} else {
+		m.addamount_limit_usd = &f
+	}
+}
+
+// AddedAmountLimitUsd returns the value that was added to the "amount_limit_usd" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedAmountLimitUsd() (r float64, exists bool) {
+	v := m.addamount_limit_usd
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearAmountLimitUsd clears the value of the "amount_limit_usd" field.
+func (m *SubscriptionPlanMutation) ClearAmountLimitUsd() {
+	m.amount_limit_usd = nil
+	m.addamount_limit_usd = nil
+	m.clearedFields[subscriptionplan.FieldAmountLimitUsd] = struct{}{}
+}
+
+// AmountLimitUsdCleared returns if the "amount_limit_usd" field was cleared in this mutation.
+func (m *SubscriptionPlanMutation) AmountLimitUsdCleared() bool {
+	_, ok := m.clearedFields[subscriptionplan.FieldAmountLimitUsd]
+	return ok
+}
+
+// ResetAmountLimitUsd resets all changes to the "amount_limit_usd" field.
+func (m *SubscriptionPlanMutation) ResetAmountLimitUsd() {
+	m.amount_limit_usd = nil
+	m.addamount_limit_usd = nil
+	delete(m.clearedFields, subscriptionplan.FieldAmountLimitUsd)
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (m *SubscriptionPlanMutation) SetTokenLimit(i int64) {
+	m.token_limit = &i
+	m.addtoken_limit = nil
+}
+
+// TokenLimit returns the value of the "token_limit" field in the mutation.
+func (m *SubscriptionPlanMutation) TokenLimit() (r int64, exists bool) {
+	v := m.token_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTokenLimit returns the old "token_limit" field's value of the SubscriptionPlan entity.
+// If the SubscriptionPlan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SubscriptionPlanMutation) OldTokenLimit(ctx context.Context) (v *int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTokenLimit is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTokenLimit requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTokenLimit: %w", err)
+	}
+	return oldValue.TokenLimit, nil
+}
+
+// AddTokenLimit adds i to the "token_limit" field.
+func (m *SubscriptionPlanMutation) AddTokenLimit(i int64) {
+	if m.addtoken_limit != nil {
+		*m.addtoken_limit += i
+	} else {
+		m.addtoken_limit = &i
+	}
+}
+
+// AddedTokenLimit returns the value that was added to the "token_limit" field in this mutation.
+func (m *SubscriptionPlanMutation) AddedTokenLimit() (r int64, exists bool) {
+	v := m.addtoken_limit
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearTokenLimit clears the value of the "token_limit" field.
+func (m *SubscriptionPlanMutation) ClearTokenLimit() {
+	m.token_limit = nil
+	m.addtoken_limit = nil
+	m.clearedFields[subscriptionplan.FieldTokenLimit] = struct{}{}
+}
+
+// TokenLimitCleared returns if the "token_limit" field was cleared in this mutation.
+func (m *SubscriptionPlanMutation) TokenLimitCleared() bool {
+	_, ok := m.clearedFields[subscriptionplan.FieldTokenLimit]
+	return ok
+}
+
+// ResetTokenLimit resets all changes to the "token_limit" field.
+func (m *SubscriptionPlanMutation) ResetTokenLimit() {
+	m.token_limit = nil
+	m.addtoken_limit = nil
+	delete(m.clearedFields, subscriptionplan.FieldTokenLimit)
+}
+
 // SetFeatures sets the "features" field.
 func (m *SubscriptionPlanMutation) SetFeatures(s string) {
 	m.features = &s
@@ -51376,7 +51592,7 @@ func (m *SubscriptionPlanMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SubscriptionPlanMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 23)
 	if m.group_id != nil {
 		fields = append(fields, subscriptionplan.FieldGroupID)
 	}
@@ -51400,6 +51616,15 @@ func (m *SubscriptionPlanMutation) Fields() []string {
 	}
 	if m.validity_unit != nil {
 		fields = append(fields, subscriptionplan.FieldValidityUnit)
+	}
+	if m.request_limit != nil {
+		fields = append(fields, subscriptionplan.FieldRequestLimit)
+	}
+	if m.amount_limit_usd != nil {
+		fields = append(fields, subscriptionplan.FieldAmountLimitUsd)
+	}
+	if m.token_limit != nil {
+		fields = append(fields, subscriptionplan.FieldTokenLimit)
 	}
 	if m.features != nil {
 		fields = append(fields, subscriptionplan.FieldFeatures)
@@ -51461,6 +51686,12 @@ func (m *SubscriptionPlanMutation) Field(name string) (ent.Value, bool) {
 		return m.ValidityDays()
 	case subscriptionplan.FieldValidityUnit:
 		return m.ValidityUnit()
+	case subscriptionplan.FieldRequestLimit:
+		return m.RequestLimit()
+	case subscriptionplan.FieldAmountLimitUsd:
+		return m.AmountLimitUsd()
+	case subscriptionplan.FieldTokenLimit:
+		return m.TokenLimit()
 	case subscriptionplan.FieldFeatures:
 		return m.Features()
 	case subscriptionplan.FieldProductName:
@@ -51510,6 +51741,12 @@ func (m *SubscriptionPlanMutation) OldField(ctx context.Context, name string) (e
 		return m.OldValidityDays(ctx)
 	case subscriptionplan.FieldValidityUnit:
 		return m.OldValidityUnit(ctx)
+	case subscriptionplan.FieldRequestLimit:
+		return m.OldRequestLimit(ctx)
+	case subscriptionplan.FieldAmountLimitUsd:
+		return m.OldAmountLimitUsd(ctx)
+	case subscriptionplan.FieldTokenLimit:
+		return m.OldTokenLimit(ctx)
 	case subscriptionplan.FieldFeatures:
 		return m.OldFeatures(ctx)
 	case subscriptionplan.FieldProductName:
@@ -51598,6 +51835,27 @@ func (m *SubscriptionPlanMutation) SetField(name string, value ent.Value) error 
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetValidityUnit(v)
+		return nil
+	case subscriptionplan.FieldRequestLimit:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestLimit(v)
+		return nil
+	case subscriptionplan.FieldAmountLimitUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAmountLimitUsd(v)
+		return nil
+	case subscriptionplan.FieldTokenLimit:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTokenLimit(v)
 		return nil
 	case subscriptionplan.FieldFeatures:
 		v, ok := value.(string)
@@ -51703,6 +51961,15 @@ func (m *SubscriptionPlanMutation) AddedFields() []string {
 	if m.addvalidity_days != nil {
 		fields = append(fields, subscriptionplan.FieldValidityDays)
 	}
+	if m.addrequest_limit != nil {
+		fields = append(fields, subscriptionplan.FieldRequestLimit)
+	}
+	if m.addamount_limit_usd != nil {
+		fields = append(fields, subscriptionplan.FieldAmountLimitUsd)
+	}
+	if m.addtoken_limit != nil {
+		fields = append(fields, subscriptionplan.FieldTokenLimit)
+	}
 	if m.addsort_order != nil {
 		fields = append(fields, subscriptionplan.FieldSortOrder)
 	}
@@ -51722,6 +51989,12 @@ func (m *SubscriptionPlanMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedOriginalPrice()
 	case subscriptionplan.FieldValidityDays:
 		return m.AddedValidityDays()
+	case subscriptionplan.FieldRequestLimit:
+		return m.AddedRequestLimit()
+	case subscriptionplan.FieldAmountLimitUsd:
+		return m.AddedAmountLimitUsd()
+	case subscriptionplan.FieldTokenLimit:
+		return m.AddedTokenLimit()
 	case subscriptionplan.FieldSortOrder:
 		return m.AddedSortOrder()
 	}
@@ -51761,6 +52034,27 @@ func (m *SubscriptionPlanMutation) AddField(name string, value ent.Value) error 
 		}
 		m.AddValidityDays(v)
 		return nil
+	case subscriptionplan.FieldRequestLimit:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddRequestLimit(v)
+		return nil
+	case subscriptionplan.FieldAmountLimitUsd:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddAmountLimitUsd(v)
+		return nil
+	case subscriptionplan.FieldTokenLimit:
+		v, ok := value.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddTokenLimit(v)
+		return nil
 	case subscriptionplan.FieldSortOrder:
 		v, ok := value.(int)
 		if !ok {
@@ -51779,6 +52073,15 @@ func (m *SubscriptionPlanMutation) ClearedFields() []string {
 	if m.FieldCleared(subscriptionplan.FieldOriginalPrice) {
 		fields = append(fields, subscriptionplan.FieldOriginalPrice)
 	}
+	if m.FieldCleared(subscriptionplan.FieldRequestLimit) {
+		fields = append(fields, subscriptionplan.FieldRequestLimit)
+	}
+	if m.FieldCleared(subscriptionplan.FieldAmountLimitUsd) {
+		fields = append(fields, subscriptionplan.FieldAmountLimitUsd)
+	}
+	if m.FieldCleared(subscriptionplan.FieldTokenLimit) {
+		fields = append(fields, subscriptionplan.FieldTokenLimit)
+	}
 	return fields
 }
 
@@ -51795,6 +52098,15 @@ func (m *SubscriptionPlanMutation) ClearField(name string) error {
 	switch name {
 	case subscriptionplan.FieldOriginalPrice:
 		m.ClearOriginalPrice()
+		return nil
+	case subscriptionplan.FieldRequestLimit:
+		m.ClearRequestLimit()
+		return nil
+	case subscriptionplan.FieldAmountLimitUsd:
+		m.ClearAmountLimitUsd()
+		return nil
+	case subscriptionplan.FieldTokenLimit:
+		m.ClearTokenLimit()
 		return nil
 	}
 	return fmt.Errorf("unknown SubscriptionPlan nullable field %s", name)
@@ -51827,6 +52139,15 @@ func (m *SubscriptionPlanMutation) ResetField(name string) error {
 		return nil
 	case subscriptionplan.FieldValidityUnit:
 		m.ResetValidityUnit()
+		return nil
+	case subscriptionplan.FieldRequestLimit:
+		m.ResetRequestLimit()
+		return nil
+	case subscriptionplan.FieldAmountLimitUsd:
+		m.ResetAmountLimitUsd()
+		return nil
+	case subscriptionplan.FieldTokenLimit:
+		m.ResetTokenLimit()
 		return nil
 	case subscriptionplan.FieldFeatures:
 		m.ResetFeatures()

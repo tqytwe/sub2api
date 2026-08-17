@@ -94,6 +94,21 @@ func ValidityUnit(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldValidityUnit, v))
 }
 
+// RequestLimit applies equality check predicate on the "request_limit" field. It's identical to RequestLimitEQ.
+func RequestLimit(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRequestLimit, v))
+}
+
+// AmountLimitUsd applies equality check predicate on the "amount_limit_usd" field. It's identical to AmountLimitUsdEQ.
+func AmountLimitUsd(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldAmountLimitUsd, v))
+}
+
+// TokenLimit applies equality check predicate on the "token_limit" field. It's identical to TokenLimitEQ.
+func TokenLimit(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldTokenLimit, v))
+}
+
 // Features applies equality check predicate on the "features" field. It's identical to FeaturesEQ.
 func Features(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldEQ(FieldFeatures, v))
@@ -582,6 +597,156 @@ func ValidityUnitEqualFold(v string) predicate.SubscriptionPlan {
 // ValidityUnitContainsFold applies the ContainsFold predicate on the "validity_unit" field.
 func ValidityUnitContainsFold(v string) predicate.SubscriptionPlan {
 	return predicate.SubscriptionPlan(sql.FieldContainsFold(FieldValidityUnit, v))
+}
+
+// RequestLimitEQ applies the EQ predicate on the "request_limit" field.
+func RequestLimitEQ(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldRequestLimit, v))
+}
+
+// RequestLimitNEQ applies the NEQ predicate on the "request_limit" field.
+func RequestLimitNEQ(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldRequestLimit, v))
+}
+
+// RequestLimitIn applies the In predicate on the "request_limit" field.
+func RequestLimitIn(vs ...int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldRequestLimit, vs...))
+}
+
+// RequestLimitNotIn applies the NotIn predicate on the "request_limit" field.
+func RequestLimitNotIn(vs ...int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldRequestLimit, vs...))
+}
+
+// RequestLimitGT applies the GT predicate on the "request_limit" field.
+func RequestLimitGT(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldRequestLimit, v))
+}
+
+// RequestLimitGTE applies the GTE predicate on the "request_limit" field.
+func RequestLimitGTE(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldRequestLimit, v))
+}
+
+// RequestLimitLT applies the LT predicate on the "request_limit" field.
+func RequestLimitLT(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldRequestLimit, v))
+}
+
+// RequestLimitLTE applies the LTE predicate on the "request_limit" field.
+func RequestLimitLTE(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldRequestLimit, v))
+}
+
+// RequestLimitIsNil applies the IsNil predicate on the "request_limit" field.
+func RequestLimitIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldRequestLimit))
+}
+
+// RequestLimitNotNil applies the NotNil predicate on the "request_limit" field.
+func RequestLimitNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldRequestLimit))
+}
+
+// AmountLimitUsdEQ applies the EQ predicate on the "amount_limit_usd" field.
+func AmountLimitUsdEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldAmountLimitUsd, v))
+}
+
+// AmountLimitUsdNEQ applies the NEQ predicate on the "amount_limit_usd" field.
+func AmountLimitUsdNEQ(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldAmountLimitUsd, v))
+}
+
+// AmountLimitUsdIn applies the In predicate on the "amount_limit_usd" field.
+func AmountLimitUsdIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldAmountLimitUsd, vs...))
+}
+
+// AmountLimitUsdNotIn applies the NotIn predicate on the "amount_limit_usd" field.
+func AmountLimitUsdNotIn(vs ...float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldAmountLimitUsd, vs...))
+}
+
+// AmountLimitUsdGT applies the GT predicate on the "amount_limit_usd" field.
+func AmountLimitUsdGT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldAmountLimitUsd, v))
+}
+
+// AmountLimitUsdGTE applies the GTE predicate on the "amount_limit_usd" field.
+func AmountLimitUsdGTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldAmountLimitUsd, v))
+}
+
+// AmountLimitUsdLT applies the LT predicate on the "amount_limit_usd" field.
+func AmountLimitUsdLT(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldAmountLimitUsd, v))
+}
+
+// AmountLimitUsdLTE applies the LTE predicate on the "amount_limit_usd" field.
+func AmountLimitUsdLTE(v float64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldAmountLimitUsd, v))
+}
+
+// AmountLimitUsdIsNil applies the IsNil predicate on the "amount_limit_usd" field.
+func AmountLimitUsdIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldAmountLimitUsd))
+}
+
+// AmountLimitUsdNotNil applies the NotNil predicate on the "amount_limit_usd" field.
+func AmountLimitUsdNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldAmountLimitUsd))
+}
+
+// TokenLimitEQ applies the EQ predicate on the "token_limit" field.
+func TokenLimitEQ(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldEQ(FieldTokenLimit, v))
+}
+
+// TokenLimitNEQ applies the NEQ predicate on the "token_limit" field.
+func TokenLimitNEQ(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNEQ(FieldTokenLimit, v))
+}
+
+// TokenLimitIn applies the In predicate on the "token_limit" field.
+func TokenLimitIn(vs ...int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIn(FieldTokenLimit, vs...))
+}
+
+// TokenLimitNotIn applies the NotIn predicate on the "token_limit" field.
+func TokenLimitNotIn(vs ...int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotIn(FieldTokenLimit, vs...))
+}
+
+// TokenLimitGT applies the GT predicate on the "token_limit" field.
+func TokenLimitGT(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGT(FieldTokenLimit, v))
+}
+
+// TokenLimitGTE applies the GTE predicate on the "token_limit" field.
+func TokenLimitGTE(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldGTE(FieldTokenLimit, v))
+}
+
+// TokenLimitLT applies the LT predicate on the "token_limit" field.
+func TokenLimitLT(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLT(FieldTokenLimit, v))
+}
+
+// TokenLimitLTE applies the LTE predicate on the "token_limit" field.
+func TokenLimitLTE(v int64) predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldLTE(FieldTokenLimit, v))
+}
+
+// TokenLimitIsNil applies the IsNil predicate on the "token_limit" field.
+func TokenLimitIsNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldIsNull(FieldTokenLimit))
+}
+
+// TokenLimitNotNil applies the NotNil predicate on the "token_limit" field.
+func TokenLimitNotNil() predicate.SubscriptionPlan {
+	return predicate.SubscriptionPlan(sql.FieldNotNull(FieldTokenLimit))
 }
 
 // FeaturesEQ applies the EQ predicate on the "features" field.

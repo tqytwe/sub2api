@@ -174,6 +174,87 @@ func (_u *SubscriptionPlanUpdate) SetNillableValidityUnit(v *string) *Subscripti
 	return _u
 }
 
+// SetRequestLimit sets the "request_limit" field.
+func (_u *SubscriptionPlanUpdate) SetRequestLimit(v int64) *SubscriptionPlanUpdate {
+	_u.mutation.ResetRequestLimit()
+	_u.mutation.SetRequestLimit(v)
+	return _u
+}
+
+// SetNillableRequestLimit sets the "request_limit" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableRequestLimit(v *int64) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetRequestLimit(*v)
+	}
+	return _u
+}
+
+// AddRequestLimit adds value to the "request_limit" field.
+func (_u *SubscriptionPlanUpdate) AddRequestLimit(v int64) *SubscriptionPlanUpdate {
+	_u.mutation.AddRequestLimit(v)
+	return _u
+}
+
+// ClearRequestLimit clears the value of the "request_limit" field.
+func (_u *SubscriptionPlanUpdate) ClearRequestLimit() *SubscriptionPlanUpdate {
+	_u.mutation.ClearRequestLimit()
+	return _u
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (_u *SubscriptionPlanUpdate) SetAmountLimitUsd(v float64) *SubscriptionPlanUpdate {
+	_u.mutation.ResetAmountLimitUsd()
+	_u.mutation.SetAmountLimitUsd(v)
+	return _u
+}
+
+// SetNillableAmountLimitUsd sets the "amount_limit_usd" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableAmountLimitUsd(v *float64) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetAmountLimitUsd(*v)
+	}
+	return _u
+}
+
+// AddAmountLimitUsd adds value to the "amount_limit_usd" field.
+func (_u *SubscriptionPlanUpdate) AddAmountLimitUsd(v float64) *SubscriptionPlanUpdate {
+	_u.mutation.AddAmountLimitUsd(v)
+	return _u
+}
+
+// ClearAmountLimitUsd clears the value of the "amount_limit_usd" field.
+func (_u *SubscriptionPlanUpdate) ClearAmountLimitUsd() *SubscriptionPlanUpdate {
+	_u.mutation.ClearAmountLimitUsd()
+	return _u
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (_u *SubscriptionPlanUpdate) SetTokenLimit(v int64) *SubscriptionPlanUpdate {
+	_u.mutation.ResetTokenLimit()
+	_u.mutation.SetTokenLimit(v)
+	return _u
+}
+
+// SetNillableTokenLimit sets the "token_limit" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdate) SetNillableTokenLimit(v *int64) *SubscriptionPlanUpdate {
+	if v != nil {
+		_u.SetTokenLimit(*v)
+	}
+	return _u
+}
+
+// AddTokenLimit adds value to the "token_limit" field.
+func (_u *SubscriptionPlanUpdate) AddTokenLimit(v int64) *SubscriptionPlanUpdate {
+	_u.mutation.AddTokenLimit(v)
+	return _u
+}
+
+// ClearTokenLimit clears the value of the "token_limit" field.
+func (_u *SubscriptionPlanUpdate) ClearTokenLimit() *SubscriptionPlanUpdate {
+	_u.mutation.ClearTokenLimit()
+	return _u
+}
+
 // SetFeatures sets the "features" field.
 func (_u *SubscriptionPlanUpdate) SetFeatures(v string) *SubscriptionPlanUpdate {
 	_u.mutation.SetFeatures(v)
@@ -459,6 +540,33 @@ func (_u *SubscriptionPlanUpdate) sqlSave(ctx context.Context) (_node int, err e
 	if value, ok := _u.mutation.ValidityUnit(); ok {
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.RequestLimit(); ok {
+		_spec.SetField(subscriptionplan.FieldRequestLimit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedRequestLimit(); ok {
+		_spec.AddField(subscriptionplan.FieldRequestLimit, field.TypeInt64, value)
+	}
+	if _u.mutation.RequestLimitCleared() {
+		_spec.ClearField(subscriptionplan.FieldRequestLimit, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.AmountLimitUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAmountLimitUsd(); ok {
+		_spec.AddField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64, value)
+	}
+	if _u.mutation.AmountLimitUsdCleared() {
+		_spec.ClearField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.TokenLimit(); ok {
+		_spec.SetField(subscriptionplan.FieldTokenLimit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedTokenLimit(); ok {
+		_spec.AddField(subscriptionplan.FieldTokenLimit, field.TypeInt64, value)
+	}
+	if _u.mutation.TokenLimitCleared() {
+		_spec.ClearField(subscriptionplan.FieldTokenLimit, field.TypeInt64)
+	}
 	if value, ok := _u.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
 	}
@@ -658,6 +766,87 @@ func (_u *SubscriptionPlanUpdateOne) SetNillableValidityUnit(v *string) *Subscri
 	if v != nil {
 		_u.SetValidityUnit(*v)
 	}
+	return _u
+}
+
+// SetRequestLimit sets the "request_limit" field.
+func (_u *SubscriptionPlanUpdateOne) SetRequestLimit(v int64) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetRequestLimit()
+	_u.mutation.SetRequestLimit(v)
+	return _u
+}
+
+// SetNillableRequestLimit sets the "request_limit" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableRequestLimit(v *int64) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetRequestLimit(*v)
+	}
+	return _u
+}
+
+// AddRequestLimit adds value to the "request_limit" field.
+func (_u *SubscriptionPlanUpdateOne) AddRequestLimit(v int64) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddRequestLimit(v)
+	return _u
+}
+
+// ClearRequestLimit clears the value of the "request_limit" field.
+func (_u *SubscriptionPlanUpdateOne) ClearRequestLimit() *SubscriptionPlanUpdateOne {
+	_u.mutation.ClearRequestLimit()
+	return _u
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (_u *SubscriptionPlanUpdateOne) SetAmountLimitUsd(v float64) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetAmountLimitUsd()
+	_u.mutation.SetAmountLimitUsd(v)
+	return _u
+}
+
+// SetNillableAmountLimitUsd sets the "amount_limit_usd" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableAmountLimitUsd(v *float64) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetAmountLimitUsd(*v)
+	}
+	return _u
+}
+
+// AddAmountLimitUsd adds value to the "amount_limit_usd" field.
+func (_u *SubscriptionPlanUpdateOne) AddAmountLimitUsd(v float64) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddAmountLimitUsd(v)
+	return _u
+}
+
+// ClearAmountLimitUsd clears the value of the "amount_limit_usd" field.
+func (_u *SubscriptionPlanUpdateOne) ClearAmountLimitUsd() *SubscriptionPlanUpdateOne {
+	_u.mutation.ClearAmountLimitUsd()
+	return _u
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (_u *SubscriptionPlanUpdateOne) SetTokenLimit(v int64) *SubscriptionPlanUpdateOne {
+	_u.mutation.ResetTokenLimit()
+	_u.mutation.SetTokenLimit(v)
+	return _u
+}
+
+// SetNillableTokenLimit sets the "token_limit" field if the given value is not nil.
+func (_u *SubscriptionPlanUpdateOne) SetNillableTokenLimit(v *int64) *SubscriptionPlanUpdateOne {
+	if v != nil {
+		_u.SetTokenLimit(*v)
+	}
+	return _u
+}
+
+// AddTokenLimit adds value to the "token_limit" field.
+func (_u *SubscriptionPlanUpdateOne) AddTokenLimit(v int64) *SubscriptionPlanUpdateOne {
+	_u.mutation.AddTokenLimit(v)
+	return _u
+}
+
+// ClearTokenLimit clears the value of the "token_limit" field.
+func (_u *SubscriptionPlanUpdateOne) ClearTokenLimit() *SubscriptionPlanUpdateOne {
+	_u.mutation.ClearTokenLimit()
 	return _u
 }
 
@@ -975,6 +1164,33 @@ func (_u *SubscriptionPlanUpdateOne) sqlSave(ctx context.Context) (_node *Subscr
 	}
 	if value, ok := _u.mutation.ValidityUnit(); ok {
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.RequestLimit(); ok {
+		_spec.SetField(subscriptionplan.FieldRequestLimit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedRequestLimit(); ok {
+		_spec.AddField(subscriptionplan.FieldRequestLimit, field.TypeInt64, value)
+	}
+	if _u.mutation.RequestLimitCleared() {
+		_spec.ClearField(subscriptionplan.FieldRequestLimit, field.TypeInt64)
+	}
+	if value, ok := _u.mutation.AmountLimitUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64, value)
+	}
+	if value, ok := _u.mutation.AddedAmountLimitUsd(); ok {
+		_spec.AddField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64, value)
+	}
+	if _u.mutation.AmountLimitUsdCleared() {
+		_spec.ClearField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.TokenLimit(); ok {
+		_spec.SetField(subscriptionplan.FieldTokenLimit, field.TypeInt64, value)
+	}
+	if value, ok := _u.mutation.AddedTokenLimit(); ok {
+		_spec.AddField(subscriptionplan.FieldTokenLimit, field.TypeInt64, value)
+	}
+	if _u.mutation.TokenLimitCleared() {
+		_spec.ClearField(subscriptionplan.FieldTokenLimit, field.TypeInt64)
 	}
 	if value, ok := _u.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)

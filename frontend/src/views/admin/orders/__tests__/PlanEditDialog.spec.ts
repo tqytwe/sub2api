@@ -217,7 +217,53 @@ describe('PlanEditDialog', () => {
 })
 
 describe('PlanEditDialog product display fields', () => {
-  it('saves product name, cover image URL, uploaded cover image, and detail description', async () => {
+	it('saves the three independent package limits', async () => {
+		updatePlanMock.mockReset().mockResolvedValue({})
+		const wrapper = mountDialog({ plan: {
+			id: 6, group_id: 3, name: 'Package', description: 'Short copy', price: 39,
+			validity_days: 30, validity_unit: 'days', features: [], for_sale: true, sort_order: 1,
+			request_limit: 10000, amount_limit_usd: 700, token_limit: 100000000,
+		} })
+
+		await wrapper.find('[data-test="plan-request-limit"]').setValue('12000')
+		await wrapper.find('[data-test="plan-amount-limit"]').setValue('750')
+		await wrapper.find('[data-test="plan-token-limit"]').setValue('120000000')
+		await wrapper.find('form').trigger('submit')
+
+		expect(updatePlanMock).toHaveBeenCalledWith(6, expect.objectContaining({
+			request_limit: 12000,
+			amount_limit_usd: 750,
+			token_limit: 120000000,
+			clear_request_limit: false,
+			clear_amount_limit_usd: false,
+			clear_token_limit: false,
+		}))
+	})
+
+	it('explicitly clears removed package limits', async () => {
+		updatePlanMock.mockReset().mockResolvedValue({})
+		const wrapper = mountDialog({ plan: {
+			id: 8, group_id: 3, name: 'Package', description: '', price: 39,
+			validity_days: 30, validity_unit: 'days', features: [], for_sale: true, sort_order: 1,
+			request_limit: 10000, amount_limit_usd: 700, token_limit: 100000000,
+		} })
+
+		await wrapper.find('[data-test="plan-request-limit"]').setValue('')
+		await wrapper.find('[data-test="plan-amount-limit"]').setValue('')
+		await wrapper.find('[data-test="plan-token-limit"]').setValue('')
+		await wrapper.find('form').trigger('submit')
+
+		expect(updatePlanMock).toHaveBeenCalledWith(8, expect.objectContaining({
+			request_limit: null,
+			amount_limit_usd: null,
+			token_limit: null,
+			clear_request_limit: true,
+			clear_amount_limit_usd: true,
+			clear_token_limit: true,
+		}))
+	})
+
+	it('saves product name, cover image URL, uploaded cover image, and detail description', async () => {
     updatePlanMock.mockReset().mockResolvedValue({})
     const wrapper = mountDialog({ plan: {
       id: 7,

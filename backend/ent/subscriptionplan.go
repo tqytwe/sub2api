@@ -33,6 +33,12 @@ type SubscriptionPlan struct {
 	ValidityDays int `json:"validity_days,omitempty"`
 	// ValidityUnit holds the value of the "validity_unit" field.
 	ValidityUnit string `json:"validity_unit,omitempty"`
+	// RequestLimit holds the value of the "request_limit" field.
+	RequestLimit *int64 `json:"request_limit,omitempty"`
+	// AmountLimitUsd holds the value of the "amount_limit_usd" field.
+	AmountLimitUsd *float64 `json:"amount_limit_usd,omitempty"`
+	// TokenLimit holds the value of the "token_limit" field.
+	TokenLimit *int64 `json:"token_limit,omitempty"`
 	// Features holds the value of the "features" field.
 	Features string `json:"features,omitempty"`
 	// ProductName holds the value of the "product_name" field.
@@ -67,9 +73,9 @@ func (*SubscriptionPlan) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case subscriptionplan.FieldStorefrontFeatured, subscriptionplan.FieldForSale:
 			values[i] = new(sql.NullBool)
-		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice:
+		case subscriptionplan.FieldPrice, subscriptionplan.FieldOriginalPrice, subscriptionplan.FieldAmountLimitUsd:
 			values[i] = new(sql.NullFloat64)
-		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldSortOrder:
+		case subscriptionplan.FieldID, subscriptionplan.FieldGroupID, subscriptionplan.FieldValidityDays, subscriptionplan.FieldRequestLimit, subscriptionplan.FieldTokenLimit, subscriptionplan.FieldSortOrder:
 			values[i] = new(sql.NullInt64)
 		case subscriptionplan.FieldName, subscriptionplan.FieldDescription, subscriptionplan.FieldCurrency, subscriptionplan.FieldValidityUnit, subscriptionplan.FieldFeatures, subscriptionplan.FieldProductName, subscriptionplan.FieldCoverImageURL, subscriptionplan.FieldDetailDescription, subscriptionplan.FieldStorefrontPlatform, subscriptionplan.FieldStorefrontCategory, subscriptionplan.FieldStorefrontBadge:
 			values[i] = new(sql.NullString)
@@ -144,6 +150,27 @@ func (_m *SubscriptionPlan) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field validity_unit", values[i])
 			} else if value.Valid {
 				_m.ValidityUnit = value.String
+			}
+		case subscriptionplan.FieldRequestLimit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field request_limit", values[i])
+			} else if value.Valid {
+				_m.RequestLimit = new(int64)
+				*_m.RequestLimit = value.Int64
+			}
+		case subscriptionplan.FieldAmountLimitUsd:
+			if value, ok := values[i].(*sql.NullFloat64); !ok {
+				return fmt.Errorf("unexpected type %T for field amount_limit_usd", values[i])
+			} else if value.Valid {
+				_m.AmountLimitUsd = new(float64)
+				*_m.AmountLimitUsd = value.Float64
+			}
+		case subscriptionplan.FieldTokenLimit:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field token_limit", values[i])
+			} else if value.Valid {
+				_m.TokenLimit = new(int64)
+				*_m.TokenLimit = value.Int64
 			}
 		case subscriptionplan.FieldFeatures:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -278,6 +305,21 @@ func (_m *SubscriptionPlan) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("validity_unit=")
 	builder.WriteString(_m.ValidityUnit)
+	builder.WriteString(", ")
+	if v := _m.RequestLimit; v != nil {
+		builder.WriteString("request_limit=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.AmountLimitUsd; v != nil {
+		builder.WriteString("amount_limit_usd=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.TokenLimit; v != nil {
+		builder.WriteString("token_limit=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("features=")
 	builder.WriteString(_m.Features)

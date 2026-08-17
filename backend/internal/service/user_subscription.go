@@ -33,10 +33,11 @@ type UserSubscription struct {
 	UpdatedAt time.Time
 	DeletedAt *time.Time
 
-	User           *User
-	Group          *Group
-	AssignedByUser *User
-	PurchaseOrder  *SubscriptionPurchaseOrder
+	User               *User
+	Group              *Group
+	AssignedByUser     *User
+	PurchaseOrder      *SubscriptionPurchaseOrder
+	PackageEntitlement *PackageEntitlement
 }
 
 type SubscriptionPurchaseOrder struct {

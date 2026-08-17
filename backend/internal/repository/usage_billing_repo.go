@@ -107,6 +107,11 @@ func (r *usageBillingRepository) applyUsageBillingTransaction(ctx context.Contex
 			return nil, err
 		}
 	}
+	if cmd.PackageEntitlementID != nil {
+		if err := validateUsageBillingPackageEntitlementOwnership(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID); err != nil {
+			return nil, err
+		}
+	}
 
 	applied, err := r.claimUsageBillingKey(ctx, tx, cmd)
 	if err != nil {
@@ -643,6 +648,11 @@ func lockBalanceHoldClaim(ctx context.Context, tx *sql.Tx, cmd *service.BatchIma
 }
 
 func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, tx *sql.Tx, cmd *service.UsageBillingCommand, result *service.UsageBillingApplyResult) error {
+	if cmd.PackageEntitlementID != nil {
+		if err := incrementPackageEntitlementUsage(ctx, tx, *cmd.PackageEntitlementID, cmd.UserID, cmd.BilledCost, packageEntitlementTokenCount(cmd)); err != nil {
+			return err
+		}
+	}
 	if cmd.SubscriptionCost > 0 && cmd.SubscriptionID != nil {
 		if err := incrementUsageBillingSubscription(ctx, tx, *cmd.SubscriptionID, cmd.UserID, cmd.SubscriptionCost); err != nil {
 			return err
@@ -693,6 +703,54 @@ func (r *usageBillingRepository) applyUsageBillingEffects(ctx context.Context, t
 		result.QuotaState = quotaState
 	}
 
+	return nil
+}
+
+func validateUsageBillingPackageEntitlementOwnership(ctx context.Context, tx *sql.Tx, entitlementID, userID int64) error {
+	var exists int
+	err := tx.QueryRowContext(ctx, `SELECT 1 FROM subscription_package_entitlements WHERE id = $1 AND user_id = $2 AND status = 'active'`, entitlementID, userID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return service.ErrUsageBillingOwnershipMismatch
+	}
+	return err
+}
+
+func packageEntitlementTokenCount(cmd *service.UsageBillingCommand) int64 {
+	if cmd == nil {
+		return 0
+	}
+	return int64(cmd.InputTokens) + int64(cmd.OutputTokens) + int64(cmd.CacheCreationTokens) + int64(cmd.CacheReadTokens)
+}
+
+func incrementPackageEntitlementUsage(ctx context.Context, tx *sql.Tx, entitlementID, userID int64, billedCost float64, tokens int64) error {
+	const q = `
+		UPDATE subscription_package_entitlements
+		SET request_used = request_used + 1,
+		    amount_used_usd = amount_used_usd + $3,
+		    token_used = token_used + $4,
+		    status = CASE
+		      WHEN request_limit IS NOT NULL AND request_used + 1 >= request_limit THEN 'exhausted'
+		      WHEN amount_limit_usd IS NOT NULL AND amount_used_usd + $3 >= amount_limit_usd THEN 'exhausted'
+		      WHEN token_limit IS NOT NULL AND token_used + $4 >= token_limit THEN 'exhausted'
+		      ELSE 'active' END,
+		    exhausted_reason = CASE
+		      WHEN request_limit IS NOT NULL AND request_used + 1 >= request_limit THEN 'request'
+		      WHEN amount_limit_usd IS NOT NULL AND amount_used_usd + $3 >= amount_limit_usd THEN 'amount'
+		      WHEN token_limit IS NOT NULL AND token_used + $4 >= token_limit THEN 'token'
+		      ELSE NULL END,
+		    updated_at = NOW()
+		WHERE id = $1 AND user_id = $2 AND status = 'active' AND expires_at > NOW()`
+	res, err := tx.ExecContext(ctx, q, entitlementID, userID, billedCost, tokens)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return service.ErrPackageQuotaExhausted
+	}
 	return nil
 }
 

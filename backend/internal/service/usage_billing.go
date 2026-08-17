@@ -31,6 +31,7 @@ type UsageBillingCommand struct {
 	APIKeyGroupID         *int64
 	APIKeyGroupName       string
 	SubscriptionID        *int64
+	PackageEntitlementID  *int64
 	AccountType           string
 	Model                 string
 	ServiceTier           string
