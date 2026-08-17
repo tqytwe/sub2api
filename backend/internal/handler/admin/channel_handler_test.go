@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -315,6 +316,26 @@ func TestPricingRequestToService_Defaults(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestChannelModelPricingRequestAcceptsVideoBillingMode(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/pricing", func(c *gin.Context) {
+		var req channelModelPricingRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			c.Status(http.StatusBadRequest)
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/pricing", strings.NewReader(`{"models":["agnes-video-v2.0"],"billing_mode":"video","per_request_price":0.6}`))
+	req.Header.Set("Content-Type", "application/json")
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	require.Equal(t, http.StatusNoContent, resp.Code)
 }
 
 func TestPricingRequestToService_WithAllFields(t *testing.T) {
