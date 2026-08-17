@@ -75,6 +75,19 @@ func validatePlanRequired(name string, groupID int64, price float64, validityDay
 	return nil
 }
 
+func validatePlanQuotas(requestLimit *int64, amountLimitUSD *float64, tokenLimit *int64) error {
+	if requestLimit != nil && *requestLimit <= 0 {
+		return infraerrors.BadRequest("PLAN_REQUEST_LIMIT_INVALID", "request limit must be greater than zero")
+	}
+	if amountLimitUSD != nil && *amountLimitUSD <= 0 {
+		return infraerrors.BadRequest("PLAN_AMOUNT_LIMIT_INVALID", "amount limit must be greater than zero")
+	}
+	if tokenLimit != nil && *tokenLimit <= 0 {
+		return infraerrors.BadRequest("PLAN_TOKEN_LIMIT_INVALID", "token limit must be greater than zero")
+	}
+	return nil
+}
+
 // validatePlanPatch validates only the non-nil fields in a patch update.
 func validatePlanPatch(req UpdatePlanRequest) error {
 	if req.Name != nil && strings.TrimSpace(*req.Name) == "" {
@@ -95,7 +108,12 @@ func validatePlanPatch(req UpdatePlanRequest) error {
 	if req.OriginalPrice != nil && *req.OriginalPrice < 0 {
 		return infraerrors.BadRequest("PLAN_ORIGINAL_PRICE_INVALID", "original price must be >= 0")
 	}
-	return nil
+	if (req.ClearRequestLimit && req.RequestLimit != nil) ||
+		(req.ClearAmountLimitUSD && req.AmountLimitUSD != nil) ||
+		(req.ClearTokenLimit && req.TokenLimit != nil) {
+		return infraerrors.BadRequest("PLAN_QUOTA_PATCH_CONFLICT", "a package quota cannot be set and cleared in the same update")
+	}
+	return validatePlanQuotas(req.RequestLimit, req.AmountLimitUSD, req.TokenLimit)
 }
 
 // --- Plan CRUD ---
@@ -163,6 +181,9 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 	if err := validatePlanRequired(req.Name, req.GroupID, req.Price, req.ValidityDays, req.ValidityUnit, req.OriginalPrice); err != nil {
 		return nil, err
 	}
+	if err := validatePlanQuotas(req.RequestLimit, req.AmountLimitUSD, req.TokenLimit); err != nil {
+		return nil, err
+	}
 	currency, err := normalizePlanCurrency(req.Currency)
 	if err != nil {
 		return nil, err
@@ -177,6 +198,15 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 		SetStorefrontFeatured(req.StorefrontFeatured).
 		SetStorefrontBadge(strings.TrimSpace(req.StorefrontBadge)).
 		SetForSale(req.ForSale).SetSortOrder(req.SortOrder)
+	if req.RequestLimit != nil {
+		b.SetRequestLimit(*req.RequestLimit)
+	}
+	if req.AmountLimitUSD != nil {
+		b.SetAmountLimitUsd(*req.AmountLimitUSD)
+	}
+	if req.TokenLimit != nil {
+		b.SetTokenLimit(*req.TokenLimit)
+	}
 	if req.OriginalPrice != nil {
 		b.SetOriginalPrice(*req.OriginalPrice)
 	}
@@ -188,6 +218,9 @@ func (s *PaymentConfigService) CreatePlan(ctx context.Context, req CreatePlanReq
 // plus a validation guard for non-nil fields.
 func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req UpdatePlanRequest) (*dbent.SubscriptionPlan, error) {
 	if err := validatePlanPatch(req); err != nil {
+		return nil, err
+	}
+	if err := validatePlanQuotas(req.RequestLimit, req.AmountLimitUSD, req.TokenLimit); err != nil {
 		return nil, err
 	}
 	u := s.entClient.SubscriptionPlan.UpdateOneID(id)
@@ -218,6 +251,21 @@ func (s *PaymentConfigService) UpdatePlan(ctx context.Context, id int64, req Upd
 	}
 	if req.ValidityUnit != nil {
 		u.SetValidityUnit(*req.ValidityUnit)
+	}
+	if req.RequestLimit != nil {
+		u.SetRequestLimit(*req.RequestLimit)
+	} else if req.ClearRequestLimit {
+		u.ClearRequestLimit()
+	}
+	if req.AmountLimitUSD != nil {
+		u.SetAmountLimitUsd(*req.AmountLimitUSD)
+	} else if req.ClearAmountLimitUSD {
+		u.ClearAmountLimitUsd()
+	}
+	if req.TokenLimit != nil {
+		u.SetTokenLimit(*req.TokenLimit)
+	} else if req.ClearTokenLimit {
+		u.ClearTokenLimit()
 	}
 	if req.Features != nil {
 		u.SetFeatures(*req.Features)

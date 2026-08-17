@@ -102,6 +102,9 @@ type paymentPlanResult struct {
 	Currency           string   `json:"currency,omitempty"`
 	ValidityDays       int      `json:"validity_days"`
 	ValidityUnit       string   `json:"validity_unit"`
+	RequestLimit       *int64   `json:"request_limit,omitempty"`
+	AmountLimitUSD     *float64 `json:"amount_limit_usd,omitempty"`
+	TokenLimit         *int64   `json:"token_limit,omitempty"`
 	Features           string   `json:"features"`
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`
@@ -127,6 +130,7 @@ func buildPaymentPlansForResponse(ctx context.Context, configService *service.Pa
 			Name: p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: p.Features,
+			RequestLimit: p.RequestLimit, AmountLimitUSD: p.AmountLimitUsd, TokenLimit: p.TokenLimit,
 			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
 			StorefrontPlatform: p.StorefrontPlatform, StorefrontCategory: p.StorefrontCategory,
 			StorefrontFeatured: p.StorefrontFeatured, StorefrontBadge: p.StorefrontBadge,
@@ -248,6 +252,7 @@ func (h *PaymentHandler) buildPaymentCheckoutPublicPayload(ctx context.Context) 
 			Name:        p.Name, Description: p.Description, Price: p.Price, OriginalPrice: p.OriginalPrice,
 			Currency:     p.Currency,
 			ValidityDays: p.ValidityDays, ValidityUnit: p.ValidityUnit, Features: parseFeatures(p.Features),
+			RequestLimit: p.RequestLimit, AmountLimitUSD: p.AmountLimitUsd, TokenLimit: p.TokenLimit,
 			ProductName: p.ProductName, CoverImageURL: p.CoverImageURL, DetailDescription: p.DetailDescription,
 			StorefrontPlatform: p.StorefrontPlatform, StorefrontCategory: p.StorefrontCategory,
 			StorefrontFeatured: p.StorefrontFeatured, StorefrontBadge: p.StorefrontBadge,
@@ -409,6 +414,9 @@ type checkoutPlan struct {
 	Currency           string   `json:"currency,omitempty"`
 	ValidityDays       int      `json:"validity_days"`
 	ValidityUnit       string   `json:"validity_unit"`
+	RequestLimit       *int64   `json:"request_limit,omitempty"`
+	AmountLimitUSD     *float64 `json:"amount_limit_usd,omitempty"`
+	TokenLimit         *int64   `json:"token_limit,omitempty"`
 	Features           []string `json:"features"`
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`

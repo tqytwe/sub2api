@@ -110,6 +110,48 @@ func (_c *SubscriptionPlanCreate) SetNillableValidityUnit(v *string) *Subscripti
 	return _c
 }
 
+// SetRequestLimit sets the "request_limit" field.
+func (_c *SubscriptionPlanCreate) SetRequestLimit(v int64) *SubscriptionPlanCreate {
+	_c.mutation.SetRequestLimit(v)
+	return _c
+}
+
+// SetNillableRequestLimit sets the "request_limit" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableRequestLimit(v *int64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetRequestLimit(*v)
+	}
+	return _c
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (_c *SubscriptionPlanCreate) SetAmountLimitUsd(v float64) *SubscriptionPlanCreate {
+	_c.mutation.SetAmountLimitUsd(v)
+	return _c
+}
+
+// SetNillableAmountLimitUsd sets the "amount_limit_usd" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableAmountLimitUsd(v *float64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetAmountLimitUsd(*v)
+	}
+	return _c
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (_c *SubscriptionPlanCreate) SetTokenLimit(v int64) *SubscriptionPlanCreate {
+	_c.mutation.SetTokenLimit(v)
+	return _c
+}
+
+// SetNillableTokenLimit sets the "token_limit" field if the given value is not nil.
+func (_c *SubscriptionPlanCreate) SetNillableTokenLimit(v *int64) *SubscriptionPlanCreate {
+	if v != nil {
+		_c.SetTokenLimit(*v)
+	}
+	return _c
+}
+
 // SetFeatures sets the "features" field.
 func (_c *SubscriptionPlanCreate) SetFeatures(v string) *SubscriptionPlanCreate {
 	_c.mutation.SetFeatures(v)
@@ -532,6 +574,18 @@ func (_c *SubscriptionPlanCreate) createSpec() (*SubscriptionPlan, *sqlgraph.Cre
 		_spec.SetField(subscriptionplan.FieldValidityUnit, field.TypeString, value)
 		_node.ValidityUnit = value
 	}
+	if value, ok := _c.mutation.RequestLimit(); ok {
+		_spec.SetField(subscriptionplan.FieldRequestLimit, field.TypeInt64, value)
+		_node.RequestLimit = &value
+	}
+	if value, ok := _c.mutation.AmountLimitUsd(); ok {
+		_spec.SetField(subscriptionplan.FieldAmountLimitUsd, field.TypeFloat64, value)
+		_node.AmountLimitUsd = &value
+	}
+	if value, ok := _c.mutation.TokenLimit(); ok {
+		_spec.SetField(subscriptionplan.FieldTokenLimit, field.TypeInt64, value)
+		_node.TokenLimit = &value
+	}
 	if value, ok := _c.mutation.Features(); ok {
 		_spec.SetField(subscriptionplan.FieldFeatures, field.TypeString, value)
 		_node.Features = value
@@ -755,6 +809,78 @@ func (u *SubscriptionPlanUpsert) SetValidityUnit(v string) *SubscriptionPlanUpse
 // UpdateValidityUnit sets the "validity_unit" field to the value that was provided on create.
 func (u *SubscriptionPlanUpsert) UpdateValidityUnit() *SubscriptionPlanUpsert {
 	u.SetExcluded(subscriptionplan.FieldValidityUnit)
+	return u
+}
+
+// SetRequestLimit sets the "request_limit" field.
+func (u *SubscriptionPlanUpsert) SetRequestLimit(v int64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldRequestLimit, v)
+	return u
+}
+
+// UpdateRequestLimit sets the "request_limit" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateRequestLimit() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldRequestLimit)
+	return u
+}
+
+// AddRequestLimit adds v to the "request_limit" field.
+func (u *SubscriptionPlanUpsert) AddRequestLimit(v int64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldRequestLimit, v)
+	return u
+}
+
+// ClearRequestLimit clears the value of the "request_limit" field.
+func (u *SubscriptionPlanUpsert) ClearRequestLimit() *SubscriptionPlanUpsert {
+	u.SetNull(subscriptionplan.FieldRequestLimit)
+	return u
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsert) SetAmountLimitUsd(v float64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldAmountLimitUsd, v)
+	return u
+}
+
+// UpdateAmountLimitUsd sets the "amount_limit_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateAmountLimitUsd() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldAmountLimitUsd)
+	return u
+}
+
+// AddAmountLimitUsd adds v to the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsert) AddAmountLimitUsd(v float64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldAmountLimitUsd, v)
+	return u
+}
+
+// ClearAmountLimitUsd clears the value of the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsert) ClearAmountLimitUsd() *SubscriptionPlanUpsert {
+	u.SetNull(subscriptionplan.FieldAmountLimitUsd)
+	return u
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (u *SubscriptionPlanUpsert) SetTokenLimit(v int64) *SubscriptionPlanUpsert {
+	u.Set(subscriptionplan.FieldTokenLimit, v)
+	return u
+}
+
+// UpdateTokenLimit sets the "token_limit" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsert) UpdateTokenLimit() *SubscriptionPlanUpsert {
+	u.SetExcluded(subscriptionplan.FieldTokenLimit)
+	return u
+}
+
+// AddTokenLimit adds v to the "token_limit" field.
+func (u *SubscriptionPlanUpsert) AddTokenLimit(v int64) *SubscriptionPlanUpsert {
+	u.Add(subscriptionplan.FieldTokenLimit, v)
+	return u
+}
+
+// ClearTokenLimit clears the value of the "token_limit" field.
+func (u *SubscriptionPlanUpsert) ClearTokenLimit() *SubscriptionPlanUpsert {
+	u.SetNull(subscriptionplan.FieldTokenLimit)
 	return u
 }
 
@@ -1085,6 +1211,90 @@ func (u *SubscriptionPlanUpsertOne) SetValidityUnit(v string) *SubscriptionPlanU
 func (u *SubscriptionPlanUpsertOne) UpdateValidityUnit() *SubscriptionPlanUpsertOne {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateValidityUnit()
+	})
+}
+
+// SetRequestLimit sets the "request_limit" field.
+func (u *SubscriptionPlanUpsertOne) SetRequestLimit(v int64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetRequestLimit(v)
+	})
+}
+
+// AddRequestLimit adds v to the "request_limit" field.
+func (u *SubscriptionPlanUpsertOne) AddRequestLimit(v int64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddRequestLimit(v)
+	})
+}
+
+// UpdateRequestLimit sets the "request_limit" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateRequestLimit() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateRequestLimit()
+	})
+}
+
+// ClearRequestLimit clears the value of the "request_limit" field.
+func (u *SubscriptionPlanUpsertOne) ClearRequestLimit() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearRequestLimit()
+	})
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsertOne) SetAmountLimitUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetAmountLimitUsd(v)
+	})
+}
+
+// AddAmountLimitUsd adds v to the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsertOne) AddAmountLimitUsd(v float64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddAmountLimitUsd(v)
+	})
+}
+
+// UpdateAmountLimitUsd sets the "amount_limit_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateAmountLimitUsd() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateAmountLimitUsd()
+	})
+}
+
+// ClearAmountLimitUsd clears the value of the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsertOne) ClearAmountLimitUsd() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearAmountLimitUsd()
+	})
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (u *SubscriptionPlanUpsertOne) SetTokenLimit(v int64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetTokenLimit(v)
+	})
+}
+
+// AddTokenLimit adds v to the "token_limit" field.
+func (u *SubscriptionPlanUpsertOne) AddTokenLimit(v int64) *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddTokenLimit(v)
+	})
+}
+
+// UpdateTokenLimit sets the "token_limit" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertOne) UpdateTokenLimit() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateTokenLimit()
+	})
+}
+
+// ClearTokenLimit clears the value of the "token_limit" field.
+func (u *SubscriptionPlanUpsertOne) ClearTokenLimit() *SubscriptionPlanUpsertOne {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearTokenLimit()
 	})
 }
 
@@ -1604,6 +1814,90 @@ func (u *SubscriptionPlanUpsertBulk) SetValidityUnit(v string) *SubscriptionPlan
 func (u *SubscriptionPlanUpsertBulk) UpdateValidityUnit() *SubscriptionPlanUpsertBulk {
 	return u.Update(func(s *SubscriptionPlanUpsert) {
 		s.UpdateValidityUnit()
+	})
+}
+
+// SetRequestLimit sets the "request_limit" field.
+func (u *SubscriptionPlanUpsertBulk) SetRequestLimit(v int64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetRequestLimit(v)
+	})
+}
+
+// AddRequestLimit adds v to the "request_limit" field.
+func (u *SubscriptionPlanUpsertBulk) AddRequestLimit(v int64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddRequestLimit(v)
+	})
+}
+
+// UpdateRequestLimit sets the "request_limit" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateRequestLimit() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateRequestLimit()
+	})
+}
+
+// ClearRequestLimit clears the value of the "request_limit" field.
+func (u *SubscriptionPlanUpsertBulk) ClearRequestLimit() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearRequestLimit()
+	})
+}
+
+// SetAmountLimitUsd sets the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsertBulk) SetAmountLimitUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetAmountLimitUsd(v)
+	})
+}
+
+// AddAmountLimitUsd adds v to the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsertBulk) AddAmountLimitUsd(v float64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddAmountLimitUsd(v)
+	})
+}
+
+// UpdateAmountLimitUsd sets the "amount_limit_usd" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateAmountLimitUsd() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateAmountLimitUsd()
+	})
+}
+
+// ClearAmountLimitUsd clears the value of the "amount_limit_usd" field.
+func (u *SubscriptionPlanUpsertBulk) ClearAmountLimitUsd() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearAmountLimitUsd()
+	})
+}
+
+// SetTokenLimit sets the "token_limit" field.
+func (u *SubscriptionPlanUpsertBulk) SetTokenLimit(v int64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.SetTokenLimit(v)
+	})
+}
+
+// AddTokenLimit adds v to the "token_limit" field.
+func (u *SubscriptionPlanUpsertBulk) AddTokenLimit(v int64) *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.AddTokenLimit(v)
+	})
+}
+
+// UpdateTokenLimit sets the "token_limit" field to the value that was provided on create.
+func (u *SubscriptionPlanUpsertBulk) UpdateTokenLimit() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.UpdateTokenLimit()
+	})
+}
+
+// ClearTokenLimit clears the value of the "token_limit" field.
+func (u *SubscriptionPlanUpsertBulk) ClearTokenLimit() *SubscriptionPlanUpsertBulk {
+	return u.Update(func(s *SubscriptionPlanUpsert) {
+		s.ClearTokenLimit()
 	})
 }
 

@@ -297,6 +297,9 @@ func (s *PaymentService) createOrderInTx(ctx context.Context, req CreateOrderReq
 			"gateway_base_amount":        settlement.GatewayBaseAmount,
 			"qualifying_recharge_amount": settlement.QualifyingRechargeAmount,
 			"payment_currency":           settlement.Currency,
+			"request_limit":              plan.RequestLimit,
+			"amount_limit_usd":           plan.AmountLimitUsd,
+			"token_limit":                plan.TokenLimit,
 		})
 	}
 	if plan != nil {

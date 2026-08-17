@@ -51,6 +51,18 @@ func (SubscriptionPlan) Fields() []ent.Field {
 		field.String("validity_unit").
 			MaxLen(10).
 			Default("day"),
+		// Package quotas are optional. When all are NULL this remains a legacy
+		// subscription plan and continues to use the group window limits.
+		field.Int64("request_limit").
+			Optional().
+			Nillable(),
+		field.Float("amount_limit_usd").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "decimal(20,10)"}),
+		field.Int64("token_limit").
+			Optional().
+			Nillable(),
 		field.String("features").
 			SchemaType(map[string]string{dialect.Postgres: "text"}).
 			Default(""),

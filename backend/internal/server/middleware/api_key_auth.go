@@ -206,6 +206,14 @@ func apiKeyAuthWithSubscription(apiKeyService *service.APIKeyService, subscripti
 			)
 			if subErr != nil {
 				if !skipBilling {
+					if errors.Is(subErr, service.ErrPackageQuotaExhausted) {
+						AbortWithError(c, http.StatusTooManyRequests, "PACKAGE_QUOTA_EXHAUSTED", "套餐额度已用尽")
+						return
+					}
+					if errors.Is(subErr, service.ErrPackageEntitlementExpired) {
+						AbortWithError(c, http.StatusForbidden, "PACKAGE_EXPIRED", "套餐已到期")
+						return
+					}
 					AbortWithError(c, 403, "SUBSCRIPTION_NOT_FOUND", "No active subscription found for this group")
 					return
 				}

@@ -192,6 +192,25 @@ func TestValidatePlanPatch_AllNil(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestValidatePlanPatch_AllowsExplicitQuotaClear(t *testing.T) {
+	err := validatePlanPatch(UpdatePlanRequest{
+		ClearRequestLimit:   true,
+		ClearAmountLimitUSD: true,
+		ClearTokenLimit:     true,
+	})
+	require.NoError(t, err)
+}
+
+func TestValidatePlanPatch_RejectsQuotaSetAndClearConflict(t *testing.T) {
+	requestLimit := int64(1000)
+	err := validatePlanPatch(UpdatePlanRequest{
+		RequestLimit:      &requestLimit,
+		ClearRequestLimit: true,
+	})
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "set and cleared")
+}
+
 // --- normalizePlanCurrency tests ---
 // Empty must stay empty (not coerced to the default payment currency),
 // so existing plans keep rendering without any currency label.

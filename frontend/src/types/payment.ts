@@ -203,6 +203,10 @@ export interface SubscriptionPlan {
   currency?: string
   validity_days: number
   validity_unit: string
+  /** Optional package hard limits. Reaching any configured limit ends the package. */
+  request_limit?: number | null
+  amount_limit_usd?: number | null
+  token_limit?: number | null
   /** Stored as JSON string in backend; API layer should parse before use */
   features: string[]
   product_name?: string

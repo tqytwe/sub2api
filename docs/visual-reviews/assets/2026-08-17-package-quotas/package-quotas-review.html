@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f5f7fa; color: #1f2937; font: 14px/1.45 Arial, sans-serif; }
+      .frame { width: 1280px; min-height: 800px; padding: 40px; }
+      .modal { width: 840px; margin: 0 auto; background: #fff; border: 1px solid #d1d5db; border-radius: 8px; box-shadow: 0 12px 28px rgba(0,0,0,.12); }
+      header { padding: 20px 24px; border-bottom: 1px solid #e5e7eb; font-size: 18px; font-weight: 600; }
+      main { padding: 24px; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .triple { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+      label { display: block; margin-bottom: 6px; color: #4b5563; font-size: 13px; }
+      .input { height: 40px; padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 6px; color: #374151; background: #fff; }
+      .input.placeholder { color: #9ca3af; }
+      .module { margin-top: 20px; padding: 16px; border: 1px solid #d1d5db; border-radius: 8px; }
+      h2 { margin: 0; font-size: 15px; }
+      p { margin: 4px 0 16px; color: #6b7280; font-size: 12px; }
+      footer { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 24px; border-top: 1px solid #e5e7eb; }
+      button { height: 40px; padding: 0 16px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; color: #374151; }
+      button.primary { border-color: #2563eb; background: #2563eb; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <div class="frame">
+      <section class="modal" aria-label="套餐编辑原型">
+        <header>编辑套餐</header>
+        <main>
+          <div class="grid">
+            <div><label>套餐名称</label><div class="input">月度综合套餐</div></div>
+            <div><label>有效期</label><div class="input">30 天</div></div>
+          </div>
+          <section class="module">
+            <h2>套餐耗尽规则</h2>
+            <p>任意一项达到上限，套餐立即结束；留空表示不限制该项。</p>
+            <div class="triple">
+              <div><label>请求次数上限</label><div class="input">10,000</div></div>
+              <div><label>金额额度（美元）</label><div class="input">700</div></div>
+              <div><label>Token数量上限</label><div class="input">100,000,000</div></div>
+            </div>
+          </section>
+        </main>
+        <footer><button>取消</button><button class="primary">保存</button></footer>
+      </section>
+    </div>
+  </body>
+</html>

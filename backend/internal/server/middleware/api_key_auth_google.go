@@ -3,6 +3,7 @@ package middleware
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -177,6 +178,14 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 				apiKey.Group.ID,
 			)
 			if err != nil {
+				if errors.Is(err, service.ErrPackageQuotaExhausted) {
+					abortWithGoogleError(c, http.StatusTooManyRequests, "套餐额度已用尽")
+					return
+				}
+				if errors.Is(err, service.ErrPackageEntitlementExpired) {
+					abortWithGoogleError(c, http.StatusForbidden, "套餐已到期")
+					return
+				}
 				abortWithGoogleError(c, 403, "No active subscription found for this group")
 				return
 			}
@@ -193,6 +202,14 @@ func APIKeyAuthWithSubscriptionGoogle(apiKeyService *service.APIKeyService, subs
 			}
 			if err != nil {
 				status := 403
+				if errors.Is(err, service.ErrPackageQuotaExhausted) {
+					abortWithGoogleError(c, http.StatusTooManyRequests, "套餐额度已用尽")
+					return
+				}
+				if errors.Is(err, service.ErrPackageEntitlementExpired) {
+					abortWithGoogleError(c, http.StatusForbidden, "套餐已到期")
+					return
+				}
 				if errors.Is(err, service.ErrDailyLimitExceeded) ||
 					errors.Is(err, service.ErrWeeklyLimitExceeded) ||
 					errors.Is(err, service.ErrMonthlyLimitExceeded) {

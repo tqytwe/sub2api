@@ -296,6 +296,15 @@ function planLimitLabel(value: number | null | undefined): string {
 
 function planMetrics(plan: SubscriptionPlan): { label: string; value: string; emphasis?: boolean }[] {
   const items: { label: string; value: string; emphasis?: boolean }[] = []
+  if (hasPositiveLimit(plan.request_limit)) {
+    items.push({ label: t('payment.planCard.requestLimit'), value: Number(plan.request_limit).toLocaleString(), emphasis: true })
+  }
+  if (hasPositiveLimit(plan.amount_limit_usd)) {
+    items.push({ label: t('payment.planCard.amountLimit'), value: planLimitLabel(plan.amount_limit_usd), emphasis: true })
+  }
+  if (hasPositiveLimit(plan.token_limit)) {
+    items.push({ label: t('payment.planCard.tokenLimit'), value: Number(plan.token_limit).toLocaleString(), emphasis: true })
+  }
   if (hasPositiveLimit(plan.daily_limit_usd)) {
     items.push({ label: t('payment.planCard.dailyLimit'), value: planLimitLabel(plan.daily_limit_usd), emphasis: true })
   }
@@ -314,6 +323,9 @@ function planMetrics(plan: SubscriptionPlan): { label: string; value: string; em
 
 function planChips(plan: SubscriptionPlan): string[] {
   const chips: string[] = []
+  if (hasPositiveLimit(plan.request_limit)) chips.push(`${t('payment.planCard.requestLimit')} ${Number(plan.request_limit).toLocaleString()}`)
+  if (hasPositiveLimit(plan.amount_limit_usd)) chips.push(`${t('payment.planCard.amountLimit')} ${planLimitLabel(plan.amount_limit_usd)}`)
+  if (hasPositiveLimit(plan.token_limit)) chips.push(`${t('payment.planCard.tokenLimit')} ${Number(plan.token_limit).toLocaleString()}`)
   if (hasPositiveLimit(plan.daily_limit_usd)) chips.push(`${t('payment.planCard.dailyLimit')} ${planLimitLabel(plan.daily_limit_usd)}`)
   if (hasPositiveLimit(plan.weekly_limit_usd)) chips.push(`${t('payment.planCard.weeklyLimit')} ${planLimitLabel(plan.weekly_limit_usd)}`)
   if (hasPositiveLimit(plan.monthly_limit_usd)) chips.push(`${t('payment.planCard.monthlyLimit')} ${planLimitLabel(plan.monthly_limit_usd)}`)

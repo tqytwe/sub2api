@@ -1911,6 +1911,9 @@ var (
 		{Name: "currency", Type: field.TypeString, Size: 3, Default: ""},
 		{Name: "validity_days", Type: field.TypeInt, Default: 30},
 		{Name: "validity_unit", Type: field.TypeString, Size: 10, Default: "day"},
+		{Name: "request_limit", Type: field.TypeInt64, Nullable: true},
+		{Name: "amount_limit_usd", Type: field.TypeFloat64, Nullable: true, SchemaType: map[string]string{"postgres": "decimal(20,10)"}},
+		{Name: "token_limit", Type: field.TypeInt64, Nullable: true},
 		{Name: "features", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "product_name", Type: field.TypeString, Size: 100, Default: ""},
 		{Name: "cover_image_url", Type: field.TypeString, Default: "", SchemaType: map[string]string{"postgres": "text"}},
@@ -1938,22 +1941,22 @@ var (
 			{
 				Name:    "subscriptionplan_for_sale",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[17]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[20]},
 			},
 			{
 				Name:    "subscriptionplan_storefront_platform",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[13]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[16]},
 			},
 			{
 				Name:    "subscriptionplan_storefront_category",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[14]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[17]},
 			},
 			{
 				Name:    "subscriptionplan_storefront_featured",
 				Unique:  false,
-				Columns: []*schema.Column{SubscriptionPlansColumns[15]},
+				Columns: []*schema.Column{SubscriptionPlansColumns[18]},
 			},
 		},
 	}

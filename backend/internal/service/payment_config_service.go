@@ -171,6 +171,9 @@ type CreatePlanRequest struct {
 	Currency           string   `json:"currency"`
 	ValidityDays       int      `json:"validity_days"`
 	ValidityUnit       string   `json:"validity_unit"`
+	RequestLimit       *int64   `json:"request_limit"`
+	AmountLimitUSD     *float64 `json:"amount_limit_usd"`
+	TokenLimit         *int64   `json:"token_limit"`
 	Features           string   `json:"features"`
 	ProductName        string   `json:"product_name"`
 	CoverImageURL      string   `json:"cover_image_url"`
@@ -184,24 +187,32 @@ type CreatePlanRequest struct {
 }
 
 type UpdatePlanRequest struct {
-	GroupID            *int64   `json:"group_id"`
-	Name               *string  `json:"name"`
-	Description        *string  `json:"description"`
-	Price              *float64 `json:"price"`
-	OriginalPrice      *float64 `json:"original_price"`
-	Currency           *string  `json:"currency"`
-	ValidityDays       *int     `json:"validity_days"`
-	ValidityUnit       *string  `json:"validity_unit"`
-	Features           *string  `json:"features"`
-	ProductName        *string  `json:"product_name"`
-	CoverImageURL      *string  `json:"cover_image_url"`
-	DetailDescription  *string  `json:"detail_description"`
-	StorefrontPlatform *string  `json:"storefront_platform"`
-	StorefrontCategory *string  `json:"storefront_category"`
-	StorefrontFeatured *bool    `json:"storefront_featured"`
-	StorefrontBadge    *string  `json:"storefront_badge"`
-	ForSale            *bool    `json:"for_sale"`
-	SortOrder          *int     `json:"sort_order"`
+	GroupID        *int64   `json:"group_id"`
+	Name           *string  `json:"name"`
+	Description    *string  `json:"description"`
+	Price          *float64 `json:"price"`
+	OriginalPrice  *float64 `json:"original_price"`
+	Currency       *string  `json:"currency"`
+	ValidityDays   *int     `json:"validity_days"`
+	ValidityUnit   *string  `json:"validity_unit"`
+	RequestLimit   *int64   `json:"request_limit"`
+	AmountLimitUSD *float64 `json:"amount_limit_usd"`
+	TokenLimit     *int64   `json:"token_limit"`
+	// JSON null cannot be distinguished from an omitted pointer field. These
+	// flags make removing a configured package cap an explicit PATCH operation.
+	ClearRequestLimit   bool    `json:"clear_request_limit"`
+	ClearAmountLimitUSD bool    `json:"clear_amount_limit_usd"`
+	ClearTokenLimit     bool    `json:"clear_token_limit"`
+	Features            *string `json:"features"`
+	ProductName         *string `json:"product_name"`
+	CoverImageURL       *string `json:"cover_image_url"`
+	DetailDescription   *string `json:"detail_description"`
+	StorefrontPlatform  *string `json:"storefront_platform"`
+	StorefrontCategory  *string `json:"storefront_category"`
+	StorefrontFeatured  *bool   `json:"storefront_featured"`
+	StorefrontBadge     *string `json:"storefront_badge"`
+	ForSale             *bool   `json:"for_sale"`
+	SortOrder           *int    `json:"sort_order"`
 }
 
 // PaymentConfigService manages payment configuration and CRUD for

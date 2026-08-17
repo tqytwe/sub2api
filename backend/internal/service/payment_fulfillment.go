@@ -745,6 +745,17 @@ func (s *PaymentService) ensurePaymentSubscriptionAssigned(ctx context.Context, 
 	} else {
 		slog.Info("subscription already assigned for order, skipping", "orderID", o.ID, "groupID", groupID)
 	}
+	if err := s.subscriptionSvc.CreatePackageEntitlementFromOrder(
+		txCtx,
+		o.ID,
+		o.UserID,
+		groupID,
+		time.Now(),
+		days,
+		o.SubscriptionSnapshot,
+	); err != nil {
+		return fmt.Errorf("create package entitlement: %w", err)
+	}
 
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("commit subscription fulfillment tx: %w", err)

@@ -29,6 +29,12 @@ const (
 	FieldValidityDays = "validity_days"
 	// FieldValidityUnit holds the string denoting the validity_unit field in the database.
 	FieldValidityUnit = "validity_unit"
+	// FieldRequestLimit holds the string denoting the request_limit field in the database.
+	FieldRequestLimit = "request_limit"
+	// FieldAmountLimitUsd holds the string denoting the amount_limit_usd field in the database.
+	FieldAmountLimitUsd = "amount_limit_usd"
+	// FieldTokenLimit holds the string denoting the token_limit field in the database.
+	FieldTokenLimit = "token_limit"
 	// FieldFeatures holds the string denoting the features field in the database.
 	FieldFeatures = "features"
 	// FieldProductName holds the string denoting the product_name field in the database.
@@ -68,6 +74,9 @@ var Columns = []string{
 	FieldCurrency,
 	FieldValidityDays,
 	FieldValidityUnit,
+	FieldRequestLimit,
+	FieldAmountLimitUsd,
+	FieldTokenLimit,
 	FieldFeatures,
 	FieldProductName,
 	FieldCoverImageURL,
@@ -189,6 +198,21 @@ func ByValidityDays(opts ...sql.OrderTermOption) OrderOption {
 // ByValidityUnit orders the results by the validity_unit field.
 func ByValidityUnit(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldValidityUnit, opts...).ToFunc()
+}
+
+// ByRequestLimit orders the results by the request_limit field.
+func ByRequestLimit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequestLimit, opts...).ToFunc()
+}
+
+// ByAmountLimitUsd orders the results by the amount_limit_usd field.
+func ByAmountLimitUsd(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAmountLimitUsd, opts...).ToFunc()
+}
+
+// ByTokenLimit orders the results by the token_limit field.
+func ByTokenLimit(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldTokenLimit, opts...).ToFunc()
 }
 
 // ByFeatures orders the results by the features field.

@@ -38,6 +38,8 @@ var (
 	ErrDailyLimitExceeded          = infraerrors.TooManyRequests("DAILY_LIMIT_EXCEEDED", "daily usage limit exceeded")
 	ErrWeeklyLimitExceeded         = infraerrors.TooManyRequests("WEEKLY_LIMIT_EXCEEDED", "weekly usage limit exceeded")
 	ErrMonthlyLimitExceeded        = infraerrors.TooManyRequests("MONTHLY_LIMIT_EXCEEDED", "monthly usage limit exceeded")
+	ErrPackageQuotaExhausted       = infraerrors.TooManyRequests("PACKAGE_QUOTA_EXHAUSTED", "套餐额度已用尽")
+	ErrPackageEntitlementExpired   = infraerrors.Forbidden("PACKAGE_ENTITLEMENT_EXPIRED", "套餐已到期")
 	ErrSubscriptionNilInput        = infraerrors.BadRequest("SUBSCRIPTION_NIL_INPUT", "subscription input cannot be nil")
 	ErrAdjustWouldExpire           = infraerrors.BadRequest("ADJUST_WOULD_EXPIRE", "adjustment would result in expired subscription (remaining days must be > 0)")
 )
@@ -733,6 +735,16 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 		if v, ok := s.subCacheL1.Get(key); ok {
 			if sub, ok := v.(*UserSubscription); ok {
 				cp := *sub
+				packageEntitlement, packageManaged, packageErr := s.packageEntitlementForUserGroup(ctx, userID, groupID)
+				if packageErr != nil {
+					return nil, packageErr
+				}
+				if packageManaged {
+					if packageEntitlement == nil {
+						return nil, ErrPackageQuotaExhausted
+					}
+					cp.PackageEntitlement = packageEntitlement
+				}
 				return &cp, nil
 			}
 		}
@@ -743,6 +755,16 @@ func (s *SubscriptionService) GetActiveSubscription(ctx context.Context, userID,
 		sub, err := s.userSubRepo.GetActiveByUserIDAndGroupID(ctx, userID, groupID)
 		if err != nil {
 			return nil, err // 直接透传 repo 已翻译的错误（NotFound → ErrSubscriptionNotFound，其他错误原样返回）
+		}
+		packageEntitlement, packageManaged, packageErr := s.packageEntitlementForUserGroup(ctx, userID, groupID)
+		if packageErr != nil {
+			return nil, packageErr
+		}
+		if packageManaged {
+			if packageEntitlement == nil {
+				return nil, ErrPackageQuotaExhausted
+			}
+			sub.PackageEntitlement = packageEntitlement
 		}
 		// 写入 L1 缓存
 		if s.subCacheL1 != nil {
@@ -996,6 +1018,18 @@ func (s *SubscriptionService) ValidateAndCheckLimits(sub *UserSubscription, grou
 	}
 	if !sub.ExpiresAt.After(now) {
 		return false, ErrSubscriptionExpired
+	}
+	if sub.PackageEntitlement != nil {
+		status, _ := PackageQuotaState(sub.PackageEntitlement, now)
+		if status == PackageEntitlementExpired {
+			return false, ErrPackageEntitlementExpired
+		}
+		if status == PackageEntitlementExhausted {
+			return false, ErrPackageQuotaExhausted
+		}
+		// Package entitlements use their immutable hard caps. The legacy group
+		// window limits must not unexpectedly reject a valid package request.
+		return false, nil
 	}
 
 	// 2. 内存中修正过期窗口的用量，确保预检查不会误拒绝用户。

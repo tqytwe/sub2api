@@ -2640,59 +2640,59 @@ func init() {
 	// subscriptionplan.ValidityUnitValidator is a validator for the "validity_unit" field. It is called by the builders before save.
 	subscriptionplan.ValidityUnitValidator = subscriptionplanDescValidityUnit.Validators[0].(func(string) error)
 	// subscriptionplanDescFeatures is the schema descriptor for features field.
-	subscriptionplanDescFeatures := subscriptionplanFields[8].Descriptor()
+	subscriptionplanDescFeatures := subscriptionplanFields[11].Descriptor()
 	// subscriptionplan.DefaultFeatures holds the default value on creation for the features field.
 	subscriptionplan.DefaultFeatures = subscriptionplanDescFeatures.Default.(string)
 	// subscriptionplanDescProductName is the schema descriptor for product_name field.
-	subscriptionplanDescProductName := subscriptionplanFields[9].Descriptor()
+	subscriptionplanDescProductName := subscriptionplanFields[12].Descriptor()
 	// subscriptionplan.DefaultProductName holds the default value on creation for the product_name field.
 	subscriptionplan.DefaultProductName = subscriptionplanDescProductName.Default.(string)
 	// subscriptionplan.ProductNameValidator is a validator for the "product_name" field. It is called by the builders before save.
 	subscriptionplan.ProductNameValidator = subscriptionplanDescProductName.Validators[0].(func(string) error)
 	// subscriptionplanDescCoverImageURL is the schema descriptor for cover_image_url field.
-	subscriptionplanDescCoverImageURL := subscriptionplanFields[10].Descriptor()
+	subscriptionplanDescCoverImageURL := subscriptionplanFields[13].Descriptor()
 	// subscriptionplan.DefaultCoverImageURL holds the default value on creation for the cover_image_url field.
 	subscriptionplan.DefaultCoverImageURL = subscriptionplanDescCoverImageURL.Default.(string)
 	// subscriptionplanDescDetailDescription is the schema descriptor for detail_description field.
-	subscriptionplanDescDetailDescription := subscriptionplanFields[11].Descriptor()
+	subscriptionplanDescDetailDescription := subscriptionplanFields[14].Descriptor()
 	// subscriptionplan.DefaultDetailDescription holds the default value on creation for the detail_description field.
 	subscriptionplan.DefaultDetailDescription = subscriptionplanDescDetailDescription.Default.(string)
 	// subscriptionplanDescStorefrontPlatform is the schema descriptor for storefront_platform field.
-	subscriptionplanDescStorefrontPlatform := subscriptionplanFields[12].Descriptor()
+	subscriptionplanDescStorefrontPlatform := subscriptionplanFields[15].Descriptor()
 	// subscriptionplan.DefaultStorefrontPlatform holds the default value on creation for the storefront_platform field.
 	subscriptionplan.DefaultStorefrontPlatform = subscriptionplanDescStorefrontPlatform.Default.(string)
 	// subscriptionplan.StorefrontPlatformValidator is a validator for the "storefront_platform" field. It is called by the builders before save.
 	subscriptionplan.StorefrontPlatformValidator = subscriptionplanDescStorefrontPlatform.Validators[0].(func(string) error)
 	// subscriptionplanDescStorefrontCategory is the schema descriptor for storefront_category field.
-	subscriptionplanDescStorefrontCategory := subscriptionplanFields[13].Descriptor()
+	subscriptionplanDescStorefrontCategory := subscriptionplanFields[16].Descriptor()
 	// subscriptionplan.DefaultStorefrontCategory holds the default value on creation for the storefront_category field.
 	subscriptionplan.DefaultStorefrontCategory = subscriptionplanDescStorefrontCategory.Default.(string)
 	// subscriptionplan.StorefrontCategoryValidator is a validator for the "storefront_category" field. It is called by the builders before save.
 	subscriptionplan.StorefrontCategoryValidator = subscriptionplanDescStorefrontCategory.Validators[0].(func(string) error)
 	// subscriptionplanDescStorefrontFeatured is the schema descriptor for storefront_featured field.
-	subscriptionplanDescStorefrontFeatured := subscriptionplanFields[14].Descriptor()
+	subscriptionplanDescStorefrontFeatured := subscriptionplanFields[17].Descriptor()
 	// subscriptionplan.DefaultStorefrontFeatured holds the default value on creation for the storefront_featured field.
 	subscriptionplan.DefaultStorefrontFeatured = subscriptionplanDescStorefrontFeatured.Default.(bool)
 	// subscriptionplanDescStorefrontBadge is the schema descriptor for storefront_badge field.
-	subscriptionplanDescStorefrontBadge := subscriptionplanFields[15].Descriptor()
+	subscriptionplanDescStorefrontBadge := subscriptionplanFields[18].Descriptor()
 	// subscriptionplan.DefaultStorefrontBadge holds the default value on creation for the storefront_badge field.
 	subscriptionplan.DefaultStorefrontBadge = subscriptionplanDescStorefrontBadge.Default.(string)
 	// subscriptionplan.StorefrontBadgeValidator is a validator for the "storefront_badge" field. It is called by the builders before save.
 	subscriptionplan.StorefrontBadgeValidator = subscriptionplanDescStorefrontBadge.Validators[0].(func(string) error)
 	// subscriptionplanDescForSale is the schema descriptor for for_sale field.
-	subscriptionplanDescForSale := subscriptionplanFields[16].Descriptor()
+	subscriptionplanDescForSale := subscriptionplanFields[19].Descriptor()
 	// subscriptionplan.DefaultForSale holds the default value on creation for the for_sale field.
 	subscriptionplan.DefaultForSale = subscriptionplanDescForSale.Default.(bool)
 	// subscriptionplanDescSortOrder is the schema descriptor for sort_order field.
-	subscriptionplanDescSortOrder := subscriptionplanFields[17].Descriptor()
+	subscriptionplanDescSortOrder := subscriptionplanFields[20].Descriptor()
 	// subscriptionplan.DefaultSortOrder holds the default value on creation for the sort_order field.
 	subscriptionplan.DefaultSortOrder = subscriptionplanDescSortOrder.Default.(int)
 	// subscriptionplanDescCreatedAt is the schema descriptor for created_at field.
-	subscriptionplanDescCreatedAt := subscriptionplanFields[18].Descriptor()
+	subscriptionplanDescCreatedAt := subscriptionplanFields[21].Descriptor()
 	// subscriptionplan.DefaultCreatedAt holds the default value on creation for the created_at field.
 	subscriptionplan.DefaultCreatedAt = subscriptionplanDescCreatedAt.Default.(func() time.Time)
 	// subscriptionplanDescUpdatedAt is the schema descriptor for updated_at field.
-	subscriptionplanDescUpdatedAt := subscriptionplanFields[19].Descriptor()
+	subscriptionplanDescUpdatedAt := subscriptionplanFields[22].Descriptor()
 	// subscriptionplan.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	subscriptionplan.DefaultUpdatedAt = subscriptionplanDescUpdatedAt.Default.(func() time.Time)
 	// subscriptionplan.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

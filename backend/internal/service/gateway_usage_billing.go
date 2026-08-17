@@ -449,6 +449,9 @@ func buildUsageBillingCommandForContext(ctx context.Context, requestID string, u
 		} else if p.billedCost() > 0 {
 			cmd.BalanceCost = p.billedCost()
 		}
+		if p.IsSubscriptionBill && p.Subscription != nil && p.Subscription.PackageEntitlement != nil {
+			cmd.PackageEntitlementID = &p.Subscription.PackageEntitlement.ID
+		}
 
 	}
 	if p.shouldDeductAPIKeyQuota() {
