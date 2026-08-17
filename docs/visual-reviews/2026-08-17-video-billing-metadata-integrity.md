@@ -45,7 +45,7 @@ The change reuses `UsageTable`, its existing Teleport tooltip, typography, spaci
 ## State Coverage
 
 - Complete metadata: count, resolution, duration, calculated per-second price, and total remain visible.
-- Missing historical metadata: resolution and duration remain unavailable; per-second price is explicitly unavailable rather than inferred.
+- Missing historical metadata: resolution and duration now both show `未记录` / `not recorded`; per-second price is explicitly unavailable rather than inferred.
 - Loading, empty, error, hover, active, focus-visible, and disabled behavior remain owned by existing shared table and tooltip code.
 
 ## Viewport Coverage

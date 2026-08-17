@@ -503,6 +503,7 @@ describe('admin UsageTable tooltip', () => {
 		await nextTick()
 
 		expect(wrapper.get('[data-testid="video-unit-price-unavailable"]').text()).toBe('not recorded')
+		expect(wrapper.get('[data-testid="video-duration-unavailable"]').text()).toBe('not recorded')
 	})
 })
 
