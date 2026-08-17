@@ -54,9 +54,15 @@ const messages: Record<string, string> = {
   'usage.imageSizeUnknown': 'unknown',
   'usage.imageUnitPrice': 'Per-image price',
   'usage.imageTotalPrice': 'Image total price',
+  'usage.videoUnitPrice': 'Price per second',
+  'usage.videoCount': 'Video count',
+  'usage.videoResolution': 'Video resolution',
+  'usage.videoDuration': 'Video duration',
+  'usage.videoTotalPrice': 'Video total price',
   'admin.usage.billingModeToken': 'Token',
   'admin.usage.billingModePerRequest': 'Per request',
   'admin.usage.billingModeImage': 'Image',
+	'admin.usage.billingModeVideo': 'Video (per second)',
 	'admin.usage.requestIdCopied': 'Request ID copied',
 	'keys.copied': 'Copied',
 	'keys.copyToClipboard': 'Copy to clipboard',
@@ -365,7 +371,8 @@ describe('admin UsageTable tooltip', () => {
       },
     })
 
-    await wrapper.find('.group.relative').trigger('mouseenter')
+    const tooltipTriggers = wrapper.findAll('.group.relative')
+    await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
     await nextTick()
 
     const text = wrapper.text()
@@ -418,6 +425,49 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('Per-image price')
     expect(text).toContain('not recorded')
     expect(text).not.toContain('(2K)')
+  })
+
+  it('shows video resolution, duration, and per-second price instead of a per-request fallback', async () => {
+    const wrapper = mount(UsageTable, {
+      props: {
+        data: [{
+          ...baseImageRow,
+          request_id: 'req-admin-video-per-second',
+          model: 'agnes-video-v2.0',
+          billing_mode: 'video',
+          image_count: 0,
+          total_cost: 3.6,
+          video_count: 1,
+          video_resolution: '720p',
+          video_duration_seconds: 6,
+        }],
+        loading: false,
+        columns: [],
+      },
+      global: {
+        stubs: {
+          DataTable: DataTableStub,
+          EmptyState: true,
+          Icon: true,
+          Teleport: true,
+        },
+      },
+    })
+
+    const tooltipTriggers = wrapper.findAll('.group.relative')
+    await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
+    await nextTick()
+
+    const text = wrapper.text()
+    expect(text).toContain('Video (per second)')
+    expect(text).toContain('Video count')
+    expect(text).toContain('720p')
+    expect(text).toContain('6s')
+    expect(text).toContain('Price per second')
+    expect(text).toContain('$0.600000')
+    expect(text).toContain('Video total price')
+    expect(text).toContain('$3.600000')
+    expect(text).not.toContain('Per-image price')
   })
 })
 

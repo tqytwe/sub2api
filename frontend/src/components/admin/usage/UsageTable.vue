@@ -408,6 +408,28 @@
                 <span class="font-medium text-pink-300">{{ formatTokenPricePerMillion(tooltipData.image_output_cost ?? 0, tooltipData.image_output_tokens) }} {{ t('usage.perMillionTokens') }}</span>
               </div>
             </template>
+            <template v-else-if="tooltipData && getDisplayBillingMode(tooltipData) === BILLING_MODE_VIDEO">
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.videoCount') }}</span>
+                <span class="font-medium text-white">{{ tooltipData.video_count || 1 }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.videoResolution') }}</span>
+                <span class="font-medium text-white">{{ tooltipData.video_resolution || '-' }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.videoDuration') }}</span>
+                <span class="font-medium text-white">{{ tooltipData.video_duration_seconds ?? '-' }}s</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.videoUnitPrice') }}</span>
+                <span class="font-medium text-sky-300">${{ videoUnitPrice(tooltipData).toFixed(6) }}</span>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <span class="text-gray-400">{{ t('usage.videoTotalPrice') }}</span>
+                <span class="font-medium text-white">${{ tooltipData.total_cost?.toFixed(6) || '0.000000' }}</span>
+              </div>
+            </template>
             <template v-else-if="tooltipData && isImageUsage(tooltipData)">
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.imageCount') }}</span>
@@ -515,6 +537,7 @@ import {
 } from '@/utils/latencyHealth'
 import {
   BILLING_MODE_TOKEN,
+  BILLING_MODE_VIDEO,
   getBillingModeLabel,
   getBillingModeBadgeClass,
   isImageUsage,
@@ -540,6 +563,12 @@ function accountBilled(row: { total_cost?: number | null; account_stats_cost?: n
   const base = row.account_stats_cost != null ? row.account_stats_cost : (row.total_cost ?? 0)
   const result = base * (row.account_rate_multiplier ?? 1)
   return Number.isNaN(result) ? 0 : result
+}
+
+function videoUnitPrice(row: Pick<AdminUsageLog, 'total_cost' | 'video_count' | 'video_duration_seconds'>): number {
+  const units = Math.max(1, row.video_count || 1) * Math.max(0, row.video_duration_seconds || 0)
+  if (units <= 0) return row.total_cost || 0
+  return (row.total_cost || 0) / units
 }
 
 

@@ -1710,6 +1710,11 @@ export interface UsageLog {
   image_output_size: string | null
   image_size_source: ImageSizeSource | null
   image_size_breakdown: ImageSizeBreakdown | null
+
+  // 视频生成字段（按秒计费）
+  video_count: number
+  video_resolution: string | null
+  video_duration_seconds: number | null
   image_input_tokens: number
   image_input_cost: number
   image_output_tokens: number
