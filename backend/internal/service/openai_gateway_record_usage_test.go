@@ -2478,6 +2478,50 @@ func TestOpenAIGatewayServiceRecordUsage_ChannelVideoPricingBillsPerSecond(t *te
 	require.Equal(t, 6, *usageRepo.lastLog.VideoDurationSeconds)
 }
 
+func TestOpenAIGatewayServiceRecordUsage_NonAgnesVideoModelBillsPerSecond(t *testing.T) {
+	for _, model := range []string{"seedance2.5", "veo-3.1"} {
+		t.Run(model, func(t *testing.T) {
+			groupID := int64(1263)
+			perSecondPrice := 0.6
+			usageRepo := &openAIRecordUsageLogRepoStub{inserted: true}
+			svc := newOpenAIRecordUsageServiceForTest(usageRepo, &openAIRecordUsageUserRepoStub{}, &openAIRecordUsageSubRepoStub{}, nil)
+			svc.resolver = newOpenAIVideoChannelPricingResolverForTest(t, groupID, model, perSecondPrice)
+
+			err := svc.RecordUsage(context.Background(), &OpenAIRecordUsageInput{
+				Result: &OpenAIForwardResult{
+					RequestID:            model + "-channel-per-second",
+					ResponseID:           model + "-task",
+					Model:                model,
+					BillingModel:         model,
+					VideoCount:           1,
+					VideoResolution:      VideoBillingResolution720P,
+					VideoDurationSeconds: 6,
+					Duration:             time.Second,
+				},
+				APIKey: &APIKey{
+					ID:      101263,
+					GroupID: i64p(groupID),
+					Group:   &Group{ID: groupID, RateMultiplier: 1},
+				},
+				User:    &User{ID: 201263},
+				Account: &Account{ID: 301263, Platform: PlatformOpenAI},
+			})
+
+			require.NoError(t, err)
+			require.NotNil(t, usageRepo.lastLog)
+			require.InDelta(t, perSecondPrice*6, usageRepo.lastLog.TotalCost, 1e-12)
+			require.InDelta(t, perSecondPrice*6, usageRepo.lastLog.ActualCost, 1e-12)
+			require.NotNil(t, usageRepo.lastLog.BillingMode)
+			require.Equal(t, string(BillingModeVideo), *usageRepo.lastLog.BillingMode)
+			require.Equal(t, 1, usageRepo.lastLog.VideoCount)
+			require.NotNil(t, usageRepo.lastLog.VideoResolution)
+			require.Equal(t, VideoBillingResolution720P, *usageRepo.lastLog.VideoResolution)
+			require.NotNil(t, usageRepo.lastLog.VideoDurationSeconds)
+			require.Equal(t, 6, *usageRepo.lastLog.VideoDurationSeconds)
+		})
+	}
+}
+
 func TestOpenAIGatewayServiceRecordUsage_GroupImagePriceOverridesChannelImagePrice(t *testing.T) {
 	groupID := int64(127)
 	channelPrice := 0.201

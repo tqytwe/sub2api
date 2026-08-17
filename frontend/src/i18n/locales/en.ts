@@ -1434,6 +1434,7 @@ const messages = {
     perMillionTokens: '/ 1M tokens',
     unitPrice: 'Per-request price',
     videoUnitPrice: 'Price per second',
+    videoUnitPriceUnavailable: 'not recorded',
     videoCount: 'Video count',
     videoResolution: 'Video resolution',
     videoDuration: 'Video duration',

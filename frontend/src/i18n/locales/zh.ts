@@ -1438,6 +1438,7 @@ const messages = {
     perMillionTokens: '/ 1M Token',
     unitPrice: '单次价格',
     videoUnitPrice: '每秒价格',
+    videoUnitPriceUnavailable: '未记录',
     videoCount: '视频数量',
     videoResolution: '视频分辨率',
     videoDuration: '视频时长',
