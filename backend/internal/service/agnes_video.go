@@ -47,9 +47,12 @@ func StableAgnesVideoBillingRequestID(id string) string {
 // so this is the only request that can be charged exactly once.
 func ExtractAgnesVideoBillingMetadata(body []byte) (resolution string, durationSeconds int) {
 	resolution = VideoBillingResolution720P
-	dimensions := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, "dimensions").String()))
-	parts := strings.Split(dimensions, "x")
-	if len(parts) == 2 {
+	for _, path := range []string{"dimensions", "size"} {
+		dimensions := strings.ToLower(strings.TrimSpace(gjson.GetBytes(body, path).String()))
+		parts := strings.Split(dimensions, "x")
+		if len(parts) != 2 {
+			continue
+		}
 		width := gjson.Parse(parts[0]).Int()
 		height := gjson.Parse(parts[1]).Int()
 		shortEdge := width
@@ -62,12 +65,24 @@ func ExtractAgnesVideoBillingMetadata(body []byte) (resolution string, durationS
 		case shortEdge > 0 && shortEdge <= 480:
 			resolution = VideoBillingResolution480P
 		}
+		break
+	}
+	if normalized, ok := LookupVideoBillingResolution(gjson.GetBytes(body, "resolution").String()); ok {
+		resolution = normalized
 	}
 
 	frames := gjson.GetBytes(body, "num_frames").Int()
 	frameRate := gjson.GetBytes(body, "frame_rate").Int()
 	if frames > 0 && frameRate > 0 {
 		durationSeconds = int(math.Round(float64(frames) / float64(frameRate)))
+	}
+	if durationSeconds <= 0 {
+		for _, path := range []string{"seconds", "duration", "video_duration_seconds", "duration_seconds"} {
+			if seconds := int(gjson.GetBytes(body, path).Int()); seconds > 0 {
+				durationSeconds = seconds
+				break
+			}
+		}
 	}
 	return resolution, NormalizeVideoBillingDurationSecondsOrDefault(durationSeconds)
 }

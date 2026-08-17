@@ -55,6 +55,7 @@ const messages: Record<string, string> = {
   'usage.imageUnitPrice': 'Per-image price',
   'usage.imageTotalPrice': 'Image total price',
   'usage.videoUnitPrice': 'Price per second',
+	'usage.videoUnitPriceUnavailable': 'not recorded',
   'usage.videoCount': 'Video count',
   'usage.videoResolution': 'Video resolution',
   'usage.videoDuration': 'Video duration',
@@ -469,6 +470,40 @@ describe('admin UsageTable tooltip', () => {
     expect(text).toContain('$3.600000')
     expect(text).not.toContain('Per-image price')
   })
+
+	 it('does not present a missing video duration as a per-second price', async () => {
+		const wrapper = mount(UsageTable, {
+			props: {
+				data: [{
+					...baseImageRow,
+					request_id: 'req-admin-video-missing-duration',
+					model: 'seedance2.5',
+					billing_mode: 'video',
+					image_count: 0,
+					total_cost: 0.6,
+					video_count: 1,
+					video_resolution: null,
+					video_duration_seconds: null,
+				}],
+				loading: false,
+				columns: [],
+			},
+			global: {
+				stubs: {
+					DataTable: DataTableStub,
+					EmptyState: true,
+					Icon: true,
+					Teleport: true,
+				},
+			},
+		})
+
+		const tooltipTriggers = wrapper.findAll('.group.relative')
+		await tooltipTriggers[tooltipTriggers.length - 1].trigger('mouseenter')
+		await nextTick()
+
+		expect(wrapper.get('[data-testid="video-unit-price-unavailable"]').text()).toBe('not recorded')
+	})
 })
 
 describe('admin UsageTable request ID column', () => {

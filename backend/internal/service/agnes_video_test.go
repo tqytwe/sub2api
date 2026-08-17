@@ -57,3 +57,21 @@ func TestExtractAgnesVideoBillingMetadata(t *testing.T) {
 	require.Equal(t, 6, seconds)
 	require.Equal(t, "agnes-video:task_123", StableAgnesVideoBillingRequestID("task_123"))
 }
+
+func TestExtractAgnesVideoBillingMetadataReadsOpenAIVideoFields(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "seedance seconds", body: `{"model":"seedance2.5","size":"1280x720","seconds":"6"}`},
+		{name: "openai duration", body: `{"model":"veo-3.1","size":"1280x720","duration":6}`},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resolution, seconds := ExtractAgnesVideoBillingMetadata([]byte(tt.body))
+			require.Equal(t, VideoBillingResolution720P, resolution)
+			require.Equal(t, 6, seconds)
+		})
+	}
+}

@@ -609,27 +609,12 @@ func (s *OpenAIGatewayService) calculateOpenAIRecordUsageCost(
 	return tokenCost, nil
 }
 
-func isOpenAIVideoBillingModel(model string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(model))
-	return isGrokVideoBillingModel(normalized) || strings.HasPrefix(normalized, "agnes-video")
+func isOpenAIVideoUsageResult(result *OpenAIForwardResult, _ []string) bool {
+	return result != nil && result.VideoCount > 0
 }
 
 func isGrokVideoBillingModel(model string) bool {
 	return strings.HasPrefix(strings.ToLower(strings.TrimSpace(model)), "grok-imagine-video")
-}
-
-func isOpenAIVideoUsageResult(result *OpenAIForwardResult, billingModels []string) bool {
-	if result == nil || result.VideoCount <= 0 {
-		return false
-	}
-	candidates := append([]string{}, billingModels...)
-	candidates = append(candidates, result.BillingModel, result.Model, result.UpstreamModel)
-	for _, candidate := range candidates {
-		if isOpenAIVideoBillingModel(candidate) {
-			return true
-		}
-	}
-	return false
 }
 
 func isUsagePricingUnavailableError(err error) bool {

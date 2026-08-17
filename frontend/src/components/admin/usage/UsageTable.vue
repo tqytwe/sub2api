@@ -423,7 +423,8 @@
               </div>
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.videoUnitPrice') }}</span>
-                <span class="font-medium text-sky-300">${{ videoUnitPrice(tooltipData).toFixed(6) }}</span>
+                <span v-if="videoBillingUnits(tooltipData) > 0" class="font-medium text-sky-300">${{ videoUnitPrice(tooltipData).toFixed(6) }}</span>
+                <span v-else data-testid="video-unit-price-unavailable" class="font-medium text-amber-300">{{ t('usage.videoUnitPriceUnavailable') }}</span>
               </div>
               <div class="flex items-center justify-between gap-4">
                 <span class="text-gray-400">{{ t('usage.videoTotalPrice') }}</span>
@@ -566,9 +567,12 @@ function accountBilled(row: { total_cost?: number | null; account_stats_cost?: n
 }
 
 function videoUnitPrice(row: Pick<AdminUsageLog, 'total_cost' | 'video_count' | 'video_duration_seconds'>): number {
-  const units = Math.max(1, row.video_count || 1) * Math.max(0, row.video_duration_seconds || 0)
-  if (units <= 0) return row.total_cost || 0
-  return (row.total_cost || 0) / units
+  const units = videoBillingUnits(row)
+  return units > 0 ? (row.total_cost || 0) / units : 0
+}
+
+function videoBillingUnits(row: Pick<AdminUsageLog, 'video_count' | 'video_duration_seconds'>): number {
+  return Math.max(1, row.video_count || 1) * Math.max(0, row.video_duration_seconds || 0)
 }
 
 
