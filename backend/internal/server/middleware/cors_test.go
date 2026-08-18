@@ -160,6 +160,7 @@ func TestCORS_DefaultConfigAllowsFirstPartyWebAndAndroidOrigins(t *testing.T) {
 	for _, origin := range []string{
 		"https://jisudeng.com",
 		"https://www.jisudeng.com",
+		"https://canvas.jisudeng.com",
 		"https://localhost",
 		"http://localhost",
 		"capacitor://localhost",

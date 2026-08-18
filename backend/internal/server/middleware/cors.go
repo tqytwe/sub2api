@@ -15,6 +15,8 @@ var corsWarningOnce sync.Once
 var firstPartyClientOrigins = []string{
 	"https://jisudeng.com",
 	"https://www.jisudeng.com",
+	// Infinite Canvas calls the OpenAI-compatible API from its production web app.
+	"https://canvas.jisudeng.com",
 	"https://localhost",
 	"http://localhost",
 	"capacitor://localhost",
