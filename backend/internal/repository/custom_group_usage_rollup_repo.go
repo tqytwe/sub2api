@@ -75,6 +75,7 @@ func (r *usageLogRepository) getAllGroupUsageSummaryFromRollups(ctx context.Cont
 		FROM groups g
 		LEFT JOIN historical ON historical.group_id = g.id
 		LEFT JOIN tail ON tail.group_id = g.id
+		WHERE g.deleted_at IS NULL
 		ORDER BY g.id
 	`
 
