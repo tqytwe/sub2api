@@ -958,7 +958,11 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 	}
 
 	// 计算费用
-	cost := s.calculateRecordUsageCost(ctx, result, apiKey, billingModel, multiplier, imageMultiplier, opts)
+	cost := s.calculateRecordUsageCost(ctx, result, apiKey, billingModel, multiplier, imageMultiplier, pricingAt, opts)
+	// response_model：按上游成功响应自报的模型计费（渠道显式开启才生效）。
+	// 采纳条件见 responseModelBillingDeclaration + hasIdentifiedResponseModelPricing
+	// + responseModelBillingAdoptable。任一条件不满足都静默回落基线，即开启本模式前的
+	// 既有行为。响应模型与基线同名时直接跳过：重算必然同价，白跑一次定价解析。
 	if responseModel := responseModelBillingDeclaration(
 		input.BillingModelSource,
 		result.UpstreamResponseModel,
@@ -966,7 +970,7 @@ func (s *GatewayService) recordUsageCore(ctx context.Context, input *recordUsage
 		result.ImageCount > 0 || result.AudioUsage != nil || result.SearchCount > 0,
 	); responseModel != "" && !strings.EqualFold(responseModel, strings.TrimSpace(billingModel)) {
 		if identified, responseChannelPriced := s.hasIdentifiedResponseModelPricing(ctx, responseModel, apiKey); identified {
-			responseCost := s.calculateRecordUsageCost(ctx, result, apiKey, responseModel, multiplier, imageMultiplier, opts)
+			responseCost := s.calculateRecordUsageCost(ctx, result, apiKey, responseModel, multiplier, imageMultiplier, pricingAt, opts)
 			baselineChannelPriced := s.resolveChannelPricing(ctx, billingModel, apiKey) != nil
 			if responseModelBillingAdoptable(cost, responseCost, baselineChannelPriced, responseChannelPriced) {
 				logResponseModelBillingApplied("service.gateway", account, result.RequestID, billingModel, responseModel, cost, responseCost)
@@ -1068,12 +1072,13 @@ func (s *GatewayService) calculateRecordUsageCost(
 	billingModel string,
 	multiplier float64,
 	imageMultiplier float64,
+	pricingAt time.Time,
 	opts *recordUsageOpts,
 ) *CostBreakdown {
 	// 图片生成：渠道定价为 token 计费时走 token 路径，否则走图片计费
 	if result.ImageCount > 0 {
 		if resolved := s.resolveChannelPricing(ctx, billingModel, apiKey); resolved != nil && resolved.Mode == BillingModeToken {
-			return s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, opts)
+			return s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, pricingAt, opts)
 		}
 		return s.calculateImageCost(ctx, result, apiKey, billingModel, imageMultiplier)
 	}
@@ -1092,17 +1097,21 @@ func (s *GatewayService) calculateRecordUsageCost(
 		return s.billingService.CalculateAudioCost(result.AudioUsage.Mode, result.AudioUsage.DurationOrUnits, groupAudioPriceConfigFromAPIKey(apiKey), multiplier)
 	}
 
-	tokenCost := s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, opts)
-	if result.SearchCount <= 0 {
-		return tokenCost
-	}
-	searchCost := s.billingService.CalculateSearchCost(result.SearchCount, groupSearchPricePer1kFromAPIKey(apiKey), multiplier)
-	if tokenCost == nil {
-		return searchCost
-	}
-	if searchCost != nil {
-		tokenCost.TotalCost += searchCost.TotalCost
-		tokenCost.ActualCost += searchCost.ActualCost
+	// Token 计费；SearchCount 为叠加 surcharge（不替代 token）。
+	tokenCost := s.calculateTokenCost(ctx, result, apiKey, billingModel, multiplier, pricingAt, opts)
+	if result.SearchCount > 0 {
+		price := groupSearchPricePer1kFromAPIKey(apiKey)
+		if price != nil && *price == 0 {
+			logger.LegacyPrintf("service.gateway", "[Billing] search_price_per_1k explicit 0; search free group_model=%s count=%d", billingModel, result.SearchCount)
+		}
+		searchCost := s.billingService.CalculateSearchCost(result.SearchCount, price, multiplier)
+		if searchCost != nil && (searchCost.TotalCost > 0 || searchCost.ActualCost > 0) {
+			if tokenCost == nil {
+				return searchCost
+			}
+			tokenCost.TotalCost += searchCost.TotalCost
+			tokenCost.ActualCost += searchCost.ActualCost
+		}
 	}
 	return tokenCost
 }
@@ -1229,6 +1238,7 @@ func (s *GatewayService) calculateTokenCost(
 	apiKey *APIKey,
 	billingModel string,
 	multiplier float64,
+	pricingAt time.Time,
 	opts *recordUsageOpts,
 ) *CostBreakdown {
 	tokens := UsageTokens{
@@ -1256,6 +1266,7 @@ func (s *GatewayService) calculateTokenCost(
 			Tokens:         tokens,
 			RequestCount:   1,
 			RateMultiplier: multiplier,
+			PricingAt:      pricingAt,
 			Resolver:       s.resolver,
 			Resolved:       resolved,
 		})

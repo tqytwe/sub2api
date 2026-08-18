@@ -230,8 +230,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		SettingKeyBalanceLowNotifyRechargeURL,
 		SettingKeyAccountQuotaNotifyEnabled,
 		SettingKeyChannelMonitorEnabled,
+		SettingKeyChannelMonitorMode,
 		SettingKeyChannelMonitorHideThroughput,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
+		SettingKeyChannelMonitorShowQuota,
 		SettingKeyAvailableChannelsEnabled,
 		SettingKeyMarketplaceEnabled,
 		SettingKeyModelPlazaEnabled,
@@ -365,8 +367,10 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		BalanceLowNotifyRechargeURL:         settings[SettingKeyBalanceLowNotifyRechargeURL],
 
 		ChannelMonitorEnabled:                !isFalseSettingValue(settings[SettingKeyChannelMonitorEnabled]),
+		ChannelMonitorMode:                   normalizeChannelMonitorMode(settings[SettingKeyChannelMonitorMode]),
 		ChannelMonitorHideThroughput:         !isFalseSettingValue(settings[SettingKeyChannelMonitorHideThroughput]),
 		ChannelMonitorDefaultIntervalSeconds: parseChannelMonitorInterval(settings[SettingKeyChannelMonitorDefaultIntervalSeconds]),
+		ChannelMonitorShowQuota:              settings[SettingKeyChannelMonitorShowQuota] == "true",
 
 		AvailableChannelsEnabled: settings[SettingKeyAvailableChannelsEnabled] == "true",
 		MarketplaceEnabled:       marketplaceEnabled,
@@ -435,11 +439,29 @@ type ChannelMonitorRuntime struct {
 	Enabled                bool
 	Mode                   string
 	DefaultIntervalSeconds int
-	HideThroughput         bool
+	// HideThroughput: when true, user-facing V2 APIs omit RPM/TPM scale signals.
+	HideThroughput bool
+	// ShowQuota: when true, user-facing monitor views keep the quota/balance
+	// snapshots; otherwise the user handler strips them server-side.
+	// Parsed fail-closed (only literal "true" enables). Admin always sees them.
+	ShowQuota bool
 }
 
 func (r ChannelMonitorRuntime) ActiveProbesAllowed() bool {
 	return r.Enabled && r.Mode == ChannelMonitorModeV1
+}
+
+// AllowsCheckMode reports whether a monitor check can run under the current
+// feature mode. V2 retires only LLM-backed probes; a quota-only check uses the
+// linked account's usage endpoint and remains safe to run while V2 is active.
+func (r ChannelMonitorRuntime) AllowsCheckMode(checkMode string) bool {
+	if !r.Enabled {
+		return false
+	}
+	if defaultCheckMode(checkMode) == MonitorCheckModeQuota {
+		return true
+	}
+	return r.ActiveProbesAllowed()
 }
 
 func (r ChannelMonitorRuntime) PassiveAggregationAllowed() bool {
@@ -454,6 +476,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		SettingKeyChannelMonitorMode,
 		SettingKeyChannelMonitorDefaultIntervalSeconds,
 		SettingKeyChannelMonitorHideThroughput,
+		SettingKeyChannelMonitorShowQuota,
 	})
 	if err != nil {
 		return ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV1, DefaultIntervalSeconds: channelMonitorIntervalFallback, HideThroughput: true}
@@ -463,6 +486,7 @@ func (s *SettingService) GetChannelMonitorRuntime(ctx context.Context) ChannelMo
 		Mode:                   normalizeChannelMonitorMode(vals[SettingKeyChannelMonitorMode]),
 		DefaultIntervalSeconds: parseChannelMonitorInterval(vals[SettingKeyChannelMonitorDefaultIntervalSeconds]),
 		HideThroughput:         !isFalseSettingValue(vals[SettingKeyChannelMonitorHideThroughput]),
+		ShowQuota:              vals[SettingKeyChannelMonitorShowQuota] == "true",
 	}
 }
 
@@ -601,23 +625,30 @@ type PublicSettingsInjectionPayload struct {
 	// Feature flags — MUST match the opt-in/opt-out registry in
 	// frontend/src/utils/featureFlags.ts. Missing a field here is the bug
 	// that hid the "可用渠道" menu on page refresh.
-	ChannelMonitorEnabled                bool `json:"channel_monitor_enabled"`
-	ChannelMonitorDefaultIntervalSeconds int  `json:"channel_monitor_default_interval_seconds"`
-	AvailableChannelsEnabled             bool `json:"available_channels_enabled"`
-	MarketplaceEnabled                   bool `json:"marketplace_enabled"`
-	ModelPlazaEnabled                    bool `json:"model_plaza_enabled"`
-	ModelPlazaRequireAuth                bool `json:"model_plaza_require_auth"`
-	PublicModelsEnabled                  bool `json:"public_models_enabled"`
-	PlayCheckinEnabled                   bool `json:"play_checkin_enabled"`
-	PlayArenaEnabled                     bool `json:"play_arena_enabled"`
-	PlayBlindboxEnabled                  bool `json:"play_blindbox_enabled"`
-	PlayQuizEnabled                      bool `json:"play_quiz_enabled"`
-	PlayAgentTeamEnabled                 bool `json:"play_agent_team_enabled"`
-	ImageStudioEnabled                   bool `json:"image_studio_enabled"`
-	NextChatEnabled                      bool `json:"nextchat_enabled"`
-	AffiliateEnabled                     bool `json:"affiliate_enabled"`
-	RiskControlEnabled                   bool `json:"risk_control_enabled"`
-	AllowUserViewErrorRequests           bool `json:"allow_user_view_error_requests"`
+	ChannelMonitorEnabled                bool   `json:"channel_monitor_enabled"`
+	ChannelMonitorMode                   string `json:"channel_monitor_mode"`
+	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
+	// ChannelMonitorHideThroughput is public so the user UI can hide RPM/TPM
+	// without waiting for API redaction alone (defense in depth).
+	ChannelMonitorHideThroughput bool `json:"channel_monitor_hide_throughput"`
+	// ChannelMonitorShowQuota gates the user-facing quota/balance display on
+	// monitors; fail-closed (absent/false = hidden). Admin UI always shows it.
+	ChannelMonitorShowQuota    bool `json:"channel_monitor_show_quota"`
+	AvailableChannelsEnabled   bool `json:"available_channels_enabled"`
+	MarketplaceEnabled         bool `json:"marketplace_enabled"`
+	ModelPlazaEnabled          bool `json:"model_plaza_enabled"`
+	ModelPlazaRequireAuth      bool `json:"model_plaza_require_auth"`
+	AffiliateEnabled           bool `json:"affiliate_enabled"`
+	RiskControlEnabled         bool `json:"risk_control_enabled"`
+	AllowUserViewErrorRequests bool `json:"allow_user_view_error_requests"`
+	PublicModelsEnabled        bool `json:"public_models_enabled"`
+	PlayCheckinEnabled         bool `json:"play_checkin_enabled"`
+	PlayArenaEnabled           bool `json:"play_arena_enabled"`
+	PlayBlindboxEnabled        bool `json:"play_blindbox_enabled"`
+	PlayQuizEnabled            bool `json:"play_quiz_enabled"`
+	PlayAgentTeamEnabled       bool `json:"play_agent_team_enabled"`
+	ImageStudioEnabled         bool `json:"image_studio_enabled"`
+	NextChatEnabled            bool `json:"nextchat_enabled"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -690,7 +721,10 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		BalanceLowNotifyRechargeURL:         settings.BalanceLowNotifyRechargeURL,
 
 		ChannelMonitorEnabled:                settings.ChannelMonitorEnabled,
+		ChannelMonitorMode:                   settings.ChannelMonitorMode,
 		ChannelMonitorDefaultIntervalSeconds: settings.ChannelMonitorDefaultIntervalSeconds,
+		ChannelMonitorHideThroughput:         settings.ChannelMonitorHideThroughput,
+		ChannelMonitorShowQuota:              settings.ChannelMonitorShowQuota,
 		AvailableChannelsEnabled:             settings.AvailableChannelsEnabled,
 		MarketplaceEnabled:                   settings.MarketplaceEnabled,
 		ModelPlazaEnabled:                    settings.ModelPlazaEnabled,
