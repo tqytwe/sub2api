@@ -102,6 +102,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/pricing',
+    // design-governance-allow: visual-evidence - this compatibility route only restores a named redirect and does not add a new visual surface
     name: 'Pricing',
     redirect: '/models',
   },
