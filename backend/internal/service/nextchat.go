@@ -474,6 +474,29 @@ func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (
 	if err != nil {
 		return nil, err
 	}
+	if s.userRepo != nil && s.groupRepo != nil && s.userSubRepo != nil {
+		// Ordinary keys can outlive a subscription or an explicit group grant.
+		// Filter them against the current permission result before using one as
+		// the managed session's initial billing group.
+		available, availableErr := s.GetAvailableGroups(ctx, userID)
+		if availableErr != nil {
+			return nil, availableErr
+		}
+		availableByID := make(map[int64]struct{}, len(available))
+		for _, group := range available {
+			availableByID[group.ID] = struct{}{}
+		}
+		authorizedOwned := make([]Group, 0, len(ownedGroups))
+		for _, group := range ownedGroups {
+			if _, ok := availableByID[group.ID]; ok {
+				authorizedOwned = append(authorizedOwned, group)
+			}
+		}
+		if len(authorizedOwned) > 0 {
+			return pickPreferredNextChatGroupID(authorizedOwned), nil
+		}
+		return pickPreferredNextChatGroupID(available), nil
+	}
 	if len(ownedGroups) > 0 {
 		return pickPreferredNextChatGroupID(ownedGroups), nil
 	}
@@ -503,11 +526,16 @@ func (s *APIKeyService) GetNextChatSelectableGroups(ctx context.Context, userID 
 			}
 		} else {
 			byID := make(map[int64]Group, len(groups)+len(available))
-			for _, group := range groups {
-				byID[group.ID] = group
-			}
+			// An existing ordinary key is only selectable while the user can
+			// currently bind its group. This prevents expired exclusive groups
+			// from being carried into a new managed session.
 			for _, group := range available {
 				byID[group.ID] = group
+			}
+			for _, group := range groups {
+				if _, authorized := byID[group.ID]; authorized {
+					byID[group.ID] = group
+				}
 			}
 			groups = groups[:0]
 			for _, group := range byID {
