@@ -621,7 +621,20 @@ func (w *MobileVideoWorker) complete(ctx context.Context, job *MobileVideoJob, r
 		return nil
 	}
 	if len(result.Artifact) == 0 {
-		return w.fail(ctx, job, ErrMobileVideoJobArtifact)
+		if strings.TrimSpace(result.ArtifactURL) == "" {
+			return w.fail(ctx, job, ErrMobileVideoJobArtifact)
+		}
+		// Some providers (notably Agnes compatibility endpoints) return a
+		// short-lived, provider-owned result URL instead of a separate content
+		// response. Preserve that URL in the authenticated task projection. When
+		// an object storage backend is configured, the provider adapter should
+		// return bytes so the result can be copied into server-owned storage.
+		if err := w.store.MarkCompleted(ctx, job.TaskID, w.workerID, "", result.ArtifactURL, strings.TrimSpace(result.ContentType), 0); err != nil {
+			return err
+		}
+		artifact := MobileTaskArtifact{ID: job.TaskID, Kind: "video", Name: "video.mp4", ContentType: strings.TrimSpace(result.ContentType), URL: result.ArtifactURL}
+		_, err := w.tasks.Transition(ctx, job.UserID, job.TaskID, MobileTaskTransitionInput{Status: MobileTaskStatusCompleted, Progress: intPtrMobileVideo(100), Artifacts: []MobileTaskArtifact{artifact}})
+		return err
 	}
 	contentType := strings.TrimSpace(result.ContentType)
 	if contentType == "" {
