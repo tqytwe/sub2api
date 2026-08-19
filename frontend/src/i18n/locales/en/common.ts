@@ -212,7 +212,7 @@ export default {
     paymentPlans: 'Plans',
     channelManagement: 'Channels',
     channelPricing: 'Channel Pricing',
-    modelCatalog: 'Model Catalog',
+    modelCatalog: 'Model Plaza',
     channelMonitor: 'Channel Monitor',
     channelStatus: 'Channel Status',
     riskControl: 'Risk Control',
