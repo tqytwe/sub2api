@@ -258,6 +258,7 @@ func ProvideHandlers(
 	promptLibraryHandler *PromptLibraryHandler,
 	mobileAssetHandler *MobileAssetHandler,
 	mobileTaskHandler *MobileTaskHandler,
+	mobileVideoHandler *MobileVideoHandler,
 	mobileSupportHandler *MobileSupportHandler,
 	mobileDiagnosticHandler *MobileDiagnosticHandler,
 	mobileDeviceHandler *MobileDeviceHandler,
@@ -299,6 +300,7 @@ func ProvideHandlers(
 		PromptLibrary:     promptLibraryHandler,
 		MobileAsset:       mobileAssetHandler,
 		MobileTask:        mobileTaskHandler,
+		MobileVideo:       mobileVideoHandler,
 		MobileSupport:     mobileSupportHandler,
 		MobileDiagnostic:  mobileDiagnosticHandler,
 		MobileDevice:      mobileDeviceHandler,
@@ -339,6 +341,10 @@ func ProvideMobileAssetHandler(db *sql.DB, storage service.MobileAssetStorage) *
 
 func ProvideMobileTaskHandler(db *sql.DB, push *service.MobilePushService) *MobileTaskHandler {
 	return NewMobileTaskHandlerWithPush(service.NewMobileTaskService(db), push)
+}
+
+func ProvideMobileVideoHandler(db *sql.DB, apiKeys *service.APIKeyService) *MobileVideoHandler {
+	return NewMobileVideoHandler(service.NewMobileTaskService(db), apiKeys, service.NewMobileVideoJobService(db))
 }
 
 func ProvideMobileSupportHandler(playService *service.PlayService, feedbackAssetService *service.AnnouncementAssetService) *MobileSupportHandler {
@@ -397,6 +403,7 @@ var ProviderSet = wire.NewSet(
 	NewPromptLibraryHandler,
 	ProvideMobileAssetHandler,
 	ProvideMobileTaskHandler,
+	ProvideMobileVideoHandler,
 	ProvideMobileSupportHandler,
 	NewMobileDiagnosticHandler,
 	ProvideMobileDeviceHandler,
