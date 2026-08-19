@@ -8,7 +8,7 @@ import {
 } from '@/router/publicNavigation'
 
 describe('public navigation contract', () => {
-  it('routes the models entry to the public pricing page', () => {
+  it('routes the models entry to the named public pricing compatibility route', () => {
     const models = buildHomePrimaryNav(false).find((item) => item.key === 'models')
 
     expect(models?.to).toEqual({ name: PUBLIC_ROUTE_NAMES.pricing })
