@@ -867,7 +867,7 @@ export default {
     // Groups Management
     groups: {
       title: '分组管理',
-      description: '管理 API 密钥分组和费率配置',
+      description: '管理模型广场关联的现有分组；这里的模型价格仅用于展示。',
       searchGroups: '搜索分组...',
       createGroup: '创建分组',
       editGroup: '编辑分组',
@@ -889,6 +889,7 @@ export default {
         id: 'ID',
         platform: '平台',
         rateMultiplier: '费率倍数',
+        rateMultiplierDisplayOnly: '仅同步展示，不修改扣费配置',
         rpmOverride: 'RPM 覆盖',
         rpmOverrideHint: '该用户在此分组的 RPM 上限；留空 = 使用分组默认；0 = 不限制',
         rateDefault: '默认',
@@ -906,7 +907,20 @@ export default {
         userName: '用户名',
         userEmail: '邮箱',
         userNotes: '备注',
-        userStatus: '状态'
+        userStatus: '状态',
+        subscriptionType: '订阅类型'
+      },
+      fields: {
+        name: '名称',
+        description: '描述',
+        platform: '平台',
+        rateMultiplier: '费率倍数',
+        rateMultiplierDisplayOnly: '仅同步展示，不修改扣费配置',
+        subscriptionType: '订阅类型',
+        isExclusive: '专属分组',
+        imageRateIndependent: '图片独立费率',
+        imageRateMultiplier: '图片费率倍数',
+        status: '状态'
       },
       usageToday: '今日',
       usageTotal: '累计',
