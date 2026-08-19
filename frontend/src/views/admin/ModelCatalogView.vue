@@ -1,6 +1,10 @@
 <template>
   <AppLayout>
-    <section class="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800">
+    <div class="mb-4 flex items-center gap-2 border-b border-gray-200 px-1 dark:border-dark-700">
+      <button class="border-b-2 px-3 py-2 text-sm font-medium" :class="activePanel === 'models' ? 'border-gray-900 text-gray-900 dark:border-white dark:text-white' : 'border-transparent text-gray-500'" @click="activePanel = 'models'">{{ t('modelPlaza.admin.modelsTab') }}</button>
+      <button class="border-b-2 px-3 py-2 text-sm font-medium" :class="activePanel === 'groups' ? 'border-gray-900 text-gray-900 dark:border-white dark:text-white' : 'border-transparent text-gray-500'" @click="activePanel = 'groups'">{{ t('modelPlaza.admin.groupsTab') }}</button>
+    </div>
+    <section v-show="activePanel === 'groups'" class="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800">
       <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.groups.title') }}</h2>
@@ -23,15 +27,15 @@
           <tbody>
             <tr v-for="group in plazaGroups" :key="group.id" class="border-b border-gray-100 dark:border-dark-700/60">
               <td class="px-3 py-2"><div class="font-medium text-gray-900 dark:text-white">{{ group.name }}</div><div class="max-w-[360px] truncate text-xs text-gray-500">{{ group.description }}</div></td>
-              <td class="px-3 py-2">{{ group.platform }}</td><td class="px-3 py-2 font-mono">{{ group.rate_multiplier }}</td>
-              <td class="px-3 py-2">{{ group.subscription_type }}</td><td class="px-3 py-2">{{ group.status }}</td>
+              <td class="px-3 py-2">{{ group.platform }}</td><td class="px-3 py-2 font-mono">{{ group.rate_multiplier }}<span class="ml-1 text-xs text-gray-400">{{ t('modelPlaza.admin.displayOnly') }}</span></td>
+              <td class="px-3 py-2">{{ subscriptionTypeLabel(group.subscription_type) }}</td><td class="px-3 py-2">{{ groupStatusLabel(group.status) }}</td>
               <td class="px-3 py-2 text-right"><div class="flex justify-end gap-1"><button class="btn btn-ghost btn-sm" @click="openPlazaGroupEdit(group)">{{ t('common.edit') }}</button><button class="btn btn-ghost btn-sm text-red-600" @click="removePlazaGroup(group)">{{ t('common.delete') }}</button></div></td>
             </tr>
           </tbody>
         </table>
       </div>
     </section>
-    <TablePageLayout>
+    <TablePageLayout v-show="activePanel === 'models'">
       <template #filters>
         <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
           <div class="flex flex-1 flex-wrap items-center gap-3">
@@ -415,6 +419,7 @@ const { t } = useI18n()
 const appStore = useAppStore()
 
 const rows = ref<AdminCatalogRow[]>([])
+const activePanel = ref<'models' | 'groups'>('models')
 const loading = ref(false)
 const saving = ref(false)
 const syncing = ref(false)
@@ -552,6 +557,14 @@ function diffClass(site: number | null | undefined, official: number | null | un
 
 function groupLabel(id: number): string {
   return groups.value.find((group) => group.id === id)?.name ?? `#${id}`
+}
+
+function subscriptionTypeLabel(value: string): string {
+  return value === 'subscription' ? t('modelPlaza.admin.subscription') : t('modelPlaza.admin.standard')
+}
+
+function groupStatusLabel(value: string): string {
+  return value === 'inactive' ? t('modelPlaza.admin.inactive') : t('modelPlaza.admin.active')
 }
 
 async function loadGroups() {

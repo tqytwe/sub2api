@@ -43,7 +43,7 @@ const PUBLIC_DOC_CONTENT_ZH_SOURCE: PublicDocCategoryContent[] = [
   -H "Content-Type: application/json" \\
   -H "anthropic-version: 2023-06-01" \\
   -d '{"model":"claude-sonnet-4-6","max_tokens":1024,"messages":[{"role":"user","content":"hi"}]}'</code></pre>
-<p class="docs-tip">完整模型清单与实时单价见 <a href="/pricing">模型与价格</a>。游客可看精选预览，登录后显示你分组下的<strong>真实可用模型</strong>与倍率。</p>`,
+<p class="docs-tip">完整模型清单与实时单价见 <a href="/models">模型广场</a>。游客可看精选预览，登录后显示你分组下的<strong>真实可用模型</strong>与倍率。</p>`,
       },
       {
         id: 'text-to-image-api',
@@ -59,7 +59,7 @@ GET  https://api.jisudeng.com/v1/images/tasks/{task_id}</code></pre>
 <ul>
   <li>网站：<a href="https://www.jisudeng.com">https://www.jisudeng.com</a></li>
   <li>API Key：<a href="https://www.jisudeng.com/keys">https://www.jisudeng.com/keys</a></li>
-  <li>模型与价格：<a href="https://www.jisudeng.com/pricing">https://www.jisudeng.com/pricing</a></li>
+  <li>模型与价格：<a href="https://www.jisudeng.com/models">https://www.jisudeng.com/models</a></li>
   <li>生成接口：<code>POST https://api.jisudeng.com/v1/images/generations</code></li>
   <li>编辑接口：<code>POST https://api.jisudeng.com/v1/images/edits</code></li>
 </ul>
@@ -76,7 +76,7 @@ Content-Type: application/json</code></pre>
 	  <li>Agnes：<code>agnes-image-2.1-flash</code>、<code>agnes-image-2.0-flash</code>。</li>
 	  <li>Gemini：<code>gemini-3.1-flash-image-preview</code>。</li>
 	</ul>
-	<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/pricing">模型与价格</a> 页面显示为准。不是所有名字里带 image 的模型都一定能提交到 Images API；如果模型属于文本、视频或尚未接入的图片能力，接口会在创建任务前返回 <code>400 invalid_request_error</code>。</p>
+	<p>最终能用哪些模型，以你的 API Key 所属分组在 <a href="/models">模型与价格</a> 页面显示为准。不是所有名字里带 image 的模型都一定能提交到 Images API；如果模型属于文本、视频或尚未接入的图片能力，接口会在创建任务前返回 <code>400 invalid_request_error</code>。</p>
 
 <p class="docs-tip">单个大尺寸请求或预计超过 60-90 秒的生成请优先使用 Gateway 单请求异步；多个 prompt 的持久任务请使用 Batch Image。同步接口经过 CDN/Cloudflare 时可能在上游仍在生成期间收到 <code>524</code>；后台可能已经生成成功并计费，但调用方连接已经断开。</p>
 
@@ -566,7 +566,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <h2>在哪里查看</h2>
 <ul>
   <li><strong>玩法中枢</strong>（/play）— VIP 卡片与权益列表</li>
-  <li><strong>模型页</strong>（/pricing）— V1+ 显示 VIP 徽章</li>
+  <li><strong>模型页</strong>（/models）— V1+ 显示 VIP 徽章</li>
   <li><strong>充值页</strong> — 当前 VIP、基础到账、VIP 加赠、活动加赠与预计到账</li>
 </ul>`,
       },
@@ -743,7 +743,7 @@ IMAGE_ASYNC_WORKER_COUNT=4</code></pre>
 <p>签到、Arena、盲盒、Quiz、Team 均有独立 Admin 开关。关闭后对应入口隐藏或 Hub 显示「暂未开启」引导。</p>
 
 <h2>模型列表在哪里看?</h2>
-<p>公开页 <a href="/pricing">/pricing</a>：游客看精选预览；登录后拉取你分组下的<strong>真实可用模型与单价</strong>。</p>`,
+<p>公开页 <a href="/models">/models</a>：游客看精选预览；登录后拉取你分组下的<strong>真实可用模型与单价</strong>。</p>`,
       },
       {
         id: 'blindbox-rewards',
@@ -1062,7 +1062,7 @@ IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官�
         id: 'model-list',
         title: "可用模型一览",
         summary: "当前网关支持的 Claude / GPT / Gemini 模型",
-        html: `<p class="docs-lead">模型 ID 以 <a href="/pricing">模型与价格</a> 为准：游客看精选预览，登录后显示你分组下的<strong>实时可用列表与单价</strong>。下列为 2026 年 7 月主流 lineup（定价库已收录，实际上线取决于分组配置）。</p>
+        html: `<p class="docs-lead">模型 ID 以 <a href="/models">模型与价格</a> 为准：游客看精选预览，登录后显示你分组下的<strong>实时可用列表与单价</strong>。下列为 2026 年 7 月主流 lineup（定价库已收录，实际上线取决于分组配置）。</p>
 
 <h2>Anthropic Claude（2026-07）</h2>
 <ul>
@@ -1104,7 +1104,7 @@ IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官�
 
 <h2>如何确认「我能用哪些」</h2>
 <ol>
-  <li>登录 → 打开 <a href="/pricing">/pricing</a></li>
+  <li>登录 → 打开 <a href="/models">/models</a></li>
   <li>查看当前分组支持的模型名与 input/output 单价</li>
   <li>调用时在 JSON 里填<strong>与列表完全一致</strong>的 model 字符串</li>
 </ol>`,
@@ -1131,7 +1131,7 @@ IDE 任何一次更新、Anthropic 改协议、对方账号被风控,你的"官�
 </div>
 <h2>性价比策略</h2>
 <p>「强模型起草 + 弱模型收尾」：例如 Opus / 5.6 Sol 出架构与关键逻辑，Haiku / 5.6 Luna 做格式化、摘要、批量改写。</p>
-<p class="docs-tip">GPT-5.6 三档（Sol / Terra / Luna）上线后优先在 <a href="/pricing">模型页</a> 确认分组是否已开放；Codex 用户可继续用 <code>gpt-5.5</code> 或升级到 <code>gpt-5.6-terra</code>。</p>`,
+<p class="docs-tip">GPT-5.6 三档（Sol / Terra / Luna）上线后优先在 <a href="/models">模型页</a> 确认分组是否已开放；Codex 用户可继续用 <code>gpt-5.5</code> 或升级到 <code>gpt-5.6-terra</code>。</p>`,
       },
       {
         id: 'best-practices',

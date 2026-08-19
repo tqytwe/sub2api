@@ -51,7 +51,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/en/models',
     name: 'EnglishModels',
-    component: () => import('@/views/public/ModelsView.vue'),
+    component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
       title: 'Models & Pricing',
@@ -62,7 +62,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/en/models/:family(deepseek|qwen|kimi|glm)',
     name: 'EnglishModelFamily',
-    component: () => import('@/views/public/ModelsView.vue'),
+    component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
       title: 'Model pricing',
@@ -102,25 +102,11 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/pricing',
-    name: 'Pricing',
-    component: () => import('@/views/public/ModelsView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Models & Pricing',
-      titleKey: 'models.title',
-      frame: 'workspace'
-    }
+    redirect: '/models',
   },
   {
     path: '/pricing/:family(deepseek|qwen|kimi|glm)',
-    name: 'PricingFamily',
-    component: () => import('@/views/public/ModelsView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Model pricing',
-      titleKey: 'models.title',
-      frame: 'workspace'
-    }
+    redirect: '/models',
   },
   {
     path: '/download/android',

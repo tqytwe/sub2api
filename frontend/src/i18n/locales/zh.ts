@@ -63,6 +63,15 @@ const messages = {
     nav: {
       login: '登录',
       backToDashboard: '回到后台'
+    },
+    admin: {
+      modelsTab: '模型展示',
+      groupsTab: '分组展示',
+      displayOnly: '只读展示',
+      standard: '标准',
+      subscription: '订阅',
+      active: '启用',
+      inactive: '停用'
     }
   },
   // Home Page
@@ -3744,7 +3753,7 @@ const messages = {
     },
 
     modelCatalog: {
-      title: '模型价目管理',
+      title: '模型广场管理',
       description: '统一管理官方价、本站展示价、展示范围与价目分组；分组展示价 = 本站展示价 × 分组倍率，仅影响前台展示',
       searchPlaceholder: '搜索模型…',
       platformFilter: '平台',
@@ -7344,9 +7353,9 @@ const messages = {
         availableChannels: {
           title: '模型与渠道定价',
           description: '控制登录用户「模型与价格」页与 /channels/available API。侧栏展示「模型与价格」，不恢复「可用渠道」入口。',
-          configureLink: '前往 渠道管理 → 模型价目 / 渠道定价',
+          configureLink: '前往 模型广场 / 渠道定价',
           enabled: '启用登录价目',
-          enabledHint: '关闭后登录 /pricing 显示「暂未开放」；游客价目由「公开模型目录」单独控制。',
+          enabledHint: '关闭后模型广场显示「暂未开放」；游客可见模型由模型广场统一控制。',
         },
         riskControl: {
           title: '风控中心',
@@ -7374,7 +7383,7 @@ const messages = {
           title: '玩法中心',
           description: '可选的用户运营模块：签到、Token 农场、盲盒、答题、Agent Team。',
           publicModelsEnabled: '公开模型目录',
-          publicModelsEnabledHint: '游客可在 /pricing 查看管理员勾选为「游客可见」的模型、官方价、本站展示价与分组展示价。',
+          publicModelsEnabledHint: '游客可在模型广场查看管理员设置为「游客可见」的模型、官方价与分组展示价。',
           checkinEnabled: '每日签到',
           checkinEnabledHint: '显示签到页与侧边栏入口。',
           checkinDailyReward: '签到奖励（余额）',

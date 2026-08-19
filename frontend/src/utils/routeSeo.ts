@@ -381,49 +381,6 @@ const ROUTE_SEO: Record<string, RouteSeo> = {
   },
 }
 
-// Public Chinese pricing pages have their own SEO keys. `/models` remains the
-// OpenAI-compatible API endpoint and is retained only as a legacy alias.
-for (const family of ['', '/deepseek', '/qwen', '/kimi', '/glm']) {
-  const sourcePath = `/models${family}`
-  const pricingPath = `/pricing${family}`
-  const source = ROUTE_SEO[sourcePath]
-  if (source) {
-    ROUTE_SEO[pricingPath] = {
-      ...source,
-      canonicalPath: pricingPath,
-      alternates: source.alternates.map((alternate) => ({
-        ...alternate,
-        path: alternate.path.replace(/^\/models/, '/pricing'),
-      })),
-    }
-  }
-}
-
-// `/models` is reserved by the OpenAI-compatible API. Keep its SEO record as a
-// compatibility alias while publishing the Chinese pricing pages under
-// `/pricing` so crawlers and locale switchers never target the API endpoint.
-for (const [path, seo] of Object.entries(ROUTE_SEO)) {
-  if (path === '/models' || path.startsWith('/models/')) {
-    const pricingPath = path.replace(/^\/models/, '/pricing')
-    const localizedSeo: RouteSeo = {
-      ...seo,
-      canonicalPath: pricingPath,
-      alternates: seo.alternates.map((alternate) => ({
-        ...alternate,
-        path: alternate.path.replace(/^\/models/, '/pricing'),
-      })),
-    }
-    ROUTE_SEO[path] = localizedSeo
-    ROUTE_SEO[pricingPath] = localizedSeo
-  }
-}
-for (const seo of Object.values(ROUTE_SEO)) {
-  seo.alternates = seo.alternates.map((alternate) => ({
-    ...alternate,
-    path: alternate.path.replace(/^\/models/, '/pricing'),
-  }))
-}
-
 function normalizePath(path: string): string {
   const clean = path.split('?')[0]?.split('#')[0] ?? '/'
   if (clean === '/') return '/'
@@ -522,7 +479,8 @@ function setStructuredData(seo: RouteSeo, canonical: string) {
 }
 
 export function resolvePublicRouteSeo(path: string): RouteSeo | undefined {
-  return ROUTE_SEO[normalizePath(path)]
+  const normalized = normalizePath(path)
+  return ROUTE_SEO[normalized] ?? ROUTE_SEO[normalized.replace(/^\/pricing(?=\/|$)/, '/models')]
 }
 
 export function applyPublicRouteSeo(path: string): RouteSeo | undefined {

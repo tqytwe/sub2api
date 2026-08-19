@@ -6869,7 +6869,7 @@
                 to="/admin/model-plaza"
                 class="inline-flex items-center gap-1 text-primary-600 hover:underline dark:text-primary-400"
               >
-                {{ t('nav.modelCatalog') }}
+                {{ t('nav.modelPlaza') }}
                 <span aria-hidden="true">→</span>
               </router-link>
             </p>
