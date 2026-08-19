@@ -102,6 +102,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/pricing',
+    name: 'Pricing',
     redirect: '/models',
   },
   {
