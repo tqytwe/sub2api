@@ -348,14 +348,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/model-plaza',
-    name: 'ModelPlaza',
+    path: '/models',
+    name: 'Models',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
       title: 'Model Plaza',
       titleKey: 'modelPlaza.title'
     }
+  },
+  {
+    path: '/model-plaza',
+    redirect: '/models',
   },
   {
     path: '/agent-team',
@@ -842,15 +846,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/model-catalog',
-    name: 'AdminModelCatalog',
+    path: '/admin/model-plaza',
+    name: 'AdminModelPlaza',
     component: () => import('@/views/admin/ModelCatalogView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
       title: 'Model Catalog',
-      titleKey: 'admin.modelCatalog.title',
-      descriptionKey: 'admin.modelCatalog.description',
+      titleKey: 'modelPlaza.title',
+      descriptionKey: 'modelPlaza.description',
       frame: 'workspace'
     }
   },

@@ -498,6 +498,7 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 		return err
 	}
 	entry.GroupIDs = groupIDs
+	manualOfficial := entry.OfficialInputPrice != nil || entry.OfficialOutputPrice != nil || entry.OfficialCacheReadPrice != nil || entry.OfficialCacheWritePrice != nil
 	if entry.ID > 0 {
 		existing, err := s.repo.GetCatalogEntry(ctx, entry.ID)
 		if err != nil {
@@ -506,12 +507,19 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 		if existing == nil {
 			return fmt.Errorf("catalog entry not found: %d", entry.ID)
 		}
-		entry.OfficialInputPrice = existing.OfficialInputPrice
-		entry.OfficialOutputPrice = existing.OfficialOutputPrice
-		entry.OfficialCacheReadPrice = existing.OfficialCacheReadPrice
-		entry.OfficialCacheWritePrice = existing.OfficialCacheWritePrice
-		entry.OfficialSource = existing.OfficialSource
-		entry.OfficialUpdatedAt = existing.OfficialUpdatedAt
+		if !manualOfficial {
+			entry.OfficialInputPrice = existing.OfficialInputPrice
+			entry.OfficialOutputPrice = existing.OfficialOutputPrice
+			entry.OfficialCacheReadPrice = existing.OfficialCacheReadPrice
+			entry.OfficialCacheWritePrice = existing.OfficialCacheWritePrice
+			entry.OfficialSource = existing.OfficialSource
+			entry.OfficialUpdatedAt = existing.OfficialUpdatedAt
+		}
+	}
+	if manualOfficial {
+		entry.OfficialSource = "manual"
+		now := time.Now()
+		entry.OfficialUpdatedAt = &now
 	}
 	if entry.PriceMultiplier != nil {
 		if *entry.PriceMultiplier <= 0 {

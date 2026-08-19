@@ -159,19 +159,19 @@
         <div v-if="editForm.id" class="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 text-sm dark:border-dark-700">
           <div>
             <span class="text-gray-500">{{ t('admin.modelCatalog.columns.officialInput') }}</span>
-            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.input) }}</div>
+            <input v-model.number="editForm.official_input_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
           </div>
           <div>
             <span class="text-gray-500">{{ t('admin.modelCatalog.columns.officialOutput') }}</span>
-            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.output) }}</div>
+            <input v-model.number="editForm.official_output_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
           </div>
           <div>
             <span class="text-gray-500">{{ t('admin.modelCatalog.fields.officialCacheRead') }}</span>
-            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.cacheRead) }}</div>
+            <input v-model.number="editForm.official_cache_read_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
           </div>
           <div>
             <span class="text-gray-500">{{ t('admin.modelCatalog.fields.officialCacheWrite') }}</span>
-            <div class="mt-1 font-medium">{{ formatPrice(editOfficial.cacheWrite) }}</div>
+            <input v-model.number="editForm.official_cache_write_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
           </div>
         </div>
 
@@ -415,6 +415,10 @@ const editForm = reactive({
   output_price_million: null as number | null,
   cache_read_price_million: null as number | null,
   cache_write_price_million: null as number | null,
+  official_input_price_million: null as number | null,
+  official_output_price_million: null as number | null,
+  official_cache_read_price_million: null as number | null,
+  official_cache_write_price_million: null as number | null,
 })
 
 const editOfficial = reactive({
@@ -647,6 +651,10 @@ function openEdit(row: AdminCatalogRow) {
     output_price_million: toPerMillion(row.output_price),
     cache_read_price_million: toPerMillion(row.cache_read_price),
     cache_write_price_million: toPerMillion(row.cache_write_price),
+    official_input_price_million: toPerMillion(row.official_input_price),
+    official_output_price_million: toPerMillion(row.official_output_price),
+    official_cache_read_price_million: toPerMillion(row.official_cache_read_price),
+    official_cache_write_price_million: toPerMillion(row.official_cache_write_price),
   })
   Object.assign(editOfficial, {
     input: row.official_input_price,
@@ -679,6 +687,10 @@ async function saveEdit() {
       output_price: multiplierMode ? null : fromPerMillion(editForm.output_price_million),
       cache_read_price: multiplierMode ? null : fromPerMillion(editForm.cache_read_price_million),
       cache_write_price: multiplierMode ? null : fromPerMillion(editForm.cache_write_price_million),
+      official_input_price: fromPerMillion(editForm.official_input_price_million),
+      official_output_price: fromPerMillion(editForm.official_output_price_million),
+      official_cache_read_price: fromPerMillion(editForm.official_cache_read_price_million),
+      official_cache_write_price: fromPerMillion(editForm.official_cache_write_price_million),
       billing_mode: 'token',
       source: 'manual',
     })

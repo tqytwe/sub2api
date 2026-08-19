@@ -2,6 +2,7 @@ package handler
 
 import (
 	"log/slog"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -20,6 +21,7 @@ type ModelPlazaHandler struct {
 	channelService *service.ChannelService
 	apiKeyService  *service.APIKeyService
 	settingService *service.SettingService
+	catalogService *service.ModelCatalogService
 }
 
 // NewModelPlazaHandler 创建模型广场 handler。
@@ -27,11 +29,17 @@ func NewModelPlazaHandler(
 	channelService *service.ChannelService,
 	apiKeyService *service.APIKeyService,
 	settingService *service.SettingService,
+	catalogServices ...*service.ModelCatalogService,
 ) *ModelPlazaHandler {
+	var catalogService *service.ModelCatalogService
+	if len(catalogServices) > 0 {
+		catalogService = catalogServices[0]
+	}
 	return &ModelPlazaHandler{
 		channelService: channelService,
 		apiKeyService:  apiKeyService,
 		settingService: settingService,
+		catalogService: catalogService,
 	}
 }
 
@@ -103,6 +111,22 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	var catalogPrices map[string]*service.PlazaOfficialPricing
+	if h.catalogService != nil {
+		if entries, listErr := h.catalogService.ListCatalog(c.Request.Context(), service.CatalogListFilter{}); listErr == nil {
+			catalogPrices = make(map[string]*service.PlazaOfficialPricing, len(entries))
+			for i := range entries {
+				e := &entries[i]
+				if !(e.VisiblePublic || (authed && e.VisibleAuth)) {
+					continue
+				}
+				if e.OfficialInputPrice == nil && e.OfficialOutputPrice == nil && e.OfficialCacheReadPrice == nil && e.OfficialCacheWritePrice == nil {
+					continue
+				}
+				catalogPrices[strings.ToLower(strings.TrimSpace(e.ModelName))] = &service.PlazaOfficialPricing{InputPrice: e.OfficialInputPrice, OutputPrice: e.OfficialOutputPrice, CacheReadPrice: e.OfficialCacheReadPrice, CacheWritePrice: e.OfficialCacheWritePrice}
+			}
+		}
+	}
 
 	// allowedExclusive == nil 表示匿名；登录用户恒为非 nil（可能为空集合）。
 	var allowedExclusive map[int64]struct{}
@@ -126,7 +150,13 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 
 	out := make([]modelPlazaGroup, 0, len(visible))
 	for i := range visible {
-		out = append(out, toModelPlazaGroupDTO(&visible[i], userRates))
+		groupDTO := toModelPlazaGroupDTO(&visible[i], userRates)
+		for j := range groupDTO.Models {
+			if price, ok := catalogPrices[strings.ToLower(strings.TrimSpace(groupDTO.Models[j].Name))]; ok {
+				groupDTO.Models[j].OfficialPricing = toModelPlazaOfficialPricing(price)
+			}
+		}
+		out = append(out, groupDTO)
 	}
 	response.Success(c, modelPlazaResponse{
 		Description: rt.Description,

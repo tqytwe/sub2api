@@ -370,6 +370,7 @@ func (r *modelCatalogRepository) UpdateCatalogOfficialPrices(
 			updated_at = NOW()
 		WHERE LOWER(model_name) = LOWER($7)
 			AND LOWER(platform) = LOWER($8)
+			AND COALESCE(official_source, '') <> 'manual'
 	`, input, output, cacheRead, cacheWrite, source, updatedAt, modelName, platform)
 	if err != nil {
 		return 0, fmt.Errorf("update catalog official prices: %w", err)
