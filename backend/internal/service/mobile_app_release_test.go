@@ -81,6 +81,24 @@ func TestParseMobileReleaseManifestVerifiesArtifactAndLocales(t *testing.T) {
 	require.Equal(t, "English notes", manifest.NotesI18n["en"][0])
 }
 
+func TestParseMobileReleaseManifestAcceptsLegacyLocalizedNotes(t *testing.T) {
+	artifact := []byte("apk-bytes")
+	data := releaseManifestJSON(t, artifact)
+	var raw map[string]any
+	require.NoError(t, json.Unmarshal(data, &raw))
+	raw["notes_i18n"] = nil
+	raw["notesByLocale"] = map[string][]string{
+		"zh-CN": {"中文说明"}, "en": {"English notes"},
+		"ja": {"日本語の説明"}, "ko": {"한국어 설명"},
+	}
+	data, err := json.Marshal(raw)
+	require.NoError(t, err)
+	manifest, err := ParseMobileReleaseManifest(data, "release.apk", artifact)
+	require.NoError(t, err)
+	require.Equal(t, []string{"中文说明"}, manifest.NotesI18n["zh"])
+	require.Nil(t, manifest.LegacyNotesByLocale)
+}
+
 func TestParseMobileReleaseManifestRejectsMissingLocale(t *testing.T) {
 	artifact := []byte("apk-bytes")
 	data := releaseManifestJSON(t, artifact)
