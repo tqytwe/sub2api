@@ -51,6 +51,7 @@ type MobileReleaseManifest struct {
 	BuiltFromCommit          string              `json:"builtFromCommit,omitempty"`
 	Notes                    []string            `json:"notes"`
 	NotesI18n                map[string][]string `json:"notes_i18n"`
+	LegacyNotesByLocale      map[string][]string `json:"notesByLocale,omitempty"`
 }
 
 type MobileAppRelease struct {
@@ -147,6 +148,22 @@ func ParseMobileReleaseManifest(data []byte, filename string, artifact []byte) (
 	}
 	manifest.SHA256 = strings.ToLower(strings.TrimSpace(manifest.SHA256))
 	manifest.SigningCertificateSHA256 = strings.ToLower(strings.TrimSpace(manifest.SigningCertificateSHA256))
+	// Older Dell builds used notesByLocale and zh-CN. Normalize those manifests
+	// at the upload boundary so an otherwise valid release is not rejected just
+	// because it was produced before the admin API contract was renamed.
+	if manifest.NotesI18n == nil {
+		manifest.NotesI18n = make(map[string][]string)
+	}
+	for locale, notes := range manifest.LegacyNotesByLocale {
+		canonicalLocale := locale
+		if locale == "zh-CN" {
+			canonicalLocale = "zh"
+		}
+		if len(manifest.NotesI18n[canonicalLocale]) == 0 {
+			manifest.NotesI18n[canonicalLocale] = notes
+		}
+	}
+	manifest.LegacyNotesByLocale = nil
 	hash := sha256.Sum256(artifact)
 	actualHash := hex.EncodeToString(hash[:])
 	if manifest.Bytes != int64(len(artifact)) {
