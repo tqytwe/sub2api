@@ -71,7 +71,15 @@ const messages = {
       standard: '标准',
       subscription: '订阅',
       active: '启用',
-      inactive: '停用'
+      inactive: '停用',
+      platformOpenai: 'OpenAI',
+      platformAnthropic: 'Claude / Anthropic',
+      platformGemini: 'Gemini',
+      platformAntigravity: 'Antigravity',
+      platformGrok: 'Grok',
+      platformComposite: '组合平台',
+      billingDisplayOnlyNote: '倍率和实际扣费配置不在这里修改。它们仅从现有分组同步展示。',
+      saveDisplaySettings: '保存展示设置'
     }
   },
   // Home Page
