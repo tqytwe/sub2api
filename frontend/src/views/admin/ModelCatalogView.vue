@@ -1,5 +1,36 @@
 <template>
   <AppLayout>
+    <section class="mb-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-dark-700 dark:bg-dark-800">
+      <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('admin.groups.title') }}</h2>
+          <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.groups.description') }}</p>
+        </div>
+        <div class="flex items-center gap-2">
+        <button class="btn btn-primary" @click="openPlazaGroupCreate">
+          {{ t('admin.groups.createGroup') }}
+        </button>
+        <button class="btn btn-secondary" :disabled="groupLoading" @click="loadPlazaGroups">
+          <Icon name="refresh" size="md" />
+        </button>
+        </div>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full min-w-[900px] text-sm">
+          <thead class="border-b border-gray-200 text-left text-xs text-gray-500 dark:border-dark-700">
+            <tr><th class="px-3 py-2">{{ t('admin.groups.columns.name') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.platform') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.rateMultiplier') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.subscriptionType') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.status') }}</th><th class="px-3 py-2 text-right">{{ t('common.actions') }}</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="group in plazaGroups" :key="group.id" class="border-b border-gray-100 dark:border-dark-700/60">
+              <td class="px-3 py-2"><div class="font-medium text-gray-900 dark:text-white">{{ group.name }}</div><div class="max-w-[360px] truncate text-xs text-gray-500">{{ group.description }}</div></td>
+              <td class="px-3 py-2">{{ group.platform }}</td><td class="px-3 py-2 font-mono">{{ group.rate_multiplier }}</td>
+              <td class="px-3 py-2">{{ group.subscription_type }}</td><td class="px-3 py-2">{{ group.status }}</td>
+              <td class="px-3 py-2 text-right"><div class="flex justify-end gap-1"><button class="btn btn-ghost btn-sm" @click="openPlazaGroupEdit(group)">{{ t('common.edit') }}</button><button class="btn btn-ghost btn-sm text-red-600" @click="removePlazaGroup(group)">{{ t('common.delete') }}</button></div></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
     <TablePageLayout>
       <template #filters>
         <div class="flex flex-col justify-between gap-4 lg:flex-row lg:items-start">
@@ -216,6 +247,20 @@
         </div>
       </template>
     </BaseDialog>
+    <BaseDialog :show="groupEditOpen" :title="plazaGroupForm.id ? t('admin.groups.editGroup') : t('admin.groups.createGroup')" @close="groupEditOpen = false">
+      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <label class="block text-sm sm:col-span-2">{{ t('admin.groups.fields.name') }}<input v-model="plazaGroupForm.name" class="input mt-1 w-full" /></label>
+        <label class="block text-sm sm:col-span-2">{{ t('admin.groups.fields.description') }}<textarea v-model="plazaGroupForm.description" class="input mt-1 w-full" rows="3" /></label>
+        <label class="block text-sm">{{ t('admin.groups.fields.platform') }}<select v-model="plazaGroupForm.platform" class="input mt-1 w-full"><option v-for="platform in ['openai','anthropic','gemini','antigravity','grok','composite']" :key="platform" :value="platform">{{ platform }}</option></select></label>
+        <label class="block text-sm">{{ t('admin.groups.fields.rateMultiplier') }}<input :value="plazaGroupForm.rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
+        <label class="block text-sm">{{ t('admin.groups.fields.subscriptionType') }}<select v-model="plazaGroupForm.subscription_type" class="input mt-1 w-full"><option value="standard">standard</option><option value="subscription">subscription</option></select></label>
+        <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.is_exclusive" type="checkbox" />{{ t('admin.groups.fields.isExclusive') }}</label>
+        <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.image_rate_independent" type="checkbox" />{{ t('admin.groups.fields.imageRateIndependent') }}</label>
+        <label class="block text-sm">{{ t('admin.groups.fields.imageRateMultiplier') }}<input :value="plazaGroupForm.image_rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
+        <label class="block text-sm">{{ t('admin.groups.fields.status') }}<select v-model="plazaGroupForm.status" class="input mt-1 w-full"><option value="active">active</option><option value="inactive">inactive</option></select></label>
+      </div>
+      <template #footer><button class="btn btn-secondary" @click="groupEditOpen = false">{{ t('common.cancel') }}</button><button class="btn btn-primary" :disabled="groupSaving" @click="savePlazaGroup">{{ t('common.save') }}</button></template>
+    </BaseDialog>
 
     <BaseDialog :show="batchGroupOpen" :title="t('admin.modelCatalog.batchGroupsTitle')" @close="batchGroupOpen = false">
       <div class="space-y-4">
@@ -382,6 +427,11 @@ const syncResultOpen = ref(false)
 const syncResult = ref<ModelSyncJob['result'] | null>(null)
 const syncJobError = ref<string | null>(null)
 const groups = ref<AdminGroup[]>([])
+const plazaGroups = ref<AdminGroup[]>([])
+const groupLoading = ref(false)
+const groupSaving = ref(false)
+const groupEditOpen = ref(false)
+const plazaGroupForm = reactive({ id: 0, name: '', description: '', platform: 'openai', rate_multiplier: 1, subscription_type: 'standard', is_exclusive: false, image_rate_independent: false, image_rate_multiplier: 1, status: 'active' })
 const batchGroupOpen = ref(false)
 const batchGroupMode = ref<'auto' | 'selected'>('selected')
 const batchGroupIDs = ref<number[]>([])
@@ -799,7 +849,43 @@ async function startSync() {
   }
 }
 
+async function loadPlazaGroups() {
+  groupLoading.value = true
+  try { plazaGroups.value = await groupsAPI.getAllIncludingInactive() } finally { groupLoading.value = false }
+}
+
+function openPlazaGroupEdit(group: AdminGroup) {
+  Object.assign(plazaGroupForm, { id: group.id, name: group.name, description: group.description ?? '', platform: group.platform, rate_multiplier: group.rate_multiplier, subscription_type: group.subscription_type, is_exclusive: group.is_exclusive, image_rate_independent: group.image_rate_independent, image_rate_multiplier: group.image_rate_multiplier, status: group.status })
+  groupEditOpen.value = true
+}
+
+function openPlazaGroupCreate() {
+  Object.assign(plazaGroupForm, { id: 0, name: '', description: '', platform: 'openai', rate_multiplier: 1, subscription_type: 'standard', is_exclusive: false, image_rate_independent: false, image_rate_multiplier: 1, status: 'active' })
+  groupEditOpen.value = true
+}
+
+async function savePlazaGroup() {
+  if (!plazaGroupForm.name.trim()) return
+  groupSaving.value = true
+  try {
+    if (plazaGroupForm.id) {
+      await groupsAPI.update(plazaGroupForm.id, { name: plazaGroupForm.name.trim(), description: plazaGroupForm.description, platform: plazaGroupForm.platform as any, subscription_type: plazaGroupForm.subscription_type as any, is_exclusive: plazaGroupForm.is_exclusive, image_rate_independent: plazaGroupForm.image_rate_independent, status: plazaGroupForm.status as any })
+    } else {
+      await groupsAPI.create({ name: plazaGroupForm.name.trim(), description: plazaGroupForm.description, platform: plazaGroupForm.platform as any, subscription_type: plazaGroupForm.subscription_type as any, is_exclusive: plazaGroupForm.is_exclusive, image_rate_independent: plazaGroupForm.image_rate_independent })
+    }
+    groupEditOpen.value = false
+    await loadPlazaGroups()
+    appStore.showSuccess(t('common.saved'))
+  } catch (err: unknown) { appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.saveFailed'))) } finally { groupSaving.value = false }
+}
+
+async function removePlazaGroup(group: AdminGroup) {
+  if (!window.confirm(t('admin.groups.deleteConfirm', { name: group.name }))) return
+  groupSaving.value = true
+  try { await groupsAPI.delete(group.id); await loadPlazaGroups(); appStore.showSuccess(t('common.deleted')) } catch (err: unknown) { appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.saveFailed'))) } finally { groupSaving.value = false }
+}
+
 onMounted(() => {
-  void Promise.all([loadCatalog(), loadGroups()])
+  void Promise.all([loadCatalog(), loadGroups(), loadPlazaGroups()])
 })
 </script>

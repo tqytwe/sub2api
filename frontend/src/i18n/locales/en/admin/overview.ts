@@ -870,7 +870,7 @@ export default {
     // Groups
     groups: {
       title: 'Group Management',
-      description: 'Manage API key groups and rate multipliers',
+      description: 'Manage existing groups linked to the model plaza. Model prices here are display-only.',
       searchGroups: 'Search groups...',
       createGroup: 'Create Group',
       editGroup: 'Edit Group',
@@ -896,6 +896,7 @@ export default {
         id: 'ID',
         platform: 'Platform',
         rateMultiplier: 'Rate Multiplier',
+        rateMultiplierDisplayOnly: 'Display sync only; billing configuration is unchanged',
         rpmOverride: 'RPM Override',
         rpmOverrideHint: 'Per-user RPM cap in this group; empty = group default; 0 = unlimited',
         rateDefault: 'default',
@@ -913,7 +914,20 @@ export default {
         userName: 'Username',
         userEmail: 'Email',
         userNotes: 'Notes',
-        userStatus: 'Status'
+        userStatus: 'Status',
+        subscriptionType: 'Subscription Type'
+      },
+      fields: {
+        name: 'Name',
+        description: 'Description',
+        platform: 'Platform',
+        rateMultiplier: 'Rate Multiplier',
+        rateMultiplierDisplayOnly: 'Display sync only; billing configuration is unchanged',
+        subscriptionType: 'Subscription Type',
+        isExclusive: 'Exclusive Group',
+        imageRateIndependent: 'Independent Image Rate',
+        imageRateMultiplier: 'Image Rate Multiplier',
+        status: 'Status'
       },
       usageToday: 'Today',
       usageTotal: 'Total',
