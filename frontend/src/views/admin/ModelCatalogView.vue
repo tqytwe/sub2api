@@ -27,7 +27,7 @@
           <tbody>
             <tr v-for="group in plazaGroups" :key="group.id" class="border-b border-gray-100 dark:border-dark-700/60">
               <td class="px-3 py-2"><div class="font-medium text-gray-900 dark:text-white">{{ group.name }}</div><div class="max-w-[360px] truncate text-xs text-gray-500">{{ group.description }}</div></td>
-              <td class="px-3 py-2">{{ group.platform }}</td><td class="px-3 py-2 font-mono">{{ group.rate_multiplier }}<span class="ml-1 text-xs text-gray-400">{{ t('modelPlaza.admin.displayOnly') }}</span></td>
+              <td class="px-3 py-2">{{ platformLabel(group.platform) }}</td><td class="px-3 py-2 font-mono">{{ group.rate_multiplier }}<span class="ml-1 text-xs text-gray-400">{{ t('modelPlaza.admin.displayOnly') }}</span></td>
               <td class="px-3 py-2">{{ subscriptionTypeLabel(group.subscription_type) }}</td><td class="px-3 py-2">{{ groupStatusLabel(group.status) }}</td>
               <td class="px-3 py-2 text-right"><div class="flex justify-end gap-1"><button class="btn btn-ghost btn-sm" @click="openPlazaGroupEdit(group)">{{ t('common.edit') }}</button><button class="btn btn-ghost btn-sm text-red-600" @click="removePlazaGroup(group)">{{ t('common.delete') }}</button></div></td>
             </tr>
@@ -251,20 +251,34 @@
         </div>
       </template>
     </BaseDialog>
-    <BaseDialog :show="groupEditOpen" :title="plazaGroupForm.id ? t('admin.groups.editGroup') : t('admin.groups.createGroup')" @close="groupEditOpen = false">
-      <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <label class="block text-sm sm:col-span-2">{{ t('admin.groups.fields.name') }}<input v-model="plazaGroupForm.name" class="input mt-1 w-full" /></label>
-        <label class="block text-sm sm:col-span-2">{{ t('admin.groups.fields.description') }}<textarea v-model="plazaGroupForm.description" class="input mt-1 w-full" rows="3" /></label>
-        <label class="block text-sm">{{ t('admin.groups.fields.platform') }}<select v-model="plazaGroupForm.platform" class="input mt-1 w-full"><option v-for="platform in ['openai','anthropic','gemini','antigravity','grok','composite']" :key="platform" :value="platform">{{ platform }}</option></select></label>
-        <label class="block text-sm">{{ t('admin.groups.fields.rateMultiplier') }}<input :value="plazaGroupForm.rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
-        <label class="block text-sm">{{ t('admin.groups.fields.subscriptionType') }}<select v-model="plazaGroupForm.subscription_type" class="input mt-1 w-full"><option value="standard">standard</option><option value="subscription">subscription</option></select></label>
-        <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.is_exclusive" type="checkbox" />{{ t('admin.groups.fields.isExclusive') }}</label>
-        <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.image_rate_independent" type="checkbox" />{{ t('admin.groups.fields.imageRateIndependent') }}</label>
-        <label class="block text-sm">{{ t('admin.groups.fields.imageRateMultiplier') }}<input :value="plazaGroupForm.image_rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
-        <label class="block text-sm">{{ t('admin.groups.fields.status') }}<select v-model="plazaGroupForm.status" class="input mt-1 w-full"><option value="active">active</option><option value="inactive">inactive</option></select></label>
-      </div>
-      <template #footer><button class="btn btn-secondary" @click="groupEditOpen = false">{{ t('common.cancel') }}</button><button class="btn btn-primary" :disabled="groupSaving" @click="savePlazaGroup">{{ t('common.save') }}</button></template>
-    </BaseDialog>
+    <div v-if="groupEditOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true" @click.self="groupEditOpen = false">
+      <div class="absolute inset-0 bg-black/40" aria-hidden="true"></div>
+      <aside class="absolute right-0 top-0 flex h-full w-full max-w-[30rem] flex-col bg-white shadow-xl dark:bg-dark-800">
+        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-dark-700">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ plazaGroupForm.id ? t('admin.groups.editGroup') : t('admin.groups.createGroup') }}</h2>
+          <button class="btn btn-ghost btn-sm" :aria-label="t('common.close')" @click="groupEditOpen = false">&times;</button>
+        </div>
+        <!-- design-governance-allow: page-shell-ownership - drawer body needs local scrolling while the shared route frame remains unchanged -->
+        <div class="min-h-0 flex-grow overflow-y-auto px-5 py-5">
+          <p class="mb-5 rounded-md bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-600 dark:bg-dark-700 dark:text-dark-300">{{ t('modelPlaza.admin.billingDisplayOnlyNote') }}</p>
+          <div class="space-y-4">
+            <label class="block text-sm">{{ t('admin.groups.fields.name') }}<input v-model="plazaGroupForm.name" class="input mt-1 w-full" /></label>
+            <label class="block text-sm">{{ t('admin.groups.fields.description') }}<textarea v-model="plazaGroupForm.description" class="input mt-1 w-full" rows="3" /></label>
+            <label class="block text-sm">{{ t('admin.groups.fields.platform') }}<select v-model="plazaGroupForm.platform" class="input mt-1 w-full"><option v-for="platform in ['openai','anthropic','gemini','antigravity','grok','composite']" :key="platform" :value="platform">{{ platformLabel(platform) }}</option></select></label>
+            <label class="block text-sm">{{ t('admin.groups.fields.rateMultiplier') }}<input :value="plazaGroupForm.rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
+            <label class="block text-sm">{{ t('admin.groups.fields.subscriptionType') }}<select v-model="plazaGroupForm.subscription_type" class="input mt-1 w-full"><option value="standard">{{ subscriptionTypeLabel('standard') }}</option><option value="subscription">{{ subscriptionTypeLabel('subscription') }}</option></select></label>
+            <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.is_exclusive" type="checkbox" />{{ t('admin.groups.fields.isExclusive') }}</label>
+            <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.image_rate_independent" type="checkbox" />{{ t('admin.groups.fields.imageRateIndependent') }}</label>
+            <label class="block text-sm">{{ t('admin.groups.fields.imageRateMultiplier') }}<input :value="plazaGroupForm.image_rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
+            <label class="block text-sm">{{ t('admin.groups.fields.status') }}<select v-model="plazaGroupForm.status" class="input mt-1 w-full"><option value="active">{{ groupStatusLabel('active') }}</option><option value="inactive">{{ groupStatusLabel('inactive') }}</option></select></label>
+          </div>
+        </div>
+        <div class="flex justify-end gap-2 border-t border-gray-200 px-5 py-4 dark:border-dark-700">
+          <button class="btn btn-secondary" @click="groupEditOpen = false">{{ t('common.cancel') }}</button>
+          <button class="btn btn-primary" :disabled="groupSaving" @click="savePlazaGroup">{{ t('modelPlaza.admin.saveDisplaySettings') }}</button>
+        </div>
+      </aside>
+    </div>
 
     <BaseDialog :show="batchGroupOpen" :title="t('admin.modelCatalog.batchGroupsTitle')" @close="batchGroupOpen = false">
       <div class="space-y-4">
@@ -561,6 +575,18 @@ function groupLabel(id: number): string {
 
 function subscriptionTypeLabel(value: string): string {
   return value === 'subscription' ? t('modelPlaza.admin.subscription') : t('modelPlaza.admin.standard')
+}
+
+function platformLabel(value: string): string {
+  const key: Record<string, string> = {
+    openai: 'platformOpenai',
+    anthropic: 'platformAnthropic',
+    gemini: 'platformGemini',
+    antigravity: 'platformAntigravity',
+    grok: 'platformGrok',
+    composite: 'platformComposite'
+  }
+  return t(`modelPlaza.admin.${key[value] ?? 'platformComposite'}`)
 }
 
 function groupStatusLabel(value: string): string {

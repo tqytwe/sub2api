@@ -71,7 +71,15 @@ const messages = {
       standard: 'Standard',
       subscription: 'Subscription',
       active: 'Enabled',
-      inactive: 'Disabled'
+      inactive: 'Disabled',
+      platformOpenai: 'OpenAI',
+      platformAnthropic: 'Claude / Anthropic',
+      platformGemini: 'Gemini',
+      platformAntigravity: 'Antigravity',
+      platformGrok: 'Grok',
+      platformComposite: 'Composite platform',
+      billingDisplayOnlyNote: 'Rate multipliers and actual billing settings are not edited here. They are synchronized for display from the existing groups.',
+      saveDisplaySettings: 'Save display settings'
     }
   },
   // Home Page
