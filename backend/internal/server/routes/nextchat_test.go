@@ -384,6 +384,10 @@ type nextChatSessionResponse struct {
 	Sessions map[string]nextChatSessionResponse `json:"sessions"`
 }
 
+type nextChatIdentityResponse struct {
+	UserID int64 `json:"user_id"`
+}
+
 type nextChatMobileBootstrapResponse struct {
 	nextChatBootstrapResponse
 	Session        nextChatSessionResponse                    `json:"session"`
@@ -577,6 +581,18 @@ func postNextChatSession(router *gin.Engine, secret, token string) *httptest.Res
 	recorder := httptest.NewRecorder()
 	body := `{"launch_token":"` + token + `"}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/nextchat/session", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	if secret != "" {
+		req.Header.Set("X-NextChat-Secret", secret)
+	}
+	router.ServeHTTP(recorder, req)
+	return recorder
+}
+
+func postNextChatIdentity(router *gin.Engine, secret, token string) *httptest.ResponseRecorder {
+	recorder := httptest.NewRecorder()
+	body := `{"launch_token":"` + token + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/nextchat/identity", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	if secret != "" {
 		req.Header.Set("X-NextChat-Secret", secret)
@@ -900,6 +916,30 @@ func TestNextChatLaunchTokenIsConsumedOnce(t *testing.T) {
 	require.Contains(t, second.Body.String(), "Invalid or consumed launch token")
 	require.Equal(t, 1, issuer.calls)
 	require.Equal(t, int64(42), issuer.userID)
+}
+
+func TestNextChatIdentityExchangeReturnsOnlyPlatformIdentity(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteScopedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	launch := decodeNextChatRouteResponse[nextChatLaunchResponse](t, postNextChatLaunch(router, "Bearer valid-user"))
+	token := extractNextChatLaunchToken(t, launch.LaunchURL)
+
+	first := postNextChatIdentity(router, "server-secret", token)
+	require.Equal(t, http.StatusOK, first.Code, first.Body.String())
+	require.Equal(t, "no-store", first.Header().Get("Cache-Control"))
+	identity := decodeNextChatRouteResponse[nextChatIdentityResponse](t, first)
+	require.Equal(t, int64(42), identity.UserID)
+	require.NotContains(t, first.Body.String(), "api_key")
+	require.Empty(t, issuer.purposeIssueRequests)
+	require.Zero(t, issuer.calls)
+
+	second := postNextChatIdentity(router, "server-secret", token)
+	require.Equal(t, http.StatusUnauthorized, second.Code)
+	require.Contains(t, second.Body.String(), "Invalid or consumed launch token")
 }
 
 func TestNextChatSessionExchangeReturnsScopedChatImageAndVideoSessions(t *testing.T) {

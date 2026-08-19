@@ -162,6 +162,9 @@ func registerNextChatRoutes(
 		nextchat.POST("/session", func(c *gin.Context) {
 			handleNextChatSessionExchange(c, issuer, gate, cfg, redisClient)
 		})
+		nextchat.POST("/identity", func(c *gin.Context) {
+			handleNextChatIdentityExchange(c, gate, cfg, redisClient)
+		})
 		nextchat.GET("/bootstrap", func(c *gin.Context) {
 			handleNextChatBootstrap(c, issuer, modelProvider, gate, cfg)
 		})
@@ -1126,6 +1129,61 @@ func handleNextChatSessionExchange(
 		return
 	}
 	response.Success(c, nextChatSessionPayload(session, expiresAt))
+}
+
+// handleNextChatIdentityExchange consumes a launch token without creating or
+// returning a managed model key. Canvas uses this endpoint for SSO only.
+func handleNextChatIdentityExchange(
+	c *gin.Context,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	redisClient *redis.Client,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	if redisClient == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat launch token store is unavailable")
+		return
+	}
+	if !validNextChatExchangeSecret(c.GetHeader("X-NextChat-Secret"), cfg) {
+		response.Unauthorized(c, "Invalid NextChat exchange secret")
+		return
+	}
+
+	var req nextChatExchangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	launchToken := strings.TrimSpace(req.LaunchToken)
+	if launchToken == "" {
+		response.BadRequest(c, "launch_token is required")
+		return
+	}
+
+	raw, err := redisClient.GetDel(c.Request.Context(), nextChatLaunchTokenKey(launchToken)).Result()
+	if err == redis.Nil {
+		response.Unauthorized(c, "Invalid or consumed launch token")
+		return
+	}
+	if err != nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat launch token store is unavailable")
+		return
+	}
+	var record nextChatLaunchTokenRecord
+	if err := json.Unmarshal([]byte(raw), &record); err != nil || record.UserID <= 0 {
+		response.Unauthorized(c, "Invalid launch token")
+		return
+	}
+	if !record.ExpiresAt.After(time.Now().UTC()) {
+		response.Unauthorized(c, "Launch token has expired")
+		return
+	}
+
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, gin.H{"user_id": record.UserID})
 }
 
 func requireNextChatBFFSession(c *gin.Context, cfg *config.Config) (int64, int64, bool) {
