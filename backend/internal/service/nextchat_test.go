@@ -290,6 +290,38 @@ func TestIssueNextChatManagedSessionCreatesHiddenKeyFromExistingUserKeyGroup(t *
 	require.Equal(t, existingGroupID, *repo.created[0].GroupID)
 }
 
+func TestIssueNextChatManagedSessionSkipsUnauthorizedExistingUserKeyGroup(t *testing.T) {
+	unauthorizedGroupID := int64(62)
+	publicGroupID := int64(31)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      1,
+			UserID:  42,
+			Name:    "expired subscription key",
+			Key:     "sk-expired",
+			Status:  StatusActive,
+			GroupID: &unauthorizedGroupID,
+			Group:   &Group{ID: unauthorizedGroupID, Platform: PlatformOpenAI, IsExclusive: true, Status: StatusActive, SortOrder: 1},
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{ID: unauthorizedGroupID, Platform: PlatformOpenAI, IsExclusive: true, Status: StatusActive, SortOrder: 1},
+		{ID: publicGroupID, Platform: PlatformOpenAI, Status: StatusActive, SortOrder: 2},
+	}}
+	svc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{
+		Default: config.DefaultConfig{APIKeyPrefix: "sk-test-"},
+	})
+
+	session, err := svc.IssueNextChatManagedSession(context.Background(), 42)
+
+	require.NoError(t, err)
+	require.NotNil(t, session)
+	require.Len(t, repo.created, 1)
+	require.NotNil(t, repo.created[0].GroupID)
+	require.Equal(t, publicGroupID, *repo.created[0].GroupID)
+}
+
 func TestIssueNextChatManagedSessionKeepsReusableManagedKeySelectableGroup(t *testing.T) {
 	currentGroupID := int64(2)
 	otherGroupID := int64(7)

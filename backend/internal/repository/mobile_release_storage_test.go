@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -14,7 +15,9 @@ import (
 type mobileReleaseStorageBaseFake struct {
 	savedKey   string
 	openedKey  string
+	openedKeys []string
 	deletedKey string
+	openErr    error
 }
 
 func (s *mobileReleaseStorageBaseFake) Save(_ context.Context, key, _ string, _ []byte) (string, error) {
@@ -24,6 +27,10 @@ func (s *mobileReleaseStorageBaseFake) Save(_ context.Context, key, _ string, _ 
 
 func (s *mobileReleaseStorageBaseFake) Open(_ context.Context, key string) (io.ReadCloser, string, error) {
 	s.openedKey = key
+	s.openedKeys = append(s.openedKeys, key)
+	if s.openErr != nil && len(s.openedKeys) == 1 {
+		return nil, "", s.openErr
+	}
 	return io.NopCloser(strings.NewReader("artifact")), "application/vnd.android.package-archive", nil
 }
 
@@ -65,4 +72,17 @@ func TestProvideMobileReleaseStorageUsesDefaultImagePrefix(t *testing.T) {
 			require.Equal(t, "images/mobile-releases/direct/release.apk", base.savedKey)
 		})
 	}
+}
+
+func TestProvideMobileReleaseStorageFallsBackToLegacyKeyWhenScopedObjectIsMissing(t *testing.T) {
+	base := &mobileReleaseStorageBaseFake{openErr: errors.New("object not found")}
+	storage := ProvideMobileReleaseStorage(&config.Config{}, base)
+
+	reader, _, err := storage.Open(context.Background(), "mobile-releases/direct/release.apk")
+	require.NoError(t, err)
+	require.NoError(t, reader.Close())
+	require.Equal(t, []string{
+		"images/mobile-releases/direct/release.apk",
+		"mobile-releases/direct/release.apk",
+	}, base.openedKeys)
 }
