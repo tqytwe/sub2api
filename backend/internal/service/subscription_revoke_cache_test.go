@@ -27,6 +27,10 @@ func (r *revokeCacheUserSubRepoStub) GetByID(_ context.Context, id int64) (*User
 	return &cp, nil
 }
 
+func (r *revokeCacheUserSubRepoStub) GetByIDForUpdate(ctx context.Context, id int64) (*UserSubscription, error) {
+	return r.GetByID(ctx, id)
+}
+
 func (r *revokeCacheUserSubRepoStub) Delete(_ context.Context, id int64) error {
 	if r.sub == nil || r.sub.ID != id || r.deleted {
 		return ErrSubscriptionNotFound

@@ -61,3 +61,23 @@ func TestChannelMonitorRuntimeActiveProbesAllowed(t *testing.T) {
 	require.False(t, (ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV2}).ActiveProbesAllowed())
 	require.True(t, (ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV2}).PassiveAggregationAllowed())
 }
+
+func TestChannelMonitorRuntimeAllowsCheckMode(t *testing.T) {
+	tests := []struct {
+		name    string
+		rt      ChannelMonitorRuntime
+		mode    string
+		allowed bool
+	}{
+		{name: "v1 probe", rt: ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV1}, mode: MonitorCheckModeProbe, allowed: true},
+		{name: "v2 probe retired", rt: ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV2}, mode: MonitorCheckModeProbe, allowed: false},
+		{name: "v2 quota remains available", rt: ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV2}, mode: MonitorCheckModeQuota, allowed: true},
+		{name: "v2 quota probe still retired", rt: ChannelMonitorRuntime{Enabled: true, Mode: ChannelMonitorModeV2}, mode: MonitorCheckModeQuotaProbe, allowed: false},
+		{name: "disabled quota", rt: ChannelMonitorRuntime{Enabled: false, Mode: ChannelMonitorModeV1}, mode: MonitorCheckModeQuota, allowed: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.allowed, tt.rt.AllowsCheckMode(tt.mode))
+		})
+	}
+}
