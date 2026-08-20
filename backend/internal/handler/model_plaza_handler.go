@@ -117,7 +117,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 			catalogPrices = make(map[string]*service.PlazaOfficialPricing, len(entries))
 			for i := range entries {
 				e := &entries[i]
-				if !(e.VisiblePublic || (authed && e.VisibleAuth)) {
+				if !e.VisiblePublic && (!authed || !e.VisibleAuth) {
 					continue
 				}
 				if e.OfficialInputPrice == nil && e.OfficialOutputPrice == nil && e.OfficialCacheReadPrice == nil && e.OfficialCacheWritePrice == nil {
