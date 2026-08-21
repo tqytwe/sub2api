@@ -3,7 +3,7 @@
 <!-- visual-review-manifest
 {
   "schema_version": 1,
-  "changed_files": ["frontend/src/components/layout/AppSidebar.vue", "frontend/src/content/featured-models.ts", "frontend/src/content/public-docs-data.zh.ts", "frontend/src/i18n/locales/en.ts", "frontend/src/i18n/locales/en/common.ts", "frontend/src/i18n/locales/jisudeng-pages.zh.ts", "frontend/src/i18n/locales/zh.ts", "frontend/src/i18n/locales/zh/common.ts", "frontend/src/router/index.ts", "frontend/src/views/admin/ModelCatalogView.vue", "frontend/src/views/admin/SettingsView.vue", "frontend/src/views/public/ModelsView.vue"],
+  "changed_files": ["frontend/src/components/layout/AppSidebar.vue", "frontend/src/components/modelPlaza/PlazaModelPricingTable.vue", "frontend/src/content/featured-models.ts", "frontend/src/content/public-docs-data.zh.ts", "frontend/src/i18n/locales/en.ts", "frontend/src/i18n/locales/en/common.ts", "frontend/src/i18n/locales/jisudeng-pages.zh.ts", "frontend/src/i18n/locales/zh.ts", "frontend/src/i18n/locales/zh/common.ts", "frontend/src/router/index.ts", "frontend/src/views/admin/ModelCatalogView.vue", "frontend/src/views/admin/SettingsView.vue", "frontend/src/views/public/ModelsView.vue"],
   "routes_or_surfaces": ["/models", "/pricing", "/en/models", "/admin/model-plaza", "user sidebar"],
   "languages_and_themes": ["zh-CN/light", "zh-CN/dark", "en-US/light", "en-US/dark"],
   "states": ["model display tab", "group display tab", "legacy pricing redirect", "guest model plaza", "admin model plaza"],
