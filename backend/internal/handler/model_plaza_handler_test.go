@@ -124,4 +124,31 @@ func TestToModelPlazaOfficialPricing_NilPassthrough(t *testing.T) {
 	require.Nil(t, toModelPlazaOfficialPricing(nil))
 }
 
+func TestFilterPlazaGroupsByCatalog_UsesPublicVisibilityAndExplicitGroups(t *testing.T) {
+	groups := []service.PlazaGroup{{
+		ID: 10, Name: "国产分组", Platform: service.PlatformOpenAI,
+		Models: []service.PlazaModel{{Name: "deepseek-v4-pro", Platform: service.PlatformOpenAI}, {Name: "hidden", Platform: service.PlatformOpenAI}},
+	}}
+	public := true
+	entries := []service.SiteModelCatalogEntry{
+		{ModelName: "deepseek-v4-pro", Platform: service.PlatformOpenAI, VisiblePublic: public, GroupIDs: []int64{10}},
+		{ModelName: "hidden", Platform: service.PlatformOpenAI, VisiblePublic: false, VisibleAuth: true, GroupIDs: []int64{10}},
+	}
+
+	visible := filterPlazaGroupsByCatalog(groups, entries, false)
+	require.Len(t, visible, 1)
+	require.Equal(t, []string{"deepseek-v4-pro"}, []string{visible[0].Models[0].Name})
+
+	authed := filterPlazaGroupsByCatalog(groups, entries, true)
+	require.Len(t, authed, 1)
+	require.ElementsMatch(t, []string{"deepseek-v4-pro", "hidden"}, []string{authed[0].Models[0].Name, authed[0].Models[1].Name})
+}
+
+func TestFilterPlazaGroupsByCatalog_NilGroupIDsUsesPlatformFallback(t *testing.T) {
+	groups := []service.PlazaGroup{{ID: 10, Platform: service.PlatformOpenAI, Models: []service.PlazaModel{{Name: "gpt-5", Platform: service.PlatformOpenAI}}}}
+	visible := filterPlazaGroupsByCatalog(groups, []service.SiteModelCatalogEntry{{ModelName: "gpt-5", Platform: service.PlatformOpenAI, VisiblePublic: true}}, false)
+	require.Len(t, visible, 1)
+	require.Len(t, visible[0].Models, 1)
+}
+
 func testPtr(v float64) *float64 { return &v }
