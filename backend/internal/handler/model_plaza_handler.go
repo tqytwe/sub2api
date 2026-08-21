@@ -114,6 +114,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 	var catalogPrices map[string]*service.PlazaOfficialPricing
 	if h.catalogService != nil {
 		if entries, listErr := h.catalogService.ListCatalog(c.Request.Context(), service.CatalogListFilter{}); listErr == nil {
+			groups, _ = h.channelService.ListPlazaGroupsIncludingEmpty(c.Request.Context())
 			catalogPrices = make(map[string]*service.PlazaOfficialPricing, len(entries))
 			for i := range entries {
 				e := &entries[i]
@@ -132,6 +133,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 				}
 				catalogPrices[key] = &service.PlazaOfficialPricing{InputPrice: e.OfficialInputPrice, OutputPrice: e.OfficialOutputPrice, CacheReadPrice: e.OfficialCacheReadPrice, CacheWritePrice: e.OfficialCacheWritePrice}
 			}
+			groups = appendCatalogModelsToPlazaGroups(groups, entries, authed)
 			groups = filterPlazaGroupsByCatalog(groups, entries, authed)
 		}
 	}
@@ -170,6 +172,42 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		Description: rt.Description,
 		Groups:      out,
 	})
+}
+
+// appendCatalogModelsToPlazaGroups makes enabled catalog entries visible in
+// their explicitly selected active groups even when no channel currently
+// advertises the model. A missing channel price stays nil; this never creates
+// billing data or replaces a channel-derived price.
+func appendCatalogModelsToPlazaGroups(groups []service.PlazaGroup, entries []service.SiteModelCatalogEntry, authed bool) []service.PlazaGroup {
+	byID := make(map[int64]int, len(groups))
+	for i := range groups {
+		byID[groups[i].ID] = i
+	}
+	seen := make(map[int]map[string]struct{}, len(groups))
+	for i := range groups {
+		seen[i] = make(map[string]struct{}, len(groups[i].Models))
+		for _, model := range groups[i].Models {
+			seen[i][strings.ToLower(strings.TrimSpace(model.Platform))+"\x00"+strings.ToLower(strings.TrimSpace(model.Name))] = struct{}{}
+		}
+	}
+	for _, entry := range entries {
+		if !(entry.VisiblePublic || (authed && entry.VisibleAuth)) || entry.GroupIDs == nil {
+			continue
+		}
+		for _, groupID := range entry.GroupIDs {
+			idx, ok := byID[groupID]
+			if !ok {
+				continue
+			}
+			key := strings.ToLower(strings.TrimSpace(entry.Platform)) + "\x00" + strings.ToLower(strings.TrimSpace(entry.ModelName))
+			if _, exists := seen[idx][key]; exists {
+				continue
+			}
+			groups[idx].Models = append(groups[idx].Models, service.PlazaModel{Name: entry.ModelName, Platform: entry.Platform})
+			seen[idx][key] = struct{}{}
+		}
+	}
+	return groups
 }
 
 // filterPlazaGroupsByCatalog applies the model plaza catalog's display controls
