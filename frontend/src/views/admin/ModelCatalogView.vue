@@ -108,12 +108,6 @@
           <template #cell-official_output_price="{ row }">
             {{ formatPrice(row.official_output_price) }}
           </template>
-          <template #cell-input_price="{ row }">
-            {{ formatPrice(row.input_price) }}
-          </template>
-          <template #cell-output_price="{ row }">
-            {{ formatPrice(row.output_price) }}
-          </template>
           <template #cell-group_ids="{ row }">
             <span v-if="row.group_ids == null" class="text-xs text-gray-500">{{ t('admin.modelCatalog.groupModeAuto') }}</span>
             <span v-else-if="row.group_ids.length === 0" class="text-xs text-gray-500">{{ t('admin.modelCatalog.groupModeNone') }}</span>
@@ -122,12 +116,6 @@
                 {{ groupLabel(id) }}
               </span>
             </span>
-          </template>
-          <template #cell-input_diff="{ row }">
-            <span :class="diffClass(row.input_price, row.official_input_price)">{{ formatDiff(row.input_price, row.official_input_price) }}</span>
-          </template>
-          <template #cell-output_diff="{ row }">
-            <span :class="diffClass(row.output_price, row.official_output_price)">{{ formatDiff(row.output_price, row.official_output_price) }}</span>
           </template>
           <template #cell-visible_public="{ row }">
             <Toggle :model-value="row.visible_public" @update:model-value="(v: boolean) => patchVisibility(row, v, undefined)" />
@@ -210,39 +198,6 @@
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
-          <label class="block text-sm">
-            {{ t('admin.modelCatalog.fields.priceMode') }}
-            <select v-model="editForm.price_mode" class="input mt-1 w-full">
-              <option value="manual">{{ t('admin.modelCatalog.fields.priceModeManual') }}</option>
-              <option value="multiplier" :disabled="!hasEditOfficialPrice">{{ t('admin.modelCatalog.fields.priceModeMultiplier') }}</option>
-            </select>
-          </label>
-
-          <label v-if="editForm.price_mode === 'multiplier'" class="mt-3 block text-sm">
-            {{ t('admin.modelCatalog.fields.multiplier') }}
-            <input v-model.number="editForm.price_multiplier" type="number" min="0.000001" step="0.01" class="input mt-1 w-full" />
-          </label>
-
-          <div v-else class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteInputPerMillion') }}
-              <input v-model.number="editForm.input_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteOutputPerMillion') }}
-              <input v-model.number="editForm.output_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteCacheReadPerMillion') }}
-              <input v-model.number="editForm.cache_read_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteCacheWritePerMillion') }}
-              <input v-model.number="editForm.cache_write_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-          </div>
-        </div>
       </div>
       <template #footer>
         <div class="flex gap-2 pr-14 sm:pr-0">
@@ -478,26 +433,11 @@ const editForm = reactive({
   visible_auth: true,
   group_mode: 'selected' as 'auto' | 'selected',
   group_ids: [] as number[],
-  price_mode: 'manual' as 'manual' | 'multiplier',
-  price_multiplier: 1,
-  input_price_million: null as number | null,
-  output_price_million: null as number | null,
-  cache_read_price_million: null as number | null,
-  cache_write_price_million: null as number | null,
   official_input_price_million: null as number | null,
   official_output_price_million: null as number | null,
   official_cache_read_price_million: null as number | null,
   official_cache_write_price_million: null as number | null,
 })
-
-const editOfficial = reactive({
-  input: null as number | null,
-  output: null as number | null,
-  cacheRead: null as number | null,
-  cacheWrite: null as number | null,
-})
-
-const hasEditOfficialPrice = computed(() => editOfficial.input != null || editOfficial.output != null)
 
 const columns = computed(() => [
   { key: 'select', label: '', sortable: false },
@@ -506,10 +446,6 @@ const columns = computed(() => [
   { key: 'group_ids', label: t('admin.modelCatalog.columns.groups'), sortable: false },
   { key: 'official_input_price', label: t('admin.modelCatalog.columns.officialInput'), sortable: false },
   { key: 'official_output_price', label: t('admin.modelCatalog.columns.officialOutput'), sortable: false },
-  { key: 'input_price', label: t('admin.modelCatalog.columns.input'), sortable: false },
-  { key: 'output_price', label: t('admin.modelCatalog.columns.output'), sortable: false },
-  { key: 'input_diff', label: t('admin.modelCatalog.columns.inputDiff'), sortable: false },
-  { key: 'output_diff', label: t('admin.modelCatalog.columns.outputDiff'), sortable: false },
   { key: 'visible_public', label: t('admin.modelCatalog.columns.public'), sortable: false },
   { key: 'visible_auth', label: t('admin.modelCatalog.columns.auth'), sortable: false },
   { key: 'actions', label: t('common.actions'), sortable: false },
@@ -551,22 +487,6 @@ function formatPayloadPrice(payload: Record<string, unknown>, key: string): stri
   const raw = payload[key]
   if (typeof raw !== 'number') return '—'
   return formatScaled(raw, 1_000_000)
-}
-
-function formatDiff(site: number | null | undefined, official: number | null | undefined): string {
-  if (site == null || official == null || official === 0) return '—'
-  const pct = Math.round(((site / official) - 1) * 100)
-  if (pct === 0) return t('admin.modelCatalog.diffSame')
-  if (pct > 0) return t('admin.modelCatalog.diffHigher', { pct })
-  return t('admin.modelCatalog.diffLower', { pct })
-}
-
-function diffClass(site: number | null | undefined, official: number | null | undefined): string {
-  if (site == null || official == null || official === 0) return ''
-  const pct = ((site / official) - 1) * 100
-  if (pct > 5) return 'text-amber-700'
-  if (pct < -5) return 'text-emerald-700'
-  return 'text-gray-500'
 }
 
 function groupLabel(id: number): string {
@@ -712,14 +632,7 @@ function openCreate() {
     visible_auth: true,
     group_mode: 'selected',
     group_ids: [],
-    price_mode: 'manual',
-    price_multiplier: 1,
-    input_price_million: null,
-    output_price_million: null,
-    cache_read_price_million: null,
-    cache_write_price_million: null,
   })
-  Object.assign(editOfficial, { input: null, output: null, cacheRead: null, cacheWrite: null })
   editOpen.value = true
 }
 
@@ -734,22 +647,10 @@ function openEdit(row: AdminCatalogRow) {
     visible_auth: row.visible_auth,
     group_mode: row.group_ids == null ? 'auto' : 'selected',
     group_ids: row.group_ids ?? [],
-    price_mode: row.price_multiplier != null ? 'multiplier' : 'manual',
-    price_multiplier: row.price_multiplier ?? 1,
-    input_price_million: toPerMillion(row.input_price),
-    output_price_million: toPerMillion(row.output_price),
-    cache_read_price_million: toPerMillion(row.cache_read_price),
-    cache_write_price_million: toPerMillion(row.cache_write_price),
     official_input_price_million: toPerMillion(row.official_input_price),
     official_output_price_million: toPerMillion(row.official_output_price),
     official_cache_read_price_million: toPerMillion(row.official_cache_read_price),
     official_cache_write_price_million: toPerMillion(row.official_cache_write_price),
-  })
-  Object.assign(editOfficial, {
-    input: row.official_input_price,
-    output: row.official_output_price,
-    cacheRead: row.official_cache_read_price,
-    cacheWrite: row.official_cache_write_price,
   })
   editOpen.value = true
 }
@@ -761,7 +662,6 @@ async function saveEdit() {
   }
   saving.value = true
   try {
-    const multiplierMode = editForm.price_mode === 'multiplier'
     await adminModelCatalogAPI.saveCatalogEntry({
       id: editForm.id,
       model_name: editForm.model_name,
@@ -771,11 +671,8 @@ async function saveEdit() {
       visible_public: editForm.visible_public,
       visible_auth: editForm.visible_auth,
       group_ids: editForm.group_mode === 'selected' ? editForm.group_ids : null,
-      price_multiplier: multiplierMode ? editForm.price_multiplier : null,
-      input_price: multiplierMode ? null : fromPerMillion(editForm.input_price_million),
-      output_price: multiplierMode ? null : fromPerMillion(editForm.output_price_million),
-      cache_read_price: multiplierMode ? null : fromPerMillion(editForm.cache_read_price_million),
-      cache_write_price: multiplierMode ? null : fromPerMillion(editForm.cache_write_price_million),
+      // Paid price remains owned by the channel and group billing configuration.
+      // This form only controls reference prices displayed in the model plaza.
       official_input_price: fromPerMillion(editForm.official_input_price_million),
       official_output_price: fromPerMillion(editForm.official_output_price_million),
       official_cache_read_price: fromPerMillion(editForm.official_cache_read_price_million),

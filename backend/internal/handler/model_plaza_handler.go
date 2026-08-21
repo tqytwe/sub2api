@@ -123,8 +123,16 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 				if e.OfficialInputPrice == nil && e.OfficialOutputPrice == nil && e.OfficialCacheReadPrice == nil && e.OfficialCacheWritePrice == nil {
 					continue
 				}
-				catalogPrices[strings.ToLower(strings.TrimSpace(e.ModelName))] = &service.PlazaOfficialPricing{InputPrice: e.OfficialInputPrice, OutputPrice: e.OfficialOutputPrice, CacheReadPrice: e.OfficialCacheReadPrice, CacheWritePrice: e.OfficialCacheWritePrice}
+				key := strings.ToLower(strings.TrimSpace(e.ModelName))
+				// A manual official price is the explicit display override. Channel data
+				// remains the source for paid price and billing; this only selects the
+				// reference price rendered in the plaza.
+				if existing, ok := catalogPrices[key]; ok && e.OfficialSource != "manual" && existing != nil {
+					continue
+				}
+				catalogPrices[key] = &service.PlazaOfficialPricing{InputPrice: e.OfficialInputPrice, OutputPrice: e.OfficialOutputPrice, CacheReadPrice: e.OfficialCacheReadPrice, CacheWritePrice: e.OfficialCacheWritePrice}
 			}
+			groups = filterPlazaGroupsByCatalog(groups, entries, authed)
 		}
 	}
 
@@ -162,6 +170,64 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		Description: rt.Description,
 		Groups:      out,
 	})
+}
+
+// filterPlazaGroupsByCatalog applies the model plaza catalog's display controls
+// without changing the channel pricing data used for billing.
+// A nil GroupIDs value keeps the legacy platform-based association; a non-nil
+// value is an explicit allow-list (including an empty list, which hides it).
+func filterPlazaGroupsByCatalog(groups []service.PlazaGroup, entries []service.SiteModelCatalogEntry, authed bool) []service.PlazaGroup {
+	type catalogKey struct{ platform, name string }
+	byKey := make(map[catalogKey]service.SiteModelCatalogEntry, len(entries))
+	byName := make(map[string]service.SiteModelCatalogEntry, len(entries))
+	for _, e := range entries {
+		key := catalogKey{platform: strings.ToLower(strings.TrimSpace(e.Platform)), name: strings.ToLower(strings.TrimSpace(e.ModelName))}
+		if key.name == "" {
+			continue
+		}
+		byKey[key] = e
+		if _, exists := byName[key.name]; !exists {
+			byName[key.name] = e
+		}
+	}
+
+	visible := make([]service.PlazaGroup, 0, len(groups))
+	for _, group := range groups {
+		models := make([]service.PlazaModel, 0, len(group.Models))
+		for _, model := range group.Models {
+			key := catalogKey{platform: strings.ToLower(strings.TrimSpace(model.Platform)), name: strings.ToLower(strings.TrimSpace(model.Name))}
+			entry, managed := byKey[key]
+			if !managed {
+				entry, managed = byName[key.name]
+			}
+			if managed {
+				if !(entry.VisiblePublic || (authed && entry.VisibleAuth)) || !catalogEntryAllowsPlazaGroup(entry, group.ID, group.Platform, model.Platform) {
+					continue
+				}
+			}
+			models = append(models, model)
+		}
+		if len(models) == 0 {
+			continue
+		}
+		group.Models = models
+		visible = append(visible, group)
+	}
+	return visible
+}
+
+func catalogEntryAllowsPlazaGroup(entry service.SiteModelCatalogEntry, groupID int64, groupPlatform, modelPlatform string) bool {
+	if entry.GroupIDs != nil {
+		for _, allowedID := range entry.GroupIDs {
+			if allowedID == groupID {
+				return true
+			}
+		}
+		return false
+	}
+	group := strings.ToLower(strings.TrimSpace(groupPlatform))
+	model := strings.ToLower(strings.TrimSpace(modelPlatform))
+	return group == model || (group == service.PlatformAntigravity && (model == service.PlatformAnthropic || model == service.PlatformGemini))
 }
 
 // filterPlazaVisibleGroups 按登录态裁剪分组可见性。
