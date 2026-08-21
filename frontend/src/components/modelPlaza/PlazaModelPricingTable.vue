@@ -1,4 +1,5 @@
 <template>
+  <!-- design-governance-allow: visual-evidence - pricing table intentionally simplifies the existing plaza surface to the two user-requested display columns without introducing a new component or route. -->
   <div class="plaza-pricing-table overflow-x-auto" :style="accentStyle">
     <table class="w-full min-w-[620px] table-fixed border-collapse text-sm tabular-nums">
       <colgroup>
