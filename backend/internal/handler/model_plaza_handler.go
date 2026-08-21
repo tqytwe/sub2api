@@ -114,6 +114,7 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 	var catalogPrices map[string]*service.PlazaOfficialPricing
 	if h.catalogService != nil {
 		if entries, listErr := h.catalogService.ListCatalog(c.Request.Context(), service.CatalogListFilter{}); listErr == nil {
+			groups, _ = h.channelService.ListPlazaGroupsIncludingEmpty(c.Request.Context())
 			catalogPrices = make(map[string]*service.PlazaOfficialPricing, len(entries))
 			for i := range entries {
 				e := &entries[i]

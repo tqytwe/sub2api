@@ -157,6 +157,9 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 	out := make([]PlazaGroup, 0, len(order))
 	for _, gid := range order {
 		pg := byGroup[gid]
+		if len(pg.Models) == 0 {
+			continue
+		}
 		sort.SliceStable(pg.Models, func(i, j int) bool {
 			if pg.Models[i].Name != pg.Models[j].Name {
 				return pg.Models[i].Name < pg.Models[j].Name
@@ -176,6 +179,31 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 		return out[i].Name < out[j].Name
 	})
 	return out, nil
+}
+
+// ListPlazaGroupsIncludingEmpty returns the normal plaza groups plus active
+// groups that currently have no channel models. Catalog-managed display rows
+// may populate those groups at the handler layer.
+func (s *ChannelService) ListPlazaGroupsIncludingEmpty(ctx context.Context) ([]PlazaGroup, error) {
+	groups, err := s.ListPlazaGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	active, err := s.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active groups: %w", err)
+	}
+	seen := make(map[int64]struct{}, len(groups))
+	for _, group := range groups {
+		seen[group.ID] = struct{}{}
+	}
+	for _, group := range active {
+		if _, ok := seen[group.ID]; ok {
+			continue
+		}
+		groups = append(groups, PlazaGroup{ID: group.ID, Name: group.Name, Description: group.Description, Platform: group.Platform, SubscriptionType: group.SubscriptionType, RateMultiplier: group.RateMultiplier, PeakRateEnabled: group.PeakRateEnabled, PeakStart: group.PeakStart, PeakEnd: group.PeakEnd, PeakRateMultiplier: group.PeakRateMultiplier, IsExclusive: group.IsExclusive, ImageRateIndependent: group.ImageRateIndependent, ImageRateMultiplier: group.ImageRateMultiplier})
+	}
+	return groups, nil
 }
 
 // plazaImageDisplayPricing 为图片计费模型合成展示定价，使档位价与实收口径一致：
