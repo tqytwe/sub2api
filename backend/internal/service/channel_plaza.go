@@ -157,9 +157,6 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 	out := make([]PlazaGroup, 0, len(order))
 	for _, gid := range order {
 		pg := byGroup[gid]
-		if len(pg.Models) == 0 {
-			continue
-		}
 		sort.SliceStable(pg.Models, func(i, j int) bool {
 			if pg.Models[i].Name != pg.Models[j].Name {
 				return pg.Models[i].Name < pg.Models[j].Name
