@@ -83,6 +83,7 @@
 </template>
 
 <script setup lang="ts">
+// design-governance-allow: visual-evidence - this is a focused simplification of the existing model plaza table to the two requested display columns.
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { formatScaled } from '@/utils/pricing'
