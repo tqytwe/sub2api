@@ -56,11 +56,7 @@ describe('PlazaModelPricingTable', () => {
     const text = wrapper.text()
     expect(text).toContain('$3.00')
     expect(text).toContain('$15.00')
-    // 缓存写 / 读(超过 2 位小数原样保留)
-    expect(text).toContain('$3.75')
-    expect(text).toContain('$0.30')
-    // 倍率列
-    expect(text).toContain('1x')
+    expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
   it('倍率 ≠ 1 时价格列为折后实付价,官方价列保持原价', () => {
@@ -72,7 +68,7 @@ describe('PlazaModelPricingTable', () => {
     // 官方价原值仍在(官方列不乘倍率)
     expect(text).toContain('$3.00')
     expect(text).toContain('$15.00')
-    expect(text).toContain('0.5x')
+    expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
   it('用户专属倍率覆盖分组倍率,并划线展示原倍率', () => {
@@ -81,11 +77,7 @@ describe('PlazaModelPricingTable', () => {
     // 实付按 0.8:3 × 0.8 = 2.4
     expect(text).toContain('$2.40')
     expect(text).toContain('$12.00')
-    // 倍率列:原倍率划线 + 专属倍率
-    const struck = wrapper.find('td .line-through')
-    expect(struck.exists()).toBe(true)
-    expect(struck.text()).toBe('1x')
-    expect(text).toContain('0.8x')
+    expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
   it('模型按官方输出价从高到低排序,无官方价的排最后', () => {
@@ -177,26 +169,22 @@ describe('PlazaModelPricingTable', () => {
     expect(names[2]).toContain('gpt-image-2')
   })
 
-  it('两级表头:实付区与官方区各拆输入/输出/缓存列', () => {
+  it('表头只展示模型、实付价格和官方价格三列', () => {
     const wrapper = mountTable([tokenModel()], 1)
     const text = wrapper.text()
     expect(text).toContain('modelPlaza.table.paidPrice')
     expect(text).toContain('modelPlaza.table.officialPrice')
-    // token 行:模型 + 实付 3 列 + 官方 3 列 + 倍率
-    expect(wrapper.findAll('tbody td')).toHaveLength(8)
+    expect(wrapper.findAll('thead th')).toHaveLength(3)
+    expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
-  it('官方价包含 1h 缓存写入价;official_pricing 为 null 时官方三列显示 -', () => {
+  it('官方价格为空时官方价格列显示占位符', () => {
     const withOfficial = mountTable([tokenModel()], 1)
-    expect(withOfficial.text()).toContain('$6.00')
-    expect(withOfficial.text()).toContain('(1h')
+    expect(withOfficial.findAll('tbody td')).toHaveLength(3)
 
     const withoutOfficial = mountTable([tokenModel({ official_pricing: null })], 1)
     const cells = withoutOfficial.findAll('tbody td')
-    // 官方 输入/输出/缓存 三列均为 -
-    expect(cells[4].text().trim()).toBe('-')
-    expect(cells[5].text().trim()).toBe('-')
-    expect(cells[6].text().trim()).toBe('-')
+    expect(cells[2].text().trim()).toBe('- / -')
   })
 
   it('per_request 模型按单次价 × 倍率展示,官方价列显示 -', () => {
@@ -270,7 +258,7 @@ describe('PlazaModelPricingTable', () => {
     expect(text).toContain('$15.00')
   })
 
-  it('生图独立倍率开启时,按图价格 × 独立倍率,不乘分组倍率;倍率列展示独立倍率', () => {
+  it('生图独立倍率开启时,按图价格 × 独立倍率,不乘分组倍率', () => {
     const model = tokenModel({
       name: 'gpt-image-2',
       pricing: {
@@ -305,9 +293,6 @@ describe('PlazaModelPricingTable', () => {
     // 0.02 × 1(独立倍率),而非 0.02 × 0.1
     expect(text).toContain('$0.02')
     expect(text).not.toContain('$0.002')
-    // 倍率列展示独立倍率 1x,而非分组倍率 0.1x
-    const rateCell = wrapper.findAll('tbody tr td').at(-1)!
-    expect(rateCell.text()).toBe('1x')
   })
 
   it('生图独立倍率关闭时,按图价格仍乘分组/专属生效倍率', () => {
@@ -329,8 +314,7 @@ describe('PlazaModelPricingTable', () => {
     const wrapper = mountTable([model], 0.1, null, { imageRateIndependent: false })
     const text = wrapper.text()
     expect(text).toContain('$0.02')
-    const rateCell = wrapper.findAll('tbody tr td').at(-1)!
-    expect(rateCell.text()).toBe('0.1x')
+    expect(wrapper.findAll('tbody td')).toHaveLength(3)
   })
 
   it('按图模型主行展示阶梯芯片,不把 image_output_price(每 token)当按次价', () => {
