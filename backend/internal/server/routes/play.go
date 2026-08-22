@@ -26,8 +26,6 @@ func RegisterPlayRoutes(
 	if len(teamAdmissionRateLimiters) > 0 && teamAdmissionRateLimiters[0] != nil {
 		publicTeamCompetitionRateLimit = teamAdmissionRateLimiters[0].PublicIP()
 	}
-	v1.GET("/public/models", h.Play.PublicModels)
-	v1.GET("/public/model-pricing", h.ModelPricing.PublicModelPricing)
 
 	play := v1.Group("/play")
 	{

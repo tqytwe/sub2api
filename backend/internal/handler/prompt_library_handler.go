@@ -169,51 +169,51 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		},
 	},
 	{
-		Path:       "/pricing",
+		Path:       "/models",
 		ChangeFreq: "daily",
 		Priority:   "0.95",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/pricing"},
+			{Hreflang: "zh-CN", Path: "/models"},
 			{Hreflang: "en", Path: "/en/models"},
 			{Hreflang: "x-default", Path: "/en/models"},
 		},
 	},
 	{
-		Path:       "/pricing/deepseek",
+		Path:       "/models/deepseek",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/pricing/deepseek"},
+			{Hreflang: "zh-CN", Path: "/models/deepseek"},
 			{Hreflang: "en", Path: "/en/models/deepseek"},
 			{Hreflang: "x-default", Path: "/en/models/deepseek"},
 		},
 	},
 	{
-		Path:       "/pricing/qwen",
+		Path:       "/models/qwen",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/pricing/qwen"},
+			{Hreflang: "zh-CN", Path: "/models/qwen"},
 			{Hreflang: "en", Path: "/en/models/qwen"},
 			{Hreflang: "x-default", Path: "/en/models/qwen"},
 		},
 	},
 	{
-		Path:       "/pricing/kimi",
+		Path:       "/models/kimi",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/pricing/kimi"},
+			{Hreflang: "zh-CN", Path: "/models/kimi"},
 			{Hreflang: "en", Path: "/en/models/kimi"},
 			{Hreflang: "x-default", Path: "/en/models/kimi"},
 		},
 	},
 	{
-		Path:       "/pricing/glm",
+		Path:       "/models/glm",
 		ChangeFreq: "daily",
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
-			{Hreflang: "zh-CN", Path: "/pricing/glm"},
+			{Hreflang: "zh-CN", Path: "/models/glm"},
 			{Hreflang: "en", Path: "/en/models/glm"},
 			{Hreflang: "x-default", Path: "/en/models/glm"},
 		},
@@ -244,7 +244,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Priority:   "0.90",
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/models"},
-			{Hreflang: "zh-CN", Path: "/pricing"},
+			{Hreflang: "zh-CN", Path: "/models"},
 			{Hreflang: "x-default", Path: "/en/models"},
 		},
 	},
@@ -254,7 +254,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/models/deepseek"},
-			{Hreflang: "zh-CN", Path: "/pricing/deepseek"},
+			{Hreflang: "zh-CN", Path: "/models/deepseek"},
 			{Hreflang: "x-default", Path: "/en/models/deepseek"},
 		},
 	},
@@ -264,7 +264,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/models/qwen"},
-			{Hreflang: "zh-CN", Path: "/pricing/qwen"},
+			{Hreflang: "zh-CN", Path: "/models/qwen"},
 			{Hreflang: "x-default", Path: "/en/models/qwen"},
 		},
 	},
@@ -274,7 +274,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/models/kimi"},
-			{Hreflang: "zh-CN", Path: "/pricing/kimi"},
+			{Hreflang: "zh-CN", Path: "/models/kimi"},
 			{Hreflang: "x-default", Path: "/en/models/kimi"},
 		},
 	},
@@ -284,7 +284,7 @@ var promptSitemapStaticPaths = []promptSitemapStaticPath{
 		Priority:   "0.82",
 		Alternates: []promptSitemapAlternatePath{
 			{Hreflang: "en", Path: "/en/models/glm"},
-			{Hreflang: "zh-CN", Path: "/pricing/glm"},
+			{Hreflang: "zh-CN", Path: "/models/glm"},
 			{Hreflang: "x-default", Path: "/en/models/glm"},
 		},
 	},
@@ -478,7 +478,7 @@ Jisudeng is an AI API gateway for developers, teams, and AI tool users. It helps
 - GLM pricing: %s/en/models/glm
 - API docs: %s/en/docs
 - Chinese homepage: %s/
-- 中文模型目录与价格: %s/pricing
+- 中文模型目录与价格: %s/models
 - 中文 API 文档: %s/docs
 - Support contact: %s/contact
 - Sitemap: %s/sitemap.xml
@@ -508,7 +508,7 @@ Users can review public model names, model families, docs, usage-based pricing r
 
 ### Which language should search engines use?
 
-Chinese public routes are the default for '/', '/pricing', and '/docs'. English content is served under '/en/', '/en/models', and '/en/docs'.
+Chinese public routes are the default for '/', '/models', and '/docs'. English content is served under '/en/', '/en/models', and '/en/docs'.
 
 ## 中文摘要
 
@@ -524,8 +524,8 @@ func buildLLMSFullTxt(origin string) string {
 ### Chinese
 
 - Homepage: %s/
-- Pricing: %s/pricing
-- DeepSeek pricing: %s/pricing/deepseek
+- Models: %s/models
+- DeepSeek models: %s/models/deepseek
 - API docs: %s/docs
 - About: %s/about
 - Contact: %s/contact
@@ -556,7 +556,7 @@ func buildLLMSSmallTxt(origin string) string {
 
 - Chinese homepage: %s/
 - English homepage: %s/en/
-- Chinese pricing: %s/pricing
+- Chinese models: %s/models
 - English pricing: %s/en/models
 - Chinese docs: %s/docs
 - English docs: %s/en/docs

@@ -20,7 +20,9 @@ const catalogSelectColumns = `id, model_name, platform, display_name, use_case, 
 	visible_public, visible_auth, featured, group_ids,
 	tool_capabilities,
 	official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
-	official_source, official_updated_at, price_multiplier,
+	official_source, official_updated_at,
+	official_input_manual, official_output_manual, official_cache_read_manual, official_cache_write_manual,
+	price_multiplier,
 	input_price, output_price, cache_read_price, cache_write_price,
 	billing_mode, source, source_updated_at, created_at, updated_at`
 
@@ -86,25 +88,6 @@ func (r *modelCatalogRepository) GetCatalogEntry(ctx context.Context, id int64) 
 	return entry, err
 }
 
-func (r *modelCatalogRepository) GetCatalogPricing(ctx context.Context, modelName string) (*service.SiteModelCatalogEntry, error) {
-	row := r.db.QueryRowContext(ctx, `SELECT `+catalogSelectColumns+`
-		FROM site_model_catalog
-		WHERE LOWER(model_name) = LOWER($1)
-		ORDER BY
-			CASE WHEN input_price IS NOT NULL OR output_price IS NOT NULL THEN 0 ELSE 1 END,
-			visible_auth DESC,
-			id ASC
-		LIMIT 1`, strings.TrimSpace(modelName))
-	entry, err := scanCatalogEntry(row)
-	if err == sql.ErrNoRows {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, fmt.Errorf("get catalog pricing: %w", err)
-	}
-	return entry, nil
-}
-
 func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *service.SiteModelCatalogEntry) error {
 	billingMode := entry.BillingMode
 	if billingMode == "" {
@@ -124,10 +107,10 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 			visible_public, visible_auth, featured, group_ids,
 			tool_capabilities,
 			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
-			official_source, official_updated_at, price_multiplier,
-			input_price, output_price, cache_read_price, cache_write_price,
-			billing_mode, source, source_updated_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW())
+			official_source, official_updated_at,
+			official_input_manual, official_output_manual, official_cache_read_manual, official_cache_write_manual,
+				billing_mode, source, source_updated_at, updated_at
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			use_case = EXCLUDED.use_case,
@@ -137,17 +120,16 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 			featured = EXCLUDED.featured,
 			group_ids = EXCLUDED.group_ids,
 			tool_capabilities = EXCLUDED.tool_capabilities,
-			official_input_price = COALESCE(EXCLUDED.official_input_price, site_model_catalog.official_input_price),
-			official_output_price = COALESCE(EXCLUDED.official_output_price, site_model_catalog.official_output_price),
-			official_cache_read_price = COALESCE(EXCLUDED.official_cache_read_price, site_model_catalog.official_cache_read_price),
-			official_cache_write_price = COALESCE(EXCLUDED.official_cache_write_price, site_model_catalog.official_cache_write_price),
+			official_input_price = CASE WHEN site_model_catalog.official_input_manual THEN site_model_catalog.official_input_price ELSE COALESCE(EXCLUDED.official_input_price, site_model_catalog.official_input_price) END,
+			official_output_price = CASE WHEN site_model_catalog.official_output_manual THEN site_model_catalog.official_output_price ELSE COALESCE(EXCLUDED.official_output_price, site_model_catalog.official_output_price) END,
+			official_cache_read_price = CASE WHEN site_model_catalog.official_cache_read_manual THEN site_model_catalog.official_cache_read_price ELSE COALESCE(EXCLUDED.official_cache_read_price, site_model_catalog.official_cache_read_price) END,
+			official_cache_write_price = CASE WHEN site_model_catalog.official_cache_write_manual THEN site_model_catalog.official_cache_write_price ELSE COALESCE(EXCLUDED.official_cache_write_price, site_model_catalog.official_cache_write_price) END,
 			official_source = COALESCE(EXCLUDED.official_source, site_model_catalog.official_source),
 			official_updated_at = COALESCE(EXCLUDED.official_updated_at, site_model_catalog.official_updated_at),
-			price_multiplier = EXCLUDED.price_multiplier,
-			input_price = EXCLUDED.input_price,
-			output_price = EXCLUDED.output_price,
-			cache_read_price = EXCLUDED.cache_read_price,
-			cache_write_price = EXCLUDED.cache_write_price,
+			official_input_manual = site_model_catalog.official_input_manual OR EXCLUDED.official_input_manual,
+			official_output_manual = site_model_catalog.official_output_manual OR EXCLUDED.official_output_manual,
+			official_cache_read_manual = site_model_catalog.official_cache_read_manual OR EXCLUDED.official_cache_read_manual,
+			official_cache_write_manual = site_model_catalog.official_cache_write_manual OR EXCLUDED.official_cache_write_manual,
 			billing_mode = EXCLUDED.billing_mode,
 			source = EXCLUDED.source,
 			source_updated_at = EXCLUDED.source_updated_at,
@@ -157,8 +139,8 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
 		toolCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
-		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt, entry.PriceMultiplier,
-		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
+		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt,
+		entry.OfficialInputManual, entry.OfficialOutputManual, entry.OfficialCacheReadManual, entry.OfficialCacheWriteManual,
 		billingMode, source, entry.SourceUpdatedAt,
 	).Scan(&entry.ID, &entry.CreatedAt, &entry.UpdatedAt)
 	if err != nil {
@@ -188,25 +170,24 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 			visible_public, visible_auth, featured, group_ids,
 			tool_capabilities,
 			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
-			official_source, official_updated_at, price_multiplier,
-			input_price, output_price, cache_read_price, cache_write_price,
-			billing_mode, source, source_updated_at, updated_at
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW())
+			official_source, official_updated_at,
+			official_input_manual, official_output_manual, official_cache_read_manual, official_cache_write_manual,
+				billing_mode, source, source_updated_at, updated_at
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			use_case = COALESCE(EXCLUDED.use_case, site_model_catalog.use_case),
 			group_ids = COALESCE(EXCLUDED.group_ids, site_model_catalog.group_ids),
 			tool_capabilities = COALESCE(EXCLUDED.tool_capabilities, site_model_catalog.tool_capabilities),
-			official_input_price = EXCLUDED.official_input_price,
-			official_output_price = EXCLUDED.official_output_price,
-			official_cache_read_price = EXCLUDED.official_cache_read_price,
-			official_cache_write_price = EXCLUDED.official_cache_write_price,
-			official_source = EXCLUDED.official_source,
-			official_updated_at = EXCLUDED.official_updated_at,
-			price_multiplier = COALESCE(EXCLUDED.price_multiplier, site_model_catalog.price_multiplier),
-			input_price = COALESCE(EXCLUDED.input_price, site_model_catalog.input_price),
-			output_price = COALESCE(EXCLUDED.output_price, site_model_catalog.output_price),
-			cache_read_price = COALESCE(EXCLUDED.cache_read_price, site_model_catalog.cache_read_price),
-			cache_write_price = COALESCE(EXCLUDED.cache_write_price, site_model_catalog.cache_write_price),
+			official_input_price = CASE WHEN site_model_catalog.official_input_manual THEN site_model_catalog.official_input_price ELSE EXCLUDED.official_input_price END,
+			official_output_price = CASE WHEN site_model_catalog.official_output_manual THEN site_model_catalog.official_output_price ELSE EXCLUDED.official_output_price END,
+			official_cache_read_price = CASE WHEN site_model_catalog.official_cache_read_manual THEN site_model_catalog.official_cache_read_price ELSE EXCLUDED.official_cache_read_price END,
+			official_cache_write_price = CASE WHEN site_model_catalog.official_cache_write_manual THEN site_model_catalog.official_cache_write_price ELSE EXCLUDED.official_cache_write_price END,
+			official_source = CASE WHEN site_model_catalog.official_input_manual OR site_model_catalog.official_output_manual OR site_model_catalog.official_cache_read_manual OR site_model_catalog.official_cache_write_manual THEN site_model_catalog.official_source ELSE EXCLUDED.official_source END,
+			official_updated_at = CASE WHEN site_model_catalog.official_input_manual OR site_model_catalog.official_output_manual OR site_model_catalog.official_cache_read_manual OR site_model_catalog.official_cache_write_manual THEN site_model_catalog.official_updated_at ELSE EXCLUDED.official_updated_at END,
+			official_input_manual = site_model_catalog.official_input_manual,
+			official_output_manual = site_model_catalog.official_output_manual,
+			official_cache_read_manual = site_model_catalog.official_cache_read_manual,
+			official_cache_write_manual = site_model_catalog.official_cache_write_manual,
 			source = EXCLUDED.source,
 			source_updated_at = EXCLUDED.source_updated_at,
 			updated_at = NOW()
@@ -215,8 +196,8 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
 		toolCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
-		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt, entry.PriceMultiplier,
-		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
+		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt,
+		entry.OfficialInputManual, entry.OfficialOutputManual, entry.OfficialCacheReadManual, entry.OfficialCacheWriteManual,
 		billingMode, source, entry.SourceUpdatedAt,
 	).Scan(&entry.ID, &entry.CreatedAt, &entry.UpdatedAt)
 	if err != nil {
@@ -226,10 +207,6 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 }
 
 func (r *modelCatalogRepository) UpdateCatalogEntry(ctx context.Context, entry *service.SiteModelCatalogEntry) error {
-	billingMode := entry.BillingMode
-	if billingMode == "" {
-		billingMode = string(service.BillingModeToken)
-	}
 	toolCapabilities, err := catalogToolCapabilitiesValue(entry.ToolCapabilities)
 	if err != nil {
 		return err
@@ -239,14 +216,18 @@ func (r *modelCatalogRepository) UpdateCatalogEntry(ctx context.Context, entry *
 			model_name = $1, platform = $2, display_name = $3, use_case = $4, sort_order = $5,
 			visible_public = $6, visible_auth = $7, featured = $8, group_ids = $9,
 			tool_capabilities = $10,
-			input_price = $11, output_price = $12, cache_read_price = $13, cache_write_price = $14,
-			price_multiplier = $15, billing_mode = $16, source = $17, source_updated_at = $18, updated_at = NOW()
-		 WHERE id = $19`,
+			official_input_price = $11, official_output_price = $12, official_cache_read_price = $13, official_cache_write_price = $14,
+			official_source = $15, official_updated_at = $16,
+				official_input_manual = $17, official_output_manual = $18, official_cache_read_manual = $19, official_cache_write_manual = $20,
+				source = $21, source_updated_at = $22, updated_at = NOW()
+			 WHERE id = $23`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
 		toolCapabilities,
-		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice, entry.PriceMultiplier,
-		billingMode, entry.Source, entry.SourceUpdatedAt, entry.ID,
+		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
+		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt,
+		entry.OfficialInputManual, entry.OfficialOutputManual, entry.OfficialCacheReadManual, entry.OfficialCacheWriteManual,
+		entry.Source, entry.SourceUpdatedAt, entry.ID,
 	)
 	if err != nil {
 		return fmt.Errorf("update site model catalog: %w", err)
@@ -291,48 +272,6 @@ func (r *modelCatalogRepository) BatchUpdateVisibility(ctx context.Context, ids 
 	return int(n), nil
 }
 
-func (r *modelCatalogRepository) BatchUpdatePrices(ctx context.Context, ids []int64, multiplier *float64, absoluteInput, absoluteOutput *float64) (int, error) {
-	if len(ids) == 0 {
-		return 0, nil
-	}
-	var sets []string
-	args := make([]any, 0, len(ids)+3)
-	if multiplier != nil && *multiplier > 0 {
-		args = append(args, *multiplier)
-		pos := len(args)
-		sets = append(sets,
-			fmt.Sprintf("input_price = CASE WHEN official_input_price IS NOT NULL THEN official_input_price * $%d ELSE input_price END", pos),
-			fmt.Sprintf("output_price = CASE WHEN official_output_price IS NOT NULL THEN official_output_price * $%d ELSE output_price END", pos),
-			fmt.Sprintf("cache_read_price = CASE WHEN official_cache_read_price IS NOT NULL THEN official_cache_read_price * $%d ELSE cache_read_price END", pos),
-			fmt.Sprintf("cache_write_price = CASE WHEN official_cache_write_price IS NOT NULL THEN official_cache_write_price * $%d ELSE cache_write_price END", pos),
-			fmt.Sprintf("price_multiplier = $%d", pos),
-		)
-	}
-	if absoluteInput != nil {
-		args = append(args, *absoluteInput)
-		sets = append(sets, fmt.Sprintf("input_price = $%d", len(args)))
-	}
-	if absoluteOutput != nil {
-		args = append(args, *absoluteOutput)
-		sets = append(sets, fmt.Sprintf("output_price = $%d", len(args)))
-	}
-	if absoluteInput != nil || absoluteOutput != nil {
-		sets = append(sets, "price_multiplier = NULL")
-	}
-	if len(sets) == 0 {
-		return 0, nil
-	}
-	sets = append(sets, "updated_at = NOW()")
-	args = append(args, pq.Array(ids))
-	query := fmt.Sprintf("UPDATE site_model_catalog SET %s WHERE id = ANY($%d)", strings.Join(sets, ", "), len(args))
-	res, err := r.db.ExecContext(ctx, query, args...)
-	if err != nil {
-		return 0, err
-	}
-	n, _ := res.RowsAffected()
-	return int(n), nil
-}
-
 func (r *modelCatalogRepository) BatchUpdateGroups(ctx context.Context, ids []int64, groupIDs []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, nil
@@ -357,20 +296,19 @@ func (r *modelCatalogRepository) UpdateCatalogOfficialPrices(
 ) (int, error) {
 	res, err := r.db.ExecContext(ctx, `
 		UPDATE site_model_catalog SET
-			official_input_price = $1::numeric,
-			official_output_price = $2::numeric,
-			official_cache_read_price = $3::numeric,
-			official_cache_write_price = $4::numeric,
-			official_source = $5,
+			official_input_price = CASE WHEN NOT official_input_manual THEN $1::numeric ELSE official_input_price END,
+			official_output_price = CASE WHEN NOT official_output_manual THEN $2::numeric ELSE official_output_price END,
+			official_cache_read_price = CASE WHEN NOT official_cache_read_manual THEN $3::numeric ELSE official_cache_read_price END,
+			official_cache_write_price = CASE WHEN NOT official_cache_write_manual THEN $4::numeric ELSE official_cache_write_price END,
+			official_source = CASE
+				WHEN official_input_manual OR official_output_manual OR official_cache_read_manual OR official_cache_write_manual THEN 'manual'
+				ELSE $5
+			END,
 			official_updated_at = $6,
-			input_price = CASE WHEN price_multiplier IS NOT NULL AND $1::numeric IS NOT NULL THEN $1::numeric * price_multiplier ELSE input_price END,
-			output_price = CASE WHEN price_multiplier IS NOT NULL AND $2::numeric IS NOT NULL THEN $2::numeric * price_multiplier ELSE output_price END,
-			cache_read_price = CASE WHEN price_multiplier IS NOT NULL AND $3::numeric IS NOT NULL THEN $3::numeric * price_multiplier ELSE cache_read_price END,
-			cache_write_price = CASE WHEN price_multiplier IS NOT NULL AND $4::numeric IS NOT NULL THEN $4::numeric * price_multiplier ELSE cache_write_price END,
 			updated_at = NOW()
 		WHERE LOWER(model_name) = LOWER($7)
 			AND LOWER(platform) = LOWER($8)
-			AND COALESCE(official_source, '') <> 'manual'
+			AND (NOT official_input_manual OR NOT official_output_manual OR NOT official_cache_read_manual OR NOT official_cache_write_manual)
 	`, input, output, cacheRead, cacheWrite, source, updatedAt, modelName, platform)
 	if err != nil {
 		return 0, fmt.Errorf("update catalog official prices: %w", err)
@@ -578,7 +516,9 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 		&e.VisiblePublic, &e.VisibleAuth, &e.Featured, &groupIDs,
 		&toolCapabilities,
 		&e.OfficialInputPrice, &e.OfficialOutputPrice, &e.OfficialCacheReadPrice, &e.OfficialCacheWritePrice,
-		&officialSource, &officialUpdated, &e.PriceMultiplier,
+		&officialSource, &officialUpdated,
+		&e.OfficialInputManual, &e.OfficialOutputManual, &e.OfficialCacheReadManual, &e.OfficialCacheWriteManual,
+		&e.PriceMultiplier,
 		&e.InputPrice, &e.OutputPrice, &e.CacheReadPrice, &e.CacheWritePrice,
 		&e.BillingMode, &e.Source, &sourceUpdated, &e.CreatedAt, &e.UpdatedAt,
 	)

@@ -51,9 +51,8 @@ describe('lazy locale loading scopes', () => {
   it('forces Chinese on public Chinese routes even after English route visits', () => {
     expect(localeFromPath('/')).toBe('zh')
     expect(localeFromPath('/home')).toBe('zh')
-    expect(localeFromPath('/pricing')).toBe('zh')
-    expect(localeFromPath('/pricing/deepseek')).toBe('zh')
-    expect(localeFromPath('/pricing/qwen')).toBe('zh')
+    expect(localeFromPath('/models')).toBe('zh')
+    expect(localeFromPath('/models/deepseek')).toBe('zh')
     expect(localeFromPath('/docs')).toBe('zh')
     expect(localeFromPath('/login')).toBe('zh')
     expect(localeFromPath('/register')).toBe('zh')

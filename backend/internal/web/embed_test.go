@@ -191,7 +191,7 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, result, `"inLanguage":"en"`)
 		assert.NotContains(t, result, `{"name":"old"}`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
-		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/pricing" />`)
+		assert.Contains(t, result, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models" />`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="x-default" href="https://www.jisudeng.com/en/models" />`)
 		assert.Equal(t, 3, strings.Count(result, `rel="alternate"`))
 		assert.NotContains(t, result, "old.example")
@@ -241,7 +241,7 @@ func TestInjectRouteSEO(t *testing.T) {
 		assert.Contains(t, result, `<title>极速蹬模型价格与 API 目录 - 多模型公开计费与调用指南</title>`)
 		assert.Contains(t, result, `<meta name="keywords" content="极速蹬模型价格, AI 模型目录, API 计费`)
 		assert.Contains(t, result, `<meta property="og:site_name" content="极速蹬" />`)
-		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/pricing" />`)
+		assert.Contains(t, result, `<link rel="canonical" href="https://www.jisudeng.com/models" />`)
 		assert.Contains(t, result, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models" />`)
 	})
 
@@ -251,12 +251,12 @@ func TestInjectRouteSEO(t *testing.T) {
 
 		assert.Contains(t, zh, `<html lang="zh-CN">`)
 		assert.Contains(t, zh, `<title>DeepSeek API 价格与模型接入 - 极速蹬多模型目录</title>`)
-		assert.Contains(t, zh, `<link rel="canonical" href="https://www.jisudeng.com/pricing/deepseek" />`)
+		assert.Contains(t, zh, `<link rel="canonical" href="https://www.jisudeng.com/models/deepseek" />`)
 		assert.Contains(t, zh, `<link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek" />`)
 		assert.Contains(t, en, `<html lang="en">`)
 		assert.Contains(t, en, `<title>DeepSeek API Pricing and Access | Jisudeng</title>`)
 		assert.Contains(t, en, `<link rel="canonical" href="https://www.jisudeng.com/en/models/deepseek" />`)
-		assert.Contains(t, en, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/pricing/deepseek" />`)
+		assert.Contains(t, en, `<link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek" />`)
 		assert.NotRegexp(t, `[\x{3400}-\x{9fff}\x{f900}-\x{faff}]`, en)
 	})
 

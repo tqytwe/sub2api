@@ -17,13 +17,10 @@ export interface SiteModelCatalogEntry {
   official_cache_write_price: number | null
   official_source: string
   official_updated_at: string | null
-  price_multiplier: number | null
-  input_price: number | null
-  output_price: number | null
-  cache_read_price: number | null
-  cache_write_price: number | null
-  billing_mode: string
-  source: string
+  official_input_manual: boolean
+  official_output_manual: boolean
+  official_cache_read_manual: boolean
+  official_cache_write_manual: boolean
   source_updated_at: string | null
   created_at: string
   updated_at: string
@@ -89,16 +86,6 @@ export async function batchVisibility(payload: {
   return data?.updated ?? 0
 }
 
-export async function batchPrices(payload: {
-  ids: number[]
-  multiplier?: number
-  input_price?: number
-  output_price?: number
-}): Promise<number> {
-  const { data } = await apiClient.post<{ updated: number }>('/admin/model-plaza/batch-prices', payload)
-  return data?.updated ?? 0
-}
-
 export async function batchGroups(payload: { ids: number[]; group_ids: number[] | null }): Promise<number> {
   const { data } = await apiClient.post<{ updated: number }>('/admin/model-plaza/batch-groups', payload)
   return data?.updated ?? 0
@@ -127,7 +114,6 @@ export async function listDiscoveries(params?: {
 export async function importDiscoveries(payload: {
   ids: number[]
   to_catalog?: boolean
-  site_multiplier?: number
   group_ids?: number[] | null
 }): Promise<number> {
   const { data } = await apiClient.post<{ imported: number }>('/admin/model-plaza/discoveries/import', {
@@ -142,7 +128,6 @@ export const adminModelCatalogAPI = {
   saveCatalogEntry,
   deleteCatalogEntry,
   batchVisibility,
-  batchPrices,
   batchGroups,
   createSyncJob,
   getSyncJob,

@@ -19,13 +19,15 @@ func TestModelCatalogRepository_OfficialAndSitePricesRemainSeparate(t *testing.T
 	manualInput := 9.0 / 1_000_000
 	manualOutput := 45.0 / 1_000_000
 	entry := &service.SiteModelCatalogEntry{
-		ModelName:   model,
-		Platform:    service.PlatformOpenAI,
-		VisibleAuth: true,
-		InputPrice:  &manualInput,
-		OutputPrice: &manualOutput,
-		BillingMode: string(service.BillingModeToken),
-		Source:      "manual",
+		ModelName:            model,
+		Platform:             service.PlatformOpenAI,
+		VisibleAuth:          true,
+		OfficialInputPrice:   &manualInput,
+		OfficialOutputPrice:  &manualOutput,
+		OfficialInputManual:  true,
+		OfficialOutputManual: true,
+		BillingMode:          string(service.BillingModeToken),
+		Source:               "manual",
 	}
 	require.NoError(t, repo.UpsertCatalogEntry(ctx, entry))
 	t.Cleanup(func() { _ = repo.DeleteCatalogEntry(context.Background(), entry.ID) })
@@ -43,22 +45,10 @@ func TestModelCatalogRepository_OfficialAndSitePricesRemainSeparate(t *testing.T
 
 	got, err := repo.GetCatalogEntry(ctx, entry.ID)
 	require.NoError(t, err)
-	require.InDelta(t, officialInput, *got.OfficialInputPrice, 1e-12)
-	require.InDelta(t, manualInput, *got.InputPrice, 1e-12, "official refresh must not overwrite a manual site price")
-	require.Equal(t, "aihubmix", got.OfficialSource)
-
-	multiplier := 0.8
-	updated, err = repo.BatchUpdatePrices(ctx, []int64{entry.ID}, &multiplier, nil, nil)
-	require.NoError(t, err)
-	require.Equal(t, 1, updated)
-
-	got, err = repo.GetCatalogEntry(ctx, entry.ID)
-	require.NoError(t, err)
-	require.InDelta(t, officialInput*multiplier, *got.InputPrice, 1e-12)
-	require.InDelta(t, officialOutput*multiplier, *got.OutputPrice, 1e-12)
-	require.InDelta(t, officialCacheRead*multiplier, *got.CacheReadPrice, 1e-12)
-	require.InDelta(t, officialCacheWrite*multiplier, *got.CacheWritePrice, 1e-12)
-	require.InDelta(t, multiplier, *got.PriceMultiplier, 1e-12)
+	require.InDelta(t, manualInput, *got.OfficialInputPrice, 1e-12, "manual official input must survive sync")
+	require.InDelta(t, manualOutput, *got.OfficialOutputPrice, 1e-12, "manual official output must survive sync")
+	require.Nil(t, got.InputPrice, "catalog legacy site price must remain unused")
+	require.Equal(t, "manual", got.OfficialSource, "a mixed sync/manual row remains marked as manually overridden")
 
 	updated, err = repo.UpdateCatalogOfficialPrices(
 		ctx, model, service.PlatformOpenAI, "aihubmix",

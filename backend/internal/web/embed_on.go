@@ -872,54 +872,8 @@ var publicRouteSEO = map[string]routeSEO{
 	},
 }
 
-// Keep explicit Chinese pricing SEO entries separate from the OpenAI-compatible
-// `/models` API contract. The legacy records remain available for old links.
-func registerChinesePricingSEO() {
-	for _, family := range []string{"", "/deepseek", "/qwen", "/kimi", "/glm"} {
-		sourcePath := "/models" + family
-		pricingPath := "/pricing" + family
-		seo, ok := publicRouteSEO[sourcePath]
-		if !ok {
-			continue
-		}
-		seo.CanonicalPath = pricingPath
-		for index := range seo.Alternates {
-			seo.Alternates[index].Path = chinesePricingPath(seo.Alternates[index].Path)
-		}
-		publicRouteSEO[pricingPath] = seo
-	}
-}
-
 func init() {
-	registerChinesePricingSEO()
-	// The OpenAI-compatible API owns `/models`; publish the Chinese pricing
-	// pages at `/pricing` while retaining the old SEO records as canonical
-	// aliases for any already-indexed links.
-	for path, seo := range publicRouteSEO {
-		if path != "/models" && !strings.HasPrefix(path, "/models/") {
-			continue
-		}
-		pricingPath := strings.Replace(path, "/models", "/pricing", 1)
-		seo.CanonicalPath = pricingPath
-		for index := range seo.Alternates {
-			seo.Alternates[index].Path = chinesePricingPath(seo.Alternates[index].Path)
-		}
-		publicRouteSEO[path] = seo
-		publicRouteSEO[pricingPath] = seo
-	}
-	for path, seo := range publicRouteSEO {
-		for index := range seo.Alternates {
-			seo.Alternates[index].Path = chinesePricingPath(seo.Alternates[index].Path)
-		}
-		publicRouteSEO[path] = seo
-	}
-}
-
-func chinesePricingPath(path string) string {
-	if path == "/models" || strings.HasPrefix(path, "/models/") {
-		return strings.Replace(path, "/models", "/pricing", 1)
-	}
-	return path
+	// Public model SEO is defined directly on the canonical `/models` routes.
 }
 
 func normalizePublicRouteSEOPath(path string) string {

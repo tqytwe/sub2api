@@ -52,11 +52,11 @@ type modelPlazaOfficialPricing struct {
 	CacheReadPrice    *float64 `json:"cache_read_price"`
 }
 
-// modelPlazaModel 广场模型条目：渠道定价（白名单形态）+ 官方参考价。
+// modelPlazaModel 广场模型条目：展示定价 + 官方参考价。
 type modelPlazaModel struct {
 	Name            string                     `json:"name"`
 	Platform        string                     `json:"platform"`
-	Pricing         *userSupportedModelPricing `json:"pricing"`
+	DisplayPricing  *userSupportedModelPricing `json:"display_pricing"`
 	OfficialPricing *modelPlazaOfficialPricing `json:"official_pricing"`
 }
 
@@ -106,37 +106,30 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 		return
 	}
 
-	groups, err := h.channelService.ListPlazaGroups(c.Request.Context())
+	if h.channelService == nil || h.catalogService == nil {
+		response.NotFound(c, "Model plaza catalog is unavailable")
+		return
+	}
+	entries, err := h.catalogService.ListCatalog(c.Request.Context(), service.CatalogListFilter{})
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	var catalogPrices map[string]*service.PlazaOfficialPricing
-	if h.catalogService != nil {
-		if entries, listErr := h.catalogService.ListCatalog(c.Request.Context(), service.CatalogListFilter{}); listErr == nil {
-			groups, _ = h.channelService.ListPlazaGroupsIncludingEmpty(c.Request.Context())
-			catalogPrices = make(map[string]*service.PlazaOfficialPricing, len(entries))
-			for i := range entries {
-				e := &entries[i]
-				if !(e.VisiblePublic || (authed && e.VisibleAuth)) {
-					continue
-				}
-				if e.OfficialInputPrice == nil && e.OfficialOutputPrice == nil && e.OfficialCacheReadPrice == nil && e.OfficialCacheWritePrice == nil {
-					continue
-				}
-				key := strings.ToLower(strings.TrimSpace(e.ModelName))
-				// A manual official price is the explicit display override. Channel data
-				// remains the source for paid price and billing; this only selects the
-				// reference price rendered in the plaza.
-				if existing, ok := catalogPrices[key]; ok && e.OfficialSource != "manual" && existing != nil {
-					continue
-				}
-				catalogPrices[key] = &service.PlazaOfficialPricing{InputPrice: e.OfficialInputPrice, OutputPrice: e.OfficialOutputPrice, CacheReadPrice: e.OfficialCacheReadPrice, CacheWritePrice: e.OfficialCacheWritePrice}
-			}
-			groups = appendCatalogModelsToPlazaGroups(groups, entries, authed)
-			groups = filterPlazaGroupsByCatalog(groups, entries, authed)
-		}
+	groups, err := h.channelService.ListPlazaGroupsIncludingEmpty(c.Request.Context())
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
 	}
+	catalogEntries := make(map[plazaCatalogKey]service.SiteModelCatalogEntry, len(entries))
+	for i := range entries {
+		e := &entries[i]
+		if !e.VisiblePublic && (!authed || !e.VisibleAuth) {
+			continue
+		}
+		catalogEntries[plazaCatalogKey{platform: normalizePlazaKey(e.Platform), model: normalizePlazaKey(e.ModelName)}] = *e
+	}
+	groups = appendCatalogModelsToPlazaGroups(groups, entries, authed)
+	groups = filterPlazaGroupsByCatalog(groups, entries, authed)
 
 	// allowedExclusive == nil 表示匿名；登录用户恒为非 nil（可能为空集合）。
 	var allowedExclusive map[int64]struct{}
@@ -160,18 +153,65 @@ func (h *ModelPlazaHandler) Get(c *gin.Context) {
 
 	out := make([]modelPlazaGroup, 0, len(visible))
 	for i := range visible {
-		groupDTO := toModelPlazaGroupDTO(&visible[i], userRates)
-		for j := range groupDTO.Models {
-			if price, ok := catalogPrices[strings.ToLower(strings.TrimSpace(groupDTO.Models[j].Name))]; ok {
-				groupDTO.Models[j].OfficialPricing = toModelPlazaOfficialPricing(price)
-			}
-		}
+		groupDTO := toModelPlazaGroupDTO(&visible[i], userRates, catalogEntries)
 		out = append(out, groupDTO)
 	}
 	response.Success(c, modelPlazaResponse{
 		Description: rt.Description,
 		Groups:      out,
 	})
+}
+
+type plazaCatalogKey struct{ platform, model string }
+
+func normalizePlazaKey(value string) string { return strings.ToLower(strings.TrimSpace(value)) }
+
+func catalogEntryForPlazaModel(entries map[plazaCatalogKey]service.SiteModelCatalogEntry, model service.PlazaModel) (service.SiteModelCatalogEntry, bool) {
+	entry, ok := entries[plazaCatalogKey{platform: normalizePlazaKey(model.Platform), model: normalizePlazaKey(model.Name)}]
+	return entry, ok
+}
+
+func displayPricingForPlazaModel(model service.PlazaModel, entry service.SiteModelCatalogEntry, managed bool) *userSupportedModelPricing {
+	pricing := toUserPricing(model.Pricing)
+	if pricing == nil && managed {
+		pricing = &userSupportedModelPricing{BillingMode: string(service.BillingModeToken)}
+	}
+	if pricing == nil {
+		return nil
+	}
+	if pricing.BillingMode == "" {
+		pricing.BillingMode = string(service.BillingModeToken)
+	}
+	if pricing.BillingMode == string(service.BillingModeToken) {
+		if pricing.InputPrice == nil {
+			pricing.InputPrice = entry.OfficialInputPrice
+		}
+		if pricing.OutputPrice == nil {
+			pricing.OutputPrice = entry.OfficialOutputPrice
+		}
+		if pricing.CacheReadPrice == nil {
+			pricing.CacheReadPrice = entry.OfficialCacheReadPrice
+		}
+		if pricing.CacheWritePrice == nil {
+			pricing.CacheWritePrice = entry.OfficialCacheWritePrice
+		}
+		for i := range pricing.Intervals {
+			interval := &pricing.Intervals[i]
+			if interval.InputPrice == nil {
+				interval.InputPrice = entry.OfficialInputPrice
+			}
+			if interval.OutputPrice == nil {
+				interval.OutputPrice = entry.OfficialOutputPrice
+			}
+			if interval.CacheReadPrice == nil {
+				interval.CacheReadPrice = entry.OfficialCacheReadPrice
+			}
+			if interval.CacheWritePrice == nil {
+				interval.CacheWritePrice = entry.OfficialCacheWritePrice
+			}
+		}
+	}
+	return pricing
 }
 
 // appendCatalogModelsToPlazaGroups makes enabled catalog entries visible in
@@ -191,10 +231,20 @@ func appendCatalogModelsToPlazaGroups(groups []service.PlazaGroup, entries []ser
 		}
 	}
 	for _, entry := range entries {
-		if !(entry.VisiblePublic || (authed && entry.VisibleAuth)) || entry.GroupIDs == nil {
+		if !entry.VisiblePublic && (!authed || !entry.VisibleAuth) {
 			continue
 		}
-		for _, groupID := range entry.GroupIDs {
+		// NULL means automatic platform association, handled below for every
+		// active group. An empty array remains an explicit hide-all rule.
+		groupIDs := entry.GroupIDs
+		if groupIDs == nil {
+			for _, group := range groups {
+				if catalogEntryAllowsPlazaGroup(entry, group.ID, group.Platform, entry.Platform) {
+					groupIDs = append(groupIDs, group.ID)
+				}
+			}
+		}
+		for _, groupID := range groupIDs {
 			idx, ok := byID[groupID]
 			if !ok {
 				continue
@@ -217,16 +267,12 @@ func appendCatalogModelsToPlazaGroups(groups []service.PlazaGroup, entries []ser
 func filterPlazaGroupsByCatalog(groups []service.PlazaGroup, entries []service.SiteModelCatalogEntry, authed bool) []service.PlazaGroup {
 	type catalogKey struct{ platform, name string }
 	byKey := make(map[catalogKey]service.SiteModelCatalogEntry, len(entries))
-	byName := make(map[string]service.SiteModelCatalogEntry, len(entries))
 	for _, e := range entries {
 		key := catalogKey{platform: strings.ToLower(strings.TrimSpace(e.Platform)), name: strings.ToLower(strings.TrimSpace(e.ModelName))}
 		if key.name == "" {
 			continue
 		}
 		byKey[key] = e
-		if _, exists := byName[key.name]; !exists {
-			byName[key.name] = e
-		}
 	}
 
 	visible := make([]service.PlazaGroup, 0, len(groups))
@@ -235,13 +281,8 @@ func filterPlazaGroupsByCatalog(groups []service.PlazaGroup, entries []service.S
 		for _, model := range group.Models {
 			key := catalogKey{platform: strings.ToLower(strings.TrimSpace(model.Platform)), name: strings.ToLower(strings.TrimSpace(model.Name))}
 			entry, managed := byKey[key]
-			if !managed {
-				entry, managed = byName[key.name]
-			}
-			if managed {
-				if !(entry.VisiblePublic || (authed && entry.VisibleAuth)) || !catalogEntryAllowsPlazaGroup(entry, group.ID, group.Platform, model.Platform) {
-					continue
-				}
+			if !managed || (!entry.VisiblePublic && (!authed || !entry.VisibleAuth)) || !catalogEntryAllowsPlazaGroup(entry, group.ID, group.Platform, model.Platform) {
+				continue
 			}
 			models = append(models, model)
 		}
@@ -290,15 +331,25 @@ func filterPlazaVisibleGroups(
 }
 
 // toModelPlazaGroupDTO 将 service 层广场分组映射为白名单 DTO,并合并用户专属倍率。
-func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64) modelPlazaGroup {
+func toModelPlazaGroupDTO(g *service.PlazaGroup, userRates map[int64]float64, catalogMaps ...map[plazaCatalogKey]service.SiteModelCatalogEntry) modelPlazaGroup {
+	catalogEntries := map[plazaCatalogKey]service.SiteModelCatalogEntry{}
+	if len(catalogMaps) > 0 && catalogMaps[0] != nil {
+		catalogEntries = catalogMaps[0]
+	}
 	models := make([]modelPlazaModel, 0, len(g.Models))
 	for i := range g.Models {
 		m := &g.Models[i]
+		entry, managed := catalogEntryForPlazaModel(catalogEntries, *m)
+		displayPricing := displayPricingForPlazaModel(*m, entry, managed)
+		official := m.OfficialPricing
+		if managed {
+			official = &service.PlazaOfficialPricing{InputPrice: entry.OfficialInputPrice, OutputPrice: entry.OfficialOutputPrice, CacheReadPrice: entry.OfficialCacheReadPrice, CacheWritePrice: entry.OfficialCacheWritePrice}
+		}
 		models = append(models, modelPlazaModel{
 			Name:            m.Name,
 			Platform:        m.Platform,
-			Pricing:         toUserPricing(m.Pricing),
-			OfficialPricing: toModelPlazaOfficialPricing(m.OfficialPricing),
+			DisplayPricing:  displayPricing,
+			OfficialPricing: toModelPlazaOfficialPricing(official),
 		})
 	}
 	dto := modelPlazaGroup{

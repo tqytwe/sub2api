@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"io"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -18,7 +17,6 @@ import (
 // PlayHandler serves play/engagement endpoints (check-in, arena, public models).
 type PlayHandler struct {
 	playService            *service.PlayService
-	billingService         *service.BillingService
 	feedbackAssetService   *service.AnnouncementAssetService
 	publicCompetitionCache publicTeamCompetitionCache
 }
@@ -28,7 +26,7 @@ func NewPlayHandler(playService *service.PlayService, billingService *service.Bi
 	if len(feedbackAssetService) > 0 {
 		assetService = feedbackAssetService[0]
 	}
-	return &PlayHandler{playService: playService, billingService: billingService, feedbackAssetService: assetService}
+	return &PlayHandler{playService: playService, feedbackAssetService: assetService}
 }
 
 const (
@@ -174,52 +172,6 @@ type playArenaDailyRewardEstimateDTO struct {
 	AvatarURL       string  `json:"avatar_url,omitempty"`
 	TokenSum        int64   `json:"token_sum"`
 	EstimatedReward float64 `json:"estimated_reward"`
-}
-
-type publicModelPlatformSection struct {
-	Platform        string               `json:"platform"`
-	SupportedModels []userSupportedModel `json:"supported_models"`
-}
-
-type publicModelChannel struct {
-	Name        string                       `json:"name"`
-	Description string                       `json:"description"`
-	Platforms   []publicModelPlatformSection `json:"platforms"`
-}
-
-// PublicModels lists official reference pricing for guests (no group multipliers).
-// GET /api/v1/public/models
-func (h *PlayHandler) PublicModels(c *gin.Context) {
-	channels, err := h.playService.ListPublicModels(c.Request.Context())
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-
-	out := make([]publicModelChannel, 0, len(channels))
-	for _, ch := range channels {
-		sections := buildPublicPlatformSections(ch)
-		if len(sections) == 0 {
-			continue
-		}
-		out = append(out, publicModelChannel{
-			Name:        ch.Name,
-			Description: ch.Description,
-			Platforms:   sections,
-		})
-	}
-	response.Success(c, out)
-}
-
-// PublicModelPricing lists official catalog prices and site reference prices for /models.
-// GET /api/v1/public/model-pricing
-func (h *PlayHandler) PublicModelPricing(c *gin.Context) {
-	if h.playService == nil || h.billingService == nil {
-		response.Success(c, []service.PublicModelPricingRow{})
-		return
-	}
-	rows := h.playService.ListPublicModelPricing(c.Request.Context(), h.billingService)
-	response.Success(c, rows)
 }
 
 // SubmitMobileFeedback stores Android app feedback with optional screenshots.
@@ -503,39 +455,6 @@ func toPlayArenaPeriodDTO(p *service.PlayArenaPeriod) *playArenaPeriodDTO {
 		PeriodType: p.PeriodType,
 		SettledAt:  settledAt,
 	}
-}
-
-func buildPublicPlatformSections(ch service.AvailableChannel) []publicModelPlatformSection {
-	platformSet := make(map[string]struct{}, 4)
-	for _, m := range ch.SupportedModels {
-		if m.Platform == "" {
-			continue
-		}
-		platformSet[m.Platform] = struct{}{}
-	}
-	if len(platformSet) == 0 {
-		return nil
-	}
-
-	platforms := make([]string, 0, len(platformSet))
-	for p := range platformSet {
-		platforms = append(platforms, p)
-	}
-	sort.Strings(platforms)
-
-	sections := make([]publicModelPlatformSection, 0, len(platforms))
-	for _, platform := range platforms {
-		platformFilter := map[string]struct{}{platform: {}}
-		models := toUserSupportedModels(ch.SupportedModels, platformFilter)
-		if len(models) == 0 {
-			continue
-		}
-		sections = append(sections, publicModelPlatformSection{
-			Platform:        platform,
-			SupportedModels: models,
-		})
-	}
-	return sections
 }
 
 func countPublicModels(channels []service.AvailableChannel) int { //nolint:unused // Used by unit-tagged regression tests.

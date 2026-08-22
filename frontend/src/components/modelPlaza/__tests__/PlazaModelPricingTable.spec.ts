@@ -17,7 +17,7 @@ function tokenModel(overrides: Partial<PlazaModel> = {}): PlazaModel {
   return {
     name: 'claude-sonnet',
     platform: 'anthropic',
-    pricing: {
+    display_pricing: {
       billing_mode: 'token',
       input_price: 3e-6,
       output_price: 1.5e-5,
@@ -121,7 +121,7 @@ describe('PlazaModelPricingTable', () => {
     // 官方输出价 $10,介于下面两个 token 模型之间,但因计费模式不同应排最后
     const image = tokenModel({
       name: 'gpt-image-2',
-      pricing: {
+      display_pricing: {
         billing_mode: 'image',
         input_price: null,
         output_price: null,
@@ -190,7 +190,7 @@ describe('PlazaModelPricingTable', () => {
   it('per_request 模型按单次价 × 倍率展示,官方价列显示 -', () => {
     const model = tokenModel({
       name: 'search-tool',
-      pricing: {
+      display_pricing: {
         billing_mode: 'per_request',
         input_price: null,
         output_price: null,
@@ -214,7 +214,7 @@ describe('PlazaModelPricingTable', () => {
 
   it('token 模型阶梯定价内联进输入/输出列,按倍率折算', () => {
     const model = tokenModel({
-      pricing: {
+      display_pricing: {
         billing_mode: 'token',
         input_price: 3e-6,
         output_price: 1.5e-5,
@@ -261,7 +261,7 @@ describe('PlazaModelPricingTable', () => {
   it('生图独立倍率开启时,按图价格 × 独立倍率,不乘分组倍率', () => {
     const model = tokenModel({
       name: 'gpt-image-2',
-      pricing: {
+      display_pricing: {
         billing_mode: 'image',
         input_price: null,
         output_price: null,
@@ -298,7 +298,7 @@ describe('PlazaModelPricingTable', () => {
   it('生图独立倍率关闭时,按图价格仍乘分组/专属生效倍率', () => {
     const model = tokenModel({
       name: 'gpt-image-2',
-      pricing: {
+      display_pricing: {
         billing_mode: 'image',
         input_price: null,
         output_price: null,
@@ -320,7 +320,7 @@ describe('PlazaModelPricingTable', () => {
   it('按图模型主行展示阶梯芯片,不把 image_output_price(每 token)当按次价', () => {
     const model = tokenModel({
       name: 'gpt-image-2',
-      pricing: {
+      display_pricing: {
         billing_mode: 'image',
         input_price: null,
         output_price: null,

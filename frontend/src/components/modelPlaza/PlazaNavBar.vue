@@ -33,7 +33,7 @@
       </RouterLink>
       <RouterLink
         v-else
-        :to="{ path: '/login', query: { redirect: '/model-plaza' } }"
+        :to="{ path: '/login', query: { redirect: '/models' } }"
         class="inline-flex flex-shrink-0 items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white shadow-md shadow-primary-500/20 transition-[background-color,box-shadow,transform] duration-200 hover:bg-primary-700 hover:shadow-lg hover:shadow-primary-500/25 active:scale-[0.98] dark:bg-primary-500 dark:hover:bg-primary-400 dark:shadow-primary-500/20"
       >
         {{ t('modelPlaza.nav.login') }}

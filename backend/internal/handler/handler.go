@@ -78,7 +78,6 @@ type Handlers struct {
 	Wallet            *WalletHandler
 	Fund              *FundHandler
 	ImageStudio       *ImageStudioHandler
-	ModelPricing      *ModelPricingHandler
 	PromptLibrary     *PromptLibraryHandler
 	MobileAsset       *MobileAssetHandler
 	MobileTask        *MobileTaskHandler

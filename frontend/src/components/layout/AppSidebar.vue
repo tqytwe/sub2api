@@ -276,10 +276,6 @@ import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 
-// Legacy navigation registry marker retained for fork-integrity compatibility.
-const LEGACY_PRICING_NAV_MARKER = "path: '/pricing'"
-void LEGACY_PRICING_NAV_MARKER
-
 interface NavItem {
   path: string
   label: string

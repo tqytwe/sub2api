@@ -130,7 +130,7 @@ run_check "FORK-UI-012" "design governance command" \
   node "$ROOT/scripts/check-frontend-design-governance.mjs"
 
 check_contains "FORK-NAV-002" "Growth navigation group" "frontend/src/components/layout/AppSidebar.vue" "path: '/growth-group'"
-check_contains "FORK-NAV-002" "pricing navigation entry" "frontend/src/components/layout/AppSidebar.vue" "path: '/pricing'"
+check_not_contains "FORK-NAV-002" "legacy pricing navigation entry removed" "frontend/src/components/layout/AppSidebar.vue" "path: '/pricing'"
 check_not_contains "FORK-NAV-002" "user sidebar excludes available channels" "frontend/src/components/layout/AppSidebar.vue" "path: '/available-channels'"
 check_not_contains "FORK-NAV-002" "user sidebar excludes monitor route" "frontend/src/components/layout/AppSidebar.vue" "path: '/monitor'"
 
@@ -229,7 +229,8 @@ check_contains "FORK-RISK-013" "risk action history route exists" "frontend/src/
 check_contains "FORK-RISK-013" "exact and inferred evidence are separated" "backend/migrations/214_ip_risk_foundation.sql" "evidence_confidence"
 check_contains "FORK-RISK-013" "historical OAuth registration is excluded" "backend/internal/repository/ip_risk_repo.go" "path IN ('/api/v1/auth/register', '/api/v1/auth/mobile/register')"
 
-check_contains "FORK-PUBLIC-008" "public model route" "backend/internal/server/routes/play.go" 'v1.GET("/public/model-pricing"'
+check_contains "FORK-PUBLIC-008" "model plaza route" "backend/internal/server/routes/model_plaza.go" 'plaza.GET(""'
+check_not_contains "FORK-PUBLIC-008" "legacy public model pricing route removed" "backend/internal/server/routes/play.go" 'v1.GET("/public/model-pricing"'
 check_file "FORK-PUBLIC-008" "public docs content" "frontend/src/content/public-docs-data.zh.ts"
 check_contains "FORK-PUBLIC-008" "public model setting" "backend/internal/service/domain_constants.go" "SettingKeyPublicModelsEnabled"
 
@@ -320,6 +321,7 @@ MIGRATIONS=(
   248_usage_logs_audio_token_breakdown.sql
   249_live_usage_settlement_outbox.sql
   250_model_catalog_tool_capabilities.sql
+  251_model_catalog_official_field_sources.sql
   251_vip_membership_qualification_review.sql
   252_bepusdt_payment_contract.sql
   253_mobile_app_releases.sql

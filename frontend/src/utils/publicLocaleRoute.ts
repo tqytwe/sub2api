@@ -23,7 +23,7 @@ export function resolvePublicLocaleRoute(
     if (path === '/en' || path.startsWith('/en/')) return null
     if (path === '/about') return { path: '/en/about' }
     if (path === '/contact') return { path: '/en/contact' }
-    if (path === '/pricing' || path.startsWith('/pricing/')) {
+    if (path === '/models' || path.startsWith('/models/')) {
       return withQuery('/en/models', query)
     }
     if (path === '/docs') return withQuery('/en/docs', query)

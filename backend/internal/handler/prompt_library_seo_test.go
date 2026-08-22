@@ -16,7 +16,7 @@ func TestBuildPromptLibrarySitemapContainsOnlyExistingPublicPages(t *testing.T) 
 	xml := string(body)
 	require.NotContains(t, xml, "/prompts")
 	for _, path := range []string{
-		"/", "/pricing", "/pricing/deepseek", "/pricing/qwen", "/pricing/kimi", "/pricing/glm",
+		"/", "/models", "/models/deepseek", "/models/qwen", "/models/kimi", "/models/glm",
 		"/docs", "/en/", "/en/models", "/en/models/deepseek", "/en/models/qwen",
 		"/en/models/kimi", "/en/models/glm", "/en/docs", "/about", "/contact", "/en/about", "/en/contact",
 		"/download/android",
@@ -27,9 +27,9 @@ func TestBuildPromptLibrarySitemapContainsOnlyExistingPublicPages(t *testing.T) 
 	require.Contains(t, xml, `<changefreq>daily</changefreq>`)
 	require.Contains(t, xml, `<priority>1.00</priority>`)
 	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models"></xhtml:link>`)
-	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/pricing"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models"></xhtml:link>`)
 	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="en" href="https://www.jisudeng.com/en/models/deepseek"></xhtml:link>`)
-	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/pricing/deepseek"></xhtml:link>`)
+	require.Contains(t, xml, `<xhtml:link rel="alternate" hreflang="zh-CN" href="https://www.jisudeng.com/models/deepseek"></xhtml:link>`)
 	require.NotContains(t, xml, "<loc>https://www.jisudeng.com/home</loc>")
 	require.False(t, strings.Contains(xml, "source_url"))
 }

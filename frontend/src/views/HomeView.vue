@@ -646,7 +646,7 @@ import { localizedSiteName, localizedSiteSubtitle } from '@/utils/localizedPubli
 import { isHomeContentUrl as isCustomHomeContentUrl, sanitizeHomeContent } from '@/utils/homeContent'
 import { recoverFromChunkLoadError } from '@/router/chunkRecovery'
 import {
-  PRICING_ROUTE,
+  MODELS_ROUTE,
   PUBLIC_ROUTE_NAMES,
   authEntryRoute,
   buildHomePrimaryNav,
@@ -718,7 +718,7 @@ const homeLogoRoute = computed(() =>
   isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishHome } : { path: '/' },
 )
 const pricingRoute = computed(() =>
-  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishModels } : PRICING_ROUTE,
+  isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishModels } : MODELS_ROUTE,
 )
 const docsRoute = computed(() =>
   isEnglishPublicRoute.value ? { name: PUBLIC_ROUTE_NAMES.englishDocs } : { name: PUBLIC_ROUTE_NAMES.docs },

@@ -102,7 +102,7 @@ func TestToModelPlazaGroupDTO_UserRateAndFieldWhitelist(t *testing.T) {
 	models := decoded["models"].([]any)
 	require.Len(t, models, 1)
 	model := models[0].(map[string]any)
-	require.Contains(t, model, "pricing")
+	require.Contains(t, model, "display_pricing")
 	require.Contains(t, model, "official_pricing")
 	official := model["official_pricing"].(map[string]any)
 	require.Contains(t, official, "input_price")
@@ -149,6 +149,45 @@ func TestFilterPlazaGroupsByCatalog_NilGroupIDsUsesPlatformFallback(t *testing.T
 	visible := filterPlazaGroupsByCatalog(groups, []service.SiteModelCatalogEntry{{ModelName: "gpt-5", Platform: service.PlatformOpenAI, VisiblePublic: true}}, false)
 	require.Len(t, visible, 1)
 	require.Len(t, visible[0].Models, 1)
+}
+
+func TestAppendCatalogModelsToPlazaGroups_UsesGroupScopeAndPlatformKeys(t *testing.T) {
+	groups := []service.PlazaGroup{
+		{ID: 10, Platform: service.PlatformOpenAI},
+		{ID: 11, Platform: service.PlatformAnthropic},
+	}
+	entries := []service.SiteModelCatalogEntry{
+		{ModelName: "shared", Platform: service.PlatformOpenAI, VisiblePublic: true, GroupIDs: nil},
+		{ModelName: "shared", Platform: service.PlatformAnthropic, VisiblePublic: true, GroupIDs: []int64{11}},
+		{ModelName: "hidden", Platform: service.PlatformOpenAI, VisiblePublic: true, GroupIDs: []int64{}},
+	}
+
+	groups = appendCatalogModelsToPlazaGroups(groups, entries, false)
+	groups = filterPlazaGroupsByCatalog(groups, entries, false)
+
+	require.Len(t, groups, 2)
+	require.Equal(t, []string{"shared"}, []string{groups[0].Models[0].Name})
+	require.Equal(t, service.PlatformOpenAI, groups[0].Models[0].Platform)
+	require.Equal(t, []string{"shared"}, []string{groups[1].Models[0].Name})
+	require.Equal(t, service.PlatformAnthropic, groups[1].Models[0].Platform)
+}
+
+func TestDisplayPricingForPlazaModel_FallsBackPerFieldToCatalogOfficialPrice(t *testing.T) {
+	channelInput := 2e-6
+	officialOutput := 13.5e-6
+	pricing := displayPricingForPlazaModel(
+		service.PlazaModel{
+			Name:     "deepseek-v4-pro",
+			Platform: service.PlatformOpenAI,
+			Pricing:  &service.ChannelModelPricing{BillingMode: service.BillingModeToken, InputPrice: &channelInput},
+		},
+		service.SiteModelCatalogEntry{OfficialOutputPrice: &officialOutput},
+		true,
+	)
+
+	require.NotNil(t, pricing)
+	require.Equal(t, &channelInput, pricing.InputPrice)
+	require.Equal(t, &officialOutput, pricing.OutputPrice)
 }
 
 func testPtr(v float64) *float64 { return &v }
