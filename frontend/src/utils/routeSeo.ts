@@ -480,7 +480,7 @@ function setStructuredData(seo: RouteSeo, canonical: string) {
 
 export function resolvePublicRouteSeo(path: string): RouteSeo | undefined {
   const normalized = normalizePath(path)
-  return ROUTE_SEO[normalized] ?? ROUTE_SEO[normalized.replace(/^\/pricing(?=\/|$)/, '/models')]
+  return ROUTE_SEO[normalized]
 }
 
 export function applyPublicRouteSeo(path: string): RouteSeo | undefined {

@@ -19,7 +19,7 @@
 | 盲盒 | 扣费随机返 | `/blindbox` | `play_blindbox_*` |
 | 答题闯关 | 每日题库 | `/quiz-quest` | `play_quiz_*` |
 | Agent Team | 建队/加入 | `/agent-team` | `play_agent_team_enabled` |
-| 公开模型价 | `GET /public/models` | `/models` | `public_models_enabled` |
+| 模型广场展示 | `GET /model-plaza` | `/models` | `model_plaza_enabled` |
 | 首页实时统计 | `GET /public/home-stats` | `HomeView` + `useHomeLiveStats` | — |
 | 公开增长 Teaser | `GET /public/growth-teaser` | 首页 / 注册页 `usePublicGrowthTeaser` | 聚合 `play_*` / `affiliate_*` / 注册赠金 |
 | 支付充值 | 完整订单流 | `/purchase` | `payment_*` |

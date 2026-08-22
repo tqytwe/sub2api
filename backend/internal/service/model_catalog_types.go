@@ -7,33 +7,37 @@ import (
 
 // SiteModelCatalogEntry is one row in site_model_catalog.
 type SiteModelCatalogEntry struct {
-	ID                      int64                        `json:"id"`
-	ModelName               string                       `json:"model_name"`
-	Platform                string                       `json:"platform"`
-	DisplayName             *string                      `json:"display_name"`
-	UseCase                 *string                      `json:"use_case"`
-	SortOrder               int                          `json:"sort_order"`
-	VisiblePublic           bool                         `json:"visible_public"`
-	VisibleAuth             bool                         `json:"visible_auth"`
-	Featured                bool                         `json:"featured"`
-	GroupIDs                []int64                      `json:"group_ids"`
-	ToolCapabilities        ModelToolCapabilityOverrides `json:"tool_capabilities"`
-	OfficialInputPrice      *float64                     `json:"official_input_price"`
-	OfficialOutputPrice     *float64                     `json:"official_output_price"`
-	OfficialCacheReadPrice  *float64                     `json:"official_cache_read_price"`
-	OfficialCacheWritePrice *float64                     `json:"official_cache_write_price"`
-	OfficialSource          string                       `json:"official_source"`
-	OfficialUpdatedAt       *time.Time                   `json:"official_updated_at"`
-	PriceMultiplier         *float64                     `json:"price_multiplier"`
-	InputPrice              *float64                     `json:"input_price"`
-	OutputPrice             *float64                     `json:"output_price"`
-	CacheReadPrice          *float64                     `json:"cache_read_price"`
-	CacheWritePrice         *float64                     `json:"cache_write_price"`
-	BillingMode             string                       `json:"billing_mode"`
-	Source                  string                       `json:"source"`
-	SourceUpdatedAt         *time.Time                   `json:"source_updated_at"`
-	CreatedAt               time.Time                    `json:"created_at"`
-	UpdatedAt               time.Time                    `json:"updated_at"`
+	ID                       int64                        `json:"id"`
+	ModelName                string                       `json:"model_name"`
+	Platform                 string                       `json:"platform"`
+	DisplayName              *string                      `json:"display_name"`
+	UseCase                  *string                      `json:"use_case"`
+	SortOrder                int                          `json:"sort_order"`
+	VisiblePublic            bool                         `json:"visible_public"`
+	VisibleAuth              bool                         `json:"visible_auth"`
+	Featured                 bool                         `json:"featured"`
+	GroupIDs                 []int64                      `json:"group_ids"`
+	ToolCapabilities         ModelToolCapabilityOverrides `json:"tool_capabilities"`
+	OfficialInputPrice       *float64                     `json:"official_input_price"`
+	OfficialOutputPrice      *float64                     `json:"official_output_price"`
+	OfficialCacheReadPrice   *float64                     `json:"official_cache_read_price"`
+	OfficialCacheWritePrice  *float64                     `json:"official_cache_write_price"`
+	OfficialSource           string                       `json:"official_source"`
+	OfficialUpdatedAt        *time.Time                   `json:"official_updated_at"`
+	OfficialInputManual      bool                         `json:"official_input_manual"`
+	OfficialOutputManual     bool                         `json:"official_output_manual"`
+	OfficialCacheReadManual  bool                         `json:"official_cache_read_manual"`
+	OfficialCacheWriteManual bool                         `json:"official_cache_write_manual"`
+	PriceMultiplier          *float64                     `json:"price_multiplier"`
+	InputPrice               *float64                     `json:"input_price"`
+	OutputPrice              *float64                     `json:"output_price"`
+	CacheReadPrice           *float64                     `json:"cache_read_price"`
+	CacheWritePrice          *float64                     `json:"cache_write_price"`
+	BillingMode              string                       `json:"billing_mode"`
+	Source                   string                       `json:"source"`
+	SourceUpdatedAt          *time.Time                   `json:"source_updated_at"`
+	CreatedAt                time.Time                    `json:"created_at"`
+	UpdatedAt                time.Time                    `json:"updated_at"`
 }
 
 // ModelToolCapabilityOverrides records an administrator's explicit capability
@@ -80,49 +84,47 @@ type ModelSyncResult struct {
 	Source     string   `json:"source"`
 }
 
-// MyModelPricingGroup is a user-visible group with rate multiplier.
-type MyModelPricingGroup struct {
+// NextChatDisplayGroup is internal NextChat display metadata.
+type NextChatDisplayGroup struct {
 	ID             int64   `json:"id"`
 	Name           string  `json:"name"`
 	RateMultiplier float64 `json:"rate_multiplier"`
 }
 
-// MyModelPricingRow is one model row for authenticated /models/my-pricing.
-type MyModelPricingRow struct {
-	Name                 string                `json:"name"`
-	Platform             string                `json:"platform"`
-	SortOrder            int                   `json:"sort_order"`
-	Channel              string                `json:"channel,omitempty"`
-	UseCase              string                `json:"use_case,omitempty"`
-	Groups               []MyModelPricingGroup `json:"groups"`
-	BaseInputPrice       *float64              `json:"base_input_price"`
-	BaseOutputPrice      *float64              `json:"base_output_price"`
-	EffectiveInputPrice  *float64              `json:"effective_input_price"`
-	EffectiveOutputPrice *float64              `json:"effective_output_price"`
-	OfficialInputPrice   *float64              `json:"official_input_price"`
-	OfficialOutputPrice  *float64              `json:"official_output_price"`
-	SiteInputPrice       *float64              `json:"site_input_price"`
-	SiteOutputPrice      *float64              `json:"site_output_price"`
+// NextChatDisplayModel is one internal NextChat model metadata row.
+type NextChatDisplayModel struct {
+	Name                 string                 `json:"name"`
+	Platform             string                 `json:"platform"`
+	SortOrder            int                    `json:"sort_order"`
+	Channel              string                 `json:"channel,omitempty"`
+	UseCase              string                 `json:"use_case,omitempty"`
+	Groups               []NextChatDisplayGroup `json:"groups"`
+	BaseInputPrice       *float64               `json:"base_input_price"`
+	BaseOutputPrice      *float64               `json:"base_output_price"`
+	EffectiveInputPrice  *float64               `json:"effective_input_price"`
+	EffectiveOutputPrice *float64               `json:"effective_output_price"`
+	OfficialInputPrice   *float64               `json:"official_input_price"`
+	OfficialOutputPrice  *float64               `json:"official_output_price"`
+	SiteInputPrice       *float64               `json:"site_input_price"`
+	SiteOutputPrice      *float64               `json:"site_output_price"`
 }
 
-// MyModelPricingResponse is the payload for GET /models/my-pricing.
-type MyModelPricingResponse struct {
-	Models             []MyModelPricingRow `json:"models"`
-	RateMultiplierNote string              `json:"rate_multiplier_note"`
-	Enabled            bool                `json:"enabled"`
+// NextChatDisplayMetadata is an internal, non-HTTP display payload.
+type NextChatDisplayMetadata struct {
+	Models             []NextChatDisplayModel `json:"models"`
+	RateMultiplierNote string                 `json:"rate_multiplier_note"`
+	Enabled            bool                   `json:"enabled"`
 }
 
 // ModelCatalogRepository persists site catalog, discoveries, and sync jobs.
 type ModelCatalogRepository interface {
 	ListCatalog(ctx context.Context, filter CatalogListFilter) ([]SiteModelCatalogEntry, error)
 	GetCatalogEntry(ctx context.Context, id int64) (*SiteModelCatalogEntry, error)
-	GetCatalogPricing(ctx context.Context, modelName string) (*SiteModelCatalogEntry, error)
 	UpsertCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	UpsertDiscoveryCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	UpdateCatalogEntry(ctx context.Context, entry *SiteModelCatalogEntry) error
 	DeleteCatalogEntry(ctx context.Context, id int64) error
 	BatchUpdateVisibility(ctx context.Context, ids []int64, visiblePublic, visibleAuth *bool) (int, error)
-	BatchUpdatePrices(ctx context.Context, ids []int64, multiplier *float64, absoluteInput, absoluteOutput *float64) (int, error)
 	BatchUpdateGroups(ctx context.Context, ids []int64, groupIDs []int64) (int, error)
 	UpdateCatalogOfficialPrices(ctx context.Context, modelName, platform, source string, input, output, cacheRead, cacheWrite *float64, updatedAt time.Time) (int, error)
 

@@ -867,14 +867,14 @@ func TestNextChatWorkspaceModelMetadataDoesNotBorrowBillingDataAcrossGroups(t *t
 	openAIGroupID := int64(7)
 	grokGroupID := int64(8)
 	borrowedInputPrice := 0.42
-	metadata := buildNextChatWorkspaceModelMetadata([]MyModelPricingRow{
+	metadata := buildNextChatWorkspaceModelMetadata([]NextChatDisplayModel{
 		{
 			Name:                "gpt-4o-mini",
 			Platform:            PlatformOpenAI,
 			Channel:             "billing-channel-from-other-group",
 			EffectiveInputPrice: &borrowedInputPrice,
 			SortOrder:           9,
-			Groups:              []MyModelPricingGroup{{ID: openAIGroupID, Name: "OpenAI main"}},
+			Groups:              []NextChatDisplayGroup{{ID: openAIGroupID, Name: "OpenAI main"}},
 		},
 	})
 

@@ -608,7 +608,7 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 	if err != nil {
 		return nil, err
 	}
-	pricing, err := s.ListMyPricing(ctx, userID)
+	pricing, err := s.ListNextChatDisplayMetadata(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -762,7 +762,7 @@ type nextChatWorkspaceModelMeta struct {
 	effectiveOutputPrice *float64
 }
 
-func buildNextChatWorkspaceModelMetadata(rows []MyModelPricingRow) nextChatWorkspaceModelMetadata {
+func buildNextChatWorkspaceModelMetadata(rows []NextChatDisplayModel) nextChatWorkspaceModelMetadata {
 	metadata := nextChatWorkspaceModelMetadata{
 		byGroupModel: make(map[nextChatWorkspaceGroupModelKey]nextChatWorkspaceModelMeta),
 	}

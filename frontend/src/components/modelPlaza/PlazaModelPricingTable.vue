@@ -60,7 +60,7 @@
                   {{ paidPerMillion(iv.input_price) }} / {{ paidPerMillion(iv.output_price) }}
                 </div>
               </div>
-              <span v-else>{{ paidPerMillion(m.pricing?.input_price) }} / {{ paidPerMillion(m.pricing?.output_price) }}</span>
+              <span v-else>{{ paidPerMillion(displayPricing(m)?.input_price) }} / {{ paidPerMillion(displayPricing(m)?.output_price) }}</span>
             </template>
             <template v-else>
               <div v-if="requestIntervals(m).length" class="space-y-0.5 text-xs leading-5">
@@ -69,7 +69,7 @@
                   {{ paidRequestPrice(m, iv.per_request_price) }} {{ perUnitSuffix(m) }}
                 </div>
               </div>
-              <span v-else-if="m.pricing?.per_request_price != null">{{ paidRequestPrice(m, m.pricing.per_request_price) }} {{ perUnitSuffix(m) }}</span>
+              <span v-else-if="displayPricing(m)?.per_request_price != null">{{ paidRequestPrice(m, displayPricing(m)?.per_request_price) }} {{ perUnitSuffix(m) }}</span>
               <span v-else>-</span>
             </template>
           </td>
@@ -139,7 +139,11 @@ const sortedModels = computed(() => {
 const effectiveRate = computed(() => props.userRateMultiplier ?? props.rateMultiplier)
 
 function billingMode(m: PlazaModel): BillingMode {
-  return (m.pricing?.billing_mode || BILLING_MODE_TOKEN) as BillingMode
+  return (displayPricing(m)?.billing_mode || BILLING_MODE_TOKEN) as BillingMode
+}
+
+function displayPricing(m: PlazaModel) {
+  return m.display_pricing
 }
 
 function billingModeLabel(m: PlazaModel): string {
@@ -188,11 +192,11 @@ function perUnitSuffix(m: PlazaModel): string {
 
 /** token 模式的阶梯定价(内联进输入/输出列)。 */
 function tokenIntervals(m: PlazaModel): UserPricingInterval[] {
-  return m.pricing?.intervals ?? []
+  return displayPricing(m)?.intervals ?? []
 }
 
 function requestIntervals(m: PlazaModel): UserPricingInterval[] {
-  return (m.pricing?.intervals ?? []).filter((iv) => iv.per_request_price != null)
+  return (displayPricing(m)?.intervals ?? []).filter((iv) => iv.per_request_price != null)
 }
 
 /** 档位标签:优先管理员配置的 tier_label,否则按 token 区间生成(≤200K / >200K / 200K–1M)。 */

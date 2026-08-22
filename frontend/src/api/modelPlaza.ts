@@ -21,7 +21,8 @@ export interface PlazaOfficialPricing {
 export interface PlazaModel {
   name: string
   platform: string
-  pricing: UserSupportedModelPricing | null
+  /** 展示专用价格，不参与任何扣费或渠道调度。 */
+  display_pricing: UserSupportedModelPricing | null
   official_pricing: PlazaOfficialPricing | null
 }
 
