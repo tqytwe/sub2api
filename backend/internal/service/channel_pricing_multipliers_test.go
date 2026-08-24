@@ -294,6 +294,29 @@ func TestCalculateTokenCostContextTierEnablement(t *testing.T) {
 	})
 }
 
+func TestCalculateTokenCostContextTierDisabledUsesFirstTier(t *testing.T) {
+	base := &ModelPricing{InputPricePerToken: 1e-6}
+	maxTokens := 100000
+	resolved := &ResolvedPricing{
+		BasePricing: base,
+		Intervals: []PricingInterval{{
+			MinTokens:       0,
+			MaxTokens:       &maxTokens,
+			InputMultiplier: pricingMultiplier(2),
+		}},
+		longContextPricingEnabled: false,
+	}
+
+	cost, err := (&BillingService{}).calculateTokenCost(resolved, CostInput{
+		Model:          "custom",
+		Tokens:         UsageTokens{InputTokens: 200},
+		RateMultiplier: 1,
+		Resolver:       &ModelPricingResolver{},
+	})
+	require.NoError(t, err)
+	require.InDelta(t, 400e-6, cost.TotalCost, 1e-12)
+}
+
 func TestCalculateTokenCostCombinesIntervalAndFastMultiplier(t *testing.T) {
 	resolved := &ResolvedPricing{
 		BasePricing: &ModelPricing{
