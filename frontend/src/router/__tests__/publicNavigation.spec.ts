@@ -6,6 +6,11 @@ import {
   buildHomePrimaryNav,
   dashboardEntryRoute,
 } from '@/router/publicNavigation'
+import { readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const routerSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../index.ts'), 'utf8')
 
 describe('public navigation contract', () => {
   it('routes the models entry to the model plaza', () => {
@@ -42,5 +47,17 @@ describe('public navigation contract', () => {
     expect(nav.find((item) => item.key === 'contact')?.to).toEqual({
       name: PUBLIC_ROUTE_NAMES.englishContact,
     })
+  })
+
+  it('keeps model family compatibility paths and query parameters intact', () => {
+    expect(routerSource).toContain("path: '/models/:family(deepseek|qwen|kimi|glm)'")
+    expect(routerSource).toContain('path: `/models/${to.params.family}`, query: to.query')
+    expect(routerSource).toContain("path: '/models', query: to.query")
+  })
+
+  it('applies Model Plaza access settings to localized and family routes', () => {
+    expect(routerSource).toContain("to.path.startsWith('/models/')")
+    expect(routerSource).toContain("to.path === '/en/models'")
+    expect(routerSource).toContain("to.path.startsWith('/en/models/')")
   })
 })

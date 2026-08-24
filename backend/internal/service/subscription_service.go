@@ -600,13 +600,32 @@ func normalizeAssignValidityDays(days int) int {
 
 // RevokeSubscription 撤销订阅
 func (s *SubscriptionService) RevokeSubscription(ctx context.Context, subscriptionID int64) error {
-	// 先获取订阅信息用于失效缓存
-	sub, err := s.userSubRepo.GetByID(ctx, subscriptionID)
-	if err != nil {
-		return err
-	}
+	var sub *UserSubscription
+	if err := s.withSubscriptionUpdateTx(ctx, func(txCtx context.Context) error {
+		// 先获取订阅信息用于失效缓存，并让软删除与套餐额度失效处于同一事务。
+		var err error
+		sub, err = s.userSubRepo.GetByIDForUpdate(txCtx, subscriptionID)
+		if err != nil {
+			return err
+		}
 
-	if err := s.userSubRepo.Delete(ctx, subscriptionID); err != nil {
+		if err := s.userSubRepo.Delete(txCtx, subscriptionID); err != nil {
+			return err
+		}
+
+		// Entitlements are keyed by user/group rather than subscription ID. Once
+		// that subscription is revoked, every prior non-revoked entitlement for
+		// the pair must be retired before a new subscription can reuse the pair.
+		if s.entClient != nil {
+			if _, err := s.packageQuotaRunner(txCtx).ExecContext(txCtx, `
+				UPDATE subscription_package_entitlements
+				SET status = 'revoked', exhausted_reason = NULL, updated_at = NOW()
+				WHERE user_id = $1 AND group_id = $2 AND status <> 'revoked'`, sub.UserID, sub.GroupID); err != nil {
+				return fmt.Errorf("revoke package entitlements: %w", err)
+			}
+		}
+		return nil
+	}); err != nil {
 		return err
 	}
 

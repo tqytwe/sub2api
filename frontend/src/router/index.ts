@@ -101,6 +101,16 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/pricing',
+    // design-governance-allow: visual-evidence - this compatibility route only restores a named redirect and does not add a new visual surface
+    name: 'Pricing',
+    redirect: to => ({ path: '/models', query: to.query }),
+  },
+  {
+    path: '/pricing/:family(deepseek|qwen|kimi|glm)',
+    redirect: to => ({ path: `/models/${to.params.family}`, query: to.query }),
+  },
+  {
     path: '/download/android',
     name: 'AndroidDownload',
     component: () => import('@/views/public/AndroidDownloadView.vue'),
@@ -336,8 +346,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/models/:family(deepseek|qwen|kimi|glm)',
+    name: 'ModelFamily',
+    component: () => import('@/views/ModelPlazaView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model pricing',
+      frame: 'workspace'
+    }
+  },
+  {
     path: '/model-plaza',
-    redirect: '/models',
+    redirect: to => ({ path: '/models', query: to.query }),
   },
   {
     path: '/agent-team',
@@ -1230,7 +1250,13 @@ router.beforeEach(async (to, _from, next) => {
       return
     }
     // Model Plaza:公开路由但受「启用开关 + 可选强制登录」双重控制(后端同口径 fail-closed)
-    if (to.path === '/models' || to.path === '/model-plaza') {
+    const isModelPlazaRoute =
+      to.path === '/model-plaza' ||
+      to.path === '/models' ||
+      to.path.startsWith('/models/') ||
+      to.path === '/en/models' ||
+      to.path.startsWith('/en/models/')
+    if (isModelPlazaRoute) {
       if (!appStore.publicSettingsLoaded) {
         try {
           await appStore.fetchPublicSettings()

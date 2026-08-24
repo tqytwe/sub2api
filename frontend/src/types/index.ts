@@ -319,6 +319,8 @@ export interface PublicSettings {
   channel_monitor_mode?: 'v1' | 'v2'
   channel_monitor_default_interval_seconds: number
   channel_monitor_hide_throughput?: boolean
+  /** When true, user monitor shows account quota/balance snapshots (default off). */
+  channel_monitor_show_quota?: boolean
   available_channels_enabled: boolean
   marketplace_enabled: boolean
   model_plaza_enabled: boolean
@@ -585,7 +587,7 @@ export interface PaginationConfig {
 
 // ==================== API Key & Group Types ====================
 
-export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'composite'
+export type GroupPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek' | 'composite'
 
 export type SubscriptionType = 'standard' | 'subscription'
 export type BillingSurchargeMode = 'none' | 'percent_on_charged_cost' | 'additive_multiplier'
@@ -937,7 +939,7 @@ export interface UpdateGroupRequest {
 
 // ==================== Account & Proxy Types ====================
 
-export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok'
+export type AccountPlatform = 'anthropic' | 'openai' | 'gemini' | 'antigravity' | 'grok' | 'kimi' | 'zhipu' | 'deepseek'
 export type AccountType = 'oauth' | 'setup-token' | 'apikey' | 'upstream' | 'bedrock' | 'service_account'
 export type OAuthAddMethod = 'oauth' | 'setup-token'
 export type ProxyProtocol = 'http' | 'https' | 'socks5' | 'socks5h'
@@ -1367,6 +1369,8 @@ export interface AccountUsageInfo {
   updated_at: string | null
   five_hour: UsageProgress | null
   seven_day: UsageProgress | null
+  // Official monthly window used by billing-aware Grok fallback display.
+  thirty_day?: UsageProgress | null
   seven_day_sonnet: UsageProgress | null
   seven_day_fable?: UsageProgress | null
   gemini_shared_daily?: UsageProgress | null

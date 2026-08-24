@@ -249,6 +249,14 @@ const selectPreset = (preset: DatePreset) => {
   localStartDate.value = range.start
   localEndDate.value = range.end
   activePreset.value = preset.value
+  emit('update:startDate', range.start)
+  emit('update:endDate', range.end)
+  emit('change', {
+    startDate: range.start,
+    endDate: range.end,
+    preset: preset.value
+  })
+  isOpen.value = false
 }
 
 const onDateChange = () => {
@@ -405,7 +413,7 @@ onUnmounted(() => {
 }
 
 .dark .date-picker-input::-webkit-calendar-picker-indicator {
-  filter: invert(0.7);
+  filter: none;
 }
 
 .date-picker-separator {

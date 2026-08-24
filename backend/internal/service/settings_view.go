@@ -183,6 +183,7 @@ type SystemSettings struct {
 	PublicModelsEnabled  bool `json:"public_models_enabled"`
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
 	NextChatEnabled      bool `json:"nextchat_enabled"`
+	SoraClientEnabled    bool `json:"sora_client_enabled"`
 	PlayCheckinEnabled   bool `json:"play_checkin_enabled"`
 	PlayArenaEnabled     bool `json:"play_arena_enabled"`
 	PlayBlindboxEnabled  bool `json:"play_blindbox_enabled"`
@@ -210,14 +211,17 @@ type SystemSettings struct {
 	OpsMetricsIntervalSeconds    int
 
 	// Channel Monitor feature
-	ChannelMonitorEnabled                bool           `json:"channel_monitor_enabled"`
-	ChannelMonitorMode                   string         `json:"channel_monitor_mode"`
-	ChannelMonitorDefaultIntervalSeconds int            `json:"channel_monitor_default_interval_seconds"`
-	ChannelMonitorHideThroughput         bool           `json:"channel_monitor_hide_throughput"`
-	GrokDefaultTextModel                 string         `json:"grok_default_text_model"`
-	GrokCrossClientModelMapEnabled       bool           `json:"grok_cross_client_model_map_enabled"`
-	GrokDefaultBaseURLMode               string         `json:"grok_default_base_url_mode"`
-	AccountSchedulingThresholds          map[string]int `json:"account_scheduling_thresholds"`
+	ChannelMonitorEnabled                bool   `json:"channel_monitor_enabled"`
+	ChannelMonitorMode                   string `json:"channel_monitor_mode"`
+	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
+	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
+	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
+
+	// Grok model mapping policy (admin settings; empty mapping falls back to these).
+	GrokDefaultTextModel           string         `json:"grok_default_text_model"`
+	GrokCrossClientModelMapEnabled bool           `json:"grok_cross_client_model_map_enabled"`
+	GrokDefaultBaseURLMode         string         `json:"grok_default_base_url_mode"`
+	AccountSchedulingThresholds    map[string]int `json:"account_scheduling_thresholds"`
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
@@ -393,6 +397,7 @@ type PublicSettings struct {
 	ChannelMonitorMode                   string `json:"channel_monitor_mode"`
 	ChannelMonitorDefaultIntervalSeconds int    `json:"channel_monitor_default_interval_seconds"`
 	ChannelMonitorHideThroughput         bool   `json:"channel_monitor_hide_throughput"`
+	ChannelMonitorShowQuota              bool   `json:"channel_monitor_show_quota"`
 
 	// Available Channels feature (user-facing aggregate view)
 	AvailableChannelsEnabled bool `json:"available_channels_enabled"`
@@ -413,6 +418,7 @@ type PublicSettings struct {
 	PlayAgentTeamEnabled bool `json:"play_agent_team_enabled"`
 	ImageStudioEnabled   bool `json:"image_studio_enabled"`
 	NextChatEnabled      bool `json:"nextchat_enabled"`
+	SoraClientEnabled    bool `json:"sora_client_enabled"`
 
 	// Affiliate (邀请返利) feature toggle
 	AffiliateEnabled bool `json:"affiliate_enabled"`

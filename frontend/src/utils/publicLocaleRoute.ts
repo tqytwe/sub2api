@@ -23,15 +23,18 @@ export function resolvePublicLocaleRoute(
     if (path === '/en' || path.startsWith('/en/')) return null
     if (path === '/about') return { path: '/en/about' }
     if (path === '/contact') return { path: '/en/contact' }
+    if (path === '/pricing' || path.startsWith('/pricing/')) {
+      return withQuery(path === '/pricing' ? '/en/models' : `/en/models${path.slice('/pricing'.length)}`, query)
+    }
     if (path === '/models' || path.startsWith('/models/')) {
-      return withQuery('/en/models', query)
+      return withQuery(path === '/models' ? '/en/models' : `/en/models${path.slice('/models'.length)}`, query)
     }
     if (path === '/docs') return withQuery('/en/docs', query)
     return { path: '/en' }
   }
 
   if (path === '/en/models' || path.startsWith('/en/models/')) {
-    return withQuery('/models', query)
+    return withQuery(path === '/en/models' ? '/models' : `/models${path.slice('/en/models'.length)}`, query)
   }
   if (path === '/en/docs') return withQuery('/docs', query)
   if (path === '/en/about') return { path: '/about' }
