@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -107,52 +106,7 @@ func modelPricingSettingService(multiplier string) *SettingService {
 	}}, &config.Config{})
 }
 
-func TestModelCatalogService_ListPublicPricingFailsClosed(t *testing.T) {
-	t.Run("no guest-visible models", func(t *testing.T) {
-		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{}, nil, nil, nil, nil, nil, nil)
-		require.Empty(t, svc.ListPublicPricing(context.Background()))
-	})
-
-	t.Run("catalog query error", func(t *testing.T) {
-		svc := NewModelCatalogService(&modelCatalogVisibilityRepoStub{err: errors.New("database unavailable")}, nil, nil, nil, nil, nil, nil)
-		require.Empty(t, svc.ListPublicPricing(context.Background()))
-	})
-}
-
-func TestModelCatalogService_ListPublicPricingShowsGroupEffectivePrices(t *testing.T) {
-	siteIn, siteOut := 4e-6, 24e-6
-	officialIn, officialOut := 10e-6, 30e-6
-	codex := Group{ID: 2, Name: "Codex", Platform: PlatformOpenAI, RateMultiplier: 0.25, Status: StatusActive}
-	domestic := Group{ID: 14, Name: "国产分组", Platform: PlatformOpenAI, RateMultiplier: 0.05, Status: StatusActive}
-	channelService := NewChannelService(&modelPricingChannelRepoStub{channels: []Channel{{
-		ID:       1,
-		Name:     "primary",
-		Status:   StatusActive,
-		GroupIDs: []int64{codex.ID, domestic.ID},
-	}}}, &modelPricingGroupRepoStub{groups: []Group{codex, domestic}}, nil, nil)
-	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
-		ModelName:           "gpt-test",
-		Platform:            PlatformOpenAI,
-		VisiblePublic:       true,
-		GroupIDs:            []int64{domestic.ID},
-		OfficialInputPrice:  &officialIn,
-		OfficialOutputPrice: &officialOut,
-		InputPrice:          &siteIn,
-		OutputPrice:         &siteOut,
-	}}}
-	svc := NewModelCatalogService(repo, channelService, nil, nil, nil, nil, nil)
-
-	rows := svc.ListPublicPricing(context.Background())
-
-	require.Len(t, rows, 1)
-	require.Equal(t, "gpt-test", rows[0].Name)
-	require.Len(t, rows[0].Groups, 1)
-	require.Equal(t, domestic.ID, rows[0].Groups[0].ID)
-	require.InDelta(t, siteIn*domestic.RateMultiplier, *rows[0].Groups[0].EffectiveInputPrice, 1e-12)
-	require.InDelta(t, siteOut*domestic.RateMultiplier, *rows[0].Groups[0].EffectiveOutputPrice, 1e-12)
-}
-
-func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch(t *testing.T) {
+func TestModelCatalogService_NextChatDisplayShowsVisibleCatalogWithoutChannelMatch(t *testing.T) {
 	officialAIn, officialAOut := 10e-6, 20e-6
 	officialBIn, officialBOut := 5e-6, 30e-6
 	explicitSiteAIn := 2e-6
@@ -185,7 +139,7 @@ func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch
 	}}
 	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("0.8"), nil, nil)
 
-	resp, err := svc.ListMyPricing(context.Background(), 4)
+	resp, err := svc.ListNextChatDisplayMetadata(context.Background(), 4)
 
 	require.NoError(t, err)
 	require.True(t, resp.Enabled)
@@ -195,13 +149,13 @@ func TestModelCatalogService_ListMyPricingShowsVisibleCatalogWithoutChannelMatch
 	require.Empty(t, resp.Models[0].Groups)
 	require.Nil(t, resp.Models[0].EffectiveInputPrice)
 	require.Nil(t, resp.Models[0].EffectiveOutputPrice)
-	require.Equal(t, explicitSiteAIn, *resp.Models[0].SiteInputPrice)
+	require.InDelta(t, 10e-6, *resp.Models[0].SiteInputPrice, 1e-12)
 	require.InDelta(t, 20e-6, *resp.Models[0].SiteOutputPrice, 1e-12)
 	require.InDelta(t, 5e-6, *resp.Models[1].SiteInputPrice, 1e-12)
 	require.InDelta(t, 30e-6, *resp.Models[1].SiteOutputPrice, 1e-12)
 }
 
-func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testing.T) {
+func TestModelCatalogService_NextChatDisplayKeepsChannelEffectivePricing(t *testing.T) {
 	baseIn, baseOut := 2e-6, 8e-6
 	officialIn, officialOut := 5e-6, 30e-6
 	group := Group{
@@ -245,7 +199,7 @@ func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testin
 	}}}
 	svc := NewModelCatalogService(repo, channelService, nil, nil, modelPricingSettingService("0.8"), apiKeyService, nil)
 
-	resp, err := svc.ListMyPricing(context.Background(), 4)
+	resp, err := svc.ListNextChatDisplayMetadata(context.Background(), 4)
 
 	require.NoError(t, err)
 	require.Len(t, resp.Models, 1)
@@ -262,8 +216,8 @@ func TestModelCatalogService_ListMyPricingKeepsChannelEffectivePricing(t *testin
 	require.InDelta(t, 30e-6, *row.SiteOutputPrice, 1e-12)
 }
 
-func TestModelCatalogService_ListMyPricingUsesSiteBaseForActualKeyGroupWithoutChannel(t *testing.T) {
-	siteIn, siteOut := 4e-6, 24e-6
+func TestModelCatalogService_NextChatDisplayUsesOfficialFallbackWithoutChannel(t *testing.T) {
+	officialIn, officialOut := 4e-6, 24e-6
 	group := Group{
 		ID:               2,
 		Name:             "codex",
@@ -288,16 +242,16 @@ func TestModelCatalogService_ListMyPricingUsesSiteBaseForActualKeyGroupWithoutCh
 		nil,
 	)
 	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
-		ModelName:   "gpt-test",
-		Platform:    PlatformOpenAI,
-		VisibleAuth: true,
-		InputPrice:  &siteIn,
-		OutputPrice: &siteOut,
-		BillingMode: string(BillingModeToken),
+		ModelName:           "gpt-test",
+		Platform:            PlatformOpenAI,
+		VisibleAuth:         true,
+		OfficialInputPrice:  &officialIn,
+		OfficialOutputPrice: &officialOut,
+		BillingMode:         string(BillingModeToken),
 	}}}
 	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService, nil)
 
-	resp, err := svc.ListMyPricing(context.Background(), 4)
+	resp, err := svc.ListNextChatDisplayMetadata(context.Background(), 4)
 
 	require.NoError(t, err)
 	require.Len(t, resp.Models, 1)
@@ -306,14 +260,14 @@ func TestModelCatalogService_ListMyPricingUsesSiteBaseForActualKeyGroupWithoutCh
 	require.Len(t, row.Groups, 1)
 	require.Equal(t, group.ID, row.Groups[0].ID)
 	require.Equal(t, 0.25, row.Groups[0].RateMultiplier)
-	require.InDelta(t, siteIn, *row.BaseInputPrice, 1e-12)
-	require.InDelta(t, siteOut, *row.BaseOutputPrice, 1e-12)
-	require.InDelta(t, 1e-6, *row.EffectiveInputPrice, 1e-12)
-	require.InDelta(t, 6e-6, *row.EffectiveOutputPrice, 1e-12)
+	require.InDelta(t, officialIn, *row.BaseInputPrice, 1e-12)
+	require.InDelta(t, officialOut, *row.BaseOutputPrice, 1e-12)
+	require.InDelta(t, officialIn*0.25, *row.EffectiveInputPrice, 1e-12)
+	require.InDelta(t, officialOut*0.25, *row.EffectiveOutputPrice, 1e-12)
 }
 
 func TestModelCatalogService_ExplicitCatalogGroupsOverridePlatformMatching(t *testing.T) {
-	siteIn, siteOut := 4e-6, 24e-6
+	officialIn, officialOut := 4e-6, 24e-6
 	codex := Group{ID: 2, Name: "codex", Platform: PlatformOpenAI, RateMultiplier: 0.18, Status: StatusActive}
 	domestic := Group{ID: 14, Name: "国产分组", Platform: PlatformOpenAI, RateMultiplier: 0.05, Status: StatusActive}
 	apiKeyService := NewAPIKeyService(
@@ -329,27 +283,27 @@ func TestModelCatalogService_ExplicitCatalogGroupsOverridePlatformMatching(t *te
 		nil,
 	)
 	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
-		ModelName:   "qwen3.5-plus",
-		Platform:    PlatformOpenAI,
-		VisibleAuth: true,
-		GroupIDs:    []int64{domestic.ID},
-		InputPrice:  &siteIn,
-		OutputPrice: &siteOut,
+		ModelName:           "qwen3.5-plus",
+		Platform:            PlatformOpenAI,
+		VisibleAuth:         true,
+		GroupIDs:            []int64{domestic.ID},
+		OfficialInputPrice:  &officialIn,
+		OfficialOutputPrice: &officialOut,
 	}}}
 	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService, nil)
 
-	resp, err := svc.ListMyPricing(context.Background(), 4)
+	resp, err := svc.ListNextChatDisplayMetadata(context.Background(), 4)
 
 	require.NoError(t, err)
 	require.Len(t, resp.Models, 1)
 	require.Len(t, resp.Models[0].Groups, 1)
 	require.Equal(t, domestic.ID, resp.Models[0].Groups[0].ID)
 	require.Equal(t, domestic.Name, resp.Models[0].Groups[0].Name)
-	require.InDelta(t, siteIn*domestic.RateMultiplier, *resp.Models[0].EffectiveInputPrice, 1e-12)
+	require.InDelta(t, officialIn*domestic.RateMultiplier, *resp.Models[0].EffectiveInputPrice, 1e-12)
 }
 
 func TestModelCatalogService_ExplicitCatalogGroupUsesAvailableGroupWithoutKey(t *testing.T) {
-	siteIn, siteOut := 4e-6, 24e-6
+	officialIn, officialOut := 4e-6, 24e-6
 	domestic := Group{
 		ID:               14,
 		Name:             "国产分组",
@@ -368,22 +322,34 @@ func TestModelCatalogService_ExplicitCatalogGroupUsesAvailableGroupWithoutKey(t 
 		nil,
 	)
 	repo := &modelCatalogVisibilityRepoStub{entries: []SiteModelCatalogEntry{{
-		ModelName:   "deepseek-v4-flash",
-		Platform:    PlatformOpenAI,
-		VisibleAuth: true,
-		GroupIDs:    []int64{domestic.ID},
-		InputPrice:  &siteIn,
-		OutputPrice: &siteOut,
+		ModelName:           "deepseek-v4-flash",
+		Platform:            PlatformOpenAI,
+		VisibleAuth:         true,
+		GroupIDs:            []int64{domestic.ID},
+		OfficialInputPrice:  &officialIn,
+		OfficialOutputPrice: &officialOut,
 	}}}
 	svc := NewModelCatalogService(repo, nil, nil, nil, modelPricingSettingService("1"), apiKeyService, nil)
 
-	resp, err := svc.ListMyPricing(context.Background(), 2)
+	resp, err := svc.ListNextChatDisplayMetadata(context.Background(), 2)
 
 	require.NoError(t, err)
 	require.Len(t, resp.Models, 1)
 	require.Len(t, resp.Models[0].Groups, 1)
 	require.Equal(t, domestic.ID, resp.Models[0].Groups[0].ID)
 	require.Equal(t, domestic.Name, resp.Models[0].Groups[0].Name)
-	require.InDelta(t, siteIn*domestic.RateMultiplier, *resp.Models[0].EffectiveInputPrice, 1e-12)
-	require.InDelta(t, siteOut*domestic.RateMultiplier, *resp.Models[0].EffectiveOutputPrice, 1e-12)
+	require.InDelta(t, officialIn*domestic.RateMultiplier, *resp.Models[0].EffectiveInputPrice, 1e-12)
+	require.InDelta(t, officialOut*domestic.RateMultiplier, *resp.Models[0].EffectiveOutputPrice, 1e-12)
+}
+
+func TestResolveCatalogManualFlag_FieldScopedOwnership(t *testing.T) {
+	oldValue := 4.5e-6
+	newValue := 6e-6
+	cleared := (*float64)(nil)
+
+	require.True(t, resolveCatalogManualFlag(nil, &newValue, false, false), "a new non-empty official value is manual")
+	require.False(t, resolveCatalogManualFlag(&oldValue, &oldValue, false, false), "unchanged sync-owned value remains sync-owned")
+	require.True(t, resolveCatalogManualFlag(&oldValue, &oldValue, true, false), "existing manual ownership is retained")
+	require.True(t, resolveCatalogManualFlag(&oldValue, &newValue, true, false), "a changed value is owned by the new edit")
+	require.False(t, resolveCatalogManualFlag(&oldValue, cleared, true, false), "clearing a field releases ownership")
 }

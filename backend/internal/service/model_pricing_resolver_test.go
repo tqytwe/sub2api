@@ -24,32 +24,12 @@ func newTestBillingServiceForResolver() *BillingService {
 	return bs
 }
 
-type resolverCatalogRepoStub struct {
-	ModelCatalogRepository
-	entry *SiteModelCatalogEntry
-	calls int
-}
-
-func (r *resolverCatalogRepoStub) GetCatalogPricing(context.Context, string) (*SiteModelCatalogEntry, error) {
-	r.calls++
-	return r.entry, nil
-}
-
 func TestResolve_SiteCatalogPriceDoesNotAffectBilling(t *testing.T) {
 	bs := newTestBillingServiceForResolver()
 	bs.fallbackPrices["claude-sonnet-4"].InputPricePerTokenPriority = 6e-6
 	bs.fallbackPrices["claude-sonnet-4"].LongContextInputThreshold = 200000
 	bs.fallbackPrices["claude-sonnet-4"].LongContextInputMultiplier = 2
-	siteInput, siteOutput := 9e-6, 45e-6
-	repo := &resolverCatalogRepoStub{entry: &SiteModelCatalogEntry{
-		ModelName:     "claude-sonnet-4",
-		BillingMode:   string(BillingModeToken),
-		InputPrice:    &siteInput,
-		OutputPrice:   &siteOutput,
-		VisibleAuth:   true,
-		VisiblePublic: true,
-	}}
-	resolver := NewModelPricingResolverWithCatalog(nil, bs, repo)
+	resolver := NewModelPricingResolver(nil, bs)
 
 	resolved := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4"})
 
@@ -60,17 +40,13 @@ func TestResolve_SiteCatalogPriceDoesNotAffectBilling(t *testing.T) {
 	require.InDelta(t, 6e-6, resolved.BasePricing.InputPricePerTokenPriority, 1e-12)
 	require.Equal(t, 200000, resolved.BasePricing.LongContextInputThreshold)
 	require.InDelta(t, 2.0, resolved.BasePricing.LongContextInputMultiplier, 1e-12)
-	require.Equal(t, 0, repo.calls)
-
 	second := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4"})
 	require.Equal(t, PricingSourceLiteLLM, second.Source)
-	require.Equal(t, 0, repo.calls, "catalog display pricing must not be queried for billing")
 }
 
 func TestResolve_UncataloguedModelKeepsLegacyFallback(t *testing.T) {
 	bs := newTestBillingServiceForResolver()
-	repo := &resolverCatalogRepoStub{}
-	resolver := NewModelPricingResolverWithCatalog(nil, bs, repo)
+	resolver := NewModelPricingResolver(nil, bs)
 
 	resolved := resolver.Resolve(context.Background(), PricingInput{Model: "claude-sonnet-4"})
 

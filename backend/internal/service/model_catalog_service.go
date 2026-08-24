@@ -45,124 +45,11 @@ func NewModelCatalogService(
 	return svc
 }
 
-// ListPublicPricing returns guest-visible catalog rows with official and reference prices.
-func (s *ModelCatalogService) ListPublicPricing(ctx context.Context) []PublicModelPricingRow {
-	if s.settingService != nil {
-		rt := s.settingService.GetPlayRuntime(ctx)
-		if !rt.PublicModelsEnabled {
-			return []PublicModelPricingRow{}
-		}
-	}
-	visible := true
-	entries, err := s.repo.ListCatalog(ctx, CatalogListFilter{VisiblePublic: &visible})
-	if err != nil || len(entries) == 0 {
-		return []PublicModelPricingRow{}
-	}
-
-	publicGroups, publicGroupsByPlatform := s.publicPricingGroups(ctx)
-	out := make([]PublicModelPricingRow, 0, len(entries))
-	for _, e := range entries {
-		name := e.ModelName
-		platformLabel := displayPlatformName(e.Platform)
-		useCase := "chat"
-		if e.UseCase != nil && *e.UseCase != "" {
-			useCase = *e.UseCase
-		}
-
-		officialIn, officialOut := e.OfficialInputPrice, e.OfficialOutputPrice
-		ourIn, ourOut := catalogSitePrices(e, officialIn, officialOut, 1)
-
-		if e.InputPrice != nil {
-			ourIn = e.InputPrice
-		}
-		if e.OutputPrice != nil {
-			ourOut = e.OutputPrice
-		}
-
-		out = append(out, PublicModelPricingRow{
-			Name:                name,
-			Platform:            platformLabel,
-			UseCase:             useCase,
-			OfficialInputPrice:  officialIn,
-			OfficialOutputPrice: officialOut,
-			OurInputPrice:       ourIn,
-			OurOutputPrice:      ourOut,
-			RateMultiplier:      catalogEntryMultiplier(e),
-			Groups:              publicGroupPricesForCatalogEntry(e, publicGroups, publicGroupsByPlatform, ourIn, ourOut),
-		})
-	}
-	return out
-}
-
-func (s *ModelCatalogService) publicPricingGroups(ctx context.Context) ([]AvailableGroupRef, map[string][]AvailableGroupRef) {
-	if s == nil || s.channelService == nil || s.channelService.groupRepo == nil {
-		return nil, nil
-	}
-	groups, err := s.channelService.groupRepo.ListActive(ctx)
-	if err != nil {
-		return nil, nil
-	}
-	refs := make([]AvailableGroupRef, 0, len(groups))
-	for _, g := range groups {
-		if g.ID <= 0 || g.Status != StatusActive {
-			continue
-		}
-		refs = append(refs, AvailableGroupRef{
-			ID:                 g.ID,
-			Name:               g.Name,
-			Platform:           g.Platform,
-			SubscriptionType:   g.SubscriptionType,
-			RateMultiplier:     g.RateMultiplier,
-			PeakRateEnabled:    g.PeakRateEnabled,
-			PeakStart:          g.PeakStart,
-			PeakEnd:            g.PeakEnd,
-			PeakRateMultiplier: g.PeakRateMultiplier,
-			IsExclusive:        g.IsExclusive,
-		})
-	}
-	sort.SliceStable(refs, func(i, j int) bool {
-		if refs[i].Platform != refs[j].Platform {
-			return refs[i].Platform < refs[j].Platform
-		}
-		if refs[i].Name != refs[j].Name {
-			return refs[i].Name < refs[j].Name
-		}
-		return refs[i].ID < refs[j].ID
-	})
-	return refs, groupRefsByPlatform(refs)
-}
-
-func publicGroupPricesForCatalogEntry(
-	entry SiteModelCatalogEntry,
-	publicGroups []AvailableGroupRef,
-	publicGroupsByPlatform map[string][]AvailableGroupRef,
-	siteIn, siteOut *float64,
-) []PublicModelPricingGroupPrice {
-	if len(publicGroups) == 0 {
-		return nil
-	}
-	groups := visibleGroupsForCatalogEntry(entry, publicGroups, publicGroupsByPlatform[strings.ToLower(strings.TrimSpace(entry.Platform))])
-	out := make([]PublicModelPricingGroupPrice, 0, len(groups))
-	for _, g := range groups {
-		mult := g.RateMultiplier
-		if mult <= 0 {
-			mult = 1
-		}
-		out = append(out, PublicModelPricingGroupPrice{
-			ID:                   g.ID,
-			Name:                 g.Name,
-			RateMultiplier:       mult,
-			EffectiveInputPrice:  scalePricePtr(siteIn, mult),
-			EffectiveOutputPrice: scalePricePtr(siteOut, mult),
-		})
-	}
-	return out
-}
-
-// ListMyPricing aggregates user-visible models with effective prices per group.
-func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (*MyModelPricingResponse, error) {
-	resp := &MyModelPricingResponse{
-		Models:             []MyModelPricingRow{},
+// ListNextChatDisplayMetadata builds internal model metadata for NextChat.
+// It is display-only and is not exposed as a pricing HTTP endpoint.
+func (s *ModelCatalogService) ListNextChatDisplayMetadata(ctx context.Context, userID int64) (*NextChatDisplayMetadata, error) {
+	resp := &NextChatDisplayMetadata{
+		Models:             []NextChatDisplayModel{},
 		RateMultiplierNote: "分组展示价 = 本站展示价 × 分组倍率；仅用于前台展示，不作为上游或用户扣费依据",
 		Enabled:            false,
 	}
@@ -180,13 +67,8 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		return nil, err
 	}
 	catalogByKey := make(map[string]SiteModelCatalogEntry, len(catalogEntries))
-	catalogByName := make(map[string]SiteModelCatalogEntry, len(catalogEntries))
 	for _, entry := range catalogEntries {
 		catalogByKey[catalogSyncKey(entry.ModelName, entry.Platform)] = entry
-		nameKey := strings.ToLower(strings.TrimSpace(entry.ModelName))
-		if _, exists := catalogByName[nameKey]; !exists {
-			catalogByName[nameKey] = entry
-		}
 	}
 
 	type rowKey struct {
@@ -195,7 +77,7 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		groupID  int64
 		channel  string
 	}
-	rowsByKey := make(map[rowKey]*MyModelPricingRow)
+	rowsByKey := make(map[rowKey]*NextChatDisplayModel)
 	representedCatalogGroups := make(map[string]map[int64]struct{}, len(catalogEntries))
 	var keyGroups []Group
 	var availableGroups []Group
@@ -233,20 +115,20 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 					platform := sm.Platform
 					catalogEntry, catalogVisible := catalogByKey[catalogSyncKey(sm.Name, platform)]
 					if !catalogVisible {
-						catalogEntry, catalogVisible = catalogByName[strings.ToLower(strings.TrimSpace(sm.Name))]
-					}
-					if !catalogVisible {
 						continue
 					}
 					grps := visibleGroupsForCatalogEntry(catalogEntry, visibleGroups, platformGroups[strings.ToLower(strings.TrimSpace(platform))])
-					if len(grps) == 0 && catalogEntry.GroupIDs == nil {
-						grps = visibleGroups
-					}
 					officialIn, officialOut := catalogOfficialPrices(catalogEntry)
 					siteIn, siteOut := catalogSitePrices(catalogEntry, officialIn, officialOut, 1)
 					var baseIn, baseOut *float64
 					if sm.Pricing != nil {
 						baseIn, baseOut = sm.Pricing.InputPrice, sm.Pricing.OutputPrice
+					}
+					if baseIn == nil {
+						baseIn = officialIn
+					}
+					if baseOut == nil {
+						baseOut = officialOut
 					}
 					for _, g := range grps {
 						mult := g.RateMultiplier
@@ -256,12 +138,12 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 							}
 						}
 						key := rowKey{model: sm.Name, platform: platform, groupID: g.ID, channel: ch.Name}
-						rowsByKey[key] = &MyModelPricingRow{
+						rowsByKey[key] = &NextChatDisplayModel{
 							Name:                 sm.Name,
 							Platform:             displayPlatformName(platform),
 							SortOrder:            catalogEntry.SortOrder,
 							Channel:              ch.Name,
-							Groups:               []MyModelPricingGroup{{ID: g.ID, Name: g.Name, RateMultiplier: mult}},
+							Groups:               []NextChatDisplayGroup{{ID: g.ID, Name: g.Name, RateMultiplier: mult}},
 							BaseInputPrice:       baseIn,
 							BaseOutputPrice:      baseOut,
 							EffectiveInputPrice:  scalePricePtr(baseIn, mult),
@@ -304,11 +186,11 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 				mult = userRate
 			}
 			key := rowKey{model: catalogEntry.ModelName, platform: catalogEntry.Platform, groupID: group.ID}
-			rowsByKey[key] = &MyModelPricingRow{
+			rowsByKey[key] = &NextChatDisplayModel{
 				Name:                 catalogEntry.ModelName,
 				Platform:             displayPlatformName(catalogEntry.Platform),
 				SortOrder:            catalogEntry.SortOrder,
-				Groups:               []MyModelPricingGroup{{ID: group.ID, Name: group.Name, RateMultiplier: mult}},
+				Groups:               []NextChatDisplayGroup{{ID: group.ID, Name: group.Name, RateMultiplier: mult}},
 				BaseInputPrice:       siteIn,
 				BaseOutputPrice:      siteOut,
 				EffectiveInputPrice:  scalePricePtr(siteIn, mult),
@@ -323,11 +205,11 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		}
 		if !addedGroupRow && len(representedCatalogGroups[catalogKey]) == 0 {
 			key := rowKey{model: catalogEntry.ModelName, platform: catalogEntry.Platform}
-			rowsByKey[key] = &MyModelPricingRow{
+			rowsByKey[key] = &NextChatDisplayModel{
 				Name:                catalogEntry.ModelName,
 				Platform:            displayPlatformName(catalogEntry.Platform),
 				SortOrder:           catalogEntry.SortOrder,
-				Groups:              []MyModelPricingGroup{},
+				Groups:              []NextChatDisplayGroup{},
 				BaseInputPrice:      siteIn,
 				BaseOutputPrice:     siteOut,
 				OfficialInputPrice:  officialIn,
@@ -339,7 +221,7 @@ func (s *ModelCatalogService) ListMyPricing(ctx context.Context, userID int64) (
 		}
 	}
 
-	out := make([]MyModelPricingRow, 0, len(rowsByKey))
+	out := make([]NextChatDisplayModel, 0, len(rowsByKey))
 	for _, row := range rowsByKey {
 		out = append(out, *row)
 	}
@@ -409,21 +291,10 @@ func catalogOfficialPrices(entry SiteModelCatalogEntry) (*float64, *float64) {
 }
 
 func catalogSitePrices(entry SiteModelCatalogEntry, officialIn, officialOut *float64, defaultMultiplier float64) (*float64, *float64) {
-	siteIn, siteOut := entry.InputPrice, entry.OutputPrice
-	if siteIn == nil {
-		siteIn = scalePricePtr(officialIn, defaultMultiplier)
-	}
-	if siteOut == nil {
-		siteOut = scalePricePtr(officialOut, defaultMultiplier)
-	}
-	return siteIn, siteOut
-}
-
-func catalogEntryMultiplier(entry SiteModelCatalogEntry) float64 {
-	if entry.PriceMultiplier != nil && *entry.PriceMultiplier > 0 {
-		return *entry.PriceMultiplier
-	}
-	return 1
+	// The catalog has no independent paid-price source. NextChat receives the
+	// same display fallback as the plaza: official reference price only, scaled
+	// by the real group multiplier at presentation time.
+	return scalePricePtr(officialIn, defaultMultiplier), scalePricePtr(officialOut, defaultMultiplier)
 }
 
 func filterAvailableGroupsForUser(groups []AvailableGroupRef, allowed map[int64]struct{}) []AvailableGroupRef {
@@ -454,7 +325,7 @@ func (s *ModelCatalogService) ListCatalog(ctx context.Context, filter CatalogLis
 	return s.repo.ListCatalog(ctx, filter)
 }
 
-// ListAdminCatalog returns official and site base prices for admin comparison UI.
+// ListAdminCatalog returns display-only catalog metadata and official prices.
 func (s *ModelCatalogService) ListAdminCatalog(ctx context.Context, filter CatalogListFilter) ([]AdminCatalogRow, error) {
 	entries, err := s.repo.ListCatalog(ctx, filter)
 	if err != nil {
@@ -462,21 +333,6 @@ func (s *ModelCatalogService) ListAdminCatalog(ctx context.Context, filter Catal
 	}
 	out := make([]AdminCatalogRow, 0, len(entries))
 	for _, e := range entries {
-		hadExplicitSitePrice := e.InputPrice != nil || e.OutputPrice != nil || e.PriceMultiplier != nil
-		officialIn, officialOut := catalogOfficialPrices(e)
-		siteIn, siteOut := catalogSitePrices(e, officialIn, officialOut, 1)
-		e.InputPrice = siteIn
-		e.OutputPrice = siteOut
-		if e.CacheReadPrice == nil {
-			e.CacheReadPrice = e.OfficialCacheReadPrice
-		}
-		if e.CacheWritePrice == nil {
-			e.CacheWritePrice = e.OfficialCacheWritePrice
-		}
-		if !hadExplicitSitePrice && (siteIn != nil || siteOut != nil) {
-			defaultMultiplier := 1.0
-			e.PriceMultiplier = &defaultMultiplier
-		}
 		out = append(out, AdminCatalogRow{SiteModelCatalogEntry: e})
 	}
 	return out, nil
@@ -498,7 +354,6 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 		return err
 	}
 	entry.GroupIDs = groupIDs
-	manualOfficial := entry.OfficialInputPrice != nil || entry.OfficialOutputPrice != nil || entry.OfficialCacheReadPrice != nil || entry.OfficialCacheWritePrice != nil
 	if entry.ID > 0 {
 		existing, err := s.repo.GetCatalogEntry(ctx, entry.ID)
 		if err != nil {
@@ -507,29 +362,29 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 		if existing == nil {
 			return fmt.Errorf("catalog entry not found: %d", entry.ID)
 		}
-		if !manualOfficial {
-			entry.OfficialInputPrice = existing.OfficialInputPrice
-			entry.OfficialOutputPrice = existing.OfficialOutputPrice
-			entry.OfficialCacheReadPrice = existing.OfficialCacheReadPrice
-			entry.OfficialCacheWritePrice = existing.OfficialCacheWritePrice
+		entry.OfficialInputManual = resolveCatalogManualFlag(existing.OfficialInputPrice, entry.OfficialInputPrice, existing.OfficialInputManual, entry.OfficialInputManual)
+		entry.OfficialOutputManual = resolveCatalogManualFlag(existing.OfficialOutputPrice, entry.OfficialOutputPrice, existing.OfficialOutputManual, entry.OfficialOutputManual)
+		entry.OfficialCacheReadManual = resolveCatalogManualFlag(existing.OfficialCacheReadPrice, entry.OfficialCacheReadPrice, existing.OfficialCacheReadManual, entry.OfficialCacheReadManual)
+		entry.OfficialCacheWriteManual = resolveCatalogManualFlag(existing.OfficialCacheWritePrice, entry.OfficialCacheWritePrice, existing.OfficialCacheWriteManual, entry.OfficialCacheWriteManual)
+		if entry.OfficialSource == "" {
 			entry.OfficialSource = existing.OfficialSource
 			entry.OfficialUpdatedAt = existing.OfficialUpdatedAt
 		}
 	}
+	if entry.ID == 0 {
+		entry.OfficialInputManual = entry.OfficialInputManual || entry.OfficialInputPrice != nil
+		entry.OfficialOutputManual = entry.OfficialOutputManual || entry.OfficialOutputPrice != nil
+		entry.OfficialCacheReadManual = entry.OfficialCacheReadManual || entry.OfficialCacheReadPrice != nil
+		entry.OfficialCacheWriteManual = entry.OfficialCacheWriteManual || entry.OfficialCacheWritePrice != nil
+	}
+	manualOfficial := entry.OfficialInputManual || entry.OfficialOutputManual || entry.OfficialCacheReadManual || entry.OfficialCacheWriteManual
 	if manualOfficial {
 		entry.OfficialSource = "manual"
 		now := time.Now()
 		entry.OfficialUpdatedAt = &now
 	}
-	if entry.PriceMultiplier != nil {
-		if *entry.PriceMultiplier <= 0 {
-			return fmt.Errorf("price multiplier must be greater than zero")
-		}
-		entry.InputPrice = scalePricePtr(entry.OfficialInputPrice, *entry.PriceMultiplier)
-		entry.OutputPrice = scalePricePtr(entry.OfficialOutputPrice, *entry.PriceMultiplier)
-		entry.CacheReadPrice = scalePricePtr(entry.OfficialCacheReadPrice, *entry.PriceMultiplier)
-		entry.CacheWritePrice = scalePricePtr(entry.OfficialCacheWritePrice, *entry.PriceMultiplier)
-	}
+	// Catalog price fields are display snapshots only. Never derive or persist
+	// a second site price that could be mistaken for a billing source.
 	entry.ModelName = strings.TrimSpace(entry.ModelName)
 	entry.Platform = strings.ToLower(strings.TrimSpace(entry.Platform))
 	entry.Source = "manual"
@@ -545,10 +400,6 @@ func (s *ModelCatalogService) DeleteCatalogEntry(ctx context.Context, id int64) 
 
 func (s *ModelCatalogService) BatchVisibility(ctx context.Context, ids []int64, visiblePublic, visibleAuth *bool) (int, error) {
 	return s.repo.BatchUpdateVisibility(ctx, ids, visiblePublic, visibleAuth)
-}
-
-func (s *ModelCatalogService) BatchPrices(ctx context.Context, ids []int64, multiplier *float64, absoluteInput, absoluteOutput *float64) (int, error) {
-	return s.repo.BatchUpdatePrices(ctx, ids, multiplier, absoluteInput, absoluteOutput)
 }
 
 func (s *ModelCatalogService) BatchGroups(ctx context.Context, ids []int64, groupIDs []int64) (int, error) {
@@ -569,7 +420,7 @@ func (s *ModelCatalogService) ListDiscoveries(ctx context.Context, filter Discov
 	return s.repo.ListDiscoveries(ctx, filter)
 }
 
-func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool, siteMultiplier *float64, groupIDs []int64) (int, error) {
+func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64, toCatalog bool, groupIDs []int64) (int, error) {
 	if len(ids) == 0 {
 		return 0, fmt.Errorf("ids required: select discoveries to import")
 	}
@@ -606,16 +457,6 @@ func (s *ModelCatalogService) ImportDiscoveries(ctx context.Context, ids []int64
 		}
 		entry.OfficialInputPrice, entry.OfficialOutputPrice,
 			entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice = pricesFromDiscoveryPayload(d.Payload)
-		if siteMultiplier != nil {
-			if *siteMultiplier <= 0 {
-				return imported, fmt.Errorf("site multiplier must be greater than zero")
-			}
-			entry.PriceMultiplier = siteMultiplier
-			entry.InputPrice = scalePricePtr(entry.OfficialInputPrice, *siteMultiplier)
-			entry.OutputPrice = scalePricePtr(entry.OfficialOutputPrice, *siteMultiplier)
-			entry.CacheReadPrice = scalePricePtr(entry.OfficialCacheReadPrice, *siteMultiplier)
-			entry.CacheWritePrice = scalePricePtr(entry.OfficialCacheWritePrice, *siteMultiplier)
-		}
 		if err := s.repo.UpsertDiscoveryCatalogEntry(ctx, entry); err != nil {
 			if len(importedIDs) > 0 {
 				_, _ = s.repo.UpdateDiscoveryStatus(ctx, importedIDs, "imported")
@@ -659,13 +500,30 @@ func derefCatalogString(v *string) string {
 }
 
 func hasNegativeCatalogPrice(entry *SiteModelCatalogEntry) bool {
-	prices := []*float64{entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice}
+	prices := []*float64{
+		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
+		entry.InputPrice, entry.OutputPrice, entry.CacheReadPrice, entry.CacheWritePrice,
+	}
 	for _, price := range prices {
 		if price != nil && *price < 0 {
 			return true
 		}
 	}
 	return false
+}
+
+func resolveCatalogManualFlag(existing, incoming *float64, existingManual, requestedManual bool) bool {
+	if !sameCatalogPrice(existing, incoming) {
+		return incoming != nil
+	}
+	return existingManual || requestedManual
+}
+
+func sameCatalogPrice(left, right *float64) bool {
+	if left == nil || right == nil {
+		return left == nil && right == nil
+	}
+	return *left == *right
 }
 
 func normalizeCatalogGroupIDs(groupIDs []int64) ([]int64, error) {
@@ -692,6 +550,37 @@ func catalogOptionalString(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// scalePricePtr is used only when constructing display metadata. Catalog and
+// plaza prices never flow into the billing resolver.
+func scalePricePtr(v *float64, multiplier float64) *float64 {
+	if v == nil {
+		return nil
+	}
+	scaled := *v * multiplier
+	return &scaled
+}
+
+// displayPlatformName keeps internal NextChat metadata readable without
+// exposing the removed legacy public pricing endpoint.
+func displayPlatformName(platform string) string {
+	switch strings.ToLower(strings.TrimSpace(platform)) {
+	case PlatformOpenAI:
+		return "OpenAI"
+	case PlatformAnthropic:
+		return "Anthropic"
+	case PlatformGemini, "google":
+		return "Google"
+	case PlatformGrok, "xai":
+		return "xAI"
+	default:
+		platform = strings.TrimSpace(platform)
+		if platform == "" {
+			return "—"
+		}
+		return strings.ToUpper(platform[:1]) + platform[1:]
+	}
 }
 
 // StartSyncJob creates an async pricing sync job.

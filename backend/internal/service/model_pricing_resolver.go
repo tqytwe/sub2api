@@ -80,15 +80,6 @@ func NewModelPricingResolver(channelService *ChannelService, billingService *Bil
 	}
 }
 
-// NewModelPricingResolverWithCatalog keeps the legacy DI shape while treating
-// the site catalog as display-only. Runtime billing must not read catalog prices.
-func NewModelPricingResolverWithCatalog(channelService *ChannelService, billingService *BillingService, catalogRepo ModelCatalogRepository) *ModelPricingResolver {
-	return &ModelPricingResolver{
-		channelService: channelService,
-		billingService: billingService,
-	}
-}
-
 // PricingInput 定价解析输入
 type PricingInput struct {
 	Model   string
@@ -220,7 +211,7 @@ func (r *ModelPricingResolver) applyFirstTokenTier(resolved *ResolvedPricing, co
 	resolved.Intervals = nil
 }
 
-// resolveBasePricing uses upstream/LiteLLM pricing only. The site catalog is display-only.
+// site catalog as display-only: resolveBasePricing uses upstream/LiteLLM pricing only.
 func (r *ModelPricingResolver) resolveBasePricing(ctx context.Context, model string) (*ModelPricing, string) {
 	var legacyPricing *ModelPricing
 	legacySource := PricingSourceFallback

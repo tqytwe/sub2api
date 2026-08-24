@@ -15,7 +15,7 @@ export const PUBLIC_ROUTE_NAMES = {
   englishModels: 'EnglishModels',
   keyUsage: 'KeyUsage',
   login: 'Login',
-  pricing: 'Pricing',
+  models: 'Models',
   register: 'Register',
 } as const
 
@@ -38,7 +38,7 @@ export const CONTACT_ROUTE: RouteLocationRaw = { name: PUBLIC_ROUTE_NAMES.contac
 
 export const HOME_ROUTE: RouteLocationRaw = { name: 'Home' }
 
-export const PRICING_ROUTE: RouteLocationRaw = { name: PUBLIC_ROUTE_NAMES.pricing }
+export const MODELS_ROUTE: RouteLocationRaw = { name: PUBLIC_ROUTE_NAMES.models }
 
 export function dashboardEntryRoute(isAdmin: boolean): RouteLocationRaw {
   return { name: isAdmin ? PUBLIC_ROUTE_NAMES.adminDashboard : PUBLIC_ROUTE_NAMES.dashboard }
@@ -80,7 +80,7 @@ export function buildHomePrimaryNav(isAuthenticated: boolean, locale: 'zh' | 'en
     locale === 'en' ? { name, query: { lang: 'en' } } : { name }
 
   return [
-    { key: 'models', labelKey: 'home.jisudeng.nav.models', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishModels } : PRICING_ROUTE },
+    { key: 'models', labelKey: 'home.jisudeng.nav.models', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishModels } : MODELS_ROUTE },
     { key: 'docs', labelKey: 'home.jisudeng.nav.docs', to: locale === 'en' ? { name: PUBLIC_ROUTE_NAMES.englishDocs } : { name: PUBLIC_ROUTE_NAMES.docs } },
     { key: 'creation', labelKey: 'home.jisudeng.nav.creation', to: aiCreationSpaceEntryRoute(isAuthenticated, locale) },
     { key: 'keyUsage', labelKey: 'home.jisudeng.nav.keyUsage', to: sharedRoute(PUBLIC_ROUTE_NAMES.keyUsage) },

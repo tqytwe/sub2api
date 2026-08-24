@@ -1161,7 +1161,7 @@ let authInitialized = false
 const navigationLoading = useNavigationLoadingState()
 // 延迟初始化预加载，传入 router 实例
 let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
-const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android', '/pricing', '/en/models']
+const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android', '/models', '/en/models']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
   '/auth/linuxdo/callback',
@@ -1250,7 +1250,13 @@ router.beforeEach(async (to, _from, next) => {
       return
     }
     // Model Plaza:公开路由但受「启用开关 + 可选强制登录」双重控制(后端同口径 fail-closed)
-    if (to.path === '/model-plaza') {
+    const isModelPlazaRoute =
+      to.path === '/model-plaza' ||
+      to.path === '/models' ||
+      to.path.startsWith('/models/') ||
+      to.path === '/en/models' ||
+      to.path.startsWith('/en/models/')
+    if (isModelPlazaRoute) {
       if (!appStore.publicSettingsLoaded) {
         try {
           await appStore.fetchPublicSettings()

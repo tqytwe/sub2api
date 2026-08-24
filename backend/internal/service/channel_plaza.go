@@ -111,9 +111,7 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 		if ch.Status != StatusActive {
 			continue
 		}
-		ch.normalizeBillingModelSource()
 		supported := ch.SupportedModels()
-		s.fillGlobalPricingFallback(supported)
 
 		for _, gid := range ch.GroupIDs {
 			pg, ok := byGroup[gid]
@@ -153,7 +151,6 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 		}
 	}
 
-	officialMemo := make(map[string]*PlazaOfficialPricing)
 	out := make([]PlazaGroup, 0, len(order))
 	for _, gid := range order {
 		pg := byGroup[gid]
@@ -166,9 +163,6 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 			}
 			return pg.Models[i].Platform < pg.Models[j].Platform
 		})
-		for j := range pg.Models {
-			pg.Models[j].OfficialPricing = s.lookupOfficialPricing(pg.Models[j].Name, officialMemo)
-		}
 		out = append(out, *pg)
 	}
 
@@ -179,6 +173,31 @@ func (s *ChannelService) ListPlazaGroups(ctx context.Context) ([]PlazaGroup, err
 		return out[i].Name < out[j].Name
 	})
 	return out, nil
+}
+
+// ListPlazaGroupsIncludingEmpty returns the normal plaza groups plus active
+// groups that currently have no channel models. Catalog-managed display rows
+// may populate those groups at the handler layer.
+func (s *ChannelService) ListPlazaGroupsIncludingEmpty(ctx context.Context) ([]PlazaGroup, error) {
+	groups, err := s.ListPlazaGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+	active, err := s.groupRepo.ListActive(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list active groups: %w", err)
+	}
+	seen := make(map[int64]struct{}, len(groups))
+	for _, group := range groups {
+		seen[group.ID] = struct{}{}
+	}
+	for _, group := range active {
+		if _, ok := seen[group.ID]; ok {
+			continue
+		}
+		groups = append(groups, PlazaGroup{ID: group.ID, Name: group.Name, Description: group.Description, Platform: group.Platform, SubscriptionType: group.SubscriptionType, RateMultiplier: group.RateMultiplier, PeakRateEnabled: group.PeakRateEnabled, PeakStart: group.PeakStart, PeakEnd: group.PeakEnd, PeakRateMultiplier: group.PeakRateMultiplier, IsExclusive: group.IsExclusive, ImageRateIndependent: group.ImageRateIndependent, ImageRateMultiplier: group.ImageRateMultiplier})
+	}
+	return groups, nil
 }
 
 // plazaImageDisplayPricing 为图片计费模型合成展示定价，使档位价与实收口径一致：
@@ -226,31 +245,4 @@ func plazaImageDisplayPricing(p *ChannelModelPricing, g *Group) *ChannelModelPri
 		})
 	}
 	return &clone
-}
-
-// lookupOfficialPricing 查询模型的 LiteLLM 官方参考价，带 memo 避免同名模型重复转换。
-// pricingService 为 nil（测试场景）或查不到时返回 nil。
-func (s *ChannelService) lookupOfficialPricing(modelName string, memo map[string]*PlazaOfficialPricing) *PlazaOfficialPricing {
-	if s.pricingService == nil {
-		return nil
-	}
-	if cached, ok := memo[modelName]; ok {
-		return cached
-	}
-	var result *PlazaOfficialPricing
-	if lp := s.pricingService.GetModelPricing(modelName); lp != nil && !lp.TokenPricingAbsent {
-		result = &PlazaOfficialPricing{
-			InputPrice:        nonZeroPtr(lp.InputCostPerToken),
-			OutputPrice:       nonZeroPtr(lp.OutputCostPerToken),
-			CacheWritePrice:   nonZeroPtr(lp.CacheCreationInputTokenCost),
-			CacheWrite1hPrice: nonZeroPtr(lp.CacheCreationInputTokenCostAbove1hr),
-			CacheReadPrice:    nonZeroPtr(lp.CacheReadInputTokenCost),
-		}
-		if result.InputPrice == nil && result.OutputPrice == nil &&
-			result.CacheWritePrice == nil && result.CacheWrite1hPrice == nil && result.CacheReadPrice == nil {
-			result = nil
-		}
-	}
-	memo[modelName] = result
-	return result
 }

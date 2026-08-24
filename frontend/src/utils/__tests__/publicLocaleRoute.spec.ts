@@ -20,6 +20,11 @@ describe('resolvePublicLocaleRoute', () => {
       path: '/en/models/deepseek',
       query: { sort: 'price' },
     })
+    expect(resolvePublicLocaleRoute('en', '/models')).toEqual({ path: '/en/models' })
+    expect(resolvePublicLocaleRoute('en', '/models/deepseek', { sort: 'price' })).toEqual({
+      path: '/en/models/deepseek',
+      query: { sort: 'price' },
+    })
     expect(resolvePublicLocaleRoute('en', '/docs', { cat: 'tutorial', page: 'quick-start' })).toEqual({
       path: '/en/docs',
       query: { cat: 'tutorial', page: 'quick-start' },

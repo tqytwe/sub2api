@@ -26,6 +26,9 @@ export function resolvePublicLocaleRoute(
     if (path === '/pricing' || path.startsWith('/pricing/')) {
       return withQuery(path === '/pricing' ? '/en/models' : `/en/models${path.slice('/pricing'.length)}`, query)
     }
+    if (path === '/models' || path.startsWith('/models/')) {
+      return withQuery(path === '/models' ? '/en/models' : `/en/models${path.slice('/models'.length)}`, query)
+    }
     if (path === '/docs') return withQuery('/en/docs', query)
     return { path: '/en' }
   }

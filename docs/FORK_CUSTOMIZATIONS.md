@@ -15,7 +15,7 @@
 | `FORK-NAV-002` | 用户侧栏和 Growth 导航 | active | integrity 脚本 + AppSidebar 测试 |
 | `FORK-PLAY-003` | Growth / Play 系统 | active | integrity 脚本 + Go/Vitest 测试 |
 | `FORK-IMAGE-004` | 图像工作室 | active | integrity 脚本 + Go/Vitest 测试 |
-| `FORK-PRICING-005` | 模型目录展示价和计费隔离 | active | integrity 脚本 + Go 测试 |
+| `FORK-PRICING-005` | 模型广场展示价和计费隔离 | active | integrity 脚本 + Go 测试 |
 | `FORK-DEPLOY-006` | 分支与 Zeabur 部署 | active | integrity 脚本 |
 | `FORK-OAUTH-007` | OAuth Cookie 域共享 | active | Go 测试 |
 | `FORK-PUBLIC-008` | 公共页面与可见性 | active | integrity 脚本 + Go 测试 |
@@ -60,7 +60,7 @@
 ## FORK-PLAY-003 Growth / Play 系统
 
 - 产品目的：以签到、Arena、盲盒、答题、Agent Team、任务、活动和 Hub 提升激活与留存，并为管理员提供受控、可审计的战队成员关系修复能力。
-- 不变量：`/api/v1/play/*`、`/api/v1/public/models`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 只能通过 period 时间窗安全回补，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
+- 不变量：`/api/v1/play/*`、`/play`、`/check-in`、`/arena`、`/blindbox`、`/quiz-quest`、`/agent-team` 路由存在；功能按 `play_*` 设置 fail-closed；Hub 聚合待办、余额、活动和图像工作室状态。管理员战队修复必须通过 `/api/v1/admin/play/teams/:id/member-candidates` 预检、`/members` 幂等写入和 `/events` 追踪；移动或显式历史生效时间必须使用 JWT 管理员 TOTP step-up，管理员 API Key 禁止；写入在同一事务锁定用户、来源/目标战队和成员关系，并与结算快照共用战队锁；移动的旧 `left_at` 与新 `joined_at` 完全一致；源/目标事件和审计动作不得保存邀请码或令牌。Token 农场日榜公开汇总必须从已结算日榜 period 和 `play_reward_ledger` 读取，最近发放不暴露邮箱，历史缺失的 rank/token 只能通过 period 时间窗安全回补，不能改写旧奖励流水；当前预估不能把昨日已结算榜标为今日排名。中文和英文运行时资源必须保持 key 对称，中文 Play Ops 和 Token 农场不显示英文操作状态或标签。
 - 关键位置：`backend/internal/server/routes/play.go`、`backend/internal/server/routes/admin.go`、`backend/internal/service/setting_play_runtime.go`、`backend/internal/service/play_hub.go`、`backend/internal/service/play_admin_team_repair.go`、`backend/internal/repository/play_repo_admin_team_repair.go`、`frontend/src/views/user/PlayHubView.vue`、`frontend/src/views/admin/PlayOpsView.vue`、`frontend/src/content/play-features.ts`。
 - 冲突策略：保留上游共享支付、用户与用量修复；Play 表、路由、设置和奖励账本不得被移除或绕过。
 - 验证：Play service tests、`play_admin_team_repair_test.go`、真实 PostgreSQL `play_repo_team_integration_test.go`、`play_handler_team_repair_test.go`、`play_admin_routes_test.go`、`PlayOpsView.spec.ts`、`admin.play.teamRepair.spec.ts`、`adminPlayOpsParity.spec.ts`、`public_growth_teaser_test.go` 和相关前端 utils tests；线上逐项检查开关关闭和开启状态，并由本地管理员浏览器完成中英文、浅色和深色战队修复验收。
@@ -89,7 +89,7 @@
 
 - 产品目的：区分外部官方参考价、本站参考价和真实扣费价，并让模型绑定明确的业务分组。
 - 不变量：官方价和本站价只用于目录展示/对比，不参与真实扣费解析；真实扣费来源仍是渠道价、LiteLLM/官方 billing catalog 和 legacy fallback；分组或用户倍率只应用在真实基础价上；`group_ids=NULL` 才允许按平台兼容匹配，非空数组只能进入指定分组；刷新官方价不得覆盖手工本站展示价或渠道价。
-- 接口与数据：`site_model_catalog`、`group_ids`、`official_*`、`GET /public/model-pricing`、登录价目和 Admin model catalog APIs。
+- 接口与数据：`site_model_catalog`、`group_ids`、`official_*`、`GET /model-plaza`、NextChat 内部展示元数据和 Admin model catalog APIs；字段级人工锁定迁移为 `251_model_catalog_official_field_sources.sql`。
 - 关键位置：`backend/internal/service/model_catalog*`、`backend/internal/service/model_pricing_resolver.go`、`backend/internal/repository/model_catalog_repo.go`、`frontend/src/views/public/ModelsView.vue`、`frontend/src/views/admin/ModelCatalogView.vue`。
 - 冲突策略：上游模型能力可合入，但不得将公开参考价重新接入扣费，也不得用 platform 猜测覆盖显式分组绑定。
 - 验证：`model_catalog_service_test.go`、`model_pricing_resolver_test.go`、`model_pricing_sync_test.go` 及真实调用抽样对账。

@@ -13,10 +13,10 @@ import { fileURLToPath } from 'node:url'
 const routerSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../index.ts'), 'utf8')
 
 describe('public navigation contract', () => {
-  it('routes the models entry to the named public pricing compatibility route', () => {
+  it('routes the models entry to the model plaza', () => {
     const models = buildHomePrimaryNav(false).find((item) => item.key === 'models')
 
-    expect(models?.to).toEqual({ name: PUBLIC_ROUTE_NAMES.pricing })
+    expect(models?.to).toEqual({ name: PUBLIC_ROUTE_NAMES.models })
   })
 
   it('keeps public navigation stable for guests and authenticated users', () => {
@@ -53,5 +53,11 @@ describe('public navigation contract', () => {
     expect(routerSource).toContain("path: '/models/:family(deepseek|qwen|kimi|glm)'")
     expect(routerSource).toContain('path: `/models/${to.params.family}`, query: to.query')
     expect(routerSource).toContain("path: '/models', query: to.query")
+  })
+
+  it('applies Model Plaza access settings to localized and family routes', () => {
+    expect(routerSource).toContain("to.path.startsWith('/models/')")
+    expect(routerSource).toContain("to.path === '/en/models'")
+    expect(routerSource).toContain("to.path.startsWith('/en/models/')")
   })
 })

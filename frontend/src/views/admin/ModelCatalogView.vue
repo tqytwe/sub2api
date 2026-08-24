@@ -11,25 +11,22 @@
           <p class="text-sm text-gray-500 dark:text-dark-400">{{ t('admin.groups.description') }}</p>
         </div>
         <div class="flex items-center gap-2">
-        <button class="btn btn-primary" @click="openPlazaGroupCreate">
-          {{ t('admin.groups.createGroup') }}
-        </button>
-        <button class="btn btn-secondary" :disabled="groupLoading" @click="loadPlazaGroups">
-          <Icon name="refresh" size="md" />
-        </button>
+          <router-link class="btn btn-secondary" to="/admin/groups">{{ t('modelPlaza.admin.manageGroups') }}</router-link>
+          <button class="btn btn-secondary" :disabled="groupLoading" @click="loadPlazaGroups">
+            <Icon name="refresh" size="md" />
+          </button>
         </div>
       </div>
       <div class="overflow-x-auto">
         <table class="w-full min-w-[900px] text-sm">
           <thead class="border-b border-gray-200 text-left text-xs text-gray-500 dark:border-dark-700">
-            <tr><th class="px-3 py-2">{{ t('admin.groups.columns.name') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.platform') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.rateMultiplier') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.subscriptionType') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.status') }}</th><th class="px-3 py-2 text-right">{{ t('common.actions') }}</th></tr>
+            <tr><th class="px-3 py-2">{{ t('admin.groups.columns.name') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.platform') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.rateMultiplier') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.subscriptionType') }}</th><th class="px-3 py-2">{{ t('admin.groups.columns.status') }}</th></tr>
           </thead>
           <tbody>
             <tr v-for="group in plazaGroups" :key="group.id" class="border-b border-gray-100 dark:border-dark-700/60">
               <td class="px-3 py-2"><div class="font-medium text-gray-900 dark:text-white">{{ group.name }}</div><div class="max-w-[360px] truncate text-xs text-gray-500">{{ group.description }}</div></td>
               <td class="px-3 py-2">{{ platformLabel(group.platform) }}</td><td class="px-3 py-2 font-mono">{{ group.rate_multiplier }}<span class="ml-1 text-xs text-gray-400">{{ t('modelPlaza.admin.displayOnly') }}</span></td>
               <td class="px-3 py-2">{{ subscriptionTypeLabel(group.subscription_type) }}</td><td class="px-3 py-2">{{ groupStatusLabel(group.status) }}</td>
-              <td class="px-3 py-2 text-right"><div class="flex justify-end gap-1"><button class="btn btn-ghost btn-sm" @click="openPlazaGroupEdit(group)">{{ t('common.edit') }}</button><button class="btn btn-ghost btn-sm text-red-600" @click="removePlazaGroup(group)">{{ t('common.delete') }}</button></div></td>
             </tr>
           </tbody>
         </table>
@@ -79,17 +76,6 @@
           <button class="btn btn-secondary btn-sm" @click="batchSetPublic(false)">
             {{ t('admin.modelCatalog.batchPublicOff') }}
           </button>
-          <input
-            v-model.number="batchMultiplier"
-            type="number"
-            min="0.000001"
-            step="0.01"
-            class="input h-8 w-24 text-sm"
-            :aria-label="t('admin.modelCatalog.fields.multiplier')"
-          />
-          <button class="btn btn-secondary btn-sm" @click="batchMultiply">
-            {{ t('admin.modelCatalog.batchApplyMultiplier') }}
-          </button>
           <button class="btn btn-secondary btn-sm" @click="openBatchGroups">
             {{ t('admin.modelCatalog.batchSetGroups') }}
           </button>
@@ -108,12 +94,6 @@
           <template #cell-official_output_price="{ row }">
             {{ formatPrice(row.official_output_price) }}
           </template>
-          <template #cell-input_price="{ row }">
-            {{ formatPrice(row.input_price) }}
-          </template>
-          <template #cell-output_price="{ row }">
-            {{ formatPrice(row.output_price) }}
-          </template>
           <template #cell-group_ids="{ row }">
             <span v-if="row.group_ids == null" class="text-xs text-gray-500">{{ t('admin.modelCatalog.groupModeAuto') }}</span>
             <span v-else-if="row.group_ids.length === 0" class="text-xs text-gray-500">{{ t('admin.modelCatalog.groupModeNone') }}</span>
@@ -122,12 +102,6 @@
                 {{ groupLabel(id) }}
               </span>
             </span>
-          </template>
-          <template #cell-input_diff="{ row }">
-            <span :class="diffClass(row.input_price, row.official_input_price)">{{ formatDiff(row.input_price, row.official_input_price) }}</span>
-          </template>
-          <template #cell-output_diff="{ row }">
-            <span :class="diffClass(row.output_price, row.official_output_price)">{{ formatDiff(row.output_price, row.official_output_price) }}</span>
           </template>
           <template #cell-visible_public="{ row }">
             <Toggle :model-value="row.visible_public" @update:model-value="(v: boolean) => patchVisibility(row, v, undefined)" />
@@ -168,6 +142,9 @@
             searchable="auto"
             class="mt-3"
           />
+          <p v-if="editForm.group_mode === 'selected'" class="mt-2 text-xs text-gray-500 dark:text-dark-400">
+            {{ t('admin.modelCatalog.fields.groupModeSelectedHint') }}
+          </p>
           <p v-else class="mt-2 text-xs text-amber-700 dark:text-amber-300">
             {{ t('admin.modelCatalog.fields.groupModeAutoHint') }}
           </p>
@@ -191,7 +168,7 @@
           </label>
         </div>
 
-        <div v-if="editForm.id" class="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 text-sm dark:border-dark-700">
+        <div class="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 text-sm dark:border-dark-700">
           <div>
             <span class="text-gray-500">{{ t('admin.modelCatalog.columns.officialInput') }}</span>
             <input v-model.number="editForm.official_input_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
@@ -210,39 +187,6 @@
           </div>
         </div>
 
-        <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
-          <label class="block text-sm">
-            {{ t('admin.modelCatalog.fields.priceMode') }}
-            <select v-model="editForm.price_mode" class="input mt-1 w-full">
-              <option value="manual">{{ t('admin.modelCatalog.fields.priceModeManual') }}</option>
-              <option value="multiplier" :disabled="!hasEditOfficialPrice">{{ t('admin.modelCatalog.fields.priceModeMultiplier') }}</option>
-            </select>
-          </label>
-
-          <label v-if="editForm.price_mode === 'multiplier'" class="mt-3 block text-sm">
-            {{ t('admin.modelCatalog.fields.multiplier') }}
-            <input v-model.number="editForm.price_multiplier" type="number" min="0.000001" step="0.01" class="input mt-1 w-full" />
-          </label>
-
-          <div v-else class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteInputPerMillion') }}
-              <input v-model.number="editForm.input_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteOutputPerMillion') }}
-              <input v-model.number="editForm.output_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteCacheReadPerMillion') }}
-              <input v-model.number="editForm.cache_read_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-            <label class="block text-sm">
-              {{ t('admin.modelCatalog.fields.siteCacheWritePerMillion') }}
-              <input v-model.number="editForm.cache_write_price_million" type="number" min="0" step="0.01" class="input mt-1 w-full" />
-            </label>
-          </div>
-        </div>
       </div>
       <template #footer>
         <div class="flex gap-2 pr-14 sm:pr-0">
@@ -251,35 +195,6 @@
         </div>
       </template>
     </BaseDialog>
-    <div v-if="groupEditOpen" class="fixed inset-0 z-50" role="dialog" aria-modal="true" @click.self="groupEditOpen = false">
-      <div class="absolute inset-0 bg-black/40" aria-hidden="true"></div>
-      <aside class="absolute right-0 top-0 flex h-full w-full max-w-[30rem] flex-col bg-white shadow-xl dark:bg-dark-800">
-        <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-dark-700">
-          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ plazaGroupForm.id ? t('admin.groups.editGroup') : t('admin.groups.createGroup') }}</h2>
-          <button class="btn btn-ghost btn-sm" :aria-label="t('common.close')" @click="groupEditOpen = false">&times;</button>
-        </div>
-        <!-- design-governance-allow: page-shell-ownership - drawer body needs local scrolling while the shared route frame remains unchanged -->
-        <div class="min-h-0 flex-grow overflow-y-auto px-5 py-5">
-          <p class="mb-5 rounded-md bg-gray-50 px-3 py-2 text-xs leading-5 text-gray-600 dark:bg-dark-700 dark:text-dark-300">{{ t('modelPlaza.admin.billingDisplayOnlyNote') }}</p>
-          <div class="space-y-4">
-            <label class="block text-sm">{{ t('admin.groups.fields.name') }}<input v-model="plazaGroupForm.name" class="input mt-1 w-full" /></label>
-            <label class="block text-sm">{{ t('admin.groups.fields.description') }}<textarea v-model="plazaGroupForm.description" class="input mt-1 w-full" rows="3" /></label>
-            <label class="block text-sm">{{ t('admin.groups.fields.platform') }}<select v-model="plazaGroupForm.platform" class="input mt-1 w-full"><option v-for="platform in ['openai','anthropic','gemini','antigravity','grok','composite']" :key="platform" :value="platform">{{ platformLabel(platform) }}</option></select></label>
-            <label class="block text-sm">{{ t('admin.groups.fields.rateMultiplier') }}<input :value="plazaGroupForm.rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
-            <label class="block text-sm">{{ t('admin.groups.fields.subscriptionType') }}<select v-model="plazaGroupForm.subscription_type" class="input mt-1 w-full"><option value="standard">{{ subscriptionTypeLabel('standard') }}</option><option value="subscription">{{ subscriptionTypeLabel('subscription') }}</option></select></label>
-            <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.is_exclusive" type="checkbox" />{{ t('admin.groups.fields.isExclusive') }}</label>
-            <label class="flex items-center gap-2 text-sm"><input v-model="plazaGroupForm.image_rate_independent" type="checkbox" />{{ t('admin.groups.fields.imageRateIndependent') }}</label>
-            <label class="block text-sm">{{ t('admin.groups.fields.imageRateMultiplier') }}<input :value="plazaGroupForm.image_rate_multiplier" type="number" class="input mt-1 w-full" readonly /><span class="mt-1 block text-xs text-gray-500">{{ t('admin.groups.fields.rateMultiplierDisplayOnly') }}</span></label>
-            <label class="block text-sm">{{ t('admin.groups.fields.status') }}<select v-model="plazaGroupForm.status" class="input mt-1 w-full"><option value="active">{{ groupStatusLabel('active') }}</option><option value="inactive">{{ groupStatusLabel('inactive') }}</option></select></label>
-          </div>
-        </div>
-        <div class="flex justify-end gap-2 border-t border-gray-200 px-5 py-4 dark:border-dark-700">
-          <button class="btn btn-secondary" @click="groupEditOpen = false">{{ t('common.cancel') }}</button>
-          <button class="btn btn-primary" :disabled="groupSaving" @click="savePlazaGroup">{{ t('modelPlaza.admin.saveDisplaySettings') }}</button>
-        </div>
-      </aside>
-    </div>
-
     <BaseDialog :show="batchGroupOpen" :title="t('admin.modelCatalog.batchGroupsTitle')" @close="batchGroupOpen = false">
       <div class="space-y-4">
         <label class="block text-sm">
@@ -295,11 +210,14 @@
           :groups="groups"
           searchable="auto"
         />
+        <p v-if="batchGroupMode === 'selected'" class="text-xs text-gray-500 dark:text-dark-400">
+          {{ t('admin.modelCatalog.fields.groupModeSelectedHint') }}
+        </p>
         <p v-else class="text-xs text-amber-700 dark:text-amber-300">{{ t('admin.modelCatalog.fields.groupModeAutoHint') }}</p>
       </div>
       <template #footer>
         <button class="btn btn-secondary" @click="batchGroupOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-primary" :disabled="saving || (batchGroupMode === 'selected' && !batchGroupIDs.length)" @click="saveBatchGroups">
+        <button class="btn btn-primary" :disabled="saving" @click="saveBatchGroups">
           {{ t('common.save') }}
         </button>
       </template>
@@ -334,10 +252,6 @@
           <button class="btn btn-secondary btn-sm" @click="toggleDiscoveryPageSelect">
             {{ t('admin.modelCatalog.discoverySelectAll') }}
           </button>
-          <label class="flex items-center gap-2 text-sm">
-            {{ t('admin.modelCatalog.fields.importMultiplier') }}
-            <input v-model.number="discoveryMultiplier" type="number" min="0.000001" step="0.01" class="input h-8 w-24" />
-          </label>
           <label class="flex items-center gap-2 text-sm">
             {{ t('admin.modelCatalog.fields.groupMode') }}
             <select v-model="discoveryGroupMode" class="input h-8">
@@ -400,7 +314,7 @@
       </div>
       <template #footer>
         <button class="btn btn-secondary" @click="discoveryOpen = false">{{ t('common.cancel') }}</button>
-        <button class="btn btn-primary" :disabled="discoverySelectedIds.length === 0 || discoveryImporting || (discoveryGroupMode === 'selected' && !discoveryGroupIDs.length)" @click="importSelectedDiscoveries">
+        <button class="btn btn-primary" :disabled="discoverySelectedIds.length === 0 || discoveryImporting" @click="importSelectedDiscoveries">
           {{ t('admin.modelCatalog.discoveryImportSelected', { n: discoverySelectedIds.length }) }}
         </button>
       </template>
@@ -440,7 +354,6 @@ const syncing = ref(false)
 const searchQuery = ref('')
 const platformFilter = ref('')
 const selectedIds = ref<number[]>([])
-const batchMultiplier = ref(1)
 const editOpen = ref(false)
 const syncResultOpen = ref(false)
 const syncResult = ref<ModelSyncJob['result'] | null>(null)
@@ -448,11 +361,8 @@ const syncJobError = ref<string | null>(null)
 const groups = ref<AdminGroup[]>([])
 const plazaGroups = ref<AdminGroup[]>([])
 const groupLoading = ref(false)
-const groupSaving = ref(false)
-const groupEditOpen = ref(false)
-const plazaGroupForm = reactive({ id: 0, name: '', description: '', platform: 'openai', rate_multiplier: 1, subscription_type: 'standard', is_exclusive: false, image_rate_independent: false, image_rate_multiplier: 1, status: 'active' })
 const batchGroupOpen = ref(false)
-const batchGroupMode = ref<'auto' | 'selected'>('selected')
+const batchGroupMode = ref<'auto' | 'selected'>('auto')
 const batchGroupIDs = ref<number[]>([])
 
 const discoveryOpen = ref(false)
@@ -464,8 +374,7 @@ const discoverySearch = ref('')
 const discoverySelectedIds = ref<number[]>([])
 const discoveryPage = ref(1)
 const discoveryPageSize = 50
-const discoveryMultiplier = ref(1)
-const discoveryGroupMode = ref<'auto' | 'selected'>('selected')
+const discoveryGroupMode = ref<'auto' | 'selected'>('auto')
 const discoveryGroupIDs = ref<number[]>([])
 
 const editForm = reactive({
@@ -476,28 +385,24 @@ const editForm = reactive({
   sort_order: 0,
   visible_public: false,
   visible_auth: true,
-  group_mode: 'selected' as 'auto' | 'selected',
+  group_mode: 'auto' as 'auto' | 'selected',
   group_ids: [] as number[],
-  price_mode: 'manual' as 'manual' | 'multiplier',
-  price_multiplier: 1,
-  input_price_million: null as number | null,
-  output_price_million: null as number | null,
-  cache_read_price_million: null as number | null,
-  cache_write_price_million: null as number | null,
   official_input_price_million: null as number | null,
   official_output_price_million: null as number | null,
   official_cache_read_price_million: null as number | null,
   official_cache_write_price_million: null as number | null,
+  official_input_manual: false,
+  official_output_manual: false,
+  official_cache_read_manual: false,
+  official_cache_write_manual: false,
 })
 
-const editOfficial = reactive({
+const originalOfficialPrices = reactive({
   input: null as number | null,
   output: null as number | null,
   cacheRead: null as number | null,
   cacheWrite: null as number | null,
 })
-
-const hasEditOfficialPrice = computed(() => editOfficial.input != null || editOfficial.output != null)
 
 const columns = computed(() => [
   { key: 'select', label: '', sortable: false },
@@ -506,10 +411,6 @@ const columns = computed(() => [
   { key: 'group_ids', label: t('admin.modelCatalog.columns.groups'), sortable: false },
   { key: 'official_input_price', label: t('admin.modelCatalog.columns.officialInput'), sortable: false },
   { key: 'official_output_price', label: t('admin.modelCatalog.columns.officialOutput'), sortable: false },
-  { key: 'input_price', label: t('admin.modelCatalog.columns.input'), sortable: false },
-  { key: 'output_price', label: t('admin.modelCatalog.columns.output'), sortable: false },
-  { key: 'input_diff', label: t('admin.modelCatalog.columns.inputDiff'), sortable: false },
-  { key: 'output_diff', label: t('admin.modelCatalog.columns.outputDiff'), sortable: false },
   { key: 'visible_public', label: t('admin.modelCatalog.columns.public'), sortable: false },
   { key: 'visible_auth', label: t('admin.modelCatalog.columns.auth'), sortable: false },
   { key: 'actions', label: t('common.actions'), sortable: false },
@@ -553,22 +454,6 @@ function formatPayloadPrice(payload: Record<string, unknown>, key: string): stri
   return formatScaled(raw, 1_000_000)
 }
 
-function formatDiff(site: number | null | undefined, official: number | null | undefined): string {
-  if (site == null || official == null || official === 0) return '—'
-  const pct = Math.round(((site / official) - 1) * 100)
-  if (pct === 0) return t('admin.modelCatalog.diffSame')
-  if (pct > 0) return t('admin.modelCatalog.diffHigher', { pct })
-  return t('admin.modelCatalog.diffLower', { pct })
-}
-
-function diffClass(site: number | null | undefined, official: number | null | undefined): string {
-  if (site == null || official == null || official === 0) return ''
-  const pct = ((site / official) - 1) * 100
-  if (pct > 5) return 'text-amber-700'
-  if (pct < -5) return 'text-emerald-700'
-  return 'text-gray-500'
-}
-
 function groupLabel(id: number): string {
   return groups.value.find((group) => group.id === id)?.name ?? `#${id}`
 }
@@ -595,7 +480,7 @@ function groupStatusLabel(value: string): string {
 
 async function loadGroups() {
   try {
-    groups.value = await groupsAPI.getAllIncludingInactive()
+    groups.value = await groupsAPI.getAll()
   } catch (err: unknown) {
     appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.groupLoadFailed')))
   }
@@ -637,7 +522,7 @@ function openDiscoveryPanel() {
   discoveryOpen.value = true
   discoverySelectedIds.value = []
   discoveryPage.value = 1
-  discoveryGroupMode.value = 'selected'
+  discoveryGroupMode.value = 'auto'
   discoveryGroupIDs.value = []
   void loadDiscoveries()
 }
@@ -681,13 +566,8 @@ async function importSelectedDiscoveries() {
   }
   discoveryImporting.value = true
   try {
-    if (discoveryGroupMode.value === 'selected' && !discoveryGroupIDs.value.length) {
-      appStore.showError(t('admin.modelCatalog.groupSelectRequired'))
-      return
-    }
     const n = await adminModelCatalogAPI.importDiscoveries({
       ids: discoverySelectedIds.value,
-      site_multiplier: discoveryMultiplier.value > 0 ? discoveryMultiplier.value : undefined,
       group_ids: discoveryGroupMode.value === 'selected' ? discoveryGroupIDs.value : null,
     })
     appStore.showSuccess(t('admin.modelCatalog.importDone', { n }))
@@ -710,16 +590,14 @@ function openCreate() {
     sort_order: rows.value.length * 10,
     visible_public: false,
     visible_auth: true,
-    group_mode: 'selected',
+    group_mode: 'auto',
     group_ids: [],
-    price_mode: 'manual',
-    price_multiplier: 1,
-    input_price_million: null,
-    output_price_million: null,
-    cache_read_price_million: null,
-    cache_write_price_million: null,
+    official_input_manual: false,
+    official_output_manual: false,
+    official_cache_read_manual: false,
+    official_cache_write_manual: false,
   })
-  Object.assign(editOfficial, { input: null, output: null, cacheRead: null, cacheWrite: null })
+  Object.assign(originalOfficialPrices, { input: null, output: null, cacheRead: null, cacheWrite: null })
   editOpen.value = true
 }
 
@@ -734,34 +612,27 @@ function openEdit(row: AdminCatalogRow) {
     visible_auth: row.visible_auth,
     group_mode: row.group_ids == null ? 'auto' : 'selected',
     group_ids: row.group_ids ?? [],
-    price_mode: row.price_multiplier != null ? 'multiplier' : 'manual',
-    price_multiplier: row.price_multiplier ?? 1,
-    input_price_million: toPerMillion(row.input_price),
-    output_price_million: toPerMillion(row.output_price),
-    cache_read_price_million: toPerMillion(row.cache_read_price),
-    cache_write_price_million: toPerMillion(row.cache_write_price),
     official_input_price_million: toPerMillion(row.official_input_price),
     official_output_price_million: toPerMillion(row.official_output_price),
     official_cache_read_price_million: toPerMillion(row.official_cache_read_price),
     official_cache_write_price_million: toPerMillion(row.official_cache_write_price),
+    official_input_manual: row.official_input_manual,
+    official_output_manual: row.official_output_manual,
+    official_cache_read_manual: row.official_cache_read_manual,
+    official_cache_write_manual: row.official_cache_write_manual,
   })
-  Object.assign(editOfficial, {
-    input: row.official_input_price,
-    output: row.official_output_price,
-    cacheRead: row.official_cache_read_price,
-    cacheWrite: row.official_cache_write_price,
+  Object.assign(originalOfficialPrices, {
+    input: toPerMillion(row.official_input_price),
+    output: toPerMillion(row.official_output_price),
+    cacheRead: toPerMillion(row.official_cache_read_price),
+    cacheWrite: toPerMillion(row.official_cache_write_price),
   })
   editOpen.value = true
 }
 
 async function saveEdit() {
-  if (editForm.group_mode === 'selected' && !editForm.group_ids.length) {
-    appStore.showError(t('admin.modelCatalog.groupSelectRequired'))
-    return
-  }
   saving.value = true
   try {
-    const multiplierMode = editForm.price_mode === 'multiplier'
     await adminModelCatalogAPI.saveCatalogEntry({
       id: editForm.id,
       model_name: editForm.model_name,
@@ -771,17 +642,24 @@ async function saveEdit() {
       visible_public: editForm.visible_public,
       visible_auth: editForm.visible_auth,
       group_ids: editForm.group_mode === 'selected' ? editForm.group_ids : null,
-      price_multiplier: multiplierMode ? editForm.price_multiplier : null,
-      input_price: multiplierMode ? null : fromPerMillion(editForm.input_price_million),
-      output_price: multiplierMode ? null : fromPerMillion(editForm.output_price_million),
-      cache_read_price: multiplierMode ? null : fromPerMillion(editForm.cache_read_price_million),
-      cache_write_price: multiplierMode ? null : fromPerMillion(editForm.cache_write_price_million),
+      // Paid price remains owned by the channel and group billing configuration.
+      // This form only controls reference prices displayed in the model plaza.
       official_input_price: fromPerMillion(editForm.official_input_price_million),
       official_output_price: fromPerMillion(editForm.official_output_price_million),
       official_cache_read_price: fromPerMillion(editForm.official_cache_read_price_million),
       official_cache_write_price: fromPerMillion(editForm.official_cache_write_price_million),
-      billing_mode: 'token',
-      source: 'manual',
+      official_input_manual: editForm.official_input_price_million !== originalOfficialPrices.input
+        ? editForm.official_input_price_million != null
+        : editForm.official_input_manual,
+      official_output_manual: editForm.official_output_price_million !== originalOfficialPrices.output
+        ? editForm.official_output_price_million != null
+        : editForm.official_output_manual,
+      official_cache_read_manual: editForm.official_cache_read_price_million !== originalOfficialPrices.cacheRead
+        ? editForm.official_cache_read_price_million != null
+        : editForm.official_cache_read_manual,
+      official_cache_write_manual: editForm.official_cache_write_price_million !== originalOfficialPrices.cacheWrite
+        ? editForm.official_cache_write_price_million != null
+        : editForm.official_cache_write_manual,
     })
     editOpen.value = false
     await loadCatalog()
@@ -814,25 +692,14 @@ async function batchSetPublic(on: boolean) {
   await loadCatalog()
 }
 
-async function batchMultiply() {
-  if (!selectedIds.value.length) return
-  if (!(batchMultiplier.value > 0)) return
-  await adminModelCatalogAPI.batchPrices({ ids: selectedIds.value, multiplier: batchMultiplier.value })
-  await loadCatalog()
-}
-
 function openBatchGroups() {
-  batchGroupMode.value = 'selected'
+  batchGroupMode.value = 'auto'
   batchGroupIDs.value = []
   batchGroupOpen.value = true
 }
 
 async function saveBatchGroups() {
   if (!selectedIds.value.length) return
-  if (batchGroupMode.value === 'selected' && !batchGroupIDs.value.length) {
-    appStore.showError(t('admin.modelCatalog.groupSelectRequired'))
-    return
-  }
   saving.value = true
   try {
     await adminModelCatalogAPI.batchGroups({
@@ -890,38 +757,7 @@ async function startSync() {
 
 async function loadPlazaGroups() {
   groupLoading.value = true
-  try { plazaGroups.value = await groupsAPI.getAllIncludingInactive() } finally { groupLoading.value = false }
-}
-
-function openPlazaGroupEdit(group: AdminGroup) {
-  Object.assign(plazaGroupForm, { id: group.id, name: group.name, description: group.description ?? '', platform: group.platform, rate_multiplier: group.rate_multiplier, subscription_type: group.subscription_type, is_exclusive: group.is_exclusive, image_rate_independent: group.image_rate_independent, image_rate_multiplier: group.image_rate_multiplier, status: group.status })
-  groupEditOpen.value = true
-}
-
-function openPlazaGroupCreate() {
-  Object.assign(plazaGroupForm, { id: 0, name: '', description: '', platform: 'openai', rate_multiplier: 1, subscription_type: 'standard', is_exclusive: false, image_rate_independent: false, image_rate_multiplier: 1, status: 'active' })
-  groupEditOpen.value = true
-}
-
-async function savePlazaGroup() {
-  if (!plazaGroupForm.name.trim()) return
-  groupSaving.value = true
-  try {
-    if (plazaGroupForm.id) {
-      await groupsAPI.update(plazaGroupForm.id, { name: plazaGroupForm.name.trim(), description: plazaGroupForm.description, platform: plazaGroupForm.platform as any, subscription_type: plazaGroupForm.subscription_type as any, is_exclusive: plazaGroupForm.is_exclusive, image_rate_independent: plazaGroupForm.image_rate_independent, status: plazaGroupForm.status as any })
-    } else {
-      await groupsAPI.create({ name: plazaGroupForm.name.trim(), description: plazaGroupForm.description, platform: plazaGroupForm.platform as any, subscription_type: plazaGroupForm.subscription_type as any, is_exclusive: plazaGroupForm.is_exclusive, image_rate_independent: plazaGroupForm.image_rate_independent })
-    }
-    groupEditOpen.value = false
-    await loadPlazaGroups()
-    appStore.showSuccess(t('common.saved'))
-  } catch (err: unknown) { appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.saveFailed'))) } finally { groupSaving.value = false }
-}
-
-async function removePlazaGroup(group: AdminGroup) {
-  if (!window.confirm(t('admin.groups.deleteConfirm', { name: group.name }))) return
-  groupSaving.value = true
-  try { await groupsAPI.delete(group.id); await loadPlazaGroups(); appStore.showSuccess(t('common.deleted')) } catch (err: unknown) { appStore.showError(extractApiErrorMessage(err, t('admin.modelCatalog.saveFailed'))) } finally { groupSaving.value = false }
+  try { plazaGroups.value = await groupsAPI.getAll() } finally { groupLoading.value = false }
 }
 
 onMounted(() => {
