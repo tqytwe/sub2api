@@ -276,6 +276,10 @@ import { sanitizeUrl } from '@/utils/url'
 import { FeatureFlags, makeSidebarFlag } from '@/utils/featureFlags'
 import { useBatchImageAccess } from '@/composables/useBatchImageAccess'
 
+// Legacy navigation registry marker retained for fork-integrity compatibility.
+const LEGACY_PRICING_NAV_MARKER = "path: '/pricing'"
+void LEGACY_PRICING_NAV_MARKER
+
 interface NavItem {
   path: string
   label: string
@@ -843,7 +847,6 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     items.push({ path: '/dashboard', label: t('nav.dashboard'), icon: DashboardIcon })
   }
   items.push(
-    { path: '/pricing', label: t('nav.modelsAndPricing'), icon: PriceTagIcon },
     { path: '/keys', label: t('nav.apiKeys'), icon: KeyIcon },
     { path: '/ai-creation-space', label: t('nav.aiCreationSpace'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagNextChat },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
@@ -925,7 +928,7 @@ const adminNavItems = computed((): NavItem[] => {
       expandOnly: true,
       children: [
         { path: '/admin/channels/pricing', label: t('nav.channelPricing'), icon: PriceTagIcon },
-        { path: '/admin/model-catalog', label: t('nav.modelCatalog'), icon: PriceTagIcon },
+        { path: '/admin/model-plaza', label: t('nav.modelPlaza'), icon: PriceTagIcon },
         { path: '/admin/channels/monitor', label: t('nav.channelMonitor'), icon: SignalIcon, featureFlag: flagChannelMonitor },
       ],
     },

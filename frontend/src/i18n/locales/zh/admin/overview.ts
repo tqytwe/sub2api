@@ -613,8 +613,6 @@ export default {
       failedToAdjust: '调整失败',
       emailRequired: '请输入邮箱',
       concurrencyMin: '并发数不能小于1',
-      soraStorageQuota: 'Sora 存储配额',
-      soraStorageQuotaHint: '单位 GB，0 表示使用分组或系统默认配额',
       amountRequired: '请输入有效金额',
       insufficientBalance: '余额不足',
       setAllowedGroups: '设置允许分组',
@@ -867,7 +865,7 @@ export default {
     // Groups Management
     groups: {
       title: '分组管理',
-      description: '管理 API 密钥分组和费率配置',
+      description: '管理模型广场关联的现有分组；这里的模型价格仅用于展示。',
       searchGroups: '搜索分组...',
       createGroup: '创建分组',
       editGroup: '编辑分组',
@@ -889,6 +887,7 @@ export default {
         id: 'ID',
         platform: '平台',
         rateMultiplier: '费率倍数',
+        rateMultiplierDisplayOnly: '仅同步展示，不修改扣费配置',
         rpmOverride: 'RPM 覆盖',
         rpmOverrideHint: '该用户在此分组的 RPM 上限；留空 = 使用分组默认；0 = 不限制',
         rateDefault: '默认',
@@ -906,7 +905,20 @@ export default {
         userName: '用户名',
         userEmail: '邮箱',
         userNotes: '备注',
-        userStatus: '状态'
+        userStatus: '状态',
+        subscriptionType: '订阅类型'
+      },
+      fields: {
+        name: '名称',
+        description: '描述',
+        platform: '平台',
+        rateMultiplier: '费率倍数',
+        rateMultiplierDisplayOnly: '仅同步展示，不修改扣费配置',
+        subscriptionType: '订阅类型',
+        isExclusive: '专属分组',
+        imageRateIndependent: '图片独立费率',
+        imageRateMultiplier: '图片费率倍数',
+        status: '状态'
       },
       usageToday: '今日',
       usageYesterday: '昨日',
@@ -1105,7 +1117,7 @@ export default {
         title: '分组逐模型定价',
         description: '匹配模型后覆盖渠道和内置价格。长上下文阶梯沿用官方/预设价卡，无需再手填区间。音频可用按次层级配置 realtime、tts、stt。',
         longContext: '启用长上下文阶梯定价',
-        longContextHint: '勾选后按官方/预设阶梯计费；关闭则始终按第一档基础价。',
+        longContextHint: '勾选后按渠道区间或官方预设阶梯计费；关闭后默认按第一档，账号显式开启时除外。',
         add: '添加模型价格'
       },
       voicePricing: {

@@ -64,6 +64,9 @@ const imageStudioAssetDerivativesIndexesMigration = "194_image_studio_asset_deri
 const imageStudioAssetDerivativesIndex = "idx_image_studio_jobs_user_created_id"
 const usageLogsUpstreamModelMismatchIndexMigration = "195_add_usage_log_upstream_model_mismatch_index_notx.sql"
 const usageLogsUpstreamModelMismatchIndex = "idx_usage_logs_upstream_model_mismatch_created_at"
+const usageLogsEffectiveModelIndexesMigration = "226_add_usage_log_effective_model_indexes_notx.sql"
+const usageLogsEffectiveRequestedModelIndex = "idx_usage_logs_effective_requested_model_created"
+const usageLogsEffectiveUpstreamModelIndex = "idx_usage_logs_effective_upstream_model_created"
 const onlineMigrationLockTimeout = "5s"
 
 var imageStudioPersistentJobsIndexes = []string{
@@ -377,6 +380,11 @@ func prepareNonTransactionalMigration(ctx context.Context, db migrationExecutor,
 		return dropInvalidIndexIfPresent(ctx, db, imageStudioAssetDerivativesIndex)
 	case usageLogsUpstreamModelMismatchIndexMigration:
 		return dropInvalidIndexIfPresent(ctx, db, usageLogsUpstreamModelMismatchIndex)
+	case usageLogsEffectiveModelIndexesMigration:
+		if err := dropInvalidIndexIfPresent(ctx, db, usageLogsEffectiveRequestedModelIndex); err != nil {
+			return err
+		}
+		return dropInvalidIndexIfPresent(ctx, db, usageLogsEffectiveUpstreamModelIndex)
 	default:
 		return nil
 	}

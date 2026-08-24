@@ -799,6 +799,7 @@ import Select from '@/components/common/Select.vue'
 import GroupBadge from '@/components/common/GroupBadge.vue'
 import GroupOptionItem from '@/components/common/GroupOptionItem.vue'
 import Icon from '@/components/icons/Icon.vue'
+import { GROUP_PLATFORM_OPTIONS } from '@/constants/platforms'
 import { getRemainingDurationParts, isOneTimeDailyQuota, type RemainingDurationParts } from '@/utils/subscriptionQuota'
 import { packageQuotaRows, type PackageQuotaDimension } from '@/utils/packageQuota'
 
@@ -1023,10 +1024,7 @@ const groupOptions = computed(() => [
 
 const platformFilterOptions = computed(() => [
   { value: '', label: t('admin.subscriptions.allPlatforms') },
-  { value: 'anthropic', label: 'Anthropic' },
-  { value: 'openai', label: 'OpenAI' },
-  { value: 'gemini', label: 'Gemini' },
-  { value: 'antigravity', label: 'Antigravity' }
+  ...GROUP_PLATFORM_OPTIONS
 ])
 
 // Group options for assign (only subscription type groups)

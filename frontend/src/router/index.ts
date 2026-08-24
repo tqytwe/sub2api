@@ -51,7 +51,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/en/models',
     name: 'EnglishModels',
-    component: () => import('@/views/public/ModelsView.vue'),
+    component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
       title: 'Models & Pricing',
@@ -62,7 +62,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/en/models/:family(deepseek|qwen|kimi|glm)',
     name: 'EnglishModelFamily',
-    component: () => import('@/views/public/ModelsView.vue'),
+    component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
       title: 'Model pricing',
@@ -102,25 +102,13 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/pricing',
+    // design-governance-allow: visual-evidence - this compatibility route only restores a named redirect and does not add a new visual surface
     name: 'Pricing',
-    component: () => import('@/views/public/ModelsView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Models & Pricing',
-      titleKey: 'models.title',
-      frame: 'workspace'
-    }
+    redirect: to => ({ path: '/models', query: to.query }),
   },
   {
     path: '/pricing/:family(deepseek|qwen|kimi|glm)',
-    name: 'PricingFamily',
-    component: () => import('@/views/public/ModelsView.vue'),
-    meta: {
-      requiresAuth: false,
-      title: 'Model pricing',
-      titleKey: 'models.title',
-      frame: 'workspace'
-    }
+    redirect: to => ({ path: `/models/${to.params.family}`, query: to.query }),
   },
   {
     path: '/download/android',
@@ -348,14 +336,28 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/model-plaza',
-    name: 'ModelPlaza',
+    path: '/models',
+    name: 'Models',
     component: () => import('@/views/ModelPlazaView.vue'),
     meta: {
       requiresAuth: false,
       title: 'Model Plaza',
       titleKey: 'modelPlaza.title'
     }
+  },
+  {
+    path: '/models/:family(deepseek|qwen|kimi|glm)',
+    name: 'ModelFamily',
+    component: () => import('@/views/ModelPlazaView.vue'),
+    meta: {
+      requiresAuth: false,
+      title: 'Model pricing',
+      frame: 'workspace'
+    }
+  },
+  {
+    path: '/model-plaza',
+    redirect: to => ({ path: '/models', query: to.query }),
   },
   {
     path: '/agent-team',
@@ -842,15 +844,15 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
-    path: '/admin/model-catalog',
-    name: 'AdminModelCatalog',
+    path: '/admin/model-plaza',
+    name: 'AdminModelPlaza',
     component: () => import('@/views/admin/ModelCatalogView.vue'),
     meta: {
       requiresAuth: true,
       requiresAdmin: true,
       title: 'Model Catalog',
-      titleKey: 'admin.modelCatalog.title',
-      descriptionKey: 'admin.modelCatalog.description',
+      titleKey: 'modelPlaza.title',
+      descriptionKey: 'modelPlaza.description',
       frame: 'workspace'
     }
   },

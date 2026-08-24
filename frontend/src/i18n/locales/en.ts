@@ -63,6 +63,23 @@ const messages = {
     nav: {
       login: 'Sign In',
       backToDashboard: 'Back to Console'
+    },
+    admin: {
+      modelsTab: 'Model Display',
+      groupsTab: 'Group Display',
+      displayOnly: 'Display only',
+      standard: 'Standard',
+      subscription: 'Subscription',
+      active: 'Enabled',
+      inactive: 'Disabled',
+      platformOpenai: 'OpenAI',
+      platformAnthropic: 'Claude / Anthropic',
+      platformGemini: 'Gemini',
+      platformAntigravity: 'Antigravity',
+      platformGrok: 'Grok',
+      platformComposite: 'Composite platform',
+      billingDisplayOnlyNote: 'Rate multipliers and actual billing settings are not edited here. They are synchronized for display from the existing groups.',
+      saveDisplaySettings: 'Save display settings'
     }
   },
   // Home Page
@@ -7254,7 +7271,7 @@ const messages = {
           title: 'Play Center',
           description: 'Opt-in engagement modules: check-in, token farm, blind box, quiz, and agent team.',
           publicModelsEnabled: 'Public model catalog',
-          publicModelsEnabledHint: 'Guests can browse official, site display, and group display prices for guest-visible models at /pricing.',
+          publicModelsEnabledHint: 'Guests can browse official, site display, and group display prices for guest-visible models in the model plaza.',
           checkinEnabled: 'Daily check-in',
           checkinEnabledHint: 'Shows the check-in page and sidebar entry.',
           checkinDailyReward: 'Check-in daily reward (balance)',

@@ -67,17 +67,17 @@ export async function listCatalog(params?: {
   search?: string
   visible_public?: boolean
 }): Promise<AdminCatalogRow[]> {
-  const { data } = await apiClient.get<AdminCatalogRow[]>('/admin/model-catalog', { params })
+  const { data } = await apiClient.get<AdminCatalogRow[]>('/admin/model-plaza', { params })
   return data ?? []
 }
 
 export async function saveCatalogEntry(entry: Partial<SiteModelCatalogEntry>): Promise<SiteModelCatalogEntry> {
-  const { data } = await apiClient.put<SiteModelCatalogEntry>('/admin/model-catalog', entry)
+  const { data } = await apiClient.put<SiteModelCatalogEntry>('/admin/model-plaza', entry)
   return data
 }
 
 export async function deleteCatalogEntry(id: number): Promise<void> {
-  await apiClient.delete(`/admin/model-catalog/${id}`)
+  await apiClient.delete(`/admin/model-plaza/${id}`)
 }
 
 export async function batchVisibility(payload: {
@@ -85,7 +85,7 @@ export async function batchVisibility(payload: {
   visible_public?: boolean
   visible_auth?: boolean
 }): Promise<number> {
-  const { data } = await apiClient.post<{ updated: number }>('/admin/model-catalog/batch-visibility', payload)
+  const { data } = await apiClient.post<{ updated: number }>('/admin/model-plaza/batch-visibility', payload)
   return data?.updated ?? 0
 }
 
@@ -95,22 +95,22 @@ export async function batchPrices(payload: {
   input_price?: number
   output_price?: number
 }): Promise<number> {
-  const { data } = await apiClient.post<{ updated: number }>('/admin/model-catalog/batch-prices', payload)
+  const { data } = await apiClient.post<{ updated: number }>('/admin/model-plaza/batch-prices', payload)
   return data?.updated ?? 0
 }
 
 export async function batchGroups(payload: { ids: number[]; group_ids: number[] | null }): Promise<number> {
-  const { data } = await apiClient.post<{ updated: number }>('/admin/model-catalog/batch-groups', payload)
+  const { data } = await apiClient.post<{ updated: number }>('/admin/model-plaza/batch-groups', payload)
   return data?.updated ?? 0
 }
 
 export async function createSyncJob(): Promise<ModelSyncJob> {
-  const { data } = await apiClient.post<ModelSyncJob>('/admin/model-catalog/sync-jobs')
+  const { data } = await apiClient.post<ModelSyncJob>('/admin/model-plaza/sync-jobs')
   return data
 }
 
 export async function getSyncJob(id: string): Promise<ModelSyncJob> {
-  const { data } = await apiClient.get<ModelSyncJob>(`/admin/model-catalog/sync-jobs/${id}`)
+  const { data } = await apiClient.get<ModelSyncJob>(`/admin/model-plaza/sync-jobs/${id}`)
   return data
 }
 
@@ -120,7 +120,7 @@ export async function listDiscoveries(params?: {
   limit?: number
   offset?: number
 }): Promise<DiscoveryListResult> {
-  const { data } = await apiClient.get<DiscoveryListResult>('/admin/model-catalog/discoveries', { params })
+  const { data } = await apiClient.get<DiscoveryListResult>('/admin/model-plaza/discoveries', { params })
   return data ?? { items: [], total: 0 }
 }
 
@@ -130,7 +130,7 @@ export async function importDiscoveries(payload: {
   site_multiplier?: number
   group_ids?: number[] | null
 }): Promise<number> {
-  const { data } = await apiClient.post<{ imported: number }>('/admin/model-catalog/discoveries/import', {
+  const { data } = await apiClient.post<{ imported: number }>('/admin/model-plaza/discoveries/import', {
     to_catalog: true,
     ...payload,
   })

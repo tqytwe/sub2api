@@ -141,7 +141,7 @@ export const jisudengPagesZh = {
     loginCta: '登录',
     registerCta: '免费注册',
     empty: '暂无可用模型',
-    emptyNoChannels: '暂无登录可见模型，请管理员在模型价目管理中开启「登录可见」。',
+    emptyNoChannels: '暂无登录可见模型，请管理员在模型广场管理中开启「登录可见」。',
     emptyApiNotDeployed: '价目接口尚未部署，请稍后刷新或联系管理员。',
     loading: '加载中…',
     loadFailed: '价格列表加载失败，请稍后刷新',

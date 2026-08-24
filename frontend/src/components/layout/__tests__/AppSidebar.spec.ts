@@ -105,7 +105,7 @@ describe('AppSidebar Fork navigation invariants', () => {
   const selfNavBlock = componentSource.match(/function buildSelfNavItems[\s\S]*?\n}\n\n\/\/ finalizeNav/)?.[0] ?? ''
 
   it('keeps the models, AI creation space, and Growth group in user navigation', () => {
-    expect(selfNavBlock).toContain("path: '/pricing'")
+    expect(selfNavBlock).not.toContain("path: '/pricing'")
     expect(selfNavBlock).toContain("path: '/ai-creation-space'")
     expect(selfNavBlock).not.toContain("path: '/image-studio'")
     expect(selfNavBlock).toContain("path: '/batch-image'")

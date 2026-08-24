@@ -382,6 +382,7 @@ func (s *SettingService) GetPublicSettings(ctx context.Context) (*PublicSettings
 		PlayAgentTeamEnabled:     settings[SettingKeyPlayAgentTeamEnabled] == "true",
 		ImageStudioEnabled:       settings[SettingKeyImageStudioEnabled] == "true",
 		NextChatEnabled:          settings[SettingKeyNextChatEnabled] == "true",
+		SoraClientEnabled:        settings["sora_client_enabled"] == "true",
 
 		ModelPlazaEnabled:     settings[SettingKeyModelPlazaEnabled] == "true",
 		ModelPlazaRequireAuth: settings[SettingKeyModelPlazaRequireAuth] == "true",
@@ -649,6 +650,7 @@ type PublicSettingsInjectionPayload struct {
 	PlayAgentTeamEnabled       bool `json:"play_agent_team_enabled"`
 	ImageStudioEnabled         bool `json:"image_studio_enabled"`
 	NextChatEnabled            bool `json:"nextchat_enabled"`
+	SoraClientEnabled          bool `json:"sora_client_enabled"`
 }
 
 // GetPublicSettingsForInjection returns public settings in a format suitable for HTML injection.
@@ -737,6 +739,7 @@ func (s *SettingService) GetPublicSettingsForInjection(ctx context.Context) (any
 		PlayAgentTeamEnabled:                 settings.PlayAgentTeamEnabled,
 		ImageStudioEnabled:                   settings.ImageStudioEnabled,
 		NextChatEnabled:                      settings.NextChatEnabled,
+		SoraClientEnabled:                    settings.SoraClientEnabled,
 		AffiliateEnabled:                     settings.AffiliateEnabled,
 		RiskControlEnabled:                   settings.RiskControlEnabled,
 		AllowUserViewErrorRequests:           settings.AllowUserViewErrorRequests,

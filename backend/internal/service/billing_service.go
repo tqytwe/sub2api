@@ -114,6 +114,8 @@ type ModelPricing struct {
 	LongContextOutputMultiplier        float64 // 长上下文整次会话输出倍率
 	ImageOutputPricePerToken           float64 // 图片输出 token 价格 (USD)
 	ImageOutputPriceExplicit           bool    // 是否由渠道定价显式设定（为 true 时即使 == 0 也不回退）
+	FastMultiplier                     *float64
+	FlexMultiplier                     *float64
 }
 
 const (
@@ -127,7 +129,14 @@ func normalizeBillingServiceTier(serviceTier string) string {
 }
 
 func usePriorityServiceTierPricing(serviceTier string, pricing *ModelPricing) bool {
-	if pricing == nil || normalizeBillingServiceTier(serviceTier) != "priority" {
+	if pricing == nil {
+		return false
+	}
+	tier := normalizeBillingServiceTier(serviceTier)
+	if tier != "priority" && tier != "fast" {
+		return false
+	}
+	if pricing.FastMultiplier != nil {
 		return false
 	}
 	return pricing.InputPricePerTokenPriority > 0 || pricing.OutputPricePerTokenPriority > 0 ||
@@ -136,13 +145,29 @@ func usePriorityServiceTierPricing(serviceTier string, pricing *ModelPricing) bo
 
 func serviceTierCostMultiplier(serviceTier string) float64 {
 	switch normalizeBillingServiceTier(serviceTier) {
-	case "priority":
+	case "priority", "fast":
 		return 2.0
 	case "flex":
 		return 0.5
 	default:
 		return 1.0
 	}
+}
+
+func configuredServiceTierMultiplier(serviceTier string, pricing *ModelPricing) float64 {
+	if pricing != nil {
+		switch normalizeBillingServiceTier(serviceTier) {
+		case "fast", "priority":
+			if pricing.FastMultiplier != nil {
+				return *pricing.FastMultiplier
+			}
+		case "flex":
+			if pricing.FlexMultiplier != nil {
+				return *pricing.FlexMultiplier
+			}
+		}
+	}
+	return serviceTierCostMultiplier(serviceTier)
 }
 
 // UsageTokens 使用的token数量
@@ -297,6 +322,12 @@ func (s *BillingService) initFallbackPricing() {
 	// 缺少这两条时 getFallbackPricing 会掉到 claude-3-opus（$15/$75），造成 3 倍超收。
 	s.fallbackPrices["claude-opus-4.8"] = s.fallbackPrices["claude-opus-4.7"]
 	s.fallbackPrices["claude-opus-5"] = s.fallbackPrices["claude-opus-4.8"]
+	for _, model := range []string{"claude-opus-4.8", "claude-opus-5"} {
+		cloned := *s.fallbackPrices[model]
+		cloned.InputPricePerTokenPriority = cloned.InputPricePerToken * 2
+		cloned.OutputPricePerTokenPriority = cloned.OutputPricePerToken * 2
+		s.fallbackPrices[model] = &cloned
+	}
 
 	// Gemini 3.1 Pro
 	s.fallbackPrices["gemini-3.1-pro"] = &ModelPricing{
@@ -335,6 +366,12 @@ func (s *BillingService) initFallbackPricing() {
 	// GPT-5.5 / GPT-5.5 Pro 暂无独立定价，回退到 GPT-5.4。
 	s.fallbackPrices["gpt-5.5"] = s.fallbackPrices["gpt-5.4"]
 	s.fallbackPrices["gpt-5.5-pro"] = s.fallbackPrices["gpt-5.4"]
+	for _, model := range []string{"gpt-5.5", "gpt-5.5-pro"} {
+		cloned := *s.fallbackPrices[model]
+		cloned.InputPricePerTokenPriority = cloned.InputPricePerToken * 2.5
+		cloned.OutputPricePerTokenPriority = cloned.OutputPricePerToken * 2.5
+		s.fallbackPrices[model] = &cloned
+	}
 
 	// OpenAI GPT-5.6 官方价格（USD/token）。缓存写入为输入价的 1.25 倍。
 	s.fallbackPrices["gpt-5.6-sol"] = &ModelPricing{
@@ -1129,7 +1166,16 @@ func (s *BillingService) CalculateCostUnified(input CostInput) (*CostBreakdown, 
 func (s *BillingService) calculateTokenCost(resolved *ResolvedPricing, input CostInput) (*CostBreakdown, error) {
 	totalContext := input.Tokens.InputTokens + input.Tokens.CacheCreationTokens + input.Tokens.CacheReadTokens
 
-	pricing := input.Resolver.GetIntervalPricing(resolved, totalContext)
+	useIntervals := resolved.longContextPricingEnabled
+	if input.LongContextBillingEnabled != nil {
+		useIntervals = useIntervals || *input.LongContextBillingEnabled
+	}
+	pricing := resolved.BasePricing
+	if useIntervals && len(resolved.Intervals) > 0 {
+		if interval := FindMatchingInterval(resolved.Intervals, totalContext); interval != nil {
+			pricing = intervalToModelPricing(interval, resolved.BasePricing, resolved.channelPricing)
+		}
+	}
 	if pricing == nil {
 		return nil, fmt.Errorf("no pricing available for model: %s: %w", input.Model, ErrModelPricingUnavailable)
 	}
@@ -1137,10 +1183,7 @@ func (s *BillingService) calculateTokenCost(resolved *ResolvedPricing, input Cos
 	pricing = s.applyModelSpecificPricingPolicy(input.Model, pricing)
 
 	// 长上下文定价仅在无区间定价时应用（区间定价已包含上下文分层）
-	applyLongCtx := len(resolved.Intervals) == 0 && resolved.longContextPricingEnabled
-	if input.LongContextBillingEnabled != nil {
-		applyLongCtx = applyLongCtx && *input.LongContextBillingEnabled
-	}
+	applyLongCtx := len(resolved.Intervals) == 0 && useIntervals
 
 	breakdown := s.computeTokenBreakdown(pricing, input.Tokens, input.RateMultiplier, input.ServiceTier, applyLongCtx)
 	applyCostBreakdownMultiplier(breakdown, resolvedChannelTimeMultiplier(resolved, input.PricingAt))
@@ -1180,7 +1223,7 @@ func (s *BillingService) computeTokenBreakdown(
 			cacheCreationPrice = pricing.CacheCreationPricePerTokenPriority
 		}
 	} else {
-		tierMultiplier = serviceTierCostMultiplier(serviceTier)
+		tierMultiplier = configuredServiceTierMultiplier(serviceTier, pricing)
 	}
 
 	longContextPricingEligible := applyLongCtx && s.shouldApplySessionLongContextPricing(tokens, pricing)

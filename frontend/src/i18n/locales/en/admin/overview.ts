@@ -592,8 +592,6 @@ export default {
       failedToLoadApiKeys: 'Failed to load user API keys',
       emailRequired: 'Please enter email',
       concurrencyMin: 'Concurrency must be at least 1',
-      soraStorageQuota: 'Sora Storage Quota',
-      soraStorageQuotaHint: 'In GB, 0 means use group or system default quota',
       amountRequired: 'Please enter a valid amount',
       insufficientBalance: 'Insufficient balance',
       adjustBalance: 'Adjust Balance',
@@ -870,7 +868,7 @@ export default {
     // Groups
     groups: {
       title: 'Group Management',
-      description: 'Manage API key groups and rate multipliers',
+      description: 'Manage existing groups linked to the model plaza. Model prices here are display-only.',
       searchGroups: 'Search groups...',
       createGroup: 'Create Group',
       editGroup: 'Edit Group',
@@ -896,6 +894,7 @@ export default {
         id: 'ID',
         platform: 'Platform',
         rateMultiplier: 'Rate Multiplier',
+        rateMultiplierDisplayOnly: 'Display sync only; billing configuration is unchanged',
         rpmOverride: 'RPM Override',
         rpmOverrideHint: 'Per-user RPM cap in this group; empty = group default; 0 = unlimited',
         rateDefault: 'default',
@@ -913,7 +912,20 @@ export default {
         userName: 'Username',
         userEmail: 'Email',
         userNotes: 'Notes',
-        userStatus: 'Status'
+        userStatus: 'Status',
+        subscriptionType: 'Subscription Type'
+      },
+      fields: {
+        name: 'Name',
+        description: 'Description',
+        platform: 'Platform',
+        rateMultiplier: 'Rate Multiplier',
+        rateMultiplierDisplayOnly: 'Display sync only; billing configuration is unchanged',
+        subscriptionType: 'Subscription Type',
+        isExclusive: 'Exclusive Group',
+        imageRateIndependent: 'Independent Image Rate',
+        imageRateMultiplier: 'Image Rate Multiplier',
+        status: 'Status'
       },
       usageToday: 'Today',
       usageYesterday: 'Yesterday',
@@ -1108,7 +1120,7 @@ export default {
         title: 'Per-model group pricing',
         description: 'Overrides channel and built-in prices for matching models. Long-context tiers come from official presets — do not enter custom intervals. Use per-request tiers such as realtime, tts, and stt for audio.',
         longContext: 'Enable long-context tier pricing',
-        longContextHint: 'When checked, official/preset long-context tiers apply. When unchecked, token models stay on the first-tier base rate.',
+        longContextHint: 'When checked, channel intervals or official preset tiers apply. Otherwise the first tier is used unless the account explicitly enables long-context billing.',
         add: 'Add model price'
       },
       voicePricing: {

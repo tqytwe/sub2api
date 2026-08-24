@@ -132,7 +132,7 @@ func RegisterAdminRoutes(
 
 		registerFundRoutes(admin, h, stepUpAuth)
 
-		registerModelCatalogRoutes(admin, h)
+		registerModelPlazaAdminRoutes(admin, h)
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
@@ -204,8 +204,8 @@ func registerWithdrawalRoutes(admin *gin.RouterGroup, h *handler.Handlers, stepU
 	}
 }
 
-func registerModelCatalogRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
-	catalog := admin.Group("/model-catalog")
+func registerModelPlazaAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	catalog := admin.Group("/model-plaza")
 	{
 		catalog.GET("", h.Admin.ModelCatalog.List)
 		catalog.PUT("", h.Admin.ModelCatalog.Upsert)

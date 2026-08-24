@@ -2,8 +2,8 @@
   <div class="space-y-5">
     <!-- 页头(独立形态下展示标题;后台形态 AppHeader 已有页面标题) -->
     <div v-if="!embedded">
-      <h1 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">{{ t('modelPlaza.title') }}</h1>
-      <p class="mt-1.5 text-sm text-gray-500 dark:text-dark-400">{{ t('modelPlaza.description') }}</p>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{{ pageTitle }}</h1>
+      <p class="mt-1.5 text-sm text-gray-500 dark:text-dark-400">{{ pageDescription }}</p>
     </div>
 
     <!-- 全局价格说明(管理员配置,Markdown) -->
@@ -34,6 +34,13 @@
       {{ t('modelPlaza.loadFailed') }}
     </div>
     <template v-else>
+      <section
+        v-if="family"
+        class="rounded-lg border border-gray-100 bg-white px-5 py-4 text-sm text-gray-600 shadow-card dark:border-dark-700/50 dark:bg-dark-800/50 dark:text-dark-300"
+      >
+        {{ t(`models.family.${family}.description`) }}
+      </section>
+
       <!-- 筛选区:平台 → 分组 → 倍率 -->
       <PlazaFilterBar
         :platforms="platforms"
@@ -73,11 +80,14 @@ import PlazaFilterBar from './PlazaFilterBar.vue'
 import PlazaGroupSection from './PlazaGroupSection.vue'
 import type { ModelPlazaGroup, ModelPlazaResponse } from '@/api/modelPlaza'
 import { useAuthStore } from '@/stores/auth'
+import { modelMatchesFamily, type ModelFamilyKey } from './modelFamilies'
 
 const props = defineProps<{
   response: ModelPlazaResponse | null
   loading: boolean
   error?: boolean
+  /** Public family landing pages reuse the plaza and constrain the displayed models. */
+  family?: ModelFamilyKey | null
   /** 后台内嵌形态(AppLayout 内):隐藏页头。 */
   embedded?: boolean
 }>()
@@ -92,6 +102,9 @@ const selectedRate = ref<number | 'all'>('all')
 const searchQuery = ref('')
 
 const searchActive = computed(() => searchQuery.value.trim() !== '')
+const family = computed(() => props.family ?? null)
+const pageTitle = computed(() => family.value ? t(`models.family.${family.value}.title`) : t('modelPlaza.title'))
+const pageDescription = computed(() => family.value ? t(`models.family.${family.value}.subtitle`) : t('modelPlaza.description'))
 
 const descriptionHtml = computed(() => {
   const md = props.response?.description?.trim()
@@ -139,6 +152,11 @@ const filteredGroups = computed(() => {
   }
   if (selectedRate.value !== 'all') {
     groups = groups.filter((g) => effectiveRate(g) === selectedRate.value)
+  }
+  if (family.value) {
+    groups = groups
+      .map((g) => ({ ...g, models: g.models.filter((model) => modelMatchesFamily(model, family.value!)) }))
+      .filter((g) => g.models.length > 0)
   }
   // 模型名搜索:分组内只留命中的模型,整组无命中则隐藏该分组。
   const q = searchQuery.value.trim().toLowerCase()

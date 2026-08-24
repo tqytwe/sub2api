@@ -37,7 +37,16 @@ func (s *prefixedMobileReleaseStorage) Save(ctx context.Context, key, contentTyp
 }
 
 func (s *prefixedMobileReleaseStorage) Open(ctx context.Context, key string) (io.ReadCloser, string, error) {
-	return s.base.Open(ctx, s.scopedKey(key))
+	scopedKey := s.scopedKey(key)
+	reader, contentType, err := s.base.Open(ctx, scopedKey)
+	if err == nil || scopedKey == s.legacyKey(key) {
+		return reader, contentType, err
+	}
+
+	// Releases uploaded before prefix scoping used the logical key directly.
+	// Keep those already-published artifacts downloadable while all new writes
+	// continue to use the policy-safe scoped key above.
+	return s.base.Open(ctx, s.legacyKey(key))
 }
 
 func (s *prefixedMobileReleaseStorage) Delete(ctx context.Context, key string) error {
@@ -46,4 +55,8 @@ func (s *prefixedMobileReleaseStorage) Delete(ctx context.Context, key string) e
 
 func (s *prefixedMobileReleaseStorage) scopedKey(key string) string {
 	return path.Join(s.prefix, strings.TrimLeft(key, "/"))
+}
+
+func (s *prefixedMobileReleaseStorage) legacyKey(key string) string {
+	return path.Clean("/" + strings.TrimLeft(key, "/"))[1:]
 }

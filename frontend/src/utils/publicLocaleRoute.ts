@@ -24,14 +24,14 @@ export function resolvePublicLocaleRoute(
     if (path === '/about') return { path: '/en/about' }
     if (path === '/contact') return { path: '/en/contact' }
     if (path === '/pricing' || path.startsWith('/pricing/')) {
-      return withQuery(path.replace(/^\/pricing/, '/en/models'), query)
+      return withQuery(path === '/pricing' ? '/en/models' : `/en/models${path.slice('/pricing'.length)}`, query)
     }
     if (path === '/docs') return withQuery('/en/docs', query)
     return { path: '/en' }
   }
 
   if (path === '/en/models' || path.startsWith('/en/models/')) {
-    return withQuery(path.replace(/^\/en\/models/, '/pricing'), query)
+    return withQuery(path === '/en/models' ? '/models' : `/models${path.slice('/en/models'.length)}`, query)
   }
   if (path === '/en/docs') return withQuery('/docs', query)
   if (path === '/en/about') return { path: '/about' }
