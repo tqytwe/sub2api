@@ -93,4 +93,28 @@ describe('DateRangePicker', () => {
       }
     ])
   })
+
+  it('applies the today preset immediately when selected', async () => {
+    const today = formatLocalDate(new Date())
+    const wrapper = mount(DateRangePicker, {
+      props: {
+        startDate: formatLocalDate(new Date(Date.now() - 24 * 60 * 60 * 1000)),
+        endDate: today
+      },
+      global: { stubs: { Icon: true } }
+    })
+
+    await wrapper.find('.date-picker-trigger').trigger('click')
+    const presetButton = wrapper.findAll('.date-picker-preset').find((node) => node.text().includes('Today'))
+    expect(presetButton).toBeDefined()
+    await presetButton!.trigger('click')
+
+    expect(wrapper.emitted('update:startDate')?.at(-1)).toEqual([today])
+    expect(wrapper.emitted('update:endDate')?.at(-1)).toEqual([today])
+    expect(wrapper.emitted('change')?.at(-1)).toEqual([{
+      startDate: today,
+      endDate: today,
+      preset: 'today'
+    }])
+  })
 })
