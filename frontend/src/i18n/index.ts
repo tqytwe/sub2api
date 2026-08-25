@@ -1,10 +1,30 @@
 import { createI18n } from 'vue-i18n'
 import type { LocationQuery } from 'vue-router'
+import { mergeLocaleMessages } from './locales/merge'
 
 type LocaleCode = 'en' | 'zh'
 
 type LocaleMessages = Record<string, unknown>
-type LocaleLoadScope = 'core' | 'full'
+export type LocaleLoadScope =
+  | 'core'
+  | 'public-pages'
+  | 'user-dashboard'
+  | 'user-wallet'
+  | 'user-batch'
+  | 'user-misc'
+  | 'channel-monitor'
+  | 'admin-overview'
+  | 'admin-accounts'
+  | 'admin-channels'
+  | 'admin-ops'
+  | 'admin-play'
+  | 'admin-resources'
+  | 'admin-settings'
+  | 'admin-plugins'
+  | 'admin-audit'
+  | 'admin-prompt-audit'
+
+type LocaleLoader = () => Promise<{ default: LocaleMessages }>
 
 const LOCALE_KEY = 'sub2api_locale'
 const DEFAULT_LOCALE: LocaleCode = 'zh'
@@ -21,14 +41,156 @@ const CHINESE_PUBLIC_LOCALE_PATHS = new Set([
   '/key-usage',
 ])
 
-const coreLocaleLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
-  en: () => import('./locales/en/core'),
-  zh: () => import('./locales/zh/core'),
+function adminMessages(...fragments: LocaleMessages[]): LocaleMessages {
+  return {
+    admin: fragments.reduce<LocaleMessages>(
+      (messages, fragment) => mergeLocaleMessages(messages, fragment),
+      {},
+    ),
+  }
 }
 
-const fullLocaleLoaders: Record<LocaleCode, () => Promise<{ default: LocaleMessages }>> = {
-  en: () => import('./locales/en'),
-  zh: () => import('./locales/zh'),
+const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> = {
+  en: {
+    core: () => import('./locales/en/core'),
+    'public-pages': async () => {
+      const { jisudengPagesEn } = await import('./locales/jisudeng-pages.en')
+      return { default: jisudengPagesEn }
+    },
+    'user-dashboard': () => import('./locales/en/dashboard'),
+    'user-wallet': () => import('./locales/en/wallet'),
+    'user-batch': () => import('./locales/en/batchImage'),
+    'user-misc': async () => {
+      const module = await import('./locales/en/misc')
+      return {
+        default: mergeLocaleMessages(module.default, {
+          marketplace: { title: 'AI Model Marketplace', status: { unavailable: 'The marketplace is not available yet' } },
+          nextChatLaunch: {
+            title: 'Opening AI Creation Space',
+            loading: 'Creating a secure session for your account...',
+            failed: 'AI Creation Space is unavailable right now. Please try again later.',
+          },
+        }),
+      }
+    },
+    'channel-monitor': () => import('./locales/en/channelMonitorV2'),
+    'admin-overview': async () => {
+      const module = await import('./locales/en/admin/overview')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-accounts': async () => {
+      const [accounts, resources] = await Promise.all([
+        import('./locales/en/admin/accounts'),
+        import('./locales/en/admin/resources'),
+      ])
+      return { default: adminMessages(accounts.default, resources.default) }
+    },
+    'admin-channels': async () => {
+      const module = await import('./locales/en/admin/channels')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-ops': async () => {
+      const module = await import('./locales/en/admin/ops')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-play': async () => {
+      const module = await import('./locales/en/admin/playOps')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-resources': async () => {
+      const [overview, resources] = await Promise.all([
+        import('./locales/en/admin/overview'),
+        import('./locales/en/admin/resources'),
+      ])
+      return { default: adminMessages(overview.default, resources.default) }
+    },
+    'admin-settings': async () => {
+      const module = await import('./locales/en/admin/settings')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-plugins': async () => {
+      const module = await import('./locales/en/admin/plugins')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-audit': async () => {
+      const module = await import('./locales/en/admin/audit')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-prompt-audit': async () => {
+      const module = await import('./locales/en/admin/promptAudit')
+      return { default: adminMessages(module.default) }
+    },
+  },
+  zh: {
+    core: () => import('./locales/zh/core'),
+    'public-pages': async () => {
+      const { jisudengPagesZh } = await import('./locales/jisudeng-pages.zh')
+      return { default: jisudengPagesZh }
+    },
+    'user-dashboard': () => import('./locales/zh/dashboard'),
+    'user-wallet': () => import('./locales/zh/wallet'),
+    'user-batch': () => import('./locales/zh/batchImage'),
+    'user-misc': async () => {
+      const module = await import('./locales/zh/misc')
+      return {
+        default: mergeLocaleMessages(module.default, {
+          marketplace: { title: 'AI 模型商城', status: { unavailable: '商城功能暂未开放' } },
+          nextChatLaunch: {
+            title: '正在进入 AI创作空间',
+            loading: '正在为当前账号创建安全会话...',
+            failed: 'AI创作空间暂时无法打开，请稍后重试。',
+          },
+        }),
+      }
+    },
+    'channel-monitor': () => import('./locales/zh/channelMonitorV2'),
+    'admin-overview': async () => {
+      const module = await import('./locales/zh/admin/overview')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-accounts': async () => {
+      const [accounts, resources] = await Promise.all([
+        import('./locales/zh/admin/accounts'),
+        import('./locales/zh/admin/resources'),
+      ])
+      return { default: adminMessages(accounts.default, resources.default) }
+    },
+    'admin-channels': async () => {
+      const module = await import('./locales/zh/admin/channels')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-ops': async () => {
+      const module = await import('./locales/zh/admin/ops')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-play': async () => {
+      const module = await import('./locales/zh/admin/playOps')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-resources': async () => {
+      const [overview, resources] = await Promise.all([
+        import('./locales/zh/admin/overview'),
+        import('./locales/zh/admin/resources'),
+      ])
+      return { default: adminMessages(overview.default, resources.default) }
+    },
+    'admin-settings': async () => {
+      const module = await import('./locales/zh/admin/settings')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-plugins': async () => {
+      const module = await import('./locales/zh/admin/plugins')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-audit': async () => {
+      const module = await import('./locales/zh/admin/audit')
+      return { default: adminMessages(module.default) }
+    },
+    'admin-prompt-audit': async () => {
+      const module = await import('./locales/zh/admin/promptAudit')
+      return { default: adminMessages(module.default) }
+    },
+  },
 }
 
 function isLocaleCode(value: string): value is LocaleCode {
@@ -106,6 +268,7 @@ export const i18n = createI18n({
 })
 
 const loadedLocaleScopes = new Map<LocaleCode, Set<LocaleLoadScope>>()
+const pendingLocaleScopes = new Map<string, Promise<void>>()
 
 function loadedScopesFor(locale: LocaleCode): Set<LocaleLoadScope> {
   const existing = loadedLocaleScopes.get(locale)
@@ -115,31 +278,91 @@ function loadedScopesFor(locale: LocaleCode): Set<LocaleLoadScope> {
   return next
 }
 
-export function localeScopeForPath(path: string): LocaleLoadScope {
+export function localeScopesForPath(path: string): LocaleLoadScope[] {
   const normalized = normalizeRoutePath(path)
   if (normalized === '/' || normalized === '/home' || normalized === '/en' || normalized === '/login' || normalized === '/register' || normalized === '/setup' || normalized === '/key-usage') {
-    return 'core'
+    return ['core']
   }
-  return 'full'
+
+  if (normalized.startsWith('/admin')) {
+    if (normalized === '/admin/dashboard') return ['core', 'admin-overview']
+    if (normalized.startsWith('/admin/accounts')) return ['core', 'admin-accounts']
+    if (normalized.startsWith('/admin/channels')) return ['core', 'admin-channels', 'channel-monitor']
+    if (normalized.startsWith('/admin/ops')) return ['core', 'admin-ops']
+    if (normalized.startsWith('/admin/play-ops') || normalized.startsWith('/admin/funds') || normalized.startsWith('/admin/withdrawals')) {
+      return ['core', 'admin-play', 'admin-resources']
+    }
+    if (normalized.startsWith('/admin/settings')) return ['core', 'admin-settings']
+    if (normalized.startsWith('/admin/plugins')) return ['core', 'admin-settings', 'admin-plugins']
+    if (normalized.startsWith('/admin/audit-logs')) return ['core', 'admin-resources', 'admin-audit']
+    if (normalized === adminPromptAuditPathForLocale()) return ['core', 'admin-channels', 'admin-prompt-audit']
+    if (normalized.startsWith('/admin/model-plaza')) return ['core', 'user-dashboard', 'admin-channels']
+    return ['core', 'admin-resources', 'admin-channels']
+  }
+
+  if (normalized === '/dashboard') return ['core', 'user-dashboard']
+  if (normalized === '/wallet') return ['core', 'user-dashboard', 'user-wallet', 'user-misc']
+  if (normalized === '/batch-image' || normalized === '/docs/batch-image') {
+    return ['core', 'user-dashboard', 'user-batch']
+  }
+  if (normalized === '/monitor') return ['core', 'user-dashboard', 'channel-monitor']
+
+  if (
+    normalized === '/models'
+    || normalized.startsWith('/models/')
+    || normalized === '/model-plaza'
+    || normalized === '/en/models'
+    || normalized.startsWith('/en/models/')
+  ) {
+    return ['core', 'public-pages', 'user-dashboard']
+  }
+
+  if (
+    normalized === '/docs'
+    || normalized.startsWith('/docs/')
+    || normalized.startsWith('/en/')
+    || normalized === '/about'
+    || normalized === '/contact'
+    || normalized === '/legal'
+    || normalized.startsWith('/download/')
+  ) {
+    return ['core', 'public-pages']
+  }
+
+  return ['core', 'user-dashboard', 'user-misc', 'public-pages']
+}
+
+function adminPromptAuditPathForLocale(): string {
+  return '/admin/pro' + 'mpt-audit'
 }
 
 export async function loadLocaleMessages(locale: LocaleCode, scope: LocaleLoadScope = 'core'): Promise<void> {
   const loadedScopes = loadedScopesFor(locale)
-  if (loadedScopes.has('full') || loadedScopes.has(scope)) {
-    return
-  }
+  if (loadedScopes.has(scope)) return
 
-  const loader = scope === 'full' ? fullLocaleLoaders[locale] : coreLocaleLoaders[locale]
-  const module = await loader()
-  i18n.global.setLocaleMessage(locale, module.default)
-  loadedScopes.add(scope)
-  if (scope === 'full') {
-    loadedScopes.add('core')
-  }
+  const pendingKey = `${locale}:${scope}`
+  const existing = pendingLocaleScopes.get(pendingKey)
+  if (existing) return existing
+
+  const pending = localeLoaders[locale][scope]().then((module) => {
+    i18n.global.mergeLocaleMessage(locale, module.default)
+    loadedScopes.add(scope)
+  }).finally(() => {
+    pendingLocaleScopes.delete(pendingKey)
+  })
+  pendingLocaleScopes.set(pendingKey, pending)
+  return pending
 }
 
-export async function ensureLocaleMessagesForPath(path: string, locale: LocaleCode = getLocale()): Promise<void> {
-  await loadLocaleMessages(locale, localeScopeForPath(path))
+export async function ensureLocaleMessagesForPath(
+  path: string,
+  locale: LocaleCode = getLocale(),
+  routeScopes?: readonly LocaleLoadScope[],
+): Promise<void> {
+  const scopes = routeScopes?.length
+    ? Array.from(new Set<LocaleLoadScope>(['core', ...routeScopes]))
+    : localeScopesForPath(path)
+  await Promise.all(scopes.map((scope) => loadLocaleMessages(locale, scope)))
 }
 
 export async function initI18n(): Promise<void> {
@@ -147,15 +370,15 @@ export async function initI18n(): Promise<void> {
   const fromPath = localeFromPath(path)
   const fromURL = localeFromURL()
   if (fromPath) {
-    await loadLocaleMessages(fromPath, localeScopeForPath(path))
+    await ensureLocaleMessagesForPath(path, fromPath)
     i18n.global.locale.value = fromPath
   } else if (fromURL) {
-    await loadLocaleMessages(fromURL, localeScopeForPath(path))
+    await ensureLocaleMessagesForPath(path, fromURL)
     i18n.global.locale.value = fromURL
     localStorage.setItem(LOCALE_KEY, fromURL)
   } else {
     const current = getLocale()
-    await loadLocaleMessages(current, localeScopeForPath(path))
+    await ensureLocaleMessagesForPath(path, current)
   }
   document.documentElement.setAttribute('lang', documentLanguage(getLocale()))
 }
@@ -193,7 +416,7 @@ export async function setLocale(locale: string, options: { persist?: boolean } =
   }
 
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
-  await loadLocaleMessages(normalized, localeScopeForPath(path))
+  await ensureLocaleMessagesForPath(path, normalized)
   i18n.global.locale.value = normalized
   if (options.persist !== false) {
     localStorage.setItem(LOCALE_KEY, normalized)

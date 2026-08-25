@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { localeFromPath, localeScopeForPath } from '../index'
+import { localeFromPath, localeScopesForPath } from '../index'
 import enCore from '../locales/en/core'
 import zhCore from '../locales/zh/core'
 import enFull from '../locales/en'
@@ -24,20 +24,28 @@ describe('lazy locale loading scopes', () => {
     '/setup',
     '/key-usage',
   ])('keeps %s on the lightweight core locale scope', (path) => {
-    expect(localeScopeForPath(path)).toBe('core')
+    expect(localeScopesForPath(path)).toEqual(['core'])
   })
 
   it.each([
-    '/en/models',
-    '/en/models/deepseek',
-    '/en/docs',
     '/dashboard',
     '/wallet',
-    '/arena',
-    '/admin/users',
-    '/admin/settings',
-  ])('loads full locale messages before rendering %s', (path) => {
-    expect(localeScopeForPath(path)).toBe('full')
+  ])('loads the user Dashboard fragment without a full locale bundle for %s', (path) => {
+    expect(localeScopesForPath(path)).toContain('user-dashboard')
+    expect(localeScopesForPath(path)).not.toContain('full')
+  })
+
+  it.each([
+    ['/admin/dashboard', 'admin-overview'],
+    ['/admin/accounts', 'admin-accounts'],
+    ['/admin/channels', 'admin-channels'],
+    ['/admin/ops', 'admin-ops'],
+    ['/admin/play-ops', 'admin-play'],
+    ['/admin/users', 'admin-resources'],
+    ['/admin/settings', 'admin-settings'],
+  ] as const)('maps %s to the %s fragment', (path, scope) => {
+    expect(localeScopesForPath(path)).toContain(scope)
+    expect(localeScopesForPath(path)).not.toContain('full')
   })
 
   it('forces English only for the explicit /en route layer', () => {

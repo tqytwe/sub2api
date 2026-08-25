@@ -123,7 +123,6 @@
     v-else
     class="home-page"
     :class="{
-      'is-intro': isIntro,
       'has-guest-sticky-cta': !isAuthenticated && showGuestStickyCta,
     }"
   >
@@ -229,7 +228,7 @@
     </header>
 
     <section class="hero-section">
-      <HeroSphere @reveal="onReveal" />
+      <HeroSphere />
       <div class="page-container hero-block">
         <p class="hero-eyebrow">
           <template v-for="(bit, idx) in eyebrowBits" :key="idx">
@@ -456,8 +455,8 @@
             <p class="chc-title">{{ t('home.jisudeng.channels.copyTitle') }}</p>
             <p class="chc-body">{{ t('home.jisudeng.channels.copyBody') }}</p>
           </div>
-          <div class="channels-tv">
-            <ChannelTV />
+          <div class="channels-tv home-lazy-demo home-lazy-demo--channels">
+            <ChannelTV v-if="inView.channels" />
           </div>
         </div>
       </div>
@@ -511,7 +510,9 @@
               </div>
             </li>
           </ol>
-          <TerminalDemo @phase="(p) => (onboardPhase = p)" />
+          <div class="home-lazy-demo home-lazy-demo--terminal">
+            <TerminalDemo v-if="inView.onboard" @phase="(p) => (onboardPhase = p)" />
+          </div>
         </div>
         <p class="onboard-foot">
           {{ t('home.jisudeng.onboard.docLink') }}
@@ -642,15 +643,13 @@
 
 <script setup lang="ts">
 import '@/styles/home-view.css'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import HeroSphere from '@/components/home/HeroSphere.vue'
-import ChannelTV from '@/components/home/ChannelTV.vue'
-import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import LmspeedBadge from '@/components/home/LmspeedBadge.vue'
 import LmspeedProviderProof from '@/components/home/LmspeedProviderProof.vue'
@@ -675,13 +674,15 @@ import {
   aiCreationSpaceEntryRoute,
 } from '@/router/publicNavigation'
 
+const ChannelTV = defineAsyncComponent(() => import('@/components/home/ChannelTV.vue'))
+const TerminalDemo = defineAsyncComponent(() => import('@/components/home/TerminalDemo.vue'))
+
 const { t, tm, te, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
-const isIntro = ref(true)
 const headerScrolled = ref(false)
 const mobileNavOpen = ref(false)
 const mobileNavId = 'home-mobile-navigation'
@@ -945,10 +946,6 @@ const closerDots = (() => {
   return dots
 })()
 
-function onReveal() {
-  isIntro.value = false
-}
-
 function goRegister() {
   router.push(registerRoute)
 }
@@ -1059,7 +1056,11 @@ function ensureFonts() {
   fontEl.rel = 'stylesheet'
   fontEl.setAttribute('data-jisudeng-fonts', 'true')
   fontEl.href =
-    'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@600;700;800&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap'
+    'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@600;700;800&family=IBM+Plex+Mono:wght@400&display=optional'
+  fontEl.media = 'print'
+  fontEl.addEventListener('load', () => {
+    if (fontEl) fontEl.media = 'all'
+  }, { once: true })
   document.head.appendChild(fontEl)
 }
 
@@ -1090,7 +1091,7 @@ onMounted(() => {
         }
       }
     },
-    { rootMargin: '0px 0px -80px 0px', threshold: 0.08 }
+    { rootMargin: '320px 0px', threshold: 0.01 }
   )
   document.querySelectorAll('.home-page section:not(.hero-section)').forEach((el) => observer?.observe(el))
 })
@@ -1113,6 +1114,29 @@ onBeforeUnmount(() => {
 .compact-home-logo {
   display: block;
   margin-inline: auto;
+}
+
+.home-lazy-demo {
+  inline-size: 100%;
+  contain: layout paint;
+}
+
+.home-lazy-demo--channels {
+  min-block-size: 520px;
+}
+
+.home-lazy-demo--terminal {
+  min-block-size: 360px;
+}
+
+@media (width <= 767px) {
+  .home-lazy-demo--channels {
+    min-block-size: 440px;
+  }
+
+  .home-lazy-demo--terminal {
+    min-block-size: 332px;
+  }
 }
 
 .sr-only {

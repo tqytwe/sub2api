@@ -11,6 +11,7 @@ const componentPath = resolve(dirname(fileURLToPath(import.meta.url)), '../AppSi
 const componentSource = readFileSync(componentPath, 'utf8')
 const stylePath = resolve(dirname(fileURLToPath(import.meta.url)), '../../../style.css')
 const styleSource = readFileSync(stylePath, 'utf8')
+const routerSource = readFileSync(resolve(dirname(fileURLToPath(import.meta.url)), '../../../router/index.ts'), 'utf8')
 
 function sidebarNavKeys(): string[] {
   return [...componentSource.matchAll(/t\('nav\.([^']+)'\)/g)]
@@ -81,6 +82,20 @@ describe('AppSidebar scroll position persistence', () => {
     expect(componentSource).toContain('onMounted')
     expect(componentSource).toContain('appStore.sidebarScrollTop')
     expect(componentSource).toContain('nextTick')
+  })
+})
+
+describe('AppSidebar intent prefetch', () => {
+  it('prefetches links only from direct user intent', () => {
+    expect(componentSource).toContain('@mouseenter="prefetchRoute(item.path)"')
+    expect(componentSource).toContain('@focus="prefetchRoute(item.path)"')
+    expect(componentSource).toContain('@pointerdown="prefetchRoute(item.path)"')
+    expect(componentSource).toContain('@mouseenter="prefetchRoute(child.path)"')
+  })
+
+  it('does not automatically prefetch neighboring routes after navigation', () => {
+    expect(routerSource).not.toContain('triggerPrefetch(to)')
+    expect(routerSource).not.toContain('useRoutePrefetch(router)')
   })
 })
 

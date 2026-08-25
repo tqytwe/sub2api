@@ -1,67 +1,22 @@
 <template>
-  <div class="hs-root" aria-hidden="true">
-    <div v-if="introActive" ref="backdropEl" class="hs-backdrop" />
-    <canvas v-if="introActive" ref="canvasIntroEl" class="hs-canvas hs-intro" />
+  <div ref="rootEl" class="hs-root" aria-hidden="true">
     <canvas ref="canvasMainEl" class="hs-canvas" />
-    <div class="hs-stage" :class="{ 'is-fixed': introActive }">
-      <div
-        v-for="(model, idx) in visibleModels"
-        :key="model.name"
-        :ref="(el) => setLogoRef(el as HTMLElement | null, idx)"
-        class="hs-logo"
-      >
-        <span class="hs-logo-badge">
-          <svg viewBox="0 0 24 24"><path :d="model.path" /></svg>
-        </span>
-        <span class="hs-logo-name">{{ model.name }}</span>
-      </div>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import type { FeatureCollection } from 'geojson'
-import { geoDistance, geoGraticule, geoOrthographic, geoPath } from 'd3-geo'
+import { geoGraticule, geoOrthographic, geoPath } from 'd3-geo'
 import { onMounted, onUnmounted, ref } from 'vue'
-import { MODEL_ICONS } from './model-icons'
 
-const INTRO_KEY = 'jd-home-intro-seen'
-const INTRO_MS = 1900
-const TRANSITION_MS = 1150
-const REVEAL_MS = 2150
-const PARTICLE_MS = 2150
-const SPIN_START = 600
-const SPIN_END = 1100
+const ANIMATION_MS = 4000
+const MOBILE_PARTICLES = 360
+const DESKTOP_PARTICLES = 650
 
 const emit = defineEmits<{ reveal: [] }>()
 
-const introActive = ref(!hasSeenIntro())
-const backdropEl = ref<HTMLElement | null>(null)
-const canvasIntroEl = ref<HTMLCanvasElement | null>(null)
+const rootEl = ref<HTMLElement | null>(null)
 const canvasMainEl = ref<HTMLCanvasElement | null>(null)
-const logoRefs = ref<(HTMLElement | null)[]>([])
-
-const visibleModels = MODEL_ICONS.slice(0, typeof window !== 'undefined' && window.innerWidth < 768 ? 6 : 8)
-
-function hasSeenIntro() {
-  try {
-    return sessionStorage.getItem(INTRO_KEY) === '1'
-  } catch {
-    return false
-  }
-}
-
-function markIntroSeen() {
-  try {
-    sessionStorage.setItem(INTRO_KEY, '1')
-  } catch {
-    /* ignore */
-  }
-}
-
-function setLogoRef(el: HTMLElement | null, idx: number) {
-  logoRefs.value[idx] = el
-}
 
 const palette = {
   graticule: 'rgba(10,10,10,0.09)',
@@ -85,16 +40,18 @@ let land: FeatureCollection | null = null
 let coast: FeatureCollection | null = null
 let rivers: FeatureCollection | null = null
 let lakes: FeatureCollection | null = null
-
-let introCtx: CanvasCtx | null = null
 let mainCtx: CanvasCtx | null = null
 let raf = 0
-let startTs = 0
-let lastTs = 0
-let spin = 0
-let scrollUnlocked = false
-let introDone = false
-let particles: Array<{ x: number; y: number; z: number; delay: number; scatter: number }> = []
+let animationStart = 0
+let animationStarted = false
+let animationComplete = false
+let isIntersecting = true
+let isUnmounted = false
+let staticMode = false
+let enhancementHandle: number | ReturnType<typeof setTimeout> | null = null
+let enhancementUsesIdleCallback = false
+let observer: IntersectionObserver | null = null
+let particles: Array<{ x: number; y: number; z: number }> = []
 
 interface CanvasCtx {
   ctx: CanvasRenderingContext2D
@@ -104,28 +61,13 @@ interface CanvasCtx {
   h: number
 }
 
-const anchorPoints = [
-  { lat: 27, lon: 0 },
-  { lat: -16, lon: 45 },
-  { lat: 7, lon: 90 },
-  { lat: -27, lon: 135 },
-  { lat: 19, lon: 180 },
-  { lat: -5, lon: 225 },
-  { lat: 30, lon: 270 },
-  { lat: -22, lon: 315 }
-]
-
-function clamp(n: number, lo = 0, hi = 1) {
-  return Math.min(hi, Math.max(lo, n))
+function clamp(value: number, min = 0, max = 1) {
+  return Math.min(max, Math.max(min, value))
 }
 
-function easeOutCubic(t: number) {
-  return 1 - (1 - t) ** 3
-}
-
-function smoothstep(t: number) {
-  const p = clamp(t)
-  return p * p * (3 - 2 * p)
+function smoothstep(value: number) {
+  const progress = clamp(value)
+  return progress * progress * (3 - 2 * progress)
 }
 
 function isMobile() {
@@ -133,19 +75,15 @@ function isMobile() {
 }
 
 function globeRadius() {
-  const w = window.innerWidth
+  const width = window.innerWidth
   const base = isMobile()
-    ? Math.min(Math.max(w * 0.62, 200), 300)
-    : Math.min(Math.max(w * 0.38, 280), 470)
+    ? Math.min(Math.max(width * 0.62, 200), 300)
+    : Math.min(Math.max(width * 0.38, 280), 470)
   return (base / 3) * 1.32
 }
 
-function mainGlobeCenterY(c: CanvasCtx) {
-  return isMobile() ? c.h * 0.9 : c.h * 1.2
-}
-
-function introRadius() {
-  return Math.min(window.innerWidth, window.innerHeight) * 0.46
+function mainGlobeCenterY(canvas: CanvasCtx) {
+  return isMobile() ? canvas.h * 0.9 : canvas.h * 1.2
 }
 
 function makeCtx(canvas: HTMLCanvasElement | null): CanvasCtx | null {
@@ -162,41 +100,32 @@ function makeCtx(canvas: HTMLCanvasElement | null): CanvasCtx | null {
 }
 
 function resize() {
+  if (!mainCtx || !canvasMainEl.value) return
   const dpr = Math.min(window.devicePixelRatio || 1, 2)
-  if (introCtx && canvasIntroEl.value) {
-    introCtx.w = window.innerWidth
-    introCtx.h = window.innerHeight
-    canvasIntroEl.value.width = Math.round(introCtx.w * dpr)
-    canvasIntroEl.value.height = Math.round(introCtx.h * dpr)
-    introCtx.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
-  }
-  if (mainCtx && canvasMainEl.value) {
-    const parent = canvasMainEl.value.parentElement
-    mainCtx.w = parent?.clientWidth ?? window.innerWidth
-    mainCtx.h = parent?.clientHeight ?? window.innerHeight
-    canvasMainEl.value.width = Math.round(mainCtx.w * dpr)
-    canvasMainEl.value.height = Math.round(mainCtx.h * dpr)
-    mainCtx.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+  const parent = canvasMainEl.value.parentElement
+  mainCtx.w = parent?.clientWidth || window.innerWidth
+  mainCtx.h = parent?.clientHeight || window.innerHeight
+  canvasMainEl.value.width = Math.round(mainCtx.w * dpr)
+  canvasMainEl.value.height = Math.round(mainCtx.h * dpr)
+  mainCtx.ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
+
+  if (staticMode || animationComplete) drawFrame(ANIMATION_MS)
+}
+
+async function loadEarth(name: string): Promise<FeatureCollection | null> {
+  try {
+    const response = await fetch(`/earth/${name}.lod.json`)
+    if (!response.ok) return null
+    return await response.json() as FeatureCollection
+  } catch {
+    return null
   }
 }
 
-function loadEarth(name: string) {
-  return fetch(`/earth/${name}.lod.json`).then((r) => (r.ok ? r.json() : null))
-}
-
-function drawGlobe(
-  c: CanvasCtx,
-  cx: number,
-  cy: number,
-  r: number,
-  alpha: number,
-  backOnly = false
-) {
-  if (alpha < 0.004) return
-  projection.translate([cx, cy]).scale(r)
-  backProjection.translate([cx, cy]).scale(r)
-  const { ctx, pf, pb } = c
-  ctx.globalAlpha = alpha
+function drawGlobe(canvas: CanvasCtx, cx: number, cy: number, radius: number) {
+  projection.translate([cx, cy]).scale(radius)
+  backProjection.translate([cx, cy]).scale(radius)
+  const { ctx, pf, pb } = canvas
 
   if (land) {
     ctx.beginPath()
@@ -218,7 +147,7 @@ function drawGlobe(
   ctx.lineWidth = 0.6
   ctx.stroke()
 
-  if (!backOnly && land) {
+  if (land) {
     ctx.beginPath()
     pf(land)
     ctx.fillStyle = palette.landFill
@@ -235,227 +164,196 @@ function drawGlobe(
   }
   if (rivers) {
     ctx.beginPath()
-    for (const f of rivers.features) {
-      if ((f.properties?.sr ?? 0) <= 8) pf(f)
+    for (const feature of rivers.features) {
+      if ((feature.properties?.sr ?? 0) <= 8) pf(feature)
     }
     ctx.strokeStyle = palette.river
     ctx.lineWidth = 0.55
     ctx.stroke()
   }
-  if (!backOnly && coast) {
+  if (coast) {
     ctx.beginPath()
     pf(coast)
     ctx.strokeStyle = palette.coast
     ctx.lineWidth = 0.9
     ctx.stroke()
   }
+
   ctx.beginPath()
   pf(sphere)
   ctx.strokeStyle = palette.rim
   ctx.lineWidth = 1
   ctx.stroke()
-  ctx.globalAlpha = 1
 }
 
-function projectPoint(lon: number, lat: number) {
-  const rot = projection.rotate()
-  const dist = geoDistance([lon, lat], [-rot[0], -rot[1]])
-  const pt = projection([lon, lat])
-  return {
-    x: pt?.[0] ?? 0,
-    y: pt?.[1] ?? 0,
-    depth: Math.cos(dist)
-  }
-}
-
-function drawParticles(c: CanvasCtx, r: number, alpha: number, cy = c.h / 2) {
-  if (alpha < 0.01 || !particles.length) return
-  const { ctx, w } = c
+function drawParticles(canvas: CanvasCtx, radius: number, alpha: number, cy: number) {
+  if (!particles.length || alpha <= 0) return
+  const { ctx, w } = canvas
   const cx = w / 2
-  const cosY = Math.cos((spin * Math.PI) / 180)
-  const sinY = Math.sin((spin * Math.PI) / 180)
-  const tilt = (-18 * Math.PI) / 180
-  const cosX = Math.cos(tilt)
-  const sinX = Math.sin(tilt)
-  const k = 4.6
+  const rotation = projection.rotate()[0] * Math.PI / 180
+  const cosY = Math.cos(rotation)
+  const sinY = Math.sin(rotation)
 
   ctx.fillStyle = palette.particle
-  for (const p of particles) {
-    const t = clamp((performance.now() - startTs - PARTICLE_MS - p.delay * SPIN_START) / SPIN_END)
-    const eased = easeOutCubic(t)
-    const scale = p.scatter + (1 - p.scatter) * eased
-    const x1 = p.x * cosY + p.z * sinY
-    const y1 = -p.x * sinY + p.z * cosY
-    const y2 = p.y * cosX - y1 * sinX
-    const z2 = p.y * sinX + y1 * cosX
-    const depth = (z2 + 1) / 2
-    const persp = k / (k + z2)
-    const dotAlpha = (0.12 + depth * 0.78) * alpha * eased
-    if (dotAlpha < 0.008) continue
-    ctx.globalAlpha = dotAlpha
+  for (const particle of particles) {
+    const x = particle.x * cosY + particle.z * sinY
+    const z = -particle.x * sinY + particle.z * cosY
+    const depth = (z + 1) / 2
+    ctx.globalAlpha = alpha * (0.2 + depth * 0.8)
     ctx.beginPath()
-    ctx.arc(cx + x1 * r * scale * persp, cy - y2 * r * scale * persp, (0.55 + depth * 0.95) * scale, 0, Math.PI * 2)
+    ctx.arc(cx + x * radius, cy - particle.y * radius, 0.45 + depth * 0.7, 0, Math.PI * 2)
     ctx.fill()
   }
   ctx.globalAlpha = 1
 }
 
-function updateLogos(elapsed: number) {
-  const diag = Math.hypot(window.innerWidth, window.innerHeight)
-  for (let i = 0; i < visibleModels.length; i++) {
-    const el = logoRefs.value[i]
-    if (!el) continue
-    const anchor = anchorPoints[i]
-    let x = 0
-    let y = 0
-    let scale = 1
-    let opacity = 0
+function drawFrame(elapsed: number) {
+  if (!mainCtx) return
+  const progress = smoothstep(elapsed / ANIMATION_MS)
+  const rotation = 18 * progress
+  projection.rotate([-rotation, -18])
+  backProjection.rotate([-rotation + 180, -18])
 
-    if (elapsed < INTRO_MS) {
-      const t = clamp((elapsed - 300 - i * 45) / 320)
-      if (t <= 0) {
-        el.style.opacity = '0'
-        continue
-      }
-      const p = projectPoint(anchor.lon, anchor.lat)
-      const depth = (p.depth + 1) / 2
-      x = p.x
-      y = p.y
-      scale = (0.72 + 0.42 * depth) * (0.3 + 0.7 * t)
-      opacity = t * (0.3 + 0.7 * depth)
-    } else if (elapsed < PARTICLE_MS + 400) {
-      const t = clamp((elapsed - INTRO_MS) / 560)
-      const p = projectPoint(anchor.lon, anchor.lat)
-      const depth = (p.depth + 1) / 2
-      const scatter = t * t * t
-      x = p.x + p.x * diag * 0.0008 * scatter
-      y = p.y + p.y * diag * 0.0008 * scatter
-      scale = (0.72 + 0.42 * depth) * (1 + 0.3 * scatter)
-      opacity = (0.3 + 0.7 * depth) * (1 - t)
-    } else {
-      el.style.opacity = '0'
-      continue
-    }
-
-    el.style.transform = `translate3d(${x}px, ${y}px, 0) translate(-50%, -50%) scale(${scale})`
-    el.style.opacity = String(opacity)
+  const canvas = mainCtx
+  canvas.ctx.clearRect(0, 0, canvas.w, canvas.h)
+  const centerY = mainGlobeCenterY(canvas)
+  const radius = globeRadius()
+  drawGlobe(canvas, canvas.w / 2, centerY, radius)
+  if (!staticMode) {
+    drawParticles(canvas, radius, 0.025 * progress, centerY)
   }
 }
 
-function frame(ts: number) {
-  raf = requestAnimationFrame(frame)
-  const elapsed = ts - startTs
-  const dt = Math.min(50, ts - lastTs || 16)
-  lastTs = ts
+function stopAnimation() {
+  if (!raf) return
+  window.cancelAnimationFrame(raf)
+  raf = 0
+}
 
-  const spinning = elapsed >= INTRO_MS && elapsed < INTRO_MS + TRANSITION_MS + PARTICLE_MS + SPIN_END
-  if (spinning || elapsed < INTRO_MS + TRANSITION_MS) {
-    spin += (elapsed < INTRO_MS ? 9 : 2.9) * (dt / 1000)
-    projection.rotate([-spin, -18])
-    backProjection.rotate([-spin + 180, -18])
+function frame(timestamp: number) {
+  raf = 0
+  if (document.hidden || !isIntersecting || isUnmounted) return
+
+  const elapsed = Math.max(0, timestamp - animationStart)
+  drawFrame(Math.min(elapsed, ANIMATION_MS))
+  if (elapsed >= ANIMATION_MS) {
+    animationComplete = true
+    return
   }
+  raf = window.requestAnimationFrame(frame)
+}
 
-  if (!scrollUnlocked && elapsed >= REVEAL_MS) {
-    scrollUnlocked = true
-    document.documentElement.style.overflow = ''
-    document.body.style.overflow = ''
-    if (backdropEl.value) backdropEl.value.style.pointerEvents = 'none'
-    emit('reveal')
+function startAnimation() {
+  if (staticMode || animationComplete || raf || document.hidden || !isIntersecting || isUnmounted) return
+  if (!animationStarted) {
+    animationStarted = true
+    animationStart = performance.now()
   }
+  raf = window.requestAnimationFrame(frame)
+}
 
-  if (!introDone && elapsed >= INTRO_MS + TRANSITION_MS + PARTICLE_MS + SPIN_END) {
-    introDone = true
-    introActive.value = false
-    markIntroSeen()
-    resize()
+function handleVisibilityChange() {
+  if (document.hidden) {
+    stopAnimation()
+    return
   }
-
-  if (introActive.value && introCtx) {
-    const c = introCtx
-    c.ctx.clearRect(0, 0, c.w, c.h)
-    if (elapsed < INTRO_MS) {
-      drawGlobe(c, c.w / 2, c.h / 2, introRadius(), 0.85)
-    } else {
-      const fade = 1 - smoothstep((elapsed - INTRO_MS) / TRANSITION_MS)
-      drawGlobe(c, c.w / 2, c.h / 2, introRadius(), 0.85 * fade, true)
-      if (backdropEl.value) backdropEl.value.style.opacity = String(1 - smoothstep((elapsed - INTRO_MS * 0.1) / (TRANSITION_MS * 0.75)))
-    }
-  }
-
-  if (mainCtx) {
-    const c = mainCtx
-    c.ctx.clearRect(0, 0, c.w, c.h)
-    if (elapsed >= PARTICLE_MS) {
-      const appear = smoothstep((elapsed - PARTICLE_MS) / (SPIN_END + SPIN_START))
-      const cy = mainGlobeCenterY(c)
-      drawGlobe(c, c.w / 2, cy, globeRadius(), appear)
-      drawParticles(c, globeRadius(), 0.13 * (isMobile() ? 0.24 : 0.3) * appear, cy)
-    }
-  }
-
-  updateLogos(elapsed)
+  startAnimation()
 }
 
 function buildParticles(count: number) {
   const golden = Math.PI * (3 - Math.sqrt(5))
-  const out: typeof particles = []
-  for (let i = 0; i < count; i++) {
-    const y = 1 - (i / (count - 1)) * 2
+  return Array.from({ length: count }, (_, index) => {
+    const y = 1 - (index / Math.max(1, count - 1)) * 2
     const radius = Math.sqrt(Math.max(0, 1 - y * y))
-    const theta = golden * i
-    out.push({
-      x: Math.cos(theta) * radius,
-      y,
-      z: Math.sin(theta) * radius,
-      delay: (i * 0.61803) % 1,
-      scatter: 2.2 + ((i * 0.3819) % 1) * 2.6
-    })
-  }
-  return out
+    const theta = golden * index
+    return { x: Math.cos(theta) * radius, y, z: Math.sin(theta) * radius }
+  })
 }
 
-onMounted(async () => {
-  [land, coast, rivers, lakes] = await Promise.all([
-    loadEarth('land50'),
-    loadEarth('coast50'),
+function shouldUseStaticMode() {
+  const navigatorWithHints = navigator as Navigator & {
+    connection?: { saveData?: boolean }
+    deviceMemory?: number
+  }
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    || navigatorWithHints.connection?.saveData === true
+    || (navigator.hardwareConcurrency > 0 && navigator.hardwareConcurrency <= 4)
+    || (typeof navigatorWithHints.deviceMemory === 'number' && navigatorWithHints.deviceMemory <= 4)
+}
+
+async function loadEnhancements() {
+  const [loadedRivers, loadedLakes] = await Promise.all([
     loadEarth('rivers50'),
     loadEarth('lakes50')
   ])
+  if (isUnmounted) return
+  rivers = loadedRivers
+  lakes = loadedLakes
+  if (staticMode || animationComplete) drawFrame(ANIMATION_MS)
+}
 
-  introCtx = makeCtx(canvasIntroEl.value)
-  mainCtx = makeCtx(canvasMainEl.value)
-  particles = buildParticles(isMobile() ? 950 : 1700)
-
-  if (!introCtx && !mainCtx) {
-    scrollUnlocked = true
-    introDone = true
-    introActive.value = false
-    emit('reveal')
+function scheduleEnhancements() {
+  if (staticMode || isUnmounted) return
+  if (typeof window.requestIdleCallback === 'function') {
+    enhancementUsesIdleCallback = true
+    enhancementHandle = window.requestIdleCallback(() => {
+      enhancementHandle = null
+      void loadEnhancements()
+    }, { timeout: 2500 })
     return
   }
+  enhancementUsesIdleCallback = false
+  enhancementHandle = window.setTimeout(() => {
+    enhancementHandle = null
+    void loadEnhancements()
+  }, 1200)
+}
 
+onMounted(() => {
+  mainCtx = makeCtx(canvasMainEl.value)
+  staticMode = shouldUseStaticMode()
+  particles = staticMode ? [] : buildParticles(isMobile() ? MOBILE_PARTICLES : DESKTOP_PARTICLES)
   resize()
+  emit('reveal')
 
-  if (introActive.value) {
-    document.documentElement.style.overflow = 'hidden'
-    document.body.style.overflow = 'hidden'
-    startTs = performance.now()
-  } else {
-    scrollUnlocked = true
-    introDone = true
-    emit('reveal')
-    startTs = performance.now() - PARTICLE_MS
+  window.addEventListener('resize', resize)
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+
+  if (typeof IntersectionObserver === 'function' && rootEl.value) {
+    observer = new IntersectionObserver((entries) => {
+      const entry = entries[0]
+      if (!entry) return
+      isIntersecting = entry.isIntersecting
+      if (isIntersecting) startAnimation()
+      else stopAnimation()
+    })
+    observer.observe(rootEl.value)
   }
 
-  lastTs = performance.now()
-  window.addEventListener('resize', resize)
-  raf = requestAnimationFrame(frame)
+  if (staticMode) drawFrame(ANIMATION_MS)
+  else startAnimation()
+
+  void Promise.all([loadEarth('land50'), loadEarth('coast50')]).then(([loadedLand, loadedCoast]) => {
+    if (isUnmounted) return
+    land = loadedLand
+    coast = loadedCoast
+    if (staticMode || animationComplete) drawFrame(ANIMATION_MS)
+    scheduleEnhancements()
+  })
 })
 
 onUnmounted(() => {
-  cancelAnimationFrame(raf)
+  isUnmounted = true
+  stopAnimation()
+  observer?.disconnect()
   window.removeEventListener('resize', resize)
-  document.documentElement.style.overflow = ''
-  document.body.style.overflow = ''
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+  if (enhancementHandle !== null) {
+    if (enhancementUsesIdleCallback && typeof window.cancelIdleCallback === 'function') {
+      window.cancelIdleCallback(enhancementHandle as number)
+    } else {
+      clearTimeout(enhancementHandle)
+    }
+  }
 })
 </script>

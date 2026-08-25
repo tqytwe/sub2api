@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#f7f8fa"/>
+  <rect x="48" y="40" width="1184" height="640" rx="8" fill="#ffffff" stroke="#d8dde5"/>
+  <text x="88" y="96" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#171a21">sub2api v0.1.179 - Home performance baseline</text>
+  <text x="88" y="126" font-family="Arial, sans-serif" font-size="15" fill="#667085">Static review board. This is not a browser capture.</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="88" y="166" width="520" height="112" rx="6" fill="#fff4e5" stroke="#e8a23a"/>
+    <text x="112" y="202" font-size="14" font-weight="700" fill="#8a4b08">FIRST CONTENT</text>
+    <text x="112" y="234" font-size="20" fill="#272b33">Intro and sphere resources gate visibility</text>
+    <text x="112" y="258" font-size="14" fill="#6b7280">Navigation and body wait behind non-critical work.</text>
+    <rect x="672" y="166" width="520" height="112" rx="6" fill="#fff1f1" stroke="#d96b6b"/>
+    <text x="696" y="202" font-size="14" font-weight="700" fill="#9f2d2d">MOTION</text>
+    <text x="696" y="234" font-size="20" fill="#272b33">Sphere RAF runs continuously</text>
+    <text x="696" y="258" font-size="14" fill="#6b7280">Hidden and offscreen states keep redrawing.</text>
+    <rect x="88" y="306" width="520" height="112" rx="6" fill="#eef4ff" stroke="#7299d6"/>
+    <text x="112" y="342" font-size="14" font-weight="700" fill="#315b9a">ASSETS</text>
+    <text x="112" y="374" font-size="20" fill="#272b33">GeoJSON and Chinese web fonts block</text>
+    <text x="112" y="398" font-size="14" fill="#6b7280">All geographic layers compete for the first screen.</text>
+    <rect x="672" y="306" width="520" height="112" rx="6" fill="#f4efff" stroke="#8b76be"/>
+    <text x="696" y="342" font-size="14" font-weight="700" fill="#57418e">ROUTING</text>
+    <text x="696" y="374" font-size="20" fill="#272b33">Heavy admin routes prefetch automatically</text>
+    <text x="696" y="398" font-size="14" fill="#6b7280">Accounts and Users chunks load without user intent.</text>
+    <rect x="88" y="446" width="520" height="112" rx="6" fill="#eef8f3" stroke="#6aa58a"/>
+    <text x="112" y="482" font-size="14" font-weight="700" fill="#336f55">I18N</text>
+    <text x="112" y="514" font-size="20" fill="#272b33">Login loads complete language packages</text>
+    <text x="112" y="538" font-size="14" fill="#6b7280">Route scope cannot be requested independently.</text>
+    <rect x="672" y="446" width="520" height="112" rx="6" fill="#f4f5f7" stroke="#9aa1aa"/>
+    <text x="696" y="482" font-size="14" font-weight="700" fill="#4d5662">DASHBOARD</text>
+    <text x="696" y="514" font-size="20" fill="#272b33">User and statistics requests are serial</text>
+    <text x="696" y="538" font-size="14" fill="#6b7280">One failure or delay holds back the other result.</text>
+    <text x="88" y="626" font-size="14" fill="#667085">Layout boundary: preserve the current homepage composition, navigation, copy, themes and responsive behavior.</text>
+  </g>
+</svg>

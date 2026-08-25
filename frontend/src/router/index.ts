@@ -10,7 +10,6 @@ import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
 import { useAdminComplianceStore } from '@/stores/adminCompliance'
 import { useNavigationLoadingState } from '@/composables/useNavigationLoading'
-import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { getSetupStatus } from '@/api/setup'
 import { resolveCompletedSetupRedirectPath } from './setupRedirect'
 import { resolveRouteDocumentTitle } from './title'
@@ -398,6 +397,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Dashboard',
       titleKey: 'dashboard.title',
       descriptionKey: 'dashboard.welcomeMessage',
+      localeScopes: ['user-dashboard'],
       frame: 'workspace'
     }
   },
@@ -438,6 +438,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Batch Image Guide',
       titleKey: 'batchImageGuide.title',
       descriptionKey: 'batchImageGuide.description',
+      localeScopes: ['user-dashboard', 'user-batch'],
       frame: 'workspace'
     }
   },
@@ -464,6 +465,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Wallet',
       titleKey: 'wallet.title',
       descriptionKey: 'wallet.description',
+      localeScopes: ['user-dashboard', 'user-wallet', 'user-misc'],
       frame: 'content'
     }
   },
@@ -706,6 +708,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Admin Dashboard',
       titleKey: 'admin.dashboard.title',
       descriptionKey: 'admin.dashboard.description',
+      localeScopes: ['admin-overview'],
       frame: 'workspace'
     }
   },
@@ -719,6 +722,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Ops Monitoring',
       titleKey: 'admin.ops.title',
       descriptionKey: 'admin.ops.description',
+      localeScopes: ['admin-ops'],
       frame: 'workspace'
     }
   },
@@ -732,6 +736,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Play Ops',
       titleKey: 'admin.playOps.title',
       descriptionKey: 'admin.playOps.description',
+      localeScopes: ['admin-play', 'admin-resources'],
       frame: 'workspace'
     }
   },
@@ -797,6 +802,7 @@ const routes: RouteRecordRaw[] = [
       title: 'User Management',
       titleKey: 'admin.users.title',
       descriptionKey: 'admin.users.description',
+      localeScopes: ['admin-resources'],
       frame: 'workspace'
     }
   },
@@ -827,6 +833,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Channel Management',
       titleKey: 'admin.channels.title',
       descriptionKey: 'admin.channels.description',
+      localeScopes: ['admin-channels'],
       frame: 'workspace'
     }
   },
@@ -840,6 +847,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Channel Monitor',
       titleKey: 'admin.channelMonitor.title',
       descriptionKey: 'admin.channelMonitor.description',
+      localeScopes: ['admin-channels', 'channel-monitor'],
       frame: 'workspace'
     }
   },
@@ -891,6 +899,7 @@ const routes: RouteRecordRaw[] = [
       title: 'Account Management',
       titleKey: 'admin.accounts.title',
       descriptionKey: 'admin.accounts.description',
+      localeScopes: ['admin-accounts'],
       frame: 'workspace'
     }
   },
@@ -903,7 +912,8 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: true,
       title: 'Plugin Management',
       titleKey: 'admin.plugins.title',
-      descriptionKey: 'admin.plugins.description'
+      descriptionKey: 'admin.plugins.description',
+      localeScopes: ['admin-settings', 'admin-plugins']
     }
   },
   {
@@ -994,6 +1004,7 @@ const routes: RouteRecordRaw[] = [
       title: 'System Settings',
       titleKey: 'admin.settings.title',
       descriptionKey: 'admin.settings.description',
+      localeScopes: ['admin-settings'],
       frame: 'workspace'
     }
   },
@@ -1169,10 +1180,8 @@ const router = createRouter({
  */
 let authInitialized = false
 
-// 初始化导航加载状态和预加载
+// 初始化导航加载状态
 const navigationLoading = useNavigationLoadingState()
-// 延迟初始化预加载，传入 router 实例
-let routePrefetch: ReturnType<typeof useRoutePrefetch> | null = null
 const BACKEND_MODE_ALLOWED_PATHS = ['/login', '/key-usage', '/setup', '/payment/result', '/payment/airwallex', '/legal', '/download/android', '/models', '/en/models']
 const BACKEND_MODE_CALLBACK_PATHS = [
   '/auth/callback',
@@ -1206,7 +1215,7 @@ router.beforeEach(async (to, _from, next) => {
   navigationLoading.startNavigation()
 
   await applyLocaleFromRoute(to.path, to.query)
-  await ensureLocaleMessagesForPath(to.path)
+  await ensureLocaleMessagesForPath(to.path, undefined, to.meta.localeScopes)
 
   const authStore = useAuthStore()
 
@@ -1421,21 +1430,15 @@ router.beforeEach(async (to, _from, next) => {
 })
 
 /**
- * Navigation guard: End loading and trigger prefetch
+ * Navigation guard: End loading
  */
-router.afterEach((to) => {
+router.afterEach(() => {
   // Keep html.dark in sync when crossing public vs authenticated layouts.
   useTheme().applyThemeClass()
 
   // 结束导航加载状态
   navigationLoading.endNavigation()
 
-  // 懒初始化预加载（首次导航时创建，传入 router 实例）
-  if (!routePrefetch) {
-    routePrefetch = useRoutePrefetch(router)
-  }
-  // 触发路由预加载（在浏览器空闲时执行）
-  routePrefetch.triggerPrefetch(to)
 })
 
 /**

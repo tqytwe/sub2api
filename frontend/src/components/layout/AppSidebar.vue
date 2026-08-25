@@ -70,6 +70,9 @@
                   class="sidebar-link mb-0.5 py-1.5 text-sm"
                   :class="{ 'sidebar-link-active': route.path === child.path }"
                   @click="handleMenuItemClick(child.path)"
+                  @mouseenter="prefetchRoute(child.path)"
+                  @focus="prefetchRoute(child.path)"
+                  @pointerdown="prefetchRoute(child.path)"
                 >
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
                   <span>{{ child.label }}</span>
@@ -83,6 +86,9 @@
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
               :title="sidebarCollapsed ? item.label : undefined"
+              @mouseenter="prefetchRoute(item.path)"
+              @focus="prefetchRoute(item.path)"
+              @pointerdown="prefetchRoute(item.path)"
               :id="
                 item.path === '/admin/accounts'
                   ? 'sidebar-channel-manage'
@@ -142,6 +148,9 @@
                   class="sidebar-link mb-0.5 py-1.5 text-sm"
                   :class="{ 'sidebar-link-active': route.path === child.path }"
                   @click="handleMenuItemClick(child.path)"
+                  @mouseenter="prefetchRoute(child.path)"
+                  @focus="prefetchRoute(child.path)"
+                  @pointerdown="prefetchRoute(child.path)"
                 >
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
                   <span>{{ child.label }}</span>
@@ -154,6 +163,9 @@
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
               :title="sidebarCollapsed ? item.label : undefined"
+              @mouseenter="prefetchRoute(item.path)"
+              @focus="prefetchRoute(item.path)"
+              @pointerdown="prefetchRoute(item.path)"
               :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
               @click="handleMenuItemClick(item.path)"
             >
@@ -201,6 +213,9 @@
                   class="sidebar-link mb-0.5 py-1.5 text-sm"
                   :class="{ 'sidebar-link-active': route.path === child.path }"
                   @click="handleMenuItemClick(child.path)"
+                  @mouseenter="prefetchRoute(child.path)"
+                  @focus="prefetchRoute(child.path)"
+                  @pointerdown="prefetchRoute(child.path)"
                 >
                   <component :is="child.icon" class="h-4 w-4 flex-shrink-0" />
                   <span>{{ child.label }}</span>
@@ -213,6 +228,9 @@
               class="sidebar-link mb-1"
               :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
               :title="sidebarCollapsed ? item.label : undefined"
+              @mouseenter="prefetchRoute(item.path)"
+              @focus="prefetchRoute(item.path)"
+              @pointerdown="prefetchRoute(item.path)"
               :data-tour="item.path === '/keys' ? 'sidebar-my-keys' : undefined"
               @click="handleMenuItemClick(item.path)"
             >
@@ -269,6 +287,7 @@
 import { computed, h, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { useRoutePrefetch } from '@/composables/useRoutePrefetch'
 import { useAdminSettingsStore, useAppStore, useAuthStore, useOnboardingStore } from '@/stores'
 import VersionBadge from '@/components/common/VersionBadge.vue'
 import Icon from '@/components/icons/Icon.vue'
@@ -324,6 +343,7 @@ const { t, te } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
+const { prefetchRoute } = useRoutePrefetch(router)
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const onboardingStore = useOnboardingStore()
