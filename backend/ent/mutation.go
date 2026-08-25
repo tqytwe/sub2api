@@ -38451,78 +38451,79 @@ func (m *PaymentAuditLogMutation) ResetEdge(name string) error {
 // PaymentOrderMutation represents an operation that mutates the PaymentOrder nodes in the graph.
 type PaymentOrderMutation struct {
 	config
-	op                            Op
-	typ                           string
-	id                            *int64
-	user_email                    *string
-	user_name                     *string
-	user_notes                    *string
-	amount                        *float64
-	addamount                     *float64
-	coupon_id                     *int64
-	addcoupon_id                  *int64
-	coupon_template_id            *int64
-	addcoupon_template_id         *int64
-	coupon_snapshot               *map[string]interface{}
-	list_amount                   *float64
-	addlist_amount                *float64
-	gateway_base_amount           *float64
-	addgateway_base_amount        *float64
-	discount_amount               *float64
-	adddiscount_amount            *float64
-	fee_amount                    *float64
-	addfee_amount                 *float64
-	qualifying_recharge_amount    *float64
-	addqualifying_recharge_amount *float64
-	payment_currency              *string
-	pay_amount                    *float64
-	addpay_amount                 *float64
-	fee_rate                      *float64
-	addfee_rate                   *float64
-	recharge_code                 *string
-	out_trade_no                  *string
-	payment_type                  *string
-	payment_trade_no              *string
-	pay_url                       *string
-	qr_code                       *string
-	qr_code_img                   *string
-	order_type                    *string
-	plan_id                       *int64
-	addplan_id                    *int64
-	subscription_group_id         *int64
-	addsubscription_group_id      *int64
-	subscription_days             *int
-	addsubscription_days          *int
-	provider_instance_id          *string
-	provider_key                  *string
-	provider_snapshot             *map[string]interface{}
-	recharge_snapshot             *map[string]interface{}
-	subscription_snapshot         *map[string]interface{}
-	status                        *string
-	refund_amount                 *float64
-	addrefund_amount              *float64
-	refund_reason                 *string
-	refund_at                     *time.Time
-	force_refund                  *bool
-	refund_requested_at           *time.Time
-	refund_request_reason         *string
-	refund_requested_by           *string
-	expires_at                    *time.Time
-	paid_at                       *time.Time
-	completed_at                  *time.Time
-	failed_at                     *time.Time
-	failed_reason                 *string
-	client_ip                     *string
-	src_host                      *string
-	src_url                       *string
-	created_at                    *time.Time
-	updated_at                    *time.Time
-	clearedFields                 map[string]struct{}
-	user                          *int64
-	cleareduser                   bool
-	done                          bool
-	oldValue                      func(context.Context) (*PaymentOrder, error)
-	predicates                    []predicate.PaymentOrder
+	op                               Op
+	typ                              string
+	id                               *int64
+	user_email                       *string
+	user_name                        *string
+	user_notes                       *string
+	amount                           *float64
+	addamount                        *float64
+	coupon_id                        *int64
+	addcoupon_id                     *int64
+	coupon_template_id               *int64
+	addcoupon_template_id            *int64
+	coupon_snapshot                  *map[string]interface{}
+	list_amount                      *float64
+	addlist_amount                   *float64
+	gateway_base_amount              *float64
+	addgateway_base_amount           *float64
+	discount_amount                  *float64
+	adddiscount_amount               *float64
+	fee_amount                       *float64
+	addfee_amount                    *float64
+	qualifying_recharge_amount       *float64
+	addqualifying_recharge_amount    *float64
+	payment_currency                 *string
+	pay_amount                       *float64
+	addpay_amount                    *float64
+	fee_rate                         *float64
+	addfee_rate                      *float64
+	recharge_code                    *string
+	out_trade_no                     *string
+	payment_type                     *string
+	payment_trade_no                 *string
+	pay_url                          *string
+	qr_code                          *string
+	qr_code_img                      *string
+	order_type                       *string
+	plan_id                          *int64
+	addplan_id                       *int64
+	subscription_group_id            *int64
+	addsubscription_group_id         *int64
+	subscription_days                *int
+	addsubscription_days             *int
+	provider_instance_id             *string
+	provider_key                     *string
+	provider_snapshot                *map[string]interface{}
+	recharge_snapshot                *map[string]interface{}
+	subscription_snapshot            *map[string]interface{}
+	status                           *string
+	refund_amount                    *float64
+	addrefund_amount                 *float64
+	refund_reason                    *string
+	refund_at                        *time.Time
+	force_refund                     *bool
+	refund_requested_at              *time.Time
+	refund_request_reason            *string
+	refund_requested_by              *string
+	expires_at                       *time.Time
+	paid_at                          *time.Time
+	completed_at                     *time.Time
+	failed_at                        *time.Time
+	coupon_lock_release_processed_at *time.Time
+	failed_reason                    *string
+	client_ip                        *string
+	src_host                         *string
+	src_url                          *string
+	created_at                       *time.Time
+	updated_at                       *time.Time
+	clearedFields                    map[string]struct{}
+	user                             *int64
+	cleareduser                      bool
+	done                             bool
+	oldValue                         func(context.Context) (*PaymentOrder, error)
+	predicates                       []predicate.PaymentOrder
 }
 
 var _ ent.Mutation = (*PaymentOrderMutation)(nil)
@@ -40791,6 +40792,55 @@ func (m *PaymentOrderMutation) ResetFailedAt() {
 	delete(m.clearedFields, paymentorder.FieldFailedAt)
 }
 
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (m *PaymentOrderMutation) SetCouponLockReleaseProcessedAt(t time.Time) {
+	m.coupon_lock_release_processed_at = &t
+}
+
+// CouponLockReleaseProcessedAt returns the value of the "coupon_lock_release_processed_at" field in the mutation.
+func (m *PaymentOrderMutation) CouponLockReleaseProcessedAt() (r time.Time, exists bool) {
+	v := m.coupon_lock_release_processed_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCouponLockReleaseProcessedAt returns the old "coupon_lock_release_processed_at" field's value of the PaymentOrder entity.
+// If the PaymentOrder object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *PaymentOrderMutation) OldCouponLockReleaseProcessedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCouponLockReleaseProcessedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCouponLockReleaseProcessedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCouponLockReleaseProcessedAt: %w", err)
+	}
+	return oldValue.CouponLockReleaseProcessedAt, nil
+}
+
+// ClearCouponLockReleaseProcessedAt clears the value of the "coupon_lock_release_processed_at" field.
+func (m *PaymentOrderMutation) ClearCouponLockReleaseProcessedAt() {
+	m.coupon_lock_release_processed_at = nil
+	m.clearedFields[paymentorder.FieldCouponLockReleaseProcessedAt] = struct{}{}
+}
+
+// CouponLockReleaseProcessedAtCleared returns if the "coupon_lock_release_processed_at" field was cleared in this mutation.
+func (m *PaymentOrderMutation) CouponLockReleaseProcessedAtCleared() bool {
+	_, ok := m.clearedFields[paymentorder.FieldCouponLockReleaseProcessedAt]
+	return ok
+}
+
+// ResetCouponLockReleaseProcessedAt resets all changes to the "coupon_lock_release_processed_at" field.
+func (m *PaymentOrderMutation) ResetCouponLockReleaseProcessedAt() {
+	m.coupon_lock_release_processed_at = nil
+	delete(m.clearedFields, paymentorder.FieldCouponLockReleaseProcessedAt)
+}
+
 // SetFailedReason sets the "failed_reason" field.
 func (m *PaymentOrderMutation) SetFailedReason(s string) {
 	m.failed_reason = &s
@@ -41094,7 +41144,7 @@ func (m *PaymentOrderMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *PaymentOrderMutation) Fields() []string {
-	fields := make([]string, 0, 50)
+	fields := make([]string, 0, 51)
 	if m.user != nil {
 		fields = append(fields, paymentorder.FieldUserID)
 	}
@@ -41227,6 +41277,9 @@ func (m *PaymentOrderMutation) Fields() []string {
 	if m.failed_at != nil {
 		fields = append(fields, paymentorder.FieldFailedAt)
 	}
+	if m.coupon_lock_release_processed_at != nil {
+		fields = append(fields, paymentorder.FieldCouponLockReleaseProcessedAt)
+	}
 	if m.failed_reason != nil {
 		fields = append(fields, paymentorder.FieldFailedReason)
 	}
@@ -41341,6 +41394,8 @@ func (m *PaymentOrderMutation) Field(name string) (ent.Value, bool) {
 		return m.CompletedAt()
 	case paymentorder.FieldFailedAt:
 		return m.FailedAt()
+	case paymentorder.FieldCouponLockReleaseProcessedAt:
+		return m.CouponLockReleaseProcessedAt()
 	case paymentorder.FieldFailedReason:
 		return m.FailedReason()
 	case paymentorder.FieldClientIP:
@@ -41450,6 +41505,8 @@ func (m *PaymentOrderMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCompletedAt(ctx)
 	case paymentorder.FieldFailedAt:
 		return m.OldFailedAt(ctx)
+	case paymentorder.FieldCouponLockReleaseProcessedAt:
+		return m.OldCouponLockReleaseProcessedAt(ctx)
 	case paymentorder.FieldFailedReason:
 		return m.OldFailedReason(ctx)
 	case paymentorder.FieldClientIP:
@@ -41779,6 +41836,13 @@ func (m *PaymentOrderMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFailedAt(v)
 		return nil
+	case paymentorder.FieldCouponLockReleaseProcessedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCouponLockReleaseProcessedAt(v)
+		return nil
 	case paymentorder.FieldFailedReason:
 		v, ok := value.(string)
 		if !ok {
@@ -42091,6 +42155,9 @@ func (m *PaymentOrderMutation) ClearedFields() []string {
 	if m.FieldCleared(paymentorder.FieldFailedAt) {
 		fields = append(fields, paymentorder.FieldFailedAt)
 	}
+	if m.FieldCleared(paymentorder.FieldCouponLockReleaseProcessedAt) {
+		fields = append(fields, paymentorder.FieldCouponLockReleaseProcessedAt)
+	}
 	if m.FieldCleared(paymentorder.FieldFailedReason) {
 		fields = append(fields, paymentorder.FieldFailedReason)
 	}
@@ -42179,6 +42246,9 @@ func (m *PaymentOrderMutation) ClearField(name string) error {
 		return nil
 	case paymentorder.FieldFailedAt:
 		m.ClearFailedAt()
+		return nil
+	case paymentorder.FieldCouponLockReleaseProcessedAt:
+		m.ClearCouponLockReleaseProcessedAt()
 		return nil
 	case paymentorder.FieldFailedReason:
 		m.ClearFailedReason()
@@ -42325,6 +42395,9 @@ func (m *PaymentOrderMutation) ResetField(name string) error {
 		return nil
 	case paymentorder.FieldFailedAt:
 		m.ResetFailedAt()
+		return nil
+	case paymentorder.FieldCouponLockReleaseProcessedAt:
+		m.ResetCouponLockReleaseProcessedAt()
 		return nil
 	case paymentorder.FieldFailedReason:
 		m.ResetFailedReason()

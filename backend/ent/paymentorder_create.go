@@ -535,6 +535,20 @@ func (_c *PaymentOrderCreate) SetNillableFailedAt(v *time.Time) *PaymentOrderCre
 	return _c
 }
 
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (_c *PaymentOrderCreate) SetCouponLockReleaseProcessedAt(v time.Time) *PaymentOrderCreate {
+	_c.mutation.SetCouponLockReleaseProcessedAt(v)
+	return _c
+}
+
+// SetNillableCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field if the given value is not nil.
+func (_c *PaymentOrderCreate) SetNillableCouponLockReleaseProcessedAt(v *time.Time) *PaymentOrderCreate {
+	if v != nil {
+		_c.SetCouponLockReleaseProcessedAt(*v)
+	}
+	return _c
+}
+
 // SetFailedReason sets the "failed_reason" field.
 func (_c *PaymentOrderCreate) SetFailedReason(v string) *PaymentOrderCreate {
 	_c.mutation.SetFailedReason(v)
@@ -1049,6 +1063,10 @@ func (_c *PaymentOrderCreate) createSpec() (*PaymentOrder, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.FailedAt(); ok {
 		_spec.SetField(paymentorder.FieldFailedAt, field.TypeTime, value)
 		_node.FailedAt = &value
+	}
+	if value, ok := _c.mutation.CouponLockReleaseProcessedAt(); ok {
+		_spec.SetField(paymentorder.FieldCouponLockReleaseProcessedAt, field.TypeTime, value)
+		_node.CouponLockReleaseProcessedAt = &value
 	}
 	if value, ok := _c.mutation.FailedReason(); ok {
 		_spec.SetField(paymentorder.FieldFailedReason, field.TypeString, value)
@@ -1890,6 +1908,24 @@ func (u *PaymentOrderUpsert) UpdateFailedAt() *PaymentOrderUpsert {
 // ClearFailedAt clears the value of the "failed_at" field.
 func (u *PaymentOrderUpsert) ClearFailedAt() *PaymentOrderUpsert {
 	u.SetNull(paymentorder.FieldFailedAt)
+	return u
+}
+
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (u *PaymentOrderUpsert) SetCouponLockReleaseProcessedAt(v time.Time) *PaymentOrderUpsert {
+	u.Set(paymentorder.FieldCouponLockReleaseProcessedAt, v)
+	return u
+}
+
+// UpdateCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsert) UpdateCouponLockReleaseProcessedAt() *PaymentOrderUpsert {
+	u.SetExcluded(paymentorder.FieldCouponLockReleaseProcessedAt)
+	return u
+}
+
+// ClearCouponLockReleaseProcessedAt clears the value of the "coupon_lock_release_processed_at" field.
+func (u *PaymentOrderUpsert) ClearCouponLockReleaseProcessedAt() *PaymentOrderUpsert {
+	u.SetNull(paymentorder.FieldCouponLockReleaseProcessedAt)
 	return u
 }
 
@@ -2882,6 +2918,27 @@ func (u *PaymentOrderUpsertOne) UpdateFailedAt() *PaymentOrderUpsertOne {
 func (u *PaymentOrderUpsertOne) ClearFailedAt() *PaymentOrderUpsertOne {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearFailedAt()
+	})
+}
+
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (u *PaymentOrderUpsertOne) SetCouponLockReleaseProcessedAt(v time.Time) *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetCouponLockReleaseProcessedAt(v)
+	})
+}
+
+// UpdateCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertOne) UpdateCouponLockReleaseProcessedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateCouponLockReleaseProcessedAt()
+	})
+}
+
+// ClearCouponLockReleaseProcessedAt clears the value of the "coupon_lock_release_processed_at" field.
+func (u *PaymentOrderUpsertOne) ClearCouponLockReleaseProcessedAt() *PaymentOrderUpsertOne {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearCouponLockReleaseProcessedAt()
 	})
 }
 
@@ -4052,6 +4109,27 @@ func (u *PaymentOrderUpsertBulk) UpdateFailedAt() *PaymentOrderUpsertBulk {
 func (u *PaymentOrderUpsertBulk) ClearFailedAt() *PaymentOrderUpsertBulk {
 	return u.Update(func(s *PaymentOrderUpsert) {
 		s.ClearFailedAt()
+	})
+}
+
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (u *PaymentOrderUpsertBulk) SetCouponLockReleaseProcessedAt(v time.Time) *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.SetCouponLockReleaseProcessedAt(v)
+	})
+}
+
+// UpdateCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field to the value that was provided on create.
+func (u *PaymentOrderUpsertBulk) UpdateCouponLockReleaseProcessedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.UpdateCouponLockReleaseProcessedAt()
+	})
+}
+
+// ClearCouponLockReleaseProcessedAt clears the value of the "coupon_lock_release_processed_at" field.
+func (u *PaymentOrderUpsertBulk) ClearCouponLockReleaseProcessedAt() *PaymentOrderUpsertBulk {
+	return u.Update(func(s *PaymentOrderUpsert) {
+		s.ClearCouponLockReleaseProcessedAt()
 	})
 }
 

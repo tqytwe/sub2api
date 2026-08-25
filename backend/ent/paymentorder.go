@@ -107,6 +107,8 @@ type PaymentOrder struct {
 	CompletedAt *time.Time `json:"completed_at,omitempty"`
 	// FailedAt holds the value of the "failed_at" field.
 	FailedAt *time.Time `json:"failed_at,omitempty"`
+	// CouponLockReleaseProcessedAt holds the value of the "coupon_lock_release_processed_at" field.
+	CouponLockReleaseProcessedAt *time.Time `json:"coupon_lock_release_processed_at,omitempty"`
 	// FailedReason holds the value of the "failed_reason" field.
 	FailedReason *string `json:"failed_reason,omitempty"`
 	// ClientIP holds the value of the "client_ip" field.
@@ -160,7 +162,7 @@ func (*PaymentOrder) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case paymentorder.FieldUserEmail, paymentorder.FieldUserName, paymentorder.FieldUserNotes, paymentorder.FieldPaymentCurrency, paymentorder.FieldRechargeCode, paymentorder.FieldOutTradeNo, paymentorder.FieldPaymentType, paymentorder.FieldPaymentTradeNo, paymentorder.FieldPayURL, paymentorder.FieldQrCode, paymentorder.FieldQrCodeImg, paymentorder.FieldOrderType, paymentorder.FieldProviderInstanceID, paymentorder.FieldProviderKey, paymentorder.FieldStatus, paymentorder.FieldRefundReason, paymentorder.FieldRefundRequestReason, paymentorder.FieldRefundRequestedBy, paymentorder.FieldFailedReason, paymentorder.FieldClientIP, paymentorder.FieldSrcHost, paymentorder.FieldSrcURL:
 			values[i] = new(sql.NullString)
-		case paymentorder.FieldRefundAt, paymentorder.FieldRefundRequestedAt, paymentorder.FieldExpiresAt, paymentorder.FieldPaidAt, paymentorder.FieldCompletedAt, paymentorder.FieldFailedAt, paymentorder.FieldCreatedAt, paymentorder.FieldUpdatedAt:
+		case paymentorder.FieldRefundAt, paymentorder.FieldRefundRequestedAt, paymentorder.FieldExpiresAt, paymentorder.FieldPaidAt, paymentorder.FieldCompletedAt, paymentorder.FieldFailedAt, paymentorder.FieldCouponLockReleaseProcessedAt, paymentorder.FieldCreatedAt, paymentorder.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -474,6 +476,13 @@ func (_m *PaymentOrder) assignValues(columns []string, values []any) error {
 				_m.FailedAt = new(time.Time)
 				*_m.FailedAt = value.Time
 			}
+		case paymentorder.FieldCouponLockReleaseProcessedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field coupon_lock_release_processed_at", values[i])
+			} else if value.Valid {
+				_m.CouponLockReleaseProcessedAt = new(time.Time)
+				*_m.CouponLockReleaseProcessedAt = value.Time
+			}
 		case paymentorder.FieldFailedReason:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field failed_reason", values[i])
@@ -720,6 +729,11 @@ func (_m *PaymentOrder) String() string {
 	builder.WriteString(", ")
 	if v := _m.FailedAt; v != nil {
 		builder.WriteString("failed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.CouponLockReleaseProcessedAt; v != nil {
+		builder.WriteString("coupon_lock_release_processed_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteString(", ")

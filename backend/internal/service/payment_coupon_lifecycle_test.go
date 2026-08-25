@@ -6,15 +6,19 @@ import (
 	"context"
 	"errors"
 	"sort"
+	"sync"
 	"testing"
 	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	"github.com/Wei-Shaw/sub2api/internal/payment"
+	infraerrors "github.com/Wei-Shaw/sub2api/internal/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
 type paymentCouponLifecycleStub struct {
+	mu sync.Mutex
+
 	lockResult *CouponLockResult
 	lockErr    error
 	consumeErr error
@@ -46,12 +50,20 @@ func (s *paymentCouponLifecycleStub) LockUserCouponForOrder(ctx context.Context,
 }
 
 func (s *paymentCouponLifecycleStub) ReleaseUserCouponOrderLock(ctx context.Context, couponID, _ int64) (*UserCoupon, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.releaseInTx = dbent.TxFromContext(ctx) != nil
 	s.releaseIDs = append(s.releaseIDs, couponID)
 	if s.releaseErr != nil {
 		return nil, s.releaseErr
 	}
 	return &UserCoupon{ID: couponID}, nil
+}
+
+func (s *paymentCouponLifecycleStub) releaseCallIDs() []int64 {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]int64(nil), s.releaseIDs...)
 }
 
 func (s *paymentCouponLifecycleStub) ConsumeUserCouponOrderLock(ctx context.Context, couponID, _ int64) (*UserCoupon, error) {
@@ -253,9 +265,11 @@ func TestCouponLocksRetainGatewayFailureDuringGraceAndReleaseUnpaidTerminalOrder
 	require.NotNil(t, paidAfterLateCallback.PaidAt)
 
 	old := time.Now().UTC().Add(-(paymentGraceMinutes + 1) * time.Minute)
-	createCouponLifecycleOrder(t, client, 42, OrderStatusCancelled, old)
-	createCouponLifecycleOrder(t, client, 43, OrderStatusExpired, old)
-	createCouponLifecycleOrder(t, client, 44, OrderStatusFailed, old)
+	orders := []*dbent.PaymentOrder{
+		createCouponLifecycleOrder(t, client, 42, OrderStatusCancelled, old),
+		createCouponLifecycleOrder(t, client, 43, OrderStatusExpired, old),
+		createCouponLifecycleOrder(t, client, 44, OrderStatusFailed, old),
+	}
 
 	released, err = svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
 	require.NoError(t, err)
@@ -263,6 +277,165 @@ func TestCouponLocksRetainGatewayFailureDuringGraceAndReleaseUnpaidTerminalOrder
 	require.True(t, stub.releaseInTx, "coupon release must share the conditional payment-order claim transaction")
 	sort.Slice(stub.releaseIDs, func(i, j int) bool { return stub.releaseIDs[i] < stub.releaseIDs[j] })
 	require.Equal(t, []int64{42, 43, 44}, stub.releaseIDs)
+	for _, order := range orders {
+		reloaded, getErr := client.PaymentOrder.Get(ctx, order.ID)
+		require.NoError(t, getErr)
+		require.NotNil(t, reloaded.CouponLockReleaseProcessedAt)
+		require.Equal(t, old, reloaded.UpdatedAt)
+	}
+
+	released, err = svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+	require.NoError(t, err)
+	require.Zero(t, released)
+	require.Len(t, stub.releaseIDs, 3, "processed terminal orders must not be scanned twice")
+}
+
+func TestCouponReleaseTerminalReconciliationIsProcessedOnce(t *testing.T) {
+	testCases := []struct {
+		name string
+		err  error
+	}{
+		{name: "lock mismatch", err: infraerrors.Conflict("COUPON_LOCK_MISMATCH", "coupon belongs to another order")},
+		{name: "already used", err: infraerrors.Conflict("COUPON_ALREADY_USED", "coupon was consumed")},
+		{name: "coupon missing", err: infraerrors.NotFound("COUPON_NOT_FOUND", "coupon was removed")},
+	}
+
+	for index, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			ctx := context.Background()
+			client := newPaymentOrderLifecycleTestClient(t)
+			stub := &paymentCouponLifecycleStub{releaseErr: testCase.err}
+			svc := &PaymentService{entClient: client, couponService: stub}
+			old := time.Now().UTC().Add(-(paymentGraceMinutes + 2) * time.Minute)
+			order := createCouponLifecycleOrder(t, client, int64(70+index), OrderStatusCancelled, old)
+
+			released, err := svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+			require.NoError(t, err)
+			require.Zero(t, released, "terminal reconciliation must not count as an actual release")
+			reloaded, getErr := client.PaymentOrder.Get(ctx, order.ID)
+			require.NoError(t, getErr)
+			require.NotNil(t, reloaded.CouponLockReleaseProcessedAt)
+			require.Equal(t, old, reloaded.UpdatedAt)
+
+			released, err = svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+			require.NoError(t, err)
+			require.Zero(t, released)
+			require.Len(t, stub.releaseCallIDs(), 1)
+		})
+	}
+}
+
+func TestCouponReleaseTransientFailureRollsBackProcessedMarkerAndRetries(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	stub := &paymentCouponLifecycleStub{releaseErr: errors.New("temporary database failure")}
+	svc := &PaymentService{entClient: client, couponService: stub}
+	old := time.Now().UTC().Add(-(paymentGraceMinutes + 2) * time.Minute)
+	order := createCouponLifecycleOrder(t, client, 81, OrderStatusFailed, old)
+
+	released, err := svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+	require.NoError(t, err)
+	require.Zero(t, released)
+	reloaded, getErr := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, getErr)
+	require.Nil(t, reloaded.CouponLockReleaseProcessedAt)
+	require.Equal(t, old, reloaded.UpdatedAt)
+
+	stub.mu.Lock()
+	stub.releaseErr = nil
+	stub.mu.Unlock()
+	released, err = svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, released)
+	reloaded, getErr = client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, getErr)
+	require.NotNil(t, reloaded.CouponLockReleaseProcessedAt)
+}
+
+func TestCouponReleaseUsesOldestFirstBoundedBatches(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	stub := &paymentCouponLifecycleStub{}
+	svc := &PaymentService{entClient: client, couponService: stub}
+	base := time.Now().UTC().Add(-24 * time.Hour)
+
+	for index := 0; index < couponLockReleaseBatchSize+1; index++ {
+		createCouponLifecycleOrder(t, client, int64(1000+index), OrderStatusExpired, base.Add(time.Duration(index)*time.Minute))
+	}
+
+	released, err := svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+	require.NoError(t, err)
+	require.Equal(t, couponLockReleaseBatchSize, released)
+	firstBatch := stub.releaseCallIDs()
+	require.Len(t, firstBatch, couponLockReleaseBatchSize)
+	require.Equal(t, int64(1000), firstBatch[0])
+	require.Equal(t, int64(1000+couponLockReleaseBatchSize-1), firstBatch[len(firstBatch)-1])
+
+	released, err = svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, released)
+	require.Equal(t, int64(1000+couponLockReleaseBatchSize), stub.releaseCallIDs()[couponLockReleaseBatchSize])
+}
+
+func TestCouponReleaseConcurrentScansProcessOrderOnce(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	stub := &paymentCouponLifecycleStub{}
+	svc := &PaymentService{entClient: client, couponService: stub}
+	old := time.Now().UTC().Add(-(paymentGraceMinutes + 2) * time.Minute)
+	order := createCouponLifecycleOrder(t, client, 91, OrderStatusCancelled, old)
+
+	var wait sync.WaitGroup
+	results := make(chan int, 2)
+	errorsCh := make(chan error, 2)
+	for range 2 {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			released, err := svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+			results <- released
+			errorsCh <- err
+		}()
+	}
+	wait.Wait()
+	close(results)
+	close(errorsCh)
+
+	totalReleased := 0
+	for released := range results {
+		totalReleased += released
+	}
+	for err := range errorsCh {
+		require.NoError(t, err)
+	}
+	require.Equal(t, 1, totalReleased)
+	require.Len(t, stub.releaseCallIDs(), 1)
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.NotNil(t, reloaded.CouponLockReleaseProcessedAt)
+}
+
+func TestLateCallbackCannotReopenProcessedCouponOrder(t *testing.T) {
+	ctx := context.Background()
+	client := newPaymentOrderLifecycleTestClient(t)
+	stub := &paymentCouponLifecycleStub{}
+	svc := &PaymentService{entClient: client, couponService: stub}
+	old := time.Now().UTC().Add(-(paymentGraceMinutes + 2) * time.Minute)
+	order := createCouponLifecycleOrder(t, client, 92, OrderStatusFailed, old)
+
+	released, err := svc.ReleaseCouponLocksAfterLatePaymentGrace(ctx)
+	require.NoError(t, err)
+	require.Equal(t, 1, released)
+	updated, err := svc.markOrderPaidAndConsumeCoupon(ctx, order, "too-late", order.PayAmount, true)
+	require.NoError(t, err)
+	require.False(t, updated)
+	require.Empty(t, stub.consumeIDs)
+
+	reloaded, err := client.PaymentOrder.Get(ctx, order.ID)
+	require.NoError(t, err)
+	require.Equal(t, OrderStatusFailed, reloaded.Status)
+	require.Equal(t, old, reloaded.UpdatedAt)
+	require.NotNil(t, reloaded.CouponLockReleaseProcessedAt)
 }
 
 func TestGatewayCreateFailureDoesNotOverwritePaidOrCompletedCouponOrders(t *testing.T) {
