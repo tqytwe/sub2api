@@ -162,7 +162,6 @@ func TestApplyFirstTokenTierKeepsBaseForMultiplierOnlyInterval(t *testing.T) {
 	require.InDelta(t, 12.5, resolved.BasePricing.CacheCreationPricePerToken, 1e-12)
 	require.InDelta(t, 1, resolved.BasePricing.CacheReadPricePerToken, 1e-12)
 }
-
 func TestIntervalExplicitPriceTakesPrecedenceOverMultiplier(t *testing.T) {
 	pricing := intervalToModelPricing(&PricingInterval{
 		InputPrice:      pricingMultiplier(7),
@@ -316,7 +315,6 @@ func TestCalculateTokenCostContextTierDisabledUsesFirstTier(t *testing.T) {
 	require.NoError(t, err)
 	require.InDelta(t, 400e-6, cost.TotalCost, 1e-12)
 }
-
 func TestCalculateTokenCostCombinesIntervalAndFastMultiplier(t *testing.T) {
 	resolved := &ResolvedPricing{
 		BasePricing: &ModelPricing{

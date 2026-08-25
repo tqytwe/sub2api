@@ -95,6 +95,9 @@ func TestLiveEnabledForAPIKey(t *testing.T) {
 	require.True(t, (&OpenAIGatewayHandler{cfg: &config.Config{Security: config.SecurityConfig{
 		AccountSessionEgressEnabled: true,
 	}}}).liveEnabledForAPIKey(apiKey))
+	require.True(t, liveEnabledForAPIKey(&service.APIKey{
+		Group: &service.Group{Platform: service.PlatformComposite, AllowLive: true},
+	}))
 }
 
 func TestLiveAttestationErrorIsExplicit(t *testing.T) {

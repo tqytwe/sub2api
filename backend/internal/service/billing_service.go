@@ -221,11 +221,15 @@ func applyCostBreakdownMultiplier(cost *CostBreakdown, multiplier float64) {
 		return
 	}
 	cost.InputCost *= multiplier
+	cost.AudioInputCost *= multiplier
 	cost.ImageInputCost *= multiplier
 	cost.OutputCost *= multiplier
+	cost.AudioOutputCost *= multiplier
 	cost.ImageOutputCost *= multiplier
 	cost.CacheCreationCost *= multiplier
+	cost.CacheCreationAudioCost *= multiplier
 	cost.CacheReadCost *= multiplier
+	cost.CacheReadAudioCost *= multiplier
 	cost.TotalCost *= multiplier
 	cost.ActualCost *= multiplier
 }
@@ -330,7 +334,7 @@ func (s *BillingService) initFallbackPricing() {
 	// Claude 4.7 Opus (暂与4.6同价，待官方定价更新)
 	s.fallbackPrices["claude-opus-4.7"] = s.fallbackPrices["claude-opus-4.6"]
 
-	// Claude 4.8 Opus / Claude Opus 5（官方同价：$5 输入 / $25 输出 per MTok）。
+	// Claude 4.8 Opus / Claude Opus 5（标准 $5/$25，Fast $10/$50 per MTok）。
 	// 缺少这两条时 getFallbackPricing 会掉到 claude-3-opus（$15/$75），造成 3 倍超收。
 	s.fallbackPrices["claude-opus-4.8"] = s.fallbackPrices["claude-opus-4.7"]
 	s.fallbackPrices["claude-opus-5"] = s.fallbackPrices["claude-opus-4.8"]

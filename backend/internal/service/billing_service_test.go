@@ -90,6 +90,32 @@ func TestCalculateCost_RateMultiplier(t *testing.T) {
 	require.InDelta(t, cost1x.ActualCost*2, cost2x.ActualCost, 1e-10)
 }
 
+func TestApplyCostBreakdownMultiplierScalesAudioFields(t *testing.T) {
+	cost := &CostBreakdown{
+		InputCost:              1,
+		AudioInputCost:         2,
+		ImageInputCost:         3,
+		OutputCost:             4,
+		AudioOutputCost:        5,
+		ImageOutputCost:        6,
+		CacheCreationCost:      7,
+		CacheCreationAudioCost: 8,
+		CacheReadCost:          9,
+		CacheReadAudioCost:     10,
+		TotalCost:              55,
+		ActualCost:             55,
+	}
+
+	applyCostBreakdownMultiplier(cost, 1.5)
+
+	require.Equal(t, 3.0, cost.AudioInputCost)
+	require.Equal(t, 7.5, cost.AudioOutputCost)
+	require.Equal(t, 12.0, cost.CacheCreationAudioCost)
+	require.Equal(t, 15.0, cost.CacheReadAudioCost)
+	require.Equal(t, 82.5, cost.TotalCost)
+	require.Equal(t, 82.5, cost.ActualCost)
+}
+
 func TestGetModelPricing_FallbackMatchesByFamily(t *testing.T) {
 	svc := newTestBillingService()
 

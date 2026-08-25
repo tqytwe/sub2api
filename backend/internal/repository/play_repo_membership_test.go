@@ -157,6 +157,23 @@ func TestGetMembershipAdminRowExcludesSoftDeletedUsers(t *testing.T) {
 	require.NoError(t, mock.ExpectationsWereMet())
 }
 
+func TestGetMembershipAdminRowReturnsNilForMissingOrSoftDeletedUser(t *testing.T) {
+	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	mock.ExpectQuery(`(?is)FROM users u LEFT JOIN play_membership_order_contributions c.*WHERE u\.id=\$1 AND u\.deleted_at IS NULL`).
+		WithArgs(int64(264)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "email", "username", "total_paid", "created_at", "first_paid_at", "last_paid_at"}))
+
+	repo := &playRepository{sql: db}
+	row, err := repo.GetMembershipAdminRow(context.Background(), 264)
+
+	require.NoError(t, err)
+	require.Nil(t, row, "missing and soft-deleted members must not bubble sql.ErrNoRows into a 500")
+	require.NoError(t, mock.ExpectationsWereMet())
+}
+
 func TestListMembershipTierHistoryExcludesSoftDeletedUsers(t *testing.T) {
 	db, mock, err := sqlmock.New(sqlmock.QueryMatcherOption(sqlmock.QueryMatcherRegexp))
 	require.NoError(t, err)
