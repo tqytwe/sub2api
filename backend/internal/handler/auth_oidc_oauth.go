@@ -1147,7 +1147,7 @@ func (k oidcJWK) publicKey() (any, error) {
 		if !curve.IsOnCurve(x, y) { //nolint:staticcheck // SA1019: legacy JWK ECDSA validation until this path migrates to crypto/ecdh.
 			return nil, errors.New("ec point is not on curve")
 		}
-		return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
+		return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil //nolint:staticcheck // 同上
 	default:
 		return nil, fmt.Errorf("unsupported jwk kty: %s", k.Kty)
 	}

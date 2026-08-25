@@ -42,7 +42,8 @@ const messages = {
     detail: {
       noModels: 'No models configured for this group',
       noPricing: 'Pricing not configured',
-      peakNote: 'Peak hours {window}: billing rate ×{multiplier}'
+      peakNote: 'Peak hours {window}: billing rate ×{multiplier}',
+      longContextDisabledNote: 'Long-context tier pricing is disabled for this group: requests above the threshold are billed at the base tier; official tiers are for reference only'
     },
     table: {
       model: 'Model',
@@ -51,6 +52,11 @@ const messages = {
       cache: 'Cache',
       cacheWrite: 'Write',
       cacheRead: 'Read',
+      tierHintMarginal: 'Only the portion above the threshold is billed at this tier; output is unaffected',
+      marginalBadge: 'excess-only tiers',
+      timePricingRowHintPeak:
+        '; prices in this row exclude the peak-hour rate — where this period overlaps the peak hours {window}, the overlapping portion is additionally multiplied by ×{multiplier}',
+      timePricingWeekdays: 'Weekdays',
       paidPrice: 'Your Price (Discounted)',
       officialPrice: 'Official Price',
       rate: 'Rate',

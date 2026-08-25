@@ -258,7 +258,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 			var failoverErr *service.UpstreamFailoverError
 			if errors.As(err, &failoverErr) {
 				if failoverErr.ShouldReportAccountScheduleFailure() {
-					h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(routingModel), false, nil)
+					h.gatewayService.ReportOpenAIAccountScheduleResult(account, account.GetMappedModel(routingModel), false, nil, err)
 				}
 				if c.Writer.Size() != writerSizeBeforeForward {
 					h.handleFailoverExhausted(c, failoverErr, true)
@@ -294,7 +294,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 				}
 				continue
 			}
-			h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(routingModel), false, nil)
+			h.gatewayService.ReportOpenAIAccountScheduleResult(account, account.GetMappedModel(routingModel), false, nil, err)
 			if c.Writer.Size() == writerSizeBeforeForward {
 				h.errorResponse(c, http.StatusBadGateway, "upstream_error", "Upstream request failed")
 			}
@@ -302,7 +302,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 			return
 		}
 
-		h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(routingModel), true, nil)
+		h.gatewayService.ReportOpenAIAccountScheduleResult(account, account.GetMappedModel(routingModel), true, nil)
 		if endpoint == service.AgnesVideoEndpointCreate && strings.TrimSpace(result.ResponseID) != "" {
 			if err := h.gatewayService.BindStickySession(requestCtx, apiKey.GroupID, service.AgnesVideoSessionHash(result.ResponseID), account.ID); err != nil {
 				reqLog.Warn("agnes_video.bind_video_account_failed",

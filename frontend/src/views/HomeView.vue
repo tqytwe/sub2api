@@ -55,6 +55,15 @@
           >
             <Icon name="book" size="md" />
           </router-link>
+          <router-link
+            v-if="showModelPlazaEntry"
+            to="/model-plaza"
+            class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+            :title="t('nav.modelPlaza')"
+          >
+            <Icon name="grid" size="md" />
+            <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
+          </router-link>
           <button
             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
             :title="isDark ? t('home.switchToLight') : t('home.switchToDark')"
@@ -140,6 +149,14 @@
           </nav>
         </div>
         <nav class="page-nav">
+          <router-link
+            v-if="showModelPlazaEntry"
+            to="/model-plaza"
+            class="nav-link"
+            :title="t('nav.modelPlaza')"
+          >
+            {{ t('nav.modelPlaza') }}
+          </router-link>
           <button
             type="button"
             class="mobile-menu-toggle"
@@ -439,7 +456,9 @@
             <p class="chc-title">{{ t('home.jisudeng.channels.copyTitle') }}</p>
             <p class="chc-body">{{ t('home.jisudeng.channels.copyBody') }}</p>
           </div>
-          <div class="channels-tv"><ChannelTV /></div>
+          <div class="channels-tv">
+            <ChannelTV />
+          </div>
         </div>
       </div>
     </section>
@@ -701,6 +720,15 @@ const siteName = computed(() =>
   localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, locale.value)
 )
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const modelPlazaEnabled = computed(
+  () => appStore.cachedPublicSettings?.model_plaza_enabled === true,
+)
+const modelPlazaRequiresAuth = computed(
+  () => appStore.cachedPublicSettings?.model_plaza_require_auth === true,
+)
+const showModelPlazaEntry = computed(
+  () => modelPlazaEnabled.value && (isAuthenticated.value || !modelPlazaRequiresAuth.value),
+)
 const isAdmin = computed(() => authStore.isAdmin)
 const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)

@@ -40,6 +40,7 @@ import auditAPI from './audit'
 import adminWithdrawalsAPI from './withdrawals'
 import adminFundsAPI from './funds'
 import ipRiskAPI from './ipRisk'
+import pluginsAPI from './plugins'
 
 /**
  * Unified admin API object for convenient access
@@ -81,7 +82,8 @@ export const adminAPI = {
   audit: auditAPI,
   withdrawals: adminWithdrawalsAPI,
   funds: adminFundsAPI,
-  ipRisk: ipRiskAPI
+  ipRisk: ipRiskAPI,
+  plugins: pluginsAPI
 }
 
 export {
@@ -121,7 +123,8 @@ export {
   auditAPI,
   adminWithdrawalsAPI,
   adminFundsAPI,
-  ipRiskAPI
+  ipRiskAPI,
+  pluginsAPI
 }
 
 export default adminAPI
@@ -149,3 +152,9 @@ export type {
   AdminFundClassificationCandidate,
   AdminFundClassificationPreview,
 } from './funds'
+export type {
+  PluginInstallation,
+  PluginCompatibility,
+  PluginUISession,
+  PluginTestResult
+} from './plugins'

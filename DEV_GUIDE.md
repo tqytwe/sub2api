@@ -19,8 +19,8 @@
 ## 环境要求
 
 - Go 版本以 `backend/go.mod` 为准。
-- 后端 lint 使用与 GitHub CI 一致的 `golangci-lint v2.9.0`：
-  `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.9.0`。
+- 后端 lint 使用与 GitHub CI 一致的 `golangci-lint v2.13`：
+  `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13`。
 - 前端只使用 pnpm；修改依赖时同步提交 `frontend/pnpm-lock.yaml`。
 - PostgreSQL 和 Redis 的地址、账号与密码由环境变量或未跟踪配置提供，不能写进仓库文档。
 - Ent schema 修改后运行 `cd backend && go generate ./ent`，并提交生成文件。
@@ -29,8 +29,12 @@
 
 ## 常用命令
 
-安装前端依赖：
+```bash
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.13
+npm install -g pnpm
+```
 
+安装前端依赖：
 
 ```bash
 pnpm --dir frontend install --frozen-lockfile

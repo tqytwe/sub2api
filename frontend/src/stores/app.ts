@@ -404,6 +404,7 @@ export const useAppStore = defineStore('app', () => {
         play_agent_team_enabled: false,
         image_studio_enabled: false,
         nextchat_enabled: false,
+        plugin_management_enabled: false,
         risk_control_enabled: false,
         service_quota_enabled: false,
         affiliate_enabled: false,
