@@ -235,6 +235,23 @@ function localeFromURL(): LocaleCode | null {
   return normalizeStoredLocale(fromQuery)
 }
 
+export function localeFromQuery(query: LocationQuery | null | undefined = {}): LocaleCode | null {
+  const raw = query?.lang ?? query?.locale
+  const value = Array.isArray(raw) ? raw[0] : raw
+  return typeof value === 'string' ? normalizeStoredLocale(value.trim()) : null
+}
+
+/**
+ * Resolve the language for a route without consulting a persisted browser preference.
+ * English is opt-in through the explicit /en route layer or a lang query parameter;
+ * every other route is Chinese so an old English preference cannot leak into the app.
+ */
+export function localeForRoute(path: string, query: LocationQuery = {}): LocaleCode {
+  const fromPath = localeFromPath(path)
+  if (fromPath === 'en') return 'en'
+  return localeFromQuery(query) ?? 'zh'
+}
+
 function getDefaultLocale(): LocaleCode {
   const fromPath = typeof window === 'undefined' ? null : localeFromPath(window.location.pathname)
   if (fromPath) {
@@ -245,17 +262,6 @@ function getDefaultLocale(): LocaleCode {
   if (fromURL) {
     return fromURL
   }
-
-  const saved = normalizeStoredLocale(localStorage.getItem(LOCALE_KEY))
-  if (saved) {
-    return saved
-  }
-
-  const browserLang = navigator.language.toLowerCase()
-  if (browserLang.startsWith('zh')) {
-    return 'zh'
-  }
-
   return DEFAULT_LOCALE
 }
 
@@ -367,19 +373,15 @@ export async function ensureLocaleMessagesForPath(
 
 export async function initI18n(): Promise<void> {
   const path = typeof window === 'undefined' ? '/' : window.location.pathname
-  const fromPath = localeFromPath(path)
-  const fromURL = localeFromURL()
-  if (fromPath) {
-    await ensureLocaleMessagesForPath(path, fromPath)
-    i18n.global.locale.value = fromPath
-  } else if (fromURL) {
-    await ensureLocaleMessagesForPath(path, fromURL)
-    i18n.global.locale.value = fromURL
-    localStorage.setItem(LOCALE_KEY, fromURL)
-  } else {
-    const current = getLocale()
-    await ensureLocaleMessagesForPath(path, current)
-  }
+  const current = localeForRoute(
+    path,
+    typeof window === 'undefined'
+      ? {}
+      : Object.fromEntries(new URLSearchParams(window.location.search).entries()),
+  )
+  await ensureLocaleMessagesForPath(path, current)
+  i18n.global.locale.value = current
+  localStorage.setItem(LOCALE_KEY, current)
   document.documentElement.setAttribute('lang', documentLanguage(getLocale()))
 }
 
@@ -391,22 +393,12 @@ export async function applyLocaleFromRouteQuery(query: LocationQuery): Promise<v
 }
 
 export async function applyLocaleFromRoute(path: string, query: LocationQuery): Promise<void> {
-  const fromPath = localeFromPath(path)
-  if (fromPath) {
-    await setLocale(fromPath, { persist: false })
+  const resolved = localeForRoute(path, query)
+  if (getLocale() === resolved) {
+    if (typeof localStorage !== 'undefined') localStorage.setItem(LOCALE_KEY, resolved)
     return
   }
-  const raw = query.lang ?? query.locale
-  const value = Array.isArray(raw) ? raw[0] : raw
-  if (typeof value === 'string' && value.trim()) {
-    await setLocale(value.trim())
-    return
-  }
-
-  const saved = typeof localStorage === 'undefined' ? null : normalizeStoredLocale(localStorage.getItem(LOCALE_KEY))
-  if (saved && saved !== getLocale()) {
-    await setLocale(saved, { persist: false })
-  }
+  await setLocale(resolved)
 }
 
 export async function setLocale(locale: string, options: { persist?: boolean } = {}): Promise<void> {

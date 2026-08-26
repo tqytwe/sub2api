@@ -101,6 +101,16 @@ function toggleDropdown() {
   isOpen.value = !isOpen.value
 }
 
+function resolveWorkspaceLocaleRoute(code: string) {
+  const query = { ...route.query }
+  delete query.lang
+  delete query.locale
+  if (code === 'en') {
+    query.lang = 'en'
+  }
+  return { path: route.path, query }
+}
+
 async function selectLocale(code: string) {
   if (switching.value) {
     isOpen.value = false
@@ -110,7 +120,9 @@ async function selectLocale(code: string) {
   const targetRoute =
     props.variant === 'public' && (code === 'en' || code === 'zh')
       ? resolvePublicLocaleRoute(code, route.path, route.query)
-      : null
+      : code === 'en' || code === 'zh'
+        ? resolveWorkspaceLocaleRoute(code)
+        : null
 
   if (!targetRoute && code === currentLocaleCode.value) {
     isOpen.value = false
@@ -119,11 +131,8 @@ async function selectLocale(code: string) {
 
   switching.value = true
   try {
-    if (targetRoute) {
-      await router.push(targetRoute)
-    } else {
-      await setLocale(code)
-    }
+    if (targetRoute) await router.push(targetRoute)
+    else await setLocale(code)
     isOpen.value = false
   } finally {
     switching.value = false
