@@ -4,7 +4,7 @@
  */
 
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import { applyLocaleFromRoute, ensureLocaleMessagesForPath, localeFromQuery } from '@/i18n'
+import { applyLocaleFromRoute, ensureLocaleMessagesForRoute, inheritedEnglishLocaleQuery } from '@/i18n'
 import { useAuthStore } from '@/stores/auth'
 import { useAppStore } from '@/stores/app'
 import { useAdminSettingsStore } from '@/stores/adminSettings'
@@ -1216,17 +1216,14 @@ router.beforeEach(async (to, from, next) => {
 
   // An explicit English workspace query is an opt-in session marker. Preserve it
   // across internal links, while a direct no-query visit still defaults to Chinese.
-  if (
-    localeFromQuery(from.query) === 'en' &&
-    localeFromQuery(to.query) === null &&
-    !to.path.startsWith('/en')
-  ) {
-    next({ path: to.path, query: { ...to.query, lang: 'en' }, hash: to.hash })
+  const inheritedLocaleQuery = inheritedEnglishLocaleQuery(from.query, to.query, to.path)
+  if (inheritedLocaleQuery) {
+    next({ path: to.path, query: inheritedLocaleQuery, hash: to.hash })
     return
   }
 
   await applyLocaleFromRoute(to.path, to.query)
-  await ensureLocaleMessagesForPath(to.path, undefined, to.meta.localeScopes)
+  await ensureLocaleMessagesForRoute(to.name, undefined, to.meta.localeScopes)
 
   const authStore = useAuthStore()
 

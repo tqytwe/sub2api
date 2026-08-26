@@ -236,6 +236,12 @@ const messages = {
     // Status
     quotaMode: 'Key 限额模式',
     walletBalance: '钱包余额',
+    status: {
+      active: '正常',
+      expired: '已过期',
+      quotaExhausted: '额度用尽',
+      unknown: '未知状态'
+    },
     // Ring card titles
     totalQuota: '总额度',
     limit5h: '5 小时限额',

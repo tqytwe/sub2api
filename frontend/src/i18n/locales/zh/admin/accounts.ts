@@ -1456,6 +1456,7 @@ export default {
       // Test Modal
       testAccountConnection: '测试账号连接',
       errorPrefix: '错误：{message}',
+      testRequestFailed: '测试请求失败（HTTP {status}）',
       imagePreviewAlt: '测试图片 {index}',
       imageLightboxAlt: '图片预览',
       account: '账号',

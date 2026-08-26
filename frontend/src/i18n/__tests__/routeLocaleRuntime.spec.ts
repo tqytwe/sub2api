@@ -1,0 +1,210 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+import { describe, expect, it } from 'vitest'
+
+import {
+  ROUTE_LOCALE_SCOPES,
+  applyLocaleFromRoute,
+  ensureLocaleMessagesForRoute,
+  i18n,
+  inheritedEnglishLocaleQuery,
+  localeForRoute,
+  localeScopesForRouteName,
+} from '../index'
+
+function readPath(messages: Record<string, unknown>, path: string): unknown {
+  return path.split('.').reduce<unknown>((node, key) => {
+    if (!node || typeof node !== 'object') return undefined
+    return (node as Record<string, unknown>)[key]
+  }, messages)
+}
+
+function translated(locale: 'zh' | 'en', path: string): string {
+  const messages = i18n.global.getLocaleMessage(locale) as Record<string, unknown>
+  const value = readPath(messages, path)
+  expect(typeof value, `${locale}:${path}`).toBe('string')
+  expect((value as string).trim(), `${locale}:${path}`).not.toBe('')
+  return value as string
+}
+
+const ROUTE_RUNTIME_KEYS = {
+  Dashboard: ['dashboard.title'],
+  Keys: ['keys.title'],
+  BatchImageGuide: ['batchImageGuide.title'],
+  Usage: ['usage.title', 'usage.tabs.errors'],
+  Wallet: ['wallet.title'],
+  AICreationSpace: ['imageStudio.title', 'promptLibrary.panel.title'],
+  PlayHub: ['playHub.title'],
+  CheckIn: ['checkin.title'],
+  Affiliate: ['affiliate.title'],
+  UserAvailableChannels: ['availableChannels.title'],
+  Profile: ['profile.title'],
+  Subscriptions: ['userSubscriptions.title'],
+  PurchaseSubscription: ['payment.title'],
+  OrderList: ['payment.orders.title'],
+  AdminDashboard: ['admin.dashboard.title'],
+  AdminOps: ['admin.ops.title'],
+  AdminPlayOps: ['admin.playOps.title'],
+  AdminGroups: ['admin.groups.title', 'admin.accounts.status.active'],
+  AdminChannels: ['admin.channels.title'],
+  AdminRiskControl: ['admin.riskControl.proxy', 'admin.riskControl.proxyHint'],
+  AdminAccounts: ['admin.accounts.title'],
+  AdminProxies: ['admin.proxies.title', 'admin.accounts.status.active'],
+  AdminIPRisk: ['admin.ipRisk.title', 'admin.accounts.status.active'],
+  AdminIPRiskActions: ['admin.ipRisk.actionsView.title', 'admin.accounts.status.active'],
+  AdminPlugins: ['admin.plugins.title'],
+  AdminSettings: ['admin.settings.title'],
+  AdminAuditLogs: ['admin.audit.title'],
+  AdminPromptAudit: ['admin.promptAudit.title'],
+  AdminUsage: ['admin.usage.title', 'usage.totalRequests', 'usage.tabs.usage'],
+  AdminPlayBillingConfig: [
+    'payment.admin.playBilling.eyebrow',
+    'payment.admin.playBilling.title',
+    'payment.admin.playBilling.saved',
+  ],
+} as const
+
+describe('route locale runtime scopes', () => {
+  it.each(['zh', 'en'] as const)('loads the AdminUsage shell keys without relying on a prior route for %s', async (locale) => {
+    expect(localeScopesForRouteName('AdminUsage')).toEqual(expect.arrayContaining([
+      'workspace-shell',
+      'admin-shell',
+      'user-dashboard',
+      'admin-ops',
+    ]))
+
+    await ensureLocaleMessagesForRoute('AdminUsage', locale)
+
+    for (const key of [
+      'nav.fundManagement',
+      'admin.accounts.status.active',
+      'usage.totalRequests',
+      'admin.ops.errorLog.type',
+    ]) {
+      expect(translated(locale, key)).not.toBe(key)
+    }
+  })
+
+  it('declares one typed locale-scope union for every named route', () => {
+    const routerSource = readFileSync(resolve(process.cwd(), 'src/router/index.ts'), 'utf8')
+    const routeNames = [...routerSource.matchAll(/name: '([^']+)'/g)].map((match) => match[1]).sort()
+
+    expect(Object.keys(ROUTE_LOCALE_SCOPES).sort()).toEqual(routeNames)
+    for (const routeName of routeNames) {
+      expect(localeScopesForRouteName(routeName)).toContain('core')
+      expect(localeScopesForRouteName(routeName)).not.toContain('full')
+    }
+  })
+
+  it.each(['zh', 'en'] as const)('loads and merges every declared route union for %s', async (locale) => {
+    for (const [routeName, scopes] of Object.entries(ROUTE_LOCALE_SCOPES)) {
+      await ensureLocaleMessagesForRoute(routeName, locale)
+
+      expect(translated(locale, 'common.loading')).not.toBe('common.loading')
+      expect(translated(locale, 'nav.dashboard')).not.toBe('nav.dashboard')
+
+      if (scopes.includes('workspace-shell')) {
+        expect(translated(locale, 'nav.aiCreationSpace')).not.toBe('nav.aiCreationSpace')
+        expect(translated(locale, 'nav.fundManagement')).not.toBe('nav.fundManagement')
+      }
+      if (scopes.includes('admin-shell')) {
+        expect(translated(locale, 'admin.accounts.status.active')).not.toBe('admin.accounts.status.active')
+        expect(translated(locale, 'status.unknown')).not.toBe('status.unknown')
+      }
+
+      for (const key of ROUTE_RUNTIME_KEYS[routeName as keyof typeof ROUTE_RUNTIME_KEYS] ?? []) {
+        expect(translated(locale, key)).not.toBe(key)
+      }
+    }
+  })
+
+  it.each(['zh', 'en'] as const)('loads the workspace shell instead of raw sidebar keys for %s', async (locale) => {
+    await ensureLocaleMessagesForRoute('Dashboard', locale)
+
+    expect(translated(locale, 'nav.aiCreationSpace')).not.toBe('nav.aiCreationSpace')
+    expect(translated(locale, 'nav.fundManagement')).not.toBe('nav.fundManagement')
+    expect(translated(locale, 'nav.playBilling')).not.toBe('nav.playBilling')
+  })
+
+  it.each(['zh', 'en'] as const)('loads reused admin dependencies for %s', async (locale) => {
+    await ensureLocaleMessagesForRoute('AdminUsage', locale)
+    await ensureLocaleMessagesForRoute('AdminGroups', locale)
+
+    expect(translated(locale, 'usage.totalRequests')).not.toBe('usage.totalRequests')
+    expect(translated(locale, 'usage.tabs.usage')).not.toBe('usage.tabs.usage')
+    expect(translated(locale, 'admin.accounts.status.active')).not.toBe('admin.accounts.status.active')
+  })
+
+  it.each(['zh', 'en'] as const)('loads AI Creation Space copy from its explicit public-page dependency for %s', async (locale) => {
+    await ensureLocaleMessagesForRoute('AICreationSpace', locale)
+
+    expect(localeScopesForRouteName('AICreationSpace')).toContain('public-pages')
+    expect(translated(locale, 'imageStudio.title')).not.toBe('imageStudio.title')
+    expect(translated(locale, 'imageStudio.customDimensions')).not.toBe('imageStudio.customDimensions')
+    expect(translated(locale, 'imageStudio.sizeConstraint')).not.toBe('imageStudio.sizeConstraint')
+    expect(translated(locale, 'promptLibrary.panel.title')).not.toBe('promptLibrary.panel.title')
+  })
+
+  it.each([
+    'Dashboard',
+    'Keys',
+    'KeySpeedTest',
+    'BatchImageGuide',
+    'Usage',
+    'Wallet',
+    'Redeem',
+    'AICreationSpace',
+    'PlayHub',
+    'CheckIn',
+    'Affiliate',
+    'UserAvailableChannels',
+    'Profile',
+    'Subscriptions',
+    'PurchaseSubscription',
+    'OrderList',
+    'PaymentQRCode',
+    'StripePayment',
+    'AirwallexPayment',
+    'CustomPage',
+  ] as const)('%s loads the workspace shell before rendering AppLayout', (routeName) => {
+    expect(localeScopesForRouteName(routeName)).toContain('workspace-shell')
+  })
+
+  it('uses URL state, not old local storage state, to resolve the workspace language', () => {
+    localStorage.setItem('sub2api_locale', 'en')
+
+    expect(localeForRoute('/dashboard')).toBe('zh')
+    expect(localeForRoute('/dashboard', { lang: 'en' })).toBe('en')
+    expect(localeForRoute('/dashboard', { lang: 'zh' })).toBe('zh')
+    expect(localeForRoute('/models', { lang: 'en' })).toBe('en')
+    expect(localeForRoute('/en/models', { lang: 'zh' })).toBe('en')
+  })
+
+  it('clears the legacy locale preference on a Chinese workspace route', async () => {
+    localStorage.setItem('sub2api_locale', 'en')
+    i18n.global.locale.value = 'zh'
+
+    await applyLocaleFromRoute('/dashboard', {})
+
+    expect(localStorage.getItem('sub2api_locale')).toBeNull()
+    expect(i18n.global.locale.value).toBe('zh')
+  })
+
+  it('preserves only an explicit English workspace query during internal navigation', () => {
+    expect(inheritedEnglishLocaleQuery({ lang: 'en' }, { tab: 'usage' }, '/wallet')).toEqual({
+      lang: 'en',
+      tab: 'usage',
+    })
+    expect(inheritedEnglishLocaleQuery({ lang: 'en' }, {}, '/en/models')).toBeNull()
+    expect(inheritedEnglishLocaleQuery({ lang: 'zh' }, {}, '/wallet')).toBeNull()
+    expect(inheritedEnglishLocaleQuery({}, {}, '/wallet')).toBeNull()
+  })
+
+  it('does not fall back to Chinese when English has no message', async () => {
+    await ensureLocaleMessagesForRoute('Dashboard', 'en')
+    i18n.global.locale.value = 'en'
+
+    expect(i18n.global.t('__missing_runtime_translation__')).toBe('__missing_runtime_translation__')
+  })
+})

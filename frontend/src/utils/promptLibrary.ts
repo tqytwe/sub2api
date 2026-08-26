@@ -129,22 +129,23 @@ export async function openPromptInImageStudio(
   )
 }
 
-export const PROMPT_SOURCE_LABELS: Record<PromptSourceAttribution, string> = {
-  original: '极速蹬原创',
-  authorized: '极速蹬授权',
-  curated: '极速蹬精选',
-  community: '极速蹬社区精选',
+const PROMPT_SOURCE_MESSAGE_KEYS: Record<PromptSourceAttribution, string> = {
+  original: 'promptLibrary.source.original',
+  authorized: 'promptLibrary.source.authorized',
+  curated: 'promptLibrary.source.curated',
+  community: 'promptLibrary.source.community',
 }
 
-export function promptSourceLabel(source: PromptSourceAttribution): string {
-  return PROMPT_SOURCE_LABELS[source]
+const REFERENCE_REQUIREMENT_MESSAGE_KEYS: Record<PromptReferenceRequirement, string> = {
+  none: 'promptLibrary.reference.none',
+  optional: 'promptLibrary.reference.optional',
+  required: 'promptLibrary.reference.required',
 }
 
-export function referenceRequirementLabel(requirement: PromptReferenceRequirement): string {
-  const labels: Record<PromptReferenceRequirement, string> = {
-    none: '无需参考图',
-    optional: '可选参考图',
-    required: '需要参考图',
-  }
-  return labels[requirement]
+export function promptSourceMessageKey(source: PromptSourceAttribution): string {
+  return PROMPT_SOURCE_MESSAGE_KEYS[source]
+}
+
+export function referenceRequirementMessageKey(requirement: PromptReferenceRequirement): string {
+  return REFERENCE_REQUIREMENT_MESSAGE_KEYS[requirement]
 }

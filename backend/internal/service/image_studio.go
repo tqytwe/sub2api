@@ -504,10 +504,17 @@ func (s *ImageStudioService) CreateReference(
 
 func (s *ImageStudioService) resolveGenerateSize(apiKey *APIKey, model string, req ImageStudioGenerateRequest, tpl ImageStudioTemplate) (string, error) {
 	size := strings.TrimSpace(req.Size)
+	capability := s.ResolveModelCapabilities(apiKey, model)
 	if size == "" {
 		aspect, tier := strings.TrimSpace(req.Aspect), strings.TrimSpace(req.Tier)
 		if aspect == "" && tier == "" {
 			size = tpl.Defaults.Size
+			// Template defaults describe the composition, not a provider contract.
+			// Prefer them when valid, but fall back to the selected model's declared
+			// default rather than rejecting a size the user did not choose.
+			if size == "" || s.ValidateSizeForModel(apiKey, model, size) != nil {
+				size = capability.DefaultSize
+			}
 			if size == "" {
 				size = defaultImageStudioSize
 			}
@@ -518,7 +525,7 @@ func (s *ImageStudioService) resolveGenerateSize(apiKey *APIKey, model string, r
 			}
 			size = resolved
 		}
-	} else {
+	} else if capability.SizingKind != "custom_dimensions" && !imageStudioStringAllowed(capability.SupportedSizes, size) {
 		resolved, err := ResolveImageStudioSize("", "", size)
 		if err != nil {
 			return "", err
@@ -569,17 +576,8 @@ func (s *ImageStudioService) Estimate(
 	if err != nil {
 		return nil, err
 	}
-	if size == "" {
-		size = tpl.Defaults.Size
-		if size == "" {
-			size = defaultImageStudioSize
-		}
-	}
-	resolvedSize, err := ResolveImageStudioSize("", "", size)
+	resolvedSize, err := s.resolveGenerateSize(apiKey, resolvedModel, ImageStudioGenerateRequest{Size: size}, tpl)
 	if err != nil {
-		return nil, err
-	}
-	if err := s.ValidateSizeForModel(apiKey, resolvedModel, resolvedSize); err != nil {
 		return nil, err
 	}
 	size = resolvedSize
@@ -1387,6 +1385,13 @@ func (s *ImageStudioService) buildOpenAIImageStudioWorkerRequest(
 	operation, endpoint string,
 	body []byte,
 ) (*ImageStudioWorkerRequest, error) {
+	model := strings.TrimSpace(gjson.GetBytes(body, "model").String())
+	if model == "" && job != nil {
+		model = strings.TrimSpace(job.Model)
+	}
+	if isSenseNovaImageModel(model) {
+		return s.buildSenseNovaImageStudioWorkerRequest(ctx, job, operation, endpoint, body, model)
+	}
 	if operation == "edit" {
 		if endpoint != openAIImagesEditsEndpoint {
 			return nil, ErrImageStudioOperationNotSupported
@@ -1404,6 +1409,45 @@ func (s *ImageStudioService) buildOpenAIImageStudioWorkerRequest(
 		}, nil
 	}
 	if endpoint != openAIImagesGenerationsEndpoint {
+		return nil, ErrImageStudioOperationNotSupported
+	}
+	single, err := forceImageStudioSingleOutputJSON(body)
+	if err != nil {
+		return nil, err
+	}
+	return &ImageStudioWorkerRequest{
+		Platform:    PlatformOpenAI,
+		Operation:   operation,
+		Endpoint:    endpoint,
+		ContentType: "application/json",
+		Body:        single,
+	}, nil
+}
+
+func (s *ImageStudioService) buildSenseNovaImageStudioWorkerRequest(
+	ctx context.Context,
+	job *ImageStudioJob,
+	operation, endpoint string,
+	body []byte,
+	model string,
+) (*ImageStudioWorkerRequest, error) {
+	if operation == "edit" {
+		if !isSenseNovaU15LiteModel(model) || endpoint != openAIImagesEditsEndpoint {
+			return nil, ErrImageStudioOperationNotSupported
+		}
+		editBody, err := s.buildSenseNovaImageStudioEditJSON(ctx, job, body)
+		if err != nil {
+			return nil, err
+		}
+		return &ImageStudioWorkerRequest{
+			Platform:    PlatformOpenAI,
+			Operation:   operation,
+			Endpoint:    endpoint,
+			ContentType: "application/json",
+			Body:        editBody,
+		}, nil
+	}
+	if operation != "create" || endpoint != openAIImagesGenerationsEndpoint {
 		return nil, ErrImageStudioOperationNotSupported
 	}
 	single, err := forceImageStudioSingleOutputJSON(body)
@@ -1542,6 +1586,56 @@ func (s *ImageStudioService) buildGrokImageStudioEditJSON(
 		images = append(images, map[string]string{
 			"type": "image_url",
 			"url":  "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data),
+		})
+	}
+	delete(payload, "image_studio_job_reference_ids")
+	payload["images"] = images
+	payload["n"] = 1
+	return json.Marshal(payload)
+}
+
+func (s *ImageStudioService) buildSenseNovaImageStudioEditJSON(
+	ctx context.Context,
+	job *ImageStudioJob,
+	body []byte,
+) ([]byte, error) {
+	if s.assetStore == nil {
+		return nil, errors.New("image studio asset store unavailable")
+	}
+	if job == nil || job.ID == "" || job.UserID <= 0 {
+		return nil, errors.New("image studio job identity is required")
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+	referenceIDs := referenceIDsFromImageStudioPayload(payload["image_studio_job_reference_ids"])
+	if len(referenceIDs) == 0 {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	repo, ok := s.repo.(ImageStudioJobReferenceReader)
+	if !ok {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	refs, err := repo.ListJobReferencesByID(ctx, job.ID, referenceIDs)
+	if err != nil {
+		return nil, err
+	}
+	if len(refs) != len(referenceIDs) {
+		return nil, ErrImageStudioReferenceNotFound
+	}
+	images := make([]map[string]string, 0, len(refs))
+	for _, ref := range refs {
+		data, err := s.assetStore.Read(ref.StorageKey)
+		if err != nil {
+			return nil, err
+		}
+		contentType := strings.TrimSpace(ref.ContentType)
+		if contentType == "" {
+			return nil, ErrImageStudioReferenceInvalid
+		}
+		images = append(images, map[string]string{
+			"image_url": "data:" + contentType + ";base64," + base64.StdEncoding.EncodeToString(data),
 		})
 	}
 	delete(payload, "image_studio_job_reference_ids")

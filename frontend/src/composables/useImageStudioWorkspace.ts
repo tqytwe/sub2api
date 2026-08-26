@@ -171,7 +171,7 @@ export function useImageStudioWorkspace() {
     !!capabilities.value
     && !capabilitiesLoading.value
     && !capabilityError.value
-    && !!sizeCaps.currentOption.value
+    && sizeCaps.sizeReady.value
     && !!size.value,
   )
 
@@ -1542,6 +1542,16 @@ export function useImageStudioWorkspace() {
     sizeCaps.selectTier(value)
   }
 
+  function onSizeChange(value: string) {
+    if (sizeCaps.usesCustomDimensions.value) {
+      sizeCaps.setCustomSize(value)
+      return
+    }
+    if (sizeCaps.usesDedicatedSizeList.value) {
+      sizeCaps.selectDedicatedSize(value)
+    }
+  }
+
   onMounted(() => {
     mounted = true
     trackGrowthEvent('image_studio_workspace_view')
@@ -1660,6 +1670,7 @@ export function useImageStudioWorkspace() {
     removeJob,
     onAspectChange,
     onTierChange,
+    onSizeChange,
     ensureGalleryLoaded,
     refreshJobs,
     load,

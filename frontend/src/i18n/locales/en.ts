@@ -237,6 +237,12 @@ const messages = {
     // Status
     quotaMode: 'Key Quota Mode',
     walletBalance: 'Wallet Balance',
+    status: {
+      active: 'Active',
+      expired: 'Expired',
+      quotaExhausted: 'Quota exhausted',
+      unknown: 'Unknown status'
+    },
     // Ring card titles
     totalQuota: 'Total Quota',
     limit5h: '5-Hour Limit',
@@ -3441,7 +3447,7 @@ const messages = {
       accountsAvailable: 'Avail:',
       accountsRateLimited: 'Limited:',
       accountsTotal: 'Total:',
-      accountsUnit: '',
+      accountsUnit: 'accounts',
       rateAndAccounts: '{rate}x rate · {count} accounts',
       accountsCount: '{count} accounts',
       rateLabel: 'rate',

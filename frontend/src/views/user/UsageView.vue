@@ -670,7 +670,7 @@ const getRequestTypeExportText = (log: UsageLog): string => {
   if (requestType === 'ws_v2') return 'WS'
   if (requestType === 'stream') return 'Stream'
   if (requestType === 'sync') return 'Sync'
-  return 'Unknown'
+  return t('common.unknown')
 }
 
 const getDisplayBillingMode = (

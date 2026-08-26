@@ -960,10 +960,18 @@
 
 .docs-article-brand-logo {
   display: block;
-  height: 36px;
-  width: auto;
-  margin-bottom: 14px;
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
   opacity: 0.95;
+}
+
+.docs-article-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-bottom: 14px;
 }
 
 .docs-article-eyebrow {

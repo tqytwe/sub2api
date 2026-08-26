@@ -413,6 +413,20 @@ export default {
       ledgerLoadFailed: "Failed to load linked records",
       newCampaign: "New invite campaign",
       editCampaign: "Edit invite campaign",
+      campaignVersion: "{key} · v{version} · rules v{rulesVersion}",
+      pendingFinancialVersion: "Financial rules v{version} await all four approvals; the campaign continues to settle under rules v{rulesVersion}.",
+      legacyRebate: {
+        title: "Standard 10% invite rebate",
+        hint: "This setting is independent of the campaign tier payout mode and is stored in the settlement snapshot for each campaign invite.",
+        exclude: "Do not stack (default): campaign invites never earn the standard 10% invite rebate",
+        stack: "Allow stacking: campaign rewards and the standard rebate settle separately",
+      },
+      publicRulesLabel: "Campaign rules (visible on the enrollment page)",
+      inviteeNoticeLabel: "Invitee notice (visible with the registration link)",
+      defaults: {
+        publicRules: "## Campaign rules\n\nInvite new users to register and meet the thresholds to claim rewards by campaign tier. Refunds or risk rejections affect eligibility and rewards.",
+        inviteeNotice: "After registering through this link, complete the campaign's net-paid and actual-usage requirements.",
+      },
       editDraft: "Edit draft",
       campaigns: "Invite campaigns",
       campaign: "Campaign",
@@ -500,6 +514,7 @@ export default {
       fields: { registration_from: "Enrollment starts", registration_to: "Enrollment ends", starts_at: "Campaign starts", ends_at: "Campaign ends", qualification_to: "Qualification deadline", claim_deadline: "Claim deadline" },
       errors: {
         required: "Campaign key and name are required.",
+        publicCopyRequired: "Enter the public campaign copy for inviters and invitees.",
         invalidTime: "A campaign date or time is invalid.",
         invalidSchedule: "Check the order of enrollment, campaign, qualification, and claim deadlines.",
         invalidSettings: "A threshold, risk hold, enrollment cap, or budget value is invalid.",

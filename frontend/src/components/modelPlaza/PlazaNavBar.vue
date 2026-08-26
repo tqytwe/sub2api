@@ -9,7 +9,12 @@
           <span
             class="flex h-9 w-9 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-gray-200 dark:bg-dark-800 dark:ring-dark-700"
           >
-            <img :src="siteLogo || '/logo.png'" alt="Logo" class="h-full w-full object-contain" data-testid="model-plaza-logo" />
+            <img
+              :src="siteLogo || '/logo.png'"
+              :alt="siteName"
+              :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }, 'h-full w-full object-contain']"
+              data-testid="model-plaza-logo"
+            />
           </span>
           <span class="truncate text-base font-semibold text-gray-950 dark:text-white">
             {{ siteName }}
@@ -46,15 +51,16 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { sanitizeUrl } from '@/utils/url'
+import { localizedSiteName } from '@/utils/localizedPublicSettings'
 import { useAppStore } from '@/stores/app'
 import { useAuthStore } from '@/stores/auth'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 
 const settings = computed(() => appStore.cachedPublicSettings)
-const siteName = computed(() => settings.value?.site_name || '极速蹬')
+const siteName = computed(() => localizedSiteName(settings.value?.site_name, locale.value))
 const siteLogo = computed(() =>
   sanitizeUrl(settings.value?.site_logo || '', { allowRelative: true, allowDataUrl: true })
 )

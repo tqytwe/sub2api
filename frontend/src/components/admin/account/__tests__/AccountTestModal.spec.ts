@@ -253,4 +253,42 @@ describe('AccountTestModal', () => {
       mode: 'compact'
     })
   })
+
+  it('OpenAI 账号选择 SenseNova 图像模型时显示提示词并提交图像测试参数', async () => {
+    getAvailableModels.mockResolvedValue([
+      { id: 'sensenova-u1-fast', display_name: 'SenseNova U1 Fast' }
+    ])
+    global.fetch = vi.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"type":"test_start","model":"sensenova-u1-fast"}\n',
+        'data: {"type":"image","image_url":"https://cdn.sensenova.example/generated.png","mime_type":"image/png"}\n',
+        'data: {"type":"test_complete","success":true}\n'
+      ])
+    ) as any
+
+    const wrapper = mountModal({
+      id: 45,
+      name: 'SenseNova',
+      platform: 'openai',
+      type: 'apikey',
+      status: 'active'
+    }, true)
+    await flushPromises()
+
+    expect((wrapper.vm as any).selectedModelId).toBe('sensenova-u1-fast')
+    const promptInput = wrapper.find('textarea.textarea-stub')
+    expect(promptInput.exists()).toBe(true)
+    await promptInput.setValue('生成一张水彩风格的小猫贴纸')
+
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, request] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(request.body)).toMatchObject({
+      model_id: 'sensenova-u1-fast',
+      prompt: '生成一张水彩风格的小猫贴纸',
+      mode: 'default'
+    })
+  })
 })

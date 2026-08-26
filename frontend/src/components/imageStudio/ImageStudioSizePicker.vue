@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ImageStudioCapabilities, ImageStudioModelOption } from '@/api/imageStudio'
 
@@ -7,6 +7,7 @@ const props = defineProps<{
   capabilities: ImageStudioCapabilities | null
   aspect: string
   tier: string
+  size?: string
   selectedModel?: ImageStudioModelOption | null
   disabled?: boolean
 }>()
@@ -14,6 +15,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:aspect': [value: string]
   'update:tier': [value: string]
+  'update:size': [value: string]
 }>()
 
 const { t, locale } = useI18n()
@@ -30,6 +32,41 @@ const supportedSizeSet = computed(() => {
 
 const sizeOptions = computed(() => props.capabilities?.size_options ?? [])
 
+const usesCustomDimensions = computed(() => (
+  props.selectedModel?.sizing_kind === 'custom_dimensions'
+))
+
+const usesDedicatedSizeList = computed(() => {
+  if (usesCustomDimensions.value) return false
+  const model = props.selectedModel
+  if (model?.sizing_kind !== 'fixed' || !model.supported_sizes?.length) return false
+  const matrixSizes = new Set(sizeOptions.value.map((option) => option.size))
+  return model.supported_sizes.some((size) => !matrixSizes.has(size))
+})
+
+const dedicatedSizeOptions = computed(() => props.selectedModel?.supported_sizes ?? [])
+const customWidth = ref('')
+const customHeight = ref('')
+
+function parseDimensions(value?: string) {
+  const match = /^\s*(\d+)x(\d+)\s*$/i.exec(value ?? '')
+  if (!match) return null
+  return { width: match[1], height: match[2] }
+}
+
+function syncCustomDimensions(value?: string) {
+  const dimensions = parseDimensions(value)
+  if (!dimensions) return
+  customWidth.value = dimensions.width
+  customHeight.value = dimensions.height
+}
+
+watch(
+  () => props.size,
+  syncCustomDimensions,
+  { immediate: true },
+)
+
 function isAspectDisabled(aspectId: string) {
   const supported = supportedSizeSet.value
   if (!supported) return false
@@ -45,9 +82,19 @@ function isTierDisabled(tierId: string) {
 }
 
 const resolvedLabel = computed(() => {
+  if (usesCustomDimensions.value || usesDedicatedSizeList.value) return props.size ?? ''
   const match = sizeOptions.value.find((opt) => opt.aspect === props.aspect && opt.tier === props.tier)
   return match?.size ?? ''
 })
+
+function updateCustomDimension(dimension: 'width' | 'height', event: Event) {
+  const value = (event.target as HTMLInputElement).value
+  if (dimension === 'width') customWidth.value = value
+  else customHeight.value = value
+
+  if (!/^\d+$/.test(customWidth.value) || !/^\d+$/.test(customHeight.value)) return
+  emit('update:size', `${customWidth.value}x${customHeight.value}`)
+}
 
 function aspectShapeStyle(aspectId: string) {
   const [width, height] = aspectId.split(':').map(Number)
@@ -62,7 +109,68 @@ function aspectShapeStyle(aspectId: string) {
 
 <template>
   <div class="grid gap-4 sm:grid-cols-2">
-    <fieldset class="min-w-0">
+    <fieldset v-if="usesCustomDimensions" class="min-w-0 sm:col-span-2">
+      <legend class="input-label">{{ t('imageStudio.customDimensions') }}</legend>
+      <div class="grid grid-cols-2 gap-3">
+        <label class="min-w-0">
+          <span class="sr-only">{{ t('imageStudio.width') }}</span>
+          <input
+            data-testid="image-size-width"
+            type="number"
+            inputmode="numeric"
+            class="input tabular-nums"
+            :value="customWidth"
+            :min="selectedModel?.min_dimension"
+            :max="selectedModel?.max_dimension"
+            :step="selectedModel?.dimension_step"
+            :disabled="disabled"
+            :aria-label="t('imageStudio.width')"
+            @input="updateCustomDimension('width', $event)"
+          >
+        </label>
+        <label class="min-w-0">
+          <span class="sr-only">{{ t('imageStudio.height') }}</span>
+          <input
+            data-testid="image-size-height"
+            type="number"
+            inputmode="numeric"
+            class="input tabular-nums"
+            :value="customHeight"
+            :min="selectedModel?.min_dimension"
+            :max="selectedModel?.max_dimension"
+            :step="selectedModel?.dimension_step"
+            :disabled="disabled"
+            :aria-label="t('imageStudio.height')"
+            @input="updateCustomDimension('height', $event)"
+          >
+        </label>
+      </div>
+      <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        {{ t('imageStudio.sizeConstraint', {
+          min: selectedModel?.min_dimension,
+          max: selectedModel?.max_dimension,
+          step: selectedModel?.dimension_step,
+          ratio: selectedModel?.max_aspect_ratio,
+        }) }}
+      </p>
+    </fieldset>
+
+    <fieldset v-else-if="usesDedicatedSizeList" class="min-w-0 sm:col-span-2">
+      <legend class="input-label">{{ t('imageStudio.size') }}</legend>
+      <select
+        data-testid="image-size-select"
+        class="input font-mono"
+        :value="size"
+        :disabled="disabled"
+        @change="emit('update:size', ($event.target as HTMLSelectElement).value)"
+      >
+        <option v-for="option in dedicatedSizeOptions" :key="option" :value="option">
+          {{ option }}
+        </option>
+      </select>
+    </fieldset>
+
+    <fieldset v-else class="min-w-0">
       <legend class="input-label">{{ t('imageStudio.aspect') }}</legend>
       <div class="grid min-h-11 grid-cols-5 gap-1 rounded-xl border border-gray-200 bg-gray-50 p-1 dark:border-dark-600 dark:bg-dark-900">
         <button

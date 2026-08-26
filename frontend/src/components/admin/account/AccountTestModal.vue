@@ -37,7 +37,7 @@
               : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
           ]"
         >
-          {{ account.status }}
+          {{ t(accountStatusTranslationKey(account.status)) }}
         </span>
       </div>
 
@@ -387,6 +387,7 @@ import { buildApiUrl } from '@/api/client'
 import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 import { adminAPI } from '@/api/admin'
 import type { Account, ClaudeModel } from '@/types'
+import { accountStatusTranslationKey } from '@/utils/accountStatus'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -460,7 +461,13 @@ const supportsGeminiImageTest = computed(() => {
 
 const supportsOpenAIImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
-  if (!modelID.startsWith('gpt-image-')) return false
+  if (
+    !modelID.startsWith('gpt-image-') &&
+    modelID !== 'sensenova-u1.5-lite' &&
+    modelID !== 'sensenova-u1-fast'
+  ) {
+    return false
+  }
   return props.account?.platform === 'openai'
 })
 
@@ -924,7 +931,7 @@ const startTest = async () => {
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(t('admin.accounts.testRequestFailed', { status: response.status }))
     }
 
     const reader = response.body?.getReader()

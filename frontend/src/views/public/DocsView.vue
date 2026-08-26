@@ -9,6 +9,8 @@ import SupportFloatingCard from '@/components/common/SupportFloatingCard.vue'
 import DocsVipTiersTable from '@/components/public/DocsVipTiersTable.vue'
 import { PUBLIC_DOC_TREE, normalizePublicDocLocation, type PublicDocLocale } from '@/content/public-docs-tree'
 import type { PublicDocCategoryContent, PublicDocPageContent } from '@/content/public-docs-data.zh'
+import { localizedSiteName } from '@/utils/localizedPublicSettings'
+import { sanitizeUrl } from '@/utils/url'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -64,6 +66,15 @@ const backTarget = computed(() => {
 })
 const backLabel = computed(() =>
   authStore.isAuthenticated ? t('docs.backDashboard') : t('contact.backHome'),
+)
+const siteName = computed(() =>
+  localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, locale.value),
+)
+const siteLogo = computed(() =>
+  sanitizeUrl(appStore.cachedPublicSettings?.site_logo || appStore.siteLogo || '', {
+    allowRelative: true,
+    allowDataUrl: true,
+  }),
 )
 
 const activeCat = computed(() => {
@@ -250,7 +261,7 @@ const categoryIcons: Record<string, string> = {
           ← {{ isReaderMode ? t('docs.backToIndex') : backLabel }}
         </button>
         <div class="docs-topbar-title">
-          <span class="docs-topbar-eyebrow">DOCS</span>
+          <span class="docs-topbar-eyebrow">{{ t('docs.eyebrow') }}</span>
           <span class="docs-topbar-cn">{{ t('docs.title') }}</span>
         </div>
         <div class="docs-topbar-actions">
@@ -339,7 +350,7 @@ const categoryIcons: Record<string, string> = {
         </div>
 
         <article v-else class="docs-article">
-          <nav class="docs-breadcrumb" aria-label="Breadcrumb">
+          <nav class="docs-breadcrumb" :aria-label="t('docs.title')">
             <button type="button" class="docs-crumb" @click="goToIndex">{{ t('docs.title') }}</button>
             <span class="docs-crumb-sep">/</span>
             <button
@@ -354,12 +365,17 @@ const categoryIcons: Record<string, string> = {
           </nav>
 
           <header class="docs-article-head">
-            <img
-              v-if="appStore.siteLogo"
-              :src="appStore.siteLogo"
-              :alt="appStore.siteName"
-              class="docs-article-brand-logo"
-            />
+            <span class="docs-article-brand-mark brand-logo-shell">
+              <img
+                :src="siteLogo || '/logo.png'"
+                :alt="siteName"
+                :class="[
+                  'docs-article-brand-logo',
+                  'brand-logo-asset',
+                  { 'brand-logo-asset--deng': !siteLogo },
+                ]"
+              />
+            </span>
             <p class="docs-article-eyebrow">{{ activeCategory?.title }}</p>
             <h1 class="docs-article-title">{{ pageTitle }}</h1>
             <p v-if="pageSummary" class="docs-article-summary">{{ pageSummary }}</p>

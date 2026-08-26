@@ -3,6 +3,10 @@ import { mount } from '@vue/test-utils'
 import { nextTick } from 'vue'
 import HelpTooltip from '@/components/common/HelpTooltip.vue'
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key === 'common.close' ? 'Close' : key }),
+}))
+
 function getTooltipElement(): HTMLDivElement {
   const tooltip = document.body.querySelector('[role="tooltip"]')
   if (!(tooltip instanceof HTMLDivElement)) {

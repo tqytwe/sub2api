@@ -4900,9 +4900,9 @@ const buildMixedChannelDetails = (resp?: CheckMixedChannelResponse) => {
     return null
   }
   return {
-    groupName: details.group_name || 'Unknown',
-    currentPlatform: details.current_platform || 'Unknown',
-    otherPlatform: details.other_platform || 'Unknown'
+    groupName: details.group_name || t('common.unknown'),
+    currentPlatform: details.current_platform || t('common.unknown'),
+    otherPlatform: details.other_platform || t('common.unknown')
   }
 }
 
@@ -5725,7 +5725,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
         const tokenInfo = await grokOAuth.validateRefreshToken(refreshTokens[i], form.proxy_id)
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${grokOAuth.error.value || 'Validation failed'}`)
+          errors.push(`#${i + 1}: ${grokOAuth.error.value || t('admin.accounts.oauth.grok.failedToValidateRT')}`)
           grokOAuth.error.value = ''
           continue
         }
@@ -5762,7 +5762,7 @@ const handleGrokValidateRT = async (refreshTokenInput: string) => {
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }
@@ -5843,12 +5843,12 @@ const handleGrokImportSSO = async (ssoInput: string) => {
         t('admin.accounts.oauth.batchPartialSuccess', { success: successCount, failed: failedCount })
       )
       grokOAuth.error.value = (result.failed || [])
-        .map((item) => `#${item.index}: ${item.error || 'Unknown error'}`)
+        .map((item) => `#${item.index}: ${item.error || t('common.unknownError')}`)
         .join('\n')
       emit('created')
     } else {
       grokOAuth.error.value = (result.failed || [])
-        .map((item) => `#${item.index}: ${item.error || 'Unknown error'}`)
+        .map((item) => `#${item.index}: ${item.error || t('common.unknownError')}`)
         .join('\n') || t('admin.accounts.oauth.grok.failedToConvertSSO')
       appStore.showError(t('admin.accounts.oauth.batchFailed'))
     }
@@ -5939,7 +5939,7 @@ const handleGrokAuthorizePassword = async (emailPasswordInput: string) => {
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }
@@ -6269,7 +6269,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         )
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${oauthClient.error.value || 'Validation failed'}`)
+          errors.push(`#${i + 1}: ${oauthClient.error.value || t('admin.accounts.oauth.openai.failedToValidateRT')}`)
           oauthClient.error.value = ''
           continue
         }
@@ -6321,7 +6321,7 @@ const handleOpenAIBatchRT = async (refreshTokenInput: string, clientId?: string)
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }
@@ -6387,7 +6387,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
         )
         if (!tokenInfo) {
           failedCount++
-          errors.push(`#${i + 1}: ${antigravityOAuth.error.value || 'Validation failed'}`)
+          errors.push(`#${i + 1}: ${antigravityOAuth.error.value || t('admin.accounts.oauth.antigravity.failedToValidateRT')}`)
           antigravityOAuth.error.value = ''
           continue
         }
@@ -6419,7 +6419,7 @@ const handleAntigravityValidateRT = async (refreshTokenInput: string) => {
         successCount++
       } catch (error: any) {
         failedCount++
-        const errMsg = error.response?.data?.detail || error.message || 'Unknown error'
+        const errMsg = error.response?.data?.detail || error.message || t('common.unknownError')
         errors.push(`#${i + 1}: ${errMsg}`)
       }
     }

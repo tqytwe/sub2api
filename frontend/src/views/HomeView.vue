@@ -18,11 +18,13 @@
     <header class="border-b border-gray-200 px-4 py-4 sm:px-6 dark:border-dark-800">
       <nav class="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
-          <img
-            :src="siteLogo || '/logo.png'"
-            alt="Logo"
-            class="h-9 w-9 shrink-0 rounded-lg object-contain"
-          />
+          <span class="brand-logo-shell flex h-9 w-9 shrink-0 items-center justify-center rounded-lg">
+            <img
+              :src="siteLogo || '/logo.png'"
+              :alt="siteName"
+              :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }, 'h-full w-full object-contain']"
+            />
+          </span>
           <span class="min-w-0 truncate text-base font-semibold">{{ siteName }}</span>
         </div>
         <nav class="compact-home-nav" :aria-label="t('nav.publicActions')">
@@ -98,11 +100,13 @@
 
     <main class="flex min-w-0 flex-1 items-center justify-center px-4 py-16 sm:px-6">
       <div class="compact-home-copy min-w-0 text-center">
-        <img
-          :src="siteLogo || '/logo.png'"
-          alt="Logo"
-          class="compact-home-logo mb-6 h-20 w-20 rounded-lg object-contain"
-        />
+        <span class="brand-logo-shell compact-home-logo mb-6 flex h-20 w-20 items-center justify-center rounded-lg">
+          <img
+            :src="siteLogo || '/logo.png'"
+            :alt="siteName"
+            :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }, 'h-full w-full object-contain']"
+          />
+        </span>
         <h1 class="[overflow-wrap:anywhere] text-3xl font-bold md:text-4xl">{{ siteName }}</h1>
         <p class="mt-4 whitespace-pre-wrap [overflow-wrap:anywhere] text-base text-gray-600 dark:text-dark-300">{{ siteSubtitle }}</p>
         <router-link
@@ -130,8 +134,12 @@
       <div class="page-container header-row">
         <div class="header-left">
           <router-link :to="homeLogoRoute" class="brand">
-            <span v-if="siteLogo" class="brand-mark" aria-hidden="true">
-              <img :src="siteLogo" :alt="siteName" />
+            <span class="brand-mark brand-logo-shell" aria-hidden="true">
+              <img
+                :src="siteLogo || '/logo.png'"
+                :alt="siteName"
+                :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }]"
+              />
             </span>
             <span class="brand-name">{{ siteName }}</span>
           </router-link>
@@ -580,8 +588,12 @@
           </g>
         </svg>
         <div class="closer-overlay">
-          <div class="closer-logo">
-            <img :src="siteLogo || '/logo.png'" :alt="siteName" />
+          <div class="closer-logo brand-logo-shell">
+            <img
+              :src="siteLogo || '/logo.png'"
+              :alt="siteName"
+              :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }]"
+            />
           </div>
           <h2 class="closer-title">{{ t('home.jisudeng.closer.title') }}</h2>
           <p class="closer-sub">{{ t('home.jisudeng.closer.sub') }}</p>
@@ -593,7 +605,7 @@
       </div>
     </section>
 
-    <nav v-if="isGtmHome" class="home-anchor-nav" aria-label="Page sections">
+    <nav v-if="isGtmHome" class="home-anchor-nav" :aria-label="t('home.jisudeng.anchors.navigation')">
       <a
         v-for="section in anchorSections"
         :key="section.id"
@@ -900,12 +912,12 @@ const imageCaps = computed(() => [
 ])
 
 const featureRows = computed(() => [
-  { idx: '01', en: 'Multi-Model', title: t('home.jisudeng.features.multiModel.title'), desc: t('home.jisudeng.features.multiModel.desc') },
-  { idx: '02', en: 'Reliability', title: t('home.jisudeng.features.stable.title'), desc: t('home.jisudeng.features.stable.desc') },
-  { idx: '03', en: 'Privacy', title: t('home.jisudeng.features.privacy.title'), desc: t('home.jisudeng.features.privacy.desc') },
-  { idx: '04', en: 'Instant Access', title: t('home.jisudeng.features.instant.title'), desc: t('home.jisudeng.features.instant.desc') },
-  { idx: '05', en: 'Fair Billing', title: t('home.jisudeng.features.transparent.title'), desc: t('home.jisudeng.features.transparent.desc') },
-  { idx: '06', en: 'Self-Service', title: t('home.jisudeng.features.selfService.title'), desc: t('home.jisudeng.features.selfService.desc') }
+  { idx: '01', en: t('home.jisudeng.features.multiModel.kicker'), title: t('home.jisudeng.features.multiModel.title'), desc: t('home.jisudeng.features.multiModel.desc') },
+  { idx: '02', en: t('home.jisudeng.features.stable.kicker'), title: t('home.jisudeng.features.stable.title'), desc: t('home.jisudeng.features.stable.desc') },
+  { idx: '03', en: t('home.jisudeng.features.privacy.kicker'), title: t('home.jisudeng.features.privacy.title'), desc: t('home.jisudeng.features.privacy.desc') },
+  { idx: '04', en: t('home.jisudeng.features.instant.kicker'), title: t('home.jisudeng.features.instant.title'), desc: t('home.jisudeng.features.instant.desc') },
+  { idx: '05', en: t('home.jisudeng.features.transparent.kicker'), title: t('home.jisudeng.features.transparent.title'), desc: t('home.jisudeng.features.transparent.desc') },
+  { idx: '06', en: t('home.jisudeng.features.selfService.kicker'), title: t('home.jisudeng.features.selfService.title'), desc: t('home.jisudeng.features.selfService.desc') }
 ])
 
 const onboardSteps = computed(() => [

@@ -275,6 +275,17 @@ func TestParseOpenAICompatibleImageStudioPayloadsAcceptsGeminiInlineData(t *test
 	require.NotEmpty(t, images[0].Data)
 }
 
+func TestParseOpenAICompatibleImageStudioPayloadsUsesRequestedOutputFormatForBase64(t *testing.T) {
+	raw := []byte(`{"data":[{"b64_json":"aGVsbG8="}]}`)
+
+	images, err := parseOpenAICompatibleImageStudioPayloadsWithOutputFormat(context.Background(), raw, "webp")
+
+	require.NoError(t, err)
+	require.Len(t, images, 1)
+	require.Equal(t, "image/webp", images[0].ContentType)
+	require.Equal(t, []byte("hello"), images[0].Data)
+}
+
 func TestParseOpenAICompatibleImageStudioPayloadsAcceptsResponsesOutputItemDone(t *testing.T) {
 	raw := []byte(strings.Join([]string{
 		`event: response.output_item.done`,

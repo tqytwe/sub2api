@@ -1396,6 +1396,7 @@ export default {
       // Test Modal
       testAccountConnection: 'Test Account Connection',
       errorPrefix: 'Error: {message}',
+      testRequestFailed: 'Test request failed (HTTP {status})',
       imagePreviewAlt: 'Test image {index}',
       imageLightboxAlt: 'Image preview',
       account: 'Account',

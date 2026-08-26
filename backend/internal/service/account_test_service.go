@@ -105,9 +105,9 @@ const (
 	grokRealtimeProbeTimeout     = DefaultGrokRealtimeDialTimeout
 )
 
-// isOpenAIImageModel checks if the model is an OpenAI image generation model (e.g. gpt-image-2).
+// isOpenAIImageModel checks image models served through the OpenAI-compatible Images API.
 func isOpenAIImageModel(model string) bool {
-	return strings.HasPrefix(strings.ToLower(model), "gpt-image-")
+	return isOpenAIImageGenerationModel(model)
 }
 
 func isGrokVideoGenerationModel(model string) bool {
@@ -2890,6 +2890,16 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 		"n":               1,
 		"response_format": "b64_json",
 	}
+	if isSenseNovaU15LiteModel(modelID) {
+		payload["size"] = defaultImageStudioSize
+		payload["output_format"] = "png"
+		payload["watermark"] = true
+		payload["prompt_extend"] = true
+	} else if isSenseNovaU1FastModel(modelID) {
+		payload["size"] = defaultSenseNovaU1FastSize
+		payload["watermark"] = true
+		delete(payload, "response_format")
+	}
 	payloadBytes, _ := json.Marshal(payload)
 
 	req, err := http.NewRequestWithContext(ctx, "POST", apiURL, bytes.NewReader(payloadBytes))
@@ -2927,6 +2937,7 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 	var result struct {
 		Data []struct {
 			B64JSON       string `json:"b64_json"`
+			URL           string `json:"url"`
 			RevisedPrompt string `json:"revised_prompt"`
 		} `json:"data"`
 	}
@@ -2948,6 +2959,9 @@ func (s *AccountTestService) testOpenAIImageAPIKey(c *gin.Context, ctx context.C
 				ImageURL: "data:image/png;base64," + item.B64JSON,
 				MimeType: "image/png",
 			})
+		}
+		if item.URL != "" {
+			s.sendEvent(c, TestEvent{Type: "image", ImageURL: item.URL})
 		}
 	}
 

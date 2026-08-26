@@ -376,7 +376,7 @@ const createPreview = async () => {
     })
   } catch (error) {
     appStore.showError(
-      extractApiErrorMessage(error) || t('admin.users.bulkActions.previewFailed')
+      extractApiErrorMessage(error, t('admin.users.bulkActions.previewFailed'))
     )
   } finally {
     previewing.value = false
@@ -402,7 +402,7 @@ const execute = async () => {
       return
     }
     appStore.showError(
-      extractApiErrorMessage(error) || t('admin.users.bulkActions.executeFailed')
+      extractApiErrorMessage(error, t('admin.users.bulkActions.executeFailed'))
     )
   } finally {
     executing.value = false
