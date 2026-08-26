@@ -7,8 +7,10 @@
   <!-- 独立形态:自带导航条(logo/站名 + 登录/回后台) -->
   <div v-else class="bg-gray-50 dark:bg-dark-950">
     <PlazaNavBar />
-    <main class="px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-      <ModelPlazaContent :response="data" :loading="loading" :error="loadFailed" :family="family" />
+    <main class="w-full px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+      <div class="public-content-frame" data-testid="model-plaza-public-frame">
+        <ModelPlazaContent :response="data" :loading="loading" :error="loadFailed" :family="family" />
+      </div>
     </main>
   </div>
 </template>
