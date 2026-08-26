@@ -292,7 +292,7 @@
                 value === 'active' ? 'badge-success' : value === 'expired' ? 'badge-danger' : 'badge-danger'
               ]"
             >
-              {{ t('admin.accounts.status.' + value) }}
+              {{ t(accountStatusTranslationKey(value)) }}
             </span>
           </template>
 
@@ -1027,6 +1027,7 @@ import { useTableSelection } from '@/composables/useTableSelection'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { formatDateTime } from '@/utils/format'
 import { proxyExpiryBadgeClass, proxyExpiryLabelKey } from '@/utils/proxyExpiry'
+import { accountStatusTranslationKey } from '@/utils/accountStatus'
 import IPRiskWorkbench from '@/features/ip-risk/IPRiskWorkbench.vue'
 import IPRiskActionsView from '@/features/ip-risk/IPRiskActionsView.vue'
 import { useStepUp } from '@/composables/useStepUp'

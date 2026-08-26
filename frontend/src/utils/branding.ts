@@ -1,13 +1,20 @@
 import { sanitizeUrl } from '@/utils/url'
 
-export function updateFavicon(logoUrl: string): void {
-  const sanitizedLogoUrl = sanitizeUrl(logoUrl, {
+const DEFAULT_FAVICON = '/logo.png'
+
+function faviconType(url: string): string {
+  const pathname = url.split(/[?#]/, 1)[0].toLowerCase()
+  if (pathname.endsWith('.svg')) return 'image/svg+xml'
+  if (pathname.endsWith('.png')) return 'image/png'
+  return 'image/x-icon'
+}
+
+export function updateFavicon(logoUrl?: string): void {
+  const sanitizedLogoUrl = sanitizeUrl(logoUrl || '', {
     allowRelative: true,
     allowDataUrl: true,
   })
-  if (!sanitizedLogoUrl) {
-    return
-  }
+  const faviconUrl = sanitizedLogoUrl || DEFAULT_FAVICON
 
   let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
   if (!link) {
@@ -16,6 +23,6 @@ export function updateFavicon(logoUrl: string): void {
     document.head.appendChild(link)
   }
 
-  link.type = sanitizedLogoUrl.endsWith('.svg') ? 'image/svg+xml' : 'image/x-icon'
-  link.href = sanitizedLogoUrl
+  link.type = faviconType(faviconUrl)
+  link.href = faviconUrl
 }

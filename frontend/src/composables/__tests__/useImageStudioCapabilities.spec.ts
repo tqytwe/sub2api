@@ -70,4 +70,48 @@ describe('useImageStudioCapabilities', () => {
     expect(caps.currentOption.value).toBeNull()
     expect(caps.resolvedSize.value).toBe('')
   })
+
+  it('selects provider-specific fixed sizes outside the shared aspect matrix', () => {
+    const capabilities = ref(mockCapabilities)
+    const caps = useImageStudioCapabilities(() => capabilities.value, () => ({
+      id: 'sensenova-u1-fast',
+      display_name: 'SenseNova U1 Fast',
+      sizing_kind: 'fixed',
+      supported_sizes: ['1664x2496', '2752x1536', '2048x2048'],
+      default_size: '2752x1536',
+    }))
+
+    caps.ensureSelectableTier()
+
+    expect(caps.usesDedicatedSizeList.value).toBe(true)
+    expect(caps.dedicatedSizeOptions.value).toEqual(['1664x2496', '2752x1536', '2048x2048'])
+    expect(caps.resolvedSize.value).toBe('2752x1536')
+
+    caps.selectDedicatedSize('1664x2496')
+    expect(caps.resolvedSize.value).toBe('1664x2496')
+  })
+
+  it('accepts only documented custom dimensions for SenseNova U1.5', () => {
+    const capabilities = ref(mockCapabilities)
+    const caps = useImageStudioCapabilities(() => capabilities.value, () => ({
+      id: 'sensenova-u1.5-lite',
+      display_name: 'SenseNova U1.5 Lite',
+      sizing_kind: 'custom_dimensions',
+      min_dimension: 512,
+      max_dimension: 4096,
+      dimension_step: 32,
+      max_aspect_ratio: 3,
+      default_size: '2048x2048',
+    }))
+
+    caps.ensureSelectableTier()
+
+    expect(caps.usesCustomDimensions.value).toBe(true)
+    expect(caps.resolvedSize.value).toBe('2048x2048')
+    expect(caps.setCustomSize('2720x1536')).toBe(true)
+    expect(caps.resolvedSize.value).toBe('2720x1536')
+    expect(caps.setCustomSize('500x500')).toBe(false)
+    expect(caps.setCustomSize('2048x512')).toBe(false)
+    expect(caps.resolvedSize.value).toBe('2720x1536')
+  })
 })

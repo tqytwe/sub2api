@@ -46,6 +46,21 @@ describe('resolvePublicLocaleRoute', () => {
     expect(resolvePublicLocaleRoute('zh', '/en/contact')).toEqual({ path: '/contact' })
   })
 
+  it('removes explicit locale queries when switching to a canonical public route', () => {
+    expect(resolvePublicLocaleRoute('en', '/models', { lang: 'zh', sort: 'price' })).toEqual({
+      path: '/en/models',
+      query: { sort: 'price' },
+    })
+    expect(resolvePublicLocaleRoute('zh', '/en/models', { lang: 'en', locale: 'en', sort: 'price' })).toEqual({
+      path: '/models',
+      query: { sort: 'price' },
+    })
+    expect(resolvePublicLocaleRoute('zh', '/models', { lang: 'en', page: '2' })).toEqual({
+      path: '/models',
+      query: { page: '2' },
+    })
+  })
+
   it('does not invent English paths for routes already in the requested public locale', () => {
     expect(resolvePublicLocaleRoute('en', '/en/docs')).toBeNull()
     expect(resolvePublicLocaleRoute('zh', '/home')).toBeNull()

@@ -400,6 +400,20 @@ export default {
       ledgerLoadFailed: "关联账本加载失败",
       newCampaign: "新建邀请活动",
       editCampaign: "编辑邀请活动",
+      campaignVersion: "{key} · v{version} · 规则 v{rulesVersion}",
+      pendingFinancialVersion: "资金规则版本 v{version} 待四项审批；当前活动仍按规则 v{rulesVersion} 结算。",
+      legacyRebate: {
+        title: "常规 10% 邀请返佣",
+        hint: "该设置与活动档位发放模式无关，并会写入每个活动邀请的结算快照。",
+        exclude: "不叠加（默认）：活动邀请永久不产生常规 10% 返佣",
+        stack: "允许叠加：活动奖励和常规返佣分别结算",
+      },
+      publicRulesLabel: "活动规则（用户报名页可见）",
+      inviteeNoticeLabel: "受邀人说明（注册链接可见）",
+      defaults: {
+        publicRules: "## 活动规则\n\n邀请新用户注册并达到门槛后，按活动档位领取奖励。退款或风控拒绝会影响资格与奖励。",
+        inviteeNotice: "通过本链接注册后，请完成活动要求的净实付与实际消费。",
+      },
       editDraft: "编辑草稿",
       campaigns: "邀请活动",
       campaign: "活动",
@@ -487,6 +501,7 @@ export default {
       fields: { registration_from: "报名开始", registration_to: "报名结束", starts_at: "活动开始", ends_at: "活动结束", qualification_to: "达标截止", claim_deadline: "领取截止" },
       errors: {
         required: "请填写活动标识和名称。",
+        publicCopyRequired: "请填写对邀请人与受邀人公开的活动说明。",
         invalidTime: "活动时间格式无效。",
         invalidSchedule: "请检查报名、活动、达标和领取时间的先后顺序。",
         invalidSettings: "门槛、风控等待、报名上限或预算设置无效。",

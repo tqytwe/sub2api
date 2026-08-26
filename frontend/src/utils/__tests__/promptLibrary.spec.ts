@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
-  promptSourceLabel,
+  promptSourceMessageKey,
+  referenceRequirementMessageKey,
   promptSessionStorageKey,
   readPromptFilters,
   storePromptUsePayload,
@@ -8,11 +9,14 @@ import {
 } from '@/utils/promptLibrary'
 
 describe('promptLibrary utilities', () => {
-  it('uses the public 极速蹬 brand labels for every source class', () => {
-    expect(promptSourceLabel('original')).toBe('极速蹬原创')
-    expect(promptSourceLabel('authorized')).toBe('极速蹬授权')
-    expect(promptSourceLabel('curated')).toBe('极速蹬精选')
-    expect(promptSourceLabel('community')).toBe('极速蹬社区精选')
+  it('exposes source and reference labels as locale-message keys instead of a fixed language', () => {
+    expect(promptSourceMessageKey('original')).toBe('promptLibrary.source.original')
+    expect(promptSourceMessageKey('authorized')).toBe('promptLibrary.source.authorized')
+    expect(promptSourceMessageKey('curated')).toBe('promptLibrary.source.curated')
+    expect(promptSourceMessageKey('community')).toBe('promptLibrary.source.community')
+    expect(referenceRequirementMessageKey('none')).toBe('promptLibrary.reference.none')
+    expect(referenceRequirementMessageKey('optional')).toBe('promptLibrary.reference.optional')
+    expect(referenceRequirementMessageKey('required')).toBe('promptLibrary.reference.required')
   })
 
   it('reads every supported filter from the URL and writes it back without empty values', () => {

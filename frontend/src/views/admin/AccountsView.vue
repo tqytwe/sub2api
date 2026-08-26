@@ -816,7 +816,7 @@ const flushQueuedUsageBatch = async () => {
       if ((usageBatchRequestTokenByAccountId.value[key] ?? 0) !== requestTokensByAccount[key]) {
         continue
       }
-      nextErrors[key] = 'Failed'
+      nextErrors[key] = t('common.failed')
       nextLoading[key] = false
     }
     usageBatchErrorByAccountId.value = nextErrors
@@ -897,7 +897,7 @@ const refreshTodayStatsBatch = async () => {
     todayStatsByAccountId.value = nextStats
   } catch (error) {
     if (reqSeq !== todayStatsReqSeq.value) return
-    todayStatsError.value = 'Failed'
+    todayStatsError.value = t('common.failed')
     console.error('Failed to load account today stats:', error)
   } finally {
     if (reqSeq === todayStatsReqSeq.value) {

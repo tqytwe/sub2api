@@ -1,16 +1,30 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PromptSummary } from '@/api/prompts'
-import { promptCoverBadge, promptCoverKicker, promptCoverTone } from '@/utils/promptCover'
+import {
+  promptCoverBadgeFallback,
+  promptCoverBadgeMessageKey,
+  promptCoverKickerFallback,
+  promptCoverKickerMessageKey,
+  promptCoverTone,
+} from '@/utils/promptCover'
 
 const props = defineProps<{
   prompt: PromptSummary
   detail?: boolean
 }>()
 
+const { t } = useI18n()
 const toneClass = computed(() => promptCoverTone(props.prompt))
-const kicker = computed(() => promptCoverKicker(props.prompt))
-const badge = computed(() => promptCoverBadge(props.prompt))
+const kicker = computed(() => {
+  const key = promptCoverKickerMessageKey(props.prompt)
+  return key ? t(key) : promptCoverKickerFallback(props.prompt) || t('promptLibrary.cover.defaultKicker')
+})
+const badge = computed(() => {
+  const key = promptCoverBadgeMessageKey(props.prompt)
+  return key ? t(key) : promptCoverBadgeFallback(props.prompt) || t('promptLibrary.cover.defaultBadge')
+})
 </script>
 
 <template>
@@ -18,7 +32,7 @@ const badge = computed(() => promptCoverBadge(props.prompt))
     class="prompt-generated-cover"
     :class="[toneClass, { 'is-detail': detail }]"
     role="img"
-    :aria-label="`${prompt.title}生成封面`"
+    :aria-label="t('promptLibrary.card.generatedCoverAlt', { title: prompt.title })"
   >
     <div class="prompt-generated-cover-grid" aria-hidden="true"></div>
     <div class="prompt-generated-cover-content">

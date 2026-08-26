@@ -15,6 +15,10 @@ vi.mock('@/composables/useNavigationLoading', () => ({
   })
 }))
 
+vi.mock('vue-i18n', () => ({
+  useI18n: () => ({ t: (key: string) => key === 'common.loading' ? 'Loading' : key }),
+}))
+
 describe('NavigationProgress', () => {
   beforeEach(() => {
     mockIsLoading.value = false

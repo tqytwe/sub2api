@@ -369,7 +369,7 @@
                 value === 'active' ? 'badge-success' : 'badge-danger',
               ]"
             >
-              {{ t("admin.accounts.status." + value) }}
+              {{ t(accountStatusTranslationKey(value)) }}
             </span>
           </template>
 
@@ -4553,6 +4553,7 @@ import {
 import type { ChannelModelPricing } from "@/api/admin/channels";
 import { VueDraggable } from "vue-draggable-plus";
 import { createStableObjectKeyResolver } from "@/utils/stableObjectKey";
+import { accountStatusTranslationKey } from "@/utils/accountStatus";
 import { extractApiErrorMessage } from "@/utils/apiError";
 import { useKeyedDebouncedSearch } from "@/composables/useKeyedDebouncedSearch";
 import { getPersistedPageSize } from "@/composables/usePersistedPageSize";

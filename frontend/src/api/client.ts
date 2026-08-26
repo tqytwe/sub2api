@@ -109,7 +109,7 @@ apiClient.interceptors.response.use(
         return Promise.reject({
           status: response.status,
           code: apiResponse.code,
-          message: apiResponse.message || 'Unknown error',
+          message: apiResponse.message || undefined,
           reason: resp.reason,
           metadata: resp.metadata,
         })

@@ -12,33 +12,51 @@ function withQuery(path: string, query: LocationQueryRaw): RouteLocationRaw {
   return Object.keys(query).length > 0 ? { path, query } : { path }
 }
 
+function withoutLocaleQuery(query: LocationQueryRaw): LocationQueryRaw {
+  const next = { ...query }
+  delete next.lang
+  delete next.locale
+  return next
+}
+
+function hasLocaleQuery(query: LocationQueryRaw): boolean {
+  return Object.prototype.hasOwnProperty.call(query, 'lang')
+    || Object.prototype.hasOwnProperty.call(query, 'locale')
+}
+
 export function resolvePublicLocaleRoute(
   targetLocale: PublicLocaleCode,
   currentPath: string,
   query: LocationQueryRaw = {},
 ): RouteLocationRaw | null {
   const path = normalizePublicPath(currentPath)
+  // A public locale path is canonical. Keep business filters, but never carry
+  // a prior `lang`/`locale` override across the language transition or a
+  // refresh can undo the user's selection.
+  const normalizedQuery = withoutLocaleQuery(query)
 
   if (targetLocale === 'en') {
-    if (path === '/en' || path.startsWith('/en/')) return null
-    if (path === '/about') return { path: '/en/about' }
-    if (path === '/contact') return { path: '/en/contact' }
+    if (path === '/en' || path.startsWith('/en/')) {
+      return hasLocaleQuery(query) ? withQuery(path, normalizedQuery) : null
+    }
+    if (path === '/about') return withQuery('/en/about', normalizedQuery)
+    if (path === '/contact') return withQuery('/en/contact', normalizedQuery)
     if (path === '/pricing' || path.startsWith('/pricing/')) {
-      return withQuery(path === '/pricing' ? '/en/models' : `/en/models${path.slice('/pricing'.length)}`, query)
+      return withQuery(path === '/pricing' ? '/en/models' : `/en/models${path.slice('/pricing'.length)}`, normalizedQuery)
     }
     if (path === '/models' || path.startsWith('/models/')) {
-      return withQuery(path === '/models' ? '/en/models' : `/en/models${path.slice('/models'.length)}`, query)
+      return withQuery(path === '/models' ? '/en/models' : `/en/models${path.slice('/models'.length)}`, normalizedQuery)
     }
-    if (path === '/docs') return withQuery('/en/docs', query)
-    return { path: '/en' }
+    if (path === '/docs') return withQuery('/en/docs', normalizedQuery)
+    return withQuery('/en', normalizedQuery)
   }
 
   if (path === '/en/models' || path.startsWith('/en/models/')) {
-    return withQuery(path === '/en/models' ? '/models' : `/models${path.slice('/en/models'.length)}`, query)
+    return withQuery(path === '/en/models' ? '/models' : `/models${path.slice('/en/models'.length)}`, normalizedQuery)
   }
-  if (path === '/en/docs') return withQuery('/docs', query)
-  if (path === '/en/about') return { path: '/about' }
-  if (path === '/en/contact') return { path: '/contact' }
-  if (path === '/en') return { path: '/' }
-  return null
+  if (path === '/en/docs') return withQuery('/docs', normalizedQuery)
+  if (path === '/en/about') return withQuery('/about', normalizedQuery)
+  if (path === '/en/contact') return withQuery('/contact', normalizedQuery)
+  if (path === '/en') return withQuery('/', normalizedQuery)
+  return hasLocaleQuery(query) ? withQuery(path, normalizedQuery) : null
 }

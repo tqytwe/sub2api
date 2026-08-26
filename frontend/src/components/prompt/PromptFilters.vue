@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { PromptCategory, PromptCategoryDimension } from '@/api/prompts'
 import type { PromptFiltersState } from '@/utils/promptLibrary'
 import { DEFAULT_PROMPT_FILTERS } from '@/utils/promptLibrary'
@@ -15,9 +16,16 @@ const emit = defineEmits<{
   apply: []
 }>()
 
+const { t } = useI18n()
 const drawerOpen = ref(false)
 const drawerFilters = ref<PromptFiltersState>({ ...props.modelValue })
 let previousBodyOverflow = ''
+
+const filterDimensions: PromptCategoryDimension[] = ['purpose', 'style', 'subject', 'model', 'size']
+
+function dimensionLabel(dimension: PromptCategoryDimension): string {
+  return t(`promptLibrary.filters.${dimension}`)
+}
 
 const categoryGroups = computed(() => {
   const groups: Record<PromptCategoryDimension, PromptCategory[]> = {
@@ -102,34 +110,34 @@ onBeforeUnmount(() => {
   <div class="prompt-filter-shell">
     <div class="prompt-search-row">
       <label class="prompt-search-box">
-        <span class="sr-only">搜索提示词</span>
+        <span class="sr-only">{{ t('promptLibrary.filters.searchLabel') }}</span>
         <Icon name="search" size="sm" />
         <input
           :value="modelValue.q"
           type="search"
-          placeholder="搜索标题、用途或画面描述"
+          :placeholder="t('promptLibrary.filters.searchPlaceholder')"
           @input="updateFilter('q', ($event.target as HTMLInputElement).value)"
         />
       </label>
       <button
         type="button"
         class="prompt-mobile-filter-button"
-        aria-label="打开筛选"
+        :aria-label="t('promptLibrary.filters.open')"
         @click="openDrawer"
       >
         <Icon name="filter" size="sm" />
-        筛选
+        {{ t('common.filter') }}
       </button>
     </div>
 
-    <div class="prompt-desktop-filters" aria-label="提示词筛选">
-      <label v-for="dimension in (['purpose', 'style', 'subject', 'model', 'size'] as const)" :key="dimension">
-        <span>{{ { purpose: '用途', style: '风格', subject: '主体', model: '模型', size: '尺寸' }[dimension] }}</span>
+    <div class="prompt-desktop-filters" :aria-label="t('promptLibrary.filters.groupLabel')">
+      <label v-for="dimension in filterDimensions" :key="dimension">
+        <span>{{ dimensionLabel(dimension) }}</span>
         <select
           :value="modelValue[dimension]"
           @change="updateFilter(dimension, ($event.target as HTMLSelectElement).value)"
         >
-          <option value="">全部</option>
+          <option value="">{{ t('promptLibrary.filters.all') }}</option>
           <option
             v-for="category in categoryGroups[dimension]"
             :key="category.id"
@@ -140,18 +148,18 @@ onBeforeUnmount(() => {
         </select>
       </label>
       <label>
-        <span>参考图</span>
+        <span>{{ t('promptLibrary.filters.reference') }}</span>
         <select
           :value="modelValue.reference"
           @change="updateFilter('reference', ($event.target as HTMLSelectElement).value as PromptFiltersState['reference'])"
         >
-          <option value="">全部</option>
-          <option value="none">无需参考图</option>
-          <option value="optional">可选参考图</option>
-          <option value="required">需要参考图</option>
+          <option value="">{{ t('promptLibrary.filters.all') }}</option>
+          <option value="none">{{ t('promptLibrary.filters.none') }}</option>
+          <option value="optional">{{ t('promptLibrary.filters.optional') }}</option>
+          <option value="required">{{ t('promptLibrary.filters.required') }}</option>
         </select>
       </label>
-      <button type="button" class="prompt-reset-button" @click="resetFilters">清除筛选</button>
+      <button type="button" class="prompt-reset-button" @click="resetFilters">{{ t('promptLibrary.filters.reset') }}</button>
     </div>
 
     <Teleport to="body">
@@ -166,25 +174,25 @@ onBeforeUnmount(() => {
       >
         <div class="prompt-filter-drawer">
           <header>
-            <h2 id="prompt-filter-title">筛选提示词</h2>
+            <h2 id="prompt-filter-title">{{ t('promptLibrary.filters.title') }}</h2>
             <button
               type="button"
               class="prompt-icon-button"
-              aria-label="关闭筛选"
-              title="关闭筛选"
+              :aria-label="t('promptLibrary.filters.close')"
+              :title="t('promptLibrary.filters.close')"
               @click="closeDrawer"
             >
               <Icon name="x" size="md" />
             </button>
           </header>
           <div class="prompt-filter-drawer-body">
-            <label v-for="dimension in (['purpose', 'style', 'subject', 'model', 'size'] as const)" :key="dimension">
-              <span>{{ { purpose: '用途', style: '风格', subject: '主体', model: '模型', size: '尺寸' }[dimension] }}</span>
+            <label v-for="dimension in filterDimensions" :key="dimension">
+              <span>{{ dimensionLabel(dimension) }}</span>
               <select
                 :value="drawerFilters[dimension]"
                 @change="updateDrawerFilter(dimension, ($event.target as HTMLSelectElement).value)"
               >
-                <option value="">全部</option>
+                <option value="">{{ t('promptLibrary.filters.all') }}</option>
                 <option
                   v-for="category in categoryGroups[dimension]"
                   :key="category.id"
@@ -195,21 +203,21 @@ onBeforeUnmount(() => {
               </select>
             </label>
             <label>
-              <span>参考图</span>
+              <span>{{ t('promptLibrary.filters.reference') }}</span>
               <select
                 :value="drawerFilters.reference"
                 @change="updateDrawerFilter('reference', ($event.target as HTMLSelectElement).value as PromptFiltersState['reference'])"
               >
-                <option value="">全部</option>
-                <option value="none">无需参考图</option>
-                <option value="optional">可选参考图</option>
-                <option value="required">需要参考图</option>
+                <option value="">{{ t('promptLibrary.filters.all') }}</option>
+                <option value="none">{{ t('promptLibrary.filters.none') }}</option>
+                <option value="optional">{{ t('promptLibrary.filters.optional') }}</option>
+                <option value="required">{{ t('promptLibrary.filters.required') }}</option>
               </select>
             </label>
           </div>
           <footer>
-            <button type="button" class="prompt-reset-button" @click="resetDrawerFilters">清除筛选</button>
-            <button type="button" class="prompt-primary-button" @click="closeAndApply">查看结果</button>
+            <button type="button" class="prompt-reset-button" @click="resetDrawerFilters">{{ t('promptLibrary.filters.reset') }}</button>
+            <button type="button" class="prompt-primary-button" @click="closeAndApply">{{ t('promptLibrary.filters.apply') }}</button>
           </footer>
         </div>
       </div>

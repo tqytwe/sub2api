@@ -1,0 +1,46 @@
+/** Generated from legacy locale values still referenced by runtime components. */
+export default {
+  dashboard: {
+    campaign: {
+      rechargeBonus: '充值加赠 +{pct}%',
+      blindboxExtra: '盲盒每日额外 +{count} 次',
+      arenaMult: 'Arena 展示积分 ×{mult}',
+      eyebrow: '限时活动',
+      viewHub: '查看玩法中枢',
+      rechargeCta: '立即充值',
+    },
+    growth: {
+      firstRecharge: '首充专享：充值即可开始使用全部模型，新人礼包等你领取',
+      balanceLow: '余额已低于 ${threshold}，建议及时充值以免影响 API 调用',
+      rechargeCta: '立即充值',
+    },
+    playHub: {
+      title: '玩法中枢',
+      pending: '{count} 项待完成',
+      desc: '签到、冲榜、盲盒 — 查看今日待办',
+    },
+    firstLoginWelcome: {
+      rechargeGeneric: '充值后即可使用全部模型，新人礼包等你领取。',
+      rechargeBonus: '示例：充值 ${example}，到账约 ${credited} USD',
+      rechargeBonusCampaign: '活动额外加赠 +{bonusPct}%',
+      step1TitleStudio: '欢迎加入 — 3 分钟出第一张图',
+      step1Title: '欢迎加入 — 创建你的第一个 API Key',
+      step2Title: '复制 curl 示例，立即试调',
+      step3Title: '首充解锁全部模型',
+      defaultKeyName: '我的第一个 Key',
+      keyNameRequired: '请填写 Key 名称',
+      curlCopied: 'curl 命令已复制',
+      studioHint: '推荐新用户先进入 AI创作空间完成首图，再到玩法农场领取能量。',
+      step1DescStudio: '不会写 prompt 也能出图。选模板、填描述，赠金足够试做一张。',
+      step1Desc: 'API Key 是调用模型的凭证。先创建一个 Key，马上就能发第一条请求。',
+      step2Desc: '把下面的命令粘贴到终端（记得替换模型名）。Key 已自动填入。',
+      step3Desc: '充值后余额立即到账，可畅享全部分组模型与玩法福利。',
+      later: '稍后再说',
+      studioCta: '免费试做一张',
+      skipKey: '稍后创建',
+      createKey: '创建并继续',
+      next: '下一步',
+      done: '进入控制台',
+    },
+  },
+}

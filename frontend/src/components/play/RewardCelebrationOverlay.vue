@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { normalizeVIPColorKey } from '@/utils/vipColors'
 
 const props = withDefaults(defineProps<{
@@ -29,6 +30,7 @@ const emit = defineEmits<{
   secondary: []
 }>()
 
+const { t } = useI18n()
 const tone = computed(() => normalizeVIPColorKey(props.colorKey))
 const pieces = Array.from({ length: 24 }, (_, index) => ({
   id: index,
@@ -65,7 +67,7 @@ function pieceStyle(piece: typeof pieces[number]) {
       />
     </div>
     <section class="reward-celebration-card">
-      <button type="button" class="reward-close" aria-label="Close" @click="emit('close')">x</button>
+      <button type="button" class="reward-close" :aria-label="t('common.close')" @click="emit('close')">x</button>
       <div class="reward-box-stage" aria-hidden="true">
         <div class="reward-beam" />
         <div class="reward-box">

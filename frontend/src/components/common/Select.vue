@@ -30,7 +30,7 @@
         class="select-clear"
         role="button"
         tabindex="-1"
-        aria-label="Clear selection"
+        :aria-label="t('common.clearSelection')"
         @click.stop="clearSelection"
         @mousedown.stop
         @keydown.enter.stop.prevent="clearSelection"

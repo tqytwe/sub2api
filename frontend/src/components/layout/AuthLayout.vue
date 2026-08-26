@@ -4,8 +4,12 @@
     <header class="auth-header">
       <div class="auth-header-row">
         <router-link to="/" class="auth-brand">
-          <span class="brand-mark">
-            <img :src="siteLogo || '/logo.png'" :alt="siteName" />
+          <span class="brand-mark brand-logo-shell">
+            <img
+              :src="siteLogo || '/logo.png'"
+              :alt="siteName"
+              :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }]"
+            />
           </span>
           <span class="brand-name">{{ siteName }}</span>
         </router-link>
@@ -51,8 +55,12 @@
         <div class="auth-card-wrap">
           <div class="auth-card">
             <div v-if="settingsLoaded" class="auth-brand-block">
-              <div class="brand-mark-card">
-                <img :src="siteLogo || '/logo.png'" :alt="siteName" />
+              <div class="brand-mark-card brand-logo-shell">
+                <img
+                  :src="siteLogo || '/logo.png'"
+                  :alt="siteName"
+                  :class="['brand-logo-asset', { 'brand-logo-asset--deng': !siteLogo }]"
+                />
               </div>
               <h2 class="auth-card-title">{{ siteName }}</h2>
               <p class="auth-card-sub">{{ siteSubtitle }}</p>

@@ -222,4 +222,22 @@ describe('AccountStatusIndicator', () => {
     // AICredits 积分耗尽状态应显示
     expect(wrapper.text()).toContain('admin.accounts.status.creditsExhausted')
   })
+
+  it('renders a localized unknown-state key for an unrecognized backend status', () => {
+    const wrapper = mount(AccountStatusIndicator, {
+      props: {
+        account: makeAccount({
+          status: 'future_backend_state' as unknown as Account['status'],
+        }),
+      },
+      global: {
+        stubs: {
+          Icon: true,
+        },
+      },
+    })
+
+    expect(wrapper.text()).toContain('status.unknown')
+    expect(wrapper.text()).not.toContain('admin.accounts.status.future_backend_state')
+  })
 })

@@ -11,12 +11,22 @@ describe('updateFavicon', () => {
 
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
     expect(link?.href).toBe('https://example.com/custom-logo.png')
+    expect(link?.type).toBe('image/png')
   })
 
-  it('ignores unsafe logo URLs', () => {
+  it('uses the DENG PNG fallback for unsafe logo URLs', () => {
     updateFavicon('javascript:alert(1)')
 
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
     expect(link?.getAttribute('href')).toBe('/logo.png')
+    expect(link?.type).toBe('image/png')
+  })
+
+  it('uses the DENG PNG fallback when no configured logo is available', () => {
+    updateFavicon('')
+
+    const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]')
+    expect(link?.getAttribute('href')).toBe('/logo.png')
+    expect(link?.type).toBe('image/png')
   })
 })
