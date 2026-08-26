@@ -196,7 +196,7 @@ func TestListPlazaGroups_SortedByRateMultiplierAsc(t *testing.T) {
 	require.Equal(t, "b-standard", out[2].Name)
 }
 
-func TestListPlazaGroups_DoesNotInjectLiteLLMDisplayPricing(t *testing.T) {
+func TestListPlazaGroups_OfficialPricingFill(t *testing.T) {
 	pricingSvc := newStubPricingServiceFromMap(map[string]*LiteLLMModelPricing{
 		"claude-sonnet": {
 			Mode:                                "chat",
@@ -225,9 +225,16 @@ func TestListPlazaGroups_DoesNotInjectLiteLLMDisplayPricing(t *testing.T) {
 	for _, m := range out[0].Models {
 		byName[m.Name] = m
 	}
-	for _, model := range byName {
-		require.Nil(t, model.OfficialPricing, "LiteLLM values must not masquerade as catalog display prices")
-	}
+	// 命中:填充完整官方价(含 1h 缓存写入)
+	official := byName["claude-sonnet"].OfficialPricing
+	require.NotNil(t, official)
+	require.InDelta(t, 3e-6, *official.InputPrice, 1e-12)
+	require.InDelta(t, 6e-6, *official.CacheWrite1hPrice, 1e-12)
+	require.InDelta(t, 3e-7, *official.CacheReadPrice, 1e-12)
+	// 未命中:nil(GetModelPricing 的 claude 系列模糊匹配对非 claude 名不生效)
+	require.Nil(t, byName["unknown-model"].OfficialPricing)
+	// TokenPricingAbsent 条目不作为官方 token 价展示
+	require.Nil(t, byName["token-absent"].OfficialPricing)
 }
 
 func TestListPlazaGroups_GroupImagePriceOverridesChannelPricing(t *testing.T) {
