@@ -768,6 +768,80 @@ func TestGatewayModels_OpenAICustomModelsListKeepsOpenAIResponseShapeForDefaultF
 	require.Empty(t, got.Data[0].CreatedAt)
 }
 
+func TestGatewayModels_OpenAIGroupAdvertisesSenseNovaOnlyWhenMapped(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	for _, tt := range []struct {
+		name             string
+		mapping          map[string]any
+		modelsListConfig service.GroupModelsListConfig
+		want             []string
+	}{
+		{
+			name: "mapped image models are advertised",
+			mapping: map[string]any{
+				"sensenova-u1.5-lite": "sensenova-u1.5-lite",
+				"sensenova-u1-fast":   "sensenova-u1-fast",
+			},
+			want: []string{"sensenova-u1-fast", "sensenova-u1.5-lite"},
+		},
+		{
+			name: "group allowlist narrows mapped image models",
+			mapping: map[string]any{
+				"sensenova-u1.5-lite": "sensenova-u1.5-lite",
+				"sensenova-u1-fast":   "sensenova-u1-fast",
+			},
+			modelsListConfig: service.GroupModelsListConfig{
+				Enabled: true,
+				Models:  []string{"sensenova-u1-fast"},
+			},
+			want: []string{"sensenova-u1-fast"},
+		},
+		{
+			name: "unmapped image models are not leaked",
+			mapping: map[string]any{
+				"gpt-image-2": "gpt-image-2",
+			},
+			want: []string{"gpt-image-2"},
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			groupID := int64(2_608_26)
+			h := newGatewayModelsHandlerForTest(
+				&gatewayModelsAccountRepoStub{
+					byGroup: map[int64][]service.Account{
+						groupID: {{
+							ID:       1,
+							Platform: service.PlatformOpenAI,
+							Credentials: map[string]any{
+								"model_mapping": tt.mapping,
+							},
+						}},
+					},
+				},
+			)
+
+			rec := httptest.NewRecorder()
+			c, _ := gin.CreateTestContext(rec)
+			c.Request = httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+			c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+				Group: &service.Group{
+					ID:               groupID,
+					Platform:         service.PlatformOpenAI,
+					ModelsListConfig: tt.modelsListConfig,
+				},
+			})
+
+			h.Models(c)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			var got gatewayModelsResponseForTest
+			require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &got))
+			require.ElementsMatch(t, tt.want, modelIDsForTest(got.Data))
+		})
+	}
+}
+
 func modelIDsForTest(models []gatewayModelItemForTest) []string {
 	ids := make([]string, 0, len(models))
 	for _, model := range models {

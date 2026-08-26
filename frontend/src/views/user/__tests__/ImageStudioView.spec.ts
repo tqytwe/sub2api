@@ -158,6 +158,17 @@ vi.mock('vue-i18n', async (importOriginal) => {
     ...actual,
     useI18n: () => ({
       t: (key: string, params?: Record<string, unknown>) => {
+        const labels: Record<string, string> = {
+          'imageStudio.createTab': '创作',
+          'imageStudio.promptLibraryTab': '选提示词',
+          'imageStudio.worksTab': '作品库',
+          'imageStudio.recipesTab': '创作配方',
+          'imageStudio.recipes.sourceLabel': '来自极速蹬提示词库',
+          'imageStudio.recipes.applyVariables': '智能改写',
+          'imageStudio.recipes.save': '保存为创作配方',
+          'imageStudio.recipes.referenceMeta': '提示词编号 {promptId} · 版本 {version}',
+        }
+        if (labels[key]) return labels[key]
         if (key === 'imageStudio.modelPurpose.imageGeneration') return '生图专用'
         return params ? `${key}:${JSON.stringify(params)}` : key
       },

@@ -119,6 +119,8 @@ type OpenAIImagesRequest struct {
 	Moderation         string
 	InputFidelity      string
 	Style              string
+	Watermark          *bool
+	PromptExtend       *bool
 	OutputCompression  *int
 	PartialImages      *int
 	HasMask            bool
@@ -263,13 +265,21 @@ func (s *OpenAIGatewayService) ParseOpenAIImagesRequest(c *gin.Context, body []b
 	if req.ResponseFormat != "" && req.ResponseFormat != "b64_json" && req.ResponseFormat != "url" {
 		return nil, ErrImageResponseFormatInvalid
 	}
-	if req.N < 1 || req.N > 10 {
+	// Keep the OpenAI-compatible safety limit for ordinary models. SenseNova U1
+	// Fast documents n as an integer without publishing a maximum, so an exact
+	// U1 Fast request must be passed through instead of receiving a made-up cap.
+	if req.N < 1 || (req.N > 10 && !isSenseNovaU1FastModel(req.Model)) {
 		return nil, ErrImageCountOutOfRange
 	}
 	if req.Stream && req.N > 1 {
 		return nil, ErrImageMultiStreamUnsupported
 	}
 	if err := validateOpenAIImagesModel(req.Model); err != nil {
+		return nil, err
+	}
+	// Exact provider model IDs can be validated before any scheduler slot or
+	// billing eligibility work. Aliases are validated again after account mapping.
+	if err := validateSenseNovaOpenAIImagesRequest(body, req, req.Model); err != nil {
 		return nil, err
 	}
 	req.SizeTier = normalizeOpenAIImageSizeTier(req.Size)
@@ -312,6 +322,20 @@ func parseOpenAIImagesJSONRequest(body []byte, req *OpenAIImagesRequest) error {
 	req.Moderation = strings.TrimSpace(gjson.GetBytes(body, "moderation").String())
 	req.InputFidelity = strings.TrimSpace(gjson.GetBytes(body, "input_fidelity").String())
 	req.Style = strings.TrimSpace(gjson.GetBytes(body, "style").String())
+	if watermark := gjson.GetBytes(body, "watermark"); watermark.Exists() {
+		if watermark.Type != gjson.True && watermark.Type != gjson.False {
+			return fmt.Errorf("invalid watermark field type")
+		}
+		value := watermark.Bool()
+		req.Watermark = &value
+	}
+	if promptExtend := gjson.GetBytes(body, "prompt_extend"); promptExtend.Exists() {
+		if promptExtend.Type != gjson.True && promptExtend.Type != gjson.False {
+			return fmt.Errorf("invalid prompt_extend field type")
+		}
+		value := promptExtend.Bool()
+		req.PromptExtend = &value
+	}
 	req.HasMask = gjson.GetBytes(body, "mask").Exists()
 	if outputCompression := gjson.GetBytes(body, "output_compression"); outputCompression.Exists() {
 		if outputCompression.Type != gjson.Number {
@@ -463,6 +487,18 @@ func parseOpenAIImagesMultipartRequest(body []byte, contentType string, req *Ope
 		case "style":
 			req.Style = value
 			req.HasNativeOptions = true
+		case "watermark":
+			parsed, err := strconv.ParseBool(value)
+			if err != nil {
+				return fmt.Errorf("invalid watermark field value")
+			}
+			req.Watermark = &parsed
+		case "prompt_extend":
+			parsed, err := strconv.ParseBool(value)
+			if err != nil {
+				return fmt.Errorf("invalid prompt_extend field value")
+			}
+			req.PromptExtend = &parsed
 		case "output_compression":
 			n, err := strconv.Atoi(value)
 			if err != nil {

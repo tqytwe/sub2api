@@ -650,7 +650,10 @@ func (h *ImageStudioHandler) invokeGatewayImagesOnce(ctx context.Context, apiKey
 	if workerReq.Platform == service.PlatformGemini {
 		return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, parseGeminiImageStudioPayloads)
 	}
-	return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, parseOpenAICompatibleImageStudioPayloads)
+	outputFormat := gjson.GetBytes(workerReq.Body, "output_format").String()
+	return h.parseImageStudioGatewayResponse(ctx, costCapture, respBody, func(ctx context.Context, body []byte) ([]service.ImageStudioImagePayload, error) {
+		return parseOpenAICompatibleImageStudioPayloadsWithOutputFormat(ctx, body, outputFormat)
+	})
 }
 
 func safeImageStudioGatewayErrorMessage(respBody []byte) string {
@@ -707,10 +710,22 @@ func (h *ImageStudioHandler) parseImageStudioGatewayResponse(
 }
 
 func parseOpenAICompatibleImageStudioPayloads(ctx context.Context, respBody []byte) ([]service.ImageStudioImagePayload, error) {
+	return parseOpenAICompatibleImageStudioPayloadsWithOutputFormat(ctx, respBody, "")
+}
+
+// U1.5 can return bare b64_json payloads for PNG, JPEG, or WebP. The response
+// does not carry a MIME field, so retain the selected output format while the
+// worker private-copies the result instead of recording every asset as PNG.
+func parseOpenAICompatibleImageStudioPayloadsWithOutputFormat(
+	ctx context.Context,
+	respBody []byte,
+	outputFormat string,
+) ([]service.ImageStudioImagePayload, error) {
 	var parsed struct {
 		Data []struct {
-			URL     string `json:"url"`
-			B64JSON string `json:"b64_json"`
+			URL      string `json:"url"`
+			B64JSON  string `json:"b64_json"`
+			MimeType string `json:"mime_type"`
 		} `json:"data"`
 	}
 	var jsonErr error
@@ -725,7 +740,10 @@ func parseOpenAICompatibleImageStudioPayloads(ctx context.Context, respBody []by
 				if err != nil {
 					return nil, err
 				}
-				out = append(out, service.ImageStudioImagePayload{Data: data, ContentType: "image/png"})
+				out = append(out, service.ImageStudioImagePayload{
+					Data:        data,
+					ContentType: imageStudioResponseImageContentType(item.MimeType, outputFormat),
+				})
 			case item.URL != "":
 				if strings.HasPrefix(item.URL, "data:") {
 					data, ct, err := service.DecodeImageStudioDataURL(item.URL)
@@ -757,6 +775,21 @@ func parseOpenAICompatibleImageStudioPayloads(ctx context.Context, respBody []by
 		return nil, jsonErr
 	}
 	return parseGeminiImageStudioPayloads(ctx, respBody)
+}
+
+func imageStudioResponseImageContentType(mimeType, outputFormat string) string {
+	switch strings.ToLower(strings.TrimSpace(strings.Split(mimeType, ";")[0])) {
+	case "image/png", "image/jpeg", "image/webp":
+		return strings.ToLower(strings.TrimSpace(strings.Split(mimeType, ";")[0]))
+	}
+	switch strings.ToLower(strings.TrimSpace(outputFormat)) {
+	case "jpeg", "jpg":
+		return "image/jpeg"
+	case "webp":
+		return "image/webp"
+	default:
+		return "image/png"
+	}
 }
 
 func parseOpenAIResponsesImageStudioPayloads(respBody []byte) ([]service.ImageStudioImagePayload, error) {

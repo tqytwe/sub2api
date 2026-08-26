@@ -49,6 +49,10 @@ type ImageStudioModelCapabilities struct {
 	Operations               []string                                `json:"operations,omitempty"`
 	SizingKind               string                                  `json:"sizing_kind,omitempty"`
 	SupportedSizes           []string                                `json:"supported_sizes,omitempty"`
+	MinDimension             int                                     `json:"min_dimension,omitempty"`
+	MaxDimension             int                                     `json:"max_dimension,omitempty"`
+	DimensionStep            int                                     `json:"dimension_step,omitempty"`
+	MaxAspectRatio           float64                                 `json:"max_aspect_ratio,omitempty"`
 	SupportedAspectRatios    []string                                `json:"supported_aspect_ratios,omitempty"`
 	SupportedResolutions     []string                                `json:"supported_resolutions,omitempty"`
 	SupportedQualities       []string                                `json:"supported_qualities,omitempty"`

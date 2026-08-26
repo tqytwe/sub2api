@@ -67,8 +67,12 @@ export interface ImageStudioModelOption {
   capability_profile_id?: string
   capability_revision?: string
   operations?: Array<'create' | 'edit' | (string & {})>
-  sizing_kind?: 'fixed' | 'custom' | 'aspect_resolution' | (string & {})
+  sizing_kind?: 'fixed' | 'custom' | 'custom_dimensions' | 'aspect_resolution' | (string & {})
   supported_sizes?: string[]
+  min_dimension?: number
+  max_dimension?: number
+  dimension_step?: number
+  max_aspect_ratio?: number
   supported_aspect_ratios?: string[]
   supported_resolutions?: string[]
   supported_qualities?: string[]

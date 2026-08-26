@@ -23,6 +23,8 @@ var imageStudioModelPreference = []string{
 	"gpt-image-1",
 	"agnes-image-2.1-flash",
 	"agnes-image-2.0-flash",
+	"sensenova-u1.5-lite",
+	"sensenova-u1-fast",
 	"gemini-3.1-flash-image",
 	"gemini-3.1-flash-image-preview",
 	"gemini-2.5-flash-image",
@@ -282,6 +284,12 @@ func defaultGrokImageModelIDs() []string {
 
 func imageStudioModelDisplayName(model string) string {
 	model = strings.TrimSpace(model)
+	switch model {
+	case senseNovaU15LiteModelID:
+		return "SenseNova U1.5 Lite"
+	case senseNovaU1FastModelID:
+		return "SenseNova U1 Fast"
+	}
 	for _, item := range openai.DefaultModels {
 		if item.ID == model && strings.TrimSpace(item.DisplayName) != "" {
 			return item.DisplayName

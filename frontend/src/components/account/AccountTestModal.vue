@@ -37,7 +37,7 @@
               : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-400'
           ]"
         >
-          {{ account.status }}
+          {{ t(accountStatusTranslationKey(account.status)) }}
         </span>
       </div>
 
@@ -53,6 +53,17 @@
           label-key="display_name"
           :placeholder="loadingModels ? t('common.loading') + '...' : t('admin.accounts.selectTestModel')"
         />
+        <div v-if="modelLoadError" class="flex items-center justify-between gap-3 text-xs text-red-600 dark:text-red-400">
+          <span>{{ modelLoadError }}</span>
+          <button
+            type="button"
+            class="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
+            :disabled="loadingModels || status === 'connecting'"
+            @click="loadAvailableModels"
+          >
+            {{ t('common.retry') }}
+          </button>
+        </div>
       </div>
 
       <div v-if="isOpenAIAccount" class="space-y-1.5">
@@ -142,7 +153,11 @@
             class="group/img relative cursor-pointer overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm transition hover:border-primary-300 hover:shadow-md dark:border-dark-500 dark:bg-dark-700"
             @click="previewImageUrl = image.url"
           >
-            <img :src="image.url" :alt="`test-image-${index + 1}`" class="max-h-[360px] w-full object-contain" />
+            <img
+              :src="image.url"
+              :alt="t('admin.accounts.imagePreviewAlt', { index: index + 1 })"
+              class="max-h-[360px] w-full object-contain"
+            />
             <div class="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover/img:bg-black/20">
               <Icon name="eye" size="lg" class="text-white opacity-0 drop-shadow-lg transition-opacity group-hover/img:opacity-100" :stroke-width="2" />
             </div>
@@ -169,7 +184,7 @@
             </button>
             <img
               :src="previewImageUrl"
-              alt="preview"
+              :alt="t('admin.accounts.imageLightboxAlt')"
               class="max-h-[90vh] max-w-[90vw] rounded-lg object-contain shadow-2xl"
             />
           </div>
@@ -250,8 +265,10 @@ import TextArea from '@/components/common/TextArea.vue'
 import { Icon } from '@/components/icons'
 import { useClipboard } from '@/composables/useClipboard'
 import { buildApiUrl } from '@/api/client'
+import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 import { adminAPI } from '@/api/admin'
 import type { Account, ClaudeModel } from '@/types'
+import { accountStatusTranslationKey } from '@/utils/accountStatus'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -284,6 +301,8 @@ const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
+const modelLoadError = ref('')
+let modelLoadRequestId = 0
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewImage[]>([])
 const testMode = ref<'default' | 'compact'>('default')
@@ -303,7 +322,13 @@ const supportsGeminiImageTest = computed(() => {
 
 const supportsOpenAIImageTest = computed(() => {
   const modelID = selectedModelId.value.toLowerCase()
-  if (!modelID.startsWith('gpt-image-')) return false
+  if (
+    !modelID.startsWith('gpt-image-') &&
+    modelID !== 'sensenova-u1.5-lite' &&
+    modelID !== 'sensenova-u1-fast'
+  ) {
+    return false
+  }
   return props.account?.platform === 'openai'
 })
 
@@ -322,17 +347,27 @@ const sortTestModels = (models: ClaudeModel[]) => {
 
 // Load available models when modal opens
 watch(
-  () => props.show,
+  [() => props.show, () => props.account?.id],
   async (newVal) => {
-    if (newVal && props.account) {
+    const [visible] = newVal
+    if (visible && props.account) {
       testPrompt.value = ''
       testMode.value = 'default'
       resetState()
+      availableModels.value = []
+      selectedModelId.value = ''
+      modelLoadError.value = ''
       await loadAvailableModels()
     } else {
+      modelLoadRequestId += 1
+      loadingModels.value = false
+      availableModels.value = []
+      selectedModelId.value = ''
+      modelLoadError.value = ''
       abortStream()
     }
-  }
+  },
+  { immediate: true }
 )
 
 watch(selectedModelId, () => {
@@ -341,19 +376,23 @@ watch(selectedModelId, () => {
   }
 })
 
-const loadAvailableModels = async () => {
-  if (!props.account) return
+async function loadAvailableModels() {
+  const account = props.account
+  if (!account) return
 
+  const requestId = ++modelLoadRequestId
   loadingModels.value = true
+  modelLoadError.value = ''
   selectedModelId.value = '' // Reset selection before loading
   try {
-    const models = await adminAPI.accounts.getAvailableModels(props.account.id)
-    availableModels.value = props.account.platform === 'gemini' || props.account.platform === 'antigravity'
+    const models = await adminAPI.accounts.getAvailableModels(account.id)
+    if (requestId !== modelLoadRequestId || props.account?.id !== account.id) return
+    availableModels.value = account.platform === 'gemini' || account.platform === 'antigravity'
       ? sortTestModels(models)
       : models
     // Default selection by platform
     if (availableModels.value.length > 0) {
-      if (props.account.platform === 'gemini') {
+      if (account.platform === 'gemini') {
         selectedModelId.value = availableModels.value[0].id
       } else {
         // Try to select Sonnet as default, otherwise use first model
@@ -363,15 +402,16 @@ const loadAvailableModels = async () => {
     }
   } catch (error) {
     console.error('Failed to load available models:', error)
-    // Fallback to empty list
+    if (requestId !== modelLoadRequestId || props.account?.id !== account.id) return
     availableModels.value = []
     selectedModelId.value = ''
+    modelLoadError.value = t('admin.accounts.testModelsLoadFailed')
   } finally {
-    loadingModels.value = false
+    if (requestId === modelLoadRequestId) loadingModels.value = false
   }
 }
 
-const resetState = () => {
+function resetState() {
   status.value = 'idle'
   outputLines.value = []
   streamingContent.value = ''
@@ -426,7 +466,8 @@ const startTest = async () => {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        [ADMIN_UI_REQUEST_HEADER]: '1'
       },
       body: JSON.stringify({
         model_id: selectedModelId.value,
@@ -437,12 +478,12 @@ const startTest = async () => {
     })
 
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
+      throw new Error(t('admin.accounts.testRequestFailed', { status: response.status }))
     }
 
     const reader = response.body?.getReader()
     if (!reader) {
-      throw new Error('No response body')
+      throw new Error(t('admin.accounts.grok.noResponseBody'))
     }
 
     const decoder = new TextDecoder()
@@ -476,9 +517,9 @@ const startTest = async () => {
       return
     }
     status.value = 'error'
-    const msg = error instanceof Error ? error.message : 'Unknown error'
+    const msg = error instanceof Error ? error.message : t('common.unknownError')
     errorMessage.value = msg
-    addLine(`Error: ${msg}`, 'text-red-400')
+    addLine(t('admin.accounts.errorPrefix', { message: msg }), 'text-red-400')
   }
 }
 
@@ -540,13 +581,13 @@ const handleEvent = (event: {
         status.value = 'success'
       } else {
         status.value = 'error'
-        errorMessage.value = event.error || 'Test failed'
+        errorMessage.value = event.error || t('admin.accounts.testFailed')
       }
       break
 
     case 'error':
       status.value = 'error'
-      errorMessage.value = event.error || 'Unknown error'
+      errorMessage.value = event.error || t('common.unknownError')
       if (streamingContent.value) {
         addLine(streamingContent.value, 'text-green-300')
         streamingContent.value = ''

@@ -189,4 +189,41 @@ describe('AccountTestModal', () => {
 
     expect(wrapper.text()).toContain('已通过 /v1/chat/completions 验证')
   })
+
+  it('treats SenseNova OpenAI-compatible models as image tests', async () => {
+    getAvailableModelsMock.mockResolvedValue([
+      { id: 'sensenova-u1.5-lite', display_name: 'SenseNova U1.5 Lite' }
+    ])
+
+    const wrapper = mount(AccountTestModal, {
+      props: {
+        show: true,
+        account: buildAccount()
+      },
+      global: {
+        stubs: {
+          BaseDialog: BaseDialogStub,
+          Select: SelectStub,
+          TextArea: TextAreaStub,
+          Icon: true
+        }
+      }
+    })
+
+    await flushPromises()
+
+    expect((wrapper.vm as any).selectedModelId).toBe('sensenova-u1.5-lite')
+    expect(wrapper.find('textarea').exists()).toBe(true)
+    ;(wrapper.vm as any).testPrompt = 'draw a small orange cat'
+    await (wrapper.vm as any).startTest()
+    await flushPromises()
+
+    expect(global.fetch).toHaveBeenCalledTimes(1)
+    const [, options] = (global.fetch as any).mock.calls[0]
+    expect(JSON.parse(options.body)).toMatchObject({
+      model_id: 'sensenova-u1.5-lite',
+      prompt: 'draw a small orange cat',
+      mode: 'default'
+    })
+  })
 })

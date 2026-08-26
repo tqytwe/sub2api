@@ -272,7 +272,7 @@ onBeforeUnmount(() => {
           :class="mobileView === 'prompts' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
           @click="switchStudioView('prompts')"
         >
-          选提示词
+          {{ t('imageStudio.promptLibraryTab') }}
         </button>
         <button
           type="button"
@@ -280,7 +280,7 @@ onBeforeUnmount(() => {
           :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
           @click="switchStudioView('works')"
         >
-          作品库
+          {{ t('imageStudio.worksTab') }}
         </button>
         <button
           type="button"
@@ -288,7 +288,7 @@ onBeforeUnmount(() => {
           :class="mobileView === 'recipes' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
           @click="switchStudioView('recipes')"
         >
-          创作配方
+          {{ t('imageStudio.recipesTab') }}
         </button>
       </div>
 
@@ -312,7 +312,7 @@ onBeforeUnmount(() => {
               :class="mobileView === 'create' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
               @click="switchStudioView('create')"
             >
-              创作
+              {{ t('imageStudio.createTab') }}
             </button>
             <button
               type="button"
@@ -320,7 +320,7 @@ onBeforeUnmount(() => {
               :class="mobileView === 'prompts' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
               @click="switchStudioView('prompts')"
             >
-              选提示词
+              {{ t('imageStudio.promptLibraryTab') }}
             </button>
             <button
               type="button"
@@ -328,7 +328,7 @@ onBeforeUnmount(() => {
               :class="mobileView === 'works' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
               @click="switchStudioView('works')"
             >
-              作品库
+              {{ t('imageStudio.worksTab') }}
             </button>
             <button
               type="button"
@@ -336,7 +336,7 @@ onBeforeUnmount(() => {
               :class="mobileView === 'recipes' ? 'bg-white text-primary-600 shadow-sm dark:bg-dark-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400'"
               @click="switchStudioView('recipes')"
             >
-              创作配方
+              {{ t('imageStudio.recipesTab') }}
             </button>
           </div>
         </header>
@@ -355,10 +355,10 @@ onBeforeUnmount(() => {
           <div class="card overflow-hidden">
             <header class="flex items-start justify-between gap-3 border-b border-gray-100 px-5 py-4 dark:border-dark-700">
               <div>
-                <h2 class="text-base font-semibold text-gray-900 dark:text-white">创作配方</h2>
-                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">只保存提示词编号、版本、模型与规格，不保存你填写的明文内容。</p>
+                <h2 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('imageStudio.recipes.title') }}</h2>
+                <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('imageStudio.recipes.hint') }}</p>
               </div>
-              <button type="button" class="btn btn-secondary text-xs" @click="recipes = listPromptRecipes()">刷新</button>
+              <button type="button" class="btn btn-secondary text-xs" @click="recipes = listPromptRecipes()">{{ t('imageStudio.recipes.refresh') }}</button>
             </header>
             <div v-if="recipes.length" class="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
               <article
@@ -368,20 +368,20 @@ onBeforeUnmount(() => {
               >
                 <h3 class="font-semibold text-gray-900 dark:text-white">{{ recipe.title }}</h3>
                 <p class="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  提示词编号 {{ recipe.prompt_id }} · 版本 {{ recipe.prompt_version }}
+                  {{ t('imageStudio.recipes.referenceMeta', { promptId: recipe.prompt_id, version: recipe.prompt_version }) }}
                 </p>
                 <p class="mt-1 text-xs leading-5 text-gray-500 dark:text-gray-400">
-                  {{ recipe.model || '未指定模型' }} · {{ recipe.size || '未指定尺寸' }}
+                  {{ recipe.model || t('imageStudio.recipes.modelFallback') }} · {{ recipe.size || t('imageStudio.recipes.sizeFallback') }}
                 </p>
                 <button type="button" class="btn btn-primary mt-4 w-full text-xs" @click="useRecipe(recipe)">
                   <Icon name="sparkles" size="sm" />
-                  用于创作
+                  {{ t('imageStudio.recipes.use') }}
                 </button>
               </article>
             </div>
             <div v-else class="flex min-h-64 flex-col items-center justify-center px-6 text-center text-sm text-gray-500 dark:text-gray-400">
               <Icon name="save" class="mb-3 text-gray-400" />
-              暂无创作配方。引用提示词后，可以在创作设置中保存为创作配方。
+              {{ t('imageStudio.recipes.empty') }}
             </div>
           </div>
         </section>
@@ -456,20 +456,20 @@ onBeforeUnmount(() => {
                 <div class="flex items-start justify-between gap-3">
                   <div class="min-w-0">
                     <p class="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                      来自极速蹬提示词库
+                      {{ t('imageStudio.recipes.sourceLabel') }}
                     </p>
                     <p class="mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white">
                       {{ workspace.promptReference.value.title }}
                     </p>
                     <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                      提示词编号 {{ workspace.promptReference.value.prompt_id }} · 版本 {{ workspace.promptReference.value.version }}
+                      {{ t('imageStudio.recipes.referenceMeta', { promptId: workspace.promptReference.value.prompt_id, version: workspace.promptReference.value.version }) }}
                     </p>
                   </div>
                   <button
                     type="button"
                     class="btn-icon h-8 w-8 flex-shrink-0"
-                    title="取消引用"
-                    aria-label="取消引用"
+                    :title="t('imageStudio.recipes.clearReference')"
+                    :aria-label="t('imageStudio.recipes.clearReference')"
                     @click="workspace.clearPromptReference"
                   >
                     <Icon name="x" size="sm" />
@@ -503,7 +503,7 @@ onBeforeUnmount(() => {
                       v-model="workspace.promptVariableValues.value[variable.name]"
                       :type="variable.type === 'number' ? 'number' : variable.type === 'color' ? 'color' : 'text'"
                       class="input h-10 text-sm"
-                      :placeholder="variable.description || `填写${variable.label}`"
+                      :placeholder="variable.description || t('imageStudio.recipes.variablePlaceholder', { label: variable.label })"
                     />
                     <span v-if="variable.description" class="mt-1 block text-[11px] text-gray-500 dark:text-gray-400">
                       {{ variable.description }}
@@ -514,14 +514,14 @@ onBeforeUnmount(() => {
                 <div class="mt-3 flex flex-wrap items-center gap-2">
                   <button type="button" class="btn btn-secondary text-xs" @click="applyPromptVariables">
                     <Icon name="sparkles" size="sm" />
-                    智能改写
+                    {{ t('imageStudio.recipes.applyVariables') }}
                   </button>
                   <button type="button" class="btn btn-secondary text-xs" @click="saveCreationRecipe">
                     <Icon name="save" size="sm" />
-                    保存为创作配方
+                    {{ t('imageStudio.recipes.save') }}
                   </button>
                   <span v-if="recipeSaved" class="text-xs text-emerald-700 dark:text-emerald-300">
-                    创作配方已保存到当前浏览器
+                    {{ t('imageStudio.recipes.saved') }}
                   </span>
                 </div>
               </div>
@@ -685,10 +685,12 @@ onBeforeUnmount(() => {
                 :capabilities="workspace.capabilities.value"
                 :aspect="workspace.aspect.value"
                 :tier="workspace.tier.value"
+                :size="workspace.size.value"
                 :selected-model="workspace.selectedModelOption.value"
                 :disabled="workspace.generating.value"
                 @update:aspect="workspace.onAspectChange"
                 @update:tier="workspace.onTierChange"
+                @update:size="workspace.onSizeChange"
               />
 
               <div>
