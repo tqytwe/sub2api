@@ -5,8 +5,13 @@
   "schema_version": 1,
   "changed_files": [
     "frontend/src/i18n/index.ts",
+    "frontend/src/i18n/locales/en.ts",
+    "frontend/src/i18n/locales/en/admin/accounts.ts",
+    "frontend/src/i18n/locales/zh.ts",
+    "frontend/src/i18n/locales/zh/admin/accounts.ts",
     "frontend/src/components/common/LocaleSwitcher.vue",
     "frontend/src/router/index.ts",
+    "frontend/src/views/HomeView.vue",
     "frontend/src/components/admin/account/AccountTestModal.vue",
     "frontend/src/components/admin/account/AccountStatsModal.vue",
     "frontend/src/components/admin/account/ScheduledTestsPanel.vue",
