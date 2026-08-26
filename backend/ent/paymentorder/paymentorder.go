@@ -102,6 +102,8 @@ const (
 	FieldCompletedAt = "completed_at"
 	// FieldFailedAt holds the string denoting the failed_at field in the database.
 	FieldFailedAt = "failed_at"
+	// FieldCouponLockReleaseProcessedAt holds the string denoting the coupon_lock_release_processed_at field in the database.
+	FieldCouponLockReleaseProcessedAt = "coupon_lock_release_processed_at"
 	// FieldFailedReason holds the string denoting the failed_reason field in the database.
 	FieldFailedReason = "failed_reason"
 	// FieldClientIP holds the string denoting the client_ip field in the database.
@@ -174,6 +176,7 @@ var Columns = []string{
 	FieldPaidAt,
 	FieldCompletedAt,
 	FieldFailedAt,
+	FieldCouponLockReleaseProcessedAt,
 	FieldFailedReason,
 	FieldClientIP,
 	FieldSrcHost,
@@ -459,6 +462,11 @@ func ByCompletedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByFailedAt orders the results by the failed_at field.
 func ByFailedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFailedAt, opts...).ToFunc()
+}
+
+// ByCouponLockReleaseProcessedAt orders the results by the coupon_lock_release_processed_at field.
+func ByCouponLockReleaseProcessedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCouponLockReleaseProcessedAt, opts...).ToFunc()
 }
 
 // ByFailedReason orders the results by the failed_reason field.

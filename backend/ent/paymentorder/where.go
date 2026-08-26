@@ -255,6 +255,11 @@ func FailedAt(v time.Time) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldFailedAt, v))
 }
 
+// CouponLockReleaseProcessedAt applies equality check predicate on the "coupon_lock_release_processed_at" field. It's identical to CouponLockReleaseProcessedAtEQ.
+func CouponLockReleaseProcessedAt(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldCouponLockReleaseProcessedAt, v))
+}
+
 // FailedReason applies equality check predicate on the "failed_reason" field. It's identical to FailedReasonEQ.
 func FailedReason(v string) predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldEQ(FieldFailedReason, v))
@@ -2513,6 +2518,56 @@ func FailedAtIsNil() predicate.PaymentOrder {
 // FailedAtNotNil applies the NotNil predicate on the "failed_at" field.
 func FailedAtNotNil() predicate.PaymentOrder {
 	return predicate.PaymentOrder(sql.FieldNotNull(FieldFailedAt))
+}
+
+// CouponLockReleaseProcessedAtEQ applies the EQ predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldEQ(FieldCouponLockReleaseProcessedAt, v))
+}
+
+// CouponLockReleaseProcessedAtNEQ applies the NEQ predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtNEQ(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNEQ(FieldCouponLockReleaseProcessedAt, v))
+}
+
+// CouponLockReleaseProcessedAtIn applies the In predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIn(FieldCouponLockReleaseProcessedAt, vs...))
+}
+
+// CouponLockReleaseProcessedAtNotIn applies the NotIn predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtNotIn(vs ...time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotIn(FieldCouponLockReleaseProcessedAt, vs...))
+}
+
+// CouponLockReleaseProcessedAtGT applies the GT predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtGT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGT(FieldCouponLockReleaseProcessedAt, v))
+}
+
+// CouponLockReleaseProcessedAtGTE applies the GTE predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtGTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldGTE(FieldCouponLockReleaseProcessedAt, v))
+}
+
+// CouponLockReleaseProcessedAtLT applies the LT predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtLT(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLT(FieldCouponLockReleaseProcessedAt, v))
+}
+
+// CouponLockReleaseProcessedAtLTE applies the LTE predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtLTE(v time.Time) predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldLTE(FieldCouponLockReleaseProcessedAt, v))
+}
+
+// CouponLockReleaseProcessedAtIsNil applies the IsNil predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtIsNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldIsNull(FieldCouponLockReleaseProcessedAt))
+}
+
+// CouponLockReleaseProcessedAtNotNil applies the NotNil predicate on the "coupon_lock_release_processed_at" field.
+func CouponLockReleaseProcessedAtNotNil() predicate.PaymentOrder {
+	return predicate.PaymentOrder(sql.FieldNotNull(FieldCouponLockReleaseProcessedAt))
 }
 
 // FailedReasonEQ applies the EQ predicate on the "failed_reason" field.

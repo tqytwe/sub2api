@@ -43,12 +43,49 @@ const createMockRouter = (): Router => {
 }
 
 describe('useRoutePrefetch', () => {
+  it('prefetches an intended route only once', async () => {
+    const importer = vi.fn().mockResolvedValue({})
+    const router = {
+      getRoutes: vi.fn(() => [
+        { path: '/admin/accounts', components: { default: importer } }
+      ])
+    } as unknown as Router
+    const { prefetchRoute } = useRoutePrefetch(router)
+
+    prefetchRoute('/admin/accounts')
+    prefetchRoute('/admin/accounts')
+    prefetchRoute('/admin/accounts')
+    await vi.waitFor(() => expect(importer).toHaveBeenCalledTimes(1))
+  })
+
+  it('disables intent prefetch when Save-Data is enabled', async () => {
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true,
+      value: { saveData: true }
+    })
+    const importer = vi.fn().mockResolvedValue({})
+    const router = {
+      getRoutes: vi.fn(() => [
+        { path: '/admin/accounts', components: { default: importer } }
+      ])
+    } as unknown as Router
+    const { prefetchRoute } = useRoutePrefetch(router)
+
+    prefetchRoute('/admin/accounts')
+    await Promise.resolve()
+
+    expect(importer).not.toHaveBeenCalled()
+  })
   let originalRequestIdleCallback: typeof window.requestIdleCallback
   let originalCancelIdleCallback: typeof window.cancelIdleCallback
   let mockRouter: Router
 
   beforeEach(() => {
     mockRouter = createMockRouter()
+    Object.defineProperty(navigator, 'connection', {
+      configurable: true,
+      value: { saveData: false }
+    })
 
     // 保存原始函数
     originalRequestIdleCallback = window.requestIdleCallback

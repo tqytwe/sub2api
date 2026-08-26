@@ -74,6 +74,11 @@ export function useRoutePrefetch(router?: Router) {
   // 已预加载的路由集合
   const prefetchedRoutes = ref<Set<string>>(new Set())
 
+  const isSaveDataEnabled = (): boolean => {
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection
+    return connection?.saveData === true
+  }
+
   /**
    * 从路由配置中获取组件的 import 函数
    */
@@ -130,6 +135,8 @@ export function useRoutePrefetch(router?: Router) {
   const triggerPrefetch = (route: RouteLocationNormalized): void => {
     cancelPendingPrefetch()
 
+    if (isSaveDataEnabled()) return
+
     const prefetchPaths = getPrefetchPaths(route)
     if (prefetchPaths.length === 0) return
 
@@ -157,6 +164,21 @@ export function useRoutePrefetch(router?: Router) {
       },
       { timeout: 2000 }
     )
+  }
+
+  /**
+   * Prefetch one route after a direct hover, focus or pointer intent.
+   */
+  const prefetchRoute = (path: string): void => {
+    if (isSaveDataEnabled() || prefetchedRoutes.value.has(path)) return
+
+    const importFn = getComponentImporter(path)
+    if (!importFn) return
+
+    prefetchedRoutes.value.add(path)
+    scheduleIdleCallback(() => {
+      void prefetchComponent(importFn)
+    }, { timeout: 1000 })
   }
 
   /**
@@ -189,6 +211,7 @@ export function useRoutePrefetch(router?: Router) {
 
   return {
     prefetchedRoutes: readonly(prefetchedRoutes),
+    prefetchRoute,
     triggerPrefetch,
     cancelPendingPrefetch,
     resetPrefetchState,

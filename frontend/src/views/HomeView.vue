@@ -19,7 +19,7 @@
       <nav class="flex w-full flex-wrap items-center justify-between gap-3 sm:gap-4">
         <div class="flex min-w-0 flex-1 items-center gap-3">
           <img
-            :src="siteLogo || '/logo.svg'"
+            :src="siteLogo || '/logo.png'"
             alt="Logo"
             class="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
@@ -54,6 +54,15 @@
             :title="t('home.viewDocs')"
           >
             <Icon name="book" size="md" />
+          </router-link>
+          <router-link
+            v-if="showModelPlazaEntry"
+            to="/model-plaza"
+            class="flex h-10 shrink-0 items-center gap-1.5 rounded-lg px-2.5 text-sm font-medium text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-dark-400 dark:hover:bg-dark-800 dark:hover:text-white"
+            :title="t('nav.modelPlaza')"
+          >
+            <Icon name="grid" size="md" />
+            <span class="hidden sm:inline">{{ t('nav.modelPlaza') }}</span>
           </router-link>
           <button
             class="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-gray-500 hover:bg-gray-100 dark:text-dark-400 dark:hover:bg-dark-800"
@@ -90,7 +99,7 @@
     <main class="flex min-w-0 flex-1 items-center justify-center px-4 py-16 sm:px-6">
       <div class="compact-home-copy min-w-0 text-center">
         <img
-          :src="siteLogo || '/logo.svg'"
+          :src="siteLogo || '/logo.png'"
           alt="Logo"
           class="compact-home-logo mb-6 h-20 w-20 rounded-lg object-contain"
         />
@@ -114,7 +123,6 @@
     v-else
     class="home-page"
     :class="{
-      'is-intro': isIntro,
       'has-guest-sticky-cta': !isAuthenticated && showGuestStickyCta,
     }"
   >
@@ -140,6 +148,14 @@
           </nav>
         </div>
         <nav class="page-nav">
+          <router-link
+            v-if="showModelPlazaEntry"
+            to="/model-plaza"
+            class="nav-link"
+            :title="t('nav.modelPlaza')"
+          >
+            {{ t('nav.modelPlaza') }}
+          </router-link>
           <button
             type="button"
             class="mobile-menu-toggle"
@@ -212,7 +228,7 @@
     </header>
 
     <section class="hero-section">
-      <HeroSphere @reveal="onReveal" />
+      <HeroSphere />
       <div class="page-container hero-block">
         <p class="hero-eyebrow">
           <template v-for="(bit, idx) in eyebrowBits" :key="idx">
@@ -439,7 +455,9 @@
             <p class="chc-title">{{ t('home.jisudeng.channels.copyTitle') }}</p>
             <p class="chc-body">{{ t('home.jisudeng.channels.copyBody') }}</p>
           </div>
-          <div class="channels-tv"><ChannelTV /></div>
+          <div class="channels-tv home-lazy-demo home-lazy-demo--channels">
+            <ChannelTV v-if="inView.channels" />
+          </div>
         </div>
       </div>
     </section>
@@ -492,7 +510,9 @@
               </div>
             </li>
           </ol>
-          <TerminalDemo @phase="(p) => (onboardPhase = p)" />
+          <div class="home-lazy-demo home-lazy-demo--terminal">
+            <TerminalDemo v-if="inView.onboard" @phase="(p) => (onboardPhase = p)" />
+          </div>
         </div>
         <p class="onboard-foot">
           {{ t('home.jisudeng.onboard.docLink') }}
@@ -623,15 +643,13 @@
 
 <script setup lang="ts">
 import '@/styles/home-view.css'
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, useAppStore } from '@/stores'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import Icon from '@/components/icons/Icon.vue'
 import HeroSphere from '@/components/home/HeroSphere.vue'
-import ChannelTV from '@/components/home/ChannelTV.vue'
-import TerminalDemo from '@/components/home/TerminalDemo.vue'
 import WhyHoverCard from '@/components/home/WhyHoverCard.vue'
 import LmspeedBadge from '@/components/home/LmspeedBadge.vue'
 import LmspeedProviderProof from '@/components/home/LmspeedProviderProof.vue'
@@ -656,13 +674,15 @@ import {
   aiCreationSpaceEntryRoute,
 } from '@/router/publicNavigation'
 
+const ChannelTV = defineAsyncComponent(() => import('@/components/home/ChannelTV.vue'))
+const TerminalDemo = defineAsyncComponent(() => import('@/components/home/TerminalDemo.vue'))
+
 const { t, tm, te, locale } = useI18n()
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
 const appStore = useAppStore()
 
-const isIntro = ref(true)
 const headerScrolled = ref(false)
 const mobileNavOpen = ref(false)
 const mobileNavId = 'home-mobile-navigation'
@@ -701,6 +721,15 @@ const siteName = computed(() =>
   localizedSiteName(appStore.cachedPublicSettings?.site_name || appStore.siteName, locale.value)
 )
 const isAuthenticated = computed(() => authStore.isAuthenticated)
+const modelPlazaEnabled = computed(
+  () => appStore.cachedPublicSettings?.model_plaza_enabled === true,
+)
+const modelPlazaRequiresAuth = computed(
+  () => appStore.cachedPublicSettings?.model_plaza_require_auth === true,
+)
+const showModelPlazaEntry = computed(
+  () => modelPlazaEnabled.value && (isAuthenticated.value || !modelPlazaRequiresAuth.value),
+)
 const isAdmin = computed(() => authStore.isAdmin)
 const isEnglishPublicRoute = computed(() => route.path === '/en' || route.path.startsWith('/en/'))
 const hasSupportContact = computed(() => enabledSupportContacts(appStore.supportContact).length > 0)
@@ -917,10 +946,6 @@ const closerDots = (() => {
   return dots
 })()
 
-function onReveal() {
-  isIntro.value = false
-}
-
 function goRegister() {
   router.push(registerRoute)
 }
@@ -1031,7 +1056,11 @@ function ensureFonts() {
   fontEl.rel = 'stylesheet'
   fontEl.setAttribute('data-jisudeng-fonts', 'true')
   fontEl.href =
-    'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@600;700;800&family=Noto+Serif+SC:wght@500;700;900&family=Noto+Sans+SC:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400&display=swap'
+    'https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@600;700;800&family=IBM+Plex+Mono:wght@400&display=optional'
+  fontEl.media = 'print'
+  fontEl.addEventListener('load', () => {
+    if (fontEl) fontEl.media = 'all'
+  }, { once: true })
   document.head.appendChild(fontEl)
 }
 
@@ -1062,7 +1091,7 @@ onMounted(() => {
         }
       }
     },
-    { rootMargin: '0px 0px -80px 0px', threshold: 0.08 }
+    { rootMargin: '320px 0px', threshold: 0.01 }
   )
   document.querySelectorAll('.home-page section:not(.hero-section)').forEach((el) => observer?.observe(el))
 })
@@ -1085,6 +1114,29 @@ onBeforeUnmount(() => {
 .compact-home-logo {
   display: block;
   margin-inline: auto;
+}
+
+.home-lazy-demo {
+  inline-size: 100%;
+  contain: layout paint;
+}
+
+.home-lazy-demo--channels {
+  min-block-size: 520px;
+}
+
+.home-lazy-demo--terminal {
+  min-block-size: 360px;
+}
+
+@media (width <= 767px) {
+  .home-lazy-demo--channels {
+    min-block-size: 440px;
+  }
+
+  .home-lazy-demo--terminal {
+    min-block-size: 332px;
+  }
 }
 
 .sr-only {

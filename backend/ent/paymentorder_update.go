@@ -849,6 +849,26 @@ func (_u *PaymentOrderUpdate) ClearFailedAt() *PaymentOrderUpdate {
 	return _u
 }
 
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (_u *PaymentOrderUpdate) SetCouponLockReleaseProcessedAt(v time.Time) *PaymentOrderUpdate {
+	_u.mutation.SetCouponLockReleaseProcessedAt(v)
+	return _u
+}
+
+// SetNillableCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdate) SetNillableCouponLockReleaseProcessedAt(v *time.Time) *PaymentOrderUpdate {
+	if v != nil {
+		_u.SetCouponLockReleaseProcessedAt(*v)
+	}
+	return _u
+}
+
+// ClearCouponLockReleaseProcessedAt clears the value of the "coupon_lock_release_processed_at" field.
+func (_u *PaymentOrderUpdate) ClearCouponLockReleaseProcessedAt() *PaymentOrderUpdate {
+	_u.mutation.ClearCouponLockReleaseProcessedAt()
+	return _u
+}
+
 // SetFailedReason sets the "failed_reason" field.
 func (_u *PaymentOrderUpdate) SetFailedReason(v string) *PaymentOrderUpdate {
 	_u.mutation.SetFailedReason(v)
@@ -1304,6 +1324,12 @@ func (_u *PaymentOrderUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.FailedAtCleared() {
 		_spec.ClearField(paymentorder.FieldFailedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CouponLockReleaseProcessedAt(); ok {
+		_spec.SetField(paymentorder.FieldCouponLockReleaseProcessedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CouponLockReleaseProcessedAtCleared() {
+		_spec.ClearField(paymentorder.FieldCouponLockReleaseProcessedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.FailedReason(); ok {
 		_spec.SetField(paymentorder.FieldFailedReason, field.TypeString, value)
@@ -2195,6 +2221,26 @@ func (_u *PaymentOrderUpdateOne) ClearFailedAt() *PaymentOrderUpdateOne {
 	return _u
 }
 
+// SetCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field.
+func (_u *PaymentOrderUpdateOne) SetCouponLockReleaseProcessedAt(v time.Time) *PaymentOrderUpdateOne {
+	_u.mutation.SetCouponLockReleaseProcessedAt(v)
+	return _u
+}
+
+// SetNillableCouponLockReleaseProcessedAt sets the "coupon_lock_release_processed_at" field if the given value is not nil.
+func (_u *PaymentOrderUpdateOne) SetNillableCouponLockReleaseProcessedAt(v *time.Time) *PaymentOrderUpdateOne {
+	if v != nil {
+		_u.SetCouponLockReleaseProcessedAt(*v)
+	}
+	return _u
+}
+
+// ClearCouponLockReleaseProcessedAt clears the value of the "coupon_lock_release_processed_at" field.
+func (_u *PaymentOrderUpdateOne) ClearCouponLockReleaseProcessedAt() *PaymentOrderUpdateOne {
+	_u.mutation.ClearCouponLockReleaseProcessedAt()
+	return _u
+}
+
 // SetFailedReason sets the "failed_reason" field.
 func (_u *PaymentOrderUpdateOne) SetFailedReason(v string) *PaymentOrderUpdateOne {
 	_u.mutation.SetFailedReason(v)
@@ -2680,6 +2726,12 @@ func (_u *PaymentOrderUpdateOne) sqlSave(ctx context.Context) (_node *PaymentOrd
 	}
 	if _u.mutation.FailedAtCleared() {
 		_spec.ClearField(paymentorder.FieldFailedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CouponLockReleaseProcessedAt(); ok {
+		_spec.SetField(paymentorder.FieldCouponLockReleaseProcessedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CouponLockReleaseProcessedAtCleared() {
+		_spec.ClearField(paymentorder.FieldCouponLockReleaseProcessedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.FailedReason(); ok {
 		_spec.SetField(paymentorder.FieldFailedReason, field.TypeString, value)

@@ -27,6 +27,8 @@ type paymentCouponOrderService interface {
 	ConsumeUserCouponOrderLock(context.Context, int64, int64) (*UserCoupon, error)
 }
 
+const couponLockReleaseBatchSize = 100
+
 // CouponPaymentQuoteRequest is the authenticated checkout context used to
 // preview a selected coupon. It deliberately mirrors the relevant fields of
 // CreateOrderRequest so quote and order creation share the same calculation.
@@ -404,11 +406,20 @@ func (s *PaymentService) markOrderPaidAndConsumeCoupon(ctx context.Context, orde
 	statusPredicate := paymentorder.StatusEQ(OrderStatusPending)
 	if allowLatePayment {
 		grace := now.Add(-paymentGraceMinutes * time.Minute)
-		lateCancelled := paymentorder.And(paymentorder.StatusEQ(OrderStatusCancelled), paymentorder.UpdatedAtGTE(grace))
-		lateExpired := paymentorder.And(paymentorder.StatusEQ(OrderStatusExpired), paymentorder.UpdatedAtGTE(grace))
+		lateCancelled := paymentorder.And(
+			paymentorder.StatusEQ(OrderStatusCancelled),
+			paymentorder.CouponLockReleaseProcessedAtIsNil(),
+			paymentorder.UpdatedAtGTE(grace),
+		)
+		lateExpired := paymentorder.And(
+			paymentorder.StatusEQ(OrderStatusExpired),
+			paymentorder.CouponLockReleaseProcessedAtIsNil(),
+			paymentorder.UpdatedAtGTE(grace),
+		)
 		lateFailed := paymentorder.And(
 			paymentorder.StatusEQ(OrderStatusFailed),
 			paymentorder.PaidAtIsNil(),
+			paymentorder.CouponLockReleaseProcessedAtIsNil(),
 			paymentorder.UpdatedAtGTE(grace),
 		)
 		if order.CouponID == nil {
@@ -472,8 +483,12 @@ func (s *PaymentService) ReleaseCouponLocksAfterLatePaymentGrace(ctx context.Con
 		paymentorder.CouponIDNotNil(),
 		paymentorder.StatusIn(OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed),
 		paymentorder.PaidAtIsNil(),
+		paymentorder.CouponLockReleaseProcessedAtIsNil(),
 		paymentorder.UpdatedAtLT(graceCutoff),
-	).All(ctx)
+	).
+		Order(paymentorder.ByUpdatedAt(), paymentorder.ByID()).
+		Limit(couponLockReleaseBatchSize).
+		All(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("list coupon locks eligible for release: %w", err)
 	}
@@ -482,12 +497,20 @@ func (s *PaymentService) ReleaseCouponLocksAfterLatePaymentGrace(ctx context.Con
 		if order.CouponID == nil {
 			continue
 		}
-		claimed, err := s.releaseCouponOrderLockAfterLatePaymentGrace(ctx, order, graceCutoff)
+		wasReleased, reconciliationReason, err := s.releaseCouponOrderLockAfterLatePaymentGrace(ctx, order, graceCutoff)
 		if err != nil {
 			slog.Warn("release expired payment coupon lock failed", "order_id", order.ID, "coupon_id", *order.CouponID, "error", err)
 			continue
 		}
-		if claimed {
+		if reconciliationReason != "" {
+			slog.Info("reconciled terminal payment coupon lock",
+				"order_id", order.ID,
+				"coupon_id", *order.CouponID,
+				"order_status", order.Status,
+				"reason", reconciliationReason,
+			)
+		}
+		if wasReleased {
 			released++
 		}
 	}
@@ -499,13 +522,13 @@ func (s *PaymentService) ReleaseCouponLocksAfterLatePaymentGrace(ctx context.Con
 // a snapshot of the order before it acts; without this conditional claim, a
 // late success callback could mark the order paid while a second transaction
 // returns the same coupon to the user's wallet.
-func (s *PaymentService) releaseCouponOrderLockAfterLatePaymentGrace(ctx context.Context, order *dbent.PaymentOrder, graceCutoff time.Time) (bool, error) {
+func (s *PaymentService) releaseCouponOrderLockAfterLatePaymentGrace(ctx context.Context, order *dbent.PaymentOrder, graceCutoff time.Time) (bool, string, error) {
 	if s == nil || s.entClient == nil || s.couponService == nil || order == nil || order.CouponID == nil {
-		return false, nil
+		return false, "", nil
 	}
 	tx, err := s.entClient.Tx(ctx)
 	if err != nil {
-		return false, fmt.Errorf("begin coupon lock release transaction: %w", err)
+		return false, "", fmt.Errorf("begin coupon lock release transaction: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
 
@@ -518,20 +541,33 @@ func (s *PaymentService) releaseCouponOrderLockAfterLatePaymentGrace(ctx context
 		paymentorder.CouponIDNotNil(),
 		paymentorder.StatusIn(OrderStatusCancelled, OrderStatusExpired, OrderStatusFailed),
 		paymentorder.PaidAtIsNil(),
+		paymentorder.CouponLockReleaseProcessedAtIsNil(),
 		paymentorder.UpdatedAtEQ(order.UpdatedAt),
 		paymentorder.UpdatedAtLT(graceCutoff),
-	).SetUpdatedAt(order.UpdatedAt).Save(txCtx)
+	).
+		SetCouponLockReleaseProcessedAt(time.Now().UTC()).
+		SetUpdatedAt(order.UpdatedAt).
+		Save(txCtx)
 	if err != nil {
-		return false, fmt.Errorf("claim coupon lock release: %w", err)
+		return false, "", fmt.Errorf("claim coupon lock release: %w", err)
 	}
 	if claimed == 0 {
-		return false, nil
+		return false, "", nil
 	}
 	if _, err := s.couponService.ReleaseUserCouponOrderLock(txCtx, *order.CouponID, order.ID); err != nil {
-		return false, err
+		reason := infraerrors.Reason(err)
+		switch reason {
+		case "COUPON_LOCK_MISMATCH", "COUPON_ALREADY_USED", "COUPON_NOT_FOUND":
+			if commitErr := tx.Commit(); commitErr != nil {
+				return false, "", fmt.Errorf("commit terminal coupon lock reconciliation: %w", commitErr)
+			}
+			return false, reason, nil
+		default:
+			return false, "", err
+		}
 	}
 	if err := tx.Commit(); err != nil {
-		return false, fmt.Errorf("commit coupon lock release: %w", err)
+		return false, "", fmt.Errorf("commit coupon lock release: %w", err)
 	}
-	return true, nil
+	return true, "", nil
 }

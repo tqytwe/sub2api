@@ -4,6 +4,7 @@
  */
 
 import 'vue-router'
+import type { LocaleLoadScope } from '@/i18n'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -88,5 +89,8 @@ declare module 'vue-router' {
      * Semantic content frame owned by AppLayout/PageFrame.
      */
     frame?: 'compact' | 'reading' | 'form' | 'content' | 'workspace' | 'fluid'
+
+    /** Locale fragments required before this route renders. Core is always included. */
+    localeScopes?: LocaleLoadScope[]
   }
 }

@@ -1,9 +1,9 @@
 # 极速蹬 Fork 定制登记
 
 > 状态：active
-> 当前验证基线：`upstream/main@49504adc98d2b6d539491e865a340e644548979e` (`v0.1.178`)
-> 对应合并提交：待本同步 PR 合入 `play/main` 后回填
-> 最后核验：2026-08-18
+> 当前验证基线：`upstream/main@aa2c4e8d136b12c171f8a4b38578c68243f73e19` (`v0.1.182`)
+> 本次同步合并提交：`e2db55e6c35566ad1b822aa46e22d4c3dadbd979`（审查分支，待 PR 合入 `play/main`）
+> 最后核验：2026-08-25
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -36,15 +36,15 @@
 ## FORK-BRAND-001 品牌、首页、登录布局和主题
 
 - 产品目的：公开首页、认证页和控制台保持极速蹬 ink 黑白品牌，不回退到上游 teal 视觉。
-- 不变量：`AuthLayout` 保留 `auth-page`、`asideMode` 和定制 CSS；首页保留极速蹬内容与资源；首页页脚和自定义首页保留 LMSpeed Provider 2039 的 claim badge，`frontend/index.html` 保留无 JavaScript 备用标记；Tailwind `primary` 为 ink；版本号只对管理员展示。
-- 关键位置：`frontend/src/views/HomeView.vue`、`frontend/src/components/home/LmspeedBadge.vue`、`frontend/index.html`、`frontend/src/components/layout/AuthLayout.vue`、`frontend/src/styles/home-view.css`、`frontend/src/styles/auth-layout-jisudeng.css`、`frontend/tailwind.config.js`。
+- 不变量：`AuthLayout` 保留 `auth-page`、`asideMode` 和定制 CSS；首页保留极速蹬内容与资源，正文和导航不等待 intro、字体或地理资源即可显示且不锁滚动；`HeroSphere` 的动画有界，隐藏、离开视口和卸载时停止，reduced-motion、Save-Data 和低配置设备直接静态绘制；折叠线以下演示按接近视口异步加载并保留稳定占位；首页页脚和自定义首页保留 LMSpeed Provider 2039 的 claim badge，`frontend/index.html` 保留无 JavaScript 备用标记；Tailwind `primary` 为 ink；版本号只对管理员展示。
+- 关键位置：`frontend/src/views/HomeView.vue`、`frontend/src/components/home/HeroSphere.vue`、`frontend/src/components/home/LmspeedBadge.vue`、`frontend/index.html`、`frontend/src/components/layout/AuthLayout.vue`、`frontend/src/styles/home-view.css`、`frontend/src/styles/auth-layout-jisudeng.css`、`frontend/tailwind.config.js`。
 - 冲突策略：吸收上游可访问性和业务修复，视觉结构、品牌资源及色板保留 Fork 语义。
-- 验证：`scripts/check-jisudeng-branding.sh`、`frontend/src/components/layout/__tests__/AppSidebar.spec.ts`；线上检查首页、登录、注册、浅色和深色主题。
+- 验证：`scripts/check-jisudeng-branding.sh`、`HeroSphere.spec.ts`、`HomeView.spec.ts`、`homePerformance.spec.ts`、`frontend/src/components/layout/__tests__/AppSidebar.spec.ts` 和 `docs/visual-reviews/2026-08-25-upstream-v0182-performance.md`；线上检查首页、登录、注册、浅色和深色主题。
 
 ## FORK-UI-012 前端设计系统与视觉治理
 
 - 产品目的：让公共页、认证页、用户控制台和管理员后台使用稳定的页面框架、功能图标、视觉 token、圆角、间距、交互状态与可访问性规则，防止新增页面继续复制平行组件和局部风格。
-- 不变量：任何 `frontend/` 可见改动必须先读取 `frontend/AGENTS.md` 和 [前端设计系统与视觉开发规范](./FRONTEND_DESIGN_SYSTEM.md)，查看当前画面和同类型实现，先提交原型设计图片并明确改动边界，优先复用共享组件；功能图标统一走 `Icon.vue`；业务页面不得新增任意页面宽度、手写功能 SVG、散落色值、`transition-all`、超大圆角或无替代的焦点清除。艺术页和品牌场景例外必须带具体原因并接受单独审查。
+- 不变量：任何 `frontend/` 可见改动必须先读取 `frontend/AGENTS.md` 和 [前端设计系统与视觉开发规范](./FRONTEND_DESIGN_SYSTEM.md)，查看当前画面和同类型实现，先提交原型设计图片并明确改动边界，优先复用共享组件；功能图标统一走 `Icon.vue`；业务页面不得新增任意页面宽度、手写功能 SVG、散落色值、`transition-all`、超大圆角或无替代的焦点清除。艺术页和品牌场景例外必须带具体原因并接受单独审查。认证后页面按路由元数据合并加载 i18n 片段，不能覆盖其他已加载作用域；重型管理页只能按链接意图预取，Save-Data 禁止预取；账号弹窗关闭时不得下载或挂载对应 chunk。
 - 关键位置：`frontend/AGENTS.md`、`docs/FRONTEND_DESIGN_SYSTEM.md`、`docs/FRONTEND_EXPERIENCE_REMEDIATION_PLAN.md`、`docs/frontend-design-governance.json`、`docs/visual-reviews/`、`frontend/src/components/icons/Icon.vue`、`scripts/check-frontend-design-governance.mjs`、`scripts/check-frontend-design-governance.test.mjs`、`frontend/package.json`。
 - 冲突策略：吸收上游业务和可访问性修复，但新视觉实现必须映射到极速蹬语义规则；不得以“上游原样”或“历史页面已有”为理由继续扩散不一致。
 - 验证：`cd frontend && pnpm design:check`、`pnpm lint:check`、`pnpm typecheck`、相关 Vitest、production build，以及 `docs/visual-reviews/` 中可复核的原型设计图片、Playwright 前后截图、浅深色、中英文、响应式和 reduced-motion 记录。
@@ -52,7 +52,7 @@
 ## FORK-NAV-002 用户侧栏和 Growth 导航
 
 - 产品目的：普通用户直接看到“模型与价格”、图像工具和“玩法福利”，不暴露渠道运维入口。
-- 不变量：用户侧栏包含 `/models`、`/image-studio`、`/batch-image` 和 `/growth-group`；Growth 子项由功能开关过滤；普通用户侧栏不得出现 `/available-channels` 或 `/monitor`；管理员渠道监控保留在管理区。
+- 不变量：用户侧栏包含 `/models`、`/image-studio`、`/batch-image` 和 `/growth-group`；Growth 子项由功能开关过滤；普通用户侧栏不得出现 `/available-channels` 或 `/monitor`；管理员渠道监控保留在管理区。路由不得在 `afterEach` 自动预取管理页面；只有侧栏链接的 hover、focus 或 pointerdown 才触发去重预取，Save-Data 下完全禁用。
 - 关键位置：`frontend/src/components/layout/AppSidebar.vue`、`frontend/src/utils/featureFlags.ts`、`frontend/src/router/index.ts`。
 - 冲突策略：上游新增导航项先判断面向用户还是管理员，再合入对应分组，不能恢复上游默认用户渠道入口。
 - 验证：integrity 脚本和 AppSidebar 测试；线上分别使用普通用户与管理员账号检查。
@@ -151,7 +151,7 @@
 ## FORK-MIGRATION-009 自定义数据库迁移
 
 - 产品目的：保留 Play、品牌默认值、图像工作室、提示词库和模型目录的数据库结构与数据修复。
-- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
+- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。上游 `229_plugins.sql`、`230_plugin_artifacts.sql` 与 Fork 同编号迁移按完整文件名并存，插件管理和绑定默认关闭。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
 - 冲突策略：新增迁移使用新的完整文件名；禁止修改已部署 SQL 的内容来解决冲突。
 - 验证：integrity 脚本逐文件检查，部署后检查 `schema_migrations`。
 
@@ -228,6 +228,8 @@
 251_vip_membership_qualification_review.sql
 252_bepusdt_payment_contract.sql
 253_mobile_app_releases.sql
+255_payment_order_coupon_release_processed.sql
+256_payment_order_coupon_release_processed_index_notx.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
@@ -241,10 +243,10 @@
 ## FORK-REWARDS-015 优惠券、日卡与支付结算
 
 - 产品目的：让 Play 奖励可安全发放优惠券，并让日卡保持一次性日额度语义，不因支付回调、重试或跨日重置重复发奖或重复扣费。
-- 不变量：优惠券钱包、奖池和模板按用户隔离；订单创建在同一事务锁定优惠券并固化结算快照；重复支付回调最多消费一次，晚到的取消/失败回调不能逆转已完成订单；日卡在有效期内只拥有一次日额度，跨零点、手动窗口逻辑和请求重放都不得再发放额度。
-- 关键位置：`backend/internal/service/coupon_service.go`、`backend/internal/service/payment_coupon.go`、`backend/internal/service/payment_order_lifecycle.go`、`backend/internal/service/play_coupon_rewards.go`、`backend/internal/service/user_subscription.go`、`backend/internal/service/subscription_service.go`、`frontend/src/components/coupon/`。
+- 不变量：优惠券钱包、奖池和模板按用户隔离；订单创建在同一事务锁定优惠券并固化结算快照；重复支付回调最多消费一次，晚到的取消/失败回调不能逆转已完成订单；旧的未支付终态优惠券订单只按最旧优先分批对账一次，订单条件认领、优惠券释放和 `coupon_lock_release_processed_at` 标记在同一事务提交并保留原 `updated_at`；lock mismatch、已使用和优惠券不存在只标记旧订单，不改变优惠券当前状态，也不计入实际释放数；其他错误回滚并保留下轮重试资格；日卡在有效期内只拥有一次日额度，跨零点、手动窗口逻辑和请求重放都不得再发放额度。
+- 关键位置：`backend/internal/service/coupon_service.go`、`backend/internal/service/payment_coupon.go`、`backend/internal/service/payment_order_lifecycle.go`、`backend/internal/service/play_coupon_rewards.go`、`backend/internal/service/user_subscription.go`、`backend/internal/service/subscription_service.go`、`backend/migrations/255_payment_order_coupon_release_processed.sql`、`backend/migrations/256_payment_order_coupon_release_processed_index_notx.sql`、`frontend/src/components/coupon/`。
 - 冲突策略：可吸收上游支付状态机、订阅和用量修复，但不得绕过优惠券锁、结算快照、支付幂等或日卡一次性额度判断。
-- 验证：coupon wallet/reward/payment lifecycle tests、`user_subscription_daily_quota_test.go`，以及用户支付页、钱包、盲盒和答题的本地浏览器验收。
+- 验证：coupon wallet/reward/payment lifecycle tests、`payment_order_coupon_release_processed_migration_test.go`、`user_subscription_daily_quota_test.go`，以及用户支付页、钱包、盲盒和答题的本地浏览器验收。
 
 ## FORK-MEMBERSHIP-016 会员资格与 VIP 配置
 

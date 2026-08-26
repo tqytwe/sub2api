@@ -16,6 +16,8 @@ type MobileAppReleaseHandler struct {
 	service *service.MobileAppReleaseService
 }
 
+var readMobileReleaseEmbeddedAsset = web.ReadEmbeddedAsset
+
 func NewMobileAppReleaseHandler(releaseService *service.MobileAppReleaseService) *MobileAppReleaseHandler {
 	return &MobileAppReleaseHandler{service: releaseService}
 }
@@ -37,7 +39,7 @@ func (h *MobileAppReleaseHandler) CompatibilityManifest(c *gin.Context) {
 			return
 		}
 	}
-	legacy, err := web.ReadEmbeddedAsset("downloads/android-version.json")
+	legacy, err := readMobileReleaseEmbeddedAsset("downloads/android-version.json")
 	if err != nil {
 		response.NotFound(c, "android release manifest not found")
 		return

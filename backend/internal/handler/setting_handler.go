@@ -125,8 +125,9 @@ func (h *SettingHandler) GetPublicSettings(c *gin.Context) {
 		ImageStudioEnabled:   settings.ImageStudioEnabled,
 		NextChatEnabled:      settings.NextChatEnabled,
 
-		ModelPlazaEnabled:     settings.ModelPlazaEnabled,
-		ModelPlazaRequireAuth: settings.ModelPlazaRequireAuth,
+		ModelPlazaEnabled:       settings.ModelPlazaEnabled,
+		ModelPlazaRequireAuth:   settings.ModelPlazaRequireAuth,
+		PluginManagementEnabled: settings.PluginManagementEnabled,
 
 		AffiliateEnabled: settings.AffiliateEnabled,
 

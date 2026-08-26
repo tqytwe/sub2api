@@ -1359,7 +1359,10 @@ func isFrontendHTMLNavigation(r *http.Request) bool {
 		r.Header.Get("x-goog-api-key") != "" {
 		return false
 	}
-	return strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
+	acceptsHTML := strings.Contains(strings.ToLower(r.Header.Get("Accept")), "text/html")
+	isDocumentNavigation := strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Mode")), "navigate") &&
+		strings.EqualFold(strings.TrimSpace(r.Header.Get("Sec-Fetch-Dest")), "document")
+	return acceptsHTML || isDocumentNavigation
 }
 
 func serveIndexHTML(c *gin.Context, fsys fs.FS) {

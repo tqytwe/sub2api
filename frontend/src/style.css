@@ -874,3 +874,9 @@
     padding-bottom: env(safe-area-inset-bottom);
   }
 }
+/* Shared public page frame keeps navigation and public content aligned. */
+.public-content-frame {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+}

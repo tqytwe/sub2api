@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <rect width="1280" height="720" fill="#f7f8fa"/>
+  <rect x="48" y="40" width="1184" height="640" rx="8" fill="#ffffff" stroke="#d8dde5"/>
+  <text x="88" y="96" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#171a21">sub2api v0.1.182 - Performance target</text>
+  <text x="88" y="126" font-family="Arial, sans-serif" font-size="15" fill="#667085">Same homepage appearance, bounded work and route-owned loading.</text>
+  <g font-family="Arial, sans-serif">
+    <rect x="88" y="164" width="1104" height="74" rx="6" fill="#edf8f2" stroke="#4c9b75"/>
+    <text x="112" y="195" font-size="14" font-weight="700" fill="#276846">FIRST CONTENT</text>
+    <text x="112" y="220" font-size="18" fill="#272b33">Navigation and body render immediately; the sphere is progressive enhancement.</text>
+    <rect x="88" y="266" width="252" height="146" rx="6" fill="#f4f7fb" stroke="#8ea1ba"/>
+    <text x="108" y="298" font-size="14" font-weight="700" fill="#3d526d">NORMAL</text>
+    <text x="108" y="330" font-size="18" fill="#272b33">Finite RAF</text>
+    <text x="108" y="357" font-size="13" fill="#667085">Land first</text>
+    <text x="108" y="379" font-size="13" fill="#667085">Idle detail layers</text>
+    <text x="108" y="401" font-size="13" fill="#667085">Final frame retained</text>
+    <rect x="372" y="266" width="252" height="146" rx="6" fill="#f4f7fb" stroke="#8ea1ba"/>
+    <text x="392" y="298" font-size="14" font-weight="700" fill="#3d526d">STATIC</text>
+    <text x="392" y="330" font-size="18" fill="#272b33">No loop</text>
+    <text x="392" y="357" font-size="13" fill="#667085">Reduced motion</text>
+    <text x="392" y="379" font-size="13" fill="#667085">Save-Data</text>
+    <text x="392" y="401" font-size="13" fill="#667085">Low device class</text>
+    <rect x="656" y="266" width="252" height="146" rx="6" fill="#f4f7fb" stroke="#8ea1ba"/>
+    <text x="676" y="298" font-size="14" font-weight="700" fill="#3d526d">SUSPENDED</text>
+    <text x="676" y="330" font-size="18" fill="#272b33">Stop immediately</text>
+    <text x="676" y="357" font-size="13" fill="#667085">Page hidden</text>
+    <text x="676" y="379" font-size="13" fill="#667085">Sphere offscreen</text>
+    <text x="676" y="401" font-size="13" fill="#667085">Component unmounted</text>
+    <rect x="940" y="266" width="252" height="146" rx="6" fill="#f4f7fb" stroke="#8ea1ba"/>
+    <text x="960" y="298" font-size="14" font-weight="700" fill="#3d526d">BELOW FOLD</text>
+    <text x="960" y="330" font-size="18" fill="#272b33">Lazy with size</text>
+    <text x="960" y="357" font-size="13" fill="#667085">Async demos</text>
+    <text x="960" y="379" font-size="13" fill="#667085">Stable placeholders</text>
+    <text x="960" y="401" font-size="13" fill="#667085">No layout shift</text>
+    <rect x="88" y="442" width="536" height="116" rx="6" fill="#fff7e9" stroke="#d9a64f"/>
+    <text x="112" y="476" font-size="14" font-weight="700" fill="#825514">ROUTE INTENT</text>
+    <text x="112" y="507" font-size="18" fill="#272b33">Hover, focus or pointerdown prefetches once</text>
+    <text x="112" y="535" font-size="13" fill="#667085">Save-Data disables prefetch; closed dialogs stay unloaded.</text>
+    <rect x="656" y="442" width="536" height="116" rx="6" fill="#f3efff" stroke="#8b76be"/>
+    <text x="680" y="476" font-size="14" font-weight="700" fill="#57418e">ROUTE DATA</text>
+    <text x="680" y="507" font-size="18" fill="#272b33">Scoped locale fragments and concurrent Dashboard calls</text>
+    <text x="680" y="535" font-size="13" fill="#667085">Independent failures do not hide successful statistics.</text>
+    <text x="88" y="626" font-size="14" fill="#667085">Review viewports: 360, 768, 1280 and wide desktop; light/dark, zh/en and reduced-motion.</text>
+  </g>
+</svg>

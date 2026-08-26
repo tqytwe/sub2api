@@ -1,4 +1,6 @@
 import { flushPromises, mount } from '@vue/test-utils'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import HomeView from '@/views/HomeView.vue'
 
@@ -207,6 +209,33 @@ describe('HomeView startup chunk behavior', () => {
 
     expect(wrapper.find('.hero-zh').exists()).toBe(true)
     expect(wrapper.find('.hero-en-title').exists()).toBe(false)
+  })
+
+  it('does not gate primary content on the decorative sphere reveal', () => {
+    const wrapper = mountHomeView()
+
+    expect(wrapper.get('.home-page').classes()).not.toContain('is-intro')
+    expect(wrapper.find('.hero-title').exists()).toBe(true)
+  })
+
+  it('keeps below-fold demos out of the initial Home chunk', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/views/HomeView.vue'), 'utf8')
+
+    expect(source).toContain('defineAsyncComponent')
+    expect(source).toMatch(/const ChannelTV = defineAsyncComponent/)
+    expect(source).toMatch(/const TerminalDemo = defineAsyncComponent/)
+    expect(source).toMatch(/<ChannelTV\s+v-if="inView\.channels"/)
+    expect(source).toMatch(/<TerminalDemo\s+v-if="inView\.onboard"/)
+    expect(source).toContain('home-lazy-demo')
+  })
+
+  it('loads only optional Latin display fonts', () => {
+    const source = readFileSync(resolve(process.cwd(), 'src/views/HomeView.vue'), 'utf8')
+    const googleFontURL = source.match(/https:\/\/fonts\.googleapis\.com[^'\n]+/)?.[0] ?? ''
+
+    expect(googleFontURL).not.toContain('Noto+Sans+SC')
+    expect(googleFontURL).not.toContain('Noto+Serif+SC')
+    expect(googleFontURL).toContain('display=optional')
   })
 
   it('uses a spaced English title structure only on /en routes', async () => {
