@@ -62,16 +62,19 @@ function createStreamResponse(lines: string[]) {
   } as Response
 }
 
-function mountModal(account: Record<string, unknown> = {
-  id: 42,
-  name: 'Gemini Image Test',
-  platform: 'gemini',
-  type: 'apikey',
-  status: 'active'
-}) {
+function mountModal(
+  account: Record<string, unknown> = {
+    id: 42,
+    name: 'Gemini Image Test',
+    platform: 'gemini',
+    type: 'apikey',
+    status: 'active'
+  },
+  show = false
+) {
   return mount(AccountTestModal, {
     props: {
-      show: false,
+      show,
       account
     } as any,
     global: {
@@ -91,6 +94,7 @@ function mountModal(account: Record<string, unknown> = {
 
 describe('AccountTestModal', () => {
   beforeEach(() => {
+    getAvailableModels.mockReset()
     getAvailableModels.mockResolvedValue([
       { id: 'gemini-2.0-flash', display_name: 'Gemini 2.0 Flash' },
       { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' },
@@ -146,6 +150,35 @@ describe('AccountTestModal', () => {
     const preview = wrapper.find('img[alt="test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('首次以可见状态懒挂载时立即加载模型并选择默认模型', async () => {
+    const wrapper = mountModal(undefined, true)
+    await flushPromises()
+
+    expect(getAvailableModels).toHaveBeenCalledWith(42)
+    expect((wrapper.vm as any).selectedModelId).toBe('gemini-3.1-flash-image')
+  })
+
+  it('模型加载失败显示中文错误并支持重试', async () => {
+    getAvailableModels
+      .mockReset()
+      .mockRejectedValueOnce(new Error('temporary failure'))
+      .mockResolvedValueOnce([{ id: 'gemini-2.5-flash', display_name: 'Gemini 2.5 Flash' }])
+
+    const wrapper = mountModal(undefined, true)
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('admin.accounts.testModelsLoadFailed')
+    const retryButton = wrapper.findAll('button').find((button) => button.text().includes('common.retry'))
+    expect(retryButton).toBeTruthy()
+
+    await retryButton!.trigger('click')
+    await flushPromises()
+
+    expect(getAvailableModels).toHaveBeenCalledTimes(2)
+    expect((wrapper.vm as any).selectedModelId).toBe('gemini-2.5-flash')
+    expect(wrapper.text()).not.toContain('admin.accounts.testModelsLoadFailed')
   })
 
   it('grok 账号测试默认选择 Grok 模型', async () => {
