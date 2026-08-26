@@ -2408,6 +2408,7 @@ watch(
       pendingUpdatesForConfirm.value = null
       mixedChannelConfirmed.value = false
     }
-  }
+  },
+  { immediate: true }
 )
 </script>

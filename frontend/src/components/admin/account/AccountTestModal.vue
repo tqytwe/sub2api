@@ -68,6 +68,17 @@
           label-key="display_name"
           :placeholder="loadingModels ? t('common.loading') + '...' : t('admin.accounts.selectTestModel')"
         />
+        <div v-if="modelLoadError" class="flex items-center justify-between gap-3 text-xs text-red-600 dark:text-red-400">
+          <span>{{ modelLoadError }}</span>
+          <button
+            type="button"
+            class="shrink-0 font-medium underline underline-offset-2 hover:no-underline"
+            :disabled="loadingModels || status === 'connecting'"
+            @click="loadAvailableModels"
+          >
+            {{ t('common.retry') }}
+          </button>
+        </div>
       </div>
 
       <div v-if="isOpenAIAccount" class="space-y-1.5">
@@ -408,6 +419,8 @@ const availableModels = ref<ClaudeModel[]>([])
 const selectedModelId = ref('')
 const testPrompt = ref('')
 const loadingModels = ref(false)
+const modelLoadError = ref('')
+let modelLoadRequestId = 0
 let abortController: AbortController | null = null
 const generatedImages = ref<PreviewMedia[]>([])
 const generatedAudios = ref<PreviewMedia[]>([])
@@ -734,45 +747,62 @@ const pickDefaultModelForMode = () => {
 }
 
 watch(
-  () => props.show,
+  [() => props.show, () => props.account?.id],
   async (newVal) => {
-    if (newVal && props.account) {
+    const [visible] = newVal
+    if (visible && props.account) {
+      const accountId = props.account.id
       testPrompt.value = ''
       testMode.value = 'default'
       grokTestMode.value = 'text'
       resetState()
+      availableModels.value = []
+      selectedModelId.value = ''
+      modelLoadError.value = ''
       await loadAvailableModels()
-      if (isGrokAccount.value) {
+      if (props.show && props.account?.id === accountId && isGrokAccount.value) {
         pickDefaultModelForMode()
         applyDefaultPromptForMode()
       }
     } else {
+      modelLoadRequestId += 1
+      loadingModels.value = false
+      availableModels.value = []
+      selectedModelId.value = ''
+      modelLoadError.value = ''
       abortStream()
     }
-  }
+  },
+  { immediate: true }
 )
 
 watch(grokTestMode, () => {
   if (!isGrokAccount.value) return
   testPrompt.value = ''
+  modelLoadError.value = ''
+  selectedModelId.value = ''
   clearMediaUploads()
   pickDefaultModelForMode()
   applyDefaultPromptForMode()
 })
 
-const loadAvailableModels = async () => {
-  if (!props.account) return
+async function loadAvailableModels() {
+  const account = props.account
+  if (!account) return
 
+  const requestId = ++modelLoadRequestId
   loadingModels.value = true
+  modelLoadError.value = ''
   selectedModelId.value = '' // Reset selection before loading
   try {
-    const models = await adminAPI.accounts.getAvailableModels(props.account.id)
-    availableModels.value = props.account.platform === 'gemini' || props.account.platform === 'antigravity'
+    const models = await adminAPI.accounts.getAvailableModels(account.id)
+    if (requestId !== modelLoadRequestId || props.account?.id !== account.id) return
+    availableModels.value = account.platform === 'gemini' || account.platform === 'antigravity'
       ? sortTestModels(models)
       : models
     // Default selection by platform
     if (availableModels.value.length > 0) {
-      if (props.account.platform === 'gemini') {
+      if (account.platform === 'gemini') {
         selectedModelId.value = availableModels.value[0].id
       } else {
         // Try to select Sonnet as default, otherwise use first model
@@ -782,15 +812,16 @@ const loadAvailableModels = async () => {
     }
   } catch (error) {
     console.error('Failed to load available models:', error)
-    // Fallback to empty list
+    if (requestId !== modelLoadRequestId || props.account?.id !== account.id) return
     availableModels.value = []
     selectedModelId.value = ''
+    modelLoadError.value = t('admin.accounts.testModelsLoadFailed')
   } finally {
-    loadingModels.value = false
+    if (requestId === modelLoadRequestId) loadingModels.value = false
   }
 }
 
-const resetState = () => {
+function resetState() {
   status.value = 'idle'
   outputLines.value = []
   streamingContent.value = ''
@@ -806,7 +837,7 @@ const handleClose = () => {
   emit('close')
 }
 
-const abortStream = () => {
+function abortStream() {
   if (abortController) {
     abortController.abort()
     abortController = null

@@ -1416,6 +1416,7 @@ export default {
       startingTestForAccount: 'Starting test for account: {name}',
       testAccountTypeLabel: 'Account type: {type}',
       selectTestModel: 'Select Test Model',
+      testModelsLoadFailed: 'Failed to load test models. Please retry.',
       testModel: 'Test model',
       testPrompt: 'Prompt: "hi"',
       imagePromptLabel: 'Image prompt',

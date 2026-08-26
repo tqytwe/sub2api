@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { localeFromPath, localeScopesForPath } from '../index'
+import { localeForRoute, localeFromPath, localeScopesForPath } from '../index'
 import enCore from '../locales/en/core'
 import zhCore from '../locales/zh/core'
 import enFull from '../locales/en'
@@ -67,6 +67,20 @@ describe('lazy locale loading scopes', () => {
     expect(localeFromPath('/about')).toBe('zh')
     expect(localeFromPath('/contact')).toBe('zh')
     expect(localeFromPath('/dashboard')).toBeNull()
+  })
+
+  it('uses Chinese for unprefixed workspace routes regardless of an old stored English locale', () => {
+    expect(localeForRoute('/dashboard')).toBe('zh')
+    expect(localeForRoute('/wallet')).toBe('zh')
+    expect(localeForRoute('/admin/accounts')).toBe('zh')
+  })
+
+  it('opts into English only through the explicit route layer or query parameter', () => {
+    expect(localeForRoute('/en/dashboard')).toBe('en')
+    expect(localeForRoute('/dashboard', { lang: 'en' })).toBe('en')
+    expect(localeForRoute('/dashboard', { locale: 'en' })).toBe('en')
+    expect(localeForRoute('/dashboard', { lang: 'zh' })).toBe('zh')
+    expect(localeForRoute('/dashboard')).toBe('zh')
   })
 
   it.each([

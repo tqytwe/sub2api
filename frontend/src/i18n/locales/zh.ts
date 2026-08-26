@@ -5826,6 +5826,7 @@ const messages = {
       startingTestForAccount: '开始测试账号：{name}',
       testAccountTypeLabel: '账号类型：{type}',
       selectTestModel: '选择测试模型',
+      testModelsLoadFailed: '测试模型加载失败，请重试。',
       testModel: '测试模型',
       testPrompt: '提示词："hi"',
       imagePromptLabel: '生图提示词',

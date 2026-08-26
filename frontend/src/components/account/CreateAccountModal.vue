@@ -4532,7 +4532,8 @@ watch(
     } else {
       resetForm()
     }
-  }
+  },
+  { immediate: true }
 )
 
 // Sync form.type based on accountCategory, addMethod, and platform-specific type
@@ -5001,7 +5002,7 @@ const submitCreateAccount = async (payload: CreateAccountRequest) => {
 }
 
 // Methods
-const resetForm = () => {
+function resetForm() {
   step.value = 1
   form.name = ''
   form.notes = ''

@@ -36,7 +36,7 @@
           </router-link>
         </nav>
         <div class="flex shrink-0 flex-wrap items-center justify-end gap-2">
-          <LocaleSwitcher />
+          <LocaleSwitcher variant="public" />
           <a
             v-if="docUrl && !isEnglishPublicRoute"
             :href="docUrl"
