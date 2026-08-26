@@ -136,6 +136,7 @@ import { useAppStore } from '@/stores/app'
 import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type { RiskActionRecord, RiskActionType } from './types'
 
 const props = defineProps<{
@@ -219,7 +220,7 @@ async function rollback() {
 }
 
 function actionLabel(action: RiskActionType) {
-  return t(`admin.ipRisk.actionTypes.${action}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.actionTypes.${action}`)
 }
 
 function statusClass(status: string) {
@@ -237,7 +238,7 @@ function rollbackClass(status: string) {
 }
 
 function rollbackLabel(status: string) {
-  return t(`admin.ipRisk.rollbackStatus.${status}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.rollbackStatus.${status}`)
 }
 
 function resultNumber(action: RiskActionRecord, key: string) {

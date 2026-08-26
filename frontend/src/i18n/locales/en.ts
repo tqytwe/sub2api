@@ -446,6 +446,7 @@ const messages = {
     today: 'Today',
     tomorrow: 'Tomorrow',
     unknown: 'Unknown',
+    unknownStatus: 'Unknown status',
     minutes: 'min',
     time: {
       never: 'Never',

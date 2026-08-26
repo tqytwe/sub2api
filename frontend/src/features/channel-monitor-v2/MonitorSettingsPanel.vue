@@ -268,6 +268,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { getChannelMonitorMode, isChannelMonitorV2Mode } from '@/utils/featureFlags'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import {
   getConfig,
   updateConfig,
@@ -277,7 +278,7 @@ import {
 import { adminAPI } from '@/api/admin'
 import type { AdminGroup } from '@/types'
 
-const { t, te } = useI18n()
+const { t } = useI18n()
 const appStore = useAppStore()
 const loading = ref(true)
 const saving = ref(false)
@@ -374,8 +375,7 @@ function toggleIgnoredCategory(category: string) {
 }
 
 function categoryLabel(category: string) {
-  const key = `channelMonitorV2.errorCategories.${category}`
-  return te(key) ? t(key) : category
+  return localizedEnumOrUnknown(t, `channelMonitorV2.errorCategories.${category}`)
 }
 
 function platformLabel(value: string) {

@@ -310,6 +310,7 @@ import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type {
   RiskActionType,
   RiskCaseDetail,
@@ -434,15 +435,15 @@ function levelClass(level: RiskLevel) {
 }
 
 function levelLabel(level: RiskLevel) {
-  return t(`admin.ipRisk.levels.${level}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.levels.${level}`)
 }
 
 function confidenceLabel(confidence: string) {
-  return t(`admin.ipRisk.confidence.${confidence}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.confidence.${confidence}`)
 }
 
 function signalLabel(code: RiskSignalCode) {
-  return t(`admin.ipRisk.signals.${code}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.signals.${code}`)
 }
 
 function eventTypeLabel(type: string) {
@@ -450,7 +451,7 @@ function eventTypeLabel(type: string) {
 }
 
 function actionLabel(action: RiskActionType) {
-  return t(`admin.ipRisk.actionTypes.${action}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.actionTypes.${action}`)
 }
 
 function actionStatusClass(status: string) {

@@ -12,6 +12,7 @@ import {
   runSpeedTestChatCompletion,
   type SpeedTestModel,
 } from '@/utils/internalSpeedTest'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 
 type RunStatus = 'queued' | 'running' | 'success' | 'error' | 'cancelled'
 
@@ -88,7 +89,7 @@ function formatRate(value: number | null): string {
 }
 
 function statusLabel(status: RunStatus): string {
-  return t(`keys.speedTest.status.${status}`)
+  return localizedEnumOrUnknown(t, `keys.speedTest.status.${status}`)
 }
 
 function statusClasses(status: RunStatus): string {

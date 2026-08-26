@@ -5,6 +5,7 @@ import couponAPI from '@/api/coupon'
 import { useAuthStore } from '@/stores/auth'
 import type { UserCoupon, UserCouponStatus } from '@/types/coupon'
 import { formatCurrency, formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import Icon from '@/components/icons/Icon.vue'
 
 type CouponWalletTab = Extract<UserCouponStatus, 'available' | 'locked' | 'used' | 'expired' | 'voided'>
@@ -75,9 +76,7 @@ function scopeLabel(coupon: UserCoupon): string {
 }
 
 function couponStatusLabel(coupon: UserCoupon): string {
-  const key = `coupon.wallet.status.${coupon.status}`
-  const translated = t(key)
-  return translated === key ? coupon.status : translated
+  return localizedEnumOrUnknown(t, `coupon.wallet.status.${coupon.status}`)
 }
 
 function statusClass(status: UserCouponStatus): string {

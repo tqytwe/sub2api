@@ -445,6 +445,7 @@ const messages = {
     today: '今天',
     tomorrow: '明天',
     unknown: '未知',
+    unknownStatus: '未知状态',
     minutes: '分钟',
     time: {
       never: '从未',
