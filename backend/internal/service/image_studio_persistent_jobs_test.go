@@ -89,6 +89,67 @@ func TestImageStudioEstimateCostKeepsIndependentImageRate(t *testing.T) {
 	require.InDelta(t, 0.02, cost, 0.000001)
 }
 
+func TestImageStudioEstimateCostRequiresConfiguredPriceForDeclaredMediaModel(t *testing.T) {
+	groupID := int64(30)
+	svc := &ImageStudioService{}
+	apiKey := &APIKey{
+		UserID:  10,
+		GroupID: &groupID,
+		Group: &Group{
+			ID:             groupID,
+			RateMultiplier: 1,
+		},
+	}
+
+	_, err := svc.estimateCostForModelOption(context.Background(), apiKey, ImageStudioModelOption{
+		ID:                      "sensenova-u1-fast",
+		RequiresConfiguredPrice: true,
+	}, "1024x1024", 1)
+
+	require.ErrorIs(t, err, ErrImageStudioPricingMissing)
+}
+
+func TestImageStudioEstimateCostKeepsLegacyFallbackUntilCatalogDeclaration(t *testing.T) {
+	groupID := int64(30)
+	svc := &ImageStudioService{}
+	apiKey := &APIKey{
+		UserID:  10,
+		GroupID: &groupID,
+		Group: &Group{
+			ID:             groupID,
+			RateMultiplier: 1,
+		},
+	}
+
+	cost, err := svc.estimateCost(context.Background(), apiKey, "legacy-image-model", "1024x1024", 1)
+
+	require.NoError(t, err)
+	require.InDelta(t, 0.04, cost, 0.000001)
+}
+
+func TestImageStudioEstimateCostAllowsExplicitFreePrice(t *testing.T) {
+	groupID := int64(30)
+	free := 0.0
+	svc := &ImageStudioService{}
+	apiKey := &APIKey{
+		UserID:  10,
+		GroupID: &groupID,
+		Group: &Group{
+			ID:             groupID,
+			RateMultiplier: 1,
+			ImagePrice1K:   &free,
+		},
+	}
+
+	cost, err := svc.estimateCostForModelOption(context.Background(), apiKey, ImageStudioModelOption{
+		ID:                      "sensenova-u1-fast",
+		RequiresConfiguredPrice: true,
+	}, "1024x1024", 1)
+
+	require.NoError(t, err)
+	require.Zero(t, cost)
+}
+
 func TestBuildUsageBillingCommandKeepsQuotaAccountingForImageStudioManagedBilling(t *testing.T) {
 	ctx := WithImageStudioManagedBilling(context.Background())
 	cmd := buildUsageBillingCommandForContext(ctx, "request-1", nil, &postUsageBillingParams{

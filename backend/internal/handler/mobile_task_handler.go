@@ -75,6 +75,13 @@ func (h *MobileTaskHandler) Create(c *gin.Context) {
 	}
 	request.Operation = strings.TrimSpace(request.Operation)
 	request.ClientRequestID = strings.TrimSpace(request.ClientRequestID)
+	// Video jobs require the dedicated mobile video boundary so their private
+	// prompt, capability validation, pricing and group-pinned execution key can
+	// never be bypassed through the generic task projection endpoint.
+	if request.Kind == service.MobileTaskKindVideo {
+		response.BadRequest(c, "视频任务请使用专用视频接口")
+		return
+	}
 	if !service.IsValidMobileTaskKind(request.Kind) || request.Operation == "" || request.ClientRequestID == "" {
 		response.BadRequest(c, "任务类型、操作和请求标识不能为空")
 		return
@@ -138,7 +145,11 @@ func (h *MobileTaskHandler) Delete(c *gin.Context) {
 	if !h.available(c) {
 		return
 	}
-	result, err := h.store.Delete(c.Request.Context(), userID, strings.TrimSpace(c.Param("id")))
+	id := strings.TrimSpace(c.Param("id"))
+	if h.rejectGenericVideoMutation(c, userID, id) {
+		return
+	}
+	result, err := h.store.Delete(c.Request.Context(), userID, id)
 	if writeMobileTaskError(c, err) {
 		return
 	}
@@ -231,7 +242,11 @@ func (h *MobileTaskHandler) Cancel(c *gin.Context) {
 	if !h.available(c) {
 		return
 	}
-	task, err := h.store.Cancel(c.Request.Context(), userID, strings.TrimSpace(c.Param("id")))
+	id := strings.TrimSpace(c.Param("id"))
+	if h.rejectGenericVideoMutation(c, userID, id) {
+		return
+	}
+	task, err := h.store.Cancel(c.Request.Context(), userID, id)
 	if writeMobileTaskError(c, err) {
 		return
 	}
@@ -247,12 +262,16 @@ func (h *MobileTaskHandler) Retry(c *gin.Context) {
 	if !h.available(c) {
 		return
 	}
+	id := strings.TrimSpace(c.Param("id"))
+	if h.rejectGenericVideoMutation(c, userID, id) {
+		return
+	}
 	var request mobileTaskRetryRequest
 	if err := c.ShouldBindJSON(&request); err != nil || strings.TrimSpace(request.ClientRequestID) == "" {
 		response.BadRequest(c, "重试请求标识不能为空")
 		return
 	}
-	task, err := h.store.Retry(c.Request.Context(), userID, strings.TrimSpace(c.Param("id")), strings.TrimSpace(request.ClientRequestID))
+	task, err := h.store.Retry(c.Request.Context(), userID, id, strings.TrimSpace(request.ClientRequestID))
 	if writeMobileTaskError(c, err) {
 		return
 	}
@@ -265,12 +284,16 @@ func (h *MobileTaskHandler) Transition(c *gin.Context) {
 	if !ok || !h.available(c) {
 		return
 	}
+	id := strings.TrimSpace(c.Param("id"))
+	if h.rejectGenericVideoMutation(c, userID, id) {
+		return
+	}
 	var request mobileTaskTransitionRequest
 	if err := c.ShouldBindJSON(&request); err != nil || !service.IsValidMobileTaskStatus(request.Status) {
 		response.BadRequest(c, "任务状态不正确")
 		return
 	}
-	task, err := h.store.Transition(c.Request.Context(), userID, strings.TrimSpace(c.Param("id")), service.MobileTaskTransitionInput{
+	task, err := h.store.Transition(c.Request.Context(), userID, id, service.MobileTaskTransitionInput{
 		Status: request.Status, Progress: request.Progress, Resource: request.Resource,
 		Artifacts: request.Artifacts, Error: request.Error,
 	})
@@ -280,6 +303,26 @@ func (h *MobileTaskHandler) Transition(c *gin.Context) {
 	h.enqueueTerminalPush(c.Request.Context(), userID, task)
 	c.Header("Cache-Control", "private, no-store")
 	response.Success(c, task)
+}
+
+// rejectGenericVideoMutation keeps the public task projection from bypassing
+// video capability validation, group selection, billing and private job
+// persistence. Video task state changes belong to MobileVideoHandler and its
+// worker only.
+func (h *MobileTaskHandler) rejectGenericVideoMutation(c *gin.Context, userID int64, id string) bool {
+	task, err := h.store.Get(c.Request.Context(), userID, id)
+	if writeMobileTaskError(c, err) {
+		return true
+	}
+	if task == nil {
+		response.NotFound(c, "任务不存在")
+		return true
+	}
+	if task.Kind == service.MobileTaskKindVideo {
+		response.BadRequest(c, "视频任务请使用专用视频接口")
+		return true
+	}
+	return false
 }
 
 func (h *MobileTaskHandler) enqueueTerminalPush(ctx context.Context, userID int64, task *service.MobileTask) {
@@ -359,6 +402,8 @@ func writeMobileTaskError(c *gin.Context, err error) bool {
 		response.Error(c, http.StatusConflict, "当前任务状态不能取消")
 	case errors.Is(err, service.ErrMobileTaskNotRetryable):
 		response.Error(c, http.StatusConflict, "当前任务状态不能重试")
+	case errors.Is(err, service.ErrMobileTaskVideoRequiresDedicatedEndpoint):
+		response.BadRequest(c, "视频任务请使用专用视频接口")
 	case errors.Is(err, service.ErrMobileTaskInvalidTransition):
 		response.Error(c, http.StatusConflict, "任务状态已经变化，请刷新后重试")
 	case errors.Is(err, service.ErrMobileTaskInvalidKind),

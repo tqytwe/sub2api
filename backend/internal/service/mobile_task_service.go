@@ -70,6 +70,17 @@ type MobileTaskTransitionInput struct {
 	Error     *MobileTaskError
 }
 
+// MobileVideoTaskFinalizeInput contains the already-persisted video artifact
+// metadata needed to publish a worker result. It is internal service input:
+// clients never provide a storage key or task artifact URL.
+type MobileVideoTaskFinalizeInput struct {
+	LeaseOwner  string
+	StorageKey  string
+	ContentType string
+	ByteSize    int64
+	Artifact    MobileTaskArtifact
+}
+
 type MobileTaskService struct {
 	db      *sql.DB
 	dialect string
@@ -94,6 +105,9 @@ func NewMobileTaskService(db *sql.DB, dialectName ...string) *MobileTaskService 
 func (s *MobileTaskService) Create(ctx context.Context, userID int64, input MobileTaskCreateInput) (*MobileTask, error) {
 	if err := s.ready(userID); err != nil {
 		return nil, err
+	}
+	if input.Kind == MobileTaskKindVideo {
+		return nil, ErrMobileTaskVideoRequiresDedicatedEndpoint
 	}
 	input.Operation = strings.TrimSpace(input.Operation)
 	input.ClientRequestID = strings.TrimSpace(input.ClientRequestID)
@@ -132,6 +146,132 @@ func (s *MobileTaskService) Create(ctx context.Context, userID int64, input Mobi
 		return nil, err
 	}
 	return &task, nil
+}
+
+// CreateVideoTask persists the public mobile task and its private video
+// execution request together. A public queued task without its private job
+// could never run, so both rows must either commit together or not exist.
+func (s *MobileTaskService) CreateVideoTask(
+	ctx context.Context,
+	userID int64,
+	taskInput MobileTaskCreateInput,
+	jobInput MobileVideoJobCreateInput,
+) (*MobileTask, error) {
+	if err := s.ready(userID); err != nil {
+		return nil, err
+	}
+	if err := validateMobileVideoTaskCreate(taskInput, jobInput); err != nil {
+		return nil, err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	existing, err := s.getByClientRequestIDWith(ctx, tx, userID, taskInput.ClientRequestID)
+	if err == nil {
+		return s.existingVideoTask(ctx, tx, userID, existing, taskInput, jobInput)
+	}
+	if !errors.Is(err, ErrMobileTaskNotFound) {
+		return nil, err
+	}
+
+	task, err := s.newMobileTaskForCreate(taskInput)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.insertWith(ctx, tx, userID, task); err != nil {
+		return s.recoverExistingVideoTask(ctx, tx, userID, taskInput, jobInput, err)
+	}
+	if err := insertMobileVideoJob(ctx, tx, s.bind, userID, task.ID, jobInput, task.CreatedAt); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &task, nil
+}
+
+// RetryVideoTask applies the same all-or-nothing rule to a retry. A retry task
+// cannot be visible to the client until the private execution input exists.
+func (s *MobileTaskService) RetryVideoTask(
+	ctx context.Context,
+	userID int64,
+	id, clientRequestID string,
+	jobInput MobileVideoJobCreateInput,
+) (*MobileTask, error) {
+	if err := s.ready(userID); err != nil {
+		return nil, err
+	}
+	id = strings.TrimSpace(id)
+	clientRequestID = strings.TrimSpace(clientRequestID)
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrMobileTaskNotFound
+	}
+	if strings.TrimSpace(jobInput.ClientRequestID) != clientRequestID {
+		return nil, ErrMobileTaskClientRequestConflict
+	}
+	if err := ValidateMobileVideoJobCreateInput(jobInput); err != nil {
+		return nil, err
+	}
+	videoTaskInput, err := BuildMobileVideoTaskCreateInput(jobInput)
+	if err != nil {
+		return nil, err
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	source, err := s.queryOneWith(ctx, tx, mobileTaskSelect+" WHERE user_id = ? AND id = ? AND deleted_at IS NULL", userID, id)
+	if err != nil {
+		return nil, err
+	}
+	if source.Kind != MobileTaskKindVideo {
+		return nil, ErrMobileTaskInvalidKind
+	}
+	retry, err := RetryMobileTask(*source, s.newID(), clientRequestID, s.now())
+	if err != nil {
+		return nil, err
+	}
+	// RetryMobileTask intentionally starts with an empty resource because most
+	// task types do not own an executable request. Video tasks do: keep the
+	// public retry projection tied to the new private job without exposing its
+	// prompt, references, routing, or managed key.
+	retry.Resource = sanitizeMobileTaskResource(videoTaskInput.Resource)
+	existing, err := s.getByClientRequestIDWith(ctx, tx, userID, clientRequestID)
+	if err == nil {
+		if existing.RetryOf != source.ID || !sameMobileTaskCreate(existing, MobileTaskCreateInput{
+			Kind: retry.Kind, Operation: retry.Operation, ClientRequestID: retry.ClientRequestID,
+			ParentTaskID: retry.ParentTaskID, Resource: retry.Resource,
+		}) {
+			return nil, ErrMobileTaskClientRequestConflict
+		}
+		return s.existingVideoTask(ctx, tx, userID, existing, MobileTaskCreateInput{
+			Kind: retry.Kind, Operation: retry.Operation, ClientRequestID: retry.ClientRequestID,
+			ParentTaskID: retry.ParentTaskID, Resource: retry.Resource,
+		}, jobInput)
+	}
+	if !errors.Is(err, ErrMobileTaskNotFound) {
+		return nil, err
+	}
+	if err := s.insertWith(ctx, tx, userID, retry); err != nil {
+		return s.recoverExistingVideoTask(ctx, tx, userID, MobileTaskCreateInput{
+			Kind: retry.Kind, Operation: retry.Operation, ClientRequestID: retry.ClientRequestID,
+			ParentTaskID: retry.ParentTaskID, Resource: retry.Resource,
+		}, jobInput, err)
+	}
+	if err := insertMobileVideoJob(ctx, tx, s.bind, userID, retry.ID, jobInput, retry.CreatedAt); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return &retry, nil
 }
 
 func (s *MobileTaskService) Get(ctx context.Context, userID int64, id string) (*MobileTask, error) {
@@ -215,9 +355,14 @@ func (s *MobileTaskService) Retry(ctx context.Context, userID int64, id, clientR
 	if err := s.ready(userID); err != nil {
 		return nil, err
 	}
-	if existing, err := s.getByClientRequestID(ctx, userID, strings.TrimSpace(clientRequestID)); err == nil {
-		if existing.RetryOf != strings.TrimSpace(id) {
+	id = strings.TrimSpace(id)
+	clientRequestID = strings.TrimSpace(clientRequestID)
+	if existing, err := s.getByClientRequestID(ctx, userID, clientRequestID); err == nil {
+		if existing.RetryOf != id {
 			return nil, ErrMobileTaskClientRequestConflict
+		}
+		if existing.Kind == MobileTaskKindVideo {
+			return nil, ErrMobileTaskVideoRequiresDedicatedEndpoint
 		}
 		return existing, nil
 	} else if !errors.Is(err, ErrMobileTaskNotFound) {
@@ -227,7 +372,10 @@ func (s *MobileTaskService) Retry(ctx context.Context, userID int64, id, clientR
 	if err != nil {
 		return nil, err
 	}
-	retry, err := RetryMobileTask(*source, s.newID(), strings.TrimSpace(clientRequestID), s.now())
+	if source.Kind == MobileTaskKindVideo {
+		return nil, ErrMobileTaskVideoRequiresDedicatedEndpoint
+	}
+	retry, err := RetryMobileTask(*source, s.newID(), clientRequestID, s.now())
 	if err != nil {
 		return nil, err
 	}
@@ -307,12 +455,144 @@ func (s *MobileTaskService) Transition(ctx context.Context, userID int64, id str
 	return s.persistTransition(ctx, userID, *current, updated)
 }
 
+// FinalizeVideoTask atomically publishes a completed private video job and its
+// public mobile-task projection. The worker previously committed these two
+// rows separately, which could leave a task permanently running when the
+// second write failed. A cancellation observed under the task-row lock wins
+// and leaves no completed public artifact.
+func (s *MobileTaskService) FinalizeVideoTask(
+	ctx context.Context,
+	userID int64,
+	id string,
+	input MobileVideoTaskFinalizeInput,
+) (*MobileTask, error) {
+	if err := s.ready(userID); err != nil {
+		return nil, err
+	}
+	id = strings.TrimSpace(id)
+	input.LeaseOwner = strings.TrimSpace(input.LeaseOwner)
+	input.StorageKey = strings.TrimSpace(input.StorageKey)
+	input.ContentType = strings.TrimSpace(input.ContentType)
+	if _, err := uuid.Parse(id); err != nil {
+		return nil, ErrMobileTaskNotFound
+	}
+	if input.LeaseOwner == "" {
+		return nil, ErrMobileVideoLeaseLost
+	}
+	if input.StorageKey == "" || input.ByteSize <= 0 {
+		return nil, ErrMobileVideoJobArtifact
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = tx.Rollback() }()
+
+	taskQuery := mobileTaskSelect + " WHERE user_id = ? AND id = ? AND deleted_at IS NULL"
+	if s.dialect == "postgres" {
+		taskQuery += " FOR UPDATE"
+	}
+	task, err := s.queryOneWith(ctx, tx, taskQuery, userID, id)
+	if err != nil {
+		return nil, err
+	}
+	if task.Kind != MobileTaskKindVideo {
+		return nil, ErrMobileTaskInvalidKind
+	}
+	if task.Status == MobileTaskStatusCancelled {
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		// Do not terminate the private row here. A provider request may already
+		// exist; the video worker must continue polling it and then capture or
+		// release the durable hold without publishing an artifact.
+		return task, ErrMobileVideoTaskCancelled
+	}
+	if task.Status == MobileTaskStatusCompleted {
+		// A retry after a process interruption can heal a legacy torn completion
+		// without replacing the task's already-published artifact projection.
+		if err := s.markVideoJobCompletedWith(ctx, tx, id, input); err != nil && !errors.Is(err, ErrMobileVideoLeaseLost) {
+			return nil, err
+		}
+		if err := tx.Commit(); err != nil {
+			return nil, err
+		}
+		return task, nil
+	}
+	if IsTerminalMobileTaskStatus(task.Status) {
+		return nil, ErrMobileTaskInvalidTransition
+	}
+	if err := s.markVideoJobCompletedWith(ctx, tx, id, input); err != nil {
+		return nil, err
+	}
+
+	updated := *task
+	if updated.Status == MobileTaskStatusQueued {
+		updated, err = TransitionMobileTask(updated, MobileTaskStatusRunning, s.now())
+		if err != nil {
+			return nil, err
+		}
+	}
+	updated.Artifacts = sanitizeMobileTaskArtifacts([]MobileTaskArtifact{input.Artifact})
+	updated, err = TransitionMobileTask(updated, MobileTaskStatusCompleted, s.now())
+	if err != nil {
+		return nil, err
+	}
+	if err := ValidateMobileTask(updated); err != nil {
+		return nil, err
+	}
+	completed, err := s.persistTransitionWith(ctx, tx, tx, userID, *task, updated)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+	return completed, nil
+}
+
+func (s *MobileTaskService) markVideoJobCompletedWith(
+	ctx context.Context,
+	executor mobileTaskExecutor,
+	id string,
+	input MobileVideoTaskFinalizeInput,
+) error {
+	result, err := executor.ExecContext(ctx, s.bind(`UPDATE mobile_video_jobs
+		SET state = 'completed', provider_status = 'completed', artifact_storage_key = ?, artifact_content_type = ?, artifact_byte_size = ?,
+			lease_owner = NULL, lease_expires_at = NULL, updated_at = ?
+		WHERE task_id = ? AND lease_owner = ? AND state IN ('submitting', 'polling')`),
+		nullableMobileVideoString(input.StorageKey), nullableMobileVideoString(input.ContentType), nullableMobileVideoInt64(input.ByteSize),
+		s.now().UTC(), id, input.LeaseOwner)
+	if err != nil {
+		return err
+	}
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return ErrMobileVideoLeaseLost
+	}
+	return nil
+}
+
 func (s *MobileTaskService) persistTransition(ctx context.Context, userID int64, before, after MobileTask) (*MobileTask, error) {
+	return s.persistTransitionWith(ctx, s.db, s.db, userID, before, after)
+}
+
+func (s *MobileTaskService) persistTransitionWith(
+	ctx context.Context,
+	executor mobileTaskExecutor,
+	queryer mobileTaskQueryer,
+	userID int64,
+	before, after MobileTask,
+) (*MobileTask, error) {
 	resourceJSON, artifactsJSON, errorJSON, err := encodeMobileTaskJSON(after)
 	if err != nil {
 		return nil, err
 	}
-	result, err := s.db.ExecContext(ctx, s.bind(`UPDATE mobile_tasks SET status = ?, progress = ?, resource = ?, artifacts = ?, error = ?, started_at = ?, finished_at = ?, updated_at = ? WHERE user_id = ? AND id = ? AND status = ? AND progress <= ?`),
+	result, err := executor.ExecContext(ctx, s.bind(`UPDATE mobile_tasks SET status = ?, progress = ?, resource = ?, artifacts = ?, error = ?, started_at = ?, finished_at = ?, updated_at = ? WHERE user_id = ? AND id = ? AND status = ? AND progress <= ?`),
 		string(after.Status), after.Progress, nullableJSON(resourceJSON), nullableJSON(artifactsJSON), nullableJSON(errorJSON), nullableTime(after.StartedAt), nullableTime(after.FinishedAt), s.now().UTC(), userID, after.ID, string(before.Status), after.Progress)
 	if err != nil {
 		return nil, err
@@ -322,7 +602,7 @@ func (s *MobileTaskService) persistTransition(ctx context.Context, userID int64,
 		return nil, err
 	}
 	if affected == 0 {
-		latest, getErr := s.Get(ctx, userID, after.ID)
+		latest, getErr := s.queryOneWith(ctx, queryer, mobileTaskSelect+" WHERE user_id = ? AND id = ? AND deleted_at IS NULL", userID, after.ID)
 		if getErr != nil {
 			return nil, getErr
 		}
@@ -334,15 +614,27 @@ func (s *MobileTaskService) persistTransition(ctx context.Context, userID int64,
 		}
 		return nil, ErrMobileTaskInvalidTransition
 	}
-	return s.Get(ctx, userID, after.ID)
+	return s.queryOneWith(ctx, queryer, mobileTaskSelect+" WHERE user_id = ? AND id = ? AND deleted_at IS NULL", userID, after.ID)
 }
 
 func (s *MobileTaskService) insert(ctx context.Context, userID int64, task MobileTask) error {
+	return s.insertWith(ctx, s.db, userID, task)
+}
+
+type mobileTaskQueryer interface {
+	QueryRowContext(context.Context, string, ...any) *sql.Row
+}
+
+type mobileTaskExecutor interface {
+	ExecContext(context.Context, string, ...any) (sql.Result, error)
+}
+
+func (s *MobileTaskService) insertWith(ctx context.Context, executor mobileTaskExecutor, userID int64, task MobileTask) error {
 	resourceJSON, artifactsJSON, errorJSON, err := encodeMobileTaskJSON(task)
 	if err != nil {
 		return err
 	}
-	_, err = s.db.ExecContext(ctx, s.bind(`INSERT INTO mobile_tasks (id, user_id, kind, operation, status, progress, parent_task_id, retry_of, client_request_id, resource, artifacts, error, protocol_version, created_at, updated_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
+	_, err = executor.ExecContext(ctx, s.bind(`INSERT INTO mobile_tasks (id, user_id, kind, operation, status, progress, parent_task_id, retry_of, client_request_id, resource, artifacts, error, protocol_version, created_at, updated_at, started_at, finished_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`),
 		task.ID, userID, string(task.Kind), task.Operation, string(task.Status), task.Progress,
 		nullableString(task.ParentTaskID), nullableString(task.RetryOf), task.ClientRequestID,
 		nullableJSON(resourceJSON), nullableJSON(artifactsJSON), nullableJSON(errorJSON), task.Version, task.CreatedAt, task.CreatedAt,
@@ -351,14 +643,22 @@ func (s *MobileTaskService) insert(ctx context.Context, userID int64, task Mobil
 }
 
 func (s *MobileTaskService) getByClientRequestID(ctx context.Context, userID int64, requestID string) (*MobileTask, error) {
+	return s.getByClientRequestIDWith(ctx, s.db, userID, requestID)
+}
+
+func (s *MobileTaskService) getByClientRequestIDWith(ctx context.Context, queryer mobileTaskQueryer, userID int64, requestID string) (*MobileTask, error) {
 	if strings.TrimSpace(requestID) == "" {
 		return nil, ErrMobileTaskNotFound
 	}
-	return s.queryOne(ctx, mobileTaskSelect+" WHERE user_id = ? AND client_request_id = ?", userID, strings.TrimSpace(requestID))
+	return s.queryOneWith(ctx, queryer, mobileTaskSelect+" WHERE user_id = ? AND client_request_id = ?", userID, strings.TrimSpace(requestID))
 }
 
 func (s *MobileTaskService) queryOne(ctx context.Context, query string, args ...any) (*MobileTask, error) {
-	task, err := scanMobileTask(s.db.QueryRowContext(ctx, s.bind(query), args...))
+	return s.queryOneWith(ctx, s.db, query, args...)
+}
+
+func (s *MobileTaskService) queryOneWith(ctx context.Context, queryer mobileTaskQueryer, query string, args ...any) (*MobileTask, error) {
+	task, err := scanMobileTask(queryer.QueryRowContext(ctx, s.bind(query), args...))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrMobileTaskNotFound
 	}
@@ -366,6 +666,95 @@ func (s *MobileTaskService) queryOne(ctx context.Context, query string, args ...
 		return nil, err
 	}
 	return &task, nil
+}
+
+func (s *MobileTaskService) newMobileTaskForCreate(input MobileTaskCreateInput) (MobileTask, error) {
+	input.Operation = strings.TrimSpace(input.Operation)
+	input.ClientRequestID = strings.TrimSpace(input.ClientRequestID)
+	input.ParentTaskID = strings.TrimSpace(input.ParentTaskID)
+	if input.ParentTaskID != "" {
+		if _, err := uuid.Parse(input.ParentTaskID); err != nil {
+			return MobileTask{}, ErrMobileTaskInvalidID
+		}
+	}
+	task, err := NewMobileTask(s.newID(), input.Kind, input.Operation, input.ClientRequestID, s.now())
+	if err != nil {
+		return MobileTask{}, err
+	}
+	task.ParentTaskID = input.ParentTaskID
+	task.Resource = sanitizeMobileTaskResource(input.Resource)
+	if err := ValidateMobileTask(task); err != nil {
+		return MobileTask{}, err
+	}
+	return task, nil
+}
+
+func validateMobileVideoTaskCreate(taskInput MobileTaskCreateInput, jobInput MobileVideoJobCreateInput) error {
+	if err := ValidateMobileVideoJobCreateInput(jobInput); err != nil {
+		return err
+	}
+	expected, err := BuildMobileVideoTaskCreateInput(jobInput)
+	if err != nil {
+		return err
+	}
+	if taskInput.Kind != expected.Kind {
+		return ErrMobileTaskInvalidKind
+	}
+	if strings.TrimSpace(taskInput.Operation) != expected.Operation {
+		return ErrMobileTaskInvalidOperation
+	}
+	if strings.TrimSpace(taskInput.ClientRequestID) != expected.ClientRequestID {
+		return ErrMobileTaskClientRequestConflict
+	}
+	if !sameMobileTaskCreate(&MobileTask{
+		Kind:            taskInput.Kind,
+		Operation:       strings.TrimSpace(taskInput.Operation),
+		ClientRequestID: strings.TrimSpace(taskInput.ClientRequestID),
+		Resource:        sanitizeMobileTaskResource(taskInput.Resource),
+	}, expected) {
+		return ErrMobileTaskInvalidResource
+	}
+	return nil
+}
+
+func (s *MobileTaskService) existingVideoTask(
+	ctx context.Context,
+	queryer mobileTaskQueryer,
+	userID int64,
+	task *MobileTask,
+	taskInput MobileTaskCreateInput,
+	jobInput MobileVideoJobCreateInput,
+) (*MobileTask, error) {
+	if !sameMobileTaskCreate(task, taskInput) {
+		return nil, ErrMobileTaskClientRequestConflict
+	}
+	job, err := queryMobileVideoJob(ctx, queryer, s.bind(mobileVideoJobSelect+" WHERE user_id = ? AND task_id = ?"), userID, task.ID)
+	if err != nil {
+		return nil, err
+	}
+	if !sameMobileVideoJobCreate(job, jobInput) {
+		return nil, ErrMobileTaskClientRequestConflict
+	}
+	return task, nil
+}
+
+func (s *MobileTaskService) recoverExistingVideoTask(
+	ctx context.Context,
+	tx *sql.Tx,
+	userID int64,
+	taskInput MobileTaskCreateInput,
+	jobInput MobileVideoJobCreateInput,
+	originalErr error,
+) (*MobileTask, error) {
+	_ = tx.Rollback()
+	existing, err := s.getByClientRequestID(ctx, userID, taskInput.ClientRequestID)
+	if err != nil {
+		return nil, originalErr
+	}
+	if resolved, validationErr := s.existingVideoTask(ctx, s.db, userID, existing, taskInput, jobInput); validationErr == nil {
+		return resolved, nil
+	}
+	return nil, originalErr
 }
 
 func (s *MobileTaskService) ready(userID int64) error {
@@ -514,13 +903,41 @@ func sanitizeMobileTaskArtifacts(input []MobileTaskArtifact) []MobileTaskArtifac
 
 func sanitizeMobileTaskArtifactURL(raw string) string {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
-	if err != nil || (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
+	if err != nil {
+		return ""
+	}
+	if parsed.Scheme == "" && parsed.Host == "" && parsed.User == nil && parsed.RawQuery == "" && parsed.Fragment == "" {
+		return sanitizeMobileVideoContentPath(parsed.Path)
+	}
+	if (parsed.Scheme != "https" && parsed.Scheme != "http") || parsed.Host == "" {
 		return ""
 	}
 	parsed.User = nil
 	parsed.RawQuery = ""
 	parsed.Fragment = ""
 	return boundedMobileTaskText(parsed.String())
+}
+
+// sanitizeMobileVideoContentPath admits only the private content endpoint that
+// the server-side video worker creates. Generic relative URLs remain rejected
+// so a task artifact cannot become an arbitrary client-side navigation target.
+func sanitizeMobileVideoContentPath(path string) string {
+	const (
+		prefix = "/api/v1/mobile/video/jobs/"
+		suffix = "/content"
+	)
+	if !strings.HasPrefix(path, prefix) || !strings.HasSuffix(path, suffix) {
+		return ""
+	}
+	rawID := strings.TrimSuffix(strings.TrimPrefix(path, prefix), suffix)
+	if rawID == "" || strings.Contains(rawID, "/") {
+		return ""
+	}
+	id, err := uuid.Parse(rawID)
+	if err != nil || id.String() != strings.ToLower(rawID) {
+		return ""
+	}
+	return prefix + id.String() + suffix
 }
 
 func boundedMobileTaskText(value string) string {

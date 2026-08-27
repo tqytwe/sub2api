@@ -58,6 +58,31 @@ func TestExtractAgnesVideoBillingMetadata(t *testing.T) {
 	require.Equal(t, "agnes-video:task_123", StableAgnesVideoBillingRequestID("task_123"))
 }
 
+func TestExtractAgnesVideoBillingMetadataReadsWidthAndHeight(t *testing.T) {
+	resolution, seconds := ExtractAgnesVideoBillingMetadata([]byte(`{"width":1920,"height":1080,"num_frames":192,"frame_rate":24}`))
+	require.Equal(t, VideoBillingResolution1080P, resolution)
+	require.Equal(t, 8, seconds)
+}
+
+func TestExtractAgnesVideoBillingMetadataRecognizesPublishedMobileDimensions(t *testing.T) {
+	resolution, seconds := ExtractAgnesVideoBillingMetadata([]byte(`{"width":1024,"height":576,"num_frames":241,"frame_rate":24}`))
+	require.Equal(t, VideoBillingResolution480P, resolution)
+	require.Equal(t, 10, seconds)
+}
+
+func TestResolveAgnesVideoMobileRequestOnlyAllowsPublishedPresets(t *testing.T) {
+	request, ok := ResolveAgnesVideoMobileRequest("480p", "16:9", 10)
+	require.True(t, ok)
+	require.Equal(t, AgnesVideoMobileRequest{Width: 1024, Height: 576, NumFrames: 241, FrameRate: 24}, request)
+
+	_, ok = ResolveAgnesVideoMobileRequest("720p", "16:9", 10)
+	require.False(t, ok)
+	_, ok = ResolveAgnesVideoMobileRequest("480p", "9:16", 10)
+	require.False(t, ok)
+	_, ok = ResolveAgnesVideoMobileRequest("480p", "16:9", 8)
+	require.False(t, ok)
+}
+
 func TestExtractAgnesVideoBillingMetadataReadsOpenAIVideoFields(t *testing.T) {
 	tests := []struct {
 		name string

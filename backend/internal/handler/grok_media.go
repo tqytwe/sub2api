@@ -118,11 +118,12 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	setOpsRequestContext(c, requestModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
 
+	if endpoint.RequiresImageGenerationPermission() && !service.GroupAllowsImageGeneration(apiKey.Group) {
+		h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
+		return
+	}
+
 	if endpoint.IsGenerationRequest() {
-		if !service.GroupAllowsImageGeneration(apiKey.Group) {
-			h.errorResponse(c, http.StatusForbidden, "permission_error", service.ImageGenerationPermissionMessage())
-			return
-		}
 		if moderationBody := requestInfo.ModerationBody(); len(moderationBody) > 0 {
 			decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, moderationBody)
 			if decision != nil && !decision.AllowNextStage {
@@ -155,7 +156,13 @@ func (h *OpenAIGatewayHandler) handleGrokMedia(c *gin.Context, endpoint service.
 	}
 
 	var billingEligibilityErr error
-	if service.IsImageStudioManagedBilling(c.Request.Context()) {
+	if service.IsMobileVideoManagedExecution(c.Request.Context()) {
+		// Durable video jobs passed full authorization and exact-balance reserve
+		// before entering the worker. Re-running mutable balance, group grant,
+		// RPM, or quota checks here can strand an already submitted task. The
+		// scheduler and adapter path below still perform live account checks.
+		billingEligibilityErr = nil
+	} else if service.IsImageStudioManagedBilling(c.Request.Context()) {
 		billingEligibilityErr = h.billingCacheService.CheckImageStudioManagedEligibility(
 			c.Request.Context(),
 			apiKey.User,

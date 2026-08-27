@@ -70,11 +70,53 @@ type ImageStudioModelCapabilities struct {
 	DefaultBackground        string                                  `json:"default_background,omitempty"`
 	DefaultOutputFormat      string                                  `json:"default_output_format,omitempty"`
 	DefaultInputFidelity     string                                  `json:"default_input_fidelity,omitempty"`
+	// RejectUndeclaredQuality is intentionally local to Image Studio. Generic
+	// catalog-backed OpenAI-compatible models do not have a safe quality
+	// passthrough until a dedicated adapter supplies one.
+	RejectUndeclaredQuality bool `json:"-"`
 }
 
 const imageStudioCapabilityRevision = "2026-07-16.1"
 
 const imageStudioOpenAICompatibleProfile = "openai_compatible"
+
+// auditedLegacyWorkspaceImageProfiles is intentionally a short, exact allow
+// list for the managed-workspace compatibility window. The Image Studio gateway
+// still has its established provider detection for direct requests, but a
+// managed workspace must not turn a newly mapped name such as
+// "foo-image-model" or "flux-new" into a client-visible media capability.
+// New models belong in site_model_catalog.media_capabilities instead.
+var auditedLegacyWorkspaceImageProfiles = map[string]string{
+	"gpt-image-1":                    PlatformOpenAI,
+	"gpt-image-1.5":                  PlatformOpenAI,
+	"gpt-image-2":                    PlatformOpenAI,
+	"agnes-image-2.0-flash":          PlatformOpenAI,
+	"agnes-image-2.1-flash":          PlatformOpenAI,
+	"sensenova-u1.5-lite":            PlatformOpenAI,
+	"sensenova-u1-fast":              PlatformOpenAI,
+	"gemini-2.5-flash-image":         PlatformGemini,
+	"gemini-3.1-flash-image":         PlatformGemini,
+	"gemini-3.1-flash-image-preview": PlatformGemini,
+	"imagen-4.0-generate-preview":    PlatformGemini,
+	"grok-imagine":                   PlatformGrok,
+	"grok-imagine-edit":              PlatformGrok,
+	"grok-imagine-image":             PlatformGrok,
+	"grok-imagine-image-quality":     PlatformGrok,
+}
+
+// ResolveAuditedLegacyWorkspaceImageCapability is deliberately narrower than
+// ResolveImageStudioProviderCapability. It exists only while old catalog rows
+// are being declared, and never recognizes a family, wildcard, prefix, or
+// substring match.
+func ResolveAuditedLegacyWorkspaceImageCapability(platform, model string) (ImageStudioModelCapabilities, bool) {
+	platform = strings.ToLower(strings.TrimSpace(platform))
+	model = strings.ToLower(strings.TrimSpace(model))
+	expectedPlatform, ok := auditedLegacyWorkspaceImageProfiles[model]
+	if !ok || expectedPlatform != platform {
+		return ImageStudioModelCapabilities{}, false
+	}
+	return ResolveImageStudioProviderCapability(platform, model)
+}
 
 func ResolveImageStudioModelCapability(model string) (ImageStudioModelCapabilities, bool) {
 	model = strings.ToLower(strings.TrimSpace(model))

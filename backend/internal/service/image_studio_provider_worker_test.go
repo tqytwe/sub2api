@@ -8,6 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/config"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 )
 
 func TestImageStudioCreatePendingJobPinsOpenAIProviderProfile(t *testing.T) {
@@ -70,6 +71,170 @@ func TestImageStudioCreatePendingJobRejectsProviderOptionMismatch(t *testing.T) 
 	require.Nil(t, job)
 	require.ErrorIs(t, err, ErrImageStudioBackgroundNotSupported)
 	require.Nil(t, repo.created)
+}
+
+func TestImageStudioCreatePendingJobHonorsCatalogOperationRestriction(t *testing.T) {
+	repo := &imageStudioCreateRepoStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		&imageStudioEncryptorStub{},
+		PlatformOpenAI,
+		[]string{"gpt-image-1"},
+	)
+	capabilities, ok := ResolveImageStudioProviderCapability(PlatformOpenAI, "gpt-image-1")
+	require.True(t, ok)
+	capabilities.Operations = []string{"create"}
+	svc.catalog = &imageStudioCatalogContractResolverStub{resolutions: map[string]ImageStudioCatalogContractResolution{
+		"gpt-image-1": {
+			Declared:     true,
+			Capabilities: &capabilities,
+		},
+	}}
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "replace the background",
+		Size:       "1024x1024",
+		Count:      1,
+		Model:      "gpt-image-1",
+		Mode:       "edit",
+		APIKeyID:   20,
+	})
+
+	require.Nil(t, job)
+	require.ErrorIs(t, err, ErrImageStudioOperationNotSupported)
+	require.Nil(t, repo.created)
+}
+
+func TestImageStudioCatalogOpenAIImagesRunsOpaqueModelWithPinnedWorkerProfile(t *testing.T) {
+	const modelID = "vendor-visual-v42"
+	contract := GatewayModelContract{
+		ID:                modelID,
+		Platform:          PlatformOpenAI,
+		Adapter:           catalogOpenAIImagesAdapterID,
+		CapabilityVersion: "v1",
+		Modalities:        []string{"image"},
+		ImageCapabilities: &ModelImageCapabilities{
+			Operations:     []string{"create"},
+			SupportedSizes: []string{"1024x1024"},
+		},
+	}
+	capability, supported := imageStudioCapabilitiesFromCatalogContract(contract)
+	require.True(t, supported)
+
+	repo := &imageStudioCreateRepoStub{}
+	encryptor := &imageStudioEncryptorStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		repo,
+		encryptor,
+		PlatformOpenAI,
+		[]string{modelID},
+	)
+	svc.catalog = &imageStudioCatalogContractResolverStub{resolutions: map[string]ImageStudioCatalogContractResolution{
+		modelID: {Declared: true, Capabilities: &capability},
+	}}
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "catalog-owned generic image request",
+		Size:       "1024x1024",
+		Count:      1,
+		Model:      modelID,
+		APIKeyID:   20,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, catalogOpenAIImagesAdapterID, gjson.Get(encryptor.plaintext, "adapter").String())
+	require.Equal(t, catalogOpenAIImagesProfileID(modelID, "v1"), gjson.Get(encryptor.plaintext, "capability_profile_id").String())
+	require.Equal(t, catalogOpenAIImagesRevision("v1"), gjson.Get(encryptor.plaintext, "capability_revision").String())
+	require.Equal(t, modelID, gjson.Get(encryptor.plaintext, "body.model").String())
+	require.False(t, gjson.Get(encryptor.plaintext, "body.response_format").Exists())
+
+	workerRequest, err := svc.BuildWorkerRequest(context.Background(), job, encryptor.plaintext)
+	require.NoError(t, err)
+	require.Equal(t, PlatformOpenAI, workerRequest.Platform)
+	require.Equal(t, openAIImagesGenerationsEndpoint, workerRequest.Endpoint)
+	require.Equal(t, modelID, gjson.GetBytes(workerRequest.Body, "model").String())
+
+	tampered, err := sjson.Set(encryptor.plaintext, "capability_profile_id", "openai_images:other-model:v1")
+	require.NoError(t, err)
+	_, err = svc.BuildWorkerRequest(context.Background(), job, tampered)
+	require.ErrorIs(t, err, ErrImageStudioCapabilityProfileChanged)
+
+	// A generic declaration deliberately has no quality passthrough. Reject it
+	// at admission rather than accepting an option the worker would discard.
+	job, _, err = svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "quality must fail closed",
+		Size:       "1024x1024",
+		Count:      1,
+		Model:      modelID,
+		Quality:    "high",
+		APIKeyID:   20,
+	})
+	require.Nil(t, job)
+	require.ErrorIs(t, err, ErrImageStudioQualityNotSupported)
+}
+
+func TestImageStudioOpaqueModelRequiresExplicitCatalogDeclaration(t *testing.T) {
+	const modelID = "vendor-visual-v42"
+	svc := newImageStudioProviderCreateServiceForTest(
+		&imageStudioCreateRepoStub{},
+		&imageStudioEncryptorStub{},
+		PlatformOpenAI,
+		[]string{modelID},
+	)
+	// This ID has neither an approved legacy profile nor a name marker. An
+	// account mapping alone must not make it an image model.
+	_, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "mapping alone must not enable media",
+		Size:       "1024x1024",
+		Count:      1,
+		Model:      modelID,
+		APIKeyID:   20,
+	})
+	require.ErrorIs(t, err, ErrImageStudioNoImageModels)
+}
+
+func TestImageStudioCatalogOpenAIImagesCompositeGroupUsesOpenAIDispatch(t *testing.T) {
+	const modelID = "vendor-visual-v42"
+	capability, supported := imageStudioCapabilitiesFromCatalogContract(GatewayModelContract{
+		ID:                modelID,
+		Platform:          PlatformComposite,
+		Adapter:           catalogOpenAIImagesAdapterID,
+		CapabilityVersion: "v1",
+		Modalities:        []string{"image"},
+		ImageCapabilities: &ModelImageCapabilities{
+			Operations:     []string{"create"},
+			SupportedSizes: []string{"1024x1024"},
+		},
+	})
+	require.True(t, supported)
+
+	encryptor := &imageStudioEncryptorStub{}
+	svc := newImageStudioProviderCreateServiceForTest(
+		&imageStudioCreateRepoStub{},
+		encryptor,
+		PlatformComposite,
+		[]string{modelID},
+	)
+	svc.catalog = &imageStudioCatalogContractResolverStub{resolutions: map[string]ImageStudioCatalogContractResolution{
+		modelID: {Declared: true, Capabilities: &capability},
+	}}
+
+	job, _, err := svc.CreatePendingJob(context.Background(), 10, ImageStudioGenerateRequest{
+		TemplateID: "free-create",
+		UserPrompt: "composite route remains server-owned",
+		Size:       "1024x1024",
+		Count:      1,
+		Model:      modelID,
+		APIKeyID:   20,
+	})
+	require.NoError(t, err)
+	require.NotNil(t, job)
+	require.Equal(t, PlatformOpenAI, gjson.Get(encryptor.plaintext, "platform").String())
+	require.Equal(t, catalogOpenAIImagesAdapterID, gjson.Get(encryptor.plaintext, "adapter").String())
 }
 
 func TestImageStudioCreatePendingJobBuildsGrokNativePayload(t *testing.T) {
@@ -655,6 +820,7 @@ func newImageStudioProviderCreateServiceForTest(
 		TotalRecharged: 100,
 	}}
 	groupID := int64(30)
+	imagePrice := 0.04
 	apiKey := &APIKey{
 		ID:      20,
 		UserID:  10,
@@ -664,6 +830,7 @@ func newImageStudioProviderCreateServiceForTest(
 			ID:                   groupID,
 			Platform:             platform,
 			AllowImageGeneration: true,
+			ImagePrice1K:         &imagePrice,
 		},
 	}
 	apiKeyService := NewAPIKeyService(

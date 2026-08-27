@@ -2,10 +2,61 @@ package service
 
 import (
 	"context"
+	"sort"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/ctxkey"
 )
+
+var compositeProviderPlatforms = []string{
+	PlatformAnthropic,
+	PlatformGemini,
+	PlatformOpenAI,
+	PlatformAntigravity,
+	PlatformGrok,
+	PlatformKimi,
+	PlatformZhipu,
+	PlatformDeepseek,
+}
+
+// CompositeProviderPlatforms returns the deterministic concrete-provider
+// precedence used when a composite group exposes the same public model ID on
+// more than one upstream. Callers must still verify scheduler availability and
+// the account's explicit model mapping before publishing a model.
+func CompositeProviderPlatforms() []string {
+	return append([]string(nil), compositeProviderPlatforms...)
+}
+
+// CompositeSchedulableProviderPlatforms returns only the concrete platforms
+// currently reported by the scheduler. Known platforms retain their existing
+// precedence so duplicate public model IDs remain deterministic; unfamiliar
+// provider IDs are appended in lexical order instead of being silently
+// excluded. This keeps composite workspaces and /v1/models extensible when a
+// new provider is attached to a group.
+func CompositeSchedulableProviderPlatforms(schedulable map[string]struct{}) []string {
+	remaining := make(map[string]struct{}, len(schedulable))
+	for platform := range schedulable {
+		platform = strings.TrimSpace(platform)
+		if platform == "" || platform == PlatformComposite {
+			continue
+		}
+		remaining[platform] = struct{}{}
+	}
+
+	result := make([]string, 0, len(remaining))
+	for _, platform := range compositeProviderPlatforms {
+		if _, found := remaining[platform]; found {
+			result = append(result, platform)
+			delete(remaining, platform)
+		}
+	}
+	unknown := make([]string, 0, len(remaining))
+	for platform := range remaining {
+		unknown = append(unknown, platform)
+	}
+	sort.Strings(unknown)
+	return append(result, unknown...)
+}
 
 // WithResolvedTargetPlatform stores the concrete provider chosen for a request
 // made through a composite group.
@@ -122,6 +173,13 @@ func DetectModelPlatform(model string) (string, bool) {
 	case strings.HasPrefix(normalized, "anthropic.claude-"),
 		strings.HasPrefix(normalized, "claude-"):
 		return PlatformAnthropic, true
+	case normalized == "sensenova-u1.5-lite",
+		normalized == "sensenova-u1-fast":
+		// SenseNova U1 is exposed through the account's OpenAI-compatible
+		// images endpoint. Keep this exact rather than accepting a broad
+		// "sensenova-*" prefix: an unknown provider model must not make a
+		// composite group choose an account by name alone.
+		return PlatformOpenAI, true
 	case strings.HasPrefix(normalized, "gpt-"),
 		strings.HasPrefix(normalized, "chatgpt-"),
 		strings.HasPrefix(normalized, "codex-"),

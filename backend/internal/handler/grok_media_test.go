@@ -3,10 +3,15 @@ package handler
 import (
 	"context"
 	"errors"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/config"
+	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -105,6 +110,45 @@ func TestGrokMediaRequiredCapability(t *testing.T) {
 			require.Equal(t, tt.want, grokMediaRequiredCapability(tt.endpoint))
 		})
 	}
+}
+
+func TestGrokMediaImagePermissionAppliesOnlyToImageEndpoints(t *testing.T) {
+	invoke := func(t *testing.T, path string, invokeHandler func(*OpenAIGatewayHandler, *gin.Context)) *httptest.ResponseRecorder {
+		t.Helper()
+		gin.SetMode(gin.TestMode)
+		recorder := httptest.NewRecorder()
+		c, _ := gin.CreateTestContext(recorder)
+		c.Request = httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{"model":"grok-imagine-video","prompt":"waves"}`))
+		c.Request.Header.Set("Content-Type", "application/json")
+
+		groupID := int64(9101)
+		userID := int64(9102)
+		c.Set(string(middleware2.ContextKeyAPIKey), &service.APIKey{
+			ID: 9103, UserID: userID, GroupID: &groupID,
+			Group: &service.Group{ID: groupID, Platform: service.PlatformGrok, AllowImageGeneration: false},
+			User:  &service.User{ID: userID, Status: service.StatusActive},
+		})
+		c.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: userID, Concurrency: 1})
+
+		h := &OpenAIGatewayHandler{
+			gatewayService:      &service.OpenAIGatewayService{},
+			billingCacheService: service.NewBillingCacheService(nil, nil, nil, nil, nil, nil, &config.Config{RunMode: config.RunModeSimple}, nil),
+			apiKeyService:       &service.APIKeyService{},
+			concurrencyHelper:   NewConcurrencyHelper(service.NewConcurrencyService(&helperConcurrencyCacheStub{userSeq: []bool{true}}), SSEPingFormatClaude, 0),
+			cfg:                 &config.Config{},
+			imageLimiter:        &imageConcurrencyLimiter{},
+		}
+		invokeHandler(h, c)
+		return recorder
+	}
+
+	image := invoke(t, "/v1/images/generations", func(h *OpenAIGatewayHandler, c *gin.Context) { h.GrokImages(c) })
+	require.Equal(t, http.StatusForbidden, image.Code)
+	require.Contains(t, image.Body.String(), service.ImageGenerationPermissionMessage())
+
+	video := invoke(t, "/v1/videos/generations", func(h *OpenAIGatewayHandler, c *gin.Context) { h.GrokVideoGeneration(c) })
+	require.NotEqual(t, http.StatusForbidden, video.Code)
+	require.NotContains(t, video.Body.String(), service.ImageGenerationPermissionMessage())
 }
 
 func TestGrokMediaScheduleModelUsesNormalizedMappedUpstream(t *testing.T) {

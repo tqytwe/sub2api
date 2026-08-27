@@ -1162,6 +1162,7 @@ func ProvideImageStudioService(
 	playService *PlayService,
 	pricing *BatchImageModelPricingResolver,
 	gateway ImageStudioModelResolver,
+	catalog *ModelCatalogService,
 	promptRepo PromptLibraryRepository,
 	cfg *config.Config,
 	encryptor SecretEncryptor,
@@ -1170,6 +1171,7 @@ func ProvideImageStudioService(
 ) *ImageStudioService {
 	store := NewImageStudioAssetStore(cfg.Pricing.DataDir)
 	svc := NewImageStudioService(repo, store, apiKeyService, userRepo, settingService, playService, pricing, gateway, encryptor, billingRepo, billingCache)
+	svc.catalog = catalog
 	svc.promptRepo = promptRepo
 	return svc
 }

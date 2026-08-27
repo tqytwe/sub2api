@@ -12,10 +12,10 @@ import (
 )
 
 func TestMobileTaskKindAndStatusValidation(t *testing.T) {
-	for _, kind := range []MobileTaskKind{MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindFile} {
+	for _, kind := range []MobileTaskKind{MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindVideo, MobileTaskKindFile} {
 		require.True(t, IsValidMobileTaskKind(kind))
 	}
-	require.False(t, IsValidMobileTaskKind("video"))
+	require.False(t, IsValidMobileTaskKind("unknown"))
 
 	for _, status := range []MobileTaskStatus{
 		MobileTaskStatusQueued, MobileTaskStatusRunning, MobileTaskStatusStreaming,
@@ -105,7 +105,7 @@ func TestNewMobileTaskRejectsInvalidIdentity(t *testing.T) {
 		wantErr   error
 	}{
 		{name: "id", kind: MobileTaskKindChat, operation: "chat", requestID: "req", wantErr: ErrMobileTaskInvalidID},
-		{name: "kind", id: "id", kind: "video", operation: "chat", requestID: "req", wantErr: ErrMobileTaskInvalidKind},
+		{name: "kind", id: "id", kind: "unknown", operation: "chat", requestID: "req", wantErr: ErrMobileTaskInvalidKind},
 		{name: "operation", id: "id", kind: MobileTaskKindChat, requestID: "req", wantErr: ErrMobileTaskInvalidOperation},
 		{name: "request id", id: "id", kind: MobileTaskKindChat, operation: "chat", wantErr: ErrMobileTaskInvalidRequestID},
 	}
