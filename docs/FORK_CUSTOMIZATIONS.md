@@ -3,7 +3,7 @@
 > 状态：active
 > 当前验证基线：`upstream/main@aa2c4e8d136b12c171f8a4b38578c68243f73e19` (`v0.1.182`)
 > 本次同步合并提交：`e2db55e6c35566ad1b822aa46e22d4c3dadbd979`（审查分支，待 PR 合入 `play/main`）
-> 最后核验：2026-08-25
+> 最后核验：2026-08-26（`fix/v0182-media-integration-20260826` 候选；待完整门禁、审查和合入）
 
 本文档是 `play/main` 相对上游的定制权威登记表。只有已经落地的行为进入受保护条目；视频工作室等未实现方案只能作为 `proposal` 独立保存，不能登记成已上线能力。
 
@@ -89,7 +89,7 @@
 
 - 产品目的：区分外部官方参考价、本站参考价和真实扣费价，并让模型绑定明确的业务分组。
 - 不变量：官方价和本站价只用于目录展示/对比，不参与真实扣费解析；真实扣费来源仍是渠道价、LiteLLM/官方 billing catalog 和 legacy fallback；分组或用户倍率只应用在真实基础价上；`group_ids=NULL` 才允许按平台兼容匹配，非空数组只能进入指定分组；刷新官方价不得覆盖手工本站展示价或渠道价。
-- 接口与数据：`site_model_catalog`、`group_ids`、`official_*`、`GET /model-plaza`、NextChat 内部展示元数据和 Admin model catalog APIs；字段级人工锁定迁移为 `251_model_catalog_official_field_sources.sql`。
+- 接口与数据：`site_model_catalog`、`group_ids`、`official_*`、`media_capabilities`、`GET /model-plaza`、NextChat 内部展示元数据和 Admin model catalog APIs；字段级人工锁定迁移为 `251_model_catalog_official_field_sources.sql`，媒体能力迁移为 `260_model_catalog_media_capabilities.sql`。
 - 关键位置：`backend/internal/service/model_catalog*`、`backend/internal/service/model_pricing_resolver.go`、`backend/internal/repository/model_catalog_repo.go`、`frontend/src/views/public/ModelsView.vue`、`frontend/src/views/admin/ModelCatalogView.vue`。
 - 冲突策略：上游模型能力可合入，但不得将公开参考价重新接入扣费，也不得用 platform 猜测覆盖显式分组绑定。
 - 验证：`model_catalog_service_test.go`、`model_pricing_resolver_test.go`、`model_pricing_sync_test.go` 及真实调用抽样对账。
@@ -151,7 +151,7 @@
 ## FORK-MIGRATION-009 自定义数据库迁移
 
 - 产品目的：保留 Play、品牌默认值、图像工作室、提示词库和模型目录的数据库结构与数据修复。
-- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。上游 `229_plugins.sql`、`230_plugin_artifacts.sql` 与 Fork 同编号迁移按完整文件名并存，插件管理和绑定默认关闭。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
+- 不变量：下列文件名完整存在且已应用文件不可改写；上游出现同数字前缀时允许并存，不能按编号覆盖，例如上游 `181_prompt_audit.sql` / `182_prompt_audit_full_prompt.sql` 与 Fork `181_jisudeng_public_model_pricing.sql` / `182_image_studio_asset_storage.sql` 必须同时保留。上游 `229_plugins.sql`、`230_plugin_artifacts.sql` 与 Fork 同编号迁移按完整文件名并存，插件管理和绑定默认关闭。`259_mobile_video_jobs.sql` 只新增私有视频任务状态，`260_model_catalog_media_capabilities.sql` 只新增可空媒体合同与经过审查的精确模型声明，绝不改写分组、价格、白名单或账号映射。runner 在固定的同一 PostgreSQL session 上获取 advisory lock、执行迁移并校验解锁结果；192/194 的表变更按 runner 白名单分成可恢复短事务阶段，长 backfill/constraint validation 不携带前置 `ALTER TABLE` 强锁；对应 `_notx.sql` 索引继续使用 `CONCURRENTLY`。
 - 冲突策略：新增迁移使用新的完整文件名；禁止修改已部署 SQL 的内容来解决冲突。
 - 验证：integrity 脚本逐文件检查，部署后检查 `schema_migrations`。
 
@@ -230,6 +230,8 @@
 253_mobile_app_releases.sql
 255_payment_order_coupon_release_processed.sql
 256_payment_order_coupon_release_processed_index_notx.sql
+259_mobile_video_jobs.sql
+260_model_catalog_media_capabilities.sql
 ```
 
 ## FORK-BILLING-010 计费归属与充值联动
@@ -259,10 +261,10 @@
 ## FORK-MOBILE-017 NextChat 移动协议与归因反馈
 
 - 产品目的：移动端只使用登录用户 JWT 获取受管会话与可用分组，反馈和归因信息保持最小化、可审计和不可伪造。
-- 不变量：NextChat mobile bootstrap/group switch 必须校验 JWT，绝不向前端返回受管 API Key 明文；聊天与图片分组会话相互隔离；移动注册、登录和密码流程保留独立限流；归因 token 必须服务端验签并只保存摘要，反馈诊断只保存白名单字段。
-- 关键位置：`backend/internal/server/routes/nextchat.go`、`backend/internal/server/routes/auth.go`、`backend/internal/service/mobile_attribution.go`、`backend/internal/service/mobile_feedback.go`、`backend/internal/server/routes/play.go`。
-- 冲突策略：可合并上游认证与网关兼容修复，但不能降级 JWT 边界、泄露 API Key、混合聊天/图片会话或放宽诊断隐私。
-- 验证：NextChat mobile route、mobile attribution 和 feedback service tests；Android/WebView 端的最终验收仍由用户设备完成。
+- 不变量：NextChat mobile bootstrap/group switch 必须校验 JWT，绝不向前端返回受管 API Key 明文；聊天、图片与视频受管会话相互隔离，视频任务只能使用已固定的 video-purpose 执行身份，绝不回退到聊天或图片 Key；`/api/v1/mobile/video/*` 复用权威可调度模型、分组授权、映射、价格和适配器检查，缺条件时返回诊断而不是静默空分组；归因 token 必须服务端验签并只保存摘要，反馈诊断只保存白名单字段。
+- 关键位置：`backend/internal/server/routes/nextchat.go`、`backend/internal/server/router.go`、`backend/internal/server/routes/auth.go`、`backend/internal/service/mobile_attribution.go`、`backend/internal/service/mobile_feedback.go`、`backend/internal/service/mobile_video_*.go`、`backend/internal/server/routes/play.go`。
+- 冲突策略：可合并上游认证与网关兼容修复，但不能降级 JWT 边界、泄露 API Key、混合聊天/图片/视频会话、让目录声明绕过调度或价格检查，或放宽诊断隐私。
+- 验证：NextChat mobile route、视频 bootstrap/分组隔离/执行身份测试、mobile attribution 和 feedback service tests；Android/WebView 端的最终验收仍由用户设备完成。
 
 ## FORK-LIVE-SETTLEMENT-018 实时用量结算 outbox
 

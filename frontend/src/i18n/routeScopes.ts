@@ -9,6 +9,7 @@ export const LOCALE_LOAD_SCOPES = [
   'workspace-shell',
   'admin-shell',
   'user-dashboard',
+  'user-usage',
   'user-wallet',
   'user-batch',
   'user-misc',
@@ -168,7 +169,9 @@ export const ROUTE_LOCALE_SCOPES = {
   Keys: [...WORKSPACE, 'user-dashboard'],
   KeySpeedTest: [...WORKSPACE, 'user-dashboard'],
   BatchImageGuide: [...WORKSPACE, 'user-dashboard', 'user-batch'],
-  Usage: [...WORKSPACE, 'user-dashboard'],
+  // The user usage page reuses a compact admin-namespaced label subset. Keep
+  // it separate from the much larger admin resources fragment.
+  Usage: [...WORKSPACE, 'user-dashboard', 'user-usage'],
   Wallet: [...WORKSPACE, 'user-dashboard', 'user-wallet', 'user-misc'],
   Redeem: [...WORKSPACE, 'user-dashboard'],
   // Image Studio and prompt-library copy are public-page fragments even when

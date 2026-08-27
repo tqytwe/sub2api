@@ -118,6 +118,18 @@ func (s *ImageStudioService) ValidateSizeForModel(apiKey *APIKey, model, size st
 		return ErrImageStudioSizeNotSupported
 	}
 	capability := s.ResolveModelCapabilities(apiKey, model)
+	return s.validateSizeForCapability(model, size, capability)
+}
+
+func (s *ImageStudioService) validateSizeForCapability(
+	model string,
+	size string,
+	capability ImageStudioModelCapabilities,
+) error {
+	size = strings.TrimSpace(size)
+	if size == "" {
+		return ErrImageStudioSizeNotSupported
+	}
 	if capability.SizingKind == "custom_dimensions" {
 		if imageStudioCustomDimensionsAllowed(capability, size) {
 			return nil
@@ -162,24 +174,31 @@ func imageStudioCustomDimensionsAllowed(capability ImageStudioModelCapabilities,
 }
 
 func (s *ImageStudioService) ValidateQualityForModel(apiKey *APIKey, model, quality string) error {
+	var capability ImageStudioModelCapabilities
+	if apiKey != nil && apiKey.Group != nil {
+		resolved, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, model)
+		if !ok {
+			return ErrImageStudioProviderNotSupported
+		}
+		capability = resolved
+	} else {
+		capability.SupportedQualities = inferImageStudioQualities(model)
+	}
+	return validateImageStudioQualityForCapability(capability, quality)
+}
+
+func validateImageStudioQualityForCapability(capability ImageStudioModelCapabilities, quality string) error {
 	quality = strings.TrimSpace(strings.ToLower(quality))
 	if quality == "" {
 		return nil
 	}
-	var supported []string
-	if apiKey != nil && apiKey.Group != nil {
-		capability, ok := resolveImageStudioCapabilitiesForAPIKey(apiKey, model)
-		if !ok {
-			return ErrImageStudioProviderNotSupported
-		}
-		supported = capability.SupportedQualities
-	} else {
-		supported = inferImageStudioQualities(model)
+	if capability.RejectUndeclaredQuality {
+		return ErrImageStudioQualityNotSupported
 	}
-	if len(supported) == 0 {
+	if len(capability.SupportedQualities) == 0 {
 		return nil
 	}
-	for _, item := range supported {
+	for _, item := range capability.SupportedQualities {
 		if item == quality {
 			return nil
 		}

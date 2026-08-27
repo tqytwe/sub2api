@@ -41,7 +41,7 @@
         <!-- Category -->
         <div>
           <span class="font-medium text-gray-500 dark:text-dark-400">{{ t('usage.errors.category') }}</span>
-          <p class="mt-0.5 text-gray-900 dark:text-dark-100">{{ t('usage.errors.categories.' + detail.category) }}</p>
+          <p class="mt-0.5 text-gray-900 dark:text-dark-100">{{ errorCategoryLabel(detail.category) }}</p>
         </div>
         <!-- Platform -->
         <div>
@@ -76,6 +76,7 @@ import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import { getMyErrorDetail } from '@/api/usage'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type { UserErrorRequestDetail } from '@/types'
 
 const props = defineProps<{
@@ -123,5 +124,9 @@ function statusClass(code: number) {
   if (code >= 500) return 'badge-danger'
   if (code === 429) return 'badge-warning'
   return 'badge-gray'
+}
+
+function errorCategoryLabel(category: unknown): string {
+  return localizedEnumOrUnknown(t, `usage.errors.categories.${String(category ?? '').trim()}`)
 }
 </script>

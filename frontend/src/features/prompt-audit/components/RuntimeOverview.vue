@@ -75,6 +75,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { PromptAuditRuntime } from '../types'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 
 const props = defineProps<{ runtime: PromptAuditRuntime | null; loading: boolean; error: string }>()
 defineEmits<{ (event: 'refresh'): void }>()
@@ -84,7 +85,7 @@ const statusItems = computed(() => {
   const runtime = props.runtime
   if (!runtime) return []
   return [
-    { label: t('admin.promptAudit.runtime.process'), value: t(`admin.promptAudit.status.${runtime.process_status}`), dot: statusDot(runtime.process_status) },
+    { label: t('admin.promptAudit.runtime.process'), value: localizedEnumOrUnknown(t, `admin.promptAudit.status.${runtime.process_status}`), dot: statusDot(runtime.process_status) },
     { label: t('admin.promptAudit.runtime.mode'), value: t(`admin.promptAudit.mode.${runtime.effective_mode}`) },
     { label: t('admin.promptAudit.runtime.version'), value: `${runtime.active_config_version} / ${runtime.expected_config_version}` },
     { label: t('admin.promptAudit.runtime.workers'), value: `${runtime.worker_active} / ${runtime.worker_total}` },

@@ -20,6 +20,9 @@ func TestDetectModelPlatform(t *testing.T) {
 		{name: "gpt", model: "gpt-5.1", platform: PlatformOpenAI, ok: true},
 		{name: "o series", model: "o3-mini", platform: PlatformOpenAI, ok: true},
 		{name: "embedding", model: "text-embedding-3-large", platform: PlatformOpenAI, ok: true},
+		{name: "SenseNova U1.5 Lite exact ID", model: "sensenova-u1.5-lite", platform: PlatformOpenAI, ok: true},
+		{name: "SenseNova U1 Fast exact ID", model: "sensenova-u1-fast", platform: PlatformOpenAI, ok: true},
+		{name: "unknown SenseNova model", model: "sensenova-u2-preview", ok: false},
 		{name: "gemini", model: "gemini-3-pro", platform: PlatformGemini, ok: true},
 		{name: "gemini models prefix", model: "models/gemini-2.5-flash", platform: PlatformGemini, ok: true},
 		{name: "learnlm", model: "learnlm-2.0-flash-experimental", platform: PlatformGemini, ok: true},
@@ -77,4 +80,21 @@ func TestCompositeConcretePlatformsIncludeCNProviders(t *testing.T) {
 		require.True(t, isConcreteRequestPlatform(platform))
 		require.True(t, canCopyAccountsFromGroupPlatform(PlatformComposite, platform))
 	}
+}
+
+func TestCompositeSchedulableProviderPlatformsKeepsKnownPrecedenceAndIncludesNewProviders(t *testing.T) {
+	platforms := CompositeSchedulableProviderPlatforms(map[string]struct{}{
+		PlatformComposite: {},
+		PlatformGrok:      {},
+		PlatformOpenAI:    {},
+		"new-provider-z":  {},
+		"new-provider-a":  {},
+	})
+
+	require.Equal(t, []string{
+		PlatformOpenAI,
+		PlatformGrok,
+		"new-provider-a",
+		"new-provider-z",
+	}, platforms)
 }

@@ -646,7 +646,7 @@ const handleGrokImportSSO = async (ssoInput: string) => {
     grokOAuth.error.value =
       error.response?.data?.detail ||
       error.message ||
-      t('admin.accounts.oauth.grok.failedToValidateSSO', 'Failed to validate Grok SSO')
+      t('admin.accounts.oauth.grok.failedToValidateSSO')
     appStore.showError(grokOAuth.error.value)
   } finally {
     grokOAuth.loading.value = false

@@ -25,6 +25,7 @@ import playAPI, {
   type PlayUserTeamSettlementRecord,
 } from '@/api/play'
 import { useClipboard } from '@/composables/useClipboard'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import '@/styles/public-pages.css'
 
 type CompetitionRow = PlayTeamPublicLeaderboardEntry | PlayTeamLeaderboardEntry
@@ -100,11 +101,11 @@ function isOwnTeamRow(row: CompetitionRow) {
 }
 
 function applicationStatusLabel(status: string) {
-  return t(`agentTeam.applicationStatus.${status}`)
+  return localizedEnumOrUnknown(t, `agentTeam.applicationStatus.${status}`)
 }
 
 function payoutStatusLabel(status: string) {
-  return t(`agentTeam.payout.${status}`)
+  return localizedEnumOrUnknown(t, `agentTeam.payout.${status}`)
 }
 
 function publicRecipientName(value?: string) {

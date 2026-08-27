@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -57,6 +58,18 @@ type nextChatRouteScopedIssuerStub struct {
 	purposeIssueRequests  []string
 	purposeSwitchRequests []nextChatRoutePurposeSwitch
 	selectedGroups        map[string]int64
+}
+
+// nextChatRouteGroupPinnedIssuerStub models the production replacement-key
+// contract without allowing the test's older scoped issuer to mutate a key.
+type nextChatRouteGroupPinnedIssuerStub struct {
+	nextChatRouteScopedIssuerStub
+	replacements map[int64]nextChatRoutePinnedReplacement
+}
+
+type nextChatRoutePinnedReplacement struct {
+	Purpose string
+	GroupID int64
 }
 
 type nextChatRoutePurposeSwitch struct {
@@ -124,6 +137,65 @@ func (s *nextChatRouteScopedIssuerStub) SetNextChatManagedSessionGroup(ctx conte
 	s.switchRequests = append(s.switchRequests, groupID)
 	s.purposeSwitchRequests = append(s.purposeSwitchRequests, nextChatRoutePurposeSwitch{Purpose: purpose, GroupID: groupID})
 	return s.GetNextChatWorkspaceIdentity(ctx, userID, session.KeyID)
+}
+
+func (s *nextChatRouteGroupPinnedIssuerStub) IssueNextChatManagedSessionForPurposeAndGroup(_ context.Context, userID int64, purpose string, groupID int64) (*service.NextChatManagedSession, error) {
+	if groupID <= 0 {
+		return nil, infraerrors.BadRequest("NEXTCHAT_GROUP_REQUIRED", "group_id is required")
+	}
+	keyID := int64(10_000 + len(s.replacements) + 1)
+	if s.replacements == nil {
+		s.replacements = make(map[int64]nextChatRoutePinnedReplacement)
+	}
+	s.replacements[keyID] = nextChatRoutePinnedReplacement{Purpose: purpose, GroupID: groupID}
+	group := groupID
+	return &service.NextChatManagedSession{
+		UserID:  userID,
+		APIKey:  fmt.Sprintf("sk-pinned-%s-%d", purpose, groupID),
+		KeyID:   keyID,
+		Purpose: purpose,
+		GroupID: &group,
+		Binding: service.NextChatGroupPinnedSessionBinding,
+	}, nil
+}
+
+func (s *nextChatRouteGroupPinnedIssuerStub) SwitchNextChatManagedSessionGroup(ctx context.Context, userID, currentKeyID int64, purpose string, groupID int64) (*service.NextChatManagedSession, *service.NextChatWorkspaceIdentity, error) {
+	if currentKeyID <= 0 {
+		return nil, nil, service.ErrInsufficientPerms
+	}
+	session, err := s.IssueNextChatManagedSessionForPurposeAndGroup(ctx, userID, purpose, groupID)
+	if err != nil {
+		return nil, nil, err
+	}
+	identity, err := s.GetNextChatWorkspaceIdentity(ctx, userID, session.KeyID)
+	return session, identity, err
+}
+
+func (s *nextChatRouteGroupPinnedIssuerStub) GetNextChatWorkspaceIdentity(ctx context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error) {
+	if replacement, ok := s.replacements[apiKeyID]; ok {
+		name, err := nextChatRoutePinnedName(replacement.Purpose, replacement.GroupID)
+		if err != nil {
+			return nil, err
+		}
+		identity := nextChatRouteWorkspaceIdentity(userID, apiKeyID, name, replacement.GroupID)
+		identity.User.Role = s.workspaceRole()
+		identity.User.IsAdmin = identity.User.Role == service.RoleAdmin
+		return identity, nil
+	}
+	return s.nextChatRouteScopedIssuerStub.GetNextChatWorkspaceIdentity(ctx, userID, apiKeyID)
+}
+
+func nextChatRoutePinnedName(purpose string, groupID int64) (string, error) {
+	switch purpose {
+	case service.NextChatSessionPurposeChat:
+		return service.NextChatManagedChatAPIKeyName + "/" + strconv.FormatInt(groupID, 10), nil
+	case service.NextChatSessionPurposeImage:
+		return service.NextChatManagedImageAPIKeyName + "/" + strconv.FormatInt(groupID, 10), nil
+	case service.NextChatSessionPurposeVideo:
+		return service.NextChatManagedVideoAPIKeyName + "/" + strconv.FormatInt(groupID, 10), nil
+	default:
+		return "", infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat, image, or video")
+	}
 }
 
 func (s *nextChatRouteScopedIssuerStub) GetNextChatWorkspaceIdentity(_ context.Context, userID, apiKeyID int64) (*service.NextChatWorkspaceIdentity, error) {
@@ -381,6 +453,8 @@ type nextChatSessionResponse struct {
 	APIKey   string                             `json:"api_key"`
 	KeyID    int64                              `json:"api_key_id"`
 	Purpose  string                             `json:"purpose"`
+	GroupID  *int64                             `json:"group_id"`
+	Binding  string                             `json:"binding"`
 	Sessions map[string]nextChatSessionResponse `json:"sessions"`
 }
 
@@ -390,6 +464,7 @@ type nextChatIdentityResponse struct {
 
 type nextChatMobileBootstrapResponse struct {
 	nextChatBootstrapResponse
+	SessionBinding string                                     `json:"session_binding"`
 	Session        nextChatSessionResponse                    `json:"session"`
 	Sessions       map[string]nextChatSessionResponse         `json:"sessions"`
 	ManagedAPIKeys map[string]service.NextChatWorkspaceAPIKey `json:"managed_api_keys"`
@@ -822,15 +897,20 @@ func TestNextChatMobileScopedGroupSwitchKeepsChatAndImageIndependent(t *testing.
 	require.Equal(t, service.NextChatSessionPurposeChat, chat.Session.Purpose)
 	require.Equal(t, int64(123), chat.Session.KeyID)
 	require.Equal(t, int64(8), *chat.ManagedAPIKey.GroupID)
+	require.Equal(t, chat.Session, chat.Sessions[service.NextChatSessionPurposeChat], "top-level session remains the legacy chat alias")
+	require.Equal(t, int64(8), *chat.ManagedAPIKeys[service.NextChatSessionPurposeChat].GroupID)
+	require.NotEmpty(t, chat.Workspaces[service.NextChatSessionPurposeVideo].Models.Groups)
 	require.Zero(t, issuer.selectedGroups[service.NextChatSessionPurposeImage])
 
 	imageRecorder := postNextChatMobileScopedGroup(router, "Bearer valid-user", service.NextChatSessionPurposeImage, 7)
 	require.Equal(t, http.StatusOK, imageRecorder.Code, imageRecorder.Body.String())
 	require.Equal(t, "no-store", imageRecorder.Header().Get("Cache-Control"))
 	image := decodeNextChatRouteResponse[nextChatMobileBootstrapResponse](t, imageRecorder)
-	require.Equal(t, service.NextChatSessionPurposeImage, image.Session.Purpose)
-	require.Equal(t, int64(456), image.Session.KeyID)
-	require.Equal(t, int64(7), *image.ManagedAPIKey.GroupID)
+	require.Equal(t, service.NextChatSessionPurposeChat, image.Session.Purpose, "a scoped response is a full mobile bootstrap, not a target-only payload")
+	require.Equal(t, image.Session, image.Sessions[service.NextChatSessionPurposeChat])
+	require.Equal(t, int64(456), image.Sessions[service.NextChatSessionPurposeImage].KeyID)
+	require.Equal(t, int64(7), *image.ManagedAPIKeys[service.NextChatSessionPurposeImage].GroupID)
+	require.NotEmpty(t, image.Workspaces[service.NextChatSessionPurposeImage].Models.Groups)
 	require.Equal(t, int64(8), issuer.selectedGroups[service.NextChatSessionPurposeChat])
 	require.Equal(t, int64(7), issuer.selectedGroups[service.NextChatSessionPurposeImage])
 
@@ -838,16 +918,59 @@ func TestNextChatMobileScopedGroupSwitchKeepsChatAndImageIndependent(t *testing.
 	require.Equal(t, http.StatusOK, videoRecorder.Code, videoRecorder.Body.String())
 	require.Equal(t, "no-store", videoRecorder.Header().Get("Cache-Control"))
 	video := decodeNextChatRouteResponse[nextChatMobileBootstrapResponse](t, videoRecorder)
-	require.Equal(t, service.NextChatSessionPurposeVideo, video.Session.Purpose)
-	require.Equal(t, int64(789), video.Session.KeyID)
-	require.Equal(t, int64(6), *video.ManagedAPIKey.GroupID)
+	require.Equal(t, service.NextChatSessionPurposeChat, video.Session.Purpose, "top-level session cannot be used as a video key")
+	require.Equal(t, video.Session, video.Sessions[service.NextChatSessionPurposeChat])
+	require.Equal(t, service.NextChatSessionPurposeVideo, video.Sessions[service.NextChatSessionPurposeVideo].Purpose)
+	require.Equal(t, int64(789), video.Sessions[service.NextChatSessionPurposeVideo].KeyID)
+	require.NotEqual(t, video.Session.KeyID, video.Sessions[service.NextChatSessionPurposeVideo].KeyID)
+	require.Equal(t, int64(6), *video.ManagedAPIKeys[service.NextChatSessionPurposeVideo].GroupID)
+	require.NotEmpty(t, video.Workspaces[service.NextChatSessionPurposeVideo].Models.Groups)
 	require.Equal(t, int64(6), issuer.selectedGroups[service.NextChatSessionPurposeVideo])
-	require.Equal(t, []nextChatRoutePurposeSwitch{
-		{Purpose: service.NextChatSessionPurposeChat, GroupID: 8},
-		{Purpose: service.NextChatSessionPurposeImage, GroupID: 7},
-		{Purpose: service.NextChatSessionPurposeVideo, GroupID: 6},
-	}, issuer.purposeSwitchRequests)
+	require.Contains(t, issuer.purposeSwitchRequests, nextChatRoutePurposeSwitch{Purpose: service.NextChatSessionPurposeChat, GroupID: 8})
+	require.Contains(t, issuer.purposeSwitchRequests, nextChatRoutePurposeSwitch{Purpose: service.NextChatSessionPurposeImage, GroupID: 7})
+	require.Contains(t, issuer.purposeSwitchRequests, nextChatRoutePurposeSwitch{Purpose: service.NextChatSessionPurposeVideo, GroupID: 6})
 	require.Zero(t, issuer.calls, "scoped routes must not issue the legacy chat session")
+}
+
+func TestNextChatMobileGroupSwitchReturnsPurposePinnedReplacement(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteGroupPinnedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{}, rdb)
+
+	recorder := postNextChatMobileScopedGroup(router, "Bearer valid-user", service.NextChatSessionPurposeVideo, 8)
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatMobileBootstrapResponse](t, recorder)
+	require.Equal(t, service.NextChatGroupPinnedSessionBinding, got.SessionBinding)
+	require.Equal(t, service.NextChatSessionPurposeChat, got.Session.Purpose, "the legacy field remains chat-only")
+	video := got.Sessions[service.NextChatSessionPurposeVideo]
+	require.Equal(t, service.NextChatSessionPurposeVideo, video.Purpose)
+	require.NotEqual(t, int64(789), video.KeyID, "the old video key must not be rebound")
+	require.NotNil(t, video.GroupID)
+	require.Equal(t, int64(8), *video.GroupID)
+	require.Equal(t, service.NextChatGroupPinnedSessionBinding, video.Binding)
+	require.Equal(t, video.KeyID, got.ManagedAPIKeys[service.NextChatSessionPurposeVideo].ID)
+	require.Equal(t, int64(123), got.Sessions[service.NextChatSessionPurposeChat].KeyID)
+	require.NotEmpty(t, got.Workspaces[service.NextChatSessionPurposeVideo].Models.Groups)
+}
+
+func TestNextChatMobileVideoGroupSwitchReturnsCompleteBootstrap(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteScopedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{}, rdb)
+
+	recorder := postNextChatMobileScopedGroup(router, "Bearer valid-user", service.NextChatSessionPurposeVideo, 6)
+
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[nextChatMobileBootstrapResponse](t, recorder)
+	require.Equal(t, service.NextChatSessionPurposeChat, got.Session.Purpose, "legacy field stays chat-only")
+	require.Equal(t, got.Session, got.Sessions[service.NextChatSessionPurposeChat])
+	video, ok := got.Sessions[service.NextChatSessionPurposeVideo]
+	require.True(t, ok)
+	require.Equal(t, service.NextChatSessionPurposeVideo, video.Purpose)
+	require.Equal(t, int64(789), video.KeyID)
+	require.NotEqual(t, got.Session.KeyID, video.KeyID)
+	require.Equal(t, int64(6), *got.ManagedAPIKeys[service.NextChatSessionPurposeVideo].GroupID)
+	require.NotEmpty(t, got.Workspaces[service.NextChatSessionPurposeVideo].Models.Groups)
 }
 
 func TestNextChatMobileScopedGroupSwitchRejectsInvalidPurpose(t *testing.T) {
@@ -861,6 +984,19 @@ func TestNextChatMobileScopedGroupSwitchRejectsInvalidPurpose(t *testing.T) {
 	require.Contains(t, recorder.Body.String(), "NEXTCHAT_INVALID_SESSION_PURPOSE")
 	require.Empty(t, issuer.purposeSwitchRequests)
 	require.Zero(t, issuer.calls, "invalid purpose must not issue a legacy chat session")
+}
+
+func TestNextChatMobileVideoGroupSwitchNeverFallsBackToChatSession(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{}, rdb)
+
+	recorder := postNextChatMobileScopedGroup(router, "Bearer valid-user", service.NextChatSessionPurposeVideo, 8)
+
+	require.Equal(t, http.StatusServiceUnavailable, recorder.Code, recorder.Body.String())
+	require.Contains(t, recorder.Body.String(), "NEXTCHAT_PURPOSE_SESSION_UNAVAILABLE")
+	require.Zero(t, issuer.calls, "video switch must not issue the legacy chat key")
+	require.Empty(t, issuer.switchRequests, "video switch must not rebind a chat key")
 }
 
 func TestNextChatMobileScopedGroupSwitchRequiresJWT(t *testing.T) {
@@ -1148,6 +1284,81 @@ func TestNextChatGroupSwitchUpdatesManagedKeyGroup(t *testing.T) {
 	require.Equal(t, int64(8), *got.ManagedAPIKey.GroupID)
 	require.Equal(t, "/v1/models", got.Models.Source)
 	require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
+}
+
+func TestNextChatScopedBFFGroupSwitchKeepsChatImageAndVideoIndependent(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteScopedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	tests := []struct {
+		purpose string
+		keyID   int64
+		groupID int64
+	}{
+		{purpose: service.NextChatSessionPurposeChat, keyID: 123, groupID: 8},
+		{purpose: service.NextChatSessionPurposeImage, keyID: 456, groupID: 7},
+		{purpose: service.NextChatSessionPurposeVideo, keyID: 789, groupID: 6},
+	}
+	for _, tc := range tests {
+		t.Run(tc.purpose, func(t *testing.T) {
+			recorder := postNextChatBFF(router, "/api/v1/nextchat/sessions/"+tc.purpose+"/group", "server-secret", 42, tc.keyID, `{"group_id":`+strconv.FormatInt(tc.groupID, 10)+`}`)
+			require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+			got := decodeNextChatRouteResponse[struct {
+				Purpose       string                          `json:"purpose"`
+				ManagedAPIKey service.NextChatWorkspaceAPIKey `json:"managed_api_key"`
+				Models        service.NextChatWorkspaceModels `json:"models"`
+			}](t, recorder)
+			require.Equal(t, tc.purpose, got.Purpose)
+			require.Equal(t, tc.keyID, got.ManagedAPIKey.ID)
+			require.Equal(t, "/v1/models", got.Models.Source)
+			require.NotContains(t, recorder.Body.String(), "sk-managed-nextchat")
+		})
+	}
+	require.Equal(t, int64(8), issuer.selectedGroups[service.NextChatSessionPurposeChat])
+	require.Equal(t, int64(7), issuer.selectedGroups[service.NextChatSessionPurposeImage])
+	require.Equal(t, int64(6), issuer.selectedGroups[service.NextChatSessionPurposeVideo])
+}
+
+func TestNextChatScopedBFFGroupSwitchReturnsPurposePinnedReplacement(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteGroupPinnedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/sessions/image/group", "server-secret", 42, 456, `{"group_id":8}`)
+	require.Equal(t, http.StatusOK, recorder.Code, recorder.Body.String())
+	got := decodeNextChatRouteResponse[struct {
+		Purpose        string                          `json:"purpose"`
+		SessionBinding string                          `json:"session_binding"`
+		Session        nextChatSessionResponse         `json:"session"`
+		ManagedAPIKey  service.NextChatWorkspaceAPIKey `json:"managed_api_key"`
+	}](t, recorder)
+	require.Equal(t, service.NextChatSessionPurposeImage, got.Purpose)
+	require.Equal(t, service.NextChatGroupPinnedSessionBinding, got.SessionBinding)
+	require.NotEqual(t, int64(456), got.Session.KeyID)
+	require.Equal(t, got.Session.KeyID, got.ManagedAPIKey.ID)
+	require.Equal(t, service.NextChatGroupPinnedSessionBinding, got.Session.Binding)
+	require.NotNil(t, got.Session.GroupID)
+	require.Equal(t, int64(8), *got.Session.GroupID)
+}
+
+func TestNextChatScopedBFFGroupSwitchRejectsMismatchedManagedKey(t *testing.T) {
+	_, rdb := newNextChatRouteRedis(t)
+	issuer := &nextChatRouteScopedIssuerStub{}
+	router := newNextChatRouteTestRouter(t, nextChatRouteGateStub{enabled: true}, issuer, &config.Config{
+		NextChat: config.NextChatConfig{ExchangeSecret: "server-secret"},
+	}, rdb)
+
+	recorder := postNextChatBFF(router, "/api/v1/nextchat/sessions/image/group", "server-secret", 42, 123, `{"group_id":8}`)
+	require.Equal(t, http.StatusUnauthorized, recorder.Code, recorder.Body.String())
+	require.Empty(t, issuer.selectedGroups)
+
+	invalid := postNextChatBFF(router, "/api/v1/nextchat/sessions/admin/group", "server-secret", 42, 123, `{"group_id":8}`)
+	require.Equal(t, http.StatusBadRequest, invalid.Code, invalid.Body.String())
 }
 
 func TestNextChatImageStudioModelsUsesBFFIdentity(t *testing.T) {

@@ -901,7 +901,7 @@ func (r *usageBillingRepository) reserveBatchImageBalanceWithLedger(ctx context.
 	if cmd.HoldAmount <= 0 {
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
-	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, "image_balance_hold", -cmd.HoldAmount, cmd.HoldAmount, "图片余额预留", service.BalanceLedgerPolicyRejectNegative)
+	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, balanceHoldLedgerSource(cmd, "hold"), -cmd.HoldAmount, cmd.HoldAmount, balanceHoldLedgerDescription(cmd, "hold"), service.BalanceLedgerPolicyRejectNegative)
 	if errors.Is(err, service.ErrBalanceLedgerInsufficientBalance) {
 		return nil, service.ErrBatchImageInsufficientBalance
 	}
@@ -924,7 +924,7 @@ func (r *usageBillingRepository) captureBatchImageBalanceWithLedger(ctx context.
 	} else if cmd.ActualAmount > cmd.HoldAmount {
 		balanceDelta = -(cmd.ActualAmount - cmd.HoldAmount)
 	}
-	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, "image_balance_capture", balanceDelta, -cmd.HoldAmount, "图片费用结算", service.BalanceLedgerPolicyAllowOverdraft)
+	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, balanceHoldLedgerSource(cmd, "capture"), balanceDelta, -cmd.HoldAmount, balanceHoldLedgerDescription(cmd, "capture"), service.BalanceLedgerPolicyAllowOverdraft)
 	if errors.Is(err, service.ErrBalanceLedgerInsufficientBalance) {
 		if exists, existsErr := userExistsForBilling(ctx, tx, cmd.UserID); existsErr != nil {
 			return nil, existsErr
@@ -943,7 +943,7 @@ func (r *usageBillingRepository) releaseBatchImageBalanceWithLedger(ctx context.
 	if cmd.HoldAmount <= 0 {
 		return &service.BatchImageBalanceHoldResult{}, nil
 	}
-	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, "image_balance_release", cmd.HoldAmount, -cmd.HoldAmount, "图片预留释放", service.BalanceLedgerPolicyRejectNegative)
+	transaction, err := r.applyBatchImageBalanceLedgerDelta(ctx, tx, cmd, balanceHoldLedgerSource(cmd, "release"), cmd.HoldAmount, -cmd.HoldAmount, balanceHoldLedgerDescription(cmd, "release"), service.BalanceLedgerPolicyRejectNegative)
 	if errors.Is(err, service.ErrBalanceLedgerInsufficientBalance) {
 		if exists, existsErr := userExistsForBilling(ctx, tx, cmd.UserID); existsErr != nil {
 			return nil, existsErr
@@ -972,6 +972,7 @@ func (r *usageBillingRepository) applyBatchImageBalanceLedgerDelta(
 		return nil, service.ErrBalanceLedgerUnavailable
 	}
 	metadata := map[string]any{
+		"kind":                  strings.TrimSpace(cmd.Kind),
 		"request_id":            strings.TrimSpace(cmd.RequestID),
 		"hold_request_id":       strings.TrimSpace(cmd.HoldRequestID),
 		"capture_request_id":    strings.TrimSpace(cmd.CaptureRequestID),
@@ -984,12 +985,12 @@ func (r *usageBillingRepository) applyBatchImageBalanceLedgerDelta(
 		"request_payload_hash":  strings.TrimSpace(cmd.RequestPayloadHash),
 		"request_fingerprint":   strings.TrimSpace(cmd.RequestFingerprint),
 	}
-	if sourceType != "image_balance_hold" && balanceDelta > 0 {
+	if sourceType != balanceHoldLedgerSource(cmd, "hold") && balanceDelta > 0 {
 		holdRequestID := strings.TrimSpace(cmd.HoldRequestID)
 		if holdRequestID == "" {
 			holdRequestID = service.BatchImageHoldRequestID(cmd.BatchID)
 		}
-		metadata["restore_ledger_key"] = batchImageBalanceLedgerKey("image_balance_hold", cmd.APIKeyID, holdRequestID)
+		metadata["restore_ledger_key"] = batchImageBalanceLedgerKey(balanceHoldLedgerSource(cmd, "hold"), cmd.APIKeyID, holdRequestID)
 	}
 	return r.balanceLedger.ApplyDeltaInSQLTx(ctx, tx, service.BalanceLedgerApplyInput{
 		UserID:         cmd.UserID,
@@ -1004,6 +1005,39 @@ func (r *usageBillingRepository) applyBatchImageBalanceLedgerDelta(
 		BalancePolicy:  balancePolicy,
 		FrozenPolicy:   service.BalanceLedgerPolicyRejectNegative,
 	})
+}
+
+func balanceHoldLedgerSource(cmd *service.BatchImageBalanceHoldCommand, operation string) string {
+	kind := service.BalanceHoldKindImage
+	if cmd != nil && strings.EqualFold(strings.TrimSpace(cmd.Kind), service.BalanceHoldKindMobileVideo) {
+		kind = service.BalanceHoldKindMobileVideo
+	}
+	prefix := "image"
+	if kind == service.BalanceHoldKindMobileVideo {
+		prefix = "video"
+	}
+	return prefix + "_balance_" + strings.TrimSpace(operation)
+}
+
+func balanceHoldLedgerDescription(cmd *service.BatchImageBalanceHoldCommand, operation string) string {
+	if cmd != nil && strings.EqualFold(strings.TrimSpace(cmd.Kind), service.BalanceHoldKindMobileVideo) {
+		switch operation {
+		case "hold":
+			return "视频余额预留"
+		case "capture":
+			return "视频费用结算"
+		case "release":
+			return "视频预留释放"
+		}
+	}
+	switch operation {
+	case "hold":
+		return "图片余额预留"
+	case "capture":
+		return "图片费用结算"
+	default:
+		return "图片预留释放"
+	}
 }
 
 func batchImageBalanceLedgerKey(sourceType string, apiKeyID int64, requestID string) string {

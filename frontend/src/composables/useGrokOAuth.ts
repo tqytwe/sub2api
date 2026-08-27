@@ -152,7 +152,7 @@ export function useGrokOAuth() {
     proxyId?: number | null
   ): Promise<GrokTokenInfo | null> => {
     if (!ssoToken.trim()) {
-      error.value = t('admin.accounts.oauth.grok.pleaseEnterSSOToken', 'Please enter an SSO token')
+      error.value = t('admin.accounts.oauth.grok.pleaseEnterSSOToken')
       return null
     }
     loading.value = true
@@ -164,7 +164,7 @@ export function useGrokOAuth() {
         err,
         t,
         'admin.accounts.oauth.grok.errors',
-        t('admin.accounts.oauth.grok.failedToValidateSSO', 'Failed to validate SSO token')
+        t('admin.accounts.oauth.grok.failedToValidateSSO')
       )
       appStore.showError(error.value)
       return null
@@ -178,7 +178,7 @@ export function useGrokOAuth() {
     proxyId?: number | null
   ): Promise<GrokTokenInfo | null> => {
     if (!emailAndPassword.trim()) {
-      error.value = t('admin.accounts.oauth.grok.pleaseEnterPassword', 'Please enter email----password')
+      error.value = t('admin.accounts.oauth.grok.pleaseEnterPassword')
       return null
     }
     loading.value = true
@@ -190,7 +190,7 @@ export function useGrokOAuth() {
         err,
         t,
         'admin.accounts.oauth.grok.errors',
-        t('admin.accounts.oauth.grok.failedToAuthorizePassword', 'Password authorization failed')
+        t('admin.accounts.oauth.grok.failedToAuthorizePassword')
       )
       appStore.showError(error.value)
       return null

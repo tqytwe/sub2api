@@ -139,7 +139,7 @@
                 <!-- Header: platform badge + plan name -->
                 <div class="mb-3 flex flex-wrap items-center gap-2">
                   <span :class="['rounded-md border px-2 py-0.5 text-xs font-medium', planBadgeClass]">
-                    {{ platformLabel(planDisplayPlatform(selectedPlan)) }}
+                    {{ platformLabel(planDisplayPlatform(selectedPlan), localeCode) }}
                   </span>
                   <h3 class="text-lg font-bold text-gray-900 dark:text-white">{{ planDisplayName(selectedPlan) }}</h3>
                 </div>
@@ -293,7 +293,7 @@
                     <div class="min-w-0 flex-1">
                       <div class="flex items-center gap-1.5">
                         <span class="truncate text-xs font-semibold text-gray-900 dark:text-white">{{ sub.group?.name || t('payment.groupFallback', { id: sub.group_id }) }}</span>
-                        <span :class="['shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium', platformBadgeLightClass(sub.group?.platform || '')]">{{ platformLabel(sub.group?.platform || '') }}</span>
+                        <span :class="['shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-medium', platformBadgeLightClass(sub.group?.platform || '')]">{{ platformLabel(sub.group?.platform || '', localeCode) }}</span>
                       </div>
                       <div class="flex flex-wrap gap-x-3 text-[11px] text-gray-400 dark:text-gray-500">
                         <span>{{ t('payment.planCard.rate') }}: ×{{ sub.group?.rate_multiplier ?? 1 }}</span>
@@ -362,7 +362,7 @@
                   <div>
                     <div class="flex flex-wrap items-center gap-2">
                       <span :class="['rounded-md border px-2 py-0.5 text-xs font-medium', platformBadgeClass(planDisplayPlatform(selectedPlanDetails))]">
-                        {{ platformLabel(planDisplayPlatform(selectedPlanDetails)) }}
+                        {{ platformLabel(planDisplayPlatform(selectedPlanDetails), localeCode) }}
                       </span>
                       <span v-if="planDisplayCategory(selectedPlanDetails)" class="rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-xs font-medium text-gray-600 dark:border-dark-600 dark:bg-dark-800 dark:text-gray-300">
                         {{ planCategoryLabel(planDisplayCategory(selectedPlanDetails)) }}

@@ -15,7 +15,7 @@ import (
 // existing behavior.
 const (
 	mobileProtocolVersion                  = 2
-	mobileProtocolContractVersion          = "2026-08-05.2"
+	mobileProtocolContractVersion          = "2026-08-26.1"
 	mobileProtocolLifecycleRegistryVersion = 1
 
 	mobileProtocolLifecycleCanonical = "canonical"
@@ -342,7 +342,17 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/sessions/chat/switch-group", canonical, "切换聊天分组，不影响生图分组"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/sessions/image/switch-group", canonical, "切换生图分组，不影响聊天分组"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/sessions/:purpose/switch-group", canonical, "按用途切换分组，不创建或切换聊天会话"),
-		mobileEndpoint(http.MethodPost, "/api/v1/mobile/tasks", canonical, "创建聊天、生图、文件统一任务"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/bootstrap", canonical, "读取当前用户可执行的视频分组、模型能力和受限诊断"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/models", canonical, "读取当前用户视频模型能力目录"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/video/estimate", canonical, "预估声明视频能力的单次费用"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs", mobileOperationTaskSubmit, "high", "提交独立 video purpose 的异步视频任务"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/jobs", canonical, "读取当前用户的视频任务历史"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/jobs/:id", canonical, "读取单个视频任务"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/cancel", mobileOperationTaskSubmit, "medium", "取消可取消的视频任务"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/retry", mobileOperationTaskSubmit, "high", "用新的客户端请求标识重试视频任务"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/jobs/:id/content", canonical, "读取私有化保存的视频结果"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/content/ack", mobileOperationTaskSubmit, "medium", "确认消费后释放临时视频结果"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/tasks", canonical, "创建聊天、生图、文件统一任务（视频使用专用接口）"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/tasks", canonical, "统一任务历史"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/tasks/:id", canonical, "读取单个统一任务"),
 		mobileEndpoint(http.MethodDelete, "/api/v1/mobile/tasks/:id", canonical, "软删除任务记录"),

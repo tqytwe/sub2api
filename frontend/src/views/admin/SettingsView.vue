@@ -2343,16 +2343,16 @@
 
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Client ID</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ localText('客户端 ID', 'Client ID') }}</label>
                         <input
                           v-model="form.github_oauth_client_id"
                           type="text"
                           class="input font-mono text-sm"
-                          placeholder="GitHub OAuth Client ID"
+                          :placeholder="localText('GitHub OAuth 客户端 ID', 'GitHub OAuth Client ID')"
                         />
                       </div>
                       <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Client Secret</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ localText('客户端密钥', 'Client Secret') }}</label>
                         <input
                           v-model="form.github_oauth_client_secret"
                           type="password"
@@ -2360,7 +2360,7 @@
                           :placeholder="
                             form.github_oauth_client_secret_configured
                               ? localText('密钥已配置，留空以保留当前值。', 'Secret configured. Leave empty to keep the current value.')
-                              : 'GitHub OAuth Client Secret'
+                              : localText('GitHub OAuth 客户端密钥', 'GitHub OAuth Client Secret')
                           "
                         />
                       </div>
@@ -2437,16 +2437,16 @@
 
                     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
                       <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Client ID</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ localText('客户端 ID', 'Client ID') }}</label>
                         <input
                           v-model="form.google_oauth_client_id"
                           type="text"
                           class="input font-mono text-sm"
-                          placeholder="Google OAuth Client ID"
+                          :placeholder="localText('Google OAuth 客户端 ID', 'Google OAuth Client ID')"
                         />
                       </div>
                       <div>
-                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Client Secret</label>
+                        <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{{ localText('客户端密钥', 'Client Secret') }}</label>
                         <input
                           v-model="form.google_oauth_client_secret"
                           type="password"
@@ -2454,7 +2454,7 @@
                           :placeholder="
                             form.google_oauth_client_secret_configured
                               ? localText('密钥已配置，留空以保留当前值。', 'Secret configured. Leave empty to keep the current value.')
-                              : 'Google OAuth Client Secret'
+                              : localText('Google OAuth 客户端密钥', 'Google OAuth Client Secret')
                           "
                         />
                       </div>

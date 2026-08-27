@@ -347,7 +347,7 @@
               value === 'expired' ? 'badge-danger' :
               'badge-gray'
             ]">
-              {{ t('keys.status.' + value) }}
+              {{ keyStatusLabel(value) }}
             </span>
           </template>
 
@@ -1164,6 +1164,7 @@ import type { Column } from '@/components/common/types'
 import type { BatchApiKeyUsageStats } from '@/api/usage'
 import type { SubscriptionPlan } from '@/types/payment'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import { maskApiKey } from '@/utils/maskApiKey'
 import {
   buildCcSwitchImportDeeplink,
@@ -1397,6 +1398,9 @@ const statusOptions = computed(() => [
   { value: 'active', label: t('common.active') },
   { value: 'inactive', label: t('common.inactive') }
 ])
+
+const keyStatusLabel = (status: unknown): string =>
+  localizedEnumOrUnknown(t, `keys.status.${String(status ?? '').trim()}`)
 
 const shouldSubmitEditStatus = (key: ApiKey, status: 'active' | 'inactive') => {
   if (key.status === 'quota_exhausted' || key.status === 'expired') {

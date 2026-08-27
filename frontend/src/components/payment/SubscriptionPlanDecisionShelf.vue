@@ -29,7 +29,7 @@
         </div>
         <div class="absolute left-4 top-4 flex flex-wrap gap-2">
           <span :class="['rounded-md border px-2 py-1 text-xs font-semibold shadow-sm backdrop-blur', platformBadgeClass(displayPlatform(spotlightPlan))]">
-            {{ platformLabel(displayPlatform(spotlightPlan)) }}
+            {{ platformLabel(displayPlatform(spotlightPlan), locale) }}
           </span>
           <span
             v-for="badge in storefrontBadges(spotlightPlan)"
@@ -147,7 +147,7 @@
           <div class="min-w-0">
             <div class="mb-1 flex flex-wrap items-center gap-1.5">
               <span :class="['rounded border px-1.5 py-0.5 text-[10px] font-semibold', platformBadgeClass(displayPlatform(plan))]">
-                {{ platformLabel(displayPlatform(plan)) }}
+                {{ platformLabel(displayPlatform(plan), locale) }}
               </span>
               <span
                 v-for="badge in storefrontBadges(plan)"
@@ -216,7 +216,7 @@ const props = defineProps<{
   defaultPlanId?: number | null
 }>()
 const emit = defineEmits<{ select: [plan: SubscriptionPlan]; details: [plan: SubscriptionPlan] }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const spotlightPlanId = ref<number | null>(null)
 

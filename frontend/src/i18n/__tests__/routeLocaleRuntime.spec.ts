@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   ROUTE_LOCALE_SCOPES,
@@ -28,11 +28,34 @@ function translated(locale: 'zh' | 'en', path: string): string {
   return value as string
 }
 
+async function loadFreshI18n() {
+  // The production loader caches already loaded scopes. A fresh module proves
+  // the first browser visit receives its full URL-derived fragment union.
+  vi.resetModules()
+  return import('../index')
+}
+
 const ROUTE_RUNTIME_KEYS = {
   Dashboard: ['dashboard.title'],
   Keys: ['keys.title'],
-  BatchImageGuide: ['batchImageGuide.title'],
-  Usage: ['usage.title', 'usage.tabs.errors'],
+  BatchImageGuide: ['batchImageGuide.title', 'batchImage.create.apiKey'],
+  Usage: [
+    'usage.title',
+    'usage.tabs.errors',
+    'usage.time',
+    'usage.reasoningEffort',
+    'usage.inboundEndpoint',
+    'usage.rate',
+    'usage.userBilled',
+    'usage.original',
+    'usage.firstToken',
+    'usage.duration',
+    'admin.usage.ipAddress',
+    'admin.usage.inputTokens',
+    'admin.usage.outputTokens',
+    'admin.usage.cacheReadTokens',
+    'admin.usage.cacheCreationTokens',
+  ],
   Wallet: ['wallet.title'],
   AICreationSpace: ['imageStudio.title', 'promptLibrary.panel.title'],
   PlayHub: ['playHub.title'],
@@ -40,7 +63,7 @@ const ROUTE_RUNTIME_KEYS = {
   Affiliate: ['affiliate.title'],
   UserAvailableChannels: ['availableChannels.title'],
   Profile: ['profile.title'],
-  Subscriptions: ['userSubscriptions.title'],
+  Subscriptions: ['userSubscriptions.title', 'userSubscriptions.status.suspended'],
   PurchaseSubscription: ['payment.title'],
   OrderList: ['payment.orders.title'],
   AdminDashboard: ['admin.dashboard.title'],
@@ -49,7 +72,7 @@ const ROUTE_RUNTIME_KEYS = {
   AdminGroups: ['admin.groups.title', 'admin.accounts.status.active'],
   AdminChannels: ['admin.channels.title'],
   AdminRiskControl: ['admin.riskControl.proxy', 'admin.riskControl.proxyHint'],
-  AdminAccounts: ['admin.accounts.title'],
+  AdminAccounts: ['admin.accounts.title', 'admin.accounts.vertexDesc'],
   AdminProxies: ['admin.proxies.title', 'admin.accounts.status.active'],
   AdminIPRisk: ['admin.ipRisk.title', 'admin.accounts.status.active'],
   AdminIPRiskActions: ['admin.ipRisk.actionsView.title', 'admin.accounts.status.active'],
@@ -65,7 +88,65 @@ const ROUTE_RUNTIME_KEYS = {
   ],
 } as const
 
+const MODEL_CATALOG_MEDIA_CAPABILITY_KEYS = [
+  'admin.modelCatalog.mediaCapabilities.undeclared',
+  'admin.modelCatalog.mediaCapabilities.chat',
+  'admin.modelCatalog.mediaCapabilities.image',
+  'admin.modelCatalog.mediaCapabilities.video',
+  'admin.modelCatalog.mediaCapabilities.audio',
+  'admin.modelCatalog.mediaCapabilities.validation.modalities_required',
+  'admin.modelCatalog.mediaCapabilities.validation.version_required',
+  'admin.modelCatalog.mediaCapabilities.validation.adapter_required',
+  'admin.modelCatalog.mediaCapabilities.validation.image_operations_required',
+  'admin.modelCatalog.mediaCapabilities.validation.video_operations_required',
+  'admin.modelCatalog.mediaCapabilities.validation.image_operations_invalid',
+  'admin.modelCatalog.mediaCapabilities.validation.video_operations_invalid',
+  'admin.modelCatalog.mediaCapabilities.validation.image_limits_invalid',
+  'admin.modelCatalog.mediaCapabilities.validation.video_limits_invalid',
+] as const
+
 describe('route locale runtime scopes', () => {
+  it.each([
+    {
+      path: '/dashboard',
+      keys: ['nav.aiCreationSpace', 'nav.fundManagement', 'dashboard.title'],
+    },
+    {
+      path: '/admin/usage',
+      keys: [
+        'nav.aiCreationSpace',
+        'nav.fundManagement',
+        'admin.accounts.status.active',
+        'usage.totalRequests',
+        'usage.apiKeyFilter',
+        'usage.endpointDistribution',
+        'usage.tabs.usage',
+      ],
+    },
+    {
+      path: '/usage',
+      keys: [
+        'nav.aiCreationSpace',
+        'usage.title',
+        'admin.dashboard.timeRange',
+        'admin.usage.billingMode',
+      ],
+    },
+  ])('loads every shell and page fragment for a cold $path visit', async ({ path, keys }) => {
+    for (const locale of ['zh', 'en'] as const) {
+      const fresh = await loadFreshI18n()
+      await fresh.ensureLocaleMessagesForPath(path, locale)
+
+      const messages = fresh.i18n.global.getLocaleMessage(locale) as Record<string, unknown>
+      for (const key of keys) {
+        const value = readPath(messages, key)
+        expect(typeof value, `${locale}:${path}:${key}`).toBe('string')
+        expect((value as string).trim(), `${locale}:${path}:${key}`).not.toBe('')
+        expect(value, `${locale}:${path}:${key}`).not.toBe(key)
+      }
+    }
+  })
+
   it.each(['zh', 'en'] as const)('loads the AdminUsage shell keys without relying on a prior route for %s', async (locale) => {
     expect(localeScopesForRouteName('AdminUsage')).toEqual(expect.arrayContaining([
       'workspace-shell',
@@ -144,6 +225,38 @@ describe('route locale runtime scopes', () => {
     expect(translated(locale, 'imageStudio.customDimensions')).not.toBe('imageStudio.customDimensions')
     expect(translated(locale, 'imageStudio.sizeConstraint')).not.toBe('imageStudio.sizeConstraint')
     expect(translated(locale, 'promptLibrary.panel.title')).not.toBe('promptLibrary.panel.title')
+  })
+
+  it.each(['zh', 'en'] as const)('loads every dynamic media-capability label for the model catalog in %s', async (locale) => {
+    await ensureLocaleMessagesForRoute('AdminModelPlaza', locale)
+
+    for (const key of MODEL_CATALOG_MEDIA_CAPABILITY_KEYS) {
+      expect(translated(locale, key)).not.toBe(key)
+    }
+  })
+
+  it('keeps the Vertex service-account and batch submission labels in the active language', async () => {
+    await Promise.all([
+      ensureLocaleMessagesForRoute('AdminAccounts', 'zh'),
+      ensureLocaleMessagesForRoute('BatchImageGuide', 'zh'),
+      ensureLocaleMessagesForRoute('AdminAccounts', 'en'),
+      ensureLocaleMessagesForRoute('BatchImageGuide', 'en'),
+    ])
+
+    expect(translated('zh', 'admin.accounts.vertexDesc')).toBe('服务账号')
+    expect(translated('en', 'admin.accounts.vertexDesc')).toBe('Service Account')
+    expect(translated('zh', 'batchImage.create.apiKey')).toBe('提交密钥')
+    expect(translated('en', 'batchImage.create.apiKey')).toBe('API key')
+  })
+
+  it('loads the suspended subscription status from the active route fragment', async () => {
+    await Promise.all([
+      ensureLocaleMessagesForRoute('Subscriptions', 'zh'),
+      ensureLocaleMessagesForRoute('Subscriptions', 'en'),
+    ])
+
+    expect(translated('zh', 'userSubscriptions.status.suspended')).toBe('已暂停')
+    expect(translated('en', 'userSubscriptions.status.suspended')).toBe('Suspended')
   })
 
   it.each([

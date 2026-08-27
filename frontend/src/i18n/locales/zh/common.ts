@@ -105,6 +105,7 @@ export default {
     today: '今天',
     tomorrow: '明天',
     unknown: '未知',
+    unknownStatus: '未知状态',
     minutes: '分钟',
     time: {
       never: '从未',
@@ -408,6 +409,7 @@ export default {
       wechatAvailabilityUnknown: '暂时无法确认微信登录可用性，请刷新后重试。',
       wechatSystemBrowserOnly: '当前微信登录流程仅支持在系统浏览器中继续。',
       wechatBrowserOnly: '当前微信登录流程仅支持在微信内置浏览器中继续。',
+      wechatNativeAppOnly: '当前仅配置微信移动应用登录，请在原生 App 中通过微信 SDK 发起授权。',
       wechatNotConfigured: '微信登录尚未配置。'
     },
     linuxdoCallbackPageTitle: 'LinuxDo 登录回调',

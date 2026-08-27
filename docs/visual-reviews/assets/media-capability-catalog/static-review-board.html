@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Media capability catalog review</title>
+  <style>
+    :root { color-scheme: light; font-family: Arial, "Noto Sans SC", sans-serif; }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: #f3f4f6; color: #111827; }
+    .board { width: 1440px; min-height: 900px; padding: 40px 48px; margin: 0 auto; }
+    .eyebrow { margin: 0 0 8px; color: #6b7280; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: 30px; line-height: 38px; }
+    .lead { max-width: 900px; margin: 10px 0 28px; color: #4b5563; font-size: 15px; line-height: 23px; }
+    .shell { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 650px; border: 1px solid #d1d5db; background: #fff; }
+    .side { padding: 20px 16px; border-right: 1px solid #e5e7eb; color: #4b5563; font-size: 14px; line-height: 34px; }
+    .side strong { display: block; color: #111827; font-size: 16px; }
+    .side .active { margin: 4px -8px; padding: 0 8px; border-radius: 6px; background: #e5e7eb; color: #111827; font-weight: 700; }
+    .workspace { min-width: 0; padding: 24px 32px; background: #f9fafb; }
+    .topline { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
+    h2 { margin: 0; font-size: 22px; line-height: 30px; }
+    .sub { margin: 4px 0 0; color: #6b7280; font-size: 13px; }
+    .button { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 14px; background: #fff; color: #374151; font-size: 14px; font-weight: 600; }
+    .button.primary { border-color: #2563eb; background: #2563eb; color: #fff; }
+    .table { margin-top: 22px; overflow: hidden; border: 1px solid #d1d5db; background: #fff; }
+    .tr { display: grid; grid-template-columns: minmax(220px, 1.5fr) 120px 1fr 110px 110px; min-height: 52px; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid #e5e7eb; font-size: 13px; }
+    .tr:last-child { border-bottom: 0; }
+    .th { min-height: 42px; color: #6b7280; font-size: 12px; font-weight: 700; }
+    .model { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 700; }
+    .chip { display: inline-flex; width: fit-content; min-height: 24px; align-items: center; border: 1px solid #bae6fd; border-radius: 999px; padding: 0 8px; background: #f0f9ff; color: #0369a1; font-size: 12px; font-weight: 700; }
+    .chip.video { border-color: #ddd6fe; background: #f5f3ff; color: #6d28d9; }
+    .hint { color: #6b7280; font-size: 12px; }
+    .overlay { position: absolute; inset: 0; background: rgba(15, 23, 42, .20); }
+    .dialog { position: absolute; top: 132px; left: 50%; width: 820px; transform: translateX(-50%); border: 1px solid #cbd5e1; border-radius: 12px; background: #fff; box-shadow: 0 20px 40px rgba(15, 23, 42, .22); }
+    .dialog-head, .dialog-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 16px 20px; border-bottom: 1px solid #e5e7eb; }
+    .dialog-head h3 { margin: 0; font-size: 18px; }
+    .close { border: 0; background: transparent; color: #6b7280; font-size: 22px; }
+    .dialog-body { display: grid; gap: 18px; padding: 20px; }
+    .dialog-footer { justify-content: flex-end; border-top: 1px solid #e5e7eb; border-bottom: 0; }
+    .field-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field label, .capability-title { display: block; margin-bottom: 6px; color: #374151; font-size: 13px; font-weight: 700; }
+    .input { display: flex; min-height: 40px; align-items: center; border: 1px solid #cbd5e1; border-radius: 6px; padding: 0 10px; background: #fff; color: #111827; font-size: 14px; }
+    .media-section { padding-top: 18px; border-top: 1px solid #e5e7eb; }
+    .capability-intro { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+    .capability-intro p { margin: 0; color: #6b7280; font-size: 12px; line-height: 18px; }
+    .check-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+    .check { display: flex; min-height: 40px; align-items: center; gap: 8px; border: 1px solid #d1d5db; border-radius: 6px; padding: 0 10px; color: #374151; font-size: 13px; }
+    .check.checked { border-color: #93c5fd; background: #eff6ff; color: #1d4ed8; font-weight: 700; }
+    .check input { width: 16px; height: 16px; accent-color: #2563eb; }
+    .operation-row { display: grid; grid-template-columns: 1.2fr 1.2fr 1fr; gap: 12px; margin-top: 12px; }
+    .inline-note { margin: 8px 0 0; color: #6b7280; font-size: 12px; line-height: 18px; }
+    .alert { display: flex; align-items: flex-start; gap: 8px; border: 1px solid #bfdbfe; border-radius: 6px; padding: 10px 12px; background: #eff6ff; color: #1e3a8a; font-size: 12px; line-height: 18px; }
+    .baseline .media-section { opacity: .42; }
+    .baseline .media-section::after { content: "Current form: media capability is not declared"; display: block; margin-top: 10px; color: #991b1b; font-size: 13px; font-weight: 700; }
+    .baseline .dialog { width: 700px; }
+    .baseline .field-grid { grid-template-columns: 1fr; }
+  </style>
+</head>
+<body>
+  <main class="board">
+    <p class="eyebrow">Static review board</p>
+    <h1>媒体能力目录：管理员声明，三端消费</h1>
+    <p class="lead">模型名称、分组、价格和映射保持原样。管理员只在模型目录声明可验证的能力，主站、创作空间和 APP 从同一服务端合同读取结果。</p>
+    <section class="shell">
+      <aside class="side"><strong>极速蹬</strong><div>仪表盘</div><div>账号管理</div><div>分组管理</div><div class="active">模型广场</div><div>系统设置</div></aside>
+      <section class="workspace">
+        <div class="topline"><div><h2>模型目录</h2><p class="sub">目录元数据不会修改账号、分组、价格或白名单。</p></div><button class="button primary">新增模型</button></div>
+        <div class="table" aria-label="模型目录表格">
+          <div class="tr th"><span>模型</span><span>接口平台</span><span>媒体能力</span><span>登录可见</span><span>操作</span></div>
+          <div class="tr"><span class="model">sensenova-u1.5-lite</span><span>openai</span><span class="chip">图片：生成、编辑</span><span>已启用</span><span><button class="button">编辑</button></span></div>
+          <div class="tr"><span class="model">sensenova-u1-fast</span><span>openai</span><span class="chip">图片：生成</span><span>已启用</span><span><button class="button">编辑</button></span></div>
+          <div class="tr"><span class="model">视频模型（原始名称）</span><span>openai</span><span class="chip video">视频：生成</span><span>已启用</span><span><button class="button">编辑</button></span></div>
+        </div>
+      </section>
+    </section>
+    <div class="overlay"></div>
+    <section class="dialog" id="dialog" aria-label="编辑站点模型">
+      <header class="dialog-head"><h3>编辑站点模型</h3><button class="close" aria-label="关闭">×</button></header>
+      <div class="dialog-body">
+        <div class="field-grid"><div class="field"><label>模型名</label><div class="input model">sensenova-u1.5-lite</div></div><div class="field"><label>接口平台 / 协议</label><div class="input">openai</div></div></div>
+        <section class="media-section">
+          <div class="capability-intro"><div><span class="capability-title">媒体能力</span><p>只声明当前适配器实际支持的能力；未知或不完整能力不会伪装为可用。</p></div><span class="hint">能力版本：v1</span></div>
+          <div class="check-grid"><label class="check"><input type="checkbox"> 对话</label><label class="check checked"><input type="checkbox" checked> 图片</label><label class="check"><input type="checkbox"> 视频</label><label class="check"><input type="checkbox"> 音频</label></div>
+          <div class="operation-row"><div class="field"><label>图片操作</label><div class="input">生成、编辑</div></div><div class="field"><label>输出格式</label><div class="input">PNG、JPEG、WebP</div></div><div class="field"><label>执行适配器</label><div class="input">SenseNova U1.5</div></div></div>
+          <p class="inline-note">尺寸：512-4096，32 的倍数，最大比例 3:1。参考图和编辑能力由适配器校验；用户 API 不会接受未声明的操作。</p>
+          <div class="alert"><span>i</span><span>发布前检查：模型还需通过可调度账号映射、用户分组授权、有效价格和适配器验证，才会出现在对应端的可用列表中。</span></div>
+        </section>
+      </div>
+      <footer class="dialog-footer"><button class="button">取消</button><button class="button primary">保存</button></footer>
+    </section>
+  </main>
+  <script>
+    if (new URLSearchParams(location.search).get('variant') === 'baseline') {
+      document.body.classList.add('baseline');
+      document.querySelector('h1').textContent = '基线：模型目录缺少可消费的媒体能力声明';
+      document.querySelector('.lead').textContent = '模型名称和分组仍存在，但三端只能靠名称猜测，新增模型会被错误隐藏。';
+    }
+  </script>
+</body>
+</html>

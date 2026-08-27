@@ -66,6 +66,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       ])
       return { default: mergeLocaleMessages(legacy.default, dashboard.default) }
     },
+    'user-usage': () => import('./locales/en/userUsage'),
     'user-wallet': () => import('./locales/en/wallet'),
     'user-batch': () => import('./locales/en/batchImage'),
     'user-misc': async () => {
@@ -167,6 +168,7 @@ const localeLoaders: Record<LocaleCode, Record<LocaleLoadScope, LocaleLoader>> =
       ])
       return { default: mergeLocaleMessages(legacy.default, dashboard.default) }
     },
+    'user-usage': () => import('./locales/zh/userUsage'),
     'user-wallet': () => import('./locales/zh/wallet'),
     'user-batch': () => import('./locales/zh/batchImage'),
     'user-misc': async () => {

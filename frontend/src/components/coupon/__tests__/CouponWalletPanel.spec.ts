@@ -11,9 +11,17 @@ vi.mock('@/api/coupon', () => ({
 
 vi.mock('vue-i18n', async () => {
   const actual = await vi.importActual<typeof import('vue-i18n')>('vue-i18n')
+  const labels: Record<string, string> = {
+    'common.unknownStatus': 'Unknown status',
+    'coupon.wallet.status.available': 'Available',
+    'coupon.wallet.status.locked': 'Locked',
+    'coupon.wallet.status.used': 'Used',
+    'coupon.wallet.status.expired': 'Expired',
+    'coupon.wallet.status.voided': 'Voided',
+  }
   return {
     ...actual,
-    useI18n: () => ({ t: (key: string) => key, locale: 'en' }),
+    useI18n: () => ({ t: (key: string) => labels[key] ?? key, locale: 'en' }),
   }
 })
 
@@ -104,7 +112,7 @@ describe('CouponWalletPanel', () => {
     await flushPromises()
 
     expect(getMyCoupons).toHaveBeenLastCalledWith({ page: 1, page_size: 10, status: 'locked' })
-    expect(wrapper.text()).toContain('locked')
+    expect(wrapper.text()).toContain('Locked')
     expect(wrapper.text()).toContain('coupon.wallet.lockedHint')
     expect(wrapper.find('span.bg-amber-50').exists()).toBe(true)
     expect(wrapper.findAll('a')).toHaveLength(0)
@@ -152,5 +160,26 @@ describe('CouponWalletPanel', () => {
 
     expect(wrapper.text()).not.toContain('Account A coupon')
     expect(wrapper.text()).toContain('Account B coupon')
+  })
+
+  it('uses the localized unknown-state label for a newer coupon status', async () => {
+    getMyCoupons.mockResolvedValue({
+      data: {
+        items: [{ ...coupon, status: 'awaiting_reconciliation' as never }],
+        total: 1,
+        page: 1,
+        page_size: 10,
+        pages: 1,
+      },
+    })
+
+    const wrapper = mount(CouponWalletPanel, {
+      global: { stubs: { RouterLink: { template: '<a><slot /></a>' } } },
+    })
+    await flushPromises()
+
+    expect(wrapper.text()).toContain('Unknown status')
+    expect(wrapper.text()).not.toContain('awaiting_reconciliation')
+    expect(wrapper.text()).not.toContain('coupon.wallet.status.awaiting_reconciliation')
   })
 })

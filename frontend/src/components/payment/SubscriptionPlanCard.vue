@@ -154,7 +154,7 @@ import {
 
 const props = defineProps<{ plan: SubscriptionPlan; activeSubscriptions?: UserSubscription[] }>()
 const emit = defineEmits<{ select: [plan: SubscriptionPlan]; details: [plan: SubscriptionPlan] }>()
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 const platform = computed(() => props.plan.group_platform || '')
 const storefrontPlatform = computed(() => props.plan.storefront_platform?.trim() || props.plan.group_platform || '')
@@ -177,7 +177,7 @@ const textClass = computed(() => platformTextClass(storefrontPlatform.value))
 const iconClass = computed(() => platformIconClass(storefrontPlatform.value))
 const btnClass = computed(() => platformButtonClass(storefrontPlatform.value))
 const discountClass = computed(() => platformDiscountClass(storefrontPlatform.value))
-const pLabel = computed(() => platformLabel(storefrontPlatform.value))
+const pLabel = computed(() => platformLabel(storefrontPlatform.value, locale.value))
 const featuredClass = computed(() => props.plan.storefront_featured ? 'ring-2 ring-primary-400/40 dark:ring-primary-500/30' : 'hover:border-primary-300 dark:hover:border-primary-500/60')
 
 const discountText = computed(() => {

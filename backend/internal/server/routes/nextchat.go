@@ -45,6 +45,22 @@ type nextChatScopedSessionIssuer interface {
 	SetNextChatManagedSessionGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*service.NextChatWorkspaceIdentity, error)
 }
 
+// nextChatImmutableScopedSessionSwitcher is implemented by the production
+// issuer. It lets a trusted Canvas BFF replace a purpose/group session with a
+// new immutable key instead of mutating the key that another request may be
+// using concurrently.
+type nextChatImmutableScopedSessionSwitcher interface {
+	SwitchNextChatManagedSessionGroup(ctx context.Context, userID, currentKeyID int64, purpose string, groupID int64) (*service.NextChatManagedSession, *service.NextChatWorkspaceIdentity, error)
+}
+
+// nextChatGroupPinnedSessionIssuer issues a fresh purpose/group-bound session
+// for first-party mobile clients. Mobile authentication already establishes
+// the user, while Canvas additionally presents the current key ID and uses the
+// stricter switcher above.
+type nextChatGroupPinnedSessionIssuer interface {
+	IssueNextChatManagedSessionForPurposeAndGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*service.NextChatManagedSession, error)
+}
+
 type nextChatFeatureGate interface {
 	IsNextChatEnabled(ctx context.Context) bool
 }
@@ -188,6 +204,9 @@ func registerNextChatRoutes(
 		})
 		nextchat.POST("/group", func(c *gin.Context) {
 			handleNextChatGroupSwitch(c, issuer, modelProvider, gate, cfg)
+		})
+		nextchat.POST("/sessions/:purpose/group", func(c *gin.Context) {
+			handleNextChatScopedGroupSwitch(c, issuer, modelProvider, gate, cfg, c.Param("purpose"))
 		})
 		registerNextChatImageStudioRoutes(nextchat, imageStudio, gate, cfg)
 	}
@@ -504,50 +523,76 @@ func handleNextChatMobileBootstrap(
 		response.Unauthorized(c, "User not authenticated")
 		return
 	}
-	session, err := issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
+	payload, err := buildNextChatMobileBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, cfg, subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
-	}
-	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, session.UserID, session.KeyID)
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
-	payload["session"] = nextChatSessionPayload(session, expiresAt)
-	if scoped, ok := issuer.(nextChatScopedSessionIssuer); ok {
-		sessions, sessionsErr := scoped.IssueNextChatManagedSessions(c.Request.Context(), subject.UserID)
-		if sessionsErr != nil {
-			response.ErrorFrom(c, sessionsErr)
-			return
-		}
-		payload["session"] = nextChatSessionPayload(&sessions.Chat, expiresAt)
-		payload["sessions"] = gin.H{
-			service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
-			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
-			service.NextChatSessionPurposeVideo: nextChatSessionPayload(&sessions.Video, expiresAt),
-		}
-		if imagePayload, imageErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Image.UserID, sessions.Image.KeyID); imageErr == nil {
-			videoPayload, videoErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Video.UserID, sessions.Video.KeyID)
-			if videoErr != nil {
-				response.ErrorFrom(c, videoErr)
-				return
-			}
-			payload["managed_api_keys"] = gin.H{
-				service.NextChatSessionPurposeChat:  payload["managed_api_key"],
-				service.NextChatSessionPurposeImage: imagePayload["managed_api_key"],
-				service.NextChatSessionPurposeVideo: videoPayload["managed_api_key"],
-			}
-			payload["workspaces"] = gin.H{
-				service.NextChatSessionPurposeChat:  gin.H{"models": payload["models"]},
-				service.NextChatSessionPurposeImage: gin.H{"models": imagePayload["models"]},
-				service.NextChatSessionPurposeVideo: gin.H{"models": videoPayload["models"]},
-			}
-		}
 	}
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, payload)
+}
+
+// buildNextChatMobileBootstrapPayload is the complete mobile session contract.
+// Scoped group switching returns this shape as well, so clients never mistake a
+// single workspace's models for the full chat/image/video bootstrap state.
+func buildNextChatMobileBootstrapPayload(
+	ctx context.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	userID int64,
+) (gin.H, error) {
+	scoped, scopedOK := issuer.(nextChatScopedSessionIssuer)
+	var sessions *service.NextChatManagedSessions
+	var session *service.NextChatManagedSession
+	var err error
+	if scopedOK {
+		sessions, err = scoped.IssueNextChatManagedSessions(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		session = &sessions.Chat
+	} else {
+		session, err = issuer.IssueNextChatManagedSession(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+	}
+	payload, err := buildNextChatBootstrapPayload(ctx, issuer, modelProvider, gate, session.UserID, session.KeyID)
+	if err != nil {
+		return nil, err
+	}
+	expiresAt := time.Now().UTC().Add(nextChatSessionTTL(cfg))
+	payload["session"] = nextChatSessionPayload(session, expiresAt)
+	if !scopedOK {
+		return payload, nil
+	}
+	payload["session"] = nextChatSessionPayload(&sessions.Chat, expiresAt)
+	payload["sessions"] = gin.H{
+		service.NextChatSessionPurposeChat:  nextChatSessionPayload(&sessions.Chat, expiresAt),
+		service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
+		service.NextChatSessionPurposeVideo: nextChatSessionPayload(&sessions.Video, expiresAt),
+	}
+	imagePayload, err := buildNextChatBootstrapPayload(ctx, issuer, modelProvider, gate, sessions.Image.UserID, sessions.Image.KeyID)
+	if err != nil {
+		return nil, err
+	}
+	videoPayload, err := buildNextChatBootstrapPayload(ctx, issuer, modelProvider, gate, sessions.Video.UserID, sessions.Video.KeyID)
+	if err != nil {
+		return nil, err
+	}
+	payload["managed_api_keys"] = gin.H{
+		service.NextChatSessionPurposeChat:  payload["managed_api_key"],
+		service.NextChatSessionPurposeImage: imagePayload["managed_api_key"],
+		service.NextChatSessionPurposeVideo: videoPayload["managed_api_key"],
+	}
+	payload["workspaces"] = gin.H{
+		service.NextChatSessionPurposeChat:  gin.H{"models": payload["models"]},
+		service.NextChatSessionPurposeImage: gin.H{"models": imagePayload["models"]},
+		service.NextChatSessionPurposeVideo: gin.H{"models": videoPayload["models"]},
+	}
+	return payload, nil
 }
 
 func handleNextChatMobileGroupSwitch(
@@ -558,6 +603,13 @@ func handleNextChatMobileGroupSwitch(
 	cfg *config.Config,
 	purpose string,
 ) {
+	purpose = strings.ToLower(strings.TrimSpace(purpose))
+	switch purpose {
+	case service.NextChatSessionPurposeChat, service.NextChatSessionPurposeImage, service.NextChatSessionPurposeVideo:
+	default:
+		response.ErrorFrom(c, infraerrors.BadRequest("NEXTCHAT_INVALID_SESSION_PURPOSE", "session purpose must be chat, image, or video"))
+		return
+	}
 	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
 		response.NotFound(c, "NextChat is disabled")
 		return
@@ -581,44 +633,127 @@ func handleNextChatMobileGroupSwitch(
 		response.BadRequest(c, "group_id is required")
 		return
 	}
-	var session *service.NextChatManagedSession
-	var err error
-	if scoped, scopedOK := issuer.(nextChatScopedSessionIssuer); scopedOK {
-		session, err = scoped.IssueNextChatManagedSessionForPurpose(c.Request.Context(), subject.UserID, purpose)
-	} else {
-		session, err = issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
-	}
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	if scoped, scopedOK := issuer.(nextChatScopedSessionIssuer); scopedOK {
+	var (
+		err              error
+		replacement      *service.NextChatManagedSession
+		groupPinnedReply bool
+	)
+	if pinned, pinnedOK := issuer.(nextChatGroupPinnedSessionIssuer); pinnedOK && pinned != nil {
+		replacement, err = pinned.IssueNextChatManagedSessionForPurposeAndGroup(c.Request.Context(), subject.UserID, purpose, req.GroupID)
+		groupPinnedReply = err == nil
+	} else if scoped, scopedOK := issuer.(nextChatScopedSessionIssuer); scopedOK {
 		_, err = scoped.SetNextChatManagedSessionGroup(c.Request.Context(), subject.UserID, purpose, req.GroupID)
+	} else if purpose != service.NextChatSessionPurposeChat {
+		// A legacy issuer can only produce the chat key. Never let image/video
+		// group switching silently rebind that key, because a subsequent worker
+		// could execute against the wrong purpose or group.
+		response.ErrorFrom(c, infraerrors.ServiceUnavailable("NEXTCHAT_PURPOSE_SESSION_UNAVAILABLE", "scoped image/video session service is unavailable"))
+		return
 	} else {
+		var session *service.NextChatManagedSession
+		session, err = issuer.IssueNextChatManagedSession(c.Request.Context(), subject.UserID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if session == nil || session.UserID != subject.UserID || strings.TrimSpace(session.APIKey) == "" || session.KeyID <= 0 || session.Purpose != purpose {
+			response.ErrorFrom(c, infraerrors.ServiceUnavailable("NEXTCHAT_PURPOSE_SESSION_UNAVAILABLE", "scoped image/video session service is unavailable"))
+			return
+		}
 		_, err = identityProvider.SetNextChatManagedKeyGroup(c.Request.Context(), subject.UserID, session.KeyID, req.GroupID)
 	}
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	payload, err := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, session.UserID, session.KeyID)
+	payload, err := buildNextChatMobileBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, cfg, subject.UserID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
 	}
-	payload["session"] = nextChatSessionPayload(session, time.Now().UTC().Add(nextChatSessionTTL(cfg)))
+	if groupPinnedReply {
+		payload, err = replaceNextChatMobileBootstrapPurpose(c.Request.Context(), payload, issuer, modelProvider, gate, cfg, purpose, replacement)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		payload["session_binding"] = service.NextChatGroupPinnedSessionBinding
+	}
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, payload)
 }
 
 func nextChatSessionPayload(session *service.NextChatManagedSession, expiresAt time.Time) gin.H {
-	return gin.H{
+	payload := gin.H{
 		"user_id":    session.UserID,
 		"api_key":    session.APIKey,
 		"api_key_id": session.KeyID,
 		"purpose":    session.Purpose,
 		"expires_at": expiresAt,
 	}
+	if session.GroupID != nil && *session.GroupID > 0 {
+		payload["group_id"] = *session.GroupID
+	}
+	if binding := strings.TrimSpace(session.Binding); binding != "" {
+		payload["binding"] = binding
+	}
+	return payload
+}
+
+// replaceNextChatMobileBootstrapPurpose keeps the mobile response in its
+// established full-bootstrap shape while replacing exactly one purpose's key,
+// identity, and workspace. A subsequent generic bootstrap must not overwrite
+// the newly issued group-pinned session.
+func replaceNextChatMobileBootstrapPurpose(
+	ctx context.Context,
+	payload gin.H,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	purpose string,
+	session *service.NextChatManagedSession,
+) (gin.H, error) {
+	if session == nil || session.UserID <= 0 || session.KeyID <= 0 || strings.TrimSpace(session.APIKey) == "" ||
+		!strings.EqualFold(strings.TrimSpace(session.Purpose), strings.TrimSpace(purpose)) ||
+		strings.TrimSpace(session.Binding) != service.NextChatGroupPinnedSessionBinding {
+		return nil, infraerrors.ServiceUnavailable("NEXTCHAT_GROUP_PINNED_SESSION_UNAVAILABLE", "group-pinned session is unavailable")
+	}
+	replacement, err := buildNextChatBootstrapPayload(ctx, issuer, modelProvider, gate, session.UserID, session.KeyID)
+	if err != nil {
+		return nil, err
+	}
+	return replaceNextChatMobileBootstrapPurposeWithExpiry(payload, replacement, purpose, session, time.Now().UTC().Add(nextChatSessionTTL(cfg))), nil
+}
+
+func replaceNextChatMobileBootstrapPurposeWithExpiry(
+	payload gin.H,
+	replacement gin.H,
+	purpose string,
+	session *service.NextChatManagedSession,
+	expiresAt time.Time,
+) gin.H {
+	if sessions, ok := payload["sessions"].(gin.H); ok {
+		sessions[purpose] = nextChatSessionPayload(session, expiresAt)
+	} else {
+		payload["sessions"] = gin.H{purpose: nextChatSessionPayload(session, expiresAt)}
+	}
+	if keys, ok := payload["managed_api_keys"].(gin.H); ok {
+		keys[purpose] = replacement["managed_api_key"]
+	} else {
+		payload["managed_api_keys"] = gin.H{purpose: replacement["managed_api_key"]}
+	}
+	if workspaces, ok := payload["workspaces"].(gin.H); ok {
+		workspaces[purpose] = gin.H{"models": replacement["models"]}
+	} else {
+		payload["workspaces"] = gin.H{purpose: gin.H{"models": replacement["models"]}}
+	}
+	if purpose == service.NextChatSessionPurposeChat {
+		payload["session"] = nextChatSessionPayload(session, expiresAt)
+		payload["managed_api_key"] = replacement["managed_api_key"]
+		payload["models"] = replacement["models"]
+	}
+	return payload
 }
 
 func buildNextChatBootstrapPayload(
@@ -981,6 +1116,104 @@ func handleNextChatGroupSwitch(
 		"managed_api_key": identity.APIKey,
 		"models":          workspaceModels,
 	})
+}
+
+// handleNextChatScopedGroupSwitch is the Canvas BFF variant of the mobile
+// purpose-scoped group switch. A Canvas server authenticates with the exchange
+// secret and may change only the managed key whose ID it presented. This keeps
+// image and video group selection independent from the chat key.
+func handleNextChatScopedGroupSwitch(
+	c *gin.Context,
+	issuer nextChatSessionIssuer,
+	modelProvider nextChatWorkspaceModelProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+	purpose string,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	scoped, ok := issuer.(nextChatScopedSessionIssuer)
+	if !ok || scoped == nil {
+		response.Error(c, http.StatusServiceUnavailable, "NextChat scoped group switch service is unavailable")
+		return
+	}
+	if !isNextChatSessionPurpose(purpose) {
+		response.BadRequest(c, "session purpose must be chat, image, or video")
+		return
+	}
+	userID, apiKeyID, ok := requireNextChatBFFSession(c, cfg)
+	if !ok {
+		return
+	}
+	var req nextChatGroupSwitchRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.GroupID <= 0 {
+		response.BadRequest(c, "group_id is required")
+		return
+	}
+	if switcher, immutable := issuer.(nextChatImmutableScopedSessionSwitcher); immutable && switcher != nil {
+		session, identity, err := switcher.SwitchNextChatManagedSessionGroup(c.Request.Context(), userID, apiKeyID, purpose, req.GroupID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		if session == nil || session.UserID != userID || session.KeyID <= 0 || strings.TrimSpace(session.APIKey) == "" || session.Purpose != purpose || identity == nil || identity.APIKey.ID != session.KeyID {
+			response.Error(c, http.StatusServiceUnavailable, "NextChat scoped group session is unavailable")
+			return
+		}
+		workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, session.KeyID)
+		if err != nil {
+			response.ErrorFrom(c, err)
+			return
+		}
+		c.Header("Cache-Control", "no-store")
+		response.Success(c, gin.H{
+			"purpose":         purpose,
+			"session_binding": service.NextChatGroupPinnedSessionBinding,
+			"session":         nextChatSessionPayload(session, time.Now().UTC().Add(nextChatSessionTTL(cfg))),
+			"managed_api_key": identity.APIKey,
+			"models":          workspaceModels,
+		})
+		return
+	}
+	session, err := scoped.IssueNextChatManagedSessionForPurpose(c.Request.Context(), userID, purpose)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if session == nil || session.UserID != userID || session.KeyID != apiKeyID || session.Purpose != purpose {
+		response.Unauthorized(c, "Managed session does not match the requested purpose")
+		return
+	}
+	identity, err := scoped.SetNextChatManagedSessionGroup(c.Request.Context(), userID, purpose, req.GroupID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if identity == nil || identity.APIKey.ID != apiKeyID {
+		response.Unauthorized(c, "Managed session changed during group switch")
+		return
+	}
+	workspaceModels, err := getNextChatWorkspaceModels(c.Request.Context(), modelProvider, userID, apiKeyID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{
+		"purpose":         purpose,
+		"managed_api_key": identity.APIKey,
+		"models":          workspaceModels,
+	})
+}
+
+func isNextChatSessionPurpose(purpose string) bool {
+	switch purpose {
+	case service.NextChatSessionPurposeChat, service.NextChatSessionPurposeImage, service.NextChatSessionPurposeVideo:
+		return true
+	default:
+		return false
+	}
 }
 
 func handleNextChatLaunch(

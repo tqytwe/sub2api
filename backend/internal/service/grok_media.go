@@ -51,6 +51,19 @@ func (e GrokMediaEndpoint) IsGenerationRequest() bool {
 	}
 }
 
+// RequiresImageGenerationPermission identifies endpoints protected by the
+// group image-generation entitlement. Video generation has its own declared
+// media capability, mapping, scheduler, and video-price checks, so it must not
+// inherit this image-only gate.
+func (e GrokMediaEndpoint) RequiresImageGenerationPermission() bool {
+	switch e {
+	case GrokMediaEndpointImagesGenerations, GrokMediaEndpointImagesEdits:
+		return true
+	default:
+		return false
+	}
+}
+
 type GrokMediaRequestInfo struct {
 	Model           string
 	Prompt          string

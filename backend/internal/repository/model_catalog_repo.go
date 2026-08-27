@@ -18,7 +18,7 @@ type modelCatalogRepository struct {
 
 const catalogSelectColumns = `id, model_name, platform, display_name, use_case, sort_order,
 	visible_public, visible_auth, featured, group_ids,
-	tool_capabilities,
+	tool_capabilities, media_capabilities,
 	official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
 	official_source, official_updated_at,
 	official_input_manual, official_output_manual, official_cache_read_manual, official_cache_write_manual,
@@ -101,16 +101,20 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 	if err != nil {
 		return err
 	}
+	mediaCapabilities, err := catalogMediaCapabilitiesValue(entry.MediaCapabilities)
+	if err != nil {
+		return err
+	}
 	err = r.db.QueryRowContext(ctx,
 		`INSERT INTO site_model_catalog (
 			model_name, platform, display_name, use_case, sort_order,
 			visible_public, visible_auth, featured, group_ids,
-			tool_capabilities,
+			tool_capabilities, media_capabilities,
 			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
 			official_source, official_updated_at,
 			official_input_manual, official_output_manual, official_cache_read_manual, official_cache_write_manual,
 				billing_mode, source, source_updated_at, updated_at
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW())
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			display_name = EXCLUDED.display_name,
 			use_case = EXCLUDED.use_case,
@@ -120,6 +124,7 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 			featured = EXCLUDED.featured,
 			group_ids = EXCLUDED.group_ids,
 			tool_capabilities = EXCLUDED.tool_capabilities,
+			media_capabilities = EXCLUDED.media_capabilities,
 			official_input_price = CASE WHEN site_model_catalog.official_input_manual THEN site_model_catalog.official_input_price ELSE COALESCE(EXCLUDED.official_input_price, site_model_catalog.official_input_price) END,
 			official_output_price = CASE WHEN site_model_catalog.official_output_manual THEN site_model_catalog.official_output_price ELSE COALESCE(EXCLUDED.official_output_price, site_model_catalog.official_output_price) END,
 			official_cache_read_price = CASE WHEN site_model_catalog.official_cache_read_manual THEN site_model_catalog.official_cache_read_price ELSE COALESCE(EXCLUDED.official_cache_read_price, site_model_catalog.official_cache_read_price) END,
@@ -137,7 +142,7 @@ func (r *modelCatalogRepository) UpsertCatalogEntry(ctx context.Context, entry *
 		RETURNING id, created_at, updated_at`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
-		toolCapabilities,
+		toolCapabilities, mediaCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
 		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt,
 		entry.OfficialInputManual, entry.OfficialOutputManual, entry.OfficialCacheReadManual, entry.OfficialCacheWriteManual,
@@ -164,20 +169,26 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 	if err != nil {
 		return err
 	}
+	mediaCapabilities, err := catalogMediaCapabilitiesValue(entry.MediaCapabilities)
+	if err != nil {
+		return err
+	}
 	err = r.db.QueryRowContext(ctx,
 		`INSERT INTO site_model_catalog (
 			model_name, platform, display_name, use_case, sort_order,
 			visible_public, visible_auth, featured, group_ids,
-			tool_capabilities,
+			tool_capabilities, media_capabilities,
 			official_input_price, official_output_price, official_cache_read_price, official_cache_write_price,
 			official_source, official_updated_at,
 			official_input_manual, official_output_manual, official_cache_read_manual, official_cache_write_manual,
 				billing_mode, source, source_updated_at, updated_at
-			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,NOW())
+			) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,NOW())
 		ON CONFLICT (model_name, platform) DO UPDATE SET
 			use_case = COALESCE(EXCLUDED.use_case, site_model_catalog.use_case),
 			group_ids = COALESCE(EXCLUDED.group_ids, site_model_catalog.group_ids),
 			tool_capabilities = COALESCE(EXCLUDED.tool_capabilities, site_model_catalog.tool_capabilities),
+			-- Discovery feeds do not own an administrator's media contract.
+			media_capabilities = site_model_catalog.media_capabilities,
 			official_input_price = CASE WHEN site_model_catalog.official_input_manual THEN site_model_catalog.official_input_price ELSE EXCLUDED.official_input_price END,
 			official_output_price = CASE WHEN site_model_catalog.official_output_manual THEN site_model_catalog.official_output_price ELSE EXCLUDED.official_output_price END,
 			official_cache_read_price = CASE WHEN site_model_catalog.official_cache_read_manual THEN site_model_catalog.official_cache_read_price ELSE EXCLUDED.official_cache_read_price END,
@@ -194,7 +205,7 @@ func (r *modelCatalogRepository) UpsertDiscoveryCatalogEntry(ctx context.Context
 		RETURNING id, created_at, updated_at`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
-		toolCapabilities,
+		toolCapabilities, mediaCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
 		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt,
 		entry.OfficialInputManual, entry.OfficialOutputManual, entry.OfficialCacheReadManual, entry.OfficialCacheWriteManual,
@@ -211,19 +222,23 @@ func (r *modelCatalogRepository) UpdateCatalogEntry(ctx context.Context, entry *
 	if err != nil {
 		return err
 	}
+	mediaCapabilities, err := catalogMediaCapabilitiesValue(entry.MediaCapabilities)
+	if err != nil {
+		return err
+	}
 	res, err := r.db.ExecContext(ctx,
 		`UPDATE site_model_catalog SET
 			model_name = $1, platform = $2, display_name = $3, use_case = $4, sort_order = $5,
 			visible_public = $6, visible_auth = $7, featured = $8, group_ids = $9,
-			tool_capabilities = $10,
-			official_input_price = $11, official_output_price = $12, official_cache_read_price = $13, official_cache_write_price = $14,
-			official_source = $15, official_updated_at = $16,
-				official_input_manual = $17, official_output_manual = $18, official_cache_read_manual = $19, official_cache_write_manual = $20,
-				source = $21, source_updated_at = $22, updated_at = NOW()
-			 WHERE id = $23`,
+			tool_capabilities = $10, media_capabilities = $11,
+			official_input_price = $12, official_output_price = $13, official_cache_read_price = $14, official_cache_write_price = $15,
+			official_source = $16, official_updated_at = $17,
+				official_input_manual = $18, official_output_manual = $19, official_cache_read_manual = $20, official_cache_write_manual = $21,
+				source = $22, source_updated_at = $23, updated_at = NOW()
+			 WHERE id = $24`,
 		entry.ModelName, entry.Platform, entry.DisplayName, entry.UseCase, entry.SortOrder,
 		entry.VisiblePublic, entry.VisibleAuth, entry.Featured, catalogGroupIDsValue(entry.GroupIDs),
-		toolCapabilities,
+		toolCapabilities, mediaCapabilities,
 		entry.OfficialInputPrice, entry.OfficialOutputPrice, entry.OfficialCacheReadPrice, entry.OfficialCacheWritePrice,
 		catalogNullString(entry.OfficialSource), entry.OfficialUpdatedAt,
 		entry.OfficialInputManual, entry.OfficialOutputManual, entry.OfficialCacheReadManual, entry.OfficialCacheWriteManual,
@@ -511,10 +526,11 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 	var sourceUpdated, officialUpdated sql.NullTime
 	var groupIDs pq.Int64Array
 	var toolCapabilities []byte
+	var mediaCapabilities []byte
 	err := row.Scan(
 		&e.ID, &e.ModelName, &e.Platform, &displayName, &useCase, &e.SortOrder,
 		&e.VisiblePublic, &e.VisibleAuth, &e.Featured, &groupIDs,
-		&toolCapabilities,
+		&toolCapabilities, &mediaCapabilities,
 		&e.OfficialInputPrice, &e.OfficialOutputPrice, &e.OfficialCacheReadPrice, &e.OfficialCacheWritePrice,
 		&officialSource, &officialUpdated,
 		&e.OfficialInputManual, &e.OfficialOutputManual, &e.OfficialCacheReadManual, &e.OfficialCacheWriteManual,
@@ -539,6 +555,9 @@ func scanCatalogEntry(row catalogScanner) (*service.SiteModelCatalogEntry, error
 		if err := json.Unmarshal(toolCapabilities, &e.ToolCapabilities); err != nil {
 			return nil, fmt.Errorf("decode catalog tool capabilities: %w", err)
 		}
+	}
+	if len(mediaCapabilities) > 0 {
+		e.MediaCapabilities = append(json.RawMessage(nil), mediaCapabilities...)
 	}
 	if officialSource.Valid {
 		e.OfficialSource = officialSource.String
@@ -577,6 +596,17 @@ func catalogToolCapabilitiesValue(value service.ModelToolCapabilityOverrides) (a
 		return nil, fmt.Errorf("encode catalog tool capabilities: %w", err)
 	}
 	return payload, nil
+}
+
+func catalogMediaCapabilitiesValue(value json.RawMessage) (any, error) {
+	normalized, err := service.NormalizeCatalogMediaCapabilities(value)
+	if err != nil {
+		return nil, err
+	}
+	if normalized == nil {
+		return nil, nil
+	}
+	return normalized, nil
 }
 
 // ListAllModelPricingEntries returns every channel_model_pricing row (for sync).

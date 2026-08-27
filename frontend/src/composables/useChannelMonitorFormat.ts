@@ -12,6 +12,7 @@
 
 import { useI18n } from 'vue-i18n'
 import type { CheckMode, MonitorStatus, Provider } from '@/api/admin/channelMonitor'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import {
   PROVIDER_OPENAI,
   PROVIDER_ANTHROPIC,
@@ -48,7 +49,7 @@ export function useChannelMonitorFormat() {
 
   function statusLabel(s: MonitorStatus | ''): string {
     if (!s) return t('monitorCommon.status.unknown')
-    return t(`monitorCommon.status.${s}`)
+    return localizedEnumOrUnknown(t, `monitorCommon.status.${s}`)
   }
 
   function statusBadgeClass(s: MonitorStatus | ''): string {

@@ -45,7 +45,7 @@
         </template>
 
         <template #cell-category="{ row }">
-          <span class="text-sm text-gray-900 dark:text-white">{{ t('usage.errors.categories.' + row.category) }}</span>
+          <span class="text-sm text-gray-900 dark:text-white">{{ errorCategoryLabel(row.category) }}</span>
         </template>
 
         <template #cell-message="{ row }">
@@ -130,6 +130,7 @@ import UserErrorDetailModal from '@/components/user/UserErrorDetailModal.vue'
 import IpGeoCell from '@/components/common/IpGeoCell.vue'
 import IpGeoBatchToolbar from '@/components/common/IpGeoBatchToolbar.vue'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import {
   mapErrorSortKey,
   numericRequestTypeKind,
@@ -201,4 +202,7 @@ function openDetail(id: number) {
 }
 
 const statusClass = statusCodeBadgeClass
+
+const errorCategoryLabel = (category: unknown): string =>
+  localizedEnumOrUnknown(t, `usage.errors.categories.${String(category ?? '').trim()}`)
 </script>

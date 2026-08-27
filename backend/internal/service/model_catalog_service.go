@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -349,6 +350,17 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 	if hasNegativeCatalogPrice(entry) {
 		return fmt.Errorf("model prices cannot be negative")
 	}
+	mediaCapabilitiesProvided := len(bytes.TrimSpace(entry.MediaCapabilities)) > 0
+	normalizedMediaCapabilities, err := NormalizeCatalogMediaCapabilities(entry.MediaCapabilities)
+	if err != nil {
+		return err
+	}
+	entry.MediaCapabilities = normalizedMediaCapabilities
+	if mediaCapabilitiesProvided {
+		if err := ValidateCatalogMediaCapabilitiesAdapter(entry); err != nil {
+			return err
+		}
+	}
 	groupIDs, err := normalizeCatalogGroupIDs(entry.GroupIDs)
 	if err != nil {
 		return err
@@ -361,6 +373,11 @@ func (s *ModelCatalogService) SaveCatalogEntry(ctx context.Context, entry *SiteM
 		}
 		if existing == nil {
 			return fmt.Errorf("catalog entry not found: %d", entry.ID)
+		}
+		// Older admin clients do not send this field. Preserve the declaration on
+		// those updates; an explicit JSON null is normalized to nil and clears it.
+		if !mediaCapabilitiesProvided {
+			entry.MediaCapabilities = append(entry.MediaCapabilities[:0], existing.MediaCapabilities...)
 		}
 		entry.OfficialInputManual = resolveCatalogManualFlag(existing.OfficialInputPrice, entry.OfficialInputPrice, existing.OfficialInputManual, entry.OfficialInputManual)
 		entry.OfficialOutputManual = resolveCatalogManualFlag(existing.OfficialOutputPrice, entry.OfficialOutputPrice, existing.OfficialOutputManual, entry.OfficialOutputManual)

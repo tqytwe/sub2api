@@ -309,15 +309,20 @@ export function platformGradientSubtextClass(p: string): string {
   return isPlatform(p) ? GRADIENT_SUBTEXT[p] : GRADIENT_SUBTEXT_DEFAULT
 }
 
-export function platformLabel(p: string): string {
+/**
+ * Provider names and user-configured model identifiers are intentionally kept
+ * verbatim. Only the two system-owned category values vary by UI locale.
+ */
+export function platformLabel(p: string, locale = 'zh'): string {
+  const english = locale.toLowerCase().startsWith('en')
   switch (p) {
     case 'anthropic': return 'Claude'
     case 'openai': return 'OpenAI'
     case 'antigravity': return 'Antigravity'
     case 'gemini': return 'Gemini'
     case 'grok': return 'Grok'
-    case 'image': return '图片'
-    case 'team': return '团队企业'
+    case 'image': return english ? 'Image' : '图片'
+    case 'team': return english ? 'Team / Enterprise' : '团队企业'
     case 'kimi': return 'Kimi'
     case 'zhipu': return 'Zhipu GLM'
     case 'deepseek': return 'DeepSeek'

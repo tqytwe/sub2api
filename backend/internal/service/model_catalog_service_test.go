@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -12,6 +13,31 @@ type modelCatalogVisibilityRepoStub struct {
 	ModelCatalogRepository
 	entries []SiteModelCatalogEntry
 	err     error
+}
+
+type modelCatalogMutationRepoStub struct {
+	ModelCatalogRepository
+	existing *SiteModelCatalogEntry
+	updated  *SiteModelCatalogEntry
+	upserted *SiteModelCatalogEntry
+}
+
+func (r *modelCatalogMutationRepoStub) GetCatalogEntry(context.Context, int64) (*SiteModelCatalogEntry, error) {
+	return r.existing, nil
+}
+
+func (r *modelCatalogMutationRepoStub) UpdateCatalogEntry(_ context.Context, entry *SiteModelCatalogEntry) error {
+	copy := *entry
+	copy.MediaCapabilities = append(json.RawMessage(nil), entry.MediaCapabilities...)
+	r.updated = &copy
+	return nil
+}
+
+func (r *modelCatalogMutationRepoStub) UpsertCatalogEntry(_ context.Context, entry *SiteModelCatalogEntry) error {
+	copy := *entry
+	copy.MediaCapabilities = append(json.RawMessage(nil), entry.MediaCapabilities...)
+	r.upserted = &copy
+	return nil
 }
 
 func (r *modelCatalogVisibilityRepoStub) ListCatalog(_ context.Context, filter CatalogListFilter) ([]SiteModelCatalogEntry, error) {
@@ -104,6 +130,153 @@ func modelPricingSettingService(multiplier string) *SettingService {
 		SettingKeyAvailableChannelsEnabled:  "true",
 		SettingKeyPublicModelRateMultiplier: multiplier,
 	}}, &config.Config{})
+}
+
+func TestModelCatalogServiceSaveValidatesAndPreservesMediaCapabilities(t *testing.T) {
+	valid := json.RawMessage(`{"version":"v1","adapter":"sensenova","modalities":["image"],"image":{"operations":["create"]}}`)
+	repo := &modelCatalogMutationRepoStub{existing: &SiteModelCatalogEntry{
+		ID:                41,
+		ModelName:         "sensenova-u1-fast",
+		Platform:          PlatformOpenAI,
+		VisibleAuth:       true,
+		MediaCapabilities: valid,
+	}}
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil, nil, nil)
+
+	invalid := &SiteModelCatalogEntry{
+		ModelName:         "sensenova-u1-fast",
+		Platform:          PlatformOpenAI,
+		VisibleAuth:       true,
+		MediaCapabilities: json.RawMessage(`{"version":"v1","adapter":"sensenova","modalities":["image"]}`),
+	}
+	require.Error(t, svc.SaveCatalogEntry(context.Background(), invalid))
+	require.Nil(t, repo.upserted)
+	require.Nil(t, repo.updated)
+
+	updateWithoutField := &SiteModelCatalogEntry{
+		ID:          41,
+		ModelName:   "sensenova-u1-fast",
+		Platform:    PlatformOpenAI,
+		VisibleAuth: true,
+	}
+	require.NoError(t, svc.SaveCatalogEntry(context.Background(), updateWithoutField))
+	require.NotNil(t, repo.updated)
+	require.JSONEq(t, string(valid), string(repo.updated.MediaCapabilities))
+}
+
+func TestModelCatalogServiceSaveRejectsInexecutableMediaAdapter(t *testing.T) {
+	repo := &modelCatalogMutationRepoStub{}
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil, nil, nil)
+
+	err := svc.SaveCatalogEntry(context.Background(), &SiteModelCatalogEntry{
+		ModelName:   "sensenova-u1-fast",
+		Platform:    PlatformOpenAI,
+		VisibleAuth: true,
+		MediaCapabilities: json.RawMessage(`{
+			"version":"v1",
+			"adapter":"agnes",
+			"modalities":["image"],
+			"image":{"operations":["create"]}
+		}`),
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "adapter")
+	require.Nil(t, repo.upserted)
+}
+
+func TestModelCatalogServiceSaveRejectsCapabilitiesOutsideExactAdapterProfile(t *testing.T) {
+	tests := []struct {
+		name        string
+		model       string
+		declaration string
+	}{
+		{
+			name:  "U1 Fast cannot declare edit",
+			model: "sensenova-u1-fast",
+			declaration: `{
+				"version":"v1","adapter":"sensenova","modalities":["image"],
+				"image":{"operations":["create","edit"]}
+			}`,
+		},
+		{
+			name:  "U1 Fast cannot accept reference images",
+			model: "sensenova-u1-fast",
+			declaration: `{
+				"version":"v1","adapter":"sensenova","modalities":["image"],
+				"image":{"operations":["create"],"max_reference_images":1}
+			}`,
+		},
+		{
+			name:  "U1 Fast cannot advertise an unregistered fixed size",
+			model: "sensenova-u1-fast",
+			declaration: `{
+				"version":"v1","adapter":"sensenova","modalities":["image"],
+				"image":{"operations":["create"],"sizing_kind":"fixed","supported_sizes":["1024x1024"]}
+			}`,
+		},
+		{
+			name:  "U1.5 cannot advertise unsupported output format",
+			model: "sensenova-u1.5-lite",
+			declaration: `{
+				"version":"v1","adapter":"sensenova","modalities":["image"],
+				"image":{"operations":["create"],"supported_output_formats":["gif"]}
+			}`,
+		},
+		{
+			name:  "U1.5 cannot exceed the global reference limit",
+			model: "sensenova-u1.5-lite",
+			declaration: `{
+				"version":"v1","adapter":"sensenova","modalities":["image"],
+				"image":{"operations":["create","edit"],"max_reference_images":5}
+			}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := &modelCatalogMutationRepoStub{}
+			svc := NewModelCatalogService(repo, nil, nil, nil, nil, nil, nil)
+
+			err := svc.SaveCatalogEntry(context.Background(), &SiteModelCatalogEntry{
+				ModelName:         tt.model,
+				Platform:          PlatformOpenAI,
+				VisibleAuth:       true,
+				MediaCapabilities: json.RawMessage(tt.declaration),
+			})
+
+			require.Error(t, err)
+			require.Nil(t, repo.upserted)
+			require.Nil(t, repo.updated)
+		})
+	}
+}
+
+func TestModelCatalogServiceSaveAllowsNarrowingExactAdapterCapabilities(t *testing.T) {
+	repo := &modelCatalogMutationRepoStub{}
+	svc := NewModelCatalogService(repo, nil, nil, nil, nil, nil, nil)
+
+	err := svc.SaveCatalogEntry(context.Background(), &SiteModelCatalogEntry{
+		ModelName:   "sensenova-u1.5-lite",
+		Platform:    PlatformOpenAI,
+		VisibleAuth: true,
+		MediaCapabilities: json.RawMessage(`{
+			"version":"v1","adapter":"sensenova","modalities":["image"],
+			"image":{
+				"operations":["create"],
+				"sizing_kind":"custom_dimensions",
+				"min_dimension":1024,
+				"max_dimension":2048,
+				"dimension_step":64,
+				"max_aspect_ratio":2,
+				"supported_output_formats":["png"],
+				"max_reference_images":2
+			}
+		}`),
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, repo.upserted)
 }
 
 func TestModelCatalogService_NextChatDisplayShowsVisibleCatalogWithoutChannelMatch(t *testing.T) {

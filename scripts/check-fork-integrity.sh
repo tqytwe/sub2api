@@ -327,6 +327,8 @@ MIGRATIONS=(
   253_mobile_app_releases.sql
   255_payment_order_coupon_release_processed.sql
   256_payment_order_coupon_release_processed_index_notx.sql
+  259_mobile_video_jobs.sql
+  260_model_catalog_media_capabilities.sql
 )
 for migration in "${MIGRATIONS[@]}"; do
   check_file "FORK-MIGRATION-009" "migration $migration" "backend/migrations/$migration"
@@ -362,6 +364,13 @@ check_contains "FORK-MOBILE-017" "mobile login rate-limited route" "backend/inte
 check_contains "FORK-MOBILE-017" "NextChat mobile bootstrap route" "backend/internal/server/routes/nextchat.go" 'authenticated.GET("/mobile/bootstrap"'
 check_file "FORK-MOBILE-017" "mobile attribution service" "backend/internal/service/mobile_attribution.go"
 check_file "FORK-MOBILE-017" "mobile feedback service" "backend/internal/service/mobile_feedback.go"
+check_file "FORK-MOBILE-017" "mobile video capability resolver" "backend/internal/service/mobile_video_availability.go"
+check_file "FORK-MOBILE-017" "mobile video private job service" "backend/internal/service/mobile_video_job.go"
+check_contains "FORK-MOBILE-017" "mobile video bootstrap route" "backend/internal/server/router.go" 'v1.GET("/mobile/video/bootstrap"'
+check_contains "FORK-MOBILE-017" "video session is purpose scoped" "backend/internal/service/mobile_video_session.go" 'NextChatSessionPurposeVideo'
+check_contains "FORK-IMAGE-004/FORK-PRICING-005" "media capability catalog field" "backend/internal/service/model_catalog_types.go" 'MediaCapabilities'
+check_file "FORK-IMAGE-004/FORK-PRICING-005" "media capability contract" "backend/internal/service/model_media_contract.go"
+check_file "FORK-IMAGE-004/FORK-PRICING-005" "media capability migration" "backend/migrations/260_model_catalog_media_capabilities.sql"
 
 check_file "FORK-LIVE-SETTLEMENT-018" "live settlement outbox repository" "backend/internal/repository/live_settlement_outbox_repo.go"
 check_file "FORK-LIVE-SETTLEMENT-018" "live settlement recovery service" "backend/internal/service/openai_live_settlement_outbox.go"
@@ -394,6 +403,8 @@ run_check "FORK-MEMBERSHIP-016" "membership qualification and VIP tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/repository -run '^(TestMembership|TestPaymentOrderMembership|TestBuildPaymentRechargeQuote|Test(Get|Parse|Validate).*VIP)'"
 run_check "FORK-MOBILE-017" "mobile protocol, attribution and feedback tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/server/routes ./internal/service -run '^(TestNextChatMobile|TestMobileAttribution|Test.*MobileFeedback)'"
+run_check "FORK-IMAGE-004/FORK-PRICING-005/FORK-MOBILE-017" "catalog media and mobile video capability tests" \
+  bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/service ./internal/handler ./internal/server/routes ./migrations -run '^(TestModelCatalog.*|TestCatalogMobileVideo.*|TestMobileVideo.*|TestGetNextChatWorkspaceModels.*(Media|Video)|TestGatewayModels.*)'"
 run_check "FORK-LIVE-SETTLEMENT-018" "live settlement outbox and recovery tests" \
   bash -c "cd '$ROOT/backend' && go test -count=1 ./internal/repository ./internal/service -run '^TestLiveSettlement'"
 run_check "FORK-PLAY-003" "admin team repair unit and route tests" \

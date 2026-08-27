@@ -45,7 +45,7 @@
               <td class="whitespace-nowrap px-4 py-3">
                 <div class="font-medium text-gray-900 dark:text-white">{{ actionLabel(action.action_type) }}</div>
                 <div class="mt-1 flex items-center gap-2">
-                  <span :class="['badge', statusClass(action.status)]">{{ action.status }}</span>
+                  <span :class="['badge', statusClass(action.status)]">{{ actionStatusLabel(action.status) }}</span>
                   <span v-if="action.case_id" class="text-xs text-gray-500 dark:text-gray-400">#{{ action.case_id }}</span>
                 </div>
               </td>
@@ -136,6 +136,7 @@ import { useAppStore } from '@/stores/app'
 import { isStepUpCancelled, type StepUpController } from '@/composables/useStepUp'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { formatDateTime } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type { RiskActionRecord, RiskActionType } from './types'
 
 const props = defineProps<{
@@ -219,7 +220,11 @@ async function rollback() {
 }
 
 function actionLabel(action: RiskActionType) {
-  return t(`admin.ipRisk.actionTypes.${action}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.actionTypes.${action}`)
+}
+
+function actionStatusLabel(status: string) {
+  return localizedEnumOrUnknown(t, `admin.ipRisk.actionDialog.result.${status}`)
 }
 
 function statusClass(status: string) {
@@ -237,7 +242,7 @@ function rollbackClass(status: string) {
 }
 
 function rollbackLabel(status: string) {
-  return t(`admin.ipRisk.rollbackStatus.${status}`)
+  return localizedEnumOrUnknown(t, `admin.ipRisk.rollbackStatus.${status}`)
 }
 
 function resultNumber(action: RiskActionRecord, key: string) {

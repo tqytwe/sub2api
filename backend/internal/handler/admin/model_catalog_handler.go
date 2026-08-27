@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"encoding/json"
 	"strconv"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/logger"
@@ -32,6 +33,7 @@ type catalogEntryRequest struct {
 	Featured                 bool                                 `json:"featured"`
 	GroupIDs                 []int64                              `json:"group_ids"`
 	ToolCapabilities         service.ModelToolCapabilityOverrides `json:"tool_capabilities"`
+	MediaCapabilities        json.RawMessage                      `json:"media_capabilities"`
 	OfficialInputPrice       *float64                             `json:"official_input_price"`
 	OfficialOutputPrice      *float64                             `json:"official_output_price"`
 	OfficialCacheReadPrice   *float64                             `json:"official_cache_read_price"`
@@ -100,6 +102,7 @@ func (h *ModelCatalogHandler) Upsert(c *gin.Context) {
 		Featured:                 req.Featured,
 		GroupIDs:                 req.GroupIDs,
 		ToolCapabilities:         req.ToolCapabilities,
+		MediaCapabilities:        req.MediaCapabilities,
 		OfficialInputPrice:       req.OfficialInputPrice,
 		OfficialOutputPrice:      req.OfficialOutputPrice,
 		OfficialCacheReadPrice:   req.OfficialCacheReadPrice,

@@ -35,7 +35,7 @@ const messages: Record<string, string> = {
   'admin.users.columnSettings': 'Columns',
   'admin.usage.group': 'Group',
   'admin.usage.billingType': 'Billing type',
-  'admin.usage.billingMode': 'Billing mode',
+  'admin.usage.billingMode': 'Billing Mode',
   'admin.usage.allTypes': 'All types',
   'admin.usage.allBillingTypes': 'All billing types',
   'admin.usage.billingTypeBalance': 'Balance',
@@ -44,12 +44,25 @@ const messages: Record<string, string> = {
   'admin.usage.billingModeToken': 'Token',
   'admin.usage.billingModePerRequest': 'Per request',
   'admin.usage.billingModeImage': 'Image',
+  'admin.usage.ipAddress': 'IP Address',
+  'admin.usage.inputTokens': 'Input Tokens',
+  'admin.usage.outputTokens': 'Output Tokens',
+  'admin.usage.cacheReadTokens': 'Cache Read Tokens',
+  'admin.usage.cacheCreationTokens': 'Cache Creation Tokens',
   'admin.usage.allGroups': 'All groups',
   'admin.usage.allModels': 'All models',
   'usage.allApiKeys': 'All API Keys',
   'usage.apiKeyFilter': 'API Key',
   'usage.model': 'Model',
+  'usage.time': 'Time',
+  'usage.reasoningEffort': 'Reasoning Effort',
+  'usage.inboundEndpoint': 'Inbound Endpoint',
   'usage.type': 'Type',
+  'usage.rate': 'Rate Multiplier',
+  'usage.userBilled': 'Billed Cost',
+  'usage.original': 'Original Cost',
+  'usage.firstToken': 'First Token (ms)',
+  'usage.duration': 'Duration (ms)',
   'usage.ws': 'WS',
   'usage.stream': 'Stream',
   'usage.sync': 'Sync',
@@ -239,7 +252,7 @@ describe('user UsageView', () => {
     expect(showSuccess).toHaveBeenCalled()
     expect(csvContent.startsWith('\uFEFF')).toBe(true)
     expect(csvContent.slice(1)).toBe([
-      'Time,API Key Name,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Cost,Original Cost,First Token (ms),Duration (ms)',
+      'Time,API Key,Model,Reasoning Effort,Inbound Endpoint,IP Address,Type,Billing Mode,Input Tokens,Output Tokens,Cache Read Tokens,Cache Creation Tokens,Rate Multiplier,Billed Cost,Original Cost,First Token (ms),Duration (ms)',
       '2026-03-08T00:00:00Z,demo-key,gpt-5.4,"\'-",,203.0.113.10,Sync,Token,4057,101,278272,4,1,0.09288300,0.09288300,12,345',
     ].join('\n'))
     expect(csvContent).toContain('IP Address')
