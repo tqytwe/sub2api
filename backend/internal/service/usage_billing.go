@@ -252,15 +252,20 @@ func buildBatchImageBalanceHoldFingerprint(c *BatchImageBalanceHoldCommand) stri
 	if c == nil {
 		return ""
 	}
+	// Keep the original image-hold fingerprint stable. Existing batch and Image
+	// Studio reservations are deduplicated by this value, so adding Kind to the
+	// legacy image format would turn retries after an upgrade into new holds.
 	raw := fmt.Sprintf(
-		"%s|%d|%d|%s|%0.10f|%0.10f",
-		strings.ToLower(strings.TrimSpace(c.Kind)),
+		"%d|%d|%s|%0.10f|%0.10f",
 		c.UserID,
 		c.APIKeyID,
 		strings.TrimSpace(c.BatchID),
 		c.HoldAmount,
 		c.ActualAmount,
 	)
+	if kind := strings.ToLower(strings.TrimSpace(c.Kind)); kind != "" && kind != BalanceHoldKindImage {
+		raw = kind + "|" + raw
+	}
 	if payloadHash := strings.TrimSpace(c.RequestPayloadHash); payloadHash != "" {
 		raw += "|" + payloadHash
 	}

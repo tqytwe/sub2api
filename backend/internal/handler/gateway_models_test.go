@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/claude"
+	"github.com/Wei-Shaw/sub2api/internal/pkg/xai"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -1108,6 +1109,12 @@ func TestGatewayModels_DoesNotExposeCatalogMediaContractWithoutMappedModel(t *te
 
 func TestGatewayModels_CompositeCustomModelsListOnlySelectsRuntimeMappedModels(t *testing.T) {
 	gin.SetMode(gin.TestMode)
+	originalMappingOptions := xai.RuntimeModelMappingOptions()
+	t.Cleanup(func() { xai.SetRuntimeModelMappingOptions(originalMappingOptions) })
+	// This case verifies an empty OpenAI mapping. Other handler tests enable
+	// Grok's optional cross-client aliases, which would legitimately make
+	// gpt-* selectable and turn this isolation check into an order-dependent one.
+	xai.SetRuntimeModelMappingOptions(xai.ModelMappingOptions{})
 
 	groupID := int64(2_608_267)
 	h := newGatewayModelsHandlerForTest(
