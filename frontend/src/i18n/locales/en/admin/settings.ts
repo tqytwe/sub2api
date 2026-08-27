@@ -36,11 +36,11 @@ export default {
             'When on, quota-mode channel monitors expose the linked account usage windows/balance on the user Channel Status page. Disabled by default; admins always see it.',
         },
         availableChannels: {
-          title: 'Available Channels',
-          description: 'Show logged-in users an aggregate view of the channels, models and pricing they can access. Disabled by default.',
+          title: 'Signed-in pricing',
+          description: 'Controls the signed-in Models and Pricing page and available-channels API. It does not control channel status navigation. Disabled by default.',
           configureLink: 'Configure model pricing in Channel Management > Channel Pricing',
-          enabled: 'Enable Available Channels',
-          enabledHint: 'When off, the sidebar entry is hidden and the endpoint returns an empty list.',
+          enabled: 'Enable signed-in pricing',
+          enabledHint: 'When off, /models does not show signed-in pricing and /api/v1/channels/available returns an empty array.',
         },
         modelPlaza: {
           title: 'Model Plaza',
@@ -70,7 +70,7 @@ export default {
         },
         userSidebar: {
           title: 'User Sidebar',
-          description: 'Control growth-world entries in the logged-in user sidebar. Jisudeng Play never shows channel items to end users.',
+          description: 'Controls the growth and rewards group (hub, check-in, farm, etc.) visible to signed-in users. Channel Status is controlled separately by Channel Monitor; Available Channels is not a sidebar entry.',
           nextChatHint: 'AI Creation Space web entry; also controls existing App chat and creation capabilities',
           imageStudioHint: 'Image-generation backend capability shared by AI Creation Space and the App',
           checkinHint: 'Daily check-in and Play Hub card',

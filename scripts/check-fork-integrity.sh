@@ -132,7 +132,7 @@ run_check "FORK-UI-012" "design governance command" \
 check_contains "FORK-NAV-002" "Growth navigation group" "frontend/src/components/layout/AppSidebar.vue" "path: '/growth-group'"
 check_not_contains "FORK-NAV-002" "legacy pricing navigation entry removed" "frontend/src/components/layout/AppSidebar.vue" "path: '/pricing'"
 check_not_contains "FORK-NAV-002" "user sidebar excludes available channels" "frontend/src/components/layout/AppSidebar.vue" "path: '/available-channels'"
-check_not_contains "FORK-NAV-002" "user sidebar excludes monitor route" "frontend/src/components/layout/AppSidebar.vue" "path: '/monitor'"
+check_contains "FORK-NAV-002" "user sidebar exposes monitor route behind feature flag" "frontend/src/components/layout/AppSidebar.vue" "path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor"
 
 check_contains "FORK-PLAY-003" "Play Hub API route" "backend/internal/server/routes/play.go" "authenticated.GET(\"/play/hub\""
 check_contains "FORK-PLAY-003" "Play runtime is fail-closed" "backend/internal/service/setting_play_runtime.go" "return PlayRuntime{}"

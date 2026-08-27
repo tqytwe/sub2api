@@ -51,8 +51,8 @@
 
 ## FORK-NAV-002 用户侧栏和 Growth 导航
 
-- 产品目的：普通用户直接看到“模型与价格”、图像工具和“玩法福利”，不暴露渠道运维入口。
-- 不变量：用户侧栏包含 `/models`、`/image-studio`、`/batch-image` 和 `/growth-group`；Growth 子项由功能开关过滤；普通用户侧栏不得出现 `/available-channels` 或 `/monitor`；管理员渠道监控保留在管理区。路由不得在 `afterEach` 自动预取管理页面；只有侧栏链接的 hover、focus 或 pointerdown 才触发去重预取，Save-Data 下完全禁用。
+- 产品目的：普通用户直接看到“模型与价格”、图像工具和“玩法福利”，并在渠道监控启用时查看经脱敏的渠道状态；渠道运维配置仍只在管理区。
+- 不变量：用户侧栏包含 `/models`、`/image-studio`、`/batch-image` 和 `/growth-group`；Growth 子项由功能开关过滤；普通用户侧栏不得出现 `/available-channels`，但必须在 `channel_monitor_enabled=true` 时显示 `/monitor`，且该入口不受 `available_channels_enabled` 影响；管理员渠道监控配置保留在管理区。路由不得在 `afterEach` 自动预取管理页面；只有侧栏链接的 hover、focus 或 pointerdown 才触发去重预取，Save-Data 下完全禁用。
 - 关键位置：`frontend/src/components/layout/AppSidebar.vue`、`frontend/src/utils/featureFlags.ts`、`frontend/src/router/index.ts`。
 - 冲突策略：上游新增导航项先判断面向用户还是管理员，再合入对应分组，不能恢复上游默认用户渠道入口。
 - 验证：integrity 脚本和 AppSidebar 测试；线上分别使用普通用户与管理员账号检查。

@@ -867,8 +867,8 @@ function buildGrowthNavChildren(): NavItem[] {
 // buildSelfNavItems 构造用户自己的导航项（用户端主菜单和管理员的"我的账户"子菜单共享这组声明）。
 // withDashboard=true 时包含仪表盘（用户端），false 时不含（管理员的个人区已经有独立仪表盘入口）。
 //
-// 条目顺序：密钥 → AI创作空间 → 用量 → 订阅/支付 → 玩法福利 → 资料。
-// 极速蹬不向普通用户展示渠道相关入口（可用渠道/渠道状态），运维请走管理后台。
+// 条目顺序：密钥 → AI创作空间 → 用量 → 渠道状态 → 订阅/支付 → 玩法福利 → 资料。
+// 可用渠道不在侧栏展示；渠道状态是经脱敏的用户只读视图，由渠道监控开关控制。
 function buildSelfNavItems(withDashboard: boolean): NavItem[] {
   const items: NavItem[] = []
   if (withDashboard) {
@@ -879,6 +879,9 @@ function buildSelfNavItems(withDashboard: boolean): NavItem[] {
     { path: '/ai-creation-space', label: t('nav.aiCreationSpace'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagNextChat },
     { path: '/batch-image', label: t('nav.batchImage'), icon: BatchImageIcon, hideInSimpleMode: true, featureFlag: flagBatchImageAccess },
     { path: '/usage', label: t('nav.usage'), icon: ChartIcon, hideInSimpleMode: true },
+    ...(withDashboard
+      ? [{ path: '/monitor', label: t('nav.channelStatus'), icon: SignalIcon, featureFlag: flagChannelMonitor }]
+      : []),
     { path: '/wallet', label: t('nav.wallet'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/subscriptions', label: t('nav.mySubscriptions'), icon: CreditCardIcon, hideInSimpleMode: true },
     { path: '/purchase', label: t('nav.buySubscription'), icon: RechargeSubscriptionIcon, hideInSimpleMode: true, featureFlag: flagPayment },

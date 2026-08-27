@@ -116,6 +116,9 @@ func TestChannelMonitorV2ErrorAggregationResolvesCompositePlatform(t *testing.T)
 	require.Contains(t, query, "left join groups g on g.id = current_error.group_id")
 	require.Contains(t, query, "left join accounts a on a.id = current_error.account_id")
 	require.Contains(t, query, "a.platform")
+	// PostgreSQL NULLIF requires both its value and empty-string fallback. This
+	// guards the aggregate statement itself, not merely the platform behavior.
+	require.Contains(t, query, "nullif(trim(a.platform), '')")
 }
 
 func TestChannelMonitorV2UsageSuccessExcludesCyberBillingRows(t *testing.T) {

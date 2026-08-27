@@ -15,6 +15,7 @@
         </p>
       </div>
       <button
+        v-if="draft"
         type="button"
         class="btn btn-primary"
         :disabled="saving || !dirty"
@@ -44,6 +45,24 @@
       class="card flex min-h-[200px] items-center justify-center !rounded-lg !border-0 text-sm text-gray-400 shadow-sm ring-1 ring-gray-900/5 dark:ring-dark-700"
     >
       <span>{{ t('channelMonitorV2.settings.loading') }}</span>
+    </div>
+
+    <div
+      v-else-if="configLoadError"
+      class="card flex min-h-[200px] flex-col items-center justify-center gap-3 !rounded-lg !border-0 px-5 py-8 text-center shadow-sm ring-1 ring-gray-900/5 dark:!bg-dark-800 dark:ring-dark-700"
+      role="alert"
+    >
+      <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('channelMonitorV2.settings.loadFailed') }}</p>
+      <p class="max-w-lg text-xs text-gray-500 dark:text-dark-400">{{ configLoadError }}</p>
+      <button
+        type="button"
+        class="btn btn-secondary btn-sm"
+        data-testid="channel-monitor-v2-config-retry"
+        @click="load"
+      >
+        <Icon name="refresh" size="sm" />
+        {{ t('channelMonitorV2.settings.retryConfig') }}
+      </button>
     </div>
 
     <template v-else-if="draft">
@@ -136,8 +155,31 @@
             {{ t('channelMonitorV2.settings.groupsAll') }}
           </button>
         </div>
-        <div class="max-h-[min(40vh,280px)] overflow-y-auto px-3 py-2 sm:px-4">
-          <div class="grid grid-cols-1 gap-1 sm:grid-cols-2">
+        <div class="max-h-[min(40vh,280px)] overflow-y-auto px-3 py-2 sm:px-4" :aria-busy="groupsLoading">
+          <div
+            v-if="groupsLoadError"
+            class="mb-2 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/90 px-3 py-2.5 text-sm text-amber-900 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-100"
+            role="alert"
+          >
+            <div class="min-w-0">
+              <p class="font-medium">{{ t('channelMonitorV2.settings.groupsLoadFailed') }}</p>
+              <p class="mt-0.5 text-xs">{{ t('channelMonitorV2.settings.groupsLoadFailedHint') }}</p>
+            </div>
+            <button
+              type="button"
+              class="btn btn-secondary btn-sm shrink-0"
+              data-testid="channel-monitor-v2-groups-retry"
+              :disabled="groupsLoading"
+              @click="loadGroups"
+            >
+              <Icon name="refresh" size="sm" />
+              {{ t('channelMonitorV2.settings.retryGroups') }}
+            </button>
+          </div>
+          <p v-else-if="groupsLoading" class="empty-state py-8 text-sm text-gray-400" aria-live="polite">
+            {{ t('channelMonitorV2.settings.groupsLoading') }}
+          </p>
+          <div v-else class="grid grid-cols-1 gap-1 sm:grid-cols-2">
             <label
               v-for="group in groups"
               :key="group.id"
@@ -153,7 +195,7 @@
               <small class="shrink-0 text-xs text-gray-400">{{ platformLabel(group.platform) }} · #{{ group.id }}</small>
             </label>
           </div>
-          <p v-if="groups.length === 0" class="empty-state py-8 text-sm text-gray-400">{{ t('channelMonitorV2.settings.groupsEmpty') }}</p>
+          <p v-if="!groupsLoadError && !groupsLoading && groups.length === 0" class="empty-state py-8 text-sm text-gray-400">{{ t('channelMonitorV2.settings.groupsEmpty') }}</p>
         </div>
       </div>
 
@@ -286,6 +328,9 @@ const saving = ref(false)
 const draft = ref<MonitorConfig | null>(null)
 const original = ref('')
 const groups = ref<AdminGroup[]>([])
+const configLoadError = ref<string | null>(null)
+const groupsLoadError = ref<string | null>(null)
+const groupsLoading = ref(false)
 
 const dirty = computed(() => (draft.value ? JSON.stringify(draft.value) !== original.value : false))
 const namedModelCount = computed(
@@ -397,16 +442,29 @@ function normalizeConfig(value: MonitorConfig): MonitorConfig {
 
 async function load() {
   loading.value = true
+  configLoadError.value = null
   try {
-    const [value, groupRows] = await Promise.all([getConfig(), adminAPI.groups.getAllIncludingInactive()])
+    const value = await getConfig()
     const normalized = normalizeConfig(value)
     draft.value = structuredClone(normalized)
-    groups.value = groupRows
     original.value = JSON.stringify(normalized)
+    void loadGroups()
   } catch (error) {
-    appStore.showError(extractApiErrorMessage(error, t('channelMonitorV2.settings.loadFailed')))
+    configLoadError.value = extractApiErrorMessage(error, t('channelMonitorV2.settings.loadFailed'))
   } finally {
     loading.value = false
+  }
+}
+
+async function loadGroups() {
+  groupsLoading.value = true
+  groupsLoadError.value = null
+  try {
+    groups.value = await adminAPI.groups.getAllIncludingInactive()
+  } catch (error) {
+    groupsLoadError.value = extractApiErrorMessage(error, t('channelMonitorV2.settings.groupsLoadFailed'))
+  } finally {
+    groupsLoading.value = false
   }
 }
 

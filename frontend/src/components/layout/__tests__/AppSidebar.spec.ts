@@ -128,8 +128,9 @@ describe('AppSidebar Fork navigation invariants', () => {
     expect(componentSource).toContain('children: buildGrowthNavChildren()')
   })
 
-  it('does not expose channel operations in user navigation', () => {
+  it('exposes channel status only behind the channel monitor feature flag', () => {
     expect(selfNavBlock).not.toContain("path: '/available-channels'")
-    expect(selfNavBlock).not.toContain("path: '/monitor'")
+    expect(selfNavBlock).toContain("path: '/monitor'")
+    expect(selfNavBlock).toContain('featureFlag: flagChannelMonitor')
   })
 })

@@ -36,11 +36,11 @@ export default {
             '开启后，配额模式的渠道监控会在用户端渠道状态页展示关联账号的用量滚动窗口/余额。默认关闭；管理员始终可见。',
         },
         availableChannels: {
-          title: '可用渠道',
-          description: '向已登录用户展示他们能访问的渠道、模型和定价聚合视图。默认关闭。',
+          title: '登录价目',
+          description: '控制登录用户的「模型与价格」页和可用渠道接口；不控制渠道状态入口。默认关闭。',
           configureLink: '前往 渠道管理 > 渠道定价 配置模型价格',
-          enabled: '启用可用渠道',
-          enabledHint: '关闭后用户端侧边栏入口隐藏，接口返回空数组。',
+          enabled: '启用登录价目',
+          enabledHint: '关闭后登录用户的 /models 不展示价目，/api/v1/channels/available 返回空数组。',
         },
         modelPlaza: {
           title: '模型广场',
@@ -70,7 +70,7 @@ export default {
         },
         userSidebar: {
           title: '用户侧栏',
-          description: '控制登录用户在侧边栏看到的玩法福利分组（玩法中枢、签到、农场等）。极速蹬不向普通用户展示「可用渠道 / 渠道状态」。',
+          description: '控制登录用户在侧边栏看到的玩法福利分组（玩法中枢、签到、农场等）。渠道状态由「渠道监控」开关单独控制；可用渠道入口不在侧栏展示。',
           nextChatHint: 'AI创作空间网页入口；同时控制现有 App 的聊天与创作能力',
           imageStudioHint: '图像生成后端能力；由 AI创作空间与 App 共用',
           checkinHint: '每日签到与玩法中枢签到卡片',

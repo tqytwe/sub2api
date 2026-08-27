@@ -83,6 +83,7 @@ export default {
       save: '保存',
       loading: '加载中...',
       loadFailed: 'V2 配置加载失败',
+      retryConfig: '重试加载配置',
       saveSuccess: 'V2 监控配置已保存',
       saveFailed: 'V2 配置保存失败',
       modeBanner:
@@ -104,6 +105,10 @@ export default {
       groupsSelected: '已选择 {count} 个分组',
       groupsAll: '全部分组',
       groupsEmpty: '没有可选择的分组',
+      groupsLoading: '正在加载分组...',
+      groupsLoadFailed: '分组列表加载失败',
+      groupsLoadFailedHint: '当前监控范围已保留，可继续保存其他配置或重试加载分组。',
+      retryGroups: '刷新分组',
       errorsTitle: '错误分类与忽略',
       errorsHint:
         '勾选「忽略」的类别不计入错误率与健康分，仍在错误原因列表中以灰色显示并标记忽略。未匹配的错误归入「其他」。',
