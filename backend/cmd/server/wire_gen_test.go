@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"testing"
 	"time"
 
@@ -18,6 +19,15 @@ func TestProvideServiceBuildInfo(t *testing.T) {
 	out := provideServiceBuildInfo(in)
 	require.Equal(t, in.Version, out.Version)
 	require.Equal(t, in.BuildType, out.BuildType)
+}
+
+func TestGeneratedWireWiresChannelMonitorV2Handler(t *testing.T) {
+	generated, err := os.ReadFile("wire_gen.go")
+	require.NoError(t, err)
+
+	source := string(generated)
+	require.Contains(t, source, "channelMonitorV2Handler := handler.NewChannelMonitorV2Handler(channelMonitorV2Service)")
+	require.Contains(t, source, "channelMonitorUserHandler, channelMonitorV2Handler, adminHandlers")
 }
 
 func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
