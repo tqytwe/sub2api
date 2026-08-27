@@ -32,7 +32,6 @@ import { computed, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute } from 'vue-router'
 import { useAppStore } from '@/stores'
-import { launchAICreationSpace } from '@/api/user'
 import CompactStatusPanel from '@/components/common/CompactStatusPanel.vue'
 import Icon from '@/components/icons/Icon.vue'
 import AppLayout from '@/components/layout/AppLayout.vue'
@@ -53,21 +52,16 @@ async function startLaunch(): Promise<void> {
   failed.value = false
 
   try {
+    const canvasURL = new URL('https://canvas.jisudeng.com')
     const promptID = Number(route.query.prompt)
     const promptVersion = Number(route.query.version)
-    const intent = Number.isSafeInteger(promptID) && promptID > 0
-      ? {
-          type: 'image_prompt' as const,
-          prompt_id: promptID,
-          ...(Number.isSafeInteger(promptVersion) && promptVersion > 0 ? { prompt_version: promptVersion } : {}),
-        }
-      : undefined
-    const result = await launchAICreationSpace(intent)
-    const launchURL = result.launch_url?.trim()
-    if (!launchURL) {
-      throw new Error('Missing AI creation space launch URL')
+    if (Number.isSafeInteger(promptID) && promptID > 0) {
+      canvasURL.searchParams.set('creation_prompt', String(promptID))
+      if (Number.isSafeInteger(promptVersion) && promptVersion > 0) {
+        canvasURL.searchParams.set('creation_prompt_version', String(promptVersion))
+      }
     }
-    window.location.replace(launchURL)
+    window.location.replace(canvasURL.toString())
   } catch {
     failed.value = true
     appStore.showToast('error', t('nextChatLaunch.failed'))
