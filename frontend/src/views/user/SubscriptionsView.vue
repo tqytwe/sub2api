@@ -43,7 +43,7 @@
                     {{ subscription.group?.name || `Group #${subscription.group_id}` }}
                   </h3>
                   <span :class="['rounded-md border px-2 py-0.5 text-[11px] font-medium', platformBadgeClass(subscription.group?.platform || '')]">
-                    {{ platformLabel(subscription.group?.platform || '') }}
+                    {{ platformLabel(subscription.group?.platform || '', locale) }}
                   </span>
                 </div>
                 <p v-if="subscription.group?.description" class="mt-0.5 text-xs text-gray-500 dark:text-dark-400">
@@ -68,7 +68,7 @@
                       : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
                 ]"
               >
-                {{ t(`userSubscriptions.status.${subscription.status}`) }}
+                {{ subscriptionStatusLabel(subscription.status) }}
               </span>
               <button
                 v-if="subscription.status === 'active'"
@@ -259,6 +259,7 @@ import Icon from '@/components/icons/Icon.vue'
 import { formatDateTimeToMinute } from '@/utils/format'
 import { hasPeakRate, formatPeakRateWindow, serverTimezoneLabel } from '@/utils/peak-rate'
 import { platformBorderClass, platformBadgeClass, platformButtonClass, platformLabel } from '@/utils/platformColors'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import {
   getExpirationDateRelation,
   getRemainingDurationParts,
@@ -276,12 +277,16 @@ function platformAccentDotClass(p: string): string {
   }
 }
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const router = useRouter()
 const appStore = useAppStore()
 
 const subscriptions = ref<UserSubscription[]>([])
 const loading = ref(true)
+
+function subscriptionStatusLabel(status: string): string {
+  return localizedEnumOrUnknown(t, `userSubscriptions.status.${status}`)
+}
 
 function subscriptionHasPeakRate(subscription: UserSubscription): boolean {
   return hasPeakRate(subscription.group)

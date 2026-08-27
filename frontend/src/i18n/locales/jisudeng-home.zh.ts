@@ -145,6 +145,7 @@ export const jisudengHomeZh = {
   },
   channels: {
     tag: '用量回馈',
+    panelLabel: '频道',
     title: '不止 API，还有得玩。',
     copyTitle: 'Token 不该只是消耗品。',
     copyBody:

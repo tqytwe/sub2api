@@ -269,6 +269,7 @@ import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import { getChannelMonitorMode, isChannelMonitorV2Mode } from '@/utils/featureFlags'
 import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
+import { platformLabel as localizedPlatformLabel } from '@/utils/platformColors'
 import {
   getConfig,
   updateConfig,
@@ -278,7 +279,7 @@ import {
 import { adminAPI } from '@/api/admin'
 import type { AdminGroup } from '@/types'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 const loading = ref(true)
 const saving = ref(false)
@@ -379,17 +380,7 @@ function categoryLabel(category: string) {
 }
 
 function platformLabel(value: string) {
-  return (
-    {
-      anthropic: 'Claude',
-      openai: 'OpenAI',
-      grok: 'Grok',
-      kiro: 'Kiro',
-      gemini: 'Gemini',
-      antigravity: 'Antigravity',
-      composite: 'Composite',
-    } as Record<string, string>
-  )[value] || value
+  return localizedPlatformLabel(value, locale.value)
 }
 
 function normalizeConfig(value: MonitorConfig): MonitorConfig {

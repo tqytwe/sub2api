@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bilingual Workspace Audit</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; background: #f3f5f7; color: #19212b; font: 14px/1.45 Arial, sans-serif; }
+      main { width: 1360px; margin: 0 auto; padding: 40px 48px; }
+      h1 { margin: 0 0 8px; font-size: 28px; }
+      p { margin: 0; color: #56616d; }
+      .note { margin: 18px 0 28px; padding: 12px 16px; border-left: 4px solid #1d74b9; background: #eaf4fc; color: #244665; }
+      .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+      section { min-height: 430px; border: 1px solid #d7dde4; border-radius: 8px; background: #fff; overflow: hidden; }
+      header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid #e4e8ec; }
+      h2 { margin: 0; font-size: 18px; }
+      .locale { padding: 3px 8px; border-radius: 999px; background: #eaf4fc; color: #175989; font-size: 12px; font-weight: bold; }
+      .body { padding: 20px; }
+      .row { display: grid; grid-template-columns: 154px 1fr; gap: 14px; align-items: center; min-height: 46px; border-bottom: 1px solid #edf0f2; }
+      .row:last-child { border-bottom: 0; }
+      .label { color: #697582; }
+      .value { font-weight: 600; }
+      .status { display: inline-block; padding: 3px 7px; border-radius: 5px; background: #eff7ef; color: #237232; font-size: 12px; }
+      .error { color: #b2242f; }
+      .foot { margin-top: 28px; font-size: 12px; color: #697582; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Workspace system copy audit</h1>
+      <p>Static review board for server-owned enum labels, account actions, channel notices, and usage states.</p>
+      <div class="note" id="review-note">Model IDs, group names, configured activity names, API paths, and provider-returned data stay unchanged. Only system-owned text changes with the selected locale.</div>
+      <div class="grid">
+        <section>
+          <header><h2>中文工作台</h2><span class="locale">zh-CN</span></header>
+          <div class="body">
+            <div class="row"><span class="label">账号测试</span><span class="value">加载模型失败，可重试</span></div>
+            <div class="row"><span class="label">计划测试</span><span class="value">加载测试结果失败</span></div>
+            <div class="row"><span class="label">频道映射</span><span class="value">未配置模型映射规则</span></div>
+            <div class="row"><span class="label">订单状态</span><span class="status">未知状态</span></div>
+            <div class="row"><span class="label">用量状态</span><span class="value error">请求失败，请稍后重试</span></div>
+            <div class="row"><span class="label">用户渠道</span><span class="value">暂无可用频道</span></div>
+          </div>
+        </section>
+        <section>
+          <header><h2>English workspace</h2><span class="locale">en-US</span></header>
+          <div class="body">
+            <div class="row"><span class="label">Account test</span><span class="value">Could not load models. Retry available.</span></div>
+            <div class="row"><span class="label">Scheduled tests</span><span class="value">Could not load test results</span></div>
+            <div class="row"><span class="label">Channel mapping</span><span class="value">No model mapping rules configured</span></div>
+            <div class="row"><span class="label">Order status</span><span class="status">Unknown status</span></div>
+            <div class="row"><span class="label">Usage status</span><span class="value error">Request failed. Please try again later.</span></div>
+            <div class="row"><span class="label">Available channels</span><span class="value">No channels are available</span></div>
+          </div>
+        </section>
+      </div>
+      <p class="foot">Review boundary: locale fragments and existing controls only. No group membership, model mapping, pricing, account configuration, or layout contract changes are represented here.</p>
+    </main>
+    <script>
+      const mode = new URLSearchParams(window.location.search).get('mode');
+      if (mode === 'baseline') {
+        document.title = 'Bilingual Workspace Audit Baseline';
+        document.querySelector('h1').textContent = 'Workspace copy risk baseline';
+        document.querySelector('#review-note').textContent = 'Baseline risk: a cached English preference or missing fragment could let a system fallback render outside the active route locale.';
+      } else if (mode === 'updated') {
+        document.title = 'Bilingual Workspace Audit Updated';
+        document.querySelector('h1').textContent = 'Workspace copy audit: updated contract';
+        document.querySelector('#review-note').textContent = 'Updated contract: route-scoped fragments and localized unknown states keep every system label in the active Chinese or English locale.';
+      }
+    </script>
+  </body>
+</html>

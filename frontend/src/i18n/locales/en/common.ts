@@ -412,6 +412,7 @@ export default {
       wechatAvailabilityUnknown: 'WeChat sign-in availability could not be confirmed. Refresh and retry.',
       wechatSystemBrowserOnly: 'This WeChat sign-in flow is only available in your system browser.',
       wechatBrowserOnly: 'This WeChat sign-in flow is only available inside the WeChat browser.',
+      wechatNativeAppOnly: 'This site only has WeChat mobile app login configured. Continue from the native app through the WeChat SDK.',
       wechatNotConfigured: 'WeChat sign-in is not configured yet.'
     },
     linuxdoCallbackPageTitle: 'LinuxDo Sign-In Callback',

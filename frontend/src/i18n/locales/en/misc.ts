@@ -120,7 +120,8 @@ export default {
     status: {
       active: 'Active',
       expired: 'Expired',
-      revoked: 'Revoked'
+      revoked: 'Revoked',
+      suspended: 'Suspended'
     },
     usage: 'Usage',
     expires: 'Expires',

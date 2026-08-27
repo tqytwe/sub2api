@@ -11,6 +11,7 @@ import { useAppStore } from '@/stores/app'
 import { filenameForAsset, isExternalAssetUrl, isStudioAssetApiPath, saveBlob } from '@/utils/imageStudioBlob'
 import { buildApiUrl } from '@/api/url'
 import { trackGrowthEvent } from '@/utils/growthAnalytics'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import Icon from '@/components/icons/Icon.vue'
 
 const props = defineProps<{
@@ -281,9 +282,7 @@ function truncateError(msg?: string) {
 }
 
 function statusLabel(status: string) {
-  const key = `imageStudio.status.${status}`
-  const translated = t(key)
-  return translated === key ? status : translated
+  return localizedEnumOrUnknown(t, `imageStudio.status.${status}`)
 }
 
 function itemCounts(job: ImageStudioJob) {

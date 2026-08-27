@@ -146,6 +146,7 @@ export const jisudengHomeEn = {
   },
   channels: {
     tag: 'USAGE REWARDS',
+    panelLabel: 'CHANNEL',
     title: 'More than a meter.',
     copyTitle: 'Usage should pay you back.',
     copyBody:

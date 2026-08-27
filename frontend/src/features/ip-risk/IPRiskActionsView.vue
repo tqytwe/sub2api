@@ -45,7 +45,7 @@
               <td class="whitespace-nowrap px-4 py-3">
                 <div class="font-medium text-gray-900 dark:text-white">{{ actionLabel(action.action_type) }}</div>
                 <div class="mt-1 flex items-center gap-2">
-                  <span :class="['badge', statusClass(action.status)]">{{ action.status }}</span>
+                  <span :class="['badge', statusClass(action.status)]">{{ actionStatusLabel(action.status) }}</span>
                   <span v-if="action.case_id" class="text-xs text-gray-500 dark:text-gray-400">#{{ action.case_id }}</span>
                 </div>
               </td>
@@ -221,6 +221,10 @@ async function rollback() {
 
 function actionLabel(action: RiskActionType) {
   return localizedEnumOrUnknown(t, `admin.ipRisk.actionTypes.${action}`)
+}
+
+function actionStatusLabel(status: string) {
+  return localizedEnumOrUnknown(t, `admin.ipRisk.actionDialog.result.${status}`)
 }
 
 function statusClass(status: string) {

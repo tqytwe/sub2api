@@ -117,7 +117,8 @@ export default {
     status: {
       active: '有效',
       expired: '已过期',
-      revoked: '已撤销'
+      revoked: '已撤销',
+      suspended: '已暂停'
     },
     usage: '用量',
     expires: '到期时间',

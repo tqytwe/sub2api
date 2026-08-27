@@ -121,7 +121,7 @@ describe("SubscriptionPlanCard", () => {
     const badges = wrapper.findAll('[data-test="plan-storefront-badge"]').map(node => node.text());
     expect(badges).toContain("payment.planCard.featured");
     expect(badges).toContain("Hot");
-    expect(wrapper.text()).toContain("图片");
+    expect(wrapper.text()).toContain("Image");
   });
 
   it("shows a platform-colored placeholder when the plan has no cover image", () => {

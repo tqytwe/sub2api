@@ -176,7 +176,7 @@ import APIOnboardingConfigPanel from './APIOnboardingConfigPanel.vue'
 import { currencySymbol } from '@/components/payment/currency'
 import { platformBadgeClass, platformLabel, platformTextClass } from '@/utils/platformColors'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const appStore = useAppStore()
 
 function planCurrencySymbol(currency?: string): string {
@@ -360,7 +360,7 @@ function planStorefrontPlatformLabel(plan: SubscriptionPlan): string {
   if (platform === 'anthropic') return t('payment.planShelf.platforms.anthropic')
   if (platform === 'image') return t('payment.planShelf.platforms.image')
   if (platform === 'team') return t('payment.planShelf.platforms.team')
-  return platformLabel(platform)
+  return platformLabel(platform, locale?.value ?? 'zh-CN')
 }
 
 function planStorefrontCategoryLabel(plan: SubscriptionPlan): string {

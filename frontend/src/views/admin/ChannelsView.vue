@@ -14,7 +14,7 @@
               <input
                 v-model="searchQuery"
                 type="text"
-                :placeholder="t('admin.channels.searchChannels', 'Search channels...')"
+                :placeholder="t('admin.channels.searchChannels')"
                 class="input pl-10"
                 @input="handleSearch"
               />
@@ -23,7 +23,7 @@
             <Select
               v-model="filters.status"
               :options="statusFilterOptions"
-              :placeholder="t('admin.channels.allStatus', 'All Status')"
+              :placeholder="t('admin.channels.allStatus')"
               class="w-40"
               @change="loadChannels"
             />
@@ -35,13 +35,13 @@
               @click="loadChannels"
               :disabled="loading"
               class="btn btn-secondary"
-              :title="t('common.refresh', 'Refresh')"
+              :title="t('common.refresh')"
             >
               <Icon name="refresh" size="md" :class="loading ? 'animate-spin' : ''" />
             </button>
             <button @click="openCreateDialog" class="btn btn-primary">
               <Icon name="plus" size="md" class="mr-2" />
-              {{ t('admin.channels.createChannel', 'Create Channel') }}
+              {{ t('admin.channels.createChannel') }}
             </button>
           </div>
         </div>
@@ -77,7 +77,7 @@
               class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
             >
               {{ (row.group_ids || []).length }}
-              {{ t('admin.channels.groupsUnit', 'groups') }}
+              {{ t('admin.channels.groupsUnit') }}
             </span>
           </template>
 
@@ -86,7 +86,7 @@
               class="inline-flex items-center rounded bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-dark-600 dark:text-gray-300"
             >
               {{ (row.model_pricing || []).length }}
-              {{ t('admin.channels.pricingUnit', 'pricing rules') }}
+              {{ t('admin.channels.pricingUnit') }}
             </span>
           </template>
 
@@ -103,23 +103,23 @@
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-primary-600 dark:hover:bg-dark-700 dark:hover:text-primary-400"
               >
                 <Icon name="edit" size="sm" />
-                <span class="text-xs">{{ t('common.edit', 'Edit') }}</span>
+                <span class="text-xs">{{ t('common.edit') }}</span>
               </button>
               <button
                 @click="handleDelete(row)"
                 class="flex flex-col items-center gap-0.5 rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20 dark:hover:text-red-400"
               >
                 <Icon name="trash" size="sm" />
-                <span class="text-xs">{{ t('common.delete', 'Delete') }}</span>
+                <span class="text-xs">{{ t('common.delete') }}</span>
               </button>
             </div>
           </template>
 
           <template #empty>
             <EmptyState
-              :title="t('admin.channels.noChannelsYet', 'No Channels Yet')"
-              :description="t('admin.channels.createFirstChannel', 'Create your first channel to manage model pricing')"
-              :action-text="t('admin.channels.createChannel', 'Create Channel')"
+              :title="t('admin.channels.noChannelsYet')"
+              :description="t('admin.channels.createFirstChannel')"
+              :action-text="t('admin.channels.createChannel')"
               @action="openCreateDialog"
             />
           </template>
@@ -141,7 +141,7 @@
     <!-- Create/Edit Dialog -->
     <BaseDialog
       :show="showDialog"
-      :title="editingChannel ? t('admin.channels.editChannel', 'Edit Channel') : t('admin.channels.createChannel', 'Create Channel')"
+      :title="editingChannel ? t('admin.channels.editChannel') : t('admin.channels.createChannel')"
       width="extra-wide"
       @close="closeDialog"
     >
@@ -177,30 +177,30 @@
           <div v-show="activeTab === 'basic'" class="space-y-5">
             <!-- Name -->
             <div>
-              <label class="input-label">{{ t('admin.channels.form.name', 'Name') }} <span class="text-red-500">*</span></label>
+              <label class="input-label">{{ t('admin.channels.form.name') }} <span class="text-red-500">*</span></label>
               <input
                 v-model="form.name"
                 type="text"
                 required
                 class="input"
-                :placeholder="t('admin.channels.form.namePlaceholder', 'Enter channel name')"
+                :placeholder="t('admin.channels.form.namePlaceholder')"
               />
             </div>
 
             <!-- Description -->
             <div>
-              <label class="input-label">{{ t('admin.channels.form.description', 'Description') }}</label>
+              <label class="input-label">{{ t('admin.channels.form.description') }}</label>
               <textarea
                 v-model="form.description"
                 rows="2"
                 class="input"
-                :placeholder="t('admin.channels.form.descriptionPlaceholder', 'Optional description')"
+                :placeholder="t('admin.channels.form.descriptionPlaceholder')"
               ></textarea>
             </div>
 
             <!-- Status (edit only) -->
             <div v-if="editingChannel">
-              <label class="input-label">{{ t('admin.channels.form.status', 'Status') }}</label>
+              <label class="input-label">{{ t('admin.channels.form.status') }}</label>
               <Select v-model="form.status" :options="statusEditOptions" />
             </div>
 
@@ -212,19 +212,19 @@
                   v-model="form.restrict_models"
                   class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                 />
-                <span class="input-label mb-0">{{ t('admin.channels.form.restrictModels', 'Restrict Models') }}</span>
+                <span class="input-label mb-0">{{ t('admin.channels.form.restrictModels') }}</span>
               </label>
               <p class="mt-1 ml-6 text-xs text-gray-400">
-                {{ t('admin.channels.form.restrictModelsHint', 'When enabled, only models in the pricing list are allowed. Others will be rejected.') }}
+                {{ t('admin.channels.form.restrictModelsHint') }}
               </p>
             </div>
 
             <!-- Billing Basis -->
             <div>
-              <label class="input-label">{{ t('admin.channels.form.billingModelSource', 'Billing Basis') }}</label>
+              <label class="input-label">{{ t('admin.channels.form.billingModelSource') }}</label>
               <Select v-model="form.billing_model_source" :options="billingModelSourceOptions" />
               <p class="mt-1 text-xs text-gray-400">
-                {{ t('admin.channels.form.billingModelSourceHint', 'Controls which model name is used for pricing lookup') }}
+                {{ t('admin.channels.form.billingModelSourceHint') }}
               </p>
             </div>
 
@@ -281,17 +281,17 @@
             <!-- Groups -->
             <div>
               <label class="input-label text-xs">
-                {{ t('admin.channels.form.groups', 'Associated Groups') }} <span class="text-red-500">*</span>
+                {{ t('admin.channels.form.groups') }} <span class="text-red-500">*</span>
                 <span v-if="section.group_ids.length > 0" class="ml-1 font-normal text-gray-400">
                   ({{ t('admin.channels.form.selectedCount', { count: section.group_ids.length }) }})
                 </span>
               </label>
               <div class="max-h-40 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-dark-600 dark:bg-dark-900">
                 <div v-if="groupsLoading" class="py-2 text-center text-xs text-gray-500">
-                  {{ t('common.loading', 'Loading...') }}
+                  {{ t('common.loading') }}
                 </div>
                 <div v-else-if="getGroupsForPlatform(section.platform).length === 0" class="py-2 text-center text-xs text-gray-500">
-                  {{ t('admin.channels.form.noGroupsAvailable', 'No groups available') }}
+                  {{ t('admin.channels.form.noGroupsAvailable') }}
                 </div>
                 <div v-else class="flex flex-wrap gap-1">
                   <label
@@ -372,16 +372,16 @@
             <!-- Model Mapping -->
             <div>
               <div class="mb-1 flex items-center justify-between">
-                <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelMapping', 'Model Mapping') }}</label>
+                <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelMapping') }}</label>
                 <button type="button" @click="addMappingEntry(sIdx)" class="text-xs text-primary-600 hover:text-primary-700">
-                  + {{ t('common.add', 'Add') }}
+                  + {{ t('common.add') }}
                 </button>
               </div>
               <div
                 v-if="Object.keys(section.model_mapping).length === 0"
                 class="rounded border border-dashed border-gray-300 p-2 text-center text-xs text-gray-400 dark:border-dark-500"
               >
-                {{ t('admin.channels.form.noMappingRules', 'No mapping rules. Click "Add" to create one.') }}
+                {{ t('admin.channels.form.noMappingRules') }}
               </div>
               <div v-else class="space-y-1">
                 <div
@@ -394,7 +394,7 @@
                     type="text"
                     class="input flex-1 text-xs"
                     :class="platformTextClass(section.platform)"
-                    :placeholder="t('admin.channels.form.mappingSource', 'Source model')"
+                    :placeholder="t('admin.channels.form.mappingSource')"
                     @change="renameMappingKey(sIdx, srcModel, ($event.target as HTMLInputElement).value)"
                   />
                   <span class="text-gray-400 text-xs">→</span>
@@ -403,7 +403,7 @@
                     type="text"
                     class="input flex-1 text-xs"
                     :class="platformTextClass(section.platform)"
-                    :placeholder="t('admin.channels.form.mappingTarget', 'Target model')"
+                    :placeholder="t('admin.channels.form.mappingTarget')"
                     @input="section.model_mapping[srcModel] = ($event.target as HTMLInputElement).value"
                   />
                   <button
@@ -420,7 +420,7 @@
             <!-- Model Pricing -->
             <div>
               <div class="mb-1 flex items-center justify-between">
-                <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelPricing', 'Model Pricing') }}</label>
+                <label class="input-label text-xs mb-0">{{ t('admin.channels.form.modelPricing') }}</label>
                 <div class="flex items-center gap-2">
                   <button
                     type="button"
@@ -431,7 +431,7 @@
                     {{ syncingPlatform === section.platform ? t('admin.channels.form.syncingModels') : t('admin.channels.form.syncLatestModels') }}
                   </button>
                   <button type="button" @click="addPricingEntry(sIdx)" class="text-xs text-primary-600 hover:text-primary-700">
-                    + {{ t('common.add', 'Add') }}
+                    + {{ t('common.add') }}
                   </button>
                 </div>
               </div>
@@ -439,7 +439,7 @@
                 v-if="section.model_pricing.length === 0"
                 class="rounded border border-dashed border-gray-300 p-2 text-center text-xs text-gray-400 dark:border-dark-500"
               >
-                {{ t('admin.channels.form.noPricingRules', 'No pricing rules yet. Click "Add" to create one.') }}
+                {{ t('admin.channels.form.noPricingRules') }}
               </div>
               <div v-else class="space-y-2">
                 <PricingEntryCard
@@ -593,7 +593,7 @@
       <template #footer>
         <div class="flex justify-end gap-3">
           <button @click="closeDialog" type="button" class="btn btn-secondary">
-            {{ t('common.cancel', 'Cancel') }}
+            {{ t('common.cancel') }}
           </button>
           <button
             type="submit"
@@ -602,10 +602,10 @@
             class="btn btn-primary"
           >
             {{ submitting
-              ? t('common.submitting', 'Submitting...')
+              ? t('common.submitting')
               : editingChannel
-                ? t('common.update', 'Update')
-                : t('common.create', 'Create')
+                ? t('common.update')
+                : t('common.create')
             }}
           </button>
         </div>
@@ -615,10 +615,10 @@
     <!-- Delete Confirmation -->
     <ConfirmDialog
       :show="showDeleteDialog"
-      :title="t('admin.channels.deleteChannel', 'Delete Channel')"
+      :title="t('admin.channels.deleteChannel')"
       :message="deleteConfirmMessage"
-      :confirm-text="t('common.delete', 'Delete')"
-      :cancel-text="t('common.cancel', 'Cancel')"
+      :confirm-text="t('common.delete')"
+      :cancel-text="t('common.cancel')"
       :danger="true"
       @confirm="confirmDelete"
       @cancel="showDeleteDialog = false"
@@ -692,31 +692,31 @@ interface PlatformSection {
 
 // ── Table columns ──
 const columns = computed<Column[]>(() => [
-  { key: 'name', label: t('admin.channels.columns.name', 'Name'), sortable: true },
-  { key: 'description', label: t('admin.channels.columns.description', 'Description'), sortable: false },
-  { key: 'status', label: t('admin.channels.columns.status', 'Status'), sortable: true },
-  { key: 'group_count', label: t('admin.channels.columns.groups', 'Groups'), sortable: false },
-  { key: 'pricing_count', label: t('admin.channels.columns.pricing', 'Pricing'), sortable: false },
-  { key: 'created_at', label: t('admin.channels.columns.createdAt', 'Created'), sortable: true },
-  { key: 'actions', label: t('admin.channels.columns.actions', 'Actions'), sortable: false }
+  { key: 'name', label: t('admin.channels.columns.name'), sortable: true },
+  { key: 'description', label: t('admin.channels.columns.description'), sortable: false },
+  { key: 'status', label: t('admin.channels.columns.status'), sortable: true },
+  { key: 'group_count', label: t('admin.channels.columns.groups'), sortable: false },
+  { key: 'pricing_count', label: t('admin.channels.columns.pricing'), sortable: false },
+  { key: 'created_at', label: t('admin.channels.columns.createdAt'), sortable: true },
+  { key: 'actions', label: t('admin.channels.columns.actions'), sortable: false }
 ])
 
 const statusFilterOptions = computed(() => [
-  { value: '', label: t('admin.channels.allStatus', 'All Status') },
-  { value: 'active', label: t('admin.channels.statusActive', 'Active') },
-  { value: 'disabled', label: t('admin.channels.statusDisabled', 'Disabled') }
+  { value: '', label: t('admin.channels.allStatus') },
+  { value: 'active', label: t('admin.channels.statusActive') },
+  { value: 'disabled', label: t('admin.channels.statusDisabled') }
 ])
 
 const statusEditOptions = computed(() => [
-  { value: 'active', label: t('admin.channels.statusActive', 'Active') },
-  { value: 'disabled', label: t('admin.channels.statusDisabled', 'Disabled') }
+  { value: 'active', label: t('admin.channels.statusActive') },
+  { value: 'disabled', label: t('admin.channels.statusDisabled') }
 ])
 
 const billingModelSourceOptions = computed(() => [
-  { value: 'channel_mapped', label: t('admin.channels.form.billingModelSourceChannelMapped', 'Bill by channel-mapped model') },
-  { value: 'requested', label: t('admin.channels.form.billingModelSourceRequested', 'Bill by requested model') },
-  { value: 'upstream', label: t('admin.channels.form.billingModelSourceUpstream', 'Bill by final upstream model') },
-  { value: 'response_model', label: t('admin.channels.form.billingModelSourceResponse', 'Bill by upstream response model') }
+  { value: 'channel_mapped', label: t('admin.channels.form.billingModelSourceChannelMapped') },
+  { value: 'requested', label: t('admin.channels.form.billingModelSourceRequested') },
+  { value: 'upstream', label: t('admin.channels.form.billingModelSourceUpstream') },
+  { value: 'response_model', label: t('admin.channels.form.billingModelSourceResponse') }
 ])
 
 // ── State ──
@@ -1281,7 +1281,7 @@ async function loadChannels() {
   } catch (error: unknown) {
     const e = error as { name?: string; code?: string }
     if (e?.name === 'AbortError' || e?.code === 'ERR_CANCELED') return
-    appStore.showError(extractApiErrorMessage(error, t('admin.channels.loadError', 'Failed to load channels')))
+    appStore.showError(extractApiErrorMessage(error, t('admin.channels.loadError')))
   } finally {
     if (abortController === ctrl) {
       loading.value = false
@@ -1464,7 +1464,7 @@ function closeDialog() {
 async function handleSubmit() {
   if (submitting.value) return
   if (!form.name.trim()) {
-    appStore.showError(t('admin.channels.nameRequired', 'Please enter a channel name'))
+    appStore.showError(t('admin.channels.nameRequired'))
     return
   }
 
@@ -1586,7 +1586,7 @@ async function handleSubmit() {
         account_stats_pricing_rules: accountStatsRulesToAPI()
       }
       await adminAPI.channels.update(editingChannel.value.id, req)
-      appStore.showSuccess(t('admin.channels.updateSuccess', 'Channel updated'))
+      appStore.showSuccess(t('admin.channels.updateSuccess'))
     } else {
       const req: CreateChannelRequest = {
         name: form.name.trim(),
@@ -1601,14 +1601,14 @@ async function handleSubmit() {
         account_stats_pricing_rules: accountStatsRulesToAPI()
       }
       await adminAPI.channels.create(req)
-      appStore.showSuccess(t('admin.channels.createSuccess', 'Channel created'))
+      appStore.showSuccess(t('admin.channels.createSuccess'))
     }
     closeDialog()
     loadChannels()
   } catch (error: unknown) {
     appStore.showError(extractApiErrorMessage(error, editingChannel.value
-      ? t('admin.channels.updateError', 'Failed to update channel')
-      : t('admin.channels.createError', 'Failed to create channel')))
+      ? t('admin.channels.updateError')
+      : t('admin.channels.createError')))
   } finally {
     submitting.value = false
   }
@@ -1626,7 +1626,7 @@ async function toggleChannelStatus(channel: Channel) {
       channel.status = newStatus
     }
   } catch (error) {
-    appStore.showError(t('admin.channels.updateError', 'Failed to update channel'))
+    appStore.showError(t('admin.channels.updateError'))
     console.error('Error toggling channel status:', error)
   }
 }
@@ -1642,12 +1642,12 @@ async function confirmDelete() {
 
   try {
     await adminAPI.channels.remove(deletingChannel.value.id)
-    appStore.showSuccess(t('admin.channels.deleteSuccess', 'Channel deleted'))
+    appStore.showSuccess(t('admin.channels.deleteSuccess'))
     showDeleteDialog.value = false
     deletingChannel.value = null
     loadChannels()
   } catch (error: unknown) {
-    appStore.showError(extractApiErrorMessage(error, t('admin.channels.deleteError', 'Failed to delete channel')))
+    appStore.showError(extractApiErrorMessage(error, t('admin.channels.deleteError')))
   }
 }
 

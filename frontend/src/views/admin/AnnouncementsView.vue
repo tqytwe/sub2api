@@ -312,6 +312,7 @@ import { useAppStore } from '@/stores/app'
 import { getPersistedPageSize } from '@/composables/usePersistedPageSize'
 import { adminAPI } from '@/api/admin'
 import { formatDateTime, formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
+import { localizedEnumOrUnknown } from '@/utils/localizedEnum'
 import type { AdminGroup, Announcement, AnnouncementTargeting } from '@/types'
 import type { Column } from '@/components/common/types'
 
@@ -390,10 +391,7 @@ const columns = computed<Column[]>(() => [
 ])
 
 const statusLabel = (status: string) => {
-  if (status === 'draft') return t('admin.announcements.statusLabels.draft')
-  if (status === 'active') return t('admin.announcements.statusLabels.active')
-  if (status === 'archived') return t('admin.announcements.statusLabels.archived')
-  return status
+  return localizedEnumOrUnknown(t, `admin.announcements.statusLabels.${status}`)
 }
 
 const targetingSummary = (targeting: AnnouncementTargeting) => {

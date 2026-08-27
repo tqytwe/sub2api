@@ -43,10 +43,13 @@ describe('localizedEnumOrUnknown', () => {
       'src/components/user/UserErrorDetailModal.vue': 'localizedEnumOrUnknown',
       'src/components/coupon/CouponWalletPanel.vue': 'localizedEnumOrUnknown',
       'src/views/user/SpeedTestView.vue': 'localizedEnumOrUnknown',
+      'src/views/user/SubscriptionsView.vue': 'localizedEnumOrUnknown',
       'src/features/ip-risk/IPRiskActionsView.vue': 'localizedEnumOrUnknown',
+      'src/features/ip-risk/IPRiskActionDialog.vue': 'localizedEnumOrUnknown',
       'src/features/ip-risk/IPRiskWorkbench.vue': 'localizedEnumOrUnknown',
       'src/features/ip-risk/IPRiskCaseDetail.vue': 'localizedEnumOrUnknown',
       'src/features/channel-monitor-v2/MonitorSettingsPanel.vue': 'localizedEnumOrUnknown',
+      'src/features/prompt-audit/components/RuntimeOverview.vue': 'localizedEnumOrUnknown',
     }
 
     for (const [source, expected] of Object.entries(sourceExpectations)) {

@@ -103,6 +103,20 @@
               </span>
             </span>
           </template>
+          <template #cell-media_capabilities="{ row }">
+            <span v-if="mediaModalitiesFor(row.media_capabilities).length" class="flex flex-wrap gap-1">
+              <span
+                v-for="modality in mediaModalitiesFor(row.media_capabilities)"
+                :key="modality"
+                class="rounded bg-sky-50 px-1.5 py-0.5 text-xs text-sky-800 dark:bg-sky-950/40 dark:text-sky-200"
+              >
+                {{ t(`admin.modelCatalog.mediaCapabilities.${modality}`) }}
+              </span>
+            </span>
+            <span v-else class="text-xs text-gray-500 dark:text-dark-400">
+              {{ t('admin.modelCatalog.mediaCapabilities.undeclared') }}
+            </span>
+          </template>
           <template #cell-visible_public="{ row }">
             <Toggle :model-value="row.visible_public" @update:model-value="(v: boolean) => patchVisibility(row, v, undefined)" />
           </template>
@@ -117,7 +131,7 @@
       </template>
     </TablePageLayout>
 
-    <BaseDialog :show="editOpen" :title="editForm.id ? t('admin.modelCatalog.editTitle') : t('admin.modelCatalog.addTitle')" @close="editOpen = false">
+    <BaseDialog :show="editOpen" width="wide" :title="editForm.id ? t('admin.modelCatalog.editTitle') : t('admin.modelCatalog.addTitle')" @close="editOpen = false">
       <div class="space-y-4">
         <label class="block text-sm">
           {{ t('admin.modelCatalog.fields.model') }}
@@ -166,6 +180,122 @@
             <input v-model="editForm.visible_auth" type="checkbox" />
             {{ t('admin.modelCatalog.fields.visibleAuth') }}
           </label>
+        </div>
+
+        <div class="border-t border-gray-200 pt-4 dark:border-dark-700">
+          <label class="flex items-center gap-2 text-sm font-medium text-gray-900 dark:text-white">
+            <input
+              type="checkbox"
+              data-testid="model-media-capabilities-toggle"
+              :checked="editForm.media_capabilities !== null"
+              @change="setMediaCapabilitiesDeclared(($event.target as HTMLInputElement).checked)"
+            />
+            {{ t('admin.modelCatalog.fields.mediaCapabilitiesEnabled') }}
+          </label>
+          <p class="mt-2 text-xs text-gray-500 dark:text-dark-400">
+            {{ t('admin.modelCatalog.mediaCapabilities.hint') }}
+          </p>
+
+          <fieldset v-if="editForm.media_capabilities" class="mt-4 space-y-4" :aria-label="t('admin.modelCatalog.mediaCapabilities.title')">
+            <div class="grid gap-3 sm:grid-cols-2">
+              <label class="block text-sm">
+                {{ t('admin.modelCatalog.fields.mediaCapabilitiesVersion') }}
+                <input v-model.trim="editForm.media_capabilities.version" class="input mt-1 w-full" autocomplete="off" />
+              </label>
+              <label class="block text-sm">
+                {{ t('admin.modelCatalog.fields.mediaCapabilitiesAdapter') }}
+                <input v-model.trim="editForm.media_capabilities.adapter" class="input mt-1 w-full" autocomplete="off" />
+              </label>
+            </div>
+
+            <div>
+              <span class="block text-sm font-medium text-gray-900 dark:text-white">{{ t('admin.modelCatalog.fields.mediaModalities') }}</span>
+              <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <label v-for="modality in mediaModalities" :key="modality" class="flex min-h-10 items-center gap-2 rounded-md border border-gray-200 px-3 text-sm dark:border-dark-700">
+                  <input
+                    type="checkbox"
+                    :checked="hasEditMediaModality(modality)"
+                    @change="toggleEditMediaModality(modality, ($event.target as HTMLInputElement).checked)"
+                  />
+                  {{ t(`admin.modelCatalog.mediaCapabilities.${modality}`) }}
+                </label>
+              </div>
+            </div>
+
+            <div v-if="hasEditMediaModality('image')" class="space-y-3 border-t border-gray-200 pt-4 dark:border-dark-700">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageOperations') }}
+                  <input class="input mt-1 w-full" :value="imageListValue('operations')" @input="setImageStringList('operations', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageFormats') }}
+                  <input class="input mt-1 w-full" :value="imageListValue('supported_output_formats')" @input="setImageStringList('supported_output_formats', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageSizes') }}
+                  <input class="input mt-1 w-full" :value="imageListValue('supported_sizes')" @input="setImageStringList('supported_sizes', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageAspectRatios') }}
+                  <input class="input mt-1 w-full" :value="imageListValue('supported_aspect_ratios')" @input="setImageStringList('supported_aspect_ratios', $event)" />
+                </label>
+              </div>
+              <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageMinDimension') }}
+                  <input class="input mt-1 w-full" type="number" min="1" :value="imageNumberValue('min_dimension')" @input="setImageNumber('min_dimension', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageMaxDimension') }}
+                  <input class="input mt-1 w-full" type="number" min="1" :value="imageNumberValue('max_dimension')" @input="setImageNumber('max_dimension', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageDimensionStep') }}
+                  <input class="input mt-1 w-full" type="number" min="1" :value="imageNumberValue('dimension_step')" @input="setImageNumber('dimension_step', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageMaxAspectRatio') }}
+                  <input class="input mt-1 w-full" type="number" min="1" step="0.01" :value="imageNumberValue('max_aspect_ratio')" @input="setImageNumber('max_aspect_ratio', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.imageMaxReferences') }}
+                  <input class="input mt-1 w-full" type="number" min="0" :value="imageNumberValue('max_reference_images')" @input="setImageNumber('max_reference_images', $event)" />
+                </label>
+              </div>
+              <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.modelCatalog.mediaCapabilities.imageHint') }}</p>
+            </div>
+
+            <div v-if="hasEditMediaModality('video')" class="space-y-3 border-t border-gray-200 pt-4 dark:border-dark-700">
+              <div class="grid gap-3 sm:grid-cols-2">
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.videoOperations') }}
+                  <input class="input mt-1 w-full" :value="videoListValue('operations')" @input="setVideoStringList('operations', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.videoResolutions') }}
+                  <input class="input mt-1 w-full" :value="videoListValue('supported_resolutions')" @input="setVideoStringList('supported_resolutions', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.videoAspectRatios') }}
+                  <input class="input mt-1 w-full" :value="videoListValue('supported_aspect_ratios')" @input="setVideoStringList('supported_aspect_ratios', $event)" />
+                </label>
+                <label class="block text-sm">
+                  {{ t('admin.modelCatalog.fields.videoDurations') }}
+                  <input class="input mt-1 w-full" :value="videoDurationValue()" @input="setVideoDurations($event)" />
+                </label>
+              </div>
+              <label class="block text-sm">
+                {{ t('admin.modelCatalog.fields.videoMaxReferences') }}
+                <input class="input mt-1 w-full" type="number" min="0" :value="videoNumberValue('max_reference_assets')" @input="setVideoNumber('max_reference_assets', $event)" />
+              </label>
+              <p class="text-xs text-gray-500 dark:text-dark-400">{{ t('admin.modelCatalog.mediaCapabilities.videoHint') }}</p>
+            </div>
+
+            <p class="border border-sky-200 bg-sky-50 px-3 py-2 text-xs text-sky-900 dark:border-sky-900/70 dark:bg-sky-950/30 dark:text-sky-100">
+              {{ t('admin.modelCatalog.mediaCapabilities.preflight') }}
+            </p>
+          </fieldset>
         </div>
 
         <div class="grid grid-cols-2 gap-3 border-t border-gray-200 pt-4 text-sm dark:border-dark-700">
@@ -339,6 +469,18 @@ import adminModelCatalogAPI, {
 } from '@/api/admin/modelCatalog'
 import groupsAPI from '@/api/admin/groups'
 import { formatScaled } from '@/utils/pricing'
+import {
+  MODEL_MEDIA_MODALITIES,
+  cloneMediaCapabilities,
+  emptyMediaCapabilities,
+  hasMediaModality,
+  knownMediaModalities,
+  validateMediaCapabilities,
+  type ModelImageMediaCapabilities,
+  type ModelMediaCapabilities,
+  type ModelMediaModality,
+  type ModelVideoMediaCapabilities,
+} from '@/utils/modelMediaCapabilities'
 import { useAppStore } from '@/stores/app'
 import { extractApiErrorMessage } from '@/utils/apiError'
 import type { AdminGroup } from '@/types'
@@ -385,6 +527,7 @@ const editForm = reactive({
   sort_order: 0,
   visible_public: false,
   visible_auth: true,
+  featured: false,
   group_mode: 'auto' as 'auto' | 'selected',
   group_ids: [] as number[],
   official_input_price_million: null as number | null,
@@ -395,6 +538,7 @@ const editForm = reactive({
   official_output_manual: false,
   official_cache_read_manual: false,
   official_cache_write_manual: false,
+  media_capabilities: null as ModelMediaCapabilities | null,
 })
 
 const originalOfficialPrices = reactive({
@@ -409,6 +553,7 @@ const columns = computed(() => [
   { key: 'model_name', label: t('admin.modelCatalog.columns.model'), sortable: true },
   { key: 'platform', label: t('admin.modelCatalog.columns.platform'), sortable: true },
   { key: 'group_ids', label: t('admin.modelCatalog.columns.groups'), sortable: false },
+  { key: 'media_capabilities', label: t('admin.modelCatalog.columns.mediaCapabilities'), sortable: false },
   { key: 'official_input_price', label: t('admin.modelCatalog.columns.officialInput'), sortable: false },
   { key: 'official_output_price', label: t('admin.modelCatalog.columns.officialOutput'), sortable: false },
   { key: 'visible_public', label: t('admin.modelCatalog.columns.public'), sortable: false },
@@ -427,6 +572,7 @@ const filteredRows = computed(() => {
 })
 
 const discoveryTotalPages = computed(() => Math.max(1, Math.ceil(discoveryTotal.value / discoveryPageSize)))
+const mediaModalities = MODEL_MEDIA_MODALITIES
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
 function debouncedLoad() {
@@ -456,6 +602,131 @@ function formatPayloadPrice(payload: Record<string, unknown>, key: string): stri
 
 function groupLabel(id: number): string {
   return groups.value.find((group) => group.id === id)?.name ?? `#${id}`
+}
+
+function mediaModalitiesFor(value: ModelMediaCapabilities | null | undefined): ModelMediaModality[] {
+  return knownMediaModalities(value)
+}
+
+function hasEditMediaModality(modality: ModelMediaModality): boolean {
+  return hasMediaModality(editForm.media_capabilities, modality)
+}
+
+function setMediaCapabilitiesDeclared(declared: boolean) {
+  editForm.media_capabilities = declared ? emptyMediaCapabilities() : null
+}
+
+function toggleEditMediaModality(modality: ModelMediaModality, enabled: boolean) {
+  const capabilities = editForm.media_capabilities
+  if (!capabilities) return
+  const next = new Set(capabilities.modalities)
+  if (enabled) next.add(modality)
+  else next.delete(modality)
+  const known = new Set<string>(mediaModalities)
+  const retained = capabilities.modalities.filter((candidate) => !known.has(candidate) || next.has(candidate))
+  for (const candidate of mediaModalities) {
+    if (next.has(candidate) && !retained.includes(candidate)) retained.push(candidate)
+  }
+  capabilities.modalities = retained
+  if (!enabled && modality === 'image') delete capabilities.image
+  if (!enabled && modality === 'video') delete capabilities.video
+  if (enabled && modality === 'image' && !capabilities.image) capabilities.image = { operations: [] }
+  if (enabled && modality === 'video' && !capabilities.video) capabilities.video = { operations: [] }
+}
+
+const imageStringFields = ['operations', 'supported_sizes', 'supported_aspect_ratios', 'supported_output_formats'] as const
+type ImageStringField = typeof imageStringFields[number]
+const imageNumberFields = ['min_dimension', 'max_dimension', 'dimension_step', 'max_aspect_ratio', 'max_reference_images'] as const
+type ImageNumberField = typeof imageNumberFields[number]
+const videoStringFields = ['operations', 'supported_resolutions', 'supported_aspect_ratios'] as const
+type VideoStringField = typeof videoStringFields[number]
+const videoNumberFields = ['max_reference_assets'] as const
+type VideoNumberField = typeof videoNumberFields[number]
+
+function editableImageCapabilities(): ModelImageMediaCapabilities | null {
+  const capabilities = editForm.media_capabilities
+  if (!capabilities) return null
+  if (!capabilities.image) capabilities.image = { operations: [] }
+  return capabilities.image
+}
+
+function editableVideoCapabilities(): ModelVideoMediaCapabilities | null {
+  const capabilities = editForm.media_capabilities
+  if (!capabilities) return null
+  if (!capabilities.video) capabilities.video = { operations: [] }
+  return capabilities.video
+}
+
+function imageListValue(field: ImageStringField): string {
+  const value = editForm.media_capabilities?.image?.[field]
+  return Array.isArray(value) ? value.join(', ') : ''
+}
+
+function videoListValue(field: VideoStringField): string {
+  const value = editForm.media_capabilities?.video?.[field]
+  return Array.isArray(value) ? value.join(', ') : ''
+}
+
+function imageNumberValue(field: ImageNumberField): string | number {
+  const value = editForm.media_capabilities?.image?.[field]
+  return typeof value === 'number' ? value : ''
+}
+
+function videoNumberValue(field: VideoNumberField): string | number {
+  const value = editForm.media_capabilities?.video?.[field]
+  return typeof value === 'number' ? value : ''
+}
+
+function videoDurationValue(): string {
+  return editForm.media_capabilities?.video?.durations_seconds?.join(', ') ?? ''
+}
+
+function setImageStringList(field: ImageStringField, event: Event) {
+  const image = editableImageCapabilities()
+  if (!image) return
+  image[field] = commaSeparatedValues(event)
+}
+
+function setVideoStringList(field: VideoStringField, event: Event) {
+  const video = editableVideoCapabilities()
+  if (!video) return
+  video[field] = commaSeparatedValues(event)
+}
+
+function setImageNumber(field: ImageNumberField, event: Event) {
+  setCapabilityNumber(editableImageCapabilities(), field, event)
+}
+
+function setVideoNumber(field: VideoNumberField, event: Event) {
+  setCapabilityNumber(editableVideoCapabilities(), field, event)
+}
+
+function setVideoDurations(event: Event) {
+  const video = editableVideoCapabilities()
+  if (!video) return
+  const values = commaSeparatedValues(event)
+    .map((value) => Number(value))
+    .filter((value) => Number.isInteger(value) && value > 0)
+  video.durations_seconds = values
+}
+
+function setCapabilityNumber(target: Record<string, unknown> | null, field: string, event: Event) {
+  if (!target) return
+  const raw = inputValue(event)
+  if (!raw) {
+    delete target[field]
+    return
+  }
+  const value = Number(raw)
+  if (Number.isFinite(value) && value >= 0) target[field] = value
+}
+
+function commaSeparatedValues(event: Event): string[] {
+  return [...new Set(inputValue(event).split(',').map((value) => value.trim()).filter(Boolean))]
+}
+
+function inputValue(event: Event): string {
+  return (event.target as HTMLInputElement).value.trim()
 }
 
 function subscriptionTypeLabel(value: string): string {
@@ -590,12 +861,14 @@ function openCreate() {
     sort_order: rows.value.length * 10,
     visible_public: false,
     visible_auth: true,
+    featured: false,
     group_mode: 'auto',
     group_ids: [],
     official_input_manual: false,
     official_output_manual: false,
     official_cache_read_manual: false,
     official_cache_write_manual: false,
+    media_capabilities: null,
   })
   Object.assign(originalOfficialPrices, { input: null, output: null, cacheRead: null, cacheWrite: null })
   editOpen.value = true
@@ -610,6 +883,7 @@ function openEdit(row: AdminCatalogRow) {
     sort_order: row.sort_order,
     visible_public: row.visible_public,
     visible_auth: row.visible_auth,
+    featured: row.featured,
     group_mode: row.group_ids == null ? 'auto' : 'selected',
     group_ids: row.group_ids ?? [],
     official_input_price_million: toPerMillion(row.official_input_price),
@@ -620,6 +894,7 @@ function openEdit(row: AdminCatalogRow) {
     official_output_manual: row.official_output_manual,
     official_cache_read_manual: row.official_cache_read_manual,
     official_cache_write_manual: row.official_cache_write_manual,
+    media_capabilities: row.media_capabilities ? cloneMediaCapabilities(row.media_capabilities) : null,
   })
   Object.assign(originalOfficialPrices, {
     input: toPerMillion(row.official_input_price),
@@ -631,6 +906,11 @@ function openEdit(row: AdminCatalogRow) {
 }
 
 async function saveEdit() {
+  const validationErrors = editForm.media_capabilities ? validateMediaCapabilities(editForm.media_capabilities) : []
+  if (validationErrors.length) {
+    appStore.showError(t(`admin.modelCatalog.mediaCapabilities.validation.${validationErrors[0]}`))
+    return
+  }
   saving.value = true
   try {
     await adminModelCatalogAPI.saveCatalogEntry({
@@ -641,7 +921,9 @@ async function saveEdit() {
       sort_order: editForm.sort_order,
       visible_public: editForm.visible_public,
       visible_auth: editForm.visible_auth,
+      featured: editForm.featured,
       group_ids: editForm.group_mode === 'selected' ? editForm.group_ids : null,
+      media_capabilities: editForm.media_capabilities ? cloneMediaCapabilities(editForm.media_capabilities) : null,
       // Paid price remains owned by the channel and group billing configuration.
       // This form only controls reference prices displayed in the model plaza.
       official_input_price: fromPerMillion(editForm.official_input_price_million),
