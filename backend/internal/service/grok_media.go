@@ -593,6 +593,15 @@ func (s *OpenAIGatewayService) ForwardGrokMedia(
 	}
 	// 账号级请求头覆写最后应用，配置值优先于内置默认头。
 	account.ApplyHeaderOverrides(upstreamReq.Header)
+	// A mobile video task is durable and may survive a worker restart. Preserve
+	// its stable idempotency key all the way to an upstream that supports it.
+	// Apply it after account overrides so a configured account header cannot
+	// accidentally turn two tasks into the same provider request.
+	if c != nil && endpoint.IsGenerationRequest() {
+		if idempotencyKey := strings.TrimSpace(c.GetHeader("Idempotency-Key")); idempotencyKey != "" {
+			upstreamReq.Header.Set("Idempotency-Key", idempotencyKey)
+		}
+	}
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"io"
 	"net/http"
 	"sort"
 	"strconv"
@@ -28,10 +29,17 @@ type mobileVideoGroupStore interface {
 	GetNextChatSelectableGroups(context.Context, int64) ([]service.Group, error)
 }
 
+type mobileVideoExecutionIdentityIssuer interface {
+	IssueNextChatManagedSessionForPurposeAndGroup(context.Context, int64, string, int64) (*service.NextChatManagedSession, error)
+}
+
 type MobileVideoHandler struct {
-	tasks  mobileVideoTaskStore
-	groups mobileVideoGroupStore
-	jobs   *service.MobileVideoJobService
+	tasks         mobileVideoTaskStore
+	groups        mobileVideoGroupStore
+	executionKeys mobileVideoExecutionIdentityIssuer
+	jobs          *service.MobileVideoJobService
+	storage       service.MobileAssetStorage
+	assets        *MobileAssetHandler
 }
 
 type mobileVideoJobRequest struct {
@@ -52,13 +60,14 @@ type mobileVideoRetryRequest struct {
 }
 
 type mobileVideoGroup struct {
-	ID                   int64                            `json:"id"`
-	Name                 string                           `json:"name"`
-	Platform             string                           `json:"platform"`
-	VideoAvailable       bool                             `json:"video_available"`
-	VideoUnavailableCode string                           `json:"video_unavailable_code,omitempty"`
-	Models               []string                         `json:"models"`
-	Capabilities         *service.MobileVideoCapabilities `json:"capabilities,omitempty"`
+	ID                   int64                                      `json:"id"`
+	Name                 string                                     `json:"name"`
+	Platform             string                                     `json:"platform"`
+	VideoAvailable       bool                                       `json:"video_available"`
+	VideoUnavailableCode string                                     `json:"video_unavailable_code,omitempty"`
+	Models               []string                                   `json:"models"`
+	Capabilities         *service.MobileVideoCapabilities           `json:"capabilities,omitempty"`
+	ModelCapabilities    map[string]service.MobileVideoCapabilities `json:"model_capabilities,omitempty"`
 }
 
 type mobileVideoBootstrap struct {
@@ -77,12 +86,23 @@ type mobileVideoEstimate struct {
 	Currency         string  `json:"currency"`
 }
 
-func NewMobileVideoHandler(taskService *service.MobileTaskService, groups *service.APIKeyService, jobs ...*service.MobileVideoJobService) *MobileVideoHandler {
+func NewMobileVideoHandler(taskService *service.MobileTaskService, groups *service.APIKeyService, jobs []*service.MobileVideoJobService, storage ...service.MobileAssetStorage) *MobileVideoHandler {
 	var jobService *service.MobileVideoJobService
-	if len(jobs) > 0 {
+	if len(jobs) > 0 && jobs[0] != nil {
 		jobService = jobs[0]
 	}
-	return &MobileVideoHandler{tasks: taskService, groups: groups, jobs: jobService}
+	var assetStorage service.MobileAssetStorage
+	if len(storage) > 0 {
+		assetStorage = storage[0]
+	}
+	return &MobileVideoHandler{tasks: taskService, groups: groups, executionKeys: groups, jobs: jobService, storage: assetStorage}
+}
+
+func (h *MobileVideoHandler) SetAssetHandler(assets *MobileAssetHandler) *MobileVideoHandler {
+	if h != nil {
+		h.assets = assets
+	}
+	return h
 }
 
 func newMobileVideoHandlerWithDependencies(tasks mobileVideoTaskStore, groups mobileVideoGroupStore) *MobileVideoHandler {
@@ -134,10 +154,11 @@ func (h *MobileVideoHandler) Estimate(c *gin.Context) {
 		return
 	}
 	resolution, _ := service.LookupVideoBillingResolution(input.Resolution)
+	billedDuration := service.NormalizeVideoBillingDurationSecondsOrDefault(input.DurationSeconds)
 	response.Success(c, mobileVideoEstimate{
 		GroupID: input.GroupID, Model: strings.TrimSpace(input.Model), Resolution: resolution,
 		DurationSeconds: input.DurationSeconds, UnitPriceUSD: *price,
-		EstimatedCostUSD: *price * float64(input.DurationSeconds), Currency: "USD",
+		EstimatedCostUSD: *price * float64(billedDuration), Currency: "USD",
 	})
 }
 
@@ -181,6 +202,22 @@ func (h *MobileVideoHandler) Create(c *gin.Context) {
 		h.writeVideoError(c, service.ErrMobileVideoCapabilityUnavailable)
 		return
 	}
+	if err := h.validateReferenceAssets(c.Request.Context(), userID, input.ReferenceAssetIDs, capabilities); err != nil {
+		h.writeVideoError(c, err)
+		return
+	}
+	if h.jobs != nil {
+		if h.executionKeys == nil {
+			response.ErrorWithDetails(c, http.StatusServiceUnavailable, "视频执行会话暂不可用", "VIDEO_EXECUTION_IDENTITY_UNAVAILABLE", nil)
+			return
+		}
+		session, identityErr := h.executionKeys.IssueNextChatManagedSessionForPurposeAndGroup(c.Request.Context(), userID, service.NextChatSessionPurposeVideo, input.GroupID)
+		if identityErr != nil || session == nil || session.KeyID <= 0 {
+			response.ErrorWithDetails(c, http.StatusServiceUnavailable, "视频执行会话暂不可用", "VIDEO_EXECUTION_IDENTITY_UNAVAILABLE", nil)
+			return
+		}
+		input.ExecutionAPIKeyID = session.KeyID
+	}
 	taskInput, err := service.BuildMobileVideoTaskCreateInput(input)
 	if err != nil {
 		h.writeVideoError(c, err)
@@ -209,6 +246,63 @@ func (h *MobileVideoHandler) Create(c *gin.Context) {
 	}
 	c.Header("Cache-Control", "private, no-store")
 	response.Accepted(c, gin.H{"task": task, "execution": "queued"})
+}
+
+// validateReferenceAssets enforces the capability contract against the
+// persisted asset record, not a client-supplied MIME type. The provider later
+// reopens the exact same owner-scoped record before forwarding it upstream.
+func (h *MobileVideoHandler) validateReferenceAssets(ctx context.Context, userID int64, ids []string, capabilities service.VideoModelCapabilities) error {
+	if len(ids) == 0 {
+		return nil
+	}
+	if h == nil || h.assets == nil {
+		return service.ErrMobileVideoReferenceInvalid
+	}
+	seen := make(map[string]struct{}, len(ids))
+	imageCount, videoCount, audioCount := 0, 0, 0
+	for _, rawID := range ids {
+		id := strings.TrimSpace(rawID)
+		if _, exists := seen[id]; exists {
+			return service.ErrMobileVideoReferenceInvalid
+		}
+		seen[id] = struct{}{}
+		kind, err := h.assets.VideoReferenceKind(ctx, userID, id)
+		if err != nil {
+			// Keep a cross-account reference indistinguishable from an absent or
+			// deleted asset. This prevents using the validation response to probe
+			// another user's material library.
+			return service.ErrMobileVideoReferenceInvalid
+		}
+		switch kind {
+		case "image":
+			if !containsVideoOperation(capabilities.Operations, "image_to_video") {
+				return service.ErrMobileVideoCapabilityUnavailable
+			}
+			imageCount++
+			if imageCount > capabilities.MaxReferenceImages {
+				return service.ErrMobileVideoCapabilityUnavailable
+			}
+		case "video":
+			if !containsVideoOperation(capabilities.Operations, "video_reference") {
+				return service.ErrMobileVideoCapabilityUnavailable
+			}
+			videoCount++
+			if videoCount > capabilities.MaxReferenceVideos {
+				return service.ErrMobileVideoCapabilityUnavailable
+			}
+		case "audio":
+			if !containsVideoOperation(capabilities.Operations, "audio_reference") {
+				return service.ErrMobileVideoCapabilityUnavailable
+			}
+			audioCount++
+			if audioCount > capabilities.MaxReferenceAudios {
+				return service.ErrMobileVideoCapabilityUnavailable
+			}
+		default:
+			return service.ErrMobileVideoReferenceInvalid
+		}
+	}
+	return nil
 }
 
 func (h *MobileVideoHandler) List(c *gin.Context) {
@@ -248,7 +342,84 @@ func (h *MobileVideoHandler) Get(c *gin.Context) {
 // bytes remain behind the authenticated asset/content endpoints; this handler
 // never proxies an untrusted provider URL.
 func (h *MobileVideoHandler) Content(c *gin.Context) {
-	h.Get(c)
+	userID, ok := mobileVideoUserID(c)
+	if !ok || !h.available(c) {
+		return
+	}
+	id := strings.TrimSpace(c.Param("id"))
+	if h.jobs == nil || h.storage == nil {
+		response.Error(c, http.StatusServiceUnavailable, "视频结果暂不可用")
+		return
+	}
+	job, err := h.jobs.Get(c.Request.Context(), userID, id)
+	if errors.Is(err, service.ErrMobileVideoJobNotFound) {
+		response.NotFound(c, "视频任务不存在")
+		return
+	}
+	if err != nil || job == nil {
+		response.InternalError(c, "读取视频结果失败")
+		return
+	}
+	if strings.TrimSpace(job.ArtifactStorageKey) == "" {
+		response.Error(c, http.StatusConflict, "视频结果尚未落盘")
+		return
+	}
+	reader, ok := h.storage.(service.ImageAssetReader)
+	if !ok {
+		response.Error(c, http.StatusServiceUnavailable, "视频结果暂不可用")
+		return
+	}
+	body, contentType, err := reader.Open(c.Request.Context(), job.ArtifactStorageKey)
+	if err != nil {
+		response.NotFound(c, "视频文件不存在")
+		return
+	}
+	defer func() { _ = body.Close() }()
+	if strings.TrimSpace(job.ArtifactContentType) != "" {
+		contentType = job.ArtifactContentType
+	}
+	c.Header("Cache-Control", "private, no-store")
+	c.Header("Content-Disposition", `inline; filename="video.mp4"`)
+	c.DataFromReader(http.StatusOK, job.ArtifactByteSize, contentType, body, nil)
+}
+
+// AcknowledgeContent removes the private transport copy only after the app has
+// written it into the account-scoped device cache. It is intentionally
+// idempotent: a duplicated acknowledgement must never make a completed task
+// look like a failed download.
+func (h *MobileVideoHandler) AcknowledgeContent(c *gin.Context) {
+	userID, ok := mobileVideoUserID(c)
+	if !ok || !h.available(c) {
+		return
+	}
+	if h.jobs == nil || h.storage == nil {
+		response.Error(c, http.StatusServiceUnavailable, "视频结果暂不可用")
+		return
+	}
+	id := strings.TrimSpace(c.Param("id"))
+	job, err := h.jobs.Get(c.Request.Context(), userID, id)
+	if errors.Is(err, service.ErrMobileVideoJobNotFound) {
+		response.NotFound(c, "视频任务不存在")
+		return
+	}
+	if err != nil || job == nil {
+		response.InternalError(c, "读取视频结果失败")
+		return
+	}
+	storageKey := strings.TrimSpace(job.ArtifactStorageKey)
+	if storageKey == "" {
+		response.Success(c, gin.H{"released": true})
+		return
+	}
+	if err := h.storage.Delete(c.Request.Context(), storageKey); err != nil {
+		response.InternalError(c, "清理临时视频结果失败")
+		return
+	}
+	if _, err := h.jobs.ReleaseArtifact(c.Request.Context(), userID, id); err != nil {
+		response.InternalError(c, "清理临时视频结果失败")
+		return
+	}
+	response.Success(c, gin.H{"released": true})
 }
 
 func (h *MobileVideoHandler) Cancel(c *gin.Context) {
@@ -304,12 +475,28 @@ func (h *MobileVideoHandler) Retry(c *gin.Context) {
 		response.BadRequest(c, "重试请求标识不能为空")
 		return
 	}
+	var retryInput service.MobileVideoJobCreateInput
+	if h.jobs != nil {
+		retryInput = source.CreateInput()
+		if retryInput.ExecutionAPIKeyID <= 0 {
+			if h.executionKeys == nil {
+				response.ErrorWithDetails(c, http.StatusServiceUnavailable, "视频执行会话暂不可用", "VIDEO_EXECUTION_IDENTITY_UNAVAILABLE", nil)
+				return
+			}
+			session, identityErr := h.executionKeys.IssueNextChatManagedSessionForPurposeAndGroup(c.Request.Context(), userID, service.NextChatSessionPurposeVideo, retryInput.GroupID)
+			if identityErr != nil || session == nil || session.KeyID <= 0 {
+				response.ErrorWithDetails(c, http.StatusServiceUnavailable, "视频执行会话暂不可用", "VIDEO_EXECUTION_IDENTITY_UNAVAILABLE", nil)
+				return
+			}
+			retryInput.ExecutionAPIKeyID = session.KeyID
+		}
+	}
 	retry, err := h.tasks.Retry(c.Request.Context(), userID, id, strings.TrimSpace(request.ClientRequestID))
 	if writeMobileVideoTaskError(c, err) {
 		return
 	}
 	if h.jobs != nil {
-		if createErr := h.jobs.Create(c.Request.Context(), userID, retry.ID, source.CreateInput(), source.Provider); createErr != nil {
+		if createErr := h.jobs.Create(c.Request.Context(), userID, retry.ID, retryInput, source.Provider); createErr != nil {
 			response.ErrorWithDetails(c, http.StatusServiceUnavailable, "视频重试任务暂时无法排队", "VIDEO_REQUEST_PERSIST_FAILED", nil)
 			return
 		}
@@ -318,9 +505,50 @@ func (h *MobileVideoHandler) Retry(c *gin.Context) {
 }
 
 func (h *MobileVideoHandler) SaveAsAsset(c *gin.Context) {
-	// A worker must first attach a completed artifact. Accepting a save request
-	// before that would create an asset without bytes and lose accounting.
-	response.ErrorWithDetails(c, http.StatusConflict, "视频任务尚未产生可保存的结果", "VIDEO_ARTIFACT_NOT_READY", nil)
+	userID, ok := mobileVideoUserID(c)
+	if !ok || !h.available(c) {
+		return
+	}
+	if h.assets == nil || h.jobs == nil {
+		response.Error(c, http.StatusServiceUnavailable, "素材存储暂不可用")
+		return
+	}
+	id := strings.TrimSpace(c.Param("id"))
+	task, err := h.tasks.Get(c.Request.Context(), userID, id)
+	if writeMobileVideoTaskError(c, err) {
+		return
+	}
+	if task.Kind != service.MobileTaskKindVideo || (task.Status != service.MobileTaskStatusCompleted && task.Status != service.MobileTaskStatusPartial) {
+		response.ErrorWithDetails(c, http.StatusConflict, "视频任务尚未产生可保存的结果", "VIDEO_ARTIFACT_NOT_READY", nil)
+		return
+	}
+	job, err := h.jobs.Get(c.Request.Context(), userID, id)
+	if errors.Is(err, service.ErrMobileVideoJobNotFound) || job == nil || strings.TrimSpace(job.ArtifactStorageKey) == "" {
+		response.ErrorWithDetails(c, http.StatusConflict, "视频任务尚未落盘", "VIDEO_ARTIFACT_NOT_READY", nil)
+		return
+	}
+	var request struct {
+		Name string `json:"name"`
+	}
+	if c.Request.ContentLength != 0 {
+		if bindErr := c.ShouldBindJSON(&request); bindErr != nil && !errors.Is(bindErr, io.EOF) {
+			response.BadRequest(c, "素材名称格式不正确")
+			return
+		}
+	}
+	payload := struct {
+		TaskID string `json:"task_id"`
+		Name   string `json:"name"`
+	}{TaskID: id, Name: strings.TrimSpace(request.Name)}
+	executeUserIdempotentCreated(
+		c,
+		mobileUserIdempotencyScope(c, "mobile.video.save-as-asset"),
+		payload,
+		service.DefaultWriteIdempotencyTTL(),
+		func(ctx context.Context) (any, error) {
+			return h.assets.CreateFromStored(ctx, userID, job.ArtifactStorageKey, id, request.Name, job.ArtifactContentType)
+		},
+	)
 }
 
 func (h *MobileVideoHandler) available(c *gin.Context) bool {
@@ -381,17 +609,29 @@ func (h *MobileVideoHandler) videoGroupSummary(group service.Group) mobileVideoG
 		result.VideoUnavailableCode = "VIDEO_GROUP_UNAVAILABLE"
 		return result
 	}
+	modelCapabilities := make(map[string]service.MobileVideoCapabilities)
 	for _, model := range unique {
 		if capability, ok := service.ResolveVideoModelCapabilities(group, group.Platform, model); ok {
 			result.VideoAvailable = true
-			result.Capabilities = &service.MobileVideoCapabilities{
+			resolved := service.MobileVideoCapabilities{
 				TextToVideo: true, ImageToVideo: containsVideoOperation(capability.Operations, "image_to_video"),
 				VideoReference: containsVideoOperation(capability.Operations, "video_reference"),
+				AudioReference: containsVideoOperation(capability.Operations, "audio_reference"),
 				Resolutions:    capability.SupportedResolutions, Ratios: capability.SupportedRatios,
-				Durations: capability.SupportedDurations, GenerateAudio: capability.GenerateAudio, Watermark: capability.Watermark,
+				Durations:          capability.SupportedDurations,
+				MaxReferenceImages: capability.MaxReferenceImages,
+				MaxReferenceVideos: capability.MaxReferenceVideos,
+				MaxReferenceAudios: capability.MaxReferenceAudios,
+				GenerateAudio:      capability.GenerateAudio, Watermark: capability.Watermark,
 			}
-			break
+			modelCapabilities[strings.TrimSpace(model)] = resolved
+			if result.Capabilities == nil {
+				result.Capabilities = &resolved
+			}
 		}
+	}
+	if len(modelCapabilities) > 0 {
+		result.ModelCapabilities = modelCapabilities
 	}
 	if !result.VideoAvailable {
 		result.VideoUnavailableCode = "VIDEO_MODEL_UNAVAILABLE"

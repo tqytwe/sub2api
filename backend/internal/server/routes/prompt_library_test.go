@@ -25,6 +25,9 @@ func TestPromptLibraryRoutesContract(t *testing.T) {
 		got[route.Method+" "+route.Path] = struct{}{}
 	}
 	for _, route := range []string{
+		"GET /api/v1/prompts/manifest",
+		"GET /api/v1/prompts/catalog/delta",
+		"GET /api/v1/prompts/catalog",
 		"GET /api/v1/prompts",
 		"GET /api/v1/prompts/:id",
 		"GET /api/v1/prompt-categories",

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ type LocalImageStorage struct {
 var _ service.ImageStorage = (*LocalImageStorage)(nil)
 var _ service.ImageAssetReader = (*LocalImageStorage)(nil)
 var _ service.ImageAssetDeleter = (*LocalImageStorage)(nil)
+var _ service.ImageAssetStreamWriter = (*LocalImageStorage)(nil)
 
 func NewLocalImageStorage(root, urlPrefix string) (*LocalImageStorage, error) {
 	root = strings.TrimSpace(root)
@@ -47,6 +49,10 @@ func NewLocalImageStorage(root, urlPrefix string) (*LocalImageStorage, error) {
 }
 
 func (s *LocalImageStorage) Save(_ context.Context, key, contentType string, data []byte) (string, error) {
+	return s.SaveReader(context.Background(), key, contentType, bytes.NewReader(data), int64(len(data)))
+}
+
+func (s *LocalImageStorage) SaveReader(_ context.Context, key, _ string, body io.Reader, size int64) (string, error) {
 	cleanKey, err := cleanLocalImageKey(key)
 	if err != nil {
 		return "", err
@@ -55,8 +61,25 @@ func (s *LocalImageStorage) Save(_ context.Context, key, contentType string, dat
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return "", fmt.Errorf("create local image dir: %w", err)
 	}
-	if err := os.WriteFile(target, data, 0o644); err != nil {
-		return "", fmt.Errorf("write local image: %w", err)
+	temp, err := os.CreateTemp(filepath.Dir(target), ".upload-*")
+	if err != nil {
+		return "", fmt.Errorf("create local image temp file: %w", err)
+	}
+	tempName := temp.Name()
+	defer func() { _ = os.Remove(tempName) }()
+	written, copyErr := io.Copy(temp, body)
+	closeErr := temp.Close()
+	if copyErr != nil || closeErr != nil || written != size {
+		if copyErr != nil {
+			return "", fmt.Errorf("write local image: %w", copyErr)
+		}
+		if closeErr != nil {
+			return "", fmt.Errorf("close local image: %w", closeErr)
+		}
+		return "", fmt.Errorf("write local image: unexpected byte count")
+	}
+	if err := os.Rename(tempName, target); err != nil {
+		return "", fmt.Errorf("commit local image: %w", err)
 	}
 	return s.urlPrefix + escapeLocalImageKey(cleanKey), nil
 }

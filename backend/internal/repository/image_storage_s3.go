@@ -26,6 +26,8 @@ type S3ImageStorage struct {
 var _ service.ImageStorage = (*S3ImageStorage)(nil)
 var _ service.ImageAssetReader = (*S3ImageStorage)(nil)
 var _ service.ImageAssetDeleter = (*S3ImageStorage)(nil)
+var _ service.ImageAssetURLProvider = (*S3ImageStorage)(nil)
+var _ service.ImageAssetStreamWriter = (*S3ImageStorage)(nil)
 
 // NewS3ImageStorage 依据配置构造 S3 图片存储（调用方应先确认 cfg.Active()）。
 func NewS3ImageStorage(ctx context.Context, cfg *config.ImageStorageConfig) (*S3ImageStorage, error) {
@@ -55,12 +57,20 @@ func NewS3ImageStorage(ctx context.Context, cfg *config.ImageStorageConfig) (*S3
 
 // Save 上传图片字节，返回可访问 URL：配了 public_base_url 则返回公开直链，否则返回 presigned 临时链接。
 func (s *S3ImageStorage) Save(ctx context.Context, key, contentType string, data []byte) (string, error) {
+	return s.SaveReader(ctx, key, contentType, bytes.NewReader(data), int64(len(data)))
+}
+
+func (s *S3ImageStorage) SaveReader(ctx context.Context, key, contentType string, body io.Reader, size int64) (string, error) {
+	if size < 0 {
+		return "", fmt.Errorf("S3 upload size is invalid")
+	}
 	finish := servertiming.ObserveDependency(ctx, "s3")
 	_, err := s.client.PutObject(ctx, &s3.PutObjectInput{
-		Bucket:      &s.bucket,
-		Key:         &key,
-		Body:        bytes.NewReader(data),
-		ContentType: &contentType,
+		Bucket:        &s.bucket,
+		Key:           &key,
+		Body:          body,
+		ContentLength: &size,
+		ContentType:   &contentType,
 	})
 	finish()
 	if err != nil {
@@ -78,6 +88,23 @@ func (s *S3ImageStorage) Save(ctx context.Context, key, contentType string, data
 	}, s3.WithPresignExpires(s.presignExpiry))
 	if err != nil {
 		return "", fmt.Errorf("presign url: %w", err)
+	}
+	return result.URL, nil
+}
+
+// PresignGet always returns a private, short-lived URL even when a public base
+// URL is configured. Reference assets can contain private user media.
+func (s *S3ImageStorage) PresignGet(ctx context.Context, key string, expiry time.Duration) (string, error) {
+	if expiry <= 0 {
+		expiry = time.Hour
+	}
+	presignClient := s3.NewPresignClient(s.client)
+	result, err := presignClient.PresignGetObject(ctx, &s3.GetObjectInput{
+		Bucket: &s.bucket,
+		Key:    &key,
+	}, s3.WithPresignExpires(expiry))
+	if err != nil {
+		return "", fmt.Errorf("presign reference url: %w", err)
 	}
 	return result.URL, nil
 }

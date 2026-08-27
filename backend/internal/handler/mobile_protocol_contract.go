@@ -15,7 +15,7 @@ import (
 // existing behavior.
 const (
 	mobileProtocolVersion                  = 2
-	mobileProtocolContractVersion          = "2026-08-05.2"
+	mobileProtocolContractVersion          = "2026-08-20.1"
 	mobileProtocolLifecycleRegistryVersion = 1
 
 	mobileProtocolLifecycleCanonical = "canonical"
@@ -26,7 +26,11 @@ const (
 	mobileOperationSessionStatusRead       = "mobile.session.status.read"
 	mobileOperationAccountSummaryRead      = "mobile.account.summary.read"
 	mobileOperationTaskSubmit              = "mobile.task.submit"
+	mobileOperationVideoGenerate           = "mobile.video.generate"
+	mobileOperationVideoSaveAsset          = "mobile.video.save_asset"
+	mobileOperationVideoContentAcknowledge = "mobile.video.content.acknowledge"
 	mobileOperationAssetUpload             = "mobile.asset.upload"
+	mobileOperationAssetRename             = "mobile.asset.rename"
 	mobileOperationSupportTicketCreate     = "mobile.support.ticket.create"
 	mobileOperationPlayBillingPurchase     = "mobile.play_billing.purchase"
 	mobileOperationTaskClientStatusObserve = "mobile.task.client_status.observe"
@@ -204,11 +208,44 @@ func mobileProtocolOperationGrants(authenticated, isAdmin, searchConfigured bool
 			IdempotencyMode: "client_request_id_body",
 		},
 		{
+			ID:              mobileOperationVideoGenerate,
+			Granted:         authenticated,
+			Lifecycle:       mobileProtocolLifecycleCanonical,
+			RiskLevel:       "medium",
+			Authorization:   []string{"authenticated", "video_group_capability", "quota_and_model_capability"},
+			IdempotencyMode: "client_request_id_body",
+		},
+		{
+			ID:              mobileOperationVideoSaveAsset,
+			Granted:         authenticated,
+			Lifecycle:       mobileProtocolLifecycleCanonical,
+			RiskLevel:       "medium",
+			Authorization:   []string{"authenticated", "video_result_storage"},
+			IdempotencyMode: "idempotency_key",
+		},
+		{
+			ID:            mobileOperationVideoContentAcknowledge,
+			Granted:       authenticated,
+			Lifecycle:     mobileProtocolLifecycleCanonical,
+			RiskLevel:     "medium",
+			Authorization: []string{"authenticated", "video_result_owner"},
+		},
+		{
 			ID:                    mobileOperationAssetUpload,
 			Granted:               authenticated,
 			Lifecycle:             mobileProtocolLifecycleCanonical,
 			RiskLevel:             "medium",
 			Authorization:         []string{"authenticated", "file_policy"},
+			ClientRequestIDHeader: requestID,
+			IdempotencyHeader:     idempotency,
+			IdempotencyMode:       "observe_only",
+		},
+		{
+			ID:                    mobileOperationAssetRename,
+			Granted:               authenticated,
+			Lifecycle:             mobileProtocolLifecycleCanonical,
+			RiskLevel:             "low",
+			Authorization:         []string{"authenticated", "asset_owner"},
 			ClientRequestIDHeader: requestID,
 			IdempotencyHeader:     idempotency,
 			IdempotencyMode:       "observe_only",
@@ -342,19 +379,32 @@ func mobileProtocolEndpoints() []mobileProtocolEndpoint {
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/sessions/chat/switch-group", canonical, "切换聊天分组，不影响生图分组"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/sessions/image/switch-group", canonical, "切换生图分组，不影响聊天分组"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/sessions/:purpose/switch-group", canonical, "按用途切换分组，不创建或切换聊天会话"),
-		mobileEndpoint(http.MethodPost, "/api/v1/mobile/tasks", canonical, "创建聊天、生图、文件统一任务"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/tasks", canonical, "创建聊天、生图、视频、文件统一任务"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/tasks", canonical, "统一任务历史"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/tasks/:id", canonical, "读取单个统一任务"),
 		mobileEndpoint(http.MethodDelete, "/api/v1/mobile/tasks/:id", canonical, "软删除任务记录"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/tasks/:id/cancel", canonical, "取消可取消任务"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/tasks/:id/retry", canonical, "重试失败、取消或部分完成任务"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/bootstrap", canonical, "读取视频创作能力与分组"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/models", canonical, "读取视频模型能力"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/video/estimate", canonical, "估算视频生成费用"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs", mobileOperationVideoGenerate, "medium", "创建移动视频生成任务"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/jobs", canonical, "读取移动视频任务历史"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/jobs/:id", canonical, "读取移动视频任务状态"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/cancel", canonical, "取消移动视频任务"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/retry", canonical, "重试移动视频任务"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/video/jobs/:id/content", canonical, "读取移动视频任务结果"),
+		mobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/content/acknowledge", canonical, "确认本地保存并清理临时视频结果"),
+		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/video/jobs/:id/save-as-asset", mobileOperationVideoSaveAsset, "medium", "保存视频任务结果为素材"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/image-history", canonical, "生图任务历史语义化包装"),
 		mobileEndpoint(http.MethodDelete, "/api/v1/mobile/image-history/:id", canonical, "删除生图历史"),
 		mobileEndpoint(http.MethodPost, "/api/v1/mobile/image-history/:id/retry", canonical, "重试生图历史任务"),
 		idempotentMobileEndpoint(http.MethodPost, "/api/v1/mobile/assets", mobileOperationAssetUpload, "medium", "上传系统分享、图片、PDF、语音和文件素材"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets", canonical, "素材库列表"),
+		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets/sync", canonical, "素材元数据增量同步（支持 ETag）"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets/:id", canonical, "读取单个素材元数据"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/assets/:id/content", canonical, "读取素材内容"),
+		idempotentMobileEndpoint(http.MethodPatch, "/api/v1/mobile/assets/:id", mobileOperationAssetRename, "low", "重命名当前账户的素材，不移动文件内容"),
 		mobileEndpoint(http.MethodDelete, "/api/v1/mobile/assets/:id", canonical, "删除素材"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/skills", canonical, "服务端技能目录，skill 必须区别于 agent"),
 		mobileEndpoint(http.MethodGet, "/api/v1/mobile/skills/:slug", canonical, "读取单个技能"),

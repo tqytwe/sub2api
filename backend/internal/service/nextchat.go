@@ -74,6 +74,9 @@ type NextChatWorkspaceModel struct {
 	// ImageCapabilities is server-owned. Mobile clients must use this contract
 	// for reference-image editing instead of inferring support from model names.
 	ImageCapabilities *ImageStudioModelCapabilities `json:"image_capabilities,omitempty"`
+	// VideoCapabilities is server-authored. A nil value means this exact model
+	// is not approved for mobile video generation.
+	VideoCapabilities *VideoModelCapabilities `json:"video_capabilities,omitempty"`
 }
 
 type NextChatWorkspaceGroup struct {
@@ -86,8 +89,13 @@ type NextChatWorkspaceGroup struct {
 	IsCurrent      bool    `json:"is_current"`
 	// LiveAvailable is the group-level authorization result. The gateway still
 	// validates the concrete model and upstream session before creating a call.
-	LiveAvailable bool                     `json:"live_available"`
-	Models        []NextChatWorkspaceModel `json:"models"`
+	LiveAvailable bool `json:"live_available"`
+	// VideoAvailable is an explicit group capability. Clients must not infer it
+	// from the group name or platform.
+	VideoAvailable       bool                     `json:"video_available"`
+	VideoUnavailableCode string                   `json:"video_unavailable_code,omitempty"`
+	VideoCapabilities    *VideoModelCapabilities  `json:"video_capabilities,omitempty"`
+	Models               []NextChatWorkspaceModel `json:"models"`
 }
 
 type NextChatWorkspaceModels struct {
@@ -95,12 +103,15 @@ type NextChatWorkspaceModels struct {
 	DefaultModel             string                   `json:"default_model"`
 	SelectedGroupID          *int64                   `json:"selected_group_id,omitempty"`
 	ImageCapabilitiesVersion string                   `json:"image_capabilities_version,omitempty"`
+	VideoCapabilitiesVersion string                   `json:"video_capabilities_version,omitempty"`
 	Groups                   []NextChatWorkspaceGroup `json:"groups"`
 }
 
 // NextChatImageCapabilitiesVersion is bumped whenever the mobile image
 // capability payload changes incompatibly. It lets older clients fail closed.
 const NextChatImageCapabilitiesVersion = "2026-07-16.1"
+
+const NextChatVideoCapabilitiesVersion = "2026-08-20.1"
 
 type NextChatAvailableModelResolver interface {
 	GetAvailableModels(ctx context.Context, groupID *int64, platform string) []string
@@ -185,6 +196,58 @@ func (s *APIKeyService) IssueNextChatManagedSessionForPurpose(ctx context.Contex
 			return nil, err
 		}
 	}
+	return &NextChatManagedSession{
+		UserID:  userID,
+		APIKey:  key.Key,
+		KeyID:   key.ID,
+		Purpose: purpose,
+	}, nil
+}
+
+// IssueNextChatManagedSessionForPurposeAndGroup returns a managed execution
+// credential whose group is fixed by its identity. Long-running work such as a
+// video job must never borrow the mutable workspace key and then move it to the
+// requested group: another worker could otherwise dispatch or bill against the
+// wrong group between the update and the upstream call.
+func (s *APIKeyService) IssueNextChatManagedSessionForPurposeAndGroup(ctx context.Context, userID int64, purpose string, groupID int64) (*NextChatManagedSession, error) {
+	purpose, _, err := normalizeNextChatSessionPurpose(purpose)
+	if err != nil {
+		return nil, err
+	}
+	if userID <= 0 || groupID <= 0 {
+		return nil, ErrInsufficientPerms
+	}
+
+	groups, err := s.GetNextChatSelectableGroups(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if !nextChatGroupSelectable(groups, groupID) {
+		return nil, ErrGroupNotAllowed
+	}
+
+	keyName := nextChatManagedSessionGroupKeyName(purpose, groupID)
+	key, err := s.findReusableNextChatManagedKeyByName(ctx, userID, keyName)
+	if err != nil {
+		return nil, err
+	}
+	if key != nil {
+		if key.GroupID == nil || *key.GroupID != groupID {
+			// A scoped name bound to a different group is corrupted state. Do not
+			// repair it in place because that recreates the cross-job race this API
+			// exists to prevent.
+			return nil, fmt.Errorf("managed %s execution key is bound to a different group", purpose)
+		}
+	} else {
+		key, err = s.Create(ctx, userID, CreateAPIKeyRequest{
+			Name:    keyName,
+			GroupID: &groupID,
+		})
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &NextChatManagedSession{
 		UserID:  userID,
 		APIKey:  key.Key,
@@ -466,6 +529,58 @@ func nextChatManagedKeyMatchesPurpose(name, purpose string) bool {
 	}
 }
 
+func nextChatManagedSessionGroupKeyName(purpose string, groupID int64) string {
+	label := "Chat"
+	switch purpose {
+	case NextChatSessionPurposeImage:
+		label = "Image"
+	case NextChatSessionPurposeVideo:
+		label = "Video"
+	}
+	return fmt.Sprintf("%s %s Group %d", NextChatManagedAPIKeyNamePrefix, label, groupID)
+}
+
+func nextChatGroupSelectable(groups []Group, groupID int64) bool {
+	for _, group := range groups {
+		if group.ID == groupID {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *APIKeyService) findReusableNextChatManagedKeyByName(ctx context.Context, userID int64, name string) (*APIKey, error) {
+	if s == nil || s.apiKeyRepo == nil {
+		return nil, fmt.Errorf("api key service is not configured")
+	}
+	if lister, ok := s.apiKeyRepo.(apiKeyAllByUserIDLister); ok {
+		keys, err := lister.ListAllByUserID(ctx, userID, APIKeyListFilters{Status: StatusActive})
+		if err != nil {
+			return nil, fmt.Errorf("list managed api keys: %w", err)
+		}
+		for i := range keys {
+			if strings.TrimSpace(keys[i].Name) == name && keys[i].IsActive() && !keys[i].IsExpired() {
+				return &keys[i], nil
+			}
+		}
+		return nil, nil
+	}
+
+	keys, _, err := s.List(ctx, userID, pagination.PaginationParams{Page: 1, PageSize: 100}, APIKeyListFilters{
+		Search: name,
+		Status: StatusActive,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("search managed api keys: %w", err)
+	}
+	for i := range keys {
+		if strings.TrimSpace(keys[i].Name) == name && keys[i].IsActive() && !keys[i].IsExpired() {
+			return &keys[i], nil
+		}
+	}
+	return nil, nil
+}
+
 func (s *APIKeyService) pickNextChatGroupID(ctx context.Context, userID int64) (*int64, error) {
 	// Preserve the historical default for users who already have ordinary API
 	// keys: the managed key starts in one of those billing groups. The Canvas
@@ -617,6 +732,7 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 		Source:                   "/v1/models",
 		SelectedGroupID:          identity.APIKey.GroupID,
 		ImageCapabilitiesVersion: NextChatImageCapabilitiesVersion,
+		VideoCapabilitiesVersion: NextChatVideoCapabilitiesVersion,
 		Groups:                   make([]NextChatWorkspaceGroup, 0, len(selectableGroups)),
 	}
 	for _, group := range selectableGroups {
@@ -629,7 +745,11 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 			SortOrder:      group.SortOrder,
 			IsCurrent:      identity.APIKey.GroupID != nil && *identity.APIKey.GroupID == group.ID,
 			LiveAvailable:  group.Platform == PlatformOpenAI && group.AllowLive,
+			VideoAvailable: group.HasVideoGenerationCapability(),
 			Models:         []NextChatWorkspaceModel{},
+		}
+		if !g.VideoAvailable {
+			g.VideoUnavailableCode = "VIDEO_GROUP_UNAVAILABLE"
 		}
 		out.Groups = append(out.Groups, g)
 	}
@@ -676,11 +796,41 @@ func (s *ModelCatalogService) GetNextChatWorkspaceModels(ctx context.Context, us
 				modelID,
 				upstreamCapabilities,
 			)
+			// Video authorization is group- and model-scoped. Publish the
+			// server-owned capability contract only for models that have an
+			// explicit video price; clients must not infer support from names.
+			if capability, ok := ResolveVideoModelCapabilities(sourceGroup, group.Platform, modelID); ok {
+				workspaceModel.VideoCapabilities = &capability
+			}
 			group.Models = append(group.Models, workspaceModel)
 		}
 	}
 
 	for i := range out.Groups {
+		videoModels := 0
+		for modelIndex := range out.Groups[i].Models {
+			if out.Groups[i].Models[modelIndex].VideoCapabilities != nil {
+				videoModels++
+			}
+		}
+		if videoModels == 0 {
+			out.Groups[i].VideoAvailable = false
+			out.Groups[i].VideoUnavailableCode = "VIDEO_MODEL_UNAVAILABLE"
+		} else {
+			out.Groups[i].VideoAvailable = true
+			out.Groups[i].VideoUnavailableCode = ""
+			for modelIndex := range out.Groups[i].Models {
+				if capability := out.Groups[i].Models[modelIndex].VideoCapabilities; capability != nil {
+					copy := *capability
+					copy.Operations = append([]string(nil), capability.Operations...)
+					copy.SupportedResolutions = append([]string(nil), capability.SupportedResolutions...)
+					copy.SupportedRatios = append([]string(nil), capability.SupportedRatios...)
+					copy.SupportedDurations = append([]int(nil), capability.SupportedDurations...)
+					out.Groups[i].VideoCapabilities = &copy
+					break
+				}
+			}
+		}
 		sort.SliceStable(out.Groups[i].Models, func(a, b int) bool {
 			left, right := out.Groups[i].Models[a], out.Groups[i].Models[b]
 			if left.SortOrder != right.SortOrder {

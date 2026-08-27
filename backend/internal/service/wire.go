@@ -1064,6 +1064,8 @@ var ProviderSet = wire.NewSet(
 	ProvidePlayService,
 	NewModelCatalogService,
 	NewPromptLibraryService,
+	NewCanvasPromptMirrorService,
+	ProvideCanvasPromptMirrorWorker,
 	ProvideImageStudioService,
 	ProvidePlayGrowthRunner,
 	ProvideForumSSOService,
@@ -1071,6 +1073,13 @@ var ProviderSet = wire.NewSet(
 
 func ProvideMobilePushWorker(push *MobilePushService, cfg config.MobilePushConfig) *MobilePushWorker {
 	worker := NewMobilePushWorker(push, cfg.PollInterval, cfg.BatchSize)
+	worker.Start()
+	return worker
+}
+
+func ProvideCanvasPromptMirrorWorker(svc *CanvasPromptMirrorService, lockCache LeaderLockCache, db *sql.DB) *CanvasPromptMirrorWorker {
+	worker := NewCanvasPromptMirrorWorker(svc, canvasPromptMirrorInterval, canvasPromptMirrorRunTimeout)
+	worker.SetLeaderLock(lockCache, db)
 	worker.Start()
 	return worker
 }

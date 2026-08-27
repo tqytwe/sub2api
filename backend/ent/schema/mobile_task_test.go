@@ -18,9 +18,9 @@ func TestMobileTaskSchemaContract(t *testing.T) {
 		"id", "user_id", "kind", "operation", "status", "progress",
 		"parent_task_id", "retry_of", "client_request_id", "resource",
 		"artifacts", "error", "protocol_version", "created_at", "updated_at",
-		"started_at", "finished_at",
+		"started_at", "finished_at", "deleted_at",
 	}, names)
-	require.Len(t, schema.Indexes(), 6)
+	require.Len(t, schema.Indexes(), 7)
 	annotation, ok := schema.Annotations()[0].(entsql.Annotation)
 	require.True(t, ok)
 	require.Equal(t, "mobile_tasks", annotation.Table)

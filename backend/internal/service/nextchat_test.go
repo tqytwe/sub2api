@@ -221,6 +221,45 @@ func TestIssueNextChatManagedSessionForVideoDoesNotReuseChatKey(t *testing.T) {
 	require.Equal(t, NextChatManagedVideoAPIKeyName, repo.created[0].Name)
 }
 
+func TestIssueNextChatManagedSessionForPurposeAndGroupKeepsVideoGroupsImmutable(t *testing.T) {
+	legacyVideoGroupID := int64(7)
+	secondVideoGroupID := int64(8)
+	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{
+		{
+			ID:      2,
+			UserID:  42,
+			Name:    NextChatManagedVideoAPIKeyName,
+			Key:     "sk-legacy-video",
+			Status:  StatusActive,
+			GroupID: &legacyVideoGroupID,
+		},
+	}}
+	userRepo := &nextChatUserRepoStub{user: &User{ID: 42, Status: StatusActive}}
+	groupRepo := &nextChatGroupRepoStub{groups: []Group{
+		{ID: legacyVideoGroupID, Platform: PlatformOpenAI, Status: StatusActive},
+		{ID: secondVideoGroupID, Platform: PlatformGrok, Status: StatusActive},
+	}}
+	svc := NewAPIKeyService(repo, userRepo, groupRepo, &nextChatSubscriptionRepoStub{}, nil, nil, &config.Config{
+		Default: config.DefaultConfig{APIKeyPrefix: "sk-test-"},
+	})
+
+	first, err := svc.IssueNextChatManagedSessionForPurposeAndGroup(context.Background(), 42, NextChatSessionPurposeVideo, legacyVideoGroupID)
+	require.NoError(t, err)
+	second, err := svc.IssueNextChatManagedSessionForPurposeAndGroup(context.Background(), 42, NextChatSessionPurposeVideo, secondVideoGroupID)
+	require.NoError(t, err)
+	reused, err := svc.IssueNextChatManagedSessionForPurposeAndGroup(context.Background(), 42, NextChatSessionPurposeVideo, legacyVideoGroupID)
+	require.NoError(t, err)
+
+	require.NotEqual(t, int64(2), first.KeyID, "the legacy mutable video key must not execute a job")
+	require.NotEqual(t, first.KeyID, second.KeyID)
+	require.Equal(t, first.KeyID, reused.KeyID)
+	require.Len(t, repo.created, 2)
+	require.Equal(t, nextChatManagedSessionGroupKeyName(NextChatSessionPurposeVideo, legacyVideoGroupID), repo.created[0].Name)
+	require.Equal(t, nextChatManagedSessionGroupKeyName(NextChatSessionPurposeVideo, secondVideoGroupID), repo.created[1].Name)
+	require.Equal(t, legacyVideoGroupID, *repo.keys[0].GroupID, "issuing a job key must never move the legacy shared key")
+	require.Empty(t, repo.updated, "group-scoped execution keys must never be realigned")
+}
+
 func TestIssueNextChatManagedSessionForImageDoesNotReuseChatKey(t *testing.T) {
 	groupID := int64(7)
 	repo := &nextChatAPIKeyRepoStub{keys: []APIKey{

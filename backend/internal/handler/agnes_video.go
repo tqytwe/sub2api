@@ -20,6 +20,13 @@ func (h *OpenAIGatewayHandler) AgnesVideoCreate(c *gin.Context) {
 	h.handleAgnesVideo(c, service.AgnesVideoEndpointCreate, "")
 }
 
+// SeedanceVideoCreate and SeedanceVideoStatus retain the existing managed
+// account selection, moderation, concurrency and billing path. They differ
+// only in the upstream URL contract.
+func (h *OpenAIGatewayHandler) SeedanceVideoCreate(c *gin.Context) {
+	h.handleAgnesVideo(c, service.SeedanceVideoEndpointCreate, "")
+}
+
 func (h *OpenAIGatewayHandler) AgnesVideoStatus(c *gin.Context) {
 	videoID := strings.TrimSpace(c.Query("video_id"))
 	if videoID == "" {
@@ -33,6 +40,17 @@ func (h *OpenAIGatewayHandler) AgnesVideoStatus(c *gin.Context) {
 		endpoint = service.AgnesVideoEndpointStatusLegacy
 	}
 	h.handleAgnesVideo(c, endpoint, videoID)
+}
+
+func (h *OpenAIGatewayHandler) SeedanceVideoStatus(c *gin.Context) {
+	videoID := strings.TrimSpace(c.Query("video_id"))
+	if videoID == "" {
+		videoID = strings.TrimSpace(c.Param("task_id"))
+	}
+	if videoID == "" {
+		videoID = strings.TrimSpace(c.Param("request_id"))
+	}
+	h.handleAgnesVideo(c, service.SeedanceVideoEndpointStatus, videoID)
 }
 
 func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service.AgnesVideoEndpoint, videoID string) {
@@ -66,7 +84,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 	var body []byte
 	var requestModel string
 	contentType := c.GetHeader("Content-Type")
-	if endpoint == service.AgnesVideoEndpointCreate {
+	if endpoint == service.AgnesVideoEndpointCreate || endpoint == service.SeedanceVideoEndpointCreate {
 		var err error
 		body, err = pkghttputil.ReadRequestBodyWithPrealloc(c.Request)
 		if err != nil {
@@ -102,7 +120,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 	setOpsRequestContext(c, requestModel, false)
 	setOpsEndpointContext(c, "", int16(service.RequestTypeSync))
 
-	if endpoint == service.AgnesVideoEndpointCreate {
+	if endpoint == service.AgnesVideoEndpointCreate || endpoint == service.SeedanceVideoEndpointCreate {
 		if decision := h.checkSecurityAudit(c, reqLog, apiKey, subject, service.ContentModerationProtocolOpenAIImages, requestModel, body); decision != nil && !decision.AllowNextStage {
 			h.openAISecurityAuditError(c, decision)
 			return
@@ -155,7 +173,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 	}
 
 	sessionHash := h.gatewayService.GenerateExplicitSessionHash(c, forwardBody)
-	if endpoint != service.AgnesVideoEndpointCreate {
+	if endpoint != service.AgnesVideoEndpointCreate && endpoint != service.SeedanceVideoEndpointCreate {
 		sessionHash = service.AgnesVideoSessionHash(videoID)
 	}
 	requestCtx := c.Request.Context()
@@ -303,7 +321,7 @@ func (h *OpenAIGatewayHandler) handleAgnesVideo(c *gin.Context, endpoint service
 		}
 
 		h.gatewayService.ReportOpenAIAccountScheduleResult(account.ID, account.GetMappedModel(routingModel), true, nil)
-		if endpoint == service.AgnesVideoEndpointCreate && strings.TrimSpace(result.ResponseID) != "" {
+		if (endpoint == service.AgnesVideoEndpointCreate || endpoint == service.SeedanceVideoEndpointCreate) && strings.TrimSpace(result.ResponseID) != "" {
 			if err := h.gatewayService.BindStickySession(requestCtx, apiKey.GroupID, service.AgnesVideoSessionHash(result.ResponseID), account.ID); err != nil {
 				reqLog.Warn("agnes_video.bind_video_account_failed",
 					zap.Int64("account_id", account.ID),

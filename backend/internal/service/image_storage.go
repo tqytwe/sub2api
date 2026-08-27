@@ -33,6 +33,20 @@ type ImageAssetReader interface {
 	Open(ctx context.Context, key string) (io.ReadCloser, string, error)
 }
 
+// ImageAssetURLProvider creates a short-lived, provider-readable URL for an
+// object already owned by this platform. It is intentionally separate from
+// Save's public result URL: reference assets must never require a public
+// bucket merely so an upstream video provider can fetch them.
+type ImageAssetURLProvider interface {
+	PresignGet(ctx context.Context, key string, expiry time.Duration) (string, error)
+}
+
+// ImageAssetStreamWriter avoids buffering large user reference videos in the
+// API process during upload. Implementations must consume exactly size bytes.
+type ImageAssetStreamWriter interface {
+	SaveReader(ctx context.Context, key, contentType string, body io.Reader, size int64) (url string, err error)
+}
+
 // ImageAssetDeleter is implemented by storage backends that can roll back
 // partially written image results.
 type ImageAssetDeleter interface {

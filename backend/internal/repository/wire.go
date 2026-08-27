@@ -107,6 +107,8 @@ var ProviderSet = wire.NewSet(
 	NewModelCatalogRepository,
 	NewPromptLibraryRepository,
 	wire.Bind(new(service.PromptLibraryRepository), new(*PromptLibraryRepository)),
+	NewCanvasPromptMirrorRepository,
+	wire.Bind(new(service.CanvasPromptMirrorRepository), new(*CanvasPromptMirrorRepository)),
 	NewPlayRepository,
 	NewChannelMonitorRepository,
 	NewChannelMonitorV2Repository,

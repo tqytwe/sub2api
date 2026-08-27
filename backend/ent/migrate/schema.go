@@ -1374,7 +1374,7 @@ var (
 	MobileTasksColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "user_id", Type: field.TypeInt64},
-		{Name: "kind", Type: field.TypeEnum, Enums: []string{"chat", "image", "file"}},
+		{Name: "kind", Type: field.TypeEnum, Enums: []string{"chat", "image", "video", "file"}},
 		{Name: "operation", Type: field.TypeString, Size: 100},
 		{Name: "status", Type: field.TypeEnum, Enums: []string{"queued", "running", "streaming", "completed", "partial", "failed", "cancelled"}, Default: "queued"},
 		{Name: "progress", Type: field.TypeInt, Default: 0},
@@ -1389,6 +1389,7 @@ var (
 		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "started_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 		{Name: "finished_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
 	}
 	// MobileTasksTable holds the schema information for the "mobile_tasks" table.
 	MobileTasksTable = &schema.Table{
@@ -1425,6 +1426,11 @@ var (
 				Name:    "mobiletask_parent_task_id",
 				Unique:  false,
 				Columns: []*schema.Column{MobileTasksColumns[6]},
+			},
+			{
+				Name:    "mobiletask_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{MobileTasksColumns[17]},
 			},
 		},
 	}

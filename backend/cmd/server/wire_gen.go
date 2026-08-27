@@ -260,6 +260,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	imageStudioRepository := repository.NewImageStudioRepository(client, db)
 	batchImageModelPricingResolver := service.ProvideBatchImageModelPricingResolver(modelPricingResolver)
 	promptLibraryRepository := repository.NewPromptLibraryRepository(db)
+	canvasPromptMirrorRepository := repository.NewCanvasPromptMirrorRepository(db)
 	imageStudioService := service.ProvideImageStudioService(imageStudioRepository, apiKeyService, userRepository, settingService, playService, batchImageModelPricingResolver, gatewayService, promptLibraryRepository, configConfig, secretEncryptor, usageBillingRepository, billingCacheService)
 	usageRecordWorkerPool := service.NewUsageRecordWorkerPool(configConfig)
 	errorPassthroughRepository := repository.NewErrorPassthroughRepository(client)
@@ -370,8 +371,12 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	modelPricingHandler := handler.NewModelPricingHandler(modelCatalogService, playService, billingService)
 	promptLibraryService := service.NewPromptLibraryService(promptLibraryRepository)
 	promptLibraryHandler := handler.NewPromptLibraryHandler(promptLibraryService)
+	canvasPromptMirrorService := service.NewCanvasPromptMirrorService(canvasPromptMirrorRepository)
+	canvasPromptMirrorHandler := handler.NewCanvasPromptMirrorHandler(canvasPromptMirrorService)
 	mobileAssetHandler := handler.ProvideMobileAssetHandler(db, mobileAssetStorage)
 	mobileTaskHandler := handler.ProvideMobileTaskHandler(db, mobilePushService)
+	mobileVideoHandler := handler.ProvideMobileVideoHandler(db, apiKeyService, mobileAssetStorage)
+	mobileVideoWorker := handler.ProvideMobileVideoWorker(db, apiKeyService, openAIGatewayHandler, subscriptionService, mobileAssetStorage)
 	mobileSupportHandler := handler.ProvideMobileSupportHandler(playService, announcementAssetService)
 	mobileDiagnosticHandler := handler.NewMobileDiagnosticHandler(db)
 	mobileDeviceHandler := handler.ProvideMobileDeviceHandler(mobilePushService)
@@ -387,7 +392,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	forumSSOHandler := handler.NewForumSSOHandler(forumSSOService, authService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
-	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, couponWalletHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, playHandler, walletHandler, handlerFundHandler, imageStudioHandler, modelPricingHandler, promptLibraryHandler, mobileAssetHandler, mobileTaskHandler, mobileSupportHandler, mobileDiagnosticHandler, mobileDeviceHandler, mobileAttributionHandler, mobileWebSearchHandler, mobilePlayBillingHandler, mobileAppReleaseHandler, forumSSOHandler, idempotencyCoordinator, idempotencyCleanupService)
+	handlers := handler.ProvideHandlers(authHandler, userHandler, apiKeyHandler, usageHandler, redeemHandler, subscriptionHandler, announcementHandler, channelMonitorUserHandler, adminHandlers, gatewayHandler, openAIGatewayHandler, handlerSettingHandler, totpHandler, passkeyHandler, handlerPaymentHandler, paymentWebhookHandler, couponWalletHandler, availableChannelHandler, modelPlazaHandler, asyncImageHandler, batchImageHandler, playHandler, walletHandler, handlerFundHandler, imageStudioHandler, modelPricingHandler, promptLibraryHandler, canvasPromptMirrorHandler, mobileAssetHandler, mobileTaskHandler, mobileVideoHandler, mobileSupportHandler, mobileDiagnosticHandler, mobileDeviceHandler, mobileAttributionHandler, mobileWebSearchHandler, mobilePlayBillingHandler, mobileAppReleaseHandler, forumSSOHandler, idempotencyCoordinator, idempotencyCleanupService)
 	jwtAuthMiddleware := middleware.NewJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	optionalJWTAuthMiddleware := middleware.NewOptionalJWTAuthMiddleware(authService, userService, settingService, auditLogService)
 	adminAuthMiddleware := middleware.NewAdminAuthMiddleware(authService, userService, settingService, auditLogService)
@@ -417,7 +422,8 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	publicHomeStatsRepository := repository.NewPublicHomeStatsRepository(db)
 	publicHomeStatsService := service.NewPublicHomeStatsService(publicHomeStatsRepository)
 	mobilePushWorker := service.ProvideMobilePushWorker(mobilePushService, mobilePushConfig)
-	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker)
+	canvasPromptMirrorWorker := service.ProvideCanvasPromptMirrorWorker(canvasPromptMirrorService, leaderLockCache, db)
+	v := provideCleanup(client, redisClient, opsMetricsCollector, opsAggregationService, opsAlertEvaluatorService, opsCleanupService, opsScheduledReportService, opsSystemLogSink, opsService, opsIngressRejectAggregator, apiKeyService, authCacheInvalidationWorker, schedulerSnapshotService, tokenRefreshService, accountExpiryService, openAICodexVersionSyncService, proxyExpiryService, subscriptionExpiryService, usageCleanupService, idempotencyCleanupService, batchImageCleanupService, openAIImageResultService, batchImageWorkerRuntime, asyncImageHandler, imageStudioWorkerRuntime, mobileVideoWorker, pricingService, emailQueueService, billingCacheService, usageRecordWorkerPool, subscriptionService, oAuthService, openAIOAuthService, geminiOAuthService, antigravityOAuthService, grokOAuthService, openAIGatewayService, scheduledTestRunnerService, backupService, paymentOrderExpiryService, channelMonitorRunner, channelMonitorV2Aggregator, userPlatformQuotaUsageFlusher, playGrowthRunner, publicHomeStatsService, upstreamBillingProbeService, ollamaCloudUsageService, auditLogService, ipRiskService, promptService, mobilePushWorker, canvasPromptMirrorWorker)
 	application := &Application{
 		Server:      httpServer,
 		PromptAudit: promptService,
@@ -471,6 +477,7 @@ func provideCleanup(
 	batchImageWorker *service.BatchImageWorkerRuntime,
 	asyncImageWorker *handler.AsyncImageHandler,
 	imageStudioWorker *handler.ImageStudioWorkerRuntime,
+	mobileVideoWorker *service.MobileVideoWorker,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
 	billingCache *service.BillingCacheService,
@@ -496,6 +503,7 @@ func provideCleanup(
 	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
 	mobilePushWorker *service.MobilePushWorker,
+	canvasPromptMirrorWorker *service.CanvasPromptMirrorWorker,
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
 	return func() {
@@ -508,6 +516,12 @@ func provideCleanup(
 		}
 
 		parallelSteps := []cleanupStep{
+			{"CanvasPromptMirrorWorker", func() error {
+				if canvasPromptMirrorWorker != nil {
+					canvasPromptMirrorWorker.Stop()
+				}
+				return nil
+			}},
 			{"MobilePushWorker", func() error {
 				if mobilePushWorker != nil {
 					mobilePushWorker.Stop()
@@ -637,6 +651,12 @@ func provideCleanup(
 			{"ImageStudioWorkerRuntime", func() error {
 				if imageStudioWorker != nil {
 					imageStudioWorker.Stop()
+				}
+				return nil
+			}},
+			{"MobileVideoWorker", func() error {
+				if mobileVideoWorker != nil {
+					mobileVideoWorker.Stop()
 				}
 				return nil
 			}},

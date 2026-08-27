@@ -174,6 +174,9 @@ func registerNextChatRoutes(
 		nextchat.GET("/image-prompts", func(c *gin.Context) {
 			handleNextChatImagePrompts(c, promptProvider, gate, cfg)
 		})
+		nextchat.GET("/video-prompts", func(c *gin.Context) {
+			handleNextChatVideoPrompts(c, promptProvider, gate, cfg)
+		})
 		nextchat.GET("/image-prompts/:id", func(c *gin.Context) {
 			handleNextChatImagePrompt(c, promptProvider, gate, cfg)
 		})
@@ -528,22 +531,25 @@ func handleNextChatMobileBootstrap(
 			service.NextChatSessionPurposeImage: nextChatSessionPayload(&sessions.Image, expiresAt),
 			service.NextChatSessionPurposeVideo: nextChatSessionPayload(&sessions.Video, expiresAt),
 		}
-		if imagePayload, imageErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Image.UserID, sessions.Image.KeyID); imageErr == nil {
-			videoPayload, videoErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Video.UserID, sessions.Video.KeyID)
-			if videoErr != nil {
-				response.ErrorFrom(c, videoErr)
-				return
-			}
-			payload["managed_api_keys"] = gin.H{
-				service.NextChatSessionPurposeChat:  payload["managed_api_key"],
-				service.NextChatSessionPurposeImage: imagePayload["managed_api_key"],
-				service.NextChatSessionPurposeVideo: videoPayload["managed_api_key"],
-			}
-			payload["workspaces"] = gin.H{
-				service.NextChatSessionPurposeChat:  gin.H{"models": payload["models"]},
-				service.NextChatSessionPurposeImage: gin.H{"models": imagePayload["models"]},
-				service.NextChatSessionPurposeVideo: gin.H{"models": videoPayload["models"]},
-			}
+		imagePayload, imageErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Image.UserID, sessions.Image.KeyID)
+		if imageErr != nil {
+			response.ErrorFrom(c, imageErr)
+			return
+		}
+		videoPayload, videoErr := buildNextChatBootstrapPayload(c.Request.Context(), issuer, modelProvider, gate, sessions.Video.UserID, sessions.Video.KeyID)
+		if videoErr != nil {
+			response.ErrorFrom(c, videoErr)
+			return
+		}
+		payload["managed_api_keys"] = gin.H{
+			service.NextChatSessionPurposeChat:  payload["managed_api_key"],
+			service.NextChatSessionPurposeImage: imagePayload["managed_api_key"],
+			service.NextChatSessionPurposeVideo: videoPayload["managed_api_key"],
+		}
+		payload["workspaces"] = gin.H{
+			service.NextChatSessionPurposeChat:  gin.H{"models": payload["models"]},
+			service.NextChatSessionPurposeImage: gin.H{"models": imagePayload["models"]},
+			service.NextChatSessionPurposeVideo: gin.H{"models": videoPayload["models"]},
 		}
 	}
 	c.Header("Cache-Control", "no-store")
@@ -660,6 +666,7 @@ func buildNextChatBootstrapPayload(
 		"features": gin.H{
 			"chat":           true,
 			"image_studio":   settings.ImageStudioEnabled,
+			"video_studio":   nextChatHasVideoCapability(workspaceModels),
 			"prompts":        true,
 			"history_export": true,
 			"cloud_sync":     false,
@@ -679,6 +686,23 @@ func buildNextChatBootstrapPayload(
 			"server_chat_log":       false,
 		},
 	}, nil
+}
+
+func nextChatHasVideoCapability(models *service.NextChatWorkspaceModels) bool {
+	if models == nil {
+		return false
+	}
+	for _, group := range models.Groups {
+		if group.VideoAvailable {
+			return true
+		}
+		for _, model := range group.Models {
+			if model.VideoCapabilities != nil {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func handleNextChatPrompts(
@@ -732,6 +756,36 @@ func handleNextChatImagePrompts(
 		Sort:                 c.DefaultQuery("sort", "featured"),
 		Pagination:           pagination.PaginationParams{Page: page, PageSize: pageSize},
 	}, userIDPtr)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, rows, result.Total, result.Page, result.PageSize)
+}
+
+func handleNextChatVideoPrompts(
+	c *gin.Context,
+	promptProvider nextChatPromptProvider,
+	gate nextChatFeatureGate,
+	cfg *config.Config,
+) {
+	if gate == nil || !gate.IsNextChatEnabled(c.Request.Context()) {
+		response.NotFound(c, "NextChat is disabled")
+		return
+	}
+	userID, _, ok := requireNextChatBFFSession(c, cfg)
+	if !ok || promptProvider == nil {
+		if ok {
+			response.Error(c, http.StatusServiceUnavailable, "NextChat video prompt service is unavailable")
+		}
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	rows, result, err := promptProvider.ListPublic(c.Request.Context(), service.PromptListFilter{
+		Query: c.Query("q"), MediaType: "video", Sort: c.DefaultQuery("sort", "featured"),
+		Featured: nextChatOptionalBool(c.Query("featured")), FavoritedOnly: nextChatBoolQuery(c.Query("favorite")),
+		Pagination: pagination.PaginationParams{Page: page, PageSize: pageSize},
+	}, &userID)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return

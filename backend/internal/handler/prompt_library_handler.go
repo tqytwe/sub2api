@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -31,6 +32,7 @@ func (h *PromptLibraryHandler) List(c *gin.Context) {
 		Subject:    c.Query("subject"),
 		Model:      c.Query("model"),
 		Size:       c.Query("size"),
+		MediaType:  strings.TrimSpace(c.Query("media_type")),
 		Sort:       normalizePromptSort(c.Query("sort")),
 		Pagination: pagination.PaginationParams{Page: page, PageSize: pageSize},
 	}
@@ -51,6 +53,117 @@ func (h *PromptLibraryHandler) List(c *gin.Context) {
 		return
 	}
 	response.Paginated(c, rows, result.Total, result.Page, result.PageSize)
+}
+
+// Catalog returns a paginated public directory with prompt bodies. It exists
+// for mobile's first-run offline cache so the client does not issue one detail
+// request per prompt. The regular /prompts response remains compact.
+func (h *PromptLibraryHandler) Catalog(c *gin.Context) {
+	mediaType := strings.ToLower(strings.TrimSpace(c.Query("media_type")))
+	if mediaType != "image" && mediaType != "video" {
+		response.BadRequest(c, "media_type must be image or video")
+		return
+	}
+	if h == nil || h.service == nil {
+		response.InternalError(c, "prompt catalog is unavailable")
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	// The catalog includes prompt bodies and media metadata. Cap each response
+	// to the repository's catalog batch size even though generic pagination
+	// allows larger pages elsewhere in the API.
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	rows, result, err := h.service.ListPublic(c.Request.Context(), service.PromptListFilter{
+		CatalogKind:    mediaType,
+		Sort:           "featured",
+		IncludeContent: true,
+		Pagination:     pagination.PaginationParams{Page: page, PageSize: pageSize},
+	}, nil)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Paginated(c, rows, result.Total, result.Page, result.PageSize)
+}
+
+// CatalogDelta returns only records that changed since a mobile cache cursor.
+// The timestamp cursor deliberately overlaps one PostgreSQL timestamp tick in
+// the repository, so consumers must upsert by prompt ID and apply tombstones.
+func (h *PromptLibraryHandler) CatalogDelta(c *gin.Context) {
+	mediaType := strings.ToLower(strings.TrimSpace(c.Query("media_type")))
+	if mediaType != "image" && mediaType != "video" {
+		response.BadRequest(c, "media_type must be image or video")
+		return
+	}
+	rawSince := strings.TrimSpace(c.Query("since"))
+	if rawSince == "" {
+		response.BadRequest(c, "since must be an RFC3339Nano cursor")
+		return
+	}
+	since, err := time.Parse(time.RFC3339Nano, rawSince)
+	if err != nil {
+		response.BadRequest(c, "since must be an RFC3339Nano cursor")
+		return
+	}
+	if h == nil || h.service == nil {
+		response.InternalError(c, "prompt catalog is unavailable")
+		return
+	}
+	result, err := h.service.GetPublicCatalogDelta(c.Request.Context(), service.PromptListFilter{
+		CatalogKind: mediaType,
+	}, since)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	etag := `"` + strings.Trim(strings.TrimSpace(result.ETag), `"`) + `"`
+	if strings.TrimSpace(result.ETag) == "" {
+		response.InternalError(c, "prompt catalog revision is unavailable")
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=0, must-revalidate")
+	c.Header("ETag", etag)
+	if strings.TrimSpace(c.GetHeader("If-None-Match")) == etag {
+		c.AbortWithStatus(http.StatusNotModified)
+		return
+	}
+	response.Success(c, result)
+}
+
+// Manifest is a deliberately small revision probe for mobile prompt caches.
+// Clients use its ETag on each app activation and fetch the full catalog only
+// after a public prompt or category actually changes.
+func (h *PromptLibraryHandler) Manifest(c *gin.Context) {
+	mediaType := strings.ToLower(strings.TrimSpace(c.Query("media_type")))
+	if mediaType != "image" && mediaType != "video" {
+		response.BadRequest(c, "media_type must be image or video")
+		return
+	}
+	if h == nil || h.service == nil {
+		response.InternalError(c, "prompt catalog is unavailable")
+		return
+	}
+	manifest, err := h.service.GetPublicCatalogManifest(c.Request.Context(), service.PromptListFilter{
+		CatalogKind: mediaType,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	etag := `"` + strings.Trim(strings.TrimSpace(manifest.Revision), `"`) + `"`
+	if strings.TrimSpace(manifest.Revision) == "" {
+		response.InternalError(c, "prompt catalog revision is unavailable")
+		return
+	}
+	c.Header("Cache-Control", "public, max-age=0, must-revalidate")
+	c.Header("ETag", etag)
+	if strings.TrimSpace(c.GetHeader("If-None-Match")) == etag {
+		c.AbortWithStatus(http.StatusNotModified)
+		return
+	}
+	response.Success(c, manifest)
 }
 
 func (h *PromptLibraryHandler) Get(c *gin.Context) {

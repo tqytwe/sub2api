@@ -36321,6 +36321,7 @@ type MobileTaskMutation struct {
 	updated_at          *time.Time
 	started_at          *time.Time
 	finished_at         *time.Time
+	deleted_at          *time.Time
 	clearedFields       map[string]struct{}
 	done                bool
 	oldValue            func(context.Context) (*MobileTask, error)
@@ -37160,6 +37161,55 @@ func (m *MobileTaskMutation) ResetFinishedAt() {
 	delete(m.clearedFields, mobiletask.FieldFinishedAt)
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (m *MobileTaskMutation) SetDeletedAt(t time.Time) {
+	m.deleted_at = &t
+}
+
+// DeletedAt returns the value of the "deleted_at" field in the mutation.
+func (m *MobileTaskMutation) DeletedAt() (r time.Time, exists bool) {
+	v := m.deleted_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDeletedAt returns the old "deleted_at" field's value of the MobileTask entity.
+// If the MobileTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MobileTaskMutation) OldDeletedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDeletedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDeletedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDeletedAt: %w", err)
+	}
+	return oldValue.DeletedAt, nil
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (m *MobileTaskMutation) ClearDeletedAt() {
+	m.deleted_at = nil
+	m.clearedFields[mobiletask.FieldDeletedAt] = struct{}{}
+}
+
+// DeletedAtCleared returns if the "deleted_at" field was cleared in this mutation.
+func (m *MobileTaskMutation) DeletedAtCleared() bool {
+	_, ok := m.clearedFields[mobiletask.FieldDeletedAt]
+	return ok
+}
+
+// ResetDeletedAt resets all changes to the "deleted_at" field.
+func (m *MobileTaskMutation) ResetDeletedAt() {
+	m.deleted_at = nil
+	delete(m.clearedFields, mobiletask.FieldDeletedAt)
+}
+
 // Where appends a list predicates to the MobileTaskMutation builder.
 func (m *MobileTaskMutation) Where(ps ...predicate.MobileTask) {
 	m.predicates = append(m.predicates, ps...)
@@ -37194,7 +37244,7 @@ func (m *MobileTaskMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *MobileTaskMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 17)
 	if m.user_id != nil {
 		fields = append(fields, mobiletask.FieldUserID)
 	}
@@ -37243,6 +37293,9 @@ func (m *MobileTaskMutation) Fields() []string {
 	if m.finished_at != nil {
 		fields = append(fields, mobiletask.FieldFinishedAt)
 	}
+	if m.deleted_at != nil {
+		fields = append(fields, mobiletask.FieldDeletedAt)
+	}
 	return fields
 }
 
@@ -37283,6 +37336,8 @@ func (m *MobileTaskMutation) Field(name string) (ent.Value, bool) {
 		return m.StartedAt()
 	case mobiletask.FieldFinishedAt:
 		return m.FinishedAt()
+	case mobiletask.FieldDeletedAt:
+		return m.DeletedAt()
 	}
 	return nil, false
 }
@@ -37324,6 +37379,8 @@ func (m *MobileTaskMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldStartedAt(ctx)
 	case mobiletask.FieldFinishedAt:
 		return m.OldFinishedAt(ctx)
+	case mobiletask.FieldDeletedAt:
+		return m.OldDeletedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown MobileTask field %s", name)
 }
@@ -37445,6 +37502,13 @@ func (m *MobileTaskMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetFinishedAt(v)
 		return nil
+	case mobiletask.FieldDeletedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDeletedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown MobileTask field %s", name)
 }
@@ -37532,6 +37596,9 @@ func (m *MobileTaskMutation) ClearedFields() []string {
 	if m.FieldCleared(mobiletask.FieldFinishedAt) {
 		fields = append(fields, mobiletask.FieldFinishedAt)
 	}
+	if m.FieldCleared(mobiletask.FieldDeletedAt) {
+		fields = append(fields, mobiletask.FieldDeletedAt)
+	}
 	return fields
 }
 
@@ -37563,6 +37630,9 @@ func (m *MobileTaskMutation) ClearField(name string) error {
 		return nil
 	case mobiletask.FieldFinishedAt:
 		m.ClearFinishedAt()
+		return nil
+	case mobiletask.FieldDeletedAt:
+		m.ClearDeletedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown MobileTask nullable field %s", name)
@@ -37619,6 +37689,9 @@ func (m *MobileTaskMutation) ResetField(name string) error {
 		return nil
 	case mobiletask.FieldFinishedAt:
 		m.ResetFinishedAt()
+		return nil
+	case mobiletask.FieldDeletedAt:
+		m.ResetDeletedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown MobileTask field %s", name)

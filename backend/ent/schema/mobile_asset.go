@@ -26,6 +26,7 @@ const (
 	mobileAssetSourceUpload      = "upload"
 	mobileAssetSourceShare       = "share"
 	mobileAssetSourceImageResult = "image_result"
+	mobileAssetSourceVideoResult = "video_result"
 	mobileAssetSourceChatExport  = "chat_export"
 	mobileAssetSourceVoice       = "voice"
 
@@ -137,6 +138,7 @@ func validateMobileAssetSource(value string) error {
 	case mobileAssetSourceUpload,
 		mobileAssetSourceShare,
 		mobileAssetSourceImageResult,
+		mobileAssetSourceVideoResult,
 		mobileAssetSourceChatExport,
 		mobileAssetSourceVoice:
 		return nil

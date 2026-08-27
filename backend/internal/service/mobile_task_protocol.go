@@ -12,6 +12,7 @@ type MobileTaskKind string
 const (
 	MobileTaskKindChat  MobileTaskKind = "chat"
 	MobileTaskKindImage MobileTaskKind = "image"
+	MobileTaskKindVideo MobileTaskKind = "video"
 	MobileTaskKindFile  MobileTaskKind = "file"
 )
 
@@ -71,7 +72,8 @@ type MobileTaskArtifact struct {
 	Metadata    map[string]any `json:"metadata,omitempty"`
 }
 
-// MobileTask is the shared client-facing projection for chat, image, and file
+// MobileTask is the shared client-facing projection for chat, image, video,
+// and file
 // work. It is deliberately execution- and storage-agnostic.
 type MobileTask struct {
 	ID              string               `json:"id"`
@@ -95,7 +97,7 @@ type MobileTask struct {
 
 func IsValidMobileTaskKind(kind MobileTaskKind) bool {
 	switch kind {
-	case MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindFile:
+	case MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindVideo, MobileTaskKindFile:
 		return true
 	default:
 		return false

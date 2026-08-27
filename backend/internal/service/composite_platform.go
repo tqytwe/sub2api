@@ -128,6 +128,10 @@ func DetectModelPlatform(model string) (string, bool) {
 		strings.HasPrefix(normalized, "whisper-"),
 		hasOpenAISeriesPrefix(normalized):
 		return PlatformOpenAI, true
+	case strings.Contains(normalized, "seedance"):
+		// Seedance is routed through an Ark/OpenAI-compatible account, which is
+		// represented by the existing OpenAI platform in sub2api.
+		return PlatformOpenAI, true
 	case strings.HasPrefix(normalized, "gemini-"),
 		strings.HasPrefix(normalized, "learnlm-"):
 		return PlatformGemini, true

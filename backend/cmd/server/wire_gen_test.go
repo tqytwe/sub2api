@@ -76,6 +76,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // batchImageWorker
 		nil, // asyncImageWorker
 		nil, // imageStudioWorker
+		nil, // mobileVideoWorker
 		pricingSvc,
 		emailQueueSvc,
 		billingCacheSvc,
@@ -101,6 +102,7 @@ func TestProvideCleanup_WithMinimalDependencies_NoPanic(t *testing.T) {
 		nil, // ipRisk
 		nil, // promptAudit
 		nil, // mobilePushWorker
+		nil, // canvasPromptMirrorWorker
 	)
 
 	require.NotPanics(t, func() {

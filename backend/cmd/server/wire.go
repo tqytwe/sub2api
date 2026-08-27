@@ -98,6 +98,7 @@ func provideCleanup(
 	batchImageWorker *service.BatchImageWorkerRuntime,
 	asyncImageWorker *handler.AsyncImageHandler,
 	imageStudioWorker *handler.ImageStudioWorkerRuntime,
+	mobileVideoWorker *service.MobileVideoWorker,
 	pricing *service.PricingService,
 	emailQueue *service.EmailQueueService,
 	billingCache *service.BillingCacheService,
@@ -123,6 +124,7 @@ func provideCleanup(
 	ipRisk *service.IPRiskService,
 	promptAudit *securityaudit.PromptService,
 	mobilePushWorker *service.MobilePushWorker,
+	canvasPromptMirrorWorker *service.CanvasPromptMirrorWorker,
 ) func() {
 	server.SetPublicHomeStatsService(publicHomeStatsService)
 	return func() {
@@ -136,6 +138,12 @@ func provideCleanup(
 
 		// 应用层清理步骤可并行执行，基础设施资源（Redis/Ent）最后按顺序关闭。
 		parallelSteps := []cleanupStep{
+			{"CanvasPromptMirrorWorker", func() error {
+				if canvasPromptMirrorWorker != nil {
+					canvasPromptMirrorWorker.Stop()
+				}
+				return nil
+			}},
 			{"MobilePushWorker", func() error {
 				if mobilePushWorker != nil {
 					mobilePushWorker.Stop()
@@ -268,6 +276,12 @@ func provideCleanup(
 				}
 				return nil
 			}},
+			{"MobileVideoWorker", func() error {
+				if mobileVideoWorker != nil {
+					mobileVideoWorker.Stop()
+				}
+				return nil
+			}},
 			{"TokenRefreshService", func() error {
 				tokenRefresh.Stop()
 				return nil
@@ -365,12 +379,12 @@ func provideCleanup(
 				return nil
 			}},
 			{"ChannelMonitorV2Aggregator", func() error {
-			if channelMonitorV2Aggregator != nil {
-				channelMonitorV2Aggregator.Stop()
-			}
-			return nil
-		}},
-		{"ChannelMonitorRunner", func() error {
+				if channelMonitorV2Aggregator != nil {
+					channelMonitorV2Aggregator.Stop()
+				}
+				return nil
+			}},
+			{"ChannelMonitorRunner", func() error {
 				if channelMonitorRunner != nil {
 					channelMonitorRunner.Stop()
 				}

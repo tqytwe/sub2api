@@ -45,6 +45,25 @@ func TestBuildAgnesVideoURLDoesNotDuplicateCreateEndpoint(t *testing.T) {
 	require.Equal(t, "https://apihub.agnes-ai.com/v1/videos", createURL)
 }
 
+func TestBuildSeedanceVideoURLKeepsArkBasePath(t *testing.T) {
+	svc := &OpenAIGatewayService{cfg: &config.Config{}}
+	account := &Account{
+		Platform: PlatformOpenAI,
+		Type:     AccountTypeAPIKey,
+		Credentials: map[string]any{
+			"base_url": "https://ark.example.test/api/v3",
+		},
+	}
+
+	createURL, err := svc.buildAgnesVideoURL(account, SeedanceVideoEndpointCreate, "")
+	require.NoError(t, err)
+	require.Equal(t, "https://ark.example.test/api/v3/contents/generations/tasks", createURL)
+
+	statusURL, err := svc.buildAgnesVideoURL(account, SeedanceVideoEndpointStatus, "task/a")
+	require.NoError(t, err)
+	require.Equal(t, "https://ark.example.test/api/v3/contents/generations/tasks/task%2Fa", statusURL)
+}
+
 func TestExtractAgnesVideoResponseIDPrefersVideoID(t *testing.T) {
 	body := []byte(`{"id":"task_1","task_id":"task_2","video_id":"video_3"}`)
 	require.Equal(t, "video_3", ExtractAgnesVideoResponseID(body))

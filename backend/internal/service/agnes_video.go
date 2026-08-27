@@ -26,6 +26,8 @@ const (
 	AgnesVideoEndpointCreate       AgnesVideoEndpoint = "create"
 	AgnesVideoEndpointStatusVideo  AgnesVideoEndpoint = "status_video"
 	AgnesVideoEndpointStatusLegacy AgnesVideoEndpoint = "status_legacy"
+	SeedanceVideoEndpointCreate    AgnesVideoEndpoint = "seedance_create"
+	SeedanceVideoEndpointStatus    AgnesVideoEndpoint = "seedance_status"
 )
 
 func AgnesVideoSessionHash(id string) string {
@@ -107,7 +109,7 @@ func ExtractAgnesVideoResponseID(body []byte) string {
 }
 
 func (e AgnesVideoEndpoint) httpMethod() string {
-	if e == AgnesVideoEndpointCreate {
+	if e == AgnesVideoEndpointCreate || e == SeedanceVideoEndpointCreate {
 		return http.MethodPost
 	}
 	return http.MethodGet
@@ -140,7 +142,7 @@ func (s *OpenAIGatewayService) ForwardAgnesVideo(
 	}
 
 	var bodyReader io.Reader
-	if endpoint == AgnesVideoEndpointCreate {
+	if endpoint == AgnesVideoEndpointCreate || endpoint == SeedanceVideoEndpointCreate {
 		bodyReader = bytes.NewReader(body)
 	}
 	upstreamCtx, releaseUpstreamCtx := detachUpstreamContext(ctx)
@@ -159,7 +161,7 @@ func (s *OpenAIGatewayService) ForwardAgnesVideo(
 		}
 	}
 	upstreamReq.Header.Set("Accept", "application/json")
-	if endpoint == AgnesVideoEndpointCreate {
+	if endpoint == AgnesVideoEndpointCreate || endpoint == SeedanceVideoEndpointCreate {
 		contentType = strings.TrimSpace(contentType)
 		if contentType == "" {
 			contentType = "application/json"
@@ -167,6 +169,13 @@ func (s *OpenAIGatewayService) ForwardAgnesVideo(
 		upstreamReq.Header.Set("Content-Type", contentType)
 	}
 	account.ApplyHeaderOverrides(upstreamReq.Header)
+	// Preserve the durable mobile task idempotency key for provider-side create
+	// de-duplication. Status calls intentionally carry no idempotency header.
+	if (endpoint == AgnesVideoEndpointCreate || endpoint == SeedanceVideoEndpointCreate) && c != nil {
+		if idempotencyKey := strings.TrimSpace(c.GetHeader("Idempotency-Key")); idempotencyKey != "" {
+			upstreamReq.Header.Set("Idempotency-Key", idempotencyKey)
+		}
+	}
 
 	proxyURL := ""
 	if account.ProxyID != nil && account.Proxy != nil {
@@ -221,9 +230,42 @@ func (s *OpenAIGatewayService) buildAgnesVideoURL(account *Account, endpoint Agn
 		return buildAgnesAPIURL(validatedURL, videoID)
 	case AgnesVideoEndpointStatusLegacy:
 		return buildOpenAIEndpointURL(validatedURL, "/v1/videos/"+url.PathEscape(strings.TrimSpace(videoID))), nil
+	case SeedanceVideoEndpointCreate:
+		return buildSeedanceVideoURL(validatedURL, ""), nil
+	case SeedanceVideoEndpointStatus:
+		return buildSeedanceVideoURL(validatedURL, videoID), nil
 	default:
 		return "", fmt.Errorf("unsupported agnes video endpoint: %s", endpoint)
 	}
+}
+
+func buildSeedanceVideoURL(base, videoID string) string {
+	parsed, err := url.Parse(strings.TrimSpace(base))
+	if err != nil {
+		return strings.TrimRight(strings.TrimSpace(base), "/") + "/contents/generations/tasks" + taskPathSuffix(videoID)
+	}
+	basePath := strings.TrimRight(parsed.Path, "/") + "/contents/generations/tasks"
+	baseRawPath := strings.TrimRight(parsed.EscapedPath(), "/") + "/contents/generations/tasks"
+	if taskID := strings.TrimSpace(videoID); taskID != "" {
+		// Path keeps the logical task id while RawPath preserves an escaped slash
+		// as data. Putting PathEscape(taskID) directly in Path makes url.URL
+		// escape its percent sign again (task%252Fid).
+		parsed.Path = basePath + "/" + taskID
+		parsed.RawPath = baseRawPath + "/" + url.PathEscape(taskID)
+	} else {
+		parsed.Path = basePath
+		parsed.RawPath = baseRawPath
+	}
+	parsed.RawQuery = ""
+	parsed.Fragment = ""
+	return parsed.String()
+}
+
+func taskPathSuffix(videoID string) string {
+	if value := strings.TrimSpace(videoID); value != "" {
+		return "/" + url.PathEscape(value)
+	}
+	return ""
 }
 
 func buildAgnesAPIURL(base string, videoID string) (string, error) {

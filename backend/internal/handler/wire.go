@@ -256,6 +256,7 @@ func ProvideHandlers(
 	imageStudioHandler *ImageStudioHandler,
 	modelPricingHandler *ModelPricingHandler,
 	promptLibraryHandler *PromptLibraryHandler,
+	canvasPromptMirrorHandler *CanvasPromptMirrorHandler,
 	mobileAssetHandler *MobileAssetHandler,
 	mobileTaskHandler *MobileTaskHandler,
 	mobileVideoHandler *MobileVideoHandler,
@@ -271,44 +272,45 @@ func ProvideHandlers(
 	_ *service.IdempotencyCleanupService,
 ) *Handlers {
 	return &Handlers{
-		Auth:              authHandler,
-		User:              userHandler,
-		APIKey:            apiKeyHandler,
-		Usage:             usageHandler,
-		Redeem:            redeemHandler,
-		Subscription:      subscriptionHandler,
-		Announcement:      announcementHandler,
-		ChannelMonitor:    channelMonitorUserHandler,
-		Admin:             adminHandlers,
-		Gateway:           gatewayHandler,
-		OpenAIGateway:     openaiGatewayHandler,
-		Setting:           settingHandler,
-		Totp:              totpHandler,
-		Passkey:           passkeyHandler,
-		Payment:           paymentHandler,
-		PaymentWebhook:    paymentWebhookHandler,
-		Coupon:            couponWalletHandler,
-		AvailableChannel:  availableChannelHandler,
-		ModelPlaza:        modelPlazaHandler,
-		AsyncImage:        asyncImageHandler,
-		BatchImage:        batchImageHandler,
-		Play:              playHandler,
-		Wallet:            walletHandler,
-		Fund:              fundHandler,
-		ImageStudio:       imageStudioHandler,
-		ModelPricing:      modelPricingHandler,
-		PromptLibrary:     promptLibraryHandler,
-		MobileAsset:       mobileAssetHandler,
-		MobileTask:        mobileTaskHandler,
-		MobileVideo:       mobileVideoHandler,
-		MobileSupport:     mobileSupportHandler,
-		MobileDiagnostic:  mobileDiagnosticHandler,
-		MobileDevice:      mobileDeviceHandler,
-		MobileAttribution: mobileAttributionHandler,
-		MobileWebSearch:   mobileWebSearchHandler,
-		MobilePlayBilling: mobilePlayBillingHandler,
-		MobileRelease:     mobileReleaseHandler,
-		ForumSSO:          forumSSOHandler,
+		Auth:               authHandler,
+		User:               userHandler,
+		APIKey:             apiKeyHandler,
+		Usage:              usageHandler,
+		Redeem:             redeemHandler,
+		Subscription:       subscriptionHandler,
+		Announcement:       announcementHandler,
+		ChannelMonitor:     channelMonitorUserHandler,
+		Admin:              adminHandlers,
+		Gateway:            gatewayHandler,
+		OpenAIGateway:      openaiGatewayHandler,
+		Setting:            settingHandler,
+		Totp:               totpHandler,
+		Passkey:            passkeyHandler,
+		Payment:            paymentHandler,
+		PaymentWebhook:     paymentWebhookHandler,
+		Coupon:             couponWalletHandler,
+		AvailableChannel:   availableChannelHandler,
+		ModelPlaza:         modelPlazaHandler,
+		AsyncImage:         asyncImageHandler,
+		BatchImage:         batchImageHandler,
+		Play:               playHandler,
+		Wallet:             walletHandler,
+		Fund:               fundHandler,
+		ImageStudio:        imageStudioHandler,
+		ModelPricing:       modelPricingHandler,
+		PromptLibrary:      promptLibraryHandler,
+		CanvasPromptMirror: canvasPromptMirrorHandler,
+		MobileAsset:        mobileAssetHandler,
+		MobileTask:         mobileTaskHandler,
+		MobileVideo:        mobileVideoHandler,
+		MobileSupport:      mobileSupportHandler,
+		MobileDiagnostic:   mobileDiagnosticHandler,
+		MobileDevice:       mobileDeviceHandler,
+		MobileAttribution:  mobileAttributionHandler,
+		MobileWebSearch:    mobileWebSearchHandler,
+		MobilePlayBilling:  mobilePlayBillingHandler,
+		MobileRelease:      mobileReleaseHandler,
+		ForumSSO:           forumSSOHandler,
 	}
 }
 
@@ -343,8 +345,34 @@ func ProvideMobileTaskHandler(db *sql.DB, push *service.MobilePushService) *Mobi
 	return NewMobileTaskHandlerWithPush(service.NewMobileTaskService(db), push)
 }
 
-func ProvideMobileVideoHandler(db *sql.DB, apiKeys *service.APIKeyService) *MobileVideoHandler {
-	return NewMobileVideoHandler(service.NewMobileTaskService(db), apiKeys, service.NewMobileVideoJobService(db))
+func ProvideMobileVideoHandler(db *sql.DB, apiKeys *service.APIKeyService, storage service.MobileAssetStorage) *MobileVideoHandler {
+	return NewMobileVideoHandler(service.NewMobileTaskService(db), apiKeys, []*service.MobileVideoJobService{service.NewMobileVideoJobService(db)}, storage).
+		SetAssetHandler(NewMobileAssetHandlerWithStorage(db, storage))
+}
+
+// ProvideMobileVideoWorker wires the durable mobile video executor into the
+// application lifecycle. The handler and worker intentionally use separate
+// service instances backed by the same database; neither keeps mutable task
+// state in process memory, so a restart or a second server replica can safely
+// resume leased jobs.
+func ProvideMobileVideoWorker(
+	db *sql.DB,
+	apiKeys *service.APIKeyService,
+	gateway *OpenAIGatewayHandler,
+	subscriptions *service.SubscriptionService,
+	storage service.MobileAssetStorage,
+) *service.MobileVideoWorker {
+	provider := NewMobileVideoGatewayProvider(apiKeys, gateway, NewMobileAssetHandlerWithStorage(db, storage)).
+		SetSubscriptionResolver(subscriptions)
+	worker := service.NewMobileVideoWorker(
+		service.NewMobileVideoJobService(db),
+		service.NewMobileTaskService(db),
+		provider,
+		storage,
+		service.MobileVideoWorkerOptions{},
+	)
+	worker.Start()
+	return worker
 }
 
 func ProvideMobileSupportHandler(playService *service.PlayService, feedbackAssetService *service.AnnouncementAssetService) *MobileSupportHandler {
@@ -401,9 +429,11 @@ var ProviderSet = wire.NewSet(
 	ProvideImageStudioWorkerRuntime,
 	NewModelPricingHandler,
 	NewPromptLibraryHandler,
+	NewCanvasPromptMirrorHandler,
 	ProvideMobileAssetHandler,
 	ProvideMobileTaskHandler,
 	ProvideMobileVideoHandler,
+	ProvideMobileVideoWorker,
 	ProvideMobileSupportHandler,
 	NewMobileDiagnosticHandler,
 	ProvideMobileDeviceHandler,

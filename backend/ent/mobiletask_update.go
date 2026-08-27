@@ -271,6 +271,26 @@ func (_u *MobileTaskUpdate) ClearFinishedAt() *MobileTaskUpdate {
 	return _u
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *MobileTaskUpdate) SetDeletedAt(v time.Time) *MobileTaskUpdate {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *MobileTaskUpdate) SetNillableDeletedAt(v *time.Time) *MobileTaskUpdate {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *MobileTaskUpdate) ClearDeletedAt() *MobileTaskUpdate {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
 // Mutation returns the MobileTaskMutation object of the builder.
 func (_u *MobileTaskUpdate) Mutation() *MobileTaskMutation {
 	return _u.mutation
@@ -440,6 +460,12 @@ func (_u *MobileTaskUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	}
 	if _u.mutation.FinishedAtCleared() {
 		_spec.ClearField(mobiletask.FieldFinishedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(mobiletask.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(mobiletask.FieldDeletedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -702,6 +728,26 @@ func (_u *MobileTaskUpdateOne) ClearFinishedAt() *MobileTaskUpdateOne {
 	return _u
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_u *MobileTaskUpdateOne) SetDeletedAt(v time.Time) *MobileTaskUpdateOne {
+	_u.mutation.SetDeletedAt(v)
+	return _u
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_u *MobileTaskUpdateOne) SetNillableDeletedAt(v *time.Time) *MobileTaskUpdateOne {
+	if v != nil {
+		_u.SetDeletedAt(*v)
+	}
+	return _u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (_u *MobileTaskUpdateOne) ClearDeletedAt() *MobileTaskUpdateOne {
+	_u.mutation.ClearDeletedAt()
+	return _u
+}
+
 // Mutation returns the MobileTaskMutation object of the builder.
 func (_u *MobileTaskUpdateOne) Mutation() *MobileTaskMutation {
 	return _u.mutation
@@ -901,6 +947,12 @@ func (_u *MobileTaskUpdateOne) sqlSave(ctx context.Context) (_node *MobileTask, 
 	}
 	if _u.mutation.FinishedAtCleared() {
 		_spec.ClearField(mobiletask.FieldFinishedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.DeletedAt(); ok {
+		_spec.SetField(mobiletask.FieldDeletedAt, field.TypeTime, value)
+	}
+	if _u.mutation.DeletedAtCleared() {
+		_spec.ClearField(mobiletask.FieldDeletedAt, field.TypeTime)
 	}
 	_node = &MobileTask{config: _u.config}
 	_spec.Assign = _node.assignValues

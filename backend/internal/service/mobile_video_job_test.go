@@ -43,6 +43,9 @@ type mobileVideoWorkerJobStoreFake struct {
 	completed    bool
 	failed       bool
 	cancelled    bool
+	heartbeats   int
+	heartbeatErr error
+	heartbeatHit chan struct{}
 	storageKey   string
 	artifactURL  string
 	artifactType string
@@ -71,7 +74,14 @@ func (s *mobileVideoWorkerJobStoreFake) ClaimNext(context.Context, string, time.
 	return &copy, nil
 }
 func (s *mobileVideoWorkerJobStoreFake) Heartbeat(context.Context, string, string, time.Time, time.Duration) error {
-	return nil
+	s.heartbeats++
+	if s.heartbeatHit != nil {
+		select {
+		case s.heartbeatHit <- struct{}{}:
+		default:
+		}
+	}
+	return s.heartbeatErr
 }
 func (s *mobileVideoWorkerJobStoreFake) MarkSubmitted(_ context.Context, _ string, _ string, providerRequestID string, _ time.Time) error {
 	s.submitted = true
@@ -162,6 +172,125 @@ func TestMobileVideoWorkerFailsProviderErrorWithoutLeakingPrompt(t *testing.T) {
 	}
 	if len(tasks.task.Error.Details) != 0 && containsSensitiveMobileVideoTestValue(tasks.task.Error.Details, "secret prompt") {
 		t.Fatal("provider error exposed private prompt")
+	}
+}
+
+func TestMobileVideoWorkerFailsRecoveredUnknownSubmissionWithoutCreatingAgain(t *testing.T) {
+	createdAt := time.Now().UTC()
+	task, err := NewMobileTask("task-video-unknown", MobileTaskKindVideo, MobileVideoOperationGenerate, "client-unknown", createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobStore := &mobileVideoWorkerJobStoreFake{job: &MobileVideoJob{
+		TaskID: task.ID, UserID: 7, GroupID: 9, Model: "video-model", Prompt: "waves",
+		State: MobileVideoJobStateSubmissionUnknown,
+	}}
+	tasks := &mobileVideoWorkerTaskStoreFake{task: task}
+	provider := &mobileVideoWorkerProviderFake{}
+	worker := NewMobileVideoWorker(jobStore, tasks, provider, nil, MobileVideoWorkerOptions{WorkerID: "worker"})
+
+	processed, err := worker.RunOnce(context.Background())
+	if err != nil || !processed {
+		t.Fatalf("unknown submission processed=%v err=%v", processed, err)
+	}
+	if provider.creates != 0 || provider.polls != 0 {
+		t.Fatalf("unknown submission must not call the provider again: creates=%d polls=%d", provider.creates, provider.polls)
+	}
+	if !jobStore.failed || tasks.task.Status != MobileTaskStatusFailed {
+		t.Fatalf("unknown submission must be surfaced as retryable failure: failed=%v task=%s", jobStore.failed, tasks.task.Status)
+	}
+}
+
+type mobileVideoBlockingProviderFake struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (p *mobileVideoBlockingProviderFake) Create(context.Context, *MobileVideoJob) (MobileVideoProviderResult, error) {
+	close(p.started)
+	<-p.release
+	return MobileVideoProviderResult{RequestID: "provider-1", Status: "queued"}, nil
+}
+
+func (p *mobileVideoBlockingProviderFake) Poll(context.Context, *MobileVideoJob) (MobileVideoProviderResult, error) {
+	return MobileVideoProviderResult{}, errors.New("unexpected poll")
+}
+
+func (p *mobileVideoBlockingProviderFake) Content(context.Context, *MobileVideoJob) (MobileVideoProviderResult, error) {
+	return MobileVideoProviderResult{}, errors.New("unexpected content")
+}
+
+func TestMobileVideoWorkerHeartbeatsWhileProviderCallIsInFlight(t *testing.T) {
+	createdAt := time.Now().UTC()
+	task, err := NewMobileTask("task-video-heartbeat", MobileTaskKindVideo, MobileVideoOperationGenerate, "client-heartbeat", createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobStore := &mobileVideoWorkerJobStoreFake{job: &MobileVideoJob{TaskID: task.ID, UserID: 7, GroupID: 9, Model: "video-model", Prompt: "waves", State: MobileVideoJobStateQueued}, heartbeatHit: make(chan struct{}, 1)}
+	tasks := &mobileVideoWorkerTaskStoreFake{task: task}
+	provider := &mobileVideoBlockingProviderFake{started: make(chan struct{}), release: make(chan struct{})}
+	worker := NewMobileVideoWorker(jobStore, tasks, provider, nil, MobileVideoWorkerOptions{WorkerID: "worker", Lease: 30 * time.Millisecond})
+
+	done := make(chan error, 1)
+	go func() {
+		_, runErr := worker.RunOnce(context.Background())
+		done <- runErr
+	}()
+	<-provider.started
+	select {
+	case <-jobStore.heartbeatHit:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not heartbeat while provider call was in flight")
+	}
+	close(provider.release)
+	if err := <-done; err != nil {
+		t.Fatalf("worker returned %v", err)
+	}
+	if !jobStore.submitted {
+		t.Fatal("worker did not persist the provider request after the call")
+	}
+}
+
+func TestMobileVideoWorkerDoesNotPersistProviderResultAfterLeaseLoss(t *testing.T) {
+	createdAt := time.Now().UTC()
+	task, err := NewMobileTask("task-video-heartbeat-loss", MobileTaskKindVideo, MobileVideoOperationGenerate, "client-heartbeat-loss", createdAt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	jobStore := &mobileVideoWorkerJobStoreFake{
+		job:          &MobileVideoJob{TaskID: task.ID, UserID: 7, GroupID: 9, Model: "video-model", Prompt: "waves", State: MobileVideoJobStateQueued},
+		heartbeatErr: errors.New("lease row disappeared"),
+		heartbeatHit: make(chan struct{}, 1),
+	}
+	tasks := &mobileVideoWorkerTaskStoreFake{task: task}
+	provider := &mobileVideoBlockingProviderFake{started: make(chan struct{}), release: make(chan struct{})}
+	worker := NewMobileVideoWorker(
+		jobStore,
+		tasks,
+		provider,
+		nil,
+		MobileVideoWorkerOptions{WorkerID: "worker", Lease: 30 * time.Millisecond},
+	)
+
+	done := make(chan error, 1)
+	go func() {
+		_, runErr := worker.RunOnce(context.Background())
+		done <- runErr
+	}()
+	<-provider.started
+	select {
+	case <-jobStore.heartbeatHit:
+	case <-time.After(time.Second):
+		t.Fatal("worker did not report the failed heartbeat")
+	}
+	// The provider may ignore cancellation; let it return a successful result
+	// after the lease has already been lost and verify it is discarded.
+	close(provider.release)
+	if err := <-done; err != nil {
+		t.Fatalf("worker returned %v", err)
+	}
+	if jobStore.submitted || jobStore.completed || tasks.task.Status == MobileTaskStatusCompleted {
+		t.Fatalf("provider result was persisted after lease loss: submitted=%v completed=%v task=%s", jobStore.submitted, jobStore.completed, tasks.task.Status)
 	}
 }
 

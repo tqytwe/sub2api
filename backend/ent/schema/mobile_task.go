@@ -13,7 +13,7 @@ import (
 )
 
 // MobileTask stores the privacy-safe task projection shared by chat, image,
-// and file workflows. Request content and generated content live elsewhere.
+// video, and file workflows. Request content and generated content live elsewhere.
 type MobileTask struct {
 	ent.Schema
 }
@@ -31,7 +31,7 @@ func (MobileTask) Fields() []ent.Field {
 		field.Int64("user_id").
 			Positive(),
 		field.Enum("kind").
-			Values("chat", "image", "file"),
+			Values("chat", "image", "video", "file"),
 		field.String("operation").
 			MaxLen(100).
 			NotEmpty(),
@@ -79,6 +79,10 @@ func (MobileTask) Fields() []ent.Field {
 			Optional().
 			Nillable().
 			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Time("deleted_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
 	}
 }
 
@@ -90,5 +94,6 @@ func (MobileTask) Indexes() []ent.Index {
 		index.Fields("user_id", "status", "created_at"),
 		index.Fields("retry_of"),
 		index.Fields("parent_task_id"),
+		index.Fields("deleted_at"),
 	}
 }

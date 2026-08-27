@@ -214,7 +214,7 @@ func TestMobileTaskHandlerRejectsInvalidAndMapsStateErrors(t *testing.T) {
 	h := newMobileTaskHandlerWithStore(store)
 	params := gin.Params{{Key: "id", Value: "missing"}}
 
-	invalid := performMobileTaskHandlerRequest(h.Create, http.MethodPost, "/mobile/tasks", []byte(`{"kind":"video","operation":"x","client_request_id":"r"}`), 60, nil)
+	invalid := performMobileTaskHandlerRequest(h.Create, http.MethodPost, "/mobile/tasks", []byte(`{"kind":"unknown","operation":"x","client_request_id":"r"}`), 60, nil)
 	require.Equal(t, http.StatusBadRequest, invalid.Code)
 	require.False(t, createCalled)
 	notFound := performMobileTaskHandlerRequest(h.Get, http.MethodGet, "/mobile/tasks/missing", nil, 60, params)
@@ -225,6 +225,17 @@ func TestMobileTaskHandlerRejectsInvalidAndMapsStateErrors(t *testing.T) {
 	retry := performMobileTaskHandlerRequest(h.Retry, http.MethodPost, "/mobile/tasks/missing/retry", []byte(`{"client_request_id":"retry-1"}`), 60, params)
 	require.Equal(t, http.StatusConflict, retry.Code)
 	require.Contains(t, retry.Body.String(), "当前任务状态不能重试")
+}
+
+func TestMobileTaskHandlerAcceptsVideoTask(t *testing.T) {
+	store := &fakeMobileTaskStore{createFunc: func(_ context.Context, _ int64, input service.MobileTaskCreateInput) (*service.MobileTask, error) {
+		task, err := service.NewMobileTask("video-task-1", input.Kind, input.Operation, input.ClientRequestID, time.Now())
+		return &task, err
+	}}
+	h := newMobileTaskHandlerWithStore(store)
+	response := performMobileTaskHandlerRequest(h.Create, http.MethodPost, "/mobile/tasks", []byte(`{"kind":"video","operation":"video_generate","client_request_id":"video-request-1"}`), 60, nil)
+	require.Equal(t, http.StatusCreated, response.Code)
+	require.Contains(t, response.Body.String(), `"kind":"video"`)
 }
 
 func TestMobileTaskHandlerRequiresAuthentication(t *testing.T) {

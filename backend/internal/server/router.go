@@ -189,8 +189,10 @@ func registerRoutes(
 	mobileAssets := h.MobileAsset
 	v1.POST("/mobile/assets", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobileAssets.Upload)
 	v1.GET("/mobile/assets", gin.HandlerFunc(jwtAuth), mobileAssets.List)
+	v1.GET("/mobile/assets/sync", gin.HandlerFunc(jwtAuth), mobileAssets.Sync)
 	v1.GET("/mobile/assets/:id", gin.HandlerFunc(jwtAuth), mobileAssets.Get)
 	v1.GET("/mobile/assets/:id/content", gin.HandlerFunc(jwtAuth), mobileAssets.Content)
+	v1.PATCH("/mobile/assets/:id", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobileAssets.Rename)
 	v1.DELETE("/mobile/assets/:id", gin.HandlerFunc(jwtAuth), mobileAssets.Delete)
 	v1.POST("/mobile/tasks", gin.HandlerFunc(jwtAuth), h.MobileTask.Create)
 	v1.GET("/mobile/tasks", gin.HandlerFunc(jwtAuth), h.MobileTask.List)
@@ -199,6 +201,20 @@ func registerRoutes(
 	v1.POST("/mobile/tasks/:id/cancel", gin.HandlerFunc(jwtAuth), h.MobileTask.Cancel)
 	v1.POST("/mobile/tasks/:id/retry", gin.HandlerFunc(jwtAuth), h.MobileTask.Retry)
 	v1.POST("/mobile/tasks/:id/status", gin.HandlerFunc(jwtAuth), h.MobileTask.Transition)
+	mobileVideo := h.MobileVideo
+	if mobileVideo != nil {
+		v1.GET("/mobile/video/bootstrap", gin.HandlerFunc(jwtAuth), mobileVideo.Bootstrap)
+		v1.GET("/mobile/video/models", gin.HandlerFunc(jwtAuth), mobileVideo.Models)
+		v1.POST("/mobile/video/estimate", gin.HandlerFunc(jwtAuth), mobileVideo.Estimate)
+		v1.POST("/mobile/video/jobs", mobileWriteCorrelationID, gin.HandlerFunc(jwtAuth), mobileVideo.Create)
+		v1.GET("/mobile/video/jobs", gin.HandlerFunc(jwtAuth), mobileVideo.List)
+		v1.GET("/mobile/video/jobs/:id", gin.HandlerFunc(jwtAuth), mobileVideo.Get)
+		v1.POST("/mobile/video/jobs/:id/cancel", gin.HandlerFunc(jwtAuth), mobileVideo.Cancel)
+		v1.POST("/mobile/video/jobs/:id/retry", gin.HandlerFunc(jwtAuth), mobileVideo.Retry)
+		v1.GET("/mobile/video/jobs/:id/content", gin.HandlerFunc(jwtAuth), mobileVideo.Content)
+		v1.POST("/mobile/video/jobs/:id/content/acknowledge", gin.HandlerFunc(jwtAuth), mobileVideo.AcknowledgeContent)
+		v1.POST("/mobile/video/jobs/:id/save-as-asset", gin.HandlerFunc(jwtAuth), mobileVideo.SaveAsAsset)
+	}
 	v1.GET("/mobile/image-history", gin.HandlerFunc(jwtAuth), h.MobileTask.ImageHistory)
 	v1.DELETE("/mobile/image-history/:id", gin.HandlerFunc(jwtAuth), h.MobileTask.DeleteImageHistory)
 	v1.POST("/mobile/image-history/:id/retry", gin.HandlerFunc(jwtAuth), h.MobileTask.RetryImageHistory)
@@ -228,6 +244,9 @@ func registerRoutes(
 	routes.RegisterPlayRoutes(v1, h, jwtAuth, panelRateLimiter)
 	routes.RegisterImageStudioRoutes(v1, h, jwtAuth)
 	routes.RegisterPromptLibraryRoutes(v1, h, jwtAuth)
+	mobileCanvasPrompts := v1.Group("/mobile/canvas-prompts")
+	mobileCanvasPrompts.Use(gin.HandlerFunc(jwtAuth))
+	routes.RegisterCanvasPromptMirrorRoutes(mobileCanvasPrompts, h)
 	routes.RegisterPromptLibrarySEORoutes(r, h)
 
 	v1.GET("/public/home-stats", publicHomeStatsRoute())

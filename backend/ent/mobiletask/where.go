@@ -110,6 +110,11 @@ func FinishedAt(v time.Time) predicate.MobileTask {
 	return predicate.MobileTask(sql.FieldEQ(FieldFinishedAt, v))
 }
 
+// DeletedAt applies equality check predicate on the "deleted_at" field. It's identical to DeletedAtEQ.
+func DeletedAt(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldEQ(FieldDeletedAt, v))
+}
+
 // UserIDEQ applies the EQ predicate on the "user_id" field.
 func UserIDEQ(v int64) predicate.MobileTask {
 	return predicate.MobileTask(sql.FieldEQ(FieldUserID, v))
@@ -698,6 +703,56 @@ func FinishedAtIsNil() predicate.MobileTask {
 // FinishedAtNotNil applies the NotNil predicate on the "finished_at" field.
 func FinishedAtNotNil() predicate.MobileTask {
 	return predicate.MobileTask(sql.FieldNotNull(FieldFinishedAt))
+}
+
+// DeletedAtEQ applies the EQ predicate on the "deleted_at" field.
+func DeletedAtEQ(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtNEQ applies the NEQ predicate on the "deleted_at" field.
+func DeletedAtNEQ(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldNEQ(FieldDeletedAt, v))
+}
+
+// DeletedAtIn applies the In predicate on the "deleted_at" field.
+func DeletedAtIn(vs ...time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtNotIn applies the NotIn predicate on the "deleted_at" field.
+func DeletedAtNotIn(vs ...time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldNotIn(FieldDeletedAt, vs...))
+}
+
+// DeletedAtGT applies the GT predicate on the "deleted_at" field.
+func DeletedAtGT(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldGT(FieldDeletedAt, v))
+}
+
+// DeletedAtGTE applies the GTE predicate on the "deleted_at" field.
+func DeletedAtGTE(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldGTE(FieldDeletedAt, v))
+}
+
+// DeletedAtLT applies the LT predicate on the "deleted_at" field.
+func DeletedAtLT(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldLT(FieldDeletedAt, v))
+}
+
+// DeletedAtLTE applies the LTE predicate on the "deleted_at" field.
+func DeletedAtLTE(v time.Time) predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldLTE(FieldDeletedAt, v))
+}
+
+// DeletedAtIsNil applies the IsNil predicate on the "deleted_at" field.
+func DeletedAtIsNil() predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldIsNull(FieldDeletedAt))
+}
+
+// DeletedAtNotNil applies the NotNil predicate on the "deleted_at" field.
+func DeletedAtNotNil() predicate.MobileTask {
+	return predicate.MobileTask(sql.FieldNotNull(FieldDeletedAt))
 }
 
 // And groups predicates with the AND operator between them.

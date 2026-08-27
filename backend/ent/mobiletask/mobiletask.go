@@ -47,6 +47,8 @@ const (
 	FieldStartedAt = "started_at"
 	// FieldFinishedAt holds the string denoting the finished_at field in the database.
 	FieldFinishedAt = "finished_at"
+	// FieldDeletedAt holds the string denoting the deleted_at field in the database.
+	FieldDeletedAt = "deleted_at"
 	// Table holds the table name of the mobiletask in the database.
 	Table = "mobile_tasks"
 )
@@ -70,6 +72,7 @@ var Columns = []string{
 	FieldUpdatedAt,
 	FieldStartedAt,
 	FieldFinishedAt,
+	FieldDeletedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -116,6 +119,7 @@ type Kind string
 const (
 	KindChat  Kind = "chat"
 	KindImage Kind = "image"
+	KindVideo Kind = "video"
 	KindFile  Kind = "file"
 )
 
@@ -126,7 +130,7 @@ func (k Kind) String() string {
 // KindValidator is a validator for the "kind" field enum values. It is called by the builders before save.
 func KindValidator(k Kind) error {
 	switch k {
-	case KindChat, KindImage, KindFile:
+	case KindChat, KindImage, KindVideo, KindFile:
 		return nil
 	default:
 		return fmt.Errorf("mobiletask: invalid enum value for kind field: %q", k)
@@ -235,4 +239,9 @@ func ByStartedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByFinishedAt orders the results by the finished_at field.
 func ByFinishedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldFinishedAt, opts...).ToFunc()
+}
+
+// ByDeletedAt orders the results by the deleted_at field.
+func ByDeletedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDeletedAt, opts...).ToFunc()
 }

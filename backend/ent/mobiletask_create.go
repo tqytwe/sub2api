@@ -192,6 +192,20 @@ func (_c *MobileTaskCreate) SetNillableFinishedAt(v *time.Time) *MobileTaskCreat
 	return _c
 }
 
+// SetDeletedAt sets the "deleted_at" field.
+func (_c *MobileTaskCreate) SetDeletedAt(v time.Time) *MobileTaskCreate {
+	_c.mutation.SetDeletedAt(v)
+	return _c
+}
+
+// SetNillableDeletedAt sets the "deleted_at" field if the given value is not nil.
+func (_c *MobileTaskCreate) SetNillableDeletedAt(v *time.Time) *MobileTaskCreate {
+	if v != nil {
+		_c.SetDeletedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *MobileTaskCreate) SetID(v uuid.UUID) *MobileTaskCreate {
 	_c.mutation.SetID(v)
@@ -437,6 +451,10 @@ func (_c *MobileTaskCreate) createSpec() (*MobileTask, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.FinishedAt(); ok {
 		_spec.SetField(mobiletask.FieldFinishedAt, field.TypeTime, value)
 		_node.FinishedAt = &value
+	}
+	if value, ok := _c.mutation.DeletedAt(); ok {
+		_spec.SetField(mobiletask.FieldDeletedAt, field.TypeTime, value)
+		_node.DeletedAt = &value
 	}
 	return _node, _spec
 }
@@ -721,6 +739,24 @@ func (u *MobileTaskUpsert) UpdateFinishedAt() *MobileTaskUpsert {
 // ClearFinishedAt clears the value of the "finished_at" field.
 func (u *MobileTaskUpsert) ClearFinishedAt() *MobileTaskUpsert {
 	u.SetNull(mobiletask.FieldFinishedAt)
+	return u
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *MobileTaskUpsert) SetDeletedAt(v time.Time) *MobileTaskUpsert {
+	u.Set(mobiletask.FieldDeletedAt, v)
+	return u
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *MobileTaskUpsert) UpdateDeletedAt() *MobileTaskUpsert {
+	u.SetExcluded(mobiletask.FieldDeletedAt)
+	return u
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *MobileTaskUpsert) ClearDeletedAt() *MobileTaskUpsert {
+	u.SetNull(mobiletask.FieldDeletedAt)
 	return u
 }
 
@@ -1045,6 +1081,27 @@ func (u *MobileTaskUpsertOne) UpdateFinishedAt() *MobileTaskUpsertOne {
 func (u *MobileTaskUpsertOne) ClearFinishedAt() *MobileTaskUpsertOne {
 	return u.Update(func(s *MobileTaskUpsert) {
 		s.ClearFinishedAt()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *MobileTaskUpsertOne) SetDeletedAt(v time.Time) *MobileTaskUpsertOne {
+	return u.Update(func(s *MobileTaskUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *MobileTaskUpsertOne) UpdateDeletedAt() *MobileTaskUpsertOne {
+	return u.Update(func(s *MobileTaskUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *MobileTaskUpsertOne) ClearDeletedAt() *MobileTaskUpsertOne {
+	return u.Update(func(s *MobileTaskUpsert) {
+		s.ClearDeletedAt()
 	})
 }
 
@@ -1536,6 +1593,27 @@ func (u *MobileTaskUpsertBulk) UpdateFinishedAt() *MobileTaskUpsertBulk {
 func (u *MobileTaskUpsertBulk) ClearFinishedAt() *MobileTaskUpsertBulk {
 	return u.Update(func(s *MobileTaskUpsert) {
 		s.ClearFinishedAt()
+	})
+}
+
+// SetDeletedAt sets the "deleted_at" field.
+func (u *MobileTaskUpsertBulk) SetDeletedAt(v time.Time) *MobileTaskUpsertBulk {
+	return u.Update(func(s *MobileTaskUpsert) {
+		s.SetDeletedAt(v)
+	})
+}
+
+// UpdateDeletedAt sets the "deleted_at" field to the value that was provided on create.
+func (u *MobileTaskUpsertBulk) UpdateDeletedAt() *MobileTaskUpsertBulk {
+	return u.Update(func(s *MobileTaskUpsert) {
+		s.UpdateDeletedAt()
+	})
+}
+
+// ClearDeletedAt clears the value of the "deleted_at" field.
+func (u *MobileTaskUpsertBulk) ClearDeletedAt() *MobileTaskUpsertBulk {
+	return u.Update(func(s *MobileTaskUpsert) {
+		s.ClearDeletedAt()
 	})
 }
 

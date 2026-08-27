@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
@@ -16,6 +17,10 @@ import (
 type PromptLibraryRepository struct {
 	db *sql.DB
 }
+
+// Keep the two relation queries bounded even when a client resumes after a
+// long period and its delta includes many changed prompts.
+const promptCatalogRelationBatchSize = 100
 
 func NewPromptLibraryRepository(db *sql.DB) *PromptLibraryRepository {
 	return &PromptLibraryRepository{db: db}
@@ -27,6 +32,13 @@ func (r *PromptLibraryRepository) ListPrompts(
 	userID *int64,
 	publicOnly bool,
 ) ([]service.Prompt, *pagination.PaginationResult, error) {
+	if filter.CatalogKind != "" {
+		catalogKind, err := normalizePromptCatalogKind(filter.CatalogKind)
+		if err != nil {
+			return nil, nil, err
+		}
+		filter.CatalogKind = catalogKind
+	}
 	params := normalizePromptPagination(filter.Pagination)
 	where, args := buildPromptWhere(filter, userID, publicOnly)
 
@@ -58,20 +70,427 @@ func (r *PromptLibraryRepository) ListPrompts(
 		if err != nil {
 			return nil, nil, err
 		}
-		version := prompt.CurrentVersion
-		if publicOnly {
-			version = prompt.PublishedVersion
-		}
-		prompt.Media, err = r.listPromptMedia(ctx, prompt.ID, version)
-		if err != nil {
-			return nil, nil, err
-		}
 		out = append(out, *prompt)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, nil, err
 	}
+	if filter.IncludeContent {
+		// A first device sync can contain hundreds of prompt records. Hydrate its
+		// media and category relations in two bounded page queries rather than
+		// turning it into one query per prompt.
+		if err := r.hydratePromptCatalogRelations(ctx, out, publicOnly); err != nil {
+			return nil, nil, err
+		}
+	} else {
+		for i := range out {
+			version := out[i].CurrentVersion
+			if publicOnly {
+				version = out[i].PublishedVersion
+			}
+			media, err := r.listPromptMedia(ctx, out[i].ID, version)
+			if err != nil {
+				return nil, nil, err
+			}
+			out[i].Media = media
+		}
+	}
 	return out, paginationResultFromTotal(total, params), nil
+}
+
+// hydratePromptCatalogRelations fills a single complete catalog page using
+// exact (prompt_id, version) pairs. The explicit pairs avoid stale media or
+// category links if a newer prompt version is published while a page is read.
+func (r *PromptLibraryRepository) hydratePromptCatalogRelations(
+	ctx context.Context,
+	prompts []service.Prompt,
+	publicOnly bool,
+) error {
+	if len(prompts) == 0 {
+		return nil
+	}
+	for i := range prompts {
+		prompts[i].Media = make([]service.PromptMedia, 0)
+		prompts[i].CategoryIDs = make([]int64, 0)
+	}
+	for start := 0; start < len(prompts); start += promptCatalogRelationBatchSize {
+		end := start + promptCatalogRelationBatchSize
+		if end > len(prompts) {
+			end = len(prompts)
+		}
+		if err := r.hydratePromptCatalogRelationBatch(ctx, prompts[start:end], publicOnly); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *PromptLibraryRepository) hydratePromptCatalogRelationBatch(
+	ctx context.Context,
+	prompts []service.Prompt,
+	publicOnly bool,
+) error {
+	ids := make([]int64, 0, len(prompts))
+	versions := make([]int, 0, len(prompts))
+	indexes := make(map[int64]int, len(prompts))
+	for i := range prompts {
+		version := prompts[i].CurrentVersion
+		if publicOnly {
+			version = prompts[i].PublishedVersion
+		}
+		ids = append(ids, prompts[i].ID)
+		versions = append(versions, version)
+		indexes[prompts[i].ID] = i
+	}
+
+	mediaRows, err := r.db.QueryContext(ctx, `
+		SELECT pm.prompt_id, pm.id, pm.media_type, pm.url, pm.alt_zh, pm.sort_order
+		FROM prompt_media pm
+		JOIN unnest($1::bigint[], $2::integer[]) AS requested(prompt_id, version)
+		  ON requested.prompt_id = pm.prompt_id AND requested.version = pm.version
+		ORDER BY pm.prompt_id, pm.sort_order, pm.id`, pq.Array(ids), pq.Array(versions))
+	if err != nil {
+		return fmt.Errorf("list prompt catalog media: %w", err)
+	}
+	defer func() { _ = mediaRows.Close() }()
+	for mediaRows.Next() {
+		var promptID int64
+		var media service.PromptMedia
+		if err := mediaRows.Scan(&promptID, &media.ID, &media.MediaType, &media.URL, &media.AltZH, &media.SortOrder); err != nil {
+			return err
+		}
+		if index, ok := indexes[promptID]; ok {
+			prompts[index].Media = append(prompts[index].Media, media)
+		}
+	}
+	if err := mediaRows.Err(); err != nil {
+		return err
+	}
+
+	categoryRows, err := r.db.QueryContext(ctx, `
+		SELECT link.prompt_id, link.category_id
+		FROM prompt_category_links link
+		JOIN unnest($1::bigint[], $2::integer[]) AS requested(prompt_id, version)
+		  ON requested.prompt_id = link.prompt_id AND requested.version = link.version
+		ORDER BY link.prompt_id, link.category_id`, pq.Array(ids), pq.Array(versions))
+	if err != nil {
+		return fmt.Errorf("list prompt catalog categories: %w", err)
+	}
+	defer func() { _ = categoryRows.Close() }()
+	for categoryRows.Next() {
+		var promptID, categoryID int64
+		if err := categoryRows.Scan(&promptID, &categoryID); err != nil {
+			return err
+		}
+		if index, ok := indexes[promptID]; ok {
+			prompts[index].CategoryIDs = append(prompts[index].CategoryIDs, categoryID)
+		}
+	}
+	return categoryRows.Err()
+}
+
+// GetPublicCatalogManifest computes a stable, opaque revision for the public
+// prompt directory. It intentionally hashes the published prompt/version and
+// media rows plus enabled category state, so a mobile client can cheaply
+// revalidate without downloading prompt text or cover metadata on every open.
+func (r *PromptLibraryRepository) GetPublicCatalogManifest(
+	ctx context.Context,
+	filter service.PromptListFilter,
+) (*service.PromptCatalogManifest, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("prompt library database is unavailable")
+	}
+	catalogKind, err := normalizePromptCatalogKind(filter.CatalogKind)
+	if err != nil {
+		return nil, err
+	}
+	query := `
+		WITH selected AS (
+			SELECT
+				p.id,
+				p.status,
+				p.published_version,
+				p.published_at,
+				p.updated_at,
+				COALESCE(
+					(
+						SELECT md5(
+							COALESCE(version_row.brand_type, '') || chr(31) ||
+							COALESCE(version_row.provenance_type, '') || chr(31) ||
+							COALESCE(version_row.authorization_status, '') || chr(31) ||
+							version_row.source_evidence_verified::text || chr(31) ||
+							COALESCE(version_row.title_zh, '') || chr(31) ||
+							COALESCE(version_row.description_zh, '') || chr(31) ||
+							COALESCE(version_row.purpose, '') || chr(31) ||
+							COALESCE(version_row.style, '') || chr(31) ||
+							COALESCE(version_row.subject, '') || chr(31) ||
+							version_row.featured::text || chr(31) ||
+							COALESCE(version_row.prompt_text, '') || chr(31) ||
+							COALESCE(version_row.variables::text, '') || chr(31) ||
+							COALESCE(version_row.models::text, '') || chr(31) ||
+							COALESCE(version_row.sizes::text, '') || chr(31) ||
+							COALESCE(version_row.reference_requirement, '') || chr(31) ||
+							COALESCE(version_row.reference_instructions, '') || chr(31) ||
+							version_row.requires_reference::text || chr(31) ||
+							COALESCE(version_row.public_attribution_note, '')
+						)
+						FROM prompt_versions version_row
+						WHERE version_row.prompt_id = p.id
+						  AND version_row.version = p.published_version
+					),
+					''
+				) AS version_signature,
+				COALESCE(
+					(
+						SELECT string_agg(
+							link.category_id::text || ':' || link.created_at::text,
+							',' ORDER BY link.category_id
+						)
+						FROM prompt_category_links link
+						WHERE link.prompt_id = p.id AND link.version = p.published_version
+					),
+					''
+				) AS category_signature,
+				COALESCE(
+					string_agg(
+						pm.id::text || ':' || pm.media_type || ':' ||
+						md5(pm.url) || ':' || md5(pm.alt_zh) || ':' || pm.sort_order::text,
+						',' ORDER BY pm.sort_order, pm.id
+					),
+					''
+				) AS media_signature
+			FROM prompts p
+			JOIN prompt_versions v
+			  ON v.prompt_id = p.id
+			 AND v.version = p.published_version
+		LEFT JOIN prompt_media pm
+		  ON pm.prompt_id = p.id
+		 AND pm.version = v.version
+			WHERE p.status IN ('published', 'pending_review')
+			  AND p.published_version IS NOT NULL
+			  AND ` + promptCatalogKindPredicate("$1", "v") + `
+			GROUP BY p.id, p.published_version, p.updated_at
+		), category_state AS (
+			SELECT
+				COALESCE(MAX(updated_at), TIMESTAMPTZ '1970-01-01 00:00:00+00') AS updated_at,
+				COALESCE(
+					string_agg(
+						id::text || ':' || slug || ':' || md5(name_zh) || ':' ||
+						md5(description_zh) || ':' || dimension || ':' || sort_order::text || ':' || enabled::text,
+						',' ORDER BY sort_order, id
+					),
+					''
+				) AS signature
+			FROM prompt_categories
+			WHERE enabled = TRUE
+		)
+		SELECT
+			COALESCE(GREATEST(
+				COALESCE(MAX(selected.updated_at), TIMESTAMPTZ '1970-01-01 00:00:00+00'),
+				category_state.updated_at
+			), TIMESTAMPTZ '1970-01-01 00:00:00+00') AS updated_at,
+			COUNT(selected.id) AS total,
+			md5(
+				COALESCE(string_agg(
+					selected.id::text || ':' || selected.status || ':' ||
+					selected.published_version::text || ':' ||
+					COALESCE(selected.published_at::text, '') || ':' ||
+					extract(epoch FROM selected.updated_at)::text || ':' ||
+					selected.version_signature || ':' ||
+					selected.category_signature || ':' || selected.media_signature,
+					',' ORDER BY selected.id
+				), '') || '|' || category_state.signature
+			) AS revision
+		FROM category_state
+		LEFT JOIN selected ON TRUE
+		GROUP BY category_state.updated_at, category_state.signature`
+	var manifest service.PromptCatalogManifest
+	if err := r.db.QueryRowContext(ctx, query, catalogKind).Scan(
+		&manifest.UpdatedAt,
+		&manifest.Total,
+		&manifest.Revision,
+	); err != nil {
+		return nil, fmt.Errorf("get prompt catalog manifest: %w", err)
+	}
+	manifest.MediaType = catalogKind
+	return &manifest, nil
+}
+
+const promptCatalogDeltaCursorOverlap = time.Microsecond
+
+// GetPublicCatalogDelta returns the current public catalog revision plus the
+// rows that changed after the supplied cursor. PostgreSQL stores timestamps at
+// microsecond precision, so the boundary intentionally overlaps one tick and
+// lets clients safely de-duplicate records by their stable prompt ID.
+func (r *PromptLibraryRepository) GetPublicCatalogDelta(
+	ctx context.Context,
+	filter service.PromptListFilter,
+	since time.Time,
+) (*service.PromptCatalogDeltaResult, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("prompt library database is unavailable")
+	}
+	catalogKind, err := normalizePromptCatalogKind(filter.CatalogKind)
+	if err != nil {
+		return nil, err
+	}
+
+	var cursor time.Time
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT GREATEST(
+			COALESCE((SELECT MAX(updated_at) FROM prompts), TIMESTAMPTZ '1970-01-01 00:00:00+00'),
+			COALESCE((SELECT MAX(updated_at) FROM prompt_categories), TIMESTAMPTZ '1970-01-01 00:00:00+00')
+		)`).Scan(&cursor); err != nil {
+		return nil, fmt.Errorf("get prompt catalog delta cursor: %w", err)
+	}
+	if cursor.Before(since) {
+		cursor = since
+	}
+	manifest, err := r.GetPublicCatalogManifest(ctx, service.PromptListFilter{CatalogKind: catalogKind})
+	if err != nil {
+		return nil, err
+	}
+	if strings.TrimSpace(manifest.Revision) == "" {
+		return nil, errors.New("prompt catalog revision is unavailable")
+	}
+
+	boundary := since.UTC().Add(-promptCatalogDeltaCursorOverlap)
+	prompts, err := r.listPublicCatalogDeltaPrompts(ctx, catalogKind, boundary)
+	if err != nil {
+		return nil, err
+	}
+	deletedIDs, err := r.listPublicCatalogDeltaDeletedIDs(ctx, catalogKind, boundary)
+	if err != nil {
+		return nil, err
+	}
+	categoriesChanged, err := r.publicCatalogCategoriesChangedSince(ctx, boundary)
+	if err != nil {
+		return nil, err
+	}
+	result := &service.PromptCatalogDeltaResult{
+		Cursor:            cursor,
+		Version:           manifest.Revision,
+		ETag:              `"` + strings.Trim(manifest.Revision, `"`) + `"`,
+		Prompts:           prompts,
+		DeletedIDs:        deletedIDs,
+		CategoriesChanged: categoriesChanged,
+	}
+	if categoriesChanged {
+		categories, err := r.ListCategories(ctx, true)
+		if err != nil {
+			return nil, fmt.Errorf("list changed prompt catalog categories: %w", err)
+		}
+		result.Categories = categories
+	}
+	return result, nil
+}
+
+func normalizePromptCatalogKind(value string) (string, error) {
+	catalogKind := strings.ToLower(strings.TrimSpace(value))
+	if catalogKind != "image" && catalogKind != "video" {
+		return "", fmt.Errorf("unsupported prompt catalog kind %q", catalogKind)
+	}
+	return catalogKind, nil
+}
+
+// promptCatalogKindPredicate defines the mobile catalog's content kind. A
+// video prompt is tagged by purpose=video; prompt_media describes its assets,
+// and therefore an image cover must not remove it from the video catalog.
+func promptCatalogKindPredicate(kindPlaceholder, versionAlias string) string {
+	purpose := "LOWER(BTRIM(" + versionAlias + ".purpose))"
+	return "((" + kindPlaceholder + " = 'video' AND " + purpose + " = 'video') OR (" +
+		kindPlaceholder + " = 'image' AND " + purpose + " <> 'video'))"
+}
+
+func (r *PromptLibraryRepository) listPublicCatalogDeltaPrompts(
+	ctx context.Context,
+	catalogKind string,
+	boundary time.Time,
+) ([]service.Prompt, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT `+promptSelectColumns(nil)+`
+		FROM prompts p
+		JOIN prompt_versions v
+		  ON v.prompt_id = p.id
+		 AND v.version = p.published_version
+		WHERE p.updated_at > $1
+		  AND p.status IN ('published', 'pending_review')
+		  AND p.published_version IS NOT NULL
+		  AND `+promptCatalogKindPredicate("$2", "v")+`
+		ORDER BY p.updated_at ASC, p.id ASC`, boundary, catalogKind)
+	if err != nil {
+		return nil, fmt.Errorf("list changed prompt catalog records: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	prompts := make([]service.Prompt, 0)
+	for rows.Next() {
+		prompt, err := scanPrompt(rows, false)
+		if err != nil {
+			return nil, err
+		}
+		prompts = append(prompts, *prompt)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if err := r.hydratePromptCatalogRelations(ctx, prompts, true); err != nil {
+		return nil, err
+	}
+	return prompts, nil
+}
+
+func (r *PromptLibraryRepository) listPublicCatalogDeltaDeletedIDs(
+	ctx context.Context,
+	catalogKind string,
+	boundary time.Time,
+) ([]int64, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT p.id
+		FROM prompts p
+		WHERE p.updated_at > $1
+		  AND p.published_version IS NOT NULL
+		  AND EXISTS (
+			SELECT 1
+			FROM prompt_versions historic_version
+			WHERE historic_version.prompt_id = p.id
+			  AND `+promptCatalogKindPredicate("$2", "historic_version")+`
+		  )
+		  AND NOT (
+			p.status IN ('published', 'pending_review')
+			AND EXISTS (
+				SELECT 1
+				FROM prompt_versions current_version
+				WHERE current_version.prompt_id = p.id
+				  AND current_version.version = p.published_version
+				  AND `+promptCatalogKindPredicate("$2", "current_version")+`
+			)
+		  )
+		ORDER BY p.updated_at ASC, p.id ASC`, boundary, catalogKind)
+	if err != nil {
+		return nil, fmt.Errorf("list removed prompt catalog records: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	deletedIDs := make([]int64, 0)
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		deletedIDs = append(deletedIDs, id)
+	}
+	return deletedIDs, rows.Err()
+}
+
+func (r *PromptLibraryRepository) publicCatalogCategoriesChangedSince(ctx context.Context, boundary time.Time) (bool, error) {
+	var changed bool
+	if err := r.db.QueryRowContext(ctx, `
+		SELECT EXISTS (
+			SELECT 1 FROM prompt_categories WHERE updated_at > $1
+		)`, boundary).Scan(&changed); err != nil {
+		return false, fmt.Errorf("check changed prompt catalog categories: %w", err)
+	}
+	return changed, nil
 }
 
 func (r *PromptLibraryRepository) GetPrompt(
@@ -105,16 +524,16 @@ func (r *PromptLibraryRepository) GetPrompt(
 	if err != nil {
 		return nil, err
 	}
+	prompt.CategoryIDs, err = r.listPromptCategoryIDs(ctx, id, version)
+	if err != nil {
+		return nil, err
+	}
 	if !publicOnly {
 		prompt.Sources, err = r.ListPromptSources(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 		prompt.Reviews, err = r.ListPromptReviews(ctx, id, 0)
-		if err != nil {
-			return nil, err
-		}
-		prompt.CategoryIDs, err = r.listPromptCategoryIDs(ctx, id, prompt.CurrentVersion)
 		if err != nil {
 			return nil, err
 		}
@@ -1404,6 +1823,17 @@ func buildPromptWhere(
 				"AND LOWER(BTRIM(image_model)) LIKE ANY($%d::text[])))",
 			modelIDArg,
 			modelPatternArg,
+		))
+	}
+	if catalogKind := strings.TrimSpace(filter.CatalogKind); catalogKind != "" {
+		args = append(args, catalogKind)
+		parts = append(parts, promptCatalogKindPredicate(fmt.Sprintf("$%d", len(args)), "v"))
+	}
+	if mediaType := strings.ToLower(strings.TrimSpace(filter.MediaType)); mediaType != "" {
+		args = append(args, mediaType)
+		parts = append(parts, fmt.Sprintf(
+			"EXISTS (SELECT 1 FROM prompt_media pm WHERE pm.prompt_id = p.id AND pm.version = v.version AND pm.media_type = $%d)",
+			len(args),
 		))
 	}
 	if filter.ReferenceRequirement != "" {

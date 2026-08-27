@@ -155,6 +155,7 @@ type PublicPrompt struct {
 	Variables             map[string]any             `json:"variables,omitempty"`
 	Models                []string                   `json:"models"`
 	Sizes                 []string                   `json:"sizes"`
+	CategoryIDs           []int64                    `json:"category_ids,omitempty"`
 	ReferenceRequirement  PromptReferenceRequirement `json:"reference_requirement"`
 	ReferenceInstructions string                     `json:"reference_instructions,omitempty"`
 	RequiresReference     bool                       `json:"requires_reference"`
@@ -166,6 +167,44 @@ type PublicPrompt struct {
 	Favorited             bool                       `json:"favorited"`
 	Media                 []PromptMedia              `json:"media"`
 	PublishedAt           *time.Time                 `json:"published_at,omitempty"`
+	UpdatedAt             time.Time                  `json:"updated_at"`
+}
+
+// PromptCatalogManifest is the small revision probe used by mobile clients
+// before they decide whether to refresh the complete prompt directory. The
+// revision changes when any public prompt version, visibility, media-bearing
+// version, or enabled category changes.
+type PromptCatalogManifest struct {
+	MediaType string    `json:"media_type"`
+	Revision  string    `json:"revision"`
+	Total     int64     `json:"total"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// PromptCatalogDeltaResult is the repository-facing delta snapshot. Prompt
+// rows deliberately remain in their internal shape here so the service can
+// apply the same public DTO mapping as the normal catalog endpoint.
+type PromptCatalogDeltaResult struct {
+	Cursor            time.Time
+	Version           string
+	ETag              string
+	Prompts           []Prompt
+	DeletedIDs        []int64
+	CategoriesChanged bool
+	Categories        []PromptCategory
+}
+
+// PublicPromptCatalogDelta is the mobile cache synchronization contract.
+// Cursor is an RFC3339Nano timestamp. Clients apply items and deleted_ids
+// idempotently because the server intentionally overlaps one database tick at
+// the cursor boundary to avoid missing rows that share an updated_at value.
+type PublicPromptCatalogDelta struct {
+	Cursor     string            `json:"cursor"`
+	Version    string            `json:"version"`
+	ETag       string            `json:"etag"`
+	Items      []PublicPrompt    `json:"items"`
+	DeletedIDs []int64           `json:"deleted_ids"`
+	Categories *[]PromptCategory `json:"categories,omitempty"`
 }
 
 type PromptUseResult struct {
@@ -253,11 +292,20 @@ type PromptListFilter struct {
 	Size                 string
 	ReferenceRequirement PromptReferenceRequirement
 	ImageOnly            bool
-	Featured             *bool
-	FavoritedOnly        bool
-	Status               PromptStatus
-	Sort                 string
-	Pagination           pagination.PaginationParams
+	MediaType            string
+	// CatalogKind is restricted to the mobile prompt catalog. The public API
+	// retains MediaType for filtering attached media, while a video catalog is
+	// defined by a prompt's generation purpose and may use an image as its cover.
+	CatalogKind string
+	// IncludeContent is used only by the mobile catalog endpoint. The normal
+	// public directory stays lightweight, while a first device sync can fetch
+	// prompt bodies together with each paginated directory page.
+	IncludeContent bool
+	Featured       *bool
+	FavoritedOnly  bool
+	Status         PromptStatus
+	Sort           string
+	Pagination     pagination.PaginationParams
 }
 
 type PromptImportItemInput struct {
@@ -344,6 +392,14 @@ type promptPublicRepository interface {
 	UsePrompt(ctx context.Context, promptID, userID int64) (*Prompt, error)
 }
 
+type promptCatalogManifestRepository interface {
+	GetPublicCatalogManifest(ctx context.Context, filter PromptListFilter) (*PromptCatalogManifest, error)
+}
+
+type promptCatalogDeltaRepository interface {
+	GetPublicCatalogDelta(ctx context.Context, filter PromptListFilter, since time.Time) (*PromptCatalogDeltaResult, error)
+}
+
 type promptAdminRepository interface {
 	SubmitPromptReview(ctx context.Context, promptID int64, actorID int64) (*Prompt, error)
 	AddPromptReview(ctx context.Context, record PromptReviewRecord) error
@@ -399,9 +455,53 @@ func (s *PromptLibraryService) ListPublic(ctx context.Context, filter PromptList
 	}
 	out := make([]PublicPrompt, 0, len(rows))
 	for i := range rows {
-		out = append(out, toPublicPrompt(&rows[i], false))
+		out = append(out, toPublicPrompt(&rows[i], filter.IncludeContent))
 	}
 	return out, page, nil
+}
+
+func (s *PromptLibraryService) GetPublicCatalogManifest(ctx context.Context, filter PromptListFilter) (*PromptCatalogManifest, error) {
+	repo, ok := s.repo.(promptCatalogManifestRepository)
+	if !ok {
+		return nil, errors.New("prompt catalog manifest repository unavailable")
+	}
+	filter.Status = PromptStatusPublished
+	return repo.GetPublicCatalogManifest(ctx, filter)
+}
+
+func (s *PromptLibraryService) GetPublicCatalogDelta(
+	ctx context.Context,
+	filter PromptListFilter,
+	since time.Time,
+) (*PublicPromptCatalogDelta, error) {
+	repo, ok := s.repo.(promptCatalogDeltaRepository)
+	if !ok {
+		return nil, errors.New("prompt catalog delta repository unavailable")
+	}
+	filter.Status = PromptStatusPublished
+	result, err := repo.GetPublicCatalogDelta(ctx, filter, since)
+	if err != nil {
+		return nil, err
+	}
+	if result == nil || result.Cursor.IsZero() || strings.TrimSpace(result.Version) == "" || strings.TrimSpace(result.ETag) == "" {
+		return nil, errors.New("prompt catalog delta is unavailable")
+	}
+
+	out := &PublicPromptCatalogDelta{
+		Cursor:     result.Cursor.UTC().Format(time.RFC3339Nano),
+		Version:    strings.TrimSpace(result.Version),
+		ETag:       strings.Trim(strings.TrimSpace(result.ETag), `"`),
+		Items:      make([]PublicPrompt, 0, len(result.Prompts)),
+		DeletedIDs: append([]int64{}, result.DeletedIDs...),
+	}
+	for index := range result.Prompts {
+		out.Items = append(out.Items, toPublicPrompt(&result.Prompts[index], true))
+	}
+	if result.CategoriesChanged {
+		categories := append([]PromptCategory{}, result.Categories...)
+		out.Categories = &categories
+	}
+	return out, nil
 }
 
 func (s *PromptLibraryService) GetPublic(ctx context.Context, id int64, userID *int64) (*PublicPrompt, error) {
@@ -645,6 +745,7 @@ func toPublicPrompt(prompt *Prompt, includeText bool) PublicPrompt {
 		Version:               version,
 		Models:                prompt.Models,
 		Sizes:                 prompt.Sizes,
+		CategoryIDs:           prompt.CategoryIDs,
 		ReferenceRequirement:  prompt.ReferenceRequirement,
 		ReferenceInstructions: prompt.ReferenceInstructions,
 		RequiresReference:     prompt.RequiresReference,
@@ -656,6 +757,7 @@ func toPublicPrompt(prompt *Prompt, includeText bool) PublicPrompt {
 		Favorited:             prompt.Favorited,
 		Media:                 prompt.Media,
 		PublishedAt:           prompt.PublishedAt,
+		UpdatedAt:             prompt.UpdatedAt,
 	}
 	if includeText {
 		out.PromptText = prompt.PromptText

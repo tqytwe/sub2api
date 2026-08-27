@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DATA-DOG/go-sqlmock"
 	middleware2 "github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
@@ -82,10 +83,12 @@ func TestMobileAssetDeleteHidesMetadataBeforeObjectCleanup(t *testing.T) {
 }
 
 type fakeMobileAssetStore struct {
-	createFunc     func(context.Context, int64, mobileAssetCreateInput) (*mobileAssetRecord, error)
-	listFunc       func(context.Context, int64, mobileAssetListFilter) ([]mobileAssetRecord, int64, error)
-	getFunc        func(context.Context, int64, string) (*mobileAssetRecord, error)
-	softDeleteFunc func(context.Context, int64, string) error
+	createFunc             func(context.Context, int64, mobileAssetCreateInput) (*mobileAssetRecord, error)
+	listFunc               func(context.Context, int64, mobileAssetListFilter) ([]mobileAssetRecord, int64, error)
+	getFunc                func(context.Context, int64, string) (*mobileAssetRecord, error)
+	updateOriginalNameFunc func(context.Context, int64, string, string) (*mobileAssetRecord, error)
+	softDeleteFunc         func(context.Context, int64, string) error
+	syncFunc               func(context.Context, int64, *time.Time) (*mobileAssetSyncResult, error)
 }
 
 func (f *fakeMobileAssetStore) Create(ctx context.Context, userID int64, input mobileAssetCreateInput) (*mobileAssetRecord, error) {
@@ -100,8 +103,19 @@ func (f *fakeMobileAssetStore) Get(ctx context.Context, userID int64, id string)
 	return f.getFunc(ctx, userID, id)
 }
 
+func (f *fakeMobileAssetStore) UpdateOriginalName(ctx context.Context, userID int64, id, originalName string) (*mobileAssetRecord, error) {
+	return f.updateOriginalNameFunc(ctx, userID, id, originalName)
+}
+
 func (f *fakeMobileAssetStore) SoftDelete(ctx context.Context, userID int64, id string) error {
 	return f.softDeleteFunc(ctx, userID, id)
+}
+
+func (f *fakeMobileAssetStore) Sync(ctx context.Context, userID int64, since *time.Time) (*mobileAssetSyncResult, error) {
+	if f.syncFunc == nil {
+		return &mobileAssetSyncResult{Version: "1970-01-01T00:00:00Z", ETag: `"empty"`, Items: []mobileAssetRecord{}, DeletedIDs: []string{}}, nil
+	}
+	return f.syncFunc(ctx, userID, since)
 }
 
 func TestMobileAssetHandlerRequiresAuthentication(t *testing.T) {
@@ -119,6 +133,67 @@ func TestMobileAssetHandlerRequiresAuthentication(t *testing.T) {
 
 	require.Equal(t, http.StatusUnauthorized, recorder.Code)
 	require.False(t, called)
+}
+
+func TestMobileAssetSyncReturnsDeltaAndHonorsETag(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	updated := time.Date(2026, 8, 20, 1, 2, 3, 4, time.UTC)
+	calledSince := (*time.Time)(nil)
+	store := &fakeMobileAssetStore{syncFunc: func(_ context.Context, userID int64, since *time.Time) (*mobileAssetSyncResult, error) {
+		require.Equal(t, int64(42), userID)
+		calledSince = since
+		return &mobileAssetSyncResult{Version: updated.Format(time.RFC3339Nano), ETag: `"sync-v1"`, UpdatedAt: &updated, Items: []mobileAssetRecord{{ID: "asset-1", OriginalName: "clip.mp4"}}, DeletedIDs: []string{"asset-old"}}, nil
+	}}
+	h := newMobileAssetHandlerWithStore(store)
+	first := performMobileAssetRequest(h.Sync, http.MethodGet, "/mobile/assets/sync?since=2026-08-19T00:00:00Z", nil, 42, nil)
+	require.Equal(t, http.StatusOK, first.Code)
+	require.Equal(t, `"sync-v1"`, first.Header().Get("ETag"))
+	require.NotNil(t, calledSince)
+	require.Contains(t, first.Body.String(), `"deleted_ids":["asset-old"]`)
+
+	second := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/mobile/assets/sync", nil)
+	req.Header.Set("If-None-Match", `"sync-v1"`)
+	ctx, _ := gin.CreateTestContext(second)
+	ctx.Request = req
+	ctx.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: 42})
+	h.Sync(ctx)
+	require.Equal(t, http.StatusNotModified, second.Code)
+}
+
+func TestMobileAssetSyncETagIncludesCompleteRevisionSignature(t *testing.T) {
+	version := "2026-08-20T01:02:03.000004Z"
+	// These states intentionally have the same cursor timestamp and row count.
+	// The old max-updated-at/count ETag would have treated them as unchanged.
+	first := mobileAssetSyncETag(version, 2, `["asset-a","ready"]|["asset-b","deleted"]`)
+	second := mobileAssetSyncETag(version, 2, `["asset-a","ready"]|["asset-c","ready"]`)
+
+	require.NotEqual(t, first, second)
+}
+
+func TestSQLMobileAssetStoreSyncUsesCompleteStateForETag(t *testing.T) {
+	db, mock, err := sqlmock.New()
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = db.Close() })
+
+	updated := time.Date(2026, time.August, 20, 1, 2, 3, 4000, time.UTC)
+	signature := `["asset-a","ready"]|["asset-b","deleted"]`
+	mock.ExpectQuery(`(?s)SELECT\s+COALESCE\(MAX\(updated_at\).*string_agg\(`).
+		WithArgs(int64(91)).
+		WillReturnRows(sqlmock.NewRows([]string{"max_updated", "total", "revision_signature"}).
+			AddRow(updated, int64(2), signature))
+	mock.ExpectQuery(`SELECT .* FROM mobile_assets WHERE user_id = \$1 AND deleted_at IS NULL ORDER BY updated_at ASC, id ASC`).
+		WithArgs(int64(91)).
+		WillReturnRows(sqlmock.NewRows([]string{"id", "kind", "source", "storage_key", "original_name", "content_type", "byte_size", "sha256", "status", "source_type", "source_id", "metadata", "created_at", "updated_at"}))
+	mock.ExpectQuery(`SELECT id::text FROM mobile_assets WHERE user_id = \$1 AND deleted_at IS NOT NULL ORDER BY updated_at ASC, id ASC`).
+		WithArgs(int64(91)).
+		WillReturnRows(sqlmock.NewRows([]string{"id"}))
+
+	result, err := (&sqlMobileAssetStore{db: db}).Sync(context.Background(), 91, nil)
+
+	require.NoError(t, err)
+	require.Equal(t, mobileAssetSyncETag(updated.UTC().Format(time.RFC3339Nano), 2, signature), result.ETag)
+	require.NoError(t, mock.ExpectationsWereMet())
 }
 
 func TestMobileAssetHandlerRejectsInvalidCreateInput(t *testing.T) {
@@ -419,6 +494,147 @@ func TestMobileAssetHandlerUploadScopesSameIdempotencyKeyByAccount(t *testing.T)
 	require.Empty(t, second.Header().Get("X-Idempotency-Replayed"))
 	require.Equal(t, []int64{23, 24}, createdFor)
 	require.Equal(t, 2, storage.saveCount)
+}
+
+func TestMobileAssetHandlerRenameValidatesNameAndHidesForeignAssets(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	assetID := uuid.NewString()
+	called := false
+	store := &fakeMobileAssetStore{
+		updateOriginalNameFunc: func(_ context.Context, userID int64, id, name string) (*mobileAssetRecord, error) {
+			called = true
+			require.Equal(t, int64(8), userID)
+			require.Equal(t, assetID, id)
+			require.Equal(t, "renamed.mp4", name)
+			return nil, errMobileAssetNotFound
+		},
+	}
+	handler := newMobileAssetHandlerWithStore(store)
+
+	invalid := performMobileAssetRequest(
+		handler.Rename,
+		http.MethodPatch,
+		"/mobile/assets/"+assetID,
+		[]byte(`{"original_name":"   "}`),
+		8,
+		gin.Params{{Key: "id", Value: assetID}},
+	)
+	require.Equal(t, http.StatusBadRequest, invalid.Code)
+	require.False(t, called)
+
+	unsafeName := performMobileAssetRequest(
+		handler.Rename,
+		http.MethodPatch,
+		"/mobile/assets/"+assetID,
+		[]byte(`{"original_name":"renamed\ncontent-disposition.mp4"}`),
+		8,
+		gin.Params{{Key: "id", Value: assetID}},
+	)
+	require.Equal(t, http.StatusBadRequest, unsafeName.Code)
+	require.False(t, called)
+
+	foreign := performMobileAssetRequest(
+		handler.Rename,
+		http.MethodPatch,
+		"/mobile/assets/"+assetID,
+		[]byte(`{"original_name":"  renamed.mp4  "}`),
+		8,
+		gin.Params{{Key: "id", Value: assetID}},
+	)
+	require.Equal(t, http.StatusNotFound, foreign.Code)
+	require.True(t, called)
+}
+
+func TestMobileAssetHandlerRenameReplaysAndScopesIdempotencyByAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(
+		newMobileReplayIdempotencyRepo(),
+		service.DefaultIdempotencyConfig(),
+	))
+	t.Cleanup(func() {
+		service.SetDefaultIdempotencyCoordinator(previous)
+	})
+
+	assetID := uuid.NewString()
+	updates := make([]int64, 0, 2)
+	store := &fakeMobileAssetStore{
+		updateOriginalNameFunc: func(_ context.Context, userID int64, id, name string) (*mobileAssetRecord, error) {
+			require.Equal(t, assetID, id)
+			require.Equal(t, "renamed.mp4", name)
+			updates = append(updates, userID)
+			record := mobileAssetTestRecord(id)
+			record.OriginalName = name
+			return record, nil
+		},
+	}
+	handler := newMobileAssetHandlerWithStore(store)
+
+	perform := func(userID int64) *httptest.ResponseRecorder {
+		recorder := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPatch, "/mobile/assets/"+assetID, bytes.NewBufferString(`{"original_name":"renamed.mp4"}`))
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Idempotency-Key", "asset-rename-replay-1")
+		context, _ := gin.CreateTestContext(recorder)
+		context.Request = request
+		context.Params = gin.Params{{Key: "id", Value: assetID}}
+		context.Set(string(middleware2.ContextKeyUser), middleware2.AuthSubject{UserID: userID})
+		handler.Rename(context)
+		return recorder
+	}
+
+	first := perform(23)
+	second := perform(23)
+	otherAccount := perform(24)
+	require.Equal(t, http.StatusOK, first.Code)
+	require.Equal(t, http.StatusOK, second.Code)
+	require.Equal(t, http.StatusOK, otherAccount.Code)
+	require.Equal(t, "true", second.Header().Get("X-Idempotency-Replayed"))
+	require.Empty(t, otherAccount.Header().Get("X-Idempotency-Replayed"))
+	require.Equal(t, []int64{23, 24}, updates)
+	require.Contains(t, first.Body.String(), `"original_name":"renamed.mp4"`)
+	require.Equal(t, "private, no-store", first.Header().Get("Cache-Control"))
+}
+
+func TestSQLMobileAssetStoreUpdateOriginalNameIsUserScoped(t *testing.T) {
+	assetID := uuid.NewString()
+	now := time.Date(2026, time.August, 20, 12, 0, 0, 0, time.UTC)
+	columns := []string{"id", "kind", "source", "storage_key", "original_name", "content_type", "byte_size", "sha256", "status", "source_type", "source_id", "metadata", "created_at", "updated_at"}
+
+	t.Run("updates owned active row and returns its metadata", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		require.NoError(t, err)
+
+		mock.ExpectQuery(`UPDATE mobile_assets\s+SET original_name = \$1, updated_at = NOW\(\)\s+WHERE id = \$2::uuid AND user_id = \$3 AND deleted_at IS NULL\s+RETURNING`).
+			WithArgs("renamed.mp4", assetID, int64(91)).
+			WillReturnRows(sqlmock.NewRows(columns).AddRow(
+				assetID, "video", "upload", "mobile-assets/91/"+assetID+".mp4", "renamed.mp4", "video/mp4", int64(1024), nil, "ready", nil, nil, []byte(`{}`), now, now,
+			))
+		mock.ExpectClose()
+
+		record, err := (&sqlMobileAssetStore{db: db}).UpdateOriginalName(context.Background(), 91, assetID, "renamed.mp4")
+		require.NoError(t, err)
+		require.Equal(t, "renamed.mp4", record.OriginalName)
+		require.Equal(t, "video", record.Kind)
+		require.NoError(t, db.Close())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
+
+	t.Run("does not reveal a missing foreign or deleted row", func(t *testing.T) {
+		db, mock, err := sqlmock.New()
+		require.NoError(t, err)
+
+		mock.ExpectQuery(`UPDATE mobile_assets\s+SET original_name = \$1, updated_at = NOW\(\)\s+WHERE id = \$2::uuid AND user_id = \$3 AND deleted_at IS NULL\s+RETURNING`).
+			WithArgs("renamed.mp4", assetID, int64(91)).
+			WillReturnRows(sqlmock.NewRows(columns))
+		mock.ExpectClose()
+
+		record, err := (&sqlMobileAssetStore{db: db}).UpdateOriginalName(context.Background(), 91, assetID, "renamed.mp4")
+		require.Nil(t, record)
+		require.ErrorIs(t, err, errMobileAssetNotFound)
+		require.NoError(t, db.Close())
+		require.NoError(t, mock.ExpectationsWereMet())
+	})
 }
 
 func performMobileAssetRequest(method gin.HandlerFunc, httpMethod, target string, body []byte, userID int64, params gin.Params) *httptest.ResponseRecorder {

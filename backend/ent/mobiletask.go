@@ -50,7 +50,9 @@ type MobileTask struct {
 	// StartedAt holds the value of the "started_at" field.
 	StartedAt *time.Time `json:"started_at,omitempty"`
 	// FinishedAt holds the value of the "finished_at" field.
-	FinishedAt   *time.Time `json:"finished_at,omitempty"`
+	FinishedAt *time.Time `json:"finished_at,omitempty"`
+	// DeletedAt holds the value of the "deleted_at" field.
+	DeletedAt    *time.Time `json:"deleted_at,omitempty"`
 	selectValues sql.SelectValues
 }
 
@@ -67,7 +69,7 @@ func (*MobileTask) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case mobiletask.FieldKind, mobiletask.FieldOperation, mobiletask.FieldStatus, mobiletask.FieldClientRequestID:
 			values[i] = new(sql.NullString)
-		case mobiletask.FieldCreatedAt, mobiletask.FieldUpdatedAt, mobiletask.FieldStartedAt, mobiletask.FieldFinishedAt:
+		case mobiletask.FieldCreatedAt, mobiletask.FieldUpdatedAt, mobiletask.FieldStartedAt, mobiletask.FieldFinishedAt, mobiletask.FieldDeletedAt:
 			values[i] = new(sql.NullTime)
 		case mobiletask.FieldID:
 			values[i] = new(uuid.UUID)
@@ -198,6 +200,13 @@ func (_m *MobileTask) assignValues(columns []string, values []any) error {
 				_m.FinishedAt = new(time.Time)
 				*_m.FinishedAt = value.Time
 			}
+		case mobiletask.FieldDeletedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field deleted_at", values[i])
+			} else if value.Valid {
+				_m.DeletedAt = new(time.Time)
+				*_m.DeletedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -287,6 +296,11 @@ func (_m *MobileTask) String() string {
 	builder.WriteString(", ")
 	if v := _m.FinishedAt; v != nil {
 		builder.WriteString("finished_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.DeletedAt; v != nil {
+		builder.WriteString("deleted_at=")
 		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')

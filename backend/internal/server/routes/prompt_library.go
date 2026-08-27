@@ -11,6 +11,9 @@ func RegisterPromptLibraryRoutes(
 	h *handler.Handlers,
 	jwtAuth middleware.JWTAuthMiddleware,
 ) {
+	v1.GET("/prompts/manifest", h.PromptLibrary.Manifest)
+	v1.GET("/prompts/catalog/delta", h.PromptLibrary.CatalogDelta)
+	v1.GET("/prompts/catalog", h.PromptLibrary.Catalog)
 	v1.GET("/prompts", middleware.OptionalJWTAuth(jwtAuth), h.PromptLibrary.List)
 	v1.GET("/prompts/:id", middleware.OptionalJWTAuth(jwtAuth), h.PromptLibrary.Get)
 	v1.GET("/prompt-categories", h.PromptLibrary.Categories)

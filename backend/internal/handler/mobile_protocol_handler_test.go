@@ -68,7 +68,8 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 				t.Fatalf("web search endpoint must advertise required replay headers: %#v", endpoint.Request)
 			}
 		}
-		if endpoint.Method == http.MethodPost && (endpoint.Path == "/api/v1/mobile/assets" || endpoint.Path == "/api/v1/mobile/support/tickets") {
+		if (endpoint.Method == http.MethodPost && (endpoint.Path == "/api/v1/mobile/assets" || endpoint.Path == "/api/v1/mobile/support/tickets")) ||
+			(endpoint.Method == http.MethodPatch && endpoint.Path == "/api/v1/mobile/assets/:id") {
 			if endpoint.Request == nil || endpoint.Request.ClientRequestIDHeader != middleware2.ClientRequestIDHeader || endpoint.Request.IdempotencyHeader != "Idempotency-Key" || endpoint.Request.IdempotencyMode != "observe_only" {
 				t.Fatalf("idempotent mobile create endpoint contract is incomplete: %#v", endpoint)
 			}
@@ -79,8 +80,9 @@ func TestMobileProtocolIncludesCanonicalLifecycle(t *testing.T) {
 	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationTeamApplicationCreate, false, mobileProtocolLifecycleCanonical)
 	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationSearchWeb, false, mobileProtocolLifecycleDisabled)
 	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAssetUpload, false, mobileProtocolLifecycleCanonical)
+	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationAssetRename, false, mobileProtocolLifecycleCanonical)
 	assertOperationGrant(t, envelope.Data.Capabilities.OperationGrants, mobileOperationSupportTicketCreate, false, mobileProtocolLifecycleCanonical)
-	for _, operation := range []string{mobileOperationAssetUpload, mobileOperationSupportTicketCreate} {
+	for _, operation := range []string{mobileOperationAssetUpload, mobileOperationAssetRename, mobileOperationSupportTicketCreate} {
 		grant := findOperationGrant(t, envelope.Data.Capabilities.OperationGrants, operation)
 		if grant.ClientRequestIDHeader != middleware2.ClientRequestIDHeader || grant.IdempotencyHeader != "Idempotency-Key" || grant.IdempotencyMode != "observe_only" {
 			t.Fatalf("operation %q idempotency contract is incomplete: %#v", operation, grant)

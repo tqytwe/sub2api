@@ -12,10 +12,9 @@ import (
 )
 
 func TestMobileTaskKindAndStatusValidation(t *testing.T) {
-	for _, kind := range []MobileTaskKind{MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindFile} {
+	for _, kind := range []MobileTaskKind{MobileTaskKindChat, MobileTaskKindImage, MobileTaskKindFile, MobileTaskKindVideo} {
 		require.True(t, IsValidMobileTaskKind(kind))
 	}
-	require.False(t, IsValidMobileTaskKind("video"))
 
 	for _, status := range []MobileTaskStatus{
 		MobileTaskStatusQueued, MobileTaskStatusRunning, MobileTaskStatusStreaming,
@@ -105,7 +104,7 @@ func TestNewMobileTaskRejectsInvalidIdentity(t *testing.T) {
 		wantErr   error
 	}{
 		{name: "id", kind: MobileTaskKindChat, operation: "chat", requestID: "req", wantErr: ErrMobileTaskInvalidID},
-		{name: "kind", id: "id", kind: "video", operation: "chat", requestID: "req", wantErr: ErrMobileTaskInvalidKind},
+		{name: "kind", id: "id", kind: "unknown", operation: "chat", requestID: "req", wantErr: ErrMobileTaskInvalidKind},
 		{name: "operation", id: "id", kind: MobileTaskKindChat, requestID: "req", wantErr: ErrMobileTaskInvalidOperation},
 		{name: "request id", id: "id", kind: MobileTaskKindChat, operation: "chat", wantErr: ErrMobileTaskInvalidRequestID},
 	}
@@ -115,6 +114,12 @@ func TestNewMobileTaskRejectsInvalidIdentity(t *testing.T) {
 			require.ErrorIs(t, err, tt.wantErr)
 		})
 	}
+}
+
+func TestNewMobileTaskAcceptsVideo(t *testing.T) {
+	task, err := NewMobileTask("video-task-1", MobileTaskKindVideo, "video.generate", "video-request-1", time.Now())
+	require.NoError(t, err)
+	require.Equal(t, MobileTaskKindVideo, task.Kind)
 }
 
 func TestValidateMobileTaskDTOs(t *testing.T) {

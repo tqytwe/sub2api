@@ -23,3 +23,18 @@ func TestBuildPromptWhereImageOnlyFiltersImagePromptTraits(t *testing.T) {
 	require.Len(t, args, 3)
 	require.Equal(t, "%product%", args[0])
 }
+
+func TestBuildPromptWhereMediaTypeFiltersPromptMedia(t *testing.T) {
+	where, args := buildPromptWhere(service.PromptListFilter{MediaType: "video"}, nil, true)
+	require.Contains(t, where, "EXISTS (SELECT 1 FROM prompt_media pm")
+	require.Contains(t, where, "pm.media_type = $1")
+	require.Equal(t, []any{"video"}, args)
+}
+
+func TestBuildPromptWhereCatalogVideoUsesPurposeNotCoverMedia(t *testing.T) {
+	where, args := buildPromptWhere(service.PromptListFilter{CatalogKind: "video"}, nil, true)
+
+	require.Contains(t, where, "LOWER(BTRIM(v.purpose)) = 'video'")
+	require.NotContains(t, where, "prompt_media")
+	require.Equal(t, []any{"video"}, args)
+}
